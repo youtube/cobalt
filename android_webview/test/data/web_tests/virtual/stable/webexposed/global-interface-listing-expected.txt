@@ -110,6 +110,12 @@ interface AnimationTimeline
     getter currentTime
     getter duration
     method constructor
+interface AnimationTrigger
+    attribute @@toStringTag
+    method addAnimation
+    method constructor
+    method getAnimations
+    method removeAnimation
 interface AsyncDisposableStack
     attribute @@toStringTag
     getter disposed
@@ -1158,11 +1164,18 @@ interface CharacterData : Node
     setter data
 interface Clipboard : EventTarget
     attribute @@toStringTag
+    getter onclipboardchange
     method constructor
     method read
     method readText
     method write
     method writeText
+    setter onclipboardchange
+interface ClipboardChangeEvent : Event
+    attribute @@toStringTag
+    getter changeId
+    getter types
+    method constructor
 interface ClipboardEvent : Event
     attribute @@toStringTag
     getter clipboardData
@@ -1644,7 +1657,6 @@ interface DisposableStack
     method move
     method use
 interface Document : Node
-    static method parseHTML
     static method parseHTMLUnsafe
     attribute @@toStringTag
     attribute @@unscopables
@@ -2249,7 +2261,6 @@ interface Element : Node
     method setAttributeNS
     method setAttributeNode
     method setAttributeNodeNS
-    method setHTML
     method setHTMLUnsafe
     method setPointerCapture
     method toggleAttribute
@@ -8409,18 +8420,6 @@ interface SVGViewElement : SVGElement
     getter zoomAndPan
     method constructor
     setter zoomAndPan
-interface Sanitizer
-    attribute @@toStringTag
-    method allowAttribute
-    method allowElement
-    method constructor
-    method get
-    method removeAttribute
-    method removeElement
-    method removeUnsafe
-    method replaceElementWithChildren
-    method setComments
-    method setDataAttributes
 interface Scheduler
     attribute @@toStringTag
     method constructor
@@ -8611,7 +8610,6 @@ interface ShadowRoot : DocumentFragment
     method getAnimations
     method getHTML
     method getSelection
-    method setHTML
     method setHTMLUnsafe
     setter adoptedStyleSheets
     setter fullscreenElement
@@ -8996,6 +8994,28 @@ interface TimeRanges
     method constructor
     method end
     method start
+interface TimelineTrigger : AnimationTrigger
+    attribute @@toStringTag
+    getter ranges
+    method constructor
+interface TimelineTriggerRange
+    attribute @@toStringTag
+    getter activeRangeEnd
+    getter activeRangeStart
+    getter entryRangeEnd
+    getter entryRangeStart
+    getter timeline
+    method constructor
+interface TimelineTriggerRangeList
+    attribute @@toStringTag
+    getter length
+    method @@iterator
+    method constructor
+    method entries
+    method forEach
+    method item
+    method keys
+    method values
 interface ToggleEvent : Event
     attribute @@toStringTag
     getter newState
@@ -11258,6 +11278,7 @@ namespace GPUTextureUsage
     attribute RENDER_ATTACHMENT
     attribute STORAGE_BINDING
     attribute TEXTURE_BINDING
+    attribute TRANSIENT_ATTACHMENT
 namespace Temporal
     attribute @@toStringTag
     attribute Now

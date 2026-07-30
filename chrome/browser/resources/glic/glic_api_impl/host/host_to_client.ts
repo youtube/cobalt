@@ -205,6 +205,13 @@ export class WebClientImpl implements WebClientInterface {
         `skill-${skillPreview.id}`);
   }
 
+  notifySkillDeleted(skillId: string): void {
+    this.sender.requestNoResponse(
+        'glicWebClientNotifySkillDeleted', {
+          skillId,
+        });
+  }
+
   notifySkillToInvokeChanged(skill: SkillMojo): void {
     this.sender.sendLatestWhenActive(
         'glicWebClientNotifySkillToInvokeChanged', {
@@ -312,6 +319,7 @@ export class WebClientImpl implements WebClientInterface {
     });
 
     const clientContext: AdditionalContextPrivate = {
+      source: context.source as number as api.AdditionalContextSource,
       name: optionalToClient(context.name),
       tabId: idToClient(context.tabId),
       origin: originToClient(context.origin),

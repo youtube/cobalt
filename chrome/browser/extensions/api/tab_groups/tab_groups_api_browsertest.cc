@@ -11,8 +11,10 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
+#include "chrome/browser/extensions/browser_extension_window_controller.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/profiles/profile.h"
@@ -32,6 +34,7 @@
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/test_event_router_observer.h"
 #include "extensions/common/extension_builder.h"
+#include "ui/base/base_window.h"
 #include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
 
@@ -58,7 +61,7 @@ namespace {
 
 using tab_groups::TabGroupId;
 
-base::Value::List RunTabGroupsQueryFunction(
+base::ListValue RunTabGroupsQueryFunction(
     content::BrowserContext* browser_context,
     const Extension* extension,
     const std::string& query_info) {
@@ -71,7 +74,7 @@ base::Value::List RunTabGroupsQueryFunction(
   return std::move(*value).TakeList();
 }
 
-base::Value::Dict RunTabGroupsGetFunction(
+base::DictValue RunTabGroupsGetFunction(
     content::BrowserContext* browser_context,
     const Extension* extension,
     const std::string& args) {
@@ -120,6 +123,13 @@ tab_groups::SavedTabGroup CreateSavedTabGroupFromLocalId(
   }
 
   return saved_group;
+}
+
+// Closes all tabs in `tab_list`, closing the leftmost one each time.
+void CloseAllTabs(TabListInterface* tab_list) {
+  for (int i = 0; i < tab_list->GetTabCount(); ++i) {
+    tab_list->GetTab(0)->Close();
+  }
 }
 
 class TabGroupsApiBrowserTest : public ExtensionBrowserTest {
@@ -190,14 +200,6 @@ class TabGroupsApiBrowserTest : public ExtensionBrowserTest {
     return *group;
   }
 
-  // Returns the `TabListInterface` for the test's main browser window.
-  TabListInterface* GetTabListInterface() {
-    TabListInterface* tab_list =
-        TabListInterface::From(browser_window_interface());
-    CHECK(tab_list);
-    return tab_list;
-  }
-
  private:
   // The original web contentses in order.
   std::vector<raw_ptr<content::WebContents, VectorExperimental>> web_contents_;
@@ -228,7 +230,7 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest,
   scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
 
   const char* kTitleQueryInfo = R"([{"title": "Sample title"}])";
-  base::Value::List groups_list =
+  base::ListValue groups_list =
       RunTabGroupsQueryFunction(profile(), extension.get(), kTitleQueryInfo);
 
   ASSERT_EQ(0u, groups_list.size());
@@ -264,7 +266,7 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest, TabGroupsQueryTitle) {
 
   // Query by title and verify results.
   const char* kTitleQueryInfo = R"([{"title": "Sample title"}])";
-  base::Value::List groups_list =
+  base::ListValue groups_list =
       RunTabGroupsQueryFunction(profile(), extension.get(), kTitleQueryInfo);
   ASSERT_EQ(1u, groups_list.size());
 
@@ -302,7 +304,7 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest, TabGroupsQueryColor) {
 
   // Query by color and verify results.
   const char* kColorQueryInfo = R"([{"color": "blue"}])";
-  base::Value::List groups_list =
+  base::ListValue groups_list =
       RunTabGroupsQueryFunction(profile(), extension.get(), kColorQueryInfo);
   ASSERT_EQ(1u, groups_list.size());
 
@@ -354,7 +356,7 @@ IN_PROC_BROWSER_TEST_F(SharedTabGroupExtensionsBrowserTest,
   {  // Query unshared groups.
     scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
 
-    base::Value::List groups_list =
+    base::ListValue groups_list =
         RunTabGroupsQueryFunction(profile(), extension.get(), not_shared_query);
     ASSERT_EQ(1u, groups_list.size());
 
@@ -366,7 +368,7 @@ IN_PROC_BROWSER_TEST_F(SharedTabGroupExtensionsBrowserTest,
 
   {  // Query shared groups.
     scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
-    base::Value::List groups_list =
+    base::ListValue groups_list =
         RunTabGroupsQueryFunction(profile(), extension.get(), shared_query);
     ASSERT_EQ(0u, groups_list.size());
   }
@@ -375,14 +377,14 @@ IN_PROC_BROWSER_TEST_F(SharedTabGroupExtensionsBrowserTest,
 
   {  // Query unshared groups.
     scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
-    base::Value::List groups_list =
+    base::ListValue groups_list =
         RunTabGroupsQueryFunction(profile(), extension.get(), not_shared_query);
     ASSERT_EQ(0u, groups_list.size());
   }
 
   {  // Query shared groups.
     scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
-    base::Value::List groups_list =
+    base::ListValue groups_list =
         RunTabGroupsQueryFunction(profile(), extension.get(), shared_query);
     ASSERT_EQ(1u, groups_list.size());
 
@@ -412,7 +414,7 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest, TabGroupsGetSuccess) {
   // Use the TabGroupsGetFunction to get the group object.
   constexpr char kFormatArgs[] = R"([%d])";
   const std::string args = base::StringPrintf(kFormatArgs, group_id);
-  base::Value::Dict group_info =
+  base::DictValue group_info =
       RunTabGroupsGetFunction(profile(), extension.get(), args);
 
   EXPECT_EQ(group_id, *group_info.FindInt("id"));
@@ -657,38 +659,40 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest, TabGroupsMoveLeft) {
   EXPECT_EQ(group, tab_list->GetTab(2)->GetGroup().value());
 }
 
-// TODO(crbug.com/405219902): Port to desktop Android when moving to windows
-// is supported.
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Test that moving a group to another window works as expected.
 IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest, TabGroupsMoveAcrossWindows) {
-  ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
+  ASSERT_TRUE(SupportsTabGroups());
 
   scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
 
-  TabStripModel* tab_strip_model = browser()->tab_strip_model();
-
   // Create a group with multiple tabs.
-  TabGroupId group = tab_strip_model->AddToNewGroup({2, 3, 4});
+  TabGroupId group = CreateTabGroup({2, 3, 4});
   int group_id = ExtensionTabUtil::GetGroupId(group);
 
   // Create a new window and add a few tabs.
-  Browser* browser2 = CreateBrowser(profile());
-  BrowserList::SetLastActive(browser2);
+  BrowserWindowInterface* browser2 =
+      CreateBrowserWindowWithType(BrowserWindowInterface::TYPE_NORMAL);
+  ASSERT_TRUE(ExtensionTabUtil::SupportsTabGroups(browser2));
+  browser2->GetWindow()->Activate();
   int window_id2 = ExtensionTabUtil::GetWindowId(browser2);
 
-  TabStripModel* tab_strip_model2 = browser2->tab_strip_model();
-  ASSERT_TRUE(tab_strip_model2->SupportsTabGroups());
+  TabListInterface* tab_list2 = TabListInterface::From(browser2);
+  ASSERT_TRUE(tab_list2);
 
-  // A new browser starts with 1 tab open, so iterate from 1.
+  // CreateBrowserWindowWithType() creates zero tabs on Win/Mac/Linux, but
+  // creates one tab on Android.
+  // TODO(crbug.com/477611601): Reconcile this difference.
+#if BUILDFLAG(IS_ANDROID)
+  constexpr int kInitialTabs = 1;
+#else
+  constexpr int kInitialTabs = 0;
+#endif
+  // The target number of tabs in window 2.
   constexpr int kNumTabs2 = 3;
-  for (int i = 1; i < kNumTabs2; ++i) {
-    ui_test_utils::NavigateToURLWithDisposition(
-        browser2, GURL("about:blank"),
-        WindowOpenDisposition::NEW_FOREGROUND_TAB,
-        ui_test_utils::BROWSER_TEST_NO_WAIT);
+  for (int i = 0; i < kNumTabs2 - kInitialTabs; ++i) {
+    tab_list2->OpenTab(GURL("about:blank"), /*index=*/-1);
   }
-  ASSERT_EQ(kNumTabs2, tab_strip_model2->count());
+  ASSERT_EQ(kNumTabs2, tab_list2->GetTabCount());
 
   // Use the TabGroupsMoveFunction to move the group to index 1 in the other
   // window.
@@ -701,20 +705,26 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest, TabGroupsMoveAcrossWindows) {
   ASSERT_TRUE(api_test_utils::RunFunction(function.get(), args, profile(),
                                           api_test_utils::FunctionMode::kNone));
 
-  ASSERT_EQ(kNumTabs2 + kNumTabsMovedAcrossWindows, tab_strip_model2->count());
-  EXPECT_EQ(tab_strip_model2->GetWebContentsAt(1), web_contents(2));
-  EXPECT_EQ(tab_strip_model2->GetWebContentsAt(2), web_contents(3));
-  EXPECT_EQ(tab_strip_model2->GetWebContentsAt(3), web_contents(4));
+  // On some platforms (e.g. Android) tab move between windows is async, so
+  // allow the operation to complete.
+  base::RunLoop().RunUntilIdle();
 
-  EXPECT_EQ(group, tab_strip_model2->GetTabGroupForTab(1).value());
-  EXPECT_EQ(group, tab_strip_model2->GetTabGroupForTab(2).value());
-  EXPECT_EQ(group, tab_strip_model2->GetTabGroupForTab(3).value());
+  ASSERT_EQ(kNumTabs2 + kNumTabsMovedAcrossWindows, tab_list2->GetTabCount());
+  EXPECT_EQ(tab_list2->GetTab(1)->GetContents(), web_contents(2));
+  EXPECT_EQ(tab_list2->GetTab(2)->GetContents(), web_contents(3));
+  EXPECT_EQ(tab_list2->GetTab(3)->GetContents(), web_contents(4));
 
-  // Clean up.
-  tab_strip_model->CloseAllTabs();
-  tab_strip_model2->CloseAllTabs();
+  EXPECT_EQ(group, tab_list2->GetTab(1)->GetGroup().value());
+  EXPECT_EQ(group, tab_list2->GetTab(2)->GetGroup().value());
+  EXPECT_EQ(group, tab_list2->GetTab(3)->GetGroup().value());
+
+  // Close tabs in the second window.
+  CloseAllTabs(tab_list2);
+
+  // Close tabs in the original window.
+  TabListInterface* tab_list = GetTabListInterface();
+  CloseAllTabs(tab_list);
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Test that a group is cannot be moved into the pinned tabs region.
 IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest, TabGroupsMoveToPinnedError) {
@@ -770,20 +780,18 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest,
       error);
 }
 
-// TODO(crbug.com/405219902): Port to desktop Android.
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Test that tab groups aren't edited while dragging.
 IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest, IsTabStripEditable) {
-  ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
+  ASSERT_TRUE(SupportsTabGroups());
 
   scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
-  int group_id = ExtensionTabUtil::GetGroupId(
-      browser()->tab_strip_model()->AddToNewGroup({0}));
+  int group_id = ExtensionTabUtil::GetGroupId(CreateTabGroup({0}));
   const std::string args =
       base::StringPrintf(R"([%d, {"index": %d}])", group_id, 1);
 
-  BrowserWindow* browser_window = browser()->window();
-  EXPECT_TRUE(browser_window->IsTabStripEditable());
+  auto* window_controller =
+      BrowserExtensionWindowController::From(browser_window_interface());
+  EXPECT_TRUE(window_controller->HasEditableTabStrip());
 
   // Succeed moving group when tab strip is editable.
   {
@@ -794,8 +802,8 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest, IsTabStripEditable) {
   }
 
   // Make tab strip uneditable.
-  browser_window->DisableTabStripEditingForTesting();
-  EXPECT_FALSE(browser_window->IsTabStripEditable());
+  window_controller->disable_tab_strip_editing_for_test();
+  EXPECT_FALSE(window_controller->HasEditableTabStrip());
 
   // Succeed querying group when tab strip is not editable.
   {
@@ -821,16 +829,14 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest, IsTabStripEditable) {
 // does not cause unexpected behavior.
 IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest,
                        TabGroupsMoveGroupWithinSameWindowWithWindowId) {
-  ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
+  ASSERT_TRUE(SupportsTabGroups());
 
   scoped_refptr<const Extension> extension = CreateTabGroupsExtension();
 
-  TabStripModel* tab_strip_model = browser()->tab_strip_model();
-
   // Create a group with multiple tabs.
-  TabGroupId group = tab_strip_model->AddToNewGroup({1, 2, 3});
+  TabGroupId group = CreateTabGroup({1, 2, 3});
   int group_id = ExtensionTabUtil::GetGroupId(group);
-  int window_id = ExtensionTabUtil::GetWindowId(browser());
+  int window_id = ExtensionTabUtil::GetWindowId(browser_window_interface());
 
   // Move the group to index 1, specifying the current window id.
   auto function = base::MakeRefCounted<TabGroupsMoveFunction>();
@@ -842,21 +848,21 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest,
 
   // Verify the tabs are in the correct order.The group should now be at
   // index 1.
-  EXPECT_EQ(tab_strip_model->GetWebContentsAt(0), web_contents(0));
-  EXPECT_EQ(tab_strip_model->GetWebContentsAt(1), web_contents(1));
-  EXPECT_EQ(tab_strip_model->GetWebContentsAt(2), web_contents(2));
-  EXPECT_EQ(tab_strip_model->GetWebContentsAt(3), web_contents(3));
-  EXPECT_EQ(tab_strip_model->GetWebContentsAt(4), web_contents(4));
-  EXPECT_EQ(tab_strip_model->GetWebContentsAt(5), web_contents(5));
+  TabListInterface* tab_list = GetTabListInterface();
+  EXPECT_EQ(tab_list->GetTab(0)->GetContents(), web_contents(0));
+  EXPECT_EQ(tab_list->GetTab(1)->GetContents(), web_contents(1));
+  EXPECT_EQ(tab_list->GetTab(2)->GetContents(), web_contents(2));
+  EXPECT_EQ(tab_list->GetTab(3)->GetContents(), web_contents(3));
+  EXPECT_EQ(tab_list->GetTab(4)->GetContents(), web_contents(4));
+  EXPECT_EQ(tab_list->GetTab(5)->GetContents(), web_contents(5));
 
   // Verify that the group is still associated with the correct tabs.
-  EXPECT_EQ(group, tab_strip_model->GetTabGroupForTab(1).value());
-  EXPECT_EQ(group, tab_strip_model->GetTabGroupForTab(2).value());
-  EXPECT_EQ(group, tab_strip_model->GetTabGroupForTab(3).value());
+  EXPECT_EQ(group, tab_list->GetTab(1)->GetGroup().value());
+  EXPECT_EQ(group, tab_list->GetTab(2)->GetGroup().value());
+  EXPECT_EQ(group, tab_list->GetTab(3)->GetGroup().value());
 
-  tab_strip_model->CloseAllTabs();
+  CloseAllTabs(tab_list);
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest, TabGroupsOnCreated) {
   ASSERT_TRUE(SupportsTabGroups());
@@ -872,25 +878,21 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest, TabGroupsOnCreated) {
       event_observer.events().contains(api::tab_groups::OnUpdated::kEventName));
 }
 
-// TODO(crbug.com/405219902): Port to desktop Android.
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest, TabGroupsOnUpdated) {
-  ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
+  ASSERT_TRUE(SupportsTabGroups());
 
-  TabStripModel* tab_strip_model = browser()->tab_strip_model();
-  tab_groups::TabGroupId group = tab_strip_model->AddToNewGroup({1, 2, 3});
+  TabGroupId group = CreateTabGroup({1, 2, 3});
 
   TestEventRouterObserver event_observer(EventRouter::Get(profile()));
 
   tab_groups::TabGroupVisualData visual_data(u"Title",
                                              tab_groups::TabGroupColorId::kRed);
-  tab_strip_model->ChangeTabGroupVisuals(group, visual_data);
+  GetTabListInterface()->SetTabGroupVisualData(group, visual_data);
 
   EXPECT_EQ(1u, event_observer.events().size());
   EXPECT_TRUE(
       event_observer.events().contains(api::tab_groups::OnUpdated::kEventName));
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_F(TabGroupsApiBrowserTest, TabGroupsOnRemoved) {
   ASSERT_TRUE(SupportsTabGroups());

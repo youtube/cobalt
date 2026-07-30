@@ -13,7 +13,6 @@
 #include <optional>
 #include <set>
 #include <string>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -90,13 +89,13 @@
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/reading_list/core/reading_list_model.h"
+#include "components/split_tabs/split_tab_id.h"
+#include "components/split_tabs/split_tab_visual_data.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
 #include "components/tabs/public/pinned_tab_collection.h"
 #include "components/tabs/public/split_tab_collection.h"
 #include "components/tabs/public/split_tab_data.h"
-#include "components/tabs/public/split_tab_id.h"
-#include "components/tabs/public/split_tab_visual_data.h"
 #include "components/tabs/public/tab_group_tab_collection.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/tabs/public/tab_strip_collection.h"
@@ -111,6 +110,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #include "media/base/media_switches.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value.h"
 #include "ui/base/models/list_selection_model.h"
 #include "ui/base/page_transition_types.h"
@@ -287,12 +287,17 @@ void TabStripModel::SetFocusedGroup(
       new_selection_model.SetAnchorTab(nullptr);
     }
 
-    if (new_selection_model.active_tab() &&
-        new_selection_model.active_tab()->GetGroup() != group) {
+    if (!new_selection_model.active_tab() ||
+        (new_selection_model.active_tab() &&
+         new_selection_model.active_tab()->GetGroup() != group)) {
       tabs::TabInterface* first_in_group =
           group_model_->GetTabGroup(group.value())->GetFirstTab();
       new_selection_model.AddTabToSelection(first_in_group);
       new_selection_model.SetActiveTab(first_in_group);
+    }
+
+    if (!new_selection_model.anchor_tab()) {
+      new_selection_model.SetAnchorTab(new_selection_model.active_tab());
     }
 
     DCHECK(!new_selection_model.empty());
@@ -338,6 +343,14 @@ void TabStripModel::AddObserver(TabStripModelObserver* observer) {
 
 void TabStripModel::RemoveObserver(TabStripModelObserver* observer) {
   observer->StoppedObserving(TabStripModelObserver::ModelPasskey(), this);
+
+  // Reset `tab_strip_ui_was_set_` flag if it is the first observer in the list.
+  // The `SetTabStripUI` function ensures it is the first observer added.
+  if (tab_strip_ui_was_set_ && !observers_.empty() &&
+      &*observers_.begin() == observer) {
+    tab_strip_ui_was_set_ = false;
+  }
+
   observers_.RemoveObserver(observer);
 }
 
@@ -1113,8 +1126,8 @@ void TabStripModel::MoveSplitTo(
     bool pinned,
     std::optional<tab_groups::TabGroupId> group_id) {
   ReentrancyCheck reentrancy_check(&reentrancy_guard_);
-  static const std::set<tabs::TabCollection::Type> kRetainCollectionTypes =
-      std::set<tabs::TabCollection::Type>({tabs::TabCollection::Type::SPLIT});
+  static constexpr tabs::TabCollection::TypeEnumSet kRetainCollectionTypes = {
+      tabs::TabCollection::Type::SPLIT};
 
   CHECK_NE(to_index, kNoTab);
 
@@ -1155,9 +1168,8 @@ void TabStripModel::MoveGroupToImpl(const tab_groups::TabGroupId& group,
     tab_indices.push_back(i);
   }
 
-  static const std::set<tabs::TabCollection::Type> kRetainCollectionTypes =
-      std::set<tabs::TabCollection::Type>(
-          {tabs::TabCollection::Type::SPLIT, tabs::TabCollection::Type::GROUP});
+  static constexpr tabs::TabCollection::TypeEnumSet kRetainCollectionTypes = {
+      tabs::TabCollection::Type::SPLIT, tabs::TabCollection::Type::GROUP};
 
   // Remove all the tabs from the model.
   MoveTabsWithNotifications(
@@ -1323,7 +1335,7 @@ int TabStripModel::GetIndexOfLastWebContentsOpenedBy(const WebContents* opener,
   DCHECK(opener);
   CHECK(ContainsIndex(start_index));
 
-  std::set<const WebContents*> opener_and_descendants;
+  absl::flat_hash_set<const WebContents*> opener_and_descendants;
   opener_and_descendants.insert(opener);
   int last_index = kNoTab;
 
@@ -2993,6 +3005,8 @@ void TabStripModel::ExecuteContextMenuCommand(int context_index,
       break;
     case CommandGlicUnshare: {
       std::vector<int> indices = GetIndicesForCommand(context_index);
+      base::UmaHistogramCounts100("Glic.TabContextMenu.UnpinnedTabs",
+                                  indices.size());
       std::vector<tabs::TabHandle> tab_handles;
       tab_handles.reserve(indices.size());
       std::transform(
@@ -3353,20 +3367,20 @@ int TabStripModel::GetIndexOfNextWebContentsOpenedBy(
   CHECK(ContainsIndex(block_tab_range.start()));
   CHECK(ContainsIndex(block_tab_range.end() - 1));
 
-  std::set<tabs::TabInterface*> block_tabs;
+  absl::flat_hash_set<tabs::TabInterface*> block_tabs;
   for (size_t i = block_tab_range.start(); i < block_tab_range.end(); i++) {
     block_tabs.insert(GetTabModelAtIndex(i));
   }
 
   for (size_t i = block_tab_range.end(); i < static_cast<size_t>(count());
        i++) {
-    if (block_tabs.find(GetTabModelAtIndex(i)->opener()) != block_tabs.end()) {
+    if (block_tabs.contains(GetTabModelAtIndex(i)->opener())) {
       return i;
     }
   }
 
   for (int i = block_tab_range.start() - 1; i >= 0; i--) {
-    if (block_tabs.find(GetTabModelAtIndex(i)->opener()) != block_tabs.end()) {
+    if (block_tabs.contains(GetTabModelAtIndex(i)->opener())) {
       return i;
     }
   }
@@ -3379,7 +3393,7 @@ int TabStripModel::GetIndexOfNextWebContentsOpenedByOpenerOf(
   CHECK(ContainsIndex(block_tab_range.start()));
   CHECK(ContainsIndex(block_tab_range.end() - 1));
 
-  std::set<tabs::TabInterface*> block_openers;
+  absl::flat_hash_set<tabs::TabInterface*> block_openers;
 
   for (size_t i = block_tab_range.start(); i < block_tab_range.end(); ++i) {
     tabs::TabModel* tab = GetTabModelAtIndex(i);
@@ -3394,15 +3408,13 @@ int TabStripModel::GetIndexOfNextWebContentsOpenedByOpenerOf(
 
   for (size_t i = block_tab_range.end(); i < static_cast<size_t>(count());
        i++) {
-    if (block_openers.find(GetTabModelAtIndex(i)->opener()) !=
-        block_openers.end()) {
+    if (block_openers.contains(GetTabModelAtIndex(i)->opener())) {
       return i;
     }
   }
 
   for (int i = block_tab_range.start() - 1; i >= 0; i--) {
-    if (block_openers.find(GetTabModelAtIndex(i)->opener()) !=
-        block_openers.end()) {
+    if (block_openers.contains(GetTabModelAtIndex(i)->opener())) {
       return i;
     }
   }
@@ -4534,8 +4546,8 @@ void TabStripModel::MoveTabsAndSetPropertiesImpl(
     return;
   }
 
-  static const std::set<tabs::TabCollection::Type> kRetainCollectionTypes =
-      std::set<tabs::TabCollection::Type>({tabs::TabCollection::Type::SPLIT});
+  static constexpr tabs::TabCollection::TypeEnumSet kRetainCollectionTypes = {
+      tabs::TabCollection::Type::SPLIT};
   // TabStripCollection::MoveTabsRecursive moves tabs to the destination index
   // after the tabs are removed, so adjust `destination_index` by subtracting
   // the number of tabs to the left of it.
@@ -4633,14 +4645,6 @@ std::unique_ptr<tabs::TabModel> TabStripModel::RemoveTabFromIndexImpl(
       base::WrapUnique(static_cast<tabs::TabModel*>(
           contents_data_->RemoveTabAtIndexRecursive(index).release()));
   selection_model_.RemoveTabFromSelection(tab_to_remove);
-
-  if (tab_to_remove == selection_model_.active_tab()) {
-    selection_model_.SetActiveTab(nullptr);
-  }
-
-  if (tab_to_remove == selection_model_.anchor_tab()) {
-    selection_model_.SetAnchorTab(nullptr);
-  }
 
   if (empty()) {
     selection_model_.Clear();
@@ -4765,9 +4769,8 @@ void TabStripModel::MoveTabsToIndexImpl(
     return;
   }
 
-  static const std::set<tabs::TabCollection::Type> kRetainCollectionTypes =
-      std::set<tabs::TabCollection::Type>(
-          {tabs::TabCollection::Type::SPLIT, tabs::TabCollection::Type::GROUP});
+  static constexpr tabs::TabCollection::TypeEnumSet kRetainCollectionTypes = {
+      tabs::TabCollection::Type::SPLIT, tabs::TabCollection::Type::GROUP};
 
   const int pinned_tab_count = IndexOfFirstNonPinnedTab();
   const bool pin = IsTabPinned(tab_indices[0]);
@@ -5119,8 +5122,8 @@ int TabStripModel::SetTabPinnedImpl(int index, bool pinned) {
 
 void TabStripModel::SetSplitPinnedImpl(tabs::SplitTabCollection* split,
                                        bool pinned) {
-  static const std::set<tabs::TabCollection::Type> kRetainCollectionTypes =
-      std::set<tabs::TabCollection::Type>({tabs::TabCollection::Type::SPLIT});
+  static constexpr tabs::TabCollection::TypeEnumSet kRetainCollectionTypes = {
+      tabs::TabCollection::Type::SPLIT};
   std::vector<tabs::TabInterface*> tabs = split->GetTabsRecursive();
   std::vector<int> tab_indices = {};
   for (size_t index = GetIndexOfTab(tabs[0]); tabs::TabInterface* _ : tabs) {

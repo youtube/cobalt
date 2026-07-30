@@ -315,6 +315,7 @@
 <translation id="21133533946938348">Festa flipa</translation>
 <translation id="2117650889962717098">Skiptu yfir í huliðsstillingu til að halda vafraferlinum þínum leyndum</translation>
 <translation id="2119636449201577317">Opna í…</translation>
+<translation id="2119962645034852864">Sumar þjónustur eru ekki í boði fyrir reikninginn þinn</translation>
 <translation id="2120553909046681540">Fyrirtækið þitt slökkti á óskráðri vefnotkun.</translation>
 <translation id="2122754583996902531">Vafranum þínum er stjórnað. <ph name="BEGIN_LINK" />Nánar<ph name="END_LINK" /></translation>
 <translation id="21243612977487926">Spjall innan fyrirtækisins þíns er ekki notað til að bæta líkön okkar. Gemini kann að birta rangar upplýsingar, þ.m.t. um fólk, svo að þú skalt gæta þess að fara yfir öll svör sem þú færð. <ph name="YOUR_PRIVACY_GEMINI" /></translation>
@@ -332,6 +333,7 @@
 <translation id="2184272387334793084">Skráðu þig inn til að sækja aðgangsorðin og fleira í öllum tækjunum þínum</translation>
 <translation id="2186206192313702726">Google linsa</translation>
 <translation id="2188993354115194873">Ýttu á <ph name="BEGIN_BOLD" />Vista í niðurhal<ph name="END_BOLD" /></translation>
+<translation id="2191406283620379491">Eitthvað fór mjög úrskeiðis. Uppfærðu iOS-útgáfuna þína.</translation>
 <translation id="219283042927675668">Flipar í hóp</translation>
 <translation id="2194856509914051091">Atriði til að hafa í huga</translation>
 <translation id="2196428379625389579">Leita á netinu</translation>
@@ -935,6 +937,7 @@
 <translation id="4565377596337484307">Fela aðgangsorð</translation>
 <translation id="4568230126482344545">Fela „Nýlegir flipar“</translation>
 <translation id="4578835633387306383">Kveikja…</translation>
+<translation id="4580621046861724270">Sum bókamerki eru ekki vistuð</translation>
 <translation id="4580716718466706433">Farðu í Aðgangsorðastjórnun</translation>
 <translation id="4585751637295612750">Opnaðu nýjan flipa til að bæta honum við spurninguna þína</translation>
 <translation id="4587589328781138893">Svæði</translation>
@@ -1018,6 +1021,7 @@
 <translation id="483689884442613745">Vista…</translation>
 <translation id="4840495572919996524">Bókamerkin þín, ferillinn, aðgangsorðin og fleira verða ekki lengur samstillt við Google reikninginn þinn.</translation>
 <translation id="484280513275854557">Þú skráðist út; vefskoðunargögnum var eytt</translation>
+<translation id="484462545196658690">Sjálfvirkt</translation>
 <translation id="4850886885716139402">Yfirlit</translation>
 <translation id="4854068532375923088">Leyfa „Gemini“ að nota myndavélina</translation>
 <translation id="4860895144060829044">Hringja</translation>
@@ -1162,6 +1166,7 @@
 <translation id="5318298563956633672">Þú ert þegar að vakta þessa vöru.</translation>
 <translation id="5327248766486351172">Heiti</translation>
 <translation id="5329451663851195956">Þú getur togað niður til að endurnýja</translation>
+<translation id="5336910966955551309">Haltu inni til að festa uppáhaldsvefsvæðin þín</translation>
 <translation id="5338512273860059533">Innskráning í gangi.</translation>
 <translation id="5343472494710226394">Fréttir, íþróttir og efni byggt á áhugasviðum þínum.</translation>
 <translation id="5352128922772839949">Vista skrá</translation>
@@ -1896,6 +1901,7 @@ Einnig þarf að vera kveikt á Handoff í hlutanum General í Settings og tæki
 <translation id="7958575506592576831">Öryggisupplýsingar síðu</translation>
 <translation id="7961015016161918242">Aldrei</translation>
 <translation id="7971136598759319605">Virkt fyrir 1 degi</translation>
+<translation id="7972837668077967426">Strigi</translation>
 <translation id="7975036700432177008">Prófa</translation>
 <translation id="797588153137233716">Valmynd → Ferill → Eyða vefskoðunargögnum</translation>
 <translation id="7977451675950311423">Varar þig við ef þú notar aðgangsorð í hættu vegna öryggisbrots.</translation>
@@ -2003,6 +2009,7 @@ Einnig þarf að vera kveikt á Handoff í hlutanum General í Settings og tæki
 <translation id="8319282042900445670">Áminning er stillt fyrir <ph name="TIME" />, <ph name="DATE" /></translation>
 <translation id="8320212361750431956">Nýlegar aðgerðir</translation>
 <translation id="8325455175867928593">Fela „Umsagnir sem byggjast á áhugasviðunum mínum“</translation>
+<translation id="8328777765163860529">Loka öllu</translation>
 <translation id="833647236762414178">Búðu til, vistaðu og stjórnaðu aðgangsorðum og aðgangslyklum til að skrá þig inn á vefsvæði og forrit á einfaldan hátt. <ph name="BEGIN_LINK" />Nánar<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Afritaðu efnið þitt og notaðu það í hvaða tæki sem er.</translation>
 <translation id="8348530355586151720">Ýttu á þriggja punkta valmyndina</translation>

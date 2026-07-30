@@ -26,7 +26,6 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
-#include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browsing_data/chrome_browsing_data_remover_delegate.h"
@@ -68,7 +67,6 @@
 #include "chrome/browser/ui/bookmarks/bookmark_utils_desktop.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_command_controller.h"
-#include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/browser_live_tab_context.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
@@ -76,6 +74,7 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/find_bar/find_bar.h"
@@ -93,6 +92,7 @@
 #include "chrome/browser/ui/status_bubble.h"
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
 #include "chrome/browser/ui/tab_dialogs.h"
+#include "chrome/browser/ui/tabs/back_to_opener/back_to_opener_controller.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/new_tab_grouping_user_data.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_service.h"
@@ -111,6 +111,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
+#include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
 #include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
@@ -158,13 +159,14 @@
 #include "components/reading_list/core/reading_list_model.h"
 #include "components/reading_list/core/reading_list_pref_names.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
+#include "components/services/app_service/public/cpp/app_launch_params.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/sessions/core/live_tab_context.h"
 #include "components/sessions/core/tab_restore_service.h"
+#include "components/split_tabs/split_tab_visual_data.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
 #include "components/tabs/public/split_tab_data.h"
-#include "components/tabs/public/split_tab_visual_data.h"
 #include "components/tabs/public/tab_collection.h"
 #include "components/tabs/public/tab_group.h"
 #include "components/tabs/public/tab_group_tab_collection.h"
@@ -781,7 +783,12 @@ Browser* OpenEmptyWindow(Profile* profile,
   Browser::CreateParams params =
       Browser::CreateParams(Browser::TYPE_NORMAL, profile, true);
   params.should_trigger_session_restore = should_trigger_session_restore;
+  base::TimeTicks now = base::TimeTicks::Now();
   Browser* browser = Browser::Create(params);
+  if (auto* manager = InitialWebUIWindowMetricsManager::From(browser)) {
+    manager->SetWindowCreationInfo(
+        waap::NewWindowCreationSource::kBrowserInitiated, now);
+  }
 
   // Startup tabs could be created during browser creation. Add an empty tab
   // only if no tabs are created.
@@ -807,22 +814,58 @@ void OpenURLOffTheRecord(Profile* profile, const GURL& url) {
   AddSelectedTabWithURL(displayer.browser(), url, ui::PAGE_TRANSITION_LINK);
 }
 
+namespace {
+
+bool CanGoBackToOpener(content::WebContents* web_contents) {
+  if (!web_contents) {
+    return false;
+  }
+
+  tabs::TabInterface* tab =
+      tabs::TabInterface::MaybeGetFromContents(web_contents);
+  if (!tab) {
+    return false;
+  }
+
+  const back_to_opener::BackToOpenerController* controller =
+      back_to_opener::BackToOpenerController::From(tab);
+  return controller && controller->CanGoBackToOpener();
+}
+
+}  // namespace
+
 bool CanGoBack(const Browser* browser) {
-  return browser->tab_strip_model()
-      ->GetActiveWebContents()
-      ->GetController()
-      .CanGoBack();
+  return CanGoBack(browser->tab_strip_model()->GetActiveWebContents());
 }
 
 bool CanGoBack(content::WebContents* web_contents) {
-  return web_contents->GetController().CanGoBack();
+  if (!web_contents) {
+    return false;
+  }
+
+  // Check for regular back navigation first.
+  if (web_contents->GetController().CanGoBack()) {
+    return true;
+  }
+
+  // If no regular back navigation, check for back-to-opener.
+  return CanGoBackToOpener(web_contents);
 }
 
 bool ShouldEnableBackButton(const Browser* browser) {
-  return browser->tab_strip_model()
-      ->GetActiveWebContents()
-      ->GetController()
-      .ShouldEnableBackButton();
+  content::WebContents* web_contents =
+      browser->tab_strip_model()->GetActiveWebContents();
+  if (!web_contents) {
+    return false;
+  }
+
+  // Check for regular back navigation first.
+  if (web_contents->GetController().ShouldEnableBackButton()) {
+    return true;
+  }
+
+  // If no regular back navigation, check for back-to-opener.
+  return CanGoBackToOpener(web_contents);
 }
 
 enum class BackNavigationMenuIPHTrigger : int {
@@ -870,23 +913,35 @@ void MaybeShowFeatureBackNavigationMenuPromo(Browser* browser,
 }
 
 void GoBack(Browser* browser, WindowOpenDisposition disposition) {
-  base::RecordAction(UserMetricsAction("Back"));
-
-  if (CanGoBack(browser)) {
-    WebContents* new_tab = GetTabAndRevertIfNecessary(browser, disposition);
-    new_tab->GetController().GoBack();
-    MaybeShowFeatureBackNavigationMenuPromo(browser, new_tab);
-  }
+  GoBack(GetTabAndRevertIfNecessary(browser, disposition));
 }
 
 void GoBack(content::WebContents* web_contents) {
   base::RecordAction(UserMetricsAction("Back"));
 
-  if (CanGoBack(web_contents)) {
+  if (!web_contents) {
+    return;
+  }
+
+  // Try regular back navigation first.
+  if (web_contents->GetController().CanGoBack()) {
     web_contents->GetController().GoBack();
     Browser* browser = chrome::FindBrowserWithTab(web_contents);
     if (browser) {
       MaybeShowFeatureBackNavigationMenuPromo(browser, web_contents);
+    }
+    return;
+  }
+
+  // If no regular back navigation, try back-to-opener.
+  tabs::TabInterface* tab =
+      tabs::TabInterface::MaybeGetFromContents(web_contents);
+  if (tab) {
+    back_to_opener::BackToOpenerController* controller =
+        back_to_opener::BackToOpenerController::From(tab);
+    if (controller && controller->CanGoBackToOpener()) {
+      controller->GoBackToOpener();
+      return;
     }
   }
 }
@@ -1353,6 +1408,7 @@ void MoveTabsToNewWindow(Browser* browser,
   }
 
   Browser* new_browser;
+  base::TimeTicks now = base::TimeTicks::Now();
   if (browser->is_type_app() && browser->app_controller()->has_tab_strip()) {
     new_browser = Browser::Create(Browser::CreateParams::CreateForApp(
         browser->app_name(), browser->is_trusted_source(), gfx::Rect(),
@@ -1362,6 +1418,10 @@ void MoveTabsToNewWindow(Browser* browser,
   } else {
     new_browser =
         Browser::Create(Browser::CreateParams(browser->profile(), true));
+  }
+  if (auto* manager = InitialWebUIWindowMetricsManager::From(new_browser)) {
+    manager->SetWindowCreationInfo(
+        waap::NewWindowCreationSource::kBrowserInitiated, now);
   }
 
   MoveTabsToWindowImpl(browser, new_browser, tab_indices);
@@ -1612,6 +1672,12 @@ void AddNewTabToRecentGroup(Browser* browser) {
   }
 
   AddTabAt(browser, GURL(), -1, true, group_id);
+}
+
+void UnfocusTabGroup(Browser* browser) {
+  if (base::FeatureList::IsEnabled(features::kTabGroupsFocusing)) {
+    browser->tab_strip_model()->SetFocusedGroup(std::nullopt);
+  }
 }
 
 void MuteSite(Browser* browser) {
@@ -2496,11 +2562,7 @@ bool CanCopyUrl(BrowserWindowInterface* bwi) {
 }
 
 bool IsWebAppOrCustomTab(const BrowserWindowInterface* bwi) {
-  return
-#if BUILDFLAG(IS_CHROMEOS)
-      bwi->GetType() == BrowserWindowInterface::TYPE_CUSTOM_TAB ||
-#endif
-      web_app::AppBrowserController::IsWebApp(bwi);
+  return web_app::AppBrowserController::IsWebApp(bwi);
 }
 
 Browser* OpenInChrome(Browser* hosted_app_browser) {

@@ -33,21 +33,16 @@ class TokenManagerImpl : public TokenManager {
   ~TokenManagerImpl() override;
 
   // TokenManager implementation.
-  bool IsAuthTokenAvailable(proto::FeatureName feature_name) override;
-  std::optional<BlindSignedAuthToken> GetAuthToken(
-      proto::FeatureName feature_name) override;
+  void GetAuthToken(GetAuthTokenCallback callback) override;
+  void PrefetchAuthTokens() override;
 
  private:
-  internal::FeatureTokenManager* GetOrCreateFeatureManager(
-      proto::FeatureName feature_name);
-
   const int batch_size_;
   const size_t cache_low_water_mark_;
 
   std::unique_ptr<TokenFetcher> fetcher_;
 
-  std::map<proto::FeatureName, std::unique_ptr<internal::FeatureTokenManager>>
-      feature_managers_;
+  std::unique_ptr<internal::FeatureTokenManager> feature_token_manager_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

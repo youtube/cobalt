@@ -315,6 +315,7 @@
 <translation id="21133533946938348">Épingler l'onglet</translation>
 <translation id="2117650889962717098">Protégez la confidentialité de votre navigation en passant en mode navigation privée</translation>
 <translation id="2119636449201577317">Ouvrir dans…</translation>
+<translation id="2119962645034852864">Certains services ne sont pas disponibles pour votre compte</translation>
 <translation id="2120553909046681540">Votre organisation a désactivé la navigation privée.</translation>
 <translation id="2122754583996902531">Votre navigateur est géré. <ph name="BEGIN_LINK" />En savoir plus<ph name="END_LINK" /></translation>
 <translation id="21243612977487926">Les discussions de votre organisation ne sont pas utilisées pour améliorer nos modèles. Vérifiez les réponses de Gemini, car elles peuvent contenir des informations inexactes, y compris sur des personnes. <ph name="YOUR_PRIVACY_GEMINI" /></translation>
@@ -332,6 +333,7 @@
 <translation id="2184272387334793084">Connectez-vous pour accéder à vos mots de passe et bien plus sur tous vos appareils</translation>
 <translation id="2186206192313702726">Google Lens</translation>
 <translation id="2188993354115194873">Appuyez sur <ph name="BEGIN_BOLD" />Enregistrer dans Téléchargements<ph name="END_BOLD" /></translation>
+<translation id="2191406283620379491">Un problème grave est survenu. Veuillez mettre à jour votre version d'iOS.</translation>
 <translation id="219283042927675668">Onglets dans le groupe</translation>
 <translation id="2194856509914051091">Éléments à prendre en compte</translation>
 <translation id="2196428379625389579">Rechercher sur le Web</translation>
@@ -873,6 +875,7 @@
 <translation id="4302061870579014542">Définir la position</translation>
 <translation id="4304713468139749426">Gestionnaire de mots de passe</translation>
 <translation id="4309403553630140242">Appuyez deux fois pour obtenir plus d'informations</translation>
+<translation id="4310738531374808763">Personnalisez votre page d'accueil</translation>
 <translation id="4320848494125124980">Récents</translation>
 <translation id="4322394346347055525">Fermer les autres onglets</translation>
 <translation id="4324735664183300693">Activer les notifications</translation>
@@ -934,6 +937,7 @@
 <translation id="4565377596337484307">Masquer le mot de passe</translation>
 <translation id="4568230126482344545">Masquer "Onglets récents"</translation>
 <translation id="4578835633387306383">Activer…</translation>
+<translation id="4580621046861724270">Certains favoris ne sont pas enregistrés</translation>
 <translation id="4580716718466706433">Accédez au Gestionnaire de mots de passe</translation>
 <translation id="4585751637295612750">Ouvrez un nouvel onglet pour l'ajouter à votre question</translation>
 <translation id="4587589328781138893">Sites</translation>
@@ -1017,6 +1021,7 @@
 <translation id="483689884442613745">Enregistrer…</translation>
 <translation id="4840495572919996524">Vos favoris, votre historique, vos mots de passe et d'autres paramètres ne seront plus synchronisés avec votre compte Google.</translation>
 <translation id="484280513275854557">Vous avez été déconnecté. Les données de navigation ont été supprimées.</translation>
+<translation id="484462545196658690">Auto</translation>
 <translation id="4850886885716139402">Afficher</translation>
 <translation id="4854068532375923088">Autorisez Gemini à utiliser votre appareil photo</translation>
 <translation id="4860895144060829044">Appeler</translation>
@@ -1161,6 +1166,7 @@
 <translation id="5318298563956633672">Vous suivez déjà ce produit.</translation>
 <translation id="5327248766486351172">Nom</translation>
 <translation id="5329451663851195956">Faites glisser l'écran vers le bas pour actualiser.</translation>
+<translation id="5336910966955551309">Appuyez de manière prolongée pour épingler vos sites préférés</translation>
 <translation id="5338512273860059533">Connexion en cours.</translation>
 <translation id="5343472494710226394">Actualités, sports et contenus basés sur vos centres d'intérêt.</translation>
 <translation id="5352128922772839949">Enregistrer le fichier</translation>
@@ -1711,6 +1717,7 @@ Handoff doit également être activé dans la section "Général" des paramètre
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7336264872878993241"><ph name="PERCENT" /> % téléchargés</translation>
 <translation id="7345061034321640811">Importation non autorisée</translation>
+<translation id="7347998088283246662">Importez vos mots de passe, historique, favoris et plus encore</translation>
 <translation id="7352651011704765696">Un problème est survenu</translation>
 <translation id="7364796246159120393">Choisir un fichier</translation>
 <translation id="736564850024123010">Déplacez la barre d'adresse pour une expérience personnalisée.</translation>
@@ -1894,6 +1901,7 @@ Handoff doit également être activé dans la section "Général" des paramètre
 <translation id="7958575506592576831">Informations sur la sécurité de cette page</translation>
 <translation id="7961015016161918242">Jamais</translation>
 <translation id="7971136598759319605">Actif il y a 1 jour</translation>
+<translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">OK</translation>
 <translation id="797588153137233716">Menu → Historique → Supprimer les données de navigation</translation>
 <translation id="7977451675950311423">Vous avertit si vous utilisez un mot de passe compromis par une violation des données.</translation>
@@ -2001,6 +2009,7 @@ Handoff doit également être activé dans la section "Général" des paramètre
 <translation id="8319282042900445670">Rappel défini pour <ph name="TIME" /> le <ph name="DATE" /></translation>
 <translation id="8320212361750431956">Activité récente</translation>
 <translation id="8325455175867928593">Masquer "Avis basés sur vos centres d'intérêt"</translation>
+<translation id="8328777765163860529">Tout fermer</translation>
 <translation id="833647236762414178">Créez, enregistrez et gérez vos mots de passe et clés d'accès pour vous connecter facilement à des sites et applis. <ph name="BEGIN_LINK" />En savoir plus<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Sauvegardez vos données et utilisez-les sur n'importe quel appareil.</translation>
 <translation id="8348530355586151720">Appuyez sur l'icône du menu à trois points</translation>
@@ -2236,6 +2245,7 @@ Handoff doit également être activé dans la section "Général" des paramètre
 <translation id="914781932147356857">Tout marquer…</translation>
 <translation id="9148126808321036104">Nouvelle connexion</translation>
 <translation id="9149866541089851383">Modifier...</translation>
+<translation id="9152637745605628097">Choisissez parmi des thèmes et des couleurs, ou importez une image</translation>
 <translation id="9159628751968616911">Envoyer la page Web</translation>
 <translation id="9162432979321511934">Activez "Préremplir les mots de passe"</translation>
 <translation id="9165320910061267720">Pour recevoir des alertes en cas de baisse de prix, vous devez activer les notifications dans les paramètres iOS.</translation>

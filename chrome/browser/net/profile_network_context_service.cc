@@ -179,7 +179,7 @@ bool* g_discard_domain_reliability_uploads_for_testing = nullptr;
 const char kHttpCacheFinchExperimentGroups[] =
     "profile_network_context_service.http_cache_finch_experiment_groups";
 
-std::vector<std::string> TranslateStringArray(const base::Value::List& list) {
+std::vector<std::string> TranslateStringArray(const base::ListValue& list) {
   std::vector<std::string> strings;
   for (const base::Value& value : list) {
     DCHECK(value.is_string());
@@ -694,9 +694,9 @@ void ProfileNetworkContextService::UpdateReferrersEnabled() {
 
 network::mojom::CTPolicyPtr ProfileNetworkContextService::GetCTPolicy() {
   auto* prefs = profile_->GetPrefs();
-  const base::Value::List& ct_excluded =
+  const base::ListValue& ct_excluded =
       prefs->GetList(certificate_transparency::prefs::kCTExcludedHosts);
-  const base::Value::List& ct_excluded_spkis =
+  const base::ListValue& ct_excluded_spkis =
       prefs->GetList(certificate_transparency::prefs::kCTExcludedSPKIs);
 
   std::vector<std::string> excluded(TranslateStringArray(ct_excluded));
@@ -783,7 +783,7 @@ ProfileNetworkContextService::GetCertificatePolicy(
   // Add trust anchors with constraints outside the cert
   for (const base::Value& cert_with_constraints :
        prefs->GetList(prefs::kCACertificatesWithConstraints)) {
-    const base::Value::Dict* cert_with_constraints_dict =
+    const base::DictValue* cert_with_constraints_dict =
         cert_with_constraints.GetIfDict();
     if (!cert_with_constraints_dict) {
       continue;
@@ -791,14 +791,14 @@ ProfileNetworkContextService::GetCertificatePolicy(
 
     const std::string* cert_b64 =
         cert_with_constraints_dict->FindString("certificate");
-    const base::Value::Dict* constraints_dict =
+    const base::DictValue* constraints_dict =
         cert_with_constraints_dict->FindDict("constraints");
     if (!constraints_dict) {
       continue;
     }
-    const base::Value::List* permitted_cidrs =
+    const base::ListValue* permitted_cidrs =
         constraints_dict->FindList("permitted_cidrs");
-    const base::Value::List* permitted_dns_names =
+    const base::ListValue* permitted_dns_names =
         constraints_dict->FindList("permitted_dns_names");
 
     // Need to have a cert, and at least one set of restrictions.
@@ -1273,20 +1273,20 @@ ProfileNetworkContextService::CreateClientCertStore() {
 }
 
 #if BUILDFLAG(ENTERPRISE_CACHE_ENCRYPTION)
-void ProfileNetworkContextService::SaveEncryptedCacheMasterKey(
-    const std::vector<uint8_t>& encrypted_master_key) {
+void ProfileNetworkContextService::SaveEncryptedCachePrimaryKey(
+    const std::vector<uint8_t>& encrypted_primary_key) {
   if (profile_) {
     profile_->GetPrefs()->SetString(
-        enterprise_connectors::kEncryptedCacheMasterKey,
-        base::Base64Encode(encrypted_master_key));
+        enterprise_connectors::kEncryptedCachePrimaryKey,
+        base::Base64Encode(encrypted_primary_key));
   }
 }
 
 std::vector<uint8_t>
-ProfileNetworkContextService::GetEncryptedCacheMasterKey() {
-  std::string encoded_encrypted_master_key = profile_->GetPrefs()->GetString(
-      enterprise_connectors::kEncryptedCacheMasterKey);
-  return base::Base64Decode(encoded_encrypted_master_key).value_or({});
+ProfileNetworkContextService::GetEncryptedCachePrimaryKey() {
+  std::string encoded_encrypted_primary_key = profile_->GetPrefs()->GetString(
+      enterprise_connectors::kEncryptedCachePrimaryKey);
+  return base::Base64Decode(encoded_encrypted_primary_key).value_or({});
 }
 
 #endif  // BUILDFLAG(ENTERPRISE_CACHE_ENCRYPTION)
@@ -1379,10 +1379,10 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
       if (!cache_encryption_provider_) {
         cache_encryption_provider_ = std::make_unique<
             enterprise_encryption::CacheEncryptionProviderImpl>(
-            g_browser_process->os_crypt_async(), GetEncryptedCacheMasterKey(),
+            g_browser_process->os_crypt_async(), GetEncryptedCachePrimaryKey(),
             base::BindRepeating(
-                &ProfileNetworkContextService::SaveEncryptedCacheMasterKey,
-                base::Unretained(this)));
+                &ProfileNetworkContextService::SaveEncryptedCachePrimaryKey,
+                weak_factory_.GetWeakPtr()));
       }
       mojo::PendingRemote<network::mojom::CacheEncryptionProvider>
           cache_encryption_provider_remote =
@@ -1419,7 +1419,7 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
     network_context_params->file_paths->device_bound_sessions_database_name =
         base::FilePath(chrome::kDeviceBoundSessionsFilename);
   }
-  const base::Value::List& hsts_policy_bypass_list =
+  const base::ListValue& hsts_policy_bypass_list =
       profile_->GetPrefs()->GetList(prefs::kHSTSPolicyBypassList);
   for (const auto& value : hsts_policy_bypass_list) {
     const std::string* string_value = value.GetIfString();
@@ -1552,6 +1552,13 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
 
   network_context_params->device_bound_sessions_enabled =
       base::FeatureList::IsEnabled(net::features::kDeviceBoundSessions);
+  // Restrict sessions on google.com and youtube.com so that we can run
+  // an experiment to understand their session's impact on Chrome's
+  // special cookie handling for these sites.
+  network_context_params->device_bound_sessions_restricted_sites =
+      std::vector<net::SchemefulSite>{
+          net::SchemefulSite(GURL("https://google.com")),
+          net::SchemefulSite(GURL("https://youtube.com"))};
 
 #if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
   if (base::FeatureList::IsEnabled(net::features::kDeviceBoundSessions) &&

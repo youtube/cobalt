@@ -33,9 +33,12 @@ chromium-metrics-reviews@google.com.
   <variant name="DefaultBrowserPromo"/>
   <variant name="EnhancedSafeBrowsingPromo"/>
   <variant name="HistorySyncPromo"/>
+  <variant name="PasswordCheckupPromo"/>
   <variant name="PriceChange"/>
   <variant name="QuickDeletePromo"/>
   <variant name="SafetyHub"/>
+  <variant name="SavePasswordsPromo"/>
+  <variant name="SignInPromo"/>
   <variant name="SingleTab"/>
   <variant name="TabGroupPromo"/>
   <variant name="TabGroupSyncPromo"/>
@@ -190,7 +193,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MagicStack.Clank.NewTabPage.Scrollable.{ScrollState}"
-    units="count" expires_after="2026-05-26">
+    units="count" expires_after="2026-07-26">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <summary>

@@ -154,13 +154,13 @@ std::vector<AutofillUploadContents> EncodeUploadRequest(
 std::pair<AutofillPageQueryRequest, std::vector<FormSignature>>
 EncodeAutofillPageQueryRequest(const std::vector<FormData>& forms);
 
-// Holds the predictions used in ProcessServerPredictionsQueryResponse.
+// Holds the predictions returned by ParseServerPredictionsFromQueryResponse.
 class ServerPredictions {
  public:
   ServerPredictions(bool may_run_autofill_ai_model,
                     std::map<std::pair<FormSignature, FieldSignature>,
                              std::deque<FieldSuggestion>>& field_suggestion_map,
-                    const FormStructure& form);
+                    const FormData& form);
   ServerPredictions(const ServerPredictions&);
   ServerPredictions(ServerPredictions&&);
   ServerPredictions& operator=(const ServerPredictions&);
@@ -173,26 +173,25 @@ class ServerPredictions {
 
  private:
   bool may_run_autofill_ai_model_;
-  std::vector<std::optional<FieldSuggestion>> predictions_;
+
+  // Contains the predictions to be applied to each field given its
+  // FieldGlobalId. The value of the map is `std::optional<FieldSuggestion>`
+  // because we would like the map to have an entry for each queried field,
+  // regardless whether the server had a suggestion for that field or not. This
+  // will help distinguishing at the time of applying the predictions between
+  // fields for which the server did not have suggestions with fields that were
+  // not queried in the first place.
+  base::flat_map<FieldGlobalId, std::optional<FieldSuggestion>> predictions_;
 };
 
-// Parses `payload` as AutofillQueryResponse proto and calls
-// `ProcessServerPredictionsQueryResponse`. `ignore_small_forms` determines
-// whether forms with less than `kSmallFormThreshold` fields (all of
-// which are address related), should have server predictions cleared.
-void ParseServerPredictionsQueryResponse(
+// Parses `payload` as AutofillQueryResponse proto returns a list of
+// `ServerPredictions`, one for each of the queried forms.
+// `ignore_small_forms` determines whether forms with less than
+// `kSmallFormThreshold` fields (all of which are address related), should have
+// server predictions cleared.
+std::vector<ServerPredictions> ParseServerPredictionsFromQueryResponse(
     std::string_view payload,
-    const std::vector<raw_ref<FormStructure>>& forms,
-    const std::vector<FormSignature>& queried_form_signatures,
-    LogManager* log_manager,
-    bool ignore_small_forms);
-
-// Parses the field types from the server query response. `forms` must be the
-// same as the one passed to `EncodeAutofillPageQueryRequest()` when
-// constructing the query.
-void ProcessServerPredictionsQueryResponse(
-    AutofillQueryResponse response,
-    const std::vector<raw_ref<FormStructure>>& forms,
+    base::span<const FormData> forms,
     const std::vector<FormSignature>& queried_form_signatures,
     LogManager* log_manager,
     bool ignore_small_forms);

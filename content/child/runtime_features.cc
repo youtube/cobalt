@@ -278,8 +278,6 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            raw_ref(device::kWebAuthnAmbientSignin)},
           {wf::EnableWebAuthenticationImmediateGet,
            raw_ref(device::kWebAuthnImmediateGet), kSetOnlyIfOverridden},
-          {wf::EnableWebAuthenticationConditionalCreate,
-           raw_ref(device::kWebAuthnPasskeyUpgrade)},
           {wf::EnableWebBluetooth, raw_ref(features::kWebBluetooth),
            kSetOnlyIfOverridden},
           {wf::EnableWebBluetoothGetDevices,
@@ -310,7 +308,7 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            raw_ref(device::features::kWebXRIncubations)},
           {wf::EnableWebXRLayers, raw_ref(device::features::kWebXRLayers)},
           {wf::EnableWebXRPlaneDetection,
-           raw_ref(device::features::kWebXRIncubations)},
+           raw_ref(device::features::kWebXRPlaneDetection)},
           {wf::EnableWebXRPoseMotionData,
            raw_ref(device::features::kWebXRIncubations)},
           {wf::EnableWebXRSpecParity,
@@ -644,6 +642,17 @@ void ResolveInvalidConfigurations() {
         << switches::kEnableFeatures << "="
         << blink::features::kPermissionElement.name << " instead.";
     WebRuntimeFeatures::EnablePermissionElement(false);
+  }
+
+  // UserMediaElement cannot be enabled without the support of the
+  // browser process.
+  if (!base::FeatureList::IsEnabled(blink::features::kUserMediaElement)) {
+    LOG_IF(WARNING,
+           WebRuntimeFeatures::IsUserMediaElementEnabledByRuntimeFlag())
+        << "UserMediaElement cannot be enabled in this configuration. Use --"
+        << switches::kEnableFeatures << "="
+        << blink::features::kUserMediaElement.name << " instead.";
+    WebRuntimeFeatures::EnableUserMediaElement(false);
   }
 
   // CSP Hashes in V1 cannot be enabled without the support of the network

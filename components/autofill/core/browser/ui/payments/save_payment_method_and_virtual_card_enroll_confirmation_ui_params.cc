@@ -59,7 +59,9 @@ SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams::
           IDS_AUTOFILL_SAVE_CARD_CONFIRMATION_SUCCESS_TITLE_TEXT),
       /*description_text=*/
       l10n_util::GetStringUTF16(
-          IDS_AUTOFILL_SAVE_CARD_CONFIRMATION_SUCCESS_DESCRIPTION_TEXT));
+          base::FeatureList::IsEnabled(features::kAutofillEnableWalletBranding)
+              ? IDS_AUTOFILL_SAVE_CARD_TO_WALLET_CONFIRMATION_SUCCESS_DESCRIPTION_TEXT
+              : IDS_AUTOFILL_SAVE_CARD_CONFIRMATION_SUCCESS_DESCRIPTION_TEXT));
 }
 
 // static
@@ -124,7 +126,9 @@ SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams::
           IDS_AUTOFILL_SAVE_IBAN_CONFIRMATION_SUCCESS_TITLE_TEXT),
       /*description_text=*/
       l10n_util::GetStringUTF16(
-          IDS_AUTOFILL_SAVE_IBAN_CONFIRMATION_SUCCESS_DESCRIPTION_TEXT));
+          base::FeatureList::IsEnabled(features::kAutofillEnableWalletBranding)
+              ? IDS_AUTOFILL_SAVE_IBAN_TO_WALLET_CONFIRMATION_SUCCESS_DESCRIPTION_TEXT
+              : IDS_AUTOFILL_SAVE_IBAN_CONFIRMATION_SUCCESS_DESCRIPTION_TEXT));
 }
 
 // static
@@ -139,9 +143,15 @@ SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams::
       /*description_text=*/
       hit_max_strikes
           ? l10n_util::GetStringUTF16(
-                IDS_AUTOFILL_SAVE_IBAN_CONFIRMATION_FAILURE_HIT_MAX_STRIKE_DESCRIPTION_TEXT)
+                base::FeatureList::IsEnabled(
+                    features::kAutofillEnableWalletBranding)
+                    ? IDS_AUTOFILL_SAVE_IBAN_TO_WALLET_CONFIRMATION_FAILURE_HIT_MAX_STRIKE_DESCRIPTION_TEXT
+                    : IDS_AUTOFILL_SAVE_IBAN_CONFIRMATION_FAILURE_HIT_MAX_STRIKE_DESCRIPTION_TEXT)
           : l10n_util::GetStringUTF16(
-                IDS_AUTOFILL_SAVE_IBAN_CONFIRMATION_FAILURE_DESCRIPTION_TEXT),
+                base::FeatureList::IsEnabled(
+                    features::kAutofillEnableWalletBranding)
+                    ? IDS_AUTOFILL_SAVE_IBAN_TO_WALLET_CONFIRMATION_FAILURE_DESCRIPTION_TEXT
+                    : IDS_AUTOFILL_SAVE_IBAN_CONFIRMATION_FAILURE_DESCRIPTION_TEXT),
       /*failure_ok_button_accessible_name=*/
       l10n_util::GetStringUTF16(
           IDS_AUTOFILL_SAVE_CARD_CONFIRMATION_FAILURE_OK_BUTTON_ACCESSIBLE_NAME));

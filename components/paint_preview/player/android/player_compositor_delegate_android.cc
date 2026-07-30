@@ -43,11 +43,11 @@ constexpr size_t kMaxParallelBitmapRequestsLowMemory = 2;
 
 }  // namespace
 
-static jlong JNI_PlayerCompositorDelegateImpl_Initialize(
+static int64_t JNI_PlayerCompositorDelegateImpl_Initialize(
     JNIEnv* env,
     const JavaRef<jobject>& j_object,
-    jlong paint_preview_service,
-    jlong j_capture_result_ptr,
+    int64_t paint_preview_service,
+    int64_t j_capture_result_ptr,
     const JavaRef<jstring>& j_url_spec,
     const JavaRef<jstring>& j_directory_key,
     bool j_main_frame_mode,
@@ -67,7 +67,7 @@ PlayerCompositorDelegateAndroid::PlayerCompositorDelegateAndroid(
     JNIEnv* env,
     const JavaRef<jobject>& j_object,
     PaintPreviewBaseService* paint_preview_service,
-    jlong j_capture_result_ptr,
+    int64_t j_capture_result_ptr,
     const JavaRef<jstring>& j_url_spec,
     const JavaRef<jstring>& j_directory_key,
     bool j_main_frame_mode,
@@ -204,7 +204,7 @@ int32_t PlayerCompositorDelegateAndroid::RequestBitmap(
     std::optional<base::UnguessableToken>& frame_guid,
     const JavaRef<jobject>& j_bitmap_callback,
     const JavaRef<jobject>& j_error_callback,
-    jfloat j_scale_factor,
+    float j_scale_factor,
     int32_t j_clip_x,
     int32_t j_clip_y,
     int32_t j_clip_width,

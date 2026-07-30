@@ -146,7 +146,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.Browser.LayersUpdateTime" units="microseconds"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>pdr@chromium.org</owner>
   <owner>animations-dev@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -221,7 +221,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.DirectRenderer.OverlayProcessingUs"
-    units="microseconds" expires_after="2026-05-17">
+    units="microseconds" expires_after="2026-07-19">
   <owner>khaslett@chromium.org</owner>
   <owner>kylechar@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -335,7 +335,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.Display.Draw.Occlusion.Calculation.Time"
-    units="microseconds" expires_after="2026-05-24">
+    units="microseconds" expires_after="2026-07-26">
   <owner>yiyix@chromium.org</owner>
   <owner>chromeos-gfx@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -364,7 +364,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.Display.DrawToScheduleOverlay"
-    units="microseconds" expires_after="2026-05-24">
+    units="microseconds" expires_after="2026-07-26">
   <owner>lehoangquyen@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -378,7 +378,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.Display.DrawToSwapUs" units="microseconds"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -392,7 +392,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.Display.FlattenedRenderPassCount" units="units"
-    expires_after="2026-05-17">
+    expires_after="2026-07-19">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -404,7 +404,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.Display.OverlayProcessorOzone.MaxPlanesSupported"
-    units="units" expires_after="2026-05-17">
+    units="units" expires_after="2026-07-26">
   <owner>harthuang@google.com</owner>
   <owner>fangzhoug@chromium.org</owner>
   <owner>petermcneeley@chromium.org</owner>
@@ -529,6 +529,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Compositing.Scheduler.HighFramerateRequested" enum="Boolean"
+    expires_after="2026-05-31">
+  <owner>lizeb@chromium.org</owner>
+  <owner>jonross@chromium.org</owner>
+  <summary>
+    Report whether a compositor frame is run in a context where high framerate
+    is requested. This is intended to assess the fraction of cases where this is
+    hit, and also to diagnose over-triggering, since this is expected to be a
+    relatively niche use case. Recorded when a compositor frame is started, at a
+    subsampled rate.
+  </summary>
+</histogram>
+
 <histogram name="Compositing.Slim.BeginFrameResult" enum="SlimBeginFrameResult"
     expires_after="2026-07-12">
   <owner>acondor@chromium.org</owner>
@@ -640,7 +653,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.TileManager.TileInvalidationArea" units="%"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>petermcneeley@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1035,6 +1048,9 @@ chromium-metrics-reviews@google.com.
     aggregated until an additional sequence completes where there are (&gt;=
     100) frames available in total.
 
+    While this is reported in WebView, it is not accurate on this platform,
+    please ignore.
+
     This is a new implementation of the older
     Graphics.Smoothness.PercentDroppedFrames.AllInteractions metric.
 
@@ -1064,6 +1080,9 @@ chromium-metrics-reviews@google.com.
     frames (&gt;= 100). If there are sequences with fewer frames, then these are
     aggregated until an additional sequence completes where there are (&gt;=
     100) frames available in total.
+
+    While this is reported in WebView, it is not accurate on this platform,
+    please ignore.
 
     This is a new implementation of the older
     Graphics.Smoothness.PercentDroppedFrames.AllInteractions metric.
@@ -1118,6 +1137,9 @@ chromium-metrics-reviews@google.com.
     frames (&gt;= 100). If there are sequences with fewer frames, then these are
     aggregated until an additional sequence completes where there are (&gt;=
     100) frames available in total.
+
+    While this is reported in WebView, it is not accurate on this platform,
+    please ignore.
 
     This is a new implementation of the older
     Graphics.Smoothness.PercentDroppedFrames.AllInteractions metric.
@@ -1186,6 +1208,9 @@ chromium-metrics-reviews@google.com.
     aggregated until an additional sequence completes where there are (&gt;=
     100) frames available in total.
 
+    While this is reported in WebView, it is not accurate on this platform,
+    please ignore.
+
     This is a new implementation of the older
     Graphics.Smoothness.PercentDroppedFrames.AllInteractions metric.
   </summary>
@@ -1215,6 +1240,9 @@ chromium-metrics-reviews@google.com.
     frames (&gt;= 100). If there are sequences with fewer frames, then these are
     aggregated until an additional sequence completes where there are (&gt;=
     100) frames available in total.
+
+    While this is reported in WebView, it is not accurate on this platform,
+    please ignore.
 
     This is a new implementation of the older
     Graphics.Smoothness.PercentDroppedFrames.AllInteractions metric. It also

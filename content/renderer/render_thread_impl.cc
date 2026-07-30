@@ -136,6 +136,7 @@
 #include "services/viz/public/cpp/gpu/gpu.h"
 #include "skia/ext/font_utils.h"
 #include "skia/ext/skia_memory_dump_provider.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/origin_trials/origin_trials_settings_provider.h"
 #include "third_party/blink/public/common/page/launching_process_state.h"
 #include "third_party/blink/public/common/switches.h"
@@ -183,8 +184,6 @@
 #include <windows.h>
 
 #include "content/renderer/media/win/dcomp_texture_factory.h"
-#include "content/renderer/media/win/overlay_state_service_provider.h"
-#include "media/base/win/mf_feature_checks.h"
 #endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -571,7 +570,7 @@ void RenderThreadImpl::Init() {
       discardable_memory_allocator_.get());
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-  ChildProcess::current()->SetIOThreadType(base::ThreadType::kDisplayCritical);
+  ChildProcess::current()->SetIOThreadType(base::ThreadType::kPresentation);
 #endif
 
   process_foregrounded_count_ = 0;
@@ -585,9 +584,6 @@ void RenderThreadImpl::Init() {
 
   variations_observer_ = std::make_unique<VariationsRenderThreadObserver>();
   AddObserver(variations_observer_.get());
-
-  base::ThreadPool::PostTask(FROM_HERE,
-                             base::BindOnce([] { skia::DefaultFontMgr(); }));
 
   UpdateForegroundCrashKey(
       /*foreground=*/!blink::kLaunchingProcessIsBackgrounded);
@@ -1090,28 +1086,6 @@ scoped_refptr<DCOMPTextureFactory> RenderThreadImpl::GetDCOMPTextureFactory() {
   }
   return dcomp_texture_factory_;
 }
-
-scoped_refptr<OverlayStateServiceProvider>
-RenderThreadImpl::GetOverlayStateServiceProvider() {
-  DCHECK(IsMainThread());
-  // Only set 'overlay_state_service_provider_' if Media Foundation for clear
-  // is enabled.
-  if (media::SupportMediaFoundationClearPlayback()) {
-    if (!overlay_state_service_provider_ ||
-        overlay_state_service_provider_->IsLost()) {
-      scoped_refptr<gpu::GpuChannelHost> channel = EstablishGpuChannelSync();
-      if (!channel) {
-        overlay_state_service_provider_ = nullptr;
-        return nullptr;
-      }
-      overlay_state_service_provider_ =
-          base::MakeRefCounted<OverlayStateServiceProviderImpl>(
-              std::move(channel));
-    }
-  }
-
-  return overlay_state_service_provider_;
-}
 #endif  // BUILDFLAG(IS_WIN)
 
 base::WaitableEvent* RenderThreadImpl::GetShutdownEvent() {
@@ -1284,10 +1258,6 @@ void RenderThreadImpl::WriteClangProfilingProfile(
 }
 #endif
 
-void RenderThreadImpl::SetIsCrossOriginIsolated(bool value) {
-  blink::SetIsCrossOriginIsolated(value);
-}
-
 void RenderThreadImpl::SetIsWebSecurityDisabled(bool value) {
   blink::SetIsWebSecurityDisabled(value);
 }
@@ -1412,48 +1382,33 @@ void RenderThreadImpl::OnNetworkQualityChanged(
       transport_rtt, downlink_throughput_kbps);
 }
 
-void RenderThreadImpl::SetWebKitSharedTimersSuspended(bool suspend) {
 #if BUILDFLAG(IS_ANDROID)
+void RenderThreadImpl::SetWebKitSharedTimersSuspended(bool suspend) {
   if (suspend) {
     main_thread_scheduler_->PauseTimersForAndroidWebView();
   } else {
     main_thread_scheduler_->ResumeTimersForAndroidWebView();
   }
-#else
-  NOTREACHED();
-#endif
 }
+#endif
 
+#if BUILDFLAG(IS_MAC)
 void RenderThreadImpl::UpdateScrollbarTheme(
     mojom::UpdateScrollbarThemeParamsPtr params) {
-#if BUILDFLAG(IS_MAC)
   blink::WebScrollbarTheme::UpdateScrollbarsWithNSDefaults(
-      params->has_initial_button_delay
-          ? std::make_optional(params->initial_button_delay)
-          : std::nullopt,
-      params->has_autoscroll_button_delay
-          ? std::make_optional(params->autoscroll_button_delay)
-          : std::nullopt,
+      params->initial_button_delay, params->autoscroll_button_delay,
       params->preferred_scroller_style, params->redraw,
       params->jump_on_track_click);
-#endif  // BUILDFLAG(IS_MAC)
-#if BUILDFLAG(IS_APPLE)
   is_elastic_overscroll_enabled_on_root_ = params->scroll_view_rubber_banding;
   is_elastic_overscroll_supported_ = params->scroll_view_rubber_banding;
-#else
-  NOTREACHED();
-#endif  // BUILDFLAG(IS_APPLE)
 }
 
 void RenderThreadImpl::OnSystemColorsChanged(int32_t aqua_color_variant) {
-#if BUILDFLAG(IS_MAC)
   // Let blink know it should invalidate and recalculate styles for elements
   // that rely on system colors, such as the accent and highlight colors.
   blink::SystemColorsChanged();
-#else
-  NOTREACHED();
-#endif
 }
+#endif
 
 void RenderThreadImpl::UpdateSystemColorInfo(
     mojom::UpdateSystemColorInfoParamsPtr params) {
@@ -1497,6 +1452,9 @@ RenderThreadImpl::GetMediaSequencedTaskRunner() {
   DCHECK(main_thread_runner()->BelongsToCurrentThread());
   if (base::FeatureList::IsEnabled(kUseThreadPoolForMediaTaskRunner)) {
     if (!media_task_runner_) {
+      // TODO(crbug.com/470337728): ensure the sequenced task runner is executed
+      // in the right priority when blink::features::kWebRtcUseMediaThreadTypes
+      // is enabled.
       media_task_runner_ = base::ThreadPool::CreateSequencedTaskRunner(
           base::TaskTraits{base::TaskPriority::USER_VISIBLE,
                            base::WithBaseSyncPrimitives(), base::MayBlock()});
@@ -1510,9 +1468,13 @@ RenderThreadImpl::GetMediaSequencedTaskRunner() {
     base::Thread::Options options(base::MessagePumpType::IO, 0);
     // TODO(crbug.com/40250424): Use kDisplayCritical to address media latency
     // on Fuchsia until alignment on new media thread types is achieved.
-    options.thread_type = base::ThreadType::kDisplayCritical;
+    options.thread_type = base::ThreadType::kPresentation;
 #else
     base::Thread::Options options;
+    if (base::FeatureList::IsEnabled(
+            blink::features::kWebRtcUseMediaThreadTypes)) {
+      options.thread_type = base::ThreadType::kPresentation;
+    }
 #endif
     media_thread_->StartWithOptions(std::move(options));
   }

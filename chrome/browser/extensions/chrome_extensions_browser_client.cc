@@ -100,8 +100,8 @@
 #include "extensions/browser/pref_names.h"
 #include "extensions/browser/process_manager_delegate.h"
 #include "extensions/browser/safe_browsing_delegate.h"
+#include "extensions/browser/scoped_extension_keep_alive.h"
 #include "extensions/browser/unpacked_installer.h"
-#include "extensions/browser/updater/scoped_extension_updater_keep_alive.h"
 #include "extensions/browser/url_request_util.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/extension_urls.h"
@@ -143,17 +143,34 @@ constexpr std::string_view kJsonUrlPath = "/service/update2/json";
 // new chrome update.
 bool g_did_chrome_update_for_testing = false;
 
-class UpdaterKeepAlive : public ScopedExtensionUpdaterKeepAlive {
+class ChromeScopedBrowserContextKeepAlive
+    : public ScopedBrowserContextKeepAlive {
  public:
-  UpdaterKeepAlive(Profile* profile, ProfileKeepAliveOrigin origin)
-      : profile_keep_alive_(profile, origin) {}
-  UpdaterKeepAlive(const UpdaterKeepAlive&) = delete;
-  UpdaterKeepAlive& operator=(const UpdaterKeepAlive&) = delete;
-  ~UpdaterKeepAlive() override = default;
+  explicit ChromeScopedBrowserContextKeepAlive(
+      std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive)
+      : profile_keep_alive_(std::move(profile_keep_alive)) {}
+  ChromeScopedBrowserContextKeepAlive(
+      const ChromeScopedBrowserContextKeepAlive&) = delete;
+  ChromeScopedBrowserContextKeepAlive& operator=(
+      const ChromeScopedBrowserContextKeepAlive&) = delete;
+  ~ChromeScopedBrowserContextKeepAlive() override = default;
 
  private:
-  ScopedProfileKeepAlive profile_keep_alive_;
+  std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive_;
 };
+
+std::unique_ptr<ScopedBrowserContextKeepAlive> CreateExtensionKeepAlive(
+    content::BrowserContext* context,
+    ProfileKeepAliveOrigin type) {
+  auto profile_keep_alive = ScopedProfileKeepAlive::TryAcquire(
+      Profile::FromBrowserContext(context), type);
+  if (!profile_keep_alive) {
+    return nullptr;
+  }
+
+  return std::make_unique<ChromeScopedBrowserContextKeepAlive>(
+      std::move(profile_keep_alive));
+}
 
 bool ShouldLogExtensionAction(content::BrowserContext* browser_context,
                               const ExtensionId& extension_id) {
@@ -524,7 +541,7 @@ ChromeExtensionsBrowserClient::GetComponentExtensionResourceManager() {
 void ChromeExtensionsBrowserClient::BroadcastEventToRenderers(
     events::HistogramValue histogram_value,
     const std::string& event_name,
-    base::Value::List args,
+    base::ListValue args,
     bool dispatch_to_off_the_record_profiles) {
   event_router_forwarder_->BroadcastEventToRenderers(
       histogram_value, event_name, std::move(args),
@@ -630,12 +647,18 @@ ChromeExtensionsBrowserClient::CreateUpdateClientConfigurator(
   return ChromeUpdateClientConfig::Create(context, override_url);
 }
 
-std::unique_ptr<ScopedExtensionUpdaterKeepAlive>
+std::unique_ptr<ScopedBrowserContextKeepAlive>
 ChromeExtensionsBrowserClient::CreateUpdaterKeepAlive(
     content::BrowserContext* context) {
-  return std::make_unique<UpdaterKeepAlive>(
-      Profile::FromBrowserContext(context),
-      ProfileKeepAliveOrigin::kExtensionUpdater);
+  return CreateExtensionKeepAlive(context,
+                                  ProfileKeepAliveOrigin::kExtensionUpdater);
+}
+
+std::unique_ptr<ScopedBrowserContextKeepAlive>
+ChromeExtensionsBrowserClient::CreateCrxInstallerKeepAlive(
+    content::BrowserContext* context) {
+  return CreateExtensionKeepAlive(context,
+                                  ProfileKeepAliveOrigin::kCrxInstaller);
 }
 
 bool ChromeExtensionsBrowserClient::IsActivityLoggingEnabled(
@@ -826,7 +849,7 @@ void ChromeExtensionsBrowserClient::AddAPIActionToActivityLog(
     content::BrowserContext* browser_context,
     const ExtensionId& extension_id,
     const std::string& call_name,
-    base::Value::List args,
+    base::ListValue args,
     const std::string& extra) {
   AddAPIActionOrEventToActivityLog(browser_context, extension_id,
                                    Action::ACTION_API_CALL, call_name,
@@ -837,7 +860,7 @@ void ChromeExtensionsBrowserClient::AddEventToActivityLog(
     content::BrowserContext* browser_context,
     const ExtensionId& extension_id,
     const std::string& call_name,
-    base::Value::List args,
+    base::ListValue args,
     const std::string& extra) {
   AddAPIActionOrEventToActivityLog(browser_context, extension_id,
                                    Action::ACTION_API_EVENT, call_name,
@@ -848,7 +871,7 @@ void ChromeExtensionsBrowserClient::AddDOMActionToActivityLog(
     content::BrowserContext* browser_context,
     const ExtensionId& extension_id,
     const std::string& call_name,
-    base::Value::List args,
+    base::ListValue args,
     const GURL& url,
     const std::u16string& url_title,
     int call_type) {
@@ -871,7 +894,7 @@ void ChromeExtensionsBrowserClient::AddAPIActionOrEventToActivityLog(
     const ExtensionId& extension_id,
     Action::ActionType action_type,
     const std::string& call_name,
-    base::Value::List args,
+    base::ListValue args,
     const std::string& extra) {
   if (!ShouldLogExtensionAction(browser_context, extension_id)) {
     return;

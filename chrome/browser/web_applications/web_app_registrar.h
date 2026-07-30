@@ -121,7 +121,8 @@ class WebAppRegistrar {
 
   bool is_empty() const { return registry_.empty(); }
 
-  const WebApp* GetAppById(const webapps::AppId& app_id) const;
+  const WebApp* GetAppById(const webapps::AppId& app_id,
+                           std::optional<WebAppFilter> = std::nullopt) const;
 
   // TODO(crbug.com/40170773): should be removed when id is introduced to
   // manifest.
@@ -473,8 +474,7 @@ class WebAppRegistrar {
   // |isolated_web_app_id|. Both the primary and any <controlledframe>
   // StoragePartitions will be returned.
   std::vector<content::StoragePartitionConfig>
-  GetIsolatedWebAppStoragePartitionConfigs(
-      const webapps::AppId& isolated_web_app_id) const;
+  GetIsolatedWebAppStoragePartitionConfigs(const webapps::AppId& app_id) const;
 
   // Saves a record of the |partition_name| in
   // |isolated_web_app_in_memory_controlled_frame_partitions_|.
@@ -705,7 +705,8 @@ class WebAppRegistrar {
   std::vector<webapps::AppId> GetAppIdsForAppSet(const AppSet& app_set) const;
 
  private:
-  bool IsIsolated(const webapps::AppId& app_id) const;
+  bool IsIsolatedApp(const webapps::AppId& app_id) const;
+  bool IsIsolatedSubApp(const webapps::AppId& app_id) const;
   // Returns if the given app_id is the most recently installed application of
   // the set of other apps with matching scopes, AND no other app has user link
   // capturing explicitly turned on. Note that this doesn't consider the link

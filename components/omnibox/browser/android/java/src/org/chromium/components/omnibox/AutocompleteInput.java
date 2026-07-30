@@ -6,6 +6,7 @@ package org.chromium.components.omnibox;
 
 import android.text.TextUtils;
 
+import org.chromium.base.UserData;
 import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
@@ -15,15 +16,22 @@ import org.chromium.url.GURL;
 
 import java.util.Locale;
 
-/** AutocompleteInput encompasses the input to autocomplete. */
+/**
+ * AutocompleteInput encompasses the input to autocomplete and fusebox.
+ *
+ * <p>This class must have no dependencies on external services or logic and should be fully
+ * serializable.
+ */
 @NullMarked
-public class AutocompleteInput {
+public class AutocompleteInput implements UserData {
     private GURL mPageUrl;
     private int mPageClassification;
     private String mPageTitle;
     private String mUserText;
     private boolean mAllowExactKeywordMatch;
     private boolean mHasAttachments;
+    private int mSelectionStart;
+    private int mSelectionEnd;
     private @AutocompleteRequestType int mRequestType;
 
     public AutocompleteInput() {
@@ -190,6 +198,19 @@ public class AutocompleteInput {
         mHasAttachments = hasAttachments;
     }
 
+    public void setSelection(int rangeStart, int rangeEnd) {
+        mSelectionStart = rangeStart;
+        mSelectionEnd = rangeEnd;
+    }
+
+    public int getSelectionStart() {
+        return mSelectionStart;
+    }
+
+    public int getSelectionEnd() {
+        return mSelectionEnd;
+    }
+
     /**
      * Resets the AutocompleteInput to its default state.
      *
@@ -202,6 +223,8 @@ public class AutocompleteInput {
         mPageUrl = GURL.emptyGURL();
         mPageTitle = "";
         mHasAttachments = false;
+        mSelectionStart = 0;
+        mSelectionEnd = 0;
         mPageClassification = PageClassification.BLANK_VALUE;
 
         return this;

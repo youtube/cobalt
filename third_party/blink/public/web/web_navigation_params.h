@@ -216,6 +216,17 @@ struct BLINK_EXPORT WebNavigationInfo {
   bool is_container_initiated = false;
 };
 
+// This is a container for yet-unparsed permissions policies from the manifest
+// of an Isolated Web App. It is passed within the `WebNavigationParams` to the
+// renderer for parsing, interpretation and merging with permissions policy
+// headers.
+// The only reason why it's not declared within WebNavigationParams is to allow
+// forward declaration.
+struct BLINK_EXPORT IsolatedAppPermissionPolicyEntry {
+  WebString feature;
+  std::vector<WebString> allowed_origins;
+};
+
 // This structure holds all information provided by the embedder that is
 // needed for blink to load a Document. This is hence different from
 // WebDocumentLoader::ExtraData, which is an opaque structure stored in the
@@ -483,7 +494,11 @@ struct BLINK_EXPORT WebNavigationParams {
   // take precedence over any permissions policy constructed in blink. This is
   // useful for isolated applications, which use a different base permissions
   // policy than blink, which uses a fully permissive policy as its base.
-  std::optional<network::ParsedPermissionsPolicy> permissions_policy_override;
+  // The raw string values are parsed from the JSON manifest, but individual
+  // entries themselves are not parsed and validated (in particular, this might
+  // contain malformed/invalid entries).
+  std::optional<std::vector<IsolatedAppPermissionPolicyEntry>>
+      isolated_app_policy;
 
   // These are used to construct a subset of the back/forward list for the
   // window.navigation API. They only have the attributes that are needed for

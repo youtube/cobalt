@@ -23,6 +23,17 @@
   if (_agent && viewState == ios::provider::GeminiViewState::kExpanded) {
     _agent->OnGeminiViewStateExpanded();
   }
+  _agent->SetLastShownViewState(viewState);
+}
+
+- (void)switchToViewState:(ios::provider::GeminiViewState)viewState {
+  if (!_agent) {
+    return;
+  }
+
+  if (viewState == ios::provider::GeminiViewState::kCollapsed) {
+    _agent->CollapseFloatyIfInvoked();
+  }
 }
 
 @end

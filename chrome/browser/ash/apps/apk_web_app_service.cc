@@ -35,6 +35,7 @@
 #include "components/services/app_service/public/cpp/types_util.h"
 #include "components/webapps/browser/install_result_code.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "url/gurl.h"
 
 namespace ash {
@@ -201,7 +202,7 @@ bool ApkWebAppService::IsWebAppShellPackage(const std::string& package_name) {
 std::optional<std::string> ApkWebAppService::GetPackageNameForWebApp(
     const webapps::AppId& app_id,
     bool include_installing_apks) {
-  if (const base::Value::Dict* app_dict = WebAppToApks().FindDict(app_id)) {
+  if (const base::DictValue* app_dict = WebAppToApks().FindDict(app_id)) {
     if (const std::string* value = app_dict->FindString(kPackageNameKey)) {
       return *value;
     }
@@ -325,7 +326,7 @@ void ApkWebAppService::UpdateShelfPin(
     // replace the previous web app shortcut. For simplicity we will just use
     // the first one.
     DCHECK(arc_app_list_prefs_);
-    std::unordered_set<std::string> apps =
+    absl::flat_hash_set<std::string> apps =
         arc_app_list_prefs_->GetAppsForPackage(package_name);
     if (!apps.empty()) {
       new_app_id = *apps.begin();
@@ -387,7 +388,7 @@ void ApkWebAppService::OnPackageRemoved(const std::string& package_name,
   std::optional<std::string> web_app_id =
       GetWebAppIdForPackageName(package_name);
   if (web_app_id) {
-    const base::Value::Dict* app_dict = WebAppToApks().FindDict(*web_app_id);
+    const base::DictValue* app_dict = WebAppToApks().FindDict(*web_app_id);
     if (app_dict && app_dict->FindBool(kShouldRemoveKey).value_or(false)) {
       // This package removal was triggered by web app removal, so cleanup and
       // do not kick off the uninstallation loop again.
@@ -489,7 +490,7 @@ void ApkWebAppService::OnDidFinishInstall(
     // uninstallation.
     ScopedDictPrefUpdate dict_update(profile_->GetPrefs(),
                                      kWebAppToApkDictPref);
-    base::Value::Dict* web_app_dict = dict_update->EnsureDict(web_app_id);
+    base::DictValue* web_app_dict = dict_update->EnsureDict(web_app_id);
     web_app_dict->Set(kPackageNameKey, package_name);
 
     // Set that the app should not be removed next time the ARC container starts
@@ -523,8 +524,8 @@ void ApkWebAppService::OnDidRemoveInstallSource(
   }
 }
 
-const base::Value::Dict& ApkWebAppService::WebAppToApks() const {
-  const base::Value::Dict& value =
+const base::DictValue& ApkWebAppService::WebAppToApks() const {
+  const base::DictValue& value =
       profile_->GetPrefs()->GetDict(kWebAppToApkDictPref);
   return value;
 }
@@ -615,7 +616,7 @@ void ApkWebAppService::SyncArcAndWebApps() {
     if (GetPackageNameForWebApp(*canonical_id) == deprecated_package) {
       ScopedDictPrefUpdate dict_update(profile_->GetPrefs(),
                                        kWebAppToApkDictPref);
-      base::Value::Dict* app_id_dict = dict_update->EnsureDict(*canonical_id);
+      base::DictValue* app_id_dict = dict_update->EnsureDict(*canonical_id);
       app_id_dict->Set(kPackageNameKey, canonical_package);
     }
 
@@ -692,7 +693,7 @@ void ApkWebAppService::SyncArcAndWebApps() {
 void ApkWebAppService::RemoveObsoletePrefValues(
     const webapps::AppId& web_app_id) {
   ScopedDictPrefUpdate dict_update(profile_->GetPrefs(), kWebAppToApkDictPref);
-  base::Value::Dict* app_id_dict = dict_update->EnsureDict(web_app_id);
+  base::DictValue* app_id_dict = dict_update->EnsureDict(web_app_id);
   app_id_dict->Remove(kIsWebOnlyTwaKey);
   app_id_dict->Remove(kSha256FingerprintKey);
 }

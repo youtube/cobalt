@@ -30,10 +30,10 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chromeos/components/magic_boost/public/cpp/magic_boost_state.h"
 #include "chromeos/components/mahi/public/cpp/mahi_media_app_content_manager.h"
+#include "chromeos/components/mahi/public/cpp/mahi_types.h"
 #include "chromeos/components/mahi/public/cpp/mahi_web_contents_manager.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "chromeos/constants/chromeos_switches.h"
-#include "chromeos/crosapi/mojom/mahi.mojom.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "content/public/test/browser_task_environment.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
@@ -71,7 +71,7 @@ class FakeMahiProvider : public manta::MahiProvider {
     latest_summary_input_ = input;
     latest_title_ = title;
     latest_url_ = url;
-    std::move(callback).Run(base::Value::Dict().Set("outputData", kFakeSummary),
+    std::move(callback).Run(base::DictValue().Set("outputData", kFakeSummary),
                             {manta::MantaStatusCode::kOk, "Status string ok"});
   }
 
@@ -82,7 +82,7 @@ class FakeMahiProvider : public manta::MahiProvider {
                  manta::MantaGenericCallback callback) override {
     latest_elucidation_input_ = input;
     std::move(callback).Run(
-        base::Value::Dict().Set("outputData", kFakeElucidation),
+        base::DictValue().Set("outputData", kFakeElucidation),
         {manta::MantaStatusCode::kOk, "Status string ok"});
   }
 
@@ -131,8 +131,7 @@ class MahiManagerImplTest : public NoSessionAshTestBase {
   // NoSessionAshTestBase::
   void SetUp() override {
     feature_list_.InitWithFeatures(
-        /*enabled_features=*/{chromeos::features::kMahi,
-                              chromeos::features::kFeatureManagementMahi},
+        /*enabled_features=*/{chromeos::features::kFeatureManagementMahi},
         /*disabled_features=*/{});
     NoSessionAshTestBase::SetUp();
     base::CommandLine::ForCurrentProcess()->AppendSwitch(
@@ -169,15 +168,15 @@ class MahiManagerImplTest : public NoSessionAshTestBase {
 
   bool IsEnabled() const { return mahi_manager_impl_->IsEnabled(); }
 
-  crosapi::mojom::MahiPageInfoPtr CreatePageInfo(const std::string& url,
-                                                 const std::u16string& title,
-                                                 bool is_incognito = false) {
-    return crosapi::mojom::MahiPageInfo::New(
-        /*client_id=*/base::UnguessableToken(),
-        /*page_id=*/base::UnguessableToken(), /*url=*/GURL(url),
-        /*title=*/title,
-        /*favicon_image=*/gfx::ImageSkia(), /*is_distillable=*/true,
-        /*is_incognito=*/is_incognito);
+  chromeos::MahiPageInfo CreatePageInfo(const std::string& url,
+                                        const std::u16string& title,
+                                        bool is_incognito = false) {
+    chromeos::MahiPageInfo page_info;
+    page_info.url = GURL(url);
+    page_info.title = title;
+    page_info.is_distillable = true;
+    page_info.is_incognito = is_incognito;
+    return page_info;
   }
 
   MahiCacheManager* GetCacheManager() {
@@ -291,8 +290,7 @@ TEST_F(MahiManagerImplTest, NoContentCallWhenContentIsInCache) {
 TEST_F(MahiManagerImplTest, SendingTitleOnly) {
   feature_list_.Reset();
   feature_list_.InitWithFeatures(
-      /*enabled_features=*/{chromeos::features::kMahi,
-                            chromeos::features::kFeatureManagementMahi},
+      /*enabled_features=*/{chromeos::features::kFeatureManagementMahi},
       /*disabled_features=*/{chromeos::features::kMahiSendingUrl});
   RequestSummary();
 
@@ -303,10 +301,9 @@ TEST_F(MahiManagerImplTest, SendingTitleOnly) {
 // Url, on the other hand, is controlled by kMahiSendingUrl.
 TEST_F(MahiManagerImplTest, SendingTitleAndUrl) {
   feature_list_.Reset();
-  feature_list_.InitWithFeatures(
-      {chromeos::features::kMahi, chromeos::features::kMahiSendingUrl,
-       chromeos::features::kFeatureManagementMahi},
-      /*disabled_features=*/{});
+  feature_list_.InitWithFeatures({chromeos::features::kMahiSendingUrl,
+                                  chromeos::features::kFeatureManagementMahi},
+                                 /*disabled_features=*/{});
 
   RequestSummary();
 
@@ -533,10 +530,14 @@ TEST_F(MahiManagerImplTest, GetElucidationForMediaApp) {
 
   EXPECT_CALL(mock_mahi_media_app_content_manager_, GetFileName(_))
       .WillOnce(Return("test PDF file name"));
+
+  chromeos::MahiPageContent page_content;
+  page_content.client_id = base::UnguessableToken::Create();
+  page_content.page_id = base::UnguessableToken::Create();
+  page_content.page_content = u"test PDF content";
+
   EXPECT_CALL(mock_mahi_media_app_content_manager_, GetContent(_, _))
-      .WillOnce(RunOnceCallback<1>(crosapi::mojom::MahiPageContent::New(
-          base::UnguessableToken::Create(), base::UnguessableToken::Create(),
-          u"test PDF content")));
+      .WillOnce(RunOnceCallback<1>(std::move(page_content)));
 
   mahi_manager_impl_->SetMediaAppPDFFocused();
 

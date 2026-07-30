@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
@@ -17,17 +18,19 @@
 #include "chrome/browser/supervised_user/android/supervised_user_service_platform_delegate.h"
 #include "chrome/browser/supervised_user/child_accounts/child_account_service_factory.h"
 #include "chrome/browser/supervised_user/child_accounts/list_family_members_service_factory.h"
+#include "chrome/browser/supervised_user/family_link_settings_service_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
-#include "chrome/browser/supervised_user/supervised_user_settings_service_factory.h"
+#include "chrome/browser/supervised_user/supervised_user_url_filtering_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/test/base/android/android_browser_test.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/safe_search_api/url_checker_client.h"
 #include "components/supervised_user/core/browser/child_account_service.h"
 #include "components/supervised_user/core/browser/device_parental_controls.h"
+#include "components/supervised_user/core/browser/family_link_url_filter.h"
 #include "components/supervised_user/core/browser/kids_chrome_management_url_checker_client.h"
 #include "components/supervised_user/core/browser/supervised_user_service.h"
-#include "components/supervised_user/core/browser/supervised_user_url_filter.h"
+#include "components/supervised_user/core/browser/supervised_user_url_filtering_service.h"
 #include "components/supervised_user/test_support/supervised_user_url_filter_test_utils.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/test/browser_test.h"
@@ -63,16 +66,18 @@ std::unique_ptr<KeyedService> BuildSupervisedUserService(
     content::BrowserContext* context) {
   Profile* profile = Profile::FromBrowserContext(context);
   ProfileKey* profile_key = profile->GetProfileKey();
+  FamilyLinkSettingsService& settings_service = CHECK_DEREF(
+      FamilyLinkSettingsServiceFactory::GetInstance()->GetForKey(profile_key));
 
   return std::make_unique<SupervisedUserService>(
       IdentityManagerFactory::GetForProfile(profile),
       profile->GetDefaultStoragePartition()
           ->GetURLLoaderFactoryForBrowserProcess(),
-      *profile->GetPrefs(),
-      *SupervisedUserSettingsServiceFactory::GetForKey(profile_key),
+      *profile->GetPrefs(), settings_service,
       SyncServiceFactory::GetForProfile(profile),
-      std::make_unique<SupervisedUserURLFilter>(
-          *profile->GetPrefs(), std::make_unique<FakeURLFilterDelegate>(),
+      std::make_unique<FamilyLinkUrlFilter>(
+          settings_service, *profile->GetPrefs(),
+          std::make_unique<FakeURLFilterDelegate>(),
           std::make_unique<WrappedUrlCheckerClient>(mock_url_checker_client)),
       std::make_unique<SupervisedUserServicePlatformDelegate>(*profile),
       g_browser_process->device_parental_controls());
@@ -125,6 +130,10 @@ void SupervisedUserBrowserTestBase::SetInitialSupervisedUserState(
 SupervisedUserService* SupervisedUserBrowserTestBase::GetSupervisedUserService()
     const {
   return SupervisedUserServiceFactory::GetForProfile(GetProfile());
+}
+SupervisedUserUrlFilteringService*
+SupervisedUserBrowserTestBase::GetSupervisedUserUrlFilteringService() const {
+  return SupervisedUserUrlFilteringServiceFactory::GetForProfile(GetProfile());
 }
 
 MockUrlCheckerClient& SupervisedUserBrowserTestBase::GetMockUrlCheckerClient() {

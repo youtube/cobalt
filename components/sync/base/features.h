@@ -33,9 +33,6 @@ BASE_DECLARE_FEATURE(kSyncMakeAutofillValuableNonEncryptable);
 // Enables syncing of usage metadata from Google Wallet passes.
 BASE_DECLARE_FEATURE(kSyncAutofillValuableMetadata);
 
-// Enables storing valuables in the profile db instead of the account db.
-BASE_DECLARE_FEATURE(kSyncMoveValuablesToProfileDb);
-
 // Enables syncing account-local metadata for shared tab groups.
 BASE_DECLARE_FEATURE(kSyncSharedTabGroupAccountData);
 
@@ -48,8 +45,8 @@ BASE_DECLARE_FEATURE(kSyncAIThread);
 // Enables syncing of contextual tasks.
 BASE_DECLARE_FEATURE(kSyncContextualTask);
 
-// Enables syncing of skills.
-BASE_DECLARE_FEATURE(kSyncSkill);
+// Enables syncing of Gemini threads across devices.
+BASE_DECLARE_FEATURE(kSyncGeminiThread);
 
 #if !BUILDFLAG(IS_CHROMEOS)
 // Flag that controls Uno fast-follow features which are:
@@ -180,6 +177,9 @@ BASE_DECLARE_FEATURE(kSyncEnablePasswordsSyncErrorMessageAlternative);
 inline constexpr base::FeatureParam<int>
     kSyncEnablePasswordsSyncErrorMessageAlternativeVersion{
         &kSyncEnablePasswordsSyncErrorMessageAlternative, "version", 3};
+
+// If enabled, the error message to unlock passwords is shown for longer.
+BASE_DECLARE_FEATURE(kSyncTrustedVaultErrorMessageDuration);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_IOS)
@@ -208,6 +208,10 @@ BASE_DECLARE_FEATURE(kSyncEnableNewSyncDashboardUrl);
 // If enabled, Sync will fetch device statistics for all accounts on the device,
 // and record summary metrics about them.
 BASE_DECLARE_FEATURE(kSyncRecordDeviceStatisticsMetrics);
+
+// If enabled, DeviceInfoSyncBridge uses WallClockTimer for pulse updates,
+// which is more resilient to device suspension.
+BASE_DECLARE_FEATURE(kSyncDeviceInfoUseWallClockTimer);
 
 }  // namespace syncer
 

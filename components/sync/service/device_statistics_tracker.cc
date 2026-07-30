@@ -14,6 +14,7 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/base/time.h"
 #include "components/sync/engine/net/url_translator.h"
 #include "components/sync/protocol/device_info_specifics.pb.h"
@@ -81,97 +82,19 @@ std::optional<DeviceStatisticsTracker::Platform> PlatformFromProto(
   NOTREACHED();
 }
 
-absl::flat_hash_map<
-    std::pair<sync_pb::SyncEnums::DeviceFormFactor, sync_pb::SyncEnums::OsType>,
-    std::multimap<base::Time, int>>
-GetRelevantEventsByType(
-    const std::vector<sync_pb::SyncEntity>& entities,
-    const std::vector<std::string>& current_device_cache_guids) {
-  absl::flat_hash_map<std::pair<sync_pb::SyncEnums::DeviceFormFactor,
-                                sync_pb::SyncEnums::OsType>,
-                      std::multimap<base::Time, int>>
-      events_by_type;
-
-  const base::Time now = base::Time::Now();
-
-  for (const sync_pb::SyncEntity& entity : entities) {
-    const sync_pb::DeviceInfoSpecifics& device =
-        entity.specifics().device_info();
-    // Only consider Chrome devices (not Google Play Services).
-    if (!device.has_chrome_version_info()) {
-      continue;
-    }
-
-    // Don't consider the current device.
-    if (std::ranges::contains(current_device_cache_guids,
-                              device.cache_guid())) {
-      continue;
-    }
-
-    // Only consider recently-used devices.
-    base::Time last_updated_time =
-        ProtoTimeToTime(device.last_updated_timestamp());
-    if (now - last_updated_time > kDeviceActivityTimeRange) {
-      continue;
-    }
-
-    // Perform activity-time-range based deduping, similar to
-    // DeviceInfoSyncBridge::CountActiveDevicesByType(): Devices with the same
-    // form factor and OS, but with non-overlapping usage times, are likely
-    // the same device, just with different cache GUIDs.
-    base::Time begin = syncer::ProtoTimeToTime(entity.ctime());
-    base::Time end = syncer::ProtoTimeToTime(entity.mtime());
-    // Begin/end timestamps are received from other devices without local
-    // sanitizing, so potentially the timestamps could be malformed, and the
-    // modification time may predate the creation time.
-    if (begin > end) {
-      continue;
-    }
-    sync_pb::SyncEnums::DeviceFormFactor form_factor =
-        device.device_form_factor();
-    sync_pb::SyncEnums::OsType os_type = device.os_type();
-    events_by_type[{form_factor, os_type}].emplace(begin, 1);
-    events_by_type[{form_factor, os_type}].emplace(end, -1);
-  }
-
-  return events_by_type;
-}
-
-// `events` represents a set of devices, more precisely their first and last use
-// dates. First-use dates are represented as `1`, last-use dates as `-1`. This
-// function computes the maximum number of devices that were used at any one
-// time, i.e. the max number of devices with overlapping usage times.
-int CalculateMaxConcurrentEvents(const std::multimap<base::Time, int>& events) {
-  int max_overlapping = 0;
-  int overlapping = 0;
-  for (const auto& [time, value] : events) {
-    overlapping += value;
-    CHECK_LE(0, overlapping);
-    max_overlapping = std::max(max_overlapping, overlapping);
-  }
-  CHECK_EQ(overlapping, 0);
-  return max_overlapping;
-}
-
-std::vector<DeviceStatisticsTracker::Platform> GetPlatformsPerDevice(
-    const absl::flat_hash_map<std::pair<sync_pb::SyncEnums::DeviceFormFactor,
-                                        sync_pb::SyncEnums::OsType>,
-                              std::multimap<base::Time, int>>& events_by_type) {
-  std::vector<DeviceStatisticsTracker::Platform> result;
-  for (const auto& [form_factor_and_os_type, events] : events_by_type) {
-    // Figure out the platform/OS of the other device, and skip
-    // unknown/uninteresting ones.
-    std::optional<DeviceStatisticsTracker::Platform> platform =
-        PlatformFromProto(form_factor_and_os_type.second);
-    if (!platform) {
-      continue;
-    }
-    int count = CalculateMaxConcurrentEvents(events);
-    for (int i = 0; i < count; ++i) {
-      result.push_back(*platform);
+bool IsOptedInToHistory(const sync_pb::DeviceInfoSpecifics device_info) {
+  // Check whether the device interested in history invalidations. Note that
+  // it's better to check for `DataType::HISTORY_DELETE_DIRECTIVES` rather than
+  // `DataType::HISTORY`, since Android devices are generally not subscribed
+  // to `DataType::HISTORY`.
+  for (int data_type_number :
+       device_info.invalidation_fields().interested_data_type_ids()) {
+    if (GetDataTypeFromSpecificsFieldNumber(data_type_number) ==
+        DataType::HISTORY_DELETE_DIRECTIVES) {
+      return true;
     }
   }
-  return result;
+  return false;
 }
 
 }  // namespace
@@ -231,6 +154,8 @@ void DeviceStatisticsTracker::Start(base::OnceClosure callback) {
   // If there are no accounts, there's not much to do.
   if (accounts.empty()) {
     RecordOverallOutcome();
+    RecordPrimaryAccountMultiDeviceReadiness(
+        /*other_devices=*/0, /*other_devices_with_history_opt_in=*/0);
 
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, std::move(callback_));
@@ -276,8 +201,26 @@ void DeviceStatisticsTracker::RequestDoneForGaiaId(const GaiaId& gaia) {
 
   if (request->GetState() == DeviceStatisticsRequest::State::kComplete) {
     other_devices_by_gaia_[gaia] =
-        GetPlatformsPerDevice(GetRelevantEventsByType(
-            request->GetResults(), current_device_cache_guids_));
+        DeduplicateEntities(request->GetResults(), current_device_cache_guids_);
+
+    // If this request was for the primary account, figure out whether the user
+    // has opted in to history on the current device.
+    if (gaia == primary_account_.gaia) {
+      for (const sync_pb::SyncEntity& entity : request->GetResults()) {
+        const sync_pb::DeviceInfoSpecifics& device_info =
+            entity.specifics().device_info();
+        // Note: `current_device_cache_guids_` contains all known cache GUIDs
+        // for the current device, including some that may belong to other
+        // accounts. But since `device_info` belongs to the primary account, and
+        // cache GUIDs should be unique (and in particular, never shared across
+        // different accounts), that's okay.
+        if (current_device_cache_guids_.contains(device_info.cache_guid()) &&
+            IsOptedInToHistory(device_info)) {
+          primary_account_history_opt_in_ = true;
+          break;
+        }
+      }
+    }
   } else {
     other_devices_by_gaia_[gaia] = base::unexpected(kRequestFailed);
   }
@@ -300,11 +243,12 @@ void DeviceStatisticsTracker::AllRequestsDone() {
 
     for (const auto& [gaia, other_devices] : other_devices_by_gaia_) {
       if (!other_devices.has_value()) {
+        // The statistics request for this account failed, so nothing to record.
         continue;
       }
 
-      bool is_primary = (gaia == primary_account_.gaia);
-      std::string_view infix =
+      const bool is_primary = (gaia == primary_account_.gaia);
+      const std::string_view infix =
           is_primary ? "PrimaryAccount" : "NonPrimaryAccount";
 
       base::UmaHistogramCounts100(
@@ -313,12 +257,31 @@ void DeviceStatisticsTracker::AllRequestsDone() {
               infix),
           other_devices->size());
 
-      for (Platform platform : *other_devices) {
+      const size_t other_devices_with_history_opt_in = std::ranges::count_if(
+          *other_devices,
+          [](const DeviceData& device) { return device.history_opt_in; });
+      base::UmaHistogramCounts100(
+          absl::StrFormat("Sync.DeviceStatistics.Outcome.%s."
+                          "NumberOfAdditionalClientsWithHistoryOptIn",
+                          infix),
+          other_devices_with_history_opt_in);
+
+      if (is_primary) {
+        RecordPrimaryAccountMultiDeviceReadiness(
+            other_devices->size(), other_devices_with_history_opt_in);
+
+        base::UmaHistogramEnumeration(
+            "Sync.DeviceStatistics.Outcome.PrimaryAccount.HistoryOptIn",
+            GetHistoryOptInSummary(other_devices->size(),
+                                   other_devices_with_history_opt_in));
+      }
+
+      for (DeviceData device : *other_devices) {
         base::UmaHistogramEnumeration(
             absl::StrFormat(
                 "Sync.DeviceStatistics.Outcome.%s.PlatformOfAdditionalClient",
                 infix),
-            platform);
+            device.platform);
       }
     }
   }
@@ -330,6 +293,15 @@ void DeviceStatisticsTracker::AllRequestsDone() {
 void DeviceStatisticsTracker::RecordOverallOutcome() const {
   base::UmaHistogramEnumeration("Sync.DeviceStatistics.Outcome.Overall",
                                 GetOverallOutcome());
+}
+
+void DeviceStatisticsTracker::RecordPrimaryAccountMultiDeviceReadiness(
+    size_t other_devices,
+    size_t other_devices_with_history_opt_in) const {
+  base::UmaHistogramEnumeration(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiDeviceReadiness",
+      GetPrimaryAccountMultiDeviceReadiness(other_devices,
+                                            other_devices_with_history_opt_in));
 }
 
 DeviceStatisticsTracker::RequestsCompletedSuccess
@@ -413,6 +385,128 @@ DeviceStatisticsTracker::GetOverallOutcome() const {
       return AccountsHaveOtherDevicesSummary::kPrimaryNANonPrimaryNo;
     }
   }
+}
+
+DeviceStatisticsTracker::MultiDeviceReadiness
+DeviceStatisticsTracker::GetPrimaryAccountMultiDeviceReadiness(
+    size_t other_devices,
+    size_t other_devices_with_history_opt_in) const {
+  if (primary_account_.IsEmpty()) {
+    return MultiDeviceReadiness::kSignedOut;
+  }
+  if (other_devices == 0) {
+    return MultiDeviceReadiness::kSingleDevice;
+  }
+  if (!primary_account_history_opt_in_ ||
+      other_devices_with_history_opt_in == 0) {
+    return MultiDeviceReadiness::kMultiDeviceWithoutHistory;
+  }
+  return MultiDeviceReadiness::kMultiDeviceWithHistory;
+}
+
+DeviceStatisticsTracker::HistoryOptInSummary
+DeviceStatisticsTracker::GetHistoryOptInSummary(
+    size_t other_devices,
+    size_t other_devices_with_history_opt_in) const {
+  if (other_devices == 0) {
+    if (primary_account_history_opt_in_) {
+      return HistoryOptInSummary::kThisDeviceYesOtherDevicesNA;
+    }
+    return HistoryOptInSummary::kThisDeviceNoOtherDevicesNA;
+  }
+
+  if (other_devices_with_history_opt_in > 0) {
+    if (primary_account_history_opt_in_) {
+      return HistoryOptInSummary::kThisDeviceYesOtherDevicesYes;
+    }
+    return HistoryOptInSummary::kThisDeviceNoOtherDevicesYes;
+  }
+
+  if (primary_account_history_opt_in_) {
+    return HistoryOptInSummary::kThisDeviceYesOtherDevicesNo;
+  }
+  return HistoryOptInSummary::kThisDeviceNoOtherDevicesNo;
+}
+
+// static
+std::vector<DeviceStatisticsTracker::DeviceData>
+DeviceStatisticsTracker::DeduplicateEntities(
+    const std::vector<sync_pb::SyncEntity>& entities,
+    const base::flat_set<std::string>& current_device_cache_guids) {
+  absl::flat_hash_map<std::pair<sync_pb::SyncEnums::DeviceFormFactor,
+                                sync_pb::SyncEnums::OsType>,
+                      std::vector<sync_pb::SyncEntity>>
+      devices_by_type;
+
+  const base::Time now = base::Time::Now();
+
+  // Group all the relevant DeviceInfos by OS+FormFactor.
+  for (const sync_pb::SyncEntity& entity : entities) {
+    const sync_pb::DeviceInfoSpecifics& device =
+        entity.specifics().device_info();
+    // Only consider Chrome devices (not Google Play Services).
+    if (!device.has_chrome_version_info()) {
+      continue;
+    }
+
+    // Don't consider the current device.
+    if (current_device_cache_guids.contains(device.cache_guid())) {
+      continue;
+    }
+
+    // Only consider recently-used devices.
+    base::Time last_updated_time =
+        ProtoTimeToTime(device.last_updated_timestamp());
+    if (now - last_updated_time > kDeviceActivityTimeRange) {
+      continue;
+    }
+
+    // This is a relevant device!
+    sync_pb::SyncEnums::DeviceFormFactor form_factor =
+        device.device_form_factor();
+    sync_pb::SyncEnums::OsType os_type = device.os_type();
+    devices_by_type[{form_factor, os_type}].push_back(entity);
+  }
+
+  std::vector<DeviceData> deduped_devices;
+
+  // Heuristically de-dupe entities based on their activity time ranges (similar
+  // in spirit to DeviceInfoSyncBridge::CountActiveDevicesByType()): If two
+  // entries have non-overlapping activity times (ctime/mtime), they most likely
+  // represent the same device, just with different cache GUIDs.
+  // As an approximation, to avoid an O(n^2) algorithm, just de-dupe all entries
+  // against the last-created one.
+  for (auto& [form_factor_and_os_type, type_entities] : devices_by_type) {
+    CHECK(!type_entities.empty());
+    int64_t max_ctime = std::ranges::max(type_entities, /*comp=*/{},
+                                         [](const sync_pb::SyncEntity& entity) {
+                                           return entity.ctime();
+                                         })
+                            .ctime();
+    for (const sync_pb::SyncEntity& entity : type_entities) {
+      if (entity.mtime() < max_ctime) {
+        // This entity was last used before the newest one was created. That
+        // means it's likely the same device, just with a different cache GUID.
+        continue;
+      }
+
+      // Figure out the platform/OS of the device, and skip unknown or
+      // uninteresting ones.
+      std::optional<DeviceStatisticsTracker::Platform> platform =
+          PlatformFromProto(entity.specifics().device_info().os_type());
+      if (!platform) {
+        continue;
+      }
+
+      // Figure out whether the device has opted in to history.
+      bool history_opt_in =
+          IsOptedInToHistory(entity.specifics().device_info());
+
+      deduped_devices.emplace_back(*platform, history_opt_in);
+    }
+  }
+
+  return deduped_devices;
 }
 
 }  // namespace syncer

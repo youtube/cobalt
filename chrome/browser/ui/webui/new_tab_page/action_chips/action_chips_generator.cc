@@ -15,6 +15,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/i18n/char_iterator.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
@@ -26,6 +27,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom-shared.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom.h"
+#include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips_metrics.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/remote_suggestions_service_simple.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/tab_id_generator.h"
 #include "chrome/grit/generated_resources.h"
@@ -42,11 +44,13 @@
 #include "components/url_formatter/url_formatter.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/omnibox_proto/groups.pb.h"
+#include "third_party/omnibox_proto/page_vertical.pb.h"
 #include "third_party/omnibox_proto/types.pb.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "url/url_util.h"
 
 namespace {
+using ::action_chips::RecordActionChipsRequestStatus;
 using ::action_chips::RemoteSuggestionsServiceSimple;
 using ::action_chips::RemoteSuggestionsServiceSimpleImpl;
 using ::action_chips::mojom::ActionChip;
@@ -225,15 +229,17 @@ std::vector<omnibox::ToolMode> GetAllowedTools(
   return allowed_tools;
 }
 
-std::optional<ChipType> GetChipType(omnibox::GroupId group_id,
-                                    const std::vector<int>& subtypes) {
+std::optional<ChipType> GetChipType(
+    omnibox::GroupId group_id,
+    base::optional_ref<const omnibox::PageVertical> page_vertical) {
   switch (group_id) {
     case omnibox::GROUP_AI_MODE_DEEP_SEARCH_ACTION:
       return ChipType::kDeepSearch;
     case omnibox::GROUP_AI_MODE_CREATE_IMAGE_ACTION:
       return ChipType::kImage;
     case omnibox::GROUP_AI_MODE_CONTEXTUAL_SEARCH_ACTION:
-      if (std::ranges::contains(subtypes, omnibox::SUBTYPE_AI_TOOL_ACTION)) {
+      if (page_vertical.has_value() &&
+          *page_vertical == omnibox::PAGE_VERTICAL_EDU) {
         return ChipType::kDeepDive;
       }
       return ChipType::kRecentTab;
@@ -264,7 +270,8 @@ std::vector<ActionChipPtr> CreateChipsForSteadyState(
     const AimEligibilityService* aim_eligibility_service,
     const CreateChipsForSteadyStateOptions& options) {
   std::vector<ActionChipPtr> chips;
-  if (!tab.is_null()) {
+  if (!tab.is_null() &&
+      ntp_features::kNtpNextShowStaticRecentTabChipParam.Get()) {
     chips.push_back(
         CreateRecentTabChip(std::move(tab), options.recent_tab_suggestion));
   }
@@ -383,7 +390,7 @@ void ActionChipsGeneratorImpl::GenerateActionChipsFromNewEndpoint(
           &ActionChipsGeneratorImpl::GenerateActionChipsFromRemoteResponse,
           this->weak_factory_.GetWeakPtr(),
           tab.has_value() ? CreateTabInfo(*tab_id_generator_, *tab) : nullptr,
-          std::move(callback)));
+          std::move(page_vertical), std::move(callback)));
 }
 
 void ActionChipsGeneratorImpl::GenerateActionChipsFromScenario(
@@ -433,19 +440,17 @@ void ActionChipsGeneratorImpl::GenerateDeepDiveChipsFromRemoteResponse(
 
 void ActionChipsGeneratorImpl::GenerateActionChipsFromRemoteResponse(
     action_chips::mojom::TabInfoPtr tab,
+    std::optional<const omnibox::PageVertical> page_vertical,
     base::OnceCallback<void(std::vector<action_chips::mojom::ActionChipPtr>)>
         callback,
     RemoteSuggestionsServiceSimple::ActionChipSuggestionsResult&& result) {
+  RecordActionChipsRequestStatus(result);
   if (!result.has_value()) {
-    // TODO: b/473586071 - Track the success/failure of the calls by a
-    // histogram.
     std::move(callback).Run(CreateChipsForSteadyState(std::move(tab),
                                                       aim_eligibility_service_,
                                                       /*options=*/{}));
     return;
   }
-  // TODO: b/473586071 - Track the # of suggestions returned when
-  // chrome-ntp-action client is used.
 
   std::vector<ActionChipPtr> chips;
   for (const auto& suggestion : *result) {
@@ -464,7 +469,7 @@ void ActionChipsGeneratorImpl::GenerateActionChipsFromRemoteResponse(
     }
     const omnibox::GroupId group_id = *suggestion.suggestion_group_id();
     const std::optional<ChipType> chip_type =
-        GetChipType(group_id, suggestion.subtypes());
+        GetChipType(group_id, page_vertical);
 
     if (!chip_type.has_value()) {
       if (VLOG_IS_ON(1)) {
@@ -481,7 +486,10 @@ void ActionChipsGeneratorImpl::GenerateActionChipsFromRemoteResponse(
     }
 
     ActionChipPtr chip = ActionChip::New();
-    chip->type = *chip_type;
+    // In the deep-dive state, the first chip needs to be a recent tab chip.
+    chip->type = chips.empty() && *chip_type == ChipType::kDeepDive
+                     ? ChipType::kRecentTab
+                     : *chip_type;
     chip->title = base::UTF16ToUTF8(suggestion.match_contents());
     chip->subtitle = base::UTF16ToUTF8(suggestion.annotation());
     chip->suggestion = base::UTF16ToUTF8(suggestion.suggestion());

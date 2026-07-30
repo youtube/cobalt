@@ -49,11 +49,11 @@
 #include "chrome/test/base/testing_profile.h"
 #include "components/commerce/core/commerce_utils.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/split_tabs/split_tab_id.h"
+#include "components/split_tabs/split_tab_visual_data.h"
 #include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tabs/public/split_tab_data.h"
-#include "components/tabs/public/split_tab_id.h"
-#include "components/tabs/public/split_tab_visual_data.h"
 #include "components/tabs/public/tab_group.h"
 #include "components/tabs/public/tab_group_tab_collection.h"
 #include "components/tabs/public/tab_interface.h"
@@ -7038,3 +7038,16 @@ TEST_P(TabStripModelTest, CommandGlicUnshare) {
   tabstrip()->ExecuteContextMenuCommand(0, TabStripModel::CommandGlicUnshare);
 }
 #endif
+
+TEST_P(TabStripModelTest, TabStripUIWasSetResetOnObserverRemoval) {
+  MockTabStripModelObserver observer;
+  tabstrip()->SetTabStripUI(&observer);
+
+  // Removing the UI observer should reset the internal flag.
+  tabstrip()->RemoveObserver(&observer);
+
+  // This should not crash (DCHECK failure) if the flag was properly reset.
+  MockTabStripModelObserver observer2;
+  tabstrip()->SetTabStripUI(&observer2);
+  tabstrip()->RemoveObserver(&observer2);
+}

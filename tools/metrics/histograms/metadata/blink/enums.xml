@@ -1659,9 +1659,9 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="1366" label="AudioListenerSetPosition"/>
   <int value="1367" label="AudioListenerSetOrientation"/>
   <int value="1368" label="IntersectionObserver_Constructor"/>
-  <int value="1369" label="DurableStoragePersist"/>
-  <int value="1370" label="DurableStoragePersisted"/>
-  <int value="1371" label="DurableStorageEstimate"/>
+  <int value="1369" label="PersistentStoragePersist"/>
+  <int value="1370" label="PersistentStoragePersisted"/>
+  <int value="1371" label="PersistentStorageEstimate"/>
   <int value="1372" label="UntrustedEventDefaultHandled"/>
   <int value="1373" label="FixedRasterScaleBlurryContent"/>
   <int value="1374" label="FixedRasterScalePotentialPerformanceRegression"/>
@@ -5431,12 +5431,12 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4882" label="ViewportSegments"/>
   <int value="4883" label="PrivateNetworkAccessWebSocketConnected"/>
   <int value="4884" label="WebAppTitle"/>
-  <int value="4885" label="DOMSubtreeModifiedEventFired"/>
-  <int value="4886" label="DOMNodeInsertedEventFired"/>
-  <int value="4887" label="DOMNodeRemovedEventFired"/>
-  <int value="4888" label="DOMNodeRemovedFromDocumentEventFired"/>
-  <int value="4889" label="DOMNodeInsertedIntoDocumentEventFired"/>
-  <int value="4890" label="DOMCharacterDataModifiedEventFired"/>
+  <int value="4885" label="OBSOLETE_DOMSubtreeModifiedEventFired"/>
+  <int value="4886" label="OBSOLETE_DOMNodeInsertedEventFired"/>
+  <int value="4887" label="OBSOLETE_DOMNodeRemovedEventFired"/>
+  <int value="4888" label="OBSOLETE_DOMNodeRemovedFromDocumentEventFired"/>
+  <int value="4889" label="OBSOLETE_DOMNodeInsertedIntoDocumentEventFired"/>
+  <int value="4890" label="OBSOLETE_DOMCharacterDataModifiedEventFired"/>
   <int value="4891" label="OBSOLETE_AnyMutationEventFired"/>
   <int value="4892" label="OBSOLETE_AnyMutationEventListenerAdded"/>
   <int value="4893"
@@ -6405,6 +6405,14 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5772" label="SetCookieWithEmptyNameAndAmbiguousValue"/>
   <int value="5773"
       label="StorageAccessAPI_requestStorageAccessFor_Method_AsyncSuccess"/>
+  <int value="5774" label="WebAudioRenderSizeHint"/>
+  <int value="5775" label="WebAudioRenderQuantumSize"/>
+  <int value="5776" label="ImageElementTimingNotImageOrVideoNode"/>
+  <int value="5777" label="XSLPIInSVGImage"/>
+  <int value="5778" label="XSLPIInSVGStandaloneDoc"/>
+  <int value="5779" label="AudioContextAsyncStateTransitions"/>
+  <int value="5780" label="AudioContextAsyncTransitionToRunningStateRead"/>
+  <int value="5781" label="AudioContextAsyncTransitionToSuspendedStateRead"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -8172,8 +8180,8 @@ Called by update_use_counter_css.py.-->
   <int value="853" label="rule-style"/>
   <int value="854" label="caret-shape"/>
   <int value="855" label="row-rule"/>
-  <int value="856" label="text-grow"/>
-  <int value="857" label="text-shrink"/>
+  <int value="856" label="text-grow (obsolete)"/>
+  <int value="857" label="text-shrink (obsolete)"/>
   <int value="858" label="rule"/>
   <int value="859" label="origin-trial-test-shorthand (obsolete)"/>
   <int value="860" label="corner-top-shape"/>
@@ -8240,6 +8248,8 @@ Called by update_use_counter_css.py.-->
   <int value="921" label="timeline-trigger-entry-range"/>
   <int value="922" label="timeline-trigger-active-range"/>
   <int value="923" label="grid-lanes-pack"/>
+  <int value="924" label="text-fit"/>
+  <int value="925" label="view-transition-scope"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->

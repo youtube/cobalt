@@ -130,12 +130,6 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
        IDS_EXTENSIONS_EDIT_SITE_PERMISSIONS_CUSTOMIZE_PER_EXTENSION},
       {"editSitePermissionsRestrictExtensions",
        IDS_EXTENSIONS_EDIT_SITE_PERMISSIONS_RESTRICT_EXTENSIONS},
-      {"enableToggleTooltipDisabled",
-       IDS_EXTENSIONS_ENABLE_TOGGLE_TOOLTIP_DISABLED},
-      {"enableToggleTooltipEnabled",
-       IDS_EXTENSIONS_ENABLE_TOGGLE_TOOLTIP_ENABLED},
-      {"enableToggleTooltipEnabledWithSiteAccess",
-       IDS_EXTENSIONS_ENABLE_TOGGLE_TOOLTIP_ENABLED_WITH_SITE_ACCESS},
       {"errorsPageHeading", IDS_EXTENSIONS_ERROR_PAGE_HEADING},
       {"clearActivities", IDS_EXTENSIONS_CLEAR_ACTIVITIES},
       {"clearAll", IDS_EXTENSIONS_ERROR_CLEAR_ALL},
@@ -595,7 +589,7 @@ base::RefCountedMemory* ExtensionsUI::GetFaviconResourceBytes(
 // Normally volatile data does not belong in loadTimeData, but in this case
 // prevents flickering on a very prominent surface (top of the landing page).
 void ExtensionsUI::OnDevModeChanged() {
-  base::Value::Dict update;
+  base::DictValue update;
   update.Set(kInDevModeKey, *in_dev_mode_);
   update.Set(kLoadTimeClassesKey, GetLoadTimeClasses(*in_dev_mode_));
   content::WebUIDataSource::Update(Profile::FromWebUI(web_ui()),

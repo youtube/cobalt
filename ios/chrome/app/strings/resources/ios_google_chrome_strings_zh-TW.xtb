@@ -3,7 +3,7 @@
 <translationbundle lang="zh-TW">
 <translation id="1076643793026027628">在無痕模式下，Chrome 會自動開啟 YouTube 無痕模式連結。</translation>
 <translation id="1081114897601629648">以下密碼不符合規定，因此未匯入 Google 密碼管理工具。</translation>
-<translation id="1086486568852410168">透過 Google 智慧鏡頭搜尋</translation>
+<translation id="1086486568852410168">用 Google 智慧鏡頭搜尋</translation>
 <translation id="1088490543924960890">使用 Google 密碼管理工具儲存密碼金鑰</translation>
 <translation id="1143896152279775643">系統會將你的密碼儲存至 <ph name="EMAIL" /> 的 Google 密碼管理工具中。</translation>
 <translation id="1146503048444965320">使用 Chrome 開啟新分頁</translation>
@@ -86,6 +86,7 @@
 <translation id="2767464022270041271">尚未儲存任何密碼。你必須先儲存密碼，才能使用 Google 密碼管理工具的檢查功能。</translation>
 <translation id="2788811701191021538">使用 Chrome 開啟「付款方式設定」頁面。</translation>
 <translation id="2876628302275096482">進一步瞭解 <ph name="BEGIN_LINK" />Chrome 如何保護你的資料隱私<ph name="END_LINK" /></translation>
+<translation id="288992067439702510">已達到 Google Chrome 的書籤數量上限 (<ph name="LIMIT" /> 個)，因此部分書籤尚未儲存到 Google 帳戶。請先刪除一些書籤，才能將新書籤儲存到帳戶。如果現在登出，系統會刪除未儲存的書籤。</translation>
 <translation id="2922914028977213693">輕觸這裡即可在 iPad 上充分運用 Chrome 的各項功能。</translation>
 <translation id="292371311537977079">Chrome 設定</translation>
 <translation id="2923827943290349720">關閉 Chrome 時鎖定無痕分頁</translation>

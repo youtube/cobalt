@@ -12,7 +12,6 @@
 #include "chrome/browser/ash/login/screens/base_screen.h"
 #include "chrome/browser/ash/login/wizard_context.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
-#include "chrome/browser/ui/webui/ash/login/check_passwords_against_cryptohome_helper.h"
 #include "chrome/browser/ui/webui/ash/login/saml_confirm_password_handler.h"
 #include "chromeos/ash/components/login/auth/public/auth_types.h"
 #include "chromeos/ash/components/login/auth/public/cryptohome_key_constants.h"
@@ -94,18 +93,7 @@ void SamlConfirmPasswordScreen::ShowImpl() {
     return;
   view_->Show(user_context_->GetAccountId().GetUserEmail(),
               scraped_saml_passwords_.empty());
-  if (!features::IsCheckPasswordsAgainstCryptohomeHelperEnabled() ||
-      scraped_saml_passwords_.empty()) {
-    ShowPasswordStep(/*retry=*/false);
-    return;
-  }
-  check_passwords_against_cryptohome_helper_ =
-      std::make_unique<CheckPasswordsAgainstCryptohomeHelper>(
-          *user_context_.get(), scraped_saml_passwords_,
-          base::BindOnce(&SamlConfirmPasswordScreen::ShowPasswordStep,
-                         base::Unretained(this),/*retry=*/false),
-          base::BindOnce(&SamlConfirmPasswordScreen::TryPassword,
-                         base::Unretained(this)));
+  ShowPasswordStep(/*retry=*/false);
 }
 
 void SamlConfirmPasswordScreen::ShowPasswordStep(bool retry) {
@@ -116,7 +104,7 @@ void SamlConfirmPasswordScreen::ShowPasswordStep(bool retry) {
 
 void SamlConfirmPasswordScreen::HideImpl() {}
 
-void SamlConfirmPasswordScreen::OnUserAction(const base::Value::List& args) {
+void SamlConfirmPasswordScreen::OnUserAction(const base::ListValue& args) {
   const std::string& action_id = args[0].GetString();
   if (action_id == "inputPassword") {
     CHECK_EQ(args.size(), 2u);

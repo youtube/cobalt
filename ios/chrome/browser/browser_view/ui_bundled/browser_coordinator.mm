@@ -40,6 +40,7 @@
 #import "components/supervised_user/core/browser/supervised_user_utils.h"
 #import "components/supervised_user/core/common/features.h"
 #import "components/supervised_user/core/common/supervised_user_constants.h"
+#import "components/sync/service/sync_service.h"
 #import "components/translate/core/browser/translate_manager.h"
 #import "components/trusted_vault/trusted_vault_server_constants.h"
 #import "components/webauthn/ios/ios_passkey_client.h"
@@ -89,9 +90,11 @@
 #import "ios/chrome/browser/commerce/model/push_notification/push_notification_feature.h"
 #import "ios/chrome/browser/commerce/model/shopping_service_factory.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_coordinator.h"
+#import "ios/chrome/browser/composebox/coordinator/composebox_entrypoint.h"
 #import "ios/chrome/browser/content_settings/model/host_content_settings_map_factory.h"
 #import "ios/chrome/browser/context_menu/ui_bundled/context_menu_configuration_provider.h"
 #import "ios/chrome/browser/contextual_panel/coordinator/contextual_sheet_coordinator.h"
+#import "ios/chrome/browser/contextual_panel/entrypoint/coordinator/contextual_panel_entrypoint_constants.h"
 #import "ios/chrome/browser/contextual_panel/model/contextual_panel_tab_helper.h"
 #import "ios/chrome/browser/contextual_panel/utils/contextual_panel_metrics.h"
 #import "ios/chrome/browser/credential_provider_promo/ui_bundled/credential_provider_promo_coordinator.h"
@@ -158,12 +161,13 @@
 #import "ios/chrome/browser/overscroll_actions/ui_bundled/overscroll_actions_controller.h"
 #import "ios/chrome/browser/page_info/coordinator/page_info_coordinator.h"
 #import "ios/chrome/browser/page_info/requirements/page_info_presentation.h"
+#import "ios/chrome/browser/passwords/bottom_sheet/coordinator/credential_suggestion_bottom_sheet_coordinator.h"
+#import "ios/chrome/browser/passwords/bottom_sheet/coordinator/passkey_creation_bottom_sheet_coordinator.h"
 #import "ios/chrome/browser/passwords/model/password_controller_delegate.h"
-#import "ios/chrome/browser/passwords/ui_bundled/bottom_sheet/credential_suggestion_bottom_sheet_coordinator.h"
+#import "ios/chrome/browser/passwords/password_suggestion/coordinator/password_suggestion_coordinator.h"
 #import "ios/chrome/browser/passwords/ui_bundled/password_breach_coordinator.h"
 #import "ios/chrome/browser/passwords/ui_bundled/password_protection_coordinator.h"
 #import "ios/chrome/browser/passwords/ui_bundled/password_protection_coordinator_delegate.h"
-#import "ios/chrome/browser/passwords/ui_bundled/password_suggestion_coordinator.h"
 #import "ios/chrome/browser/phone_number/ui_bundled/add_contacts_coordinator.h"
 #import "ios/chrome/browser/phone_number/ui_bundled/country_code_picker_coordinator.h"
 #import "ios/chrome/browser/plus_addresses/coordinator/plus_address_bottom_sheet_coordinator.h"
@@ -244,11 +248,11 @@
 #import "ios/chrome/browser/shared/public/commands/google_one_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_overlay_commands.h"
-#import "ios/chrome/browser/shared/public/commands/load_query_commands.h"
 #import "ios/chrome/browser/shared/public/commands/mini_map_commands.h"
 #import "ios/chrome/browser/shared/public/commands/new_tab_page_commands.h"
 #import "ios/chrome/browser/shared/public/commands/non_modal_signin_promo_commands.h"
 #import "ios/chrome/browser/shared/public/commands/omnibox_commands.h"
+#import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/page_info_commands.h"
 #import "ios/chrome/browser/shared/public/commands/parent_access_commands.h"
@@ -307,6 +311,7 @@
 #import "ios/chrome/browser/store_kit/model/store_kit_coordinator_delegate.h"
 #import "ios/chrome/browser/supervised_user/coordinator/parent_access_coordinator.h"
 #import "ios/chrome/browser/sync/model/sync_error_browser_agent.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/browser/synced_set_up/coordinator/synced_set_up_coordinator.h"
 #import "ios/chrome/browser/synced_set_up/coordinator/synced_set_up_coordinator_delegate.h"
 #import "ios/chrome/browser/synced_set_up/utils/utils.h"
@@ -698,7 +703,6 @@ const char kChromeAppStoreUrl[] =
   id<VoiceSearchController> _voiceSearchController;
   raw_ptr<UrlLoadingNotifierBrowserAgent, DanglingUntriaged>
       _urlLoadingNotifierBrowserAgent;
-  id<LoadQueryCommands> _loadQueryCommandsHandler;
   id<OmniboxCommands> _omniboxCommandsHandler;
   LayoutGuideCenter* _layoutGuideCenter;
   raw_ptr<WebNavigationBrowserAgent> _webNavigationBrowserAgent;
@@ -767,6 +771,9 @@ const char kChromeAppStoreUrl[] =
   // The coordinator for managing the Synced Set Up flow.
   SyncedSetUpCoordinator* _syncedSetUpCoordinator;
 
+  // The coordinator for the passkey creation bottom sheet.
+  PasskeyCreationBottomSheetCoordinator* _passkeyCreationBottomSheetCoordinator;
+
   // Block to run after the Synced Set Up UI has finished dismissing.
   ProceduralBlock _runAfterSyncedSetUpDismissal;
 }
@@ -821,6 +828,8 @@ const char kChromeAppStoreUrl[] =
   // notified of WebStateList events.
   [self startTabLifeCycleMediator];
 
+  [self startDispatchingToProtocols];
+
   [self createViewControllerDependencies];
 
   [self createViewController];
@@ -869,16 +878,23 @@ const char kChromeAppStoreUrl[] =
   [self uninstallDelegatesForBrowser];
   [self.tabEventsMediator disconnect];
   [self.tabLifecycleMediator disconnect];
-  [self.dispatcher stopDispatchingToTarget:self];
+  // TODO:(crbug.com/477258591): Remove this nil call when clean up is resolved.
+  if (IsGeminiCopresenceEnabled()) {
+    // Gemini commands can be called during view controller
+    // dismissals. Since the dispatcher no longer listens for commands, early
+    // nil `geminiHandler` to avoid a crash.
+    _viewController.geminiHandler = nil;
+  }
   [self stopChildCoordinators];
   [self destroyViewController];
   [self destroyViewControllerDependencies];
+  [self.dispatcher stopDispatchingToTarget:self];
   _webUsageEnablerObserver.reset();
   _activityOverlayCallback.RunAndReset();
 }
 
 - (void)dealloc {
-  DCHECK(!_bookmarksCoordinator);
+  CHECK(!self.started, base::NotFatalUntil::M152);
 }
 
 #pragma mark - Public
@@ -1019,6 +1035,9 @@ const char kChromeAppStoreUrl[] =
   [_dataControlsDialogCoordinator stop];
   _dataControlsDialogCoordinator = nil;
 
+  [_passkeyCreationBottomSheetCoordinator stop];
+  _passkeyCreationBottomSheetCoordinator = nil;
+
   if (IsSyncedSetUpEnabled()) {
     [self stopSyncedSetUpCoordinator];
   }
@@ -1038,7 +1057,7 @@ const char kChromeAppStoreUrl[] =
 
   // The composebox replaces the omnibox.
   if (dismissOmnibox) {
-    [self hideComposeboxImmediately:NO];
+    [self hideComposebox];
   }
 
   BOOL dismissPresentedViewController = YES;
@@ -1247,10 +1266,9 @@ const char kChromeAppStoreUrl[] =
   return view != nil;
 }
 
-// Creates the browser view controller dependencies.
-- (void)createViewControllerDependencies {
-  Browser* browser = self.browser;
-  _dispatcher = browser->GetCommandDispatcher();
+// Starts dispatching
+- (void)startDispatchingToProtocols {
+  _dispatcher = self.browser->GetCommandDispatcher();
 
   // Add commands protocols handled by this class in this array to let the
   // dispatcher know where to dispatch such commands. This must be done before
@@ -1307,6 +1325,11 @@ const char kChromeAppStoreUrl[] =
   for (Protocol* protocol in protocols) {
     [_dispatcher startDispatchingToTarget:self forProtocol:protocol];
   }
+}
+
+// Creates the browser view controller dependencies.
+- (void)createViewControllerDependencies {
+  Browser* browser = self.browser;
 
   ProfileIOS* profile = browser->GetProfile();
 
@@ -1431,6 +1454,8 @@ const char kChromeAppStoreUrl[] =
   _viewControllerDependencies.sideSwipeCoordinator = _sideSwipeCoordinator;
   _viewControllerDependencies.bookmarksCoordinator = _bookmarksCoordinator;
   _viewControllerDependencies.fullscreenController = _fullscreenController;
+  _viewControllerDependencies.browserCoordinatorHandler =
+      HandlerForProtocol(_dispatcher, BrowserCoordinatorCommands);
   _viewControllerDependencies.textZoomHandler =
       HandlerForProtocol(_dispatcher, TextZoomCommands);
   _viewControllerDependencies.helpHandler =
@@ -1439,10 +1464,14 @@ const char kChromeAppStoreUrl[] =
       HandlerForProtocol(_dispatcher, PopupMenuCommands);
   _viewControllerDependencies.sceneHandler =
       HandlerForProtocol(_dispatcher, SceneCommands);
+  _viewControllerDependencies.toolbarHandler =
+      HandlerForProtocol(_dispatcher, ToolbarCommands);
   _viewControllerDependencies.findInPageCommandsHandler =
       HandlerForProtocol(_dispatcher, FindInPageCommands);
-  _viewControllerDependencies.geminiHandler =
-      HandlerForProtocol(_dispatcher, BWGCommands);
+  if (IsGeminiCopresenceEnabled()) {
+    _viewControllerDependencies.geminiHandler =
+        HandlerForProtocol(_dispatcher, BWGCommands);
+  }
   _viewControllerDependencies.isOffTheRecord = profile->IsOffTheRecord();
   _viewControllerDependencies.urlLoadingBrowserAgent = _urlLoadingBrowserAgent;
   _viewControllerDependencies.tabUsageRecorderBrowserAgent =
@@ -1485,13 +1514,9 @@ const char kChromeAppStoreUrl[] =
   _toolbarCoordinator.toolbarHeightDelegate = viewController;
   [_toolbarCoordinator start];
 
-  _loadQueryCommandsHandler =
-      HandlerForProtocol(_dispatcher, LoadQueryCommands);
-  _viewController.loadQueryCommandsHandler = _loadQueryCommandsHandler;
-  _voiceSearchController.dispatcher = _loadQueryCommandsHandler;
-  _omniboxCommandsHandler = HandlerForProtocol(_dispatcher, OmniboxCommands);
-  _keyCommandsProvider.omniboxHandler = _omniboxCommandsHandler;
-  _viewController.omniboxCommandsHandler = _omniboxCommandsHandler;
+  if (!IsChromeNextIaEnabled()) {
+    _omniboxCommandsHandler = HandlerForProtocol(_dispatcher, OmniboxCommands);
+  }
 
   _tabStripCoordinator.baseViewController = viewController;
   _NTPCoordinator.baseViewController = viewController;
@@ -1507,7 +1532,6 @@ const char kChromeAppStoreUrl[] =
 
   [_voiceSearchController dismissMicPermissionHelp];
   [_voiceSearchController disconnect];
-  _voiceSearchController.dispatcher = nil;
   _voiceSearchController = nil;
 
   [_bookmarksCoordinator stop];
@@ -1521,8 +1545,8 @@ const char kChromeAppStoreUrl[] =
   [_sideSwipeCoordinator stop];
   _sideSwipeCoordinator = nil;
 
+  [_toolbarCoordinator stop];
   _toolbarCoordinator = nil;
-  _loadQueryCommandsHandler = nil;
   _omniboxCommandsHandler = nil;
 
   [_toolbarAccessoryPresenter disconnect];
@@ -1637,6 +1661,9 @@ const char kChromeAppStoreUrl[] =
   /* passwordSuggestionCoordinator is created and started by a BrowserCommand */
 
   /* paymentsSuggestionBottomSheetCoordinator is created and started by a
+   * BrowserCommand */
+
+  /* _passkeyCreationBottomSheetCoordinator is created and started by a
    * BrowserCommand */
 
   /* saveCardBottomSheetCoordinator is created and started by a
@@ -1884,6 +1911,9 @@ const char kChromeAppStoreUrl[] =
   [_dataControlsDialogCoordinator stop];
   _dataControlsDialogCoordinator = nil;
 
+  [_passkeyCreationBottomSheetCoordinator stop];
+  _passkeyCreationBottomSheetCoordinator = nil;
+
   if (IsSyncedSetUpEnabled()) {
     [self stopSyncedSetUpCoordinator];
   }
@@ -1904,7 +1934,7 @@ const char kChromeAppStoreUrl[] =
   [self dismissSearchWhatYouSeePromo];
   [self dismissNotificationsOptIn];
   [self hideWelcomeBackPromo];
-  [self hideComposeboxImmediately:YES];
+  [self hideComposeboxImmediately:YES completion:nil];
 }
 
 // Starts independent mediators owned by this coordinator.
@@ -2036,6 +2066,36 @@ const char kChromeAppStoreUrl[] =
 - (void)resetComposebox {
   _browserOmniboxStateProvider.composeboxStateProvider = nil;
   _composeboxCoordinator = nil;
+}
+
+// Hides the compose box. If `immediately` is NO, the operation stops on the
+// next run loop. The completion block is called once hidden.
+- (void)hideComposeboxImmediately:(BOOL)immediately
+                       completion:(ProceduralBlock)completion {
+  if (!_composeboxCoordinator || immediately) {
+    [_composeboxCoordinator stop];
+    [self resetComposebox];
+    if (completion) {
+      completion();
+    }
+    return;
+  }
+
+  __weak __typeof(self) weakSelf = self;
+  base::OnceClosure animationCompletion = base::BindOnce(^{
+    [weakSelf.composeboxCoordinator stopAnimatedWithCompletion:^{
+      [weakSelf resetComposebox];
+      if (completion) {
+        completion();
+      }
+    }];
+  });
+  // Stop the prototoype on the next run loop as this might be called while
+  // the prototype's omnibox is loading a query. TODO(crbug.com/454302076):
+  // Remove this workaround once the omnibox can be safely dismissed while
+  // openMatch.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, std::move(animationCompletion));
 }
 
 #pragma mark - ActivityServiceCommands
@@ -2349,8 +2409,15 @@ const char kChromeAppStoreUrl[] =
 
 #pragma mark - IOSPasskeyClientCommands
 
-- (void)showPasskeyCreationBottomSheet:(const std::string&)requestId {
-  // TODO(crbug.com/460485496) : Add implementation.
+- (void)showPasskeyCreationBottomSheet:(const std::string&)requestID {
+  _passkeyCreationBottomSheetCoordinator =
+      [[PasskeyCreationBottomSheetCoordinator alloc]
+          initWithBaseViewController:self.viewController
+                             browser:self.browser
+                           requestID:requestID];
+  _passkeyCreationBottomSheetCoordinator.browserCoordinatorCommandsHandler =
+      HandlerForProtocol(self.dispatcher, BrowserCoordinatorCommands);
+  [_passkeyCreationBottomSheetCoordinator start];
 }
 
 - (void)showPasskeySuggestionBottomSheet:(const std::string&)requestId {
@@ -2610,6 +2677,11 @@ const char kChromeAppStoreUrl[] =
   self.paymentsSuggestionBottomSheetCoordinator = nil;
 }
 
+- (void)dismissPasskeyCreation {
+  [_passkeyCreationBottomSheetCoordinator stop];
+  _passkeyCreationBottomSheetCoordinator = nil;
+}
+
 - (void)dismissCardUnmaskAuthentication {
   [self.cardUnmaskAuthenticationCoordinator stop];
   self.cardUnmaskAuthenticationCoordinator = nil;
@@ -2731,6 +2803,15 @@ const char kChromeAppStoreUrl[] =
   [_signinCoordinator start];
 }
 
+- (void)showComposebox {
+  if (IsComposeboxIOSEnabled()) {
+    [self showComposeboxFromEntrypoint:ComposeboxEntrypoint::kOther
+                             withQuery:nil];
+  } else {
+    [_omniboxCommandsHandler focusOmnibox];
+  }
+}
+
 - (void)showComposeboxFromEntrypoint:(ComposeboxEntrypoint)entrypoint
                            withQuery:(NSString*)query {
   CHECK(base::FeatureList::IsEnabled(kComposeboxIOS));
@@ -2747,36 +2828,20 @@ const char kChromeAppStoreUrl[] =
   _browserOmniboxStateProvider.composeboxStateProvider = _composeboxCoordinator;
 }
 
-- (void)hideComposeboxImmediately:(BOOL)immediately {
-  [self hideComposeboxImmediately:immediately completion:nil];
+- (void)hideComposebox {
+  if (IsComposeboxIOSEnabled()) {
+    [self hideComposeboxImmediately:NO completion:nil];
+  } else {
+    [_omniboxCommandsHandler cancelOmniboxEdit];
+  }
 }
 
-- (void)hideComposeboxImmediately:(BOOL)immediately
-                       completion:(ProceduralBlock)completion {
-  if (!_composeboxCoordinator || immediately) {
-    [_composeboxCoordinator stop];
-    [self resetComposebox];
-    if (completion) {
-      completion();
-    }
-    return;
+- (void)hideComposeboxWithCompletion:(ProceduralBlock)completion {
+  if (IsComposeboxIOSEnabled()) {
+    [self hideComposeboxImmediately:NO completion:completion];
+  } else {
+    [_omniboxCommandsHandler cancelOmniboxEditWithCompletion:completion];
   }
-
-  __weak __typeof(self) weakSelf = self;
-  base::OnceClosure animationCompletion = base::BindOnce(^{
-    [weakSelf.composeboxCoordinator stopAnimatedWithCompletion:^{
-      [weakSelf resetComposebox];
-      if (completion) {
-        completion();
-      }
-    }];
-  });
-  // Stop the prototoype on the next run loop as this might be called while
-  // the prototype's omnibox is loading a query. TODO(crbug.com/454302076):
-  // Remove this workaround once the omnibox can be safely dismissed while
-  // openMatch.
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, std::move(animationCompletion));
 }
 
 #pragma mark - ContextualPanelEntrypointIPHCommands
@@ -2805,16 +2870,12 @@ const char kChromeAppStoreUrl[] =
 
   _contextualPanelEntrypointHelpPresenter =
       [[BubbleViewControllerPresenter alloc]
-               initWithText:ShouldShowRichContextualPanelEntrypointIPH()
-                                ? base::SysUTF8ToNSString(config_ref.iph_text)
-                                : base::SysUTF8ToNSString(config_ref.iph_title)
+               initWithText:base::SysUTF8ToNSString(config_ref.iph_text)
                       title:base::SysUTF8ToNSString(config_ref.iph_title)
              arrowDirection:isBottomOmnibox ? BubbleArrowDirectionDown
                                             : BubbleArrowDirectionUp
                   alignment:BubbleAlignmentTopOrLeading
-                 bubbleType:ShouldShowRichContextualPanelEntrypointIPH()
-                                ? BubbleViewTypeRich
-                                : BubbleViewTypeDefault
+                 bubbleType:BubbleViewTypeRich
             pageControlPage:BubblePageControlPageNone
           dismissalCallback:dismissalCallback];
 
@@ -2823,7 +2884,7 @@ const char kChromeAppStoreUrl[] =
   _contextualPanelEntrypointHelpPresenter.ignoreWebContentAreaInteractions =
       YES;
   _contextualPanelEntrypointHelpPresenter.customBubbleVisibilityDuration =
-      LargeContextualPanelEntrypointDisplayedInSeconds();
+      kLargeContextualPanelEntrypointDisplayDuration.InSecondsF();
 
   // Early return if the bubble wouldn't fit in its parent view.
   if (![_contextualPanelEntrypointHelpPresenter
@@ -3255,6 +3316,34 @@ const char kChromeAppStoreUrl[] =
   _BWGCoordinator = nil;
 }
 
+// TODO(crbug.com/476145805): Move function to BWGTabHelper.
+- (void)updateFloatyVisibilityForWebState:(web::WebState*)webState {
+  BwgService* BWGService = BwgServiceFactory::GetForProfile(self.profile);
+  BwgBrowserAgent* geminiBrowserAgent =
+      BwgBrowserAgent::FromBrowser(self.browser);
+  if (!IsGeminiCopresenceEnabled() || !BWGService || !geminiBrowserAgent) {
+    return;
+  }
+
+  if (BWGService->IsBwgAvailableForWebState(webState)) {
+    geminiBrowserAgent->ShowFloatyIfInvoked(/*animated=*/YES);
+  } else {
+    // Removes animation when hiding the floaty as a result of ineligible sites
+    // such as the new tab page.
+    geminiBrowserAgent->HideFloatyIfInvoked(/*animated=*/NO);
+  }
+}
+
+- (void)updateFloatyWithTraitCollection:(UITraitCollection*)traitCollection {
+  BwgBrowserAgent* geminiBrowserAgent =
+      BwgBrowserAgent::FromBrowser(self.browser);
+  if (!IsGeminiCopresenceEnabled() || !geminiBrowserAgent) {
+    return;
+  }
+
+  geminiBrowserAgent->UpdateForTraitCollection(traitCollection);
+}
+
 - (void)showBWGPromoIfPageIsEligible {
   BwgService* BWGService = BwgServiceFactory::GetForProfile(self.profile);
   if (BWGService->IsBwgAvailableForWebState(self.activeWebState)) {
@@ -3292,24 +3381,24 @@ const char kChromeAppStoreUrl[] =
   [_geminiFirstRunCoordinator start];
 }
 
-- (void)hideFloatyIfInvoked {
+- (void)hideFloatyIfInvokedAnimated:(BOOL)animated {
   BwgBrowserAgent* geminiBrowserAgent =
       BwgBrowserAgent::FromBrowser(self.browser);
   if (!IsGeminiCopresenceEnabled() || !geminiBrowserAgent) {
     return;
   }
 
-  geminiBrowserAgent->HideFloatyIfInvoked();
+  geminiBrowserAgent->HideFloatyIfInvoked(animated);
 }
 
-- (void)showFloatyIfInvoked {
+- (void)showFloatyIfInvokedAnimated:(BOOL)animated {
   BwgBrowserAgent* geminiBrowserAgent =
       BwgBrowserAgent::FromBrowser(self.browser);
   if (!IsGeminiCopresenceEnabled() || !geminiBrowserAgent) {
     return;
   }
 
-  geminiBrowserAgent->ShowFloatyIfInvoked();
+  geminiBrowserAgent->ShowFloatyIfInvoked(animated);
 }
 
 #pragma mark - PromosManagerCommands
@@ -4182,12 +4271,21 @@ const char kChromeAppStoreUrl[] =
 }
 
 - (void)showBookmarksLimitExceededHelp {
+  syncer::SyncService* syncService =
+      SyncServiceFactory::GetForProfile(self.browser->GetProfile());
+  if (syncService) {
+    syncService->AcknowledgeBookmarksLimitExceededError(
+        syncer::SyncService::BookmarksLimitExceededHelpClickedSource::
+            kSyncErrorMessage);
+  }
   GURL helpUrl(kBookmarksLimitExceededHelpCenter);
-  UrlLoadParams params = UrlLoadParams::InNewTab(helpUrl);
-  params.append_to = OpenPosition::kCurrentTab;
-  params.user_initiated = YES;
-  params.in_incognito = self.isOffTheRecord;
-  _urlLoadingBrowserAgent->Load(params);
+  OpenNewTabCommand* command =
+      [OpenNewTabCommand commandWithURLFromChrome:helpUrl
+                                      inIncognito:self.isOffTheRecord];
+  command.appendTo = OpenPosition::kCurrentTab;
+  id<SceneCommands> handler =
+      HandlerForProtocol(self.dispatcher, SceneCommands);
+  [handler closePresentedViewsAndOpenURL:command];
 }
 
 #pragma mark - SyncPresenterCommands helper
@@ -4522,8 +4620,9 @@ const char kChromeAppStoreUrl[] =
 }
 
 - (void)prepareForPageInfoPresentation {
-  // Dismiss the omnibox (if open).
-  [_omniboxCommandsHandler cancelOmniboxEdit];
+  id<BrowserCoordinatorCommands> browserCoordinatorHandler =
+      HandlerForProtocol(self.dispatcher, BrowserCoordinatorCommands);
+  [browserCoordinatorHandler hideComposebox];
 }
 
 - (CGPoint)convertToPresentationCoordinatesForOrigin:(CGPoint)origin {
@@ -4566,6 +4665,10 @@ const char kChromeAppStoreUrl[] =
 
 - (BOOL)isNTPScrolledToTopForBubblePresenter:(BubblePresenter*)bubblePresenter {
   return [self.NTPCoordinator isScrolledToTop];
+}
+
+- (void)scrollNTPToTopForBubblePresenter:(BubblePresenter*)bubblePresenter {
+  [self.NTPCoordinator scrollToTop];
 }
 
 - (BOOL)isOverscrollActionsSupportedForBubblePresenter:

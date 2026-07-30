@@ -107,7 +107,7 @@ EmbedderKey CreateSidePanelEmbedderKey(tabs::TabInterface* tab) {
 }
 
 bool IsTrustFirstOnboardingPending(Profile* profile) {
-  return base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding) &&
+  return GlicEnabling::IsTrustFirstOnboardingEnabled() &&
          !GlicEnabling::HasConsentedForProfile(profile);
 }
 }  // namespace
@@ -343,7 +343,7 @@ void GlicInstanceImpl::Close(EmbedderKey key, const CloseOptions& options) {
   if (!embedder) {
     return;
   }
-  if (base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding)) {
+  if (GlicEnabling::IsTrustFirstOnboardingEnabled()) {
     service_->metrics()->OnTrustFirstOnboardingDismissed();
   }
   instance_metrics_.OnClose();
@@ -354,7 +354,7 @@ bool GlicInstanceImpl::Toggle(ShowOptions&& options,
                               bool prevent_close,
                               glic::mojom::InvocationSource source,
                               std::optional<std::string> prompt_suggestion) {
-  if (base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding) &&
+  if (GlicEnabling::IsTrustFirstOnboardingEnabled() &&
       !service_->enabling().HasConsentedForProfile(profile_)) {
     service_->metrics()->OnTrustFirstOnboardingShown();
   }
@@ -566,8 +566,6 @@ void GlicInstanceImpl::PrepareForOpen() {
         active_web_contents);
   }
 }
-
-
 
 void GlicInstanceImpl::OnInteractionModeChange(mojom::WebClientMode new_mode) {
   interaction_mode_ = new_mode;
@@ -1051,7 +1049,8 @@ void GlicInstanceImpl::MaybeActivateForegroundEmbedder() {
   for (auto const& [key, entry] : embedders_) {
     if (tabs::TabInterface* const* tab =
             std::get_if<tabs::TabInterface*>(&key)) {
-      if (entry.embedder && entry.embedder->IsShowing()) {
+      if (entry.embedder && entry.embedder->IsShowing() &&
+          (*tab)->IsActivated()) {
         Show(ShowOptions::ForSidePanel(**tab));
         return;
       }
@@ -1313,6 +1312,17 @@ bool GlicInstanceImpl::HasFocus() {
     return rwhv->HasFocus();
   }
   return false;
+}
+
+tabs::TabInterface* GlicInstanceImpl::GetActiveEmbedderTabForTesting() {
+  if (!active_embedder_key_.has_value()) {
+    return nullptr;
+  }
+  if (tabs::TabInterface* const* tab =
+          std::get_if<tabs::TabInterface*>(&active_embedder_key_.value())) {
+    return *tab;
+  }
+  return nullptr;
 }
 
 std::string GlicInstanceImpl::DescribeForTesting() {

@@ -85,6 +85,12 @@ class TabStrip : public views::View,
   TabStrip& operator=(const TabStrip&) = delete;
   ~TabStrip() override;
 
+  // Initializes the `tab_container_` so tabs can be added to it.
+  void Initialize();
+
+  // Resets the tab strip by removing the tabs in `tab_container_` .
+  void Reset();
+
   void SetAvailableWidthCallback(
       base::RepeatingCallback<int()> available_width_callback);
 
@@ -180,7 +186,8 @@ class TabStrip : public views::View,
   void OnGroupClosed(const tab_groups::TabGroupId& group);
 
   void OnTabGroupFocusChanged(
-      std::optional<tab_groups::TabGroupId> new_focused_group);
+      std::optional<tab_groups::TabGroupId> new_focused_group,
+      std::optional<tab_groups::TabGroupId> old_focused_group);
 
   // Updates the tab slot view split state and animates to bounds.
   void OnSplitCreated(const std::vector<int>& split_indices,
@@ -277,8 +284,6 @@ class TabStrip : public views::View,
                              ui::mojom::MenuSourceType source_type) override;
   bool IsActiveTab(const TabSlotView* tab) const override;
   bool IsTabSelected(const TabSlotView* tab) const override;
-  bool IsTabPinned(const TabSlotView* tab) const override;
-  bool IsTabFirst(const TabSlotView* tab) const override;
   bool IsFocusInTabs() const override;
   bool ShouldCompactLeadingEdge() const override;
 
@@ -301,8 +306,6 @@ class TabStrip : public views::View,
   bool CanPaintThrobberToLayer() const override;
   SkColor GetTabSeparatorColor() const override;
   std::u16string GetAccessibleTabName(const Tab* tab) const override;
-  std::optional<int> GetCustomBackgroundId(
-      BrowserFrameActiveState active_state) const override;
   float GetHoverOpacityForTab(float range_parameter) const override;
   float GetHoverOpacityForRadialHighlight() const override;
   std::u16string GetGroupTitle(
@@ -317,10 +320,6 @@ class TabStrip : public views::View,
   void ShiftGroupRight(const tab_groups::TabGroupId& group) override;
   Browser* GetBrowser() override;
   BrowserWindowInterface* GetBrowserWindowInterface() override;
-  bool IsFrameCondensed() const override;
-#if BUILDFLAG(IS_CHROMEOS)
-  bool IsLockedForOnTask() override;
-#endif
 
   // views::View:
   views::SizeBounds GetAvailableSize(const View* child) const override;
@@ -431,7 +430,7 @@ class TabStrip : public views::View,
   raw_ref<TabDragContextImpl, AcrossTasksDanglingUntriaged> drag_context_;
 
   // The View parent for the tabs and the various group views.
-  raw_ref<TabContainer, AcrossTasksDanglingUntriaged> tab_container_;
+  raw_ptr<TabContainer, AcrossTasksDanglingUntriaged> tab_container_;
 
   // Location of the mouse at the time of the last move.
   gfx::Point last_mouse_move_location_;

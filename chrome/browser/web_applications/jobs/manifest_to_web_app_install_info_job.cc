@@ -50,6 +50,8 @@
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
+#include "third_party/blink/public/common/safe_url_pattern.h"
+#include "third_party/blink/public/mojom/manifest/display_mode.mojom.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -66,39 +68,45 @@ constexpr int kMaxIcons = 20;
 constexpr SquareSizePx kMaxIconSize =
     webapps::InstallableEvaluator::kMaximumIconSizeInPx;
 
+// Finds a value in a locale-keyed map, first trying exact match, then
+// language-only fallback.
+// The returned pointer is only valid as long as |localized_map| remains
+// unmodified. Callers must use the result immediately and not store it.
+template <typename T>
+const T* FindLocalizedValue(const base::flat_map<icu::Locale, T>& localized_map,
+                            const icu::Locale& application_locale) {
+  if (localized_map.empty()) {
+    return nullptr;
+  }
+  auto it = localized_map.find(application_locale);
+  if (it != localized_map.end()) {
+    return &it->second;
+  }
+  // Fall back to language-only ("en") match if no exact match ("en-US") found.
+  icu::Locale language_only(application_locale.getLanguage());
+  it = localized_map.find(language_only);
+  if (it != localized_map.end()) {
+    return &it->second;
+  }
+  return nullptr;
+}
+
 // Matches a localized text object from a map based on |application_locale|.
 blink::mojom::ManifestLocalizedTextObjectPtr MatchLocalizedText(
     const base::flat_map<icu::Locale,
                          blink::mojom::ManifestLocalizedTextObjectPtr>&
         localized_map,
     const icu::Locale& application_locale) {
-  if (localized_map.empty()) {
-    return nullptr;
-  }
-
-  auto it = localized_map.find(application_locale);
-  if (it != localized_map.end()) {
-    return it->second.Clone();
-  }
-
-  // Fall back to language-only ("en") match if no exact match ("en-US") found.
-  icu::Locale language_only(application_locale.getLanguage());
-  it = localized_map.find(language_only);
-  if (it != localized_map.end()) {
-    return it->second.Clone();
-  }
-  return nullptr;
+  const blink::mojom::ManifestLocalizedTextObjectPtr* result =
+      FindLocalizedValue(localized_map, application_locale);
+  return result ? (*result).Clone() : nullptr;
 }
 
 LocalizedText GetLocalizedTitleFromManifestFields(
-    const blink::mojom::Manifest& manifest) {
+    const blink::mojom::Manifest& manifest,
+    const icu::Locale& application_locale) {
   if (base::FeatureList::IsEnabled(
           blink::features::kWebAppManifestLocalization)) {
-    const icu::Locale application_locale(g_browser_process->GetFeatures()
-                                             ->application_locale_storage()
-                                             ->Get()
-                                             .c_str());
-
     blink::mojom::ManifestLocalizedTextObjectPtr localized_name;
     if (manifest.name_localized.has_value()) {
       localized_name =
@@ -127,14 +135,10 @@ LocalizedText GetLocalizedTitleFromManifestFields(
 }
 
 LocalizedText GetLocalizedDescriptionFromManifestFields(
-    const blink::mojom::Manifest& manifest) {
+    const blink::mojom::Manifest& manifest,
+    const icu::Locale& application_locale) {
   if (base::FeatureList::IsEnabled(
           blink::features::kWebAppManifestLocalization)) {
-    const icu::Locale application_locale(g_browser_process->GetFeatures()
-                                             ->application_locale_storage()
-                                             ->Get()
-                                             .c_str());
-
     if (manifest.description_localized.has_value()) {
       blink::mojom::ManifestLocalizedTextObjectPtr localized_description =
           MatchLocalizedText(*manifest.description_localized,
@@ -153,6 +157,22 @@ LocalizedText GetLocalizedDescriptionFromManifestFields(
     result = *manifest.description;
   }
   return result;
+}
+
+const std::vector<blink::Manifest::ImageResource>&
+GetLocalizedIconsFromManifest(const blink::mojom::Manifest& manifest,
+                              const icu::Locale& application_locale) {
+  if (base::FeatureList::IsEnabled(
+          blink::features::kWebAppManifestLocalization) &&
+      manifest.icons_localized.has_value() &&
+      !manifest.icons_localized->empty()) {
+    const std::vector<blink::Manifest::ImageResource>* localized_icons =
+        FindLocalizedValue(*manifest.icons_localized, application_locale);
+    if (localized_icons && !localized_icons->empty()) {
+      return *localized_icons;
+    }
+  }
+  return manifest.icons;
 }
 
 // Construct a list of icons from the parsed icons field of the manifest
@@ -399,6 +419,26 @@ ScopeExtensions ToWebAppScopeExtensions(
   return apps_scope_extensions;
 }
 
+proto::WebAppMigrationSource ToWebAppMigrationSource(
+    const blink::mojom::ManifestMigrateFrom& migrate_from) {
+  proto::WebAppMigrationSource result;
+  result.set_manifest_id(migrate_from.id.spec());
+  if (migrate_from.install_url && migrate_from.install_url->is_valid()) {
+    result.set_install_url(migrate_from.install_url->spec());
+  }
+  switch (migrate_from.behavior) {
+    case blink::mojom::ManifestMigrationBehavior::kSuggest:
+      result.set_behavior(
+          proto::WebAppMigrationBehavior::WEB_APP_MIGRATION_BEHAVIOR_SUGGEST);
+      break;
+    case blink::mojom::ManifestMigrationBehavior::kForce:
+      result.set_behavior(
+          proto::WebAppMigrationBehavior::WEB_APP_MIGRATION_BEHAVIOR_FORCE);
+      break;
+  }
+  return result;
+}
+
 base::flat_map<std::string, blink::Manifest::TranslationItem>
 ToWebAppTranslations(
     const base::flat_map<std::u16string, blink::Manifest::TranslationItem>&
@@ -540,7 +580,7 @@ ManifestToWebAppInstallInfoJob::CreateAndStart(
     webapps::WebappInstallSource install_source,
     base::WeakPtr<content::WebContents> web_contents,
     base::FunctionRef<void(IconUrlSizeSet&)> icon_url_modifications,
-    base::Value::Dict& debug_data,
+    base::DictValue& debug_data,
     WebAppInstallInfoCreationCallback creation_callback,
     WebAppInstallInfoConstructOptions options,
     std::optional<WebAppInstallInfo> fallback_info) {
@@ -579,7 +619,7 @@ ManifestToWebAppInstallInfoJob::ManifestToWebAppInstallInfoJob(
     WebAppDataRetriever& data_retriever,
     bool background_installation,
     webapps::WebappInstallSource install_source,
-    base::Value::Dict& debug_data,
+    base::DictValue& debug_data,
     WebAppInstallInfoCreationCallback creation_callback,
     WebAppInstallInfoConstructOptions options,
     std::optional<WebAppInstallInfo> fallback_info)
@@ -693,7 +733,17 @@ void ManifestToWebAppInstallInfoJob::FetchIconsInternal(
 }
 
 void ManifestToWebAppInstallInfoJob::ParseManifestAndPopulateInfo() {
-  install_info().title = GetLocalizedTitleFromManifestFields(*manifest_);
+  // Create the application locale once for all localization lookups.
+  const icu::Locale application_locale(
+      base::FeatureList::IsEnabled(blink::features::kWebAppManifestLocalization)
+          ? icu::Locale(g_browser_process->GetFeatures()
+                            ->application_locale_storage()
+                            ->Get()
+                            .c_str())
+          : icu::Locale());
+
+  install_info().title =
+      GetLocalizedTitleFromManifestFields(*manifest_, application_locale);
 
   // Clean up.
   if (manifest_->scope.is_valid()) {
@@ -723,21 +773,17 @@ void ManifestToWebAppInstallInfoJob::ParseManifestAndPopulateInfo() {
         override_item.display() == DisplayMode::kBorderless
             ? DisplayOverride::CreateUnframed(override_item.url_patterns())
             : DisplayOverride::Create(override_item.display()));
-    if (override_item.display() == DisplayMode::kBorderless &&
-        !override_item.url_patterns().empty()) {
-      // TODO(crbug.com/467939520): Remove `borderless_url_patterns`.
-      install_info().borderless_url_patterns = override_item.url_patterns();
-    }
   }
 
-  UpdateWebAppInstallInfoIconsFromManifestIfNeeded(manifest_->icons,
-                                                   &install_info());
+  const std::vector<blink::Manifest::ImageResource>& icons =
+      GetLocalizedIconsFromManifest(*manifest_, application_locale);
+  UpdateWebAppInstallInfoIconsFromManifestIfNeeded(icons, &install_info());
   if (base::FeatureList::IsEnabled(features::kWebAppUsePrimaryIcon)) {
     if (options_.use_manifest_icons_as_trusted) {
       install_info().trusted_icons = install_info().manifest_icons;
     } else {
       std::optional<apps::IconInfo> primary_icon_metadata =
-          GetTrustedIconsFromManifest(manifest_->icons);
+          GetTrustedIconsFromManifest(icons);
       if (primary_icon_metadata) {
         install_info().trusted_icons = {*primary_icon_metadata};
       }
@@ -747,11 +793,6 @@ void ManifestToWebAppInstallInfoJob::ParseManifestAndPopulateInfo() {
   // TODO(crbug.com/40185556): Confirm incoming icons to write to install_info_.
   PopulateFileHandlerInfoFromManifest(manifest_->file_handlers,
                                       install_info().scope, &install_info());
-
-  if (!manifest_->borderless_url_patterns.empty()) {
-    // TODO(crbug.com/467939520): Remove `borderless_url_patterns`.
-    install_info().borderless_url_patterns = manifest_->borderless_url_patterns;
-  }
 
   install_info().share_target = ToWebAppShareTarget(manifest_->share_target);
 
@@ -781,6 +822,11 @@ void ManifestToWebAppInstallInfoJob::ParseManifestAndPopulateInfo() {
   CHECK(install_info().shortcuts_menu_item_infos.empty());
   PopulateWebAppShortcutsMenuItemInfos(manifest_->shortcuts, &install_info());
 
+  for (const auto& migrate_from : manifest_->migrate_from) {
+    install_info().migration_sources.push_back(
+        ToWebAppMigrationSource(*migrate_from));
+  }
+
   if (manifest_->manifest_url.is_valid()) {
     install_info().manifest_url = manifest_->manifest_url;
   }
@@ -794,7 +840,7 @@ void ManifestToWebAppInstallInfoJob::ParseManifestAndPopulateInfo() {
   install_info().launch_handler = manifest_->launch_handler;
 
   LocalizedText description =
-      GetLocalizedDescriptionFromManifestFields(*manifest_);
+      GetLocalizedDescriptionFromManifestFields(*manifest_, application_locale);
   if (!description.empty()) {
     install_info().description = std::move(description);
   }
@@ -828,10 +874,10 @@ void ManifestToWebAppInstallInfoJob::OnIconsFetchedGetInstallInfo(
     IconsMap icons_map,
     DownloadedIconsHttpResults icons_http_results) {
   icon_fetch_result_ = result;
-  base::Value::Dict* icons_downloaded =
+  base::DictValue* icons_downloaded =
       debug_data_->EnsureDict("icons_retrieved");
   for (const auto& [url, bitmap_vector] : icons_map) {
-    base::Value::List* sizes = icons_downloaded->EnsureList(url.spec());
+    base::ListValue* sizes = icons_downloaded->EnsureList(url.spec());
     for (const SkBitmap& bitmap : bitmap_vector) {
       sizes->Append(bitmap.width());
     }

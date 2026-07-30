@@ -232,7 +232,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.ClearBrowsingData.Advanced.TimePeriod"
-    enum="SettingsClearBrowsingDataTimePeriod" expires_after="2026-05-24">
+    enum="SettingsClearBrowsingDataTimePeriod" expires_after="2026-07-26">
   <owner>rainhard@chromium.org</owner>
   <owner>msramek@chromium.org</owner>
   <owner>chrome-privacy-controls@google.com</owner>
@@ -524,20 +524,6 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
   </summary>
 </histogram>
 
-<histogram name="Settings.PrivacySandbox.DialogDisplayHost"
-    enum="SettingsPrivacySandboxDialogDisplayHostHash"
-    expires_after="2024-09-01">
-  <owner>boujane@google.com</owner>
-  <owner>koilos@google.com</owner>
-  <summary>
-    Records the host portion of the URL of the tab that the Privacy Sandbox
-    dialog was displayed over. As the Privacy Sandbox dialog is only shown over
-    chrome:// URLs (or about:blank), and we only record the host portion, this
-    will never include the user's browsing information (which may be present in
-    query parameters of chrome:// urls).
-  </summary>
-</histogram>
-
 <histogram name="Settings.PrivacySandbox.Fledge.Enabled" enum="BooleanEnabled"
     expires_after="2026-07-12">
   <owner>boujane@google.com</owner>
@@ -580,28 +566,6 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 
     Warning: This histogram was expired after M95 and restored M99. Data may be
     missing M96-98.
-  </summary>
-</histogram>
-
-<histogram name="Settings.PrivacySandbox.PromptHelperEvent2"
-    enum="SettingsPrivacySandboxPromptHelperEvent" expires_after="2026-07-12">
-  <owner>boujane@google.com</owner>
-  <owner>koilos@google.com</owner>
-  <summary>
-    V2 of PromptHelperEvent because kSearchEngineChoiceDialogShown check and
-    enum emission was moved from DidFinishNavigation to ProfileRequiresPrompt.
-    Still should only be emitted if a prompt is required. All other enums
-    emitted the same. See original histogram description for more details.
-
-    Original Description: Records each event that occurs when the Privacy
-    Sandbox prompt helper is attempting to find a suitable location to show any
-    pending Privacy Sandbox prompt.
-
-    The helper is only created and attached to the tab when a prompt is
-    required, and so these metrics are only recorded when a prompt is required.
-    Value 1 is recorded on navigations that occur while the helper still exists,
-    but after the prompt has been shown (as the tab that created the helper can
-    outlive the prompt)
   </summary>
 </histogram>
 
@@ -657,7 +621,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.SafetyCheck.Interactions"
-    enum="SettingsSafetyCheckInteractions" expires_after="2026-05-24">
+    enum="SettingsSafetyCheckInteractions" expires_after="2026-07-26">
   <owner>rainhard@chromium.org</owner>
   <owner>msramek@chromium.org</owner>
   <owner>anaudrey@chromium.org</owner>
@@ -715,7 +679,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 
 <histogram name="Settings.SafetyCheck.UnusedSitePermissionsModuleInteractions"
     enum="SafetyCheckUnusedSitePermissionsModuleInteractions"
-    expires_after="2026-05-17">
+    expires_after="2026-07-19">
   <owner>sideyilmaz@chromium.org</owner>
   <owner>msramek@chromium.org</owner>
   <summary>
@@ -773,7 +737,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 
 <histogram
     name="Settings.SafetyHub.AbusiveNotificationPermissionRevocation.BlocklistCheckCount"
-    units="checks" expires_after="2026-05-24">
+    units="checks" expires_after="2026-07-26">
   <owner>skrakowi@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -856,7 +820,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.SafetyHub.DashboardWarning"
-    enum="SafetyHubModuleType" expires_after="2026-05-24">
+    enum="SafetyHubModuleType" expires_after="2026-07-26">
   <owner>sideyilmaz@chromium.org</owner>
   <owner>chrome-privacy-controls@google.com</owner>
   <summary>
@@ -1364,7 +1328,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.SearchEngines.Interactions"
-    enum="SettingsSearchEnginesInteractions" expires_after="2026-05-24">
+    enum="SettingsSearchEnginesInteractions" expires_after="2026-07-26">
   <owner>yoangela@chromium.org</owner>
   <owner>chrome-omnibox-team@google.com</owner>
   <summary>

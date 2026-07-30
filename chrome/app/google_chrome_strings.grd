@@ -1124,13 +1124,6 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_ENTERPRISE_VALUE_PROPOSITION_PROFILE_SUGGESTED_TITLE" desc="Title of the screen in the profile creation flow where the user is asked whether they want to confirm signing in to Chrome with their enterprise account.">
           Sign in to Chrome?
         </message>
-        <!-- New one-click sign-in dialog contents for SAML support -->
-        <message name="IDS_ONE_CLICK_SIGNIN_DIALOG_TITLE_NEW" desc="The title of the modal dialog window that opens when the user chooses to use one click sign-in.">
-          You're signed in to Chrome!
-        </message>
-        <message name="IDS_ONE_CLICK_SIGNIN_DIALOG_MESSAGE_NEW" desc="The message of the one click sign-in dialog.">
-          You're signed in as <ph name="USER_EMAIL_ADDRESS">$1<ex>foo@gmail.com</ex></ph>. Now you can access your bookmarks, history, and other settings on all your signed in devices.
-        </message>
       </if>
 
       <!-- Management bubble -->
@@ -2265,13 +2258,13 @@ Google Chrome is unable to recover your settings.
         </message>
 
         <message name="IDS_AI_MODE_FRIENDLY_ZERO_STATE_TITLE"
-          desc="Title for the AI Mode zero state welcome message in the Lens tab. The first placeholder is the user's given name. Includes a line break to force desired line wrapping.">
-          Hi <ph name="USER_NAME">$1<ex>Josh</ex></ph>,<ph name="LINE_BREAK">$2</ph>what's on your mind today?
+          desc="Title for the AI Mode zero state welcome message in the Lens tab. The first placeholder is the user's given name.">
+          Hi <ph name="USER_NAME">$1<ex>Josh</ex></ph>, what's on your mind?
         </message>
 
         <message name="IDS_AI_MODE_FRIENDLY_ZERO_STATE_TITLE_WITHOUT_NAME"
           desc="Title for the AI Mode zero state welcome message in the Lens tab.">
-          What's on your mind today?
+          What's on your mind?
         </message>
 
         <message name="IDS_AI_MODE_NEW_SEARCH"
@@ -2604,6 +2597,13 @@ Google Chrome is unable to recover your settings.
         Continue
       </message>
 
+      <!-- Launch On Startup -->
+      <if expr="is_win">
+        <message name="IDS_SETTINGS_FOREGROUND_LAUNCH_ON_STARTUP_LABEL" desc="Label for settings toggle button that enables or disables opening Chrome on system startup">
+          Open Chrome when my computer starts
+        </message>
+      </if>
+
       <!-- Advanced security settings -->
       <message name="IDS_SETTINGS_SECURITY_JAVASCRIPT_OPTIMIZATION_LINK_ROW_ENABLED" desc="Description for the link row of the Javascript-optimization page when javascript-optimization is enabled.">
         Speeds up sites with Chrome's V8 engine but makes Chrome slightly less resistant to attacks. This setting is on.
@@ -2885,16 +2885,9 @@ Google Chrome is unable to recover your settings.
 
       <!-- Memory Saver IPH strings -->
       <if expr="not is_android">
-        <if expr="use_titlecase">
-          <message name="IDS_MEMORY_SAVER_MODE_PROMO_TITLE" desc="In Title Case: The title for the Memory Saver mode in-product promo bubble">
-            Make Chrome Faster
-          </message>
-        </if>
-        <if expr="not use_titlecase">
-          <message name="IDS_MEMORY_SAVER_MODE_PROMO_TITLE" desc="The title for the Memory Saver mode in-product promo bubble">
-            Make Chrome faster
-          </message>
-        </if>
+        <message name="IDS_MEMORY_SAVER_MODE_PROMO_TITLE" desc="The title for the Memory Saver mode in-product promo bubble">
+          Make Chrome faster
+        </message>
       </if>
 
       <!-- Performance Intervention Dialog strings -->
@@ -2946,7 +2939,7 @@ Google Chrome is unable to recover your settings.
       </if>
 
       <!-- Glic Strings -->
-      <if expr="enable_glic or enable_glic_android">
+      <if expr="enable_glic">
         <message name="IDS_GLIC_PROMO_TITLE" desc="Gemini promo title.">
           Try Gemini in Google Chrome
         </message>
@@ -3140,14 +3133,20 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_IOS_DESKTOP_PASSWORD_PROMO_NOTIFICATION_TITLE" desc="The title for the iOS desktop Password promo notification.">
           Chrome Tip: Save Passwords
         </message>
-        <message name="IDS_IOS_DESKTOP_TAB_GROUPS_PRICE_TRACKING_DESCRIPTION_QR" desc="The description for the iOS desktop price tracking promo bubble with a QR code.">
+        <message name="IDS_IOS_DESKTOP_PRICE_TRACKING_DESCRIPTION_QR" desc="The description for the iOS desktop price tracking promo bubble with a QR code.">
           Download Chrome on your phone to track prices and get alerts when the price drops on any site
+        </message>
+         <message name="IDS_IOS_DESKTOP_PRICE_TRACKING_REMINDER_CONFIRMATION" desc="Body text of the promo bubble that appears after the user chooses to be reminded of price tracking on their iOS device.">
+          Next time you open Chrome on your <ph name="DEVICE_TYPE">$1<ex>iPhone</ex></ph>, you’ll see a prompt to enable price tracking alerts.
         </message>
         <message name="IDS_IOS_DESKTOP_SAFE_BROWSING_PROMO_NOTIFICATION_TITLE" desc="The title for the iOS desktop Enhanced Safe Browsing promo notification.">
           Chrome Tip: Enhanced Safe Browsing
         </message>
         <message name="IDS_IOS_DESKTOP_TAB_GROUPS_PROMO_BUBBLE_DESCRIPTION_QR" desc="The description for the iOS desktop Tab Groups promo bubble with a QR code.">
           Download Chrome on your phone to open or create new tab groups on the go.
+        </message>
+        <message name="IDS_IOS_DESKTOP_TAB_GROUPS_REMINDER_CONFIRMATION" desc="Body text of the promo bubble that appears after the user chooses to be reminded of tab groups on their iOS device.">
+          Next time you open Chrome on your <ph name="DEVICE_TYPE">$1<ex>iPhone</ex></ph>, you'll see a prompt to use tab groups.
         </message>
       </if>
 

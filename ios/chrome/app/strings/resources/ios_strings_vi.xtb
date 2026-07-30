@@ -237,7 +237,7 @@
 <translation id="1836891464494477513">{count,plural, =1{Đã lưu dấu trang vào Tài khoản Google {email} của bạn}other{Đã lưu dấu trang vào Tài khoản Google {email} của bạn}}</translation>
 <translation id="1838089197478136166">Mở trong Wallet?</translation>
 <translation id="183878838231635348">Thẻ này cho biết mọi vấn đề về quyền riêng tư hoặc bảo mật mà tính năng Kiểm tra an toàn tự động phát hiện cho bạn.</translation>
-<translation id="1840320537320704887">Đã xoá các lựa chọn ưu tiên của bạn về trang Thẻ mới</translation>
+<translation id="1840320537320704887">Đã xoá các lựa chọn ưu tiên của bạn đối với trang Thẻ mới</translation>
 <translation id="1845230888742614096">Giữ lại nhóm</translation>
 <translation id="1853692000353488670">Thẻ ẩn danh mới</translation>
 <translation id="1854463785401910334">Tìm kiếm trên các thẻ đang mở</translation>
@@ -333,6 +333,7 @@
 <translation id="2184272387334793084">Đăng nhập để sử dụng mật khẩu và nhiều nội dung khác trên mọi thiết bị của bạn</translation>
 <translation id="2186206192313702726">Google Ống kính</translation>
 <translation id="2188993354115194873">Nhấn <ph name="BEGIN_BOLD" />Lưu vào nội dung tải xuống<ph name="END_BOLD" /></translation>
+<translation id="2191406283620379491">Đã xảy ra lỗi nghiêm trọng. Vui lòng cập nhật phiên bản iOS.</translation>
 <translation id="219283042927675668">Các thẻ trong nhóm</translation>
 <translation id="2194856509914051091">Những yếu tố cần xem xét</translation>
 <translation id="2196428379625389579">Tìm trên web</translation>
@@ -936,6 +937,7 @@
 <translation id="4565377596337484307">Ẩn mật khẩu</translation>
 <translation id="4568230126482344545">Ẩn tuỳ chọn Các thẻ gần đây</translation>
 <translation id="4578835633387306383">Bật…</translation>
+<translation id="4580621046861724270">Một số dấu trang không được lưu</translation>
 <translation id="4580716718466706433">Chuyển đến "Trình quản lý mật khẩu"</translation>
 <translation id="4585751637295612750">Mở một thẻ mới để thêm vào câu hỏi của bạn</translation>
 <translation id="4587589328781138893">Trang web</translation>
@@ -971,7 +973,7 @@
 
        Chọn cách xử lý dữ liệu duyệt web hiện có trên thiết bị này.</translation>
 <translation id="4675298276894277358">Trang web này sẽ không hiển thị nữa</translation>
-<translation id="4676647168422678078">Áp dụng các lựa chọn ưu tiên của bạn về trang Thẻ mới?</translation>
+<translation id="4676647168422678078">Áp dụng các lựa chọn ưu tiên của bạn đối với trang Thẻ mới?</translation>
 <translation id="4682496302933121474">Dịch trang này?</translation>
 <translation id="4682686630151240767">1. Mở phần Cài đặt iPhone</translation>
 <translation id="4691892551491778176">Khi bạn dùng tính năng này, nội dung trên trang và URL sẽ được gửi đến Google, nhưng không được dùng để cải thiện các mô hình AI tạo sinh. Bạn có thể tắt tính năng này trong phần cài đặt bất kỳ lúc nào.</translation>
@@ -1019,6 +1021,7 @@
 <translation id="483689884442613745">Lưu…</translation>
 <translation id="4840495572919996524">Dấu trang, lịch sử, mật khẩu và các dữ liệu khác sẽ không còn đồng bộ hóa với Tài khoản Google của bạn nữa.</translation>
 <translation id="484280513275854557">Hệ thống đã đăng xuất bạn và xoá dữ liệu duyệt web</translation>
+<translation id="484462545196658690">Tự động</translation>
 <translation id="4850886885716139402">Xem</translation>
 <translation id="4854068532375923088">Cho phép "Gemini" sử dụng camera của bạn</translation>
 <translation id="4860895144060829044">Gọi</translation>
@@ -1163,6 +1166,7 @@
 <translation id="5318298563956633672">Bạn đã theo dõi sản phẩm này rồi.</translation>
 <translation id="5327248766486351172">Tên</translation>
 <translation id="5329451663851195956">Bạn có thể kéo xuống để làm mới.</translation>
+<translation id="5336910966955551309">Nhấn và giữ để ghim các trang web yêu thích</translation>
 <translation id="5338512273860059533">Đang đăng nhập.</translation>
 <translation id="5343472494710226394">Tin tức, tin thể thao và nội dung dựa trên mối quan tâm của bạn.</translation>
 <translation id="5352128922772839949">Lưu tệp</translation>
@@ -1897,6 +1901,7 @@
 <translation id="7958575506592576831">Thông tin bảo mật trang</translation>
 <translation id="7961015016161918242">Không bao giờ</translation>
 <translation id="7971136598759319605">Hoạt động 1 ngày trước</translation>
+<translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">Thử</translation>
 <translation id="797588153137233716">Trình đơn → Nhật ký → Xoá dữ liệu duyệt web</translation>
 <translation id="7977451675950311423">Cảnh báo bạn nếu bạn sử dụng mật khẩu đã bị lộ trong một sự cố rò rỉ dữ liệu.</translation>
@@ -1930,7 +1935,7 @@
 <translation id="8059312861912872211">{count,plural, =1{{count} dấu trang}other{{count} dấu trang}}</translation>
 <translation id="8059533439631660104">Thu gọn phần.</translation>
 <translation id="8061584726507121204">Nhật ký</translation>
-<translation id="8064946459644399612">Đã áp dụng các lựa chọn ưu tiên của bạn về trang Thẻ mới</translation>
+<translation id="8064946459644399612">Đã áp dụng các lựa chọn ưu tiên của bạn đối với trang Thẻ mới</translation>
 <translation id="8069168488983557089">Nhận thông tin chi tiết và những điểm chính cần lưu ý giúp bạn hiểu rõ chủ đề bất kỳ</translation>
 <translation id="8069394452933076548">Chọn thời điểm di chuyển các thẻ mà gần đây bạn không sử dụng đến phần thẻ không hoạt động.</translation>
 <translation id="8073670137947914548">Đã hoàn tất tải xuống</translation>
@@ -2004,6 +2009,7 @@
 <translation id="8319282042900445670">Đã đặt lời nhắc cho <ph name="TIME" />, <ph name="DATE" /></translation>
 <translation id="8320212361750431956">Hoạt động gần đây</translation>
 <translation id="8325455175867928593">Ẩn "Bài đánh giá dựa trên mối quan tâm của bạn"</translation>
+<translation id="8328777765163860529">Đóng tất cả</translation>
 <translation id="833647236762414178">Tạo, lưu và quản lý mật khẩu và khoá truy cập để dễ dàng đăng nhập vào các trang web và ứng dụng. <ph name="BEGIN_LINK" />Tìm hiểu thêm<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Sao lưu và sử dụng dữ liệu của bạn trên mọi thiết bị.</translation>
 <translation id="8348530355586151720">Nhấn vào trình đơn có biểu tượng ba dấu chấm</translation>

@@ -62,8 +62,6 @@ BASE_FEATURE(kDisableRaccoon, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUserAgentBugFixVersion, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kLogJavaScriptErrors, base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kWebKitHandlesMarketplaceKitLinks,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -95,5 +93,8 @@ bool CreateTabHelperOnlyForRealizedWebStates() {
 
 BASE_FEATURE(kUpdateSSLStatusOnNavigationItemLazyCreation,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kEnableBEContextMenuConfiguration,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace web::features

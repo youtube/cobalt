@@ -18,7 +18,7 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/primary_account_access_token_fetcher.h"
 #include "components/version_info/version_info.h"
-#include "components/wallet/core/browser/data_models/walletable_pass.h"
+#include "components/wallet/core/browser/data_models/wallet_pass.h"
 #include "components/wallet/core/common/wallet_features.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "net/http/http_request_headers.h"
@@ -33,31 +33,31 @@ namespace {
 constexpr char kSavePassRequestPath[] = "v1/passes:upsert";
 constexpr int kExternalIdNamespaceChrome = 1;
 
-base::Value::Dict BuildExternalId() {
-  base::Value::Dict external_id;
+base::DictValue BuildExternalId() {
+  base::DictValue external_id;
   external_id.Set("namespace", kExternalIdNamespaceChrome);
   external_id.Set("external_id",
                   base::Uuid::GenerateRandomV4().AsLowercaseString());
   return external_id;
 }
 
-base::Value::Dict BuildClientInfo() {
-  base::Value::Dict chrome_client_info;
+base::DictValue BuildClientInfo() {
+  base::DictValue chrome_client_info;
   chrome_client_info.Set("version", version_info::GetVersionNumber());
 
-  base::Value::Dict client_info;
+  base::DictValue client_info;
   client_info.Set("chrome_client_info", std::move(chrome_client_info));
   return client_info;
 }
 
 std::string BuildLoyaltyCardRequest(const LoyaltyCard& card) {
   // TODO(crbug.com/468916773): Migrate to protobuf to ensure type safety.
-  base::Value::Dict request_dict;
+  base::DictValue request_dict;
 
-  base::Value::Dict pass_dict;
+  base::DictValue pass_dict;
   pass_dict.Set("external_id", BuildExternalId());
 
-  base::Value::Dict loyalty_card_dict;
+  base::DictValue loyalty_card_dict;
   loyalty_card_dict.Set("merchant_name", card.issuer_name);
   loyalty_card_dict.Set("loyalty_number", card.member_id);
   loyalty_card_dict.Set("program_name", card.plan_name);
@@ -86,7 +86,7 @@ std::string BuildTransitTicketRequest(const TransitTicket& ticket) {
   return std::string();
 }
 
-std::string BuildSavePassRequest(const WalletablePass& pass) {
+std::string BuildSavePassRequest(const WalletPass& pass) {
   return std::visit(
       absl::Overload{
           [](const LoyaltyCard& card) { return BuildLoyaltyCardRequest(card); },
@@ -109,7 +109,7 @@ WalletHttpClientImpl::WalletHttpClientImpl(
 
 WalletHttpClientImpl::~WalletHttpClientImpl() = default;
 
-void WalletHttpClientImpl::SavePass(const WalletablePass& pass,
+void WalletHttpClientImpl::SavePass(const WalletPass& pass,
                                     SavePassCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   SendRequest(

@@ -23,6 +23,7 @@
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
+#include "chrome/browser/actor/safety_list_manager.h"
 #include "chrome/browser/actor/shared_types.h"
 #include "chrome/browser/actor/tool_request_variant.h"
 #include "chrome/browser/actor/tools/click_tool_request.h"
@@ -137,6 +138,10 @@ class FakeChromeRenderFrame : public chrome::mojom::ChromeRenderFrame {
       const TaskId& task_id,
       bool supports_paint_stability) override {}
   void CancelTool(const TaskId& task_id) override {}
+  void GetCrossDocumentScriptToolResult(
+      GetCrossDocumentScriptToolResultCallback callback) override {
+    std::move(callback).Run("");
+  }
 
  private:
   void Bind(mojo::ScopedInterfaceEndpointHandle handle) {
@@ -200,13 +205,14 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
  public:
   ExecutionEngineTest()
       : ChromeRenderViewHostTestHarness(
-            content::BrowserTaskEnvironment::TimeSource::MOCK_TIME) {}
+            content::BrowserTaskEnvironment::TimeSource::MOCK_TIME) {
+    scoped_feature_list_.InitAndEnableFeatureWithParameters(
+        features::kGlicActor,
+        {{features::kGlicActorPolicyControlExemption.name, "true"}});
+  }
   ~ExecutionEngineTest() override = default;
 
   void SetUp() override {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{features::kGlicActor},
-        /*disabled_features=*/{});
     ChromeRenderViewHostTestHarness::SetUp();
     AssociateTabInterface();
 
@@ -247,10 +253,6 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
               base::BindRepeating(MakeOkResult,
                                   /*requires_page_stabilization=*/true)));
     }
-
-    ActorKeyedService::Get(profile())
-        ->GetPolicyChecker()
-        .set_act_on_web_for_testing(true);
   }
 
   void TearDown() override {
@@ -312,7 +314,7 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
   std::unique_ptr<ActorTask> task_;
   raw_ptr<ui::MockUiEventDispatcher> mock_ui_event_dispatcher_;
   raw_ptr<ui::MockUiEventDispatcher> task_mock_ui_event_dispatcher_;
-  MockActorTaskDelegate mock_actor_task_delegate_;
+  testing::NiceMock<MockActorTaskDelegate> mock_actor_task_delegate_;
 
  private:
   struct TabState {
@@ -919,6 +921,82 @@ INSTANTIATE_TEST_SUITE_P(
                     std::make_tuple(kShutdown, "Shutdown"),
                     std::make_tuple(kUserStartedNewChat, "NewChat"),
                     std::make_tuple(kUserLoadedPreviousChat, "PreviousChat")));
+
+class ExecutionEngineNavigationGatingTest : public ExecutionEngineTest {
+ public:
+  ExecutionEngineNavigationGatingTest() {
+    scoped_feature_list_.InitAndEnableFeature(kGlicCrossOriginNavigationGating);
+  }
+  ~ExecutionEngineNavigationGatingTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(ExecutionEngineNavigationGatingTest,
+       NavigationGatingMetricsRecordInitiatorOrigin_SameOriginAllowed) {
+  const GURL kInitiatorUrl("https://initiator.com/");
+  const url::Origin kInitiatorOrigin = url::Origin::Create(kInitiatorUrl);
+  const GURL kDestinationUrl("https://destination.com/");
+
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
+                                                             kDestinationUrl);
+
+  content::MockNavigationHandle navigation_handle(kDestinationUrl, main_rfh());
+  navigation_handle.set_initiator_origin(kInitiatorOrigin);
+
+  EXPECT_EQ(task_->GetExecutionEngine()->ShouldDeferNavigation(
+                navigation_handle, base::NullCallback()),
+            content::NavigationThrottle::PROCEED);
+
+  histograms_.ExpectUniqueSample(
+      "Actor.NavigationGating.GatingDecision",
+      /*sample=*/ExecutionEngine::GatingDecision::kAllowSameOrigin,
+      /*expected_bucket_count=*/1);
+  // The navigation is cross-origin and cross-site since initiator !=
+  // destination.
+  histograms_.ExpectUniqueSample("Actor.NavigationGating.CrossOrigin2",
+                                 /*sample=*/true, /*expected_bucket_count=*/1);
+  histograms_.ExpectUniqueSample("Actor.NavigationGating.CrossSite2",
+                                 /*sample=*/true, /*expected_bucket_count=*/1);
+}
+
+TEST_F(ExecutionEngineNavigationGatingTest,
+       NavigationGatingMetricsRecordInitiatorOrigin_SameOriginBlocked) {
+  const GURL kInitiatorUrl("https://initiator.com/");
+  const url::Origin kInitiatorOrigin = url::Origin::Create(kInitiatorUrl);
+  const GURL kDestinationUrl("https://destination.com/");
+
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
+                                                             kDestinationUrl);
+  SafetyListManager::GetInstance()->ParseSafetyLists(R"json(
+    {
+        "navigation_blocked": [
+          {
+            "from": "*",
+            "to": "destination.com"
+          }
+        ]
+    })json");
+
+  content::MockNavigationHandle navigation_handle(kDestinationUrl, main_rfh());
+  navigation_handle.set_initiator_origin(kInitiatorOrigin);
+
+  EXPECT_EQ(task_->GetExecutionEngine()->ShouldDeferNavigation(
+                navigation_handle, base::NullCallback()),
+            content::NavigationThrottle::CANCEL_AND_IGNORE);
+
+  histograms_.ExpectUniqueSample(
+      "Actor.NavigationGating.GatingDecision",
+      /*sample=*/ExecutionEngine::GatingDecision::kBlockByStaticList,
+      /*expected_bucket_count=*/1);
+  // The navigation is cross-origin and cross-site since initiator !=
+  // destination.
+  histograms_.ExpectUniqueSample("Actor.NavigationGating.CrossOrigin2",
+                                 /*sample=*/true, /*expected_bucket_count=*/1);
+  histograms_.ExpectUniqueSample("Actor.NavigationGating.CrossSite2",
+                                 /*sample=*/true, /*expected_bucket_count=*/1);
+}
 
 }  // namespace
 

@@ -486,6 +486,8 @@ should be able to be added at any place in this file.
   <variant name="_iOSPromoAllTabs"
       summary="For All Tabs default browser promo."/>
   <variant name="_iOSPromoAppStore" summary="For iOSPromoAppStore feature"/>
+  <variant name="_iOSPromoBackgroundCustomization"
+      summary="For iOSPromoBackgroundCustomization feature."/>
   <variant name="_iOSPromoCredentialProviderExtension"
       summary="For iOSPromoCredentialProviderExtension feature"/>
   <variant name="_iOSPromoDefaultBrowser"
@@ -4786,6 +4788,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Android.TabStripMenu.ReopenClosedEntry">
+  <owner>mklw@google.com</owner>
+  <description>
+    User tapped 'Reopen closed entry' on the tab strip context menu to reopen
+    the last closed entry.
+  </description>
+</action>
+
 <action name="Android.TabStripMenu.SaveWindowName">
   <owner>aishwaryarj@google.com</owner>
   <description>
@@ -4877,7 +4887,7 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
-<action name="AndroidWebView.APICall.{ApiName}">
+<action name="AndroidWebView.ApiCall.{ApiName}">
   <owner>abhijithnair@chromium.org</owner>
   <owner>android_webview/OWNERS</owner>
   <description>
@@ -18473,6 +18483,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="IOS.Omnibox.MobileFusebox.Action.DragAndDrop">
+  <owner>thegreenfrog@chromium.org</owner>
+  <owner>ericekey@google.com</owner>
+  <description>
+    Recorded when a user drags and drops an item into the Composebox. The item
+    type is recorded in the Omnibox.MobileFusebox.DragAndDrop histogram.
+  </description>
+</action>
+
 <action name="IOS.OpenIn">
   <obsolete>Renamed to IOS.OpenIn.Tapped, 08/2020</obsolete>
   <owner>ewannpv@chromium.org</owner>
@@ -26870,6 +26889,31 @@ should be able to be added at any place in this file.
   <description>Reported when the BWG FRE was shown. iOS only.</description>
 </action>
 
+<action name="MobileGeminiImageRemixContextMenuEntryPointShown">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    The user was shown the Gemini Image Remix context menu entry point.
+  </description>
+</action>
+
+<action name="MobileGeminiImageRemixContextMenuEntryPointTapped">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    The user tapped the Gemini Image Remix context menu entry point.
+  </description>
+</action>
+
+<action name="MobileGeminiImageRemixIPHTapped">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    Recorded when the user taps on the Gemini Image Remix IPH or its anchor to
+    trigger the feature.
+  </description>
+</action>
+
 <action name="MobileGeminiLocationSettingsBack">
   <owner>joemerramos@google.com</owner>
   <description>
@@ -27688,6 +27732,11 @@ should be able to be added at any place in this file.
 <action name="MobileMenuDataSaverOpened">
   <owner>megjablon@chromium.org</owner>
   <description>User opened the data saver item in the app menu.</description>
+</action>
+
+<action name="MobileMenuDefaultBrowserPromo">
+  <owner>eleanorlee@google.com</owner>
+  <description>MobileMenuDefaultBrowserPromo</description>
 </action>
 
 <action name="MobileMenuDeleteFromReadingList">
@@ -38691,6 +38740,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="SafeBrowsing.Settings.SafeBrowsingRowClicked">
+  <owner>yawfrempong@google.com</owner>
+  <owner>chrome-safebrowsing-alerts@google.com</owner>
+  <description>
+    User clicks the safe browsing row expand arrow in the
+    chrome://settings/security page.
+  </description>
+</action>
+
 <action name="SafeBrowsing.Settings.ShowedFromDefault">
   <owner>xinghuilu@chromium.org</owner>
   <owner>chrome-safebrowsing-alerts@google.com</owner>
@@ -41457,6 +41515,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.TrackingProtection.SiteExceptionAdded">
+  <obsolete>Deprecated 01/2026 because the project was discontinued.</obsolete>
   <owner>fmacintosh@google.com</owner>
   <owner>koilos@google.com</owner>
   <description>
@@ -41466,6 +41525,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.TrackingProtection.SiteExceptionRemoved">
+  <obsolete>Deprecated 01/2026 because the project was discontinued.</obsolete>
   <owner>fmacintosh@google.com</owner>
   <owner>koilos@google.com</owner>
   <description>
@@ -44273,13 +44333,6 @@ should be able to be added at any place in this file.
   <owner>gogerald@chromium.org</owner>
   <description>
     Recorded when showing sign in import data confirmation dialog.
-  </description>
-</action>
-
-<action name="Signin_Show_UntrustedSigninPrompt">
-  <owner>gogerald@chromium.org</owner>
-  <description>
-    Recorded when showing untrusted sign in confirmation dialog.
   </description>
 </action>
 

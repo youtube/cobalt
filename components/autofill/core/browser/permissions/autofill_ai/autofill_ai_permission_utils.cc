@@ -93,7 +93,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     return country_code == GeoIpCountryCode("US");
   }
 
-  // Parses `parameter` can returns whether any of the country codes is contains
+  // Parses `parameter` and returns whether any of the country codes is contains
   // match `country_code`.
   auto contains_geo_ip = [&country_code](std::string_view parameter) {
     return std::ranges::contains(
@@ -107,9 +107,10 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
       features::kAutofillAiIgnoreGeoIpAllowlist.Get();
   const std::string& blocklist =
       features::kAutofillAiIgnoreGeoIpBlocklist.Get();
-  return (blocklist.empty() && allowlist.empty()) ||
-         (blocklist.empty() && contains_geo_ip(allowlist)) ||
-         (!blocklist.empty() && !contains_geo_ip(blocklist));
+  if (!blocklist.empty()) {
+    return !contains_geo_ip(blocklist);
+  }
+  return allowlist.empty() || contains_geo_ip(allowlist);
 }
 
 // Returns the `GaiaIdHash` for the signed in account if there is one or
@@ -198,8 +199,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
 // Checks whether all requirements related to syncing state is met.
 [[nodiscard]] bool SatisfiesSyncingRequirements(
     AutofillAiAction action,
-    const syncer::SyncService* sync_service,
-    std::string* debug_message) {
+    const syncer::SyncService* sync_service) {
   switch (action) {
     case AutofillAiAction::kImportToWallet:
       return sync_service &&
@@ -273,9 +273,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
       CHECK(entity_type)
           << "An entity type is required to check if an entity "
              "can be filled or imported, and IPH requires import";
-      return entity_type_is_enabled_in_settings(*entity_type) ||
-             !base::FeatureList::IsEnabled(
-                 features::kAutofillAiIdentityAndTravelPrefs);
+      return entity_type_is_enabled_in_settings(*entity_type);
     case AutofillAiAction::kServerClassificationModel:
     case AutofillAiAction::kUseCachedServerClassificationModelResults:
     case AutofillAiAction::kAddLocalEntityInstanceInSettings:
@@ -358,7 +356,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
         MaybeOutputReason(debug_message, "Enterprise policy is not enabled.");
       }
       return policy_pref_enabled;
-    case autofill::AutofillAiAction::kListEntityInstancesInSettings:
+    case AutofillAiAction::kListEntityInstancesInSettings:
       return true;
   }
   NOTREACHED();
@@ -376,30 +374,28 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
   }
 
   // The user is signed out.
-  if (!identity_manager) {
-    MaybeOutputReason(debug_message, "User is signed out.");
+  if (!identity_manager ||
+      !identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
+    MaybeOutputReason(debug_message, "User not signed into Chrome.");
     return false;
   }
 
-  // The user is only signed in on the web.
-  if (!identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
-    MaybeOutputReason(debug_message, "User is signed in only on the web.");
+  if (identity_manager->HasAccountWithRefreshTokenInPersistentErrorState(
+          identity_manager->GetPrimaryAccountId(
+              signin::ConsentLevel::kSignin))) {
+    MaybeOutputReason(debug_message,
+                      "User's sign-in is in a persistent error state.");
     return false;
   }
-
-  // All other states (sign-in and sync including their paused/error states)
-  // are sufficient for us to validate the user's account information.
   return true;
 }
 
 // Checks whether miscellaneous "other" requirements (OTR, app-locale, Geo-IP)
 // are satisfied.
 [[nodiscard]] bool SatisfiesMiscellaneousRequirements(
-    FeatureCheck is_enabled,
     bool is_off_the_record,
     bool has_entity_data_saved,
     const GeoIpCountryCode& country_code,
-    std::string_view app_locale,
     AutofillAiAction action,
     std::string* debug_message) {
   // Off-the-record.
@@ -449,17 +445,6 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
       break;
   }
 
-  // App-locale.
-  if (app_locale != "en-US" &&
-      !base::FeatureList::IsEnabled(features::kAutofillAiIgnoreLocale)) {
-    // If the user changes their app-locale, the feature might stop working,
-    // but the data should not disappear.
-    if (!(IsRelevantForDataTransparency(action) && has_entity_data_saved)) {
-      MaybeOutputReason(debug_message, "Unsupported locale.");
-      return false;
-    }
-  }
-
   // If the user changes their GeoIp, the feature might stop working, but the
   // data should not disappear.
   if (!IsPermittedGeoIp(country_code) &&
@@ -501,10 +486,6 @@ bool MayPerformAutofillAiAction(const AutofillClient& client,
     return false;
   }
   const bool has_entity_data_saved = !edm->GetEntityInstances().empty();
-  if (!SatisfiesPreferenceRequirements(client, has_entity_data_saved, action,
-                                       debug_message)) {
-    return false;
-  }
 
   if (!SatisfiesAccountRequirements(client.GetIdentityManager(),
                                     has_entity_data_saved, action,
@@ -512,8 +493,12 @@ bool MayPerformAutofillAiAction(const AutofillClient& client,
     return false;
   }
 
-  if (!SatisfiesSyncingRequirements(action, client.GetSyncService(),
-                                    debug_message)) {
+  if (!SatisfiesPreferenceRequirements(client, has_entity_data_saved, action,
+                                       debug_message)) {
+    return false;
+  }
+
+  if (!SatisfiesSyncingRequirements(action, client.GetSyncService())) {
     return false;
   }
 
@@ -523,9 +508,8 @@ bool MayPerformAutofillAiAction(const AutofillClient& client,
   }
 
   return SatisfiesMiscellaneousRequirements(
-      feature_check, client.IsOffTheRecord(), has_entity_data_saved,
-      client.GetVariationConfigCountryCode(), client.GetAppLocale(), action,
-      debug_message);
+      client.IsOffTheRecord(), has_entity_data_saved,
+      client.GetVariationConfigCountryCode(), action, debug_message);
 }
 
 bool GetAutofillAiOptInStatus(const AutofillClient& client) {

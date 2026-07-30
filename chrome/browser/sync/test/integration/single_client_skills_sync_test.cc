@@ -13,6 +13,7 @@
 #include "chrome/browser/sync/test/integration/status_change_checker.h"
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
 #include "chrome/browser/sync/test/integration/sync_test.h"
+#include "components/skills/features.h"
 #include "components/skills/public/skill.h"
 #include "components/skills/public/skills_service.h"
 #include "components/sync/base/client_tag_hash.h"
@@ -29,6 +30,7 @@
 namespace {
 
 using testing::Contains;
+using testing::IsEmpty;
 using testing::Pointee;
 using testing::SizeIs;
 using testing::UnorderedElementsAre;
@@ -81,7 +83,7 @@ class SkillsServiceChecker : public StatusChangeChecker,
 
   // skills::SkillsService::Observer overrides.
   void OnSkillUpdated(
-      const std::string& skill_id,
+      std::string_view skill_id,
       skills::SkillsService::UpdateSource update_source) override {
     CheckExitCondition();
   }
@@ -139,7 +141,8 @@ class SingleClientSkillsSyncTest
       public testing::WithParamInterface<SyncTest::SetupSyncMode> {
  public:
   SingleClientSkillsSyncTest() : SyncTest(SINGLE_CLIENT) {
-    std::vector<base::test::FeatureRef> enabled_features = {syncer::kSyncSkill};
+    std::vector<base::test::FeatureRef> enabled_features = {
+        features::kSkillsEnabled};
     if (GetSetupSyncMode() == SetupSyncMode::kSyncTransportOnly) {
       enabled_features.push_back(syncer::kReplaceSyncPromosWithSignInPromos);
     }
@@ -264,5 +267,44 @@ IN_PROC_BROWSER_TEST_P(SingleClientSkillsSyncTest, ShouldMergeRemoteData) {
                                Pointee(HasSkill("skill2", "icon2", "prompt2"))))
           .Wait());
 }
+
+// TODO(crbug.com/471795213): add a test to verify that skills can't be created
+// when sync is disabled.
+
+// ChromeOS does not support signout.
+#if !BUILDFLAG(IS_CHROMEOS)
+IN_PROC_BROWSER_TEST_P(SingleClientSkillsSyncTest,
+                       ShouldDeleteAllDataOnDisableSync) {
+  InjectSpecificsToFakeServer(
+      CreateSkillSpecifics(base::Uuid::GenerateRandomV4().AsLowercaseString(),
+                           "skill1", "icon1", "prompt1"));
+  InjectSpecificsToFakeServer(
+      CreateSkillSpecifics(base::Uuid::GenerateRandomV4().AsLowercaseString(),
+                           "skill2", "icon2", "prompt2"));
+
+  ASSERT_TRUE(SetupSync());
+
+  ASSERT_THAT(
+      GetSkillsService().GetSkills(),
+      UnorderedElementsAre(Pointee(HasSkill("skill1", "icon1", "prompt1")),
+                           Pointee(HasSkill("skill2", "icon2", "prompt2"))));
+
+  // Sign out the primary account to disable sync and verify that all data was
+  // deleted.
+  GetClient(0)->SignOutPrimaryAccount();
+
+  EXPECT_TRUE(SkillsServiceChecker(GetSkillsService(), IsEmpty()).Wait());
+
+  // Sign in again to re-enable sync and verify that the data was re-synced.
+  ASSERT_TRUE(GetClient(0)->SignInPrimaryAccount());
+
+  EXPECT_TRUE(
+      SkillsServiceChecker(
+          GetSkillsService(),
+          UnorderedElementsAre(Pointee(HasSkill("skill1", "icon1", "prompt1")),
+                               Pointee(HasSkill("skill2", "icon2", "prompt2"))))
+          .Wait());
+}
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace

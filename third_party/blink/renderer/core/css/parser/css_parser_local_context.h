@@ -45,7 +45,7 @@ class CORE_EXPORT CSSParserLocalContext {
     return CSSParserLocalContext();
   }
 
-  // TODO(crbug.com/413385732): We use this constructor for at-rules and their
+  // TODO(crbug.com/475808971): We use this constructor for at-rules and their
   // descriptors. We should probably use descriptor name as property name for
   // random and only use this constructor inside rule definition since we don't
   // have a property context in that case.
@@ -81,9 +81,10 @@ class CORE_EXPORT CSSParserLocalContext {
     return CSSParserLocalContext();
   }
 
-  // TODO(crbug.com/413385732): We use this constructor to create a local
+  // TODO(crbug.com/40068516): We use this constructor to create a local
   // context for all css_parsing_utils::Consume* calls from inspector classes.
-  // Figure out if we actually need property context for random() in there.
+  // Since we don't support resolution of random() functions in DevTools for now
+  // we don't need property context for random() in there.
   static CSSParserLocalContext CreateWithoutPropertyForInspector() {
     return CSSParserLocalContext();
   }
@@ -98,7 +99,7 @@ class CORE_EXPORT CSSParserLocalContext {
   // For standard CSS properties, need to pass CSSPropertyName with unresolved
   // property id.
   explicit CSSParserLocalContext(CSSPropertyName property_name)
-      : property_name_(property_name) {}
+      : unresolved_property_name_(property_name) {}
 
   CSSParserLocalContext WithCurrentShorthand(
       CSSPropertyID current_shorthand) const {
@@ -110,22 +111,25 @@ class CORE_EXPORT CSSParserLocalContext {
   void IncrementRandomValueCount() { ++random_value_count_; }
 
   bool UseAliasParsing() const {
-    if (!property_name_) {
+    if (!unresolved_property_name_) {
       return false;
     }
-    if (property_name_->IsCustomProperty()) {
+    if (unresolved_property_name_->IsCustomProperty()) {
       return false;
     }
-    return IsPropertyAlias(property_name_->Id());
+    return IsPropertyAlias(unresolved_property_name_->Id());
   }
 
   CSSPropertyID CurrentShorthand() const { return current_shorthand_; }
 
-  std::optional<CSSPropertyName> PropertyName() const { return property_name_; }
+  std::optional<CSSPropertyName> UnresolvedPropertyName() const {
+    return unresolved_property_name_;
+  }
 
   const AtomicString PropertyNameAndRandomCount() const {
     StringBuilder str;
-    if (property_name_.has_value()) {
+    if (unresolved_property_name_.has_value() &&
+        unresolved_property_name_->Id() != CSSPropertyID::kInvalid) {
       // Use string of form "PROPERTY {property_name} {property_value_index}"
       // as name, this is later used for caching random values [0]. The prefix
       // "PROPERTY" is needed since we need to make distinguish between custom
@@ -134,7 +138,12 @@ class CORE_EXPORT CSSParserLocalContext {
       // [0] https://drafts.csswg.org/css-values-5/#random-caching-key
       // [1] https://drafts.csswg.org/css-values-5/#typedef-random-value-sharing
       str.Append("PROPERTY ");
-      str.Append(property_name_->ToAtomicString());
+      CSSPropertyName resolved_property_name =
+          unresolved_property_name_->IsCustomProperty()
+              ? *unresolved_property_name_
+              : CSSPropertyName(
+                    ResolveCSSPropertyID(unresolved_property_name_->Id()));
+      str.Append(resolved_property_name.ToAtomicString());
       str.Append(" ");
       str.AppendNumber(random_value_count_);
     }
@@ -147,7 +156,7 @@ class CORE_EXPORT CSSParserLocalContext {
   CSSParserLocalContext() = default;
 
   CSSPropertyID current_shorthand_ = CSSPropertyID::kInvalid;
-  std::optional<CSSPropertyName> property_name_;
+  std::optional<CSSPropertyName> unresolved_property_name_;
   wtf_size_t random_value_count_ = 0;
 };
 

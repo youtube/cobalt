@@ -6,6 +6,7 @@
 #define IOS_CHROME_BROWSER_COMPOSEBOX_UI_COMPOSEBOX_INPUT_PLATE_VIEW_CONTROLLER_DELEGATE_H_
 
 enum class AiModeActivationSource;
+enum class ComposeboxDragAndDropType;
 @class ComposeboxInputPlateViewController;
 enum class ComposeboxMode;
 
@@ -47,6 +48,11 @@ enum class ComposeboxMode;
 - (void)composeboxViewControllerDidTapAttachTabsButton:
     (ComposeboxInputPlateViewController*)composeboxViewController;
 
+/// Informs the delegate that a drag and drop was attempted.
+- (void)composeboxViewController:
+            (ComposeboxInputPlateViewController*)viewController
+       didAttemptDragAndDropType:(ComposeboxDragAndDropType)type;
+
 /// Informs the delegate that a user did tap on the AI button.
 - (void)composeboxViewControllerDidTapAIMButton:
             (ComposeboxInputPlateViewController*)composeboxViewController
@@ -55,6 +61,10 @@ enum class ComposeboxMode;
 
 /// Informs the delegate that a user did tap on the image generation button.
 - (void)composeboxViewControllerDidTapImageGenerationButton:
+    (ComposeboxInputPlateViewController*)composeboxViewController;
+
+/// Informs the delegate that a user did tap on the canvas button.
+- (void)composeboxViewControllerDidTapCanvasButton:
     (ComposeboxInputPlateViewController*)composeboxViewController;
 
 /// Informs the delegate that a user did tap on the lens button.
@@ -66,6 +76,14 @@ enum class ComposeboxMode;
 /// attachment limit.
 - (void)didFailToAttachDueToIneligibleAttachments:
     (ComposeboxInputPlateViewController*)composeboxViewController;
+
+/// Returns whether the given `tabInfo` is present on the current profile, with
+/// the same off-the-record status.
+- (BOOL)tabExistsOnCurrentProfile:(TabInfo*)tabInfo;
+
+/// Returns the web state associated with a given `tabInfo` on the current
+/// profile.  Returns `nullptr` if none is found.
+- (web::WebState*)webStateForTabOnCurrentProfile:(TabInfo*)tabInfo;
 
 @end
 

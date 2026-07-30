@@ -20,6 +20,7 @@
 #include "components/policy/core/common/cloud/cloud_policy_client_types.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/policy/core/common/cloud/cloud_policy_refresh_scheduler.h"
+#include "components/policy/core/common/cloud/cloud_policy_util.h"
 #include "components/policy/core/common/cloud/machine_level_user_cloud_policy_manager.h"
 #include "components/policy/core/common/cloud/machine_level_user_cloud_policy_store.h"
 #include "components/policy/core/common/cloud/mock_cloud_policy_client.h"
@@ -38,6 +39,8 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "extensions/browser/pref_names.h"
+#include "extensions/common/extension.h"
+#include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_urls.h"
 #include "services/network/test/test_url_loader_factory.h"
 #include "services/network/test/test_utils.h"
@@ -88,6 +91,14 @@ class ExtensionInstallPolicyServiceTest : public PolicyTest {
       delete;
   ExtensionInstallPolicyServiceTest& operator=(
       const ExtensionInstallPolicyServiceTest&) = delete;
+
+  void SetUp() override {
+    if (!IsExtensionInstallPolicySupportedOnThisVersion()) {
+      GTEST_SKIP() << "Extension install policy is not supported on this "
+                      "version of Chrome.";
+    }
+    PolicyTest::SetUp();
+  }
 
   void SetUpInProcessBrowserTestFixture() override {
     PolicyTest::SetUpInProcessBrowserTestFixture();
@@ -206,6 +217,26 @@ class ExtensionInstallPolicyServiceTest : public PolicyTest {
     service.Shutdown();
   }
 
+  void CheckUserMayInstall(const std::string& extension_id,
+                           const std::string& extension_version,
+                           bool is_from_webstore,
+                           bool expected_result) {
+    ExtensionInstallPolicyServiceImpl service(browser()->profile());
+    base::test::TestFuture<extensions::ManagementPolicy::Decision> future;
+    std::u16string error;
+    scoped_refptr<const extensions::Extension> extension =
+        extensions::ExtensionBuilder("Test Extension")
+            .SetID(extension_id)
+            .SetVersion(extension_version)
+            .AddFlags(is_from_webstore ? extensions::Extension::FROM_WEBSTORE
+                                       : extensions::Extension::NO_FLAGS)
+            .Build();
+    service.UserMayInstall(extension.get(), future.GetCallback());
+    ASSERT_TRUE(future.Wait());
+    EXPECT_EQ(future.Get().allowed, expected_result);
+    service.Shutdown();
+  }
+
  protected:
   std::unique_ptr<EmbeddedPolicyTestServer> test_server_;
   FakeBrowserDMTokenStorage storage_;
@@ -224,6 +255,12 @@ IN_PROC_BROWSER_TEST_F(ExtensionInstallPolicyServiceTest,
       future.GetCallback());
   ASSERT_TRUE(future.Wait());
   EXPECT_TRUE(future.Get());
+  ASSERT_NO_FATAL_FAILURE(CheckUserMayInstall(kExtensionId1, kExtensionVersion1,
+                                              /*is_from_webstore=*/true,
+                                              /*expected_result=*/true));
+  ASSERT_NO_FATAL_FAILURE(CheckUserMayInstall(kExtensionId1, kExtensionVersion1,
+                                              /*is_from_webstore=*/false,
+                                              /*expected_result=*/true));
   service.Shutdown();
 }
 
@@ -250,6 +287,24 @@ IN_PROC_BROWSER_TEST_F(ExtensionInstallPolicyServiceTest,
   ASSERT_NO_FATAL_FAILURE(CheckCanInstallExtension(kExtensionId2,
                                                    kExtensionVersion2,
                                                    /*expected_result=*/true));
+
+  ASSERT_NO_FATAL_FAILURE(CheckUserMayInstall(kExtensionId1, kExtensionVersion1,
+                                              /*is_from_webstore=*/true,
+                                              /*expected_result=*/false));
+}
+
+IN_PROC_BROWSER_TEST_F(ExtensionInstallPolicyServiceTest,
+                       AlwaysAllowNonWebstoreExtensions) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      extensions::pref_names::kExtensionInstallCloudPolicyChecksEnabled, true);
+  SetExtensionInstallPolicy(
+      kExtensionId1, kExtensionVersion1,
+      enterprise_management::ExtensionInstallPolicy::ACTION_BLOCK,
+      {enterprise_management::ExtensionInstallPolicy::REASON_BLOCKED_CATEGORY},
+      /*is_machine_level=*/true);
+  ASSERT_NO_FATAL_FAILURE(CheckUserMayInstall(kExtensionId1, kExtensionVersion1,
+                                              /*is_from_webstore=*/false,
+                                              /*expected_result=*/true));
 }
 
 IN_PROC_BROWSER_TEST_F(ExtensionInstallPolicyServiceTest,
@@ -425,7 +480,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionInstallPolicyServiceTest,
   // Force-install `kExtensionId1`.
   std::string webstore_update_url =
       extension_urls::GetWebstoreUpdateUrl().spec();
-  base::Value::List force_list;
+  base::ListValue force_list;
   force_list.Append(base::StrCat({kExtensionId1, ";", webstore_update_url}));
   PolicyMap policies;
   policies.Set(key::kExtensionSettings, POLICY_LEVEL_MANDATORY,
@@ -446,6 +501,20 @@ IN_PROC_BROWSER_TEST_F(ExtensionInstallPolicyServiceTest,
                                                    /*expected_result=*/true));
 }
 
+IN_PROC_BROWSER_TEST_F(ExtensionInstallPolicyServiceTest,
+                       CanInstallExtensionServerUnreachable) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      extensions::pref_names::kExtensionInstallCloudPolicyChecksEnabled, true);
+  SetExtensionInstallPolicy(
+      kExtensionId1, kExtensionVersion1,
+      enterprise_management::ExtensionInstallPolicy::ACTION_BLOCK,
+      {enterprise_management::ExtensionInstallPolicy::REASON_BLOCKED_CATEGORY},
+      /*is_machine_level=*/true);
+  test_server_.reset();
+  ASSERT_NO_FATAL_FAILURE(CheckUserMayInstall(kExtensionId1, kExtensionVersion1,
+                                              /*is_from_webstore=*/true,
+                                              /*expected_result=*/true));
+}
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace policy

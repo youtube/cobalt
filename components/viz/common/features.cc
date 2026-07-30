@@ -34,11 +34,6 @@
 namespace features {
 
 #if BUILDFLAG(IS_ANDROID)
-// During a scroll, enable viz to move browser controls according to the
-// offsets provided by the embedded renderer, circumventing browser main
-// involvement. For now, this applies only to top controls.
-BASE_FEATURE(kAndroidBrowserControlsInViz, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // If this flag is enabled, a DumpWithoutCrashing() is captured when a bad
 // state is detected when moving the composited UI. For example, this could
 // mean scrolling without a resource, or OffsetTagValues trying to position
@@ -68,9 +63,6 @@ BASE_FEATURE(kUseFrameIntervalDeciderAdaptiveFrameRate,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
-BASE_FEATURE(kTemporalSkipOverlaysWithRootCopyOutputRequests,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kUseMultipleOverlays,
 #if BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_ENABLED_BY_DEFAULT
@@ -81,8 +73,6 @@ BASE_FEATURE(kUseMultipleOverlays,
 const char kMaxOverlaysParam[] = "max_overlays";
 
 BASE_FEATURE(kDelegatedCompositing, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kAvoidDuplicateDelayBeginFrame, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char kDrawQuadSplit[] = "num_of_splits";
 
@@ -304,6 +294,10 @@ const base::FeatureParam<int>
     kNumCooldownFramesForAckOnSurfaceActivationDuringInteraction{
         &kAckOnSurfaceActivationWhenInteractive, "frames", 3};
 
+// If enabled, DisplayScheduler will attempt to select a future deadline if the
+// preferred deadline is not achievable.
+BASE_FEATURE(kSelectFutureFrameDeadline, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, SDR maximum luminance nits of then current display will be used
 // as the HDR metadata NDWL nits.
 BASE_FEATURE(kUseDisplaySDRMaxLuminanceNits, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -354,12 +348,12 @@ BASE_FEATURE(kVizDirectCompositorThreadIpcNonRoot,
 BASE_FEATURE(kVizDirectCompositorThreadIpcFrameSinkManager,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Switches the message pump to base::MessagePumpType::IO on the Viz thread.
+BASE_FEATURE(kVizWithIoMessagePump, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Null Hypothesis test for viz. This will be used in an meta experiment to
 // judge finch variation.
 BASE_FEATURE(kVizNullHypothesis, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Treat frame rates of 72hz as if they were 90Hz for buffer sizing purposes.
-BASE_FEATURE(kUse90HzSwapChainCountFor72fps, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_CHROMEOS)
 // Allows the display to seamlessly adjust the refresh rate in order to match
@@ -372,6 +366,11 @@ BASE_FEATURE(kNoCompositorFrameAcks, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<int> kNumberPendingFramesUntilThrottle{
     &kNoCompositorFrameAcks, "pending_frames", 1};
 BASE_FEATURE(kDisplaySchedulerAsClient, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables prioritization of the BeginFrame InputClient (like
+// FlingSchedulerAndroid) so it can dispatch events before the renderer
+// receives its BeginFrame.
+BASE_FEATURE(kFlingSchedulingImprovements, base::FEATURE_DISABLED_BY_DEFAULT);
 
 int DrawQuadSplitLimit() {
   constexpr int kDefaultDrawQuadSplitLimit = 5;
@@ -406,6 +405,10 @@ bool IsVizDirectCompositorThreadIpcNonRootEnabled() {
 bool IsVizDirectCompositorThreadIpcFrameSinkManagerEnabled() {
   return base::FeatureList::IsEnabled(
       kVizDirectCompositorThreadIpcFrameSinkManager);
+}
+
+bool IsVizWithIoMessagePumpEnabled() {
+  return base::FeatureList::IsEnabled(kVizWithIoMessagePump);
 }
 
 bool IsUsingVizFrameSubmissionForWebView() {
@@ -460,10 +463,6 @@ bool ShouldOnBeginFrameThrottleVideo() {
 bool ShouldAckOnSurfaceActivationWhenInteractive() {
   return base::FeatureList::IsEnabled(
       features::kAckOnSurfaceActivationWhenInteractive);
-}
-
-bool Use90HzSwapChainCountFor72fps() {
-  return base::FeatureList::IsEnabled(kUse90HzSwapChainCountFor72fps);
 }
 
 std::optional<uint64_t>
@@ -526,10 +525,6 @@ bool ShouldRemoveRedirectionBitmap() {
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-bool IsBrowserControlsInVizEnabled() {
-  return base::FeatureList::IsEnabled(features::kAndroidBrowserControlsInViz);
-}
-
 bool ShouldUseAdpfForSoc(std::string_view soc_allowlist,
                          std::string_view soc) {
   std::vector<std::string_view> allowlist = base::SplitStringPiece(

@@ -179,6 +179,7 @@ source_set("impl") {
     ":autofill",
     ":autofill_ai_ui_utils_impl",
     "//chrome/browser:browser_process",
+    "//chrome/browser/actor",
     "//chrome/browser/autofill",
     "//chrome/browser/history",
     "//chrome/browser/optimization_guide",
@@ -232,7 +233,6 @@ source_set("impl") {
     ]
     deps += [
       "//chrome/browser/autofill/android:jni_headers",
-      "//chrome/browser/fast_checkout",
       "//chrome/browser/keyboard_accessory/android:public",
       "//components/android_autofill/browser:android",
       "//components/messages/android:feature_flags",
@@ -258,7 +258,6 @@ source_set("impl") {
     deps += [
       "//chrome/app:command_ids",
       "//chrome/app/vector_icons",
-      "//chrome/browser/actor",
       "//chrome/browser/apps/platform_apps",
       "//chrome/browser/feedback",
       "//chrome/browser/profiles:profile_util",
@@ -269,7 +268,7 @@ source_set("impl") {
       "//chrome/browser/ui/toasts/api:toasts",
       "//chrome/browser/ui/user_education",
       "//chrome/browser/ui/webauthn",
-      "//chrome/browser/ui/webui/signin:login",
+      "//chrome/browser/ui/webui/signin:login_ui_service",
       "//components/autofill/core/browser",
       "//components/desktop_to_mobile_promos",
       "//components/password_manager/core/browser/features:password_features",
@@ -365,7 +364,6 @@ source_set("unit_tests") {
     ]
     deps += [
       "//chrome/browser/autofill/android:jni_test_headers",
-      "//chrome/browser/fast_checkout",
       "//chrome/browser/preferences:android",
       "//components/messages/android:test_support",
     ]

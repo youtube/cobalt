@@ -219,7 +219,7 @@ class IdpNetworkRequestManagerTest : public ::testing::Test {
   }
 
   std::tuple<FetchStatus, IdpNetworkRequestManager::AccountsResponse>
-  SendAccountsRequestWithStoredAccounts(base::Value::List test_accounts,
+  SendAccountsRequestWithStoredAccounts(base::ListValue test_accounts,
                                         const char* client_id = "") {
     GURL accounts_endpoint(kTestAccountsEndpoint);
     url::Origin idp_origin = url::Origin::Create(accounts_endpoint);
@@ -749,10 +749,10 @@ TEST_F(IdpNetworkRequestManagerTest, ParseAccountSingleLightweightFedcm) {
   FetchStatus accounts_response;
   IdpNetworkRequestManager::AccountsResponse accounts;
   std::tie(accounts_response, accounts) = SendAccountsRequestWithStoredAccounts(
-      base::Value::List().Append(base::Value::Dict()
-                                     .Set("id", "1234")
-                                     .Set("email", "ken@idp.test")
-                                     .Set("name", "Ken R. Example")));
+      base::ListValue().Append(base::DictValue()
+                                   .Set("id", "1234")
+                                   .Set("email", "ken@idp.test")
+                                   .Set("name", "Ken R. Example")));
 
   EXPECT_EQ(ParseStatus::kSuccess, accounts_response.parse_status);
   EXPECT_EQ(net::HTTP_OK, accounts_response.response_code);
@@ -770,7 +770,7 @@ TEST_F(IdpNetworkRequestManagerTest, ParseAccountEmptyLightweightFedcm) {
   FetchStatus accounts_response;
   IdpNetworkRequestManager::AccountsResponse accounts;
   std::tie(accounts_response, accounts) =
-      SendAccountsRequestWithStoredAccounts(base::Value::List());
+      SendAccountsRequestWithStoredAccounts(base::ListValue());
 
   EXPECT_EQ(ParseStatus::kEmptyListError, accounts_response.parse_status);
   EXPECT_EQ(net::HTTP_OK, accounts_response.response_code);
@@ -787,7 +787,7 @@ TEST_F(IdpNetworkRequestManagerTest, CacheProfilePictures) {
   network::TestURLLoaderFactory::PendingRequest* pending_request =
       test_url_loader_factory().GetPendingRequest(0);
   ASSERT_TRUE(pending_request);
-  network::ResourceRequest resource_request = pending_request->request;
+  const network::ResourceRequest& resource_request = pending_request->request;
   EXPECT_FALSE(resource_request.load_flags & net::LOAD_ONLY_FROM_CACHE);
   net::IsolationInfo expected_isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther,
@@ -812,7 +812,7 @@ TEST_F(IdpNetworkRequestManagerTest, DownloadAndDecodeCachedImage) {
   network::TestURLLoaderFactory::PendingRequest* pending_request =
       test_url_loader_factory().GetPendingRequest(0);
   ASSERT_TRUE(pending_request);
-  network::ResourceRequest resource_request = pending_request->request;
+  const network::ResourceRequest& resource_request = pending_request->request;
   EXPECT_TRUE(resource_request.load_flags & net::LOAD_ONLY_FROM_CACHE);
   net::IsolationInfo expected_isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther,
@@ -1633,7 +1633,7 @@ TEST_F(IdpNetworkRequestManagerTest, IdAssertionRequestJsonObjectToken) {
   EXPECT_EQ(net::HTTP_OK, fetch_status.response_code);
   EXPECT_TRUE(token_result.token.has_value() &&
               (token_result.token->is_dict()));
-  const base::Value::Dict& value = token_result.token->GetDict();
+  const base::DictValue& value = token_result.token->GetDict();
 
   const base::Value* access_token = value.Find("access_token");
   ASSERT_TRUE(access_token && access_token->is_string());
@@ -1915,7 +1915,7 @@ TEST_F(IdpNetworkRequestManagerTest, FetchClientMetadataValidUrls) {
   {
     const std::string privacy_policy_url = "https://privacy.policy";
     const std::string terms_of_service_url = "http://terms.of.service";
-    const std::string brand_icon_url = "http://rp.brand.icon";
+    const std::string brand_icon_url = "http://rp.brand/icon.ico";
 
     IdpClientMetadata data = SendClientMetadataRequestAndWaitForResponse(
         /*client_id=*/"123", R"({"privacy_policy_url": ")" +
@@ -1938,7 +1938,7 @@ TEST_F(IdpNetworkRequestManagerTest, FetchClientMetadataValidUrls) {
   {
     const std::string privacy_policy_url = "http://localhost";
     const std::string terms_of_service_url = "http://127.0.0.1";
-    const std::string brand_icon_url = "http://localhost";
+    const std::string brand_icon_url = "http://localhost/icon.ico";
 
     IdpClientMetadata data = SendClientMetadataRequestAndWaitForResponse(
         /*client_id=*/"123", R"({"privacy_policy_url": ")" +

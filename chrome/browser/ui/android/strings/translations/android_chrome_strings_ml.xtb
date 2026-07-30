@@ -41,6 +41,7 @@
 <translation id="1150263420752757504"><ph name="APP_NAME" />, Chrome-ൽ തുറക്കും. തുടരുന്നതിലൂടെ, നിങ്ങൾ <ph name="BEGIN_LINK1" />Google സേവന നിബന്ധനകളും<ph name="END_LINK1" /> <ph name="BEGIN_LINK2" />Google Chrome, ChromeOS അധിക സേവന നിബന്ധനകളും<ph name="END_LINK2" /> അംഗീകരിക്കുന്നു.</translation>
 <translation id="1154555449933432029">Google Password Manager-ൽ നിങ്ങൾ പാസ്‌വേഡുകൾ സംരക്ഷിച്ചിട്ടില്ല.</translation>
 <translation id="115483310321669804"><ph name="PASSWORD" /> എന്ന പാസ്‌വേഡ് ഉപയോഗിക്കുക</translation>
+<translation id="1161065531352634524">ടാബുകളും ചരിത്രവും സമന്വയിപ്പിക്കുക</translation>
 <translation id="1165109137568919258">തിരയാൻ ഒരു ഫോട്ടോ എടുക്കുക അല്ലെങ്കിൽ നിങ്ങളുടെ ഫോട്ടോ ഗാലറിയിൽ നിന്ന് ഒരു ചിത്രം ചേർക്കുക</translation>
 <translation id="1173894706177603556">പേരുമാറ്റുക</translation>
 <translation id="1174479719160874822">സ്‌ക്രീൻ ഇടുങ്ങിയിരിക്കുമ്പോൾ Chrome മൊബൈൽ സൈറ്റ് അഭ്യർത്ഥിക്കും</translation>
@@ -126,6 +127,7 @@
 <translation id="147982357559798527">മാറ്റി</translation>
 <translation id="1480287803138246127">നിങ്ങളുടെ ചരിത്രത്തിൽ ചിലത് ഇവിടെ ദൃശ്യമായേക്കില്ല. നിങ്ങളുടെ എല്ലാ Chrome ചരിത്രവും കാണാൻ, മുഴുവൻ Chrome ചരിത്രവും തുറക്കുക.</translation>
 <translation id="1493287004536771723"><ph name="SITE_NAME" /> എന്നതിനെ നിങ്ങൾ പിന്തുടരുന്നു</translation>
+<translation id="1495677929897281669">ടാബിലേക്ക് മടങ്ങുക</translation>
 <translation id="1496514951988037011">ഉപയോക്തൃനാമം</translation>
 <translation id="1501480321619201731">ഗ്രൂപ്പ് ഇല്ലാതാക്കൂ</translation>
 <translation id="1506061864768559482">തിരയൽ യന്ത്രം</translation>
@@ -433,6 +435,7 @@
 <translation id="2885355868600171871">വിലാസ ബാറിലേക്ക് പോകുക</translation>
 <translation id="2888126860611144412">Chrome-നെ കുറിച്ച്</translation>
 <translation id="2891154217021530873">പേജ് ലോഡുചെയ്യുന്നത് നിർത്തുക</translation>
+<translation id="2893168226686371498">ഡിഫോൾട്ട് ബ്രൗസര്‍</translation>
 <translation id="2894821468041866720">നിങ്ങളുടെ ബ്രൗസറിന്റെയോ ഉപകരണത്തിന്റെയോ വേഗത പ്രകടമായി കുറയ്ക്കുന്നില്ല.</translation>
 <translation id="2895521649038438824">നിങ്ങൾക്ക് ഈ പേജ് കേൾക്കാം</translation>
 <translation id="289596984386220317"><ph name="TAB_TITLE" />, പിൻ ചെയ്ത, ഓഡിയോ പ്ലേ ചെയ്യുന്ന ടാബ്</translation>
@@ -980,6 +983,7 @@
 <translation id="5210286577605176222">മുമ്പത്തെ ടാബിലേക്ക് പോകുക</translation>
 <translation id="5210365745912300556">ടാബ് അടയ്ക്കൂക</translation>
 <translation id="5212800876504289412">ഈ മാറ്റം പൂർത്തിയാക്കാൻ, Chrome റീസ്റ്റാർട്ട് ചെയ്യുക. നിങ്ങൾ റീസ്റ്റാർട്ട് ചെയ്യുമ്പോൾ ടാബുകൾ സ്വയമേവ വീണ്ടും തുറക്കും.</translation>
+<translation id="5213114823401215820">അടച്ച ഗ്രൂപ്പ് വീണ്ടും തുറക്കുക</translation>
 <translation id="5215957675041756913">നിങ്ങളുടെ ഡാറ്റയും അക്കൗണ്ടും നിയന്ത്രിക്കുക</translation>
 <translation id="5218324087477576825">കാർഡ് നമ്പർ, ആവശ്യമാണ്</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> എന്നിവയും മറ്റും <ph name="SEPARATOR" /> നിങ്ങൾ അടുത്തിടെ സന്ദർശിച്ചിട്ടില്ലാത്തതിനാൽ Chrome ഈ അനുമതികൾ നീക്കം ചെയ്തു</translation>
@@ -1098,7 +1102,6 @@
 <translation id="5765780083710877561">വിവരണം:</translation>
 <translation id="5776970333778123608">പ്രധാനമല്ലാത്ത ഡാറ്റ</translation>
 <translation id="5793665092639000975"><ph name="SPACE_USED" /> / <ph name="SPACE_AVAILABLE" /> ഉപയോഗിക്കുന്നു</translation>
-<translation id="5795872532621730126">തിരയുക, ബ്രൗസ് ചെയ്യുക</translation>
 <translation id="5797949256525811424">തടഞ്ഞ വിഷയം</translation>
 <translation id="580893287573699959">നിങ്ങൾക്ക് താൽപ്പര്യമുള്ള വിഷയങ്ങളും സൈറ്റുകളും മാനേജ് ചെയ്യുക</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{# മണിക്കൂര്‍ മുമ്പ്}other{# മണിക്കൂര്‍ മുമ്പ്}}</translation>
@@ -1415,7 +1418,6 @@
 <translation id="6937524809504266803">വ്യക്തിപരമാക്കലും ലിങ്കിംഗും</translation>
 <translation id="6937876069006524083">വിളിപ്പേര് (ഓപ്ഷണൽ)</translation>
 <translation id="6942665639005891494">ക്രമീകരണ മെനു ഓപ്‌ഷൻ ഉപയോഗിച്ച്, ഏതുസമയത്തും ഡിഫോൾട്ട് ഡൗൺലോഡ് ലൊക്കേഷൻ മാറ്റുക.</translation>
-<translation id="694267552845942083">നിങ്ങൾ നിലവിൽ നിങ്ങളുടെ സമന്വയ ക്രമീകരണം ഇഷ്ടാനുസൃതമാക്കുകയാണ്. സമന്വയിപ്പിക്കൽ ഓണാക്കുന്നത് പൂർത്തിയാക്കാൻ, സ്‌ക്രീനിന്റെ ചുവടുഭാഗത്തിന് സമീപമുള്ള 'സ്ഥിരീകരിക്കുക' ബട്ടൺ ടാപ്പ് ചെയ്യുക. മുകളിലേക്ക് പോകുക</translation>
 <translation id="6945221475159498467">തിരഞ്ഞെടുക്കുക</translation>
 <translation id="6955535239952325894">മാനേജ് ചെയ്യപ്പെടുന്ന ബ്രൗസറുകളിൽ ഈ ക്രമീകരണം പ്രവർത്തനരഹിതമാക്കിയിരിക്കുന്നു</translation>
 <translation id="6963766334940102469">ബുക്ക്‌മാർക്കുകൾ ഇല്ലാതാക്കുക</translation>
@@ -1437,6 +1439,7 @@
 <translation id="7020741890149022655">വായനാ ലിസ്റ്റിൽ ചേർക്കൂ <ph name="BEGIN_NEW" />പുതിയത്<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">ബ്രൗസറിൽ തുറക്കുക</translation>
 <translation id="7029809446516969842">പാസ്‌വേഡുകള്‍</translation>
+<translation id="7037994709569287156">Chrome ഡിഫോൾട്ടാക്കുക</translation>
 <translation id="7053256416619638731">ഈ ഉപകരണത്തിലെ നിങ്ങളുടെ പാസ്‌വേഡുകൾ ശക്തിപ്പെടുത്തുക</translation>
 <translation id="7053983685419859001">തടയുക</translation>
 <translation id="7054588988317389591">ചിത്ര വിവരണങ്ങൾ നേടണോ?</translation>
@@ -1469,6 +1472,7 @@
 ഈ ക്രമീകരണം മാറ്റാൻ, <ph name="BEGIN_LINK" />നിങ്ങളുടെ അക്കൗണ്ടിലെ Chrome ഡാറ്റ ഇല്ലാതാക്കുക<ph name="END_LINK" />.</translation>
 <translation id="7165972437814027679">എന്തുകൊണ്ടാണ് Chrome ചില ഫയലുകൾ ബ്ലോക്ക് ചെയ്യുന്നത് എന്നതിനെക്കുറിച്ച് കൂടുതലറിയുക</translation>
 <translation id="7168323970702333693"><ph name="USER_NAME" /> എന്നയാളായി സൈൻ ഇൻ ചെയ്‌തു. ക്രമീകരണം തുറക്കുന്നു.</translation>
+<translation id="7170930892977483182">നിങ്ങളുടെ ഉപകരണത്തിലും Google Wallet-ലും സംരക്ഷിച്ചിരിക്കുന്ന എല്ലാ സുരക്ഷാ കോഡുകളും ഇല്ലാതാക്കും</translation>
 <translation id="7173114856073700355">ക്രമീകരണം തുറക്കുക</translation>
 <translation id="7173338713290252554">വെബിലുടനീളമുള്ള നിരക്ക് ചരിത്രം</translation>
 <translation id="7177466738963138057">നിങ്ങൾക്കിത് പിന്നീട് ക്രമീകരണങ്ങളിൽ മാറ്റാനാവും</translation>
@@ -1801,6 +1805,7 @@
 <translation id="8458413889418591446">നിങ്ങൾ സന്ദർശിച്ച സൈറ്റുകളിലേക്ക് വേഗത്തിൽ മടങ്ങാൻ, ചരിത്രവും ടാബുകളും സമന്വയിപ്പിക്കുക</translation>
 <translation id="84594714173170813">നിങ്ങളുടെ Google അക്കൗണ്ടിലെ Chrome ഡാറ്റ ഉപയോഗിക്കുന്നത് തുടരുക</translation>
 <translation id="8460448946170646641">പ്രധാന സ്വകാര്യതാ, സുരക്ഷാ നിയന്ത്രണങ്ങൾ അവലോകനം ചെയ്യുക</translation>
+<translation id="8460932807646981183">തിരയൽ യന്ത്രങ്ങളും സൈറ്റ് തിരയലും മാനേജ് ചെയ്യുക</translation>
 <translation id="8473863474539038330">വിലാസങ്ങളും മറ്റും</translation>
 <translation id="847433688444405067">ഉപകരണങ്ങളിലുടനീളം ബ്രൗസ് ചെയ്യൂ</translation>
 <translation id="8477178913400731244">ഡാറ്റ ഇല്ലാതാക്കുക</translation>
@@ -1936,7 +1941,6 @@
 <translation id="9073805459138993880"><ph name="TAB_TITLE" />, മൾട്ടിസെലക്റ്റ് ചെയ്ത, ഉള്ളടക്കം പങ്കിടുന്ന ടാബ്</translation>
 <translation id="9074739597929991885">Bluetooth</translation>
 <translation id="9081543426177426948">നിങ്ങൾ സന്ദർശിച്ച സൈറ്റുകൾ അദൃശ്യ മോഡിൽ സംരക്ഷിച്ചിട്ടില്ല</translation>
-<translation id="9086302186042011942">സമന്വയിപ്പിക്കുന്നു</translation>
 <translation id="9086455579313502267">നെറ്റ്‌വർക്ക് ആക്സസ് ചെയ്യാനാകുന്നില്ല</translation>
 <translation id="9093915805850895575">Chrome വിൻഡോയിൽ തുറക്കുക</translation>
 <translation id="909756639352028172">വളരെ വ്യക്തിപരമാക്കിയ അനുഭവം നേടാൻ വെബ്, ആപ്പ് ആക്റ്റിവിറ്റിയിലും ലിങ്ക് ചെയ്ത Google സേവനങ്ങളിലും Chrome ഉൾപ്പെടുത്തുക</translation>

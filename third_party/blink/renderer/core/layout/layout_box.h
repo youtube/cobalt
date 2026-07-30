@@ -533,9 +533,6 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
   LayoutUnit OverrideContainingBlockContentLogicalWidth() const;
   bool HasOverrideContainingBlockContentLogicalWidth() const;
   void SetOverrideContainingBlockContentLogicalWidth(LayoutUnit);
-  void ClearOverrideContainingBlockContentSize();
-
-  enum PageBoundaryRule { kAssociateWithFormerPage, kAssociateWithLatterPage };
 
   bool HasInlineFragments() const final;
   wtf_size_t FirstInlineFragmentItemIndex() const final;
@@ -858,7 +855,10 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
     NOT_DESTROYED();
     return true;
   }
-  bool ShouldBeConsideredAsReplaced() const;
+
+  // Returns true if this object is a form-control element (excluding
+  // <fieldset>) or a fallback image.
+  bool IsSemiReplaced() const;
 
   // Return true if this block establishes a fragmentation context root (e.g. a
   // multicol container).
@@ -1235,6 +1235,16 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
 
  protected:
   ~LayoutBox() override;
+
+  bool IsEligibleForPaintOrLayoutContainment() const override {
+    NOT_DESTROYED();
+    return true;
+  }
+
+  bool IsEligibleForSizeContainment() const override {
+    NOT_DESTROYED();
+    return true;
+  }
 
   virtual OverflowClipAxes ComputeOverflowClipAxes() const;
 

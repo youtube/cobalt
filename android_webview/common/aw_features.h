@@ -20,6 +20,7 @@ BASE_DECLARE_FEATURE(kWebViewBackForwardCache);
 // TODO(crbug.com/455296998): Remove this code for M145.
 BASE_DECLARE_FEATURE(kWebViewBypassHttpCacheForPrefetchFromHeader);
 BASE_DECLARE_FEATURE(kWebViewConfigurableLibraryPrefetch);
+BASE_DECLARE_FEATURE(kWebViewContentRestrictionSupport);
 BASE_DECLARE_FEATURE(kWebViewFileSystemAccess);
 BASE_DECLARE_FEATURE(kWebViewIgnoreDuplicateNavs);
 BASE_DECLARE_FEATURE(kWebViewInvokeZoomPickerOnGSU);
@@ -32,7 +33,6 @@ BASE_DECLARE_FEATURE(kWebViewUseMetricsUploadServiceOnlySdkRuntime);
 BASE_DECLARE_FEATURE(kWebViewPropagateNetworkChangeSignals);
 BASE_DECLARE_FEATURE(kWebViewStartupTasksYieldToNative);
 BASE_DECLARE_FEATURE(kWebViewUnreducedProductVersion);
-BASE_DECLARE_FEATURE(kWebViewUseRenderingHeuristic);
 BASE_DECLARE_FEATURE(kWebViewUseStartupTasksLogic);
 BASE_DECLARE_FEATURE(kWebViewUseStartupTasksLogicP2);
 BASE_DECLARE_FEATURE(kWebViewStopBrowserStartupInIsMultiProcessEnabled);
@@ -59,16 +59,18 @@ BASE_DECLARE_FEATURE(kWebViewReducedSeedExpiration);
 BASE_DECLARE_FEATURE(kWebViewReducedSeedRequestPeriod);
 BASE_DECLARE_FEATURE(kWebViewEarlyStartupTracing);
 BASE_DECLARE_FEATURE(kWebViewEarlyPerfettoInit);
-BASE_DECLARE_FEATURE(kWebViewBackgroundPerfettoInit);
-BASE_DECLARE_FEATURE(kWebViewDisablePerfettoInit);
 BASE_DECLARE_FEATURE(kWebViewCacheBoundaryInterfaceMethods);
 BASE_DECLARE_FEATURE(kWebViewOptInToGmsBindServiceOptimization);
 BASE_DECLARE_FEATURE(kWebViewMoveWorkToProviderInit);
 BASE_DECLARE_FEATURE(kWebViewBypassProvisionalCookieManager);
 BASE_DECLARE_FEATURE(kWebViewPersistentMetricsInNoBackupDir);
 BASE_DECLARE_FEATURE(kPrerender2WarmUpCompositorForWebView);
+BASE_DECLARE_FEATURE(kWebViewRendererKeepAlive);
+extern const base::FeatureParam<base::TimeDelta>
+    kWebViewRendererKeepAliveDuration;
 BASE_DECLARE_FEATURE(kWebViewFetchOriginTrialsComponent);
 BASE_DECLARE_FEATURE(kWebViewEnableApiCallUserActions);
+BASE_DECLARE_FEATURE(kWebViewWebPerformanceMetricsReporting);
 }  // namespace android_webview::features
 
 #endif  // ANDROID_WEBVIEW_COMMON_AW_FEATURES_H_

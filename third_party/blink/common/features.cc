@@ -1873,6 +1873,10 @@ BASE_FEATURE_PARAM(int,
                    "DedicatedWorkerStartDelayInMs",
                    0);
 
+// Fix for https://crbug.com/454354290.
+BASE_FEATURE(kUpdatedDeviceMemoryLimitsFor2026,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kUseAncestorRenderFrameForWorker,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1916,12 +1920,17 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    "hover_dwell_time",
                    base::Milliseconds(10));
 BASE_FEATURE(kPreloadingEagerViewportHeuristics,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 BASE_FEATURE_PARAM(base::TimeDelta,
                    kPreloadingEagerViewportHeuristicsPresentTime,
                    &kPreloadingEagerViewportHeuristics,
                    "viewport_present_time",
-                   base::Milliseconds(100));
+                   base::Milliseconds(50));
 
 BASE_FEATURE(kPreloadingHeuristicsMLModel, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(int,
@@ -2049,9 +2058,6 @@ BASE_FEATURE(kQuoteEmptySecChUaStringHeadersConsistently,
 // cross-origin requests.
 BASE_FEATURE(kReducedReferrerGranularity, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kRefactorCompositorThreadEventQueue,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Whether `blink::MemoryCache` and `blink::ResourceFetcher` release their
 // strong references to resources on memory pressure.
 BASE_FEATURE(kReleaseResourceStrongReferencesOnMemoryPressure,
@@ -2113,23 +2119,8 @@ BASE_FEATURE_PARAM(bool,
                    "disable_resource_load",
                    false);
 
-BASE_FEATURE(kRestrictSpellingAndGrammarHighlights,
+BASE_FEATURE(kUnrestrictSpellingAndGrammarForTesting,
              base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE_PARAM(bool,
-                   kRestrictSpellingAndGrammarHighlightsChangedContents,
-                   &kRestrictSpellingAndGrammarHighlights,
-                   "RestrictSpellingAndGrammarHighlightsChangedContents",
-                   false);
-BASE_FEATURE_PARAM(bool,
-                   kRestrictSpellingAndGrammarHighlightsChangedEnablement,
-                   &kRestrictSpellingAndGrammarHighlights,
-                   "RestrictSpellingAndGrammarHighlightsChangedEnablement",
-                   false);
-BASE_FEATURE_PARAM(bool,
-                   kRestrictSpellingAndGrammarHighlightsChangedSelection,
-                   &kRestrictSpellingAndGrammarHighlights,
-                   "RestrictSpellingAndGrammarHighlightsChangedSelection",
-                   false);
 
 // https://html.spec.whatwg.org/multipage/system-state.html#safelisted-scheme
 BASE_FEATURE(kSafelistPaytoToRegisterProtocolHandler,
@@ -2249,12 +2240,27 @@ BASE_FEATURE_PARAM(std::string,
                    "ignored_headers",
                    "date,alt-svc,p3p,strict-transport-security");
 
+// If true, the response data processing is handled in the background thread.
+BASE_FEATURE_PARAM(bool,
+                   kServiceWorkerSyntheticResponseOffMainThread,
+                   &kServiceWorkerSyntheticResponse,
+                   "off_main_thread",
+                   false);
+
 // If true, the browser reports crashes via `DumpWithoutCrashing()` when theare
 // was a header mismatch.
 BASE_FEATURE_PARAM(bool,
                    kServiceWorkerSyntheticResponseReportInconsistentHeader,
                    &kServiceWorkerSyntheticResponse,
                    "report_inconsistent_header",
+                   false);
+
+// If true, the synthetic response uses the didcated data pipe reader which
+// skips unnecessary buffering on memory to transfer the response body.
+BASE_FEATURE_PARAM(bool,
+                   kServiceWorkerSyntheticResponseSkipUnnecessaryBuffering,
+                   &kServiceWorkerSyntheticResponse,
+                   "skip_unnecessary_buffering",
                    false);
 
 // If true, the browser enables synthetic response with the dry run mode. With
@@ -2498,6 +2504,8 @@ BASE_FEATURE(kWebRtcAudioSinkUseTimestampAligner,
 
 BASE_FEATURE(kWebRtcPqcForDtls, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kWebRtcUseMediaThreadTypes, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enable borderless mode for desktop PWAs. go/borderless-mode
 BASE_FEATURE(kWebAppBorderless, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -2506,6 +2514,14 @@ BASE_FEATURE(kWebAppBorderless, base::FEATURE_DISABLED_BY_DEFAULT);
 // more information:
 // https://github.com/WICG/manifest-incubations/blob/gh-pages/scope_extensions-explainer.md
 BASE_FEATURE(kWebAppEnableScopeExtensionsBySite,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// This controls whether scope extensions work for isolated web apps which
+// use same concepts as pwa
+// https://github.com/WICG/manifest-incubations/blob/gh-pages/scope_extensions-explainer.md
+// Note that for Isolated Web Apps it is not possible to capture link
+// navigations without scope extensions.
+BASE_FEATURE(kWebAppEnableScopeExtensionsForIsolatedWebApps,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls parsing and usage of localized fields in web app manifests.

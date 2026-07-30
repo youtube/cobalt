@@ -55,6 +55,7 @@
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/find_in_page_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
@@ -64,6 +65,7 @@
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/text_zoom_commands.h"
+#import "ios/chrome/browser/shared/public/commands/toolbar_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/named_guide.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -256,6 +258,9 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   // Whether the Lens Overlay is currently active and visible for the browser
   // view.
   BOOL _lensOverlayVisible;
+
+  __weak id<BrowserCoordinatorCommands> _browserCoordinatorHandler;
+  __weak id<ToolbarCommands> _toolbarHandler;
 }
 
 // Activates/deactivates the object. This will enable/disable the ability for
@@ -319,9 +324,6 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
 // Command handler for find in page commands.
 @property(nonatomic, weak) id<FindInPageCommands> findInPageCommandsHandler;
 
-// Command handler for Gemini commands.
-@property(nonatomic, weak) id<BWGCommands> geminiHandler;
-
 // The FullscreenController.
 @property(nonatomic, assign) FullscreenController* fullscreenController;
 
@@ -383,7 +385,9 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
     [_sideSwipeCoordinator setSideSwipeUIControllerDelegate:self];
     [_sideSwipeCoordinator setCardSwipeViewDelegate:self];
     _bookmarksCoordinator = dependencies.bookmarksCoordinator;
+    _browserCoordinatorHandler = dependencies.browserCoordinatorHandler;
     self.toolbarAccessoryPresenter = dependencies.toolbarAccessoryPresenter;
+    _toolbarHandler = dependencies.toolbarHandler;
     self.ntpCoordinator = dependencies.ntpCoordinator;
     self.popupMenuCoordinator = dependencies.popupMenuCoordinator;
     self.toolbarCoordinator = dependencies.toolbarCoordinator;
@@ -662,7 +666,7 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
 #pragma mark - Public methods
 
 - (void)shieldWasTapped:(id)sender {
-  [self.omniboxCommandsHandler cancelOmniboxEdit];
+  [_browserCoordinatorHandler hideComposebox];
 }
 
 - (void)openNewTabFromOriginPoint:(CGPoint)originPoint
@@ -671,13 +675,14 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   const BOOL offTheRecord = _isOffTheRecord;
   ProceduralBlock oldForegroundTabWasAddedCompletionBlock =
       self.foregroundTabWasAddedCompletionBlock;
-  id<OmniboxCommands> omniboxCommandHandler = self.omniboxCommandsHandler;
+  __weak id<BrowserCoordinatorCommands> browserCoordinatorHandler =
+      _browserCoordinatorHandler;
   self.foregroundTabWasAddedCompletionBlock = ^{
     if (oldForegroundTabWasAddedCompletionBlock) {
       oldForegroundTabWasAddedCompletionBlock();
     }
     if (focusOmnibox) {
-      [omniboxCommandHandler focusOmnibox];
+      [browserCoordinatorHandler showComposebox];
     }
   };
 
@@ -733,7 +738,7 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   [_voiceSearchController
       startRecognitionOnViewController:self
                               webState:self.currentWebState];
-  [self.omniboxCommandsHandler cancelOmniboxEdit];
+  [_browserCoordinatorHandler hideComposebox];
 }
 
 #pragma mark - browser_view_controller+private.h
@@ -762,7 +767,7 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
            dismissPresentedViewController:(BOOL)dismissPresentedViewController {
   [_bookmarksCoordinator dismissBookmarkModalControllerAnimated:NO];
   if (dismissOmnibox) {
-    [self.omniboxCommandsHandler cancelOmniboxEdit];
+    [_browserCoordinatorHandler hideComposebox];
   }
   [self.helpHandler hideAllHelpBubbles];
   [_voiceSearchController dismissMicPermissionHelp];
@@ -1073,7 +1078,6 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
 
   if (![self isViewLoaded]) {
     self.typingShield = nil;
-    _voiceSearchController.dispatcher = nil;
     [self.toolbarCoordinator stop];
     self.toolbarCoordinator = nil;
     _toolbarsSize = nil;
@@ -1137,7 +1141,8 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
                               if (completion) {
                                 completion();
                               }
-                              [strongSelf showGeminiFloatyIfInvoked];
+                              [strongSelf.geminiHandler
+                                  showFloatyIfInvokedAnimated:YES];
                             }];
 }
 
@@ -1207,11 +1212,8 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   // would be changed back to `kVisible` afterwards. Fix the bug and update the
   // visibility state.
 
-  __weak BrowserViewController* weakSelf = self;
+  [self.geminiHandler hideFloatyIfInvokedAnimated:YES];
   void (^superCall)() = ^{
-    if (weakSelf) {
-      [weakSelf.geminiHandler hideFloatyIfInvoked];
-    }
     [super presentViewController:viewControllerToPresent
                         animated:flag
                       completion:finalCompletionHandler];
@@ -1315,9 +1317,6 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   DCHECK([self isViewLoaded]);
 
   [self updateBroadcastState];
-  if (_voiceSearchController) {
-    _voiceSearchController.dispatcher = self.loadQueryCommandsHandler;
-  }
 
   if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
     const bool canShowTabStrip = CanShowTabStrip(self);
@@ -1684,18 +1683,6 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
       }];
 }
 
-// Helper method for dismissal block when attempting to show the Gemini floaty
-// if invoked.
-- (void)showGeminiFloatyIfInvoked {
-  // The dispatcher may not be fully connected during shutdown, so selectors may
-  // be unrecognized.
-  if (![self.geminiHandler respondsToSelector:@selector(showFloatyIfInvoked)]) {
-    return;
-  }
-
-  [self.geminiHandler showFloatyIfInvoked];
-}
-
 #pragma mark - Private Methods: UI Configuration, update and Layout
 
 // Starts or stops broadcasting the toolbar UI and main content UI depending on
@@ -1715,7 +1702,7 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
 
   [self.popupMenuCommandsHandler dismissPopupMenuAnimated:NO];
   [self.helpHandler hideAllHelpBubbles];
-  [self.omniboxCommandsHandler cancelOmniboxEdit];
+  [_browserCoordinatorHandler hideComposebox];
 }
 
 // Returns the appropriate frame for the NTP.
@@ -1860,6 +1847,10 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   }
 
   [self setNeedsStatusBarAppearanceUpdate];
+
+  if (IsGeminiCopresenceEnabled()) {
+    [self.geminiHandler updateFloatyWithTraitCollection:self.traitCollection];
+  }
 
   self.fullscreenController->BrowserTraitCollectionChangedEnd();
 }
@@ -2365,7 +2356,7 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
 - (void)initiateNewTabForegroundAnimationForWebState:(web::WebState*)webState {
   BOOL isNTP = IsURLNewTabPage(webState->GetVisibleURL());
   BOOL isIncognito = _isOffTheRecord;
-  __weak id<OmniboxCommands> omniboxHandler = self.omniboxCommandsHandler;
+  __weak id<ToolbarCommands> toolbarHandler = _toolbarHandler;
 
   // Initiates the new tab foreground animation, which is phone-specific.
   if (CanShowTabStrip(self)) {
@@ -2376,14 +2367,14 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(^{
             if (isNTP && isIncognito) {
-              [omniboxHandler focusOmniboxForVoiceOver];
+              [toolbarHandler focusLocationBarForVoiceOver];
             }
 
             [weakSelf executeAndClearForegroundTabWasAddedCompletionBlock:YES];
           }));
     } else {
       if (isNTP && isIncognito) {
-        [omniboxHandler focusOmniboxForVoiceOver];
+        [toolbarHandler focusLocationBarForVoiceOver];
       }
     }
     return;
@@ -2535,7 +2526,7 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   newPage.userInteractionEnabled = NO;
   NSInteger currentAnimationIdentifier = ++_NTPAnimationIdentifier;
 
-  __weak id<OmniboxCommands> omniboxHandler = self.omniboxCommandsHandler;
+  __weak id<ToolbarCommands> toolbarHandler = _toolbarHandler;
 
   // Cleanup steps needed for both UI Refresh and stack-view style animations.
   UIView* webStateView = [self viewForWebState:webState];
@@ -2571,7 +2562,7 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
     }
 
     if (isNTP && isIncognito) {
-      [omniboxHandler focusOmniboxForVoiceOver];
+      [toolbarHandler focusLocationBarForVoiceOver];
     }
 
     [strongSelf executeAndClearForegroundTabWasAddedCompletionBlock:YES];
@@ -2665,7 +2656,7 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
     [self.view addSubview:self.blockingView];
     AddSameConstraints(self.view, self.blockingView);
     self.blockingView.alpha = 1;
-    [self.omniboxCommandsHandler cancelOmniboxEdit];
+    [_browserCoordinatorHandler hideComposebox];
     // Resign the first responder. This achieves multiple goals:
     // 1. The keyboard is dismissed.
     // 2. Hardware keyboard events (such as space to scroll) will be ignored.
@@ -2950,6 +2941,14 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
 
 #pragma mark - LensOverlayPresentationEnvironment
 
+- (void)lensOverlayDidPrepare {
+  if (!IsGeminiCopresenceEnabled()) {
+    return;
+  }
+
+  [self.geminiHandler hideFloatyIfInvokedAnimated:NO];
+}
+
 - (void)lensOverlayWillAppear {
   [_sideSwipeCoordinator setEnabled:NO];
   _lensOverlayVisible = YES;
@@ -2962,8 +2961,16 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   self.contentArea.accessibilityElementsHidden = self.contentAreaObstructed;
 }
 
+- (void)lensOverlayDidDisappear {
+  if (!IsGeminiCopresenceEnabled()) {
+    return;
+  }
+
+  [self.geminiHandler showFloatyIfInvokedAnimated:YES];
+}
+
 - (void)lensOverlayDidReadjustPresentation {
-  [self.omniboxCommandsHandler cancelOmniboxEdit];
+  [_browserCoordinatorHandler hideComposebox];
 }
 
 - (NSDirectionalEdgeInsets)presentationInsetsForLensOverlay {

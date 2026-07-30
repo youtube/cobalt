@@ -1427,13 +1427,6 @@ const CSSValue* BorderBottomRightRadius::CSSValueFromComputedStyleInternal(
       style.BorderBottomRightRadius(), style);
 }
 
-const CSSValue* BorderBottomStyle::ParseSingleValue(
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    CSSParserLocalContext&) const {
-  return css_parsing_utils::ParseBorderStyleSide(stream, context);
-}
-
 const CSSValue* BorderBottomStyle::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
@@ -1728,13 +1721,6 @@ bool BorderLeftColor::IsAffectedByCurrentColor(
          style.BorderLeftColor().DependsOnCurrentColor();
 }
 
-const CSSValue* BorderLeftStyle::ParseSingleValue(
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    CSSParserLocalContext&) const {
-  return css_parsing_utils::ParseBorderStyleSide(stream, context);
-}
-
 const CSSValue* BorderLeftStyle::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
@@ -1833,13 +1819,6 @@ bool BorderRightColor::IsAffectedByCurrentColor(
     const ComputedStyle& style) const {
   return style.BorderRightWidth() &&
          style.BorderRightColor().DependsOnCurrentColor();
-}
-
-const CSSValue* BorderRightStyle::ParseSingleValue(
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    CSSParserLocalContext&) const {
-  return css_parsing_utils::ParseBorderStyleSide(stream, context);
 }
 
 const CSSValue* BorderRightStyle::CSSValueFromComputedStyleInternal(
@@ -1990,13 +1969,6 @@ const CSSValue* BorderTopRightRadius::CSSValueFromComputedStyleInternal(
     CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValueForBorderRadiusCorner(
       style.BorderTopRightRadius(), style);
-}
-
-const CSSValue* BorderTopStyle::ParseSingleValue(
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    CSSParserLocalContext&) const {
-  return css_parsing_utils::ParseBorderStyleSide(stream, context);
 }
 
 const CSSValue* BorderTopStyle::CSSValueFromComputedStyleInternal(
@@ -2991,14 +2963,6 @@ const CSSValue* RowRuleWidth::CSSValueFromComputedStyleInternal(
       style.RowRuleWidth(), style, value_phase);
 }
 
-const CSSValue* ColumnSpan::ParseSingleValue(
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    CSSParserLocalContext& local_context) const {
-  return css_parsing_utils::ConsumeIdent<CSSValueID::kAll, CSSValueID::kNone>(
-      stream);
-}
-
 const CSSValue* ColumnSpan::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
@@ -3065,7 +3029,6 @@ const CSSValue* Contain::ParseSingleValue(
   CSSIdentifierValue* layout = nullptr;
   CSSIdentifierValue* style = nullptr;
   CSSIdentifierValue* paint = nullptr;
-  CSSIdentifierValue* view_transition = nullptr;
   while (true) {
     id = stream.Peek().Id();
     if ((id == CSSValueID::kSize ||
@@ -3078,9 +3041,6 @@ const CSSValue* Contain::ParseSingleValue(
       style = css_parsing_utils::ConsumeIdent(stream);
     } else if (id == CSSValueID::kPaint && !paint) {
       paint = css_parsing_utils::ConsumeIdent(stream);
-    } else if (id == CSSValueID::kViewTransition && !view_transition &&
-               RuntimeEnabledFeatures::ScopedViewTransitionsEnabled()) {
-      view_transition = css_parsing_utils::ConsumeIdent(stream);
     } else {
       break;
     }
@@ -3097,9 +3057,6 @@ const CSSValue* Contain::ParseSingleValue(
   }
   if (paint) {
     list->Append(*paint);
-  }
-  if (view_transition) {
-    list->Append(*view_transition);
   }
   if (!list->length()) {
     return nullptr;
@@ -3139,9 +3096,6 @@ const CSSValue* Contain::CSSValueFromComputedStyleInternal(
   }
   if (style.Contain() & kContainsPaint) {
     list->Append(*CSSIdentifierValue::Create(CSSValueID::kPaint));
-  }
-  if (style.Contain() & kContainsViewTransition) {
-    list->Append(*CSSIdentifierValue::Create(CSSValueID::kViewTransition));
   }
   DCHECK(list->length());
   return list;
@@ -5559,10 +5513,11 @@ const CSSValue* Height::CSSValueFromComputedStyleInternal(
     const LayoutObject* layout_object,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  if (value_phase == CSSValuePhase::kResolvedValue &&
-      ComputedStyleUtils::WidthOrHeightShouldReturnUsedValue(layout_object)) {
-    return ZoomAdjustedPixelValue(
-        ComputedStyleUtils::UsedBoxSize(*layout_object).height(), style);
+  if (value_phase == CSSValuePhase::kResolvedValue && layout_object) {
+    if (std::optional<gfx::SizeF> used_size =
+            ComputedStyleUtils::UsedBoxSize(*layout_object)) {
+      return ZoomAdjustedPixelValue(used_size->height(), style);
+    }
   }
   return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(style.Height(),
                                                              style);
@@ -8396,6 +8351,14 @@ const CSSValue* ViewTransitionGroup::CSSValueFromComputedStyleInternal(
       style.ViewTransitionGroup().CustomName());
 }
 
+const CSSValue* ViewTransitionScope::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return CSSIdentifierValue::Create(style.ViewTransitionScope());
+}
+
 const CSSValue* PaintOrder::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
@@ -9655,7 +9618,7 @@ const CSSValue* Size::ParseSingleValue(
   }
 
   CSSValue* page_size = ConsumePageSize(stream);
-  CSSValue* orientation =
+  CSSIdentifierValue* orientation =
       css_parsing_utils::ConsumeIdent<CSSValueID::kPortrait,
                                       CSSValueID::kLandscape>(stream);
   if (!page_size) {
@@ -9668,7 +9631,8 @@ const CSSValue* Size::ParseSingleValue(
   if (page_size) {
     result->Append(*page_size);
   }
-  if (orientation) {
+  if (orientation &&
+      (!page_size || orientation->GetValueID() != CSSValueID::kPortrait)) {
     result->Append(*orientation);
   }
   return result;
@@ -9981,14 +9945,6 @@ const CSSValue* ContentVisibility::CSSValueFromComputedStyleInternal(
   return CSSIdentifierValue::Create(style.ContentVisibility());
 }
 
-const CSSValue* ContentVisibility::ParseSingleValue(
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    CSSParserLocalContext& local_context) const {
-  return css_parsing_utils::ConsumeIdent<
-      CSSValueID::kVisible, CSSValueID::kAuto, CSSValueID::kHidden>(stream);
-}
-
 const CSSValue* TabSize::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
@@ -10230,19 +10186,19 @@ const CSSValue* TextDecorationThickness::CSSValueFromComputedStyleInternal(
       style.GetTextDecorationThickness().Thickness(), style);
 }
 
-const CSSValue* TextGrow::ParseSingleValue(
+const CSSValue* TextFit::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) const {
   return css_parsing_utils::ConsumeFitText(stream, context, local_context);
 }
 
-const CSSValue* TextGrow::CSSValueFromComputedStyleInternal(
+const CSSValue* TextFit::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForFitText(style, style.TextGrow());
+  return ComputedStyleUtils::ValueForFitText(style, style.TextFit());
 }
 const CSSValue* TextIndent::ParseSingleValue(
     CSSParserTokenStream& stream,
@@ -10436,21 +10392,6 @@ const CSSValue* TextShadow::CSSValueFromComputedStyleInternal(
 
 bool TextShadow::IsAffectedByCurrentColor(const ComputedStyle& style) const {
   return style.ShadowListHasCurrentColor(style.TextShadow());
-}
-
-const CSSValue* TextShrink::ParseSingleValue(
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    CSSParserLocalContext& local_context) const {
-  return css_parsing_utils::ConsumeFitText(stream, context, local_context);
-}
-
-const CSSValue* TextShrink::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject*,
-    bool allow_visited_style,
-    CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForFitText(style, style.TextShrink());
 }
 
 const CSSValue* TextSizeAdjust::ParseSingleValue(
@@ -12557,10 +12498,11 @@ const CSSValue* Width::CSSValueFromComputedStyleInternal(
     const LayoutObject* layout_object,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  if (value_phase == CSSValuePhase::kResolvedValue &&
-      ComputedStyleUtils::WidthOrHeightShouldReturnUsedValue(layout_object)) {
-    return ZoomAdjustedPixelValue(
-        ComputedStyleUtils::UsedBoxSize(*layout_object).width(), style);
+  if (value_phase == CSSValuePhase::kResolvedValue && layout_object) {
+    if (std::optional<gfx::SizeF> used_size =
+            ComputedStyleUtils::UsedBoxSize(*layout_object)) {
+      return ZoomAdjustedPixelValue(used_size->width(), style);
+    }
   }
   return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(style.Width(),
                                                              style);

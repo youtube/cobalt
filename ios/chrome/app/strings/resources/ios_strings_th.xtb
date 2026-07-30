@@ -315,6 +315,7 @@
 <translation id="21133533946938348">ปักหมุดแท็บ</translation>
 <translation id="2117650889962717098">รักษาความเป็นส่วนตัวในการท่องเว็บโดยเปลี่ยนไปใช้โหมดไม่ระบุตัวตน</translation>
 <translation id="2119636449201577317">เปิดใน…</translation>
+<translation id="2119962645034852864">บริการบางอย่างไม่พร้อมให้บริการสำหรับบัญชีของคุณ</translation>
 <translation id="2120553909046681540">องค์กรปิดการท่องเว็บแบบส่วนตัวไว้</translation>
 <translation id="2122754583996902531">เบราว์เซอร์ของคุณมีการจัดการ <ph name="BEGIN_LINK" />ดูข้อมูลเพิ่มเติม<ph name="END_LINK" /></translation>
 <translation id="21243612977487926">ระบบไม่ได้ใช้แชทขององค์กรคุณในการปรับปรุงโมเดลของเรา Gemini อาจแสดงข้อมูลที่ไม่ถูกต้อง ซึ่งรวมถึงการให้ข้อมูลเกี่ยวกับผู้คน ดังนั้นโปรดตรวจสอบคำตอบอีกครั้ง <ph name="YOUR_PRIVACY_GEMINI" /></translation>
@@ -332,6 +333,7 @@
 <translation id="2184272387334793084">ลงชื่อเข้าใช้เพื่อรับรหัสผ่านและอื่นๆ ในอุปกรณ์ทุกเครื่อง</translation>
 <translation id="2186206192313702726">Google Lens</translation>
 <translation id="2188993354115194873">แตะ<ph name="BEGIN_BOLD" />บันทึกลงในรายการที่ดาวน์โหลด<ph name="END_BOLD" /></translation>
+<translation id="2191406283620379491">เกิดข้อผิดพลาดขึ้น โปรดอัปเดตเวอร์ชัน iOS</translation>
 <translation id="219283042927675668">แท็บในกลุ่ม</translation>
 <translation id="2194856509914051091">สิ่งที่ควรพิจารณา</translation>
 <translation id="2196428379625389579">ค้นหาในเว็บ</translation>
@@ -935,6 +937,7 @@
 <translation id="4565377596337484307">ซ่อนรหัสผ่าน</translation>
 <translation id="4568230126482344545">ซ่อน "แท็บล่าสุด"</translation>
 <translation id="4578835633387306383">เปิด…</translation>
+<translation id="4580621046861724270">ระบบไม่ได้บันทึกบุ๊กมาร์กบางรายการ</translation>
 <translation id="4580716718466706433">ไปที่ "เครื่องมือจัดการรหัสผ่าน"</translation>
 <translation id="4585751637295612750">เปิดแท็บใหม่เพื่อเพิ่มลงในคำถาม</translation>
 <translation id="4587589328781138893">เว็บไซต์</translation>
@@ -1018,6 +1021,7 @@
 <translation id="483689884442613745">บันทึก…</translation>
 <translation id="4840495572919996524">บุ๊กมาร์ก ประวัติการเข้าชม รหัสผ่าน และอื่นๆ จะไม่ซิงค์กับบัญชี Google อีกต่อไป</translation>
 <translation id="484280513275854557">คุณออกจากระบบแล้ว ลบข้อมูลการท่องเว็บแล้ว</translation>
+<translation id="484462545196658690">อัตโนมัติ</translation>
 <translation id="4850886885716139402">ดู</translation>
 <translation id="4854068532375923088">อนุญาตให้ "Gemini" ใช้กล้อง</translation>
 <translation id="4860895144060829044">โทร</translation>
@@ -1162,6 +1166,7 @@
 <translation id="5318298563956633672">คุณติดตามผลิตภัณฑ์นี้อยู่แล้ว</translation>
 <translation id="5327248766486351172">ชื่อ</translation>
 <translation id="5329451663851195956">คุณสามารถดึงลงเพื่อรีเฟรช</translation>
+<translation id="5336910966955551309">แตะค้างไว้เพื่อปักหมุดเว็บไซต์โปรด</translation>
 <translation id="5338512273860059533">กำลังลงชื่อเข้าใช้</translation>
 <translation id="5343472494710226394">ข่าวสาร กีฬา และเนื้อหาตามความสนใจของคุณ</translation>
 <translation id="5352128922772839949">บันทึกไฟล์</translation>
@@ -1518,6 +1523,7 @@
 <translation id="6556866813142980365">ทำซ้ำ</translation>
 <translation id="6559301491397835130">{count,plural, =1{บันทึกบุ๊กมาร์กไปยัง "{title}" แล้ว โดยจะบันทึกไว้ในอุปกรณ์นี้เท่านั้น}other{บันทึกบุ๊กมาร์กไปยัง "{title}" แล้ว โดยจะบันทึกไว้ในอุปกรณ์นี้เท่านั้น}}</translation>
 <translation id="656065428026159829">ดูเพิ่มเติม</translation>
+<translation id="6565899972286925956">ลองสร้างอะไรก็ได้</translation>
 <translation id="6571070086367343653">แก้ไขบัตรเครดิต</translation>
 <translation id="6574092468346088891">เปิดการแจ้งเตือนสำหรับการตรวจสอบความปลอดภัย</translation>
 <translation id="6579867704846662339">คุณเลือกเปิด URL ที่มีเข้ามาจากแอปอื่นๆ ในโหมดไม่ระบุตัวตนได้</translation>
@@ -1896,6 +1902,7 @@
 <translation id="7958575506592576831">ข้อมูลเกี่ยวกับการรักษาความปลอดภัยของหน้าเว็บ</translation>
 <translation id="7961015016161918242">ไม่ต้องเลย</translation>
 <translation id="7971136598759319605">ใช้งานเมื่อ 1 วันที่ผ่านมา</translation>
+<translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">ลอง</translation>
 <translation id="797588153137233716">เมนู → ประวัติการเข้าชม → ลบข้อมูลการท่องเว็บ</translation>
 <translation id="7977451675950311423">เตือนคุณหากใช้รหัสผ่านที่ถูกละเมิดในการละเมิดข้อมูล</translation>
@@ -2003,6 +2010,7 @@
 <translation id="8319282042900445670">ตั้งการช่วยเตือนเป็น <ph name="TIME" />, <ph name="DATE" /> แล้ว</translation>
 <translation id="8320212361750431956">กิจกรรมล่าสุด</translation>
 <translation id="8325455175867928593">ซ่อน "รีวิวที่อิงตามความสนใจของคุณ"</translation>
+<translation id="8328777765163860529">ปิดทั้งหมด</translation>
 <translation id="833647236762414178">สร้าง บันทึก และจัดการรหัสผ่านและพาสคีย์เพื่อให้ลงชื่อเข้าใช้เว็บไซต์และแอปได้โดยง่าย <ph name="BEGIN_LINK" />ดูข้อมูลเพิ่มเติม<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">สำรองข้อมูลและใช้ในอุปกรณ์เครื่องใดก็ได้</translation>
 <translation id="8348530355586151720">แตะเมนู 3 จุด</translation>

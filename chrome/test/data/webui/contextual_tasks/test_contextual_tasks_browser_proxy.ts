@@ -120,10 +120,13 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
       'getSearchUrl',
       'getThreadUrl',
       'getUrlForTask',
+      'isAiPage',
       'isShownInTab',
       'isZeroState',
       'moveTaskUiToNewTab',
       'onboardingTooltipDismissed',
+      'onFileClickedFromSourcesMenu',
+      'onImageClickedFromSourcesMenu',
       'onTabClickedFromSourcesMenu',
       'onWebviewMessage',
       'openHelpUi',
@@ -135,7 +138,7 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
       'submitQuery',
     ]);
 
-    this.url_ = {url};
+    this.url_ = url;
     this.page_ = page;
   }
 
@@ -177,6 +180,11 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
   isZeroState(url: Url) {
     this.methodCalled('isZeroState', url);
     return Promise.resolve({isZeroState: false});
+  }
+
+  isAiPage(url: Url) {
+    this.methodCalled('isAiPage', url);
+    return Promise.resolve({isAiPage: false});
   }
 
   openMyActivityUi() {
@@ -224,6 +232,14 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
 
   onTabClickedFromSourcesMenu(tabId: number, url: Url) {
     this.methodCalled('onTabClickedFromSourcesMenu', tabId, url);
+  }
+
+  onFileClickedFromSourcesMenu(url: Url) {
+    this.methodCalled('onFileClickedFromSourcesMenu', url);
+  }
+
+  onImageClickedFromSourcesMenu(url: Url) {
+    this.methodCalled('onImageClickedFromSourcesMenu', url);
   }
 
   getSearchUrl(query: string) {

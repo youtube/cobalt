@@ -589,18 +589,17 @@ class DevToolsExtensionTest : public DevToolsTest {
     return GetExtensionByPath(registry->enabled_extensions(), path);
   }
 
-  base::Value::Dict BuildExtensionManifest(
-      const std::string& name,
-      const std::string& devtools_page = "",
-      const std::string& key = "") {
-    auto manifest = base::Value::Dict()
+  base::DictValue BuildExtensionManifest(const std::string& name,
+                                         const std::string& devtools_page = "",
+                                         const std::string& key = "") {
+    auto manifest = base::DictValue()
                         .Set("name", name)
                         .Set("version", "1")
                         .Set("manifest_version", 2)
                         // simple_test_page.html is currently the only page
                         // referenced outside of its own extension in the tests
                         .Set("web_accessible_resources",
-                             base::Value::List()
+                             base::ListValue()
                                  .Append("simple_test_page.html")
                                  .Append("source.map"));
 
@@ -1739,7 +1738,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
                        DevToolsExtensionSecurityPolicyGrants) {
   auto dir = std::make_unique<extensions::TestExtensionDir>();
 
-  dir->WriteManifest(base::Value::Dict()
+  dir->WriteManifest(base::DictValue()
                          .Set("name", "Devtools Panel")
                          .Set("version", "1")
                          // Allow the script we stuff into the 'blob:' URL:
@@ -3447,7 +3446,7 @@ class DevToolsPolicyTest : public InProcessBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(DevToolsPolicyTest, OpenBlockedDevTools) {
-  base::Value::List blocklist;
+  base::ListValue blocklist;
   blocklist.Append("devtools://*");
   policy::PolicyMap policies;
   policies.Set(policy::key::kURLBlocklist, policy::POLICY_LEVEL_MANDATORY,
@@ -3458,13 +3457,17 @@ IN_PROC_BROWSER_TEST_F(DevToolsPolicyTest, OpenBlockedDevTools) {
   WebContents* wc = browser()->tab_strip_model()->GetActiveWebContents();
   scoped_refptr<content::DevToolsAgentHost> agent(
       GetOrCreateDevToolsHostForWebContents(wc));
-  DevToolsWindow::OpenDevToolsWindow(wc, DevToolsOpenedByAction::kUnknown);
   DevToolsWindow* window = DevToolsWindow::FindDevToolsWindow(agent.get());
+  ASSERT_EQ(nullptr, window);
+  DevToolsWindow::OpenDevToolsWindow(wc, DevToolsOpenedByAction::kUnknown);
+  window = DevToolsWindow::FindDevToolsWindow(agent.get());
   if (window) {
     base::RunLoop run_loop;
     DevToolsWindowTesting::Get(window)->SetCloseCallback(
         run_loop.QuitClosure());
     run_loop.Run();
+  } else {
+    LOG(INFO) << "DevTools window was not found";
   }
   window = DevToolsWindow::FindDevToolsWindow(agent.get());
   ASSERT_EQ(nullptr, window);
@@ -3483,13 +3486,13 @@ class DevToolsExtensionHostsPolicyTest : public DevToolsExtensionTest {
   void SetUpInProcessBrowserTestFixture() override {
     DevToolsExtensionTest::SetUpInProcessBrowserTestFixture();
 
-    base::Value::Dict settings;
-    settings.Set(
-        "*", base::Value::Dict()
-                 .Set(extensions::schema_constants::kPolicyBlockedHosts,
-                      base::Value::List().Append("*://*.example.com"))
-                 .Set(extensions::schema_constants::kPolicyAllowedHosts,
-                      base::Value::List().Append("*://public.example.com")));
+    base::DictValue settings;
+    settings.Set("*",
+                 base::DictValue()
+                     .Set(extensions::schema_constants::kPolicyBlockedHosts,
+                          base::ListValue().Append("*://*.example.com"))
+                     .Set(extensions::schema_constants::kPolicyAllowedHosts,
+                          base::ListValue().Append("*://public.example.com")));
 
     policy::PolicyMap policies;
     policies.Set(policy::key::kExtensionSettings,
@@ -3816,10 +3819,10 @@ IN_PROC_BROWSER_TEST_F(DevToolsTest, HostBindingsSyncIntegration) {
   )",
               DevToolsSettings::kSyncDevToolsPreferencesFrontendName)));
 
-  const base::Value::Dict& synced_settings =
+  const base::DictValue& synced_settings =
       chrome_test_utils::GetProfile(this)->GetPrefs()->GetDict(
           prefs::kDevToolsSyncedPreferencesSyncDisabled);
-  const base::Value::Dict& unsynced_settings =
+  const base::DictValue& unsynced_settings =
       chrome_test_utils::GetProfile(this)->GetPrefs()->GetDict(
           prefs::kDevToolsPreferences);
   EXPECT_EQ(*synced_settings.FindString("synced_setting"), "synced value");
@@ -4525,4 +4528,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsRenderDocumentTest, ReloadWithRFHSwap) {
   EXPECT_EQ(window_, DevToolsWindow::FindDevToolsWindow(agent_host.get()));
   CloseDevToolsWindow();
 }
+
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+

@@ -22,6 +22,8 @@ namespace features {
 
 BASE_DECLARE_FEATURE(kAllowEyeDropperWGCScreenCapture);
 
+BASE_DECLARE_FEATURE(kBrowserWidgetCacheThemeService);
+
 BASE_DECLARE_FEATURE(kCreateNewTabGroupAppMenuTopLevel);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -373,6 +375,12 @@ BASE_DECLARE_FEATURE(kNewTabAddsToActiveGroup);
 bool IsNewTabAddsToActiveGroupEnabled();
 
 bool IsWebUIReloadButtonEnabled();
+
+bool IsWebUISplitTabsButtonEnabled();
+
+bool IsWebUILocationBarEnabled();
+
+bool IsWebUIToolbarEnabled();
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Controls whether to show a toast for Chrome non milestone update.

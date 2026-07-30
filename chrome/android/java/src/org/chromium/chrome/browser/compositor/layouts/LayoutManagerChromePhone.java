@@ -4,10 +4,13 @@
 
 package org.chromium.chrome.browser.compositor.layouts;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+
 import android.content.Context;
 import android.view.ViewGroup;
 
 import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -38,9 +41,9 @@ import java.util.function.Supplier;
 public class LayoutManagerChromePhone extends LayoutManagerChrome {
     // TODO(crbug.com/40282469): Rename SimpleAnimationLayout to NewTabAnimationLayout once it is
     // rolled out.
-    private final MonotonicObservableSupplier<CompositorViewHolder> mCompositorViewHolderSupplier;
+    private final Supplier<@Nullable CompositorViewHolder> mCompositorViewHolderSupplier;
     private final MonotonicObservableSupplier<TopInsetProvider> mTopInsetProviderSupplier;
-    private final MonotonicObservableSupplier<Boolean> mScrimVisibilitySupplier;
+    private final NonNullObservableSupplier<Boolean> mScrimVisibilitySupplier;
     private final ToolbarManager mToolbarManager;
     private final ViewGroup mContentView;
     private Layout mSimpleAnimationLayout;
@@ -70,10 +73,10 @@ public class LayoutManagerChromePhone extends LayoutManagerChrome {
             MonotonicObservableSupplier<TabContentManager> tabContentManagerSupplier,
             Supplier<TopUiThemeColorProvider> topUiThemeColorProvider,
             HubLayoutDependencyHolder hubLayoutDependencyHolder,
-            MonotonicObservableSupplier<CompositorViewHolder> compositorViewHolderSupplier,
+            Supplier<@Nullable CompositorViewHolder> compositorViewHolderSupplier,
             ViewGroup contentView,
             ToolbarManager toolbarManager,
-            MonotonicObservableSupplier<Boolean> scrimVisibilitySupplier,
+            NonNullObservableSupplier<Boolean> scrimVisibilitySupplier,
             MonotonicObservableSupplier<TopInsetProvider> topInsetProviderSupplier) {
         super(
                 host,
@@ -104,7 +107,7 @@ public class LayoutManagerChromePhone extends LayoutManagerChrome {
             @Nullable ControlContainer controlContainer,
             DynamicResourceLoader dynamicResourceLoader,
             TopUiThemeColorProvider topUiColorProvider,
-            MonotonicObservableSupplier<Integer> bottomControlsOffsetSupplier) {
+            NonNullObservableSupplier<Integer> bottomControlsOffsetSupplier) {
         Context context = mHost.getContext();
         LayoutRenderHost renderHost = mHost.getLayoutRenderHost();
 
@@ -118,7 +121,7 @@ public class LayoutManagerChromePhone extends LayoutManagerChrome {
                             renderHost,
                             this,
                             getContentContainer(),
-                            mCompositorViewHolderSupplier,
+                            assertNonNull(mCompositorViewHolderSupplier.get()),
                             mContentView,
                             mToolbarManager,
                             getBrowserControlsManager(),

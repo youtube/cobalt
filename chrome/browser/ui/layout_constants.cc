@@ -135,6 +135,8 @@ int GetLayoutConstant(LayoutConstant constant) {
       return 8;
     case LayoutConstant::kVerticalTabHeight:
       return 30;
+    case LayoutConstant::kVerticalTabPinnedHeight:
+      return 32;
     case LayoutConstant::kVerticalTabMinWidth:
       return 32;
     case LayoutConstant::kVerticalTabStripUncollapsedPadding:
@@ -143,6 +145,10 @@ int GetLayoutConstant(LayoutConstant constant) {
       return 8;
     case LayoutConstant::kVerticalTabStripTopButtonIconSize:
       return 20;
+    case LayoutConstant::kVerticalTabStripBottomButtonIconSize:
+      return 20;
+    case LayoutConstant::kVerticalTabStripTopButtonPadding:
+      return 4;
     case LayoutConstant::kVerticalTabStripBottomButtonPadding:
       return 4;
     case LayoutConstant::kVerticalTabStripCollapsedBottomButtonPadding:
@@ -206,6 +212,12 @@ gfx::Insets GetLayoutInsets(LayoutInset inset) {
 
     case WEBUI_TAB_STRIP_TOOLBAR_INTERIOR_MARGIN:
       return gfx::Insets::VH(4, 0);
+
+    case VERTICAL_TAB_STRIP_BOTTOM_BUTTON_UNCOLLAPSED:
+      return gfx::Insets::VH(5, 14);
+
+    case VERTICAL_TAB_STRIP_BOTTOM_BUTTON_COLLAPSED:
+      return gfx::Insets::VH(5, 6);
   }
   NOTREACHED();
 }

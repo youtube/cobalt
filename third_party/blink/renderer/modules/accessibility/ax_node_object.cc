@@ -1219,8 +1219,7 @@ AXObjectInclusion AXNodeObject::ShouldIncludeBasedOnSemantics(
     // next layer. All nodes have a single child, meaning that this child has no
     // siblings.
     if (!IsExemptFromInlineBlockCheck(native_role_) && GetLayoutObject() &&
-        GetLayoutObject()->IsInline() &&
-        GetLayoutObject()->IsAtomicInlineLevel() &&
+        GetLayoutObject()->IsAtomicInline() &&
         node->parentNode()->childElementCount() > 1) {
       return kIncludeObject;
     }
@@ -5385,8 +5384,7 @@ static bool ShouldInsertSpaceBetweenObjectsIfNeeded(
   // spec: https://www.w3.org/TR/css-display-3/#the-display-properties
   CHECK(next_layout);
   CHECK(prev_layout);
-  if (next_layout->IsAtomicInlineLevel() ||
-      prev_layout->IsAtomicInlineLevel()) {
+  if (next_layout->IsAtomicInline() || prev_layout->IsAtomicInline()) {
     return true;
   }
 
@@ -5847,12 +5845,7 @@ int AXNodeObject::TextOffsetInFormattingContext(int offset) const {
                        : offset;
   }
 
-  // TODO(crbug.com/567964): LayoutObject::IsAtomicInlineLevel() also includes
-  // block-level replaced elements. We need to explicitly exclude them via
-  // LayoutObject::IsInline().
-  const bool is_atomic_inline_level =
-      layout_obj->IsInline() && layout_obj->IsAtomicInlineLevel();
-  if (!is_atomic_inline_level && !layout_obj->IsText()) {
+  if (!layout_obj->IsAtomicInline() && !layout_obj->IsText()) {
     // Not in a formatting context in which text offsets are meaningful.
     return AXObject::TextOffsetInFormattingContext(offset);
   }
@@ -6933,8 +6926,12 @@ String AXNodeObject::TextAlternativeFromTooltip(
   }
 
   if (name_sources) {
-    name_sources->push_back(
-        NameSource(*found_text_alternative, html_names::kPopovertargetAttr));
+    // Map NameFrom enum to corresponding HTML attribute
+    const QualifiedName& attr_name =
+        name_from == ax::mojom::blink::NameFrom::kInterestFor
+            ? html_names::kInterestforAttr
+            : html_names::kPopovertargetAttr;
+    name_sources->push_back(NameSource(*found_text_alternative, attr_name));
     name_sources->back().type = name_from;
   }
 
@@ -8339,8 +8336,7 @@ AXObject* AXNodeObject::GetFirstInlineBlockOrDeepestInlineAXChildInLayoutTree(
     if (ax_object && ax_object->IsIncludedInTree() &&
         !current_node->IsMarkerPseudoElement()) {
       if (ax_object->GetLayoutObject() &&
-          ax_object->GetLayoutObject()->IsInline() &&
-          ax_object->GetLayoutObject()->IsAtomicInlineLevel()) {
+          ax_object->GetLayoutObject()->IsAtomicInline()) {
         return ax_object;
       }
     }

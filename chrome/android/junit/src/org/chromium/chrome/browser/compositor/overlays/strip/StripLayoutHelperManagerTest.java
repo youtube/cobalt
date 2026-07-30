@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 import static org.chromium.chrome.browser.multiwindow.MultiWindowTestUtils.enableMultiInstance;
 
 import android.app.Activity;
+import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.os.Build.VERSION_CODES;
@@ -53,7 +54,9 @@ import org.robolectric.Robolectric;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.CallbackUtils;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features;
@@ -98,7 +101,6 @@ import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
-import org.chromium.components.browser_ui.widget.scrim.ScrimProperties;
 import org.chromium.components.collaboration.CollaborationService;
 import org.chromium.components.collaboration.ServiceStatus;
 import org.chromium.components.feature_engagement.Tracker;
@@ -123,13 +125,13 @@ public class StripLayoutHelperManagerTest {
     @Mock private LayoutManagerHost mManagerHost;
     @Mock private LayoutUpdateHost mUpdateHost;
     @Mock private LayoutRenderHost mRenderHost;
-    @Mock private ObservableSupplierImpl<LayerTitleCache> mLayerTitleCacheSupplier;
+    @Mock private SettableMonotonicObservableSupplier<LayerTitleCache> mLayerTitleCacheSupplier;
     @Mock private ActivityLifecycleDispatcher mLifecycleDispatcher;
     @Mock private MultiInstanceManager mMultiInstanceManager;
     @Mock private View mToolbarContainerView;
     @Mock private DragAndDropDelegate mDragDropDelegate;
     @Mock private TabModelSelector mTabModelSelector;
-    @Mock private ObservableSupplierImpl<TabModel> mTabModelSupplier;
+    @Mock private SettableMonotonicObservableSupplier<TabModel> mTabModelSupplier;
     @Mock private TabCreatorManager mTabCreatorManager;
     @Mock private TabGroupModelFilter mTabGroupModelFilter;
     @Mock private TabModel mStandardTabModel;
@@ -137,7 +139,7 @@ public class StripLayoutHelperManagerTest {
     @Mock private Tab mSelectedTab;
     @Mock private StripLayoutTab mHoveredStripTab;
     @Mock private ViewStub mTabHoverCardViewStub;
-    @Mock private ObservableSupplierImpl<TabContentManager> mTabContentManagerSupplier;
+    @Mock private SettableMonotonicObservableSupplier<TabContentManager> mTabContentManagerSupplier;
     @Mock private BrowserControlsStateProvider mBrowserControlStateProvider;
     @Mock private WindowAndroid mWindowAndroid;
     @Mock private ToolbarManager mToolbarManager;
@@ -157,8 +159,8 @@ public class StripLayoutHelperManagerTest {
 
     private StripLayoutHelperManager mStripLayoutHelperManager;
     private Activity mActivity;
-    private ObservableSupplierImpl<TabModelStartupInfo> mTabModelStartupInfoSupplier;
-    private ObservableSupplierImpl<Integer> mTabStripHeightSupplier;
+    private SettableMonotonicObservableSupplier<TabModelStartupInfo> mTabModelStartupInfoSupplier;
+    private SettableNonNullObservableSupplier<Integer> mTabStripHeightSupplier;
     private int mToolbarPrimaryColor;
     private static final float SCREEN_WIDTH = 800.f;
     private static final float SCREEN_HEIGHT = 1600.f;
@@ -206,10 +208,9 @@ public class StripLayoutHelperManagerTest {
         when(mTabModelSelector.getCurrentTabModelSupplier()).thenReturn(mTabModelSupplier);
         when(mStandardTabModel.getProfile()).thenReturn(mProfile);
 
-        mTabModelStartupInfoSupplier = new ObservableSupplierImpl<>();
+        mTabModelStartupInfoSupplier = ObservableSuppliers.createMonotonic();
 
-        mTabStripHeightSupplier = new ObservableSupplierImpl<>();
-        mTabStripHeightSupplier.set(TAB_STRIP_HEIGHT_PX);
+        mTabStripHeightSupplier = ObservableSuppliers.createNonNull(TAB_STRIP_HEIGHT_PX);
         mToolbarPrimaryColor = SemanticColorUtils.getToolbarBackgroundPrimary(mActivity);
         when(mToolbarManager.getTabStripHeightSupplier()).thenReturn(mTabStripHeightSupplier);
         when(mToolbarManager.getPrimaryColor()).thenReturn(mToolbarPrimaryColor);
@@ -847,8 +848,7 @@ public class StripLayoutHelperManagerTest {
                 .setTabStripColorOverlay(mToolbarPrimaryColor, expectedOpacity);
         // Invocation after the transition finished.
         inOrder.verify(mStatusBarColorController).setTabStripHiddenOnTablet(true);
-        inOrder.verify(mStatusBarColorController)
-                .setTabStripColorOverlay(ScrimProperties.INVALID_COLOR, 0f);
+        inOrder.verify(mStatusBarColorController).setTabStripColorOverlay(Color.TRANSPARENT, 0f);
     }
 
     // TODO(crbug.com/450954710): This test fails on SDK 36.
@@ -1057,15 +1057,13 @@ public class StripLayoutHelperManagerTest {
         InOrder inOrder = Mockito.inOrder(mStatusBarColorController);
         // Invocations before the transition started.
         inOrder.verify(mStatusBarColorController).setTabStripHiddenOnTablet(true);
-        inOrder.verify(mStatusBarColorController)
-                .setTabStripColorOverlay(ScrimProperties.INVALID_COLOR, 0f);
+        inOrder.verify(mStatusBarColorController).setTabStripColorOverlay(Color.TRANSPARENT, 0f);
         // Invocations during the transition.
         inOrder.verify(mStatusBarColorController).setTabStripHiddenOnTablet(false);
         inOrder.verify(mStatusBarColorController)
                 .setTabStripColorOverlay(scrimColor, expectedOpacity);
         // Invocation after the transition finished.
-        inOrder.verify(mStatusBarColorController)
-                .setTabStripColorOverlay(ScrimProperties.INVALID_COLOR, 0f);
+        inOrder.verify(mStatusBarColorController).setTabStripColorOverlay(Color.TRANSPARENT, 0f);
     }
 
     @Test

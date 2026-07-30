@@ -1189,13 +1189,15 @@ class GlicInteractiveContextMenuTest
                                 features::kGlicMultitabUnderlines},
           /*disabled_features=*/{features::kGlicWarming,
                                  features::kGlicFreWarming,
-                                 blink::features::kSvgFallBackToContainerSize});
+                                 blink::features::kSvgFallBackToContainerSize,
+                                 features::kGlicTrustFirstOnboarding});
     } else {
       scoped_feature_list_.InitWithFeatures(
           /*enabled_features=*/{features::kGlic, features::kGlicShareImage},
           /*disabled_features=*/{features::kGlicWarming,
                                  features::kGlicFreWarming,
-                                 blink::features::kSvgFallBackToContainerSize});
+                                 blink::features::kSvgFallBackToContainerSize,
+                                 features::kGlicTrustFirstOnboarding});
     }
     // Ensure that we open the FRE.
     glic_test_environment().SetFreStatusForNewProfiles(std::nullopt);
@@ -1634,7 +1636,7 @@ IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuPolicyTest,
 IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuPolicyTest,
                        GlicShareImageFailsWhenGuestURLBlocked) {
   // Check that our destination is the Guest URL.
-  auto guest_url = glic::GetGuestURL();
+  auto guest_url = glic::GetGuestURL(browser()->profile());
   data_controls::SetDataControls(
       browser()->profile()->GetPrefs(),
       {base::StringPrintf(kPastePolicyTemplate, guest_url.spec())});

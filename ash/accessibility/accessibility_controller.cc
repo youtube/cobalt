@@ -249,75 +249,30 @@ constexpr const char* const kA11yPrefsForRecommendedValueOnSignin[]{
 
 // List of accessibility prefs that are to be copied (if changed by the user) on
 // signin screen profile to a newly created user profile or a guest session.
+// Add prefs here if they can be enabled in the OOBE or login screen from either
+// the accessibility screen or from the login screen accessibility shortcut
+// menu.
 constexpr const char* const kCopiedOnSigninAccessibilityPrefs[]{
-    prefs::kAccessibilityAutoclickDelayMs,
     prefs::kAccessibilityAutoclickEnabled,
-    prefs::kAccessibilityBounceKeysDelayMs,
-    prefs::kAccessibilityBounceKeysEnabled,
     prefs::kAccessibilityCaretHighlightEnabled,
-    prefs::kAccessibilityChromeVoxAutoRead,
-    prefs::kAccessibilityChromeVoxAnnounceDownloadNotifications,
-    prefs::kAccessibilityChromeVoxAnnounceRichTextAttributes,
-    prefs::kAccessibilityChromeVoxAudioStrategy,
-    prefs::kAccessibilityChromeVoxBrailleSideBySide,
     prefs::kAccessibilityChromeVoxBrailleTable,
-    prefs::kAccessibilityChromeVoxBrailleTable6,
-    prefs::kAccessibilityChromeVoxBrailleTable8,
     prefs::kAccessibilityChromeVoxBrailleTableType,
-    prefs::kAccessibilityChromeVoxBrailleWordWrap,
-    prefs::kAccessibilityChromeVoxCapitalStrategy,
-    prefs::kAccessibilityChromeVoxCapitalStrategyBackup,
-    prefs::kAccessibilityChromeVoxEnableBrailleLogging,
-    prefs::kAccessibilityChromeVoxEnableEarconLogging,
-    prefs::kAccessibilityChromeVoxEnableEventStreamLogging,
-    prefs::kAccessibilityChromeVoxEnableSpeechLogging,
-    prefs::kAccessibilityChromeVoxEventStreamFilters,
-    prefs::kAccessibilityChromeVoxLanguageSwitching,
-    prefs::kAccessibilityChromeVoxMenuBrailleCommands,
-    prefs::kAccessibilityChromeVoxNumberReadingStyle,
-    prefs::kAccessibilityChromeVoxPreferredBrailleDisplayAddress,
     prefs::kAccessibilityChromeVoxPunctuationEcho,
     prefs::kAccessibilityChromeVoxSmartStickyMode,
-    prefs::kAccessibilityChromeVoxSpeakTextUnderMouse,
-    prefs::kAccessibilityChromeVoxUsePitchChanges,
-    prefs::kAccessibilityChromeVoxUseVerboseMode,
-    prefs::kAccessibilityChromeVoxVirtualBrailleColumns,
-    prefs::kAccessibilityChromeVoxVirtualBrailleRows,
-    prefs::kAccessibilityChromeVoxVoiceName,
-    prefs::kAccessibilityColorCorrectionEnabled,
     prefs::kAccessibilityCursorHighlightEnabled,
-    prefs::kAccessibilityCursorColorEnabled,
-    prefs::kAccessibilityCursorColor,
     prefs::kAccessibilityDictationEnabled,
     prefs::kAccessibilityDictationLocale,
     prefs::kAccessibilityDictationLocaleOfflineNudge,
-    prefs::kAccessibilityDisableTrackpadEnabled,
-    prefs::kAccessibilityDisableTrackpadMode,
     prefs::kAccessibilityFocusHighlightEnabled,
     prefs::kAccessibilityHighContrastEnabled,
     prefs::kAccessibilityLargeCursorEnabled,
     prefs::kAccessibilityFaceGazeEnabled,
     prefs::kAccessibilityMonoAudioEnabled,
-    prefs::kAccessibilityReducedAnimationsEnabled,
-    prefs::kAccessibilityAlwaysShowScrollbarsEnabled,
-    prefs::kAccessibilityMouseKeysEnabled,
-    prefs::kAccessibilityMouseKeysAcceleration,
-    prefs::kAccessibilityMouseKeysMaxSpeed,
-    prefs::kAccessibilityMouseKeysUsePrimaryKeys,
-    prefs::kAccessibilityMouseKeysDominantHand,
     prefs::kAccessibilityScreenMagnifierEnabled,
-    prefs::kAccessibilityScreenMagnifierFocusFollowingEnabled,
-    prefs::kAccessibilityMagnifierFollowsChromeVox,
-    prefs::kAccessibilityMagnifierFollowsSts,
-    prefs::kAccessibilityScreenMagnifierMouseFollowingMode,
     prefs::kAccessibilityScreenMagnifierScale,
     prefs::kAccessibilitySelectToSpeakEnabled,
-    prefs::kAccessibilitySlowKeysDelayMs,
-    prefs::kAccessibilitySlowKeysEnabled,
     prefs::kAccessibilitySpokenFeedbackEnabled,
     prefs::kAccessibilityStickyKeysEnabled,
-    prefs::kAccessibilityShortcutsEnabled,
-    prefs::kAccessibilitySwitchAccessEnabled,
     prefs::kAccessibilityVirtualKeyboardEnabled,
     prefs::kDockedMagnifierEnabled,
     prefs::kDockedMagnifierScale,
@@ -1331,7 +1286,7 @@ void AccessibilityController::RegisterProfilePrefs(
   registry->RegisterBooleanPref(
       prefs::kAccessibilityChromeVoxEnableSpeechLogging, false);
   registry->RegisterDictionaryPref(
-      prefs::kAccessibilityChromeVoxEventStreamFilters, base::Value::Dict());
+      prefs::kAccessibilityChromeVoxEventStreamFilters, base::DictValue());
   registry->RegisterBooleanPref(prefs::kAccessibilityChromeVoxLanguageSwitching,
                                 false);
   registry->RegisterBooleanPref(
@@ -3386,8 +3341,7 @@ void AccessibilityController::UpdateSwitchAccessKeyCodesFromPref(
   }
 
   std::string pref_key = PrefKeyForSwitchAccessCommand(command);
-  const base::Value::Dict& key_codes_pref =
-      active_user_prefs_->GetDict(pref_key);
+  const base::DictValue& key_codes_pref = active_user_prefs_->GetDict(pref_key);
   std::map<int, std::set<std::string>> key_codes;
   for (const auto v : key_codes_pref) {
     int key_code;

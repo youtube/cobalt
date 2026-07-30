@@ -477,7 +477,6 @@ component("base") {
     "metrics/histogram_base.h",
     "metrics/histogram_delta_serialization.cc",
     "metrics/histogram_delta_serialization.h",
-    "metrics/histogram_flattener.h",
     "metrics/histogram_functions.cc",
     "metrics/histogram_functions.h",
     "metrics/histogram_functions_internal_overloads.h",
@@ -933,7 +932,6 @@ component("base") {
     "trace_event/trace_session_observer.h",
     "traits_bag.h",
     "tuple.h",
-    "types/cxx23_from_range.h",
     "types/cxx26_projected_value_t.h",
     "types/expected.h",
     "types/expected_internal.h",
@@ -4540,11 +4538,7 @@ if (enable_nocompile_tests) {
       "unsafe_buffers_nocompile.nc",
       "values_nocompile.nc",
     ]
-    if (use_cxx23) {
-      sources += [ "containers/adapters_nocompile_cpp23.nc" ]
-    } else {
-      sources += [ "containers/adapters_nocompile.nc" ]
-    }
+    sources += [ "containers/adapters_nocompile.nc" ]
     deps = [ ":base" ]
   }
 }
@@ -5457,6 +5451,10 @@ if (is_android) {
       "android/java/src/org/chromium/base/AconfigFlaggedApiDelegate.java",
       "android/java/src/org/chromium/base/BindingRequestQueue.java",
       "android/java/src/org/chromium/base/SelectionActionMenuClientWrapper.java",
+      "android/java/src/org/chromium/base/serial/SerialManager.java",
+      "android/java/src/org/chromium/base/serial/SerialPort.java",
+      "android/java/src/org/chromium/base/serial/SerialPortListener.java",
+      "android/java/src/org/chromium/base/serial/SerialPortResponse.java",
     ]
   }
 

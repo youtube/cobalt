@@ -21,6 +21,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import static org.chromium.chrome.browser.tabmodel.TabModelOrderControllerImpl.willOpenInForeground;
 import static org.chromium.chrome.test.util.ChromeTabUtils.getIndexOnUiThread;
 import static org.chromium.chrome.test.util.ChromeTabUtils.getTabCountOnUiThread;
 import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
@@ -43,6 +44,7 @@ import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -73,6 +75,7 @@ import org.chromium.components.browser_ui.widget.ActionConfirmationResult;
 import org.chromium.components.content_settings.ContentSetting;
 import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.content_public.common.ResourceRequestBody;
+import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.mojom.WindowOpenDisposition;
 import org.chromium.url.GURL;
 
@@ -177,6 +180,7 @@ public class TabModelImplTest {
     @SmallTest
     // TODO(crbug.com/457847264): Change to @Restriction(DeviceFormFactor.PHONE) after launch
     @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/446934111
     public void validIndexAfterRestored_FromPreviousActivity_WithIncognitoTabs() {
         mPage = Journeys.createIncognitoTabsWithWebPages(mPage, List.of(mTestUrl));
 
@@ -266,6 +270,12 @@ public class TabModelImplTest {
                     assertEquals(
                             TabLaunchType.FROM_TAB_LIST_INTERFACE,
                             tab.getTabLaunchTypeAtCreation());
+
+                    assertTrue(
+                            willOpenInForeground(
+                                    TabLaunchType.FROM_TAB_LIST_INTERFACE,
+                                    tab.isIncognitoBranded(),
+                                    mTabModelJni.isIncognitoBranded()));
                 });
     }
 
@@ -1074,6 +1084,7 @@ public class TabModelImplTest {
     @SmallTest
     // TODO(crbug.com/457847264): Change to @Restriction(DeviceFormFactor.PHONE) after launch
     @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/446934111
     public void testCloseIncognitoTabSwitchesToNormalModelAndUpdatesIncognitoIndex() {
         TabModel incognitoTabModel =
                 mActivityTestRule.getActivity().getTabModelSelector().getModel(true);
@@ -1576,6 +1587,7 @@ public class TabModelImplTest {
     @SmallTest
     // TODO(crbug.com/457847264): Change to @Restriction(DeviceFormFactor.PHONE) after launch
     @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/446934111
     public void testSetMuteSetting_Incognito() {
         WebPageStation page = mPage.loadWebPageProgrammatically(mTestUrl);
         Journeys.createIncognitoTabsWithWebPages(page, List.of(mTestUrl));
