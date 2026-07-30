@@ -61,6 +61,10 @@ class EmbeddedTestServer;
 // Configures the fixture for startup testing.
 + (void)testForStartup;
 
+// Backgrounds then foregrounds the app safely.
+// Fixes a keyboard-related bug on iOS-18.
+- (void)backgroundAndForegroundApp;
+
 @end
 
 #endif  // IOS_CHROME_TEST_EARL_GREY_CHROME_TEST_CASE_H_

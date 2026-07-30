@@ -14,6 +14,7 @@
 #import <vector>
 
 #import "base/apple/foundation_util.h"
+#import "base/check_deref.h"
 #import "base/check_op.h"
 #import "base/containers/to_vector.h"
 #import "base/debug/crash_logging.h"
@@ -523,7 +524,7 @@ autofill::LocalFrameToken GetLocalFrameToken(web::WebFrame* frame) {
       [self propagatePredictionsToPasswordManagerFrom:manager
                                           forFormData:renderer_form
                                          globalFormId:formId
-                                              inFrame:child_frame
+                                              inFrame:*child_frame
                                            fromSource:source];
     }
   } else {
@@ -536,7 +537,7 @@ autofill::LocalFrameToken GetLocalFrameToken(web::WebFrame* frame) {
     [self propagatePredictionsToPasswordManagerFrom:manager
                                         forFormData:form_data
                                        globalFormId:formId
-                                            inFrame:frame
+                                            inFrame:*frame
                                          fromSource:source];
   }
 }
@@ -1219,19 +1220,19 @@ autofill::LocalFrameToken GetLocalFrameToken(web::WebFrame* frame) {
 - (void)propagatePredictionsToPasswordManagerFrom:(AutofillManager&)manager
                                       forFormData:(FormData)form
                                      globalFormId:(FormGlobalId)globalFormId
-                                          inFrame:(web::WebFrame*)frame
+                                          inFrame:(web::WebFrame&)frame
                                        fromSource:(AutofillManager::Observer::
                                                        FieldTypeSource)source {
   PasswordManagerDriver* driver =
       IOSPasswordManagerDriverFactory::FromWebStateAndWebFrame(_webState,
-                                                               frame);
+                                                               &frame);
   std::vector<autofill::FieldGlobalId> field_ids =
       base::ToVector(form.fields(), &autofill::FormFieldData::global_id);
   switch (source) {
     case AutofillManager::Observer::FieldTypeSource::kAutofillServer:
     case AutofillManager::Observer::FieldTypeSource::kAutofillAiModel:
       _passwordManager->ProcessAutofillPredictions(
-          driver, form,
+          CHECK_DEREF(driver), form,
           manager.GetServerPredictionsForForm(globalFormId, field_ids));
       break;
     case AutofillManager::Observer::FieldTypeSource::kHeuristicsOrAutocomplete:

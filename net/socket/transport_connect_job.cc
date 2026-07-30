@@ -408,10 +408,14 @@ int TransportConnectJob::DoTransportConnect() {
     if (result != ERR_IO_PENDING)
       return HandleSubJobComplete(result, ipv6_job_.get());
     if (ipv4_job_) {
+      base::TimeDelta fallback_time = kIPv6FallbackTime;
+      if (base::FeatureList::IsEnabled(features::kAdjustIPv6FallbackTime)) {
+        fallback_time = features::kIPv6FallbackTime.Get();
+      }
       // This use of base::Unretained is safe because |fallback_timer_| is
       // owned by this object.
       fallback_timer_.Start(
-          FROM_HERE, kIPv6FallbackTime,
+          FROM_HERE, fallback_time,
           base::BindOnce(&TransportConnectJob::StartIPv4JobAsync,
                          base::Unretained(this)));
     }

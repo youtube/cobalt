@@ -19,6 +19,8 @@ class TwoClientWebAppsIntegrationTestBase
   TwoClientWebAppsIntegrationTestBase();
   ~TwoClientWebAppsIntegrationTestBase() override;
 
+  static void SetUpTestSuite();
+
   SyncTest::SetupSyncMode GetSetupSyncMode() const override;
 
   // WebAppIntegrationTestDriver::TestDelegate:

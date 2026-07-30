@@ -11,7 +11,7 @@ FindResults::FindResults() {
 }
 
 FindResults::FindResults(const FindBuffer* find_buffer,
-                         TextSearcherICU* text_searcher,
+                         TextSearcherIcu* text_searcher,
                          const Vector<UChar>& buffer,
                          const Vector<Vector<UChar>>* extra_buffers,
                          const String& search_text,
@@ -28,7 +28,7 @@ FindResults::FindResults(const FindBuffer* find_buffer,
     extra_searchers_.reserve(extra_buffers->size());
     for (const auto& text : *extra_buffers) {
       extra_searchers_.push_back(
-          std::make_unique<TextSearcherICU>(TextSearcherICU::kConstructLocal));
+          std::make_unique<TextSearcherIcu>(TextSearcherIcu::kConstructLocal));
       auto& searcher = extra_searchers_.back();
       searcher->SetPattern(search_text_, options);
       searcher->SetText(base::span(text));
@@ -55,11 +55,11 @@ bool FindResults::IsEmpty() const {
   return begin() == end();
 }
 
-MatchResultICU FindResults::front() const {
+MatchResultIcu FindResults::front() const {
   return *begin();
 }
 
-MatchResultICU FindResults::back() const {
+MatchResultIcu FindResults::back() const {
   Iterator last_result;
   for (Iterator it = begin(); it != end(); ++it) {
     last_result = it;
@@ -78,21 +78,21 @@ unsigned FindResults::CountForTesting() const {
 // FindResults::Iterator implementation.
 FindResults::Iterator::Iterator(
     const FindBuffer* find_buffer,
-    TextSearcherICU* text_searcher,
-    const Vector<std::unique_ptr<TextSearcherICU>>& extra_searchers)
+    TextSearcherIcu* text_searcher,
+    const Vector<std::unique_ptr<TextSearcherIcu>>& extra_searchers)
     : find_buffer_(find_buffer) {
   text_searcher_list_.reserve(1 + extra_searchers.size());
   text_searcher_list_.push_back(text_searcher);
   // Initialize match_list_ with a value so that IsAtEnd() returns false.
-  match_list_.push_back(std::optional<MatchResultICU>({0, 0}));
+  match_list_.push_back(std::optional<MatchResultIcu>({0, 0}));
   for (const auto& searcher : extra_searchers) {
     text_searcher_list_.push_back(searcher.get());
-    match_list_.push_back(std::optional<MatchResultICU>({0, 0}));
+    match_list_.push_back(std::optional<MatchResultIcu>({0, 0}));
   }
   operator++();
 }
 
-std::optional<MatchResultICU> FindResults::Iterator::EarliestMatch() const {
+std::optional<MatchResultIcu> FindResults::Iterator::EarliestMatch() const {
   auto min_iter = std::min_element(match_list_.begin(), match_list_.end(),
                                    [](const auto& a, const auto& b) {
                                      if (a.has_value() && !b.has_value()) {
@@ -103,22 +103,22 @@ std::optional<MatchResultICU> FindResults::Iterator::EarliestMatch() const {
                                      }
                                      return a->start < b->start;
                                    });
-  std::optional<MatchResultICU> result;
+  std::optional<MatchResultIcu> result;
   if (min_iter != match_list_.end() && min_iter->has_value()) {
     result.emplace((**min_iter).start, (**min_iter).length);
   }
   return result;
 }
 
-const MatchResultICU FindResults::Iterator::operator*() const {
+const MatchResultIcu FindResults::Iterator::operator*() const {
   DCHECK(!IsAtEnd());
-  std::optional<MatchResultICU> result = EarliestMatch();
+  std::optional<MatchResultIcu> result = EarliestMatch();
   return *result;
 }
 
 void FindResults::Iterator::operator++() {
   DCHECK(!IsAtEnd());
-  const MatchResultICU last_result = **this;
+  const MatchResultIcu last_result = **this;
   for (wtf_size_t i = 0; i < text_searcher_list_.size(); ++i) {
     auto& optional_match = match_list_[i];
     if (optional_match.has_value() &&
@@ -126,7 +126,7 @@ void FindResults::Iterator::operator++() {
       optional_match = text_searcher_list_[i]->NextMatchResult();
     }
   }
-  std::optional<MatchResultICU> match = EarliestMatch();
+  std::optional<MatchResultIcu> match = EarliestMatch();
   if (match && find_buffer_ && find_buffer_->IsInvalidMatch(*match)) {
     operator++();
   }

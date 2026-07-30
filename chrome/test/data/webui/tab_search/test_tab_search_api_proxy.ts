@@ -57,10 +57,8 @@ export class TestTabSearchApiProxy extends TestBrowserProxy implements
     return Promise.resolve({isSplit: this.isSplit_});
   }
 
-  openRecentlyClosedEntry(
-      id: number, withSearch: boolean, isTab: boolean, index: number) {
-    this.methodCalled(
-        'openRecentlyClosedEntry', [id, withSearch, isTab, index]);
+  openRecentlyClosedEntry(id: number, withSearch: boolean, isTab: boolean) {
+    this.methodCalled('openRecentlyClosedEntry', [id, withSearch, isTab]);
   }
 
   replaceActiveSplitTab(replacementTabId: number) {

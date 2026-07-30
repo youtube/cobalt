@@ -4,11 +4,10 @@
 
 #include "remoting/host/security_key/security_key_auth_handler.h"
 
+#include <atomic>
 #include <memory>
 
-#include "base/memory/scoped_refptr.h"
 #include "base/notimplemented.h"
-#include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "remoting/host/client_session_details.h"
 #include "remoting/host/security_key/security_key_auth_handler_mojo.h"
@@ -21,7 +20,7 @@ namespace remoting {
 
 namespace {
 
-bool g_use_mojo_handler = false;
+std::atomic<bool> g_use_mojo_handler{false};
 
 }  // namespace
 
@@ -32,24 +31,17 @@ void SecurityKeyAuthHandler::set_use_mojo_handler(bool use_mojo_handler) {
 
 // static
 std::unique_ptr<SecurityKeyAuthHandler> SecurityKeyAuthHandler::Create(
-    ClientSessionDetails* client_session_details,
-    const SendMessageCallback& send_message_callback,
-    scoped_refptr<base::SingleThreadTaskRunner> file_task_runner) {
+    ClientSessionDetails* client_session_details) {
   std::unique_ptr<SecurityKeyAuthHandler> auth_handler;
   if (g_use_mojo_handler) {
     auth_handler =
         std::make_unique<SecurityKeyAuthHandlerMojo>(client_session_details);
   } else {
 #if BUILDFLAG(IS_POSIX)
-    auth_handler =
-        std::make_unique<SecurityKeyAuthHandlerPosix>(file_task_runner);
+    auth_handler = std::make_unique<SecurityKeyAuthHandlerPosix>();
 #else
     NOTIMPLEMENTED();
 #endif
-  }
-
-  if (auth_handler) {
-    auth_handler->SetSendMessageCallback(send_message_callback);
   }
   return auth_handler;
 }

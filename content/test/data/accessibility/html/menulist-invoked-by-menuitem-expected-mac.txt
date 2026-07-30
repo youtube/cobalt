@@ -1,7 +1,7 @@
 AXWebArea
 ++AXGroup
-++++AXPopUpButton AXTitle='Open Main Menu'
+++++AXPopUpButton AXExpanded=1 AXTitle='Open Main Menu'
 ++++AXMenu AXTitle='Open Main Menu'
-++++++AXMenuItem AXTitle='Submenu'
-++++AXMenu AXTitle='Submenu'
-++++++AXMenuItem AXTitle='Item 1'
+++++++AXMenuItem AXExpanded=1 AXTitle='Submenu'
+++++++AXMenu AXTitle='Submenu'
+++++++++AXMenuItem AXTitle='Item 1'

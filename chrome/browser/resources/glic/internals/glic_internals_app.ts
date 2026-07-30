@@ -51,6 +51,7 @@ export class GlicInternalsAppElement extends CrLitElement {
       freCompletionWaitModeEnumValues_: {type: Array},
 
       selectedTabIndex_: {type: Number},
+      invokeNewConversation_: {type: Boolean},
       tabNames_: {type: Array},
       featureModeEnumValues_: {type: Array},
     };
@@ -75,6 +76,7 @@ export class GlicInternalsAppElement extends CrLitElement {
   protected accessor invokePayloadUniversalCartMetadata_: string = '';
   protected accessor invokeFreCompletionWaitMode_: FreCompletionWaitMode =
       FreCompletionWaitMode.kDefault;
+  protected accessor invokeNewConversation_: boolean = false;
 
   protected accessor selectedTabIndex_: number = 0;
   protected accessor tabNames_: string[] = ['General', 'Debug Controls'];
@@ -286,6 +288,10 @@ export class GlicInternalsAppElement extends CrLitElement {
     this.invokeWaitForPanelOpen_ = (e.target as HTMLInputElement).checked;
   }
 
+  protected onInvokeNewConversationChange_(e: Event) {
+    this.invokeNewConversation_ = (e.target as HTMLInputElement).checked;
+  }
+
   protected onPayloadUniversalCartMetadataInput_(e: Event) {
     this.invokePayloadUniversalCartMetadata_ =
         (e.target as HTMLInputElement).value;
@@ -341,7 +347,8 @@ export class GlicInternalsAppElement extends CrLitElement {
       invocationSource: this.invokeInvocationSource_,
       prompts: this.invokePrompt_ ? [this.invokePrompt_] : [],
       additionalContext: null,
-      conversation: {defaultConversation: {}},
+      conversation: this.invokeNewConversation_ ? {newConversation: {}} :
+                                                  {defaultConversation: {}},
       featureMode: this.invokeFeatureMode_,
       disableZss: false,
       zssConfig: this.invokeZssOverride_ ?

@@ -29,6 +29,9 @@ HTMLUserMediaElementMediaStream& HTMLUserMediaElementMediaStream::From(
 // static
 MediaStream* HTMLUserMediaElementMediaStream::stream(
     HTMLUserMediaElement& element) {
+  if (element.IsLegacyMode()) {
+    return nullptr;
+  }
   return From(element).GetMediaStream();
 }
 

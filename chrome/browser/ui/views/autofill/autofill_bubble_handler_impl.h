@@ -27,6 +27,7 @@ class FilledCardInformationBubbleController;
 class SaveCardBubbleController;
 class IbanBubbleController;
 class OmniboxAutofillBubbleController;
+class PaymentsChurnedUsersBubbleController;
 enum class IbanBubbleType;
 
 class AutofillBubbleHandlerImpl : public AutofillBubbleHandler {
@@ -98,6 +99,10 @@ class AutofillBubbleHandlerImpl : public AutofillBubbleHandler {
   AutofillBubbleBase* ShowOmniboxAutofillBubble(
       content::WebContents* web_contents,
       OmniboxAutofillBubbleController* controller) override;
+  AutofillBubbleBase* ShowPaymentsChurnedUsersBubble(
+      content::WebContents* web_contents,
+      PaymentsChurnedUsersBubbleController* controller,
+      bool is_user_gesture) override;
 
  private:
   // Show the save card and virtual card enrollment confirmation bubble.

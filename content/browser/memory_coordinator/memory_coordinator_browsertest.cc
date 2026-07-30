@@ -35,8 +35,7 @@
 
 namespace content {
 
-class TestPolicy : public MemoryCoordinatorPolicy,
-                   public MemoryCoordinatorPolicyManager::Observer {
+class TestPolicy : public MemoryCoordinatorPolicy {
  public:
   explicit TestPolicy(MemoryCoordinatorPolicyManager& manager)
       : MemoryCoordinatorPolicy(manager) {}
@@ -58,7 +57,7 @@ class TestPolicy : public MemoryCoordinatorPolicy,
     });
   }
 
-  // MemoryCoordinatorPolicyManager::Observer:
+  // MemoryCoordinatorPolicy:
   void OnConsumerGroupAdded(uint32_t consumer_id,
                             std::string_view consumer_name,
                             std::optional<base::MemoryConsumerTraits> traits,

@@ -126,7 +126,6 @@ NSString* CardNumberLastFourDigits(NSString* obfuscated_number) {
       [digits addObject:[lastFourDigits substringWithRange:NSMakeRange(i, 1)]];
     }
     return [digits componentsJoinedByString:@" "];
-    ;
   }
 
   return @"";

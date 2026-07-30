@@ -25,7 +25,6 @@ chrono = "0.4.43"
 cxx = "1"
 fend-core = "1"
 font-types = "0.12.0"
-harfrust = "0.9.0"
 hex = "0.4"
 hmac-sha256 = "1.1.12"
 indexmap = "2.12.1"
@@ -67,6 +66,10 @@ features = ["nightly"]  # For optimized aarch64 implementation.
 [dependencies.cxxbridge-cmd]
 version = "1"
 artifact = "bin"
+
+[dependencies.harfrust]
+version = "0.10.0"
+features = ["experimental_font_api"]
 
 [dependencies.icu_casemap]
 version = "2.2.0"
@@ -126,7 +129,7 @@ version = "0.8.1"
 default-features = false
 
 [dependencies.read-fonts]
-version = "0.40.1"
+version = "0.40.2"
 features = ["agl"]
 
 [dependencies.rustfft]
@@ -168,11 +171,11 @@ version = "2"
 features = ["full"]
 
 [dependencies.temporal_capi]
-version = "0.2.3"
+version = "0.2.4"
 features = ["zoneinfo64"]
 
 [dependencies.temporal_rs]
-version = "0.2.3"
+version = "0.2.4"
 default-features = false
 # This is necessary to enable a spec-compliance quirk
 features = ["float64_representable_durations"]

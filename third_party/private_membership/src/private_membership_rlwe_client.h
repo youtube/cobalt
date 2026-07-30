@@ -230,6 +230,8 @@ class PRIVATE_MEMBERSHIP_EXPORT PrivateMembershipRlweClient {
           query_response);
 
  private:
+  friend class PrivateMembershipRlweClientTestPeer;
+
   static ::rlwe::StatusOr<std::unique_ptr<PrivateMembershipRlweClient>>
   CreateInternal(
       private_membership::rlwe::RlweUseCase use_case,

@@ -1036,7 +1036,13 @@ void DesktopWindowTreeHostPlatform::OnCompositorVisibilityChanged(
 
 gfx::Insets DesktopWindowTreeHostPlatform::CalculateInsetsInDIP(
     ui::PlatformWindowState window_state) const {
-  return GetWidget()->GetCustomInsetsInDIP();
+  // `native_widget_delegate_` is a WeakPtr to the Widget, so GetWidget() can
+  // return null after the Widget has been destroyed. A queued Wayland state
+  // change can still be dispatched into the longer-lived platform window and
+  // reach here during/after teardown. Guard against a null Widget and return
+  // the default (empty) custom insets.
+  const Widget* widget = GetWidget();
+  return widget ? widget->GetCustomInsetsInDIP() : gfx::Insets();
 }
 
 void DesktopWindowTreeHostPlatform::OnClosed() {

@@ -15,6 +15,7 @@ import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
@@ -66,7 +67,8 @@ public class BottomBarCoordinator implements BottomBar, Destroyable {
             BottomBarMediator.VisibilityDelegate visibilityDelegate,
             NullableObservableSupplier<Profile> profileSupplier,
             NonNullObservableSupplier<Boolean> omniboxFocusStateSupplier,
-            NonNullObservableSupplier<ModalDialogManager> modalDialogManagerSupplier) {
+            NonNullObservableSupplier<ModalDialogManager> modalDialogManagerSupplier,
+            LayoutStateProvider layoutStateProvider) {
         Context context = parent.getContext();
         mView =
                 (BottomBarView)
@@ -97,7 +99,8 @@ public class BottomBarCoordinator implements BottomBar, Destroyable {
                         profileSupplier,
                         omniboxFocusStateSupplier,
                         mPromoDialogCoordinator,
-                        actionRegistry);
+                        actionRegistry,
+                        layoutStateProvider);
         mPromoDialogCoordinator.setListener(mMediator);
 
         mTabSupplier = tabSupplier;
@@ -128,7 +131,13 @@ public class BottomBarCoordinator implements BottomBar, Destroyable {
                         ActionId.GLIC,
                         extraContainer,
                         GlicActionButtonBinder::bind,
-                        BottomBarProperties.IS_GLIC_BUTTON_VISIBLE));
+                        BottomBarProperties.IS_EXTRA_BUTTON_VISIBLE));
+        configs.add(
+                new ActionConfig(
+                        ActionId.AI_MODE,
+                        extraContainer,
+                        ActionButtonBinder::bind,
+                        BottomBarProperties.IS_EXTRA_BUTTON_VISIBLE));
 
         BottomBarButtonContainer newTabContainer = view.getContainerForAction(ActionId.NEW_TAB);
         assert newTabContainer != null : "New tab container not found";

@@ -31,8 +31,8 @@ InterleavedChannelMixer::InterleavedChannelMixer(
 
   std::vector<std::vector<float>> matrix;
   ::media::ChannelMixingMatrix matrix_builder(
-      input_layout_, input_channel_count_, output_layout_,
-      output_channel_count_);
+      ::media::ChannelLayoutConfig(input_layout_, input_channel_count_),
+      ::media::ChannelLayoutConfig(output_layout_, output_channel_count_));
   matrix_builder.CreateTransformationMatrix(&matrix);
 
   transform_.reserve(input_channel_count_ * output_channel_count_);

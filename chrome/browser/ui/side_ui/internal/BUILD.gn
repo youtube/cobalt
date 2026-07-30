@@ -14,6 +14,7 @@ android_library("java") {
     "android/java/src/org/chromium/chrome/browser/ui/side_ui/SideUiContainerTransition.java",
     "android/java/src/org/chromium/chrome/browser/ui/side_ui/SideUiCoordinatorFactory.java",
     "android/java/src/org/chromium/chrome/browser/ui/side_ui/SideUiCoordinatorImpl.java",
+    "android/java/src/org/chromium/chrome/browser/ui/side_ui/SideUiShowabilityNotifier.java",
   ]
 
   deps = [
@@ -27,6 +28,7 @@ android_library("java") {
     "//chrome/browser/ui/side_ui/public:java",
     "//chrome/browser/ui/vertical_tabs:java",
     "//components/cached_flags:java",
+    "//third_party/android_deps:com_google_errorprone_error_prone_annotations_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_window_window_java",

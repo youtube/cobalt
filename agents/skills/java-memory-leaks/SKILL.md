@@ -86,6 +86,9 @@ tests.
    - Run the specific leak test:
      `out/Debug/bin/run_chrome_public_test_apk --enable-leak-checks -f "YourLeakTest*"`.
    - Verify that LeakCanary no longer reports the leak.
+   - **Trybot Verification**: To run the LeakCanary bot on CQ / trybots,
+     include the following footer in the CL description:
+     `Cq-Include-Trybots: luci.chromium.try:android-16-x64-leakcanary-rel`
 
 ## Best Practices & Gotchas
 

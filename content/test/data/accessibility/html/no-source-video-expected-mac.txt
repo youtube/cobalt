@@ -1,15 +1,15 @@
 AXWebArea
 ++AXGroup
 ++++AXGroup AXDescription='Unable to play media.'
-++++++AXGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXGroup
 ++++++++AXButton AXDescription='play'
-++++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++AXGroup
-++++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++AXButton AXDescription='mute'
 ++++++++AXButton AXDescription='enter full screen'
-++++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++AXPopUpButton AXDescription='show more media controls'
-++++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXSlider AXDescription='video time scrubber' AXValue=0

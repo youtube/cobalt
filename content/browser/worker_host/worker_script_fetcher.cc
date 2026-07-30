@@ -14,6 +14,7 @@
 #include "content/browser/devtools/devtools_agent_host_impl.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/network_service_devtools_observer.h"
+#include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/file_system/file_system_url_loader_factory.h"
 #include "content/browser/loader/browser_initiated_resource_request.h"
 #include "content/browser/loader/file_url_loader_factory.h"
@@ -481,8 +482,13 @@ void WorkerScriptFetcher::CreateScriptLoader(
                   content::GlobalRenderFrameHostId(
                       creator_render_frame_host->GetProcess()->GetID(),
                       creator_render_frame_host->GetRoutingID()));
+    }
+
+    auto* frame_devtools_host =
+        RenderFrameDevToolsAgentHost::GetFor(&ancestor_render_frame_host);
+    if (frame_devtools_host) {
       devtools_observer = NetworkServiceDevToolsObserver::MakeSelfOwned(
-          creator_render_frame_host->GetDevToolsFrameToken().ToString());
+          frame_devtools_host->GetId());
     }
 
     const url::Origin& request_initiator = *resource_request->request_initiator;

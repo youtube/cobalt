@@ -23,6 +23,7 @@ build_webui("build") {
 
   css_files = [
     "app.css",
+    "memory_banks/memory_banks.css",
     "taskbox/ai_taskbox.css",
     "taskbox/todo_item.css",
   ]

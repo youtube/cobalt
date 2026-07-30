@@ -11,6 +11,12 @@
 namespace features {
 
 // Please keep features in alphabetical order.
+// Enables Fetch-compliant Range header validation for blob: URL fetches.
+// Invalid or unsupported Range headers fail with a network error instead of
+// falling back to serving the full blob.
+COMPONENT_EXPORT(STORAGE_BROWSER)
+BASE_DECLARE_FEATURE(kBlobURLFetchRangeHeaderValidation);
+
 // Enables blob URL fetches to fail when cross-partition.
 COMPONENT_EXPORT(STORAGE_BROWSER)
 BASE_DECLARE_FEATURE(kBlockCrossPartitionBlobUrlFetching);

@@ -6,7 +6,10 @@
 
 #import <Foundation/Foundation.h>
 
+#include <utility>
+
 #include "base/strings/sys_string_conversions.h"
+#import "chrome/browser/ui/cocoa/applescript/applescript_test_utils.h"
 #import "chrome/browser/ui/cocoa/applescript/bookmark_applescript_test_utils.h"
 #import "chrome/browser/ui/cocoa/applescript/bookmark_item_applescript.h"
 #import "chrome/browser/ui/cocoa/applescript/constants_applescript.h"
@@ -137,7 +140,7 @@ IN_PROC_BROWSER_TEST_F(BookmarkFolderAppleScriptTest, InsertBookmarkItem) {
   FakeScriptCommand* fake_script_command = [[FakeScriptCommand alloc] init];
   bookmark_item = [[BookmarkItemAppleScript alloc] init];
   [bookmark_bar_ insertInBookmarkItems:bookmark_item];
-  EXPECT_EQ(static_cast<int>(Error::kInvalidURL),
+  EXPECT_EQ(std::to_underlying(Error::kInvalidURL),
             fake_script_command.scriptErrorNumber);
 }
 
@@ -169,7 +172,7 @@ IN_PROC_BROWSER_TEST_F(BookmarkFolderAppleScriptTest,
   FakeScriptCommand* fake_script_command = [[FakeScriptCommand alloc] init];
   bookmark_item = [[BookmarkItemAppleScript alloc] init];
   [bookmark_bar_ insertInBookmarkItems:bookmark_item atIndex:1];
-  EXPECT_EQ(static_cast<int>(Error::kInvalidURL),
+  EXPECT_EQ(std::to_underlying(Error::kInvalidURL),
             fake_script_command.scriptErrorNumber);
 }
 

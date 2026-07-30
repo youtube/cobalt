@@ -1,3 +1,4 @@
+=== END INITIAL PAGE LOAD ===
 TYPE_WINDOW_CONTENT_CHANGED [contentTypes=STATE_DESCRIPTION] on [radio1] class_name=android.widget.RadioButton
 TYPE_WINDOW_CONTENT_CHANGED [contentTypes=STATE_DESCRIPTION] on [radio2] class_name=android.widget.RadioButton
 TYPE_WINDOW_CONTENT_CHANGED [contentTypes=STATE_DESCRIPTION] on [switch1] class_name=android.widget.Switch

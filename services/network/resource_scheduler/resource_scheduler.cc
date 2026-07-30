@@ -172,8 +172,8 @@ struct ResourceScheduler::RequestPriorityParams {
 
 class ResourceScheduler::RequestQueue {
  public:
-  using NetQueue =
-      std::multiset<ScheduledResourceRequestImpl*, ScheduledResourceSorter>;
+  using NetQueue = std::multiset<raw_ptr<ScheduledResourceRequestImpl>,
+                                 ScheduledResourceSorter>;
 
   RequestQueue() : fifo_ordering_ids_(0) {}
   ~RequestQueue() {}

@@ -46,7 +46,8 @@ class HostResolverInternalErrorResult;
 class NET_EXPORT_PRIVATE HostResolverDnsTask final {
  public:
   using Results = std::set<std::unique_ptr<HostResolverInternalResult>>;
-  using ResultRefs = std::set<const HostResolverInternalResult*>;
+  using ResultRefs =
+      std::set<raw_ptr<const HostResolverInternalResult, DanglingUntriaged>>;
 
   // Represents a single transaction results.
   struct NET_EXPORT_PRIVATE SingleTransactionResults {

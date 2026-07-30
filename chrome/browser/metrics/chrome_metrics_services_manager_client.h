@@ -110,10 +110,7 @@ class ChromeMetricsServicesManagerClient
   const raw_ptr<PrefService> local_state_;
 
 #if BUILDFLAG(IS_CHROMEOS)
-  // TODO(b/492510818): Remove once migration to metrics reporting level
-  // completes.
   base::CallbackListSubscription reporting_setting_subscription_;
-  base::CallbackListSubscription reporting_level_setting_subscription_;
 #endif
 };
 

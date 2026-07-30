@@ -309,6 +309,8 @@ class Host : public GlicSharingManagerProvider {
                                  mojom::ZeroStateSuggestionsOptions options);
 
   void NotifyInstanceActivationChanged(bool is_active);
+  void OnActuatingChanged(bool actuating);
+  void OnTaskTabsVisibilityChanged(bool has_visible_tab);
 
   // Informs the web client that additional context is available.
   void NotifyAdditionalContext(mojom::AdditionalContextPtr context);

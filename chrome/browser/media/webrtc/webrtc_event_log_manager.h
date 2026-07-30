@@ -159,6 +159,7 @@ class WebRtcEventLogManager final
       int output_period_ms,
       size_t web_app_id,
       std::optional<std::string> diagnostic_uuid,
+      bool local_only,
       base::OnceCallback<void(bool, const std::string&, const std::string&)>
           reply);
 
@@ -381,7 +382,7 @@ class WebRtcEventLogManager final
       BrowserContextId browser_context_id,
       base::OnceClosure reply);
 
-  void RemovePendingRemoteBoundLogsForNotEnabledBrowserContext(
+  void RemoveRemoteBoundLogsForNotEnabledBrowserContext(
       BrowserContextId browser_context_id,
       const base::FilePath& browser_context_dir,
       base::OnceClosure reply);
@@ -425,6 +426,7 @@ class WebRtcEventLogManager final
       int output_period_ms,
       size_t web_app_id,
       std::optional<std::string> diagnostic_uuid,
+      bool local_only,
       base::OnceCallback<void(bool, const std::string&, const std::string&)>
           reply);
 

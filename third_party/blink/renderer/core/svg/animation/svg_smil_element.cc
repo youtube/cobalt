@@ -101,12 +101,12 @@ void SMILInstanceTimeList::RemoveWithOrigin(SMILTimeOrigin origin) {
   if (!time_origins_.Has(origin)) {
     return;
   }
-  auto tail = std::remove_if(instance_times_.begin(), instance_times_.end(),
-                             [origin](const SMILTimeWithOrigin& instance_time) {
-                               return instance_time.Origin() == origin;
-                             });
+  auto removed = std::ranges::remove_if(
+      instance_times_, [origin](const SMILTimeWithOrigin& instance_time) {
+        return instance_time.Origin() == origin;
+      });
   instance_times_.Shrink(
-      static_cast<wtf_size_t>(tail - instance_times_.begin()));
+      static_cast<wtf_size_t>(removed.begin() - instance_times_.begin()));
   time_origins_.Remove(origin);
 }
 
@@ -116,15 +116,15 @@ void SMILInstanceTimeList::RemoveBeforeWithOrigin(SMILTime before_time,
     return;
   }
 
-  auto tail = std::remove_if(
-      instance_times_.begin(), instance_times_.end(),
+  auto removed = std::ranges::remove_if(
+      instance_times_,
       [origin, before_time](const SMILTimeWithOrigin& instance_time) {
         return instance_time.Origin() == origin &&
                instance_time.Time() < before_time;
       });
 
   instance_times_.Shrink(
-      static_cast<wtf_size_t>(tail - instance_times_.begin()));
+      static_cast<wtf_size_t>(removed.begin() - instance_times_.begin()));
 
   // If we removed all instances of this origin, remove it from the set
   RemoveTimeOriginIfNotFound(origin);
@@ -165,16 +165,17 @@ void SMILInstanceTimeList::RemoveTimeOriginIfNotFound(SMILTimeOrigin origin) {
 }
 
 void SMILInstanceTimeList::Sort() {
-  std::sort(instance_times_.begin(), instance_times_.end());
+  std::ranges::sort(instance_times_, {}, &SMILTimeWithOrigin::Time);
 }
 
 SMILTime SMILInstanceTimeList::NextAfter(SMILTime time) const {
   // Find the value in |list| that is strictly greater than |time|.
-  auto next_item = std::lower_bound(
-      instance_times_.begin(), instance_times_.end(), time,
-      [](const SMILTimeWithOrigin& instance_time, const SMILTime& time) {
-        return instance_time.Time() <= time;
-      });
+  auto next_item = std::ranges::lower_bound(
+      instance_times_, time,
+      [](const SMILTime& instance_time, const SMILTime& time) {
+        return instance_time <= time;
+      },
+      &SMILTimeWithOrigin::Time);
   if (next_item == instance_times_.end())
     return SMILTime::Unresolved();
   return next_item->Time();

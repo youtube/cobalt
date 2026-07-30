@@ -18,12 +18,14 @@ import org.chromium.ui.base.DeviceFormFactor;
 public class BottomBarConfigUtils {
     private BottomBarConfigUtils() {}
 
+    // LINT.IfChange(isBottomBarEnabled)
     /** Whether the bottom bar is enabled. */
     public static boolean isBottomBarEnabled(Context context) {
         return !DeviceFormFactor.isNonMultiDisplayContextOnTablet(context)
                 && !DeviceInfo.isAutomotive()
                 && ChromeFeatureList.sAndroidBottomBar.isEnabled();
     }
+    // LINT.ThenChange(//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarVariationUtils.java:isToolbarUiRefactorEnabled)
 
     /** Whether to include the home button in the bottom bar if the flag is enabled. */
     public static boolean shouldIncludeHomeButtonIfEnabled() {
@@ -86,5 +88,15 @@ public class BottomBarConfigUtils {
     /** Whether to always use the filled GLIC icon. */
     public static boolean alwaysUseFilledIcon() {
         return ChromeFeatureList.sAndroidBottomBarAlwaysUseFilledGlicIcon.getValue();
+    }
+
+    /** Whether to bypass geofencing country check for GLIC. */
+    public static boolean bypassGlicGeofencing() {
+        return ChromeFeatureList.sAndroidBottomBarBypassGlicGeofencing.getValue();
+    }
+
+    /** Whether to bypass geofencing country check for AI Mode. */
+    public static boolean bypassAimGeofencing() {
+        return ChromeFeatureList.sAndroidBottomBarBypassAimGeofencing.getValue();
     }
 }

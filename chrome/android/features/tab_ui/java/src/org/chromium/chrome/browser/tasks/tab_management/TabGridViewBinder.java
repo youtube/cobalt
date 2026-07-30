@@ -238,14 +238,8 @@ public class TabGridViewBinder {
                         priceCardView.findViewById(R.id.current_price));
             }
         } else if (TabProperties.ACTION_BUTTON_DESCRIPTION_TEXT_RESOLVER == propertyKey) {
-            TextResolver actionButtonDescriptionTextResolver =
-                    model.get(TabProperties.ACTION_BUTTON_DESCRIPTION_TEXT_RESOLVER);
-            CharSequence actionButtonDescriptionString =
-                    actionButtonDescriptionTextResolver == null
-                            ? null
-                            : actionButtonDescriptionTextResolver.resolve(view.getContext());
-            view.fastFindViewById(R.id.action_button)
-                    .setContentDescription(actionButtonDescriptionString);
+            TabListViewBinderUtils.updateActionButtonContentDescription(
+                    model, view.fastFindViewById(R.id.action_button));
         } else if (TabProperties.QUICK_DELETE_ANIMATION_STATUS == propertyKey) {
             ((TabGridView) view)
                     .hideTabGridCardViewForQuickDelete(

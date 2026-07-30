@@ -25,6 +25,7 @@ class NtpAndroidCustomBackgroundService
 
   // NtpCustomBackgroundServiceBase:
   void SelectLocalBackgroundImage(const base::FilePath& path) override;
+  std::optional<int> GetNextRefreshTimestamp() const override;
 };
 
 #endif  // CHROME_BROWSER_NTP_CUSTOMIZATION_NTP_ANDROID_CUSTOM_BACKGROUND_SERVICE_H_

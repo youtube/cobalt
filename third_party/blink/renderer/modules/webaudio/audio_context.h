@@ -277,6 +277,8 @@ class MODULES_EXPORT AudioContext final
   void invoke_onrendererror_from_platform_for_testing();
   void set_clock_for_testing(const base::TickClock* clock);
 
+  void RejectPendingResolvers() override;
+
  private:
   // Dispatches the `sinkchange` event in a separate task. This is necessary to
   // ensure that the microtasks queued by the setSinkId() promise resolution
@@ -362,10 +364,6 @@ class MODULES_EXPORT AudioContext final
 
   void DidClose() VALID_CONTEXT_REQUIRED(main_thread_sequence_checker_);
 
-  // Called by the audio thread to handle Promises for resume() and suspend(),
-  // posting a main thread task to perform the actual resolving, if needed.
-  void ResolvePromisesForUnpause();
-
   // Send notification to browser that an AudioContext has started or stopped
   // playing audible audio.
   void NotifyAudibleAudioStarted()
@@ -418,6 +416,16 @@ class MODULES_EXPORT AudioContext final
   // Returns whether the media-playback-while-not-visible permission policy
   // allows this audio context to play while not visible.
   bool CanPlayWhileHidden() const;
+
+  // The audio thread relies on the main thread to perform resume operations
+  // over the objects that it owns and controls; this method posts the task to
+  // initiate those.
+  void ScheduleCleanupPendingResumePromisesOnMainThread();
+
+  // Handles resume promise resolving, stopping and finishing up of audio
+  // source nodes etc. Actions that should happen, but can happen
+  // asynchronously to the audio thread making rendering progress.
+  void PerformCleanupPendingResumePromises();
 
   // https://webaudio.github.io/web-audio-api/#dom-audiocontext-suspended-by-user-slot
   bool suspended_by_user_ = false;
@@ -581,10 +589,23 @@ class MODULES_EXPORT AudioContext final
   bool pending_transition_to_suspend_
       GUARDED_BY_CONTEXT(main_thread_sequence_checker_) = false;
 
-  // Stores promise resolvers for suspend(). Note that resolvers for resume()
-  // are stored in BaseAudioContext::pending_promises_resolvers_.
+  // Stores promise resolvers for suspend().
   HeapVector<Member<ScriptPromiseResolver<IDLUndefined>>>
       pending_suspend_resolvers_;
+
+  // https://webaudio.github.io/web-audio-api/#dom-audiocontext-pending-resume-promises-slot
+  HeapVector<Member<ScriptPromiseResolver<IDLUndefined>>>
+      pending_resume_resolvers_;
+
+  // True if we're in the process of resolving promises for resume().  Resolving
+  // can take some time and the audio context process loop is very fast, so we
+  // don't want to call resolve an excessive number of times.
+  bool is_resolving_resume_promises_ = false;
+
+  // Set to `true` by the audio thread when it posts a main-thread task to
+  // perform delayed resume state sync'ing updates that needs to be done on
+  // the main thread. Cleared by the main thread task once it has run.
+  bool has_posted_cleanup_pending_resume_task_ = false;
 
   std::unique_ptr<StatsUpdateRestrictor> stats_update_restrictor_;
 

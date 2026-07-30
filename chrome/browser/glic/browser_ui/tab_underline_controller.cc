@@ -349,8 +349,7 @@ void TabUnderlineController::HideUnderline(bool triggered_by_glic) {
 
   // TODO(crbug.com/467739947): Consider reenabling hide animation for
   // contextual tasks.
-  if (!triggered_by_glic ||
-      base::FeatureList::IsEnabled(features::kGlicDisableUnderlineAnimations)) {
+  if (!triggered_by_glic) {
     ui_delegate_->StopShowing();
   } else {
     ui_delegate_->StartRampingDown();
@@ -366,10 +365,6 @@ void TabUnderlineController::RemoveSource(UnderlineSource source) {
 }
 
 void TabUnderlineController::AnimateUnderline() {
-  if (base::FeatureList::IsEnabled(features::kGlicDisableUnderlineAnimations)) {
-    return;
-  }
-
   if (!ui_delegate_->IsShowing()) {
     // There is be a chance that the underline view has already stopped showing.
     // In that case, gracefully handle the crash case in crbug.com/398319435 by

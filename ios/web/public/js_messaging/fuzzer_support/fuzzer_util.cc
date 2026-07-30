@@ -29,7 +29,7 @@ std::unique_ptr<web::ScriptMessage> ProtoToScriptMessage(
       proto.user_interacting(), proto.main_frame(), url, std::move(origin));
 
   if (getenv("LPM_DUMP_NATIVE_INPUT")) {
-    LOG(WARNING) << "Body: " << *script_message->body();
+    LOG(WARNING) << "Body: " << *script_message->legacy_body();
     LOG(WARNING) << "is_user_interacting: "
                  << script_message->is_user_interacting();
     LOG(WARNING) << "is_main_frame: " << script_message->is_main_frame();

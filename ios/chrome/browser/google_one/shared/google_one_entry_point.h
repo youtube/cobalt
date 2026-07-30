@@ -13,6 +13,8 @@ enum class GoogleOneEntryPoint {
   kSaveToDriveAlert,
   // Triggered from no storage alert in Save to Photos.
   kSaveToPhotosAlert,
+  // Triggered from startup parameter URL / deep link.
+  kDeepLink,
 };
 
 #endif  // IOS_CHROME_BROWSER_GOOGLE_ONE_SHARED_GOOGLE_ONE_ENTRY_POINT_H_

@@ -155,8 +155,7 @@ syncer::DataTypeController::TypeVector CreateControllers(
   syncer::DataTypeController::TypeVector controllers = builder.Build(
       /*disabled_types=*/{}, sync_service, ::GetChannel());
 
-  if (base::FeatureList::IsEnabled(syncer::kSyncThemesIos) &&
-      IsNTPBackgroundCustomizationEnabled()) {
+  if (base::FeatureList::IsEnabled(syncer::kSyncThemesIos)) {
     HomeBackgroundCustomizationService* service =
         HomeBackgroundCustomizationServiceFactory::GetForProfile(profile);
     // TODO(crbug.com/481713548): Log metrics indicating service

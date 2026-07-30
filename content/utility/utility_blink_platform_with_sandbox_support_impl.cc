@@ -47,4 +47,14 @@ UtilityBlinkPlatformWithSandboxSupportImpl::GetSandboxSupport() {
 #endif
 }
 
+scoped_refptr<base::SequencedTaskRunner>
+UtilityBlinkPlatformWithSandboxSupportImpl::MediaThreadTaskRunner() {
+  return base::SequencedTaskRunner::GetCurrentDefault();
+}
+
+scoped_refptr<base::SingleThreadTaskRunner>
+UtilityBlinkPlatformWithSandboxSupportImpl::GetIOTaskRunner() const {
+  return base::SingleThreadTaskRunner::GetCurrentDefault();
+}
+
 }  // namespace content

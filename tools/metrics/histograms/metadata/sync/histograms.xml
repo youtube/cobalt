@@ -137,6 +137,16 @@ chromium-metrics-reviews@google.com.
       summary="UPM backend outdated error for passwords."/>
 </variants>
 
+<variants name="SyncInvalidationLatencySource">
+  <variant name="ClientBased" summary="client-based clock time"/>
+  <variant name="ServerBased.Uncertainty2s"
+      summary="server-authoritative network time with uncertainty &lt;= 2s"/>
+  <variant name="ServerBased.Uncertainty10s"
+      summary="server-authoritative network time with uncertainty &lt;= 10s"/>
+  <variant name="ServerBased.Uncertainty15s"
+      summary="server-authoritative network time with uncertainty &lt;= 15s"/>
+</variants>
+
 <variants name="SyncToSigninMigrationMode">
   <variant name=".DryRun" summary="run the migration in dry-run mode"/>
   <variant name=".Migration" summary="run the migration"/>
@@ -629,16 +639,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Sync.CommitResponseForUnknownEntity" enum="SyncDataTypes"
-    expires_after="2026-08-02">
-  <owner>treib@chromium.org</owner>
-  <owner>mastiz@chromium.org</owner>
-  <summary>
-    Emitted when a Commit entity response is received for an unknown entity
-    (i.e. for a client tag hash that doesn't correspond to a tracked entity).
-  </summary>
-</histogram>
-
 <histogram name="Sync.CommitResponse{SyncDataType}" enum="SyncerErrorValues"
     expires_after="2026-10-25">
   <owner>rushans@google.com</owner>
@@ -836,7 +836,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.CustomOSSync" enum="SyncDataTypes"
-    expires_after="2026-08-02">
+    expires_after="2027-08-02">
   <owner>mmoskvitin@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -1659,6 +1659,56 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="Sync.InvalidationFcmDeliveryLatency.ClockSkewDetected.{SyncInvalidationLatencySource}"
+    enum="Boolean" expires_after="2027-05-01">
+  <owner>mastiz@chromium.org</owner>
+  <owner>nyquist@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Recorded true when a Sync invalidation is received with an FCM dispatch
+    timestamp in the future relative to the client's clock, indicating clock
+    skew, using {SyncInvalidationLatencySource}. Recorded false when a valid
+    latency sample (non-negative) is recorded. Note that ServerBased.* metrics
+    are recorded cumulatively; a single sample is recorded in every histogram
+    whose uncertainty threshold is satisfied.
+  </summary>
+  <token key="SyncInvalidationLatencySource"
+      variants="SyncInvalidationLatencySource"/>
+</histogram>
+
+<histogram name="Sync.InvalidationFcmDeliveryLatency.ServerBased.Uncertainty"
+    units="ms" expires_after="2027-05-01">
+  <owner>mastiz@chromium.org</owner>
+  <owner>nyquist@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    The uncertainty (estimated error range) of the network time used for
+    recording Sync.InvalidationFcmDeliveryLatency.ServerBased.* histograms.
+    Recorded only when the network time is successfully retrieved and available.
+  </summary>
+</histogram>
+
+<histogram
+    name="Sync.InvalidationFcmDeliveryLatency.{SyncInvalidationLatencySource}{SyncDataType}"
+    units="ms" expires_after="2027-05-01">
+  <owner>mastiz@chromium.org</owner>
+  <owner>nyquist@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    The pure FCM delivery latency of Sync invalidations for {SyncDataType},
+    measured from server dispatch (FCM exact publish time in payload) to client
+    receipt, using {SyncInvalidationLatencySource}. Note that ServerBased.*
+    metrics are recorded cumulatively; a single sample is recorded in every
+    histogram whose uncertainty threshold is satisfied.
+  </summary>
+  <token key="SyncInvalidationLatencySource"
+      variants="SyncInvalidationLatencySource"/>
+  <token key="SyncDataType" variants="SyncDataType">
+    <variant name="" summary="all types combined"/>
+  </token>
+</histogram>
+
 <histogram name="Sync.InvalidationPerDataType" enum="SyncDataTypes"
     expires_after="never">
 <!-- expires-never: For monitoring FCM based invalidations. -->
@@ -1712,15 +1762,8 @@ chromium-metrics-reviews@google.com.
     cumulatively; a single sample is recorded in every histogram whose
     uncertainty threshold is satisfied.
   </summary>
-  <token key="SyncInvalidationLatencySource">
-    <variant name="ClientBased" summary="client-based clock time"/>
-    <variant name="ServerBased.Uncertainty2s"
-        summary="server-authoritative network time with uncertainty &lt;= 2s"/>
-    <variant name="ServerBased.Uncertainty10s"
-        summary="server-authoritative network time with uncertainty &lt;= 10s"/>
-    <variant name="ServerBased.Uncertainty15s"
-        summary="server-authoritative network time with uncertainty &lt;= 15s"/>
-  </token>
+  <token key="SyncInvalidationLatencySource"
+      variants="SyncInvalidationLatencySource"/>
 </histogram>
 
 <histogram name="Sync.InvalidationTransitLatency.ServerBased.Uncertainty"
@@ -1748,15 +1791,8 @@ chromium-metrics-reviews@google.com.
     recorded cumulatively; a single sample is recorded in every histogram whose
     uncertainty threshold is satisfied.
   </summary>
-  <token key="SyncInvalidationLatencySource">
-    <variant name="ClientBased" summary="client-based clock time"/>
-    <variant name="ServerBased.Uncertainty2s"
-        summary="server-authoritative network time with uncertainty &lt;= 2s"/>
-    <variant name="ServerBased.Uncertainty10s"
-        summary="server-authoritative network time with uncertainty &lt;= 10s"/>
-    <variant name="ServerBased.Uncertainty15s"
-        summary="server-authoritative network time with uncertainty &lt;= 15s"/>
-  </token>
+  <token key="SyncInvalidationLatencySource"
+      variants="SyncInvalidationLatencySource"/>
   <token key="SyncDataType" variants="SyncDataType">
     <variant name="" summary="all types combined"/>
   </token>

@@ -314,6 +314,7 @@
 <translation id="1463793142714244641">টাইমশেয়ার এবং ছুটি কাটানোর জন্য প্রপার্টি</translation>
 <translation id="1465457928007067810">IBAN, আপনার Google অ্যাকাউন্টে সেভ করা হয়েছে</translation>
 <translation id="1467432559032391204">বামে</translation>
+<translation id="1471514598850585811">ল্যাপটপ</translation>
 <translation id="1472675084647422956">আরও দেখান</translation>
 <translation id="1473183651233018052">JIS B10</translation>
 <translation id="1473495410389165587">লেখার ব্যাপারে সহায়তা পেতে ৩টি বা তার চেয়ে বেশি শব্দ লিখুন</translation>
@@ -477,6 +478,7 @@
 <translation id="173080396488393970">এখানে এই ধরনের কার্ড কাজ করে না</translation>
 <translation id="1731563515262205847">ML-DSA-65</translation>
 <translation id="1732445923934584865">পরিবর্তে উপস্থিত থেকে জিজ্ঞাসা করুন</translation>
+<translation id="1732796940245838248">Google Wallet-এ রিড্রেস নম্বর আপডেট করুন</translation>
 <translation id="1733064249834771892">ফন্ট</translation>
 <translation id="1733631169686303142">অডিও সরঞ্জাম</translation>
 <translation id="1733762317901693627">সাধারণত সুরক্ষিত আছে এমন সাইটও কখনও কখনও আক্রমণকারীদের মাধ্যমে হ্যাক হয়ে যায়। ঝুঁকির বিষয়টি যে আপনি বোঝেন সেই সম্পর্কে নিশ্চিত হলেই শুধুমাত্র <ph name="BEGIN_LINK" />এই অসুরক্ষিত সাইট<ph name="END_LINK" /> দেখুন।</translation>
@@ -582,6 +584,7 @@
 <translation id="1902576642799138955">বৈধতা পর্ব</translation>
 <translation id="1908217026282415406">ক্যামেরা ব্যবহার এবং গতিবিধি</translation>
 <translation id="1908690643053136980">অ্যাডমিনিস্ট্রেটর এই সাইটের জন্য <ph name="PERMISSION" /> ব্যবহারের অনুমতি দেয় না</translation>
+<translation id="1912750443952232242">Google Wallet-এ আইডি কার্ড সেভ করুন</translation>
 <translation id="1913037223029790376">এই ভার্চুয়াল কার্ডে CVC ব্যবহার করুন</translation>
 <translation id="191374271204266022">JSON ফর্ম্যাটে কপি করুন</translation>
 <translation id="1914326953223720820">পরিষেবা আনজিপ করুন</translation>
@@ -712,6 +715,7 @@
 <translation id="2122165854541876335">কনজিউমার রিসোর্স</translation>
 <translation id="2122214041802369259">দাম বেশি</translation>
 <translation id="2122719317867821810">এই নীতি আশানুরূপ কাজ করছে। আসলে অন্য একটি জায়গাতে এমন মান সেট করা হয়েছে যা একে অপরের সাথে ম্যাচ করে না এবং সেই মানকে এই নীতির মাধ্যমে ওভাররাইড করে দেওয়া হয়।</translation>
+<translation id="2124081665399116863">Google Wallet-এ গাড়ি আপডেট করুন</translation>
 <translation id="2126374524350484896">PDF প্রোডিউসার:</translation>
 <translation id="2127090458081644412">এই ডিভাইসে পাসওয়ার্ড সেভ করা হয়েছে</translation>
 <translation id="2127747486437921899">তির্যক টেক্সট</translation>
@@ -994,6 +998,7 @@
 <translation id="2524962131655207565"><ph name="BEGIN_BOLD" />এইসব বিকল্প অফার করতে, চেক-আউট করার পৃষ্ঠা থেকে কন্টেন্ট Google-এর সাথে শেয়ার করা হয়।<ph name="END_BOLD" /> পেমেন্ট প্ল্যান উপযুক্ততার উপর নির্ভর করে। পরে পেমেন্ট করার বিকল্প লুকাতে, <ph name="BEGIN_LINK" />পেমেন্ট সেটিংসে<ph name="END_LINK" /> যান।</translation>
 <translation id="2526062290525841862">এই অ্যাপ চালাতে, আইসোলেটেড ওয়েব অ্যাপ ডেভেলপার মোড আবার চালু করুন</translation>
 <translation id="2526280916094749336">Google প্রোডাক্ট জুড়ে সেভ করা ঠিকানা আপনি ব্যবহার করতে পারবেন। আপনার Google অ্যাকাউন্ট <ph name="ACCOUNT" />-এ এই ঠিকানা সেভ করা হবে।</translation>
+<translation id="2526590354069164005">ডেস্কটপ</translation>
 <translation id="2527451058878391043">আপনার CVC কার্ডের সামনে আছে। এটি ৪ সংখ্যার একটি কোড যা ডানদিকে আপনার কার্ড নম্বরের উপরের রয়েছে।</translation>
 <translation id="2529899080962247600">এই ফিল্ডে <ph name="MAX_ITEMS_LIMIT" />টির বেশি এন্ট্রি লেখা যাবে না। অন্য সব এন্ট্রি বাতিল করা হবে।</translation>
 <translation id="2530042584066815841">মাউস লক ও ব্যবহার</translation>
@@ -1494,6 +1499,7 @@
 <translation id="3325568918769906282">বড় থেকে ছোট ক্রমানুসারে</translation>
 <translation id="3325662270238538525">ফাইলের নাম, ফাইল কন্টেন্টের ডিজিটাল ফিঙ্গারপ্রিন্ট, ডাউনলোড সোর্স ও মেটাডেটা সহ ফাইলে করা সাম্প্রতিক অ্যাক্সেস ও পরিবর্তন সংক্রান্ত তথ্য</translation>
 <translation id="3329013043687509092">পরিপৃক্তি</translation>
+<translation id="3330483197654063678">চালু করা থাকলে, আরও প্রাসঙ্গিক উত্তর পেতে সাহায্য করার জন্য Chrome এই উইন্ডোয় খোলা ট্যাবগুলি শেয়ার করবে।</translation>
 <translation id="3333762389743153920">ভার্চুয়াল কার্ডের জন্য যোগ্য নয়</translation>
 <translation id="3338095232262050444">সুরক্ষিত</translation>
 <translation id="333839153442689579">হাই ইনটেনসিটি ইন্টারভ্যাল ট্রেনিং</translation>
@@ -1547,6 +1553,7 @@
 <translation id="3422472998109090673">বর্তমানে <ph name="HOST_NAME" /> পাওয়া যাচ্ছে না।</translation>
 <translation id="3422794267539320056">ডাইনো গেম খেলতে, ট্যাপ করুন অথবা স্পেস প্রেস করুন</translation>
 <translation id="3423742043356668186">সিস্টেমের নির্দিষ্ট করা</translation>
+<translation id="3426672782316020729">Google Wallet-এ পাসপোর্ট আপডেট করুন</translation>
 <translation id="3427342743765426898">&amp;সম্পাদনাকে আবার করুন</translation>
 <translation id="342781501876943858">Chromium-এর নীতি অনুযায়ী আপনার পাসওয়ার্ড বদলে ফেলা উচিত যদি আপনি সেটি অন্য কোনও সাইটে ব্যবহার করে থাকেন।</translation>
 <translation id="3428151540071562330">DnsOverHttpsTemplates সার্ভারের এক বা একাধিক টেমপ্লেট ইউআরআই সঠিক নয় এবং ব্যবহার করা যাবে না।</translation>
@@ -2407,6 +2414,7 @@
 <translation id="4766713847338118463">নিচে ডুয়াল স্টেপল</translation>
 <translation id="4768816584204270288">সময়ের সাথে পেমেন্ট করলে, একবার ব্যবহার করা যায় এমন ভার্চুয়াল কার্ড নম্বর পূরণ হয়ে যায়। এই কেনাকাটা করতে কার্ডের বিবরণ কপি ও পেস্ট করার জন্য আপনি ক্লিক করতে পারেন।</translation>
 <translation id="4768864802656530630">সিস্টেম লগের বিশদ তথ্য। <ph name="BEGIN_LINK" />আরও জানুন<ph name="END_LINK" /></translation>
+<translation id="4770909831299304090">Google Wallet-এ KTN আপডেট করুন</translation>
 <translation id="4771249073710170730">রেডিও নিয়ন্ত্রণ ও মডেলিং</translation>
 <translation id="4771973620359291008">একটি অজানা ত্রুটি ঘটেছে৷</translation>
 <translation id="4774055414220872623">আর্ট ও ক্রাফ্ট সম্পর্কিত সরবরাহকারী</translation>
@@ -2847,6 +2855,7 @@
 <translation id="5458150163479425638">{CONTACT,plural, =0{<ph name="CONTACT_PREVIEW" />}=1{<ph name="CONTACT_PREVIEW" /> এবং আরও <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" />টি}one{<ph name="CONTACT_PREVIEW" /> এবং আরও <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" />টি}other{<ph name="CONTACT_PREVIEW" /> এবং আরও <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" />টি}}</translation>
 <translation id="5463625433003343978">ডিভাইস খোঁজা হচ্ছে...</translation>
 <translation id="5464236009658034488">অফিসের জিনিসপত্রের সরবরাহকারী</translation>
+<translation id="5465128270485645058">এই উইন্ডোতে খোলা ট্যাবগুলি এই থ্রেডের সাথে যুক্ত থাকলে, সেগুলি অটোমেটিক শেয়ার করার মাধ্যমে আরও বেশি কাস্টমাইজ করা উত্তর পান।</translation>
 <translation id="5465724643247062031">গ্লাস (ওপাক)</translation>
 <translation id="5466018172325111652">আপনি কি কোনও কোড পাননি? <ph name="BEGIN_LINK" />নতুন কোড পান<ph name="END_LINK" /></translation>
 <translation id="5466818462212249084">পেমেন্ট অ্যাপ</translation>
@@ -3129,6 +3138,7 @@
 <translation id="5911020115933784199">ইভেন্ট ও তালিকা</translation>
 <translation id="5911110632211230665">ফাইল খোলার অনুমতি নেই</translation>
 <translation id="5912796581727968237">Google Wallet খুলুন</translation>
+<translation id="5914185423510719251">Google Wallet-এ KTN সেভ করুন</translation>
 <translation id="5914465277418006379"><ph name="MEMBER_FIRST_NAME" /> এই ট্যাব যোগ করেছেন</translation>
 <translation id="5915189366813702112">কাজের ফ্লেক্সিবল ব্যবস্থা</translation>
 <translation id="59174027418879706">সক্ষমিত</translation>
@@ -3651,6 +3661,7 @@
 <translation id="6702851555558236418">অডিও ও মিউজিক সফ্টওয়্যার</translation>
 <translation id="6702919718839027939">প্রেজেন্টেশন মোড</translation>
 <translation id="6704458454638854812">প্রপার্টি "custom_size" সেট আছে, নামটি "কাস্টম" হতে পারে।</translation>
+<translation id="670477556876354552">রিস্টার্ট করা প্রয়োজন</translation>
 <translation id="6706005862292023715">পর্দা ও জানলা সম্পর্কিত সুরক্ষা</translation>
 <translation id="6706210727756204531">সুযোগ</translation>
 <translation id="6706678697074905703">এই IBAN আপনার Google অ্যাকাউন্টে সেভ করা যায়নি। পরিবর্তে এই ডিভাইসের Chrome-এ সেটি সেভ করা হয়েছে।</translation>
@@ -3908,6 +3919,7 @@
 <translation id="7110116949943042888">অস্থায়ী ও সিজনাল চাকরি</translation>
 <translation id="7110368079836707726">কলেজ ও বিশ্ববিদ্যালয়</translation>
 <translation id="7111507312244504964">প্রপার্টি পরিদর্শন ও মূল্যায়ন</translation>
+<translation id="7117290130383718594">টেক্সট অ্যানোটেশন</translation>
 <translation id="7118618213916969306">ক্লিপবোর্ড ইউআরএল <ph name="SHORT_URL" /> সার্চ করুন</translation>
 <translation id="7118852830504022370">আপনি এই সতর্কতা দেখছেন কারণ, এই সাইটে HTTPS কাজ করে না। <ph name="BEGIN_LEARN_MORE_LINK" />এই সতর্কতা সম্পর্কে আরও জানুন<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7119063404975271297">টিভিতে নাটক</translation>
@@ -4217,6 +4229,7 @@
 <translation id="7569490014721427265">গল্ফ</translation>
 <translation id="7569952961197462199">Chrome থেকে ক্রেডিট কার্ড সরাবেন?</translation>
 <translation id="7569983096843329377">কালো</translation>
+<translation id="7570524564113479209">Google Wallet-এ আইডি কার্ড আপডেট করুন</translation>
 <translation id="7570862164055912832">রিড্রেস নম্বর</translation>
 <translation id="7571813784389228510">Google AI মোড</translation>
 <translation id="7574998639136359461">শীতকালীন খেলাধুলার সরঞ্জাম</translation>
@@ -4738,6 +4751,7 @@
 <translation id="8389940864052787379">কাস্টম ও দ্রুতগামী যানবাহন</translation>
 <translation id="8390725133630534698"><ph name="ORIGIN_NAME" /> থেকে <ph name="VM_NAME" />-এ শেয়ার করা অ্যাডমিনিস্ট্রেটর পলিসির মাধ্যমে ব্লক করা হয়েছে</translation>
 <translation id="8392783408127179588">নীতি আবার লোড করা হচ্ছে</translation>
+<translation id="8393948304336153065">Google Wallet-এ ড্রাইভিং লাইসেন্স আপডেট করুন</translation>
 <translation id="8396522675989118466"><ph name="SIDE_OF_CARD" />-এ দেখানো <ph name="NUMBER_OF_DIGITS" />-ডিজিট কোড</translation>
 <translation id="8398335999901363925">সম্পূর্ণ স্ক্রিন জুড়ে খুলে টাচ করে পূরণ করা যাবে এমন পেমেন্ট পদ্ধতি উপলভ্য।</translation>
 <translation id="8398446215576328011">প্রয়োগ করা নীতি রিসেট করুন</translation>
@@ -4899,7 +4913,6 @@
 <translation id="8671519637524426245"><ph name="SECURE_DNS_SALT" /> মানটি সাইজের প্রয়োজনীয়তা পূরণ করে না।</translation>
 <translation id="867224526087042813">স্বাক্ষর</translation>
 <translation id="8672535691554698269">কম্পিউটার নেটওয়ার্ক</translation>
-<translation id="8673710317985154384">{NUM_TABS,plural, =1{ট্যাব শেয়ারিংয়ের বিবরণ দেখুন। {WEBSITE_LIST_STR} থেকে ১টি ট্যাব শেয়ার করা হচ্ছে}one{ট্যাব শেয়ার করার বিবরণ দেখুন। {WEBSITE_LIST_STR} থেকে {NUM_TABS}টি ট্যাব শেয়ার করা হচ্ছে}other{ট্যাব শেয়ার করার বিবরণ দেখুন। {WEBSITE_LIST_STR} থেকে {NUM_TABS}টি ট্যাব শেয়ার করা হচ্ছে}}</translation>
 <translation id="8675446170353411473"><ph name="CLOUD_PROVIDER" />-এ আপনার ফাইল আপলোড করা হচ্ছে</translation>
 <translation id="8676424191133491403">কোনও দেরি হয়নি</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, উত্তর, <ph name="ANSWER" /></translation>

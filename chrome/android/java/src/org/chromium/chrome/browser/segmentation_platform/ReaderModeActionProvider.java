@@ -142,6 +142,7 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
 
     private @Nullable OneshotDistillabilityObserver mDistillabilityObserver;
     private @Nullable GURL mLastSeenUrl;
+    private int mLastTabId = Tab.INVALID_TAB_ID;
     private final OneshotSupplier<Boolean> mButtonVisibilitySupplier;
 
     public ReaderModeActionProvider(OneshotSupplier<Boolean> buttonVisibilitySupplier) {
@@ -157,10 +158,23 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
 
         if (tab == null) return;
 
+        boolean isSameTab = tab.getId() == mLastTabId;
+        mLastTabId = tab.getId();
+
         // If we're on a reading mode page, always show the button to give users a way to exit
         // outside of a "back" navigation.
         if (DomDistillerUrlUtils.isDistilledPage(tab.getUrl())) {
+            mLastSeenUrl = tab.getUrl();
             signalAccumulator.setSignal(AdaptiveToolbarButtonVariant.READER_MODE, true);
+            return;
+        }
+
+        boolean isExitingReaderMode =
+                isSameTab && DomDistillerUrlUtils.isExitingReaderMode(mLastSeenUrl, tab.getUrl());
+        mLastSeenUrl = tab.getUrl();
+
+        if (isExitingReaderMode) {
+            signalAccumulator.setSignal(AdaptiveToolbarButtonVariant.READER_MODE, false);
             return;
         }
 
@@ -169,7 +183,6 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
         if (tabDistillabilityProvider == null) return;
 
         // Distillability score isn't available yet. Start observing the provider.
-        mLastSeenUrl = tab.getUrl();
         mDistillabilityObserver =
                 new OneshotDistillabilityObserver(
                         tab, tabDistillabilityProvider, signalAccumulator);

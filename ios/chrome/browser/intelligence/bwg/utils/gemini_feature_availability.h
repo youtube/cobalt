@@ -20,6 +20,7 @@ namespace gemini {
 //  beyond feature flag enablement.
 enum class Feature {
   kImageRemix,
+  kLive,
 };
 
 // Returns whether the feature is available for the primary account in the

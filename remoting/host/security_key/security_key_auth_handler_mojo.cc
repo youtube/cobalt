@@ -116,6 +116,10 @@ void SecurityKeyAuthHandlerMojo::SetSendMessageCallback(
   send_message_callback_ = callback;
 }
 
+base::WeakPtr<SecurityKeyAuthHandler> SecurityKeyAuthHandlerMojo::GetWeakPtr() {
+  return weak_factory_.GetWeakPtr();
+}
+
 size_t SecurityKeyAuthHandlerMojo::GetActiveConnectionCountForTest() const {
   return active_connections_.size();
 }

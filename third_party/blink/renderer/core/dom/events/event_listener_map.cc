@@ -32,6 +32,8 @@
 
 #include "third_party/blink/renderer/core/dom/events/event_listener_map.h"
 
+#include <utility>
+
 #include "base/bits.h"
 #include "base/compiler_specific.h"
 #include "base/debug/crash_logging.h"
@@ -189,6 +191,12 @@ bool EventListenerMap::Remove(
 }
 
 EventListenerVector* EventListenerMap::Find(const AtomicString& event_type) {
+  return const_cast<EventListenerVector*>(
+      std::as_const(*this).Find(event_type));
+}
+
+const EventListenerVector* EventListenerMap::Find(
+    const AtomicString& event_type) const {
   for (const auto& entry : entries_) {
     if (entry.first == event_type)
       return entry.second.Get();

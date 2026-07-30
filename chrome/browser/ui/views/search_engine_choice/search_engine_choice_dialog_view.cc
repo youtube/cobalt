@@ -87,7 +87,7 @@ void SearchEngineChoiceDialog::Show(
 }
 
 bool CanWindowHeightFitSearchEngineChoiceDialog(Browser& browser) {
-  int max_dialog_height = browser.window()
+  int max_dialog_height = BrowserWindow::FromBrowser(&browser)
                               ->GetWebContentsModalDialogHost()
                               ->GetMaximumDialogSize()
                               .height();

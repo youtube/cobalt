@@ -110,6 +110,14 @@ public interface ProfileBoundaryInterface {
 
     void preconnect(String url);
 
+    /**
+     * Asynchronously enqueues a preconnect request for the given URL.
+     *
+     * <p>This method is non-blocking and does not force native Chromium startup. The request is
+     * queued and executed once native initialization completes.
+     */
+    void enqueuePreconnect(@NonNull String url);
+
     void addQuicHints(Set<String> origins);
 
     /* HttpCacheBoundaryInterface */ InvocationHandler getHttpCache();

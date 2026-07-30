@@ -117,7 +117,8 @@ export class CategorySettingExceptionsElement extends
   private computeShowAllowSiteList_(): boolean {
     // TODO(crbug.com/40101962): This function should return true when the
     // feature flag for Persistent Permissions is removed.
-    return this.category !== ContentSettingsTypes.FILE_SYSTEM_WRITE;
+    return this.category !== ContentSettingsTypes.FILE_SYSTEM_WRITE &&
+        this.category !== ContentSettingsTypes.INLINE_CUE_MENU;
   }
 
   /**

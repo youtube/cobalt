@@ -16,6 +16,7 @@
 #include "base/test/metrics/user_action_tester.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
+#include "build/branding_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/password_manager/chrome_webauthn_credentials_delegate_factory.h"
@@ -50,6 +51,8 @@
 #include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
+#include "components/personal_context/core/mock_personal_context_enablement_service.h"
+#include "components/personal_context/core/personal_context_prefs.h"
 #include "components/plus_addresses/core/browser/grit/plus_addresses_strings.h"
 #include "components/plus_addresses/core/browser/plus_address_service.h"
 #include "components/plus_addresses/core/browser/plus_address_test_utils.h"
@@ -78,12 +81,29 @@ namespace {
 
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
+using ::testing::NiceMock;
 using ::testing::Not;
 using ::testing::Pointee;
 using ::testing::Property;
+using ::testing::Return;
 
-testing::Matcher<const ui::SimpleMenuModel*> NoAutofillItemsAdded() {
-  return Pointee(Property(&ui::SimpleMenuModel::GetItemCount, 0));
+// Checks if the context menu model contains no password manager related
+// entries. `arg` must be of type `ui::SimpleMenuModel*`.
+// We cannot use `testing::Each()` because `ui::SimpleMenuModel` does not
+// implement the necessary container interface.
+MATCHER(NoPasswordManagerItemsAdded, "") {
+  size_t count = 0;
+  for (size_t i = 0; i < arg->GetItemCount(); ++i) {
+    if (arg->GetCommandIdAt(i) ==
+        IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY) {
+      continue;
+    }
+    if (arg->GetTypeAt(i) == ui::MenuModel::ItemType::TYPE_SEPARATOR) {
+      continue;
+    }
+    ++count;
+  }
+  return count == 0;
 }
 
 // Checks if the context menu model contains any entries with plus address
@@ -136,48 +156,86 @@ MATCHER(PlusAddressFallbackAdded, "") {
 //
 // `is_passkey_from_another_device_available` is true iff the focused field
 // supports WebAuthn conditional UI.
-MATCHER_P3(OnlyPasswordsFallbackAdded,
+MATCHER_P3(PasswordFallbackAdded,
            has_passwords_saved,
            is_password_generation_enabled_for_current_field,
            is_passkey_from_another_device_available,
            "") {
-  const bool add_select_password_option = has_passwords_saved;
-  const bool add_import_passwords_option = !has_passwords_saved;
-
-  size_t current_context_menu_position = 0;
-  if (add_select_password_option) {
-    EXPECT_EQ(
-        arg->GetLabelAt(current_context_menu_position),
-        l10n_util::GetStringUTF16(
-            IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SELECT_PASSWORD));
-    ++current_context_menu_position;
+  struct ExpectedItem {
+    int cmd;
+    int label_id;
+  };
+  std::vector<ExpectedItem> expected_items;
+  if (has_passwords_saved) {
+    expected_items.push_back(
+        {IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SELECT_PASSWORD,
+         IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SELECT_PASSWORD});
   }
   if (is_password_generation_enabled_for_current_field) {
-    EXPECT_EQ(
-        arg->GetLabelAt(current_context_menu_position),
-        l10n_util::GetStringUTF16(
-            IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SUGGEST_PASSWORD));
-    ++current_context_menu_position;
+    expected_items.push_back(
+        {IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SUGGEST_PASSWORD,
+         IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SUGGEST_PASSWORD});
   }
   if (is_passkey_from_another_device_available) {
-    EXPECT_EQ(
-        arg->GetLabelAt(current_context_menu_position),
-        l10n_util::GetStringUTF16(
-            IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_USE_PASSKEY_FROM_ANOTHER_DEVICE));
-    ++current_context_menu_position;
+    expected_items.push_back(
+        {IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_USE_PASSKEY_FROM_ANOTHER_DEVICE,
+         IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_USE_PASSKEY_FROM_ANOTHER_DEVICE});
   }
-  if (add_import_passwords_option) {
-    EXPECT_EQ(
-        arg->GetLabelAt(current_context_menu_position),
-        l10n_util::GetStringUTF16(
-            IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_IMPORT_PASSWORDS));
-    ++current_context_menu_position;
+  if (!has_passwords_saved) {
+    expected_items.push_back(
+        {IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_IMPORT_PASSWORDS,
+         IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_IMPORT_PASSWORDS});
   }
 
-  EXPECT_EQ(arg->GetTypeAt(current_context_menu_position),
-            ui::MenuModel::ItemType::TYPE_SEPARATOR);
-  ++current_context_menu_position;
-  return arg->GetItemCount() == current_context_menu_position;
+  std::optional<size_t> start_idx;
+  for (size_t i = 0; i < arg->GetItemCount(); ++i) {
+    if (arg->GetCommandIdAt(i) == expected_items[0].cmd) {
+      start_idx = i;
+      break;
+    }
+  }
+
+  if (!start_idx) {
+    *result_listener << "Expected password fallback start item (command "
+                     << expected_items[0].cmd << ") not found in the menu.";
+    return false;
+  }
+
+  if (*start_idx + expected_items.size() >= arg->GetItemCount()) {
+    *result_listener << "Menu is too short to contain the expected password "
+                        "fallback sequence.";
+    return false;
+  }
+
+  for (size_t j = 0; j < expected_items.size(); ++j) {
+    size_t idx = *start_idx + j;
+    if (arg->GetCommandIdAt(idx) != expected_items[j].cmd) {
+      *result_listener << "Mismatch at index " << idx << ": expected command "
+                       << expected_items[j].cmd << ", got "
+                       << arg->GetCommandIdAt(idx);
+      return false;
+    }
+    std::u16string expected_label =
+        l10n_util::GetStringUTF16(expected_items[j].label_id);
+    if (arg->GetLabelAt(idx) != expected_label) {
+      *result_listener << "Mismatch at index " << idx << ": expected label '"
+                       << expected_label << "', got '" << arg->GetLabelAt(idx)
+                       << "'";
+      return false;
+    }
+  }
+
+  size_t separator_idx = *start_idx + expected_items.size();
+  if (arg->GetTypeAt(separator_idx) !=
+      ui::MenuModel::ItemType::TYPE_SEPARATOR) {
+    *result_listener
+        << "Expected separator after password fallback sequence at index "
+        << separator_idx << ", but got item type "
+        << static_cast<int>(arg->GetTypeAt(separator_idx));
+    return false;
+  }
+
+  return true;
 }
 
 // Generates a ContextMenuParams for the Autofill context menu options.
@@ -350,7 +408,8 @@ class BaseAutofillContextMenuManagerTest : public InProcessBrowserTest {
     password_manager->OnPasswordFormsParsed(password_manager_driver(), {form});
     // First parsing is done for filling case. Password forms are only parsed
     // when filling is enabled.
-    if (password_manager_client()->IsFillingEnabled(GURL(form.url()))) {
+    if (password_manager_client()->IsFillingEnabled(
+            url::Origin::Create(form.url()))) {
       // Wait until `form` gets parsed.
       EXPECT_TRUE(base::test::RunUntil([&]() {
         return password_manager->GetPasswordFormCache()->GetPasswordForm(
@@ -473,8 +532,7 @@ IN_PROC_BROWSER_TEST_P(
     PasswordGenerationEnabled_NoPasswordsSaved_ManualFallbackAddedWithGeneratePasswordOptionAndImportPasswordsOption) {
   UpdateSyncStatus(/*sync_enabled=*/true);
   autofill_context_menu_manager()->AppendItems();
-  EXPECT_THAT(menu_model(),
-              OnlyPasswordsFallbackAdded(false, true, GetParam()));
+  EXPECT_THAT(menu_model(), PasswordFallbackAdded(false, true, GetParam()));
 }
 
 IN_PROC_BROWSER_TEST_P(
@@ -482,8 +540,7 @@ IN_PROC_BROWSER_TEST_P(
     PasswordGenerationDisabled_NoPasswordsSaved_ManualFallbackAddedWithImportPasswordsOption) {
   UpdateSyncStatus(/*sync_enabled=*/false);
   autofill_context_menu_manager()->AppendItems();
-  EXPECT_THAT(menu_model(),
-              OnlyPasswordsFallbackAdded(false, false, GetParam()));
+  EXPECT_THAT(menu_model(), PasswordFallbackAdded(false, false, GetParam()));
 }
 
 IN_PROC_BROWSER_TEST_P(
@@ -495,7 +552,7 @@ IN_PROC_BROWSER_TEST_P(
               false));
   autofill_context_menu_manager()->AppendItems();
   EXPECT_THAT(menu_model(),
-              OnlyPasswordsFallbackAdded(
+              PasswordFallbackAdded(
                   /*has_passwords_saved=*/false,
                   /*is_password_generation_enabled_for_current_field=*/false,
                   /*is_passkey_from_another_device_available=*/false));
@@ -513,7 +570,7 @@ IN_PROC_BROWSER_TEST_P(
                               blink::mojom::FormControlType::kInputText));
 
   autofill_context_menu_manager()->AppendItems();
-  EXPECT_THAT(menu_model(), OnlyPasswordsFallbackAdded(false, false, false));
+  EXPECT_THAT(menu_model(), PasswordFallbackAdded(false, false, false));
 }
 
 IN_PROC_BROWSER_TEST_P(PasswordManualFallbackTest,
@@ -667,7 +724,7 @@ IN_PROC_BROWSER_TEST_F(PasswordsFallbackWithUIInteractionsTest,
                               blink::mojom::FormControlType::kInputText));
 
   autofill_context_menu_manager()->AppendItems();
-  EXPECT_THAT(menu_model(), NoAutofillItemsAdded());
+  EXPECT_THAT(menu_model(), NoPasswordManagerItemsAdded());
 }
 
 // Navigates to the `/password/password_form_in_sandboxed_iframe.html`
@@ -682,7 +739,7 @@ IN_PROC_BROWSER_TEST_F(PasswordsFallbackWithUIInteractionsTest,
                               blink::mojom::FormControlType::kInputText));
 
   autofill_context_menu_manager()->AppendItems();
-  EXPECT_THAT(menu_model(), NoAutofillItemsAdded());
+  EXPECT_THAT(menu_model(), NoPasswordManagerItemsAdded());
 }
 
 // Navigates to the `/password/password_form.html` so that the test can execute
@@ -809,7 +866,7 @@ IN_PROC_BROWSER_TEST_P(
   autofill_context_menu_manager()->AppendItems();
   // Password manual fallback entry should not be added if the context menu was
   // triggered on a text area.
-  EXPECT_THAT(menu_model()->GetItemCount(), ::testing::Eq(0));
+  EXPECT_THAT(menu_model(), NoPasswordManagerItemsAdded());
 }
 
 IN_PROC_BROWSER_TEST_P(
@@ -819,7 +876,7 @@ IN_PROC_BROWSER_TEST_P(
   AddPasswordToStore();
 
   autofill_context_menu_manager()->AppendItems();
-  EXPECT_THAT(menu_model(), OnlyPasswordsFallbackAdded(
+  EXPECT_THAT(menu_model(), PasswordFallbackAdded(
                                 has_autofillable_credentials(), true, false));
 }
 
@@ -830,7 +887,7 @@ IN_PROC_BROWSER_TEST_P(
   AddPasswordToStore();
 
   autofill_context_menu_manager()->AppendItems();
-  EXPECT_THAT(menu_model(), OnlyPasswordsFallbackAdded(
+  EXPECT_THAT(menu_model(), PasswordFallbackAdded(
                                 has_autofillable_credentials(), false, false));
 }
 
@@ -847,7 +904,7 @@ IN_PROC_BROWSER_TEST_P(
                               blink::mojom::FormControlType::kInputText));
 
   autofill_context_menu_manager()->AppendItems();
-  EXPECT_THAT(menu_model(), OnlyPasswordsFallbackAdded(
+  EXPECT_THAT(menu_model(), PasswordFallbackAdded(
                                 has_autofillable_credentials(), false, false));
 }
 
@@ -906,7 +963,7 @@ class PasswordsFallbackWithGuestProfileTest : public PasswordsFallbackTestBase {
 IN_PROC_BROWSER_TEST_F(PasswordsFallbackWithGuestProfileTest,
                        NoManualFallback) {
   autofill_context_menu_manager()->AppendItems();
-  EXPECT_EQ(menu_model()->GetItemCount(), 0u);
+  EXPECT_THAT(menu_model(), NoPasswordManagerItemsAdded());
 }
 
 // Test parameter data for asserting metrics emission when triggering Passwords
@@ -1024,12 +1081,31 @@ INSTANTIATE_TEST_SUITE_P(
       return info.param.test_name;
     });
 
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 class AtMemoryContextMenuManagerTest
     : public BaseAutofillContextMenuManagerTest {
  public:
   AtMemoryContextMenuManagerTest() {
     scoped_feature_list_.InitAndEnableFeature(features::kAutofillAtMemory);
   }
+
+  void SetUpOnMainThread() override {
+    BaseAutofillContextMenuManagerTest::SetUpOnMainThread();
+    personal_context::prefs::RegisterProfilePrefs(
+        autofill_client()->GetPrefs()->registry());
+    autofill_client()->GetPrefs()->SetBoolean(
+        personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
+        true);
+    ON_CALL(mock_personal_context_service_, GetEnablementState())
+        .WillByDefault(
+            Return(personal_context::PersonalContextEnablementState::kEnabled));
+    autofill_client()->set_personal_context_enablement_service(
+        &mock_personal_context_service_);
+  }
+
+ protected:
+  NiceMock<personal_context::MockPersonalContextEnablementService>
+      mock_personal_context_service_;
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -1063,8 +1139,19 @@ IN_PROC_BROWSER_TEST_F(AtMemoryContextMenuManagerTest, AddAtMemoryFallback) {
 // AtMemory fallback is dropped.
 IN_PROC_BROWSER_TEST_F(AtMemoryContextMenuManagerTest,
                        AtMemoryFallbackDroppedWhenProfileNotEligible) {
-  autofill_client()->set_personal_context_enablement_state(
-      personal_context::PersonalContextEnablementState::kDisabledNotEligible);
+  EXPECT_CALL(mock_personal_context_service_, GetEnablementState())
+      .WillRepeatedly(Return(personal_context::PersonalContextEnablementState::
+                                 kDisabledNotEligible));
+
+  autofill_context_menu_manager()->AppendItems();
+  ASSERT_FALSE(ContainsAtMemoryFallback(*menu_model()));
+}
+
+IN_PROC_BROWSER_TEST_F(AtMemoryContextMenuManagerTest,
+                       AtMemoryFallbackDroppedOnPasswordFields) {
+  content::ContextMenuParams params = CreateContextMenuParams();
+  params.form_control_type = blink::mojom::FormControlType::kInputPassword;
+  autofill_context_menu_manager()->set_params_for_testing(params);
 
   autofill_context_menu_manager()->AppendItems();
   ASSERT_FALSE(ContainsAtMemoryFallback(*menu_model()));
@@ -1139,6 +1226,7 @@ IN_PROC_BROWSER_TEST_F(AtMemoryContextMenuManagerTest,
   autofill_context_menu_manager()->ExecuteCommand(
       IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY);
 }
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
 }  // namespace
 }  // namespace autofill

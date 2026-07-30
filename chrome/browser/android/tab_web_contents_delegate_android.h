@@ -168,6 +168,7 @@ class TabWebContentsDelegateAndroid
 
   bool IsImmersivePlaybackEnabled() const override;
   void RequestImmersivePlaybackConfirmation(
+      const content::ImmersiveOptions& default_options,
       base::OnceCallback<void(content::ImmersivePlaybackConfirmationResult)>
           callback) override;
 

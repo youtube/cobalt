@@ -23,7 +23,6 @@ class MockAnimationTimeline : public AnimationTimeline {
  public:
   MockAnimationTimeline(Document* document) : AnimationTimeline(document) {}
 
-  MOCK_METHOD0(Phase, TimelinePhase());
   MOCK_CONST_METHOD0(IsActive, bool());
   MOCK_METHOD0(ZeroTime, AnimationTimeDelta());
   MOCK_METHOD0(InitialStartTimeForAnimations, std::optional<base::TimeDelta>());
@@ -40,7 +39,7 @@ class MockAnimationTimeline : public AnimationTimeline {
   }
 
  protected:
-  MOCK_METHOD0(CurrentPhaseAndTime, PhaseAndTime());
+  MOCK_METHOD0(CurrentTimeInternal, std::optional<base::TimeDelta>());
 };
 
 class DocumentAnimationsTest : public RenderingTest {

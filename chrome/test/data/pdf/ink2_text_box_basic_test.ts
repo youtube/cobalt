@@ -268,7 +268,7 @@ chrome.test.runTests([
     const left = getRequiredElement(textbox, '.handle.left.center');
     await dragHandle(left, -500, 0);
     // pageX = 10, so edge of the text is at 10 and the box is at -7.
-    // This means we increased the width by 400 - 10 = 390.
+    // This increases the width by 400 - 10 = 390.
     assertPositionAndSize(textbox, '514px', '120px', '-7px', '285px');
     const topLeft = getRequiredElement(textbox, '.handle.left.top');
     await dragHandle(topLeft, -50, -50);
@@ -283,8 +283,8 @@ chrome.test.runTests([
     // upward.
     await dragHandle(topLeft, -50, -300);
     // pageY = 3, so edge of the text is at 3 and the box is at -12.
-    // This means we increased the height by 250 - 3 = 247. Note that the left
-    // motion is also ignored, as we are at the page corner.
+    // This increases the height by 250 - 3 = 247. Note that the left
+    // motion is also ignored, as the box is at the page corner.
     assertPositionAndSize(textbox, '514px', '367px', '-7px', '-12px');
     const top = getRequiredElement(textbox, '.handle.top.center');
     await dragHandle(top, -50, -50);

@@ -121,7 +121,24 @@ struct InkTextInfo {
   InkTextInfo& operator=(InkTextInfo&&) noexcept;
   ~InkTextInfo();
 
-  static std::vector<InkTextInfo> SplitTypefaceRuns(
+  // Convert <textarea> metrics from blink::WebFormControlElement::GetTextInfo()
+  // into InkTextInfo which contains the necessary information for the glyphs of
+  // each text FPDF_PAGEOBJECT.
+  //
+  // All input numbers are physical pixels. All output numbers are CSS pixels.
+  // `effective_zoom` is the ratio between physical pixels and CSS pixels.
+  //
+  // PDFium requires:
+  //   - The glyph IDs to render in the correct order
+  //   - One typeface per text FPDF_PAGEOBJECT
+  //   - 1D glyph positions
+  //   - The first glyph position must be 0 (so it must be included in the
+  //     rectangle position)
+  //
+  // Blink provides:
+  //   - Harfbuzz glyph positioning data, which is total_advance and 2D offset
+  //   - `text_runs` that contain multiple typefaces for one location rectangle
+  static std::vector<InkTextInfo> BlinkTextInfoToPDFTextInfo(
       const std::vector<pdf::mojom::InkTextRunPtr>& text_runs,
       float effective_zoom);
 

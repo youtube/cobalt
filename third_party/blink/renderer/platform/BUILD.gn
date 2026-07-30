@@ -893,6 +893,7 @@ component("platform") {
     "graphics/blend_mode.h",
     "graphics/box_reflection.cc",
     "graphics/box_reflection.h",
+    "graphics/canvas_2d_bitmap_provider.h",
     "graphics/canvas_2d_color_params.cc",
     "graphics/canvas_2d_color_params.h",
     "graphics/canvas_child_paint_record.h",
@@ -1941,6 +1942,8 @@ component("platform") {
   if (is_android) {
     sources += [
       "fonts/android/font_cache_android.cc",
+      "fonts/android/font_prewarmer_android.cc",
+      "fonts/android/font_prewarmer_android.h",
       "fonts/android/font_unique_name_lookup_android.cc",
       "fonts/android/font_unique_name_lookup_android.h",
       "widget/input/synchronous_compositor_proxy.cc",
@@ -2444,7 +2447,10 @@ source_set("blink_platform_unittests_sources") {
   }
 
   if (is_android) {
-    sources += [ "fonts/android/font_cache_android_test.cc" ]
+    sources += [
+      "fonts/android/font_cache_android_test.cc",
+      "fonts/android/font_prewarmer_android_test.cc",
+    ]
   } else if (is_win) {
     sources += [ "text/locale_win_test.cc" ]
   } else if (is_mac) {
@@ -2809,7 +2815,7 @@ if (rtc_use_h265) {
       ":platform",
       "//testing/libfuzzer:libfuzzer_base_wrappers",
     ]
-    libfuzzer_options = [ "rss_limit_mb=8192" ]
+
     additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
   }
 }
@@ -2876,8 +2882,6 @@ if (enable_dav1d_decoder) {
     ]
     seed_corpuses = [ "//third_party/blink/web_tests/images/resources/avif" ]
     libfuzzer_options = [
-      "rss_limit_mb=8192",
-
       # Large AVIF images can take a while to decode under ASAN (especially when
       # they are fuzzer generated). The default timeout is 25 seconds.
       "timeout_per_input=50",
@@ -2899,13 +2903,10 @@ if (enable_jxl_decoder) {
     seed_corpuses =
         [ "//third_party/blink/web_tests/external/wpt/jpegxl/resources" ]
     libfuzzer_options = [
-      "rss_limit_mb=8192",
-
       # Large JXL images can take a while to decode under ASAN (especially when
       # they are fuzzer generated). The default timeout is 25 seconds.
       "timeout_per_input=50",
     ]
-    centipede_options = [ "rss_limit_mb=8192" ]
     additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
   }
 }
@@ -2918,7 +2919,7 @@ blink_fuzzer_test("blink_ico_decoder_fuzzer") {
     "//testing/libfuzzer:libfuzzer_base_wrappers",
   ]
   seed_corpuses = [ "//third_party/blink/web_tests/images/resources/icofuzz" ]
-  libfuzzer_options = [ "rss_limit_mb=8192" ]
+
   additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
 }
 
@@ -2930,7 +2931,7 @@ blink_fuzzer_test("blink_gif_decoder_fuzzer") {
     "//testing/libfuzzer:libfuzzer_base_wrappers",
   ]
   seed_corpuses = [ "//third_party/blink/web_tests/images/resources/giffuzz" ]
-  libfuzzer_options = [ "rss_limit_mb=8192" ]
+
   additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
 }
 
@@ -2946,7 +2947,7 @@ blink_fuzzer_test("blink_png_decoder_fuzzer") {
     "//third_party/blink/web_tests/images/png-suite/samples",
     "//third_party/blink/web_tests/images/resources/pngfuzz",
   ]
-  libfuzzer_options = [ "rss_limit_mb=8192" ]
+
   additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
 }
 
@@ -2957,7 +2958,7 @@ blink_fuzzer_test("blink_jpeg_decoder_fuzzer") {
     ":platform",
   ]
   seed_corpuses = [ "//third_party/blink/web_tests/images/resources/jpegfuzz" ]
-  libfuzzer_options = [ "rss_limit_mb=8192" ]
+
   additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
 }
 
@@ -2969,9 +2970,6 @@ blink_fuzzer_test("blink_bmp_decoder_fuzzer") {
   ]
   seed_corpuses = [ "//third_party/blink/web_tests/images/bmp-suite/good" ]
 
-  # TODO: crbug.com/324586211 - raise the memory limit to avoid OOMs in the
-  # fuzzer harness. This can be removed once the global memory limit is raised.
-  libfuzzer_options = [ "rss_limit_mb=4096" ]
   additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
 }
 
@@ -2983,9 +2981,6 @@ blink_fuzzer_test("blink_bmp_rust_decoder_fuzzer") {
   ]
   seed_corpuses = [ "//third_party/blink/web_tests/images/bmp-suite/good" ]
 
-  # TODO: crbug.com/324586211 - raise the memory limit to avoid OOMs in the
-  # fuzzer harness. This can be removed once the global memory limit is raised.
-  libfuzzer_options = [ "rss_limit_mb=4096" ]
   additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
 }
 
@@ -2997,7 +2992,7 @@ blink_fuzzer_test("blink_webp_decoder_fuzzer") {
     "//testing/libfuzzer:libfuzzer_base_wrappers",
   ]
   seed_corpuses = [ "//third_party/blink/web_tests/images/resources/webpfuzz" ]
-  libfuzzer_options = [ "rss_limit_mb=8192" ]
+
   additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
 }
 

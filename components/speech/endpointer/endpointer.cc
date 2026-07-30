@@ -68,9 +68,9 @@ void Endpointer::Reset() {
   speech_start_time_us_ = -1;
 }
 
-void Endpointer::StartSession() {
+void Endpointer::StartSession(bool reset_environment) {
   Reset();
-  energy_endpointer_.StartSession();
+  energy_endpointer_.StartSession(reset_environment);
 }
 
 void Endpointer::EndSession() {

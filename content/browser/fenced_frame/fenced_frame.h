@@ -22,6 +22,7 @@ class GURL;
 
 namespace content {
 
+class BackForwardCacheImpl;
 class RenderFrameHostImpl;
 class RenderFrameProxyHost;
 class WebContentsImpl;
@@ -83,6 +84,7 @@ class CONTENT_EXPORT FencedFrame : public blink::mojom::FencedFrameOwnerHost,
 
  private:
   // NavigationControllerDelegate
+  BackForwardCacheImpl& GetBackForwardCache() override;
   void NotifyNavigationStateChangedFromController(
       InvalidateTypes changed_flags) override {}
   void NotifyBeforeFormRepostWarningShow() override;

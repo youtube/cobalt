@@ -158,12 +158,6 @@ enum class ImportContainerProgressStatus {
   FAILURE_SPACE,
 };
 
-enum class UpgradeContainerProgressStatus {
-  SUCCEEDED,
-  FAILED,
-  UPGRADING,
-};
-
 enum class ContainerVersion {
   UNKNOWN,
   STRETCH,
@@ -224,28 +218,6 @@ enum class CorruptionStates {
   MOUNT_ROLLED_BACK = 1,
   OTHER_CORRUPTION = 2,
   kMaxValue = OTHER_CORRUPTION,
-};
-
-// Dialog types used by CrostiniDialogStatusObserver.
-enum class DialogType {
-  INSTALLER,
-  UPGRADER,
-  REMOVER,
-};
-
-enum class UpgradeDialogEvent {
-  kDialogShown = 0,
-  kUpgradeSuccess = 1,
-  kUpgradeCanceled = 2,
-  kUpgradeFailed = 3,
-  kNotStarted = 4,
-  kDidBackup = 5,
-  kBackupSucceeded = 6,
-  kBackupFailed = 7,
-  kDidRestore = 8,
-  kRestoreSucceeded = 9,
-  kRestoreFailed = 10,
-  kMaxValue = kRestoreFailed,
 };
 
 // Keep this in sync with CrostiniDiskImageType in enums.xml

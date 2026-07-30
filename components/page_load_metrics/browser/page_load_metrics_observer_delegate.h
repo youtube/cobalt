@@ -40,9 +40,7 @@ enum class PageVisibility {
 };
 
 // Represents the page's state of prerendering.
-// If the page is previewed, the state starts with kInPreview, and may be
-// transitted to kNoPrerendering after its activation and promotion.
-// If the page is prerendereed, the state starts with kInPrerendering, and may
+// If the page is prerendered, the state starts with kInPrerendering, and may
 // be transmitted to kActivatedNoActivationStart, and kActivated.
 // Otherwise, it sticks on kNoPrerendering.
 //
@@ -50,8 +48,6 @@ enum class PageVisibility {
 enum class PrerenderingState {
   // Not prerenedered
   kNoPrerendering,
-  // Previewed before acitvation and promotion
-  kInPreview,
   // Prerendered before activation
   kInPrerendering,
   // Prerendered and activated, but `PageLoadTiming.activation_start` is not

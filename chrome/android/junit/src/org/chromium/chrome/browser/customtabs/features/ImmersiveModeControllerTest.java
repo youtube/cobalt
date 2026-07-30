@@ -68,6 +68,7 @@ public class ImmersiveModeControllerTest {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             when(mWindow.getInsetsController()).thenReturn(mInsetsController);
+            when(mDecorView.getWindowInsetsController()).thenReturn(mInsetsController);
         }
 
         // Reflect mSystemUiVisibility in the DecorView.

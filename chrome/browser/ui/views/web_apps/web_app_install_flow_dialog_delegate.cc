@@ -223,8 +223,6 @@ NewPageActionHighlight(content::WebContents& web_contents) {
   return std::nullopt;
 }
 
-constexpr int kMinBoundsForInstallDialog = 50;
-
 }  // namespace
 
 WebAppInstallFlowDialogDelegate::WebAppInstallFlowDialogDelegate(
@@ -492,20 +490,11 @@ void WebAppInstallFlowDialogDelegate::OnTextFieldChangedMaybeUpdateButton(
   }
 }
 
-bool WebAppInstallFlowDialogDelegate::
-    IsWidgetCurrentSizeSmallerThanPreferredSize(views::Widget* widget) {
-  const gfx::Size& current_size = widget->GetSize();
-  const gfx::Size& preferred_size =
-      widget->GetContentsView()->GetPreferredSize();
-  int min_width = preferred_size.width() - kMinBoundsForInstallDialog;
-  int min_height = preferred_size.height() - kMinBoundsForInstallDialog;
-  return current_size.width() < min_width || current_size.height() < min_height;
-}
-
 void WebAppInstallFlowDialogDelegate::OnWidgetBoundsChanged(
     views::Widget* widget,
     const gfx::Rect& new_bounds) {
-  if (IsWidgetCurrentSizeSmallerThanPreferredSize(widget)) {
+  if (IsWidgetCurrentSizeSmallerThanPreferredSize(
+          widget, GetMaxAllowedShrinkage(dialog_type_))) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(&WebAppInstallFlowDialogDelegate::CloseDialogAsIgnored,
@@ -905,8 +894,8 @@ WebAppInstallFlowDialogDelegate::Show(
 
   views::Widget* widget = constrained_window::ShowWebModalDialogViews(
       dialog.release(), web_contents);
-
-  if (IsWidgetCurrentSizeSmallerThanPreferredSize(widget)) {
+  if (IsWidgetCurrentSizeSmallerThanPreferredSize(
+          widget, GetMaxAllowedShrinkage(install_type))) {
     delegate_weak_ptr->CloseDialogAsIgnored();
     return nullptr;
   }

@@ -113,7 +113,7 @@ void SkillsUpdateObserver::MaybeUpdateContextualSkills() {
   }
   if (glic::GlicInstance* instance =
           glic_keyed_service->GetInstanceForTab(&(*tab_))) {
-    instance->host().skills_manager().UpdateSkillPreviews(&(*tab_));
+    instance->UpdateSkillPreviews(&(*tab_));
   }
 }
 

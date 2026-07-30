@@ -55,9 +55,7 @@ PassthroughProgramCache::PassthroughProgramCache(
           "PassthroughProgramCache",
           std::nullopt,  // TODO(crbug.com/489671163): Add traits.
           this,
-          base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled,
-          base::AsyncMemoryConsumerRegistration::CheckRegistryExists::
-              kDisabled),
+          base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled),
       current_max_size_bytes_(max_cache_size_bytes) {
   gl::GLDisplayEGL* gl_display = gl::GLSurfaceEGL::GetGLDisplayEGL();
   EGLDisplay egl_display = gl_display->GetDisplay();

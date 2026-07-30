@@ -721,6 +721,53 @@ TEST_P(AXPlatformNodeCocoaTest,
   EXPECT_EQ(other_marked, 0);
 }
 
+TEST_P(AXPlatformNodeCocoaTest,
+       AddTextAnnotations_InlineTextBox_LineBreakParent) {
+  AXNodeData root;
+  root.id = 1;
+  root.role = ax::mojom::Role::kRootWebArea;
+  root.child_ids = {2};
+
+  const std::u16string kText = u"\n";
+
+  AXNodeData lb;
+  lb.id = 2;
+  lb.role = ax::mojom::Role::kLineBreak;
+  lb.SetName(kText);
+  lb.child_ids = {3};
+
+  AXNodeData itb;
+  itb.id = 3;
+  itb.role = ax::mojom::Role::kInlineTextBox;
+  itb.SetName(kText);
+
+  ui::AXTreeUpdate update;
+  update.root_id = root.id;
+  update.nodes = {root, lb, itb};
+  Init(update);
+
+  AXNode* itb_node = GetTree()->GetFromId(itb.id);
+  auto start = ui::AXNodePosition::CreateTextPosition(
+      *itb_node, /*offset=*/0, ax::mojom::TextAffinity::kDownstream);
+  auto end = ui::AXNodePosition::CreateTextPosition(
+      *itb_node, /*offset=*/static_cast<int>(kText.size()),
+      ax::mojom::TextAffinity::kDownstream);
+  AXRange ax_range(start->Clone(), end->Clone());
+
+  std::u16string text_utf16;
+  for (const ui::AXPlatformNodeDelegate::AXRange& leaf_text_range : ax_range) {
+    text_utf16 += leaf_text_range.GetText();
+  }
+
+  NSMutableAttributedString* attributed = [[NSMutableAttributedString alloc]
+      initWithString:base::SysUTF16ToNSString(text_utf16)];
+
+  AXPlatformNodeCocoa* platform_node =
+      [[AXPlatformNodeCocoa alloc] initWithNode:nil];
+  // This should not crash on the DCHECK in addTextAnnotationsIn:to:
+  [platform_node addTextAnnotationsIn:&ax_range to:attributed];
+}
+
 // Tests the actions contained in the old API action list.
 TEST_P(AXPlatformNodeCocoaTestOldAPI, TestActionListActions) {
   EXPECT_EQ(ui::GetCocoaActionListForTesting().size(), 4u);

@@ -58,5 +58,22 @@ TEST(FuzzerSmokeTest, MAYBE_FuzzerSolvesProtoStringComparison) {
       << target->output();
 }
 
+#if defined(BUILD_LPM_EMPTY_FUZZER)
+// TODO(https://crbug.com/526656114): Fix when MSAN builds are fixed.
+#if defined(MEMORY_SANITIZER)
+#define MAYBE_LpmEmptyFuzzerDoesNotCrashOnStartup \
+  DISABLED_LpmEmptyFuzzerDoesNotCrashOnStartup
+#else
+#define MAYBE_LpmEmptyFuzzerDoesNotCrashOnStartup \
+  LpmEmptyFuzzerDoesNotCrashOnStartup
+#endif
+TEST(FuzzerSmokeTest, MAYBE_LpmEmptyFuzzerDoesNotCrashOnStartup) {
+  auto target = FuzzTarget::Make("lpm_empty_fuzzer");
+  ASSERT_TRUE(target);
+
+  EXPECT_TRUE(target->Fuzz({.timeout_secs = 2})) << target->output();
+}
+#endif  // defined(BUILD_LPM_EMPTY_FUZZER)
+
 }  // namespace
 }  // namespace fuzzing

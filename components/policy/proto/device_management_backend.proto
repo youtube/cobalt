@@ -186,6 +186,19 @@ message CheckUserAccountRequest {
   optional bool enrollment_nudge_request = 2 [default = false];
 }
 
+enum FormFactor {
+  FORM_FACTOR_UNSPECIFIED = 0;
+  FORM_FACTOR_DESKTOP = 1;
+  FORM_FACTOR_PHONE = 2;
+  FORM_FACTOR_TABLET = 3;
+  FORM_FACTOR_TV = 4;
+  FORM_FACTOR_AUTOMOTIVE = 5;
+}
+
+message DeviceInfo {
+  optional FormFactor form_factor = 1;
+}
+
 // Request from device to server to register a device, user or browser.
 message DeviceRegisterRequest {
   reserved 5, 10;
@@ -401,7 +414,9 @@ message DeviceRegisterRequest {
   // Information from the device's SMBIOS.
   optional SmbiosInfo smbios_info = 23;
 
-  // Next id: 24.
+  optional DeviceInfo device_info = 24;
+
+  // Next id: 25.
 }
 
 // Identification of a device used during its registration.
@@ -705,6 +720,8 @@ message PolicyFetchRequest {
   // List of extension ids and version used to fetch the policy type
   // google/extension-install-cloud-policy/chrome/*.
   repeated ExtensionIdAndVersion extension_ids_and_version = 14;
+
+  optional DeviceInfo device_info = 15;
 }
 
 // This message customizes how the device behaves when it is disabled by its

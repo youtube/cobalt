@@ -410,6 +410,8 @@ gfx::Rect ToastView::GetBubbleBounds() {
   const gfx::Size preferred_size =
       GetWidget()->GetContentsView()->GetPreferredSize();
   const gfx::Rect anchor_bounds = anchor_view->GetBoundsInScreen();
+  const gfx::Rect anchor_widget_bounds =
+      anchor_view->GetWidget()->GetWindowBoundsInScreen();
 
   // A wide toast in a narrow browser window needs to be compressed to fit.
   const int minimum_margin = ChromeLayoutProvider::Get()->GetDistanceMetric(
@@ -417,8 +419,11 @@ gfx::Rect ToastView::GetBubbleBounds() {
                              views::BubbleBorder::kShadowBlur;
   const int width =
       std::min(preferred_size.width(),
-               std::max(anchor_bounds.width() - 2 * minimum_margin, 0));
-  const int x = anchor_bounds.x() + ((anchor_bounds.width() - width) / 2);
+               std::max(anchor_widget_bounds.width() - 2 * minimum_margin, 0));
+  const int x =
+      std::clamp(anchor_bounds.x() + ((anchor_bounds.width() - width) / 2),
+                 anchor_widget_bounds.x() + minimum_margin,
+                 anchor_widget_bounds.right() - minimum_margin - width);
 
   // Take bubble out of its original bounds to cross "line of death", unless in
   // fullscreen mode where the top container isn't rendered.

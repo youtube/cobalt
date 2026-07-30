@@ -72,6 +72,7 @@ source_set("unit_tests") {
   deps = [
     ":ui",
     "//base",
+    "//components/sync:test_support",
     "//components/variations:test_support",
     "//google_apis",
     "//ios/chrome/browser/settings/manage_accounts/coordinator",
@@ -87,6 +88,8 @@ source_set("unit_tests") {
     "//ios/chrome/browser/signin/model:fake_system_identity",
     "//ios/chrome/browser/signin/model:fake_system_identity_manager",
     "//ios/chrome/browser/signin/model:test_support",
+    "//ios/chrome/browser/sync/model",
+    "//ios/chrome/browser/sync/model:test_support",
     "//ios/chrome/test:test_support",
     "//ios/web/public/test",
     "//testing/gmock",

@@ -865,13 +865,32 @@ BookmarkManagerPrivateOpenInNewWindowFunction::RunOnReady() {
                             base::JoinString(params->id_list, ", ")));
   }
 
-  std::vector<GURL> urls;
-  urls.reserve(nodes.size());
+  // Validate (and possibly rewrite) every bookmark URL through the
+  // extension-navigation deny-list, mirroring the sibling OpenInNewTab path, so
+  // a compromised bookmarks WebUI renderer can't open a denied scheme (e.g.
+  // devtools://, javascript:) as a browser-initiated top-level window.
+  std::vector<UrlAndId> url_and_ids;
+  url_and_ids.reserve(nodes.size());
   for (const bookmarks::BookmarkNode* node : nodes) {
     if (!node->is_url()) {
       return RespondNow(Error("Cannot open a folder in a new window."));
     }
-    urls.push_back(node->url());
+    base::expected<GURL, std::string> maybe_url =
+        ExtensionTabUtil::PrepareURLForNavigation(
+            node->url().spec(), extension(), browser_context());
+    if (!maybe_url.has_value()) {
+      return RespondNow(Error(std::move(maybe_url.error())));
+    }
+    UrlAndId url_and_id;
+    url_and_id.url = std::move(maybe_url.value());
+    url_and_id.id = node->id();
+    url_and_ids.push_back(std::move(url_and_id));
+  }
+
+  std::vector<GURL> urls;
+  urls.reserve(url_and_ids.size());
+  for (const UrlAndId& url_and_id : url_and_ids) {
+    urls.push_back(url_and_id.url);
   }
 
   std::string error;
@@ -882,17 +901,10 @@ BookmarkManagerPrivateOpenInNewWindowFunction::RunOnReady() {
     return RespondNow(Error(std::move(error)));
   }
 
-  std::vector<UrlAndId> url_and_ids;
-  urls.reserve(nodes.size());
-  for (const bookmarks::BookmarkNode* node : nodes) {
-    if (!std::ranges::contains(urls, node->url())) {
-      continue;  // The URL was filtered out; ignore this node.
-    }
-    UrlAndId url_and_id;
-    url_and_id.url = node->url();
-    url_and_id.id = node->id();
-    url_and_ids.push_back(url_and_id);
-  }
+  // Drop entries whose URL was filtered out by the incognito check above.
+  std::erase_if(url_and_ids, [&urls](const UrlAndId& url_and_id) {
+    return !std::ranges::contains(urls, url_and_id.url);
+  });
   DCHECK_EQ(urls.size(), url_and_ids.size());
 
   DCHECK(!calling_profile->IsOffTheRecord());

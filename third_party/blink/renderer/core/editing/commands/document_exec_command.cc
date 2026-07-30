@@ -82,8 +82,9 @@ String TrustedTypesCheck(Document* document,
   // We received a plain string. Most editor commands won't read the value as
   // HTML. Those commands can pass.
   DCHECK(value->IsString());
-  if (!editor_command.IsValueInterpretedAsHTML())
+  if (!editor_command.IsValueInterpretedAsHtml()) {
     return value->GetAsString();
+  }
 
   // We received plain string, and it's one of the commands of interest.
   // Run the TT check.
@@ -136,7 +137,7 @@ bool Document::execCommand(const String& command_name,
   // Postpone synchronous events, which can execute scripts and change
   // DOM tree against implementation assumption.
   EventQueueScope event_queue_scope;
-  TidyUpHTMLStructure(*this);
+  TidyUpHtmlStructure(*this);
   const EditorCommand editor_command = GetCommand(this, command_name);
 
   String checked_value =

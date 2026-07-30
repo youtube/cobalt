@@ -27,7 +27,6 @@ import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarFeatures;
 import org.chromium.chrome.browser.toolbar.optional_button.BaseButtonDataProvider;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData.ButtonSpec;
-import org.chromium.chrome.browser.ui.bottombar.BottomBarConfigUtils;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.user_education.IphCommandBuilder;
 import org.chromium.components.embedder_support.util.UrlUtilities;
@@ -164,8 +163,7 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
      * @param profile The current profile.
      */
     public boolean shouldForciblyShowGlicButton(Profile profile) {
-        if (!AdaptiveToolbarFeatures.isGlicEnabledForProfile(profile)
-                || BottomBarConfigUtils.isBottomBarEnabled(mActivity)) {
+        if (!AdaptiveToolbarFeatures.isGlicEnabledForAdaptiveToolbar(mActivity, profile)) {
             return false;
         }
         mStateController.updateObservations(profile);
@@ -178,8 +176,7 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
         if (tab == null || UrlUtilities.isNtpUrl(tab.getUrl())) {
             return false;
         }
-        // TODO(crbug.com/499354469): Add proper checks for glic availability.
-        if (!AdaptiveToolbarFeatures.isGlicEnabledForProfile(tab.getProfile())) {
+        if (!AdaptiveToolbarFeatures.isGlicEnabledForAdaptiveToolbar(mActivity, tab.getProfile())) {
             return false;
         }
         return super.shouldShowButton(tab);
@@ -193,8 +190,8 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
         }
 
         assumeNonNull(tab);
-        assert AdaptiveToolbarFeatures.isGlicEnabledForProfile(
-                        tab.getProfile().getOriginalProfile())
+        assert AdaptiveToolbarFeatures.isGlicEnabledForAdaptiveToolbar(
+                        mActivity, tab.getProfile().getOriginalProfile())
                 : "Glic get() called when Glic is not eligible/enabled for profile";
         if (tab.isOffTheRecord()) {
             mButtonData.setButtonSpec(new ButtonSpec.Builder(mDefaultSpec).build());
@@ -253,8 +250,8 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
     public void onClick(View view) {
         Tab tab = mActiveTabSupplier.get();
         assert tab != null
-                        && AdaptiveToolbarFeatures.isGlicEnabledForProfile(
-                                tab.getProfile().getOriginalProfile())
+                        && AdaptiveToolbarFeatures.isGlicEnabledForAdaptiveToolbar(
+                                mActivity, tab.getProfile().getOriginalProfile())
                 : "Glic click invoked when Glic is not eligible/enabled for profile";
         mStateController.setPersistDoneState(false);
 

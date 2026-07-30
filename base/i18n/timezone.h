@@ -75,7 +75,7 @@ class BASE_I18N_EXPORT TimeZone {
   std::string GetRegion() const;
 
   // Returns a localized name for this time zone.
-  std::u16string GetDisplayName(const base::LanguageTag& language_tag,
+  std::u16string GetDisplayName(const LanguageTag& language_tag,
                                 DisplayType style = kLong) const;
   std::u16string GetDisplayName(DisplayType style = kLong) const;
 

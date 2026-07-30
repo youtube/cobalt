@@ -16,6 +16,7 @@
 
 #include "base/containers/enum_set.h"
 #include "base/containers/flat_set.h"
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
@@ -376,6 +377,16 @@ class PageSpecificContentSettings
     return notifications_was_denied_because_of_system_permission_;
   }
 
+  void SetRequestedSensorIsAvailable(bool is_available);
+  bool is_any_requested_sensor_available() const {
+    return any_requested_sensor_is_available_;
+  }
+
+  // Support for tracking active sensors
+  void OnSensorStarted();
+  void OnSensorStopped();
+  int active_available_sensors() const;
+
   // Returns the state of the camera and microphone usage.
   // The return value always includes all active media capture devices, on top
   // of the devices from the last request.
@@ -495,9 +506,10 @@ class PageSpecificContentSettings
   // This method is called when audio or video activity indicator is closed.
   void OnActivityIndicatorBubbleClosed(ContentSettingsType type);
 
-  // Returns `true` if an activity indicator is displaying for
-  // `ContentSettingsType`. Returns `false` otherwise.
   bool IsIndicatorVisible(ContentSettingsType type) const;
+  // Returns `true` if an activity indicator is displaying for any of the
+  // provided `types`. Returns `false` otherwise.
+  bool IsAnyIndicatorVisible(base::span<const ContentSettingsType> types) const;
   // Save `ContentSettingsType` to a set of currently displaying activity
   // indicators.
   void OnPermissionIndicatorShown(ContentSettingsType type);
@@ -698,6 +710,13 @@ class PageSpecificContentSettings
   // Stores `ContentSettingsType` that is currently displaying. It is used only
   // for the Left-Hand Side indicators.
   std::set<ContentSettingsType> visible_indicators_;
+
+  // True if at least one sensor requested by the page is available.
+  // We use a single boolean instead of a map because the UI
+  // indicator is generic ("Sensors") and doesn't distinguish between specific
+  // sensor types.
+  bool any_requested_sensor_is_available_ = false;
+  int active_available_sensors_ = 0;
 
   // Observer to watch for content settings changed.
   base::ScopedObservation<HostContentSettingsMap, content_settings::Observer>

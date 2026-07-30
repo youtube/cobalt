@@ -70,7 +70,7 @@ LanguageDetectionModelServiceFactory::BuildServiceInstanceForBrowserContext(
         base::ThreadPool::CreateSequencedTaskRunner(
             {base::MayBlock(), base::TaskPriority::BEST_EFFORT});
     return std::make_unique<language_detection::LanguageDetectionModelService>(
-        &global_state_service->GetGlobalState().prediction_manager(),
+        &global_state_service->GetGlobalState().model_provider(),
         background_task_runner);
   }
   return nullptr;

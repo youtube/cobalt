@@ -46,14 +46,17 @@ namespace cbor {
 // Checks whether |msg| is a cbor message.
 CRDTP_EXPORT bool IsCBORMessage(span<uint8_t> msg);
 
-// Performs a leightweight check of |msg|.
+// Performs a lightweight check of |msg|. If the check succeeds, evenlope outer
+// size is returned, otherwise an error status.
 // Disallows:
 // - Empty message
 // - Not starting with the two bytes 0xd8, 0x5a
 // - Empty envelope (all length bytes are 0)
 // - Not starting with a map after the envelope stanza
+// - Envelope outer size exceeding input span (`msg`) size
 // DevTools messages should pass this check.
-CRDTP_EXPORT Status CheckCBORMessage(span<uint8_t> msg);
+
+CRDTP_EXPORT StatusOr<size_t> CheckCBORMessage(span<uint8_t> msg);
 
 // =============================================================================
 // Encoding individual CBOR items

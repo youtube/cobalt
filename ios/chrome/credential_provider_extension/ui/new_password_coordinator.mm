@@ -8,6 +8,7 @@
 
 #import "ios/chrome/common/app_group/app_group_constants.h"
 #import "ios/chrome/common/credential_provider/credential.h"
+#import "ios/chrome/common/credential_provider/net_util.h"
 #import "ios/chrome/credential_provider_extension/password_util.h"
 #import "ios/chrome/credential_provider_extension/ui/new_password_coordinator+Testing.h"
 #import "ios/chrome/credential_provider_extension/ui/new_password_mediator.h"
@@ -75,15 +76,8 @@
   self.mediator.uiHandler = newPasswordViewController;
 
   NSString* identifier = self.serviceIdentifiers.firstObject.identifier;
-  // `url` can be nil when it's malformed or nil.
-  // > "Linked on or after iOS 17, this method parses URLString according to RFC
-  // 3986. Linked before iOS 17, this method parses URLString according to RFCs
-  // 1738 and 1808."
-  // https://developer.apple.com/documentation/foundation/nsurl/1572047-urlwithstring
-  NSURL* url = identifier ? [NSURL URLWithString:identifier] : nil;
-  // `url.host` can be nil when it does not conform to RFC 1808.
-  // https://developer.apple.com/documentation/foundation/nsurl/1413640-host
-  newPasswordViewController.currentHost = url && url.host ? url.host : @"";
+  newPasswordViewController.currentHost =
+      credential_provider::HostForIdentifier(identifier) ?: @"";
 
   self.viewController = [[UINavigationController alloc]
       initWithRootViewController:newPasswordViewController];

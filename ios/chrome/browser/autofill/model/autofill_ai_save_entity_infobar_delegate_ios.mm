@@ -35,9 +35,11 @@ AutofillAiSaveEntityInfoBarDelegateIOS::AutofillAiSaveEntityInfoBarDelegateIOS(
     image = GetWalletLogo(kAutofillAiInfobarSymbolPointSize,
                           [UIColor colorNamed:kBlue600Color]);
   } else {
+    const bool isPersonalContext = params.new_entity.record_type() ==
+                                   EntityInstance::RecordType::kPersonalContext;
     image = DefaultIconForAutofillAiEntityType(
-        params.new_entity.type().name(), kAutofillAiInfobarSymbolPointSize,
-        [UIColor colorNamed:kBlue600Color]);
+        params.new_entity.type().name(), isPersonalContext,
+        kAutofillAiInfobarSymbolPointSize, [UIColor colorNamed:kBlue600Color]);
   }
 
   if (image) {

@@ -591,7 +591,8 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
       gemini::IsFeatureAvailable(gemini::Feature::kImageRemix,
                                  self.browser->GetProfile()) &&
       geminiTabHelper && geminiTabHelper->IsGeminiAvailableForWebState() &&
-      geminiService && geminiService->IsProfileEligibleForGemini();
+      geminiTabHelper->IsContextualEntryPointAllowed() && geminiService &&
+      geminiService->IsProfileEligibleForGemini();
   BOOL geminiAboveSearch = IsGeminiImageRemixToolShowAboveSearchImageEnabled();
   BOOL geminiBelowSearch = IsGeminiImageRemixToolShowBelowSearchImageEnabled();
 

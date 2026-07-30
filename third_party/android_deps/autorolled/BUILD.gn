@@ -532,6 +532,29 @@ template("define_autorolled_targets") {
 
     # This is generated, do not edit. Update BuildConfigGenerator.groovy
     # instead.
+    java_prebuilt("com_google_errorprone_error_prone_test_helpers_java") {
+      jar_path = "autorolled/cipd/libs/com_google_errorprone_error_prone_test_helpers/error_prone_test_helpers.jar"
+      output_name = "com_google_errorprone_error_prone_test_helpers"
+      requires_robolectric = true
+      enable_bytecode_checks = false
+      testonly = true
+      deps = [
+        "//third_party/android_deps:com_google_errorprone_error_prone_annotations_java",
+        "//third_party/android_deps:com_google_errorprone_error_prone_check_api_java",
+        "//third_party/android_deps:com_google_googlejavaformat_google_java_format_java",
+        "//third_party/android_deps:com_google_jimfs_jimfs_java",
+        "//third_party/android_deps:com_google_testing_compile_compile_testing_java",
+        "//third_party/android_deps:com_google_truth_truth_java",
+        "//third_party/android_deps:io_github_eisop_dataflow_errorprone_java",
+        "//third_party/android_deps:org_jspecify_jspecify_java",
+        "//third_party/hamcrest:hamcrest_core_java",
+        "//third_party/hamcrest:hamcrest_library_java",
+        "//third_party/junit",
+      ]
+    }
+
+    # This is generated, do not edit. Update BuildConfigGenerator.groovy
+    # instead.
     if (google_play_services_package == "//third_party/android_deps") {
       android_aar_prebuilt("google_firebase_firebase_messaging_java") {
         aar_path = "autorolled/cipd/libs/com_google_firebase_firebase_messaging/firebase-messaging.aar"
@@ -998,6 +1021,40 @@ template("define_autorolled_targets") {
 
     # This is generated, do not edit. Update BuildConfigGenerator.groovy
     # instead.
+    java_prebuilt("com_github_ben_manes_caffeine_caffeine_java") {
+      jar_path = "autorolled/cipd/libs/com_github_ben_manes_caffeine_caffeine/caffeine.jar"
+      output_name = "com_github_ben_manes_caffeine_caffeine"
+      requires_robolectric = true
+      enable_bytecode_checks = false
+
+      # To remove visibility constraint, add this dependency to
+      # //third_party/android_deps/autorolled/build.gradle.template
+      visibility = [
+        ":*",
+        "//third_party/androidx:*",
+      ]
+      testonly = true
+    }
+
+    # This is generated, do not edit. Update BuildConfigGenerator.groovy
+    # instead.
+    java_prebuilt("com_github_kevinstern_software_and_algorithms_java") {
+      jar_path = "autorolled/cipd/libs/com_github_kevinstern_software_and_algorithms/software-and-algorithms.jar"
+      output_name = "com_github_kevinstern_software_and_algorithms"
+      requires_robolectric = true
+      enable_bytecode_checks = false
+
+      # To remove visibility constraint, add this dependency to
+      # //third_party/android_deps/autorolled/build.gradle.template
+      visibility = [
+        ":*",
+        "//third_party/androidx:*",
+      ]
+      testonly = true
+    }
+
+    # This is generated, do not edit. Update BuildConfigGenerator.groovy
+    # instead.
     if (google_play_services_package == "//third_party/android_deps") {
       android_aar_prebuilt("google_android_datatransport_transport_api_java") {
         aar_path = "autorolled/cipd/libs/com_google_android_datatransport_transport_api/transport-api.aar"
@@ -1103,6 +1160,7 @@ template("define_autorolled_targets") {
           "//third_party/androidx:*",
         ]
         deps = [
+          "$google_play_services_package:google_play_services_base_java",
           "$google_play_services_package:google_play_services_basement_java",
           "$google_play_services_package:google_play_services_tasks_java",
         ]
@@ -1191,6 +1249,25 @@ template("define_autorolled_targets") {
 
     # This is generated, do not edit. Update BuildConfigGenerator.groovy
     # instead.
+    java_prebuilt("com_google_auto_auto_common_java") {
+      jar_path =
+          "autorolled/cipd/libs/com_google_auto_auto_common/auto-common.jar"
+      output_name = "com_google_auto_auto_common"
+      requires_robolectric = true
+      enable_bytecode_checks = false
+
+      # To remove visibility constraint, add this dependency to
+      # //third_party/android_deps/autorolled/build.gradle.template
+      visibility = [
+        ":*",
+        "//third_party/androidx:*",
+      ]
+      testonly = true
+      deps = [ "//third_party/android_deps:guava_java" ]
+    }
+
+    # This is generated, do not edit. Update BuildConfigGenerator.groovy
+    # instead.
     java_prebuilt("com_google_auto_value_auto_value_annotations_java") {
       jar_path = "autorolled/cipd/libs/com_google_auto_value_auto_value_annotations/auto-value-annotations.jar"
       output_name = "com_google_auto_value_auto_value_annotations"
@@ -1205,6 +1282,33 @@ template("define_autorolled_targets") {
         "//third_party/androidx:*",
       ]
       testonly = true
+    }
+
+    # This is generated, do not edit. Update BuildConfigGenerator.groovy
+    # instead.
+    java_prebuilt("com_google_errorprone_error_prone_check_api_java") {
+      jar_path = "autorolled/cipd/libs/com_google_errorprone_error_prone_check_api/error_prone_check_api.jar"
+      output_name = "com_google_errorprone_error_prone_check_api"
+      requires_robolectric = true
+      enable_bytecode_checks = false
+
+      # To remove visibility constraint, add this dependency to
+      # //third_party/android_deps/autorolled/build.gradle.template
+      visibility = [
+        ":*",
+        "//third_party/androidx:*",
+      ]
+      testonly = true
+      deps = [
+        "//third_party/android_deps:com_github_ben_manes_caffeine_caffeine_java",
+        "//third_party/android_deps:com_github_kevinstern_software_and_algorithms_java",
+        "//third_party/android_deps:com_google_auto_value_auto_value_annotations_java",
+        "//third_party/android_deps:com_google_errorprone_error_prone_annotations_java",
+        "//third_party/android_deps:io_github_eisop_dataflow_errorprone_java",
+        "//third_party/android_deps:io_github_java_diff_utils_java_diff_utils_java",
+        "//third_party/android_deps:javax_inject_javax_inject_java",
+        "//third_party/android_deps:org_jspecify_jspecify_java",
+      ]
     }
 
     # This is generated, do not edit. Update BuildConfigGenerator.groovy
@@ -1456,6 +1560,24 @@ template("define_autorolled_targets") {
 
     # This is generated, do not edit. Update BuildConfigGenerator.groovy
     # instead.
+    java_prebuilt("com_google_googlejavaformat_google_java_format_java") {
+      jar_path = "autorolled/cipd/libs/com_google_googlejavaformat_google_java_format/google-java-format.jar"
+      output_name = "com_google_googlejavaformat_google_java_format"
+      requires_robolectric = true
+      enable_bytecode_checks = false
+
+      # To remove visibility constraint, add this dependency to
+      # //third_party/android_deps/autorolled/build.gradle.template
+      visibility = [
+        ":*",
+        "//third_party/androidx:*",
+      ]
+      testonly = true
+      deps = [ "//third_party/android_deps:guava_java" ]
+    }
+
+    # This is generated, do not edit. Update BuildConfigGenerator.groovy
+    # instead.
     java_prebuilt("com_google_guava_failureaccess_java") {
       jar_path = "autorolled/cipd/libs/com_google_guava_failureaccess/failureaccess.jar"
       output_name = "com_google_guava_failureaccess"
@@ -1464,6 +1586,49 @@ template("define_autorolled_targets") {
 
       # Please depend on //third_party/android_deps:guava_java instead.
       visibility = [ "//third_party/android_deps:*" ]
+    }
+
+    # This is generated, do not edit. Update BuildConfigGenerator.groovy
+    # instead.
+    java_prebuilt("com_google_jimfs_jimfs_java") {
+      jar_path = "autorolled/cipd/libs/com_google_jimfs_jimfs/jimfs.jar"
+      output_name = "com_google_jimfs_jimfs"
+      requires_robolectric = true
+      enable_bytecode_checks = false
+
+      # To remove visibility constraint, add this dependency to
+      # //third_party/android_deps/autorolled/build.gradle.template
+      visibility = [
+        ":*",
+        "//third_party/androidx:*",
+      ]
+      testonly = true
+      deps = [ "//third_party/android_deps:guava_java" ]
+    }
+
+    # This is generated, do not edit. Update BuildConfigGenerator.groovy
+    # instead.
+    java_prebuilt("com_google_testing_compile_compile_testing_java") {
+      jar_path = "autorolled/cipd/libs/com_google_testing_compile_compile_testing/compile-testing.jar"
+      output_name = "com_google_testing_compile_compile_testing"
+      requires_robolectric = true
+      enable_bytecode_checks = false
+
+      # To remove visibility constraint, add this dependency to
+      # //third_party/android_deps/autorolled/build.gradle.template
+      visibility = [
+        ":*",
+        "//third_party/androidx:*",
+      ]
+      testonly = true
+      deps = [
+        "//third_party/android_deps:com_google_auto_auto_common_java",
+        "//third_party/android_deps:com_google_auto_value_auto_value_annotations_java",
+        "//third_party/android_deps:com_google_truth_truth_java",
+        "//third_party/android_deps:guava_java",
+        "//third_party/android_deps:org_jspecify_jspecify_java",
+        "//third_party/junit",
+      ]
     }
 
     # This is generated, do not edit. Update BuildConfigGenerator.groovy
@@ -1868,6 +2033,40 @@ template("define_autorolled_targets") {
         "//third_party/android_deps:com_squareup_okio_okio_java",
         "//third_party/kotlin_stdlib:kotlin_stdlib_java",
       ]
+    }
+
+    # This is generated, do not edit. Update BuildConfigGenerator.groovy
+    # instead.
+    java_prebuilt("io_github_eisop_dataflow_errorprone_java") {
+      jar_path = "autorolled/cipd/libs/io_github_eisop_dataflow_errorprone/dataflow-errorprone.jar"
+      output_name = "io_github_eisop_dataflow_errorprone"
+      requires_robolectric = true
+      enable_bytecode_checks = false
+
+      # To remove visibility constraint, add this dependency to
+      # //third_party/android_deps/autorolled/build.gradle.template
+      visibility = [
+        ":*",
+        "//third_party/androidx:*",
+      ]
+      testonly = true
+    }
+
+    # This is generated, do not edit. Update BuildConfigGenerator.groovy
+    # instead.
+    java_prebuilt("io_github_java_diff_utils_java_diff_utils_java") {
+      jar_path = "autorolled/cipd/libs/io_github_java_diff_utils_java_diff_utils/java-diff-utils.jar"
+      output_name = "io_github_java_diff_utils_java_diff_utils"
+      requires_robolectric = true
+      enable_bytecode_checks = false
+
+      # To remove visibility constraint, add this dependency to
+      # //third_party/android_deps/autorolled/build.gradle.template
+      visibility = [
+        ":*",
+        "//third_party/androidx:*",
+      ]
+      testonly = true
     }
 
     # This is generated, do not edit. Update BuildConfigGenerator.groovy

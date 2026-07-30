@@ -516,8 +516,11 @@ ui::AXMode BrowserAccessibilityStateImpl::GetAccessibilityModeForBrowserContext(
 
 
 void BrowserAccessibilityStateImpl::SetAXModeChangeAllowed(bool allowed) {
+  if (allow_ax_mode_changes_ == allowed) {
+    return;
+  }
   allow_ax_mode_changes_ = allowed;
-  ui::AXPlatformNode::SetAXModeChangeAllowed(allowed);
+  scoped_modes_for_process_.Recompute(MakePassKey());
 }
 
 bool BrowserAccessibilityStateImpl::IsAXModeChangeAllowed() const {
@@ -557,10 +560,6 @@ BrowserAccessibilityStateImpl::RegisterFocusChangedCallback(
 
 void BrowserAccessibilityStateImpl::EnableAXModeFromPlatform(
     ui::AXMode modes_to_add) {
-  if (!allow_ax_mode_changes_) {
-    return;
-  }
-
   ui::AXMode old_mode = platform_ax_mode_->mode();
   ui::AXMode new_mode = old_mode | modes_to_add;
   if (old_mode != new_mode) {
@@ -845,7 +844,7 @@ void BrowserAccessibilityStateImpl::OnModeChanged(ui::AXMode old_mode,
 // scoped_modes_for_process_ when recomputing the effective mode for the
 // collection of scopers targeting the process.
 ui::AXMode BrowserAccessibilityStateImpl::FilterModeFlags(ui::AXMode mode) {
-  if (activation_from_platform_enabled_) {
+  if (activation_from_platform_enabled_ && allow_ax_mode_changes_) {
     // Allow mode changes with kFromPlatform, but filter out that one bit.
     // It need not be sent to renderers.
     return mode & ~ui::AXMode(ui::AXMode::kFromPlatform);

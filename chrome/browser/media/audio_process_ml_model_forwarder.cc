@@ -28,6 +28,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/service_process_host.h"
 #include "content/public/browser/service_process_info.h"
+#include "media/base/media_switches.h"
 #include "services/audio/public/mojom/audio_service.mojom.h"
 
 namespace {
@@ -165,16 +166,21 @@ AudioProcessMlModelForwarder::AudioProcessMlModelForwarder(
       background_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT})) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  model_forwarders_[audio::mojom::MlModelType::kResidualEchoEstimation] =
-      std::make_unique<SingleModelForwarder>(
-          optimization_guide::proto::
-              OPTIMIZATION_TARGET_WEBRTC_NEURAL_RESIDUAL_ECHO_ESTIMATOR,
-          audio::mojom::MlModelType::kResidualEchoEstimation, /*owner=*/this);
-  model_forwarders_[audio::mojom::MlModelType::kVoiceIsolationDenoiser] =
-      std::make_unique<SingleModelForwarder>(
-          optimization_guide::proto::
-              OPTIMIZATION_TARGET_WEBRTC_VOICE_ISOLATION_DENOISER,
-          audio::mojom::MlModelType::kVoiceIsolationDenoiser, /*owner=*/this);
+  if (base::FeatureList::IsEnabled(
+          media::kWebRtcAudioNeuralResidualEchoEstimation)) {
+    model_forwarders_[audio::mojom::MlModelType::kResidualEchoEstimation] =
+        std::make_unique<SingleModelForwarder>(
+            optimization_guide::proto::
+                OPTIMIZATION_TARGET_WEBRTC_NEURAL_RESIDUAL_ECHO_ESTIMATOR,
+            audio::mojom::MlModelType::kResidualEchoEstimation, /*owner=*/this);
+  }
+  if (base::FeatureList::IsEnabled(media::kWebRtcVoiceIsolationDenoiser)) {
+    model_forwarders_[audio::mojom::MlModelType::kVoiceIsolationDenoiser] =
+        std::make_unique<SingleModelForwarder>(
+            optimization_guide::proto::
+                OPTIMIZATION_TARGET_WEBRTC_VOICE_ISOLATION_DENOISER,
+            audio::mojom::MlModelType::kVoiceIsolationDenoiser, /*owner=*/this);
+  }
 
   if (audio_process_observer_) {
     // base::Unretained is safe since `this` owns and outlives the observer.

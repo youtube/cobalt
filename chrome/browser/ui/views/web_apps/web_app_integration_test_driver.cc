@@ -88,6 +88,7 @@
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_toolbar_button_container.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/window_controls_overlay_toggle_button.h"
 #include "chrome/browser/ui/views/web_apps/sub_apps/sub_apps_install_dialog_controller.h"
+#include "chrome/browser/ui/views/web_apps/web_app_install_flow_dialog_delegate.h"
 #include "chrome/browser/ui/views/web_apps/web_app_link_capturing_test_utils.h"
 #include "chrome/browser/ui/views/web_apps/web_app_update_review_dialog.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
@@ -797,17 +798,6 @@ WebAppSettingsPageHandler CreateAppManagementPageHandler(Profile* profile) {
 }
 #endif
 
-void WaitForAndAcceptInstallDialogForSite(Site site) {
-  std::string widget_name =
-      (site == Site::kScreenshots)     ? "WebAppDetailedInstallDialog"
-      : (site == Site::kNotPromotable) ? "WebAppDiyInstallDialog"
-                                       : "WebAppSimpleInstallDialog";
-  views::NamedWidgetShownWaiter waiter(views::test::AnyWidgetTestPasskey{},
-                                       widget_name);
-  views::Widget* widget = waiter.WaitIfNeededAndGet();
-  views::test::AcceptDialog(widget);
-}
-
 // Determines whether, when attempting to load a path, we want to, instead of
 // using the regular handler, load it from a file on disk.
 bool ShouldLoadResponseFromDisk(const base::FilePath& root,
@@ -1136,6 +1126,41 @@ void WebAppIntegrationTestDriver::TearDownOnMainThread() {
   override_registration_.reset();
 
   LOG(INFO) << "TearDownOnMainThread: Complete.";
+}
+
+void WebAppIntegrationTestDriver::WaitForAndAcceptInstallDialogForSite(
+    Site site) {
+  if (base::FeatureList::IsEnabled(features::kWebAppInstallDialog)) {
+    views::NamedWidgetShownWaiter waiter(views::test::AnyWidgetTestPasskey{},
+                                         "WebAppInstallFlowDialog");
+    views::Widget* widget = waiter.WaitIfNeededAndGet();
+    ASSERT_TRUE(widget != nullptr);
+    views::test::WidgetDestroyedWaiter destroyed_waiter(widget);
+    views::DialogDelegate* dialog_delegate =
+        widget->widget_delegate()->AsDialogDelegate();
+    ASSERT_TRUE(dialog_delegate != nullptr);
+    // Install or move to install options.
+    dialog_delegate->AcceptDialog();
+    // Accept options if they are shown to install (we don't show on Linux)
+    if (ui::ElementTracker::GetElementTracker()->GetElementInAnyContext(
+            WebAppInstallFlowDialogDelegate::kOptionsViewId)) {
+      dialog_delegate->AcceptDialog();
+    }
+    // Wait for the install to finish happening.
+    provider()->command_manager().AwaitAllCommandsCompleteForTesting();
+    // Finally, accept the last view, which should launch the app.
+    dialog_delegate->AcceptDialog();
+    destroyed_waiter.Wait();
+  } else {
+    std::string widget_name =
+        (site == Site::kScreenshots)     ? "WebAppDetailedInstallDialog"
+        : (site == Site::kNotPromotable) ? "WebAppDiyInstallDialog"
+                                         : "WebAppSimpleInstallDialog";
+    views::NamedWidgetShownWaiter waiter(views::test::AnyWidgetTestPasskey{},
+                                         widget_name);
+    views::Widget* widget = waiter.WaitIfNeededAndGet();
+    views::test::AcceptDialog(widget);
+  }
 }
 
 void WebAppIntegrationTestDriver::OnWidgetShown(views::Widget* widget) {
@@ -5093,9 +5118,9 @@ WebAppIntegrationTest::WebAppIntegrationTest() : helper_(this) {
   enabled_features.push_back(features::kPwaNavigationCapturing);
 #endif  // !BUILDFLAG(IS_CHROMEOS)
   enabled_features.push_back(blink::features::kWebAppMigrationApi);
+  enabled_features.push_back(features::kWebAppInstallDialog);
   disabled_features.push_back(
       features::kDesktopPWAsWindowControlsOverlayWithNoToggle);
-  disabled_features.push_back(features::kWebAppInstallDialog);
 
   scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
 }

@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Bu şəbəkə xətasını həll etmək üçün <ph name="GUEST_SIGNIN_LINK_START" />qonaq kimi istifadə etməyə<ph name="GUEST_SIGNIN_LINK_END" /> cıhd edə bilərsiniz.</translation>
 <translation id="1201402288615127009">Növbəti</translation>
 <translation id="1222835797152767346">Asan giriş üçün PIN təyin edin</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Debaq funksiyaları<ph name="END_H3" />
+          <ph name="BR" />
+          Cihazınızda fərdi kodu quraşdırmaq və test etmək üçün ChromeOS Cihazında debaq funksiyalarını aktiv edə bilərsiniz. Bununla aşağıdakıları edə biləcəksiniz:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+          <ph name="LIST_ITEM" />Əməliyyat sistemi fayllarına düzəliş etmək üçün kök doğrulamasını deaktiv edin
+          <ph name="LIST_ITEM" />Standart test açarları istifadə edərək cihaza SSH girişini aktiv edin. Beləliklə, <ph name="BEGIN_CODE" />"cros flash"<ph name="END_CODE" /> kimi alətləri istifadə edə və cihaza daxil ola bilərsiniz
+            <ph name="LIST_ITEM" />USB yaddaşdan əməliyyat sisteminin şəklini quraşdıra bilmək üçün USB-dən yüklənməyə icazə verin
+            <ph name="LIST_ITEM" />Cihaza manual yol ilə SSH daxil etmək üçün cihaz və sistem kökü üzrə giriş parolunu fərdi dəyər ilə ayarlayın
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          İcazə veriləndən sonra hətta korporativ idarə edilən cihazda sıfırlama edilsə, yaxud data silinsə belə, debaq funksiyalarının çoxu aktiv olaraq qalacaq. Bütün debaq funksiyalarını tam deaktiv etmək üçün ChromeOS-un bərpa prosesini tamamlayın (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Debaq funksiyaları haqqında ətraflı məlumat üçün bura daxil olun:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Qeyd:<ph name="END_BOLD" />  Əməliyyat zamanı sistem yenidən başladılacaq.</translation>
 <translation id="1347625331607114917">Kodu Android telefonunuzda doğrulayın</translation>
 <translation id="1347975661240122359">Batareya <ph name="BATTERY_LEVEL" />% olduqda güncəlləmə başlayacaq.</translation>
 <translation id="1375938286942050085">Ayarlama tamamlandı! Cihazınızı oyuna hazırlayın</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Tətbiqlər endirilir</translation>
 <translation id="5045550434625856497">Yanlış parol</translation>
 <translation id="5062930723426326933">Hesaba giriş alınmadı, internetə qoşulun və yenidən cəhd edin.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Google Sİ ilə yazmaq, planlaşdırmaq, öyrənmək və s. üçün Gemini ilə söhbət edin.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Ayarlamadan sonra ekranın altındakı rəfdə Gemini tətbiqini seçərək Gemini-dan istifadəyə başlayın.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011"><ph name="DEVICE_TYPE" /> cihazını enerji mənbəyinə qoşun.</translation>
 <translation id="5147516217412920887">Kodu doğrulamaq üçün telefonunuzdakı təlimatlara əməl edin</translation>
 <translation id="5160857336552977725"><ph name="DEVICE_TYPE" /> cihazınıza daxil olun</translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Debaq Funksiyaları<ph name="END_H3" />
+          <ph name="BR" />
+          Cihazınızda fərdi kodu quraşdırmaq və test etmək üçün ChromeOS Flex Cihazında debaq funksiyalarını aktiv edə bilərsiniz. Bununla aşağıdakıları edə biləcəksiniz:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+          <ph name="LIST_ITEM" />Əməliyyat sistemi fayllarına düzəliş etmək üçün kök doğrulamasını deaktiv edin
+          <ph name="LIST_ITEM" />Standart test açarları istifadə edərək cihaza SSH girişini aktiv edin. Beləliklə, <ph name="BEGIN_CODE" />"cros flash"<ph name="END_CODE" /> kimi alətləri istifadə edə və cihaza daxil ola bilərsiniz
+          <ph name="LIST_ITEM" />USB yaddaşdan Əməliyyat Sisteminin şəkli quraşdıra bilmək üçün USB-dən yüklənməyə icazə verin
+          <ph name="LIST_ITEM" />Cihaza manual yol ilə SSH daxil etmək üçün cihaz və sistem kökü giriş parolunu fərdi dəyər ilə ayarlayın
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          İcazə veriləndən sonra hətta korporativ idarə edilən cihazda sıfırlama edilsə, yaxud data silinsə belə, debaq funksiyalarının çoxu aktiv olaraq qalacaq. Bütün debaq funksiyalarını tam deaktiv etmək üçün Chrome Əməliyyat Sisteminin bərpa prosesini tamamlayın (https://support.google.com/chromebook/answer/1080595).
+    <ph name="BR" />
+    <ph name="BR" />
+    Debaq funksiyaları haqqında ətraflı məlumat üçün bura daxil olun:<ph name="BR" />
+    https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+    <ph name="BR" />
+    <ph name="BR" />
+    <ph name="BEGIN_BOLD" />Qeyd:<ph name="END_BOLD" />  Əməliyyat zamanı sistem yenidən başladılacaq.</translation>
 <translation id="523505283826916779">Əlçatımlılıq ayarları</translation>
 <translation id="5240931875940563122">Android telefonu ilə daxil olun</translation>
 <translation id="5255859108402770436">Yenidən daxil olun</translation>
@@ -193,6 +231,10 @@
 <translation id="6955698182324067397">ChromeOS baq ləğvini aktivləşdirirsiniz ki, sshd daemon quraşdırır və USB cihazlarından yüklənməyə imkan verir.</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6981982820502123353">Giriş İmkanı</translation>
+<translation id="6984652455487792101">Proksi serverindən istifadə edirsinizsə, proksi ayarlarını yoxlayın və ya
+        proksi serverinizin işləyib-işləmədiyini yoxlamaq üçün şəbəkə administratorunuz ilə
+        əlaqə saxlayın. Proksi serverindən istifadə etməli olduğunuzu düşünmürsünüzsə,
+        <ph name="LINK_START" />proksi ayarlarını<ph name="LINK_END" /> tənzimləyin.</translation>
 <translation id="6996245928508281884">Telefonunuzda Bluetooth və Wi-Fi-ı aktiv edin</translation>
 <translation id="7077829361966535409">Hesaba giriş səhifəsi cari proksi ayarlarını istifadə edərək yüklənə bilmədi. <ph name="GAIA_RELOAD_LINK_START" />Yenidən hesaba girin<ph name="GAIA_RELOAD_LINK_END" />, və ya fərqli <ph name="PROXY_SETTINGS_LINK_START" />proksi ayarları<ph name="PROXY_SETTINGS_LINK_END" /> istifadə edin.</translation>
 <translation id="7114054701490058191">Parollar eyni deyil</translation>
@@ -205,6 +247,9 @@
 <translation id="7345706641791090287">Parolunuzu təsdiq edin</translation>
 <translation id="7352651011704765696">Xəta oldu</translation>
 <translation id="7476454130948140105">Güncəlləmə üçün batareya çox azdır (<ph name="BATTERY_PERCENT" />)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Qeydiyyatdan keçməzdən əvvəl TPM-i silməlisiniz ki, <ph name="DEVICE_OS" /> cihaz üzərində sahibliyi öz üzərinə götürə bilsin.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />TPM cihazını tamamilə deaktiv edə bilərsiniz. Datanız hələ də proqram şifrələməsi ilə etibarlı şəkildə saxlanacaq, ancaq avadanlıq dəstəkli sertifikatlar kimi müəyyən güvənlik funksiyaları deaktiv ediləcək.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Sistemi yenidən başladaraq və BIOS/UEFI ayarlarına daxil olaraq TPM ayarlarını dəyişə bilərsiniz. Addımlar cihaz modelinə əsasən dəyişir. Digər məlumatlar üçün yenidən başlatmazdan əvvəl ayrı cihazda <ph name="DEVICE_OS" /> sənədlərini açın: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Bu <ph name="IDS_SHORT_PRODUCT_NAME" /> cihazında debaq funksiyalarına icazə verin</translation>
 <translation id="7553242001898162573">Şifrənizi daxil edin</translation>
 <translation id="7556242789364317684">Təəssüf ki, <ph name="SHORT_PRODUCT_NAME" /> ayarlarınızı bərpa edə bilmir. Xətanı ləğv edin, <ph name="SHORT_PRODUCT_NAME" /> cihazınızı Powerwash ilə sıfırlamalıdır.</translation>
@@ -251,6 +296,10 @@
 <translation id="8452105022015742247">Android telefonundan Google Hesabı məlumatları ötürülür</translation>
 <translation id="8524841856047224176">Video zəng və s. üçün kamera arxa fonlarını fərdiləşdirin</translation>
 <translation id="8569673829373920831"><ph name="APP_NAME" /> haqqında ətraflı</translation>
+<translation id="8628232294964836490">QR kodunu skanlamaq üçün telefonda təlimatlara əməl edin. Telefonda Bluetooth-un aktiv olduğuna əmin olun.
+        <ph name="BR" />
+        <ph name="BR" />
+        Yaxınlıqdakı cihazlara <ph name="QUICK_START_DEVICE_DISPLAY_NAME" /> kimi görünür...</translation>
 <translation id="8655972064210167941">Sign-sizin parol təsdiq edilə bilməz, çünki uğursuz oldu. Sizin administratoru ilə əlaqə və ya yenidən cəhd edin.</translation>
 <translation id="8674903726754070732">Kompüteriniz düzgün olmayan avadanlıq ID-si ilə sazlanıb. Bu, ChromeOS'i ən son güvənlik bərpaları etməyə mane ola və kompüteriniz <ph name="BEGIN_BOLD" />hücumlara məruz qala bilər<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Ayarlamadan sonra valideyn nəzarəti əlavə edin</translation>
@@ -264,10 +313,20 @@
 <translation id="8830796635868321089">Yeni güncəllənməni axtarmaq olmur. <ph name="PROXY_SETTINGS_LINK_START" />Proksi ayarlarını<ph name="PROXY_SETTINGS_LINK_END" /> tənzimləyin.</translation>
 <translation id="885746075120788020">Google Hesabınızla daxil olduğunuz zaman yadda saxlanılan tərcihləriniz və fəaliyyətiniz istənilən ChromeOS cihazında hazır olacaq. Ayarlarda nələri sinxronlaşdıracağınızı seçə bilərsiniz.</translation>
 <translation id="8875221558267407626">Kontenti icmallaşdırın, mürəkkəb dili sadələşdrin və ya suallar verin</translation>
+<translation id="8913163265790894442">Telefon ilə <ph name="DEVICE_TYPE" /> cihazını asanlıqla ayarlayın. Parolları manual qaydada daxil etmədən Wi-Fi bağlantısı və Google Hesabınızı əlavə edə bilərsiniz.
+        <ph name="BR" />
+        <ph name="BR" />
+        <ph name="DEVICE_TYPE" /> kimi görünür...</translation>
 <translation id="8946359700442089734">Debaq funksiyaları bu <ph name="IDS_SHORT_PRODUCT_NAME" /> cihazında yarımçıq aktiv edilib.</translation>
 <translation id="8965037249707889821">Köhnə parol daxil edin</translation>
 <translation id="8975396729541388937">Aldığınız e-məktublardakı keçidə toxunaraq istənilən vaxt abunəlikdən çıxa bilərsiniz.</translation>
 <translation id="9033765790910064284">Yenə də davam edin</translation>
 <translation id="903480517321259405">PİN kodu yenidən yazın</translation>
 <translation id="9076523132036239772">Üzr istəyirik, e-poçt və ya parolunuz təsdiq edilə bilməz. Əvvəlcə şəbəkəyə qoşulmağa cəhd edin.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" /><ph name="DEVICE_TYPE" /> üçün eksklüziv.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Yaradan Sİ təcrübidir, ilkin yaradılma mərhələsindədir və məhdud əlçatanlığa malikdir.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Telefon ilə <ph name="DEVICE_TYPE" /> cihazını asanlıqla ayarlayın. Parolu manual qaydada daxil etmədən Google Hesabınızı əlavə edə bilərsiniz.
+        <ph name="BR" />
+        <ph name="BR" />
+        <ph name="DEVICE_TYPE" /> kimi görünür...</translation>
 </translationbundle>

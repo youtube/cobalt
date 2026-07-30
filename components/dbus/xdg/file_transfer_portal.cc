@@ -34,7 +34,7 @@
 
 namespace dbus_xdg {
 
-BASE_FEATURE(kXdgFileTransferPortal, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kXdgFileTransferPortal, base::FEATURE_ENABLED_BY_DEFAULT);
 
 namespace {
 

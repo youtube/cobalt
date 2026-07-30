@@ -1,0 +1,32 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+syntax = "proto2";
+
+package identity_consent;
+
+message ConsentFlowCompleted {}
+message ConsentFlowNotCompleted {}
+
+message ConsentFlowId {
+  optional int32 value = 1;
+}
+
+message PrivacyFlowResult {
+  optional ConsentFlowId flow_id = 1;
+  optional ConsentFlowCompleted flow_completed = 2;
+  optional ConsentFlowNotCompleted flow_not_completed = 3;
+}
+
+enum Event {
+  EVENT_UNSPECIFIED = 0;
+  DECISION_RESPONSE_EVENT = 1;
+  TERMINATE_EVENT = 2;
+  UI_RENDERED_EVENT = 3;
+}
+
+message IframeMessage {
+  optional Event event = 1;
+  optional PrivacyFlowResult privacy_flow_result = 8;
+}

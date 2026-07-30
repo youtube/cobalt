@@ -181,7 +181,7 @@
             </div>
             <settings-dropdown-menu id="bookmarksBarVisibilityDropdown"
                 label="$i18n{bookmarksBar}"
-                pref="{{prefs.bookmark_bar.visibility_state}}"
+                pref-key="bookmark_bar.visibility_state"
                 menu-options="[[bookmarksBarOptions_]]"
                 on-settings-control-change=
                     "onBookmarksBarVisibilitySettingChange_">
@@ -196,7 +196,7 @@
             </div>
             <settings-dropdown-menu id="tabStripPosition"
                 label="$i18n{tabStripPosition}"
-                pref="{{prefs.vertical_tabs.enabled}}"
+                pref-key="vertical_tabs.enabled"
                 menu-options="[[tabStripOptions_]]"
                 on-settings-control-change="onTabStripPositionChanged_">
             </settings-dropdown-menu>
@@ -214,35 +214,31 @@
               </settings-toggle-button>
             </template>
 
-            <template is="dom-if" if="[[showTabSearchEnabled_]]">
-              <template is="dom-if" if="[[showProjectsPanelEnabled_]]">
-                <settings-toggle-button id="showProjectsPanelButton"
-                  pref="{{prefs.projects_panel.pinned_to_tabstrip}}"
-                  label="$i18n{showProjectsPanelButton}"
-                  on-change="onShowProjectsPanelButtonChange_">
-                </settings-toggle-button>
-              </template>
+            <template is="dom-if" if="[[showProjectsPanelEnabled_]]">
+              <settings-toggle-button id="showProjectsPanelButton"
+                pref="{{prefs.projects_panel.pinned_to_tabstrip}}"
+                label="$i18n{showProjectsPanelButton}"
+                on-change="onShowProjectsPanelButtonChange_">
+              </settings-toggle-button>
+            </template>
 
-              <template is="dom-if"
-                if="[[showEverythingMenuToggle_(
-                    showProjectsPanelEnabled_, showEverythingMenuEnabled_)]]">
-                <settings-toggle-button id="showEverythingMenuButton"
-                    pref="{{prefs.everything_menu.pinned_to_tabstrip}}"
-                    label="$i18n{showEverythingMenuButton}"
-                    on-change="onShowEverythingMenuButtonChange_">
-                </settings-toggle-button>
-              </template>
+            <template is="dom-if"
+              if="[[showEverythingMenuToggle_(
+                  showProjectsPanelEnabled_, showEverythingMenuEnabled_)]]">
+              <settings-toggle-button id="showEverythingMenuButton"
+                  pref="{{prefs.everything_menu.pinned_to_tabstrip}}"
+                  label="$i18n{showEverythingMenuButton}"
+                  on-change="onShowEverythingMenuButtonChange_">
+              </settings-toggle-button>
             </template>
           </div>
         </template>
 
-        <template is="dom-if" if="[[showTabSearchEnabled_]]">
-          <settings-toggle-button id="showTabSearchButton" class="hr"
-              pref="{{prefs.tab_search.pinned_to_tabstrip}}"
-              label="$i18n{showTabSearchButton}"
-              on-change="onShowTabSearchButtonChange_">
-          </settings-toggle-button>
-        </template>
+        <settings-toggle-button id="showTabSearchButton" class="hr"
+            pref="{{prefs.tab_search.pinned_to_tabstrip}}"
+            label="$i18n{showTabSearchButton}"
+            on-change="onShowTabSearchButtonChange_">
+        </settings-toggle-button>
 
         <settings-toggle-button class="hr" id="showSavedTabGroups"
             pref="{{prefs.bookmark_bar.show_tab_groups}}"
@@ -274,7 +270,7 @@
                   label="[[item.label]]"
                   menu-options="[[sidePanelAlignmentOptions_]]"
                   data-entry-id$="[[item.id]]"
-                  pref="[[prefs.side_panel.is_right_aligned]]"
+                  pref-key="side_panel.is_right_aligned"
                   no-set-pref
                   value="[[getOverrideValue_(
                     item.id, prefs.side_panel.alignment_overrides.value,
@@ -290,7 +286,7 @@
             </div>
             <settings-dropdown-menu id="sidePanelPosition"
                 label="$i18n{sidePanelAlignmentChromePanels}"
-                pref="{{prefs.side_panel.is_right_aligned}}"
+                pref-key="side_panel.is_right_aligned"
                 menu-options="[[sidePanelAlignmentOptions_]]">
             </settings-dropdown-menu>
           </div>
@@ -337,7 +333,7 @@
             $i18n{fontSize}
           </div>
           <settings-dropdown-menu id="defaultFontSize" label="$i18n{fontSize}"
-              pref="{{prefs.webkit.webprefs.default_font_size}}"
+              pref-key="webkit.webprefs.default_font_size"
               menu-options="[[fontSizeOptions_]]">
           </settings-dropdown-menu>
         </div>

@@ -47,9 +47,10 @@ def format_descendant_node_text(node,
                 format_descendant_node_text(child, total_dur, min_dur_ms, True,
                                             indent + "  "))
     else:
+        sig = trace_analyzer_lib.get_slice_signature(node)
         line = (f"{indent}* [{dur_ms:8.3f} ms ({pct_root:5.1f}%) | "
                 f"self: {self_ms:8.3f} ms ({pct_self:5.1f}%)] "
-                f"{node.name}")
+                f"{sig}")
         lines = [line]
         sorted_children = sorted(node.children, key=lambda x: x.ts)
         for child in sorted_children:
@@ -105,9 +106,9 @@ def generate_text_report(args, trees_or_roots, total_dur_ms, is_window):
                                                 args.min_dur, True))
         else:
             longest_root = trees_or_roots[0]
+            sig = trace_analyzer_lib.get_slice_signature(longest_root)
             output_lines.append(
-                f"=== TEXT FLAMEGRAPH FOR FOCUS SLICE: {longest_root.name} ==="
-            )
+                f"=== TEXT FLAMEGRAPH FOR FOCUS SLICE: {sig} ===")
             output_lines.append(
                 f"Total Duration: {longest_root.dur_ms:.3f} ms")
             output_lines.append("Legend: * [Total Dur ( % of Focus ) | "
@@ -193,6 +194,19 @@ def main():
         "--arg-value",
         help=("Optional argument value to filter the target/metric slice "
               "(requires --arg-key)"))
+    parser.add_argument(
+        "--boundary-target",
+        help=
+        "Optional top-level boundary slice name to restrict the target slices")
+    parser.add_argument(
+        "--boundary-arg-key",
+        help=("Optional argument key to filter the boundary slice "
+              "(requires --boundary-target)"))
+    parser.add_argument(
+        "--boundary-arg-value",
+        help=("Optional argument value to filter the boundary slice "
+              "(requires --boundary-arg-key)"))
+
 
     args = parser.parse_args()
 
@@ -200,11 +214,22 @@ def main():
     if (args.arg_key and not args.arg_value) or (args.arg_value
                                                  and not args.arg_key):
         parser.error("--arg-key and --arg-value must be used together.")
+    if (args.boundary_arg_key and not args.boundary_arg_value) or (
+            args.boundary_arg_value and not args.boundary_arg_key):
+        parser.error(
+            "--boundary-arg-key and --boundary-arg-value must be used together."
+        )
+    if (args.boundary_arg_key
+            or args.boundary_arg_value) and not args.boundary_target:
+        parser.error("Boundary filters require specifying --boundary-target.")
     if args.mode == "descendants" and (args.threads or args.processes):
         parser.error(
             "--threads and --processes are only valid in 'window' mode.")
     if args.mode == "window" and args.aggregate:
         parser.error("--aggregate is only valid in 'descendants' mode.")
+    if args.mode == "window" and args.boundary_target:
+        parser.error(
+            "Boundary target filtering is only valid in 'descendants' mode.")
 
     # 1. Load sessions and fetch data
     if args.mode == "descendants":
@@ -219,8 +244,12 @@ def main():
                 args.target,
                 arg_key=args.arg_key,
                 arg_value=args.arg_value,
-                aggregate=args.aggregate)
+                aggregate=args.aggregate,
+                boundary_target=args.boundary_target,
+                boundary_arg_key=args.boundary_arg_key,
+                boundary_arg_value=args.boundary_arg_value)
             root_nodes.extend(roots)
+
 
         if not root_nodes:
             print(f"Error: Target slice '{args.target}' not found.",

@@ -204,8 +204,9 @@ Node* EnclosingBlockToSplitTreeTo(Node* start_node) {
       return &runner;
     if (IsEnclosingBlock(&runner))
       last_block = &runner;
-    if (IsHTMLListElement(&runner))
+    if (IsHtmlListElement(&runner)) {
       return IsEditable(*runner.parentNode()) ? runner.parentNode() : &runner;
+    }
   }
   return last_block;
 }

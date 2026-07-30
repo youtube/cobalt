@@ -24,6 +24,9 @@ import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.personal_context.first_run.PersonalContextFirstRunService;
+import org.chromium.chrome.browser.personal_context.first_run.PersonalContextFirstRunServiceJni;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider;
 import org.chromium.ui.base.WindowAndroid;
@@ -39,12 +42,15 @@ public class AtMemoryBottomSheetBridgeTest {
     @Mock private AtMemoryBottomSheetBridge.Natives mNativeMock;
     @Mock private BottomSheetController mBottomSheetController;
     @Mock private WindowAndroid mWindowAndroid;
+    @Mock private Profile mProfile;
+    @Mock private PersonalContextFirstRunService.Natives mFirstRunServiceJniMock;
 
     private AtMemoryBottomSheetBridge mBridge;
 
     @Before
     public void setUp() throws Exception {
         AtMemoryBottomSheetBridgeJni.setInstanceForTesting(mNativeMock);
+        PersonalContextFirstRunServiceJni.setInstanceForTesting(mFirstRunServiceJniMock);
         Context context =
                 new ContextThemeWrapper(
                         ApplicationProvider.getApplicationContext(),
@@ -53,7 +59,7 @@ public class AtMemoryBottomSheetBridgeTest {
         when(mWindowAndroid.getContext()).thenReturn(new WeakReference<>(context));
         BottomSheetControllerProvider.setInstanceForTesting(mBottomSheetController);
 
-        mBridge = AtMemoryBottomSheetBridge.create(NATIVE_BRIDGE, mWindowAndroid);
+        mBridge = AtMemoryBottomSheetBridge.create(NATIVE_BRIDGE, mWindowAndroid, mProfile);
         assertNotNull(mBridge);
     }
 

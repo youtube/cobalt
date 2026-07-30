@@ -38,9 +38,9 @@ FetchClientSettingsObjectImpl::GetPolicyContainerPolicies() const {
   return execution_context_->GetPolicyContainer()->GetPolicies();
 }
 
-const String FetchClientSettingsObjectImpl::GetOutgoingReferrer() const {
+KURL FetchClientSettingsObjectImpl::GetOutgoingReferrerUrl() const {
   DCHECK(execution_context_->IsContextThread());
-  return execution_context_->OutgoingReferrer();
+  return execution_context_->OutgoingReferrerUrl();
 }
 
 HttpsState FetchClientSettingsObjectImpl::GetHttpsState() const {

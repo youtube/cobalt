@@ -148,6 +148,10 @@ class ContextualTasksUIInterface : public TaskInfoDelegate {
   // Returns the WebContents of the embedded page, if it exists.
   virtual content::WebContents* GetInnerWebContents() const = 0;
 
+  // Returns whether the user was eligible for contextual tasks at
+  // initialization.
+  virtual bool IsContextualTasksEligibleOnInit() const = 0;
+
   // Returns whether the web ui is initialized.
   virtual bool IsInitComplete() = 0;
   // A notification that the web ui is initialized.
@@ -155,6 +159,13 @@ class ContextualTasksUIInterface : public TaskInfoDelegate {
 
   virtual void AddObserver(Observer* observer) = 0;
   virtual void RemoveObserver(Observer* observer) = 0;
+
+  // Returns whether a historical thread is currently loading (e.g. from history
+  // rail or URL parameters). This is used to distinguish the initial load of a
+  // history thread from active subsequent turns in the thread, ensuring
+  // restored tabs are only populated once.
+  virtual bool is_history_thread_loading() const = 0;
+  virtual void set_is_history_thread_loading(bool loading) = 0;
 };
 
 }  // namespace contextual_tasks

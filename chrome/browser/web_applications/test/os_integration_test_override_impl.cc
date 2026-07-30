@@ -526,6 +526,7 @@ base::FilePath OsIntegrationTestOverrideImpl::GetShortcutPath(
     }
   }
 #elif BUILDFLAG(IS_MAC)
+  base::ScopedAllowBlockingForTesting allow_blocking;
   AppShimRegistry* registry = AppShimRegistry::Get();
   std::set<base::FilePath> app_installed_profiles =
       registry->GetInstalledProfilesForApp(app_id);

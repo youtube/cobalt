@@ -22,6 +22,9 @@ class BackendPromoService : public KeyedService {
   BackendPromoService& operator=(const BackendPromoService&) = delete;
 
   ~BackendPromoService() override = default;
+
+  // Notifies the service that the app became active in the foreground.
+  virtual void NotifyBackendAppForegroundActive() {}
 };
 
 class BrowserList;

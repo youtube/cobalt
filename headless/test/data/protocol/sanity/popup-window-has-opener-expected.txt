@@ -1,2 +1,0 @@
-Tests pop up window has window.opener.
-PASS

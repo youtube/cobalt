@@ -85,7 +85,7 @@ ManifestDemuxer::ManifestDemuxer(
           "Demuxing stream using ManifestDemuxer");
       }
 
-std::vector<DemuxerStream*> ManifestDemuxer::GetAllStreams() {
+std::vector<raw_ptr<DemuxerStream>> ManifestDemuxer::GetAllStreams() {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
   // For each stream that ChunkDemuxer returns, we need to wrap it so that we
   // can grab the timestamp. Chunk demuxer's streams live forever, so ours
@@ -94,7 +94,7 @@ std::vector<DemuxerStream*> ManifestDemuxer::GetAllStreams() {
   // TODO(crbug.com/40057824): Rearchitect the demuxer stream ownership model to
   // prevent long-lived streams from potentially leaking memory.
 
-  std::vector<DemuxerStream*> streams;
+  std::vector<raw_ptr<DemuxerStream>> streams;
   for (DemuxerStream* chunk_demuxer_stream :
        impl_->FilterDemuxerStreams(chunk_demuxer_->GetAllStreams())) {
     auto it = streams_.find(chunk_demuxer_stream);

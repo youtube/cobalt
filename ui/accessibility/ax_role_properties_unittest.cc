@@ -39,6 +39,31 @@ TEST(AXRolePropertiesTest, TestSupportsHierarchicalLevel) {
   }
 }
 
+TEST(AXRolePropertiesTest, TestIsLiveRegion) {
+  // Test for iterating through all roles and validate if a role is a live
+  // region by default (alert, log, status).
+  std::unordered_set<ax::mojom::Role> roles_expected_is_live_region = {
+      ax::mojom::Role::kAlert, ax::mojom::Role::kLog, ax::mojom::Role::kStatus};
+
+  for (int role_idx = static_cast<int>(ax::mojom::Role::kMinValue);
+       role_idx <= static_cast<int>(ax::mojom::Role::kMaxValue); role_idx++) {
+    ax::mojom::Role role = static_cast<ax::mojom::Role>(role_idx);
+    bool is_live_region = IsLiveRegion(role);
+
+    SCOPED_TRACE(testing::Message()
+                 << "ax::mojom::Role=" << ToString(role)
+                 << ", Actual: isLiveRegion=" << is_live_region
+                 << ", Expected: isLiveRegion=" << !is_live_region);
+
+    if (roles_expected_is_live_region.find(role) !=
+        roles_expected_is_live_region.end()) {
+      EXPECT_TRUE(is_live_region);
+    } else {
+      EXPECT_FALSE(is_live_region);
+    }
+  }
+}
+
 TEST(AXRolePropertiesTest, TestSupportsToggle) {
   // Test for iterating through all roles and validate if a role supports
   // toggle.

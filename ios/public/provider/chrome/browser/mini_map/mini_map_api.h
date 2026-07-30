@@ -73,6 +73,9 @@ using MiniMapControllerCompletionWithString = void (^)(NSString*);
 // `failureCompletion` is called when Mini Map fails to load.
 - (void)configureFailureCompletion:(void (^)(void))failureCompletion;
 
+// Configure the incognito state of the minimap controller.
+- (void)configureIncognito:(BOOL)isIncognito;
+
 @end
 
 namespace ios {

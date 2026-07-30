@@ -69,6 +69,9 @@ public class MediaNotificationController {
     // Used to help initialize `mPendingIntentActionSwipe`.
     @VisibleForTesting public @Nullable PendingIntentInitializer mPendingIntentInitializer;
 
+    public static final String EXTRA_NOTIFICATION_ID =
+            "org.chromium.components.browser_ui.media.EXTRA_NOTIFICATION_ID";
+
     public static final String ACTION_PLAY = "org.chromium.components.browser_ui.media.ACTION_PLAY";
     public static final String ACTION_PAUSE =
             "org.chromium.components.browser_ui.media.ACTION_PAUSE";
@@ -437,9 +440,11 @@ public class MediaNotificationController {
     @VisibleForTesting
     public PendingIntentProvider createPendingIntent(String action) {
         Intent intent = assumeNonNull(mDelegate.createServiceIntent()).setAction(action);
+        int notificationId = mDelegate.getNotificationId();
+        intent.putExtra(EXTRA_NOTIFICATION_ID, notificationId);
         return PendingIntentProvider.getService(
                 getContext(),
-                0,
+                notificationId,
                 intent,
                 PendingIntent.FLAG_CANCEL_CURRENT
                         | IntentUtils.getPendingIntentMutabilityFlag(false));
@@ -491,8 +496,11 @@ public class MediaNotificationController {
         /** Called when a notification has been shown and should be logged in UMA. */
         void logNotificationShown(NotificationWrapper notification);
 
-        /** Returns true if multiple media notifications are enabled. */
-        boolean isMultipleMediaNotificationsEnabled();
+        /** Returns the media type ID associated with this delegate. */
+        int getMediaTypeId();
+
+        /** Returns the unique notification ID associated with this delegate. */
+        int getNotificationId();
     }
 
     public MediaNotificationController(Delegate delegate) {

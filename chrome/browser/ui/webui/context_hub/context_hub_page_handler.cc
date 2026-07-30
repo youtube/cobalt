@@ -4,9 +4,12 @@
 
 #include "chrome/browser/ui/webui/context_hub/context_hub_page_handler.h"
 
+#include <vector>
+
 #include "base/functional/bind.h"
 #include "chrome/browser/context_hub/context_hub_service.h"
 #include "chrome/browser/context_hub/context_hub_service_factory.h"
+#include "chrome/browser/context_hub/memory_bank/memory_bank_entry.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/personal_context/proto/features/auto_todos.pb.h"
 #include "content/public/browser/web_contents.h"
@@ -71,4 +74,40 @@ void ContextHubPageHandler::OnAutoTodosGenerated(
     }
   }
   std::move(callback).Run(std::move(mojo_todos));
+}
+
+void ContextHubPageHandler::GetAllEntries(GetAllEntriesCallback callback) {
+  auto* service = ContextHubServiceFactory::GetForProfile(profile_);
+  if (!service) {
+    std::move(callback).Run({});
+    return;
+  }
+
+  service->GetAllEntries(base::BindOnce(
+      [](GetAllEntriesCallback callback,
+         std::vector<context_hub::MemoryBankEntry> entries) {
+        std::vector<browser::context_hub::mojom::MemoryBankEntryPtr>
+            mojo_entries;
+        for (const auto& entry : entries) {
+          auto mojo_entry = browser::context_hub::mojom::MemoryBankEntry::New();
+          mojo_entry->id = entry.id;
+          switch (entry.type) {
+            case context_hub::MemoryBankType::kTab:
+              mojo_entry->type = browser::context_hub::mojom::EntryType::kTab;
+              break;
+            case context_hub::MemoryBankType::kTextSelection:
+              mojo_entry->type =
+                  browser::context_hub::mojom::EntryType::kTextSelection;
+              break;
+          }
+          mojo_entry->timestamp = entry.timestamp;
+          mojo_entry->url = entry.url;
+          mojo_entry->tab_title = entry.tab_title;
+          mojo_entry->selected_text = entry.selected_text;
+          mojo_entry->tags = entry.tags;
+          mojo_entries.push_back(std::move(mojo_entry));
+        }
+        std::move(callback).Run(std::move(mojo_entries));
+      },
+      std::move(callback)));
 }

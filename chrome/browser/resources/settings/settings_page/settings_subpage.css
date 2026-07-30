@@ -1,0 +1,89 @@
+/* Copyright 2026 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+/* #css_wrapper_metadata_start
+ * #type=style-lit
+ * #import=../settings_shared_lit.css.js
+ * #import=chrome://resources/cr_elements/cr_shared_style_lit.css.js
+ * #include=cr-shared-style-lit settings-shared-lit
+ * #css_wrapper_metadata_end */
+
+:host {
+  box-sizing: border-box;
+  display: block;
+  left: 0;
+  /* Do not shorten '0px' below to '0' as the calc function requires
+   * units. */
+  min-height: calc(100vh - var(--cr-toolbar-height) -
+      var(--cr-toolbar-padding-top, 0px));
+  padding-bottom: 60px;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+:host(:not(.multi-card)) {
+  background-color: var(--cr-card-background-color);
+  box-shadow: var(--cr-card-shadow);
+}
+
+@media (forced-colors: active) {
+  /* Use border instead of box-shadow (which does not work) in Windows
+     HCM. */
+  :host(:not(.multi-card)) {
+    border-inline-end: var(--cr-border-hcm);
+    border-inline-start: var(--cr-border-hcm);
+  }
+}
+
+#headerLine {
+  min-height: 40px;
+  padding-bottom: 24px;
+  padding-top: 8px;
+}
+
+#learnMore {
+  align-items: center;
+  display: flex;
+  height: var(--cr-icon-ripple-size);
+  justify-content: center;
+  margin-inline-end: var(--cr-icon-ripple-margin);
+  margin-inline-start: var(--cr-icon-button-margin-start);
+  position: relative;  /* Needed for cr-ripple. */
+  width: var(--cr-icon-ripple-size);
+}
+
+#title-icon {
+  height: 36px;
+  width: 36px;
+}
+
+#title-icon,
+#favicon {
+  margin-inline-end: 12px;
+  margin-inline-start: 2px;
+}
+
+#closeButton {
+  /* Centers the ripple on the icon with appropriate margin on right. */
+  margin-inline-end: 10px;
+  margin-inline-start: -10px;
+}
+
+.cr-title-text {
+  /* Title should stay on one line. */
+  white-space: nowrap;
+  /* Show ellipsis if title would overflow. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+h1 {
+  flex: 1;  /* Push other items to the end. */
+}
+
+cr-search-field {
+  /* Keep normal icon spacing from subpage-title-extra controls. */
+  margin-inline-start: 16px;
+}

@@ -103,6 +103,15 @@ class BlinkInitializer : public blink::Platform {
   BlinkInitializer& operator=(const BlinkInitializer&) = delete;
 
   ~BlinkInitializer() override = default;
+
+  // Required for binders to work, for testing, run on a single thread.
+  scoped_refptr<base::SequencedTaskRunner> MediaThreadTaskRunner() override {
+    return base::SequencedTaskRunner::GetCurrentDefault();
+  }
+
+  scoped_refptr<base::SingleThreadTaskRunner> GetIOTaskRunner() const override {
+    return base::SingleThreadTaskRunner::GetCurrentDefault();
+  }
 };
 
 class ImageDecoderImplTest : public testing::Test {

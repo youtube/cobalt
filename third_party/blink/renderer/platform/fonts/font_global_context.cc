@@ -59,8 +59,7 @@ FontGlobalContext::FontGlobalContext(PassKey)
           "FontGlobalContext",
           kFontGlobalContextTraits,
           this,
-          MemoryConsumerRegistration::CheckUnregister::kDisabled,
-          MemoryConsumerRegistration::CheckRegistryExists::kDisabled) {}
+          MemoryConsumerRegistration::CheckUnregister::kDisabled) {}
 
 void FontGlobalContext::Dispose() {
   memory_consumer_registration_.Dispose();

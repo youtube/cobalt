@@ -9,7 +9,7 @@ undefined behavior is possible.
 
 This document discusses when and how to use unsafe code in first-party Chromium.
 There is a different policy for
-[unsafe code in third-party libraries](//third_party/rust/README-importing-new-crates.md#security).
+[unsafe code in third-party libraries](/third_party/rust/README-importing-new-crates.md#security).
 
 ## When to use `unsafe`
 
@@ -71,14 +71,14 @@ precise: they are the main (and sometimes only) way for readers to reason about
 safety, so they must have all the relevant information.
 
 In the future the presence of safety comments will be enforced at compile time
-via a [clippy lint](//docs/rust/clippy.md).
+via a [clippy lint](/docs/rust/clippy.md).
 
 ### Usage Guidelines
 
 * Write a safe implementation first. You can always retrofit it with `unsafe` if
   you really need the performance later.
 * Keep it minimal as much as possible:
-  * Encapsulate the unsafety: [avoid exposing unsafe APIs](//docs/rust/api_design.md##unsafety),
+  * Encapsulate the unsafety: [avoid exposing unsafe APIs](/docs/rust/api_design.md##unsafety),
     and rely only on local invariants that you can enforce yourself.
   * `unsafe` blocks should wrap only the parts that are actually unsafe:
 

@@ -432,6 +432,7 @@ class OptionalButtonView extends FrameLayout implements TransitionListener {
             TooltipCompat.setTooltipText(mButton, null);
         }
         mContentDescription = buttonSpec.getContentDescription();
+        mButton.setContentDescription(mContentDescription);
         boolean showTextBubble = buttonData.shouldShowTextBubble();
 
         // If the transition root hasn't been laid out then try again after the next layout. This
@@ -614,11 +615,13 @@ class OptionalButtonView extends FrameLayout implements TransitionListener {
     /**
      * Listens to all transition starts. This is called even when animations are disabled.
      * Implementation of {@link TransitionListener}.
+     *
      * @param transition Transition that started, not used.
      */
     @Override
     public void onTransitionStart(Transition transition) {
-        if (mState != State.RUNNING_ACTION_CHIP_COLLAPSE_TRANSITION) {
+        if (mState != State.RUNNING_ACTION_CHIP_COLLAPSE_TRANSITION
+                && (transition == null || transition.getDuration() != 0)) {
             // Disable click listeners during the transitions (except action chip collapse, which
             // goes to the same icon/action).
             mButton.setOnClickListener(null);

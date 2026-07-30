@@ -87,6 +87,7 @@
 #import "components/subscription_eligibility/subscription_eligibility_prefs.h"
 #import "components/supervised_user/core/browser/supervised_user_metrics_service.h"
 #import "components/supervised_user/core/browser/supervised_user_preferences.h"
+#import "components/sync/base/account_pref_utils.h"
 #import "components/sync/service/device_statistics_scheduler.h"
 #import "components/sync/service/glue/sync_transport_data_prefs.h"
 #import "components/sync/service/sync_prefs.h"
@@ -151,14 +152,6 @@
 
 namespace {
 
-// Deprecated 08/2025.
-inline constexpr char kInvalidationClientIDCache[] =
-    "invalidation.per_sender_client_id_cache";
-inline constexpr char kInvalidationTopicsToHandler[] =
-    "invalidation.per_sender_topics_to_handler";
-inline constexpr char kParcelTrackingDisabled[] = "parcel_tracking.disabled";
-inline constexpr char kHomeCustomizationMagicStackParcelTrackingEnabled[] =
-    "ios.home_customization.magic_stack.parcel_tracking.enabled";
 
 // Deprecated 09/2025.
 inline constexpr char kNtpShownBookmarksFolder[] = "ntp.shown_bookmarks_folder";
@@ -887,12 +880,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   // Prefs for the Synced Set Up Feature.
   registry->RegisterIntegerPref(prefs::kSyncedSetUpImpressionCount, 0);
 
-  // Deprecated 08/2025.
-  registry->RegisterDictionaryPref(kInvalidationClientIDCache);
-  registry->RegisterDictionaryPref(kInvalidationTopicsToHandler);
-  registry->RegisterBooleanPref(kParcelTrackingDisabled, false);
-  registry->RegisterBooleanPref(
-      kHomeCustomizationMagicStackParcelTrackingEnabled, false);
 
   // Deprecated 09/2025.
   registry->RegisterInt64Pref(kNtpShownBookmarksFolder, 0);
@@ -1005,11 +992,6 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
   // Added 09/2024.
   browsing_data::prefs::MaybeMigrateToQuickDeletePrefValues(prefs);
 
-  // Added 08/2025.
-  prefs->ClearPref(kInvalidationClientIDCache);
-  prefs->ClearPref(kInvalidationTopicsToHandler);
-  prefs->ClearPref(kParcelTrackingDisabled);
-  prefs->ClearPref(kHomeCustomizationMagicStackParcelTrackingEnabled);
 
   // Added 09/2025.
   prefs->ClearPref(kNtpShownBookmarksFolder);
@@ -1066,6 +1048,10 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
   prefs->ClearPref(kPreallocatedAddressesNext);
   prefs->ClearPref(kFirstPlusAddressCreationTime);
   prefs->ClearPref(kLastPlusAddressFillingTime);
+
+  // Added 06/2026.
+  syncer::ClearAccountKeyedPrefValue(
+      prefs, autofill::prefs::kAutofillAiOptInStatus, {});
 }
 
 void MigrateObsoleteUserDefault() {

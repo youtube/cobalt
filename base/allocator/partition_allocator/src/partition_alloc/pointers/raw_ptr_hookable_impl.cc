@@ -11,14 +11,18 @@ namespace base::internal {
 
 namespace {
 
-void DefaultWrapPtrHook(uintptr_t address) {}
-void DefaultReleaseWrappedPtrHook(uintptr_t address) {}
-void DefaultUnwrapForDereferenceHook(uintptr_t address) {}
-void DefaultUnwrapForExtractionHook(uintptr_t address) {}
+void DefaultWrapPtrHook(uintptr_t address, bool unprotected_in_release) {}
+void DefaultReleaseWrappedPtrHook(uintptr_t address,
+                                  bool unprotected_in_release) {}
+void DefaultUnwrapForDereferenceHook(uintptr_t address,
+                                     bool unprotected_in_release) {}
+void DefaultUnwrapForExtractionHook(uintptr_t address,
+                                    bool unprotected_in_release) {}
 void DefaultUnwrapForComparisonHook(uintptr_t address) {}
 void DefaultAdvanceHook(uintptr_t old_address, uintptr_t new_address) {}
-void DefaultDuplicateHook(uintptr_t address) {}
-void DefaultWrapPtrForDuplicationHook(uintptr_t address) {}
+void DefaultDuplicateHook(uintptr_t address, bool unprotected_in_release) {}
+void DefaultWrapPtrForDuplicationHook(uintptr_t address,
+                                      bool unprotected_in_release) {}
 void DefaultUnsafelyUnwrapForDuplicationHook(uintptr_t address) {}
 
 constexpr RawPtrHooks default_hooks = {

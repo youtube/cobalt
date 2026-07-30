@@ -173,6 +173,9 @@ class LocationBar {
   // Returns true if corresponding omnibox is editing text or empty.
   virtual bool IsEditingOrEmpty() const = 0;
 
+  // Returns true if the mouse is over the location bar.
+  virtual bool IsMouseHovered() const = 0;
+
   // Tells whatever UI system is used that it should recompute sizes of things.
   virtual void InvalidateLayout() = 0;
 

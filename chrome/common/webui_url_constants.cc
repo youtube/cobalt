@@ -298,6 +298,7 @@ base::span<const base::cstring_view> ChromeDebugURLs() {
       {blink::kChromeUIBadCastCrashURL,
        blink::kChromeUIBrowserCrashURL,
        blink::kChromeUIBrowserDcheckURL,
+       blink::kChromeUIBrowserUIHang,
        blink::kChromeUIBrowserHeapMemberDerefAfterFreeURL,
        blink::kChromeUIBrowserHeapOverflowURL,
        blink::kChromeUIBrowserHeapUaFURL,

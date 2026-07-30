@@ -50,6 +50,7 @@ class SVGPathElement final : public SVGGeometryElement {
 
   HeapVector<Member<SVGPathSegment>> getPathData(
       const SVGPathDataSettings* settings);
+  void setPathData(const HeapVector<Member<SVGPathSegment>>& path_data);
 
   SVGAnimatedPath* GetPath() const { return path_.Get(); }
 

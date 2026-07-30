@@ -117,6 +117,8 @@ class WebUIReadOnlyOmnibox : public OmniboxView {
       const toolbar_ui_api::mojom::OmniboxActionTextInput& text_input);
   base::expected<std::monostate, mojo_base::mojom::ErrorPtr> OnKey(
       const toolbar_ui_api::mojom::OmniboxActionKey& key);
+  base::expected<std::monostate, mojo_base::mojom::ErrorPtr> OnMouse(
+      const toolbar_ui_api::mojom::OmniboxActionMouse& mouse);
 
   ui::DomKey LookupAndCacheDomKey(std::string_view key_str);
 

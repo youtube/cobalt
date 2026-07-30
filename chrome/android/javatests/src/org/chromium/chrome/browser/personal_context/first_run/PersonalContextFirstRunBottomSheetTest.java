@@ -115,7 +115,7 @@ public class PersonalContextFirstRunBottomSheetTest {
 
         onView(withText(R.string.personal_context_notice_primary_button)).perform(click());
 
-        verify(mDelegate).onInfoAcknowledged();
+        verify(mDelegate).onNoticeAcknowledged();
     }
 
     @Test

@@ -42,13 +42,14 @@ bool IsValidOmniboxAutofillSuggestion(SuggestionType type) {
     case SuggestionType::kAddressFieldByFieldFilling:
     case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kAllSavedPasswordsEntry:
+    case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemoryInactivityNudge:
     case SuggestionType::kAtMemoryNoConnection:
-    case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemorySearchAffordance:
     case SuggestionType::kAtMemorySearchResult:
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kAutocompleteEntry:
+    case SuggestionType::kAutofillAiOtherOrders:
     case SuggestionType::kBackupPasswordEntry:
     case SuggestionType::kBnplEntry:
     case SuggestionType::kBnplFootnote:
@@ -75,6 +76,7 @@ bool IsValidOmniboxAutofillSuggestion(SuggestionType type) {
     case SuggestionType::kManageAddress:
     case SuggestionType::kManageAutofillAi:
     case SuggestionType::kManageAutofillAiIdentityDocs:
+    case SuggestionType::kManageAutofillAiShopping:
     case SuggestionType::kManageAutofillAiTravel:
     case SuggestionType::kManageCreditCard:
     case SuggestionType::kManageIban:
@@ -84,8 +86,8 @@ bool IsValidOmniboxAutofillSuggestion(SuggestionType type) {
     case SuggestionType::kMixedFormMessage:
     case SuggestionType::kOneTimePasswordEntry:
     case SuggestionType::kOpenGemini:
-    case SuggestionType::kPasswordFieldByFieldFilling:
     case SuggestionType::kPasswordEntry:
+    case SuggestionType::kPasswordFieldByFieldFilling:
     case SuggestionType::kPendingStateSignin:
     case SuggestionType::kPersonalContextNotice:
     case SuggestionType::kSaveAndFillCreditCardEntry:
@@ -235,7 +237,7 @@ void OmniboxAutofillDelegate::OnAutofillManagerStateChanged(
     AutofillManager::LifecycleState current) {
   switch (previous) {
     case AutofillManager::LifecycleState::kActive:
-      client_->GetPaymentsAutofillClient()->HideOmniboxAutofillChip();
+      HideOmniboxAutofillChip();
       break;
     default:
       break;
@@ -252,7 +254,7 @@ void OmniboxAutofillDelegate::OnAfterFormsSeen(
   }
   for (const FormGlobalId& id : removed_forms) {
     if (id == trigger_form_global_id_) {
-      client_->GetPaymentsAutofillClient()->HideOmniboxAutofillChip();
+      HideOmniboxAutofillChip();
       return;
     }
   }
@@ -391,6 +393,17 @@ bool OmniboxAutofillDelegate::FieldIsInMainFrame(
     const AutofillField& field) const {
   return field.host_frame() == manager.driver().GetFrameToken() &&
          !manager.driver().GetParent();
+}
+
+void OmniboxAutofillDelegate::Reset() {
+  candidate_form_found_ = false;
+  trigger_form_global_id_ = FormGlobalId();
+  trigger_field_global_id_ = FieldGlobalId();
+}
+
+void OmniboxAutofillDelegate::HideOmniboxAutofillChip() {
+  client_->GetPaymentsAutofillClient()->HideOmniboxAutofillChip();
+  Reset();
 }
 
 }  // namespace autofill

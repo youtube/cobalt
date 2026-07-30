@@ -43,7 +43,7 @@ class GranularityStrategyTest : public EditingTestBase {
   void SetUp() override;
 
   Text* AppendTextNode(const String& data);
-  void SetInnerHTMLWithoutTrustedTypes(const char*);
+  void SetInnerHtmlWithoutTrustedTypes(const char*);
   // Parses the text node, appending the info to letter_pos_ and word_middles_.
   void ParseText(Text*);
   void ParseText(const TextNodeVector&);
@@ -91,7 +91,7 @@ Text* GranularityStrategyTest::AppendTextNode(const String& data) {
   return text;
 }
 
-void GranularityStrategyTest::SetInnerHTMLWithoutTrustedTypes(
+void GranularityStrategyTest::SetInnerHtmlWithoutTrustedTypes(
     const char* html_content) {
   GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(
       String::FromUtf8(html_content));
@@ -140,7 +140,7 @@ void GranularityStrategyTest::ParseText(const TextNodeVector& text_nodes) {
 }
 
 Text* GranularityStrategyTest::SetupTranslateZ(String str) {
-  SetInnerHTMLWithoutTrustedTypes(
+  SetInnerHtmlWithoutTrustedTypes(
       "<html>"
       "<head>"
       "<style>"
@@ -165,7 +165,7 @@ Text* GranularityStrategyTest::SetupTranslateZ(String str) {
 }
 
 Text* GranularityStrategyTest::SetupTransform(String str) {
-  SetInnerHTMLWithoutTrustedTypes(
+  SetInnerHtmlWithoutTrustedTypes(
       "<html>"
       "<head>"
       "<style>"
@@ -190,7 +190,7 @@ Text* GranularityStrategyTest::SetupTransform(String str) {
 }
 
 Text* GranularityStrategyTest::SetupRotate(String str) {
-  SetInnerHTMLWithoutTrustedTypes(
+  SetInnerHtmlWithoutTrustedTypes(
       "<html>"
       "<head>"
       "<style>"
@@ -265,7 +265,7 @@ void GranularityStrategyTest::SetupVerticalAlign(String str1,
                                                  String str3,
                                                  wtf_size_t sel_begin,
                                                  wtf_size_t sel_end) {
-  SetInnerHTMLWithoutTrustedTypes(
+  SetInnerHtmlWithoutTrustedTypes(
       "<html>"
       "<head>"
       "<style>"
@@ -287,7 +287,7 @@ void GranularityStrategyTest::SetupFontSize(String str1,
                                             String str3,
                                             wtf_size_t sel_begin,
                                             wtf_size_t sel_end) {
-  SetInnerHTMLWithoutTrustedTypes(
+  SetInnerHtmlWithoutTrustedTypes(
       "<html>"
       "<head>"
       "<style>"

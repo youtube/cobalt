@@ -22,6 +22,7 @@
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/stringprintf.h"
 #include "base/types/expected.h"
 #include "chrome/browser/ai/ai_context_bound_object.h"
 #include "chrome/browser/ai/ai_manager.h"
@@ -686,7 +687,16 @@ AILanguageModel::AILanguageModel(
     OPTIMIZATION_GUIDE_LOGGER(
         optimization_guide_common::mojom::LogSource::MODEL_EXECUTION,
         logger_.get())
-        << "Starting on-device session for PromptApi";
+        << "Starting on-device session for PromptApi with SessionParams: "
+        << base::StringPrintf(
+               "{max_tokens=%u, top_k=%u, temperature=%.2f, image_input=%d, "
+               "audio_input=%d}",
+               session_params_->max_tokens, session_params_->top_k,
+               session_params_->temperature,
+               session_params_->capabilities.Has(
+                   on_device_model::CapabilityFlags::kImageInput),
+               session_params_->capabilities.Has(
+                   on_device_model::CapabilityFlags::kAudioInput));
   }
 }
 

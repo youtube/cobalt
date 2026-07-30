@@ -150,6 +150,7 @@ source_set("test_support") {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "consent_kit/consent_kit_url_builder_unittest.cc",
     "contextual_search_metrics_recorder_unittest.cc",
     "contextual_search_service_unittest.cc",
     "contextual_search_session_entry_unittest.cc",
@@ -163,6 +164,8 @@ source_set("unit_tests") {
     ":public",
     ":test_support",
     "//base/test:test_support",
+    "//components/contextual_search/consent_kit",
+    "//components/contextual_search/consent_kit/proto:privacy_primitive_config_proto",
     "//components/contextual_tasks/public:query_contextualizer",
     "//components/lens",
     "//components/lens/proto/server:proto",

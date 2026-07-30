@@ -28,6 +28,8 @@ class CORE_EXPORT DOMNodeIds {
 
   // Return a node for the DOMNodeID or null if one hasn't been assigned.
   static Node* NodeForId(DOMNodeId);
+
+  static void SetLastIdForTesting(DOMNodeId);
 };
 
 }  // namespace blink

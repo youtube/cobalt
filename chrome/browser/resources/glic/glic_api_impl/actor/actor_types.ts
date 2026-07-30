@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {ActorTaskInterruptReason, ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AutofillSuggestion, CancelActionsResult, Credential, FormFillingRequest, FormFillingResponse, Journal, NavigationConfirmationRequest, NavigationConfirmationResponse, SelectAutofillSuggestionsDialogRequest, SelectAutofillSuggestionsDialogResponse, SelectCredentialDialogRequest, SelectCredentialDialogResponse, TabContextOptions, TaskOptions, UserConfirmationDialogRequest, UserConfirmationDialogResponse} from '../../glic_api/glic_api.js';
+import type {ActorTaskInterruptReason, ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AutofillSuggestion, CancelActionsResult, Credential, FormFillingRequest, FormFillingResponse, Journal, NavigationConfirmationRequest, NavigationConfirmationResponse, SelectAutofillSuggestionsDialogRequest, SelectAutofillSuggestionsDialogResponse, SelectCredentialDialogRequest, SelectCredentialDialogResponse, TabContextOptions, TaskOptions, UserConfirmationDialogRequest, UserConfirmationDialogResponse, GmailOtpOptInRequest, GmailOtpOptInResponse} from '../../glic_api/glic_api.js';
 import type {ResumeActorTaskResultPrivate, RgbaImage, TabContextResultPrivate, TabDataPrivate} from '../request_types.js';
 import {defInterface, defMessage} from '../transport/messaging.js';
 
@@ -294,6 +294,16 @@ export const ActorClientDef = defInterface({
         response: SelectAutofillSuggestionsDialogResponsePrivate,
       }>(),
     },
+    {
+      name: 'requestToShowGmailOtpOptInDialog',
+      request: defMessage<{
+        request: GmailOtpOptInRequestPrivate,
+      }>(),
+      response: defMessage<{
+        response: GmailOtpOptInResponsePrivate,
+      }>(),
+      backgroundAllowed: true,
+    },
   ],
 });
 
@@ -388,3 +398,17 @@ export enum SelectAutofillSuggestionsDialogErrorReason {
   NO_ACTOR_TASK_DELEGATE = 2,
 }
 // LINT.ThenChange(//chrome/common/actor_webui.mojom:SelectAutofillSuggestionsDialogErrorReason)
+
+export declare interface GmailOtpOptInRequestPrivate extends
+    Omit<GmailOtpOptInRequest, 'onDialogClosed'> {}
+
+export declare interface GmailOtpOptInResponsePrivate extends
+    GmailOtpOptInResponse {
+  errorReason?: GmailOtpOptInErrorReason;
+}
+
+// LINT.IfChange(GmailOtpOptInErrorReason)
+export enum GmailOtpOptInErrorReason {
+  REQUEST_PROMISE_NO_SUBSCRIBER = 0,
+}
+// LINT.ThenChange(//chrome/common/actor_webui.mojom:GmailOtpOptInErrorReason)

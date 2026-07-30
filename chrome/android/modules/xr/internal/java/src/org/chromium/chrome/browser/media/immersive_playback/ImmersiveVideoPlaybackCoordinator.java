@@ -103,22 +103,20 @@ public class ImmersiveVideoPlaybackCoordinator
     }
 
     /**
-     * Updates the video layout based on stereo mode and projection type.
+     * Sets the initial immersive video options for the playback session.
      *
      * @param stereoMode The stereo mode to use.
      * @param projectionType The projection type to use.
+     * @param isRecommended True if this format is recommended by native video metadata.
      */
-    public void updateVideoLayout(
-            @ImmersiveStereoMode int stereoMode, @ImmersiveProjectionType int projectionType) {
-        mStereoMode = stereoMode;
-        mProjectionType = projectionType;
-
-        mPlayerCoordinator.updateVideoLayout(
-                mapStereoMode(stereoMode), mapProjectionType(projectionType));
-        mPlayerCoordinator.updatePose(
-                mPoseManager.getPlayerPanelTranslation(projectionType),
-                mPoseManager.getPlayerPanelRotation(projectionType));
-        updateControlPanel();
+    public void setImmersiveVideoOptions(
+            @ImmersiveStereoMode int stereoMode,
+            @ImmersiveProjectionType int projectionType,
+            boolean isRecommended) {
+        if (isRecommended) {
+            mFormatCoordinator.setRecommendedFormat(stereoMode, projectionType);
+        }
+        updateVideoLayout(stereoMode, projectionType);
     }
 
     /**
@@ -234,6 +232,19 @@ public class ImmersiveVideoPlaybackCoordinator
     // =========================================================================
     // Private Helpers - Panel Management
     // =========================================================================
+
+    private void updateVideoLayout(
+            @ImmersiveStereoMode int stereoMode, @ImmersiveProjectionType int projectionType) {
+        mStereoMode = stereoMode;
+        mProjectionType = projectionType;
+
+        mPlayerCoordinator.updateVideoLayout(
+                mapStereoMode(stereoMode), mapProjectionType(projectionType));
+        mPlayerCoordinator.updatePose(
+                mPoseManager.getPlayerPanelTranslation(projectionType),
+                mPoseManager.getPlayerPanelRotation(projectionType));
+        updateControlPanel();
+    }
 
     private void toggleControlPanel() {
         if (mControlCoordinator.isShowing()) {

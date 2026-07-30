@@ -106,4 +106,17 @@ public class LensSupportStatusHelperUnitTest {
                 LensMetrics.LensSupportStatus.LENS_SEARCH_SUPPORTED,
                 (int) LensSupportStatusHelper.getLensSupportStatus(mProfile, false));
     }
+
+    @Test
+    public void isLensSearchSupported_supported() {
+        GSAUtils.setFakePassableGsaEnvironmentForTesting(true);
+        Mockito.when(mProfile.isOffTheRecord()).thenReturn(false);
+        Mockito.when(mTemplateUrlService.isDefaultSearchEngineGoogle()).thenReturn(true);
+        Assert.assertTrue(LensSupportStatusHelper.isLensSearchSupported(mProfile, false));
+    }
+
+    @Test
+    public void isLensSearchSupported_unsupported() {
+        Assert.assertFalse(LensSupportStatusHelper.isLensSearchSupported(mProfile, true));
+    }
 }

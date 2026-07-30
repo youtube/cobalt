@@ -1,0 +1,77 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+assert(is_win || is_mac || is_linux)
+
+source_set("mic_preview") {
+  public = [
+    "audio_stream_coordinator.h",
+    "audio_stream_view.h",
+    "mic_coordinator.h",
+    "mic_mediator.h",
+    "mic_view_controller.h",
+  ]
+  sources = [
+    "audio_stream_coordinator.cc",
+    "audio_stream_view.cc",
+    "mic_coordinator.cc",
+    "mic_mediator.cc",
+    "mic_view_controller.cc",
+  ]
+  deps = [
+    "//chrome/app:generated_resources",
+    "//chrome/browser/media/prefs",
+    "//chrome/browser/ui/views:layout_provider",
+    "//components/capture_mode",
+    "//components/prefs",
+    "//components/vector_icons",
+    "//ui/color:color_headers",
+  ]
+  public_deps = [
+    "//base",
+    "//components/media_effects",
+    "//content/public/browser",
+    "//media/capture:capture_lib",
+    "//ui/base",
+    "//ui/views",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "mic_coordinator_unittest.cc" ]
+  deps = [
+    ":mic_preview",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser/media/prefs",
+    "//chrome/browser/ui/views/media_preview",
+    "//chrome/test:test_support",
+    "//components/media_effects/test:test_support",
+    "//content/test:test_support",
+    "//services/audio/public/cpp:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//ui/views",
+    "//ui/views:test_support",
+  ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [ "audio_stream_coordinator_browsertest.cc" ]
+  deps = [
+    ":mic_preview",
+    "//base",
+    "//chrome/browser/ui/views/media_preview",
+    "//chrome/test:test_support",
+    "//components/media_effects/test:test_support",
+    "//content/test:test_support",
+    "//services/audio/public/cpp:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//ui/views",
+  ]
+}

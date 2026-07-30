@@ -266,6 +266,10 @@ public class PolicyCache {
         mReadable = false;
     }
 
+    void enableReadability() {
+        mReadable = true;
+    }
+
     public void setReadableForTesting(boolean readable) {
         mReadable = readable;
     }

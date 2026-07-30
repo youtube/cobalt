@@ -4,7 +4,9 @@
 
 #include "remoting/host/linux/gnome_desktop_resizer.h"
 
+#include <array>
 #include <functional>
+#include <iterator>
 #include <optional>
 
 #include "base/check.h"
@@ -85,6 +87,52 @@ void AddMonitorForLayoutCalculation(GnomeDisplayConfig& config,
   info.modes.push_back(mode);
 }
 
+struct GnomeScale {
+  double scale;
+  int numerator;
+  int denominator;
+};
+
+// Valid GNOME fractional scales in the range [1.0, 4.0], sorted in ascending
+// order.
+//
+// The scale list is filtered based on two constraints:
+// 1. Denominator <= 4: GNOME 49 only supports fractional scales with
+//    denominators up to 4.
+// 2. Numerator <= 7: GNOME 49 does not restrict the numerator, but we cap it
+//    at 7. When adjusting the physical resolution, we round it down to a
+//    multiple of the numerator. Capping the numerator at 7 guarantees that
+//    this rounding-down operation will never reduce the width or height by
+//    more than 6 pixels, ensuring the resulting resolution remains a close
+//    fit for the client's screen size.
+constexpr auto kGnomeScales = std::to_array<GnomeScale>({
+    {1.0, 1, 1},
+    {5.0 / 4.0, 5, 4},
+    {4.0 / 3.0, 4, 3},
+    {3.0 / 2.0, 3, 2},
+    {5.0 / 3.0, 5, 3},
+    {7.0 / 4.0, 7, 4},
+    {2.0, 2, 1},
+    {7.0 / 3.0, 7, 3},
+    {5.0 / 2.0, 5, 2},
+    {3.0, 3, 1},
+    {7.0 / 2.0, 7, 2},
+    {4.0, 4, 1},
+});
+
+int FindBestScaleIndex(double requested_scale) {
+  int best_idx = 0;
+  double best_diff = -1.0;
+  for (size_t i = 0; i < kGnomeScales.size(); ++i) {
+    double diff = InverseIfLessThanOne(requested_scale / kGnomeScales[i].scale);
+    if (best_diff < 0.0 || diff < best_diff) {
+      best_diff = diff;
+      best_idx = i;
+    }
+  }
+  return best_idx;
+}
+
 }  // namespace
 
 GnomeDesktopResizer::GnomeDesktopResizer(
@@ -141,11 +189,47 @@ ScreenResolution GnomeDesktopResizer::GetCurrentResolution(
 std::list<ScreenResolution> GnomeDesktopResizer::GetSupportedResolutions(
     const ScreenResolution& preferred,
     webrtc::ScreenId screen_id) {
-  // TODO: crbug.com/431816005 - clamp scale to the supported range of
-  // text-scaling-factor. Also, the effective scale of non-primary displays are
-  // dictated by the preferred scale of the primary display, which may need to
-  // be reflected here.
-  return {preferred};
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (preferred.dimensions().width() <= 0 ||
+      preferred.dimensions().height() <= 0) {
+    return {preferred};
+  }
+
+  double requested_scale = 1.0;
+  if (preferred.dpi().x() > 0) {
+    requested_scale = static_cast<double>(preferred.dpi().x()) / kDefaultDpi;
+  }
+
+  int best_idx = FindBestScaleIndex(requested_scale);
+
+  for (int i = best_idx; i >= 0; --i) {
+    const auto& candidate = kGnomeScales[i];
+    if (candidate.scale == 1.0) {
+      // 1.0 is always supported, and we don't need to tweak the resolution.
+      return {
+          ScreenResolution(preferred.dimensions(), {kDefaultDpi, kDefaultDpi})};
+    }
+
+    int w = preferred.dimensions().width();
+    int h = preferred.dimensions().height();
+    int rounded_w = w - (w % candidate.numerator);
+    int rounded_h = h - (h % candidate.numerator);
+
+    int logical_w = (rounded_w * candidate.denominator) / candidate.numerator;
+    int logical_h = (rounded_h * candidate.denominator) / candidate.numerator;
+
+    // GNOME enforces a minimum logical area of 600x600 (360,000 pixels).
+    if (logical_w * logical_h >= 360000) {
+      int dpi = static_cast<int>(candidate.scale * kDefaultDpi);
+      return {ScreenResolution({rounded_w, rounded_h}, {dpi, dpi})};
+    }
+  }
+
+  // Fallback to satisfy the compiler. This is unreachable because the loop
+  // is guaranteed to return when it reaches the 1.0x scale (which is always
+  // supported).
+  return {ScreenResolution(preferred.dimensions(), {kDefaultDpi, kDefaultDpi})};
 }
 
 void GnomeDesktopResizer::SetResolution(const ScreenResolution& resolution,

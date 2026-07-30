@@ -39,8 +39,18 @@ void ResetGemini() {}
 void UpdatePageAttachmentState(
     GeminiPageContextAttachmentState gemini_attachment_state) {}
 
+// Mock value used by unit tests to override the return value of IsProtectedUrl.
+static bool g_mock_protected_url = false;
+
+// Sets whether all URLs should be simulated as protected in tests.
+void SetMockProtectedUrl(bool is_protected) {
+  g_mock_protected_url = is_protected;
+}
+
+// Stub implementation for tests. Returns the mock value set by
+// SetMockProtectedUrl.
 bool IsProtectedUrl(std::string url) {
-  return false;
+  return g_mock_protected_url;
 }
 
 void UpdatePageContext(GeminiPageContext* gemini_page_context) {}

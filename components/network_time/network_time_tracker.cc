@@ -474,8 +474,8 @@ void NetworkTimeTracker::CheckTime() {
     return;
   }
 
-  std::string query_string;
-  query_signer_.SignRequest("", &query_string);
+  std::string query_string =
+      query_signer_.PrepareRequestParameters(/*request_body=*/"");
   GURL::Replacements replacements;
   replacements.SetQueryStr(query_string);
   GURL url = server_url_.ReplaceComponents(replacements);

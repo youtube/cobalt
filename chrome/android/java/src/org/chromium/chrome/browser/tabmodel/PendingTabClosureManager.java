@@ -350,6 +350,11 @@ public class PendingTabClosureManager {
         return mRewoundList.getPendingRewindTab(tabId) != null;
     }
 
+    /** Returns whether there are any pending closures in the rewound list. */
+    public boolean hasPendingClosures() {
+        return mRewoundList.hasPendingClosures();
+    }
+
     /**
      * Marks a {@link Tab} as ready to commit. If it is the last tab of a {@link TabClosureEvent}
      * to be "ready to commit" then the {@link TabClosureEvent} will commit all tabs as closed.

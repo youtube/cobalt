@@ -15,6 +15,8 @@
 namespace crypto::encrypt {
 
 enum EncryptionKind {
+  // Deprecated; don't add new uses of SHA-1 without talking to a member of
+  // //CRYPTO_OWNERS.
   RSA_OAEP_SHA1,
 };
 

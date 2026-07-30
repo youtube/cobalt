@@ -263,10 +263,14 @@ AttributeCollectionGeneric<Container, ContainerMemberType>::FindWithPrefix(
       // FindIndex(const AtomicString&).
       DCHECK(!(name == item.LocalName()));
     } else {
-      // FIXME: Would be faster to do this comparison without calling ToString,
-      // which generates a temporary string by concatenation. But this branch is
-      // only reached if the attribute name has a prefix, which is rare in HTML.
-      if (name == item.GetName().ToString()) {
+      // `name` equals "prefix:localName"; compare it piece by piece instead of
+      // building that temporary string via QualifiedName::ToString().
+      const AtomicString& prefix = item.Prefix();
+      const AtomicString& local_name = item.LocalName();
+      if (name.length() == prefix.length() + 1 + local_name.length() &&
+          name.substr(0, prefix.length()) == prefix &&
+          name.substr(prefix.length()).starts_with(':') &&
+          name.substr(prefix.length() + 1) == local_name) {
         return &item;
       }
     }

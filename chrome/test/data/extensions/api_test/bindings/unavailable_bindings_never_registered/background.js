@@ -42,10 +42,11 @@ function test() {
               assertStorageIsRegistered();
 
               // Although storage should throw an error on use since it's
-              // removed.
+              // Verify `chrome.storage.local.get` throws when storage
+              // permission is removed.
               chrome.test.assertThrows(
-                  chrome.storage.local.get, chrome.storage.local,
-                  [function() {}],
+                  chrome.storage.local.get.bind(
+                      chrome.storage.local, function() {}),
                   `'storage.get' is not available in this context.`);
 
               chrome.test.succeed();

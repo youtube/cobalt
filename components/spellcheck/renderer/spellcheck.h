@@ -126,9 +126,13 @@ class SpellCheck : public spellcheck::mojom::SpellChecker {
   // SpellCheck a paragraph.
   // Returns true if |text| is correctly spelled, false otherwise.
   // If the spellchecker failed to initialize, always returns true.
-  bool SpellCheckParagraph(const std::u16string& text,
-                           spellcheck::mojom::SpellCheckHost& host,
-                           std::vector<blink::WebTextCheckingResult>* results);
+  // If |document_custom_words| is non-null, misspellings whose word matches an
+  // entry are dropped.
+  bool SpellCheckParagraph(
+      const std::u16string& text,
+      spellcheck::mojom::SpellCheckHost& host,
+      std::vector<blink::WebTextCheckingResult>* results,
+      const std::set<std::u16string>* document_custom_words = nullptr);
 
   // Requests to spellcheck the specified text in the background. This function
   // posts a background task and calls SpellCheckParagraph() in the task.

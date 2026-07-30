@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_METRICS_PRIVATE_METRICS_PRIVATE_INSIGHTS_PRIVATE_INSIGHTS_FEATURES_H_
 #define COMPONENTS_METRICS_PRIVATE_METRICS_PRIVATE_INSIGHTS_PRIVATE_INSIGHTS_FEATURES_H_
 
+#include <string>
+
 #include "base/component_export.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
@@ -24,7 +26,17 @@ extern const base::FeatureParam<base::TimeDelta> kPrivateInsightsUploadInterval;
 COMPONENT_EXPORT(PRIVATE_INSIGHTS)
 BASE_DECLARE_FEATURE(kPrivateInsightsPaicErrorReporting);
 
+// Enables using Attestation Transparency Verifier in Private Insights.
+COMPONENT_EXPORT(PRIVATE_INSIGHTS)
+extern const base::FeatureParam<bool> kFcpUseAttestationTransparencyVerifier;
+
 // FCP client configuration parameters.
+
+COMPONENT_EXPORT(PRIVATE_INSIGHTS)
+extern const base::FeatureParam<std::string> kFcpServerUri;
+
+COMPONENT_EXPORT(PRIVATE_INSIGHTS)
+extern const base::FeatureParam<std::string> kFcpPopulationNameContextualCues;
 
 COMPONENT_EXPORT(PRIVATE_INSIGHTS)
 extern const base::FeatureParam<base::TimeDelta> kFcpConditionPollingPeriod;
@@ -58,6 +70,9 @@ extern const base::FeatureParam<base::TimeDelta> kFcpTransientErrorsRetryDelay;
 
 COMPONENT_EXPORT(PRIVATE_INSIGHTS)
 extern const base::FeatureParam<base::TimeDelta> kFcpPermanentErrorsRetryDelay;
+
+COMPONENT_EXPORT(PRIVATE_INSIGHTS)
+extern const base::FeatureParam<int> kMaxContextualCueEvents;
 
 }  // namespace private_insights
 

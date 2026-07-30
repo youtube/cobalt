@@ -82,6 +82,9 @@ const base::FeatureParam<std::string>
 const base::FeatureParam<std::string> kPrerender2ReuseInitiatorProcessEagerness{
     &kPrerender2ReuseInitiatorProcess, "eagerness", "moderate"};
 
+const base::FeatureParam<int> kPrerender2ReuseInitiatorProcessMaxReuseCount{
+    &kPrerender2ReuseInitiatorProcess, "max_reuse_count", 2};
+
 bool UsePrefetchPrerenderIntegration() {
   return base::FeatureList::IsEnabled(
              features::kPrerender2FallbackPrefetchSpecRules) ||

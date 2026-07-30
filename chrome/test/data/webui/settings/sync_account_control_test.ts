@@ -12,7 +12,7 @@ import {assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {isChildVisible} from 'chrome://webui-test/test_util.js';
 // <if expr="not is_chromeos">
 import type {CrActionMenuElement, StoredAccount} from 'chrome://settings/settings.js';
-import {Router} from 'chrome://settings/settings.js';
+import {ChromeSigninAccessPoint, Router, routes} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertNotEquals} from 'chrome://webui-test/chai_assert.js';
 import {isVisible} from 'chrome://webui-test/test_util.js';
 
@@ -229,6 +229,19 @@ suite('SyncAccountControl', function() {
         assertFalse(isChildVisible(testElement, '#dropdown-arrow'));
         assertTrue(isChildVisible(testElement, '#signout-button'));
       });
+
+  test('recordSigninOffered called when promo shown', async function() {
+    Router.getInstance().navigateTo(routes.PEOPLE);
+    testElement.accessPoint = ChromeSigninAccessPoint.SETTINGS;
+    testElement.syncStatus = {
+      signedInState: SignedInState.SIGNED_OUT,
+      signedInUsername: '',
+      statusAction: StatusAction.NO_ACTION,
+    };
+    simulateStoredAccounts([]);
+    const accessPoint = await browserProxy.whenCalled('recordSigninOffered');
+    assertEquals(ChromeSigninAccessPoint.SETTINGS, accessPoint);
+  });
 
   test('Signout buttons not available to managed accounts', function() {
     testElement.syncStatus = {
@@ -568,46 +581,6 @@ suite('SyncAccountControl', function() {
       disabled: false,
     };
     assertTrue(isChildVisible(testElement, '#turn-off'));
-    assertFalse(isChildVisible(testElement, '#sync-error-button'));
-  });
-
-  test('hide buttons', function() {
-    testElement.hideButtons = true;
-    testElement.syncStatus = {
-      firstSetupInProgress: false,
-      signedInState: SignedInState.SYNCING,
-      signedInUsername: 'bar@bar.com',
-      statusAction: StatusAction.NO_ACTION,
-      hasError: false,
-      hasUnrecoverableError: false,
-      disabled: false,
-    };
-
-    assertFalse(isChildVisible(testElement, '#turn-off'));
-    assertFalse(isChildVisible(testElement, '#sync-error-button'));
-
-    testElement.syncStatus = {
-      firstSetupInProgress: false,
-      signedInState: SignedInState.SYNCING,
-      signedInUsername: 'bar@bar.com',
-      hasError: true,
-      hasUnrecoverableError: false,
-      statusAction: StatusAction.REAUTHENTICATE,
-      disabled: false,
-    };
-    assertFalse(isChildVisible(testElement, '#turn-off'));
-    assertFalse(isChildVisible(testElement, '#sync-error-button'));
-
-    testElement.syncStatus = {
-      firstSetupInProgress: false,
-      signedInState: SignedInState.SYNCING,
-      signedInUsername: 'bar@bar.com',
-      hasError: true,
-      hasUnrecoverableError: false,
-      statusAction: StatusAction.ENTER_PASSPHRASE,
-      disabled: false,
-    };
-    assertFalse(isChildVisible(testElement, '#turn-off'));
     assertFalse(isChildVisible(testElement, '#sync-error-button'));
   });
 

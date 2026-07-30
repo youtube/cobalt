@@ -256,8 +256,8 @@ class BufferManagerClientSideArraysTest : public BufferManagerTestBase {
     GpuDriverBugWorkarounds gpu_driver_bug_workarounds;
     gpu_driver_bug_workarounds.use_client_side_arrays_for_stream_buffers = true;
     GpuFeatureInfo gpu_feature_info;
-    feature_info_ =
-        new FeatureInfo(gpu_driver_bug_workarounds, gpu_feature_info);
+    feature_info_ = base::MakeRefCounted<FeatureInfo>(
+        gpu_driver_bug_workarounds, gpu_feature_info);
     SetUpBase(nullptr, feature_info_.get(), "");
   }
 

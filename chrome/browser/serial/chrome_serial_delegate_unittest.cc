@@ -80,4 +80,26 @@ TEST_F(ChromeSerialDelegateStoragePartitionTest,
          "non-default-partition frames";
 }
 
+TEST_F(ChromeSerialDelegateStoragePartitionTest, SerialBlocksGuestViews) {
+  ChromeSerialDelegate serial_delegate;
+
+  // 1. Test HTTPS Guest (should be blocked)
+  {
+    const GURL kGuestUrl("https://example.com/");
+    std::unique_ptr<content::WebContents> guest =
+        CreateGuestPartitionWebContents(kGuestUrl);
+    content::RenderFrameHost* rfh = guest->GetPrimaryMainFrame();
+    EXPECT_FALSE(serial_delegate.CanRequestPortPermission(rfh));
+  }
+
+  // 2. Test about:blank Guest (should be blocked)
+  {
+    const GURL kGuestUrl("about:blank");
+    std::unique_ptr<content::WebContents> guest =
+        CreateGuestPartitionWebContents(kGuestUrl);
+    content::RenderFrameHost* rfh = guest->GetPrimaryMainFrame();
+    EXPECT_FALSE(serial_delegate.CanRequestPortPermission(rfh));
+  }
+}
+
 }  // namespace

@@ -256,8 +256,8 @@ FakeMediaResource::FakeMediaResource(int num_video_configs,
 
 FakeMediaResource::~FakeMediaResource() = default;
 
-std::vector<DemuxerStream*> FakeMediaResource::GetAllStreams() {
-  std::vector<DemuxerStream*> result;
+std::vector<raw_ptr<DemuxerStream>> FakeMediaResource::GetAllStreams() {
+  std::vector<raw_ptr<DemuxerStream>> result;
   result.push_back(&fake_video_stream_);
   return result;
 }

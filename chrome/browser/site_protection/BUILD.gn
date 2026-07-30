@@ -65,3 +65,50 @@ static_library("site_protection") {
     "//url",
   ]
 }
+
+if (!is_android) {
+  source_set("unit_tests") {
+    testonly = true
+
+    sources = [
+      "site_familiarity_process_selection_deferring_condition_unittest.cc",
+      "site_familiarity_utils_unittest.cc",
+      "site_protection_metrics_observer_unittest.cc",
+    ]
+
+    deps = [
+      ":site_protection",
+      ":utils",
+      "//base",
+      "//chrome/browser:browser_process",
+      "//chrome/browser/content_settings",
+      "//chrome/browser/engagement",
+      "//chrome/browser/history",
+      "//chrome/browser/profiles",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/safe_browsing:test_support",
+      "//chrome/browser/search_engines",
+      "//chrome/browser/ui/safety_hub:test_support",
+      "//chrome/common:chrome_features",
+      "//chrome/common:constants",
+      "//chrome/test:test_support",
+      "//components/content_settings/core/common",
+      "//components/history/core/browser",
+      "//components/history/core/test",
+      "//components/keyed_service/core",
+      "//components/prefs",
+      "//components/safe_browsing/core/browser/db:test_database_manager",
+      "//components/safe_browsing/core/common:features",
+      "//components/safe_browsing/core/common:safe_browsing_prefs",
+      "//components/search_engines",
+      "//components/site_engagement/content",
+      "//components/sync_preferences:test_support",
+      "//components/ukm:test_support",
+      "//content/public/browser",
+      "//content/public/common",
+      "//content/test:test_support",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
+}

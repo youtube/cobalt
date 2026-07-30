@@ -3660,6 +3660,153 @@ TEST(SchedulerStateMachineTest, ThrottleDueToConsecutiveNoDamageFrames) {
 }
 
 TEST(SchedulerStateMachineTest,
+     ThrottleDueToConsecutiveNoDamageFramesCustomConfig) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  base::FieldTrialParams params;
+  params["repeated_no_damage_frame_throttling_threshold1"] = "10";
+  params["repeated_no_damage_frame_throttling_threshold2"] =
+      "10";  // Actual threshold2 = 10 + 10 = 20
+  params["repeated_no_damage_frame_throttling_factor1"] = "3";
+  params["repeated_no_damage_frame_throttling_factor2"] =
+      "2";  // Actual factor2 = 2 * 3 = 6
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      features::kThrottleRepeatedNoDamageFrames, params);
+
+  SchedulerSettings default_scheduler_settings;
+  StateMachine state(default_scheduler_settings);
+  SET_UP_STATE(state);
+
+  state.FrameIntervalUpdated(base::Hertz(60));
+
+  // Initially, there's no throttling.
+  EXPECT_EQ(base::TimeDelta(), state.MainFrameThrottledInterval());
+  EXPECT_FALSE(state.ShouldThrottleSendBeginMainFrame());
+
+  // 1. Simulating 10 consecutive no-update frames to trigger Level 1.
+  for (int i = 0; i < 10; i++) {
+    state.IssueNextBeginImplFrame();
+    state.SetNeedsBeginMainFrame(false);
+    EXPECT_ACTION_UPDATE_STATE(
+        SchedulerStateMachine::Action::SEND_BEGIN_MAIN_FRAME);
+    state.BeginMainFrameAborted(CommitEarlyOutReason::kFinishedNoUpdates);
+  }
+
+  // Issue next frame immediately (0ms advanced). It should throttle.
+  state.IssueNextBeginImplFrame();
+  state.SetNeedsBeginMainFrame(false);
+  EXPECT_TRUE(state.ShouldThrottleSendBeginMainFrame());
+  EXPECT_ACTION(SchedulerStateMachine::Action::NONE);
+
+  // Advance time by 32ms (less than Level 1 throttled interval of ~45ms).
+  // It should still throttle.
+  state.AdvanceTimeBy(base::Milliseconds(32));
+  state.IssueNextBeginImplFrame();
+  EXPECT_TRUE(state.ShouldThrottleSendBeginMainFrame());
+  EXPECT_ACTION(SchedulerStateMachine::Action::NONE);
+
+  // Advance time by another 16ms (total 48ms since last sent BMF).
+  // It should no longer throttle (48ms >= 45ms).
+  state.AdvanceTimeBy(base::Milliseconds(16));
+  state.IssueNextBeginImplFrame();
+  EXPECT_FALSE(state.ShouldThrottleSendBeginMainFrame());
+  EXPECT_ACTION_UPDATE_STATE(
+      SchedulerStateMachine::Action::SEND_BEGIN_MAIN_FRAME);
+  state.BeginMainFrameAborted(CommitEarlyOutReason::kFinishedNoUpdates);
+
+  // 2. Simulating 10 more consecutive no-update frames (total 20) to trigger
+  // Level 2. The previous aborted frame incremented the counter to 11. We need
+  // 9 more. Since Level 1 throttling is now active (interval ~45ms), we must
+  // advance time by at least 48ms before each frame to avoid them being
+  // throttled.
+  for (int i = 0; i < 9; i++) {
+    state.AdvanceTimeBy(base::Milliseconds(48));
+    state.IssueNextBeginImplFrame();
+    state.SetNeedsBeginMainFrame(false);
+    EXPECT_ACTION_UPDATE_STATE(
+        SchedulerStateMachine::Action::SEND_BEGIN_MAIN_FRAME);
+    state.BeginMainFrameAborted(CommitEarlyOutReason::kFinishedNoUpdates);
+  }
+
+  // Now we are at 20 consecutive no-damage frames. Level 2 should be active.
+  // Throttled interval should be ~90ms.
+
+  // Issue next frame immediately. It should throttle.
+  state.IssueNextBeginImplFrame();
+  state.SetNeedsBeginMainFrame(false);
+  EXPECT_TRUE(state.ShouldThrottleSendBeginMainFrame());
+  EXPECT_ACTION(SchedulerStateMachine::Action::NONE);
+
+  // Advance time by 80ms (less than Level 2 throttled interval of ~90ms).
+  // It should still throttle.
+  state.AdvanceTimeBy(base::Milliseconds(80));
+  state.IssueNextBeginImplFrame();
+  EXPECT_TRUE(state.ShouldThrottleSendBeginMainFrame());
+  EXPECT_ACTION(SchedulerStateMachine::Action::NONE);
+
+  // Advance time by another 16ms (total 96ms).
+  // It should no longer throttle (96ms >= 90ms).
+  state.AdvanceTimeBy(base::Milliseconds(16));
+  state.IssueNextBeginImplFrame();
+  EXPECT_FALSE(state.ShouldThrottleSendBeginMainFrame());
+  EXPECT_ACTION_UPDATE_STATE(
+      SchedulerStateMachine::Action::SEND_BEGIN_MAIN_FRAME);
+}
+
+TEST(SchedulerStateMachineTest,
+     ThrottleDueToConsecutiveNoDamageFramesInvalidConfigClamping) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  base::FieldTrialParams params;
+  params["repeated_no_damage_frame_throttling_threshold1"] = "0";
+  params["repeated_no_damage_frame_throttling_threshold2"] = "-5";
+  params["repeated_no_damage_frame_throttling_factor1"] = "0";
+  params["repeated_no_damage_frame_throttling_factor2"] = "-2";
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      features::kThrottleRepeatedNoDamageFrames, params);
+
+  SchedulerSettings default_scheduler_settings;
+  StateMachine state(default_scheduler_settings);
+  SET_UP_STATE(state);
+
+  state.FrameIntervalUpdated(base::Hertz(60));
+
+  // If clamped correctly:
+  // threshold1 = std::max(1, 0) = 1
+  // threshold2 = threshold1 + std::max(1, -5) = 1 + 1 = 2
+  // factor1 = std::max(1, 0) = 1
+  // factor2 = factor1 * std::max(1, -2) = 1 * 1 = 1
+
+  // Since factor1 and factor2 are both 1, the throttled interval is:
+  // 0.9 * 16.67ms * 1 = 15ms.
+  // Since 15ms is less than the nominal 16.67ms frame interval,
+  // it should never actually throttle consecutive frames at 60Hz.
+
+  // Simulate 5 consecutive no-update frames (past both threshold1 and
+  // threshold2). Since threshold1 = 1, throttling (interval ~15ms) is active
+  // after the first frame. We must advance time by 17ms (nominal frame
+  // interval) between each frame to avoid them being throttled (since 17ms >=
+  // 15ms).
+  for (int i = 0; i < 5; i++) {
+    if (i > 0) {
+      state.AdvanceTimeBy(base::Milliseconds(17));
+    }
+    state.IssueNextBeginImplFrame();
+    state.SetNeedsBeginMainFrame(false);
+    EXPECT_ACTION_UPDATE_STATE(
+        SchedulerStateMachine::Action::SEND_BEGIN_MAIN_FRAME);
+    state.BeginMainFrameAborted(CommitEarlyOutReason::kFinishedNoUpdates);
+  }
+
+  // Issue next frame at nominal 16.67ms interval. It should NOT throttle
+  // because the throttled interval is 15ms, and 16.67ms >= 15ms.
+  state.AdvanceTimeBy(base::Milliseconds(17));
+  state.IssueNextBeginImplFrame();
+  state.SetNeedsBeginMainFrame(false);
+  EXPECT_FALSE(state.ShouldThrottleSendBeginMainFrame());
+  EXPECT_ACTION_UPDATE_STATE(
+      SchedulerStateMachine::Action::SEND_BEGIN_MAIN_FRAME);
+}
+
+TEST(SchedulerStateMachineTest,
      ThrottleDueToConsecutiveNoDamageFramesWithHighFramerateRequest) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(

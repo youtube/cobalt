@@ -19,6 +19,7 @@
 #include "components/performance_manager/execution_context_priority/frame_audible_voter.h"
 #include "components/performance_manager/execution_context_priority/frame_capturing_media_stream_voter.h"
 #include "components/performance_manager/execution_context_priority/frame_visibility_voter.h"
+#include "components/performance_manager/execution_context_priority/glic_actuation_priority_voter.h"
 #include "components/performance_manager/execution_context_priority/inherit_client_priority_voter.h"
 #include "components/performance_manager/execution_context_priority/loading_page_voter.h"
 #include "components/performance_manager/graph/frame_node_impl_describer.h"
@@ -48,12 +49,12 @@ GraphCreatedCallback* GetAdditionalGraphCreatedCallback() {
   return additional_graph_created_callback.get();
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 // Adds the ForceForegroundVoter to the graph if the corresponding feature or
 // policy is enabled.
 void AddForceForegroundVoter(
     execution_context_priority::PriorityVotingSystem* priority_voting_system,
     PrefService* pref_service) {
-#if !BUILDFLAG(IS_ANDROID)
   if (user_tuning::prefs::IsForceForegroundPriorityForAllTabsEnabled(
           pref_service)) {
     // Casts a USER_BLOCKING vote for all frames and workers.
@@ -63,18 +64,27 @@ void AddForceForegroundVoter(
     priority_voting_system->AddPriorityVoter<
         execution_context_priority::ForceForegroundVoterForUrls>();
   }
-#endif  // BUILDFLAG(IS_ANDROID)
 }
+#endif  // BUILDFLAG(IS_ANDROID)
 
 // Adds the default set of execution context voters.
 void AddVoters(GraphImpl* graph, PrefService* pref_service) {
   if (auto* priority_voting_system =
           graph->GetRegisteredObjectAs<
               execution_context_priority::PriorityVotingSystem>()) {
+    // Disabled on Android because most of the prioritization logic still lives
+    // in ChildProcessLauncherHelperImpl.
+    // TODO(b/400850388): Enable voters on Android.
+#if !BUILDFLAG(IS_ANDROID)
+    const auto policy_settings =
+        PerformanceManagerImpl::GetProcessPriorityPolicySettings();
     // When a frame is visible, casts either a USER_BLOCKING or USER_VISIBLE
     // vote, depending on if the frame is important.
-    priority_voting_system
-        ->AddPriorityVoter<execution_context_priority::FrameVisibilityVoter>();
+    if (!policy_settings.ignore_visibility) {
+      priority_voting_system
+          ->AddPriorityVoter<execution_context_priority::FrameVisibilityVoter>(
+              policy_settings.ignore_main_frame_visibility);
+    }
 
     // Casts a USER_BLOCKING vote when a frame is audible.
     priority_voting_system
@@ -107,6 +117,7 @@ void AddVoters(GraphImpl* graph, PrefService* pref_service) {
     }
 
     AddForceForegroundVoter(priority_voting_system, pref_service);
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_MAC)
     // Casts a vote for each child frame with the parent's priority.
@@ -115,6 +126,12 @@ void AddVoters(GraphImpl* graph, PrefService* pref_service) {
           execution_context_priority::InheritParentPriorityVoter>();
     }
 #endif
+
+    if (base::FeatureList::IsEnabled(features::kGlicActuationPriorityVoter)) {
+      // Casts a USER_BLOCKING vote when a frame is Glic actuating.
+      priority_voting_system->AddPriorityVoter<
+          execution_context_priority::GlicActuationPriorityVoter>();
+    }
   }
 }
 
@@ -148,8 +165,10 @@ void OnGraphCreated(const GraphFeatures& graph_features,
 PerformanceManagerLifetime::PerformanceManagerLifetime(
     const GraphFeatures& graph_features,
     GraphCreatedCallback graph_created_callback,
-    PrefService* pref_service) {
-  performance_manager_ = PerformanceManagerImpl::Create();
+    PrefService* pref_service,
+    ProcessPriorityPolicySettings process_priority_policy_settings) {
+  performance_manager_ =
+      PerformanceManagerImpl::Create(process_priority_policy_settings);
   OnGraphCreated(graph_features, std::move(graph_created_callback),
                  pref_service);
   performance_manager_registry_ =

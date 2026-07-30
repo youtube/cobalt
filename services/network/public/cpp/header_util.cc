@@ -122,7 +122,8 @@ bool AreRequestHeadersSafe(const net::HttpRequestHeaders& request_headers) {
   return true;
 }
 
-bool ContainsForbiddenSecurityHeader(net::HttpRequestHeaders& headers) {
+bool ContainsForbiddenSecurityHeader(net::HttpRequestHeaders& headers,
+                                     std::string* out_forbidden_header_name) {
   static const bool enabled =
       base::FeatureList::IsEnabled(features::kRestrictForbiddenSecurityHeaders);
   if (!enabled) {
@@ -203,6 +204,9 @@ bool ContainsForbiddenSecurityHeader(net::HttpRequestHeaders& headers) {
     if (base::StartsWith(it.name(), "Sec-",
                          base::CompareCase::INSENSITIVE_ASCII)) {
       if (!sanitize_and_check_security_header(it.name(), it.value())) {
+        if (out_forbidden_header_name) {
+          *out_forbidden_header_name = std::string(it.name());
+        }
         return true;
       }
     }

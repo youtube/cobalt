@@ -11,6 +11,9 @@
 
 #include "base/compiler_specific.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
+#include "base/memory_coordinator/test_memory_consumer_registry.h"
+#include "base/memory_coordinator/utils.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/rand_util.h"
 #include "base/run_loop.h"
@@ -31,7 +34,6 @@
 #include "third_party/blink/public/platform/scheduler/test/renderer_scheduler_test_support.h"
 #include "third_party/blink/renderer/platform/bindings/parkable_string_manager.h"
 #include "third_party/blink/renderer/platform/disk_data_allocator_test_utils.h"
-#include "third_party/blink/renderer/platform/instrumentation/memory_pressure_listener.h"
 #include "third_party/blink/renderer/platform/scheduler/public/rail_mode_observer.h"
 #include "third_party/blink/renderer/platform/scheduler/public/worker_pool.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/partitions.h"
@@ -186,6 +188,14 @@ class ParkableStringTest
     ParkableStringManager::Instance().SetDataAllocatorForTesting(nullptr);
   }
 
+  void TriggerCriticalMemoryPressureAndWait() {
+    test_memory_consumer_registry_.NotifyUpdateMemoryLimitAsync(
+        base::kCriticalMemoryPressureThreshold, base::DoNothing());
+    test_memory_consumer_registry_.NotifyReleaseMemoryAsync(
+        task_environment_.QuitClosure());
+    task_environment_.RunUntilQuit();
+  }
+
   size_t GetExpectedCompressedSize() const {
     switch (ParkableStringImpl::GetCompressionAlgorithm()) {
       case ParkableStringImpl::CompressionAlgorithm::kZlib:
@@ -201,6 +211,7 @@ class ParkableStringTest
   bool first_aging_done_ = false;
   base::test::ScopedFeatureList scoped_feature_list_;
   base::test::TaskEnvironment task_environment_;
+  base::TestMemoryConsumerRegistry test_memory_consumer_registry_;
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1018,7 +1029,7 @@ TEST_P(ParkableStringTest, SynchronousToDisk) {
   parkable.ToString();
 }
 
-TEST_P(ParkableStringTest, OnMemoryPressure) {
+TEST_P(ParkableStringTest, OnReleaseMemory) {
   ParkableString parkable1 = CreateAndParkAll();
   ParkableString parkable2(MakeLargeString('b').ReleaseImpl());
 
@@ -1034,8 +1045,7 @@ TEST_P(ParkableStringTest, OnMemoryPressure) {
   String retained = parkable2.ToString();
   EXPECT_TRUE(parkable2.Impl()->has_compressed_data());
 
-  ParkableStringManager::Instance().OnMemoryPressure(
-      base::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  TriggerCriticalMemoryPressureAndWait();
   EXPECT_TRUE(parkable1.Impl()->is_parked());  // Parked synchronously.
   EXPECT_FALSE(parkable2.Impl()->is_parked());
 
@@ -1167,8 +1177,7 @@ TEST_P(ParkableStringTest, CompressionDisabled) {
   WaitForDelayedParking();
   EXPECT_FALSE(parkable.Impl()->may_be_parked());
 
-  ParkableStringManager::Instance().OnMemoryPressure(
-      base::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  TriggerCriticalMemoryPressureAndWait();
   EXPECT_FALSE(parkable.Impl()->may_be_parked());
 }
 

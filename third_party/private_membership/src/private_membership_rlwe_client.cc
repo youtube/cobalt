@@ -351,7 +351,8 @@ PrivateMembershipRlweClient::CheckMembership(
     const auto& encrypted_id = encrypted_id_value_pair.encrypted_id();
     // Check encrypted_id is a prefix of to_match_hash. If it is, then the id
     // is a member.
-    if (std::equal(encrypted_id.begin(), encrypted_id.end(),
+    if (encrypted_id.size() <= to_match_hash.size() &&
+        std::equal(encrypted_id.begin(), encrypted_id.end(),
                    to_match_hash.begin())) {
       membership_response.set_is_member(true);
       if (!encrypted_id_value_pair.encrypted_value().empty()) {

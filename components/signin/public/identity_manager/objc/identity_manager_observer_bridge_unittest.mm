@@ -199,7 +199,7 @@ TEST_F(IdentityManagerObserverBridgeTest,
       CoreAccountId::FromGaiaId(signin::GetTestGaiaIdForEmail("1@mail.com"));
   signin::AccountsInCookieJarInfo accounts_in_cookie_jar_info(
       /*accounts_are_fresh=*/true, /*accounts=*/{signed_in_account});
-  GoogleServiceAuthError noError(GoogleServiceAuthError::State::NONE);
+  GoogleServiceAuthError noError = GoogleServiceAuthError::AuthErrorNone();
   observer_bridge_.get()->OnAccountsInCookieUpdated(accounts_in_cookie_jar_info,
                                                     noError);
   EXPECT_EQ(1, observer_bridge_delegate_.onAccountsInCookieUpdatedCount);

@@ -17,6 +17,7 @@
 #include "components/multistep_filter/core/extraction/filter_extractor.h"
 #include "components/multistep_filter/core/logging/log_entry.h"
 #include "components/multistep_filter/core/logging/multistep_filter_logger.h"
+#include "components/multistep_filter/core/prefs/multistep_filter_retention_prefs.h"
 #include "components/multistep_filter/core/storage/filter_store.h"
 #include "components/multistep_filter/core/suggestion/filter_suggestion_generator.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
@@ -110,6 +111,7 @@ MultistepFilterService::MultistepFilterService(Params params)
       identity_manager_(params.identity_manager),
       consent_helper_(std::move(params.consent_helper)),
       log_router_(params.log_router),
+      pref_service_(params.pref_service),
       sync_service_(params.sync_service) {
   CHECK(annotation_index_client_);
   CHECK(filter_store_);
@@ -127,6 +129,21 @@ MultistepFilterService::~MultistepFilterService() = default;
 
 void MultistepFilterService::Shutdown() {
   history_service_observation_.Reset();
+}
+
+void MultistepFilterService::RecordSuggestionImpression() {
+  if (!pref_service_) {
+    return;
+  }
+  RecordImpression(pref_service_);
+}
+
+void MultistepFilterService::RecordUserInteractionWithSuggestion(
+    SuggestionUserDecision decision) {
+  if (!pref_service_) {
+    return;
+  }
+  RecordUserInteraction(pref_service_, decision);
 }
 
 void MultistepFilterService::ExtractAnnotation(int64_t navigation_id,

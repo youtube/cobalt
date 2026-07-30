@@ -287,11 +287,9 @@ class CONTENT_EXPORT RenderProcessHostImpl
       RenderProcessHostPriorityClient* priority_client) override;
   void RemovePriorityClient(
       RenderProcessHostPriorityClient* priority_client) override;
-#if !BUILDFLAG(IS_ANDROID)
   void SetPriorityOverride(base::Process::Priority priority) override;
   bool HasPriorityOverride() override;
   void ClearPriorityOverride() override;
-#endif
 #if BUILDFLAG(IS_ANDROID)
   void GraduateSpareToNormalRendererPriority() override;
   bool ShouldThrottleNavigationForSpareRendererGraduation() override;
@@ -1397,13 +1395,12 @@ class CONTENT_EXPORT RenderProcessHostImpl
 
   RenderProcessPriority priority_;
 
-#if !BUILDFLAG(IS_ANDROID)
-  // If this is set then the built-in process priority calculation system is
-  // ignored, and an externally computed process priority is used.
+  // On Desktop platforms, if this is set then the built-in process priority
+  // calculation system is ignored, and an externally computed process priority
+  // is used. On Android, this boosts the effective importance of the process.
   // TODO(pmonette): After experimentation, either remove this or rip out the
   // existing logic entirely.
   std::optional<base::Process::Priority> priority_override_;
-#endif
 
   // Used to allow a RenderWidgetHost to intercept various messages on the
   // IO thread.

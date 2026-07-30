@@ -64,7 +64,9 @@ class TPMMetricsProviderTest : public testing::Test {
   TPMMetricsProvider provider_;
 };
 
-TEST_F(TPMMetricsProviderTest, GetMetricsFullName) {
+// TODO(crbug.com/522422758): Re-enable after mocking TPM interface for
+// virtualized test shards.
+TEST_F(TPMMetricsProviderTest, DISABLED_GetMetricsFullName) {
   base::ScopedAllowBlockingForTesting scoped_allow_blocking_;
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   provider_.AsyncInit(base::BindOnce(

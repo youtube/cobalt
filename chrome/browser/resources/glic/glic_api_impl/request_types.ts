@@ -74,6 +74,21 @@ export const WebClientHostDef = defInterface({
       histogram: {id: 3},
     },
     {
+      name: 'activateTabWithUrl',
+      request: defMessage<{
+        exactUrl: string,
+        options: {
+          pattern?: string,
+          fallbackWindowId?: string,
+        },
+      }>(),
+      response: defMessage<{
+        // Undefined on failure.
+        tabData?: TabDataPrivate,
+      }>(),
+      histogram: {id: 102},
+    },
+    {
       name: 'openGlicSettingsPage',
       request: defMessage<{options?: OpenSettingsOptions}>(),
       histogram: {id: 4},
@@ -871,6 +886,7 @@ export const RECORDED_REQUEST_IDS = {
   WebClientCreated: 1,
   WebClientInitialized: 2,
   CreateTab: 3,
+  ActivateTabWithUrl: 102,
   OpenGlicSettingsPage: 4,
   ClosePanel: 5,
   ClosePanelAndShutdown: 6,

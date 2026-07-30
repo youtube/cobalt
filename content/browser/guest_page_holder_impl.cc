@@ -5,6 +5,8 @@
 #include "content/browser/guest_page_holder_impl.h"
 
 #include "base/notimplemented.h"
+#include "base/notreached.h"
+#include "content/browser/back_forward_cache/back_forward_cache_impl.h"
 #include "content/browser/renderer_host/cross_process_frame_connector.h"
 #include "content/browser/renderer_host/frame_tree.h"
 #include "content/browser/site_instance_impl.h"
@@ -191,6 +193,10 @@ FrameTree* GuestPageHolderImpl::GetDocumentPictureInPictureOpenerFrameTree() {
 
 void GuestPageHolderImpl::NotifyNavigationStateChangedFromController(
     InvalidateTypes changed_flags) {}
+
+BackForwardCacheImpl& GuestPageHolderImpl::GetBackForwardCache() {
+  NOTREACHED();
+}
 
 void GuestPageHolderImpl::NotifyBeforeFormRepostWarningShow() {}
 

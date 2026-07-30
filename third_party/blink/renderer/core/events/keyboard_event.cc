@@ -31,6 +31,7 @@
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/input/input_device_capabilities.h"
+#include "third_party/blink/renderer/core/keywords.h"
 #include "third_party/blink/renderer/platform/bindings/dom_wrapper_world.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/windows_keyboard_codes.h"
@@ -203,6 +204,13 @@ unsigned KeyboardEvent::which() const {
   // character code for keypress.  That's exactly what IE's "keyCode" returns.
   // So they are the same for keyboard events.
   return (unsigned)keyCode();
+}
+
+bool KeyboardEvent::IsEnterKeyKeydownEvent(Event& event) {
+  auto* keyboard_event = DynamicTo<KeyboardEvent>(event);
+  return event.type() == event_type_names::kKeydown && keyboard_event &&
+         keyboard_event->key() == keywords::kCapitalEnter &&
+         !keyboard_event->repeat();
 }
 
 void KeyboardEvent::InitLocationModifiers(unsigned location) {

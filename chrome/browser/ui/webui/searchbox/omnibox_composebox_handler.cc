@@ -107,19 +107,18 @@ OmniboxComposeboxHandler::OmniboxComposeboxHandler(
     content::WebContents* web_contents,
     GetSessionHandleCallback get_session_callback,
     ClearSessionHandleCallback clear_session_callback)
-    : ComposeboxHandler(std::move(pending_handler),
-                       std::move(pending_page),
-                       std::move(pending_searchbox_handler),
-                       std::move(pending_searchbox_page),
-                       profile,
-                       web_contents,
-                       std::make_unique<OmniboxController>(
-                           std::make_unique<OmniboxPopupComposeboxClient>(
-                               profile,
-                               web_contents,
-                               this)),
-                       std::move(get_session_callback),
-                       std::move(clear_session_callback)) {
+    : ComposeboxHandler(
+          std::move(pending_handler),
+          std::move(pending_page),
+          std::move(pending_searchbox_handler),
+          std::move(pending_searchbox_page),
+          profile,
+          web_contents,
+          std::make_unique<OmniboxPopupComposeboxClient>(profile,
+                                                         web_contents,
+                                                         this),
+          std::move(get_session_callback),
+          std::move(clear_session_callback)) {
   auto* aim_eligibility_service =
       AimEligibilityServiceFactory::GetForProfile(profile);
   if (aim_eligibility_service) {
@@ -133,9 +132,9 @@ OmniboxComposeboxHandler::OmniboxComposeboxHandler(
   // Set the callback for getting suggest inputs from the session.
   // The session is owned by WebUI controller and accessed via callback.
   // It is safe to use Unretained because omnibox client is owned by `this`.
-  static_cast<ContextualOmniboxClient*>(omnibox_controller()->client())
-      ->SetSuggestInputsCallback(base::BindRepeating(
-          &OmniboxComposeboxHandler::GetSuggestInputs, base::Unretained(this)));
+  static_cast<ContextualOmniboxClient*>(client())->SetSuggestInputsCallback(
+      base::BindRepeating(&OmniboxComposeboxHandler::GetSuggestInputs,
+                          base::Unretained(this)));
 }
 
 OmniboxComposeboxHandler::~OmniboxComposeboxHandler() = default;

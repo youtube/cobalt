@@ -17,9 +17,16 @@ namespace actor {
 std::unique_ptr<ActorToolRequest> MakeSuccessfulActorToolRequest(
     web::WebStateID identifier = web::WebStateID());
 
+// Creates an Action proto that will succeed.
+optimization_guide::proto::Action MakeSuccessfulActorAction(
+    web::WebStateID identifier = web::WebStateID());
+
 // Creates a tool request that fails execution. Selects the `Click` action
 // arbitrarily because it fails execution when no target tab is registered.
 std::unique_ptr<ActorToolRequest> MakeFailingActorToolRequest();
+
+// Creates an Action proto that will fail execution.
+optimization_guide::proto::Action MakeFailingActorAction();
 
 }  // namespace actor
 

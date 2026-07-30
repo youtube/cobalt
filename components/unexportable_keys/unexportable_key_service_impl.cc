@@ -6,24 +6,27 @@
 
 #include <algorithm>
 #include <array>
+#include <concepts>
 #include <memory>
+#include <type_traits>
 #include <utility>
 #include <variant>
 
 #include "base/containers/map_util.h"
 #include "base/containers/to_vector.h"
+#include "base/containers/transparent_hash.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/functional/function_ref.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/notimplemented.h"
-#include "base/notreached.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/types/expected.h"
 #include "base/types/expected_macros.h"
 #include "build/build_config.h"
@@ -35,20 +38,64 @@
 #include "components/unexportable_keys/unexportable_key_task_manager.h"
 #include "crypto/unexportable_key.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
-#include "third_party/abseil-cpp/absl/container/hash_container_defaults.h"
 
 namespace unexportable_keys {
 
 namespace {
 
+// The default list of signature algorithms to use for generating spare keys.
+constexpr std::array kSpareKeyAlgorithms = {
+    crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256,
+    crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256,
+};
+
+// Delays the initial replenishment of the spare key pool during service
+// creation. Hardware-backed key generation is extremely TPM/CPU intensive.
+// Deferring this by 2 minutes ensures it does not compete for resources
+// during the critical browser startup path.
+constexpr base::TimeDelta kSpareKeyPoolDelay = base::Minutes(2);
+
+// Creates a repeating key generation callback for the spare key pool,
+// binding the task manager and background origin.
+//
+// The task_manager and config must outlive the callback as they are stored in
+// the bind state by a reference.
+template <typename KeyType>
+base::RepeatingCallback<
+    void(crypto::UnexportableKeyProvider::Config,
+         base::span<const crypto::SignatureVerifier::SignatureAlgorithm>,
+         base::OnceCallback<void(ServiceErrorOr<scoped_refptr<KeyType>>)>)>
+CreateGenerateKeyCallbackForSparePool(UnexportableKeyTaskManager* task_manager,
+                                      BackgroundTaskOrigin origin) {
+  static_assert(std::same_as<KeyType, RefCountedUnexportableSigningKey> ||
+                    std::same_as<KeyType, RefCountedUnexportableAttestationKey>,
+                "Unsupported KeyType");
+
+  return base::BindRepeating(
+      [](UnexportableKeyTaskManager* task_manager, BackgroundTaskOrigin origin,
+         crypto::UnexportableKeyProvider::Config config,
+         base::span<const crypto::SignatureVerifier::SignatureAlgorithm>
+             algorithms,
+         base::OnceCallback<void(ServiceErrorOr<scoped_refptr<KeyType>>)>
+             callback) {
+        if constexpr (std::same_as<KeyType, RefCountedUnexportableSigningKey>) {
+          task_manager->GenerateSigningKeySlowlyAsync(
+              origin, std::move(config), algorithms,
+              BackgroundTaskPriority::kBestEffort, std::move(callback));
+        } else if constexpr (std::same_as<
+                                 KeyType,
+                                 RefCountedUnexportableAttestationKey>) {
+          task_manager->GenerateAttestationKeySlowlyAsync(
+              origin, std::move(config), algorithms,
+              BackgroundTaskPriority::kBestEffort, std::move(callback));
+        }
+      },
+      base::Unretained(task_manager), origin);
+}
+
 using WrappedKeyAndTag = std::pair<std::vector<uint8_t>, std::string>;
 using WrappedKeyAndTagView =
     std::pair<base::span<const uint8_t>, std::string_view>;
-
-struct WrappedKeyAndTagViewHash
-    : absl::DefaultHashContainerHash<WrappedKeyAndTagView> {
-  using is_transparent = void;
-};
 
 WrappedKeyAndTag Materialize(WrappedKeyAndTagView view) {
   auto [wrapped_key, tag] = view;
@@ -83,48 +130,50 @@ std::pair<std::vector<uint8_t>, std::string> GetWrappedKeyAndTag(
   return {key.key().GetWrappedKey(), std::move(tag)};
 }
 
-// The target capacity for the spare signing key pool. The service will attempt
-// to preemptively generate and pool keys in the background until it reaches
-// this threshold to reduce latency for future key requests.
-constexpr size_t kSpareSigningKeyPoolCapacity = 2;
+// Resolves the full UMA histogram name at compile-time based on the template
+// `KeyType` parameter. Only supported key types are permitted to compile.
+//
+// LINT.IfChange(GetSpareKeyPoolHistogramName)
+template <typename KeyType>
+std::string GetSpareKeyPoolHistogramName(std::string_view suffix) {
+  static_assert(std::same_as<KeyType, RefCountedUnexportableSigningKey> ||
+                    std::same_as<KeyType, RefCountedUnexportableAttestationKey>,
+                "Unsupported KeyType for spare key pool metrics");
 
-// The default list of signature algorithms to use for generating spare keys.
-constexpr std::array kSpareKeyAlgorithms = {
-    crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256,
-    crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256,
-};
-
-// Delays the initial replenishment of the spare key pool during service
-// creation. Hardware-backed key generation is extremely TPM/CPU intensive.
-// Deferring this by 2 minutes ensures it does not compete for resources
-// during the critical browser startup path.
-constexpr base::TimeDelta kSpareKeyPoolDelay = base::Minutes(2);
-
-std::string GetSparePoolHistogramName(std::string_view suffix) {
-  static constexpr std::string_view kSpareSigningKeyPoolHistogramPrefix =
-      "Crypto.UnexportableKeys.SparePool.Signing.";
-  return base::StrCat({kSpareSigningKeyPoolHistogramPrefix, suffix});
+  static constexpr std::string_view kSpareKeyPoolHistogramPrefix =
+      "Crypto.UnexportableKeys.SparePool";
+  return base::JoinString(
+      {kSpareKeyPoolHistogramPrefix,
+       std::same_as<KeyType, RefCountedUnexportableSigningKey> ? "Signing"
+                                                               : "Attestation",
+       suffix},
+      ".");
 }
-
-void RecordSparePoolRetrievalResultHistogram(
-    SpareKeyPoolRetrievalResult result) {
-  base::UmaHistogramEnumeration(GetSparePoolHistogramName("RetrievalResult"),
-                                result);
-}
+// LINT.ThenChange(//tools/metrics/histograms/metadata/net/histograms.xml:UnexportableKeysSpareKeyPoolType)
 
 // Wraps the original key generation callback with latency metrics tracking.
 // This records the duration from when the request was initiated until it is
 // fulfilled (either from the spare pool or via hardware generation).
-base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
-WrapCallbackWithSpareSigningKeyLatencyHistogram(
-    base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
-        callback) {
+template <typename KeyIdType>
+base::OnceCallback<void(ServiceErrorOr<KeyIdType>)>
+WrapCallbackWithSpareKeyLatencyHistogram(
+    base::OnceCallback<void(ServiceErrorOr<KeyIdType>)> callback) {
+  // Only `UnexportableSigningKeyId` and `UnexportableAttestationKeyId` are
+  // supported by the spare key pool.
+  static_assert(std::same_as<KeyIdType, UnexportableSigningKeyId> ||
+                std::same_as<KeyIdType, UnexportableAttestationKeyId>);
+
+  using KeyType =
+      std::conditional_t<std::same_as<KeyIdType, UnexportableSigningKeyId>,
+                         RefCountedUnexportableSigningKey,
+                         RefCountedUnexportableAttestationKey>;
+
   return base::BindOnce(
       [](base::TimeTicks start,
-         base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)> cb,
-         ServiceErrorOr<UnexportableSigningKeyId> result) {
+         base::OnceCallback<void(ServiceErrorOr<KeyIdType>)> cb,
+         ServiceErrorOr<KeyIdType> result) {
         base::UmaHistogramMediumTimes(
-            GetSparePoolHistogramName("RequestLatency"),
+            GetSpareKeyPoolHistogramName<KeyType>("RequestLatency"),
             base::TimeTicks::Now() - start);
         std::move(cb).Run(std::move(result));
       },
@@ -200,6 +249,47 @@ class MaybePendingKeyId {
 
   // Holds the value of its first alternative type by default.
   PendingCallbacksOrKeyId pending_callbacks_or_key_id_;
+};
+
+// A standalone task tracker representing a single in-flight key generation
+// request. It wraps the raw generation task and measures the elapsed time from
+// initiation to completion, reporting this duration via the completion
+// callback.
+template <typename KeyType>
+class SpareKeyPoolRequest {
+ public:
+  void Start(
+      crypto::UnexportableKeyProvider::Config config,
+      base::span<const crypto::SignatureVerifier::SignatureAlgorithm>
+          acceptable_algorithms,
+      base::RepeatingCallback<void(
+          crypto::UnexportableKeyProvider::Config,
+          base::span<const crypto::SignatureVerifier::SignatureAlgorithm>,
+          base::OnceCallback<void(ServiceErrorOr<scoped_refptr<KeyType>>)>)>
+          generate_key_fn,
+      base::OnceCallback<
+          void(ServiceErrorOr<scoped_refptr<KeyType>> key_or_error,
+               base::TimeDelta elapsed)> completion_callback) {
+    generate_key_fn.Run(
+        std::move(config), acceptable_algorithms,
+        base::BindOnce(&SpareKeyPoolRequest<KeyType>::OnKeyGenerated,
+                       weak_factory_.GetWeakPtr(), base::TimeTicks::Now(),
+                       std::move(completion_callback)));
+  }
+
+ private:
+  // Measures the elapsed time for the key generation and forwards the result
+  // to the completion callback.
+  void OnKeyGenerated(
+      base::TimeTicks start_time,
+      base::OnceCallback<void(ServiceErrorOr<scoped_refptr<KeyType>>,
+                              base::TimeDelta)> completion_callback,
+      ServiceErrorOr<scoped_refptr<KeyType>> key_or_error) {
+    std::move(completion_callback)
+        .Run(std::move(key_or_error), base::TimeTicks::Now() - start_time);
+  }
+
+  base::WeakPtrFactory<SpareKeyPoolRequest<KeyType>> weak_factory_{this};
 };
 
 }  // namespace
@@ -350,73 +440,199 @@ class UnexportableKeyServiceImpl::KeyRepository {
   }
 
  private:
-  using WrappedKeyAndTagMap = absl::flat_hash_map<WrappedKeyAndTag,
-                                                  MaybePendingKeyId<KeyIdType>,
-                                                  WrappedKeyAndTagViewHash,
-                                                  std::ranges::equal_to>;
+  using WrappedKeyAndTagMap =
+      absl::flat_hash_map<WrappedKeyAndTag,
+                          MaybePendingKeyId<KeyIdType>,
+                          base::TransparentHashAs<WrappedKeyAndTagView>,
+                          base::TransparentEqualAs<WrappedKeyAndTagView>>;
 
   WrappedKeyAndTagMap key_id_by_wrapped_key_and_tag_;
   KeyIdMap key_by_key_id_;
   base::WeakPtrFactory<KeyRepository> weak_ptr_factory_{this};
 };
 
-// A strict RAII tracking object for an ongoing background request to generate
-// a spare signing key. The service stores these uniquely in a set to track
-// in-flight requests. When the background task finishes, or if the service
-// is destroyed, this object safely manages the callback lifecycle.
-class SpareKeyPoolRequest {
+// Maintains a background-replenished pool of pre-generated keys grouped by
+// signature algorithm to mitigate the significant latency (~1s) of
+// on-demand Windows TPM key generation. Encapsulates all UMA telemetry
+// logging and algorithm selection logic for the spare pool.
+template <typename KeyType>
+class UnexportableKeyServiceImpl::SpareKeyPool {
  public:
-  explicit SpareKeyPoolRequest(UnexportableKeyTaskManager& task_manager)
-      : task_manager_(task_manager) {}
-
-  void Start(
-      BackgroundTaskOrigin task_origin,
+  SpareKeyPool(
       crypto::UnexportableKeyProvider::Config config,
+      base::RepeatingCallback<void(
+          crypto::UnexportableKeyProvider::Config,
+          base::span<const crypto::SignatureVerifier::SignatureAlgorithm>,
+          base::OnceCallback<void(ServiceErrorOr<scoped_refptr<KeyType>>)>)>
+          spare_key_generation_callback)
+      : config_(std::move(config)),
+        spare_key_generation_callback_(
+            std::move(spare_key_generation_callback)) {
+    CHECK(spare_key_generation_callback_);
+
+    // Defer the initial replenishment task to avoid competing for resources
+    // during browser startup.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&SpareKeyPool::ReplenishSpareKeyPoolAsync,
+                       weak_ptr_factory_.GetWeakPtr(), kSpareKeyAlgorithms),
+        kSpareKeyPoolDelay);
+  }
+
+  // Selects the preferred supported signature algorithm by querying the
+  // provider, then attempts to pop an available pre-generated key from the
+  // pool. On cache miss, calculates the total pool size and logs the specific
+  // miss reason (uninitialized, failed creation, wrong algorithm, or pending
+  // replenishment) to UMA.
+  scoped_refptr<KeyType> PopSpareKey(
       base::span<const crypto::SignatureVerifier::SignatureAlgorithm>
-          algorithms,
-      base::OnceCallback<
-          void(ServiceErrorOr<scoped_refptr<RefCountedUnexportableSigningKey>>)>
-          callback) {
-    CHECK(callback);
-    callback_ = std::move(callback);
-    start_time_ = base::TimeTicks::Now();
-    task_manager_->GenerateSigningKeySlowlyAsync(
-        task_origin, std::move(config), algorithms,
-        BackgroundTaskPriority::kBestEffort,
-        base::BindOnce(&SpareKeyPoolRequest::OnKeyGenerated,
-                       weak_ptr_factory_.GetWeakPtr()));
+          acceptable_algorithms) {
+    std::unique_ptr<crypto::UnexportableKeyProvider> provider =
+        UnexportableKeyTaskManager::GetUnexportableKeyProvider(config_);
+    if (!provider) {
+      return nullptr;
+    }
+
+    // Query the provider to select the most preferred algorithm it supports
+    // from the given list, before checking the spare pool. This ensures we
+    // don't inadvertently return a spare key for an algorithm that is
+    // acceptable but less preferred by the provider. If it fails, it means the
+    // hardware does not support any of the requested algorithms (e.g., no TPM
+    // support at all).
+    ASSIGN_OR_RETURN(crypto::SignatureVerifier::SignatureAlgorithm algorithm,
+                     provider->SelectAlgorithm(acceptable_algorithms),
+                     [this]() {
+                       RecordRetrievalResult(
+                           SpareKeyPoolRetrievalResult::kAlgorithmNotSupported);
+                       return nullptr;
+                     });
+
+    auto* keys = base::FindOrNull(spare_keys_pool_, algorithm);
+
+    base::UmaHistogramCounts100(
+        GetSpareKeyPoolHistogramName<KeyType>("PoolSize"),
+        keys ? keys->size() : 0);
+
+    if (keys && !keys->empty()) {
+      RecordRetrievalResult(SpareKeyPoolRetrievalResult::kHit);
+      scoped_refptr<KeyType> spare_key = std::move(keys->back());
+      keys->pop_back();
+      return spare_key;
+    }
+
+    const size_t total_pool_size = GetPoolSize();
+
+    SpareKeyPoolRetrievalResult result;
+    if (total_pool_size > 0) {
+      result = SpareKeyPoolRetrievalResult::kMissNoKeyForAlgorithm;
+    } else if (!inflight_spare_key_pool_requests_.has_value()) {
+      result = SpareKeyPoolRetrievalResult::kMissNotInitialized;
+    } else if (inflight_spare_key_pool_requests_->empty()) {
+      result = SpareKeyPoolRetrievalResult::kMissFailedToCreateSpareKey;
+    } else {
+      result = SpareKeyPoolRetrievalResult::kMissDidNotReplenishFromLastUse;
+    }
+    RecordRetrievalResult(result);
+
+    return nullptr;
+  }
+
+  // Preemptively schedules background tasks to generate new spare keys until
+  // the pool capacity is reached. Measures existing and pending requests to
+  // avoid over-allocation. Calculates the target number of tasks upfront to
+  // prevent an infinite loop if the key provider fails synchronously.
+  void ReplenishSpareKeyPoolAsync(
+      base::span<const crypto::SignatureVerifier::SignatureAlgorithm>
+          acceptable_algorithms) {
+    if (!inflight_spare_key_pool_requests_.has_value()) {
+      inflight_spare_key_pool_requests_.emplace();
+    }
+
+    const size_t total_allocated =
+        GetPoolSize() + inflight_spare_key_pool_requests_->size();
+    if (total_allocated >= kSpareKeyPoolCapacity) {
+      return;
+    }
+
+    // We must calculate the number of tasks to launch upfront instead of using
+    // a `while (current_pool_size + inflight_spare_key_pool_requests_->size() <
+    // capacity)` loop. If the key provider fails synchronously (e.g., due to an
+    // unsupported algorithm), key generation may invoke its callback
+    // synchronously. This immediately erases the request from
+    // `inflight_spare_key_pool_requests_`. A `while` loop would then evaluate
+    // to true forever, triggering an infinite thread lock.
+    for (size_t i = 0; i < kSpareKeyPoolCapacity - total_allocated; ++i) {
+      auto [it, inserted] = inflight_spare_key_pool_requests_->insert(
+          std::make_unique<SpareKeyPoolRequest<KeyType>>());
+      CHECK(inserted);
+
+      (*it)->Start(config_, acceptable_algorithms,
+                   spare_key_generation_callback_,
+                   base::BindOnce(&SpareKeyPool::RegisterGeneratedKey,
+                                  weak_ptr_factory_.GetWeakPtr(), it->get()));
+    }
   }
 
  private:
-  void OnKeyGenerated(
-      ServiceErrorOr<scoped_refptr<RefCountedUnexportableSigningKey>> result) {
-    if (result.has_value()) {
-      base::UmaHistogramMediumTimes(
-          GetSparePoolHistogramName("ReplenishmentLatency"),
-          base::TimeTicks::Now() - start_time_);
+  // The target capacity for the spare key pool. The service will attempt
+  // to preemptively generate and pool keys in the background until it reaches
+  // this threshold to reduce latency for future key requests.
+  static constexpr size_t kSpareKeyPoolCapacity = 2;
+
+  size_t GetPoolSize() const {
+    size_t total_size = 0;
+    for (const auto& [algorithm, keys] : spare_keys_pool_) {
+      total_size += keys.size();
     }
-    std::move(callback_).Run(std::move(result));
+    return total_size;
   }
 
-  // The task manager responsible for executing the background generation.
-  // We store this explicitly to represent the exact dependency and ownership
-  // graph of the request.
-  const raw_ref<UnexportableKeyTaskManager> task_manager_;
+  void RecordRetrievalResult(SpareKeyPoolRetrievalResult result) {
+    base::UmaHistogramEnumeration(
+        GetSpareKeyPoolHistogramName<KeyType>("RetrievalResult"), result);
+  }
 
-  // The callback to execute when the background task successfully completes
-  // or fails.
-  base::OnceCallback<void(
-      ServiceErrorOr<scoped_refptr<RefCountedUnexportableSigningKey>>)>
-      callback_;
+  // Callback invoked when an in-flight key generation request completes.
+  // Registers the newly generated key, logs UMA metrics for replenishment
+  // latency and generation errors, and removes the completed request from the
+  // in-flight set.
+  void RegisterGeneratedKey(SpareKeyPoolRequest<KeyType>* request,
+                            ServiceErrorOr<scoped_refptr<KeyType>> key_or_error,
+                            base::TimeDelta elapsed) {
+    CHECK_EQ(inflight_spare_key_pool_requests_->erase(request), 1u);
 
-  // The time at which the request was started to calculate replenishment
-  // latency.
-  base::TimeTicks start_time_;
+    base::UmaHistogramEnumeration(
+        GetSpareKeyPoolHistogramName<KeyType>("GenerateError"),
+        key_or_error.error_or(kNoServiceErrorForMetrics));
 
-  // Guarantees that `callback_` won't be executed after `this` is destroyed,
-  // naturally preventing use-after-free crashes if the service shuts down.
-  base::WeakPtrFactory<SpareKeyPoolRequest> weak_ptr_factory_{this};
+    ASSIGN_OR_RETURN(scoped_refptr<KeyType> key, std::move(key_or_error),
+                     [](ServiceError error) {});
+
+    base::UmaHistogramMediumTimes(
+        GetSpareKeyPoolHistogramName<KeyType>("ReplenishmentLatency"), elapsed);
+
+    spare_keys_pool_[key->key().Algorithm()].push_back(std::move(key));
+  }
+
+  const crypto::UnexportableKeyProvider::Config config_;
+
+  const base::RepeatingCallback<void(
+      crypto::UnexportableKeyProvider::Config,
+      base::span<const crypto::SignatureVerifier::SignatureAlgorithm>,
+      base::OnceCallback<void(ServiceErrorOr<scoped_refptr<KeyType>>)>)>
+      spare_key_generation_callback_;
+
+  absl::flat_hash_map<crypto::SignatureVerifier::SignatureAlgorithm,
+                      std::vector<scoped_refptr<KeyType>>>
+      spare_keys_pool_;
+
+  std::optional<
+      absl::flat_hash_set<std::unique_ptr<SpareKeyPoolRequest<KeyType>>>>
+      inflight_spare_key_pool_requests_;
+
+  base::WeakPtrFactory<SpareKeyPool> weak_ptr_factory_{this};
 };
+
 UnexportableKeyServiceImpl::UnexportableKeyServiceImpl(
     UnexportableKeyTaskManager& task_manager,
     BackgroundTaskOrigin task_origin,
@@ -427,12 +643,15 @@ UnexportableKeyServiceImpl::UnexportableKeyServiceImpl(
       signing_keys_(std::make_unique<SigningKeyRepository>()),
       attestation_keys_(std::make_unique<AttestationKeyRepository>()) {
   if (base::FeatureList::IsEnabled(kEnableUnexportableKeysSpareKeyPool)) {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE,
-        base::BindOnce(
-            &UnexportableKeyServiceImpl::ReplenishSpareSigningKeyPoolAsync,
-            weak_ptr_factory_.GetWeakPtr(), kSpareKeyAlgorithms),
-        kSpareKeyPoolDelay);
+    spare_signing_key_pool_ = std::make_unique<SpareSigningKeyPool>(
+        config_,
+        CreateGenerateKeyCallbackForSparePool<RefCountedUnexportableSigningKey>(
+            &task_manager, task_origin));
+
+    spare_attestation_key_pool_ = std::make_unique<SpareAttestationKeyPool>(
+        config_,
+        CreateGenerateKeyCallbackForSparePool<
+            RefCountedUnexportableAttestationKey>(&task_manager, task_origin));
   }
 }
 
@@ -461,12 +680,12 @@ void UnexportableKeyServiceImpl::GenerateSigningKeySlowlyAsync(
     base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
         callback) {
   auto wrapped_callback =
-      WrapCallbackWithSpareSigningKeyLatencyHistogram(std::move(callback));
+      WrapCallbackWithSpareKeyLatencyHistogram(std::move(callback));
 
   if (base::FeatureList::IsEnabled(kEnableUnexportableKeysSpareKeyPool)) {
     scoped_refptr<RefCountedUnexportableSigningKey> spare_key =
-        PopSpareSigningKey(acceptable_algorithms);
-    ReplenishSpareSigningKeyPoolAsync(acceptable_algorithms);
+        spare_signing_key_pool_->PopSpareKey(acceptable_algorithms);
+    spare_signing_key_pool_->ReplenishSpareKeyPoolAsync(acceptable_algorithms);
     if (spare_key) {
       std::move(wrapped_callback)
           .Run(signing_keys_->OnKeyGenerated(std::move(spare_key)));
@@ -509,10 +728,25 @@ void UnexportableKeyServiceImpl::GenerateAttestationKeySlowlyAsync(
     BackgroundTaskPriority priority,
     base::OnceCallback<void(ServiceErrorOr<UnexportableAttestationKeyId>)>
         callback) {
+  auto wrapped_callback =
+      WrapCallbackWithSpareKeyLatencyHistogram(std::move(callback));
+
+  if (base::FeatureList::IsEnabled(kEnableUnexportableKeysSpareKeyPool)) {
+    scoped_refptr<RefCountedUnexportableAttestationKey> spare_key =
+        spare_attestation_key_pool_->PopSpareKey(acceptable_algorithms);
+    spare_attestation_key_pool_->ReplenishSpareKeyPoolAsync(
+        acceptable_algorithms);
+    if (spare_key) {
+      std::move(wrapped_callback)
+          .Run(attestation_keys_->OnKeyGenerated(std::move(spare_key)));
+      return;
+    }
+  }
+
   task_manager_->GenerateAttestationKeySlowlyAsync(
       task_origin_, config_, acceptable_algorithms, priority,
       WrapCallbackWithErrorIfCancelled(
-          std::move(callback),
+          std::move(wrapped_callback),
           // SAFETY: `attestation_keys_` is owned by `this` and is guaranteed to
           // be alive if the projection callback is invoked (which only happens
           // if the service is still alive).
@@ -726,133 +960,6 @@ UnexportableKeyServiceImpl::OnGetAllKeysForGarbageCollectionSlowlyImpl(
     all_gc_keys_by_key_id_.emplace(key->id(), std::move(key));
   }
   return key_ids;
-}
-
-scoped_refptr<RefCountedUnexportableSigningKey>
-UnexportableKeyServiceImpl::PopSpareSigningKey(
-    base::span<const crypto::SignatureVerifier::SignatureAlgorithm>
-        acceptable_algorithms) {
-  std::unique_ptr<crypto::UnexportableKeyProvider> provider =
-      UnexportableKeyTaskManager::GetUnexportableKeyProvider(config_);
-  if (!provider) {
-    return nullptr;
-  }
-
-  // Query the provider to select the most preferred algorithm it supports from
-  // the given list, before checking the spare pool. This ensures we don't
-  // inadvertently return a spare key for an algorithm that is acceptable but
-  // less preferred by the provider.
-  // If it fails, it means the hardware does not support any of the requested
-  // algorithms (e.g., no TPM support at all).
-  ASSIGN_OR_RETURN(crypto::SignatureVerifier::SignatureAlgorithm algorithm,
-                   provider->SelectAlgorithm(acceptable_algorithms), [] {
-                     RecordSparePoolRetrievalResultHistogram(
-                         SpareKeyPoolRetrievalResult::kAlgorithmNotSupported);
-                     return nullptr;
-                   });
-
-  auto* keys = base::FindOrNull(spare_signing_keys_pool_, algorithm);
-
-  base::UmaHistogramCounts100(GetSparePoolHistogramName("PoolSize"),
-                              keys ? keys->size() : 0);
-
-  if (keys && !keys->empty()) {
-    RecordSparePoolRetrievalResultHistogram(SpareKeyPoolRetrievalResult::kHit);
-    scoped_refptr<RefCountedUnexportableSigningKey> spare_key =
-        std::move(keys->back());
-    keys->pop_back();
-    return spare_key;
-  }
-
-  // Cache Miss path. Determine the exact reason.
-
-  // Calculate total keys currently in the pool across all algorithms.
-  size_t total_pool_size = 0;
-  for (const auto& [alg, key_vector] : spare_signing_keys_pool_) {
-    total_pool_size += key_vector.size();
-  }
-
-  SpareKeyPoolRetrievalResult result;
-  if (total_pool_size > 0) {
-    // If the pool has keys, but none for the requested algorithm, log
-    // kMissNoKeyForAlgorithm.
-    result = SpareKeyPoolRetrievalResult::kMissNoKeyForAlgorithm;
-  } else if (!inflight_spare_key_pool_requests_.has_value()) {
-    // The pool is uninitialized (e.g. during browser startup where generation
-    // is intentionally deferred).
-    result = SpareKeyPoolRetrievalResult::kMissNotInitialized;
-  } else if (inflight_spare_key_pool_requests_->empty()) {
-    // The pool actively failed to replenish (e.g. due to hardware/TPM
-    // failures).
-    result = SpareKeyPoolRetrievalResult::kMissFailedToCreateSpareKey;
-  } else {
-    // A key was requested before the background tasks finished replenishing the
-    // pool.
-    result = SpareKeyPoolRetrievalResult::kMissDidNotReplenishFromLastUse;
-  }
-  RecordSparePoolRetrievalResultHistogram(result);
-
-  return nullptr;
-}
-
-void UnexportableKeyServiceImpl::ReplenishSpareSigningKeyPoolAsync(
-    base::span<const crypto::SignatureVerifier::SignatureAlgorithm>
-        acceptable_algorithms) {
-  if (!inflight_spare_key_pool_requests_.has_value()) {
-    inflight_spare_key_pool_requests_.emplace();
-  }
-  size_t current_pool_size = 0;
-  for (const auto& [algorithm, keys] : spare_signing_keys_pool_) {
-    current_pool_size += keys.size();
-  }
-
-  if (current_pool_size + inflight_spare_key_pool_requests_->size() >=
-      kSpareSigningKeyPoolCapacity) {
-    return;
-  }
-
-  // We must calculate the number of tasks to launch upfront instead of using a
-  // `while (current_pool_size + inflight_spare_key_pool_requests_->size() <
-  // capacity)` loop. If the key provider fails synchronously (e.g., due to an
-  // unsupported algorithm), `GenerateSigningKeySlowlyAsync` may invoke its
-  // callback synchronously. This immediately erases the request from
-  // `inflight_spare_key_pool_requests_`. A `while` loop would then evaluate
-  // to true forever, triggering an infinite thread lock.
-  size_t tasks_to_launch =
-      kSpareSigningKeyPoolCapacity -
-      (current_pool_size + inflight_spare_key_pool_requests_->size());
-
-  for (size_t i = 0; i < tasks_to_launch; ++i) {
-    auto request = std::make_unique<SpareKeyPoolRequest>(task_manager_.get());
-    auto [it, inserted] =
-        inflight_spare_key_pool_requests_->insert(std::move(request));
-    CHECK(inserted);
-
-    // Using `base::Unretained(this)` is completely safe because `this` directly
-    // owns the `SpareKeyPoolRequest` objects within the hash set. If `this` is
-    // destroyed, the set is destroyed, which immediately destroys the requests
-    // and naturally drops this callback before it can ever be executed.
-    (**it).Start(
-        task_origin_, config_, acceptable_algorithms,
-        base::BindOnce(&UnexportableKeyServiceImpl::OnSpareSigningKeyGenerated,
-                       base::Unretained(this), it->get()));
-  }
-}
-
-void UnexportableKeyServiceImpl::OnSpareSigningKeyGenerated(
-    SpareKeyPoolRequest* request,
-    ServiceErrorOr<scoped_refptr<RefCountedUnexportableSigningKey>>
-        key_or_error) {
-  CHECK_EQ(inflight_spare_key_pool_requests_->erase(request), 1u);
-
-  base::UmaHistogramEnumeration(
-      GetSparePoolHistogramName("GenerateError"),
-      key_or_error.error_or(kNoServiceErrorForMetrics));
-
-  ASSIGN_OR_RETURN(scoped_refptr<RefCountedUnexportableSigningKey> key,
-                   std::move(key_or_error), [](ServiceError error) {});
-
-  spare_signing_keys_pool_[key->key().Algorithm()].push_back(std::move(key));
 }
 
 }  // namespace unexportable_keys

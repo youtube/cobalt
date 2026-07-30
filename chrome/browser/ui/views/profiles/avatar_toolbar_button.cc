@@ -98,11 +98,9 @@ AvatarToolbarButton::AvatarToolbarButton(BrowserView* browser_view)
     : ToolbarButton(base::BindRepeating(&AvatarToolbarButton::ButtonPressed,
                                         base::Unretained(this),
                                         /*is_source_accelerator=*/false)),
-      state_manager_(std::make_unique<AvatarToolbarButtonStateManager>(
-          *this,
-          browser_view->browser())),
+      state_manager_(*this, browser_view->browser()),
       slide_animation_(this) {
-  state_manager_->InitializeStates();
+  state_manager_.InitializeStates();
 #if BUILDFLAG(IS_CHROMEOS)
   // On CrOS this button should only show as badging for Incognito, Guest and
   // captivie portal signin. It's only enabled for non captive portal Incognito
@@ -145,20 +143,18 @@ AvatarToolbarButton::AvatarToolbarButton(BrowserView* browser_view)
 AvatarToolbarButton::~AvatarToolbarButton() = default;
 
 void AvatarToolbarButton::UpdateIcon() {
-  // If the state manager isn't initialized, that means the widget is not set
-  // yet and the button doesn't have access to the theme provider to set colors.
-  // Defer updating until AddedToWidget(). This may get called as a result of
-  // OnUserIdentityChanged() called from the constructor when the button is not
-  // yet added to the ToolbarView's hierarchy.
-  if (!state_manager_ || !GetWidget()) {
+  // If the widget is not set yet, the button doesn't have access to the theme
+  // provider to set colors. Defer updating until AddedToWidget(). This may get
+  // called as a result of OnUserIdentityChanged() called from the constructor
+  // when the button is not yet added to the ToolbarView's hierarchy.
+  if (!GetWidget()) {
     return;
   }
 
   const int icon_size = GetIconSize();
   const ui::ColorProvider* const color_provider = GetColorProvider();
   CHECK(color_provider);
-  StateProvider* state_provider = state_manager_->GetActiveStateProvider();
-  CHECK(state_provider);
+  StateProvider* state_provider = state_manager_.GetActiveStateProvider();
   auto [icon, icon_type] = state_provider->GetAvatarIcon(
       icon_size, GetForegroundColor(ButtonState::STATE_NORMAL),
       *color_provider);
@@ -198,7 +194,7 @@ void AvatarToolbarButton::UpdateIcon() {
     SetImageModel(ButtonState::STATE_PRESSED, std::nullopt);
   }
 
-  state_manager_->NotifyIconUpdated();
+  state_manager_.NotifyIconUpdated();
 }
 
 void AvatarToolbarButton::AddedToWidget() {
@@ -289,12 +285,11 @@ void AvatarToolbarButton::AnimateTextChange(
 }
 
 void AvatarToolbarButton::UpdateText() {
-  if (!state_manager_ || !GetWidget()) {
+  if (!GetWidget()) {
     return;
   }
 
-  StateProvider* state_provider = state_manager_->GetActiveStateProvider();
-  CHECK(state_provider);
+  StateProvider* state_provider = state_manager_.GetActiveStateProvider();
   const auto* const color_provider = GetColorProvider();
   CHECK(color_provider);
 
@@ -339,7 +334,7 @@ void AvatarToolbarButton::AnnounceInternal(std::u16string text) {
 }
 
 void AvatarToolbarButton::UpdateAccessibilityLabel() {
-  auto [name, description] = state_manager_->GetAccessibilityLabels(GetText());
+  auto [name, description] = state_manager_.GetAccessibilityLabels(GetText());
 
   GetViewAccessibility().SetName(name);
   GetViewAccessibility().SetDescription(description);
@@ -377,12 +372,11 @@ void AvatarToolbarButton::AnimationEnded(const gfx::Animation* animation) {
 }
 
 std::optional<SkColor> AvatarToolbarButton::GetHighlightTextColor() const {
-  if (!state_manager_ || !GetWidget()) {
+  if (!GetWidget()) {
     return std::nullopt;
   }
 
-  StateProvider* state_provider = state_manager_->GetActiveStateProvider();
-  CHECK(state_provider);
+  StateProvider* state_provider = state_manager_.GetActiveStateProvider();
   const auto* const color_provider = GetColorProvider();
   CHECK(color_provider);
 
@@ -414,10 +408,11 @@ std::optional<SkColor> AvatarToolbarButton::GetHighlightBorderColor() const {
 }
 
 void AvatarToolbarButton::UpdateInkdrop() {
-  CHECK(state_manager_);
-  StateProvider* state_provider = state_manager_->GetActiveStateProvider();
-  CHECK(state_provider);
+  StateProvider* state_provider = state_manager_.GetActiveStateProvider();
   auto [hover_color_id, ripple_color_id] = state_provider->GetInkdropColors();
+  // TODO(crbug.com/516795763): When `kEnableAiSubscriptionAvatarRing` is
+  // enabled this method results in blurring the avatar ring. Consider if we
+  // need separate handling when the ring is visible.
   ConfigureToolbarInkdropForRefresh2023(this, hover_color_id, ripple_color_id);
 }
 
@@ -425,9 +420,7 @@ bool AvatarToolbarButton::ShouldPaintBorder() const {
   if (!IsLabelPresentAndVisible()) {
     return false;
   }
-  CHECK(state_manager_);
-  StateProvider* state_provider = state_manager_->GetActiveStateProvider();
-  CHECK(state_provider);
+  StateProvider* state_provider = state_manager_.GetActiveStateProvider();
   return state_provider->ShouldPaintBorder();
 }
 
@@ -440,8 +433,6 @@ base::ScopedClosureRunner AvatarToolbarButton::SetExplicitButtonState(
     std::optional<std::u16string> accessibility_label,
     std::optional<base::RepeatingCallback<void(bool)>> explicit_action,
     bool should_announce) {
-  CHECK(state_manager_);
-
   if (should_announce) {
     // Announce with a delay: if passwords are being uploaded, the OS may be
     // showing a keychain dialog. The keychain dialog is closing and focus is
@@ -454,51 +445,48 @@ base::ScopedClosureRunner AvatarToolbarButton::SetExplicitButtonState(
         AvatarToolbarButtonInterface::kAccessibilityAnnouncementDelay);
   }
 
-  return state_manager_->SetExplicitState(text, std::move(accessibility_label),
-                                          std::move(explicit_action));
+  return state_manager_.SetExplicitState(text, std::move(accessibility_label),
+                                         std::move(explicit_action));
 }
 
 bool AvatarToolbarButton::HasExplicitButtonState() const {
-  return state_manager_->HasExplicitButtonState();
+  return state_manager_.HasExplicitButtonState();
 }
 
 void AvatarToolbarButton::MaybeShowProfileSwitchIPH() {
-  state_manager_->MaybeShowProfileSwitchIPH();
+  state_manager_.MaybeShowProfileSwitchIPH();
 }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 void AvatarToolbarButton::MaybeShowSupervisedUserSignInIPH() {
-  state_manager_->MaybeShowSupervisedUserSignInIPH();
+  state_manager_.MaybeShowSupervisedUserSignInIPH();
 }
 
 void AvatarToolbarButton::MaybeShowSignInBenefitsIPH() {
-  state_manager_->MaybeShowSignInBenefitsIPH();
+  state_manager_.MaybeShowSignInBenefitsIPH();
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 void AvatarToolbarButton::MaybeShowExplicitBrowserSigninPreferenceRememberedIPH(
     const AccountInfo& account_info) {
-  state_manager_->MaybeShowExplicitBrowserSigninPreferenceRememberedIPH(
+  state_manager_.MaybeShowExplicitBrowserSigninPreferenceRememberedIPH(
       account_info);
 }
 
 void AvatarToolbarButton::OnMouseExited(const ui::MouseEvent& event) {
-  state_manager_->NotifyMouseExited();
+  state_manager_.NotifyMouseExited();
   ToolbarButton::OnMouseExited(event);
 }
 
 void AvatarToolbarButton::OnBlur() {
-  state_manager_->NotifyBlur();
+  state_manager_.NotifyBlur();
   ToolbarButton::OnBlur();
 }
 
 void AvatarToolbarButton::OnThemeChanged() {
   ToolbarButton::OnThemeChanged();
-  if (!state_manager_) {
-    return;
-  }
 
-  UpdateProfileThemeColors(state_manager_->browser(), GetColorProvider());
+  UpdateProfileThemeColors(state_manager_.browser(), GetColorProvider());
   UpdateText();
   UpdateInkdrop();
 
@@ -512,13 +500,13 @@ void AvatarToolbarButton::OnThemeChanged() {
 }
 
 void AvatarToolbarButton::ButtonPressed(bool is_source_accelerator) {
-  state_manager_->HandleButtonPressed(is_source_accelerator);
+  state_manager_.HandleButtonPressed(is_source_accelerator);
 }
 
 void AvatarToolbarButton::AfterPropertyChange(const void* key,
                                               int64_t old_value) {
   if (key == user_education::kHasInProductHelpPromoKey) {
-    state_manager_->NotifyIPHPromoChanged(
+    state_manager_.NotifyIPHPromoChanged(
         GetProperty(user_education::kHasInProductHelpPromoKey));
   }
   ToolbarButton::AfterPropertyChange(key, old_value);
@@ -562,8 +550,18 @@ views::DialogDelegate* AvatarToolbarButton::GetDialogDelegate() {
 
 void AvatarToolbarButton::UpdateLayoutInsets() {
   const bool is_label_visible = IsLabelPresentAndVisible();
-  SetLayoutInsets(::GetLayoutInsets(is_label_visible ? AVATAR_CHIP_PADDING
-                                                     : TOOLBAR_BUTTON));
+  std::optional<ui::ImageModel> icon = GetImageModel(GetState());
+  if (!icon || icon->IsEmpty()) {
+    icon = GetImageModel(ButtonState::STATE_NORMAL);
+  }
+  // total_icon_size is the avatar size plus the potential width for the AI
+  // ring and its gap.
+  int total_icon_size =
+      (!icon || icon->IsEmpty()) ? GetIconSize() : icon->Size().width();
+  const gfx::Insets insets = state_manager_.GetLayoutInsets(
+      total_icon_size, GetIconSize(), is_label_visible);
+
+  SetLayoutInsets(insets);
   SetHorizontalAlignment(is_label_visible ? gfx::ALIGN_LEFT
                                           : gfx::ALIGN_CENTER);
 }
@@ -585,30 +583,26 @@ void AvatarToolbarButton::OnInkDropHighlightedChanged() {
 }
 
 void AvatarToolbarButton::AddObserver(Observer* observer) {
-  state_manager_->AddObserver(observer);
+  state_manager_.AddObserver(observer);
 }
 
 void AvatarToolbarButton::RemoveObserver(Observer* observer) {
-  state_manager_->RemoveObserver(observer);
+  state_manager_.RemoveObserver(observer);
 }
 
 void AvatarToolbarButton::ClearActiveStateForTesting() {
-  CHECK(state_manager_);
-  StateProvider* state_provider = state_manager_->GetActiveStateProvider();
-  CHECK(state_provider);
+  StateProvider* state_provider = state_manager_.GetActiveStateProvider();
   state_provider->ClearForTesting();  // IN-TEST
 }
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 void AvatarToolbarButton::ForceShowingPromoForTesting() {
-  CHECK(state_manager_);
-  state_manager_->ForceShowingPromoForTesting();
+  state_manager_.ForceShowingPromoForTesting();
 }
 
 bool AvatarToolbarButton::
     GetStateAndFireSignedOutTriggerDelayTimerForTesting() {
-  CHECK(state_manager_);
-  return state_manager_->GetStateAndFireSignedOutTriggerDelayTimerForTesting();
+  return state_manager_.GetStateAndFireSignedOutTriggerDelayTimerForTesting();
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 

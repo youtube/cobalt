@@ -169,4 +169,62 @@ TEST(EndpointerTest, HighSampleRate) {
   endpointer.EndSession();
 }
 
+// Verifies that StartSession(/*reset_environment=*/false) preserves the
+// adapted noise-level estimate learned during a prior utterance, whereas the
+// default StartSession() resets it. This underpins continuous-session use
+// where re-running noise adaptation on every utterance boundary would delay
+// detection of the next utterance's onset.
+TEST(EndpointerTest, StartSessionPreservesEnvironmentWhenRequested) {
+  const int sample_rate = 8000;
+
+  EnergyEndpointerParams ep_config;
+  ep_config.set_frame_period(1.0f / static_cast<float>(kFrameRate));
+  ep_config.set_frame_duration(1.0f / static_cast<float>(kFrameRate));
+  ep_config.set_endpoint_margin(0.2f);
+  ep_config.set_onset_window(0.15f);
+  ep_config.set_speech_on_window(0.4f);
+  ep_config.set_offset_window(0.15f);
+  ep_config.set_onset_detect_dur(0.09f);
+  ep_config.set_onset_confirm_dur(0.075f);
+  ep_config.set_on_maintain_dur(0.10f);
+  ep_config.set_offset_confirm_dur(0.12f);
+  ep_config.set_decision_threshold(100.0f);
+  EnergyEndpointer endpointer;
+  endpointer.Init(ep_config);
+  endpointer.StartSession();
+
+  // Drive enough audio to move the noise-level estimate away from its initial
+  // (post-reset) value.
+  EnergyEndpointerFrameProcessor frame_processor(&endpointer);
+  RunEndpointerEventsTest(&frame_processor, sample_rate);
+  const float adapted_noise_db = endpointer.GetNoiseLevelDb();
+
+  // Restarting while preserving the environment must keep the learned level.
+  endpointer.StartSession(/*reset_environment=*/false);
+  EXPECT_FLOAT_EQ(adapted_noise_db, endpointer.GetNoiseLevelDb());
+
+  // A default restart resets the environment, changing the level back toward
+  // its configured default (decision_threshold / 2).
+  endpointer.StartSession(/*reset_environment=*/true);
+  EXPECT_NE(adapted_noise_db, endpointer.GetNoiseLevelDb());
+
+  endpointer.EndSession();
+
+  // Verify the same behavior through the Endpointer wrapper. This confirms
+  // the wrapper forwards |reset_environment|.
+  Endpointer wrapper(sample_rate);
+  wrapper.StartSession();
+  EndpointerFrameProcessor wrapper_processor(&wrapper);
+  RunEndpointerEventsTest(&wrapper_processor, sample_rate);
+  const float wrapper_adapted_noise_db = wrapper.NoiseLevelDb();
+
+  wrapper.StartSession(/*reset_environment=*/false);
+  EXPECT_FLOAT_EQ(wrapper_adapted_noise_db, wrapper.NoiseLevelDb());
+
+  wrapper.StartSession(/*reset_environment=*/true);
+  EXPECT_NE(wrapper_adapted_noise_db, wrapper.NoiseLevelDb());
+
+  wrapper.EndSession();
+}
+
 }  // namespace speech

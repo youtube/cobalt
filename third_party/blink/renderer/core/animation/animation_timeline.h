@@ -49,8 +49,6 @@ class CORE_EXPORT AnimationTimeline : public ScriptWrappable {
 
   virtual V8CSSNumberish* duration();
 
-  TimelinePhase Phase() { return CurrentPhaseAndTime().phase; }
-
   virtual bool IsDocumentTimeline() const { return false; }
   virtual bool IsScrollSnapshotTimeline() const { return false; }
   virtual bool IsScrollTimeline() const { return false; }
@@ -157,7 +155,7 @@ class CORE_EXPORT AnimationTimeline : public ScriptWrappable {
   virtual void RemoveTrigger(TimelineTrigger* trigger);
 
  protected:
-  virtual PhaseAndTime CurrentPhaseAndTime() = 0;
+  virtual std::optional<base::TimeDelta> CurrentTimeInternal() = 0;
 
   virtual AnimationTimeDelta CalculateIntrinsicIterationDuration(
       const TimelineRange&,
@@ -179,12 +177,12 @@ class CORE_EXPORT AnimationTimeline : public ScriptWrappable {
 
   scoped_refptr<cc::AnimationTimeline> compositor_timeline_;
 
-  std::optional<PhaseAndTime> last_current_phase_and_time_;
+  std::optional<base::TimeDelta> last_current_time_;
 
   bool in_trigger_attachments_update_ = false;
 
   // Whether or not to update the trigger at the next opportunity to do so.
-  // This could because the |last_current_phase_and_time_| changed or because a
+  // This could because the |last_current_time_| changed or because a
   // new animation which triggers on this timeline has been added since the last
   // opportunity for an update.
   bool update_triggers_;

@@ -880,8 +880,7 @@ NavigationControllerImpl::NavigationControllerImpl(
       browser_context_(browser_context),
       delegate_(delegate),
       ssl_manager_(this),
-      get_timestamp_callback_(base::BindRepeating(&base::Time::Now)),
-      back_forward_cache_(*this) {
+      get_timestamp_callback_(base::BindRepeating(&base::Time::Now)) {
   DCHECK(browser_context_);
 }
 
@@ -2117,7 +2116,7 @@ bool NavigationControllerImpl::RendererDidNavigate(
         navigation_request,
         IsBackForwardCacheEnabled() &&
             rfh->delegate()->IsBackForwardCacheSupported() &&
-            back_forward_cache_.IsAllowed(navigation_request->GetURL()));
+            GetBackForwardCache().IsAllowed(navigation_request->GetURL()));
   }
 
   // Grab the corresponding FrameNavigationEntry for a few updates, but only if
@@ -2650,7 +2649,9 @@ void NavigationControllerImpl::RendererDidNavigateToNewEntry(
   // index match.
   int target_index = last_committed_entry_index_ +
                      ((replace_entry || was_post_commit_error) ? 0 : 1);
-  GetBackForwardCache().RecordEntryMatch(params.url, target_index);
+  if (frame_tree_->is_primary()) {
+    GetBackForwardCache().RecordEntryMatch(params.url, target_index);
+  }
 
   InsertOrReplaceEntry(std::move(new_entry), replace_entry,
                        was_post_commit_error, rfh->IsNestedWithinFencedFrame(),
@@ -2786,18 +2787,21 @@ void NavigationControllerImpl::RendererDidNavigateToExistingEntry(
   }
 
   int new_entry_index = GetIndexOfEntry(entry);
-  if (!request->IsServedFromBackForwardCache()) {
-    // Record if the new URL matches any existing BFCache entry.
-    GetBackForwardCache().RecordEntryMatch(params.url, new_entry_index);
-  }
-  if (new_entry_index != -1 && new_entry_index < last_committed_entry_index_) {
-    // Record the number of forward BFCache entries when we go back.
-    GetBackForwardCache().RecordForwardEntriesCount(new_entry_index);
-    // For multi-step back navigations, also prune any existing cached entries
-    // that are now forward entries.
-    if (!GetBackForwardCache().IsCachingForwardEntriesAllowed() &&
-        last_committed_entry_index_ - new_entry_index > 1) {
-      GetBackForwardCache().PruneForwardEntries(new_entry_index);
+  if (frame_tree_->is_primary()) {
+    if (!request->IsServedFromBackForwardCache()) {
+      // Record if the new URL matches any existing BFCache entry.
+      GetBackForwardCache().RecordEntryMatch(params.url, new_entry_index);
+    }
+    if (new_entry_index != -1 &&
+        new_entry_index < last_committed_entry_index_) {
+      // Record the number of forward BFCache entries when we go back.
+      GetBackForwardCache().RecordForwardEntriesCount(new_entry_index);
+      // For multi-step back navigations, also prune any existing cached entries
+      // that are now forward entries.
+      if (!GetBackForwardCache().IsCachingForwardEntriesAllowed() &&
+          last_committed_entry_index_ - new_entry_index > 1) {
+        GetBackForwardCache().PruneForwardEntries(new_entry_index);
+      }
     }
   }
 
@@ -3111,7 +3115,9 @@ void NavigationControllerImpl::DeleteNavigationEntries(
 }
 
 BackForwardCacheImpl& NavigationControllerImpl::GetBackForwardCache() {
-  return back_forward_cache_;
+  CHECK(frame_tree_->is_primary());
+  CHECK(delegate_);
+  return delegate_->GetBackForwardCache();
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -3857,7 +3863,8 @@ NavigationControllerImpl::NavigateToExistingPendingEntry(
 
   // BackForwardCache:
   // Navigate immediately if the document is in the BackForwardCache.
-  if (back_forward_cache_.GetOrEvictEntry(nav_entry_id).has_value()) {
+  if (frame_tree_->is_primary() &&
+      GetBackForwardCache().GetOrEvictEntry(nav_entry_id).has_value()) {
     TRACE_EVENT0("navigation", "BackForwardCache_CreateNavigationRequest");
     // TODO(crbug.com/420275259): Diagnose failures and upgrade to a CHECK.
     DCHECK_EQ(reload_type, ReloadType::NONE);
@@ -3951,8 +3958,8 @@ NavigationControllerImpl::NavigateToExistingPendingEntry(
       pending_entry_->site_instance()
           ? pending_entry_->site_instance()->GetBrowsingInstanceId().value()
           : -1);
-  if (pending_entry_->site_instance()) {
-    back_forward_cache_.EvictFramesInRelatedSiteInstances(
+  if (frame_tree_->is_primary() && pending_entry_->site_instance()) {
+    GetBackForwardCache().EvictFramesInRelatedSiteInstances(
         pending_entry_->site_instance());
   }
 
@@ -4751,6 +4758,11 @@ NavigationControllerImpl::CreateNavigationRequestFromLoadParams(
           /*old_page_info=*/nullptr,
           /*http_response_code=*/-1,
           blink::mojom::NavigationApiHistoryEntryArrays::New(),
+          /*early_hints_preloaded_resources=*/
+          std::vector<network::mojom::LinkHeaderPtr>(),
+          /*early_hints_preconnects=*/
+          std::vector<network::mojom::LinkHeaderPtr>(),
+          /*navigation_preconnects=*/
           std::vector<network::mojom::LinkHeaderPtr>(),
           // This timestamp will be populated when the commit IPC is sent.
           /*commit_sent=*/base::TimeTicks(), /*srcdoc_value=*/std::string(),
@@ -4771,7 +4783,7 @@ NavigationControllerImpl::CreateNavigationRequestFromLoadParams(
           /*lcpp_hint=*/nullptr, blink::CreateDefaultRendererContentSettings(),
           /*visited_link_salt=*/std::nullopt,
           /*local_surface_id=*/std::nullopt,
-          /*initial_permission_statuses=*/std::nullopt,
+          node->current_frame_host()->GetCachedPermissionStatuses(),
           /*should_skip_screentshot=*/false,
           /*force_new_document_sequence_number=*/false,
           /*navigation_metrics_token=*/base::UnguessableToken::Create(),
@@ -4969,6 +4981,8 @@ NavigationControllerImpl::CreateNavigationRequestFromEntry(
           frame_tree_node->AncestorOrSelfHasCSPEE(),
           soft_navigation_heuristics_task_id);
   commit_params->post_content_type = post_content_type;
+  commit_params->initial_permission_statuses =
+      frame_tree_node->current_frame_host()->GetCachedPermissionStatuses();
 
   if (common_params->url.IsAboutSrcdoc()) {
     // TODO(wjmaclean): initialize this in NavigationRequest's constructor

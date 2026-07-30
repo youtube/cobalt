@@ -5,8 +5,11 @@
 #import "ios/chrome/browser/app_bar/ui/app_bar_view_controller.h"
 
 #import "ios/chrome/browser/app_bar/ui/app_bar_background_view.h"
+#import "ios/chrome/browser/app_bar/ui/app_bar_constants.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_consumer.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state_test_passkey_factory.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
@@ -40,13 +43,17 @@
 
 namespace {
 
+using layout_state::LayoutStateTestPassKeyFactory;
+
 // Tests for the AppBarViewController state.
 class AppBarViewControllerTest : public PlatformTest {
  protected:
   void SetUp() override {
     PlatformTest::SetUp();
     layout_state_ = [[LayoutState alloc] init];
-    layout_state_.appBarPosition = AppBarPosition::kBottom;
+    [layout_state_
+        setAppBarPosition:AppBarPosition::kBottom
+                  passKey:LayoutStateTestPassKeyFactory::CreateSceneKey()];
     view_controller_ = [[AppBarViewController alloc] init];
     view_controller_.layoutState = layout_state_;
     [view_controller_ view];
@@ -153,7 +160,21 @@ TEST_F(AppBarViewControllerTest, TestRotationUpdatesStackViewConstraints) {
 
   [view_controller_ updateForAngle:M_PI_2];
 
-  EXPECT_EQ(bottomConstraint.constant, -8.0);
+  EXPECT_EQ(bottomConstraint.constant, 0.0);
+}
+
+// Tests that rotation updates the height constraint dynamically.
+TEST_F(AppBarViewControllerTest, TestRotationUpdatesHeightConstraint) {
+  [view_controller_ updateForAngle:0];
+
+  NSLayoutConstraint* heightConstraint =
+      [view_controller_ valueForKey:@"heightConstraint"];
+
+  EXPECT_EQ(heightConstraint.constant, AppBarHeightPortrait());
+
+  [view_controller_ updateForAngle:M_PI_2];
+
+  EXPECT_EQ(heightConstraint.constant, AppBarHeightLandscape());
 }
 
 // Tests that the tab grid button's image color transformer always returns clear
@@ -362,7 +383,11 @@ TEST_F(AppBarViewControllerTest, TestAssistantButtonStateAccount) {
   [button layoutIfNeeded];
 
   UIButtonConfiguration* config = button.configuration;
-  EXPECT_NSEQ(config.title, l10n_util::GetNSString(IDS_IOS_APP_BAR_SIGN_IN));
+  if (IsAppBarLabelsHidden()) {
+    EXPECT_EQ(config.title, nil);
+  } else {
+    EXPECT_NSEQ(config.title, l10n_util::GetNSString(IDS_IOS_APP_BAR_SIGN_IN));
+  }
   EXPECT_NE(config.image, nil);
 }
 
@@ -388,7 +413,11 @@ TEST_F(AppBarViewControllerTest, TestAssistantButtonStateAccountWithAvatar) {
   [button layoutIfNeeded];
 
   UIButtonConfiguration* config = button.configuration;
-  EXPECT_NSEQ(config.title, l10n_util::GetNSString(IDS_IOS_APP_BAR_ACCOUNT));
+  if (IsAppBarLabelsHidden()) {
+    EXPECT_EQ(config.title, nil);
+  } else {
+    EXPECT_NSEQ(config.title, l10n_util::GetNSString(IDS_IOS_APP_BAR_ACCOUNT));
+  }
   ASSERT_NE(config.image, nil);
   EXPECT_EQ(config.image.size.width, 23);
   EXPECT_EQ(config.image.size.height, 23);
@@ -458,7 +487,12 @@ TEST_F(AppBarViewControllerTest, TestAssistantButtonStateLens) {
   [button layoutIfNeeded];
 
   UIButtonConfiguration* config = button.configuration;
-  EXPECT_NSEQ(config.title, l10n_util::GetNSString(IDS_IOS_LENS_PRODUCT_NAME));
+  if (IsAppBarLabelsHidden()) {
+    EXPECT_EQ(config.title, nil);
+  } else {
+    EXPECT_NSEQ(config.title,
+                l10n_util::GetNSString(IDS_IOS_LENS_PRODUCT_NAME));
+  }
   EXPECT_NE(config.image, nil);
 
   // Set the view width to a very small size to force truncation.
@@ -472,8 +506,37 @@ TEST_F(AppBarViewControllerTest, TestAssistantButtonStateLens) {
   [button layoutIfNeeded];
 
   config = button.configuration;
-  EXPECT_NSEQ(config.title,
-              l10n_util::GetNSString(IDS_IOS_LENS_PRODUCT_NAME_TRUNCATED));
+  if (IsAppBarLabelsHidden()) {
+    EXPECT_EQ(config.title, nil);
+  } else {
+    EXPECT_NSEQ(config.title,
+                l10n_util::GetNSString(IDS_IOS_LENS_PRODUCT_NAME_TRUNCATED));
+  }
+}
+
+// Tests that assistant button has correct accessibility label in portrait and
+// rotated modes.
+TEST_F(AppBarViewControllerTest, TestAssistantButtonAccessibilityLabel) {
+  UIButton* button = assistantButton();
+  ASSERT_NE(button, nil);
+
+  [view_controller_ setAssistantButtonState:AppBarAssistantButtonState::kAsk
+                                highlighted:NO
+                                    enabled:YES
+                                     avatar:nil
+                                   signedIn:NO];
+
+  // Verify in portrait mode (angle 0).
+  [view_controller_ updateForAngle:0];
+  EXPECT_NSEQ(button.accessibilityLabel,
+              l10n_util::GetNSString(IDS_IOS_APP_BAR_ASK_GEMINI));
+
+  // Verify in rotated/landscape mode (angle M_PI_2). Title should be nil, but
+  // accessibilityLabel should still be set.
+  [view_controller_ updateForAngle:M_PI_2];
+  EXPECT_EQ(button.configuration.title, nil);
+  EXPECT_NSEQ(button.accessibilityLabel,
+              l10n_util::GetNSString(IDS_IOS_APP_BAR_ASK_GEMINI));
 }
 
 using AppBarViewControllerTestManual = PlatformTest;

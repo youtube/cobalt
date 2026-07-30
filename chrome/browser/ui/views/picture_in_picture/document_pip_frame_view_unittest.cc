@@ -5,9 +5,11 @@
 #include "chrome/browser/ui/views/picture_in_picture/document_pip_frame_view.h"
 
 #include <memory>
+#include <string>
 
 #include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
+#include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/ssl/chrome_security_state_tab_helper.h"
 #include "chrome/browser/ui/views/location_bar/content_setting_image_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view_base.h"
@@ -21,6 +23,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/picture_in_picture_window_options/picture_in_picture_window_options.mojom.h"
 #include "ui/base/hit_test.h"
+#include "ui/display/screen.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/image_button.h"
@@ -112,6 +115,16 @@ class DocumentPipFrameViewTest : public ChromeViewsTestBase {
     auto* host = DocumentPipHost::FromWebContents(opener());
     auto child =
         content::WebContentsTester::CreateTestWebContents(&profile_, nullptr);
+    // Seed the PictureInPictureWindowManager's opener display, which production
+    // sets via CalculateInitialPictureInPictureWindowBounds() before the host
+    // is created (see
+    // PictureInPictureWindowManager::EnterDocumentPictureInPicture).
+    // DocumentPipFrameView::UpdateWindowBoundsForRequestedInnerSize(), run
+    // during CreateAndShowPipWindow() below, CHECK()s that it is set.
+    PictureInPictureWindowManager::GetInstance()
+        ->CalculateInitialPictureInPictureWindowBounds(
+            MakePipOptions(disallow_return_to_opener),
+            display::Screen::Get()->GetPrimaryDisplay());
     host->CreateAndShowPipWindow(std::move(child),
                                  MakePipOptions(disallow_return_to_opener),
                                  MakeDefaultInitialBounds());
@@ -139,8 +152,12 @@ class DocumentPipFrameViewTest : public ChromeViewsTestBase {
     return frame_view->security_icon_;
   }
 
-  views::Label* GetOriginLabel(DocumentPipFrameView* frame_view) {
-    return frame_view->origin_label_;
+  views::Label* GetWindowTitle(DocumentPipFrameView* frame_view) {
+    return frame_view->window_title_;
+  }
+
+  int GetTopAreaHeight(DocumentPipFrameView* frame_view) {
+    return frame_view->GetTopAreaHeight();
   }
 
   bool GetRenderActive(DocumentPipFrameView* frame_view) {
@@ -209,12 +226,12 @@ TEST_F(DocumentPipFrameViewTest, CloseButtonAlwaysPresent) {
   EXPECT_TRUE(GetCloseButton(frame_view_disallowed));
 }
 
-// Origin label exists.
-TEST_F(DocumentPipFrameViewTest, OriginLabelExists) {
+// Window title exists.
+TEST_F(DocumentPipFrameViewTest, WindowTitleExists) {
   auto* frame_view =
       CreatePipAndGetFrameView(/*disallow_return_to_opener=*/false);
 
-  EXPECT_TRUE(GetOriginLabel(frame_view));
+  EXPECT_TRUE(GetWindowTitle(frame_view));
 }
 
 // NonClientHitTest returns HTCLIENT for the close button bounds.
@@ -369,19 +386,36 @@ TEST_F(DocumentPipFrameViewTest, OriginChipPresent) {
 
   EXPECT_TRUE(GetOriginChip(frame_view));
   EXPECT_TRUE(GetSecurityIcon(frame_view));
-  EXPECT_TRUE(GetOriginLabel(frame_view));
+  EXPECT_TRUE(GetWindowTitle(frame_view));
 }
 
-// The origin label shows the opener origin in security-display form (scheme
+// The window title shows the opener origin in security-display form (scheme
 // omitted, path omitted, subdomain preserved).
-TEST_F(DocumentPipFrameViewTest, OriginLabelShowsSecurityDisplayOrigin) {
+TEST_F(DocumentPipFrameViewTest, WindowTitleShowsSecurityDisplayOrigin) {
   content::WebContentsTester::For(opener())->NavigateAndCommit(
       GURL("https://www.example.com/some/path?query=1"));
 
   auto* frame_view =
       CreatePipAndGetFrameView(/*disallow_return_to_opener=*/false);
 
-  EXPECT_EQ(u"www.example.com", GetOriginLabel(frame_view)->GetText());
+  EXPECT_EQ(std::u16string(u"www.example.com"),
+            GetWindowTitle(frame_view)->GetText());
+}
+
+// The recompute after Widget::Init() grows the outer window by the non-client
+// area (top bar + frame insets) so the requested inner web-contents size is
+// preserved, rather than leaving the window one top-bar height too short.
+TEST_F(DocumentPipFrameViewTest, OuterBoundsAccountForTopBar) {
+  auto* frame_view =
+      CreatePipAndGetFrameView(/*disallow_return_to_opener=*/false);
+
+  views::Widget* widget = frame_view->GetWidget();
+  ASSERT_TRUE(widget);
+
+  // MakePipOptions() requests a 400x300 inner (web-contents) area.
+  const gfx::Size outer = widget->GetWindowBoundsInScreen().size();
+  EXPECT_GE(outer.width(), 400);
+  EXPECT_GE(outer.height(), 300 + GetTopAreaHeight(frame_view));
 }
 
 // The security icon is populated from the opener's security state when the
@@ -420,9 +454,9 @@ TEST_F(DocumentPipFrameViewTest, HitTestSecurityIcon_ReturnsClient) {
   EXPECT_EQ(HTCLIENT, frame_view->NonClientHitTest(center));
 }
 
-// NonClientHitTest returns HTCAPTION for the origin label bounds (draggable,
+// NonClientHitTest returns HTCAPTION for the window title bounds (draggable,
 // matching browser-backed PiP behavior where the window title is draggable).
-TEST_F(DocumentPipFrameViewTest, HitTestOriginLabel_ReturnsCaption) {
+TEST_F(DocumentPipFrameViewTest, HitTestWindowTitle_ReturnsCaption) {
   content::WebContentsTester::For(opener())->NavigateAndCommit(
       GURL("https://example.com/"));
 
@@ -433,12 +467,12 @@ TEST_F(DocumentPipFrameViewTest, HitTestOriginLabel_ReturnsCaption) {
   widget->SetBounds(gfx::Rect(0, 0, 400, 300));
   widget->LayoutRootViewIfNecessary();
 
-  views::Label* origin_label = GetOriginLabel(frame_view);
-  ASSERT_TRUE(origin_label);
-  ASSERT_FALSE(origin_label->bounds().IsEmpty());
+  views::Label* window_title = GetWindowTitle(frame_view);
+  ASSERT_TRUE(window_title);
+  ASSERT_FALSE(window_title->bounds().IsEmpty());
 
-  gfx::Point center = origin_label->bounds().CenterPoint();
-  views::View::ConvertPointToTarget(origin_label->parent(), frame_view,
+  gfx::Point center = window_title->bounds().CenterPoint();
+  views::View::ConvertPointToTarget(window_title->parent(), frame_view,
                                     &center);
 
   EXPECT_EQ(HTCAPTION, frame_view->NonClientHitTest(center));

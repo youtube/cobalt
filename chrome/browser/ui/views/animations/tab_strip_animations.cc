@@ -4,10 +4,8 @@
 
 #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
 
-#include "base/time/time.h"
 #include "chrome/browser/ui/animation/browser_animation_types.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "ui/base/identifier/unique_identifier.h"
 #include "ui/base/interaction/safe_castable.h"
 
 DEFINE_SAFE_CAST_TARGET(TabStripAnimations)

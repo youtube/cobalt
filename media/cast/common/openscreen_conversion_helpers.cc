@@ -171,7 +171,7 @@ openscreen::cast::AudioCaptureConfig ToOpenscreenAudioConfig(
   return openscreen::cast::AudioCaptureConfig{
       .codec = ToOpenscreenAudioCodec(config.audio_codec()),
       .channels = config.channels,
-      .bit_rate = config.max_bitrate,
+      .bit_rate = base::checked_cast<int>(config.max_bitrate),
       .sample_rate = config.rtp_timebase,
       .target_playout_delay =
           std::chrono::milliseconds(config.max_playout_delay.InMilliseconds()),
@@ -192,7 +192,7 @@ openscreen::cast::VideoCaptureConfig ToOpenscreenVideoConfig(
       .max_frame_rate =
           openscreen::SimpleFraction{static_cast<int>(config.max_frame_rate),
                                      1},
-      .max_bit_rate = config.max_bitrate,
+      .max_bit_rate = base::checked_cast<int>(config.max_bitrate),
       .resolutions =
           std::vector(std::begin(kResolutions), std::end(kResolutions)),
       .target_playout_delay =

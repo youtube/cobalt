@@ -287,12 +287,12 @@ void DevToolsSession::MojoConnectionDestroyed() {
 void DevToolsSession::DispatchProtocolMessage(
     base::span<const uint8_t> message) {
   if (client_->UsesBinaryProtocol()) {
-    crdtp::Status status =
+    crdtp::StatusOr<size_t> status =
         crdtp::cbor::CheckCBORMessage(crdtp::SpanFrom(message));
     if (!status.ok()) {
       DispatchProtocolMessageToClient(
-          crdtp::CreateErrorNotification(
-              crdtp::DispatchResponse::ParseError(status.ToASCIIString()))
+          crdtp::CreateErrorNotification(crdtp::DispatchResponse::ParseError(
+                                             status.status().ToASCIIString()))
               ->Serialize());
       return;
     }
@@ -780,6 +780,18 @@ bool DevToolsSession::ValidateMessage(const std::string& expected_session_id,
       return false;  // Safely terminate renderer on malformed JSON
     }
     span_message = crdtp::SpanFrom(cbor_message);
+  } else {
+    // Perform top-level validation of CBOR envelope.
+    crdtp::StatusOr<size_t> status_or_outer_size =
+        crdtp::cbor::CheckCBORMessage(span_message);
+    if (!status_or_outer_size.ok()) {
+      DLOG(ERROR) << status_or_outer_size.status().ToASCIIString();
+      return false;
+    }
+    if (status_or_outer_size.value() != message.size()) {
+      DLOG(ERROR) << "Unexpected trailing data in CBOR message from child";
+      return false;
+    }
   }
 
   // Do NOT use crdtp::Dispatchable here. It enforces the presence of both
@@ -804,20 +816,19 @@ bool DevToolsSession::ValidateMessage(const std::string& expected_session_id,
       return false;
     }
     return true;
-  } else {
-    if (extracted_session_id.empty() ||
-        !crdtp::SpanEquals(crdtp::SpanFrom(expected_session_id),
-                           extracted_session_id)) {
-      DLOG(ERROR) << "Child session expected sessionId: " << expected_session_id
-                  << ", but got: "
-                  << (extracted_session_id.empty()
-                          ? ""
-                          : std::string(extracted_session_id.begin(),
-                                        extracted_session_id.end()));
-      return false;
-    }
-    return true;
   }
+  if (extracted_session_id.empty() ||
+      !crdtp::SpanEquals(crdtp::SpanFrom(expected_session_id),
+                         extracted_session_id)) {
+    DLOG(ERROR) << "Child session expected sessionId: " << expected_session_id
+                << ", but got: "
+                << (extracted_session_id.empty()
+                        ? ""
+                        : std::string(extracted_session_id.begin(),
+                                      extracted_session_id.end()));
+    return false;
+  }
+  return true;
 }
 
 }  // namespace content

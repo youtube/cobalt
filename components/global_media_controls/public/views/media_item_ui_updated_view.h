@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "components/global_media_controls/public/media_item_ui.h"
 #include "components/global_media_controls/public/views/media_action_button.h"
 #include "components/global_media_controls/public/views/media_item_ui_device_selector.h"
@@ -211,7 +212,7 @@ class COMPONENT_EXPORT(GLOBAL_MEDIA_CONTROLS) MediaItemUIUpdatedView
 
   raw_ptr<MediaProgressView> progress_view_ = nullptr;
   raw_ptr<MediaLiveStatusView> live_status_view_ = nullptr;
-  std::vector<MediaActionButton*> media_action_buttons_;
+  std::vector<raw_ptr<MediaActionButton>> media_action_buttons_;
   raw_ptr<MediaActionButton> start_casting_button_ = nullptr;
   raw_ptr<MediaActionButton> picture_in_picture_button_ = nullptr;
   raw_ptr<MediaActionButton> play_pause_button_ = nullptr;

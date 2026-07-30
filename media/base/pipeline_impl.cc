@@ -1286,7 +1286,7 @@ void PipelineImpl::RendererWrapper::ReportMetadata(StartType start_type) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(shared_state_.media_sequence_checker);
 
   PipelineMetadata metadata;
-  std::vector<DemuxerStream*> streams;
+  std::vector<raw_ptr<DemuxerStream>> streams;
 
   metadata.timeline_offset = demuxer_->GetTimelineOffset();
   // TODO(servolk): What should we do about metadata for multiple streams?

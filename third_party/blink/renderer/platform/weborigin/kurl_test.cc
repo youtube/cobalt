@@ -1256,6 +1256,72 @@ INSTANTIATE_TEST_SUITE_P(All,
                          KURLPortTest,
                          ::testing::ValuesIn(port_test_cases));
 
+TEST(KURLTest, RemoveFragmentIdentifier) {
+  struct TestCase {
+    const char* base_url;
+    bool is_valid_url;
+  } tests[] = {
+      // Special URLs
+      {"http://example.com/path", true},
+      {"https://example.com/path", true},
+      {"file:///a/b/c", true},
+
+      // Non-special URLs (should be safe to process as well)
+      {"git://example.com/path", true},
+      {"git://example.com", true},
+
+      // Opaque / non-special opaque URLs
+      {"data:text/html,abc", true},
+      {"data:aaa", true},
+      {"about:blank", true},
+
+      // Invalid URLs
+      {"http://invalid:port/path", false},
+  };
+
+  for (const auto& test : tests) {
+    SCOPED_TRACE(testing::Message() << "Base URL: `" << test.base_url << "`");
+
+    // Base URL with no fragment
+    String raw_url = String::FromUtf8(test.base_url);
+    KURL url_no_frag(raw_url);
+    EXPECT_EQ(test.is_valid_url, url_no_frag.IsValid());
+    EXPECT_FALSE(url_no_frag.HasFragmentIdentifier());
+    url_no_frag.RemoveFragmentIdentifier();
+    EXPECT_EQ(test.is_valid_url, url_no_frag.IsValid());
+    EXPECT_FALSE(url_no_frag.HasFragmentIdentifier());
+    EXPECT_EQ(String::FromUtf8(test.base_url), url_no_frag.GetString());
+
+    // Base URL with empty fragment
+    raw_url = String::FromUtf8(test.base_url) + "#";
+    KURL url_empty_frag(raw_url);
+    EXPECT_EQ(test.is_valid_url, url_empty_frag.IsValid());
+    EXPECT_TRUE(url_empty_frag.HasFragmentIdentifier());
+    url_empty_frag.RemoveFragmentIdentifier();
+    EXPECT_EQ(test.is_valid_url, url_empty_frag.IsValid());
+    EXPECT_FALSE(url_empty_frag.HasFragmentIdentifier());
+    EXPECT_EQ(String::FromUtf8(test.base_url), url_empty_frag.GetString());
+
+    // Base URL with populated fragment
+    raw_url = String::FromUtf8(test.base_url) + "#fragment";
+    KURL url_populated_frag(raw_url);
+    EXPECT_EQ(test.is_valid_url, url_populated_frag.IsValid());
+    EXPECT_TRUE(url_populated_frag.HasFragmentIdentifier());
+    url_populated_frag.RemoveFragmentIdentifier();
+    EXPECT_EQ(test.is_valid_url, url_populated_frag.IsValid());
+    EXPECT_FALSE(url_populated_frag.HasFragmentIdentifier());
+    EXPECT_EQ(String::FromUtf8(test.base_url), url_populated_frag.GetString());
+  }
+
+  // Verify completely uninitialized/empty URL is safe
+  KURL url_uninitialized;
+  EXPECT_FALSE(url_uninitialized.IsValid());
+  url_uninitialized.RemoveFragmentIdentifier();
+  EXPECT_FALSE(url_uninitialized.IsValid());
+  EXPECT_TRUE(url_uninitialized.IsEmpty());
+  EXPECT_TRUE(url_uninitialized.GetString().IsNull());
+}
+
 }  // namespace blink
 
 // Apparently INSTANTIATE_TYPED_TEST_SUITE_P needs to be used in the same

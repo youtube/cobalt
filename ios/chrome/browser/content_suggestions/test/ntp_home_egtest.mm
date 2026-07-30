@@ -1225,7 +1225,7 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
       assertWithMatcher:grey_notVisible()];
 
   // Reload page, then check if incognito view is still visible.
-  if (UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad) {
+  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
     // In the new
     // overflow menu on iPad, the reload button is only on the toolbar.
     [[EarlGrey selectElementWithMatcher:chrome_test_util::ReloadButton()]

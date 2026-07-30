@@ -76,6 +76,9 @@ class MEDIA_GPU_EXPORT CodecOutputBufferRenderer
   }
 
   gfx::Size visible_size() const { return output_buffer_->visible_size(); }
+  gfx::Size media_format_output_size() const {
+    return output_buffer_->media_format_output_size();
+  }
   bool CanGuessCodedSize() const { return output_buffer_->CanGuessCodedSize(); }
   gfx::Size GuessCodedSize() const { return output_buffer_->GuessCodedSize(); }
 

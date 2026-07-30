@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Ցանցի այս սխալն ուղղելու համար փորձեք <ph name="GUEST_SIGNIN_LINK_START" />մտնել հյուրի ռեժիմ<ph name="GUEST_SIGNIN_LINK_END" />:</translation>
 <translation id="1201402288615127009">Հաջորդ</translation>
 <translation id="1222835797152767346">Ստեղծեք PIN կոդ, որպեսզի ավելի հեշտ մուտք գործեք</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Վրիպազերծման գործառույթներ<ph name="END_H3" />
+          <ph name="BR" />
+          Դուք կարող եք միացնել վրիպազերծման գործառույթները ձեր ChromeOS սարքում՝ հատուկ կոդը տեղադրելու և փորձարկելու համար։ Սա թույլ կտա՝<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />հեռացնել rootfs հաստատումը, որպեսզի կարողանաք փոփոխել օպերացիոն համակարգի ֆայլերը,
+            <ph name="LIST_ITEM" />միացնել սարքի SSH հասանելիությունը սովորական թեստավորման բանալիների միջոցով, որպեսզի սարքից օգտվելու համար կարողանաք օգտագործել <ph name="BEGIN_CODE" />«cros flash»<ph name="END_CODE" /> և այլ գործիքներ,
+            <ph name="LIST_ITEM" />միացնել սկզբնաբեռնումը USB-ից, որպեսզի կարողանաք տեղադրել օպերացիոն համակարգի պատկեր USB կրիչից,
+            <ph name="LIST_ITEM" />մշակողի և համակարգի արմատային մուտքի գաղտնաբառի համար սահմանել հատուկ արժեք, որպեսզի կարողանաք ձեռքով SSH ներդնել սարքի մեջ։
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Միացնելուց հետո վրիպազերծման գործառույթների մեծ մասը միացված կմնա (նույնիսկ կորպորատիվ սարքում Powerwash կատարելուց կամ տվյալները մաքրելուց հետո)։ Վրիպազերծման բոլոր գործառույթները ամբողջությամբ անջատելու համար ավարտեք ChromeOS-ի վերականգնման գործընթացը (https://support.google.com/chromebook/answer/1080595)։
+          <ph name="BR" />
+          <ph name="BR" />
+          Վրիպազերծման գործառույթների մասին լրացուցիչ տեղեկությունների համար անցեք<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Ուշադրություն.<ph name="END_BOLD" />  գործողության ժամանակ համակարգը կվերաբեռնվի։</translation>
 <translation id="1347625331607114917">Հաստատեք կոդը Android հեռախոսում</translation>
 <translation id="1347975661240122359">Թարմացումը կսկսվի, երբ մարտկոցը լիցքավորված լինի <ph name="BATTERY_LEVEL" />%:</translation>
 <translation id="1375938286942050085">Կարգավորումն ավարտված է։ Նախապատրաստեք սարքը խաղերի համար։</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Հավելվածները ներբեռնվում են</translation>
 <translation id="5045550434625856497">Գաղտնաբառը սխալ է</translation>
 <translation id="5062930723426326933">Մուտքը չհաջողվեց: Կապակցվեք համացանցին և կրկին փորձեք:</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Գրեք տեքստեր, պլանավորեք գործեր, սովորեք և արեք ավելին Gemini AI-ի օգնությամբ։<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Կարգավորումից հետո սկսեք օգտագործել Gemini-ը՝ էկրանի ներքևի դարակում ընտրելով Gemini հավելվածը։<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Միացրեք <ph name="DEVICE_TYPE" /> սարքը հոսանքին:</translation>
 <translation id="5147516217412920887">Կոդը հաստատելու համար հետևեք ձեր հեռախոսի էկրանին ցուցադրվող ցուցումներին</translation>
 <translation id="5160857336552977725">Մուտք գործեք ձեր <ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Վրիպազերծման գործառույթներ<ph name="END_H3" />
+          <ph name="BR" />
+          Դուք կարող եք միացնել վրիպազերծման գործառույթները ձեր ChromeOS Flex սարքում՝ հատուկ կոդը տեղադրելու և փորձարկելու համար։ Սա թույլ կտա՝<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />հեռացնել rootfs հաստատումը, որպեսզի կարողանաք փոփոխել օպերացիոն համակարգի ֆայլերը,
+            <ph name="LIST_ITEM" />միացնել սարքի SSH հասանելիությունը սովորական թեստավորման բանալիների միջոցով, որպեսզի սարքից օգտվելու համար կարողանաք օգտագործել <ph name="BEGIN_CODE" />«cros flash»<ph name="END_CODE" /> և այլ գործիքներ,
+            <ph name="LIST_ITEM" />միացնել սկզբնաբեռնումը USB-ից, որպեսզի կարողանաք տեղադրել օպերացիոն համակարգի պատկեր USB կրիչից,
+            <ph name="LIST_ITEM" />մշակողի և համակարգի արմատային մուտքի գաղտնաբառի համար սահմանել հատուկ արժեք, որպեսզի կարողանաք ձեռքով SSH ներդնել սարքի մեջ։
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Միացնելուց հետո վրիպազերծման գործառույթների մեծ մասը միացված կմնա (նույնիսկ կորպորատիվ սարքում Powerwash կատարելուց կամ տվյալները մաքրելուց հետո)։ Վրիպազերծման բոլոր գործառույթները ամբողջությամբ անջատելու համար ավարտեք ChromeOS-ի վերականգնման գործընթացը (https://support.google.com/chromebook/answer/1080595)։
+          <ph name="BR" />
+          <ph name="BR" />
+          Վրիպազերծման գործառույթների մասին լրացուցիչ տեղեկությունների համար անցեք<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Ուշադրություն.<ph name="END_BOLD" />  գործողության ժամանակ համակարգը կվերաբեռնվի։</translation>
 <translation id="523505283826916779">Հատուկ գործառույթների կարգավորումներ</translation>
 <translation id="5240931875940563122">Մուտք գործել Android հեռախոսի միջոցով</translation>
 <translation id="5255859108402770436">Նորից մուտք գործեք</translation>
@@ -193,6 +231,7 @@
 <translation id="6955698182324067397">Դուք միացնում եք ChromeOS-ի վրիպազերծման գործառույթները, որոնք կկարգավորեն sshd daemon-ը և թույլ կտան սկզբնաբեռնել USB կրիչից։</translation>
 <translation id="6965382102122355670">Եղավ</translation>
 <translation id="6981982820502123353">Մատչելիությունը</translation>
+<translation id="6984652455487792101">Եթե դուք օգտվում եք պրոքսի սերվերից, ստուգեք դրա կարգավորումները կամ խնդրեք ցանցի ադմինիստրատորին կարգավորել այն։ Եթե պրոքսի սերվեր չեք օգտագործում, կարգավորեք ձեր <ph name="LINK_START" />պրոքսի սերվերի կարգավորումները<ph name="LINK_END" />։</translation>
 <translation id="6996245928508281884">Միացրեք ձեր հեռախոսի Bluetooth-ը և Wi-Fi-ը</translation>
 <translation id="7077829361966535409">Պրոքսի-սերվերի ընթացիկ կարգավորումների միջոցով մուտքի էջի բեռնումը չհաջողվեց: <ph name="GAIA_RELOAD_LINK_START" />Փորձեք նորից մուտք գործել<ph name="GAIA_RELOAD_LINK_END" /> կամ օգտագործեք <ph name="PROXY_SETTINGS_LINK_START" />պրոքսի-սերվերի այլ կարգավորումներ<ph name="PROXY_SETTINGS_LINK_END" />:</translation>
 <translation id="7114054701490058191">Գաղտնաբառերը չեն համընկնում</translation>
@@ -205,6 +244,9 @@
 <translation id="7345706641791090287">Հաստատեք ձեր գաղտնաբառը</translation>
 <translation id="7352651011704765696">Ինչ-որ սխալ տեղի ունեցավ</translation>
 <translation id="7476454130948140105">Մարտկոցի լիցքը բավարար չէ (<ph name="BATTERY_PERCENT" />%) թարմացումը տեղադրելու համար</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Գրանցվելուց առաջ անհրաժեշտ է մաքրել TPM-ը, որպեսզի <ph name="DEVICE_OS" />-ը կարողանա կառավարել սարքը։<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Դուք կարող եք նաև TPM սարքն ամբողջությամբ անջատել։ Ձեր տվյալները ապահով կերպով կպահվեն ծրագրի գաղտնագրման միջոցով, սակայն անվտանգության որոշ գործառույթներ, օրինակ՝ սարքակազմի հավաստագրերը, կանջատվեն։<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Դուք կարող եք փոխել ձեր TPM-ի կարգավորումները՝ վերաբեռնելով համակարգը և մտնելով BIOS/UEFI-ի կարգավորումներ։ Կախված սարքի մոդելից՝ քայլերը կարող են տարբեր լինել։ Նախքան վերաբեռնելը կարող եք ծանոթանալ <ph name="DEVICE_OS" />-ի փաստաթղթերին՝ բացելով դրանք առանձին սարքում՝ g.co/flex/TPMHelp։<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Միացնել վրիպազերծման գործառույթները այս <ph name="IDS_SHORT_PRODUCT_NAME" /> սարքի վրա</translation>
 <translation id="7553242001898162573">Մուտքագրեք ձեր գաղտնաբառը</translation>
 <translation id="7556242789364317684"><ph name="SHORT_PRODUCT_NAME" />-ը չի կարող վերականգնել ձեր կարգավորումները: Սխալն ուղղելու համար <ph name="SHORT_PRODUCT_NAME" />-ը պետք է վերակայի ձեր սարքը Powerwash-ով:</translation>
@@ -251,6 +293,10 @@
 <translation id="8452105022015742247">Google հաշվի տեղեկությունների տեղափոխում Android հեռախոսից</translation>
 <translation id="8524841856047224176">Անհատականացրեք ձեր տեսախցիկի ֆոները տեսազանգերի համար և ավելին</translation>
 <translation id="8569673829373920831">Իմանալ ավելին <ph name="APP_NAME" /> հավելվածի մասին</translation>
+<translation id="8628232294964836490">QR կոդը սկանավորելու համար հետևեք ձեր հեռախոսի էկրանին ցուցադրվող ցուցումներին։ Համոզվեք, որ հեռախոսի Bluetooth-ը միացված է։
+        <ph name="BR" />
+        <ph name="BR" />
+        Մոտակա սարքերին տեսանելի է որպես <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />…</translation>
 <translation id="8655972064210167941">Մուտքը չհաջողվեց, քանի որ ձեր գաղտնաբառը չհաջողվեց հաստատել: Կապվեք ադմինիստրատորի հետ կամ նորից փորձեք:</translation>
 <translation id="8674903726754070732">Ձեր համակարգիչը կազմաձևված է սարքակազմի սխալ ID-ով։ Սա թույլ չի տալիս, որպեսզի ChromeOS-ը ստանա անվտանգության վերջին թարմացումները, և ձեր համակարգիչը <ph name="BEGIN_BOLD" />կարող է վնասաբեր հարձակումների թիրախ դառնալ<ph name="END_BOLD" />։</translation>
 <translation id="8695139659682234808">Ավելացրեք ծնողական վերահսկողությունը՝ կարգավորումն ավարտելուց հետո</translation>
@@ -264,10 +310,20 @@
 <translation id="8830796635868321089">Թարմացումների ստուգումը չհաջողվեց: Ստուգեք <ph name="PROXY_SETTINGS_LINK_START" />պրոքսի-սերվերի կարգավորումները<ph name="PROXY_SETTINGS_LINK_END" />:</translation>
 <translation id="885746075120788020">Պահված կարգավորումներն ու գործողությունները հասանելի կլինեն ChromeOS սարքերում, երբ մուտք գործեք Google հաշիվ։ Դուք ցանկացած ժամանակ կարող եք կարգավորումներում ընտրել, թե ինչն եք ուզում համաժամացնել։</translation>
 <translation id="8875221558267407626">Ամփոփեք բովանդակությունը, պարզեցրեք բարդ տեքստը կամ հարցեր տվեք</translation>
+<translation id="8913163265790894442">Հեշտությամբ կարգավորեք <ph name="DEVICE_TYPE" /> սարքը ձեր հեռախոսով։ Դուք կարող եք ավելացնել ձեր Wi-Fi-ն ու Google հաշիվը՝ առանց ձեր գաղտնաբառերը մուտքագրելու։
+        <ph name="BR" />
+        <ph name="BR" />
+        Սարքը տեսանելի է որպես <ph name="DEVICE_TYPE" />…</translation>
 <translation id="8946359700442089734">Վրիպազերծման գործառույթները լրիվ միացված չեն այս <ph name="IDS_SHORT_PRODUCT_NAME" /> սարքի վրա:</translation>
 <translation id="8965037249707889821">Մուտքագրեք հին գաղտնաբառը</translation>
 <translation id="8975396729541388937">Դուք ցանկացած ժամանակ կարող եք չեղարկել բաժանորդագրությունը՝ սեղմելով հղումը նամակում։</translation>
 <translation id="9033765790910064284">Շարունակել</translation>
 <translation id="903480517321259405">Նորից մուտքագրեք PIN կոդը</translation>
 <translation id="9076523132036239772">Ձեր էլփոստը կամ գաղտնաբառը չհաստատվեցին: Նախ կապակցվեք ցանցին:</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Միայն <ph name="DEVICE_TYPE" />-ի համար։<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Գեներատիվ արհեստական բանականությունը փորձարկման ու մշակման վաղ փուլում է և ներկայումս ունի սահմանափակ հասանելիություն։<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Հեշտությամբ կարգավորեք <ph name="DEVICE_TYPE" /> սարքը ձեր հեռախոսով։ Ավելացնելով ձեր Google հաշիվը՝ դուք ստիպված չեք լինի ձեռքով մուտքագրել գաղտնաբառը։
+        <ph name="BR" />
+        <ph name="BR" />
+        Սարքը տեսանելի է որպես <ph name="DEVICE_TYPE" />…</translation>
 </translationbundle>

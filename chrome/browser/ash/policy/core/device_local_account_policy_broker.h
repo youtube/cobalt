@@ -39,6 +39,10 @@ namespace invalidation {
 class InvalidationListener;
 }
 
+namespace network {
+class SharedURLLoaderFactory;
+}  // namespace network
+
 namespace policy {
 
 // The main switching central that downloads, caches, refreshes, etc. policy for
@@ -47,6 +51,7 @@ class DeviceLocalAccountPolicyBroker
     : public CloudPolicyStore::Observer,
       public ComponentCloudPolicyService::Delegate {
  public:
+  // `shared_url_loader_factory` must be non-null.
   // |invalidation_listener| must outlive |this|.
   // |policy_update_callback| will be invoked to notify observers that the
   // policy for |account| has been updated.
@@ -54,6 +59,7 @@ class DeviceLocalAccountPolicyBroker
   // |resource_cache_task_runner| is the task runner used for file operations,
   // it must be sequenced together with other tasks running on the same files.
   DeviceLocalAccountPolicyBroker(
+      scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
       const DeviceLocalAccount& account,
       const base::FilePath& component_policy_cache_path,
       std::unique_ptr<DeviceLocalAccountPolicyStore> store,
@@ -102,10 +108,8 @@ class DeviceLocalAccountPolicyBroker
 
   // Fire up the cloud connection for fetching policy for the account from the
   // cloud if this is an enterprise-managed device.
-  void ConnectIfPossible(
-      ash::DeviceSettingsService* device_settings_service,
-      DeviceManagementService* device_management_service,
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
+  void ConnectIfPossible(ash::DeviceSettingsService* device_settings_service,
+                         DeviceManagementService* device_management_service);
 
   // Reads the refresh delay from policy and configures the refresh scheduler.
   void UpdateRefreshDelay();
@@ -137,6 +141,9 @@ class DeviceLocalAccountPolicyBroker
  private:
   void CreateComponentCloudPolicyService(CloudPolicyClient* client);
   void UpdateExtensionListFromStore();
+
+  const scoped_refptr<network::SharedURLLoaderFactory>
+      shared_url_loader_factory_;
 
   const raw_ptr<invalidation::InvalidationListener> invalidation_listener_;
   const std::string account_id_;

@@ -363,7 +363,7 @@ class TestFetchClientSettingsObject : public FetchClientSettingsObject {
       const override {
     return *policies_;
   }
-  const String GetOutgoingReferrer() const override { return ""; }
+  KURL GetOutgoingReferrerUrl() const override { return KURL(); }
   AllowedByNosniff::MimeTypeCheck MimeTypeCheckForClassicWorkerScript()
       const override {
     return AllowedByNosniff::MimeTypeCheck::kStrict;

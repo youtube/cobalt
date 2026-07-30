@@ -102,7 +102,10 @@ if (!is_android) {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "bluetooth_chooser_context_unittest.cc" ]
+  sources = [
+    "bluetooth_chooser_context_unittest.cc",
+    "chrome_bluetooth_delegate_unittest.cc",
+  ]
   deps = [
     ":bluetooth",
     "//chrome/browser/content_settings:content_settings_factory",

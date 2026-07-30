@@ -16,17 +16,20 @@ class FeatureShowcaseHandler
   FeatureShowcaseHandler(
       mojo::PendingReceiver<feature_showcase::mojom::FeatureShowcasePageHandler>
           receiver,
-      base::OnceClosure finish_callback);
+      base::OnceClosure finish_callback,
+      base::RepeatingClosure next_step_shown_callback);
   FeatureShowcaseHandler(const FeatureShowcaseHandler&) = delete;
   FeatureShowcaseHandler& operator=(const FeatureShowcaseHandler&) = delete;
   ~FeatureShowcaseHandler() override;
 
   // feature_showcase::mojom::FeatureShowcasePageHandler:
   void FinishFeatureShowcase() override;
+  void NextStepShown() override;
 
  private:
   mojo::Receiver<feature_showcase::mojom::FeatureShowcasePageHandler> receiver_;
   base::OnceClosure finish_callback_;
+  base::RepeatingClosure next_step_shown_callback_;
 };
 
 #endif  // CHROME_BROWSER_UI_WEBUI_FEATURE_SHOWCASE_FEATURE_SHOWCASE_HANDLER_H_

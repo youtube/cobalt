@@ -75,7 +75,13 @@ const Provider kAllProviders[] = {
 
 const crypto::SignatureVerifier::SignatureAlgorithm kAllAlgorithms[] = {
     crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256,
+#if BUILDFLAG(IS_WIN)
+// TODO(https://crbug.com/529304622): Fix failing `RSA_PKCS1_SHA256` tests
+// on Windows.
+// crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256,
+#else
     crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256,
+#endif
 };
 
 #if BUILDFLAG(IS_APPLE)

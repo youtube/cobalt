@@ -620,6 +620,8 @@ chromium-metrics-reviews@google.com.
   <int value="7"
       label="User selected an account, in the share extension, different from
              the one used in the app."/>
+  <int value="8"
+      label="User is opening GoogleOne settings for another account"/>
 </enum>
 
 <!-- LINT.ThenChange(//ios/chrome/app/change_profile_commands.h:IOSChangeProfileReason) -->
@@ -857,6 +859,7 @@ chromium-metrics-reviews@google.com.
   <int value="101" label="Context Memory Service"/>
   <int value="102" label="Sync Preview"/>
   <int value="103" label="Fpop Service"/>
+  <int value="104" label="Context Containers Service"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/public/base/oauth_consumer_id.h:OAuthConsumerId) -->
@@ -1284,6 +1287,7 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="Cookie setting change"/>
   <int value="8" label="Forced reconcile"/>
   <int value="9" label="Primary account changed"/>
+  <int value="10" label="Device bound sessions fetched"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/core/browser/account_reconcilor.h:Trigger) -->

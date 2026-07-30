@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <set>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -34,8 +35,11 @@ void AdvancePastUtf8Bom(std::string_view* data) {
   }
 }
 
+// Based on https://infra.spec.whatwg.org/#ascii-whitespace
+const std::string_view kWhitespaceChars = "\t\n\f\r ";
+
 void AdvancePastWhitespace(std::string_view* data) {
-  size_t offset = data->find_first_not_of(" \t\r\n");
+  size_t offset = data->find_first_not_of(kWhitespaceChars);
   if (offset == std::string_view::npos) {
     // |data| was entirely whitespace.
     *data = std::string_view();
@@ -232,7 +236,7 @@ SniffingResult SniffForJSON(std::string_view data) {
     const char c = data[i];
     if (state != kLeftQuoteState && state != kEscapeState) {
       // Whitespace is ignored (outside of string literals)
-      if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+      if (kWhitespaceChars.contains(c)) {
         continue;
       }
     }

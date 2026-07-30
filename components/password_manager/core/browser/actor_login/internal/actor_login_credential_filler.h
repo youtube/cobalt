@@ -46,6 +46,7 @@ class ActorLoginCredentialFiller {
       base::WeakPtr<ActorLoginQualityLoggerInterface> mqls_logger,
       base::TimeTicks attempt_login_start_time,
       IsTaskInFocus is_task_in_focus,
+      FrameFillingStartedCallback frame_filling_started_cb,
       LoginStatusResultOrErrorReply callback);
   virtual ~ActorLoginCredentialFiller();
 
@@ -208,6 +209,14 @@ class ActorLoginCredentialFiller {
 
   // Checks whether the UI relevant to the actor login task is in focus.
   IsTaskInFocus is_task_in_focus_;
+
+  // Callback invoked once credential filling into target frames starts.
+  // When executed, it notifies `ActorOneTimeTokenFillingService` to observe
+  // navigations across the specified `global_frame_ids`.
+  // This navigation state is subsequently used by `AttemptOtpFillingTool`
+  // to verify whether an OTP field observed later belongs to this same login
+  // flow.
+  FrameFillingStartedCallback on_frame_filling_started_cb_;
 
   // The callback to call with the result of the login attempt.
   LoginStatusResultOrErrorReply callback_;

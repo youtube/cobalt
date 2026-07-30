@@ -23,7 +23,9 @@ import org.chromium.ui.modelutil.PropertyObservable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Manages the collection of action buttons in the bottom bar, handling their bindings and
@@ -261,14 +263,50 @@ public class BottomBarButtonManager implements Destroyable {
 
         // Update model properties and calculate centering.
         int balance = 0;
+        Set<PropertyModel.WritableBooleanPropertyKey> visibleKeys = new HashSet<>();
+        @ActionId int activeExtraActionId = ActionId.GLIC;
         for (int i = 0; i < mButtons.size(); i++) {
+            @ActionId int actionId = mButtons.keyAt(i);
             ButtonBinding state = mButtons.valueAt(i);
             boolean visible = isVisible(state);
-            mBottomBarModel.set(state.mVisibilityPropertyKey, visible);
+            // Bind the PropertyModelChangeProcessor when the button becomes visible,
+            // and destroy it when it becomes invisible. This ensures that on a shared slot
+            // (like GLIC and AI_MODE sharing the extra container), only the active action's
+            // binder is active, preventing clobbering.
             if (visible) {
+                if (state.mMcp == null && state.mModel != null) {
+                    state.mMcp =
+                            PropertyModelChangeProcessor.create(
+                                    state.mModel, state.mContainer, state.mBinder);
+                }
+            } else {
+                if (state.mMcp != null) {
+                    state.mMcp.destroy();
+                    state.mMcp = null;
+                }
+            }
+
+            if (visible) {
+                visibleKeys.add(state.mVisibilityPropertyKey);
                 balance += state.mPosition;
+                if (state.mVisibilityPropertyKey == BottomBarProperties.IS_EXTRA_BUTTON_VISIBLE) {
+                    activeExtraActionId = actionId;
+                }
             }
         }
+
+        // EXTRA_BUTTON_ACTION_ID must be set BEFORE updating the visibility properties,
+        // so that the view binder can query the correct active action ID when the visibility
+        // property change event is dispatched.
+        mBottomBarModel.set(BottomBarProperties.EXTRA_BUTTON_ACTION_ID, activeExtraActionId);
+
+        // Apply visibility to the bottom bar model based on the collected visible keys.
+        for (int i = 0; i < mButtons.size(); i++) {
+            ButtonBinding state = mButtons.valueAt(i);
+            boolean keyVisible = visibleKeys.contains(state.mVisibilityPropertyKey);
+            mBottomBarModel.set(state.mVisibilityPropertyKey, keyVisible);
+        }
+
         mHasCenteredButton = balance == ButtonPosition.CENTER;
 
         // Update cached visibility and dispatch button-specific events.
@@ -305,8 +343,6 @@ public class BottomBarButtonManager implements Destroyable {
         state.mModel = model;
 
         if (model != null) {
-            state.mMcp =
-                    PropertyModelChangeProcessor.create(model, state.mContainer, state.mBinder);
             model.addObserver(mModelObserver);
         }
         recomputeState();

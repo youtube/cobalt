@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.tab;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
@@ -107,6 +108,52 @@ public class WebContentsState {
         }
     }
 
+    /**
+     * Metadata extracted from the serialized WebContentsState buffer. Contains essential
+     * information needed to display the tab (title, URL, incognito status) without restoring the
+     * full WebContents.
+     */
+    public static class WebContentsStateMetadata {
+        /** The display title of the tab. */
+        public final String title;
+
+        /** The virtual URL of the tab. */
+        public final String virtualUrl;
+
+        /** Whether the tab is in incognito mode. */
+        public final boolean isOffTheRecord;
+
+        /**
+         * Creates an instance of WebContentsStateMetadata.
+         *
+         * @param title The display title.
+         * @param virtualUrl The virtual URL.
+         * @param isOffTheRecord Whether it is incognito.
+         */
+        public WebContentsStateMetadata(String title, String virtualUrl, boolean isOffTheRecord) {
+            this.title = title;
+            this.virtualUrl = virtualUrl;
+            this.isOffTheRecord = isOffTheRecord;
+        }
+    }
+
+    /**
+     * Factory method called by native code to create a WebContentsStateMetadata instance.
+     *
+     * @param title The display title.
+     * @param virtualUrl The virtual URL.
+     * @param isOffTheRecord Whether it is incognito.
+     * @return A new WebContentsStateMetadata instance.
+     */
+    @CalledByNative
+    public static WebContentsStateMetadata createMetadata(
+            String title, String virtualUrl, boolean isOffTheRecord) {
+        return new WebContentsStateMetadata(title, virtualUrl, isOffTheRecord);
+    }
+
+    // Cached metadata extracted from the buffer. Access is restricted to the UI thread.
+    private @Nullable WebContentsStateMetadata mMetadata;
+    private boolean mMetadataLoaded;
     private PackedData mPackedData;
 
     private @Nullable String mFallbackUrlForRestorationFailure;
@@ -197,14 +244,31 @@ public class WebContentsState {
         return mPackedData.version();
     }
 
+    /**
+     * Returns the metadata for the {@link WebContentsState}, or null if it fails to extract. The
+     * metadata is extracted lazily on the first call and cached. Access is restricted to the UI
+     * thread.
+     *
+     * @return The extracted metadata, or null.
+     */
+    public @Nullable WebContentsStateMetadata getMetadata() {
+        if (!mMetadataLoaded && version() != INVALID_BUFFER_VERSION) {
+            mMetadata = WebContentsStateJni.get().getMetadata(buffer(), version());
+            mMetadataLoaded = true;
+        }
+        return mMetadata;
+    }
+
     /** Returns the title currently being displayed in the saved state's current entry. */
     public @Nullable String getDisplayTitleFromState() {
-        return WebContentsStateJni.get().getDisplayTitleFromByteBuffer(buffer(), version());
+        WebContentsStateMetadata metadata = getMetadata();
+        return metadata != null ? metadata.title : null;
     }
 
     /** Returns the URL currently being displayed in the saved state's current entry. */
     public @Nullable String getVirtualUrlFromState() {
-        return WebContentsStateJni.get().getVirtualUrlFromByteBuffer(buffer(), version());
+        WebContentsStateMetadata metadata = getMetadata();
+        return metadata != null ? metadata.virtualUrl : null;
     }
 
     /** Get the URL to be loaded if restoring the serialized web content state fails. */
@@ -294,7 +358,8 @@ public class WebContentsState {
         return maybeSwapPackedData(buffer, /* lastEntryWasPending= */ trackLastEntryWasPending);
     }
 
-    private boolean maybeSwapPackedData(@Nullable ByteBuffer buffer, boolean lastEntryWasPending) {
+    @VisibleForTesting
+    boolean maybeSwapPackedData(@Nullable ByteBuffer buffer, boolean lastEntryWasPending) {
         if (buffer == null) return false;
         mPackedData.destroy();
         mPackedData =
@@ -303,6 +368,8 @@ public class WebContentsState {
                         CONTENTS_STATE_CURRENT_VERSION,
                         lastEntryWasPending,
                         /* nativeStringPointer= */ 0);
+        mMetadata = null;
+        mMetadataLoaded = false;
         return true;
     }
 
@@ -346,11 +413,7 @@ public class WebContentsState {
                 int referrerPolicy,
                 @JniType("std::optional<url::Origin>") @Nullable Origin initiatorOrigin);
 
-        @JniType("std::optional<std::u16string>")
-        @Nullable String getDisplayTitleFromByteBuffer(ByteBuffer state, int savedStateVersion);
-
-        @JniType("std::optional<std::string>")
-        @Nullable String getVirtualUrlFromByteBuffer(ByteBuffer state, int savedStateVersion);
+        @Nullable WebContentsStateMetadata getMetadata(ByteBuffer buffer, int version);
 
         void freeStringPointer(long stringPointer);
     }

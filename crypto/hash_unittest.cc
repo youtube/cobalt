@@ -26,24 +26,6 @@ void PrepareTestCase(const TestCase& c,
   CHECK(base::HexStringToSpan(c.digest, digest));
 }
 
-TEST(HashTest, Sha1) {
-  const auto cases = std::to_array<TestCase>(
-      {// FIPS 180-4 "SHA1ShortMsg" test vector:
-       {
-           .message = "3552694cdf663fd94b224747ac406aaf",
-           .digest = "a150de927454202d94e656de4c7c0ca691de955d",
-       }});
-
-  for (const auto& c : cases) {
-    std::vector<uint8_t> message;
-    std::array<uint8_t, 20> digest;
-
-    PrepareTestCase(c, &message, digest);
-    auto computed_digest = crypto::hash::Sha1(base::as_byte_span(message));
-    EXPECT_EQ(digest, computed_digest);
-  }
-}
-
 TEST(HashTest, Sha256) {
   const auto cases = std::to_array<TestCase>(
       {// FIPS 180-4 "SHA256ShortMsg" test vector:

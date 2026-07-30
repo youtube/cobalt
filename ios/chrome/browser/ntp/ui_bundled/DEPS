@@ -36,6 +36,7 @@ include_rules = [
   "+ios/chrome/browser/omnibox/ui",
   "+ios/chrome/browser/overscroll_actions/ui_bundled",
   "+ios/chrome/browser/policy/model/policy_util.h",
+  "+ios/chrome/browser/popup_menu/overflow_menu/public/features.h",
   "+ios/chrome/browser/push_notification/model/constants.h",
   "+ios/chrome/browser/push_notification/model/provisional_push_notification_service.h",
   "+ios/chrome/browser/push_notification/model/provisional_push_notification_service_factory.h",

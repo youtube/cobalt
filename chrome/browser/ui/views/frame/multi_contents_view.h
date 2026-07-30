@@ -82,8 +82,12 @@ class MultiContentsView
   // Returns the currently inactive ContentsWebView.
   ContentsWebView* GetInactiveContentsView() const;
 
-  const gfx::RoundedCornersF& background_radii() const;
+  // These are the rounded corner radii to render on the multi-contents view and
+  // (if necessary) the contents views themselves. The radii should already be
+  // adjusted for RtL (so e.g. `radii.upper_left()` is actually the corner that
+  // displays on the upper left regardless of text direction).
   void SetBackgroundRadii(const gfx::RoundedCornersF& radii);
+  const gfx::RoundedCornersF& GetBackgroundRadii() const;
 
   // Returns true if more than one WebContents is displayed.
   bool IsInSplitView() const;
@@ -96,6 +100,11 @@ class MultiContentsView
   // Preserves the active WebContents and hides the second ContentsContainerView
   // and resize handle.
   void CloseSplitView();
+
+  // Visually swaps the two contents of the active split view by doing an
+  // in-place swap of contents_container_views_, while also reordering the view
+  // hierarchy and updating active_index_.
+  void SwapContentsInSplitView();
 
   // Assigns the given |web_contents| to the ContentsContainerView's
   // ContentsWebView at |index| in contents_container_views_. |index| must be
@@ -123,7 +132,7 @@ class MultiContentsView
   void ExecuteOnEachVisibleContentsView(
       base::RepeatingCallback<void(ContentsWebView*)> callback);
 
-  // If in a split view, swaps the order of the two contents views.
+  // If in a split view, swaps the positions of the two active tabs.
   void OnSwap();
 
   // If non-null, specifies an increase in target size so that web contents

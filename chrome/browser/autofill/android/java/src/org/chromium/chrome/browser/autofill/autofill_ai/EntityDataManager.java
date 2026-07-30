@@ -291,11 +291,6 @@ public class EntityDataManager implements Destroyable {
         return EntityDataManagerJni.get().getPersonalContextManageConnectedAppsUrl();
     }
 
-    public static String getPersonalContextManageSuggestionsUrl() {
-        ThreadUtils.assertOnUiThread();
-        return EntityDataManagerJni.get().getPersonalContextManageSuggestionsUrl();
-    }
-
     @NativeMethods
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public interface Natives {
@@ -338,8 +333,6 @@ public class EntityDataManager implements Destroyable {
         @JniType("std::string")
         String getPersonalContextManageConnectedAppsUrl();
 
-        @JniType("std::string")
-        String getPersonalContextManageSuggestionsUrl();
 
         void removeEntityInstance(
                 long nativeEntityDataManagerAndroid, @JniType("std::string") String guid);

@@ -52,7 +52,7 @@ PageActionContainerView::PageActionContainerView(
     }
 
     PageActionView* view = AddChildView(std::make_unique<PageActionView>(
-        action_item, params, properties.element_identifier));
+        action_item, params, properties.type, properties.element_identifier));
 
     page_action_views_[action_item_id] = view;
     chip_state_changed_callbacks_.push_back(

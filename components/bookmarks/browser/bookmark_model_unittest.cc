@@ -1405,7 +1405,7 @@ TEST_F(BookmarkModelTest, MostRecentlyModifiedFolders) {
   model()->AddURL(folder, 0, u"blah", GURL("http://foo.com"));
 
   // Make sure folder is in the most recently modified.
-  std::vector<const BookmarkNode*> most_recent_folders =
+  std::vector<raw_ptr<const BookmarkNode>> most_recent_folders =
       GetMostRecentlyModifiedUserFolders(model());
   ASSERT_FALSE(most_recent_folders.empty());
   EXPECT_EQ(folder, most_recent_folders[0]);
@@ -1561,10 +1561,12 @@ TEST_F(BookmarkModelTest, Sort) {
 
   BookmarkNode* child1 = parent->children()[1].get();
   child1->SetTitle(u"a");
-  child1->Remove(0);
+  model()->Remove(child1->children()[0].get(),
+                  bookmarks::metrics::BookmarkEditSource::kOther, FROM_HERE);
   BookmarkNode* child3 = parent->children()[3].get();
   child3->SetTitle(u"C");
-  child3->Remove(0);
+  model()->Remove(child3->children()[0].get(),
+                  bookmarks::metrics::BookmarkEditSource::kOther, FROM_HERE);
 
   // Sort the children of the bookmark bar node.
   testing::InSequence seq;

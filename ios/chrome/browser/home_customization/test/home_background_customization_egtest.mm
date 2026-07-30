@@ -119,14 +119,6 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
   [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
 }
 
-- (AppLaunchConfiguration)appConfigurationForTestCase {
-  AppLaunchConfiguration config = [super appConfigurationForTestCase];
-
-  config.features_enabled.push_back(kNTPBackgroundCustomization);
-
-  return config;
-}
-
 // Tests that a custom color can be set.
 - (void)testCustomizeColor {
   [[EarlGrey

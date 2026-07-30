@@ -8,6 +8,8 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/metrics/user_action_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "chrome/browser/contextual_tasks/active_task_context_provider.h"
@@ -38,13 +40,18 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/actions/chrome_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/hats/mock_hats_service.h"
 #include "chrome/browser/ui/hats/survey_config.h"
+#include "chrome/browser/ui/lens/test_lens_search_controller.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
+#include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
+#include "ui/actions/actions.h"
 #endif
 
 using testing::_;
@@ -106,6 +113,9 @@ class ContextualTasksSidePanelCoordinatorTest : public testing::Test {
  public:
   void SetUp() override {
     profile_ = std::make_unique<TestingProfile>();
+#if !BUILDFLAG(IS_ANDROID)
+    InitializeActionIdStringMapping();
+#endif
 
     ContextualTasksServiceFactory::GetInstance()->SetTestingFactory(
         profile_.get(),
@@ -198,8 +208,12 @@ class ContextualTasksSidePanelCoordinatorTest : public testing::Test {
     // WebContents must be destroyed before Profile.
     web_contents_list_.clear();
     tabs_.clear();
+    mock_tab_user_data_hosts_.clear();
 
     profile_.reset();
+#if !BUILDFLAG(IS_ANDROID)
+    actions::ActionIdMap::ResetMapsForTesting();
+#endif
   }
 
   tabs::TabInterface* CreateMockTab() {
@@ -212,6 +226,12 @@ class ContextualTasksSidePanelCoordinatorTest : public testing::Test {
                                                      base::NullCallback());
 
     ON_CALL(*tab, GetContents()).WillByDefault(Return(web_contents_ptr));
+
+    auto host = std::make_unique<ui::UnownedUserDataHost>();
+    ON_CALL(*tab, GetUnownedUserDataHost()).WillByDefault(ReturnRef(*host));
+    ON_CALL(Const(*tab), GetUnownedUserDataHost())
+        .WillByDefault(ReturnRef(*host));
+    mock_tab_user_data_hosts_.push_back(std::move(host));
 
     tabs::TabInterface* tab_ptr = tab.get();
     tabs_.push_back(std::move(tab));
@@ -284,6 +304,8 @@ class ContextualTasksSidePanelCoordinatorTest : public testing::Test {
 
   std::vector<std::unique_ptr<tabs::TabInterface>> tabs_;
   std::vector<std::unique_ptr<content::WebContents>> web_contents_list_;
+  std::vector<std::unique_ptr<ui::UnownedUserDataHost>>
+      mock_tab_user_data_hosts_;
 };
 
 TEST_F(ContextualTasksSidePanelCoordinatorTest,
@@ -512,5 +534,319 @@ TEST_F(ContextualTasksSidePanelCoordinatorTest, OpenInZeroStateCreatesNewTask) {
   coordinator_->OpenInZeroState();
 }
 
+#if !BUILDFLAG(IS_ANDROID)
+TEST_F(ContextualTasksSidePanelCoordinatorTest,
+       OpenInZeroState_PinnedToolbarButton) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kEnableContextualTasksPinButtonInToolbar);
+
+  // Pin the action in the PinnedToolbarActionsModel.
+  auto* model = PinnedToolbarActionsModel::Get(profile_.get());
+  ASSERT_TRUE(model);
+  model->UpdatePinnedState(kActionSidePanelShowContextualTasks,
+                           /*should_pin=*/true);
+
+  ContextualTask task(base::Uuid::GenerateRandomV4());
+  ON_CALL(*mock_controller_, GetContextualTaskForTab(_))
+      .WillByDefault(Return(task));
+
+  auto* mock_ui_service = static_cast<MockContextualTasksUiService*>(
+      ContextualTasksUiServiceFactory::GetForBrowserContext(profile_.get()));
+
+  EXPECT_CALL(
+      *mock_ui_service,
+      SetInitialEntryPointForTask(
+          task.GetTaskId(), omnibox::ChromeAimEntryPoint::
+                                DESKTOP_CHROME_COBROWSE_PINNED_TOOLBAR_BUTTON))
+      .Times(1);
+
+  coordinator_->OpenInZeroState();
+}
+
+TEST_F(ContextualTasksSidePanelCoordinatorTest,
+       CloseLensSessionWhenShowingPanel) {
+  tabs::TabInterface* active_tab = tab_list_->GetActiveTab();
+  ASSERT_TRUE(active_tab);
+
+  testing::NiceMock<lens::MockLensSearchController> mock_lens_controller(
+      active_tab);
+
+  EXPECT_CALL(mock_lens_controller, IsActive()).WillOnce(Return(true));
+  EXPECT_CALL(
+      mock_lens_controller,
+      CloseLensSync(lens::LensOverlayDismissalSource::kUnexpectedSidePanelOpen))
+      .Times(1);
+
+  coordinator_->Show(
+      /*transition_from_tab=*/false,
+      omnibox::ChromeAimEntryPoint::DESKTOP_CHROME_COBROWSE_TOOLBAR_BUTTON);
+}
+#endif
+
+TEST_F(ContextualTasksSidePanelCoordinatorTest,
+       CloseSidePanelLogsMetrics_LensOverlay) {
+  base::UserActionTester user_action_tester;
+  base::HistogramTester histogram_tester;
+
+  ContextualTask task(base::Uuid::GenerateRandomV4());
+  ON_CALL(*mock_controller_, GetContextualTaskForTab(_))
+      .WillByDefault(Return(task));
+
+  // Show the side panel with Lens Overlay entry point.
+  coordinator_->Show(
+      /*transition_from_tab=*/false,
+      omnibox::ChromeAimEntryPoint::
+          DESKTOP_CHROME_LENS_CONTEXTUAL_SEARCHBOX_ENTRY_POINT);
+
+  // Call Close() programmatically (simulating framework close).
+  coordinator_->Close();
+
+  // Trigger the close event via user action (simulating UI transition
+  // completion).
+  coordinator_->OnSurfaceStateChanged(
+      ContextualTasksPanelHost::SurfaceState::kClosed,
+      ContextualTasksPanelHost::StateChangeReason::kUserAction);
+
+  // Verify that the Lens Overlay close metric was recorded.
+  EXPECT_EQ(1, user_action_tester.GetActionCount(
+                   "ContextualTasks.SidePanel.UserAction.Close.LensOverlay"));
+  histogram_tester.ExpectUniqueSample(
+      "ContextualTasks.SidePanel.UserAction.Close.LensOverlay", true, 1);
+
+  // Verify that other close metrics were NOT recorded.
+  EXPECT_EQ(0,
+            user_action_tester.GetActionCount(
+                "ContextualTasks.SidePanel.UserAction.Close.AiModeLinkClick"));
+  EXPECT_EQ(0, user_action_tester.GetActionCount(
+                   "ContextualTasks.SidePanel.UserAction.Close.Other"));
+}
+
+TEST_F(ContextualTasksSidePanelCoordinatorTest,
+       CloseSidePanelLogsMetrics_AiModeLinkClick) {
+  base::UserActionTester user_action_tester;
+  base::HistogramTester histogram_tester;
+
+  ContextualTask task(base::Uuid::GenerateRandomV4());
+  ON_CALL(*mock_controller_, GetContextualTaskForTab(_))
+      .WillByDefault(Return(task));
+
+  // Show the side panel with transition_from_tab = true (representing AI Mode
+  // link click).
+  coordinator_->Show(
+      /*transition_from_tab=*/true,
+      omnibox::ChromeAimEntryPoint::UNKNOWN_AIM_ENTRY_POINT);
+
+  // Call Close() programmatically (simulating framework close).
+  coordinator_->Close();
+
+  // Trigger the close event via user action (simulating UI transition
+  // completion).
+  coordinator_->OnSurfaceStateChanged(
+      ContextualTasksPanelHost::SurfaceState::kClosed,
+      ContextualTasksPanelHost::StateChangeReason::kUserAction);
+
+  // Verify that the AI Mode Link Click close metric was recorded.
+  EXPECT_EQ(1,
+            user_action_tester.GetActionCount(
+                "ContextualTasks.SidePanel.UserAction.Close.AiModeLinkClick"));
+  histogram_tester.ExpectUniqueSample(
+      "ContextualTasks.SidePanel.UserAction.Close.AiModeLinkClick", true, 1);
+
+  // Verify that other close metrics were NOT recorded.
+  EXPECT_EQ(0, user_action_tester.GetActionCount(
+                   "ContextualTasks.SidePanel.UserAction.Close.LensOverlay"));
+  EXPECT_EQ(0, user_action_tester.GetActionCount(
+                   "ContextualTasks.SidePanel.UserAction.Close.Other"));
+}
+
+TEST_F(ContextualTasksSidePanelCoordinatorTest,
+       CloseSidePanelLogsMetrics_Other) {
+  base::UserActionTester user_action_tester;
+  base::HistogramTester histogram_tester;
+
+  ContextualTask task(base::Uuid::GenerateRandomV4());
+  ON_CALL(*mock_controller_, GetContextualTaskForTab(_))
+      .WillByDefault(Return(task));
+
+  // Show the side panel with transition_from_tab = false and
+  // non-Lens/non-composebox entry point.
+  coordinator_->Show(
+      /*transition_from_tab=*/false,
+      omnibox::ChromeAimEntryPoint::DESKTOP_CHROME_COBROWSE_TOOLBAR_BUTTON);
+
+  // Call Close() programmatically (simulating framework close).
+  coordinator_->Close();
+
+  // Trigger the close event via user action (simulating UI transition
+  // completion).
+  coordinator_->OnSurfaceStateChanged(
+      ContextualTasksPanelHost::SurfaceState::kClosed,
+      ContextualTasksPanelHost::StateChangeReason::kUserAction);
+
+  // Verify that the Other close metric was recorded.
+  EXPECT_EQ(1, user_action_tester.GetActionCount(
+                   "ContextualTasks.SidePanel.UserAction.Close.Other"));
+  histogram_tester.ExpectUniqueSample(
+      "ContextualTasks.SidePanel.UserAction.Close.Other", true, 1);
+
+  // Verify that other close metrics were NOT recorded.
+  EXPECT_EQ(0, user_action_tester.GetActionCount(
+                   "ContextualTasks.SidePanel.UserAction.Close.LensOverlay"));
+  EXPECT_EQ(0,
+            user_action_tester.GetActionCount(
+                "ContextualTasks.SidePanel.UserAction.Close.AiModeLinkClick"));
+}
+
+TEST_F(ContextualTasksSidePanelCoordinatorTest,
+       CloseSidePanelNoLogging_NonUserAction) {
+  base::UserActionTester user_action_tester;
+  base::HistogramTester histogram_tester;
+
+  ContextualTask task(base::Uuid::GenerateRandomV4());
+  ON_CALL(*mock_controller_, GetContextualTaskForTab(_))
+      .WillByDefault(Return(task));
+
+  // Show the side panel.
+  coordinator_->Show(
+      /*transition_from_tab=*/false,
+      omnibox::ChromeAimEntryPoint::
+          DESKTOP_CHROME_LENS_CONTEXTUAL_SEARCHBOX_ENTRY_POINT);
+
+  // Call Close() programmatically (simulating framework close).
+  coordinator_->Close();
+
+  // Trigger the close event via a NON-user action (e.g. programmatic close due
+  // to navigation or eligibility).
+  coordinator_->OnSurfaceStateChanged(
+      ContextualTasksPanelHost::SurfaceState::kClosed,
+      ContextualTasksPanelHost::StateChangeReason::kSystemAction);
+
+  // Verify that NO close metrics were recorded.
+  EXPECT_EQ(0, user_action_tester.GetActionCount(
+                   "ContextualTasks.SidePanel.UserAction.Close.LensOverlay"));
+  EXPECT_EQ(0,
+            user_action_tester.GetActionCount(
+                "ContextualTasks.SidePanel.UserAction.Close.AiModeLinkClick"));
+  EXPECT_EQ(0, user_action_tester.GetActionCount(
+                   "ContextualTasks.SidePanel.UserAction.Close.Other"));
+}
+
+TEST_F(ContextualTasksSidePanelCoordinatorTest, OnTabRemoved_ActiveTab) {
+  base::HistogramTester histogram_tester;
+  base::UserActionTester user_action_tester;
+
+  // Setup: Create a tab with a task, and cache it with is_open = true.
+  tabs::TabInterface* tab = tab_list_->GetActiveTab();
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+  ContextualTask task(task_id);
+
+  ON_CALL(*mock_controller_,
+          GetContextualTaskForTab(
+              sessions::SessionTabHelper::IdForTab(tab->GetContents())))
+      .WillByDefault(Return(task));
+
+  CreateCachedWebContentsForTesting(task_id, /*is_open=*/true);
+
+  // Make this cached web contents the active one in the panel.
+  UpdateWebContentsForActiveTab();
+  ASSERT_EQ(coordinator_->GetActiveWebContents(),
+            GetWebContentsForTaskForTesting(task_id));
+
+  // Action: Remove the tab.
+  coordinator_->OnTabRemoved(*tab_list_, tab, TabRemovedReason::kDeleted);
+
+  // Verify: Recorded kActiveTab (0) and the correct user action.
+  histogram_tester.ExpectUniqueSample(
+      "ContextualTasks.Tab.ClosedWithSidePanelOpenState",
+      ContextualTasksTabCloseState::kActiveTab, 1);
+  EXPECT_EQ(
+      1,
+      user_action_tester.GetActionCount(
+          "ContextualTasks.Tab.UserAction.ClosedActiveTabWithSidePanelOpen"));
+  EXPECT_EQ(0, user_action_tester.GetActionCount(
+                   "ContextualTasks.Tab.UserAction."
+                   "ClosedBackgroundTabWithSidePanelOpen"));
+}
+
+TEST_F(ContextualTasksSidePanelCoordinatorTest, OnTabRemoved_BackgroundTab) {
+  base::HistogramTester histogram_tester;
+  base::UserActionTester user_action_tester;
+
+  // Setup:
+  // 1. Create Tab A (which will be backgrounded) with Task A, cached as open.
+  tabs::TabInterface* tab_a = tab_list_->GetActiveTab();
+  base::Uuid task_id_a = base::Uuid::GenerateRandomV4();
+  ContextualTask task_a(task_id_a);
+  ON_CALL(*mock_controller_,
+          GetContextualTaskForTab(
+              sessions::SessionTabHelper::IdForTab(tab_a->GetContents())))
+      .WillByDefault(Return(task_a));
+  CreateCachedWebContentsForTesting(task_id_a, /*is_open=*/true);
+
+  // 2. Create Tab B (active) with Task B.
+  tabs::TabInterface* tab_b = CreateMockTab();
+  base::Uuid task_id_b = base::Uuid::GenerateRandomV4();
+  ContextualTask task_b(task_id_b);
+  ON_CALL(*mock_controller_,
+          GetContextualTaskForTab(
+              sessions::SessionTabHelper::IdForTab(tab_b->GetContents())))
+      .WillByDefault(Return(task_b));
+  CreateCachedWebContentsForTesting(task_id_b, /*is_open=*/false);
+
+  // Make Tab B active in the tab list.
+  ON_CALL(*tab_list_, GetActiveTab()).WillByDefault(Return(tab_b));
+  UpdateWebContentsForActiveTab();
+
+  // Verify Tab A's task is in cache and has is_open = true, but is not active.
+  ASSERT_NE(coordinator_->GetActiveWebContents(),
+            GetWebContentsForTaskForTesting(task_id_a));
+
+  // Action: Remove Tab A (background tab).
+  coordinator_->OnTabRemoved(*tab_list_, tab_a, TabRemovedReason::kDeleted);
+
+  // Verify: Recorded kBackgroundTab (1) and the correct user
+  // action.
+  histogram_tester.ExpectUniqueSample(
+      "ContextualTasks.Tab.ClosedWithSidePanelOpenState",
+      ContextualTasksTabCloseState::kBackgroundTab, 1);
+  EXPECT_EQ(
+      0,
+      user_action_tester.GetActionCount(
+          "ContextualTasks.Tab.UserAction.ClosedActiveTabWithSidePanelOpen"));
+  EXPECT_EQ(1, user_action_tester.GetActionCount(
+                   "ContextualTasks.Tab.UserAction."
+                   "ClosedBackgroundTabWithSidePanelOpen"));
+}
+
+TEST_F(ContextualTasksSidePanelCoordinatorTest, OnTabRemoved_PanelClosed) {
+  base::HistogramTester histogram_tester;
+  base::UserActionTester user_action_tester;
+
+  // Setup: Create a tab with a task, but cached with is_open = false.
+  tabs::TabInterface* tab = tab_list_->GetActiveTab();
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+  ContextualTask task(task_id);
+
+  ON_CALL(*mock_controller_,
+          GetContextualTaskForTab(
+              sessions::SessionTabHelper::IdForTab(tab->GetContents())))
+      .WillByDefault(Return(task));
+
+  CreateCachedWebContentsForTesting(task_id, /*is_open=*/false);
+
+  // Action: Remove the tab.
+  coordinator_->OnTabRemoved(*tab_list_, tab, TabRemovedReason::kDeleted);
+
+  // Verify: No metrics recorded because the panel was closed.
+  histogram_tester.ExpectTotalCount(
+      "ContextualTasks.Tab.ClosedWithSidePanelOpenState", 0);
+  EXPECT_EQ(
+      0,
+      user_action_tester.GetActionCount(
+          "ContextualTasks.Tab.UserAction.ClosedActiveTabWithSidePanelOpen"));
+  EXPECT_EQ(0, user_action_tester.GetActionCount(
+                   "ContextualTasks.Tab.UserAction."
+                   "ClosedBackgroundTabWithSidePanelOpen"));
+}
 }  // namespace contextual_tasks
 

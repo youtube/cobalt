@@ -144,7 +144,6 @@ TEST(GetUserPopulationForProfileTest, PopulatesSync) {
   {
     // Enabling local sync reports the sync service as signed-out, so this is
     // consistent with the SetSignedOut() call above.
-    // TODO(crbug.com/350494796): TestSyncService should honor that.
     sync_service->SetLocalSyncEnabled(true);
 
     ChromeUserPopulation population = GetUserPopulationForProfile(&profile);

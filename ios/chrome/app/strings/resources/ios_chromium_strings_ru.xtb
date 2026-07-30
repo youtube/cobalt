@@ -78,6 +78,7 @@
 <translation id="2386292341327187942">В окне поиска виджетов введите "Chromium".</translation>
 <translation id="2389827884654658221">Вы сможете быстрее открывать Chromium на главном экране iPad.</translation>
 <translation id="2426113998523353159">По правилам организации, чтобы использовать Chromium, нужно выполнить вход.</translation>
+<translation id="244367646885670394">Подтвердите личность, чтобы сохранить пароль и получить доступ к данным Chromium на всех устройствах.</translation>
 <translation id="2450140762465183767">При переходе по ссылкам в сообщениях, документах и приложениях будет открываться браузер Chromium.</translation>
 <translation id="2459183986985456602">Перейти на последнюю вкладку в Chromium.</translation>
 <translation id="2476409803017965813">Изменить список выбранных уведомлений можно в любой момент в настройках Chromium.</translation>
@@ -108,6 +109,7 @@
 <translation id="3054480780637153380">Откройте настройки Chromium в iOS, затем нажмите "Приложение браузера по умолчанию" и выберите Chromium.</translation>
 <translation id="3115956258722352278">Сделать Chromium браузером по умолчанию?</translation>
 <translation id="3180939591219927904">Включите параметр "Блокировать доступ к вкладкам инкогнито при закрытии Chromium".</translation>
+<translation id="327628223428512207">Введите кодовую фразу, чтобы сохранить пароль и получить доступ к данным Chromium на всех устройствах.</translation>
 <translation id="328933489847748230">{count,plural, =1{Показано 1 окно Chromium}one{Показано {count} окно Chromium}few{Показано {count} окна Chromium}many{Показано {count} окон Chromium}other{Показано {count} окна Chromium}}</translation>
 <translation id="3344973607274501920">Не удается проверить пароли в браузере Chromium. Проверьте подключение к Интернету.</translation>
 <translation id="3366305173356742781">Данные Chromium в вашем аккаунте</translation>

@@ -10,6 +10,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
+import android.text.method.LinkMovementMethod;
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -23,7 +24,7 @@ import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.ui.widget.ButtonCompat;
 import org.chromium.ui.widget.ChromeImageView;
 import org.chromium.ui.widget.OutlineOverlayHelper;
-import org.chromium.ui.widget.TextViewWithLeading;
+import org.chromium.ui.widget.TextViewWithClickableSpans;
 
 import java.lang.ref.WeakReference;
 
@@ -51,7 +52,7 @@ class MessageCardView extends LinearLayout {
     }
 
     private ChromeImageView mIcon;
-    private TextViewWithLeading mDescription;
+    private TextViewWithClickableSpans mDescription;
     private ButtonCompat mActionButton;
     private ChromeImageView mCloseButton;
     private OutlineOverlayHelper mOutlineOverlayHelper;
@@ -66,6 +67,7 @@ class MessageCardView extends LinearLayout {
 
         mIcon = findViewById(R.id.icon);
         mDescription = findViewById(R.id.description);
+        mDescription.setMovementMethod(LinkMovementMethod.getInstance());
         mActionButton = findViewById(R.id.action_button);
         mCloseButton = findViewById(R.id.close_button);
 

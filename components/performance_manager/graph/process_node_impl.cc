@@ -72,7 +72,7 @@ ProcessNodeImpl::ProcessNodeImpl(content::ProcessType process_type,
       child_process_host_proxy_(std::move(proxy)),
       tracing_track_(GetTracingTrack(process_type_, child_process_host_proxy_)),
       priority_(priority,
-                perfetto::NamedTrack("Priority", 0, tracing_track_),
+                perfetto::StateTrack("Priority", 0, tracing_track_),
                 PriorityToString) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   // Child process nodes must have a valid proxy.

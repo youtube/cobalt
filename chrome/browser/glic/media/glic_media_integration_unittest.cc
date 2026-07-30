@@ -23,6 +23,7 @@
 #include "components/live_caption/pref_names.h"
 #include "components/optimization_guide/content/browser/media_transcript_provider.h"
 #include "components/soda/mock_soda_installer.h"
+#include "components/soda/soda_installer.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test_utils.h"
@@ -75,6 +76,7 @@ class GlicMediaIntegrationTest : public ChromeRenderViewHostTestHarness {
         std::make_unique<sync_preferences::TestingPrefServiceSyncable>();
     pref_registry_ = pref_service->registry();
     RegisterUserProfilePrefs(pref_registry_);
+    speech::SodaInstaller::RegisterLocalStatePrefs(pref_registry_);
 
     TestingProfile::Builder builder;
     builder.SetPrefService(std::move(pref_service));
@@ -174,8 +176,7 @@ class GlicMediaIntegrationTest : public ChromeRenderViewHostTestHarness {
   std::unique_ptr<captions::LiveCaptionController>
   CreateLiveCaptionController() {
     return std::make_unique<captions::LiveCaptionController>(
-        pref_service(),
-        /*global_prefs=*/nullptr, "application_locale", browser_context(),
+        pref_service(), pref_service(), "application_locale", browser_context(),
         /*delegate=*/nullptr);
   }
 
@@ -519,6 +520,51 @@ TEST_F(GlicMediaIntegrationTest,
   integration->AppendContext(web_contents(), &root_node);
   EXPECT_EQ(root_node.children_nodes_size(), 0);
   EXPECT_FALSE(root_node.has_content_attributes());
+}
+
+TEST_F(GlicMediaIntegrationTest, PrefToggleAddsAndRemovesListener) {
+  // Ensure the pref is enabled initially.
+  pref_service()->SetBoolean(glic::prefs::kGlicMediaUnderstandingEnabled, true);
+
+  auto* integration = GetIntegration();
+  ASSERT_NE(integration, nullptr);
+
+  const url::Origin other_origin =
+      url::Origin::Create(GURL("https://example.com"));
+  SetCommittedOriginOnAllFrames(other_origin);
+
+  // 1. With pref enabled, dispatching transcription should succeed.
+  EXPECT_TRUE(live_caption_controller()->DispatchTranscription(
+      rfh(), nullptr,
+      media::SpeechRecognitionResult("transcript 1", /*is_final=*/true)));
+  EXPECT_EQ(GetContext()->GetTranscriptChunks().size(), 1u);
+
+  // 2. Disable the pref.
+  pref_service()->SetBoolean(glic::prefs::kGlicMediaUnderstandingEnabled,
+                             false);
+
+  // Wait for the asynchronous removal to process.
+  task_environment()->RunUntilIdle();
+
+  // 3. Now the listener should be removed, so DispatchTranscription returns
+  // false.
+  EXPECT_FALSE(live_caption_controller()->DispatchTranscription(
+      rfh(), nullptr,
+      media::SpeechRecognitionResult("transcript 2", /*is_final=*/true)));
+
+  // 4. Disabling the pref should have cleared the transcripts.
+  ASSERT_NE(GetContext(), nullptr);
+  EXPECT_FALSE(GetContext()->HasTranscriptChunks());
+  EXPECT_EQ(GetContext()->GetTranscriptChunks().size(), 0u);
+
+  // 5. Enable the pref again.
+  pref_service()->SetBoolean(glic::prefs::kGlicMediaUnderstandingEnabled, true);
+
+  // The listener is added back synchronously.
+  EXPECT_TRUE(live_caption_controller()->DispatchTranscription(
+      rfh(), nullptr,
+      media::SpeechRecognitionResult("transcript 3", /*is_final=*/true)));
+  EXPECT_EQ(GetContext()->GetTranscriptChunks().size(), 1u);
 }
 
 }  // namespace glic

@@ -21,6 +21,12 @@
                                  completion:nil];
 }
 
+- (void)launchWithViewController:(UIViewController*)baseViewController
+                             URL:(NSURL*)URL
+                      completion:(void (^)(NSError*))completion {
+  [self launchWithViewController:baseViewController completion:completion];
+}
+
 - (void)stop {
   [_viewController.presentingViewController dismissViewControllerAnimated:NO
                                                                completion:nil];

@@ -5,7 +5,7 @@ import {assert} from '//resources/js/assert.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 
-import {HANDSHAKE_PING_INTERVAL_MS, HANDSHAKE_TIMEOUT_MS, SKILLS_HANDSHAKE_ACK, SKILLS_HANDSHAKE_TYPE} from './skills_webview_bridge_constants.js';
+import {HANDSHAKE_PING_INTERVAL_MS, HANDSHAKE_TIMEOUT_MS, PRIMARY_SKILLS_ORIGIN, SKILLS_API_ALLOWED_ORIGINS, SKILLS_HANDSHAKE_ACK, SKILLS_HANDSHAKE_TYPE} from './skills_webview_bridge_constants.js';
 
 /**
  * Returns a URLPattern given an origin pattern string that has the syntax:
@@ -26,6 +26,11 @@ export function matcherForOrigin(originPattern: string): URLPattern|null {
   }
 }
 
+function isInternalOnlyOrigin(origin: string): boolean {
+  return origin === 'https://login.corp.google.com' ||
+      origin === 'https://accounts.googlers.com';
+}
+
 export function urlMatchesApiAllowedOrigin(url: URL): boolean {
   if (url.origin === 'null') {
     return false;
@@ -38,13 +43,14 @@ export function urlMatchesApiAllowedOrigin(url: URL): boolean {
 
   // A URL is allowed to have API access if it matches any of the explicit API
   // allowed origins.
-  const apiAllowedOrigins = loadTimeData.getString('skillsApiAllowedOrigins');
-  if (!apiAllowedOrigins) {
-    return false;
-  }
-
-  return apiAllowedOrigins.split(' ').some(
-      (origin: string) => matcherForOrigin(origin.trim())?.test(url));
+  return SKILLS_API_ALLOWED_ORIGINS.some((origin: string) => {
+    // Only allow internal origins for internal users.
+    if (isInternalOnlyOrigin(origin) &&
+        !loadTimeData.getBoolean('isInternalUser')) {
+      return false;
+    }
+    return matcherForOrigin(origin.trim())?.test(url);
+  });
 }
 
 /**
@@ -58,10 +64,12 @@ export class SkillsWebviewBridge {
   private timeoutId_: number|null = null;
   private isConnected_: boolean = false;
   private eventTracker_: EventTracker = new EventTracker();
+  private onErrorCallback_: () => void;
 
-  constructor(webview: chrome.webviewTag.WebView) {
+  constructor(webview: chrome.webviewTag.WebView, onError: () => void) {
     assert(loadTimeData.getBoolean('isSkillsWebViewV2Enabled'));
     this.webview_ = webview;
+    this.onErrorCallback_ = onError;
 
     this.eventTracker_.add(
         this.webview_, 'loadcommit',
@@ -78,14 +86,32 @@ export class SkillsWebviewBridge {
     }
 
     const urlObj = URL.parse(e.url);
-    if (urlObj && urlMatchesApiAllowedOrigin(urlObj)) {
+
+    // Disallowed Origin.
+    if (!urlObj || !urlMatchesApiAllowedOrigin(urlObj)) {
+      this.onErrorCallback_();
+      return;
+    }
+
+    // Start handshake if valid target url.
+    if (this.urlRequiresHandshake(urlObj)) {
       this.targetOrigin_ = urlObj.origin;
       this.webview_.setAttribute('hidden', 'true');
       this.startHandshake();
-    } else {
-      this.stopHandshake();
-      // TODO(crbug.com/521780472): Show error page.
     }
+  }
+
+  private urlRequiresHandshake(url: URL): boolean {
+    // If we are already connected we don't need a new handshake.
+    if (this.isConnected_) {
+      return false;
+    }
+    // For development and testing.
+    if (loadTimeData.getBoolean('devMode')) {
+      return true;
+    }
+
+    return matcherForOrigin(PRIMARY_SKILLS_ORIGIN)?.test(url) ?? false;
   }
 
   private onLoadStop() {
@@ -107,7 +133,7 @@ export class SkillsWebviewBridge {
     // Set a timeout to abort handshake.
     this.timeoutId_ = window.setTimeout(() => {
       this.stopHandshake();
-      // TODO(crbug.com/521780472): Show error page.
+      this.onErrorCallback_();
     }, HANDSHAKE_TIMEOUT_MS);
 
     this.sendPing();
@@ -149,9 +175,6 @@ export class SkillsWebviewBridge {
     // Handle handshake ack if guest replies.
     if (e.data.type === SKILLS_HANDSHAKE_ACK) {
       this.isConnected_ = true;
-      // TODO(crbug.com/523268021): We don't automatically set webview as hidden
-      // because other urls (like corp signin) might need to render within
-      // webview. Reconsider when adding loading page.
       this.webview_.removeAttribute('hidden');
       this.stopHandshake();
     }

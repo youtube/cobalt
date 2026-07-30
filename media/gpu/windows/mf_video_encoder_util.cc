@@ -657,4 +657,10 @@ size_t GetMFTGuidHash(IMFActivate* activate) {
       base::as_byte_span(base::win::WStringFromGUID(mft_guid)));
 }
 
+bool IsMediaFoundationD3DVideoProcessingEnabled(
+    const gpu::GpuDriverBugWorkarounds& workarounds) {
+  return base::FeatureList::IsEnabled(kMediaFoundationD3DVideoProcessing) &&
+         !workarounds.disable_media_foundation_d3d_video_processing;
+}
+
 }  // namespace media

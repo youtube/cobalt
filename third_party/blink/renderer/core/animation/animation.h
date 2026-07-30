@@ -78,9 +78,6 @@ enum class BlinkAnimationType : int {
   kAnimationTypeEnumMax = 6
 };
 
-// Enum indicating why we're calling StartAnimationOnCompositor.
-enum class StartOnCompositorReason { kGeneric, kAnimationTrigger };
-
 class CORE_EXPORT Animation : public EventTarget,
                               public ActiveScriptWrappable<Animation>,
                               public ExecutionContextLifecycleObserver,
@@ -214,7 +211,7 @@ class CORE_EXPORT Animation : public EventTarget,
   void OnActivePhaseStateChange(bool in_active_phase);
 
   bool Limited() const { return Limited(CurrentTimeInternal()); }
-  bool FinishedInternal() const { return finished_; }
+  bool Inactive() const { return inactive_; }
 
   DEFINE_ATTRIBUTE_EVENT_LISTENER(finish, kFinish)
   DEFINE_ATTRIBUTE_EVENT_LISTENER(cancel, kCancel)
@@ -694,9 +691,11 @@ class CORE_EXPORT Animation : public EventTarget,
   // has changed by means other than the ordinary progression of time
   bool outdated_;
 
-  // Indicates the animation is no longer active. Cancelled animation is marked
-  // as finished_.
-  bool finished_;
+  // Indicates the animation is no longer active. An animation in the idle state
+  // or a finished animation with a monotonic timeline, does not require
+  // animation updates.
+  bool inactive_;
+
   // Indicates finish notification has been handled.
   bool committed_finish_notification_;
   // Holds a 'finished' event queued for asynchronous dispatch via the

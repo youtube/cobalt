@@ -156,8 +156,8 @@ std::unique_ptr<views::View> ActorTaskListBubble::CreateContentsView(
     std::unique_ptr<ActorTaskListBubbleRowButton> row =
         std::make_unique<ActorTaskListBubbleRowButton>(
             base::BindRepeating(on_row_clicked, task_id), task_state.value(),
-            base::UTF8ToUTF16(task_title.value()), requires_processing,
-            has_tab);
+            base::UTF8ToUTF16(task_title.value()), requires_processing, has_tab,
+            actor_ui_state_manager->GetFeatureMode(task_id));
 
     contents_view->AddChildView(std::move(row));
   }

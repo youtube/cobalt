@@ -54,9 +54,11 @@ class MemoryConsumerRegistryTest : public Test,
   std::vector<ConsumerEntry>& entries() { return entries_; }
 
   // MemoryConsumerGroupController:
-  void AddMemoryConsumerGroupHost(ChildProcessId child_process_id,
+  void AddMemoryConsumerGroupHost(ProcessType process_type,
+                                  ChildProcessId child_process_id,
                                   MemoryConsumerGroupHost* host) override {
-    auto [_, inserted] = hosts_.try_emplace(child_process_id, host);
+    auto [_, inserted] =
+        hosts_.try_emplace(child_process_id, HostInfo{host, process_type});
     CHECK(inserted);
   }
 
@@ -68,11 +70,11 @@ class MemoryConsumerRegistryTest : public Test,
   void OnConsumerGroupAdded(uint32_t consumer_id,
                             std::string_view consumer_name,
                             std::optional<base::MemoryConsumerTraits> traits,
-                            ProcessType process_type,
                             ChildProcessId child_process_id) override {
+    const HostInfo& host_info = hosts_.at(child_process_id);
     entries_.push_back({consumer_id, std::string(consumer_name), traits,
-                        process_type, child_process_id,
-                        hosts_.at(child_process_id)});
+                        host_info.process_type, child_process_id,
+                        host_info.host});
   }
 
   void OnConsumerGroupRemoved(uint32_t consumer_id,
@@ -91,7 +93,11 @@ class MemoryConsumerRegistryTest : public Test,
 
  private:
   base::test::TaskEnvironment task_environment_;
-  std::map<ChildProcessId, MemoryConsumerGroupHost*> hosts_;
+  struct HostInfo {
+    raw_ptr<MemoryConsumerGroupHost> host;
+    ProcessType process_type;
+  };
+  std::map<ChildProcessId, HostInfo> hosts_;
   base::ScopedMemoryConsumerRegistry<MemoryConsumerRegistry> registry_;
   std::vector<ConsumerEntry> entries_;
 };

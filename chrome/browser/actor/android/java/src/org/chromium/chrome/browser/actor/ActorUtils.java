@@ -36,4 +36,20 @@ public class ActorUtils {
     public static boolean isPausedState(@ActorTaskState int state) {
         return state == ActorTaskState.PAUSED_BY_ACTOR || state == ActorTaskState.PAUSED_BY_USER;
     }
+
+    /**
+     * @param prevTaskState The first {@link ActorTaskState} to compare.
+     * @param newTaskState The second {@link ActorTaskState} to compare.
+     * @return True if both states belong to the same logical group (Running, Paused, Waiting on
+     *     User, or Completed).
+     */
+    public static boolean isSameLogicalGroup(
+            @ActorTaskState int prevTaskState, @ActorTaskState int newTaskState) {
+        if (prevTaskState == newTaskState) return true;
+        if (isRunningState(prevTaskState) && isRunningState(newTaskState)) return true;
+        if (isPausedState(prevTaskState) && isPausedState(newTaskState)) return true;
+        if (isCompletedState(prevTaskState) && isCompletedState(newTaskState)) return true;
+        return prevTaskState == ActorTaskState.WAITING_ON_USER
+                && newTaskState == ActorTaskState.WAITING_ON_USER;
+    }
 }

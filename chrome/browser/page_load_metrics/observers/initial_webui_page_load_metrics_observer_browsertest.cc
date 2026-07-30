@@ -4,6 +4,7 @@
 
 #include "chrome/browser/page_load_metrics/observers/initial_webui_page_load_metrics_observer.h"
 
+#include <map>
 #include <memory>
 
 #include "base/metrics/statistics_recorder.h"
@@ -36,13 +37,16 @@
 #include "components/ukm/gmock_matchers.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_ui_controller.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/no_renderer_crashes_assertion.h"
 #include "content/public/test/test_navigation_observer.h"
+#include "content/public/test/url_loader_interceptor.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_source.h"
@@ -140,17 +144,11 @@ class WebUIToolbarInitializer : public WebUIControllerInitalizer {
 class InitialWebUIPageLoadMetricsObserverBrowserTest
     : public InProcessBrowserTest {
  public:
-  InitialWebUIPageLoadMetricsObserverBrowserTest()
-      : InitialWebUIPageLoadMetricsObserverBrowserTest(
-            {features::kInitialWebUI, features::kWebUIReloadButton,
-             features::kInitialWebUIMetrics,
-             features::kInitialWebUISyncNavStartToCommit},
-            {}) {}
-
-  InitialWebUIPageLoadMetricsObserverBrowserTest(
-      std::vector<base::test::FeatureRef> enabled_features,
-      std::vector<base::test::FeatureRef> disabled_features) {
-    feature_list_.InitWithFeatures(enabled_features, disabled_features);
+  InitialWebUIPageLoadMetricsObserverBrowserTest() {
+    feature_list_.InitWithFeatures(
+        {features::kInitialWebUI, features::kWebUIReloadButton,
+         features::kInitialWebUIMetrics},
+        {});
   }
 
   InitialWebUIPageLoadMetricsObserverBrowserTest(
@@ -175,9 +173,9 @@ class InitialWebUIPageLoadMetricsObserverBrowserTest
         web_contents);
   }
 
-  content::WebContents* CreateNewContents(
-      const GURL& url,
-      WebUIToolbarInitializer& initializer) {
+  content::WebContents* CreateNewContents(const GURL& url,
+                                          WebUIToolbarInitializer& initializer,
+                                          bool initially_hidden = false) {
     content::BrowserContext* browser_context = browser()
                                                    ->tab_strip_model()
                                                    ->GetActiveWebContents()
@@ -185,6 +183,7 @@ class InitialWebUIPageLoadMetricsObserverBrowserTest
     content::WebContents::CreateParams new_contents_params(
         browser_context,
         content::SiteInstance::CreateForURL(browser_context, url));
+    new_contents_params.initially_hidden = initially_hidden;
     std::unique_ptr<content::WebContents> new_web_contents(
         content::WebContents::Create(new_contents_params));
 
@@ -269,16 +268,6 @@ class InitialWebUIPageLoadMetricsObserverBrowserTest
 
  private:
   base::test::ScopedFeatureList feature_list_;
-};
-
-class InitialWebUIPageLoadMetricsObserverBrowserTestWithoutSyncNav
-    : public InitialWebUIPageLoadMetricsObserverBrowserTest {
- public:
-  InitialWebUIPageLoadMetricsObserverBrowserTestWithoutSyncNav()
-      : InitialWebUIPageLoadMetricsObserverBrowserTest(
-            {features::kInitialWebUI, features::kWebUIReloadButton,
-             features::kInitialWebUIMetrics},
-            {features::kInitialWebUISyncNavStartToCommit}) {}
 };
 
 // Verify PageLoad event is recorded with valid Paint Milestones in the expected
@@ -376,23 +365,36 @@ IN_PROC_BROWSER_TEST_F(InitialWebUIPageLoadMetricsObserverBrowserTest,
 
 // Verify page end reason and failed load details are logged for failed
 // provisional loads.
-IN_PROC_BROWSER_TEST_F(
-    InitialWebUIPageLoadMetricsObserverBrowserTestWithoutSyncNav,
-    VerifyFailedProvisionalLoad) {
+IN_PROC_BROWSER_TEST_F(InitialWebUIPageLoadMetricsObserverBrowserTest,
+                       VerifyFailedProvisionalLoad) {
   GURL failed_url(chrome::kChromeUIWebUIToolbarURL);
+  content::ScopedAllowRendererCrashes allow_crashes;
   WebUIToolbarInitializer initializer(browser());
   content::WebContents* active_contents =
       CreateNewContents(failed_url, initializer);
   browser()->tab_strip_model()->ActivateTabAt(1);
 
-  content::TestNavigationManager navigation_manager(active_contents,
-                                                    failed_url);
+  class NavigationStopper : public content::WebContentsObserver {
+   public:
+    explicit NavigationStopper(content::WebContents* web_contents)
+        : content::WebContentsObserver(web_contents) {}
+    void DidStartNavigation(
+        content::NavigationHandle* navigation_handle) override {
+      content::RenderProcessHost* rph = content::RenderProcessHost::FromID(
+          navigation_handle->GetExpectedRenderProcessHostId());
+      if (rph) {
+        rph->Shutdown(0);
+      }
+    }
+  };
+
+  NavigationStopper stopper(active_contents);
+  content::TestNavigationObserver navigation_observer(active_contents);
+
   active_contents->GetController().LoadURL(
       failed_url, content::Referrer(), ui::PAGE_TRANSITION_LINK, std::string());
 
-  ASSERT_TRUE(navigation_manager.WaitForRequestStart());
-  active_contents->Stop();
-  ASSERT_TRUE(navigation_manager.WaitForNavigationFinished());
+  navigation_observer.Wait();
 
   browser()->tab_strip_model()->CloseWebContentsAt(1, 0);
 
@@ -402,33 +404,64 @@ IN_PROC_BROWSER_TEST_F(
                   HasMetric("PageTiming.NavigationToFailedProvisionalLoad"))));
 }
 
-// Verify background timing logic for pages loaded in the background.
+// Verify that all lifecycle and timing metrics are successfully recorded
+// even when the page is loaded in the background.
 IN_PROC_BROWSER_TEST_F(InitialWebUIPageLoadMetricsObserverBrowserTest,
                        VerifyBackgroundLoad) {
+  GURL url(chrome::kChromeUIWebUIToolbarURL);
   WebUIToolbarInitializer initializer(browser());
   content::WebContents* bg_contents =
-      CreateNewContents(GURL(chrome::kChromeUIWebUIToolbarURL), initializer);
+      CreateNewContents(url, initializer, /*initially_hidden=*/true);
 
-  auto metrics_waiter =
+  std::unique_ptr<page_load_metrics::PageLoadMetricsTestWaiter> metrics_waiter =
       std::make_unique<page_load_metrics::PageLoadMetricsTestWaiter>(
           bg_contents);
   metrics_waiter->AddPageExpectation(
       page_load_metrics::PageLoadMetricsTestWaiter::TimingField::kLoadEvent);
 
-  content::TestNavigationObserver navigation_observer{
-      GURL(chrome::kChromeUIWebUIToolbarURL)};
+  content::TestNavigationObserver navigation_observer{url};
   navigation_observer.WatchExistingWebContents();
 
-  bg_contents->GetController().LoadURL(GURL(chrome::kChromeUIWebUIToolbarURL),
-                                       content::Referrer(),
+  bg_contents->GetController().LoadURL(url, content::Referrer(),
                                        ui::PAGE_TRANSITION_LINK, std::string());
   navigation_observer.Wait();
   metrics_waiter->Wait();
 
-  browser()->tab_strip_model()->CloseWebContentsAt(1, 0);
+  // Close the tab to trigger OnComplete and OnHidden.
+  int index = browser()->tab_strip_model()->GetIndexOfWebContents(bg_contents);
+  browser()->tab_strip_model()->CloseWebContentsAt(index, 0);
 
-  auto entries = ukm_recorder_->GetEntriesByName("InitialWebUIPageLoad");
-  ASSERT_GE(entries.size(), 1u);
+  // Verify InitialWebUIPageLoad has Page Load, Renderer Usage, Timing, and
+  // Page End metrics. Note that paint metrics are not recorded for background
+  // loads.
+  auto page_load_entries = GetEntriesForUrl("InitialWebUIPageLoad", url);
+  EXPECT_THAT(
+      page_load_entries,
+      ElementsAre(
+          // RecordPageLoadMetrics
+          AllOf(HasMetric("HourOfDay"), HasMetric("DayOfWeek")),
+          // RecordRendererUsageMetrics
+          HasMetric("SiteInstanceRenderProcessAssignment"),
+          // RecordTimingMetrics
+          AllOf(HasMetric("ParseTiming.NavigationToParseStart"),
+                HasMetric(
+                    "DocumentTiming.NavigationToDOMContentLoadedEventFired"),
+                HasMetric("DocumentTiming.NavigationToLoadEventFired"),
+                HasMetric("CPUTimeMs")),
+          // RecordPageEndMetrics
+          AllOf(HasMetric("Navigation.PageTransition"),
+                HasMetric("Navigation.PageEndReason3"))));
+
+  // Verify InitialWebUINavigationTiming is successfully recorded with all
+  // sub-metrics.
+  auto nav_entries = GetEntriesForUrl("InitialWebUINavigationTiming", url);
+  EXPECT_THAT(nav_entries,
+              ElementsAre(AllOf(HasMetric("FirstRequestStart"),
+                                HasMetric("FirstResponseStart"),
+                                HasMetric("NavigationCommitSent"),
+                                HasMetric("NavigationCommitReceived"),
+                                HasMetric("NavigationCommitReplySent"),
+                                HasMetric("NavigationDidCommit"))));
 }
 
 // Verify First Paint is not logged when page goes to background before it.
@@ -530,32 +563,6 @@ IN_PROC_BROWSER_TEST_F(InitialWebUIPageLoadMetricsObserverBrowserTest,
               Contains(HasMetric("PageTiming.ForegroundDurationMs")));
 }
 
-// Verify cache status and failure metrics for cached page load with
-// provisional load failure.
-IN_PROC_BROWSER_TEST_F(
-    InitialWebUIPageLoadMetricsObserverBrowserTestWithoutSyncNav,
-    VerifyCachedFailedLoad) {
-  GURL failed_url(chrome::kChromeUIWebUIToolbarURL);
-  WebUIToolbarInitializer initializer(browser());
-  content::WebContents* active_contents =
-      CreateNewContents(failed_url, initializer);
-  browser()->tab_strip_model()->ActivateTabAt(1);
-
-  content::TestNavigationManager navigation_manager(active_contents,
-                                                    failed_url);
-  active_contents->GetController().LoadURL(
-      failed_url, content::Referrer(), ui::PAGE_TRANSITION_LINK, std::string());
-
-  ASSERT_TRUE(navigation_manager.WaitForRequestStart());
-  active_contents->Stop();
-  ASSERT_TRUE(navigation_manager.WaitForNavigationFinished());
-
-  browser()->tab_strip_model()->CloseWebContentsAt(1, 0);
-
-  EXPECT_THAT(GetEntriesForUrl("InitialWebUIPageLoad", failed_url),
-              Contains(HasMetric("Net.ErrorCode.OnFailedProvisionalLoad")));
-}
-
 // Verify NavigationTiming for navigations with redirects.
 IN_PROC_BROWSER_TEST_F(InitialWebUIPageLoadMetricsObserverBrowserTest,
                        VerifyRedirectNavigation) {
@@ -570,7 +577,7 @@ IN_PROC_BROWSER_TEST_F(InitialWebUIPageLoadMetricsObserverBrowserTest,
                                 HasMetric("NavigationDidCommit"))));
 }
 
-// Verify metrics are recorded correctly for reload sessions.
+// Verify metrics are recorded correctly for reload sessions without duplicates.
 IN_PROC_BROWSER_TEST_F(InitialWebUIPageLoadMetricsObserverBrowserTest,
                        VerifyReloadSession) {
   GURL url(chrome::kChromeUIWebUIToolbarURL);
@@ -583,7 +590,42 @@ IN_PROC_BROWSER_TEST_F(InitialWebUIPageLoadMetricsObserverBrowserTest,
   int index = browser()->tab_strip_model()->GetIndexOfWebContents(contents);
   browser()->tab_strip_model()->CloseWebContentsAt(index, 0);
 
-  EXPECT_THAT(GetEntriesForUrl("InitialWebUIPageLoad", url), SizeIs(Ge(2u)));
+  // We expect entries for both the original load and the reload.
+  auto page_load_entries = GetEntriesForUrl("InitialWebUIPageLoad", url);
+
+  // Group entries by their UKM source ID.
+  std::map<ukm::SourceId, std::vector<const ukm::mojom::UkmEntry*>>
+      entries_by_source;
+  for (const auto* entry : page_load_entries) {
+    entries_by_source[entry->source_id].push_back(entry);
+  }
+
+  // Verify that we have exactly 2 distinct navigations (source IDs).
+  EXPECT_EQ(entries_by_source.size(), 2u);
+
+  // For each navigation, verify that one-time metrics are recorded exactly
+  // once.
+  for (const auto& [source_id, entries] : entries_by_source) {
+    int process_assignment_count = 0;
+    int foreground_duration_count = 0;
+    for (const auto* entry : entries) {
+      if (ukm_recorder_->GetEntryMetric(
+              entry, "SiteInstanceRenderProcessAssignment")) {
+        process_assignment_count++;
+      }
+      if (ukm_recorder_->GetEntryMetric(entry,
+                                        "PageTiming.ForegroundDurationMs")) {
+        foreground_duration_count++;
+      }
+    }
+    EXPECT_EQ(process_assignment_count, 1);
+    EXPECT_EQ(foreground_duration_count, 1);
+  }
+
+  // Verify that InitialWebUINavigationTiming has exactly 2 entries (one per
+  // navigation).
+  auto nav_entries = GetEntriesForUrl("InitialWebUINavigationTiming", url);
+  EXPECT_EQ(nav_entries.size(), 2u);
 }
 
 // Verify multi-tab isolated browsing.
@@ -774,4 +816,56 @@ IN_PROC_BROWSER_TEST_F(InitialWebUIPageLoadMetricsObserverBrowserTest,
   entries = GetEntriesForUrl("InitialWebUIPageLoad", url);
   EXPECT_THAT(entries,
               Contains(HasMetric("PageTiming.TotalForegroundDurationMs")));
+}
+
+// Verify that visibility changes (hide-show-hide) do not cause duplicate
+// metrics to be recorded.
+IN_PROC_BROWSER_TEST_F(InitialWebUIPageLoadMetricsObserverBrowserTest,
+                       VerifyNoDuplicateMetricsOnVisibilityChanges) {
+  GURL url(chrome::kChromeUIWebUIToolbarURL);
+  WebUIToolbarInitializer initializer(browser());
+  content::WebContents* active_contents = CreateNewContents(url, initializer);
+  browser()->tab_strip_model()->ActivateTabAt(1);
+
+  content::TestNavigationObserver navigation_observer{url};
+  navigation_observer.WatchExistingWebContents();
+
+  active_contents->GetController().LoadURL(
+      url, content::Referrer(), ui::PAGE_TRANSITION_LINK, std::string());
+  navigation_observer.Wait();
+
+  // Hide the page. This should trigger OnHidden and record one-time metrics.
+  active_contents->WasHidden();
+
+  // Show the page again.
+  active_contents->WasShown();
+
+  // Hide the page a second time. This should NOT trigger recording again.
+  active_contents->WasHidden();
+
+  // Close the tab to complete the lifecycle.
+  browser()->tab_strip_model()->CloseWebContentsAt(1, 0);
+
+  // Verify that InitialWebUINavigationTiming has exactly 1 entry.
+  auto nav_entries = GetEntriesForUrl("InitialWebUINavigationTiming", url);
+  EXPECT_EQ(nav_entries.size(), 1u);
+
+  // Verify that InitialWebUIPageLoad has exactly one entry for one-time
+  // metrics.
+  auto page_load_entries = GetEntriesForUrl("InitialWebUIPageLoad", url);
+
+  int process_assignment_count = 0;
+  int foreground_duration_count = 0;
+  for (const auto* entry : page_load_entries) {
+    if (ukm_recorder_->GetEntryMetric(entry,
+                                      "SiteInstanceRenderProcessAssignment")) {
+      process_assignment_count++;
+    }
+    if (ukm_recorder_->GetEntryMetric(entry,
+                                      "PageTiming.ForegroundDurationMs")) {
+      foreground_duration_count++;
+    }
+  }
+  EXPECT_EQ(process_assignment_count, 1);
+  EXPECT_EQ(foreground_duration_count, 1);
 }

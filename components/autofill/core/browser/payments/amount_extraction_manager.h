@@ -108,13 +108,13 @@ class AmountExtractionManager {
       delete;
   virtual ~AmountExtractionManager();
 
-  // Timeout limit for the regex-base amount extraction in millisecond.
+  // Timeout limit for the regex-based amount extraction.
   static constexpr base::TimeDelta kAmountExtractionWaitTime =
       base::Milliseconds(150);
 
-  // Timeout limit for the ai-based amount extraction in millisecond.
+  // Timeout limit for the ai-based amount extraction.
   static constexpr base::TimeDelta kAiBasedAmountExtractionWaitTime =
-      base::Seconds(5);
+      base::Seconds(10);
 
   // This function attempts to convert a string representation of a monetary
   // value in dollars into a int64_t by parsing it as a double and multiplying

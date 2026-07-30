@@ -5,7 +5,7 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_FRAME_MOCK_IMMERSIVE_MODE_CONTROLLER_H_
 #define CHROME_BROWSER_UI_VIEWS_FRAME_MOCK_IMMERSIVE_MODE_CONTROLLER_H_
 
-#include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
+#include "chrome/browser/ui/immersive/immersive_mode_controller.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 class MockImmersiveRevealedLock : public ImmersiveRevealedLock {

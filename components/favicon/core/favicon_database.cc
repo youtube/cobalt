@@ -239,7 +239,6 @@ bool FaviconDatabase::IconMappingEnumerator::GetNextIconMapping(
 
 FaviconDatabase::FaviconDatabase()
     : db_(sql::DatabaseOptions()
-              .set_preload(true)
               // Favicons db only stores favicons, so we don't need that big a
               // page size or cache.
               .set_page_size(2048)

@@ -191,7 +191,7 @@ class CrostiniInstallerTest : public testing::Test {
 
   void Install() {
     CrostiniManager::GetForProfile(profile_.get())
-        ->SetCrostiniDialogStatus(DialogType::INSTALLER, true);
+        ->SetCrostiniInstallerOpen(true);
     crostini_installer_->Install(
         CrostiniManager::RestartOptions{},
         base::BindRepeating(&MockCallbacks::OnProgress,

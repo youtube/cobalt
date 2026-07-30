@@ -6,12 +6,14 @@
 
 #include <jni.h>
 
+#include <optional>
 #include <utility>
 #include <vector>
 
 #include "base/android/jni_android.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/auxiliary_search/auxiliary_search_donation_service.h"
+#include "components/signin/public/identity_manager/account_info.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 // `ToJniType` specialisation declarations:
@@ -62,11 +64,14 @@ AuxiliarySearchDonationServiceBridge::~AuxiliarySearchDonationServiceBridge() {
 }
 
 void AuxiliarySearchDonationServiceBridge::DonateHistoryEntries(
-    std::vector<AuxiliarySearchDonationService::HistoryData> entries) const {
+    std::vector<AuxiliarySearchDonationService::HistoryData> entries,
+    CoreAccountInfo account_info) const {
   // As of writing, `jni_zero` generated functions take in arguments as
   // `const&`, so the following `std::move` is a no-op.
   // If `jni_zero` ever changes its behaviour to allow passing in arguments by
   // move, this will automatically take advantage of that.
-  bridge_->donateHistory(base::android::AttachCurrentThread(),
-                         std::move(entries));
+  bridge_->donateHistory(
+      base::android::AttachCurrentThread(), std::move(entries),
+      account_info.IsEmpty() ? std::nullopt
+                             : std::make_optional(std::move(account_info)));
 }

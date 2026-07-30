@@ -2256,6 +2256,7 @@ TEST_F(ThreadControllerWithMessagePumpTest, WorkIdIncrementedDelegateRun) {
 }
 
 TEST_F(ThreadControllerWithMessagePumpTest, LockMetricsReportedOnIdle) {
+  PlatformThread::SetName("TestThread");
   constexpr TimeDelta test_sample1 = Microseconds(42);
   constexpr TimeDelta test_sample2 = Milliseconds(42);
   const std::string base_lock_histogram_name =
@@ -2267,15 +2268,15 @@ TEST_F(ThreadControllerWithMessagePumpTest, LockMetricsReportedOnIdle) {
 
   SingleThreadTaskRunner::CurrentDefaultHandle handle(
       MakeRefCounted<FakeTaskRunner>());
-  ASSERT_TRUE(LockMetricsRecorder::Get()->IsCurrentThreadTarget());
+  LockMetricsRecorder::EnableRecordingOnCurrentThread();
 
   HistogramTester histogram_tester;
 
-  LockMetricsRecorder::Get()->RecordLockAcquisitionTime(
+  base::LockMetricsRecorder::GetForCurrentThread()->RecordLockAcquisitionTime(
       test_sample1, LockMetricsRecorder::LockType::kBaseLock);
-  LockMetricsRecorder::Get()->RecordLockAcquisitionTime(
+  base::LockMetricsRecorder::GetForCurrentThread()->RecordLockAcquisitionTime(
       test_sample2, LockMetricsRecorder::LockType::kPartitionAllocLock);
-  LockMetricsRecorder::Get()->RecordLockAcquisitionTime(
+  base::LockMetricsRecorder::GetForCurrentThread()->RecordLockAcquisitionTime(
       test_sample2, LockMetricsRecorder::LockType::kPartitionAllocLock);
 
   EXPECT_CALL(*message_pump_, Run(_))

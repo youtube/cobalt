@@ -16,12 +16,14 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
+#include "base/types/expected.h"
 #include "chrome/browser/ui/read_anything/read_anything_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_enums.h"
 #include "chrome/browser/ui/read_anything/read_anything_lifecycle_observer.h"
 #include "chrome/browser/ui/read_anything/read_anything_side_panel_controller.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
+#include "chrome/common/read_anything/distillation_evaluator.mojom.h"
 #include "chrome/common/read_anything/read_anything.mojom.h"
 #include "components/dom_distiller/core/task_tracker.h"
 #include "components/translate/core/browser/translate_client.h"
@@ -45,6 +47,7 @@ using ash::language_packs::PackResult;
 #endif
 
 namespace content {
+class NavigationHandle;
 class ScopedAccessibilityMode;
 }
 
@@ -111,6 +114,8 @@ class ReadAnythingWebContentsObserver : public content::WebContentsObserver {
   void WebContentsDestroyed() override;
   void DidStopLoading() override;
   void DidUpdateAudioMutingState(bool muted) override;
+  void DidFinishNavigation(
+      content::NavigationHandle* navigation_handle) override;
 
   // base::SafeRef used since the lifetime of ReadAnythingWebContentsObserver is
   // completely contained by page_handler_. See
@@ -173,6 +178,7 @@ class ReadAnythingUntrustedPageHandler :
 
   static const int kMaxWordsDistilled = 25000;
   static const int kWordsDistilledBuckets = 100;
+  static const int kMaxNodesForDistillationQualityEvaluation = 5000;
   static constexpr base::TimeDelta kReadingModeHiddenAckTimeout =
       base::Seconds(2);
 
@@ -184,6 +190,7 @@ class ReadAnythingUntrustedPageHandler :
   void DidStopLoading();
   void DidUpdateAudioMutingState(bool muted);
   void WebContentsDestroyed();
+  void DidFinishNavigation(content::NavigationHandle* navigation_handle);
   void OnActiveAXTreeIDChanged();
   bool CheckForPdfContentAfterLoad();
 
@@ -224,6 +231,7 @@ class ReadAnythingUntrustedPageHandler :
   void OnDistillationStateChanged(
       read_anything::mojom::ReadAnythingDistillationState new_state) override;
   void OnSpeechEngineStalled() override;
+  void RequestReadabilityDistillation() override;
 
   // PinnedToolbarModel::Observer
   void OnActionsChanged() override;
@@ -344,6 +352,9 @@ class ReadAnythingUntrustedPageHandler :
   // Logs the current visual settings values.
   void LogTextStyle();
 
+  // Restores settings from preferences.
+  void RestoreSettingsFromPrefs();
+
   void PerformActionInTargetTree(const ui::AXActionData& data);
 
   bool AreInnerContentsPdfContent(
@@ -373,6 +384,13 @@ class ReadAnythingUntrustedPageHandler :
   // distillation.
   void ProcessDistilledArticle(
       const dom_distiller::DistilledArticleProto* article_proto);
+
+  void EvaluateDistillationQuality(const std::string& distilled_html);
+  void OnQualityMetricsEvaluated(
+      base::expected<reading_mode::mojom::DistillationMetricsPtr,
+                     reading_mode::mojom::EvaluationStatus> result);
+  void OnAXTreeSnapshotReceived(const std::string& distilled_html,
+                                ui::AXTreeUpdate& snapshot);
 
   // The Reading Mode controller for both immersive and side-panel reading mode,
   // used when the immersive reading mode flag is enabled.
@@ -472,6 +490,9 @@ class ReadAnythingUntrustedPageHandler :
   // Hold DOM distiller distillation results.
   std::optional<std::string> dom_distiller_title_;
   std::optional<std::string> dom_distiller_content_;
+
+  mojo::Remote<reading_mode::mojom::DistillationEvaluator>
+      distillation_evaluator_;
 
   read_anything::mojom::ReadAnythingDistillationState distillation_state_ =
       read_anything::mojom::ReadAnythingDistillationState::kUndefined;

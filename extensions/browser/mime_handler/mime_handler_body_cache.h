@@ -89,6 +89,20 @@ class MimeHandlerBodyCache : public base::RefCounted<MimeHandlerBodyCache> {
   // indistinguishable and treated the same way).
   void OnSourceDone();
 
+  // Outcome of pushing bytes into the forwarding pipe.
+  enum class ForwardResult {
+    // All bytes were accepted.
+    kDrained,
+    // The pipe is full; the writable watcher has been armed.
+    kBackpressured,
+    // The write failed; the consumer is gone.
+    kPeerGone,
+  };
+
+  // Writes `pending` from `offset` onwards into the forwarding pipe,
+  // advancing `offset` past the accepted bytes.
+  ForwardResult ForwardBytes(base::span<const uint8_t> pending, size_t& offset);
+
   // Flushes already-buffered bytes that have not yet been written to the
   // forwarding pipe. Re-arms the watcher when the pipe is back-pressured.
   void WritePendingToForwarding();
@@ -97,6 +111,9 @@ class MimeHandlerBodyCache : public base::RefCounted<MimeHandlerBodyCache> {
   // writable, or tears it down on peer close / error.
   void OnForwardingPipeWritable(MojoResult result,
                                 const mojo::HandleSignalsState& state);
+
+  // Closes the forwarding producer and cancels its watcher.
+  void CloseForwarding();
 
   // Source pipe being pumped into `buffer_`.
   mojo::ScopedDataPipeConsumerHandle source_;

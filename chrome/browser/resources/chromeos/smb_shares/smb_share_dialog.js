@@ -28,12 +28,12 @@ Polymer({
    * @suppress {checkTypes}
    * @override
    */
-  created() {
+  created: function() {
     ColorChangeUpdater.forDocument().start();
   },
 
   /** @private */
-  onDialogClose_() {
+  onDialogClose_: function() {
     chrome.send('dialogClose');
   },
 });

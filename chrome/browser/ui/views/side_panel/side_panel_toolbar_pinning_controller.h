@@ -55,6 +55,8 @@ class SidePanelToolbarPinningController
   void UpdateActiveState(SidePanelEntryKey key, bool show_active_in_toolbar);
 
  private:
+  void ReevaluateActiveState();
+
   base::ScopedObservation<ToolbarActionsModel, ToolbarActionsModel::Observer>
       extensions_model_observation_{this};
 

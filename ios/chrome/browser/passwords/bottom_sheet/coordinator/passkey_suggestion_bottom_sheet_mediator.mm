@@ -122,7 +122,7 @@
 
   _webAuthnCredentialsDelegate->SelectPasskey(
       webauthn::GetPasskeySuggestionEncodedCredentialId(suggestion),
-      base::BindOnce(completion));
+      self.didCompleteUserVerification, base::BindOnce(completion));
 }
 
 @end

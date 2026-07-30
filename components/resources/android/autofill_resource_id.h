@@ -151,6 +151,8 @@ DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_ID_CARD_SPARK,
 DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_ID_CARD_2, R.drawable.id_card_2)
 DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_ID_CARD_2_SPARK,
                     R.drawable.id_card_2_spark)
+DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_ID_CHROME_PRODUCT,
+                    R.drawable.chrome_product)
 // Note that R.drawable.google_wallet_24dp is always present, but the icon in
 // branded builds is different from the one in unbranded builds.
 DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_WALLET, R.drawable.google_wallet_24dp)
@@ -159,3 +161,4 @@ DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_EMAIL,
 
 // @memory search icon.
 DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_SEARCH_SPARK, R.drawable.search_spark)
+DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_SAD_TAB, R.drawable.autofill_sad_tab)

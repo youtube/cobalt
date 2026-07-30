@@ -33,6 +33,9 @@ static void JNI_CollaborationControllerDelegateImpl_RunResultCallback(
     int64_t callback) {
   std::unique_ptr<ResultCallback> callback_ptr =
       conversion::GetNativeResultCallbackFromJava(callback);
+  if (!callback_ptr) {
+    return;
+  }
   CollaborationControllerDelegate::Outcome outcome =
       static_cast<CollaborationControllerDelegate::Outcome>(joutcome);
   std::move(*callback_ptr).Run(outcome);
@@ -43,6 +46,9 @@ static void JNI_CollaborationControllerDelegateImpl_RunExitCallback(
     int64_t callback) {
   std::unique_ptr<base::OnceClosure> callback_ptr =
       conversion::GetNativeExitCallbackFromJava(callback);
+  if (!callback_ptr) {
+    return;
+  }
   std::move(*callback_ptr).Run();
 }
 
@@ -51,6 +57,9 @@ static void JNI_CollaborationControllerDelegateImpl_DeleteExitCallback(
     int64_t callback) {
   std::unique_ptr<base::OnceClosure> callback_ptr =
       conversion::GetNativeExitCallbackFromJava(callback);
+  if (!callback_ptr) {
+    return;
+  }
   callback_ptr.reset();
 }
 
@@ -63,6 +72,9 @@ JNI_CollaborationControllerDelegateImpl_RunResultWithGroupTokenCallback(
     int64_t callback) {
   std::unique_ptr<ResultWithGroupTokenCallback> callback_ptr =
       conversion::GetNativeResultWithGroupTokenCallbackFromJava(callback);
+  if (!callback_ptr) {
+    return;
+  }
   CollaborationControllerDelegate::Outcome outcome =
       static_cast<CollaborationControllerDelegate::Outcome>(joutcome);
 

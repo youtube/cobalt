@@ -425,28 +425,32 @@ struct FormFiller::RefillContext {
         filled_origin(field.origin()),
         original_fill_time(base::TimeTicks::Now()),
         types_originally_filled(std::move(filled_types)),
-        blocked_fields(std::move(blocked_fields)) {
-    profile_or_credit_card = std::visit(
-        absl::Overload{
-            // Autofill with AI doesn't support refills.
-            [](const AugmentedFillingPayload::EntityPayload&)
-                -> std::variant<CreditCard, AutofillProfile> {
-              // Beware that `EntityPayload::second` holds raw_refs to
-              // AutofillFields. These references must not be stored in a
-              // RefillContext because they would dangle.
-              NOTREACHED();
-            },
-            // Verified Profiles doesn't support refills.
-            [](const VerifiedProfile*)
-                -> std::variant<CreditCard, AutofillProfile> { NOTREACHED(); },
-            // OTP filling doesn't support refills.
-            [](const OtpFillData*)
-                -> std::variant<CreditCard, AutofillProfile> { NOTREACHED(); },
-            [](const auto* x) {
-              return std::variant<CreditCard, AutofillProfile>(*x);
-            }},
-        filling_payload.variant);
-  }
+        blocked_fields(std::move(blocked_fields)),
+        profile_or_credit_card(std::visit(
+            absl::Overload{// Autofill with AI doesn't support refills.
+                           [](const AugmentedFillingPayload::EntityPayload&)
+                               -> std::variant<CreditCard, AutofillProfile> {
+                             // Beware that `EntityPayload::second` holds
+                             // raw_refs to AutofillFields. These references
+                             // must not be stored in a RefillContext because
+                             // they would dangle.
+                             NOTREACHED();
+                           },
+                           // Verified Profiles doesn't support refills.
+                           [](const VerifiedProfile*)
+                               -> std::variant<CreditCard, AutofillProfile> {
+                             NOTREACHED();
+                           },
+                           // OTP filling doesn't support refills.
+                           [](const OtpFillData*)
+                               -> std::variant<CreditCard, AutofillProfile> {
+                             NOTREACHED();
+                           },
+                           [](const auto* x) {
+                             return std::variant<CreditCard, AutofillProfile>(
+                                 *x);
+                           }},
+            filling_payload.variant)) {}
 
   ~RefillContext() = default;
 
@@ -454,19 +458,13 @@ struct FormFiller::RefillContext {
   const FillId fill_id;
   // The form filled in the first attempt for filling. Used to check whether
   // a refill should be attempted upon parsing an updated FormData.
-  FormData filled_form;
-  // The profile or credit card that was used for the initial fill. This is
-  // slightly different from `filling_payload` that is used by the filling
-  // function: This contains actual objects because this needs to survive
-  // potential storage mutation, and this only contains payloads that support
-  // refills.
-  std::variant<CreditCard, AutofillProfile> profile_or_credit_card;
+  const FormData filled_form;
   // Possible identifiers of the field that was focused when the form was
   // initially filled. A refill shall be triggered from the same field.
   const FieldGlobalId filled_field_id;
   const FieldSignature filled_field_signature;
   // The security origin from which the field was filled.
-  url::Origin filled_origin;
+  const url::Origin filled_origin;
   // The time at which the initial fill occurred.
   // TODO(crbug.com/41490871): Remove in favor of
   // FormStructure::last_filling_timestamp_.
@@ -476,7 +474,7 @@ struct FormFiller::RefillContext {
   // The timer used to trigger a refill.
   base::OneShotTimer on_refill_timer;
   // The field types that were initially filled.
-  FieldTypeSet types_originally_filled;
+  const FieldTypeSet types_originally_filled;
   // If populated, this map determines which values will be filled into a
   // field (it does not matter whether the field already contains a value).
   std::map<FieldGlobalId, FillingValueAndType> forced_fill_values;
@@ -487,7 +485,13 @@ struct FormFiller::RefillContext {
   // can change between original fill and refill, for example if a field has
   // been added to the form. A refill will currently fail to block those fields
   // even if it should.
-  base::flat_set<FieldGlobalId> blocked_fields;
+  const base::flat_set<FieldGlobalId> blocked_fields;
+  // The profile or credit card that was used for the initial fill. This is
+  // slightly different from `filling_payload` that is used by the filling
+  // function: This contains actual objects because this needs to survive
+  // potential storage mutation, and this only contains payloads that support
+  // refills.
+  const std::variant<CreditCard, AutofillProfile> profile_or_credit_card;
 };
 
 FormFiller::RefillOptions::RefillOptions() = default;

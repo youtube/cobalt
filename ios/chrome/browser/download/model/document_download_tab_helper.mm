@@ -10,6 +10,7 @@
 #import "base/strings/string_number_conversions.h"
 #import "base/strings/string_util.h"
 #import "base/task/sequenced_task_runner.h"
+#import "ios/chrome/browser/download/model/browser_download_service.h"
 #import "ios/chrome/browser/download/model/document_download_tab_helper_metrics.h"
 #import "ios/chrome/browser/download/model/download_manager_tab_helper.h"
 #import "ios/chrome/browser/download/model/download_mimetype_util.h"
@@ -194,8 +195,9 @@ void DocumentDownloadTabHelper::PageLoaded(
   should_trigger = should_trigger && url.SchemeIsHTTPOrHTTPS();
 
   // Only trigger when download is not restricted.
-  should_trigger = should_trigger &&
-                   !DownloadManagerTabHelper::ShouldRestrictDownload(web_state);
+  should_trigger =
+      should_trigger &&
+      !BrowserDownloadService::ShouldRestrictAllDownloads(web_state);
 
   if (should_trigger) {
     base::UmaHistogramEnumeration(kIOSDocumentDownloadMimeType,

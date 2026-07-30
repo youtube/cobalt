@@ -8,11 +8,14 @@
 
 #include "base/test/mock_callback.h"
 #include "base/time/time.h"
+#include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/media/webrtc/media_stream_capture_indicator.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/optimization_guide/content/browser/media_transcript_provider.h"
 #include "components/optimization_guide/content/browser/mock_media_transcript_provider.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/mock_media_session.h"
@@ -689,6 +692,30 @@ TEST_F(GlicMediaContextTest, OnResult_NotifiesTranscriptProvider) {
 
   // The first final result should trigger the notification.
   EXPECT_TRUE(context()->OnResult(CreateSpeechRecognitionResult("test", true)));
+}
+
+TEST_F(GlicMediaContextTest, PrefBlocksTranscription) {
+  Profile* prof = profile();
+  prof->GetPrefs()->SetBoolean(glic::prefs::kGlicMediaUnderstandingEnabled,
+                               false);
+
+  // Send a transcription and verify that it is ignored.
+  EXPECT_TRUE(context()->OnResult(
+      media::SpeechRecognitionResult("ABC", /*is_final=*/true)));
+  EXPECT_EQ(GetTranscriptText(context()), "");
+}
+
+TEST_F(GlicMediaContextTest, ClearAllTranscriptsClearsTranscripts) {
+  // Populate the context with transcripts.
+  context()->OnResult(CreateSpeechRecognitionResult("Transcript one", true));
+  EXPECT_EQ(GetTranscriptText(context()), "Transcript one");
+
+  // Clear them.
+  context()->ClearAllTranscripts();
+
+  // Verify that it is now empty.
+  EXPECT_EQ(GetTranscriptText(context()), "");
+  EXPECT_FALSE(context()->HasTranscriptChunks());
 }
 
 }  // namespace glic

@@ -708,6 +708,8 @@ void AudioContext::Uninitialize() {
   RecordAutoplayMetrics();
   UninitializeMediaDeviceService();
   BaseAudioContext::Uninitialize();
+  DCHECK(!is_resolving_resume_promises_);
+  DCHECK_EQ(pending_resume_resolvers_.size(), 0u);
 }
 
 AudioContext::~AudioContext() {
@@ -754,6 +756,7 @@ void AudioContext::Trace(Visitor* visitor) const {
   visitor->Trace(media_player_host_);
   visitor->Trace(media_player_receiver_);
   visitor->Trace(media_player_observer_);
+  visitor->Trace(pending_resume_resolvers_);
   visitor->Trace(pending_suspend_resolvers_);
   BaseAudioContext::Trace(visitor);
   FrameVisibilityObserver::Trace(visitor);
@@ -895,7 +898,7 @@ ScriptPromise<IDLUndefined> AudioContext::resumeContext(
   // pulling on the graph again.
   {
     DeferredTaskHandler::GraphAutoLocker locker(GetDeferredTaskHandler());
-    pending_promises_resolvers_.push_back(resolver);
+    pending_resume_resolvers_.push_back(resolver);
   }
 
   return promise;
@@ -1069,7 +1072,7 @@ void AudioContext::PerformInitialTransitionToRunning() {
   HeapVector<Member<ScriptPromiseResolver<IDLUndefined>>> resolvers;
   {
     DeferredTaskHandler::GraphAutoLocker locker(GetDeferredTaskHandler());
-    resolvers.swap(pending_promises_resolvers_);
+    resolvers.swap(pending_resume_resolvers_);
     is_resolving_resume_promises_ = false;
   }
   for (auto& resolver : resolvers) {
@@ -1469,7 +1472,7 @@ bool AudioContext::HandlePreRenderTasks(
   if (try_locker.IsAcquired()) {
     GetDeferredTaskHandler().HandleDeferredTasks();
 
-    ResolvePromisesForUnpause();
+    ScheduleCleanupPendingResumePromisesOnMainThread();
 
     // Check to see if source nodes can be stopped because the end time has
     // passed.
@@ -1564,21 +1567,6 @@ void AudioContext::HandleAudibility(AudioBus* destination_bus) {
 void AudioContext::HandleVolumeMultiplier(AudioBus* destination_bus) {
   if (volume_multiplier_ != 1.0) {
     destination_bus->Scale(volume_multiplier_);
-  }
-}
-
-void AudioContext::ResolvePromisesForUnpause() {
-  // This runs inside the BaseAudioContext's lock when handling pre-render
-  // tasks.
-  DCHECK(IsAudioThread());
-  AssertGraphOwner();
-
-  // Resolve any pending promises created by resume(). Only do this if we
-  // haven't already started resolving these promises. This gets called very
-  // often and it takes some time to resolve the promises in the main thread.
-  if (!is_resolving_resume_promises_ && !pending_promises_resolvers_.empty()) {
-    is_resolving_resume_promises_ = true;
-    ScheduleMainThreadCleanup();
   }
 }
 
@@ -2126,6 +2114,77 @@ bool AudioContext::CanPlayWhileHidden() const {
       network::mojom::blink::PermissionsPolicyFeature::
           kMediaPlaybackWhileNotVisible,
       ReportOptions::kDoNotReport);
+}
+
+void AudioContext::ScheduleCleanupPendingResumePromisesOnMainThread() {
+  DCHECK(IsAudioThread());
+  AssertGraphOwner();
+
+  // Resolve any pending promises created by resume(). Only do this if we
+  // haven't already started resolving these promises. This gets called very
+  // often and it takes some time to resolve the promises in the main thread.
+
+  if (is_resolving_resume_promises_ || pending_resume_resolvers_.empty()) {
+    return;
+  }
+
+  is_resolving_resume_promises_ = true;
+
+  if (has_posted_cleanup_pending_resume_task_) {
+    return;
+  }
+
+  PostCrossThreadTask(
+      *task_runner_, FROM_HERE,
+      CrossThreadBindOnce(&AudioContext::PerformCleanupPendingResumePromises,
+                          WrapCrossThreadPersistent(this)));
+  has_posted_cleanup_pending_resume_task_ = true;
+}
+
+void AudioContext::PerformCleanupPendingResumePromises() {
+  DCHECK(IsMainThread());
+
+  // When a posted task is performed, the execution context might be gone.
+  if (!GetExecutionContext()) {
+    is_resolving_resume_promises_ = false;
+    has_posted_cleanup_pending_resume_task_ = false;
+    return;
+  }
+
+  DeferredTaskHandler::GraphAutoLocker locker(GetDeferredTaskHandler());
+
+  if (is_resolving_resume_promises_) {
+    for (auto& resolver : pending_resume_resolvers_) {
+      if (ContextState() == V8AudioContextState::Enum::kClosed) {
+        resolver->Reject(MakeGarbageCollected<DOMException>(
+            DOMExceptionCode::kInvalidStateError,
+            "Cannot resume a context that has been closed"));
+      } else {
+        SetContextState(V8AudioContextState::Enum::kRunning);
+        resolver->Resolve();
+      }
+    }
+    pending_resume_resolvers_.clear();
+    is_resolving_resume_promises_ = false;
+  }
+
+  has_posted_cleanup_pending_resume_task_ = false;
+}
+
+void AudioContext::RejectPendingResolvers() {
+  DCHECK(IsMainThread());
+
+  // Audio context is closing down so reject any resume promises that are still
+  // pending.
+
+  for (auto& resolver : pending_resume_resolvers_) {
+    resolver->Reject(MakeGarbageCollected<DOMException>(
+        DOMExceptionCode::kInvalidStateError, "Audio context is going away"));
+  }
+  pending_resume_resolvers_.clear();
+  is_resolving_resume_promises_ = false;
+
+  BaseAudioContext::RejectPendingResolvers();
 }
 
 }  // namespace blink

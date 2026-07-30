@@ -8,8 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
-#include "chrome/browser/media/router/data_decoder_util.h"
 #include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/media/router/providers/cast/app_activity.h"
 #include "chrome/browser/media/router/providers/cast/cast_internal_message_util.h"
@@ -159,39 +159,12 @@ void CastSessionClientImpl::OnMessage(
     return;
   }
 
-  GetDataDecoder().ParseJson(
-      message->get_message(),
-      base::BindOnce(&CastSessionClientImpl::HandleParsedClientMessage,
-                     weak_ptr_factory_.GetWeakPtr()));
-}
-
-void CastSessionClientImpl::DidClose(PresentationConnectionCloseReason reason) {
-  activity_->CloseConnectionOnReceiver(client_id(), reason);
-}
-
-void CastSessionClientImpl::SendErrorCodeToClient(
-    int sequence_number,
-    CastInternalMessage::ErrorCode error_code,
-    std::optional<std::string> description) {
-  base::DictValue message;
-  message.Set("code", base::Value(*cast_util::EnumToString(error_code)));
-  message.Set("description",
-              description ? base::Value(*description) : base::Value());
-  message.Set("details", base::Value());
-  SendErrorToClient(sequence_number, std::move(message));
-}
-
-void CastSessionClientImpl::SendErrorToClient(int sequence_number,
-                                              base::DictValue error) {
-  SendMessageToClient(
-      CreateErrorMessage(client_id(), std::move(error), sequence_number));
-}
-
-void CastSessionClientImpl::HandleParsedClientMessage(
-    data_decoder::DataDecoder::ValueOrError result) {
-  if (!result.has_value() || !result.value().is_dict()) {
-    ReportClientMessageParseError(activity_->route().media_route_id(),
-                                  result.error());
+  auto result = base::JSONReader::ReadAndReturnValueWithError(
+      message->get_message(), base::JSON_PARSE_RFC);
+  if (!result.has_value() || !result->is_dict()) {
+    ReportClientMessageParseError(
+        activity_->route().media_route_id(),
+        result.has_value() ? "Not a dictionary" : result.error().message);
     return;
   }
 
@@ -201,7 +174,8 @@ void CastSessionClientImpl::HandleParsedClientMessage(
   RemoveNullFields(*result);
 
   std::unique_ptr<CastInternalMessage> cast_message =
-      CastInternalMessage::From(std::move(result.value().GetDict()));
+      CastInternalMessage::From(std::move(result->GetDict()));
+
   if (!cast_message) {
     ReportClientMessageParseError(activity_->route().media_route_id(),
                                   "Not a Cast message");
@@ -261,6 +235,28 @@ void CastSessionClientImpl::HandleParsedClientMessage(
                     << static_cast<int>(cast_message->type());
       }
   }
+}
+
+void CastSessionClientImpl::DidClose(PresentationConnectionCloseReason reason) {
+  activity_->CloseConnectionOnReceiver(client_id(), reason);
+}
+
+void CastSessionClientImpl::SendErrorCodeToClient(
+    int sequence_number,
+    CastInternalMessage::ErrorCode error_code,
+    std::optional<std::string> description) {
+  base::DictValue message;
+  message.Set("code", base::Value(*cast_util::EnumToString(error_code)));
+  message.Set("description",
+              description ? base::Value(*description) : base::Value());
+  message.Set("details", base::Value());
+  SendErrorToClient(sequence_number, std::move(message));
+}
+
+void CastSessionClientImpl::SendErrorToClient(int sequence_number,
+                                              base::DictValue error) {
+  SendMessageToClient(
+      CreateErrorMessage(client_id(), std::move(error), sequence_number));
 }
 
 void CastSessionClientImpl::HandleV2ProtocolMessage(

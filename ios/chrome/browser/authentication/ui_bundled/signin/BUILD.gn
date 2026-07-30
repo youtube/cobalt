@@ -79,6 +79,7 @@ source_set("signin_impl") {
     "//ios/chrome/browser/authentication/ui_bundled/signin/logging",
     "//ios/chrome/browser/authentication/ui_bundled/signin/signin_history_sync",
     "//ios/chrome/browser/feature_engagement/model",
+    "//ios/chrome/browser/metrics/model:activity_reporter",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator:animated_coordinator",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
     "//ios/chrome/browser/shared/model/application_context",
@@ -118,6 +119,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "deeplink_signin/cross_device_signin_url_interceptor_unittest.mm",
+    "signin_coordinator_unittest.mm",
     "signin_utils_unittest.mm",
   ]
   deps = [
@@ -133,10 +135,13 @@ source_set("unit_tests") {
     "//components/sync/service",
     "//components/sync_preferences",
     "//components/sync_preferences:test_support",
+    "//ios/chrome/app/profile",
     "//ios/chrome/browser/authentication/ui_bundled/signin:signin_headers",
     "//ios/chrome/browser/authentication/ui_bundled/signin/deeplink_signin",
     "//ios/chrome/browser/feature_engagement/model",
+    "//ios/chrome/browser/metrics/model:activity_reporter",
     "//ios/chrome/browser/policy/model:policy_util",
+    "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/browser/test:test_support",
     "//ios/chrome/browser/shared/model/prefs:browser_prefs",

@@ -163,6 +163,14 @@
       <message name="IDS_INDIGO_SETTINGS_SUB_LABEL" desc="Sublabel for the Indigo setting." translateable="false">
         Manage your Indigo data
       </message>
+
+      <!-- Anchored Message Menu -->
+      <message name="IDS_INDIGO_ANCHORED_MESSAGE_MENU_DISMISS" desc="Title of a menu item which, on click, dismisses the Indigo anchored message." translateable="false">
+        Dismiss
+      </message>
+      <message name="IDS_INDIGO_ANCHORED_MESSAGE_MENU_SETTINGS" desc="Title of a menu item which, on click, opens the contextual cueing settings page." translateable="false">
+        Settings
+      </message>
     </messages>
   </release>
 </grit>

@@ -5,6 +5,7 @@ Version: 1.44
 Revision: 80036a515b38deca1ad080b7c436856b454358f5
 Update Mechanism: Manual
 License: Apache-2.0, BSD-2-Clause, BSD-3-Clause, BSL-1.0, CC0-1.0, EPL-1.0, GPL-2.0, LGPL-2.1, MIT, MIT-0, MPL-1.1, NPL-1.1, SunPro
+License Android Compatible: yes
 License File: LICENSE, src/LICENSE
 Security Critical: yes
 Shipped: yes

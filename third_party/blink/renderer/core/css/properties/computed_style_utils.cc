@@ -220,9 +220,14 @@ const blink::Color ComputedStyleUtils::BorderSideColor(
              border_style == EBorderStyle::kOutset ||
              border_style == EBorderStyle::kRidge ||
              border_style == EBorderStyle::kGroove) {
-    // FIXME: Treating styled borders with initial color differently causes
-    // problems, see crbug.com/316559, crbug.com/276231
-    current_color = blink::Color(238, 238, 238);
+    if (RuntimeEnabledFeatures::TableDefaultBorderColorCurrentColorEnabled() &&
+        style.IsDisplayTableType()) {
+      current_color = style.GetCurrentColor();
+    } else {
+      // FIXME: Treating styled borders with initial color differently causes
+      // problems, see crbug.com/316559, crbug.com/276231
+      current_color = blink::Color(238, 238, 238);
+    }
   } else {
     current_color = style.GetCurrentColor();
   }

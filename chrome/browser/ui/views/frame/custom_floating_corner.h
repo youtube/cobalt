@@ -27,37 +27,37 @@ class CustomFloatingCorner : public views::View, public CustomCorners {
   METADATA_HEADER(CustomFloatingCorner, views::View)
 
  public:
-  // Specifies which corner something refers to.
-  // Currently only top corners are fully supported; bottom corners do not
-  // support strokes (as they are not yet needed).
-  enum class CornerOrientation {
-    kTopLeading,
-    kTopTrailing,
-    kBottomLeading,
-    kBottomTrailing,
-  };
-
   CustomFloatingCorner(BrowserView& browser_view,
                        CornerOrientation orientation,
                        views::ShapeContextTokens corner_radius_token,
-                       ColorChoice color,
-                       std::optional<ui::ColorId> stroke_color = std::nullopt,
+                       ColorChoice background,
+                       std::optional<ui::ColorId> stroke = std::nullopt,
+                       bool is_vertical_window_edge = false);
+  CustomFloatingCorner(BrowserView& browser_view,
+                       CornerOrientation orientation,
+                       views::ShapeContextTokens corner_radius_token,
+                       ColorChoiceWithAlpha background,
+                       std::optional<ColorWithAlpha> stroke = std::nullopt,
                        bool is_vertical_window_edge = false);
   ~CustomFloatingCorner() override;
 
-  // Sets the color to paint the corner.
-  void SetColor(ColorChoice color);
+  // Sets the background color to paint the corner.
+  void SetBackground(ColorChoiceWithAlpha color);
 
   // Sets the corner orientation.
   void SetOrientation(CornerOrientation orientation);
 
   // Set the corner radius.
   void SetCornerRadius(views::ShapeContextTokens corner_radius_token);
+  int GetCornerRadius() const;
 
   // Sets a stroke, or no stroke (std::nullopt). If `is_vertical_window_edge` is
   // true, the stroke ends outside the vertical bounds of the corner.
-  void SetStroke(std::optional<ui::ColorId> stroke_color,
+  void SetStroke(std::optional<ColorWithAlpha> stroke_color,
                  bool is_vertical_window_edge);
+
+  // Convenience method to update alpha for both stroke and background.
+  void SetAlpha(float alpha);
 
   // Returns the background path of the corner.
   SkPath GetBackgroundPath(const gfx::Rect& in_bounds) const;
@@ -78,8 +78,8 @@ class CustomFloatingCorner : public views::View, public CustomCorners {
 
   CornerOrientation orientation_;
   views::ShapeContextTokens corner_radius_token_;
-  ColorChoice color_;
-  std::optional<ui::ColorId> stroke_color_;
+  ColorChoiceWithAlpha background_;
+  std::optional<ColorWithAlpha> stroke_;
   bool is_vertical_window_edge_ = false;
 };
 

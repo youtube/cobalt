@@ -138,8 +138,7 @@ FrameEvictionManager::FrameEvictionManager() {
   if (base::FeatureList::IsEnabled(features::kScalableFrameEviction)) {
     memory_consumer_registration_.emplace(
         "FrameEvictionManager", kMemoryConsumerTraits, this,
-        base::MemoryConsumerRegistration::CheckUnregister::kDisabled,
-        base::MemoryConsumerRegistration::CheckRegistryExists::kDisabled);
+        base::MemoryConsumerRegistration::CheckUnregister::kDisabled);
     OnUpdateMemoryLimit();
   } else {
     max_number_of_saved_frames_ = GetBaselineMaxSavedFrames();

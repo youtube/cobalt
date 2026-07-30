@@ -95,7 +95,8 @@ ClipboardEndpoint::ClipboardEndpoint(
     RenderFrameHost& rfh)
     : data_transfer_endpoint_(data_transfer_endpoint.CopyAsOptional()),
       browser_context_fetcher_(std::move(browser_context_fetcher)),
-      web_contents_(WebContents::FromRenderFrameHost(&rfh)->GetWeakPtr()) {}
+      web_contents_(WebContents::FromRenderFrameHost(&rfh)->GetWeakPtr()),
+      render_frame_host_id_(rfh.GetGlobalId()) {}
 
 ClipboardEndpoint::ClipboardEndpoint(const ClipboardEndpoint&) = default;
 ClipboardEndpoint& ClipboardEndpoint::operator=(const ClipboardEndpoint&) =
@@ -111,6 +112,10 @@ BrowserContext* ClipboardEndpoint::browser_context() const {
 
 WebContents* ClipboardEndpoint::web_contents() const {
   return web_contents_.get();
+}
+
+RenderFrameHost* ClipboardEndpoint::render_frame_host() const {
+  return RenderFrameHost::FromID(render_frame_host_id_);
 }
 
 const ui::ClipboardFormatType& SourceRFHTokenType() {

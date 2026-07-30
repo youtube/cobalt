@@ -593,7 +593,9 @@ void HTMLOptionElement::WalkAncestorsAndUpdate() {
   HTMLSelectElement::SelectOptgroupDatalist ancestors =
       HTMLSelectElement::WalkAncestorsForRelatedParts(*this);
   nearest_ancestor_select_ = ancestors.select;
-  nearest_ancestor_select_child_ = ancestors.select_child;
+  if (RuntimeEnabledFeatures::FilterableSelectEnabled()) {
+    nearest_ancestor_select_child_ = ancestors.select_child;
+  }
   nearest_ancestor_optgroup_ = ancestors.optgroup;
   nearest_ancestor_datalist_ = ancestors.datalist;
   SetFiltered(false);

@@ -52,6 +52,7 @@ namespace local {
 using ::kNoPictureURLFound;
 using ::signin::kAccountIdKey;
 using ::signin::kLastDownloadedImageURLWithSizeKey;
+using ::signin::kAccountCapabilityOverridesKey;
 using ::signin::constants::kNoHostedDomainFound;
 constexpr std::string_view kAccountEmailKey = "email";
 constexpr std::string_view kAccountGaiaKey = "gaia";
@@ -190,23 +191,42 @@ base::DictValue SerializeAccountCapabilities(
   for (std::string_view name :
        AccountCapabilities::GetSupportedAccountCapabilityNames()) {
     signin::Tribool capability_state =
-        account_capabilities.GetCapabilityByName(name);
+        account_capabilities.GetFetchedCapabilityByName(name);
     dict.Set(name, static_cast<int>(capability_state));
   }
   return dict;
 }
 
 AccountCapabilities DeserializeAccountCapabilities(
-    const base::DictValue& dict) {
+    const base::DictValue& capabilities_dict,
+    const base::DictValue& overrides_dict) {
   base::flat_map<std::string, bool> capabilities_map;
   for (std::string_view name :
        AccountCapabilities::GetSupportedAccountCapabilityNames()) {
-    signin::Tribool state = ParseTribool(dict.FindInt(name));
+    signin::Tribool state = ParseTribool(capabilities_dict.FindInt(name));
     if (state != signin::Tribool::kUnknown) {
       capabilities_map.emplace(name, state == signin::Tribool::kTrue);
     }
   }
-  return AccountCapabilities(std::move(capabilities_map));
+  AccountCapabilities account_capabilities =
+      AccountCapabilities(std::move(capabilities_map));
+
+  for (auto [name, value] : overrides_dict) {
+    signin::Tribool state = ParseTribool(value.GetInt());
+    account_capabilities.SetCapabilityOverride(name, state);
+  }
+
+  return account_capabilities;
+}
+
+base::DictValue SerializeAccountCapabilityOverrides(
+    const AccountCapabilities& account_capabilities) {
+  base::DictValue dict;
+  for (const auto& [name, value] :
+       account_capabilities.GetCapabilityOverrides()) {
+    dict.Set(name, static_cast<int>(value));
+  }
+  return dict;
 }
 
 base::DictValue SerializeAccountInfo(const AccountInfo& account_info) {
@@ -242,6 +262,9 @@ base::DictValue SerializeAccountInfo(const AccountInfo& account_info) {
   result.Set(
       local::kAccountCapabilitiesKey,
       SerializeAccountCapabilities(account_info.GetAccountCapabilities()));
+  result.Set(local::kAccountCapabilityOverridesKey,
+             SerializeAccountCapabilityOverrides(
+                 account_info.GetAccountCapabilities()));
   if (account_info.access_point.has_value()) {
     result.Set(local::kAccountAccessPoint,
                static_cast<int>(account_info.access_point.value()));
@@ -334,8 +357,11 @@ std::optional<AccountInfo> DeserializeAccountInfo(const base::DictValue& dict) {
       ParseTribool(dict.FindInt(local::kAccountChildAttributeKey)));
   if (const base::DictValue* capabilities =
           dict.FindDict(local::kAccountCapabilitiesKey)) {
-    builder.UpdateAccountCapabilitiesWith(
-        DeserializeAccountCapabilities(*capabilities));
+    const base::DictValue* overrides =
+        dict.FindDict(local::kAccountCapabilityOverridesKey);
+    const base::DictValue default_overrides;
+    builder.UpdateAccountCapabilitiesWith(DeserializeAccountCapabilities(
+        *capabilities, overrides ? *overrides : default_overrides));
   }
   return builder.Build();
 }

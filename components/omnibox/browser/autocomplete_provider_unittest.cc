@@ -605,7 +605,7 @@ void AutocompleteProviderTest::RunKeywordTest(
       input,
       metrics::OmniboxEventProto::INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS,
       TestingSchemeClassifier());
-  autocomplete_input.set_prefer_keyword(true);
+  autocomplete_input.set_in_keyword_mode(true);
   controller_->input_ = autocomplete_input;
   AutocompleteResult result;
   result.AppendMatches(matches);

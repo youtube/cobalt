@@ -453,7 +453,7 @@ class HTMLFastPathParser {
     return false;
   }
 
-  int NumberOfBytesParsed() const { return sizeof(Char) * pos_; }
+  size_t NumberOfBytesParsed() const { return sizeof(Char) * pos_; }
 
   HtmlFastPathResult parse_result() const { return parse_result_; }
 
@@ -1777,11 +1777,10 @@ bool TryParsingHTMLFragmentImpl(const base::span<const Char>& source,
                                 HTMLFragmentParsingBehaviorSet behavior,
                                 bool* failed_because_unsupported_tag) {
   base::ElapsedTimer parse_timer;
-  int number_of_bytes_parsed;
   HTMLFastPathParser<Char> parser{source, document, root_node};
   const bool success = parser.Run(context_element, behavior);
   LogFastPathResult(parser.parse_result());
-  number_of_bytes_parsed = parser.NumberOfBytesParsed();
+  size_t number_of_bytes_parsed = parser.NumberOfBytesParsed();
   // The time needed to parse is typically < 1ms (even at the 99%).
   if (success) {
     UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(

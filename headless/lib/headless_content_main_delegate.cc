@@ -301,9 +301,12 @@ void HeadlessContentMainDelegate::InitLogging(
 
   logging::LoggingDestination log_mode;
   base::FilePath log_filename(FILE_PATH_LITERAL("chrome_debug.log"));
-  if (command_line.GetSwitchValueASCII(::switches::kEnableLogging) ==
-      "stderr") {
-    log_mode = logging::LOG_TO_SYSTEM_DEBUG_LOG | logging::LOG_TO_STDERR;
+  const std::string logging_dest =
+      command_line.GetSwitchValueASCII(::switches::kEnableLogging);
+  if (logging_dest == "stderr") {
+    log_mode = logging::LOG_TO_STDERR;
+  } else if (logging_dest == "system") {
+    log_mode = logging::LOG_TO_SYSTEM_DEBUG_LOG;
   } else {
     base::FilePath custom_filename(
         command_line.GetSwitchValuePath(::switches::kEnableLogging));

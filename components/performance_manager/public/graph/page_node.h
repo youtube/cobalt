@@ -11,6 +11,7 @@
 
 #include "base/byte_size.h"
 #include "base/containers/flat_set.h"
+#include "base/memory/raw_ptr.h"
 #include "base/observer_list_types.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
@@ -51,7 +52,7 @@ enum class PageType {
 // These may correspond to normal tabs, WebViews, Chrome Apps or Extensions.
 class PageNode : public TypedNode<PageNode> {
  public:
-  using NodeSet = base::flat_set<const Node*>;
+  using NodeSet = base::flat_set<raw_ptr<const Node>>;
   template <class NodeViewPtr>
   using NodeSetView = NodeSetView<NodeSet, NodeViewPtr>;
 

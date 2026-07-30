@@ -13,6 +13,7 @@
 #include "components/browser_apis/tab_drag/sessions/tab_drag_session_injector.h"
 #include "components/browser_apis/tab_drag/sessions/tab_drag_session_listener.h"
 #include "components/browser_apis/tab_drag/sessions/tab_drag_window_registry.h"
+#include "ui/gfx/geometry/vector2d.h"
 
 namespace tabs_api {
 
@@ -26,7 +27,10 @@ TabDragSession::TabDragSession(TabDragSessionParams params,
       dragged_window_(params.source_window_id) {
   CHECK(registry());
   CHECK(dragged_window_);
-  CHECK(registry()->Get(dragged_window_));
+  TabDragWindowAdapter* source_window = registry()->Get(dragged_window_);
+  CHECK(source_window);
+  start_window_offset_ =
+      params.start_point - source_window->GetBoundsInScreen().origin();
 }
 
 base::expected<void, mojo_base::mojom::ErrorPtr> TabDragSession::Start() {
@@ -84,6 +88,9 @@ void TabDragSession::OnInputEvent(const TabDragInputEvent& event) {
       EndSession();
       break;
     case TabDragInputEvent::Type::kCaptureChanged: {
+      if (drag_mode_ == DragMode::kDetaching) {
+        break;
+      }
       TabDragWindowAdapter* window = registry()->Get(dragged_window_);
       if (window && window->HasCapture()) {
         break;
@@ -105,31 +112,84 @@ void TabDragSession::OnInputEvent(const TabDragInputEvent& event) {
 void TabDragSession::HandleMovedEvent(const gfx::Point& screen_point) {
   switch (drag_mode_) {
     case DragMode::kAttachedToWindow:
-      HandleAttachedMove(screen_point);
+      HandleMoveWhileAttached(screen_point);
+      break;
+    case DragMode::kDetaching:
+      // Transient state during detach; should not receive move events.
       break;
     case DragMode::kDetachedWindow:
-      HandleDetachedMove(screen_point);
+      HandleMoveWhileDetached(screen_point);
       break;
   }
 }
 
-void TabDragSession::HandleAttachedMove(const gfx::Point& screen_point) {
+void TabDragSession::HandleMoveWhileAttached(const gfx::Point& screen_point) {
+  if (IsDraggingEntireWindow()) {
+    StartWindowDrag(dragged_window_, screen_point);
+    return;
+  }
+
+  if (ShouldTearOff(screen_point)) {
+    DetachAndStartWindowDrag(screen_point);
+  } else {
+    injector_->GetSessionListener().OnDragMoved(screen_point);
+  }
+}
+
+void TabDragSession::HandleMoveWhileDetached(const gfx::Point& screen_point) {
+  DropTargetRegistry& drop_target_registry = injector_->GetDropTargetRegistry();
+  DropTargetId exclude_target =
+      drop_target_registry.FindTargetForWindow(dragged_window_);
+  DropTargetId new_target_id =
+      drop_target_registry.FindTargetAtPoint(screen_point, exclude_target);
+
+  if (new_target_id) {
+    if (DropTarget* target =
+            drop_target_registry.GetDropTarget(new_target_id)) {
+      TabDragWindowId target_window_id = target->window_id();
+      CHECK(target_window_id);
+
+      TabDragWindowAdapter* detached_window = registry()->Get(dragged_window_);
+      CHECK(detached_window);
+
+      detached_window->EndWindowMoveLoop();
+
+      auto migrate_result =
+          detached_window->MigrateTabs(target_window_id, dragged_tabs_);
+      if (!migrate_result.has_value()) {
+        injector_->GetSessionListener().OnSessionCancelled();
+        EndSession();
+        return;
+      }
+
+      UpdateDraggedWindow(target_window_id);
+      drag_mode_ = DragMode::kAttachedToWindow;
+      injector_->GetSessionListener().OnTargetChanged(new_target_id,
+                                                      screen_point);
+      return;
+    }
+  }
+}
+
+bool TabDragSession::IsDraggingEntireWindow() const {
+  TabDragWindowAdapter* source_window = registry()->Get(dragged_window_);
+  if (!source_window) {
+    return false;
+  }
+  return source_window->IsDraggingEntireWindow(dragged_tabs_.size());
+}
+
+bool TabDragSession::ShouldTearOff(const gfx::Point& screen_point) const {
   DropTargetRegistry& drop_target_registry = injector_->GetDropTargetRegistry();
   DropTargetId target_id =
       drop_target_registry.FindTargetForWindow(dragged_window_);
 
-  // Enforce that the source window MUST have a registered drop target to drag
-  // tabs.
   CHECK(target_id) << "Source window must have a registered drop target";
 
   DropTarget* target = drop_target_registry.GetDropTarget(target_id);
   CHECK(target) << "Active drop target must exist";
 
   std::optional<gfx::Rect> bounds_opt = target->cached_bounds();
-
-  // Enforce that the drop target MUST have cached bounds.
-  // Due to Mojo message ordering, these are guaranteed to be present if the
-  // client registered and pushed bounds before calling StartDrag.
   CHECK(bounds_opt) << "Active drop target must have cached bounds";
 
   constexpr int kTearThreshold = 15;
@@ -137,30 +197,45 @@ void TabDragSession::HandleAttachedMove(const gfx::Point& screen_point) {
   gfx::Point local_point = target->ConvertScreenPointToLocal(screen_point);
   gfx::Rect bounds = *bounds_opt;
   bounds.Inset(-kTearThreshold);
-  if (!bounds.Contains(local_point)) {
-    drag_mode_ = DragMode::kDetachedWindow;
-  } else {
-    injector_->GetSessionListener().OnDragMoved(screen_point);
+  return !bounds.Contains(local_point);
+}
+
+void TabDragSession::StartWindowDrag(TabDragWindowId window_id,
+                                     const gfx::Point& screen_point) {
+  drag_mode_ = DragMode::kDetachedWindow;
+  injector_->GetSessionListener().OnDragDetached(screen_point);
+
+  TabDragWindowAdapter* window = registry()->Get(window_id);
+  CHECK(window);
+
+  DragMoveLoopResult loop_result =
+      window->RunWindowMoveLoop(screen_point, start_window_offset_);
+
+  if (drag_mode_ == DragMode::kDetachedWindow) {
+    if (loop_result == DragMoveLoopResult::kSuccess) {
+      injector_->GetSessionListener().OnSessionDropped(screen_point);
+    } else {
+      injector_->GetSessionListener().OnSessionCancelled();
+    }
+    EndSession();
   }
 }
 
-void TabDragSession::HandleDetachedMove(const gfx::Point& screen_point) {
-  DropTargetRegistry& registry = injector_->GetDropTargetRegistry();
-  DropTargetId exclude_target = registry.FindTargetForWindow(dragged_window_);
-  DropTargetId new_target_id =
-      registry.FindTargetAtPoint(screen_point, exclude_target);
-
-  if (new_target_id) {
-    if (DropTarget* target = registry.GetDropTarget(new_target_id)) {
-      drag_mode_ = DragMode::kAttachedToWindow;
-      TabDragWindowId target_window_id = target->window_id();
-      CHECK(target_window_id);
-      dragged_window_ = target_window_id;
-      injector_->GetSessionListener().OnTargetChanged(new_target_id,
-                                                      screen_point);
-      return;
-    }
+void TabDragSession::DetachAndStartWindowDrag(const gfx::Point& screen_point) {
+  drag_mode_ = DragMode::kDetaching;
+  TabDragWindowAdapter* source_window = registry()->Get(dragged_window_);
+  CHECK(source_window);
+  auto detach_result = source_window->DetachToNewWindow(
+      dragged_tabs_, screen_point, start_window_offset_);
+  if (!detach_result.has_value()) {
+    drag_mode_ = DragMode::kAttachedToWindow;
+    injector_->GetSessionListener().OnSessionCancelled();
+    EndSession();
+    return;
   }
+  TabDragWindowId new_window_id = detach_result.value();
+  UpdateDraggedWindow(new_window_id);
+  StartWindowDrag(new_window_id, screen_point);
 }
 
 }  // namespace tabs_api

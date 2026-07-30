@@ -93,6 +93,12 @@ void AudioSender::InsertAudio(std::unique_ptr<AudioBus> audio_bus,
   audio_encoder_->InsertAudio(std::move(audio_bus), recorded_time);
 }
 
+AudioSender::AsynchronousEncodeCallback
+AudioSender::GetAsynchronousEncodeCallback() {
+  return audio_encoder_ ? audio_encoder_->GetAsynchronousEncodeCallback()
+                        : AudioSender::AsynchronousEncodeCallback();
+}
+
 void AudioSender::SetTargetPlayoutDelay(
     base::TimeDelta new_target_playout_delay) {
   frame_sender_->SetTargetPlayoutDelay(new_target_playout_delay);
@@ -102,7 +108,7 @@ base::TimeDelta AudioSender::GetTargetPlayoutDelay() const {
   return frame_sender_->GetTargetPlayoutDelay();
 }
 
-int AudioSender::GetEncoderBitrate() const {
+uint32_t AudioSender::GetEncoderBitrate() const {
   return audio_encoder_->GetBitrate();
 }
 

@@ -181,7 +181,6 @@ class DomStorageDatabase {
     Metadata& operator=(const Metadata&) = delete;
 
     std::vector<MapMetadata> map_metadata;
-    std::optional<int64_t> next_map_id;
   };
 
   // A collection of key/value pair updates for a single map. Optionally

@@ -155,6 +155,25 @@ class CORE_EXPORT GridSizingTree {
     return At(index).subtree_size;
   }
 
+  bool HasSubgridWithIndefiniteStandaloneAxis() const {
+    return has_subgrid_with_indefinite_standalone_axis_;
+  }
+
+  void SetSubgridHasIndefiniteStandaloneAxis() {
+    has_subgrid_with_indefinite_standalone_axis_ = true;
+  }
+
+  // True if any grid item in the tree (at any depth) has a contribution that
+  // depends on the block-size of its grid area. This is aggregated as items are
+  // measured.
+  bool HasBlockSizeDependentGridItem() const {
+    return has_block_size_dependent_grid_item_;
+  }
+
+  void SetHasBlockSizeDependentGridItem() {
+    has_block_size_dependent_grid_item_ = true;
+  }
+
  private:
   struct SubgriddedItemIndices {
     wtf_size_t item_index_in_parent;
@@ -184,6 +203,12 @@ class CORE_EXPORT GridSizingTree {
 
   HeapVector<GridTreeNode, 16> tree_data_;
   bool tree_has_baselines_{false};
+
+  // True if any subgrid in the tree has an indefinite standalone-axis track.
+  bool has_subgrid_with_indefinite_standalone_axis_{false};
+
+  // True if any grid item in the tree depends on the block-size of its area.
+  bool has_block_size_dependent_grid_item_{false};
 };
 
 // This class represents a subtree in a `GridSizingTree` and provides seamless
@@ -262,6 +287,14 @@ class GridSizingSubtree : public GridSubtree<GridSizingTree> {
   // `GridSizingTree::FinalizeSubtreeAt`.
   const GridLayoutTree* FinalizeTree() const {
     return SizingTree().FinalizeSubtreeAt(subtree_root_);
+  }
+
+  void SetSubgridHasIndefiniteStandaloneAxis() const {
+    SizingTree().SetSubgridHasIndefiniteStandaloneAxis();
+  }
+
+  void SetHasBlockSizeDependentGridItem() const {
+    SizingTree().SetHasBlockSizeDependentGridItem();
   }
 
  private:

@@ -32,6 +32,7 @@
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/browser/ui/views/controls/hover_button.h"
+#include "chrome/grit/browser_resources.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/supervised_user/core/browser/family_link_user_capabilities.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -202,13 +203,11 @@ class AvatarImageView : public views::ImageView {
                   const ProfileMenuViewBase* root_view,
                   int image_size,
                   int border_size,
-                  bool has_dotted_ring,
-                  int ai_subscription_tier)
+                  bool has_dotted_ring)
       : avatar_image_(avatar_image),
         image_size_(image_size),
         border_size_(border_size),
         has_dotted_ring_(has_dotted_ring),
-        ai_subscription_tier_(ai_subscription_tier),
         root_view_(root_view) {
     if (avatar_image_.IsEmpty()) {
       // This can happen if the account image hasn't been fetched yet, if there
@@ -226,11 +225,8 @@ class AvatarImageView : public views::ImageView {
     DCHECK(!avatar_image_.IsEmpty());
     ui::ColorProvider* color_provider = GetColorProvider();
     CHECK(color_provider);
-
     const bool is_ai_ring_enabled =
-        base::FeatureList::IsEnabled(
-            features::kEnableAiSubscriptionAvatarRing) &&
-        ai_subscription_tier_ > 0;
+        IsAiSubscriptionRingEnabled(&(root_view_->profile()));
 
     gfx::ImageSkia sized_avatar_image;
     bool should_crop = true;
@@ -247,7 +243,7 @@ class AvatarImageView : public views::ImageView {
       // Keep the avatar's size identical with the no-ring case, the ring
       // expands outwards.
       sized_avatar_image =
-          GetAvatarWithAiRing(avatar_image_, *color_provider, image_size_);
+          AddAiRingToAvatar(avatar_image_, *color_provider, image_size_);
       should_crop = false;
     } else {
       if (border_size_ > 0) {
@@ -286,7 +282,6 @@ class AvatarImageView : public views::ImageView {
   const int image_size_;
   const int border_size_;
   const bool has_dotted_ring_;
-  const int ai_subscription_tier_;
   raw_ptr<const ProfileMenuViewBase> root_view_;
 };
 
@@ -432,7 +427,7 @@ ProfileMenuViewBase::ProfileMenuViewBase(views::BubbleAnchor anchor_element,
   GetViewAccessibility().SetRole(ax::mojom::Role::kMenu);
 
   RegisterWindowClosingCallback(base::BindOnce(
-      &ProfileMenuViewBase::OnWindowClosing, base::Unretained(this)));
+      &ProfileMenuViewBase::OnWindowClosing, weak_factory_.GetWeakPtr()));
 
   SetBackground(views::CreateSolidBackground(kColorProfileMenuBackground));
 }
@@ -534,8 +529,7 @@ void ProfileMenuViewBase::SetProfileIdentityWithCallToAction(
           std::make_unique<AvatarImageView>(
               params.profile_image, this,
               kIdentityInfoImageSize - 2 * params.profile_image_padding,
-              params.profile_image_padding, params.has_dotted_ring,
-              params.ai_subscription_tier))
+              params.profile_image_padding, params.has_dotted_ring))
           .SetProperty(views::kMarginsKey,
                        gfx::Insets().set_top(kAvatarTopMargin))
           .Build());

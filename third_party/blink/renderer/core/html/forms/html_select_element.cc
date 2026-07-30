@@ -465,6 +465,19 @@ void HTMLSelectElement::ParseAttribute(
   }
 }
 
+void HTMLSelectElement::DisabledAttributeChanged(DisabledChangedReason reason) {
+  HTMLFormControlElementWithState::DisabledAttributeChanged(reason);
+  if (RuntimeEnabledFeatures::OptionDisablednessCheckAncestorsEnabled()) {
+    for (auto& item : GetListItems()) {
+      // This will unnecessarily call PseudoStateChanged on <hr> elements, but
+      // that is preferable to checking whether the item is an option or
+      // optgroup.
+      item->PseudoStateChanged(CSSSelector::kPseudoDisabled);
+      item->PseudoStateChanged(CSSSelector::kPseudoEnabled);
+    }
+  }
+}
+
 bool HTMLSelectElement::MayTriggerVirtualKeyboard() const {
   return !IsAppearanceBase();
 }
@@ -875,6 +888,7 @@ int HTMLSelectElement::SelectedListIndex() const {
 }
 
 void HTMLSelectElement::DidChangeIsCanvasOrInCanvasSubtree() {
+  HTMLFormControlElementWithState::DidChangeIsCanvasOrInCanvasSubtree();
   if (RuntimeEnabledFeatures::CanvasDrawElementEnabled(GetExecutionContext()) &&
       IsInCanvasSubtree()) {
     // Hide suggested values when under canvas, to prevent leaking this
@@ -2122,7 +2136,12 @@ void HTMLSelectElement::UpdateIndividualSelectedcontent(
 HTMLSelectElement::SelectOptgroupDatalist
 HTMLSelectElement::WalkAncestorsForRelatedParts(const Element& element) {
   HTMLOptGroupElement* ancestor_optgroup = nullptr;
-  ContainerNode* last_ancestor = const_cast<Element*>(&element);
+  ContainerNode* last_ancestor = nullptr;
+  const bool track_select_child =
+      RuntimeEnabledFeatures::FilterableSelectEnabled();
+  if (track_select_child) {
+    last_ancestor = const_cast<Element*>(&element);
+  }
   for (ContainerNode* ancestor = element.parentNode(); ancestor;
        ancestor = ancestor->parentNode()) {
     if (IsA<HTMLOptionElement>(ancestor)) {
@@ -2148,7 +2167,9 @@ HTMLSelectElement::WalkAncestorsForRelatedParts(const Element& element) {
               .optgroup = ancestor_optgroup,
               .select_child = last_ancestor};
     }
-    last_ancestor = ancestor;
+    if (track_select_child) {
+      last_ancestor = ancestor;
+    }
   }
   return {.optgroup = ancestor_optgroup};
 }
@@ -2160,6 +2181,7 @@ void HTMLSelectElement::InputInserted(HTMLInputElement* input,
   // some input elements, hence the == 1 check here.
   if (num_descendant_inputs_ == 1) {
     UpdateUserAgentShadowTree(*UserAgentShadowRoot());
+    PseudoStateChanged(CSSSelector::kPseudoSelectContainsInput);
   }
 }
 
@@ -2168,6 +2190,7 @@ void HTMLSelectElement::InputRemoved(HTMLInputElement* input,
   CountedElementRemoved(input, nearest_ancestor_select_child);
   if (!num_descendant_inputs_) {
     UpdateUserAgentShadowTree(*UserAgentShadowRoot());
+    PseudoStateChanged(CSSSelector::kPseudoSelectContainsInput);
   }
 }
 
@@ -2177,18 +2200,24 @@ void HTMLSelectElement::CountedElementInserted(
   CHECK(RuntimeEnabledFeatures::FilterableSelectEnabled());
   CHECK_EQ(nearest_ancestor_select_child->parentNode(), this);
 
-  auto insert_result = children_descendant_counts_map_.insert(
-      nearest_ancestor_select_child, DescendantCounts{0, 0});
-  if (IsA<HTMLInputElement>(element)) {
-    insert_result.stored_value->value.num_inputs++;
-    num_descendant_inputs_++;
+  if (nearest_ancestor_select_child == element) {
+    if (IsA<HTMLInputElement>(element)) {
+      num_descendant_inputs_++;
+    }
   } else {
-    CHECK(IsA<HTMLOptionElement>(element));
-    insert_result.stored_value->value.num_options++;
-  }
-  if (insert_result.stored_value->value.num_options &&
-      insert_result.stored_value->value.num_inputs) {
-    LogOptionAndInputWarning(*element);
+    auto insert_result = children_descendant_counts_map_.insert(
+        nearest_ancestor_select_child, DescendantCounts{0, 0});
+    if (IsA<HTMLInputElement>(element)) {
+      insert_result.stored_value->value.num_inputs++;
+      num_descendant_inputs_++;
+    } else {
+      CHECK(IsA<HTMLOptionElement>(element));
+      insert_result.stored_value->value.num_options++;
+    }
+    if (insert_result.stored_value->value.num_options &&
+        insert_result.stored_value->value.num_inputs) {
+      LogOptionAndInputWarning(*element);
+    }
   }
 
   // Since slotting may change based on whether each child node contains a
@@ -2206,19 +2235,27 @@ void HTMLSelectElement::CountedElementRemoved(
   CHECK(!nearest_ancestor_select_child->parentNode() ||
         nearest_ancestor_select_child->parentNode() == this);
 
-  auto it = children_descendant_counts_map_.find(nearest_ancestor_select_child);
-  CHECK_NE(it, children_descendant_counts_map_.end());
-  if (IsA<HTMLInputElement>(element)) {
-    CHECK_GT(it->value.num_inputs, 0u);
-    it->value.num_inputs--;
-    CHECK_GT(num_descendant_inputs_, 0u);
-    num_descendant_inputs_--;
+  if (nearest_ancestor_select_child == element) {
+    if (IsA<HTMLInputElement>(element)) {
+      CHECK_GT(num_descendant_inputs_, 0u);
+      num_descendant_inputs_--;
+    }
   } else {
-    CHECK_GT(it->value.num_options, 0u);
-    it->value.num_options--;
-  }
-  if (it->value.num_inputs == 0 && it->value.num_options == 0) {
-    children_descendant_counts_map_.erase(it);
+    auto it =
+        children_descendant_counts_map_.find(nearest_ancestor_select_child);
+    CHECK_NE(it, children_descendant_counts_map_.end());
+    if (IsA<HTMLInputElement>(element)) {
+      CHECK_GT(it->value.num_inputs, 0u);
+      it->value.num_inputs--;
+      CHECK_GT(num_descendant_inputs_, 0u);
+      num_descendant_inputs_--;
+    } else {
+      CHECK_GT(it->value.num_options, 0u);
+      it->value.num_options--;
+    }
+    if (it->value.num_inputs == 0 && it->value.num_options == 0) {
+      children_descendant_counts_map_.erase(it);
+    }
   }
 
   // See comment on SetNeedsAssignmentRecalc in CountedElementInserted.

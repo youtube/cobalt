@@ -7,7 +7,9 @@
 
 #include <memory>
 
+#include "base/callback_list.h"
 #include "base/memory/raw_ref.h"
+#include "chrome/browser/dictation/session_state.h"
 #include "chrome/browser/dictation/session_ui.h"
 
 class BrowserWindowInterface;
@@ -30,8 +32,11 @@ class SessionUiImpl : public SessionUi {
   friend class DictationSessionUiImplBrowserTest;
   void OnDictationBubbleCloseClicked();
   void OnToggleActiveStreamClicked();
+  void OnSessionStateChanged(SessionState state);
 
   const base::raw_ref<SessionUiDelegate> controller_;
+
+  base::CallbackListSubscription session_state_changed_subscription_;
 
   // This is the main bubble/toast that shows up at the top-center of the
   // screen.

@@ -15,8 +15,12 @@
 
 cr-url-list-item[size=compact] {
   padding-inline-start: calc(var(--depth) * var(--margin-per-depth));
-  --cr-url-list-item-padding: 6px;
+  --cr-url-list-item-padding: 6px 14px 6px 6px;
   width: inherit;
+}
+
+cr-url-list-item[size=large] sp-list-item-badge {
+  margin-inline-start: -4px;
 }
 
 :host(.bookmark:not([has-folders])) cr-url-list-item {

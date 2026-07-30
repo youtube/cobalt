@@ -517,10 +517,6 @@ bool OriginTrialContext::CanEnableTrialFromName(const StringView& trial_name) {
         features::kBackForwardCacheSendNotRestoredReasons);
   }
 
-  if (trial_name == "SoftNavigationHeuristics") {
-    return base::FeatureList::IsEnabled(features::kSoftNavigationDetection);
-  }
-
   if (trial_name == "UserMediaElement") {
     return base::FeatureList::IsEnabled(blink::features::kUserMediaElement);
   }

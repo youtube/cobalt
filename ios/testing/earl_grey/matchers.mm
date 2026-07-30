@@ -5,6 +5,7 @@
 #import "ios/testing/earl_grey/matchers.h"
 
 #import "ios/testing/earl_grey/earl_grey_test.h"
+#import "ui/base/device_form_factor.h"
 
 namespace testing {
 
@@ -21,8 +22,7 @@ id<GREYMatcher> AlertItemWithAccessibilityLabel(NSString* label) {
 }
 
 id<GREYMatcher> ElementToDismissAlert(NSString* cancel_text) {
-  UIUserInterfaceIdiom idiom = [[UIDevice currentDevice] userInterfaceIdiom];
-  if (idiom == UIUserInterfaceIdiomPad) {
+  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
     // On iPad the context menu is dismissed by tapping on something
     // that isn't the popover. UIKit conveniently labels this element.
     return grey_accessibilityID(@"PopoverDismissRegion");

@@ -19,8 +19,7 @@ struct VectorIcon;
 
 namespace ash {
 
-// This delegate is a singleton used by the
-// NearbyShareVisibilityFeaturePodButton in //ash to communicate with the
+// This delegate is a singleton used to communicate with the
 // NearbySharingService KeyedService in //chrome.
 class ASH_PUBLIC_EXPORT NearbyShareDelegate {
  public:

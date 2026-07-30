@@ -23,7 +23,8 @@ bool ParamsAreSupported(const HpkeParams& params) {
   return params.kem == KemType::kX25519HkdfSha256 &&
          params.kdf == KdfType::kHkdfSha256 &&
          (params.aead == AeadType::kChaCha20Poly1305 ||
-          params.aead == AeadType::kAes128Gcm);
+          params.aead == AeadType::kAes128Gcm ||
+          params.aead == AeadType::kAes256Gcm);
 }
 
 const EVP_HPKE_AEAD* GetAead(AeadType aead) {
@@ -32,6 +33,8 @@ const EVP_HPKE_AEAD* GetAead(AeadType aead) {
       return EVP_hpke_chacha20_poly1305();
     case AeadType::kAes128Gcm:
       return EVP_hpke_aes_128_gcm();
+    case AeadType::kAes256Gcm:
+      return EVP_hpke_aes_256_gcm();
   }
   NOTREACHED();
 }

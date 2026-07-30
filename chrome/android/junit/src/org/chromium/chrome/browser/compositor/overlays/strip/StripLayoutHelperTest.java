@@ -60,7 +60,6 @@ import android.view.View;
 import android.view.ViewGroup.MarginLayoutParams;
 
 import androidx.annotation.Nullable;
-import androidx.core.graphics.ColorUtils;
 import androidx.test.core.app.ApplicationProvider;
 
 import org.junit.After;
@@ -149,7 +148,6 @@ import org.chromium.chrome.browser.tasks.tab_management.TabGroupListBottomSheetC
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.test.util.browser.tabmodel.MockTabModel;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
-import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.ActionConfirmationResult;
 import org.chromium.components.collaboration.CollaborationService;
 import org.chromium.components.collaboration.ServiceStatus;
@@ -191,6 +189,7 @@ import java.util.stream.IntStream;
 @DisableFeatures({
     ChromeFeatureList.DATA_SHARING,
     ChromeFeatureList.GLIC,
+    ChromeFeatureList.TASK_MANAGER_CLANK,
     TabGroupsFeatureMap.UPDATE_TAB_GROUP_COLORS
 })
 @EnableFeatures(ChromeFeatureList.TAB_STRIP_AUTO_SELECT_ON_CLOSE_CHANGE)
@@ -1618,8 +1617,7 @@ public class StripLayoutHelperTest {
 
         ntb.setHovered(true);
         int defaultNtbHoverBackgroundTint =
-                ColorUtils.setAlphaComponent(
-                        SemanticColorUtils.getDefaultTextColor(mContext), (int) (0.08 * 255));
+                mActivity.getColor(R.color.tab_strip_button_bg_hover_tint);
         assertEquals(
                 "New tab button hover highlight default tint is not as expected",
                 defaultNtbHoverBackgroundTint,
@@ -1629,8 +1627,7 @@ public class StripLayoutHelperTest {
         ntb.setHovered(false);
         ntb.setPressed(true, true);
         int pressedNtbHoverBackgroundTint =
-                ColorUtils.setAlphaComponent(
-                        SemanticColorUtils.getDefaultTextColor(mContext), (int) (0.12 * 255));
+                mActivity.getColor(R.color.tab_strip_button_bg_peripheral_pressed_tint);
         assertEquals(
                 "New tab button hover highlight pressed tint is not as expected",
                 pressedNtbHoverBackgroundTint,
@@ -1651,9 +1648,7 @@ public class StripLayoutHelperTest {
         // Verify new tab button incognito hover highlight default tint.
         ntb.setHovered(true);
         int defaultNtbHoverBackgroundIncognitoTint =
-                ColorUtils.setAlphaComponent(
-                        mContext.getColor(R.color.tab_strip_button_hover_bg_color),
-                        (int) (0.08 * 255));
+                mActivity.getColor(R.color.tab_strip_button_bg_incognito_hover_tint);
         assertEquals(
                 "New tab button hover highlight default tint is not as expected",
                 defaultNtbHoverBackgroundIncognitoTint,
@@ -1663,9 +1658,7 @@ public class StripLayoutHelperTest {
         ntb.setHovered(false);
         ntb.setPressed(true, true);
         int hoverBackgroundPressedIncognitoColor =
-                ColorUtils.setAlphaComponent(
-                        mContext.getColor(R.color.tab_strip_button_hover_bg_color),
-                        (int) (0.12 * 255));
+                mActivity.getColor(R.color.tab_strip_button_bg_incognito_peripheral_pressed_tint);
         assertEquals(
                 "New tab button hover highlight pressed tint is not as expected",
                 hoverBackgroundPressedIncognitoColor,
@@ -1712,6 +1705,59 @@ public class StripLayoutHelperTest {
     }
 
     @Test
+    @EnableFeatures(ChromeFeatureList.TAB_SEARCH_FOR_AL)
+    public void testTabSearchButtonVisibility_FlagEnabled() {
+        initializeTest(false, false, 0, 1);
+        mStripLayoutHelper.onSizeChanged(
+                STRIP_WIDTH, STRIP_HEIGHT, false, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
+        mStripLayoutHelper.updateLayout(TIMESTAMP);
+
+        TintedCompositorButton button = mStripLayoutHelper.getTabSearchButton();
+        assertNotNull("Tab Search button should be initialized", button);
+        assertTrue("Tab Search button should be visible", button.isVisible());
+        assertEquals(
+                "Tab Search button width should be 32dp",
+                32.f,
+                mStripLayoutHelper.getTabSearchButtonWidthForTesting(),
+                EPSILON);
+    }
+
+    @Test
+    @DisableFeatures(ChromeFeatureList.TAB_SEARCH_FOR_AL)
+    public void testTabSearchButtonVisibility_FlagDisabled() {
+        initializeTest(false, false, 0, 1);
+        mStripLayoutHelper.onSizeChanged(
+                STRIP_WIDTH, STRIP_HEIGHT, false, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
+        mStripLayoutHelper.updateLayout(TIMESTAMP);
+
+        TintedCompositorButton button = mStripLayoutHelper.getTabSearchButton();
+        assertNotNull("Tab Search button should be initialized", button);
+        assertFalse("Tab Search button should be invisible", button.isVisible());
+        assertEquals(
+                "Tab Search button width should be 0dp",
+                0.f,
+                mStripLayoutHelper.getTabSearchButtonWidthForTesting(),
+                EPSILON);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TAB_SEARCH_FOR_AL)
+    public void testTabSearchButtonHoverHighlightProperties() {
+        initializeTest(false, false, 0, 1);
+        mStripLayoutHelper.onSizeChanged(
+                STRIP_WIDTH, STRIP_HEIGHT, false, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
+        mStripLayoutHelper.updateLayout(TIMESTAMP);
+
+        TintedCompositorButton button = mStripLayoutHelper.getTabSearchButton();
+        button.setHovered(true);
+        assertTrue("Tab Search button should be hovered", button.isHovered());
+
+        button.setHovered(false);
+        button.setPressed(true, true);
+        assertTrue("Tab Search button should be pressed", button.isPressed());
+    }
+
+    @Test
     public void testCloseButtonHoverHighlightProperties() {
         // Setup
         initializeTest(false, false, 2);
@@ -1735,8 +1781,7 @@ public class StripLayoutHelperTest {
         closeButton.setHovered(true);
 
         int defaultCloseButtonHoverBackgroundTint =
-                ColorUtils.setAlphaComponent(
-                        SemanticColorUtils.getDefaultTextColor(mContext), (int) (0.08 * 255));
+                mActivity.getColor(R.color.tab_strip_button_bg_hover_tint);
         assertEquals(
                 "Close button hover highlight default tint is not as expected",
                 defaultCloseButtonHoverBackgroundTint,
@@ -1746,8 +1791,7 @@ public class StripLayoutHelperTest {
         closeButton.setHovered(false);
         closeButton.setPressed(true, true);
         int pressedCloseButtonHoverBackgroundTint =
-                ColorUtils.setAlphaComponent(
-                        SemanticColorUtils.getDefaultTextColor(mContext), (int) (0.12 * 255));
+                mActivity.getColor(R.color.tab_strip_button_bg_peripheral_pressed_tint);
         assertEquals(
                 "Close button hover highlight pressed tint is not as expected",
                 pressedCloseButtonHoverBackgroundTint,
@@ -1764,9 +1808,7 @@ public class StripLayoutHelperTest {
         // Verify close button incognito hover highlight default tint.
         closeButton.setHovered(true);
         int defaultNtbHoverBackgroundIncognitoTint =
-                ColorUtils.setAlphaComponent(
-                        mContext.getColor(R.color.tab_strip_button_hover_bg_color),
-                        (int) (0.08 * 255));
+                mActivity.getColor(R.color.tab_strip_button_bg_incognito_hover_tint);
         assertEquals(
                 "Close button hover highlight default tint is not as expected",
                 defaultNtbHoverBackgroundIncognitoTint,
@@ -1776,9 +1818,7 @@ public class StripLayoutHelperTest {
         closeButton.setHovered(false);
         closeButton.setPressed(true, true);
         int hoverBackgroundPressedIncognitoColor =
-                ColorUtils.setAlphaComponent(
-                        mContext.getColor(R.color.tab_strip_button_hover_bg_color),
-                        (int) (0.12 * 255));
+                mActivity.getColor(R.color.tab_strip_button_bg_incognito_peripheral_pressed_tint);
         assertEquals(
                 "Close button hover highlight pressed tint is not as expected",
                 hoverBackgroundPressedIncognitoColor,
@@ -4778,6 +4818,21 @@ public class StripLayoutHelperTest {
 
                             @Override
                             public void fadeCompositorButtons(boolean fade) {}
+
+                            @Override
+                            public boolean isGlicButtonVisible() {
+                                return false;
+                            }
+
+                            @Override
+                            public boolean isGlicUiVisible() {
+                                return false;
+                            }
+
+                            @Override
+                            public CompositorButton getGlicButton() {
+                                return null;
+                            }
                         },
                         mManagerHost,
                         mUpdateHost,
@@ -5874,6 +5929,35 @@ public class StripLayoutHelperTest {
                         eq(IphType.TAB_TEARING_XR),
                         anyFloat(),
                         eq(true));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_VERTICAL_TABS)
+    public void testVerticalTabsPromoIph() {
+        initializeTest(false, false, 1, 2);
+        mStripLayoutHelper.onSizeChanged(
+                STRIP_WIDTH, STRIP_HEIGHT, false, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
+
+        // Mock tracker wouldTriggerIph to return true.
+        when(mController.wouldTriggerIph(eq(IphType.VERTICAL_TABS_PROMO))).thenReturn(true);
+
+        // Select tab to queue Vertical Tabs IPH.
+        mStripLayoutHelper.tabSelected(TIMESTAMP, 1, 0);
+
+        // Run layout pass (completes animations/scroll and runs queue).
+        mStripLayoutHelper.finishAnimations();
+        mStripLayoutHelper.finishScrollForTesting();
+        mStripLayoutHelper.updateLayout(TIMESTAMP);
+
+        // Verify the Vertical Tabs IPH was requested.
+        verify(mController)
+                .showIphOnTabStrip(
+                        eq(null),
+                        notNull(),
+                        any(),
+                        eq(IphType.VERTICAL_TABS_PROMO),
+                        anyFloat(),
+                        eq(false));
     }
 
     @Test
@@ -7365,18 +7449,16 @@ public class StripLayoutHelperTest {
         int tabId = mModel.getTabAt(0).getId();
 
         // Test underline addition.
-        mStripLayoutHelper.setTabUnderline(tabId, true);
+        mStripLayoutHelper.setTabUnderline(tabId, /* isUnderlined= */ true);
         assertTrue(
                 "Tab should be underlined",
-                mStripLayoutHelper.getStripLayoutTabsForTesting()[0].isUnderlined());
-        verify(mUpdateHost, times(3)).requestUpdate();
+                mStripLayoutHelper.getStripLayoutTabsForTesting()[0].isUnderlinedForTesting());
 
         // Test underline removal.
-        mStripLayoutHelper.setTabUnderline(tabId, false);
+        mStripLayoutHelper.setTabUnderline(tabId, /* isUnderlined= */ false);
         assertFalse(
                 "Tab should not be underlined",
-                mStripLayoutHelper.getStripLayoutTabsForTesting()[0].isUnderlined());
-        verify(mUpdateHost, times(4)).requestUpdate();
+                mStripLayoutHelper.getStripLayoutTabsForTesting()[0].isUnderlinedForTesting());
     }
 
     private void closeTabAt(int index) {

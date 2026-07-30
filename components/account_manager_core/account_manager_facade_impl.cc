@@ -11,12 +11,15 @@
 #include <vector>
 
 #include "base/check.h"
+#include "base/check_deref.h"
+#include "base/check_is_test.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/sequenced_task_runner.h"
 #include "chromeos/crosapi/mojom/account_manager.mojom.h"
 #include "components/account_manager_core/account.h"
 #include "components/account_manager_core/account_manager_util.h"
@@ -33,30 +36,12 @@ namespace {
 using RemoteMinVersions = crosapi::mojom::AccountManager::MethodMinVersions;
 
 // UMA histogram names.
-const char kGetAccountsMojoStatus[] =
-    "AccountManager.FacadeGetAccountsMojoStatus";
 const char kMojoDisconnectionsAccountManagerRemote[] =
     "AccountManager.MojoDisconnections.AccountManagerRemote";
 const char kMojoDisconnectionsAccountManagerObserverReceiver[] =
     "AccountManager.MojoDisconnections.AccountManagerObserverReceiver";
 const char kMojoDisconnectionsAccountManagerAccessTokenFetcherRemote[] =
     "AccountManager.MojoDisconnections.AccessTokenFetcherRemote";
-
-void UnmarshalAccounts(
-    base::OnceCallback<void(const std::vector<Account>&)> callback,
-    std::vector<crosapi::mojom::AccountPtr> mojo_accounts) {
-  std::vector<Account> accounts;
-  for (const auto& mojo_account : mojo_accounts) {
-    std::optional<Account> maybe_account = FromMojoAccount(mojo_account);
-    if (!maybe_account) {
-      // Skip accounts we couldn't unmarshal. No logging, as it would produce
-      // a lot of noise.
-      continue;
-    }
-    accounts.emplace_back(std::move(maybe_account.value()));
-  }
-  std::move(callback).Run(std::move(accounts));
-}
 
 void UnmarshalPersistentError(
     base::OnceCallback<void(const GoogleServiceAuthError&)> callback,
@@ -242,18 +227,18 @@ class AccountManagerFacadeImpl::AccessTokenFetcher
 AccountManagerFacadeImpl::AccountManagerFacadeImpl(
     mojo::Remote<crosapi::mojom::AccountManager> account_manager_remote,
     uint32_t remote_version,
-    base::WeakPtr<AccountManager> account_manager_for_tests,
+    AccountManager* account_manager,
     base::OnceClosure init_finished)
     : remote_version_(remote_version),
       account_manager_remote_(std::move(account_manager_remote)),
-      account_manager_for_tests_(std::move(account_manager_for_tests)) {
+      account_manager_(CHECK_DEREF(account_manager)) {
   DCHECK(init_finished);
   initialization_callbacks_.emplace_back(std::move(init_finished));
 
   if (!account_manager_remote_ ||
-      remote_version_ < RemoteMinVersions::kGetAccountsMinVersion) {
+      remote_version_ < RemoteMinVersions::kAddObserverMinVersion) {
     LOG(WARNING) << "Found remote at: " << remote_version_
-                 << ", expected: " << RemoteMinVersions::kGetAccountsMinVersion
+                 << ", expected: " << RemoteMinVersions::kAddObserverMinVersion
                  << ". Account consistency will be disabled";
     FinishInitSequenceIfNotAlreadyFinished();
     return;
@@ -284,27 +269,13 @@ void AccountManagerFacadeImpl::RemoveObserver(Observer* observer) {
 
 void AccountManagerFacadeImpl::GetAccounts(
     base::OnceCallback<void(const std::vector<Account>&)> callback) {
-  // Record the status of the mojo connection, to get more information about
-  // https://crbug.com/1287297
-  FacadeMojoStatus mojo_status = FacadeMojoStatus::kOk;
-  if (!account_manager_remote_)
-    mojo_status = FacadeMojoStatus::kNoRemote;
-  else if (remote_version_ < RemoteMinVersions::kGetAccountsMinVersion)
-    mojo_status = FacadeMojoStatus::kVersionMismatch;
-  else if (!is_initialized_)
-    mojo_status = FacadeMojoStatus::kUninitialized;
-  base::UmaHistogramEnumeration(kGetAccountsMojoStatus, mojo_status);
-
-  if (!account_manager_remote_ ||
-      remote_version_ < RemoteMinVersions::kGetAccountsMinVersion) {
-    // Remote side is disconnected or doesn't support GetAccounts. Do not return
-    // an empty list as that may cause Lacros to delete user profiles.
-    // TODO(crbug.com/40211181): Try to reconnect, or return an error.
-    return;
-  }
-  RunAfterInitializationSequence(
-      base::BindOnce(&AccountManagerFacadeImpl::GetAccountsInternal,
-                     weak_factory_.GetWeakPtr(), std::move(callback)));
+  account_manager_->GetAccounts(base::BindOnce(
+      [](base::OnceCallback<void(const std::vector<Account>&)> callback,
+         const std::vector<Account>& accounts) {
+        base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+            FROM_HERE, base::BindOnce(std::move(callback), accounts));
+      },
+      std::move(callback)));
 }
 
 void AccountManagerFacadeImpl::GetPersistentErrorForAccount(
@@ -363,21 +334,31 @@ void AccountManagerFacadeImpl::ReportAuthError(
 void AccountManagerFacadeImpl::UpsertAccountForTesting(
     const Account& account,
     const std::string& token_value) {
-  CHECK(account_manager_for_tests_);
-  account_manager_for_tests_->UpsertAccount(account.key, account.raw_email,
-                                            token_value);
+  CHECK_IS_TEST();
+  // Defer execution until Mojo observers are ready.
+  RunAfterInitializationSequence(base::BindOnce(
+      [](base::WeakPtr<AccountManagerFacadeImpl> self, const Account& account,
+         const std::string& token_value) {
+        if (self) {
+          self->account_manager_->UpsertAccount(account.key, account.raw_email,
+                                                token_value);
+        }
+      },
+      weak_factory_.GetWeakPtr(), account, token_value));
 }
 
 void AccountManagerFacadeImpl::RemoveAccountForTesting(
     const AccountKey& account) {
-  CHECK(account_manager_for_tests_);
-  account_manager_for_tests_->RemoveAccount(account);
-}
-
-// static
-std::string
-AccountManagerFacadeImpl::GetAccountsMojoStatusHistogramNameForTesting() {
-  return kGetAccountsMojoStatus;
+  CHECK_IS_TEST();
+  // Defer execution until Mojo observers are ready.
+  RunAfterInitializationSequence(base::BindOnce(
+      [](base::WeakPtr<AccountManagerFacadeImpl> self,
+         const AccountKey& account) {
+        if (self) {
+          self->account_manager_->RemoveAccount(account);
+        }
+      },
+      weak_factory_.GetWeakPtr(), account));
 }
 
 void AccountManagerFacadeImpl::OnReceiverReceived(
@@ -446,12 +427,6 @@ void AccountManagerFacadeImpl::OnSigninDialogClosed() {
   for (auto& observer : observer_list_) {
     observer.OnSigninDialogClosed();
   }
-}
-
-void AccountManagerFacadeImpl::GetAccountsInternal(
-    base::OnceCallback<void(const std::vector<Account>&)> callback) {
-  account_manager_remote_->GetAccounts(
-      base::BindOnce(&UnmarshalAccounts, std::move(callback)));
 }
 
 void AccountManagerFacadeImpl::GetPersistentErrorInternal(

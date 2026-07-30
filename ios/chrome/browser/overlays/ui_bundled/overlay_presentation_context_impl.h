@@ -7,6 +7,9 @@
 
 #import <UIKit/UIKit.h>
 
+#import <map>
+#import <memory>
+
 #import "base/memory/raw_ptr.h"
 #import "base/memory/weak_ptr.h"
 #import "base/observer_list.h"

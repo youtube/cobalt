@@ -50,6 +50,7 @@ source_set("signin") {
 
   if (enable_dice_support) {
     public += [
+      "cross_device_signin_promo_manager.h",
       "dice_intercepted_session_startup_helper.h",
       "dice_response_handler.h",
       "dice_response_handler_factory.h",
@@ -243,6 +244,7 @@ source_set("impl") {
 
   if (enable_dice_support) {
     sources += [
+      "cross_device_signin_promo_manager.cc",
       "dice_intercepted_session_startup_helper.cc",
       "dice_response_handler.cc",
       "dice_response_handler_factory.cc",

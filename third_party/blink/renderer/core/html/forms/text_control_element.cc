@@ -632,6 +632,7 @@ bool TextControlElement::SetSelectionRange(
           .SetShouldClearTypingStyle(true)
           .SetDoNotSetFocus(true)
           .SetIsDirectional(direction != kSelectionHasNoDirection)
+          .SetShouldNotifySelectionControllerOfUnchangedSelection(true)
           .Build());
   return did_change;
 }

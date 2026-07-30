@@ -201,6 +201,13 @@ class DocumentPipHost : public content::WebContentsUserData<DocumentPipHost>,
   // CreateForWebContents().
   explicit DocumentPipHost(content::WebContents* opener_web_contents);
 
+  // Creates the WebContents helpers a standalone PiP child needs. The child is
+  // not a tab, so TabHelpers never runs for it; this wires up the specific
+  // helpers (PermissionRequestManager, TabModalDialogManager) directly. Must be
+  // called after `widget_` is initialized, since the dialog manager anchors to
+  // it.
+  void CreateChildWebContentsHelpers(content::WebContents* child_web_contents);
+
   // Tears down the PiP widget (and with it the child WebContents, which is
   // owned by the WebView inside the widget's contents view). Safe to call
   // multiple times; subsequent calls are no-ops.

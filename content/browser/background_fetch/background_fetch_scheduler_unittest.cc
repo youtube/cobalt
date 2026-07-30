@@ -149,7 +149,7 @@ class BackgroundFetchSchedulerTest : public BackgroundFetchTestBase {
       base::OnceCallback<void(blink::mojom::BackgroundFetchError)> callback) {
     DCHECK_EQ(failure_reason, blink::mojom::BackgroundFetchFailureReason::NONE);
     base::EraseIf(scheduler_->active_controllers_,
-                  [&registration_id](auto* controller) {
+                  [&registration_id](const auto& controller) {
                     return controller->registration_id() == registration_id;
                   });
     scheduler_->job_controllers_.erase(registration_id.unique_id());

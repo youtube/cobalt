@@ -56,6 +56,10 @@ plugin.addEventListener('message', e => {
 let isPresentationMode = false;
 channel.port1.onmessage = e => {
   switch (e.data.type) {
+    case 'focus':
+      plugin.focus();
+      return;
+
     case 'setPresentationMode':
       isPresentationMode = e.data.enablePresentationMode;
 
@@ -65,9 +69,6 @@ channel.port1.onmessage = e => {
         document.documentElement.className = 'fullscreen';
       } else {
         document.documentElement.className = '';
-
-        // Ensure that directional keys still work after exiting.
-        plugin.focus();
       }
       break;
 

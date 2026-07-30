@@ -188,4 +188,10 @@ bool IsDownloadConnectorEnabled(ConnectorsServiceBase* service) {
          service->IsConnectorEnabled(AnalysisConnector::FILE_DOWNLOADED);
 }
 
+bool IsBulkDataEntryConnectorEnabled(ConnectorsServiceBase* service) {
+  CHECK(service);
+  return base::FeatureList::IsEnabled(kEnableBulkDataEntryConnectorIOS) &&
+         service->IsConnectorEnabled(AnalysisConnector::BULK_DATA_ENTRY);
+}
+
 }  // namespace enterprise_connectors

@@ -28,9 +28,10 @@ void DefaultSensorsSettingPolicyHandler::ApplyPolicySettings(
   int value_in_range;
   if (value && EnsureInRange(value, &value_in_range, nullptr)) {
     if (value_in_range == 3) {
-      // Check the feature flag.
-      bool tri_state_enabled = base::FeatureList::IsEnabled(
-          features::kSensorsAllowAskBlockPermissionModel);
+      bool tri_state_enabled =
+          base::FeatureList::GetInstance() &&
+          base::FeatureList::IsEnabled(
+              features::kSensorsAllowAskBlockPermissionModel);
 
       if (!tri_state_enabled) {
         // Fallback to ALLOW (1) to maintain the historical default behavior

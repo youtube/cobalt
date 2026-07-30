@@ -655,7 +655,7 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewBrowserTest, LeadingSeparatorLayout) {
 
   CompareLayouts(expected_separator_layouts, actual_child_layouts);
   EXPECT_EQ(
-      CustomFloatingCorner::CornerOrientation::kTopLeading,
+      CornerOrientation::kTopLeading,
       view->contents_separators_.corner_separator->orientation_for_testing());
 }
 
@@ -704,7 +704,7 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewBrowserTest, TrailingSeparatorLayout) {
 
   CompareLayouts(expected_separator_layouts, actual_child_layouts);
   EXPECT_EQ(
-      CustomFloatingCorner::CornerOrientation::kTopTrailing,
+      CornerOrientation::kTopTrailing,
       view->contents_separators_.corner_separator->orientation_for_testing());
 }
 

@@ -13,11 +13,14 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/metrics/user_metrics.h"
+#include "base/metrics/user_metrics_action.h"
 #include "base/notimplemented.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/scoped_multi_source_observation.h"
 #include "base/scoped_observation.h"
+#include "base/strings/pattern.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -30,8 +33,6 @@
 #include "base/version_info/version_info.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_task.h"
-#include "chrome/browser/actor/aggregated_journal_file_serializer.h"
-#include "chrome/browser/actor/aggregated_journal_in_memory_serializer.h"
 #include "chrome/browser/actor/autofill_selection_dialog_event_handler.h"
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/browser_process.h"
@@ -82,6 +83,7 @@
 #include "chrome/browser/skills/skills_glic_mojom_util.h"
 #include "chrome/browser/skills/skills_service_factory.h"
 #include "chrome/browser/skills/skills_ui_tab_controller_interface.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
@@ -95,6 +97,8 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/actor/core/aggregated_journal.h"
+#include "components/actor/core/aggregated_journal_file_serializer.h"
+#include "components/actor/core/aggregated_journal_in_memory_serializer.h"
 #include "components/actor/core/journal_details_builder.h"
 #include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/content_settings/core/common/content_settings_types.h"
@@ -136,6 +140,7 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/base/base_window.h"
 #include "ui/base/device_form_factor.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/display/screen.h"
@@ -163,7 +168,6 @@
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
-#include "ui/base/base_window.h"
 #endif
 
 namespace mojo {
@@ -673,6 +677,60 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     }
     host().instance_delegate().CreateTab(url, open_in_background, window_id,
                                          std::move(callback));
+  }
+
+  void ActivateTabWithUrl(const ::GURL& exact_url,
+                          glic::mojom::ActivateTabOptionsPtr options,
+                          ActivateTabWithUrlCallback callback) override {
+    tabs::TabInterface* exact_match_tab = nullptr;
+    tabs::TabInterface* pattern_match_tab = nullptr;
+    std::string pattern_str = options ? options->pattern : "";
+
+    ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+        [&](BrowserWindowInterface* browser) {
+          if (browser->GetType() != BrowserWindowInterface::Type::TYPE_NORMAL ||
+              browser->GetProfile() != profile_) {
+            return true;
+          }
+          TabListInterface* tab_list = TabListInterface::From(browser);
+          if (!tab_list) {
+            return true;
+          }
+          for (tabs::TabInterface* tab : tab_list->GetAllTabs()) {
+            if (tab->GetURL().EqualsIgnoringRef(exact_url)) {
+              exact_match_tab = tab;
+              return false;
+            }
+            if (!pattern_match_tab && !pattern_str.empty() &&
+                base::MatchPattern(tab->GetURL().spec(), pattern_str)) {
+              pattern_match_tab = tab;
+            }
+          }
+          return true;
+        });
+
+    tabs::TabInterface* found_tab =
+        exact_match_tab ? exact_match_tab : pattern_match_tab;
+
+    if (found_tab) {
+      BrowserWindowInterface* browser = found_tab->GetBrowserWindowInterface();
+      if (browser) {
+        if (browser->GetWindow()) {
+          browser->GetWindow()->Activate();
+        }
+        if (TabListInterface* tab_list = TabListInterface::From(browser)) {
+          tab_list->ActivateTab(found_tab->GetHandle());
+        }
+      }
+      mojom::TabDataPtr tab_data = CreateTabData(found_tab);
+      std::move(callback).Run(std::move(tab_data));
+      return;
+    }
+
+    std::optional<int32_t> win_id =
+        options ? options->fallback_window_id : std::nullopt;
+    CreateTab(exact_url, /*open_in_background=*/false, win_id,
+              std::move(callback));
   }
 
   void OpenGlicSettingsPage(mojom::OpenSettingsOptionsPtr options) override {
@@ -2012,15 +2070,26 @@ void GlicPageHandler::Zoom(mojom::ZoomAction zoom_action) {
   GlicZoomAction action_metric;
   switch (zoom_action) {
     case mojom::ZoomAction::kZoomIn:
-      action_metric = current_zoom >= 200 ? GlicZoomAction::kZoomInAtMax
-                                          : GlicZoomAction::kZoomIn;
+      if (current_zoom >= 200) {
+        action_metric = GlicZoomAction::kZoomInAtMax;
+        base::RecordAction(base::UserMetricsAction("Glic.ZoomInAtMax"));
+      } else {
+        action_metric = GlicZoomAction::kZoomIn;
+        base::RecordAction(base::UserMetricsAction("Glic.ZoomIn"));
+      }
       break;
     case mojom::ZoomAction::kZoomOut:
-      action_metric = current_zoom <= 100 ? GlicZoomAction::kZoomOutAtMin
-                                          : GlicZoomAction::kZoomOut;
+      if (current_zoom <= 100) {
+        action_metric = GlicZoomAction::kZoomOutAtMin;
+        base::RecordAction(base::UserMetricsAction("Glic.ZoomOutAtMin"));
+      } else {
+        action_metric = GlicZoomAction::kZoomOut;
+        base::RecordAction(base::UserMetricsAction("Glic.ZoomOut"));
+      }
       break;
     case mojom::ZoomAction::kReset:
       action_metric = GlicZoomAction::kReset;
+      base::RecordAction(base::UserMetricsAction("Glic.ZoomReset"));
       break;
   }
 

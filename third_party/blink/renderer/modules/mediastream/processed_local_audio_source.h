@@ -75,6 +75,10 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
 
   std::optional<blink::AudioProcessingProperties> GetAudioProcessingProperties()
       const final;
+  bool IsProcessedSource() const final { return true; }
+  bool IsApmProcessedSource() const final {
+    return processing_layout_.NeedWebrtcAudioProcessing();
+  }
 
   // Valid after the source is started (when the first track is connected). Will
   // return nullptr if WebRTC stats are no available for the current

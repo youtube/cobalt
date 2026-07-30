@@ -38,7 +38,7 @@ import * as UI from 'devtools/ui/legacy/legacy.js';
   await AxeCoreTestRunner.runValidation(scopePane.contentElement);
 
   TestRunner.addResult('Expanding the makeClosure closure.');
-  scopePane.treeOutline.rootElement().childAt(1).expand();
+  SourcesTestRunner.scopeChainSections()[1].expand();
   await TestRunner.addSnifferPromise(ObjectUI.ObjectPropertiesSection.ObjectPropertyTreeElement, 'populateWithProperties');
   await new Promise(requestAnimationFrame);
   TestRunner.addResult(`Scope pane content: ${scopePane.contentElement.deepTextContent()}`);

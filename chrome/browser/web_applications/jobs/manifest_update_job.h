@@ -80,9 +80,13 @@ class ManifestUpdateJob {
     bool record_icon_results_on_update = false;
     // If true, the job will consider all manifest icons as trusted icons,
     // instead of selecting one primary icon.
+    // Please consider the nuances of setting this flag to true, as outlined in
+    // `WebAppInstallInfoConstructOptions::use_manifest_icons_as_trusted`, which
+    // this variable feeds into.
     bool use_manifest_icons_as_trusted = false;
     // If true, the job will silently update everything, including the name &
-    // icon.
+    // icon. Apps satisfying `WebAppFilter::IsTrusted()` are usually allowed to
+    // set this field to `true`.
     bool force_silent_update_identity = false;
   };
 

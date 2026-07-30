@@ -112,8 +112,10 @@ const StyleTimeline& CSSAnimationData::GetTimelineTriggerSource(
 const Member<const StyleTriggerAttachmentVector>
 CSSAnimationData::GetTriggerAttachments(size_t index) const {
   DCHECK_LT(index, name_list_.size());
+  // `index` is less than `trigger_attachments_list_.size()`, which
+  // is wtf_size_t.
   return (index < trigger_attachments_list_.size())
-             ? trigger_attachments_list_.at(index)
+             ? trigger_attachments_list_.at(static_cast<wtf_size_t>(index))
              : nullptr;
 }
 

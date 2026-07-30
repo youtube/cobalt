@@ -18,6 +18,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list.h"
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
 #include "chrome/browser/extensions/api/passwords_private/password_access_auth_timeout_handler.h"
@@ -130,6 +131,9 @@ class PasswordsPrivateDelegateImpl
       delete;
 
   // PasswordsPrivateDelegate implementation.
+  void AddObserver(PasswordsPrivateDelegate::Observer* observer) override;
+  void RemoveObserver(PasswordsPrivateDelegate::Observer* observer) override;
+
   password_manager::SavedPasswordsPresenter* GetSavedPasswordsPresenter()
       override;
   void GetSavedPasswordsList(UiEntriesCallback callback) override;
@@ -169,7 +173,7 @@ class PasswordsPrivateDelegateImpl
                       ImportResultsCallback results_callback) override;
   void ResetImporter(bool delete_file) override;
   void ExportPasswords(
-      base::OnceCallback<void(const std::string&)> accepted_callback,
+      base::OnceCallback<void(ExportPasswordsResult)> accepted_callback,
       content::WebContents* web_contents) override;
   api::passwords_private::ExportProgressStatus GetExportProgressStatus()
       override;
@@ -295,7 +299,7 @@ class PasswordsPrivateDelegateImpl
 
   // Callback for ExportPasswords() after authentication check.
   void OnExportPasswordsAuthResult(
-      base::OnceCallback<void(const std::string&)> accepted_callback,
+      base::OnceCallback<void(ExportPasswordsResult)> accepted_callback,
       base::WeakPtr<content::WebContents> web_contents,
       bool authenticated);
 
@@ -373,6 +377,8 @@ class PasswordsPrivateDelegateImpl
   // having to request them from |password_manager_presenter_| again.
   UiEntries current_entries_;
   ExceptionEntries current_exceptions_;
+
+  base::ObserverList<PasswordsPrivateDelegate::Observer> observers_;
 
   // An id generator for saved passwords and blocked websites.
   IdGenerator credential_id_generator_;

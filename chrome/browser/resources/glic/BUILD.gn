@@ -65,6 +65,11 @@ build_webui("build") {
     "//ui/webui/resources/mojo:build_ts",
   ]
 
+  if (!is_android) {
+    ts_deps +=
+        [ "//ui/webui/resources/cr_components/color_change_listener:build_ts" ]
+  }
+
   extra_grdp_deps = [ ":glic_api_injection_grdp" ]
   extra_grdp_files = [ "$target_gen_dir/glic_api_injection.grdp" ]
 

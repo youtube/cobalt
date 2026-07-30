@@ -244,7 +244,7 @@ webview {
 }
 
 .notice-message {
-  width: 300px;
+  max-width: 356px;
 }
 
 /* Guest panel contains glic webview. If in the show-header state, a header

@@ -182,7 +182,9 @@ enum class GlicInvokeError {
   kAdditionalContextNoClipboardMetadata = 14,
   // The targeted Glic InstanceId could not be found or has closed.
   kInstanceNotFound = 15,
-  kMaxValue = kInstanceNotFound,
+  // Profile is not enabled for Glic.
+  kProfileNotEnabled = 16,
+  kMaxValue = kProfileNotEnabled,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInvokeResult,//chrome/browser/glic/host/glic_internals_page_handler.cc:GlicInvokeError)
 
@@ -279,6 +281,9 @@ struct GlicInvokeOptions {
   // Defaults to false. If the panel was already open when the invoke was
   // triggered, this flag is ignored.
   bool wait_for_panel_open = false;
+
+  // Whether to focus the side panel when shown.
+  bool focus_on_show = true;
 
   // Specifies how to wait for the First Run Experience (FRE) to complete
   // before proceeding with the invocation.

@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">You may also try to <ph name="GUEST_SIGNIN_LINK_START" />browse as guest<ph name="GUEST_SIGNIN_LINK_END" /> to fix this network error.</translation>
 <translation id="1201402288615127009">Next</translation>
 <translation id="1222835797152767346">Set a PIN to make it easier to sign in</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Debugging features<ph name="END_H3" />
+          <ph name="BR" />
+          You can enable the debugging features on your ChromeOS device in order to install and test custom code on your device.  This will allow you to:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Remove rootfs verification so that you can modify OS files
+            <ph name="LIST_ITEM" />Enable SSH access to the device using the standard test keys so that you can use tools such as <ph name="BEGIN_CODE" />'cros flash'<ph name="END_CODE" /> to access the device
+            <ph name="LIST_ITEM" />Enable booting from USB so that you can install an OS image from a USB drive
+            <ph name="LIST_ITEM" />Set both the dev and the system root login password to a custom value so that you can manually SSH into the device
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Once enabled, most of the debugging features will remain enabled even after performing a powerwash or wiping the data on an enterprise managed device. To fully disable all debugging features, complete the ChromeOS recovery process (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          For more information about the debugging features, see:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Note:<ph name="END_BOLD" /> The system will reboot during the process.</translation>
 <translation id="1347625331607114917">Verify the code on your Android phone</translation>
 <translation id="1347975661240122359">Update will begin when battery reaches <ph name="BATTERY_LEVEL" />%.</translation>
 <translation id="1375938286942050085">Setup is complete! Get your device ready for gaming next</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Apps downloading</translation>
 <translation id="5045550434625856497">Incorrect password</translation>
 <translation id="5062930723426326933">Sign-in failed, please connect to the Internet and try again.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Chat with Gemini to start writing, planning, learning and more with Google AI.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />After setup, start using Gemini by selecting the Gemini app on your shelf, at the bottom of your screen.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Please plug your <ph name="DEVICE_TYPE" /> into a power source.</translation>
 <translation id="5147516217412920887">Follow instructions on your phone to verify the code</translation>
 <translation id="5160857336552977725">Sign in to your <ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Debugging features<ph name="END_H3" />
+          <ph name="BR" />
+          You can enable the debugging features on your ChromeOS Flex device in order to install and test custom code on your device.  This will allow you to:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Remove rootfs verification so that you can modify OS files
+            <ph name="LIST_ITEM" />Enable SSH access to the device using the standard test keys so that you can use tools such as <ph name="BEGIN_CODE" />'cros flash'<ph name="END_CODE" /> to access the device
+            <ph name="LIST_ITEM" />Enable booting from USB so that you can install an OS image from a USB drive
+            <ph name="LIST_ITEM" />Set both the dev and the system root login password to a custom value so that you can manually SSH into the device
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Once enabled, most of the debugging features will remain enabled even after performing a powerwash or wiping the data on an enterprise managed device. To fully disable all debugging features, complete the ChromeOS recovery process (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          For more information about the debugging features, see:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Note:<ph name="END_BOLD" /> The system will reboot during the process.</translation>
 <translation id="523505283826916779">Accessibility settings</translation>
 <translation id="5240931875940563122">Sign in with Android phone</translation>
 <translation id="5255859108402770436">Sign in again</translation>
@@ -193,6 +231,10 @@
 <translation id="6955698182324067397">You are enabling Chrome OS debugging features, which will set up sshd daemon and enable booting from USB drives.</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6981982820502123353">Accessibility</translation>
+<translation id="6984652455487792101">If you are using a proxy server, check your proxy settings or
+        contact your network administrator to check that the proxy
+        server is working. If you don't believe that you should be using a
+        proxy server, adjust your <ph name="LINK_START" />proxy settings<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">Turn on your phone’s Bluetooth and Wi-Fi</translation>
 <translation id="7077829361966535409">The sign-in page failed to load using the current proxy settings. Please <ph name="GAIA_RELOAD_LINK_START" />try to sign in again<ph name="GAIA_RELOAD_LINK_END" /> or use different <ph name="PROXY_SETTINGS_LINK_START" />proxy settings<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="7114054701490058191">Passwords don't match</translation>
@@ -205,6 +247,9 @@
 <translation id="7345706641791090287">Confirm your password</translation>
 <translation id="7352651011704765696">Something went wrong</translation>
 <translation id="7476454130948140105">Battery too low for update (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Before enrolling, you need to clear the TPM so that <ph name="DEVICE_OS" /> can take ownership of the device.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />You can also turn off the TPM device entirely. Your data will still be stored safely with software encryption, but certain security features such as hardware-backed certificates will be disabled.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />You can change your TPM settings by rebooting and entering the system BIOS/UEFI settings. Steps vary based on the device model. For more info, open the <ph name="DEVICE_OS" /> documentation on a separate device before you reboot: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Enable debugging features on this <ph name="IDS_SHORT_PRODUCT_NAME" /> device</translation>
 <translation id="7553242001898162573">Enter your password</translation>
 <translation id="7556242789364317684">Unfortunately, <ph name="SHORT_PRODUCT_NAME" /> is unable to recover your settings. To fix the error, <ph name="SHORT_PRODUCT_NAME" /> must reset your device with Powerwash.</translation>
@@ -251,6 +296,10 @@
 <translation id="8452105022015742247">Transferring Google Account info from your Android phone</translation>
 <translation id="8524841856047224176">Personalise your camera backgrounds for video calls and more</translation>
 <translation id="8569673829373920831">More about <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">Follow the instructions on your phone to scan the QR code. Make sure that your phone's Bluetooth is on.
+        <ph name="BR" />
+        <ph name="BR" />
+        Visible to nearby devices as <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />…</translation>
 <translation id="8655972064210167941">Sign-in failed because your password could not be verified. Please contact your administrator or try again.</translation>
 <translation id="8674903726754070732">Unfortunately, your computer is configured with a malformed hardware ID. This prevents Chrome OS from updating with the latest security fixes and your computer <ph name="BEGIN_BOLD" />may be vulnerable to malicious attacks<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Add parental controls after setup</translation>
@@ -264,10 +313,20 @@
 <translation id="8830796635868321089">The update check failed using the current proxy settings. Please adjust your <ph name="PROXY_SETTINGS_LINK_START" />proxy settings<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">Your saved preferences and activity will be ready on any Chrome OS device when you sign in with your Google Account. You can choose what to sync in Settings.</translation>
 <translation id="8875221558267407626">Summarise content, simplify complex language or ask questions</translation>
+<translation id="8913163265790894442">Easily set up your <ph name="DEVICE_TYPE" /> with your phone. You can add your Wi-Fi and Google Account without manually entering your passwords.
+        <ph name="BR" />
+        <ph name="BR" />
+        Visible as <ph name="DEVICE_TYPE" />…</translation>
 <translation id="8946359700442089734">Debugging features were not completely enabled on this <ph name="IDS_SHORT_PRODUCT_NAME" /> device.</translation>
 <translation id="8965037249707889821">Enter old password</translation>
 <translation id="8975396729541388937">Unsubscribe at any time by clicking the link in the emails that you receive.</translation>
 <translation id="9033765790910064284">Continue anyway</translation>
 <translation id="903480517321259405">Type the PIN again</translation>
 <translation id="9076523132036239772">Sorry, your email or password could not be verified. Try connecting to a network first.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Exclusive for <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Generative AI is experimental, in early development and currently has limited availability.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Easily set up your <ph name="DEVICE_TYPE" /> with your phone. You can add your Google Account without manually entering your password.
+        <ph name="BR" />
+        <ph name="BR" />
+        Visible as <ph name="DEVICE_TYPE" />…</translation>
 </translationbundle>

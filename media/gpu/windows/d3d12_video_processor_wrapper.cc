@@ -18,7 +18,15 @@ D3D12VideoProcessorWrapper::D3D12VideoProcessorWrapper(
   CHECK_EQ(video_device.As(&device_), S_OK);
 }
 
-D3D12VideoProcessorWrapper::~D3D12VideoProcessorWrapper() = default;
+D3D12VideoProcessorWrapper::~D3D12VideoProcessorWrapper() {
+  // Ensure any in-flight video processing work has completed before releasing
+  // resources that may still be referenced by the GPU.
+  if (auto status = WaitForInFlightWorkImpl(); !status.is_ok()) {
+    DLOG(ERROR) << "Waiting for in-flight video processing during teardown "
+                   "failed: "
+                << static_cast<int>(status.code());
+  }
+}
 
 bool D3D12VideoProcessorWrapper::Init() {
   D3D12_COMMAND_QUEUE_DESC command_queue_desc{
@@ -62,6 +70,17 @@ bool D3D12VideoProcessorWrapper::Init() {
   }
 
   return true;
+}
+
+D3D11Status D3D12VideoProcessorWrapper::WaitForInFlightWork() {
+  return WaitForInFlightWorkImpl();
+}
+
+D3D11Status D3D12VideoProcessorWrapper::WaitForInFlightWorkImpl() {
+  if (!fence_ || fence_->GetCompletedValue() >= fence_->Value()) {
+    return D3D11StatusCode::kOk;
+  }
+  return fence_->WaitCPU(fence_->Value());
 }
 
 bool D3D12VideoProcessorWrapper::Wait(D3D12FenceAndValue fence_and_value) {
@@ -152,13 +171,10 @@ D3D12FenceAndValue D3D12VideoProcessorWrapper::ProcessFrames(
   // allocator in use when Reset() is called.
   // An alternative approach is to reuse the allocator without resetting it.
   // However, this could potentially cause the allocator to grow unboundedly.
-  if (fence_->GetCompletedValue() < fence_->Value()) {
-    auto status = fence_->WaitCPU(fence_->Value());
-    if (!status.is_ok()) {
-      DLOG(ERROR) << "Waiting for previous video processing failed: "
-                  << static_cast<int>(status.code());
-      return {};
-    }
+  if (auto status = WaitForInFlightWork(); !status.is_ok()) {
+    DLOG(ERROR) << "Waiting for previous video processing failed: "
+                << static_cast<int>(status.code());
+    return {};
   }
 
   hr = command_allocator_->Reset();

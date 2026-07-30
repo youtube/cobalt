@@ -159,7 +159,7 @@ export namespace MetricsUtils {
 
   /**
    * CrosSelectToSpeakStartSpeechMethod enums.
-   * These values are persisted to logs and should not be renumbered or re-used.
+   * These values are persisted to logs and should not be renumbered or reused.
    * See tools/metrics/histograms/enums.xml.
    */
   export enum StartSpeechMethod {
@@ -179,7 +179,7 @@ export namespace MetricsUtils {
 
   /**
    * CrosSelectToSpeakStateChangeEvent enums.
-   * These values are persisted to logs and should not be renumbered or re-used.
+   * These values are persisted to logs and should not be renumbered or reused.
    * See tools/metrics/histograms/enums.xml.
    */
   export enum StateChangeEvent {
@@ -198,7 +198,7 @@ export namespace MetricsUtils {
 
   /**
    * CrosSelectToSpeakTtsEngineUsed enums.
-   * These values are persisted to logs and should not be renumbered or re-used.
+   * These values are persisted to logs and should not be renumbered or reused.
    * See tools/metrics/histograms/enums.xml.
    */
   export enum TtsEngineUsed {

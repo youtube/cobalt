@@ -1,0 +1,19 @@
+Name: Auto Common Libraries
+Short Name: auto-common
+URL: https://repo.maven.apache.org/maven2/com/google/auto/auto-common/1.2.2/auto-common-1.2.2.jar
+Version: 1.2.2
+Update Mechanism: Autoroll
+License: Apache-2.0
+License File: LICENSE
+CPEPrefix: unknown
+Security Critical: no
+Shipped: no
+
+Description:
+Common utilities for creating annotation processors.
+
+See also: https://github.com/google/auto/tree/main/common
+
+
+Local Modifications:
+No modifications.

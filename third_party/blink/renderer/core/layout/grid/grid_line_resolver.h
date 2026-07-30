@@ -40,11 +40,17 @@ class CORE_EXPORT GridLineResolver {
 
   // Subgrids need to map named lines from every parent grid. This constructor
   // should be used exclusively by subgrids to differentiate such scenario.
+  // When `can_inherit_line_names_from_parent` is false, the subgrid uses only
+  // its own line names and does not merge any from `parent_line_resolver`. This
+  // is required for an auto-placed subgrid of a grid-lanes container, whose
+  // placement (and thus its area in the parent) is only resolved after track
+  // sizing, so the parent's line names cannot be mapped onto it.
   GridLineResolver(const ComputedStyle& grid_style,
                    const GridLineResolver& parent_line_resolver,
                    GridArea subgrid_area,
                    wtf_size_t column_auto_repetitions,
-                   wtf_size_t row_auto_repetitions);
+                   wtf_size_t row_auto_repetitions,
+                   bool can_inherit_line_names_from_parent = true);
 
   bool operator==(const GridLineResolver& other) const;
 

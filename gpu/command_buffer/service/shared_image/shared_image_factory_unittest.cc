@@ -5,6 +5,7 @@
 #include "gpu/command_buffer/service/shared_image/shared_image_factory.h"
 
 #include "base/functional/callback_helpers.h"
+#include "build/build_config.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/service_utils.h"
@@ -43,6 +44,8 @@ class SharedImageFactoryTest : public testing::Test {
         GrContextType::kGL);
 
     GpuPreferences preferences;
+    preferences.use_passthrough_cmd_decoder = true;
+
     GpuDriverBugWorkarounds workarounds;
 
     bool initialize_gl = context_state_->InitializeGL(preferences, workarounds,
@@ -112,6 +115,51 @@ TEST_F(SharedImageFactoryTest, DuplicateMailbox) {
 TEST_F(SharedImageFactoryTest, DestroyInexistentMailbox) {
   auto mailbox = Mailbox::Generate();
   EXPECT_FALSE(factory_->DestroySharedImage(mailbox));
+}
+
+TEST_F(SharedImageFactoryTest, InvalidWebGPUUsage) {
+  auto mailbox = Mailbox::Generate();
+
+  constexpr int kBufferSize = 4;
+  // Control case: Try to create a valid shared image with WEBGPU_SHARED_BUFFER.
+  SharedImageInfo si_info(
+      viz::SharedImageFormat(), {kBufferSize, 1}, gfx::ColorSpace(),
+      kTopLeft_GrSurfaceOrigin, kUnknown_SkAlphaType,
+      SHARED_IMAGE_USAGE_WEBGPU_SHARED_BUFFER | SHARED_IMAGE_USAGE_WEBGPU_READ |
+          SHARED_IMAGE_USAGE_WEBGPU_WRITE,
+      "TestLabel");
+
+  bool supports_shared_buffer =
+      factory_->CreateSharedImage(mailbox, si_info, kNullSurfaceHandle);
+  // This is expected to work only on Windows.
+  ASSERT_EQ(supports_shared_buffer, BUILDFLAG(IS_WIN));
+
+  if (!supports_shared_buffer) {
+    GTEST_SKIP() << "WEBGPU_SHARED_BUFFER is not supported on this platform.";
+  }
+
+  // If creation succeeded, destroy the control image.
+  EXPECT_TRUE(factory_->DestroySharedImage(mailbox));
+
+  // Invalid without WRITE.
+  si_info.usage =
+      SHARED_IMAGE_USAGE_WEBGPU_SHARED_BUFFER | SHARED_IMAGE_USAGE_WEBGPU_READ;
+  EXPECT_FALSE(
+      factory_->CreateSharedImage(mailbox, si_info, kNullSurfaceHandle));
+
+  // Invalid without READ.
+  si_info.usage =
+      SHARED_IMAGE_USAGE_WEBGPU_SHARED_BUFFER | SHARED_IMAGE_USAGE_WEBGPU_WRITE;
+  EXPECT_FALSE(
+      factory_->CreateSharedImage(mailbox, si_info, kNullSurfaceHandle));
+
+  // Control: READ+WRITE still valid (no state has changed to make it fail).
+  si_info.usage = SHARED_IMAGE_USAGE_WEBGPU_SHARED_BUFFER |
+                  SHARED_IMAGE_USAGE_WEBGPU_READ |
+                  SHARED_IMAGE_USAGE_WEBGPU_WRITE;
+  EXPECT_TRUE(
+      factory_->CreateSharedImage(mailbox, si_info, kNullSurfaceHandle));
+  EXPECT_TRUE(factory_->DestroySharedImage(mailbox));
 }
 
 }  // anonymous namespace

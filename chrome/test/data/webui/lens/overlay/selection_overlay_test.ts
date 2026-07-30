@@ -1226,4 +1226,100 @@ suite('SelectionOverlay', function() {
         });
   });
 
+  suite('LineSelectionToggleShortcuts', function() {
+    setup(async function() {
+      loadTimeData.overrideValues({
+        'lineSelection': true,
+        'lineSelectionStrokeWidth': 4,
+        'colorLineSelectionGradient1': 0xffffffff,
+        'colorLineSelectionGradient2': 0xffffffff,
+        'colorLineSelectionGradient3': 0xffffffff,
+      });
+
+      // Recreate overlay element with new load time data.
+      document.body.removeChild(selectionOverlayElement);
+      selectionOverlayElement =
+          document.createElement('lens-selection-overlay');
+      document.body.appendChild(selectionOverlayElement);
+      selectionOverlayElement.$.selectionOverlay.style.width = '100%';
+      selectionOverlayElement.$.selectionOverlay.style.height = '100%';
+      await waitAfterNextRender(selectionOverlayElement);
+      return waitAfterNextRender(selectionOverlayElement);
+    });
+
+    test('PressingZTogglesLineSelectionEnabled', () => {
+      const regionSelection = selectionOverlayElement.$.regionSelectionLayer;
+      const initialValue = regionSelection.lineSelectionEnabled;
+
+      // Dispatch keydown with 'z' key
+      document.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'z',
+        bubbles: true,
+        composed: true,
+      }));
+
+      assertEquals(!initialValue, regionSelection.lineSelectionEnabled);
+
+      // Press 'z' again to toggle back
+      document.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'z',
+        bubbles: true,
+        composed: true,
+      }));
+
+      assertEquals(initialValue, regionSelection.lineSelectionEnabled);
+    });
+
+    test('PressingZDoesNotToggleLineSelectionWhenFocusedOnInput', () => {
+      const regionSelection = selectionOverlayElement.$.regionSelectionLayer;
+      const initialValue = regionSelection.lineSelectionEnabled;
+
+      // Create an input element, append, and focus it
+      const input = document.createElement('input');
+      document.body.appendChild(input);
+      input.focus();
+
+      // Dispatch keydown with 'z' key
+      document.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'z',
+        bubbles: true,
+        composed: true,
+      }));
+
+      assertEquals(initialValue, regionSelection.lineSelectionEnabled);
+
+      // Clean up input
+      document.body.removeChild(input);
+    });
+
+    test('PressingZDoesNotToggleWhenLineSelectionDisabled', async () => {
+      // Create a scenario where lineSelection is false
+      loadTimeData.overrideValues({
+        'lineSelection': false,
+      });
+
+      // Recreate overlay element with lineSelection disabled
+      document.body.removeChild(selectionOverlayElement);
+      selectionOverlayElement =
+          document.createElement('lens-selection-overlay');
+      document.body.appendChild(selectionOverlayElement);
+      selectionOverlayElement.$.selectionOverlay.style.width = '100%';
+      selectionOverlayElement.$.selectionOverlay.style.height = '100%';
+      await waitAfterNextRender(selectionOverlayElement);
+
+      const regionSelection = selectionOverlayElement.$.regionSelectionLayer;
+      const initialValue = regionSelection.lineSelectionEnabled;
+
+      // Dispatch keydown with 'z' key
+      document.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'z',
+        bubbles: true,
+        composed: true,
+      }));
+
+      // Expect it to stay unchanged
+      assertEquals(initialValue, regionSelection.lineSelectionEnabled);
+    });
+  });
+
 });

@@ -111,6 +111,7 @@ std::unique_ptr<Connection> ConnectionFactoryImpl::Create(
   if (!proxy_url_.is_valid()) {
     logger_->LogInfo(FROM_HERE,
                      "Creating connection to Private AI server (direct).");
+    CHECK(network_context_);
     connection = CreateConnectionStack(
         url_, feature_name, logger_, token_manager_, secure_channel_override_,
         oak_session_driver_, on_disconnect, std::move(on_established),

@@ -275,6 +275,38 @@ chrome.test.sendMessage('ready', function(message) {
           });
         });
       },
+      // Setting autofillSettings should update the blocked rules.
+      function testSetAutofillSettings() {
+        ps.autofillSettings.get(
+            {},
+            expect(
+                {
+                  value: [],
+                  levelOfControl: 'controllable_by_this_extension',
+                },
+                'autofillSettings should initially be empty.'));
+
+        const rules = [
+          {
+            urlPattern: 'https://example.com',
+            blockedTypes: ['payments', 'contact_info'],
+          },
+          {
+            urlPattern: '*',
+            blockedTypes: ['travel'],
+          },
+        ];
+        ps.autofillSettings.set({value: rules}, function() {
+          ps.autofillSettings.get(
+              {},
+              expect(
+                  {
+                    value: rules,
+                    levelOfControl: 'controlled_by_this_extension',
+                  },
+                  'autofillSettings should be controlled by this extension.'));
+        });
+      },
     ]);
   });
 });

@@ -36,9 +36,12 @@ dependencies {
     compileLatest 'androidx.compose.ui:ui:+'
     compileLatest 'androidx.compose.ui:ui-text:+'
     compileLatest 'androidx.compose.ui:ui-text-google-fonts:+'
+    compileLatest 'androidx.compose.ui:ui-graphics:+'
+    compileLatest 'androidx.compose.ui:ui-unit:+'
     compileLatest 'androidx.activity:activity-compose:+'
     compileLatest 'androidx.fragment:fragment-compose:+'
     compileLatest 'androidx.lifecycle:lifecycle-viewmodel-compose:+'
+    compileLatest 'androidx.lifecycle:lifecycle-runtime-compose:+'
 
     compileLatest 'androidx.lifecycle:lifecycle-runtime:+'
     compileLatest 'androidx.lifecycle:lifecycle-runtime-ktx:+'
@@ -62,7 +65,6 @@ dependencies {
     compileLatest 'androidx.biometric:biometric:+'
     compileLatest 'androidx.browser:browser:+'
     compileLatest 'androidx.car.app:app:+'
-    compileLatest 'androidx.cardview:cardview:+'
     compileLatest 'androidx.collection:collection:+'
     compileLatest 'androidx.collection:collection-ktx:+'
     compileLatest 'androidx.concurrent:concurrent-futures:+'
@@ -81,16 +83,15 @@ dependencies {
     compileLatest 'androidx.exifinterface:exifinterface:+'
     compileLatest 'androidx.fragment:fragment:+'
     compileLatest 'androidx.gridlayout:gridlayout:+'
-    compileLatest 'androidx.interpolator:interpolator:+'
     compileLatest 'androidx.leanback:leanback:+'
     compileLatest 'androidx.leanback:leanback-preference:+'
-    compile 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
     compileLatest 'androidx.media:media:+'
     compileLatest 'androidx.mediarouter:mediarouter:+'
     compileLatest 'androidx.navigation:navigation-compose:+'
     compileLatest 'androidx.navigation:navigation-runtime:+'
     compileLatest 'androidx.paging:paging-compose:+'
     compileLatest 'androidx.paging:paging-runtime:+'
+    compileLatest 'androidx.pdf:pdf-core:+'
     compileLatest 'androidx.pdf:pdf-document-service:+'
     compileLatest 'androidx.pdf:pdf-ink:+'
     compileLatest 'androidx.pdf:pdf-viewer:+'
@@ -147,7 +148,6 @@ dependencies {
     compileLatest 'androidx.room:room-runtime-android:+'
     compileLatest 'androidx.transition:transition:+'
     compileLatest 'androidx.viewpager2:viewpager2:+'
-    compile 'androidx.legacy:legacy-support-core-utils:1.0.0'
     compileLatest 'androidx.documentfile:documentfile:+'
     compileLatest 'androidx.print:print:+'
     compileLatest 'androidx.sqlite:sqlite-android:+'
@@ -166,12 +166,8 @@ dependencies {
     compile "androidx.media3:media3-session:${media3Version}"
     compile "androidx.media3:media3-ui:${media3Version}"
 
-    compile 'androidx.multidex:multidex:2.0.0'
     compileLatest 'androidx.webkit:webkit:+'
     compileLatest 'androidx.constraintlayout:constraintlayout:+'
-
-    // Used by 1p Play Services.
-    compile 'androidx.legacy:legacy-support-v4:1.0.0'
 
     // Used by LeakCanary.
     compileLatest 'androidx.work:work-runtime:+'
@@ -206,6 +202,14 @@ dependencies {
     androidTestCompile 'org.checkerframework:checker-compat-qual:2.5.5'
     androidTestCompile 'com.google.errorprone:error_prone_annotations:2.3.4'
     androidTestCompile 'com.google.j2objc:j2objc-annotations:1.3'
+
+    // Libraries that are no longer shipped in androidx.dev nightlies:
+    compile 'androidx.cardview:cardview:1.0.0'
+    compile 'androidx.interpolator:interpolator:1.0.0'
+    compile 'androidx.legacy:legacy-support-core-utils:1.0.0'
+    compile 'androidx.legacy:legacy-support-v4:1.0.0'
+    compile 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
+    compile 'androidx.multidex:multidex:2.0.0'
 }
 
 

@@ -22,6 +22,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
 #include "base/version_info/version_info.h"
 #include "chrome/browser/ash/file_suggest/file_suggest_keyed_service.h"
@@ -821,7 +822,12 @@ TEST_F(BirchKeyedServiceTest, SelfShareProvider_FromTablet) {
             SecondaryIconType::kTabFromTablet);
 
   // Mark Self Share Item as opened, the provider should now return zero items.
+  std::string guid = send_tab_to_self_model()->GetAllGuids()[0];
   model->GetSelfShareItemsForTest()[0].PerformAction();
+  EXPECT_EQ(send_tab_to_self_model()->last_activated_guid(), guid);
+  EXPECT_EQ(send_tab_to_self_model()->last_activated_entry_point(),
+            send_tab_to_self::ShareActivatedEntryPoint::kChromeOSBirch);
+  EXPECT_EQ(send_tab_to_self_model()->activated_call_count(), 1);
   self_share_provider->RequestBirchDataFetch();
   EXPECT_EQ(model->GetSelfShareItemsForTest().size(), 0u);
 }
@@ -847,7 +853,12 @@ TEST_F(BirchKeyedServiceTest, SelfShareProvider_FromPhone) {
             SecondaryIconType::kTabFromPhone);
 
   // Mark Self Share Item as opened, the provider should now return zero items.
+  std::string guid = send_tab_to_self_model()->GetAllGuids()[0];
   model->GetSelfShareItemsForTest()[0].PerformAction();
+  EXPECT_EQ(send_tab_to_self_model()->last_activated_guid(), guid);
+  EXPECT_EQ(send_tab_to_self_model()->last_activated_entry_point(),
+            send_tab_to_self::ShareActivatedEntryPoint::kChromeOSBirch);
+  EXPECT_EQ(send_tab_to_self_model()->activated_call_count(), 1);
   self_share_provider->RequestBirchDataFetch();
   EXPECT_EQ(model->GetSelfShareItemsForTest().size(), 0u);
 }
@@ -873,7 +884,12 @@ TEST_F(BirchKeyedServiceTest, SelfShareProvider_FromDesktop) {
             SecondaryIconType::kTabFromDesktop);
 
   // Mark Self Share Item as opened, the provider should now return zero items.
+  std::string guid = send_tab_to_self_model()->GetAllGuids()[0];
   model->GetSelfShareItemsForTest()[0].PerformAction();
+  EXPECT_EQ(send_tab_to_self_model()->last_activated_guid(), guid);
+  EXPECT_EQ(send_tab_to_self_model()->last_activated_entry_point(),
+            send_tab_to_self::ShareActivatedEntryPoint::kChromeOSBirch);
+  EXPECT_EQ(send_tab_to_self_model()->activated_call_count(), 1);
   self_share_provider->RequestBirchDataFetch();
   EXPECT_EQ(model->GetSelfShareItemsForTest().size(), 0u);
 }

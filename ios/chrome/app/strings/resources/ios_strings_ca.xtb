@@ -836,7 +836,6 @@
 <translation id="391904960191284041">Ressenyes de productes</translation>
 <translation id="3921585859122905677">Posició de la barra d'adreces</translation>
 <translation id="3922185497376658606">Precarrega les pàgines web</translation>
-<translation id="3922395466317605522">Personalitza el menú</translation>
 <translation id="3926703470020109118">Baixada cancel·lada</translation>
 <translation id="3929457972718048006">Adreces</translation>
 <translation id="3931215329146376310">{count,plural, =1{Contrasenya nova per a aquest lloc web}other{Contrasenyes noves per a aquest lloc web}}</translation>
@@ -1486,7 +1485,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="6090760257419195752">Advertiments ignorats</translation>
 <translation id="6094325891006032858">Activa Navegació segura millorada</translation>
 <translation id="6096965253650248286">S'han trobat <ph name="COUNT" /></translation>
-<translation id="6099466082815574659">Aquest iPad està configurat per a un infant</translation>
+<translation id="6099466082815574659">Aquest iPad està configurat per a un nen o nena</translation>
 <translation id="6100617279104942061">Has iniciat la sessió com a <ph name="USER_EMAIL" />. Obre la configuració.</translation>
 <translation id="6100676328067737810">Les teves dades es desaran al teu Compte de Google, <ph name="USER_EMAIL" /></translation>
 <translation id="610083648014322104">Obtén respostes rellevants basades en el contingut de la pàgina en què et trobes</translation>
@@ -1690,7 +1689,6 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="6674917187596384849">Pots canviar fàcilment d'un compte a un altre</translation>
 <translation id="6676349090816247042">Opcions d'inici de sessió.</translation>
 <translation id="667999046851023355">Document</translation>
-<translation id="6680416467695217368">Personalitza el menú</translation>
 <translation id="6681791404926413601">{count,plural, =1{Hi ha {count} opció de forma de pagament disponible a sobre del teclat.}other{Hi ha {count} opcions de forma de pagament disponibles a sobre del teclat.}}</translation>
 <translation id="6682680306647339111">S'ha suprimit el recordatori</translation>
 <translation id="6684262542644248484">Inicia la sessió en un lloc web</translation>
@@ -2038,7 +2036,7 @@ Per continuar des de l'ordinador, canvia a <ph name="OTHER_EMAIL" />. Obtindràs
 <translation id="7888562068293422208">Tancar-ho tot?</translation>
 <translation id="7889910613639381518">Accés fàcil i segur amb el widget del gestor de contrasenyes de Google.</translation>
 <translation id="7899199123054742721">Marca-ho tot com a no llegit</translation>
-<translation id="7909005666376403847">Aquest iPhone està configurat per a un infant</translation>
+<translation id="7909005666376403847">Aquest iPhone està configurat per a un nen o nena</translation>
 <translation id="7911190106180361398">La teva organització no et permet sincronitzar-ho tot.</translation>
 <translation id="7918999344502274923">Amaga els detalls de <ph name="SEARCH_ENGINE_NAME" /></translation>
 <translation id="7921559948846049514">Tria un tema, un color o més per al fons</translation>

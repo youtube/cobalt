@@ -611,6 +611,28 @@ bool SecurityOrigin::IsSameOriginWith(const SecurityOrigin* other) const {
 }
 
 bool SecurityOrigin::AreSameOrigin(const KURL& a, const KURL& b) {
+  // Fast path for valid http/https URLs. These always produce tuple origins
+  // based on protocol, host, and effective port, so this matches
+  // CreateInternal() without allocating temporary SecurityOrigin objects.
+  if (a.ProtocolIsInHttpFamily() && b.ProtocolIsInHttpFamily() && a.IsValid() &&
+      b.IsValid()) {
+    bool result = false;
+    const String a_protocol = a.Protocol();
+    const String b_protocol = b.Protocol();
+    if (a_protocol == b_protocol && a.Host() == b.Host()) {
+      uint16_t a_port =
+          a.HasPort() ? a.Port() : DefaultPortForProtocol(a_protocol);
+      uint16_t b_port =
+          b.HasPort() ? b.Port() : DefaultPortForProtocol(b_protocol);
+      result = (a_port == b_port);
+    }
+    // Tripwire: the fast path must never disagree with the authoritative
+    // SecurityOrigin comparison.
+    DCHECK_EQ(result, SecurityOrigin::Create(b)->IsSameOriginWith(
+                          SecurityOrigin::Create(a).get()));
+    return result;
+  }
+
   scoped_refptr<const SecurityOrigin> origin_a = SecurityOrigin::Create(a);
   scoped_refptr<const SecurityOrigin> origin_b = SecurityOrigin::Create(b);
   return origin_b->IsSameOriginWith(origin_a.get());

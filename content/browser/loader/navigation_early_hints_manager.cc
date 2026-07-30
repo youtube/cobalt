@@ -7,6 +7,7 @@
 #include "base/memory/raw_ref.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "content/browser/connection_allowlist_utils.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/global_request_id.h"
 #include "content/public/browser/storage_partition.h"
@@ -19,6 +20,7 @@
 #include "net/base/schemeful_site.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/url_request/url_request_job.h"
+#include "services/network/public/cpp/connection_allowlist.h"
 #include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/content_security_policy/content_security_policy.h"
 #include "services/network/public/cpp/content_security_policy/csp_source_list.h"
@@ -391,7 +393,9 @@ NavigationEarlyHintsManager::NavigationEarlyHintsManager(
       frame_tree_node_id_(frame_tree_node_id),
       loader_factory_(std::move(params.loader_factory)),
       origin_(params.origin),
-      isolation_info_(std::move(params.isolation_info)) {
+      isolation_info_(std::move(params.isolation_info)),
+      is_connection_allowlist_enabled_(
+          IsConnectionAllowlistsInEarlyHintsEnabled()) {
   shared_loader_factory_ =
       base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
           loader_factory_.get());
@@ -403,8 +407,9 @@ void NavigationEarlyHintsManager::HandleEarlyHints(
     network::mojom::EarlyHintsPtr early_hints,
     const network::ResourceRequest& request_for_navigation) {
   // Ignore the second and subsequent responses to avoid situations where
-  // policies such as CSP are inconsistent among the first and following
-  // responses. This behavior is specified by the step 19.5 of
+  // policies such as CSP and connection allowlist are inconsistent among the
+  // first and following responses. This behavior is specified by the step 19.5
+  // of:
   // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-by-fetching
   if (first_early_hints_receive_time_) {
     return;
@@ -415,15 +420,45 @@ void NavigationEarlyHintsManager::HandleEarlyHints(
   net::ReferrerPolicy referrer_policy =
       Referrer::ReferrerPolicyForUrlRequest(early_hints->referrer_policy);
 
+  bool need_to_check_connection_allowlist =
+      is_connection_allowlist_enabled_ &&
+      early_hints->headers->connection_allowlists.enforced.has_value();
+
   for (const auto& link : early_hints->headers->link_headers) {
-    // TODO(crbug.com/40496584): Support other `rel` attributes.
-    if (link->rel == network::mojom::LinkRelAttribute::kPreconnect) {
-      MaybePreconnect(link);
-    } else if (link->rel == network::mojom::LinkRelAttribute::kPreload ||
-               link->rel == network::mojom::LinkRelAttribute::kModulePreload) {
-      MaybePreloadHintedResource(link, request_for_navigation,
-                                 early_hints->headers->content_security_policy,
-                                 referrer_policy);
+    if (link->rel == network::mojom::LinkRelAttribute::kPreconnect ||
+        link->rel == network::mojom::LinkRelAttribute::kPreload ||
+        link->rel == network::mojom::LinkRelAttribute::kModulePreload) {
+      was_resource_hints_received_ = true;
+
+      if (!ShouldHandleResourceHints(link)) {
+        continue;
+      }
+
+      if (need_to_check_connection_allowlist &&
+          !network::ConnectionAllowlistMatchesUrl(
+              early_hints->headers->connection_allowlists.enforced.value(),
+              link->href)) {
+        // Connection allowlist in the early hints response does not allow the
+        // URL for preconnect or preload.
+        //
+        // Note: Connection allowlist also has a `redirects` directive that
+        // either allows or blocks redirects. There is no need to check that
+        // because `NavigationEarlyHintsManager` overrides `OnReceiveRedirect`
+        // with an empty implementation, which means redirects are not followed.
+        //
+        // TODO(crbug.com/482728970): Implement the reporting when request is
+        // blocked by connection allowlist.
+        continue;
+      }
+
+      // TODO(crbug.com/40496584): Support other `rel` attributes.
+      if (link->rel == network::mojom::LinkRelAttribute::kPreconnect) {
+        MaybePreconnect(link);
+      } else {
+        MaybePreloadHintedResource(
+            link, request_for_navigation,
+            early_hints->headers->content_security_policy, referrer_policy);
+      }
     }
   }
 }
@@ -435,6 +470,11 @@ bool NavigationEarlyHintsManager::WasResourceHintsReceived() const {
 std::vector<network::mojom::LinkHeaderPtr>
 NavigationEarlyHintsManager::TakePreloadedResources() {
   return std::move(preloaded_infos_);
+}
+
+std::vector<network::mojom::LinkHeaderPtr>
+NavigationEarlyHintsManager::TakePreconnectedResources() {
+  return std::move(preconnect_infos_);
 }
 
 bool NavigationEarlyHintsManager::HasInflightPreloads() const {
@@ -469,12 +509,6 @@ NavigationEarlyHintsManager::GetNetworkContext() {
 
 void NavigationEarlyHintsManager::MaybePreconnect(
     const network::mojom::LinkHeaderPtr& link) {
-  was_resource_hints_received_ = true;
-
-  if (!ShouldHandleResourceHints(link)) {
-    return;
-  }
-
   PreconnectEntry entry(url::Origin::Create(link->href), link->cross_origin);
   if (preconnect_entries_.contains(entry)) {
     return;
@@ -488,18 +522,21 @@ void NavigationEarlyHintsManager::MaybePreconnect(
   bool allow_credentials =
       link->cross_origin != network::mojom::CrossOriginAttribute::kAnonymous;
 
-  // TODO(crbug.com/447954811): pass the `network_restrictions_id` from the
-  // caller.
+  // A NoOp network restrictions ID is used because
+  // `NavigationEarlyHintsManager::HandleEarlyHints` has already checked the
+  // connection allowlists.
   network_context->PreconnectSockets(
       /*num_streams=*/1, link->href,
       allow_credentials ? network::mojom::CredentialsMode::kInclude
                         : network::mojom::CredentialsMode::kOmit,
       isolation_info_.network_anonymization_key(),
-      /*network_restrictions_id=*/network::GetTODONetworkRestrictionsId(),
+      /*network_restrictions_id=*/network::GetNoOpNetworkRestrictionsId(),
       net::MutableNetworkTrafficAnnotationTag(
           kEarlyHintsPreloadTrafficAnnotation),
       /*keepalive_config=*/std::nullopt, mojo::NullRemote());
   preconnect_entries_.insert(std::move(entry));
+  // Record preconnect for the SpeculationMeasurement API.
+  preconnect_infos_.push_back(link.Clone());
 }
 
 void NavigationEarlyHintsManager::MaybePreloadHintedResource(
@@ -510,12 +547,6 @@ void NavigationEarlyHintsManager::MaybePreloadHintedResource(
     net::ReferrerPolicy referrer_policy) {
   DCHECK(request_for_navigation.is_outermost_main_frame);
   DCHECK(request_for_navigation.url.SchemeIsHTTPOrHTTPS());
-
-  was_resource_hints_received_ = true;
-
-  if (!ShouldHandleResourceHints(link)) {
-    return;
-  }
 
   // Step 2. If options's destination is not a destination, then return null.
   // https://html.spec.whatwg.org/multipage/semantics.html#create-a-link-request

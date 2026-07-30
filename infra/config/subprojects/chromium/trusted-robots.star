@@ -35,6 +35,12 @@ luci.bucket(
                 "mdb/chrome-troopers",
             ],
         ),
+        acl.entry(
+            roles = acl.BUILDBUCKET_TRIGGERER,
+            groups = [
+                "mdb/chrome-troopers",
+            ],
+        ),
     ],
 )
 

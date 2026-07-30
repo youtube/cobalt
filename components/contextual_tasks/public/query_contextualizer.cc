@@ -270,7 +270,7 @@ void QueryContextualizer::Contextualize(ContextualizeParams params) {
     if (session_handle && session_handle->GetController()) {
       const auto& file_info_list =
           session_handle->GetController()->GetFileInfoList();
-      for (const auto* file_info : file_info_list) {
+      for (const auto& file_info : file_info_list) {
         if (file_info->tab_url.has_value() && !file_info->is_superceded) {
           attached_context_urls.push_back(file_info->tab_url.value());
         }
@@ -604,7 +604,7 @@ std::optional<int64_t> QueryContextualizer::GetContextIdForTab(
         session_handle ? session_handle->GetController() : nullptr;
     if (search_context_controller) {
       const auto& file_info_list = search_context_controller->GetFileInfoList();
-      for (const auto* file_info : file_info_list) {
+      for (const auto& file_info : file_info_list) {
         if (file_info->tab_session_id == tab_session_id &&
             !file_info->is_superceded) {
           return file_info->GetContextId();
@@ -637,7 +637,7 @@ bool QueryContextualizer::CheckIfContextChangedAndPrepareUploadData(
 
   const auto& file_info_list = search_context_controller->GetFileInfoList();
   const contextual_search::FileInfo* matching_file_info = nullptr;
-  for (const auto* file_info : file_info_list) {
+  for (const auto& file_info : file_info_list) {
     if (file_info->tab_session_id == tab_session_id &&
         !file_info->is_superceded) {
       matching_file_info = file_info;

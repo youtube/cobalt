@@ -9,7 +9,10 @@ source_set("infobar_delegate") {
     "permissions_infobar_delegate.h",
     "permissions_infobar_delegate.mm",
   ]
-  deps = [ "//components/infobars/core" ]
+  deps = [
+    "//components/infobars/core",
+    "//ios/web/public",
+  ]
 }
 
 source_set("tab_helper") {

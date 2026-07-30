@@ -48,6 +48,7 @@
 #import "ios/components/credential_provider_extension/password_util.h"
 
 using app_group::UserDefaultsStringForKey;
+using webauthn::PasskeyUserVerificationStatus;
 
 namespace {
 
@@ -74,12 +75,6 @@ enum class PasskeyCreationEligibility {
   kSignedOut,
   kUnsupportedAlgorithm,
   kExcludedPasskey,
-};
-
-enum class PasskeyUserVerificationStatus {
-  kNotRequired,
-  kRequired,
-  kCompleted
 };
 
 }  // namespace
@@ -823,7 +818,7 @@ enum class PasskeyUserVerificationStatus {
                              (ReauthenticationResultBlock)completionHandler {
   __weak __typeof__(self) weakSelf = self;
   auto handlerWrapper = ^(ReauthenticationResult result) {
-    if (result == ReauthenticationResult::kSuccess) {
+    if (result != ReauthenticationResult::kFailure) {
       weakSelf.userVerificationStatus =
           PasskeyUserVerificationStatus::kCompleted;
     }

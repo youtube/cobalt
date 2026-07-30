@@ -474,11 +474,6 @@ ci.thin_tester(
         mixins = [
             "gpu_pixel_10_stable",
             "has_native_resultdb_integration",
-            # TODO(crbug.com/443001330): Remove the limited_capacity_bot mixin
-            # once additional devices are deployed. 49 devices is likely not enough
-            # to run both standard GPU and WebGPU tests on CI + have enough
-            # capacity for trybots without this.
-            "limited_capacity_bot",
         ],
         per_test_modifications = {
             "gl_tests_passthrough": targets.mixin(
@@ -2109,8 +2104,7 @@ ci.thin_tester(
         # 'gpu_fyi_only_mac_release_telemetry_tests' instead of
         # 'gpu_fyi_mac_release_telemetry_tests'.
         targets = [
-            "gpu_fyi_mac_release_gtests",
-            "gpu_fyi_only_mac_release_telemetry_tests",
+            "gpu_noop_sleep_telemetry_test",
         ],
         mixins = [
             "limited_capacity_bot",
@@ -2122,10 +2116,10 @@ ci.thin_tester(
         os_type = targets.os_type.MAC,
     ),
     # Uncomment this entry when this experimental tester is actually in use.
-    console_view_entry = consoles.console_view_entry(
-        category = "Mac|Intel",
-        short_name = "exp",
-    ),
+    # console_view_entry = consoles.console_view_entry(
+    #     category = "Mac|Intel",
+    #     short_name = "exp",
+    # ),
     list_view = "chromium.gpu.experimental",
 )
 

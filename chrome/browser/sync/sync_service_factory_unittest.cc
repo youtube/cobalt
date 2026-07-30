@@ -8,6 +8,7 @@
 #include "base/feature_list.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/test/bind.h"
+#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/history/history_service_factory.h"
@@ -95,6 +96,15 @@ class SyncServiceFactoryTest : public testing::Test {
     // There may tasks in flight referencing fields owned by the test fixture.
     // Make sure they are flushed now to prevent memory safety errors, e.g.
     // use-after-destruction errors.
+
+    // Flush any pending initialization tasks (e.g. WebData) before destroying
+    // the profile, to avoid accessing closed DBs.
+    task_environment_.RunUntilIdle();
+
+    // Destroy the profile. This may post cleanup tasks.
+    profile_.reset();
+
+    // Flush cleanup tasks while NetworkHandler is still alive.
     task_environment_.RunUntilIdle();
   }
 
@@ -298,4 +308,33 @@ TEST_F(SyncServiceFactoryTest, CreateSyncServiceImplDefault) {
     EXPECT_TRUE(types.Has(type))
         << syncer::DataTypeToDebugString(type) << " not found in datatypes map";
   }
+}
+
+class SyncServiceFactoryTestWithCrossDeviceThemeFeatures
+    : public SyncServiceFactoryTest {
+ public:
+  SyncServiceFactoryTestWithCrossDeviceThemeFeatures() {
+    feature_list_.InitWithFeatures(
+        /*enabled_features=*/{syncer::kSyncThemesIos,
+                              syncer::kNewTabPageCustomizationThemeSync},
+        /*disabled_features=*/{});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_F(SyncServiceFactoryTestWithCrossDeviceThemeFeatures,
+       CreateSyncServiceImpl) {
+  syncer::SyncServiceImpl* sync_service =
+      SyncServiceFactory::GetAsSyncServiceImplForProfileForTesting(profile());
+  syncer::DataTypeSet types = sync_service->GetRegisteredDataTypesForTest();
+
+#if !BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(types.Has(syncer::THEMES_IOS));
+  EXPECT_TRUE(types.Has(syncer::THEMES_ANDROID));
+#else
+  EXPECT_FALSE(types.Has(syncer::THEMES_IOS));
+  EXPECT_FALSE(types.Has(syncer::THEMES_ANDROID));
+#endif
 }

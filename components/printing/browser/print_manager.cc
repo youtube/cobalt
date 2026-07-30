@@ -96,8 +96,8 @@ PrintManager::GetPrintRenderFrame(content::RenderFrameHost* rfh) {
   return it->second;
 }
 
-content::RenderFrameHost* PrintManager::GetCurrentTargetFrame() {
-  return print_manager_host_receivers_.GetCurrentTargetFrame();
+content::RenderFrameHost& PrintManager::CurrentTargetFrame() {
+  return print_manager_host_receivers_.CurrentTargetFrame();
 }
 
 void PrintManager::PrintingRenderFrameDeleted() {

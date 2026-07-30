@@ -65,7 +65,6 @@ import org.chromium.content_public.browser.test.util.JavaScriptUtils;
 import org.chromium.device.geolocation.LocationProviderOverrider;
 import org.chromium.device.geolocation.MockLocationProvider;
 import org.chromium.net.test.EmbeddedTestServer;
-import org.chromium.ui.base.DeviceFormFactor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -82,7 +81,6 @@ import java.util.concurrent.TimeoutException;
 // TODO(http://crbug.com/495529795): Enable side panel and fix this test.
 @DisableFeatures({ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL})
 @Batch(Batch.PER_CLASS)
-@DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/479863847
 public class IncognitoPermissionLeakageTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -255,7 +253,7 @@ public class IncognitoPermissionLeakageTest {
     @Test
     @LargeTest
     @UseMethodParameter(TestParams.RegularToIncognito.class)
-    @DisabledTest(message = "crbug.com/390130917, crbug.com/479863847")
+    @DisabledTest(message = "crbug.com/390130917")
     public void testBlockPermissionLeakFromRegularToIncognito(
             String regularActivityType, String incognitoActivityType) throws Exception {
         ActivityType regularActivity = ActivityType.valueOf(regularActivityType);

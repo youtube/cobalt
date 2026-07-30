@@ -35,6 +35,7 @@
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/renderer_preferences_util.h"
+#include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/common/bindings_policy.h"
@@ -201,16 +202,13 @@ class HeadlessWebContentsImpl::Delegate : public content::WebContentsDelegate {
                 ->block_new_web_contents()) {
           return nullptr;
         }
-        content::RenderFrameHost* opener_rfh = content::RenderFrameHost::FromID(
-            params.source_render_process_id, params.source_render_frame_id);
-        bool opener_suppressed = !params.has_rel_opener;
+        HeadlessWebContents::CreateParams create_params(
+            headless_web_contents_->browser_context());
+        create_params.window_bounds = source->GetContainerBounds();
+        create_params.source_site_instance = params.source_site_instance;
         HeadlessWebContentsImpl* child_contents = HeadlessWebContentsImpl::From(
-            headless_web_contents_->browser_context()
-                ->CreateWebContentsBuilder()
-                .SetWindowBounds(source->GetContainerBounds())
-                .SetOpener(opener_rfh)
-                .SetOpenerSuppressed(opener_suppressed)
-                .Build());
+            headless_web_contents_->browser_context()->CreateWebContents(
+                create_params));
         target = child_contents->web_contents();
         break;
       }
@@ -385,24 +383,23 @@ class HeadlessWebContentsImpl::PendingFrame final
 
 // static
 std::unique_ptr<HeadlessWebContentsImpl> HeadlessWebContentsImpl::Create(
-    HeadlessWebContents::Builder* builder) {
-  content::WebContents::CreateParams create_params(builder->browser_context_);
-  if (builder->opener_rfh_) {
-    create_params.opener_render_process_id =
-        builder->opener_rfh_->GetProcess()->GetID().GetUnsafeValue();
-    create_params.opener_render_frame_id = builder->opener_rfh_->GetRoutingID();
-    create_params.opener_suppressed = builder->opener_suppressed_;
+    const HeadlessWebContents::CreateParams& params) {
+  content::WebContents::CreateParams create_params(
+      HeadlessBrowserContextImpl::From(params.browser_context));
+  if (params.source_site_instance) {
+    create_params.site_instance = params.source_site_instance;
   }
   auto headless_web_contents = base::WrapUnique(
       new HeadlessWebContentsImpl(content::WebContents::Create(create_params)));
 
   headless_web_contents->begin_frame_control_enabled_ =
-      builder->enable_begin_frame_control_ ||
+      params.enable_begin_frame_control ||
       headless_web_contents->browser()->options()->enable_begin_frame_control;
-  headless_web_contents->InitializeWindow(builder->window_bounds_,
-                                          builder->window_state_);
-  if (!headless_web_contents->OpenURL(builder->initial_url_))
+  headless_web_contents->InitializeWindow(params.window_bounds,
+                                          params.window_state);
+  if (!headless_web_contents->OpenURL(params.initial_url)) {
     return nullptr;
+  }
   return headless_web_contents;
 }
 
@@ -591,56 +588,32 @@ void HeadlessWebContentsImpl::SetFocus(bool focus) {
   }
 }
 
-// HeadlessWebContents::Builder ----------------------------------------------
+// HeadlessWebContents::CreateParams -----------------------------------------
 
-HeadlessWebContents::Builder::Builder(
-    HeadlessBrowserContextImpl* browser_context)
-    : browser_context_(browser_context),
-      window_bounds_(browser_context->options()->window_size()) {}
-
-HeadlessWebContents::Builder::~Builder() = default;
-
-HeadlessWebContents::Builder::Builder(Builder&&) = default;
-
-HeadlessWebContents::Builder& HeadlessWebContents::Builder::SetInitialURL(
-    const GURL& initial_url) {
-  initial_url_ = initial_url;
-  return *this;
+HeadlessWebContents::CreateParams::CreateParams(
+    HeadlessBrowserContext* browser_context)
+    : browser_context(browser_context) {
+  CHECK(browser_context);
+  window_bounds = gfx::Rect(HeadlessBrowserContextImpl::From(browser_context)
+                                ->options()
+                                ->window_size());
 }
 
-HeadlessWebContents::Builder& HeadlessWebContents::Builder::SetWindowBounds(
-    const gfx::Rect& bounds) {
-  window_bounds_ = bounds;
-  return *this;
+HeadlessWebContents::CreateParams::CreateParams(
+    HeadlessBrowserContext* browser_context,
+    const GURL& initial_url)
+    : browser_context(browser_context), initial_url(initial_url) {
+  CHECK(browser_context);
+  window_bounds = gfx::Rect(HeadlessBrowserContextImpl::From(browser_context)
+                                ->options()
+                                ->window_size());
 }
 
-HeadlessWebContents::Builder& HeadlessWebContents::Builder::SetWindowState(
-    HeadlessWindowState window_state) {
-  window_state_ = window_state;
-  return *this;
-}
+HeadlessWebContents::CreateParams::~CreateParams() = default;
 
-HeadlessWebContents::Builder&
-HeadlessWebContents::Builder::SetEnableBeginFrameControl(
-    bool enable_begin_frame_control) {
-  enable_begin_frame_control_ = enable_begin_frame_control;
-  return *this;
-}
+HeadlessWebContents::CreateParams::CreateParams(CreateParams&&) = default;
 
-HeadlessWebContents::Builder& HeadlessWebContents::Builder::SetOpener(
-    content::RenderFrameHost* opener_rfh) {
-  opener_rfh_ = opener_rfh;
-  return *this;
-}
-
-HeadlessWebContents::Builder& HeadlessWebContents::Builder::SetOpenerSuppressed(
-    bool opener_suppressed) {
-  opener_suppressed_ = opener_suppressed;
-  return *this;
-}
-
-HeadlessWebContents* HeadlessWebContents::Builder::Build() {
-  return browser_context_->CreateWebContents(this);
-}
+HeadlessWebContents::CreateParams& HeadlessWebContents::CreateParams::operator=(
+    CreateParams&&) = default;
 
 }  // namespace headless

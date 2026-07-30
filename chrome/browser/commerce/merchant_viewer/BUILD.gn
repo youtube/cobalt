@@ -50,3 +50,21 @@ source_set("merchant_viewer_data_manager") {
     "//third_party/leveldatabase",
   ]
 }
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "merchant_viewer_data_manager_unittest.cc" ]
+
+  deps = [
+    ":merchant_viewer_data_manager",
+    "//base",
+    "//chrome/browser/persisted_state_db",
+    "//chrome/test:test_support",
+    "//components/commerce/core:feature_list",
+    "//components/session_proto_db",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//testing/gtest",
+  ]
+}

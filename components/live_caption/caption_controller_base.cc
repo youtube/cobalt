@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/live_caption/caption_bubble_controller.h"
 #include "components/live_caption/caption_util.h"
 #include "components/live_caption/pref_names.h"
@@ -187,6 +188,12 @@ void CaptionControllerBase::RemoveListener(Listener* listener) {
     return;
   }
   NOTREACHED();
+}
+
+void CaptionControllerBase::RemoveSoon(Listener* listener) {
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&CaptionControllerBase::RemoveListener,
+                                weak_ptr_factory_.GetWeakPtr(), listener));
 }
 
 bool CaptionControllerBase::DispatchTranscription(

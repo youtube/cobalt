@@ -651,6 +651,16 @@ void WebNNContextImpl::DestroyGraph(
   graph_impls_.erase(it);
 }
 
+void WebNNContextImpl::RequestCompilerContext(
+    mojo::PendingReceiver<mojom::WebNNCompilerContext>
+        compiler_context_receiver) {
+  // The base class drops the receiver (pipe disconnects). Only
+  // DispatchContextImplOrt overrides this with a real implementation that
+  // reconnects to the Compiler process.
+  LOG(WARNING) << "[WebNN] RequestCompilerContext() is not implemented for "
+                  "this context.";
+}
+
 void WebNNContextImpl::RemoveWebNNTensorImpl(
     const blink::WebNNTensorToken& handle) {
   const auto it = tensor_impls_.find(handle);

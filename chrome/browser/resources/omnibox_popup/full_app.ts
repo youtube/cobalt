@@ -6,7 +6,6 @@ import './omnibox_popup_searchbox.js';
 import '/strings.m.js';
 
 import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
-import {assert} from '//resources/js/assert.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
@@ -32,10 +31,6 @@ export class OmniboxFullAppElement extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    this.eventTracker_.add(
-        document.documentElement, 'visibilitychange',
-        this.onVisibilitychange_.bind(this));
-    this.onVisibilitychange_();
     if (!this.isDebug_) {
       this.eventTracker_.add(
           document.documentElement, 'contextmenu', (e: Event) => {
@@ -47,16 +42,6 @@ export class OmniboxFullAppElement extends CrLitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.eventTracker_.removeAll();
-  }
-
-  private onVisibilitychange_() {
-    if (document.visibilityState !== 'visible') {
-      return;
-    }
-
-    const searchbox = this.shadowRoot.querySelector('omnibox-popup-searchbox');
-    assert(searchbox);
-    searchbox.focusInput();
   }
 }
 

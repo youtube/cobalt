@@ -278,6 +278,11 @@ class CORE_EXPORT LayoutView : public LayoutBlockFlow {
 
   bool ShouldPlaceBlockDirectionScrollbarOnLogicalLeft() const override;
 
+  bool IsBeingAutoSized() const {
+    NOT_DESTROYED();
+    return GetFrameView()->IsBeingAutoSized();
+  }
+
   PhysicalRect DebugRect() const override;
 
   // Returns the coordinates of find-in-page scrollbar tickmarks.  These come

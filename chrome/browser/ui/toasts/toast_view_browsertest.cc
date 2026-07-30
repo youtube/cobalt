@@ -170,9 +170,11 @@ IN_PROC_BROWSER_TEST_F(ToastViewTest, InvokeUi_ShrinkToFitWindow) {
                               views::BubbleBorder::kShadowBlur;
   EXPECT_GT(bubble->GetPreferredSize().width(), bubble->width());
   EXPECT_EQ(bubble->GetBoundsInScreen().x(),
-            anchor_view()->GetBoundsInScreen().x() + expected_margin);
+            anchor_view()->GetWidget()->GetWindowBoundsInScreen().x() +
+                expected_margin);
   EXPECT_EQ(bubble->GetBoundsInScreen().right(),
-            anchor_view()->GetBoundsInScreen().right() - expected_margin);
+            anchor_view()->GetWidget()->GetWindowBoundsInScreen().right() -
+                expected_margin);
   DismissUi();
 }
 

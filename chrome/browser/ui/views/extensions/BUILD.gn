@@ -3,45 +3,108 @@
 # found in the LICENSE file.
 
 import("//build/config/ui.gni")
+import("//extensions/buildflags/buildflags.gni")
 
-source_set("extensions_menu_handler") {
-  sources = [ "extensions_menu_handler.h" ]
+assert(enable_extensions_core)
+assert(toolkit_views)
+
+source_set("extension_post_install_dialog_view_utils") {
+  sources = [
+    "extension_post_install_dialog_view_utils.cc",
+    "extension_post_install_dialog_view_utils.h",
+  ]
   deps = [
-    "//extensions/browser",
+    "//chrome/browser/ui/signin",
+    "//components/signin/public/base:signin_switches",
     "//extensions/common",
+    "//ui/base",
+    "//ui/color",
+    "//ui/views",
+  ]
+  if (!is_android && !is_chromeos) {
+    deps += [ "//chrome/browser/signin" ]
+  }
+}
+
+source_set("settings_overridden_dialog_view_utils") {
+  sources = [
+    "rich_radio_button.cc",
+    "rich_radio_button.h",
+    "settings_overridden_dialog_view_utils.cc",
+    "settings_overridden_dialog_view_utils.h",
+  ]
+  deps = [ "//ui/views" ]
+  public_deps = [
+    "//chrome/browser/ui/extensions",
+    "//ui/base",
   ]
 }
 
-if (toolkit_views) {
-  source_set("extension_post_install_dialog_view_utils") {
-    sources = [
-      "extension_post_install_dialog_view_utils.cc",
-      "extension_post_install_dialog_view_utils.h",
+source_set("test_support") {
+  testonly = true
+  sources = [
+    "extensions_dialogs_browsertest.cc",
+    "extensions_dialogs_browsertest.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui",
+    "//chrome/browser/ui/test:dialog",
+    "//chrome/browser/ui/views/toolbar",
+    "//extensions:test_support",
+    "//extensions/browser",
+    "//extensions/common",
+    "//ui/views:test_support",
+  ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = []
+  deps = []
+
+  if (!is_android) {
+    sources += [
+      "device_chooser_extension_browsertest.cc",
+      "extension_install_dialog_view_browsertest.cc",
+      "extension_post_install_dialog_view_utils_browsertest.cc",
+      "extensions_request_access_hover_card_coordinator_browsertest.cc",
+      "generic_mime_handler_chip_browsertest.cc",
+      "security_dialog_tracker_browsertest.cc",
     ]
-    deps = [
-      "//chrome/browser/ui/signin",
-      "//components/signin/public/base:signin_switches",
+    deps += [
+      ":extension_post_install_dialog_view_utils",
+      ":test_support",
+      "//base",
+      "//base/test:test_support",
+      "//build:buildflag_header_h",
+      "//chrome/browser/extensions:test_support",
+      "//chrome/browser/picture_in_picture:test_support_ui",
+      "//chrome/browser/ui",
+      "//chrome/browser/ui/extensions:extension_post_install_dialog",
+      "//chrome/browser/ui/test:dialog",
+      "//chrome/browser/ui/views/page_info",
+      "//chrome/test:test_support",
+      "//content/test:test_support",
+      "//extensions:test_support",
+      "//extensions/browser",
+      "//extensions/browser:webstore_installer",
       "//extensions/common",
-      "//ui/base",
-      "//ui/color",
+      "//testing/gtest",
+      "//ui/events:test_support",
       "//ui/views",
+      "//ui/views:test_support",
     ]
-    if (!is_android && !is_chromeos) {
-      deps += [ "//chrome/browser/signin" ]
-    }
   }
 
-  source_set("settings_overridden_dialog_view_utils") {
-    sources = [
-      "rich_radio_button.cc",
-      "rich_radio_button.h",
-      "settings_overridden_dialog_view_utils.cc",
-      "settings_overridden_dialog_view_utils.h",
-    ]
-    deps = [ "//ui/views" ]
-    public_deps = [
-      "//chrome/browser/ui/extensions",
-      "//ui/base",
+  if (!is_android && !is_chromeos) {
+    sources +=
+        [ "extension_post_install_dialog_view_utils_signin_browsertest.cc" ]
+    deps += [
+      "//chrome/browser/ui/signin",
+      "//components/signin/public/identity_manager:test_support",
     ]
   }
 }

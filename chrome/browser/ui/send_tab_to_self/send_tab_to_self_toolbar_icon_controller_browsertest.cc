@@ -7,6 +7,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_client_service.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_client_service_factory.h"
+#include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -24,11 +25,13 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/send_tab_to_self/fake_send_tab_to_self_model.h"
 #include "components/send_tab_to_self/features.h"
 #include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
 #include "components/send_tab_to_self/send_tab_to_self_model.h"
+#include "components/send_tab_to_self/stub_send_tab_to_self_sync_service.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -164,6 +167,21 @@ class SendTabToSelfToolbarIconControllerAutoOpenTest
     WaitUntilBrowserBecomeActiveOrLastActive(browser());
   }
 
+  void SetUpBrowserContextKeyedServices(
+      content::BrowserContext* context) override {
+    SendTabToSelfSyncServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+        context, base::BindRepeating([](content::BrowserContext* context)
+                                         -> std::unique_ptr<KeyedService> {
+          return std::make_unique<StubSendTabToSelfSyncService>();
+        }));
+  }
+
+  FakeSendTabToSelfModel* GetModel(Profile* profile) {
+    return static_cast<StubSendTabToSelfSyncService*>(
+               SendTabToSelfSyncServiceFactory::GetForProfile(profile))
+        ->GetFakeSendTabToSelfModel();
+  }
+
  private:
   base::test::ScopedFeatureList feature_list_{kSendTabToSelfAutoOpen};
 };
@@ -196,6 +214,13 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerAutoOpenTest,
 
   histogram_tester.ExpectUniqueSample("Sharing.SendTabToSelf.AutoOpenOutcome",
                                       AutoOpenOutcome::kSuccess, 2);
+
+  // Verify that the model was called with the correct GUID and entry point.
+  FakeSendTabToSelfModel* model = GetModel(browser()->profile());
+  EXPECT_EQ(model->last_activated_guid(), "new_entry_1");
+  EXPECT_EQ(model->last_activated_entry_point(),
+            ShareActivatedEntryPoint::kAutoOpened);
+  EXPECT_EQ(model->activated_call_count(), 1);
 
   EXPECT_EQ(browser()
                 ->browser_window_features()
@@ -267,6 +292,15 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerAutoOpenTest,
                 ->toast_controller()
                 ->GetCurrentToastId(),
             ToastId::kSendTabToSelfTabsOpenedInBackground);
+
+  // Manually activate one of the background tabs (index 1) and verify the
+  // model was notified.
+  browser()->tab_strip_model()->ActivateTabAt(1);
+  FakeSendTabToSelfModel* model = GetModel(browser()->profile());
+  EXPECT_EQ(model->last_activated_guid(), "new_entry_1");
+  EXPECT_EQ(model->last_activated_entry_point(),
+            ShareActivatedEntryPoint::kTabStrip);
+  EXPECT_EQ(model->activated_call_count(), 1);
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -318,6 +352,13 @@ IN_PROC_BROWSER_TEST_F(
   // Simulate clicking the toast action button.
   controller()->SwitchToLatestTabsOpenedInBackground(browser());
   EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
+
+  // Verify that the model was notified.
+  FakeSendTabToSelfModel* model = GetModel(browser()->profile());
+  EXPECT_EQ(model->last_activated_guid(), "new_entry_1");
+  EXPECT_EQ(model->last_activated_entry_point(),
+            ShareActivatedEntryPoint::kDesktopToast);
+  EXPECT_EQ(model->activated_call_count(), 1);
 }
 
 // This test covers an edge case scenario where a previously opened tab is

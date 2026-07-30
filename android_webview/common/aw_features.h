@@ -16,6 +16,7 @@ namespace android_webview::features {
 
 // Alphabetical:
 BASE_DECLARE_FEATURE(kWebViewAddQuicHints);
+BASE_DECLARE_FEATURE(kWebViewAwClassPreloader);
 BASE_DECLARE_FEATURE(kWebViewBackForwardCache);
 BASE_DECLARE_FEATURE(kWebViewBackgroundClassPreloading);
 BASE_DECLARE_FEATURE(kWebViewBackgroundTracingInit);
@@ -29,6 +30,8 @@ BASE_DECLARE_FEATURE(kWebViewEnableDnsPlatform);
 BASE_DECLARE_FEATURE(kWebViewFileSystemAccess);
 BASE_DECLARE_FEATURE(kWebViewForceWebAuthn);
 BASE_DECLARE_FEATURE(kWebViewGateTextSizeAdjustOnTextAutosizing);
+BASE_DECLARE_FEATURE(kWebViewIgnoreDuplicateNavs);
+extern const base::FeatureParam<base::TimeDelta> kWebViewDuplicateNavThreshold;
 BASE_DECLARE_FEATURE(kWebViewInvokeZoomPickerOnGSU);
 BASE_DECLARE_FEATURE(kWebViewMemoryProfilingClient);
 BASE_DECLARE_FEATURE(kWebViewProfileStoreNotTriggerStartup);
@@ -63,6 +66,7 @@ BASE_DECLARE_FEATURE(kWebViewReducedSeedExpiration);
 BASE_DECLARE_FEATURE(kWebViewReducedSeedRequestPeriod);
 BASE_DECLARE_FEATURE(kWebViewOptInToGmsBindServiceOptimization);
 BASE_DECLARE_FEATURE(kWebViewMoveWorkToProviderInit);
+BASE_DECLARE_FEATURE(kWebViewMoveWorkToProviderInitThreadPool);
 BASE_DECLARE_FEATURE(kWebViewBypassProvisionalCookieManager);
 BASE_DECLARE_FEATURE(kWebViewPersistentMetricsInNoBackupDir);
 BASE_DECLARE_FEATURE(kPrerender2WarmUpCompositorForWebView);
@@ -72,7 +76,6 @@ extern const base::FeatureParam<base::TimeDelta>
 BASE_DECLARE_FEATURE(kWebViewEnableApiCallUserActions);
 BASE_DECLARE_FEATURE(kWebViewWebPerformanceMetricsReporting);
 BASE_DECLARE_FEATURE(kWebViewTestNonembeddedLowEntropySource);
-BASE_DECLARE_FEATURE(kWebViewUseNonembeddedLowEntropySource);
 BASE_DECLARE_FEATURE(kWebViewFasterGetDefaultUserAgent);
 BASE_DECLARE_FEATURE(kWebViewSaveStateIncludeHeaders);
 BASE_DECLARE_FEATURE(kWebViewStaticMethodsNotTriggerStartup);

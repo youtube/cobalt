@@ -122,6 +122,61 @@ TEST_F(GeminiFeatureAvailabilityTest, ImageRemixHasCapabilityNewEligibility) {
   EXPECT_TRUE(IsFeatureAvailable(Feature::kImageRemix, profile.get()));
 }
 
+#pragma mark - Gemini Live
+
+// Tests that Feature::kLive is unavailable when its feature flag is disabled.
+TEST_F(GeminiFeatureAvailabilityTest, LiveDisabledByFlag) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({kPageActionMenu}, {kGeminiLive});
+
+  std::unique_ptr<TestProfileIOS> profile = CreateProfile(true);
+  EXPECT_FALSE(IsFeatureAvailable(Feature::kLive, profile.get()));
+}
+
+// Tests that Feature::kLive is available when its feature flag is enabled
+// and updated eligibility is disabled.
+TEST_F(GeminiFeatureAvailabilityTest, LiveEnabledByFlagOldEligibility) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({kGeminiLive, kPageActionMenu},
+                                {kGeminiUpdatedEligibility});
+
+  std::unique_ptr<TestProfileIOS> profile = CreateProfile(false);
+  EXPECT_TRUE(IsFeatureAvailable(Feature::kLive, profile.get()));
+}
+
+// Tests that Feature::kLive is unavailable when updated eligibility is
+// enabled but the account info is empty.
+TEST_F(GeminiFeatureAvailabilityTest, LiveEmptyAccountNewEligibility) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      {kGeminiLive, kPageActionMenu, kGeminiUpdatedEligibility}, {});
+
+  std::unique_ptr<TestProfileIOS> profile = CreateProfile();
+  EXPECT_FALSE(IsFeatureAvailable(Feature::kLive, profile.get()));
+}
+
+// Tests that Feature::kLive is unavailable when updated eligibility is
+// enabled and the account lacks the required capability.
+TEST_F(GeminiFeatureAvailabilityTest, LiveNoCapabilityNewEligibility) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      {kGeminiLive, kPageActionMenu, kGeminiUpdatedEligibility}, {});
+
+  std::unique_ptr<TestProfileIOS> profile = CreateProfile(false);
+  EXPECT_FALSE(IsFeatureAvailable(Feature::kLive, profile.get()));
+}
+
+// Tests that Feature::kLive is available when updated eligibility is
+// enabled and the account has the required capability.
+TEST_F(GeminiFeatureAvailabilityTest, LiveHasCapabilityNewEligibility) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      {kGeminiLive, kPageActionMenu, kGeminiUpdatedEligibility}, {});
+
+  std::unique_ptr<TestProfileIOS> profile = CreateProfile(true);
+  EXPECT_TRUE(IsFeatureAvailable(Feature::kLive, profile.get()));
+}
+
 #pragma mark - IdentityManager Overload
 
 TEST_F(GeminiFeatureAvailabilityTest, IdentityManagerNil) {

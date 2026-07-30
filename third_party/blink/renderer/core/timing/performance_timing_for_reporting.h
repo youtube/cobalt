@@ -190,6 +190,9 @@ class CORE_EXPORT PerformanceTimingForReporting final
   uint32_t ShapeCacheHitCount() const;
   uint32_t ShapeCacheMissCount() const;
 
+  std::vector<ScriptFontFallbackDetailsForReporting>
+  GetScriptFontFallbackDetails() const;
+
   void Trace(Visitor*) const override;
 
   uint64_t MonotonicTimeToIntegerMilliseconds(base::TimeTicks) const;

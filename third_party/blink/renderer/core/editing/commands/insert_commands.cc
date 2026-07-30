@@ -105,7 +105,7 @@ bool InsertCommands::ExecuteInsertHorizontalRule(LocalFrame& frame,
   return ExecuteInsertElement(frame, rule);
 }
 
-bool InsertCommands::ExecuteInsertHTML(LocalFrame& frame,
+bool InsertCommands::ExecuteInsertHtml(LocalFrame& frame,
                                        Event* event,
                                        EditorCommandSource source,
                                        const String& value) {

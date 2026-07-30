@@ -9,8 +9,16 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
+json_to_struct("ai_mode_button_config") {
+  source = "ai_mode_button_config.json"
+  schema_file = "ai_mode_button_config_schema.json"
+  namespace = "ai_mode_button_config"
+}
+
 static_library("search_engines") {
   sources = [
+    "ai_mode_button_service.cc",
+    "ai_mode_button_service.h",
     "choice_made_location.h",
     "default_search_manager.cc",
     "default_search_manager.h",
@@ -61,6 +69,7 @@ static_library("search_engines") {
   ]
 
   public_deps = [
+    ":ai_mode_button_config",
     ":search_engine_pref_names",
     ":search_engine_type",
     ":search_engine_utils",
@@ -187,6 +196,7 @@ static_library("test_support") {
     "search_engines_test_util.h",
     "template_url_service_test_util.cc",
     "template_url_service_test_util.h",
+    "test_ai_mode_button_service.h",
     "testing_search_terms_data.cc",
     "testing_search_terms_data.h",
   ]
@@ -213,6 +223,7 @@ static_library("test_support") {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "ai_mode_button_service_unittest.cc",
     "default_search_manager_unittest.cc",
     "enterprise/enterprise_search_manager_unittest.cc",
     "keyword_table_unittest.cc",

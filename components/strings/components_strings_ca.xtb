@@ -477,6 +477,7 @@ En cas contrari, la configuració de privadesa el bloquejarà. Això permetrà q
 <translation id="173080396488393970">Aquest tipus de targeta no s'admet</translation>
 <translation id="1731563515262205847">ML-DSA-65</translation>
 <translation id="1732445923934584865">Pregunta en persona</translation>
+<translation id="1732796940245838248">Actualitza el número de rectificació a Google Wallet</translation>
 <translation id="1733064249834771892">fonts</translation>
 <translation id="1733631169686303142">Equips d’àudio</translation>
 <translation id="1733762317901693627">De vegades, alguns atacants poden posar en perill llocs web que acostumen a ser segurs. Visita <ph name="BEGIN_LINK" />aquest lloc web no segur<ph name="END_LINK" /> només si tens clar que entens els riscos que comporta.</translation>
@@ -711,6 +712,7 @@ En cas contrari, la configuració de privadesa el bloquejarà. Això permetrà q
 <translation id="2122165854541876335">Recursos per a consumidors</translation>
 <translation id="2122214041802369259">El preu és alt</translation>
 <translation id="2122719317867821810">Aquesta política funciona correctament, però s'ha establert un valor en conflicte en un altre lloc i s'ha substituït per la política.</translation>
+<translation id="2124081665399116863">Actualitza el vehicle a Google Wallet</translation>
 <translation id="2126374524350484896">Creador de PDF:</translation>
 <translation id="2127090458081644412">La contrasenya s'ha desat en aquest dispositiu</translation>
 <translation id="2127747486437921899">Cursiva</translation>
@@ -993,6 +995,7 @@ En cas contrari, la configuració de privadesa el bloquejarà. Això permetrà q
 <translation id="2524962131655207565"><ph name="BEGIN_BOLD" />El contingut de la pàgina de tramitació de la compra es comparteix amb Google per oferir aquestes opcions<ph name="END_BOLD" />. Els plans de pagament estan subjectes a la idoneïtat. Per amagar les opcions que permeten pagar més tard, ves a la <ph name="BEGIN_LINK" />configuració de pagament<ph name="END_LINK" />.</translation>
 <translation id="2526062290525841862">Per executar aquesta aplicació, torna a activar el mode de desenvolupador d'aplicacions web aïllades</translation>
 <translation id="2526280916094749336">Pots utilitzar les adreces desades en tots els productes de Google. Aquesta adreça es desarà al teu Compte de Google, <ph name="ACCOUNT" />.</translation>
+<translation id="2526590354069164005">Escriptori</translation>
 <translation id="2527451058878391043">El CVC és a l'anvers de la targeta. És el codi de 4 dígits que hi ha a la part superior dreta sobre el número de la targeta.</translation>
 <translation id="2529899080962247600">Aquest camp no pot tenir més de <ph name="MAX_ITEMS_LIMIT" /> entrades. Totes les altres entrades s'ignoraran.</translation>
 <translation id="2530042584066815841">Bloqueig i ús del ratolí</translation>
@@ -1546,6 +1549,7 @@ Per amagar les opcions de Paga més tard, ves a la <ph name="BEGIN_LINK" />confi
 <translation id="3422472998109090673">Actualment no es pot accedir a <ph name="HOST_NAME" />.</translation>
 <translation id="3422794267539320056">Toca el dinosaure o prem la barra espaiadora per jugar</translation>
 <translation id="3423742043356668186">Especificat pel sistema</translation>
+<translation id="3426672782316020729">Actualitza el passaport a Google Wallet</translation>
 <translation id="3427342743765426898">&amp;Refés la modificació</translation>
 <translation id="342781501876943858">Chromium et recomana que restableixis la contrasenya si l'has fet servir en altres llocs web.</translation>
 <translation id="3428151540071562330">Un o més dels URI de plantilla de servidor corresponents a DnsOverHttpsTemplates no són vàlids i no s'utilitzaran.</translation>
@@ -2406,6 +2410,7 @@ Per amagar les opcions de Paga més tard, ves a la <ph name="BEGIN_LINK" />confi
 <translation id="4766713847338118463">Grapat doble a la part inferior</translation>
 <translation id="4768816584204270288">Si pagues a terminis, es mostrarà un número de targeta virtual únic. Pots fer clic per copiar i enganxar els detalls de la targeta per a aquesta compra.</translation>
 <translation id="4768864802656530630">Registres detallats del sistema. <ph name="BEGIN_LINK" />Més informació<ph name="END_LINK" /></translation>
+<translation id="4770909831299304090">Actualitza el número de viatger conegut a Google Wallet</translation>
 <translation id="4771249073710170730">Maquetes i radiocontrol</translation>
 <translation id="4771973620359291008">S'ha produït un error desconegut.</translation>
 <translation id="4774055414220872623">Articles d'art i manualitats</translation>
@@ -3651,6 +3656,7 @@ Per amagar les opcions de Paga més tard, ves a la <ph name="BEGIN_LINK" />confi
 <translation id="6702851555558236418">Programari de música i àudio</translation>
 <translation id="6702919718839027939">Presenta</translation>
 <translation id="6704458454638854812">S'ha establert la propietat "custom_size" i s'espera que el nom sigui "custom".</translation>
+<translation id="670477556876354552">Cal reiniciar</translation>
 <translation id="6706005862292023715">Cortines i persianes</translation>
 <translation id="6706210727756204531">Abast</translation>
 <translation id="6706678697074905703">Aquest IBAN no s'ha pogut desar al teu Compte de Google. S'ha desat a Chrome en aquest dispositiu.</translation>
@@ -4217,6 +4223,7 @@ Detalls addicionals:
 <translation id="7569490014721427265">Golf</translation>
 <translation id="7569952961197462199">Voleu suprimir la targeta de crèdit de Chrome?</translation>
 <translation id="7569983096843329377">Negre</translation>
+<translation id="7570524564113479209">Actualitza el document d'identitat a Google Wallet</translation>
 <translation id="7570862164055912832">Números Redress</translation>
 <translation id="7571813784389228510">Mode IA de Google</translation>
 <translation id="7574998639136359461">Equipament d'esports d'hivern</translation>
@@ -4738,6 +4745,7 @@ Detalls addicionals:
 <translation id="8389940864052787379">Vehicles personalitzats i d'alt rendiment</translation>
 <translation id="8390725133630534698">La política de l'administrador no permet compartir contingut de <ph name="ORIGIN_NAME" /> a <ph name="VM_NAME" /></translation>
 <translation id="8392783408127179588">S'estan tornant a carregar les polítiques</translation>
+<translation id="8393948304336153065">Actualitza el permís de conduir a Google Wallet</translation>
 <translation id="8396522675989118466">És el codi de <ph name="NUMBER_OF_DIGITS" /> dígits que hi ha a la <ph name="SIDE_OF_CARD" /></translation>
 <translation id="8398335999901363925">Les formes de pagament disponibles que es poden emplenar amb un toc s'han obert a alçada completa.</translation>
 <translation id="8398446215576328011">Reverteix les polítiques aplicades</translation>
@@ -4899,7 +4907,6 @@ Detalls addicionals:
 <translation id="8671519637524426245">El valor <ph name="SECURE_DNS_SALT" /> no compleix els requisits de mida.</translation>
 <translation id="867224526087042813">Signatura</translation>
 <translation id="8672535691554698269">Xarxes informàtiques</translation>
-<translation id="8673710317985154384">{NUM_TABS,plural, =1{Mostra els detalls de la compartició de pestanyes. S'està compartint 1 pestanya de {WEBSITE_LIST_STR}}other{Mostra els detalls de la compartició de pestanyes. S'estan compartint {NUM_TABS} pestanyes de {WEBSITE_LIST_STR}}}</translation>
 <translation id="8675446170353411473">Els fitxers s'estan penjant a <ph name="CLOUD_PROVIDER" /></translation>
 <translation id="8676424191133491403">Sense retard</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, resposta, <ph name="ANSWER" /></translation>

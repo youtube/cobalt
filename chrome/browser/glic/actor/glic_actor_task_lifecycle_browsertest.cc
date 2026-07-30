@@ -6,14 +6,22 @@
 #include "base/test/test_future.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/glic/actor/new_glic_actor_functional_browsertest.h"
+#include "chrome/browser/glic/public/glic_side_panel_coordinator.h"
 #include "chrome/browser/glic/public/service/glic_instance_coordinator.h"
+#include "chrome/browser/glic/service/glic_instance_impl.h"
 #include "components/actor/public/mojom/actor_types.mojom.h"
 #include "components/page_content_annotations/content/page_context_fetcher.h"
+#include "components/performance_manager/public/features.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "third_party/blink/public/common/features.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "content/public/browser/android/child_process_importance.h"
+#endif
 
 namespace mojo {
 
@@ -121,10 +129,24 @@ class GlicActorTaskLifecycleFunctionalBrowserTest
             {blink::features::kAIPageContentTrackedElementsIframe, {}},
             {page_content_annotations::kGlicTabScreenshotExperiment,
              {{"screenshot_timeout_ms", "30s"}}},
+            {performance_manager::features::kGlicActuationPriorityVoter, {}},
         },
         /*disabled_features=*/{});
   }
   ~GlicActorTaskLifecycleFunctionalBrowserTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+class GlicActorTaskLifecycleGmailOtpEnabledBrowserTest
+    : public GlicActorTaskLifecycleFunctionalBrowserTest {
+ public:
+  GlicActorTaskLifecycleGmailOtpEnabledBrowserTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kGlicActorAutofillOneTimePassword);
+  }
+  ~GlicActorTaskLifecycleGmailOtpEnabledBrowserTest() override = default;
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -422,6 +444,257 @@ IN_PROC_BROWSER_TEST_F(GlicActorTaskLifecycleFunctionalBrowserTest,
 
   // Verify that the FIRST tab is now active (since it was the last acted tab).
   EXPECT_EQ(active_tab(), first_tab);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorTaskLifecycleGmailOtpEnabledBrowserTest,
+                       testGmailOtpOptInDialog) {
+  GlicInstanceImpl* instance = GetInstanceImpl();
+  ASSERT_TRUE(instance);
+
+  ASSERT_OK_AND_ASSIGN(TaskId task_id, CreateActorTask(instance));
+  EXPECT_NE(task_id, TaskId());
+
+  // Execute JS test, which sets up the subscriber and calls advanceToNextStep()
+  ExecuteJsTest();
+
+  GlicActorTaskManager* task_manager = instance->GetActorTaskManager();
+  ASSERT_TRUE(task_manager);
+
+  // Get the GlicActorClientSession (which implements ActorTaskDelegate)
+  ::actor::ActorTaskDelegate* delegate =
+      task_manager->GetClientSessionForTesting();
+  ASSERT_TRUE(delegate);
+
+  base::test::TestFuture<::actor::webui::mojom::GmailOtpOptInResultPtr>
+      response_future;
+  delegate->RequestToShowGmailOtpOptInDialog(task_id,
+                                             response_future.GetCallback());
+
+  // Continue JS test, which awaits the dialog request promise and completes it.
+  ContinueJsTest();
+
+  // Verify the callback in C++ receives the correct approved response
+  ::actor::webui::mojom::GmailOtpOptInResultPtr response =
+      response_future.Take();
+  ASSERT_TRUE(response->is_permission_granted());
+  EXPECT_TRUE(response->get_permission_granted());
+
+  task_manager->GetClientSessionForTesting()->StopActorTask(
+      task_id.value(), glic::mojom::ActorTaskStopReason::kTaskComplete);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorTaskLifecycleGmailOtpEnabledBrowserTest,
+                       testGmailOtpOptInDialogNoSubscriber) {
+  GlicInstanceImpl* instance = GetInstanceImpl();
+  ASSERT_TRUE(instance);
+
+  ASSERT_OK_AND_ASSIGN(TaskId task_id, CreateActorTask(instance));
+  EXPECT_NE(task_id, TaskId());
+
+  // Execute JS test (does nothing and calls advanceToNextStep())
+  ExecuteJsTest();
+
+  GlicActorTaskManager* task_manager = instance->GetActorTaskManager();
+  ASSERT_TRUE(task_manager);
+
+  // Get the GlicActorClientSession
+  ::actor::ActorTaskDelegate* delegate =
+      task_manager->GetClientSessionForTesting();
+  ASSERT_TRUE(delegate);
+
+  base::test::TestFuture<::actor::webui::mojom::GmailOtpOptInResultPtr>
+      response_future;
+  delegate->RequestToShowGmailOtpOptInDialog(task_id,
+                                             response_future.GetCallback());
+
+  // Verify that the callback resolves with the correct error reason (no
+  // subscriber)
+  ::actor::webui::mojom::GmailOtpOptInResultPtr response =
+      response_future.Take();
+  ASSERT_TRUE(response->is_error_reason());
+  EXPECT_EQ(::actor::webui::mojom::GmailOtpOptInErrorReason::
+                kRequestPromiseNoSubscriber,
+            response->get_error_reason());
+
+  // Continue JS test to finish the JS runner thread cleanly.
+  ContinueJsTest();
+
+  task_manager->GetClientSessionForTesting()->StopActorTask(
+      task_id.value(), glic::mojom::ActorTaskStopReason::kTaskComplete);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorTaskLifecycleFunctionalBrowserTest,
+                       testGmailOtpOptInDialogFeatureDisabled) {
+  GlicInstanceImpl* instance = GetInstanceImpl();
+  ASSERT_TRUE(instance);
+
+  ASSERT_OK_AND_ASSIGN(TaskId task_id, CreateActorTask(instance));
+  EXPECT_NE(task_id, TaskId());
+
+  // Execute JS test (asserts selectGmailOtpOptInRequestHandler is undefined)
+  ExecuteJsTest();
+
+  GlicActorTaskManager* task_manager = instance->GetActorTaskManager();
+  ASSERT_TRUE(task_manager);
+
+  // Get the GlicActorClientSession
+  ::actor::ActorTaskDelegate* delegate =
+      task_manager->GetClientSessionForTesting();
+  ASSERT_TRUE(delegate);
+
+  base::test::TestFuture<::actor::webui::mojom::GmailOtpOptInResultPtr>
+      response_future;
+  delegate->RequestToShowGmailOtpOptInDialog(task_id,
+                                             response_future.GetCallback());
+
+  // Verify that the callback resolves with the correct error reason (no
+  // subscriber)
+  ::actor::webui::mojom::GmailOtpOptInResultPtr response =
+      response_future.Take();
+  ASSERT_TRUE(response->is_error_reason());
+  EXPECT_EQ(::actor::webui::mojom::GmailOtpOptInErrorReason::
+                kRequestPromiseNoSubscriber,
+            response->get_error_reason());
+
+  // Continue JS test to finish the JS runner thread cleanly.
+  ContinueJsTest();
+
+  task_manager->GetClientSessionForTesting()->StopActorTask(
+      task_id.value(), glic::mojom::ActorTaskStopReason::kTaskComplete);
+}
+
+#if !BUILDFLAG(IS_ANDROID)
+[[nodiscard]] TestResult<void> RunUntilPriorityIs(
+    content::RenderProcessHost* rph,
+    base::Process::Priority priority) {
+  return RunUntilEqual([&]() { return rph->GetPriority(); }, priority);
+}
+#else
+[[nodiscard]] TestResult<void> RunUntilImportanceIs(
+    content::RenderProcessHost* rph,
+    content::ChildProcessImportance importance) {
+  return RunUntilEqual([&]() { return rph->GetEffectiveImportance(); },
+                       importance);
+}
+
+bool IsProtectRecentlyVisibleTabEnabled() {
+  return base::android::device_info::is_desktop() ||
+         base::FeatureList::IsEnabled(
+             chrome::android::kProtectRecentlyVisibleTab);
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+IN_PROC_BROWSER_TEST_F(GlicActorTaskLifecycleFunctionalBrowserTest,
+                       testActuatingPriorityChange) {
+  GlicInstanceImpl* instance = GetInstanceImpl();
+  ASSERT_TRUE(instance);
+  ASSERT_OK(WaitForGlicClient(instance));
+  GlicSidePanelCoordinator* coordinator =
+      GlicSidePanelCoordinator::GetForTab(active_tab());
+  bool supports_peek = coordinator && coordinator->SupportsPeek();
+
+  content::WebContents* webui_contents = instance->host().webui_contents();
+  ASSERT_TRUE(webui_contents);
+  content::RenderProcessHost* webui_rph =
+      webui_contents->GetPrimaryMainFrame()->GetProcess();
+  content::WebContents* guest_contents = instance->host().web_client_contents();
+  EXPECT_TRUE(guest_contents);
+  content::RenderProcessHost* guest_rph =
+      guest_contents->GetPrimaryMainFrame()->GetProcess();
+
+  // Close glic to ensure the priority is reduced.
+  PreventDeletionOnClose(instance);
+  ToggleGlicForActiveTab();
+  EXPECT_OK(WaitForGlicClose());
+  EXPECT_OK(
+      WaitForWebUiContentsVisibility(instance, content::Visibility::HIDDEN));
+  EXPECT_EQ(guest_contents->GetVisibility(), content::Visibility::HIDDEN);
+
+#if !BUILDFLAG(IS_ANDROID)
+  EXPECT_OK(
+      RunUntilPriorityIs(webui_rph, base::Process::Priority::kBestEffort));
+  EXPECT_OK(
+      RunUntilPriorityIs(guest_rph, base::Process::Priority::kBestEffort));
+#else
+
+  // When the feature is enabled, recently visible pages are protected.
+  content::ChildProcessImportance expected_importance_when_hidden =
+      IsProtectRecentlyVisibleTabEnabled()
+          ? content::ChildProcessImportance::NOT_PERCEPTIBLE
+          : content::ChildProcessImportance::NORMAL;
+
+  EXPECT_OK(RunUntilImportanceIs(webui_rph, expected_importance_when_hidden));
+  // TODO(crbug.com/525435394): Ensure the guest process is not protected.
+  EXPECT_OK(RunUntilImportanceIs(
+      guest_rph, content::ChildProcessImportance::NOT_PERCEPTIBLE));
+#endif
+  ExecuteJsTest();
+
+  // Task is now created and actuating. The process priority should be boosted.
+  EXPECT_TRUE(instance->IsActuating());
+
+  // On platforms that do not support peek mode, the side panel re-opens when
+  // a tab is added to the actuation. Close it again to test priority boosting
+  // when hidden.
+  if (!supports_peek) {
+    ToggleGlicForActiveTab();
+    EXPECT_OK(WaitForGlicClose());
+    EXPECT_OK(
+        WaitForWebUiContentsVisibility(instance, content::Visibility::HIDDEN));
+    EXPECT_EQ(guest_contents->GetVisibility(), content::Visibility::HIDDEN);
+  } else {
+    EXPECT_EQ(webui_contents->GetVisibility(), content::Visibility::HIDDEN);
+    EXPECT_EQ(guest_contents->GetVisibility(), content::Visibility::HIDDEN);
+  }
+
+#if !BUILDFLAG(IS_ANDROID)
+  EXPECT_OK(
+      RunUntilPriorityIs(webui_rph, base::Process::Priority::kUserBlocking));
+  EXPECT_OK(
+      RunUntilPriorityIs(guest_rph, base::Process::Priority::kUserBlocking));
+#else
+  EXPECT_OK(RunUntilImportanceIs(webui_rph,
+                                 content::ChildProcessImportance::IMPORTANT));
+  EXPECT_OK(RunUntilImportanceIs(guest_rph,
+                                 content::ChildProcessImportance::IMPORTANT));
+#endif
+
+  // Open a second tab to make the initial tab hidden. The priority of glic
+  // renderers should lower, but not drop to best effort.
+  auto* first_tab = active_tab();
+  auto* second_tab = CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_TRUE(second_tab);
+  ASSERT_NE(second_tab, first_tab);
+  EXPECT_EQ(active_tab(), second_tab);
+
+#if !BUILDFLAG(IS_ANDROID)
+  EXPECT_OK(
+      RunUntilPriorityIs(webui_rph, base::Process::Priority::kUserVisible));
+  EXPECT_OK(
+      RunUntilPriorityIs(guest_rph, base::Process::Priority::kUserVisible));
+#else
+  EXPECT_OK(RunUntilImportanceIs(webui_rph,
+                                 content::ChildProcessImportance::MODERATE));
+  EXPECT_OK(RunUntilImportanceIs(guest_rph,
+                                 content::ChildProcessImportance::MODERATE));
+#endif
+
+  // Finish/stop the task.
+  ContinueJsTest({.instance = instance});
+  EXPECT_FALSE(instance->IsActuating());
+
+  // Now Glic is not actuating, so the priority should drop.
+#if !BUILDFLAG(IS_ANDROID)
+  EXPECT_OK(
+      RunUntilPriorityIs(webui_rph, base::Process::Priority::kBestEffort));
+  EXPECT_OK(
+      RunUntilPriorityIs(guest_rph, base::Process::Priority::kBestEffort));
+#else
+  EXPECT_OK(RunUntilImportanceIs(webui_rph, expected_importance_when_hidden));
+  // TODO(crbug.com/525435394): Ensure the guest process is not protected.
+  EXPECT_OK(RunUntilImportanceIs(
+      guest_rph, content::ChildProcessImportance::NOT_PERCEPTIBLE));
+#endif
 }
 
 }  // namespace

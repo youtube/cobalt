@@ -6801,6 +6801,36 @@ TEST_F(RenderWidgetHostViewAuraTest, FocusReasonMultipleEventsOnSameNode) {
             parent_view_->GetFocusReason());
 }
 
+// Pen input on Aura can be delivered as MouseEvents with pointer type kPen.
+// kMouseEventPenPointerType feature ensures that the RenderWidgetHostViewAura's
+// LastPointerType is correctly set to kPen for these scenarios as opposed to
+// unconditionally reporting kMouse.
+// This is particularly important for virtual keyboard on Windows which
+// references the last pointer type in its Show/Hide logic.
+// http://crbug.com/525093257
+TEST_F(RenderWidgetHostViewAuraTest, PenMouseEventsSetPointerType) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(features::kMouseEventPenPointerType);
+
+  for (ui::EventPointerType pointer_type :
+       {ui::EventPointerType::kPen, ui::EventPointerType::kMouse}) {
+    for (ui::EventType type :
+         {ui::EventType::kMouseMoved, ui::EventType::kMousePressed,
+          ui::EventType::kMouseDragged, ui::EventType::kMouseReleased,
+          ui::EventType::kMouseEntered, ui::EventType::kMouseExited}) {
+      SCOPED_TRACE(testing::Message()
+                   << "pointer type " << static_cast<int>(pointer_type)
+                   << ", event type " << static_cast<int>(type));
+      ui::MouseEvent mouse_event(
+          type, gfx::Point(10, 10), gfx::Point(10, 10), ui::EventTimeForNow(),
+          ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON,
+          ui::PointerDetails(pointer_type, 0));
+      parent_view_->OnMouseEvent(&mouse_event);
+      EXPECT_EQ(parent_view_->GetLastPointerType(), pointer_type);
+    }
+  }
+}
+
 class RenderWidgetHostViewAuraInputMethodTest
     : public RenderWidgetHostViewAuraTest,
       public ui::InputMethodObserver {
@@ -6899,15 +6929,27 @@ class DestroyingMockInputMethod : public ui::MockInputMethod {
     }
   }
 
+  void OnTextInputTypeChanged(ui::TextInputClient* client) override {
+    ui::MockInputMethod::OnTextInputTypeChanged(client);
+    if (on_text_input_type_changed_) {
+      std::move(on_text_input_type_changed_).Run();
+    }
+  }
+
   void set_on_caret_bounds_changed(base::OnceClosure closure) {
     on_caret_bounds_changed_ = std::move(closure);
   }
 
+  void set_on_text_input_type_changed(base::OnceClosure closure) {
+    on_text_input_type_changed_ = std::move(closure);
+  }
+
  private:
   base::OnceClosure on_caret_bounds_changed_;
+  base::OnceClosure on_text_input_type_changed_;
 };
 
-class RenderWidgetHostViewAuraOnBoundsChangedUAFTest
+class RenderWidgetHostViewAuraReentrantDestructionIME
     : public RenderWidgetHostViewAuraTest {
  public:
   void SetUp() override {
@@ -6936,7 +6978,7 @@ class RenderWidgetHostViewAuraOnBoundsChangedUAFTest
 // ~AutoReset both touch freed memory. AutoReset::scoped_variable_ is
 // RAW_PTR_EXCLUSION, so it is not MiraclePtr-protected: the ~AutoReset write
 // lands in a freed (un-quarantined) slot.
-TEST_F(RenderWidgetHostViewAuraOnBoundsChangedUAFTest,
+TEST_F(RenderWidgetHostViewAuraReentrantDestructionIME,
        DestroyDuringOnCaretBoundsChanged) {
   InitViewForFrame(nullptr);
   ParentHostView(view_, parent_view_);
@@ -6959,6 +7001,37 @@ TEST_F(RenderWidgetHostViewAuraOnBoundsChangedUAFTest,
   // keyboard_occluded_bounds_) followed by a write-after-free in
   // ~AutoReset<bool> to the freed in_bounds_changed_ slot.
   raw_view->OnBoundsChanged(gfx::Rect(), gfx::Rect(0, 0, 100, 100));
+}
+
+// RWHVA::OnUpdateTextInputStateCalled() calls
+// GetInputMethod()->OnTextInputTypeChanged(this), which on Windows reaches
+// TSFBridge::OnTextInputTypeChanged() -> ITfThreadMgr::SetFocus(). If the
+// active TIP pumps the message queue and the view is destroyed re-entrantly,
+// on unwind the function continues to dereference the freed `this` and
+// `updated_view`.
+TEST_F(RenderWidgetHostViewAuraReentrantDestructionIME,
+       DestroyDuringOnTextInputTypeChanged) {
+  InitViewForFrame(nullptr);
+  ParentHostView(view_, parent_view_);
+  // `view_` shares the root window (and thus the InputMethod) with
+  // `parent_view_`.
+  ASSERT_EQ(static_cast<ui::InputMethod*>(input_method_.get()),
+            GetInputMethod());
+
+  // Arrange for the view to be synchronously destroyed inside
+  // OnTextInputTypeChanged, simulating re-entrant destruction triggered by a
+  // TSF callout that pumps a queued window.close() / renderer-gone task.
+  input_method_->set_on_text_input_type_changed(
+      base::BindLambdaForTesting([&]() {
+        widget_host_ = nullptr;
+        view_.ExtractAsDangling()->Destroy();
+      }));
+
+  ui::mojom::TextInputState state;
+  state.type = ui::TEXT_INPUT_TYPE_TEXT;
+  // Dispatching this state notifies `view_` (a TextInputManager observer) via
+  // OnUpdateTextInputStateCalled(), which calls into the input method above.
+  GetTextInputManager(view_)->UpdateTextInputState(view_, state);
 }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)

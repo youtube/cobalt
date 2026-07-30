@@ -9,6 +9,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "base/apple/foundation_util.h"
+#include "base/check_deref.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
 #include "base/time/time_override.h"
@@ -671,6 +673,47 @@ TEST_F(UnexportableKeyMacTest, DeleteAllSigningKeysEmptyPrefix) {
       provider_empty->FromWrappedSigningKeySlowly(key_empty->GetWrappedKey()));
   EXPECT_TRUE(provider_specific->FromWrappedSigningKeySlowly(
       key_specific->GetWrappedKey()));
+}
+
+class ScopedMockKeychain : public crypto::apple::FakeKeychainV2 {
+ public:
+  explicit ScopedMockKeychain(const std::string& keychain_access_group)
+      : FakeKeychainV2(keychain_access_group) {
+    SetInstanceOverride(this);
+  }
+
+  ~ScopedMockKeychain() override { ClearInstanceOverride(); }
+
+  MOCK_METHOD(OSStatus,
+              ItemCopyMatching,
+              (CFDictionaryRef query, CFTypeRef* result),
+              (override));
+};
+
+// Setting `kSecUseDataProtectionKeychain` to `@YES` is required to explicitly
+// restrict the keychain search to the modern Data Protection keychain,
+// preventing fallback to legacy keychains where access group filtering is
+// broken. This test ensures the flag is always present in the query.
+TEST(UnexportableKeyMacFiltersTest, QueriesDataProtectionKeychain) {
+  ScopedMockKeychain mock_keychain(kTestKeychainAccessGroup);
+
+  EXPECT_CALL(mock_keychain, ItemCopyMatching)
+      .WillOnce([&mock_keychain](CFDictionaryRef query, CFTypeRef* result) {
+        auto use_data_protection =
+            base::apple::GetValueFromDictionary<CFBooleanRef>(
+                query, kSecUseDataProtectionKeychain);
+        EXPECT_TRUE(CFBooleanGetValue(use_data_protection));
+        return mock_keychain.FakeKeychainV2::ItemCopyMatching(query, result);
+      });
+
+  std::unique_ptr<UnexportableKeyProvider> provider =
+      GetUnexportableKeyProvider({
+          .keychain_access_group = kTestKeychainAccessGroup,
+          .application_tag = kTestApplicationTag,
+      });
+
+  // Trigger a query.
+  CHECK_DEREF(provider).AsStatefulUnexportableKeyProvider()->GetAllKeysSlowly();
 }
 
 }  // namespace

@@ -302,6 +302,7 @@ source_set("browser") {
     "//components/page_load_metrics/browser",
     "//components/page_load_metrics/google/browser",
     "//components/payments/content/android",
+    "//components/performance_manager",
     "//components/permissions",
     "//components/policy:generated",
     "//components/policy/content:safe_sites_navigation_throttle",

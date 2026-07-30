@@ -214,12 +214,15 @@ export class BookmarksEditDialogElement extends CrLitElement {
     }
 
     if (this.isEdit_) {
-      chrome.bookmarks.update(this.editItem_!.id, edit);
+      BookmarksApiProxyImpl.getInstance().update(this.editItem_!.id, edit);
     } else {
-      edit['parentId'] = this.parentId_;
       trackUpdatedItems();
-      BookmarksApiProxyImpl.getInstance().create(edit).then(
-          highlightUpdatedItems);
+      // Editable nodes all have parents. The only nodes that do not have
+      // parents are permanent nodes, which are not editable.
+      assert(this.parentId_ !== null);
+      BookmarksApiProxyImpl.getInstance()
+          .create(this.parentId_, null, edit.title, edit.url)
+          .then(highlightUpdatedItems);
     }
     this.$.dialog.close();
   }

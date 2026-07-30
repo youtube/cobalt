@@ -29,8 +29,6 @@
 #include "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
 #include "components/password_manager/core/browser/ui/weak_check_utility.h"
 
-using password_manager::IsMuted;
-using password_manager::TriggerBackendNotification;
 
 namespace password_manager {
 
@@ -148,28 +146,24 @@ InsecureCredentialsManager::GetInsecureCredentialEntries() const {
       presenter_->GetSavedCredentials();
 
   for (auto& credential : credentials) {
-    if (base::FeatureList::IsEnabled(
-            password_manager::features::kMarkAllCredentialsAsLeaked)) {
+    if (base::FeatureList::IsEnabled(features::kMarkAllCredentialsAsLeaked)) {
       credential.password_issues.insert(
-          {password_manager::InsecureType::kLeaked,
-           password_manager::InsecurityMetadata(
-               base::Time(), IsMuted(false),
-               TriggerBackendNotification(false))});
+          {InsecureType::kLeaked,
+           InsecurityMetadata(base::Time(), IsMuted(false),
+                              TriggerBackendNotification(false))});
       continue;
     }
     if (weak_passwords_.contains(credential.password)) {
       credential.password_issues.insert(
-          {password_manager::InsecureType::kWeak,
-           password_manager::InsecurityMetadata(
-               base::Time(), IsMuted(false),
-               TriggerBackendNotification(false))});
+          {InsecureType::kWeak,
+           InsecurityMetadata(base::Time(), IsMuted(false),
+                              TriggerBackendNotification(false))});
     }
     if (reused_passwords_.contains(credential.password)) {
       credential.password_issues.insert(
-          {password_manager::InsecureType::kReused,
-           password_manager::InsecurityMetadata(
-               base::Time(), IsMuted(false),
-               TriggerBackendNotification(false))});
+          {InsecureType::kReused,
+           InsecurityMetadata(base::Time(), IsMuted(false),
+                              TriggerBackendNotification(false))});
     }
   }
 

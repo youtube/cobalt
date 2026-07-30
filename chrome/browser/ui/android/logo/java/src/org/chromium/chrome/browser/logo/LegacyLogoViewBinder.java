@@ -39,6 +39,8 @@ class LegacyLogoViewBinder
             logoView.showSearchProviderInitialView();
         } else if (LogoProperties.LOGO == propertyKey) {
             logoView.updateLogo(model.get(LogoProperties.LOGO));
+        } else if (LogoProperties.IS_NIGHT_MODE == propertyKey) {
+            logoView.setNightMode(model.get(LogoProperties.IS_NIGHT_MODE));
         } else if (LogoProperties.DEFAULT_GOOGLE_LOGO_DRAWABLE == propertyKey) {
             logoView.setDefaultGoogleLogoDrawable(
                     model.get(LogoProperties.DEFAULT_GOOGLE_LOGO_DRAWABLE));

@@ -222,9 +222,6 @@ void BaseAudioContext::Uninitialize() {
   listener_->Handler().WaitForHRTFDatabaseLoaderThreadCompletion();
 
   Clear();
-
-  DCHECK(!is_resolving_resume_promises_);
-  DCHECK_EQ(pending_promises_resolvers_.size(), 0u);
 }
 
 void BaseAudioContext::Dispose() {
@@ -823,47 +820,6 @@ void BaseAudioContext::HandleStoppableSourceNodes() {
   }
 }
 
-void BaseAudioContext::PerformCleanupOnMainThread() {
-  DCHECK(IsMainThread());
-
-  // When a posted task is performed, the execution context might be gone.
-  if (!GetExecutionContext()) {
-    return;
-  }
-
-  DeferredTaskHandler::GraphAutoLocker locker(GetDeferredTaskHandler());
-
-  if (is_resolving_resume_promises_) {
-    for (auto& resolver : pending_promises_resolvers_) {
-      if (control_thread_state_ == V8AudioContextState::Enum::kClosed) {
-        resolver->Reject(MakeGarbageCollected<DOMException>(
-            DOMExceptionCode::kInvalidStateError,
-            "Cannot resume a context that has been closed"));
-      } else {
-        SetContextState(V8AudioContextState::Enum::kRunning);
-        resolver->Resolve();
-      }
-    }
-    pending_promises_resolvers_.clear();
-    is_resolving_resume_promises_ = false;
-  }
-
-  has_posted_cleanup_task_ = false;
-}
-
-void BaseAudioContext::ScheduleMainThreadCleanup() {
-  DCHECK(IsAudioThread());
-
-  if (has_posted_cleanup_task_) {
-    return;
-  }
-  PostCrossThreadTask(
-      *task_runner_, FROM_HERE,
-      CrossThreadBindOnce(&BaseAudioContext::PerformCleanupOnMainThread,
-                          WrapCrossThreadPersistent(this)));
-  has_posted_cleanup_task_ = true;
-}
-
 void BaseAudioContext::RejectPendingDecodeAudioDataResolvers() {
   // Now reject any pending decodeAudioData resolvers
   for (auto& resolver : decode_audio_resolvers_) {
@@ -875,16 +831,6 @@ void BaseAudioContext::RejectPendingDecodeAudioDataResolvers() {
 
 void BaseAudioContext::RejectPendingResolvers() {
   DCHECK(IsMainThread());
-
-  // Audio context is closing down so reject any resume promises that are still
-  // pending.
-
-  for (auto& resolver : pending_promises_resolvers_) {
-    resolver->Reject(MakeGarbageCollected<DOMException>(
-        DOMExceptionCode::kInvalidStateError, "Audio context is going away"));
-  }
-  pending_promises_resolvers_.clear();
-  is_resolving_resume_promises_ = false;
 
   RejectPendingDecodeAudioDataResolvers();
 }
@@ -913,7 +859,6 @@ void BaseAudioContext::StartRendering() {
 void BaseAudioContext::Trace(Visitor* visitor) const {
   visitor->Trace(destination_node_);
   visitor->Trace(listener_);
-  visitor->Trace(pending_promises_resolvers_);
   visitor->Trace(decode_audio_resolvers_);
   visitor->Trace(periodic_wave_sine_);
   visitor->Trace(periodic_wave_square_);

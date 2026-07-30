@@ -789,6 +789,22 @@ TEST_F(IOSChromePaymentsAutofillClientTest,
       payments::PaymentsAutofillClient::SourceFeature::kScanCardSaveAndFill);
 }
 
+// Tests that HideCreditCardSaveAndFillDialog marks local save bottom sheet as
+// completed.
+TEST_F(IOSChromePaymentsAutofillClientTest,
+       HideCreditCardSaveAndFillDialog_LocalSaveBottomSheetCompletes) {
+  payments_client()->ShowCreditCardLocalSaveAndFillDialog(base::DoNothing());
+  EXPECT_TRUE([autofill_commands() showSaveCardBottomSheetCalled]);
+
+  payments_client()->HideCreditCardSaveAndFillDialog();
+
+  std::unique_ptr<SaveCardBottomSheetModel> model =
+      bottomsheet_tab_helper_->GetSaveCardBottomSheetModel();
+  ASSERT_TRUE(model);
+  EXPECT_EQ(model->save_card_state(),
+            SaveCardBottomSheetModel::SaveCardState::kFailed);
+}
+
 // Tests that OnCardDataAvailable populates the ManualFillVirtualCardCache.
 TEST_F(IOSChromePaymentsAutofillClientTest,
        OnCardDataAvailable_CachesVirtualCard) {

@@ -130,6 +130,13 @@ ChromeBrowserCloudManagementControllerIOS::
   return nullptr;
 }
 
+std::unique_ptr<enterprise_reporting::BrowserLaunchEventController>
+ChromeBrowserCloudManagementControllerIOS::
+    CreateBrowserLaunchEventController() {
+  // Browser launch event reporting is not supported on iOS.
+  return nullptr;
+}
+
 void ChromeBrowserCloudManagementControllerIOS::SetGaiaURLLoaderFactory(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory) {
   // Policy invalidations aren't currently supported on iOS.

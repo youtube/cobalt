@@ -239,3 +239,5 @@
 # Flaky at least on Linux: crbug.com/502373073
 -PasswordGenerationInteractiveTest.PopupShownManuallyAndPasswordErased
 -PasswordGenerationInteractiveTest.PopupShownAndPasswordSelected
+
+# Flaky on Linux accessibility: crbug.com/450169384

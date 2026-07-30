@@ -110,6 +110,9 @@ class PLATFORM_EXPORT FetchClientSettingsObjectSnapshot final
   const String GetOutgoingReferrer() const override {
     return outgoing_referrer_;
   }
+  KURL GetOutgoingReferrerUrl() const override {
+    return KURL(NullUrl(), outgoing_referrer_).UrlStrippedForUseAsReferrer();
+  }
   HttpsState GetHttpsState() const override { return https_state_; }
 
   mojom::blink::InsecureRequestPolicy GetInsecureRequestsPolicy()

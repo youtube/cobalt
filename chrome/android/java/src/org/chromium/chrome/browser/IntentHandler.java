@@ -376,10 +376,7 @@ public class IntentHandler {
     public static final String BRING_TAB_GROUP_TO_FRONT_SOURCE_EXTRA =
             "BRING_TAB_GROUP_TO_FRONT_SOURCE";
     public static final String DAYDREAM_CATEGORY = "com.google.intent.category.DAYDREAM";
-    public static final String SHARE_INTENT_HISTOGRAM = "Android.Intent.ShareIntentUrlCount";
     public static final String TRUSTED_REFERRER_HISTOGRAM = "Android.Intent.TrustedReferrer";
-    public static final String TRUSTED_TRANSITION_TYPE_HISTOGRAM =
-            "Android.Intent.TrustedTransitionTypeUsed";
 
     /**
      * Represents popular external applications that can load a page in Chrome via intent. DO NOT
@@ -450,26 +447,6 @@ public class IntentHandler {
         /* The intent was allowed to specify a referrer through its CustomTabs session. */
         int ALLOWED_THROUGH_SESSION = 1;
         /* The intent was allowed to specify a referrer through an insecure PendingIntent check. */
-        int ALLOWED_INSECURE = 2;
-
-        int NUM_ENTRIES = 6;
-    }
-
-    /** Histogram for insecure usage of first party transition type. */
-    @IntDef({
-        IntentTransitionType.IGNORED,
-        IntentTransitionType.ALLOWED_TYPED,
-        IntentTransitionType.ALLOWED_INSECURE,
-        IntentTransitionType.NUM_ENTRIES
-    })
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface IntentTransitionType {
-        /* The intent's specified referrer was ignored. */
-        int IGNORED = 0;
-        /* The intent was allowed to set a Typed transition type. */
-        int ALLOWED_TYPED = 1;
-        /* The intent was allowed to specify a transition type through an insecure PendingIntent
-         * check. */
         int ALLOWED_INSECURE = 2;
 
         int NUM_ENTRIES = 6;
@@ -1338,10 +1315,6 @@ public class IntentHandler {
             extractStringsWithPrefix(text, UrlConstants.HTTPS_URL_PREFIX, urls);
         }
 
-        // Record a small exact linear histogram as we mostly care about 0/1/2, but the presence of
-        // larger counts would be interesting.
-        RecordHistogram.recordExactLinearHistogram(SHARE_INTENT_HISTOGRAM, urls.size(), 5);
-
         if (!urls.isEmpty()) {
             // If multiple URLs are present, somewhat arbitrarily pick the last one (preferring
             // https) - share actions seem to usually put the URL at the end.
@@ -1511,39 +1484,17 @@ public class IntentHandler {
     }
 
     /**
-     * Some applications may request to load the URL with a particular transition type.
+     * Chrome itself may request to load the URL with a particular transition type.
+     *
      * @param intent Intent causing the URL load, may be null.
      * @param defaultTransition The transition to return if none specified in the intent.
      * @return The transition type to use for loading the URL.
      */
     public static int getTransitionTypeFromIntent(Intent intent, int defaultTransition) {
-        if (intent == null) return defaultTransition;
-        int transitionType =
-                IntentUtils.safeGetIntExtra(
-                        intent, IntentHandler.EXTRA_PAGE_TRANSITION_TYPE, PageTransition.LINK);
-        if (transitionType == PageTransition.TYPED) {
-            RecordHistogram.recordEnumeratedHistogram(
-                    TRUSTED_TRANSITION_TYPE_HISTOGRAM,
-                    IntentTransitionType.ALLOWED_TYPED,
-                    IntentTransitionType.NUM_ENTRIES);
-            return transitionType;
-        } else if (transitionType != PageTransition.LINK) {
-            if (IntentUtils.isTrustedIntentFromSelf(intent)) return transitionType;
-            if (notSecureIsIntentChromeOrFirstParty(intent)) {
-                RecordHistogram.recordEnumeratedHistogram(
-                        TRUSTED_TRANSITION_TYPE_HISTOGRAM,
-                        IntentTransitionType.ALLOWED_INSECURE,
-                        IntentTransitionType.NUM_ENTRIES);
-
-                // 1st party applications may specify any transition type.
-                return transitionType;
-            }
-            RecordHistogram.recordEnumeratedHistogram(
-                    TRUSTED_TRANSITION_TYPE_HISTOGRAM,
-                    IntentTransitionType.IGNORED,
-                    IntentTransitionType.NUM_ENTRIES);
-        }
-        return defaultTransition;
+        if (!IntentUtils.isTrustedIntentFromSelf(intent)) return defaultTransition;
+        if (!intent.hasExtra(IntentHandler.EXTRA_PAGE_TRANSITION_TYPE)) return defaultTransition;
+        return IntentUtils.safeGetIntExtra(
+                intent, IntentHandler.EXTRA_PAGE_TRANSITION_TYPE, PageTransition.LINK);
     }
 
     /**

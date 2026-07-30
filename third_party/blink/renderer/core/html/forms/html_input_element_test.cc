@@ -31,6 +31,7 @@
 #include "third_party/blink/renderer/core/input_type_names.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/loader/empty_clients.h"
+#include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/testing/null_execution_context.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -685,6 +686,74 @@ TEST_F(HTMLInputElementTest, SpinButtonWheelBlocks) {
   // unregister it.
   input.remove();
   EXPECT_FALSE(targets->Contains(&input));
+}
+
+TEST_F(HTMLInputElementTest, SuggestedValueFontFamilyIsGeneric) {
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes("<input id=test>");
+  HTMLInputElement& input = TestElement();
+  UpdateAllLifecyclePhasesForTest();
+
+  input.SetSuggestedValue("preview");
+  UpdateAllLifecyclePhasesForTest();
+
+  HTMLElement* placeholder = input.PlaceholderElement();
+  ASSERT_TRUE(placeholder);
+  const ComputedStyle* style = placeholder->GetComputedStyle();
+  ASSERT_TRUE(style);
+  EXPECT_TRUE(style->GetFontDescription().Family().FamilyIsGeneric());
+}
+
+TEST_F(HTMLInputElementTest, EmailVerificationIndicator) {
+  // Case 1: EmailVerificationStatusIndicator is disabled.
+  {
+    ScopedEmailVerificationProtocolForTest scoped_protocol(true);
+    ScopedEmailVerificationStatusIndicatorForTest scoped_indicator(false);
+    GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(
+        "<input id=test type=email>");
+    GetDocument().UpdateStyleAndLayoutTree();
+    HTMLInputElement& input = TestElement();
+
+    // Shadow tree shouldn't contain the indicator.
+    Element* indicator =
+        input.UserAgentShadowRoot()
+            ? input.UserAgentShadowRoot()->getElementById(
+                  shadow_element_names::kIdEmailVerificationIndicator)
+            : nullptr;
+    EXPECT_FALSE(indicator);
+  }
+
+  // Case 2: Both features are enabled.
+  {
+    ScopedEmailVerificationProtocolForTest scoped_protocol(true);
+    ScopedEmailVerificationStatusIndicatorForTest scoped_indicator(true);
+    GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(
+        "<input id=test type=email>");
+    GetDocument().UpdateStyleAndLayoutTree();
+    HTMLInputElement& input = TestElement();
+
+    // Shadow tree should contain the indicator.
+    Element* indicator =
+        input.UserAgentShadowRoot()
+            ? input.UserAgentShadowRoot()->getElementById(
+                  shadow_element_names::kIdEmailVerificationIndicator)
+            : nullptr;
+    ASSERT_TRUE(indicator);
+
+    // Default state should be none (represented by null or "none").
+    String initial_state = indicator->getAttribute(AtomicString("data-state"));
+    EXPECT_TRUE(initial_state.IsNull() || initial_state == "none");
+
+    // Setting state to verified.
+    input.SetEmailVerificationState(EmailVerificationState::kVerified);
+    EXPECT_EQ(input.GetEmailVerificationState(),
+              EmailVerificationState::kVerified);
+    EXPECT_EQ(indicator->getAttribute(AtomicString("data-state")), "verified");
+
+    // Setting state to none.
+    input.SetEmailVerificationState(EmailVerificationState::kNone);
+    EXPECT_EQ(input.GetEmailVerificationState(), EmailVerificationState::kNone);
+    EXPECT_EQ(indicator->getAttribute(AtomicString("data-state")), "none");
+  }
 }
 
 }  // namespace blink

@@ -10,6 +10,7 @@
 #import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
 #import "ios/chrome/browser/signin/model/test_constants.h"
 #import "ios/public/provider/chrome/browser/signin/signin_error_api.h"
+#import "ui/base/device_form_factor.h"
 
 namespace {
 
@@ -186,8 +187,7 @@ BOOL gUsingUnknownCapabilities;
   _signinCompletion = completion;
   _authActivityViewController =
       [[FakeAuthActivityViewController alloc] initWithManager:self];
-  BOOL isIPad =
-      UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad;
+  BOOL isIPad = ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET;
   _authActivityViewController.modalPresentationStyle =
       isIPad ? UIModalPresentationFormSheet : UIModalPresentationFullScreen;
 

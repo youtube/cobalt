@@ -29,6 +29,7 @@ class FcpFlags : public fcp::client::Flags {
   bool enable_relative_uri_prefix() const override;
   bool enable_private_logger() const override;
   bool drop_out_based_data_availability() const override;
+  bool enable_attestation_transparency_verifier() const override;
 
   // Configurable flags.
   int64_t condition_polling_period_millis() const override;

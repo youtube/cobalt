@@ -35,12 +35,17 @@ NET_EXPORT BASE_DECLARE_FEATURE(kAsyncRetryOnTooManyConnectionErrors);
 // Disable H2 reprioritization, in order to measure its impact.
 NET_EXPORT BASE_DECLARE_FEATURE(kAvoidH2Reprioritization);
 
+// Derives Android connection type from NetworkCapabilities inside
+// NetworkCallbacks instead of calling synchronous ConnectivityManager methods.
+NET_EXPORT BASE_DECLARE_FEATURE(kDeriveConnectionTypeFromCapabilities);
 
 // Enables the built-in DNS resolver.
 NET_EXPORT BASE_DECLARE_FEATURE(kAsyncDns);
 
 // Enables optimistic DNS for TCP.
 NET_EXPORT BASE_DECLARE_FEATURE(kOptimisticDnsForTcp);
+NET_EXPORT extern const base::FeatureParam<bool>
+    kUseStaleConnectorsForOptimisticDns;
 
 // Caches UDP connect() results in AddressSorterPosix.
 NET_EXPORT BASE_DECLARE_FEATURE(kAddressSorterConnectCache);
@@ -125,6 +130,12 @@ NET_EXPORT BASE_DECLARE_FEATURE(kHappyEyeballsV2);
 // Enables the Happy Eyeballs v3, where we use intermediate DNS resolution
 // results to make connection attempts as soon as possible.
 NET_EXPORT BASE_DECLARE_FEATURE(kHappyEyeballsV3);
+
+// Feature to control the Happy Eyeballs slow timer (IPv6 fallback time).
+NET_EXPORT BASE_DECLARE_FEATURE(kAdjustIPv6FallbackTime);
+
+// The duration to use for the slow timer if the feature is enabled.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kIPv6FallbackTime);
 
 // Enables transparent zstd decompression of cached HTTP response bodies
 // written by the CDT (Compression Dictionary Transport) cache compression
@@ -570,8 +581,6 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kSqlDiskCacheWalMode);
 // Disables synchronous writes in the SQL disk cache's DB.
 // This is faster but less safe.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kSqlDiskCacheSynchronousOff);
-// Enables the database preloading for the SQL disk cache backend.
-NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kSqlDiskCachePreloadDatabase);
 // The number of shards for the SQL disk cache.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kSqlDiskCacheShardCount);
 // Loads the in-memory index on initialization.
@@ -836,10 +845,6 @@ NET_EXPORT BASE_DECLARE_FEATURE(
 // be randomized for better load balancing of the initial DoH URL lookups.
 NET_EXPORT BASE_DECLARE_FEATURE(kEnableBootstrapIPRandomizationForDoh);
 
-// Controls whether X509Util on Android (Cronet, and WebView only) should use
-// lock-free certificate verification mechanism.
-NET_EXPORT BASE_DECLARE_FEATURE(kUseLockFreeX509Verification);
-
 #if BUILDFLAG(IS_APPLE)
 // If enabled, the GURL conversion for NSURLs will use the data representation
 // of the URL if it differs from the absolute string.
@@ -918,6 +923,22 @@ NET_EXPORT BASE_DECLARE_FEATURE(kNoVarySearchCacheLoadOnSeparateTaskRunner);
 // 1 => USER_VISIBLE, 2 => USER_BLOCKING.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TaskPriority,
                                       kNoVarySearchCacheLoadTaskRunnerPriority);
+
+// Enable MTC certificate verification based on test-only roots. This is unsafe
+// and may permit an attacker to intercept or modify your HTTPS connections. Do
+// not use this flag on an instance containing personal data. Recommended for
+// developer use only in isolated testing environments.
+NET_EXPORT BASE_DECLARE_FEATURE(kTestRootStore);
+
+// If enabled, cache certificate verification results will be put into the
+// certificate verification cache. All other cache interactions (creation,
+// clear, get) are performed regardless of this feature.
+NET_EXPORT BASE_DECLARE_FEATURE(kCacheCertVerification);
+
+// The TTL in seconds for entries put into the certificate verification cache.
+// If set to 0, entries will still technically be put into the cache, but will
+// already be expired.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCacheCertVerificationTtlSecs);
 
 }  // namespace net::features
 

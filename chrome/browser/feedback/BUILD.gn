@@ -186,11 +186,6 @@ source_set("feedback_impl") {
 source_set("unit_tests") {
   testonly = true
 
-  # These tests pre-date strict sign-comparison warnings; relax to the warning
-  # posture they had while compiled in //chrome/test.
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-
   deps = [
     ":feedback_impl",
     "//base/test:test_support",
@@ -228,12 +223,6 @@ if (!is_android) {
   source_set("browser_tests") {
     testonly = true
 
-    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-
-    # These tests pre-date strict sign-comparison warnings; relax to the warning
-    # posture they had while compiled in //chrome/test.
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
     sources = [
@@ -262,12 +251,6 @@ if (!is_android) {
   source_set("interactive_ui_tests") {
     testonly = true
 
-    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-
-    # These tests pre-date strict sign-comparison warnings; relax to the warning
-    # posture they had while compiled in //chrome/test.
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
     sources = [ "report_unsafe_site_dialog_views_interactive_uitest.cc" ]

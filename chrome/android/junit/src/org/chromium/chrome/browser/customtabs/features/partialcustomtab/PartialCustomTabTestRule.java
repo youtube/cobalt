@@ -207,6 +207,7 @@ public class PartialCustomTabTestRule implements TestRule {
     @SuppressWarnings("DirectInvocationOnMock")
     private void setUpModernAndroidMocks() {
         when(mWindow.getInsetsController()).thenReturn(mWindowInsetsController);
+        when(mDecorView.getWindowInsetsController()).thenReturn(mWindowInsetsController);
         when(mWindowManager.getCurrentWindowMetrics()).thenReturn(mWindowMetrics);
         doAnswer(
                         invocation -> {

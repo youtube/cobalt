@@ -45,6 +45,8 @@ struct APIEventPerContextData : public base::SupportsUserData::Data {
         << "|emitters| should have been cleared by InvalidateContext()";
     DCHECK(massagers.empty())
         << "|massagers| should have been cleared by InvalidateContext()";
+    DCHECK(dispatch_handlers.empty()) << "|dispatch_handlers| should have been "
+                                         "cleared by InvalidateContext()";
     DCHECK(anonymous_emitters.empty())
         << "|anonymous_emitters| should have been cleared by "
         << "InvalidateContext()";
@@ -59,6 +61,11 @@ struct APIEventPerContextData : public base::SupportsUserData::Data {
 
   // A map from event name -> argument massager.
   std::map<std::string, v8::Global<v8::Function>> massagers;
+
+  // A map from event name -> event dispatch handler. A dispatch handler owns
+  // the entire dispatch of its event: it matches and invokes listeners itself,
+  // bypassing the emitter (which only carries listener registration).
+  std::map<std::string, v8::Global<v8::Function>> dispatch_handlers;
 
   // The collection of anonymous events.
   std::vector<v8::Global<v8::Object>> anonymous_emitters;
@@ -121,6 +128,23 @@ void DispatchEvent(const v8::FunctionCallbackInfo<v8::Value>& info) {
   mojom::EventFilteringInfoPtr filter = emitter->PopFilter(filter_id);
   info.GetReturnValue().Set(
       emitter->FireSync(context, &args, std::move(filter)));
+}
+
+// Builds a v8 array holding `arguments`, for handing to the JS dispatch helpers
+// (argument massagers and event dispatch handlers).
+v8::Local<v8::Array> BuildArgumentsArray(
+    v8::Isolate* isolate,
+    v8::Local<v8::Context> context,
+    const v8::LocalVector<v8::Value>& arguments) {
+  v8::Local<v8::Array> args_array = v8::Array::New(isolate, arguments.size());
+  // Since this is a newly-constructed array and we're assigning data
+  // properties, this shouldn't be able to fail or be visible by other script.
+  for (size_t i = 0; i < arguments.size(); ++i) {
+    v8::Maybe<bool> success = args_array->CreateDataProperty(
+        context, static_cast<uint32_t>(i), arguments[i]);
+    CHECK(success.ToChecked());
+  }
+  return args_array;
 }
 
 }  // namespace
@@ -281,11 +305,35 @@ void APIEventHandler::FireEventInContext(
     return;
   }
 
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
+  // An event dispatcher handler takes over the entire dispatch for this event:
+  // it matches and invokes the context's listeners itself. Hand it the raw
+  // arguments and bypass the emitter (which, for such events, only carries
+  // listener registration) and the event-filter bookkeeping entirely.
+  auto dispatch_handler_iter = data->dispatch_handlers.find(event_name);
+  if (dispatch_handler_iter != data->dispatch_handlers.end()) {
+    CHECK(on_dispatched_callback.IsEmpty())
+        << "Can't use an on dispatched callback with an event dispatch "
+           "handler.";
+    CHECK(listener_error_callback.IsEmpty())
+        << "Can't use a listener error callback with an event dispatch "
+           "handler.";
+
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Function> dispatch_handler =
+        dispatch_handler_iter->second.Get(isolate);
+    v8::Local<v8::Value> handler_args[] = {
+        BuildArgumentsArray(isolate, context, *arguments)};
+    JSRunner::Get(context)->RunJSFunction(dispatch_handler, context,
+                                          handler_args);
+    return;
+  }
+
   auto iter = data->emitters.find(event_name);
   if (iter == data->emitters.end()) {
     return;
   }
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   EventEmitter* emitter = nullptr;
   gin::Converter<EventEmitter*>::FromV8(isolate, iter->second.Get(isolate),
                                         &emitter);
@@ -314,19 +362,8 @@ void APIEventHandler::FireEventInContext(
 
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Function> massager = massager_iter->second.Get(isolate);
-
     v8::Local<v8::Array> args_array =
-        v8::Array::New(isolate, arguments->size());
-    {
-      // Massagers expect an array of v8 values. Since this is a newly-
-      // constructed array and we're assigning data properties, this shouldn't
-      // be able to fail or be visible by other script.
-      for (size_t i = 0; i < arguments->size(); ++i) {
-        v8::Maybe<bool> success = args_array->CreateDataProperty(
-            context, static_cast<uint32_t>(i), arguments->at(i));
-        CHECK(success.ToChecked());
-      }
-    }
+        BuildArgumentsArray(isolate, context, *arguments);
 
     // Curry in the native dispatch function. Some argument massagers take
     // extra liberties and call this asynchronously, so we can't just have the
@@ -334,7 +371,6 @@ void APIEventHandler::FireEventInContext(
     // We don't store this in a template because the Data (event name) is
     // different for each instance. Luckily, this is called during dispatching
     // an event, rather than e.g. at initialization time.
-
     int filter_id = emitter->PushFilter(std::move(filter));
 
     v8::Local<v8::Object> dispatch_data =
@@ -358,8 +394,21 @@ void APIEventHandler::RegisterArgumentMassager(
     v8::Local<v8::Function> massager) {
   APIEventPerContextData* data = APIEventPerContextData::GetFrom(
       context, CreatePerContextData::kCreateIfMissing);
+  DCHECK(!data->dispatch_handlers.contains(event_name));
   DCHECK(!data->massagers.contains(event_name));
   data->massagers[event_name].Reset(v8::Isolate::GetCurrent(), massager);
+}
+
+void APIEventHandler::RegisterEventDispatchHandler(
+    v8::Local<v8::Context> context,
+    const std::string& event_name,
+    v8::Local<v8::Function> dispatch_handler) {
+  APIEventPerContextData* data = APIEventPerContextData::GetFrom(
+      context, CreatePerContextData::kCreateIfMissing);
+  DCHECK(!data->dispatch_handlers.contains(event_name));
+  DCHECK(!data->massagers.contains(event_name));
+  data->dispatch_handlers[event_name].Reset(v8::Isolate::GetCurrent(),
+                                            dispatch_handler);
 }
 
 bool APIEventHandler::HasListenerForEvent(const std::string& event_name,
@@ -414,6 +463,7 @@ void APIEventHandler::InvalidateContext(v8::Local<v8::Context> context) {
 
   data->emitters.clear();
   data->massagers.clear();
+  data->dispatch_handlers.clear();
   data->anonymous_emitters.clear();
 
   // InvalidateContext() is called shortly (and, theoretically, synchronously)

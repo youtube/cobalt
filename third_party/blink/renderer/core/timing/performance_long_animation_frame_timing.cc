@@ -27,7 +27,7 @@ PerformanceLongAnimationFrameTiming::Create(
     bool cross_origin_isolated_capability,
     DOMWindow* source,
     const std::optional<DOMPaintTimingInfo>& paint_timing_info,
-    uint32_t navigation_id) {
+    uint64_t navigation_id) {
   Performance* performance =
       DOMWindowPerformance::performance(*source->ToLocalDOMWindow());
   DOMHighResTimeStamp startTime =
@@ -52,7 +52,7 @@ PerformanceLongAnimationFrameTiming::PerformanceLongAnimationFrameTiming(
     base::TimeTicks time_origin,
     bool cross_origin_isolated_capability,
     DOMWindow* source,
-    uint32_t navigation_id)
+    uint64_t navigation_id)
     : PerformanceEntry(duration,
                        AtomicString("long-animation-frame"),
                        startTime,

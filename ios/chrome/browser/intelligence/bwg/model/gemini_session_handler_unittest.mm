@@ -220,9 +220,7 @@ TEST_F(GeminiSessionHandlerTest, TestFirstRunFlag) {
   NSString* client_id = GetClientID();
 
   // Set first run flag.
-  web::WebState* web_state = web_state_list_->GetWebStateAt(0);
-  GeminiTabHelper* tab_helper = GeminiTabHelper::FromWebState(web_state);
-  tab_helper->SetIsFirstRun(true);
+  session_handler_.isFirstSession = YES;
 
   [session_handler_ UIDidAppearWithClientID:client_id serverID:kTestServerID];
   [session_handler_ didSendQueryWithInputType:gemini::InputType::kText
@@ -234,10 +232,9 @@ TEST_F(GeminiSessionHandlerTest, TestFirstRunFlag) {
   [session_handler_ UIDidDisappearWithClientID:client_id
                                       serverID:kTestServerID];
 
-  // Verify first run flag was cleared.
-  EXPECT_FALSE(tab_helper->GetIsFirstRun());
-
   // Session metrics should reflect first session.
+  histogram_tester_.ExpectTotalCount(
+      kGeminiSessionLengthFirstRunWithPromptHistogram, 1);
   histogram_tester_.ExpectTotalCount(kGeminiSessionTimeHistogram, 1);
 }
 

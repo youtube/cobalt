@@ -180,6 +180,11 @@ void RecordAutoOpenOutcome(AutoOpenOutcome outcome) {
                                 outcome);
 }
 
+void RecordActivatedEntryPoint(ShareActivatedEntryPoint entry_point) {
+  base::UmaHistogramEnumeration("Sharing.SendTabToSelf.ActivatedEntryPoint",
+                                entry_point);
+}
+
 void RecordFormFieldMatchOutcome(FormFieldMatchOutcome outcome, int count) {
   for (int i = 0; i < count; ++i) {
     base::UmaHistogramEnumeration(
@@ -230,6 +235,18 @@ void RecordTimeSentToReceived(base::TimeDelta delay) {
 void RecordTimeSentToOpened(base::TimeDelta delay) {
   base::UmaHistogramCustomTimes("Sharing.SendTabToSelf.TimeSentToOpened", delay,
                                 base::Milliseconds(100), base::Days(10), 100);
+}
+
+void RecordTimeOpenedToActivated(base::TimeDelta delay) {
+  base::UmaHistogramCustomTimes("Sharing.SendTabToSelf.TimeOpenedToActivated",
+                                delay, base::Milliseconds(100), base::Days(10),
+                                100);
+}
+
+void RecordTimeSentToActivated(base::TimeDelta delay) {
+  base::UmaHistogramCustomTimes("Sharing.SendTabToSelf.TimeSentToActivated",
+                                delay, base::Milliseconds(100), base::Days(10),
+                                100);
 }
 
 void RecordDeviceFormFactorCombination(

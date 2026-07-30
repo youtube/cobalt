@@ -47,6 +47,8 @@ class UserEducationInternalsPageHandlerImpl
       const UserEducationInternalsPageHandlerImpl&) = delete;
 
   // mojom::user_education_internals::UserEducationInternalsPageHandler:
+  void IsFeatureEngagementInitialized(
+      IsFeatureEngagementInitializedCallback callback) override;
   void GetTutorials(GetTutorialsCallback callback) override;
   void StartTutorial(const std::string& tutorial_id,
                      StartTutorialCallback callback) override;

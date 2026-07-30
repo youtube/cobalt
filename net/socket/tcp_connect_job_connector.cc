@@ -149,6 +149,21 @@ int TcpConnectJob::Connector::DoObtainIPEndPoint() {
   }
 
   current_address_ = std::move(endpoint_info).value();
+  const ServiceEndpoint* service_endpoint =
+      parent_->FindServiceEndpoint(*current_address_);
+
+  // If this is a stale connector, we must save its ServiceEndpoint metadata
+  // now. If fresh DNS results arrive while this connector is in-flight, the
+  // HostResolver will wipe the stale DNS results from memory. Saving it here
+  // ensures we have the necessary ALPN/ECH metadata to verify the socket
+  // if the connection succeeds but the IP is missing from the fresh results.
+  bool is_stale = parent_->IsStaleConnector(*this);
+
+  if (is_stale && service_endpoint) {
+    current_service_endpoint_ = *service_endpoint;
+  } else {
+    current_service_endpoint_ = std::nullopt;
+  }
 
   // Get lock if needed.
   next_state_ = State::kTcpConnect;
@@ -157,6 +172,10 @@ int TcpConnectJob::Connector::DoObtainIPEndPoint() {
 
 int TcpConnectJob::Connector::DoTcpConnect() {
   DCHECK(current_address_);
+
+  if (start_time_.is_null()) {
+    start_time_ = base::TimeTicks::Now();
+  }
 
   next_state_ = State::kTcpConnectComplete;
 
@@ -234,10 +253,21 @@ int TcpConnectJob::Connector::DoVerifyIPEndPointUsable() {
     return ERR_IO_PENDING;
   }
 
-  // Search for the corresponding ServiceEndpoint. If not found, the address is
-  // not usable.
+  // Search for the corresponding ServiceEndpoint in the current DNS results.
   const ServiceEndpoint* service_endpoint =
       parent_->FindServiceEndpoint(*current_address_);
+
+  if (!service_endpoint) {
+    // If the IP is not found, it may be because this is a stale connection
+    // attempt and the fresh DNS results have arrived and overwritten the stale
+    // results. If the stale IP successfully connected, we still want to use it
+    // instead of failing. We retrieve the ServiceEndpoint metadata that we
+    // saved when the connection attempt began.
+    bool is_stale = parent_->IsStaleConnector(*this);
+    if (is_stale && current_service_endpoint_) {
+      service_endpoint = &current_service_endpoint_.value();
+    }
+  }
 
   parent_->net_log().AddEvent(
       NetLogEventType::TCP_CONNECT_JOB_VERIFY_IP_ENDPOINT_USABLE, [&] {
@@ -266,8 +296,10 @@ int TcpConnectJob::Connector::OnEndpointFailed(int error) {
 
   // If there's only one connector, this makes the next attempt prefer the
   // address family other than that of the request that just failed.
-  parent_->fresh_state_.prefer_ipv6 =
-      (current_address_->GetFamily() != ADDRESS_FAMILY_IPV6);
+  bool is_stale = parent_->IsStaleConnector(*this);
+  ConnectionState& state =
+      is_stale ? parent_->stale_state_ : parent_->fresh_state_;
+  state.prefer_ipv6 = (current_address_->GetFamily() != ADDRESS_FAMILY_IPV6);
 
   // If this isn't an IsIPEndPointUsable() error, record the failed connection
   // attempt. IsIPEndPointUsable() aren't connection errors, and are potentially

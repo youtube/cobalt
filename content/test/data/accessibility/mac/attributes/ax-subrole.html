@@ -1,0 +1,24 @@
+<!--
+@SCRIPT:
+  empty.accessibilityAttributeValue(AXSubrole)
+  pseudo_on_group.accessibilityAttributeValue(AXSubrole)
+  pseudo_on_span.accessibilityAttributeValue(AXSubrole)
+-->
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.icon::before { content: "+"; }
+</style>
+</head>
+<body>
+  <!-- Layout-only group with no announceable content: AXEmptyGroup. -->
+  <div role="group" id="empty"></div>
+  <!-- ::before on the group synthesizes a static-text child: not empty. -->
+  <div role="group" class="icon" id="pseudo_on_group"></div>
+  <!-- ::before on an ignored span child still makes the group non-empty. -->
+  <div role="group" id="pseudo_on_span">
+    <span class="icon"></span>
+  </div>
+</body>
+</html>

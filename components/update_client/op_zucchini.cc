@@ -39,7 +39,7 @@ base::OnceClosure ZucchiniOperation(
       base::File::FLAG_CREATE | base::File::FLAG_READ | base::File::FLAG_WRITE |
           base::File::FLAG_WIN_EXCLUSIVE_WRITE |
           base::File::FLAG_WIN_SHARE_DELETE |
-          base::File::FLAG_CAN_DELETE_ON_CLOSE,
+          base::File::FLAG_CAN_DELETE_ON_CLOSE | base::File::FLAG_NO_FOLLOW,
       output_hash, 0, patch_file, protocol_request::kEventZucchini,
       is_foreground, std::move(callback))
       ->Operation(

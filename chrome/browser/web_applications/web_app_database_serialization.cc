@@ -29,10 +29,10 @@
 #include "base/types/expected.h"
 #include "build/build_config.h"
 #include "chrome/browser/web_applications/generated_icon_fix_util.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
 #include "chrome/browser/web_applications/model/app_installed_by.h"
 #include "chrome/browser/web_applications/model/display_override.h"
+#include "chrome/browser/web_applications/model/integrity_block_data.h"
+#include "chrome/browser/web_applications/model/isolation_data.h"
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/proto/web_app_launch_handler.pb.h"
@@ -1260,10 +1260,9 @@ std::unique_ptr<WebApp> ParseWebAppProto(
         return nullptr;
       }
 
-      std::optional<IsolatedWebAppIntegrityBlockData>
-          pending_integrity_block_data;
+      std::optional<IntegrityBlockData> pending_integrity_block_data;
       if (pending_update_info_proto.has_integrity_block_data()) {
-        auto result = IsolatedWebAppIntegrityBlockData::FromProto(
+        auto result = IntegrityBlockData::FromProto(
             pending_update_info_proto.integrity_block_data());
         if (!result.has_value()) {
           RecordProtoParseResult(
@@ -1284,7 +1283,7 @@ std::unique_ptr<WebApp> ParseWebAppProto(
     }
 
     if (proto.isolation_data().has_integrity_block_data()) {
-      auto result = IsolatedWebAppIntegrityBlockData::FromProto(
+      auto result = IntegrityBlockData::FromProto(
           proto.isolation_data().integrity_block_data());
       if (!result.has_value()) {
         RecordProtoParseResult(ProtoParseResult::kInvalidIntegrityBlockData);

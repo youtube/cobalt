@@ -48,6 +48,25 @@ static_library("extensions") {
   }
 }
 
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "chromeos_system_extension_info_unittest.cc",
+    "manifest_tests/extension_manifests_chromeos_system_extension_unittest.cc",
+  ]
+  deps = [
+    ":extensions",
+    "//ash/constants",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/test:test_support",
+    "//components/web_package",
+    "//extensions/common",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
 grd_file = "$target_gen_dir/chromeos_system_extensions_resources.grd"
 
 generate_grd("build_grd") {

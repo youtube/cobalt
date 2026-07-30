@@ -16,6 +16,12 @@
   ],
   "breakages": [
     {
+      "bad_change_id": "Ib698220c8ea3185ccfd6b9d77ee2c167cd81f576",
+      "good_change_ids": ["I278491a7010893db5d833606d72b1f28b4ed1bef"],
+      "bugs": ["b/525305888"],
+      "comment": "Enabling Mold caused Cronet to crash on dlopen() in debug builds on x86_64, Android API level 29 and below"
+    },
+    {
       "bad_change_id": "I15c6d62b30a956900fd705d8354df79006b1b4c8",
       "good_change_ids": ["Iaaa1d77dd8518d9910478051fba877e3c8182251"],
       "bugs": ["b/496941667"],

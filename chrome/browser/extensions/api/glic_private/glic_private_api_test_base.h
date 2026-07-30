@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_EXTENSIONS_API_GLIC_PRIVATE_GLIC_PRIVATE_API_TEST_BASE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "chrome/browser/extensions/extension_apitest.h"
@@ -31,6 +32,11 @@ class GlicPrivateApiTestBase : public ExtensionApiTest {
   static std::unique_ptr<content::URLLoaderInterceptor>
   CreateMockPromptResponseInterceptor(
       const std::string& prompt_data = "Mock successful prompt data");
+
+  static std::unique_ptr<content::URLLoaderInterceptor>
+  CreateMockPromptResponseWithMetadataInterceptor(
+      const std::string& prompt_data = "Mock successful prompt data",
+      const std::optional<std::string>& b64_metadata = std::nullopt);
 };
 
 }  // namespace extensions

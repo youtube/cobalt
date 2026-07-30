@@ -227,6 +227,14 @@ SocketDataProvider::~SocketDataProvider() {
     socket_->OnDataProviderDestroyed();
 }
 
+bool SocketDataProvider::IsNextReadAsyncOrPause() const {
+  return false;
+}
+
+bool SocketDataProvider::IsReadReady() const {
+  return !AllReadDataConsumed();
+}
+
 StaticSocketDataHelper::StaticSocketDataHelper(
     base::span<const MockRead> reads,
     base::span<const MockWrite> writes)
@@ -257,6 +265,14 @@ const MockWrite& StaticSocketDataHelper::AdvanceWrite() {
 void StaticSocketDataHelper::Reset() {
   read_index_ = 0;
   write_index_ = 0;
+}
+
+bool StaticSocketDataHelper::IsNextReadAsyncOrPause() const {
+  if (AllReadDataConsumed()) {
+    return false;
+  }
+  const MockRead& next_read = PeekRead();
+  return next_read.mode == ASYNC || next_read.result == ERR_IO_PENDING;
 }
 
 bool StaticSocketDataHelper::VerifyWriteData(const std::string& data,
@@ -424,6 +440,20 @@ MockWriteResult StaticSocketDataProvider::OnWrite(const std::string& data) {
 
 bool StaticSocketDataProvider::AllReadDataConsumed() const {
   return paused_ || helper_.AllReadDataConsumed();
+}
+
+bool StaticSocketDataProvider::IsNextReadAsyncOrPause() const {
+  if (paused_) {
+    return false;
+  }
+  return helper_.IsNextReadAsyncOrPause();
+}
+
+bool StaticSocketDataProvider::IsReadReady() const {
+  if (paused_) {
+    return false;
+  }
+  return !helper_.AllReadDataConsumed();
 }
 
 bool StaticSocketDataProvider::AllWriteDataConsumed() const {
@@ -646,6 +676,17 @@ MockWriteResult SequencedSocketData::OnWrite(const std::string& data) {
 
 bool SequencedSocketData::AllReadDataConsumed() const {
   return helper_.AllReadDataConsumed();
+}
+
+bool SequencedSocketData::IsNextReadAsyncOrPause() const {
+  return helper_.IsNextReadAsyncOrPause();
+}
+
+bool SequencedSocketData::IsReadReady() const {
+  if (helper_.AllReadDataConsumed()) {
+    return false;
+  }
+  return helper_.PeekRead().sequence_number <= sequence_number_;
 }
 
 void SequencedSocketData::CancelPendingRead() {
@@ -1716,8 +1757,125 @@ base::expected<DatagramsMetadata, Error> MockUDPClientSocket::ReadMultiple(
     size_t maximum_packet_size,
     base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
         callback) {
-  NOTIMPLEMENTED();
-  return base::unexpected(ERR_NOT_IMPLEMENTED);
+  CHECK(callback);
+  CHECK(buf);
+  CHECK_GT(maximum_packet_size, 0u);
+  CHECK_GE(buf_len, maximum_packet_size);
+
+  if (!connected_ || !data_) {
+    return base::unexpected(ERR_UNEXPECTED);
+  }
+  data_transferred_ = true;
+
+  CHECK(!pending_read_buf_);
+  CHECK(pending_read_datagrams_callback_.is_null());
+
+  pending_read_buf_ = buf;
+  pending_read_buf_len_ = base::checked_cast<int>(buf_len);
+  pending_max_packet_size_ = maximum_packet_size;
+  pending_read_datagrams_callback_ = std::move(callback);
+
+  DatagramsMetadata datagrams;
+
+  size_t offset = 0;
+  while (buf_len - offset >= maximum_packet_size) {
+    // State: We need to fetch the next mock packet from the data provider.
+    if (need_read_data_) {
+      // If we already have read some datagrams in this batch, we must stop
+      // reading and return them if the next event is not ready (e.g. blocked
+      // by a write) or is going to block/pause (returns ERR_IO_PENDING).
+      // We must check this *before* calling OnRead() to prevent prematurely
+      // triggering the next event's side effects (like pausing the socket
+      // or starting an async read) before the current batch has been returned
+      // and processed by the reader.
+      //
+      // This is crucial because many existing tests that use the single-packet
+      // Read() API implicitly assume this sequencing: they expect that a pause
+      // event (or any subsequent event) is only triggered after the previous
+      // packet has been fully returned and processed by the application.
+      if (!datagrams.empty() &&
+          (!data_->IsReadReady() || data_->IsNextReadAsyncOrPause())) {
+        break;
+      }
+      if (data_->AllReadDataConsumed()) {
+        return base::unexpected(ERR_IO_PENDING);
+      }
+      read_data_ = data_->OnRead();
+      last_tos_ = read_data_.tos;
+      // State: The data provider has no data available right now (async wait).
+      if (read_data_.result == ERR_IO_PENDING) {
+        // If we already have some datagrams, return them first and postpone
+        // the pending state.
+        if (!datagrams.empty()) {
+          need_read_data_ = false;
+          break;
+        }
+        return base::unexpected(ERR_IO_PENDING);
+      }
+      need_read_data_ = false;
+    }
+
+    // State: The data provider returned an error.
+    if (read_data_.result < 0) {
+      // If we already have some datagrams, return them first and postpone
+      // the error.
+      if (!datagrams.empty()) {
+        need_read_data_ = false;
+        break;
+      }
+      int rv = read_data_.result;
+      need_read_data_ = true;
+
+      if (read_data_.mode == ASYNC) {
+        base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)> cb =
+            std::move(pending_read_datagrams_callback_);
+        ClearPendingReadState();
+        RunDatagramsCallbackAsync(std::move(cb),
+                                  base::unexpected(static_cast<Error>(rv)));
+        return base::unexpected(ERR_IO_PENDING);
+      }
+
+      if (rv != ERR_IO_PENDING) {
+        ClearPendingReadState();
+      }
+      return base::unexpected(static_cast<Error>(rv));
+    }
+
+    // State: We have synchronous datagrams, but the next one is asynchronous.
+    // Return the synchronous ones first; the asynchronous one will be read
+    // next.
+    if (read_data_.mode == ASYNC && !datagrams.empty()) {
+      need_read_data_ = false;
+      break;
+    }
+
+    size_t packet_len = read_data_.data.length();
+    CHECK_LE(packet_len, maximum_packet_size)
+        << "Mock packet length (" << packet_len
+        << ") exceeds maximum packet size (" << maximum_packet_size << ")";
+    buf->span().subspan(offset).copy_prefix_from(
+        base::as_byte_span(read_data_.data));
+    datagrams.emplace_back(offset, packet_len, read_data_.tos);
+
+    offset += maximum_packet_size;
+    need_read_data_ = true;
+    read_offset_ = 0;
+
+    // State: The packet we just read is asynchronous.
+    // Trigger the callback asynchronously and return ERR_IO_PENDING.
+    if (read_data_.mode == ASYNC) {
+      CHECK_EQ(datagrams.size(), 1u);
+      base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)> cb =
+          std::move(pending_read_datagrams_callback_);
+      ClearPendingReadState();
+
+      RunDatagramsCallbackAsync(std::move(cb), std::move(datagrams));
+      return base::unexpected(ERR_IO_PENDING);
+    }
+  }
+
+  ClearPendingReadState();
+  return datagrams;
 }
 
 int MockUDPClientSocket::Write(
@@ -1918,8 +2076,11 @@ void MockUDPClientSocket::OnReadComplete(const MockRead& data) {
     return;
 
   // There must be a read pending.
-  DCHECK(pending_read_buf_.get());
-  DCHECK(pending_read_callback_);
+  CHECK(pending_read_buf_.get());
+  // MockUDPClientSocket only supports a single read at a time, so exactly
+  // one of the read callbacks must be non-null.
+  CHECK(pending_read_callback_.is_null() ^
+        pending_read_datagrams_callback_.is_null());
   // You can't complete a read with another ERR_IO_PENDING status code.
   DCHECK_NE(ERR_IO_PENDING, data.result);
   // Since we've been waiting for data, need_read_data_ should be true.
@@ -1933,9 +2094,26 @@ void MockUDPClientSocket::OnReadComplete(const MockRead& data) {
   // let CompleteRead() schedule a callback.
   read_data_.mode = SYNCHRONOUS;
 
-  CompletionOnceCallback callback = std::move(pending_read_callback_);
-  int rv = CompleteRead();
-  RunCallback(std::move(callback), rv);
+  if (pending_read_callback_) {
+    CompletionOnceCallback callback = std::move(pending_read_callback_);
+    int rv = CompleteRead();
+    RunCallback(std::move(callback), rv);
+  } else {
+    base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
+        callback = std::move(pending_read_datagrams_callback_);
+
+    scoped_refptr<IOBuffer> buf = pending_read_buf_;
+    size_t buf_len = static_cast<size_t>(pending_read_buf_len_);
+    size_t max_packet_size = pending_max_packet_size_;
+
+    ClearPendingReadState();
+
+    base::expected<DatagramsMetadata, Error> result =
+        ReadMultiple(buf.get(), buf_len, max_packet_size, base::DoNothing());
+    CHECK(result.has_value() || result.error() != ERR_IO_PENDING);
+
+    std::move(callback).Run(std::move(result));
+  }
 }
 
 void MockUDPClientSocket::OnWriteComplete(int rv) {
@@ -1993,6 +2171,14 @@ int MockUDPClientSocket::CompleteRead() {
   return result;
 }
 
+void MockUDPClientSocket::ClearPendingReadState() {
+  pending_read_buf_ = nullptr;
+  pending_read_buf_len_ = 0;
+  pending_max_packet_size_ = 0;
+  pending_read_callback_.Reset();
+  pending_read_datagrams_callback_.Reset();
+}
+
 void MockUDPClientSocket::RunCallbackAsync(CompletionOnceCallback callback,
                                            int result) {
   CHECK_NE(result, ERR_IO_PENDING);
@@ -2005,6 +2191,21 @@ void MockUDPClientSocket::RunCallbackAsync(CompletionOnceCallback callback,
 void MockUDPClientSocket::RunCallback(CompletionOnceCallback callback,
                                       int result) {
   std::move(callback).Run(result);
+}
+
+void MockUDPClientSocket::RunDatagramsCallback(
+    base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)> callback,
+    base::expected<DatagramsMetadata, Error> result) {
+  std::move(callback).Run(std::move(result));
+}
+
+void MockUDPClientSocket::RunDatagramsCallbackAsync(
+    base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)> callback,
+    base::expected<DatagramsMetadata, Error> result) {
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&MockUDPClientSocket::RunDatagramsCallback,
+                                weak_factory_.GetWeakPtr(), std::move(callback),
+                                std::move(result)));
 }
 
 TestSocketRequest::TestSocketRequest(

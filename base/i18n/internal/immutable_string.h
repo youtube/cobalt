@@ -60,7 +60,9 @@ class BASE_I18N_EXPORT ImmutableString {
     StackString(StackString&& other) = default;
     StackString& operator=(StackString&& other) = default;
 
-    std::string_view AsString() const;
+    constexpr std::string_view AsString() const {
+      return std::string_view(storage_.data(), static_cast<size_t>(size_));
+    }
 
    private:
     std::array<char, kSmallBufferSize + 1u> storage_;
@@ -76,9 +78,9 @@ class BASE_I18N_EXPORT ImmutableString {
     explicit HeapString(base::span<const std::string_view> parts);
     HeapString(const HeapString& other);
     HeapString& operator=(const HeapString& other);
-    HeapString(HeapString&&);
+    constexpr HeapString(HeapString&& other) noexcept;
     HeapString& operator=(HeapString&&);
-    ~HeapString();
+    inline constexpr ~HeapString() = default;
 
     std::string_view AsString() const;
 
@@ -91,6 +93,7 @@ class BASE_I18N_EXPORT ImmutableString {
   // being defined in the header, which is necessary for compile-time functions.
   template <typename = void>
   inline constexpr ImmutableString() : storage_(StackString{}) {}
+
   inline constexpr ~ImmutableString() = default;
 
   // Constructs the string by joining multiple string_views.
@@ -101,27 +104,33 @@ class BASE_I18N_EXPORT ImmutableString {
   // to use. Note: compile-time construction only supports the small-string
   // case as base::HeapArray does not offer constexpr constructors.
   struct ForceStackString {};
-  template <typename... Args>
-    requires(std::is_convertible_v<Args, std::string_view> && ...)
-  constexpr explicit ImmutableString(ForceStackString, Args... args)
-      : storage_(StorageVariantType(StackString(
-            std::array<std::string_view, sizeof...(args)>{args...}))) {}
+  template <typename = void>
+  constexpr explicit ImmutableString(ForceStackString,
+                                     base::span<const std::string_view> parts)
+      : storage_(StorageVariantType(StackString(parts))) {}
 
-  // Copy constructor and assignment operator are required because
-  // base::HeapArray is move-only.
   ImmutableString(const ImmutableString& other);
   ImmutableString& operator=(const ImmutableString& other);
-
-  ImmutableString(ImmutableString&&);
-  ImmutableString& operator=(ImmutableString&&);
+  constexpr ImmutableString(ImmutableString&& other) noexcept;
+  ImmutableString& operator=(ImmutableString&&) noexcept;
 
   // Returns the string as a std::string_view.
-  std::string_view AsString() const;
+  constexpr std::string_view AsString() const {
+    if (const auto* ss = std::get_if<StackString>(&storage_)) {
+      return ss->AsString();
+    }
+    return std::get<HeapString>(storage_).AsString();
+  }
 
  private:
   using StorageVariantType = std::variant<StackString, HeapString>;
   StorageVariantType storage_;
 };
+
+constexpr ImmutableString::HeapString::HeapString(HeapString&& other) noexcept =
+    default;
+constexpr ImmutableString::ImmutableString(ImmutableString&& other) noexcept =
+    default;
 
 }  // namespace base::i18n::internal
 

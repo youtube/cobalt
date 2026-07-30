@@ -48,6 +48,7 @@ export function getHtml(this: ComposeboxElement) {
         .disabledTabIds="${this.addedTabsIds}"
         .aimThreadRestoredTabs="${this.aimThreadRestoredTabs}"
         .fileNum="${this.files.size}"
+        .nonTabFileNum="${this.getNonTabFileNum()}"
         .sharedTabs="${this.getSharedTabs()}"
         .isSidePanel="${this.isSidePanel}"
         ?upload-button-disabled="${this.uploadButtonDisabled}"

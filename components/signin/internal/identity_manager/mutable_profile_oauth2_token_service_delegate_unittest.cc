@@ -399,7 +399,8 @@ class MutableProfileOAuth2TokenServiceDelegateTest
       token_web_data_result_;
   int access_token_success_count_ = 0;
   int access_token_failure_count_ = 0;
-  GoogleServiceAuthError access_token_failure_{GoogleServiceAuthError::NONE};
+  GoogleServiceAuthError access_token_failure_ =
+      GoogleServiceAuthError::AuthErrorNone();
   int token_available_count_ = 0;
   int token_revoked_count_ = 0;
   int tokens_loaded_count_ = 0;

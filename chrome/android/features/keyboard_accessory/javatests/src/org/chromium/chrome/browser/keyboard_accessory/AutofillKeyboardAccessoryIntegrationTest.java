@@ -20,7 +20,7 @@ import static org.junit.Assert.assertTrue;
 import static org.chromium.base.test.util.ViewActionOnDescendant.performOnRecyclerViewNthItem;
 import static org.chromium.chrome.browser.autofill.AutofillTestHelper.createClickActionWithFlags;
 import static org.chromium.chrome.browser.autofill.AutofillTestHelper.singleMouseClickView;
-import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingTestHelper.selectTabAtPosition;
+import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingTestHelper.selectTabWithDescription;
 import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingTestHelper.waitToBeHidden;
 import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingTestHelper.whenDisplayed;
 
@@ -271,7 +271,8 @@ public class AutofillKeyboardAccessoryIntegrationTest {
                 .perform(
                         actionOnItem(
                                 isAssignableFrom(KeyboardAccessoryButtonGroupView.class),
-                                selectTabAtPosition(0)));
+                                selectTabWithDescription(
+                                        R.string.address_accessory_sheet_toggle)));
 
         whenDisplayed(withChild(withId(R.id.keyboard_accessory_sheet_frame)));
 
@@ -305,7 +306,8 @@ public class AutofillKeyboardAccessoryIntegrationTest {
                         scrollTo(isAssignableFrom(KeyboardAccessoryButtonGroupView.class)),
                         actionOnItem(
                                 isAssignableFrom(KeyboardAccessoryButtonGroupView.class),
-                                selectTabAtPosition(0)));
+                                selectTabWithDescription(
+                                        R.string.address_accessory_sheet_toggle)));
 
         whenDisplayed(withId(R.id.keyboard_accessory_sheet_frame), /* atLeast= */ 51)
                 .check(

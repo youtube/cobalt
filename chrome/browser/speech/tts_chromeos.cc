@@ -7,9 +7,9 @@
 #include <algorithm>
 #include <utility>
 
+#include "ash/constants/ash_extension_constants.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "chromeos/ash/experiences/arc/mojom/tts.mojom.h"
 #include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
 #include "chromeos/ash/experiences/arc/session/arc_service_manager.h"

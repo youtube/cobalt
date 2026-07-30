@@ -1121,6 +1121,10 @@ NET_ERROR(DNS_REFUSED, -819)
 // - REFUSED
 NET_ERROR(DNS_OTHER_FAILURE, -820)
 
+// Declined to call DNS for a direct_only request of a hostname whose traffic
+// would be routed through a proxy.
+NET_ERROR(DNS_DIRECT_ONLY, -821)
+
 // The following errors are for mapped from a subset of invalid
 // storage::BlobStatus.
 

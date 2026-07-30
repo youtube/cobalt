@@ -97,6 +97,23 @@ suite('TopToolbarTest', () => {
       assertFalse(historyButton.hidden);
     });
 
+    test('history button visibility with eligibility and signin', async () => {
+      const historyButton = topToolbar.$.threadHistoryButton;
+      assertTrue(!!historyButton);
+
+      topToolbar.isAiPage = true;
+
+      // Case 1: Signed In -> Visible
+      topToolbar.isUserSignedIn = true;
+      await microtasksFinished();
+      assertFalse(historyButton.hidden);
+
+      // Case 2: Signed Out -> Hidden
+      topToolbar.isUserSignedIn = false;
+      await microtasksFinished();
+      assertTrue(historyButton.hidden);
+    });
+
     test('handles close button click', async () => {
       const closeButton = topToolbar.$.closeButton;
       assertTrue(!!closeButton);
@@ -745,5 +762,30 @@ suite('TopToolbarTest', () => {
     const newThreadButton = topToolbar.$.newThreadButton;
     assertTrue(!!newThreadButton);
     assertTrue(newThreadButton.hidden);
+  });
+
+  test('highlights overflow menu button when menu is open', async () => {
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    topToolbar = document.createElement('top-toolbar');
+    document.body.appendChild(topToolbar);
+    await microtasksFinished();
+
+    const overflowMenuButton =
+        topToolbar.shadowRoot.querySelector<HTMLElement>('#overflowMenuButton');
+    assertTrue(!!overflowMenuButton);
+    assertFalse(overflowMenuButton.classList.contains('active'));
+
+    // Open overflow menu
+    overflowMenuButton.click();
+    await microtasksFinished();
+
+    assertTrue(overflowMenuButton.classList.contains('active'));
+
+    // Close overflow menu
+    const menu = topToolbar.$.overflowMenu.get();
+    menu.close();
+    await microtasksFinished();
+
+    assertFalse(overflowMenuButton.classList.contains('active'));
   });
 });

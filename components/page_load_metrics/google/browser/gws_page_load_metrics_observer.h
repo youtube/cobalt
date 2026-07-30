@@ -52,6 +52,7 @@ extern const char kHistogramGWSConnectTimingFinalRequestSslDelay[];
 
 extern const char kHistogramGWSInteractionToActualNavigationStart[];
 extern const char kHistogramGWSInteractionToNavigationStart[];
+extern const char kHistogramGWSInteractionToAFTEnd[];
 extern const char kHistogramGWSNavigationStartToNavigationCommitSent[];
 extern const char kHistogramGWSNavigationCommitSentToParseStart[];
 extern const char kHistogramGWSParseStartToFirstContentfulPaint[];

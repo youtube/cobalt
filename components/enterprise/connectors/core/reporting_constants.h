@@ -97,6 +97,8 @@ inline constexpr char kContentTransferMethodDragAndDrop[] =
     "CONTENT_TRANSFER_METHOD_DRAG_AND_DROP";
 inline constexpr char kContentTransferMethodFilePaste[] =
     "CONTENT_TRANSFER_METHOD_FILE_PASTE";
+inline constexpr char kContentTransferMethodClipboardCopy[] =
+    "CONTENT_TRANSFER_METHOD_CLIPBOARD_COPY";
 
 // All the reporting events that can be set in the `enabled_events_names` field
 // of `ReportingSettings`

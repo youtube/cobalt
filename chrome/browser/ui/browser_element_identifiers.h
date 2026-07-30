@@ -153,6 +153,7 @@ DECLARE_ELEMENT_IDENTIFIER_VALUE(kOmniboxElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kAiOverlayDialogWebViewElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kOptimizationGuideChipElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kPasswordsOmniboxKeyIconElementId);
+DECLARE_ELEMENT_IDENTIFIER_VALUE(kPaymentsChurnedUsersBubbleId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kPerformanceSidePanelWebViewElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(
     kPinnedToolbarActionsContainerDividerElementId);

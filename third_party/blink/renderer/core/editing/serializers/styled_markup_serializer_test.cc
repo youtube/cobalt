@@ -189,7 +189,7 @@ TEST_F(StyledMarkupSerializerTest, ShadowTreeNested) {
   const char* shadow_content2 = "NESTED";
   SetBodyContent(body_content);
   ShadowRoot* shadow_root1 = SetShadowContent(shadow_content1, "host");
-  CreateShadowRootForElementWithIDAndSetInnerHTML(*shadow_root1, "host2",
+  CreateShadowRootForElementWithIdAndSetInnerHtml(*shadow_root1, "host2",
                                                   shadow_content2);
 
   EXPECT_EQ(

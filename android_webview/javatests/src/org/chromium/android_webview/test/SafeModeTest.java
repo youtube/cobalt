@@ -638,16 +638,16 @@ public class SafeModeTest extends AwParameterizedTest {
     @Test
     @MediumTest
     @Feature({"AndroidWebView"})
-    public void testQueryActions_enablesActions() throws Throwable {
+    public void testEnableAction() throws Throwable {
         TestSafeModeAction testAction1 = new TestSafeModeAction("test1");
         TestSafeModeAction testAction2 = new TestSafeModeAction("test2");
-        setSafeMode(List.of("test2"));
+        setSafeMode(List.of("test1", "test2"));
         SafeModeController controller = SafeModeController.getInstance();
         controller.registerActions(new SafeModeAction[] {testAction1, testAction2});
         Assert.assertFalse(controller.isActionEnabled(testAction1.getId()));
         Assert.assertFalse(controller.isActionEnabled(testAction2.getId()));
 
-        controller.queryActions(TEST_WEBVIEW_PACKAGE_NAME);
+        controller.enableAction("test2");
         Assert.assertFalse(controller.isActionEnabled(testAction1.getId()));
         Assert.assertTrue(controller.isActionEnabled(testAction2.getId()));
     }

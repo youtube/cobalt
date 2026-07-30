@@ -189,7 +189,8 @@ public final class ChromePreferenceKeys {
     public static final String CONTEXT_MENU_OPEN_IN_EPHEMERAL_TAB_CLICKED =
             "Chrome.Contextmenu.OpenInEphemeralTabClicked";
 
-    public static final String CONTEXT_MENU_SEARCH_WITH_GOOGLE_LENS_CLICKED =
+    /** Note: The string value intentionally omits "Image" for backward compatibility. */
+    public static final String CONTEXT_MENU_SEARCH_IMAGE_WITH_GOOGLE_LENS_CLICKED =
             "Chrome.ContextMenu.SearchWithGoogleLensClicked";
 
     public static final String CONTEXT_MENU_SHOP_IMAGE_WITH_GOOGLE_LENS_CLICKED =
@@ -797,7 +798,7 @@ public final class ChromePreferenceKeys {
             "Chrome.Privacy.UsageAndCrashReportingPermittedByUser";
 
     // TODO(b/483043192): Remove this preference once metrics reporting migration is complete.
-    public static final String PRIVACY_METRICS_REPORTING_PERMITTED_BY_POLICY_LEGACY =
+    public static final String PRIVACY_METRICS_REPORTING_PERMITTED_BY_POLICY =
             "Chrome.Privacy.UsageAndCrashReportingPermittedByPolicy";
 
     /**
@@ -1200,7 +1201,7 @@ public final class ChromePreferenceKeys {
                 COMMERCE_SUBSCRIPTIONS_CHROME_MANAGED_TIMESTAMP,
                 CONTEXT_MENU_OPEN_IMAGE_IN_EPHEMERAL_TAB_CLICKED,
                 CONTEXT_MENU_OPEN_IN_EPHEMERAL_TAB_CLICKED,
-                CONTEXT_MENU_SEARCH_WITH_GOOGLE_LENS_CLICKED,
+                CONTEXT_MENU_SEARCH_IMAGE_WITH_GOOGLE_LENS_CLICKED,
                 CONTEXT_MENU_SHOP_IMAGE_WITH_GOOGLE_LENS_CLICKED,
                 CROSS_DEVICE_IMPORTED_BOTTOM_OMNIBOX,
                 CROSS_DEVICE_IMPORTED_ALL_SETTINGS,
@@ -1314,7 +1315,7 @@ public final class ChromePreferenceKeys {
                 PRICE_TRACKING_USER_MANAGED_NOTIFICATIONS_TIMESTAMPS,
                 PRIVACY_IN_SAMPLE_FOR_CRASHES,
                 PRIVACY_METRICS_REPORTING_PERMITTED_BY_USER,
-                PRIVACY_METRICS_REPORTING_PERMITTED_BY_POLICY_LEGACY,
+                PRIVACY_METRICS_REPORTING_PERMITTED_BY_POLICY,
                 PRIVACY_METRICS_REPORTING_LEVEL,
                 PRIVACY_METRICS_REPORTING_DISABLED_BY_POLICY,
                 PRIVACY_SHOULD_USE_METRICS_CHOICE_RESTRUCTURE,

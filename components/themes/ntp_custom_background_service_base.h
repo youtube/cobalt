@@ -80,8 +80,7 @@ class NtpCustomBackgroundServiceBase : public KeyedService,
 
  protected:
   // Returns the timestamp for the next daily refresh. Returns std::nullopt if
-  // daily refresh is not enabled.
-  // TODO(crbug.com/456789190): Subclasses can override this to provide a fake
+  // daily refresh is not enabled.Subclasses can override this to provide a fake
   // timestamp if they handle daily refresh scheduling elsewhere (e.g. Android).
   virtual std::optional<int> GetNextRefreshTimestamp() const;
 

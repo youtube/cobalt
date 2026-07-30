@@ -191,7 +191,17 @@ function main() {
   }
 
   const csvPath = path.resolve(csvFile);
-  const dateStr = new Date().toISOString();
+  // Find the commit that matches the Cr-Commit-Position for the given revision,
+  // and extract its commit date in ISO 8601 format.
+  const dateStr =
+      execSync(
+          `git log -n 1 --grep="^Cr-Commit-Position: refs/heads/main@{#${
+              revision}}" --format=%cI`,
+          {cwd: WORKSPACE_ROOT, encoding: 'utf-8'})
+          .trim();
+  assert.ok(
+      dateStr, `Error: Failed to get commit date for revision ${revision}`);
+
   const csvLine = `${dateStr},${revision},${neutralFiles.length},${
       totalPolymer},${totalLit}\n`;
 

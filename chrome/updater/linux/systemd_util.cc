@@ -27,12 +27,12 @@
 #include "base/posix/eintr_wrapper.h"
 #include "base/process/launch.h"
 #include "base/process/process.h"
-#include "base/strings/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
 #include "chrome/updater/constants.h"
 #include "chrome/updater/linux/ipc_constants.h"
 #include "chrome/updater/updater_branding.h"
 #include "chrome/updater/util/posix_util.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 namespace updater {
 
@@ -203,12 +203,12 @@ bool InstallSystemdUnits(UpdaterScope scope) {
 
   if (!InstallSystemdUnit(
           unit_dir->Append(kUpdaterServiceName),
-          base::StringPrintf(
+          absl::StrFormat(
               kUpdaterServiceDefinitionTemplate,
               GetLauncherCommandLine(scope, *launcher_path).c_str())) ||
       !InstallSystemdUnit(
           unit_dir->Append(kUpdaterSocketName),
-          base::StringPrintf(
+          absl::StrFormat(
               kUpdaterSocketDefinitionTemplate,
               GetActivationSocketPath(scope).AsUTF8Unsafe().c_str()))) {
     // Avoid a partial installation.

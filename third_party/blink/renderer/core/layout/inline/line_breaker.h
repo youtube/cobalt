@@ -301,6 +301,7 @@ class CORE_EXPORT LineBreaker {
   bool IsAtEnd() const { return current_.item_index >= end_item_index_; }
 
   void ComputeBaseDirection();
+  LayoutUnit ComputeFloatOffset() const;
   void RecalcClonedBoxDecorations();
 
   LayoutUnit AvailableWidth() const { return available_width_; }

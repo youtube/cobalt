@@ -104,12 +104,10 @@ class DiskImageProgressObserver {
                                    int progress) = 0;
 };
 
-class CrostiniDialogStatusObserver : public base::CheckedObserver {
+class CrostiniInstallerStatusObserver : public base::CheckedObserver {
  public:
-  // Called when a Crostini dialog (installer, upgrader, etc.) opens or
-  // closes.
-  virtual void OnCrostiniDialogStatusChanged(DialogType dialog_type,
-                                             bool open) = 0;
+  // Called when the Crostini installer dialog opens or closes.
+  virtual void OnCrostiniInstallerStatusChanged(bool open) = 0;
 };
 
 class ContainerShutdownObserver : public base::CheckedObserver {
@@ -535,12 +533,13 @@ class CrostiniManager : public KeyedService,
   void set_skip_restart_for_testing() { skip_restart_for_testing_ = true; }
   bool skip_restart_for_testing() { return skip_restart_for_testing_; }
 
-  void SetCrostiniDialogStatus(DialogType dialog_type, bool open);
-  // Returns true if the dialog is open.
-  bool GetCrostiniDialogStatus(DialogType dialog_type) const;
-  void AddCrostiniDialogStatusObserver(CrostiniDialogStatusObserver* observer);
-  void RemoveCrostiniDialogStatusObserver(
-      CrostiniDialogStatusObserver* observer);
+  void SetCrostiniInstallerOpen(bool open);
+  // Returns true if the installer dialog is open.
+  bool IsCrostiniInstallerOpen() const;
+  void AddCrostiniInstallerStatusObserver(
+      CrostiniInstallerStatusObserver* observer);
+  void RemoveCrostiniInstallerStatusObserver(
+      CrostiniInstallerStatusObserver* observer);
 
   void AddContainerShutdownObserver(ContainerShutdownObserver* observer);
   void RemoveContainerShutdownObserver(ContainerShutdownObserver* observer);
@@ -839,15 +838,13 @@ class CrostiniManager : public KeyedService,
       restarters_by_container_;
   static RestartId next_restart_id_;
 
-  base::ObserverList<CrostiniDialogStatusObserver>
-      crostini_dialog_status_observers_;
+  base::ObserverList<CrostiniInstallerStatusObserver>
+      crostini_installer_status_observers_;
 
   base::ObserverList<ContainerShutdownObserver> container_shutdown_observers_;
 
-  // Contains the types of crostini dialogs currently open. It is generally
-  // invalid to show more than one. e.g. uninstalling and installing are
-  // mutually exclusive.
-  base::flat_set<DialogType> open_crostini_dialogs_;
+  // Whether the crostini installer dialog is currently open.
+  bool crostini_installer_open_ = false;
 
   bool dbus_observers_removed_ = false;
 

@@ -992,20 +992,16 @@ TEST_P(AppManagementPageHandlerArcTest, SetAppLocale) {
 INSTANTIATE_TEST_SUITE_P(
     ,
     AppManagementPageHandlerArcTest,
-    testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff),
+    testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff,
+                    apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
     apps::test::LinkCapturingVersionToString);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 INSTANTIATE_TEST_SUITE_P(
     ,
     AppManagementPageHandlerTestBase,
-#if BUILDFLAG(IS_CHROMEOS)
-    testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff)
-#else
     testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff,
-                    apps::test::LinkCapturingFeatureVersion::kV2DefaultOn)
-#endif  // BUILDFLAG(IS_CHROMEOS)
-        ,
+                    apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
     apps::test::LinkCapturingVersionToString);
 
 // Tests that when `kUpdateAppStringsOnSettings` is enabled, browser-tab web
@@ -1103,12 +1099,8 @@ INSTANTIATE_TEST_SUITE_P(
     ,
     AppManagementPageHandlerWithUpdateStringsTest,
     testing::Combine(
-#if BUILDFLAG(IS_CHROMEOS)
-        testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff),
-#else
         testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff,
                         apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
-#endif  // BUILDFLAG(IS_CHROMEOS)
         testing::Values(LaunchHandlerTest::kNavigateNew,
                         LaunchHandlerTest::kNavigateExisting,
                         LaunchHandlerTest::kFocusExisting,

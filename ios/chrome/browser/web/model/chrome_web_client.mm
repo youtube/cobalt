@@ -134,6 +134,7 @@
 #import "ui/base/l10n/l10n_util.h"
 #import "ui/base/resource/resource_bundle.h"
 #import "url/gurl.h"
+#import "url/url_constants.h"
 
 namespace {
 // The tag describing the product name with a placeholder for the version.
@@ -283,6 +284,16 @@ std::string GetDesktopProduct() {
                             version_info::GetMajorVersionNumber().c_str());
 }
 
+// Filter javascript: URLs and replace them by about:blank.
+bool WillHandleWebBrowserJavascriptURLs(GURL* url, web::BrowserState*) {
+  if (url->is_valid() && url->SchemeIs(url::kJavaScriptScheme)) {
+    *url = GURL(url::kAboutBlankURL);
+    return true;
+  }
+
+  return false;
+}
+
 }  // namespace
 
 ChromeWebClient::ChromeWebClient() {}
@@ -374,6 +385,7 @@ void ChromeWebClient::GetAdditionalWebUISchemes(
 
 void ChromeWebClient::PostBrowserURLRewriterCreation(
     web::BrowserURLRewriter* rewriter) {
+  rewriter->AddURLRewriter(&WillHandleWebBrowserJavascriptURLs);
   rewriter->AddURLRewriter(&WillHandleWebBrowserNewTabPageURLForPolicy);
   rewriter->AddURLRewriter(&WillHandleWebBrowserAboutURL);
   ios::provider::AddURLRewriters(rewriter);

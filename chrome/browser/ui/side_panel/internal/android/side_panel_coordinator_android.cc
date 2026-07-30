@@ -270,31 +270,37 @@ void SidePanelCoordinatorAndroid::OnTabReparented(tabs::TabInterface* tab) {
   }
 }
 
-void SidePanelCoordinatorAndroid::OnWindowResized(JNIEnv* env,
-                                                  bool can_show_side_panel) {
-  SPLOG("OnWindowResized - can_show_side_panel: " << can_show_side_panel);
+void SidePanelCoordinatorAndroid::OnWillAutoClose(JNIEnv* env) {
+  SPLOG("OnWillAutoClose");
 
-  if (is_window_too_small_ == !can_show_side_panel) {
+  if (has_insufficient_space_) {
     return;
   }
 
-  is_window_too_small_ = !can_show_side_panel;
+  has_insufficient_space_ = true;
 
-  // Case 1: Window became too small. Hide the current side panel.
-  if (!can_show_side_panel) {
-    if (IsSidePanelShowing() && state_ != SidePanelState::kClosing) {
-      deferred_entry_tracker_.AddActiveEntries();
+  if (IsSidePanelShowing() && state_ != SidePanelState::kClosing) {
+    deferred_entry_tracker_.AddActiveEntries();
 
-      Close(SidePanelEntryHideReason::kWindowResized,
-            /*suppress_animations=*/true);
-    }
+    // TODO(crbug.com/527985639): Rename `kWindowResized` as
+    // `kInsufficientSpace`.
+    Close(SidePanelEntryHideReason::kWindowResized,
+          /*suppress_animations=*/true);
+  }
+}
+
+void SidePanelCoordinatorAndroid::OnWillAutoRestore(JNIEnv* env) {
+  SPLOG("OnWillAutoRestore");
+
+  if (!has_insufficient_space_) {
     return;
   }
 
-  // Case 2: Window became large enough. Restore deferred entries.
+  has_insufficient_space_ = false;
+
   CHECK(!IsSidePanelShowing() || state_ == SidePanelState::kClosing)
-      << "Side panel should not be visible when the window changes from "
-         "being too small to being large enough.";
+      << "Side panel should not be visible when the available space changes"
+         " from insufficient to sufficient.";
 
   tabs::TabInterface* active_tab =
       TabListInterface::From(browser())->GetActiveTab();
@@ -386,6 +392,8 @@ void SidePanelCoordinatorAndroid::Show(
     const UniqueKey& key,
     std::optional<SidePanelOpenTrigger> open_trigger,
     bool suppress_animations) {
+  // TODO(crbug.com/503719405): Remove CHECK once param is non-optional.
+  CHECK(open_trigger.has_value());
   SPLOG("Show - key: " << key << ", open_trigger: "
                        << (open_trigger ? ToString(*open_trigger) : "nullopt")
                        << ", suppress_animations: " << suppress_animations
@@ -397,9 +405,10 @@ void SidePanelCoordinatorAndroid::Show(
     return;
   }
 
-  // Defer the show request if the window is too small to show the side panel.
-  if (is_window_too_small_) {
-    SPLOG("Show - window is too small, skipping.");
+  // Defer the show request if there is insufficient space to show the side
+  // panel.
+  if (has_insufficient_space_) {
+    SPLOG("Show - insufficient space, skipping.");
     deferred_entry_tracker_.AddEntry(key);
     return;
   }
@@ -450,6 +459,7 @@ void SidePanelCoordinatorAndroid::PopulateSidePanel(
     std::optional<SidePanelOpenTrigger> open_trigger,
     SidePanelEntry* entry,
     std::optional<SidePanelNativeView> content_view) {
+  entry->set_last_open_trigger(open_trigger);
   SPLOG("PopulateSidePanel - unique_key: "
         << unique_key << ", suppress_animations: " << suppress_animations);
   std::unique_ptr<SidePanelNativeViewAndroid> native_view =
@@ -514,17 +524,9 @@ void SidePanelCoordinatorAndroid::ReplaceActiveEntry(
 
   // The existing panel will receive a hidden event, which needs a reason.
   pending_hide_reason_ = SidePanelEntryHideReason::kReplaced;
-  if (open_trigger && *open_trigger == SidePanelOpenTrigger::kTabChanged) {
-    pending_hide_reason_ = SidePanelEntryHideReason::kBackgrounded;
-  } else if (!open_trigger && previous_key.tab_handle && new_key.tab_handle &&
-             previous_key.tab_handle != new_key.tab_handle) {
-    // Some side panel features observe active tab changes on their own and call
-    // `SidePanelCoordinatorAndroid::Show` without an `open_trigger`. In such
-    // cases, we use the entry keys' `tab_handle`s as a heuristic to
-    // determine if `SidePanelEntryHideReason` should be `kBackgrounded`.
-    //
-    // TODO(crbug.com/503719405): Investigate whether we should always require
-    // `open_trigger` for `SidePanelCoordinatorAndroid::Show`.
+  // TODO(crbug.com/503719405): Remove CHECK once param is non-optional.
+  CHECK(open_trigger.has_value());
+  if (*open_trigger == SidePanelOpenTrigger::kTabChanged) {
     pending_hide_reason_ = SidePanelEntryHideReason::kBackgrounded;
   }
 
@@ -578,9 +580,10 @@ void SidePanelCoordinatorAndroid::MaybeShowEntryOnTabStripModelChanged(
         // If there is no active entry in the new tab's registry, check if there
         // is a deferred entry saved in the tracker for this tab or this window.
         // This handles cases where a side panel was hidden due to constraints
-        // like a narrow window size.
-        // `Show()` handles `is_window_too_small_ == true`, and adds the entry
-        // to `SidePanelDeferredEntryTracker` if needed.
+        // like insufficient space.
+        //
+        // `Show()` handles `has_insufficient_space_ == true`, and adds the
+        // entry to `SidePanelDeferredEntryTracker` if needed.
         std::optional<UniqueKey> key_to_show = deferred_entry_tracker_.GetEntry(
             new_contextual_registry->GetTabInterface().GetHandle());
         if (key_to_show) {
@@ -608,8 +611,8 @@ void SidePanelCoordinatorAndroid::MaybeShowEntryOnTabStripModelChanged(
     // If there is no active entry in the new tab's registry, check if there
     // is a deferred entry saved in the tracker for this tab or this window.
     // This handles cases where a side panel was hidden due to constraints
-    // like a narrow window size.
-    // `Show()` handles `is_window_too_small_ == true`, and adds the entry
+    // like insufficient space.
+    // `Show()` handles `has_insufficient_space_ == true`, and adds the entry
     // to `SidePanelDeferredEntryTracker` if needed.
     std::optional<UniqueKey> key_to_show = deferred_entry_tracker_.GetEntry(
         new_contextual_registry->GetTabInterface().GetHandle());

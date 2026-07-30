@@ -227,7 +227,8 @@ IndexedDBTestBase::CreateDatabase(
                        database_callbacks.CreateInterfacePtrAndBind(), name,
                        version,
                        transaction_remote.BindNewEndpointAndPassReceiver(),
-                       transaction_id, /*priority=*/0);
+                       transaction_id, /*priority=*/0,
+                       /*request_shared_connection=*/false);
 
   transaction_remote->Commit(0);
   EXPECT_CALL(database_callbacks, Complete(transaction_id)).Times(1);
@@ -261,7 +262,8 @@ IndexedDBTestBase::OpenDatabase(
                        database_callbacks.CreateInterfacePtrAndBind(), name,
                        /*version=*/1,
                        transaction_remote.BindNewEndpointAndPassReceiver(),
-                       transaction_id, /*priority=*/0);
+                       transaction_id, /*priority=*/0,
+                       /*request_shared_connection=*/false);
   run_loop.Run();
 
   return mojo::AssociatedRemote<blink::mojom::IDBDatabase>(

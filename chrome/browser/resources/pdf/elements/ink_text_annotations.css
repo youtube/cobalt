@@ -8,6 +8,7 @@
  * #css_wrapper_metadata_end */
 
 :host {
+  display: block;
   left: 0;
   overflow: hidden;
   pointer-events: none; /* Let clicks pass through to PDF plugin */
@@ -17,9 +18,12 @@
 }
 
 #container {
+  display: block;
   height: 100%;
-  pointer-events: none;
+  overflow: hidden;
+  position: relative;
   width: 100%;
+  z-index: 0; /* Give the container its own stacking context. */
 }
 
 .placeholder {

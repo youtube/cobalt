@@ -3022,6 +3022,7 @@ public class SiteSettingsTest {
     @Feature({"Preferences"})
     @CommandLineFlags.Add(BaseSwitches.ENABLE_LOW_END_DEVICE_MODE)
     @EnableFeatures("DefaultPassthroughCommandDecoder")
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/527592668
     public void testAddingJavascriptOptimizerExceptionsBlockedIfNotEnoughRam() {
         /* This test relies on site isolation memory thresholds being enabled. Skip if that
          * feature is disable.

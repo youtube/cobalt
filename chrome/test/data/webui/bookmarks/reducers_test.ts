@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import type {BookmarksPageState, FolderOpenState, NodeMap, SelectionState, SelectItemsAction} from 'chrome://bookmarks/bookmarks.js';
-import {ACCOUNT_HEADING_NODE_ID, changeFolderOpen, clearSearch, createBookmark, createEmptyState, deselectItems, editBookmark, getDisplayedList, isShowingSearch, LOCAL_HEADING_NODE_ID, moveBookmark, reduceAction, refreshNodes, removeBookmark, reorderChildren, ROOT_NODE_ID, selectFolder, setSearchResults, setSearchTerm, updateAnchor, updateFolderOpenState, updateNodes, updateSelection} from 'chrome://bookmarks/bookmarks.js';
+import {ACCOUNT_HEADING_NODE_ID, changeFolderOpen, clearSearch, createBookmark, createEmptyState, deselectItems, editBookmark, getDisplayedList, isShowingSearch, LOCAL_HEADING_NODE_ID, moveBookmark, normalizeNode, reduceAction, refreshNodes, removeBookmark, reorderChildren, ROOT_NODE_ID, selectFolder, setSearchResults, setSearchTerm, updateAnchor, updateFolderOpenState, updateNodes, updateSelection} from 'chrome://bookmarks/bookmarks.js';
 import type {Action} from 'chrome://resources/js/store.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
@@ -492,7 +492,8 @@ suite('node state', function() {
       parentId: '1',
       index: 2,
     };
-    action = createBookmark(folder.id, folder);
+    action =
+        createBookmark(folder.parentId, folder.index, normalizeNode(folder));
     nodes = updateNodes(nodes, action);
 
     assertEquals('1', nodes['6']!.parentId);
@@ -508,7 +509,7 @@ suite('node state', function() {
       url: 'https://www.example.com',
     };
 
-    action = createBookmark(item.id, item);
+    action = createBookmark(item.parentId, item.index, normalizeNode(item));
     nodes = updateNodes(nodes, action);
 
     assertEquals('6', nodes['7']!.parentId);

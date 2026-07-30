@@ -35,6 +35,10 @@ void ToyTabDragSessionListener::OnDragMoved(const gfx::Point& screen_point) {
   events_.push_back({.type = Event::Type::kMoved, .point = screen_point});
 }
 
+void ToyTabDragSessionListener::OnDragDetached(const gfx::Point& screen_point) {
+  events_.push_back({.type = Event::Type::kDetached, .point = screen_point});
+}
+
 void ToyTabDragSessionListener::OnSessionDropped(
     const gfx::Point& screen_point) {
   events_.push_back({.type = Event::Type::kDropped, .point = screen_point});

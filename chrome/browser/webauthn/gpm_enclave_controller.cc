@@ -746,10 +746,6 @@ void GPMEnclaveController::RefreshStateAndRepeatOperation() {
 }
 
 bool GPMEnclaveController::ShouldRefreshState() {
-  if (!base::FeatureList::IsEnabled(
-          device::kWebAuthnEnableRefreshingStateOfGpmEnclaveController)) {
-    return false;
-  }
   // In case of removing passkey access Enclave Manager might become
   // unregistered but GPM Enclave Controller might still be in the active
   // state.

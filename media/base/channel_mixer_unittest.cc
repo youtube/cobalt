@@ -47,9 +47,8 @@ TEST(ChannelMixerTest, ConstructAllPossibleLayouts) {
 
       SCOPED_TRACE(base::StringPrintf(
           "Input Layout: %d, Output Layout: %d", input_layout, output_layout));
-      ChannelMixer mixer(
-          input_layout, ChannelLayoutToChannelCount(input_layout),
-          output_layout, ChannelLayoutToChannelCount(output_layout));
+      ChannelMixer mixer(ChannelLayoutConfig::FromLayout(input_layout),
+                         ChannelLayoutConfig::FromLayout(output_layout));
       std::unique_ptr<AudioBus> input_bus =
           AudioBus::Create(ChannelLayoutToChannelCount(input_layout), kFrames);
       std::unique_ptr<AudioBus> output_bus =

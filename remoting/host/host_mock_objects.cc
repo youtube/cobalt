@@ -63,8 +63,7 @@ MockSecurityKeyAuthHandler::GetSendMessageCallback() {
   return callback_;
 }
 
-base::WeakPtr<MockSecurityKeyAuthHandler>
-MockSecurityKeyAuthHandler::GetWeakPtr() {
+base::WeakPtr<SecurityKeyAuthHandler> MockSecurityKeyAuthHandler::GetWeakPtr() {
   return weak_factory_.GetWeakPtr();
 }
 

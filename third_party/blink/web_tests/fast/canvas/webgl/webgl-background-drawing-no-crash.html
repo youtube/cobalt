@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>WebGL background drawing and binding does not crash</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/run-after-layout-and-paint.js"></script>
+</head>
+<body>
+<canvas id="canvas" width="100" height="100"></canvas>
+<script>
+async_test(t => {
+  const canvas = document.getElementById("canvas");
+
+  // Adopt canvas to a new document and adopt back to force DidMoveToNewDocument and SetPage()
+  const otherDoc = document.implementation.createHTMLDocument();
+  otherDoc.adoptNode(canvas);
+  document.adoptNode(canvas);
+  document.body.appendChild(canvas);
+
+  console.log("INITIAL STATE: " + document.visibilityState);
+
+  const gl = canvas.getContext("webgl");
+  assert_not_equals(gl, null, "WebGL context should be initialized successfully");
+
+  // 1. Listen for visibilitychange event to ensure propagation is complete
+  document.addEventListener('visibilitychange', t.step_func(() => {
+    console.log("EVENT FIRED: " + document.visibilityState);
+    if (document.visibilityState === 'hidden') {
+      // 3. Try drawing in the background (page visibility is hidden)
+      // Since the back buffer was discarded, this operation must trigger
+      // MaybeRecreateBackColorBuffer() to recreate it.
+      try {
+        gl.clearColor(0.0, 0.0, 1.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        assert_equals(gl.getError(), gl.NO_ERROR, "Should not trigger any GL errors during background draw");
+
+        // Simulate bind framebuffer operations
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        assert_equals(gl.getError(), gl.NO_ERROR, "Should not trigger any GL errors during background bind");
+      } catch (e) {
+        assert_unreached("WebGL operations in the background should not throw any errors: " + e);
+      }
+
+      // 4. Restore page visibility
+      if (window.testRunner) {
+        testRunner.setMainWindowHidden(false);
+      }
+    } else if (document.visibilityState === 'visible') {
+      // 5. Do one last draw to ensure it continues rendering successfully
+      try {
+        gl.clearColor(1.0, 0.0, 0.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+      } catch (e) {
+        assert_unreached("WebGL operations after visibility restore should not throw any errors: " + e);
+      }
+
+      t.done();
+    }
+  }));
+
+  // 2. Hide the page programmatically using testRunner if present
+  // Since we haven't drawn anything yet, contents_changed_ is false,
+  // so the back buffer will be immediately discarded upon hiding.
+  if (window.testRunner) {
+    testRunner.setMainWindowHidden(true);
+  } else {
+    // Fallback for manual testing: just run operations immediately
+    t.done();
+  }
+}, "Verifies that drawing and binding to a WebGL context while the page is in hidden/background state does not cause crashes or errors.");
+</script>
+</body>
+</html>

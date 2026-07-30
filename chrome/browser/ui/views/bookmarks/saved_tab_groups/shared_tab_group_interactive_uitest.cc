@@ -25,13 +25,17 @@
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/test/tab_strip_interactive_test_mixin.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
+#include "components/bookmarks/common/bookmark_bar_visibility_state.h"
+#include "components/bookmarks/common/bookmark_pref_names.h"
 #include "components/collaboration/public/messaging/activity_log.h"
 #include "components/collaboration/public/messaging/messaging_backend_service.h"
 #include "components/data_sharing/public/data_sharing_service.h"
 #include "components/data_sharing/public/features.h"
 #include "components/data_sharing/public/group_data.h"
+#include "components/prefs/pref_service.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
+#include "components/search/ntp_features.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
@@ -76,10 +80,20 @@ class SharedTabGroupInteractiveUiTest
   }
 
   MultiStep ShowBookmarksBar() {
-    return Steps(PressButton(kToolbarAppMenuButtonElementId),
-                 SelectMenuItem(AppMenuModel::kBookmarksMenuItem),
-                 SelectMenuItem(BookmarkSubMenuModel::kShowBookmarkBarMenuItem),
-                 WaitForShow(kBookmarkBarElementId));
+    return Steps(
+        Do([this]() {
+          PrefService* prefs = browser()->profile()->GetPrefs();
+          if (base::FeatureList::IsEnabled(
+                  ntp_features::kNtpSimplificationBookmarkBar)) {
+            prefs->SetInteger(
+                bookmarks::prefs::kBookmarkBarVisibilityState,
+                static_cast<int>(
+                    bookmarks::BookmarkBarVisibilityState::kAlwaysShow));
+          } else {
+            prefs->SetBoolean(bookmarks::prefs::kShowBookmarkBar, true);
+          }
+        }),
+        WaitForShow(kBookmarkBarElementId));
   }
 
   MultiStep NameTabGroupHeaderView(TabGroupId group_id, std::string name) {

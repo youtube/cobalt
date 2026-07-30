@@ -12,6 +12,8 @@
 #include "components/policy/core/common/management/platform_management_status_provider_win.h"
 #elif BUILDFLAG(IS_IOS)
 #include "components/policy/core/common/management/platform_management_status_provider_ios.h"
+#elif BUILDFLAG(IS_ANDROID)
+#include "components/policy/core/common/management/platform_management_status_provider_android.h"
 #endif
 
 namespace policy {
@@ -30,6 +32,9 @@ GetPlatformManagementSatusProviders() {
 #endif
 #if BUILDFLAG(IS_IOS)
   providers.push_back(std::make_unique<DeviceManagementStatusProvider>());
+#endif
+#if BUILDFLAG(IS_ANDROID)
+  providers.push_back(std::make_unique<AndroidManagementStatusProvider>());
 #endif
   return providers;
 }
@@ -61,12 +66,6 @@ void PlatformManagementService::AddChromeOsStatusProvider(
 }
 #endif
 
-#if BUILDFLAG(IS_ANDROID)
-void PlatformManagementService::AddAndroidStatusProvider(
-    std::unique_ptr<ManagementStatusProvider> provider) {
-  AddManagementStatusProvider(std::move(provider));
-  has_android_status_provider_ = true;
-}
-#endif
+
 
 }  // namespace policy

@@ -57,6 +57,6 @@ void ActorInternalsUI::CreatePageHandler(
   actor::ActorService* service =
       actor::ActorServiceFactory::GetForProfile(profile_);
   actor::AggregatedJournal* journal = service ? service->GetJournal() : nullptr;
-  handler_ = std::make_unique<ActorInternalsHandler>(journal, std::move(page),
-                                                     std::move(receiver));
+  handler_ = std::make_unique<ActorInternalsHandler>(
+      web_ui()->GetWebState(), journal, std::move(page), std::move(receiver));
 }

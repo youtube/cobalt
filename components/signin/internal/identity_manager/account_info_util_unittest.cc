@@ -365,7 +365,8 @@ TEST(AccountInfoUtilTest, SerializeAndDeserializeAccountCapabilities) {
 
   base::DictValue dict = SerializeAccountCapabilities(capabilities);
   AccountCapabilities deserialized_capabilities =
-      DeserializeAccountCapabilities(dict);
+      DeserializeAccountCapabilities(dict,
+                                     /*overrides_dict=*/base::DictValue());
 
   EXPECT_EQ(deserialized_capabilities.is_subject_to_parental_controls(),
             Tribool::kTrue);
@@ -379,14 +380,16 @@ TEST(AccountInfoUtilTest, SerializeAndDeserializeAccountCapabilities) {
 
 TEST(AccountInfoUtilTest, DeserializeAccountCapabilities_Empty) {
   base::DictValue dict;
-  AccountCapabilities capabilities = DeserializeAccountCapabilities(dict);
+  AccountCapabilities capabilities = DeserializeAccountCapabilities(
+      dict, /*overrides_dict=*/base::DictValue());
   EXPECT_FALSE(capabilities.AreAnyCapabilitiesKnown());
 }
 
 TEST(AccountInfoUtilTest, DeserializeAccountCapabilities_UnknownCapability) {
   base::DictValue dict;
   dict.Set("unknown_capability", 1);
-  AccountCapabilities capabilities = DeserializeAccountCapabilities(dict);
+  AccountCapabilities capabilities = DeserializeAccountCapabilities(
+      dict, /*overrides_dict=*/base::DictValue());
   EXPECT_FALSE(capabilities.AreAnyCapabilitiesKnown());
 }
 
@@ -400,7 +403,8 @@ TEST(AccountInfoUtilTest, DeserializeAccountCapabilities_FormatStability) {
                   .Set("accountcapabilities/guydolldmfya", 0)
                   .Set("accountcapabilities/gi2tklldmfya", 1);
 
-  AccountCapabilities capabilities = DeserializeAccountCapabilities(dict);
+  AccountCapabilities capabilities = DeserializeAccountCapabilities(
+      dict, /*overrides_dict=*/base::DictValue());
 
   EXPECT_EQ(capabilities.is_subject_to_parental_controls(), Tribool::kFalse);
   EXPECT_EQ(
@@ -678,6 +682,132 @@ TEST(AccountInfoUtilTest, DeserializeAccountInfo_InvalidAccessPoint) {
   EXPECT_FALSE(account_info->GetLastAuthenticationAccessPoint().has_value());
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
+TEST(AccountInfoUtilTest, SerializeAndDeserializeAccountCapabilityOverrides) {
+  AccountCapabilities capabilities;
+  AccountCapabilitiesTestMutator mutator(&capabilities);
+  mutator.SetCapabilityOverride(
+      kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName,
+      Tribool::kTrue);
+  mutator.SetCapabilityOverride(kCanFetchFamilyMemberInfoCapabilityName,
+                                Tribool::kFalse);
+
+  base::DictValue dict = SerializeAccountCapabilityOverrides(capabilities);
+  EXPECT_EQ(
+      dict.FindInt(
+          kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName),
+      static_cast<int>(Tribool::kTrue));
+  EXPECT_EQ(dict.FindInt(kCanFetchFamilyMemberInfoCapabilityName),
+            static_cast<int>(Tribool::kFalse));
+
+  base::DictValue capabilities_dict =
+      SerializeAccountCapabilities(capabilities);
+  AccountCapabilities deserialized_capabilities =
+      DeserializeAccountCapabilities(capabilities_dict, dict);
+
+  // Since GetCapabilityOverrides() is private, check roundtrip serialization.
+  base::DictValue reserialized =
+      SerializeAccountCapabilityOverrides(deserialized_capabilities);
+  EXPECT_EQ(dict, reserialized);
+}
+
+TEST(AccountInfoUtilTest,
+     SerializeAndDeserializeAccountInfo_WithCapabilityOverrides) {
+  AccountCapabilities capabilities;
+  AccountCapabilitiesTestMutator mutator(&capabilities);
+  mutator.SetCapabilityOverride(
+      kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName,
+      Tribool::kTrue);
+  mutator.SetCapabilityOverride(kCanFetchFamilyMemberInfoCapabilityName,
+                                Tribool::kFalse);
+
+  AccountInfo account_info =
+      AccountInfo::Builder(GaiaId("test_gaia_id"), "test_email@example.com")
+          .SetAccountId(CoreAccountId::FromString("test_account_id"))
+          .UpdateAccountCapabilitiesWith(capabilities)
+          .Build();
+
+  base::DictValue dict = SerializeAccountInfo(account_info);
+  const base::DictValue* overrides =
+      dict.FindDict("accountcapability_overrides");
+  ASSERT_NE(overrides, nullptr);
+  EXPECT_EQ(
+      overrides->FindInt(
+          kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName),
+      static_cast<int>(Tribool::kTrue));
+  EXPECT_EQ(overrides->FindInt(kCanFetchFamilyMemberInfoCapabilityName),
+            static_cast<int>(Tribool::kFalse));
+
+  std::optional<AccountInfo> deserialized_account_info =
+      DeserializeAccountInfo(dict);
+
+  ASSERT_TRUE(deserialized_account_info.has_value());
+  EXPECT_EQ(account_info.account_id, deserialized_account_info->account_id);
+  EXPECT_EQ(account_info.gaia, deserialized_account_info->gaia);
+  EXPECT_EQ(account_info.email, deserialized_account_info->email);
+
+  // Check roundtrip using SerializeAccountInfo.
+  base::DictValue reserialized_dict =
+      SerializeAccountInfo(*deserialized_account_info);
+  const base::DictValue* reserialized_overrides =
+      reserialized_dict.FindDict("accountcapability_overrides");
+  ASSERT_NE(reserialized_overrides, nullptr);
+  EXPECT_EQ(*overrides, *reserialized_overrides);
+}
+
+TEST(AccountInfoUtilTest, DeserializeAccountInfo_FormatStabilityWithOverrides) {
+  auto dict = base::DictValue()
+                  .Set("access_point", 31)
+                  .Set("account_id", "test_account_id")
+                  .Set("accountcapabilities",
+                       base::DictValue()
+                           .Set("accountcapabilities/guydolldmfya", 0)
+                           .Set("accountcapabilities/gi2tklldmfya", 1))
+                  .Set("accountcapability_overrides",
+                       base::DictValue()
+                           .Set("accountcapabilities/guydolldmfya", 1)
+                           .Set("accountcapabilities/gi2tklldmfya", 0))
+                  .Set("email", "test@example.com")
+                  .Set("full_name", "Test Name")
+                  .Set("gaia", "test_gaia_id")
+                  .Set("given_name", "Test")
+                  .Set("hd", "example.com")
+                  .Set("is_supervised_child", 0)
+                  .Set("is_under_advanced_protection", false)
+                  .Set("last_downloaded_image_url_with_size",
+                       "https://example.com/a/my_pic=s256-c-ns")
+                  .Set("locale", "en")
+                  .Set("picture_url", "https://example.com/a/my_pic=s96-c");
+  std::optional<AccountInfo> account_info = DeserializeAccountInfo(dict);
+
+  ASSERT_NE(account_info, std::nullopt);
+  EXPECT_EQ(account_info->gaia, GaiaId("test_gaia_id"));
+  EXPECT_EQ(account_info->email, "test@example.com");
+  EXPECT_EQ(account_info->account_id,
+            CoreAccountId::FromString("test_account_id"));
+  EXPECT_EQ(account_info->is_under_advanced_protection, false);
+  EXPECT_EQ(account_info->GetFullName(), "Test Name");
+  EXPECT_EQ(account_info->GetGivenName(), "Test");
+  EXPECT_EQ(account_info->GetHostedDomain(), "example.com");
+  EXPECT_EQ(account_info->IsChildAccount(), Tribool::kFalse);
+  EXPECT_EQ(account_info->GetLastDownloadedAvatarUrlWithSize(),
+            "https://example.com/a/my_pic=s256-c-ns");
+  EXPECT_EQ(account_info->GetAvatarUrl(), "https://example.com/a/my_pic=s96-c");
+  EXPECT_EQ(account_info->GetLocale(), "en");
+
+  // Re-serialize to verify overrides are deserialized.
+  base::DictValue reserialized_dict = SerializeAccountInfo(*account_info);
+  const base::DictValue* reserialized_overrides =
+      reserialized_dict.FindDict("accountcapability_overrides");
+  ASSERT_NE(reserialized_overrides, nullptr);
+  EXPECT_EQ(reserialized_overrides->FindInt(
+                kIsSubjectToParentalControlsCapabilityName),
+            static_cast<int>(Tribool::kTrue));
+  EXPECT_EQ(
+      reserialized_overrides->FindInt(
+          kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName),
+      static_cast<int>(Tribool::kFalse));
+}
 
 }  // namespace
 

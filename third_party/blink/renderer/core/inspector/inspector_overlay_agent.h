@@ -146,6 +146,38 @@ class CORE_EXPORT Hinge final : public GarbageCollected<Hinge> {
   Member<InspectorOverlayAgent> overlay_;
 };
 
+enum class DisplayCutoutShape { kPill, kNotch, kCircle, kRectangle };
+
+class CORE_EXPORT DisplayCutout final : public GarbageCollected<DisplayCutout> {
+ public:
+  DisplayCutout(gfx::QuadF quad,
+                DisplayCutoutShape shape,
+                int upper_radius,
+                int lower_radius,
+                int center_x,
+                int center_y,
+                int radius,
+                Color color,
+                InspectorOverlayAgent* overlay);
+  DisplayCutout(const DisplayCutout&) = delete;
+  DisplayCutout& operator=(const DisplayCutout&) = delete;
+  ~DisplayCutout() = default;
+  String GetOverlayName();
+  void Draw(float scale);
+  void Trace(Visitor* visitor) const;
+
+ private:
+  gfx::QuadF quad_;
+  DisplayCutoutShape shape_;
+  int upper_radius_;
+  int lower_radius_;
+  int center_x_;
+  int center_y_;
+  int radius_;
+  Color content_color_;
+  Member<InspectorOverlayAgent> overlay_;
+};
+
 class CORE_EXPORT InspectorOverlayAgent final
     : public InspectorBaseAgent<protocol::Overlay::Metainfo>,
       public InspectorOverlayHost::Delegate {
@@ -238,6 +270,9 @@ class CORE_EXPORT InspectorOverlayAgent final
       std::unique_ptr<protocol::DictionaryValue>* highlights) override;
   protocol::Response setShowHinge(
       std::unique_ptr<protocol::Overlay::HingeConfig> hinge_config) override;
+  protocol::Response setShowDisplayCutout(
+      std::unique_ptr<protocol::Overlay::DisplayCutoutConfig>
+          display_cutout_config) override;
   protocol::Response setShowWindowControlsOverlay(
       std::unique_ptr<protocol::Overlay::WindowControlsOverlayConfig>
           wco_config) override;
@@ -315,7 +350,7 @@ class CORE_EXPORT InspectorOverlayAgent final
 
   protocol::Response CompositingEnabled();
 
-  bool IsVisible() const { return inspect_tool_ || hinge_; }
+  bool IsVisible() const { return inspect_tool_ || hinge_ || display_cutout_; }
   bool InSomeInspectMode();
   void SetNeedsUnbufferedInput(bool unbuffered);
   void PickTheRightTool();
@@ -346,6 +381,7 @@ class CORE_EXPORT InspectorOverlayAgent final
   Member<InspectTool> inspect_tool_;
   Member<PersistentTool> persistent_tool_;
   Member<Hinge> hinge_;
+  Member<DisplayCutout> display_cutout_;
   // The agent needs to keep AXContext because it enables caching of
   // a11y attributes shown in the inspector overlay.
   HeapHashMap<WeakMember<Document>, std::unique_ptr<AXContext>>

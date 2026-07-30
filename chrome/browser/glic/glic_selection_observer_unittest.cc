@@ -15,11 +15,15 @@
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
-#include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/optimization_guide/content/browser/page_context_eligibility.h"
+#include "components/optimization_guide/content/browser/page_context_eligibility_api.h"
+#include "components/prefs/pref_service.h"
 #include "components/shared_highlighting/core/common/shared_highlighting_features.h"
 #include "components/shared_highlighting/core/common/shared_highlighting_metrics.h"
+#include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/tabs/public/mock_tab_interface.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/weak_document_ptr.h"
@@ -30,6 +34,22 @@
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/test/test_clipboard.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/base/unowned_user_data/unowned_user_data_host.h"
+
+namespace tabs {
+class TestMockTabInterface : public MockTabInterface {
+ public:
+  TestMockTabInterface() {
+    ON_CALL(*this, GetUnownedUserDataHost())
+        .WillByDefault(testing::ReturnRef(unowned_user_data_host_));
+    ON_CALL(testing::Const(*this), GetUnownedUserDataHost())
+        .WillByDefault(testing::ReturnRef(unowned_user_data_host_));
+  }
+ private:
+  ::ui::UnownedUserDataHost unowned_user_data_host_;
+};
+}  // namespace tabs
+#define MockTabInterface TestMockTabInterface
 
 namespace glic {
 
@@ -111,6 +131,10 @@ class TestGlicSelectionObserver : public GlicSelectionObserver {
   void SendAdditionalContextToPanel(
       tabs::TabInterface* tab_interface,
       const std::u16string& selected_text) override {
+    if (page_context_tracker() && !selected_text.empty() &&
+        !page_context_tracker()->IsPageContextEligible()) {
+      return;
+    }
     last_sent_context_ = selected_text;
     send_context_called_ = true;
   }
@@ -137,28 +161,95 @@ class TestGlicSelectionObserver : public GlicSelectionObserver {
 
 }  // namespace
 
+namespace {
+bool g_mock_eligibility = true;
+bool MockIsEligibleWithAccount(
+    const std::string&,
+    const std::string&,
+    const std::string&,
+    const std::vector<optimization_guide::FrameMetadata>&) {
+  return g_mock_eligibility;
+}
+optimization_guide::StringViewSpan MockGetMeta(
+    std::string_view,
+    std::string_view,
+    const std::vector<optimization_guide::FrameMetadata>&) {
+  return optimization_guide::StringViewSpan{.data = nullptr, .size = 0};
+}
+optimization_guide::PageEligibilityResult MockCheckPageEligibility(
+    const std::vector<optimization_guide::FrameUrl>&) {
+  return optimization_guide::PageEligibilityResult{
+      .status = optimization_guide::PageEligibility::kEligible,
+      .meta_tag_names_affecting_eligibility = {.data = nullptr, .size = 0}};
+}
+optimization_guide::PageContextEligibilityAPI g_test_api = {
+    .IsPageContextEligible = nullptr,
+    .IsPageContextEligibleWithAccount = &MockIsEligibleWithAccount,
+    .ShouldReextractPageContext = nullptr,
+    .GetMetaTagNamesAffectingEligibility = &MockGetMeta,
+    .CheckPageEligibility = &MockCheckPageEligibility,
+};
+}  // namespace
+
 class GlicSelectionObserverTest : public ChromeRenderViewHostTestHarness {
  public:
   GlicSelectionObserverTest()
       : ChromeRenderViewHostTestHarness(
             base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 
+  TestingProfile::TestingFactories GetTestingFactories() const override {
+    return IdentityTestEnvironmentProfileAdaptor::
+        GetIdentityTestEnvironmentFactories();
+  }
+
   void SetUp() override {
     scoped_feature_list_.InitAndEnableFeature(features::kGlicSelectionPrompt);
     ChromeRenderViewHostTestHarness::SetUp();
 
+    test_eligibility_holder_ =
+        std::make_unique<optimization_guide::PageContextEligibility>(
+            &g_test_api);
+    optimization_guide::PageContextEligibility::SetForTesting(
+        test_eligibility_holder_.get());
+
+    identity_test_env_adaptor_ =
+        std::make_unique<IdentityTestEnvironmentProfileAdaptor>(
+            Profile::FromBrowserContext(web_contents()->GetBrowserContext()));
+
     // Create our test observer.
     observer_ = std::make_unique<TestGlicSelectionObserver>(web_contents());
+    task_environment()->RunUntilIdle();
   }
 
   void TearDown() override {
     observer_.reset();
+    identity_test_env_adaptor_.reset();
+    optimization_guide::PageContextEligibility::SetForTesting(nullptr);
     ChromeRenderViewHostTestHarness::TearDown();
+  }
+
+  signin::IdentityTestEnvironment* identity_test_env() {
+    return identity_test_env_adaptor_->identity_test_env();
+  }
+
+  void SetMockEligibility(bool eligible) {
+    g_mock_eligibility = eligible;
+    NavigateAndCommit(GURL("https://example.com/"));
+  }
+
+  // To simulate creating the observer AFTER mock identity state is set.
+  void RecreateObserver() {
+    observer_ = std::make_unique<TestGlicSelectionObserver>(web_contents());
+    task_environment()->RunUntilIdle();
   }
 
  protected:
   base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<TestGlicSelectionObserver> observer_;
+  std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
+      identity_test_env_adaptor_;
+  std::unique_ptr<optimization_guide::PageContextEligibility>
+      test_eligibility_holder_;
 
   TestGlicSelectionObserver* GetObserver() { return observer_.get(); }
 
@@ -882,89 +973,128 @@ TEST_F(GlicSelectionObserverTest,
   EXPECT_FALSE(observer->send_context_called());
 }
 
-TEST_F(GlicSelectionObserverTest, ContentSettingsBlockSelectionWidget) {
+TEST_F(GlicSelectionObserverTest, EligibleSelection) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeatureWithParameters(
-      features::kGlicSelectionPrompt,
-      {{features::kGlicSelectionEnableSiteSettings.name, "true"}});
+      features::kGlicSelectionPrompt, {{"use_widget", "false"}});
 
   auto* observer = GetObserver();
   ASSERT_TRUE(observer);
 
-  NavigateAndCommit(GURL("https://example.com"));
+  tabs::MockTabInterface mock_tab;
+  MockBrowserWindowInterface mock_bwi;
+  tabs::TabLookupFromWebContents::CreateForWebContents(web_contents(),
+                                                       &mock_tab);
+  EXPECT_CALL(mock_tab, GetBrowserWindowInterface())
+      .WillRepeatedly(testing::Return(&mock_bwi));
 
-  Profile* profile =
-      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
-  HostContentSettingsMap* settings_map =
-      HostContentSettingsMapFactory::GetForProfile(profile);
+  SetMockEligibility(true);
+  observer->set_call_base_update_selection_state(true);
+  observer->set_mock_panel_showing(true);
 
-  // Default setting is ALLOW, so ShouldShowSelectionWidget() should be true.
-  EXPECT_TRUE(ShouldShowSelectionWidget());
+  observer->OnTextSelectionChanged(nullptr, u"Eligible Text");
+  task_environment()->FastForwardBy(base::Milliseconds(300));
 
-  // Block the site.
-  settings_map->SetContentSettingDefaultScope(
-      web_contents()->GetLastCommittedURL(), GURL(),
-      ContentSettingsType::INLINE_CUE_MENU, CONTENT_SETTING_BLOCK);
-  EXPECT_FALSE(ShouldShowSelectionWidget());
-
-  // Reset to ALLOW.
-  settings_map->SetContentSettingDefaultScope(
-      web_contents()->GetLastCommittedURL(), GURL(),
-      ContentSettingsType::INLINE_CUE_MENU, CONTENT_SETTING_ALLOW);
-  EXPECT_TRUE(ShouldShowSelectionWidget());
-
-  // Call OnHideForThisSite() which should write BLOCK.
-  CallOnHideForThisSite();
-  EXPECT_FALSE(ShouldShowSelectionWidget());
-  EXPECT_EQ(CONTENT_SETTING_BLOCK, settings_map->GetContentSetting(
-                                       web_contents()->GetLastCommittedURL(),
-                                       web_contents()->GetLastCommittedURL(),
-                                       ContentSettingsType::INLINE_CUE_MENU));
-
-  // Navigate to another site and verify it is NOT blocked.
-  NavigateAndCommit(GURL("https://google.com"));
-  EXPECT_TRUE(ShouldShowSelectionWidget());
+  EXPECT_TRUE(observer->send_context_called());
+  EXPECT_EQ(u"Eligible Text", *observer->last_sent_context());
 }
 
-TEST_F(GlicSelectionObserverTest, ContentSettingsDisabledBlockSelectionWidget) {
+TEST_F(GlicSelectionObserverTest, IneligibleSelection) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeatureWithParameters(
-      features::kGlicSelectionPrompt,
-      {{features::kGlicSelectionEnableSiteSettings.name, "false"}});
+      features::kGlicSelectionPrompt, {{"use_widget", "false"}});
 
   auto* observer = GetObserver();
   ASSERT_TRUE(observer);
 
-  NavigateAndCommit(GURL("https://example.com"));
+  tabs::MockTabInterface mock_tab;
+  MockBrowserWindowInterface mock_bwi;
+  tabs::TabLookupFromWebContents::CreateForWebContents(web_contents(),
+                                                       &mock_tab);
+  EXPECT_CALL(mock_tab, GetBrowserWindowInterface())
+      .WillRepeatedly(testing::Return(&mock_bwi));
 
-  Profile* profile =
-      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
-  HostContentSettingsMap* settings_map =
-      HostContentSettingsMapFactory::GetForProfile(profile);
+  SetMockEligibility(false);
+  observer->set_call_base_update_selection_state(true);
+  observer->set_mock_panel_showing(true);
 
-  // Set the site setting to BLOCK directly in the map.
-  settings_map->SetContentSettingDefaultScope(
-      web_contents()->GetLastCommittedURL(), GURL(),
-      ContentSettingsType::INLINE_CUE_MENU, CONTENT_SETTING_BLOCK);
+  observer->OnTextSelectionChanged(nullptr, u"Ineligible Text");
+  task_environment()->FastForwardBy(base::Milliseconds(300));
 
-  // Since feature is disabled, ShouldShowSelectionWidget() should STILL return
-  // true despite the BLOCK setting.
-  EXPECT_TRUE(ShouldShowSelectionWidget());
+  EXPECT_FALSE(observer->send_context_called());
+}
 
-  // Reset setting to ALLOW.
-  settings_map->SetContentSettingDefaultScope(
-      web_contents()->GetLastCommittedURL(), GURL(),
-      ContentSettingsType::INLINE_CUE_MENU, CONTENT_SETTING_ALLOW);
+TEST_F(GlicSelectionObserverTest, DynamicEligibilityChangeClearsContext) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kGlicSelectionPrompt, {{"use_widget", "false"}});
 
-  // Call OnHideForThisSite(). It should set is_hidden_on_current_page_ to true
-  // (so ShouldShowSelectionWidget() becomes false), but it should NOT write
-  // BLOCK to the map.
-  CallOnHideForThisSite();
-  EXPECT_FALSE(ShouldShowSelectionWidget());
-  EXPECT_EQ(CONTENT_SETTING_ALLOW, settings_map->GetContentSetting(
-                                       web_contents()->GetLastCommittedURL(),
-                                       web_contents()->GetLastCommittedURL(),
-                                       ContentSettingsType::INLINE_CUE_MENU));
+  auto* observer = GetObserver();
+  ASSERT_TRUE(observer);
+
+  tabs::MockTabInterface mock_tab;
+  MockBrowserWindowInterface mock_bwi;
+  tabs::TabLookupFromWebContents::CreateForWebContents(web_contents(),
+                                                       &mock_tab);
+  EXPECT_CALL(mock_tab, GetBrowserWindowInterface())
+      .WillRepeatedly(testing::Return(&mock_bwi));
+
+  SetMockEligibility(true);
+  observer->set_call_base_update_selection_state(true);
+  observer->set_mock_panel_showing(true);
+
+  observer->OnTextSelectionChanged(nullptr, u"Eligible Text");
+  task_environment()->FastForwardBy(base::Milliseconds(300));
+
+  EXPECT_TRUE(observer->send_context_called());
+  EXPECT_EQ(u"Eligible Text", *observer->last_sent_context());
+
+  // Simulate eligibility changing to false dynamically.
+  observer->Reset();
+  SetMockEligibility(false);
+
+  EXPECT_TRUE(observer->send_context_called());
+  EXPECT_EQ(u"", *observer->last_sent_context());
+}
+
+TEST_F(GlicSelectionObserverTest, IdentityManagerIntegration) {
+  RecreateObserver();
+
+  // Actually, we can test that the observer's initialization succeeds,
+  // and we could potentially check if MockIsEligibleWithAccount receives the
+  // right string if we used a more complex mock, but here we just ensure it
+  // doesn't crash and returns gracefully when unsigned.
+  auto* observer = GetObserver();
+  ASSERT_TRUE(observer);
+  SetMockEligibility(true);
+  observer->set_call_base_update_selection_state(true);
+  observer->set_mock_panel_showing(true);
+
+  tabs::MockTabInterface mock_tab;
+  MockBrowserWindowInterface mock_bwi;
+  tabs::TabLookupFromWebContents::CreateForWebContents(web_contents(),
+                                                       &mock_tab);
+  EXPECT_CALL(mock_tab, GetBrowserWindowInterface())
+      .WillRepeatedly(testing::Return(&mock_bwi));
+  observer->OnTextSelectionChanged(nullptr, u"Test text");
+  task_environment()->FastForwardBy(base::Milliseconds(300));
+  EXPECT_TRUE(observer->send_context_called());
+  EXPECT_EQ(u"Test text", *observer->last_sent_context());
+
+  // Signed in case
+  identity_test_env()->MakePrimaryAccountAvailable(
+      "test@example.com", signin::ConsentLevel::kSignin);
+  RecreateObserver();
+  observer = GetObserver();
+  ASSERT_TRUE(observer);
+  SetMockEligibility(true);
+  observer->set_call_base_update_selection_state(true);
+  observer->set_mock_panel_showing(true);
+
+  observer->OnTextSelectionChanged(nullptr, u"Test text signed in");
+  task_environment()->FastForwardBy(base::Milliseconds(300));
+  EXPECT_TRUE(observer->send_context_called());
+  EXPECT_EQ(u"Test text signed in", *observer->last_sent_context());
 }
 
 }  // namespace glic

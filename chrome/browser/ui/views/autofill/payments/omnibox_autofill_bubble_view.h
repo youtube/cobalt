@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/views/autofill/autofill_location_bar_bubble.h"
 #include "ui/base/metadata/metadata_header_macros.h"
@@ -14,6 +15,10 @@
 namespace content {
 class WebContents;
 }  // namespace content
+
+namespace views {
+class View;
+}  // namespace views
 
 namespace autofill {
 
@@ -39,6 +44,8 @@ class OmniboxAutofillBubbleView : public AutofillLocationBarBubble {
   // LocationBarBubbleDelegateView:
   std::u16string GetWindowTitle() const override;
   void WindowClosing() override;
+  void AddedToWidget() override;
+  views::View* GetInitiallyFocusedView() override;
 
  protected:
   // LocationBarBubbleDelegateView:
@@ -46,6 +53,8 @@ class OmniboxAutofillBubbleView : public AutofillLocationBarBubble {
 
  private:
   base::WeakPtr<OmniboxAutofillBubbleController> controller_;
+  raw_ptr<views::View> initially_focused_view_ = nullptr;
+  base::WeakPtrFactory<OmniboxAutofillBubbleView> weak_ptr_factory_{this};
 };
 
 }  // namespace autofill

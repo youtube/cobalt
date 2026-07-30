@@ -33,6 +33,11 @@ public interface ButtonData {
     /** Returns {@code true} when the {@link ButtonDataProvider} wants to show a button. */
     boolean canShow();
 
+    /** Returns {@code true} if this button data represents the Identity Disk. */
+    default boolean isIdentityDisc() {
+        return getButtonSpec() != null && getButtonSpec().isIdentityDisc();
+    }
+
     /** Returns {@code true} if the button is supposed to be enabled and clickable. */
     boolean isEnabled();
 
@@ -71,6 +76,7 @@ public interface ButtonData {
         private final int mActionChipCollapseDelayMs;
         private final @AttrRes int mActionChipBackgroundColorResId;
         private final @AttrRes int mActionChipTextColorResId;
+        private final boolean mIsIdentityDisc;
 
         private ButtonSpec(
                 @Nullable Drawable drawable,
@@ -89,7 +95,8 @@ public interface ButtonData {
                 boolean shouldSuppressCpa,
                 int actionChipCollapseDelayMs,
                 @AttrRes int actionChipBackgroundColorResId,
-                @AttrRes int actionChipTextColorResId) {
+                @AttrRes int actionChipTextColorResId,
+                boolean isIdentityDisc) {
             mDrawable = drawable;
             mCollapsedDrawable = collapsedDrawable;
             mOnClickListener = onClickListener;
@@ -108,6 +115,7 @@ public interface ButtonData {
             mActionChipCollapseDelayMs = actionChipCollapseDelayMs;
             mActionChipBackgroundColorResId = actionChipBackgroundColorResId;
             mActionChipTextColorResId = actionChipTextColorResId;
+            mIsIdentityDisc = isIdentityDisc;
         }
 
         /** Builder for {@link ButtonSpec}. */
@@ -130,6 +138,7 @@ public interface ButtonData {
             private int mActionChipCollapseDelayMs = DEFAULT_ACTION_CHIP_DELAY_MS;
             private @AttrRes int mActionChipBackgroundColorResId = Resources.ID_NULL;
             private @AttrRes int mActionChipTextColorResId = Resources.ID_NULL;
+            private boolean mIsIdentityDisc;
 
             /**
              * Creates a new {@link Builder} with the required properties.
@@ -145,6 +154,7 @@ public interface ButtonData {
                 mDrawable = drawable;
                 mContentDescription = contentDescription;
                 mSupportsTinting = supportsTinting;
+                mIsIdentityDisc = false;
             }
 
             /**
@@ -170,6 +180,7 @@ public interface ButtonData {
                 mActionChipCollapseDelayMs = buttonSpec.mActionChipCollapseDelayMs;
                 mActionChipBackgroundColorResId = buttonSpec.mActionChipBackgroundColorResId;
                 mActionChipTextColorResId = buttonSpec.mActionChipTextColorResId;
+                mIsIdentityDisc = buttonSpec.mIsIdentityDisc;
             }
 
             public Builder setDrawable(@Nullable Drawable drawable) {
@@ -259,6 +270,11 @@ public interface ButtonData {
                 return this;
             }
 
+            public Builder setIsIdentityDisc(boolean isIdentityDisc) {
+                mIsIdentityDisc = isIdentityDisc;
+                return this;
+            }
+
             public ButtonSpec build() {
                 return new ButtonSpec(
                         mDrawable,
@@ -277,7 +293,8 @@ public interface ButtonData {
                         mShouldSuppressCpa,
                         mActionChipCollapseDelayMs,
                         mActionChipBackgroundColorResId,
-                        mActionChipTextColorResId);
+                        mActionChipTextColorResId,
+                        mIsIdentityDisc);
             }
         }
 
@@ -338,6 +355,11 @@ public interface ButtonData {
         /** Returns {@code true} if the button is a contextual page action. False otherwise. */
         public boolean isDynamicAction() {
             return mIsDynamicAction;
+        }
+
+        /** Returns {@code true} if this button spec represents the Identity Disk. */
+        public boolean isIdentityDisc() {
+            return mIsIdentityDisc;
         }
 
         /**
@@ -422,6 +444,7 @@ public interface ButtonData {
                     && mActionChipCollapseDelayMs == that.mActionChipCollapseDelayMs
                     && mActionChipBackgroundColorResId == that.mActionChipBackgroundColorResId
                     && mActionChipTextColorResId == that.mActionChipTextColorResId
+                    && mIsIdentityDisc == that.mIsIdentityDisc
                     && Objects.equals(mDrawable, that.mDrawable)
                     && Objects.equals(mOnClickListener, that.mOnClickListener)
                     && Objects.equals(mOnLongClickListener, that.mOnLongClickListener)
@@ -448,7 +471,8 @@ public interface ButtonData {
                     mShouldSuppressCpa,
                     mActionChipCollapseDelayMs,
                     mActionChipBackgroundColorResId,
-                    mActionChipTextColorResId);
+                    mActionChipTextColorResId,
+                    mIsIdentityDisc);
         }
     }
 }

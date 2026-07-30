@@ -30,6 +30,7 @@
 #include "content/shell/browser/shell.h"
 #include "content/test/content_browser_test_utils_internal.h"
 #include "net/base/features.h"
+#include "net/base/net_errors.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/http/http_status_code.h"
 #include "net/test/cert_test_util.h"
@@ -40,6 +41,7 @@
 #include "net/test/quic_simple_test_server.h"
 #include "net/test/test_data_directory.h"
 #include "net/third_party/quiche/src/quiche/common/http/http_header_block.h"
+#include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "services/network/public/mojom/early_hints.mojom.h"
 #include "services/network/public/mojom/link_header.mojom.h"
@@ -1080,5 +1082,265 @@ IN_PROC_BROWSER_TEST_P(NavigationEarlyHintsHttp1Test, AllowEarlyHints) {
     ASSERT_TRUE(early_hints_manager == nullptr);
   }
 }
+
+class NavigationEarlyHintsConnectionAllowlistTest
+    : public ::testing::WithParamInterface<bool>,
+      public NavigationEarlyHintsTest {
+ public:
+  NavigationEarlyHintsConnectionAllowlistTest() {
+    scoped_feature_list_.InitAndEnableFeatureWithParameters(
+        network::features::kConnectionAllowlists,
+        {{"ConnectionAllowlistsEarlyHints",
+          IsConnectionAllowlistsInEarlyHintsEnabled() ? "true" : "false"}});
+  }
+
+  bool IsConnectionAllowlistsInEarlyHintsEnabled() const { return GetParam(); }
+
+  ~NavigationEarlyHintsConnectionAllowlistTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(NavigationEarlyHintsConnectionAllowlistTest,
+                       PreloadAllowed) {
+  const GURL kCrossOriginScriptUrl =
+      cross_origin_server().GetURL("/hinted.js?corp-cross-origin");
+
+  ResponseEntry page_entry(kPageWithCrossOriginScriptPage, net::HTTP_OK);
+  HeaderField link_header = HeaderField(
+      "link", base::StringPrintf("<%s>; rel=preload; as=script",
+                                 kCrossOriginScriptUrl.spec().c_str()));
+
+  // The connection allowlist allows the preload URL.
+  HeaderField allowlist_header("connection-allowlist",
+                               R"((response-origin "*://*:*/hinted.js?*"))");
+
+  page_entry.AddEarlyHints(
+      {std::move(link_header), std::move(allowlist_header)});
+  RegisterResponse(page_entry);
+
+  EXPECT_TRUE(NavigateToURL(shell(), net::QuicSimpleTestServer::GetFileURL(
+                                         kPageWithCrossOriginScriptPage)));
+  EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+
+  // The resource hints should be received.
+  RenderFrameHostImpl* rfh = static_cast<RenderFrameHostImpl*>(
+      shell()->web_contents()->GetPrimaryMainFrame());
+  EXPECT_NE(GetEarlyHintsManager(rfh), nullptr);
+  EXPECT_TRUE(GetEarlyHintsManager(rfh)->WasResourceHintsReceived());
+
+  // The preload request is allowed.
+  PreloadedResources preloads = WaitForPreloadedResources();
+  EXPECT_EQ(preloads.size(), 1UL);
+
+  auto it = preloads.find(kCrossOriginScriptUrl);
+  ASSERT_TRUE(it != preloads.end());
+  ASSERT_FALSE(it->second.was_canceled);
+  ASSERT_TRUE(it->second.error_code.has_value());
+  EXPECT_EQ(it->second.error_code.value(), net::OK);
+}
+
+IN_PROC_BROWSER_TEST_P(NavigationEarlyHintsConnectionAllowlistTest,
+                       PreloadBlocked) {
+  const GURL kCrossOriginScriptUrl =
+      cross_origin_server().GetURL("/hinted.js?corp-cross-origin");
+
+  ResponseEntry page_entry(kPageWithCrossOriginScriptPage, net::HTTP_OK);
+  HeaderField link_header = HeaderField(
+      "link", base::StringPrintf("<%s>; rel=preload; as=script",
+                                 kCrossOriginScriptUrl.spec().c_str()));
+
+  // The connection allowlist does not allow the preload URL.
+  HeaderField allowlist_header("connection-allowlist", "(response-origin)");
+
+  page_entry.AddEarlyHints(
+      {std::move(link_header), std::move(allowlist_header)});
+  RegisterResponse(page_entry);
+
+  EXPECT_TRUE(NavigateToURL(shell(), net::QuicSimpleTestServer::GetFileURL(
+                                         kPageWithCrossOriginScriptPage)));
+  EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+
+  // The resource hints should be received regardless of whether the request is
+  // blocked.
+  RenderFrameHostImpl* rfh = static_cast<RenderFrameHostImpl*>(
+      shell()->web_contents()->GetPrimaryMainFrame());
+  EXPECT_NE(GetEarlyHintsManager(rfh), nullptr);
+  EXPECT_TRUE(GetEarlyHintsManager(rfh)->WasResourceHintsReceived());
+
+  // The preload request is blocked if feature is enabled.
+  PreloadedResources preloads = WaitForPreloadedResources();
+  if (IsConnectionAllowlistsInEarlyHintsEnabled()) {
+    EXPECT_TRUE(preloads.empty());
+  } else {
+    EXPECT_EQ(preloads.size(), 1UL);
+    auto it = preloads.find(kCrossOriginScriptUrl);
+    ASSERT_TRUE(it != preloads.end());
+    ASSERT_FALSE(it->second.was_canceled);
+    ASSERT_TRUE(it->second.error_code.has_value());
+    EXPECT_EQ(it->second.error_code.value(), net::OK);
+  }
+}
+
+IN_PROC_BROWSER_TEST_P(NavigationEarlyHintsConnectionAllowlistTest,
+                       PreconnectAllowed) {
+  const char kPageWithPreconnect[] = "/page_with_preconnect.html";
+  const GURL kPreconnectUrl =
+      cross_origin_server().GetURL("/hinted.js?corp-cross-origin");
+
+  ResponseEntry page_entry(kPageWithPreconnect, net::HTTP_OK);
+  HeaderField link_header =
+      HeaderField("link", base::StringPrintf("<%s>; rel=preconnect",
+                                             kPreconnectUrl.spec().c_str()));
+
+  // The connection allowlist allows the preconnect URL.
+  HeaderField allowlist_header("connection-allowlist",
+                               R"((response-origin "*://*:*/hinted.js?*"))");
+
+  page_entry.AddEarlyHints(
+      {std::move(link_header), std::move(allowlist_header)});
+  RegisterResponse(page_entry);
+
+  ASSERT_TRUE(NavigateToURL(
+      shell(), net::QuicSimpleTestServer::GetFileURL(kPageWithPreconnect)));
+  ASSERT_TRUE(WaitForLoadStop(shell()->web_contents()));
+
+  // The resource hints should be received.
+  RenderFrameHostImpl* rfh = static_cast<RenderFrameHostImpl*>(
+      shell()->web_contents()->GetPrimaryMainFrame());
+  EXPECT_NE(GetEarlyHintsManager(rfh), nullptr);
+  EXPECT_TRUE(GetEarlyHintsManager(rfh)->WasResourceHintsReceived());
+
+  // The preconnect is allowed.
+  EXPECT_EQ(preconnect_listener().num_accepted_sockets(), 1UL);
+}
+
+IN_PROC_BROWSER_TEST_P(NavigationEarlyHintsConnectionAllowlistTest,
+                       PreconnectBlocked) {
+  const char kPageWithPreconnect[] = "/page_with_preconnect.html";
+  const GURL kPreconnectUrl =
+      cross_origin_server().GetURL("/hinted.js?corp-cross-origin");
+
+  ResponseEntry page_entry(kPageWithPreconnect, net::HTTP_OK);
+  HeaderField link_header =
+      HeaderField("link", base::StringPrintf("<%s>; rel=preconnect",
+                                             kPreconnectUrl.spec().c_str()));
+
+  // The connection allowlist does not allow the preconnect URL.
+  HeaderField allowlist_header("connection-allowlist", "(response-origin)");
+
+  page_entry.AddEarlyHints(
+      {std::move(link_header), std::move(allowlist_header)});
+  RegisterResponse(page_entry);
+
+  ASSERT_TRUE(NavigateToURL(
+      shell(), net::QuicSimpleTestServer::GetFileURL(kPageWithPreconnect)));
+  ASSERT_TRUE(WaitForLoadStop(shell()->web_contents()));
+
+  // The resource hints should be received regardless of whether the request is
+  // blocked.
+  RenderFrameHostImpl* rfh = static_cast<RenderFrameHostImpl*>(
+      shell()->web_contents()->GetPrimaryMainFrame());
+  EXPECT_NE(GetEarlyHintsManager(rfh), nullptr);
+  EXPECT_TRUE(GetEarlyHintsManager(rfh)->WasResourceHintsReceived());
+
+  // The preconnect is blocked if feature is enabled.
+  if (IsConnectionAllowlistsInEarlyHintsEnabled()) {
+    EXPECT_EQ(preconnect_listener().num_accepted_sockets(), 0UL);
+  } else {
+    EXPECT_EQ(preconnect_listener().num_accepted_sockets(), 1UL);
+  }
+}
+
+IN_PROC_BROWSER_TEST_P(NavigationEarlyHintsConnectionAllowlistTest,
+                       ModulePreloadAllowed) {
+  // Module preload requests are always fetched using CORS mode. Use the Quic
+  // server to make the request same origin with the document. Otherwise the
+  // request will fail because the test server does not respond with
+  // `Access-Control-Allow-Origin` header.
+  const GURL kSameOriginScriptUrl =
+      net::QuicSimpleTestServer::GetFileURL(kHintedScriptPath);
+
+  ResponseEntry page_entry(kPageWithCrossOriginScriptPage, net::HTTP_OK);
+  HeaderField link_header = HeaderField(
+      "link", base::StringPrintf("<%s>; rel=modulepreload",
+                                 kSameOriginScriptUrl.spec().c_str()));
+
+  // The connection allowlist allows the module preload URL.
+  HeaderField allowlist_header("connection-allowlist", "(response-origin)");
+
+  RegisterHintedScriptResource();
+  page_entry.AddEarlyHints(
+      {std::move(link_header), std::move(allowlist_header)});
+  RegisterResponse(page_entry);
+
+  EXPECT_TRUE(NavigateToURL(shell(), net::QuicSimpleTestServer::GetFileURL(
+                                         kPageWithCrossOriginScriptPage)));
+  EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+
+  PreloadedResources preloads = WaitForPreloadedResources();
+  EXPECT_EQ(preloads.size(), 1UL);
+
+  // The resource hints should be received.
+  RenderFrameHostImpl* rfh = static_cast<RenderFrameHostImpl*>(
+      shell()->web_contents()->GetPrimaryMainFrame());
+  EXPECT_NE(GetEarlyHintsManager(rfh), nullptr);
+  EXPECT_TRUE(GetEarlyHintsManager(rfh)->WasResourceHintsReceived());
+
+  // The module preload request is allowed.
+  auto it = preloads.find(kSameOriginScriptUrl);
+  ASSERT_TRUE(it != preloads.end());
+  ASSERT_FALSE(it->second.was_canceled);
+  ASSERT_TRUE(it->second.error_code.has_value());
+  EXPECT_EQ(it->second.error_code.value(), net::OK);
+}
+
+IN_PROC_BROWSER_TEST_P(NavigationEarlyHintsConnectionAllowlistTest,
+                       ModulePreloadBlocked) {
+  const GURL kSameOriginScriptUrl =
+      net::QuicSimpleTestServer::GetFileURL(kHintedScriptPath);
+
+  ResponseEntry page_entry(kPageWithCrossOriginScriptPage, net::HTTP_OK);
+  HeaderField link_header = HeaderField(
+      "link", base::StringPrintf("<%s>; rel=modulepreload",
+                                 kSameOriginScriptUrl.spec().c_str()));
+
+  // The connection allowlist does not allow the module preload URL.
+  HeaderField allowlist_header("connection-allowlist", "()");
+
+  RegisterHintedScriptResource();
+  page_entry.AddEarlyHints(
+      {std::move(link_header), std::move(allowlist_header)});
+  RegisterResponse(page_entry);
+
+  EXPECT_TRUE(NavigateToURL(shell(), net::QuicSimpleTestServer::GetFileURL(
+                                         kPageWithCrossOriginScriptPage)));
+  EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+
+  // The resource hints should be received regardless of whether the request is
+  // blocked.
+  RenderFrameHostImpl* rfh = static_cast<RenderFrameHostImpl*>(
+      shell()->web_contents()->GetPrimaryMainFrame());
+  EXPECT_NE(GetEarlyHintsManager(rfh), nullptr);
+  EXPECT_TRUE(GetEarlyHintsManager(rfh)->WasResourceHintsReceived());
+
+  // The module preload request is blocked if feature is enabled.
+  PreloadedResources preloads = WaitForPreloadedResources();
+  if (IsConnectionAllowlistsInEarlyHintsEnabled()) {
+    EXPECT_TRUE(preloads.empty());
+  } else {
+    EXPECT_EQ(preloads.size(), 1UL);
+    auto it = preloads.find(kSameOriginScriptUrl);
+    ASSERT_TRUE(it != preloads.end());
+    ASSERT_FALSE(it->second.was_canceled);
+    ASSERT_TRUE(it->second.error_code.has_value());
+    EXPECT_EQ(it->second.error_code.value(), net::OK);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         NavigationEarlyHintsConnectionAllowlistTest,
+                         ::testing::Bool());
 
 }  // namespace content

@@ -646,24 +646,6 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="Blink.Canvas.ToDataURLCompressionRatio.PNG"
-    units="encoded bytes per 100 image bytes" expires_after="2026-06-21">
-  <owner>lukasza@chromium.org</owner>
-  <owner>danieldilan@google.com</owner>
-  <owner>fmalita@chromium.org</owner>
-  <owner>aaronhk@chromium.org</owner>
-  <summary>
-    Number of bytes of the encoded PNG per 100 bytes of the input image.
-
-    Note the numerator is the number of bytes of the encoded PNG **before** it
-    gets base64-encoding and converted into a data URI.
-
-    For example, an 8x8 image of RGBA8 pixels takes 256 bytes in memory. If such
-    image gets encoded as 192 bytes (i.e. 75% of 256 bytes), then the metrics
-    here will be 75.
-  </summary>
-</histogram>
-
 <histogram
     name="Blink.Canvas.ToDataURLScaledDuration{BlinkCanvasToDataURLMimeType}"
     units="microseconds/sqrt(pixels)" expires_after="2026-06-21">
@@ -1986,7 +1968,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.FedCm.DomainHint.NumMatchingAccounts"
-    enum="FedCmNumAccounts" expires_after="2026-08-02">
+    enum="FedCmNumAccounts" expires_after="2026-12-28">
   <owner>npm@chromium.org</owner>
   <owner>web-identity-eng@google.com</owner>
   <summary>
@@ -2217,7 +2199,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.FedCm.LoginHint.NumMatchingAccounts"
-    enum="FedCmNumAccounts" expires_after="2026-08-02">
+    enum="FedCmNumAccounts" expires_after="2026-12-28">
   <owner>npm@chromium.org</owner>
   <owner>web-identity-eng@google.com</owner>
   <summary>
@@ -2771,10 +2753,10 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.FencedFrame.CreationOrNavigationOutcome"
-    enum="FencedFrameCreationOutcome" expires_after="2026-05-03">
+    enum="FencedFrameCreationOutcome" expires_after="2026-12-23">
   <owner>shivanisha@chromium.org</owner>
   <owner>dom@chromium.org</owner>
-  <owner>lbrady@google.com</owner>
+  <owner>averge@chromium.org</owner>
   <summary>
     Records creation and navigation outcomes for a fenced frame. This is written
     either when a fenced frame navigates successfully, or when some issue causes
@@ -2974,6 +2956,48 @@ chromium-metrics-reviews@google.com.
     when no other specified font could be instantiated to render a character.
     The last resort font from the FontDescription is tried first, and then
     hardcoded system fonts if needed.
+  </summary>
+</histogram>
+
+<histogram name="Blink.Fonts.MatchFamilyStyle.Duration" units="microseconds"
+    expires_after="2027-06-15">
+  <owner>suzukikeita@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records the duration of SkFontMgr::matchFamilyStyle calls on the main
+    thread. Recorded when a typeface is looked up by family name during font
+    creation.
+
+    This measures the latency of querying the operating system's font manager.
+    For &quot;cold&quot; lookups (first time a font is loaded), this includes
+    disk I/O to read and parse font files, and potential sandbox/IPC overhead on
+    platforms that use a font service (such as Windows, macOS, or Linux). For
+    &quot;warm&quot; lookups, this measures the fast Skia-side in-memory
+    cache-resolution latency.
+
+    Note that this metric is only recorded on clients with high-resolution
+    clocks.
+  </summary>
+</histogram>
+
+<histogram name="Blink.Fonts.MatchFamilyStyleCharacter.Duration"
+    units="microseconds" expires_after="2027-06-15">
+  <owner>suzukikeita@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records the duration of SkFontMgr::matchFamilyStyleCharacter calls on the
+    main thread. Recorded when a fallback typeface is looked up for a specific
+    character or locale.
+
+    This measures the latency of system font fallback resolution. For
+    &quot;cold&quot; lookups, this includes the expensive OS-level scanning of
+    multiple system font character maps (cmaps) to find a supporting font, disk
+    I/O, and potential sandbox/IPC overhead on platforms that use a font service
+    (such as Windows, macOS, or Linux). For &quot;warm&quot; lookups, it
+    measures the fast Skia-side in-memory cache-resolution latency.
+
+    Note that this metric is only recorded on clients with high-resolution
+    clocks.
   </summary>
 </histogram>
 

@@ -53,6 +53,7 @@
 #include "content/browser/screen_orientation/screen_orientation_provider.h"
 #include "content/browser/service_worker/embedded_worker_test_helper.h"
 #include "content/browser/web_contents/web_contents_impl.h"
+#include "content/common/features.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/javascript_dialog_manager.h"
@@ -5213,6 +5214,176 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, CompressedRequestBodyRetrieval) {
 
   // Verify the decompressed content matches the original JSON payload.
   EXPECT_EQ(decompressed, R"({"test":"data"})");
+}
+
+class PrefetchActivationBeaconDevToolsProtocolTest
+    : public DevToolsProtocolTest {
+ public:
+  PrefetchActivationBeaconDevToolsProtocolTest() {
+    feature_list_.InitAndEnableFeature(features::kPrefetchActivationBeacon);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(PrefetchActivationBeaconDevToolsProtocolTest,
+                       ActivationBeaconNetworkPanel) {
+  base::RunLoop beacon_run_loop;
+  bool beacon_seen = false;
+
+  embedded_test_server()->RegisterRequestHandler(base::BindLambdaForTesting(
+      [&](const net::test_server::HttpRequest& request)
+          -> std::unique_ptr<net::test_server::HttpResponse> {
+        if (request.relative_url == "/prefetch.html") {
+          auto response =
+              std::make_unique<net::test_server::BasicHttpResponse>();
+          response->set_code(net::HTTP_OK);
+          response->set_content_type("text/html");
+          response->AddCustomHeader("on-prefetch-activation", "/beacon");
+          response->set_content("<html><body>Prefetched Page</body></html>");
+          return response;
+        }
+        if (request.relative_url == "/beacon") {
+          auto response =
+              std::make_unique<net::test_server::BasicHttpResponse>();
+          response->set_code(net::HTTP_MOVED_PERMANENTLY);
+          response->AddCustomHeader("Location", "/beacon-redirected");
+          return response;
+        }
+        if (request.relative_url == "/beacon-redirected") {
+          beacon_seen = true;
+          beacon_run_loop.Quit();
+          auto response =
+              std::make_unique<net::test_server::BasicHttpResponse>();
+          response->set_code(net::HTTP_OK);
+          return response;
+        }
+        return nullptr;
+      }));
+
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  GURL initial_url = embedded_test_server()->GetURL("/title1.html");
+  NavigateToURLBlockUntilNavigationsComplete(shell(), initial_url, 1);
+
+  Attach();
+  SendCommandSync("Network.enable");
+
+  GURL prefetch_url = embedded_test_server()->GetURL("/prefetch.html");
+  std::string speculation_rule_script = base::StringPrintf(
+      "const script = document.createElement('script');"
+      "script.type = 'speculationrules';"
+      "script.textContent = JSON.stringify({"
+      "  prefetch: [{"
+      "    source: 'list',"
+      "    urls: ['%s']"
+      "  }]"
+      "});"
+      "document.head.appendChild(script);",
+      prefetch_url.spec().c_str());
+
+  EXPECT_TRUE(ExecJs(shell()->web_contents()->GetPrimaryMainFrame(),
+                     speculation_rule_script));
+
+  {
+    bool prefetch_request_seen = false;
+    std::string prefetch_request_id;
+    while (!prefetch_request_seen) {
+      base::DictValue notification =
+          WaitForNotification("Network.requestWillBeSent", true);
+      const std::string* url =
+          notification.FindStringByDottedPath("request.url");
+      if (url && *url == prefetch_url.spec()) {
+        const std::string* type = notification.FindString("type");
+        EXPECT_EQ(*type, "Prefetch");
+        const std::string* req_id = notification.FindString("requestId");
+        ASSERT_TRUE(req_id);
+        prefetch_request_id = *req_id;
+        prefetch_request_seen = true;
+      }
+    }
+
+    bool prefetch_loading_finished = false;
+    while (!prefetch_loading_finished) {
+      base::DictValue notification =
+          WaitForNotification("Network.loadingFinished", true);
+      const std::string* req_id = notification.FindString("requestId");
+      if (req_id && *req_id == prefetch_request_id) {
+        prefetch_loading_finished = true;
+      }
+    }
+  }
+
+  EXPECT_TRUE(ExecJs(shell()->web_contents()->GetPrimaryMainFrame(),
+                     base::StringPrintf("location.href = '%s';",
+                                        prefetch_url.spec().c_str())));
+
+  {
+    bool beacon_request_seen = false;
+    std::string beacon_request_id;
+    while (!beacon_request_seen) {
+      base::DictValue notification =
+          WaitForNotification("Network.requestWillBeSent", true);
+      const std::string* url =
+          notification.FindStringByDottedPath("request.url");
+      GURL expected_beacon_url = embedded_test_server()->GetURL("/beacon");
+      if (url && *url == expected_beacon_url.spec()) {
+        const std::string* type = notification.FindString("type");
+        EXPECT_EQ(*type, "Ping");
+        EXPECT_EQ(notification.FindDict("redirectResponse"), nullptr);
+        const std::string* req_id = notification.FindString("requestId");
+        ASSERT_TRUE(req_id);
+        beacon_request_id = *req_id;
+        beacon_request_seen = true;
+      }
+    }
+
+    bool redirected_beacon_request_seen = false;
+    while (!redirected_beacon_request_seen) {
+      base::DictValue notification =
+          WaitForNotification("Network.requestWillBeSent", true);
+      const std::string* url =
+          notification.FindStringByDottedPath("request.url");
+      GURL expected_redirected_url =
+          embedded_test_server()->GetURL("/beacon-redirected");
+      if (url && *url == expected_redirected_url.spec()) {
+        const std::string* type = notification.FindString("type");
+        EXPECT_EQ(*type, "Ping");
+        EXPECT_EQ(notification.FindIntByDottedPath("redirectResponse.status"),
+                  301);
+        const std::string* req_id = notification.FindString("requestId");
+        ASSERT_TRUE(req_id);
+        EXPECT_EQ(*req_id, beacon_request_id);
+        redirected_beacon_request_seen = true;
+      }
+    }
+
+    bool response_received_seen = false;
+    while (!response_received_seen) {
+      base::DictValue notification =
+          WaitForNotification("Network.responseReceived", true);
+      const std::string* req_id = notification.FindString("requestId");
+      if (req_id && *req_id == beacon_request_id) {
+        const std::string* type = notification.FindString("type");
+        EXPECT_EQ(*type, "Ping");
+        response_received_seen = true;
+      }
+    }
+
+    bool loading_finished_seen = false;
+    while (!loading_finished_seen) {
+      base::DictValue notification =
+          WaitForNotification("Network.loadingFinished", true);
+      const std::string* req_id = notification.FindString("requestId");
+      if (req_id && *req_id == beacon_request_id) {
+        loading_finished_seen = true;
+      }
+    }
+  }
+
+  beacon_run_loop.Run();
+  EXPECT_TRUE(beacon_seen);
 }
 
 }  // namespace content

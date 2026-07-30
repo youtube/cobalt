@@ -647,8 +647,9 @@ Position CompositeEditCommand::ReplaceSelectedTextInNode(
   const Position& end = EndingSelection().End();
   auto* text_node = DynamicTo<Text>(start.ComputeContainerNode());
   if (!text_node || text_node != end.ComputeContainerNode() ||
-      IsTabHTMLSpanElementTextNode(text_node))
+      IsTabSpanElementTextNode(text_node)) {
     return Position();
+  }
 
   ReplaceTextInNode(text_node, start.OffsetInContainerNode(),
                     end.OffsetInContainerNode() - start.OffsetInContainerNode(),
@@ -659,7 +660,7 @@ Position CompositeEditCommand::ReplaceSelectedTextInNode(
 
 Position CompositeEditCommand::PositionOutsideTabSpan(const Position& pos) {
   Node* anchor_node = pos.AnchorNode();
-  if (!IsTabHTMLSpanElementTextNode(anchor_node)) {
+  if (!IsTabSpanElementTextNode(anchor_node)) {
     return pos;
   }
 
@@ -1235,12 +1236,25 @@ void CompositeEditCommand::PushAnchorElementDown(Element* anchor_node,
 
   DCHECK(anchor_node->IsLink()) << anchor_node;
 
-  const VisibleSelection& visible_selection = CreateVisibleSelection(
-      SelectionInDomTree::Builder().SelectAllChildren(*anchor_node).Build());
-  SetEndingSelection(
-      SelectionForUndoStep::From(visible_selection.AsSelection()));
   if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
-    SetEndingDomSelection(
+    // Anchor on the deepest first/last leaf descendants so the endpoints
+    // survive RemoveNodePreservingChildren below (which disconnects
+    // |anchor_node| itself). Mirrors the leaf-anchored shape that the
+    // legacy CreateVisibleSelection(SelectAllChildren(anchor_node)) would
+    // canonicalize to, without the layout dependency.
+    Node& first_leaf = NodeTraversal::FirstWithinOrSelf(*anchor_node);
+    Node& last_leaf = NodeTraversal::LastWithinOrSelf(*anchor_node);
+    SelectionInDomTree reanchored =
+        SelectionInDomTree::Builder()
+            .SetBaseAndExtent(Position::FirstPositionInOrBeforeNode(first_leaf),
+                              Position::LastPositionInOrAfterNode(last_leaf))
+            .Build();
+    SetEndingDomSelection(SelectionForUndoStep::From(reanchored));
+    SetEndingSelection(SelectionForUndoStep::From(reanchored));
+  } else {
+    const VisibleSelection& visible_selection = CreateVisibleSelection(
+        SelectionInDomTree::Builder().SelectAllChildren(*anchor_node).Build());
+    SetEndingSelection(
         SelectionForUndoStep::From(visible_selection.AsSelection()));
   }
   ApplyStyledElement(anchor_node, editing_state);
@@ -2011,7 +2025,7 @@ bool CompositeEditCommand::BreakOutOfEmptyListItem(
     // If emptyListItem follows another list item or nested list, split the list
     // node.
     if (IsListItemTag(previous_list_node) ||
-        IsHTMLListElement(previous_list_node)) {
+        IsHtmlListElement(previous_list_node)) {
       SplitElement(To<Element>(list_node), empty_list_item);
     }
 
@@ -2084,7 +2098,7 @@ bool CompositeEditCommand::BreakOutOfEmptyMailBlockquotedParagraph(
 
   VisiblePosition caret = EndingVisibleSelection().VisibleStart();
   auto* highest_blockquote = To<HTMLQuoteElement>(HighestEnclosingNodeOfType(
-      caret.DeepEquivalent(), &IsMailHTMLBlockquoteElement));
+      caret.DeepEquivalent(), &IsMailHtmlBlockquoteElement));
   if (!highest_blockquote)
     return false;
 
@@ -2096,8 +2110,9 @@ bool CompositeEditCommand::BreakOutOfEmptyMailBlockquotedParagraph(
   // Only move forward if there's nothing before the caret, or if there's
   // unquoted content before it.
   if (EnclosingNodeOfType(previous.DeepEquivalent(),
-                          &IsMailHTMLBlockquoteElement))
+                          &IsMailHtmlBlockquoteElement)) {
     return false;
+  }
 
   auto* br = MakeGarbageCollected<HTMLBRElement>(GetDocument());
   // We want to replace this quoted paragraph with an unquoted one, so insert a
@@ -2173,7 +2188,10 @@ Position CompositeEditCommand::PositionAvoidingSpecialElementBoundary(
     return original;
 
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
+  // The equality checks below need a visual
+  // canonical form that a DOM-only normalization can't reliably reproduce.
   VisiblePosition visible_pos = CreateVisiblePosition(original);
+  Position canonical_pos = visible_pos.DeepEquivalent();
   Element* enclosing_anchor = EnclosingAnchorElement(original);
   Position result = original;
 
@@ -2183,13 +2201,14 @@ Position CompositeEditCommand::PositionAvoidingSpecialElementBoundary(
   // Don't avoid block level anchors, because that would insert content into the
   // wrong paragraph.
   if (enclosing_anchor && !IsEnclosingBlock(enclosing_anchor)) {
-    VisiblePosition first_in_anchor =
-        VisiblePosition::FirstPositionInNode(*enclosing_anchor);
-    VisiblePosition last_in_anchor =
-        VisiblePosition::LastPositionInNode(*enclosing_anchor);
+    Position first_in_anchor =
+        VisiblePosition::FirstPositionInNode(*enclosing_anchor)
+            .DeepEquivalent();
+    Position last_in_anchor =
+        VisiblePosition::LastPositionInNode(*enclosing_anchor).DeepEquivalent();
     // If visually just after the anchor, insert *inside* the anchor unless it's
     // the last VisiblePosition in the document, to match NSTextView.
-    if (visible_pos.DeepEquivalent() == last_in_anchor.DeepEquivalent()) {
+    if (canonical_pos == last_in_anchor) {
       // Make sure anchors are pushed down before avoiding them so that we don't
       // also avoid structural elements like lists and blocks (5142012).
       Element* enclosing_block = EnclosingBlock(original.AnchorNode());
@@ -2209,18 +2228,40 @@ Position CompositeEditCommand::PositionAvoidingSpecialElementBoundary(
       // Don't insert outside an anchor if doing so would skip over a line
       // break.  It would probably be safe to move the line break so that we
       // could still avoid the anchor here.
-      Position downstream(
-          MostForwardCaretPosition(visible_pos.DeepEquivalent()));
-      if (LineBreakExistsAtVisiblePosition(visible_pos) &&
-          downstream.AnchorNode()->IsDescendantOf(enclosing_anchor))
+      Position downstream =
+          RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
+              ? MostForwardCaretPosition(original)
+              : Position(MostForwardCaretPosition(canonical_pos));
+      // VP path checks `visible_pos` (pre-MostForward) for the line break; the
+      // DOM path must mirror that by using `original`, because MostForward can
+      // walk past a trailing <br> out of the anchor and lose both the line
+      // break and the descendant relationship.
+      const bool line_break_here =
+          RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
+              ? LineBreakExistsAtPosition(original)
+              : LineBreakExistsAtVisiblePosition(visible_pos);
+      Node* line_break_container =
+          RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
+              ? original.AnchorNode()
+              : downstream.AnchorNode();
+      // Flag-on also treats the anchor itself as a match, because the DOM path
+      // anchors the line break on `original` rather than the downstream
+      // descendant the legacy path lands on.
+      const bool container_in_anchor =
+          line_break_container &&
+          ((RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled() &&
+            line_break_container == enclosing_anchor) ||
+           line_break_container->IsDescendantOf(enclosing_anchor));
+      if (line_break_here && container_in_anchor) {
         return original;
+      }
 
       result = Position::InParentAfterNode(*enclosing_anchor);
     }
 
     // If visually just before an anchor, insert *outside* the anchor unless
     // it's the first VisiblePosition in a paragraph, to match NSTextView.
-    if (visible_pos.DeepEquivalent() == first_in_anchor.DeepEquivalent()) {
+    if (canonical_pos == first_in_anchor) {
       // Make sure anchors are pushed down before avoiding them so that we don't
       // also avoid structural elements like lists and blocks (5142012).
       Element* enclosing_block = EnclosingBlock(original.AnchorNode());

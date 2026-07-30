@@ -465,13 +465,19 @@ IN_PROC_BROWSER_TEST_F(UserScriptWorldBrowserTest,
          let errorMsg = /User scripts may not message external extensions./;
          chrome.test.runTests([
            function sendMessageToExternalExtensionThrowsError() {
-             chrome.test.assertThrows(chrome.runtime.sendMessage, null,
-                                      [targetId, 'test message'], errorMsg);
+             // Verify `chrome.runtime.sendMessage` throws when messaging
+             // external extensions.
+             chrome.test.assertThrows(
+                 chrome.runtime.sendMessage.bind(
+                     null, targetId, /* message */ 'test message'),
+                 errorMsg);
              chrome.test.succeed();
            },
            function connectToExternalExtensionThrowsError() {
-             chrome.test.assertThrows(chrome.runtime.connect, null,
-                                      [targetId], errorMsg);
+             // Verify `chrome.runtime.connect` throws when connecting to
+             // external extensions.
+             chrome.test.assertThrows(
+                 chrome.runtime.connect.bind(null, targetId), errorMsg);
              chrome.test.succeed();
            },
          ]);

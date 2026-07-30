@@ -365,6 +365,63 @@ TEST_F(OnDeviceModelServiceTest, PerSessionSamplingParams) {
               ElementsAre("TopK: 2, Temp: 0.5", "cheese", "more", "cheddar"));
 }
 
+TEST_F(OnDeviceModelServiceTest, ClampedSamplingParams) {
+  auto model = LoadModel();
+
+  // top_k = 0 should be clamped to kMinTopK (1). We use temperature = 0.5 to
+  // ensure the params block is printed by the fake engine.
+  {
+    auto session_params = mojom::SessionParams::New();
+    session_params->top_k = 0;
+    session_params->temperature = 0.5;
+
+    TestResponseHolder response;
+    mojo::Remote<mojom::Session> session;
+    model->StartSession(session.BindNewPipeAndPassReceiver(),
+                        std::move(session_params));
+
+    session->Generate(mojom::GenerateOptions::New(), response.BindRemote());
+    response.WaitForCompletion();
+
+    EXPECT_THAT(response.responses(), ElementsAre("TopK: 1, Temp: 0.5"));
+  }
+
+  // temperature = -1 should be clamped to kMinTemperature (0.0f). We use
+  // top_k = 2 to ensure the params block is printed by the fake engine.
+  {
+    auto session_params = mojom::SessionParams::New();
+    session_params->top_k = 2;
+    session_params->temperature = -1;
+
+    TestResponseHolder response;
+    mojo::Remote<mojom::Session> session;
+    model->StartSession(session.BindNewPipeAndPassReceiver(),
+                        std::move(session_params));
+
+    session->Generate(mojom::GenerateOptions::New(), response.BindRemote());
+    response.WaitForCompletion();
+
+    EXPECT_THAT(response.responses(), ElementsAre("TopK: 2, Temp: 0"));
+  }
+
+  // top_k = 1000 should be clamped to MaxTopK (128).
+  {
+    auto session_params = mojom::SessionParams::New();
+    session_params->top_k = 1000;
+    session_params->temperature = 0.5;
+
+    TestResponseHolder response;
+    mojo::Remote<mojom::Session> session;
+    model->StartSession(session.BindNewPipeAndPassReceiver(),
+                        std::move(session_params));
+
+    session->Generate(mojom::GenerateOptions::New(), response.BindRemote());
+    response.WaitForCompletion();
+
+    EXPECT_THAT(response.responses(), ElementsAre("TopK: 128, Temp: 0.5"));
+  }
+}
+
 TEST_F(OnDeviceModelServiceTest, CloneContextAndContinue) {
   auto model = LoadModel();
 

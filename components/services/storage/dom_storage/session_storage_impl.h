@@ -133,10 +133,6 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   FRIEND_TEST_ALL_PREFIXES(SessionStorageImplTest,
                            ClearDiskStateOnOpenWithEmptyPathUsesInMemory);
 
-  scoped_refptr<DomStorageDatabase::SharedMapLocator> RegisterNewAreaMap(
-      const std::string& namespace_id,
-      const blink::StorageKey& storage_key);
-
   // SessionStorageAreaImpl::Listener implementation:
   void OnDataMapCreation(int64_t map_id, SessionStorageDataMap* map) override;
   void OnDataMapDestruction(int64_t map_id) override;

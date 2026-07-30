@@ -91,6 +91,8 @@ import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.components.user_prefs.UserPrefsJni;
+import org.chromium.content_public.browser.NavigationController;
+import org.chromium.content_public.browser.NavigationEntry;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -120,6 +122,8 @@ public final class StatusMediatorUnitTest {
     @Mock private CookieControlsBridge.Natives mCookieControlsBridgeJniMock;
     @Mock private Tab mTab;
     @Mock private WebContents mWebContents;
+    @Mock private NavigationController mNavigationController;
+    @Mock private NavigationEntry mNavigationEntry;
     @Mock UserPrefsJni mMockUserPrefsJni;
     @Mock private PrefService mPrefs;
     @Mock private Tracker mTracker;
@@ -1017,6 +1021,40 @@ public final class StatusMediatorUnitTest {
     @Test
     @SmallTest
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT + ":show_ntp_plus_button/true")
+    public void testShowNtpPlusButton_hidden_whenPendingNavigationToWebPage() {
+        // Setup: NTP is visible, and all conditions for plus button are met
+        doReturn(true).when(mNewTabPageDelegate).isCurrentlyVisible();
+        doReturn(false).when(mLocationBarDataProvider).isIncognito();
+        doReturn(true).when(mTemplateUrlService).isDefaultSearchEngineGoogle();
+        ComposeplateUtils.setIsEnabledForTesting(true);
+
+        // Verify it would show the plus button initially
+        mMediator.updateLocationBarIcon(IconTransitionType.CROSSFADE);
+        assertEquals(
+                R.drawable.ic_add_round_20dp_with_inset,
+                mModel.get(StatusProperties.STATUS_ICON_RESOURCE).getIconRes());
+
+        // Setup: Mock a pending navigation to a non-NTP URL
+        doReturn(mTab).when(mLocationBarDataProvider).getTab();
+        doReturn(mWebContents).when(mTab).getWebContents();
+        doReturn(mNavigationController).when(mWebContents).getNavigationController();
+        doReturn(mNavigationEntry).when(mNavigationController).getPendingEntry();
+        doReturn(JUnitTestGURLs.BLUE_1).when(mNavigationEntry).getUrl(); // Non-NTP URL
+
+        // Trigger URL change (navigation start)
+        mMediator.onUrlChanged();
+
+        // Assert: Plus button is suppressed
+        mMediator.updateLocationBarIcon(IconTransitionType.CROSSFADE);
+        StatusIconResource icon = mModel.get(StatusProperties.STATUS_ICON_RESOURCE);
+        if (icon != null) {
+            assertNotEquals(R.drawable.ic_add_round_20dp_with_inset, icon.getIconRes());
+        }
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT + ":show_ntp_plus_button/true")
     public void testShowNtpPlusButton_unfocused_isIncognito() {
         doReturn(true).when(mNewTabPageDelegate).isCurrentlyVisible();
         doReturn(true).when(mLocationBarDataProvider).isIncognito();
@@ -1137,6 +1175,36 @@ public final class StatusMediatorUnitTest {
         // 4. Assert the late @wiki icon callback was safely discarded because active data is
         // @gemini
         assertNotEquals("wiki_icon", getIconIdentifierForTesting());
+    }
+
+    @Test
+    @SmallTest
+    public void searchEngineLogo_hidden_whenPendingNavigationToWebPage() {
+        // 1. Setup: NTP is visible initially
+        doReturn(true).when(mNewTabPageDelegate).isCurrentlyVisible();
+        mMediator.beginInput(mFuseboxSessionState);
+        mMediator.endInput();
+        assertTrue(mMediator.shouldDisplaySearchEngineIcon());
+
+        // 2. Setup: Mock a pending navigation to a non-NTP URL
+        doReturn(mTab).when(mLocationBarDataProvider).getTab();
+        doReturn(mWebContents).when(mTab).getWebContents();
+        doReturn(mNavigationController).when(mWebContents).getNavigationController();
+        doReturn(mNavigationEntry).when(mNavigationController).getPendingEntry();
+        doReturn(JUnitTestGURLs.BLUE_1).when(mNavigationEntry).getUrl(); // Non-NTP URL
+
+        // 3. Trigger URL change (navigation start)
+        mMediator.onUrlChanged();
+
+        // 4. Assert: Search engine logo is suppressed immediately
+        assertFalse(mMediator.shouldDisplaySearchEngineIcon());
+
+        // And it should fall back to the security icon or globe/magnifier (or null if none set)
+        mMediator.updateLocationBarIcon(IconTransitionType.CROSSFADE);
+        StatusIconResource icon = mModel.get(StatusProperties.STATUS_ICON_RESOURCE);
+        if (icon != null) {
+            assertNotEquals(R.drawable.ic_logo_googleg_20dp, icon.getIconRes());
+        }
     }
 
     private String getIconIdentifierForTesting() {

@@ -79,6 +79,8 @@ class FakeFidoDiscovery final : public FidoDeviceDiscovery {
   // Combines WaitForCallToStart + SimulateStarted(true).
   void WaitForCallToStartAndSimulateSuccess();
 
+  base::WeakPtr<FakeFidoDiscovery> GetWeakPtr();
+
   // Tests are to directly call Add/RemoveDevice to simulate adding/removing
   // devices. Observers are automatically notified.
   using FidoDeviceDiscovery::AddDevice;

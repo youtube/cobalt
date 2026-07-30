@@ -15,26 +15,32 @@ import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 public class ImmersiveVideoFormatProperties {
     public static final ReadableObjectPropertyKey<Float> DEFAULT_CORNER_RADIUS =
             new ReadableObjectPropertyKey<>();
-    public static final ReadableObjectPropertyKey<Float> DEFAULT_SPATIAL_HEIGHT =
-            new ReadableObjectPropertyKey<>();
     public static final ReadableObjectPropertyKey<Float> DEFAULT_SPATIAL_WIDTH =
             new ReadableObjectPropertyKey<>();
     public static final WritableObjectPropertyKey<Float> PARENT_HEIGHT =
             new WritableObjectPropertyKey<>();
     public static final WritableObjectPropertyKey<Float> PARENT_WIDTH =
             new WritableObjectPropertyKey<>();
+    public static final WritableObjectPropertyKey<Integer> RECOMMENDED_PROJECTION_TYPE =
+            new WritableObjectPropertyKey<>();
+    public static final WritableObjectPropertyKey<Integer> RECOMMENDED_STEREO_MODE =
+            new WritableObjectPropertyKey<>();
     public static final WritableIntPropertyKey SELECTED_PROJECTION_TYPE =
             new WritableIntPropertyKey();
     public static final WritableIntPropertyKey SELECTED_STEREO_MODE = new WritableIntPropertyKey();
+    public static final WritableObjectPropertyKey<Float> SPATIAL_HEIGHT =
+            new WritableObjectPropertyKey<>();
 
     public static final PropertyKey[] ALL_KEYS =
             new PropertyKey[] {
                 DEFAULT_CORNER_RADIUS,
-                DEFAULT_SPATIAL_HEIGHT,
                 DEFAULT_SPATIAL_WIDTH,
                 PARENT_HEIGHT,
                 PARENT_WIDTH,
+                RECOMMENDED_PROJECTION_TYPE,
+                RECOMMENDED_STEREO_MODE,
                 SELECTED_PROJECTION_TYPE,
                 SELECTED_STEREO_MODE,
+                SPATIAL_HEIGHT,
             };
 }

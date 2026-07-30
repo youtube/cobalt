@@ -230,7 +230,8 @@
     matchesServiceIdentifiers:
         (NSArray<ASCredentialServiceIdentifier*>*)serviceIdentifiers {
   for (ASCredentialServiceIdentifier* serviceIdentifier in serviceIdentifiers) {
-    NSString* requestedHost = HostForServiceIdentifier(serviceIdentifier);
+    NSString* requestedHost =
+        credential_provider::HostForIdentifier(serviceIdentifier.identifier);
     if (!requestedHost) {
       continue;
     }
@@ -241,21 +242,10 @@
       return YES;
     }
 
-    // Do not fall through to the NSURL-host fallback for android:// service
-    // identifiers. NSURL parses "android://<hash>@<package>" as a generic
-    // RFC 3986 URI and yields .host == <package>, which would let a web
-    // origin whose DNS name collides with the Java package name match an
-    // unrelated Android-app credential.
-    if ([credential.serviceIdentifier hasPrefix:@"android://"]) {
-      continue;
-    }
-
     // Fallback to matching the parsed host of the credential's
     // serviceIdentifier.
-    NSURL* credURL = credential.serviceIdentifier
-                         ? [NSURL URLWithString:credential.serviceIdentifier]
-                         : nil;
-    NSString* credHost = credURL.host ?: credential.serviceIdentifier;
+    NSString* credHost =
+        credential_provider::HostForIdentifier(credential.serviceIdentifier);
 
     if (credential_provider::SecureHostsMatch(requestedHost, credHost)) {
       return YES;

@@ -38,10 +38,6 @@ struct GPU_IPC_COMMON_EXPORT EnumTraits<gpu::mojom::ContextType,
         return gpu::CONTEXT_TYPE_WEBGL2;
       case gpu::mojom::ContextType::kOpenGLES2:
         return gpu::CONTEXT_TYPE_OPENGLES2;
-      // OPENGLES3 should not be serialized as there are no production usages
-      // and it is planned to be removed.
-      case gpu::mojom::ContextType::kOpenGLES3:
-        NOTREACHED();
     }
     NOTREACHED();
   }

@@ -18,7 +18,6 @@ import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.readaloud.ReadAloudFeatures;
 import org.chromium.chrome.browser.ui.bottombar.BottomBarConfigUtils;
-import org.chromium.chrome.browser.ui.side_panel.AndroidSidePanelEnabledFn;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.base.DeviceFormFactor;
@@ -179,8 +178,10 @@ public class AdaptiveToolbarFeatures {
     /**
      * Returns whether Glic is enabled for the given profile in the context of the adaptive toolbar.
      */
-    public static boolean isGlicEnabledForProfile(Profile profile) {
-        return GlicEnabling.isEnabledForProfile(profile) && !AndroidSidePanelEnabledFn.isEnabled();
+    public static boolean isGlicEnabledForAdaptiveToolbar(Context context, Profile profile) {
+        return GlicEnabling.isEnabledForProfile(profile)
+                && !DeviceFormFactor.isNonMultiDisplayContextOnTablet(context)
+                && !BottomBarConfigUtils.isBottomBarEnabled(context);
     }
 
     static void setDefaultSegmentForTesting(String defaultSegment) {

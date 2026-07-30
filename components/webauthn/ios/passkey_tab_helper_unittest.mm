@@ -261,11 +261,11 @@ class PasskeyTabHelperTest : public PlatformTest {
                                            bool expected_with_biometrics,
                                            bool expected_without_biometrics) {
     SCOPED_TRACE(testing::Message() << "ID: " << request_id);
-    EXPECT_EQ(passkey_tab_helper()->ShouldPerformUserVerification(
-                  request_id, /*is_biometric_authentication_enabled=*/true),
+    client_->SetBiometricsEnabled(true);
+    EXPECT_EQ(passkey_tab_helper()->ShouldPerformUserVerification(request_id),
               std::optional<bool>(expected_with_biometrics));
-    EXPECT_EQ(passkey_tab_helper()->ShouldPerformUserVerification(
-                  request_id, /*is_biometric_authentication_enabled=*/false),
+    client_->SetBiometricsEnabled(false);
+    EXPECT_EQ(passkey_tab_helper()->ShouldPerformUserVerification(request_id),
               std::optional<bool>(expected_without_biometrics));
   }
 
@@ -524,9 +524,8 @@ TEST_F(PasskeyTabHelperTest, ShouldPerformUserVerification) {
                                            kMainRemoteFrameId);
 
   // Test with non-existent request ID.
-  EXPECT_EQ(
-      passkey_tab_helper()->ShouldPerformUserVerification("non-existent", true),
-      std::nullopt);
+  EXPECT_EQ(passkey_tab_helper()->ShouldPerformUserVerification("non-existent"),
+            std::nullopt);
 
   // An array of user verification requirements, and their expected values.
   struct UserVerificationRequirementTest {
@@ -761,7 +760,8 @@ TEST_F(PasskeyTabHelperTest, StartPasskeyCreationFromCrossOriginIframe) {
   EXPECT_TRUE(client_->DidShowCreationBottomSheet());
 
   // Trigger start of creation.
-  passkey_tab_helper()->StartPasskeyCreation(kFakeRequestId);
+  passkey_tab_helper()->StartPasskeyCreation(kFakeRequestId,
+                                             /*did_complete_uv=*/false);
   EXPECT_TRUE(client_->DidFetchKeys());
 
   // Verify that ResolveAttestationRequest was called on the subframe with the

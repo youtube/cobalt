@@ -4,12 +4,9 @@
 
 package org.chromium.chrome.browser.media.immersive_playback.components;
 
-import android.view.View;
-import android.widget.RadioButton;
-
 import org.chromium.build.annotations.NullMarked;
-import org.chromium.chrome.browser.media.immersive_playback.ImmersiveVideoFormatRadioGroup;
-import org.chromium.chrome.browser.modules.xr.R;
+import org.chromium.content_public.browser.ImmersiveProjectionType;
+import org.chromium.content_public.browser.ImmersiveStereoMode;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.xr.scenecore.XrPanelEntityHolder;
@@ -31,17 +28,16 @@ public class ImmersiveVideoFormatViewBinder {
             PropertyModel model, ImmersiveVideoFormatSpatialView view, PropertyKey propertyKey) {
         if (propertyKey == ImmersiveVideoFormatProperties.SELECTED_STEREO_MODE
                 || propertyKey == ImmersiveVideoFormatProperties.SELECTED_PROJECTION_TYPE) {
+            @ImmersiveStereoMode
             int stereoMode = model.get(ImmersiveVideoFormatProperties.SELECTED_STEREO_MODE);
+            @ImmersiveProjectionType
             int projectionType = model.get(ImmersiveVideoFormatProperties.SELECTED_PROJECTION_TYPE);
 
-            View foundView = view.androidView.findViewById(R.id.format_radio_group);
-            assert foundView instanceof ImmersiveVideoFormatRadioGroup;
-            checkFormatOption(
-                    (ImmersiveVideoFormatRadioGroup) foundView, stereoMode, projectionType);
+            view.androidView.getRadioGroup().checkFormatOption(stereoMode, projectionType);
         } else if (propertyKey == ImmersiveVideoFormatProperties.DEFAULT_SPATIAL_WIDTH
-                || propertyKey == ImmersiveVideoFormatProperties.DEFAULT_SPATIAL_HEIGHT) {
+                || propertyKey == ImmersiveVideoFormatProperties.SPATIAL_HEIGHT) {
             Float width = model.get(ImmersiveVideoFormatProperties.DEFAULT_SPATIAL_WIDTH);
-            Float height = model.get(ImmersiveVideoFormatProperties.DEFAULT_SPATIAL_HEIGHT);
+            Float height = model.get(ImmersiveVideoFormatProperties.SPATIAL_HEIGHT);
             if (width != null && height != null && width > 0f && height > 0f) {
                 view.spatialEntityHolder.setEntitySize(width, height);
                 updatePose(model, view.spatialEntityHolder);
@@ -54,12 +50,20 @@ public class ImmersiveVideoFormatViewBinder {
             if (radius != null) {
                 view.spatialEntityHolder.setEntityCornerRadius(radius);
             }
+        } else if (propertyKey == ImmersiveVideoFormatProperties.RECOMMENDED_STEREO_MODE
+                || propertyKey == ImmersiveVideoFormatProperties.RECOMMENDED_PROJECTION_TYPE) {
+            Integer stereoMode = model.get(ImmersiveVideoFormatProperties.RECOMMENDED_STEREO_MODE);
+            Integer projectionType =
+                    model.get(ImmersiveVideoFormatProperties.RECOMMENDED_PROJECTION_TYPE);
+            if (stereoMode != null && projectionType != null) {
+                view.androidView.getRadioGroup().setRecommendedOption(stereoMode, projectionType);
+            }
         }
     }
 
     private static void updatePose(PropertyModel model, XrPanelEntityHolder<?> holder) {
         Float width = model.get(ImmersiveVideoFormatProperties.DEFAULT_SPATIAL_WIDTH);
-        Float height = model.get(ImmersiveVideoFormatProperties.DEFAULT_SPATIAL_HEIGHT);
+        Float height = model.get(ImmersiveVideoFormatProperties.SPATIAL_HEIGHT);
         Float parentWidth = model.get(ImmersiveVideoFormatProperties.PARENT_WIDTH);
         Float parentHeight = model.get(ImmersiveVideoFormatProperties.PARENT_HEIGHT);
 
@@ -74,25 +78,6 @@ public class ImmersiveVideoFormatViewBinder {
             float[] translation =
                     new float[] {parentWidth / 2 - width / 2, parentHeight / 2 + height / 2, 0f};
             holder.setEntityPose(translation, IDENTITY_ROTATION, XrSpace.PARENT);
-        }
-    }
-
-    private static void checkFormatOption(
-            ImmersiveVideoFormatRadioGroup radioGroup, int stereoMode, int projectionType) {
-        for (int i = 0; i < radioGroup.getChildCount(); i++) {
-            View child = radioGroup.getChildAt(i);
-            if (child instanceof RadioButton) {
-                Object tag = child.getTag();
-                assert tag instanceof ImmersiveVideoFormatRadioGroup.FormatOption;
-                ImmersiveVideoFormatRadioGroup.FormatOption option =
-                        (ImmersiveVideoFormatRadioGroup.FormatOption) tag;
-                if (option.stereoMode == stereoMode && option.projectionType == projectionType) {
-                    if (radioGroup.getCheckedRadioButtonId() != child.getId()) {
-                        radioGroup.check(child.getId());
-                    }
-                    break;
-                }
-            }
         }
     }
 }

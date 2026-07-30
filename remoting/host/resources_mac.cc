@@ -18,12 +18,6 @@ bool LoadResources(const std::string& pref_locale) {
   if (ui::ResourceBundle::HasSharedInstance()) {
     ui::ResourceBundle::GetSharedInstance().ReloadLocaleResources(pref_locale);
   } else {
-    // In component builds, the shared library (containing this function) may
-    // reside in the build directory next to the app bundle, rather than inside
-    // it. In this case, the derived path will not be a bundle, and we should
-    // not override the framework bundle path, allowing it to default to the
-    // main bundle (which is the app bundle containing the resources).
-#if !defined(COMPONENT_BUILD)
     // Retrieve the path to the module containing this function.
     Dl_info info;
     CHECK(dladdr(reinterpret_cast<void*>(&LoadResources), &info) != 0);
@@ -33,7 +27,6 @@ bool LoadResources(const std::string& pref_locale) {
     base::FilePath path =
         base::FilePath(info.dli_fname).DirName().DirName().DirName();
     base::apple::SetOverrideFrameworkBundlePath(path);
-#endif
 
     // Override the locale with the value from Cocoa.
     if (pref_locale.empty()) {

@@ -149,13 +149,165 @@ TEST_F(DeviceNameUtilTest, GetDisplayNameCandidates_Windows_FullySynced) {
   EXPECT_EQ("BOBS-WINDOWS-1", candidates.preferred_name_if_unique);
 }
 
+TEST_F(DeviceNameUtilTest, GetDisplayNameCandidates_Windows_GenericDesktop) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kSyncSimplifyDeviceNaming);
+
+  std::unique_ptr<DeviceInfo> device =
+      CreateFakeDeviceInfo("guid", "DESKTOP-R5U8O1I",
+                           DeviceInfo::OsType::kWindows, "Dell", "XPS 13");
+  DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+
+  EXPECT_EQ("Dell Desktop XPS 13", candidates.fallback_full_name);
+  EXPECT_EQ("Dell Desktop", candidates.preferred_name_if_unique);
+}
+
+TEST_F(DeviceNameUtilTest,
+       GetDisplayNameCandidates_Windows_GenericDesktop_FeatureDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(kSyncSimplifyDeviceNaming);
+
+  std::unique_ptr<DeviceInfo> device =
+      CreateFakeDeviceInfo("guid", "DESKTOP-R5U8O1I",
+                           DeviceInfo::OsType::kWindows, "Dell", "XPS 13");
+  DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+
+  // Should NOT be renamed because the feature is disabled.
+  EXPECT_EQ("DESKTOP-R5U8O1I", candidates.fallback_full_name);
+  EXPECT_EQ("DESKTOP-R5U8O1I", candidates.preferred_name_if_unique);
+}
+
+TEST_F(DeviceNameUtilTest, GetDisplayNameCandidates_Windows_GenericLaptop) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kSyncSimplifyDeviceNaming);
+
+  std::unique_ptr<DeviceInfo> device =
+      CreateFakeDeviceInfo("guid", "LAPTOP-R5U8O1IS",
+                           DeviceInfo::OsType::kWindows, "Dell", "XPS 13");
+  DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+
+  EXPECT_EQ("Dell Laptop XPS 13", candidates.fallback_full_name);
+  EXPECT_EQ("Dell Laptop", candidates.preferred_name_if_unique);
+}
+
+TEST_F(DeviceNameUtilTest, GetDisplayNameCandidates_Windows_CustomName) {
+  std::unique_ptr<DeviceInfo> device = CreateFakeDeviceInfo(
+      "guid", "My Work PC", DeviceInfo::OsType::kWindows, "Dell", "XPS 13");
+  DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+
+  EXPECT_EQ("My Work PC", candidates.fallback_full_name);
+  EXPECT_EQ("My Work PC", candidates.preferred_name_if_unique);
+}
+
+TEST_F(DeviceNameUtilTest,
+       GetDisplayNameCandidates_Windows_GenericNameEdgeCases) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kSyncSimplifyDeviceNaming);
+
+  std::string manufacturer = "Dell";
+  std::string model = "XPS 13";
+
+  // Missing hyphen should NOT match
+  {
+    std::unique_ptr<DeviceInfo> device =
+        CreateFakeDeviceInfo("guid", "DESKTOP123", DeviceInfo::OsType::kWindows,
+                             manufacturer, model);
+    DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+    EXPECT_EQ("DESKTOP123", candidates.preferred_name_if_unique);
+  }
+
+  // Prefix in the middle should NOT match
+  {
+    std::unique_ptr<DeviceInfo> device =
+        CreateFakeDeviceInfo("guid", "MY-DESKTOP-123",
+                             DeviceInfo::OsType::kWindows, manufacturer, model);
+    DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+    EXPECT_EQ("MY-DESKTOP-123", candidates.preferred_name_if_unique);
+  }
+
+  // Lowercase prefix should NOT match (case-sensitive)
+  {
+    std::unique_ptr<DeviceInfo> device =
+        CreateFakeDeviceInfo("guid", "desktop-123",
+                             DeviceInfo::OsType::kWindows, manufacturer, model);
+    DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+    EXPECT_EQ("desktop-123", candidates.preferred_name_if_unique);
+  }
+
+  // Fits the pattern (up to 7 chars prefix, dash, 7+ chars suffix, all
+  // uppercase alnum)
+  {
+    std::unique_ptr<DeviceInfo> device =
+        CreateFakeDeviceInfo("guid", "ABCDEFG-1234567",
+                             DeviceInfo::OsType::kWindows, manufacturer, model);
+    DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+    EXPECT_EQ("Dell Computer", candidates.preferred_name_if_unique);
+  }
+
+  // Too long prefix (8 chars, total 15, suffix 6) -> should NOT match
+  // (hyphen_pos > 7)
+  {
+    std::unique_ptr<DeviceInfo> device =
+        CreateFakeDeviceInfo("guid", "ABCDEFGH-123456",
+                             DeviceInfo::OsType::kWindows, manufacturer, model);
+    DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+    EXPECT_EQ("ABCDEFGH-123456", candidates.preferred_name_if_unique);
+  }
+
+  // Too short suffix (6 chars, total 14) -> should NOT match (invalid length)
+  {
+    std::unique_ptr<DeviceInfo> device =
+        CreateFakeDeviceInfo("guid", "ABCDEFG-123456",
+                             DeviceInfo::OsType::kWindows, manufacturer, model);
+    DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+    EXPECT_EQ("ABCDEFG-123456", candidates.preferred_name_if_unique);
+  }
+
+  // Total length too long (16 chars: 7 + 1 + 8) -> should NOT match (invalid
+  // length)
+  {
+    std::unique_ptr<DeviceInfo> device =
+        CreateFakeDeviceInfo("guid", "ABCDEFG-12345678",
+                             DeviceInfo::OsType::kWindows, manufacturer, model);
+    DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+    EXPECT_EQ("ABCDEFG-12345678", candidates.preferred_name_if_unique);
+  }
+
+  // Special characters in prefix (total 15: 5 prefix + 1 dash + 9 suffix) ->
+  // should NOT match (invalid chars)
+  {
+    std::unique_ptr<DeviceInfo> device =
+        CreateFakeDeviceInfo("guid", "AB_CD-123456789",
+                             DeviceInfo::OsType::kWindows, manufacturer, model);
+    DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+    EXPECT_EQ("AB_CD-123456789", candidates.preferred_name_if_unique);
+  }
+}
+
+// Tests that a generic Windows auto-generated name (e.g. "JOHN-R5U8O1I")
+// is correctly identified as low quality and simplified.
+TEST_F(DeviceNameUtilTest,
+       GetDisplayNameCandidates_Windows_GenericAutogenerated) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kSyncSimplifyDeviceNaming);
+
+  // "JOHN-R5U8O1I234" (15 chars) fits the pattern of auto-generated names.
+  std::unique_ptr<DeviceInfo> device =
+      CreateFakeDeviceInfo("guid", "JOHN-R5U8O1I234",
+                           DeviceInfo::OsType::kWindows, "Dell", "XPS 13");
+  DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
+
+  EXPECT_EQ("Dell Computer XPS 13", candidates.fallback_full_name);
+  EXPECT_EQ("Dell Computer", candidates.preferred_name_if_unique);
+}
+
 TEST_F(DeviceNameUtilTest, GetDisplayNameCandidates_Linux_SigninOnly) {
   std::unique_ptr<DeviceInfo> device = CreateFakeDeviceInfo(
       "guid", "30BDS0RA0G", DeviceInfo::OsType::kLinux, "LENOVO", "30BDS0RA0G");
   DisplayNameCandidates candidates = GetDisplayNameCandidates(device.get());
 
-  EXPECT_EQ("LENOVO Computer 30BDS0RA0G", candidates.fallback_full_name);
-  EXPECT_EQ("LENOVO Computer", candidates.preferred_name_if_unique);
+  EXPECT_EQ("Lenovo Computer 30BDS0RA0G", candidates.fallback_full_name);
+  EXPECT_EQ("Lenovo Computer", candidates.preferred_name_if_unique);
 }
 
 TEST_F(DeviceNameUtilTest, GetDisplayNameCandidates_Linux_FullySynced) {
@@ -180,15 +332,15 @@ TEST_F(DeviceNameUtilTest, CheckManufacturerNameCapitalization) {
                                 "foo1bar", "model");
   candidates = GetDisplayNameCandidates(device.get());
 
-  EXPECT_EQ("Foo1Bar Computer model", candidates.fallback_full_name);
-  EXPECT_EQ("Foo1Bar Computer", candidates.preferred_name_if_unique);
+  EXPECT_EQ("Foo1bar Computer model", candidates.fallback_full_name);
+  EXPECT_EQ("Foo1bar Computer", candidates.preferred_name_if_unique);
 
   device = CreateFakeDeviceInfo("guid", "model", DeviceInfo::OsType::kWindows,
                                 "foo_bar-FOO", "model");
   candidates = GetDisplayNameCandidates(device.get());
 
-  EXPECT_EQ("Foo_Bar-FOO Computer model", candidates.fallback_full_name);
-  EXPECT_EQ("Foo_Bar-FOO Computer", candidates.preferred_name_if_unique);
+  EXPECT_EQ("Foo_bar-Foo Computer model", candidates.fallback_full_name);
+  EXPECT_EQ("Foo_bar-Foo Computer", candidates.preferred_name_if_unique);
 
   device = CreateFakeDeviceInfo("guid", "model", DeviceInfo::OsType::kWindows,
                                 "foo&bar foo", "model");
@@ -197,13 +349,23 @@ TEST_F(DeviceNameUtilTest, CheckManufacturerNameCapitalization) {
   EXPECT_EQ("Foo&Bar Foo Computer model", candidates.fallback_full_name);
   EXPECT_EQ("Foo&Bar Foo Computer", candidates.preferred_name_if_unique);
 
-  // Non-ASCII manufacturer names should be returned as-is.
+  // Non-ASCII manufacturer names without casing (e.g. Chinese) should be
+  // returned as-is.
   device = CreateFakeDeviceInfo("guid", "model", DeviceInfo::OsType::kWindows,
                                 "电子产品", "model");
   candidates = GetDisplayNameCandidates(device.get());
 
   EXPECT_EQ("电子产品 Computer model", candidates.fallback_full_name);
   EXPECT_EQ("电子产品 Computer", candidates.preferred_name_if_unique);
+
+  // Non-ASCII manufacturer names with casing (e.g. Cyrillic) should be
+  // capitalized.
+  device = CreateFakeDeviceInfo("guid", "model", DeviceInfo::OsType::kWindows,
+                                "иван", "model");
+  candidates = GetDisplayNameCandidates(device.get());
+
+  EXPECT_EQ("Иван Computer model", candidates.fallback_full_name);
+  EXPECT_EQ("Иван Computer", candidates.preferred_name_if_unique);
 }
 
 TEST_F(DeviceNameUtilTest, DetermineDisplayNamesAndDeduplicate) {

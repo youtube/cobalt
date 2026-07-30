@@ -18,6 +18,7 @@
 
 namespace content {
 
+class BackForwardCacheImpl;
 class ForwardingAudioStreamFactory;
 class RenderFrameHostImpl;
 class WebContentsImpl;
@@ -64,6 +65,7 @@ class GuestPageHolderImpl : public GuestPageHolder,
   PrerenderHostId GetPrerenderHostId() override;
 
   // NavigationControllerDelegate implementation.
+  BackForwardCacheImpl& GetBackForwardCache() override;
   void NotifyNavigationStateChangedFromController(
       InvalidateTypes changed_flags) override;
   void NotifyBeforeFormRepostWarningShow() override;

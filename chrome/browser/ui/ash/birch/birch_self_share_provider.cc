@@ -13,6 +13,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
 #include "components/prefs/pref_service.h"
+#include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
 #include "components/send_tab_to_self/send_tab_to_self_model.h"
 #include "components/send_tab_to_self/target_device_info.h"
@@ -127,9 +128,12 @@ void BirchSelfShareProvider::RequestBirchDataFetch() {
 }
 
 void BirchSelfShareProvider::OnItemPressed(const std::string& guid) {
-  send_tab_to_self::SendTabToSelfModel* model =
-      sync_service_->GetSendTabToSelfModel();
-  model->MarkEntryOpened(guid);
+  if (send_tab_to_self::SendTabToSelfModel* model =
+          sync_service_->GetSendTabToSelfModel()) {
+    model->MarkEntryOpened(guid);
+    model->MarkEntryActivated(
+        guid, send_tab_to_self::ShareActivatedEntryPoint::kChromeOSBirch);
+  }
 }
 
 }  // namespace ash

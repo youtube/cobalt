@@ -531,6 +531,14 @@
     "module_scheme": "gtest",
     "skip_usage_check": True,
   },
+  "chrome_flaky_tast_tests": {
+    "label": "//chromeos:chrome_flaky_tast_tests",
+    "type": "generated_script",
+    "module_scheme": "tast",
+    "args": [
+      "--logs-dir=${ISOLATED_OUTDIR}",
+    ],
+  },
   "chrome_ios_wpt": {
     "label": "//ios/chrome/test/wpt:chrome_ios_wpt",
     "type": "generated_script",
@@ -1207,6 +1215,12 @@
     "args": [
       "../../tools/grit/grit/test_suite_all.py",
     ],
+  },
+  "gtk_unittests": {
+    "label": "//ui/gtk:gtk_unittests",
+    "type": "windowed_test_launcher",
+    "module_scheme": "gtest",
+    "skip_usage_check": True,
   },
   "gwp_asan_unittests": {
     "label": "//components/gwp_asan:gwp_asan_unittests",

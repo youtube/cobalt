@@ -212,7 +212,7 @@
 - (void)updateBottomBarConstraints {
   _bottomBarBottomConstraint.constant =
       self.layoutState.appBarPosition == AppBarPosition::kBottom
-          ? -kAppBarHeight
+          ? -AppBarHeightPortrait()
           : 0;
 }
 

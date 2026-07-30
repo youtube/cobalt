@@ -444,8 +444,6 @@ void OfflineAudioContext::FireCompletionEvent() {
   }
 
   is_rendering_started_ = false;
-
-  PerformCleanupOnMainThread();
 }
 
 bool OfflineAudioContext::HandlePreRenderTasks(
@@ -544,10 +542,9 @@ void OfflineAudioContext::RejectPendingResolvers() {
     }
 
     scheduled_suspends_.clear();
-    DCHECK_EQ(pending_promises_resolvers_.size(), 0u);
   }
 
-  RejectPendingDecodeAudioDataResolvers();
+  BaseAudioContext::RejectPendingResolvers();
 }
 
 bool OfflineAudioContext::IsPullingAudioGraph() const {

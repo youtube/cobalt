@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "chrome/browser/enterprise/network_header_injection/http_header_injection_client.h"
 #include "chrome/browser/enterprise/network_header_injection/http_header_injection_service_factory.h"
 #include "chrome/browser/enterprise/network_header_injection/http_header_injection_url_loader_header_client.h"
 #include "chrome/browser/profiles/profile.h"
@@ -41,6 +42,26 @@ void MaybeWrapTrustedURLLoaderHeaderClient(
       std::move(original_header_client));
 
   *header_client = std::move(new_header_client);
+}
+
+void MaybeCreateWebSocketHeaderClient(
+    content::BrowserContext* browser_context,
+    mojo::PendingRemote<network::mojom::TrustedHeaderClient>* header_client) {
+  if (!header_client || !IsHttpHeaderInjectionEnabled()) {
+    return;
+  }
+
+  auto* service = HttpHeaderInjectionServiceFactory::GetForProfile(
+      Profile::FromBrowserContext(browser_context));
+  if (!service || !service->HasRules()) {
+    return;
+  }
+
+  mojo::PendingRemote<network::mojom::TrustedHeaderClient> new_client;
+  HttpHeaderInjectionClient::Create(service->GetWeakPtr(),
+                                    new_client.InitWithNewPipeAndPassReceiver(),
+                                    mojo::NullRemote());
+  *header_client = std::move(new_client);
 }
 
 }  // namespace enterprise_custom_headers

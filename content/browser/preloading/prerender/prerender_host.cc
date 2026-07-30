@@ -21,6 +21,7 @@
 #include "base/time/time.h"
 #include "base/trace_event/named_trigger.h"
 #include "base/trace_event/typed_macros.h"
+#include "content/browser/back_forward_cache/back_forward_cache_impl.h"
 #include "content/browser/client_hints/client_hints.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/preloading/prefetch/no_vary_search_helper.h"
@@ -218,6 +219,11 @@ void PrerenderHost::PrerenderFrameTreeDelegate::DidStopLoading() {
 
 bool PrerenderHost::PrerenderFrameTreeDelegate::IsHidden() {
   return true;
+}
+
+BackForwardCacheImpl&
+PrerenderHost::PrerenderFrameTreeDelegate::GetBackForwardCache() {
+  NOTREACHED();
 }
 
 FrameTree* PrerenderHost::PrerenderFrameTreeDelegate::LoadingTree() {
@@ -512,6 +518,8 @@ PrerenderHost::PrerenderHost(
     GetFrameTree()->root()->ResetNavigationRequest(
         NavigationDiscardReason::kExplicitCancellation);
     frame_tree_delegate_->prerender_host_ = *this;
+
+    CHECK(!reuse_host->process_reuse_closure_runner_);
   } else {
     frame_tree_delegate_ = std::make_unique<PrerenderFrameTreeDelegate>(
         web_contents.GetBrowserContext(), web_contents, *this);
@@ -530,6 +538,9 @@ PrerenderHost::PrerenderHost(
       if (initiator_rfh) {
         site_instance->ReuseExistingProcessIfPossible(
             initiator_rfh->GetProcess());
+        process_reuse_closure_runner_ =
+            web_contents_->GetPrerenderHostRegistry()
+                ->IncrementProcessReuseCount();
       }
     }
 
@@ -1370,7 +1381,9 @@ void PrerenderHost::RecordFailedFinalStatusImpl(
   CHECK_NE(reason.final_status(), PrerenderFinalStatus::kActivated);
   final_status_ = reason.final_status();
   RecordFailedPrerenderFinalStatus(reason, attributes_);
-
+  if (process_reuse_closure_runner_) {
+    process_reuse_closure_runner_.RunAndReset();
+  }
   // Set failure reason for this PreloadingAttempt specific to the
   // FinalStatus.
   SetFailureReason(reason);
@@ -1382,6 +1395,9 @@ void PrerenderHost::RecordFailedFinalStatusImpl(
 
 void PrerenderHost::RecordActivation(NavigationRequest& navigation_request) {
   CHECK(!final_status_);
+  if (process_reuse_closure_runner_) {
+    process_reuse_closure_runner_.RunAndReset();
+  }
   final_status_ = PrerenderFinalStatus::kActivated;
   ReportSuccessActivation(attributes_,
                           navigation_request.GetNextPageUkmSourceId());
@@ -1398,13 +1414,23 @@ bool PrerenderHost::ShouldAllowProcessReuse() const {
     return false;
   }
 
-  // TODO(https://crbug.com/524800804): Add the following restrictions:
-  // 1. Disallow cross-origin prerendering to reuse the process.
+  if (!attributes_.initiator_origin->IsSameOriginWith(
+          attributes_.prerendering_url)) {
+    return false;
+  }
 
   if (attributes_.GetTargetHint() ==
       blink::mojom::SpeculationTargetHint::kBlank) {
     return false;
   }
+
+  int max_reuse_count =
+      features::kPrerender2ReuseInitiatorProcessMaxReuseCount.Get();
+  if (web_contents_->GetPrerenderHostRegistry()->GetProcessReuseCount() >=
+      max_reuse_count) {
+    return false;
+  }
+
   std::string allowed_action =
       features::kPrerender2ReuseInitiatorProcessActionType.Get();
 

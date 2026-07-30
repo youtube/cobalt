@@ -12,8 +12,6 @@
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/optimization_guide/proto/model_quality_service.pb.h"
 #include "components/prefs/pref_registry_simple.h"
-#include "enterprise_policy_registry.h"
-#include "mqls_feature_registry.h"
 
 namespace optimization_guide {
 
@@ -97,6 +95,8 @@ BASE_FEATURE(kGeminiAntiscamProtectionMqlsLogging,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kFindsMqlsLogging, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAtMemoryMqlsLogging, base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace features
 
@@ -308,6 +308,18 @@ void RegisterContextualCueing() {
   SettingsUiRegistry::GetInstance().Register(std::move(ui_metadata));
 }
 
+void RegisterAtMemory() {
+  const char kAtMemoryName[] = "AtMemory";
+
+  // TODO: b/524157152 - Add enterprise policy.
+
+  auto mqls_metadata = std::make_unique<MqlsFeatureMetadata>(
+      kAtMemoryName, proto::LogAiDataRequest::FeatureCase::kAtMemory,
+      /*enterprise_policy=*/std::nullopt, &features::kAtMemoryMqlsLogging,
+      FeedbackUnspecified());
+  MqlsFeatureRegistry::GetInstance().Register(std::move(mqls_metadata));
+}
+
 }  // anonymous namespace
 
 void RegisterGenAiFeatures(PrefRegistrySimple* pref_registry) {
@@ -331,6 +343,7 @@ void RegisterGenAiFeatures(PrefRegistrySimple* pref_registry) {
     RegisterGeminiAntiscamProtection();
     RegisterFinds();
     RegisterContextualCueing();
+    RegisterAtMemory();
     features_registered = true;
   }
   EnterprisePolicyRegistry::GetInstance().RegisterProfilePrefs(pref_registry);

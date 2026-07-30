@@ -67,6 +67,12 @@ void ClickTool::Execute(ToolFinishedCallback callback) {
       button = WebMouseEvent::Button::kLeft;
       break;
     }
+    case mojom::ClickType::kLeftOnOccludedTarget: {
+      // Validation rejects this protocol value until the direct activation
+      // path is added in a later CL. Keep this switch exhaustive.
+      button = WebMouseEvent::Button::kLeft;
+      break;
+    }
     case mojom::ClickType::kRight: {
       button = WebMouseEvent::Button::kRight;
       break;
@@ -124,6 +130,14 @@ void ClickTool::Cancel() {
 ValidationResult ClickTool::Validate() {
   CHECK(frame_->GetWebFrame());
   CHECK(frame_->GetWebFrame()->FrameWidget());
+
+  if (action_->type == mojom::ClickType::kLeftOnOccludedTarget) {
+    return ValidationResult(
+        MakeResult(mojom::ActionResultCode::kArgumentsInvalid,
+                   /*requires_page_stabilization=*/false,
+                   "The left-on-occluded-target click type is not currently "
+                   "supported."));
+  }
 
   auto resolved_target = ValidateAndResolveTarget();
   if (!resolved_target.has_value()) {

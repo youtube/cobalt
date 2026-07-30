@@ -43,6 +43,7 @@
 #import "ios/chrome/browser/url_loading/model/url_loading_util.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
 #import "ios/web/public/web_state.h"
+#import "ui/base/device_form_factor.h"
 
 @interface ComposeboxCoordinator () <ComposeboxViewControllerDelegate,
                                      ComposeboxNavigationMediatorDelegate,
@@ -163,6 +164,10 @@
   [_viewController.presentingViewController
       dismissViewControllerAnimated:YES
                          completion:dismissComplete];
+}
+
+- (void)hideComposeboxMenu {
+  [_aimComposeboxCoordinator hideComposeboxMenu];
 }
 
 - (void)stop {
@@ -321,7 +326,7 @@
 
 - (ComposeboxInputPlatePosition)inputPlatePositionPreference {
   if (IsComposeboxIpadEnabled() &&
-      [UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad) {
+      ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
     // TODO(crbug.com/469368394): Should only return this if regular horizontal
     // size class.
     return ComposeboxInputPlatePosition::kiPad;
@@ -343,7 +348,7 @@
 // Returns YES if the iPad popover presentation controller should be used.
 - (BOOL)shouldUseIpadPresentationController {
   return IsComposeboxIpadEnabled() &&
-         UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad &&
+         ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET &&
          IsRegularXRegularSizeClass(self.baseViewController.traitCollection);
 }
 

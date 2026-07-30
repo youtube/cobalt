@@ -146,32 +146,6 @@ public class AutofillPersonalContextTest {
 
     @Test
     @SmallTest
-    public void testPersonalContextManageSuggestionsClick() {
-        final String testUrl = "https://test.com/suggestions";
-        when(mMockEntityDataManagerJni.getPersonalContextManageSuggestionsUrl())
-                .thenReturn(testUrl);
-
-        AutofillPersonalContextCoordinator.createFor(
-                mFragment, mFragment.requireActivity(), mProfile);
-
-        mFragment
-                .getAutofillPersonalContextManageSuggestions()
-                .getOnPreferenceClickListener()
-                .onPreferenceClick(mFragment.getAutofillPersonalContextManageSuggestions());
-
-        Intent intent =
-                Shadows.shadowOf(RuntimeEnvironment.getApplication()).getNextStartedActivity();
-        assertNotNull(intent);
-        assertEquals(Intent.ACTION_VIEW, intent.getAction());
-        assertEquals(Uri.parse(testUrl), intent.getData());
-        assertTrue(
-                mActionTester
-                        .getActions()
-                        .contains(AutofillPersonalContextFragment.ACTION_MANAGE_SUGGESTIONS));
-    }
-
-    @Test
-    @SmallTest
     @DisableFeatures({
         ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA,
         ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID
@@ -190,11 +164,6 @@ public class AutofillPersonalContextTest {
                         AutofillPersonalContextFragment.SEARCH_INDEX_DATA_PROVIDER.getUniqueId(
                                 AutofillPersonalContextFragment
                                         .PREF_AUTOFILL_PERSONAL_CONTEXT_MANAGE_CONNECTED_APPS));
-        verify(mSearchIndexDataMock)
-                .removeEntry(
-                        AutofillPersonalContextFragment.SEARCH_INDEX_DATA_PROVIDER.getUniqueId(
-                                AutofillPersonalContextFragment
-                                        .PREF_AUTOFILL_PERSONAL_CONTEXT_MANAGE_SUGGESTIONS));
     }
 
     @Test
@@ -215,10 +184,5 @@ public class AutofillPersonalContextTest {
                         AutofillPersonalContextFragment.SEARCH_INDEX_DATA_PROVIDER.getUniqueId(
                                 AutofillPersonalContextFragment
                                         .PREF_AUTOFILL_PERSONAL_CONTEXT_MANAGE_CONNECTED_APPS));
-        verify(mSearchIndexDataMock)
-                .removeEntry(
-                        AutofillPersonalContextFragment.SEARCH_INDEX_DATA_PROVIDER.getUniqueId(
-                                AutofillPersonalContextFragment
-                                        .PREF_AUTOFILL_PERSONAL_CONTEXT_MANAGE_SUGGESTIONS));
     }
 }

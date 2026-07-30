@@ -21,7 +21,13 @@
 
 using PrefsInternalsTest = InProcessBrowserTest;
 
-IN_PROC_BROWSER_TEST_F(PrefsInternalsTest, TestPrefsAreServed) {
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !defined(NDEBUG)
+// TODO(crbug.com//527272461): Re-enable this test.
+#define MAYBE_TestPrefsAreServed DISABLED_TestPrefsAreServed
+#else
+#define MAYBE_TestPrefsAreServed TestPrefsAreServed
+#endif
+IN_PROC_BROWSER_TEST_F(PrefsInternalsTest, MAYBE_TestPrefsAreServed) {
   // Set a preference to something very unique so we can look for it in the
   // generated page.
   std::string guid = base::Uuid::GenerateRandomV4().AsLowercaseString();

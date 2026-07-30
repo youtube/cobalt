@@ -50,7 +50,7 @@ class CONTENT_EXPORT UserInfoRequest {
   // on having a pointer to this object, hence cannot be passed in the
   // constructor. Once the callback is set, start fetching.
   void SetCallbackAndStart(
-      blink::mojom::FederatedAuthRequest::RequestUserInfoCallback callback);
+      blink::mojom::FederatedRequestService::RequestUserInfoCallback callback);
 
  private:
   UserInfoRequest(
@@ -72,10 +72,8 @@ class CONTENT_EXPORT UserInfoRequest {
 
   bool IsReturningAccount(const IdentityRequestAccount& account);
 
-  void Complete(
-      blink::mojom::RequestUserInfoStatus status,
-      std::optional<std::vector<blink::mojom::IdentityUserInfoPtr>> user_info,
-      UserInfoRequestResult request_status);
+  void Complete(blink::mojom::RequestUserInfoResultPtr result,
+                UserInfoRequestResult request_status);
 
   void CompleteWithError(UserInfoRequestResult error);
 
@@ -100,7 +98,7 @@ class CONTENT_EXPORT UserInfoRequest {
 
   base::TimeTicks request_start_time_;
 
-  blink::mojom::FederatedAuthRequest::RequestUserInfoCallback callback_;
+  blink::mojom::FederatedRequestService::RequestUserInfoCallback callback_;
 
   perfetto::NamedTrack perfetto_track_;
 

@@ -120,8 +120,9 @@ class ContextualSearchboxHandler
       mojo::PendingRemote<searchbox::mojom::Page> pending_page,
       Profile* profile,
       content::WebContents* web_contents,
-      std::unique_ptr<OmniboxController> controller,
+      std::unique_ptr<OmniboxClient> client,
       GetSessionHandleCallback get_session_callback);
+
   ~ContextualSearchboxHandler() override;
 
   // searchbox::mojom::PageHandler:
@@ -348,6 +349,13 @@ class ContextualSearchboxHandler
 
   virtual void InitializeInputStateModel();
 
+  // Returns true if the user/profile is eligible for tab sharing (cobrowse)
+  // in contextual search. Defaults to true. Subclasses (such as the side panel
+  // composebox) may override this to enforce profile-level eligibility or to
+  // return a cached value captured at initialization to prevent jarring UI
+  // state changes mid-session.
+  virtual bool IsContextualSearchTabSharingEligible() const;
+
   base::WeakPtr<contextual_search::InputStateModel>
   GetOrCreateInputStateModel();
 
@@ -385,7 +393,7 @@ class ContextualSearchboxHandler
       std::map<std::string, std::string> additional_params,
       std::vector<base::WeakPtr<content::WebContents>> relevant_tabs);
 
-  std::optional<base::Uuid> GetTaskId();
+  std::optional<base::Uuid> GetTaskId() const;
 
   std::optional<std::pair<base::UnguessableToken,
                           std::unique_ptr<lens::ContextualInputData>>>

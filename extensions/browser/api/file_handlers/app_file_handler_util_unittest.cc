@@ -6,6 +6,7 @@
 
 #include "base/files/file.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/run_loop.h"
 #include "base/test/gtest_util.h"
 #include "base/test/mock_callback.h"
@@ -425,6 +426,80 @@ TEST_F(PrepareFilesForWritableAppTest, SingleFileThatExistsDlpDeniesAccess) {
   run_loop.Run();
 }
 
+#endif
+
+#if BUILDFLAG(IS_POSIX)
+TEST_F(PrepareFilesForWritableAppTest, SymlinkToExistingFile) {
+  base::FilePath target = file1;
+  base::FilePath symlink =
+      file1.DirName().Append(FILE_PATH_LITERAL("symlink.txt"));
+  ASSERT_TRUE(base::CreateSymbolicLink(target, symlink));
+
+  testing::StrictMock<base::MockOnceCallback<void()>> success_callback;
+  testing::StrictMock<base::MockOnceCallback<void(const base::FilePath& path)>>
+      fail_callback;
+
+  base::RunLoop run_loop;
+  EXPECT_CALL(fail_callback, Run)
+      .WillOnce([&run_loop, &symlink](const base::FilePath& path) {
+        EXPECT_EQ(symlink, path);
+        run_loop.Quit();
+      });
+
+  PrepareFilesForWritableApp({symlink}, &context_, {}, success_callback.Get(),
+                             fail_callback.Get());
+  run_loop.Run();
+}
+
+TEST_F(PrepareFilesForWritableAppTest, DanglingSymlink) {
+  base::FilePath target =
+      file1.DirName().Append(FILE_PATH_LITERAL("non_existent.txt"));
+  base::FilePath symlink =
+      file1.DirName().Append(FILE_PATH_LITERAL("dangling.txt"));
+  ASSERT_TRUE(base::CreateSymbolicLink(target, symlink));
+
+  testing::StrictMock<base::MockOnceCallback<void()>> success_callback;
+  testing::StrictMock<base::MockOnceCallback<void(const base::FilePath& path)>>
+      fail_callback;
+
+  base::RunLoop run_loop;
+  EXPECT_CALL(fail_callback, Run)
+      .WillOnce([&run_loop, &symlink](const base::FilePath& path) {
+        EXPECT_EQ(symlink, path);
+        run_loop.Quit();
+      });
+
+  PrepareFilesForWritableApp({symlink}, &context_, {}, success_callback.Get(),
+                             fail_callback.Get());
+  run_loop.Run();
+
+  // Verify that the target of the dangling symlink was not created.
+  EXPECT_FALSE(base::PathExists(target));
+}
+
+TEST_F(PrepareFilesForWritableAppTest, SymlinkToExistingDirectory) {
+  base::FilePath target =
+      file1.DirName().Append(FILE_PATH_LITERAL("target_dir"));
+  ASSERT_TRUE(base::CreateDirectory(target));
+  base::FilePath symlink =
+      file1.DirName().Append(FILE_PATH_LITERAL("symlink_dir"));
+  ASSERT_TRUE(base::CreateSymbolicLink(target, symlink));
+
+  testing::StrictMock<base::MockOnceCallback<void()>> success_callback;
+  testing::StrictMock<base::MockOnceCallback<void(const base::FilePath& path)>>
+      fail_callback;
+
+  base::RunLoop run_loop;
+  EXPECT_CALL(fail_callback, Run)
+      .WillOnce([&run_loop, &symlink](const base::FilePath& path) {
+        EXPECT_EQ(symlink, path);
+        run_loop.Quit();
+      });
+
+  PrepareFilesForWritableApp({symlink}, &context_, {symlink},
+                             success_callback.Get(), fail_callback.Get());
+  run_loop.Run();
+}
 #endif
 
 }  // namespace app_file_handler_util

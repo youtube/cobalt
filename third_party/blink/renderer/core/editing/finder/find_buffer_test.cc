@@ -76,7 +76,7 @@ TEST_P(FindBufferParamTest, FindInline) {
   EXPECT_TRUE(buffer.PositionAfterBlock().IsNull());
   FindResults results = buffer.FindMatches("abce", kCaseInsensitive);
   EXPECT_EQ(1u, results.CountForTesting());
-  MatchResultICU match = *results.begin();
+  MatchResultIcu match = *results.begin();
   EXPECT_EQ(0u, match.start);
   EXPECT_EQ(4u, match.length);
   EXPECT_EQ(
@@ -683,7 +683,7 @@ TEST_P(FindBufferParamTest, DisplayInline) {
   FindBuffer buffer(WholeDocumentRange(), GetParam());
   const auto results = buffer.FindMatches("find", FindOptions());
   ASSERT_EQ(1u, results.CountForTesting());
-  EXPECT_EQ(MatchResultICU({0, 4}), results.front());
+  EXPECT_EQ(MatchResultIcu({0, 4}), results.front());
 }
 
 TEST_P(FindBufferParamTest, DisplayBlock) {
@@ -699,7 +699,7 @@ TEST_P(FindBufferParamTest, DisplayContents) {
   FindBuffer buffer(WholeDocumentRange(), GetParam());
   const auto results = buffer.FindMatches("find", FindOptions());
   ASSERT_EQ(1u, results.CountForTesting());
-  EXPECT_EQ(MatchResultICU({0, 4}), results.front());
+  EXPECT_EQ(MatchResultIcu({0, 4}), results.front());
 }
 
 TEST_P(FindBufferParamTest, WBRTest) {

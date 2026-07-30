@@ -32,11 +32,11 @@ class ScrollMarkerGroupPseudoElement : public PseudoElement {
 
   void AddToFocusGroup(ScrollMarkerPseudoElement& scroll_marker);
   void RemoveFromFocusGroup(ScrollMarkerPseudoElement& scroll_marker);
-  void ClearFocusGroup();
+  CORE_EXPORT void ClearFocusGroup();
   // Set selected scroll marker. Returns true if the selected marker changed.
   CORE_EXPORT void SetSelected(ScrollMarkerPseudoElement& scroll_marker,
                                bool apply_snap_alignment = true);
-  ScrollMarkerPseudoElement* Selected() const;
+  CORE_EXPORT ScrollMarkerPseudoElement* Selected() const;
 
   ScrollMarkerPseudoElement* First() const;
   ScrollMarkerPseudoElement* Last() const;

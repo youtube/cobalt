@@ -17,7 +17,8 @@
               "clusterfuzz_archive": {
                 "archive_name_prefix": "asan",
                 "gs_acl": "public-read",
-                "gs_bucket": "chromium-browser-asan"
+                "gs_bucket": "chromium-browser-asan",
+                "use_archive_path": false
               },
               "execution_mode": "COMPILE_AND_TEST",
               "legacy_chromium_config": {

@@ -6,9 +6,9 @@
 
 #include <optional>
 
+#include "ash/constants/ash_extension_constants.h"
 #include "base/functional/callback.h"
 #include "chrome/browser/ui/webui/ash/cloud_upload/cloud_upload_util.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace extensions {

@@ -309,6 +309,7 @@ static_library("common") {
     "api/speech/tts_engine_manifest_handler.h",
     "api/web_request/web_request_activity_log_constants.cc",
     "api/web_request/web_request_activity_log_constants.h",
+    "api/web_request/web_request_filter_constants.h",
     "command.cc",
     "command.h",
     "common_manifest_handlers.cc",

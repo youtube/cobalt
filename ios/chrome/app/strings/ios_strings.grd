@@ -3361,6 +3361,12 @@ To continue from your computer, switch to <ph name="OTHER_EMAIL">$2<ex>john.doe@
       <message name="IDS_IOS_GEMINI_LIVE_ACCESSIBILITY_LABEL" desc="Accessibility label for the Gemini Live entry point. [iOS only]">
         Gemini Live
       </message>
+      <message name="IDS_IOS_GEMINI_LIVE_BUTTON_ACCESSIBILITY_LABEL" desc="The accessibility label for the Gemini Live button.">
+        Go Live with Gemini in Chrome
+      </message>
+      <message name="IDS_IOS_GEMINI_LIVE_BUTTON_NEW_BADGE_ACCESSIBILITY_LABEL" desc="The accessibility label for the new badge next to the Gemini Live button.">
+        Live is a new feature on Gemini in Chrome
+      </message>
       <message name="IDS_IOS_GEMINI_LIVE_CONSENT_FIRST_BOX_BODY" desc="Body text for the first box of the Gemini Live Consent page.">
         Live will use your microphone. Tapping the Live button turns on the mic. To turn off the mic, tap the stop button or close Gemini.
       </message>
@@ -3405,6 +3411,9 @@ To continue from your computer, switch to <ph name="OTHER_EMAIL">$2<ex>john.doe@
       </message>
       <message name="IDS_IOS_GEMINI_LIVE_RESPONDING" desc="Status text shown in the Gemini Live session when Gemini is responding to the user.">
         Responding
+      </message>
+      <message name="IDS_IOS_GEMINI_LIVE_SERVER_PAUSE_SNACKBAR" desc="Snackbar message shown when a Gemini Live session is paused by the server.">
+        Something went wrong. Tap the Live button to try going Live again.
       </message>
       <message name="IDS_IOS_GEMINI_LIVE_SHARING_LABEL" desc="Label describing the current page context shown in Gemini Live mode, indicating that the current page is being shared. [iOS only]">
         Sharing <ph name="PAGE_TITLE">$1<ex>Example Page</ex></ph>
@@ -4412,6 +4421,9 @@ To continue from your computer, switch to <ph name="OTHER_EMAIL">$2<ex>john.doe@
       <message name="IDS_IOS_LEVEL_UP_SIGNED_OUT_SNACKBAR_ACTION" desc="Action button title on the snackbar message displayed when a user attempts to use Level Up without being signed in, allowing them to sign in. [iOS only]">
         Sign in
       </message>
+      <message name="IDS_IOS_LEVEL_UP_SNACKBAR_ACTION" desc="The snackbar action link button to go to the Level Up feature screen. [iOS only]">
+        Go to Level Up
+      </message>
       <message name="IDS_IOS_LEVEL_UP_STAT_PASSWORDS_VERIFIED" desc="Title for the passwords verified statistic card. [iOS only]">
         {count, plural,
           =1 {1 password instantly verified}
@@ -4448,6 +4460,42 @@ To continue from your computer, switch to <ph name="OTHER_EMAIL">$2<ex>john.doe@
         {count, plural,
           =1 {Complete 1 more task to level up}
           other {Complete {count} more tasks to level up}}
+      </message>
+      <message name="IDS_IOS_LEVEL_UP_TASK_COMPLETED_AI_SEARCH" desc="Completion snackbar message for the AI Search task. [iOS only]">
+        Search with AI Mode completed!
+      </message>
+      <message name="IDS_IOS_LEVEL_UP_TASK_COMPLETED_AUTOFILL" desc="Completion snackbar message for the Autofill task. [iOS only]">
+        Passwords and Autofill completed!
+      </message>
+      <message name="IDS_IOS_LEVEL_UP_TASK_COMPLETED_CAMERA_SEARCH" desc="Completion snackbar message for the Camera Search task. [iOS only]">
+        Search with camera completed!
+      </message>
+      <message name="IDS_IOS_LEVEL_UP_TASK_COMPLETED_GEMINI" desc="Completion snackbar message for the Gemini task. [iOS only]">
+        Use Gemini in Chrome completed!
+      </message>
+      <message name="IDS_IOS_LEVEL_UP_TASK_COMPLETED_INCOGNITO" desc="Completion snackbar message for the Incognito task. [iOS only]">
+        Go Incognito completed!
+      </message>
+      <message name="IDS_IOS_LEVEL_UP_TASK_COMPLETED_LENS_SEARCH" desc="Completion snackbar message for the Lens Search task. [iOS only]">
+        Google Lens completed!
+      </message>
+      <message name="IDS_IOS_LEVEL_UP_TASK_COMPLETED_PASSWORD_CHECKUP" desc="Completion snackbar message for the Password Checkup task. [iOS only]">
+        Password checkup completed!
+      </message>
+      <message name="IDS_IOS_LEVEL_UP_TASK_COMPLETED_PAYMENT_METHODS" desc="Completion snackbar message for the Payment Methods task. [iOS only]">
+        Manage payment methods completed!
+      </message>
+      <message name="IDS_IOS_LEVEL_UP_TASK_COMPLETED_PIN_TABS" desc="Completion snackbar message for the Pin Tabs task. [iOS only]">
+        Pin tabs completed!
+      </message>
+      <message name="IDS_IOS_LEVEL_UP_TASK_COMPLETED_QUICK_DELETE" desc="Completion snackbar message for the Quick Delete task. [iOS only]">
+        Quick delete completed!
+      </message>
+      <message name="IDS_IOS_LEVEL_UP_TASK_COMPLETED_SAFE_BROWSING" desc="Completion snackbar message for the Safe Browsing task. [iOS only]">
+        Enhanced Safe Browsing completed!
+      </message>
+      <message name="IDS_IOS_LEVEL_UP_TASK_COMPLETED_TAB_GROUPS" desc="Completion snackbar message for the Tab Groups task. [iOS only]">
+        Tab Groups completed!
       </message>
       <message name="IDS_IOS_LEVEL_UP_TURN_OFF_PROGRESS_UPDATES" desc="The context menu item to turn off Level Up progress updates. [iOS only]">
         Turn off progress updates
@@ -5161,11 +5209,11 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_OVERFLOW_MENU_CUSTOMIZE_MENU_DONE" desc="The title of the button on the overflow menu customization screen for users to finish and save customization." meaning="[iOS only]">
         Done
       </message>
-      <message name="IDS_IOS_OVERFLOW_MENU_CUSTOMIZE_MENU_TITLE" desc="The title of the screen on the overflow menu where users can customize the items in the menu." meaning="[iOS only]">
-        Customize Menu
-      </message>
       <message name="IDS_IOS_OVERFLOW_MENU_EDIT_ACTIONS" desc="The iOS menu item for starting the process to edit actions on the overflow menu." meaning="[iOS only] [Length: Unlimited]">
-        Customize Menu
+        Edit Menu
+      </message>
+      <message name="IDS_IOS_OVERFLOW_MENU_EDIT_MENU_TITLE" desc="The title of the screen on the overflow menu where users can edit the items in the menu." meaning="[iOS only]">
+        Edit Menu
       </message>
       <message name="IDS_IOS_OVERFLOW_MENU_EDIT_SECTION_HIDDEN_TITLE" desc="The title for the overflow menu edit section showing hidden destinations" meaning="[iOS only] [Length: Unlimited]">
         Hidden
@@ -6429,9 +6477,6 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_REMOVE_ACCOUNT_LABEL" desc="Button label for removing an account.">
         Remove
       </message>
-      <message name="IDS_IOS_REMOVE_ACTION_TITLE" desc="Title of the action used to remove a selected item. [iOS only]">
-        Remove
-      </message>
       <message name="IDS_IOS_REMOVE_GOOGLE_ACCOUNT_TITLE" desc="Title for the button that removes a Google account from the device">
         Remove from this device
       </message>
@@ -7342,7 +7387,7 @@ Handoff must also be enabled in the General section of Settings, and your device
         Site address copied
       </message>
       <message name="IDS_IOS_SETTINGS_START_SURFACE_TITLE" desc="Title for the setting to show the start surface after period of inactivity. [iOS only]">
-        Show start page after period of inactivity
+        Open a new tab when you return to Chrome after 4 hours
       </message>
       <message name="IDS_IOS_SETTINGS_SWIPE_DOWN_DISCARD" desc="Button displayed along with a message alert whenever a user tries to dismiss a Settings screen which is being edited, or information is being added to it. Selecting this option will discard the current changes and dismiss the screen.">
         Discard changes
@@ -8484,6 +8529,9 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_TOOLS_MENU_CUSTOMIZATION_IPH" desc="The text on an IPH for the iOS menu telling users they can customize the menu">
         Customize your menu
+      </message>
+      <message name="IDS_IOS_TOOLS_MENU_CUSTOMIZE_HOME_PAGE" desc="The iOS menu item to open the Home Customization menu [iOS only]" meaning="[Length: unlimited]">
+        Customize home page
       </message>
       <message name="IDS_IOS_TOOLS_MENU_DOWNLOADS" desc="The iOS menu item for opening the downloads folder [iOS only]" meaning="[Length: 16em] [iOS only] This is a feature name in title case.">
         Downloads

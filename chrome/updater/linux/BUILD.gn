@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//chrome/updater/branding.gni")
+import("//chrome/updater/updater.gni")
 import("//chrome/updater/zip.gni")
 
 # This target builds the updater executable and unittests.
@@ -24,6 +25,7 @@ executable("updater") {
     ":updater_executable",
     "//chrome/updater:constants_prod",
   ]
+  assert_no_deps = updater_assert_no_deps
 }
 
 executable("updater_test") {

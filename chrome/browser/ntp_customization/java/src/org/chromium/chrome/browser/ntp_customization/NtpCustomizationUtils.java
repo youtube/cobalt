@@ -71,7 +71,6 @@ import com.google.android.material.color.DynamicColorsOptions;
 
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
-import org.chromium.base.DeviceInfo;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ResettersForTesting;
@@ -336,11 +335,6 @@ public class NtpCustomizationUtils {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false;
 
         return EdgeToEdgeStateProvider.isEdgeToEdgeEnabledForWindow(windowAndroid);
-    }
-
-    /** Returns whether the NTP simplification is enabled on desktop. */
-    public static boolean isNtpSimplificationEnabledOnDesktop() {
-        return ChromeFeatureList.sNtpSimplification.isEnabled() && DeviceInfo.isDesktop();
     }
 
     /**

@@ -64,7 +64,9 @@ class DeviceLocalAccountPolicyService {
     virtual void OnDeviceLocalAccountsChanged() = 0;
   };
 
+  // `url_loader_factory` must be non-null.
   DeviceLocalAccountPolicyService(
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       ash::SessionManagerClient* session_manager_client,
       ash::DeviceSettingsService* device_settings_service,
       ash::CrosSettings* cros_settings,
@@ -73,8 +75,7 @@ class DeviceLocalAccountPolicyService {
       scoped_refptr<base::SequencedTaskRunner> store_first_load_task_runner,
       scoped_refptr<base::SequencedTaskRunner> extension_cache_task_runner,
       scoped_refptr<base::SequencedTaskRunner>
-          external_data_service_backend_task_runner,
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
+          external_data_service_backend_task_runner);
 
   DeviceLocalAccountPolicyService(const DeviceLocalAccountPolicyService&) =
       delete;
@@ -143,6 +144,8 @@ class DeviceLocalAccountPolicyService {
   // Notifies the |observers_| that the policy for |user_id| has changed.
   void NotifyPolicyUpdated(const std::string& user_id);
 
+  const scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
+
   base::ObserverList<Observer, true>::Unchecked observers_;
 
   raw_ptr<ash::SessionManagerClient> session_manager_client_;
@@ -179,8 +182,6 @@ class DeviceLocalAccountPolicyService {
   const scoped_refptr<base::SequencedTaskRunner> resource_cache_task_runner_;
 
   std::unique_ptr<DeviceLocalAccountExternalDataService> external_data_service_;
-
-  scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
 
   const base::CallbackListSubscription local_accounts_subscription_;
 

@@ -510,12 +510,6 @@ class PolicyUpdateServiceTest : public ExtensionUpdateClientBaseTest {
     ASSERT_TRUE(update_interceptor_->ExpectRequest(
         std::make_unique<update_client::PartialMatch>(R"("updatecheck":{)"),
         update_response));
-    ASSERT_TRUE(update_interceptor_->ExpectRequest(
-        std::make_unique<update_client::PartialMatch>(R"("updatecheck":{)"),
-        update_response));
-    ASSERT_TRUE(ping_interceptor_->ExpectRequest(
-        std::make_unique<update_client::PartialMatch>(R"("eventtype":)"),
-        ping_response));
     ASSERT_TRUE(ping_interceptor_->ExpectRequest(
         std::make_unique<update_client::PartialMatch>(R"("eventtype":)"),
         ping_response));
@@ -587,7 +581,13 @@ class PolicyUpdateServiceTest : public ExtensionUpdateClientBaseTest {
 // Tests that if CheckForExternalUpdates() fails, then we retry reinstalling
 // corrupted policy extensions. For example: if network is unavailable,
 // CheckForExternalUpdates() will fail.
-IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, FailedUpdateRetries) {
+#if BUILDFLAG(IS_ANDROID)
+// TODO(https://crbug.com/469417243): Fails on desktop android.
+#define MAYBE_FailedUpdateRetries DISABLED_FailedUpdateRetries
+#else
+#define MAYBE_FailedUpdateRetries FailedUpdateRetries
+#endif
+IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, MAYBE_FailedUpdateRetries) {
   ExtensionRegistry* registry = ExtensionRegistry::Get(profile());
   ContentVerifier* verifier =
       ExtensionSystem::Get(profile())->content_verifier();
@@ -596,9 +596,8 @@ IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, FailedUpdateRetries) {
   // Wait for the extension to be installed by the policy we set up in
   // SetUpInProcessBrowserTestFixture, but only if it's not already installed.
   if (!registry->GetInstalledExtension(id_)) {
-    EXPECT_EQ(update_client::ComponentState::kUpdated,
-              WaitOnComponentUpdaterCompleteEvent(id_));
-    EXPECT_TRUE(install_observer.WaitForExtensionInstalled());
+    TestExtensionRegistryObserver registry_observer(registry, id_);
+    EXPECT_TRUE(registry_observer.WaitForExtensionInstalled());
   }
 
   content_verifier_test::DelayTracker delay_tracker;
@@ -629,9 +628,7 @@ IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, FailedUpdateRetries) {
   EXPECT_EQ(update_client::ComponentState::kUpdated, waiter.Wait());
   RemoveUpdateClientObserver(&waiter);
 
-  // Assert that we've received the update check for the policy install and the
-  // update check request for the corrupted reinstall.
-  ASSERT_EQ(2, update_interceptor_->GetCount())
+  ASSERT_EQ(1, update_interceptor_->GetCount())
       << update_interceptor_->GetRequestsAsString();
   EXPECT_EQ(1, get_interceptor_count());
 
@@ -642,7 +639,7 @@ IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, FailedUpdateRetries) {
   // - installedby="policy"
   // - enabled="0"
   // - <disabled reason="1024"/>
-  const std::optional<base::DictValue> root = GetRequest(1);
+  const std::optional<base::DictValue> root = GetRequest(0);
   ASSERT_TRUE(root);
   const base::DictValue& app = GetFirstApp(root.value());
   EXPECT_EQ(id_, CHECK_DEREF(app.FindString("appid")));
@@ -655,18 +652,22 @@ IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, FailedUpdateRetries) {
   EXPECT_EQ(disable_reason::DISABLE_CORRUPTED, disabled.FindInt("reason"));
 }
 
-IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, Backoff) {
+#if BUILDFLAG(IS_ANDROID)
+// TODO(https://crbug.com/469417243): Fails on desktop android.
+#define MAYBE_Backoff DISABLED_Backoff
+#else
+#define MAYBE_Backoff Backoff
+#endif
+IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, MAYBE_Backoff) {
   ExtensionRegistry* registry = ExtensionRegistry::Get(profile());
   ContentVerifier* verifier =
       ExtensionSystem::Get(profile())->content_verifier();
-  TestExtensionRegistryObserver install_observer(registry, id_);
 
   // Wait for the extension to be installed by the policy we set up in
   // SetUpInProcessBrowserTestFixture, but only if it's not already installed.
   if (!registry->GetInstalledExtension(id_)) {
-    EXPECT_EQ(update_client::ComponentState::kUpdated,
-              WaitOnComponentUpdaterCompleteEvent(id_));
-    EXPECT_TRUE(install_observer.WaitForExtensionInstalled());
+    TestExtensionRegistryObserver registry_observer(registry, id_);
+    EXPECT_TRUE(registry_observer.WaitForExtensionInstalled());
   }
 
   // Setup to intercept reinstall action, so we can see what the delay would
@@ -693,7 +694,7 @@ IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest, Backoff) {
     RemoveUpdateClientObserver(&waiter);
   }
 
-  ASSERT_EQ(5, update_interceptor_->GetCount())
+  ASSERT_EQ(4, update_interceptor_->GetCount())
       << update_interceptor_->GetRequestsAsString();
   // Only one download because retries are cached.
   EXPECT_EQ(1, get_interceptor_count());
@@ -738,8 +739,6 @@ IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest,
   // SetUpInProcessBrowserTestFixture but only if the extension is not yet
   // installed.
   if (!registry->GetInstalledExtension(id_)) {
-    EXPECT_EQ(update_client::ComponentState::kUpdated,
-              WaitOnComponentUpdaterCompleteEvent(id_));
     EXPECT_TRUE(registry_observer.WaitForExtensionInstalled());
   }
 
@@ -755,9 +754,9 @@ IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest,
   EXPECT_TRUE(reasons.contains(disable_reason::DISABLE_CORRUPTED));
   EXPECT_EQ(1u, delay_tracker.calls().size());
 
-  EXPECT_EQ(1, update_interceptor_->GetCount())
+  EXPECT_EQ(0, update_interceptor_->GetCount())
       << update_interceptor_->GetRequestsAsString();
-  EXPECT_EQ(1, get_interceptor_count());
+  EXPECT_EQ(0, get_interceptor_count());
 
 #if BUILDFLAG(IS_ANDROID)
   // Android does not perform a graceful shutdown in browser tests, so we have
@@ -804,8 +803,9 @@ IN_PROC_BROWSER_TEST_F(PolicyUpdateServiceTest,
       << update_interceptor_->GetRequestsAsString();
   // Explicitly don't check get_interceptor_count(). Update client's CRX cache
   // data may or may not be persisted from the PRE_ step, depending on whether
-  // the test had a graceful shutdown (on Android, the test may just terminate).
-  // So there may or may not be a network request -- either way is fine.
+  // the test had a graceful shutdown (on Android, the test may just
+  // terminate).  So there may or may not be a network request -- either way
+  // is fine.
 
   const std::string update_request =
       std::get<0>(update_interceptor_->GetRequests()[0]);

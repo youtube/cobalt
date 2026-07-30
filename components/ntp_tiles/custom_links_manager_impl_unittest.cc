@@ -245,6 +245,28 @@ TEST_F(CustomLinksManagerImplTest, AddLinkUpTo20WhenRedesignFlagEnabled) {
   EXPECT_EQ(20u, custom_links_->GetLinks().size());
 }
 
+// Existing tests check the default 8-link mobile cap. This dedicated test
+// verifies the 10-link limit injected via Options on WebUI NTP (AL) builds.
+TEST_F(CustomLinksManagerImplTest, AddLinkUpToConfiguredMaxLinks) {
+  custom_links_ = std::make_unique<CustomLinksManagerImpl>(
+      CustomLinksManagerImpl::Options{.prefs = &prefs_,
+                                      .history_service = history_service_.get(),
+                                      .max_links = 10});
+
+  ASSERT_TRUE(custom_links_->Initialize(FillTestTiles(kTestCase1)));
+  EXPECT_EQ(10u, custom_links_->GetMaxLinks());
+
+  size_t current_size = custom_links_->GetLinks().size();
+  for (size_t i = current_size; i < 10; ++i) {
+    std::string url = "http://test.com/" + base::NumberToString(i);
+    EXPECT_TRUE(custom_links_->AddLink(GURL(url), u"Test"));
+  }
+
+  // Reached 10 links limit. Adding the 11th link should fail.
+  EXPECT_FALSE(custom_links_->AddLink(GURL(kTestUrl), kTestTitle16));
+  EXPECT_EQ(10u, custom_links_->GetLinks().size());
+}
+
 TEST_F(CustomLinksManagerImplTest,
        ShouldNotTruncateOverflowLinksWhenExperimentDisabled) {
   // Fallback limit is 10 links.

@@ -59,3 +59,27 @@ group("unit_tests") {
     deps += [ ":unit_tests_local" ]
   }
 }
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [ "notification_schedule_service_browsertest.cc" ]
+
+    deps = [
+      ":factory",
+      "//base",
+      "//chrome/browser/notifications",
+      "//chrome/browser/notifications/scheduler/public",
+      "//chrome/browser/notifications/scheduler/test:test_support",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//content/test:test_support",
+      "//testing/gtest",
+    ]
+  }
+}

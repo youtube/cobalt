@@ -52,13 +52,15 @@ public class ImmersiveVideoPlaybackActivity extends VideoOverlayActivity {
         public @Nullable Double mPlaybackRate;
         public @Nullable @ImmersiveStereoMode Integer mStereoMode;
         public @Nullable @ImmersiveProjectionType Integer mProjectionType;
+        public @Nullable Boolean mIsRecommended;
 
         void apply(ImmersiveVideoPlaybackActivity activity) {
             if (mStereoMode != null || mProjectionType != null) {
                 int stereoMode = mStereoMode != null ? mStereoMode : ImmersiveStereoMode.MONO;
                 int projectionType =
                         mProjectionType != null ? mProjectionType : ImmersiveProjectionType.QUAD;
-                activity.setImmersiveVideoOptions(stereoMode, projectionType);
+                activity.setImmersiveVideoOptions(
+                        stereoMode, projectionType, Boolean.TRUE.equals(mIsRecommended));
             }
             if (mVideoWidth != null && mVideoHeight != null) {
                 activity.updateVideoSize(mVideoWidth, mVideoHeight);
@@ -81,6 +83,7 @@ public class ImmersiveVideoPlaybackActivity extends VideoOverlayActivity {
             mPlaybackRate = null;
             mStereoMode = null;
             mProjectionType = null;
+            mIsRecommended = null;
         }
     }
 
@@ -177,12 +180,16 @@ public class ImmersiveVideoPlaybackActivity extends VideoOverlayActivity {
 
     @Override
     public void setImmersiveVideoOptions(
-            @ImmersiveStereoMode int stereoMode, @ImmersiveProjectionType int projectionType) {
+            @ImmersiveStereoMode int stereoMode,
+            @ImmersiveProjectionType int projectionType,
+            boolean isRecommended) {
         if (mPlaybackCoordinator != null) {
-            mPlaybackCoordinator.updateVideoLayout(stereoMode, projectionType);
+            mPlaybackCoordinator.setImmersiveVideoOptions(
+                    stereoMode, projectionType, isRecommended);
         } else {
             mPendingState.mStereoMode = stereoMode;
             mPendingState.mProjectionType = projectionType;
+            mPendingState.mIsRecommended = isRecommended;
         }
     }
 

@@ -127,7 +127,7 @@ void GlicSidePanelCoordinatorDesktopAndroid::Show(const ShowOptions& options) {
     }
     return;
   }
-  window_side_panel_ui->Show(entry_->key(), std::nullopt,
+  window_side_panel_ui->Show(entry_->key(), options.open_trigger,
                              options.suppress_animations);
 }
 

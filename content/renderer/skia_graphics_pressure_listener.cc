@@ -4,19 +4,38 @@
 
 #include "content/renderer/skia_graphics_pressure_listener.h"
 
+#include "base/memory_coordinator/traits.h"
 #include "base/memory_coordinator/utils.h"
 #include "third_party/skia/include/core/SkGraphics.h"
 
 namespace content {
 
+namespace {
+
+constexpr base::MemoryConsumerTraits kSkiaGraphicsTraits(
+    // Skia resource caches typically consume tens of MBs.
+    base::MemoryConsumerTraits::EstimatedMemoryUsage::kMedium,
+    // Purging requires traversing hash maps/queues.
+    base::MemoryConsumerTraits::ReleaseMemoryCost::kRequiresTraversal,
+    // Resources can be regenerated.
+    base::MemoryConsumerTraits::InformationRetention::kLossless,
+    // Asynchronous since AsyncMemoryConsumerRegistration is used.
+    base::MemoryConsumerTraits::ExecutionType::kAsynchronous,
+    // Binary check; either keeps or drops everything.
+    base::MemoryConsumerTraits::SupportsMemoryLimit::kNo,
+    // Regenerating the resources requires CPU-intensive computations.
+    base::MemoryConsumerTraits::RecreateMemoryCost::kExpensive,
+    // Stateless consumer. Performs one-shot evictions.
+    base::MemoryConsumerTraits::IsStateful::kNo);
+
+}  // namespace
+
 SkiaGraphicsPressureListener::SkiaGraphicsPressureListener()
     : memory_consumer_registration_(
           "SkiaGraphics",
-          /*traits=*/std::nullopt,  // TODO(crbug.com/489671163): Fill traits.
+          kSkiaGraphicsTraits,
           this,
-          base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled,
-          base::AsyncMemoryConsumerRegistration::CheckRegistryExists::
-              kDisabled) {}
+          base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled) {}
 
 SkiaGraphicsPressureListener::~SkiaGraphicsPressureListener() = default;
 

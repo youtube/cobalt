@@ -41,6 +41,7 @@ source_set("impl") {
     ":bookmarks",
     "//base",
     "//components/bookmarks/browser",
+    "//components/bookmarks/managed",
     "//url",
   ]
 }

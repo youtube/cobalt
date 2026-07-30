@@ -195,8 +195,11 @@ chrome.test.getConfig(function(config) {
                 assertTrue(
                     typeof chrome.bookmarks === 'object' &&
                     chrome.bookmarks != null);
+                // Verify `chrome.bookmarks.getTree` throws when bookmarks
+                // permission is removed.
                 assertThrows(
-                    chrome.bookmarks.getTree, [function() {}],
+                    chrome.bookmarks.getTree.bind(
+                        chrome.bookmarks, function() {}),
                     `'bookmarks.getTree' is not available in this context.`);
               },
               ));
@@ -300,7 +303,7 @@ chrome.test.getConfig(function(config) {
         assertTrue(
             typeof chrome.bookmarks === 'object' && chrome.bookmarks != null);
         assertThrows(
-            chrome.bookmarks.getTree, [function() {}],
+            () => chrome.bookmarks.getTree(function() {}),
             `'bookmarks.getTree' is not available in this context.`);
       });
 

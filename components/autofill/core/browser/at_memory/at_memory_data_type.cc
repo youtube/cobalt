@@ -100,8 +100,10 @@ std::optional<AtMemoryDataType> ToAtMemoryDataType(
                                        kShipmentOrderIds);
     INTENT_TO_ATTRIBUTE_TYPE(kShipmentCarrierName);
     INTENT_TO_ATTRIBUTE_TYPE(kShipmentCarrierDomain);
-    INTENT_TO_ATTRIBUTE_TYPE(kShipmentEstimatedDeliveryDate);
+    INTENT_TO_ATTRIBUTE_TYPE(kShipmentShippedDate);
     INTENT_TO_ATTRIBUTE_TYPE(kShipmentDeliveryZipCode);
+    case accessibility_annotator::MemoryDataType::
+        kShipmentEstimatedDeliveryDate:
     case accessibility_annotator::MemoryDataType::kUnknown:
     case accessibility_annotator::MemoryDataType::kIbanNickname:
     case accessibility_annotator::MemoryDataType::kCreditCardNickname:

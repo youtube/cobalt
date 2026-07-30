@@ -49,8 +49,8 @@ class PersonalContextAccessManagerImpl
     : public PersonalContextAccessManager,
       public personal_context::PersonalContextEnablementService::Observer {
  public:
-  // The TTL for prefetched (masked/non-SPII) entities.
-  static constexpr base::TimeDelta kPrefetchedEntitiesCacheTTL =
+  // The TTL for prefetched (masked/non-SPII) entities and presence signals.
+  static constexpr base::TimeDelta kPrefetchedEntitiesAndSignalsCacheTTL =
       base::Minutes(30);
   // The TTL for unmasked sensitive PII (SPII) entities.
   static constexpr base::TimeDelta kUnmaskedSpiiCacheTTL = base::Minutes(1);
@@ -89,6 +89,7 @@ class PersonalContextAccessManagerImpl
 
  private:
   friend class PersonalContextAccessManagerImplTestApi;
+  using SpiiEntityPresenceSignal = EntityType;
 
   // Results of parsing the server response during prefetch requests. It bundles
   // the internal `EntityInstance` representation with its original
@@ -96,7 +97,7 @@ class PersonalContextAccessManagerImpl
   // proto is required for subsequent unmasking requests (see
   // `GetUnmaskedSpiiEntity`).
   struct ParsedEntity {
-    EntityInstance instance;
+    std::variant<EntityInstance, SpiiEntityPresenceSignal> instance;
     personal_context::proto::Entity proto;
   };
 
@@ -120,8 +121,11 @@ class PersonalContextAccessManagerImpl
   void ResetStateForType(EntityType type);
 
   // Handles the asynchronous result of the personal context fetch.
+  // `requested_spii_presence` expresses whether SPII types are fetched
+  // or only their presence is indicated
   void OnPrefetchContextRequestComplete(
       std::vector<EntityType> requested_types,
+      bool requested_spii_presence,
       personal_context::FetchContextResult result);
 
   // Parses the raw protobuf string response and converts it into a vector of
@@ -139,9 +143,10 @@ class PersonalContextAccessManagerImpl
   // Processes a batch of prefetched entities, by
   // - Updating the cache state.
   // - Scheduling eviction of the prefetched types.
+  // - Scheduling eviction of spii presence signals.
   // - Notifying observers.
-  void ProcessPrefetchedEntities(std::vector<ParsedEntity> parsed_entities,
-                                 base::span<const EntityType> requested_types);
+  void ProcessPrefetchedEntities(std::vector<EntityType> requested_types,
+                                 std::vector<ParsedEntity> parsed_entities);
 
   // Returns true if a network request should be initiated for `type`.
   // This is true if the type is not cached, its cache TTL has expired, or a
@@ -157,11 +162,19 @@ class PersonalContextAccessManagerImpl
   void SetTypeStatus(EntityType type, RequestStatus status);
 
   // Notifies observers of the prefetch status.
-  void NotifyPrefetchStatusObservers(base::span<const EntityInstance> entities);
+  void NotifyPrefetchStatusObservers(
+      std::optional<base::span<const EntityInstance>> entities);
 
   // Caches an unmasked SPII `entity`, so it can be refilled without an
   // additional network round trip for `kUnmaskedSpiiCacheTTL`.
   void CacheUnmaskedSpiiEntity(EntityInstance entity);
+
+  // Caches a presence signal for an SPII `type`. Evicts the signal after
+  // `kPrefetchedEntitiesAndSignalsCacheTTL` time.
+  void CachePresenceSignal(SpiiEntityPresenceSignal signal);
+
+  void HandleFailedResponse(base::span<const EntityType> requested_types,
+                            bool requested_spii_presence);
 
   const raw_ref<personal_context::PersonalContextService>
       personal_context_service_;
@@ -188,6 +201,14 @@ class PersonalContextAccessManagerImpl
 
   // Maps entity types to their current prefetch request/response state.
   base::flat_map<EntityType, RequestState> prefetch_state_;
+
+  // Cache of sensitive PII (SPII) presence signals indicating if sensitive
+  // entities of a given type are available on the server.
+  //
+  // **Eviction Mechanism**: Managed per type. When a presence signal is
+  // received, it is added here, and a separate task is scheduled to evict just
+  // this signal after `kPrefetchedEntitiesAndSignalsCacheTTL`.
+  base::flat_set<SpiiEntityPresenceSignal> spii_presence_signal_cache_;
 
   base::ObserverList<PersonalContextAccessManager::Observer> observers_;
 

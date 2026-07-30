@@ -13,6 +13,7 @@
 #include "base/uuid.h"
 #include "chrome/browser/chromeos/extensions/telemetry/api/routines/diagnostic_routine_info.h"
 #include "chrome/browser/chromeos/extensions/telemetry/api/routines/diagnostic_routine_observation.h"
+#include "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd_routines.mojom.h"
 #include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -36,7 +37,7 @@ class DiagnosticRoutine {
   explicit DiagnosticRoutine(
       mojo::PendingRemote<crosapi::mojom::TelemetryDiagnosticRoutineControl>
           control_remote,
-      mojo::PendingReceiver<crosapi::mojom::TelemetryDiagnosticRoutineObserver>
+      mojo::PendingReceiver<ash::cros_healthd::mojom::RoutineObserver>
           observer_receiver,
       DiagnosticRoutineInfo info,
       OnRoutineFinishedOrException on_routine_finished_or_exception);

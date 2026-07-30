@@ -220,7 +220,11 @@ bool MockRenderProcessHost::DisallowV8FeatureFlagOverrides() {
 }
 
 bool MockRenderProcessHost::IsPdf() {
-  return false;
+  return is_pdf_;
+}
+
+void MockRenderProcessHost::SetIsPdf(bool is_pdf) {
+  is_pdf_ = is_pdf;
 }
 
 void MockRenderProcessHost::OnMediaStreamAdded() {}
@@ -382,7 +386,6 @@ void MockRenderProcessHost::RemovePriorityClient(
   priority_clients_.erase(priority_client);
 }
 
-#if !BUILDFLAG(IS_ANDROID)
 void MockRenderProcessHost::SetPriorityOverride(
     base::Process::Priority priority) {}
 
@@ -391,7 +394,6 @@ bool MockRenderProcessHost::HasPriorityOverride() {
 }
 
 void MockRenderProcessHost::ClearPriorityOverride() {}
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
 void MockRenderProcessHost::GraduateSpareToNormalRendererPriority() {}

@@ -40,6 +40,13 @@ void AtMemoryBottomSheetDelegateAndroid::OnQuerySubmitted(
   }
 }
 
+void AtMemoryBottomSheetDelegateAndroid::OnQueryTextChanged(
+    const std::u16string& query) {
+  if (delegate_) {
+    delegate_->OnFilterChanged(query);
+  }
+}
+
 void AtMemoryBottomSheetDelegateAndroid::OnSuggestionSelected(int position) {
   if (position < 0 ||
       base::checked_cast<size_t>(position) >= suggestions_.size()) {
@@ -55,6 +62,10 @@ void AtMemoryBottomSheetDelegateAndroid::OnSuggestionSelected(int position) {
         suggestion,
         AutofillSuggestionDelegate::SuggestionMetadata{.row = position});
   }
+}
+
+bool AtMemoryBottomSheetDelegateAndroid::IsSearching() const {
+  return delegate_ && delegate_->IsSearching();
 }
 
 }  // namespace autofill

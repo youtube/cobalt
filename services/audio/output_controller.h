@@ -242,7 +242,11 @@ class OutputController : public media::AudioOutputStream::AudioSourceCallback,
    private:
     void WedgeCheck();
 
-    void LogGlitchStats(const std::string& call_name, base::TimeTicks now);
+    void LogGlitchStats(const char* call_name, base::TimeTicks now);
+    void DoLogGlitchStats(const char* call_name,
+                          base::TimeDelta total_duration,
+                          media::AudioGlitchInfo glitch_info,
+                          double glitch_percentage);
 
     // RAW_PTR_EXCLUSION: OutputController object will outlive the
     // ErrorStatisticsTracker object.
@@ -261,6 +265,11 @@ class OutputController : public media::AudioOutputStream::AudioSourceCallback,
     // Flags when we've asked for a stream to start but it never did.
     base::AtomicRefCount on_more_io_data_called_;
     base::OneShotTimer wedge_timer_;
+
+    const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+
+    base::WeakPtr<ErrorStatisticsTracker> weak_this_;
+    base::WeakPtrFactory<ErrorStatisticsTracker> weak_ptr_factory_{this};
   };
 
   // Reports UMA statistics for stream creation.

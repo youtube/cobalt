@@ -23,3 +23,9 @@ const char kSaveToPhotosUploadFailureLatencyHistogram[] =
 
 const char kSaveToPhotosUploadFailureTypeHistogram[] =
     "IOS.SaveToPhotos.UploadFailureType";
+
+const char kSaveToPhotosSignInStatusHistogram[] =
+    "IOS.SaveToPhotos.SignIn.Status";
+
+const char kSaveToPhotosSignInResultHistogram[] =
+    "IOS.SaveToPhotos.SignIn.Result";

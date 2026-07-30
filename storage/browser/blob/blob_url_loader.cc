@@ -5,8 +5,13 @@
 #include "storage/browser/blob/blob_url_loader.h"
 
 #include <stddef.h>
+
+#include <optional>
 #include <utility>
+#include <vector>
+
 #include "base/check_op.h"
+#include "base/feature_list.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
@@ -27,6 +32,7 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "storage/browser/blob/blob_data_handle.h"
+#include "storage/browser/blob/features.h"
 #include "storage/browser/blob/mojo_blob_reader.h"
 #include "third_party/blink/public/common/blob/blob_utils.h"
 
@@ -127,19 +133,39 @@ void BlobURLLoader::Start(const std::string& method,
   if (std::optional<std::string> range_header =
           headers.GetHeader(net::HttpRequestHeaders::kRange);
       range_header) {
-    // We only care about "Range" header here.
-    std::vector<net::HttpByteRange> ranges;
-    if (net::HttpUtil::ParseRangeHeader(range_header.value(), &ranges)) {
-      if (ranges.size() == 1) {
-        byte_range_set_ = true;
-        byte_range_ = ranges[0];
-      } else {
-        // We don't support multiple range requests in one single URL request,
-        // because we need to do multipart encoding here.
-        // TODO(jianli): Support multipart byte range requests.
+    if (base::FeatureList::IsEnabled(
+            features::kBlobURLFetchRangeHeaderValidation)) {
+      // Blob URL fetch follows the Fetch Standard's single-range parser.
+      // Invalid or unsupported Range values must fail the request.
+      std::optional<net::HttpByteRange> range =
+          net::HttpUtil::ParseFetchSingleRange(range_header.value(),
+                                               /*allow_whitespace=*/true);
+      if (!range || !range->IsValid()) {
+        // Range header is invalid or malformed. Fail the request.
+        // Reuses the multi-range error code; surfaces to Fetch as a TypeError.
         OnComplete(net::ERR_REQUEST_RANGE_NOT_SATISFIABLE, 0);
         delete this;
         return;
+      }
+      byte_range_set_ = true;
+      byte_range_ = *range;
+    } else {
+      // Legacy behavior (kill switch off): lenient RFC 7233 parsing that
+      // silently serves the full blob when the Range header fails to parse.
+      // We only care about "Range" header here.
+      std::vector<net::HttpByteRange> ranges;
+      if (net::HttpUtil::ParseRangeHeader(range_header.value(), &ranges)) {
+        if (ranges.size() == 1) {
+          byte_range_set_ = true;
+          byte_range_ = ranges[0];
+        } else {
+          // We don't support multiple range requests in one single URL request,
+          // because we need to do multipart encoding here.
+          // TODO(jianli): Support multipart byte range requests.
+          OnComplete(net::ERR_REQUEST_RANGE_NOT_SATISFIABLE, 0);
+          delete this;
+          return;
+        }
       }
     }
   }

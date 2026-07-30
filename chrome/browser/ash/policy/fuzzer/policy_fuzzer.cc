@@ -20,6 +20,7 @@
 #include "chrome/browser/ash/dbus/ash_dbus_helper.h"
 #include "chrome/browser/ash/policy/core/device_policy_decoder.h"
 #include "chrome/browser/ash/policy/fuzzer/policy_fuzzer.pb.h"
+#include "chrome/browser/ash/policy/fuzzer/policy_fuzzer_fuzzable.pb.h"
 #include "chrome/browser/ash/settings/device_settings_provider.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
 #include "chrome/browser/policy/configuration_policy_handler_list_factory.h"
@@ -157,7 +158,11 @@ void CheckPolicyToCrosSettingsTranslation(
 
 }  // namespace
 
-DEFINE_PROTO_FUZZER(const PolicyFuzzerProto& proto) {
+DEFINE_PROTO_FUZZER(const fuzzable::policy::PolicyFuzzerProto& fuzzable_proto) {
+  std::string serialized = fuzzable_proto.SerializeAsString();
+  PolicyFuzzerProto proto;
+  CHECK(proto.ParseFromString(serialized));
+
   static Environment env;
   PerInputEnvironment per_input_env;
 

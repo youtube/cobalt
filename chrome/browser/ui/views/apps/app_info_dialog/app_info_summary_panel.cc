@@ -22,7 +22,6 @@
 #include "extensions/browser/launch_util.h"
 #include "extensions/browser/path_util.h"
 #include "extensions/common/extension.h"
-#include "extensions/common/manifest.h"
 #include "extensions/common/manifest_handlers/manifest_url_handlers.h"
 #include "extensions/common/manifest_handlers/shared_module_info.h"
 #include "ui/base/l10n/l10n_util.h"

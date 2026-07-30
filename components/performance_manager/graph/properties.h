@@ -22,7 +22,7 @@ class TracedWrapper : public TracingObserver {
  public:
   using ConverterFuncPtr = perfetto::StaticString (*)(const PropertyType&);
 
-  TracedWrapper(perfetto::NamedTrack track, ConverterFuncPtr converter_func)
+  TracedWrapper(perfetto::StateTrack track, ConverterFuncPtr converter_func)
       : track_(track), converter_func_(converter_func) {
     Trace();
     if (auto* observer_list = TracingObserverList::GetFromGraph()) {
@@ -32,7 +32,7 @@ class TracedWrapper : public TracingObserver {
 
   template <typename U = PropertyType>
   TracedWrapper(U&& initial_value,
-                perfetto::NamedTrack track,
+                perfetto::StateTrack track,
                 ConverterFuncPtr converter_func)
       : value_(std::forward<U>(initial_value)),
         track_(track),
@@ -47,9 +47,7 @@ class TracedWrapper : public TracingObserver {
     if (auto* observer_list = TracingObserverList::GetFromGraph()) {
       observer_list->RemoveObserver(this);
     }
-    if (slice_is_open_) {
-      TRACE_EVENT_END("performance_manager.graph", track_);
-    }
+    TRACE_STATE("performance_manager.graph", nullptr, track_);
   }
 
   template <typename U = PropertyType>
@@ -71,21 +69,13 @@ class TracedWrapper : public TracingObserver {
     if (!TRACE_EVENT_CATEGORY_ENABLED("performance_manager.graph")) {
       return;
     }
-    if (slice_is_open_) {
-      TRACE_EVENT_END("performance_manager.graph", track_);
-      slice_is_open_ = false;
-    }
     perfetto::StaticString value_str = converter_func_(value_);
-    if (value_str) {
-      TRACE_EVENT_BEGIN("performance_manager.graph", value_str, track_);
-      slice_is_open_ = true;
-    }
+    TRACE_STATE("performance_manager.graph", value_str, track_);
   }
 
   PropertyType value_;
-  perfetto::NamedTrack track_;
+  perfetto::StateTrack track_;
   ConverterFuncPtr converter_func_;
-  bool slice_is_open_ = false;
 };
 
 template <typename PropertyType>

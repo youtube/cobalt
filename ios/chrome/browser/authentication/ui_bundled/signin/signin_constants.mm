@@ -54,6 +54,3 @@ NSString* const kFullscreenSigninPromoManagerMigrationDone =
 
 NSString* const kManagedProfileLearnMoreURL =
     @"internal://managed-profile-creation-learn-more";
-
-NSString* const kAgeMismatchSignoutLearnMoreURL =
-    @"internal://age-mismatch-signout-learn-more";

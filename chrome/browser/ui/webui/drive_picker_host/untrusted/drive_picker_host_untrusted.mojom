@@ -5,21 +5,28 @@
 module drive_picker_host_untrusted.mojom;
 
 import "chrome/browser/ui/views/drive_picker_host/drive_picker_result_handler.mojom";
+import "url/mojom/url.mojom";
 
 // Browser-side handler for the untrusted page.
+// Called from TS side of chrome-untrusted://drive-picker (Renderer -> Browser).
 interface PageHandler {
 };
 
 // WebUI-side page interface for the untrusted page.
+// Called from Browser C++ side (Browser -> Renderer).
 interface Page {
   // Triggers the Drive Picker selection UI in the JS.
   ShowDrivePicker(
       pending_remote<drive_picker_host.mojom.DrivePickerResultHandler>
           result_handler,
       DrivePickerKeys keys);
+
+  // Instructs the untrusted JS element to load the iframe.
+  LoadConsentKitUrl(url.mojom.Url consent_kit_url);
 };
 
 // Factory for creating Page handlers.
+// Called from TS side of chrome-untrusted://drive-picker (Renderer -> Browser).
 interface PageHandlerFactory {
   // Creates a Page handler for the given Page.
   CreatePageHandler(pending_remote<Page> page,
@@ -35,10 +42,14 @@ struct DrivePickerKeys {
 
 // Interface for communication from the trusted host to the
 // untrusted host.
+// Called from Browser C++ side (Browser -> Renderer).
 interface DrivePickerBridge {
   // Triggers the Drive Picker selection UI in the untrusted page.
   ShowDrivePicker(
       pending_remote<drive_picker_host.mojom.DrivePickerResultHandler>
           result_handler,
       DrivePickerKeys keys);
+
+  // Instructs the untrusted bridge to prepare the page for the ConsentKit flow.
+  LoadConsentKitUrl(url.mojom.Url consent_kit_url);
 };

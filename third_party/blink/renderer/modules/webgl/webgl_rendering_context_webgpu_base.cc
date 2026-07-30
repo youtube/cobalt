@@ -6,6 +6,8 @@
 #include <dawn/dawn_proc.h>
 #include <dawn/wire/WireClient.h>
 
+#include <type_traits>
+
 #include "base/notimplemented.h"
 #include "gpu/command_buffer/client/gles2_interface_stub.h"
 #include "third_party/blink/public/platform/web_url.h"
@@ -24,9 +26,15 @@
 #include "third_party/blink/renderer/modules/webgl/webgl_framebuffer.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_object.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_program.h"
+#include "third_party/blink/renderer/modules/webgl/webgl_query.h"
+#include "third_party/blink/renderer/modules/webgl/webgl_renderbuffer.h"
+#include "third_party/blink/renderer/modules/webgl/webgl_sampler.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_shader.h"
+#include "third_party/blink/renderer/modules/webgl/webgl_sync.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_texture.h"
+#include "third_party/blink/renderer/modules/webgl/webgl_transform_feedback.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_uniform_location.h"
+#include "third_party/blink/renderer/modules/webgl/webgl_vertex_array_object.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/dawn_control_client_holder.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/webgpu_callback.h"
 #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
@@ -66,6 +74,36 @@ GLGetProcAddressProc GetStaticANGLEGetProcAddressFunction() {
 
 namespace blink {
 namespace {
+
+// Helper template for validating WebGL objects for is* queries.
+template <typename T>
+bool ValidateIsObject(WebGLRenderingContextWebGPUBase* context, T* object) {
+  if (!object || !object->Validate(context)) {
+    return false;
+  }
+  // Programs and Shaders are exempt from deletion checks because GLES spec
+  // dictates they remain valid as long as they are attached, which matches
+  // WebGL spec. All other object types are subject to GL ID reuse, so we
+  // must check MarkedForDeletion() to avoid returning true for a deleted
+  // JS object whose ID has been recycled by ANGLE.
+  constexpr bool check_deletion =
+      !std::is_same_v<T, WebGLProgram> && !std::is_same_v<T, WebGLShader>;
+  if constexpr (check_deletion) {
+    if (object->MarkedForDeletion()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Helper template for implementing standard WebGLRenderingContext.is* queries:
+template <typename T, typename GLIsFn>
+bool IsObject(WebGLRenderingContextWebGPUBase* context,
+              T* object,
+              GLIsFn gl_is_fn) {
+  return ValidateIsObject(context, object) &&
+         gl_is_fn(object->Object()) == GL_TRUE;
+}
 
 const DawnProcTable* GetDawnProcs() {
 #if BUILDFLAG(USE_DAWN)
@@ -1437,12 +1475,11 @@ int64_t WebGLRenderingContextWebGPUBase::getVertexAttribOffset(GLuint index,
 }
 
 void WebGLRenderingContextWebGPUBase::hint(GLenum target, GLenum mode) {
-  NOTIMPLEMENTED();
+  driver_gl_.fn.glHintFn(target, mode);
 }
 
-bool WebGLRenderingContextWebGPUBase::isBuffer(WebGLBuffer*) {
-  NOTIMPLEMENTED();
-  return false;
+bool WebGLRenderingContextWebGPUBase::isBuffer(WebGLBuffer* buffer) {
+  return IsObject(this, buffer, driver_gl_.fn.glIsBufferFn);
 }
 
 bool WebGLRenderingContextWebGPUBase::isEnabled(GLenum cap) {
@@ -1450,29 +1487,26 @@ bool WebGLRenderingContextWebGPUBase::isEnabled(GLenum cap) {
   return false;
 }
 
-bool WebGLRenderingContextWebGPUBase::isFramebuffer(WebGLFramebuffer*) {
-  NOTIMPLEMENTED();
-  return false;
+bool WebGLRenderingContextWebGPUBase::isFramebuffer(
+    WebGLFramebuffer* framebuffer) {
+  return IsObject(this, framebuffer, driver_gl_.fn.glIsFramebufferEXTFn);
 }
 
-bool WebGLRenderingContextWebGPUBase::isProgram(WebGLProgram*) {
-  NOTIMPLEMENTED();
-  return false;
+bool WebGLRenderingContextWebGPUBase::isProgram(WebGLProgram* program) {
+  return IsObject(this, program, driver_gl_.fn.glIsProgramFn);
 }
 
-bool WebGLRenderingContextWebGPUBase::isRenderbuffer(WebGLRenderbuffer*) {
-  NOTIMPLEMENTED();
-  return false;
+bool WebGLRenderingContextWebGPUBase::isRenderbuffer(
+    WebGLRenderbuffer* renderbuffer) {
+  return IsObject(this, renderbuffer, driver_gl_.fn.glIsRenderbufferEXTFn);
 }
 
-bool WebGLRenderingContextWebGPUBase::isShader(WebGLShader*) {
-  NOTIMPLEMENTED();
-  return false;
+bool WebGLRenderingContextWebGPUBase::isShader(WebGLShader* shader) {
+  return IsObject(this, shader, driver_gl_.fn.glIsShaderFn);
 }
 
-bool WebGLRenderingContextWebGPUBase::isTexture(WebGLTexture*) {
-  NOTIMPLEMENTED();
-  return false;
+bool WebGLRenderingContextWebGPUBase::isTexture(WebGLTexture* texture) {
+  return IsObject(this, texture, driver_gl_.fn.glIsTextureFn);
 }
 
 void WebGLRenderingContextWebGPUBase::lineWidth(GLfloat width) {
@@ -2010,38 +2044,68 @@ void WebGLRenderingContextWebGPUBase::validateProgram(WebGLProgram* program) {
 }
 
 void WebGLRenderingContextWebGPUBase::vertexAttrib1f(GLuint index, GLfloat x) {
-  NOTIMPLEMENTED();
+  driver_gl_.fn.glVertexAttrib1fFn(index, x);
+  // TODO(crbug.com/413078308): Track the type of the array so the correct
+  // typed array is returned for getVertexAttrib(index, CURRENT_VERTEX_ATTRIB).
 }
 
 void WebGLRenderingContextWebGPUBase::vertexAttrib1fv(
     GLuint index,
     base::span<const GLfloat> values) {
-  NOTIMPLEMENTED();
+  // WebGL allows larger spans (reusing an array for different sizes to
+  // avoid repeated allocations). Extra elements are ignored.
+  if (values.size() < 1) {
+    InsertGLError(GL_INVALID_VALUE, "vertexAttrib1fv", "invalid size");
+    return;
+  }
+  driver_gl_.fn.glVertexAttrib1fvFn(index, values.data());
+  // TODO(crbug.com/413078308): Track the type of the array so the correct
+  // typed array is returned for getVertexAttrib(index, CURRENT_VERTEX_ATTRIB).
 }
 
 void WebGLRenderingContextWebGPUBase::vertexAttrib2f(GLuint index,
                                                      GLfloat x,
                                                      GLfloat y) {
-  NOTIMPLEMENTED();
+  driver_gl_.fn.glVertexAttrib2fFn(index, x, y);
+  // TODO(crbug.com/413078308): Track the type of the array so the correct
+  // typed array is returned for getVertexAttrib(index, CURRENT_VERTEX_ATTRIB).
 }
 
 void WebGLRenderingContextWebGPUBase::vertexAttrib2fv(
     GLuint index,
     base::span<const GLfloat> values) {
-  NOTIMPLEMENTED();
+  // WebGL allows larger spans (reusing an array for different sizes to
+  // avoid repeated allocations). Extra elements are ignored.
+  if (values.size() < 2) {
+    InsertGLError(GL_INVALID_VALUE, "vertexAttrib2fv", "invalid size");
+    return;
+  }
+  driver_gl_.fn.glVertexAttrib2fvFn(index, values.data());
+  // TODO(crbug.com/413078308): Track the type of the array so the correct
+  // typed array is returned for getVertexAttrib(index, CURRENT_VERTEX_ATTRIB).
 }
 
 void WebGLRenderingContextWebGPUBase::vertexAttrib3f(GLuint index,
                                                      GLfloat x,
                                                      GLfloat y,
                                                      GLfloat z) {
-  NOTIMPLEMENTED();
+  driver_gl_.fn.glVertexAttrib3fFn(index, x, y, z);
+  // TODO(crbug.com/413078308): Track the type of the array so the correct
+  // typed array is returned for getVertexAttrib(index, CURRENT_VERTEX_ATTRIB).
 }
 
 void WebGLRenderingContextWebGPUBase::vertexAttrib3fv(
     GLuint index,
     base::span<const GLfloat> values) {
-  NOTIMPLEMENTED();
+  // WebGL allows larger spans (reusing an array for different sizes to
+  // avoid repeated allocations). Extra elements are ignored.
+  if (values.size() < 3) {
+    InsertGLError(GL_INVALID_VALUE, "vertexAttrib3fv", "invalid size");
+    return;
+  }
+  driver_gl_.fn.glVertexAttrib3fvFn(index, values.data());
+  // TODO(crbug.com/413078308): Track the type of the array so the correct
+  // typed array is returned for getVertexAttrib(index, CURRENT_VERTEX_ATTRIB).
 }
 
 void WebGLRenderingContextWebGPUBase::vertexAttrib4f(GLuint index,
@@ -2049,13 +2113,23 @@ void WebGLRenderingContextWebGPUBase::vertexAttrib4f(GLuint index,
                                                      GLfloat y,
                                                      GLfloat z,
                                                      GLfloat w) {
-  NOTIMPLEMENTED();
+  driver_gl_.fn.glVertexAttrib4fFn(index, x, y, z, w);
+  // TODO(crbug.com/413078308): Track the type of the array so the correct
+  // typed array is returned for getVertexAttrib(index, CURRENT_VERTEX_ATTRIB).
 }
 
 void WebGLRenderingContextWebGPUBase::vertexAttrib4fv(
     GLuint index,
     base::span<const GLfloat> values) {
-  NOTIMPLEMENTED();
+  // WebGL allows larger spans (reusing an array for different sizes to
+  // avoid repeated allocations). Extra elements are ignored.
+  if (values.size() < 4) {
+    InsertGLError(GL_INVALID_VALUE, "vertexAttrib4fv", "invalid size");
+    return;
+  }
+  driver_gl_.fn.glVertexAttrib4fvFn(index, values.data());
+  // TODO(crbug.com/413078308): Track the type of the array so the correct
+  // typed array is returned for getVertexAttrib(index, CURRENT_VERTEX_ATTRIB).
 }
 
 void WebGLRenderingContextWebGPUBase::vertexAttribPointer(GLuint index,
@@ -3206,13 +3280,23 @@ void WebGLRenderingContextWebGPUBase::vertexAttribI4i(GLuint index,
                                                       GLint y,
                                                       GLint z,
                                                       GLint w) {
-  NOTIMPLEMENTED();
+  driver_gl_.fn.glVertexAttribI4iFn(index, x, y, z, w);
+  // TODO(crbug.com/413078308): Track the type of the array so the correct
+  // typed array is returned for getVertexAttrib(index, CURRENT_VERTEX_ATTRIB).
 }
 
 void WebGLRenderingContextWebGPUBase::vertexAttribI4iv(
     GLuint index,
     base::span<const GLint> v) {
-  NOTIMPLEMENTED();
+  // WebGL allows larger spans (reusing an array for different sizes to
+  // avoid repeated allocations). Extra elements are ignored.
+  if (v.size() < 4) {
+    InsertGLError(GL_INVALID_VALUE, "vertexAttribI4iv", "invalid size");
+    return;
+  }
+  driver_gl_.fn.glVertexAttribI4ivFn(index, v.data());
+  // TODO(crbug.com/413078308): Track the type of the array so the correct
+  // typed array is returned for getVertexAttrib(index, CURRENT_VERTEX_ATTRIB).
 }
 
 void WebGLRenderingContextWebGPUBase::vertexAttribI4ui(GLuint index,
@@ -3220,13 +3304,23 @@ void WebGLRenderingContextWebGPUBase::vertexAttribI4ui(GLuint index,
                                                        GLuint y,
                                                        GLuint z,
                                                        GLuint w) {
-  NOTIMPLEMENTED();
+  driver_gl_.fn.glVertexAttribI4uiFn(index, x, y, z, w);
+  // TODO(crbug.com/413078308): Track the type of the array so the correct
+  // typed array is returned for getVertexAttrib(index, CURRENT_VERTEX_ATTRIB).
 }
 
 void WebGLRenderingContextWebGPUBase::vertexAttribI4uiv(
     GLuint index,
     base::span<const GLuint> v) {
-  NOTIMPLEMENTED();
+  // WebGL allows larger spans (reusing an array for different sizes to
+  // avoid repeated allocations). Extra elements are ignored.
+  if (v.size() < 4) {
+    InsertGLError(GL_INVALID_VALUE, "vertexAttribI4uiv", "invalid size");
+    return;
+  }
+  driver_gl_.fn.glVertexAttribI4uivFn(index, v.data());
+  // TODO(crbug.com/413078308): Track the type of the array so the correct
+  // typed array is returned for getVertexAttrib(index, CURRENT_VERTEX_ATTRIB).
 }
 
 void WebGLRenderingContextWebGPUBase::vertexAttribIPointer(GLuint index,
@@ -3314,8 +3408,7 @@ void WebGLRenderingContextWebGPUBase::deleteQuery(WebGLQuery* query) {
 }
 
 bool WebGLRenderingContextWebGPUBase::isQuery(WebGLQuery* query) {
-  NOTIMPLEMENTED();
-  return false;
+  return IsObject(this, query, driver_gl_.fn.glIsQueryFn);
 }
 
 void WebGLRenderingContextWebGPUBase::beginQuery(GLenum target,
@@ -3352,8 +3445,7 @@ void WebGLRenderingContextWebGPUBase::deleteSampler(WebGLSampler* sampler) {
 }
 
 bool WebGLRenderingContextWebGPUBase::isSampler(WebGLSampler* sampler) {
-  NOTIMPLEMENTED();
-  return false;
+  return IsObject(this, sampler, driver_gl_.fn.glIsSamplerFn);
 }
 
 void WebGLRenderingContextWebGPUBase::bindSampler(GLuint unit,
@@ -3388,8 +3480,9 @@ WebGLSync* WebGLRenderingContextWebGPUBase::fenceSync(GLenum condition,
 }
 
 bool WebGLRenderingContextWebGPUBase::isSync(WebGLSync* sync) {
-  NOTIMPLEMENTED();
-  return false;
+  // WebGLSync is managed entirely on the client side and does not require an
+  // ANGLE query.
+  return ValidateIsObject(this, sync) && sync->Object() != 0;
 }
 
 void WebGLRenderingContextWebGPUBase::deleteSync(WebGLSync* sync) {
@@ -3430,8 +3523,7 @@ void WebGLRenderingContextWebGPUBase::deleteTransformFeedback(
 
 bool WebGLRenderingContextWebGPUBase::isTransformFeedback(
     WebGLTransformFeedback* feedback) {
-  NOTIMPLEMENTED();
-  return false;
+  return IsObject(this, feedback, driver_gl_.fn.glIsTransformFeedbackFn);
 }
 
 void WebGLRenderingContextWebGPUBase::bindTransformFeedback(
@@ -3552,8 +3644,7 @@ void WebGLRenderingContextWebGPUBase::deleteVertexArray(
 
 bool WebGLRenderingContextWebGPUBase::isVertexArray(
     WebGLVertexArrayObject* vertex_array) {
-  NOTIMPLEMENTED();
-  return false;
+  return IsObject(this, vertex_array, driver_gl_.fn.glIsVertexArrayOESFn);
 }
 
 void WebGLRenderingContextWebGPUBase::bindVertexArray(

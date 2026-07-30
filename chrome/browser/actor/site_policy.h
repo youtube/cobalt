@@ -22,10 +22,13 @@ class TabInterface;
 class GURL;
 class Profile;
 
+namespace origin_gating {
+class OriginGatingCache;
+}
+
 namespace actor {
 
 class AggregatedJournal;
-class OriginGatingCache;
 
 // Called during initialization of the given profile, to load the blocklist.
 void InitActionBlocklist(Profile* profile);
@@ -60,7 +63,7 @@ using DecisionCallbackWithReason =
 void MayActOnTab(const tabs::TabInterface& tab,
                  AggregatedJournal& journal,
                  TaskId task_id,
-                 const OriginGatingCache& origin_gating_cache,
+                 const origin_gating::OriginGatingCache& origin_gating_cache,
                  const EnterprisePolicyChecker& policy_checker,
                  DecisionCallbackWithReason callback);
 
@@ -73,7 +76,7 @@ void MayActOnUrl(const GURL& url,
                  Profile* profile,
                  AggregatedJournal& journal,
                  TaskId task_id,
-                 const OriginGatingCache& origin_gating_cache,
+                 const origin_gating::OriginGatingCache& origin_gating_cache,
                  const EnterprisePolicyChecker& policy_checker,
                  DecisionCallbackWithReason callback);
 

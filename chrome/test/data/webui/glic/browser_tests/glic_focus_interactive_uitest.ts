@@ -14,6 +14,11 @@ class GlicFocusInteractiveTest extends ApiTestFixtureBase {
     await runUntil(() => document.hasFocus());
   }
 
+  async testFocusOnInvoke() {
+    await runUntil(() => document.activeElement?.id === 'inputBox');
+    await runUntil(() => document.hasFocus());
+  }
+
   async testBlurOnOmniboxFocus() {
     await runUntil(() => document.hasFocus());
     // Pass control to C++ to request focus on omnibox. This should trigger

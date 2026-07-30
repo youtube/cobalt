@@ -29,9 +29,6 @@ inline constexpr size_t kSha512Size = 64;
 
 // Unless your code needs to be generic over HashKind, use one of these
 // kind-specific functions:
-CRYPTO_EXPORT std::array<uint8_t, kSha1Size> Sha1(
-    base::span<const uint8_t> data);
-CRYPTO_EXPORT std::array<uint8_t, kSha1Size> Sha1(std::string_view data);
 
 CRYPTO_EXPORT std::array<uint8_t, kSha256Size> Sha256(
     base::span<const uint8_t> data);
@@ -44,6 +41,8 @@ CRYPTO_EXPORT std::array<uint8_t, kSha512Size> Sha512(std::string_view data);
 // If you do need to be generic, you can use the Hash() function and pass a
 // HashKind instead.
 enum HashKind {
+  // Deprecated; don't use kSha1. If you need SHA-1 in new code, contact a
+  // CRYPTO_OWNERS member.
   kSha1,
   kSha256,
   kSha384,

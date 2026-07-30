@@ -1,0 +1,19 @@
+Name: Software and Algorithms
+Short Name: software-and-algorithms
+URL: https://repo.maven.apache.org/maven2/com/github/kevinstern/software-and-algorithms/1.0/software-and-algorithms-1.0.jar
+Version: 1.0
+Update Mechanism: Autoroll
+License: MIT
+License File: LICENSE
+CPEPrefix: unknown
+Security Critical: no
+Shipped: no
+
+Description:
+Neat algorithm implementations in Java
+
+See also: https://www.github.com/KevinStern/software-and-algorithms
+
+
+Local Modifications:
+No modifications.

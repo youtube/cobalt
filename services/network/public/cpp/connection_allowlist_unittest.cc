@@ -8,10 +8,12 @@
 #include "net/http/http_response_headers.h"
 #include "services/network/public/cpp/connection_allowlist_parser.h"
 #include "services/network/public/mojom/connection_allowlist.mojom-shared.h"
+#include "services/network/public/mojom/origin_or_wildcard_header_value.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/fuzztest/src/fuzztest/fuzztest.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace network {
 
@@ -366,6 +368,231 @@ TEST_F(ConnectionAllowlistParserTest, IsAllowlisted) {
       connection_allowlist, GURL("blob:https://example.site/")));
 }
 
+TEST_F(ConnectionAllowlistParserTest, ParseConnectionAllowlistSingleValue) {
+  // A single structured-header value parses like the `Connection-Allowlist`
+  // header, resolving `response-origin` against the response URL.
+  std::optional<ConnectionAllowlist> result = ParseConnectionAllowlist(
+      "(\"https://other.example/\" response-origin)", url());
+  ASSERT_TRUE(result);
+  EXPECT_THAT(
+      result->allowlist,
+      testing::ElementsAre("https://other.example/", kSerializedExampleOrigin));
+  EXPECT_TRUE(result->issues.empty());
+
+  // An empty header value yields nullopt.
+  EXPECT_FALSE(ParseConnectionAllowlist("", url()));
+
+  // A malformed value yields a present allowlist carrying the issue (callers
+  // decide how to treat it).
+  std::optional<ConnectionAllowlist> malformed =
+      ParseConnectionAllowlist("dictionary=value", url());
+  ASSERT_TRUE(malformed);
+  ASSERT_FALSE(malformed->issues.empty());
+  EXPECT_EQ(mojom::ConnectionAllowlistIssue::kInvalidHeader,
+            malformed->issues[0]);
+}
+
+TEST_F(ConnectionAllowlistParserTest,
+       ParseConnectionAllowlistDeferResponseOrigin) {
+  // With no `response_url` (nullopt), `response-origin` is not resolved into
+  // the allowlist; instead it sets `match_response_origin` for the browser to
+  // resolve later. Explicit patterns are still parsed.
+  std::optional<ConnectionAllowlist> result = ParseConnectionAllowlist(
+      "(\"https://other.example/\" response-origin)", std::nullopt);
+  ASSERT_TRUE(result);
+  EXPECT_THAT(result->allowlist,
+              testing::ElementsAre("https://other.example/"));
+  EXPECT_TRUE(result->match_response_origin);
+  EXPECT_TRUE(result->issues.empty());
+
+  // Without the token, `match_response_origin` stays false when deferring.
+  std::optional<ConnectionAllowlist> no_token =
+      ParseConnectionAllowlist("(\"https://other.example/\")", std::nullopt);
+  ASSERT_TRUE(no_token);
+  EXPECT_FALSE(no_token->match_response_origin);
+  EXPECT_THAT(no_token->allowlist,
+              testing::ElementsAre("https://other.example/"));
+
+  // The default (resolving) path resolves the token into the allowlist and
+  // leaves `match_response_origin` false.
+  std::optional<ConnectionAllowlist> resolved =
+      ParseConnectionAllowlist("(response-origin)", url());
+  ASSERT_TRUE(resolved);
+  EXPECT_FALSE(resolved->match_response_origin);
+  EXPECT_THAT(resolved->allowlist,
+              testing::ElementsAre(kSerializedExampleOrigin));
+}
+
+TEST_F(ConnectionAllowlistParserTest, Subsumes) {
+  ConnectionAllowlist required;
+  required.allowlist = {"https://a.example/", "https://b.example/"};
+
+  // A candidate whose endpoints are a subset is at least as strict.
+  ConnectionAllowlist subset;
+  subset.allowlist = {"https://a.example/"};
+  EXPECT_TRUE(ConnectionAllowlistSubsumes(required, subset));
+
+  // An equal candidate is subsumed.
+  EXPECT_TRUE(ConnectionAllowlistSubsumes(required, required));
+
+  // An empty candidate is trivially subsumed (it is maximally strict).
+  ConnectionAllowlist empty;
+  EXPECT_TRUE(ConnectionAllowlistSubsumes(required, empty));
+
+  // A candidate permitting an endpoint not in `required` is not subsumed.
+  ConnectionAllowlist superset;
+  superset.allowlist = {"https://a.example/", "https://c.example/"};
+  EXPECT_FALSE(ConnectionAllowlistSubsumes(required, superset));
+
+  // Comparison is syntactic: a semantically-similar but differently-spelled
+  // pattern is not considered subsumed.
+  ConnectionAllowlist different_spelling;
+  different_spelling.allowlist = {"https://a.example"};  // no trailing slash
+  EXPECT_FALSE(ConnectionAllowlistSubsumes(required, different_spelling));
+}
+
+TEST_F(ConnectionAllowlistParserTest, SubsumesRedirectAndWebRtcStrictness) {
+  ConnectionAllowlist required;  // redirect/webrtc default to kBlock.
+  ASSERT_EQ(required.redirect_behavior,
+            ConnectionAllowlist::RedirectBehavior::kBlock);
+  ASSERT_EQ(required.webrtc_behavior,
+            ConnectionAllowlist::WebRtcBehavior::kBlock);
+
+  // A candidate that blocks both is at least as strict.
+  ConnectionAllowlist strict;
+  EXPECT_TRUE(ConnectionAllowlistSubsumes(required, strict));
+
+  // A candidate that allows redirects when `required` blocks is not subsumed.
+  ConnectionAllowlist allows_redirects;
+  allows_redirects.redirect_behavior =
+      ConnectionAllowlist::RedirectBehavior::kAllow;
+  EXPECT_FALSE(ConnectionAllowlistSubsumes(required, allows_redirects));
+
+  // A candidate that allows WebRTC when `required` blocks is not subsumed.
+  ConnectionAllowlist allows_webrtc;
+  allows_webrtc.webrtc_behavior = ConnectionAllowlist::WebRtcBehavior::kAllow;
+  EXPECT_FALSE(ConnectionAllowlistSubsumes(required, allows_webrtc));
+
+  // When `required` itself allows redirects/WebRTC, a candidate that allows
+  // them is still subsumed (the candidate need not be stricter than required).
+  ConnectionAllowlist lenient;
+  lenient.redirect_behavior = ConnectionAllowlist::RedirectBehavior::kAllow;
+  lenient.webrtc_behavior = ConnectionAllowlist::WebRtcBehavior::kAllow;
+  EXPECT_TRUE(ConnectionAllowlistSubsumes(lenient, allows_redirects));
+  EXPECT_TRUE(ConnectionAllowlistSubsumes(lenient, strict));
+}
+
+TEST_F(ConnectionAllowlistParserTest, ParseAllowConnectionAllowlistFrom) {
+  auto build = [](const char* value) {
+    auto builder =
+        net::HttpResponseHeaders::Builder(net::HttpVersion(1, 1), "200");
+    if (value) {
+      builder.AddHeader("Allow-Connection-Allowlist-From", value);
+    }
+    return builder.Build();
+  };
+
+  // Absent header -> null.
+  EXPECT_FALSE(ParseAllowConnectionAllowlistFromHeader(*build(nullptr)));
+
+  // `*` -> allow-star.
+  {
+    mojom::OriginOrWildcardHeaderValuePtr result =
+        ParseAllowConnectionAllowlistFromHeader(*build("*"));
+    ASSERT_TRUE(result);
+    EXPECT_TRUE(result->is_allow_star());
+  }
+
+  // A valid origin -> origin.
+  {
+    mojom::OriginOrWildcardHeaderValuePtr result =
+        ParseAllowConnectionAllowlistFromHeader(
+            *build("https://embedder.example"));
+    ASSERT_TRUE(result);
+    ASSERT_TRUE(result->is_origin());
+    EXPECT_EQ(result->get_origin(),
+              url::Origin::Create(GURL("https://embedder.example")));
+  }
+
+  // An invalid value -> error message.
+  {
+    mojom::OriginOrWildcardHeaderValuePtr result =
+        ParseAllowConnectionAllowlistFromHeader(*build("not a url"));
+    ASSERT_TRUE(result);
+    EXPECT_TRUE(result->is_error_message());
+  }
+
+  // Values that parse as URLs but aren't bare origin serializations (a trailing
+  // slash, a path, or userinfo) are rejected -- only an exact origin is valid.
+  for (const char* invalid :
+       {"https://embedder.example/", "https://embedder.example/path",
+        "https://user@embedder.example"}) {
+    mojom::OriginOrWildcardHeaderValuePtr result =
+        ParseAllowConnectionAllowlistFromHeader(*build(invalid));
+    ASSERT_TRUE(result) << invalid;
+    EXPECT_TRUE(result->is_error_message()) << invalid;
+  }
+}
+
+TEST_F(ConnectionAllowlistParserTest, AllowsBlanketEnforcement) {
+  const url::Origin embedder =
+      url::Origin::Create(GURL("https://embedder.example"));
+  const GURL network_url("https://widget.example/");
+
+  // Local schemes always allow blanket enforcement, regardless of header.
+  EXPECT_TRUE(AllowsBlanketEnforcementOfRequiredConnectionAllowlist(
+      embedder, GURL("about:srcdoc"), nullptr));
+  EXPECT_TRUE(AllowsBlanketEnforcementOfRequiredConnectionAllowlist(
+      embedder, GURL("data:text/html,hi"), nullptr));
+  EXPECT_TRUE(AllowsBlanketEnforcementOfRequiredConnectionAllowlist(
+      embedder, GURL("blob:https://x.example/abc"), nullptr));
+  EXPECT_TRUE(AllowsBlanketEnforcementOfRequiredConnectionAllowlist(
+      embedder, GURL("filesystem:https://x.example/temporary/a"), nullptr));
+
+  // The scheme is checked before any opt-in header, so a local scheme is
+  // honored even when a non-matching header is present (blobs may grow headers
+  // in the future).
+  mojom::OriginOrWildcardHeaderValuePtr non_matching =
+      mojom::OriginOrWildcardHeaderValue::NewOrigin(
+          url::Origin::Create(GURL("https://evil.example")));
+  EXPECT_TRUE(AllowsBlanketEnforcementOfRequiredConnectionAllowlist(
+      embedder, GURL("blob:https://x.example/abc"), non_matching.get()));
+
+  // `file:` is not a local scheme (matching Fetch), so it does not get blanket
+  // enforcement.
+  EXPECT_FALSE(AllowsBlanketEnforcementOfRequiredConnectionAllowlist(
+      embedder, GURL("file:///etc/passwd"), nullptr));
+
+  // A network-scheme response with no opt-in header does not allow it.
+  EXPECT_FALSE(AllowsBlanketEnforcementOfRequiredConnectionAllowlist(
+      embedder, network_url, nullptr));
+
+  // `*` allows any embedder.
+  mojom::OriginOrWildcardHeaderValuePtr star =
+      mojom::OriginOrWildcardHeaderValue::NewAllowStar(true);
+  EXPECT_TRUE(AllowsBlanketEnforcementOfRequiredConnectionAllowlist(
+      embedder, network_url, star.get()));
+
+  // A matching origin allows that embedder.
+  mojom::OriginOrWildcardHeaderValuePtr matching =
+      mojom::OriginOrWildcardHeaderValue::NewOrigin(embedder);
+  EXPECT_TRUE(AllowsBlanketEnforcementOfRequiredConnectionAllowlist(
+      embedder, network_url, matching.get()));
+
+  // A non-matching origin does not.
+  mojom::OriginOrWildcardHeaderValuePtr other =
+      mojom::OriginOrWildcardHeaderValue::NewOrigin(
+          url::Origin::Create(GURL("https://evil.example")));
+  EXPECT_FALSE(AllowsBlanketEnforcementOfRequiredConnectionAllowlist(
+      embedder, network_url, other.get()));
+
+  // An error-message value does not.
+  mojom::OriginOrWildcardHeaderValuePtr error =
+      mojom::OriginOrWildcardHeaderValue::NewErrorMessage("bad");
+  EXPECT_FALSE(AllowsBlanketEnforcementOfRequiredConnectionAllowlist(
+      embedder, network_url, error.get()));
+}
+
 namespace {
 
 void FuzzConnectionAllowlistParser(const std::string& enforced,
@@ -385,4 +612,5 @@ void FuzzConnectionAllowlistParser(const std::string& enforced,
 FUZZ_TEST(ConnectionAllowlistFuzz, FuzzConnectionAllowlistParser);
 
 }  // namespace
+
 }  // namespace network

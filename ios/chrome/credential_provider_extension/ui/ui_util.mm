@@ -6,6 +6,7 @@
 
 #import <AuthenticationServices/AuthenticationServices.h>
 
+#import "ios/chrome/common/credential_provider/net_util.h"
 #import "ios/chrome/credential_provider_extension/generated_localized_strings.h"
 
 namespace {
@@ -42,17 +43,10 @@ UIImage* DefaultSymbolWithPointSize(NSString* symbol_name, CGFloat point_size) {
 
 const CGFloat kUITableViewInsetGroupedTopSpace = 35;
 
-NSString* HostForServiceIdentifier(
-    ASCredentialServiceIdentifier* serviceIdentifier) {
-  NSString* identifier = serviceIdentifier.identifier;
-  NSURL* promptURL = identifier ? [NSURL URLWithString:identifier] : nil;
-  return promptURL.host ?: identifier;
-}
-
 NSString* PromptForServiceIdentifiers(
     NSArray<ASCredentialServiceIdentifier*>* serviceIdentifiers) {
-  NSString* IDForPrompt =
-      HostForServiceIdentifier(serviceIdentifiers.firstObject);
+  NSString* IDForPrompt = credential_provider::HostForIdentifier(
+      serviceIdentifiers.firstObject.identifier);
   if (!IDForPrompt) {
     return nil;
   }

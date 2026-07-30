@@ -78,6 +78,7 @@
 <translation id="2386292341327187942">У вікні "Віджети Пошуку" введіть Chromium</translation>
 <translation id="2389827884654658221">Відкривайте Chromium швидше з головного екрана iPad.</translation>
 <translation id="2426113998523353159">За вимогами вашої організації, ви повинні ввійти в обліковий запис, щоб використовувати Chromium.</translation>
+<translation id="244367646885670394">Підтвердьте свою особу, щоб зберегти цей пароль і отримати доступ до даних Chromium на всіх своїх пристроях</translation>
 <translation id="2450140762465183767">Тепер ви можете відкривати в Chromium посилання з повідомлень, документів та інших додатків.</translation>
 <translation id="2459183986985456602">Відкриває останню вкладку в Chromium.</translation>
 <translation id="2476409803017965813">Ви можете будь-коли змінити свій вибір у налаштуваннях Chromium.</translation>
@@ -108,6 +109,7 @@
 <translation id="3054480780637153380">На пристрої iOS відкрийте налаштування Chromium, натисніть "Вебпереглядач за умовчанням" і виберіть Chromium.</translation>
 <translation id="3115956258722352278">Зробити Chromium веб-переглядачем за умовчанням?</translation>
 <translation id="3180939591219927904">Увімкніть опцію "Блокувати анонімні вкладки після закриття Chromium".</translation>
+<translation id="327628223428512207">Введіть парольну фразу, щоб зберегти цей пароль і отримати доступ до даних Chromium на всіх своїх пристроях</translation>
 <translation id="328933489847748230">{count,plural, =1{Показано 1 вікно Chromium}one{Показано {count} вікно Chromium}few{Показано {count} вікна Chromium}many{Показано {count} вікон Chromium}other{Показано {count} вікна Chromium}}</translation>
 <translation id="3344973607274501920">Chromium не вдалося перевірити паролі. Переконайтеся, що є інтернет-з'єднання.</translation>
 <translation id="3366305173356742781">Дані Chromium у вашому обліковому записі</translation>

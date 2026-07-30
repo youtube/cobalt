@@ -19,39 +19,27 @@
 
 namespace actor {
 
-// ActorContainerConfig is the name of the object in Chrome which manages
-// client-side security boundaries for the actor codebase based on the
-// AgentContainerConfig proto we receive from the server. The value from the
-// server is ingested into the actor task using the `Assign` method, which only
-// mutates its caller the first time it is invoked.
+// ActorContainerConfig manages client-side security boundaries for the actor
+// codebase based on an AgentContainerConfig proto.
 class ActorContainerConfig {
  public:
-  ActorContainerConfig();
+  ActorContainerConfig() = delete;
   ActorContainerConfig(const ActorContainerConfig&);
   ActorContainerConfig(ActorContainerConfig&&);
   ActorContainerConfig& operator=(const ActorContainerConfig& other) = delete;
   ActorContainerConfig& operator=(ActorContainerConfig&& other) = delete;
   ~ActorContainerConfig();
 
-  // Assigns the `config` to this instance, if provided. This method is a no-op
-  // except for the first time it is called.
-  void Assign(
-      base::optional_ref<const optimization_guide::proto::AgentContainerConfig>
-          config);
-
-  // Returns true iff a config proto was provided for this instance via
-  // `Assign`.
-  bool IsActive() const { return rules_.has_value(); }
+  explicit ActorContainerConfig(
+      const optimization_guide::proto::AgentContainerConfig& config);
 
   // Indicates whether or not navigation from `source` to `destination` is
   // allowed according to this config.
-  // Must not be called when `IsActive` is false.
   bool IsNavigationAllowed(const url::Origin& source,
                            const url::Origin& destination) const;
 
   // Indicates whether or not the actor can actuate when the browser is
   // navigated to `location_origin`.
-  // Must not be called when `IsActive` is false.
   bool IsActuationAllowed(const url::Origin& location_origin) const;
 
  private:
@@ -109,11 +97,7 @@ class ActorContainerConfig {
     optimization_guide::proto::RuleMetadata metadata_;
   };
 
-  bool assign_attempted_ = false;
-  // If `rules_` is not set, i.e. is `nullopt`, then the ActorContainerConfig is
-  // "empty" and it should not gate any type of behavior. When it is set to a
-  // non-null value, only actions allowed by the resulting Rules are allowed.
-  std::optional<base::flat_map<Location, Rule>> rules_;
+  base::flat_map<Location, Rule> rules_;
 };
 
 }  // namespace actor

@@ -24,6 +24,7 @@ source_set("ui") {
 
     deps += [
       "//chrome/app:generated_resources",
+      "//chrome/browser/contextual_cueing",
       "//chrome/browser/favicon",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/page_action",
@@ -70,6 +71,7 @@ source_set("unit_tests") {
       ":test_support",
       ":ui",
       "//base/test:test_support",
+      "//chrome/browser/contextual_cueing",
       "//chrome/browser/multistep_filter/core",
       "//chrome/browser/ui/page_action",
       "//chrome/browser/ui/page_action:test_support",

@@ -1299,6 +1299,10 @@ void CountPseudoElementUsage(const Element& element, PseudoId id) {
       element.GetDocument().CountUse(WebFeature::kPickerIconPseudoElement);
       break;
     }
+    case kPseudoIdInterestButton: {
+      element.GetDocument().CountUse(WebFeature::kInterestButtonPseudoElement);
+      break;
+    }
     case kPseudoIdMarker: {
       element.GetDocument().CountUse(WebFeature::kMarkerPseudoElement);
       break;

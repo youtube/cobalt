@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/containers/span.h"
 #include "base/containers/to_vector.h"
@@ -265,7 +266,8 @@ void ChromePasswordManagerClient::BindPasswordGenerationDriver(
 ChromePasswordManagerClient::~ChromePasswordManagerClient() = default;
 
 bool ChromePasswordManagerClient::IsSavingAndFillingEnabled(
-    const GURL& url) const {
+    const url::Origin& origin,
+    base::optional_ref<const GURL> url) const {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableAutomation)) {
     // Disable the password saving UI for automated tests. It obscures the
@@ -277,10 +279,18 @@ bool ChromePasswordManagerClient::IsSavingAndFillingEnabled(
   return settings_service &&
          settings_service->IsSettingEnabled(
              PasswordManagerSetting::kOfferToSavePasswords) &&
-         !IsOffTheRecord() && IsFillingEnabled(url);
+         !IsOffTheRecord() && IsFillingEnabled(origin, url);
 }
 
-bool ChromePasswordManagerClient::IsFillingEnabled(const GURL& url) const {
+bool ChromePasswordManagerClient::IsFillingEnabled(
+    const url::Origin& origin,
+    base::optional_ref<const GURL> url) const {
+  if (origin.opaque() &&
+      base::FeatureList::IsEnabled(
+          password_manager::features::kPasswordBlockOpaqueOrigins)) {
+    return false;
+  }
+
   const Profile* profile =
       Profile::FromBrowserContext(web_contents()->GetBrowserContext());
   // Guest profiles don't have PasswordStore at all, so filling should be
@@ -300,7 +310,13 @@ bool ChromePasswordManagerClient::IsFillingEnabled(const GURL& url) const {
     password_manager::BrowserSavePasswordProgressLogger logger(log_manager);
     logger.LogBoolean(Logger::STRING_SSL_ERRORS_PRESENT, ssl_errors);
   }
-  return !ssl_errors && IsPasswordManagementEnabledForCurrentPage(url);
+
+  if (url && !base::FeatureList::IsEnabled(
+                 password_manager::features::kPasswordBlockOpaqueOrigins)) {
+    return !ssl_errors && IsPasswordManagementEnabledForCurrentPage(*url);
+  }
+  return !ssl_errors &&
+         IsPasswordManagementEnabledForCurrentPage(origin.GetURL());
 }
 
 bool ChromePasswordManagerClient::IsFieldFilledWithOtp(
@@ -1991,7 +2007,7 @@ void ChromePasswordManagerClient::PropagatePredictionsToPasswordManager(
     auto* driver =
         password_manager::ContentPasswordManagerDriver::GetForRenderFrameHost(
             rfh);
-    if (!driver) {
+    if (!driver || !driver->HasValidURL(/*may_kill_renderer=*/false)) {
       continue;
     }
 
@@ -2002,7 +2018,7 @@ void ChromePasswordManagerClient::PropagatePredictionsToPasswordManager(
       case FieldTypeSource::kAutofillServer:
       case FieldTypeSource::kAutofillAiModel:
         password_manager_.ProcessAutofillPredictions(
-            driver, renderer_form,
+            CHECK_DEREF(driver), renderer_form,
             manager.GetServerPredictionsForForm(form_id,
                                                 field_ids_for_renderer_form));
         break;
@@ -2190,7 +2206,7 @@ void ChromePasswordManagerClient::ShowPasswordGenerationPopup(
 }
 
 void ChromePasswordManagerClient::MaybeShowSavePasswordPrimingPromo(
-    const GURL& current_url) {
+    const url::Origin& origin) {
   // If the user has any stored passwords do not show the promo.
   Profile* profile =
       Profile::FromBrowserContext(web_contents()->GetBrowserContext());
@@ -2200,9 +2216,7 @@ void ChromePasswordManagerClient::MaybeShowSavePasswordPrimingPromo(
     return;
   }
 
-  // If the current page is not eligible for password saving, do not show the
-  // promo.
-  if (!IsSavingAndFillingEnabled(current_url)) {
+  if (!IsSavingAndFillingEnabled(origin)) {
     return;
   }
 

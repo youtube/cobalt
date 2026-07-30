@@ -7,19 +7,13 @@
 
 #include <memory>
 
-#include "base/functional/callback_forward.h"
 #include "chrome/browser/ui/session_crashed_bubble.h"
-#include "components/metrics/metrics_reporting_level.h"
-#include "ui/base/interaction/element_identifier.h"
-
-namespace ui {
-class DialogModel;
-}
+#include "ui/views/bubble/bubble_dialog_delegate_view.h"
 
 class BrowserWindowInterface;
 
 namespace views {
-class BubbleDialogModelHost;
+class BubbleDialogDelegate;
 }
 
 // SessionCrashedBubbleView shows a bubble allowing the user to restore the
@@ -30,9 +24,6 @@ class SessionCrashedBubbleView : public SessionCrashedBubble {
   // A helper class that listens to browser removal event.
   class BrowserRemovalObserver;
 
-  using ChangeMetricsReportingStateCallback =
-      base::RepeatingCallback<void(metrics::MetricsReportingLevel level)>;
-
   // Creates and shows the session crashed bubble, with |skip_tab_checking|
   // indicating whether skip the tab checking, and |uma_opted_in_already|
   // indicating whether the user has already opted-in to UMA. It will be called
@@ -41,21 +32,14 @@ class SessionCrashedBubbleView : public SessionCrashedBubble {
                    bool skip_tab_checking,
                    bool uma_opted_in_already);
 
-  static views::BubbleDialogModelHost* GetModelHostForTesting();
-
-  static ui::ElementIdentifier GetUmaConsentCheckboxIdForTesting();
-
-  static void SetChangeMetricsReportingStateCallbackForTesting(
-      ui::DialogModel* model,
-      ChangeMetricsReportingStateCallback callback);
+  static views::BubbleDialogDelegate* GetInstanceForTest();
 
  private:
   friend class SessionCrashedBubbleViewTest;
-  friend class SessionCrashedBubbleViewRestructureTest;
 
   // Internal show method also used by SessionCrashedBubbleViewTest.
   // TODO(pbos): Mock conditions in test instead.
-  static views::BubbleDialogModelHost* ShowBubble(
+  static views::BubbleDialogDelegate* ShowBubble(
       BrowserWindowInterface* browser,
       bool uma_opted_in_already,
       bool offer_uma_optin);

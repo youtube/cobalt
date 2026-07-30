@@ -1102,7 +1102,6 @@ bool Channel::OnReadComplete(size_t bytes_read, size_t* next_read_size_hint) {
                                read_buffer_->num_occupied_bytes())),
         next_read_size_hint);
     if (result == DispatchResult::kOK) {
-      RecordReceivedMessageProcessTypeSubsampled();
       read_buffer_->Discard(*next_read_size_hint);
       *next_read_size_hint = 0;
 
@@ -1386,18 +1385,6 @@ void Channel::DelayMessage(uint32_t channel_sequence_number,
                             std::move(delayed_message));
 }
 
-void Channel::RecordReceivedMessageProcessTypeSubsampled() {
-  if (ShouldRecordSubsampledHistograms()) {
-    RecordReceivedMessageProcessType();
-  }
-}
-
-// static
-void Channel::RecordReceivedMessageProcessType() {
-  UMA_HISTOGRAM_ENUMERATION(
-      "Mojo.Channel.WriteReceiveMessageProcessType",
-      base::CurrentProcess::GetInstance().GetShortType({}));
-}
 
 // static
 void Channel::RecordSentMessageProcessType() {

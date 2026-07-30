@@ -1157,7 +1157,8 @@ const ui::CocoaActionList& GetCocoaActionListForTesting() {
       DCHECK(markersTextRange.anchor()->GetAnchor() ==
              markersTextRange.focus()->GetAnchor());
       DCHECK(markers_anchor) << "Markers anchor should not be null.";
-      DCHECK(markers_anchor->GetRole() == ax::mojom::Role::kStaticText);
+      DCHECK(markers_anchor->GetRole() == ax::mojom::Role::kStaticText ||
+             markers_anchor->GetRole() == ax::mojom::Role::kLineBreak);
     }
 
     // Add misspelling information
@@ -2348,6 +2349,12 @@ const ui::CocoaActionList& GetCocoaActionListForTesting() {
   // -accessibilityCustomContent below), so if the description is from ARIA,
   // don't provide it as AXHelp, and return nothing.
   if ([self descriptionIsFromAriaDescription]) {
+    // VoiceOver does not announce AXCustomContent for fieldsets, so we fall
+    // back to exposing the ARIA description as AXHelp for them.
+    if ([[self getStringAttribute:ax::mojom::StringAttribute::kHtmlTag]
+            isEqualToString:@"fieldset"]) {
+      return [self getStringAttribute:ax::mojom::StringAttribute::kDescription];
+    }
     return nil;
   }
 
@@ -3842,6 +3849,13 @@ const ui::CocoaActionList& GetCocoaActionListForTesting() {
   // Only descriptions originating from ARIA are returned as custom content.
   // (Non-ARIA descriptions are returned as AXHelp.)
   if (![self descriptionIsFromAriaDescription]) {
+    return nil;
+  }
+
+  // VoiceOver does not announce AXCustomContent for fieldsets, so we do not
+  // expose it here.
+  if ([[self getStringAttribute:ax::mojom::StringAttribute::kHtmlTag]
+          isEqualToString:@"fieldset"]) {
     return nil;
   }
 

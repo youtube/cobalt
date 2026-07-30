@@ -13,6 +13,7 @@
 
 #include "base/component_export.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial.h"
 #include "base/synchronization/lock.h"
 #include "base/time/clock.h"
@@ -377,7 +378,7 @@ class COMPONENT_EXPORT(VARIATIONS) VariationsIdsProvider
   // NOTE this should really check observers are unregistered but due to
   // https://crbug.com/1051937 this isn't currently possible. Note that
   // ObserverList is sequence checked so we can't use that here.
-  std::vector<Observer*> observer_list_ GUARDED_BY(lock_);
+  std::vector<raw_ptr<Observer>> observer_list_ GUARDED_BY(lock_);
 
   // Whether this instance is subscribed to the field trial list. This is used
   // to ensure that the instance is only subscribed once, on first use.

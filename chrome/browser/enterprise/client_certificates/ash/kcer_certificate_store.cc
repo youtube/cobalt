@@ -15,7 +15,11 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/values.h"
+#include "chrome/browser/ash/kcer/kcer_factory_ash.h"
+#include "chrome/browser/ash/profiles/profile_helper.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chromeos/ash/components/kcer/kcer.h"
 #include "components/enterprise/client_certificates/core/ash/kcer_private_key.h"
 #include "components/enterprise/client_certificates/core/ash/kcer_private_key_factory.h"
@@ -24,6 +28,9 @@
 #include "components/enterprise/client_certificates/core/private_key.h"
 #include "components/enterprise/client_certificates/core/store_error.h"
 #include "components/prefs/pref_service.h"
+#include "components/user_manager/user.h"
+#include "components/user_manager/user_type.h"
+#include "content/public/browser/browser_thread.h"
 #include "net/cert/x509_certificate.h"
 
 namespace client_certificates {
@@ -34,6 +41,28 @@ namespace {
 constexpr char kSpkiKey[] = "spki";
 
 }  // namespace
+
+// static
+std::unique_ptr<CertificateStore> KcerCertificateStore::CreateForProfile(
+    Profile* profile) {
+  CHECK(profile);
+  // Strict profile isolation: managed client cert provisioning is restricted
+  // to regular signed-in users. Guest, Managed Guest Session (public account),
+  // Child, and Kiosk sessions must not receive a CertificateStore — they have
+  // ephemeral or shared cryptohomes that would compromise the TPM-backed key
+  // ownership model.
+  const user_manager::User* user =
+      ash::ProfileHelper::Get()->GetUserByProfile(profile);
+  if (!user || user->GetType() != user_manager::UserType::kRegular) {
+    return nullptr;
+  }
+  base::WeakPtr<kcer::Kcer> kcer = kcer::KcerFactoryAsh::GetKcer(profile);
+  if (!kcer) {
+    return nullptr;
+  }
+  return std::make_unique<KcerCertificateStore>(
+      profile->GetPrefs(), std::move(kcer), content::GetUIThreadTaskRunner({}));
+}
 
 KcerCertificateStore::KcerCertificateStore(
     PrefService* pref_service,

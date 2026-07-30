@@ -202,19 +202,19 @@ void SurfaceAudioProcessingSettings(MediaStreamSource* source) {
   auto* source_impl =
       static_cast<blink::MediaStreamAudioSource*>(source->GetPlatformSource());
 
-  // If the source is a processed source, get the properties from it.
-  if (auto* processed_source = ProcessedLocalAudioSource::From(source_impl)) {
+  // If the source has audio processing properties, get them from it.
+  if (source_impl) {
     std::optional<AudioProcessingProperties> properties =
-        processed_source->GetAudioProcessingProperties();
-    CHECK(properties);
-
-    source->SetAudioProcessingProperties(
-        properties->echo_cancellation_mode, properties->auto_gain_control,
-        properties->noise_suppression,
-        properties->voice_isolation ==
-            AudioProcessingProperties::VoiceIsolationType::
-                kVoiceIsolationEnabled);
-    return;
+        source_impl->GetAudioProcessingProperties();
+    if (properties) {
+      source->SetAudioProcessingProperties(
+          properties->echo_cancellation_mode, properties->auto_gain_control,
+          properties->noise_suppression,
+          properties->voice_isolation ==
+              AudioProcessingProperties::VoiceIsolationType::
+                  kVoiceIsolationEnabled);
+      return;
+    }
   }
 
   if (auto* platform_source = MediaStreamAudioSource::From(source)) {
@@ -863,7 +863,7 @@ void UserMediaProcessor::SelectAudioSettings(
         eligible_settings = SelectEligibleSettingsAudioCapture(
             capabilities, user_media_request->AudioConstraints(),
             current_request_info_->stream_controls()->audio.stream_type,
-            /*is_reconfiguration_allowed=*/true);
+            /*is_full_reconfiguration_allowed=*/true);
     if (!eligible_settings.has_value()) {
       String failed_constraint_name = String(eligible_settings.error());
       MediaStreamRequestResult result =
@@ -886,7 +886,7 @@ void UserMediaProcessor::SelectAudioSettings(
     auto settings = SelectSettingsAudioCapture(
         capabilities, user_media_request->AudioConstraints(),
         current_request_info_->stream_controls()->audio.stream_type,
-        /*is_reconfiguration_allowed=*/true);
+        /*is_full_reconfiguration_allowed=*/true);
     if (!settings.HasValue()) {
       String failed_constraint_name = String(settings.failed_constraint_name());
       MediaStreamRequestResult result =
@@ -2069,10 +2069,27 @@ MediaStreamComponent* UserMediaProcessor::CreateAudioTrack(
   bool is_pending = false;
   MediaStreamSource* source =
       InitializeAudioSourceObject(overriden_audio_device, &is_pending);
+  auto platform_track =
+      std::make_unique<MediaStreamAudioTrack>(true /* is_local_track */);
+  if (current_request_info_->audio_capture_settings().HasValue()) {
+    std::optional<bool> voice_isolation_exact;
+    const auto& constraints =
+        current_request_info_->request()->AudioConstraints();
+    // According to the W3C Media Capture spec (SelectSettings algorithm),
+    // constraints in `advanced` sets are optional/best-effort and must be
+    // ignored if unsatisfied. Only `Basic` exact constraints are mandatory;
+    // thus, only `Basic` exact constraints are recorded for sibling track
+    // conflict checking.
+    if (IsVoiceIsolationSupported() &&
+        constraints.Basic().voice_isolation.HasExact()) {
+      voice_isolation_exact = constraints.Basic().voice_isolation.Exact();
+    }
+    platform_track->SetVoiceIsolationExactConstraint(voice_isolation_exact);
+  }
+
   Member<MediaStreamComponent> component =
-      MakeGarbageCollected<MediaStreamComponentImpl>(
-          source,
-          std::make_unique<MediaStreamAudioTrack>(true /* is_local_track */));
+      MakeGarbageCollected<MediaStreamComponentImpl>(source,
+                                                     std::move(platform_track));
   if (current_request_info_->request()->IsTransferredTrackRequest()) {
     current_request_info_->request()->SetTransferredTrackComponent(component);
   }

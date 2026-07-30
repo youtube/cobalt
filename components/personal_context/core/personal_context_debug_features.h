@@ -24,6 +24,12 @@ BASE_DECLARE_FEATURE_PARAM(std::string, kContextMemoryServiceBaseUrlParam);
 BASE_DECLARE_FEATURE(kPersonalContextForceEnablementState);
 BASE_DECLARE_FEATURE_PARAM(int, kPersonalContextForceEnablementStateParam);
 
+// When enabled, `AtMemoryQueryService` will always return local suggestions
+// for the configured `MemoryDataType` (obtained via `AutofillDataProvider`)
+// regardless of the query.
+BASE_DECLARE_FEATURE(kMockPersonalContextResult);
+BASE_DECLARE_FEATURE_PARAM(int, kMockPersonalContextResultTypeParam);
+
 }  // namespace personal_context::features::debug
 
 #endif  // COMPONENTS_PERSONAL_CONTEXT_CORE_PERSONAL_CONTEXT_DEBUG_FEATURES_H_

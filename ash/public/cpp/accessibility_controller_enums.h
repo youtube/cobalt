@@ -68,7 +68,7 @@ enum class AccessibilityPanelState {
   FULLSCREEN
 };
 
-// These values are persisted to logs and should not be renumbered or re-used.
+// These values are persisted to logs and should not be renumbered or reused.
 // See tools/metrics/histograms/enums.xml.
 enum class DictationToggleSource {
   // Toggled by the keyboard command (Search + D).

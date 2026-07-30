@@ -111,7 +111,7 @@ class CORE_EXPORT ScrollSnapshotTimeline : public AnimationTimeline,
   // For access to TimelineState.
   friend class TimelineTrigger;
 
-  PhaseAndTime CurrentPhaseAndTime() override;
+  std::optional<base::TimeDelta> CurrentTimeInternal() override;
 
   AnimationTimeDelta CalculateIntrinsicIterationDuration(
       const TimelineRange&,
@@ -125,9 +125,6 @@ class CORE_EXPORT ScrollSnapshotTimeline : public AnimationTimeline,
     DISALLOW_NEW();
 
    public:
-    // TODO(crbug.com/1338167): Remove phase as it can be inferred from
-    // current_time.
-    TimelinePhase phase = TimelinePhase::kInactive;
     std::optional<base::TimeDelta> current_time;
     // Offsets corresponding to the entire scroll range of the scroll
     // container backing the timeline in the axis of the timeline.
@@ -159,7 +156,7 @@ class CORE_EXPORT ScrollSnapshotTimeline : public AnimationTimeline,
     }
 
     bool operator==(const TimelineState& other) const {
-      return phase == other.phase && current_time == other.current_time &&
+      return current_time == other.current_time &&
              scroll_offsets == other.scroll_offsets && zoom == other.zoom &&
              view_offsets == other.view_offsets &&
              resolved_source == other.resolved_source;

@@ -58,11 +58,7 @@ constexpr char kServiceWorkerHtmlPath[] =
     "/local_network_access/request-from-service-worker-as-public-address.html";
 
 class LocalNetworkAccessWorkersBrowserTest
-    : public LocalNetworkAccessBrowserTestBase {
- private:
-  base::test::ScopedFeatureList feature_list_{
-      features::kServiceWorkerWindowClientInitiator};
-};
+    : public LocalNetworkAccessBrowserTestBase {};
 
 class LocalNetworkAccessWorkersWebTransportBrowserTest
     : public LocalNetworkAccessBrowserTestBase {

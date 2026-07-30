@@ -5,10 +5,12 @@
 #include "components/metrics/field_trials_provider.h"
 
 #include <array>
+#include <set>
 #include <string_view>
 
 #include "base/containers/span.h"
 #include "base/metrics/field_trial.h"
+#include "base/metrics/runtime_field_trial_overrides.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/threading/platform_thread.h"
 #include "components/variations/active_field_trials.h"
@@ -20,6 +22,14 @@
 using ActiveGroup = base::FieldTrial::ActiveGroup;
 
 namespace variations {
+
+// A dummy class to create a PassKey for applying runtime overrides in tests.
+class VariationsService {
+ public:
+  static base::PassKey<VariationsService> CreatePassKeyForTesting() {
+    return base::PassKey<VariationsService>();
+  }
+};
 
 namespace {
 
@@ -198,6 +208,60 @@ TEST_F(FieldTrialsProviderTest, GetAndWriteFieldTrialsWithSuffixes) {
             static_cast<size_t>(uma_log.system_profile().field_trial_size()));
   CheckFieldTrialsInSystemProfile(uma_log.system_profile(),
                                   kAllTrialIdsWithSuffixes);
+}
+
+TEST_F(FieldTrialsProviderTest, ActiveFieldTrialsWithRuntimeOverrides) {
+  // Clear any existing overrides.
+  base::RuntimeFieldTrialOverrides::GetInstance()->ResetForTesting();
+
+  // Create an active trial that will be overridden.
+  base::FieldTrial* overridden_trial =
+      base::FieldTrialList::CreateFieldTrial("OverriddenTrial", "GroupA");
+  overridden_trial->Activate();
+
+  // Create another active trial that will NOT be overridden.
+  base::FieldTrial* active_trial =
+      base::FieldTrialList::CreateFieldTrial("ActiveTrial", "GroupB");
+  active_trial->Activate();
+
+  // Apply a runtime override. Here "OverrideTrial" overrides "OverriddenTrial".
+  auto pass_key = VariationsService::CreatePassKeyForTesting();
+  ASSERT_TRUE(
+      base::RuntimeFieldTrialOverrides::GetInstance()->ApplyRuntimeOverride(
+          pass_key, "OverrideTrial", "OverrideGroup", overridden_trial));
+
+  FieldTrialsProvider provider(nullptr, std::string_view());
+
+  metrics::SystemProfileProto proto;
+  provider.ProvideSystemProfileMetricsWithLogCreationTime(base::TimeTicks(),
+                                                          &proto);
+
+  std::set<std::pair<uint32_t, uint32_t>> field_trial_ids;
+  for (int i = 0; i < proto.field_trial_size(); ++i) {
+    field_trial_ids.insert(
+        {proto.field_trial(i).name_id(), proto.field_trial(i).group_id()});
+  }
+
+  // ActiveTrial should be included as it was not overridden.
+  ActiveGroupId active_trial_id = MakeActiveGroupId("ActiveTrial", "GroupB");
+  EXPECT_TRUE(
+      field_trial_ids.contains({active_trial_id.name, active_trial_id.group}));
+
+  // OverriddenTrial should not be included as it was overridden by
+  // OverrideTrial.
+  ActiveGroupId overridden_trial_id =
+      MakeActiveGroupId("OverriddenTrial", "GroupA");
+  EXPECT_FALSE(field_trial_ids.contains(
+      {overridden_trial_id.name, overridden_trial_id.group}));
+
+  // OverrideTrial should be included as it is the overriding trial.
+  ActiveGroupId override_trial_id =
+      MakeActiveGroupId("OverrideTrial", "OverrideGroup");
+  EXPECT_TRUE(field_trial_ids.contains(
+      {override_trial_id.name, override_trial_id.group}));
+
+  // Clean up.
+  base::RuntimeFieldTrialOverrides::GetInstance()->ResetForTesting();
 }
 
 }  // namespace variations

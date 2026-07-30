@@ -123,12 +123,21 @@ IN_PROC_BROWSER_TEST_F(DiscardEligibilityPolicyBrowserTest,
 
 // Test DiscardEligibilityPolicy behavior with web application.
 class DiscardEligibilityPolicyWebAppBrowserTest
-    : public web_app::WebAppBrowserTestBase {
+    : public web_app::WebAppBrowserTestBase,
+      public ::testing::WithParamInterface<
+          apps::test::LinkCapturingFeatureVersion> {
  public:
   constexpr static std::string_view kTestAppUrl =
       "https://www.example.com/app/";
 
-  DiscardEligibilityPolicyWebAppBrowserTest() = default;
+  DiscardEligibilityPolicyWebAppBrowserTest() {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        apps::test::GetFeaturesToEnableLinkCapturingUX(GetParam()), {});
+  }
+
+  bool LinkCapturingEnabledByDefault() const {
+    return GetParam() == apps::test::LinkCapturingFeatureVersion::kV2DefaultOn;
+  }
 
   // Convenience wrappers for DiscardEligibilityPolicy::CanDiscard().
   CanDiscardResult CanDiscard(
@@ -140,15 +149,21 @@ class DiscardEligibilityPolicyWebAppBrowserTest
                      /*ignore_recent_visibility=*/false,
                      cannot_discard_reasons);
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(DiscardEligibilityPolicyWebAppBrowserTest,
+IN_PROC_BROWSER_TEST_P(DiscardEligibilityPolicyWebAppBrowserTest,
                        CannotDiscardWebApp) {
   // Set up the web application.
   webapps::AppId app_id =
       web_app::test::InstallDummyWebApp(profile(), "App", GURL(kTestAppUrl));
-  ASSERT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
-            base::ok());
+
+  if (!LinkCapturingEnabledByDefault()) {
+    ASSERT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
+              base::ok());
+  }
 
   content::WebContents* browser_tab =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -184,6 +199,13 @@ IN_PROC_BROWSER_TEST_F(DiscardEligibilityPolicyWebAppBrowserTest,
             CanDiscard(page_node.get(), DiscardReason::EXTERNAL, &reasons_vec));
   EXPECT_TRUE(reasons_vec.empty());
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    DiscardEligibilityPolicyWebAppBrowserTest,
+    ::testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff,
+                      apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
+    apps::test::LinkCapturingVersionToString);
 
 void SimulateRendererCrash(content::WebContents* contents) {
   content::RenderProcessHostWatcher crash_observer(

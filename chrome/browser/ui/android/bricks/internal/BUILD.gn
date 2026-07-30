@@ -5,21 +5,36 @@
 import("//build/config/android/rules.gni")
 
 android_library("java") {
-  sources =
-      [ "java/src/org/chromium/chrome/browser/bricks/BricksCoordinator.kt" ]
+  sources = [
+    "java/src/org/chromium/chrome/browser/bricks/BricksCoordinator.kt",
+    "java/src/org/chromium/chrome/browser/bricks/progress/ProgressBar.kt",
+    "java/src/org/chromium/chrome/browser/bricks/progress/ProgressCoordinator.kt",
+    "java/src/org/chromium/chrome/browser/bricks/progress/ProgressMediator.kt",
+    "java/src/org/chromium/chrome/browser/bricks/progress/ProgressProvider.kt",
+    "java/src/org/chromium/chrome/browser/bricks/progress/ProgressUiState.kt",
+    "java/src/org/chromium/chrome/browser/bricks/progress/VibesProgressProvider.kt",
+  ]
   deps = [
     "//base:base_java",
     "//chrome/browser/ui/android/bricks:java",
     "//components/browser_ui/styles/android:java",
+    "//third_party/android_deps:material_design_java",
+    "//third_party/android_deps:org_jetbrains_kotlinx_kotlinx_coroutines_android_java",
+    "//third_party/android_deps:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm_java",
     "//third_party/androidx:androidx_activity_activity_compose_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_compose_foundation_foundation_java",
     "//third_party/androidx:androidx_compose_foundation_foundation_layout_java",
     "//third_party/androidx:androidx_compose_material3_material3_java",
     "//third_party/androidx:androidx_compose_runtime_runtime_java",
+    "//third_party/androidx:androidx_compose_ui_ui_graphics_java",
     "//third_party/androidx:androidx_compose_ui_ui_java",
     "//third_party/androidx:androidx_compose_ui_ui_text_java",
+    "//third_party/androidx:androidx_compose_ui_ui_unit_java",
+    "//third_party/androidx:androidx_lifecycle_lifecycle_common_java",
+    "//third_party/androidx:androidx_lifecycle_lifecycle_runtime_compose_java",
     "//third_party/kotlin_stdlib:kotlin_stdlib_java",
+    "//ui/android:ui_no_recycler_view_java",
   ]
   enable_compose = true
 }

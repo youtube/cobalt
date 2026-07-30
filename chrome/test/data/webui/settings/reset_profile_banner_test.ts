@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 // clang-format off
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import type {SettingsResetProfileBannerElement} from 'chrome://settings/settings.js';
 import {loadTimeData, ResetBrowserProxyImpl} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestResetBrowserProxy} from './test_reset_browser_proxy.js';
 
@@ -57,29 +57,29 @@ suite('ResetProfileBanner', function() {
 
     await browserProxy.whenCalled('getTamperedPreferencePaths');
     await browserProxy.whenCalled('onShowResetProfileDialog');
-    flush();
+    await microtasksFinished();
 
-    const dialog = banner.shadowRoot!.querySelector('cr-dialog');
+    const dialog = banner.shadowRoot.querySelector('cr-dialog');
     assertTrue(!!dialog, 'Dialog element should be stamped');
     assertTrue(dialog.open, 'Dialog should be open');
 
     // Verify title and body strings.
-    const title = banner.shadowRoot!.querySelector('[slot=title]');
-    const body = banner.shadowRoot!.querySelector('[slot=body]');
+    const title = banner.shadowRoot.querySelector('[slot=title]');
+    const body = banner.shadowRoot.querySelector('[slot=body]');
     assertTrue(!!title);
     assertTrue(!!body);
     assertEquals('Chrome reset these settings', title.textContent.trim());
     assertTrue(body.textContent.includes('To protect you, Chrome reset them.'));
 
     // Verify the list of tampered preferences correctly.
-    const listItems = banner.shadowRoot!.querySelectorAll('li');
+    const listItems = banner.shadowRoot.querySelectorAll('li');
     assertEquals(tamperedPrefs.length, listItems.length);
     assertEquals(tamperedPrefs[0], listItems[0]!.textContent.trim());
     assertEquals(tamperedPrefs[1], listItems[1]!.textContent.trim());
 
     // Verify button text.
-    const learnMoreButton = banner.shadowRoot!.querySelector('#learnMore');
-    const confirmButton = banner.shadowRoot!.querySelector('#confirm');
+    const learnMoreButton = banner.shadowRoot.querySelector('#learnMore');
+    const confirmButton = banner.shadowRoot.querySelector('#confirm');
     assertTrue(!!learnMoreButton);
     assertTrue(!!confirmButton);
     assertEquals('Learn more', learnMoreButton.textContent.trim());
@@ -92,9 +92,9 @@ suite('ResetProfileBanner', function() {
     document.body.appendChild(banner);
 
     await browserProxy.whenCalled('getTamperedPreferencePaths');
-    flush();
+    await microtasksFinished();
 
-    const dialog = banner.shadowRoot!.querySelector('cr-dialog');
+    const dialog = banner.shadowRoot.querySelector('cr-dialog');
     assertTrue(!!dialog, 'Dialog element should be stamped');
     assertFalse(dialog.open, 'Dialog should not be open');
   });
@@ -104,18 +104,18 @@ suite('ResetProfileBanner', function() {
     banner = document.createElement('settings-reset-profile-banner');
     document.body.appendChild(banner);
     await browserProxy.whenCalled('getTamperedPreferencePaths');
-    flush();
+    await microtasksFinished();
 
-    const dialog = banner.shadowRoot!.querySelector('cr-dialog');
+    const dialog = banner.shadowRoot.querySelector('cr-dialog');
     assertTrue(!!dialog && dialog.open);
 
     const confirmButton =
-        banner.shadowRoot!.querySelector<HTMLElement>('#confirm');
+        banner.shadowRoot.querySelector<HTMLElement>('#confirm');
     assertTrue(!!confirmButton);
     confirmButton.click();
 
     await browserProxy.whenCalled('onHideResetProfileBanner');
-    flush();
+    await microtasksFinished();
     assertFalse(dialog.open);
   });
 
@@ -124,10 +124,10 @@ suite('ResetProfileBanner', function() {
     banner = document.createElement('settings-reset-profile-banner');
     document.body.appendChild(banner);
     await browserProxy.whenCalled('getTamperedPreferencePaths');
-    flush();
+    await microtasksFinished();
 
     const learnMoreButton =
-        banner.shadowRoot!.querySelector<HTMLElement>('#learnMore');
+        banner.shadowRoot.querySelector<HTMLElement>('#learnMore');
     assertTrue(!!learnMoreButton);
     learnMoreButton.click();
 

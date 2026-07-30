@@ -106,6 +106,16 @@ class DocumentPipFrameView : public views::FrameView,
   // opener WebContents. Called by the host when media-capture state changes.
   void UpdateContentSettingsIcons();
 
+  // Recomputes the outer window bounds now that the Widget (and thus the
+  // platform border) exists, so a request that specifies an explicit inner
+  // (web-contents) size is honored. Without this, the outer window equals the
+  // requested inner size and the top bar eats into the content area, making the
+  // window shorter than the Browser-backed PiP window. Must be called by the
+  // host *after* Widget::Init() returns, because Init applies the InitParams
+  // bounds last and would otherwise clobber the recomputed bounds. Mirrors
+  // PictureInPictureBrowserFrameView::OnBrowserViewInitialized.
+  void UpdateWindowBoundsForRequestedInnerSize();
+
   void set_close_reason(CloseReason reason) { close_reason_ = reason; }
 
  private:
@@ -151,11 +161,15 @@ class DocumentPipFrameView : public views::FrameView,
 
   raw_ptr<views::FlexLayoutView> top_bar_container_view_ = nullptr;
 
-  // The clickable origin chip (lock icon + origin label) to the left of the
-  // title area. Clicking it opens the Page Info dialog.
+  // The clickable origin chip (lock icon) to the left of the title area.
+  // Clicking it opens the Page Info dialog.
   raw_ptr<views::Button> origin_chip_ = nullptr;
   raw_ptr<views::ImageView> security_icon_ = nullptr;
-  raw_ptr<views::Label> origin_label_ = nullptr;
+  // The window title label, showing the opener's origin. A sibling of the
+  // origin chip (not a child), so it is excluded from the chip's Page Info
+  // click target, mirroring the browser-backed frame's separate window-title
+  // label.
+  raw_ptr<views::Label> window_title_ = nullptr;
 
   raw_ptr<views::FlexLayoutView> button_container_view_ = nullptr;
 

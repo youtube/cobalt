@@ -1353,7 +1353,6 @@ id<GREYMatcher> ManageUMALinkMatcher() {
                  grey_accessibilityID(
                      first_run::kFirstRunSignInScreenAccessibilityIdentifier)]
       assertWithMatcher:grey_notNil()];
-  ;
 }
 
 #pragma mark - Enterprise tests

@@ -4,13 +4,16 @@
 
 #include "third_party/blink/renderer/core/highlight/highlight_registry.h"
 
+#include "base/functional/function_ref.h"
 #include "base/test/scoped_feature_list.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_highlight_hit_result.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_highlights_from_point_options.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_static_range_init.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/range.h"
+#include "third_party/blink/renderer/core/dom/static_range.h"
 #include "third_party/blink/renderer/core/dom/text.h"
 #include "third_party/blink/renderer/core/editing/ephemeral_range.h"
 #include "third_party/blink/renderer/core/editing/markers/custom_highlight_marker.h"
@@ -18,6 +21,7 @@
 #include "third_party/blink/renderer/core/editing/visible_units.h"
 #include "third_party/blink/renderer/core/highlight/highlight.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
+#include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "ui/gfx/geometry/rect.h"
 
@@ -34,6 +38,49 @@ class HighlightRegistryTest : public PageTestBase {
     HeapVector<Member<AbstractRange>> range_vector;
     range_vector.push_back(range);
     return Highlight::Create(range_vector);
+  }
+
+  // Builds a Highlight whose only range is a child-index StaticRange of
+  // `container` from `start_offset` to `end_offset`. Replaced-element
+  // tracking tests use this shape because it is the most direct way to
+  // anchor a highlight at the parent of a replaced element (e.g. <img>)
+  // without depending on the element having any text content of its own.
+  Highlight* CreateChildIndexStaticRangeHighlight(Element* container,
+                                                  int start_offset,
+                                                  int end_offset) {
+    auto* init = StaticRangeInit::Create();
+    init->setStartContainer(container);
+    init->setStartOffset(start_offset);
+    init->setEndContainer(container);
+    init->setEndOffset(end_offset);
+    auto* static_range = StaticRange::Create(init, ASSERT_NO_EXCEPTION);
+    HeapVector<Member<AbstractRange>> ranges;
+    ranges.push_back(static_range);
+    return Highlight::Create(ranges);
+  }
+
+  // Sets `inner_html` on the body, registers a highlight named "h" anchored
+  // at child indices (0, 1) of the host's parent (i.e. covering just the
+  // host), runs the lifecycle, and EXPECTs that the host with id `host_id`
+  // is NOT in the replaced-element active set.
+  //
+  // Used by the SkipsXxx tests: they all share this shape and only differ
+  // in the HTML fragment that produces a non-trackable replaced element.
+  // Kept as a helper (not TEST_P) so each case stays a named TEST_F and
+  // failures point at the specific element shape that regressed.
+  void ExpectNonTrackable(const char* inner_html, const char* host_id) {
+    GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(inner_html);
+    auto* host =
+        To<Element>(GetDocument().getElementById(AtomicString(host_id)));
+    ASSERT_TRUE(host);
+    auto* wrapper = host->parentElement();
+    ASSERT_TRUE(wrapper);
+    auto* highlight = CreateChildIndexStaticRangeHighlight(wrapper, 0, 1);
+    HighlightRegistry* registry =
+        HighlightRegistry::From(*GetDocument().domWindow());
+    registry->SetForTesting(AtomicString("h"), highlight);
+    UpdateAllLifecyclePhasesForTest();
+    EXPECT_TRUE(registry->GetActiveHighlightsForReplacedElement(*host).empty());
   }
 };
 
@@ -290,6 +337,468 @@ TEST_F(HighlightRegistryTest, ValidateMarkers) {
     }
     ++index;
   }
+}
+
+TEST_F(HighlightRegistryTest, TracksReplacedElementAndUnregisterDrops) {
+  // Baseline positive + round-trip: a wrapper-anchored highlight covering a
+  // childless <img> must add the image to the replaced-element active set
+  // so ReplacedPainter can tint it, and removing the highlight from the
+  // registry must drop the image again so a stale tint doesn't survive a
+  // deleted ::highlight() rule.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
+      "<div id='w'><img id='img' style='width:50px;height:50px;'></div>");
+  auto* wrapper = GetDocument().getElementById(AtomicString("w"));
+  auto* img = To<Element>(GetDocument().getElementById(AtomicString("img")));
+  ASSERT_TRUE(wrapper && img);
+
+  auto* highlight = CreateChildIndexStaticRangeHighlight(wrapper, 0, 1);
+  AtomicString name("h");
+  HighlightRegistry* registry =
+      HighlightRegistry::From(*GetDocument().domWindow());
+  registry->SetForTesting(name, highlight);
+  UpdateAllLifecyclePhasesForTest();
+
+  const auto& active = registry->GetActiveHighlightsForReplacedElement(*img);
+  EXPECT_EQ(1u, active.size());
+  EXPECT_TRUE(active.Contains(name));
+
+  registry->RemoveForTesting(name, highlight);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_TRUE(registry->GetActiveHighlightsForReplacedElement(*img).empty());
+}
+
+TEST_F(HighlightRegistryTest, TracksReplacedElementInRangeSpanningText) {
+  // A live Range that spans text content with an <img> as a descendant
+  // (not a direct child of the range's container) must still flag the
+  // image for replaced-element painting. The traversal in
+  // ValidateHighlightMarkers() walks the EphemeralRange built from the
+  // abstract range, so the range source (live Range vs StaticRange) and
+  // the depth of the <img> below the range's container are irrelevant.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
+      "<p id='p'>before<img id='img' style='width:10px;height:10px;'>after"
+      "</p>");
+  auto* p = GetDocument().getElementById(AtomicString("p"));
+  auto* before = To<Text>(p->firstChild());
+  auto* after = To<Text>(p->lastChild());
+  auto* img = To<Element>(GetDocument().getElementById(AtomicString("img")));
+  ASSERT_TRUE(img);
+
+  auto* range = MakeGarbageCollected<Range>(GetDocument(), before, 0, after,
+                                            after->length());
+  HeapVector<Member<AbstractRange>> ranges;
+  ranges.push_back(range);
+  auto* highlight = Highlight::Create(ranges);
+  AtomicString name("h");
+  HighlightRegistry* registry =
+      HighlightRegistry::From(*GetDocument().domWindow());
+  registry->SetForTesting(name, highlight);
+  UpdateAllLifecyclePhasesForTest();
+
+  EXPECT_TRUE(
+      registry->GetActiveHighlightsForReplacedElement(*img).Contains(name));
+}
+
+TEST_F(HighlightRegistryTest, CollectorDoesNotChangeTextMarkers) {
+  // Supplying the on_element_node collector only turns on
+  // object-replacement-character emission so the single TextIterator pass can
+  // surface replaced elements; it must not change the text markers produced.
+  // Build the same text+<img> range with and without the collector and assert
+  // the resulting custom-highlight markers are identical.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
+      "<p id='p'>before<img id='img' style='width:10px;height:10px;'>after"
+      "</p>");
+  auto* p = GetDocument().getElementById(AtomicString("p"));
+  ASSERT_TRUE(p);
+  auto* before = To<Text>(p->firstChild());
+  auto* after = To<Text>(p->lastChild());
+  auto* img = To<Element>(GetDocument().getElementById(AtomicString("img")));
+  ASSERT_TRUE(before && after && img);
+  UpdateAllLifecyclePhasesForTest();
+
+  const EphemeralRange range(MakeGarbageCollected<Range>(
+      GetDocument(), before, 0, after, after->length()));
+  AtomicString name("h");
+  Highlight* highlight = CreateHighlight(before, 0, after, after->length());
+
+  DocumentMarkerController& markers = GetDocument().Markers();
+  const DocumentMarker::MarkerTypes custom =
+      DocumentMarker::MarkerTypes::CustomHighlight();
+  // Flattened (start, end) offsets of the custom-highlight markers on `text`.
+  auto snapshot = [&](const Text& text) {
+    Vector<unsigned> offsets;
+    for (const auto& marker : markers.MarkersFor(text, custom)) {
+      offsets.push_back(marker->StartOffset());
+      offsets.push_back(marker->EndOffset());
+    }
+    return offsets;
+  };
+
+  // Without the collector.
+  markers.AddCustomHighlightMarker(range, name, highlight);
+  const Vector<unsigned> before_without = snapshot(*before);
+  const Vector<unsigned> after_without = snapshot(*after);
+  ASSERT_FALSE(before_without.empty())
+      << "precondition: the range should mark the 'before' text node";
+  markers.RemoveMarkersOfTypes(custom);
+
+  // With the collector.
+  bool collector_saw_img = false;
+  auto on_element_node = [&](const Element& element) {
+    collector_saw_img |= (&element == img);
+  };
+  base::FunctionRef<void(const Element&)> on_element_ref(on_element_node);
+  markers.AddCustomHighlightMarker(range, name, highlight, &on_element_ref);
+
+  EXPECT_EQ(before_without, snapshot(*before));
+  EXPECT_EQ(after_without, snapshot(*after));
+  EXPECT_TRUE(collector_saw_img)
+      << "the collector must surface the <img> the range crosses";
+}
+
+// Negative cases for the IsTrackableReplacedElement gate. Each demonstrates
+// a different layout-tree shape that must NOT be tracked, even though the
+// hosting element is in the highlight's range. See ExpectNonTrackable for
+// the shared setup pattern.
+
+TEST_F(HighlightRegistryTest, SkipsChildlessReplacedThatIsNotASelectionLeaf) {
+  // A childless replaced element whose layout class does not override
+  // CanBeSelectionLeafInternal() must not be tracked. LayoutHTMLCanvas
+  // (<canvas>) and LayoutSVGRoot (inline <svg>) are both replaced but neither
+  // opts in as a selection leaf, matching how ::selection (Blink) and
+  // ::highlight() (Gecko) leave scripted/structured content unobscured. The
+  // child-bearing case (a replaced element that opts in but has painted
+  // descendants) is covered by SkipsVideoWithUAShadowChildren.
+  {
+    SCOPED_TRACE("canvas");
+    ExpectNonTrackable(
+        "<div id='w'><canvas id='c' width='100' height='50'></canvas></div>",
+        "c");
+  }
+  {
+    SCOPED_TRACE("svg");
+    ExpectNonTrackable(
+        "<div id='w'><svg id='s' xmlns='http://www.w3.org/2000/svg' "
+        "width='100' height='50'></svg></div>",
+        "s");
+  }
+}
+
+TEST_F(HighlightRegistryTest, SkipsLineBreak) {
+  // Negative case for the IsTrackableReplacedElement gate: a <br> covered by a
+  // highlight range must not be tracked. LayoutBR is a LayoutText subclass --
+  // a selection leaf, but not replaced -- so the IsLayoutReplaced() half of the
+  // gate is what excludes it. Without that gate the <br> would be tracked as
+  // dead weight, since ReplacedPainter::PaintCustomHighlights (the consumer)
+  // only paints LayoutReplaced boxes.
+  ExpectNonTrackable("<div id='w'><br id='b'></div>", "b");
+}
+
+TEST_F(HighlightRegistryTest, TracksReplacedWithPlumbingChild) {
+  // A replaced element whose only DOM children are "authoring plumbing"
+  // (display:none, no layout object) must still be tracked. <param> inside
+  // <object> is the canonical example: HTMLObjectElement ignores <param>
+  // children when deciding whether to render fallback, and html.css sets
+  // `param { display: none }` so no child layout object is produced.
+  //
+  // Gating on the layout tree (via CanBeSelectionLeaf()'s SlowFirstChild()
+  // check) accepts this case because the host's layout object has no
+  // painted descendants. Gating on the flat tree would incorrectly skip it
+  // because <param> is a flat-tree child of <object>.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
+      "<div id='w'><object id='o' type='image/png' data='nonexistent.png' "
+      "style='width:50px;height:50px;'>"
+      "<param name='movie' value='ignored'>"
+      "</object></div>");
+  auto* wrapper = GetDocument().getElementById(AtomicString("w"));
+  auto* object = To<Element>(GetDocument().getElementById(AtomicString("o")));
+  ASSERT_TRUE(wrapper && object);
+  UpdateAllLifecyclePhasesForTest();
+
+  LayoutObject* object_layout = object->GetLayoutObject();
+  ASSERT_TRUE(object_layout);
+  ASSERT_FALSE(object_layout->SlowFirstChild());
+  ASSERT_TRUE(object_layout->CanBeSelectionLeaf());
+
+  auto* highlight = CreateChildIndexStaticRangeHighlight(wrapper, 0, 1);
+  AtomicString name("h");
+  HighlightRegistry* registry =
+      HighlightRegistry::From(*GetDocument().domWindow());
+  registry->SetForTesting(name, highlight);
+  UpdateAllLifecyclePhasesForTest();
+
+  EXPECT_TRUE(
+      registry->GetActiveHighlightsForReplacedElement(*object).Contains(name));
+}
+
+TEST_F(HighlightRegistryTest, SkipsVideoWithUAShadowChildren) {
+  // A <video> is a replaced element (LayoutVideo, a LayoutImage subclass),
+  // but its user-agent shadow tree (the media-controls container) produces
+  // child layout objects, so its layout object is not a selection leaf and
+  // must not be tracked -- the same painted-children rule that excludes a
+  // <canvas> with fallback content. This documents that the gate is not
+  // "<img>-only": it turns on IsLayoutReplaced() + CanBeSelectionLeaf() for
+  // any element, and <img> in the positive tests is representative of that
+  // contract rather than a special case.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
+      "<div id='w'><video id='v' style='width:100px;height:50px;'></video>"
+      "</div>");
+  auto* wrapper = GetDocument().getElementById(AtomicString("w"));
+  auto* video = To<Element>(GetDocument().getElementById(AtomicString("v")));
+  ASSERT_TRUE(wrapper && video);
+  UpdateAllLifecyclePhasesForTest();
+
+  // Precondition: the <video> is replaced but has painted children, so it is
+  // not a selection leaf. If a future change removes the UA child layout
+  // objects, this test stops exercising the painted-children exclusion.
+  LayoutObject* video_layout = video->GetLayoutObject();
+  ASSERT_TRUE(video_layout);
+  ASSERT_TRUE(video_layout->IsLayoutReplaced());
+  ASSERT_TRUE(video_layout->SlowFirstChild());
+  ASSERT_FALSE(video_layout->CanBeSelectionLeaf());
+
+  auto* highlight = CreateChildIndexStaticRangeHighlight(wrapper, 0, 1);
+  AtomicString name("h");
+  HighlightRegistry* registry =
+      HighlightRegistry::From(*GetDocument().domWindow());
+  registry->SetForTesting(name, highlight);
+  UpdateAllLifecyclePhasesForTest();
+
+  EXPECT_TRUE(registry->GetActiveHighlightsForReplacedElement(*video).empty());
+}
+
+TEST_F(HighlightRegistryTest, MultipleHighlightsAppearInActiveSet) {
+  // Two highlights covering the same replaced element must both register
+  // in the active set so a stacked `::highlight(a), ::highlight(b)` rule
+  // paints both tints.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
+      "<div id='w'><img id='i' style='width:50px;height:50px;'></div>");
+  auto* wrapper = GetDocument().getElementById(AtomicString("w"));
+  auto* img = To<Element>(GetDocument().getElementById(AtomicString("i")));
+  ASSERT_TRUE(wrapper && img);
+
+  AtomicString name_a("a");
+  AtomicString name_b("b");
+  HighlightRegistry* registry =
+      HighlightRegistry::From(*GetDocument().domWindow());
+  registry->SetForTesting(name_a,
+                          CreateChildIndexStaticRangeHighlight(wrapper, 0, 1));
+  registry->SetForTesting(name_b,
+                          CreateChildIndexStaticRangeHighlight(wrapper, 0, 1));
+  UpdateAllLifecyclePhasesForTest();
+
+  const auto& active = registry->GetActiveHighlightsForReplacedElement(*img);
+  EXPECT_EQ(2u, active.size());
+  EXPECT_TRUE(active.Contains(name_a));
+  EXPECT_TRUE(active.Contains(name_b));
+}
+
+// ---------------------------------------------------------------------------
+// Dynamic-mutation coverage for the replaced-element tracking logic.
+//
+// These tests pin down that the sideband stays in sync with the canonical
+// marker-derived state across the mutations a real page can perform on a
+// tracked replaced element. All paths funnel through
+// ScheduleRepaintsInContainingHighlightRegistries() ->
+// HighlightRegistry::ScheduleRepaint() -> force_markers_validation_ ->
+// next ValidateHighlightMarkers() -> swap old/new map -> diff loop, so the
+// active set updates without an explicit per-mutation hook.
+// ---------------------------------------------------------------------------
+
+TEST_F(HighlightRegistryTest, RangeMutationUpdatesActiveSet) {
+  // Mutating a live Range so it now spans a different replaced element must
+  // re-key the active set: the old image stops being tracked and the new
+  // image starts being tracked. This exercises the diff loop via a DOM
+  // version change driven by the Range mutation.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
+      "<div id='w'>"
+      "<img id='img1' style='width:50px;height:50px;'>"
+      "<img id='img2' style='width:50px;height:50px;'>"
+      "</div>");
+  auto* wrapper = GetDocument().getElementById(AtomicString("w"));
+  auto* img1 = To<Element>(GetDocument().getElementById(AtomicString("img1")));
+  auto* img2 = To<Element>(GetDocument().getElementById(AtomicString("img2")));
+  ASSERT_TRUE(wrapper && img1 && img2);
+
+  // Cover only img1 initially: (wrapper, 0, wrapper, 1).
+  auto* range =
+      MakeGarbageCollected<Range>(GetDocument(), wrapper, 0, wrapper, 1);
+  HeapVector<Member<AbstractRange>> ranges;
+  ranges.push_back(range);
+  auto* highlight = Highlight::Create(ranges);
+  AtomicString name("h");
+  HighlightRegistry* registry =
+      HighlightRegistry::From(*GetDocument().domWindow());
+  registry->SetForTesting(name, highlight);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_TRUE(
+      registry->GetActiveHighlightsForReplacedElement(*img1).Contains(name));
+  EXPECT_TRUE(registry->GetActiveHighlightsForReplacedElement(*img2).empty());
+
+  // Move the range to cover only img2: (wrapper, 1, wrapper, 2).
+  range->setStart(wrapper, 1);
+  range->setEnd(wrapper, 2);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_TRUE(registry->GetActiveHighlightsForReplacedElement(*img1).empty());
+  EXPECT_TRUE(
+      registry->GetActiveHighlightsForReplacedElement(*img2).Contains(name));
+}
+
+TEST_F(HighlightRegistryTest, DetachDoesNotCrash) {
+  // Detaching a tracked replaced element must not crash the validator.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
+      "<div id='w'><img id='img' style='width:50px;height:50px;'></div>");
+  auto* wrapper = GetDocument().getElementById(AtomicString("w"));
+  auto* img = To<Element>(GetDocument().getElementById(AtomicString("img")));
+  ASSERT_TRUE(wrapper && img);
+
+  AtomicString name("h");
+  HighlightRegistry* registry =
+      HighlightRegistry::From(*GetDocument().domWindow());
+  registry->SetForTesting(name,
+                          CreateChildIndexStaticRangeHighlight(wrapper, 0, 1));
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_TRUE(
+      registry->GetActiveHighlightsForReplacedElement(*img).Contains(name));
+
+  // Detach the image from the DOM. The static range still holds onto the
+  // img via its endpoint, but the img has no layout object and no parent.
+  img->remove();
+
+  // Re-validate; this must not crash. The active set lookup on the
+  // detached img returns the empty set.
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_TRUE(registry->GetActiveHighlightsForReplacedElement(*img).empty());
+}
+
+TEST_F(HighlightRegistryTest, ReplaceWithNewElement) {
+  // The range stays anchored at (wrapper, 0, wrapper, 1) and the DOM child at
+  // that index is swapped. The diff loop must notice the old element dropped
+  // out and the new one joined.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
+      "<div id='w'><img id='img1' style='width:50px;height:50px;'></div>");
+  auto* wrapper = GetDocument().getElementById(AtomicString("w"));
+  auto* img1 = To<Element>(GetDocument().getElementById(AtomicString("img1")));
+  ASSERT_TRUE(wrapper && img1);
+
+  AtomicString name("h");
+  HighlightRegistry* registry =
+      HighlightRegistry::From(*GetDocument().domWindow());
+  registry->SetForTesting(name,
+                          CreateChildIndexStaticRangeHighlight(wrapper, 0, 1));
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_TRUE(
+      registry->GetActiveHighlightsForReplacedElement(*img1).Contains(name));
+
+  // Swap img1 out for a fresh img2 in the same slot.
+  auto* img2 = GetDocument().CreateElementForBinding(AtomicString("img"));
+  img2->setAttribute(AtomicString("style"),
+                     AtomicString("width:50px;height:50px;"));
+  wrapper->ReplaceChild(img2, img1);
+
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_TRUE(registry->GetActiveHighlightsForReplacedElement(*img1).empty());
+  EXPECT_TRUE(
+      registry->GetActiveHighlightsForReplacedElement(*img2).Contains(name));
+}
+
+TEST_F(HighlightRegistryTest, DisplayNoneDropsActiveSet) {
+  // Hiding the tracked replaced element with `display: none` drops its
+  // layout object, so it stops being a selection leaf and must be removed
+  // from the active set.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
+      "<div id='w'><img id='img' style='width:50px;height:50px;'></div>");
+  auto* wrapper = GetDocument().getElementById(AtomicString("w"));
+  auto* img = To<Element>(GetDocument().getElementById(AtomicString("img")));
+  ASSERT_TRUE(wrapper && img);
+
+  AtomicString name("h");
+  HighlightRegistry* registry =
+      HighlightRegistry::From(*GetDocument().domWindow());
+  registry->SetForTesting(name,
+                          CreateChildIndexStaticRangeHighlight(wrapper, 0, 1));
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_TRUE(
+      registry->GetActiveHighlightsForReplacedElement(*img).Contains(name));
+
+  img->setAttribute(AtomicString("style"),
+                    AtomicString("display:none;width:50px;height:50px;"));
+  UpdateAllLifecyclePhasesForTest();
+  ASSERT_FALSE(img->GetLayoutObject());
+  EXPECT_TRUE(registry->GetActiveHighlightsForReplacedElement(*img).empty());
+}
+
+TEST_F(HighlightRegistryTest,
+       PriorityChangeInvalidatesPaintWithoutMembershipChange) {
+  // Regression guard for the force_invalidate_replaced path. A
+  // Highlight::setPriority() change does not alter which highlights cover a
+  // replaced element, so the active-set diff in ValidateHighlightMarkers()
+  // cannot witness it. The forced-invalidation path must therefore still flag
+  // the replaced element for full paint invalidation, so its cached tint is
+  // repainted in the new stacking order. The same path covers ::highlight()
+  // style changes that alter the painted result without changing the active
+  // set.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
+      "<div id='w'><img id='img' style='width:50px;height:50px;'></div>");
+  auto* wrapper = GetDocument().getElementById(AtomicString("w"));
+  auto* img = To<Element>(GetDocument().getElementById(AtomicString("img")));
+  ASSERT_TRUE(wrapper && img);
+
+  AtomicString name("h");
+  auto* highlight = CreateChildIndexStaticRangeHighlight(wrapper, 0, 1);
+  HighlightRegistry* registry =
+      HighlightRegistry::From(*GetDocument().domWindow());
+  registry->SetForTesting(name, highlight);
+  UpdateAllLifecyclePhasesForTest();
+
+  // Precondition: the img is tracked and paint has been flushed, so its layout
+  // object no longer carries a pending full paint invalidation.
+  LayoutObject* img_layout = img->GetLayoutObject();
+  ASSERT_TRUE(img_layout);
+  ASSERT_TRUE(
+      registry->GetActiveHighlightsForReplacedElement(*img).Contains(name));
+  ASSERT_FALSE(img_layout->ShouldDoFullPaintInvalidation());
+
+  // Change only the priority and re-validate. This keeps the active
+  // highlight-name set identical but forces re-validation.
+  highlight->setPriority(1);
+  registry->ValidateHighlightMarkers();
+
+  // The active set is unchanged...
+  const auto& active = registry->GetActiveHighlightsForReplacedElement(*img);
+  EXPECT_EQ(1u, active.size());
+  EXPECT_TRUE(active.Contains(name));
+  // ...but the replaced element was still flagged for full paint invalidation.
+  EXPECT_TRUE(img_layout->ShouldDoFullPaintInvalidation())
+      << "A priority change that leaves the active set unchanged must still "
+         "invalidate the replaced element's paint.";
+}
+
+TEST_F(HighlightRegistryTest, TracksSlottedImage) {
+  // An <img> distributed through a <slot> must still be tracked. The
+  // marker pipeline walks the DOM tree (NodeTraversal) over the
+  // EphemeralRange's endpoints; slot distribution does not move the
+  // <img> out of its parent's light-DOM children, so the walk visits it.
+  // If this test starts failing, the traversal model and the
+  // abstract-range endpoint model have diverged.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
+      "<div id='host'><img id='img' style='width:50px;height:50px;'></div>");
+  Element* host = GetDocument().getElementById(AtomicString("host"));
+  ASSERT_TRUE(host);
+  ShadowRoot& shadow_root =
+      host->AttachShadowRootForTesting(ShadowRootMode::kOpen);
+  shadow_root.SetInnerHTMLWithoutTrustedTypes("<slot></slot>");
+  auto* img = To<Element>(GetDocument().getElementById(AtomicString("img")));
+  ASSERT_TRUE(img);
+
+  AtomicString name("h");
+  HighlightRegistry* registry =
+      HighlightRegistry::From(*GetDocument().domWindow());
+  registry->SetForTesting(name,
+                          CreateChildIndexStaticRangeHighlight(host, 0, 1));
+  UpdateAllLifecyclePhasesForTest();
+
+  EXPECT_TRUE(
+      registry->GetActiveHighlightsForReplacedElement(*img).Contains(name));
 }
 
 TEST_F(HighlightsFromPointTest, HighlightsFromPoint) {

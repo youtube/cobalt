@@ -218,7 +218,7 @@ class BaseGpuTraceTest : public BaseGpuTest {
     if (tracing_device)
       ExpectTraceQueryMocks();
 
-    scoped_refptr<GPUTrace> trace = new GPUTrace(
+    auto trace = base::MakeRefCounted<GPUTrace>(
         &outputter_, gpu_timing_client_.get(), tracer_source, category_name,
         trace_name, tracing_service, tracing_device);
 

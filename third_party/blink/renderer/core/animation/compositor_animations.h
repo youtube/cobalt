@@ -55,6 +55,9 @@ class Node;
 class PaintArtifactCompositor;
 class SVGElement;
 
+// Enum indicating why we're calling StartAnimationOnCompositor.
+enum class StartOnCompositorReason { kGeneric, kAnimationTrigger };
+
 class CORE_EXPORT CompositorAnimations {
   STATIC_ONLY(CompositorAnimations);
 

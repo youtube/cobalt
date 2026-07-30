@@ -5,34 +5,37 @@
 #ifndef CHROME_UPDATER_NET_NETWORK_FILE_FETCHER_H_
 #define CHROME_UPDATER_NET_NETWORK_FILE_FETCHER_H_
 
-#include "base/files/file.h"
 #include "base/functional/callback_forward.h"
+#include "base/memory/ref_counted.h"
 #include "base/sequence_checker.h"
 #include "components/update_client/network.h"
+#include "mojo/public/cpp/system/data_pipe.h"
 
 class GURL;
 
 namespace updater {
 
-// A customized fetcher that takes a `base::File` argument as the
-// output destination.
-class NetworkFileFetcher {
+// A customized fetcher that streams the download to a Mojo data pipe.
+class NetworkStreamFetcher
+    : public base::RefCountedThreadSafe<NetworkStreamFetcher> {
  public:
-  NetworkFileFetcher() = default;
-  NetworkFileFetcher& operator=(const NetworkFileFetcher&) = delete;
-  NetworkFileFetcher(const NetworkFileFetcher&) = delete;
-  ~NetworkFileFetcher() = default;
+  NetworkStreamFetcher();
+  NetworkStreamFetcher& operator=(const NetworkStreamFetcher&) = delete;
+  NetworkStreamFetcher(const NetworkStreamFetcher&) = delete;
 
   base::OnceClosure Download(
       const GURL& url,
-      base::File output,
+      mojo::ScopedDataPipeProducerHandle response_stream,
       update_client::NetworkFetcher::ResponseStartedCallback
           response_started_callback,
-      update_client::NetworkFetcher::ProgressCallback progress_callback,
       update_client::NetworkFetcher::DownloadToFileCompleteCallback
           download_to_file_complete_callback);
 
  private:
+  friend class base::RefCountedThreadSafe<NetworkStreamFetcher>;
+
+  ~NetworkStreamFetcher();
+
   SEQUENCE_CHECKER(sequence_checker_);
 };
 

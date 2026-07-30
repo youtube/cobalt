@@ -390,6 +390,15 @@ struct GenericHashTraits<std::unique_ptr<T>>
 template <typename T>
 struct HashTraits : GenericHashTraits<T> {};
 
+// Helper to avoid HashTraits<unsigned> sentinel values (0 and 0xFFFFFFFF)
+// by turning them into 1.
+constexpr unsigned EnsureValidHash(unsigned hash) {
+  return (hash == HashTraits<unsigned>::EmptyValue() ||
+          hash == HashTraits<unsigned>::DeletedValue())
+             ? 1
+             : hash;
+}
+
 // This hash traits type requires the following methods in class T, unless
 // the corresponding hash traits method is overridden:
 //   // Computes the hash code, for GetHash().

@@ -16,9 +16,6 @@ enum class TabGroupColorId;
 // Returns all the colors a TabGroup can have.
 std::vector<TabGroupColorId> AllPossibleTabGroupColors();
 
-// Returns a UIColor based on a `tab_group_color_id`.
-UIColor* ColorForTabGroupColorId(TabGroupColorId tab_group_color_id);
-
 // Returns a UIColor for the text to be displayed on top a
 // `tab_group_color_id` color.
 UIColor* ForegroundColorForTabGroupColorId(TabGroupColorId tab_group_color_id);

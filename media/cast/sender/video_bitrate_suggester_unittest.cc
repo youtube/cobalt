@@ -36,7 +36,7 @@ static const FrameSenderConfig kVideoConfig{
     /* channels = */ 1,
     kDefaultMaxVideoBitrate,
     kDefaultMinVideoBitrate,
-    std::midpoint<int>(kDefaultMinVideoBitrate, kDefaultMaxVideoBitrate),
+    std::midpoint<uint32_t>(kDefaultMinVideoBitrate, kDefaultMaxVideoBitrate),
     kDefaultMaxFrameRate,
     VideoCodecParams(VideoCodec::kVP8),
     std::nullopt};
@@ -45,7 +45,7 @@ static const FrameSenderConfig kVideoConfig{
 
 class VideoBitrateSuggesterTest : public ::testing::Test {
  public:
-  int get_suggested_bitrate() { return suggested_bitrate_; }
+  uint32_t get_suggested_bitrate() { return suggested_bitrate_; }
 
  protected:
   VideoBitrateSuggesterTest() {
@@ -61,7 +61,7 @@ class VideoBitrateSuggesterTest : public ::testing::Test {
     suggester_->RecordShouldDropNextFrame(should_drop);
   }
 
-  void set_suggested_bitrate(int bitrate) { suggested_bitrate_ = bitrate; }
+  void set_suggested_bitrate(uint32_t bitrate) { suggested_bitrate_ = bitrate; }
 
   VideoBitrateSuggester& suggester() { return *suggester_; }
 
@@ -78,7 +78,7 @@ class VideoBitrateSuggesterTest : public ::testing::Test {
  private:
   std::unique_ptr<VideoBitrateSuggester> suggester_;
   base::test::ScopedFeatureList feature_list_;
-  int suggested_bitrate_ = 0;
+  uint32_t suggested_bitrate_ = 0;
 };
 
 TEST_F(VideoBitrateSuggesterTest, StaysWithinBounds) {
@@ -106,8 +106,8 @@ TEST_F(VideoBitrateSuggesterTest,
 
   // It should continue to go down to the minimum as long as frames are being
   // dropped.
-  int last_suggestion = suggester().GetSuggestedBitrate();
-  EXPECT_EQ(4500000, last_suggestion);  // 5,000,000 * 0.9 = 4,500,000
+  uint32_t last_suggestion = suggester().GetSuggestedBitrate();
+  EXPECT_EQ(4500000u, last_suggestion);  // 5,000,000 * 0.9 = 4,500,000
   while (last_suggestion > kDefaultMinVideoBitrate) {
     RecordShouldDropNextFrame(true);
     RecordShouldDropNextFrame(true);
@@ -116,7 +116,7 @@ TEST_F(VideoBitrateSuggesterTest,
     }
 
     // It should drop every time.
-    const int suggestion = suggester().GetSuggestedBitrate();
+    const uint32_t suggestion = suggester().GetSuggestedBitrate();
     EXPECT_LT(suggestion, last_suggestion);
     last_suggestion = suggestion;
   }
@@ -130,7 +130,7 @@ TEST_F(VideoBitrateSuggesterTest,
     for (int j = 0; j < 30; ++j) {
       RecordShouldDropNextFrame(false);
     }
-    const int suggestion = suggester().GetSuggestedBitrate();
+    const uint32_t suggestion = suggester().GetSuggestedBitrate();
     EXPECT_GT(suggestion, last_suggestion);
     last_suggestion = suggestion;
   }
@@ -157,8 +157,8 @@ TEST_F(VideoBitrateSuggesterTest,
   }
 
   // It should now go down.
-  int last_suggestion = suggester().GetSuggestedBitrate();
-  EXPECT_EQ(4412500, last_suggestion);
+  uint32_t last_suggestion = suggester().GetSuggestedBitrate();
+  EXPECT_EQ(4412500u, last_suggestion);
 
   // It should continue to go down to the minimum as long as frames are being
   // dropped.
@@ -171,7 +171,7 @@ TEST_F(VideoBitrateSuggesterTest,
     }
 
     // It should drop every time.
-    const int suggestion = suggester().GetSuggestedBitrate();
+    const uint32_t suggestion = suggester().GetSuggestedBitrate();
     EXPECT_LT(suggestion, last_suggestion);
     last_suggestion = suggestion;
   }
@@ -183,7 +183,7 @@ TEST_F(VideoBitrateSuggesterTest,
     for (int j = 0; j < 100; ++j) {
       RecordShouldDropNextFrame(false);
     }
-    const int suggestion = suggester().GetSuggestedBitrate();
+    const uint32_t suggestion = suggester().GetSuggestedBitrate();
     EXPECT_GT(suggestion, last_suggestion);
     last_suggestion = suggestion;
   }
@@ -197,7 +197,7 @@ TEST_F(VideoBitrateSuggesterTest, LinearAlgorithmIsResilientToOnePercentLoss) {
 
   // We should start with the maximum video bitrate.
   set_suggested_bitrate(10000000);
-  int initial_bitrate = suggester().GetSuggestedBitrate();
+  uint32_t initial_bitrate = suggester().GetSuggestedBitrate();
   EXPECT_EQ(kDefaultMaxVideoBitrate, initial_bitrate);
 
   // 1% loss means 1 drop every 100 frames.

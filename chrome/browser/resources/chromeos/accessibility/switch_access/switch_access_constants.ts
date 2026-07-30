@@ -20,7 +20,7 @@ export enum ActionResponse {
 /**
  * The types of error or unexpected state that can be encountered by Switch
  * Access.
- * These values are persisted to logs and should not be renumbered or re-used.
+ * These values are persisted to logs and should not be renumbered or reused.
  * See tools/metrics/histograms/enums.xml.
  */
 export enum ErrorType {

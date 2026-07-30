@@ -51,7 +51,8 @@ class BLINK_PLATFORM_EXPORT MojoURLLoaderClient final
       base::OnceCallback<void(mojom::blink::RendererEvictionReason)>
           evict_from_bfcache_callback,
       base::RepeatingCallback<void(size_t)>
-          did_buffer_load_while_in_bfcache_callback);
+          did_buffer_load_while_in_bfcache_callback,
+      bool keepalive);
   ~MojoURLLoaderClient() override;
 
   // Freezes the loader. See blink/renderer/platform/loader/README.md for the
@@ -118,6 +119,7 @@ class BLINK_PLATFORM_EXPORT MojoURLLoaderClient final
       evict_from_bfcache_callback_;
   base::RepeatingCallback<void(size_t)>
       did_buffer_load_while_in_bfcache_callback_;
+  bool keepalive_;
 
   base::WeakPtrFactory<MojoURLLoaderClient> weak_factory_{this};
 };

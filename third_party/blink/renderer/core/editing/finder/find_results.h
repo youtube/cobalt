@@ -21,36 +21,36 @@ class CORE_EXPORT FindResults {
 
    public:
     using iterator_category = std::forward_iterator_tag;
-    using value_type = MatchResultICU;
+    using value_type = MatchResultIcu;
     using difference_type = std::ptrdiff_t;
-    using pointer = MatchResultICU*;
-    using reference = MatchResultICU&;
+    using pointer = MatchResultIcu*;
+    using reference = MatchResultIcu&;
 
     Iterator() = default;
     Iterator(const FindBuffer* find_buffer,
-             TextSearcherICU* text_searcher,
-             const Vector<std::unique_ptr<TextSearcherICU>>& extra_searchers);
+             TextSearcherIcu* text_searcher,
+             const Vector<std::unique_ptr<TextSearcherIcu>>& extra_searchers);
 
     bool operator==(const Iterator& other) const {
       return IsAtEnd() == other.IsAtEnd();
     }
 
-    const MatchResultICU operator*() const;
+    const MatchResultIcu operator*() const;
 
     void operator++();
 
    private:
     bool IsAtEnd() const;
-    std::optional<MatchResultICU> EarliestMatch() const;
+    std::optional<MatchResultIcu> EarliestMatch() const;
 
     const FindBuffer* find_buffer_ = nullptr;
-    Vector<TextSearcherICU*, 1> text_searcher_list_;
-    Vector<std::optional<MatchResultICU>, 1> match_list_;
+    Vector<TextSearcherIcu*, 1> text_searcher_list_;
+    Vector<std::optional<MatchResultIcu>, 1> match_list_;
   };
 
   FindResults();
   FindResults(const FindBuffer* find_buffer,
-              TextSearcherICU* text_searcher,
+              TextSearcherIcu* text_searcher,
               const Vector<UChar>& buffer,
               const Vector<Vector<UChar>>* extra_buffers,
               const String& search_text,
@@ -61,16 +61,16 @@ class CORE_EXPORT FindResults {
 
   bool IsEmpty() const;
 
-  MatchResultICU front() const;
-  MatchResultICU back() const;
+  MatchResultIcu front() const;
+  MatchResultIcu back() const;
 
   unsigned CountForTesting() const;
 
  private:
   String search_text_;
   const FindBuffer* find_buffer_;
-  TextSearcherICU* text_searcher_;
-  Vector<std::unique_ptr<TextSearcherICU>> extra_searchers_;
+  TextSearcherIcu* text_searcher_;
+  Vector<std::unique_ptr<TextSearcherIcu>> extra_searchers_;
   bool empty_result_ = false;
 };
 

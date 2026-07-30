@@ -32,6 +32,9 @@ class AutofillTaskInfo : public TaskInfo {
     return LevelUpTaskCategory::kProductivity;
   }
   std::string GetTriggerUserAction() const override { return ""; }
+  std::string GetCompletionSnackbarMessage() const override {
+    return l10n_util::GetStringUTF8(IDS_IOS_LEVEL_UP_TASK_COMPLETED_AUTOFILL);
+  }
   TaskInfo::NavigationAction GetNavigationAction() const override {
     return base::DoNothing();
   }

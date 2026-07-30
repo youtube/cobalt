@@ -25,6 +25,7 @@ class FormPredictionsTrackerTest
  public:
   FormPredictionsTrackerTest() {
     InitAutofillClient();
+    autofill_client().set_is_tab_in_actor_mode(true);
     tracker_ = std::make_unique<FormPredictionsTracker>(&autofill_client());
     CreateAutofillDriver();
   }
@@ -502,6 +503,21 @@ TEST_F(FormPredictionsTrackerTest, Wait_FeatureDisabled) {
       std::vector<FormGlobalId>{form_id}, base::span<FormGlobalId>());
 
   // Since the flag is disabled, there should be no waiting.
+  base::test::TestFuture<void> future;
+  tracker().Wait(future.GetCallback(), base::Milliseconds(1000));
+  EXPECT_TRUE(future.Wait());
+}
+
+// Verifies that if the tab is not in active actor mode, there is no waiting.
+TEST_F(FormPredictionsTrackerTest, Wait_NoActiveActor) {
+  autofill_client().set_is_tab_in_actor_mode(false);
+
+  FormGlobalId form_id = test::MakeFormGlobalId();
+  autofill_manager().NotifyObservers(
+      &AutofillManager::Observer::OnBeforeFormsSeen,
+      std::vector<FormGlobalId>{form_id}, base::span<FormGlobalId>());
+
+  // Since the tab is not in actor mode, there should be no waiting.
   base::test::TestFuture<void> future;
   tracker().Wait(future.GetCallback(), base::Milliseconds(1000));
   EXPECT_TRUE(future.Wait());

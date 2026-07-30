@@ -736,6 +736,9 @@ void KURL::SetFragmentIdentifier(const String& input) {
 }
 
 void KURL::RemoveFragmentIdentifier() {
+  if (!HasFragmentIdentifier()) {
+    return;
+  }
   url::Replacements<char> replacements;
   replacements.ClearRef();
   ReplaceComponents(replacements);

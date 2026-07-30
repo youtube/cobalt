@@ -763,6 +763,42 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
   [self.delegate refineWithText:text];
 }
 
+- (void)processContextLibraryWebpageSignalWithURL:(const GURL&)url
+                                            title:(NSString*)title {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+  CHECK(_entrypoint == ComposeboxEntrypoint::kCobrowse);
+
+  ComposeboxInputItem* item = [[ComposeboxInputItem alloc]
+      initWithComposeboxInputItemType:ComposeboxInputItemType::
+                                          kComposeboxInputItemTypeTab
+                               // TODO (crbug.com/525711987): Add the
+                               // appropriate item source.
+                               source:ComposeboxInputItemSource::kUnknown];
+  item.title = title;
+  item.state = ComposeboxInputItemState::kLoaded;
+  base::UnguessableToken identifier = item.identifier;
+
+  [_items addItem:item];
+
+  if (_faviconLoader) {
+    __weak __typeof(self) weakSelf = self;
+
+    /// Based on the favicon loader API, this callback could be called twice.
+    auto faviconLoadedBlock = ^(FaviconAttributes* attributes, bool cached) {
+      if (attributes.faviconImage) {
+        [weakSelf didLoadFaviconIcon:attributes.faviconImage
+               forItemWithIdentifier:identifier];
+      }
+    };
+
+    _faviconLoader->FaviconForPageUrl(url, gfx::kFaviconSize, gfx::kFaviconSize,
+                                      /*fallback_to_google_server=*/true,
+                                      faviconLoadedBlock);
+  }
+
+  [self notifyContextChanged];
+}
+
 - (void)processFileURL:(GURL)fileURL isPDF:(BOOL)isPDF {
   [self processFileURL:fileURL isPDF:isPDF completion:nil];
 }
@@ -899,6 +935,10 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
   }
   _omniboxFocused = focused;
   [self requestUIRefresh];
+
+  if (_omniboxFocused && _entrypoint == ComposeboxEntrypoint::kCobrowse) {
+    [self attachCurrentTabContent];
+  }
 }
 
 - (void)removeDeselectedIDs:(std::set<web::WebStateID>)deselectedIDs {
@@ -1222,7 +1262,7 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
   request_info->query_text = base::SysNSStringToUTF8(text);
   request_info->query_start_time = base::Time::Now();
   request_info->file_tokens =
-      _contextualSearchSession->GetSubmittedContextTokens();
+      _contextualSearchSession->GetUploadedContextTokens();
 
   request_info->active_tool = inputState->active_tool;
   request_info->active_model = inputState->active_model;
@@ -1395,23 +1435,25 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
   __weak __typeof(self) weakSelf = self;
 
   if (isCached) {
-    [_webStateDeferredExecutor webState:webState
-                    executeOnceRealized:^{
-                      [weakSelf attachWebStateContent:webState
-                                           identifier:identifier
-                                         hasCachedAPC:YES];
-                    }];
+    [_webStateDeferredExecutor
+        ensureWebStateIsRealized:webState
+                  withCompletion:^(web::WebState* innerWebState) {
+                    [weakSelf attachWebStateContent:innerWebState
+                                         identifier:identifier
+                                       hasCachedAPC:YES];
+                  }];
   } else {
-    [_webStateDeferredExecutor webState:webState
-                      executeOnceLoaded:^(BOOL success) {
-                        if (!success) {
-                          [weakSelf handleFailedAttachment:identifier];
-                          return;
-                        }
-                        [weakSelf attachWebStateContent:webState
-                                             identifier:identifier
-                                           hasCachedAPC:NO];
-                      }];
+    [_webStateDeferredExecutor
+        ensureWebStateIsLoaded:webState
+                withCompletion:^(web::WebState* innerWebState, BOOL success) {
+                  if (!success) {
+                    [weakSelf handleFailedAttachment:identifier];
+                    return;
+                  }
+                  [weakSelf attachWebStateContent:innerWebState
+                                       identifier:identifier
+                                     hasCachedAPC:NO];
+                }];
   }
 }
 

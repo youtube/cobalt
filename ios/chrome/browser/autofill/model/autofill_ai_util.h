@@ -27,6 +27,9 @@ bool CanPerformAutofillAiAction(
     AutofillAiAction action,
     std::optional<EntityType> entity_type = std::nullopt);
 
+// Returns whether Autofill AI (AtMemory) is enabled.
+bool IsAutofillAtMemoryEnabled();
+
 // Returns whether Enhanced Autofill is enabled.
 bool IsEnhancedAutofillEnabled(ProfileIOS* profile);
 

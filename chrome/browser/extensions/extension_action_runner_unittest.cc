@@ -323,6 +323,49 @@ TEST_F(ExtensionActionRunnerUnitTest, PendingInjectionsRemovedAtNavigation) {
   EXPECT_FALSE(runner()->WantsToRun(extension));
 }
 
+// Tests that a pending (uncommitted) navigation does not affect whether the
+// extension requires user consent for the currently committed page.
+TEST_F(ExtensionActionRunnerUnitTest,
+       PendingNavigationDoesNotAffectUserConsent) {
+  const Extension* extension = AddExtension();
+  ASSERT_TRUE(extension);
+
+  const GURL withheld_url("https://www.withheld.com");
+  const GURL granted_url("https://www.granted.com");
+
+  // Grant the extension permission to always run on `granted_url`. It still
+  // requires user consent on `withheld_url`.
+  ScriptingPermissionsModifier(profile(), extension)
+      .GrantHostPermission(granted_url);
+
+  NavigateAndCommit(withheld_url);
+  EXPECT_TRUE(RequiresUserConsent(extension));
+
+  // Start (but don't commit) a browser-initiated navigation to `granted_url`.
+  // The committed page is still `withheld_url`, so user consent should still
+  // be required to inject into it.
+  std::unique_ptr<content::NavigationSimulator> navigation =
+      content::NavigationSimulator::CreateBrowserInitiated(granted_url,
+                                                           web_contents());
+  navigation->Start();
+  ASSERT_EQ(granted_url, web_contents()->GetVisibleURL());
+  ASSERT_EQ(withheld_url, web_contents()->GetLastCommittedURL());
+  EXPECT_TRUE(RequiresUserConsent(extension));
+
+  // The reverse: committed page is `granted_url`, with a pending navigation
+  // to `withheld_url`. The extension should not require user consent.
+  navigation->Commit();
+  ASSERT_EQ(granted_url, web_contents()->GetLastCommittedURL());
+  EXPECT_FALSE(RequiresUserConsent(extension));
+
+  navigation = content::NavigationSimulator::CreateBrowserInitiated(
+      withheld_url, web_contents());
+  navigation->Start();
+  ASSERT_EQ(withheld_url, web_contents()->GetVisibleURL());
+  ASSERT_EQ(granted_url, web_contents()->GetLastCommittedURL());
+  EXPECT_FALSE(RequiresUserConsent(extension));
+}
+
 // Test that queueing multiple pending injections, and then accepting, triggers
 // them all.
 TEST_F(ExtensionActionRunnerUnitTest, MultiplePendingInjection) {

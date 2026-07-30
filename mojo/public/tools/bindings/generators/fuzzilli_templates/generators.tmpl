@@ -1,0 +1,48 @@
+// TODO(crbug.com/500386713) Consider using mojoBuiltins or another list instead of regex
+private func isTargetObject(type: ILType) -> Bool {
+    guard type.Is(.object()), let group = type.group else { return false }
+    return group.starts(with: MojoStrings.mojoPrefix)
+}
+
+/// Mojo variant of the builtin `MethodCallGenerator` that operates only on
+/// "Mojo" objects instead of all the objects in the JavaScript environment,
+/// most of which are unrelated to the interface. This generator emits random
+/// method calls, generating any arguments that are not available.
+private let MojoMethodCallGenerator = CodeGenerator("MojoMethodCallGenerator") {
+    b in
+    // Pick a variable among all Mojo variables with methods
+    var targetVar = b.findVariable {
+        let type = b.type(of: $0)
+        return isTargetObject(type: type) && !type.methods.isEmpty
+            && type.group != MojoStrings.{{primary.name|to_camel(True)}}
+    }
+
+    // If we can't find a Mojo object in scope, create the {{primary.name}} remote
+    guard let obj = targetVar else {
+        let primaryStatic = b.createNamedVariable(
+            forBuiltin: MojoStrings.{{primary.name|to_camel(True)}})
+        b.callMethod("getRemote", on: primaryStatic, withArgs: [], guard: false)
+        return
+    }
+
+    let methodName = b.type(of: obj).randomMethod()!
+    let signatures = b.methodSignatures(of: methodName, on: obj)
+    let signature = chooseUniform(from: signatures)
+    let arguments = b.findOrGenerateArguments(forSignature: signature)
+    b.callMethod(methodName, on: obj, withArgs: arguments, guard: false)
+}
+
+/// Mojo variant of the builtin `PropertyRetrievalGenerator` that operates only
+/// on "Mojo" objects instead of all the objects in the JavaScript environment,
+/// most of which are unrelated to the interface. This generator emits random
+/// property retrievals.
+private let MojoPropertyRetrievalGenerator = CodeGenerator(
+    "MojoPropertyRetrievalGenerator"
+) { b in
+    let targetVar = b.findVariable { isTargetObject(type: b.type(of: $0)) }
+    guard let obj = targetVar else { return }
+
+    let propertyName =
+        b.type(of: obj).randomProperty() ?? b.randomCustomPropertyName()
+    b.getProperty(propertyName, of: obj)
+}

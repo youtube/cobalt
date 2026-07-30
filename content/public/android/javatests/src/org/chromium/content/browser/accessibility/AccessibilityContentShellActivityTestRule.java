@@ -129,13 +129,26 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
         // Verify file exists before beginning the test.
         verifyInputFile(file);
 
-        launchContentShellWithUrl(UrlUtils.getIsolatedTestFileUrl(file));
+        // 1. Launch content shell with null first to bring up the container view
+        launchContentShellWithUrl(null);
         waitForActiveShellToBeDoneLoading();
+
+        // 2. Setup the test framework and register the tracker early
         setupTestFramework(shouldFilterTrivialEvents);
         setAccessibilityDelegate();
 
         // To prevent flakes, do not disable accessibility mid tests.
         mWcax.setIsAutoDisableAccessibilityCandidateForTesting(false);
+
+        // 3. Load the actual target test file URL now that the tracker is active and listening
+        String targetUrl = UrlUtils.getIsolatedTestFileUrl(file);
+        ThreadUtils.runOnUiThreadBlocking(() -> {
+            getActivity().getActiveShell().loadUrl(targetUrl);
+        });
+        waitForActiveShellToBeDoneLoading();
+
+        // Wait for the new page's native BrowserAccessibilityManager to be connected!
+        mNodeProvider = getAccessibilityNodeProvider();
 
         sendReadyForTestSignal();
     }
@@ -175,10 +188,10 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
         Map<Integer, Integer> testingThrottleDelays = new HashMap<>();
         mWcax.setThrottleDelayForTesting(testingThrottleDelays);
 
-        mNodeProvider = getAccessibilityNodeProvider();
 
         mTracker = new AccessibilityActionAndEventTracker(shouldFilterTrivialEvents);
         mWcax.setAccessibilityTrackerForTesting(mTracker);
+        mNodeProvider = getAccessibilityNodeProvider();
 
     }
 
@@ -194,10 +207,10 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
                 });
 
         mWcax = getWebContentsAccessibility();
-        mNodeProvider = getAccessibilityNodeProvider();
 
         mTracker = new AccessibilityActionAndEventTracker();
         mWcax.setAccessibilityTrackerForTesting(mTracker);
+        mNodeProvider = getAccessibilityNodeProvider();
 
     }
 
@@ -214,10 +227,10 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
                 });
 
         mWcax = getWebContentsAccessibility();
-        mNodeProvider = getAccessibilityNodeProvider();
 
         mTracker = new AccessibilityActionAndEventTracker();
         mWcax.setAccessibilityTrackerForTesting(mTracker);
+        mNodeProvider = getAccessibilityNodeProvider();
 
     }
 
@@ -234,10 +247,10 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
                 });
 
         mWcax = getWebContentsAccessibility();
-        mNodeProvider = getAccessibilityNodeProvider();
 
         mTracker = new AccessibilityActionAndEventTracker();
         mWcax.setAccessibilityTrackerForTesting(mTracker);
+        mNodeProvider = getAccessibilityNodeProvider();
 
     }
 
@@ -268,6 +281,10 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
         // Always reset our max events for good measure.
         if (mWcax != null) {
             mWcax.setMaxContentChangedEventsToFireForTesting(-1);
+            if (Mockito.mockingDetails(mWcax).isMock()) {
+                Mockito.reset(mWcax);
+            }
+            mWcax = null;
         }
 
         AccessibilityContentShellTestData.resetData();
@@ -441,7 +458,13 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
      * @return boolean return value of setting selection.
      */
     public boolean setSelectionOnUiThread(
-            int viewId, int startNodeId, int startNodeOffset, int endNodeId, int endNodeOffset)
+            int viewId,
+            int startNodeId,
+            int startNodeOffset,
+            int startOffsetType,
+            int endNodeId,
+            int endNodeOffset,
+            int endOffsetType)
             throws ExecutionException {
         return ThreadUtils.runOnUiThreadBlocking(
                 () ->
@@ -451,8 +474,10 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
                                         viewId,
                                         startNodeId,
                                         startNodeOffset,
+                                        startOffsetType,
                                         endNodeId,
-                                        endNodeOffset));
+                                        endNodeOffset,
+                                        endOffsetType));
     }
 
     /**
@@ -541,6 +566,11 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
     public void sendEndOfTestSignal() {
         ThreadUtils.runOnUiThreadBlocking(() -> mWcax.signalEndOfTestForTesting());
         CriteriaHelper.pollUiThread(() -> mTracker.testComplete(), END_OF_TEST_ERROR);
+    }
+
+    /** Add a custom comment or annotation to the tracker's events list. */
+    public void addCommentToTracker(String comment) {
+        mTracker.addComment(comment);
     }
 
     /**

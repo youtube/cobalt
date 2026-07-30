@@ -8,18 +8,19 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/test/test_future.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/components/dbus/patchpanel/fake_patchpanel_client.h"
 #include "chromeos/ash/components/dbus/patchpanel/patchpanel_client.h"
 #include "chromeos/ash/components/dbus/shill/shill_clients.h"
-#include "chromeos/ash/components/login/login_state/login_state.h"
 #include "chromeos/ash/components/network/managed_network_configuration_handler.h"
 #include "chromeos/ash/components/network/network_handler_test_helper.h"
 #include "chromeos/ash/experiences/arc/arc_prefs.h"
 #include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
 #include "chromeos/ash/experiences/arc/test/fake_cert_manager.h"
+#include "components/account_id/account_id.h"
 #include "components/prefs/testing_pref_service.h"
-#include "components/user_manager/fake_user_manager.h"
-#include "components/user_manager/scoped_user_manager.h"
+#include "components/session_manager/test/test_user_session_manager.h"
+#include "components/user_manager/user_manager.h"
 #include "components/user_prefs/test/test_browser_context_with_prefs.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -103,10 +104,14 @@ class ArcNetHostImplTest : public testing::Test {
   void SetUp() override {
     ash::PatchPanelClient::InitializeFake();
 
-    // Set up UserManager to fake the login state.
-    ash::LoginState::Initialize();
-    scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
-        std::make_unique<user_manager::FakeUserManager>());
+    // Set up UserManager to fake the login state using local state.
+    ash::test::TestUserSessionManager::RegisterLocalStatePrefs(
+        local_state_.registry());
+    const AccountId account_id =
+        AccountId::FromUserEmailGaiaId("test@test", GaiaId("fakegaia"));
+    test_user_session_manager_ =
+        std::make_unique<ash::test::TestUserSessionManager>(&local_state_);
+    ASSERT_TRUE(test_user_session_manager_->AddRegularUser(account_id));
 
     // Required for initializingFakeShillManagerClient.
     ash::shill_clients::InitializeFakes();
@@ -124,6 +129,22 @@ class ArcNetHostImplTest : public testing::Test {
                     /*userhash=*/std::string(),
                     /*network_configs_onc=*/base::ListValue(),
                     /*global_network_config=*/base::DictValue());
+
+    test_user_session_manager_->LogIn(account_id);
+
+    const std::string userhash =
+        user_manager::UserManager::Get()->FindUser(account_id)->username_hash();
+    // Use BrowserContextHelper to construct the "/profile/u-" path consistently
+    // with production.
+    const std::string profile_path =
+        "/profile/" +
+        ash::BrowserContextHelper::GetUserBrowserContextDirName(userhash);
+    helper_->profile_test()->AddProfile(profile_path, userhash);
+    ash::NetworkHandler::Get()
+        ->managed_network_configuration_handler()
+        ->SetPolicy(::onc::ONC_SOURCE_USER_POLICY, userhash,
+                    /*network_configs_onc=*/base::ListValue(),
+                    /*global_network_config=*/base::DictValue());
     auto cert_manager = std::make_unique<FakeCertManager>();
     service_->SetCertManager(std::move(cert_manager));
     task_environment_.RunUntilIdle();
@@ -132,8 +153,7 @@ class ArcNetHostImplTest : public testing::Test {
   void TearDown() override {
     helper_.reset();
     ash::shill_clients::Shutdown();
-    scoped_user_manager_.reset();
-    ash::LoginState::Shutdown();
+    test_user_session_manager_.reset();
     ash::PatchPanelClient::Shutdown();
   }
 
@@ -143,10 +163,11 @@ class ArcNetHostImplTest : public testing::Test {
  private:
   content::BrowserTaskEnvironment task_environment_;
   std::unique_ptr<ArcServiceManager> arc_service_manager_;
+  TestingPrefServiceSimple local_state_;
   TestingPrefServiceSimple pref_service_;
   std::unique_ptr<user_prefs::TestBrowserContextWithPrefs> context_;
   const raw_ptr<ArcNetHostImpl> service_;
-  std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
+  std::unique_ptr<ash::test::TestUserSessionManager> test_user_session_manager_;
   std::unique_ptr<ash::NetworkHandlerTestHelper> helper_;
 };
 

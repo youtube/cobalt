@@ -74,6 +74,10 @@ static const char* const kConsoleErrorUrls[] = {
     "chrome://parent-access",
     "chrome://personalization",
     "chrome://smb-credentials-dialog",
+#if !defined(NDEBUG)
+    // TODO(crbug.com/511254271): Flaky console errors on ChromeOS debug.
+    "chrome://prefs-internals",
+#endif
 #else
     "chrome://signin-email-confirmation",
 #if BUILDFLAG(IS_LINUX)

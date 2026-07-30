@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Mund të provosh po ashtu që të <ph name="GUEST_SIGNIN_LINK_START" />shfletosh si vizitor<ph name="GUEST_SIGNIN_LINK_END" /> për të rregulluar këtë gabim në rrjet.</translation>
 <translation id="1201402288615127009">Para</translation>
 <translation id="1222835797152767346">Cakto një kod PIN për ta bërë më të lehtë të identifikohesh</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Veçoritë e korrigjimit<ph name="END_H3" />
+          <ph name="BR" />
+          Mund të aktivizosh veçoritë e korrigjimit në pajisjen tënde me ChromeOS për të instaluar dhe për të testuar kodin e personalizuar në pajisjen tënde. Kjo do të të lejojë që:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Të heqësh verifikimin e rrënjëve që të mund të modifikosh skedarët e sistemit operativ
+            <ph name="LIST_ITEM" />Të aktivizosh qasjen e SSH-së te pajisja duke përdorur çelësat standardë të testimit që të mund të përdorësh vegla si <ph name="BEGIN_CODE" />"rishkrimi i kryqëzuar"<ph name="END_CODE" /> për të pasur qasje te pajisja
+            <ph name="LIST_ITEM" />Të aktivizosh ndezjen nga USB-ja, që të mund të instalosh një imazh të sistemit operativ nga një njësi USB
+        <ph name="LIST_ITEM" />Të caktosh fjalëkalimin për identifikim në rrënjën e sistemit dhe atë të zhvilluesit në një vlerë të personalizuar që të mund të kryesh në mënyrë manuale SSH-në te pajisja
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Pasi të aktivizohen, pjesa më e madhe e veçorive të korrigjimit do të qëndrojnë të aktivizuara edhe pas kryerjes së funksionit Powerwash ose fshirjes së të dhënave në një pajisje të menaxhuar nga ndërmarrja. Për të çaktivizuar plotësisht të gjitha funksionet e korrigjimit, përfundo procesin e rikuperimit të ChromeOS (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Për më shumë informacione rreth veçorive të korrigjimit, shiko:<ph name="BR" />
+      https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Shënim.<ph name="END_BOLD" />  Sistemi do të rindizet gjatë procesit.</translation>
 <translation id="1347625331607114917">Verifiko kodin në telefonin tënd Android</translation>
 <translation id="1347975661240122359">Përditësimi do të fillojë kur bateria të arrijë në <ph name="BATTERY_LEVEL" />%.</translation>
 <translation id="1375938286942050085">Konfigurimi përfundoi! Përgatite pajisjen për lojërat më pas</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Po shkarkon aplikacionet</translation>
 <translation id="5045550434625856497">Fjalëkalim i gabuar</translation>
 <translation id="5062930723426326933">Identifikimi dështoi. Lidhu me internetin dhe provo sërish.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Bisedo me Gemini për të filluar të shkruash, të planifikosh, të mësosh etj. me IA-në e Google.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Pas konfigurimit, fillo të përdorësh Gemini duke zgjedhur aplikacionin Gemini në raftin tënd në fund të ekranit.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Lidhe pajisjen tënde <ph name="DEVICE_TYPE" /> me një burim energjie.</translation>
 <translation id="5147516217412920887">Ndiq udhëzimet në telefon për të verifikuar kodin</translation>
 <translation id="5160857336552977725">Identifikohu në <ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Veçoritë e korrigjimit<ph name="END_H3" />
+          <ph name="BR" />
+          Mund të aktivizosh veçoritë e korrigjimit në pajisjen tënde me ChromeOS Flex për të instaluar dhe për të testuar kodin e personalizuar në pajisjen tënde. Kjo do të të lejojë që:<ph name="BR" />
+        <ph name="BEGIN_LIST" />
+          <ph name="LIST_ITEM" />Të heqësh verifikimin e rrënjëve që të mund të modifikosh skedarët e sistemit operativ
+          <ph name="LIST_ITEM" />Të aktivizosh qasjen e SSH-së te pajisja duke përdorur çelësat standardë të testimit që të mund të përdorësh vegla si <ph name="BEGIN_CODE" />"rishkrimi i kryqëzuar"<ph name="END_CODE" /> për të pasur qasje te pajisja
+          <ph name="LIST_ITEM" />Të aktivizosh ndezjen nga USB-ja, që të mund të instalosh një imazh të sistemit operativ nga një njësi USB
+          <ph name="LIST_ITEM" />Të caktosh fjalëkalimin për identifikim në rrënjën e sistemit dhe atë të zhvilluesit në një vlerë të personalizuar që të mund të kryesh në mënyrë manuale SSH-në te pajisja
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Pasi të aktivizohen, pjesa më e madhe e veçorive të korrigjimit do të qëndrojnë të aktivizuara edhe pas kryerjes së funksionit Powerwash ose fshirjes së të dhënave në një pajisje të menaxhuar nga ndërmarrja. Për të çaktivizuar plotësisht të gjitha funksionet e korrigjimit, përfundo procesin e rikuperimit të ChromeOS (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+      Për më shumë informacione rreth veçorive të korrigjimit, shiko:<ph name="BR" />
+      https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Shënim.<ph name="END_BOLD" />  Sistemi do të rindizet gjatë procesit.</translation>
 <translation id="523505283826916779">Cilësimet e qasjes</translation>
 <translation id="5240931875940563122">Identifikohu me telefonin Android</translation>
 <translation id="5255859108402770436">Identifikohu përsëri</translation>
@@ -193,6 +231,10 @@
 <translation id="6955698182324067397">Po aktivizon veçoritë e korrigjimit në pajisjet me ChromeOS që do të konfigurojnë sshd daemon dhe do të aktivizojnë ndezjen nga njësitë USB.</translation>
 <translation id="6965382102122355670">Në rregull</translation>
 <translation id="6981982820502123353">Qasja</translation>
+<translation id="6984652455487792101">Nëse po përdor një server proxy, kontrollo cilësimet e proxy-it ose
+        kontakto me administratorin e rrjetit për të kontrolluar që serveri proxy
+        po punon. Nëse nuk beson se duhet të përdorësh një
+        server proxy, rregullo <ph name="LINK_START" />cilësimet e proxy-it<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">Aktivizo Bluetooth-in dhe Wi-Fi në telefonin tënd</translation>
 <translation id="7077829361966535409">Faqja e identifikimit dështoi të ngarkohet duke përdorur cilësimet aktuale të përfaqësimit. <ph name="GAIA_RELOAD_LINK_START" />Provo të identifikohesh sërish<ph name="GAIA_RELOAD_LINK_END" /> ose përdor <ph name="PROXY_SETTINGS_LINK_START" />cilësime përfaqësimi<ph name="PROXY_SETTINGS_LINK_END" /> të tjera.</translation>
 <translation id="7114054701490058191">Fjalëkalimet nuk përputhen</translation>
@@ -205,6 +247,9 @@
 <translation id="7345706641791090287">Konfirmo fjalëkalimin</translation>
 <translation id="7352651011704765696">Diçka shkoi keq</translation>
 <translation id="7476454130948140105">Niveli i baterisë është shumë i ulët për përditësimin (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Përpara se të regjistrohesh, ti duhet të pastrosh TPM-në në mënyrë që <ph name="DEVICE_OS" /> të marrë në zotërim pajisjen.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Gjithashtu, ti mund ta çaktivizosh plotësisht pajisjen TPM. Të dhënat e tua do të ruhen në mënyrë të sigurt me enkriptimin e softuerit, por veçori të caktuara të sigurisë, si p.sh. certifikatat e mbështetura nga hardueri, do të çaktivizohen.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Mund t'i ndryshosh cilësimet e tua të TPM duke rindezur dhe futur cilësimet BIOS/UEFI të sistemit. Hapat ndryshojnë në varësi të modelit të pajisjes. Për më shumë informacion, hap dokumentacionin e <ph name="DEVICE_OS" /> në një pajisje të veçantë përpara se ta rindezësh: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Aktivizo funksionet e korrigjimit në këtë pajisje të <ph name="IDS_SHORT_PRODUCT_NAME" /></translation>
 <translation id="7553242001898162573">Fut fjalëkalimin</translation>
 <translation id="7556242789364317684">Fatkeqësisht, <ph name="SHORT_PRODUCT_NAME" /> nuk mund të rikuperojë cilësimet e tua. Për të rregulluar gabimin, <ph name="SHORT_PRODUCT_NAME" /> duhet ta rivendosësh pajisjen tënde me Powerwash.</translation>
@@ -251,6 +296,10 @@
 <translation id="8452105022015742247">Informacionet e "Llogarisë sate të Google" po transferohen nga telefoni yt Android</translation>
 <translation id="8524841856047224176">Personalizo sfondet e kamerës për videotelefonatat dhe më shumë</translation>
 <translation id="8569673829373920831">Më shumë rreth: <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">Ndiq udhëzimet në telefonin tënd për të skanuar kodin QR. Sigurohu që të jetë aktivizuar Bluetooth-i i telefonit tënd.
+        <ph name="BR" />
+        <ph name="BR" />
+        E dukshme për pajisjet në afërsi si <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />...</translation>
 <translation id="8655972064210167941">Identifikimi dështoi pasi fjalëkalimi nuk mund të verifikohej. Kontakto me administratorin ose provo përsëri.</translation>
 <translation id="8674903726754070732">Fatkeqësisht, kompjuteri yt është konfiguruar me një ID hardueri të keqformuar. Kjo parandalon përditësimin e CromeOS me rregullimet më të fundit të sigurisë dhe kompjuteri yt <ph name="BEGIN_BOLD" />mund të jetë i cenueshëm ndaj sulmeve keqdashëse<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Shto kontrollet prindërore pas konfigurimit</translation>
@@ -264,10 +313,20 @@
 <translation id="8830796635868321089">Kontrolli i përditësimit dështoi gjatë përdorimit të cilësimeve të përfaqësuesit aktual. Rregullo <ph name="PROXY_SETTINGS_LINK_START" />cilësimet e përfaqësuesit<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">Preferencat dhe aktiviteti i ruajtur do të jenë gati në çdo pajisje me ChromeOS kur identifikohesh me "Llogarinë tënde të Google". Mund të zgjedhësh çfarë të sinkronizosh te "Cilësimet".</translation>
 <translation id="8875221558267407626">Përmblidh përmbajtjet, thjeshtëso gjuhën e ndërlikuar ose bëj pyetje</translation>
+<translation id="8913163265790894442">Konfiguro me lehtësi pajisjen tënde <ph name="DEVICE_TYPE" /> me telefonin tënd. Mund të shtosh rrjetin Wi-Fi dhe "Llogarinë tënde të Google" pa futur fjalëkalimet e tua në mënyrë manuale.
+        <ph name="BR" />
+        <ph name="BR" />
+        E dukshme si <ph name="DEVICE_TYPE" />...</translation>
 <translation id="8946359700442089734">Karakteristikat e korrigjimit të gabimeve nuk u aktivizuan plotësisht në këtë pajisje <ph name="IDS_SHORT_PRODUCT_NAME" />.</translation>
 <translation id="8965037249707889821">Fut fjalëkalimin e vjetër</translation>
 <translation id="8975396729541388937">Çregjistrohu në çdo kohë duke klikuar te lidhja në email-et që merr.</translation>
 <translation id="9033765790910064284">Vazhdo gjithsesi</translation>
 <translation id="903480517321259405">Shkruaj përsëri PIN-in</translation>
 <translation id="9076523132036239772">Na vjen keq, por mail-i yt ose fjalëkalimi nuk mundën të verifikoheshin. Provo të lidhesh me një rrjet në fillim.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Ekskluzive për <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Inteligjenca artificiale gjeneruese është eksperimentale, në fazë të hershme zhvillimi dhe ka aktualisht disponueshmëri të kufizuar.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Konfiguro me lehtësi pajisjen tënde <ph name="DEVICE_TYPE" /> me telefonin tënd. Mund të shtosh "Llogarinë tënde të Google" pa futur fjalëkalimin tënd në mënyrë manuale.
+        <ph name="BR" />
+        <ph name="BR" />
+        E dukshme si <ph name="DEVICE_TYPE" />...</translation>
 </translationbundle>

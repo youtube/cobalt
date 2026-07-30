@@ -823,7 +823,12 @@ class EnclaveAuthenticatorBrowserTest : public EnclaveAuthenticatorTestBase {
     std::unique_ptr<base::RunLoop> run_loop_;
   };
 
-  EnclaveAuthenticatorBrowserTest() = default;
+  EnclaveAuthenticatorBrowserTest() {
+    scoped_feature_list_.InitWithFeatures(
+        {device::kWebAuthnCreatePinWhenSystemUvDisabled,
+         device::kWebAuthnEnclaveUseAuthDataFromEnclave},
+        {});
+  }
   ~EnclaveAuthenticatorBrowserTest() override = default;
 
   EnclaveAuthenticatorBrowserTest(const EnclaveAuthenticatorBrowserTest&) =
@@ -908,8 +913,7 @@ class EnclaveAuthenticatorBrowserTest : public EnclaveAuthenticatorTestBase {
   std::unique_ptr<ModelObserver> model_observer_;
   raw_ptr<ChromeAuthenticatorRequestDelegate> request_delegate_;
   base::HistogramTester histogram_tester_;
-  base::test::ScopedFeatureList scoped_feature_list_{
-      device::kWebAuthnCreatePinWhenSystemUvDisabled};
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Parses the string resulting from the Javascript snippets that exercise the

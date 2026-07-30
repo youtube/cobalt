@@ -74,10 +74,8 @@ GURL AffiliatedGroup::GetAllowedIconUrl(
     return GetIconURL();
   }
 
-  for (const password_manager::CredentialUIEntry& credential :
-       GetCredentials()) {
-    if (credential.stored_in.contains(
-            password_manager::PasswordForm::Store::kAccountStore)) {
+  for (const CredentialUIEntry& credential : GetCredentials()) {
+    if (credential.stored_in.contains(PasswordForm::Store::kAccountStore)) {
       // If at least one credential is stored in the account, icon provided by
       // the affiliation service can be used for the whole group.
       return GetIconURL();

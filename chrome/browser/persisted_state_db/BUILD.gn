@@ -44,3 +44,18 @@ source_set("persisted_state_db") {
     ]
   }
 }
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "session_proto_db_factory_unittest.cc" ]
+
+  deps = [
+    ":persisted_state_db",
+    "//base",
+    "//chrome/test:test_support",
+    "//components/commerce/core:persisted_state_db_content_proto",
+    "//content/test:test_support",
+    "//testing/gtest",
+  ]
+}

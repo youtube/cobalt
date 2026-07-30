@@ -72,4 +72,12 @@ OriginAgentClusterIsolationState::OriginAgentClusterIsolationState(
              AgentClusterKey::OACStatus::kOriginKeyedByDefault));
 }
 
+std::ostream& operator<<(std::ostream& out,
+                         const OriginAgentClusterIsolationState& state) {
+  out << "{logical_oac_status: " << state.logical_oac_status()
+      << ", process_isolation_oac_status: "
+      << state.process_isolation_oac_status() << "}";
+  return out;
+}
+
 }  // namespace content

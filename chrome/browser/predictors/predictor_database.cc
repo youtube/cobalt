@@ -92,7 +92,6 @@ PredictorDatabaseInternal::PredictorDatabaseInternal(
     : db_path_(profile->GetPath().Append(kPredictorDatabaseName)),
       db_(std::make_unique<sql::Database>(
           sql::DatabaseOptions()
-              .set_preload(true)
               // TODO(pwnall): Add a meta table and remove this option.
               .set_mmap_alt_status_discouraged(true)
               .set_enable_views_discouraged(

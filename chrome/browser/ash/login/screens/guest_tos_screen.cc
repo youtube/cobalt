@@ -16,7 +16,6 @@
 #include "chrome/browser/metrics/cros_pre_choice_metrics_manager.h"
 #include "chrome/browser/ui/webui/ash/login/guest_tos_screen_handler.h"
 #include "components/application_locale_storage/application_locale_storage.h"
-#include "components/metrics/metrics_reporting_level.h"
 #include "components/prefs/pref_service.h"
 namespace ash {
 namespace {
@@ -113,13 +112,6 @@ void GuestTosScreen::OnAccept(bool enable_usage_stats) {
   // Store guest choice to local state so that correct metrics choice can be
   // loaded after browser restart.
   local_state_->SetBoolean(prefs::kOobeGuestMetricsEnabled, enable_usage_stats);
-
-  metrics::MetricsReportingLevel level =
-      enable_usage_stats ? metrics::MetricsReportingLevel::kBasic
-                         : metrics::MetricsReportingLevel::kNone;
-  local_state_->SetInteger(prefs::kOobeGuestMetricsReportingLevel,
-                           static_cast<int>(level));
-
   local_state_->CommitPendingWrite(
       base::BindOnce(&GuestTosScreen::OnOobeGuestPrefWriteDone,
                      weak_ptr_factory_.GetWeakPtr()));

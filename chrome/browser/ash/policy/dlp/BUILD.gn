@@ -35,6 +35,7 @@ static_library("dlp") {
 
   deps = [
     "//ash",
+    "//ash/constants",
     "//ash/public/cpp",
     "//base",
     "//chrome/app:generated_resources",
@@ -181,6 +182,7 @@ source_set("browser_tests") {
 
   deps = [
     ":dlp",
+    "//ash/constants",
     "//ash/webui/file_manager:file_manager_ui",
     "//base",
     "//base/test:test_support",

@@ -5,7 +5,10 @@
 #ifndef MEDIA_FILTERS_HLS_TEST_HELPERS_H_
 #define MEDIA_FILTERS_HLS_TEST_HELPERS_H_
 
+#include <optional>
 #include <string_view>
+#include <tuple>
+#include <vector>
 
 #include "media/base/cross_origin_data_source.h"
 #include "media/filters/hls_data_source_provider.h"
@@ -59,8 +62,8 @@ class MockHlsDataSourceProvider : public HlsDataSourceProvider {
   MockHlsDataSourceProvider();
   ~MockHlsDataSourceProvider() override;
   MOCK_METHOD(void,
-              ReadFromCombinedUrlQueue,
-              (HlsDataSourceProvider::SegmentQueue,
+              ReadFromUrl,
+              (HlsDataSourceProvider::UrlDataSegment,
                HlsDataSourceProvider::ReadCb),
               (override));
   MOCK_METHOD(void,
@@ -195,31 +198,108 @@ class FileHlsDataSourceStreamFactory {
 
 class MockDataSourceFactory : public CrossOriginDataSource::Factory {
  public:
+  // Represents the behavior of a data source when it is created.
+  struct DataSourceBehavior {
+    DataSourceBehavior();
+    ~DataSourceBehavior();
+    DataSourceBehavior(const DataSourceBehavior&);
+    DataSourceBehavior(DataSourceBehavior&&);
+    DataSourceBehavior& operator=(const DataSourceBehavior&);
+    DataSourceBehavior& operator=(DataSourceBehavior&&);
+
+    // If false, Initialize() will fail.
+    bool does_connect = true;
+
+    // Value returned by WouldTaintOrigin().
+    bool would_taint_origin = false;
+
+    // The expected original URI. Used for matching.
+    std::optional<GURL> original_uri;
+
+    // If set, DidRedirect() will return true and GetUrlAfterRedirects()
+    // will return this URI.
+    std::optional<std::string> redirect_uri;
+
+    // Read expectations to apply to this data source.
+    // Tuple: (position, size, response_size)
+    std::vector<std::tuple<size_t, size_t, int>> read_expectations;
+  };
+
   ~MockDataSourceFactory() override;
   MockDataSourceFactory();
 
-  using MockCreateResponse = std::optional<std::tuple<std::string, bool>>;
-
-  // The return value of MockCreate represents a redirecting MockDataSource.
-  // if it doesn't return anything (the default), then `uri` from the `Create`
-  // function is used as the UrlAfterRedirects. If it does, use the string as
-  // the redirect url, and the boolean as an origin tainting flag.
-  MOCK_METHOD(MockCreateResponse,
-              MockCreate,
-              (const GURL&, DataSource::CacheMode, DataSource::EncodingMode));
   void Create(const GURL& uri,
               DataSource::CacheMode cache_mode,
               DataSource::EncodingMode encoding_mode,
               base::OnceCallback<void(std::unique_ptr<CrossOriginDataSource>)>
                   cb) override;
+
+  // The Setup mock method allows tests to intercept data source creation and
+  // configure the mock reactively.
+  //
+  // Example (Reactive Configuration):
+  //
+  //   EXPECT_CALL(factory, Setup(_, GURL("http://example.com"), _, _))
+  //       .WillOnce([](MockDataSource* mock, const GURL& uri, ...) {
+  //           MockDataSourceFactory::ConfigureAsSuccess(mock, uri);
+  //           EXPECT_CALL(*mock, Read(0, SpanSizeEq(1024), _))
+  //               .WillOnce(RunOnceCallback<2>(1024));
+  //       });
+  MOCK_METHOD(void,
+              Setup,
+              (MockDataSource * mock,
+               const GURL& uri,
+               DataSource::CacheMode cache_mode,
+               DataSource::EncodingMode encoding_mode));
+
+  // Register expected behavior for a URL.
+  // The factory will automatically apply this behavior when a data source
+  // for the GURL is created, unless Setup is explicitly overridden for it.
+  //
+  // Example (Declarative Configuration):
+  //
+  //   MockDataSourceFactory::DataSourceBehavior behavior;
+  //   behavior.original_uri = GURL("http://example.com");
+  //   behavior.read_expectations = {{0, 1024, 1024}};
+  //   factory.Expect(std::move(behavior));
+  void Expect(DataSourceBehavior behavior);
+
+  // Simple API: Add read expectation for the next created data source.
+  //
+  // Example (Simple Configuration):
+  //
+  //   factory.AddReadExpectation(0, 1024, 1024);
+  //   factory.AddReadExpectation(1024, 1024, 0);
   void AddReadExpectation(size_t from, size_t to, int response);
-  testing::NiceMock<MockDataSource>* PregenerateNextMock(
-      std::optional<std::string> redirect_uri = std::nullopt);
+
+  // Simple API: Add read expectation for a specific URL.
+  //
+  // Example (URL-specific Simple Configuration):
+  //
+  //   factory.AddReadExpectation(GURL("http://example.com"), 0, 1024, 1024);
+  void AddReadExpectation(const GURL& url,
+                          size_t from,
+                          size_t to,
+                          int response);
+
+  // Helper static methods to configure a mock with standard behaviors.
+  // Useful when overriding Setup in tests.
+  static void ConfigureAsSuccess(MockDataSource* mock, const GURL& uri);
+  static void ConfigureAsFailure(MockDataSource* mock);
+  static void ConfigureAsRedirect(MockDataSource* mock, const GURL& target_uri);
 
  private:
-  bool next_mock_has_redirection_ = false;
-  std::unique_ptr<testing::NiceMock<MockDataSource>> next_mock_;
-  std::vector<std::tuple<size_t, size_t, int>> read_expectations_;
+  // Default implementation for Setup, which applies registered behaviors
+  // and simple expectations.
+  void DefaultSetup(MockDataSource* mock,
+                    const GURL& uri,
+                    DataSource::CacheMode cache_mode,
+                    DataSource::EncodingMode encoding_mode);
+
+  std::vector<DataSourceBehavior> expected_behaviors_;
+  std::vector<std::tuple<size_t, size_t, int>> global_read_expectations_;
+  std::vector<std::pair<GURL, std::tuple<size_t, size_t, int>>>
+      url_read_expectations_;
 };
 
 class MockHlsNetworkAccess : public HlsNetworkAccess {

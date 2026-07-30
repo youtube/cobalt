@@ -269,26 +269,29 @@ void DesktopSessionAgent::Start(
       &desktop_session_state_handler_);
 
 #if BUILDFLAG(IS_POSIX)
-  if (!SecurityKeyAuthHandlerPosix::GetSecurityKeySocketName().empty()) {
-    // While SecurityKeyAuthHandlerPosix already takes a `file_task_runner`, it
-    // is only used for creating and deleting files, while all the socket
-    // operations are still done on the caller's sequence. So we need to wrap it
-    // with a SequenceBound.
-    security_key_auth_handler_ =
-        base::SequenceBound<SecurityKeyAuthHandlerPosix>(io_task_runner_,
-                                                         io_task_runner_);
+  if (options.enable_security_key()) {
+    const base::FilePath& socket_name =
+        SecurityKeyAuthHandlerPosix::GetSecurityKeySocketName();
+    if (!socket_name.empty()) {
+      // Since all socket operations in SecurityKeyAuthHandlerPosix are done on
+      // the caller's sequence, we wrap it with a SequenceBound to run it on the
+      // IO thread.
+      security_key_auth_handler_ =
+          base::SequenceBound<SecurityKeyAuthHandlerPosix>(io_task_runner_);
 
-    security_key_auth_handler_
-        .AsyncCall(&SecurityKeyAuthHandler::SetSendMessageCallback)
-        .WithArgs(base::BindPostTaskToCurrentDefault(
-            base::BindRepeating(&DesktopSessionAgent::OnSecurityKeyMessage,
-                                weak_factory_.GetWeakPtr())));
+      security_key_auth_handler_
+          .AsyncCall(&SecurityKeyAuthHandler::SetSendMessageCallback)
+          .WithArgs(base::BindPostTaskToCurrentDefault(
+              base::BindRepeating(&DesktopSessionAgent::OnSecurityKeyMessage,
+                                  weak_factory_.GetWeakPtr())));
 
-    security_key_auth_handler_.AsyncCall(
-        &SecurityKeyAuthHandler::CreateSecurityKeyConnection);
-  } else {
-    LOG(WARNING) << "Security key socket name is empty. Security key "
-                 << "forwarding will not work.";
+      security_key_auth_handler_.AsyncCall(
+          &SecurityKeyAuthHandler::CreateSecurityKeyConnection);
+    } else {
+      LOG(WARNING) << "Security key forwarding is enabled, but the socket name "
+                   << "is empty (e.g. XDG_RUNTIME_DIR is not set). "
+                   << "Forwarding will be disabled.";
+    }
   }
 #endif
 

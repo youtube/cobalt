@@ -96,11 +96,16 @@ export enum ChoiceMadeLocation {
   // The search engine choice dialog for existing users or the profile picker
   // for new users. This value should not be used in settings.
   CHOICE_SCREEN = 2,
+  // Programmatic import of a search engine choice selected at the device level
+  // (e.g., Android Play API). Behaves mostly like `CHOICE_SCREEN` for initial
+  // recording, but allows repeated signals from the OS to be dropped silently
+  // without triggering assertion failures or creating duplicate records.
+  DEVICE_CHOICE_IMPORT = 3,
   // Some other source, not matching some requirements that the full search
   // engine choice surfaces are compatible with. Might be used for example when
   // automatically changing default search engine via an extension, or some
   // enterprise policy.
-  OTHER = 3,
+  OTHER = 4,
 }
 
 export interface SearchEnginesBrowserProxy {

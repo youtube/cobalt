@@ -21,6 +21,8 @@
 #include "components/private_verification_tokens/common/private_verification_tokens_issuer_config_internal.h"
 #include "components/private_verification_tokens/common/private_verification_tokens_parameters.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
+#include "url/gurl.h"
+#include "url/origin.h"
 
 namespace private_verification_tokens {
 
@@ -131,7 +133,8 @@ std::optional<IssuerConfig> ParseEntry(const base::DictValue& dict) {
   }
 
   PrivateVerificationTokensPublicKey pk(
-      *domain, std::move(*decoded_public_key), *key_id,
+      url::Origin::Create(GURL("https://" + *domain)),
+      std::move(*decoded_public_key), *key_id,
       base::Time::UnixEpoch() + base::Seconds(*expiration), *version);
   return IssuerConfig(*batch_size, std::move(pk));
 }
@@ -155,7 +158,7 @@ PrivateVerificationTokensIssuerConfig::Create(base::DictValue config) {
   if (!issuers) {
     return nullptr;
   }
-  std::map<std::string, IssuerConfig> result;
+  std::map<url::Origin, IssuerConfig> result;
   for (const auto& entry : *issuers) {
     if (!entry.is_dict()) {
       continue;
@@ -164,15 +167,15 @@ PrivateVerificationTokensIssuerConfig::Create(base::DictValue config) {
     if (!ic.has_value()) {
       continue;
     }
-    std::string domain = ic->public_key.etld_plus_one();
-    result.try_emplace(std::move(domain), std::move(*ic));
+    url::Origin issuer = ic->public_key.issuer();
+    result.try_emplace(issuer, std::move(*ic));
   }
   return base::WrapUnique(
       new PrivateVerificationTokensIssuerConfig(std::move(result)));
 }
 
 PrivateVerificationTokensIssuerConfig::PrivateVerificationTokensIssuerConfig(
-    std::map<std::string, IssuerConfig> config)
+    std::map<url::Origin, IssuerConfig> config)
     : config_(std::move(config)) {}
 
 PrivateVerificationTokensIssuerConfig::
@@ -196,7 +199,7 @@ PrivateVerificationTokensIssuerConfig::LoadFromFile(
   return Create(std::move(*value).TakeDict());
 }
 
-const std::map<std::string, IssuerConfig>&
+const std::map<url::Origin, IssuerConfig>&
 PrivateVerificationTokensIssuerConfig::config() const {
   return config_;
 }

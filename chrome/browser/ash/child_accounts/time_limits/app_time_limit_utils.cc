@@ -5,7 +5,6 @@
 #include "chrome/browser/ash/child_accounts/time_limits/app_time_limit_utils.h"
 
 #include "chrome/browser/ash/child_accounts/time_limits/app_types.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "components/app_constants/constants.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "extensions/common/constants.h"

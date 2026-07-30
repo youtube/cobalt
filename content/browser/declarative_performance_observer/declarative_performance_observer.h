@@ -57,6 +57,10 @@ class CONTENT_EXPORT DeclarativePerformanceObserver
       std::vector<blink::mojom::DeclarativePerformanceEntryPtr> entries)
       override;
 
+  static void RecordEarlyNavigationFailure(NavigationHandle* handle,
+                                           StoragePartition* partition,
+                                           int net_error);
+
   static void Bind(
       RenderFrameHost* rfh,
       mojo::PendingReceiver<blink::mojom::DeclarativePerformanceObserverHost>
@@ -77,6 +81,7 @@ class CONTENT_EXPORT DeclarativePerformanceObserver
   void AddEntryToBuffer(base::DictValue entry);
   void FlushMetrics();
   void AppendSessionEndEntry();
+  void OnEarlyFailureReportsTaken(base::ListValue reports);
 
   std::string reporting_endpoint_;
   base::flat_set<network::mojom::PerformanceEntryType> enabled_types_;
@@ -92,6 +97,8 @@ class CONTENT_EXPORT DeclarativePerformanceObserver
 
   mojo::Receiver<blink::mojom::DeclarativePerformanceObserverHost> receiver_{
       this};
+
+  base::WeakPtrFactory<DeclarativePerformanceObserver> weak_factory_{this};
 
   DOCUMENT_USER_DATA_KEY_DECL();
 };

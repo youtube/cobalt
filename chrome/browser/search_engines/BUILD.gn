@@ -9,6 +9,7 @@ assert(is_win || is_mac || is_linux || is_chromeos || is_android)
 
 source_set("search_engines") {
   public = [
+    "ai_mode_button_service_factory.h",
     "chrome_template_url_service_client.h",
     "template_url_fetcher_factory.h",
     "template_url_prepopulate_data_resolver_factory.h",
@@ -17,6 +18,7 @@ source_set("search_engines") {
   ]
 
   sources = [
+    "ai_mode_button_service_factory.cc",
     "chrome_template_url_service_client.cc",
     "template_url_fetcher_factory.cc",
     "template_url_prepopulate_data_resolver_factory.cc",
@@ -32,6 +34,7 @@ source_set("search_engines") {
   ]
 
   deps = [
+    "//chrome/app:branded_strings",
     "//chrome/browser:browser_process",
     "//chrome/browser/google",
     "//chrome/browser/history",
@@ -79,22 +82,84 @@ source_set("search_engines") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = []
-  deps = []
+  sources = [
+    "template_url_fetcher_unittest.cc",
+    "template_url_parser_unittest.cc",
+    "template_url_service_sync_unittest.cc",
+    "template_url_service_unittest.cc",
+  ]
+  deps = [
+    ":search_engines",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/test:test_support",
+    "//components/search_engines",
+    "//components/search_engines:test_support",
+    "//components/sync:test_support",
+    "//content/test:test_support",
+    "//services/data_decoder/public/cpp:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
 
   if (enable_extensions_core && is_android) {
     sources += [ "extension_control_handler_android_unittest.cc" ]
     deps += [
-      ":search_engines",
-      "//base",
       "//chrome/browser/extensions",
       "//chrome/browser/extensions:test_support",
-      "//chrome/test:test_support",
       "//components/sync_preferences:test_support",
-      "//content/test:test_support",
       "//extensions:test_support",
       "//extensions/browser",
+    ]
+  }
+}
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [
+      "template_url_scraper_browsertest.cc",
+      "template_url_service_browsertest.cc",
+    ]
+
+    deps = [
+      ":search_engines",
+      "//base",
+      "//chrome/browser/ui",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//content/test:test_support",
+      "//net:test_support",
       "//testing/gtest",
     ]
   }
+}
+
+source_set("platform_browser_tests") {
+  testonly = true
+
+  # prepopulated_engines_migration_browsertest.cc has file-scope statics of
+  # non-trivial-destructor types, which -Wexit-time-destructors rejects.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+  sources = [ "prepopulated_engines_migration_browsertest.cc" ]
+
+  deps = [
+    ":search_engines",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser/profiles:profile",
+    "//chrome/test:test_support",
+    "//components/prefs",
+    "//components/regional_capabilities",
+    "//components/search_engines",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
 }

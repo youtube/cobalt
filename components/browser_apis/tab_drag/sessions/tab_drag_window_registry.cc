@@ -31,4 +31,14 @@ TabDragWindowAdapter* TabDragWindowRegistry::Get(TabDragWindowId id) const {
   return nullptr;
 }
 
+TabDragWindowId TabDragWindowRegistry::FindWindowIdByNativeWindow(
+    gfx::NativeWindow native_window) const {
+  for (const auto& [id, adapter] : windows_) {
+    if (adapter->GetNativeWindow() == native_window) {
+      return id;
+    }
+  }
+  return TabDragWindowId();
+}
+
 }  // namespace tabs_api

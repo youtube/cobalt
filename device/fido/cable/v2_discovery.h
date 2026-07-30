@@ -23,7 +23,6 @@
 #include "device/fido/cable/v2_constants.h"
 #include "device/fido/fido_device_discovery.h"
 #include "device/fido/network_context_factory.h"
-#include "device/fido/public/cable_discovery_data.h"
 #include "device/fido/public/fido_constants.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
 

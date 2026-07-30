@@ -8,31 +8,24 @@
 
 #include "base/notreached.h"
 #include "chromeos/ash/components/telemetry_extension/routines/telemetry_diagnostic_routine_service_ash.h"
-#include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
 
 namespace chromeos {
 
 namespace {
 
-namespace crosapi = ::crosapi::mojom;
-
 class RemoteDiagnosticRoutineServiceStrategyAsh
     : public RemoteDiagnosticRoutineServiceStrategy {
  public:
-  RemoteDiagnosticRoutineServiceStrategyAsh()
-      : diagnostic_routines_service_(
-            ash::TelemetryDiagnosticsRoutineServiceAsh::Factory::Create()) {}
-
+  RemoteDiagnosticRoutineServiceStrategyAsh() = default;
   ~RemoteDiagnosticRoutineServiceStrategyAsh() override = default;
 
   // `RemoteDiagnosticRoutineServiceStrategy`:
-  crosapi::TelemetryDiagnosticRoutinesService& GetService() override {
-    return *diagnostic_routines_service_;
+  ash::TelemetryDiagnosticsRoutineServiceAsh& GetService() override {
+    return diagnostic_routines_service_;
   }
 
  private:
-  std::unique_ptr<crosapi::TelemetryDiagnosticRoutinesService>
-      diagnostic_routines_service_;
+  ash::TelemetryDiagnosticsRoutineServiceAsh diagnostic_routines_service_;
 };
 
 }  // namespace

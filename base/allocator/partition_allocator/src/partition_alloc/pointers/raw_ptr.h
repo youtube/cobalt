@@ -138,6 +138,19 @@ enum class RawPtrTraits : unsigned {
   // Don't use directly, use kUnprotectedInRelease instead.
   kNoOpImpl = (1 << 6),
 
+  // Marks the pointer as unprotected-in-release: it gets no protection in
+  // builds that ship to users (it resolves to RawPtrNoOpImpl), but it stays
+  // instrumented in builds that enable
+  // PA_BUILDFLAG(ENABLE_BRP_FOR_UNPROTECTED_IN_RELEASE_RAW_PTR) (debug/dcheck
+  // and BRP-ASan) so that dangling-pointer detection still covers it.
+  //
+  // Unlike kNoOpImpl, this trait is preserved on the type even when the pointer
+  // is instrumented, so the instrumentation (e.g. BRP-ASan) can tell that the
+  // field is *not* protected in a release build and report accordingly.
+  //
+  // Don't use directly, use kUnprotectedInRelease instead.
+  kIsUnprotectedInRelease = (1 << 7),
+
   // *** ForTest traits below ***
 
   // Adds accounting, on top of the NoOp implementation, for test purposes.
@@ -154,8 +167,8 @@ enum class RawPtrTraits : unsigned {
   kDummyForTest = (1 << 11),
 
   kAllMask = kMayDangle | kDisableHooks | kAllowPtrArithmetic |
-             kAllowUninitialized | kNoOpImpl | kUseCountingImplForTest |
-             kDummyForTest,
+             kAllowUninitialized | kNoOpImpl | kIsUnprotectedInRelease |
+             kUseCountingImplForTest | kDummyForTest,
 };
 // Template specialization to use |PA_DEFINE_OPERATORS_FOR_FLAGS| without
 // |kMaxValue| declaration.
@@ -261,7 +274,10 @@ template <RawPtrTraits Traits>
 using UnderlyingImplForTraits = internal::RawPtrHookableImpl<
     /*EnableHooks=*/!partition_alloc::internal::ContainsFlags(
         Traits,
-        RawPtrTraits::kDisableHooks)>;
+        RawPtrTraits::kDisableHooks),
+    /*IsUnprotectedInRelease=*/partition_alloc::internal::ContainsFlags(
+        Traits,
+        RawPtrTraits::kIsUnprotectedInRelease)>;
 
 #else
 template <RawPtrTraits Traits>
@@ -281,6 +297,16 @@ constexpr bool IsPtrArithmeticAllowed([[maybe_unused]] RawPtrTraits Traits) {
 // raw_ptr as a thin wrapper, that directs calls to ImplForTraits. ImplForTraits
 // may be different from UnderlyingImplForTraits, because it may select a
 // test impl instead.
+// A pointer marked kIsUnprotectedInRelease falls back to RawPtrNoOpImpl unless
+// this build opted into instrumenting such pointers. This mirrors what release
+// builds ship, while leaving the pointer instrumented (and the trait visible to
+// the instrumentation) in debug/dcheck and BRP-ASan builds.
+constexpr bool UnprotectedInReleaseResolvesToNoOp(RawPtrTraits Traits) {
+  return partition_alloc::internal::ContainsFlags(
+             Traits, RawPtrTraits::kIsUnprotectedInRelease) &&
+         !PA_BUILDFLAG(ENABLE_BRP_FOR_UNPROTECTED_IN_RELEASE_RAW_PTR);
+}
+
 template <RawPtrTraits Traits>
 using ImplForTraits = std::conditional_t<
     partition_alloc::internal::ContainsFlags(
@@ -288,7 +314,8 @@ using ImplForTraits = std::conditional_t<
         RawPtrTraits::kUseCountingImplForTest),
     test::RawPtrCountingImplForTest,
     std::conditional_t<partition_alloc::internal::
-                           ContainsFlags(Traits, RawPtrTraits::kNoOpImpl),
+                               ContainsFlags(Traits, RawPtrTraits::kNoOpImpl) ||
+                           UnprotectedInReleaseResolvesToNoOp(Traits),
                        internal::RawPtrNoOpImpl,
                        UnderlyingImplForTraits<Traits>>>;
 
@@ -1202,14 +1229,16 @@ constexpr inline auto SetExperimental = base::RawPtrTraits::kMayDangle;
 // DanglingUntriaged where necessary.
 constexpr inline auto CtnExperimental = base::RawPtrTraits::kMayDangle;
 
-// Marks the pointer as unprotected-in-release. Behavior depends on the
-// ENABLE_BRP_FOR_UNPROTECTED_IN_RELEASE_RAW_PTR build flag.
+// Marks the pointer as unprotected-in-release. The trait is always present on
+// the type; how it resolves depends on the
+// ENABLE_BRP_FOR_UNPROTECTED_IN_RELEASE_RAW_PTR build flag (see
+// `raw_ptr_traits::ImplForTraits`):
+//   - flag off (release): resolves to RawPtrNoOpImpl, i.e. no protection.
+//   - flag on (debug/dcheck and BRP-ASan): stays instrumented so dangling
+//     pointer detection still covers it, while the instrumentation can tell
+//     that the field is unprotected in a release build.
 constexpr inline auto kUnprotectedInRelease =
-#if PA_BUILDFLAG(ENABLE_BRP_FOR_UNPROTECTED_IN_RELEASE_RAW_PTR)
-    base::RawPtrTraits::kEmpty;
-#else
-    base::RawPtrTraits::kNoOpImpl;
-#endif
+    base::RawPtrTraits::kIsUnprotectedInRelease;
 
 // Public verson used in callbacks arguments when it is known that they might
 // receive dangling pointers. In any other cases, please

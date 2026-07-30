@@ -23,6 +23,8 @@
 #include "components/accessibility_annotator/core/annotation_reducer/memory_data_type.h"
 #include "components/accessibility_annotator/core/annotation_reducer/personal_context_resolver.h"
 #include "components/accessibility_annotator/core/annotation_reducer/query_classifier.h"
+#include "components/personal_context/core/personal_context_debug_features.h"
+#include "net/base/network_change_notifier.h"
 
 namespace accessibility_annotator {
 
@@ -118,7 +120,6 @@ MemorySearchStatus MapContextMemoryError(
     case personal_context::ContextMemoryError::ExecutionError::
         kNonRetryableError:
     case personal_context::ContextMemoryError::ExecutionError::kCancelled:
-      return MemorySearchStatus::kDataFetchFailure;
     case personal_context::ContextMemoryError::ExecutionError::
         kResponseParseError:
     case personal_context::ContextMemoryError::ExecutionError::kInvalidRequest:
@@ -126,6 +127,26 @@ MemorySearchStatus MapContextMemoryError(
     case personal_context::ContextMemoryError::ExecutionError::kUnknown:
       return MemorySearchStatus::kInternalFailure;
   }
+}
+
+// For debugging purposes only. Runs a debug query that directly retrieves
+// local suggestions via `data_provider`, bypassing query classification and
+// remote resolution.
+void QueryPersonalContextDebug(
+    MemoryDataProvider* data_provider,
+    base::RepeatingCallback<void(MemorySearchResults)> update_callback) {
+  data_provider->RetrieveAll(
+      {static_cast<MemoryDataType>(
+          personal_context::features::debug::kMockPersonalContextResultTypeParam
+              .Get())},
+      base::BindOnce(
+          [](base::RepeatingCallback<void(MemorySearchResults)> update_cb,
+             std::vector<MemorySearchResult> results) {
+            DeduplicateResults(results);
+            update_cb.Run(MemorySearchResults(
+                MemorySearchStatus::kFinalResponseSuccess, std::move(results)));
+          },
+          std::move(update_callback)));
 }
 
 }  // namespace
@@ -154,10 +175,22 @@ void AtMemoryQueryService::Query(
   weak_ptr_factory_.InvalidateWeakPtrs();
   personal_context_weak_ptr_factory_.InvalidateWeakPtrs();
 
+  if (net::NetworkChangeNotifier::IsOffline()) {
+    update_callback.Run(
+        MemorySearchResults(MemorySearchStatus::kNoConnectionFailure));
+    return;
+  }
+
   // We can't query if we don't have any data providers configured.
   if (!data_provider_) {
     update_callback.Run(
         MemorySearchResults(MemorySearchStatus::kInternalFailure));
+    return;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          personal_context::features::debug::kMockPersonalContextResult)) {
+    QueryPersonalContextDebug(data_provider_.get(), std::move(update_callback));
     return;
   }
 

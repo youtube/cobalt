@@ -697,3 +697,163 @@ generate_expired_histograms_array("expired_histograms_array") {
   major_branch_date_filepath = "//chrome/MAJOR_BRANCH_DATE"
   milestone_filepath = "//chrome/VERSION"
 }
+
+# Tests included in both browser_tests and android_browsertests.
+source_set("platform_browser_tests") {
+  testonly = true
+
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+  sources = [
+    "cloned_install_client_id_reset_browsertest.cc",
+    "metrics_log_browsertest.cc",
+    "sampled_out_client_id_saved_browsertest.cc",
+    "server_urls_browsertest.cc",
+    "startup_metrics_browsertest.cc",
+    "tab_stats/tab_stats_tracker_browsertest.cc",
+    "variations/field_trials_provider_browsertest.cc",
+    "variations/layer_constrained_study_randomization_browsertest.cc",
+    "variations/variations_http_headers_browsertest.cc",
+  ]
+
+  deps = [
+    ":metrics",
+    ":test_support",
+    "//base",
+    "//chrome/browser:chrome_browser_main",
+    "//chrome/test:test_support",
+    "//content/test:test_support",
+    "//media:test_support",
+    "//testing/gtest",
+  ]
+
+  if (is_android) {
+    deps += [
+      "//chrome/browser/optimization_guide",
+      "//chrome/browser/ui/android/tab_model:test_support",
+    ]
+  }
+
+  if (is_chromeos) {
+    sources += [ "cros_pre_choice_metrics_manager_browsertest.cc" ]
+  }
+}
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [
+      "dwa_browsertest.cc",
+      "metrics_reporting_state_browsertest.cc",
+      "metrics_service_browsertest.cc",
+      "metrics_service_user_demographics_browsertest.cc",
+      "process_memory_metrics_emitter_browsertest.cc",
+      "puma_browsertest.cc",
+      "structured_metrics_service_browsertest.cc",
+      "ukm_background_recorder_browsertest.cc",
+      "ukm_browsertest.cc",
+      "usage_scenario/tab_usage_scenario_tracker_browsertest.cc",
+      "variations/field_trials_on_off_browsertest.cc",
+      "variations/force_field_trials_browsertest.cc",
+      "variations/variations_safe_mode_browsertest.cc",
+      "variations/variations_safe_mode_end_to_end_browsertest.cc",
+    ]
+
+    deps = [
+      ":metrics",
+      ":test_support",
+      "//base",
+      "//chrome/browser:chrome_browser_main",
+      "//chrome/browser/metrics/structured:test_support",
+      "//chrome/browser/sync",
+      "//chrome/browser/sync/test/integration:sync_integration_test_support",
+      "//chrome/browser/unified_consent",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//components/metrics/demographics",
+      "//components/metrics/demographics:test_support",
+      "//components/metrics/private_metrics",
+      "//components/metrics/private_metrics:dwa_recorder",
+      "//components/metrics/private_metrics:private_metrics_features",
+      "//components/metrics/structured",
+      "//content/test:browsertest_support",
+      "//content/test:test_support",
+      "//testing/gtest",
+      "//third_party/federated_compute:confidential_compute",
+      "//third_party/federated_compute:confidential_compute_crypto_test_util",
+    ]
+
+    if (is_chromeos) {
+      sources += [
+        "chromeos_family_link_user_metrics_provider_browsertest.cc",
+        "chromeos_metrics_provider_browsertest.cc",
+        "class_management_enabled_metrics_provider_browsertest.cc",
+        "family_user_metrics_provider_browsertest.cc",
+        "k12_age_classification_metrics_provider_browsertest.cc",
+        "majority_age_user_metrics_provider_browsertest.cc",
+        "per_user_state_manager_chromeos_browsertest.cc",
+        "usertype_by_devicetype_metrics_provider_browsertest.cc",
+      ]
+      deps += [
+        "//chrome/browser:browser_process_platform_part",
+        "//chrome/browser/ash/app_mode:test_support",
+        "//chrome/browser/ash/app_mode/test:test_support",
+        "//chrome/browser/ash/app_mode/web_app",
+        "//chrome/browser/ash/login:test_support",
+        "//chrome/browser/ash/login/demo_mode:test_support",
+        "//chrome/browser/ash/ownership",
+        "//chrome/browser/ash/policy/core:test_support",
+        "//chrome/browser/ash/policy/test_support",
+        "//chromeos/ash/components/policy/device_policy:test_support",
+      ]
+    }
+
+    if (is_win) {
+      deps += [ "//sandbox/win:common" ]
+    }
+  }
+}
+
+if (is_android) {
+  source_set("android_browsertests") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [
+      "android/background_upload_task_browsertest.cc",
+      "dwa_browsertest.cc",
+      "metrics_service_user_demographics_browsertest.cc",
+      "puma_browsertest.cc",
+      "ukm_browsertest.cc",
+    ]
+
+    deps = [
+      ":metrics",
+      ":test_support",
+      "//base",
+      "//chrome/browser/android",
+      "//chrome/browser/sync",
+      "//chrome/browser/sync/test/integration:sync_integration_test_support",
+      "//chrome/browser/ui/android/tab_model:test_support",
+      "//chrome/browser/unified_consent",
+      "//chrome/test:test_support",
+      "//components/background_task_scheduler:factory",
+      "//components/metrics/demographics",
+      "//components/metrics/demographics:test_support",
+      "//components/metrics/private_metrics",
+      "//components/metrics/private_metrics:dwa_recorder",
+      "//components/metrics/private_metrics:private_metrics_features",
+      "//components/metrics/structured",
+      "//components/ukm:ukm_test_helper",
+      "//components/webui/chrome_urls",
+      "//content/test:test_support",
+      "//testing/gtest",
+      "//third_party/federated_compute:confidential_compute",
+      "//third_party/federated_compute:confidential_compute_crypto_test_util",
+    ]
+  }
+}

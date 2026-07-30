@@ -6,10 +6,10 @@ import("//build/config/android/rules.gni")
 
 android_resources("java_resources") {
   sources = [
-    "res/drawable-hdpi/infobar_blocked_popups.png",
-    "res/drawable-mdpi/infobar_blocked_popups.png",
-    "res/drawable-xhdpi/infobar_blocked_popups.png",
-    "res/drawable-xxhdpi/infobar_blocked_popups.png",
-    "res/drawable-xxxhdpi/infobar_blocked_popups.png",
+    "res/drawable-hdpi/message_blocked_popups.png",
+    "res/drawable-mdpi/message_blocked_popups.png",
+    "res/drawable-xhdpi/message_blocked_popups.png",
+    "res/drawable-xxhdpi/message_blocked_popups.png",
+    "res/drawable-xxxhdpi/message_blocked_popups.png",
   ]
 }

@@ -5,8 +5,9 @@
 // Unit tests for the TTS platform implementation in Chrome OS.
 
 #include "chrome/browser/speech/tts_chromeos.h"
+
+#include "ash/constants/ash_extension_constants.h"
 #include "base/values.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "content/public/browser/tts_controller.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

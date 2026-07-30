@@ -239,10 +239,12 @@ FrameTreeData* AdsPageLoadMetricsObserver::FrameInstance::Get() {
 }
 
 FrameTreeData* AdsPageLoadMetricsObserver::FrameInstance::GetOwnedFrame() {
-  if (owned_frame_data_) {
-    return owned_frame_data_.get();
-  }
-  return nullptr;
+  return owned_frame_data_.get();
+}
+
+const FrameTreeData* AdsPageLoadMetricsObserver::FrameInstance::GetOwnedFrame()
+    const {
+  return owned_frame_data_.get();
 }
 
 AdsPageLoadMetricsObserver::HeavyAdThresholdNoiseProvider::
@@ -806,6 +808,34 @@ int64_t AdsPageLoadMetricsObserver::GetTotalAdNetworkBytes() const {
                                      .ad_network_bytes()
                                      .InBytes()
                                : 0;
+}
+
+base::flat_map<base::UnguessableToken,
+               AdsPageLoadMetricsObserver::AdFrameLiveStats>
+AdsPageLoadMetricsObserver::GetAdFrameLiveStats() const {
+  base::flat_map<base::UnguessableToken, AdFrameLiveStats> stats;
+  for (const auto& [id, frame_instance] : ad_frames_data_) {
+    // Only collect stats for owned frames (i.e. root ad frames).
+    // Subframes of the root ad frame are rolled up into the owned frame's
+    // totals.
+    const FrameTreeData* frame_data = frame_instance.GetOwnedFrame();
+    if (frame_data && !frame_data->devtools_frame_token().is_empty()) {
+      AdFrameLiveStats ad_frame_data;
+      base::UnguessableToken frame_id = frame_data->devtools_frame_token();
+      ad_frame_data.initial_origin = frame_data->initial_origin();
+      ad_frame_data.network_bytes =
+          frame_data->resource_data().network_bytes().InBytes();
+      ad_frame_data.cpu_time = frame_data->GetTotalCpuUsage();
+
+      auto result =
+          stats.emplace(std::move(frame_id), std::move(ad_frame_data));
+
+      // Each FrameTreeData corresponds to a unique root ad frame, so its
+      // devtools frame token should also be unique among the owned frames.
+      DCHECK(result.second);
+    }
+  }
+  return stats;
 }
 
 void AdsPageLoadMetricsObserver::OnSubresourceFilterGoingAway() {

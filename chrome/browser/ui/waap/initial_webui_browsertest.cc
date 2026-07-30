@@ -160,8 +160,7 @@ class InitialWebUIBrowserTestBase : public InProcessBrowserTest {
         {features::kWebUIReloadButton, {}},
         {features::kInitialWebUIMetrics, {}},
         {features::kSkipIPCChannelPausingForNonGuests, {}},
-        {features::kWebUIInProcessResourceLoadingV2, {}},
-        {features::kInitialWebUISyncNavStartToCommit, {}}};
+        {features::kWebUIInProcessResourceLoadingV2, {}}};
 
     std::vector<base::test::FeatureRefAndParams> features;
     features.reserve(base_features.size() + additional_features.size());
@@ -374,8 +373,7 @@ class InitialWebUINavigationTimelineBrowserTest : public InProcessBrowserTest {
         {features::kWebUIReloadButton, {{"prewarm_webui", "false"}}},
         {features::kInitialWebUIMetrics, {}},
         {features::kSkipIPCChannelPausingForNonGuests, {}},
-        {features::kWebUIInProcessResourceLoadingV2, {}},
-        {features::kInitialWebUISyncNavStartToCommit, {}}};
+        {features::kWebUIInProcessResourceLoadingV2, {}}};
     scoped_feature_list_.InitWithFeaturesAndParameters(
         features, {features::kSpareRendererForSitePerProcess});
   }
@@ -479,8 +477,7 @@ class PrewarmedWebUINavigationTimelineBrowserTest
         {features::kWebUIReloadButton, {{"prewarm_webui", "true"}}},
         {features::kInitialWebUIMetrics, {}},
         {features::kSkipIPCChannelPausingForNonGuests, {}},
-        {features::kWebUIInProcessResourceLoadingV2, {}},
-        {features::kInitialWebUISyncNavStartToCommit, {}}};
+        {features::kWebUIInProcessResourceLoadingV2, {}}};
     scoped_feature_list_.InitWithFeaturesAndParameters(
         features, {features::kSpareRendererForSitePerProcess});
   }

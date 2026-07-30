@@ -258,9 +258,7 @@ void AwFeatureListCreator::SetUpFieldTrials() {
     // Use the cached flag to gate the nonembedded low entropy source logic.
     // This is required because entropy provider selection happens before
     // the variations framework is fully initialized.
-    if (CachedFlags::IsEnabled(
-            features::kWebViewUseNonembeddedLowEntropySource) &&
-        seed_proto->has_low_entropy_source()) {
+    if (seed_proto->has_low_entropy_source()) {
       nonembedded_low_entropy_source = seed_proto->low_entropy_source();
     }
   }

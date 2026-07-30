@@ -54,6 +54,27 @@ suite('CategorySettingExceptions', function() {
     });
   });
 
+  test('allow site list is hidden for INLINE_CUE_MENU', function() {
+    testElement.category = ContentSettingsTypes.INLINE_CUE_MENU;
+
+    // Flush to be sure that the container is updated.
+    flush();
+
+    // Make sure that the Allow and Session Only site lists are hidden.
+    const siteListElements = testElement.querySelectorAll('site-list');
+    siteListElements.forEach(element => {
+      if (element.categorySubtype === ContentSetting.BLOCK) {
+        assertFalse(
+            element.hidden,
+            `site-list for ${element.categorySubtype} should not be hidden`);
+      } else {
+        assertTrue(
+            element.hidden,
+            `site-list for ${element.categorySubtype} should be hidden`);
+      }
+    });
+  });
+
   test(
       'all lists are read-only if the default policy is set by policy',
       async function() {

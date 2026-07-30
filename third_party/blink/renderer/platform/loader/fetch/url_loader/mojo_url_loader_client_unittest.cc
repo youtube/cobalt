@@ -203,7 +203,7 @@ class WebMojoURLLoaderClientTest : public ::testing::Test,
         /*evict_from_bfcache_callback=*/
         base::OnceCallback<void(mojom::blink::RendererEvictionReason)>(),
         /*did_buffer_load_while_in_bfcache_callback=*/
-        base::RepeatingCallback<void(size_t)>());
+        base::RepeatingCallback<void(size_t)>(), request->keepalive);
     context_ = resource_request_sender_->context();
     context_->url_laoder_client = client_.get();
     url_loader_ = ThrottlingURLLoader::CreateLoaderAndStart(

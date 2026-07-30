@@ -53,6 +53,10 @@ HeapVector<Member<SVGPathSegment>> BuildPathSegmentsFromByteStream(
     const SVGPathByteStream&,
     bool normalize);
 
+// sequence<SVGPathSegment> -> SVGPathByteStream, for setPathData().
+SVGPathByteStream BuildByteStreamFromSegments(
+    const HeapVector<Member<SVGPathSegment>>&);
+
 }  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_PATH_UTILITIES_H_

@@ -19,7 +19,7 @@ class CORE_EXPORT BackForwardCacheRestoration : public PerformanceEntry {
                               DOMHighResTimeStamp pageshow_event_start,
                               DOMHighResTimeStamp pageshow_event_end,
                               DOMWindow* source,
-                              uint32_t navigation_id);
+                              uint64_t navigation_id);
   ~BackForwardCacheRestoration() override;
   const AtomicString& entryType() const override;
   PerformanceEntryType EntryTypeEnum() const override;

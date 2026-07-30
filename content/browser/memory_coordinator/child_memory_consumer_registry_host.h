@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ref.h"
@@ -65,9 +66,9 @@ class CONTENT_EXPORT ChildMemoryConsumerRegistryHost
   // mojom::ChildMemoryConsumerRegistryHost:
   void BindCoordinator(mojo::PendingRemote<mojom::ChildMemoryCoordinator>
                            coordinator_remote) override;
-  void Register(uint32_t consumer_id,
-                const std::string& consumer_name,
-                std::optional<base::MemoryConsumerTraits> traits) override;
+
+  void Register(
+      std::vector<mojom::MemoryConsumerRegistrationPtr> registrations) override;
   void Unregister(uint32_t consumer_id) override;
 
   // MemoryConsumerGroupHost:
@@ -85,6 +86,13 @@ class CONTENT_EXPORT ChildMemoryConsumerRegistryHost
 
  private:
   class RenderProcessExitedObserver;
+
+  // Validates and registers a single consumer. Returns false (after reporting a
+  // bad message) if the registration is invalid; callers should stop processing
+  // the current message in that case.
+  bool RegisterImpl(uint32_t consumer_id,
+                    const std::string& consumer_name,
+                    std::optional<base::MemoryConsumerTraits> traits);
 
   void RunDisconnectHandler();
 

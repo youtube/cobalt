@@ -12,7 +12,7 @@ import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
 import { microtasksFinished } from 'chrome://webui-test/test_util.js';
 
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
-import { createContextualTasksAppElement, fixtureUrl } from './contextual_tasks_test_utils.js';
+import {assertStyle, createContextualTasksAppElement, fixtureUrl} from './contextual_tasks_test_utils.js';
 
 // <if expr="not is_android or enable_webui_contextual_tasks_composebox">
 import { isVisible } from 'chrome://webui-test/test_util.js';
@@ -1174,16 +1174,16 @@ suite('ContextualTasksAppTest', function() {
     assertTrue(wrapper.hasAttribute('hidden'));
   });
 
-  test('composebox header wrapper hidden when isZeroState is undefined', async () => {
+  test('composebox header wrapper hidden when isZeroState is false', async () => {
     const {appElement} =
         await createContextualTasksAppElement(/*url=*/ fixtureUrl);
 
-    appElement.setIsZeroStateForTesting(undefined);
+    appElement.setIsZeroStateForTesting(false);
     await microtasksFinished();
     await appElement.updateComplete;
 
     const wrapper = appElement.shadowRoot.querySelector('#composeboxHeaderWrapper')!;
-    assertTrue(wrapper.hasAttribute('hidden'));
+    assertStyle(wrapper, 'display', 'none');
   });
 
   test('composebox header wrapper hidden when isInputHidden is true', async () => {
@@ -1224,4 +1224,89 @@ suite('ContextualTasksAppTest', function() {
             new CustomEvent('newwindow', {cancelable: true}));
         assertFalse(newWindowIntercepted);
       });
+
+  test('side panel zero state plays animations immediately', async () => {
+    loadTimeData.overrideValues({isZeroState: true});
+    const {appElement} = await createContextualTasksAppElement(
+        /*url=*/ fixtureUrl,
+        (testProxy) => {
+          testProxy.handler.isShownInTab = () =>
+              Promise.resolve({isInTab: false});
+          testProxy.handler.setIsZeroState(true);
+        },
+        /*waitForInitialLoadStart=*/ false);
+
+    await appElement.updateComplete;
+    await microtasksFinished();
+
+    assertTrue(appElement.classList.contains('play-zero-state'));
+    assertTrue(appElement.$.composebox.classList.contains('play-zero-state'));
+  });
+
+  test(
+      'side panel zero state is visible before DOM content loads', async () => {
+        const {appElement, proxy} = await createContextualTasksAppElement(
+            /*url=*/ fixtureUrl,
+            (testProxy) => {
+              testProxy.handler.isShownInTab = () =>
+                  Promise.resolve({isInTab: false});
+            },
+            /*waitForInitialLoadStart=*/ false);
+
+        proxy.callbackRouterRemote.onZeroStateChange(true);
+        await proxy.callbackRouterRemote.$.flushForTesting();
+        await appElement.updateComplete;
+        await microtasksFinished();
+
+        assertFalse(appElement.$.composebox.hidden);
+
+        const wrapper =
+            appElement.shadowRoot.querySelector('#composeboxHeaderWrapper')!;
+        assertFalse(wrapper.hasAttribute('hidden'));
+      });
+
+  test('side panel navigation to zero state plays animations', async () => {
+    const {appElement, proxy} = await createContextualTasksAppElement(
+        /*url=*/ fixtureUrl, (testProxy) => {
+          testProxy.handler.isShownInTab = () =>
+              Promise.resolve({isInTab: false});
+          testProxy.handler.isZeroState = () =>
+              Promise.resolve({isZeroState: false});
+          testProxy.handler.isAiPage = () => Promise.resolve({isAiPage: true});
+        });
+
+    await appElement.updateComplete;
+    await microtasksFinished();
+
+    assertFalse(appElement.classList.contains('play-zero-state'));
+    assertFalse(appElement.$.composebox.classList.contains('play-zero-state'));
+
+    const url = 'chrome://contextual-tasks/zero-state';
+    proxy.handler.isZeroState = (testUrl) => {
+      return Promise.resolve({isZeroState: testUrl === url});
+    };
+    proxy.handler.isAiPage = (testUrl) => {
+      return Promise.resolve({isAiPage: testUrl === url});
+    };
+
+    const {promise, resolve} = Promise.withResolvers<void>();
+    appElement.setOnLoadStartFinishedCallbackForTesting(resolve);
+
+    const threadFrame = appElement.$.threadFrame;
+
+    const loadStartEvent = new Event('loadstart');
+    Object.assign(loadStartEvent, {isTopLevel: true, url: url});
+    threadFrame.dispatchEvent(loadStartEvent);
+
+    const loadCommitEvent = new Event('loadcommit');
+    Object.assign(loadCommitEvent, {isTopLevel: true, url: url});
+    threadFrame.dispatchEvent(loadCommitEvent);
+
+    await promise;
+    await appElement.updateComplete;
+    await microtasksFinished();
+
+    assertTrue(appElement.classList.contains('play-zero-state'));
+    assertTrue(appElement.$.composebox.classList.contains('play-zero-state'));
+  });
 });

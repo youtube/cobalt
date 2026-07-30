@@ -13,9 +13,6 @@
 #import "build/branding_buildflags.h"
 #import "components/metrics/client_info.h"
 #import "components/metrics/dwa/dwa_recorder.h"
-#import "components/metrics/metrics_pref_names.h"
-#import "components/metrics/metrics_reporting_choice_service.h"
-#import "components/metrics/metrics_reporting_level.h"
 #import "components/metrics/metrics_service.h"
 #import "components/metrics/metrics_state_manager.h"
 #import "components/metrics/metrics_switches.h"
@@ -24,11 +21,13 @@
 #import "components/metrics/unsent_log_store.h"
 #import "components/prefs/testing_pref_service.h"
 #import "components/regional_capabilities/regional_capabilities_switches.h"
+#import "components/sync/test/test_sync_service.h"
 #import "components/ukm/ukm_service.h"
 #import "components/variations/synthetic_trial_registry.h"
-#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_manager_ios.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/platform_test.h"
@@ -41,7 +40,10 @@ class IOSChromeMetricsServiceClientTest : public PlatformTest {
  public:
   IOSChromeMetricsServiceClientTest()
       : enabled_state_provider_(/*consent=*/false, /*enabled=*/false) {
-    profile_manager_.AddProfileWithBuilder(TestProfileIOS::Builder());
+    TestProfileIOS::Builder builder;
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
+    profile_manager_.AddProfileWithBuilder(std::move(builder));
   }
 
   IOSChromeMetricsServiceClientTest(const IOSChromeMetricsServiceClientTest&) =
@@ -51,18 +53,12 @@ class IOSChromeMetricsServiceClientTest : public PlatformTest {
 
   void SetUp() override {
     PlatformTest::SetUp();
-    metrics::MetricsReportingChoiceService::ClearCachedFeatureStateForTesting();
     metrics::MetricsService::RegisterPrefs(prefs_.registry());
     metrics_state_manager_ = metrics::MetricsStateManager::Create(
         &prefs_, &enabled_state_provider_, std::wstring(), base::FilePath());
     metrics_state_manager_->InstantiateFieldTrialList();
     synthetic_trial_registry_ =
         std::make_unique<variations::SyntheticTrialRegistry>();
-  }
-
-  void TearDown() override {
-    metrics::MetricsReportingChoiceService::ClearCachedFeatureStateForTesting();
-    PlatformTest::TearDown();
   }
 
  protected:
@@ -236,52 +232,4 @@ TEST_F(IOSChromeMetricsServiceClientTest, GetUploadSigningKey_CanSignLogs) {
   // The signing operation itself never fails, even if there is no key
   // available: empty keys are padded out with 0 bytes.
   EXPECT_FALSE(signature.empty());
-}
-
-TEST_F(IOSChromeMetricsServiceClientTest,
-       UkmAndDwaAllowed_IsAdvancedReportingEnabled) {
-  PrefService* local_state = GetApplicationContext()->GetLocalState();
-
-  // Set up MetricsReportingChoiceService to be active.
-  local_state->SetBoolean(
-      metrics::prefs::kMetricsConsentRestructureFeatureState, true);
-  local_state->SetBoolean(metrics::prefs::kMetricsReportingMigrationDone, true);
-  metrics::MetricsReportingChoiceService::ClearCachedFeatureStateForTesting();
-
-  std::unique_ptr<IOSChromeMetricsServiceClient> chrome_metrics_service_client =
-      IOSChromeMetricsServiceClient::Create(metrics_state_manager_.get(),
-                                            synthetic_trial_registry_.get());
-
-  // Case 1: Level is kNone. UKM/DWA should be disallowed.
-  local_state->SetInteger(
-      metrics::prefs::kMetricsReportingLevel,
-      static_cast<int>(metrics::MetricsReportingLevel::kNone));
-  EXPECT_FALSE(chrome_metrics_service_client->IsUkmAllowedForAllProfiles());
-  EXPECT_FALSE(chrome_metrics_service_client->IsDwaAllowedForAllProfiles());
-
-  // Case 2: Level is kBasic. UKM/DWA should be disallowed (only kAdvanced
-  // allowed).
-  local_state->SetInteger(
-      metrics::prefs::kMetricsReportingLevel,
-      static_cast<int>(metrics::MetricsReportingLevel::kBasic));
-  EXPECT_FALSE(chrome_metrics_service_client->IsUkmAllowedForAllProfiles());
-  EXPECT_FALSE(chrome_metrics_service_client->IsDwaAllowedForAllProfiles());
-
-  // Case 3: Level is kAdvanced. UKM/DWA should be allowed.
-  local_state->SetInteger(
-      metrics::prefs::kMetricsReportingLevel,
-      static_cast<int>(metrics::MetricsReportingLevel::kAdvanced));
-  EXPECT_TRUE(chrome_metrics_service_client->IsUkmAllowedForAllProfiles());
-  EXPECT_TRUE(chrome_metrics_service_client->IsDwaAllowedForAllProfiles());
-
-  // Case 4: MetricsReportingChoiceService is NOT active (migration not done).
-  // It should fall back to legacy behavior (UkmConsentStateObserver).
-  local_state->SetBoolean(metrics::prefs::kMetricsReportingMigrationDone,
-                          false);
-
-  // In this test environment,
-  // UkmConsentStateObserver::IsUkmAllowedForAllProfiles() will return false by
-  // default because no profiles are set up with sync consent.
-  EXPECT_FALSE(chrome_metrics_service_client->IsUkmAllowedForAllProfiles());
-  EXPECT_FALSE(chrome_metrics_service_client->IsDwaAllowedForAllProfiles());
 }

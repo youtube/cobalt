@@ -67,6 +67,8 @@ class ChromeIOSTranslateClient
                        translate::TranslateErrors error_type,
                        bool triggered_from_menu) override;
   bool IsTranslatableURL(const GURL& url) override;
+  void CheckIfPdfIsTranslatable(
+      base::OnceCallback<void(bool)> callback) override;
 
  private:
   friend class web::WebStateUserData<ChromeIOSTranslateClient>;

@@ -59,6 +59,8 @@ import java.util.List;
 /** Toolbar for the Hub. May contain a single or multiple rows, of which this view is the parent. */
 @NullMarked
 public class HubToolbarView extends LinearLayout {
+    private final HubColorMixerRegistrationHelper mColorMixerHelper =
+            new HubColorMixerRegistrationHelper();
     private TabLayout mPaneSwitcher;
     private LinearLayout mMenuButtonContainer;
     private ImageButton mMenuButton;
@@ -107,6 +109,9 @@ public class HubToolbarView extends LinearLayout {
         mSearchBoxTextView = findViewById(R.id.search_box_text);
         mSearchLoupeView = findViewById(R.id.search_loupe);
         mHairline = findViewById(R.id.toolbar_bottom_hairline);
+
+        registerColorBlends();
+        registerSearchBoxColorBlends();
     }
 
     void setMenuButtonVisible(boolean visible) {
@@ -275,21 +280,20 @@ public class HubToolbarView extends LinearLayout {
     }
 
     void setColorMixer(HubColorMixer mixer) {
-        registerColorBlends(mixer);
-        registerSearchBoxColorBlends(mixer);
+        mColorMixerHelper.setColorMixer(mixer);
     }
 
-    private void registerColorBlends(HubColorMixer mixer) {
+    private void registerColorBlends() {
         Context context = getContext();
         boolean isGtsUpdateEnabled = HubUtils.isGtsUpdateEnabled();
 
-        mixer.registerBlend(
+        mColorMixerHelper.registerBlend(
                 new SingleHubViewColorBlend(
                         PANE_COLOR_BLEND_ANIMATION_DURATION_MS,
                         colorScheme -> getBackgroundColor(context, colorScheme),
                         this::setBackgroundColor));
 
-        mixer.registerBlend(
+        mColorMixerHelper.registerBlend(
                 new SingleHubViewColorBlend(
                         PANE_COLOR_BLEND_ANIMATION_DURATION_MS,
                         colorScheme -> {
@@ -302,7 +306,7 @@ public class HubToolbarView extends LinearLayout {
                         },
                         mPaneSwitcher::setSelectedTabIndicatorColor));
 
-        mixer.registerBlend(
+        mColorMixerHelper.registerBlend(
                 new SingleHubViewColorBlend(
                         PANE_COLOR_BLEND_ANIMATION_DURATION_MS,
                         colorScheme -> HubColors.getHairlineColor(context, colorScheme),
@@ -335,9 +339,9 @@ public class HubToolbarView extends LinearLayout {
                     animation.setInterpolator(Interpolators.LINEAR_INTERPOLATOR);
                     return animation;
                 };
-        mixer.registerBlend(multiColorBlend);
+        mColorMixerHelper.registerBlend(multiColorBlend);
 
-        mixer.registerBlend(
+        mColorMixerHelper.registerBlend(
                 new SingleHubViewColorBlend(
                         PANE_COLOR_BLEND_ANIMATION_DURATION_MS,
                         colorScheme -> HubColors.getIconColor(context, colorScheme),
@@ -349,14 +353,14 @@ public class HubToolbarView extends LinearLayout {
 
         // We don't want to pass a method reference. Lambdas will ensure we run the most recent
         // setter.
-        mixer.registerBlend(
+        mColorMixerHelper.registerBlend(
                 new SingleHubViewColorBlend(
                         PANE_COLOR_BLEND_ANIMATION_DURATION_MS,
                         colorScheme -> HubColors.getBackgroundColor(context, colorScheme),
                         color -> mToolbarOverviewColorSetter.onResult(color)));
 
         if (isGtsUpdateEnabled) {
-            mixer.registerBlend(
+            mColorMixerHelper.registerBlend(
                     new SingleHubViewColorBlend(
                             PANE_COLOR_BLEND_ANIMATION_DURATION_MS,
                             colorScheme ->
@@ -367,7 +371,7 @@ public class HubToolbarView extends LinearLayout {
                                 mPaneSwitcherCard.getBackground().setColorFilter(filter);
                             }));
 
-            mixer.registerBlend(
+            mColorMixerHelper.registerBlend(
                     new SingleHubViewColorBlend(
                             PANE_COLOR_BLEND_ANIMATION_DURATION_MS,
                             colorScheme ->
@@ -375,7 +379,7 @@ public class HubToolbarView extends LinearLayout {
                                             context, colorScheme),
                             color -> updateTabItemBackgroundColor(context, color)));
 
-            mixer.registerBlend(
+            mColorMixerHelper.registerBlend(
                     new SingleHubViewColorBlend(
                             PANE_COLOR_BLEND_ANIMATION_DURATION_MS,
                             colorScheme ->
@@ -385,10 +389,10 @@ public class HubToolbarView extends LinearLayout {
         }
     }
 
-    private void registerSearchBoxColorBlends(HubColorMixer mixer) {
+    private void registerSearchBoxColorBlends() {
         Context context = getContext();
 
-        mixer.registerBlend(
+        mColorMixerHelper.registerBlend(
                 new SingleHubViewColorBlend(
                         PANE_COLOR_BLEND_ANIMATION_DURATION_MS,
                         colorScheme -> HubColors.getSearchBoxHintTextColor(context, colorScheme),
@@ -396,13 +400,13 @@ public class HubToolbarView extends LinearLayout {
 
         GradientDrawable backgroundDrawable =
                 (GradientDrawable) mSearchBoxLayout.getBackground().mutate();
-        mixer.registerBlend(
+        mColorMixerHelper.registerBlend(
                 new SingleHubViewColorBlend(
                         PANE_COLOR_BLEND_ANIMATION_DURATION_MS,
                         colorScheme -> HubColors.getSearchBoxBgColor(context, colorScheme),
                         backgroundDrawable::setColor));
 
-        mixer.registerBlend(
+        mColorMixerHelper.registerBlend(
                 new SingleHubViewColorBlend(
                         PANE_COLOR_BLEND_ANIMATION_DURATION_MS,
                         colorScheme -> HubColors.getIconColor(context, colorScheme),
@@ -640,5 +644,15 @@ public class HubToolbarView extends LinearLayout {
             NonNullObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
         mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
         HubColors.setXrSpaceModeObservableSupplier(xrSpaceModeObservableSupplier);
+    }
+
+    public void destroy() {
+        mHubSearchAnimatorHandler.forceFinishAnimation();
+        mColorMixerHelper.destroy();
+        mHandler.removeCallbacksAndMessages(null);
+        if (mOnTabSelectedListener != null) {
+            mPaneSwitcher.removeOnTabSelectedListener(mOnTabSelectedListener);
+            mOnTabSelectedListener = null;
+        }
     }
 }

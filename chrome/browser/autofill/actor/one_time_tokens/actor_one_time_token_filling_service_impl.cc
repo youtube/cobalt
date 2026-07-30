@@ -33,6 +33,9 @@
 #include "components/one_time_tokens/core/browser/one_time_token_service.h"
 #include "components/one_time_tokens/core/common/one_time_token_features.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/web_contents.h"
 
 namespace autofill {
 
@@ -78,6 +81,53 @@ ActorOneTimeTokenFillingServiceImpl::ActorOneTimeTokenFillingServiceImpl(
 
 ActorOneTimeTokenFillingServiceImpl::~ActorOneTimeTokenFillingServiceImpl() =
     default;
+
+void ActorOneTimeTokenFillingServiceImpl::OnPasswordFillingStarted(
+    tabs::TabHandle tab_handle,
+    const url::Origin& origin,
+    bool should_use_strong_matching,
+    base::span<const int> global_frame_ids) {
+  tabs::TabInterface* tab = tab_handle.Get();
+  if (!tab || !tab->GetContents()) {
+    return;
+  }
+  content::WebContents* contents = tab->GetContents();
+  content::FrameTreeNodeId sign_in_main_frame_id =
+      contents->GetPrimaryMainFrame()->GetFrameTreeNodeId();
+  std::vector<std::pair<content::FrameTreeNodeId, int>> initial_navigations =
+      base::ToVector(global_frame_ids, [](int frame_id) {
+        return std::pair(content::FrameTreeNodeId(frame_id), 0);
+      });
+  initial_navigations.emplace_back(sign_in_main_frame_id, 0);
+  active_login_context_ = {origin, should_use_strong_matching,
+                           base::flat_map<content::FrameTreeNodeId, int>(
+                               std::move(initial_navigations))};
+  Observe(contents);
+}
+
+void ActorOneTimeTokenFillingServiceImpl::DidFinishNavigation(
+    content::NavigationHandle* handle) {
+  if (!active_login_context_.has_value() || !handle->HasCommitted() ||
+      handle->IsSameDocument()) {
+    return;
+  }
+  content::FrameTreeNodeId navigating_id = handle->GetFrameTreeNodeId();
+  auto it = active_login_context_->navigations_per_frame.find(navigating_id);
+  if (it != active_login_context_->navigations_per_frame.end()) {
+    it->second++;
+  }
+}
+
+void ActorOneTimeTokenFillingServiceImpl::AbortLoginTracking() {
+  active_login_context_ = std::nullopt;
+  Observe(nullptr);
+}
+
+std::optional<ActorLoginContext>
+ActorOneTimeTokenFillingServiceImpl::ConsumeLoginContext() {
+  Observe(nullptr);
+  return std::exchange(active_login_context_, std::nullopt);
+}
 
 void ActorOneTimeTokenFillingServiceImpl::RetrieveOtp(
     const tabs::TabHandle tab_handle,
@@ -277,6 +327,11 @@ void ActorOneTimeTokenFillingServiceImpl::FillOtp(
         std::move(callback).Run(result.has_value());
       },
       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+base::WeakPtr<ActorOneTimeTokenFillingService>
+ActorOneTimeTokenFillingServiceImpl::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 }  // namespace autofill

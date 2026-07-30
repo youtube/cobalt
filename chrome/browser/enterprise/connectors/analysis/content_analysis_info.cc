@@ -179,6 +179,9 @@ DownloadContentAreaUserProvider::DownloadContentAreaUserProvider(
     referrer_chain_ =
         safe_browsing::GetOrIdentifyReferrerChainForEnterprise(download_item);
   }
+  frame_url_chain_ = enterprise_connectors::CollectFrameUrls(
+      web_contents_.get(),
+      enterprise_connectors::DeepScanAccessPoint::DOWNLOAD);
 }
 
 DownloadContentAreaUserProvider::~DownloadContentAreaUserProvider() = default;

@@ -101,7 +101,8 @@ class AutofillAiAccessManagerTest : public testing::Test {
         helper_.WaitUntilIdle();
         break;
       case EntityInstance::RecordType::kPersonalContext:
-        edm().OnPrefetchContextComplete(personal_context_manager(), {entity});
+        edm().OnPrefetchContextComplete(personal_context_manager(),
+                                        std::vector<EntityInstance>{entity});
         break;
     }
   }

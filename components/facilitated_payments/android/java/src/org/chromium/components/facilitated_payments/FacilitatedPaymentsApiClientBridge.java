@@ -86,6 +86,20 @@ public class FacilitatedPaymentsApiClientBridge implements FacilitatedPaymentsAp
         mApiClient.invokePurchaseAction(primaryAccount, securePayload);
     }
 
+    /**
+     * Initiates the instrument manager UI by invoking the instrument manager in Google play
+     * services with the action token. The result is received back in the
+     * onInvokeInstrumentManagerResult(AccountLinkingResult) method.
+     *
+     * @param primaryAccount User's signed in account.
+     * @param actionToken An opaque token used for invoking the instrument manager.
+     */
+    @CalledByNative
+    public void invokeInstrumentManager(
+            @JniType("CoreAccountInfo") CoreAccountInfo primaryAccount, byte[] actionToken) {
+        mApiClient.invokeInstrumentManager(primaryAccount, actionToken);
+    }
+
     // FacilitatedPaymentsApiClient.Delegate implementation:
     @Override
     public void onIsAvailable(boolean isAvailable) {
@@ -110,6 +124,15 @@ public class FacilitatedPaymentsApiClientBridge implements FacilitatedPaymentsAp
                 mNativeFacilitatedPaymentsApiClientAndroid, purchaseActionResult);
     }
 
+    // FacilitatedPaymentsApiClient.Delegate implementation:
+    @Override
+    public void onInvokeInstrumentManagerResult(AccountLinkingResult result) {
+        if (mNativeFacilitatedPaymentsApiClientAndroid == 0) return;
+        FacilitatedPaymentsApiClientBridgeJni.get()
+                .onInvokeInstrumentManagerResult(
+                        mNativeFacilitatedPaymentsApiClientAndroid, result);
+    }
+
     @NativeMethods
     interface Natives {
         void onIsAvailable(long nativeFacilitatedPaymentsApiClientAndroid, boolean isAvailable);
@@ -120,5 +143,8 @@ public class FacilitatedPaymentsApiClientBridge implements FacilitatedPaymentsAp
         void onPurchaseActionResultEnum(
                 long nativeFacilitatedPaymentsApiClientAndroid,
                 @PurchaseActionResult int purchaseActionResult);
+
+        void onInvokeInstrumentManagerResult(
+                long nativeFacilitatedPaymentsApiClientAndroid, AccountLinkingResult result);
     }
 }

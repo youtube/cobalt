@@ -79,16 +79,18 @@ BASE_DECLARE_FEATURE(kOmniboxWebUIPopupStabilizeStartupShow);
 BASE_DECLARE_FEATURE(kOmniboxAimDetachWebContentsOnHide);
 BASE_DECLARE_FEATURE(kOmniboxWebUIDetachWebContentsOnHide);
 BASE_DECLARE_FEATURE(kOmniboxWebUIPopupMarkAsHidden);
+BASE_DECLARE_FEATURE(kWebUISearchboxWithoutModelController);
 
 // Omnibox UI - these affect the UI or function of the location bar (not the
 // popup).
+BASE_DECLARE_FEATURE(kAimEligibilityComponentExtension);
 BASE_DECLARE_FEATURE(kDynamicAimSubmit);
 extern const base::FeatureParam<bool> kShowRhsAimHint;
-
 BASE_DECLARE_FEATURE(kHideAimEntrypointOnUserInput);
 BASE_DECLARE_FEATURE(kHideAimEntrypointForUrlSuggestions);
 BASE_DECLARE_FEATURE(kOmniboxMultimodalInput);
 BASE_DECLARE_FEATURE(kAndroidDesktopAimGate);
+BASE_DECLARE_FEATURE(kAim3pEntrypoint);
 
 // Navigation experiments.
 BASE_DECLARE_FEATURE(kDefaultTypedNavigationsToHttps);
@@ -174,6 +176,7 @@ BASE_DECLARE_FEATURE(kComposeboxAttachmentsTypedState);
 
 // Whether to enable Google Drive context menu option in the composebox.
 BASE_DECLARE_FEATURE(kComposeboxDriveContextMenuOption);
+extern const base::FeatureParam<bool> kComposeboxDriveIdentityFallback;
 
 // Whether to enable Google Drive context menu option's disclaimer flow in the
 // composebox.

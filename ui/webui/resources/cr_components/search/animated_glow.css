@@ -743,7 +743,7 @@
 }
 
 /* Hide audio animation via fade if permission prompt is showing. */
-:host(.embedded-permission-prompt-showing) .audio-animation {
+:host(.permission-prompt-showing) .audio-animation {
   opacity: 0;
   pointer-events: none;
 }

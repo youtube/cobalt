@@ -65,7 +65,16 @@ id<GREYMatcher> DeleteConfirmationButton() {
 // Helper to open the CVC storage settings.
 - (void)openCvcStorageSettings {
   [ChromeEarlGreyUI openSettingsMenu];
-  [ChromeEarlGreyUI tapSettingsMenuButton:PaymentMethodsButton()];
+  if ([ChromeEarlGrey isYourSavedInfoSettingsPageIosEnabled]) {
+    [ChromeEarlGreyUI
+        tapSettingsMenuButton:grey_accessibilityID(
+                                  @"kSettingsAutofillAndPasswordsCellId")];
+    [[EarlGrey
+        selectElementWithMatcher:PaymentMethodsButton()]
+        performAction:grey_tap()];
+  } else {
+    [ChromeEarlGreyUI tapSettingsMenuButton:PaymentMethodsButton()];
+  }
   [[EarlGrey selectElementWithMatcher:CvcStorageButton()]
       performAction:grey_tap()];
 }

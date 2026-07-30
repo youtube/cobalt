@@ -763,6 +763,11 @@ std::string GetSourceAsString(::onc::ONCSource source) {
   NOTREACHED();
 }
 
+bool IsPolicyOncSource(::onc::ONCSource source) {
+  return source == ::onc::ONC_SOURCE_USER_POLICY ||
+         source == ::onc::ONC_SOURCE_DEVICE_POLICY;
+}
+
 void ExpandStringsInOncObject(const OncValueSignature& signature,
                               const VariableExpander& variable_expander,
                               base::DictValue* onc_object) {

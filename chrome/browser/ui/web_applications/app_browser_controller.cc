@@ -294,7 +294,7 @@ AppBrowserController::~AppBrowserController() {
 }
 
 bool AppBrowserController::IsTrustedSource() const {
-  return browser_->GetBrowserForMigrationOnly()->is_trusted_source();
+  return WindowFeatureController::From(browser_)->IsTrustedSource();
 }
 
 bool AppBrowserController::ShouldShowCustomTabBar() const {

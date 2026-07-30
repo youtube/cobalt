@@ -5,6 +5,7 @@
 #import "ios/chrome/browser/authentication/age_mismatch_signout/ui/age_mismatch_signout_view_controller.h"
 
 #import "base/strings/sys_string_conversions.h"
+#import "ios/chrome/browser/authentication/age_mismatch_signout/ui/age_mismatch_signout_ui_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/views/identity_view.h"
 #import "ios/chrome/browser/shared/ui/elements/home_waiting_view.h"
@@ -59,6 +60,8 @@ constexpr CGFloat kDefaultSubtitleBottomMargin = 22.0;
   self.headerBackgroundImage =
       [UIImage imageNamed:@"age_mismatch_prompt_image"];
   self.modalInPresentation = YES;
+  self.view.accessibilityIdentifier =
+      kAgeMismatchSignoutViewAccessibilityIdentifier;
 
   BOOL isIPad = ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET;
 
@@ -132,11 +135,13 @@ constexpr CGFloat kDefaultSubtitleBottomMargin = 22.0;
   if (!_identityView) {
     _identityView = [[IdentityView alloc] initWithFrame:CGRectZero];
     _identityView.translatesAutoresizingMaskIntoConstraints = NO;
+    _identityView.accessibilityIdentifier =
+        kAgeMismatchIdentityViewAccessibilityIdentifier;
     _identityView.layer.cornerRadius = kIdentityViewCornerRadius;
     _identityView.backgroundColor =
         [UIColor colorNamed:kSecondaryBackgroundColor];
 
-    // IdentityView defines its vertical bounds using inequality constraints
+    // `IdentityView` defines its vertical bounds using inequality constraints
     // (greaterThanOrEqualTo) so it can be optionally stretched and centered.
     // Because it lacks an equality constraint or an intrinsic content size,
     // it will stretch uncontrollably unless countered. We use a low-priority

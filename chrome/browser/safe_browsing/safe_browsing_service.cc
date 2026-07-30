@@ -165,21 +165,6 @@ std::unique_ptr<ClientSafeBrowsingReportRequest> CreateDownloadReport(
 }
 #endif
 
-void OnGotCookies(
-    std::unique_ptr<mojo::Remote<network::mojom::CookieManager>> remote,
-    const std::vector<net::CanonicalCookie>& cookies) {
-  base::UmaHistogramBoolean("SafeBrowsing.HasCookieAtStartup2",
-                            !cookies.empty());
-  if (!cookies.empty()) {
-    base::TimeDelta age = base::Time::Now() - cookies.front().CreationDate();
-    // Cookies can be up to 6 months old. Using millisecond precision over such
-    // a long time period overflows numeric limits. Instead, use a counts
-    // histogram and lower granularity.
-    base::UmaHistogramCounts10000("SafeBrowsing.CookieAgeHours2",
-                                  age.InHours());
-  }
-}
-
 void TriggerSecuritySettingsBundleToastIfNeeded(
     base::WeakPtr<Profile> profile) {
   if (!profile) {
@@ -673,8 +658,6 @@ void SafeBrowsingServiceImpl::OnProfileAdded(Profile* profile) {
 
   CreateServicesForProfile(profile);
 
-  RecordStartupCookieMetrics(profile);
-
   CleanupExternalAppRedirectTimestamps(*pref_service);
 
   // Post task to isolate enhanced-security-bundle migration from other code
@@ -961,26 +944,7 @@ SafeBrowsingServiceImpl::CreateNetworkContextParams() {
   return params;
 }
 
-void SafeBrowsingServiceImpl::RecordStartupCookieMetrics(Profile* profile) {
-  // Exclude system profiles.
-  if (!profile->IsRegularProfile() && !profile->IsIncognitoProfile()) {
-    return;
-  }
-  network::mojom::NetworkContext* network_context = GetNetworkContext(profile);
-  if (!network_context) {
-    return;
-  }
-  auto cookie_manager_remote =
-      std::make_unique<mojo::Remote<network::mojom::CookieManager>>();
-  network_context->GetCookieManager(
-      cookie_manager_remote->BindNewPipeAndPassReceiver());
 
-  mojo::Remote<network::mojom::CookieManager>* cookie_manager_raw =
-      cookie_manager_remote.get();
-  (*cookie_manager_raw)
-      ->GetAllCookies(
-          base::BindOnce(&OnGotCookies, std::move(cookie_manager_remote)));
-}
 
 void SafeBrowsingServiceImpl::FillReferrerChain(
     Profile* profile,

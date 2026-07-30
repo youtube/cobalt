@@ -88,6 +88,8 @@ class QuicSessionPoolPeer {
   static void SetTickClock(QuicSessionPool* pool,
                            const base::TickClock* tick_clock);
 
+  static void SetClockForTesting(QuicSessionPool* pool, base::Clock* clock);
+
   static void SetTaskRunner(QuicSessionPool* pool,
                             base::SequencedTaskRunner* task_runner);
 

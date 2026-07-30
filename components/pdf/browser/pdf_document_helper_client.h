@@ -25,16 +25,16 @@ class PDFDocumentHelperClient {
   // callbacks registered via
   // `PDFDocumentHelper::RegisterForDocumentLoadComplete()` run.
   virtual void OnDocumentLoadComplete(
-      content::RenderFrameHost* render_frame_host) {}
+      content::RenderFrameHost& render_frame_host) {}
 
   virtual void UpdateContentRestrictions(
-      content::RenderFrameHost* render_frame_host,
+      content::RenderFrameHost& render_frame_host,
       int content_restrictions) {}
 
   virtual void OnSaveURL() {}
 
   // Sets whether the PDF plugin can handle file saving internally.
-  virtual void SetPluginCanSave(content::RenderFrameHost* render_frame_host,
+  virtual void SetPluginCanSave(content::RenderFrameHost& render_frame_host,
                                 bool can_save) {}
 
   // Lets the client observe scroll events. Only used for testing.
@@ -43,7 +43,7 @@ class PDFDocumentHelperClient {
 
 #if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
   // Notifies that PDF searchifier started processing pages.
-  virtual void OnSearchifyStarted(content::RenderFrameHost* render_frame_host) {
+  virtual void OnSearchifyStarted(content::RenderFrameHost& render_frame_host) {
   }
 #endif
 };

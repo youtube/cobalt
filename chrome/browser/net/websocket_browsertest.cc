@@ -1150,7 +1150,7 @@ class TestTrustedHeaderClient : public network::mojom::TrustedHeaderClient {
   void OnBeforeSendHeaders(const GURL& request_url,
                            const net::HttpRequestHeaders& headers,
                            OnBeforeSendHeadersCallback callback) override {
-    std::move(callback).Run(net::OK, std::nullopt);
+    std::move(callback).Run(net::OK, std::nullopt, std::nullopt);
   }
 
   // network::mojom::TrustedHeaderClient:

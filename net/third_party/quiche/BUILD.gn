@@ -883,21 +883,23 @@ proto_library("blind_sign_auth_proto") {
   sources = protobuf_blind_sign_auth
   cc_generator_options = "lite=true,dllexport_decl=COMPONENT_EXPORT(QUICHE):"
   cc_include = "base/component_export.h"
+
+  # In component builds, blind_sign_auth_proto should be part of the
+  # blind_sign_auth component.
+  component_build_force_source_set = true
+
   proto_in_dir = "src"
 
   link_public_deps = [ "//base" ]
 
   deps = [
     "//third_party/anonymous_tokens:anonymous_tokens_cc_proto",
-    "//third_party/protobuf:any_proto",
     "//third_party/protobuf:timestamp_proto",
   ]
-  if (is_win) {
-    component_build_force_source_set = true
-    if (use_fuzzing_engine) {
-      deps -= [ "//third_party/protobuf:any_proto" ]
-      deps += [ "//third_party/protobuf:any_full_proto" ]
-    }
+  if (use_fuzzing_engine) {
+    deps += [ "//third_party/protobuf:any_full_proto" ]
+  } else {
+    deps += [ "//third_party/protobuf:any_proto" ]
   }
 
   import_dirs = [ "//third_party/anonymous_tokens/src/" ]
@@ -922,11 +924,11 @@ source_set("blind_sign_auth_test_support") {
     ":quiche",
     ":quiche_test_support",
     ":quiche_tool_support",
-    "//third_party/protobuf:any_proto",
   ]
-  if (is_win && use_fuzzing_engine) {
-    deps -= [ "//third_party/protobuf:any_proto" ]
+  if (use_fuzzing_engine) {
     deps += [ "//third_party/protobuf:any_full_proto" ]
+  } else {
+    deps += [ "//third_party/protobuf:any_proto" ]
   }
 
   public_deps =

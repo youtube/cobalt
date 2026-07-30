@@ -358,7 +358,7 @@ public class ActorNotificationFactoryTest {
         NotificationWrapper wrapper =
                 ActorNotificationFactory.buildNotification(
                         mTask,
-                        ActorTaskState.PAUSED_BY_USER,
+                        ActorTaskState.WAITING_ON_USER,
                         /* isSilent= */ false,
                         /* isWarning= */ true);
 
@@ -375,46 +375,15 @@ public class ActorNotificationFactoryTest {
 
     @Test
     public void testShouldUpdateNotification() {
-        // State change same category, no warning change -> False
+        // State change same category
         assertFalse(
                 ActorNotificationFactory.shouldUpdateNotification(
-                        ActorTaskState.ACTING,
-                        /* wasWarning= */ false,
-                        ActorTaskState.REFLECTING,
-                        /* isWarning= */ false));
+                        ActorTaskState.ACTING, ActorTaskState.REFLECTING));
 
         // State change different category -> True
         assertTrue(
                 ActorNotificationFactory.shouldUpdateNotification(
-                        ActorTaskState.ACTING,
-                        /* wasWarning= */ false,
-                        ActorTaskState.PAUSED_BY_USER,
-                        /* isWarning= */ false));
-
-        // Warning mode change -> True
-        assertTrue(
-                ActorNotificationFactory.shouldUpdateNotification(
-                        ActorTaskState.ACTING,
-                        /* wasWarning= */ false,
-                        ActorTaskState.ACTING,
-                        /* isWarning= */ true));
-
-        // Warning mode reset -> True
-        assertTrue(
-                ActorNotificationFactory.shouldUpdateNotification(
-                        ActorTaskState.ACTING,
-                        /* wasWarning= */ true,
-                        ActorTaskState.ACTING,
-                        /* isWarning= */ false));
-
-        // Stay in warning mode while state changes (Idle -> Idle) -> False (Single category)
-        assertFalse(
-                "Transitions within warning mode should NOT trigger update with single category",
-                ActorNotificationFactory.shouldUpdateNotification(
-                        ActorTaskState.PAUSED_BY_ACTOR,
-                        /* wasWarning= */ true,
-                        ActorTaskState.WAITING_ON_USER,
-                        /* isWarning= */ true));
+                        ActorTaskState.ACTING, ActorTaskState.PAUSED_BY_USER));
     }
 
     private void assertSmallIcon(Notification notification) {

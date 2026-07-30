@@ -4,6 +4,7 @@
 
 #include "components/services/storage/dom_storage/sqlite/session_storage_sqlite.h"
 
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/memory_dump_manager.h"
@@ -25,8 +26,6 @@ constexpr int kCompatibleSchemaVersion = kCurrentSchemaVersion;
 constexpr sql::Database::Tag kSessionStorageTag = "SessionStorage";
 constexpr sql::Database::Tag kSessionStorageTagInMemory =
     "SessionStorageEphemeral";
-
-inline constexpr const char kNextMapIdKey[] = "next_map_id";
 
 DbStatus CreateSchema(sql::Database& database) {
   constexpr const char kCreateSessionMetadataTable[] =
@@ -69,6 +68,9 @@ StatusOr<DomStorageDatabase::MapMetadata> ParseMapMetadata(
 SessionStorageSqlite::SessionStorageSqlite(PassKey) {}
 
 SessionStorageSqlite::~SessionStorageSqlite() {
+  if (database_) {
+    database_->reset_error_callback();
+  }
   base::trace_event::MemoryDumpManager::GetInstance()->UnregisterDumpProvider(
       this);
   if (destruction_callback_for_testing_) {
@@ -86,13 +88,15 @@ DbStatus SessionStorageSqlite::Open(
 
   memory_dump_id_ = memory_dump_id;
 
-  ASSIGN_OR_RETURN(
-      std::tie(database_, meta_table_),
-      sqlite::OpenDatabase(database_path,
-                           database_path.empty() ? kSessionStorageTag
-                                                 : kSessionStorageTagInMemory,
-                           kCurrentSchemaVersion, kCompatibleSchemaVersion,
-                           base::BindOnce(&CreateSchema)));
+  ASSIGN_OR_RETURN(std::tie(database_, meta_table_),
+                   sqlite::OpenDatabase(
+                       database_path,
+                       database_path.empty() ? kSessionStorageTag
+                                             : kSessionStorageTagInMemory,
+                       kCurrentSchemaVersion, kCompatibleSchemaVersion,
+                       base::BindOnce(&CreateSchema),
+                       base::BindRepeating(&SessionStorageSqlite::OnSqlError,
+                                           base::Unretained(this))));
 
   map_entries_table_ = std::make_unique<MapEntriesTable>(*database_);
 
@@ -120,6 +124,10 @@ DbStatus SessionStorageSqlite::UpdateMaps(
     // Session storage does not record map usage metadata.
     CHECK(!map_update.map_usage.has_value());
 
+    // crbug.com/513822044: Always update the map's metadata to prevent orphaned
+    // key/value pairs if `PutMetadata()` failed.
+    DB_RETURN_IF_ERROR(PutMapLocator(map_update.map_locator));
+
     DB_RETURN_IF_ERROR(map_entries_table_->UpdateMap(std::move(map_update)));
   }
 
@@ -133,9 +141,19 @@ DbStatus SessionStorageSqlite::UpdateMaps(
 
 DbStatus SessionStorageSqlite::CloneMap(MapLocator source_map,
                                         MapLocator target_map) {
+  sql::Transaction transaction(database_.get());
+  RETURN_STATUS_ON_ERROR(transaction.Begin());
+
+  // crbug.com/513822044: Always update the map's metadata to prevent orphaned
+  // key/value pairs if `PutMetadata()` failed.
+  DB_RETURN_IF_ERROR(PutMapLocator(target_map));
+
   // Copy all key/value pairs from the source map to the target map.
-  return map_entries_table_->CloneMap(source_map.map_id().value(),
-                                      target_map.map_id().value());
+  DB_RETURN_IF_ERROR(map_entries_table_->CloneMap(source_map.map_id().value(),
+                                                  target_map.map_id().value()));
+
+  RETURN_STATUS_ON_ERROR(transaction.Commit());
+  return DbStatus::OK();
 }
 
 StatusOr<DomStorageDatabase::Metadata> SessionStorageSqlite::ReadAllMetadata() {
@@ -143,7 +161,6 @@ StatusOr<DomStorageDatabase::Metadata> SessionStorageSqlite::ReadAllMetadata() {
   RETURN_UNEXPECTED_ON_ERROR(transaction.Begin());
 
   Metadata all_metadata;
-  all_metadata.next_map_id = ReadNextMapId();
   ASSIGN_OR_RETURN(all_metadata.map_metadata, ReadAllMapMetadata());
 
   RETURN_UNEXPECTED_ON_ERROR(transaction.Commit());
@@ -154,36 +171,9 @@ DbStatus SessionStorageSqlite::PutMetadata(Metadata metadata) {
   sql::Transaction transaction(database_.get());
   RETURN_STATUS_ON_ERROR(transaction.Begin());
 
-  // Update the `next_map_id` in the meta table if provided.
-  if (metadata.next_map_id) {
-    RETURN_STATUS_ON_ERROR(
-        meta_table_->SetValue(kNextMapIdKey, *metadata.next_map_id));
-  }
-
-  const char kPutMapMetadata[] =
-      "INSERT OR REPLACE INTO session_metadata "
-      "(storage_key, map_id, session_id) VALUES (?, ?, ?)";
-
-  sql::Statement statement(
-      database_->GetCachedStatement(SQL_FROM_HERE, kPutMapMetadata));
-
   // Insert or replace rows in the `session_metadata` table for each map.
   for (const MapMetadata& map_metadata : metadata.map_metadata) {
-    const MapLocator& map_locator = map_metadata.map_locator;
-
-    std::string serialized_storage_key = map_locator.storage_key().Serialize();
-    statement.BindBlob(0, std::move(serialized_storage_key));
-
-    int64_t map_id = map_locator.map_id().value();
-    statement.BindInt64(1, map_id);
-
-    // Write one row per session. For cloned maps, this results in multiple
-    // rows with the same (storage_key, map_id) but different session_ids.
-    for (const std::string& session_id : map_locator.session_ids()) {
-      statement.BindString(2, session_id);
-      RETURN_STATUS_ON_ERROR(statement.Run());
-      statement.Reset(/*clear_bound_vars=*/false);
-    }
+    DB_RETURN_IF_ERROR(PutMapLocator(map_metadata.map_locator));
   }
 
   if (should_fail_commits_for_testing_) {
@@ -292,14 +282,6 @@ DbStatus SessionStorageSqlite::PutVersionForTesting(int64_t version) {
   return DbStatus::OK();
 }
 
-int64_t SessionStorageSqlite::ReadNextMapId() const {
-  int64_t next_map_id;
-  if (!meta_table_->GetValue(kNextMapIdKey, &next_map_id)) {
-    return 0;
-  }
-  return next_map_id;
-}
-
 StatusOr<std::vector<DomStorageDatabase::MapMetadata>>
 SessionStorageSqlite::ReadAllMapMetadata() const {
   // Associates a `map_id` to its merged `MapMetadata`. Used to detect and merge
@@ -346,6 +328,32 @@ SessionStorageSqlite::ReadAllMapMetadata() const {
   return results;
 }
 
+DbStatus SessionStorageSqlite::PutMapLocator(const MapLocator& map_locator) {
+  CHECK(database_->HasActiveTransactions());
+
+  const char kPutMapMetadata[] =
+      "INSERT OR REPLACE INTO session_metadata "
+      "(storage_key, map_id, session_id) VALUES (?, ?, ?)";
+
+  sql::Statement statement(
+      database_->GetCachedStatement(SQL_FROM_HERE, kPutMapMetadata));
+
+  std::string serialized_storage_key = map_locator.storage_key().Serialize();
+  statement.BindBlob(0, std::move(serialized_storage_key));
+
+  int64_t map_id = map_locator.map_id().value();
+  statement.BindInt64(1, map_id);
+
+  // Write one row per session. For cloned maps, this results in multiple
+  // rows with the same (storage_key, map_id) but different session_ids.
+  for (const std::string& session_id : map_locator.session_ids()) {
+    statement.BindString(2, session_id);
+    RETURN_STATUS_ON_ERROR(statement.Run());
+    statement.Reset(/*clear_bound_vars=*/false);
+  }
+  return DbStatus::OK();
+}
+
 bool SessionStorageSqlite::OnMemoryDump(
     const base::trace_event::MemoryDumpArgs& args,
     base::trace_event::ProcessMemoryDump* pmd) {
@@ -354,6 +362,10 @@ bool SessionStorageSqlite::OnMemoryDump(
       base::StringPrintf("site_storage/sessionstorage/sqlite/db_0x%" PRIXPTR,
                          reinterpret_cast<uintptr_t>(this)));
   return true;
+}
+
+void SessionStorageSqlite::OnSqlError(int error, sql::Statement* statement) {
+  base::UmaHistogramSparse("Storage.SessionStorage.Database.Error", error);
 }
 
 }  // namespace storage

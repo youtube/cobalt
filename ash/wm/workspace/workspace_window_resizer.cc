@@ -1218,6 +1218,11 @@ void WorkspaceWindowResizer::LayoutAttachedWindows(gfx::Rect* bounds) {
     bounds->set_height(bounds->height() + leftovers);
   }
 
+  // An Window Observer should not delete |this| when SetBounds() is called
+  // (via OnWindowPropertyChanged, OnWindowVisibilityChanged, etc.), so make
+  // sure |this| is valid throughout the loop to prevent a UAF when accessing
+  // `attached_windows_`.
+  WindowResizer::ScopedDeleteBlocker blocker(this);
   DCHECK_EQ(attached_windows_.size(), sizes.size());
   int last = PrimaryAxisCoordinate(bounds->right(), bounds->bottom());
   for (size_t i = 0; i < attached_windows_.size(); ++i) {
@@ -1229,14 +1234,7 @@ void WorkspaceWindowResizer::LayoutAttachedWindows(gfx::Rect* bounds) {
       attached_bounds.set_y(last);
       attached_bounds.set_height(sizes[i]);
     }
-    base::WeakPtr<WorkspaceWindowResizer> resizer_ptr(
-        weak_ptr_factory_.GetWeakPtr());
     attached_windows_[i]->SetBounds(attached_bounds);
-    // An Window Observer should not delete |this| when SetBounds() is called
-    // (via OnWindowPropertyChanged, OnWindowVisibilityChanged, etc.), so make
-    // sure |this| is valid before moving on to the next iteration to prevent a
-    // UAF when accessing attached_windows_ at i+1.
-    CHECK(resizer_ptr);
     last += sizes[i];
   }
 }
@@ -1693,13 +1691,12 @@ void WorkspaceWindowResizer::RestackWindows() {
     tracker.Add(pair.second);
   }
 
-  base::WeakPtr<WorkspaceWindowResizer> resizer(weak_ptr_factory_.GetWeakPtr());
+  // StackChildAtTop and StackChildBelow have the potential to synchronously
+  // free |this| which could cause a UAF in the following iteration.
+  WindowResizer::ScopedDeleteBlocker blocker(this);
 
   // Reorder the windows starting at the topmost.
   parent->StackChildAtTop(map.rbegin()->second);
-  // StackChildAtTop has the potential to synchronously free |this| which
-  // could cause a UAF below.
-  CHECK(resizer);
 
   for (auto i = map.rbegin(); i != map.rend();) {
     aura::Window* window = i->second;
@@ -1707,9 +1704,6 @@ void WorkspaceWindowResizer::RestackWindows() {
     if (i != map.rend() && tracker.Contains(window) &&
         tracker.Contains(i->second)) {
       parent->StackChildBelow(i->second, window);
-      // StackChildBelow has the potential to synchronously free |this| which
-      // could cause a UAF in the following iteration.
-      CHECK(resizer);
     }
   }
 }

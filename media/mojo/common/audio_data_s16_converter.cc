@@ -119,8 +119,8 @@ void AudioDataS16Converter::ResetChannelMixerIfNeeded(
     channel_layout_ = channel_layout;
     channel_count_ = channel_count;
     channel_mixer_ = std::make_unique<ChannelMixer>(
-        channel_layout, channel_count, CHANNEL_LAYOUT_MONO,
-        1 /*output_channels*/);
+        ChannelLayoutConfig(channel_layout, channel_count),
+        ChannelLayoutConfig::Mono());
   }
 }
 

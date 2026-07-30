@@ -26,6 +26,7 @@
 #include "chrome/browser/user_education/user_education_service.h"
 #include "chrome/browser/user_education/user_education_service_factory.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
+#include "chrome/browser/web_applications/test/web_app_test_observers.h"
 #include "chrome/browser/web_applications/visited_manifest_manager.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
@@ -174,10 +175,11 @@ class MLPromotionBrowserTest : public MLPromotionBrowserTestBase {
     scoped_feature_list_.InitWithFeaturesAndParameters(
         /*enabled_features=*/
         {base::test::FeatureRefAndParams(
-            webapps::features::kWebAppsEnableMLModelForPromotion,
-            {{features::kWebAppsMLGuardrailResultReportProb.name, "1.0"},
-             {features::kWebAppsMLModelUserDeclineReportProb.name, "1.0"}})},
-        /*disabled_features=*/{::features::kWebAppInstallDialog});
+             webapps::features::kWebAppsEnableMLModelForPromotion,
+             {{features::kWebAppsMLGuardrailResultReportProb.name, "1.0"},
+              {features::kWebAppsMLModelUserDeclineReportProb.name, "1.0"}}),
+         base::test::FeatureRefAndParams(::features::kWebAppInstallDialog, {})},
+        /*disabled_features=*/{});
   }
   ~MLPromotionBrowserTest() override = default;
 
@@ -692,16 +694,34 @@ IN_PROC_BROWSER_TEST_F(MLPromotionBrowserTest,
 
   // Since the site is not installable, the diy install dialog shows up for
   // universal install.
-  views::NamedWidgetShownWaiter waiter(views::test::AnyWidgetTestPasskey{},
-                                       "WebAppDiyInstallDialog");
-  task_runner_->RunPendingTasks();
-  views::Widget* widget = waiter.WaitIfNeededAndGet();
-  views::test::WidgetDestroyedWaiter destroyed(widget);
-  ExpectTrainingResult(TrainingRequestId(1ll), MlInstallResponse::kAccepted);
-  views::test::AcceptDialog(widget);
-  destroyed.Wait();
+  std::string dialog_name =
+      base::FeatureList::IsEnabled(::features::kWebAppInstallDialog)
+          ? "WebAppInstallFlowDialog"
+          : "WebAppDiyInstallDialog";
+  std::optional<base::AutoReset<web_app::InstallDialogTestResponse>>
+      auto_accept;
+  std::optional<web_app::WebAppTestInstallWithOsHooksObserver> install_observer;
+  std::optional<views::NamedWidgetShownWaiter> waiter;
 
-  provider().command_manager().AwaitAllCommandsCompleteForTesting();
+  if (dialog_name == "WebAppInstallFlowDialog") {
+    auto_accept.emplace(web_app::SetPwaInstallationAutoRespondForTesting(
+        web_app::InstallDialogTestResponse::kAcceptAndLaunch));
+    install_observer.emplace(profile());
+    install_observer->BeginListening();
+  } else {
+    waiter.emplace(views::test::AnyWidgetTestPasskey{}, dialog_name);
+  }
+
+  ExpectTrainingResult(TrainingRequestId(1ll), MlInstallResponse::kAccepted);
+  task_runner_->RunPendingTasks();
+
+  if (auto_accept) {
+    install_observer->Wait();
+  } else {
+    views::Widget* widget = waiter->WaitIfNeededAndGet();
+    views::test::AcceptDialog(widget);
+    provider().command_manager().AwaitAllCommandsCompleteForTesting();
+  }
 
   EXPECT_FALSE(provider().registrar_unsafe().is_empty());
   webapps::AppId app_id = provider().registrar_unsafe().GetAppIds()[0];
@@ -753,8 +773,12 @@ IN_PROC_BROWSER_TEST_F(MLPromotionBrowserTest,
       MLInstallabilityPromoter::kShowInstallPromptLabel, TrainingRequestId(2ll),
       web_contents());
 
+  std::string dialog_name =
+      base::FeatureList::IsEnabled(::features::kWebAppInstallDialog)
+          ? "WebAppInstallFlowDialog"
+          : "WebAppSimpleInstallDialog";
   views::NamedWidgetShownWaiter waiter(views::test::AnyWidgetTestPasskey{},
-                                       "WebAppSimpleInstallDialog");
+                                       dialog_name);
   chrome::ExecuteCommand(browser(), IDC_INSTALL_PWA);
   views::Widget* widget = waiter.WaitIfNeededAndGet();
   EXPECT_TRUE(widget != nullptr);
@@ -826,17 +850,14 @@ IN_PROC_BROWSER_TEST_F(MLPromotionBrowserTestNestedPromptBlocking,
       MLInstallabilityPromoter::kShowInstallPromptLabel, TrainingRequestId(2ll),
       web_contents());
 
-  views::NamedWidgetShownWaiter waiter(views::test::AnyWidgetTestPasskey{},
-                                       "WebAppSimpleInstallDialog");
-  task_runner_->RunPendingTasks();
+  base::AutoReset<web_app::InstallDialogTestResponse> auto_accept =
+      web_app::SetPwaInstallationAutoRespondForTesting(
+          web_app::InstallDialogTestResponse::kAcceptAndLaunch);
   ExpectTrainingResult(TrainingRequestId(2ll), MlInstallResponse::kAccepted);
-
-  views::Widget* widget = waiter.WaitIfNeededAndGet();
-  views::test::WidgetDestroyedWaiter destroyed(widget);
-  views::test::AcceptDialog(widget);
-  destroyed.Wait();
-
-  provider().command_manager().AwaitAllCommandsCompleteForTesting();
+  web_app::WebAppTestInstallWithOsHooksObserver install_observer(profile());
+  install_observer.BeginListening();
+  task_runner_->RunPendingTasks();
+  install_observer.Wait();
 
   ASSERT_FALSE(provider().registrar_unsafe().is_empty());
   webapps::AppId app_id = provider().registrar_unsafe().GetAppIds()[0];
@@ -855,6 +876,9 @@ class MLPromotionInstallDialogBrowserTest
 
  protected:
   const std::string GetDialogName() {
+    if (base::FeatureList::IsEnabled(::features::kWebAppInstallDialog)) {
+      return "WebAppInstallFlowDialog";
+    }
     switch (GetParam()) {
       case InstallDialogState::kSimpleInstallDialog:
         return "WebAppSimpleInstallDialog";
@@ -1031,17 +1055,15 @@ IN_PROC_BROWSER_TEST_P(MLPromotionInstallDialogBrowserTest,
       MLInstallabilityPromoter::kShowInstallPromptLabel,
       TrainingRequestId(1ll));
 
-  views::NamedWidgetShownWaiter waiter(views::test::AnyWidgetTestPasskey{},
-                                       GetDialogName());
+  base::AutoReset<web_app::InstallDialogTestResponse> auto_accept =
+      web_app::SetPwaInstallationAutoRespondForTesting(
+          web_app::InstallDialogTestResponse::kAcceptAndLaunch);
+  ExpectTrainingResult(TrainingRequestId(1ll), MlInstallResponse::kAccepted);
+  web_app::WebAppTestInstallWithOsHooksObserver install_observer(profile());
+  install_observer.BeginListening();
   // This calls unblocks the metrics tasks, allowing ML to be called.
   task_runner_->RunPendingTasks();
-  views::Widget* widget = waiter.WaitIfNeededAndGet();
-  views::test::WidgetDestroyedWaiter destroyed(widget);
-  ExpectTrainingResult(TrainingRequestId(1ll), MlInstallResponse::kAccepted);
-  views::test::AcceptDialog(widget);
-  destroyed.Wait();
-
-  provider().command_manager().AwaitAllCommandsCompleteForTesting();
+  install_observer.Wait();
 
   EXPECT_FALSE(provider().registrar_unsafe().is_empty());
   webapps::AppId app_id = provider().registrar_unsafe().GetAppIds()[0];
@@ -1099,16 +1121,15 @@ IN_PROC_BROWSER_TEST_P(MLPromotionInstallDialogBrowserTest,
 
   // Navigating to the previous tab will resume the installation UX reporting,
   // so handle installation request.
-  views::NamedWidgetShownWaiter waiter(views::test::AnyWidgetTestPasskey{},
-                                       GetDialogName());
+  base::AutoReset<web_app::InstallDialogTestResponse> auto_accept =
+      web_app::SetPwaInstallationAutoRespondForTesting(
+          web_app::InstallDialogTestResponse::kAcceptAndLaunch);
+  web_app::WebAppTestInstallWithOsHooksObserver install_observer(profile());
+  install_observer.BeginListening();
   ExpectTrainingResult(TrainingRequestId(1ll), MlInstallResponse::kAccepted,
                        original_web_contents);
   chrome::SelectPreviousTab(browser());
-  views::Widget* widget = waiter.WaitIfNeededAndGet();
-  views::test::WidgetDestroyedWaiter destroyed(widget);
-  views::test::AcceptDialog(widget);
-  destroyed.Wait();
-  provider().command_manager().AwaitAllCommandsCompleteForTesting();
+  install_observer.Wait();
 
   EXPECT_FALSE(provider().registrar_unsafe().is_empty());
 }

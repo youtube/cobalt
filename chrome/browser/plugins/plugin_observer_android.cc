@@ -30,8 +30,8 @@ PluginObserverAndroid::PluginObserverAndroid(content::WebContents* web_contents)
 PluginObserverAndroid::~PluginObserverAndroid() = default;
 
 void PluginObserverAndroid::OpenPDF(const GURL& url) {
-  content::RenderFrameHost* render_frame_host =
-      plugin_host_receivers_.GetCurrentTargetFrame();
+  content::RenderFrameHost& render_frame_host =
+      plugin_host_receivers_.CurrentTargetFrame();
 
   content::Referrer referrer;
   if (!CanOpenPdfUrl(render_frame_host, url,

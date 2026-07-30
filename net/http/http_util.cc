@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <array>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -33,6 +34,9 @@
 namespace net {
 
 namespace {
+
+// Standard range unit used by HTTP range headers.
+constexpr std::string_view kBytesUnit = "bytes";
 
 template <typename ConstIterator>
 void TrimLWSImplementation(ConstIterator* begin, ConstIterator* end) {
@@ -171,7 +175,7 @@ bool HttpUtil::ParseRangeHeader(std::string_view ranges_specifier,
 
   // "bytes" unit identifier is not found.
   bytes_unit = TrimLWS(bytes_unit);
-  if (!base::EqualsCaseInsensitiveASCII(bytes_unit, "bytes")) {
+  if (!base::EqualsCaseInsensitiveASCII(bytes_unit, kBytesUnit)) {
     return false;
   }
 
@@ -226,6 +230,87 @@ bool HttpUtil::ParseRangeHeader(std::string_view ranges_specifier,
   return !ranges->empty();
 }
 
+// Parses Fetch's "single range header value" for the "bytes" range
+// unit. Optional HTTP tab/space around '=' and '-' is accepted only when
+// allow_whitespace is true. At least one side of the range must contain
+// digits.
+std::optional<HttpByteRange> HttpUtil::ParseFetchSingleRange(
+    std::string_view range_header_value,
+    bool allow_whitespace) {
+  // Fetch requires the range unit to be exactly "bytes".
+  if (!base::StartsWith(range_header_value, kBytesUnit)) {
+    return std::nullopt;
+  }
+  size_t pos = kBytesUnit.size();
+
+  // Returns whether there is still input left to read.
+  auto in_bounds = [&]() { return pos < range_header_value.size(); };
+
+  // Consume spec-allowed whitespace.
+  auto skip_optional_whitespace = [&]() {
+    if (!allow_whitespace) {
+      return;
+    }
+    while (in_bounds() && (range_header_value[pos] == ' ' ||
+                           range_header_value[pos] == '\t')) {
+      ++pos;
+    }
+  };
+
+  // Skip optional whitespace, consume `delimiter`, then skip optional
+  // whitespace. Used for the grammar delimiters '=' and '-'.
+  auto consume_delimiter = [&](char delimiter) {
+    skip_optional_whitespace();
+    if (!in_bounds() || range_header_value[pos] != delimiter) {
+      return false;
+    }
+    ++pos;
+    skip_optional_whitespace();
+    return true;
+  };
+
+  // Values too large for int64_t are saturated to int64_t max.
+  auto parse_decimal_number = [&]() -> std::optional<int64_t> {
+    size_t start = pos;
+    while (in_bounds() && base::IsAsciiDigit(range_header_value[pos])) {
+      ++pos;
+    }
+    if (pos == start) {
+      return std::nullopt;
+    }
+    int64_t parsed = 0;
+    if (!ParseInt64(range_header_value.substr(start, pos - start),
+                    ParseIntFormat::NON_NEGATIVE, &parsed)) {
+      // If parsing fails, the value is larger than int64_t can represent.
+      // Treat it as int64_t max instead of rejecting it.
+      return std::numeric_limits<int64_t>::max();
+    }
+    return parsed;
+  };
+
+  if (!consume_delimiter('=')) {
+    return std::nullopt;
+  }
+  // Parse the range separator.
+  std::optional<int64_t> range_start = parse_decimal_number();
+  if (!consume_delimiter('-')) {
+    return std::nullopt;
+  }
+  std::optional<int64_t> range_end = parse_decimal_number();
+  // Reject trailing input and empty ranges.
+  if (in_bounds() || (!range_start && !range_end)) {
+    return std::nullopt;
+  }
+
+  if (!range_start) {
+    return HttpByteRange::Suffix(*range_end);
+  }
+  if (!range_end) {
+    return HttpByteRange::RightUnbounded(*range_start);
+  }
+  return HttpByteRange::Bounded(*range_start, *range_end);
+}
+
 // static
 // From RFC 2616 14.16:
 // content-range-spec =
@@ -248,7 +333,7 @@ bool HttpUtil::ParseContentRangeHeaderFor206(
 
   // Invalid header if it doesn't contain "bytes-unit".
   if (!base::EqualsCaseInsensitiveASCII(
-          TrimLWS(content_range_spec.substr(0, space_position)), "bytes")) {
+          TrimLWS(content_range_spec.substr(0, space_position)), kBytesUnit)) {
     return false;
   }
 

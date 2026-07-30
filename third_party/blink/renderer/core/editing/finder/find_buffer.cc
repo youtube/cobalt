@@ -235,7 +235,7 @@ FindBuffer::FindBuffer(const EphemeralRangeInFlatTree& range,
   CollectTextUntilBlockBoundary(range, ruby_support);
 }
 
-bool FindBuffer::IsInvalidMatch(MatchResultICU match) const {
+bool FindBuffer::IsInvalidMatch(MatchResultIcu match) const {
   // Invalid matches are a result of accidentally matching elements that are
   // replaced with the kNonCharacter, and may lead to crashes. To avoid
   // crashing, we should skip the matches that are invalid - they would have
@@ -304,11 +304,11 @@ EphemeralRangeInFlatTree FindBuffer::FindMatchInRange(
     FindResults match_results = buffer.FindMatches(search_text, options);
     if (!match_results.IsEmpty()) {
       if (!options.IsBackwards()) {
-        MatchResultICU match = match_results.front();
+        MatchResultIcu match = match_results.front();
         return buffer.RangeFromBufferIndex(match.start,
                                            match.start + match.length);
       }
-      MatchResultICU match = match_results.back();
+      MatchResultIcu match = match_results.back();
       last_match_range =
           buffer.RangeFromBufferIndex(match.start, match.start + match.length);
     }

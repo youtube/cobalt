@@ -45,10 +45,6 @@ namespace {
 using ::std::max;
 using ::std::min;
 
-// Default value for unmuting, as a percent in the range [0, 100].
-// Used when sound is unmuted, but volume was less than kMuteThresholdPercent.
-const int kDefaultUnmuteVolumePercent = 4;
-
 // Volume value which should be considered as muted in range [0, 100].
 const int kMuteThresholdPercent = 1;
 
@@ -382,14 +378,6 @@ void CrasAudioHandler::AddAudioObserver(AudioObserver* observer) {
 
 void CrasAudioHandler::RemoveAudioObserver(AudioObserver* observer) {
   observers_.RemoveObserver(observer);
-}
-
-bool CrasAudioHandler::HasKeyboardMic() {
-  return GetKeyboardMic() != nullptr;
-}
-
-bool CrasAudioHandler::HasHotwordDevice() {
-  return GetHotwordDevice() != nullptr;
 }
 
 bool CrasAudioHandler::IsOutputMuted() {
@@ -917,21 +905,6 @@ void CrasAudioHandler::SetSpatialAudioSupportedForTesting(bool supported) {
   spatial_audio_supported_ = supported;
 }
 
-void CrasAudioHandler::SetKeyboardMicActive(bool active) {
-  const AudioDevice* keyboard_mic = GetKeyboardMic();
-  if (!keyboard_mic) {
-    return;
-  }
-  // Keyboard mic is invisible to chromeos users. It is always added or removed
-  // as additional active node.
-  DCHECK(active_input_node_id_ && active_input_node_id_ != keyboard_mic->id);
-  if (active) {
-    AddActiveNode(keyboard_mic->id, true);
-  } else {
-    RemoveActiveNodeInternal(keyboard_mic->id, true);
-  }
-}
-
 void CrasAudioHandler::SetSpeakOnMuteDetection(bool som_on) {
   CrasAudioClient::Get()->SetSpeakOnMuteDetection(som_on);
   speak_on_mute_detection_on_ = som_on;
@@ -991,29 +964,6 @@ void CrasAudioHandler::AddActiveNode(uint64_t node_id, bool notify) {
   }
 
   AddAdditionalActiveNode(node_id, notify);
-}
-
-void CrasAudioHandler::ChangeActiveNodes(const NodeIdList& new_active_ids) {
-  AudioDeviceList input_devices;
-  AudioDeviceList output_devices;
-
-  for (uint64_t id : new_active_ids) {
-    const AudioDevice* device = GetDeviceFromId(id);
-    if (!device) {
-      continue;
-    }
-    if (device->is_input) {
-      input_devices.push_back(*device);
-    } else {
-      output_devices.push_back(*device);
-    }
-  }
-  if (!input_devices.empty()) {
-    SetActiveDevices(input_devices, true /* is_input */);
-  }
-  if (!output_devices.empty()) {
-    SetActiveDevices(output_devices, false /* is_input */);
-  }
 }
 
 bool CrasAudioHandler::SetActiveInputNodes(const NodeIdList& node_ids) {
@@ -1085,13 +1035,6 @@ void CrasAudioHandler::SetActiveDevices(const AudioDeviceList& devices,
   if (active_devices_changed) {
     NotifyActiveNodeChanged(is_input);
   }
-}
-
-void CrasAudioHandler::SetHotwordModel(uint64_t node_id,
-                                       const std::string& hotword_model,
-                                       VoidCrasAudioHandlerCallback callback) {
-  CrasAudioClient::Get()->SetHotwordModel(node_id, hotword_model,
-                                          std::move(callback));
 }
 
 void CrasAudioHandler::SwapInternalSpeakerLeftRightChannel(bool swap) {
@@ -1262,23 +1205,6 @@ void CrasAudioHandler::SetOutputMuteLockedBySecurityCurtain(bool mute_on) {
 
   output_mute_forced_by_security_curtain_ = mute_on;
   UpdateAudioOutputMute();
-}
-
-void CrasAudioHandler::AdjustOutputVolumeToAudibleLevel() {
-  if (output_volume_ <= kMuteThresholdPercent) {
-    for (const auto& item : audio_devices_) {
-      int unmute_volume = kDefaultUnmuteVolumePercent;
-      const AudioDevice& device = item.second;
-      if (!device.is_input && device.active) {
-        if (device.type == AudioDeviceType::kUsb) {
-          int32_t number_of_volume_steps = device.number_of_volume_steps;
-          DCHECK(number_of_volume_steps > 0);
-          unmute_volume = 100 / number_of_volume_steps;
-        }
-        SetOutputNodeVolumePercent(device.id, unmute_volume);
-      }
-    }
-  }
 }
 
 void CrasAudioHandler::SetInputMute(bool mute_on,
@@ -1727,10 +1653,6 @@ void CrasAudioHandler::AudioEffectUIAppearanceChanged(
   HandleGetVoiceIsolationUIAppearance(appearance);
 }
 
-void CrasAudioHandler::ResendBluetoothBattery() {
-  CrasAudioClient::Get()->ResendBluetoothBattery();
-}
-
 void CrasAudioHandler::SetPrefHandlerForTesting(
     scoped_refptr<AudioDevicesPrefHandler> audio_pref_handler) {
   audio_pref_handler_->RemoveAudioPrefObserver(this);
@@ -1770,26 +1692,6 @@ const AudioDevice* CrasAudioHandler::GetDeviceFromStableDeviceId(
     const AudioDevice& device = item.second;
     if (device.is_input == is_input &&
         device.stable_device_id == stable_device_id) {
-      return &device;
-    }
-  }
-  return nullptr;
-}
-
-const AudioDevice* CrasAudioHandler::GetKeyboardMic() const {
-  for (const auto& item : audio_devices_) {
-    const AudioDevice& device = item.second;
-    if (device.is_input && device.type == AudioDeviceType::kKeyboardMic) {
-      return &device;
-    }
-  }
-  return nullptr;
-}
-
-const AudioDevice* CrasAudioHandler::GetHotwordDevice() const {
-  for (const auto& item : audio_devices_) {
-    const AudioDevice& device = item.second;
-    if (device.is_input && device.type == AudioDeviceType::kHotword) {
       return &device;
     }
   }
@@ -3440,10 +3342,6 @@ CrasAudioHandler& ScopedCrasAudioHandlerForTesting::Get() {
 
 int32_t CrasAudioHandler::NumberOfNonChromeOutputStreams() const {
   return num_active_nonchrome_output_streams_;
-}
-
-int32_t CrasAudioHandler::NumberOfChromeOutputStreams() const {
-  return num_active_output_streams_;
 }
 
 int32_t CrasAudioHandler::NumberOfArcStreams() const {

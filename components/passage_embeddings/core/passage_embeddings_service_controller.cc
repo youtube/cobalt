@@ -145,7 +145,7 @@ bool PassageEmbeddingsServiceController::MaybeUpdateModelInfo(
   embeddings_model_path_ = model_info->GetModelFilePath();
   sp_model_path_ = *(additional_files.begin());
 
-  CHECK(EmbedderReady());
+  CHECK(IsModelAvailable());
   logger.set_status(EmbeddingsModelInfoStatus::kValid);
   observer_list_.Notify(&EmbedderMetadataObserver::EmbedderMetadataUpdated,
                         GetEmbedderMetadata());
@@ -192,13 +192,21 @@ void PassageEmbeddingsServiceController::OnLoadModelsResult(
   }
 }
 
+bool PassageEmbeddingsServiceController::IsModelAvailable() {
+  return !sp_model_path_.empty() && !embeddings_model_path_.empty();
+}
+
+bool PassageEmbeddingsServiceController::EmbedderRunning() {
+  return !pending_requests_.empty();
+}
+
 Embedder* PassageEmbeddingsServiceController::GetEmbedder() {
   return embedder_.get();
 }
 
 void PassageEmbeddingsServiceController::AddObserver(
     EmbedderMetadataObserver* observer) {
-  if (EmbedderReady()) {
+  if (IsModelAvailable()) {
     observer->EmbedderMetadataUpdated(GetEmbedderMetadata());
   }
   observer_list_.AddObserver(observer);
@@ -218,7 +226,7 @@ void PassageEmbeddingsServiceController::GetEmbeddings(
     return;
   }
 
-  if (!EmbedderReady()) {
+  if (!IsModelAvailable()) {
     VLOG(1) << "Missing model path: embeddings='" << embeddings_model_path_
             << "'; sp='" << sp_model_path_ << "'";
     std::move(callback).Run({}, ComputeEmbeddingsStatus::kModelUnavailable);
@@ -268,10 +276,6 @@ void PassageEmbeddingsServiceController::GetEmbeddings(
   next_request_id_++;
 }
 
-bool PassageEmbeddingsServiceController::EmbedderReady() {
-  return !sp_model_path_.empty() && !embeddings_model_path_.empty();
-}
-
 EmbedderMetadata PassageEmbeddingsServiceController::GetEmbedderMetadata() {
   if (model_metadata_->score_threshold() > 0.0) {
     return EmbedderMetadata(model_version_, model_metadata_->output_size(),
@@ -279,10 +283,6 @@ EmbedderMetadata PassageEmbeddingsServiceController::GetEmbedderMetadata() {
   }
 
   return EmbedderMetadata(model_version_, model_metadata_->output_size());
-}
-
-bool PassageEmbeddingsServiceController::EmbedderRunning() {
-  return !pending_requests_.empty();
 }
 
 void PassageEmbeddingsServiceController::ResetEmbedderRemote() {

@@ -42,6 +42,14 @@ This section maintains a list of exceptions from the policy above:
 - `#![feature(linkage)]` and `#![feature(rustc_attrs)]` needed to use
   PartitionAlloc from Rust (removal is tracked by <https://crbug.com/410596442>)
   - `//build/rust/allocator`
+- Features needed by Crubit - see:
+  - Some unstable features are required by `crubit/support` libraries
+    (but IIUC not by the Crubit-generated bindings).
+  - The justification and exit strategy for each feature is documented at
+    https://github.com/google/crubit/blob/main/docs/overview/unstable_features.md
+  - The actual features allowed in Chromium builds are listed in the following
+    `gn` `config`:
+    `//build/rust/crubit:allow_unstable_features_required_by_crubit`.
 
 ### How to allow unstable features in BUILD.gn
 

@@ -30,6 +30,33 @@
 
 namespace enterprise_custom_headers {
 
+namespace {
+
+void ValidateSingleHeaderLogEvent(
+    const std::optional<base::DictValue>& extended_net_log_events,
+    const std::string& header_name,
+    const std::string& expected_value,
+    bool expected_is_override) {
+  ASSERT_TRUE(extended_net_log_events.has_value());
+
+  const base::DictValue* policy_dict =
+      extended_net_log_events->FindDict("http_header_injection_policy");
+  ASSERT_TRUE(policy_dict);
+
+  const base::DictValue* header_entry = policy_dict->FindDict(header_name);
+  ASSERT_TRUE(header_entry);
+
+  const std::string* header_val = header_entry->FindString("value");
+  ASSERT_TRUE(header_val);
+  EXPECT_EQ(expected_value, *header_val);
+
+  std::optional<bool> is_override = header_entry->FindBool("is_override");
+  ASSERT_TRUE(is_override.has_value());
+  EXPECT_EQ(expected_is_override, is_override.value());
+}
+
+}  // namespace
+
 class MockTrustedHeaderClient : public network::mojom::TrustedHeaderClient {
  public:
   MockTrustedHeaderClient() {
@@ -38,7 +65,7 @@ class MockTrustedHeaderClient : public network::mojom::TrustedHeaderClient {
         .WillByDefault([](const GURL& request_url,
                           const net::HttpRequestHeaders& headers,
                           OnBeforeSendHeadersCallback callback) {
-          std::move(callback).Run(net::OK, std::nullopt);
+          std::move(callback).Run(net::OK, std::nullopt, std::nullopt);
         });
     ON_CALL(*this, OnHeadersReceived(_, _, _, _))
         .WillByDefault([](const std::string& headers,
@@ -116,12 +143,13 @@ TEST_F(HttpHeaderInjectionClientTest, PassThroughWithoutInjectionService) {
   net::HttpRequestHeaders headers;
   headers.SetHeader("X-Original", "Value");
 
-  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>>
+  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>,
+                         std::optional<base::DictValue>>
       future;
   remote->OnBeforeSendHeaders(
       GURL("https://example.com"), headers,
-      future.GetCallback<int32_t,
-                         const std::optional<net::HttpRequestHeaders>&>());
+      future.GetCallback<int32_t, const std::optional<net::HttpRequestHeaders>&,
+                         std::optional<base::DictValue>>());
   int32_t out_result = future.Get<0>();
   std::optional<net::HttpRequestHeaders> out_headers = future.Get<1>();
 
@@ -141,7 +169,7 @@ TEST_F(HttpHeaderInjectionClientTest, TargetClientModifiesHeaders) {
                  callback) {
             net::HttpRequestHeaders modified_headers;
             modified_headers.SetHeader("X-Modified", "ModifiedValue");
-            std::move(callback).Run(net::OK, modified_headers);
+            std::move(callback).Run(net::OK, modified_headers, std::nullopt);
           });
 
   mojo::Remote<network::mojom::TrustedHeaderClient> remote;
@@ -153,12 +181,13 @@ TEST_F(HttpHeaderInjectionClientTest, TargetClientModifiesHeaders) {
   net::HttpRequestHeaders headers;
   headers.SetHeader("X-Original", "Value");
 
-  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>>
+  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>,
+                         std::optional<base::DictValue>>
       future;
   remote->OnBeforeSendHeaders(
       GURL("https://example.com"), headers,
-      future.GetCallback<int32_t,
-                         const std::optional<net::HttpRequestHeaders>&>());
+      future.GetCallback<int32_t, const std::optional<net::HttpRequestHeaders>&,
+                         std::optional<base::DictValue>>());
   int32_t out_result = future.Get<0>();
   std::optional<net::HttpRequestHeaders> out_headers = future.Get<1>();
 
@@ -182,7 +211,8 @@ TEST_F(HttpHeaderInjectionClientTest, TargetClientFails) {
           [](const GURL& request_url, const net::HttpRequestHeaders& headers,
              network::mojom::TrustedHeaderClient::OnBeforeSendHeadersCallback
                  callback) {
-            std::move(callback).Run(net::ERR_ABORTED, std::nullopt);
+            std::move(callback).Run(net::ERR_ABORTED, std::nullopt,
+                                    std::nullopt);
           });
 
   mojo::Remote<network::mojom::TrustedHeaderClient> remote;
@@ -194,12 +224,13 @@ TEST_F(HttpHeaderInjectionClientTest, TargetClientFails) {
   net::HttpRequestHeaders headers;
   headers.SetHeader("X-Original", "Value");
 
-  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>>
+  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>,
+                         std::optional<base::DictValue>>
       future;
   remote->OnBeforeSendHeaders(
       GURL("https://example.com"), headers,
-      future.GetCallback<int32_t,
-                         const std::optional<net::HttpRequestHeaders>&>());
+      future.GetCallback<int32_t, const std::optional<net::HttpRequestHeaders>&,
+                         std::optional<base::DictValue>>());
   int32_t out_result = future.Get<0>();
   std::optional<net::HttpRequestHeaders> out_headers = future.Get<1>();
 
@@ -220,12 +251,13 @@ TEST_F(HttpHeaderInjectionClientTest, InjectsHeaders) {
   net::HttpRequestHeaders headers;
   headers.SetHeader("X-Original", "Value");
 
-  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>>
+  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>,
+                         std::optional<base::DictValue>>
       future;
   remote->OnBeforeSendHeaders(
       GURL("https://example.com"), headers,
-      future.GetCallback<int32_t,
-                         const std::optional<net::HttpRequestHeaders>&>());
+      future.GetCallback<int32_t, const std::optional<net::HttpRequestHeaders>&,
+                         std::optional<base::DictValue>>());
   int32_t out_result = future.Get<0>();
   std::optional<net::HttpRequestHeaders> out_headers = future.Get<1>();
 
@@ -237,6 +269,9 @@ TEST_F(HttpHeaderInjectionClientTest, InjectsHeaders) {
   std::optional<std::string> value2 = out_headers->GetHeader("X-Enterprise");
   ASSERT_TRUE(value2.has_value());
   EXPECT_EQ("PolicyValue", value2.value());
+
+  ValidateSingleHeaderLogEvent(future.Get<2>(), "X-Enterprise", "PolicyValue",
+                               /*expected_is_override=*/false);
 }
 
 // Tests that enterprise headers are correctly merged with modifications
@@ -253,7 +288,7 @@ TEST_F(HttpHeaderInjectionClientTest, InjectsHeadersWithTargetClient) {
                  callback) {
             net::HttpRequestHeaders modified_headers;
             modified_headers.SetHeader("X-Modified", "ModifiedValue");
-            std::move(callback).Run(net::OK, modified_headers);
+            std::move(callback).Run(net::OK, modified_headers, std::nullopt);
           });
 
   mojo::Remote<network::mojom::TrustedHeaderClient> remote;
@@ -265,12 +300,13 @@ TEST_F(HttpHeaderInjectionClientTest, InjectsHeadersWithTargetClient) {
   net::HttpRequestHeaders headers;
   headers.SetHeader("X-Original", "Value");
 
-  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>>
+  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>,
+                         std::optional<base::DictValue>>
       future;
   remote->OnBeforeSendHeaders(
       GURL("https://example.com"), headers,
-      future.GetCallback<int32_t,
-                         const std::optional<net::HttpRequestHeaders>&>());
+      future.GetCallback<int32_t, const std::optional<net::HttpRequestHeaders>&,
+                         std::optional<base::DictValue>>());
   int32_t out_result = future.Get<0>();
   std::optional<net::HttpRequestHeaders> out_headers = future.Get<1>();
 
@@ -306,7 +342,7 @@ TEST_F(HttpHeaderInjectionClientTest, PolicyOverwritesTargetClientHeaders) {
             net::HttpRequestHeaders modified_headers = headers;
             // Target client tries to inject the same header the policy uses!
             modified_headers.SetHeader("X-Enterprise", "RogueValue");
-            std::move(callback).Run(net::OK, modified_headers);
+            std::move(callback).Run(net::OK, modified_headers, std::nullopt);
           });
 
   mojo::Remote<network::mojom::TrustedHeaderClient> remote;
@@ -318,12 +354,13 @@ TEST_F(HttpHeaderInjectionClientTest, PolicyOverwritesTargetClientHeaders) {
   net::HttpRequestHeaders headers;
   headers.SetHeader("X-Original", "Value");
 
-  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>>
+  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>,
+                         std::optional<base::DictValue>>
       future;
   remote->OnBeforeSendHeaders(
       GURL("https://example.com"), headers,
-      future.GetCallback<int32_t,
-                         const std::optional<net::HttpRequestHeaders>&>());
+      future.GetCallback<int32_t, const std::optional<net::HttpRequestHeaders>&,
+                         std::optional<base::DictValue>>());
   int32_t out_result = future.Get<0>();
   std::optional<net::HttpRequestHeaders> out_headers = future.Get<1>();
 
@@ -334,6 +371,9 @@ TEST_F(HttpHeaderInjectionClientTest, PolicyOverwritesTargetClientHeaders) {
   std::optional<std::string> value = out_headers->GetHeader("X-Enterprise");
   ASSERT_TRUE(value.has_value());
   EXPECT_EQ("PolicyValue", value.value());
+
+  ValidateSingleHeaderLogEvent(future.Get<2>(), "X-Enterprise", "PolicyValue",
+                               /*expected_is_override=*/true);
 }
 
 // Tests that if the target client returns no modifications (std::nullopt),
@@ -351,12 +391,13 @@ TEST_F(HttpHeaderInjectionClientTest, TargetClientReturnsNullopt) {
   net::HttpRequestHeaders headers;
   headers.SetHeader("X-Original", "Value");
 
-  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>>
+  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>,
+                         std::optional<base::DictValue>>
       future;
   remote->OnBeforeSendHeaders(
       GURL("https://example.com"), headers,
-      future.GetCallback<int32_t,
-                         const std::optional<net::HttpRequestHeaders>&>());
+      future.GetCallback<int32_t, const std::optional<net::HttpRequestHeaders>&,
+                         std::optional<base::DictValue>>());
   int32_t out_result = future.Get<0>();
   std::optional<net::HttpRequestHeaders> out_headers = future.Get<1>();
 
@@ -382,12 +423,13 @@ TEST_F(HttpHeaderInjectionClientTest, TargetClientReturnsNulloptWithPolicy) {
   net::HttpRequestHeaders headers;
   headers.SetHeader("X-Original", "Value");
 
-  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>>
+  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>,
+                         std::optional<base::DictValue>>
       future;
   remote->OnBeforeSendHeaders(
       GURL("https://example.com"), headers,
-      future.GetCallback<int32_t,
-                         const std::optional<net::HttpRequestHeaders>&>());
+      future.GetCallback<int32_t, const std::optional<net::HttpRequestHeaders>&,
+                         std::optional<base::DictValue>>());
   int32_t out_result = future.Get<0>();
   std::optional<net::HttpRequestHeaders> out_headers = future.Get<1>();
 
@@ -417,12 +459,13 @@ TEST_F(HttpHeaderInjectionClientTest, BadConfigMultipleValuesForSameHeader) {
       remote.BindNewPipeAndPassReceiver(), mojo::NullRemote());
 
   net::HttpRequestHeaders headers;
-  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>>
+  base::test::TestFuture<int32_t, std::optional<net::HttpRequestHeaders>,
+                         std::optional<base::DictValue>>
       future;
   remote->OnBeforeSendHeaders(
       GURL("https://example.com/"), headers,
-      future.GetCallback<int32_t,
-                         const std::optional<net::HttpRequestHeaders>&>());
+      future.GetCallback<int32_t, const std::optional<net::HttpRequestHeaders>&,
+                         std::optional<base::DictValue>>());
 
   int32_t out_result = future.Get<0>();
   std::optional<net::HttpRequestHeaders> out_headers = future.Get<1>();

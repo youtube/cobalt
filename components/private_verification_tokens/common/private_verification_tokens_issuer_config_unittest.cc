@@ -18,6 +18,8 @@
 #include "components/private_verification_tokens/common/private_verification_tokens_parameters.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
+#include "url/origin.h"
 
 namespace private_verification_tokens {
 
@@ -235,7 +237,8 @@ TEST(PrivateVerificationTokensIssuerConfigInternalTest, ParseEntry_Valid) {
   auto result = ParseEntry(entry);
   EXPECT_TRUE(result.has_value());
   EXPECT_EQ(result->batch_size, 3);
-  EXPECT_EQ(result->public_key.etld_plus_one(), "example.com");
+  EXPECT_EQ(result->public_key.issuer(),
+            url::Origin::Create(GURL("https://example.com")));
 }
 
 struct MissingFieldTestCase {
@@ -311,6 +314,7 @@ TEST_F(PrivateVerificationTokensIssuerConfigTest,
 TEST_F(PrivateVerificationTokensIssuerConfigTest,
        Create_ValidArgument_SuccessSingleIssuer) {
   const std::string domain = "example.com";
+  const url::Origin issuer = url::Origin::Create(GURL("https://example.com"));
   const uint32_t key_id = 3;
   const std::vector<uint8_t> serialized_public_key = {3, 6, 8, 12, 14};
   const std::string encoded_public_key =
@@ -339,9 +343,9 @@ TEST_F(PrivateVerificationTokensIssuerConfigTest,
   EXPECT_THAT(config->config(), testing::SizeIs(1));
 
   PrivateVerificationTokensPublicKey expected_public_key{
-      domain, serialized_public_key, key_id,
+      issuer, serialized_public_key, key_id,
       base::Time::UnixEpoch() + base::Seconds(12), version};
-  const auto& parsed_issuer_config = config->config().at(domain);
+  const auto& parsed_issuer_config = config->config().at(issuer);
   EXPECT_EQ(parsed_issuer_config.batch_size, 3);
   EXPECT_EQ(parsed_issuer_config.public_key, expected_public_key);
 }
@@ -382,17 +386,20 @@ TEST_F(PrivateVerificationTokensIssuerConfigTest,
   EXPECT_THAT(config, testing::NotNull());
   EXPECT_THAT(config->config(), testing::SizeIs(2));
 
+  const url::Origin a_origin = url::Origin::Create(GURL("https://a.com"));
+  const url::Origin b_origin = url::Origin::Create(GURL("https://b.com"));
+
   PrivateVerificationTokensPublicKey expected_pk1{
-      "a.com", serialized_public_key1, 2,
+      a_origin, serialized_public_key1, 2,
       base::Time::UnixEpoch() + base::Seconds(49), 1};
-  const auto& config1 = config->config().at("a.com");
+  const auto& config1 = config->config().at(a_origin);
   EXPECT_EQ(config1.batch_size, 3);
   EXPECT_EQ(config1.public_key, expected_pk1);
 
   PrivateVerificationTokensPublicKey expected_pk2{
-      "b.com", serialized_public_key2, 5,
+      b_origin, serialized_public_key2, 5,
       base::Time::UnixEpoch() + base::Seconds(53), 1};
-  const auto& config2 = config->config().at("b.com");
+  const auto& config2 = config->config().at(b_origin);
   EXPECT_EQ(config2.batch_size, 5);
   EXPECT_EQ(config2.public_key, expected_pk2);
 }
@@ -430,14 +437,19 @@ TEST_F(PrivateVerificationTokensIssuerConfigTest,
   EXPECT_THAT(config, testing::NotNull());
   EXPECT_THAT(config->config(), testing::SizeIs(1));
 
+  const url::Origin valid_origin =
+      url::Origin::Create(GURL("https://valid.com"));
+  const url::Origin invalid_origin =
+      url::Origin::Create(GURL("https://invalid.com"));
+
   PrivateVerificationTokensPublicKey expected_pk1{
-      "valid.com", serialized_public_key1, 2,
+      valid_origin, serialized_public_key1, 2,
       base::Time::UnixEpoch() + base::Seconds(49), 1};
-  const auto& config1 = config->config().at("valid.com");
+  const auto& config1 = config->config().at(valid_origin);
   EXPECT_EQ(config1.batch_size, 3);
   EXPECT_EQ(config1.public_key, expected_pk1);
 
-  EXPECT_FALSE(config->config().contains("invalid.com"));
+  EXPECT_FALSE(config->config().contains(invalid_origin));
 }
 
 TEST_F(PrivateVerificationTokensIssuerConfigTest,
@@ -483,18 +495,21 @@ TEST_F(PrivateVerificationTokensIssuerConfigTest,
   EXPECT_THAT(config, testing::NotNull());
   EXPECT_THAT(config->config(), testing::SizeIs(2));
 
+  const url::Origin a_origin = url::Origin::Create(GURL("https://a.com"));
+  const url::Origin b_origin = url::Origin::Create(GURL("https://b.com"));
+
   // Verify first a.com entry is picked
   PrivateVerificationTokensPublicKey expected_pk1{
-      "a.com", serialized_public_key, 2,
+      a_origin, serialized_public_key, 2,
       base::Time::UnixEpoch() + base::Seconds(49), 1};
-  const auto& config1 = config->config().at("a.com");
+  const auto& config1 = config->config().at(a_origin);
   EXPECT_EQ(config1.batch_size, 3);
   EXPECT_EQ(config1.public_key, expected_pk1);
 
   PrivateVerificationTokensPublicKey expected_pk2{
-      "b.com", serialized_public_key, 5,
+      b_origin, serialized_public_key, 5,
       base::Time::UnixEpoch() + base::Seconds(53), 1};
-  const auto& config2 = config->config().at("b.com");
+  const auto& config2 = config->config().at(b_origin);
   EXPECT_EQ(config2.batch_size, 5);
   EXPECT_EQ(config2.public_key, expected_pk2);
 }
@@ -560,14 +575,17 @@ TEST_F(PrivateVerificationTokensIssuerConfigTest, LoadFromFile_ValidJson) {
   auto result = PrivateVerificationTokensIssuerConfig::LoadFromFile(path);
   EXPECT_TRUE(result);
   EXPECT_THAT(result->config(), testing::SizeIs(1));
-  EXPECT_TRUE(result->config().contains("example.com"));
+  const url::Origin expected_origin =
+      url::Origin::Create(GURL("https://example.com"));
+  EXPECT_TRUE(result->config().contains(expected_origin));
 
-  EXPECT_EQ(result->config().at("example.com").batch_size, 3);
+  EXPECT_EQ(result->config().at(expected_origin).batch_size, 3);
 
   const PrivateVerificationTokensPublicKey expected_public_key{
-      "example.com", serialized_public_key, 3,
+      expected_origin, serialized_public_key, 3,
       base::Time::UnixEpoch() + base::Seconds(12), 1};
-  EXPECT_EQ(result->config().at("example.com").public_key, expected_public_key);
+  EXPECT_EQ(result->config().at(expected_origin).public_key,
+            expected_public_key);
 }
 
 }  // namespace private_verification_tokens

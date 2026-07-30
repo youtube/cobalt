@@ -6,10 +6,12 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/time/time.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
@@ -115,7 +117,7 @@ class PageActionViewWithControllerTest : public ChromeViewsTestBase {
             .icon_size = kDefaultIconSize,
             .icon_label_bubble_delegate = &icon_label_view_delegate_,
         },
-        ui::ElementIdentifier());
+        PageActionIconType::kLensOverlay, ui::ElementIdentifier());
 
     pinned_actions_model_ =
         std::make_unique<PinnedToolbarActionsModel>(&profile_);
@@ -176,7 +178,7 @@ class PageActionViewTest : public ChromeViewsTestBase {
             PageActionViewParams{
                 .icon_size = view_icon_size_,
                 .icon_label_bubble_delegate = &icon_label_view_delegate_},
-            ui::ElementIdentifier()));
+            PageActionIconType::kLensOverlay, ui::ElementIdentifier()));
 
     page_action_view_->GetSlideAnimationForTesting().SetSlideDuration(
         base::Seconds(0));
@@ -207,6 +209,7 @@ class PageActionViewTest : public ChromeViewsTestBase {
   MockPageActionModel* model() { return &mock_model_; }
   actions::ActionItem* action_item() { return action_item_.get(); }
   int view_icon_size() const { return view_icon_size_; }
+  views::Widget* widget() { return widget_.get(); }
 
  protected:
   testing::NiceMock<MockIconLabelViewDelegate> icon_label_view_delegate_;
@@ -243,7 +246,7 @@ TEST_F(PageActionViewTest, ViewHasCorrectElementIdentifier) {
       PageActionViewParams{
           .icon_size = view_icon_size(),
           .icon_label_bubble_delegate = &icon_label_view_delegate_},
-      kCustomIdentifier);
+      PageActionIconType::kLensOverlay, kCustomIdentifier);
 
   EXPECT_EQ(view_with_id->GetProperty(views::kElementIdentifierKey),
             kCustomIdentifier);
@@ -970,6 +973,67 @@ INSTANTIATE_TEST_SUITE_P(
           NOTREACHED();
       }
     });
+
+TEST_F(PageActionViewTest, CollapsedDueToSpaceMetrics) {
+  base::HistogramTester histogram_tester;
+
+  // 1. Show the chip in a large widget.
+  widget()->SetSize(gfx::Size(400, 100));
+  EXPECT_CALL(*model(), GetVisible()).WillRepeatedly(Return(true));
+  EXPECT_CALL(*model(), ShouldShowSuggestionChip())
+      .WillRepeatedly(Return(true));
+  page_action_view()->OnPageActionModelChanged(*model());
+  page_action_view()->GetWidget()->LayoutRootViewIfNecessary();
+
+  EXPECT_TRUE(page_action_view()->GetVisible());
+  EXPECT_TRUE(page_action_view()->IsChipVisible());
+
+  // Verify no metrics logged yet (because it is expanded).
+  histogram_tester.ExpectTotalCount(
+      "PageActionController.Chip.CollapsedDueToSpace.ActionType", 0);
+  histogram_tester.ExpectUniqueSample(
+      "PageActionController.ChipCollapseAnalysisCount.ActionType",
+      PageActionIconType::kLensOverlay, 1);
+
+  // 2. Hide the VIEW completely (not just the chip).
+  // This resets the flag and also allows us to change bounds while invisible.
+  EXPECT_CALL(*model(), GetVisible()).WillRepeatedly(Return(false));
+  page_action_view()->OnPageActionModelChanged(*model());
+  EXPECT_FALSE(page_action_view()->GetVisible());
+
+  // 3. Resize the widget to be small.
+  int min_width = page_action_view()->GetMinimumSize().width();
+  widget()->SetSize(gfx::Size(min_width, 100));
+
+  // 4. Show the view and the chip again.
+  // When it becomes visible, it should be laid out at the new small size,
+  // triggering OnBoundsChanged and logging the metric.
+  EXPECT_CALL(*model(), GetVisible()).WillRepeatedly(Return(true));
+  EXPECT_CALL(*model(), ShouldShowSuggestionChip())
+      .WillRepeatedly(Return(true));
+  page_action_view()->OnPageActionModelChanged(*model());
+
+  page_action_view()->GetWidget()->LayoutRootViewIfNecessary();
+
+  EXPECT_TRUE(page_action_view()->GetVisible());
+  EXPECT_TRUE(page_action_view()->IsChipVisible());
+  EXPECT_LE(page_action_view()->width(), min_width);
+
+  // Verify metrics.
+  histogram_tester.ExpectUniqueSample(
+      "PageActionController.Chip.CollapsedDueToSpace.ActionType",
+      PageActionIconType::kLensOverlay, 1);
+  histogram_tester.ExpectUniqueSample(
+      "PageActionController.ChipCollapseAnalysisCount.ActionType",
+      PageActionIconType::kLensOverlay, 2);
+
+  histogram_tester.ExpectTotalCount(
+      "PageActionController.Chip.CollapsedDueToSpace.PreferredWidth", 1);
+  std::vector<base::Bucket> buckets = histogram_tester.GetAllSamples(
+      "PageActionController.Chip.CollapsedDueToSpace.PreferredWidth");
+  ASSERT_EQ(buckets.size(), 1u);
+  EXPECT_GT(buckets[0].min, 0);
+}
 
 }  // namespace
 }  // namespace page_actions

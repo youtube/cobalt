@@ -811,7 +811,7 @@ TEST_F(WebuiOmniboxHandlerTest, WebuiOmniboxUpdatesSelection) {
 
 TEST_F(WebuiOmniboxHandlerTest, OnActiveTabChanged_SavesAndRestoresState) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(omnibox::kWebUIOmniboxFullPopupV2);
+  feature_list.InitAndEnableFeature(omnibox::kWebUIOmniboxFullPopup);
   tabs::MockTabInterface tab1;
   tabs::MockTabInterface tab2;
   auto web_contents1 =

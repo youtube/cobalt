@@ -145,9 +145,6 @@ ScriptPromise<IDLUndefined> IsolatedWebApp::setShape(
               case mojom::blink::SetShapeResult::kSuccess:
                 resolver->Resolve();
                 break;
-              case mojom::blink::SetShapeResult::kInvalidLength:
-                resolver->RejectWithTypeError("Invalid number of rectangles.");
-                break;
               case mojom::blink::SetShapeResult::kNoWindow:
                 resolver->RejectWithDOMException(
                     DOMExceptionCode::kInvalidStateError,

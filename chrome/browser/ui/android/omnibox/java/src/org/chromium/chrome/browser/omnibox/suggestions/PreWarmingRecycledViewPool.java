@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.omnibox.suggestions;
 
 import android.content.Context;
 import android.os.Handler;
+import android.os.Looper;
 import android.widget.FrameLayout;
 
 import androidx.annotation.VisibleForTesting;
@@ -85,14 +86,14 @@ public class PreWarmingRecycledViewPool extends RecycledViewPool {
     private int mExpectedViewCount;
 
     PreWarmingRecycledViewPool(OmniboxViewHolderFactory factory, Context context) {
+        this(factory, context, createHandlerForPrewarming());
+    }
+
+    @VisibleForTesting
+    PreWarmingRecycledViewPool(
+            OmniboxViewHolderFactory factory, Context context, @Nullable Handler handler) {
         mViewHolderFactory = factory;
-        mHandler =
-                OmniboxFeatures.sAsyncViewInflation.isEnabled()
-                        // If AsyncViewInflation is enabled, we use AsyncViewStub to handle
-                        // asynchrony and we don't need to do it ourselves.
-                        ? null
-                        // Otherwise, we handle asynchrony.
-                        : new Handler();
+        mHandler = handler;
         mPlaceholderParent = new FrameLayout(context);
         // The list below should include suggestions defined in OmniboxSuggestionUiType
         // and specify the maximum anticipated volume of suggestions of each type.
@@ -113,6 +114,17 @@ public class PreWarmingRecycledViewPool extends RecycledViewPool {
             startCreatingViews();
         }
     }
+
+    private static @Nullable Handler createHandlerForPrewarming() {
+        boolean shouldStagger =
+                !OmniboxFeatures.sAsyncViewInflation.isEnabled()
+                        || ThreadUtils.runningOnUiThread();
+
+        // Even if async view inflation is enabled, if we are forcing inflation on the main thread,
+        // we want to stagger the view creation so it doesn't cause jank.
+        return shouldStagger ? new Handler(Looper.getMainLooper()) : null;
+    }
+
 
     public void destroy() {
         stopCreatingViews();
@@ -191,7 +203,7 @@ public class PreWarmingRecycledViewPool extends RecycledViewPool {
                     mViewHolderFactory.createViewHolderForPool(mPlaceholderParent, viewType));
         }
 
-        if (!OmniboxFeatures.sAsyncViewInflation.isEnabled()) {
+        if (mHandler != null) {
             mCumulativePrewarmWallTimeMs += wallTimer.getElapsedMillis();
             mCumulativePrewarmThreadTimeMs += threadTimer.getElapsedMillis();
             if (mPrewarmedViews.size() == mExpectedViewCount) {

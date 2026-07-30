@@ -53,6 +53,7 @@ source_set("browser_tests") {
     ":common",
     "//base",
     "//chrome/browser",
+    "//chrome/browser/glic",
     "//chrome/browser/tab_list",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/browser_window:create_browser_window",

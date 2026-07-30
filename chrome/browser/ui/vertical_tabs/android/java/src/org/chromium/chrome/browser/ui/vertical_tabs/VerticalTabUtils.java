@@ -15,6 +15,8 @@ import org.chromium.ui.base.DeviceFormFactor;
 /** Helper utilities for Vertical Tabs eligibility and preferences. */
 @NullMarked
 public class VerticalTabUtils {
+    /** The width of the vertical tabs SideUiContainer in dp. */
+    public static final int SIDE_UI_CONTAINER_WIDTH_DP = 206;
 
     /**
      * Returns whether the current device is eligible for Vertical Tabs. Vertical Tabs require the

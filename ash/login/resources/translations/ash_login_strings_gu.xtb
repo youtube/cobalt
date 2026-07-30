@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">આ નેટવર્ક ભૂલને સુધારવા માટે તમે <ph name="GUEST_SIGNIN_LINK_START" />અતિથિ તરીકે બ્રાઉઝ કરો<ph name="GUEST_SIGNIN_LINK_END" /> ને પણ અજમાવી શકો છો.</translation>
 <translation id="1201402288615127009">આગલું</translation>
 <translation id="1222835797152767346">સાઇન ઇન કરવાનું સરળ બનાવવા માટે કોઈ પિન સેટ કરો</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />ડિબગીંગની સુવિધાઓ<ph name="END_H3" />
+          <ph name="BR" />
+          તમે તમારા ડિવાઇસ પર કસ્ટમ કોડ ઇન્સ્ટૉલ કરીને તેનું પરીક્ષણ કરવા માટે તમારા ChromeOS ડિવાઇસ પર ડિબગીંગની સુવિધાઓ ચાલુ કરી શકો છો.  આમ કરવાથી તમે નીચેના કાર્યો કરી શકશો:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />rootfs ચકાસણીને કાઢી નાખી શકશો, જેથી તમે OS ફાઇલોમાં ફેરફાર કરી શકો
+            <ph name="LIST_ITEM" />સ્ટૅન્ડર્ડ પરીક્ષણ કીનો ઉપયોગ કરીને ડિવાઇસ પર SSH ઍક્સેસ ચાલુ કરી શકશો, જેથી તમે ડિવાઇસને ઍક્સેસ કરવા માટે <ph name="BEGIN_CODE" />'cros flash‘<ph name="END_CODE" /> જેવા ટૂલનો ઉપયોગ કરી શકો
+            <ph name="LIST_ITEM" />USBમાંથી બૂટ કરવાનું ચાલુ કરી શકશો, જેથી તમે USB ડ્રાઇવમાંથી OSની છબી ઇન્સ્ટૉલ કરી શકો
+            <ph name="LIST_ITEM" />ડેવલપર અને સિસ્ટમ રૂટ લૉગ ઇન પાસવર્ડ એ બન્નેને કોઈ કસ્ટમ મૂલ્ય પર સેટ કરી શકશો, જેથી તમે ડિવાઇસને SSH મારફતે મેન્યુઅલી ઍક્સેસ કરી શકો
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          એકવાર ચાલુ કર્યા પછી, ડિબગીંગની મોટાભાગની સુવિધાઓ એન્ટરપ્રાઇઝ દ્વારા મેનેજ કરવામાં આવતા ડિવાઇસ પર પાવરવૉશ પર્ફોર્મ કર્યા પછી અથવા ડેટાને વાઇપ કર્યા પછી પણ ચાલુ રહેશે.  ડિબગીંગની તમામ સુવિધાઓને સંપૂર્ણ રીતે બંધ કરવા માટે, ChromeOSની રિકવરીની પ્રક્રિયા પૂર્ણ કરો (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          ડિબગીંગની સુવિધાઓ વિશે વધુ માહિતી માટે આ જુઓ:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />નોંધ:<ph name="END_BOLD" />  પ્રક્રિયા દરમિયાન સિસ્ટમ રીબૂટ થશે.</translation>
 <translation id="1347625331607114917">તમારા Android ફોન પર કોડની ચકાસણી કરો</translation>
 <translation id="1347975661240122359">જ્યારે બૅટરી <ph name="BATTERY_LEVEL" />% પર પહોંચી જાય ત્યારે અપડેટ શરૂ થશે.</translation>
 <translation id="1375938286942050085">સેટઅપ પૂર્ણ થયું! આગલી ગેમ રમવા માટે, તમારું ડિવાઇસ તૈયાર કરો</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">ઍપ ડાઉનલોડ થઈ રહી છે</translation>
 <translation id="5045550434625856497">ખોટો પાસવર્ડ</translation>
 <translation id="5062930723426326933">સાઇન-ઇન નિષ્ફળ થયું, કૃપા કરીને ઇન્ટરનેટથી કનેક્ટ કરો અને ફરી પ્રયાસ કરો.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Google AI વડે લખવા, પ્લાન કરવા, શીખવા અને બીજી ઘણી બાબતો શરૂ કરવા માટે Gemini સાથે ચૅટ કરો.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />સેટઅપ કર્યા પછી, તમારી સ્ક્રીન પર સૌથી નીચેની બાજુએથી તમારા શેલ્ફ પરની Gemini ઍપ પસંદ કરીને Geminiનો ઉપયોગ કરવાનું શરૂ કરો.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">કૃપા કરીને તમારા <ph name="DEVICE_TYPE" />નો પ્લગ કોઈ પાવર સ્રોતમાં જોડો.</translation>
 <translation id="5147516217412920887">કોડની ચકાસણી કરવા માટે તમારા ફોન પરની સૂચનાઓને અનુસરો</translation>
 <translation id="5160857336552977725">તમારા <ph name="DEVICE_TYPE" /> પર સાઇન ઇન કરો</translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />ડિબગીંગની સુવિધાઓ<ph name="END_H3" />
+          <ph name="BR" />
+          તમે તમારા ડિવાઇસ પર કસ્ટમ કોડ ઇન્સ્ટૉલ કરીને તેનું પરીક્ષણ કરવા માટે તમારા ChromeOS Flex ડિવાઇસ પર ડિબગીંગની સુવિધાઓ ચાલુ કરી શકો છો.  આમ કરવાથી તમે નીચેના કાર્યો કરી શકશો:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />rootfs ચકાસણીને કાઢી નાખી શકશો, જેથી તમે OS ફાઇલોમાં ફેરફાર કરી શકો
+            <ph name="LIST_ITEM" />સ્ટૅન્ડર્ડ પરીક્ષણ કીનો ઉપયોગ કરીને ડિવાઇસ પર SSH ઍક્સેસ ચાલુ કરી શકશો, જેથી તમે ડિવાઇસને ઍક્સેસ કરવા માટે <ph name="BEGIN_CODE" />'cros flash‘<ph name="END_CODE" /> જેવા ટૂલનો ઉપયોગ કરી શકો
+            <ph name="LIST_ITEM" />USBમાંથી બૂટ કરવાનું ચાલુ કરી શકશો, જેથી તમે USB ડ્રાઇવમાંથી OSની છબી ઇન્સ્ટૉલ કરી શકો
+            <ph name="LIST_ITEM" />ડેવલપર અને સિસ્ટમ રૂટ લૉગ ઇન પાસવર્ડ એ બન્નેને કોઈ કસ્ટમ મૂલ્ય પર સેટ કરી શકશો, જેથી તમે ડિવાઇસને SSH મારફતે મેન્યુઅલી ઍક્સેસ કરી શકો
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          એકવાર ચાલુ કર્યા પછી, ડિબગીંગની મોટાભાગની સુવિધાઓ એન્ટરપ્રાઇઝ દ્વારા મેનેજ કરવામાં આવતા ડિવાઇસ પર પાવરવૉશ પર્ફોર્મ કર્યા પછી અથવા ડેટાને વાઇપ કર્યા પછી પણ ચાલુ રહેશે.  ડિબગીંગની તમામ સુવિધાઓને સંપૂર્ણ રીતે બંધ કરવા માટે, ChromeOSની રિકવરીની પ્રક્રિયા પૂર્ણ કરો (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          ડિબગીંગની સુવિધાઓ વિશે વધુ માહિતી માટે આ જુઓ:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />નોંધ:<ph name="END_BOLD" />  પ્રક્રિયા દરમિયાન સિસ્ટમ રીબૂટ થશે.</translation>
 <translation id="523505283826916779">ઍક્સેસિબિલિટી સેટિંગ</translation>
 <translation id="5240931875940563122">Android ફોન વડે સાઇન ઇન કરો</translation>
 <translation id="5255859108402770436">ફરીથી સાઇન ઇન કરો</translation>
@@ -193,6 +231,9 @@
 <translation id="6955698182324067397">તમે ChromeOS ડિબગીંગ સુવિધાઓને ચાલુ કરી રહ્યાં છો જે sshd daemon સેટ કરશે અને USB ડ્રાઇવથી બૂટ કરવું ચાલુ કરશે.</translation>
 <translation id="6965382102122355670">બરાબર, સમજાઇ ગયું</translation>
 <translation id="6981982820502123353">ઍક્સેસિબિલિટી</translation>
+<translation id="6984652455487792101">જો તમે પ્રૉક્સી સર્વરનો ઉપયોગ કરી રહ્યાં હો, તો તમારા પ્રૉક્સી સેટિંગ ચેક કરો અથવા
+        પ્રૉક્સી સર્વર બરાબર કામ કરી રહ્યું છે કે નહીં તેની ખાતરી કરવા માટે તમારા નેટવર્ક ઍડમિનનો સંપર્ક કરો. જો તમને લાગતું હોય કે તમારે
+        પ્રૉક્સી સર્વરનો ઉપયોગ કરવાની જરૂર નથી, તો તમારા <ph name="LINK_START" />પ્રૉક્સી સેટિંગ<ph name="LINK_END" />ને ગોઠવો.</translation>
 <translation id="6996245928508281884">તમારા ફોનની બ્લૂટૂથ અને વાઇ-ફાઇ સુવિધા ચાલુ કરો</translation>
 <translation id="7077829361966535409">સાઇન-ઇન પેજ વર્તમાન પ્રૉક્સી સેટિંગનો ઉપયોગ કરીને લોડ થવામાં નિષ્ફળ થયું. કૃપા કરીને <ph name="GAIA_RELOAD_LINK_START" />ફરીથી સાઇન ઇન કરવાનો પ્રયાસ કરો<ph name="GAIA_RELOAD_LINK_END" /> અથવા જુદા <ph name="PROXY_SETTINGS_LINK_START" />પ્રૉક્સી સેટિંગ<ph name="PROXY_SETTINGS_LINK_END" />નો ઉપયોગ કરો.</translation>
 <translation id="7114054701490058191">પાસવર્ડ્સ મેળ ખાતા નથી</translation>
@@ -205,6 +246,9 @@
 <translation id="7345706641791090287">તમારા પાસવર્ડની પુષ્ટિ કરો</translation>
 <translation id="7352651011704765696">કંઈક ખોટું થયું હતું</translation>
 <translation id="7476454130948140105">અપડેટ માટે બૅટરી ખૂબ ઓછી છે (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />નોંધણી કરતા પહેલાં તમારે TPM સાફ કરવું જરૂરી છે, જેથી <ph name="DEVICE_OS" /> ડિવાઇસ પર માલિકીનો અધિકાર પ્રાપ્ત કરી શકે.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />તમે TPM ડિવાઇસ સંપૂર્ણપણે બંધ પણ કરી શકો છો. આમ છતાં તમારો ડેટા સૉફ્ટવેર એન્ક્રિપ્શન વડે સલામત રીતે સ્ટોર કરવામાં આવશે, પરંતુ હાર્ડવેર સંબંધિત સર્ટિફિકેટ જેવી અમુક ચોક્કસ સુરક્ષા સંબંધિત સુવિધાઓ બંધ કરવામાં આવશે.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />તમે તમારા TPM સેટિંગ રીબૂટ કરીને અને સિસ્ટમ BIOS/UEFI સેટિંગ દાખલ કરીને તેમાં ફેરફાર કરી શકો છો. ડિવાઇસના મૉડલ અનુસાર આ પગલાં અલગ-અલગ હોઈ શકે છે. વધુ માહિતી માટે, તમે રીબૂટ કરો એ પહેલાં અલગ ડિવાઇસ પર <ph name="DEVICE_OS" /> દસ્તાવેજ ખોલો: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">આ <ph name="IDS_SHORT_PRODUCT_NAME" /> ડિવાઇસ પર ડિબગીંગ સુવિધાઓ ચાલુ કરો</translation>
 <translation id="7553242001898162573">તમારો પાસવર્ડ દાખલ કરો</translation>
 <translation id="7556242789364317684">કમનસીબે, <ph name="SHORT_PRODUCT_NAME" /> તમારા સેટિંગને રિકવર કરી શકતાં નથી. ભૂલને સુધારવા માટે, <ph name="SHORT_PRODUCT_NAME" /> એ Powerwash સાથે તમારા ડિવાઇસને રીસેટ કરવું આવશ્યક છે.</translation>
@@ -251,6 +295,10 @@
 <translation id="8452105022015742247">તમારા Android ફોનમાંથી Google એકાઉન્ટની માહિતી ટ્રાન્સફર થઈ રહી છે</translation>
 <translation id="8524841856047224176">વીડિયો કૉલ અને વધુ માટે તમારા કૅમેરાના બૅકગ્રાઉન્ડને મનગમતા બનાવો</translation>
 <translation id="8569673829373920831"><ph name="APP_NAME" /> વિશે વધુ</translation>
+<translation id="8628232294964836490">QR કોડને સ્કૅન કરવા માટે તમારા ફોન પરની સૂચનાઓને અનુસરો. ખાતરી કરો કે તમારા ફોનનું બ્લૂટૂથ ચાલુ હોય.
+        <ph name="BR" />
+        <ph name="BR" />
+        નજીકના ડિવાઇસને <ph name="QUICK_START_DEVICE_DISPLAY_NAME" /> તરીકે દેખાશે...</translation>
 <translation id="8655972064210167941">સાઇન-ઇન નિષ્ફળ થયું કારણ કે તમારો પાસવર્ડ ચકાસી શકાયો નથી. કૃપા કરીને તમારા વ્યવસ્થાપકનો સંપર્ક કરો અથવા ફરી પ્રયાસ કરો.</translation>
 <translation id="8674903726754070732">કમનસીબે, તમારું કમ્પ્યુટર દૂષિત હાર્ડવેર ID સાથે કન્ફિગર કરવામાં આવ્યું છે. આ ChromeOSને નવીનતમ સુરક્ષા સુધારાની સાથે અપડેટ થતું અટકાવે છે અને તમારું કમ્પ્યુટર <ph name="BEGIN_BOLD" />દુર્ભાવનાપૂર્ણ હુમલાઓ પ્રત્યે સંવેદનશીલ હોઈ શકે છે<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">સેટઅપ પૂર્ણ થયા પછી માતાપિતાના યોગ્ય નિયંત્રણો ઉમેરો</translation>
@@ -264,10 +312,20 @@
 <translation id="8830796635868321089">વર્તમાન પ્રૉક્સી સેટિંગનો ઉપયોગ કરીને અપડેટ ચકાસણી નિષ્ફળ ગઈ. કૃપા કરીને તમારું <ph name="PROXY_SETTINGS_LINK_START" />પ્રૉક્સી સેટિંગ<ph name="PROXY_SETTINGS_LINK_END" /> ગોઠવો.</translation>
 <translation id="885746075120788020">જ્યારે તમે તમારા Google એકાઉન્ટ વડે સાઇન ઇન કરશો, ત્યારે કોઈપણ ChromeOS ડિવાઇસ પર તમારી સાચવેલી પસંદગીઓ અને પ્રવૃત્તિ તૈયાર થઈ જશે. શું સિંક કરવું, તે તમે સેટિંગમાં જઈને પસંદ કરી શકો છો.</translation>
 <translation id="8875221558267407626">કન્ટેન્ટનો સારાંશ આપો, જટિલ ભાષાને સરળ બનાવો અથવા પ્રશ્નો પૂછો</translation>
+<translation id="8913163265790894442">તમારા ફોન વડે સરળતાથી તમારા <ph name="DEVICE_TYPE" />નું સેટઅપ કરો. તમે તમારા પાસવર્ડ મેન્યુઅલી દાખલ કર્યા વિના તમારું વાઇ-ફાઇ અને Google એકાઉન્ટ ઉમેરી શકો છો.
+        <ph name="BR" />
+        <ph name="BR" />
+        <ph name="DEVICE_TYPE" /> તરીકે દેખાશે...</translation>
 <translation id="8946359700442089734">આ <ph name="IDS_SHORT_PRODUCT_NAME" /> ઉપકરણ પર ડિબગિંગ સુવિધાઓ સંપૂર્ણપણે સક્ષમ ન હતી.</translation>
 <translation id="8965037249707889821">જૂનો પાસવર્ડ દાખલ કરો</translation>
 <translation id="8975396729541388937">તમને પ્રાપ્ત થતા ઇમેઇલમાંની લિંક પર ક્લિક કરીને ગમે ત્યારે અનસબ્સ્ક્રાઇબ કરો.</translation>
 <translation id="9033765790910064284">તો પણ ચાલુ રાખો</translation>
 <translation id="903480517321259405">ફરીથી પિન ટાઇપ કરો</translation>
 <translation id="9076523132036239772">માફ કરશો, તમારો ઇમેઇલ અથવા પાસવર્ડ માન્ય કરી શકાયો નથી. સૌ પ્રથમ નેટવર્કથી કનેક્ટ કરવાનો પ્રયાસ કરો. </translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />માત્ર <ph name="DEVICE_TYPE" /> માટે જ.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />જનરેટિવ AI પ્રાયોગિક છે અને ડેવલપમેન્ટના પ્રારંભિક તબક્કામાં છે તથા હાલમાં તેની ઉપલબ્ધતા મર્યાદિત છે.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">તમારા ફોન વડે સરળતાથી તમારા <ph name="DEVICE_TYPE" />નું સેટઅપ કરો. તમે તમારો પાસવર્ડ મેન્યુઅલી દાખલ કર્યા વિના તમારું Google એકાઉન્ટ ઉમેરી શકો છો.
+        <ph name="BR" />
+        <ph name="BR" />
+        <ph name="DEVICE_TYPE" /> તરીકે દેખાશે...</translation>
 </translationbundle>

@@ -1,0 +1,19 @@
+Name: Compile Testing
+Short Name: compile-testing
+URL: https://repo.maven.apache.org/maven2/com/google/testing/compile/compile-testing/0.23.0/compile-testing-0.23.0.jar
+Version: 0.23.0
+Update Mechanism: Autoroll
+License: Apache-2.0
+License File: LICENSE
+CPEPrefix: unknown
+Security Critical: no
+Shipped: no
+
+Description:
+Utilities for testing compilation.
+
+See also: http://github.com/google/compile-testing
+
+
+Local Modifications:
+No modifications.

@@ -103,7 +103,7 @@ scoped_refptr<StaticBitmapImage> CreateImageFromVideoFrame(
   CHECK(!sw_draw_info || !snapshot_provider);
 
   auto raster_context_provider = GetRasterContextProvider();
-  bool is_accelerated = snapshot_provider && snapshot_provider->IsAccelerated();
+  bool is_accelerated = snapshot_provider && !snapshot_provider->IsSoftware();
   if (is_accelerated) {
     prefer_tagged_orientation = false;
   }

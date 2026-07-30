@@ -417,6 +417,116 @@ class D3D12GraphicsCommandListMock
                             UINT64 CountBufferOffset));
 };
 
+class D3D12CommandQueueMock
+    : public Microsoft::WRL::RuntimeClass<
+          Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
+          ID3D12CommandQueue> {
+ public:
+  D3D12CommandQueueMock();
+  ~D3D12CommandQueueMock() override;
+
+  MOCK_METHOD(HRESULT,
+              GetPrivateData,
+              (REFGUID, UINT*, void*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              SetPrivateData,
+              (REFGUID, UINT, const void*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              SetPrivateDataInterface,
+              (REFGUID, const IUnknown*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT, SetName, (LPCWSTR), (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              GetDevice,
+              (REFIID, void**),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void,
+              UpdateTileMappings,
+              (ID3D12Resource*,
+               UINT,
+               const D3D12_TILED_RESOURCE_COORDINATE*,
+               const D3D12_TILE_REGION_SIZE*,
+               ID3D12Heap*,
+               UINT,
+               const D3D12_TILE_RANGE_FLAGS*,
+               const UINT*,
+               const UINT*,
+               D3D12_TILE_MAPPING_FLAGS),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void,
+              CopyTileMappings,
+              (ID3D12Resource*,
+               const D3D12_TILED_RESOURCE_COORDINATE*,
+               ID3D12Resource*,
+               const D3D12_TILED_RESOURCE_COORDINATE*,
+               const D3D12_TILE_REGION_SIZE*,
+               D3D12_TILE_MAPPING_FLAGS),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void,
+              ExecuteCommandLists,
+              (UINT, ID3D12CommandList* const*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void,
+              SetMarker,
+              (UINT, const void*, UINT),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void,
+              BeginEvent,
+              (UINT, const void*, UINT),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void, EndEvent, (), (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              Signal,
+              (ID3D12Fence*, UINT64),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              Wait,
+              (ID3D12Fence*, UINT64),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              GetTimestampFrequency,
+              (UINT64*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              GetClockCalibration,
+              (UINT64*, UINT64*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(D3D12_COMMAND_QUEUE_DESC,
+              GetDesc,
+              (),
+              (Calltype(STDMETHODCALLTYPE)));
+};
+
+class D3D12CommandAllocatorMock
+    : public Microsoft::WRL::RuntimeClass<
+          Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
+          ID3D12CommandAllocator> {
+ public:
+  D3D12CommandAllocatorMock();
+  ~D3D12CommandAllocatorMock() override;
+
+  MOCK_METHOD(HRESULT,
+              GetPrivateData,
+              (REFGUID, UINT*, void*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              SetPrivateData,
+              (REFGUID, UINT, const void*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              SetPrivateDataInterface,
+              (REFGUID, const IUnknown*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT, SetName, (LPCWSTR), (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              GetDevice,
+              (REFIID, void**),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT, Reset, (), (Calltype(STDMETHODCALLTYPE)));
+};
+
 class D3D12FenceMock
     : public Microsoft::WRL::RuntimeClass<
           Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,

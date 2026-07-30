@@ -154,16 +154,9 @@ constexpr CGFloat kActivityLabelAvatarSize = 16;
     _tabGroup = tabGroup;
 
     [_groupConsumer setGroupTitle:tabGroup->GetTitle()];
-    // TODO(crbug.com/481997646): Cleanup this groupColor flow once feature hits
-    // stable.
-    if (!IsTabGroupColorOnSurfaceEnabled()) {
-      [_groupConsumer setGroupColor:tab_groups::ColorForTabGroupColorId(
-                                        tabGroup->GetColor())];
-    } else {
-      [_groupConsumer
-          setTabGroupColorPalette:[[TabGroupColorPalette alloc]
-                                      initWithColorId:tabGroup->GetColor()]];
-    }
+    [_groupConsumer
+        setTabGroupColorPalette:[[TabGroupColorPalette alloc]
+                                    initWithColorId:tabGroup->GetColor()]];
 
     _messagingService = messagingService;
     if (_messagingService) {
@@ -565,15 +558,9 @@ constexpr CGFloat kActivityLabelAvatarSize = 16;
       }
       [_groupConsumer setGroupTitle:tabGroup->GetTitle()];
 
-      if (IsTabGroupColorOnSurfaceEnabled()) {
-        [_groupConsumer
-            setTabGroupColorPalette:[[TabGroupColorPalette alloc]
-                                        initWithColorId:tabGroup->GetColor()]];
-
-      } else {
-        [_groupConsumer setGroupColor:tab_groups::ColorForTabGroupColorId(
-                                          tabGroup->GetColor())];
-      }
+      [_groupConsumer
+          setTabGroupColorPalette:[[TabGroupColorPalette alloc]
+                                      initWithColorId:tabGroup->GetColor()]];
       break;
     }
     case WebStateListChange::Type::kGroupDelete: {
@@ -651,14 +638,9 @@ constexpr CGFloat kActivityLabelAvatarSize = 16;
   if (_tabGroup) {
     [_groupConsumer setGroupTitle:_tabGroup->GetTitle()];
 
-    if (IsTabGroupColorOnSurfaceEnabled()) {
-      [_groupConsumer
-          setTabGroupColorPalette:[[TabGroupColorPalette alloc]
-                                      initWithColorId:_tabGroup->GetColor()]];
-    } else {
-      [_groupConsumer setGroupColor:tab_groups::ColorForTabGroupColorId(
-                                        _tabGroup->GetColor())];
-    }
+    [_groupConsumer
+        setTabGroupColorPalette:[[TabGroupColorPalette alloc]
+                                    initWithColorId:_tabGroup->GetColor()]];
   } else {
     [self.tabGroupsHandler hideTabGroup];
   }

@@ -212,7 +212,7 @@ void SynchronizeVideoFrameRead(
     scoped_refptr<VideoFrame> video_frame,
     gpu::raster::RasterInterface* ri,
     gpu::ContextSupport* context_support,
-    std::unique_ptr<gpu::RasterScopedAccess> ri_access = nullptr) {
+    std::unique_ptr<gpu::RasterScopedAccess> ri_access) {
   WaitAndReplaceSyncTokenClient client(ri, std::move(ri_access));
   video_frame->UpdateReleaseSyncToken(&client);
   if (!video_frame->metadata().read_lock_fences_enabled) {
@@ -1266,8 +1266,8 @@ void PaintCanvasVideoRenderer::SynchronizeVideoFrameRead(
     scoped_refptr<VideoFrame> video_frame,
     gpu::gles2::GLES2Interface* gl,
     gpu::ContextSupport* context_support,
-    std::unique_ptr<gpu::RasterScopedAccess> ri_access) {
-  WaitAndReplaceSyncTokenClient client(gl, std::move(ri_access));
+    base::OnceCallback<gpu::SyncToken()> sync_callback) {
+  WaitAndReplaceSyncTokenClient client(gl, std::move(sync_callback));
   video_frame->UpdateReleaseSyncToken(&client);
   if (!video_frame->metadata().read_lock_fences_enabled) {
     return;
@@ -1527,14 +1527,15 @@ bool PaintCanvasVideoRenderer::CopyVideoFrameYUVDataToGLTexture(
   destination_gl->TexImage2D(
       target, level, internal_format, video_frame->visible_rect().width(),
       video_frame->visible_rect().height(), 0, format, type, nullptr);
-  rgb_sync_token = destination_gl->CopySharedImageToGLTextureViaTextureCopy(
-      video_frame->visible_rect(), rgb_shared_image.get(),
-      post_conversion_sync_token, target, texture, internal_format, format,
-      type, level, dst_alpha_type, dst_origin);
+  base::OnceCallback<gpu::SyncToken()> sync_callback =
+      destination_gl->CopySharedImageToGLTextureViaTextureCopy(
+          video_frame->visible_rect(), rgb_shared_image.get(),
+          post_conversion_sync_token, target, texture, internal_format, format,
+          type, level, dst_alpha_type, dst_origin);
 
   // Update the rgb sync token to be waited upon based on gles tasks performed
   // earlier.
-  rgb_si_cache->UpdateSyncToken(rgb_sync_token);
+  rgb_si_cache->UpdateSyncToken(std::move(sync_callback).Run());
 
   // video_frame->UpdateReleaseSyncToken is not necessary since the video frame
   // data we used was CPU-side to begin with. If there were any textures, we

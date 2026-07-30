@@ -475,15 +475,15 @@ KNOWN_NON_IOS_LIBRARIES = set([
 ])
 
 SAFE_RECIPROCAL_HOSTS = {
-    "https://chromium.googlesource.com",
-    "https://dawn.googlesource.com",
-    "https://pdfium.googlesource.com",
-    "https://quiche.googlesource.com",
-    "https://skia.googlesource.com",
-    "https://swiftshader.googlesource.com",
-    "https://webrtc.googlesource.com",
-    "https://aomedia.googlesource.com",
-    "https://boringssl.googlesource.com",
+    "chromium.googlesource.com",
+    "dawn.googlesource.com",
+    "pdfium.googlesource.com",
+    "quiche.googlesource.com",
+    "skia.googlesource.com",
+    "swiftshader.googlesource.com",
+    "webrtc.googlesource.com",
+    "aomedia.googlesource.com",
+    "boringssl.googlesource.com",
 }
 
 
@@ -1174,13 +1174,22 @@ def _GetGitOriginUrls(dep_dir: str) -> List[str]:
     # Use .* instead of assuming 'origin'.
     output = subprocess.check_output(
         ["git", "config", "--get-regexp", r"^remote\..*\.url$"],
-        cwd=dep_dir,
-        stderr=subprocess.DEVNULL).decode("utf-8").strip()
+        cwd=dep_dir).decode("utf-8").strip()
     urls = []
     for line in output.splitlines():
+      # 'line' will be either a path to the original checkout, or
+      # (once at the checkout) the upstream url.
+      # remote.origin.url /Volumes/Work/s/w/ir/cache/git/chromium.googlesource.com-chromium-src
+      # remote.origin.url https://chromium.googlesource.com/chromium/src.git
       parts = line.split(None, 1)
       if len(parts) == 2:
-        urls.append(parts[1].strip())
+        url = parts[1].strip()
+        # Build environments use local cache directories which don't start with
+        # https:// (e.g. /b/s/w/ir/cache/git/chromium.googlesource.com...).
+        if os.path.isdir(url) and os.path.abspath(url) != os.path.abspath(dep_dir):
+          urls.extend(_GetGitOriginUrls(url))
+        else:
+          urls.append(url)
     return urls
   except Exception:
     return []
@@ -1195,7 +1204,7 @@ def _IsSafeForReciprocal(dep_dir: str) -> bool:
   """
   for url in _GetGitOriginUrls(dep_dir):
     for safe_host in SAFE_RECIPROCAL_HOSTS:
-      if url.startswith(safe_host):
+      if safe_host in url:
         return True
   return False
 

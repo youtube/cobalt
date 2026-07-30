@@ -212,15 +212,11 @@ MATCHER_P2(CloseTo,
   return (arg - Target <= Radius) || (Target - arg <= Radius);
 }
 
-MATCHER_P2(SingleSegmentQueue,
+MATCHER_P2(SegmentMatches,
            urlstr,
            range,
-           "Segment Queue matcher for HlsDataSourceProvider") {
-  if (arg.size() != 1) {
-    return false;
-  }
-  auto first = arg.front();
-  return first.uri == GURL(urlstr) && first.range == range;
+           "Segment matcher for HlsDataSourceProvider") {
+  return arg.uri == GURL(urlstr) && arg.range == range;
 }
 
 static constexpr size_t kKeySize = 16;
@@ -241,10 +237,9 @@ class FakeHlsDataSourceProvider : public HlsDataSourceProvider {
  public:
   FakeHlsDataSourceProvider(HlsDataSourceProvider* mock) : mock_(mock) {}
 
-  void ReadFromCombinedUrlQueue(
-      SegmentQueue segments,
-      HlsDataSourceProvider::ReadCb callback) override {
-    mock_->ReadFromCombinedUrlQueue(std::move(segments), std::move(callback));
+  void ReadFromUrl(UrlDataSegment segment,
+                   HlsDataSourceProvider::ReadCb callback) override {
+    mock_->ReadFromUrl(std::move(segment), std::move(callback));
   }
 
   void ReadFromExistingStream(std::unique_ptr<HlsDataSourceStream> stream,
@@ -304,8 +299,7 @@ class HlsManifestDemuxerEngineTest : public testing::Test {
   void BindUrlToDataSource(std::string url,
                            std::string value,
                            bool taint_origin = false) {
-    EXPECT_CALL(*mock_dsp_, ReadFromCombinedUrlQueue(
-                                SingleSegmentQueue(url, std::nullopt), _))
+    EXPECT_CALL(*mock_dsp_, ReadFromUrl(SegmentMatches(url, std::nullopt), _))
         .Times(1)
         .WillOnce(RunOnceCallback<1>(T::CreateStream(
             value,
@@ -316,12 +310,11 @@ class HlsManifestDemuxerEngineTest : public testing::Test {
   void BindUrlAssignmentThunk(std::string url,
                               std::string value,
                               bool taint_origin = false) {
-    EXPECT_CALL(*mock_dsp_, ReadFromCombinedUrlQueue(
-                                SingleSegmentQueue(url, std::nullopt), _))
+    EXPECT_CALL(*mock_dsp_, ReadFromUrl(SegmentMatches(url, std::nullopt), _))
         .Times(1)
         .WillOnce([this, url = std::move(url), value = std::move(value),
                    taint_origin = taint_origin](
-                      HlsDataSourceProvider::SegmentQueue,
+                      HlsDataSourceProvider::UrlDataSegment,
                       HlsDataSourceProvider::ReadCb cb) {
           pending_url_fetch_ = base::BindOnce(
               std::move(cb),
@@ -332,7 +325,7 @@ class HlsManifestDemuxerEngineTest : public testing::Test {
   }
 
   void ExpectNoNetworkRequests() {
-    EXPECT_CALL(*mock_dsp_, ReadFromCombinedUrlQueue(_, _)).Times(0);
+    EXPECT_CALL(*mock_dsp_, ReadFromUrl(_, _)).Times(0);
   }
 
   MockHlsRendition* SetUpInterruptTest() {
@@ -418,11 +411,10 @@ class HlsManifestDemuxerEngineTest : public testing::Test {
       std::string value,
       size_t netspeed) {
     base::OnceClosure continue_adaptation;
-    EXPECT_CALL(*mock_dsp_, ReadFromCombinedUrlQueue(
-                                SingleSegmentQueue(url, std::nullopt), _))
+    EXPECT_CALL(*mock_dsp_, ReadFromUrl(SegmentMatches(url, std::nullopt), _))
         .Times(1)
         .WillOnce([&continue_adaptation, value, url](
-                      HlsDataSourceProvider::SegmentQueue,
+                      HlsDataSourceProvider::UrlDataSegment,
                       HlsDataSourceProvider::ReadCb cb) {
           continue_adaptation = base::BindOnce(
               std::move(cb),
@@ -1043,14 +1035,13 @@ TEST_F(HlsManifestDemuxerEngineTest, TestEndOfStreamAfterAllFetched) {
   // - first.ts      - request for chunks of data to add to ChunkDemuxer
   std::string bitstream = "hey, this isn't a bitstream!";
   EXPECT_CALL(*mock_dsp_,
-              ReadFromCombinedUrlQueue(
-                  SingleSegmentQueue(manifest_uri, std::nullopt), _))
+              ReadFromUrl(SegmentMatches(manifest_uri, std::nullopt), _))
       .WillOnce(
           RunOnceCallback<1>(StringHlsDataSourceStreamFactory::CreateStream(
               kShortMediaPlaylist,
               hls::SecurityMetadata::CreateForTesting(manifest_uri))));
-  EXPECT_CALL(*mock_dsp_, ReadFromCombinedUrlQueue(
-                              SingleSegmentQueue(segment_uri, std::nullopt), _))
+  EXPECT_CALL(*mock_dsp_,
+              ReadFromUrl(SegmentMatches(segment_uri, std::nullopt), _))
       .WillOnce(
           RunOnceCallback<1>(StringHlsDataSourceStreamFactory::CreateStream(
               bitstream,

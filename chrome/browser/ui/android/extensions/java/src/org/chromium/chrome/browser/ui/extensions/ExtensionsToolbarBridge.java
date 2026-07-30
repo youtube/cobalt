@@ -29,14 +29,12 @@ public class ExtensionsToolbarBridge implements Destroyable {
     private final @Nullable LifetimeAssert mLifetimeAssert = LifetimeAssert.create(this);
     private long mNativeExtensionsToolbarAndroid;
     private final ObserverList<Observer> mObservers = new ObserverList<>();
-    private final Profile mProfile;
 
     // The delegates are set via setters because of bidirectional dependencies.
     private @Nullable ActionListDelegate mActionListDelegate;
     private @Nullable MenuDelegate mMenuDelegate;
 
     public ExtensionsToolbarBridge(ChromeAndroidTask task, Profile profile) {
-        mProfile = profile;
         mNativeExtensionsToolbarAndroid =
                 ExtensionsToolbarBridgeJni.get()
                         .init(this, task.getOrCreateNativeBrowserWindowPtr(profile));
@@ -74,12 +72,6 @@ public class ExtensionsToolbarBridge implements Destroyable {
     @Nullable
     public ExtensionAction getAction(String actionId, @Nullable WebContents webContents) {
         assert mNativeExtensionsToolbarAndroid != 0;
-        if (mProfile.shutdownStarted()) {
-            // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
-            // ExtensionsToolbarCoordinatorImpl} should ideally be destroyed following {@code
-            // ChromeAndroidTask}'s destruction, and it is currently being worked on.
-            return null;
-        }
         return ExtensionsToolbarBridgeJni.get()
                 .getAction(mNativeExtensionsToolbarAndroid, actionId, webContents);
     }
@@ -92,12 +84,6 @@ public class ExtensionsToolbarBridge implements Destroyable {
             int canvasHeightDp,
             float scaleFactor) {
         assert mNativeExtensionsToolbarAndroid != 0;
-        if (mProfile.shutdownStarted()) {
-            // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
-            // ExtensionsToolbarCoordinatorImpl} should ideally be destroyed following {@code
-            // ChromeAndroidTask}'s destruction, and it is currently being worked on.
-            return null;
-        }
         return ExtensionsToolbarBridgeJni.get()
                 .getIcon(
                         mNativeExtensionsToolbarAndroid,
@@ -110,67 +96,34 @@ public class ExtensionsToolbarBridge implements Destroyable {
 
     public String[] getAllActionIds() {
         assert mNativeExtensionsToolbarAndroid != 0;
-        if (mProfile.shutdownStarted()) {
-            // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
-            // ExtensionsToolbarCoordinatorImpl} should ideally be destroyed following {@code
-            // ChromeAndroidTask}'s destruction, and it is currently being worked on.
-            return new String[0];
-        }
         return ExtensionsToolbarBridgeJni.get().getAllActionIds(mNativeExtensionsToolbarAndroid);
     }
 
     public String[] getPinnedActionIds() {
         assert mNativeExtensionsToolbarAndroid != 0;
-        if (mProfile.shutdownStarted()) {
-            // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
-            // ExtensionsToolbarCoordinatorImpl} should ideally be destroyed following {@code
-            // ChromeAndroidTask}'s destruction, and it is currently being worked on.
-            return new String[0];
-        }
         return ExtensionsToolbarBridgeJni.get().getPinnedActionIds(mNativeExtensionsToolbarAndroid);
     }
 
     public boolean isActionDraggable(String actionId) {
         assert mNativeExtensionsToolbarAndroid != 0;
-        if (mProfile.shutdownStarted()) {
-            // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
-            // ExtensionsToolbarCoordinatorImpl} should ideally be destroyed following {@code
-            // ChromeAndroidTask}'s destruction, and it is currently being worked on.
-            return false;
-        }
         return ExtensionsToolbarBridgeJni.get()
                 .isActionDraggable(mNativeExtensionsToolbarAndroid, actionId);
     }
 
     public void executeUserAction(String actionId, @InvocationSource int source) {
         assert mNativeExtensionsToolbarAndroid != 0;
-        if (mProfile.shutdownStarted()) {
-            // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
-            // ExtensionsToolbarCoordinatorImpl} should ideally be destroyed following {@code
-            // ChromeAndroidTask}'s destruction, and it is currently being worked on.
-            return;
-        }
         ExtensionsToolbarBridgeJni.get()
                 .executeUserAction(mNativeExtensionsToolbarAndroid, actionId, source);
     }
 
     public void movePinnedAction(String actionId, int targetIndex) {
         assert mNativeExtensionsToolbarAndroid != 0;
-        if (mProfile.shutdownStarted()) {
-            // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
-            // ExtensionsToolbarCoordinatorImpl} should ideally be destroyed following {@code
-            // ChromeAndroidTask}'s destruction, and it is currently being worked on.
-            return;
-        }
         ExtensionsToolbarBridgeJni.get()
                 .movePinnedAction(mNativeExtensionsToolbarAndroid, actionId, targetIndex);
     }
 
     public void onRequestAccessButtonClicked(WebContents webContents) {
         assert mNativeExtensionsToolbarAndroid != 0;
-        if (mProfile.shutdownStarted()) {
-            return;
-        }
         ExtensionsToolbarBridgeJni.get()
                 .onRequestAccessButtonClicked(mNativeExtensionsToolbarAndroid, webContents);
     }
@@ -210,8 +163,6 @@ public class ExtensionsToolbarBridge implements Destroyable {
 
     @CalledByNative
     public void showManageExtensionsIPH() {
-        if (mProfile.shutdownStarted()) return;
-
         for (Observer observer : mObservers) {
             observer.showManageExtensionsIPH();
         }

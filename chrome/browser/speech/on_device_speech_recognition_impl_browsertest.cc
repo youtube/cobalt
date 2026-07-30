@@ -13,6 +13,7 @@
 #include "base/test/mock_callback.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
 #include "chrome/browser/browsing_data/chrome_browsing_data_remover_constants.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -221,6 +222,44 @@ IN_PROC_BROWSER_TEST_F(OnDeviceSpeechRecognitionImplBrowserTest,
                          OnDeviceWebSpeechAvailableCallbackAndAssertStatus,
                      base::Unretained(this),
                      media::mojom::AvailabilityStatus::kUnavailable));
+}
+
+IN_PROC_BROWSER_TEST_F(OnDeviceSpeechRecognitionImplBrowserTest,
+                       BypassPermissionsPolicy) {
+  NavigateToUrl("foo.com");
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  content::RenderFrameHost* main_frame = web_contents->GetPrimaryMainFrame();
+
+  ASSERT_TRUE(content::ExecJs(
+      main_frame,
+      "new Promise(resolve => {"
+      "  let iframe = document.createElement('iframe');"
+      "  iframe.src = '/empty.html';"
+      "  iframe.allow = \"on-device-speech-recognition 'none'\";"
+      "  iframe.onload = resolve;"
+      "  document.body.appendChild(iframe);"
+      "});"));
+
+  content::RenderFrameHost* child_frame = content::ChildFrameAt(main_frame, 0);
+  ASSERT_TRUE(child_frame);
+
+  auto* speech_impl =
+      OnDeviceSpeechRecognitionImpl::GetOrCreateForCurrentDocument(child_frame);
+  ASSERT_TRUE(speech_impl);
+
+  base::test::TestFuture<media::mojom::AvailabilityStatus> future;
+
+  // The vulnerability allows this to be downloadable.
+  // A correct implementation would return kUnavailable.
+  // We expect it to be kUnavailable to make the test FAIL when the bug is NOT
+  // fixed.
+  speech_impl->Available(
+      {kEnglishLanguageCode}, media::mojom::SpeechRecognitionQuality::kCommand,
+      future.GetCallback());
+
+  EXPECT_EQ(future.Get(), media::mojom::AvailabilityStatus::kUnavailable);
 }
 
 IN_PROC_BROWSER_TEST_F(OnDeviceSpeechRecognitionImplBrowserTest, Install) {

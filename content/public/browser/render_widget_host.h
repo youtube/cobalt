@@ -49,6 +49,7 @@ class Point;
 namespace ui {
 class Cursor;
 class LatencyInfo;
+struct ImeTextSpan;
 }
 
 namespace viz {
@@ -351,6 +352,18 @@ class CONTENT_EXPORT RenderWidgetHost {
   virtual void ShowContextMenuAtPoint(
       const gfx::Point& point,
       const ui::mojom::MenuSourceType source_type) {}
+
+  // Sets composition text. This does so as an IME would, but is used by callers
+  // that want to programmatically insert text without simulating an actual IME.
+  // `text` is the composition text.
+  // `ime_text_spans` sets the styling of the composition marker(s).
+  virtual void SetExternallySourcedComposition(
+      const std::u16string& text,
+      const std::vector<ui::ImeTextSpan>& ime_text_spans) = 0;
+
+  // Commits composition text. See `SetExternallySourcedComposition`.
+  virtual void CommitExternallySourcedComposition(
+      const std::u16string& text) = 0;
 
   // Roundtrips through the renderer and compositor pipeline to ensure that any
   // changes to the contents resulting from operations executed prior to this

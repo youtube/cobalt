@@ -67,7 +67,7 @@ std::unique_ptr<KeyedService> AutofillFieldClassificationModelServiceFactory::
           profile);
   optimization_guide::OptimizationGuideModelProvider* optimization_guide =
       global_state_holder
-          ? &global_state_holder->GetGlobalState().prediction_manager()
+          ? &global_state_holder->GetGlobalState().model_provider()
           : nullptr;
   MlLogRouter* log_router = MlLogRouterFactory::GetForProfile(
           Profile::FromBrowserContext(context));

@@ -28,7 +28,8 @@ FakeOptimizationGuideService::FakeOptimizationGuideService(
                                pref_service,
                                browser_list,
                                url_loader_factory,
-                               identity_manager) {}
+                               identity_manager,
+                               /*delegate=*/nullptr) {}
 
 FakeOptimizationGuideService::~FakeOptimizationGuideService() = default;
 

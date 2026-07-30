@@ -3198,6 +3198,31 @@ class BannedTypeCheckTest(unittest.TestCase):
         self.assertNotIn('some/cpp/ok/web_contents_destroyed_watcher.cc',
                          results[0].message)
 
+    def testBannedPerfettoTrack(self):
+        input_api = MockInputApi()
+        input_api.files = [
+            MockFile('some/cpp/problematic/file.cc', [
+                'perfetto::Track(123);',
+                'perfetto::Track::Global(456);',
+                'perfetto::Track::FromPointer(ptr);',
+                'perfetto::Track::ThreadScoped(ptr);',
+                'perfetto::Track{123};',
+            ]),
+            MockFile('some/cpp/ok/file.cc', [
+                'const perfetto::Track& track',
+                'perfetto::Track track;',
+                'std::vector<perfetto::Track> tracks;',
+                'perfetto::TrackEvent event;',
+            ]),
+        ]
+
+        results = PRESUBMIT.CheckNoBannedPatterns(input_api, MockOutputApi())
+
+        self.assertEqual(5, len(results))
+        for i in range(5):
+            self.assertIn('some/cpp/problematic/file.cc', results[i].message)
+            self.assertNotIn('some/cpp/ok/file.cc', results[i].message)
+
     def testBannedCppRandomFunctions(self):
         banned_rngs = [
             'absl::BitGen',
@@ -3254,17 +3279,43 @@ class BannedTypeCheckTest(unittest.TestCase):
             MockFile('some/ios/file_unittest.mm', [
                 'TEST_F(SomeTest, TestThis) { EXPECT_OCMOCK_VERIFY(aMock); }'
             ]),
+            MockFile('ios/chrome/file.mm', [
+                'if ([UIDevice currentDevice].userInterfaceIdiom == '
+                'UIUserInterfaceIdiomPad) {}'
+            ]),
+            MockFile('ios/chrome/ok_file.mm', [
+                'if (ui::GetDeviceFormFactor() == '
+                'ui::DEVICE_FORM_FACTOR_TABLET) {}',
+                'if (traitCollection.userInterfaceIdiom == '
+                'UIUserInterfaceIdiomPad) {}'
+            ]),
+            MockFile('ui/base/device_form_factor_ios.mm', [
+                'UIUserInterfaceIdiom idiom = '
+                'UIDevice.currentDevice.userInterfaceIdiom;'
+            ]),
+            MockFile('ios/third_party/some_lib/file.mm', [
+                'if (UIDevice.currentDevice.userInterfaceIdiom == '
+                'UIUserInterfaceIdiomPad) {}'
+            ]),
         ]
 
         errors = PRESUBMIT.CheckNoBannedPatterns(input_api, MockOutputApi())
-        self.assertEqual(3, len(errors))
-        self.assertIn('some/ios/file.mm', errors[0].message)
-        self.assertIn('another/ios_file.mm', errors[1].message)
-        self.assertTrue(
-            all('some/mac/file.mm' not in e.message for e in errors))
-        self.assertIn('some/ios/file_egtest.mm', errors[2].message)
-        self.assertTrue(
-            all('some/ios/file_unittest.mm' not in e.message for e in errors))
+        self.assertEqual(4, len(errors))
+
+        # Helper to find error by file name
+        def has_error(filename):
+            return any(filename in e.message for e in errors)
+
+        self.assertTrue(has_error('some/ios/file.mm'))
+        self.assertTrue(has_error('another/ios_file.mm'))
+        self.assertTrue(has_error('some/ios/file_egtest.mm'))
+        self.assertTrue(has_error('ios/chrome/file.mm'))
+
+        self.assertFalse(has_error('some/mac/file.mm'))
+        self.assertFalse(has_error('some/ios/file_unittest.mm'))
+        self.assertFalse(has_error('ios/chrome/ok_file.mm'))
+        self.assertFalse(has_error('ui/base/device_form_factor_ios.mm'))
+        self.assertFalse(has_error('ios/third_party/some_lib/file.mm'))
 
     def testBannedMojoFunctions(self):
         input_api = MockInputApi()

@@ -375,8 +375,8 @@ void InputStateModel::SetDriveConsentState(DriveConsentState state) {
   auto& allowed_types = state_.allowed_input_types;
   auto it = std::find(allowed_types.begin(), allowed_types.end(),
                       omnibox::INPUT_TYPE_DRIVE);
-  if (state == DriveConsentState::kConsent) {
-    if (it == allowed_types.end() && IsDriveSupported()) {
+  if (IsDriveSupported()) {
+    if (it == allowed_types.end()) {
       state_.allowed_input_types.push_back(omnibox::INPUT_TYPE_DRIVE);
     }
   } else {
@@ -493,7 +493,15 @@ bool InputStateModel::IsDriveSupported() const {
   bool incognito = is_off_the_record_;
   bool feature_enabled =
       base::FeatureList::IsEnabled(omnibox::kComposeboxDriveContextMenuOption);
-  bool consented = drive_consent_state_ == DriveConsentState::kConsent;
+
+  // If the disclaimer flag is enabled, then the user can see Drive in the menu
+  // even if they have not consented, since selecting it will trigger the
+  // disclaimer flow. Otherwise, the user must have consented to see Drive in
+  // the menu. In either case, we do not show Drive if the user is restricted.
+  bool consented = drive_consent_state_ == DriveConsentState::kConsent ||
+                   (base::FeatureList::IsEnabled(
+                        omnibox::kComposeboxDriveContextMenuOptionDisclaimer) &&
+                    drive_consent_state_ == DriveConsentState::kNotConsent);
 
   return identity_matches && !incognito && feature_enabled && consented;
 }
@@ -671,7 +679,9 @@ void InputStateModel::UpdateDisabledInputTypes() {
         !std::ranges::contains(active_tool_rule->allowed_input_types(),
                                input_type);
 
-    if (input_limit_reached || incompatible_with_model ||
+    const bool should_disable_due_to_limit = input_limit_reached;
+
+    if (should_disable_due_to_limit || incompatible_with_model ||
         incompatible_with_tool ||
         std::ranges::contains(permanently_disabled_input_types_, input_type)) {
       state_.disabled_input_types.push_back(input_type);

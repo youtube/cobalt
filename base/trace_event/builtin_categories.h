@@ -11,8 +11,10 @@
 #include "build/build_config.h"
 
 PERFETTO_DEFINE_TEST_CATEGORY_PREFIXES("cat",
+                                       "cast_perf_test",
                                        "foo",
                                        "test",
+                                       "test_gpu",
                                        "kTest",
                                        "noise",
                                        "Testing",
@@ -80,7 +82,6 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category("blink.animations"),
     perfetto::Category("blink.bindings"),
     perfetto::Category("blink.console"),
-    perfetto::Category("blink.net"),
     perfetto::Category("blink.resource"),
     perfetto::Category("blink.task_attribution").SetDescription(
       "Traces for Task Attribution, blink's internal mechanism for propagating "
@@ -98,14 +99,9 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category("Calculators"),
     perfetto::Category("CameraStream"),
     perfetto::Category("camera"),
-    perfetto::Category("cast_app"),
-    perfetto::Category("cast_perf_test"),
-    perfetto::Category("cast.mdns"),
-    perfetto::Category("cast.mdns.socket"),
     perfetto::Category("cast.stream"),
     perfetto::Category("cc").SetTags("rendering"),
     perfetto::Category("cc.debug").SetTags("debug"),
-    perfetto::Category("cdp.perf"),
     perfetto::Category("chromeos"),
     perfetto::Category("cma"),
     perfetto::Category("compositor"),
@@ -140,7 +136,6 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category("extensions.content_verifier.debug").SetDescription(
       "Traces for the extension file (content) verification process at "
       "//extensions/browser/content_verifier.").SetTags("debug"),
-    perfetto::Category("explore_sites"),
     perfetto::Category("FileSystem"),
     perfetto::Category("file_system_provider"),
     perfetto::Category("fledge"),
@@ -223,9 +218,7 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
       "Describes the performance manager graph structure with frames, pages, "
       "processes, etc. and their properties.").SetTags("toplevel"),
     perfetto::Category("persistent_cache"),
-    perfetto::Category("PlatformMalloc"),
     perfetto::Category("ppapi"),
-    perfetto::Category("ppapi_proxy"),
     perfetto::Category("print"),
     perfetto::Category("raf_investigation"),
     perfetto::Category("rail"),
@@ -252,20 +245,15 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category("shutdown"),
     perfetto::Category("skia"),
     perfetto::Category("sql"),
-    perfetto::Category("stadia_media"),
-    perfetto::Category("stadia_rtc"),
     perfetto::Category("startup"),
     perfetto::Category("sync"),
     perfetto::Category("system_apps"),
-    perfetto::Category("test_gpu"),
     perfetto::Category("toplevel").SetTags("scheduling", "toplevel"),
     perfetto::Category("toplevel.flow").SetTags("scheduling", "toplevel"),
     perfetto::Category("ui").SetTags("rendering"),
     perfetto::Category("update_client").SetDescription(
         "Events from component updater."),
     perfetto::Category("v8"),
-    perfetto::Category("v8.execute"),
-    perfetto::Category("v8.wasm"),
     perfetto::Category("ValueStoreFrontend::Backend"),
     perfetto::Category("views").SetTags("rendering"),
     perfetto::Category("views.frame"),
@@ -284,7 +272,6 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
         "Events that track usage of WebKit APIs on iOS."),
     perfetto::Category("webnn"),
     perfetto::Category("webrtc").SetTags("audio", "video"),
-    perfetto::Category("webrtc_stats"),
     perfetto::Category("xr"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("android_view_hierarchy"))
         .SetTags("slow"),
@@ -316,11 +303,7 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("cc"))
         .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("cc.debug")).SetTags("debug"),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("cc.debug.cdp-perf"))
-        .SetTags("debug"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("cc.debug.display_items"))
-        .SetTags("debug"),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("cc.debug.lcd_text"))
         .SetTags("debug"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("cc.debug.picture"))
         .SetTags("debug"),
@@ -357,11 +340,6 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
         .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("devtools.target-rundown"))
         .SetTags("slow"),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"))
-        .SetTags("slow"),
-    perfetto::Category(
-        TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"))
-        .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("file")).SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("fonts")).SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("gpu_cmd_queue"))
@@ -381,8 +359,6 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("histogram_samples"))
         .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("java-heap-profiler"))
-        .SetTags("slow"),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("layer-element"))
         .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("layout_shift.debug"))
         .SetTags("debug"),
@@ -436,41 +412,27 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
         .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("system_power"))
         .SetTags("slow"),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("thread_pool_diagnostics"))
-        .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("toplevel.ipc"))
         .SetTags("ipc", "slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("user_action_samples"))
         .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.compile"))
         .SetTags("slow"),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.inspector"))
-        .SetTags("slow"),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime"))
-        .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"))
-        .SetTags("slow"),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats_sampling"))
         .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("video_and_image_capture"))
         .SetTags("video", "slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("display.framedisplayed"))
         .SetTags("slow"),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("viz.gpu_composite_time"))
-        .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("viz.debug.overlay_planes"))
         .SetTags("debug"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("viz.hit_testing_flow"))
-        .SetTags("slow"),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("viz.overdraw"))
         .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("viz.quads"))
         .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("viz.surface_id_flow"))
         .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("viz.surface_lifetime"))
-        .SetTags("slow"),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("viz.triangles"))
         .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("viz.visual_debugger"))
         .SetTags("slow"),
@@ -484,7 +446,6 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
         .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("xr.debug")).SetTags("debug"),
     perfetto::Category::Group("android_webview,toplevel"),
-    perfetto::Category::Group("android_webview.timeline,android.ui.jank"),
     perfetto::Category::Group("audio,latency"),
     perfetto::Category::Group("base,toplevel"),
     perfetto::Category::Group("benchmark,drm"),
@@ -492,8 +453,6 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category::Group("benchmark,latencyInfo,rail,input.scrolling"),
     perfetto::Category::Group("benchmark,loading"),
     perfetto::Category::Group("benchmark,rail"),
-    perfetto::Category::Group("benchmark,uma"),
-    perfetto::Category::Group("benchmark,ui"),
     perfetto::Category::Group("benchmark,viz"),
     perfetto::Category::Group(
         "benchmark,viz," TRACE_DISABLED_BY_DEFAULT("display.framedisplayed")),
@@ -513,18 +472,14 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category::Group("browser,navigation"),
     perfetto::Category::Group("browser,navigation,benchmark"),
     perfetto::Category::Group("browser,startup"),
-    perfetto::Category::Group("category1,category2"),
     perfetto::Category::Group("cc,benchmark"),
     perfetto::Category::Group("cc,benchmark,input,input.scrolling"),
-    perfetto::Category::Group("cc,benchmark,latency"),
     perfetto::Category::Group(
         "cc,benchmark," TRACE_DISABLED_BY_DEFAULT("devtools.timeline.frame")),
-    perfetto::Category::Group("cc,input"),
     perfetto::Category::Group("cc,raf_investigation"),
     perfetto::Category::Group(
         "cc," TRACE_DISABLED_BY_DEFAULT("devtools.timeline")),
     perfetto::Category::Group("content,navigation"),
-    perfetto::Category::Group("devtools.timeline,rail"),
     perfetto::Category::Group("drm,hwoverlays"),
     perfetto::Category::Group("dwrite,fonts"),
     perfetto::Category::Group("fonts,ui"),
@@ -534,19 +489,13 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category::Group("gpu,login"),
     perfetto::Category::Group("gpu,startup"),
     perfetto::Category::Group("gpu,toplevel.flow"),
-    perfetto::Category::Group("gpu.angle,startup"),
     perfetto::Category::Group("input,benchmark"),
-    perfetto::Category::Group("input,benchmark,devtools.timeline"),
-    perfetto::Category::Group("input,benchmark,devtools.timeline,latencyInfo"),
     perfetto::Category::Group("input,benchmark,latencyInfo"),
     perfetto::Category::Group("input,latency"),
     perfetto::Category::Group("input,rail"),
     perfetto::Category::Group("input,input.scrolling"),
-    perfetto::Category::Group("input,views"),
-    perfetto::Category::Group("interactions,input.scrolling"),
     perfetto::Category::Group("interactions,startup"),
     perfetto::Category::Group("ipc,security"),
-    perfetto::Category::Group("ipc,toplevel"),
     perfetto::Category::Group(
         "Java,devtools," TRACE_DISABLED_BY_DEFAULT("devtools.timeline")),
     perfetto::Category::Group("loading,interactions"),
@@ -559,7 +508,6 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category::Group("navigation,rail"),
     perfetto::Category::Group("renderer,benchmark,rail"),
     perfetto::Category::Group("renderer,benchmark,rail,input.scrolling"),
-    perfetto::Category::Group("renderer,webkit"),
     perfetto::Category::Group("renderer_host,navigation"),
     perfetto::Category::Group(
         "renderer_host," TRACE_DISABLED_BY_DEFAULT("viz.surface_id_flow")),
@@ -573,7 +521,6 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category::Group("toplevel,viz"),
     perfetto::Category::Group("toplevel.flow,mojom.flow"),
     perfetto::Category::Group("ui,input"),
-    perfetto::Category::Group("ui,latency"),
     perfetto::Category::Group("ui,toplevel"),
     perfetto::Category::Group("v8," TRACE_DISABLED_BY_DEFAULT("v8.compile")),
     perfetto::Category::Group("v8,devtools.timeline"),
@@ -582,7 +529,6 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category::Group("viz,android.adpf"),
     perfetto::Category::Group("viz,benchmark"),
     perfetto::Category::Group("viz,benchmark,graphics.pipeline"),
-    perfetto::Category::Group("viz,benchmark,input.scrolling"),
     perfetto::Category::Group("viz,input.scrolling"),
     perfetto::Category::Group("wakeup.flow,toplevel.flow"),
     perfetto::Category::Group("WebCore,benchmark,rail"),
@@ -593,10 +539,7 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category::Group(
         TRACE_DISABLED_BY_DEFAULT("cc.debug.display_items") ","
         TRACE_DISABLED_BY_DEFAULT("cc.debug.picture") ","
-        TRACE_DISABLED_BY_DEFAULT("devtools.timeline.picture")),
-    perfetto::Category::Group(
-        TRACE_DISABLED_BY_DEFAULT("v8.inspector") ","
-        TRACE_DISABLED_BY_DEFAULT("v8.stack_trace")));
+        TRACE_DISABLED_BY_DEFAULT("devtools.timeline.picture")));
 // clang-format on
 
 PERFETTO_USE_CATEGORIES_FROM_NAMESPACE(base);

@@ -31,7 +31,6 @@ import org.chromium.base.JniOnceCallback;
 import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TimeUtils;
-import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -318,40 +317,30 @@ final class ChromeAndroidTaskImpl
                 public void onProfileDestroyed(Profile profile) {
                     removeAllFeaturesForProfile(profile);
 
-                    // TODO(crbug.com/479566813): Several objects for desktop Android related to
-                    // extensions do not handle the BrowserWindow destruction happening when the
-                    // profile is destroyed. This should be fixed. For now we can just defer the
-                    // destruction until the activity is destroyed since there should never be more
-                    // than one profile/window on desktop Android.
-                    if (!BuildConfig.IS_DESKTOP_ANDROID) {
-                        if (mPendingBrowserWindow != null
-                                && mPendingBrowserWindow.getProfile() == profile) {
-                            assert mActivityScopedObjectsDeque.isEmpty();
+                    if (mPendingBrowserWindow != null
+                            && mPendingBrowserWindow.getProfile() == profile) {
+                        assert mActivityScopedObjectsDeque.isEmpty();
 
-                            destroyBrowserWindow(
-                                    mPendingBrowserWindow,
-                                    null,
-                                    mAndroidBrowserWindowObserverNotifier);
-                            mPendingBrowserWindow = null;
-                            return;
-                        }
-
-                        var iterator = mActivityScopedObjectsDeque.iterator();
-                        while (iterator.hasNext()) {
-                            var internalActivityScopedObjects = iterator.next();
-                            var browserWindow =
-                                    internalActivityScopedObjects.mAndroidBrowserWindows.get(
-                                            profile);
-                            if (browserWindow != null) {
-                                destroyBrowserWindow(
-                                        browserWindow,
-                                        internalActivityScopedObjects,
-                                        mAndroidBrowserWindowObserverNotifier);
-                            }
-                        }
-                        mAndroidBrowserWindowObserverNotifier.updateActiveBrowserWindow(
-                                getActiveBrowserWindow());
+                        destroyBrowserWindow(
+                                mPendingBrowserWindow, null, mAndroidBrowserWindowObserverNotifier);
+                        mPendingBrowserWindow = null;
+                        return;
                     }
+
+                    var iterator = mActivityScopedObjectsDeque.iterator();
+                    while (iterator.hasNext()) {
+                        var internalActivityScopedObjects = iterator.next();
+                        var browserWindow =
+                                internalActivityScopedObjects.mAndroidBrowserWindows.get(profile);
+                        if (browserWindow != null) {
+                            destroyBrowserWindow(
+                                    browserWindow,
+                                    internalActivityScopedObjects,
+                                    mAndroidBrowserWindowObserverNotifier);
+                        }
+                    }
+                    mAndroidBrowserWindowObserverNotifier.updateActiveBrowserWindow(
+                            getActiveBrowserWindow());
                 }
             };
 

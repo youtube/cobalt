@@ -25,6 +25,7 @@
   SEQUENCE_CHECKER(_sequenceChecker);
   base::Time _startTime;
   BOOL _isCancelled;
+  scoped_refptr<base::SequencedTaskRunner> _taskRunner;
 }
 
 - (instancetype)init {
@@ -62,8 +63,13 @@
   return base::Time::Now() - self.lastRun > self.refreshInterval;
 }
 
-- (scoped_refptr<base::SingleThreadTaskRunner>)taskThread {
-  return web::GetIOThreadTaskRunner({});
+- (scoped_refptr<base::SequencedTaskRunner>)taskRunner {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+  if (!_taskRunner) {
+    _taskRunner =
+        base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()});
+  }
+  return _taskRunner;
 }
 
 #pragma mark - Private properties
@@ -77,7 +83,8 @@
 
 #pragma mark - Public methods
 
-// Called on the main thread, runs tasks on (by default) the IO thread.
+// Called on the main thread, runs tasks on (by default) a background task
+// runner.
 - (void)handleRefreshWithCompletion:(ProceduralBlock)completion {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
   _startTime = base::Time::Now();
@@ -99,7 +106,7 @@
     }
   });
 
-  self.taskThread->PostTaskAndReply(FROM_HERE, std::move(taskClosure),
+  self.taskRunner->PostTaskAndReply(FROM_HERE, std::move(taskClosure),
                                     std::move(replyClosure));
 }
 

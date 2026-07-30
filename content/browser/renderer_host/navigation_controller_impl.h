@@ -1218,11 +1218,6 @@ class CONTENT_EXPORT NavigationControllerImpl : public NavigationController {
   // the wrong order in the history view.
   TimeSmoother time_smoother_;
 
-  // BackForwardCache:
-  //
-  // Stores frozen RenderFrameHost. Restores them on history navigation.
-  // See BackForwardCache class documentation.
-  BackForwardCacheImpl back_forward_cache_;
 
 #if BUILDFLAG(IS_ANDROID)
   // Stores captured screenshots for this `NavigationController`. The

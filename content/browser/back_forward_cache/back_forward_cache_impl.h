@@ -31,6 +31,7 @@
 #include "content/public/browser/render_process_host_observer.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/browser/visibility.h"
 #include "content/public/common/content_features.h"
 #include "net/cookies/canonical_cookie.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
@@ -45,6 +46,7 @@ namespace content {
 class RenderFrameHostImpl;
 class SiteInstance;
 class NavigationControllerImpl;
+class WebContentsImpl;
 
 // This feature is used to limit the scope of back-forward cache experiment
 // without enabling it. To control the URLs list by using this feature by
@@ -210,8 +212,7 @@ class CONTENT_EXPORT BackForwardCacheImpl
     std::unique_ptr<StoredPage> stored_page_;
   };
 
-  explicit BackForwardCacheImpl(
-      NavigationControllerImpl& navigation_controller);
+  explicit BackForwardCacheImpl(WebContentsImpl& web_contents);
 
   BackForwardCacheImpl(const BackForwardCacheImpl&) = delete;
   BackForwardCacheImpl& operator=(const BackForwardCacheImpl&) = delete;
@@ -508,6 +509,12 @@ class CONTENT_EXPORT BackForwardCacheImpl
   void PruneForwardEntries(int target_entry_index);
 
  private:
+  // Returns the primary NavigationControllerImpl associated with this cache.
+  NavigationControllerImpl& GetNavigationController() const;
+
+  // Returns true if the associated WebContents is visible.
+  bool IsVisible();
+
   // Destroys all evicted frames in the BackForwardCache.
   void DestroyEvictedFrames();
 
@@ -590,9 +597,8 @@ class CONTENT_EXPORT BackForwardCacheImpl
       RequestedFeatures requested_features,
       CacheControlNoStoreContext ccns_context);
 
-  // The navigation controller owns this object and is guaranteed to
-  // outlive it.
-  const raw_ref<NavigationControllerImpl> controller_;
+  // The WebContents owns this object and is guaranteed to outlive it.
+  const raw_ref<WebContentsImpl> web_contents_;
 
   // Contains the set of stored Entries.
   // Invariant:
@@ -610,7 +616,7 @@ class CONTENT_EXPORT BackForwardCacheImpl
   // from each Entry's RenderViewHosts. Every RenderProcessHost in here is
   // observed by |this|. Every RenderProcessHost in this is referenced by a
   // RenderViewHost in the Entry and so will be valid.
-  std::multiset<RenderProcessHost*> observed_processes_;
+  std::multiset<raw_ptr<RenderProcessHost>> observed_processes_;
 
   // Whether the BackForwardCache has been enabled for pages loaded with
   // "Cache-Control: no-store" header.

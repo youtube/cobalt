@@ -73,6 +73,9 @@ GenerateSigningKeySlowly(
   TRACE_EVENT("browser", "unexportable_keys::GenerateSigningKeySlowly",
               perfetto::Flow::FromPointer(task_ptr_for_tracing));
   CHECK(key_provider);
+  if (!key_provider->SelectAlgorithm(acceptable_algorithms).has_value()) {
+    return base::unexpected(ServiceError::kAlgorithmNotSupported);
+  }
   return MakeSigningKeyRefCounted(
       key_provider->GenerateSigningKeySlowly(acceptable_algorithms));
 }
@@ -150,6 +153,9 @@ GenerateAttestationKeySlowly(
   TRACE_EVENT("browser", "unexportable_keys::GenerateAttestationKeySlowly",
               perfetto::Flow::FromPointer(task_ptr_for_tracing));
   CHECK(key_provider);
+  if (!key_provider->SelectAlgorithm(acceptable_algorithms).has_value()) {
+    return base::unexpected(ServiceError::kAlgorithmNotSupported);
+  }
   return MakeAttestationKeyRefCounted(
       key_provider->GenerateAttestationKeySlowly(acceptable_algorithms));
 }

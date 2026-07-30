@@ -5,7 +5,9 @@
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/ui/autofill_and_passwords_table_view_controller.h"
 
 #import "base/apple/foundation_util.h"
+#import "base/test/scoped_feature_list.h"
 #import "base/test/with_feature_override.h"
+#import "components/autofill/core/common/autofill_features.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/signin_promo_view_configurator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/table_view_signin_promo_item.h"
@@ -49,6 +51,10 @@ class AutofillAndPasswordsTableViewControllerTest
 };
 
 TEST_P(AutofillAndPasswordsTableViewControllerTest, TestModel) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      autofill::features::kAutofillAiWithDataSchema);
+
   AutofillAndPasswordsTableViewController* view_controller =
       base::apple::ObjCCastStrict<AutofillAndPasswordsTableViewController>(
           controller());
@@ -108,6 +114,10 @@ TEST_P(AutofillAndPasswordsTableViewControllerTest, TestModel) {
 
 TEST_P(AutofillAndPasswordsTableViewControllerTest,
        TestIdentityDocsAndTravelInfoHidden) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      autofill::features::kAutofillAiWithDataSchema);
+
   AutofillAndPasswordsTableViewController* view_controller =
       base::apple::ObjCCastStrict<AutofillAndPasswordsTableViewController>(
           controller());
@@ -259,6 +269,53 @@ TEST_P(AutofillAndPasswordsTableViewControllerTest,
   promo_item = base::apple::ObjCCastStrict<TableViewSigninPromoItem>(
       GetTableViewItem(0, 0));
   EXPECT_EQ(promo_item.configurator, configurator2);
+}
+
+TEST_P(AutofillAndPasswordsTableViewControllerTest,
+       TestAutofillSettingsHidden) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      autofill::features::kAutofillAiWithDataSchema);
+
+  AutofillAndPasswordsTableViewController* view_controller =
+      base::apple::ObjCCastStrict<AutofillAndPasswordsTableViewController>(
+          controller());
+
+  [view_controller setPasswordsEnabled:YES];
+  [view_controller setAutofillCreditCardEnabled:NO];
+  [view_controller setAutofillProfileEnabled:YES];
+  [view_controller setIdentityDocsEnabled:YES];
+  [view_controller setTravelInfoEnabled:NO];
+  [view_controller setShouldShowAutofillAIFeatures:NO];
+
+  [view_controller loadModel];
+
+  EXPECT_EQ(1, NumberOfSections());
+  EXPECT_EQ(3, NumberOfItemsInSection(0));
+
+  if (IsParamFeatureEnabled()) {
+    CheckDetailItemTextWithIds(
+        IDS_IOS_PASSWORD_MANAGER,
+        IDS_AUTOFILL_AND_PASSWORDS_PASSWORD_MANAGER_SUMMARY, 0, 0);
+    CheckTrailingDetailItemTextWithId(IDS_IOS_SETTING_ON, 0, 0);
+
+    CheckDetailItemTextWithIds(IDS_AUTOFILL_PAYMENTS_TITLE,
+                               IDS_AUTOFILL_AND_PASSWORDS_PAYMENTS_SUMMARY, 0,
+                               1);
+    CheckTrailingDetailItemTextWithId(IDS_IOS_SETTING_OFF, 0, 1);
+
+    CheckDetailItemTextWithIds(IDS_AUTOFILL_CONTACT_INFO_TITLE,
+                               IDS_AUTOFILL_AND_PASSWORDS_CONTACT_INFO_SUMMARY,
+                               0, 2);
+    CheckTrailingDetailItemTextWithId(IDS_IOS_SETTING_ON, 0, 2);
+  } else {
+    CheckDetailItemTextWithIds(IDS_IOS_PASSWORD_MANAGER, IDS_IOS_SETTING_ON, 0,
+                               0);
+    CheckDetailItemTextWithIds(IDS_AUTOFILL_PAYMENT_METHODS,
+                               IDS_IOS_SETTING_OFF, 0, 1);
+    CheckDetailItemTextWithIds(IDS_AUTOFILL_ADDRESSES_SETTINGS_TITLE,
+                               IDS_IOS_SETTING_ON, 0, 2);
+  }
 }
 
 INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(

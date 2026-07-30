@@ -1841,8 +1841,8 @@ IN_PROC_BROWSER_TEST_F(OmniboxViewAiModeTest,
   omnibox_view->SetUserText(u"test query http://example.com");
 
   // Call OpenAiMode, which should trigger QueryContextualizer and navigation.
-  GetOmniboxEditModel()->OpenAiMode(/*via_keyboard=*/false,
-                                    /*via_context_menu=*/false);
+  GetOmniboxEditModel()->OpenAiMode(
+      OmniboxEditModel::AimActivation::kClickOrGesture);
 
   // Wait for navigation to complete. We expect it to navigate to chess://aim/
   // or similar URL.

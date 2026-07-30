@@ -53,6 +53,14 @@ suite('<bookmarks-app>', function() {
     return microtasksFinished();
   });
 
+  teardown(function() {
+    // Teardown the element to ensure it is disconnected from the DOM, which
+    // removes event listeners from the active BookmarksApiProxy instance.
+    // This prevents the element from trying to remove listeners from a swapped
+    // proxy instance in subsequent test setups.
+    app.remove();
+  });
+
   test('write and load closed folder state', async function() {
     const folderOpenStateList = [['1', true] as const];
     const folderOpenState = new Map(folderOpenStateList);
@@ -155,6 +163,16 @@ suite('WebuiRefresh2026', function() {
                 }),
           ]),
     ]);
+  });
+
+  teardown(function() {
+    if (app) {
+      // Teardown the element to ensure it is disconnected from the DOM, which
+      // removes event listeners from the active BookmarksApiProxy instance.
+      // This prevents the element from trying to remove listeners from a
+      // swapped proxy instance in subsequent test setups.
+      app.remove();
+    }
   });
 
   async function createApp() {

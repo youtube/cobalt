@@ -21,6 +21,8 @@ namespace dictation {
 // This class implements the agent toast UI for dictation.
 class DictationBubbleUi : public views::BubbleDialogDelegate {
  public:
+  enum class State { kInactive, kInitializing, kTranscribing, kFinalizing };
+
   explicit DictationBubbleUi(
       views::View* anchor_view,
       base::RepeatingClosure close_callback,
@@ -28,6 +30,7 @@ class DictationBubbleUi : public views::BubbleDialogDelegate {
   ~DictationBubbleUi() override;
 
   void Show();
+  void SetState(State state);
 
   // views::BubbleDialogDelegate:
   gfx::Rect GetBubbleBounds() override;
@@ -35,10 +38,12 @@ class DictationBubbleUi : public views::BubbleDialogDelegate {
 
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kViewElementIdForTesting);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kCloseButtonElementIdForTesting);
-  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kDoneButtonElementIdForTesting);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kToggleButtonElementIdForTesting);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kWaveformElementIdForTesting);
 
  private:
   std::unique_ptr<views::Widget> widget_;
+  State state_ = State::kInactive;
 };
 
 }  // namespace dictation

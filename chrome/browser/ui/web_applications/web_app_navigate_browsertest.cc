@@ -50,8 +50,7 @@ IN_PROC_BROWSER_TEST_F(WebAppServiceWorkerOpenWindowBrowserTest,
   EXPECT_NE(browser(), params.browser);
   EXPECT_FALSE(params.browser->GetBrowserForMigrationOnly()->is_type_normal());
   EXPECT_TRUE(params.browser->GetBrowserForMigrationOnly()->is_type_app());
-  EXPECT_TRUE(
-      params.browser->GetBrowserForMigrationOnly()->is_trusted_source());
+  EXPECT_TRUE(WindowFeatureController::From(params.browser)->IsTrustedSource());
 }
 
 IN_PROC_BROWSER_TEST_F(WebAppServiceWorkerOpenWindowBrowserTest,

@@ -91,8 +91,7 @@ class ReportSchedulerIOSTest : public PlatformTest,
   void SetUp() override {
     client_ptr_ = std::make_unique<policy::MockCloudPolicyClient>();
     client_ = client_ptr_.get();
-    uploader_ptr_ = std::make_unique<MockReportUploader>();
-    uploader_ = uploader_ptr_.get();
+    uploader_ = std::make_unique<MockReportUploader>();
   }
 
   void Init(bool policy_enabled,
@@ -131,11 +130,10 @@ class ReportSchedulerIOSTest : public PlatformTest,
   std::unique_ptr<TestProfileIOS> profile_;
 
   ReportingDelegateFactoryIOS report_delegate_factory_;
-  std::unique_ptr<ReportScheduler> scheduler_;
   std::unique_ptr<policy::MockCloudPolicyClient> client_ptr_;
-  raw_ptr<policy::MockCloudPolicyClient, DanglingUntriaged> client_;
-  std::unique_ptr<MockReportUploader> uploader_ptr_;
-  raw_ptr<MockReportUploader, DanglingUntriaged> uploader_;
+  raw_ptr<policy::MockCloudPolicyClient> client_;
+  std::unique_ptr<ReportScheduler> scheduler_;
+  std::unique_ptr<MockReportUploader> uploader_;
   policy::FakeBrowserDMTokenStorage storage_;
   base::Time previous_set_last_upload_timestamp_;
   base::HistogramTester histogram_tester_;
@@ -157,7 +155,7 @@ class BrowserReportSchedulerIOSTest : public ReportSchedulerIOSTest {
     params.delegate = report_delegate_factory_.GetReportSchedulerDelegate();
     params.report_generator = std::move(generator_ptr_);
     scheduler_ = std::make_unique<ReportScheduler>(std::move(params));
-    scheduler_->QueueReportUploaderForTesting(std::move(uploader_ptr_));
+    scheduler_->QueueReportUploaderForTesting(std::move(uploader_));
   }
 
   // If lastUploadTimestamp is updated recently, it should be updated as Now().
@@ -476,7 +474,7 @@ class ProfileReportSchedulerIOSTest : public ReportSchedulerIOSTest {
     params.require_policy_fetch_with_profile_id =
         require_policy_fetch_with_profile_id;
     scheduler_ = std::make_unique<ReportScheduler>(std::move(params));
-    scheduler_->QueueReportUploaderForTesting(std::move(uploader_ptr_));
+    scheduler_->QueueReportUploaderForTesting(std::move(uploader_));
   }
 
   void ToggleCloudReport(bool enabled) override {

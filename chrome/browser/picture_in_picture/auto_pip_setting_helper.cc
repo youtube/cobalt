@@ -100,8 +100,7 @@ void AutoPipSettingHelper::UpdateContentSetting(ContentSetting new_setting) {
               kSafetyHubUnusedPermissionRevocationForAllSurfaces) &&
       new_setting &&
       content_settings::CanBeAutoRevokedAsUnusedPermission(
-          ContentSettingsType::AUTO_PICTURE_IN_PICTURE,
-          content_settings::ContentSettingToValue(new_setting))) {
+          ContentSettingsType::AUTO_PICTURE_IN_PICTURE, new_setting)) {
     constraints.set_track_last_visit_for_autoexpiration(true);
   }
 

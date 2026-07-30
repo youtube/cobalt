@@ -67,14 +67,19 @@ void GetFieldTrialActiveGroupIdsForActiveGroups(
 // with unique ActiveGroupIds for each Field Trial that has a chosen group.
 // Field Trials for which a group has not been chosen yet are NOT returned in
 // this list. Field trial names are suffixed with |suffix| before hashing is
-// executed.
+// executed. If |include_runtime_overrides| is true, the returned groups will
+// include the runtime FieldTrial overrides (see RuntimeFieldTrialOverrides
+// class), and the trials that are overridden by them will be excluded from the
+// output. Note that if setting this to true, this must be called on the main
+// sequence.
 //
 // This does not return low anonymity field trials; call sites that require
 // them can use the version of |GetFieldTrialActiveGroupIds()| below that takes
 // the active groups as an input.
 COMPONENT_EXPORT(VARIATIONS)
 void GetFieldTrialActiveGroupIds(std::string_view suffix,
-                                 std::vector<ActiveGroupId>* name_group_ids);
+                                 std::vector<ActiveGroupId>* name_group_ids,
+                                 bool include_runtime_overrides = false);
 
 // Fills the supplied vector |name_group_ids| (which must be empty when called)
 // with unique ActiveGroupIds for the provided |active_groups|.

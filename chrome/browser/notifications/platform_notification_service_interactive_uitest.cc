@@ -130,7 +130,42 @@ class PlatformNotificationServiceBrowserTest : public InProcessBrowserTest {
     NotificationHandler::Type type =
         is_persistent ? NotificationHandler::Type::WEB_PERSISTENT
                       : NotificationHandler::Type::WEB_NON_PERSISTENT;
+    return display_service_tester_->GetDisplayedNotificationsForType(type);
+  }
 
+  // Waits until at least |expected_count| notifications of the given type are
+  // displayed by the notification display service.
+  std::vector<message_center::Notification> WaitForDisplayedNotifications(
+      bool is_persistent,
+      size_t expected_count = 1u) {
+    NotificationHandler::Type type =
+        is_persistent ? NotificationHandler::Type::WEB_PERSISTENT
+                      : NotificationHandler::Type::WEB_NON_PERSISTENT;
+    auto notifications =
+        display_service_tester_->GetDisplayedNotificationsForType(type);
+    if (notifications.size() >= expected_count) {
+      return notifications;
+    }
+
+    base::RunLoop run_loop;
+    display_service_tester_->SetNotificationAddedClosure(base::BindRepeating(
+        [](NotificationDisplayServiceTester* tester,
+           NotificationHandler::Type type, size_t count, base::RunLoop* loop) {
+          if (tester->GetDisplayedNotificationsForType(type).size() >= count) {
+            loop->Quit();
+          }
+        },
+        base::Unretained(display_service_tester_.get()), type, expected_count,
+        base::Unretained(&run_loop)));
+    run_loop.Run();
+
+    // This is done to "clean up" the repeating closure added above. Since
+    // `run_loop` is stack allocated, if multiple notifications are showing up
+    // in the same test, the callback above will fire, and the `run_loop`
+    // instance will dangle as it will be destroyed as soon as this function
+    // has returned.
+    display_service_tester_->SetNotificationAddedClosure(
+        base::RepeatingClosure());
     return display_service_tester_->GetDisplayedNotificationsForType(type);
   }
 
@@ -216,7 +251,8 @@ class PlatformNotificationServiceBrowserTest : public InProcessBrowserTest {
     EXPECT_EQ("ok", RunScript(display_notification_script));
 
     std::vector<message_center::Notification> notifications =
-        GetDisplayedNotifications(true /* is_persistent */);
+        WaitForDisplayedNotifications(true /* is_persistent */,
+                                      notification_count_before_display + 1u);
     ASSERT_EQ(notifications.size(), notification_count_before_display + 1u);
 
     *displayed_notification =
@@ -259,7 +295,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   EXPECT_EQ("ok", RunScript("DisplayPersistentNotification('action_none')"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   display_service_tester_->SimulateClick(
@@ -270,7 +306,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   EXPECT_DOUBLE_EQ(1.5, GetEngagementScore(GetLastCommittedURL()));
 
   // Clicking on the notification should not automatically close it.
-  notifications = GetDisplayedNotifications(true /* is_persistent */);
+  notifications = WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   EXPECT_EQ(message_center::FullscreenVisibility::NONE,
@@ -278,7 +314,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
 
   EXPECT_EQ("action_none", RunScript("GetMessageFromWorker()"));
 
-  notifications = GetDisplayedNotifications(true /* is_persistent */);
+  notifications = WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   // Check UMA was recorded.
@@ -305,7 +341,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   EXPECT_EQ("ok", RunScript("DisplayNonPersistentNotification('Title')"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(false /* is_persistent */);
+      WaitForDisplayedNotifications(false /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   // We don't use the notification's direction or language, hence we don't check
@@ -347,7 +383,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
           ]
         }))"));
 
-  notifications = GetDisplayedNotifications(false /* is_persistent */);
+  notifications = WaitForDisplayedNotifications(false /* is_persistent */, 2u);
   ASSERT_EQ(2u, notifications.size());
 
   message_center::Notification notification = notifications[1];
@@ -384,7 +420,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
           tag: 'replace-id'
         }))"));
 
-  notifications = GetDisplayedNotifications(false /* is_persistent */);
+  notifications = WaitForDisplayedNotifications(false /* is_persistent */, 2u);
   ASSERT_EQ(2u, notifications.size());
 
   message_center::Notification replacement = notifications[1];
@@ -403,7 +439,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
 
   // Check that the first notification is still displayed and no others.
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(false /* is_persistent */);
+      WaitForDisplayedNotifications(false /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
   EXPECT_EQ(u"Title1", notifications[0].title());
 }
@@ -417,7 +453,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   EXPECT_EQ("ok", RunScript("DisplayPersistentNotification('Some title', {})"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   // We don't use the notification's direction or language, hence we don't check
@@ -445,7 +481,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
 
   EXPECT_EQ("ok", RunScript("DisplayPersistentAllOptionsNotification()"));
 
-  notifications = GetDisplayedNotifications(true /* is_persistent */);
+  notifications = WaitForDisplayedNotifications(true /* is_persistent */, 2u);
   ASSERT_EQ(2u, notifications.size());
 
   // We don't use the notification's direction or language, hence we don't check
@@ -497,7 +533,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   EXPECT_EQ("ok", RunScript("DisplayPersistentNotification('Some title', {})"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
   EXPECT_EQ(0u, notifications[0].buttons().size());
 
@@ -505,7 +541,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
       NotificationHandler::Type::WEB_PERSISTENT, notifications[0].id());
 
   // Clicking on the settings button should not close the notification.
-  notifications = GetDisplayedNotifications(true /* is_persistent */);
+  notifications = WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   web_contents = browser()->tab_strip_model()->GetActiveWebContents();
@@ -530,7 +566,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   EXPECT_EQ("ok", RunScript("DisplayPersistentNotificationVibrate()"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   const message_center::Notification& notification = notifications[0];
@@ -551,7 +587,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   EXPECT_EQ("ok", RunScript("DisplayPersistentNotification('action_close')"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   {
@@ -585,7 +621,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   EXPECT_EQ("ok", RunScript("DisplayPersistentNotification('close_test')"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   display_service_tester_->RemoveNotification(
@@ -611,7 +647,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
 
   // Creates a simple notification.
   ASSERT_EQ("ok", RunScript("DisplayPersistentNotification()"));
-  ASSERT_EQ(1u, GetDisplayedNotifications(true /* is_persistent */).size());
+  ASSERT_EQ(1u, WaitForDisplayedNotifications(true /* is_persistent */).size());
 
   // Block permissions and wait until notification got closed.
   base::RunLoop run_loop;
@@ -641,14 +677,24 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
         }))"));
 
     std::vector<message_center::Notification> notifications =
-        GetDisplayedNotifications(true /* is_persistent */);
+        WaitForDisplayedNotifications(true /* is_persistent */);
     ASSERT_EQ(1u, notifications.size());
+
+    base::RunLoop run_loop;
+    display_service_tester_->SetNotificationClosedClosure(
+        run_loop.QuitClosure());
 
     display_service_tester_->SimulateClick(
         NotificationHandler::Type::WEB_PERSISTENT, notifications[0].id(),
         std::nullopt /* action_index */, std::nullopt /* reply */);
 
     EXPECT_EQ("action_close", RunScript("GetMessageFromWorker()"));
+    run_loop.Run();
+
+    // Clear the closure to prevent an UAF when the notification is closed in
+    // the next set of test steps.
+    display_service_tester_->SetNotificationClosedClosure(
+        base::RepeatingClosure());
   }
   {
     EXPECT_EQ("ok", RunScript(
@@ -657,7 +703,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
         }))"));
 
     std::vector<message_center::Notification> notifications =
-        GetDisplayedNotifications(true /* is_persistent */);
+        WaitForDisplayedNotifications(true /* is_persistent */);
     ASSERT_EQ(1u, notifications.size());
 
     display_service_tester_->RemoveNotification(
@@ -679,7 +725,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   GURL test_origin = TestPageUrl().DeprecatedGetOriginAsURL();
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   EXPECT_TRUE(notifications[0].context_message().empty());
@@ -694,7 +740,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   ASSERT_EQ("ok", RunScript("DisplayPersistentNotification()"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   EXPECT_EQ(
@@ -711,7 +757,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   EXPECT_EQ("ok", RunScript("DisplayPersistentNotificationDataUrlImage()"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   const message_center::Notification& notification = notifications[0];
@@ -729,7 +775,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   EXPECT_EQ("ok", RunScript("DisplayPersistentNotificationBlobImage()"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   const message_center::Notification& notification = notifications[0];
@@ -751,7 +797,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
             RunScript("DisplayPersistentNotificationWithActionButtons()"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   const message_center::Notification& notification = notifications[0];
@@ -798,7 +844,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   EXPECT_EQ("ok", RunScript("DisplayPersistentNotificationWithReplyButton()"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   const message_center::Notification& notification = notifications[0];
@@ -842,7 +888,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   const std::string first_id = notification_ids[0];
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */, 2u);
   ASSERT_EQ(2u, notifications.size());
 
   // Now remove one of the notifications straight from the ui manager
@@ -946,7 +992,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   EXPECT_EQ("ok", RunScript("DisplayPersistentNotification('display_normal')"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   EXPECT_EQ(message_center::FullscreenVisibility::OVER_USER,
@@ -983,7 +1029,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   ASSERT_TRUE(other_browser->GetWindow()->IsActive());
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   EXPECT_EQ(message_center::FullscreenVisibility::NONE,
@@ -1000,7 +1046,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   EXPECT_EQ("ok", RunScript("DisplayPersistentNotification('action_none')"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   ASSERT_FALSE(KeepAliveRegistry::GetInstance()->IsOriginRegistered(
@@ -1036,7 +1082,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
   EXPECT_EQ("ok", RunScript("DisplayPersistentNotification('action_none')"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   ASSERT_FALSE(KeepAliveRegistry::GetInstance()->IsOriginRegistered(
@@ -1383,7 +1429,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceIncomingCallTest,
             RunScript("DisplayIncomingCallNotificationWithActionButton()"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   // When sent from an origin that does not have an installed web app, the
@@ -1411,7 +1457,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceIncomingCallTest,
   EXPECT_EQ("ok",
             RunScript("DisplayIncomingCallNotificationWithActionButton()"));
 
-  notifications = GetDisplayedNotifications(true /* is_persistent */);
+  notifications = WaitForDisplayedNotifications(true /* is_persistent */, 2u);
   ASSERT_EQ(2u, notifications.size());
 
   // After installing the origin's web app, the scenario is set to
@@ -1436,7 +1482,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceIncomingCallTest,
   EXPECT_EQ("ok",
             RunScript("DisplayIncomingCallNotificationWithActionButton()"));
 
-  notifications = GetDisplayedNotifications(true /* is_persistent */);
+  notifications = WaitForDisplayedNotifications(true /* is_persistent */, 3u);
   ASSERT_EQ(3u, notifications.size());
 
   // After uninstalling the origin's web app, the scenario should be set
@@ -1464,7 +1510,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceIncomingCallTest,
   EXPECT_EQ("ok", RunScript("DisplayIncomingCallNotification()"));
 
   std::vector<message_center::Notification> notifications =
-      GetDisplayedNotifications(true /* is_persistent */);
+      WaitForDisplayedNotifications(true /* is_persistent */);
   ASSERT_EQ(1u, notifications.size());
 
   // When sent from an origin that does not have an installed web app, the
@@ -1488,7 +1534,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceIncomingCallTest,
 
   EXPECT_EQ("ok", RunScript("DisplayIncomingCallNotification()"));
 
-  notifications = GetDisplayedNotifications(true /* is_persistent */);
+  notifications = WaitForDisplayedNotifications(true /* is_persistent */, 2u);
   ASSERT_EQ(2u, notifications.size());
 
   // After installing the origin's web app, the scenario is set to
@@ -1509,7 +1555,7 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceIncomingCallTest,
 
   EXPECT_EQ("ok", RunScript("DisplayIncomingCallNotification()"));
 
-  notifications = GetDisplayedNotifications(true /* is_persistent */);
+  notifications = WaitForDisplayedNotifications(true /* is_persistent */, 3u);
   ASSERT_EQ(3u, notifications.size());
 
   // After uninstalling the origin's web app, the scenario should be set

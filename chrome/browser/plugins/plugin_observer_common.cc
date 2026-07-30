@@ -9,16 +9,16 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/common/referrer.h"
 
-bool CanOpenPdfUrl(content::RenderFrameHost* render_frame_host,
+bool CanOpenPdfUrl(content::RenderFrameHost& render_frame_host,
                    const GURL& url,
                    const GURL& last_committed_url,
                    content::Referrer* referrer) {
-  if (!render_frame_host->IsActive()) {
+  if (!render_frame_host.IsActive()) {
     return false;
   }
 
   if (!content::ChildProcessSecurityPolicy::GetInstance()->CanRequestURL(
-          render_frame_host->GetProcess()->GetDeprecatedID(), url)) {
+          render_frame_host.GetProcess()->GetDeprecatedID(), url)) {
     return false;
   }
 

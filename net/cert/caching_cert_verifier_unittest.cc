@@ -8,7 +8,10 @@
 
 #include "base/files/file_path.h"
 #include "base/memory/ref_counted.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "base/time/time.h"
+#include "net/base/features.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/cert/cert_database.h"
@@ -204,6 +207,159 @@ TEST_F(CachingCertVerifierTest, ObserverIsForwarded) {
   // observers registered on CachingCertVerifier.
   mock_cert_verifier_ptr->SimulateOnCertVerifierChanged();
   EXPECT_EQ(observer_.change_count(), 1u);
+}
+
+TEST_F(CachingCertVerifierTest, CacheCertVerificationDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(net::features::kCacheCertVerification);
+
+  base::FilePath certs_dir = GetTestCertsDirectory();
+  scoped_refptr<X509Certificate> test_cert(
+      ImportCertFromFile(certs_dir, "ok_cert.pem"));
+  ASSERT_TRUE(test_cert.get());
+
+  int error;
+  CertVerifyResult verify_result;
+  TestCompletionCallback callback;
+  std::unique_ptr<CertVerifier::Request> request;
+
+  error = callback.GetResult(verifier_.Verify(
+      CertVerifier::RequestParams(test_cert, "www.example.com", 0,
+                                  /*ocsp_response=*/std::string(),
+                                  /*sct_list=*/std::string()),
+      &verify_result, callback.callback(), &request, NetLogWithSource()));
+  ASSERT_TRUE(IsCertificateError(error));
+  ASSERT_EQ(1u, verifier_.requests());
+  ASSERT_EQ(0u, verifier_.cache_hits());
+  ASSERT_EQ(0u, verifier_.GetCacheSize());
+
+  error = callback.GetResult(verifier_.Verify(
+      CertVerifier::RequestParams(test_cert, "www.example.com", 0,
+                                  /*ocsp_response=*/std::string(),
+                                  /*sct_list=*/std::string()),
+      &verify_result, callback.callback(), &request, NetLogWithSource()));
+  ASSERT_TRUE(IsCertificateError(error));
+  ASSERT_EQ(2u, verifier_.requests());
+  ASSERT_EQ(0u, verifier_.cache_hits());
+  ASSERT_EQ(0u, verifier_.GetCacheSize());
+}
+
+class CachingCertVerifierTestWithMockTime : public TestWithTaskEnvironment {
+ public:
+  CachingCertVerifierTestWithMockTime()
+      : TestWithTaskEnvironment(
+            base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
+  ~CachingCertVerifierTestWithMockTime() override = default;
+};
+
+TEST_F(CachingCertVerifierTestWithMockTime, CacheEntryTtlRespected) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      net::features::kCacheCertVerification,
+      {{"CacheCertVerificationTtlSecs", "10"}});
+
+  CachingCertVerifier verifier(std::make_unique<MockCertVerifier>());
+
+  base::FilePath certs_dir = GetTestCertsDirectory();
+  scoped_refptr<X509Certificate> test_cert(
+      ImportCertFromFile(certs_dir, "ok_cert.pem"));
+  ASSERT_TRUE(test_cert.get());
+
+  int error;
+  CertVerifyResult verify_result;
+  TestCompletionCallback callback;
+  std::unique_ptr<CertVerifier::Request> request;
+
+  error = callback.GetResult(verifier.Verify(
+      CertVerifier::RequestParams(test_cert, "www.example.com", 0,
+                                  /*ocsp_response=*/std::string(),
+                                  /*sct_list=*/std::string()),
+      &verify_result, callback.callback(), &request, NetLogWithSource()));
+  ASSERT_TRUE(IsCertificateError(error));
+  ASSERT_EQ(1u, verifier.requests());
+  ASSERT_EQ(0u, verifier.cache_hits());
+  ASSERT_EQ(1u, verifier.GetCacheSize());
+
+  FastForwardBy(base::Seconds(5));
+
+  error = verifier.Verify(
+      CertVerifier::RequestParams(test_cert, "www.example.com", 0,
+                                  /*ocsp_response=*/std::string(),
+                                  /*sct_list=*/std::string()),
+      &verify_result, callback.callback(), &request, NetLogWithSource());
+  ASSERT_NE(ERR_IO_PENDING, error);
+  ASSERT_TRUE(IsCertificateError(error));
+  ASSERT_FALSE(request);
+  ASSERT_EQ(2u, verifier.requests());
+  ASSERT_EQ(1u, verifier.cache_hits());
+  ASSERT_EQ(1u, verifier.GetCacheSize());
+
+  FastForwardBy(base::Seconds(6));
+
+  error = callback.GetResult(verifier.Verify(
+      CertVerifier::RequestParams(test_cert, "www.example.com", 0,
+                                  /*ocsp_response=*/std::string(),
+                                  /*sct_list=*/std::string()),
+      &verify_result, callback.callback(), &request, NetLogWithSource()));
+  ASSERT_TRUE(IsCertificateError(error));
+  ASSERT_EQ(3u, verifier.requests());
+  ASSERT_EQ(1u, verifier.cache_hits());
+  ASSERT_EQ(1u, verifier.GetCacheSize());
+}
+
+TEST_F(CachingCertVerifierTestWithMockTime, CacheEntryMaxTtlEnforced) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      net::features::kCacheCertVerification,
+      {{"CacheCertVerificationTtlSecs", "86400"}});
+
+  CachingCertVerifier verifier(std::make_unique<MockCertVerifier>());
+
+  base::FilePath certs_dir = GetTestCertsDirectory();
+  scoped_refptr<X509Certificate> test_cert(
+      ImportCertFromFile(certs_dir, "ok_cert.pem"));
+  ASSERT_TRUE(test_cert.get());
+
+  int error;
+  CertVerifyResult verify_result;
+  TestCompletionCallback callback;
+  std::unique_ptr<CertVerifier::Request> request;
+
+  error = callback.GetResult(verifier.Verify(
+      CertVerifier::RequestParams(test_cert, "www.example.com", 0,
+                                  /*ocsp_response=*/std::string(),
+                                  /*sct_list=*/std::string()),
+      &verify_result, callback.callback(), &request, NetLogWithSource()));
+  ASSERT_TRUE(IsCertificateError(error));
+  ASSERT_EQ(1u, verifier.requests());
+  ASSERT_EQ(0u, verifier.cache_hits());
+  ASSERT_EQ(1u, verifier.GetCacheSize());
+
+  FastForwardBy(base::Seconds(1799));
+
+  error = verifier.Verify(
+      CertVerifier::RequestParams(test_cert, "www.example.com", 0,
+                                  /*ocsp_response=*/std::string(),
+                                  /*sct_list=*/std::string()),
+      &verify_result, callback.callback(), &request, NetLogWithSource());
+  ASSERT_NE(ERR_IO_PENDING, error);
+  ASSERT_TRUE(IsCertificateError(error));
+  ASSERT_FALSE(request);
+  ASSERT_EQ(2u, verifier.requests());
+  ASSERT_EQ(1u, verifier.cache_hits());
+  ASSERT_EQ(1u, verifier.GetCacheSize());
+
+  FastForwardBy(base::Seconds(2));
+
+  error = callback.GetResult(verifier.Verify(
+      CertVerifier::RequestParams(test_cert, "www.example.com", 0,
+                                  /*ocsp_response=*/std::string(),
+                                  /*sct_list=*/std::string()),
+      &verify_result, callback.callback(), &request, NetLogWithSource()));
+  ASSERT_TRUE(IsCertificateError(error));
+  ASSERT_EQ(3u, verifier.requests());
+  ASSERT_EQ(1u, verifier.cache_hits());
+  ASSERT_EQ(1u, verifier.GetCacheSize());
 }
 
 namespace {

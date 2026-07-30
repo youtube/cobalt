@@ -470,6 +470,41 @@ public class UrlBarUnitTest {
         verifyNoMoreInteractions(mUrlBarDelegate);
     }
 
+    @Test
+    public void onTouchEvent_longPressDoesNotEmitClickEvents() {
+        mUrlBar.setOnLongClickListener(v -> true);
+
+        // Start gesture
+        mUrlBar.onTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 0, 0, 0));
+
+        // Trigger long click
+        mUrlBar.performLongClick();
+
+        // End gesture
+        mUrlBar.onTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_UP, 0, 0, 0));
+
+        // Verify click event was suppressed (delegate not notified)
+        verify(mUrlBarDelegate, never()).onFocusByTouch();
+    }
+
+    @Test
+    public void onTouchEvent_longPressFollowedByClickEmitsClickEvents() {
+        mUrlBar.setOnLongClickListener(v -> true);
+
+        // 1. Perform long-press gesture
+        mUrlBar.onTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 0, 0, 0));
+        mUrlBar.performLongClick();
+        mUrlBar.onTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_UP, 0, 0, 0));
+        verify(mUrlBarDelegate, never()).onFocusByTouch();
+
+        // 2. Perform subsequent normal click gesture
+        mUrlBar.onTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 0, 0, 0));
+        mUrlBar.onTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_UP, 0, 0, 0));
+
+        // Verify subsequent click is processed normally
+        verify(mUrlBarDelegate).onFocusByTouch();
+    }
+
     /**
      * Mouse and touchpad requires special handling for clicks. If we don't gain focus, we
      * explicitly fire focus for these input types.

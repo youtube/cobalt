@@ -86,6 +86,7 @@
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/frame/web_frame_widget_impl.h"
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
@@ -114,6 +115,7 @@
 #include "third_party/blink/renderer/core/html/html_menu_item_element.h"
 #include "third_party/blink/renderer/core/html/html_menu_list_element.h"
 #include "third_party/blink/renderer/core/html/html_slot_element.h"
+#include "third_party/blink/renderer/core/html/html_sub_menu_element.h"
 #include "third_party/blink/renderer/core/html/html_template_element.h"
 #include "third_party/blink/renderer/core/html/menu_safe_triangle.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_idioms.h"
@@ -847,7 +849,8 @@ void HTMLElement::AttributeChanged(const AttributeModificationParams& params) {
   if (params.name == html_names::kDisabledAttr &&
       IsFormAssociatedCustomElement() &&
       params.old_value.IsNull() != params.new_value.IsNull()) {
-    EnsureElementInternals().DisabledAttributeChanged();
+    EnsureElementInternals().DisabledAttributeChanged(
+        DisabledChangedReason::kAttributeChanged);
     if (params.reason == AttributeModificationReason::kDirectly &&
         IsDisabledFormControl() && AdjustedFocusedElementInTreeScope() == this)
       blur();
@@ -1543,6 +1546,13 @@ void MarkPopoverInvokersDirty(const HTMLElement& popover) {
       cache->MarkElementDirty(invoker);
     }
   }
+  if (IsA<HTMLMenuListElement>(popover)) {
+    if (auto* submenu = DynamicTo<HTMLSubMenuElement>(popover.parentNode())) {
+      if (HTMLMenuItemElement* menuitem = submenu->MenuItem()) {
+        cache->MarkElementDirty(menuitem);
+      }
+    }
+  }
 }
 }  // namespace
 
@@ -1575,11 +1585,18 @@ ScriptPromise<IDLUndefined> HTMLElement::showUnboundedElement(
     return promise;
   }
 
-  GetDocument().UpdateStyleAndLayoutForNode(this,
-                                            DocumentUpdateReason::kJavaScript);
+  auto* view = GetDocument().View();
+  if (!view || !view->UpdateAllLifecyclePhasesExceptPaint(
+                   DocumentUpdateReason::kJavaScript)) {
+    resolver->Reject(MakeGarbageCollected<DOMException>(
+        DOMExceptionCode::kInvalidStateError,
+        "The element is not in an active document."));
+    return promise;
+  }
   gfx::Rect bounds;
   if (auto* layout_object = GetLayoutObject()) {
-    bounds = layout_object->AbsoluteBoundingBoxRect();
+    bounds = layout_object->AbsoluteBoundingBoxRectForUnboundedElement();
+    bounds = view->FrameToViewport(bounds);
   }
   SetLastSentUnboundedBounds(bounds);
 
@@ -1613,10 +1630,13 @@ ScriptPromise<IDLUndefined> HTMLElement::showUnboundedElement(
       client_receiver;
   auto client_remote = client_receiver.InitWithNewEndpointAndPassRemote();
 
-  if (auto* web_frame = WebLocalFrameImpl::FromFrame(frame)) {
-    if (WebFrameWidgetImpl* widget = web_frame->FrameWidgetImpl()) {
-      widget->RegisterActiveUnboundedElement(this, std::move(client_receiver),
-                                             std::move(host_remote));
+  if (frame) {
+    if (auto* web_frame =
+            WebLocalFrameImpl::FromFrame(&frame->LocalFrameRoot())) {
+      if (WebFrameWidgetImpl* widget = web_frame->FrameWidgetImpl()) {
+        widget->RegisterActiveUnboundedElement(this, std::move(client_receiver),
+                                               std::move(host_remote));
+      }
     }
   }
 
@@ -1639,13 +1659,30 @@ void HTMLElement::SetUnboundedElementActive(bool active) {
     return;
   }
   SetElementFlag(ElementFlags::kIsUnboundedElementActive, active);
-  if (active) {
-    GetDocument().IncrementActiveUnboundedElementCount();
-  } else {
-    GetDocument().DecrementActiveUnboundedElementCount();
+  WebFrameWidgetImpl* widget = nullptr;
+  if (auto* frame = GetDocument().GetFrame()) {
+    if (auto* web_frame =
+            WebLocalFrameImpl::FromFrame(&frame->LocalFrameRoot())) {
+      widget = web_frame->FrameWidgetImpl();
+    }
   }
+  if (widget) {
+    if (active) {
+      widget->IncrementActiveUnboundedElementCount();
+    } else {
+      widget->DecrementActiveUnboundedElementCount();
+    }
+  }
+  PseudoStateChanged(CSSSelector::kPseudoUnbounded);
+  // An active unbounded element is treated as stacked (gets its own PaintLayer)
+  // by default, which is managed via LayoutObject::IsStacked. Since this state
+  // is not a CSS property, we must explicitly trigger a local style recalc on
+  // the element itself to ensure its LayoutObject is updated. A local style
+  // change is sufficient because the unbounded state does not affect the style
+  // of the subtree (any CSS rules matching descendants via the :unbounded
+  // pseudo-class are already handled by PseudoStateChanged above).
   SetNeedsStyleRecalc(
-      kSubtreeStyleChange,
+      kLocalStyleChange,
       StyleChangeReasonForTracing::Create(style_change_reason::kPseudoClass));
   if (auto* layout_object = GetLayoutObject()) {
     layout_object->AddSubtreePaintPropertyUpdateReason(
@@ -2993,8 +3030,7 @@ bool HTMLElement::DispatchFocusEvent(
 bool HTMLElement::IsValidBuiltinPopoverCommand(CommandEventType command) {
   return command == CommandEventType::kTogglePopover ||
          command == CommandEventType::kHidePopover ||
-         command == CommandEventType::kShowPopover ||
-         command == CommandEventType::kToggleMenu;
+         command == CommandEventType::kShowPopover;
 }
 
 bool HTMLElement::IsValidBuiltinCommand(HTMLElement& invoker,
@@ -3243,13 +3279,6 @@ CommandEventType HTMLElement::GetCommandEventType(
   }
   if (EqualIgnoringAsciiCase(action, keywords::kRequestClose)) {
     return CommandEventType::kRequestClose;
-  }
-
-  // Menu Cases
-  if (RuntimeEnabledFeatures::MenuElementsEnabled()) {
-    if (EqualIgnoringAsciiCase(action, keywords::kToggleMenu)) {
-      return CommandEventType::kToggleMenu;
-    }
   }
 
   // Overscroll gestures.

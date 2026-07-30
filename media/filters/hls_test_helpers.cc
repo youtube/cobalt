@@ -4,6 +4,7 @@
 
 #include "media/filters/hls_test_helpers.h"
 
+#include <algorithm>
 #include <optional>
 
 #include "base/compiler_specific.h"
@@ -48,9 +49,10 @@ std::unique_ptr<HlsDataSourceStream>
 StringHlsDataSourceStreamFactory::CreateStream(
     std::string content,
     std::optional<hls::SecurityMetadata> info) {
-  HlsDataSourceProvider::SegmentQueue segments;
+  HlsDataSourceProvider::UrlDataSegment segment(GURL("http://dummy.com"),
+                                                std::nullopt);
   auto stream = std::make_unique<HlsDataSourceStream>(
-      HlsDataSourceStream::StreamId::FromUnsafeValue(42), std::move(segments),
+      HlsDataSourceStream::StreamId::FromUnsafeValue(42), std::move(segment),
       base::DoNothing());
   base::span<uint8_t> buffer = stream->LockStreamForWriting(content.length());
   buffer.copy_from(base::as_byte_span(content));
@@ -70,9 +72,10 @@ FileHlsDataSourceStreamFactory::CreateStream(
   std::optional<int64_t> file_size = base::GetFileSize(file_path);
   CHECK(file_size.has_value())
       << "Failed to get file size for '" << filename << "'";
-  HlsDataSourceProvider::SegmentQueue segments;
+  HlsDataSourceProvider::UrlDataSegment segment(GURL("http://dummy.com"),
+                                                std::nullopt);
   auto stream = std::make_unique<HlsDataSourceStream>(
-      HlsDataSourceStream::StreamId::FromUnsafeValue(42), std::move(segments),
+      HlsDataSourceStream::StreamId::FromUnsafeValue(42), std::move(segment),
       base::DoNothing());
   base::span<uint8_t> buffer = stream->LockStreamForWriting(
       base::checked_cast<size_t>(file_size.value()));
@@ -86,70 +89,141 @@ FileHlsDataSourceStreamFactory::CreateStream(
   return stream;
 }
 
+MockDataSourceFactory::DataSourceBehavior::DataSourceBehavior() = default;
+MockDataSourceFactory::DataSourceBehavior::~DataSourceBehavior() = default;
+MockDataSourceFactory::DataSourceBehavior::DataSourceBehavior(
+    const DataSourceBehavior&) = default;
+MockDataSourceFactory::DataSourceBehavior::DataSourceBehavior(
+    DataSourceBehavior&&) = default;
+MockDataSourceFactory::DataSourceBehavior&
+MockDataSourceFactory::DataSourceBehavior::operator=(
+    const DataSourceBehavior&) = default;
+MockDataSourceFactory::DataSourceBehavior&
+MockDataSourceFactory::DataSourceBehavior::operator=(DataSourceBehavior&&) =
+    default;
+
 MockDataSourceFactory::~MockDataSourceFactory() = default;
-MockDataSourceFactory::MockDataSourceFactory() = default;
+
+MockDataSourceFactory::MockDataSourceFactory() {
+  ON_CALL(*this, Setup(_, _, _, _))
+      .WillByDefault(
+          testing::Invoke(this, &MockDataSourceFactory::DefaultSetup));
+}
 
 void MockDataSourceFactory::Create(
     const GURL& uri,
     DataSource::CacheMode cache_mode,
     DataSource::EncodingMode encoding_mode,
     base::OnceCallback<void(std::unique_ptr<CrossOriginDataSource>)> cb) {
-  // A test can return a string when expecting a call to MockCreate - this will
-  // become the new URL after redirects.
-  GURL uri_after_redirects = uri;
-  bool redirect_tainted = false;
-  std::optional<std::tuple<std::string, bool>> redirect_override =
-      MockCreate(uri, cache_mode, encoding_mode);
-  if (redirect_override) {
-    uri_after_redirects = GURL(std::get<0>(*redirect_override));
-    redirect_tainted = std::get<1>(*redirect_override);
-  }
+  auto mock = std::make_unique<testing::NiceMock<MockDataSource>>();
+  Setup(mock.get(), uri, cache_mode, encoding_mode);
+  std::move(cb).Run(std::move(mock));
+}
 
-  if (!next_mock_) {
-    next_mock_has_redirection_ = false;
-    next_mock_ = std::make_unique<testing::NiceMock<MockDataSource>>();
-    EXPECT_CALL(*next_mock_, Initialize)
-        .WillOnce(base::test::RunOnceCallback<0>(true));
-    for (const auto& e : read_expectations_) {
-      EXPECT_CALL(*next_mock_,
-                  Read(std::get<0>(e), SpanSizeEq(std::get<1>(e)), _))
-          .WillOnce(base::test::RunOnceCallback<2>(std::get<2>(e)));
-    }
-    read_expectations_.clear();
-    EXPECT_CALL(*next_mock_, Stop());
-  }
-
-  if (!next_mock_has_redirection_) {
-    EXPECT_CALL(*next_mock_, GetUrlAfterRedirects())
-        .WillRepeatedly(testing::Return(uri_after_redirects));
-    if (redirect_override.has_value()) {
-      EXPECT_CALL(*next_mock_, DidRedirect())
-          .WillRepeatedly(testing::Return(true));
-      EXPECT_CALL(*next_mock_, WouldTaintOrigin())
-          .WillRepeatedly(testing::Return(redirect_tainted));
-    }
-  }
-
-  std::move(cb).Run(std::move(next_mock_));
+void MockDataSourceFactory::Expect(DataSourceBehavior behavior) {
+  expected_behaviors_.push_back(std::move(behavior));
 }
 
 void MockDataSourceFactory::AddReadExpectation(size_t from,
                                                size_t to,
                                                int response) {
-  read_expectations_.emplace_back(from, to, response);
+  global_read_expectations_.emplace_back(from, to, response);
 }
 
-testing::NiceMock<MockDataSource>* MockDataSourceFactory::PregenerateNextMock(
-    std::optional<std::string> redirect_uri) {
-  next_mock_ = std::make_unique<testing::NiceMock<MockDataSource>>();
-  next_mock_has_redirection_ = redirect_uri.has_value();
-  if (redirect_uri.has_value()) {
-    EXPECT_CALL(*next_mock_, GetUrlAfterRedirects())
-        .WillRepeatedly(testing::Return(GURL(*redirect_uri)));
-    EXPECT_CALL(*next_mock_, DidRedirect())
-        .WillRepeatedly(testing::Return(true));
+void MockDataSourceFactory::AddReadExpectation(const GURL& url,
+                                               size_t from,
+                                               size_t to,
+                                               int response) {
+  url_read_expectations_.emplace_back(url, std::make_tuple(from, to, response));
+}
+
+// static
+void MockDataSourceFactory::ConfigureAsSuccess(MockDataSource* mock,
+                                               const GURL& uri) {
+  ON_CALL(*mock, Initialize(_))
+      .WillByDefault(base::test::RunOnceCallback<0>(true));
+  ON_CALL(*mock, Stop()).WillByDefault(testing::Return());
+  ON_CALL(*mock, GetUrlAfterRedirects()).WillByDefault(testing::Return(uri));
+  ON_CALL(*mock, DidRedirect()).WillByDefault(testing::Return(false));
+  ON_CALL(*mock, WouldTaintOrigin()).WillByDefault(testing::Return(false));
+}
+
+// static
+void MockDataSourceFactory::ConfigureAsFailure(MockDataSource* mock) {
+  ON_CALL(*mock, Initialize(_))
+      .WillByDefault(base::test::RunOnceCallback<0>(false));
+  EXPECT_CALL(*mock, Stop()).Times(0);
+  EXPECT_CALL(*mock, GetUrlAfterRedirects()).Times(0);
+  EXPECT_CALL(*mock, DidRedirect()).Times(0);
+  ON_CALL(*mock, WouldTaintOrigin()).WillByDefault(testing::Return(false));
+}
+
+// static
+void MockDataSourceFactory::ConfigureAsRedirect(MockDataSource* mock,
+                                                const GURL& target_uri) {
+  ON_CALL(*mock, Initialize(_))
+      .WillByDefault(base::test::RunOnceCallback<0>(true));
+  ON_CALL(*mock, Stop()).WillByDefault(testing::Return());
+  ON_CALL(*mock, GetUrlAfterRedirects())
+      .WillByDefault(testing::Return(target_uri));
+  ON_CALL(*mock, DidRedirect()).WillByDefault(testing::Return(true));
+  ON_CALL(*mock, WouldTaintOrigin()).WillByDefault(testing::Return(false));
+}
+
+void MockDataSourceFactory::DefaultSetup(
+    MockDataSource* mock,
+    const GURL& uri,
+    DataSource::CacheMode cache_mode,
+    DataSource::EncodingMode encoding_mode) {
+  // 1. Check if there is a registered behavior for this URL.
+  auto behavior_it =
+      std::find_if(expected_behaviors_.begin(), expected_behaviors_.end(),
+                   [&uri](const auto& b) { return b.original_uri == uri; });
+  if (behavior_it != expected_behaviors_.end()) {
+    const auto& behavior = *behavior_it;
+    if (!behavior.does_connect) {
+      ConfigureAsFailure(mock);
+    } else if (behavior.redirect_uri) {
+      ConfigureAsRedirect(mock, GURL(*behavior.redirect_uri));
+    } else {
+      ConfigureAsSuccess(mock, uri);
+    }
+
+    ON_CALL(*mock, WouldTaintOrigin())
+        .WillByDefault(testing::Return(behavior.would_taint_origin));
+
+    if (behavior.does_connect) {
+      for (const auto& [from, to, size] : behavior.read_expectations) {
+        EXPECT_CALL(*mock, Read(from, SpanSizeEq(to), _))
+            .WillOnce(base::test::RunOnceCallback<2>(size));
+      }
+    }
+    expected_behaviors_.erase(behavior_it);
+    return;
   }
-  return next_mock_.get();
+
+  // 2. Otherwise, use default success and apply simple read expectations.
+  ConfigureAsSuccess(mock, uri);
+
+  // Apply URL-specific expectations first.
+  for (auto it = url_read_expectations_.begin();
+       it != url_read_expectations_.end();) {
+    if (it->first == uri) {
+      auto [from, to, size] = it->second;
+      EXPECT_CALL(*mock, Read(from, SpanSizeEq(to), _))
+          .WillOnce(base::test::RunOnceCallback<2>(size));
+      it = url_read_expectations_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+
+  // Apply global expectations.
+  for (const auto& [from, to, size] : global_read_expectations_) {
+    EXPECT_CALL(*mock, Read(from, SpanSizeEq(to), _))
+        .WillOnce(base::test::RunOnceCallback<2>(size));
+  }
+  global_read_expectations_.clear();
 }
 
 }  // namespace media

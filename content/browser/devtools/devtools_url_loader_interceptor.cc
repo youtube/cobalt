@@ -388,7 +388,7 @@ class NoOpHeaderClient final : public network::mojom::TrustedHeaderClient {
   void OnBeforeSendHeaders(const GURL& request_url,
                            const net::HttpRequestHeaders& headers,
                            OnBeforeSendHeadersCallback callback) override {
-    std::move(callback).Run(net::OK, std::nullopt);
+    std::move(callback).Run(net::OK, std::nullopt, std::nullopt);
   }
 
   void OnHeadersReceived(const std::string& headers,
@@ -537,7 +537,8 @@ class InterceptionJob : public network::mojom::URLLoaderClient,
       const net::HttpRequestHeaders& original_headers,
       OnBeforeSendHeadersCallback original_callback,
       int result_from_target,
-      const std::optional<net::HttpRequestHeaders>& headers_from_target);
+      const std::optional<net::HttpRequestHeaders>& headers_from_target,
+      std::optional<base::DictValue> extended_net_log_events);
 
   void StartLoadingResponseBody(mojo::ScopedDataPipeConsumerHandle body);
 
@@ -2065,7 +2066,7 @@ void InterceptionJob::OnBeforeSendHeaders(
 
   if (!headers_override_ ||
       !headers_override_->overridden_cookie().has_value()) {
-    std::move(callback).Run(net::OK, headers);
+    std::move(callback).Run(net::OK, headers, std::nullopt);
     return;
   }
 
@@ -2079,7 +2080,7 @@ void InterceptionJob::OnBeforeSendHeaders(
   net::HttpRequestHeaders final_headers = headers;
   final_headers.SetHeader(net::HttpRequestHeaders::kCookie,
                           headers_override_->overridden_cookie().value());
-  std::move(callback).Run(net::OK, final_headers);
+  std::move(callback).Run(net::OK, final_headers, std::nullopt);
 }
 
 void InterceptionJob::OnHeadersReceived(
@@ -2104,17 +2105,20 @@ void InterceptionJob::OnTargetHeaderClientBeforeSendHeadersComplete(
     const net::HttpRequestHeaders& original_headers,
     OnBeforeSendHeadersCallback original_callback,
     int result_from_target,
-    const std::optional<net::HttpRequestHeaders>& headers_from_target) {
+    const std::optional<net::HttpRequestHeaders>& headers_from_target,
+    std::optional<base::DictValue> extended_net_log_events) {
   // If the downstream client (e.g., an extension) blocked or cancelled the
   // request, we must respect that decision and forward the result immediately.
   if (result_from_target != net::OK) {
-    std::move(original_callback).Run(result_from_target, headers_from_target);
+    std::move(original_callback)
+        .Run(result_from_target, headers_from_target, std::nullopt);
     return;
   }
 
   if (!headers_override_ ||
       !headers_override_->overridden_cookie().has_value()) {
-    std::move(original_callback).Run(result_from_target, headers_from_target);
+    std::move(original_callback)
+        .Run(result_from_target, headers_from_target, std::nullopt);
     return;
   }
 
@@ -2129,7 +2133,8 @@ void InterceptionJob::OnTargetHeaderClientBeforeSendHeadersComplete(
       headers_from_target.value_or(original_headers);
   final_headers.SetHeader(net::HttpRequestHeaders::kCookie,
                           headers_override_->overridden_cookie().value());
-  std::move(original_callback).Run(result_from_target, final_headers);
+  std::move(original_callback)
+      .Run(result_from_target, final_headers, std::nullopt);
 }
 
 void InterceptionJob::OnAuthRequest(

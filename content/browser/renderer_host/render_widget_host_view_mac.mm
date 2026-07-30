@@ -1103,6 +1103,9 @@ void RenderWidgetHostViewMac::SetShowingContextMenu(bool showing) {
   ns_view_->SetShowingContextMenu(showing);
 }
 
+void RenderWidgetHostViewMac::SetSupportsAutoFill(bool supports) {
+  ns_view_->SetSupportsAutoFill(supports);
+}
 
 void RenderWidgetHostViewMac::CopyFromSurface(
     const gfx::Rect& src_subrect,
@@ -1978,7 +1981,9 @@ void RenderWidgetHostViewMac::OnScreenInfosChanged(
 }
 
 void RenderWidgetHostViewMac::BeginKeyboardEvent() {
-  CHECK(!in_keyboard_event_, base::NotFatalUntil::M152);
+  // TODO(crbug.com/527088952): CHECK-exclusion: Convert to CHECK once we are
+  // sure this isn't hit.
+  DCHECK(!in_keyboard_event_);
   in_keyboard_event_ = true;
   RenderWidgetHostImpl* widget_host = host();
   if (widget_host && widget_host->delegate()) {

@@ -7,10 +7,16 @@
 #import "base/check_op.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 
-@implementation GridContainerViewController
+@implementation GridContainerViewController {
+  NSArray<NSLayoutConstraint*>* _containedViewControllerConstraints;
+}
 
 - (void)setContainedViewController:(UIViewController*)viewController {
   if (_containedViewController) {
+    if (_containedViewControllerConstraints) {
+      [self deactivateConstraints];
+      _containedViewControllerConstraints = nil;
+    }
     [_containedViewController willMoveToParentViewController:nil];
     [_containedViewController.view removeFromSuperview];
     [_containedViewController removeFromParentViewController];
@@ -19,10 +25,42 @@
     [self addChildViewController:viewController];
     viewController.view.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:viewController.view];
-    AddSameConstraints(self.view, viewController.view);
+    [self setConstraintsRelativeToView:viewController.view];
     [viewController didMoveToParentViewController:self];
   }
   _containedViewController = viewController;
+}
+
+- (void)activateConstraints {
+  if (_containedViewControllerConstraints) {
+    [NSLayoutConstraint
+        activateConstraints:_containedViewControllerConstraints];
+  }
+
+  _containedViewController.view.translatesAutoresizingMaskIntoConstraints = NO;
+}
+
+- (void)deactivateConstraints {
+  if (_containedViewControllerConstraints) {
+    [NSLayoutConstraint
+        deactivateConstraints:_containedViewControllerConstraints];
+  }
+
+  _containedViewController.view.translatesAutoresizingMaskIntoConstraints = YES;
+}
+
+#pragma mark - Private
+
+// Positions `view` to be aligned with the GridContainer's view on all sides.
+- (void)setConstraintsRelativeToView:(UIView*)view {
+  _containedViewControllerConstraints = @[
+    [view.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+    [view.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+    [view.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+    [view.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
+  ];
+
+  [self activateConstraints];
 }
 
 @end

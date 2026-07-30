@@ -145,19 +145,19 @@ TEST_F(IOSChromePasswordManagerClientTest, PasswordManagerEnabledPolicyTest) {
 
   // Password Manager is enabled by default. IsSavingAndFillingEnabled should be
   // true when PasswordManagerEnabled policy is not set.
-  EXPECT_TRUE(client->IsSavingAndFillingEnabled(url));
+  EXPECT_TRUE(client->IsSavingAndFillingEnabled(url::Origin::Create(url)));
 
   // The pref kCredentialsEnableService should be false when disable the policy.
   client->GetPrefs()->SetBoolean(kCredentialsEnableService, false);
   // IsSavingAndFillingEnabled should return false, which means the password
   // won't be saved anymore.
-  EXPECT_FALSE(client->IsSavingAndFillingEnabled(url));
+  EXPECT_FALSE(client->IsSavingAndFillingEnabled(url::Origin::Create(url)));
 
   // The pref kCredentialsEnableService should be true when enable the policy.
   client->GetPrefs()->SetBoolean(kCredentialsEnableService, true);
   // IsSavingAndFillingEnabled should return true, which means the password
   // should be saved.
-  EXPECT_TRUE(client->IsSavingAndFillingEnabled(url));
+  EXPECT_TRUE(client->IsSavingAndFillingEnabled(url::Origin::Create(url)));
 }
 
 // Tests that `NotifySuccessfulLoginWithExistingPassword` dispatches

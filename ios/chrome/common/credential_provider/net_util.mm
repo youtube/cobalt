@@ -6,8 +6,20 @@
 
 #import "base/strings/sys_string_conversions.h"
 #import "net/base/registry_controlled_domains/registry_controlled_domain.h"
+#import "url/gurl.h"
 
 namespace credential_provider {
+
+NSString* HostForIdentifier(NSString* identifier) {
+  if (!identifier) {
+    return nil;
+  }
+  GURL gurl(base::SysNSStringToUTF8(identifier));
+  if (gurl.is_valid() && !gurl.host().empty()) {
+    return base::SysUTF8ToNSString(gurl.host());
+  }
+  return identifier;
+}
 
 BOOL SecureHostsMatch(NSString* requestedHost, NSString* credentialHost) {
   if (requestedHost.length == 0 || credentialHost.length == 0) {

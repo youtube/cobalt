@@ -49,6 +49,7 @@
 #include "components/autofill/core/browser/payments/otp_unmask_delegate.h"
 #include "components/autofill/core/browser/payments/otp_unmask_result.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
+#include "components/autofill/core/browser/payments/payments_churned_users_manager.h"
 #include "components/autofill/core/browser/payments/payments_network_interface.h"
 #include "components/autofill/core/browser/payments/save_and_fill_manager_impl.h"
 #include "components/autofill/core/browser/payments/virtual_card_enrollment_manager.h"
@@ -63,6 +64,7 @@
 #include "components/autofill/core/browser/ui/payments/card_unmask_prompt_controller_impl.h"
 #include "components/autofill/core/browser/ui/payments/card_unmask_prompt_view.h"
 #include "components/autofill/core/browser/ui/payments/save_and_fill_dialog_controller_impl.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/feature_engagement/public/feature_constants.h"
@@ -109,6 +111,7 @@
 #include "chrome/browser/ui/autofill/payments/filled_card_information_bubble_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/offer_notification_bubble_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/omnibox_autofill_page_action_controller.h"
+#include "chrome/browser/ui/autofill/payments/payments_churned_users_bubble_controller.h"
 #include "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/webauthn_dialog_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/webauthn_dialog_state.h"
@@ -132,7 +135,9 @@ ChromePaymentsAutofillClient::ChromePaymentsAutofillClient(
     : content::WebContentsObserver(&client->GetWebContents()),
       client_(CHECK_DEREF(client)),
       save_and_fill_manager_(
-          std::make_unique<SaveAndFillManagerImpl>(&client_.get())) {
+          std::make_unique<SaveAndFillManagerImpl>(&client_.get())),
+      payments_churned_users_manager_(
+          std::make_unique<payments::PaymentsChurnedUsersManager>(client)) {
 #if BUILDFLAG(IS_ANDROID)
   touch_to_fill_payment_method_controller_ =
       std::make_unique<TouchToFillPaymentMethodControllerImpl>(&client_.get());
@@ -844,10 +849,21 @@ void ChromePaymentsAutofillClient::ShowMandatoryReauthOptInConfirmation() {
 }
 
 bool ChromePaymentsAutofillClient::IsAutofillPaymentMethodsEnabled() const {
-  return autofill_payment_methods_supported_ &&
-         prefs::IsAutofillPaymentMethodsEnabled(
-             Profile::FromBrowserContext(web_contents()->GetBrowserContext())
-                 ->GetPrefs());
+  if (!autofill_payment_methods_supported_ ||
+      !prefs::IsAutofillPaymentMethodsEnabled(
+          Profile::FromBrowserContext(web_contents()->GetBrowserContext())
+              ->GetPrefs())) {
+    return false;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillEnableAutofillSettingsEnterprisePolicy) &&
+      client_->IsAutofillTypeBlockedByPolicy(
+          client_->GetLastCommittedPrimaryMainFrameURL(),
+          AutofillClient::AutofillPolicyDataCategory::kPayments)) {
+    return false;
+  }
+  return true;
 }
 
 void ChromePaymentsAutofillClient::DisablePaymentsAutofill() {
@@ -1282,6 +1298,20 @@ void ChromePaymentsAutofillClient::HideOmniboxAutofillChip() {
 }
 
 #endif
+
+void ChromePaymentsAutofillClient::ShowPaymentsChurnedUsersUI() {
+#if !BUILDFLAG(IS_ANDROID)
+  tabs::TabInterface* tab_interface =
+      tabs::TabInterface::MaybeGetFromContents(web_contents());
+  if (!tab_interface) {
+    return;
+  }
+  if (PaymentsChurnedUsersBubbleController* controller =
+          PaymentsChurnedUsersBubbleController::From(*tab_interface)) {
+    controller->Show();
+  }
+#endif
+}
 
 #if BUILDFLAG(IS_ANDROID)
 AutofillMessageController&

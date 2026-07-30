@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ExperimentalTriggeringUpdateType} from '/glic/glic_api/glic_api.js';
+import {ActuationTarget, ExperimentalTriggeringUpdateType} from '/glic/glic_api/glic_api.js';
 import type {ExperimentalTriggeringUpdate, Observable2} from '/glic/glic_api/glic_api.js';
 import {Subject} from '/glic/observable.js';
 
@@ -27,8 +27,11 @@ class TriggeringUpdatesTest extends ApiTestFixtureBase {
   }
 
   async testGetExperimentalTriggeringUpdates() {
-    // Push a terminal update to trigger completion.
     await runUntil(() => client.isSubscribed);
+    const invokeOpts = await client.invokeData.waitUntil(v => v !== undefined);
+    assertDefined(invokeOpts);
+    assertEquals(ActuationTarget.TARGET_SURFACE, invokeOpts.actuationTarget);
+    // Push a terminal update to trigger completion.
     client.triggeringUpdatesSubject.next({
       type: ExperimentalTriggeringUpdateType.TERMINAL_COMPLETION,
       data: '',
@@ -98,6 +101,7 @@ class TriggeringUpdatesTest extends ApiTestFixtureBase {
     await runUntil(() => client.isSubscribed);
     const invokeOpts = await client.invokeData.waitUntil(v => v !== undefined);
     assertDefined(invokeOpts);
+    assertEquals(ActuationTarget.TARGET_SURFACE, invokeOpts.actuationTarget);
     assertDefined(invokeOpts.context);
     assertEquals(1, invokeOpts.context!.parts.length);
     const metadata = invokeOpts.context!.parts[0]!.parentConversationMetadata;

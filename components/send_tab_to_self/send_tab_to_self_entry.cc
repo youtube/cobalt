@@ -139,6 +139,20 @@ base::Time SendTabToSelfEntry::GetOpenedTime() const {
   return opened_time_;
 }
 
+bool SendTabToSelfEntry::IsActivated() const {
+  return !activated_time_.is_null();
+}
+
+void SendTabToSelfEntry::MarkActivated(base::Time activated_time) {
+  if (activated_time_.is_null()) {
+    activated_time_ = activated_time;
+  }
+}
+
+base::Time SendTabToSelfEntry::GetActivatedTime() const {
+  return activated_time_;
+}
+
 base::Time SendTabToSelfEntry::GetReceivedTime() const {
   return received_time_;
 }
@@ -204,6 +218,10 @@ SendTabToSelfLocal SendTabToSelfEntry::AsLocalProto() const {
   if (IsOpened()) {
     pb_entry->set_opened_time_windows_epoch_micros(
         TimeToProtoTime(GetOpenedTime()));
+  }
+  if (IsActivated()) {
+    pb_entry->set_activated_time_windows_epoch_micros(
+        TimeToProtoTime(GetActivatedTime()));
   }
 
   sync_pb::PageContext pb_page_context = PageContextToProto(page_context_);
@@ -280,6 +298,10 @@ std::unique_ptr<SendTabToSelfEntry> SendTabToSelfEntry::FromProto(
   if (pb_entry.has_received_time_windows_epoch_micros()) {
     entry->MarkReceived(
         ProtoTimeToTime(pb_entry.received_time_windows_epoch_micros()));
+  }
+  if (pb_entry.has_activated_time_windows_epoch_micros()) {
+    entry->MarkActivated(
+        ProtoTimeToTime(pb_entry.activated_time_windows_epoch_micros()));
   }
 
   return entry;

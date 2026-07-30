@@ -306,7 +306,9 @@ void ExtensionsToolbarDesktop::UpdateRequestAccessButton(
   // This will also update the button's background.
   std::optional<ToolbarButton::Edge> extensions_button_edge =
       request_access_button_->GetVisible()
-          ? std::optional<ToolbarButton::Edge>(ToolbarButton::Edge::kLeft)
+          ? std::optional<ToolbarButton::Edge>(base::i18n::IsRTL()
+                                                   ? ToolbarButton::Edge::kRight
+                                                   : ToolbarButton::Edge::kLeft)
           : std::nullopt;
   extensions_button_->SetFlatEdge(extensions_button_edge);
 }

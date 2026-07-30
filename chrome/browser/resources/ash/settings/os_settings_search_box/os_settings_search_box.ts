@@ -45,7 +45,7 @@ const USER_ACTION_ON_SEARCH_RESULTS_SHOWN_METRIC_NAME =
     'ChromeOS.Settings.UserActionOnSearchResultsShown';
 
 /**
- * These values are persisted to logs and should not be renumbered or re-used.
+ * These values are persisted to logs and should not be renumbered or reused.
  * See tools/metrics/histograms/enums.xml.
  */
 enum OsSettingSearchRequestTypes {
@@ -55,7 +55,7 @@ enum OsSettingSearchRequestTypes {
 }
 
 /**
- * These values are persisted to logs and should not be renumbered or re-used.
+ * These values are persisted to logs and should not be renumbered or reused.
  * See tools/metrics/histograms/enums.xml.
  */
 enum OsSettingSearchBoxUserAction {

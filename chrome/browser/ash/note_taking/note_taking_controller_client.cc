@@ -4,7 +4,8 @@
 
 #include "chrome/browser/ash/note_taking/note_taking_controller_client.h"
 
-#include "chrome/browser/ash/profiles/profile_helper.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 
 namespace ash {
 
@@ -45,7 +46,8 @@ void NoteTakingControllerClient::OnProfileWillBeDestroyed(Profile* profile) {
 
 void NoteTakingControllerClient::SetProfileByUser(
     const user_manager::User* user) {
-  profile_ = ProfileHelper::Get()->GetProfileByUser(user);
+  profile_ = Profile::FromBrowserContext(
+      BrowserContextHelper::Get()->GetBrowserContextByUser(user));
   profile_observation_.Reset();
   profile_observation_.Observe(profile_);
 }

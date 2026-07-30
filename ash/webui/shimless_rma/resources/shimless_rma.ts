@@ -72,7 +72,6 @@ import {WrapupWaitForManualWpEnablePage} from './wrapup_wait_for_manual_wp_enabl
 declare global {
   interface WindowEventMap {
     [TRANSITION_STATE]: TransitionStateEvent;
-    [DISABLE_NEXT_BUTTON]: DisableNextButtonEvent;
     [FATAL_HARDWARE_ERROR]: FatalHardwareEvent;
     [DISABLE_ALL_BUTTONS]: DisableAllButtonsEvent;
     [DISABLE_NEXT_BUTTON]: DisableNextButtonEvent;

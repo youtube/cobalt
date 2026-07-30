@@ -44,7 +44,8 @@
 #include "third_party/blink/public/mojom/file_system_access/file_system_access_transfer_token.mojom.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "base/hash/sha1.h"
+#include "base/strings/string_view_util.h"
+#include "crypto/obsolete/sha1.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "content/public/common/content_paths.h"
@@ -67,6 +68,17 @@ using storage::FileSystemOperation;
 using storage::FileSystemOperationRunner;
 
 namespace content {
+
+#if BUILDFLAG(IS_ANDROID)
+// Computes a SHA-1 hash of |url_path_value| and returns it as a hex string.
+// This function is intentionally declared in a separate header file
+// "crypto/obsolete/sha1.h", so as to easily monitor current usage of SHA-1 in
+// Chrome, since SHA-1 is now discouraged for new code.
+std::string GetHashedUrlPath(std::string_view url_path_value) {
+  return base::HexEncode(
+            base::as_string_view(crypto::obsolete::Sha1::Hash(url_path_value)));
+}
+#endif
 
 namespace {
 
@@ -646,8 +658,7 @@ void FileSystemAccessFileHandleImpl::StartCreateSwapFile(
     if (url().path().IsContentUri()) {
       // Use SHA1 hash instead of escape to avoid exceeding filename length
       // limits.
-      std::string file_name =
-          base::HexEncode(base::SHA1HashString(url().path().value()));
+      std::string file_name = GetHashedUrlPath(url().path().value());
       if (count > 0) {
         file_name += base::StringPrintf(".%d", count);
       }

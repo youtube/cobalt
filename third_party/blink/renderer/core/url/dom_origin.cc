@@ -10,6 +10,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_html_anchor_element.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_html_area_element.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_location.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_mathml_anchor_element.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_message_event.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_origin.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_url.h"
@@ -21,6 +22,7 @@
 #include "third_party/blink/renderer/core/frame/location.h"
 #include "third_party/blink/renderer/core/html/html_anchor_element.h"
 #include "third_party/blink/renderer/core/html/html_area_element.h"
+#include "third_party/blink/renderer/core/mathml/mathml_anchor_element.h"
 #include "third_party/blink/renderer/core/url/dom_url.h"
 #include "third_party/blink/renderer/core/workers/worker_global_scope.h"
 #include "third_party/blink/renderer/core/workers/worker_location.h"
@@ -47,6 +49,9 @@ DOMOriginUtils* GetDOMOriginUtilsFromV8Object(v8::Isolate* i,
     return p;
   }
   if (auto* p = V8HTMLAreaElement::ToWrappable(i, o)) {
+    return p;
+  }
+  if (auto* p = V8MathMLAnchorElement::ToWrappable(i, o)) {
     return p;
   }
   if (auto* p = V8MessageEvent::ToWrappable(i, o)) {

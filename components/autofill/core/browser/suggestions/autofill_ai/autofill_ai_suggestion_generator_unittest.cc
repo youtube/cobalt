@@ -160,7 +160,8 @@ class AutofillAiSuggestionGeneratorTest : public testing::Test {
           edm().AddOrUpdateEntityInstance(entity);
           break;
         case EntityInstance::RecordType::kPersonalContext:
-          edm().OnPrefetchContextComplete(pcontext_manager_, {entity});
+          edm().OnPrefetchContextComplete(pcontext_manager_,
+                                          std::vector<EntityInstance>{entity});
           break;
       }
     }
@@ -1220,6 +1221,119 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
               Not(Contains(HasType(SuggestionType::kFetchingAmbientData))));
 }
 
+class AutofillAiSuggestionGeneratorOrderShipmentTest
+    : public AutofillAiSuggestionGeneratorTest {
+ public:
+  AutofillAiSuggestionGeneratorOrderShipmentTest()
+      : AutofillAiSuggestionGeneratorTest(GetEnabledFeatures(), {}) {}
+
+ private:
+  static std::vector<base::test::FeatureRef> GetEnabledFeatures() {
+    std::vector<base::test::FeatureRef> features = GetDefaultEnabledFeatures();
+    features.push_back(features::kAutofillAiOrder);
+    features.push_back(features::kAutofillAiShipment);
+    return features;
+  }
+};
+
+TEST_F(AutofillAiSuggestionGeneratorOrderShipmentTest,
+       GetFillingSuggestions_OrderFilteringByDomain) {
+  // Create an Order entity for "example.com" and another for "other.com".
+  SetEntities({
+      test::GetOrderEntityInstance({
+          .id = u"123",
+          .merchant_domain = u"example.com",
+          .guid = "00000000-0000-4000-8000-600000000001",
+      }),
+      test::GetOrderEntityInstance({
+          .id = u"456",
+          .merchant_domain = u"other.com",
+          .guid = "00000000-0000-4000-8000-600000000002",
+      }),
+  });
+  SetForm({ORDER_ID});
+
+  // 1. Set page URL to "https://example.com/checkout".
+  client().set_last_committed_primary_main_frame_url(
+      GURL("https://example.com/checkout"));
+
+  std::vector<Suggestion> suggestions1 =
+      CreateAutofillAiFillingSuggestions(field(0));
+
+  // Only the order for "example.com" should be suggested.
+  EXPECT_THAT(suggestions1, SuggestionsAre(HasMainText(u"123")));
+
+  // 2. Set page URL to "https://sub.other.com/checkout".
+  client().set_last_committed_primary_main_frame_url(
+      GURL("https://sub.other.com/checkout"));
+
+  std::vector<Suggestion> suggestions2 =
+      CreateAutofillAiFillingSuggestions(field(0));
+
+  // Only the order for "other.com" (eTLD+1 match) should be suggested.
+  EXPECT_THAT(suggestions2, SuggestionsAre(HasMainText(u"456")));
+
+  // 3. Set page URL to a site that doesn't match either (e.g.
+  // "https://random.com").
+  client().set_last_committed_primary_main_frame_url(
+      GURL("https://random.com"));
+
+  std::vector<Suggestion> suggestions3 =
+      CreateAutofillAiFillingSuggestions(field(0));
+
+  // No order suggestions should be generated.
+  EXPECT_THAT(suggestions3, IsEmpty());
+}
+
+TEST_F(AutofillAiSuggestionGeneratorOrderShipmentTest,
+       GetFillingSuggestions_ShipmentFilteringByDomain) {
+  // Create a Shipment entity for "carrier.com" and another for
+  // "other-carrier.com".
+  SetEntities({
+      test::GetShipmentEntityInstance({
+          .tracking_number = u"TR123",
+          .carrier_domain = u"carrier.com",
+          .guid = "00000000-0000-4000-8000-700000000001",
+      }),
+      test::GetShipmentEntityInstance({
+          .tracking_number = u"TR456",
+          .carrier_domain = u"other-carrier.com",
+          .guid = "00000000-0000-4000-8000-700000000002",
+      }),
+  });
+  SetForm({SHIPMENT_TRACKING_NUMBER});
+
+  // 1. Set page URL to "https://carrier.com/track".
+  client().set_last_committed_primary_main_frame_url(
+      GURL("https://carrier.com/track"));
+
+  std::vector<Suggestion> suggestions1 =
+      CreateAutofillAiFillingSuggestions(field(0));
+
+  // Only the shipment for "carrier.com" should be suggested.
+  EXPECT_THAT(suggestions1, SuggestionsAre(HasMainText(u"TR123")));
+
+  // 2. Set page URL to "https://sub.other-carrier.com/track".
+  client().set_last_committed_primary_main_frame_url(
+      GURL("https://sub.other-carrier.com/track"));
+
+  std::vector<Suggestion> suggestions2 =
+      CreateAutofillAiFillingSuggestions(field(0));
+
+  // Only the shipment for "other-carrier.com" should be suggested.
+  EXPECT_THAT(suggestions2, SuggestionsAre(HasMainText(u"TR456")));
+
+  // 3. Set page URL to "https://random.com".
+  client().set_last_committed_primary_main_frame_url(
+      GURL("https://random.com"));
+
+  std::vector<Suggestion> suggestions3 =
+      CreateAutofillAiFillingSuggestions(field(0));
+
+  // No shipment suggestions should be generated.
+  EXPECT_THAT(suggestions3, IsEmpty());
+}
+
 class AutofillAiSuggestionGeneratorSplitManageSuggestionTest
     : public AutofillAiSuggestionGeneratorTest {
  public:
@@ -1233,6 +1347,8 @@ class AutofillAiSuggestionGeneratorSplitManageSuggestionTest
     features.push_back(
         features::kSuggestionManageButtonSplitForEnhancedAutofill);
     features.push_back(features::kYourSavedInfoSettingsPage);
+    features.push_back(features::kAutofillAiOrder);
+    features.push_back(features::kAutofillAiShipment);
     return features;
   }
 };
@@ -1260,6 +1376,35 @@ TEST_F(AutofillAiSuggestionGeneratorSplitManageSuggestionTest,
               ElementsAre(HasType(SuggestionType::kFillAutofillAi),
                           HasType(SuggestionType::kSeparator),
                           HasType(SuggestionType::kManageAutofillAiTravel)));
+}
+
+TEST_F(AutofillAiSuggestionGeneratorSplitManageSuggestionTest,
+       SuggestionsFooterContainsManageAutofillAiShoppingSuggestion) {
+  client().set_last_committed_primary_main_frame_url(
+      GURL("https://example.com"));
+  SetEntities({test::GetOrderEntityInstanceWithRandomGuid()});
+  SetForm({ORDER_ID});
+  std::vector<Suggestion> suggestions =
+      CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_THAT(suggestions,
+              ElementsAre(HasType(SuggestionType::kFillAutofillAi),
+                          HasType(SuggestionType::kSeparator),
+                          HasType(SuggestionType::kManageAutofillAiShopping)));
+}
+
+TEST_F(
+    AutofillAiSuggestionGeneratorSplitManageSuggestionTest,
+    SuggestionsFooterContainsManageAutofillAiSuggestionWhenMultipleSectionsPresent) {
+  SetEntities({GetPassportEntityInstanceWithRandomGuid(),
+               test::GetVehicleEntityInstanceWithRandomGuid()});
+  SetForm({PASSPORT_NUMBER, NAME_FULL, VEHICLE_LICENSE_PLATE});
+  std::vector<Suggestion> suggestions =
+      CreateAutofillAiFillingSuggestions(field(1));
+  EXPECT_THAT(suggestions,
+              ElementsAre(HasType(SuggestionType::kFillAutofillAi),
+                          HasType(SuggestionType::kFillAutofillAi),
+                          HasType(SuggestionType::kSeparator),
+                          HasType(SuggestionType::kManageAutofillAi)));
 }
 
 class AutofillAiSuggestionGeneratorPolicyTest

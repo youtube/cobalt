@@ -29,6 +29,8 @@
         (NSString*)creditCardManualFillButtonAccessibilityLabel
        addressManualFillButtonAccessibilityLabel:
            (NSString*)addressManualFillButtonAccessibilityLabel
+      atMemoryManualFillButtonAccessibilityLabel:
+          (NSString*)atMemoryManualFillButtonAccessibilityLabel
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;
@@ -54,6 +56,8 @@
     NSString* creditCardManualFillButtonAccessibilityLabel;
 @property(nonatomic, readonly)
     NSString* addressManualFillButtonAccessibilityLabel;
+@property(nonatomic, readonly)
+    NSString* atMemoryManualFillButtonAccessibilityLabel;
 
 @end
 

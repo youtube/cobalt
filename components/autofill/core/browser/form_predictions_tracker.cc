@@ -53,7 +53,8 @@ base::OnceClosure WrapAsTimeoutCallback(base::OnceClosure cb,
 
 }  // namespace
 
-FormPredictionsTracker::FormPredictionsTracker(AutofillClient* client) {
+FormPredictionsTracker::FormPredictionsTracker(AutofillClient* client)
+    : client_(client) {
   CHECK(client);
   autofill_managers_observation_.Observe(client);
 }
@@ -62,7 +63,8 @@ FormPredictionsTracker::~FormPredictionsTracker() = default;
 
 void FormPredictionsTracker::Wait(base::OnceClosure callback,
                                   base::TimeDelta timeout) {
-  if (!base::FeatureList::IsEnabled(
+  if (!client_->IsTabInActorMode() ||
+      !base::FeatureList::IsEnabled(
           features::kAutofillDelayApcForPredictions)) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, std::move(callback));

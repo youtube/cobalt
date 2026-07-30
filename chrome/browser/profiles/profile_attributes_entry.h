@@ -240,6 +240,9 @@ class ProfileAttributesEntry {
   // the signed in account. Signed out profiles are ineligible.
   bool IsGlicEligible() const;
 
+  // Returns the cached AI subscription tier of this profile.
+  int GetAiSubscriptionTier() const;
+
   // |is_using_default| should be set to false for non default profile names.
   void SetLocalProfileName(const std::u16string& name, bool is_default_name);
   void SetEnterpriseProfileLabel(const std::u16string& name);
@@ -285,6 +288,8 @@ class ProfileAttributesEntry {
 
   void SetIsGlicEligible(bool value);
 
+  void SetAiSubscriptionTier(int tier);
+
   // Lock/Unlock the profile, should be called only if force-sign-in is enabled.
   void LockForceSigninProfile(bool is_lock);
 
@@ -302,6 +307,7 @@ class ProfileAttributesEntry {
   static const char kUseGAIAPictureKey[];
   static const char kAccountIdKey[];
   static const char kIsGlicEligible[];
+  static const char kAiSubscriptionKey[];
 
  private:
   friend class ProfileAttributesStorage;

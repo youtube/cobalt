@@ -6,17 +6,21 @@ source_set("phishing_classifier") {
   sources = [
     "features.cc",
     "features.h",
+    "flatbuffer_utils.cc",
+    "flatbuffer_utils.h",
     "scorer.cc",
     "scorer.h",
   ]
 
-  public_deps = [ "//base" ]
+  public_deps = [
+    "//base",
+    "//components/safe_browsing/core/common/fbs:client_model",
+  ]
 
   deps = [
     "//components/safe_browsing:buildflags",
     "//components/safe_browsing/core/common:features",
     "//components/safe_browsing/core/common:visual_utils",
-    "//components/safe_browsing/core/common/fbs:client_model",
     "//components/safe_browsing/core/common/proto:client_model_proto",
     "//components/safe_browsing/core/common/proto:csd_proto",
     "//crypto",
@@ -44,6 +48,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "features_unittest.cc",
+    "flatbuffer_utils_unittest.cc",
     "scorer_unittest.cc",
   ]
   deps = [

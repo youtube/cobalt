@@ -332,10 +332,15 @@ source_set("internal") {
       "android/android_combined_policy_provider.h",
       "android/policy_converter.cc",
       "android/policy_converter.h",
+      "android/policy_feature_map.cc",
       "android/policy_map_android.cc",
       "android/policy_map_android.h",
       "android/policy_service_android.cc",
       "android/policy_service_android.h",
+      "management/android_enterprise_info.cc",
+      "management/android_enterprise_info.h",
+      "management/platform_management_status_provider_android.cc",
+      "management/platform_management_status_provider_android.h",
     ]
     deps += [ "//components/policy/android:jni_headers" ]
   }
@@ -609,6 +614,8 @@ source_set("unit_tests") {
       "android/policy_converter_unittest.cc",
       "android/policy_map_android_unittest.cc",
       "android/policy_service_android_unittest.cc",
+      "management/android_enterprise_info_unittest.cc",
+      "management/platform_management_status_provider_android_unittest.cc",
     ]
   } else {
     sources += [ "async_policy_provider_unittest.cc" ]

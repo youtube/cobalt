@@ -11,7 +11,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "device/bluetooth/test/mock_bluetooth_adapter.h"
 #include "device/fido/cable/v2_constants.h"
-#include "device/fido/public/cable_discovery_data.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace device {

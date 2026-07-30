@@ -44,11 +44,13 @@
 #import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
+#import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
 #import "ios/chrome/browser/snapshots/model/fake_snapshot_generator_delegate.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_source_tab_helper.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/browser/web/model/web_view_proxy/web_view_proxy_tab_helper.h"
 #import "ios/chrome/common/app_group/app_group_constants.h"
+#import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/find_in_page/find_in_page_java_script_feature.h"
 #import "ios/web/js_messaging/java_script_feature_manager.h"
@@ -64,6 +66,7 @@
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
+#import "ui/base/l10n/l10n_util.h"
 
 namespace {
 std::unique_ptr<KeyedService> BuildFeatureEngagementMockTracker(
@@ -766,6 +769,9 @@ TEST_F(GeminiBrowserAgentTest, TestOnLiveButtonTappedTriggersEvent) {
 // are successfully triggered when starting the flow and dismissed when the
 // floaty is dismissed.
 TEST_F(GeminiBrowserAgentTest, TestGeminiLiveIPHAndNewBadgeFET) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures({kGeminiLive}, {});
+
   // Setup mock tracker expectations for triggering
   EXPECT_CALL(*mock_tracker_,
               ShouldTriggerHelpUI(testing::Ref(
@@ -831,12 +837,155 @@ TEST_F(GeminiBrowserAgentTest, TestOnProcessingStatusChangedLiveDormant) {
 
   // Change status to kDormant.
   gemini_browser_agent_->OnProcessingStatusChanged(
-      ios::provider::GeminiClientMode::kDormant);
+      ios::provider::GeminiClientMode::kDormant,
+      ios::provider::GeminiDormantReason::kUnknown);
 
   // Should switch back to Floaty (text mode) and update the internal status.
   EXPECT_EQ(ios::provider::GetCurrentMode(),
             ios::provider::GeminiViewMode::kFloaty);
   EXPECT_EQ(GetProcessingStatus(), ios::provider::GeminiClientMode::kDormant);
+}
+
+// Tests that OnProcessingStatusChanged handles low volume dormant reason
+// with no snackbar when the dormant reasons feature is enabled.
+TEST_F(GeminiBrowserAgentTest,
+       TestOnProcessingStatusChangedLiveDormantLowVolume) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures({kGeminiLive, kGeminiLiveDormantReasons},
+                                       {});
+
+  id mock_snackbar_handler = OCMProtocolMock(@protocol(SnackbarCommands));
+  [browser_->GetCommandDispatcher()
+      startDispatchingToTarget:mock_snackbar_handler
+                   forProtocol:@protocol(SnackbarCommands)];
+  id mock_fullscreen_handler = OCMProtocolMock(@protocol(FullscreenCommands));
+  [browser_->GetCommandDispatcher()
+      startDispatchingToTarget:mock_fullscreen_handler
+                   forProtocol:@protocol(FullscreenCommands)];
+
+  SetIsFloatyInvoked(true);
+
+  // Put in Live mode.
+  ios::provider::SwitchToMode(ios::provider::GeminiViewMode::kLive,
+                              /*animated=*/false);
+  EXPECT_EQ(ios::provider::GetCurrentMode(),
+            ios::provider::GeminiViewMode::kLive);
+
+  // For low volume dormant reasons, we expect switch to Floaty, and NO snackbar
+  // shown.
+  OCMReject([mock_snackbar_handler showSnackbarMessage:[OCMArg any]
+                                          bottomOffset:0.0])
+      .ignoringNonObjectArgs();
+  OCMReject([mock_snackbar_handler showSnackbarMessage:[OCMArg any]]);
+
+  gemini_browser_agent_->OnProcessingStatusChanged(
+      ios::provider::GeminiClientMode::kDormant,
+      ios::provider::GeminiDormantReason::kLowVolumeInForeground);
+
+  // Should switch back to Floaty (text mode) and update the internal status.
+  EXPECT_EQ(ios::provider::GetCurrentMode(),
+            ios::provider::GeminiViewMode::kFloaty);
+  EXPECT_EQ(GetProcessingStatus(), ios::provider::GeminiClientMode::kDormant);
+
+  id self = nil;
+  OCMVerifyAll(mock_snackbar_handler);
+}
+
+// Tests that OnProcessingStatusChanged handles inactivity timeout dormant
+// reason with the correct continue session snackbar when the feature is
+// enabled.
+TEST_F(GeminiBrowserAgentTest,
+       TestOnProcessingStatusChangedLiveDormantTimeout) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures({kGeminiLive, kGeminiLiveDormantReasons},
+                                       {});
+
+  id mock_snackbar_handler = OCMProtocolMock(@protocol(SnackbarCommands));
+  [browser_->GetCommandDispatcher()
+      startDispatchingToTarget:mock_snackbar_handler
+                   forProtocol:@protocol(SnackbarCommands)];
+  id mock_fullscreen_handler = OCMProtocolMock(@protocol(FullscreenCommands));
+  [browser_->GetCommandDispatcher()
+      startDispatchingToTarget:mock_fullscreen_handler
+                   forProtocol:@protocol(FullscreenCommands)];
+
+  SetIsFloatyInvoked(true);
+
+  // Put in Live mode.
+  ios::provider::SwitchToMode(ios::provider::GeminiViewMode::kLive,
+                              /*animated=*/false);
+  EXPECT_EQ(ios::provider::GetCurrentMode(),
+            ios::provider::GeminiViewMode::kLive);
+
+  // Verify the correct timeout snackbar is shown.
+  OCMExpect([mock_snackbar_handler
+                showSnackbarMessage:[OCMArg checkWithBlock:^BOOL(id obj) {
+                  SnackbarMessage* message = (SnackbarMessage*)obj;
+                  NSString* expected_title = l10n_util::GetNSString(
+                      IDS_IOS_GEMINI_LIVE_CONTINUE_SESSION_SNACKBAR);
+                  return [message.title isEqualToString:expected_title];
+                }]
+                       bottomOffset:0.0])
+      .ignoringNonObjectArgs();
+
+  gemini_browser_agent_->OnProcessingStatusChanged(
+      ios::provider::GeminiClientMode::kDormant,
+      ios::provider::GeminiDormantReason::kInactivityTimeout);
+
+  EXPECT_EQ(ios::provider::GetCurrentMode(),
+            ios::provider::GeminiViewMode::kFloaty);
+  EXPECT_EQ(GetProcessingStatus(), ios::provider::GeminiClientMode::kDormant);
+
+  id self = nil;
+  OCMVerifyAll(mock_snackbar_handler);
+}
+
+// Tests that OnProcessingStatusChanged handles server pause dormant reason
+// with the correct server pause snackbar when the feature is enabled.
+TEST_F(GeminiBrowserAgentTest,
+       TestOnProcessingStatusChangedLiveDormantServerPause) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures({kGeminiLive, kGeminiLiveDormantReasons},
+                                       {});
+
+  id mock_snackbar_handler = OCMProtocolMock(@protocol(SnackbarCommands));
+  [browser_->GetCommandDispatcher()
+      startDispatchingToTarget:mock_snackbar_handler
+                   forProtocol:@protocol(SnackbarCommands)];
+  id mock_fullscreen_handler = OCMProtocolMock(@protocol(FullscreenCommands));
+  [browser_->GetCommandDispatcher()
+      startDispatchingToTarget:mock_fullscreen_handler
+                   forProtocol:@protocol(FullscreenCommands)];
+
+  SetIsFloatyInvoked(true);
+
+  // Put in Live mode.
+  ios::provider::SwitchToMode(ios::provider::GeminiViewMode::kLive,
+                              /*animated=*/false);
+  EXPECT_EQ(ios::provider::GetCurrentMode(),
+            ios::provider::GeminiViewMode::kLive);
+
+  // Verify the correct server pause snackbar is shown.
+  OCMExpect([mock_snackbar_handler
+                showSnackbarMessage:[OCMArg checkWithBlock:^BOOL(id obj) {
+                  SnackbarMessage* message = (SnackbarMessage*)obj;
+                  NSString* expected_title = l10n_util::GetNSString(
+                      IDS_IOS_GEMINI_LIVE_SERVER_PAUSE_SNACKBAR);
+                  return [message.title isEqualToString:expected_title];
+                }]
+                       bottomOffset:0.0])
+      .ignoringNonObjectArgs();
+
+  gemini_browser_agent_->OnProcessingStatusChanged(
+      ios::provider::GeminiClientMode::kDormant,
+      ios::provider::GeminiDormantReason::kServerPause);
+
+  EXPECT_EQ(ios::provider::GetCurrentMode(),
+            ios::provider::GeminiViewMode::kFloaty);
+  EXPECT_EQ(GetProcessingStatus(), ios::provider::GeminiClientMode::kDormant);
+
+  id self = nil;
+  OCMVerifyAll(mock_snackbar_handler);
 }
 
 // Tests that OnGeminiLiveUserDidBargeIn updates processing_status_ to

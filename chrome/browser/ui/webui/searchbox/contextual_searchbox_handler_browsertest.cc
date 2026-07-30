@@ -37,8 +37,7 @@ class TestSearchboxHandler : public ContextualSearchboxHandler {
                                    std::move(pending_page),
                                    profile,
                                    web_contents,
-                                   std::make_unique<OmniboxController>(
-                                       std::make_unique<TestOmniboxClient>()),
+                                   std::make_unique<TestOmniboxClient>(),
                                    std::move(get_session_callback)) {}
 
   ~TestSearchboxHandler() override = default;

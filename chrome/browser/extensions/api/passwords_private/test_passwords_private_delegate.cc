@@ -64,6 +64,16 @@ TestPasswordsPrivateDelegate::TestPasswordsPrivateDelegate()
 }
 TestPasswordsPrivateDelegate::~TestPasswordsPrivateDelegate() = default;
 
+void TestPasswordsPrivateDelegate::AddObserver(
+    PasswordsPrivateDelegate::Observer* observer) {
+  observers_.AddObserver(observer);
+}
+
+void TestPasswordsPrivateDelegate::RemoveObserver(
+    PasswordsPrivateDelegate::Observer* observer) {
+  observers_.RemoveObserver(observer);
+}
+
 password_manager::SavedPasswordsPresenter*
 TestPasswordsPrivateDelegate::GetSavedPasswordsPresenter() {
   return saved_passwords_presenter_.get();
@@ -254,12 +264,12 @@ void TestPasswordsPrivateDelegate::ResetImporter(bool delete_file) {
 }
 
 void TestPasswordsPrivateDelegate::ExportPasswords(
-    base::OnceCallback<void(const std::string&)> callback,
+    base::OnceCallback<void(ExportPasswordsResult)> callback,
     content::WebContents* web_contents) {
   // The testing of password exporting itself should be handled via
   // |PasswordManagerPorter|.
   export_passwords_triggered_ = true;
-  std::move(callback).Run(std::string());
+  std::move(callback).Run(ExportPasswordsResult::kSuccess);
 }
 
 api::passwords_private::ExportProgressStatus

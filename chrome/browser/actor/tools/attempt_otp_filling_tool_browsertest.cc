@@ -22,6 +22,8 @@
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/tools/attempt_otp_filling_tool_request.h"
 #include "chrome/browser/actor/tools/tools_test_util.h"
+#include "chrome/browser/autofill/actor/one_time_tokens/actor_login_context.h"
+#include "chrome/browser/autofill/actor/one_time_tokens/actor_one_time_token_filling_service.h"
 #include "chrome/browser/autofill/one_time_token_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/actor/core/aggregated_journal.h"
@@ -218,6 +220,38 @@ IN_PROC_BROWSER_TEST_F(AttemptOtpFillingToolBrowserTest,
       JournalEntries(),
       testing::Contains(testing::ContainsRegex(
           "AttemptOtpFillingTool::OnOtpRetrieved;.*otp_received=true")));
+}
+
+IN_PROC_BROWSER_TEST_F(AttemptOtpFillingToolBrowserTest,
+                       ConsumesLoginContextOnInvoke) {
+  const GURL url = embedded_https_test_server().GetURL("example.com",
+                                                       "/actor/otp_page.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+  ASSERT_NO_FATAL_FAILURE(WaitForTabObservation());
+  ASSERT_OK_AND_ASSIGN(DomNode otp_field,
+                       GetDomNodeOnPage(*main_frame(), "#otp"));
+  std::unique_ptr<ToolRequest> request =
+      std::make_unique<AttemptOtpFillingToolRequest>(
+          active_tab()->GetHandle(), std::vector<PageTarget>{otp_field},
+          /*for_signin=*/true);
+  SetExpectedOtp("1234");
+
+  actor_task()
+      .GetExecutionEngine()
+      .GetActorOneTimeTokenFillingService()
+      .OnPasswordFillingStarted(active_tab()->GetHandle(),
+                                url::Origin::Create(url),
+                                /*should_use_strong_matching=*/true, {});
+
+  ActResultFuture result;
+  actor_task().Act(ToRequestList(std::move(request)), result.GetCallback());
+
+  ExpectOkResult(result);
+  EXPECT_FALSE(actor_task()
+                   .GetExecutionEngine()
+                   .GetActorOneTimeTokenFillingService()
+                   .ConsumeLoginContext()
+                   .has_value());
 }
 
 // The tool fails when OTP retrieval returns an error.

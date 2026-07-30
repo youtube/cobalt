@@ -546,6 +546,10 @@ BASE_FEATURE_PARAM(size_t,
 // NavigationThrottleRunner. See https://crbug.com/422003056.
 BASE_FEATURE(kNavigationThrottleRunner2, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, precomputes SiteInfo once in BrowsingInstance entry-points
+// and passes it down to avoid redundant calculations.
+BASE_FEATURE(kPrecomputeSiteInfo, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // This feature enables Permissions Policy verification in the Browser process
 // in content/. Additionally only for //chrome Permissions Policy verification
 // is enabled in components/permissions/permission_context_base.cc
@@ -554,6 +558,10 @@ BASE_FEATURE(kPermissionsPolicyVerificationInContent,
              "kPermissionsPolicyVerificationInContent",
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+// When enabled, OnMouseEvent uses the event's actual pointer type for
+// last_pointer_type_ instead of unconditionally reporting kMouse.
+BASE_FEATURE(kMouseEventPenPointerType, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, responses with an operative Cookie-Indices will not be used
 // if the relevant cookie values have changed.
@@ -750,9 +758,6 @@ BASE_FEATURE(kServiceWorkerClientUrlIsCreationUrl,
 
 // Kill switch for crbug.com/499449324.
 BASE_FEATURE(kServiceWorkerOptionalTimeoutIterator,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kServiceWorkerWindowClientInitiator,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, the browser process verifies that the URL of a main script

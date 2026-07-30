@@ -40,7 +40,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) ThrottlingP2PNetworkInterceptor {
   void OnSendNetworkTimer();
   void OnReceiveNetworkTimer();
 
-  std::vector<P2PSocketUdp*> sockets_;
+  std::vector<raw_ptr<P2PSocketUdp>> sockets_;
   std::unique_ptr<NetworkConditions> conditions_;
 
   webrtc::SimulatedNetwork send_network_;

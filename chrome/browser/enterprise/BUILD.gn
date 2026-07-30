@@ -92,6 +92,11 @@ source_set("enterprise") {
     "//url",
   ]
 
+  if (enterprise_proxy && is_android) {
+    public += [ "net/enterprise_proxy_service_factory.h" ]
+    public_deps += [ "//components/enterprise/net" ]
+  }
+
   if (!is_android) {
     public_deps += [
       "//chrome/browser/ui/browser_window",
@@ -102,12 +107,7 @@ source_set("enterprise") {
       "//ui/views",
     ]
     public += [
-      "data_protection/data_protection_features.h",
-      "data_protection/data_protection_navigation_controller.h",
-      "data_protection/data_protection_navigation_observer.h",
-      "data_protection/data_protection_page_user_data.h",
       "data_protection/data_protection_ui_controller.h",
-      "data_protection/data_protection_url_lookup_service_factory.h",
       "reporting/browser_report_generator_desktop.h",
       "reporting/extension_request/extension_request_notification.h",
       "reporting/extension_request/extension_request_observer.h",
@@ -141,14 +141,12 @@ source_set("enterprise") {
 
   if (is_android) {
     public += [
-      "browser_management/platform_management_status_provider_android.h",
       "platform_auth/entra_provider_android.h",
       "reporting/browser_report_generator_android.h",
       "reporting/profile_report_generator_android.h",
       "reporting/real_time_report_controller_android.h",
       "reporting/report_scheduler_android.h",
       "reporting/reporting_delegate_factory_android.h",
-      "util/android_enterprise_info.h",
     ]
   }
 
@@ -208,7 +206,7 @@ source_set("enterprise") {
     ]
   }
 
-  if (enterprise_watermark) {
+  if (enterprise_watermark && toolkit_views) {
     public_deps += [
       "//chrome/browser/enterprise/data_protection:data_protection_view_lib",
     ]
@@ -218,6 +216,11 @@ source_set("enterprise") {
     public += [
       "data_controls/chrome_clipboard_context.h",
       "data_protection/data_protection_clipboard_utils.h",
+      "data_protection/data_protection_features.h",
+      "data_protection/data_protection_navigation_controller.h",
+      "data_protection/data_protection_navigation_observer.h",
+      "data_protection/data_protection_page_user_data.h",
+      "data_protection/data_protection_url_lookup_service_factory.h",
     ]
 
     # TODO(b/352728209): Update the logic for which file compiles on Android
@@ -313,6 +316,8 @@ source_set("enterprise") {
       "profile_management/profile_management_navigation_throttle.h",
       "remote_commands/extension_update_check_job.h",
       "remote_commands/rotate_attestation_credential_job.h",
+      "reporting/browser_launch/browser_launch_event_uploader_desktop.h",
+      "reporting/realtime_event_upload_helper_desktop.h",
       "reporting/saas_usage/navigation_handle_data_delegate.h",
       "reporting/saas_usage/saas_usage_navigation_observer.h",
       "reporting/saas_usage/saas_usage_report_factory_desktop.h",
@@ -385,6 +390,33 @@ source_set("enterprise") {
   }
 }
 
+static_library("browser_launch_reporting") {
+  sources = []
+  deps = []
+  if (is_linux || is_win || is_mac) {
+    sources += [
+      "reporting/browser_launch/browser_launch_data_collector_desktop.cc",
+      "reporting/browser_launch/browser_launch_data_collector_desktop.h",
+      "reporting/browser_launch/browser_launch_event_controller_factory_desktop.cc",
+      "reporting/browser_launch/browser_launch_event_controller_factory_desktop.h",
+      "reporting/browser_launch/browser_launch_event_uploader_desktop.cc",
+      "reporting/browser_launch/browser_launch_event_uploader_desktop.h",
+      "reporting/browser_launch/scoped_initial_command_line.cc",
+      "reporting/browser_launch/scoped_initial_command_line.h",
+    ]
+    deps += [
+      ":enterprise",
+      "//base",
+      "//chrome/browser:browser_process",
+      "//chrome/browser/profiles:profile",
+      "//components/enterprise",
+      "//components/enterprise/common/proto:browser_events_proto",
+      "//components/enterprise/connectors/core",
+      "//components/policy/core/common",
+    ]
+  }
+}
+
 source_set("impl") {
   sources = [
     "browser_management/browser_management_service.cc",
@@ -401,6 +433,11 @@ source_set("impl") {
     "connectors/interstitials/enterprise_warn_page.cc",
     "connectors/referrer_cache_utils.cc",
     "core/dependency_factory_impl.cc",
+    "data_protection/data_protection_features.cc",
+    "data_protection/data_protection_navigation_controller.cc",
+    "data_protection/data_protection_navigation_observer.cc",
+    "data_protection/data_protection_page_user_data.cc",
+    "data_protection/data_protection_url_lookup_service_factory.cc",
     "data_protection/view_source_navigation_throttle.cc",
     "encryption/cache_encryption_provider_impl.cc",
     "identifiers/profile_id_delegate_impl.cc",
@@ -427,6 +464,7 @@ source_set("impl") {
   ]
 
   deps = [
+    ":browser_launch_reporting",
     "//chrome/app:command_ids",
     "//chrome/browser:browser_process",
     "//chrome/browser:browser_process_platform_part",
@@ -493,12 +531,7 @@ source_set("impl") {
 
   if (!is_android) {
     sources += [
-      "data_protection/data_protection_features.cc",
-      "data_protection/data_protection_navigation_controller.cc",
-      "data_protection/data_protection_navigation_observer.cc",
-      "data_protection/data_protection_page_user_data.cc",
       "data_protection/data_protection_ui_controller.cc",
-      "data_protection/data_protection_url_lookup_service_factory.cc",
       "reporting/browser_report_generator_desktop.cc",
       "reporting/extension_request/extension_request_notification.cc",
       "reporting/extension_request/extension_request_observer.cc",
@@ -532,18 +565,17 @@ source_set("impl") {
 
   if (is_android) {
     sources += [
-      "browser_management/platform_management_status_provider_android.cc",
       "platform_auth/entra_provider_android.cc",
       "reporting/browser_report_generator_android.cc",
       "reporting/profile_report_generator_android.cc",
       "reporting/real_time_report_controller_android.cc",
       "reporting/report_scheduler_android.cc",
       "reporting/reporting_delegate_factory_android.cc",
-      "util/android_enterprise_info.cc",
       "util/data_protection_bridge.cc",
     ]
     deps += [
       "//chrome/android:chrome_jni_headers",
+      "//chrome/browser/android:tabs_public",
       "//chrome/browser/enterprise/util:jni_headers",
       "//chrome/browser/ui/android/tab_model",
       "//components/enterprise/browser/reporting/android:jni_headers",
@@ -682,6 +714,11 @@ source_set("impl") {
     }
   }
 
+  if (enterprise_proxy && is_android) {
+    sources += [ "net/enterprise_proxy_service_factory.cc" ]
+    deps += [ "//components/enterprise/net" ]
+  }
+
   if (is_linux || is_win || is_mac || is_chromeos || is_android) {
     sources += [
       "signals/user_delegate_impl.cc",
@@ -777,6 +814,8 @@ source_set("impl") {
       "profile_management/profile_management_navigation_throttle.cc",
       "remote_commands/extension_update_check_job.cc",
       "remote_commands/rotate_attestation_credential_job.cc",
+      "reporting/browser_launch/browser_launch_event_uploader_desktop.cc",
+      "reporting/realtime_event_upload_helper_desktop.cc",
       "reporting/saas_usage/navigation_handle_data_delegate.cc",
       "reporting/saas_usage/saas_usage_navigation_observer.cc",
       "reporting/saas_usage/saas_usage_report_factory_desktop.cc",
@@ -805,6 +844,7 @@ source_set("impl") {
       "webstore/chrome_web_store_navigation_throttle.cc",
       "webstore/features.cc",
     ]
+
     deps += [
       "//chrome/browser/enterprise/connectors/device_trust/key_management/browser",
       "//chrome/browser/enterprise/connectors/device_trust/key_management/core",

@@ -26,4 +26,10 @@ BASE_FEATURE_PARAM(int,
                    "state",
                    4);
 
+BASE_FEATURE(kMockPersonalContextResult, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(int,
+                   kMockPersonalContextResultTypeParam,
+                   &kMockPersonalContextResult,
+                   2);
+
 }  // namespace personal_context::features::debug

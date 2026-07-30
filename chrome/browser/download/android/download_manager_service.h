@@ -118,12 +118,6 @@ class DownloadManagerService
   // downloads in the user's history.
   void GetAllDownloads(JNIEnv* env, const JavaRef<jobject>& j_profile_key);
 
-  // Called to check if the files associated with any downloads have been
-  // removed by an external action.
-  void CheckForExternallyRemovedDownloads(
-      JNIEnv* env,
-      const JavaRef<jobject>& j_profile_key);
-
   // Called to update the last access time associated with a download.
   void UpdateLastAccessTime(JNIEnv* env,
                             const std::string& download_guid,

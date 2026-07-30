@@ -162,6 +162,8 @@ class PasswordStoreBuiltInBackend : public PasswordStoreBackend,
 
   bool is_database_initialized_successfully_ = false;
 
+  const IsAccountStore is_account_store_ = IsAccountStore(false);
+
   // Used to get information if there are any passwords saved to the login db.
   raw_ptr<PrefService> pref_service_;
 

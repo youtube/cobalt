@@ -10,11 +10,25 @@
 #import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/layout_transition_coordinating.h"
 
+namespace layout_state {
+class AssistantContainerAnimatorPassKeyFactory {
+ public:
+  static base::PassKey<AssistantContainerAnimatorPassKeyFactory> CreateKey() {
+    return base::PassKey<AssistantContainerAnimatorPassKeyFactory>();
+  }
+};
+}  // namespace layout_state
+
 namespace {
 // Animation constants.
 constexpr CGFloat kSpringDamping = 0.8;
 constexpr CGFloat kTranslationMargin = 20.0;
 constexpr NSTimeInterval kAssistantSidePanelAnimationDuration = 0.5;
+
+// Helper function to return the domain passkey used to mutate the layout state.
+inline LayoutStateAssistantPassKey PassKey() {
+  return layout_state::AssistantContainerAnimatorPassKeyFactory::CreateKey();
+}
 }  // namespace
 
 @interface AssistantContainerAnimator () <LayoutTransitionCoordinating>
@@ -135,7 +149,7 @@ constexpr NSTimeInterval kAssistantSidePanelAnimationDuration = 0.5;
   }
 
   if (!animated) {
-    layoutState.containedLayoutActive = presented;
+    [layoutState setContainedLayoutActive:presented assistantPassKey:PassKey()];
     if (completion) {
       completion();
     }
@@ -143,7 +157,8 @@ constexpr NSTimeInterval kAssistantSidePanelAnimationDuration = 0.5;
   }
 
   [layoutState setContainedLayoutActive:presented
-              withTransitionCoordinator:self];
+              withTransitionCoordinator:self
+                       assistantPassKey:PassKey()];
 
   if (completion) {
     [_completions addObject:completion];

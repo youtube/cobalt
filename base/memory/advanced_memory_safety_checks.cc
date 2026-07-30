@@ -48,7 +48,8 @@ constexpr partition_alloc::FreeFlags GetFreeFlags(MemorySafetyCheck checks) {
         kSchedulerLoopQuarantineForAdvancedMemorySafetyChecks;
   }
   if (static_cast<bool>(checks & MemorySafetyCheck::kInfiniteQuarantine)) {
-    flags |= partition_alloc::FreeFlags::kIntendedLeak;
+    flags |= partition_alloc::FreeFlags::kIntendedLeak |
+             partition_alloc::FreeFlags::kWithTypeIdHint;
   }
   return flags;
 }
@@ -128,11 +129,13 @@ NOINLINE void* HandleMemorySafetyCheckedOperatorNew(
 }
 
 template <MemorySafetyCheck checks>
-NOINLINE void HandleMemorySafetyCheckedOperatorDelete(void* ptr) {
+NOINLINE void HandleMemorySafetyCheckedOperatorDelete(
+    void* ptr,
+    [[maybe_unused]] uint32_t type_id) {
 #if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   if constexpr (IsLeakedSanitizedObject(checks)) {
     return GetPartitionRootForLeakedSecurityObjectAllocation()
-        ->Free<GetFreeFlags(checks)>(ptr);
+        ->Free<GetFreeFlags(checks)>(ptr, {.type_id = type_id});
   }
   if constexpr (ShouldUsePartitionAlloc(checks)) {
     GetPartitionRootForMemorySafetyCheckedAllocation()
@@ -146,11 +149,12 @@ NOINLINE void HandleMemorySafetyCheckedOperatorDelete(void* ptr) {
 template <MemorySafetyCheck checks>
 NOINLINE void HandleMemorySafetyCheckedOperatorDelete(
     void* ptr,
-    std::align_val_t alignment) {
+    std::align_val_t alignment,
+    [[maybe_unused]] uint32_t type_id) {
 #if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   if constexpr (IsLeakedSanitizedObject(checks)) {
     return GetPartitionRootForLeakedSecurityObjectAllocation()
-        ->Free<GetFreeFlags(checks)>(ptr);
+        ->Free<GetFreeFlags(checks)>(ptr, {.type_id = type_id});
   }
   if constexpr (ShouldUsePartitionAlloc(checks)) {
     GetPartitionRootForMemorySafetyCheckedAllocation()

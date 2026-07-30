@@ -13,6 +13,7 @@ namespace blink {
 // The renderer can request to prewarm the font cache.
 class WebFontPrewarmer {
  public:
+  virtual ~WebFontPrewarmer() = default;
   virtual void PrewarmFamily(const WebString& family_name) = 0;
 };
 

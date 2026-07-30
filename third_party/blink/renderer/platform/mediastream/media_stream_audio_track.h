@@ -91,6 +91,13 @@ class PLATFORM_EXPORT MediaStreamAudioTrack : public MediaStreamTrackPlatform {
   // method to provide safe down-casting to their type.
   virtual void* GetClassIdentifier() const;
 
+  std::optional<bool> VoiceIsolationExactConstraint() const {
+    return voice_isolation_exact_constraint_;
+  }
+  void SetVoiceIsolationExactConstraint(std::optional<bool> value) {
+    voice_isolation_exact_constraint_ = value;
+  }
+
  private:
   friend class MediaStreamAudioSource;
   friend class MediaStreamAudioDeliverer<MediaStreamAudioTrack>;
@@ -151,6 +158,8 @@ class PLATFORM_EXPORT MediaStreamAudioTrack : public MediaStreamTrackPlatform {
   // Frame stats that have not yet been added into mainthread_frame_stats_. This
   // is only used on the audio thread.
   AudioFrameStats pending_frame_stats_;
+
+  std::optional<bool> voice_isolation_exact_constraint_;
 
   // Provides weak pointers that are valid until Stop() is called.
   base::WeakPtrFactory<MediaStreamAudioTrack> weak_factory_{this};

@@ -89,6 +89,7 @@ source_set("unit_tests") {
     "gallery_watch_manager_unittest.cc",
     "media_file_system_registry_unittest.cc",
     "media_galleries_permission_controller_unittest.cc",
+    "media_galleries_permissions_unittest.cc",
     "media_galleries_preferences_unittest.cc",
     "mtp_device_object_enumerator_unittest.cc",
   ]
@@ -99,8 +100,17 @@ source_set("unit_tests") {
     ":test_support",
     "//base/test:test_support",
     "//chrome/browser/ash/login/users",
+    "//chrome/browser/extensions",
+    "//chrome/browser/extensions:test_support",
+
+    # media_galleries_permissions_unittest.cc derives from the
+    # ExtensionPrefsTest fixture declared in
+    # //chrome/browser/extensions:unit_tests.
+    "//chrome/browser/extensions:unit_tests",
     "//chrome/common/apps/platform_apps",
     "//chrome/test:test_support",
+    "//components/storage_monitor:test_support",
+    "//extensions/browser",
     "//testing/gtest",
   ]
 }

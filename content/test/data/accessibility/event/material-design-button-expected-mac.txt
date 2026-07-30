@@ -2,11 +2,11 @@
 AXWebArea AXTitle='Material Web Button Events'
 ++AXGroup AXDescription='Ready'
 ++++AXGroup
-++++++AXGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXButton AXDescription='Filled Button'
 ++++AXGroup
-++++++AXGroup
-++++++AXGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXButton AXDescription='Outlined Button'
 === End accessibility tree ===
 AXFocusedUIElementChanged on AXButton AXDescription='Filled Button'
@@ -14,11 +14,11 @@ AXFocusedUIElementChanged on AXButton AXDescription='Filled Button'
 AXWebArea AXTitle='Material Web Button Events'
 ++AXGroup AXDescription='Ready'
 ++++AXGroup
-++++++AXGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXButton AXDescription='Filled Button'
 ++++AXGroup
-++++++AXGroup
-++++++AXGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXButton AXDescription='Outlined Button'
 === End accessibility tree ===
 === Start Continuation ===
@@ -26,11 +26,11 @@ AXWebArea AXTitle='Material Web Button Events'
 AXWebArea AXTitle='Material Web Button Events'
 ++AXGroup AXDescription='Ready'
 ++++AXGroup
-++++++AXGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXButton AXDescription='Filled Button'
 ++++AXGroup
-++++++AXGroup
-++++++AXGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXButton AXDescription='Outlined Button'
 === End accessibility tree ===
 AXFocusedUIElementChanged on AXWebArea AXTitle='Material Web Button Events'
@@ -38,11 +38,11 @@ AXFocusedUIElementChanged on AXWebArea AXTitle='Material Web Button Events'
 AXWebArea AXTitle='Material Web Button Events'
 ++AXGroup AXDescription='Ready'
 ++++AXGroup
-++++++AXGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXButton AXDescription='Filled Button'
 ++++AXGroup
-++++++AXGroup
-++++++AXGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXButton AXDescription='Outlined Button'
 === End accessibility tree ===
 === Start Continuation ===
@@ -50,21 +50,21 @@ AXWebArea AXTitle='Material Web Button Events'
 AXWebArea AXTitle='Material Web Button Events'
 ++AXGroup AXDescription='Ready'
 ++++AXGroup
-++++++AXGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXButton AXDescription='Filled Button'
 ++++AXGroup
-++++++AXGroup
-++++++AXGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXButton AXDescription='Outlined Button'
 === End accessibility tree ===
 === Accessibility tree after go() pass 3 ===
 AXWebArea AXTitle='Material Web Button Events'
 ++AXGroup AXDescription='Ready'
 ++++AXGroup
-++++++AXGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXButton AXDescription='Filled Button'
 ++++AXGroup
-++++++AXGroup
-++++++AXGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXButton AXDescription='Outlined Button'
 === End accessibility tree ===

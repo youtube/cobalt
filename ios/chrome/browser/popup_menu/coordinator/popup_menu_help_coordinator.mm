@@ -21,6 +21,8 @@
 #import "ios/chrome/browser/bubble/ui_bundled/bubble_view_controller_presenter.h"
 #import "ios/chrome/browser/default_browser/model/utils.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
+#import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
+#import "ios/chrome/browser/popup_menu/overflow_menu/public/features.h"
 #import "ios/chrome/browser/popup_menu/overflow_menu/public/overflow_menu_action_provider.h"
 #import "ios/chrome/browser/popup_menu/overflow_menu/public/overflow_menu_constants.h"
 #import "ios/chrome/browser/popup_menu/overflow_menu/ui/ui_swift.h"
@@ -31,6 +33,7 @@
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/omnibox_util.h"
@@ -569,6 +572,13 @@ base::TimeDelta kPromoDisplayDelayForTests = base::Seconds(1);
 // Customization IPH can be displayed. If this returns YES, the IPH MUST be
 // shown and dismissed.
 - (BOOL)canShowOverflowMenuCustomizationIPH {
+  if (IsOverflowMenuNTPRefactorEnabled()) {
+  // Edit button is not available on the NTP.
+    if (IsVisibleURLNewTabPage(
+            self.browser->GetWebStateList()->GetActiveWebState())) {
+      return NO;
+    }
+  }
   feature_engagement::Tracker* tracker = self.featureEngagementTracker;
   const base::Feature& feature =
       feature_engagement::kIPHiOSOverflowMenuCustomizationFeature;

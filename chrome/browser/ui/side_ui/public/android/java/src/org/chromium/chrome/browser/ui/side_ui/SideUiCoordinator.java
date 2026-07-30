@@ -17,6 +17,7 @@ import java.lang.annotation.Target;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -92,20 +93,42 @@ public interface SideUiCoordinator extends SideUiStateProvider {
             mShowableSideUiIds = List.copyOf(showableSideUiIds);
             mUnshowableSideUiIds = List.copyOf(unshowableSideUiIds);
         }
+
+        @Override
+        public boolean equals(@Nullable Object obj) {
+            if (this == obj) {
+                return true;
+            }
+
+            if (!(obj instanceof SideUiShowability other)) {
+                return false;
+            }
+
+            return mShowableSideUiIds.equals(other.mShowableSideUiIds)
+                    && mUnshowableSideUiIds.equals(other.mUnshowableSideUiIds);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(mShowableSideUiIds, mUnshowableSideUiIds);
+        }
     }
 
-    /**
-     * POD-type that holds the info for a request to reposition or resize a {@link SideUiContainer}.
-     *
-     * <p>TODO(crbug.com/478338737): Consider renaming this class as "SideUiUpdateRequest".
-     */
-    final class SideUiContainerProperties {
-        final @SideUiId int mSideUiId;
-        final @AnchorSide int mAnchorSide;
+    /** POD-type that holds the request for {@link #updateUi}. */
+    final class UiUpdateRequest {
+        /**
+         * ID of the {@link SideUiContainer} that requested the UI update.
+         *
+         * <p>This should be null if the request isn't from a {@link SideUiContainer}.
+         */
+        final @Nullable @SideUiId Integer mSideUiId;
 
-        public SideUiContainerProperties(@SideUiId int id, @AnchorSide int side) {
-            mSideUiId = id;
-            mAnchorSide = side;
+        /** Whether animations should be suppressed during the UI update. */
+        final boolean mSuppressAnimations;
+
+        public UiUpdateRequest(@Nullable @SideUiId Integer sideUiId, boolean suppressAnimations) {
+            mSideUiId = sideUiId;
+            mSuppressAnimations = suppressAnimations;
         }
     }
 
@@ -146,6 +169,46 @@ public interface SideUiCoordinator extends SideUiStateProvider {
             return mSideUiWidths.entrySet();
         }
 
+        /**
+         * Calculates the difference between this {@link SideUiSpecs} and the given {@link
+         * SideUiSpecs}.
+         *
+         * <p>For each {@link AnchorSide}, if the widths are different, the returned {@link
+         * SideUiSpecs} retains the width of this {@link SideUiSpecs}. Otherwise, the width is set
+         * to 0.
+         *
+         * <p>The returned {@link SideUiSpecs} is useful for only updating the parts in the UI that
+         * are changed.
+         *
+         * @param sideUiSpecs The {@link SideUiSpecs} to compare against.
+         * @return A {@link SideUiSpecs} representing the diff.
+         */
+        public SideUiSpecs diffAgainst(SideUiSpecs sideUiSpecs) {
+            Map<@AnchorSide Integer, Integer> diffWidths = new ArrayMap<>();
+
+            for (@AnchorSide int side = 0; side < AnchorSide.NUM_ENTRIES; side++) {
+                Integer thisWidth = mSideUiWidths.get(side);
+                Integer otherWidth = sideUiSpecs.mSideUiWidths.get(side);
+
+                if (thisWidth == null && otherWidth == null) {
+                    continue;
+                }
+
+                if (thisWidth == null) {
+                    diffWidths.put(side, 0);
+                } else if (!thisWidth.equals(otherWidth)) {
+                    diffWidths.put(side, thisWidth);
+                }
+            }
+
+            return new SideUiSpecs(diffWidths);
+        }
+
+        /** Returns true if the width for any {@link AnchorSide} doesn't exist. */
+        public boolean isEmpty() {
+            return mSideUiWidths.isEmpty();
+        }
+
         @Override
         public boolean equals(@Nullable Object obj) {
             if (!(obj instanceof SideUiSpecs that)) return false;
@@ -180,19 +243,15 @@ public interface SideUiCoordinator extends SideUiStateProvider {
     void unregisterSideUiContainer(SideUiContainer sideUiContainer);
 
     /**
-     * Requests that the registered {@link SideUiContainer} change its width.
-     * <strong>Important:</strong> this should only be called by the feature that owns the affected
-     * {@link SideUiContainer}.
+     * Updates all {@link SideUiContainer}s and {@link SideUiObserver}s.
      *
-     * @param properties The {@link SideUiContainerProperties} that defines the new requested
-     *     position for the registered {@link SideUiContainer}.
-     * @param suppressAnimations Whether animations should be suppressed for the container update.
-     *     If true, the update will happen immediately, without animations.
-     * @throw IllegalArgumentException if the given properties comes with an invalid {@link
-     *     SideUiId} not found in the registered containers, such as duplicated {@link SideUiId} or
-     *     {@link AnchorSide}.
+     * <p>Each {@link SideUiContainer} or {@link SideUiObserver} will also be notified of relevant
+     * events before/during/after the new {@link SideUiSpecs} is applied to the UI. Please see their
+     * documentation for details.
+     *
+     * @param request The {@link UiUpdateRequest} for the update.
      */
-    void requestUpdateContainer(SideUiContainerProperties properties, boolean suppressAnimations);
+    void updateUi(UiUpdateRequest request);
 
     /** Destroys all objects owned by this coordinator. */
     void destroy();

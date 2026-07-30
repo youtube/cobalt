@@ -47,7 +47,7 @@ class FrameInjectingDemuxer final : public media::Demuxer {
   void OnStreamInitializationComplete();
 
   // media::Demuxer implementation.
-  std::vector<media::DemuxerStream*> GetAllStreams() override;
+  std::vector<raw_ptr<media::DemuxerStream>> GetAllStreams() override;
   std::string GetDisplayName() const override;
   media::DemuxerType GetDemuxerType() const override;
   void Initialize(media::DemuxerHost* host,

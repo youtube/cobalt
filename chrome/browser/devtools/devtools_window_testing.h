@@ -8,6 +8,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/devtools/devtools_window.h"
+#include "components/policy/core/common/mock_configuration_policy_provider.h"
 #include "ui/gfx/geometry/rect.h"
 
 class BrowserWindowInterface;
@@ -66,6 +67,24 @@ class DevToolsWindowTesting {
 
   raw_ptr<DevToolsWindow> devtools_window_;
   base::OnceClosure close_callback_;
+};
+
+// A class which allows DevTools to be disabled. This is useful for testing code
+// that uses `DevToolsWindow::AllowDevToolsFor()` to gate access to DevTools.
+//
+// Due to implementation restrictions, this must be created as a member variable
+// of the test in question.
+class DevToolsDisabler {
+ public:
+  DevToolsDisabler();
+  ~DevToolsDisabler();
+
+  void SetUp();
+
+  void DisableDevTools();
+
+ private:
+  testing::NiceMock<policy::MockConfigurationPolicyProvider> provider_;
 };
 
 class DevToolsWindowCreationObserver {

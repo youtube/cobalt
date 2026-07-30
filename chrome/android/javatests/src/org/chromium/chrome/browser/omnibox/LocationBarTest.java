@@ -920,6 +920,8 @@ public class LocationBarTest {
     @MediumTest
     @Restriction(DeviceFormFactor.DESKTOP)
     public void testFocusCarriesSelection() {
+        // Force desktop experience on desktop form factor.
+        OmniboxCapabilities.setHasDesktopExperienceForTesting(true);
         startActivityNormally();
         mActivityTestRule.loadUrl(mHostUrl);
 

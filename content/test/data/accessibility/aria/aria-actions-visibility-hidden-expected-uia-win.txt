@@ -1,0 +1,11 @@
+Document
+++Group AriaProperties='readonly=true;expanded=false;multiline=false;multiselectable=false;required=false;hasactions=true'
+++++Text Name='Host with visible target'
+++Button Name='Save'
+++Group AriaProperties='readonly=true;expanded=false;multiline=false;multiselectable=false;required=false;hasactions=true'
+++++Text Name='Host with hidden target'
+++Group AriaProperties='readonly=true;expanded=false;multiline=false;multiselectable=false;required=false;hasactions=true'
+++++Text Name='Host with mixed targets'
+++Button Name='Open'
+++Group AriaProperties='readonly=true;expanded=false;multiline=false;multiselectable=false;required=false;hasactions=true'
+++++Text Name='Host with ancestor-hidden target'

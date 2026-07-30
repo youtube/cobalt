@@ -1232,7 +1232,7 @@ bool TemplateURLService::ResetPlayAPISearchEngine(
   if (CanMakeDefault(new_play_api_turl_ptr)) {
     SetUserSelectedDefaultSearchProvider(
         new_play_api_turl_ptr,
-        search_engines::ChoiceMadeLocation::kChoiceScreen);
+        search_engines::ChoiceMadeLocation::kDeviceChoiceImport);
   }
 
   CHECK(default_search_provider_);

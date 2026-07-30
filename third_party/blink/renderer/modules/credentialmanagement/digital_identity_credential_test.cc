@@ -23,6 +23,7 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_digital_credential_get_request.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_digital_credential_request_options.h"
 #include "third_party/blink/renderer/core/dom/document.h"
+#include "third_party/blink/renderer/core/execution_context/security_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/modules/credentialmanagement/credential.h"
@@ -689,6 +690,82 @@ TEST_F(DigitalIdentityCredentialTest,
 
   context.GetWindow().GetBrowserInterfaceBroker().SetBinderForTesting(
       mojom::DigitalIdentityRequest::Name_, {});
+}
+
+TEST_F(DigitalIdentityCredentialTest,
+       IdentityDigitalCredentialGetFailsOnOpaqueOrigin) {
+  V8TestingScope context(::blink::KURL("https://example.test"));
+
+  scoped_refptr<SecurityOrigin> opaque_origin =
+      context.GetWindow().GetSecurityOrigin()->DeriveNewOpaqueOrigin();
+  context.GetWindow().GetSecurityContext().SetSecurityOriginForTesting(
+      opaque_origin);
+
+  ASSERT_TRUE(context.GetWindow().GetSecurityOrigin()->IsOpaque());
+  ASSERT_TRUE(context.GetWindow().IsSecureContext());
+
+  LocalFrame::NotifyUserActivation(
+      &context.GetFrame(), mojom::UserActivationNotificationType::kTest);
+
+  ScopedWebIdentityDigitalCredentialsForTest scoped_digital_credentials(
+      /*enabled=*/true);
+
+  ScriptState* script_state = context.GetScriptState();
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<IDLNullable<Credential>>>(
+          script_state);
+
+  DiscoverDigitalIdentityCredentialFromExternalSource(
+      resolver, *CreateValidGetOptions(context.GetScriptState()));
+
+  ScriptPromiseTester tester(script_state, resolver->Promise());
+  tester.WaitUntilSettled();
+
+  ASSERT_TRUE(tester.IsRejected());
+  auto* dom_exception = V8DOMException::ToWrappable(script_state->GetIsolate(),
+                                                    tester.Value().V8Value());
+  ASSERT_TRUE(dom_exception);
+  EXPECT_EQ(dom_exception->name(), "NotAllowedError");
+  EXPECT_EQ(dom_exception->message(),
+            "The credential operation is not allowed in an opaque origin.");
+}
+
+TEST_F(DigitalIdentityCredentialTest,
+       IdentityDigitalCredentialCreateFailsOnOpaqueOrigin) {
+  V8TestingScope context(::blink::KURL("https://example.test"));
+
+  scoped_refptr<SecurityOrigin> opaque_origin =
+      context.GetWindow().GetSecurityOrigin()->DeriveNewOpaqueOrigin();
+  context.GetWindow().GetSecurityContext().SetSecurityOriginForTesting(
+      opaque_origin);
+
+  ASSERT_TRUE(context.GetWindow().GetSecurityOrigin()->IsOpaque());
+  ASSERT_TRUE(context.GetWindow().IsSecureContext());
+
+  LocalFrame::NotifyUserActivation(
+      &context.GetFrame(), mojom::UserActivationNotificationType::kTest);
+
+  ScopedWebIdentityDigitalCredentialsCreationForTest scoped_digital_credentials(
+      /*enabled=*/true);
+
+  ScriptState* script_state = context.GetScriptState();
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<IDLNullable<Credential>>>(
+          script_state);
+
+  CreateDigitalIdentityCredentialInExternalSource(resolver,
+                                                  *CreateValidCreateOptions());
+
+  ScriptPromiseTester tester(script_state, resolver->Promise());
+  tester.WaitUntilSettled();
+
+  ASSERT_TRUE(tester.IsRejected());
+  auto* dom_exception = V8DOMException::ToWrappable(script_state->GetIsolate(),
+                                                    tester.Value().V8Value());
+  ASSERT_TRUE(dom_exception);
+  EXPECT_EQ(dom_exception->name(), "NotAllowedError");
+  EXPECT_EQ(dom_exception->message(),
+            "The credential operation is not allowed in an opaque origin.");
 }
 
 }  // namespace blink

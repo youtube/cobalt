@@ -1,0 +1,19 @@
+Name: Dataflow (errorprone)
+Short Name: dataflow-errorprone
+URL: https://repo.maven.apache.org/maven2/io/github/eisop/dataflow-errorprone/3.41.0-eisop1/dataflow-errorprone-3.41.0-eisop1.jar
+Version: 3.41.0-eisop1
+Update Mechanism: Autoroll
+License: GNU General Public License, version 2 (GPL2), with the classpath exception
+License File: LICENSE
+CPEPrefix: unknown
+Security Critical: no
+Shipped: no
+
+Description:
+dataflow-errorprone is a dataflow framework based on the javac compiler. It differs from the org.checkerframework:dataflow artifact in two ways. First, the packages in this artifact have been renamed to org.checkerframework.errorprone.*. Second, unlike the dataflow artifact, this artifact contains the dependencies it requires.
+
+See also: https://eisop.github.io/
+
+
+Local Modifications:
+No modifications.

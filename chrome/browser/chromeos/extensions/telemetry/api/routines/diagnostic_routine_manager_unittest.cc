@@ -15,16 +15,16 @@
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "base/test/test_future.h"
 #include "base/types/expected.h"
 #include "base/uuid.h"
 #include "chrome/browser/chromeos/extensions/telemetry/api/routines/diagnostic_routine.h"
-#include "chrome/browser/chromeos/extensions/telemetry/api/routines/fake_diagnostic_routines_service.h"
-#include "chrome/browser/chromeos/extensions/telemetry/api/routines/fake_diagnostic_routines_service_factory.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
-#include "chromeos/ash/components/telemetry_extension/routines/telemetry_diagnostic_routine_service_ash.h"
+#include "chromeos/ash/components/mojo_service_manager/fake_mojo_service_manager.h"
+#include "chromeos/ash/services/cros_healthd/public/cpp/fake_cros_healthd.h"
 #include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/ssl_status.h"
@@ -67,19 +67,13 @@ class TelemetryExtensionDiagnosticRoutinesManagerTest
     : public BrowserWithTestWindowTest {
  public:
   void SetUp() override {
+    ash::cros_healthd::FakeCrosHealthd::Initialize();
     BrowserWithTestWindowTest::SetUp();
-
-    fake_routines_service_impl_ = new FakeDiagnosticRoutinesService();
-    fake_routines_service_factory_.SetCreateInstanceResponse(
-        std::unique_ptr<FakeDiagnosticRoutinesService>(
-            fake_routines_service_impl_.get()));
-    ash::TelemetryDiagnosticsRoutineServiceAsh::Factory::SetForTesting(
-        &fake_routines_service_factory_);
   }
 
   void TearDown() override {
-    fake_routines_service_impl_ = nullptr;
     BrowserWithTestWindowTest::TearDown();
+    ash::cros_healthd::FakeCrosHealthd::Shutdown();
   }
 
  protected:
@@ -125,10 +119,6 @@ class TelemetryExtensionDiagnosticRoutinesManagerTest
     return CHECK_DEREF(DiagnosticRoutineManager::Get(profile()));
   }
 
-  FakeDiagnosticRoutinesService& fake_service() {
-    return CHECK_DEREF(fake_routines_service_impl_.get());
-  }
-
   crosapi::TelemetryDiagnosticRoutineArgumentPtr GetMemoryArgument() {
     auto memory_arg = crosapi::TelemetryDiagnosticMemoryRoutineArgument::New();
     memory_arg->max_testing_mem_kib = 42;
@@ -159,8 +149,7 @@ class TelemetryExtensionDiagnosticRoutinesManagerTest
   }
 
  private:
-  raw_ptr<FakeDiagnosticRoutinesService> fake_routines_service_impl_;
-  FakeDiagnosticRoutinesServiceFactory fake_routines_service_factory_;
+  ash::mojo_service_manager::FakeMojoServiceManager fake_service_manager_;
 };
 
 TEST_F(TelemetryExtensionDiagnosticRoutinesManagerTest,
@@ -190,13 +179,20 @@ TEST_F(TelemetryExtensionDiagnosticRoutinesManagerTest, CreateRoutineSuccess) {
   EXPECT_TRUE(create_result.has_value());
   EXPECT_TRUE(app_ui_observers().contains(kExtensionId1));
 
-  auto* control = fake_service().GetCreatedRoutineControlForRoutineType(
-      crosapi::TelemetryDiagnosticRoutineArgument::Tag::kMemory);
+  ASSERT_TRUE(base::test::RunUntil([]() {
+    return ash::cros_healthd::FakeCrosHealthd::Get()
+        ->FakeCrosHealthd::GetRoutineControlForArgumentTag(
+            ash::cros_healthd::mojom::RoutineArgument::Tag::kMemory);
+  }));
+  auto* control =
+      ash::cros_healthd::FakeCrosHealthd::Get()
+          ->FakeCrosHealthd::GetRoutineControlForArgumentTag(
+              ash::cros_healthd::mojom::RoutineArgument::Tag::kMemory);
   ASSERT_TRUE(control);
-  EXPECT_TRUE(control->receiver().is_bound());
+  EXPECT_TRUE(control->GetReceiver()->is_bound());
 
   base::test::TestFuture<void> future;
-  control->receiver().set_disconnect_handler(future.GetCallback());
+  control->GetReceiver()->set_disconnect_handler(future.GetCallback());
 
   // Closing the tab cuts the observation.
   browser()->tab_strip_model()->CloseWebContentsAt(0,
@@ -235,9 +231,9 @@ TEST_F(TelemetryExtensionDiagnosticRoutinesManagerTest,
   auto create_result_id2 =
       routine_manager().CreateRoutine(kExtensionId2, GetMemoryArgument());
 
-  EXPECT_TRUE(create_result_id2.has_value());
   EXPECT_TRUE(app_ui_observers().contains(kExtensionId1));
   EXPECT_TRUE(app_ui_observers().contains(kExtensionId2));
+  EXPECT_TRUE(create_result_id2.has_value());
 
   // Close the app UI of extension 1.
   browser()->tab_strip_model()->CloseWebContentsAt(1,
@@ -300,16 +296,27 @@ TEST_F(TelemetryExtensionDiagnosticRoutinesManagerTest,
 
   EXPECT_TRUE(create_result.has_value());
   EXPECT_TRUE(app_ui_observers().contains(kExtensionId1));
-  auto* control = fake_service().GetCreatedRoutineControlForRoutineType(
-      crosapi::TelemetryDiagnosticRoutineArgument::Tag::kMemory);
-  EXPECT_TRUE(control);
+
+  ASSERT_TRUE(base::test::RunUntil([]() {
+    return ash::cros_healthd::FakeCrosHealthd::Get()
+        ->FakeCrosHealthd::GetRoutineControlForArgumentTag(
+            ash::cros_healthd::mojom::RoutineArgument::Tag::kMemory);
+  }));
+
+  auto* control =
+      ash::cros_healthd::FakeCrosHealthd::Get()
+          ->FakeCrosHealthd::GetRoutineControlForArgumentTag(
+              ash::cros_healthd::mojom::RoutineArgument::Tag::kMemory);
+  ASSERT_TRUE(control);
   base::test::TestFuture<void> future;
-  control->receiver().set_disconnect_handler(future.GetCallback());
+  control->GetReceiver()->set_disconnect_handler(future.GetCallback());
 
   ASSERT_TRUE(extensions::ExtensionRegistry::Get(profile())->RemoveEnabled(
       kExtensionId1));
   extensions::ExtensionRegistry::Get(profile())->TriggerOnUnloaded(
       extension.get(), extensions::UnloadedExtensionReason::TERMINATE);
+
+  EXPECT_TRUE(future.Wait());
 
   auto create_result_2 =
       routine_manager().CreateRoutine(kExtensionId1, GetMemoryArgument());
@@ -318,7 +325,6 @@ TEST_F(TelemetryExtensionDiagnosticRoutinesManagerTest,
       create_result_2,
       base::unexpected(DiagnosticRoutineManager::Error::kExtensionUnloaded));
   EXPECT_FALSE(app_ui_observers().contains(kExtensionId1));
-  EXPECT_TRUE(future.Wait());
 }
 
 TEST_F(TelemetryExtensionDiagnosticRoutinesManagerTest,

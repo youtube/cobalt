@@ -168,7 +168,7 @@ class MockPasswordManagerClient
 
   MOCK_METHOD(bool,
               IsSavingAndFillingEnabled,
-              (const GURL&),
+              (const url::Origin&, base::optional_ref<const GURL>),
               (const, override));
 
   MOCK_METHOD(std::unique_ptr<device_reauth::DeviceAuthenticator>,
@@ -934,7 +934,8 @@ TEST_F(PasswordAccessoryControllerTest, AddsSaveToggleIfIsBlocklisted) {
   cache()->SaveCredentialsAndBlocklistedForOrigin(
       {}, CredentialCache::IsOriginBlocklisted(true), std::nullopt,
       url::Origin::Create(GURL(kExampleSite)));
-  ON_CALL(*password_client(), IsSavingAndFillingEnabled(GURL(kExampleSite)))
+  ON_CALL(*password_client(),
+          IsSavingAndFillingEnabled(url::Origin::Create(GURL(kExampleSite)), _))
       .WillByDefault(Return(true));
 
   EXPECT_CALL(filling_source_observer_,
@@ -958,7 +959,8 @@ TEST_F(PasswordAccessoryControllerTest,
 
   // Simulate saving being disabled (e.g. being in incognito or having password
   // saving disabled from settings).
-  ON_CALL(*password_client(), IsSavingAndFillingEnabled(GURL(kExampleSite)))
+  ON_CALL(*password_client(),
+          IsSavingAndFillingEnabled(url::Origin::Create(GURL(kExampleSite)), _))
       .WillByDefault(Return(false));
 
   cache()->SaveCredentialsAndBlocklistedForOrigin(
@@ -986,7 +988,8 @@ TEST_F(PasswordAccessoryControllerTest, AddsSaveToggleIfWasBlocklisted) {
   cache()->SaveCredentialsAndBlocklistedForOrigin(
       {}, CredentialCache::IsOriginBlocklisted(false), std::nullopt,
       url::Origin::Create(GURL(kExampleSite)));
-  ON_CALL(*password_client(), IsSavingAndFillingEnabled(GURL(kExampleSite)))
+  ON_CALL(*password_client(),
+          IsSavingAndFillingEnabled(url::Origin::Create(GURL(kExampleSite)), _))
       .WillByDefault(Return(true));
 
   EXPECT_CALL(filling_source_observer_,
@@ -1009,7 +1012,8 @@ TEST_F(PasswordAccessoryControllerTest, AddsSaveToggleOnAnyFieldIfBlocked) {
   cache()->SaveCredentialsAndBlocklistedForOrigin(
       {}, CredentialCache::IsOriginBlocklisted(true), std::nullopt,
       url::Origin::Create(GURL(kExampleSite)));
-  ON_CALL(*password_client(), IsSavingAndFillingEnabled(GURL(kExampleSite)))
+  ON_CALL(*password_client(),
+          IsSavingAndFillingEnabled(url::Origin::Create(GURL(kExampleSite)), _))
       .WillByDefault(Return(true));
 
   EXPECT_CALL(filling_source_observer_,
@@ -1038,7 +1042,8 @@ TEST_F(PasswordAccessoryControllerTest,
   cache()->SaveCredentialsAndBlocklistedForOrigin(
       {}, CredentialCache::IsOriginBlocklisted(true), std::nullopt,
       url::Origin::Create(GURL(kExampleSite)));
-  ON_CALL(*password_client(), IsSavingAndFillingEnabled(GURL(kExampleSite)))
+  ON_CALL(*password_client(),
+          IsSavingAndFillingEnabled(url::Origin::Create(GURL(kExampleSite)), _))
       .WillByDefault(Return(true));
 
   EXPECT_CALL(filling_source_observer_,
@@ -1063,7 +1068,8 @@ TEST_F(PasswordAccessoryControllerTest, NoAccessoryImpressionsIfUnblocklisted) {
       {}, CredentialCache::IsOriginBlocklisted(false), std::nullopt,
       url::Origin::Create(GURL(kExampleSite)));
 
-  ON_CALL(*password_client(), IsSavingAndFillingEnabled(GURL(kExampleSite)))
+  ON_CALL(*password_client(),
+          IsSavingAndFillingEnabled(url::Origin::Create(GURL(kExampleSite)), _))
       .WillByDefault(Return(true));
   EXPECT_CALL(filling_source_observer_,
               Run(controller(), IsFillingSourceAvailable(true)));

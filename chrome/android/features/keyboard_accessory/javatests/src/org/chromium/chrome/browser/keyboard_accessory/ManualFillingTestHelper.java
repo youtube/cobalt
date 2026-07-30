@@ -473,42 +473,6 @@ public class ManualFillingTestHelper {
     // Generic helpers to match, check or wait for views.
     // --------------------------------------------------
 
-    /**
-     * Use in a |onView().perform| action to select the tab at |tabIndex| for the found tab layout.
-     *
-     * @param tabIndex The index to be selected.
-     * @return The action executed by |perform|.
-     */
-    public static ViewAction selectTabAtPosition(int tabIndex) {
-        return new ViewAction() {
-            @Override
-            public Matcher<View> getConstraints() {
-                return allOf(
-                        isDisplayed(), isAssignableFrom(KeyboardAccessoryButtonGroupView.class));
-            }
-
-            @Override
-            public String getDescription() {
-                return "with tab at index " + tabIndex;
-            }
-
-            @Override
-            public void perform(UiController uiController, View view) {
-                KeyboardAccessoryButtonGroupView buttonGroupView =
-                        (KeyboardAccessoryButtonGroupView) view;
-                if (tabIndex >= buttonGroupView.getButtons().size()) {
-                    throw new PerformException.Builder()
-                            .withActionDescription(getDescription())
-                            .withViewDescription(HumanReadables.describe(view))
-                            .withCause(new Throwable("No button at index " + tabIndex))
-                            .build();
-                }
-                PostTask.runOrPostTask(
-                        TaskTraits.UI_DEFAULT,
-                        () -> buttonGroupView.getButtons().get(tabIndex).performClick());
-            }
-        };
-    }
 
     /**
      * Use in a |onView().perform| action to select the tab at |tabIndex| for the found tab layout.

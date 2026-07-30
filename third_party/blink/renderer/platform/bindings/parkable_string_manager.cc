@@ -10,6 +10,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/post_delayed_memory_reduction_task.h"
+#include "base/memory_coordinator/utils.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/task/single_thread_task_runner.h"
@@ -47,6 +48,25 @@ struct ParkableStringManager::Statistics {
 };
 
 namespace {
+
+constexpr char kConsumerName[] = "ParkableStringManager";
+
+constexpr base::MemoryConsumerTraits kMemoryConsumerTraits(
+    // Parkable strings typically save tens of MBs across a renderer process.
+    base::MemoryConsumerTraits::EstimatedMemoryUsage::kMedium,
+    // Compressing unparked strings iterates over existing memory allocations.
+    base::MemoryConsumerTraits::ReleaseMemoryCost::kRequiresTraversal,
+    // Parking compresses strings or writes them to disk without losing user
+    // data.
+    base::MemoryConsumerTraits::InformationRetention::kLossless,
+    // Required because the consumer registers via
+    // AsyncMemoryConsumerRegistration.
+    base::MemoryConsumerTraits::ExecutionType::kAsynchronous,
+    // ParkableStringManager does not maintain a target memory limit.
+    base::MemoryConsumerTraits::SupportsMemoryLimit::kNo,
+    // Performs a one-time purge on critical pressure instead of maintaining a
+    // lasting limit.
+    base::MemoryConsumerTraits::IsStateful::kNo);
 
 bool CompressionEnabled() {
   return base::FeatureList::IsEnabled(features::kCompressParkableStrings);
@@ -444,10 +464,13 @@ void ParkableStringManager::ScheduleAgingTaskIfNeeded() {
   has_pending_aging_task_ = true;
 }
 
-void ParkableStringManager::OnMemoryPressure(
-    base::MemoryPressureLevel memory_pressure_level) {
+void ParkableStringManager::OnUpdateMemoryLimit() {
+  // ParkableStringManager does not maintain a maximum size limit.
+}
+
+void ParkableStringManager::OnReleaseMemory() {
   DCHECK(IsMainThread());
-  if (memory_pressure_level != base::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+  if (memory_limit() > base::kCriticalMemoryPressureThreshold) {
     return;
   }
   if (!CompressionEnabled()) {
@@ -538,8 +561,9 @@ void ParkableStringManager::AssertRemoved(ParkableStringImpl* string) {
 void ParkableStringManager::ResetForTesting() {
   has_pending_aging_task_ = false;
   has_posted_unparking_time_accounting_task_ = false;
-  memory_pressure_listener_registration_.emplace(
-      FROM_HERE, base::MemoryPressureListenerTag::kParkableStringManager, this);
+  memory_consumer_registration_.emplace(
+      kConsumerName, kMemoryConsumerTraits, this,
+      base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled);
   total_unparking_time_ = base::TimeDelta();
   total_parking_thread_time_ = base::TimeDelta();
   total_disk_read_time_ = base::TimeDelta();
@@ -582,11 +606,12 @@ bool ParkableStringManager::IsOnDiskMapForTesting(ParkableStringImpl* string) {
 ParkableStringManager::ParkableStringManager()
     : task_runner_(Thread::MainThread()->GetTaskRunner(
           MainThreadTaskRunnerRestricted())),
-      memory_pressure_listener_registration_(
+      memory_consumer_registration_(
           std::in_place,
-          FROM_HERE,
-          base::MemoryPressureListenerTag::kParkableStringManager,
-          this) {
+          kConsumerName,
+          kMemoryConsumerTraits,
+          this,
+          base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled) {
   // Should unregister in the destructor, but `this` is a NoDestructor static
   // local.
   ThreadScheduler::Current()->ToMainThreadScheduler()->AddRAILModeObserver(

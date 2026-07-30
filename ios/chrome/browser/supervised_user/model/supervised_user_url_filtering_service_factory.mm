@@ -8,7 +8,7 @@
 
 #import "base/check_deref.h"
 #import "components/supervised_user/core/browser/device_parental_controls_url_filter.h"
-#import "components/supervised_user/core/browser/kids_chrome_management_url_checker_client.h"
+#import "components/supervised_user/core/browser/supervised_user_url_checker_client.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/supervised_user/model/supervised_user_service_factory.h"
 #import "ios/chrome/browser/supervised_user/model/supervised_user_service_platform_delegate.h"
@@ -50,7 +50,7 @@ SupervisedUserUrlFilteringServiceFactory::BuildServiceInstanceFor(
       CHECK_DEREF(SupervisedUserServiceFactory::GetForProfile(profile)),
       std::make_unique<DeviceParentalControlsUrlFilter>(
           GetApplicationContext()->GetDeviceParentalControls(),
-          std::make_unique<KidsChromeManagementURLCheckerClient>(
+          std::make_unique<SupervisedUserUrlCheckerClient>(
               GetApplicationContext()->GetSharedURLLoaderFactory(),
               platform_delegate.GetCountryCode(),
               platform_delegate.GetChannel())));

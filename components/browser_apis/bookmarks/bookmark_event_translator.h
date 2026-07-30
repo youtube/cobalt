@@ -16,6 +16,7 @@
 namespace bookmarks {
 class BookmarkModel;
 class BookmarkNode;
+class ManagedBookmarkService;
 }  // namespace bookmarks
 
 namespace bookmarks_api {
@@ -33,12 +34,25 @@ class BookmarkEventTranslator : public bookmarks::BookmarkModelObserver {
   };
 
   BookmarkEventTranslator(bookmarks::BookmarkModel* model,
+                          bookmarks::ManagedBookmarkService* managed,
                           Subscriber* subscriber);
   BookmarkEventTranslator(const BookmarkEventTranslator&) = delete;
   BookmarkEventTranslator& operator=(const BookmarkEventTranslator&) = delete;
   ~BookmarkEventTranslator() override;
 
   static mojom::BookmarkNodePtr ConvertNode(
+      bookmarks::BookmarkModel* model,
+      bookmarks::ManagedBookmarkService* managed,
+      const bookmarks::BookmarkNode* node);
+
+  static mojom::RootNodePtr ConvertRootNode(
+      bookmarks::BookmarkModel* model,
+      bookmarks::ManagedBookmarkService* managed,
+      const bookmarks::BookmarkNode* node);
+
+  static mojom::FolderPtr ConvertFolderNode(
+      bookmarks::BookmarkModel* model,
+      bookmarks::ManagedBookmarkService* managed,
       const bookmarks::BookmarkNode* node);
 
   // bookmarks::BookmarkModelObserver:
@@ -62,13 +76,16 @@ class BookmarkEventTranslator : public bookmarks::BookmarkModelObserver {
       const bookmarks::BookmarkNode* node) override;
   void BookmarkAllUserNodesRemoved(const std::set<GURL>& removed_urls,
                                    const base::Location& location) override;
+  void ExtensiveBookmarkChangesBeginning() override;
+  void ExtensiveBookmarkChangesEnded() override;
 
  private:
   void RefreshFoldersSnapshot();
   void PopulateFoldersSnapshot(const bookmarks::BookmarkNode* node);
-  void Notify(const std::vector<mojom::BookmarksEventPtr>& events);
+  void Notify(std::vector<mojom::BookmarksEventPtr> events);
 
   raw_ptr<bookmarks::BookmarkModel> model_;
+  raw_ptr<bookmarks::ManagedBookmarkService> managed_;
   raw_ptr<Subscriber> subscriber_;
   // A snapshot of the folder structure (mapping folder UUID to its children's
   // UUIDs) used to detect changes (adds, removes, moves) in the bookmark model.
@@ -76,6 +93,8 @@ class BookmarkEventTranslator : public bookmarks::BookmarkModelObserver {
   // performs several move operations at once. We need to keep an old snapshot
   // to compute individual move events.
   std::map<base::Uuid, std::vector<base::Uuid>> folders_snapshot_;
+
+  std::vector<mojom::BookmarksEventPtr> queued_events_;
 };
 
 }  // namespace bookmarks_api

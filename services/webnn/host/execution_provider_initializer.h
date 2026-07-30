@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "base/component_export.h"
 #include "base/containers/flat_map.h"
 #include "base/functional/callback.h"
 #include "services/webnn/public/mojom/ep_package_info.mojom.h"
@@ -17,6 +18,7 @@ namespace webnn {
 // backend and retrieves their package info after they get ready. This call will
 // trigger the installation of the EPs that are supported on the platform if
 // they are not present.
+COMPONENT_EXPORT(WEBNN_HOST)
 void EnsureExecutionProvidersReady(
     base::OnceCallback<
         void(base::flat_map<std::string, mojom::EpPackageInfoPtr>)> callback);

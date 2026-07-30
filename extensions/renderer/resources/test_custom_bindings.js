@@ -657,23 +657,73 @@ resolve. Instead, use `await assertPromiseRejects(...)` or \
     chromeTest.assertEq(expectedError, chrome.runtime.lastError.message);
   });
 
-  apiFunctions.setHandleRequest('assertThrows',
-                                function(fn, self, args, message) {
-    chromeTest.assertTrue(typeof fn == 'function');
-    try {
-      fn.apply(self, args);
-      failInternal(`Did not throw error: ${fn}`);
-    } catch (e) {
-      if (e != kFailureException && message !== undefined) {
-        if (message instanceof RegExp) {
-          chromeTest.assertTrue(message.test(e.message),
-                                e.message + ' should match ' + message)
-        } else {
-          chromeTest.assertEq(message, e.message);
-        }
-      }
+  /**
+   * Helper function to check if the thrown error matches the expected error.
+   *
+   * @param {Error} e The thrown error object.
+   * @param {string|RegExp|null|undefined} expectedError The expected error. If
+   *     it's a string, it checks for exact match with the error message. If
+   *     it's a RegExp, it tests the error message. If it's null or undefined,
+   *     no check is performed.
+   * @param {string=} customMessage An optional custom message to prepend to
+   *     the failure message.
+   */
+  function checkThrownError(e, expectedError, customMessage) {
+    if (e === kFailureException) {
+      return;
     }
-  });
+    if (expectedError === undefined || expectedError === null) {
+      return;
+    }
+
+    const actualMessage =
+        (e && typeof e === 'object' && 'message' in e) ? e.message : String(e);
+
+    if (expectedError instanceof RegExp) {
+      let failMessage = `${actualMessage} should match ${expectedError}`;
+      if (customMessage) {
+        failMessage = `${customMessage}\n${failMessage}`;
+      }
+      chromeTest.assertTrue(expectedError.test(actualMessage), failMessage);
+      return;
+    }
+
+    if (actualMessage !== expectedError) {
+      let baseMessage =
+          `Expected error: "${expectedError}", actual: "${actualMessage}"`;
+      let failMessage =
+          customMessage ? `${customMessage}\n${baseMessage}` : baseMessage;
+      failInternal(failMessage);
+    }
+  }
+
+  apiFunctions.setHandleRequest(
+      'assertThrows', function(fn, expectedError, message) {
+        chromeTest.assertTrue(typeof fn == 'function');
+        let thrownError;
+        let threw = false;
+        try {
+          fn();
+        } catch (e) {
+          thrownError = e;
+          threw = true;
+        }
+
+        // We need both `threw` and `thrownError` because JavaScript allows
+        // throwing any value, including falsy ones like `undefined` or `null`.
+        // If we only checked `thrownError`, throwing a falsy value would be
+        // indistinguishable from not throwing at all.
+        if (!threw) {
+          let failMessage = `Did not throw error: ${fn}`;
+          if (message) {
+            failMessage = `${message}\n${failMessage}`;
+          }
+          failInternal(failMessage);
+          return;
+        }
+
+        checkThrownError(thrownError, expectedError, message);
+      });
 
   apiFunctions.setHandleRequest('loadScript', function(scriptUrl) {
     // Note: Importing scripts is different depending on if this script is

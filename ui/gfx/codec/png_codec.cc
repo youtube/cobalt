@@ -9,7 +9,6 @@
 #include <optional>
 
 #include "base/logging.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "third_party/skia/include/codec/SkPngRustDecoder.h"
@@ -102,8 +101,6 @@ std::optional<PreparationOutput> PrepareForPNGDecode(
 std::optional<PNGCodec::DecodeOutput> PNGCodec::Decode(
     base::span<const uint8_t> input,
     ColorFormat format) {
-  SCOPED_UMA_HISTOGRAM_TIMER_MICROS("ImageDecoder.Png.UiGfxIntoVector");
-
   std::optional<PreparationOutput> preparation_output =
       PrepareForPNGDecode(input, format);
   if (!preparation_output) {
@@ -131,8 +128,6 @@ std::optional<PNGCodec::DecodeOutput> PNGCodec::Decode(
 }
 
 SkBitmap PNGCodec::Decode(base::span<const uint8_t> input) {
-  SCOPED_UMA_HISTOGRAM_TIMER_MICROS("ImageDecoder.Png.UiGfxIntoSkBitmap");
-
   std::optional<PreparationOutput> preparation_output =
       PrepareForPNGDecode(input, FORMAT_SkBitmap);
   if (!preparation_output) {

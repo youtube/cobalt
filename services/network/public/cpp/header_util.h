@@ -41,7 +41,9 @@ bool AreRequestHeadersSafe(const net::HttpRequestHeaders& request_headers);
 // to prevent a compromised renderer from spoofing critical security headers,
 // which is outside the standard Fetch specification.
 COMPONENT_EXPORT(NETWORK_CPP)
-bool ContainsForbiddenSecurityHeader(net::HttpRequestHeaders& headers);
+bool ContainsForbiddenSecurityHeader(
+    net::HttpRequestHeaders& headers,
+    std::string* out_forbidden_header_name = nullptr);
 
 // Parses the referrer policy header if present. Returns
 // mojom::ReferrerPolicy::kDefault if the header is absent.

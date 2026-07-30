@@ -78,6 +78,23 @@ class TestSigninClient : public SigninClient {
     cookie_manager_ = std::move(cookie_manager);
   }
 
+  network::mojom::DeviceBoundSessionManager* GetDeviceBoundSessionManager()
+      const override;
+  void set_device_bound_session_manager(
+      network::mojom::DeviceBoundSessionManager* device_bound_session_manager) {
+    device_bound_session_manager_ = device_bound_session_manager;
+  }
+
+  using BoundSessionOAuthMultiLoginDelegateFactory = base::RepeatingCallback<
+      std::unique_ptr<signin::BoundSessionOAuthMultiLoginDelegate>()>;
+  void set_bound_session_oauth_multilogin_delegate_factory(
+      BoundSessionOAuthMultiLoginDelegateFactory factory) {
+    bound_session_oauth_multilogin_delegate_factory_ = std::move(factory);
+  }
+
+  std::unique_ptr<signin::BoundSessionOAuthMultiLoginDelegate>
+  CreateBoundSessionOAuthMultiloginDelegate() const override;
+
   network::mojom::NetworkContext* GetNetworkContext() override;
 
   // Returns |test_url_loader_factory_| if it is specified. Otherwise, lazily
@@ -129,6 +146,10 @@ class TestSigninClient : public SigninClient {
   raw_ptr<PrefService> pref_service_;
   std::unique_ptr<network::mojom::CookieManager> cookie_manager_;
   std::unique_ptr<network::mojom::NetworkContext> network_context_;
+  raw_ptr<network::mojom::DeviceBoundSessionManager>
+      device_bound_session_manager_ = nullptr;
+  BoundSessionOAuthMultiLoginDelegateFactory
+      bound_session_oauth_multilogin_delegate_factory_;
   bool are_signin_cookies_allowed_;
   bool are_signin_cookies_deleted_on_exit_ = false;
 

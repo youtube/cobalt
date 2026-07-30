@@ -47,6 +47,7 @@ class SecurityKeyAuthHandlerMojo : public SecurityKeyAuthHandler,
                           const std::string& response) override;
   void SendErrorAndCloseConnection(int security_key_connection_id) override;
   void SetSendMessageCallback(const SendMessageCallback& callback) override;
+  base::WeakPtr<SecurityKeyAuthHandler> GetWeakPtr() override;
   size_t GetActiveConnectionCountForTest() const override;
   void SetRequestTimeoutForTest(base::TimeDelta timeout) override;
 

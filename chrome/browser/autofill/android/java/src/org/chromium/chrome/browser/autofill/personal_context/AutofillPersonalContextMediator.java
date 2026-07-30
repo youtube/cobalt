@@ -5,7 +5,6 @@
 package org.chromium.chrome.browser.autofill.personal_context;
 
 import static org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextProperties.ON_MANAGE_CONNECTED_APPS_CLICKED;
-import static org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextProperties.ON_MANAGE_SUGGESTIONS_CLICKED;
 import static org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextProperties.ON_PERSONAL_CONTEXT_TOGGLE_CHANGED;
 import static org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextProperties.PERSONAL_CONTEXT_ENABLED;
 
@@ -34,7 +33,6 @@ class AutofillPersonalContextMediator {
                 new PropertyModel.Builder(AutofillPersonalContextProperties.ALL_KEYS)
                         .with(ON_PERSONAL_CONTEXT_TOGGLE_CHANGED, this::onToggleStatusChanged)
                         .with(ON_MANAGE_CONNECTED_APPS_CLICKED, this::onManageConnectedAppsClicked)
-                        .with(ON_MANAGE_SUGGESTIONS_CLICKED, this::onManageSuggestionsClicked)
                         .build();
 
         EntityDataManager manager = EntityDataManagerFactory.getForProfile(mProfile);
@@ -62,11 +60,5 @@ class AutofillPersonalContextMediator {
         AutofillUiUtils.openLink(
                 mContext, EntityDataManager.getPersonalContextManageConnectedAppsUrl());
         RecordUserAction.record(AutofillPersonalContextFragment.ACTION_MANAGE_CONNECTED_APPS);
-    }
-
-    private void onManageSuggestionsClicked() {
-        AutofillUiUtils.openLink(
-                mContext, EntityDataManager.getPersonalContextManageSuggestionsUrl());
-        RecordUserAction.record(AutofillPersonalContextFragment.ACTION_MANAGE_SUGGESTIONS);
     }
 }

@@ -48,8 +48,10 @@ chrome.test.runTests([
     div.value = 'Test text';
     document.body.appendChild(div);
 
+    // Verify `getTextInfo` throws when passed a non-textarea element.
     await chrome.test.assertThrows(
-        chrome.pdfViewerPrivate.getTextInfo, [div, []],
+        chrome.pdfViewerPrivate.getTextInfo.bind(
+            null, div, /* knownFontIds */[]),
         new RegExp('Value must be an instance of HTMLTextAreaElement'));
 
     chrome.test.succeed();
@@ -60,16 +62,20 @@ chrome.test.runTests([
     textarea.value = 'Test text';
     document.body.appendChild(textarea);
 
+    // Verify `getTextInfo` throws when called with no arguments.
     await chrome.test.assertThrows(
-        chrome.pdfViewerPrivate.getTextInfo, [],
+        chrome.pdfViewerPrivate.getTextInfo.bind(null),
         new RegExp('No matching signature'));
 
+    // Verify `getTextInfo` throws when called with missing second argument.
     await chrome.test.assertThrows(
-        chrome.pdfViewerPrivate.getTextInfo, [textarea],
+        chrome.pdfViewerPrivate.getTextInfo.bind(null, textarea),
         new RegExp('No matching signature'));
 
+    // Verify `getTextInfo` throws when called with extra third argument.
     await chrome.test.assertThrows(
-        chrome.pdfViewerPrivate.getTextInfo, [textarea, [], 123],
+        chrome.pdfViewerPrivate.getTextInfo.bind(
+            null, textarea, /* knownFontIds */[], /* callback */ 123),
         new RegExp('No matching signature'));
 
     chrome.test.succeed();
@@ -80,16 +86,22 @@ chrome.test.runTests([
     textarea.value = 'Test text';
     document.body.appendChild(textarea);
 
+    // Verify `getTextInfo` throws when second argument is an integer instead of
+    // array.
     await chrome.test.assertThrows(
-        chrome.pdfViewerPrivate.getTextInfo, [textarea, 1337],
+        chrome.pdfViewerPrivate.getTextInfo.bind(
+            null, textarea, /* knownFontIds */ 1337),
         new RegExp('No matching signature'));
 
     await chrome.test.assertPromiseRejects(
-        chrome.pdfViewerPrivate.getTextInfo(textarea, [-10]),
+        chrome.pdfViewerPrivate.getTextInfo(textarea, /* knownFontIds */[-10]),
         new RegExp('elements must be uint32'));
 
+    // Verify `getTextInfo` throws when array element is an array instead of
+    // integer.
     await chrome.test.assertThrows(
-        chrome.pdfViewerPrivate.getTextInfo, [textarea, [10, []]],
+        chrome.pdfViewerPrivate.getTextInfo.bind(
+            null, textarea, /* knownFontIds */[10, []]),
         new RegExp('Invalid type: expected integer'));
 
     chrome.test.succeed();

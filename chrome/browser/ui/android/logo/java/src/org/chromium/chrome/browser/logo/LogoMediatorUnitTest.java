@@ -47,6 +47,7 @@ import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.util.ColorUtils;
 
 /** Unit tests for the {@link LogoMediator}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -197,7 +198,14 @@ public class LogoMediatorUnitTest {
     public void testLoadAnimatedLogoFromCache() {
         LogoMediator logoMediator = createMediator();
         logoMediator.setHasLogoLoadedForCurrentSearchEngineForTesting(false);
-        Logo cachedLogo = new Logo(null, TEST_CLICK_URL, null, TEST_ANIMATED_LOGO_URL);
+        Logo cachedLogo =
+                new Logo(
+                        /* image= */ null,
+                        /* darkImage= */ null,
+                        /* onClickUrl= */ TEST_CLICK_URL,
+                        /* altText= */ null,
+                        /* animatedLogoUrl= */ TEST_ANIMATED_LOGO_URL,
+                        /* darkAnimatedLogoUrl= */ null);
         when(mDoodleCache.getCachedDoodle(any())).thenReturn(cachedLogo);
 
         var histogramWatcher =
@@ -215,6 +223,31 @@ public class LogoMediatorUnitTest {
         assertEquals(cachedLogo, mLogoModel.get(LogoProperties.LOGO));
         // Animation should be disabled when loading from cache
         Assert.assertFalse(mLogoModel.get(LogoProperties.ANIMATION_ENABLED));
+    }
+
+    @Test
+    public void testLoadAnimatedLogoFromCache_DarkMode() {
+        ColorUtils.setInNightModeForTesting(true);
+        try {
+            LogoMediator logoMediator = createMediator();
+            logoMediator.setHasLogoLoadedForCurrentSearchEngineForTesting(false);
+            Logo cachedLogo =
+                    new Logo(
+                            null,
+                            null,
+                            TEST_CLICK_URL,
+                            null,
+                            TEST_ANIMATED_LOGO_URL,
+                            "http://dark-animated-logo.com");
+            when(mDoodleCache.getCachedDoodle(any())).thenReturn(cachedLogo);
+
+            logoMediator.updateVisibility(/* animationEnabled= */ true);
+
+            assertEquals(
+                    "http://dark-animated-logo.com", logoMediator.getAnimatedLogoUrlForTesting());
+        } finally {
+            ColorUtils.setInNightModeForTesting(null);
+        }
     }
 
     @Test
@@ -378,6 +411,7 @@ public class LogoMediatorUnitTest {
     private LogoMediator createMediatorWithoutNative(@Nullable Drawable defaultGoogleLogoDrawable) {
         LogoMediator logoMediator =
                 new LogoMediator(
+                        mContext,
                         mLogoClickedCallback,
                         mLogoModel,
                         mOnLogoAvailableCallback,

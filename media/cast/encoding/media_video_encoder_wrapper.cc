@@ -337,10 +337,9 @@ void MediaVideoEncoderWrapper::OnComplexityEstimated(
 }
 
 // Inform the encoder about the new target bit rate.
-void MediaVideoEncoderWrapper::SetBitRate(int new_bit_rate) {
+void MediaVideoEncoderWrapper::SetBitRate(uint32_t new_bit_rate) {
   CHECK(cast_environment_->CurrentlyOn(CastEnvironment::ThreadId::kMain));
-  options_.bitrate =
-      Bitrate::ConstantBitrate(base::checked_cast<uint32_t>(new_bit_rate));
+  options_.bitrate = Bitrate::ConstantBitrate(new_bit_rate);
 
   // If this method is called before the encoder_ is constructed, the bitrate
   // will be set as part of construction.

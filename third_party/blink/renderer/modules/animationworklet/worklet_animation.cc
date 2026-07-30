@@ -611,7 +611,8 @@ bool WorkletAnimation::CanStartOnCompositor() {
       target, target.ComputedStyleRef(), target.ParentComputedStyle());
 
   CompositorAnimations::FailureReasons failure_reasons =
-      GetEffect()->CheckCanStartAnimationOnCompositor(nullptr, playback_rate_);
+      GetEffect()->CheckCanStartAnimationOnCompositor(
+          nullptr, playback_rate_, StartOnCompositorReason::kGeneric);
 
   if (failure_reasons != CompositorAnimations::kNoFailure)
     return false;

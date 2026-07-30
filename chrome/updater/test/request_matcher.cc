@@ -18,7 +18,6 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
-#include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/values.h"
 #include "base/version.h"
@@ -29,6 +28,7 @@
 #include "chrome/updater/updater_scope.h"
 #include "chrome/updater/util/util.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "third_party/re2/src/re2/re2.h"
 #include "url/gurl.h"
 
@@ -49,7 +49,8 @@ Matcher GetPathMatcher(const std::string& expected_path_regex) {
         if (!re2::RE2::FullMatch(request.relative_url, expected_path_regex)) {
           ADD_FAILURE() << "Request path [" << request.relative_url
                         << "], did not match expected path regex ["
-                        << expected_path_regex << "].";
+                        << expected_path_regex << "], request content: "
+                        << GetPrintableContent(request);
           return false;
         }
         return true;
@@ -268,8 +269,8 @@ Matcher GetMultipartContentMatcher(
       const std::string& form_name = form_expectation.name;
       if (re2::RE2::FindAndConsume(
               &input,
-              base::StringPrintf(R"(Content-Disposition: form-data; name="%s")",
-                                 form_name.c_str()))) {
+              absl::StrFormat(R"(Content-Disposition: form-data; name="%s")",
+                              form_name.c_str()))) {
         VLOG(3) << "Found form with name [" << form_name << "]";
       } else {
         ADD_FAILURE() << "Form [" << form_name << "] not found.";

@@ -422,7 +422,9 @@ void DWriteFontProxyImpl::MapCharacters(
           static_cast<DWRITE_FONT_STYLE>(font_style->font_slant),
           static_cast<DWRITE_FONT_STRETCH>(font_style->font_stretch),
           &result->mapped_length, &mapped_font, &result->scale))) {
-    CHECK(false, base::NotFatalUntil::M152);
+    // TODO(crbug.com/527094647): CHECK-exclusion: Convert to CHECK once we are
+    // sure this isn't hit.
+    DCHECK(false);
     return;
   }
 

@@ -26,7 +26,7 @@
 #include "components/os_crypt/async/common/algorithm.mojom.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
-#include "crypto/hkdf.h"
+#include "crypto/kdf.h"
 #include "dbus/bus.h"
 #include "dbus/message.h"
 #include "dbus/object_proxy.h"
@@ -35,8 +35,8 @@ namespace os_crypt_async {
 
 namespace {
 
-constexpr char kSaltForHkdf[] = "fdo_portal_secret_salt";
-constexpr char kInfoForHkdf[] = "HKDF-SHA-256 AES-256-GCM";
+constexpr std::string_view kSaltForHkdf = "fdo_portal_secret_salt";
+constexpr std::string_view kInfoForHkdf = "HKDF-SHA-256 AES-256-GCM";
 
 }  // namespace
 
@@ -197,8 +197,8 @@ void SecretPortalKeyProvider::ReceivedSecret() {
     return Finalize(InitStatus::kEmptySecret);
   }
 
-  auto hashed = crypto::HkdfSha256<Encryptor::Key::kAES256GCMKeySize>(
-      base::span(secret_), base::as_byte_span(kSaltForHkdf),
+  auto hashed = crypto::kdf::Hkdf<Encryptor::Key::kAES256GCMKeySize>(
+      crypto::hash::kSha256, secret_, base::as_byte_span(kSaltForHkdf),
       base::as_byte_span(kInfoForHkdf));
   secret_.clear();
 

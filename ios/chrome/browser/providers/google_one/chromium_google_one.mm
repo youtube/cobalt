@@ -27,5 +27,21 @@ void SetGoogleOneControllerFactory(id<GoogleOneControllerFactory> factory) {
   g_google_one_controller_factory = factory;
 }
 
+BOOL CanHandleGoogleOneURL(NSURL* url) {
+  if ([g_google_one_controller_factory
+          respondsToSelector:@selector(canHandleURL:)]) {
+    return [g_google_one_controller_factory canHandleURL:url];
+  }
+  return NO;
+}
+
+NSString* GoogleOneEmailFromURL(NSURL* url) {
+  if ([g_google_one_controller_factory
+          respondsToSelector:@selector(emailFromURL:)]) {
+    return [g_google_one_controller_factory emailFromURL:url];
+  }
+  return nil;
+}
+
 }  // namespace provider
 }  // namespace ios

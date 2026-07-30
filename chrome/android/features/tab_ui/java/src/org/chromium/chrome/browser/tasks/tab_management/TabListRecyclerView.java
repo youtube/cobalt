@@ -132,8 +132,13 @@ public class TabListRecyclerView extends RecyclerView
     }
 
     public void setupCustomItemAnimator() {
+        setupCustomItemAnimator(/* useClipAnimations= */ false);
+    }
+
+    public void setupCustomItemAnimator(boolean useClipAnimations) {
         if (mTabListItemAnimator == null) {
-            mTabListItemAnimator = new TabListItemAnimator(mIsAnimatorRunningSupplier);
+            mTabListItemAnimator =
+                    new TabListItemAnimator(mIsAnimatorRunningSupplier, useClipAnimations);
             setItemAnimator(mTabListItemAnimator);
         }
     }

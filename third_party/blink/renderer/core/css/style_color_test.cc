@@ -505,9 +505,13 @@ TEST_F(StyleColorTest, UnresolvedAlphaColor_Resolve) {
   UnresolvedAlphaColor* alpha_none = MakeGarbageCollected<UnresolvedAlphaColor>(
       StyleColor(red), none, length_resolver);
   Color resolved_none = alpha_none->Resolve(Color::kBlack);
-  // "none" alpha results in a missing alpha component, which serializes
-  // differently.
-  EXPECT_EQ(resolved_none.GetColorSpace(), red.GetColorSpace());
+  EXPECT_TRUE(resolved_none.AlphaIsNone());
+  // A legacy color space cannot represent a "none" alpha in its serialization,
+  // so the result is converted to the modern sRGB color space.
+  EXPECT_EQ(resolved_none.GetColorSpace(), Color::ColorSpace::kSRGB);
+  EXPECT_FLOAT_EQ(resolved_none.Param0(), 1.f);
+  EXPECT_FLOAT_EQ(resolved_none.Param1(), 0.f);
+  EXPECT_FLOAT_EQ(resolved_none.Param2(), 0.f);
 
   // alpha(from semiTransparentBlue / alpha) => preserves alpha from origin
   CSSValue* alpha_keyword = CSSIdentifierValue::Create(CSSValueID::kAlpha);

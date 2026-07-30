@@ -1,0 +1,4 @@
+include_rules = [
+  "+components/private_ai",
+  "+ios/chrome/browser/signin/model",
+]

@@ -185,6 +185,10 @@ BASE_FEATURE(kWebUsbDeviceDetection, base::FEATURE_ENABLED_BY_DEFAULT);
 // Build 14393) onwards.
 BASE_FEATURE(kBrowserDynamicCodeDisabled, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, the browser will run with isolation enabled on the next
+// restart.
+BASE_FEATURE(kIsolatedProcess, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // The Chrome DLL can be pre-read with ::PrefetchVirtualMemory() from the
 // browser or a child process. Pre-reading is supposed to bring the whole DLL in
 // physical memory more efficiently than a series of hard faults. However,

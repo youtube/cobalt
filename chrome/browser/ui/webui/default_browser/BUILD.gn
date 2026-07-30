@@ -50,6 +50,12 @@ if (is_win) {
     sources = [
       "guided_setter_overlay_window_win.cc",
       "guided_setter_overlay_window_win.h",
+      "settings_window_finder_win.cc",
+      "settings_window_finder_win.h",
+      "visual_guided_setter_controller_win.cc",
+      "visual_guided_setter_controller_win.h",
+      "visual_guided_setter_layout_utils.cc",
+      "visual_guided_setter_layout_utils.h",
       "visual_guided_setter_ui.cc",
       "visual_guided_setter_ui.h",
     ]
@@ -61,6 +67,7 @@ if (is_win) {
 
     deps = [
       "//chrome/app/theme:chrome_unscaled_resources",
+      "//chrome/browser/default_browser",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/resources/default_browser/visual_guided_setter:resources",
       "//chrome/browser/ui/dialogs",
@@ -68,6 +75,8 @@ if (is_win) {
       "//chrome/common",
       "//content/public/browser",
       "//ui/base/interaction",
+      "//ui/display",
+      "//ui/gfx/geometry",
       "//ui/views",
       "//ui/web_dialogs",
       "//ui/webui",
@@ -77,11 +86,19 @@ if (is_win) {
 
   source_set("unit_tests") {
     testonly = true
-    sources = [ "guided_setter_overlay_window_win_unittest.cc" ]
+
+    sources = [
+      "guided_setter_overlay_window_win_unittest.cc",
+      "settings_window_finder_win_unittest.cc",
+      "visual_guided_setter_controller_win_unittest.cc",
+      "visual_guided_setter_layout_utils_unittest.cc",
+    ]
+
     deps = [
       ":visual_guided_setter",
       "//base",
       "//base/test:test_support",
+      "//chrome/browser/default_browser",
       "//testing/gtest",
       "//ui/gfx",
       "//ui/views",

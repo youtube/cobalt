@@ -137,13 +137,13 @@ EmbeddedPermissionPromptBaseView::EmbeddedPermissionPromptBaseView(
 EmbeddedPermissionPromptBaseView::~EmbeddedPermissionPromptBaseView() {
   permissions::PermissionUmaUtil::RecordBrowserAlwaysActiveWhilePrompting(
       request_type(), /*embedded_permission_element_initiated*/ true,
-      record_browser_always_active_value());
+      record_host_always_active_value());
 }
 
 void EmbeddedPermissionPromptBaseView::Show() {
   permissions::PermissionUmaUtil::RecordPromptShownInActiveBrowser(
       request_type(), /*embedded_permission_element_initiated*/ true,
-      record_browser_always_active_value());
+      record_host_always_active_value());
   CreateWidget();
   ShowWidget();
 }

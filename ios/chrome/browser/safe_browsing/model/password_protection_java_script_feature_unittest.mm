@@ -4,9 +4,11 @@
 
 #import "ios/chrome/browser/safe_browsing/model/password_protection_java_script_feature.h"
 
+#import "base/test/scoped_feature_list.h"
 #import "base/time/time.h"
 #import "base/values.h"
 #import "ios/chrome/browser/safe_browsing/model/input_event_observer.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/web/public/js_messaging/script_message.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_task_environment.h"
@@ -27,10 +29,12 @@ class MockInputEventObserver : public InputEventObserver {
     on_paste_called_ = true;
     pasted_text_ = text;
   }
+  void OnPasteKeyDetected() override { on_paste_key_detected_called_ = true; }
   web::WebState* web_state() const override { return web_state_; }
 
   bool on_key_pressed_called_ = false;
   bool on_paste_called_ = false;
+  bool on_paste_key_detected_called_ = false;
   std::string pasted_text_;
   raw_ptr<web::WebState> web_state_;
 };
@@ -149,6 +153,158 @@ TEST_F(PasswordProtectionJavaScriptFeatureTest, KeyDownEventLengthCheck) {
                               /*request_url=*/std::nullopt, url::Origin());
   feature_->ScriptMessageReceived(&web_state_, message3);
   EXPECT_FALSE(observer_->on_key_pressed_called_);
+}
+
+// Tests that a paste key detected event is forwarded to the observer after the
+// coalescing timer.
+TEST_F(PasswordProtectionJavaScriptFeatureTest,
+       PasteKeyDetectedEventForwarded) {
+  base::Value body(base::DictValue().Set("eventType", "PasteKeyDetected"));
+
+  web::ScriptMessage message(std::make_unique<base::Value>(std::move(body)),
+                             /*is_user_interacting=*/true,
+                             /*is_main_frame=*/true,
+                             /*request_url=*/std::nullopt, url::Origin());
+
+  feature_->ScriptMessageReceived(&web_state_, message);
+
+  // Key event is queued, not yet forwarded.
+  EXPECT_FALSE(observer_->on_paste_key_detected_called_);
+
+  // Advance time by 100ms for the coalescing timer.
+  task_environment_.FastForwardBy(base::Milliseconds(100));
+
+  EXPECT_TRUE(observer_->on_paste_key_detected_called_);
+}
+
+// Tests that paste key detected events are rate limited.
+TEST_F(PasswordProtectionJavaScriptFeatureTest,
+       PasteKeyDetectedEventRateLimited) {
+  base::Value body1(base::DictValue().Set("eventType", "PasteKeyDetected"));
+
+  web::ScriptMessage message1(std::make_unique<base::Value>(std::move(body1)),
+                              /*is_user_interacting=*/true,
+                              /*is_main_frame=*/true,
+                              /*request_url=*/std::nullopt, url::Origin());
+  // First paste key event should be allowed and start the timer.
+  feature_->ScriptMessageReceived(&web_state_, message1);
+  EXPECT_FALSE(observer_->on_paste_key_detected_called_);
+
+  // Fast forward by 100ms. Timer fires.
+  task_environment_.FastForwardBy(base::Milliseconds(100));
+  EXPECT_TRUE(observer_->on_paste_key_detected_called_);
+  observer_->on_paste_key_detected_called_ = false;
+
+  // Second paste key event immediately after (elapsed 100ms since first)
+  // should be dropped.
+  base::Value body2(base::DictValue().Set("eventType", "PasteKeyDetected"));
+
+  web::ScriptMessage message2(std::make_unique<base::Value>(std::move(body2)),
+                              /*is_user_interacting=*/true,
+                              /*is_main_frame=*/true,
+                              /*request_url=*/std::nullopt, url::Origin());
+  feature_->ScriptMessageReceived(&web_state_, message2);
+  // Fast forward by 100ms. Timer should not fire since the event was dropped.
+  task_environment_.FastForwardBy(base::Milliseconds(100));
+  EXPECT_FALSE(observer_->on_paste_key_detected_called_);
+
+  // Advance time to 300ms since first event (elapsed > 200ms).
+  task_environment_.FastForwardBy(base::Milliseconds(100));
+
+  // Third paste key event should be allowed.
+  feature_->ScriptMessageReceived(&web_state_, message2);
+  task_environment_.FastForwardBy(base::Milliseconds(100));
+  EXPECT_TRUE(observer_->on_paste_key_detected_called_);
+}
+
+// Tests that paste key detected event is cancelled if a text pasted event
+// arrives within the coalescing window.
+TEST_F(PasswordProtectionJavaScriptFeatureTest,
+       PasteKeyDetectedAndTextPastedCoalescing) {
+  base::Value body1(base::DictValue().Set("eventType", "PasteKeyDetected"));
+
+  web::ScriptMessage message1(std::make_unique<base::Value>(std::move(body1)),
+                              /*is_user_interacting=*/true,
+                              /*is_main_frame=*/true,
+                              /*request_url=*/std::nullopt, url::Origin());
+
+  // Paste key event should be allowed and start timer.
+  feature_->ScriptMessageReceived(&web_state_, message1);
+  EXPECT_FALSE(observer_->on_paste_key_detected_called_);
+
+  // Text pasted event immediately after should cancel the timer and trigger
+  // OnPaste immediately.
+  base::Value body2(base::DictValue()
+                        .Set("eventType", "TextPasted")
+                        .Set("text", "password1"));
+
+  web::ScriptMessage message2(std::make_unique<base::Value>(std::move(body2)),
+                              /*is_user_interacting=*/true,
+                              /*is_main_frame=*/true,
+                              /*request_url=*/std::nullopt, url::Origin());
+
+  feature_->ScriptMessageReceived(&web_state_, message2);
+  EXPECT_TRUE(observer_->on_paste_called_);
+
+  // Fast forward 200ms to let any timer expire. OnPasteKeyDetected should
+  // NOT be called.
+  task_environment_.FastForwardBy(base::Milliseconds(200));
+  EXPECT_FALSE(observer_->on_paste_key_detected_called_);
+}
+
+// Tests that if the text pasted event arrives after the coalescing window
+// has expired (and UIPasteboard has already been read), the text pasted event
+// is ignored (rate limited).
+TEST_F(PasswordProtectionJavaScriptFeatureTest,
+       PasteKeyDetectedAndTextPastedLateArriving) {
+  base::Value body1(base::DictValue().Set("eventType", "PasteKeyDetected"));
+
+  web::ScriptMessage message1(std::make_unique<base::Value>(std::move(body1)),
+                              /*is_user_interacting=*/true,
+                              /*is_main_frame=*/true,
+                              /*request_url=*/std::nullopt, url::Origin());
+
+  // Paste key event starts the timer.
+  feature_->ScriptMessageReceived(&web_state_, message1);
+
+  // Fast forward 100ms. Timer expires and triggers OnPasteKeyDetected.
+  task_environment_.FastForwardBy(base::Milliseconds(100));
+  EXPECT_TRUE(observer_->on_paste_key_detected_called_);
+
+  // Text pasted event arrives 50ms later (total 150ms elapsed, which is < 200ms
+  // rate limit).
+  base::Value body2(base::DictValue()
+                        .Set("eventType", "TextPasted")
+                        .Set("text", "password1"));
+
+  web::ScriptMessage message2(std::make_unique<base::Value>(std::move(body2)),
+                              /*is_user_interacting=*/true,
+                              /*is_main_frame=*/true,
+                              /*request_url=*/std::nullopt, url::Origin());
+
+  feature_->ScriptMessageReceived(&web_state_, message2);
+  // It should be rate limited since we already processed the paste.
+  EXPECT_FALSE(observer_->on_paste_called_);
+}
+
+// Tests that paste key detected events are ignored when the feature flag is
+// disabled.
+TEST_F(PasswordProtectionJavaScriptFeatureTest, PasteKeyDetectedDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(kIOSPhishGuardPasteShortcutDetection);
+
+  base::Value body(base::DictValue().Set("eventType", "PasteKeyDetected"));
+  web::ScriptMessage message(std::make_unique<base::Value>(std::move(body)),
+                             /*is_user_interacting=*/true,
+                             /*is_main_frame=*/true,
+                             /*request_url=*/std::nullopt, url::Origin());
+
+  feature_->ScriptMessageReceived(&web_state_, message);
+
+  // Fast forward by 200ms (twice the timer duration). Timer should NOT fire,
+  // and OnPasteKeyDetected should NOT be called.
+  task_environment_.FastForwardBy(base::Milliseconds(200));
+  EXPECT_FALSE(observer_->on_paste_key_detected_called_);
 }
 
 }  // namespace

@@ -32,6 +32,7 @@
 
 #include "third_party/blink/renderer/platform/fonts/font_custom_platform_data.h"
 
+#include "base/containers/heap_array.h"
 #include "base/logging.h"
 #include "build/build_config.h"
 #include "third_party/blink/renderer/platform/fonts/font_cache.h"
@@ -93,7 +94,7 @@ FontCustomPlatformData::FontCustomPlatformData(PassKey,
 
 FontCustomPlatformData::~FontCustomPlatformData() {
   if (v8::Isolate* isolate = v8::Isolate::TryGetCurrent()) {
-    // Safe cast since WebFontDecoder has max decompressed size of 128MB.
+    // Safe cast since DecodedWebFont has max decompressed size of 128MB.
     external_memory_accounter_.Decrease(isolate, data_size_);
   }
 }
@@ -261,18 +262,19 @@ const FontPlatformData* FontCustomPlatformData::GetFontPlatformData(
       palette_index = palette_interpolation.RetrievePaletteIndex(palette);
     }
 
-    std::unique_ptr<SkFontArguments::Palette::Override[]> sk_overrides;
+    base::HeapArray<SkFontArguments::Palette::Override> sk_overrides;
     if (palette_index.has_value()) {
       sk_palette.index = *palette_index;
 
       if (color_overrides.size()) {
-        sk_overrides = std::make_unique<SkFontArguments::Palette::Override[]>(
-            color_overrides.size());
+        sk_overrides =
+            base::HeapArray<SkFontArguments::Palette::Override>::Uninit(
+                color_overrides.size());
         for (wtf_size_t i = 0; i < color_overrides.size(); i++) {
           SkColor sk_color = color_overrides[i].color.toSkColor4f().toSkColor();
-          UNSAFE_TODO(sk_overrides[i]) = {color_overrides[i].index, sk_color};
+          sk_overrides[i] = {color_overrides[i].index, sk_color};
         }
-        sk_palette.overrides = sk_overrides.get();
+        sk_palette.overrides = sk_overrides.data();
         sk_palette.overrideCount = color_overrides.size();
       }
 
@@ -326,13 +328,14 @@ FontCustomPlatformData* FontCustomPlatformData::Create(
     SharedBuffer* buffer,
     String& ots_parse_message) {
   DCHECK(buffer);
-  WebFontDecoder decoder;
-  sk_sp<SkTypeface> typeface = decoder.Decode(buffer);
-  if (!typeface) {
-    ots_parse_message = decoder.GetErrorString();
+  base::expected<DecodedWebFont, String> decode_result =
+      DecodedWebFont::Create(buffer);
+  if (!decode_result.has_value()) {
+    ots_parse_message = std::move(decode_result).error();
     return nullptr;
   }
-  return Create(std::move(typeface), decoder.DecodedSize());
+  return Create(std::move(decode_result->sk_typeface),
+                decode_result->decoded_size);
 }
 
 FontCustomPlatformData* FontCustomPlatformData::Create(

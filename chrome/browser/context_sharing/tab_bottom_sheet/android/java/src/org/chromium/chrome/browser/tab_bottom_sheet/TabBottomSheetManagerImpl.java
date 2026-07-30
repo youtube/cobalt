@@ -51,12 +51,14 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
                     if (mIsCloseFromNative) {
                         notifyOnClose();
                     } else {
+                        mSuppressedByBottomSheetController = !isInternallySuppressed();
                         mNativeInterfaceDelegate.onBottomSheetSuppressed();
                     }
                 }
 
                 @Override
                 public void onBottomSheetOpened(boolean isExpanded) {
+                    mSuppressedByBottomSheetController = false;
                     if (mNativeInterfaceDelegate == null) {
                         return;
                     }
@@ -105,12 +107,29 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
     private final TouchEventProvider mTouchEventProvider;
     private final CallbackController mCallbackController = new CallbackController();
 
+    // Indicates if tabBottomSheet was suppressed by entering the tab switcher.
     private boolean mIsSuppressedOnTabSwitcher;
+    // Indicates if tabBottomSheet was suppressed by entering the toolbar swipe.
     private boolean mIsSuppressedOnToolbarSwipe;
+    // Indicates if tabBottomSheet was suppressed by read aloud.
     private boolean mIsSuppressedByReadAloud;
+    // Indicates if tabBottomSheet was suppressed by the user entering incognito mode.
     private boolean mIsSuppressedByIncognito;
+    // Indicates if tabBottomSheet was suppressed by autofill keyboard accessory.
     private boolean mIsSuppressedByAutofill;
+    // Indicates if tabBottomSheet was suppressed by omnibox focus.
     private boolean mIsSuppressedByOmniboxFocus;
+    // Indicates if tabBottomSheet was suppressed by another bottom sheet.
+    private boolean mSuppressedByBottomSheetController;
+
+    private boolean isInternallySuppressed() {
+        return mIsSuppressedOnTabSwitcher
+                || mIsSuppressedOnToolbarSwipe
+                || mIsSuppressedByReadAloud
+                || mIsSuppressedByIncognito
+                || mIsSuppressedByAutofill
+                || mIsSuppressedByOmniboxFocus;
+    }
 
     private final NonNullObservableSupplier<Boolean> mOmniboxFocusStateSupplier;
     private final Callback<Boolean> mOmniboxFocusObserver =
@@ -276,12 +295,7 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
             mTabBottomSheetCoordinator.attachPeekView(mPeekView);
         }
 
-        if (mIsSuppressedOnTabSwitcher
-                || mIsSuppressedOnToolbarSwipe
-                || mIsSuppressedByReadAloud
-                || mIsSuppressedByIncognito
-                || mIsSuppressedByAutofill
-                || mIsSuppressedByOmniboxFocus) {
+        if (isInternallySuppressed()) {
             // We are currently suppressed, save this sheet to be shown when suppression ends.
             mNativeInterfaceDelegate = nativeInterfaceDelegate;
             if (mIsSuppressedByReadAloud && mReadAloudStopPlaybackCallback != null) {
@@ -309,7 +323,13 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
     @Override
     public void tryToCloseBottomSheet(boolean animate) {
         if (mTabBottomSheetCoordinator != null) {
-            if (!mTabBottomSheetCoordinator.isSheetShowing()) {
+            if (mSuppressedByBottomSheetController) {
+                // BottomSheet is closed but still in queue.
+                mSuppressedByBottomSheetController = false;
+                mIsCloseFromNative = true;
+                mTabBottomSheetCoordinator.closeBottomSheet(animate);
+                notifyOnClose();
+            } else if (!mTabBottomSheetCoordinator.isSheetShowing()) {
                 // The bottom sheet is already closed. just send a onClose event back to native.
                 notifyOnClose();
             } else {
@@ -426,6 +446,7 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
             layoutStateProvider.removeObserver(mLayoutStateObserver);
         }
 
+        mNativeInterfaceDelegate = null;
         TabBottomSheetUtils.detachManagerFromWindow(mWindowAndroid);
     }
 
@@ -462,13 +483,7 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
     }
 
     private void maybeShowBottomSheet() {
-        if (!mIsSuppressedOnTabSwitcher
-                && !mIsSuppressedOnToolbarSwipe
-                && !mIsSuppressedByReadAloud
-                && !mIsSuppressedByIncognito
-                && !mIsSuppressedByAutofill
-                && !mIsSuppressedByOmniboxFocus) {
-
+        if (!isInternallySuppressed()) {
             if (mTabBottomSheetCoordinator != null && mNativeInterfaceDelegate != null) {
                 if (!mTabBottomSheetCoordinator.tryToShowBottomSheet(
                         /* animate= */ false, /* startsExpanded= */ false)) {
@@ -508,6 +523,10 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
 
     public @Nullable NativeInterfaceDelegate getNativeInterfaceDelegateForTesting() {
         return mNativeInterfaceDelegate;
+    }
+
+    public void attachNativeInterfaceDelegateForTesting(NativeInterfaceDelegate delegate) {
+        mNativeInterfaceDelegate = delegate;
     }
 
     private boolean mSuppressBottomSheetForTesting;

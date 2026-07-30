@@ -526,7 +526,8 @@ typedef NS_ENUM(NSInteger, SectionIdentifier) {
                 manualFillButtonAccessibilityLabel:nil
         passwordManualFillButtonAccessibilityLabel:nil
       creditCardManualFillButtonAccessibilityLabel:nil
-         addressManualFillButtonAccessibilityLabel:nil];
+         addressManualFillButtonAccessibilityLabel:nil
+        atMemoryManualFillButtonAccessibilityLabel:nil];
 }
 
 - (void)fromInputAccessoryViewDidTapOmniboxTypingShield:

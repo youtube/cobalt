@@ -774,7 +774,6 @@ int Display::GetCurrentAllocatedBuffers() const {
 
 bool Display::DrawAndSwap(const DrawAndSwapParams& params) {
   TRACE_EVENT0("viz", "Display::DrawAndSwap");
-  VIZ_HIT_PATH("DrawAndSwap");
 #if !BUILDFLAG(IS_APPLE)
   RecordFDUsageUMA();
 #endif
@@ -866,7 +865,6 @@ bool Display::DrawAndSwap(const DrawAndSwapParams& params) {
     // aggregated again so that the trail exists for a single frame.
     target_damage_bounding_rect.Union(
         renderer_->GetDelegatedInkTrailDamageRect());
-    VIZ_HIT_PATH("Aggregate");
     frame = aggregator_->Aggregate(
         current_surface_id_, params.expected_display_time,
         current_display_transform, target_damage_bounding_rect,

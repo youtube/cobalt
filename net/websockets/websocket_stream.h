@@ -121,7 +121,7 @@ class NET_EXPORT_PRIVATE WebSocketStream {
         std::unique_ptr<WebSocketHandshakeResponseInfo> response) = 0;
 
     // Called on failure to connect.
-    // |message| contains defails of the failure.
+    // |message| contains details of the failure.
     virtual void OnFailure(const std::string& message,
                            int net_error,
                            std::optional<int> response_code) = 0;

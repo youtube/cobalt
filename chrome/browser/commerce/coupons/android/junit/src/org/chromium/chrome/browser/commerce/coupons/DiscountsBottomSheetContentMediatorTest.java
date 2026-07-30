@@ -111,7 +111,7 @@ public class DiscountsBottomSheetContentMediatorTest {
                     mModelList.get(i).model.get(DESCRIPTION_DETAIL),
                     infoList.get(i).descriptionDetail);
             assertEquals("Valid until 09/20/2024", mModelList.get(i).model.get(EXPIRY_TIME));
-            assertEquals("Copy", mModelList.get(i).model.get(COPY_BUTTON_TEXT));
+            assertEquals("Copy code", mModelList.get(i).model.get(COPY_BUTTON_TEXT));
         }
     }
 
@@ -142,7 +142,7 @@ public class DiscountsBottomSheetContentMediatorTest {
             assertEquals("Copied", model.get(COPY_BUTTON_TEXT));
             for (int j = 0; j < mModelList.size(); j++) {
                 if (j != i) {
-                    assertEquals("Copy", mModelList.get(j).model.get(COPY_BUTTON_TEXT));
+                    assertEquals("Copy code", mModelList.get(j).model.get(COPY_BUTTON_TEXT));
                 }
             }
         }

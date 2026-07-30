@@ -1,0 +1,40 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+assert(!is_android)
+
+source_set("omnibox_everywhere") {
+  sources = [
+    "composebox_everywhere_handler.cc",
+    "composebox_everywhere_handler.h",
+    "omnibox_everywhere_handler.cc",
+    "omnibox_everywhere_handler.h",
+    "omnibox_everywhere_ui.cc",
+    "omnibox_everywhere_ui.h",
+  ]
+  public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+  deps = [
+    "//base",
+    "//chrome/browser/contextual_search",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/resources/omnibox_everywhere:resources",
+    "//chrome/browser/ui/omnibox",
+    "//chrome/browser/ui/webui:favicon_source",
+    "//chrome/browser/ui/webui:plural_string_handler",
+    "//chrome/browser/ui/webui:webui_util",
+    "//chrome/browser/ui/webui/cr_components/composebox",
+    "//chrome/browser/ui/webui/cr_components/searchbox",
+    "//chrome/browser/ui/webui/metrics_reporter",
+    "//chrome/browser/ui/webui/sanitized_image:sanitized_image_source",
+    "//chrome/browser/ui/webui/top_chrome",
+    "//chrome/common",
+    "//components/contextual_search:public",
+    "//components/lens",
+    "//components/omnibox/browser:mojo_bindings",
+    "//components/omnibox/common:features",
+    "//content/public/browser",
+    "//ui/base",
+    "//ui/webui/resources/cr_components/composebox:mojo_bindings",
+  ]
+}

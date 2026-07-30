@@ -327,6 +327,10 @@ std::unique_ptr<net::test_server::HttpResponse> HandleUserAgentRequest(
 
 // Tests that requesting desktop site button is not enabled on new tab pages.
 - (void)testRequestDesktopSiteNotEnabledOnNewTabPage {
+  if ([ChromeEarlGrey isOverflowMenuNTPRefactorEnabled]) {
+    EARL_GREY_TEST_SKIPPED(
+        @"Request desktop site button is not visible on the NTP.")
+  }
   // Verify tapping on request desktop button is no-op.
   [ChromeEarlGreyUI openToolsMenu];
   [[RequestDesktopButton() assertWithMatcher:grey_notNil()]

@@ -14,6 +14,7 @@ source_set("model") {
     "data_controls_metrics.mm",
     "data_controls_pasteboard_manager.h",
     "data_controls_pasteboard_manager.mm",
+    "data_controls_pasteboard_manager_observer.h",
     "data_controls_tab_helper.h",
     "data_controls_tab_helper.mm",
     "pasteboard_observer.h",

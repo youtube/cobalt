@@ -16,4 +16,6 @@ dictionary SVGPathSegment {
 interface mixin SVGPathData {
   [MeasureAs=SVGPathElementGetPathData, RuntimeEnabled=SVGPathDataAPI]
   sequence<SVGPathSegment> getPathData(optional SVGPathDataSettings settings = {});
+  [MeasureAs=SVGPathElementSetPathData, RuntimeEnabled=SVGPathDataAPI]
+  undefined setPathData(sequence<SVGPathSegment> pathData);
 };

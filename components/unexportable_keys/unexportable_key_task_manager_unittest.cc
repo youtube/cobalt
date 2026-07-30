@@ -175,6 +175,7 @@ TEST_P(UnexportableKeyTaskManagerTest,
       GetParam().origin, crypto::UnexportableKeyProvider::Config(),
       unsupported_algorithm, BackgroundTaskPriority::kBestEffort,
       future.GetCallback());
+  EXPECT_FALSE(future.IsReady());
   RunBackgroundTasks();
 
   EXPECT_THAT(future.Get(), ErrorIs(ServiceError::kAlgorithmNotSupported));
@@ -896,6 +897,30 @@ TEST_P(UnexportableKeyTaskManagerTest, GenerateAttestationKeyAsync) {
                          kNoServiceErrorForMetrics);
   EXPECT_THAT(histogram_tester.GetAllSamples(
                   absl::StrFormat(kTaskRetriesSuccessHistogramNameFormat,
+                                  kGenerateAttestationKeyTaskType)),
+              ElementsAre(base::Bucket(0, 1)));
+}
+
+TEST_P(UnexportableKeyTaskManagerTest,
+       GenerateAttestationKeyAsyncFailureUnsupportedAlgorithm) {
+  base::HistogramTester histogram_tester;
+  base::test::TestFuture<
+      ServiceErrorOr<scoped_refptr<RefCountedUnexportableAttestationKey>>>
+      future;
+  auto unsupported_algorithm = {crypto::SignatureVerifier::RSA_PKCS1_SHA1};
+
+  task_manager().GenerateAttestationKeySlowlyAsync(
+      GetParam().origin, crypto::UnexportableKeyProvider::Config(),
+      unsupported_algorithm, BackgroundTaskPriority::kBestEffort,
+      future.GetCallback());
+  EXPECT_FALSE(future.IsReady());
+  RunBackgroundTasks();
+
+  EXPECT_THAT(future.Get(), ErrorIs(ServiceError::kAlgorithmNotSupported));
+  VerifyResultHistograms(histogram_tester, kGenerateAttestationKeyTaskType,
+                         ServiceError::kAlgorithmNotSupported);
+  EXPECT_THAT(histogram_tester.GetAllSamples(
+                  absl::StrFormat(kTaskRetriesFailureHistogramNameFormat,
                                   kGenerateAttestationKeyTaskType)),
               ElementsAre(base::Bucket(0, 1)));
 }

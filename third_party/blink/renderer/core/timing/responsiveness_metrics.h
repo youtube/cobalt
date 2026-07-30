@@ -105,11 +105,13 @@ class CORE_EXPORT ResponsivenessMetrics
                                 const PerformanceEventTiming& entry);
 
   void RecordUserInteractionHistograms(UserInteractionType interaction_type,
-                                       const PerformanceEventTiming& entry);
+                                       const PerformanceEventTiming& entry,
+                                       uint64_t event_id);
 
   void RecordUserInteractionTracing(LocalDOMWindow* window,
                                     UserInteractionType interaction_type,
-                                    const PerformanceEventTiming& entry);
+                                    const PerformanceEventTiming& entry,
+                                    uint64_t event_id);
 
   // This is used to store the set of unique histogram timings in a single
   // animation frame.  The first event for each interaction id should always

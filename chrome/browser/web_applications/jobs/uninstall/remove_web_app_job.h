@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_WEB_APPLICATIONS_JOBS_UNINSTALL_REMOVE_WEB_APP_JOB_H_
 
 #include <optional>
+#include <vector>
 
 #include "base/functional/callback.h"
 #include "base/values.h"
@@ -26,7 +27,7 @@ class RemoveInstallSourceJob;
 // jobs once all install managements are removed.
 //
 // NOTE: All removal operations must be implemented in both the job body
-// (e.g. `SynchronizeAndUninstallOsHooks`, `OnIconDataDeleted`, etc.) AND
+// (e.g. `SynchronizeAndUninstallOsHooks`, etc.) AND
 // in the static `RemoveForCorruptDatabase` method. This is because
 // `RemoveForCorruptDatabase` must be able to perform a "headless" cleanup of
 // OS integration, icons, and other assets using only the salvaged `app_id`s
@@ -64,17 +65,20 @@ class RemoveWebAppJob : public UninstallJob {
   webapps::WebappUninstallSource uninstall_source() const override;
 
  private:
-  void SynchronizeAndUninstallOsHooks();
-  void OnOsResourcesCleanedMaybeCompleteUninstall(
-      bool os_integration_directory_removed);
-  void OnIconDataDeleted(bool success);
-  void OnTranslationDataDeleted(bool success);
-  void OnWebAppProfileDeleted(Profile* profile);
-  void OnIsolatedWebAppBrowsingDataCleared();
-  void MaybeFinishPrimaryRemoval();
+  void SynchronizeAndUninstallOsHooks(base::OnceCallback<void(bool)> callback);
+  void CheckOsIntegrationHooksRemoved(base::OnceCallback<void(bool)> callback);
+  void RemoveOsIntegrationDirectory(base::OnceCallback<void(bool)> callback);
+  void OnAllDataDeleted(std::vector<bool> results);
   void ProcessSubAppsPendingRemovalOrComplete();
+
+  // Helper function to generate a callback that automatically records its
+  // boolean success value into `debug_value_` under the provided `key` before
+  // passing it along to the supplied `callback`.
+  base::OnceCallback<void(bool)> GetLogCallback(
+      std::string key,
+      base::OnceCallback<void(bool)> callback);
+
   void CompleteAndSelfDestruct(webapps::UninstallResultCode code);
-  void OnIsolatedWebAppOwnedLocationDeleted();
 
   const webapps::WebappUninstallSource uninstall_source_;
   // `this` must be owned by `profile_`.
@@ -87,15 +91,7 @@ class RemoveWebAppJob : public UninstallJob {
   raw_ptr<AllAppsLock> lock_ = nullptr;
   Callback callback_;
 
-  bool app_data_deleted_ = false;
-  bool translation_data_deleted_ = false;
-  bool isolated_web_app_browsing_data_cleared_ = false;
-  bool isolated_web_app_owned_location_deleted_ = false;
-  bool hooks_uninstalled_ = false;
-  bool errors_ = false;
-  bool has_isolated_storage_ = false;
   std::optional<webapps::UninstallResultCode> primary_removal_result_;
-  std::optional<IsolatedWebAppStorageLocation> location_;
 
   std::vector<webapps::AppId> sub_apps_pending_removal_;
   std::unique_ptr<RemoveInstallSourceJob> sub_job_;

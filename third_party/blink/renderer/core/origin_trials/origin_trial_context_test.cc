@@ -616,9 +616,9 @@ TEST_F(OriginTrialContextDevtoolsTest, DependentFeatureNotEnabled) {
   // will disable the origin trial. If you delete the following trial or
   // `base::Feature`, update these to another case that appears inside
   // `OriginTrialContext::CanEnableTrialFromName()`.
-  static constexpr char kTrialName[] = "SoftNavigationHeuristics";
-  const base::Feature& feature = blink::features::kSoftNavigationDetection;
-  auto ot_feature = mojom::blink::OriginTrialFeature::kSoftNavigationHeuristics;
+  static constexpr char kTrialName[] = "UserMediaElement";
+  const base::Feature& feature = blink::features::kUserMediaElement;
+  auto ot_feature = mojom::blink::OriginTrialFeature::kUserMediaElementLegacy;
 
   UpdateSecurityOrigin(kFrobulateEnabledOrigin);
 

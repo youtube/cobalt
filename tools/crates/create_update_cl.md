@@ -192,7 +192,7 @@ case the transition can be split into the following steps:
       in future rotations
 1. Land the new major version, so that the old and the new versions coexist.
    To do this follow the process for importing a new crate as described in
-   [`docs/rust.md`](../../docs/rust.md#importing-a-crate-from-crates_io)
+   [`//docs/rust/README.md`](/docs/rust/README.md#importing-a-crate-from-crates_io)
    (i.e. edit `Cargo.toml` to add the new version, run `gnrt vendor`, and so
    forth).
 1. Incrementally transition first-party code to the new major version

@@ -242,3 +242,16 @@ TEST_F(ActorTaskListBubbleTest, CreateAndShowBubbleWithTasksInOrder) {
       static_cast<ActorTaskListBubbleRowButton*>(content_view->children().at(3))
           ->GetSubtitleText());
 }
+
+TEST_F(ActorTaskListBubbleTest,
+       ExperimentalTriggeringCompletedTaskSubtitleText) {
+  auto button = std::make_unique<ActorTaskListBubbleRowButton>(
+      views::Button::PressedCallback(), actor::ActorTask::State::kFinished,
+      u"Experimental Triggering Task", /*requires_processing=*/false,
+      /*has_tab=*/true, glic::mojom::FeatureMode::kExperimentalTriggering);
+
+  EXPECT_EQ(
+      l10n_util::GetStringUTF16(
+          IDS_EXPERIMENTAL_TRIGGERING_TASK_LIST_BUBBLE_ROW_COMPLETED_TASK_SUBTITLE),
+      button->GetSubtitleText());
+}

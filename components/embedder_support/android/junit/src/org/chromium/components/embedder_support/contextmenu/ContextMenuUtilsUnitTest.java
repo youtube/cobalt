@@ -574,7 +574,7 @@ public class ContextMenuUtilsUnitTest {
 
         int triggeringTouchXDp = 100;
         int triggeringTouchYDp = 200;
-        float topContentOffsetPx = 50f;
+        int topContentOffsetPx = 50;
 
         ContextMenuParams params =
                 new ContextMenuParams(
@@ -603,6 +603,7 @@ public class ContextMenuUtilsUnitTest {
                         context,
                         mockWindow,
                         params,
+                        /* leftContentOffsetPx= */ 0,
                         topContentOffsetPx,
                         isPopup,
                         mockContainerView);
@@ -681,7 +682,7 @@ public class ContextMenuUtilsUnitTest {
         View containerView = new View(context);
         int triggeringTouchXDp = 100;
         int triggeringTouchYDp = 200;
-        float topContentOffsetPx = 50f;
+        int topContentOffsetPx = 50;
 
         int shadowWidth = 60;
         int shadowHeight = 50;
@@ -716,6 +717,7 @@ public class ContextMenuUtilsUnitTest {
                         context,
                         window,
                         params,
+                        /* leftContentOffsetPx= */ 0,
                         topContentOffsetPx,
                         isDragDropEnabled /*usePopupWindow but should not matter for this case*/,
                         containerView);

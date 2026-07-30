@@ -20,6 +20,7 @@
 #include "third_party/blink/renderer/core/layout/physical_fragment.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
+#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 
 namespace blink {
 namespace {
@@ -2439,6 +2440,119 @@ input::first-line {
   auto* input = GetElementById("i1");
   input->setAttribute(html_names::kPlaceholderAttr, AtomicString("z"));
   UpdateAllLifecyclePhasesForTest();
+}
+
+TEST_F(BlockLayoutAlgorithmTest, ComputeInitialBlockStartAnnotationSpace) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      #target1 {
+        margin-top: 20px;
+        padding-top: 10px;
+        border-top: 0 solid black;
+        overflow: visible;
+      }
+      #target2 {
+        margin-top: 20px;
+        padding-top: 10px;
+        border-top: 5px solid black;
+        overflow: visible;
+      }
+      #target3 {
+        margin-top: 20px;
+        padding-top: 10px;
+        border-top: 0 solid black;
+        overflow: hidden;
+      }
+      #target4 {
+        margin-top: 20px;
+        padding-top: 10px;
+        border-top: 0 solid black;
+        overflow: visible;
+        contain: paint;
+      }
+    </style>
+    <div id="target1"></div>
+    <div id="target2"></div>
+    <div id="target3"></div>
+    <div id="target4"></div>
+  )HTML");
+
+  BlockNode node1(GetLayoutBoxByElementId("target1"));
+  ConstraintSpace space1 = ConstructBlockLayoutTestConstraintSpace(
+      {WritingMode::kHorizontalTb, TextDirection::kLtr},
+      LogicalSize(LayoutUnit(1000), kIndefiniteSize),
+      /* stretch_inline_size_if_auto */ true,
+      /* is_new_formatting_context */ node1.CreatesNewFormattingContext());
+  FragmentGeometry fragment_geometry1 = CalculateInitialFragmentGeometry(
+      space1, node1, /* break_token */ nullptr, /* is_intrinsic */ false);
+
+  // 1. Flag OFF test
+  {
+    ScopedAnnotationSpaceOnStartForTest enable_flag(false);
+    BlockLayoutAlgorithm algorithm({node1, fragment_geometry1, space1});
+    EXPECT_EQ(LayoutUnit(10),
+              algorithm.ComputeInitialBlockStartAnnotationSpace());
+  }
+
+  // 2. Flag ON & conditions matched test (border=0, overflow=visible)
+  // margin-top(20) + padding-top(10) = 30
+  {
+    ScopedAnnotationSpaceOnStartForTest enable_flag(true);
+    BlockLayoutAlgorithm algorithm({node1, fragment_geometry1, space1});
+    EXPECT_EQ(LayoutUnit(30),
+              algorithm.ComputeInitialBlockStartAnnotationSpace());
+  }
+
+  // 3. Flag ON & border != 0 test
+  {
+    ScopedAnnotationSpaceOnStartForTest enable_flag(true);
+    BlockNode node2(GetLayoutBoxByElementId("target2"));
+    ConstraintSpace space2 = ConstructBlockLayoutTestConstraintSpace(
+        {WritingMode::kHorizontalTb, TextDirection::kLtr},
+        LogicalSize(LayoutUnit(1000), kIndefiniteSize),
+        /* stretch_inline_size_if_auto */ true,
+        /* is_new_formatting_context */ node2.CreatesNewFormattingContext());
+    FragmentGeometry fragment_geometry2 = CalculateInitialFragmentGeometry(
+        space2, node2, /* break_token */ nullptr, /* is_intrinsic */ false);
+    BlockLayoutAlgorithm algorithm({node2, fragment_geometry2, space2});
+    // Should fallback to padding-top (10)
+    EXPECT_EQ(LayoutUnit(10),
+              algorithm.ComputeInitialBlockStartAnnotationSpace());
+  }
+
+  // 4. Flag ON & overflow != visible test
+  {
+    ScopedAnnotationSpaceOnStartForTest enable_flag(true);
+    BlockNode node3(GetLayoutBoxByElementId("target3"));
+    ConstraintSpace space3 = ConstructBlockLayoutTestConstraintSpace(
+        {WritingMode::kHorizontalTb, TextDirection::kLtr},
+        LogicalSize(LayoutUnit(1000), kIndefiniteSize),
+        /* stretch_inline_size_if_auto */ true,
+        /* is_new_formatting_context */ node3.CreatesNewFormattingContext());
+    FragmentGeometry fragment_geometry3 = CalculateInitialFragmentGeometry(
+        space3, node3, /* break_token */ nullptr, /* is_intrinsic */ false);
+    BlockLayoutAlgorithm algorithm({node3, fragment_geometry3, space3});
+    // Should fallback to padding-top (10)
+    EXPECT_EQ(LayoutUnit(10),
+              algorithm.ComputeInitialBlockStartAnnotationSpace());
+  }
+
+  // 5. Flag ON & paint containment (is_new_formatting_context) test
+  {
+    ScopedAnnotationSpaceOnStartForTest enable_flag(true);
+    BlockNode node4(GetLayoutBoxByElementId("target4"));
+    ConstraintSpace space4 = ConstructBlockLayoutTestConstraintSpace(
+        {WritingMode::kHorizontalTb, TextDirection::kLtr},
+        LogicalSize(LayoutUnit(1000), kIndefiniteSize),
+        /* stretch_inline_size_if_auto */ true,
+        /* is_new_formatting_context */ node4.CreatesNewFormattingContext());
+    FragmentGeometry fragment_geometry4 = CalculateInitialFragmentGeometry(
+        space4, node4, /* break_token */ nullptr, /* is_intrinsic */ false);
+    BlockLayoutAlgorithm algorithm({node4, fragment_geometry4, space4});
+    // Should fallback to padding-top (10)
+    EXPECT_EQ(LayoutUnit(10),
+              algorithm.ComputeInitialBlockStartAnnotationSpace());
+  }
 }
 
 }  // namespace

@@ -314,6 +314,7 @@ Ezt egyéb esetben letiltják az Ön adatvédelmi beállításai. Az engedélyez
 <translation id="1463793142714244641">Üdülési jogok és üdülők</translation>
 <translation id="1465457928007067810">IBAN-kód mentve a Google-fiókjába</translation>
 <translation id="1467432559032391204">Balra</translation>
+<translation id="1471514598850585811">Laptop</translation>
 <translation id="1472675084647422956">Továbbiak megjelenítése</translation>
 <translation id="1473183651233018052">JIS B10</translation>
 <translation id="1473495410389165587">Ha segítségre van szüksége az írással kapcsolatban, írjon be legalább három szót</translation>
@@ -477,6 +478,7 @@ Ezt egyéb esetben letiltják az Ön adatvédelmi beállításai. Az engedélyez
 <translation id="173080396488393970">Ez a kártyatípus nem támogatott</translation>
 <translation id="1731563515262205847">ML-DSA-65</translation>
 <translation id="1732445923934584865">Inkább személyesen oldom meg</translation>
+<translation id="1732796940245838248">Panaszkezelési azonosító frissítése a Google Walletben</translation>
 <translation id="1733064249834771892">betűtípusok</translation>
 <translation id="1733631169686303142">Hangtechnika</translation>
 <translation id="1733762317901693627">A támadók néha még az alapvetően biztonságos webhelyekhez is hozzáférhetnek illetéktelenül. Csak akkor keresse fel <ph name="BEGIN_LINK" />ezt a nem biztonságos webhelyet<ph name="END_LINK" />, ha biztosan tisztában van a kockázatokkal.</translation>
@@ -581,6 +583,7 @@ Ezt egyéb esetben letiltják az Ön adatvédelmi beállításai. Az engedélyez
 <translation id="1902576642799138955">Érvényesség időtartama</translation>
 <translation id="1908217026282415406">Kamera használata és mozgatása</translation>
 <translation id="1908690643053136980">A rendszergazdája nem engedélyezi a következő használatát ezen a webhelyen: <ph name="PERMISSION" /></translation>
+<translation id="1912750443952232242">Igazolvány mentése a Google Walletbe</translation>
 <translation id="1913037223029790376">Használjon CVC-kódot ehhez a virtuális kártyához</translation>
 <translation id="191374271204266022">Másolás JSON-ként</translation>
 <translation id="1914326953223720820">Kicsomagolási szolgáltatás</translation>
@@ -711,6 +714,7 @@ Ezt egyéb esetben letiltják az Ön adatvédelmi beállításai. Az engedélyez
 <translation id="2122165854541876335">Fogyasztói segédletek</translation>
 <translation id="2122214041802369259">Magas ár</translation>
 <translation id="2122719317867821810">A házirend az elvárt módon működik, de valahol máshol ütköző érték van beállítva, amelyet felülbírál ez a házirend.</translation>
+<translation id="2124081665399116863">Jármű frissítése a Google Walletben</translation>
 <translation id="2126374524350484896">PDF-konvertáló:</translation>
 <translation id="2127090458081644412">Jelszó mentve erre az eszközre</translation>
 <translation id="2127747486437921899">Dőlt</translation>
@@ -993,6 +997,7 @@ Ezt egyéb esetben letiltják az Ön adatvédelmi beállításai. Az engedélyez
 <translation id="2524962131655207565"><ph name="BEGIN_BOLD" />A fizetési oldal tartalmát megosztjuk a Google-lal, hogy felkínálhassuk ezeket a lehetőségeket.<ph name="END_BOLD" /> A fizetési konstrukciók a jogosultságtól függnek. A későbbi fizetési lehetőségek elrejtéséhez lépjen a <ph name="BEGIN_LINK" />fizetési beállításokhoz<ph name="END_LINK" />.</translation>
 <translation id="2526062290525841862">Az alkalmazás futtatásához engedélyezze újra az izolált internetes alkalmazások fejlesztői módját</translation>
 <translation id="2526280916094749336">A mentett címeket használhatja a Google-termékekben. Ezt a címet az Ön Google-fiókjába (<ph name="ACCOUNT" />) menti a rendszer.</translation>
+<translation id="2526590354069164005">Asztal</translation>
 <translation id="2527451058878391043">A CVC-kód a kártyája elején található. Ez egy négyjegyű kód a kártyaszám jobb felső sarkában.</translation>
 <translation id="2529899080962247600">Ebben a mezőben legfeljebb <ph name="MAX_ITEMS_LIMIT" /> bejegyzés szerepelhet. A további bejegyzéseket figyelmen kívül hagyja a rendszer.</translation>
 <translation id="2530042584066815841">Egér zárolása és használata</translation>
@@ -1491,6 +1496,7 @@ A későbbi fizetési lehetőségek elrejtéséhez lépjen a <ph name="BEGIN_LIN
 <translation id="3325568918769906282">csökkenő sorrendben</translation>
 <translation id="3325662270238538525">Legutóbbi fájlhozzáférések és -módosítások, beleértve a fájlneveket, a fájltartalmak digitális ujjlenyomatait, a letöltési forrást és a metaadatokat</translation>
 <translation id="3329013043687509092">Telítettség</translation>
+<translation id="3330483197654063678">Ha be van kapcsolva, a Chrome megosztja az ebben az ablakban megnyitott lapokat, hogy Ön relevánsabb válaszokat kaphasson.</translation>
 <translation id="3333762389743153920">Nem használható virtuális kártyával</translation>
 <translation id="3338095232262050444">Biztonságos</translation>
 <translation id="333839153442689579">Nagy intenzitású szakaszos edzés (HIIT)</translation>
@@ -1544,6 +1550,7 @@ A későbbi fizetési lehetőségek elrejtéséhez lépjen a <ph name="BEGIN_LIN
 <translation id="3422472998109090673">A(z) <ph name="HOST_NAME" /> jelenleg nem érhető el.</translation>
 <translation id="3422794267539320056">A játékhoz koppintson a dinóra, vagy nyomja le a szóközt.</translation>
 <translation id="3423742043356668186">Rendszer által meghatározott</translation>
+<translation id="3426672782316020729">Útlevél frissítése a Google Walletben</translation>
 <translation id="3427342743765426898">&amp;Szerkesztés újra</translation>
 <translation id="342781501876943858">A Chromium azt javasolja, hogy adjon meg új jelszót a régi helyett, ha azt más webhelyeken is használta.</translation>
 <translation id="3428151540071562330">A DnsOverHttpsTemplates szerversablon-URI-k közül legalább egy érvénytelen, és nem használható.</translation>
@@ -2403,6 +2410,7 @@ A későbbi fizetési lehetőségek elrejtéséhez lépjen a <ph name="BEGIN_LIN
 <translation id="4766713847338118463">Kettő kapocs alul</translation>
 <translation id="4768816584204270288">Részletfizetés esetén egyszeri virtuális kártyaszám kerül kitöltésre. Kattintással másolhatja és beillesztheti a kártyaadatokat ehhez a vásárláshoz.</translation>
 <translation id="4768864802656530630">Részletes rendszernaplók. <ph name="BEGIN_LINK" />További információ<ph name="END_LINK" />.</translation>
+<translation id="4770909831299304090">KTN frissítése a Google Walletben</translation>
 <translation id="4771249073710170730">Rádió-távirányítás és modellezés</translation>
 <translation id="4771973620359291008">Ismeretlen hiba történt.</translation>
 <translation id="4774055414220872623">Kézműves kellékek</translation>
@@ -2843,6 +2851,7 @@ A későbbi fizetési lehetőségek elrejtéséhez lépjen a <ph name="BEGIN_LIN
 <translation id="5458150163479425638">{CONTACT,plural, =0{<ph name="CONTACT_PREVIEW" />}=1{<ph name="CONTACT_PREVIEW" /> és további <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" />}other{<ph name="CONTACT_PREVIEW" /> és további <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" />}}</translation>
 <translation id="5463625433003343978">Eszközök keresése…</translation>
 <translation id="5464236009658034488">Irodai kellékek</translation>
+<translation id="5465128270485645058">Személyre szabottabb válaszokat kaphat, ha automatikusan megosztja a megnyitott lapokat ebben az ablakban, ha azok kapcsolódnak ehhez az üzenetszálhoz.</translation>
 <translation id="5465724643247062031">Üveg (átlátszatlan)</translation>
 <translation id="5466018172325111652">Nem kapta meg a kódot? <ph name="BEGIN_LINK" />Igényeljen újat<ph name="END_LINK" />.</translation>
 <translation id="5466818462212249084">Fizetési alkalmazások</translation>
@@ -3125,6 +3134,7 @@ A későbbi fizetési lehetőségek elrejtéséhez lépjen a <ph name="BEGIN_LIN
 <translation id="5911020115933784199">Események és listák</translation>
 <translation id="5911110632211230665">Megnyitás letiltva</translation>
 <translation id="5912796581727968237">A Google Wallet megnyitása</translation>
+<translation id="5914185423510719251">Ismert utazói szám (KTN) mentése a Google Walletbe</translation>
 <translation id="5914465277418006379"><ph name="MEMBER_FIRST_NAME" /> hozzáadta ezt a lapot</translation>
 <translation id="5915189366813702112">Rugalmas munkaidő</translation>
 <translation id="59174027418879706">Engedélyezve</translation>
@@ -3648,6 +3658,7 @@ A későbbi fizetési lehetőségek elrejtéséhez lépjen a <ph name="BEGIN_LIN
 <translation id="6702851555558236418">Zene- és audioszoftverek</translation>
 <translation id="6702919718839027939">Prezentáció</translation>
 <translation id="6704458454638854812">A „custom_size” tulajdonság be van állítva, a várt név pedig „custom” (egyéni).</translation>
+<translation id="670477556876354552">Újraindítás szükséges</translation>
 <translation id="6706005862292023715">Függönyök és sötétítők</translation>
 <translation id="6706210727756204531">Hatáskör</translation>
 <translation id="6706678697074905703">Nem sikerült menteni az IBAN-számot a Google-fiókjába. Csak az eszköz Chrome alkalmazásába mentette a rendszer.</translation>
@@ -3905,6 +3916,7 @@ A későbbi fizetési lehetőségek elrejtéséhez lépjen a <ph name="BEGIN_LIN
 <translation id="7110116949943042888">Alkalmi és idényjellegű állások</translation>
 <translation id="7110368079836707726">Főiskolák és egyetemek</translation>
 <translation id="7111507312244504964">Ingatlanvizsgálat és -felmérés</translation>
+<translation id="7117290130383718594">Szöveges jelölések</translation>
 <translation id="7118618213916969306">Vágólapon lévő URL, <ph name="SHORT_URL" /> keresése</translation>
 <translation id="7118852830504022370">Azért látja ezt a figyelmeztetést, mert ez a webhely nem támogatja a HTTPS-t. <ph name="BEGIN_LEARN_MORE_LINK" />További információ erről a figyelmeztetésről<ph name="END_LEARN_MORE_LINK" />.</translation>
 <translation id="7119063404975271297">Televíziós filmdrámák</translation>
@@ -4214,6 +4226,7 @@ További részletek:
 <translation id="7569490014721427265">Golf</translation>
 <translation id="7569952961197462199">Eltávolítja a hitelkártyát a Chrome-ból?</translation>
 <translation id="7569983096843329377">Fekete</translation>
+<translation id="7570524564113479209">Igazolvány frissítése a Google Walletben</translation>
 <translation id="7570862164055912832">Helyesbítési ügy száma</translation>
 <translation id="7571813784389228510">Google AI-mód</translation>
 <translation id="7574998639136359461">Télisport-felszerelés</translation>
@@ -4736,6 +4749,7 @@ További részletek:
 <translation id="8389940864052787379">Egyedi és nagy teljesítményű járművek</translation>
 <translation id="8390725133630534698">Rendszergazdai házirend tiltja a tartalmak megosztását innen: <ph name="ORIGIN_NAME" />, ide: <ph name="VM_NAME" /></translation>
 <translation id="8392783408127179588">Házirendek újratöltése</translation>
+<translation id="8393948304336153065">Vezetői engedély frissítése a Google Walletben</translation>
 <translation id="8396522675989118466">Ez a kártya <ph name="SIDE_OF_CARD" /> szereplő <ph name="NUMBER_OF_DIGITS" /> jegyű kód</translation>
 <translation id="8398335999901363925">Az érintéssel kitölthető fizetési módok listája teljes magasságban meg van nyitva.</translation>
 <translation id="8398446215576328011">Érvényes irányelvek visszaállítása</translation>
@@ -4898,7 +4912,6 @@ További részletek:
 <translation id="8671519637524426245">A(z) <ph name="SECURE_DNS_SALT" /> értéke nem felel meg a méretre vonatkozó követelményeknek.</translation>
 <translation id="867224526087042813">Aláírás</translation>
 <translation id="8672535691554698269">Számítógép-hálózatok</translation>
-<translation id="8673710317985154384">{NUM_TABS,plural, =1{A lapmegosztás részleteinek megjelenítése. 1 lap megosztva innen: {WEBSITE_LIST_STR}}other{A lapmegosztás részleteinek megjelenítése. {NUM_TABS} lap megosztva innen: {WEBSITE_LIST_STR}}}</translation>
 <translation id="8675446170353411473">Fájljai feltöltése folyamtban ide: <ph name="CLOUD_PROVIDER" /></translation>
 <translation id="8676424191133491403">Nincs késleltetés</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />. A válasz: <ph name="ANSWER" /></translation>

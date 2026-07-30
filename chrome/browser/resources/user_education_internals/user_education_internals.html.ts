@@ -49,7 +49,7 @@ export function getHtml(this: UserEducationInternalsElement) {
           What's New
         </a>
         <a role="menuitem" index="6" class="cr-nav-menu-item">
-          Advanced
+          Session and Cooldown
         </a>
       </cr-menu-selector>
     </div>
@@ -71,10 +71,17 @@ export function getHtml(this: UserEducationInternalsElement) {
           in ways it was not designed to. Use at your own risk.
         </p>
       </div>
-      <cr-page-selector .selected="${this.selectedTabIndex_}" show-all="true"
+      <div id="uninitialized" ?hidden="${this.initialized_}">
+        <h2>Waiting for Data...</h2>
+        <p>
+          Data is not yet loaded or the Feature Engagement system is not yet
+          initialized. This page will populate when data is available.
+        </p>
+      </div>
+      <cr-page-selector ?hidden="${!this.initialized_}"
+                        .selected="${this.selectedTabIndex_}" show-all="true"
                         id="selector">
         <div id="iph" class="promo-list">
-          <a name="iph"></a>
           <h2>Feature Promos</h2>
           ${this.featurePromos_.map(item => html`
             <user-education-internals-card
@@ -90,7 +97,6 @@ export function getHtml(this: UserEducationInternalsElement) {
           </p>
         </div>
         <div id="tutorials" class="promo-list">
-          <a name="tutorials"></a>
           <h2>Tutorials</h2>
           ${this.tutorials_.map(item => html`
             <user-education-internals-card
@@ -105,7 +111,6 @@ export function getHtml(this: UserEducationInternalsElement) {
           </p>
         </div>
         <div id="newBadges" class="promo-list">
-          <a name="newBadges"></a>
           <h2>"New" Badges</h2>
           ${this.newBadges_.map(item => html`
             <user-education-internals-card
@@ -119,7 +124,6 @@ export function getHtml(this: UserEducationInternalsElement) {
           </p>
         </div>
         <div id="nonIphPromos" class="promo-list">
-          <a name="nonIphPromos"></a>
           <h2>Non-IPH Promos</h2>
           ${this.nonIphPromos_.map(item => html`
             <user-education-internals-card
@@ -129,12 +133,10 @@ export function getHtml(this: UserEducationInternalsElement) {
                 @clear-promo-data="${this.onNonIphClearPromoData_}">
             </user-education-internals-card>`)}
           <p class="if-empty">
-            No non-IPH promos match the search filter or the Feature Engagement
-            tracker is not ready. Reload the page to try again.
+            No non-IPH promos match the search filter.
           </p>
         </div>
         <div id="ntpPromos" class="promo-list">
-          <a name="ntpPromos"></a>
           <h2>NTP Promos</h2>
           <div id="ntpPromoPreferences">
             <cr-expand-button
@@ -260,66 +262,62 @@ export function getHtml(this: UserEducationInternalsElement) {
             No What's New Editions match the search filter.
           </p>
         </div>
-        <div id="advanced">
-          <a name="advanced"></a>
-          <h2>Advanced</h2>
+        <div id="global">
+          <h2>Session, Grace Period and Cooldown</h2>
+          <p>
+            Sessions are used to track when a user starts to use the browser
+            after a period of inactivity.
+          </p>
+          <p>
+            In addition to tracking user activity, several grace periods and
+            cooldowns apply that may prevent IPH and "New" Badges from
+            displaying:
+          </p>
+          <ul>
+            <li>
+              <strong>New profile grace period:</strong>
+              All low-priority IPH and "New" Badges are blocked for several
+              days on any new profile.
+            </li>
+            <li>
+              <strong>Session start grace period:</strong>
+              Heavyweight IPH are blocked for several minutes after the user
+              starts interacting with Chrome after significant time away.
+            </li>
+            <li>
+              <strong>Heavyweight IPH cooldown:</strong>
+              Heavyweight IPH are blocked for several days after the user
+              interacts with another heavyweight IPH.
+            </li>
+          </ul>
           <div id="session">
             <cr-expand-button
                 ?expanded="${this.sessionExpanded_}"
                 @expanded-changed="${this.onSessionExpandedChanged_}">
-              <div id="label"><h3>Session, Grace Period, and Cooldown</h3></div>
+              <div id="label">
+                <h3>Session, Grace Period, and Cooldown data:</h3>
+              </div>
             </cr-expand-button>
             <div id="sessionData" ?hidden="${!this.sessionExpanded_}">
-              <p>
-                Sessions are used to track when a user starts to use the browser
-                after a period of inactivity.
-              </p>
-              <p>
-                In addition to tracking user activity, several grace periods and
-                cooldowns apply that may prevent IPH and "New" Badges from
-                displaying:
-              </p>
-              <ul>
-                <li>
-                  <strong>New profile grace period:</strong>
-                  All low-priority IPH and "New" Badges are blocked for several
-                  days on any new profile.
-                </li>
-                <li>
-                  <strong>Session start grace period:</strong>
-                  Heavyweight IPH are blocked for several minutes after the user
-                  starts interacting with Chrome after significant time away.
-                </li>
-                <li>
-                  <strong>Heavyweight IPH cooldown:</strong>
-                  Heavyweight IPH are blocked for several days after the user
-                  interacts with another heavyweight IPH.
-                </li>
-              </ul>
-              <p>
-                Session, grace period, and cooldown data:
-              </p>
               ${this.sessionData_.map(item => html`
                 <p><b>${item.name}</b> ${item.value}</p>`)}
-              <p>
-                Clicking the buttons below will modify the current session, last
-                heavyweight promo, and/or profile creation times. The
-                information above will be updated to show the current state of
-                these values.
-              </p>
+            </div>
+            <p>
               <cr-button id="forceNewSession"
                   @click="${this.onForceNewSessionClick_}">
-                Force New Session
+                Force New Session Right Now
               </cr-button>
+            </p><p>
               <cr-button id="removeGracePeriods"
                   @click="${this.onRemoveGracePeriodsClick_}">
-                Remove Grace Period
+                Remove All Grace Periods And Cooldowns
               </cr-button>
+            </p><p>
               <cr-button id="clearSession"
                   @click="${this.onClearSessionDataClick_}">
-                Clear Session Data
+                Reset Profile State to New
               </cr-button>
-            </div>
+            </p>
           </div>
         </div>
       </cr-page-selector>

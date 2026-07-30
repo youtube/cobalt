@@ -27,6 +27,7 @@ class MockAutocompleteHistoryManager : public AutocompleteHistoryManager {
   MOCK_METHOD(void,
               OnWillSubmitFormWithFields,
               (const std::vector<FormFieldData>& fields,
+               const FormStructure* form,
                bool is_autocomplete_enabled),
               (override));
   MOCK_METHOD(void, CancelPendingQuery, (), (override));

@@ -99,9 +99,9 @@ bool VerifyFileHash256(const base::FilePath& filepath,
     return false;
   }
 
-  base::File file(filepath, base::File::FLAG_OPEN |
-                                base::File::FLAG_WIN_SEQUENTIAL_SCAN |
-                                base::File::FLAG_READ);
+  base::File file(filepath,
+                  base::File::FLAG_OPEN | base::File::FLAG_WIN_SEQUENTIAL_SCAN |
+                      base::File::FLAG_READ | base::File::FLAG_NO_FOLLOW);
   if (!file.IsValid()) {
     return false;
   }

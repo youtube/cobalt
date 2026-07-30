@@ -20,6 +20,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
+#include "url/url_constants.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "extensions/browser/extension_registry.h"
@@ -102,17 +103,24 @@ bool IsInspectionAllowed(Profile* profile, content::WebContents* web_contents) {
   policy::DeveloperToolsPolicyChecker* checker =
       policy::DeveloperToolsPolicyCheckerFactory::GetForBrowserContext(profile);
   if (checker) {
-    bool is_blocked = false;
-    web_contents->ForEachRenderFrameHost([&](content::RenderFrameHost* frame) {
-      auto frame_availability =
-          checker->GetDevToolsAvailabilityForUrl(frame->GetLastCommittedURL());
-      if (frame_availability == policy::DeveloperToolsPolicyChecker::
-                                    DevToolsAvailability::kDisallowed) {
-        is_blocked = true;
+    if (content::RenderFrameHost* main_frame =
+            web_contents->GetPrimaryMainFrame()) {
+      bool is_blocked = false;
+      main_frame->ForEachRenderFrameHost([&](content::RenderFrameHost* frame) {
+        if (frame->GetLastCommittedURL().is_empty() ||
+            frame->GetLastCommittedURL().SchemeIs(url::kAboutScheme)) {
+          return;
+        }
+        auto frame_availability = checker->GetDevToolsAvailabilityForUrl(
+            frame->GetLastCommittedURL());
+        if (frame_availability == policy::DeveloperToolsPolicyChecker::
+                                      DevToolsAvailability::kDisallowed) {
+          is_blocked = true;
+        }
+      });
+      if (is_blocked) {
+        return false;
       }
-    });
-    if (is_blocked) {
-      return false;
     }
   }
 
@@ -158,30 +166,37 @@ bool IsInspectionAllowed(Profile* profile, content::WebContents* web_contents) {
   // Exhaustively check every frame to prevent subframe bypasses
   // and identify restricted extensions even on error pages.
   bool is_blocked = false;
-  web_contents->ForEachRenderFrameHostWithAction(
-      [&](content::RenderFrameHost* frame) {
-        if (!IsInspectionAllowed(profile, frame->GetLastCommittedURL())) {
-#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-          // If the disallowed URL is the PDF viewer, and it's not the primary
-          // main frame of this WebContents (i.e. it is embedded), we don't
-          // block the whole page. The PDF viewer is implemented as a component
-          // extension. Blocking inspection of the embedding page would render
-          // DevTools unusable for normal pages just because they embed a PDF.
-          // Standalone PDF viewer pages (where it is the main frame) will still
-          // be blocked if policy dictates.
-          if (frame->GetLastCommittedURL().SchemeIs(
-                  extensions::kExtensionScheme) &&
-              frame->GetLastCommittedURL().host() ==
-                  extension_misc::kPdfExtensionId &&
-              frame != web_contents->GetPrimaryMainFrame()) {
+  if (content::RenderFrameHost* main_frame =
+          web_contents->GetPrimaryMainFrame()) {
+    main_frame->ForEachRenderFrameHostWithAction(
+        [&](content::RenderFrameHost* frame) {
+          if (frame->GetLastCommittedURL().is_empty() ||
+              frame->GetLastCommittedURL().SchemeIs(url::kAboutScheme)) {
             return content::RenderFrameHost::FrameIterationAction::kContinue;
           }
+          if (!IsInspectionAllowed(profile, frame->GetLastCommittedURL())) {
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+            // If the disallowed URL is the PDF viewer, and it's not the primary
+            // main frame of this WebContents (i.e. it is embedded), we don't
+            // block the whole page. The PDF viewer is implemented as a
+            // component extension. Blocking inspection of the embedding page
+            // would render DevTools unusable for normal pages just because they
+            // embed a PDF. Standalone PDF viewer pages (where it is the main
+            // frame) will still be blocked if policy dictates.
+            if (frame->GetLastCommittedURL().SchemeIs(
+                    extensions::kExtensionScheme) &&
+                frame->GetLastCommittedURL().host() ==
+                    extension_misc::kPdfExtensionId &&
+                frame != main_frame) {
+              return content::RenderFrameHost::FrameIterationAction::kContinue;
+            }
 #endif
-          is_blocked = true;
-          return content::RenderFrameHost::FrameIterationAction::kStop;
-        }
-        return content::RenderFrameHost::FrameIterationAction::kContinue;
-      });
+            is_blocked = true;
+            return content::RenderFrameHost::FrameIterationAction::kStop;
+          }
+          return content::RenderFrameHost::FrameIterationAction::kContinue;
+        });
+  }
 
   if (is_blocked) {
     return false;
@@ -318,6 +333,9 @@ bool IsInspectionAllowed(Profile* profile, const web_app::WebApp* web_app) {
 #endif
 
 bool IsInspectionAllowed(Profile* profile, const GURL& url) {
+  if (url.is_empty() || url.SchemeIs(url::kAboutScheme)) {
+    return true;
+  }
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   if (url.SchemeIs(extensions::kExtensionScheme)) {
     if (const extensions::Extension* extension =

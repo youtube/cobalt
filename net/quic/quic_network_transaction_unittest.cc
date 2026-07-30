@@ -18,7 +18,9 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "net/base/chunked_upload_data_stream.h"
 #include "net/base/completion_once_callback.h"
@@ -9323,6 +9325,134 @@ TEST_P(QuicNetworkTransactionTest, RetryOnHttp3GoAway) {
   EXPECT_TRUE(mock_quic_data1.AllReadDataConsumed());
   EXPECT_TRUE(mock_quic_data2.AllWriteDataConsumed());
   EXPECT_TRUE(mock_quic_data2.AllReadDataConsumed());
+}
+
+// This test verifies that HTTP/3 (QUIC) is immune to the
+// "priority starvation retry loop bug" that existed in HTTP/2 (SPDY).
+//
+// TODO(crbug.com/482074640): Add more test variations to cover other error
+// scenarios and connection behaviors.
+TEST_P(QuicNetworkTransactionTest, PriorityStarvation) {
+  base::HistogramTester histogram_tester;
+
+  // We set up a simulated socket connection.
+  // The goal is to successfully complete a first transaction, keep the
+  // session pooled, and then simulate a silent disconnect that occurs
+  // while the connection is idle.
+  context_.params()->retry_without_alt_svc_on_quic_errors = true;
+  AddQuicAlternateProtocolMapping(MockCryptoClientStream::CONFIRM_HANDSHAKE);
+  MockQuicData mock_quic_data(version_);
+  int packet_num = 1;
+
+  // For the first transaction (trans1).
+  mock_quic_data.AddWrite(SYNCHRONOUS,
+                          ConstructInitialSettingsPacket(packet_num++));
+  mock_quic_data.AddWrite(
+      SYNCHRONOUS,
+      ConstructClientRequestHeadersPacket(
+          packet_num++, GetNthClientInitiatedBidirectionalStreamId(0), true,
+          HIGHEST, GetRequestHeaders("GET", "https", "/")));
+  mock_quic_data.AddRead(
+      ASYNC, ConstructServerResponseHeadersPacket(
+                 1, GetNthClientInitiatedBidirectionalStreamId(0), false,
+                 GetResponseHeaders("200")));
+  mock_quic_data.AddRead(
+      ASYNC, ConstructServerDataPacket(
+                 2, GetNthClientInitiatedBidirectionalStreamId(0), true,
+                 ConstructDataFrame(kQuicRespData)));
+  mock_quic_data.AddWrite(SYNCHRONOUS,
+                          ConstructClientAckPacket(packet_num++, 2, 1));
+
+  // For the second transaction (trans2).
+  //
+  // Goal: Reuse the pooled session, write the request headers, and pause the
+  //        socket read queue to set up the starvation verification trap.
+  mock_quic_data.AddWrite(
+      SYNCHRONOUS,
+      ConstructClientRequestHeadersPacket(
+          packet_num++, GetNthClientInitiatedBidirectionalStreamId(1), true,
+          HIGHEST, GetRequestHeaders("GET", "https", "/")));
+  // Pausing here forces trans2 to yield and return ERR_IO_PENDING, allowing
+  // the other task, such as socket resuming, to run.
+  mock_quic_data.AddReadPause();
+  // Deliver ERROR_CONNECTION_CLOSED.
+  mock_quic_data.AddRead(ASYNC, ERR_CONNECTION_CLOSED);
+
+  mock_quic_data.AddSocketDataToFactory(&socket_factory_);
+
+  // Register a failing connect provider.
+  // If the pooled session is successfully closed by the resume task, trans2
+  // will detect the closure and try to open a NEW connection. We force this new
+  // attempt to fail immediately with connection refused to terminate the
+  // transaction cleanly.
+  StaticSocketDataProvider failing_connect_data;
+  MockConnect failing_connect(SYNCHRONOUS, ERR_CONNECTION_REFUSED);
+  failing_connect_data.set_connect_data(failing_connect);
+  socket_factory_.AddSocketDataProvider(&failing_connect_data);
+
+  CreateSession();
+
+  // Run the first transaction to pool the QuicSession.
+  HttpNetworkTransaction trans1(HIGHEST, session_.get());
+  TestCompletionCallback callback1;
+  int rv1 = trans1.Start(&request_, callback1.callback(), net_log_with_source_);
+  EXPECT_THAT(rv1, IsError(ERR_IO_PENDING));
+  EXPECT_THAT(callback1.WaitForResult(), IsOk());
+  std::string resp1;
+  ASSERT_THAT(ReadTransaction(&trans1, &resp1), IsOk());
+  EXPECT_EQ(resp1, kQuicRespData);
+
+  // Verify that the session was successfully pooled.
+  EXPECT_TRUE(QuicSessionPoolPeer::HasActiveSession(
+      session_->quic_session_pool(),
+      quic::QuicServerId(kDefaultServerHostName, 443), PRIVACY_MODE_DISABLED,
+      NetworkAnonymizationKey()));
+
+  // Set up the priority starvation trap.
+  //
+  // We post a DEFAULT_PRIORITY task to resume the socket (deliver the
+  // disconnect error). This simulates the asynchronous OS-level socket watcher
+  // task (e.g., epoll/kqueue) waking up to deliver the connection close event.
+  //
+  // The core of this integration test is to verify that under NetTaskScheduler,
+  // the high-priority transaction does not starve this low-priority OS socket
+  // watcher task. If starvation occurs, the browser never learns the socket is
+  // dead, leading to a permanent retry hang (which should not happen in QUIC).
+  bool resume_called = false;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindLambdaForTesting([&]() {
+        mock_quic_data.Resume();
+        resume_called = true;
+      }));
+
+  // Start second transaction (HIGHEST).
+  HttpNetworkTransaction trans2(HIGHEST, session_.get());
+  TestCompletionCallback callback2;
+  int rv2 = trans2.Start(&request_, callback2.callback(), net_log_with_source_);
+  EXPECT_THAT(rv2, IsError(ERR_IO_PENDING));
+
+  // Run the loop until both the transaction completes and the resume task runs.
+  ASSERT_TRUE(base::test::RunUntil([&]() { return callback2.have_result(); }));
+  ASSERT_TRUE(base::test::RunUntil([&]() { return resume_called; }));
+
+  // Verify clean error termination.
+  int rv2_result = callback2.WaitForResult();
+  EXPECT_THAT(rv2_result, IsError(ERR_CONNECTION_REFUSED));
+
+  // Verify that all mock data has been fully consumed
+  // now that the test is complete.
+  EXPECT_TRUE(mock_quic_data.AllWriteDataConsumed());
+  EXPECT_TRUE(mock_quic_data.AllReadDataConsumed());
+
+  // Verify that the starvation does not occur.
+  //
+  // In QUIC, the transaction yields naturally, so priority starvation never
+  // occurs. The async retry mitigation is therefore never triggered (count is
+  // 0).
+  histogram_tester.ExpectTotalCount(
+      HttpNetworkTransaction::
+          kAsyncRetryOnTooManyConnectionErrorsFirstHistogram,
+      0);
 }
 
 // TODO(yoichio):  Add the TCP job reuse case. See crrev.com/c/2174099.

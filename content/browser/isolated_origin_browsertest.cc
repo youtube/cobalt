@@ -1039,10 +1039,11 @@ IN_PROC_BROWSER_TEST_F(OriginKeyedProcessByDefaultTest,
       root_site_instance->GetIsolationContext();
   // Verify that we're not explicitly tracking the origin for
   // `default_isolated_url`.
-  EXPECT_EQ(static_cast<OriginAgentClusterIsolationState*>(nullptr),
-            policy->LookupOriginAgentClusterStateForTesting(
-                isolation_context.browsing_instance_id(),
-                url::Origin::Create(default_isolated_url)));
+  EXPECT_FALSE(policy
+                   ->LookupOriginAgentClusterStateForTesting(
+                       isolation_context.browsing_instance_id(),
+                       url::Origin::Create(default_isolated_url))
+                   .has_value());
 
   // Now trigger a global walk by attempting to create a non-isolated version of
   // the same origin.
@@ -1054,12 +1055,11 @@ IN_PROC_BROWSER_TEST_F(OriginKeyedProcessByDefaultTest,
   // Now the origin should be explicitly tracked, even though it continues to
   // have the default isolation state as defined for the current
   // BrowsingInstance.
-  OriginAgentClusterIsolationState* isolation_state2 =
+  std::optional<OriginAgentClusterIsolationState> isolation_state2 =
       policy->LookupOriginAgentClusterStateForTesting(
           isolation_context.browsing_instance_id(),
           url::Origin::Create(default_isolated_url));
-  ASSERT_NE(static_cast<OriginAgentClusterIsolationState*>(nullptr),
-            isolation_state2);
+  ASSERT_TRUE(isolation_state2.has_value());
   EXPECT_TRUE(isolation_state2->is_origin_agent_cluster());
   EXPECT_TRUE(isolation_state2->requires_origin_keyed_process());
 }
@@ -1131,12 +1131,11 @@ IN_PROC_BROWSER_TEST_F(
   auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
   IsolationContext isolation_context =
       root->current_frame_host()->GetSiteInstance()->GetIsolationContext();
-  OriginAgentClusterIsolationState* isolation_state2 =
+  std::optional<OriginAgentClusterIsolationState> isolation_state2 =
       policy->LookupOriginAgentClusterStateForTesting(
           isolation_context.browsing_instance_id(),
           url::Origin::Create(explicit_isolated_url));
-  ASSERT_NE(static_cast<OriginAgentClusterIsolationState*>(nullptr),
-            isolation_state2);
+  ASSERT_TRUE(isolation_state2.has_value());
   EXPECT_TRUE(isolation_state2->is_origin_agent_cluster());
   EXPECT_TRUE(isolation_state2->requires_origin_keyed_process());
 }
@@ -1185,12 +1184,11 @@ IN_PROC_BROWSER_TEST_F(OriginKeyedProcessByDefaultTest,
   auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
   IsolationContext isolation_context =
       root->current_frame_host()->GetSiteInstance()->GetIsolationContext();
-  OriginAgentClusterIsolationState* isolation_state2 =
+  std::optional<OriginAgentClusterIsolationState> isolation_state2 =
       policy->LookupOriginAgentClusterStateForTesting(
           isolation_context.browsing_instance_id(),
           url::Origin::Create(default_not_isolated_url));
-  ASSERT_NE(static_cast<OriginAgentClusterIsolationState*>(nullptr),
-            isolation_state2);
+  ASSERT_TRUE(isolation_state2.has_value());
   EXPECT_FALSE(isolation_state2->is_origin_agent_cluster());
   EXPECT_FALSE(isolation_state2->requires_origin_keyed_process());
 }
@@ -1222,10 +1220,11 @@ void TestDefaultIsolationForFrame(
   // Verify that we're not explicitly tracking the origin we isolated by
   // default.
   IsolationContext isolation_context = site_instance->GetIsolationContext();
-  EXPECT_EQ(static_cast<OriginAgentClusterIsolationState*>(nullptr),
-            policy->LookupOriginAgentClusterStateForTesting(
-                isolation_context.browsing_instance_id(),
-                url::Origin::Create(default_isolated_url)));
+  EXPECT_FALSE(policy
+                   ->LookupOriginAgentClusterStateForTesting(
+                       isolation_context.browsing_instance_id(),
+                       url::Origin::Create(default_isolated_url))
+                   .has_value());
 }
 
 }  // namespace

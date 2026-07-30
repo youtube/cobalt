@@ -9,4 +9,10 @@ namespace media {
 D3D12VideoDevice3Mock::D3D12VideoDevice3Mock() = default;
 D3D12VideoDevice3Mock::~D3D12VideoDevice3Mock() = default;
 
+D3D12VideoProcessorMock::D3D12VideoProcessorMock() = default;
+D3D12VideoProcessorMock::~D3D12VideoProcessorMock() = default;
+
+D3D12VideoProcessCommandListMock::D3D12VideoProcessCommandListMock() = default;
+D3D12VideoProcessCommandListMock::~D3D12VideoProcessCommandListMock() = default;
+
 }  // namespace media

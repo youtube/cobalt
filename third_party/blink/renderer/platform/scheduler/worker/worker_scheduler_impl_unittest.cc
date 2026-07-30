@@ -692,7 +692,38 @@ TEST_F(NonMainThreadWebSchedulingTaskQueueTest, TaskQueueDisposal) {
   worker_scheduler_.reset();
 }
 
-TEST_F(WorkerSchedulerImplTest, WebSchedulerTaskQueueDestruction) {
+TEST_F(NonMainThreadWebSchedulingTaskQueueTest,
+       WebSchedulingTaskQueuesAreInitializedBasedOnPauseState) {
+  int counter = 0;
+
+  std::unique_ptr<WebSchedulingTaskQueue> queue =
+      worker_scheduler_->CreateWebSchedulingTaskQueue(
+          WebSchedulingQueueType::kTaskQueue,
+          WebSchedulingPriority::kUserVisiblePriority);
+  {
+    std::unique_ptr<WorkerScheduler::PauseHandle> pause_handle(
+        worker_scheduler_->Pause());
+
+    queue->GetTaskRunner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&IncrementCounter, base::Unretained(&counter)));
+    RunUntilIdle();
+    EXPECT_EQ(counter, 0);
+  }
+
+  RunUntilIdle();
+  EXPECT_EQ(counter, 1);
+
+  queue = worker_scheduler_->CreateWebSchedulingTaskQueue(
+      WebSchedulingQueueType::kTaskQueue,
+      WebSchedulingPriority::kUserVisiblePriority);
+  queue->GetTaskRunner()->PostTask(
+      FROM_HERE, base::BindOnce(&IncrementCounter, base::Unretained(&counter)));
+  RunUntilIdle();
+  EXPECT_EQ(counter, 2);
+}
+
+TEST_F(WorkerSchedulerImplTest, WebSchedulingTaskQueueDestruction) {
   // This just makes sure that destroying queues before and after disposal
   // doesn't trigger any CHECKs or other issues.
   std::unique_ptr<WebSchedulingTaskQueue> queue1 =

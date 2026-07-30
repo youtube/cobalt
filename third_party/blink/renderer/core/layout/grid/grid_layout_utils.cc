@@ -740,8 +740,20 @@ void BuildGridSizingSubtree(const LayoutAlgorithmType& algorithm,
     const GridLayoutAlgorithm subgrid_algorithm(
         {grid_item.node, fragment_geometry, space});
 
+    // An auto-placed subgrid of a grid-lanes container does not inherit line
+    // names from that container. Line-name inheritance maps the parent's named
+    // lines onto the subgrid using the subgrid's resolved area in the parent,
+    // but an auto-placed item's placement within a grid-lanes container is only
+    // resolved after track sizing, so that area (and thus the mapping) is
+    // unknown when this resolver is built.
+    const bool can_inherit_line_names_from_parent =
+        !(style.IsDisplayGridLanes() && grid_item.is_auto_placed);
+
+    // TODO(almaher): Grid lanes will need to do the same thing once we support
+    // grid lanes subgrids.
     const auto subgrid_line_resolver = subgrid_algorithm.BuildGridLineResolver(
-        SubgriddedAreaInParent(subgridded_item), &line_resolver);
+        SubgriddedAreaInParent(subgridded_item), &line_resolver,
+        can_inherit_line_names_from_parent);
 
     // TODO(almaher): Use the grid lanes algorithm if the subgrid requires it.
     BuildGridSizingSubtree<GridLayoutAlgorithm>(

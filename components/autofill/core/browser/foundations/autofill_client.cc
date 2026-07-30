@@ -400,6 +400,10 @@ void AutofillClient::ShowAutofillAiFetchFromWalletFailureNotification() {
   NOTIMPLEMENTED();
 }
 
+void AutofillClient::ShowAutofillAiPreFetchFailureNotification() {
+  NOTIMPLEMENTED();
+}
+
 void AutofillClient::ShowEmailVerifiedToast(const GURL& issuer) {
   NOTIMPLEMENTED();
 }

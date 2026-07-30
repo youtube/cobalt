@@ -478,8 +478,8 @@ IN_PROC_BROWSER_TEST_F(TranslateManagerBrowserTest,
 }
 
 // Test that the translation was successful.
-// TODO(crbug.com/518688037): Flaky on Windows ASAN.
-#if BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER)
+// TODO(crbug.com/518688037): Flaky on Windows.
+#if BUILDFLAG(IS_WIN)
 #define MAYBE_PageTranslationSuccess DISABLED_PageTranslationSuccess
 #else
 #define MAYBE_PageTranslationSuccess PageTranslationSuccess
@@ -1112,7 +1112,14 @@ IN_PROC_BROWSER_TEST_F(TranslateManagerBrowserTest,
             chrome_translate_client->GetLanguageState().source_language());
 }
 
-IN_PROC_BROWSER_TEST_F(TranslateManagerBrowserTest, TranslateSessionRestore) {
+// TODO(crbug.com/518213587): Flaky on Windows
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_TranslateSessionRestore DISABLED_TranslateSessionRestore
+#else
+#define MAYBE_TranslateSessionRestore TranslateSessionRestore
+#endif
+IN_PROC_BROWSER_TEST_F(TranslateManagerBrowserTest,
+                       MAYBE_TranslateSessionRestore) {
   // Make restored tab active to (on some platforms) initiate language
   // detection.
   browser()->tab_strip_model()->ActivateTabAt(
@@ -1196,8 +1203,14 @@ class TranslateManagerPrerenderBrowserTest
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+// TODO(crbug.com/520628534): Flaky.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_SkipPrerenderPage DISABLED_SkipPrerenderPage
+#else
+#define MAYBE_SkipPrerenderPage SkipPrerenderPage
+#endif
 IN_PROC_BROWSER_TEST_F(TranslateManagerPrerenderBrowserTest,
-                       SkipPrerenderPage) {
+                       MAYBE_SkipPrerenderPage) {
   SetTranslateScript(kTestValidScript);
 
   ChromeTranslateClient* chrome_translate_client = GetChromeTranslateClient();

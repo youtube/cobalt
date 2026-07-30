@@ -71,6 +71,13 @@ chromium-metrics-reviews@google.com.
   <int value="30" label="kFinalizeMinorMSForMajorGC"/>
 </enum>
 
+<enum name="HeapGrowingMode">
+  <int value="0" label="kSlow"/>
+  <int value="1" label="kConservative"/>
+  <int value="2" label="kMinimal"/>
+  <int value="3" label="kDefault"/>
+</enum>
+
 <enum name="LiftoffBailoutReason">
   <int value="0" label="kSuccess"/>
   <int value="1" label="kDecodeError"/>

@@ -145,7 +145,7 @@ bool OpenPopupInBrowser(BrowserWindowInterface& browser,
   Browser& browser_legacy = *browser.GetBrowserForMigrationOnly();
   if (!browser_legacy.SupportsWindowFeature(
           Browser::WindowFeature::kFeatureToolbar) ||
-      !browser_legacy.window()->IsToolbarVisible()) {
+      !BrowserWindow::FromBrowser(&browser)->IsToolbarVisible()) {
     *error = "Browser window has no toolbar.";
     return false;
   }

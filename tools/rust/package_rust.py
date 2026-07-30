@@ -36,6 +36,9 @@ def main():
         default=DEFAULT_GCS_BUCKET,
         help='Google Cloud Storage bucket where the target archive is uploaded'
     )
+    parser.add_argument('--skip-test',
+                        action='store_true',
+                        help='skip running rustc and libstd tests')
     args = parser.parse_args()
 
     # The gcs_platform logic copied from `//tools/clang/scripts/upload.sh`.
@@ -62,6 +65,8 @@ def main():
             os.path.join(THIS_DIR, 'build_rust.py'), '--build-bindgen',
             '--build-crubit'
         ]
+        if args.skip_test:
+            build_cmd.append('--skip-test')
         TeeCmd(build_cmd, log)
 
     # Strip everything in bin/ to reduce the package size.

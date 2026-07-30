@@ -2390,6 +2390,9 @@ if (enable_java_templates) {
         "--proguard-file",
         rebase_path(invoker.proguard_file, root_build_dir),
       ]
+      if (optimize_android_resources) {
+        _args += [ "--use-r8-resource-shrinking" ]
+      }
     }
 
     if (defined(invoker.aapt_locale_allowlist)) {

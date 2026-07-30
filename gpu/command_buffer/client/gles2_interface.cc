@@ -20,7 +20,8 @@ bool GLES2Interface::CanCopySharedImageDirectlyToGLTexture(
   return false;
 }
 
-gpu::SyncToken GLES2Interface::CopySharedImageToGLTextureViaTextureCopy(
+CopySharedImageSyncCallback
+GLES2Interface::CopySharedImageToGLTextureViaTextureCopy(
     const gfx::Rect& src_rect,
     ClientSharedImage* source_shared_image,
     const gpu::SyncToken& source_sync_token,
@@ -32,11 +33,10 @@ gpu::SyncToken GLES2Interface::CopySharedImageToGLTextureViaTextureCopy(
     int32_t dst_level,
     SkAlphaType dst_alpha_type,
     GrSurfaceOrigin dst_origin) {
-  return gpu::SyncToken();
+  return CopySharedImageSyncCallback();
 }
 
-std::unique_ptr<RasterScopedAccess>
-GLES2Interface::CopySharedImageDirectlyToGLTexture(
+CopySharedImageSyncCallback GLES2Interface::CopySharedImageDirectlyToGLTexture(
     const gfx::Rect& src_rect,
     ClientSharedImage* source_shared_image,
     const gpu::SyncToken& source_sync_token,
@@ -49,7 +49,7 @@ GLES2Interface::CopySharedImageDirectlyToGLTexture(
     int32_t dst_level,
     SkAlphaType dst_alpha_type,
     GrSurfaceOrigin dst_origin) {
-  return nullptr;
+  return CopySharedImageSyncCallback();
 }
 
 GLboolean GLES2Interface::DidGpuSwitch(gl::GpuPreference* active_gpu) {

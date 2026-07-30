@@ -18,6 +18,7 @@ import android.view.View;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 
 import androidx.appcompat.widget.AppCompatTextView;
 import androidx.fragment.app.Fragment;
@@ -142,10 +143,7 @@ class MultiColumnTitleUpdater implements MultiColumnSettings.Observer {
 
         restoreInstanceState(savedInstanceState);
 
-        final int originalHeight =
-                mContainer
-                        .getResources()
-                        .getDimensionPixelSize(R.dimen.settings_detailed_title_height);
+        final int originalHeight = getDimenPx(R.dimen.settings_detailed_title_height);
 
         // TODO(crbug.com/480084682): Remove this listener after search is enabled, since
         //     title views will be horizontally scrollable.
@@ -326,9 +324,7 @@ class MultiColumnTitleUpdater implements MultiColumnSettings.Observer {
         List<MultiColumnSettings.Title> titles = initTitlesList();
 
         // Padding for the chevron separator.
-        int paddingPx =
-                mContext.getResources()
-                        .getDimensionPixelSize(R.dimen.settings_detailed_title_padding);
+        int paddingPx = getDimenPx(R.dimen.settings_detailed_title_padding);
 
         float scaleX = LocalizationUtils.isLayoutRtl() ? -1f : 1f;
 
@@ -440,6 +436,36 @@ class MultiColumnTitleUpdater implements MultiColumnSettings.Observer {
 
         // Enable detailed page title.
         mContainer.setVisibility(View.VISIBLE);
+
+        maybeUpdateStartMargin();
+    }
+
+    @Override
+    public void onDetailLayoutUpdated() {
+        maybeUpdateStartMargin();
+    }
+
+    private void maybeUpdateStartMargin() {
+        View detailView = mMultiColumnSettings.getDetailView();
+        View recyclerView = detailView.findViewById(R.id.recycler_view);
+        if (recyclerView == null) return;
+
+        int widthPx = recyclerView.getWidth();
+        if (widthPx == 0) return;
+
+        int maxDetailWidthPx = getDimenPx(R.dimen.settings_min_multi_column_screen_width);
+        int minPaddingPx = getDimenPx(R.dimen.settings_multi_column_pane_gap);
+        int startMargin = getDimenPx(R.dimen.settings_detailed_title_start_margin);
+        int excessPx = widthPx - maxDetailWidthPx - minPaddingPx * 2;
+        int offsetX = minPaddingPx + (excessPx > 0 ? excessPx / 2 : 0);
+        View titleScrollView = (View) mContainer.getParent();
+        var params = (RelativeLayout.LayoutParams) titleScrollView.getLayoutParams();
+        params.setMarginStart(startMargin + offsetX);
+        titleScrollView.setLayoutParams(params);
+    }
+
+    private int getDimenPx(int res) {
+        return mContext.getResources().getDimensionPixelSize(res);
     }
 
     public void onSaveInstanceState(Bundle outState) {

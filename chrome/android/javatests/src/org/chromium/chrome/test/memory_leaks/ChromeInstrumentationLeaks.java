@@ -38,10 +38,8 @@ public class ChromeInstrumentationLeaks implements LeakCanaryConfigProvider {
     @Override
     public Map<String, String> getStaticFieldLeaks() {
         return Map.of(
-                sClass462704925,
-                sField462704925,
-                sClassPersistencePolicyCleanup,
-                sFieldPersistencePolicyCleanup);
+                sClass462704925, sField462704925,
+                sClassPersistencePolicyCleanup, sFieldPersistencePolicyCleanup);
     }
 
     @Override

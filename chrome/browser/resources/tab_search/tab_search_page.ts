@@ -14,7 +14,7 @@ import './title_item.js';
 import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 import {getInstance as getAnnouncerInstance} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
 import {CrSearchFieldMixinLit} from 'chrome://resources/cr_elements/cr_search_field/cr_search_field_mixin_lit.js';
-import {assert} from 'chrome://resources/js/assert.js';
+import {assert, assertNotReachedCase} from 'chrome://resources/js/assert.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import type {MetricsReporter} from 'chrome://resources/js/metrics_reporter/metrics_reporter.js';
 import {MetricsReporterImpl} from 'chrome://resources/js/metrics_reporter/metrics_reporter.js';
@@ -51,13 +51,30 @@ export const SEARCH_QUERY_MAX_LENGTH: number = 400;
 const TabSearchSearchFieldBase = CrSearchFieldMixinLit(CrLitElement);
 
 /**
- * These values are persisted to logs and should not be renumbered or re-used.
+ * These values are persisted to logs and should not be renumbered or reused.
  * See tools/metrics/histograms/enums.xml.
  */
 export enum TabSwitchAction {
   WITHOUT_SEARCH = 0,
   WITH_SEARCH = 1,
 }
+
+// LINT.IfChange(TabSearchUserAction)
+/**
+ * These values are persisted to logs and should not be renumbered or reused.
+ * See tools/metrics/histograms/metadata/tab/enums.xml.
+ */
+export enum TabSearchUserAction {
+  IN_FILTERED_LIST_OPEN_RECENTLY_CLOSED = 0,
+  IN_FILTERED_LIST_SWITCHED_TAB = 1,
+  IN_FILTERED_LIST_CLOSED_TAB = 2,
+  IN_UNFILTERED_LIST_OPEN_RECENTLY_CLOSED = 3,
+  IN_UNFILTERED_LIST_SWITCHED_TAB = 4,
+  IN_UNFILTERED_LIST_CLOSED_TAB = 5,
+}
+// LINT.ThenChange(//tools/metrics/histograms/metadata/tab/enums.xml:TabSearchWebUIAction)
+
+export type TabSearchAction = 'SwitchTab'|'CloseTab'|'OpenRecentlyClosedEntry';
 
 export interface TabSearchPageElement {
   $: {
@@ -489,7 +506,7 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
     this.tabItemAction_(tabItem, tabIndex);
   }
 
-  private recordMetricsForAction(action: string, tabIndex: number) {
+  private recordMetricsForAction(action: TabSearchAction, tabIndex: number) {
     const withSearch = !!this.searchText_;
     if (action === 'SwitchTab') {
       chrome.metricsPrivate.recordEnumerationValue(
@@ -498,10 +515,38 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
                        TabSwitchAction.WITHOUT_SEARCH,
           Object.keys(TabSwitchAction).length);
     }
+
     chrome.metricsPrivate.recordSmallCount(
         withSearch ? `Tabs.TabSearch.WebUI.IndexOf${action}InFilteredList` :
                      `Tabs.TabSearch.WebUI.IndexOf${action}InUnfilteredList`,
         tabIndex);
+
+    switch (action) {
+      case 'OpenRecentlyClosedEntry':
+        chrome.metricsPrivate.recordEnumerationValue(
+            'Tabs.TabSearch.WebUI.Action',
+            withSearch ?
+                TabSearchUserAction.IN_FILTERED_LIST_OPEN_RECENTLY_CLOSED :
+                TabSearchUserAction.IN_UNFILTERED_LIST_OPEN_RECENTLY_CLOSED,
+            6);
+        break;
+      case 'SwitchTab':
+        chrome.metricsPrivate.recordEnumerationValue(
+            'Tabs.TabSearch.WebUI.Action',
+            withSearch ? TabSearchUserAction.IN_FILTERED_LIST_SWITCHED_TAB :
+                         TabSearchUserAction.IN_UNFILTERED_LIST_SWITCHED_TAB,
+            6);
+        break;
+      case 'CloseTab':
+        chrome.metricsPrivate.recordEnumerationValue(
+            'Tabs.TabSearch.WebUI.Action',
+            withSearch ? TabSearchUserAction.IN_FILTERED_LIST_CLOSED_TAB :
+                         TabSearchUserAction.IN_UNFILTERED_LIST_CLOSED_TAB,
+            6);
+        break;
+      default:
+        assertNotReachedCase(action);
+    }
   }
 
   /**
@@ -531,21 +576,25 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
         action = 'SwitchTab';
         break;
       case TabItemType.RECENTLY_CLOSED_TAB:
+        this.recordMetricsForAction(
+            'OpenRecentlyClosedEntry', tabIndex - this.filteredOpenTabsCount_);
         this.apiProxy_.openRecentlyClosedEntry(
-            (itemData as TabData).tab.tabId, !!this.searchText_, true,
-            tabIndex - this.filteredOpenTabsCount_);
+            (itemData as TabData).tab.tabId, !!this.searchText_, true);
         action = 'OpenRecentlyClosedEntry';
         break;
       case TabItemType.RECENTLY_CLOSED_TAB_GROUP:
+        this.recordMetricsForAction(
+            'OpenRecentlyClosedEntry', tabIndex - this.filteredOpenTabsCount_);
         this.apiProxy_.openRecentlyClosedEntry(
             ((itemData as TabGroupData).tabGroup).sessionId, !!this.searchText_,
-            false, tabIndex - this.filteredOpenTabsCount_);
+            false);
         action = 'OpenRecentlyClosedEntry';
         break;
       case TabItemType.RECENTLY_CLOSED_SPLIT:
+        this.recordMetricsForAction(
+            'OpenRecentlyClosedEntry', tabIndex - this.filteredOpenTabsCount_);
         this.apiProxy_.openRecentlyClosedEntry(
-            (itemData as SplitViewData).sessionId, !!this.searchText_, false,
-            tabIndex - this.filteredOpenTabsCount_);
+            (itemData as SplitViewData).sessionId, !!this.searchText_, false);
         action = 'OpenRecentlyClosedEntry';
         break;
       default:

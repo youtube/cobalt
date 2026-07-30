@@ -106,6 +106,7 @@ struct AXLocationAndScrollUpdates;
 }  // namespace ui
 
 namespace content {
+class BackForwardCacheImpl;
 class FrameTreeNode;
 class Page;
 class PrerenderHostRegistry;
@@ -639,6 +640,9 @@ class CONTENT_EXPORT RenderFrameHostDelegate {
   // Return true if the back forward cache is supported. This is not an
   // indication that the cache will be used.
   virtual bool IsBackForwardCacheSupported();
+
+  // Returns the BackForwardCache for this delegate.
+  virtual BackForwardCacheImpl& GetBackForwardCache();
 
   // The page is trying to open a new widget (e.g. a select popup). The
   // widget should be created associated with the given

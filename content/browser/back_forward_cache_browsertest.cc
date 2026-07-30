@@ -3691,6 +3691,46 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
   ExpectRestored(FROM_HERE);
 }
 
+// Regression test for https://crbug.com/520005624.
+// Ensures that receiving a DidConsumeHistoryUserActivation IPC from a subframe
+// that is in the BackForwardCache is ignored and does not clear history user
+// activation of the active page.
+IN_PROC_BROWSER_TEST_F(
+    BackForwardCacheBrowserTest,
+    DidConsumeHistoryUserActivationFromCachedSubframeIsIgnored) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  GURL url_ab(embedded_test_server()->GetURL(
+      "a.com", "/cross_site_iframe_factory.html?a(b)"));
+  GURL url_c(embedded_test_server()->GetURL("c.com", "/title1.html"));
+
+  // 1) Navigate to A(B).
+  ASSERT_TRUE(NavigateToURL(shell(), url_ab));
+  RenderFrameHostImplWrapper rfh_a(current_frame_host());
+  RenderFrameHostImplWrapper rfh_b(rfh_a->child_at(0)->current_frame_host());
+
+  // 2) Navigate to C.
+  ASSERT_TRUE(NavigateToURL(shell(), url_c));
+  RenderFrameHostImplWrapper rfh_c(current_frame_host());
+
+  // Verify A(B) is in the BackForwardCache.
+  ASSERT_TRUE(rfh_a->IsInBackForwardCache());
+  ASSERT_TRUE(rfh_b->IsInBackForwardCache());
+
+  // 3) Set history user activation active on the active page C.
+  rfh_c->UpdateUserActivationState(
+      blink::mojom::UserActivationUpdateType::kNotifyActivation,
+      blink::mojom::UserActivationNotificationType::kInteraction);
+  EXPECT_TRUE(rfh_c->IsHistoryUserActivationActive());
+
+  // 4) Simulate receiving DidConsumeHistoryUserActivation from B (which is in
+  // BFCache).
+  rfh_b->DidConsumeHistoryUserActivation();
+
+  // 5) The history user activation on active page C must NOT be consumed.
+  EXPECT_TRUE(rfh_c->IsHistoryUserActivationActive());
+}
+
 // BEFORE ADDING A NEW TEST HERE
 // Read the note at the top about the other files you could add it to.
 }  // namespace content

@@ -63,6 +63,9 @@ class DesktopEnvironmentOptions final {
   bool enable_remote_webauthn() const;
   void set_enable_remote_webauthn(bool enabled);
 
+  bool enable_security_key() const;
+  void set_enable_security_key(bool enabled);
+
   const webrtc::DesktopCaptureOptions* desktop_capture_options() const;
   webrtc::DesktopCaptureOptions* desktop_capture_options();
 
@@ -97,6 +100,9 @@ class DesktopEnvironmentOptions final {
 
   // True if this host has the remote WebAuthn feature enabled.
   bool enable_remote_webauthn_ = false;
+
+  // True if the security key (gnubby) forwarding is enabled.
+  bool enable_security_key_ = false;
 
   // True if the video capturer should be run on a dedicated thread.
   bool capture_video_on_dedicated_thread_ = false;

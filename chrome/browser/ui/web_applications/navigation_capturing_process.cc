@@ -6,7 +6,9 @@
 
 #include <utility>
 
+#include "base/check.h"
 #include "base/check_deref.h"
+#include "base/check_op.h"
 #include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -930,6 +932,16 @@ NavigationCapturingProcess::HandleIsolatedWebAppNavigation(
 
   if (capturing_disabled) {
     return CapturingDisabled();
+  }
+
+  // Service worker `clients.openWindow()` arrives with no source browser and a
+  // non-link transition, so the link-based source check below does not apply.
+  // Use the initiator origin to enforce the same cross-IWA restriction.
+  if (params.is_service_worker_open_window && params.initiator_origin &&
+      !params.initiator_origin->IsSameOriginWith(params.url)) {
+    // TODO(crbug.com/424422466): Support cross-IWA navigations to start_url.
+    return CancelInitialNavigation(
+        NavigationCapturingInitialResult::kNavigationCanceled);
   }
 
   if (ui::PageTransitionCoreTypeIs(params.transition,
@@ -1944,7 +1956,7 @@ NavigationCapturingProcess::CapturedNavigateExisting(Browser* app_browser,
                                                      int browser_tab) {
   CHECK(first_navigation_app_id_.has_value());
 
-  CHECK(browser_tab != -1);
+  CHECK_NE(browser_tab, -1);
   if (isolated_web_app_navigation_) {
     CHECK(disposition_ == WindowOpenDisposition::NEW_FOREGROUND_TAB ||
           disposition_ == WindowOpenDisposition::CURRENT_TAB);

@@ -19,6 +19,23 @@
 
 namespace dictation {
 
+namespace {
+
+DictationBubbleUi::State ToBubbleUiState(SessionState state) {
+  switch (state) {
+    case SessionState::kInactive:
+      return DictationBubbleUi::State::kInactive;
+    case SessionState::kStreamInitializing:
+      return DictationBubbleUi::State::kInitializing;
+    case SessionState::kTranscribing:
+      return DictationBubbleUi::State::kTranscribing;
+    case SessionState::kFinalizing:
+      return DictationBubbleUi::State::kFinalizing;
+  }
+}
+
+}  // namespace
+
 SessionUiImpl::SessionUiImpl(BrowserWindowInterface& window,
                              SessionUiDelegate& delegate)
     : controller_(delegate) {
@@ -35,12 +52,20 @@ SessionUiImpl::SessionUiImpl(BrowserWindowInterface& window,
       base::BindRepeating(&SessionUiImpl::OnToggleActiveStreamClicked,
                           base::Unretained(this)));
 
+  session_state_changed_subscription_ =
+      delegate.AddSessionStateChangedCallback(base::BindRepeating(
+          &SessionUiImpl::OnSessionStateChanged, base::Unretained(this)));
+
   // TODO(b/510778034): Determine what we need to make this accessibility
   // friendly.
   bubble_ui_->Show();
 }
 
 SessionUiImpl::~SessionUiImpl() = default;
+
+void SessionUiImpl::OnSessionStateChanged(SessionState state) {
+  bubble_ui_->SetState(ToBubbleUiState(state));
+}
 
 void SessionUiImpl::OnDictationBubbleCloseClicked() {
   controller_->UiRequestEndSession();

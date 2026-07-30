@@ -461,13 +461,16 @@ ImageBitmapRenderingContext::GetResourceForPushFrame(
       return nullptr;
     }
 
+    const bool is_gpu_compositing_enabled =
+        SharedGpuContext::IsGpuCompositingEnabled();
+
     // TODO(https://crbug.com/40206688): These values should reflect the
     // ImageBitmap.
     const SkAlphaType alpha_type = kPremul_SkAlphaType;
     const viz::SharedImageFormat format = GetN32FormatForCanvas();
     const gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
     const gfx::HDRMetadata hdr_metadata;
-    if (SharedGpuContext::IsGpuCompositingEnabled()) {
+    if (is_gpu_compositing_enabled) {
       resource_provider_for_offscreen_canvas_ =
           CanvasNon2DResourceProviderSharedImage::Create(
               image->Size(), format, alpha_type, color_space, hdr_metadata,
@@ -482,17 +485,11 @@ ImageBitmapRenderingContext::GetResourceForPushFrame(
 
     Host()->UpdateMemoryUsage();
 
-    if (resource_provider_for_offscreen_canvas_.get() &&
-        resource_provider_for_offscreen_canvas_.get()->IsValid()) {
-      // todo(crbug.com/1064363)  Add a separate UMA for Offscreen Canvas usage
-      // and understand if the if (ResourceProvider() &&
-      // ResourceProvider()->IsValid()) is really needed.
-      base::UmaHistogramBoolean(
-          "Blink.Canvas.ResourceProviderIsAccelerated",
-          resource_provider_for_offscreen_canvas_.get()->IsAccelerated());
-      base::UmaHistogramEnumeration(
-          "Blink.Canvas.ResourceProviderType",
-          resource_provider_for_offscreen_canvas_.get()->GetType());
+    if (resource_provider_for_offscreen_canvas_.get()) {
+      base::UmaHistogramBoolean("Blink.Canvas.ResourceProviderIsAccelerated",
+                                is_gpu_compositing_enabled);
+      base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
+                                    CanvasResourceProviderType::kSharedImage);
       Host()->DidDraw();
     }
   }

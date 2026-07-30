@@ -41,18 +41,18 @@ class PersonalContextFirstRunBottomSheetBridge {
   void Hide();
 
   // Called from Java when the user clicks the primary "Got it" button.
-  void OnInfoAcknowledged(JNIEnv* env);
+  void OnNoticeAcknowledged(JNIEnv* env);
 
   // Called from Java when the user clicks the secondary "Manage settings"
   // button.
   void OnManageSettingsClicked(JNIEnv* env);
 
-  // Called from Java when the user clicks the "Learn more" link in the Info
+  // Called from Java when the user clicks the "Learn more" link in the Notice
   // dialog.
   void OnLearnMoreClicked(JNIEnv* env);
 
-  // Called from Java when the user dismissed the Info dialog.
-  void OnInfoDismissed(JNIEnv* env);
+  // Called from Java when the user dismissed the Notice dialog.
+  void OnNoticeDismissed(JNIEnv* env);
 
  protected:
   // Helper method to call Java to show the sheet. Virtual for testing.

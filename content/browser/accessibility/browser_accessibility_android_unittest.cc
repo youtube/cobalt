@@ -774,6 +774,78 @@ TEST_F(BrowserAccessibilityAndroidTest,
   EXPECT_EQ(std::u16string(), image_succeeded_with_name->GetTextContentUTF16());
 }
 
+TEST_F(BrowserAccessibilityAndroidTest, TestCanvasInnerText_Annotation) {
+  ui::AXTreeUpdate tree;
+  tree.root_id = 1;
+  tree.nodes.resize(4);
+  tree.nodes[0].id = 1;
+  tree.nodes[0].child_ids = {2, 3, 4};
+
+  // Case 1: Unnamed canvas.
+  tree.nodes[1].id = 2;
+  tree.nodes[1].role = ax::mojom::Role::kCanvas;
+  tree.nodes[1].SetNameFrom(ax::mojom::NameFrom::kNone);
+  tree.nodes[1].AddStringAttribute(
+      ax::mojom::StringAttribute::kCanvasAnnotation, "test_annotation");
+
+  // Case 2: Named canvas (from attribute, e.g. aria-label).
+  tree.nodes[2].id = 3;
+  tree.nodes[2].role = ax::mojom::Role::kCanvas;
+  tree.nodes[2].SetName("canvas_name");
+  tree.nodes[2].SetNameFrom(ax::mojom::NameFrom::kAttribute);
+  tree.nodes[2].AddStringAttribute(
+      ax::mojom::StringAttribute::kCanvasAnnotation, "test_annotation");
+
+  // Case 3: Named canvas (from contents).
+  tree.nodes[3].id = 4;
+  tree.nodes[3].role = ax::mojom::Role::kCanvas;
+  tree.nodes[3].SetName("canvas_name");
+  tree.nodes[3].SetNameFrom(ax::mojom::NameFrom::kContents);
+  tree.nodes[3].AddStringAttribute(
+      ax::mojom::StringAttribute::kCanvasAnnotation, "test_annotation");
+
+  std::unique_ptr<ui::BrowserAccessibilityManager> manager(
+      BrowserAccessibilityManagerAndroid::Create(
+          tree, node_id_delegate_, test_browser_accessibility_delegate_.get()));
+
+  BrowserAccessibilityAndroid* canvas_unnamed =
+      static_cast<BrowserAccessibilityAndroid*>(
+          manager->GetBrowserAccessibilityRoot()->PlatformGetChild(0));
+
+  BrowserAccessibilityAndroid* canvas_named_attribute =
+      static_cast<BrowserAccessibilityAndroid*>(
+          manager->GetBrowserAccessibilityRoot()->PlatformGetChild(1));
+
+  BrowserAccessibilityAndroid* canvas_named_contents =
+      static_cast<BrowserAccessibilityAndroid*>(
+          manager->GetBrowserAccessibilityRoot()->PlatformGetChild(2));
+
+  // Case 1: When there is no name, the canvas annotation is promoted to
+  // contentDescription.
+  EXPECT_EQ(u"test_annotation", canvas_unnamed->GetAndroidContentDescription());
+  EXPECT_EQ(std::u16string(), canvas_unnamed->GetTextContentUTF16());
+  EXPECT_EQ(std::u16string(),
+            canvas_unnamed->GetAndroidSupplementalDescription());
+
+  // Case 2: When the name is from an attribute (e.g. aria-label), the name
+  // should go to contentDescription and the annotation goes to
+  // supplementalDescription.
+  EXPECT_EQ(u"canvas_name",
+            canvas_named_attribute->GetAndroidContentDescription());
+  EXPECT_EQ(u"test_annotation",
+            canvas_named_attribute->GetAndroidSupplementalDescription());
+  EXPECT_EQ(std::u16string(), canvas_named_attribute->GetTextContentUTF16());
+
+  // Case 3: When the name is from contents (e.g. inner text), the name should
+  // go to the text (GetTextContentUTF16), and the annotation should go to
+  // supplementalDescription.
+  EXPECT_EQ(std::u16string(),
+            canvas_named_contents->GetAndroidContentDescription());
+  EXPECT_EQ(u"canvas_name", canvas_named_contents->GetTextContentUTF16());
+  EXPECT_EQ(u"test_annotation",
+            canvas_named_contents->GetAndroidSupplementalDescription());
+}
+
 TEST_F(BrowserAccessibilityAndroidTest, TextStyling_Suggestions) {
   ui::AXTreeUpdate tree;
   tree.root_id = ROOT_ID;

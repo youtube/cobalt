@@ -61,6 +61,7 @@ Huomioitavaa:
 <translation id="2120238739383482109">Avaa Chrome-kirjanmerkit.</translation>
 <translation id="2147651015520127414">Chrome vahvisti, että <ph name="ISSUER" /> on myöntänyt tämän sivuston varmenteen.</translation>
 <translation id="2199719347983604670">Chromen synkronoinnista saatu data</translation>
+<translation id="2212318912894837281">Lisää tunnuslause, niin voit tallentaa salasanan ja käyttää Chrome-dataa kaikilla laitteilla</translation>
 <translation id="2213327331203157297">Voit poistaa lukitustilan käytöstä Chromessa laittamalla sen pois päältä iPhonellasi.</translation>
 <translation id="2242467532204595597">Käytä Chromea, kun napautat linkkejä viesteissä, dokumenteissa ja muissa sovelluksissa.</translation>
 <translation id="2256384876478573507">Avaa Chrome nopeammin, kun olet valmis selaamaan iPhonella.</translation>
@@ -371,6 +372,7 @@ Datasi salataan tunnuslauseella <ph name="TIME" />. Lisää se, niin voit käytt
 <translation id="9068336935206019333">Avaa Chromen incognito-tilassa</translation>
 <translation id="9082304295862405388">Gemini voi käyttää tarkkaa sijaintia riippuen Chromelle jo antamastasi luvasta</translation>
 <translation id="909127538042363610">Ota Chromen tehokkain suojaus käyttöön</translation>
+<translation id="9113725809421872108">Vahvista henkilöllisyytesi, niin voit tallentaa salasanan ja käyttää Chrome-dataa kaikilla laitteilla</translation>
 <translation id="9122931302567044771">Tämä tarkoittaa, että Chrome pyytää aina tietokonesivustoa.</translation>
 <translation id="9176561303811134420">Hallinnoi maksutapoja Chromessa</translation>
 <translation id="9181628561061032322">Avaa Chromen viimeaikaiset välilehdet.</translation>

@@ -12,9 +12,16 @@
 
 #include "base/base64.h"
 #include "base/check.h"
+#include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/test/test_future.h"
+#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
+#include "chrome/browser/ash/profiles/profile_helper.h"
+#include "chrome/test/base/testing_browser_process.h"
+#include "chrome/test/base/testing_profile.h"
+#include "chrome/test/base/testing_profile_manager.h"
 #include "chromeos/ash/components/kcer/kcer.h"
 #include "chromeos/ash/components/kcer/kcer_nss/test_utils.h"
 #include "components/enterprise/client_certificates/core/client_identity.h"
@@ -24,6 +31,10 @@
 #include "components/enterprise/client_certificates/core/store_error.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
+#include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/user.h"
+#include "components/user_manager/user_names.h"
+#include "components/user_manager/user_type.h"
 #include "content/public/test/browser_task_environment.h"
 #include "crypto/scoped_test_nss_db.h"
 #include "net/cert/x509_certificate.h"
@@ -350,6 +361,63 @@ TEST_F(KcerCertificateStoreTest, DeleteIdentities_EmptyName) {
   std::optional<StoreError> error = future.Take();
   ASSERT_TRUE(error.has_value());
   EXPECT_EQ(error.value(), StoreError::kInvalidIdentityName);
+}
+
+// --- CreateForProfile gating tests ---
+
+// CreateForProfile() consults ash::ProfileHelper to classify the profile's
+// user and only provisions a store for a regular signed-in user. The ineligible
+// sessions exercised here short-circuit (on the user-type / missing-user check)
+// before reaching kcer::KcerFactoryAsh, which would require the Kcer/Chaps
+// environment that only exists in browser tests. A FakeChromeUserManager plus a
+// TestingProfileManager is therefore enough to drive these early-returns, and
+// it lets the test map a profile to a real user_manager::User so the rejection
+// is genuinely driven by the user's type rather than a missing mapping.
+class KcerCertificateStoreCreateForProfileTest : public testing::Test {
+ protected:
+  KcerCertificateStoreCreateForProfileTest()
+      : profile_manager_(TestingBrowserProcess::GetGlobal()),
+        user_manager_(new ash::FakeChromeUserManager()),
+        scoped_user_manager_(base::WrapUnique(user_manager_.get())) {}
+
+  void SetUp() override { ASSERT_TRUE(profile_manager_.SetUp()); }
+
+  content::BrowserTaskEnvironment task_environment_;
+  TestingProfileManager profile_manager_;
+  raw_ptr<ash::FakeChromeUserManager, DanglingUntriaged> user_manager_;
+  user_manager::ScopedUserManager scoped_user_manager_;
+};
+
+// A guest session is not a regular signed-in user, so it must not receive a
+// CertificateStore.
+TEST_F(KcerCertificateStoreCreateForProfileTest, GuestProfileGetsNoStore) {
+  user_manager_->AddGuestUser();
+  user_manager_->LoginUser(user_manager::GuestAccountId());
+  TestingProfile* guest_profile = profile_manager_.CreateGuestProfile();
+  ASSERT_TRUE(guest_profile);
+
+  // Confirm the profile genuinely maps to a guest user_manager::User, so the
+  // rejection below is driven by the user-type check rather than the
+  // missing-user early return (which UnmappedProfileGetsNoStore covers).
+  const user_manager::User* user =
+      ash::ProfileHelper::Get()->GetUserByProfile(guest_profile);
+  ASSERT_TRUE(user);
+  ASSERT_EQ(user->GetType(), user_manager::UserType::kGuest);
+
+  EXPECT_FALSE(KcerCertificateStore::CreateForProfile(guest_profile));
+}
+
+// A profile with no associated user_manager::User (e.g. not signed in) is
+// likewise ineligible.
+TEST_F(KcerCertificateStoreCreateForProfileTest, UnmappedProfileGetsNoStore) {
+  TestingProfile* profile =
+      profile_manager_.CreateTestingProfile("unmapped_profile");
+  ASSERT_TRUE(profile);
+
+  // No user is logged in, so the profile maps to no user.
+  ASSERT_FALSE(ash::ProfileHelper::Get()->GetUserByProfile(profile));
+
+  EXPECT_FALSE(KcerCertificateStore::CreateForProfile(profile));
 }
 
 }  // namespace

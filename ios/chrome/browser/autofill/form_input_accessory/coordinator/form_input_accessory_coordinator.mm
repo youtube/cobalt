@@ -32,6 +32,8 @@
 #import "components/password_manager/core/common/password_manager_features.h"
 #import "components/password_manager/ios/password_generation_provider.h"
 #import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/autofill/atmemory/coordinator/at_memory_coordinator.h"
+#import "ios/chrome/browser/autofill/atmemory/public/at_memory_commands.h"
 #import "ios/chrome/browser/autofill/form_input_accessory/coordinator/form_input_accessory_mediator.h"
 #import "ios/chrome/browser/autofill/form_input_accessory/coordinator/form_input_accessory_mediator_handler.h"
 #import "ios/chrome/browser/autofill/form_input_accessory/public/autofill_suggestion_context_menu_handler.h"
@@ -134,6 +136,7 @@ AutofillSettingsPage SuggestionToAutofillSettingsPage(
 
 @interface FormInputAccessoryCoordinator () <
     AddressCoordinatorDelegate,
+    AtMemoryCommands,
     AutofillSuggestionContextMenuHandler,
     CardCoordinatorDelegate,
     FormInputAccessoryMediatorHandler,
@@ -187,6 +190,8 @@ AutofillSettingsPage SuggestionToAutofillSettingsPage(
     CommandDispatcher* dispatcher = browser->GetCommandDispatcher();
     [dispatcher startDispatchingToTarget:self
                              forProtocol:@protocol(SecurityAlertCommands)];
+    [dispatcher startDispatchingToTarget:self
+                             forProtocol:@protocol(AtMemoryCommands)];
 
     _brandingCoordinator =
         [[BrandingCoordinator alloc] initWithBaseViewController:viewController
@@ -320,6 +325,11 @@ AutofillSettingsPage SuggestionToAutofillSettingsPage(
 - (void)startManualFillFromButton:(UIButton*)button
                       forDataType:(manual_fill::ManualFillDataType)dataType
          invokedOnObfuscatedField:(BOOL)invokedOnObfuscatedField {
+  if (dataType == manual_fill::ManualFillDataType::kAtMemory) {
+    [self presentAtMemory];
+    return;
+  }
+
   manual_fill::ManualFillDataType focusedFieldDataType = [ManualFillUtil
       manualFillDataTypeFromFillingProduct:
           [_formInputAccessoryMediator currentProviderMainFillingProduct]];
@@ -642,6 +652,12 @@ AutofillSettingsPage SuggestionToAutofillSettingsPage(
   [self reset];
 }
 
+#pragma mark - AtMemoryCommands
+
+- (void)dismissAtMemory {
+  [self reset];
+}
+
 #pragma mark - SecurityAlertCommands
 
 - (void)presentSecurityWarningAlertWithText:(NSString*)body {
@@ -700,6 +716,16 @@ AutofillSettingsPage SuggestionToAutofillSettingsPage(
   [_allPasswordCoordinator stop];
   _allPasswordCoordinator.manualFillAllPasswordCoordinatorDelegate = nil;
   _allPasswordCoordinator = nil;
+}
+
+// Presents the AtMemory Page Sheet (on iPhone) or Form Sheet (on iPad).
+- (void)presentAtMemory {
+  AtMemoryCoordinator* atMemoryCoordinator = [[AtMemoryCoordinator alloc]
+      initWithBaseViewController:self.baseViewController
+                         browser:self.browser];
+  [atMemoryCoordinator start];
+
+  [self.childCoordinators addObject:atMemoryCoordinator];
 }
 
 - (void)dismissAlertCoordinator {

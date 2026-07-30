@@ -99,6 +99,7 @@ class CORE_EXPORT KeyboardEvent final : public UIEventWithKeyState {
   unsigned which() const override;
   bool isComposing() const { return is_composing_; }
 
+  static bool IsEnterKeyKeydownEvent(Event& event);
 
   void Trace(Visitor*) const override;
 

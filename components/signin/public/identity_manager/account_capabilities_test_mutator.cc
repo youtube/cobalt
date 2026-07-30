@@ -257,3 +257,9 @@ void AccountCapabilitiesTestMutator::SetCapability(const std::string& name,
       << "Invalid capability name: " << name;
   capabilities_->capabilities_map_[name] = value;
 }
+
+void AccountCapabilitiesTestMutator::SetCapabilityOverride(
+    std::string_view name,
+    std::optional<signin::Tribool> value) {
+  capabilities_->SetCapabilityOverride(name, value);
+}

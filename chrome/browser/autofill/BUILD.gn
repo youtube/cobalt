@@ -398,3 +398,18 @@ if (!is_android) {
     ]
   }
 }
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "automated_tests/cache_replayer_unittest.cc" ]
+
+  deps = [
+    "//base",
+    "//chrome/test:test_support",
+    "//components/autofill/core/browser/proto",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

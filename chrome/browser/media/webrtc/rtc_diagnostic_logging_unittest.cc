@@ -980,8 +980,9 @@ TEST_F(RTCDiagnosticLoggingTest,
       "webrtc_event_log_99"));
 }
 
-TEST_F(RTCDiagnosticLoggingTest,
-       StartRtcPeerConnectionEventDiagnosticLogging_NoUploadNoEventLogging) {
+TEST_F(
+    RTCDiagnosticLoggingTest,
+    StartRtcPeerConnectionEventDiagnosticLogging_NoUploadStartsLocalEventLogging) {
   const GURL url("https://example.com");
   NavigateAndCommit(url);
   SetRtcEventLogPolicyAndAddPeerConnection(main_rfh(), url);
@@ -993,14 +994,19 @@ TEST_F(RTCDiagnosticLoggingTest,
       start_future.GetCallback());
   EXPECT_TRUE(start_future.Wait());
 
+  base::FilePath log_file_path;
   EXPECT_CALL(remote_observer_,
               OnRemoteLogStarted(testing::_, testing::_, testing::_))
-      .Times(0);
+      .WillOnce(testing::SaveArg<1>(&log_file_path));
 
   base::test::TestFuture<void> future;
   rtc_diagnostic_logging::StartRtcPeerConnectionEventDiagnosticLogging(
       *main_rfh(), kSessionId, future.GetCallback());
   EXPECT_TRUE(future.Wait());
+
+  EXPECT_FALSE(log_file_path.empty());
+  // Verify it is a local-only log (contains "_local" suffix).
+  EXPECT_THAT(log_file_path.AsUTF8Unsafe(), testing::HasSubstr("_local"));
 }
 
 TEST_F(RTCDiagnosticLoggingTest,

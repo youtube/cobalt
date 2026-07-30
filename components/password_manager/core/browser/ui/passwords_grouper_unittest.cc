@@ -379,8 +379,7 @@ TEST_F(PasswordsGrouperTest, GroupsWithMatchingMainDomainsMerged) {
   GroupedFacets group3;
   group3.facets = {
       Facet(FacetURI::FromPotentiallyInvalidSpec("https://d.com"))};
-  std::vector<password_manager::GroupedFacets> grouped_facets = {group1, group2,
-                                                                 group3};
+  std::vector<GroupedFacets> grouped_facets = {group1, group2, group3};
 
   EXPECT_CALL(affiliation_service(), GetGroupingInfo)
       .WillRepeatedly(base::test::RunOnceCallbackRepeatedly<1>(grouped_facets));
@@ -409,7 +408,7 @@ TEST_F(PasswordsGrouperTest, MainDomainComputationUsesPSLExtensions) {
   PasswordsGrouper grouper(&affiliation_service());
 
   // Create an individual group for each form.
-  std::vector<password_manager::GroupedFacets> grouped_facets;
+  std::vector<GroupedFacets> grouped_facets;
   for (const auto& form : forms) {
     GroupedFacets group;
     group.facets.emplace_back(

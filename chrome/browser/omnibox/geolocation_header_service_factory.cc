@@ -9,7 +9,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "components/omnibox/browser/geolocation_header_service.h"
-#include "components/omnibox/common/omnibox_features.h"
 
 // static
 GeolocationHeaderService* GeolocationHeaderServiceFactory::GetForProfile(
@@ -41,10 +40,6 @@ GeolocationHeaderServiceFactory::~GeolocationHeaderServiceFactory() = default;
 std::unique_ptr<KeyedService>
 GeolocationHeaderServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  if (!base::FeatureList::IsEnabled(omnibox::kPlatformAgnosticXGeo)) {
-    return nullptr;
-  }
-
   Profile* profile = Profile::FromBrowserContext(context);
   return std::make_unique<GeolocationHeaderService>(
       HostContentSettingsMapFactory::GetForProfile(profile),

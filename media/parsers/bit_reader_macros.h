@@ -7,6 +7,15 @@
 
 // Warning! Should only be included in .cc files.
 // Common bit reader macros shared by H.26x parsers.
+
+#define RETURN_IF_NUM_BITS_REMAIN_NEGATIVE(num_bits_remain)                \
+  do {                                                                     \
+    if (num_bits_remain < 0) {                                             \
+      DVLOG(1) << "Error in stream: unexpected EOS, negative bits remain"; \
+      return kInvalidStream;                                               \
+    }                                                                      \
+  } while (0)
+
 #define READ_BITS_OR_RETURN(num_bits, out)                                 \
   do {                                                                     \
     uint32_t _out;                                                         \

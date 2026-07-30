@@ -126,6 +126,12 @@ BASE_FEATURE(kGlicUnbindOnClose, base::FEATURE_DISABLED_BY_DEFAULT);
 
 namespace {
 
+// Invocation sources for which ZSS warming should be disabled.
+constexpr auto kZssWarmingBlocklist = std::to_array<mojom::InvocationSource>({
+    mojom::InvocationSource::kAutoOpenedForPdf,
+    mojom::InvocationSource::kPromotionPage,
+});
+
 EmbedderKey CreateSidePanelEmbedderKey(tabs::TabInterface* tab) {
   CHECK(tab);
   return EmbedderKey(tab);
@@ -204,11 +210,9 @@ GlicInstanceImpl::EmbedderEntry& GlicInstanceImpl::EmbedderEntry::operator=(
     EmbedderEntry&&) = default;
 
 GlicInstanceImpl::GlicInstanceImpl(
-    Profile* profile,
-    InstanceId instance_id,
+    Profile* profile, InstanceId instance_id,
     base::WeakPtr<InstanceCoordinatorDelegate> coordinator_delegate,
-    GlicMetrics* metrics,
-    ContextualCueingService* contextual_cueing_service)
+    GlicMetrics* metrics, ContextualCueingService* contextual_cueing_service)
     : profile_(profile),
       service_(GlicKeyedService::Get(profile)),
       coordinator_delegate_(coordinator_delegate),
@@ -217,13 +221,10 @@ GlicInstanceImpl::GlicInstanceImpl(
       sharing_manager_coordinator_(profile, this, metrics),
       instance_metrics_(ProfileMetricsServiceFactory::GetForProfile(profile),
                         &sharing_manager_coordinator_.GetActiveSharingManager(),
-                        GetSaasUsageReportingController(profile),
-                        profile->GetPrefs()),
+                        GetSaasUsageReportingController(profile), profile),
       zero_state_suggestions_manager_(
           std::make_unique<GlicZeroStateSuggestionsManager>(
-              &GetSharingManagerInternal(),
-              this,
-              contextual_cueing_service)),
+              &GetSharingManagerInternal(), this, contextual_cueing_service)),
       last_activation_timestamp_(base::Time::Now()),
       last_deactivation_timestamp_(base::TimeTicks::Now()) {
   VLOG(1) << "Glic [InstanceImpl] Constructor, id=" << id_.value();
@@ -235,6 +236,9 @@ GlicInstanceImpl::GlicInstanceImpl(
     actor_task_manager_ = std::make_unique<GlicActorTaskManager>(
         profile_, actor_keyed_service, service_->actor_policy_checker(),
         &instance_metrics_, &GetSharingManagerInternal(), this);
+    actuating_changed_subscription_ =
+        actor_task_manager_->AddActuatingChangedCallback(
+            base::BindRepeating(&Host::OnActuatingChanged, host_.GetWeakPtr()));
   }
 
   browser_collection_observation_.Observe(
@@ -411,7 +415,7 @@ void GlicInstanceImpl::Show(const ShowOptions& options) {
     SetActiveEmbedderAndNotifyVisibilityChange(new_key);
   }
 
-  MaybeWarmZeroStateSuggestions();
+  MaybeWarmZeroStateSuggestions(options.invocation_source);
 
   MaybeShowHostUi(embedder_to_show, options.invocation_source,
                   options.prompt_suggestion, options.fre_override);
@@ -420,6 +424,9 @@ void GlicInstanceImpl::Show(const ShowOptions& options) {
     instance_metrics().OnOpen(options.invocation_source, options);
     service_->metrics()->OnGlicWindowStartedOpening(/*attached=*/false,
                                                     options.invocation_source);
+    if (coordinator_delegate_) {
+      coordinator_delegate_->OnInvoked();
+    }
   }
 
   embedder_to_show->Show(options);
@@ -709,6 +716,9 @@ void GlicInstanceImpl::OnUserInputSubmitted(mojom::WebClientMode mode) {
     entry.user_input_submitted_while_bound = true;
   }
   last_prompt_submission_time_ = base::TimeTicks::Now();
+  if (coordinator_delegate_) {
+    coordinator_delegate_->OnUserInputSubmitted();
+  }
   // TODO(harringtond): The only subscriber to this event is the tab underline
   // controller and I think it makes more sense for it to get that signal from
   // sharing manager instead of going through the keyed service.
@@ -826,6 +836,11 @@ GlicActorTaskManager* GlicInstanceImpl::GetActorTaskManager() {
 
 GlicSharingManager* GlicInstanceImpl::GetSharingManager() {
   return &GetSharingManagerInternal();
+}
+
+void GlicInstanceImpl::UpdateSkillPreviews(
+    std::optional<tabs::TabInterface*> updated_tab) {
+  skills_manager().UpdateSkillPreviews(updated_tab);
 }
 
 void GlicInstanceImpl::FetchZeroStateSuggestions(
@@ -1124,6 +1139,7 @@ void GlicInstanceImpl::OnBoundTabActivated(tabs::TabInterface* tab) {
     SidePanelShowOptions side_panel_options{*tab};
     side_panel_options.suppress_opening_animation = true;
     side_panel_options.prefer_peek = true;
+    side_panel_options.open_trigger = SidePanelOpenTrigger::kTabChanged;
     Show(ShowOptions{side_panel_options});
   }
 }
@@ -1174,10 +1190,22 @@ void GlicInstanceImpl::MaybeDeactivateEmbedder(EmbedderKey key) {
   }
 }
 
-void GlicInstanceImpl::MaybeWarmZeroStateSuggestions() {
+void GlicInstanceImpl::MaybeWarmZeroStateSuggestions(
+    mojom::InvocationSource invocation_source) {
   if (conversation_id() ||
       !GlicEnabling::IsEnabledAndConsentForProfile(profile_) ||
       !IsZeroStateSuggestionsEnabled()) {
+    return;
+  }
+
+  for (auto blocked_source : kZssWarmingBlocklist) {
+    if (blocked_source == invocation_source) {
+      zss_warming_disabled_ = true;
+      break;
+    }
+  }
+
+  if (zss_warming_disabled_) {
     return;
   }
 
@@ -1338,8 +1366,11 @@ void GlicInstanceImpl::MaybeActivateForegroundEmbedder() {
         auto* coordinator = GlicSidePanelCoordinator::GetForTab(*tab);
         if (coordinator &&
             coordinator->state() == GlicSidePanelCoordinator::State::kShown) {
-          // Note that this will only happen for full show, not peek.
-          Show(ShowOptions::ForSidePanel(**tab));
+          // Note that this will only happen for a fully showing panel, not
+          // peek.
+          SidePanelShowOptions side_panel_options{**tab};
+          side_panel_options.open_trigger = SidePanelOpenTrigger::kTabChanged;
+          Show(ShowOptions{side_panel_options});
           return;
         }
       }
@@ -1356,13 +1387,7 @@ void GlicInstanceImpl::OnAllEmbeddersInactive() {
           features::kGlicSetWebContentsVisibilityWhenToggling)) {
     // Make WebContents hidden to avoid frame production and reduce the priority
     // of its renderer processes.
-    // Some actuations steps need the WebContents to be visible in order to
-    // make progress, so we need to keep it visible in that case.
-    // TODO(crbug.com/513209932): Hide WebContents when Glic is not showing,
-    // regardless of whether it is actuating or not.
-    if (!IsActuating()) {
-      host_.SetWebContentsVisibility(content::Visibility::HIDDEN);
-    }
+    host_.SetWebContentsVisibility(content::Visibility::HIDDEN);
   }
 
   NotifyInstanceActivationChanged(false);
@@ -1382,6 +1407,10 @@ void GlicInstanceImpl::MaybeRemoveBlankInstanceOnClose() {
   }
   // If the conversation id is set, then the instance isn't blank.
   if (conversation_id().has_value()) {
+    return;
+  }
+  // If the user has submitted input, the instance is not blank.
+  if (!last_prompt_submission_time_.is_null()) {
     return;
   }
   if (embedders_.size() != 1) {
@@ -1611,6 +1640,11 @@ void GlicInstanceImpl::OnTabAddedToTask(
   }
   instance_metrics_.OnDaisyChain(DaisyChainSource::kActorAddTab,
                                  /*success=*/true, tab);
+}
+
+void GlicInstanceImpl::OnTaskTabsVisibilityChanged(actor::TaskId task_id,
+                                                   bool has_visible_tab) {
+  host_.OnTaskTabsVisibilityChanged(has_visible_tab);
 }
 
 void GlicInstanceImpl::OnTaskIdChanged(std::optional<int> task_id) {

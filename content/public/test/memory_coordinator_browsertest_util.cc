@@ -4,6 +4,7 @@
 
 #include "content/public/test/memory_coordinator_browsertest_util.h"
 
+#include "base/hash/hash.h"
 #include "content/browser/memory_coordinator/browser_memory_coordinator.h"
 #include "content/common/memory_coordinator/memory_coordinator_policy_manager.h"
 
@@ -11,7 +12,7 @@ namespace content::test {
 
 ScopedMemoryLimitOverride::ScopedMemoryLimitOverride(
     std::string_view consumer_name)
-    : consumer_name_(consumer_name) {}
+    : consumer_id_(base::PersistentHash(consumer_name)) {}
 
 ScopedMemoryLimitOverride::~ScopedMemoryLimitOverride() {
   ClearLimit();
@@ -21,11 +22,11 @@ void ScopedMemoryLimitOverride::SetLimit(int percentage) {
   if (!limit_.has_value()) {
     BrowserMemoryCoordinator::Get()
         .policy_manager_for_testing()
-        .AddMemoryLimitOverrideForTesting(consumer_name_, percentage);
+        .AddMemoryLimitOverrideForTesting(consumer_id_, percentage);
   } else {
     BrowserMemoryCoordinator::Get()
         .policy_manager_for_testing()
-        .UpdateMemoryLimitOverrideForTesting(consumer_name_, percentage);
+        .UpdateMemoryLimitOverrideForTesting(consumer_id_, percentage);
   }
   limit_ = percentage;
 }
@@ -34,7 +35,7 @@ void ScopedMemoryLimitOverride::ClearLimit() {
   if (limit_.has_value()) {
     BrowserMemoryCoordinator::Get()
         .policy_manager_for_testing()
-        .ClearMemoryLimitOverrideForTesting(consumer_name_);
+        .ClearMemoryLimitOverrideForTesting(consumer_id_);
     limit_.reset();
   }
 }
@@ -42,7 +43,7 @@ void ScopedMemoryLimitOverride::ClearLimit() {
 void ScopedMemoryLimitOverride::NotifyReleaseMemory() {
   BrowserMemoryCoordinator::Get()
       .policy_manager_for_testing()
-      .NotifyReleaseMemoryForTesting(consumer_name_);
+      .NotifyReleaseMemoryForTesting(consumer_id_);
 }
 
 }  // namespace content::test

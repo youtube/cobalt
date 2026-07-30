@@ -487,6 +487,7 @@ chromium-metrics-reviews@google.com.
     of the provider's execution.
   </summary>
   <token key="ProviderID">
+    <variant name="Discover"/>
     <variant name="TestRefresher"/>
   </token>
 </histogram>
@@ -1744,6 +1745,40 @@ chromium-metrics-reviews@google.com.
     <variant name="SecondImpression" summary="second"/>
     <variant name="ThirdImpression" summary="third"/>
   </token>
+</histogram>
+
+<histogram name="IOS.Discover.BackgroundRefresh.Outcome"
+    enum="DiscoverFeedBackgroundRefreshOutcome" expires_after="2026-12-15">
+  <owner>sadhvikch@google.com</owner>
+  <owner>sreeshmanair@google.com</owner>
+  <owner>iga-discover-bld@google.com</owner>
+  <summary>
+    The final outcome of the Discover feed background refresh task execution.
+    Recorded when the task completes execution (either success or failure).
+  </summary>
+</histogram>
+
+<histogram name="IOS.Discover.BackgroundRefresh.ServiceAvailability"
+    enum="DiscoverFeedServiceAvailability" expires_after="2026-12-15">
+  <owner>sadhvikch@google.com</owner>
+  <owner>sreeshmanair@google.com</owner>
+  <owner>iga-discover-bld@google.com</owner>
+  <summary>
+    The availability of the DiscoverFeedService when the background refresh task
+    is triggered. Recorded at the start of the task execution.
+  </summary>
+</histogram>
+
+<histogram name="IOS.Discover.BackgroundRefresh.SystemExpired" enum="Boolean"
+    expires_after="2026-12-15">
+  <owner>sadhvikch@google.com</owner>
+  <owner>sreeshmanair@google.com</owner>
+  <owner>iga-discover-bld@google.com</owner>
+  <summary>
+    Whether the iOS system background task expired before the Discover feed
+    background refresh task could finish execution. Recorded when the system
+    expiration handler is triggered.
+  </summary>
 </histogram>
 
 <histogram name="IOS.DistantTab.TimeSinceLastUse" units="ms"
@@ -3124,6 +3159,7 @@ chromium-metrics-reviews@google.com.
     The outcome of the GoogleOne flow initiated from {EntryPoint}.
   </summary>
   <token key="EntryPoint">
+    <variant name="DeepLink" summary="a deep link"/>
     <variant name="Drive" summary="Google Drive save error"/>
     <variant name="Photos" summary="Google Photos save error"/>
     <variant name="Settings" summary="the settings"/>
@@ -6914,6 +6950,29 @@ chromium-metrics-reviews@google.com.
     and if so, if the account still exists on the device; (b) if the user did
     opt-in to skip the account picker by disabling the &quot;Ask which account
     to use every time&quot; switch.
+  </summary>
+</histogram>
+
+<histogram name="IOS.SaveToPhotos.SignIn.Result"
+    enum="IOSSaveToPhotosSignInResultType" expires_after="2027-06-03">
+  <owner>josephlanza@google.com</owner>
+  <owner>qpubert@google.com</owner>
+  <owner>bling-squid-squad@google.com</owner>
+  <summary>
+    Logged after the user attempts to sign in during the Save to Photos flow.
+    Records the outcome of the sign-in flow (Success, Cancelled, or Failed).
+  </summary>
+</histogram>
+
+<histogram name="IOS.SaveToPhotos.SignIn.Status"
+    enum="IOSSaveToPhotosSignInStatusType" expires_after="2027-06-03">
+  <owner>josephlanza@google.com</owner>
+  <owner>qpubert@google.com</owner>
+  <owner>bling-squid-squad@google.com</owner>
+  <summary>
+    Logged when the Save to Photos flow is initiated. Records the sign-in status
+    of the user (Signed In, Signed Out Without Account on Device, or Signed Out
+    With Account on Device).
   </summary>
 </histogram>
 

@@ -13,7 +13,9 @@
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/browser/bookmark_node.h"
 #include "components/bookmarks/browser/bookmark_utils.h"
+#include "components/bookmarks/browser/scoped_group_bookmark_actions.h"
 #include "components/bookmarks/common/bookmark_metrics.h"
+#include "components/bookmarks/managed/managed_bookmark_service.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 
@@ -41,12 +43,15 @@ mojo_base::mojom::ErrorPtr MakeError(mojo_base::mojom::Code code,
 }  // namespace
 
 BookmarksServiceImpl::BookmarksServiceImpl(
-    bookmarks::BookmarkModel* bookmark_model)
-    : bookmark_model_(bookmark_model), finder_(bookmark_model) {
+    bookmarks::BookmarkModel* bookmark_model,
+    bookmarks::ManagedBookmarkService* managed_bookmark_service)
+    : bookmark_model_(bookmark_model),
+      managed_bookmark_service_(managed_bookmark_service),
+      finder_(bookmark_model) {
   CHECK(bookmark_model_);
   CHECK(bookmark_model_->loaded());
-  translator_ =
-      std::make_unique<BookmarkEventTranslator>(bookmark_model_, this);
+  translator_ = std::make_unique<BookmarkEventTranslator>(
+      bookmark_model_, managed_bookmark_service_, this);
 }
 
 BookmarksServiceImpl::~BookmarksServiceImpl() = default;
@@ -59,7 +64,7 @@ void BookmarksServiceImpl::Accept(
 mojom::BookmarksService::GetBookmarksResult
 BookmarksServiceImpl::GetBookmarks() {
   auto snapshot = mojom::BookmarksSnapshot::New();
-  snapshot->root = ConvertNode(bookmark_model_->root_node());
+  snapshot->root = ConvertRootNode(bookmark_model_->root_node());
 
   mojo::AssociatedRemote<mojom::BookmarksObserver> stream;
   auto pending_receiver = stream.BindNewEndpointAndPassReceiver();
@@ -79,7 +84,14 @@ mojom::BookmarksService::GetBookmarkResult BookmarksServiceImpl::GetBookmark(
 
 mojom::BookmarkNodePtr BookmarksServiceImpl::ConvertNode(
     const bookmarks::BookmarkNode* node) {
-  return BookmarkEventTranslator::ConvertNode(node);
+  return BookmarkEventTranslator::ConvertNode(bookmark_model_,
+                                              managed_bookmark_service_, node);
+}
+
+mojom::RootNodePtr BookmarksServiceImpl::ConvertRootNode(
+    const bookmarks::BookmarkNode* node) {
+  return BookmarkEventTranslator::ConvertRootNode(
+      bookmark_model_, managed_bookmark_service_, node);
 }
 
 mojom::BookmarksService::CreateBookmarkNodeResult
@@ -267,20 +279,28 @@ BookmarksServiceImpl::MoveBookmarkNode(const base::Uuid& id,
   return std::monostate();
 }
 
-mojom::BookmarksService::DeleteBookmarkNodeResult
-BookmarksServiceImpl::DeleteBookmarkNode(const base::Uuid& id) {
-  ASSIGN_OR_RETURN(
-      const bookmarks::BookmarkNode* node, finder_.FindNodeByUuid(id),
-      &MakeError, mojo_base::mojom::Code::kNotFound, "Bookmark node not found");
+mojom::BookmarksService::DeleteBookmarkNodesResult
+BookmarksServiceImpl::DeleteBookmarkNodes(const std::vector<base::Uuid>& ids) {
+  std::vector<const bookmarks::BookmarkNode*> nodes_to_remove;
+  for (const auto& id : ids) {
+    ASSIGN_OR_RETURN(const bookmarks::BookmarkNode* node,
+                     finder_.FindNodeByUuid(id), &MakeError,
+                     mojo_base::mojom::Code::kNotFound,
+                     "Bookmark node not found");
 
-  if (bookmark_model_->is_permanent_node(node)) {
-    return base::unexpected(
-        mojo_base::mojom::Error::New(mojo_base::mojom::Code::kInvalidArgument,
-                                     "Cannot delete permanent node"));
+    if (bookmark_model_->is_permanent_node(node)) {
+      return base::unexpected(
+          mojo_base::mojom::Error::New(mojo_base::mojom::Code::kInvalidArgument,
+                                       "Cannot delete permanent node"));
+    }
+    nodes_to_remove.push_back(node);
   }
 
-  bookmark_model_->Remove(node, bookmarks::metrics::BookmarkEditSource::kUser,
-                          FROM_HERE);
+  bookmarks::ScopedGroupBookmarkActions group_deletes(bookmark_model_);
+  for (const auto* node : nodes_to_remove) {
+    bookmark_model_->Remove(node, bookmarks::metrics::BookmarkEditSource::kUser,
+                            FROM_HERE);
+  }
 
   return std::monostate();
 }

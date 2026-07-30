@@ -26,6 +26,7 @@ source_set("auxiliary_search") {
     "//components/keyed_service/core",
     "//components/ntp_tiles",
     "//components/page_content_annotations/core",
+    "//components/signin/public/identity_manager",
     "//components/visited_url_ranking/public",
   ]
 }
@@ -70,6 +71,7 @@ source_set("unit_tests") {
     "//components/ntp_tiles",
     "//components/page_content_annotations/core:test_support",
     "//components/prefs:test_support",
+    "//components/signin/public/identity_manager:test_support",
     "//components/visited_url_ranking/public:test_support",
     "//testing/gmock",
     "//testing/gtest",
@@ -158,6 +160,8 @@ android_library("java") {
     "//components/background_task_scheduler:factory_java",
     "//components/background_task_scheduler:public_java",
     "//components/segmentation_platform/public:public_java",
+    "//components/signin/public/android:java",
+    "//google_apis/gaia/android:java",
     "//third_party/android_deps:guava_android_java",
     "//third_party/android_deps:protobuf_lite_runtime_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
@@ -244,6 +248,8 @@ robolectric_library("junit") {
     "//components/background_task_scheduler:public_java",
     "//components/browser_ui/theme/android:java_resources",
     "//components/segmentation_platform/public:public_java",
+    "//components/signin/public/android:java",
+    "//google_apis/gaia/android:java",
     "//third_party/android_deps:guava_android_java",
     "//third_party/android_deps:protobuf_lite_runtime_java",
     "//third_party/androidx:androidx_annotation_annotation_java",

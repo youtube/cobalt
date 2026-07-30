@@ -68,9 +68,6 @@ class IwaInternalsHandler {
       const webapps::AppId& app_id,
       Handler::UpdateDevProxyIsolatedWebAppCallback callback);
 
-  void RotateKey(const std::string& web_bundle_id,
-                 const std::vector<uint8_t>& public_key);
-
   void UpdateManifestInstalledIsolatedWebApp(
       const webapps::AppId& app_id,
       Handler::UpdateManifestInstalledIsolatedWebAppCallback callback);

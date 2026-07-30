@@ -164,10 +164,11 @@ class CORE_EXPORT PhysicalBoxFragment final : public PhysicalFragment {
     return use_last_baseline_for_inline_baseline_;
   }
 
-  // Some scroll-containers will force baseline synthesis for the inline-block
-  // baseline algorithm.
+  // Some block-axis scroll-containers will force baseline synthesis for the
+  // inline-block baseline algorithm.
   bool ForceInlineBaselineSynthesis() const {
     return use_last_baseline_for_inline_baseline_ && IsScrollContainer() &&
+           Style().IsOverflowValueScrollableBlock() &&
            !Style().ShouldIgnoreOverflowPropertyForInlineBlockBaseline();
   }
 

@@ -975,7 +975,7 @@ TEST_F(
   model->AddURL(model->bookmark_bar_node(), 0, u"Title",
                 GURL("http://google.com"));
 
-  std::vector<const BookmarkNode*> recently_modified =
+  std::vector<raw_ptr<const BookmarkNode>> recently_modified =
       GetMostRecentlyModifiedUserFolders(model.get());
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
   ASSERT_THAT(recently_modified,

@@ -18,6 +18,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "content/public/test/browser_task_environment.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -40,6 +41,7 @@
 #include "storage/browser/blob/blob_storage_context.h"
 #include "storage/browser/blob/blob_url_registry.h"
 #include "storage/browser/blob/blob_url_store_impl.h"
+#include "storage/browser/blob/features.h"
 #include "storage/browser/file_system/file_system_context.h"
 #include "storage/browser/file_system/file_system_operation_context.h"
 #include "storage/browser/file_system/file_system_url.h"
@@ -590,6 +592,63 @@ TEST_F(BlobURLTest, BrokenBlob) {
   blob_handle_ = blob_context_.AddBrokenBlob(
       "uuid", "", "", storage::BlobStatus::ERR_INVALID_CONSTRUCTION_ARGUMENTS);
   TestErrorRequest(net::ERR_BLOB_INVALID_CONSTRUCTION_ARGUMENTS);
+}
+
+// Verifies that invalid Fetch Range header values are reported as
+// ERR_REQUEST_RANGE_NOT_SATISFIABLE rather than falling back to serving
+// the full blob contents.
+TEST_F(BlobURLTest, InvalidRangeHeaderReturnsNetworkError) {
+  base::test::ScopedFeatureList feature_list(
+      features::kBlobURLFetchRangeHeaderValidation);
+  blob_data_->AppendData(kTestData1);
+  static constexpr const char* kInvalidRanges[] = {
+      "", "bytes", "bytes=-", "bytes=10-5", "bytes=0-5,15-", "bytes=-0",
+  };
+  for (const char* range : kInvalidRanges) {
+    SCOPED_TRACE(range);
+    net::HttpRequestHeaders extra_headers;
+    extra_headers.SetHeader(net::HttpRequestHeaders::kRange, range);
+    // Invalid Range syntax must fail with a network error
+    expected_error_code_ = net::ERR_REQUEST_RANGE_NOT_SATISFIABLE;
+    expected_response_ = "";
+    TestRequest("GET", extra_headers);
+  }
+}
+
+// A valid Fetch Range header with optional HTTP whitespace should still
+// produce a 206 Partial Content response with the correct range bounds.
+TEST_F(BlobURLTest, ValidRangeHeaderWithWhitespace) {
+  base::test::ScopedFeatureList feature_list(
+      features::kBlobURLFetchRangeHeaderValidation);
+  blob_data_->AppendData(std::string("0123456789ABCDEF"));
+  net::HttpRequestHeaders extra_headers;
+  extra_headers.SetHeader(net::HttpRequestHeaders::kRange, "bytes=5 - 10");
+  expected_error_code_ = net::OK;
+  expected_status_code_ = 206;
+  expected_response_ = "56789A";
+  TestRequest("GET", extra_headers);
+  // Valid Range headers containing spec-allowed whitespace must succeed.
+  int64_t first = 0, last = 0, length = 0;
+  ASSERT_TRUE(response_headers_);
+  EXPECT_TRUE(response_headers_->GetContentRangeFor206(&first, &last, &length));
+  EXPECT_EQ(5, first);
+  EXPECT_EQ(10, last);
+  EXPECT_EQ(16, length);
+}
+
+// Verify that disabling kBlobURLFetchRangeHeaderValidation causes invalid
+// Range headers to be ignored, returning the full blob with a 200 OK response.
+TEST_F(BlobURLTest, InvalidRangeHeaderServesFullBlobWhenValidationDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      features::kBlobURLFetchRangeHeaderValidation);
+  blob_data_->AppendData(kTestData1);
+  net::HttpRequestHeaders extra_headers;
+  extra_headers.SetHeader(net::HttpRequestHeaders::kRange, "bytes=abc");
+  expected_error_code_ = net::OK;
+  expected_status_code_ = 200;
+  expected_response_ = kTestData1;
+  TestRequest("GET", extra_headers);
 }
 
 }  // namespace content

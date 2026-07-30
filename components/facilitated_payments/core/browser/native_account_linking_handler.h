@@ -46,7 +46,7 @@ class NativeAccountLinkingHandler {
 
   // Non-virtual helper to handle standard linking completion logic. Calls the
   // DoOnAccountLinkingResult virtual method.
-  void OnAccountLinkingResult(bool result);
+  void OnAccountLinkingResult(AccountLinkingResult result);
 
   // Called when the user accepts the account linking prompt.
   void OnAccepted();
@@ -60,7 +60,7 @@ class NativeAccountLinkingHandler {
       const std::vector<uint8_t>& client_token) = 0;
 
   // Virtual hook to handle subclass-specific UI updates on completion.
-  virtual void DoOnAccountLinkingResult(bool result) = 0;
+  virtual void DoOnAccountLinkingResult(AccountLinkingResult result) = 0;
 
   // Virtual hook to provide the FOP-specific backend payload.
   virtual base::DictValue
@@ -80,7 +80,8 @@ class NativeAccountLinkingHandler {
       const std::vector<uint8_t>& client_token);
 
   // Invokes the native GMSCore InstrumentManager (Bender screens).
-  void InvokeInstrumentManager(const std::vector<uint8_t>& action_token);
+  void InvokeInstrumentManager(CoreAccountInfo primary_account,
+                               const std::vector<uint8_t>& action_token);
 
   // Dismisses the prompt UI.
   void DismissPrompt();

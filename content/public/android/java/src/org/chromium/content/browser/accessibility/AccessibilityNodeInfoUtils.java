@@ -4,6 +4,8 @@
 
 package org.chromium.content.browser.accessibility;
 
+import static org.chromium.content.browser.accessibility.AccessibilityNodeInfoBuilder.OFFSET_TYPE_TEXT;
+
 import android.graphics.Rect;
 import android.util.SparseArray;
 
@@ -86,16 +88,32 @@ public final class AccessibilityNodeInfoUtils {
                             return wcax.getExtendedSelection(virtualViewId);
                         });
         if (selection != null) {
-            AccessibilityNodeInfoCompat startNode = (AccessibilityNodeInfoCompat) selection[0];
-            int startOffset = (int) selection[1];
-            AccessibilityNodeInfoCompat endNode = (AccessibilityNodeInfoCompat) selection[2];
-            int endOffset = (int) selection[3];
+            AccessibilityNodeInfoCompat startNode =
+                    (AccessibilityNodeInfoCompat)
+                            selection[WebContentsAccessibilityImpl.EXT_SEL_START_NODE];
+            AccessibilityNodeInfoCompat endNode =
+                    (AccessibilityNodeInfoCompat)
+                            selection[WebContentsAccessibilityImpl.EXT_SEL_END_NODE];
 
             if (startNode != null && startNode.equals(node)) {
-                builder.append(" extendedSelectionStart:").append(startOffset);
+                int startOffset =
+                        (int) selection[WebContentsAccessibilityImpl.EXT_SEL_START_OFFSET];
+                int startOffsetType =
+                        (int) selection[WebContentsAccessibilityImpl.EXT_SEL_START_OFFSET_TYPE];
+                builder.append(" extendedSelectionStart:")
+                        .append(startOffset)
+                        .append(
+                                startOffsetType == AccessibilityNodeInfoBuilder.OFFSET_TYPE_TEXT
+                                        ? " (text)"
+                                        : " (child)");
             }
             if (endNode != null && endNode.equals(node)) {
-                builder.append(" extendedSelectionEnd:").append(endOffset);
+                int endOffset = (int) selection[WebContentsAccessibilityImpl.EXT_SEL_END_OFFSET];
+                int endOffsetType =
+                        (int) selection[WebContentsAccessibilityImpl.EXT_SEL_END_OFFSET_TYPE];
+                builder.append(" extendedSelectionEnd:")
+                        .append(endOffset)
+                        .append(endOffsetType == OFFSET_TYPE_TEXT ? " (text)" : " (child)");
             }
         }
 

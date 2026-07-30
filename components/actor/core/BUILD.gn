@@ -16,6 +16,10 @@ source_set("journal") {
   sources = [
     "aggregated_journal.cc",
     "aggregated_journal.h",
+    "aggregated_journal_file_serializer.cc",
+    "aggregated_journal_file_serializer.h",
+    "aggregated_journal_in_memory_serializer.cc",
+    "aggregated_journal_in_memory_serializer.h",
     "aggregated_journal_serializer.cc",
     "aggregated_journal_serializer.h",
     "journal_details_builder.cc",
@@ -48,8 +52,6 @@ source_set("core") {
     "actor_switches.h",
     "actor_util.cc",
     "actor_util.h",
-    "origin_gating_cache.cc",
-    "origin_gating_cache.h",
     "safety_list_manager.cc",
     "safety_list_manager.h",
     "shared_types.cc",
@@ -71,8 +73,8 @@ source_set("core") {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "aggregated_journal_serializer_unittest.cc",
     "aggregated_journal_unittest.cc",
-    "origin_gating_cache_unittest.cc",
     "safety_list_manager_unittest.cc",
     "shared_types_unittest.cc",
   ]

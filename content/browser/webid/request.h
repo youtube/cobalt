@@ -77,8 +77,7 @@ class CONTENT_EXPORT Request
       FederatedIdentityApiPermissionContextDelegate* api_permission_delegate,
       FederatedIdentityAutoReauthnPermissionContextDelegate*
           auto_reauthn_permission_delegate,
-      FederatedIdentityPermissionContextDelegate* permission_delegate,
-      IdentityRegistry* identity_registry);
+      FederatedIdentityPermissionContextDelegate* permission_delegate);
 
   Request(const Request&) = delete;
   Request& operator=(const Request&) = delete;
@@ -98,25 +97,25 @@ class CONTENT_EXPORT Request
 
   void ReportBadMessage(const char* message);
 
-  // Unassociates and deletes `this` from the document for use by tests.
-  // TODO(crbug.com/459135671): Change tests to navigate instead and remove
-  // this method.
-  void ResetAndDeleteThisForTesting();
 
-  void SetForceAllowRedirectToForTesting(bool allow) {
-    force_allow_redirect_to_for_testing_ = allow;
-  }
-
-  // An overload of the mojo version of RequestToken. |navigation_handle|
-  // is passed when this request was triggered by navigation interception, so
-  // that we can use this handle for user activation checking and setting up
-  // parameters for a later redirect.
-  // This is virtual so that it can be mocked.MockNavigationThrottleRegistry
-  virtual void RequestToken(
+  // Starts the token request. Returns true if the request started successfully
+  // and is now pending. Returns false if the request was terminated immediately
+  // (e.g. due to permissions policy, invalid parameters, or being rejected in
+  // favor of an existing request).
+  // This is an overload of the mojo version of RequestToken.
+  // |navigation_handle| is passed when this request was triggered by navigation
+  // interception, so that we can use this handle for user activation checking
+  // and setting up parameters for a later redirect. This is virtual so that it
+  // can be mocked.
+  // TODO(crbug.com/519217823): Consider moving request
+  // deduplication/replacement logic to RequestService once the service fully
+  // manages all request lifecycles.
+  virtual bool RequestToken(
       std::vector<blink::mojom::IdentityProviderGetParametersPtr>
           idp_get_params_ptrs,
       MediationRequirement requirement,
       NavigationHandle* navigation_handle,
+      const GURL& intercepted_url,
       RequestTokenCallback);
 
   // blink::mojom::FederatedAuthRequest:
@@ -143,6 +142,9 @@ class CONTENT_EXPORT Request
   void Disconnect(blink::mojom::IdentityCredentialDisconnectOptionsPtr options,
                   DisconnectCallback) override;
 
+  // blink::mojom::FederatedRequest:
+  void Abort() override;
+
   // FederatedIdentityPermissionContextDelegate::IdpSigninStatusObserver:
   void OnIdpSigninStatusReceived(const url::Origin& idp_config_origin,
                                  bool idp_signin_status) override;
@@ -151,6 +153,8 @@ class CONTENT_EXPORT Request
       std::unique_ptr<IdpNetworkRequestManager> manager);
   void SetDialogControllerForTests(
       std::unique_ptr<IdentityRequestDialogController> controller);
+
+  base::WeakPtr<Request> GetWeakPtr();
 
   // content::FederatedIdentityModalDialogViewDelegate:
   void OnClose() override;
@@ -170,23 +174,12 @@ class CONTENT_EXPORT Request
       bool show_modal,
       OnFederatedTokenReceivedCallback callback) override;
 
-  // To be called on the FederatedAuthRequest object corresponding to a
-  // popup opened by ShowModalDialog, specifically for the case when
-  // ShowModalDialog returned null (particularly Android). In that case,
-  // we can only set up the IdentityRegistry object when we get a call
-  // from the popup context.
-  // Returns false when no identity registry could be created (e.g. this
-  // is not in a context created by ShowModalDialog).
-  bool SetupIdentityRegistryFromPopup();
-
   // Returns whether the API is enabled or not.
   FederatedIdentityApiPermissionContextDelegate::PermissionStatus
   GetApiPermissionStatus();
 
   // For use by the devtools protocol for browser automation.
-  IdentityRequestDialogController* GetDialogController() {
-    return request_dialog_controller_.get();
-  }
+  IdentityRequestDialogController* GetDialogController();
 
   const std::vector<IdentityProviderDataPtr>& GetSortedIdpData() const {
     return idp_data_for_display_;
@@ -429,6 +422,8 @@ class CONTENT_EXPORT Request
       const std::vector<IdentityProviderGetParametersPtr>& idps,
       const MediationRequirement& requirement);
 
+  void OnConnectionError();
+
   void CleanUp();
 
   // Records metrics and console errors.
@@ -445,7 +440,6 @@ class CONTENT_EXPORT Request
       bool is_auto_selected);
 
   std::unique_ptr<IdpNetworkRequestManager> CreateNetworkManager();
-  std::unique_ptr<IdentityRequestDialogController> CreateDialogController();
 
   // Creates an inspector issue related to a federated authentication request to
   // the Issues panel in DevTools.
@@ -508,8 +502,6 @@ class CONTENT_EXPORT Request
   RelyingPartyData CreateRpData(bool client_metadata_received) const;
 
   std::unique_ptr<IdpNetworkRequestManager> network_manager_;
-  std::unique_ptr<IdentityRequestDialogController> request_dialog_controller_;
-  std::unique_ptr<IdentityRequestDialogController> mock_dialog_controller_;
 
   // Helper that records FedCM UMA and UKM metrics. Initialized in the
   // RequestToken() method, so all metrics must be recorded after that.
@@ -546,7 +538,6 @@ class CONTENT_EXPORT Request
       auto_reauthn_permission_delegate_ = nullptr;
   raw_ptr<FederatedIdentityPermissionContextDelegate> permission_delegate_ =
       nullptr;
-  raw_ptr<IdentityRegistry> identity_registry_ = nullptr;
   raw_ptr<RenderFrameHost> render_frame_host_;
   // RequestService owns `this`, so it is expected to outlive it.
   const raw_ref<RequestService> request_service_;
@@ -669,12 +660,11 @@ class CONTENT_EXPORT Request
   // Whether the callback for the current request has been delayed.
   bool complete_request_delayed_{false};
 
-  // Can be set to true in tests.
-  bool force_allow_redirect_to_for_testing_{false};
-
   // Whether we are currently in the `RedirectTo` flow. This is used to ignore
   // dismissals triggered by tab closure on Android during the navigation.
   bool in_redirect_to_{false};
+
+  bool is_mojo_{true};
 
   mojo::ReceiverSet<blink::mojom::FederatedAuthRequest> auth_request_receivers_;
   mojo::ReceiverSet<blink::mojom::FederatedRequest> receivers_;

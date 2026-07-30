@@ -290,10 +290,17 @@ source_set("ui") {
     sources += [
       "../actor_tab_strip_tracker_desktop.cc",
       "../actor_tab_strip_tracker_desktop.h",
+      "actor_task_unload_handler.cc",
+      "actor_task_unload_handler.h",
     ]
     deps += [
       "//chrome/browser/actor",
+      "//chrome/browser/glic",
+      "//chrome/browser/lifetime",
       "//chrome/browser/ui:browser_tab_strip",
+      "//components/constrained_window",
+      "//components/vector_icons",
+      "//ui/strings:ui_strings",
     ]
   }
 
@@ -316,11 +323,10 @@ source_set("ui") {
       "//chrome/browser/glic",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/ui/browser_window",
+      "//chrome/browser/ui/immersive:immersive_mode_controller",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/toasts",
       "//chrome/browser/ui/toasts/api:toasts",
-      "//chrome/browser/ui/views/frame:immersive_mode_controller",
-      "//chrome/browser/ui/views/interaction",
       "//components/prefs",
       "//components/tabs:public",
       "//third_party/abseil-cpp:absl",

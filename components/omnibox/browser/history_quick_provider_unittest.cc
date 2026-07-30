@@ -956,7 +956,6 @@ TEST_F(HistoryQuickProviderTest, KeywordModeExtractUserInput) {
 
   // Turn on keyword mode, test result again, we should get back the result for
   // google.com since we're searching only for the user text after the keyword.
-  input2.set_prefer_keyword(true);
   input2.set_in_keyword_mode(true);
   provider().Start(input2, false);
   if (!provider().done())
@@ -1001,7 +1000,6 @@ TEST_F(HistoryQuickProviderTest, MaxMatches) {
 
   // Turn keyword mode on. we should be able to get more matches now.
   input.set_in_keyword_mode(true);
-  input.set_prefer_keyword(true);
   provider().Start(input, false);
 
   matches = provider().matches();
@@ -1011,7 +1009,6 @@ TEST_F(HistoryQuickProviderTest, MaxMatches) {
   // w/increased candidates is enabled. Any matches beyond the limit should be
   // marked as culled_by_provider and have a relevance of 0.
   input.set_in_keyword_mode(false);
-  input.set_prefer_keyword(false);
 
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(

@@ -663,7 +663,6 @@ class COMPONENT_EXPORT(UI_BASE) DialogModel final {
 
   DialogModelSection* contents() { return &contents_; }
 
-  DialogModelDelegate* delegate() { return delegate_.get(); }
 
   // TODO(pbos): Replace this with a section() or something.
   const std::vector<std::unique_ptr<DialogModelField>>& fields(

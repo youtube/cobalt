@@ -160,6 +160,7 @@ source_set("impl") {
 
   if (is_chromeos) {
     deps += [
+      "//ash/constants",
       "//chrome/browser/ash/accessibility",
       "//chrome/browser/ash/arc/accessibility",
       "//chrome/browser/extensions",

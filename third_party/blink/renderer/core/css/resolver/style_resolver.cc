@@ -1464,7 +1464,7 @@ const ComputedStyle* StyleResolver::ResolveStyle(
   GetDocument().AddViewportUnitFlags(state.StyleBuilder().ViewportUnitFlags());
 
   if (state.StyleBuilder().HasRootFontRelativeUnits()) {
-    GetDocument().GetStyleEngine().SetUsesRootFontRelativeUnits(true);
+    GetDocument().GetStyleEngine().SetUsesRootRelativeUnits(true);
   }
 
   if (state.StyleBuilder().HasGlyphRelativeUnits()) {

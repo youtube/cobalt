@@ -853,9 +853,10 @@ IN_PROC_BROWSER_TEST_P(
                                 true, 1);
 }
 
+// TODO(crbug.com/486721643): Flaky on multiple platforms
 IN_PROC_BROWSER_TEST_P(
     SensitivePaymentRedactionMultiSourcePageContextFetcherBrowserTest,
-    BasicRedactionInIframe) {
+    DISABLED_BasicRedactionInIframe) {
   base::HistogramTester histograms;
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(),

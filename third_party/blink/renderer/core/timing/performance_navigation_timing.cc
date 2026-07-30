@@ -48,7 +48,7 @@ PerformanceNavigationTiming::PerformanceNavigationTiming(
     LocalDOMWindow& window,
     mojom::blink::ResourceTimingInfoPtr resource_timing,
     base::TimeTicks time_origin,
-    uint32_t navigation_id)
+    uint64_t navigation_id)
     : PerformanceResourceTiming(std::move(resource_timing),
                                 AtomicString("navigation"),
                                 time_origin,

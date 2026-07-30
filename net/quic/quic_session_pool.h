@@ -922,6 +922,10 @@ class NET_EXPORT_PRIVATE QuicSessionPool
   std::map<QuicSessionKey, std::unique_ptr<ConnectionChangeNotifier>>
       connection_change_notifier_;
 
+  // Used to override the clock used by QuicCryptoClientConfigOwner to test
+  // cache evictions.
+  raw_ptr<base::Clock> clock_for_testing_ = nullptr;
+
   // This needs to be below `task_runner_`, since in some tests, it often points
   // to a TickClock owned by the TestMockTimeTaskRunner that `task_runner_`
   // owners a reference to.

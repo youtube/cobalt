@@ -135,7 +135,11 @@ class MockPasswordManagerClient
               PromptUserToSaveOrUpdatePassword,
               (std::unique_ptr<PasswordFormManagerForUI>, bool),
               (override));
-  MOCK_METHOD(bool, IsSavingAndFillingEnabled, (const GURL&), (const override));
+
+  MOCK_METHOD(bool,
+              IsSavingAndFillingEnabled,
+              (const url::Origin&, base::optional_ref<const GURL>),
+              (const, override));
 
   PrefService* GetPrefs() const override { return prefs_; }
 
@@ -2037,7 +2041,6 @@ TEST_F(PasswordControllerTest, PasswordMetricsNoSavedCredentials) {
     std::unique_ptr<PasswordFormManagerForUI> form_manager_to_save;
     EXPECT_CALL(*weak_client_, PromptUserToSaveOrUpdatePassword)
         .WillOnce(MoveArgAndReturn<0>(&form_manager_to_save, false));
-    ;
 
     ExecuteJavaScript(
         @"document.getElementsByName('username')[0].value = 'user';"

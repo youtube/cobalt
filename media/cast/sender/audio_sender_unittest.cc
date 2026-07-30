@@ -102,7 +102,7 @@ TEST_F(AudioSenderTest, Encode20ms) {
 }
 
 TEST_F(AudioSenderTest, GettersReturnValidValues) {
-  EXPECT_GE(audio_sender_->GetEncoderBitrate(), 0);
+  EXPECT_GE(audio_sender_->GetEncoderBitrate(), 0u);
   EXPECT_GE(audio_sender_->GetFramesInserted(), 0);
   EXPECT_GE(audio_sender_->GetFramesDropped(), 0);
 

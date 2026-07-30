@@ -11,7 +11,7 @@ import {MockDocumentDimensions} from './test_util.js';
 chrome.test.runTests([
   async function testViewportChanges() {
     // Use 300x300 viewport so that the 800x1000 page is larger and scrollable.
-    // We use zeroScrollbars = true here to simplify layout math.
+    // zeroScrollbars is set to true here to simplify layout math.
     const {textbox, viewport} =
         await setupTextBoxTest(300, 300, 800, 1000, /*zeroScrollbars=*/ true);
 
@@ -66,7 +66,7 @@ chrome.test.runTests([
 
     // Scroll where start of page is no longer in the viewport and the textbox
     // ends up off screen.
-    // We scroll X to its maximum of 500px (800 page - 300 viewport), and Y to
+    // Scroll X to its maximum of 500px (800 page - 300 viewport), and Y to
     // 503px.
     viewport.scrollTo({x: 500, y: 503});
     await microtasksFinished();

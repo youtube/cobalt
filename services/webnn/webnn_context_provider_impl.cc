@@ -631,7 +631,6 @@ void WebNNContextProviderImpl::CreateWeightsFile(
 
 #if BUILDFLAG(IS_WIN)
 void WebNNContextProviderImpl::OnDispatchContextCreated(
-    EpDeviceInfo target_device,
     CreateWebNNContextCallback callback,
     mojo::PendingRemote<mojom::WebNNContext> remote,
     mojo::ScopedDataPipeProducerHandle write_tensor_producer,
@@ -652,58 +651,60 @@ void WebNNContextProviderImpl::OnDispatchContextCreated(
   auto context_weak_ptr = dispatch_context->GetWeakPtr();
   scoped_refptr<base::SequencedTaskRunner> owning_task_runner(
       dispatch_context->owning_task_runner());
+  const EpDeviceInfo& target_device = dispatch_context->target_device();
 
   sequences_.emplace(context_handle, sequence_id);
   context_impls_.emplace(std::move(context_impl));
 
   UpdateWebNNServiceIntrospection();
 
+  // Create CompilerContext pipe: Renderer gets the remote, Compiler
+  // process gets the receiver.
+  mojo::PendingRemote<mojom::WebNNCompilerContext> compiler_context_remote;
+  auto compiler_context_receiver =
+      compiler_context_remote.InitWithNewPipeAndPassReceiver();
+
+  // Create ModelLoader pair: Compiler gets the remote (to send compiled
+  // models), GPU dispatch context gets the receiver (to load them).
+  mojo::PendingRemote<mojom::WebNNModelLoader> model_loader_remote;
+  auto model_loader_receiver =
+      model_loader_remote.InitWithNewPipeAndPassReceiver();
+
+  // Bind the ModelLoader receiver on the dispatch context's owning thread.
+  PostBindModelLoaderOnOwningThread(owning_task_runner,
+                                    std::move(context_weak_ptr),
+                                    std::move(model_loader_receiver));
+
   // Request a CompilerContext from the Browser. The Browser will launch the
-  // Compiler process if needed and create the context atomically within a
-  // single message handler, avoiding races with Compiler crashes.
+  // Compiler process if needed. Fire-and-forget: if it fails, the Renderer
+  // observes the CompilerContext pipe disconnect.
   gpu_host_->RequestWebNNCompilerContext(
       std::move(options_clone), context_properties, target_device,
-      base::BindOnce(
-          [](CreateWebNNContextCallback callback,
-             mojo::PendingRemote<mojom::WebNNContext> remote,
-             ContextProperties context_properties,
-             blink::WebNNContextToken context_handle,
-             mojo::ScopedDataPipeProducerHandle write_tensor_producer,
-             mojo::ScopedDataPipeConsumerHandle read_tensor_consumer,
-             base::WeakPtr<ort::DispatchContextImplOrt> context_weak_ptr,
-             scoped_refptr<base::SequencedTaskRunner> owning_task_runner,
-             uint64_t command_buffer_id_value,
-             mojo::PendingRemote<mojom::WebNNCompilerContext>
-                 compiler_context_remote,
-             mojo::PendingReceiver<mojom::WebNNModelLoader>
-                 model_loader_receiver) {
-            // Don't check `context_weak_ptr` here — it is bound to the
-            // context's owning sequence, not the main thread. The weak
-            // check happens inside PostBindModelLoaderOnOwningThread.
-            if (!compiler_context_remote.is_valid() ||
-                !model_loader_receiver.is_valid()) {
-              std::move(callback).Run(ToError<mojom::CreateContextResult>(
-                  mojom::Error::Code::kUnknownError,
-                  "Failed to request CompilerContext."));
-              return;
-            }
-            PostBindModelLoaderOnOwningThread(owning_task_runner,
-                                              std::move(context_weak_ptr),
-                                              std::move(model_loader_receiver));
-            auto success = mojom::CreateContextSuccess::New(
-                std::move(remote), std::move(compiler_context_remote),
-                std::move(context_properties), std::move(context_handle),
-                std::move(write_tensor_producer),
-                std::move(read_tensor_consumer), command_buffer_id_value);
-            std::move(callback).Run(
-                mojom::CreateContextResult::NewSuccess(std::move(success)));
-          },
-          std::move(callback), std::move(remote), std::move(context_properties),
-          std::move(context_handle), std::move(write_tensor_producer),
-          std::move(read_tensor_consumer), std::move(context_weak_ptr),
-          std::move(owning_task_runner), command_buffer_id.GetUnsafeValue()));
+      std::move(compiler_context_receiver), std::move(model_loader_remote));
+
+  // Return success to the Renderer immediately with the CompilerContext remote.
+  auto success = mojom::CreateContextSuccess::New(
+      std::move(remote), std::move(compiler_context_remote),
+      std::move(context_properties), std::move(context_handle),
+      std::move(write_tensor_producer), std::move(read_tensor_consumer),
+      command_buffer_id.GetUnsafeValue());
+  std::move(callback).Run(
+      mojom::CreateContextResult::NewSuccess(std::move(success)));
 }
 
+void WebNNContextProviderImpl::ReconnectCompilerContext(
+    mojom::CreateContextOptionsPtr options,
+    ContextProperties properties,
+    EpDeviceInfo target_device,
+    mojo::PendingReceiver<mojom::WebNNCompilerContext>
+        compiler_context_receiver,
+    mojo::PendingRemote<mojom::WebNNModelLoader> model_loader_remote) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(main_sequence_checker_);
+
+  gpu_host_->RequestWebNNCompilerContext(
+      std::move(options), properties, std::move(target_device),
+      std::move(compiler_context_receiver), std::move(model_loader_remote));
+}
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(WEBNN_USE_TFLITE)
@@ -831,10 +832,10 @@ void WebNNContextProviderImpl::OnOrtEnvCreated(
                            std::move(gpu_task_scheduler),
                            std::move(memory_tracker), task_runner,
                            base::Unretained(shared_image_manager_.get()),
-                           main_thread_task_runner_, std::move(scoped_trace)),
+                           main_thread_task_runner_, std::move(scoped_trace),
+                           std::move(*selected_device)),
             base::BindOnce(&WebNNContextProviderImpl::OnDispatchContextCreated,
-                           AsWeakPtr(), std::move(*selected_device),
-                           std::move(callback), std::move(remote),
+                           AsWeakPtr(), std::move(callback), std::move(remote),
                            std::move(write_tensor_producer),
                            std::move(read_tensor_consumer), sequence_id));
         return;

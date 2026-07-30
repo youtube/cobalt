@@ -258,10 +258,11 @@ void WebViewPasswordManagerClient::NotifyUserCredentialsWereLeaked(
 void WebViewPasswordManagerClient::NotifyKeychainError() {}
 
 bool WebViewPasswordManagerClient::IsSavingAndFillingEnabled(
-    const GURL& url) const {
+    const url::Origin& origin,
+    base::optional_ref<const GURL> url) const {
   return *saving_passwords_enabled_ && !IsOffTheRecord() &&
          !net::IsCertStatusError(GetMainFrameCertStatus()) &&
-         IsFillingEnabled(url);
+         IsFillingEnabled(origin, url);
 }
 
 bool WebViewPasswordManagerClient::IsCommittedMainFrameSecure() const {

@@ -8,6 +8,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/shared/tab_strip_combo_button.h"
 #include "chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h"
 #include "chrome/browser/ui/views/test/vertical_tabs_interactive_test_mixin.h"
@@ -57,14 +58,6 @@ class TabStripComboButtonInteractiveUiTest
                           }),
                  WaitForState(kFlatEdgeState, expected),
                  StopObservingState(kFlatEdgeState));
-  }
-
-  auto SetOrientation(views::LayoutOrientation orientation) {
-    return WithView(kTabSearchButtonElementId,
-                    [orientation](views::View* view) {
-                      views::AsViewClass<TabStripComboButton>(view->parent())
-                          ->SetOrientation(orientation);
-                    });
   }
 
   auto TriggerEphemeralState() {
@@ -123,27 +116,24 @@ IN_PROC_BROWSER_TEST_F(TabStripComboButtonInteractiveUiTest,
       CheckUserAction("TabStripComboButton.ProjectsPanel.Pinned", 1));
 }
 
-// TODO(crbug.com/498634793): Flaky on Linux.
-#if BUILDFLAG(IS_LINUX)
-#define MAYBE_UpdateStylesOnOrientationChange \
-  DISABLED_UpdateStylesOnOrientationChange
-#else
-#define MAYBE_UpdateStylesOnOrientationChange UpdateStylesOnOrientationChange
-#endif
 IN_PROC_BROWSER_TEST_F(TabStripComboButtonInteractiveUiTest,
-                       MAYBE_UpdateStylesOnOrientationChange) {
+                       UpdateStylesOnOrientationChange) {
   using FlatEdge = TabStripFlatEdgeButton::FlatEdge;
   RunTestSequence(
       EnsureBothButtonsVisible(),
       CheckFlatEdge(kVerticalTabStripProjectsButtonElementId, FlatEdge::kRight),
       CheckFlatEdge(kTabSearchButtonElementId, FlatEdge::kLeft),
-      // Set to vertical.
-      SetOrientation(views::LayoutOrientation::kVertical),
+      // Collapse vertical tabs.
+      PressButton(kVerticalTabStripCollapseButtonElementId),
+      WaitForEvent(kTabStripRegionElementId,
+                   VerticalTabStripRegionView::kAnimationCompletedEvent),
       CheckFlatEdge(kVerticalTabStripProjectsButtonElementId,
                     FlatEdge::kBottom),
       CheckFlatEdge(kTabSearchButtonElementId, FlatEdge::kTop),
-      // Set back to horizontal.
-      SetOrientation(views::LayoutOrientation::kHorizontal),
+      // Expand vertical tabs.
+      PressButton(kVerticalTabStripCollapseButtonElementId),
+      WaitForEvent(kTabStripRegionElementId,
+                   VerticalTabStripRegionView::kAnimationCompletedEvent),
       CheckFlatEdge(kVerticalTabStripProjectsButtonElementId, FlatEdge::kRight),
       CheckFlatEdge(kTabSearchButtonElementId, FlatEdge::kLeft));
 }
@@ -303,8 +293,7 @@ class TabStripComboButtonHorizontalInteractiveUiTest
     : public InteractiveBrowserTest {
  public:
   TabStripComboButtonHorizontalInteractiveUiTest() {
-    scoped_feature_list_.InitWithFeatures(
-        {tabs::kHorizontalTabStripComboButton, tab_groups::kProjectsPanel}, {});
+    scoped_feature_list_.InitWithFeatures({tab_groups::kProjectsPanel}, {});
   }
   ~TabStripComboButtonHorizontalInteractiveUiTest() override = default;
 
@@ -329,47 +318,6 @@ IN_PROC_BROWSER_TEST_F(TabStripComboButtonHorizontalInteractiveUiTest,
       // Projects panel should NOT be present in the view hierarchy of the combo
       // button.
       EnsureNotPresent(kVerticalTabStripProjectsButtonElementId));
-}
-
-class TabStripComboButtonHorizontalStartOnlyInteractiveUiTest
-    : public InteractiveBrowserTest {
- public:
-  TabStripComboButtonHorizontalStartOnlyInteractiveUiTest() {
-    scoped_feature_list_.InitWithFeaturesAndParameters(
-        {{tabs::kHorizontalTabStripComboButton, {{"show_start_only", "true"}}},
-         {tab_groups::kProjectsPanel, {}}},
-        {});
-  }
-  ~TabStripComboButtonHorizontalStartOnlyInteractiveUiTest() override = default;
-
-  auto SetPinned(const char* pref, bool pinned) {
-    return Do([this, pref, pinned]() {
-      browser()->profile()->GetPrefs()->SetBoolean(pref, pinned);
-    });
-  }
-
-  auto TriggerEphemeralState() {
-    return WithView(kTabStripComboButtonElementId, [](views::View* view) {
-      views::AsViewClass<TabStripComboButton>(view)->OnBubbleInitializing();
-    });
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(TabStripComboButtonHorizontalStartOnlyInteractiveUiTest,
-                       StartButtonShowsEndButtonEphemeral) {
-  RunTestSequence(
-      // Pin both tab search and projects panel.
-      SetPinned(prefs::kTabSearchPinnedToTabstrip, true),
-      SetPinned(prefs::kProjectsPanelPinnedToTabstrip, true),
-      // Projects panel should be visible.
-      WaitForShow(kVerticalTabStripProjectsButtonElementId),
-      // Tab search should NOT be visible even though pinned.
-      WaitForHide(kTabSearchButtonElementId),
-      // Trigger ephemeral state for tab search.
-      TriggerEphemeralState(), WaitForShow(kTabSearchButtonElementId));
 }
 
 }  // namespace

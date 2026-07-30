@@ -187,8 +187,10 @@ IN_PROC_BROWSER_TEST_F(NewTabPagePreloadBrowserTest,
 
 // Test a scenario which prefetch fails when a search related url in the
 // redirect chain.
+// TODO(crbug.com/527655680): Particularly flaky on Windows, but also flakes
+// on Linux and Mac
 IN_PROC_BROWSER_TEST_F(NewTabPagePreloadBrowserTest,
-                       PreventSearchRelatedRedirect) {
+                       DISABLED_PreventSearchRelatedRedirect) {
   base::HistogramTester histogram_tester;
   StartServer();
 

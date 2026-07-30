@@ -390,4 +390,61 @@ public class ReaderModeActionProviderTest {
 
         verify(mMockSignalAccumulator).setSignal(AdaptiveToolbarButtonVariant.READER_MODE, true);
     }
+
+    @Test
+    public void testExitReaderMode_suppressesSignal() {
+        var provider = new ReaderModeActionProvider(mButtonVisibilitySupplier);
+
+        setReaderModeBackendSignal(true);
+        provider.getAction(mMockTab, mMockSignalAccumulator);
+        RobolectricUtil.runAllBackgroundAndUi();
+        verify(mMockSignalAccumulator).setSignal(AdaptiveToolbarButtonVariant.READER_MODE, true);
+        clearInvocations(mMockSignalAccumulator);
+
+        when(mMockTab.getUrl()).thenReturn(TEST_DISTILLER_URL);
+        when(mDomDistillerUrlUtilsJni.isDistilledPage(any()))
+                .thenAnswer(
+                        inv -> {
+                            String url = inv.getArgument(0);
+                            return url != null && url.startsWith("chrome-distiller:");
+                        });
+        when(mDomDistillerUrlUtilsJni.getOriginalUrlFromDistillerUrl(any())).thenReturn(TEST_URL);
+        provider.getAction(mMockTab, mMockSignalAccumulator);
+        verify(mMockSignalAccumulator).setSignal(AdaptiveToolbarButtonVariant.READER_MODE, true);
+        clearInvocations(mMockSignalAccumulator);
+
+        when(mMockTab.getUrl()).thenReturn(TEST_URL);
+        provider.getAction(mMockTab, mMockSignalAccumulator);
+        verify(mMockSignalAccumulator).setSignal(AdaptiveToolbarButtonVariant.READER_MODE, false);
+    }
+
+    @Test
+    public void testExitReaderMode_navigatingToDifferentUrl_doesNotSuppressSignal() {
+        var provider = new ReaderModeActionProvider(mButtonVisibilitySupplier);
+
+        setReaderModeBackendSignal(true);
+        provider.getAction(mMockTab, mMockSignalAccumulator);
+        RobolectricUtil.runAllBackgroundAndUi();
+        verify(mMockSignalAccumulator).setSignal(AdaptiveToolbarButtonVariant.READER_MODE, true);
+        clearInvocations(mMockSignalAccumulator);
+
+        when(mMockTab.getUrl()).thenReturn(TEST_DISTILLER_URL);
+        when(mDomDistillerUrlUtilsJni.isDistilledPage(any()))
+                .thenAnswer(
+                        inv -> {
+                            String url = inv.getArgument(0);
+                            return url != null && url.startsWith("chrome-distiller:");
+                        });
+        when(mDomDistillerUrlUtilsJni.getOriginalUrlFromDistillerUrl(any())).thenReturn(TEST_URL);
+        provider.getAction(mMockTab, mMockSignalAccumulator);
+        verify(mMockSignalAccumulator).setSignal(AdaptiveToolbarButtonVariant.READER_MODE, true);
+        clearInvocations(mMockSignalAccumulator);
+
+        GURL otherUrl = new GURL("https://other.com");
+        when(mMockTab.getUrl()).thenReturn(otherUrl);
+        setReaderModeBackendSignal(true);
+        provider.getAction(mMockTab, mMockSignalAccumulator);
+        RobolectricUtil.runAllBackgroundAndUi();
+        verify(mMockSignalAccumulator).setSignal(AdaptiveToolbarButtonVariant.READER_MODE, true);
+    }
 }

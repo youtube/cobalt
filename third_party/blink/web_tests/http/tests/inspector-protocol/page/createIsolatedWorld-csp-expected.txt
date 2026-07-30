@@ -1,0 +1,9 @@
+Verifies fetch() is blocked by CSP in isolated world and can be cleared
+Creating isolated world with CSP...
+Fetch result (with CSP): FAILED: TypeError: Failed to fetch
+Re-creating isolated world without CSP (should clear it)...
+Context IDs match: true
+Fetch result (after clearing CSP, same document): FAILED: TypeError: Failed to fetch
+Navigating and re-creating without CSP...
+Fetch result (after clearing CSP, new document): SUCCESS
+

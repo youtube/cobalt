@@ -4,6 +4,8 @@
 
 #include "base/process/process.h"
 
+#include <ostream>
+
 #include "base/notreached.h"
 
 namespace base {
@@ -18,6 +20,10 @@ const char* ProcessPriorityToString(Process::Priority process_priority) {
       return "User blocking";
   }
   NOTREACHED();
+}
+
+std::ostream& operator<<(std::ostream& os, Process::Priority process_priority) {
+  return os << ProcessPriorityToString(process_priority);
 }
 
 }  // namespace base

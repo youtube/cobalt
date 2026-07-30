@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.facilitated_payments;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.SCREEN;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.SCREEN_VIEW_MODEL;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.SURVIVES_NAVIGATION;
+import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.SequenceScreen.ACCOUNT_LINKING_SUCCESS_SCREEN;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.SequenceScreen.ERROR_SCREEN;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.SequenceScreen.FOP_SELECTOR;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.SequenceScreen.PIX_ACCOUNT_LINKING_PROMPT;
@@ -86,6 +87,15 @@ class FacilitatedPaymentsPaymentMethodsViewBinder {
                         pixAccountLinkingPrompt.setupView(view.getScreenHolder());
                         view.setNextScreen(pixAccountLinkingPrompt);
                         model.set(SCREEN_VIEW_MODEL, pixAccountLinkingPrompt.getModel());
+                        break;
+                    }
+                case ACCOUNT_LINKING_SUCCESS_SCREEN:
+                    {
+                        FacilitatedPaymentsSequenceView successScreen =
+                                new FacilitatedPaymentsAccountLinkingSuccessScreen();
+                        successScreen.setupView(view.getScreenHolder());
+                        view.setNextScreen(successScreen);
+                        model.set(SCREEN_VIEW_MODEL, successScreen.getModel());
                         break;
                     }
                 default:

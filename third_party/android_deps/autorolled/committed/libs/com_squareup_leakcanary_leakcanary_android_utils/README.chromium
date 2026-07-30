@@ -1,7 +1,7 @@
 Name: LeakCanary Android Utils
 Short Name: leakcanary-android-utils
-URL: https://repo.maven.apache.org/maven2/com/squareup/leakcanary/leakcanary-android-utils/3.0-alpha-8/leakcanary-android-utils-3.0-alpha-8.aar
-Version: 3.0-alpha-8
+URL: https://repo.maven.apache.org/maven2/com/squareup/leakcanary/leakcanary-android-utils/3.0-alpha-9/leakcanary-android-utils-3.0-alpha-9.aar
+Version: 3.0-alpha-9
 Update Mechanism: Autoroll
 License: Apache-2.0
 License File: LICENSE

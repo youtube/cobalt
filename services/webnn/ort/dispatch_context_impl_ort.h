@@ -10,6 +10,7 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "services/webnn/ort/context_impl_ort.h"
+#include "services/webnn/public/cpp/ep_device_info.h"
 #include "services/webnn/public/mojom/webnn_model_loader.mojom.h"
 
 namespace webnn::ort {
@@ -39,7 +40,8 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) DispatchContextImplOrt final
       scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
       gpu::SharedImageManager* shared_image_manager,
       scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
-      ScopedTrace scoped_trace);
+      ScopedTrace scoped_trace,
+      EpDeviceInfo target_device);
 
   DispatchContextImplOrt(
       mojo::PendingReceiver<mojom::WebNNContext> receiver,
@@ -55,7 +57,8 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) DispatchContextImplOrt final
       scoped_refptr<gpu::MemoryTracker> memory_tracker,
       scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
       gpu::SharedImageManager* shared_image_manager,
-      scoped_refptr<base::SingleThreadTaskRunner> main_task_runner);
+      scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
+      EpDeviceInfo target_device);
 
   DispatchContextImplOrt(const DispatchContextImplOrt&) = delete;
   DispatchContextImplOrt& operator=(const DispatchContextImplOrt&) = delete;
@@ -65,10 +68,16 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) DispatchContextImplOrt final
   // of the Compiler→GPU reverse channel.
   void BindModelLoader(mojo::PendingReceiver<mojom::WebNNModelLoader> receiver);
 
+  const EpDeviceInfo& target_device() const { return target_device_; }
+
   base::WeakPtr<DispatchContextImplOrt> GetWeakPtr();
 
   // WebNNContextImpl:
   base::WeakPtr<WebNNContextImpl> AsWeakPtr() override;
+
+  // mojom::WebNNContext:
+  void RequestCompilerContext(mojo::PendingReceiver<mojom::WebNNCompilerContext>
+                                  compiler_context_receiver) override;
 
  private:
   ~DispatchContextImplOrt() override;
@@ -78,6 +87,11 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) DispatchContextImplOrt final
       mojom::CompiledGraphPtr compiled_graph,
       mojo::PendingReceiver<mojom::WebNNGraph> graph_receiver,
       LoadCompiledGraphCallback callback) override;
+
+  // The EP device that was selected for this DispatchContextImplOrt. Used to
+  // reconnect when requesting a CompilerContext from the Compiler process for
+  // the same EP device.
+  EpDeviceInfo target_device_;
 
   mojo::Receiver<mojom::WebNNModelLoader> model_loader_receiver_{this};
 

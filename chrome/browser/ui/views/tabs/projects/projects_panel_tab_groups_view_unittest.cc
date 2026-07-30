@@ -160,7 +160,7 @@ TEST_F(ProjectsPanelTabGroupsViewTest, WriteDragData) {
   // Set the size of the view so the drag image is not empty.
   tab_groups_view_->SetSize(gfx::Size(100, 100));
 
-  auto* item_view = tab_groups_view_->item_views_for_testing()[0];
+  auto* item_view = tab_groups_view_->item_views_for_testing()[0].get();
 
   ui::OSExchangeData data;
   tab_groups_view_->WriteDragDataForView(item_view, gfx::Point(), &data);

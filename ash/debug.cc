@@ -27,30 +27,14 @@
 namespace ash {
 namespace debug {
 
-namespace {
-
-std::unique_ptr<DebugWindowHierarchyDelegate> instance = nullptr;
-
-}  // namespace
-
-void SetDebugWindowHierarchyDelegate(
-    std::unique_ptr<DebugWindowHierarchyDelegate> delegate) {
-  instance = std::move(delegate);
-}
-
 void PrintLayerHierarchy(std::ostringstream* out) {
-  ui::DebugLayerChildCallback child_cb =
-      instance ? base::BindRepeating(
-                     &DebugWindowHierarchyDelegate::GetAdjustedLayerChildren,
-                     base::Unretained(instance.get()))
-               : ui::DebugLayerChildCallback();
   for (aura::Window* root : Shell::Get()->GetAllRootWindows()) {
     ui::Layer* layer = root->layer();
     if (layer) {
       ui::PrintLayerHierarchy(
           layer,
           RootWindowController::ForWindow(root)->GetLastMouseLocationInRoot(),
-          /*print_invisible=*/true, out, child_cb);
+          /*print_invisible=*/true, out);
     }
   }
 }
@@ -71,14 +55,8 @@ void PrintViewHierarchy(std::ostringstream* out) {
 
 std::vector<std::string> PrintWindowHierarchy(std::ostringstream* out,
                                               bool scrub_data) {
-  auto children_callback = base::BindRepeating(
-      [](aura::Window* window)
-          -> std::vector<raw_ptr<aura::Window, VectorExperimental>> {
-        return instance ? instance->GetAdjustedWindowChildren(window)
-                        : window->children();
-      });
   return chromeos::wm::PrintWindowHierarchy(Shell::Get()->GetAllRootWindows(),
-                                            scrub_data, out, children_callback);
+                                            scrub_data, out);
 }
 
 void ToggleShowDebugBorders() {

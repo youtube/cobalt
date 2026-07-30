@@ -525,4 +525,17 @@ uint32_t PerformanceTimingForReporting::ShapeCacheMissCount() const {
   return FontPerformance::ShapeCacheMissCount();
 }
 
+std::vector<ScriptFontFallbackDetailsForReporting>
+PerformanceTimingForReporting::GetScriptFontFallbackDetails() const {
+  std::vector<ScriptFontFallbackDetailsForReporting> result;
+  for (const auto& [key, count] : FontPerformance::GetScriptFallbackCounts()) {
+    result.push_back({
+        .script_code = key.script,
+        .fallback_count = count,
+        .is_emoji = key.is_emoji,
+    });
+  }
+  return result;
+}
+
 }  // namespace blink

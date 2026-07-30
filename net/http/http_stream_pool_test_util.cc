@@ -201,7 +201,7 @@ const HostCache::EntryStaleness* FakeServiceEndpointRequest::GetStaleInfo()
 }
 
 bool FakeServiceEndpointRequest::IsStaleWhileRefreshing() const {
-  return false;
+  return is_stale_while_refreshing_;
 }
 
 void FakeServiceEndpointRequest::ChangeRequestPriority(

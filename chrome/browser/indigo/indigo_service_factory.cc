@@ -4,11 +4,9 @@
 
 #include "chrome/browser/indigo/indigo_service_factory.h"
 
-#include "chrome/browser/indigo/indigo_prefs.h"
 #include "chrome/browser/indigo/indigo_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "components/pref_registry/pref_registry_syncable.h"
 
 namespace indigo {
 
@@ -40,10 +38,4 @@ IndigoServiceFactory::BuildServiceInstanceForBrowserContext(
       profile, IdentityManagerFactory::GetForProfile(profile),
       profile->GetPrefs());
 }
-
-void IndigoServiceFactory::RegisterProfilePrefs(
-    user_prefs::PrefRegistrySyncable* registry) {
-  ::indigo::prefs::RegisterProfilePrefs(registry);
-}
-
 }  // namespace indigo

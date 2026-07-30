@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_ENTERPRISE_NETWORK_HEADER_INJECTION_HTTP_HEADER_INJECTION_UTILS_H_
 #define CHROME_BROWSER_ENTERPRISE_NETWORK_HEADER_INJECTION_HTTP_HEADER_INJECTION_UTILS_H_
 
+#include "content/public/browser/content_browser_client.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
 
@@ -22,6 +23,12 @@ void MaybeWrapTrustedURLLoaderHeaderClient(
     content::BrowserContext* browser_context,
     mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>*
         header_client);
+
+// Creates a TrustedHeaderClient that injects enterprise HTTP headers into
+// WebSocket connections if the feature is enabled and policy rules exist.
+void MaybeCreateWebSocketHeaderClient(
+    content::BrowserContext* browser_context,
+    mojo::PendingRemote<network::mojom::TrustedHeaderClient>* header_client);
 
 }  // namespace enterprise_custom_headers
 

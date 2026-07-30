@@ -60,6 +60,16 @@ TEST_F(DesktopBnplStrategyTest, GetBeforeViewSwitchAction) {
             BnplStrategy::BeforeSwitchingViewAction::kCloseCurrentUi);
 }
 
+// Verify that GetNextActionOnAiBasedAmountExtractionReturned() returns the
+// correct action for the desktop platform.
+TEST_F(DesktopBnplStrategyTest,
+       GetNextActionOnAiBasedAmountExtractionReturned) {
+  EXPECT_EQ(
+      desktop_bnpl_strategy_.GetNextActionOnAiBasedAmountExtractionReturned(),
+      BnplStrategy::BnplAiBasedAmountExtractionReturnedNextAction::
+          kReplaceLoadingThrobberWithIssuerSuggestionsOnDesktop);
+}
+
 // Verify that ShouldRemoveExistingUiOnServerReturn() returns the correct
 // value for the desktop platform.
 TEST_F(DesktopBnplStrategyTest, ShouldRemoveExistingUiOnServerReturn) {

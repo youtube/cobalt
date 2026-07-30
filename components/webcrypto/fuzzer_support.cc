@@ -30,6 +30,16 @@ class InitOnce : public blink::Platform {
   }
   ~InitOnce() override = default;
 
+  // Required for binders to work, to ensure deterministic operation we use a
+  // single thread.
+  scoped_refptr<base::SequencedTaskRunner> MediaThreadTaskRunner() override {
+    return main_thread_task_executor_.task_runner();
+  }
+
+  scoped_refptr<base::SingleThreadTaskRunner> GetIOTaskRunner() const override {
+    return main_thread_task_executor_.task_runner();
+  }
+
  private:
   base::SingleThreadTaskExecutor main_thread_task_executor_;
 };

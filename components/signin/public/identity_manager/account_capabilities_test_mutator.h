@@ -88,6 +88,9 @@ class AccountCapabilitiesTestMutator {
   void SetAllSupportedCapabilities(bool value);
   // Set capability with `name` to `value`.
   void SetCapability(const std::string& name, bool value);
+  // Set override capability with `name` to `value`.
+  void SetCapabilityOverride(std::string_view name,
+                              std::optional<signin::Tribool> value);
 
  private:
   raw_ptr<AccountCapabilities> capabilities_;

@@ -28,6 +28,9 @@ BASE_EXPORT bool IsRunningOnIOS18OrLater();
 // following 18.x is 26.0).
 BASE_EXPORT bool IsRunningOnIOS26OrLater();
 
+// Returns whether the operating system is iOS 27 or later.
+BASE_EXPORT bool IsRunningOnIOS27OrLater();
+
 // Returns whether the operating system is at the given version or later.
 BASE_EXPORT bool IsRunningOnOrLater(int32_t major,
                                     int32_t minor,

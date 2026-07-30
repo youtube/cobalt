@@ -32,7 +32,7 @@ class RenderbufferManagerTestBase : public GpuServiceTest {
   void SetUpBase(scoped_refptr<MemoryTracker> memory_tracker,
                  bool depth24_supported) {
     GpuServiceTest::SetUp();
-    feature_info_ = new FeatureInfo();
+    feature_info_ = base::MakeRefCounted<FeatureInfo>();
     TestHelper::SetupFeatureInfoInitExpectationsWithGLVersion(
         gl_.get(), depth24_supported ? "GL_OES_depth24" : "", "",
         "OpenGL ES 3.0", feature_info_->context_type());

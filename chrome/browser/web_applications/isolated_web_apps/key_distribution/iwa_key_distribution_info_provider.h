@@ -40,8 +40,6 @@ class WebAppInternalsHandler;
 
 namespace web_app {
 
-class IwaInternalsHandler;
-
 // This class is a singleton responsible for processing the IWA Key Distribution
 // Component data.
 class IwaKeyDistributionInfoProvider : public ChromeIwaRuntimeDataProvider {
@@ -61,7 +59,6 @@ class IwaKeyDistributionInfoProvider : public ChromeIwaRuntimeDataProvider {
   using InstanceAccessKey = base::PassKey<
       BrowserProcessImpl,
       component_updater::IwaKeyDistributionComponentInstallerPolicy,
-      IwaInternalsHandler,
       IwaKeyDistributionInfoProvider,
       TestingBrowserProcess,
       WebAppInternalsHandler>;
@@ -120,12 +117,6 @@ class IwaKeyDistributionInfoProvider : public ChromeIwaRuntimeDataProvider {
                                const base::FilePath& file_path,
                                bool is_preloaded);
 
-  // Sets a custom key rotation outside of the component updater flow and
-  // triggers an `OnComponentUpdateSuccess()` event. The usage of this function
-  // is intentionally limited to chrome://web-app-internals.
-  void RotateKeyForDevMode(base::PassKey<IwaInternalsHandler>,
-                           const std::string& web_bundle_id,
-                           const std::vector<uint8_t>& rotated_key);
 
   std::optional<bool> IsPreloadedForTesting() const;
   void SetComponentDataForTesting(base::Version component_version,
@@ -193,6 +184,7 @@ class IwaKeyDistributionInfoProvider : public ChromeIwaRuntimeDataProvider {
   void DispatchComponentUpdateError(IwaComponentUpdateError error);
 
   void SignalOnDataReady(bool is_preloaded);
+  void OnTimeout();
 
   KeyDistributionComponentSource GetComponentDataSource() const;
 

@@ -13,20 +13,9 @@ import {createFolder, createItem, replaceBody} from './test_util.js';
 suite('<bookmarks-edit-dialog>', function() {
   let bookmarksApi: TestBookmarksApiProxy;
   let dialog: BookmarksEditDialogElement;
-  let lastUpdate: {id: string, edit: {url?: string, title?: string}};
-
-  suiteSetup(function() {
-    chrome.bookmarks.update = function(id, edit) {
-      lastUpdate.id = id;
-      lastUpdate.edit = edit;
-      return Promise.resolve({id: '', title: ''});
-    };
-  });
-
   setup(function() {
     bookmarksApi = new TestBookmarksApiProxy();
     BookmarksApiProxyImpl.setInstance(bookmarksApi);
-    lastUpdate = {id: '', edit: {}};
     dialog = document.createElement('bookmarks-edit-dialog');
     replaceBody(dialog);
   });
@@ -61,9 +50,11 @@ suite('<bookmarks-edit-dialog>', function() {
     await microtasksFinished();
 
     dialog.$.saveButton.click();
-    assertEquals(item.id, lastUpdate.id);
-    assertEquals(item.url, lastUpdate.edit.url);
-    assertEquals(item.title, lastUpdate.edit.title);
+    let [id, edit] = await bookmarksApi.whenCalled('update');
+    assertEquals(item.id, id);
+    assertEquals(item.url, edit.url);
+    assertEquals(item.title, edit.title);
+    bookmarksApi.resetResolver('update');
 
     // Editing a folder, changing the title.
     const folder = normalizeNode(createFolder('2', [], {title: 'Cool Sites'}));
@@ -73,9 +64,10 @@ suite('<bookmarks-edit-dialog>', function() {
     await microtasksFinished();
 
     dialog.$.saveButton.click();
-    assertEquals(folder.id, lastUpdate.id);
-    assertEquals(undefined, lastUpdate.edit.url);
-    assertEquals('Awesome websites', lastUpdate.edit.title);
+    [id, edit] = await bookmarksApi.whenCalled('update');
+    assertEquals(folder.id, id);
+    assertEquals(undefined, edit.url);
+    assertEquals('Awesome websites', edit.title);
   });
 
   test('add passes the correct details to the backend', async function() {
@@ -91,11 +83,13 @@ suite('<bookmarks-edit-dialog>', function() {
 
     dialog.$.saveButton.click();
 
-    const args = await bookmarksApi.whenCalled('create');
+    const [parentId, index, title, url] =
+        await bookmarksApi.whenCalled('create');
 
-    assertEquals('1', args.parentId);
-    assertEquals('http://permission.site', args.url);
-    assertEquals('Permission Site', args.title);
+    assertEquals('1', parentId);
+    assertEquals(null, index);
+    assertEquals('Permission Site', title);
+    assertEquals('http://permission.site', url);
   });
 
   function setUrlValue(value: string) {
@@ -198,8 +192,8 @@ suite('<bookmarks-edit-dialog>', function() {
 
     dialog.$.saveButton.click();
 
-    const args = await bookmarksApi.whenCalled('create');
-    assertEquals(MAX_BOOKMARK_INPUT_LENGTH, args.title.length);
+    const [, , title] = await bookmarksApi.whenCalled('create');
+    assertEquals(MAX_BOOKMARK_INPUT_LENGTH, title.length);
   });
 
   test('doesn\'t save when URL is invalid', async () => {

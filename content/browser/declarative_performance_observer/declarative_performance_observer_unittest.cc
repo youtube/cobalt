@@ -9,13 +9,24 @@
 #include <string>
 #include <vector>
 
+#include "base/test/scoped_feature_list.h"
 #include "base/values.h"
+#include "content/browser/declarative_performance_observer/declarative_performance_observer_store.h"
+#include "content/browser/storage_partition_impl.h"
+#include "content/public/browser/browser_context.h"
+#include "content/public/browser/storage_partition_config.h"
 #include "content/public/test/mock_navigation_handle.h"
+#include "content/public/test/navigation_simulator.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/test_storage_partition.h"
+#include "content/public/test/test_utils.h"
+#include "content/test/storage_partition_test_helpers.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "net/base/net_errors.h"
+#include "services/network/public/cpp/features.h"
 #include "services/network/test/test_network_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/origin_trials/scoped_test_origin_trial_policy.h"
 #include "third_party/blink/public/mojom/timing/declarative_performance_observer.mojom.h"
 
 namespace content {
@@ -64,7 +75,10 @@ class TestNetworkContext : public network::TestNetworkContext {
 
 class DeclarativePerformanceObserverTest : public RenderViewHostTestHarness {
  public:
-  DeclarativePerformanceObserverTest() = default;
+  DeclarativePerformanceObserverTest() {
+    feature_list_.InitAndEnableFeature(
+        network::features::kDeclarativePerformanceObserver);
+  }
   ~DeclarativePerformanceObserverTest() override = default;
 
  protected:
@@ -85,6 +99,9 @@ class DeclarativePerformanceObserverTest : public RenderViewHostTestHarness {
 
   content::TestStoragePartition storage_partition_;
   TestNetworkContext network_context_;
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 TEST_F(DeclarativePerformanceObserverTest, RecordsVisibilityStateOnCommit) {
@@ -601,6 +618,299 @@ TEST_F(DeclarativePerformanceObserverTest, RecordsPrerenderActivation) {
   EXPECT_EQ(*(nav_entry->FindString("entryType")), "navigation");
   EXPECT_EQ(*(nav_entry->FindString("deliveryType")), "navigational-prefetch");
   EXPECT_EQ(*(nav_entry->FindDouble("activationStart")), 123.0);
+}
+
+TEST_F(DeclarativePerformanceObserverTest,
+       RecordsEarlyFailureAndMergesOnOptIn) {
+  const GURL kPageURL("https://example.com/index.html");
+  const url::Origin kOrigin = url::Origin::Create(kPageURL);
+  auto* partition =
+      static_cast<StoragePartitionImpl*>(main_rfh()->GetStoragePartition());
+  ASSERT_TRUE(partition);
+
+  partition->GetDeclarativePerformanceObserverStore()->SetEarlyFailurePolicy(
+      kOrigin, true);
+
+  NavigationHandleTiming default_timing;
+  testing::NiceMock<MockNavigationHandle> failed_handle(kPageURL, main_rfh());
+  ON_CALL(failed_handle, GetNavigationHandleTiming())
+      .WillByDefault(testing::ReturnRef(default_timing));
+  DeclarativePerformanceObserver::RecordEarlyNavigationFailure(
+      &failed_handle, partition, net::ERR_CONNECTION_REFUSED);
+
+  base::RunLoop barrier;
+  partition->GetDeclarativePerformanceObserverStore()->SetEarlyFailurePolicy(
+      kOrigin, true, barrier.QuitClosure());
+  barrier.Run();
+
+  auto policy = network::mojom::DeclarativePerformanceObserverPolicy::New();
+  policy->reporting_endpoint = "telemetry";
+  policy->capture_early_failures = true;
+  policy->entry_types.push_back(
+      network::mojom::PerformanceEntryType::kVisibilityState);
+
+  MockNavigationHandle navigation_handle(kPageURL, main_rfh());
+  navigation_handle.set_has_committed(true);
+  navigation_handle.set_is_in_primary_main_frame(true);
+
+  ON_CALL(navigation_handle, GetDeclarativePerformanceObserverPolicy())
+      .WillByDefault(testing::Return(policy.get()));
+
+  CreateObserver(&navigation_handle);
+
+  base::RunLoop sync_loop;
+  partition->GetDeclarativePerformanceObserverStore()->SetEarlyFailurePolicy(
+      kOrigin, true, sync_loop.QuitClosure());
+  sync_loop.Run();
+
+  DeclarativePerformanceObserver::DeleteForCurrentDocument(main_rfh());
+
+  ASSERT_EQ(network_context_.reports().size(), 1u);
+  const auto& report = network_context_.reports()[0];
+  const base::ListValue* entries = report.body.FindList("entries");
+  ASSERT_TRUE(entries);
+  ASSERT_EQ(entries->size(), 3u);
+}
+
+TEST_F(DeclarativePerformanceObserverTest, Enforces640KBFIFOQuota) {
+  const GURL kPageURL("https://example.com/index.html");
+  const url::Origin kOrigin = url::Origin::Create(kPageURL);
+  auto* partition =
+      static_cast<StoragePartitionImpl*>(main_rfh()->GetStoragePartition());
+
+  base::RunLoop run_loop_limit;
+  partition->GetDeclarativePerformanceObserverStore()->SetQuotaLimitForTesting(
+      4096, run_loop_limit.QuitClosure());
+  run_loop_limit.Run();
+
+  base::RunLoop run_loop1;
+  partition->GetDeclarativePerformanceObserverStore()->SetEarlyFailurePolicy(
+      kOrigin, true, run_loop1.QuitClosure());
+  run_loop1.Run();
+
+  NavigationHandleTiming default_timing;
+  testing::NiceMock<MockNavigationHandle> sample_handle(kPageURL, main_rfh());
+  ON_CALL(sample_handle, GetNavigationHandleTiming())
+      .WillByDefault(testing::ReturnRef(default_timing));
+  for (int i = 0; i < 20; ++i) {
+    DeclarativePerformanceObserver::RecordEarlyNavigationFailure(
+        &sample_handle, partition, net::ERR_CONNECTION_REFUSED);
+  }
+
+  base::RunLoop barrier;
+  partition->GetDeclarativePerformanceObserverStore()->SetEarlyFailurePolicy(
+      kOrigin, true, barrier.QuitClosure());
+  barrier.Run();
+
+  base::ListValue reports;
+  base::RunLoop run_loop2;
+  partition->GetDeclarativePerformanceObserverStore()->TakeEarlyFailureReports(
+      kOrigin, base::BindOnce(
+                   [](base::ListValue* out, base::OnceClosure quit,
+                      base::ListValue res) {
+                     *out = std::move(res);
+                     std::move(quit).Run();
+                   },
+                   &reports, run_loop2.QuitClosure()));
+  run_loop2.Run();
+  EXPECT_GE(reports.size(), 10u);
+  EXPECT_LE(reports.size(), 13u);
+}
+
+TEST_F(DeclarativePerformanceObserverTest,
+       RecordsEarlyFailureInCorrectPartition) {
+  const GURL kCustomSite("https://custom-example.com");
+  const GURL kCustomURL("https://custom-example.com/index.html");
+  const url::Origin kCustomOrigin = url::Origin::Create(kCustomURL);
+
+  // 1. Set up the custom storage partition client.
+  CustomStoragePartitionForSomeSites client(kCustomSite);
+  ScopedContentBrowserClientSetting setting(&client);
+
+  auto* default_partition =
+      static_cast<StoragePartitionImpl*>(main_rfh()->GetStoragePartition());
+
+  auto* browser_context = main_rfh()->GetBrowserContext();
+  StoragePartitionConfig config =
+      client.GetStoragePartitionConfigForSite(browser_context, kCustomSite);
+  auto* custom_partition = static_cast<StoragePartitionImpl*>(
+      browser_context->GetStoragePartition(config));
+
+  ASSERT_NE(default_partition, custom_partition);
+
+  // 2. Set early failure policy in the CUSTOM partition and default partition.
+  base::RunLoop barrier1;
+  custom_partition->GetDeclarativePerformanceObserverStore()
+      ->SetEarlyFailurePolicy(kCustomOrigin, true, barrier1.QuitClosure());
+  barrier1.Run();
+
+  base::RunLoop barrier2;
+  default_partition->GetDeclarativePerformanceObserverStore()
+      ->SetEarlyFailurePolicy(kCustomOrigin, false, barrier2.QuitClosure());
+  barrier2.Run();
+
+  // 3. Simulate failure.
+  std::unique_ptr<NavigationSimulator> failed_simulator =
+      NavigationSimulator::CreateBrowserInitiated(kCustomURL, web_contents());
+  failed_simulator->Start();
+  failed_simulator->Fail(net::ERR_CONNECTION_REFUSED);
+
+  // Sync database operations.
+  base::RunLoop sync_loop;
+  custom_partition->GetDeclarativePerformanceObserverStore()
+      ->SetEarlyFailurePolicy(kCustomOrigin, true, sync_loop.QuitClosure());
+  sync_loop.Run();
+
+  // 4. Verify report is in the CUSTOM partition's store.
+  base::ListValue custom_reports;
+  base::RunLoop run_loop1;
+  custom_partition->GetDeclarativePerformanceObserverStore()
+      ->TakeEarlyFailureReports(
+          kCustomOrigin, base::BindOnce(
+                             [](base::ListValue* out, base::OnceClosure quit,
+                                base::ListValue res) {
+                               *out = std::move(res);
+                               std::move(quit).Run();
+                             },
+                             &custom_reports, run_loop1.QuitClosure()));
+  run_loop1.Run();
+  EXPECT_EQ(custom_reports.size(), 1u);
+
+  // 5. Verify report is NOT in the DEFAULT partition's store.
+  base::ListValue default_reports;
+  base::RunLoop run_loop2;
+  default_partition->GetDeclarativePerformanceObserverStore()
+      ->TakeEarlyFailureReports(
+          kCustomOrigin, base::BindOnce(
+                             [](base::ListValue* out, base::OnceClosure quit,
+                                base::ListValue res) {
+                               *out = std::move(res);
+                               std::move(quit).Run();
+                             },
+                             &default_reports, run_loop2.QuitClosure()));
+  run_loop2.Run();
+  EXPECT_EQ(default_reports.size(), 0u);
+}
+
+class DeclarativePerformanceObserverOriginTrialTest
+    : public DeclarativePerformanceObserverTest {
+ public:
+  DeclarativePerformanceObserverOriginTrialTest() = default;
+
+ private:
+  blink::ScopedTestOriginTrialPolicy origin_trial_policy_;
+};
+
+TEST_F(DeclarativePerformanceObserverOriginTrialTest, OriginTrialGated) {
+  const GURL kPageURL("https://example.com/index.html");
+
+  // 1. Disable the feature flag globally.
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      network::features::kDeclarativePerformanceObserver);
+
+  // 2. Try to navigate WITH the Performance-Observer header but WITHOUT the OT
+  // token.
+  {
+    auto simulator =
+        NavigationSimulator::CreateBrowserInitiated(kPageURL, web_contents());
+    simulator->Start();
+
+    auto headers =
+        base::MakeRefCounted<net::HttpResponseHeaders>("HTTP/1.1 200 OK");
+    headers->AddHeader("Performance-Observer",
+                       "report-to=\"telemetry\", capture-early-failures=true, "
+                       "entry-types=(\"navigation\")");
+    simulator->SetResponseHeaders(headers);
+    simulator->Commit();
+
+    // Verify that the observer was NOT created (because OT is missing and flag
+    // is off).
+    auto* observer =
+        DeclarativePerformanceObserver::GetForCurrentDocument(main_rfh());
+    EXPECT_FALSE(observer);
+  }
+
+  // 2b. Try to navigate WITH the Performance-Observer header AND WITH a token
+  // for a DIFFERENT feature.
+  {
+    auto simulator =
+        NavigationSimulator::CreateBrowserInitiated(kPageURL, web_contents());
+    simulator->Start();
+
+    auto headers =
+        base::MakeRefCounted<net::HttpResponseHeaders>("HTTP/1.1 200 OK");
+    headers->AddHeader("Performance-Observer",
+                       "report-to=\"telemetry\", capture-early-failures=true, "
+                       "entry-types=(\"navigation\")");
+    // Valid token for https://example.com but for "DummyFeature"
+    headers->AddHeader(
+        "Origin-Trial",
+        "A/UfT0vT/si9yD1YdLXncUei180zQQrpu8+QaF/yhQgfBhERC0jdyFswSttoojUXStecZ"
+        "0xCwL3gRiYCxsf+AwAAAABWeyJvcmlnaW4iOiAiaHR0cHM6Ly9leGFtcGxlLmNvbTo0ND"
+        "MiLCAiZmVhdHVyZSI6ICJIdW1teUZlYXR1cmUiLCAiZXhwaXJ5IjogMjAwMDAwMDAwMH0"
+        "=");
+    simulator->SetResponseHeaders(headers);
+    simulator->Commit();
+
+    // Verify that the observer was NOT created (because the token is for a
+    // different feature).
+    auto* observer =
+        DeclarativePerformanceObserver::GetForCurrentDocument(main_rfh());
+    EXPECT_FALSE(observer);
+  }
+
+  // 2c. Try to navigate WITH the Performance-Observer header AND WITH a
+  // MALFORMED token.
+  {
+    auto simulator =
+        NavigationSimulator::CreateBrowserInitiated(kPageURL, web_contents());
+    simulator->Start();
+
+    auto headers =
+        base::MakeRefCounted<net::HttpResponseHeaders>("HTTP/1.1 200 OK");
+    headers->AddHeader("Performance-Observer",
+                       "report-to=\"telemetry\", capture-early-failures=true, "
+                       "entry-types=(\"navigation\")");
+    // Malformed token
+    headers->AddHeader("Origin-Trial", "not-a-valid-token-at-all");
+    simulator->SetResponseHeaders(headers);
+    simulator->Commit();
+
+    // Verify that the observer was NOT created.
+    auto* observer =
+        DeclarativePerformanceObserver::GetForCurrentDocument(main_rfh());
+    EXPECT_FALSE(observer);
+  }
+
+  // 3. Try to navigate WITH the Performance-Observer header AND WITH a VALID OT
+  // token.
+  {
+    auto simulator =
+        NavigationSimulator::CreateBrowserInitiated(kPageURL, web_contents());
+    simulator->Start();
+
+    auto headers =
+        base::MakeRefCounted<net::HttpResponseHeaders>("HTTP/1.1 200 OK");
+    headers->AddHeader("Performance-Observer",
+                       "report-to=\"telemetry\", capture-early-failures=true, "
+                       "entry-types=(\"navigation\")");
+    // Valid token for https://example.com and DeclarativePerformanceObserver
+    headers->AddHeader(
+        "Origin-Trial",
+        "A6umeji0ZeijjMlMf+9BwGsWirfa1RScCpY7xKTExl1kdyzXKLwnYfdCIgFv4FoVaBDUzX"
+        "z15kxM/25jT7kN/gwAAABoeyJvcmlnaW4iOiAiaHR0cHM6Ly9leGFtcGxlLmNvbTo0NDM"
+        "iLCAiZmVhdHVyZSI6ICJEZWNsYXJhdGl2ZVBlcmZvcm1hbmNlT2JzZXJ2ZXIiLCAiZXhw"
+        "aXJ5IjogMjAwMDAwMDAwMH0=");
+
+    simulator->SetResponseHeaders(headers);
+    simulator->Commit();
+
+    // Verify that the observer WAS successfully created!
+    auto* observer =
+        DeclarativePerformanceObserver::GetForCurrentDocument(main_rfh());
+    EXPECT_TRUE(observer);
+  }
 }
 
 }  // namespace

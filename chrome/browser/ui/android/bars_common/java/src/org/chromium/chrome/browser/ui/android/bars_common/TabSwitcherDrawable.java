@@ -61,14 +61,11 @@ public class TabSwitcherDrawable extends TintedDrawable {
     private final Paint mNotificationPaint;
     private final Paint mNotificationBgPaint;
     private final TextPaint mTextPaint;
-    private final Paint mIconPaint;
 
     // Tab Count Label
     private int mTabCount;
     private boolean mIncognito;
     private @Nullable String mTextRenderedForTesting;
-    private final Canvas mIconCanvas;
-    private final Bitmap mIconBitmap;
     private boolean mShouldShowNotificationIcon;
     private final @TabSwitcherDrawableLocation int mTabSwitcherDrawableLocation;
     private final ObserverList<Observer> mTabSwitcherDrawableObservers = new ObserverList<>();
@@ -78,7 +75,6 @@ public class TabSwitcherDrawable extends TintedDrawable {
      *
      * @param context A {@link Context} instance.
      * @param brandedColorScheme The {@link BrandedColorScheme} used to tint the drawable.
-     * @param bitmap The icon represented as a bitmap to be shown with this drawable.
      * @param tabSwitcherDrawableLocation The location in which the drawable is used.
      * @return A {@link TabSwitcherDrawable} instance.
      */
@@ -112,9 +108,6 @@ public class TabSwitcherDrawable extends TintedDrawable {
         mTextPaint.setTypeface(Typeface.create("google-sans-medium", Typeface.BOLD));
         mTextPaint.setColor(getColorForState());
 
-        mIconPaint = new Paint();
-        mIconPaint.setAntiAlias(true);
-
         mNotificationBgPaint = new Paint();
         mNotificationBgPaint.setAntiAlias(true);
         mNotificationBgPaint.setStyle(Paint.Style.FILL);
@@ -126,10 +119,6 @@ public class TabSwitcherDrawable extends TintedDrawable {
         mNotificationPaint.setStyle(Paint.Style.FILL);
         mNotificationPaint.setColor(SemanticColorUtils.getDefaultIconColorAccent1(context));
 
-        // Draw all icon components onto a local canvas before setting on the actual canvas.
-        mIconBitmap =
-                Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
-        mIconCanvas = new Canvas(mIconBitmap);
         mTabSwitcherDrawableLocation = tabSwitcherDrawableLocation;
     }
 
@@ -142,11 +131,26 @@ public class TabSwitcherDrawable extends TintedDrawable {
 
     @Override
     public void draw(Canvas canvas) {
-        // Clear the canvas on each redraw.
-        mIconCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
-        super.draw(mIconCanvas);
-
         Rect drawableBounds = getBounds();
+        boolean showNotification =
+                mShouldShowNotificationIcon && shouldShowNotificationOnIncognito();
+
+        if (showNotification) {
+            // saveLayer is required to isolate the CLEAR blend mode of the notification ring
+            // so it doesn't clear the content behind the toolbar.
+            canvas.saveLayer(
+                    drawableBounds.left,
+                    drawableBounds.top,
+                    drawableBounds.right,
+                    drawableBounds.bottom,
+                    /* paint= */ null);
+        } else {
+            canvas.save();
+        }
+
+        // Draw base icon (scales automatically to drawable bounds)
+        super.draw(canvas);
+
         String textString = getTabCountString();
         mTextRenderedForTesting = textString;
         if (!textString.isEmpty()) {
@@ -156,11 +160,11 @@ public class TabSwitcherDrawable extends TintedDrawable {
             float textY =
                     (drawableBounds.height() - mTextPaint.ascent() - mTextPaint.descent()) / 2f;
 
-            mIconCanvas.drawText(textString, textX, (int) Math.ceil(textY), mTextPaint);
+            canvas.drawText(textString, textX, (int) Math.ceil(textY), mTextPaint);
         }
 
         // Do not show the notification icon in tab view incognito.
-        if (mShouldShowNotificationIcon && shouldShowNotificationOnIncognito()) {
+        if (showNotification) {
             // Draw the notification bubble.
             float ringWidth = drawableBounds.width() / 18f;
             float ringHeight = drawableBounds.height() / 18f;
@@ -168,13 +172,13 @@ public class TabSwitcherDrawable extends TintedDrawable {
             float notifFillBottom = (drawableBounds.height() / 4f) + ringHeight;
             float notifBgLeft = (drawableBounds.width() * LEFT_FRACTION) - (ringWidth * 2f);
             float notifBgBottom = (drawableBounds.height() / 4f) + (ringHeight * 2f);
-            mIconCanvas.drawOval(
+            canvas.drawOval(
                     notifBgLeft,
                     drawableBounds.top,
                     drawableBounds.right,
                     notifBgBottom,
                     mNotificationBgPaint);
-            mIconCanvas.drawOval(
+            canvas.drawOval(
                     notifFillLeft,
                     drawableBounds.top + ringHeight,
                     drawableBounds.right - ringWidth,
@@ -182,7 +186,7 @@ public class TabSwitcherDrawable extends TintedDrawable {
                     mNotificationPaint);
         }
 
-        canvas.drawBitmap(mIconBitmap, 0, 0, mIconPaint);
+        canvas.restore();
     }
 
     /**
@@ -276,6 +280,7 @@ public class TabSwitcherDrawable extends TintedDrawable {
 
     public void setIncognitoStatus(boolean isIncognito) {
         mIncognito = isIncognito;
+        invalidateSelf();
     }
 
     private boolean shouldShowNotificationOnIncognito() {

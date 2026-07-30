@@ -72,6 +72,10 @@ void RecordSplitTabCreated(SplitTabCreatedSource source,
   base::UmaHistogramEnumeration("TabStrip.SplitView.Created", source);
   base::UmaHistogramEnumeration("TabStrip.SplitView.OrientationOnCreation",
                                 layout);
+  base::UmaHistogramEnumeration(
+      base::StrCat({"TabStrip.SplitView.", GetMetricsSuffixForSource(source),
+                    ".OrientationOnCreation"}),
+      layout);
   base::RecordAction(base::UserMetricsAction(
       base::StrCat({"SplitViewCreated_", GetMetricsSuffixForSource(source)})
           .c_str()));

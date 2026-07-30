@@ -52,7 +52,6 @@ group("resources") {
     "smb_shares:resources",
     "supervision:resources",
     "sys_internals:resources",
-    "vm:resources",
   ]
 }
 

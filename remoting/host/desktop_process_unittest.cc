@@ -43,6 +43,10 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(IS_POSIX)
+#include "remoting/host/security_key/security_key_auth_handler_posix.h"
+#endif
+
 using testing::_;
 using testing::AnyNumber;
 using testing::AtMost;
@@ -118,6 +122,7 @@ class DesktopProcessTest : public testing::Test {
  public:
   DesktopProcessTest();
   ~DesktopProcessTest() override;
+  void TearDown() override;
 
   // Methods invoked when MockDaemonListener::ConnectDesktopChannel is called.
   void CreateNetworkChannel(mojo::ScopedMessagePipeHandle desktop_pipe);
@@ -173,8 +178,8 @@ class DesktopProcessTest : public testing::Test {
   mojo::AssociatedRemote<mojom::WorkerProcessControl> worker_process_control_;
 
   // Runs the daemon's end of the channel.
-  base::test::SingleThreadTaskEnvironment task_environment_{
-      base::test::SingleThreadTaskEnvironment::MainThreadType::UI};
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::MainThreadType::UI};
 
   scoped_refptr<AutoThreadTaskRunner> io_task_runner_;
 
@@ -190,6 +195,12 @@ class DesktopProcessTest : public testing::Test {
 DesktopProcessTest::DesktopProcessTest() = default;
 
 DesktopProcessTest::~DesktopProcessTest() = default;
+
+void DesktopProcessTest::TearDown() {
+#if BUILDFLAG(IS_POSIX)
+  SecurityKeyAuthHandlerPosix::ResetTaskRunnerForTesting();
+#endif
+}
 
 void DesktopProcessTest::CreateNetworkChannel(
     mojo::ScopedMessagePipeHandle desktop_pipe) {

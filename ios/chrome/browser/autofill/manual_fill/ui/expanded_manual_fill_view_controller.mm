@@ -83,6 +83,9 @@ int GetSegmentIndexForDataType(ManualFillDataType data_type) {
       return 1;
     case ManualFillDataType::kAddress:
       return 2;
+    case ManualFillDataType::kAtMemory:
+      // TODO(crbug.com/522326512): Support kAtMemory.
+      NOTREACHED();
     case ManualFillDataType::kOther:
       NOTREACHED();
   }

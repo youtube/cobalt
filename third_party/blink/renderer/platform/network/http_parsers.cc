@@ -395,6 +395,7 @@ blink::ParsedHeadersPtr ConvertToBlink(const ParsedHeadersPtr& in) {
   return blink::ParsedHeaders::New(
       ConvertToBlink(in->content_security_policy),
       ConvertToBlink(in->allow_csp_from), in->connection_allowlists,
+      ConvertToBlink(in->allow_connection_allowlist_from),
       in->cross_origin_embedder_policy, in->cross_origin_opener_policy,
       in->document_isolation_policy, in->integrity_policy,
       in->integrity_policy_report_only, in->origin_agent_cluster,

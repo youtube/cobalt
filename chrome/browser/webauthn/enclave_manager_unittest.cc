@@ -725,7 +725,8 @@ TEST_F(EnclaveManagerTest, GetAccessTokenErrorMetric_Failure) {
   manager_.RegisterIfNeeded(register_future.GetCallback());
 
   identity_test_env_.WaitForAccessTokenRequestIfNecessaryAndRespondWithError(
-      GoogleServiceAuthError(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS));
+      GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
+          GoogleServiceAuthError::InvalidGaiaCredentialsReason::UNKNOWN));
 
   EXPECT_TRUE(register_future.Wait());
   EXPECT_FALSE(register_future.Get());

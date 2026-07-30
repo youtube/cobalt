@@ -30,6 +30,7 @@
 #include "chrome/browser/browsing_data/counters/site_data_counting_helper.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
+#include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/media/clear_key_cdm_test_helper.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
@@ -47,6 +48,7 @@
 #include "components/content_settings/core/common/content_settings_utils.h"
 #include "components/history/core/browser/features.h"
 #include "components/history/core/common/pref_names.h"
+#include "components/keyed_service/core/service_access_type.h"
 #include "components/metrics/content/subprocess_metrics_provider.h"
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/features/password_manager_features_util.h"
@@ -174,6 +176,10 @@ class BrowsingDataRemoverBrowserTest
     SessionStartupPref::SetStartupPref(
         GetProfile()->GetPrefs(),
         SessionStartupPref(SessionStartupPref::DEFAULT));
+
+    // Attempt to fix flakiness related to history tests (crbug.com/515997680)
+    ui_test_utils::WaitForHistoryToLoad(HistoryServiceFactory::GetForProfile(
+        GetProfile(), ServiceAccessType::EXPLICIT_ACCESS));
   }
 
   void TearDown() override {
@@ -1369,6 +1375,7 @@ IN_PROC_BROWSER_TEST_P(BrowsingDataHistoryRemoverBrowserTest,
     SetDataForType(type);
     EXPECT_TRUE(HasDataForType(type));
   }
+  EXPECT_TRUE(WaitForSiteDataCount(1));
   // TODO(crbug.com/40577815): Add more datatypes for testing. E.g.
   // notifications, payment handler, content settings, autofill, ...?
 }
@@ -1384,13 +1391,13 @@ IN_PROC_BROWSER_TEST_P(BrowsingDataHistoryRemoverBrowserTest,
 #endif
 IN_PROC_BROWSER_TEST_P(BrowsingDataHistoryRemoverBrowserTest,
                        MAYBE_StorageRemovedFromDisk) {
-  EXPECT_EQ(1, GetSiteDataCount());
+  EXPECT_TRUE(WaitForSiteDataCount(1));
   ExpectTotalModelCount(1);
   RemoveAndWait(chrome_browsing_data_remover::DATA_TYPE_SITE_DATA |
                 content::BrowsingDataRemover::DATA_TYPE_CACHE |
                 chrome_browsing_data_remover::DATA_TYPE_HISTORY |
                 chrome_browsing_data_remover::DATA_TYPE_CONTENT_SETTINGS);
-  EXPECT_EQ(0, GetSiteDataCount());
+  EXPECT_TRUE(WaitForSiteDataCount(0));
   ExpectTotalModelCount(0);
 
   // Check if any data remains after a deletion and a Chrome shutown to force

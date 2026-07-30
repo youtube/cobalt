@@ -4,8 +4,12 @@
 
 #import "components/feature_engagement/public/feature_constants.h"
 #import "components/signin/internal/identity_manager/account_capabilities_constants.h"
+#import "components/signin/public/base/signin_metrics.h"
+#import "ios/chrome/browser/authentication/test/expected_signin_histograms.h"
 #import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
+#import "ios/chrome/browser/authentication/test/signin_matchers.h"
+#import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
 #import "ios/chrome/browser/popup_menu/public/popup_menu_constants.h"
 #import "ios/chrome/browser/settings/manage_sync/public/manage_sync_settings_constants.h"
@@ -232,6 +236,78 @@ void ResolvePassphraseErrorFromOverflowMenu() {
   [ChromeEarlGrey
       waitForUIElementToAppearWithMatcher:grey_accessibilityID(
                                               @"BubbleViewLabelIdentifier")];
+}
+
+// Tests that the identity button (Sign in) is shown in the overflow menu
+// when signed out and identity awareness is enabled. Tapping it opens the
+// sign-in flow.
+- (void)testSigninButtonVisibleWhenSignedOut {
+  AppLaunchConfiguration config;
+  config.additional_args.push_back("--enable-features=IdentityAwareness");
+  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+
+  FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];
+  [SigninEarlGrey addFakeIdentity:fakeIdentity];
+
+  chrome_test_util::GREYAssertErrorNil(
+      [MetricsAppInterface setupHistogramTester]);
+
+  [ChromeEarlGreyUI openToolsMenu];
+
+  // Verify the "Sign in…" button is visible.
+  id<GREYMatcher> signinButton = grey_accessibilityID(kToolsMenuSigninId);
+  [[EarlGrey selectElementWithMatcher:signinButton]
+      assertWithMatcher:grey_sufficientlyVisible()];
+
+  GREYAssertNil([MetricsAppInterface setupUserActionTester],
+                @"Cannot setup user action tester.");
+
+  // Tap on "Sign in…" button.
+  [[EarlGrey selectElementWithMatcher:signinButton] performAction:grey_tap()];
+
+  GREYAssertNil([MetricsAppInterface expectCount:1
+                                   forUserAction:@"MobileMenuSignin"],
+                @"MobileMenuSignin user action was not recorded.");
+
+  GREYAssertNil([MetricsAppInterface releaseUserActionTester],
+                @"Cannot release user action tester.");
+
+  // Confirm sign in bottom sheet is displayed.
+  [[EarlGrey
+      selectElementWithMatcher:
+          grey_allOf(
+              grey_accessibilityID(
+                  kConsistencySigninPrimaryButtonAccessibilityIdentifier),
+              grey_sufficientlyVisible(), nil)] performAction:grey_tap()];
+
+  // Dismiss the confirmation snackbar if any.
+  [SigninEarlGreyUI dismissSigninConfirmationSnackbarForIdentity:fakeIdentity
+                                                   assertVisible:NO];
+
+  // Verify that the History Sync Opt-In screen is shown.
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityID(
+                                   kHistorySyncViewAccessibilityIdentifier)]
+      assertWithMatcher:grey_sufficientlyVisible()];
+
+  // Decline History Sync.
+  [[[EarlGrey
+      selectElementWithMatcher:chrome_test_util::ButtonStackSecondaryButton()]
+         usingSearchAction:chrome_test_util::HistoryOptInScrollDown()
+      onElementWithMatcher:chrome_test_util::HistoryOptInPromoMatcher()]
+      performAction:grey_tap()];
+
+  // Verify signed in.
+  [SigninEarlGrey verifySignedInWithFakeIdentity:fakeIdentity];
+
+  ExpectedSigninHistograms* expecteds = [[ExpectedSigninHistograms alloc]
+      initWithAccessPoint:signin_metrics::AccessPoint::kOverflowMenu];
+  expecteds.signinSignInStarted = 1;
+  expecteds.signinSignInCompleted = 1;
+  [SigninEarlGrey assertExpectedSigninHistograms:expecteds];
+
+  chrome_test_util::GREYAssertErrorNil(
+      [MetricsAppInterface releaseHistogramTester]);
 }
 
 @end

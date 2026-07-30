@@ -364,7 +364,7 @@ suite('AimAppTest', function() {
 
     // Simulate the event being fired with specific dimensions.
     app.$.composebox.dispatchEvent(
-        new CustomEvent('embedded-voice-permission-prompt-changed', {
+        new CustomEvent('voice-permission-prompt-changed', {
           detail: {
             isOpened: true,
             height: 120,
@@ -377,8 +377,7 @@ suite('AimAppTest', function() {
     await microtasksFinished();
 
     // Verify CSS custom properties are updated on composebox.
-    assertTrue(
-        app.$.composebox.classList.contains('has-embedded-permission-prompt'));
+    assertTrue(app.$.composebox.classList.contains('has-permission-prompt'));
     assertEquals(
         '120px',
         app.$.composebox.style.getPropertyValue(
@@ -390,7 +389,7 @@ suite('AimAppTest', function() {
 
     // Simulate the dialogue closing.
     app.$.composebox.dispatchEvent(
-        new CustomEvent('embedded-voice-permission-prompt-changed', {
+        new CustomEvent('voice-permission-prompt-changed', {
           detail: {isOpened: false, height: 0, width: 0},
           bubbles: true,
           composed: true,
@@ -399,8 +398,7 @@ suite('AimAppTest', function() {
     await microtasksFinished();
 
     // Verify CSS custom properties are reset.
-    assertFalse(
-        app.$.composebox.classList.contains('has-embedded-permission-prompt'));
+    assertFalse(app.$.composebox.classList.contains('has-permission-prompt'));
     assertEquals(
         '',
         app.$.composebox.style.getPropertyValue(

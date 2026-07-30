@@ -29,6 +29,11 @@ bool IsSearchResultsPage(OEP::PageClassification classification) {
          (classification == OEP::SRP_ZPS_PREFETCH);
 }
 
+bool IsAndroidWidget(OEP::PageClassification classification) {
+  return (classification == OEP::ANDROID_SHORTCUTS_WIDGET ||
+          classification == OEP::ANDROID_SEARCH_WIDGET);
+}
+
 bool IsOtherWebPage(OEP::PageClassification classification) {
   return (classification == OEP::OTHER) ||
          (classification == OEP::OTHER_ON_CCT) ||

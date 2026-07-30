@@ -10,12 +10,13 @@ export function getHtml(this: InkTextAnnotationsElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
 <div id="container" role="list" aria-label="$i18n{ink2TextAnnotationsAxLabel}">
-  ${this.annotations_.map((annotation, index) => html`
+  ${this.placeholders_.map((placeholder, index) => html`
     <div class="placeholder"
+        style="${this.getStyles_(placeholder)}"
         data-index="${index}"
-        data-rotations="${this.getPlaceholderRotations_(annotation)}"
+        data-rotations="${placeholder.rotations}"
         role="listitem"
-        aria-label="${annotation.text}"
+        aria-label="${placeholder.label}"
         tabindex="${this.activeAnnotation_ ? '-1' : '0'}"
         @focus="${this.onPlaceholderFocus_}"
         @click="${this.onPlaceholderClick_}"

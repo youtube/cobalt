@@ -86,7 +86,7 @@ class GraduationManagerTest : public SystemWebAppBrowserTestBase,
     base::Time start_time;
     EXPECT_TRUE(base::Time::FromUTCString(kSessionStartTime, &start_time));
     task_runner_ = base::MakeRefCounted<base::TestMockTimeTaskRunner>(
-        start_time, base::TimeTicks::UnixEpoch());
+        start_time, base::TimeTicks());
 
     ash::graduation::GraduationManagerImpl::Get()->SetClocksForTesting(
         task_runner_->GetMockClock(), task_runner_->GetMockTickClock());

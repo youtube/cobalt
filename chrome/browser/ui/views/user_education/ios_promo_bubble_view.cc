@@ -81,10 +81,14 @@ class IOSPromoBubbleHeaderView : public views::View {
           CustomCornersBackground::FrameTheme(), corner_radius);
 
       CustomCornersBackground::Corners corners;
-      corners.upper_leading = {CustomCornersBackground::CornerType::kRounded};
-      corners.upper_trailing = {CustomCornersBackground::CornerType::kRounded};
-      corners.lower_leading = {CustomCornersBackground::CornerType::kSquare};
-      corners.lower_trailing = {CustomCornersBackground::CornerType::kSquare};
+      corners[CornerOrientation::kTopLeading] = {
+          CustomCornersBackground::CornerType::kRounded};
+      corners[CornerOrientation::kTopTrailing] = {
+          CustomCornersBackground::CornerType::kRounded};
+      corners[CornerOrientation::kBottomLeading] = {
+          CustomCornersBackground::CornerType::kSquare};
+      corners[CornerOrientation::kBottomTrailing] = {
+          CustomCornersBackground::CornerType::kSquare};
       background->SetCorners(corners);
       SetBackground(std::move(background));
     }

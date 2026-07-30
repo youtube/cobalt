@@ -15,7 +15,7 @@ namespace platform_experience::features {
 BASE_FEATURE(kLoadLowEngagementPEHFeaturesToPrefs,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kDisablePEHNotifications, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDisablePEHNotifications, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kShouldUseSpecificPEHNotificationText,
              base::FEATURE_DISABLED_BY_DEFAULT);

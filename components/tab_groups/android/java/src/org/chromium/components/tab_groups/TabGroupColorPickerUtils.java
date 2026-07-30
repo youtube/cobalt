@@ -22,6 +22,9 @@ import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.ui.util.ColorUtils;
 import org.chromium.ui.util.ValueUtils;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** Helper class to handle tab group color picker related utilities. */
 @NullMarked
 public class TabGroupColorPickerUtils {
@@ -692,5 +695,28 @@ public class TabGroupColorPickerUtils {
         int alphaScaled = Math.round(alpha * 255);
 
         return ColorUtils.setAlphaComponent(color, alphaScaled);
+    }
+
+    /** Returns the list of tab group color IDs in the order they should be displayed in the UI. */
+    public static List<Integer> getTabGroupColorIdList() {
+        if (TabGroupsFeatureMap.isEnabled(TabGroupsFeatureMap.UPDATE_TAB_GROUP_COLORS)) {
+            return List.of(
+                    TabGroupColorId.BLUE,
+                    TabGroupColorId.PURPLE,
+                    TabGroupColorId.PINK,
+                    TabGroupColorId.RED,
+                    TabGroupColorId.ORANGE,
+                    TabGroupColorId.YELLOW,
+                    TabGroupColorId.GREEN,
+                    TabGroupColorId.CYAN,
+                    TabGroupColorId.GREY);
+        }
+        // The color ids used here can be found in {@link TabGroupColorId}. Note that it is assumed
+        // the id list is contiguous from 0 to size-1.
+        List<Integer> colors = new ArrayList<>(TabGroupColorId.NUM_ENTRIES);
+        for (int i = 0; i < TabGroupColorId.NUM_ENTRIES; i++) {
+            colors.add(i);
+        }
+        return colors;
     }
 }

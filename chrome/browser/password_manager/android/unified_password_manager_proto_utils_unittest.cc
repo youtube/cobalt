@@ -200,6 +200,31 @@ TEST_P(UnifiedPasswordManagerProtoUtilsTest,
   EXPECT_THAT(forms, testing::ElementsAreArray(expected_forms));
 }
 
+TEST_P(UnifiedPasswordManagerProtoUtilsTest,
+       SharedCredentialMitigationNotClobberedByOpaqueMetadata) {
+  PasswordWithLocalData password_data;
+  *password_data.mutable_password_specifics_data() = CreateSpecificsData(
+      kTestOrigin, kTestUsernameElementName, "username_value",
+      kTestPasswordElementName, "signon_realm");
+
+  // Set type to kReceivedViaSharing
+  password_data.mutable_password_specifics_data()->set_type(
+      static_cast<int>(PasswordForm::Type::kReceivedViaSharing));
+  // Ensure sharing_notification_displayed is false
+  password_data.mutable_password_specifics_data()
+      ->set_sharing_notification_displayed(false);
+
+  // Set opaque metadata with skip_zero_click = false
+  std::string opaque_metadata = "{\"skip_zero_click\":false}";
+  (*password_data.mutable_local_data()).set_opaque_metadata(opaque_metadata);
+
+  StoredCredential cred = StoredCredentialFromProtoWithLocalData(password_data);
+
+  // We expect skip_zero_click to be true because of the mitigation,
+  // even though the opaque metadata said false.
+  EXPECT_TRUE(cred.skip_zero_click);
+}
+
 INSTANTIATE_TEST_SUITE_P(
     ,
     UnifiedPasswordManagerProtoUtilsTest,

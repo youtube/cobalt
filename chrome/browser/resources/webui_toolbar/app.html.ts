@@ -55,8 +55,7 @@ ${this.isBackForwardButtonEnabled_ ? html`
   ` : ''}
   ${this.isPinnedToolbarActionsEnabled_ ? html`
     <pinned-toolbar-actions id="pinnedToolbarActions"
-        .state="${this.navigationControlsState_.pinnedToolbarActionsState}"
-        .hidden="${this.navigationControlsState_.pinnedToolbarActionsState.length === 0}">
+        .state="${this.navigationControlsState_.pinnedToolbarActionsState}">
     </pinned-toolbar-actions>
   ` : ''}
   ${this.isBatterySaverButtonEnabled_ ? html`
@@ -68,6 +67,11 @@ ${this.isBackForwardButtonEnabled_ ? html`
     <avatar-button id="avatar"
         .state="${this.navigationControlsState_.avatarControlState}">
     </avatar-button>
+  ` : ''}
+  ${this.isAppMenuButtonEnabled_ ? html`
+    <app-menu-button id="app-menu"
+        .state="${this.navigationControlsState_.appMenuControlState}">
+    </app-menu-button>
   ` : ''}
 <!--_html_template_end_-->`;
   // clang-format on

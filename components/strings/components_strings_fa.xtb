@@ -314,6 +314,7 @@
 <translation id="1463793142714244641">املاک ویژه تعطیلات و مالکیت شراکتی</translation>
 <translation id="1465457928007067810">‏‫IBAN در «حساب Google» شما ذخیره شد</translation>
 <translation id="1467432559032391204">چپ</translation>
+<translation id="1471514598850585811">رایانه کیفی</translation>
 <translation id="1472675084647422956">بیشتر نشان دادن</translation>
 <translation id="1473183651233018052">JIS B10</translation>
 <translation id="1473495410389165587">برای دریافت کمک در نوشتن، ۳ کلمه یا بیشتر وارد کنید</translation>
@@ -477,6 +478,7 @@
 <translation id="173080396488393970">این نوع کارت پشتیبانی نمی‌شود</translation>
 <translation id="1731563515262205847">ML-DSA-65</translation>
 <translation id="1732445923934584865">درعوض حضوری درخواست شود</translation>
+<translation id="1732796940245838248">‏شناسه جبران خطای تطبیق را در «کیف پول Google» به‌روزرسانی کنید</translation>
 <translation id="1733064249834771892">قلم‌ها</translation>
 <translation id="1733631169686303142">تجهیزات صوتی</translation>
 <translation id="1733762317901693627">حتی سایت‌هایی که معمولاً امن هستند گاهی اوقات توسط مهاجمان درمعرض خطر قرار می‌گیرند. فقط درصورتی از <ph name="BEGIN_LINK" />این سایت غیرایمن<ph name="END_LINK" /> بازدید کنید که مطمئن باشید خطرات آن را درک می‌کنید.</translation>
@@ -581,6 +583,7 @@
 <translation id="1902576642799138955">مدت اعتبار</translation>
 <translation id="1908217026282415406">استفاده از دوربین و حرکت دادن آن</translation>
 <translation id="1908690643053136980">سرپرست شما <ph name="PERMISSION" /> را برای این سایت مجاز نکرده است</translation>
+<translation id="1912750443952232242">‏ذخیره کردن کارت شناسایی در «کیف پول Google»</translation>
 <translation id="1913037223029790376">از کد تأیید کارت مربوط به این کارت مجازی استفاده کنید</translation>
 <translation id="191374271204266022">‏کپی با قالب JSON</translation>
 <translation id="1914326953223720820">سرویس خارج کردن از فشرده‌سازی</translation>
@@ -711,6 +714,7 @@
 <translation id="2122165854541876335">منابع مصرف‌کننده</translation>
 <translation id="2122214041802369259">قیمت بالا است</translation>
 <translation id="2122719317867821810">این خط‌مشی درست کار می‌کند اما مقدار مغایری در جای دیگری تنظیم شده است که این خط‌مشی آن را ملغی می‌کند.</translation>
+<translation id="2124081665399116863">‏اطلاعات وسیله نقلیه را در «کیف پول Google» به‌روزرسانی کنید</translation>
 <translation id="2126374524350484896">‏تولیدکننده PDF:</translation>
 <translation id="2127090458081644412">گذرواژه در این دستگاه ذخیره شد</translation>
 <translation id="2127747486437921899">ایتالیک</translation>
@@ -994,6 +998,7 @@
 <translation id="2524962131655207565">‏<ph name="BEGIN_BOLD" />محتوای صفحه تسویه‌حساب برای ارائه این گزینه‌ها، با Google هم‌رسانی می‌شود.<ph name="END_BOLD" /> طرح‌های پرداخت تابع واجدشرایط بودن هستند. برای پنهان کردن گزینه‌های بعداً پرداخت کنید، به <ph name="BEGIN_LINK" />تنظیمات پرداخت<ph name="END_LINK" /> بروید.</translation>
 <translation id="2526062290525841862">برای اجرا کردن این برنامه، «حالت توسعه‌دهنده برنامه وب مجزا» را دوباره فعال کنید</translation>
 <translation id="2526280916094749336">‏می‌توانید از نشانی‌های ذخیره‌شده در محصولات Google استفاده کنید. این نشانی در «حساب Google» شما (<ph name="ACCOUNT" />) ذخیره خواهد شد.</translation>
+<translation id="2526590354069164005">دسک تاپ</translation>
 <translation id="2527451058878391043">‏کد تأیید کارت (CVC) روی کارتتان درج شده است. این کد ۴ رقمی در بالا سمت راست شماره کارت قرار دارد.</translation>
 <translation id="2529899080962247600">این فیلد نباید بیشتر از <ph name="MAX_ITEMS_LIMIT" /> ورودی داشته باشد. همه ورودی‌های بعدی نادیده گرفته خواهند شد.</translation>
 <translation id="2530042584066815841">قفل کردن و استفاده از موشواره</translation>
@@ -1494,6 +1499,7 @@
 <translation id="3325568918769906282">به‌ترتیب نزولی</translation>
 <translation id="3325662270238538525">اطلاعات مربوط به آخرین تغییرات و دسترسی به فایل، ازجمله نام فایل، اثر انگشت دیجیتالی محتوای فایل، منبع بارگیری، و فراداده</translation>
 <translation id="3329013043687509092">اشباع رنگ</translation>
+<translation id="3330483197654063678">‏وقتی روشن باشد، Chrome همه زبانه‌های این پنجره را هم‌رسانی می‌کند تا به شما کمک کند پاسخ‌های مرتبط‌تری دریافت کنید.</translation>
 <translation id="3333762389743153920">برای کارت مجازی واجدشرایط نیست</translation>
 <translation id="3338095232262050444">ایمن</translation>
 <translation id="333839153442689579">تمرین‌های بدنی تناوبی تنشی</translation>
@@ -1547,6 +1553,7 @@
 <translation id="3422472998109090673">دسترسی به <ph name="HOST_NAME" /> درحال حاضر امکان‌پذیر نیست.</translation>
 <translation id="3422794267539320056">برای بازی کردن، روی دایناسور تک‌ضرب بزنید یا کلید «فاصله» را فشار دهید.</translation>
 <translation id="3423742043356668186">مشخص‌شده توسط سیستم</translation>
+<translation id="3426672782316020729">‏اطلاعات گذرنامه را در «کیف پول Google» به‌روزرسانی کنید</translation>
 <translation id="3427342743765426898">&amp;انجام مجدد ویرایش</translation>
 <translation id="342781501876943858">‏Chromium توصیه می‌کند اگر از گذرواژه‌تان در سایت‌های دیگری استفاده کردید آن را بازنشانی کنید.</translation>
 <translation id="3428151540071562330">‏یک یا چند سرور نشانی وب الگوی سرور DnsOverHttpsTemplates نامعتبر است و استفاده نخواهد شد.</translation>
@@ -2407,6 +2414,7 @@
 <translation id="4766713847338118463">دو منگنه در پایین</translation>
 <translation id="4768816584204270288">وقتی پرداخت را درطول زمان انجام می‌دهید، یک شماره کارت مجازی یک‌باره تکمیل می‌شود. با کلیک کردن می‌توانید جزئیات کارت را برای این خرید کپی و جای‌گذاری کنید.</translation>
 <translation id="4768864802656530630">گزارش‌های دقیق سیستم. <ph name="BEGIN_LINK" />بیشتر بدانید<ph name="END_LINK" /></translation>
+<translation id="4770909831299304090">‏اطلاعات KTN را در «کیف پول Google» به‌روزرسانی کنید</translation>
 <translation id="4771249073710170730">کنترل رادیویی و مدل‌سازی</translation>
 <translation id="4771973620359291008">خطای ناشناخته‌ای رخ داد.</translation>
 <translation id="4774055414220872623">لوازم هنر و صنایع دستی</translation>
@@ -2847,6 +2855,7 @@
 <translation id="5458150163479425638">{CONTACT,plural, =0{<ph name="CONTACT_PREVIEW" />}=1{<ph name="CONTACT_PREVIEW" /> و <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> مخاطب دیگر}one{<ph name="CONTACT_PREVIEW" /> و <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> مخاطب دیگر}other{<ph name="CONTACT_PREVIEW" /> و <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> مخاطب دیگر}}</translation>
 <translation id="5463625433003343978">درحال پیدا کردن دستگاه‌ها…</translation>
 <translation id="5464236009658034488">تجهیزات اداری</translation>
+<translation id="5465128270485645058">با هم‌رسانی خودکار زبانه‌های باز در این پنجره (درصورت مربوط بودن به این رشته)، پاسخ‌های سفارشی‌شده‌تری دریافت کنید.</translation>
 <translation id="5465724643247062031">شیشه (مات)</translation>
 <translation id="5466018172325111652">کد را دریافت نکردید؟ <ph name="BEGIN_LINK" />کد جدید دریافت کنید<ph name="END_LINK" /></translation>
 <translation id="5466818462212249084">برنامه‌های پرداخت</translation>
@@ -3129,6 +3138,7 @@
 <translation id="5911020115933784199">رویداد و نام‌نویسی</translation>
 <translation id="5911110632211230665">باز کردن مسدود است</translation>
 <translation id="5912796581727968237">‏باز کردن «کیف پول Google»</translation>
+<translation id="5914185423510719251">‏ذخیره کردن KTN در «کیف پول Google»</translation>
 <translation id="5914465277418006379">‫<ph name="MEMBER_FIRST_NAME" /> این زبانه را اضافه کرد</translation>
 <translation id="5915189366813702112">ساعات کاری انعطاف‌پذیر</translation>
 <translation id="59174027418879706">فعال شد</translation>
@@ -3652,6 +3662,7 @@
 <translation id="6702851555558236418">نرم‌افزار موسیقی و صدا</translation>
 <translation id="6702919718839027939">ارائه کردن</translation>
 <translation id="6704458454638854812">‏خصوصیت «custom_size» تنظیم شده است، انتظار می‌رود نام آن «custom» باشد.</translation>
+<translation id="670477556876354552">بازراه‌اندازی لازم است</translation>
 <translation id="6706005862292023715">پرده و تزئینات پنجره</translation>
 <translation id="6706210727756204531">حوزه</translation>
 <translation id="6706678697074905703">‏این IBAN در «حساب Google» شما ذخیره نشد. درعوض، در Chrome این دستگاه ذخیره شد.</translation>
@@ -3909,6 +3920,7 @@
 <translation id="7110116949943042888">مشاغل موقت و فصلی</translation>
 <translation id="7110368079836707726">کالج و دانشگاه</translation>
 <translation id="7111507312244504964">بازرسی و ارزیابی املاک</translation>
+<translation id="7117290130383718594">حاشیه‌نویسی‌های نوشتار</translation>
 <translation id="7118618213916969306">جستجوی نشانی وب بریده‌دان، <ph name="SHORT_URL" /></translation>
 <translation id="7118852830504022370">‏این هشدار را به این دلیل می‌بینید که این سایت از HTTPS پشتیبانی نمی‌کند. <ph name="BEGIN_LEARN_MORE_LINK" />درباره این هشدار بیشتر بدانید<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7119063404975271297">نمایش درام تلویزیونی</translation>
@@ -4218,6 +4230,7 @@
 <translation id="7569490014721427265">گلف</translation>
 <translation id="7569952961197462199">‏کارت اعتباری از Chrome پاک شود؟</translation>
 <translation id="7569983096843329377">سیاه</translation>
+<translation id="7570524564113479209">‏اطلاعات کارت شناسایی را در «کیف پول Google» به‌روز کنید</translation>
 <translation id="7570862164055912832">شماره بازنگری</translation>
 <translation id="7571813784389228510">‏حالت هوشواره‌ای Google</translation>
 <translation id="7574998639136359461">تجهیزات ورزش‌های زمستانی</translation>
@@ -4739,6 +4752,7 @@
 <translation id="8389940864052787379">خودرو سفارشی و با عملکرد بالا</translation>
 <translation id="8390725133630534698">براساس خط‌مشی سرپرست، هم‌رسانی از <ph name="ORIGIN_NAME" /> به <ph name="VM_NAME" /> مسدود شده است</translation>
 <translation id="8392783408127179588">درحال مجدد بار کردن خط‌مشی‌ها</translation>
+<translation id="8393948304336153065">‏اطلاعات گواهینامه رانندگی را در «کیف پول Google» به‌روزرسانی کنید</translation>
 <translation id="8396522675989118466">این کد <ph name="NUMBER_OF_DIGITS" /> رقمی درج‌شده در <ph name="SIDE_OF_CARD" /> است</translation>
 <translation id="8398335999901363925">روش‌های پرداخت دردسترس که باید با لمس کردن تکمیل شود به‌صورت کامل باز شده است.</translation>
 <translation id="8398446215576328011">برگرداندن سیاست‌های اعمال‌شده</translation>
@@ -4900,7 +4914,6 @@
 <translation id="8671519637524426245">مقدار <ph name="SECURE_DNS_SALT" /> با الزامات اندازه مطابقت ندارد.</translation>
 <translation id="867224526087042813">امضا</translation>
 <translation id="8672535691554698269">شبکه‌های رایانه‌ای</translation>
-<translation id="8673710317985154384">{NUM_TABS,plural, =1{نمایش جزئیات هم‌رسانی زبانه.درحال هم‌رسانی ۱ زبانه از {WEBSITE_LIST_STR}}one{نمایش جزئیات هم‌رسانی زبانه. درحال هم‌رسانی {NUM_TABS} زبانه از {WEBSITE_LIST_STR}}other{نمایش جزئیات هم‌رسانی زبانه. درحال هم‌رسانی {NUM_TABS} زبانه از {WEBSITE_LIST_STR}}}</translation>
 <translation id="8675446170353411473">فایل‌های شما درحال بارگذاری در <ph name="CLOUD_PROVIDER" /> است</translation>
 <translation id="8676424191133491403">بدون تأخیر</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />، پاسخ، <ph name="ANSWER" /></translation>

@@ -209,8 +209,8 @@ void HTMLElementStack::Pop() {
 }
 
 void HTMLElementStack::PopUntil(html_names::HTMLTag tag) {
-  // kUnknown by itself is not enough to uniquely a tag. This code should only
-  // be called with HTMLTags other than kUnknown.
+  // kUnknown by itself is not enough to uniquely identify a tag. This code
+  // should only be called with HTMLTags other than kUnknown.
   DCHECK_NE(tag, HTMLTag::kUnknown);
   while (!TopStackItem()->IsHTMLNamespace() ||
          TopStackItem()->GetHTMLTag() != tag) {
@@ -401,8 +401,8 @@ HTMLStackItem* HTMLElementStack::Find(Element* element) const {
 }
 
 HTMLStackItem* HTMLElementStack::Topmost(html_names::HTMLTag tag) const {
-  // kUnknown by itself is not enough to uniquely a tag. This code should only
-  // be called with HTMLTags other than kUnknown.
+  // kUnknown by itself is not enough to uniquely identify a tag. This code
+  // should only be called with HTMLTags other than kUnknown.
   DCHECK_NE(tag, HTMLTag::kUnknown);
   for (HTMLStackItem* item = top_.Get(); item; item = item->NextItemInStack()) {
     if (item->IsHTMLNamespace() && tag == item->GetHTMLTag()) {
@@ -418,12 +418,35 @@ bool HTMLElementStack::Contains(Element* element) const {
 
 template <bool isMarker(HTMLStackItem*)>
 bool InScopeCommon(HTMLStackItem* top, html_names::HTMLTag tag) {
-  // kUnknown by itself is not enough to uniquely a tag. This code should only
-  // be called with HTMLTags other than kUnknown.
+  // kUnknown by itself is not enough to uniquely identify a tag. This code
+  // should only be called with HTMLTags other than kUnknown.
   DCHECK_NE(HTMLTag::kUnknown, tag);
   for (HTMLStackItem* item = top; item; item = item->NextItemInStack()) {
     if (tag == item->GetHTMLTag() && item->IsHTMLNamespace())
       return true;
+    if (isMarker(item))
+      return false;
+  }
+  NOTREACHED();  // <html> is always on the stack and is a scope marker.
+}
+
+// Like InScopeCommon above, but matches any of |tags| in a single walk of the
+// stack instead of requiring one walk per tag.
+template <bool isMarker(HTMLStackItem*)>
+bool InScopeCommon(HTMLStackItem* top,
+                   std::initializer_list<html_names::HTMLTag> tags) {
+  // kUnknown by itself is not enough to uniquely identify a tag. This code
+  // should only be called with HTMLTags other than kUnknown.
+  for (html_names::HTMLTag tag : tags) {
+    DCHECK_NE(HTMLTag::kUnknown, tag);
+  }
+  for (HTMLStackItem* item = top; item; item = item->NextItemInStack()) {
+    if (item->IsHTMLNamespace()) {
+      for (html_names::HTMLTag tag : tags) {
+        if (tag == item->GetHTMLTag())
+          return true;
+      }
+    }
     if (isMarker(item))
       return false;
   }
@@ -460,6 +483,11 @@ bool HTMLElementStack::InListItemScope(html_names::HTMLTag tag) const {
 
 bool HTMLElementStack::InTableScope(html_names::HTMLTag tag) const {
   return InScopeCommon<IsTableScopeMarker>(top_.Get(), tag);
+}
+
+bool HTMLElementStack::InTableScope(
+    std::initializer_list<html_names::HTMLTag> tags) const {
+  return InScopeCommon<IsTableScopeMarker>(top_.Get(), tags);
 }
 
 bool HTMLElementStack::InButtonScope(html_names::HTMLTag tag) const {

@@ -14,6 +14,8 @@
 #include <vector>
 
 #include "base/check_deref.h"
+#include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -39,8 +41,62 @@
 
 namespace autofill {
 
+namespace {
+
+using optimization_guide::ModelExecutionServiceType;
+using optimization_guide::OptimizationGuideModelExecutionResult;
 using optimization_guide::proto::AutofillAiTypeRequest;
 using optimization_guide::proto::AutofillAiTypeResponse;
+using optimization_guide::proto::FieldTypeResponse;
+using optimization_guide::proto::FormsClassificationsLoggingData;
+
+ModelExecutionServiceType DetermineModelExecutionServiceType() {
+  return base::FeatureList::IsEnabled(features::kAutofillAiUsePrivateAi)
+             ? ModelExecutionServiceType::kPrivateAi
+             : ModelExecutionServiceType::kDefault;
+}
+
+// Performs a sanity checks: Every field index must occur only once and they
+// must all lie in the interval [0, num_form_fields[.
+bool AreFieldTypeResponseIndicesValid(int num_form_fields,
+                                      const AutofillAiTypeResponse& response) {
+  if (response.field_responses_size() == 0) {
+    return true;
+  }
+  auto indices = base::MakeFlatSet<int>(response.field_responses(), {},
+                                        &FieldTypeResponse::field_index);
+  return indices.size() ==
+             static_cast<size_t>(response.field_responses_size()) &&
+         *indices.begin() >= 0 && *indices.rbegin() < num_form_fields;
+}
+
+bool ArePredictionsEqual(const AutofillAiTypeResponse& a,
+                         const AutofillAiTypeResponse& b) {
+  if (a.field_responses_size() != b.field_responses_size()) {
+    return false;
+  }
+  // FieldTypeResponse -> (int field_index, std::vector<FieldType> predictions)
+  auto field_response_to_pair = [](const FieldTypeResponse& field) {
+    auto types = base::ToVector(field.all_field_types(), [](int type) {
+      return ToSafeFieldType(type).value_or(NO_SERVER_DATA);
+    });
+    // Ensure a stable ordering for comparisons.
+    std::ranges::sort(types);
+    return std::make_pair(field.field_index(), std::move(types));
+  };
+  auto predictions_a = base::MakeFlatMap<int, std::vector<FieldType>>(
+      a.field_responses(), {}, field_response_to_pair);
+  for (const FieldTypeResponse& field_response : b.field_responses()) {
+    auto [index, types] = field_response_to_pair(field_response);
+    auto it = predictions_a.find(index);
+    if (it == predictions_a.end() || it->second != types) {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
 
 AutofillAiModelExecutorImpl::AutofillAiModelExecutorImpl(
     AutofillAiModelCache* model_cache,
@@ -86,18 +142,14 @@ void AutofillAiModelExecutorImpl::GetPredictions(
       optimization_guide::proto::FormsClassificationsLoggingData>
       wrapper_callback =
           base::BindOnce(&AutofillAiModelExecutorImpl::OnModelExecuted,
-                         weak_ptr_factory_.GetWeakPtr(), std::move(form_data))
+                         weak_ptr_factory_.GetWeakPtr(), std::move(form_data),
+                         request)
               .Then(base::BindOnce(std::move(on_model_executed), form_id));
-  optimization_guide::ModelExecutionServiceType service_type =
-      base::FeatureList::IsEnabled(features::kAutofillAiUsePrivateAi)
-          ? optimization_guide::ModelExecutionServiceType::kPrivateAi
-          : optimization_guide::ModelExecutionServiceType::kDefault;
-
   optimization_guide::ExecuteModelWithLogging(
       &model_executor_.get(),
       optimization_guide::ModelBasedCapabilityKey::kFormsClassifications,
       request, features::kAutofillAiServerModelExecutionTimeout.Get(),
-      std::move(wrapper_callback), service_type);
+      std::move(wrapper_callback), DetermineModelExecutionServiceType());
 }
 
 base::WeakPtr<AutofillAiModelExecutor>
@@ -106,10 +158,10 @@ AutofillAiModelExecutorImpl::GetWeakPtr() {
 }
 
 void AutofillAiModelExecutorImpl::OnModelExecuted(
-    FormData form_data,
-    optimization_guide::OptimizationGuideModelExecutionResult execution_result,
-    std::unique_ptr<optimization_guide::proto::FormsClassificationsLoggingData>
-        logging_data) {
+    const FormData form_data,
+    const AutofillAiTypeRequest request,
+    OptimizationGuideModelExecutionResult execution_result,
+    std::unique_ptr<FormsClassificationsLoggingData> logging_data) {
   const FormSignature form_signature = CalculateFormSignature(form_data);
   ongoing_queries_.erase(form_signature);
 
@@ -137,30 +189,22 @@ void AutofillAiModelExecutorImpl::OnModelExecuted(
     return;
   }
 
-  LogModelPredictions(std::move(logging_data));
-  const size_t response_size = response->field_responses_size();
-  if (response_size == 0) {
-    model_cache_->Update(form_signature, {}, {});
-    base::UmaHistogramEnumeration(
-        kUmaAutofillAiModelExecutionStatus,
-        AutofillAiModelExecutionStatus::kSuccessEmptyResult);
-    return;
-  }
-
-  // Perform sanity checks: Every field index must occur only once and they
-  // must all lie in the interval [0, form_data_fields().size() - 1].
-  using optimization_guide::proto::FieldTypeResponse;
-  std::vector<int> indices = base::ToVector(response->field_responses(),
-                                            &FieldTypeResponse::field_index);
-  std::ranges::sort(indices);
-  auto repeated = std::ranges::unique(indices);
-  indices.erase(repeated.begin(), repeated.end());
-  if (indices.size() != response_size || indices.front() < 0 ||
-      indices.back() >= static_cast<int>(form_data.fields().size())) {
+  if (!AreFieldTypeResponseIndicesValid(form_data.fields().size(), *response)) {
     model_cache_->Update(form_signature, {}, {});
     base::UmaHistogramEnumeration(
         kUmaAutofillAiModelExecutionStatus,
         AutofillAiModelExecutionStatus::kErrorInvalidFieldIndex);
+    return;
+  }
+
+  LogModelPredictions(std::move(logging_data));
+  MaybeComputePrivateAiShadowMetric(request, *response);
+
+  if (response->field_responses_size() == 0) {
+    model_cache_->Update(form_signature, {}, {});
+    base::UmaHistogramEnumeration(
+        kUmaAutofillAiModelExecutionStatus,
+        AutofillAiModelExecutionStatus::kSuccessEmptyResult);
     return;
   }
 
@@ -192,9 +236,46 @@ void AutofillAiModelExecutorImpl::OnModelExecuted(
       AutofillAiModelExecutionStatus::kSuccessNonEmptyResult);
 }
 
+void AutofillAiModelExecutorImpl::MaybeComputePrivateAiShadowMetric(
+    const AutofillAiTypeRequest& request,
+    const AutofillAiTypeResponse& response) {
+  // If `DetermineModelExecutionServiceType()` is kPrivateAi, the `response` is
+  // a PI response.
+  if (DetermineModelExecutionServiceType() ==
+          ModelExecutionServiceType::kPrivateAi ||
+      !base::FeatureList::IsEnabled(
+          features::kAutofillAiPrivateAiShadowMetric)) {
+    return;
+  }
+  auto log_shadow_metric = base::BindOnce(
+      [](int num_form_fields, const AutofillAiTypeResponse& non_pi_response,
+         OptimizationGuideModelExecutionResult pi_execution_result,
+         std::unique_ptr<FormsClassificationsLoggingData>) {
+        if (!pi_execution_result.response.has_value()) {
+          return;
+        }
+        std::optional<AutofillAiTypeResponse> pi_response =
+            optimization_guide::ParsedAnyMetadata<AutofillAiTypeResponse>(
+                pi_execution_result.response.value());
+        if (!pi_response ||
+            !AreFieldTypeResponseIndicesValid(num_form_fields, *pi_response)) {
+          return;
+        }
+        base::UmaHistogramBoolean(
+            kUmaAutofillAiModelExecutionPiShadowPrediction,
+            ArePredictionsEqual(non_pi_response, *pi_response));
+      },
+      request.form_data().fields_size(), response);
+  optimization_guide::ExecuteModelWithLogging(
+      &model_executor_.get(),
+      optimization_guide::ModelBasedCapabilityKey::kFormsClassifications,
+      request, features::kAutofillAiServerModelExecutionTimeout.Get(),
+      std::move(log_shadow_metric),
+      optimization_guide::ModelExecutionServiceType::kPrivateAi);
+}
+
 void AutofillAiModelExecutorImpl::LogModelPredictions(
-    std::unique_ptr<optimization_guide::proto::FormsClassificationsLoggingData>
-        logging_data) {
+    std::unique_ptr<FormsClassificationsLoggingData> logging_data) {
   if (!mqls_uploader_) {
     return;
   }
@@ -202,7 +283,7 @@ void AutofillAiModelExecutorImpl::LogModelPredictions(
   // Since the user was allowed to run the model, logging is ok.
   optimization_guide::ModelQualityLogEntry log_entry(
       mqls_uploader_->GetWeakPtr());
-  optimization_guide::proto::FormsClassificationsLoggingData* data =
+  FormsClassificationsLoggingData* data =
       log_entry.log_ai_data_request()->mutable_forms_classifications();
   // Only log the form and field signatures of the request, and the response.
   const optimization_guide::proto::FormData& request_form =

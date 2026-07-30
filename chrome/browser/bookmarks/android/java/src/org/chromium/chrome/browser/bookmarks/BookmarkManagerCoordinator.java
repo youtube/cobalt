@@ -64,6 +64,7 @@ import org.chromium.components.image_fetcher.ImageFetcherFactory;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.Clipboard;
+import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.edge_to_edge.EdgeToEdgePadAdjuster;
 import org.chromium.ui.modaldialog.ModalDialogManager;
@@ -503,6 +504,24 @@ public class BookmarkManagerCoordinator
     View buildEmptyStateView(ViewGroup parent) {
         ViewGroup emptyStateView = (ViewGroup) inflate(parent, R.layout.empty_state_view);
         emptyStateView.setTouchscreenBlocksFocus(true);
+        // Adjust the empty state view height dynamically to fill the remaining space in the
+        // RecyclerView. Since R.layout.empty_state_view is a shared layout of height match_parent,
+        // displaying it alongside the search box in the RecyclerView would exceed the viewport
+        // height and cause the page to scroll unnecessarily.
+        emptyStateView.addOnLayoutChangeListener(
+                (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+                    int parentHeight = parent.getHeight();
+                    int targetHeight = parentHeight - top - parent.getPaddingBottom();
+                    if (targetHeight > 0 && v.getLayoutParams().height != targetHeight) {
+                        v.getLayoutParams().height = targetHeight;
+                        v.post(
+                                () ->
+                                        ViewUtils.requestLayout(
+                                                v,
+                                                "BookmarkManagerCoordinator"
+                                                        + ".buildEmptyStateView"));
+                    }
+                });
         return emptyStateView;
     }
 

@@ -559,7 +559,6 @@ base::flat_map<std::string, bool>
 PredictionManager::GetOnDeviceSupplementaryModelsInfoForWebUI() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   std::vector<proto::OptimizationTarget> supp_targets = {
-      proto::OptimizationTarget::OPTIMIZATION_TARGET_TEXT_SAFETY,
       proto::OptimizationTarget::OPTIMIZATION_TARGET_GENERALIZED_SAFETY,
       proto::OptimizationTarget::OPTIMIZATION_TARGET_LANGUAGE_DETECTION};
   base::flat_map<std::string, bool> supp_models_info;

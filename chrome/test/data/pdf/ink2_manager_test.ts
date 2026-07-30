@@ -403,7 +403,7 @@ chrome.test.runTests([
     chrome.test.assertFalse(created1);
     chrome.test.assertEq(0, initEvents);
 
-    // Similarly, we have 55px of margin on the right side where a click should
+    // Similarly, there is 55px of margin on the right side where a click should
     // return false.
     const created2 = await manager.initializeTextAnnotation({x: 480, y: 400});
     chrome.test.assertFalse(created2);
@@ -539,8 +539,9 @@ chrome.test.runTests([
     chrome.test.assertEq(
         445 - 2 * MIN_TEXTBOX_SIZE_PX,
         initEvent.detail.annotation.textBoxRect.locationX);
-    // y doesn't need adjusted in this case, since we're far enough from the
-    // bottom boundary of the page. y is always offset by half the text height.
+    // y needs no adjustment in this case, since the location is far enough
+    // from the bottom boundary of the page. y is always offset by half the
+    // text height.
     chrome.test.assertEq(
         400 - manager.getCurrentTextAttributes().size / 2,
         initEvent.detail.annotation.textBoxRect.locationY);
@@ -567,8 +568,8 @@ chrome.test.runTests([
   async function testInitializeTextBox() {
     const manager = await setUpTextMode();
     // Add listeners for the expected events that fire in response to an
-    // initializeTextAnnotation call. We only need to collect attributes-changed
-    // events here, as initialize-text-box is handled by the helper.
+    // initializeTextAnnotation call. Only attributes-changed events need to be
+    // collected here, as initialize-text-box is handled by the helper.
     let attributesChangedEvents: Array<CustomEvent<TextAttributes>> = [];
     manager.addEventListener('attributes-changed', e => {
       attributesChangedEvents.push(e as CustomEvent<TextAttributes>);
@@ -638,7 +639,7 @@ chrome.test.runTests([
         annotationPageCoords: TextAnnotationMessageData) {
       // Committing with edited = true should fire a modified event.
       // Use structuredClone since the manager edits the object in place,
-      // and we want to reuse this below.
+      // and the object must be reused below.
       annotationPageCoords.isEdited = true;
       const editedAnnot = structuredClone(annotationScreenCoords);
       let whenUpdated = eventToPromise('annotations-updated', manager);

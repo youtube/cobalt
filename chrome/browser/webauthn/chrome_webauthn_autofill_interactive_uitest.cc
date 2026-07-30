@@ -44,6 +44,7 @@
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/sync/base/features.h"
 #include "components/sync/test/test_sync_service.h"
@@ -592,8 +593,8 @@ class WebAuthnMagiChromeQrAutofillIntegrationTest
     : public WebAuthnAutofillIntegrationTest {
  public:
   WebAuthnMagiChromeQrAutofillIntegrationTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        password_manager::features::kMagiChromeQrCodeAutofill);
+    scoped_feature_list_.InitAndEnableFeatureWithParameters(
+        switches::kMagiChromePasskeySignIn, {{"flow_type", "autofill"}});
   }
 
   void SetUpOnMainThread() override {

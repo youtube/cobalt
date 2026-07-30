@@ -73,7 +73,7 @@ PredictionModelHandlerProviderFactory::BuildServiceInstanceForBrowserContext(
     return nullptr;
   }
   optimization_guide::OptimizationGuideModelProvider* optimization_guide =
-      &global_state_service->GetGlobalState().prediction_manager();
+      &global_state_service->GetGlobalState().model_provider();
   passage_embeddings::Embedder* passage_embedder = nullptr;
   passage_embeddings::EmbedderMetadataProvider* embedder_metadata_provider =
       nullptr;

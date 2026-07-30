@@ -10,7 +10,7 @@
 #import "components/supervised_user/core/browser/device_parental_controls.h"
 #import "components/supervised_user/core/browser/family_link_settings_service.h"
 #import "components/supervised_user/core/browser/family_link_url_filter.h"
-#import "components/supervised_user/core/browser/kids_chrome_management_url_checker_client.h"
+#import "components/supervised_user/core/browser/supervised_user_url_checker_client.h"
 #import "components/variations/service/variations_service.h"
 #import "ios/chrome/browser/first_run/model/first_run.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
@@ -75,7 +75,7 @@ SupervisedUserServiceFactory::BuildServiceInstanceFor(
           family_link_settings_service, CHECK_DEREF(profile->GetPrefs()),
           std::make_unique<FilterDelegateImpl>(),
           std::make_unique<
-              supervised_user::KidsChromeManagementURLCheckerClient>(
+              supervised_user::SupervisedUserUrlCheckerClient>(
               identity_manager, url_loader_factory,
               CHECK_DEREF(profile->GetPrefs()),
               platform_delegate->GetCountryCode(),

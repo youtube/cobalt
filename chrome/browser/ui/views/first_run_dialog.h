@@ -7,7 +7,6 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "components/metrics/metrics_reporting_level.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/button/checkbox.h"
 #include "ui/views/window/dialog_delegate.h"
@@ -20,8 +19,6 @@ class FirstRunDialog : public views::DialogDelegateView {
   METADATA_HEADER(FirstRunDialog, views::DialogDelegateView)
 
  public:
-  using ChangeMetricsReportingStateCallback =
-      base::RepeatingCallback<void(metrics::MetricsReportingLevel level)>;
   class TestApi {
    public:
     explicit TestApi(FirstRunDialog* dialog);
@@ -29,10 +26,7 @@ class FirstRunDialog : public views::DialogDelegateView {
     TestApi& operator=(const TestApi&) = delete;
     ~TestApi() = default;
 
-    void SetChangeMetricsReportingStateCallbackForTesting(
-        ChangeMetricsReportingStateCallback callback);
     void SetMakeDefaultCheckboxChecked(bool checked);
-    void SetReportCrashesCheckboxChecked(bool checked);
 
    private:
     raw_ptr<FirstRunDialog> dialog_;
@@ -68,7 +62,6 @@ class FirstRunDialog : public views::DialogDelegateView {
   raw_ptr<views::Checkbox> report_crashes_ = nullptr;
   OnCloseCallback on_close_callback_;
 
-  ChangeMetricsReportingStateCallback change_metrics_reporting_state_callback_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_FIRST_RUN_DIALOG_H_

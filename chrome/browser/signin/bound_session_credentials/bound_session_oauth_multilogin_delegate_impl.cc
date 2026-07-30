@@ -5,8 +5,10 @@
 #include "chrome/browser/signin/bound_session_credentials/bound_session_oauth_multilogin_delegate_impl.h"
 
 #include "base/check_deref.h"
+#include "base/containers/to_vector.h"
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/signin/bound_session_credentials/bound_session_cookie_refresh_service.h"
+#include "chrome/browser/signin/bound_session_credentials/bound_session_key.h"
 #include "chrome/browser/signin/bound_session_credentials/bound_session_params.pb.h"
 #include "chrome/browser/signin/bound_session_credentials/bound_session_params_util.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
@@ -76,6 +78,16 @@ void BoundSessionOAuthMultiLoginDelegateImpl::OnCookiesSet() {
       "Signin.BoundSessionCredentials.OAuthMultilogin.RegisteredSessions",
       bound_sessions_params_->size());
   bound_sessions_params_.reset();
+}
+
+std::vector<std::pair<GURL, std::string>>
+BoundSessionOAuthMultiLoginDelegateImpl::GetAllSessions() const {
+  if (!bound_session_cookie_refresh_service_) {
+    return {};
+  }
+  return base::ToVector(
+      bound_session_cookie_refresh_service_->GetAllSessions(),
+      [](const auto& key) { return std::make_pair(key.site, key.session_id); });
 }
 
 std::vector<bound_session_credentials::BoundSessionParams>

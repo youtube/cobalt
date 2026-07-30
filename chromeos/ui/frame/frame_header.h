@@ -159,6 +159,9 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) FrameHeader
   // regardless of what ShouldShowWindowTitle() returns.
   void SetFrameTextOverride(const std::u16string& frame_text_override);
 
+  // Sets whether the native frame header should paint the window title text.
+  void SetPaintTitleBar(bool paint_title_bar);
+
   void UpdateFrameHeaderKey();
 
   // Adds the layer owned by layer_owner to the kbelow LayerRegion of the frame
@@ -256,6 +259,7 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) FrameHeader
   int corner_radius_ = 0;
 
   std::u16string frame_text_override_;
+  bool paint_title_bar_ = true;
 };
 
 }  // namespace chromeos

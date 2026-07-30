@@ -75,7 +75,16 @@ id<GREYMatcher> CvcTextField() {
   NSString* lastDigits = [AutofillAppInterface saveLocalCreditCard];
 
   [ChromeEarlGreyUI openSettingsMenu];
-  [ChromeEarlGreyUI tapSettingsMenuButton:PaymentMethodsButton()];
+  if ([ChromeEarlGrey isYourSavedInfoSettingsPageIosEnabled]) {
+    [ChromeEarlGreyUI
+        tapSettingsMenuButton:grey_accessibilityID(
+                                  @"kSettingsAutofillAndPasswordsCellId")];
+    [[EarlGrey
+        selectElementWithMatcher:PaymentMethodsButton()]
+        performAction:grey_tap()];
+  } else {
+    [ChromeEarlGreyUI tapSettingsMenuButton:PaymentMethodsButton()];
+  }
 
   [[EarlGrey selectElementWithMatcher:grey_accessibilityLabel(lastDigits)]
       performAction:grey_tap()];
@@ -209,7 +218,16 @@ id<GREYMatcher> CvcTextField() {
 // Helper to navigate to the edit screen for a given card
 - (void)navigateToEditCard:(NSString*)lastDigits cvcIsSaved:(BOOL)cvcIsSaved {
   [ChromeEarlGreyUI openSettingsMenu];
-  [ChromeEarlGreyUI tapSettingsMenuButton:PaymentMethodsButton()];
+  if ([ChromeEarlGrey isYourSavedInfoSettingsPageIosEnabled]) {
+    [ChromeEarlGreyUI
+        tapSettingsMenuButton:grey_accessibilityID(
+                                  @"kSettingsAutofillAndPasswordsCellId")];
+    [[EarlGrey
+        selectElementWithMatcher:PaymentMethodsButton()]
+        performAction:grey_tap()];
+  } else {
+    [ChromeEarlGreyUI tapSettingsMenuButton:PaymentMethodsButton()];
+  }
 
   // Construct the expected accessibility label
   NSString* expectedLabel = lastDigits;

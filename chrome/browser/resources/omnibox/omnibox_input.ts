@@ -13,7 +13,7 @@ export interface QueryInputs {
   cursorPosition: number;
   zeroSuggest: boolean;
   preventInlineAutocomplete: boolean;
-  preferKeyword: boolean;
+  inKeywordMode: boolean;
   currentUrl: string;
   pageClassification: number;
 }
@@ -44,7 +44,7 @@ export class OmniboxInput extends OmniboxElement {
     inputText: HTMLInputElement,
     lockCursorPosition: HTMLInputElement,
     pageClassification: HTMLSelectElement,
-    preferKeyword: HTMLInputElement,
+    inKeywordMode: HTMLInputElement,
     preventInlineAutocomplete: HTMLInputElement,
     processBatch: HTMLElement,
     processBatchInput: HTMLInputElement,
@@ -82,7 +82,7 @@ export class OmniboxInput extends OmniboxElement {
       inputText: this.$<HTMLInputElement>('#input-text')!,
       lockCursorPosition: this.$<HTMLInputElement>('#lock-cursor-position')!,
       pageClassification: this.$<HTMLSelectElement>('#page-classification')!,
-      preferKeyword: this.$<HTMLInputElement>('#prefer-keyword')!,
+      inKeywordMode: this.$<HTMLInputElement>('#in-keyword-mode')!,
       preventInlineAutocomplete:
           this.$<HTMLInputElement>('#prevent-inline-autocomplete')!,
       processBatch: this.$<HTMLElement>('#process-batch')!,
@@ -143,7 +143,7 @@ export class OmniboxInput extends OmniboxElement {
      this.elements.lockCursorPosition,
      this.elements.zeroSuggest,
      this.elements.preventInlineAutocomplete,
-     this.elements.preferKeyword,
+     this.elements.inKeywordMode,
      this.elements.currentUrl,
      this.elements.pageClassification,
     ].forEach(element => {
@@ -252,7 +252,7 @@ export class OmniboxInput extends OmniboxElement {
       zeroSuggest: this.elements.zeroSuggest.checked,
       preventInlineAutocomplete:
           this.elements.preventInlineAutocomplete.checked,
-      preferKeyword: this.elements.preferKeyword.checked,
+      inKeywordMode: this.elements.inKeywordMode.checked,
       currentUrl: this.elements.currentUrl.value,
       pageClassification: Number(this.elements.pageClassification.value),
     };
@@ -267,7 +267,7 @@ export class OmniboxInput extends OmniboxElement {
     this.elements.zeroSuggest.checked = queryInputs.zeroSuggest;
     this.elements.preventInlineAutocomplete.checked =
         queryInputs.preventInlineAutocomplete;
-    this.elements.preferKeyword.checked = queryInputs.preferKeyword;
+    this.elements.inKeywordMode.checked = queryInputs.inKeywordMode;
     this.elements.currentUrl.value = queryInputs.currentUrl;
     this.elements.pageClassification.value =
         String(queryInputs.pageClassification);

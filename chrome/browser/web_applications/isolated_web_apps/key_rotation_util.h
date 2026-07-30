@@ -8,7 +8,7 @@
 #include <optional>
 
 #include "base/memory/raw_span.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
+#include "chrome/browser/web_applications/model/isolation_data.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
 
 namespace web_app {

@@ -88,7 +88,6 @@ source_set("cells") {
     "//ios/chrome/browser/content_suggestions/ui:ui_util",
     "//ios/chrome/browser/content_suggestions/ui/cells",
     "//ios/chrome/browser/content_suggestions/ui/cells:constants",
-    "//ios/chrome/browser/ntp/ui_bundled:feature_flags",
     "//ios/chrome/browser/ntp/ui_bundled:theme",
     "//ios/chrome/browser/push_notification/model:push_notification_client_id",
     "//ios/chrome/browser/push_notification/model:push_notification_settings_util_header",

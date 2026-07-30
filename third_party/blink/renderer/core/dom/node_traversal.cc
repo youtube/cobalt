@@ -105,6 +105,14 @@ Node& NodeTraversal::LastWithinOrSelf(Node& current) {
   return last_descendant ? *last_descendant : current;
 }
 
+Node& NodeTraversal::FirstWithinOrSelf(Node& current) {
+  Node* descendant = &current;
+  for (Node* child = current.firstChild(); child; child = child->firstChild()) {
+    descendant = child;
+  }
+  return *descendant;
+}
+
 Node* NodeTraversal::Previous(const Node& current, const Node* stay_within) {
   if (current == stay_within)
     return nullptr;

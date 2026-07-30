@@ -53,6 +53,8 @@
 #include "components/page_load_metrics/browser/page_load_metrics_test_waiter.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/preconnect_manager.h"
@@ -61,6 +63,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/content_features.h"
+#include "content/public/common/page_type.h"
 #include "content/public/common/referrer.h"
 #include "content/public/test/back_forward_cache_util.h"
 #include "content/public/test/browser_test.h"
@@ -3231,6 +3234,89 @@ IN_PROC_BROWSER_TEST_F(ConnectionAllowlistLoadingPredictorBrowserTest,
       dns_prefetch_url.GetHost(), network_anonymization_key));
   EXPECT_TRUE(preconnect_manager_observer()->HostFound(
       dns_prefetch_url.GetHost(), network_anonymization_key));
+}
+
+// Verify that window.open() to a host disallowed by the initiator's
+// Connection-Allowlist does not leak the destination host's DNS via the
+// speculative navigation preconnect. The navigation is blocked, so no
+// speculative network activity (which would carry no enforcing
+// network_restrictions_id) must reach the destination host.
+// Regression test for https://github.com/WICG/connection-allowlists/issues/11.
+IN_PROC_BROWSER_TEST_F(ConnectionAllowlistLoadingPredictorBrowserTest,
+                       ConnectionAllowlistWindowOpenNoTargetNoDnsLeak) {
+  // Navigate the main frame to a page that enforces a Connection-Allowlist of
+  // {a.test, b.test}.
+  const GURL main_url =
+      embedded_https_test_server().GetURL("a.test", "/connection-allowlist");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_url));
+
+  content::RenderFrameHost* main_frame_rfh = browser()
+                                                 ->tab_strip_model()
+                                                 ->GetActiveWebContents()
+                                                 ->GetPrimaryMainFrame();
+  ASSERT_FALSE(main_frame_rfh->GetNetworkRestrictionsID().is_empty());
+
+  // c.test is not on the allowlist, so opening it must be blocked. The
+  // speculative navigation preconnect must not resolve its DNS.
+  const GURL disallowed_url("https://c.test");
+  const net::NetworkAnonymizationKey disallowed_nak =
+      net::NetworkAnonymizationKey::CreateSameSite(
+          net::SchemefulSite(disallowed_url));
+
+  content::WebContentsAddedObserver popup_observer;
+  ASSERT_TRUE(content::ExecJs(
+      main_frame_rfh, content::JsReplace("window.open($1);", disallowed_url)));
+  content::WebContents* popup = popup_observer.GetWebContents();
+  ASSERT_TRUE(popup);
+  // The popup navigation is blocked by the Connection-Allowlist; wait for it to
+  // finish so DidStartNavigation() (and any speculative preconnect it would
+  // trigger) has run. The blocked navigation commits an error page, so
+  // WaitForLoadStop() reports failure.
+  EXPECT_FALSE(content::WaitForLoadStop(popup));
+  // Confirm the navigation really was blocked (committed an error page) so the
+  // assertions below test the blocked path rather than passing vacuously.
+  ASSERT_TRUE(popup->GetController().GetLastCommittedEntry());
+  EXPECT_EQ(content::PAGE_TYPE_ERROR,
+            popup->GetController().GetLastCommittedEntry()->GetPageType());
+
+  // Synchronize on an allowed dns-prefetch from the opener. Preconnect jobs run
+  // concurrently (up to PreconnectManagerImpl::kMaxInflightPreresolves) and
+  // their lookups can finish in any order, so this is a run-loop barrier, not an
+  // in-order guarantee. The speculative preconnect for the blocked
+  // window.open() navigation, if it were attempted, has its DNS resolve started
+  // while that navigation is handled -- before this dns-prefetch is even issued
+  // -- and these localhost lookups settle during the run-loop spins here. So
+  // once this allowed lookup is observed (and pending callbacks are drained
+  // below), a disallowed-host lookup/preconnect would already have been recorded
+  // if the leak were present.
+  const GURL allowed_url("https://b.test");
+  const net::NetworkAnonymizationKey allowed_nak =
+      main_frame_rfh->GetIsolationInfoForSubresources()
+          .network_anonymization_key();
+  ASSERT_TRUE(content::ExecJs(main_frame_rfh, content::JsReplace(R"(
+            var link = document.createElement('link');
+            link.rel = 'dns-prefetch';
+            link.href = $1;
+            document.body.appendChild(link);
+          )",
+                                                                 allowed_url)));
+  preconnect_manager_observer()->WaitUntilHostLookedUp(allowed_url.GetHost(),
+                                                       allowed_nak);
+  ASSERT_TRUE(preconnect_manager_observer()->HostFound(allowed_url.GetHost(),
+                                                       allowed_nak));
+
+  // Drain any pending preconnect-manager completion callbacks so the checks
+  // below observe fully-settled state.
+  base::RunLoop().RunUntilIdle();
+
+  // The disallowed host must never have been looked up: the speculative
+  // navigation preconnect is suppressed for the blocked navigation.
+  EXPECT_FALSE(preconnect_manager_observer()->HasHostBeenLookedUp(
+      disallowed_url.GetHost(), disallowed_nak));
+  EXPECT_FALSE(preconnect_manager_observer()->HostFound(
+      disallowed_url.GetHost(), disallowed_nak));
+  EXPECT_FALSE(preconnect_manager_observer()->HasOriginAttemptedToPreconnect(
+      GURL("https://c.test/")));
 }
 
 IN_PROC_BROWSER_TEST_F(ConnectionAllowlistLoadingPredictorBrowserTest,

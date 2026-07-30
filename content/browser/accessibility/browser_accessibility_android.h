@@ -391,6 +391,9 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid
   // Get image description string.
   std::u16string GetImageAnnotationText() const;
 
+  // Get canvas description string.
+  std::u16string GetCanvasAnnotationText() const;
+
   std::u16string old_value_;
   std::u16string new_value_;
 

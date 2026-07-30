@@ -41,8 +41,8 @@ void TestGenApply(const std::string& old_filename,
   base::MemoryMappedFile new_file;
   ASSERT_TRUE(new_file.Initialize(new_path));
 
-  ConstBufferView old_region(old_file.data(), old_file.length());
-  ConstBufferView new_region(new_file.data(), new_file.length());
+  ConstBufferView old_region(old_file.bytes());
+  ConstBufferView new_region(new_file.bytes());
 
   EnsemblePatchWriter patch_writer(old_region, new_region);
 
@@ -66,9 +66,9 @@ void TestGenApply(const std::string& old_filename,
   // Check basic properties.
   EXPECT_TRUE(patch_reader->CheckOldFile(old_region));
   EXPECT_TRUE(patch_reader->CheckNewFile(new_region));
-  EXPECT_EQ(old_file.length(), patch_reader->header().old_size);
+  EXPECT_EQ(old_file.bytes().size(), patch_reader->header().old_size);
   // If new_size doesn't match expectation, the function is aborted.
-  ASSERT_EQ(new_file.length(), patch_reader->header().new_size);
+  ASSERT_EQ(new_file.bytes().size(), patch_reader->header().new_size);
 
   // Apply patch to "old" to get "patched new", ensure it's identical to "new".
   std::vector<uint8_t> patched_new_buffer(new_region.size());

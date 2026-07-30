@@ -51,6 +51,8 @@ export function getLocalizationStringForContentType(
       return 'siteSettingsIdleDetectionMidSentence';
     case ContentSettingsTypes.IMAGES:
       return 'siteSettingsImagesMidSentence';
+    case ContentSettingsTypes.INLINE_CUE_MENU:
+      return 'siteSettingsInlineCueMenuMidSentence';
     case ContentSettingsTypes.JAVASCRIPT:
       return 'siteSettingsJavascriptMidSentence';
     case ContentSettingsTypes.JAVASCRIPT_OPTIMIZER:

@@ -16,13 +16,12 @@
 #include "base/containers/flat_set.h"
 #include "base/containers/span.h"
 #include "base/i18n/base_i18n_export.h"
+#include "base/strings/string_util.h"
 #include "base/types/pass_key.h"
 
-namespace base {
+namespace base::i18n {
 
 class BASE_I18N_EXPORT LanguageTag;
-
-namespace i18n_extensions {
 
 // Represents a BCP47 extension subtag.
 // BCP47 extensions consist of a single-character singleton followed by one or
@@ -34,7 +33,7 @@ class BASE_I18N_EXPORT Extension {
   // These objects are managed by LanguageTag and cannot be constructed
   // manually.
   // |extension| must be a valid BCP47 extension string (e.g., "a-myext").
-  Extension(base::PassKey<base::LanguageTag>, std::string_view extension);
+  Extension(base::PassKey<LanguageTag>, std::string_view extension);
   ~Extension() = default;
 
   Extension(const Extension&) = default;
@@ -61,8 +60,7 @@ class BASE_I18N_EXPORT Extension {
 // (https://www.rfc-editor.org/info/rfc5646/#section-2.2.7).
 class BASE_I18N_EXPORT PrivateUseSubtags {
  public:
-  PrivateUseSubtags(base::PassKey<base::LanguageTag>,
-                    std::string_view private_use);
+  PrivateUseSubtags(base::PassKey<LanguageTag>, std::string_view private_use);
   ~PrivateUseSubtags() = default;
 
   PrivateUseSubtags(const PrivateUseSubtags&) = default;
@@ -101,8 +99,16 @@ class BASE_I18N_EXPORT UnicodeExtension {
   // Reference:  https://www.rfc-editor.org/info/rfc6067/#section-2.1
   std::optional<std::string_view> GetKeywordValue(std::string_view key) const;
 
+  // Returns all the keywords sorted by key and parsed into pairs of key subtag
+  // string plus types subtag string, if present.
+  base::span<const std::pair<std::string, std::string>> keywords() const {
+    return base::span(keywords_);
+  }
+
   // Removes the keyword if present.
-  void remove_keyword(std::string_view key) { keywords_.erase(key); }
+  void remove_keyword(std::string_view key) {
+    keywords_.erase(base::ToLowerASCII(key));
+  }
 
   // Sets or updates the value for the given keyword.
   // `key` must be exactly 2 alphanumeric characters.
@@ -110,14 +116,19 @@ class BASE_I18N_EXPORT UnicodeExtension {
   // Returns true if the keyword was updated, false otherwise.
   bool SetKeyword(std::string_view key, std::string_view type_subtags);
 
+  // Returns true if the keyword is present.
+  bool has_keyword(std::string_view key) const {
+    return keywords_.contains(base::ToLowerASCII(key));
+  }
+
   // Attributes come before any keyword/value and have length between 3 and 8.
   bool has_attribute(std::string_view attribute) const {
-    return attributes_.contains(attribute);
+    return attributes_.contains(base::ToLowerASCII(attribute));
   }
 
   // Removes the attribute if present.
   void remove_attribute(std::string_view attribute) {
-    attributes_.erase(attribute);
+    attributes_.erase(base::ToLowerASCII(attribute));
   }
 
   // Adds the attribute if not present.
@@ -143,18 +154,15 @@ class BASE_I18N_EXPORT UnicodeExtension {
   std::string ToString() const;
 
  private:
-  // These objects are managed by LanguageTag and cannot be constructed
-  // manually.
-  // |extension| must be a valid Unicode extension string (e.g.,
-  // "u-ca-gregory").
-  explicit UnicodeExtension(
-      base::flat_set<std::string> attributes,
-      base::flat_map<std::string, std::string> key_values);
+  // Must be constructed from `FromString`, thus the private constructor.
+  UnicodeExtension();
 
   base::flat_set<std::string, std::less<>> attributes_;
   // The unicode extension keywords map.
   base::flat_map<std::string, std::string, std::less<>> keywords_;
 };
+
+namespace bcp47_extensions {
 
 // A traits used to map an extension key (e.g., 'u') to its corresponding
 // result type (e.g., UnicodeExtension).
@@ -225,7 +233,7 @@ inline constexpr auto priv() {
   return ext<'x'>();
 }
 
-}  // namespace i18n_extensions
-}  // namespace base
+}  // namespace bcp47_extensions
+}  // namespace base::i18n
 
 #endif  // BASE_I18N_BCP47_EXTENSIONS_H_

@@ -86,7 +86,7 @@ class MemoryManagedPaintRecorder;
 class Path2D;
 class SVGResource;
 class Canvas2DResourceProviderSharedImage;
-class Canvas2DResourceProviderBitmap;
+class Canvas2DBitmapProvider;
 enum class FlushReason;
 enum class PredefinedColorSpace;
 
@@ -161,7 +161,7 @@ class MODULES_EXPORT CanvasRenderingContext2D final
 
   // CanvasHibernationHandler::Delegate implementation
   Canvas2DResourceProviderSharedImage* GetSharedImageProvider() const override;
-  Canvas2DResourceProviderBitmap* GetBitmapProviderForTesting() const {
+  Canvas2DBitmapProvider* GetBitmapProviderForTesting() const {
     return bitmap_provider_.get();
   }
   bool HasResourceProvider() const override;
@@ -241,8 +241,8 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   void SetCanvas2DResourceProviderForTesting(
       std::unique_ptr<Canvas2DResourceProviderSharedImage> provider,
       const gfx::Size& size);
-  void SetCanvas2DResourceProviderForTesting(
-      std::unique_ptr<Canvas2DResourceProviderBitmap> provider,
+  void SetBitmapProviderForTesting(
+      std::unique_ptr<Canvas2DBitmapProvider> provider,
       const gfx::Size& size);
   void SetCanvas2DResourceProviderForTesting(std::nullptr_t,
                                              const gfx::Size& size);
@@ -319,7 +319,7 @@ class MODULES_EXPORT CanvasRenderingContext2D final
 
   std::unique_ptr<CanvasHibernationHandler> hibernation_handler_;
   std::unique_ptr<Canvas2DResourceProviderSharedImage> shared_image_provider_;
-  std::unique_ptr<Canvas2DResourceProviderBitmap> bitmap_provider_;
+  std::unique_ptr<Canvas2DBitmapProvider> bitmap_provider_;
 
   // `did_fail_to_create_resource_provider_` prevents repeated attempts in
   // allocating resources after the first attempt failed.

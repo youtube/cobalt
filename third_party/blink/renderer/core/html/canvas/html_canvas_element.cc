@@ -36,12 +36,9 @@
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
-#include "base/metrics/histogram.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notimplemented.h"
 #include "base/numerics/checked_math.h"
-#include "base/numerics/clamped_math.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
@@ -100,7 +97,6 @@
 #include "third_party/blink/renderer/core/layout/layout_replaced.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/layout/transform_utils.h"
-#include "third_party/blink/renderer/core/loader/render_blocking_resource_manager.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/page/page_animator.h"
@@ -132,6 +128,7 @@
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/size_conversions.h"
@@ -240,51 +237,7 @@ void ReleaseCanvasResource(scoped_refptr<CanvasResource> canvas_resource,
   CanvasResource::DropRefOnOwningThread(std::move(canvas_resource));
 }
 
-void UmaHistogramCompressionRatio(
-    std::string_view histogram_name,
-    const String& data_url,
-    const CanvasContextCreationAttributesCore& canvas_attrs,
-    const gfx::Size& image_size) {
-  constexpr int32_t kPrefixSize =
-      std::string_view("data:image/png;base64,").size();
-  base::ClampedNumeric<int32_t> size_of_data_uri = data_url.length();
-  if (size_of_data_uri <= kPrefixSize) {
-    // Don't log UMA after an encoding failure.
-    return;
-  }
 
-  // 4 base64 characters per 3 bytes.
-  base::ClampedNumeric<int32_t> encoded_bytes_count =
-      (size_of_data_uri - kPrefixSize) * 3 / 4;
-
-  // Assuming that canvas always uses RGBA (i.e. 4 channels).
-  constexpr int32_t kChannelsPerPixel = 4u;
-  int32_t bytes_per_pixel = 0u;
-  switch (canvas_attrs.pixel_format) {
-    case CanvasPixelFormat::kF16:
-      bytes_per_pixel = 2u * kChannelsPerPixel;
-      break;
-    case CanvasPixelFormat::kUint8:
-      bytes_per_pixel = 1u * kChannelsPerPixel;
-      break;
-  }
-
-  base::ClampedNumeric<int32_t> image_pixels_count = image_size.Area64();
-  base::ClampedNumeric<int32_t> image_bytes_count =
-      image_pixels_count * bytes_per_pixel;
-  base::ClampedNumeric<int32_t> encoded_bytes_per_100_image_bytes =
-      encoded_bytes_count * 100 / image_bytes_count;
-
-  // We are not just using `base::UmaHistogramPercentage` because the overhead
-  // of PNG metadata may result in `encoded_bytes_count` being more than 100% of
-  // `image_bytes_count`.  For example, a PNG encoding of an image with a single
-  // pixel will take at least 67 bytes, although below we ignore this extreme
-  // and only support buckets up to 120%.
-  base::HistogramBase* histogram = base::LinearHistogram::FactoryGet(
-      histogram_name, 1, 121, 60,
-      base::HistogramBase::kUmaTargetedHistogramFlag);
-  histogram->Add(encoded_bytes_per_100_image_bytes);
-}
 
 }  // namespace
 
@@ -1360,12 +1313,6 @@ String HTMLCanvasElement::ToDataURLInternal(
     if (encoding_mime_type == kMimeTypePng) {
       UMA_HISTOGRAM_COUNTS_100000("Blink.Canvas.ToDataURLScaledDuration.PNG",
                                   scaled_time_int);
-      const CanvasRenderingContext* context = RenderingContext();
-      if (context) {
-        UmaHistogramCompressionRatio(
-            "Blink.Canvas.ToDataURLCompressionRatio.PNG", data_url,
-            context->CreationAttributes(), image_bitmap->Size());
-      }
     } else if (encoding_mime_type == kMimeTypeJpeg) {
       UMA_HISTOGRAM_COUNTS_100000("Blink.Canvas.ToDataURLScaledDuration.JPEG",
                                   scaled_time_int);
@@ -2109,7 +2056,7 @@ RespectImageOrientationEnum HTMLCanvasElement::RespectImageOrientation() const {
 
 void HTMLCanvasElement::OnAxObjectIgnoredStateChanged(bool is_ignored) {
   if (accessibility_manager_) {
-    accessibility_manager_->SetIgnored(is_ignored);
+    accessibility_manager_->SetIsIgnored(is_ignored);
     return;
   }
   // If the canvas is ignored, it doesn't need accessibility support.
@@ -2117,15 +2064,15 @@ void HTMLCanvasElement::OnAxObjectIgnoredStateChanged(bool is_ignored) {
     return;
   }
   accessibility_manager_ = MakeGarbageCollected<HTMLCanvasAccessibilityManager>(
-      GetDocument().GetTaskRunner(TaskType::kInternalDefault), is_ignored,
-      this);
-  UpdateCaptureRenderedText();
+      GetDocument().GetTaskRunner(TaskType::kInternalDefault), is_ignored, this,
+      HTMLCanvasAccessibilityManager::kAll);
 }
 
 // TODO(crbug.com/475512055): Remove this function once UKM collection is
 // not needed anymore.
 bool HTMLCanvasElement::GetNeedsAccessibilitySupportHeuristic() {
   if (accessibility_manager_) {
+    accessibility_manager_->EnableUpdatingHeuristicResults();
     return accessibility_manager_->NeedsA11ySupport();
   }
 
@@ -2138,7 +2085,7 @@ bool HTMLCanvasElement::GetNeedsAccessibilitySupportHeuristic() {
 
   auto* manager = MakeGarbageCollected<HTMLCanvasAccessibilityManager>(
       GetDocument().GetTaskRunner(TaskType::kInternalDefault), is_ignored, this,
-      /*is_for_ukm_only=*/true);
+      HTMLCanvasAccessibilityManager::kUpdateHeuristicResults);
 
   // The temporary manager is a GarbageCollected object allocated via Oilpan.
   // Since we do not retain a persistent reference to it, it will automatically
@@ -2149,6 +2096,7 @@ bool HTMLCanvasElement::GetNeedsAccessibilitySupportHeuristic() {
 void HTMLCanvasElement::RecordRenderedText(const String& text,
                                            const gfx::RectF& bounds,
                                            float font_height) {
+  EnsureAccessibilityManager();
   if (accessibility_manager_) {
     accessibility_manager_->RecordRenderedText(text, bounds, font_height);
   }
@@ -2166,17 +2114,38 @@ void HTMLCanvasElement::ClearRenderedText() {
   }
 }
 
-void HTMLCanvasElement::UpdateCaptureRenderedText() {
-  should_capture_rendered_text_ =
-      accessibility_manager_ &&
-      accessibility_manager_->ShouldCaptureRenderedText();
+void HTMLCanvasElement::UpdateCaptureRenderedText(bool capture) {
+  should_capture_rendered_text_ = capture;
+}
+
+bool HTMLCanvasElement::ShouldCaptureRenderedText() {
+  EnsureAccessibilityManager();
+  return should_capture_rendered_text_;
 }
 
 String HTMLCanvasElement::CanvasAnnotation() const {
-  if (accessibility_manager_) {
+  if (accessibility_manager_ && accessibility_manager_->NeedsA11ySupport()) {
     return accessibility_manager_->CanvasAnnotation();
   }
   return String();
+}
+
+void HTMLCanvasElement::EnsureAccessibilityManager() {
+  if (accessibility_manager_) {
+    return;
+  }
+
+  // If accessibility is enabled but `accessibility_manager_` is not created yet
+  // (AXObject is not created), create `accessibility_manager_` and assume the
+  // canvas is not ignored to start capturing rendered text.
+  if (base::FeatureList::IsEnabled(::features::kAccessibilityCanvas) &&
+      GetDocument().ExistingAXObjectCache()) {
+    accessibility_manager_ =
+        MakeGarbageCollected<HTMLCanvasAccessibilityManager>(
+            GetDocument().GetTaskRunner(TaskType::kInternalDefault),
+            /*is_ignored=*/false, this,
+            HTMLCanvasAccessibilityManager::kCollectTextRuns);
+  }
 }
 
 }  // namespace blink

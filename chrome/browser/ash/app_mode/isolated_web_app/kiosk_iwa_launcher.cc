@@ -95,13 +95,9 @@ void KioskIwaLauncher::InstallIsolatedWebApp(
         NotifyLaunchFailed(KioskAppLaunchError::Error::kUnableToInstall);
       });
 
-  web_app::WebAppProvider* provider =
-      web_app::WebAppProvider::GetForWebApps(profile());
-  CHECK(provider);
-
   iwa_installer_ = std::make_unique<web_app::IwaInstaller>(
       install_options, web_app::IwaInstaller::InstallSourceType::kKiosk,
-      profile()->GetURLLoaderFactory(), iwa_install_log_, provider,
+      profile(), iwa_install_log_,
       base::BindOnce(&KioskIwaLauncher::OnInstallComplete,
                      weak_ptr_factory_.GetWeakPtr(),
                      retry_with_internet_on_failure));

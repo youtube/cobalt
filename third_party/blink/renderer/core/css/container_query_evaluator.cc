@@ -898,7 +898,7 @@ void ContainerQueryEvaluator::UpdateContainerValuesFromUnitChanges(
     StyleRecalcChange change) {
   CHECK(media_query_evaluator_);
   unsigned changed_flags = 0;
-  if (change.RemUnitsMaybeChanged()) {
+  if (change.RootRelativeUnitsMaybeChanged()) {
     changed_flags |= MediaQueryExpValue::kRootFontRelative;
   }
   if (change.ContainerRelativeUnitsMaybeChanged()) {

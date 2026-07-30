@@ -1,0 +1,21 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module intro.mojom;
+
+// Used by the WebUI page to bootstrap communication.
+interface FinishOrContinuePageHandlerFactory {
+  // Creates a PageHandler for the Finish Or Continue page.
+  CreateFinishOrContinuePageHandler(
+      pending_receiver<FinishOrContinuePageHandler> handler);
+};
+
+// Browser-side handler for requests from WebUI.
+interface FinishOrContinuePageHandler {
+  // Called when the user clicks "Start browsing" button.
+  StartBrowsing();
+
+  // Called when the user clicks "See more tips" or "What's new" button.
+  ContinueEducation();
+};

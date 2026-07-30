@@ -35,7 +35,7 @@ export {PasswordDetailsSectionElement} from './password_details_section.js';
 export {PasswordListItemElement} from './password_list_item.js';
 export {PasswordManagerAppElement} from './password_manager_app.js';
 export type {AccountStorageActiveStateChangedListener, BlockedSite, BlockedSitesListChangedListener, CredentialsChangedListener, PasswordCheckStatusChangedListener, PasswordManagerActionableErrorChangedListener, PasswordManagerAuthTimeoutListener, PasswordManagerProxy, PasswordsFileExportProgressListener, ShouldShowAccountStorageToggleChangedListener} from './password_manager_proxy.js';
-export {PasswordCheckInteraction, PasswordManagerActionableError, PasswordManagerImpl, PasswordViewPageInteractions, toMojoActionableError} from './password_manager_proxy.js';
+export {ExportPasswordsResult, ExportProgressStatus, PageCallbackRouter, PasswordCheckInteraction, PasswordManagerActionableError, PasswordManagerImpl, PasswordViewPageInteractions, toMojoActionableError} from './password_manager_proxy.js';
 export {PasswordsExporterElement} from './passwords_exporter.js';
 export {PasswordsImporterElement} from './passwords_importer.js';
 export {PasswordsSectionElement} from './passwords_section.js';

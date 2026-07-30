@@ -19,6 +19,9 @@
 // Called when the user taps the start new thread button.
 - (void)didTapStartNewThread;
 
+// Called when the user taps on the minimized header view.
+- (void)didTapOnMinimizedHeader;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_COBROWSE_UI_ASSISTANT_AIM_MUTATOR_H_

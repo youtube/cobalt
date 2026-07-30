@@ -383,14 +383,22 @@ public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver {
                 Network network, NetworkCapabilities networkCapabilities) {
             try (TraceEvent e =
                     TraceEvent.scoped("NetworkChangeNotifierCallback::onCapabilitiesChanged")) {
-                if (ignoreConnectedNetwork(
-                        network, new NetworkCapabilitiesWrapper(networkCapabilities))) {
+                NetworkCapabilitiesWrapper capabilities =
+                        new NetworkCapabilitiesWrapper(networkCapabilities);
+                if (ignoreConnectedNetwork(network, capabilities)) {
                     return;
                 }
-                // A capabilities change may indicate the ConnectionType has changed,
-                // so forward the new ConnectionType along to observer.
+                // A capabilities change may indicate the ConnectionType has changed, so forward
+                // the new ConnectionType along to observer.
                 final long netId = ConnectivityManagerWrapper.networkToNetId(network);
-                final int connectionType = mConnectivityManagerWrapper.getConnectionType(network);
+                @ConnectionType final int connectionType;
+                if (ConnectivityManagerWrapper.getDeriveConnectionTypeFromCapabilities()) {
+                    connectionType =
+                            ConnectivityManagerWrapper.getConnectionTypeFromCapabilities(
+                                    capabilities);
+                } else {
+                    connectionType = mConnectivityManagerWrapper.getConnectionType(network);
+                }
                 runOnThread(
                         new Runnable() {
                             @Override

@@ -24,6 +24,10 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace content {
+class WebContents;
+}  // namespace content
+
 namespace autofill {
 
 class MockTouchToFillPaymentMethodController
@@ -135,6 +139,7 @@ class MockTouchToFillPaymentMethodController
 
   MOCK_METHOD(void, Hide, (), (override));
   MOCK_METHOD(void, SetVisible, (bool visible), (override));
+  MOCK_METHOD(content::WebContents*, GetWebContents, (), (override));
 };
 
 }  // namespace autofill

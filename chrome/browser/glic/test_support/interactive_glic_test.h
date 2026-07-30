@@ -902,7 +902,7 @@ class InteractiveGlicTestMixin : public T {
   }
 
   Host* GetHost() {
-    GlicInstance* instance = GetGlicInstance();
+    GlicInstanceImpl* instance = GetGlicInstanceImpl();
     if (!instance) {
       return nullptr;
     }

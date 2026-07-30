@@ -33,7 +33,6 @@ constexpr char kSourceUrl[] = "https://baz.com/";
 constexpr char kSourceEmail[] = "test-user@gmail.com";
 constexpr char kTabTitle[] = "tab_title";
 constexpr char kMessage[] = "message";
-constexpr char kMethod[] = "CONTENT_TRANSFER_METHOD_FILE_PASTE";
 constexpr char16_t kJustification[] = u"justification";
 constexpr size_t kMaxSize = 1000;
 
@@ -164,8 +163,8 @@ TEST_F(ClipboardRequestHandlerTest, Text) {
   auto handler = ClipboardRequestHandler::Create(
       &info, &binary_upload_service_, profile_.get(), GURL(kUrl),
       ClipboardRequestHandler::Type::kText, DeepScanAccessPoint::PASTE,
-      GetSource(), kSourceEmail, kMethod, CreateTestData(kMaxSize),
-      base::BindOnce([](RequestHandlerResult result) {
+      GetSource(), kSourceEmail, kContentTransferMethodFilePaste,
+      CreateTestData(kMaxSize), base::BindOnce([](RequestHandlerResult result) {
         EXPECT_EQ(result.final_result, FinalContentAnalysisResult::FAILURE);
         EXPECT_EQ(result.complies, false);
         EXPECT_EQ(result.custom_rule_message.message_segments_size(), 1);
@@ -251,14 +250,106 @@ TEST_F(ClipboardRequestHandlerTest, Text) {
   run_loop_bypass.Run();
 }
 
+TEST_F(ClipboardRequestHandlerTest, CopyText) {
+  TestContentAnalysisInfo info(cloud_settings());
+
+  auto handler = ClipboardRequestHandler::Create(
+      &info, &binary_upload_service_, profile_.get(), GURL(kUrl),
+      ClipboardRequestHandler::Type::kText, DeepScanAccessPoint::COPY,
+      GetSource(), kSourceEmail, kContentTransferMethodClipboardCopy,
+      CreateTestData(kMaxSize), base::BindOnce([](RequestHandlerResult result) {
+        EXPECT_EQ(result.final_result, FinalContentAnalysisResult::FAILURE);
+        EXPECT_EQ(result.complies, false);
+        EXPECT_EQ(result.custom_rule_message.message_segments_size(), 1);
+        EXPECT_EQ(result.custom_rule_message.message_segments(0).text(),
+                  kMessage);
+        EXPECT_EQ(result.tag, "dlp");
+      }));
+
+  base::RunLoop run_loop;
+  auto validator = helper_->CreateValidator();
+  validator.SetDoneClosure(run_loop.QuitClosure());
+
+  chrome::cros::reporting::proto::DlpSensitiveDataEvent expected_event;
+
+  expected_event.set_url(kUrl);
+  expected_event.set_tab_url(kUrl);
+  expected_event.set_source(kSourceUrl);
+  expected_event.set_destination(kUrl);
+  expected_event.set_file_name("Text data");
+  expected_event.set_content_type("text/plain");
+  expected_event.set_content_size(kMaxSize);
+  expected_event.set_scan_id("");
+  expected_event.set_event_result(
+      chrome::cros::reporting::proto::EventResult::EVENT_RESULT_BLOCKED);
+  expected_event.set_clicked_through(false);
+  expected_event.set_content_transfer_method(
+      chrome::cros::reporting::proto::CONTENT_TRANSFER_METHOD_CLIPBOARD_COPY);
+  expected_event.set_source_web_app_signed_in_account(kSourceEmail);
+  expected_event.set_trigger(
+      chrome::cros::reporting::proto::DataTransferEventTrigger::CLIPBOARD_COPY);
+
+  chrome::cros::reporting::proto::TriggeredRuleInfo triggered_rule;
+  triggered_rule.set_action(
+      chrome::cros::reporting::proto::TriggeredRuleInfo::BLOCK);
+  triggered_rule.set_rule_name("clipboard_rule_name");
+
+  *expected_event.add_triggered_rule_info() = triggered_rule;
+
+  expected_event.set_profile_identifier(profile_->GetPath().AsUTF8Unsafe());
+  expected_event.set_profile_user_name("test-user@chromium.org");
+
+  validator.ExpectSensitiveDataEvent(std::move(expected_event));
+
+  EXPECT_TRUE(handler->UploadData());
+  run_loop.Run();
+
+  base::RunLoop run_loop_bypass;
+  auto validator_bypass = helper_->CreateValidator();
+  validator_bypass.SetDoneClosure(run_loop_bypass.QuitClosure());
+
+  chrome::cros::reporting::proto::DlpSensitiveDataEvent expected_bypass_event;
+
+  expected_bypass_event.set_url(kUrl);
+  expected_bypass_event.set_tab_url(kUrl);
+  expected_bypass_event.set_source(kSourceUrl);
+  expected_bypass_event.set_destination(kUrl);
+  expected_bypass_event.set_file_name("Text data");
+  expected_bypass_event.set_content_type("text/plain");
+  expected_bypass_event.set_content_size(kMaxSize);
+  expected_bypass_event.set_scan_id("");
+  expected_bypass_event.set_event_result(
+      chrome::cros::reporting::proto::EventResult::EVENT_RESULT_BYPASSED);
+  expected_bypass_event.set_clicked_through(true);
+  expected_bypass_event.set_trigger(
+      chrome::cros::reporting::proto::DataTransferEventTrigger::CLIPBOARD_COPY);
+  expected_bypass_event.set_user_justification("justification");
+
+  chrome::cros::reporting::proto::TriggeredRuleInfo triggered_bypass_rule;
+  triggered_bypass_rule.set_action(
+      chrome::cros::reporting::proto::TriggeredRuleInfo::BLOCK);
+  triggered_bypass_rule.set_rule_name("clipboard_rule_name");
+  *expected_bypass_event.add_triggered_rule_info() = triggered_bypass_rule;
+  expected_bypass_event.set_content_transfer_method(
+      chrome::cros::reporting::proto::CONTENT_TRANSFER_METHOD_CLIPBOARD_COPY);
+
+  expected_bypass_event.set_profile_identifier(
+      profile_->GetPath().AsUTF8Unsafe());
+  expected_bypass_event.set_profile_user_name("test-user@chromium.org");
+
+  validator_bypass.ExpectSensitiveDataEvent(std::move(expected_bypass_event));
+  handler->ReportWarningBypass(kJustification);
+  run_loop_bypass.Run();
+}
+
 TEST_F(ClipboardRequestHandlerTest, Image) {
   TestContentAnalysisInfo info(cloud_settings());
 
   auto handler = ClipboardRequestHandler::Create(
       &info, &binary_upload_service_, profile_.get(), GURL(kUrl),
       ClipboardRequestHandler::Type::kImage, DeepScanAccessPoint::DRAG_AND_DROP,
-      GetSource(), kSourceEmail, kMethod, CreateTestData(kMaxSize),
-      base::BindOnce([](RequestHandlerResult result) {
+      GetSource(), kSourceEmail, kContentTransferMethodFilePaste,
+      CreateTestData(kMaxSize), base::BindOnce([](RequestHandlerResult result) {
         EXPECT_EQ(result.final_result, FinalContentAnalysisResult::FAILURE);
         EXPECT_EQ(result.complies, false);
         EXPECT_EQ(result.custom_rule_message.message_segments_size(), 1);
@@ -353,8 +444,8 @@ TEST_F(ClipboardRequestHandlerTest, CancelledByUser) {
   auto handler = ClipboardRequestHandler::Create(
       &info, &binary_upload_service_, profile_.get(), GURL(kUrl),
       ClipboardRequestHandler::Type::kText, DeepScanAccessPoint::PASTE,
-      GetSource(), kSourceEmail, kMethod, CreateTestData(kMaxSize),
-      base::BindOnce([](RequestHandlerResult result) {
+      GetSource(), kSourceEmail, kContentTransferMethodFilePaste,
+      CreateTestData(kMaxSize), base::BindOnce([](RequestHandlerResult result) {
         EXPECT_EQ(result.final_result, FinalContentAnalysisResult::CANCELLED);
         EXPECT_EQ(result.complies, false);
       }));

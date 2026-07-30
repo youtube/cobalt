@@ -54,9 +54,10 @@ def format_descendant_node_text(node,
                 format_descendant_node_text(child, total_dur, min_dur_ms, True,
                                             indent + "  "))
     else:
+        sig = trace_analyzer_lib.get_slice_signature(node)
         line = (f"{indent}* [{dur_ms:8.3f} ms ({pct_root:5.1f}%) | "
                 f"self: {self_ms:8.3f} ms ({pct_self:5.1f}%)] "
-                f"{node.name}")
+                f"{sig}")
         lines = [line]
         sorted_children = sorted(node.children, key=lambda x: x.ts)
         for child in sorted_children:

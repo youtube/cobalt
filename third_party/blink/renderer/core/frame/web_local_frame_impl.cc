@@ -1512,7 +1512,7 @@ WebString WebLocalFrameImpl::SelectionAsMarkup() const {
   GetFrame()->GetDocument()->UpdateStyleAndLayout(
       DocumentUpdateReason::kSelection);
 
-  return GetFrame()->Selection().SelectedHTMLForClipboard();
+  return GetFrame()->Selection().SelectedHtmlForClipboard();
 }
 
 void WebLocalFrameImpl::TextSelectionChanged(const WebString& selection_text,

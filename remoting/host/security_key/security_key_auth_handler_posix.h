@@ -10,11 +10,15 @@
 
 #include "base/containers/flat_map.h"
 #include "base/files/file_path.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "remoting/host/security_key/security_key_auth_handler.h"
+
+namespace base {
+class SequencedTaskRunner;
+}  // namespace base
 
 namespace net {
 class UnixDomainServerSocket;
@@ -30,14 +34,22 @@ class SecurityKeyAuthHandlerPosix : public SecurityKeyAuthHandler {
   // Returns the name of the socket to listen for security key requests on.
   // The default security key socket name will be returned if
   // SetSecurityKeySocketName() has not been called.
-  static const base::FilePath& GetSecurityKeySocketName();
+  static base::FilePath GetSecurityKeySocketName();
 
   // Specify the name of the socket to listen to security key requests on.
   static void SetSecurityKeySocketName(
       const base::FilePath& security_key_socket_name);
 
-  explicit SecurityKeyAuthHandlerPosix(
-      scoped_refptr<base::SingleThreadTaskRunner> file_task_runner);
+  // Resets the lazy task runner between unit tests to prevent stale delegates.
+  static void ResetTaskRunnerForTesting();
+
+  // Creates a SecurityKeyAuthHandlerPosix instance for testing, allowing
+  // injection of a custom socket path and task runner.
+  static std::unique_ptr<SecurityKeyAuthHandlerPosix> CreateForTesting(
+      const base::FilePath& socket_name,
+      scoped_refptr<base::SequencedTaskRunner> file_task_runner);
+
+  SecurityKeyAuthHandlerPosix();
 
   SecurityKeyAuthHandlerPosix(const SecurityKeyAuthHandlerPosix&) = delete;
   SecurityKeyAuthHandlerPosix& operator=(const SecurityKeyAuthHandlerPosix&) =
@@ -52,10 +64,15 @@ class SecurityKeyAuthHandlerPosix : public SecurityKeyAuthHandler {
                           const std::string& response) override;
   void SendErrorAndCloseConnection(int security_key_connection_id) override;
   void SetSendMessageCallback(const SendMessageCallback& callback) override;
+  base::WeakPtr<SecurityKeyAuthHandler> GetWeakPtr() override;
   size_t GetActiveConnectionCountForTest() const override;
   void SetRequestTimeoutForTest(base::TimeDelta timeout) override;
 
  private:
+  SecurityKeyAuthHandlerPosix(
+      const base::FilePath& socket_name,
+      scoped_refptr<base::SequencedTaskRunner> file_task_runner);
+
   using ActiveSockets = base::flat_map<int, std::unique_ptr<SecurityKeySocket>>;
 
   // Sets up the socket used for accepting new connections.
@@ -98,8 +115,11 @@ class SecurityKeyAuthHandlerPosix : public SecurityKeyAuthHandler {
   // Sockets by connection id used to process gnubbyd requests.
   ActiveSockets active_sockets_;
 
+  // Name of the socket to listen on.
+  base::FilePath socket_name_;
+
   // Used to perform blocking File IO.
-  scoped_refptr<base::SingleThreadTaskRunner> file_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> file_task_runner_;
 
   // Timeout used for a request.
   base::TimeDelta request_timeout_;

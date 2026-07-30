@@ -1,7 +1,7 @@
 Name: jsoncpp
 URL: https://github.com/open-source-parsers/jsoncpp
 Version: N/A
-Revision: 800aa28c493590c539cb7baf445016cc9b8702ef
+Revision: b5ab350ff38ed25fa5b6e0dc30820f2215cad345
 Update Mechanism: Autoroll
 License: JsonCPP
 License File: LICENSE

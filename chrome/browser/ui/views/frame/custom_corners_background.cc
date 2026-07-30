@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/views/frame/browser_frame_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
+#include "chrome/browser/ui/views/frame/custom_corners.h"
 #include "chrome/browser/ui/views/frame/custom_floating_corner.h"
 #include "chrome/browser/ui/views/frame/themed_background.h"
 #include "third_party/skia/include/core/SkPath.h"
@@ -139,37 +140,95 @@ CustomCornersBackground::Corner CustomCornersBackground::GetWindowCorner(
 
 SkPath CustomCornersBackground::GetBackgroundPath(const gfx::Rect& in_bounds,
                                                   CornerRadii* radii) const {
-  const Corners corners = GetMirroredCorners();
+  const VisualCorners corners = GetMirroredCorners();
   CornerRadii local_radii;
   if (!radii) {
     radii = &local_radii;
   }
-  *radii = {CornerToRadiusVector(corners.upper_leading, default_radius_),
-            CornerToRadiusVector(corners.upper_trailing, default_radius_),
-            CornerToRadiusVector(corners.lower_trailing, default_radius_),
-            CornerToRadiusVector(corners.lower_leading, default_radius_)};
+  *radii = {
+      CornerToRadiusVector(corners[VisualCorner::kTopLeft], default_radius_),
+      CornerToRadiusVector(corners[VisualCorner::kTopRight], default_radius_),
+      CornerToRadiusVector(corners[VisualCorner::kBottomRight],
+                           default_radius_),
+      CornerToRadiusVector(corners[VisualCorner::kBottomLeft],
+                           default_radius_)};
   return SkPath::RRect(
       SkRRect::MakeRectRadii(gfx::RectToSkRect(in_bounds), radii->data()));
 }
 
-void CustomCornersBackground::SetCutoutFrom(
-    const std::vector<const views::View*>& views) {
+std::vector<SkPath> CustomCornersBackground::GetCornerPaths(
+    const gfx::Rect& in_bounds) const {
+  std::vector<SkPath> result;
+  const VisualCorners corners = GetMirroredCorners();
+
+  // Bump out the corners by 1 DIP to avoid cracking/subpixel issues.
+  // (This is why the insets are applied below.)
+  if (corners[VisualCorner::kTopLeft].type != CornerType::kSquare) {
+    const int radius =
+        corners[VisualCorner::kTopLeft].radius.value_or(default_radius());
+    gfx::Rect bounds(in_bounds.x(), in_bounds.y(), radius, radius);
+    const gfx::Insets insets = gfx::Insets::TLBR(1, 1, 0, 0);
+    bounds.Inset(-insets);
+    result.push_back(GetCornerPath(VisualCorner::kTopLeft, bounds, insets));
+  }
+  if (corners[VisualCorner::kTopRight].type != CornerType::kSquare) {
+    const int radius =
+        corners[VisualCorner::kTopRight].radius.value_or(default_radius());
+    gfx::Rect bounds(in_bounds.right() - radius, in_bounds.y(), radius, radius);
+    const gfx::Insets insets = gfx::Insets::TLBR(1, 0, 0, 1);
+    bounds.Inset(-insets);
+    result.push_back(GetCornerPath(VisualCorner::kTopRight, bounds, insets));
+  }
+  if (corners[VisualCorner::kBottomRight].type != CornerType::kSquare) {
+    const int radius =
+        corners[VisualCorner::kBottomRight].radius.value_or(default_radius());
+    gfx::Rect bounds(in_bounds.right() - radius, in_bounds.bottom() - radius,
+                     radius, radius);
+    const gfx::Insets insets = gfx::Insets::TLBR(0, 0, 1, 1);
+    bounds.Inset(-insets);
+    result.push_back(GetCornerPath(VisualCorner::kBottomRight, bounds, insets));
+  }
+  if (corners[VisualCorner::kBottomLeft].type != CornerType::kSquare) {
+    const int radius =
+        corners[VisualCorner::kBottomLeft].radius.value_or(default_radius());
+    gfx::Rect bounds(in_bounds.x(), in_bounds.bottom() - radius, radius,
+                     radius);
+    const gfx::Insets insets = gfx::Insets::TLBR(0, 1, 1, 0);
+    bounds.Inset(-insets);
+    result.push_back(GetCornerPath(VisualCorner::kBottomLeft, bounds, insets));
+  }
+  return result;
+}
+
+void CustomCornersBackground::SetCutoutFrom(const Cutouts& cutouts) {
   cutout_paths_.clear();
-  for (const auto* view : views) {
-    const gfx::Rect bounds =
-        views::View::ConvertRectFromScreen(&*view_, view->GetBoundsInScreen());
-    SkPath cutout_path;
-    if (auto* const corner = views::AsViewClass<CustomFloatingCorner>(view)) {
-      cutout_path = corner->GetBackgroundPath(bounds);
-    } else if (view->background() &&
-               view->background()->IsA<CustomCornersBackground>()) {
-      cutout_path =
-          view->background()->AsA<CustomCornersBackground>()->GetBackgroundPath(
-              bounds, nullptr);
+  for (const auto& cutout : cutouts) {
+    if (const views::View* const* view_ptr =
+            std::get_if<const views::View*>(&cutout)) {
+      const views::View* const view = *view_ptr;
+      const gfx::Rect bounds = views::View::ConvertRectFromScreen(
+          &*view_, view->GetBoundsInScreen());
+      SkPath cutout_path;
+      if (auto* const corner = views::AsViewClass<CustomFloatingCorner>(view)) {
+        cutout_path = corner->GetBackgroundPath(bounds);
+      } else if (view->background() &&
+                 view->background()->IsA<CustomCornersBackground>()) {
+        cutout_path = view->background()
+                          ->AsA<CustomCornersBackground>()
+                          ->GetBackgroundPath(bounds, nullptr);
+      } else {
+        cutout_path = SkPath::Rect(gfx::RectToSkRect(bounds));
+      }
+      cutout_paths_.push_back(cutout_path);
     } else {
-      cutout_path = SkPath::Rect(gfx::RectToSkRect(bounds));
+      const auto* const background =
+          std::get<InverseOf>(cutout).background.get();
+      const gfx::Rect bounds = views::View::ConvertRectFromScreen(
+          &*view_, background->view_->GetBoundsInScreen());
+      for (SkPath& path : background->GetCornerPaths(bounds)) {
+        cutout_paths_.push_back(path);
+      }
     }
-    cutout_paths_.push_back(cutout_path);
   }
 }
 
@@ -191,35 +250,39 @@ void CustomCornersBackground::Paint(gfx::Canvas* canvas,
 
   gfx::Rect rect(view->GetLocalBounds());
 
-  const Corners corners = GetMirroredCorners();
+  const VisualCorners corners = GetMirroredCorners();
   const Outline outline = GetMirroredOutline();
 
   // Draw corners behind where necessary using the background color.
-  if (corners.upper_leading.type == CornerType::kRoundedWithBackground) {
+  if (corners[VisualCorner::kTopLeft].type ==
+      CornerType::kRoundedWithBackground) {
     const int corner_radius =
-        corners.upper_leading.radius.value_or(default_radius_);
+        corners[VisualCorner::kTopLeft].radius.value_or(default_radius_);
     const SkPath corner_path =
         SkPath::Rect(SkRect::MakeXYWH(0, 0, corner_radius, corner_radius));
     PaintPath(canvas, corner_path, corner_color_, /*anti_alias=*/false);
   }
-  if (corners.upper_trailing.type == CornerType::kRoundedWithBackground) {
+  if (corners[VisualCorner::kTopRight].type ==
+      CornerType::kRoundedWithBackground) {
     const int corner_radius =
-        corners.upper_trailing.radius.value_or(default_radius_);
+        corners[VisualCorner::kTopRight].radius.value_or(default_radius_);
     const SkPath corner_path = SkPath::Rect(SkRect::MakeXYWH(
         rect.width() - corner_radius, 0, corner_radius, corner_radius));
     PaintPath(canvas, corner_path, corner_color_, /*anti_alias=*/false);
   }
-  if (corners.lower_trailing.type == CornerType::kRoundedWithBackground) {
+  if (corners[VisualCorner::kBottomRight].type ==
+      CornerType::kRoundedWithBackground) {
     const int corner_radius =
-        corners.lower_trailing.radius.value_or(default_radius_);
+        corners[VisualCorner::kBottomRight].radius.value_or(default_radius_);
     const SkPath corner_path = SkPath::Rect(SkRect::MakeXYWH(
         rect.width() - corner_radius, rect.height() - corner_radius,
         corner_radius, corner_radius));
     PaintPath(canvas, corner_path, corner_color_, /*anti_alias=*/false);
   }
-  if (corners.lower_leading.type == CornerType::kRoundedWithBackground) {
+  if (corners[VisualCorner::kBottomLeft].type ==
+      CornerType::kRoundedWithBackground) {
     const int corner_radius =
-        corners.lower_leading.radius.value_or(default_radius_);
+        corners[VisualCorner::kBottomLeft].radius.value_or(default_radius_);
     const SkPath corner_path = SkPath::Rect(SkRect::MakeXYWH(
         0, rect.height() - corner_radius, corner_radius, corner_radius));
     PaintPath(canvas, corner_path, corner_color_, /*anti_alias=*/false);
@@ -236,9 +299,9 @@ void CustomCornersBackground::Paint(gfx::Canvas* canvas,
   if (outline.has_strokes()) {
     cc::PaintFlags stroke_flags;
     stroke_flags.setStrokeWidth(views::Separator::kThickness);
-    SkColor color = GetView().GetColorProvider()->GetColor(outline.color);
-    color = SkColorSetA(color,
-                        base::ClampRound(SkColorGetA(color) * outline.opacity));
+    SkColor color = GetView().GetColorProvider()->GetColor(outline.color.color);
+    color = SkColorSetA(
+        color, base::ClampRound(SkColorGetA(color) * outline.color.opacity));
     stroke_flags.setColor(color);
     stroke_flags.setStyle(cc::PaintFlags::kStroke_Style);
     stroke_flags.setAntiAlias(true);
@@ -340,12 +403,12 @@ void CustomCornersBackground::OnViewThemeChanged(views::View* view) {
 std::optional<gfx::RoundedCornersF>
 CustomCornersBackground::GetRoundedCornerRadii() const {
   // Provided for completeness; this is not used anywhere.
-  const Corners corners = GetMirroredCorners();
+  const VisualCorners corners = GetMirroredCorners();
   return gfx::RoundedCornersF(
-      CornerToRadius(corners.upper_leading, default_radius_),
-      CornerToRadius(corners.upper_trailing, default_radius_),
-      CornerToRadius(corners.lower_trailing, default_radius_),
-      CornerToRadius(corners.lower_leading, default_radius_));
+      CornerToRadius(corners[VisualCorner::kTopLeft], default_radius_),
+      CornerToRadius(corners[VisualCorner::kTopRight], default_radius_),
+      CornerToRadius(corners[VisualCorner::kBottomRight], default_radius_),
+      CornerToRadius(corners[VisualCorner::kBottomLeft], default_radius_));
 }
 
 const views::View& CustomCornersBackground::GetView() const {
@@ -363,12 +426,12 @@ void CustomCornersBackground::SchedulePaintHost() {
   view_->SchedulePaint();
 }
 
-CustomCornersBackground::Corners CustomCornersBackground::GetMirroredCorners()
-    const {
-  Corners corners = corners_;
-  if (base::i18n::IsRTL()) {
-    std::swap(corners.upper_leading, corners.upper_trailing);
-    std::swap(corners.lower_leading, corners.lower_trailing);
+CustomCornersBackground::VisualCorners
+CustomCornersBackground::GetMirroredCorners() const {
+  VisualCorners corners;
+  for (auto i = 0; i < 4; ++i) {
+    const CornerOrientation orientation = static_cast<CornerOrientation>(i);
+    corners[ToVisualCorner(orientation)] = corners_[orientation];
   }
   return corners;
 }

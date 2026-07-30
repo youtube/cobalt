@@ -184,18 +184,21 @@ public class MenuButtonCoordinator extends ToolbarChildButton {
      * Set the underlying MenuButton view. Use only if the MenuButton instance isn't available at
      * construction time, e.g. if it's lazily inflated. This should only be called once, unless
      * switching the active toolbar.
+     *
      * @param menuButton The underlying MenuButton view.
      */
-    public void setMenuButton(MenuButton menuButton) {
-        assert menuButton != null;
+    public void setMenuButton(@Nullable MenuButton menuButton) {
         mMenuButton = menuButton;
 
         if (mChangeProcessor != null) {
             mChangeProcessor.destroy();
+            mChangeProcessor = null;
         }
-        mChangeProcessor =
-                PropertyModelChangeProcessor.create(
-                        mPropertyModel, menuButton, new MenuButtonViewBinder());
+        if (menuButton != null) {
+            mChangeProcessor =
+                    PropertyModelChangeProcessor.create(
+                            mPropertyModel, menuButton, new MenuButtonViewBinder());
+        }
     }
 
     /**

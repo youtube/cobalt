@@ -33,8 +33,6 @@ component("mirroring_service") {
     "rpc_dispatcher.h",
     "rpc_dispatcher_impl.cc",
     "rpc_dispatcher_impl.h",
-    "rtp_stream.cc",
-    "rtp_stream.h",
     "video_capture_client.cc",
     "video_capture_client.h",
   ]
@@ -96,9 +94,6 @@ source_set("unittests") {
     "openscreen_stats_client_unittest.cc",
     "remoting_sender_unittest.cc",
     "rpc_dispatcher_impl_unittest.cc",
-    "rtp_stream_unittest.cc",
-    "value_util.cc",
-    "value_util.h",
     "video_capture_client_unittest.cc",
   ]
 

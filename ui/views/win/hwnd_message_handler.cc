@@ -305,6 +305,9 @@ constexpr auto kTouchDownContextResetTimeout = base::Milliseconds(500);
 // same location as the cursor.
 constexpr int kSynthesizedMouseMessagesTimeDifference = 500;
 
+// True if any browser window is in a menu loop.
+bool g_is_in_native_menu_loop = false;
+
 }  // namespace
 
 // A scoping class that prevents a window from being able to redraw in response
@@ -919,6 +922,11 @@ void HWNDMessageHandler::EndMoveLoop() {
 // static
 bool HWNDMessageHandler::IsInNativeMoveResizeLoop() {
   return UserResizeMoveDetector::InMoveResizeLoop();
+}
+
+// static
+bool HWNDMessageHandler::IsInNativeMenuLoop() {
+  return g_is_in_native_menu_loop;
 }
 
 void HWNDMessageHandler::SendFrameChanged() {
@@ -2055,6 +2063,9 @@ LRESULT HWNDMessageHandler::OnDpiChanged(UINT msg,
 }
 
 void HWNDMessageHandler::OnEnterMenuLoop(BOOL from_track_popup_menu) {
+  // Chrome doesn't have any recursive menus.
+  CHECK(!g_is_in_native_menu_loop);
+  g_is_in_native_menu_loop = true;
   if (menu_depth_++ == 0) {
     delegate_->HandleMenuLoop(true);
   }
@@ -2085,6 +2096,8 @@ LRESULT HWNDMessageHandler::OnEraseBkgnd(HDC dc) {
 }
 
 void HWNDMessageHandler::OnExitMenuLoop(BOOL is_shortcut_menu) {
+  CHECK(g_is_in_native_menu_loop);
+  g_is_in_native_menu_loop = false;
   if (--menu_depth_ == 0) {
     delegate_->HandleMenuLoop(false);
   }
@@ -2588,6 +2601,15 @@ LRESULT HWNDMessageHandler::OnNCCreate(LPCREATESTRUCT lpCreateStruct) {
 }
 
 LRESULT HWNDMessageHandler::OnNCHitTest(const gfx::Point& point) {
+  // If pointer lock with unadjusted movement is active in fullscreen and we
+  // have mouse capture, we want all mouse events to register as client area
+  // events. Returning HTCLIENT prevents Windows from treating clicks near the
+  // window edges (e.g. caption/reveal zones in fullscreen) as non-client clicks
+  // and swallowing them.
+  if (mouse_locked_ && using_wm_input_ && HasCapture() && IsFullscreen()) {
+    return HTCLIENT;
+  }
+
   if (!delegate_->HasNonClientView()) {
     SetMsgHandled(FALSE);
     return 0;

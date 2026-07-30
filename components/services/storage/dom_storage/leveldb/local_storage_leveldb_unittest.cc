@@ -167,7 +167,6 @@ void LocalStorageLevelDBTest::UpdateMapWithMetadata(
   // Read back the map usage metadata from the database.
   ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata all_metadata,
                        database.ReadAllMetadata());
-  EXPECT_EQ(all_metadata.next_map_id, std::nullopt);
   ExpectEqualsMapMetadataSpan(all_metadata.map_metadata,
                               base::span_from_ref(metadata_to_update));
 }
@@ -338,7 +337,6 @@ TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithEmpty) {
   ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata all_metadata,
                        local_storage_leveldb->ReadAllMetadata());
   EXPECT_EQ(all_metadata.map_metadata.size(), 0u);
-  EXPECT_EQ(all_metadata.next_map_id, std::nullopt);
 }
 
 TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithInvalid) {
@@ -356,7 +354,6 @@ TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithInvalid) {
   ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata all_metadata,
                        local_storage_leveldb->ReadAllMetadata());
   EXPECT_EQ(all_metadata.map_metadata.size(), 0u);
-  EXPECT_EQ(all_metadata.next_map_id, std::nullopt);
 }
 
 TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithAccessMetadata) {
@@ -382,7 +379,6 @@ TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithAccessMetadata) {
       },
   };
   ExpectEqualsMapMetadataSpan(all_metadata.map_metadata, kExpectedMapMetadata);
-  EXPECT_EQ(all_metadata.next_map_id, std::nullopt);
 }
 
 TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithWriteMetadata) {
@@ -409,7 +405,6 @@ TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithWriteMetadata) {
       },
   };
   ExpectEqualsMapMetadataSpan(all_metadata.map_metadata, kExpectedMapMetadata);
-  EXPECT_EQ(all_metadata.next_map_id, std::nullopt);
 }
 
 TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithWriteAndAccessMetadata) {
@@ -441,7 +436,6 @@ TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithWriteAndAccessMetadata) {
       },
   };
   ExpectEqualsMapMetadataSpan(all_metadata.map_metadata, kExpectedMapMetadata);
-  EXPECT_EQ(all_metadata.next_map_id, std::nullopt);
 }
 
 // Combine all previous tests into a single test using four storage
@@ -512,7 +506,6 @@ TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithMultipleStorageKeys) {
   };
   ExpectEqualsMapMetadataSpan(all_metadata.map_metadata,
                               kExpectedAllMapMetadata);
-  EXPECT_EQ(all_metadata.next_map_id, std::nullopt);
 }
 
 TEST_F(LocalStorageLevelDBTest, PutMetadataWithEmpty) {
@@ -1057,8 +1050,6 @@ TEST_F(LocalStorageLevelDBTest, UpdateMapsClearsMetadata) {
   // Verify no metadata exists.
   ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata all_metadata,
                        local_storage_leveldb->ReadAllMetadata());
-
-  EXPECT_EQ(all_metadata.next_map_id, std::nullopt);
   EXPECT_EQ(all_metadata.map_metadata.size(), 0u);
 }
 

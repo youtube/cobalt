@@ -130,7 +130,7 @@ class FindTaskController::FindTask final : public GarbageCollected<FindTask> {
       FindResults match_results =
           buffer.FindMatches(search_text_, find_options);
       bool yielded_while_iterating_results = false;
-      for (MatchResultICU match : match_results) {
+      for (MatchResultIcu match : match_results) {
         const EphemeralRangeInFlatTree ephemeral_match_range =
             buffer.RangeFromBufferIndex(match.start,
                                         match.start + match.length);

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import {matcherForOrigin, urlMatchesAllowedOrigin, urlMatchesApiAllowedOrigin, WebviewController, WebviewPersistentState, ZoomAction} from 'chrome://glic/glic.js';
+import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
 import type {CrA11yAnnouncerMessagesSentEvent} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -264,5 +265,37 @@ suite('WebviewZoomTest', () => {
 
     const event = await announcementPromise;
     assertDeepEquals(event.detail.messages, ['Zoom: 125%']);
+  });
+});
+
+suite('GlicThemeTest', () => {
+  setup(() => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'chrome://theme/colors.css?sets=chrome';
+    document.body.appendChild(link);
+  });
+
+  test('ColorsStylesheetRefreshesOnColorProviderChanged', async () => {
+    const updater = ColorChangeUpdater.forDocument();
+
+    // Trigger color provider change callback
+    await updater.onColorProviderChanged();
+
+    // Verify the stylesheet refreshed itself with a version parameter
+    const link = document.querySelector<HTMLLinkElement>(
+        'link[href*="//theme/colors.css"]');
+    assertTrue(!!link);
+    const params =
+        new URLSearchParams(new URL(link.href, location.href).search);
+    assertTrue(params.has('version'));
+    assertEquals(params.get('sets'), 'chrome');
+  });
+
+  teardown(() => {
+    const link = document.querySelector('link[href*="//theme/colors.css"]');
+    if (link) {
+      link.remove();
+    }
   });
 });

@@ -223,6 +223,26 @@ TEST_F(ChildAccountServiceTest, UpdateForceGoogleSafeSearch) {
   ASSERT_FALSE(GetUserPerferences().GetBoolean(
       policy::policy_prefs::kForceGoogleSafeSearch));
 }
+
+TEST_F(ChildAccountServiceTest, GoogleSafeSearchNotForcedAfterSignOut) {
+  // Sign back in as a supervised user.
+  AccountInfo account = identity_test_environment_->MakePrimaryAccountAvailable(
+      kEmail, signin::ConsentLevel::kSignin);
+  supervised_user::UpdateSupervisionStatusForAccount(
+      account, identity_test_environment_->identity_manager(),
+      /*is_subject_to_parental_controls=*/true);
+
+  // User is in transient state, so SafeSearch should be forced.
+  ASSERT_TRUE(GetUserPerferences().GetBoolean(
+      policy::policy_prefs::kForceGoogleSafeSearch));
+
+  // Clear primary account (sign out) while in transient state.
+  identity_test_environment_->ClearPrimaryAccount();
+
+  // SafeSearch should not be forced after signing out.
+  EXPECT_FALSE(GetUserPerferences().GetBoolean(
+      policy::policy_prefs::kForceGoogleSafeSearch));
+}
 #endif
 
 }  // namespace supervised_user

@@ -25,7 +25,7 @@ namespace crypto::hpke {
 
 enum class KemType { kX25519HkdfSha256 };
 enum class KdfType { kHkdfSha256 };
-enum class AeadType { kChaCha20Poly1305, kAes128Gcm };
+enum class AeadType { kChaCha20Poly1305, kAes128Gcm, kAes256Gcm };
 
 struct HpkeParams {
   KemType kem;

@@ -93,9 +93,12 @@ void TestSyncUserSettings::KeepAccountSettingsPrefsOnlyForUsers(
     const std::vector<GaiaId>& available_gaia_ids) {}
 
 UserSelectableTypeSet TestSyncUserSettings::GetSelectedTypes() const {
-  if (service_->GetAccountInfo().IsEmpty()) {
+  if (service_->GetAccountInfo().IsEmpty() && !service_->IsLocalSyncEnabled()) {
     return {};
   }
+
+  // TODO(crbug.com/350494796): remove data types that are not available for
+  // local sync.
   return selected_types_;
 }
 

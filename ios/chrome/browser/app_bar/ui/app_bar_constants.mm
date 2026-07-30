@@ -4,11 +4,25 @@
 
 #import "ios/chrome/browser/app_bar/ui/app_bar_constants.h"
 
-const CGFloat kAppBarHeight = 77;
+#import "ios/chrome/browser/shared/public/features/features.h"
+
+namespace {
+const CGFloat kAppBarHeightDefault = 77;
+const CGFloat kAppBarHeightLandscapeDefault = 69;
+}  // namespace
 
 const CGFloat kAppBarHeightFullscreen = 62;
 
-const CGFloat kAppBarHeightLandscape = 69;
+CGFloat AppBarHeightPortrait() {
+  if (IsAppBarLabelsHidden()) {
+    return kAppBarHeightFullscreen;
+  }
+  return kAppBarHeightDefault;
+}
+
+CGFloat AppBarHeightLandscape() {
+  return kAppBarHeightLandscapeDefault;
+}
 
 NSString* const kAppBarAssistantButtonId = @"kAppBarAssistantButtonId";
 NSString* const kAppBarTabGridButtonIdentifier =

@@ -6,11 +6,12 @@ import 'chrome://webui-test/chromeos/mojo_webui_test_support.js';
 import 'chrome://parent-access/parent_access_ui.js';
 import 'chrome://parent-access/strings.m.js';
 
+import {ParentAccessEvent} from 'chrome://parent-access/parent_access_app.js';
 import {ParentAccessUi} from 'chrome://parent-access/parent_access_ui.js';
 import type {ParentAccessUiHandlerInterface} from 'chrome://parent-access/parent_access_ui.mojom-webui.js';
 import {resetParentAccessHandlerForTest, setParentAccessUiHandlerForTest} from 'chrome://parent-access/parent_access_ui_handler.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 import {clearDocumentBody} from './parent_access_test_utils.js';
 import {TestParentAccessUiHandler} from './test_parent_access_ui_handler.js';
@@ -75,5 +76,30 @@ suite('ParentAccessUiTest', function() {
         'https://somehost.googleapis.com'));
     assertFalse(parentAccessUi.shouldReceiveAuthHeader(
         'https://somehost.googleusercontent.com'));
+  });
+
+  test('TestFocusOnScreenSwitchedAfterLoad', () => {
+    const webview = parentAccessUi.shadowRoot!.querySelector('webview');
+
+    webview!.dispatchEvent(new Event('contentload'));
+    parentAccessUi.dispatchEvent(
+        new CustomEvent(ParentAccessEvent.ON_SCREEN_SWITCHED));
+
+    assertEquals(webview, parentAccessUi.shadowRoot!.activeElement);
+  });
+
+  test('TestFocusOnScreenSwitchedBeforeLoad', () => {
+    const webviewContainer =
+        parentAccessUi.shadowRoot!.querySelector('#webviewDiv');
+    const webview = parentAccessUi.shadowRoot!.querySelector('webview');
+
+    parentAccessUi.dispatchEvent(
+        new CustomEvent(ParentAccessEvent.ON_SCREEN_SWITCHED));
+    const activeElementBeforeLoad = parentAccessUi.shadowRoot!.activeElement;
+    webview!.dispatchEvent(new Event('contentload'));
+    const activeElementAfterLoad = parentAccessUi.shadowRoot!.activeElement;
+
+    assertEquals(webviewContainer, activeElementBeforeLoad);
+    assertEquals(webview, activeElementAfterLoad);
   });
 });

@@ -158,9 +158,8 @@ class IwaInstallerBaseTest : public IsolatedWebAppTest {
                 bundle_id, update_channel, pinned_version))
             .value();
     return std::make_unique<IwaInstaller>(
-        install_options, IwaInstaller::InstallSourceType::kPolicy,
-        profile()->GetURLLoaderFactory(), log, &provider(),
-        future.GetCallback());
+        install_options, IwaInstaller::InstallSourceType::kPolicy, profile(),
+        log, future.GetCallback());
   }
 
   std::unique_ptr<IwaInstaller> CreateIwaInstaller(

@@ -1,0 +1,52 @@
+[
+  {
+    "os": [
+      "linux",
+      "win",
+      "android",
+      "mac"
+    ],
+    "simple_policy_pref_mapping_test": {
+      "pref_name": "proxy_provisioning_domains",
+      "default_value": [],
+      "values_to_test": [
+        [
+          {
+            "pvd_id": "https://api.prod.securegateway.goog:443",
+            "auth_config": {
+              "type": "profile_bearer_token",
+              "scope": "cloud_secure_gateway"
+            },
+            "extra_headers": [
+              {
+                "key": "x-resource-key",
+                "value": "arbitrary-resource-key-value"
+              },
+              {
+                "key": "x-profile-id",
+                "value": "${profile_id}"
+              },
+              {
+                "key": "accept-language",
+                "value": "${accept_language}"
+              }
+            ]
+          }
+        ],
+        [
+          {
+            "pvd_id": "https://api.prod.securegateway.goog:8080",
+            "auth_config": {
+              "type": "none"
+            }
+          }
+        ],
+        [
+          {
+            "pvd_id": "https://unauthenticated.securegateway.goog"
+          }
+        ]
+      ]
+    }
+  }
+]

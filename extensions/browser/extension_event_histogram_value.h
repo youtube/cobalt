@@ -598,6 +598,7 @@ enum HistogramValue {
   INDIGO_PRIVATE_ON_REGENERATE_STARTED = 574,
   DICTATION_PRIVATE_ON_START_STREAM = 575,
   DICTATION_PRIVATE_ON_END_STREAM = 576,
+  DICTATION_PRIVATE_ON_CONTEXT_UPDATE = 577,
   // Last entry: Add new entries above, then run:
   // tools/metrics/histograms/update_extension_histograms.py
   ENUM_BOUNDARY

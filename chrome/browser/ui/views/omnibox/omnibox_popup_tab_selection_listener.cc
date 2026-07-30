@@ -31,7 +31,7 @@ void OmniboxPopupTabSelectionListener::OnTabStripModelChanged(
   // We return early here to prevent this listener from automatically closing
   // the UI.
   if (selection.new_contents &&
-      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2)) {
+      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup)) {
     return;
   }
 

@@ -105,7 +105,7 @@ struct OverflowMenuActionRow: View {
         .labelStyle(.iconOnly)
         .tint(.chromeBlue)
         .accessibilityRemoveTraits(.isSelected)
-        rowIcon
+        rowIcon?.foregroundColor(action.symbolTintColor.map { Color(uiColor: $0) })
         centerTextView
         Spacer()
       }
@@ -123,9 +123,14 @@ struct OverflowMenuActionRow: View {
           newLabelIconView
         }
         Spacer()
-        if let rowIcon = rowIcon {
-          rowIcon
+        if let previewImage = action.previewImage {
+          CircularPreviewContainer(size: previewImage.size.height) {
+            Image(uiImage: previewImage)
+              .resizable()
+              .aspectRatio(contentMode: .fill)
+          }
         }
+        rowIcon?.foregroundColor(action.symbolTintColor.map { Color(uiColor: $0) })
       }
       .padding([.trailing], Self.rowEndPadding)
     }
@@ -213,5 +218,27 @@ struct OverflowMenuActionRow: View {
         }
       }
       .accessibilityIdentifier("overflowRowIPHBadgeIdentifier")
+  }
+}
+
+/// A generic circular container with a 1pt separator-colored border.
+/// It clips its content to a circle.
+struct CircularPreviewContainer<Content: View>: View {
+  var size: CGFloat
+  var content: Content
+
+  init(size: CGFloat, @ViewBuilder content: () -> Content) {
+    self.size = size
+    self.content = content()
+  }
+
+  var body: some View {
+    ZStack {
+      Circle()
+        .stroke(Color(uiColor: .separator), lineWidth: 1)
+      content
+        .clipShape(Circle())
+    }
+    .frame(width: size, height: size)
   }
 }

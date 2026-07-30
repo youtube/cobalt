@@ -82,7 +82,7 @@ class PostSaveCompromisedHelperTest : public testing::Test {
             [password_forms, store = mock_profile_store_.get()](
                 base::WeakPtr<PasswordStoreConsumer> consumer) {
               consumer->OnGetPasswordStoreResultsOrErrorFrom(
-                  store, password_manager::FromPasswordForms(password_forms));
+                  store, FromPasswordForms(password_forms));
             }));
   }
 
@@ -324,7 +324,7 @@ TEST_F(PostSaveCompromisedHelperWithTwoStoreTest,
             results.back().password_issues.insert(
                 {InsecureType::kLeaked, InsecurityMetadata()});
             consumer->OnGetPasswordStoreResultsOrErrorFrom(
-                store, password_manager::FromPasswordForms(std::move(results)));
+                store, FromPasswordForms(std::move(results)));
           }));
   EXPECT_CALL(*account_store(), GetAutofillableLogins)
       .WillOnce(testing::WithArg<0>(
@@ -336,7 +336,7 @@ TEST_F(PostSaveCompromisedHelperWithTwoStoreTest,
             results.back().password_issues.insert(
                 {InsecureType::kLeaked, InsecurityMetadata()});
             consumer->OnGetPasswordStoreResultsOrErrorFrom(
-                store, password_manager::FromPasswordForms(std::move(results)));
+                store, FromPasswordForms(std::move(results)));
           }));
   base::MockCallback<PostSaveCompromisedHelper::BubbleCallback> callback;
   EXPECT_CALL(callback, Run(BubbleType::kNoBubble, _));

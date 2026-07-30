@@ -146,6 +146,10 @@ source_set("filters") {
     ]
   }
 
+  if (media_use_iamf_tools) {
+    deps += [ "//third_party/iamf_tools:iamf_tools_lib" ]
+  }
+
   if (media_use_symphonia) {
     sources += [
       "symphonia_audio_decoder.cc",

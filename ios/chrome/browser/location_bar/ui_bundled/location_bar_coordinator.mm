@@ -591,6 +591,7 @@ struct AIHubBadgeActiveWindowsData : public base::SupportsUserData::Data {
   [self.badgeMediator setActive:active];
   self.mediator.active = active;
   [self.locationBarBadgeCoordinator setActive:active];
+  self.viewController.active = active;
 }
 
 - (void)setTopPosition:(BOOL)topPosition {

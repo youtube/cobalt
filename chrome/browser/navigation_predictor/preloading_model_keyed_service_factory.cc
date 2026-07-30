@@ -51,6 +51,6 @@ std::unique_ptr<KeyedService>
           profile);
   return std::make_unique<PreloadingModelKeyedService>(
       global_state_holder
-          ? &global_state_holder->GetGlobalState().prediction_manager()
+          ? &global_state_holder->GetGlobalState().model_provider()
           : nullptr);
 }

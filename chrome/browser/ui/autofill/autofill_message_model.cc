@@ -12,6 +12,9 @@
 #include "components/grit/components_scaled_resources.h"
 #include "components/messages/android/message_enums.h"
 #include "components/messages/android/message_wrapper.h"
+#include "components/resources/android/theme_resources.h"
+#include "components/strings/grit/components_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace autofill {
 
@@ -82,6 +85,22 @@ AutofillMessageModel::CreateForVirtualCardEnrollFailure(
       std::move(message), Type::kVirtualCardEnrollFailure));
 }
 
+std::unique_ptr<AutofillMessageModel>
+AutofillMessageModel::CreateForPersonalContextFetchingFailure() {
+  std::unique_ptr<messages::MessageWrapper> message =
+      std::make_unique<messages::MessageWrapper>(
+          messages::MessageIdentifier::PERSONAL_CONTEXT_FETCHING_FAILURE);
+  message->SetTitle(
+      l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_PRE_FETCH_ERROR_MESSAGE));
+  message->SetPrimaryButtonText(l10n_util::GetStringUTF16(
+      IDS_AUTOFILL_AI_PRE_FETCH_ERROR_MESSAGE_BUTTON_TEXT));
+  message->SetIconResourceId(ResourceMapper::MapToJavaDrawableId(
+      IDR_ANDROID_AUTOFILL_ID_CHROME_PRODUCT));
+
+  return base::WrapUnique(new AutofillMessageModel(
+      std::move(message), Type::kPersonalContextFetchingFailure));
+}
+
 std::string_view AutofillMessageModel::TypeToString(Type message_type) {
   switch (message_type) {
     case Type::kUnspecified:
@@ -94,6 +113,8 @@ std::string_view AutofillMessageModel::TypeToString(Type message_type) {
       return "EntitySaveUpdateFlow";
     case Type::kAddressSaveUpdateFlow:
       return "AddressSaveUpdateFlow";
+    case Type::kPersonalContextFetchingFailure:
+      return "PersonalContextFetchingFailure";
   }
 }
 

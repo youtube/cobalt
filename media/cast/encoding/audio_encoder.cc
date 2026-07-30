@@ -24,6 +24,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/numerics/byte_conversions.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/task/bind_post_task.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
@@ -72,7 +73,7 @@ class AudioEncoder::ImplBase
            int num_channels,
            int sampling_rate,
            int samples_per_frame,
-           int bitrate,
+           uint32_t bitrate,
            FrameEncodedCallback callback)
       : cast_environment_(cast_environment),
         codec_(codec),
@@ -106,7 +107,7 @@ class AudioEncoder::ImplBase
 
   // Returns the current bitrate that the audio encoder is configured to use. If
   // the encoder doesn't support getting the bitrate, returns 0.
-  virtual int GetBitrate() const { return 0; }
+  virtual uint32_t GetBitrate() const { return 0; }
 
   void EncodeAudio(std::unique_ptr<AudioBus> audio_bus,
                    const base::TimeTicks recorded_time) {
@@ -218,7 +219,7 @@ class AudioEncoder::ImplBase
   const AudioCodec codec_;
   const int num_channels_;
   const int samples_per_frame_;
-  const int bitrate_;
+  const uint32_t bitrate_;
   const FrameEncodedCallback callback_;
 
   // Subclass' ctor is expected to set this to STATUS_INITIALIZED.
@@ -260,7 +261,7 @@ class AudioEncoder::OpusImpl final : public AudioEncoder::ImplBase {
   OpusImpl(const scoped_refptr<CastEnvironment>& cast_environment,
            int num_channels,
            int sampling_rate,
-           int bitrate,
+           uint32_t bitrate,
            FrameEncodedCallback callback)
       : ImplBase(cast_environment,
                  AudioCodec::kOpus,
@@ -291,21 +292,19 @@ class AudioEncoder::OpusImpl final : public AudioEncoder::ImplBase {
     }
     ImplBase::operational_status_ = STATUS_INITIALIZED;
 
-    if (bitrate <= 0) {
-      // Note: As of 2013-10-31, the encoder in "auto bitrate" mode would use a
-      // variable bitrate up to 102kbps for 2-channel, 48 kHz audio and a 10 ms
-      // frame size.  The opus library authors may, of course, adjust this in
-      // later versions.
-      bitrate = OPUS_AUTO;
+    int opus_bitrate = OPUS_AUTO;
+    if (bitrate > 0) {
+      opus_bitrate = base::checked_cast<int>(bitrate);
     }
-    CHECK_EQ(opus_encoder_ctl(opus_encoder_.get(), OPUS_SET_BITRATE(bitrate)),
-             OPUS_OK);
+    CHECK_EQ(
+        opus_encoder_ctl(opus_encoder_.get(), OPUS_SET_BITRATE(opus_bitrate)),
+        OPUS_OK);
   }
 
   OpusImpl(const OpusImpl&) = delete;
   OpusImpl& operator=(const OpusImpl&) = delete;
 
-  int GetBitrate() const override {
+  uint32_t GetBitrate() const override {
     int bitrate = 0;
     CHECK_EQ(
         opus_encoder_ctl(opus_encoder_.get(),
@@ -314,7 +313,7 @@ class AudioEncoder::OpusImpl final : public AudioEncoder::ImplBase {
                          // provided type is not at least a 32-bit integer.
                          UNSAFE_BUFFERS(OPUS_GET_BITRATE(&bitrate))),
         OPUS_OK);
-    return bitrate;
+    return base::checked_cast<uint32_t>(bitrate);
   }
 
  private:
@@ -388,7 +387,7 @@ class AudioEncoder::AppleAacImpl final : public AudioEncoder::ImplBase {
   AppleAacImpl(const scoped_refptr<CastEnvironment>& cast_environment,
                int num_channels,
                int sampling_rate,
-               int bitrate,
+               uint32_t bitrate,
                FrameEncodedCallback callback)
       : ImplBase(cast_environment,
                  AudioCodec::kAAC,
@@ -430,7 +429,7 @@ class AudioEncoder::AppleAacImpl final : public AudioEncoder::ImplBase {
   // Initializes the audio converter and file. Calls Teardown to destroy any
   // existing state. This is so that Initialize() may be called to setup another
   // converter after a non-resumable interruption.
-  bool Initialize(int sampling_rate, int bitrate) {
+  bool Initialize(int sampling_rate, uint32_t bitrate) {
     // Teardown previous audio converter and file.
     Teardown();
 
@@ -481,8 +480,9 @@ class AudioEncoder::AppleAacImpl final : public AudioEncoder::ImplBase {
     // or compatible with the output sampling rate or channels).
     if (bitrate > 0) {
       prop_size = sizeof(int);
+      int vea_bitrate = base::checked_cast<int>(bitrate);
       if (AudioConverterSetProperty(converter_, kAudioConverterEncodeBitRate,
-                                    prop_size, &bitrate) != noErr) {
+                                    prop_size, &vea_bitrate) != noErr) {
         return false;
       }
     }
@@ -734,7 +734,7 @@ AudioEncoder::AudioEncoder(
     const scoped_refptr<CastEnvironment>& cast_environment,
     int num_channels,
     int sampling_rate,
-    int bitrate,
+    uint32_t bitrate,
     AudioCodec codec,
     FrameEncodedCallback frame_encoded_callback)
     : cast_environment_(cast_environment) {
@@ -781,7 +781,7 @@ base::TimeDelta AudioEncoder::GetFrameDuration() const {
   return impl_->frame_duration();
 }
 
-int AudioEncoder::GetBitrate() const {
+uint32_t AudioEncoder::GetBitrate() const {
   DCHECK_CALLED_ON_VALID_THREAD(insert_thread_checker_);
   if (InitializationResult() != STATUS_INITIALIZED) {
     return 0;
@@ -798,6 +798,12 @@ void AudioEncoder::InsertAudio(std::unique_ptr<AudioBus> audio_bus,
       CastEnvironment::ThreadId::kAudio, FROM_HERE,
       base::BindOnce(&AudioEncoder::ImplBase::EncodeAudio, impl_,
                      std::move(audio_bus), recorded_time));
+}
+
+AudioEncoder::EncodeCallback AudioEncoder::GetAsynchronousEncodeCallback() {
+  return base::BindPostTask(
+      cast_environment_->GetTaskRunner(CastEnvironment::ThreadId::kAudio),
+      base::BindRepeating(&AudioEncoder::ImplBase::EncodeAudio, impl_));
 }
 
 }  // namespace cast

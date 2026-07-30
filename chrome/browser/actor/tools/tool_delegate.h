@@ -135,6 +135,11 @@ class ToolDelegate {
       base::WeakPtr<AutofillSelectionDialogEventHandler> event_handler,
       AutofillSuggestionSelectedCallback callback) = 0;
 
+  using GmailOtpOptInCallback = base::OnceCallback<void(
+      webui::mojom::GmailOtpOptInResultPtr)>;
+  virtual void RequestToShowGmailOtpOptInDialog(
+      GmailOtpOptInCallback callback) = 0;
+
   // During tool execution, the tool becomes blocked on the user's attention.
   // The task still has control of the tab.
   virtual void InterruptFromTool() = 0;

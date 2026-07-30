@@ -54,12 +54,14 @@ class RTCSessionDescriptionRequestImpl final
       ExecutionContext*,
       RTCPeerConnection*,
       V8RTCSessionDescriptionCallback*,
-      V8RTCPeerConnectionErrorCallback*);
+      V8RTCPeerConnectionErrorCallback*,
+      bool is_offer);
 
   RTCSessionDescriptionRequestImpl(ExecutionContext*,
                                    RTCPeerConnection*,
                                    V8RTCSessionDescriptionCallback*,
-                                   V8RTCPeerConnectionErrorCallback*);
+                                   V8RTCPeerConnectionErrorCallback*,
+                                   bool is_offer);
   ~RTCSessionDescriptionRequestImpl() override;
 
   void RequestSucceeded(RTCSessionDescriptionPlatform*) override;
@@ -77,6 +79,7 @@ class RTCSessionDescriptionRequestImpl final
   Member<V8RTCPeerConnectionErrorCallback> error_callback_;
 
   Member<RTCPeerConnection> requester_;
+  const bool is_offer_;
 };
 
 }  // namespace blink

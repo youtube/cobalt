@@ -176,6 +176,10 @@ source_set("impl") {
       "//components/keyed_service/content",
     ]
   }
+
+  if (is_chromeos) {
+    deps += [ "//ash/constants" ]
+  }
 }
 
 if (!is_android) {
@@ -244,6 +248,10 @@ if (!is_android) {
         "//components/soda:test_support",
         "//third_party/blink/public/mojom:mojom_platform",
       ]
+    }
+
+    if (is_chromeos) {
+      deps += [ "//ash/constants" ]
     }
   }
 

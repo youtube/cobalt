@@ -46,9 +46,6 @@ class MetricsReportingChoiceService {
   // kAdvanced, which means that basic metrics reporting is enabled.
   static bool IsBasicMetricsReportingEnabled(const PrefService* local_state);
 
-  // Returns true if kMetricsReportingLevel is set to kAdvanced.
-  static bool IsAdvancedMetricsReportingEnabled(const PrefService* local_state);
-
   // Returns true if the metrics consent restructure feature is enabled.
   static bool IsMetricsConsentRestructureFeatureEnabled(
       const PrefService* local_state);

@@ -839,7 +839,8 @@ class SigninViewControllerSignInBanner
     : public SigninViewControllerBrowserTestBase {
  public:
   SigninViewControllerSignInBanner() {
-    feature_list_.InitAndEnableFeature(switches::kMagiChromeSignInBanner);
+    feature_list_.InitAndEnableFeatureWithParameters(
+        switches::kMagiChromePasskeySignIn, {{"flow_type", "banner"}});
   }
 
   void SetUpOnMainThread() override {
@@ -927,7 +928,8 @@ class SigninViewControllerSignInBannerNoBluetooth
     : public SigninViewControllerBrowserTestBase {
  public:
   SigninViewControllerSignInBannerNoBluetooth() {
-    feature_list_.InitAndEnableFeature(switches::kMagiChromeSignInBanner);
+    feature_list_.InitAndEnableFeatureWithParameters(
+        switches::kMagiChromePasskeySignIn, {{"flow_type", "banner"}});
   }
 
   void SetUpOnMainThread() override {

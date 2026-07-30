@@ -35,6 +35,8 @@ export class DrivePickerHostUntrustedAppElement extends CrLitElement {
     this.listenerIds_ = [
       this.browserProxy_.callbackRouter.showDrivePicker.addListener(
           this.showDrivePicker_.bind(this)),
+      this.browserProxy_.callbackRouter.loadConsentKitUrl.addListener(
+          this.loadConsentKitUrl_.bind(this)),
     ];
   }
 
@@ -71,6 +73,16 @@ export class DrivePickerHostUntrustedAppElement extends CrLitElement {
       } else {
         this.reportError_(DrivePickerError.kUnknown);
       }
+    }
+  }
+
+  private loadConsentKitUrl_(consentKitUrl: string) {
+    const iframe = document.createElement('iframe');
+    iframe.src = consentKitUrl;
+
+    const container = this.shadowRoot.querySelector('#picker-container');
+    if (container) {
+      container.replaceChildren(iframe);
     }
   }
 

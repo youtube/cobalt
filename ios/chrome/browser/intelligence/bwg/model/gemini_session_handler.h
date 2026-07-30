@@ -39,6 +39,9 @@ class Tracker;
 // The settings commands handler used by this session handler.
 @property(nonatomic, weak) id<SettingsCommands> settingsHandler;
 
+// Whether the current session is the first session.
+@property(nonatomic, assign) BOOL isFirstSession;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_BWG_MODEL_GEMINI_SESSION_HANDLER_H_

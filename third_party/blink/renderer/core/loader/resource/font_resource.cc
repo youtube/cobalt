@@ -65,12 +65,11 @@
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
 #endif  // IS_WIN
 
-using ResultOrError =
-    base::expected<blink::FontResource::DecodedResult, blink::String>;
 
 namespace blink {
 
 namespace {
+
 // Durations of font-display periods.
 // https://tabatkins.github.io/specs/css-font-display/#font-display-desc
 // TODO(toyoshim): Revisit short limit value once cache-aware font display is
@@ -78,23 +77,18 @@ namespace {
 constexpr base::TimeDelta kFontLoadWaitShort = base::Milliseconds(100);
 constexpr base::TimeDelta kFontLoadWaitLong = base::Milliseconds(3000);
 
-base::expected<FontResource::DecodedResult, String> DecodeFont(
-    SegmentedBuffer* buffer) {
+base::expected<DecodedWebFont, String> DecodeFont(SegmentedBuffer* buffer) {
   if (buffer->empty()) {
     // We don't have any data to decode. Just return an empty error string.
     return base::unexpected("");
   }
-  WebFontDecoder decoder;
   auto decode_start_time = base::TimeTicks::Now();
-  sk_sp<SkTypeface> typeface = decoder.Decode(buffer);
+  base::expected<DecodedWebFont, String> result =
+      DecodedWebFont::Create(buffer);
   base::UmaHistogramMicrosecondsTimes(
       "Blink.Fonts.BackgroundDecodeTime",
       base::TimeTicks::Now() - decode_start_time);
-  if (typeface) {
-    return FontResource::DecodedResult(std::move(typeface),
-                                       decoder.DecodedSize());
-  }
-  return base::unexpected(decoder.GetErrorString());
+  return result;
 }
 
 scoped_refptr<base::SequencedTaskRunner> GetFontDecodingTaskRunner() {
@@ -144,7 +138,8 @@ class FontResource::BackgroundFontProcessor final
       scoped_refptr<base::SequencedTaskRunner> background_task_runner,
       base::WeakPtr<BackgroundFontProcessor> weak_this);
 
-  void OnDecodeComplete(ResultOrError result_or_error, SegmentedBuffer data);
+  void OnDecodeComplete(base::expected<DecodedWebFont, String> result_or_error,
+                        SegmentedBuffer data);
 
   network::mojom::URLResponseHeadPtr head_;
   std::optional<mojo_base::BigBuffer> cached_metadata_buffer_;
@@ -213,7 +208,7 @@ void FontResource::BackgroundFontProcessor::DecodeOnBackgroundThread(
     SegmentedBuffer data,
     scoped_refptr<base::SequencedTaskRunner> background_task_runner,
     base::WeakPtr<BackgroundFontProcessor> weak_this) {
-  base::expected<DecodedResult, String> result_or_error = DecodeFont(&data);
+  base::expected<DecodedWebFont, String> result_or_error = DecodeFont(&data);
   PostCrossThreadTask(
       *background_task_runner, FROM_HERE,
       CrossThreadBindOnce(
@@ -222,7 +217,7 @@ void FontResource::BackgroundFontProcessor::DecodeOnBackgroundThread(
 }
 
 void FontResource::BackgroundFontProcessor::OnDecodeComplete(
-    base::expected<DecodedResult, String> result_or_error,
+    base::expected<DecodedWebFont, String> result_or_error,
     SegmentedBuffer data) {
   DCHECK(background_task_runner_->RunsTasksInCurrentSequence());
   client_->PostTaskToMainThread(CrossThreadBindOnce(
@@ -313,19 +308,21 @@ const FontCustomPlatformData* FontResource::GetCustomFontData() {
     return font_data_;
   }
   if (Data()) {
-    if (background_decode_result_or_error_) {
-      if (background_decode_result_or_error_->has_value()) {
+    if (background_decode_result_.has_value()) {
+      if (background_decode_result_->decoded_size > 0) {
         font_data_ = FontCustomPlatformData::Create(
-            std::move((*background_decode_result_or_error_)->sk_typeface),
-            (*background_decode_result_or_error_)->decoded_size);
+            std::move(background_decode_result_->sk_typeface),
+            background_decode_result_->decoded_size);
       } else {
-        ots_parsing_message_ = background_decode_result_or_error_->error();
+        auto decode_start_time = base::TimeTicks::Now();
+        font_data_ =
+            FontCustomPlatformData::Create(Data(), ots_parsing_message_);
+        base::UmaHistogramMicrosecondsTimes(
+            "Blink.Fonts.DecodeTime",
+            base::TimeTicks::Now() - decode_start_time);
       }
     } else {
-      auto decode_start_time = base::TimeTicks::Now();
-      font_data_ = FontCustomPlatformData::Create(Data(), ots_parsing_message_);
-      base::UmaHistogramMicrosecondsTimes(
-          "Blink.Fonts.DecodeTime", base::TimeTicks::Now() - decode_start_time);
+      ots_parsing_message_ = background_decode_result_.error();
     }
   }
 
@@ -442,8 +439,8 @@ FontResource::MaybeCreateBackgroundResponseProcessorFactory() {
 }
 
 void FontResource::OnBackgroundDecodeFinished(
-    base::expected<DecodedResult, String> result_or_error) {
-  background_decode_result_or_error_ = std::move(result_or_error);
+    base::expected<DecodedWebFont, String> result_or_error) {
+  background_decode_result_ = std::move(result_or_error);
 }
 
 void FontResource::Trace(Visitor* visitor) const {

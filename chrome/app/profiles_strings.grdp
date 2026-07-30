@@ -1257,6 +1257,17 @@
       Yes, I'm in
     </message>
 
+    <!-- Feature Showcase - Themes and Customization -->
+    <message name="IDS_FEATURE_SHOWCASE_THEMES_SUBTITLE" desc="This is the subtitle for the customization screen, listing examples like 'themes' and 'dark mode'. (CHAR LIMIT = 60)">
+      Customize your browser with options like themes and dark mode.
+    </message>
+    <message name="IDS_FEATURE_SHOWCASE_THEMES_APPLY_THEME" desc="Label for the button to apply a theme to the browser. It is a verb-based action that initiates the visual change. Ensure 'Apply' is translated as a functional command. (CHAR LIMIT = 20)">
+      Apply theme
+    </message>
+    <message name="IDS_FEATURE_SHOWCASE_THEMES_NO_THANKS" desc="Label for a button that dismisses the option to personalize the browser. (CHAR LIMIT = 20)">
+      No thanks
+    </message>
+
     <!-- Signout Confirmation Dialog Desktop -->
     <message name="IDS_SIGNOUT_CONFIRMATION_EXTENSIONS_SECTION_TITLE" desc="Title of the Extensions section in the Signout Confirmation dialog which allows users to remove extensions linked to their account when signing out.">
       {ACCOUNT_EXTENSIONS_COUNT, plural,
@@ -1364,5 +1375,29 @@
     </message>
     <message name="IDS_SIGN_IN_BENEFITS_WITHOUT_BOOKMARKS_AND_EXTENSIONS_IPH_TEXT" desc="Text of the IPH bubble announcing benefits for users who signed in before the sync-to-signin migration, not mentioning bookmarks and extensions because they require an explicit sign in.">
       While you're signed in, you can use the themes, settings, and more saved in your Google Account on all your devices
+    </message>
+    <!-- Sign in on your phone (QR code) strings  -->
+    <if expr="not use_titlecase">
+      <message name="IDS_AVATAR_BUTTON_SIGNIN_ON_PHONE" desc="Text on the avatar pill expanding while the QR code bubble is showing, which will let the user sign in on their phone.">
+        Sign in on phone?
+      </message>
+    </if>
+    <if expr="use_titlecase">
+      <message name="IDS_AVATAR_BUTTON_SIGNIN_ON_PHONE" desc="Text on the avatar pill expanding while the QR code bubble is showing, which will let the user sign in on their phone.">
+        Sign In on Phone?
+      </message>
+    </if>
+    <if expr="not use_titlecase">
+      <message name="IDS_PROFILE_MENU_SIGNIN_ON_PHONE_BUTTON_LABEL" desc="Text of the Profile Menu button that opens the QR code bubble, which will let the user sign in on their phone.">
+        Sign in on your phone
+      </message>
+    </if>
+    <if expr="use_titlecase">
+      <message name="IDS_PROFILE_MENU_SIGNIN_ON_PHONE_BUTTON_LABEL" desc="Text of the Profile Menu button that opens the QR code bubble, which will let the user sign in on their phone.">
+        Sign In on Your Phone
+      </message>
+    </if>
+    <message name="IDS_QR_CODE_BUBBLE_SIGNIN_ON_PHONE_SUBTITLE" desc="Subtitle of the QR Code bubble showing a code for the user to sign in on their phone.">
+      To pick up where you left off, sign in to the same account on both devices
     </message>
 </grit-part>

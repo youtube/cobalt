@@ -250,6 +250,7 @@ export interface SyncBrowserProxy {
   pauseSync(): void;
 
   recordSigninPendingOffered(): void;
+  recordSigninOffered(accessPoint: ChromeSigninAccessPoint): void;
   // </if>
 
   /**
@@ -398,6 +399,10 @@ export class SyncBrowserProxyImpl implements SyncBrowserProxy {
 
   recordSigninPendingOffered() {
     chrome.send('RecordSigninPendingOffered');
+  }
+
+  recordSigninOffered(accessPoint: ChromeSigninAccessPoint) {
+    chrome.send('RecordSigninOffered', [accessPoint]);
   }
   // </if>
 

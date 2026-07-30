@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "ash/constants/ash_extension_constants.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
@@ -22,9 +23,9 @@
 #include "chrome/browser/extensions/component_loader.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "chrome/test/base/ash/javascript_browser_test.h"
 #include "chrome/test/base/test_switches.h"
+#include "content/public/browser/browser_accessibility_state.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test_utils.h"
 #include "extensions/browser/background_script_executor.h"
@@ -37,6 +38,7 @@
 #include "extensions/browser/process_manager.h"
 #include "extensions/browser/service_worker/service_worker_host.h"
 #include "extensions/browser/service_worker/service_worker_test_utils.h"
+#include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
 #include "ui/base/ime/ash/extension_ime_util.h"
 
@@ -62,6 +64,8 @@ ExtensionJSBrowserTest::~ExtensionJSBrowserTest() = default;
 
 void ExtensionJSBrowserTest::SetUpOnMainThread() {
   JavaScriptBrowserTest::SetUpOnMainThread();
+  content::BrowserAccessibilityState::GetInstance()
+      ->SetActivationFromPlatformEnabled(true);
 
   // Set up coverage collection.
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();

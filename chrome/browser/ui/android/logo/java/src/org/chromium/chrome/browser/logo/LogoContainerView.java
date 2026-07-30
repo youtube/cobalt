@@ -47,6 +47,10 @@ public class LogoContainerView extends FrameLayout {
         }
     }
 
+    public void setNightMode(boolean isNightMode) {
+        mLogoView.setNightMode(isNightMode);
+    }
+
     public void endAnimationsForTesting() {
         mLogoView.endAnimationsForTesting(); // IN-TEST
     }

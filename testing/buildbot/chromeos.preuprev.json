@@ -27,7 +27,8 @@
         "cros_ctp_suite_name": "chrome-uprev-hw",
         "cros_test_max_in_shard": 40,
         "cros_test_names_exclude_from_file": [
-          "chromeos/tast_control_disabled_tests.txt"
+          "chromeos/tast_control_disabled_tests.txt",
+          "chromeos/tast_control_flaky_tests.txt"
         ],
         "cros_test_tags": [
           "group:mainline",
@@ -97,7 +98,8 @@
         "cros_model": "kano",
         "cros_test_max_in_shard": 40,
         "cros_test_names_exclude_from_file": [
-          "chromeos/tast_control_disabled_tests.txt"
+          "chromeos/tast_control_disabled_tests.txt",
+          "chromeos/tast_control_flaky_tests.txt"
         ],
         "cros_test_tags": [
           "group:mainline",
@@ -164,7 +166,8 @@
         "cros_ctp_suite_name": "chrome-uprev-hw",
         "cros_test_max_in_shard": 20,
         "cros_test_names_exclude_from_file": [
-          "chromeos/tast_control_disabled_tests.txt"
+          "chromeos/tast_control_disabled_tests.txt",
+          "chromeos/tast_control_flaky_tests.txt"
         ],
         "cros_test_tags": [
           "group:mainline",
@@ -231,7 +234,8 @@
         "cros_ctp_suite_name": "chrome-uprev-hw",
         "cros_test_max_in_shard": 40,
         "cros_test_names_exclude_from_file": [
-          "chromeos/tast_control_disabled_tests.txt"
+          "chromeos/tast_control_disabled_tests.txt",
+          "chromeos/tast_control_flaky_tests.txt"
         ],
         "cros_test_tags": [
           "group:mainline",
@@ -302,7 +306,8 @@
         "cros_ctp_suite_name": "chrome-uprev-hw",
         "cros_test_max_in_shard": 40,
         "cros_test_names_exclude_from_file": [
-          "chromeos/tast_control_disabled_tests.txt"
+          "chromeos/tast_control_disabled_tests.txt",
+          "chromeos/tast_control_flaky_tests.txt"
         ],
         "cros_test_tags": [
           "group:mainline",

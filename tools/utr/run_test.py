@@ -152,6 +152,20 @@ class ParseArgsTest(unittest.TestCase):
 
     argv = [
         '-p',
+        'dawn',
+        '-B',
+        'bucket',
+        '-b',
+        'builder',
+        '-t',
+        'some_test',
+        'compile',
+    ]
+    args = run.parse_args(argv)
+    self.assertEqual(args.project, 'dawn')
+
+    argv = [
+        '-p',
         'chromium',
         '-B',
         'bucket',
@@ -234,6 +248,21 @@ class ParseArgsTest(unittest.TestCase):
     # Accept dimension value with =.
     args = run.parse_args(argv)
     self.assertEqual(args.dimensions, ['foo=bar=baz'])
+
+  def testCheckoutDir(self):
+    argv = [
+        '--checkout-dir',
+        'third_party/dawn',
+        '-B',
+        'bucket',
+        '-b',
+        'builder',
+        '-t',
+        'some_test',
+        'compile',
+    ]
+    args = run.parse_args(argv)
+    self.assertEqual(args.checkout_dir, run.pathlib.Path('third_party/dawn'))
 
 
 if __name__ == '__main__':

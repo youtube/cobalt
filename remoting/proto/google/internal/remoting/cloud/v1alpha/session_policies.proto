@@ -64,4 +64,8 @@ message SessionPolicies {
   // Allow host-side WebAuthn requests to be handled by the client browser.
   // Defaults to true.
   optional bool allow_web_authn_forwarding = 9;
+
+  // Allow host-side Gnubby (Security Key) requests to be handled by the client
+  // browser. Defaults to true.
+  optional bool allow_gnubby_forwarding = 10;
 }

@@ -769,6 +769,7 @@ SelectorChecker::FeaturelessMatch SelectorChecker::MatchShadowHost(
     case CSSSelector::kPseudoSearchText:
     case CSSSelector::kPseudoPickerIcon:
     case CSSSelector::kPseudoPicker:
+    case CSSSelector::kPseudoSelectListbox:
     case CSSSelector::kPseudoSelection:
     case CSSSelector::kPseudoSingleButton:
     case CSSSelector::kPseudoStart:
@@ -830,7 +831,7 @@ SelectorChecker::FeaturelessMatch SelectorChecker::MatchShadowHost(
     case CSSSelector::kPseudoToolFormActive:
     case CSSSelector::kPseudoToolSubmitActive:
     case CSSSelector::kPseudoTriggerLink:
-    case CSSSelector::kPseudoUnboundedElementInactive:
+    case CSSSelector::kPseudoUnbounded:
     case CSSSelector::kPseudoViewTransition:
     case CSSSelector::kPseudoViewTransitionGroup:
     case CSSSelector::kPseudoViewTransitionGroupChildren:
@@ -842,6 +843,8 @@ SelectorChecker::FeaturelessMatch SelectorChecker::MatchShadowHost(
     case CSSSelector::kPseudoScrollMarkerGroup:
     case CSSSelector::kPseudoScrollButton:
     case CSSSelector::kPseudoOverscrollAreaParent:
+    case CSSSelector::kPseudoSelectContainsInput:
+    case CSSSelector::kPseudoOverscrollBackdrop:
     case CSSSelector::kPseudoSelectHasSlottedButton:
       // These pseudos are not allowed to match featureless elements. When
       // adding new pseudos here, they would typically be allowed if they are
@@ -2498,6 +2501,12 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
       }
       return selector.MatchNth(NthIndexCache::NthLastOfTypeIndex(element));
     }
+    case CSSSelector::kPseudoSelectContainsInput:
+      DCHECK(RuntimeEnabledFeatures::FilterableSelectEnabled());
+      if (auto* select = DynamicTo<HTMLSelectElement>(element)) {
+        return select->NumDescendantInputs() > 0;
+      }
+      return false;
     case CSSSelector::kPseudoSelectHasSlottedButton:
       if (auto* select = DynamicTo<HTMLSelectElement>(element)) {
         return select->SlottedButton();
@@ -2534,6 +2543,11 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
         return form_element->MatchesToolFormActivePseudoClass();
       }
       return false;
+    case CSSSelector::kPseudoUnbounded: {
+      DCHECK(RuntimeEnabledFeatures::UnboundedElementEnabled());
+      auto* html_element = DynamicTo<HTMLElement>(element);
+      return html_element && html_element->IsUnboundedElementActive();
+    }
     case CSSSelector::kPseudoToolSubmitActive:
       if (auto* form_control_element =
               DynamicTo<HTMLFormControlElement>(element)) {
@@ -3141,14 +3155,7 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
     case CSSSelector::kPseudoSpatialNavigationFocus:
       DCHECK(is_ua_rule_);
       return MatchesSpatialNavigationFocusPseudoClass(element);
-    case CSSSelector::kPseudoUnboundedElementInactive: {
-      DCHECK(is_ua_rule_);
-      DCHECK(RuntimeEnabledFeatures::UnboundedElementEnabled());
-      auto* html_element = DynamicTo<HTMLElement>(element);
-      return html_element &&
-             html_element->FastHasAttribute(html_names::kUnboundedAttr) &&
-             !html_element->IsUnboundedElementActive();
-    }
+
     case CSSSelector::kPseudoHasDatalist:
       DCHECK(is_ua_rule_);
       return MatchesHasDatalistPseudoClass(element);
@@ -3338,6 +3345,10 @@ bool SelectorChecker::CheckPseudoElement(const SelectorCheckingContext& context,
       } else {
         return false;
       }
+    case CSSSelector::kPseudoSelectListbox:
+      DCHECK(RuntimeEnabledFeatures::FilterableSelectEnabled());
+      return MatchesUAShadowElement(element,
+                                    shadow_element_names::kSelectListbox);
     case CSSSelector::kPseudoPlaceholder:
       return MatchesUAShadowElement(
           element, shadow_element_names::kPseudoInputPlaceholder);

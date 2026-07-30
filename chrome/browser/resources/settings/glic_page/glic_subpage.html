@@ -376,6 +376,15 @@
           </div>
         </cr-collapse>
       </div>
+      <template is="dom-if" if="[[headlessCaptionsEnabled_]]" restamp>
+        <settings-toggle-button class="hr"
+            id="mediaUnderstandingToggle"
+            pref="{{prefs.glic.media_understanding_enabled}}"
+            label="$i18n{glicMediaUnderstandingToggle}"
+            sub-label-with-link="[[i18nAdvanced('glicMediaUnderstandingToggleSublabel')]]"
+            on-sub-label-link-clicked="onMediaUnderstandingToggleLearnMoreClick_">
+        </settings-toggle-button>
+      </template>
       <template is="dom-if" if="[[actorLoginFederatedLoginSupportEnabled_]]"
           restamp>
         <cr-link-row id="actorLoginPermissionsButton" class="hr"

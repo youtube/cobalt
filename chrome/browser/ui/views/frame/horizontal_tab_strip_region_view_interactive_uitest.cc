@@ -9,14 +9,12 @@
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/frame/window_frame_util.h"
 #include "chrome/browser/ui/layout_constants.h"
-#include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/tabs/new_tab_button.h"
-#include "chrome/browser/ui/views/tabs/tab_search_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
@@ -214,16 +212,12 @@ IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewBrowserTest,
                        DefaultTabSearchButtonIsEndAligned) {
   if (tabs::GetTabSearchPosition(browser()) ==
       tabs::TabSearchPosition::kLeadingHorizontalTabstrip) {
-    // The TabSearchButton is calculated as controls padding away from the
+    // The tab search button is calculated as controls padding away from the
     // first tab (not including bottom corner radius)
     int tab_search_button_expected_end =
         tab_strip_region_view()->tab_strip()->x() +
         TabStyle::Get()->GetBottomCornerRadius() -
-        GetLayoutConstant(LayoutConstant::kTabStripPadding);
-    if (base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton)) {
-      tab_search_button_expected_end -=
-          GetLayoutConstant(LayoutConstant::kTabStripPadding);
-    }
+        (2 * GetLayoutConstant(LayoutConstant::kTabStripPadding));
 
     EXPECT_EQ(tab_search_button()->bounds().right(),
               tab_search_button_expected_end);

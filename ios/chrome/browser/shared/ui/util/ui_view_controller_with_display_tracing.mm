@@ -443,9 +443,7 @@ base::TimeTicks g_possibleGestureTimestamp;
                                 isLowLatency:(BOOL)isLowLatency {
   [self endCurrentPhaseIfNeeded];
   bool shouldRecordGestureLatency =
-      _currentGesture && !g_possibleGestureTimestamp.is_null() /*&&
-                         base::ShouldRecordSubsampledMetric(0.01)*/
-      ;
+      _currentGesture && !g_possibleGestureTimestamp.is_null();
 
   if ((_displayTracingOptions & UIViewControllerDisplayTracingOptionDisplay) ||
       shouldRecordGestureLatency) {

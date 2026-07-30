@@ -1,0 +1,43 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/rust/rust_static_library.gni")
+import("//testing/test.gni")
+
+rust_static_library("reading_mode_metrics_rust") {
+  crate_root = "reading_mode_metrics.rs"
+  sources = [ crate_root ]
+  cxx_bindings = [ crate_root ]
+  allow_unsafe = true
+  deps = [ "//third_party/rust/cxx/v1:lib" ]
+}
+
+source_set("lib") {
+  sources = [
+    "reading_mode_metrics_service.cc",
+    "reading_mode_metrics_service.h",
+  ]
+
+  deps = [
+    ":reading_mode_metrics_rust",
+    "//chrome/common/read_anything:mojo_bindings",
+    "//mojo/public/cpp/bindings",
+    "//ui/accessibility",
+  ]
+}
+
+test("reading_mode_metrics_unittests") {
+  sources = [ "reading_mode_metrics_service_unittest.cc" ]
+
+  deps = [
+    ":lib",
+    ":reading_mode_metrics_rust",
+    "//base",
+    "//base/test:run_all_unittests",
+    "//base/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//ui/accessibility",
+  ]
+}

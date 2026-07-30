@@ -6,10 +6,5 @@ CONSOLE WARNING: XSLTProcessor and XSLT Processing Instructions have been deprec
 SOURCE XML: &lt;&lt;&lt;&amp;тест&amp;&gt;&gt;&gt;</pre>
 </body>
 
+XML viewer in iframe: false
 
-
---------
-Frame: '<!--framePath //<!--frame0-->-->'
---------
-CHARACTERS IN XSLT: <<<&тест&>>>
-SOURCE XML: <<<&тест&>>>

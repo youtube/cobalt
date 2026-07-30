@@ -11,12 +11,12 @@
 namespace private_verification_tokens {
 
 PrivateVerificationTokensPublicKey::PrivateVerificationTokensPublicKey(
-    std::string etld_plus_one,
+    url::Origin issuer,
     std::vector<uint8_t> public_key,
     uint32_t key_id,
     base::Time expiration,
     uint32_t version)
-    : etld_plus_one_(std::move(etld_plus_one)),
+    : issuer_(std::move(issuer)),
       public_key_(std::move(public_key)),
       key_id_(key_id),
       expiration_(expiration),
@@ -39,8 +39,8 @@ PrivateVerificationTokensPublicKey::operator=(
 PrivateVerificationTokensPublicKey::~PrivateVerificationTokensPublicKey() =
     default;
 
-const std::string& PrivateVerificationTokensPublicKey::etld_plus_one() const {
-  return etld_plus_one_;
+const url::Origin& PrivateVerificationTokensPublicKey::issuer() const {
+  return issuer_;
 }
 
 const std::vector<uint8_t>& PrivateVerificationTokensPublicKey::public_key()

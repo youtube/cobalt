@@ -26,6 +26,7 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -43,6 +44,7 @@ import org.robolectric.shadows.ShadowLooper;
 import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.chrome.R.string;
 import org.chromium.chrome.browser.actor.ui.ActorUiTabController.UiTabState;
 import org.chromium.chrome.browser.actor.ui.TabIndicatorStatus;
 import org.chromium.chrome.browser.tab.MediaState;
@@ -247,6 +249,28 @@ public class TabVerticalViewBinderUnitTest {
 
         mCloseButton.performClick();
         verify(mockCloseListener).run(any(View.class), eq(123), any());
+    }
+
+    @Test
+    @SmallTest
+    public void testBindActionButtonDescription() {
+        mModel.set(
+                TabProperties.ACTION_BUTTON_DESCRIPTION_TEXT_RESOLVER,
+                (context) -> "Close Google tab");
+        TabVerticalViewBinder.bindTab(
+                mModel, mItemView, TabProperties.ACTION_BUTTON_DESCRIPTION_TEXT_RESOLVER);
+
+        assertEquals("Close Google tab", mCloseButton.getContentDescription());
+    }
+
+    @Test
+    @SmallTest
+    public void testBindAccessibilityDelegate() {
+        View.AccessibilityDelegate mockDelegate = mock(View.AccessibilityDelegate.class);
+        mModel.set(TabProperties.ACCESSIBILITY_DELEGATE, mockDelegate);
+        TabVerticalViewBinder.bindTab(mModel, mItemView, TabProperties.ACCESSIBILITY_DELEGATE);
+
+        assertEquals(mockDelegate, mItemView.getAccessibilityDelegate());
     }
 
     @Test
@@ -574,6 +598,59 @@ public class TabVerticalViewBinderUnitTest {
         ShadowLooper.idleMainLooper(
                 TabVerticalViewBinder.CHEVRON_ANIMATION_DURATION_MS, TimeUnit.MILLISECONDS);
         assertEquals(180f, expandChevron.getRotation(), 0.0f);
+    }
+
+    @Test
+    @SmallTest
+    public void testTabGroupHeaderAccessibilityDelegate() {
+        Activity activity = Robolectric.buildActivity(Activity.class).setup().get();
+        ViewGroup headerView =
+                (ViewGroup)
+                        LayoutInflater.from(activity)
+                                .inflate(R.layout.vertical_tab_group_header, null, false);
+
+        // Initially collapsed = true.
+        mModel.set(TabProperties.IS_COLLAPSED, true);
+        TabVerticalViewBinder.bindTabGroupHeader(mModel, headerView, TabProperties.IS_COLLAPSED);
+
+        // Get the accessibility delegate.
+        View.AccessibilityDelegate delegate = headerView.getAccessibilityDelegate();
+        assertNotNull("Accessibility delegate should be set", delegate);
+
+        AccessibilityNodeInfo nodeInfo = AccessibilityNodeInfo.obtain();
+        delegate.onInitializeAccessibilityNodeInfo(headerView, nodeInfo);
+
+        // Verify action click description is "Expand section".
+        boolean hasExpandAction = false;
+        String expandLabel = activity.getString(string.accessibility_expand_section);
+        for (AccessibilityNodeInfo.AccessibilityAction action : nodeInfo.getActionList()) {
+            if (action.getId() == AccessibilityNodeInfo.ACTION_CLICK) {
+                assertEquals(expandLabel, action.getLabel());
+                hasExpandAction = true;
+            }
+        }
+        assertTrue("Should contain expand click action", hasExpandAction);
+
+        // Toggle to expanded = false.
+        mModel.set(TabProperties.IS_COLLAPSED, false);
+        TabVerticalViewBinder.bindTabGroupHeader(mModel, headerView, TabProperties.IS_COLLAPSED);
+
+        delegate = headerView.getAccessibilityDelegate();
+        assertNotNull("Accessibility delegate should not be null after model update", delegate);
+
+        nodeInfo = AccessibilityNodeInfo.obtain();
+        delegate.onInitializeAccessibilityNodeInfo(headerView, nodeInfo);
+
+        // Verify action click description updates to "Collapse section".
+        boolean hasCollapseAction = false;
+        String collapseLabel = activity.getString(string.accessibility_collapse_section);
+        for (AccessibilityNodeInfo.AccessibilityAction action : nodeInfo.getActionList()) {
+            if (action.getId() == AccessibilityNodeInfo.ACTION_CLICK) {
+                assertEquals(collapseLabel, action.getLabel());
+                hasCollapseAction = true;
+            }
+        }
+        assertTrue("Should contain collapse click action", hasCollapseAction);
     }
 
     @Test

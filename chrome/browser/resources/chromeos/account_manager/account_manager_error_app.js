@@ -37,7 +37,7 @@ Polymer({
   },
 
   /** @override */
-  ready() {
+  ready: function() {
     this.errorTitle_ =
         loadTimeData.getString('secondaryAccountsDisabledErrorTitle');
     this.errorMessage_ =
@@ -46,7 +46,7 @@ Polymer({
   },
 
   /** @private */
-  closeDialog_() {
+  closeDialog_: function() {
     AccountManagerBrowserProxyImpl.getInstance().closeDialog();
   },
 });

@@ -235,6 +235,7 @@ pub(crate) struct Lexer {
 
     max_entity_expansion_depth: u8,
     max_entity_expansion_length: usize,
+    pub(crate) ignore_end_of_stream: bool,
 }
 
 impl Position for Lexer {
@@ -261,6 +262,7 @@ impl Lexer {
 
             max_entity_expansion_depth: config.max_entity_expansion_depth,
             max_entity_expansion_length: config.max_entity_expansion_length,
+            ignore_end_of_stream: config.ignore_end_of_stream,
         }
     }
 
@@ -333,7 +335,9 @@ impl Lexer {
         self.eof_handled = true;
         self.pos = self.head_pos;
         match self.st {
-            State::InsideCdata | State::CDataClosing(_) => Err(self.error(SyntaxError::UnclosedCdata)),
+            State::InsideCdata | State::CDataClosing(_) if !self.ignore_end_of_stream =>
+                Err(self.error(SyntaxError::UnclosedCdata)),
+            State::InsideCdata | State::CDataClosing(_) |
             State::TagStarted | State::CommentOrCDataOrDoctypeStarted |
             State::CommentStarted | State::CDataStarted(_)| State::DoctypeStarted(_) |
             State::CommentClosing(_) |

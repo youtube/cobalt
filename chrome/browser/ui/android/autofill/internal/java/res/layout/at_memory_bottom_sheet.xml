@@ -17,8 +17,8 @@ found in the LICENSE file.
     android:measureAllChildren="false">
 
     <include
-        android:id="@+id/at_memory_main_screen"
-        layout="@layout/at_memory_main_screen" />
+        android:id="@+id/at_memory_home_screen"
+        layout="@layout/at_memory_home_screen" />
 
     <include
         android:id="@+id/at_memory_flyout_screen"

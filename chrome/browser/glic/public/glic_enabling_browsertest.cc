@@ -369,9 +369,8 @@ IN_PROC_BROWSER_TEST_F(GlicEnablingSimultaneousRolloutTest,
   {
     base::HistogramTester histogram_tester;
     ProvideCurrentSessionData();
-    histogram_tester.ExpectUniqueSample(
-        "Glic.TieredRolloutEnablementStatus",
-        GlicTieredRolloutEnablementStatus::kAllProfilesEnabled, 1);
+    histogram_tester.ExpectUniqueSample("Glic.TieredRolloutEnablementStatus",
+                                        GlicProfilesAllSomeNone::kAll, 1);
   }
 
   // ChromeOS does not support multiple profiles.
@@ -388,9 +387,8 @@ IN_PROC_BROWSER_TEST_F(GlicEnablingSimultaneousRolloutTest,
   {
     base::HistogramTester histogram_tester;
     ProvideCurrentSessionData();
-    histogram_tester.ExpectUniqueSample(
-        "Glic.TieredRolloutEnablementStatus",
-        GlicTieredRolloutEnablementStatus::kSomeProfilesEnabled, 1);
+    histogram_tester.ExpectUniqueSample("Glic.TieredRolloutEnablementStatus",
+                                        GlicProfilesAllSomeNone::kSome, 1);
   }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
@@ -403,9 +401,8 @@ IN_PROC_BROWSER_TEST_F(GlicEnablingSimultaneousRolloutTest,
   {
     base::HistogramTester histogram_tester;
     ProvideCurrentSessionData();
-    histogram_tester.ExpectUniqueSample(
-        "Glic.TieredRolloutEnablementStatus",
-        GlicTieredRolloutEnablementStatus::kNoProfilesEnabled, 1);
+    histogram_tester.ExpectUniqueSample("Glic.TieredRolloutEnablementStatus",
+                                        GlicProfilesAllSomeNone::kNone, 1);
   }
 }
 

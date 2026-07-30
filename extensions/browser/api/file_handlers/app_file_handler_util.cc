@@ -122,14 +122,18 @@ bool WebAppFileHandlerCanHandleFileWithMimeType(
 bool PrepareNativeLocalFileForWritableApp(const base::FilePath& path,
                                           bool is_directory) {
   // Don't allow links.
-  if (base::PathExists(path) && base::IsLink(path))
+  if (base::IsLink(path)) {
     return false;
+  }
 
   if (is_directory)
     return base::DirectoryExists(path);
 
   // Create the file if it doesn't already exist.
-  int creation_flags = base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_READ;
+  // Use FLAG_NO_FOLLOW to prevent TOCTOU races where a path is replaced with a
+  // symlink after the IsLink() check above.
+  int creation_flags = base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_READ |
+                       base::File::FLAG_NO_FOLLOW;
   base::File file(path, creation_flags);
 
   return file.IsValid();

@@ -204,7 +204,13 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest,
 
 // Test whether the top view including toolbar and tab strip shows up or hides
 // correctly in browser fullscreen mode.
-IN_PROC_BROWSER_TEST_F(BrowserViewTest, BrowserFullscreenShowTopView) {
+#if BUILDFLAG(IS_MAC)
+// TODO(crbug.com/523216992): Re-enable this test.
+#define MAYBE_BrowserFullscreenShowTopView DISABLED_BrowserFullscreenShowTopView
+#else
+#define MAYBE_BrowserFullscreenShowTopView BrowserFullscreenShowTopView
+#endif
+IN_PROC_BROWSER_TEST_F(BrowserViewTest, MAYBE_BrowserFullscreenShowTopView) {
   BrowserView* const browser_view =
       BrowserView::GetBrowserViewForBrowser(browser());
 

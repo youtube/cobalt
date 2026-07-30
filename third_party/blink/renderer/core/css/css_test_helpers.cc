@@ -356,12 +356,16 @@ String ToString(PseudoId pseudo_id) {
       return "kPseudoIdDetailsContent";
     case kPseudoIdPickerSelect:
       return "kPseudoIdPickerSelect";
+    case kPseudoIdSelectListbox:
+      return "kPseudoIdSelectListbox";
     case kPseudoIdPermissionIcon:
       return "kPseudoIdPermissionIcon";
     case kAfterLastInternalPseudoId:
       return "kAfterLastInternalPseudoId";
     case kPseudoIdOverscrollAreaParent:
       return "kPseudoIdOverscrollAreaParent";
+    case kPseudoIdOverscrollBackdrop:
+      return "kPseudoIdOverscrollBackdrop";
     case kPseudoIdSkeleton:
       return "kPseudoIdSkeleton";
     case kPseudoIdInvalid:

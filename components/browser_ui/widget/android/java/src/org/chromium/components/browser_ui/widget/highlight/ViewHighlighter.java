@@ -8,6 +8,7 @@ import android.content.Context;
 import android.graphics.Rect;
 import android.view.View;
 
+import androidx.annotation.IntDef;
 import androidx.annotation.Px;
 import androidx.core.view.ViewCompat;
 
@@ -16,6 +17,9 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.widget.R;
 import org.chromium.ui.widget.RectProvider;
 import org.chromium.ui.widget.ViewRectProvider;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 /**
  * A helper class to draw an overlay layer on the top of a view to enable highlighting. The overlay
@@ -54,14 +58,16 @@ public class ViewHighlighter {
     }
 
     /** Possible highlight shapes. */
-    public enum HighlightShape {
-        CIRCLE,
-        RECTANGLE;
+    @IntDef({HighlightShape.CIRCLE, HighlightShape.RECTANGLE})
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface HighlightShape {
+        int CIRCLE = 0;
+        int RECTANGLE = 1;
     }
 
     /** Params for highlight customization. */
     public static class HighlightParams {
-        private final HighlightShape mShape;
+        private final @HighlightShape int mShape;
         // If true, the highlight will respect the view's padding. If false, it will be
         // centered within view's bounding box.
         private boolean mBoundsRespectPadding;
@@ -78,12 +84,12 @@ public class ViewHighlighter {
         // How far the highlight should extend past the bounds of the view.
         @Px private int mHighlightExtension;
 
-        public HighlightParams(HighlightShape shape) {
+        public HighlightParams(@HighlightShape int shape) {
             mShape = shape;
         }
 
-        /** @return shape of the highlight */
-        public HighlightShape getShape() {
+        /** Returns the shape of the highlight. */
+        public @HighlightShape int getShape() {
             return mShape;
         }
 

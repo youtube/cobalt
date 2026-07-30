@@ -15,7 +15,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/performance/pref_names.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
 
 namespace ash {
@@ -166,7 +166,7 @@ void DozeModePowerStatusScheduler::Start() {
       kMaxSimulatedBatteryStatusDuration);
   force_real_power_timer_.set_remaining_duration(base::TimeDelta());
 
-  user_id_hash_ = ProfileHelper::GetUserIdHashFromProfile(
+  user_id_hash_ = BrowserContextHelper::GetUserIdHashFromBrowserContext(
       arc::ArcSessionManager::Get()->profile());
 }
 

@@ -8,6 +8,7 @@
 #import "base/test/metrics/histogram_tester.h"
 #import "base/test/scoped_feature_list.h"
 #import "components/prefs/pref_service.h"
+#import "components/sync/test/test_sync_service.h"
 #import "ios/chrome/browser/discover_feed/model/feed_constants.h"
 #import "ios/chrome/browser/ntp/ui_bundled/feed_top_section/feed_top_section_mediator+testing.h"
 #import "ios/chrome/browser/ntp/ui_bundled/feed_top_section/feed_top_section_mutator.h"
@@ -24,6 +25,8 @@
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/gtest/include/gtest/gtest.h"
@@ -40,6 +43,8 @@ class FeedTopSectionMediatorTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
     fake_profile_ = std::move(builder).Build();
     fake_authentication_service_ = GetAuthenticationService();
     fake_pref_service_ = fake_profile_->GetPrefs();
@@ -68,11 +73,10 @@ class FeedTopSectionMediatorTest : public PlatformTest {
 
  protected:
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
-  raw_ptr<AuthenticationService, DanglingUntriaged>
-      fake_authentication_service_;
-  raw_ptr<PrefService, DanglingUntriaged> fake_pref_service_;
   web::WebTaskEnvironment task_environment_;
   std::unique_ptr<TestProfileIOS> fake_profile_;
+  raw_ptr<AuthenticationService> fake_authentication_service_;
+  raw_ptr<PrefService> fake_pref_service_;
   FeedTopSectionMediator* feed_top_section_mediator_;
   FeedTopSectionViewController* feed_top_section_view_controller_;
   base::test::ScopedFeatureList feature_list_;

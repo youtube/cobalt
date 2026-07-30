@@ -23,7 +23,6 @@
 #include "device/fido/cable/v2_test_util.h"
 #include "device/fido/fido_authenticator.h"
 #include "device/fido/mock_fido_discovery_observer.h"
-#include "device/fido/public/cable_discovery_data.h"
 #include "device/fido/public/fido_constants.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/test/test_network_context.h"

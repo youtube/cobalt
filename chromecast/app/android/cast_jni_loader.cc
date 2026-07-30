@@ -10,13 +10,19 @@
 #include "content/public/app/content_main.h"
 #include "content/public/browser/android/compositor.h"
 
-// This is called by the VM when the shared library is first loaded.
-JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
-  base::android::InitVM(vm);
+bool NativeInitializationHook(
+    base::android::LibraryProcessType library_process_type) {
   if (!content::android::OnJNIOnLoadInit())
     return false;
 
   content::Compositor::Initialize();
   content::SetContentMainDelegate(new chromecast::shell::CastMainDelegate);
+  return true;
+}
+
+// This is called by the VM when the shared library is first loaded.
+JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
+  base::android::InitVM(vm);
+  base::android::SetNativeInitializationHook(NativeInitializationHook);
   return JNI_VERSION_1_4;
 }

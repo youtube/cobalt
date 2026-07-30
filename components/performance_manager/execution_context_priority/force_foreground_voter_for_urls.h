@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/containers/flat_set.h"
+#include "base/memory/raw_ptr.h"
 #include "base/unguessable_token.h"
 #include "components/performance_manager/public/execution_context_priority/execution_context_priority.h"
 #include "components/performance_manager/public/execution_context_priority/priority_voting_system.h"
@@ -94,7 +95,7 @@ class ForceForegroundVoterForUrls
       profiles_force_foreground_patterns_;
 
   // Keeps track of foregrounded contexts.
-  base::flat_set<const execution_context::ExecutionContext*>
+  base::flat_set<raw_ptr<const execution_context::ExecutionContext>>
       foregrounded_contexts_;
 };
 }  // namespace performance_manager::execution_context_priority

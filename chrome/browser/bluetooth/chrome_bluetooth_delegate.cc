@@ -11,31 +11,25 @@
 #include "chrome/browser/profiles/profile.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings_types.h"
-#include "components/guest_view/buildflags/buildflags.h"
 #include "components/permissions/bluetooth_delegate_impl.h"
 #include "components/permissions/content_setting_permission_context_base.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/render_frame_host.h"
-#include "extensions/buildflags/buildflags.h"
+#include "content/public/browser/security_principal.h"
+#include "content/public/browser/site_instance.h"
 #include "url/gurl.h"
-
-#if BUILDFLAG(ENABLE_EXTENSIONS_CORE) && BUILDFLAG(ENABLE_GUEST_VIEW)
-#include "extensions/browser/guest_view/web_view/web_view_guest.h"
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE) && BUILDFLAG(ENABLE_GUEST_VIEW)
 
 ChromeBluetoothDelegate::ChromeBluetoothDelegate(std::unique_ptr<Client> client)
     : permissions::BluetoothDelegateImpl(std::move(client)) {}
 
 bool ChromeBluetoothDelegate::MayUseBluetooth(content::RenderFrameHost* rfh) {
-#if BUILDFLAG(ENABLE_EXTENSIONS_CORE) && BUILDFLAG(ENABLE_GUEST_VIEW)
-  // Because permission is scoped to profile, <webview> and <controlledframe>,
-  // despite having isolated StoragePartition, will share bluetooth permission
-  // with the rest of the profile. Therefore bluetooth is not allowed in these
-  // contexts.
-  if (extensions::WebViewGuest::FromRenderFrameHost(rfh)) {
+  // Because permission is scoped to the profile, guest contexts (like
+  // <webview>, <controlledframe>, and SlimWebView), despite having isolated
+  // StoragePartitions, would share Bluetooth permissions with the rest of the
+  // profile. Therefore, Bluetooth is not allowed in these contexts.
+  if (rfh->GetSiteInstance()->GetSecurityPrincipal().IsGuest()) {
     return false;
   }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE) && BUILDFLAG(ENABLE_GUEST_VIEW)
 
   // Disable any other non-default StoragePartition contexts, unless it has a
   // non-http/https scheme.

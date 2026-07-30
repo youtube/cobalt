@@ -513,6 +513,9 @@ void PaintTiming::SetFirstPaint(base::TimeTicks stamp) {
     if (frame && frame->GetDocument()) {
       frame->GetDocument()->MarkFirstPaint();
     }
+    if (frame && frame->View()) {
+      frame->View()->MaybeStopDeferringCommitsWithoutContentfulPaint();
+    }
 
   pending_paint_events_.insert(PaintEvent::kFirstPaint);
 }

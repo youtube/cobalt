@@ -47,7 +47,8 @@ public class CompositorButton extends StripLayoutView {
         ButtonType.TAB_CLOSE,
         ButtonType.GLIC,
         ButtonType.GLIC_DISMISS_NUDGE,
-        ButtonType.GLIC_ACTOR
+        ButtonType.GLIC_ACTOR,
+        ButtonType.TAB_SEARCH
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ButtonType {
@@ -57,6 +58,7 @@ public class CompositorButton extends StripLayoutView {
         int GLIC = 3;
         int GLIC_DISMISS_NUDGE = 4;
         int GLIC_ACTOR = 5;
+        int TAB_SEARCH = 6;
     }
 
     public interface TooltipHandler {
@@ -76,6 +78,8 @@ public class CompositorButton extends StripLayoutView {
     private boolean mIsPressed;
     private boolean mIsPressedFromMouse;
     private boolean mIsHovered;
+
+    private boolean mBackgroundAlwaysVisible;
 
     /**
      * Default constructor for {@link CompositorButton}
@@ -125,6 +129,15 @@ public class CompositorButton extends StripLayoutView {
         mClickSlop = clickSlopDp;
         // Apply the click slop to the button's touch target.
         setTouchTargetInsets(null, null, null, null);
+    }
+
+    /**
+     * Set whether the background should be always visible, even when not hovered or pressed.
+     *
+     * @param alwaysVisible Whether the background should be always visible.
+     */
+    public void setBackgroundAlwaysVisible(boolean alwaysVisible) {
+        mBackgroundAlwaysVisible = alwaysVisible;
     }
 
     /**
@@ -336,6 +349,6 @@ public class CompositorButton extends StripLayoutView {
      * @return Whether hover background should be applied to the button.
      */
     public boolean getShouldApplyHoverBackground() {
-        return isHovered() || isPressedFromMouse();
+        return mBackgroundAlwaysVisible || isHovered() || isPressedFromMouse();
     }
 }

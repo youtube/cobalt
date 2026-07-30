@@ -20,7 +20,7 @@ import org.chromium.base.PackageUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.enterprise.util.EnterpriseInfo;
+import org.chromium.components.policy.EnterpriseInfo;
 import org.chromium.components.browser_ui.notifications.NotificationProxyUtils;
 import org.chromium.components.externalauth.ExternalAuthUtils;
 import org.chromium.components.webauthn.Fido2ApiCall;

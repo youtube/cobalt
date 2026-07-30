@@ -14,6 +14,7 @@
 #include "base/byte_count.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "base/unguessable_token.h"
 #include "components/page_load_metrics/browser/observers/ad_metrics/frame_data_utils.h"
 #include "components/page_load_metrics/browser/page_load_metrics_observer.h"
 #include "components/page_load_metrics/common/page_load_metrics.mojom-forward.h"
@@ -184,6 +185,8 @@ class FrameTreeData final {
     return root_frame_tree_node_id_;
   }
 
+  const url::Origin& initial_origin() const { return initial_origin_; }
+
   OriginStatus origin_status() const { return origin_status_; }
 
   OriginStatus creative_origin_status() const {
@@ -263,6 +266,10 @@ class FrameTreeData final {
     return peak_cpu_.peak_windowed_percent();
   }
 
+  const base::UnguessableToken& devtools_frame_token() const {
+    return devtools_frame_token_;
+  }
+
   base::WeakPtr<FrameTreeData> AsWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
   }
@@ -293,6 +300,9 @@ class FrameTreeData final {
 
   // The max depth of this frames frame tree.
   unsigned int frame_depth_ = 0;
+
+  // The initial origin of the ad frame.
+  url::Origin initial_origin_;
 
   // The origin status of the ad frame for the creative.
   OriginStatus origin_status_ = OriginStatus::kUnknown;
@@ -359,6 +369,10 @@ class FrameTreeData final {
 
   // The peak cpu usage for this frame tree.
   PeakCpuAggregator peak_cpu_;
+
+  // The DevTools frame token for the root ad frame. This is used to uniquely
+  // identify the frame in the DevTools Ads domain.
+  base::UnguessableToken devtools_frame_token_;
 
   // Owns weak pointers to the instance.
   base::WeakPtrFactory<FrameTreeData> weak_ptr_factory_{this};

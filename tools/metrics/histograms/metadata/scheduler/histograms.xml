@@ -144,6 +144,32 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Scheduling.MessagePump.WakeupCount.{ThreadName}"
+    enum="BooleanHit" expires_after="2026-12-01">
+  <owner>pasko@chromium.org</owner>
+  <owner>joenotcharles@google.com</owner>
+  <summary>
+    Records true every time the underlying OS event successfully wakes up thread
+    {ThreadName} from idle sleep.
+
+    Avoids recording spurious OS wakeups: when no events are processed. This can
+    happen because of timeouts when waiting.
+
+    Also excludes samples for 'synthetic wakeups', such as when an event is
+    discovered by BusyWaitOnEvent. In Finch experiments, enabling busy waiting
+    should directly reduce the volume of recorded wakeups.
+  </summary>
+  <token key="ThreadName">
+    <variant name="BrowserIO"/>
+    <variant name="BrowserMain"/>
+    <variant name="Compositor"/>
+    <variant name="GpuMain"/>
+    <variant name="NetworkService"/>
+    <variant name="RendererMain"/>
+    <variant name="VizCompositor"/>
+  </token>
+</histogram>
+
 <histogram name="Scheduling.MessagePumpDefault.BusyLoop.Duration.TaskArrived"
     units="microseconds" expires_after="2027-04-10">
   <owner>anandrv@google.com</owner>

@@ -56,6 +56,16 @@
 
 namespace blink {
 
+namespace {
+// Controls whether ExternalCanvasResource::WaitSyncToken() should store the
+// SyncToken and pass it to the release callback to wait at destruction time
+// (when enabled), or wait on the SyncToken immediately (when disabled). This
+// feature is part of the effort of reducing WaitSyncTokenCHROMIUM usage in
+// favor of the automatic SyncToken management in ClientSharedImage.
+BASE_FEATURE(kDeferWaitSyncTokenInExternalCanvasResource,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+}  // namespace
+
 CanvasResource::CanvasResource(
     scoped_refptr<gpu::ClientSharedImage> shared_image)
     : gpu::ClientImage(std::move(shared_image)),
@@ -513,8 +523,13 @@ ExternalCanvasResource::~ExternalCanvasResource() {
   }
 
   if (release_callback_) {
-    ProduceSyncToken();
-    std::move(release_callback_).Run(sync_token(), resource_is_lost_);
+    if (base::FeatureList::IsEnabled(
+            kDeferWaitSyncTokenInExternalCanvasResource)) {
+      std::move(release_callback_)
+          .Run(destruction_sync_token_, resource_is_lost_);
+    } else {
+      std::move(release_callback_).Run(sync_token(), resource_is_lost_);
+    }
   }
 }
 
@@ -542,7 +557,6 @@ scoped_refptr<StaticBitmapImage> ExternalCanvasResource::Bitmap() {
       },
       base::RetainedRef(this));
 
-  ProduceSyncToken();
   scoped_refptr<StaticBitmapImage> image =
       AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
           GetSharedImage(), sync_token(), alpha_type_, hdr_metadata_,
@@ -553,23 +567,14 @@ scoped_refptr<StaticBitmapImage> ExternalCanvasResource::Bitmap() {
 
 void ExternalCanvasResource::WaitSyncToken(const gpu::SyncToken& sync_token) {
   if (sync_token.HasData()) {
-    if (auto* interface_base = InterfaceBase()) {
-      interface_base->WaitSyncTokenCHROMIUM(sync_token.GetConstData());
+    if (base::FeatureList::IsEnabled(
+            kDeferWaitSyncTokenInExternalCanvasResource)) {
+      destruction_sync_token_ = sync_token;
+    } else {
+      if (auto* interface_base = InterfaceBase()) {
+        interface_base->WaitSyncTokenCHROMIUM(sync_token.GetConstData());
+      }
     }
-  }
-}
-
-void ExternalCanvasResource::ProduceSyncToken() {
-  // This method is expected to be used both in WebGL and WebGPU, that's why it
-  // uses InterfaceBase.
-  auto sync_token = GetSyncToken();
-  if (!GetSyncToken().HasData()) {
-    auto* interface = InterfaceBase();
-    if (interface)
-      interface->GenSyncTokenCHROMIUM(sync_token.GetData());
-    SetReleaseSyncToken(sync_token);
-  } else {
-    VerifySyncToken();
   }
 }
 

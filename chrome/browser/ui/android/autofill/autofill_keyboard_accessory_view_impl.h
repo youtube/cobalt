@@ -62,6 +62,9 @@ class AutofillKeyboardAccessoryViewImpl : public AutofillKeyboardAccessoryView {
   // Called when this view was dismissed.
   void ViewDismissed(JNIEnv* env);
 
+  // Called when opening settings for an entity type was requested.
+  void OpenSettingsForEntityType(JNIEnv* env, int32_t entity_type);
+
  private:
   // Weak reference to the controller of this view. It can be null if the
   // controller has started hiding before this view is destroyed.

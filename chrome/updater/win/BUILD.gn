@@ -4,6 +4,7 @@
 
 import("//build/util/process_version.gni")
 import("//chrome/updater/branding.gni")
+import("//chrome/updater/updater.gni")
 import("//chrome/updater/updater_process_version_rc_template.gni")
 import("//chrome/updater/zip.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
@@ -48,6 +49,7 @@ executable("updater") {
     ":version_resources",
     "//chrome/updater:constants_prod",
   ]
+  assert_no_deps = updater_assert_no_deps
 }
 
 executable("updater_test") {

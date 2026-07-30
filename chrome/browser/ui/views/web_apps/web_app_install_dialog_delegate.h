@@ -63,6 +63,21 @@ inline constexpr int kIconSize = 32;
 // result in a weird filename), it only restricts what we suggest as titles.
 std::u16string NormalizeSuggestedAppTitle(const std::u16string& title);
 
+// Defines the maximum allowed width and height shrinkage (in pixels) from the
+// preferred size of a dialog before it is considered too small/occluded and
+// automatically closed to prevent UI spoofing.
+struct MaxAllowedShrinkage {
+  int max_width_shrinkage;
+  int max_height_shrinkage;
+};
+
+inline constexpr MaxAllowedShrinkage kSimpleMaxShrinkage = {40, 20};
+inline constexpr MaxAllowedShrinkage kDetailedMaxShrinkage = {100, 150};
+inline constexpr MaxAllowedShrinkage kDiyMaxShrinkage = {50, 50};
+inline constexpr MaxAllowedShrinkage kLaunchMaxShrinkage = {50, 50};
+
+MaxAllowedShrinkage GetMaxAllowedShrinkage(InstallDialogType type);
+
 // For some browser windows that are smaller in size, the install dialog's
 // current size is smaller than the preferred size, leading to important
 // security information being occluded. This function performs the comparison
@@ -70,7 +85,8 @@ std::u16string NormalizeSuggestedAppTitle(const std::u16string& title);
 // This serves as a stop-gap fix for crbug.com/384962294.
 // TODO(crbug.com/346974105): Remove once tab modal dialogs can be sized
 // irrespective of the size of the browser window triggering it.
-bool IsWidgetCurrentSizeSmallerThanPreferredSize(views::Widget* widget);
+bool IsWidgetCurrentSizeSmallerThanPreferredSize(views::Widget* widget,
+                                                 MaxAllowedShrinkage shrinkage);
 
 class WebAppInstallDialogDelegate : public WebAppModalDialogDelegate {
  public:

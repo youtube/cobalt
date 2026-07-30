@@ -844,8 +844,9 @@ GLES2DecoderPassthroughImpl::GLES2DecoderPassthroughImpl(
       context_(),
       offscreen_(false),
       group_(group),
-      feature_info_(new FeatureInfo(group->feature_info()->workarounds(),
-                                    group->gpu_feature_info())),
+      feature_info_(base::MakeRefCounted<FeatureInfo>(
+          group->feature_info()->workarounds(),
+          group->gpu_feature_info())),
       emulated_back_buffer_(nullptr),
       bound_draw_framebuffer_(0),
       bound_read_framebuffer_(0),

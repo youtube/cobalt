@@ -44,6 +44,7 @@
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "chrome/test/interaction/tracked_element_webcontents.h"
 #include "chrome/test/interaction/webcontents_interaction_test_util.h"
+#include "components/bookmarks/common/bookmark_bar_visibility_state.h"
 #include "components/bookmarks/common/bookmark_pref_names.h"
 #include "components/data_sharing/public/features.h"
 #include "components/favicon/content/content_favicon_driver.h"
@@ -53,6 +54,7 @@
 #include "components/saved_tab_groups/internal/tab_group_sync_service_impl.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
+#include "components/search/ntp_features.h"
 #include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tabs/public/tab_group.h"
@@ -164,20 +166,18 @@ class SavedTabGroupInteractiveTestBase
 
   MultiStep ShowBookmarksBar() {
     return Steps(
-        PressButton(kToolbarAppMenuButtonElementId),
-    // TODO(https://crbug.com/359252812): On Linux and ChromeOS, sometimes
-    // the bookmarks submenu randomly loses focus causing it to close.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-        WithoutDelay(
-#endif
-            SelectMenuItem(AppMenuModel::kBookmarksMenuItem),
-            SelectMenuItem(BookmarkSubMenuModel::kShowBookmarkBarMenuItem)
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-                )
-#endif
-            ,
-        // On Mac the menu might still be animating closed, so wait for that.
-        WaitForHide(AppMenuModel::kBookmarksMenuItem),
+        Do([this]() {
+          PrefService* prefs = browser()->profile()->GetPrefs();
+          if (base::FeatureList::IsEnabled(
+                  ntp_features::kNtpSimplificationBookmarkBar)) {
+            prefs->SetInteger(
+                bookmarks::prefs::kBookmarkBarVisibilityState,
+                static_cast<int>(
+                    bookmarks::BookmarkBarVisibilityState::kAlwaysShow));
+          } else {
+            prefs->SetBoolean(bookmarks::prefs::kShowBookmarkBar, true);
+          }
+        }),
         WaitForShow(kBookmarkBarElementId));
   }
 

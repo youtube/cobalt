@@ -63,7 +63,7 @@ namespace media {
 namespace {
 
 // Size of the timestamp cache, needs to be large enough for frame-reordering.
-constexpr size_t kTimestampCacheSize = 128;
+constexpr size_t kTimestampCacheSize = 1024;
 
 std::optional<VideoPixelFormat> GetPixelFormatForBitDepth(uint8_t bit_depth) {
   constexpr auto kSupportedBitDepthAndVizFormats =
@@ -310,6 +310,8 @@ void VaapiVideoDecoder::Initialize(const VideoDecoderConfig& config,
 
   output_cb_ = std::move(output_cb);
   waiting_cb_ = std::move(waiting_cb);
+  buffer_id_to_timestamp_.Clear();
+  next_buffer_id_ = 0;
   SetState(State::kWaitingForInput);
 
   // Notify client initialization was successful.
@@ -1183,6 +1185,9 @@ void VaapiVideoDecoder::ResetDone(base::OnceClosure reset_cb) {
   DCHECK_EQ(state_, State::kResetting);
   DCHECK(!current_decode_task_);
   DCHECK(decode_task_queue_.empty());
+
+  buffer_id_to_timestamp_.Clear();
+  next_buffer_id_ = 0;
 
   std::move(reset_cb).Run();
   SetState(State::kWaitingForInput);

@@ -38,13 +38,11 @@ void TestAutofillExternalDelegate::OnQuery(
     const FormData& form,
     const FormFieldData& field,
     const gfx::Rect& caret_bounds,
-    AutofillSuggestionTriggerSource trigger_source,
-    bool update_datalist) {
+    AutofillSuggestionTriggerSource trigger_source) {
   on_query_seen_ = true;
   on_suggestions_returned_seen_ = false;
   trigger_source_ = trigger_source;
-  AutofillExternalDelegate::OnQuery(form, field, caret_bounds, trigger_source,
-                                    update_datalist);
+  AutofillExternalDelegate::OnQuery(form, field, caret_bounds, trigger_source);
 }
 
 void TestAutofillExternalDelegate::OnSuggestionsReturned(

@@ -7,6 +7,8 @@
 #include <memory>
 #include <string>
 
+#include "base/test/run_until.h"
+#include "base/test/task_environment.h"
 #include "components/live_caption/caption_bubble_context.h"
 #include "components/live_caption/caption_bubble_controller.h"
 #include "components/live_caption/pref_names.h"
@@ -192,6 +194,7 @@ class CaptionControllerBaseTest : public testing::Test {
   }
 
   TestingPrefServiceSimple testing_pref_service_;
+  base::test::TaskEnvironment task_environment_;
 };
 
 TEST_F(CaptionControllerBaseTest, ListenersAreFreedOnDestruction) {
@@ -321,6 +324,25 @@ TEST_F(CaptionControllerBaseListenerTest, OnLastListenerRemovedCalled) {
 
   // Removing the last listener should trigger the callback.
   controller->remove_listener_for_testing(listener2_ptr);
+}
+
+TEST_F(CaptionControllerBaseListenerTest, RemoveSoonRemovesListener) {
+  auto controller = std::make_unique<TestCaptionController>(
+      &testing_pref_service_, speech::kUsEnglishLocale);
+  EXPECT_CALL(*controller, OnFirstListenerAdded).Times(1);
+  EXPECT_CALL(*controller, OnLastListenerRemoved).Times(1);
+
+  bool was_freed = false;
+  auto listener = std::make_unique<MockListener>(&was_freed);
+  auto* listener_ptr = listener.get();
+  controller->AddListener(std::move(listener));
+
+  EXPECT_FALSE(was_freed);
+  controller->RemoveSoon(listener_ptr);
+  EXPECT_FALSE(was_freed);  // Not freed yet
+
+  // Run pending tasks to process removal.
+  EXPECT_TRUE(base::test::RunUntil([&]() { return was_freed; }));
 }
 
 }  // namespace

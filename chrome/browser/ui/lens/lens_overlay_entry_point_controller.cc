@@ -15,6 +15,7 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/search.h"
+#include "chrome/browser/search_engines/ai_mode_button_service_factory.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_actions.h"
@@ -468,8 +469,14 @@ bool LensOverlayEntryPointController::ShouldShowPageAction(
   const auto* aim_eligibility_service =
       AimEligibilityServiceFactory::GetForProfile(
           browser_window_interface_->GetProfile());
-  if (OmniboxFieldTrial::IsAimOmniboxEntrypointEnabled(
-          aim_eligibility_service)) {
+  const auto* ai_mode_button_service =
+      AiModeButtonServiceFactory::GetForProfile(
+          browser_window_interface_->GetProfile());
+  const auto* template_url_service = TemplateURLServiceFactory::GetForProfile(
+      browser_window_interface_->GetProfile());
+  if (OmniboxFieldTrial::IsAimOmniboxEntrypointEnabled(aim_eligibility_service,
+                                                       ai_mode_button_service,
+                                                       template_url_service)) {
     return false;
   }
 

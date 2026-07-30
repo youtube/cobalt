@@ -11,6 +11,10 @@
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 
+namespace content {
+class WebContents;
+}
+
 class Browser;
 class BrowserWindowInterface;
 
@@ -35,7 +39,7 @@ AnchorConfiguration GetPageInfoAnchorConfiguration(
 
 // Returns the anchor configuration for the permission bubble.
 AnchorConfiguration GetPermissionPromptBubbleAnchorConfiguration(
-    Browser* browser);
+    content::WebContents* web_contents);
 
 // Returns the anchor configuration for bubbles that are aligned to the app menu
 // button.

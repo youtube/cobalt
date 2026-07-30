@@ -22,6 +22,7 @@
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
@@ -383,7 +384,16 @@ NavigateToURLWithDispositionBlockUntilNavigationsComplete(
     EXPECT_EQ(web_contents, tab_strip->GetActiveWebContents());
   }
   if (disposition == WindowOpenDisposition::CURRENT_TAB) {
+    // Waiting for the navigation may destroy `web_contents` (e.g. navigating
+    // to a resource that closes its own tab, such as a corrupted extension
+    // page that gets disabled mid-navigation under enforced content
+    // verification). Guard against use-after-free before touching it again.
+    base::WeakPtr<content::WebContents> weak_web_contents =
+        web_contents->GetWeakPtr();
     same_tab_observer.Wait();
+    if (!weak_web_contents) {
+      return nullptr;
+    }
     content::SimulateEndOfPaintHoldingOnPrimaryMainFrame(web_contents);
     return web_contents->GetPrimaryMainFrame();
   } else if (web_contents) {
@@ -393,7 +403,13 @@ NavigateToURLWithDispositionBlockUntilNavigationsComplete(
         /*ignore_uncommitted_navigations=*/false);
     if (!blink::IsRendererDebugURL(url))
       observer.set_expected_initial_url(url);
+    // See the comment above: the navigation may destroy `web_contents`.
+    base::WeakPtr<content::WebContents> weak_web_contents =
+        web_contents->GetWeakPtr();
     observer.Wait();
+    if (!weak_web_contents) {
+      return nullptr;
+    }
     content::SimulateEndOfPaintHoldingOnPrimaryMainFrame(web_contents);
     return web_contents->GetPrimaryMainFrame();
   }
@@ -528,8 +544,7 @@ void DownloadURL(BrowserWindowInterface* browser, const GURL& download_url) {
 }
 
 void WaitForAutocompleteDone(BrowserWindowInterface* browser) {
-  auto* controller = browser->GetBrowserForMigrationOnly()
-                         ->window()
+  auto* controller = BrowserWindow::FromBrowser(browser)
                          ->GetLocationBar()
                          ->GetOmniboxController()
                          ->autocomplete_controller();
@@ -736,7 +751,7 @@ void SendToOmniboxAndSubmit(BrowserWindowInterface* browser,
                             base::TimeTicks match_selection_timestamp,
                             bool wait_for_autocomplete_done) {
   LocationBar* location_bar =
-      browser->GetBrowserForMigrationOnly()->window()->GetLocationBar();
+      BrowserWindow::FromBrowser(browser)->GetLocationBar();
   OmniboxView* omnibox = location_bar->GetOmniboxView();
   location_bar->GetOmniboxController()->edit_model()->OnSetFocus(
       /*control_down=*/false);

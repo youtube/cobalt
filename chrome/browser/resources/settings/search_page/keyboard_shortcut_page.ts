@@ -13,7 +13,6 @@ import '../settings_page/settings_section.js';
 import '../settings_shared.css.js';
 import '../controls/settings_dropdown_menu.js';
 
-import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import type {DropdownMenuOptionList, SettingsDropdownMenuElement} from '../controls/settings_dropdown_menu.js';
@@ -28,10 +27,7 @@ export interface KeyboardShortcutPageElement {
   };
 }
 
-const KeyboardShortcutPageElementBase = PrefsMixin(PolymerElement);
-
-export class KeyboardShortcutPageElement extends
-    KeyboardShortcutPageElementBase {
+export class KeyboardShortcutPageElement extends PolymerElement {
   static get is() {
     return 'settings-keyboard-shortcut-page';
   }
@@ -65,8 +61,7 @@ export class KeyboardShortcutPageElement extends
   declare private keyboardShortcutMenuOptions_: DropdownMenuOptionList;
 
   private onKeyboardShortcutSettingChange_() {
-    const spaceEnabled =
-        this.getPref('omnibox.keyword_space_triggering_enabled').value;
+    const spaceEnabled = this.$.dropdown.getSelectedValue() === 'true';
 
     SearchEnginesBrowserProxyImpl.getInstance()
         .recordSearchEnginesPageHistogram(

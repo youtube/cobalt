@@ -481,6 +481,38 @@ TEST_F(OmniboxAutofillDelegateTest,
 }
 
 TEST_F(OmniboxAutofillDelegateTest,
+       OnAutofillManagerStateChanged_WasActive_ResetsState) {
+  FormData form = CreateTestCreditCardFormData();
+
+  // Find a candidate form. This sets `candidate_form_found_` to `true`.
+  {
+    base::HistogramTester histogram_tester;
+    FormsSeen({form});
+    histogram_tester.ExpectUniqueSample(
+        "Autofill.OmniboxAutofill.ShowChipDecisionPart1",
+        OmniboxAutofillShowChipDecisionPart1::kSuccess, 1);
+  }
+
+  // Trigger state change to inactive (from active), which triggers `Reset()`.
+  OmniboxAutofillDelegate* delegate =
+      payments_autofill_client().GetOmniboxAutofillDelegate();
+  ASSERT_TRUE(delegate);
+  delegate->OnAutofillManagerStateChanged(
+      autofill_manager(), /*previous=*/AutofillManager::LifecycleState::kActive,
+      /*current=*/AutofillManager::LifecycleState::kInactive);
+
+  // Verify that the state was reset. If it was reset, we can find the candidate
+  // form again and it will log success.
+  {
+    base::HistogramTester histogram_tester;
+    FormsSeen({form});
+    histogram_tester.ExpectUniqueSample(
+        "Autofill.OmniboxAutofill.ShowChipDecisionPart1",
+        OmniboxAutofillShowChipDecisionPart1::kSuccess, 1);
+  }
+}
+
+TEST_F(OmniboxAutofillDelegateTest,
        OnAutofillManagerStateChanged_WasNotActive_DoesNotHideChip) {
   payments_autofill_client().ShowOmniboxAutofillChip(
       /*suggestions=*/{},
@@ -522,6 +554,33 @@ TEST_F(OmniboxAutofillDelegateTest, OnAfterFormsSeen_FormRemoved_HidesChip) {
 
   EXPECT_TRUE(payments_autofill_client().omnibox_autofill_chip_hidden());
   EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_shown());
+}
+
+TEST_F(OmniboxAutofillDelegateTest, OnAfterFormsSeen_FormRemoved_ResetsState) {
+  FormData form = CreateTestCreditCardFormData();
+
+  // Find a candidate form. This sets `candidate_form_found_` to `true`.
+  {
+    base::HistogramTester histogram_tester;
+    FormsSeen({form});
+    histogram_tester.ExpectUniqueSample(
+        "Autofill.OmniboxAutofill.ShowChipDecisionPart1",
+        OmniboxAutofillShowChipDecisionPart1::kSuccess, 1);
+  }
+
+  // Remove the form. This should trigger `OnAfterFormsSeen` and `Reset()`.
+  autofill_manager().OnFormsSeen(/*updated_forms=*/{},
+                                 /*removed_forms=*/{form.global_id()});
+
+  // Verify that the state was reset. If it was reset, we can find the candidate
+  // form again.
+  {
+    base::HistogramTester histogram_tester;
+    FormsSeen({form});
+    histogram_tester.ExpectUniqueSample(
+        "Autofill.OmniboxAutofill.ShowChipDecisionPart1",
+        OmniboxAutofillShowChipDecisionPart1::kSuccess, 1);
+  }
 }
 
 TEST_F(OmniboxAutofillDelegateTest,

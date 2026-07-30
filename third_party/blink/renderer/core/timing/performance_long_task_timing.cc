@@ -23,7 +23,7 @@ PerformanceLongTaskTiming::PerformanceLongTaskTiming(
     const AtomicString& culprit_id,
     const AtomicString& culprit_name,
     DOMWindow* source,
-    uint32_t navigation_id)
+    uint64_t navigation_id)
     : PerformanceEntry(duration, name, start_time, source, navigation_id) {
   auto* attribution_entry = MakeGarbageCollected<TaskAttributionTiming>(
       performance_entry_names::kUnknown, culprit_type, culprit_src, culprit_id,

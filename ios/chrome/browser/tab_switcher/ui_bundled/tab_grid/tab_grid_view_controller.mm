@@ -776,6 +776,7 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
   // Make sure the current page becomes the first responder, so that it can
   // register and handle key commands.
   [self.currentPageViewController becomeFirstResponder];
+  [self.delegate tabGridViewController:self didChangeCurrentPage:currentPage];
 }
 
 // Sets the value of `currentPage`, adjusting the position of the scroll view

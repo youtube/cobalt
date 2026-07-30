@@ -20,6 +20,22 @@ enum class PurchaseActionResult : int {
   kResultCanceled,
 };
 
+// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.components.facilitated_payments
+// The result of invoking the instrument manager account linking flow.
+enum class AccountLinkingResultCode : int {
+  // Could not invoke the instrument manager.
+  kCouldNotInvoke,
+
+  // The account linking flow completed successfully.
+  kResultOk,
+
+  // The user cancelled out of the account linking flow.
+  kResultCanceled,
+
+  // An error occurred during account linking.
+  kResultError,
+};
+
 }  // namespace payments::facilitated
 
 #endif  // COMPONENTS_FACILITATED_PAYMENTS_CORE_UTILS_FACILITATED_PAYMENTS_UTILS_H_

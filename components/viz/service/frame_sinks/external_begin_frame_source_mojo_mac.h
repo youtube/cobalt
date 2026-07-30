@@ -47,12 +47,6 @@ class VIZ_SERVICE_EXPORT ExternalBeginFrameSourceMojoMac
   void NeedsBeginFrameWithId(int64_t display_id, bool needs_begin_frames);
 
  private:
-  // Prevents desktop startup regressions by deferring the use of
-  // DisplayLinkInBrowser until startup is complete (one minute after launch).
-  // This transitions `in_desktop_startup_` to false and initializes VSync.
-  void DesktopStartupCompletion();
-  bool in_desktop_startup_ = false;
-
   mojo::Receiver<mojom::ExternalBeginFrameController> receiver_;
 
   mojo::Remote<mojom::ExternalBeginFrameControllerClient> remote_client_;

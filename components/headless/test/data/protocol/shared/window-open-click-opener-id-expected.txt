@@ -1,0 +1,2 @@
+Tests that opener IS specified on a page opened via Click.
+TargetInfo.openerId: initialTargetId

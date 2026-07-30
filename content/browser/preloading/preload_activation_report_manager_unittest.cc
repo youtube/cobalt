@@ -51,6 +51,7 @@ TEST_F(PreloadActivationReportManagerTest, ReportActivation) {
       test_url_loader_factory_.GetPendingRequest(0)->request;
   EXPECT_EQ(request.url, endpoint);
   EXPECT_EQ(request.method, "HEAD");
+  EXPECT_TRUE(request.devtools_request_id.has_value());
 
   // Simulate successful response.
   EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(

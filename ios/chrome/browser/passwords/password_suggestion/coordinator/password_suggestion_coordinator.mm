@@ -334,7 +334,7 @@ constexpr char kUmaActionPrefix[] =
 
 - (NSArray<UISheetPresentationControllerDetent*>*)detents {
   // Custom sized detents for modals are available from iOS 16.
-  if (UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad) {
+  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
     // As of iOS 18, the modal on iPad no longer appears near the bottom
     // edge and should not be expandable (i.e. large detent should not
     // be an option).
@@ -351,7 +351,7 @@ constexpr char kUmaActionPrefix[] =
 - (BOOL)isEdgeAttachedInCompactHeight {
   // This specifically affects the iPad mini format, so the bottom
   // sheet does not attach to the bottom edge like it does on iPhone.
-  return UIDevice.currentDevice.userInterfaceIdiom != UIUserInterfaceIdiomPad;
+  return ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_TABLET;
 }
 
 // Refocuses the field that was blurred to show the payments suggestion

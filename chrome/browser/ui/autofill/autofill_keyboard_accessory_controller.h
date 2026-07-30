@@ -47,6 +47,9 @@ class AutofillKeyboardAccessoryController
   virtual bool GetRemovalConfirmationText(
       int index,
       RemovalConfirmationText* removal_text) = 0;
+
+  // Opens settings for the given entity type.
+  virtual void OpenSettingsForEntityType(int32_t entity_type) = 0;
 };
 
 }  // namespace autofill

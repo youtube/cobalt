@@ -32,15 +32,6 @@ class POLICY_EXPORT PlatformManagementService : public ManagementService {
       std::unique_ptr<ManagementStatusProvider> provider);
   bool has_cros_status_provider() const { return has_cros_status_provider_; }
 #endif
-
-#if BUILDFLAG(IS_ANDROID)
-  void AddAndroidStatusProvider(
-      std::unique_ptr<ManagementStatusProvider> provider);
-  bool has_android_status_provider() const {
-    return has_android_status_provider_;
-  }
-#endif
-
  private:
   friend class base::NoDestructor<PlatformManagementService>;
 
@@ -51,9 +42,7 @@ class POLICY_EXPORT PlatformManagementService : public ManagementService {
 #if BUILDFLAG(IS_CHROMEOS)
   bool has_cros_status_provider_ = false;
 #endif
-#if BUILDFLAG(IS_ANDROID)
-  bool has_android_status_provider_ = false;
-#endif
+
 };
 
 }  // namespace policy

@@ -77,9 +77,8 @@ SessionStoreImpl::SessionStoreImpl(base::FilePath db_storage_path,
       db_task_runner_(
           base::ThreadPool::CreateSequencedTaskRunner(kDBTaskTraits)),
       db_storage_path_(std::move(db_storage_path)),
-      db_(std::make_unique<sql::Database>(
-          sql::DatabaseOptions().set_preload(true),
-          sql::Database::Tag("DBSCSessions"))),
+      db_(std::make_unique<sql::Database>(sql::DatabaseOptions(),
+                                          sql::Database::Tag("DBSCSessions"))),
       table_manager_(base::MakeRefCounted<sqlite_proto::ProtoTableManager>(
           db_task_runner_)),
       session_table_(

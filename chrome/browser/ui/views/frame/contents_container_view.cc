@@ -8,6 +8,7 @@
 #include <optional>
 #include <utility>
 
+#include "base/i18n/rtl.h"
 #include "chrome/browser/actor/ui/actor_overlay_web_view.h"
 #include "chrome/browser/devtools/devtools_contents_resizing_strategy.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_overlay_view.h"
@@ -41,6 +42,7 @@
 #include "ui/compositor/layer.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/border.h"
 #include "ui/views/layout/delegating_layout_manager.h"
 #include "ui/views/layout/fill_layout.h"
@@ -55,10 +57,7 @@
 #endif
 
 namespace {
-constexpr float kContentCornerRadius = 6;
-constexpr gfx::RoundedCornersF kContentRoundedCorners{kContentCornerRadius};
 constexpr int kSplitViewContentPadding = 4;
-
 constexpr int kNewTabFooterSeparatorHeight = 1;
 constexpr int kNewTabFooterHeight = 56;
 }  // namespace
@@ -82,6 +81,8 @@ ContentsContainerView::ContentsContainerView(BrowserView* browser_view)
 
   devtools_scrim_view_ = AddChildView(std::make_unique<ScrimView>());
   devtools_scrim_view_->layer()->SetName("DevtoolsScrimView");
+
+  toast_anchor_view_ = AddChildView(std::make_unique<views::View>());
 
   contents_view_ = AddChildView(
       std::make_unique<ContentsWebView>(browser_view->GetProfile()));
@@ -206,7 +207,7 @@ void ContentsContainerView::UpdateBorderAndOverlay(bool is_in_split,
   if (!is_in_split) {
     if (split_changed) {
       SetBorder(nullptr);
-      ClearBorderRoundedCorners();
+      UpdateBorderRoundedCorners();
 
       mini_toolbar_->SetVisible(false);
       container_outline_->SetVisible(false);
@@ -233,17 +234,18 @@ void ContentsContainerView::UpdateBorderAndOverlay(bool is_in_split,
 #if BUILDFLAG(IS_CHROMEOS)
   if (split_changed) {
     // Ensures correct window rounded corners after updating contents rounded
-    // corners in UpdateBorderRoundedCorners()/ClearBorderRoundedCorners().
+    // corners in UpdateBorderRoundedCorners().
     GetWidget()->non_client_view()->frame_view()->UpdateWindowRoundedCorners();
   }
 #endif  //  BUILDFLAG(IS_CHROMEOS)
 }
 
-void ContentsContainerView::UpdateBorderRoundedCorners() {
+void ContentsContainerView::SetBorderRoundedCornersFrom(
+    const gfx::RoundedCornersF& corner_radii) {
   // Update devtools rounded corners. Note, devtools exists behind the contents
   // view so all devtools corners are rounded.
-  devtools_web_view_->holder()->SetCornerRadii(kContentRoundedCorners);
-  devtools_scrim_view_->SetRoundedCorners(kContentRoundedCorners);
+  devtools_web_view_->holder()->SetCornerRadii(corner_radii);
+  devtools_scrim_view_->SetRoundedCorners(corner_radii);
 
   const bool devtools_in_upper_left =
       devtools_web_view_->GetVisible() &&
@@ -261,18 +263,18 @@ void ContentsContainerView::UpdateBorderRoundedCorners() {
        current_devtools_docked_placement_ == DevToolsDockedPlacement::kRight);
 
   const gfx::RoundedCornersF content_upper_rounded_corners =
-      gfx::RoundedCornersF{devtools_in_upper_left ? 0 : kContentCornerRadius,
-                           devtools_in_upper_right ? 0 : kContentCornerRadius,
-                           0, 0};
+      gfx::RoundedCornersF{
+          devtools_in_upper_left ? 0 : corner_radii.upper_left(),
+          devtools_in_upper_right ? 0 : corner_radii.upper_right(), 0, 0};
   const gfx::RoundedCornersF content_lower_rounded_corners =
-      gfx::RoundedCornersF{0, 0,
-                           devtools_in_lower_right ? 0 : kContentCornerRadius,
-                           devtools_in_lower_left ? 0 : kContentCornerRadius};
-  const gfx::RoundedCornersF content_rounded_corners =
-      gfx::RoundedCornersF{devtools_in_upper_left ? 0 : kContentCornerRadius,
-                           devtools_in_upper_right ? 0 : kContentCornerRadius,
-                           devtools_in_lower_right ? 0 : kContentCornerRadius,
-                           devtools_in_lower_left ? 0 : kContentCornerRadius};
+      gfx::RoundedCornersF{
+          0, 0, devtools_in_lower_right ? 0 : corner_radii.lower_right(),
+          devtools_in_lower_left ? 0 : corner_radii.lower_left()};
+  const gfx::RoundedCornersF content_rounded_corners = gfx::RoundedCornersF{
+      devtools_in_upper_left ? 0 : corner_radii.upper_left(),
+      devtools_in_upper_right ? 0 : corner_radii.upper_right(),
+      devtools_in_lower_right ? 0 : corner_radii.lower_right(),
+      devtools_in_lower_left ? 0 : corner_radii.lower_left()};
 
   auto radii = new_tab_footer_view_ && new_tab_footer_view_->GetVisible()
                    ? content_upper_rounded_corners
@@ -280,7 +282,7 @@ void ContentsContainerView::UpdateBorderRoundedCorners() {
 
   contents_view_->SetBackgroundRadii(radii);
   contents_view_->holder()->SetCornerRadii(radii);
-  contents_scrim_view_->SetRoundedCorners(kContentRoundedCorners);
+  contents_scrim_view_->SetRoundedCorners(corner_radii);
 
   if (new_tab_footer_view_) {
     new_tab_footer_view_->holder()->SetCornerRadii(
@@ -308,42 +310,13 @@ void ContentsContainerView::UpdateBorderRoundedCorners() {
   }
 }
 
-void ContentsContainerView::ClearBorderRoundedCorners() {
-  constexpr gfx::RoundedCornersF kNoRoundedCorners = gfx::RoundedCornersF{0};
-
-  devtools_web_view_->holder()->SetCornerRadii(kNoRoundedCorners);
-  devtools_scrim_view_->SetRoundedCorners(kNoRoundedCorners);
-
-  contents_view_->SetBackgroundRadii(kNoRoundedCorners);
-  contents_view_->holder()->SetCornerRadii(kNoRoundedCorners);
-
-  if (new_tab_footer_view_) {
-    new_tab_footer_view_->holder()->SetCornerRadii(kNoRoundedCorners);
-  }
-
-  contents_scrim_view_->SetRoundedCorners(kNoRoundedCorners);
-
-  if (actor_overlay_web_view_) {
-    actor_overlay_web_view_->holder()->SetCornerRadii(kNoRoundedCorners);
-  }
-
-  if (ai_overlay_dialog_view_) {
-    ai_overlay_dialog_view_->holder()->SetCornerRadii(kNoRoundedCorners);
-  }
-
-  if (glic_selection_overlay_view_) {
-    glic_selection_overlay_view_->layer()->SetRoundedCornerRadius(
-        kNoRoundedCorners);
-  }
-
-  if (glic_border_) {
-    glic_border_->SetRoundedCorners(kNoRoundedCorners);
-  }
+void ContentsContainerView::UpdateBorderRoundedCorners() {
+  SetBorderRoundedCornersFrom(rounded_corner_radii_);
 }
 
 void ContentsContainerView::ChildVisibilityChanged(View* child) {
   if ((child == new_tab_footer_view_ || child == devtools_web_view_) &&
-      is_in_split_) {
+      !rounded_corner_radii_.IsEmpty()) {
     UpdateBorderRoundedCorners();
   }
 }
@@ -368,7 +341,7 @@ views::View::Views ContentsContainerView::GetChildrenInZOrder() {
 void ContentsContainerView::OnViewBoundsChanged(View* observed_view) {
   if (observed_view == contents_view_) {
     UpdateDevToolsDockedPlacement();
-    if (is_in_split_) {
+    if (!rounded_corner_radii_.IsEmpty()) {
       UpdateBorderRoundedCorners();
     }
   }
@@ -467,6 +440,16 @@ void ContentsContainerView::SetTargetContentBounds(
   InvalidateLayout(/*avoid_propagate_during_layout=*/true);
 }
 
+void ContentsContainerView::SetRoundedCorners(
+    const gfx::RoundedCornersF& corner_radii) {
+  if (corner_radii == rounded_corner_radii_) {
+    return;
+  }
+
+  rounded_corner_radii_ = corner_radii;
+  UpdateBorderRoundedCorners();
+}
+
 void ContentsContainerView::UpdateContentsClip() {
   bool changed = false;
   if (auto* const layer = contents_view_->holder()->GetUILayer()) {
@@ -550,6 +533,10 @@ views::ProposedLayout ContentsContainerView::CalculateProposedLayout(
   const auto& contents_rect = GetMirroredRect(contents_view_bounds);
   layouts.child_layouts.emplace_back(
       contents_view_.get(), contents_view_->GetVisible(), contents_rect);
+
+  layouts.child_layouts.emplace_back(
+      toast_anchor_view_.get(), toast_anchor_view_->GetVisible(),
+      gfx::BoundingRect(contents_rect.origin(), contents_rect.top_right()));
 
   if (glic_border_) {
     // |glic_border_| should not be seen over devtools.
@@ -689,7 +676,12 @@ views::ProposedLayout ContentsContainerView::CalculateProposedLayout(
     content_layout->bounds.Outset(*target_content_bounds_);
     contents_clip_rect_ =
         gfx::Rect(gfx::Point(), content_layout->bounds.size());
-    contents_clip_rect_.Inset(-target_content_bounds_->ToInsets());
+    gfx::Insets insets = -target_content_bounds_->ToInsets();
+    // Rendering layer isn't mirrored, so need to manually mirror insets.
+    if (base::i18n::IsRTL()) {
+      insets.set_left_right(insets.right(), insets.left());
+    }
+    contents_clip_rect_.Inset(insets);
   } else {
     contents_clip_rect_ = gfx::Rect();
   }

@@ -68,8 +68,10 @@ class RecentArcMediaSource : public RecentSource {
   // If multiple calls are issued each will have its own context.
   struct CallContext {
     CallContext(const Params& params, GetRecentFilesCallback callback);
-    // Move constructor needed as callback cannot be copied.
-    CallContext(CallContext&& context);
+    CallContext(const CallContext&) = delete;
+    CallContext& operator=(const CallContext&) = delete;
+    CallContext(CallContext&&) = delete;
+    CallContext& operator=(CallContext&&) = delete;
     ~CallContext();
 
     // The parameters of the GetRecentFiles call.

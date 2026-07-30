@@ -38,7 +38,7 @@ def fetch_recipe_bundle(project, is_verbose):
     subprocess.check_call(cmd)
 
   recipe_bundle_package = _CHROME_RECIPE_BUNDLE
-  if project == 'chromium':
+  if project in ('chromium', 'dawn'):
     recipe_bundle_package = _CHROMIUM_RECIPE_BUNDLE
   cmd = [
       exe,

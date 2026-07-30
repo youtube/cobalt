@@ -64,7 +64,7 @@ class CORE_EXPORT EditorCommand {
   String Value(Event* triggering_event = nullptr) const;
 
   bool IsTextInsertion() const;
-  bool IsValueInterpretedAsHTML() const;
+  bool IsValueInterpretedAsHtml() const;
 
   // Returns 0 if this EditorCommand is not supported.
   int IdForHistogram() const;

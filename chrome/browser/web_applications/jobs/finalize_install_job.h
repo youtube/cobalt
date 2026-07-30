@@ -15,7 +15,7 @@
 #include "base/time/clock.h"
 #include "base/time/default_clock.h"
 #include "build/build_config.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
+#include "chrome/browser/web_applications/model/integrity_block_data.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/web_app_chromeos_data.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
@@ -60,14 +60,13 @@ using InstallFinalizedCallback =
 
 struct FinalizeJobOptions {
   struct IwaOptions {
-    IwaOptions(
-        IsolatedWebAppStorageLocation location,
-        std::optional<IsolatedWebAppIntegrityBlockData> integrity_block_data);
+    IwaOptions(IsolatedWebAppStorageLocation location,
+               std::optional<IntegrityBlockData> integrity_block_data);
     ~IwaOptions();
     IwaOptions(const IwaOptions&);
 
     IsolatedWebAppStorageLocation location;
-    std::optional<IsolatedWebAppIntegrityBlockData> integrity_block_data;
+    std::optional<IntegrityBlockData> integrity_block_data;
   };
 
   explicit FinalizeJobOptions(webapps::WebappInstallSource install_surface);
@@ -166,7 +165,7 @@ class FinalizeInstallJob {
       const IsolatedWebAppStorageLocation& location,
       const IwaVersion& version,
       const std::optional<GURL>& iwa_update_manifest_url,
-      std::optional<IsolatedWebAppIntegrityBlockData> integrity_block_data);
+      std::optional<IntegrityBlockData> integrity_block_data);
 
   void CommitToSyncBridge(std::unique_ptr<WebApp> web_app,
                           CommitCallback commit_callback,

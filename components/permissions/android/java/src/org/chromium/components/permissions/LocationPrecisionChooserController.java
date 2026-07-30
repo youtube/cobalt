@@ -51,8 +51,7 @@ public class LocationPrecisionChooserController {
     }
 
     public void show() {
-        if (mContainer == null || mOptionsToDisplay == null || mOptionsToDisplay.isEmpty()) {
-            hide();
+        if (mContainer == null) {
             return;
         }
 
@@ -82,14 +81,6 @@ public class LocationPrecisionChooserController {
         }
 
         mContainer.addView(mRichRadioButtonList);
-    }
-
-    public void hide() {
-        if (mContainer != null) {
-            mContainer.setVisibility(View.GONE);
-            mContainer.removeAllViews();
-            mRichRadioButtonList = null;
-        }
     }
 
     /** Builds the list of {@link RichRadioButtonData} options for the chooser. */

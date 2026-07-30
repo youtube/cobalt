@@ -76,6 +76,7 @@ source_set("impl") {
   visibility = [
     ":*",
     "//chrome/browser",
+    "//chrome/browser/ui/lens:browser_tests",
   ]
 
   sources = [
@@ -595,6 +596,7 @@ source_set("unit_tests") {
   if (!is_android) {
     sources += [
       "contextual_tasks_panel_host_desktop_unittest.cc",
+      "contextual_tasks_utils_unittest.cc",
       "contextual_tasks_web_contents_user_data_unittest.cc",
     ]
   }
@@ -618,9 +620,12 @@ source_set("unit_tests") {
     "//chrome/browser/tab_list",
     "//chrome/browser/tab_list:test_support",
     "//chrome/browser/ui:test_support",
+    "//chrome/browser/ui/actions",
+    "//chrome/browser/ui/actions:actions_headers",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/hats",
     "//chrome/browser/ui/side_panel:test_support",
+    "//chrome/browser/ui/toolbar/pinned_toolbar",
     "//chrome/browser/ui/webui:webui_util",
     "//chrome/test:test_support",
     "//components/application_locale_storage",
@@ -640,25 +645,23 @@ source_set("unit_tests") {
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/lens_server_proto:lens_overlay_proto",
+    "//ui/actions:actions_headers",
     "//ui/base/unowned_user_data",
   ]
 
   if (!is_android) {
     deps += [
       "//chrome/browser/ui:browser_actions",
-      "//chrome/browser/ui/actions",
-      "//chrome/browser/ui/actions:actions_headers",
       "//chrome/browser/ui/contextual_search",
       "//chrome/browser/ui/hats:test_support",
       "//chrome/browser/ui/lens",
+      "//chrome/browser/ui/lens:test_support",
       "//chrome/browser/ui/tabs:tab_list_bridge",
       "//chrome/browser/ui/tabs:test_support",
-      "//chrome/browser/ui/toolbar/pinned_toolbar",
       "//chrome/browser/ui/webui/searchbox:searchbox_test_utils",
       "//components/omnibox/browser:test_support",
       "//components/passage_embeddings/core",
       "//services/network/public/cpp",
-      "//ui/actions:actions_headers",
     ]
   }
 }
@@ -708,7 +711,9 @@ source_set("interactive_ui_tests") {
       ":ui",
       "//chrome/browser/tab_list",
       "//chrome/browser/ui/contextual_search",
+      "//chrome/browser/ui/lens",
       "//chrome/browser/ui/webui/searchbox:searchbox_test_utils",
+      "//components/lens:enterprise_policy",
     ]
   }
 }

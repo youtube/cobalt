@@ -900,6 +900,24 @@
     percentages_depend_on_used_value: {
       valid_type: "bool",
     },
+
+    // - devtools_keywords: ["keyword1", "keyword2"]
+    //
+    // Keywords that are valid for devtools. This would act as an override to
+    // the keywords list.
+    // This is useful for cases where
+    // 1. Keywords are not accepted on their own in devtools but might be valid
+    // in other contexts. For example, 'jump-both' is not accepted on its own in
+    // devtools, but is valid as part of the animation-timing-function property.
+    // 2. Shorthand properties do not accept all keywords from the longhands
+    // as it is. For example, 'columns' does not accept 'wrap' or 'nowrap'
+    // (which are valid keywords for 'column-wrap').
+    // This field is used by the following script in the devtools-frontend repo to
+    // generate the supported CSS properties:
+    // third_party/devtools-frontend/src/scripts/build/generate_supported_css.py
+    devtools_keywords: {
+      valid_type: "list",
+    },
   },
 
   // Members in the data objects should appear in the same order as in the
@@ -1902,7 +1920,7 @@
       inherited: true,
       field_group: "*",
       field_template: "keyword",
-      keywords: ["sideways", "mixed", "upright"],
+      keywords: ["sideways", "mixed", "upright", "sideways-right"],
       typedom_types: ["Keyword"],
       default_value: "mixed",
       getter: "GetTextOrientation",
@@ -1920,6 +1938,7 @@
       priority: 1,
       surrogate_for: "text-orientation",
       valid_for_marker: true,
+      keywords: ["sideways", "upright", "sideways-right", "vertical-right"],
     },
     {
       name: "writing-mode",
@@ -3128,6 +3147,7 @@
       // high-priority properties.
       priority: 2,
       valid_for_permission_element: true,
+      keywords: ["normal", "light", "dark"],
     },
     {
       name: "column-fill",
@@ -3150,7 +3170,7 @@
       name_for_methods: "Contain",
       type_name: "unsigned",
       converter: "ConvertFlags<Containment>",
-      keywords: ["none", "strict", "content", "size", "layout", "style", "paint", "inline-size", "block-size"],
+      keywords: ["none", "strict", "content", "size", "layout", "style", "paint", "inline-size"],
       typedom_types: ["Keyword"],
       invalidate: ["layout"],
       is_animation_affecting: true,
@@ -3426,6 +3446,17 @@
         "inline-flex", "grid", "inline-grid", "contents", "flow-root", "none",
         "flow", "math", "ruby", "ruby-text", "grid-lanes", "inline-grid-lanes"
       ],
+      // `grid-lanes` and `inline-grid-lanes` are experimental keywords and
+      // currently behind the CSSGridLanesLayout flag. Since they are not
+      // fully supported yet, they are not being exposed to devtools.
+      devtools_keywords: [
+        "inline", "block", "list-item", "inline-block", "table", "inline-table",
+        "table-row-group", "table-header-group", "table-footer-group",
+        "table-row", "table-column-group", "table-column", "table-cell",
+        "table-caption", "-webkit-box", "-webkit-inline-box", "flex",
+        "inline-flex", "grid", "inline-grid", "contents", "flow-root", "none",
+        "flow", "math", "ruby", "ruby-text"
+      ],
       typedom_types: ["Keyword"],
       style_builder_custom_functions: ["initial", "inherit", "value"],
       // In general many things are tweaked after-the-fact based on display/float/position
@@ -3483,6 +3514,7 @@
       valid_for_highlight: true,
       valid_for_permission_icon: true,
       invalidate: ["paint"],
+      keywords: ["none"],
     },
     {
       name: "fill-opacity",
@@ -3996,8 +4028,7 @@
       field_group: "*",
       field_template: "keyword",
       keywords: [
-        "auto", "optimizespeed", "optimizequality",
-        "-webkit-optimize-contrast", "pixelated", "crisp-edges"
+        "auto", "-webkit-optimize-contrast", "pixelated", "crisp-edges"
       ],
       typedom_types: ["Keyword"],
       default_value: "auto",
@@ -4789,6 +4820,10 @@
       field_template: "keyword",
       keywords: [
         "none", "hidden", "inset", "groove", "outset", "ridge", "dotted",
+        "dashed", "solid", "double"
+      ],
+      devtools_keywords: [
+        "none", "auto", "inset", "groove", "outset", "ridge", "dotted",
         "dashed", "solid", "double"
       ],
       typedom_types: ["Keyword"],
@@ -5938,6 +5973,7 @@
       valid_for_highlight: true,
       valid_for_permission_icon: true,
       invalidate: ["paint", "stroke"],
+      keywords: ["none", "context-stroke"],
     },
     {
       name: "stroke-dasharray",
@@ -6087,6 +6123,13 @@
         "left", "right", "center", "justify", "-webkit-left", "-webkit-right",
         "-webkit-center", "start", "end", "match-parent"
       ],
+      // `match-parent` is an experimental keyword and currently behind the
+      // CSSTextAlignMatchParent flag. Since it is not fully supported yet,
+      // it is not being exposed to devtools.
+      devtools_keywords: [
+        "left", "right", "center", "justify", "-webkit-left", "-webkit-right",
+        "-webkit-center", "start", "end"
+      ],
       typedom_types: ["Keyword"],
       default_value: "start",
       getter: "GetTextAlign",
@@ -6102,6 +6145,12 @@
       field_template: "keyword",
       keywords: ["auto", "start", "end", "left", "right", "center", "justify",
         "match-parent"
+      ],
+      // `match-parent` is an experimental keyword and currently behind the
+      // CSSTextAlignMatchParent flag. Since it is not fully supported yet,
+      // it is not being exposed to devtools.
+      devtools_keywords: [
+        "auto", "start", "end", "left", "right", "center", "justify"
       ],
       default_value: "auto",
       typedom_types: ["Keyword"],
@@ -6407,6 +6456,11 @@
       field_group: "inherited",
       field_template: "multi_keyword",
       keywords: ["none", "capitalize", "uppercase", "lowercase", "full-width", "full-size-kana", "math-auto"],
+      // `full-width` and `full-size-kana` are experimental keywords and currently
+      // behind the CSSTextTransformFullWidth and CSSTextTransformFullSizeKana
+      // flags respectively. Since they are not fully supported yet, they are
+      // not being exposed to devtools.
+      devtools_keywords: ["none", "capitalize", "uppercase", "lowercase", "math-auto"],
       type_name: "ETextTransform",
       converter: "ConvertFlags<blink::ETextTransform>",
       typedom_types: ["Keyword"],
@@ -6468,6 +6522,10 @@
       separator: ",",
       is_animation_affecting: true,
       keywords: ["none", "all"],
+      // `all` is an experimental keyword and currently behind the
+      // CSSTimelineScopeAll flag. Since it is not fully supported yet,
+      // it is not being exposed to devtools.
+      devtools_keywords: ["none"],
     },
     {
       name: "top",
@@ -6588,6 +6646,7 @@
       supports_incremental_style: true,
       invalidate: ["has-transform", "transform-data", "transform-other"],
       percentages_depend_on_used_value: true,
+      keywords: ["none"],
     },
     {
       name: "rotate",
@@ -6603,6 +6662,7 @@
       converter: "ConvertRotate",
       supports_incremental_style: true,
       invalidate: ["has-transform", "transform-data", "transform-other"],
+      keywords: ["none"],
     },
     {
       name: "scale",
@@ -6619,6 +6679,7 @@
       supports_incremental_style: true,
       invalidate: ["has-transform", "transform-data", "transform-other"],
       percentages_depend_on_used_value: true,
+      keywords: ["none"],
     },
     {
       name: "unicode-bidi",
@@ -6732,6 +6793,10 @@
       field_template: "external",
       include_paths: ["third_party/blink/renderer/core/style/style_view_transition_name.h"],
       keywords: ["none", "auto"],
+      // `auto` is an experimental keyword and currently behind the
+      // CSSViewTransitionNameAuto flag. Since it is not fully supported yet,
+      // it is not being exposed to devtools.
+      devtools_keywords: ["none"],
       typedom_types: ["Keyword"],
       wrapper_pointer_name: "Member",
     },
@@ -6852,6 +6917,7 @@
       // Overlaps with border-image.
       legacy_overlapping: true,
       percentages_depend_on_used_value: true,
+      devtools_keywords: ["none", "stretch", "repeat", "space", "round"],
     },
     {
       name: "-webkit-border-vertical-spacing",
@@ -7373,6 +7439,7 @@
       default_value: "auto",
       type_name: "LineBreak",
       keywords: ["auto", "loose", "normal", "strict", "anywhere", "after-white-space"],
+      devtools_keywords: ["auto", "loose", "normal", "strict", "anywhere"],
       typedom_types: ["Keyword"],
       valid_for_marker: true,
       invalidate: ["layout", "paint"],
@@ -7416,6 +7483,7 @@
       property_methods: ["ParseSingleValue", "CSSValueFromComputedStyleInternal"],
       style_builder_custom_functions: ["initial", "inherit", "value"],
       keywords: ["none", "auto", "ellipsis", "no-ellipsis", "-webkit-legacy"],
+      devtools_keywords: ["none", "auto", "ellipsis", "no-ellipsis"],
       typedom_types: ["Keyword", "Number"],
       stored_on_extra_field: [
         "Continue",
@@ -7707,7 +7775,7 @@
       inherited: true,
       field_group: "*",
       field_template: "keyword_custom",
-      keywords: ["auto", "spaces"],
+      keywords: ["auto", "none", "spaces"],
       default_value: "auto",
       invalidate: ["layout", "paint"],
       runtime_flag: "CSSRubyOverhang",
@@ -7719,6 +7787,7 @@
       type_name: "RubyPosition",
       converter: "ConvertRubyPosition",
       surrogate_for: "ruby-position",
+      keywords: ["before", "after"],
       valid_for_permission_element: true,
       stored_on_extra_field: ["crbug.com/40919412"],
     },
@@ -7832,6 +7901,7 @@
       invalidate: ["layout"],
       runtime_flag: "CssTextFit",
       percentages_depend_on_used_value: false,
+      keywords: ["none", "shrink", "grow"],
     },
     {
       name: "-webkit-text-security",
@@ -7938,6 +8008,11 @@
       field_group: "*",
       field_template: "keyword",
       keywords: ["auto", "none", "text", "all", "contain"],
+      // `contain` is an experimental keyword and currenly behind the
+      // CSSUserSelectContain flag.
+      // Since it is not fully supported yet, we are not exposing it to
+      // devtools.
+      devtools_keywords: ["auto", "none", "text", "all"],
       typedom_types: ["Keyword"],
       default_value: "auto",
       valid_for_permission_element: true,
@@ -8935,7 +9010,17 @@
       type_name: "PositionArea",
       keywords: [
         "none", "top", "bottom", "center", "left", "right", "x-start", "x-end",
-        "y-start", "y-end", "start", "end", "self-start", "self-end", "all"
+        "y-start", "y-end", "start", "end", "self-start", "self-end", "span-all",
+        "span-left", "span-right", "span-x-start", "span-x-end",
+        "self-x-start", "self-x-end", "span-self-x-start", "span-self-x-end",
+        "span-top", "span-bottom", "span-y-start", "span-y-end",
+        "self-y-start", "self-y-end", "span-self-y-start", "span-self-y-end",
+        "block-start", "block-end", "span-block-start", "span-block-end",
+        "inline-start", "inline-end", "span-inline-start", "span-inline-end",
+        "self-block-start", "self-block-end", "span-self-block-start",
+        "span-self-block-end", "self-inline-start", "self-inline-end",
+        "span-self-inline-start", "span-self-inline-end", "span-start",
+        "span-end", "span-self-start", "span-self-end"
       ],
       typedom_keywords: ["none"],
       typedom_types: ["Keyword"],
@@ -8982,6 +9067,11 @@
       property_methods: ["ParseShorthand", "CSSValueFromComputedStyleInternal"],
       supports_incremental_style: true,
       valid_for_page_context: true,
+      devtools_keywords: ["none", "left", "right", "center", "top", "bottom",
+        "repeat", "no-repeat", "repeat-x", "repeat-y", "round", "space",
+        "scroll", "fixed", "local", "border-box", "padding-box", "content-box",
+         "text", "border-area", "currentcolor"
+      ],
     },
     {
       name: "background-position",
@@ -9003,6 +9093,10 @@
       ],
       property_methods: ["ParseShorthand", "CSSValueFromComputedStyleInternal"],
       valid_for_page_context: true,
+      devtools_keywords: ["none", "hidden", "inset", "groove", "outset", "ridge",
+        "dotted", "dashed", "solid", "double", "thin", "medium", "thick",
+        "currentcolor"
+      ],
     },
     {
       name: "border-block",
@@ -9273,6 +9367,7 @@
         "container-name", "container-type"
       ],
       property_methods: ["ParseShorthand", "CSSValueFromComputedStyleInternal"],
+      devtools_keywords: ["none"],
     },
     {
       name: "corner-top-shape",
@@ -9534,6 +9629,10 @@
       name: "flex",
       longhands: ["flex-grow", "flex-shrink", "flex-basis"],
       property_methods: ["ParseShorthand", "CSSValueFromComputedStyleInternal"],
+      devtools_keywords: [
+        "none", "auto", "content", "min-content", "max-content", "fit-content",
+        "stretch"
+      ],
     },
     {
       name: "flex-flow",
@@ -9554,6 +9653,7 @@
       // Changes to anything related to fonts require that we call style.UpdateFont(),
       // which the incremental path does not do.
       supports_incremental_style: false,
+      devtools_keywords: [],
     },
     {
       name: "font-variant",
@@ -9574,6 +9674,7 @@
       property_methods: ["ParseShorthand", "CSSValueFromComputedStyleInternal"],
       // See comment on font.
       supports_incremental_style: false,
+      devtools_keywords: ["none"],
     },
     {
       name: "grid",
@@ -9583,6 +9684,7 @@
       ],
       property_methods: ["ParseShorthand", "CSSValueFromComputedStyleInternal"],
       layout_dependent: true,
+      devtools_keywords: ["none"],
     },
     {
       name: "place-content",
@@ -9637,6 +9739,7 @@
       ],
       property_methods: ["ParseShorthand", "CSSValueFromComputedStyleInternal"],
       layout_dependent: true,
+      devtools_keywords: ["none"],
     },
     {
       name: "inset",
@@ -9940,6 +10043,7 @@
       name: "view-timeline",
       longhands: ["view-timeline-name", "view-timeline-axis", "view-timeline-inset"],
       property_methods: ["ParseShorthand", "CSSValueFromComputedStyleInternal"],
+      devtools_keywords: ["none"],
     },
     {
       name: "-webkit-border-after",
@@ -9991,6 +10095,7 @@
       name: "columns",
       longhands: ["column-width", "column-count", "column-height", "column-wrap"],
       property_methods: ["ParseShorthand", "CSSValueFromComputedStyleInternal"],
+      devtools_keywords: ["auto"],
     },
     {
       name: "mask",
@@ -10000,6 +10105,9 @@
         "mask-clip", "mask-composite", "mask-mode"
       ],
       property_methods: ["ParseShorthand", "CSSValueFromComputedStyleInternal"],
+      devtools_keywords: ["none", "left", "right", "center", "top", "bottom",
+        "subtract", "intersect", "exclude", "alpha", "luminance", "match-source"
+      ],
     },
     {
       name: "-webkit-mask",
@@ -10014,6 +10122,7 @@
       ],
       property_methods: ["ParseShorthand", "CSSValueFromComputedStyleInternal"],
       computable: true,
+      devtools_keywords: ["none", "stretch", "repeat", "space", "round"],
     },
     {
       name: "mask-position",

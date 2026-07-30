@@ -8,6 +8,7 @@
 #import "components/feature_engagement/public/tracker.h"
 #import "components/image_fetcher/ios/ios_image_data_fetcher_wrapper.h"
 #import "components/prefs/pref_service.h"
+#import "components/sync/base/features.h"
 #import "ios/chrome/browser/commerce/model/shopping_service_factory.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_visibility_browser_agent.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
@@ -124,8 +125,7 @@ CGFloat const kSheetCornerRadius = 30;
                                              GetForProfile(self.profile)];
   _mediator.navigationDelegate = self;
 
-  if (IsNTPBackgroundCustomizationEnabled() &&
-      !_backgroundService->IsCustomizationDisabledOrColorManagedByPolicy()) {
+  if (!_backgroundService->IsCustomizationDisabledOrColorManagedByPolicy()) {
     UserUploadedImageManager* userUploadedImageManager =
         UserUploadedImageManagerFactory::GetForProfile(self.profile);
     image_fetcher::ImageFetcherService* imageFetcherService =
@@ -180,6 +180,7 @@ CGFloat const kSheetCornerRadius = 30;
   }
 
   _mediator = nil;
+  [_backgroundConfigurationMediator disconnect];
   _backgroundConfigurationMediator = nil;
   _mainViewController = nil;
   _magicStackViewController = nil;
@@ -217,8 +218,7 @@ CGFloat const kSheetCornerRadius = 30;
 - (void)presentCustomizationMenuPage:(CustomizationMenuPage)page {
   UIViewController* menuPage = [self createMenuPage:page];
 
-  if (IsNTPBackgroundCustomizationEnabled() &&
-      page == CustomizationMenuPage::kMain) {
+  if (page == CustomizationMenuPage::kMain) {
     feature_engagement::Tracker* tracker =
         feature_engagement::TrackerFactory::GetForProfile(self.profile);
     if (tracker) {
@@ -540,7 +540,10 @@ CGFloat const kSheetCornerRadius = 30;
 }
 
 - (void)schedulePhotoNotSyncedSnackbarOnDismiss {
-  _shouldShowPhotoNotSyncedSnackbarOnDismiss = YES;
+  if (base::FeatureList::IsEnabled(syncer::kSyncThemesIos) &&
+      _backgroundService->IsThemeSyncActive()) {
+    _shouldShowPhotoNotSyncedSnackbarOnDismiss = YES;
+  }
 }
 
 #pragma mark - HomeCustomizationSearchEngineLogoMediator

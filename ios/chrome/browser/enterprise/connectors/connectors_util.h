@@ -55,6 +55,10 @@ bool IncludeDeviceInfo(ProfileIOS* profile, bool per_profile);
 // connector is enabled.
 bool IsDownloadConnectorEnabled(ConnectorsServiceBase* service);
 
+// Returns whether the bulk data entry connector feature flag is turned on and
+// the connector is enabled.
+bool IsBulkDataEntryConnectorEnabled(ConnectorsServiceBase* service);
+
 }  // namespace enterprise_connectors
 
 #endif  // IOS_CHROME_BROWSER_ENTERPRISE_CONNECTORS_CONNECTORS_UTIL_H_

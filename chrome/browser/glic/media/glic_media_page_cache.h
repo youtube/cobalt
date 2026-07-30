@@ -53,6 +53,9 @@ class GlicMediaPageCache {
     return !cache_.empty() ? static_cast<Entry*>(cache_.head()) : nullptr;
   }
 
+  base::LinkNode<Entry>* head() const { return cache_.head(); }
+  const base::LinkNode<Entry>* end() const { return cache_.end(); }
+
   const base::LinkedList<Entry>& cache_for_testing() const { return cache_; }
 
  private:

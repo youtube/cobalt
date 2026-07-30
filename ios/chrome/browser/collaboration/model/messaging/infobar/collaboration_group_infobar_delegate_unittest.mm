@@ -171,7 +171,6 @@ class CollaborationGroupInfoBarDelegateTest : public PlatformTest {
   }
 
  protected:
-  raw_ptr<const TabGroup, DanglingUntriaged> tab_group_;
   base::test::ScopedFeatureList scoped_feature_list_;
   web::WebTaskEnvironment task_environment_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
@@ -181,6 +180,7 @@ class CollaborationGroupInfoBarDelegateTest : public PlatformTest {
   raw_ptr<FakeUrlLoadingBrowserAgent> url_loader_;
   raw_ptr<WebStateList> web_state_list_;
   raw_ptr<web::FakeWebState> active_web_state_;
+  raw_ptr<const TabGroup> tab_group_;
 };
 
 // Tests the creation of the delegate with a valid message.

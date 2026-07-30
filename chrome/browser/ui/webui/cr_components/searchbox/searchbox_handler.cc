@@ -17,6 +17,7 @@
 #include "base/containers/fixed_flat_map.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/metrics/user_metrics.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
@@ -37,6 +38,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/views/permissions/permission_prompt_observer.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
@@ -47,9 +49,13 @@
 #include "components/contextual_tasks/public/prefs.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/aim_eligibility_service_features.h"
+#include "components/omnibox/browser/autocomplete_classifier.h"
+#include "components/omnibox/browser/autocomplete_controller_emitter.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_result.h"
+#include "components/omnibox/browser/contextual_search_provider.h"
 #include "components/omnibox/browser/omnibox_client.h"
+#include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/browser/omnibox_popup_selection.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/browser/vector_icons.h"
@@ -579,7 +585,7 @@ std::string SearchboxHandler::AutocompleteIconToResourceName(
                   : omnibox::kAnswerTranslationChromeRefreshOldIcon.name)) {
     return kAnswerTranslationIconResourceName;
   } else if (icon.name == (features::IsRoundedIconsEnabled()
-                               ? omnibox::kStarCustomIcon.name
+                               ? omnibox::kStarIcon.name
                                : omnibox::kBookmarkChromeRefreshOldIcon.name)) {
     return kBookmarkIconResourceName;
   } else if (icon.name ==
@@ -651,7 +657,7 @@ std::string SearchboxHandler::AutocompleteIconToResourceName(
     return kSparkIconResourceName;
   } else if (icon.name ==
              (features::IsRoundedIconsEnabled()
-                  ? omnibox::kStarFilledCustomIcon.name
+                  ? omnibox::kStarFilledIcon.name
                   : omnibox::kStarActiveChromeRefreshOldIcon.name)) {
     return kStarActiveIconResourceName;
   } else if (icon.name ==
@@ -772,7 +778,12 @@ SearchboxHandler::CreateSuggestionGroupsMap(
   base::flat_map<int32_t, searchbox::mojom::SuggestionGroupPtr> result_map;
   for (const auto& pair : suggestion_groups_map) {
     std::u16string header;
-    header = edit_model->GetSuggestionGroupHeaderText(pair.first);
+    if (base::FeatureList::IsEnabled(
+            omnibox::kWebUISearchboxWithoutModelController)) {
+      header = GetSuggestionGroupHeaderText(pair.first);
+    } else {
+      header = edit_model->GetSuggestionGroupHeaderText(pair.first);
+    }
 
     if (!header.empty()) {
       searchbox::mojom::SuggestionGroupPtr suggestion_group =
@@ -949,8 +960,13 @@ SearchboxHandler::CreateAutocompleteMatch(
         base::UTF16ToUTF8(label_strings.accessibility_hint)));
   }
   std::u16string header_text;
-  header_text =
-      edit_model->GetSuggestionGroupHeaderText(match.suggestion_group_id);
+  if (base::FeatureList::IsEnabled(
+          omnibox::kWebUISearchboxWithoutModelController)) {
+    header_text = GetSuggestionGroupHeaderText(match.suggestion_group_id);
+  } else {
+    header_text =
+        edit_model->GetSuggestionGroupHeaderText(match.suggestion_group_id);
+  }
   mojom_match->a11y_label = AutocompleteMatchType::ToAccessibilityLabel(
       match, header_text, match.contents, line, 0,
       GetAdditionalA11yMessage(match,
@@ -977,13 +993,41 @@ SearchboxHandler::SearchboxHandler(
     mojo::PendingRemote<searchbox::mojom::Page> pending_page,
     Profile* profile,
     content::WebContents* web_contents,
-    std::unique_ptr<OmniboxController> controller)
+    std::unique_ptr<OmniboxClient> client,
+    std::optional<base::TimeDelta> autocomplete_stop_timer_duration)
     : profile_(profile),
       web_contents_(web_contents),
-      owned_controller_(std::move(controller)),
+      client_(std::move(client)),
       page_handler_(this, std::move(pending_page_handler)),
       page_(std::move(pending_page)) {
-  controller_ = owned_controller_.get();
+  if (base::FeatureList::IsEnabled(
+          omnibox::kWebUISearchboxWithoutModelController)) {
+    if (client_) {
+      AutocompleteControllerConfig autocomplete_controller_config{
+          .provider_types = AutocompleteClassifier::DefaultOmniboxProviders()};
+      if (omnibox::IsWebUIOmniboxPopupEnabled()) {
+        autocomplete_controller_config.show_iph_matches = false;
+      }
+      if (autocomplete_stop_timer_duration.has_value()) {
+        autocomplete_controller_config.stop_timer_duration =
+            autocomplete_stop_timer_duration.value();
+      }
+      autocomplete_controller_ = std::make_unique<AutocompleteController>(
+          client_->CreateAutocompleteProviderClient(),
+          autocomplete_controller_config);
+
+      // Register with emitter.
+      if (auto* emitter = client_->GetAutocompleteControllerEmitter()) {
+        autocomplete_controller_->AddObserver(emitter);
+      }
+    }
+  } else {
+    if (client_) {
+      owned_controller_ = std::make_unique<OmniboxController>(
+          std::move(client_), autocomplete_stop_timer_duration);
+      controller_ = owned_controller_.get();
+    }
+  }
 
   if (web_contents_) {
     PermissionPromptObserver::CreateForWebContents(web_contents_);
@@ -992,14 +1036,13 @@ SearchboxHandler::SearchboxHandler(
 }
 
 SearchboxHandler::~SearchboxHandler() {
+  controller_ = nullptr;
   if (web_contents_) {
     if (auto* observer =
             PermissionPromptObserver::FromWebContents(web_contents_)) {
       observer->RemoveObserver(this);
     }
   }
-  // Avoids dangling pointer warning when `controller_` is not owned.
-  controller_ = nullptr;
 }
 
 void SearchboxHandler::AddFileContextFromBrowser(
@@ -1016,11 +1059,14 @@ void SearchboxHandler::OnContextualInputStatusChanged(
 }
 
 void SearchboxHandler::OnFocusChanged(bool focused) {
-  if (focused) {
-    edit_model()->OnSetFocus(false);
-  } else {
-    edit_model()->OnWillKillFocus();
-    edit_model()->OnKillFocus();
+  if (!base::FeatureList::IsEnabled(
+          omnibox::kWebUISearchboxWithoutModelController)) {
+    if (focused) {
+      edit_model()->OnSetFocus(false);
+    } else {
+      edit_model()->OnWillKillFocus();
+      edit_model()->OnKillFocus();
+    }
   }
 }
 
@@ -1051,35 +1097,37 @@ void SearchboxHandler::QueryAutocompleteWithSuggestInventory(
     return;
   }
 
-  // This will SetInputInProgress and consequently mark the input timer so that
-  // Omnibox.TypingDuration will be logged correctly.
-  edit_model()->SetUserText(input);
+  if (!base::FeatureList::IsEnabled(
+          omnibox::kWebUISearchboxWithoutModelController)) {
+    // This will SetInputInProgress and consequently mark the input timer so
+    // that Omnibox.TypingDuration will be logged correctly.
+    edit_model()->SetUserText(input);
+  }
 
   // RealboxOmniboxClient::GetPageClassification() ignores the arguments.
   const auto page_classification =
-      omnibox_controller()->client()->GetPageClassification(
-          /*is_prefetch=*/false);
+      client()->GetPageClassification(/*is_prefetch=*/false);
   AutocompleteInput autocomplete_input(
       input, page_classification, ChromeAutocompleteSchemeClassifier(profile_));
-  autocomplete_input.set_current_url(controller_->client()->GetURL());
+  autocomplete_input.set_current_url(client()->GetURL());
   autocomplete_input.set_focus_type(
       is_on_focus ? metrics::OmniboxFocusType::INTERACTION_FOCUS
                   : metrics::OmniboxFocusType::INTERACTION_DEFAULT);
   autocomplete_input.set_prevent_inline_autocomplete(
       prevent_inline_autocomplete);
   // Disable keyword matches as NTP realbox has no UI affordance for it.
-  autocomplete_input.set_prefer_keyword(false);
+  autocomplete_input.set_in_keyword_mode(false);
   autocomplete_input.set_allow_exact_keyword_match(false);
   // Set the lens overlay suggest inputs, if available.
   if (std::optional<lens::proto::LensOverlaySuggestInputs> suggest_inputs =
-          controller_->client()->GetLensOverlaySuggestInputs()) {
+          client()->GetLensOverlaySuggestInputs()) {
     // Don't set lens params if in "Create Image" with an image present or in
     // "Canvas" mode. This prevents the contextual client from being used in
     // this tool mode.
     autocomplete_input.set_lens_overlay_suggest_inputs(*suggest_inputs);
   }
-  if (controller_->client()->GetContextualInputData().has_value()) {
-    auto context_data = controller_->client()->GetContextualInputData().value();
+  if (client()->GetContextualInputData().has_value()) {
+    auto context_data = client()->GetContextualInputData().value();
     if (context_data.page_title.has_value() &&
         context_data.page_url.has_value()) {
       autocomplete_input.set_context_tab_title(
@@ -1092,12 +1140,57 @@ void SearchboxHandler::QueryAutocompleteWithSuggestInventory(
   autocomplete_input.set_previous_query(GetPreviousQuery());
   autocomplete_input.set_suggest_inventory(suggest_inventory);
 
-  edit_model()->SetAutocompleteInput(autocomplete_input);
-  omnibox_controller()->StartAutocomplete(autocomplete_input);
+  if (base::FeatureList::IsEnabled(
+          omnibox::kWebUISearchboxWithoutModelController)) {
+    autocomplete_controller()->Start(autocomplete_input);
+  } else {
+    edit_model()->SetAutocompleteInput(autocomplete_input);
+    omnibox_controller()->StartAutocomplete(autocomplete_input);
+  }
 }
 
 void SearchboxHandler::StopAutocomplete(bool clear_result) {
-  omnibox_controller()->StopAutocomplete(clear_result);
+  if (base::FeatureList::IsEnabled(
+          omnibox::kWebUISearchboxWithoutModelController)) {
+    autocomplete_controller()->Stop(clear_result
+                                        ? AutocompleteStopReason::kClobbered
+                                        : AutocompleteStopReason::kInteraction);
+  } else {
+    omnibox_controller()->StopAutocomplete(clear_result);
+  }
+}
+
+void SearchboxHandler::OpenMatch(AutocompleteMatch match,
+                                 WindowOpenDisposition disposition,
+                                 base::TimeTicks match_selection_timestamp) {
+  autocomplete_controller()
+      ->UpdateMatchDestinationURLWithAdditionalSearchboxStats(
+          base::Milliseconds(-1), &match);
+
+  GURL destination_url = match.destination_url;
+
+  bookmarks::BookmarkModel* bookmark_model = client()->GetBookmarkModel();
+  if (bookmark_model && bookmark_model->IsBookmarked(destination_url)) {
+    client()->OnBookmarkLaunched();
+  }
+
+  TemplateURLService* template_url_service = client()->GetTemplateURLService();
+  if (template_url_service &&
+      template_url_service->IsSearchResultsPageFromDefaultSearchProvider(
+          destination_url)) {
+    base::RecordAction(
+        base::UserMetricsAction("OmniboxDestinationURLIsSearchOnDSP"));
+  }
+
+  client()->OnAutocompleteAccept(
+      destination_url, match.post_content.get(), disposition,
+      ui::PageTransitionFromInt(match.transition |
+                                ui::PAGE_TRANSITION_FROM_ADDRESS_BAR),
+      match.type, match_selection_timestamp,
+      /*destination_url_entered_without_scheme=*/false,
+      /*destination_url_entered_with_http_scheme=*/false,
+      /*text=*/u"", match,
+      /*alternative_nav_match=*/AutocompleteMatch());
 }
 
 void SearchboxHandler::OpenAutocompleteMatch(uint8_t line,
@@ -1118,8 +1211,13 @@ void SearchboxHandler::OpenAutocompleteMatch(uint8_t line,
   const WindowOpenDisposition disposition = ui::DispositionFromClick(
       /*middle_button=*/mouse_button == 1, alt_key, ctrl_key, meta_key,
       shift_key);
-  edit_model()->OpenSelection(OmniboxPopupSelection(line), timestamp,
-                              disposition);
+  if (base::FeatureList::IsEnabled(
+          omnibox::kWebUISearchboxWithoutModelController)) {
+    OpenMatch(*match, disposition, timestamp);
+  } else {
+    edit_model()->OpenSelection(OmniboxPopupSelection(line), timestamp,
+                                disposition);
+  }
 }
 
 OmniboxPopupSelection ConvertSelection(
@@ -1166,8 +1264,11 @@ OmniboxPopupSelection ConvertSelection(
 
 void SearchboxHandler::SetPopupSelection(
     searchbox::mojom::OmniboxPopupSelectionPtr selection) {
-  edit_model()->SetPopupSelection(ConvertSelection(std::move(selection)), false,
-                                  false, false);
+  if (!base::FeatureList::IsEnabled(
+          omnibox::kWebUISearchboxWithoutModelController)) {
+    edit_model()->SetPopupSelection(ConvertSelection(std::move(selection)),
+                                    false, false, false);
+  }
 }
 
 void SearchboxHandler::OpenPopupSelection(
@@ -1176,26 +1277,56 @@ void SearchboxHandler::OpenPopupSelection(
     WindowOpenDisposition disposition) {
   const OmniboxPopupSelection popup_selection =
       ConvertSelection(std::move(selection));
-  // OmniboxEditModel does not properly select the AIM button in all cases,
-  // for example when there are no matches in the list. The webui popup
-  // selection control fixes this bug, so AIM button selection is excepted.
-  const bool selection_matched =
-      popup_selection == edit_model()->GetPopupSelection() ||
-      popup_selection.state == OmniboxPopupSelection::FOCUSED_BUTTON_AIM;
   const bool sequence_id_matched =
       result_sequence_id == autocomplete_controller()->result().sequence_id();
 
-  base::UmaHistogramBoolean("Omnibox.WebUI.SelectionMatched",
-                            selection_matched);
+  if (!base::FeatureList::IsEnabled(
+          omnibox::kWebUISearchboxWithoutModelController)) {
+    const bool selection_matched =
+        popup_selection == edit_model()->GetPopupSelection() ||
+        popup_selection.state == OmniboxPopupSelection::FOCUSED_BUTTON_AIM;
+    base::UmaHistogramBoolean("Omnibox.WebUI.SelectionMatched",
+                              selection_matched);
+    base::UmaHistogramBoolean(
+        "Omnibox.WebUI.AutocompleteResultSequenceIdMatched",
+        sequence_id_matched);
+
+    if ((!selection_matched || !sequence_id_matched) &&
+        base::FeatureList::IsEnabled(kDropMismatchedSelections)) {
+      return;
+    }
+
+    edit_model()->OpenSelection(popup_selection);
+    return;
+  }
+
   base::UmaHistogramBoolean("Omnibox.WebUI.AutocompleteResultSequenceIdMatched",
                             sequence_id_matched);
 
-  if ((!selection_matched || !sequence_id_matched) &&
+  if (!sequence_id_matched &&
       base::FeatureList::IsEnabled(kDropMismatchedSelections)) {
     return;
   }
 
-  edit_model()->OpenSelection(popup_selection);
+  if (popup_selection.line >= autocomplete_controller()->result().size()) {
+    return;
+  }
+
+  const AutocompleteMatch& match =
+      autocomplete_controller()->result().match_at(popup_selection.line);
+
+  if (popup_selection.state == OmniboxPopupSelection::FOCUSED_BUTTON_ACTION) {
+    if (popup_selection.action_index < match.actions.size()) {
+      auto* action = match.actions[popup_selection.action_index].get();
+      if (action) {
+        client()->ExecuteAction(
+            action, disposition, base::TimeTicks::Now(),
+            *(autocomplete_controller()->autocomplete_provider_client()));
+      }
+    }
+  } else {
+    OpenMatch(match, disposition, base::TimeTicks::Now());
+  }
 }
 
 void SearchboxHandler::OnNavigationLikely(
@@ -1229,7 +1360,12 @@ void SearchboxHandler::DeleteAutocompleteMatch(uint8_t line, const GURL& url) {
     // the web UI is referencing a stale match.
     return;
   }
-  omnibox_controller()->StopAutocomplete(/*clear_result=*/false);
+  if (base::FeatureList::IsEnabled(
+          omnibox::kWebUISearchboxWithoutModelController)) {
+    autocomplete_controller()->Stop(AutocompleteStopReason::kInteraction);
+  } else {
+    omnibox_controller()->StopAutocomplete(/*clear_result=*/false);
+  }
   autocomplete_controller()->DeleteMatch(*match);
 }
 
@@ -1264,10 +1400,20 @@ void SearchboxHandler::ExecuteAction(uint8_t line,
   const WindowOpenDisposition disposition = ui::DispositionFromClick(
       /*middle_button=*/mouse_button == 1, alt_key, ctrl_key, meta_key,
       shift_key);
-  edit_model()->OpenSelection(
-      OmniboxPopupSelection(line, OmniboxPopupSelection::FOCUSED_BUTTON_ACTION,
-                            action_index),
-      match_selection_timestamp, disposition);
+  if (base::FeatureList::IsEnabled(
+          omnibox::kWebUISearchboxWithoutModelController)) {
+    auto* action = match->actions[action_index].get();
+    if (action) {
+      client()->ExecuteAction(
+          action, disposition, match_selection_timestamp,
+          *(autocomplete_controller()->autocomplete_provider_client()));
+    }
+  } else {
+    edit_model()->OpenSelection(
+        OmniboxPopupSelection(
+            line, OmniboxPopupSelection::FOCUSED_BUTTON_ACTION, action_index),
+        match_selection_timestamp, disposition);
+  }
 }
 
 void SearchboxHandler::GetPlaceholderConfig(
@@ -1339,20 +1485,33 @@ void SearchboxHandler::GetInputState(GetInputStateCallback callback) {
 
 void SearchboxHandler::OnResultChanged(AutocompleteController* controller,
                                        bool default_match_changed) {
-  page_->AutocompleteResultChanged(CreateAutocompleteResult(
-      autocomplete_controller()->input().text(),
-      autocomplete_controller()->result(), edit_model(),
-      BookmarkModelFactory::GetForBrowserContext(profile_),
-      profile_->GetPrefs(),
-      omnibox_controller()->client()->GetTemplateURLService()));
+  if (base::FeatureList::IsEnabled(
+          omnibox::kWebUISearchboxWithoutModelController)) {
+    page_->AutocompleteResultChanged(CreateAutocompleteResult(
+        autocomplete_controller()->input().text(),
+        autocomplete_controller()->result(), nullptr,
+        BookmarkModelFactory::GetForBrowserContext(profile_),
+        profile_->GetPrefs(), client()->GetTemplateURLService()));
+  } else {
+    page_->AutocompleteResultChanged(CreateAutocompleteResult(
+        autocomplete_controller()->input().text(),
+        autocomplete_controller()->result(), edit_model(),
+        BookmarkModelFactory::GetForBrowserContext(profile_),
+        profile_->GetPrefs(),
+        omnibox_controller()->client()->GetTemplateURLService()));
+  }
 
-  // The owned `OmniboxController` does not observe the
-  // `AutocompleteController`. Notify the prerender here to start preloading if
-  // the results are ready.
-  // TODO(crbug.com/40062053): Make the owned `OmniboxController` observe the
-  //  `AutocompleteController` and move this logic to the
-  //  `RealboxOmniboxClient`.
-  if (owned_controller_) {
+  // If the AutocompleteController is owned by the handler, notify the prerender
+  // here to start preloading if the results are ready.
+  bool should_preload = false;
+  if (base::FeatureList::IsEnabled(
+          omnibox::kWebUISearchboxWithoutModelController)) {
+    should_preload = !!client_;
+  } else {
+    should_preload = !!owned_controller_;
+  }
+
+  if (should_preload) {
     if (autocomplete_controller()->done()) {
       if (auto* dictionary_preload_service =
               AutocompleteDictionaryPreloadServiceFactory::GetForProfile(
@@ -1437,21 +1596,50 @@ OmniboxController* SearchboxHandler::omnibox_controller() const {
   return controller_;
 }
 
+OmniboxClient* SearchboxHandler::client() const {
+  if (base::FeatureList::IsEnabled(
+          omnibox::kWebUISearchboxWithoutModelController) &&
+      client_) {
+    return client_.get();
+  }
+  return controller_ ? controller_->client() : nullptr;
+}
+
 AutocompleteController* SearchboxHandler::autocomplete_controller() const {
-  return omnibox_controller()->autocomplete_controller();
+  if (base::FeatureList::IsEnabled(
+          omnibox::kWebUISearchboxWithoutModelController) &&
+      autocomplete_controller_) {
+    return autocomplete_controller_.get();
+  }
+  return controller_ ? controller_->autocomplete_controller() : nullptr;
 }
 
 OmniboxEditModel* SearchboxHandler::edit_model() const {
-  return omnibox_controller()->edit_model();
+  return controller_ ? controller_->edit_model() : nullptr;
+}
+
+void SearchboxHandler::SetAutocompleteControllerForTesting(
+    std::unique_ptr<AutocompleteController> controller) {
+  if (base::FeatureList::IsEnabled(
+          omnibox::kWebUISearchboxWithoutModelController)) {
+    autocomplete_controller_ = std::move(controller);
+  } else if (controller_) {
+    controller_->SetAutocompleteControllerForTesting(std::move(controller));
+  }
 }
 
 void SearchboxHandler::GetPageClassification(
     GetPageClassificationCallback callback) {
   metrics::OmniboxEventProto::PageClassification classification_enum =
-      omnibox_controller()->client()->GetPageClassification(
-          /*is_prefetch=*/false);
+      client()->GetPageClassification(/*is_prefetch=*/false);
   std::move(callback).Run(::metrics::OmniboxEventProto::PageClassification_Name(
       classification_enum));
+}
+
+std::u16string SearchboxHandler::GetSuggestionGroupHeaderText(
+    const std::optional<omnibox::GroupId>& suggestion_group_id) const {
+  return autocomplete_controller()->GetSuggestionGroupHeaderText(
+      suggestion_group_id);
 }
 
 OmniboxController* SearchboxHandler::Delegate::GetOmniboxController() {

@@ -3,41 +3,33 @@
 // found in the LICENSE file.
 
 #include "base/command_line.h"
-#include "base/feature_list.h"
-#include "base/memory/scoped_refptr.h"
+#include "base/functional/bind.h"
+#include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
-#include "base/task/current_thread.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/test/test.pb.h"
-#include "base/test/with_feature_override.h"
+#include "base/time/time.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/global_features.h"
 #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
 #include "chrome/browser/optimization_guide/model_execution/optimization_guide_global_state.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/webauthn/sheet_models.h"
 #include "chrome/test/base/in_process_browser_test.h"
-#include "chrome/test/base/ui_test_utils.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/optimization_guide/core/feature_registry/feature_registration.h"
-#include "components/optimization_guide/core/feature_registry/mqls_feature_registry.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
-#include "components/optimization_guide/core/model_execution/model_broker_state.h"
+#include "components/optimization_guide/core/model_execution/manifest_broker/test/manifest_builder.h"
 #include "components/optimization_guide/core/model_execution/model_execution_features.h"
-#include "components/optimization_guide/core/model_execution/model_execution_manager.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
-#include "components/optimization_guide/core/model_execution/on_device_model_adaptation_loader.h"
-#include "components/optimization_guide/core/model_execution/on_device_model_service_controller.h"
 #include "components/optimization_guide/core/model_execution/optimization_guide_model_execution_error.h"
 #include "components/optimization_guide/core/model_execution/performance_class.h"
-#include "components/optimization_guide/core/model_execution/remote_model_executor.h"
 #include "components/optimization_guide/core/model_execution/test/fake_model_assets.h"
 #include "components/optimization_guide/core/model_execution/test/feature_config_builder.h"
 #include "components/optimization_guide/core/model_quality/model_execution_logging_wrappers.h"
@@ -47,20 +39,19 @@
 #include "components/optimization_guide/core/optimization_guide_logger.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
+#include "components/optimization_guide/proto/manifest.pb.h"
 #include "components/optimization_guide/proto/model_quality_service.pb.h"
-#include "components/optimization_guide/proto/on_device_model_execution_config.pb.h"
 #include "components/optimization_guide/public/mojom/model_broker.mojom-shared.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
 #include "components/policy/core/common/mock_configuration_policy_provider.h"
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/policy_constants.h"
-#include "components/signin/public/base/signin_switches.h"
+#include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "content/public/test/browser_test.h"
-#include "content/public/test/browser_test_utils.h"
 #include "net/dns/mock_host_resolver.h"
-#include "services/on_device_model/public/cpp/cpu.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/tflite/buildflags.h"
 
 namespace optimization_guide {
@@ -236,13 +227,6 @@ class ModelExecutionBrowserTestBase : public InProcessBrowserTest {
     run_loop.Run();
   }
 
-  OnDeviceModelEligibilityReason GetOnDeviceModelEligibility(
-      mojom::OnDeviceFeature feature,
-      Profile* profile = nullptr) {
-    return GetOptimizationGuideKeyedService(profile)
-        ->GetOnDeviceModelEligibility(feature);
-  }
-
   void SetExpectedBearerAccessToken(
       const std::string& expected_bearer_access_token) {
     expected_bearer_access_token_ = expected_bearer_access_token;
@@ -411,42 +395,6 @@ IN_PROC_BROWSER_TEST_F(ModelExecutionDisabledBrowserTest,
                 kGenericFailure,
             model_execution_result_->response.error().error());
   EXPECT_TRUE(model_execution_result_->response.error().transient());
-}
-
-IN_PROC_BROWSER_TEST_F(ModelExecutionDisabledBrowserTest,
-                       GetOnDeviceModelEligibilityExecutionDisabled) {
-  EXPECT_EQ(GetOnDeviceModelEligibility(mojom::OnDeviceFeature::kCompose),
-            OnDeviceModelEligibilityReason::kFeatureNotEnabled);
-}
-
-IN_PROC_BROWSER_TEST_F(
-    ModelExecutionDisabledBrowserTest,
-    GetOnDeviceModelEligibilityExecutionDisabledNullDebugReason) {
-  EXPECT_NE(GetOnDeviceModelEligibility(mojom::OnDeviceFeature::kCompose),
-            OnDeviceModelEligibilityReason::kSuccess);
-}
-
-class ModelExecutionEnabledOnDeviceDisabledBrowserTest
-    : public ModelExecutionBrowserTestBase {
-  void InitializeFeatureList() override {
-    scoped_feature_list_.InitWithFeatures(
-        {features::kOptimizationGuideModelExecution,
-         features::kModelQualityLogging},
-        {features::kOptimizationGuideOnDeviceModel});
-  }
-};
-
-IN_PROC_BROWSER_TEST_F(ModelExecutionEnabledOnDeviceDisabledBrowserTest,
-                       GetOnDeviceModelEligibilityOnDeviceDisabled) {
-  EXPECT_EQ(GetOnDeviceModelEligibility(mojom::OnDeviceFeature::kCompose),
-            OnDeviceModelEligibilityReason::kFeatureNotEnabled);
-}
-
-IN_PROC_BROWSER_TEST_F(
-    ModelExecutionEnabledOnDeviceDisabledBrowserTest,
-    GetOnDeviceModelEligibilityExecutionDisabledNullDebugReason) {
-  EXPECT_NE(GetOnDeviceModelEligibility(mojom::OnDeviceFeature::kCompose),
-            OnDeviceModelEligibilityReason::kSuccess);
 }
 
 class ModelExecutionEnabledBrowserTest : public ModelExecutionBrowserTestBase {
@@ -659,142 +607,6 @@ IN_PROC_BROWSER_TEST_F(ModelExecutionEnabledBrowserTest,
       "OptimizationGuide.ModelQualityLogsUploaderService.UploadStatus.Compose",
       0);
 }
-
-IN_PROC_BROWSER_TEST_F(ModelExecutionEnabledBrowserTest,
-                       GetOnDeviceModelEligibilityExecutionDisabled) {
-  EXPECT_NE(GetOnDeviceModelEligibility(mojom::OnDeviceFeature::kCompose),
-            OnDeviceModelEligibilityReason::kSuccess);
-}
-
-#if BUILDFLAG(USE_ON_DEVICE_MODEL_SERVICE)
-
-class OnDeviceModelExecutionEnabledBrowserTest
-    : public ModelExecutionEnabledBrowserTest {
- public:
-  static constexpr float kTestDefaultTemperature = 0.9;
-  static constexpr uint32_t kTestDefaultTopK = 7;
-
-  void InitializeFeatureList() override {
-    scoped_feature_list_.InitWithFeaturesAndParameters(
-        {{features::kOptimizationGuideModelExecution, {}},
-         {features::kModelQualityLogging, {}},
-         {features::kOptimizationGuideOnDeviceModel, {}},
-         {features::kOnDeviceModelPerformanceParams,
-          {{"compatible_on_device_performance_classes", "*"}}}},
-        {});
-
-    // This test depends on the disk information being available in a timely
-    // manner (see crbug.com/346579988). Use this flag to have the information
-    // retrieved with higher priority which reduces the chances of flakiness.
-    base::CommandLine::ForCurrentProcess()->AppendSwitch(
-        optimization_guide::switches::
-            kGetFreeDiskSpaceWithUserVisiblePriorityTask);
-  }
-
-  ModelBrokerState* broker_state() {
-    // Ensure keyed service is created, which should create and hold state.
-    GetOptimizationGuideKeyedService();
-    return g_browser_process->GetFeatures()
-        ->optimization_guide_global_feature()
-        ->Get()
-        .model_broker_state();
-  }
-
-  void SetUpLocalStatePrefService(PrefService* local_state) override {
-    model_execution::prefs::RecordFeatureUsage(
-        local_state, mojom::OnDeviceFeature::kCompose);
-    UpdatePerformanceClassPref(local_state,
-                               OnDeviceModelPerformanceClass::kVeryHigh);
-  }
-
-  void SetUpGlobalAssets() {
-    base_model_asset_.SetReadyIn(broker_state()->component_state_manager());
-  }
-
-  // Set up assets which are registered per-profile.
-  void SetUpProfileAssets() {
-    compose_asset_.SendTo(broker_state()->base_model_controller());
-  }
-
- private:
-  FakeBaseModelAsset base_model_asset_;
-  FakeAdaptationAsset compose_asset_{{
-      .config =
-          []() {
-            proto::OnDeviceModelExecutionFeatureConfig config;
-            config.set_feature(proto::MODEL_EXECUTION_FEATURE_COMPOSE);
-            config.set_can_skip_text_safety(true);
-            auto* params = config.mutable_sampling_params();
-            params->set_top_k(kTestDefaultTopK);
-            params->set_temperature(kTestDefaultTemperature);
-            return config;
-          }(),
-  }};
-};
-
-IN_PROC_BROWSER_TEST_F(OnDeviceModelExecutionEnabledBrowserTest,
-                       GetOnDeviceModelEligibilityInRegularProfile) {
-  SetUpGlobalAssets();
-  SetUpProfileAssets();
-
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return GetOnDeviceModelEligibility(mojom::OnDeviceFeature::kCompose,
-                                       nullptr) ==
-           OnDeviceModelEligibilityReason::kSuccess;
-  })) << "Timeout waiting for model to be marked eligible.";
-}
-
-IN_PROC_BROWSER_TEST_F(OnDeviceModelExecutionEnabledBrowserTest,
-                       GetOnDeviceModelEligibilityInIncognito) {
-  SetUpGlobalAssets();
-
-  Browser* otr_browser = CreateIncognitoBrowser();
-  SetUpProfileAssets();
-
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return GetOnDeviceModelEligibility(mojom::OnDeviceFeature::kCompose,
-                                       otr_browser->profile()) ==
-           OnDeviceModelEligibilityReason::kSuccess;
-  })) << "Timeout waiting for model to be marked eligible.";
-}
-
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
-// Guest profile only available in some platforms.
-IN_PROC_BROWSER_TEST_F(OnDeviceModelExecutionEnabledBrowserTest,
-                       GetOnDeviceModelEligibilityInGuestProfile) {
-  SetUpGlobalAssets();
-
-  Browser* guest_browser = CreateGuestBrowser();
-  SetUpProfileAssets();
-
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return GetOnDeviceModelEligibility(mojom::OnDeviceFeature::kCompose,
-                                       guest_browser->profile()) ==
-           OnDeviceModelEligibilityReason::kSuccess;
-  })) << "Timeout waiting for model to be marked eligible.";
-}
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
-
-IN_PROC_BROWSER_TEST_F(OnDeviceModelExecutionEnabledBrowserTest,
-                       GetSamplingParamsConfig) {
-  SetUpGlobalAssets();
-  SetUpProfileAssets();
-
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return GetOnDeviceModelEligibility(mojom::OnDeviceFeature::kCompose,
-                                       nullptr) ==
-           OnDeviceModelEligibilityReason::kSuccess;
-  })) << "Timeout waiting for model to be marked eligible.";
-
-  auto& metadata = broker_state()->base_model_controller().GetFeatureMetadata(
-      mojom::OnDeviceFeature::kCompose);
-  auto sampling_config = metadata->adapter()->GetSamplingParamsConfig();
-
-  EXPECT_EQ(sampling_config.default_top_k, kTestDefaultTopK);
-  EXPECT_EQ(sampling_config.default_temperature, kTestDefaultTemperature);
-}
-
-#endif  // BUILDFLAG(USE_ON_DEVICE_MODEL_SERVICE)
 
 class ModelExecutionInternalsPageBrowserTest
     : public ModelExecutionEnabledBrowserTest {

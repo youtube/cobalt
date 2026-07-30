@@ -712,4 +712,27 @@ TEST_F(OverscrollRefreshTest, RightEdgeHistoryNavigationFlingToStart) {
             GetAndResetOverscrollActivationStatus());
 }
 
+TEST_F(OverscrollRefreshTest, MultidimensionalOverscroll) {
+  effect_.OnFrameUpdated(kViewport, gfx::PointF(0, 100), kContentSize,
+                         kOverflowYNotHidden);
+  effect_.OnScrollBegin(gfx::PointF(2.f, 50.f));
+
+  // First overscroll event: pure horizontal overscroll starts History Nav
+  gfx::Vector2dF horizontal_scroll(10, 0);
+  effect_.OnOverscrolled(cc::OverscrollBehavior(), -horizontal_scroll,
+                         blink::WebGestureDevice::kTouchscreen);
+  ASSERT_TRUE(effect_.IsActive());
+  EXPECT_TRUE(GetAndResetPullStarted());
+
+  // Second overscroll event: vertical overscroll > horizontal
+  gfx::Vector2dF vertical_scroll(10, 20);
+  effect_.OnOverscrolled(cc::OverscrollBehavior(), -vertical_scroll,
+                         blink::WebGestureDevice::kTouchscreen);
+  EXPECT_TRUE(effect_.IsActive());
+
+  // Scroll ends -> cleanly releases without crashing!
+  effect_.OnScrollEnd(gfx::Vector2dF());
+  EXPECT_TRUE(GetAndResetPullReleased());
+}
+
 }  // namespace ui

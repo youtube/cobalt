@@ -152,6 +152,7 @@
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
+#include "ui/base/ozone_buildflags.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/gfx/color_palette.h"
@@ -257,9 +258,6 @@ BrowserWindowInterface* FindBrowserWithType(BrowserWindowInterface::Type type) {
 
 }  // namespace
 
-// TODO(b/479420496): Update this test to verify navigation history, tab groups,
-// pinned tabs, the active tab index, and window state/bounds.
-// See examples in SessionRestoreAcrossStagesTest.
 class SessionRestoreTest : public InProcessBrowserTest {
  public:
   SessionRestoreTest() {
@@ -613,7 +611,7 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, RestoredTabsHaveCorrectInitialSize) {
   ASSERT_EQ(3, tab_strip_model->count());
 
   const gfx::Size contents_size =
-      restored->GetBrowserForMigrationOnly()->window()->GetContentsSize();
+      BrowserWindow::FromBrowser(restored)->GetContentsSize();
   for (int i = 0; i < tab_strip_model->count(); ++i) {
     content::WebContents* contents = tab_strip_model->GetWebContentsAt(i);
     const char kGetWidthJS[] = "window.innerWidth;";
@@ -1051,6 +1049,38 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, Basic) {
   GoBack(new_browser);
   ASSERT_EQ(GetUrl1(),
             new_browser->GetTabStripModel()->GetActiveWebContents()->GetURL());
+}
+
+IN_PROC_BROWSER_TEST_F(SessionRestoreTest, WindowBoundsAreRestored) {
+  gfx::Rect expected_bounds(50, 50, 550, 500);
+  browser()->GetWindow()->SetBounds(expected_bounds);
+
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    // Wait for window to be updated.  Only check window size because some
+    // Window Managers do not update position or adjust the position.
+    return browser()->GetWindow()->GetBounds().size() == expected_bounds.size();
+  }));
+  // Capture the actual OS-granted bounds so we verify against what session
+  // restore will save.
+  expected_bounds = browser()->GetWindow()->GetBounds();
+
+  // Navigate to trigger SessionService creation and record the new bounds.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetUrl1()));
+
+  BrowserWindowInterface* restored = QuitBrowserAndRestore(browser());
+
+  // Navigate to trigger SessionService creation and compare the bounds.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(restored, GetUrl1()));
+
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
+  // On Linux Wayland, the client cannot set top-level window positions.
+  EXPECT_EQ(expected_bounds.size(), restored->GetWindow()->GetBounds().size());
+#elif BUILDFLAG(IS_MAC)
+  // On MacOS, relaunch behavior differs from other platforms so evaluating
+  // window size restore is difficult. See https://crrev.com/c/8006276.
+#else
+  EXPECT_EQ(expected_bounds, restored->GetWindow()->GetBounds());
+#endif
 }
 
 namespace {

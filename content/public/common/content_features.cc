@@ -140,9 +140,6 @@ const base::FeatureParam<bool>
 // production.
 BASE_FEATURE(kAttachUnownedInnerWebContents, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Launches the audio service on the browser startup.
-BASE_FEATURE(kAudioServiceLaunchOnStartup, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Runs the audio service in a separate process.
 BASE_FEATURE(kAudioServiceOutOfProcess,
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -603,11 +600,6 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &features::kArtificialUIDelay,
                    "views_ui_delay_duration",
                    base::Seconds(3));
-
-// Whether initial WebUI navigations should synchronously go from navigation
-// start to commit, by doing e.g. in-renderer body loading.
-BASE_FEATURE(kInitialWebUISyncNavStartToCommit,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Kill switch for the GetInstalledRelatedApps API.
 BASE_FEATURE(kInstalledApp, base::FEATURE_ENABLED_BY_DEFAULT);

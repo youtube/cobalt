@@ -92,7 +92,10 @@ struct ShapeResultCharacterData {
     safe_to_break_before = new_safe_to_break_before;
   }
 
-  LayoutUnit x_position;
+  union {
+    LayoutUnit x_position{};
+    TextRunLayoutUnit advance;
+  };
   // Set for the logical first character of a cluster.
   unsigned is_cluster_base : 1 = false;
   unsigned safe_to_break_before : 1 = false;
@@ -234,8 +237,12 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
     return LayoutUnit::FromFloatCeil(PositionForOffset(offset));
   }
 
-  // Computes and caches a position data object as needed.
-  void EnsurePositionData() const;
+  // Computes and caches a position data object as needed. For a
+  // constant-advance (monospace) result the cache is compacted to a single
+  // shared advance; pass `allow_compaction = false` to force the full
+  // per-character table, which mutators that read or write per-character data
+  // (e.g. auto-spacing) require.
+  void EnsurePositionData(bool allow_compaction = true) const;
 
   const ShapeResultCharacterData& CharacterData(unsigned offset) const;
   ShapeResultCharacterData& CharacterData(unsigned offset);
@@ -416,8 +423,8 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
                              ShapeResult* target) const;
 
   template <bool>
-  void ComputePositionData() const;
-  void RecalcCharacterPositions() const;
+  void ComputePositionData(bool allow_compaction) const;
+  void RecalcCharacterPositions(bool allow_compaction = true) const;
 
   // if `method` is std::nullopt, this handles letter-spacing/word-spacing.
   // Otherwise, this handles expansion.

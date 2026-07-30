@@ -136,7 +136,7 @@ class PLATFORM_EXPORT FontCache final {
 
   void Invalidate();
 
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
   static WebFontPrewarmer* GetFontPrewarmer() { return prewarmer_; }
   static void SetFontPrewarmer(WebFontPrewarmer* prewarmer) {
     prewarmer_ = prewarmer;
@@ -295,11 +295,23 @@ class PLATFORM_EXPORT FontCache final {
       FontFallbackPriority);
 #endif
 
+  static sk_sp<SkTypeface> MatchFamilyStyle(const char* family_name,
+                                            const SkFontStyle&);
+
+  static sk_sp<SkTypeface> MatchFamilyStyleCharacter(const char* family_name,
+                                                     const SkFontStyle&,
+                                                     const char* bcp47[],
+                                                     int bcp47_count,
+                                                     UChar32 character);
+
   const SimpleFontData* FallbackOnStandardFontStyle(const FontDescription&,
                                                     UChar32);
 
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
   static WebFontPrewarmer* prewarmer_;
+#endif
+
+#if BUILDFLAG(IS_WIN)
   static bool antialiased_text_enabled_;
   static bool lcd_text_enabled_;
   // The system font metrics cache.

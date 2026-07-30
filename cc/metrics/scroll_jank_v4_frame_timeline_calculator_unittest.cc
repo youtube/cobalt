@@ -127,34 +127,42 @@ TEST_F(ScrollJankV4FrameTimelineCalculatorTest, OneNonDamagingFrame) {
   DispatchBeginFrameArgs dispatch_args =
       CreateDispatchBeginFrameArgs(31, MillisecondsTicks(111));
   EventMetrics::List events_metrics;
-  events_metrics.push_back(metrics_creator_.InertialGestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(10))
-                               .SetDelta(1.0f)
-                               .SetCausedFrameUpdate(false)
-                               .SetDidScroll(false)
-                               .SetDispatchArgs(dispatch_args)
-                               .Build());
-  events_metrics.push_back(metrics_creator_.InertialGestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(11))
-                               .SetDelta(2.0f)
-                               .SetCausedFrameUpdate(true)
-                               .SetDidScroll(false)
-                               .SetDispatchArgs(dispatch_args)
-                               .Build());
-  events_metrics.push_back(metrics_creator_.InertialGestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(12))
-                               .SetDelta(3.0f)
-                               .SetCausedFrameUpdate(false)
-                               .SetDidScroll(true)
-                               .SetDispatchArgs(dispatch_args)
-                               .Build());
-  events_metrics.push_back(metrics_creator_.InertialGestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(13))
-                               .SetDelta(4.0f)
-                               .SetCausedFrameUpdate(false)
-                               .SetDidScroll(false)
-                               .SetDispatchArgs(dispatch_args)
-                               .Build());
+  events_metrics.push_back(
+      metrics_creator_.InertialGestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(10))
+          .SetDelta(1.0f)
+          .SetCausedFrameUpdate(false)
+          .SetDidScroll(false)
+          .SetDispatchArgs(dispatch_args)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
+  events_metrics.push_back(
+      metrics_creator_.InertialGestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(11))
+          .SetDelta(2.0f)
+          .SetCausedFrameUpdate(true)
+          .SetDidScroll(false)
+          .SetDispatchArgs(dispatch_args)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
+  events_metrics.push_back(
+      metrics_creator_.InertialGestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(12))
+          .SetDelta(3.0f)
+          .SetCausedFrameUpdate(false)
+          .SetDidScroll(true)
+          .SetDispatchArgs(dispatch_args)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
+  events_metrics.push_back(
+      metrics_creator_.InertialGestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(13))
+          .SetDelta(4.0f)
+          .SetCausedFrameUpdate(false)
+          .SetDidScroll(false)
+          .SetDispatchArgs(dispatch_args)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
   viz::BeginFrameArgs presented_args =
       CreateBeginFrameArgs(42, MillisecondsTicks(666));
   auto timeline = timeline_calculator_.CalculateTimeline(
@@ -170,15 +178,18 @@ TEST_F(ScrollJankV4FrameTimelineCalculatorTest, OneNonDamagingFrame) {
                                       .interval = kVsyncInterval,
                                       .result_id = result_ids[0]},
           NonDamagingFrame{},
-          {ScrollJankV4Frame::Stage{ScrollUpdates(
-              Real{
-                  .first_input_generation_ts = MillisecondsTicks(10),
-                  .last_input_generation_ts = MillisecondsTicks(13),
-                  .has_inertial_input = true,
-                  .abs_total_raw_delta_pixels = 10.0f,
-                  .max_abs_inertial_raw_delta_pixels = 4.0f,
-              },
-              /* synthetic= */ std::nullopt)}})));
+          {ScrollJankV4Frame::Stage{ScrollStart{}},
+           ScrollJankV4Frame::Stage{ScrollUpdates(
+               Real{
+                   .first_input_generation_ts = MillisecondsTicks(10),
+                   .last_input_generation_ts = MillisecondsTicks(13),
+                   .has_inertial_input = true,
+                   .abs_total_raw_delta_pixels = 10.0f,
+                   .max_abs_inertial_raw_delta_pixels = 4.0f,
+               },
+               /* synthetic= */ std::nullopt,
+               /* scroll_begin_arrival_timestamp= */
+               MillisecondsTicks(5))}})));
 
   // Check that all GSUs were assigned to the single non-damaging frame.
   for (const auto& event : events_metrics) {
@@ -195,50 +206,62 @@ TEST_F(ScrollJankV4FrameTimelineCalculatorTest, MultipleNonDamagingFrames) {
       CreateDispatchBeginFrameArgs(33, MillisecondsTicks(333));
   EventMetrics::List events_metrics;
 
-  events_metrics.push_back(metrics_creator_.FirstGestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(10))
-                               .SetDelta(1.0f)
-                               .SetCausedFrameUpdate(false)
-                               .SetDidScroll(false)
-                               .SetDispatchArgs(args1)
-                               .Build());
-  events_metrics.push_back(metrics_creator_.GestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(11))
-                               .SetDelta(2.0f)
-                               .SetCausedFrameUpdate(false)
-                               .SetDidScroll(false)
-                               .SetDispatchArgs(args1)
-                               .Build());
+  events_metrics.push_back(
+      metrics_creator_.FirstGestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(10))
+          .SetDelta(1.0f)
+          .SetCausedFrameUpdate(false)
+          .SetDidScroll(false)
+          .SetDispatchArgs(args1)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
+  events_metrics.push_back(
+      metrics_creator_.GestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(11))
+          .SetDelta(2.0f)
+          .SetCausedFrameUpdate(false)
+          .SetDidScroll(false)
+          .SetDispatchArgs(args1)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
 
-  events_metrics.push_back(metrics_creator_.GestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(12))
-                               .SetDelta(10.0f)
-                               .SetCausedFrameUpdate(false)
-                               .SetDidScroll(true)
-                               .SetDispatchArgs(args2)
-                               .Build());
-  events_metrics.push_back(metrics_creator_.GestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(13))
-                               .SetDelta(20.0f)
-                               .SetCausedFrameUpdate(false)
-                               .SetDidScroll(true)
-                               .SetDispatchArgs(args2)
-                               .Build());
+  events_metrics.push_back(
+      metrics_creator_.GestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(12))
+          .SetDelta(10.0f)
+          .SetCausedFrameUpdate(false)
+          .SetDidScroll(true)
+          .SetDispatchArgs(args2)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
+  events_metrics.push_back(
+      metrics_creator_.GestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(13))
+          .SetDelta(20.0f)
+          .SetCausedFrameUpdate(false)
+          .SetDidScroll(true)
+          .SetDispatchArgs(args2)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
 
-  events_metrics.push_back(metrics_creator_.InertialGestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(14))
-                               .SetDelta(100.0f)
-                               .SetCausedFrameUpdate(true)
-                               .SetDidScroll(false)
-                               .SetDispatchArgs(args3)
-                               .Build());
-  events_metrics.push_back(metrics_creator_.InertialGestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(15))
-                               .SetDelta(200.0f)
-                               .SetCausedFrameUpdate(true)
-                               .SetDidScroll(false)
-                               .SetDispatchArgs(args3)
-                               .Build());
+  events_metrics.push_back(
+      metrics_creator_.InertialGestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(14))
+          .SetDelta(100.0f)
+          .SetCausedFrameUpdate(true)
+          .SetDidScroll(false)
+          .SetDispatchArgs(args3)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
+  events_metrics.push_back(
+      metrics_creator_.InertialGestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(15))
+          .SetDelta(200.0f)
+          .SetCausedFrameUpdate(true)
+          .SetDidScroll(false)
+          .SetDispatchArgs(args3)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
 
   viz::BeginFrameArgs presented_args =
       CreateBeginFrameArgs(42, MillisecondsTicks(666));
@@ -265,7 +288,9 @@ TEST_F(ScrollJankV4FrameTimelineCalculatorTest, MultipleNonDamagingFrames) {
                        .abs_total_raw_delta_pixels = 3.0f,
                        .max_abs_inertial_raw_delta_pixels = 0.0f,
                    },
-                   /* synthetic= */ std::nullopt)}}),
+                   /* synthetic= */ std::nullopt,
+                   /* scroll_begin_arrival_timestamp= */
+                   MillisecondsTicks(5))}}),
           ScrollJankV4Frame(
               BeginFrameArgsForScrollJank{.frame_time = MillisecondsTicks(222),
                                           .interval = kVsyncInterval,
@@ -279,7 +304,9 @@ TEST_F(ScrollJankV4FrameTimelineCalculatorTest, MultipleNonDamagingFrames) {
                       .abs_total_raw_delta_pixels = 30.0f,
                       .max_abs_inertial_raw_delta_pixels = 0.0f,
                   },
-                  /* synthetic= */ std::nullopt)}}),
+                  /* synthetic= */ std::nullopt,
+                  /* scroll_begin_arrival_timestamp= */
+                  MillisecondsTicks(5))}}),
           ScrollJankV4Frame(
               BeginFrameArgsForScrollJank{.frame_time = MillisecondsTicks(333),
                                           .interval = kVsyncInterval,
@@ -293,7 +320,9 @@ TEST_F(ScrollJankV4FrameTimelineCalculatorTest, MultipleNonDamagingFrames) {
                       .abs_total_raw_delta_pixels = 300.0f,
                       .max_abs_inertial_raw_delta_pixels = 200.0f,
                   },
-                  /* synthetic= */ std::nullopt)}})));
+                  /* synthetic= */ std::nullopt,
+                  /* scroll_begin_arrival_timestamp= */
+                  MillisecondsTicks(5))}})));
 
   // Check that each GSU was assigned to the correct non-damaging frame.
   EXPECT_EQ(events_metrics[0]->AsScroll()->scroll_jank_v4_result_id(),
@@ -319,52 +348,64 @@ TEST_F(ScrollJankV4FrameTimelineCalculatorTest, OneDamagingFrame) {
       CreateDispatchBeginFrameArgs(33, MillisecondsTicks(333));
   EventMetrics::List events_metrics;
 
-  events_metrics.push_back(metrics_creator_.FirstGestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(10))
-                               .SetDelta(1.0f)
-                               .SetCausedFrameUpdate(false)
-                               .SetDidScroll(false)
-                               .SetDispatchArgs(args1)
-                               .Build());
+  events_metrics.push_back(
+      metrics_creator_.FirstGestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(10))
+          .SetDelta(1.0f)
+          .SetCausedFrameUpdate(false)
+          .SetDidScroll(false)
+          .SetDispatchArgs(args1)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
   // events_metrics[1] below is the single damaging input which causes all
   // events to be associated with the presented frame.
-  events_metrics.push_back(metrics_creator_.GestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(11))
-                               .SetDelta(2.0f)
-                               .SetCausedFrameUpdate(true)
-                               .SetDidScroll(true)
-                               .SetDispatchArgs(args1)
-                               .Build());
+  events_metrics.push_back(
+      metrics_creator_.GestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(11))
+          .SetDelta(2.0f)
+          .SetCausedFrameUpdate(true)
+          .SetDidScroll(true)
+          .SetDispatchArgs(args1)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
 
-  events_metrics.push_back(metrics_creator_.GestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(12))
-                               .SetDelta(10.0f)
-                               .SetCausedFrameUpdate(false)
-                               .SetDidScroll(true)
-                               .SetDispatchArgs(args2)
-                               .Build());
-  events_metrics.push_back(metrics_creator_.GestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(13))
-                               .SetDelta(20.0f)
-                               .SetCausedFrameUpdate(false)
-                               .SetDidScroll(true)
-                               .SetDispatchArgs(args2)
-                               .Build());
+  events_metrics.push_back(
+      metrics_creator_.GestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(12))
+          .SetDelta(10.0f)
+          .SetCausedFrameUpdate(false)
+          .SetDidScroll(true)
+          .SetDispatchArgs(args2)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
+  events_metrics.push_back(
+      metrics_creator_.GestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(13))
+          .SetDelta(20.0f)
+          .SetCausedFrameUpdate(false)
+          .SetDidScroll(true)
+          .SetDispatchArgs(args2)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
 
-  events_metrics.push_back(metrics_creator_.InertialGestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(14))
-                               .SetDelta(100.0f)
-                               .SetCausedFrameUpdate(true)
-                               .SetDidScroll(false)
-                               .SetDispatchArgs(args3)
-                               .Build());
-  events_metrics.push_back(metrics_creator_.InertialGestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(15))
-                               .SetDelta(200.0f)
-                               .SetCausedFrameUpdate(true)
-                               .SetDidScroll(false)
-                               .SetDispatchArgs(args3)
-                               .Build());
+  events_metrics.push_back(
+      metrics_creator_.InertialGestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(14))
+          .SetDelta(100.0f)
+          .SetCausedFrameUpdate(true)
+          .SetDidScroll(false)
+          .SetDispatchArgs(args3)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
+  events_metrics.push_back(
+      metrics_creator_.InertialGestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(15))
+          .SetDelta(200.0f)
+          .SetCausedFrameUpdate(true)
+          .SetDidScroll(false)
+          .SetDispatchArgs(args3)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
 
   viz::BeginFrameArgs presented_args =
       CreateBeginFrameArgs(42, MillisecondsTicks(666));
@@ -391,7 +432,9 @@ TEST_F(ScrollJankV4FrameTimelineCalculatorTest, OneDamagingFrame) {
                    .abs_total_raw_delta_pixels = 333.0f,
                    .max_abs_inertial_raw_delta_pixels = 200.0f,
                },
-               /* synthetic= */ std::nullopt)}})));
+               /* synthetic= */ std::nullopt,
+               /* scroll_begin_arrival_timestamp= */
+               MillisecondsTicks(5))}})));
 
   // Check that all GSUs were assigned to the single damaging frame.
   for (const auto& event : events_metrics) {
@@ -418,83 +461,103 @@ TEST_F(ScrollJankV4FrameTimelineCalculatorTest,
   // 1. Non-damaging GSB for BFA1
   // 2. Non-damaging GSU for BFA1
   // 3. Non-damaging GSU for BFA1
-  events_metrics.push_back(metrics_creator_.GestureScrollBeginBuilder()
-                               .SetTimestamp(MillisecondsTicks(10))
-                               .SetCausedFrameUpdate(false)
-                               .SetDispatchArgs(args1)
-                               .Build());
-  events_metrics.push_back(metrics_creator_.FirstGestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(11))
-                               .SetDelta(1.0f)
-                               .SetCausedFrameUpdate(false)
-                               .SetDidScroll(false)
-                               .SetDispatchArgs(args1)
-                               .Build());
-  events_metrics.push_back(metrics_creator_.GestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(12))
-                               .SetDelta(2.0f)
-                               .SetCausedFrameUpdate(false)
-                               .SetDidScroll(false)
-                               .SetDispatchArgs(args1)
-                               .Build());
+  events_metrics.push_back(
+      metrics_creator_.GestureScrollBeginBuilder()
+          .SetTimestamp(MillisecondsTicks(10))
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .SetCausedFrameUpdate(false)
+          .SetDispatchArgs(args1)
+          .Build());
+  events_metrics.push_back(
+      metrics_creator_.FirstGestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(11))
+          .SetDelta(1.0f)
+          .SetCausedFrameUpdate(false)
+          .SetDidScroll(false)
+          .SetDispatchArgs(args1)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
+  events_metrics.push_back(
+      metrics_creator_.GestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(12))
+          .SetDelta(2.0f)
+          .SetCausedFrameUpdate(false)
+          .SetDidScroll(false)
+          .SetDispatchArgs(args1)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
 
   // 4. Non-damaging GSE for BFA2
-  events_metrics.push_back(metrics_creator_.GestureScrollEndBuilder()
-                               .SetTimestamp(MillisecondsTicks(13))
-                               .SetCausedFrameUpdate(false)
-                               .SetDispatchArgs(args2)
-                               .Build());
+  events_metrics.push_back(
+      metrics_creator_.GestureScrollEndBuilder()
+          .SetTimestamp(MillisecondsTicks(13))
+          .SetCausedFrameUpdate(false)
+          .SetDispatchArgs(args2)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(5))
+          .Build());
 
   // 5. Non-damaging GSU for BFA3
   // 6. Damaging GSU for BFA3
-  events_metrics.push_back(metrics_creator_.GestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(14))
-                               .SetDelta(10.0f)
-                               .SetCausedFrameUpdate(false)
-                               .SetDidScroll(false)
-                               .SetDispatchArgs(args3)
-                               .Build());
-  events_metrics.push_back(metrics_creator_.GestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(15))
-                               .SetDelta(20.0f)
-                               .SetCausedFrameUpdate(true)
-                               .SetDidScroll(true)
-                               .SetDispatchArgs(args3)
-                               .Build());
+  events_metrics.push_back(
+      metrics_creator_.GestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(14))
+          .SetDelta(10.0f)
+          .SetCausedFrameUpdate(false)
+          .SetDidScroll(false)
+          .SetDispatchArgs(args3)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(20))
+          .Build());
+  events_metrics.push_back(
+      metrics_creator_.GestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(15))
+          .SetDelta(20.0f)
+          .SetCausedFrameUpdate(true)
+          .SetDidScroll(true)
+          .SetDispatchArgs(args3)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(20))
+          .Build());
 
   // 7. Non-damaging GSU for BFA4
   // 8. Non-damaging GSU for BFA4
-  events_metrics.push_back(metrics_creator_.InertialGestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(16))
-                               .SetDelta(100.0f)
-                               .SetCausedFrameUpdate(false)
-                               .SetDidScroll(false)
-                               .SetDispatchArgs(args4)
-                               .Build());
-  events_metrics.push_back(metrics_creator_.InertialGestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(17))
-                               .SetDelta(200.0f)
-                               .SetCausedFrameUpdate(false)
-                               .SetDidScroll(false)
-                               .SetDispatchArgs(args4)
-                               .Build());
+  events_metrics.push_back(
+      metrics_creator_.InertialGestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(16))
+          .SetDelta(100.0f)
+          .SetCausedFrameUpdate(false)
+          .SetDidScroll(false)
+          .SetDispatchArgs(args4)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(20))
+          .Build());
+  events_metrics.push_back(
+      metrics_creator_.InertialGestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(17))
+          .SetDelta(200.0f)
+          .SetCausedFrameUpdate(false)
+          .SetDidScroll(false)
+          .SetDispatchArgs(args4)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(20))
+          .Build());
 
   // 9. Damaging GSU for BFA5
   // 10. Non-damaging GSU for BFA5
-  events_metrics.push_back(metrics_creator_.InertialGestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(18))
-                               .SetDelta(1000.0f)
-                               .SetCausedFrameUpdate(true)
-                               .SetDidScroll(true)
-                               .SetDispatchArgs(args5)
-                               .Build());
-  events_metrics.push_back(metrics_creator_.InertialGestureScrollUpdateBuilder()
-                               .SetTimestamp(MillisecondsTicks(19))
-                               .SetDelta(2000.0f)
-                               .SetCausedFrameUpdate(false)
-                               .SetDidScroll(false)
-                               .SetDispatchArgs(args5)
-                               .Build());
+  events_metrics.push_back(
+      metrics_creator_.InertialGestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(18))
+          .SetDelta(1000.0f)
+          .SetCausedFrameUpdate(true)
+          .SetDidScroll(true)
+          .SetDispatchArgs(args5)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(20))
+          .Build());
+  events_metrics.push_back(
+      metrics_creator_.InertialGestureScrollUpdateBuilder()
+          .SetTimestamp(MillisecondsTicks(19))
+          .SetDelta(2000.0f)
+          .SetCausedFrameUpdate(false)
+          .SetDidScroll(false)
+          .SetDispatchArgs(args5)
+          .SetScrollBeginArrivalTimestamp(MillisecondsTicks(20))
+          .Build());
 
   viz::BeginFrameArgs presented_args =
       CreateBeginFrameArgs(42, MillisecondsTicks(666));
@@ -521,7 +584,9 @@ TEST_F(ScrollJankV4FrameTimelineCalculatorTest,
                        .abs_total_raw_delta_pixels = 3.0f,
                        .max_abs_inertial_raw_delta_pixels = 0.0f,
                    },
-                   /* synthetic= */ std::nullopt)}}),
+                   /* synthetic= */ std::nullopt,
+                   /* scroll_begin_arrival_timestamp= */
+                   MillisecondsTicks(5))}}),
           ScrollJankV4Frame(
               BeginFrameArgsForScrollJank{.frame_time = MillisecondsTicks(222),
                                           .interval = kVsyncInterval,
@@ -533,15 +598,18 @@ TEST_F(ScrollJankV4FrameTimelineCalculatorTest,
                                           .result_id = result_ids[2]},
 
               DamagingFrame{.presentation_ts = MillisecondsTicks(777)},
-              {ScrollJankV4Frame::Stage{ScrollUpdates(
-                  Real{
-                      .first_input_generation_ts = MillisecondsTicks(14),
-                      .last_input_generation_ts = MillisecondsTicks(19),
-                      .has_inertial_input = true,
-                      .abs_total_raw_delta_pixels = 3330.0f,
-                      .max_abs_inertial_raw_delta_pixels = 2000.0f,
-                  },
-                  /* synthetic= */ std::nullopt)}})));
+              {ScrollJankV4Frame::Stage{ScrollStart{}},
+               ScrollJankV4Frame::Stage{ScrollUpdates(
+                   Real{
+                       .first_input_generation_ts = MillisecondsTicks(14),
+                       .last_input_generation_ts = MillisecondsTicks(19),
+                       .has_inertial_input = true,
+                       .abs_total_raw_delta_pixels = 3330.0f,
+                       .max_abs_inertial_raw_delta_pixels = 2000.0f,
+                   },
+                   /* synthetic= */ std::nullopt,
+                   /* scroll_begin_arrival_timestamp= */
+                   MillisecondsTicks(20))}})));
 
   // GSB should NOT have a result ID.
   EXPECT_FALSE(

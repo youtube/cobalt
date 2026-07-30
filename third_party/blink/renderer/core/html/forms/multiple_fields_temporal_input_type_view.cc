@@ -156,14 +156,6 @@ MultipleFieldsTemporalInputTypeView::GetDateTimeEditElementIfCreated() const {
   return HasCreatedShadowSubtree() ? GetDateTimeEditElement() : nullptr;
 }
 
-SpinButtonElement* MultipleFieldsTemporalInputTypeView::GetSpinButtonElement()
-    const {
-  auto* element = GetElement().EnsureShadowSubtree()->getElementById(
-      shadow_element_names::kIdSpinButton);
-  CHECK(!element || IsA<SpinButtonElement>(element));
-  return To<SpinButtonElement>(element);
-}
-
 ClearButtonElement* MultipleFieldsTemporalInputTypeView::GetClearButtonElement()
     const {
   auto* element = GetElement().EnsureShadowSubtree()->getElementById(
@@ -196,8 +188,6 @@ void MultipleFieldsTemporalInputTypeView::DidBlurFromControl(
   EventQueueScope scope;
   // Remove focus ring by CSS "focus" pseudo-class.
   GetElement().SetFocused(false, focus_type);
-  if (SpinButtonElement* spin_button = GetSpinButtonElement())
-    spin_button->ReleaseCapture();
 }
 
 void MultipleFieldsTemporalInputTypeView::DidFocusOnControl(
@@ -246,41 +236,6 @@ bool MultipleFieldsTemporalInputTypeView::IsEditControlOwnerDisabled() const {
 
 bool MultipleFieldsTemporalInputTypeView::IsEditControlOwnerReadOnly() const {
   return GetElement().IsReadOnly();
-}
-
-void MultipleFieldsTemporalInputTypeView::FocusAndSelectSpinButtonOwner() {
-  if (DateTimeEditElement* edit = GetDateTimeEditElement())
-    edit->FocusIfNoFocus();
-}
-
-bool MultipleFieldsTemporalInputTypeView::
-    ShouldSpinButtonRespondToMouseEvents() {
-  return !GetElement().IsDisabledOrReadOnly();
-}
-
-bool MultipleFieldsTemporalInputTypeView::
-    ShouldSpinButtonRespondToWheelEvents() {
-  if (!ShouldSpinButtonRespondToMouseEvents())
-    return false;
-  if (DateTimeEditElement* edit = GetDateTimeEditElement())
-    return edit->HasFocusedField();
-  return false;
-}
-
-void MultipleFieldsTemporalInputTypeView::SpinButtonStepDown() {
-  if (DateTimeEditElement* edit = GetDateTimeEditElement())
-    edit->StepDown();
-}
-
-void MultipleFieldsTemporalInputTypeView::SpinButtonStepUp() {
-  if (DateTimeEditElement* edit = GetDateTimeEditElement())
-    edit->StepUp();
-}
-
-void MultipleFieldsTemporalInputTypeView::SpinButtonDidReleaseMouseCapture(
-    SpinButtonElement::EventDispatch event_dispatch) {
-  if (event_dispatch == SpinButtonElement::kEventDispatchAllowed)
-    GetElement().DispatchFormControlChangeEvent();
 }
 
 bool MultipleFieldsTemporalInputTypeView::
@@ -432,8 +387,6 @@ void MultipleFieldsTemporalInputTypeView::CreateShadowSubtree() {
 void MultipleFieldsTemporalInputTypeView::DestroyShadowSubtree() {
   DCHECK(!is_destroying_shadow_subtree_);
   is_destroying_shadow_subtree_ = true;
-  if (SpinButtonElement* element = GetSpinButtonElement())
-    element->RemoveSpinButtonOwner();
   if (ClearButtonElement* element = GetClearButtonElement())
     element->RemoveClearButtonOwner();
   if (DateTimeEditElement* element = GetDateTimeEditElement())
@@ -475,20 +428,13 @@ void MultipleFieldsTemporalInputTypeView::HandleFocusInEvent(
 }
 
 void MultipleFieldsTemporalInputTypeView::ForwardEvent(Event& event) {
-  if (SpinButtonElement* element = GetSpinButtonElement()) {
-    element->ForwardEvent(event);
-    if (event.DefaultHandled())
-      return;
-  }
-
   if (DateTimeEditElement* edit = GetDateTimeEditElement())
     edit->DefaultEventHandler(event);
 }
 
-void MultipleFieldsTemporalInputTypeView::DisabledAttributeChanged() {
+void MultipleFieldsTemporalInputTypeView::DisabledAttributeChanged(
+    DisabledChangedReason reason) {
   EventQueueScope scope;
-  if (SpinButtonElement* spin_button = GetSpinButtonElement())
-    spin_button->ReleaseCapture();
   if (DateTimeEditElement* edit = GetDateTimeEditElement())
     edit->DisabledStateChanged();
 }
@@ -542,8 +488,6 @@ void MultipleFieldsTemporalInputTypeView::MinOrMaxAttributeChanged() {
 
 void MultipleFieldsTemporalInputTypeView::ReadonlyAttributeChanged() {
   EventQueueScope scope;
-  if (SpinButtonElement* spin_button = GetSpinButtonElement())
-    spin_button->ReleaseCapture();
   if (DateTimeEditElement* edit = GetDateTimeEditElement())
     edit->ReadOnlyStateChanged();
 }

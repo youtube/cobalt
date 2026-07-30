@@ -122,10 +122,8 @@ const CGFloat kSeparatorHeight = 0.5;
   AddSameConstraints(contentStack, self);
   [self registerForTraitChanges:@[ UITraitPreferredContentSizeCategory.class ]
                      withAction:@selector(hideDescriptionOnTraitChange)];
-  if (IsNTPBackgroundCustomizationEnabled()) {
-    [self registerForTraitChanges:@[ NewTabPageTrait.class ]
-                       withAction:@selector(applyBackgroundColors)];
-  }
+  [self registerForTraitChanges:@[ NewTabPageTrait.class ]
+                     withAction:@selector(applyBackgroundColors)];
   [self applyBackgroundColors];
 }
 

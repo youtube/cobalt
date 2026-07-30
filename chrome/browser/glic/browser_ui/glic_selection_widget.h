@@ -30,6 +30,7 @@ class GlicSelectionWidgetDelegate : public views::BubbleDialogDelegate {
     virtual void OnPinToggled(bool is_pinned) = 0;
     virtual void OnHideForThisSite() = 0;
     virtual void OnSettings() = 0;
+    virtual void OnWidgetClose() = 0;
 
    protected:
     virtual ~ActionDelegate() = default;
@@ -46,6 +47,10 @@ class GlicSelectionWidgetDelegate : public views::BubbleDialogDelegate {
                               const std::u16string& selected_text,
                               bool is_pinned);
   ~GlicSelectionWidgetDelegate() override;
+
+  void ShowWidget();
+  void CloseWidget();
+  void OnWidgetClose(views::Widget::ClosedReason reason);
 
   ActionDelegate& action_delegate() const { return *action_delegate_; }
 
@@ -68,6 +73,8 @@ class GlicSelectionWidgetDelegate : public views::BubbleDialogDelegate {
   gfx::Rect original_anchor_rect_;
   gfx::Rect window_bounds_;
   bool is_pinned_;
+  std::unique_ptr<views::Widget> widget_;
+  base::WeakPtrFactory<GlicSelectionWidgetDelegate> weak_ptr_factory_{this};
 };
 
 }  // namespace glic

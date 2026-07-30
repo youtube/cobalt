@@ -15,6 +15,7 @@ IntelligentScanDelegate::IntelligentScanResult::Failure(
   IntelligentScanResult result;
   result.brand = "";
   result.intent = "";
+  result.scam_score = std::nullopt;
   result.model_version = model_version;
   result.execution_success = false;
   result.model_type = model_type;
@@ -24,13 +25,16 @@ IntelligentScanDelegate::IntelligentScanResult::Failure(
 
 // static
 IntelligentScanDelegate::IntelligentScanResult
-IntelligentScanDelegate::IntelligentScanResult::Success(std::string brand,
-                                                        std::string intent,
-                                                        int model_version,
-                                                        ModelType model_type) {
+IntelligentScanDelegate::IntelligentScanResult::Success(
+    std::string brand,
+    std::string intent,
+    int model_version,
+    ModelType model_type,
+    std::optional<float> scam_score) {
   IntelligentScanResult result;
   result.brand = brand;
   result.intent = intent;
+  result.scam_score = scam_score;
   result.model_version = model_version;
   result.execution_success = true;
   result.model_type = model_type;

@@ -216,7 +216,9 @@ TEST(HeaderUtilTest, ContainsForbiddenSecurityHeader) {
 
   // Forbidden Sec- header
   headers.SetHeader("Sec-Invalid", "value");
-  EXPECT_TRUE(ContainsForbiddenSecurityHeader(headers));
+  std::string forbidden_header_name;
+  EXPECT_TRUE(ContainsForbiddenSecurityHeader(headers, &forbidden_header_name));
+  EXPECT_EQ(forbidden_header_name, "Sec-Invalid");
 
   // Sec-Fetch- headers should be forbidden by default
   net::HttpRequestHeaders fetch_headers;

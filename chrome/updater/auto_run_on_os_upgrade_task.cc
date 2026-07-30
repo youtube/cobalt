@@ -16,7 +16,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/process/launch.h"
 #include "base/sequence_checker.h"
-#include "base/strings/stringprintf.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -25,6 +24,7 @@
 #include "chrome/updater/persisted_data.h"
 #include "chrome/updater/updater_scope.h"
 #include "chrome/updater/util/util.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
@@ -76,7 +76,7 @@ std::string GetOSUpgradeVersionsString(
   std::string os_upgrade_string;
 
   for (const auto& version : {previous_os_version, current_os_version}) {
-    os_upgrade_string += base::StringPrintf(
+    os_upgrade_string += absl::StrFormat(
         "%lu.%lu.%lu.%u.%u%s", version.dwMajorVersion, version.dwMinorVersion,
         version.dwBuildNumber, version.wServicePackMajor,
         version.wServicePackMinor, os_upgrade_string.empty() ? "-" : "");

@@ -266,6 +266,18 @@ using CountingRawPtrUninitialized =
 static_assert(
     std::is_same_v<CountingRawPtrUninitialized<int>::Impl, RawPtrCountingImpl>);
 
+template <typename T>
+using CountingRawPtrUnprotectedInRelease =
+    raw_ptr<T,
+            base::RawPtrTraits::kUseCountingImplForTest |
+                base::RawPtrTraits::kAllowPtrArithmetic |
+                base::RawPtrTraits::kIsUnprotectedInRelease>;
+
+// Ensure that the `kUseCountingImplForTest` flag selects the test impl even in
+// the presence of `kIsUnprotectedInRelease`.
+static_assert(std::is_same_v<CountingRawPtrUnprotectedInRelease<int>::Impl,
+                             RawPtrCountingImpl>);
+
 struct MyStruct {
   int x;
 };

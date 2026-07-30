@@ -313,7 +313,8 @@ void BlinkNotificationServiceImpl::DisplayPersistentNotification(
 
   if (!browser_context_ ||
       !browser_context_->GetPlatformNotificationService()) {
-    std::move(callback).Run(PersistentNotificationError::INTERNAL_ERROR);
+    std::move(callback).Run(
+        PersistentNotificationError::NOTIFICATION_SERVICE_NOT_FOUND);
     return;
   }
 
@@ -353,7 +354,7 @@ void BlinkNotificationServiceImpl::DidWriteNotificationData(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   std::move(callback).Run(success
                               ? PersistentNotificationError::NONE
-                              : PersistentNotificationError::INTERNAL_ERROR);
+                              : PersistentNotificationError::DATABASE_ERROR);
 }
 
 void BlinkNotificationServiceImpl::ClosePersistentNotification(

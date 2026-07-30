@@ -24,7 +24,8 @@ class MemoryConsumerGroupController {
   virtual ~MemoryConsumerGroupController() = default;
 
   // Called when a new host is added/removed.
-  virtual void AddMemoryConsumerGroupHost(ChildProcessId child_process_id,
+  virtual void AddMemoryConsumerGroupHost(ProcessType process_type,
+                                          ChildProcessId child_process_id,
                                           MemoryConsumerGroupHost* host) = 0;
   virtual void RemoveMemoryConsumerGroupHost(
       ChildProcessId child_process_id) = 0;
@@ -34,7 +35,6 @@ class MemoryConsumerGroupController {
       uint32_t consumer_id,
       std::string_view consumer_name,
       std::optional<base::MemoryConsumerTraits> traits,
-      ProcessType process_type,
       ChildProcessId child_process_id) = 0;
   virtual void OnConsumerGroupRemoved(uint32_t consumer_id,
                                       ChildProcessId child_process_id) = 0;

@@ -19,6 +19,8 @@
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider_interface.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
@@ -91,6 +93,19 @@ class MainToolbarCoordinatorTest : public PlatformTest {
         [[LayoutGuideSceneAgent alloc] init];
     [scene_state_ addAgent:layout_guide_scene_agent];
     browser_ = std::make_unique<TestBrowser>(profile_.get(), scene_state_);
+
+    // Set up mock browser providers to satisfy the coordinator's active browser
+    // check.
+    id mockCurrentBrowserProvider = OCMProtocolMock(@protocol(BrowserProvider));
+    OCMStub([mockCurrentBrowserProvider browser]).andReturn(browser_.get());
+    id mockBrowserProviderInterface =
+        OCMProtocolMock(@protocol(BrowserProviderInterface));
+    OCMStub([mockBrowserProviderInterface currentBrowserProvider])
+        .andReturn(mockCurrentBrowserProvider);
+
+    id mockSceneState = OCMPartialMock(scene_state_);
+    OCMStub([mockSceneState browserProviderInterface])
+        .andReturn(mockBrowserProviderInterface);
 
     // Setup all necessary handlers.
 

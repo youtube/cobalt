@@ -10,6 +10,7 @@
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/observer_list.h"
 #include "base/time/time.h"
 #include "chrome/browser/ui/views/permissions/chip/permission_chip_interface.h"
 #include "chrome/browser/ui/views/permissions/chip/permission_chip_theme.h"
@@ -99,7 +100,14 @@ class WebUIPermissionChip : public PermissionChipInterface {
 
   base::RepeatingClosure pressed_callback_;
 
-  base::ObserverList<Observer> observers_;
+  // Matching the behavior of native Views PermissionChipView.
+  // Allow reentrancy in observer list to prevent crash when the second
+  // notification was attempted while the first was still in progress.
+  base::ObserverList<
+      Observer,
+      /*check_empty=*/false,
+      base::ObserverListReentrancyPolicy::kAllowReentrancyUntriaged>
+      observers_;
   base::RepeatingClosureList visibility_callbacks_;
 };
 

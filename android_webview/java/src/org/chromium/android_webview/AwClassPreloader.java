@@ -4,6 +4,8 @@
 
 package org.chromium.android_webview;
 
+import org.chromium.android_webview.common.AwFeatures;
+import org.chromium.android_webview.common.WebViewCachedFlags;
 import org.chromium.base.Log;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
@@ -28,6 +30,10 @@ public final class AwClassPreloader {
 
     /** Preloads a set of classes on a background thread. */
     public static void preloadClasses() {
+        if (!WebViewCachedFlags.get()
+                .isCachedFeatureEnabled(AwFeatures.WEBVIEW_AW_CLASS_PRELOADER)) {
+            return;
+        }
         PostTask.postTask(
                 TaskTraits.BEST_EFFORT,
                 () -> {

@@ -18,7 +18,7 @@
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "components/supervised_user/core/browser/device_parental_controls.h"
 #include "components/supervised_user/core/browser/family_link_url_filter.h"
-#include "components/supervised_user/core/browser/kids_chrome_management_url_checker_client.h"
+#include "components/supervised_user/core/browser/supervised_user_url_checker_client.h"
 #include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "components/sync/service/sync_service.h"
 #include "content/public/browser/browser_context.h"
@@ -92,7 +92,7 @@ std::unique_ptr<KeyedService> SupervisedUserServiceFactory::BuildInstanceFor(
           family_link_settings_service, *profile->GetPrefs(),
           std::make_unique<FilterDelegateImpl>(),
           std::make_unique<
-              supervised_user::KidsChromeManagementURLCheckerClient>(
+              supervised_user::SupervisedUserUrlCheckerClient>(
               identity_manager, url_loader_factory, *profile->GetPrefs(),
               platform_delegate->GetCountryCode(),
               platform_delegate->GetChannel())),

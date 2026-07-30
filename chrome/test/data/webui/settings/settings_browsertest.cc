@@ -458,6 +458,12 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, GlicSubpage) {
           "runMochaSuite('GlicSubpage Default')");
 }
 
+IN_PROC_BROWSER_TEST_F(SettingsTest,
+                       GlicSubpageMediaUnderstandingToggleVisible) {
+  RunTest("settings/glic_subpage_test.js",
+          "runMochaSuite('GlicSubpage MediaUnderstandingToggleVisible')");
+}
+
 IN_PROC_BROWSER_TEST_F(SettingsTest, GlicSubpageExperimentalTriggeringToggle) {
   RunTest("settings/glic_subpage_test.js",
           "runMochaSuite('GlicSubpage ExperimentalTriggeringToggle')");

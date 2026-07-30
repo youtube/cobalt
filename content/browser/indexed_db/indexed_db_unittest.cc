@@ -167,7 +167,8 @@ struct MojoConnectionHelper {
     factory->Open(open_callbacks.CreateInterfacePtrAndBind(),
                   connection_callbacks.CreateInterfacePtrAndBind(), db_name,
                   version, vc_txn.BindNewEndpointAndPassReceiver(),
-                  upgrade_txn_id, /*priority=*/0);
+                  upgrade_txn_id, /*priority=*/0,
+                  /*request_shared_connection=*/false);
   }
 
   void OpenAndExpectUpgradeNeeded(
@@ -329,7 +330,8 @@ class IndexedDBTestBaseWithExtras : public IndexedDBTestBase {
                           u"opendb",
                           blink::IndexedDBDatabaseMetadata::NO_VERSION,
                           transaction_remote.BindNewEndpointAndPassReceiver(),
-                          /*host_transaction_id=*/0, /*priority=*/0);
+                          /*host_transaction_id=*/0, /*priority=*/0,
+                          /*request_shared_connection=*/false);
     run_loop->Run();
     EXPECT_TRUE(base::DirectoryExists(test_path));
 
@@ -1274,7 +1276,8 @@ TEST_P(IndexedDBTest, AvoidCrashAfterForceCloseDbAndThenOpen) {
                         database_callbacks.CreateInterfacePtrAndBind(),
                         u"opendb", blink::IndexedDBDatabaseMetadata::NO_VERSION,
                         transaction_remote.BindNewEndpointAndPassReceiver(),
-                        /*host_transaction_id=*/0, /*priority=*/0);
+                        /*host_transaction_id=*/0, /*priority=*/0,
+                        /*request_shared_connection=*/false);
 
   // Delete with force_close = true.
   MockMojoFactoryClient delete_client;
@@ -1296,7 +1299,8 @@ TEST_P(IndexedDBTest, AvoidCrashAfterForceCloseDbAndThenOpen) {
                         database_callbacks2.CreateInterfacePtrAndBind(),
                         u"opendb", blink::IndexedDBDatabaseMetadata::NO_VERSION,
                         transaction_remote2.BindNewEndpointAndPassReceiver(),
-                        /*host_transaction_id=*/42, /*priority=*/0);
+                        /*host_transaction_id=*/42, /*priority=*/0,
+                        /*request_shared_connection=*/false);
 
   // Block until expectations are satisfied.
   run_loop_for_first_open.Run();
@@ -2210,7 +2214,8 @@ TEST_P(IndexedDBTest, QuotaErrorOnDbOpenError) {
       client.CreateInterfacePtrAndBind(),
       database_callbacks.CreateInterfacePtrAndBind(), kDatabaseName,
       /*version=*/1, transaction_remote.BindNewEndpointAndPassReceiver(),
-      /*transaction_id=*/2, /*priority=*/0);
+      /*transaction_id=*/2, /*priority=*/0,
+      /*request_shared_connection=*/false);
   run_loop.Run();
 
   if (IsSqliteBackingStoreEnabled()) {
@@ -2261,7 +2266,8 @@ TEST_P(IndexedDBTest, DatabaseFailedOpen) {
                          database_callbacks.CreateInterfacePtrAndBind(),
                          kDatabaseName, db_version,
                          transaction_remote.BindNewEndpointAndPassReceiver(),
-                         /*transaction_id=*/2, /*priority=*/0);
+                         /*transaction_id=*/2, /*priority=*/0,
+                         /*request_shared_connection=*/false);
     run_loop.Run();
     BucketContext* bucket_context = GetBucketContext(bucket_info.id);
     ASSERT_TRUE(bucket_context);
@@ -2348,7 +2354,8 @@ TEST_P(IndexedDBTest, FilePathLengthLogging) {
                            database_callbacks.CreateInterfacePtrAndBind(),
                            kDatabaseName, db_version,
                            transaction_remote.BindNewEndpointAndPassReceiver(),
-                           /*transaction_id=*/1, /*priority=*/0);
+                           /*transaction_id=*/1, /*priority=*/0,
+                           /*request_shared_connection=*/false);
       run_loop.Run();
     }
   }
@@ -2384,7 +2391,8 @@ TEST_P(IndexedDBTest, FilePathLengthLogging) {
                            database_callbacks.CreateInterfacePtrAndBind(),
                            kDatabaseName, db_version,
                            transaction_remote.BindNewEndpointAndPassReceiver(),
-                           /*transaction_id=*/1, /*priority=*/0);
+                           /*transaction_id=*/1, /*priority=*/0,
+                           /*request_shared_connection=*/false);
       run_loop.Run();
     }
   }
@@ -2652,11 +2660,12 @@ TEST_P(IndexedDBTest, BlobWithForgedSize) {
       .WillOnce(
           testing::DoAll(MoveArgPointee<0>(&pending_database),
                          ::base::test::RunClosure(upgrade_loop.QuitClosure())));
-  factory_remote_->Open(client.CreateInterfacePtrAndBind(),
-                        database_callbacks.CreateInterfacePtrAndBind(),
-                        kDatabaseName, /*version=*/1,
-                        transaction_remote.BindNewEndpointAndPassReceiver(),
-                        kTransactionId, /*priority=*/0);
+  factory_remote_->Open(
+      client.CreateInterfacePtrAndBind(),
+      database_callbacks.CreateInterfacePtrAndBind(), kDatabaseName,
+      /*version=*/1, transaction_remote.BindNewEndpointAndPassReceiver(),
+      kTransactionId, /*priority=*/0,
+      /*request_shared_connection=*/false);
   upgrade_loop.Run();
 
   mojo::AssociatedRemote<blink::mojom::IDBDatabase> database(

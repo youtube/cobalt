@@ -35,8 +35,12 @@
 #include "third_party/blink/renderer/modules/indexeddb/idb_request.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_transaction.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 
 namespace blink {
+
+class IDBFactory;
+class SharedIDBDatabaseConnection;
 
 class MODULES_EXPORT IDBOpenDBRequest final : public IDBRequest {
   DEFINE_WRAPPERTYPEINFO();
@@ -44,6 +48,8 @@ class MODULES_EXPORT IDBOpenDBRequest final : public IDBRequest {
  public:
   IDBOpenDBRequest(
       ScriptState*,
+      IDBFactory*,
+      const String& name,
       mojo::PendingAssociatedReceiver<mojom::blink::IDBDatabaseCallbacks>
           callbacks_receiver,
       IDBTransaction::TransactionMojoRemote transaction_remote,
@@ -53,6 +59,15 @@ class MODULES_EXPORT IDBOpenDBRequest final : public IDBRequest {
   ~IDBOpenDBRequest() override;
 
   void Trace(Visitor*) const override;
+
+  const String& db_name() const { return db_name_; }
+  int64_t version() const { return version_; }
+
+  void BindToConnection(SharedIDBDatabaseConnection* connection);
+
+  void AddSharedRequest(IDBOpenDBRequest* request) {
+    shared_requests_.push_back(request);
+  }
 
   // Returns a new IDBFactoryClient for this request.
   //
@@ -96,8 +111,21 @@ class MODULES_EXPORT IDBOpenDBRequest final : public IDBRequest {
   DispatchEventResult DispatchEventInternal(Event&) override;
 
  private:
+  void OnRequestComplete();
+  SharedIDBDatabaseConnection* CreateAndRegisterSharedConnection(
+      mojo::PendingAssociatedRemote<mojom::blink::IDBDatabase> pending_database,
+      const IDBDatabaseMetadata& metadata);
+
   mojo::PendingAssociatedReceiver<mojom::blink::IDBDatabaseCallbacks>
       callbacks_receiver_;
+  Member<IDBFactory> factory_;
+  const String db_name_;
+  // The connection target this request is sharing, if any. Set when the primary
+  // request succeeds (pushed to us) or when sharing a cached connection.
+  Member<SharedIDBDatabaseConnection> shared_connection_target_;
+  // For primary requests, the list of shared requests piggybacking on this
+  // request.
+  HeapVector<Member<IDBOpenDBRequest>> shared_requests_;
   IDBTransaction::TransactionMojoRemote transaction_remote_;
   const int64_t transaction_id_;
   int64_t version_;

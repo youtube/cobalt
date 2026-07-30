@@ -146,6 +146,8 @@ public class PreWarmingRecycledViewPoolTest {
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_ASYNC_VIEW_INFLATION)
     @Test
     public void testCreateViewsAsync() {
+        mPool.destroy();
+        mPool = new PreWarmingRecycledViewPool(mFactory, mContext, /* handler= */ null);
         ensureAllViewsCreated();
     }
 
@@ -174,6 +176,8 @@ public class PreWarmingRecycledViewPoolTest {
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_ASYNC_VIEW_INFLATION)
     @Test
     public void createViews_recordViewReused() {
+        mPool.destroy();
+        mPool = new PreWarmingRecycledViewPool(mFactory, mContext, /* handler= */ null);
         ensureAllViewsCreated();
 
         try (var watcher =

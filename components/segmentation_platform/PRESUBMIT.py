@@ -25,17 +25,17 @@ def FetchLauncherFilterFileData(input_api, cwd: str) -> Dict[str, str]:
     # Fetches the actual and expected filter file content so they can be
     # compared. Returns a dictionary that contains 'expected' and 'actual' as
     # comparable strings.
-    try:
-        old_sys_path = input_api.sys.path
-        cwd = input_api.PresubmitLocalPath()
-        input_api.sys.path += [input_api.os_path.join(cwd, 'tools')]
-        from testing import launcher_filter_file as lff
-        ret = {}
-        ret['expected'] = lff.GetExpectedLauncherFilterFileContent()
-        ret['actual'] = lff.GetActualLauncherFilterFileContent()
-        return ret
-    finally:
-        input_api.sys.path = old_sys_path
+    import importlib.util
+    tool_path = input_api.os_path.join(cwd, 'tools', 'testing',
+                                       'launcher_filter_file.py')
+    spec = importlib.util.spec_from_file_location('launcher_filter_file',
+                                                  tool_path)
+    lff = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lff)
+    ret = {}
+    ret['expected'] = lff.GetExpectedLauncherFilterFileContent()
+    ret['actual'] = lff.GetActualLauncherFilterFileContent()
+    return ret
 
 
 def GetPylintConfiguration(input_api, output_api) -> List:

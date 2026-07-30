@@ -80,6 +80,19 @@ enum ToolbarButtonType {
 
 struct OmniboxActionFocusChange {
   bool has_focus = false;
+
+  // If true, requests that search keyword be cleared. Applies only if
+  // `has_focus` = true.
+  bool request_clear_keyword = false;
+
+  // If true, requests that search keyword be set to the default
+  // search provider. Applies only if `has_focus` = true.
+  bool activate_default_search = false;
+
+  // If true, requests that zero suggest be started. Applies only if
+  // `has_focus` = true.
+  bool start_zero_suggest = false;
+
   gfx.mojom.Range selection;
 };
 
@@ -98,8 +111,11 @@ struct OmniboxActionTextInput {
   // (Wraparound is OK, it looks for equality).
   uint32 browser_version;
 
-  // The version of the input on the WebUI side, incremented during typing.
+  // The version of the input on the WebUI side, incremented when user
+  // interaction changed the displayed text.
   // (Wraparound is OK, it looks for equality).
+  // TODO(crbug.com/503784450): Decide whether we have to increment it for
+  // selection changes as well.
   uint32 ui_version;
 
   gfx.mojom.Range selection;
@@ -118,10 +134,22 @@ struct OmniboxActionKey {
   array<browser_controls_api.mojom.EventDispositionFlag> modifiers;
 };
 
+// Used to notify the browser process that the user has either pressed or
+// released the mouse on the omnibox.
+struct OmniboxActionMouse {
+  bool is_mouse_down = false;
+
+  // If true, asks for zero-suggest completion to start. Applies only if
+  // `is_mouse_down` is false.
+  bool start_zero_suggest = false;
+};
+
+// Sent from the WebUI to the browser to notify of relevant input.
 union OmniboxAction {
   OmniboxActionFocusChange focus_change;
   OmniboxActionTextInput text_input;
   OmniboxActionKey key;
+  OmniboxActionMouse mouse;
 };
 
 struct ReloadControlState {
@@ -222,7 +250,7 @@ enum AvatarToolbarButtonState {
 
 struct AvatarControlState {
   AvatarToolbarButtonState state;
-  string icon_url;
+  IconHandle icon;
   mojo_base.mojom.String16 text;
   mojo_base.mojom.String16 tooltip;
   mojo_base.mojom.String16 accessibility_name;
@@ -398,6 +426,12 @@ struct OmniboxViewState {
   // input if something dramatic happened clearing the entire state.
   uint32 browser_version = 0;
 
+  // Returns a friendly-ish text formatting form of the page URL that's suitable
+  // for editing, which omits fewer things than the default display.
+  //
+  // `See LocationBarModel::GetFormattedFullURL()` for exact details.
+  mojo_base.mojom.String16 formatted_full_url;
+
   // Text to display in the omnibox view.
   array<OmniboxTextPortion> text_pieces;
 
@@ -414,6 +448,10 @@ struct OmniboxViewState {
   // This is set if the omnibox view contains a URL and must therefore force
   // LTR rendering even in RTL languages.
   bool text_is_url = false;
+
+  // This is the same as `user_input_in_progress` in LocationBarFlags, but also
+  // included here for convenience.
+  bool user_input_in_progress = false;
 };
 
 struct LocationBarFlags {
@@ -653,4 +691,7 @@ enum FocusRequestTarget {
 
   // Focus the location bar and activate the default search provider keyword.
   kSearch,
+
+  // Focus the app menu button.
+  kAppMenu,
 };

@@ -28,6 +28,9 @@
 // Hides or shows the manual fill address button.
 @property(nonatomic) BOOL addressButtonHidden;
 
+// Hides or shows the AtMemory button.
+@property(nonatomic) BOOL atMemoryButtonHidden;
+
 // Main type of the form suggestions.
 @property(nonatomic) autofill::FillingProduct mainFillingProduct;
 
@@ -52,6 +55,9 @@
 
 // Invoked after the user taps the "address manual fill" button.
 - (void)addressManualFillButtonPressed:(UIButton*)button;
+
+// Invoked after the user taps the AtMemory button.
+- (void)atMemoryManualFillButtonPressed:(UIButton*)button;
 
 // Preferred omnibox position was updated. "isBottomOmnibox": whether the new
 // position is bottom omnibox.

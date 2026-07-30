@@ -1,2 +1,2 @@
 AXWebArea AXRoleDescription='HTML content'
-++AXGroup AXSubrole=AXDefinition AXRoleDescription='definition'
+++AXGroup AXSubrole=AXEmptyGroup AXRoleDescription='definition'

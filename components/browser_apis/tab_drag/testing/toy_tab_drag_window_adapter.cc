@@ -27,6 +27,11 @@ gfx::Rect ToyTabDragWindowAdapter::GetBoundsInScreen() const {
   return bounds_;
 }
 
+bool ToyTabDragWindowAdapter::IsDraggingEntireWindow(
+    size_t dragged_tab_count) const {
+  return dragged_tab_count == tab_count_;
+}
+
 gfx::Point ToyTabDragWindowAdapter::ConvertScreenPointToLocal(
     gfx::NativeView target_view,
     const gfx::Point& screen_point) const {

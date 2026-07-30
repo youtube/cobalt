@@ -96,7 +96,7 @@ typedef void (^TaskExpirationBlock)();
 @interface TestUIThreadRefreshProvider : TestRefreshProvider
 @end
 @implementation TestUIThreadRefreshProvider
-- (scoped_refptr<base::SingleThreadTaskRunner>)taskThread {
+- (scoped_refptr<base::SequencedTaskRunner>)taskRunner {
   return web::GetUIThreadTaskRunner({});
 }
 @end
@@ -105,16 +105,16 @@ typedef void (^TaskExpirationBlock)();
 @interface TestOtherThreadRefreshProvider : TestRefreshProvider
 @end
 @implementation TestOtherThreadRefreshProvider {
-  scoped_refptr<base::SingleThreadTaskRunner> _thread;
+  scoped_refptr<base::SequencedTaskRunner> _runner;
 }
 - (instancetype)init {
   if ((self = [super init])) {
-    _thread = base::ThreadPool::CreateSingleThreadTaskRunner({});
+    _runner = base::ThreadPool::CreateSequencedTaskRunner({});
   }
   return self;
 }
-- (scoped_refptr<base::SingleThreadTaskRunner>)taskThread {
-  return _thread;
+- (scoped_refptr<base::SequencedTaskRunner>)taskRunner {
+  return _runner;
 }
 @end
 

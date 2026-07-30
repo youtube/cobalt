@@ -31,13 +31,13 @@
 #include "chrome/browser/web_applications/commands/web_app_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/install/non_installed_bundle_inspection_context.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_features.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
 #include "chrome/browser/web_applications/isolated_web_apps/jobs/prepare_install_info_job.h"
 #include "chrome/browser/web_applications/isolated_web_apps/key_rotation_util.h"
 #include "chrome/browser/web_applications/isolated_web_apps/storage_util.h"
 #include "chrome/browser/web_applications/isolated_web_apps/trust_and_signature_verifier.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update/version_change_validator.h"
 #include "chrome/browser/web_applications/locks/app_lock.h"
+#include "chrome/browser/web_applications/model/isolation_data.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_install_utils.h"
@@ -270,7 +270,7 @@ void IsolatedWebAppUpdatePrepareAndStoreCommand::OnTrustAndSignaturesChecked(
     // safely assume that `integrity_block_data_` contains the rotated key if
     // there is one for this `url_info_.web_bundle_id()`.
     integrity_block_data_ =
-        IsolatedWebAppIntegrityBlockData::FromIntegrityBlock(*integrity_block);
+        IntegrityBlockData::FromIntegrityBlock(*integrity_block);
   }
   std::move(next_step_callback).Run();
 }

@@ -265,6 +265,46 @@ TEST_F(SigninAccountCapabilitiesSceneAgentTest,
   run_loop.Run();
 }
 
+// Tests that the agent signs out the account if the `CanSignInToChrome`
+// capability is already false when the primary account is set.
+TEST_F(SigninAccountCapabilitiesSceneAgentTest,
+       TestSignoutOnPrimaryAccountChangedWithCapabilityFalse) {
+  base::HistogramTester histogram_tester;
+
+  FakeSystemIdentity* identity = [FakeSystemIdentity fakeIdentity1];
+  AddIdentity(identity);
+
+  // Set capability to false before setting as primary.
+  AccountCapabilitiesTestMutator* mutator =
+      fake_system_identity_manager_->GetPendingCapabilitiesMutator(identity);
+  mutator->set_can_sign_in_to_chrome(false);
+  FetchCapabilities(identity);
+
+  scene_state_.activationLevel = SceneActivationLevelForegroundActive;
+
+  // Setting primary account should trigger onPrimaryAccountChanged.
+  SetPrimaryIdentity(identity);
+
+  base::HistogramTester* histogram_tester_ptr = &histogram_tester;
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForActionTimeout, true, ^bool {
+        return histogram_tester_ptr->GetBucketCount(
+                   "Signin.SignoutProfile",
+                   signin_metrics::ProfileSignout::
+                       kSignoutFromCanSignInToChromeCapability) == 1;
+      }));
+
+  AuthenticationService* authentication_service =
+      AuthenticationServiceFactory::GetForProfile(profile_.get());
+  EXPECT_FALSE(authentication_service->HasPrimaryIdentity());
+
+  // Wait for the sign-out completion block to finish.
+  base::RunLoop run_loop;
+  task_environment_.GetMainThreadTaskRunner()->PostTask(FROM_HERE,
+                                                        run_loop.QuitClosure());
+  run_loop.Run();
+}
+
 // Tests that isSignoutInProgress returns YES during sign-out and while the
 // coordinator is running.
 TEST_F(SigninAccountCapabilitiesSceneAgentTest, TestIsSignoutInProgress) {

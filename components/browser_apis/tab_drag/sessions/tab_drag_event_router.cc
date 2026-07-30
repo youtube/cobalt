@@ -38,6 +38,10 @@ void TabDragEventRouter::OnDragMoved(const gfx::Point& screen_point) {
   }
 }
 
+void TabDragEventRouter::OnDragDetached(const gfx::Point& screen_point) {
+  TransitionToTarget(DropTargetId(), screen_point);
+}
+
 void TabDragEventRouter::OnSessionDropped(const gfx::Point& screen_point) {
   if (current_drop_target_) {
     DispatchEvent(current_drop_target_, DropTargetEvent::kDrop, screen_point);

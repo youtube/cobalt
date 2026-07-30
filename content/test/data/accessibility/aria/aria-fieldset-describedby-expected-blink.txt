@@ -1,0 +1,13 @@
+rootWebArea
+++genericContainer ignored
+++++genericContainer ignored
+++++++group description='Standard shipping is free.' name='Choose a shipping method' descriptionFrom=relatedElement
+++++++++legend
+++++++++++staticText name='Choose a shipping method'
+++++++++++++inlineTextBox name='Choose a shipping method'
+++++++++radioButton name='Standard' checkedState=true
+++++++++labelText ignored
+++++++++++staticText ignored
+++++++genericContainer
+++++++++staticText name='Standard shipping is free.'
+++++++++++inlineTextBox name='Standard shipping is free.'

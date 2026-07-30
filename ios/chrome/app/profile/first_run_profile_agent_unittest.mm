@@ -80,6 +80,10 @@
 }
 - (void)showPageActionMenuFromTabGrid {
 }
+- (void)activateGridContainerConstraints {
+}
+- (void)deactivateGridContainerConstraints {
+}
 @end
 // Tests the FirstRunProfileAgent.
 class FirstRunProfileAgentTest : public PlatformTest {

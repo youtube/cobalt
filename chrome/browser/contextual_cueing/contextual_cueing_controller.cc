@@ -885,7 +885,7 @@ void ContextualCueingController::MaybeShowTabList(
   std::u16string expand_announcement =
       base::i18n::MessageFormatter::FormatWithNamedArgs(
           l10n_util::GetStringUTF16(
-              IDS_CONTEXTUAL_CUEING_TAB_SHARING_EXPAND_BUTTON_ANNOUNCEMENT),
+              IDS_CONTEXTUAL_CUEING_TAB_SHARING_EXPAND_BUTTON_ANNOUNCEMENT_V2),
           "NUM_TABS", static_cast<int>(tab_items.size()), "WEBSITE_LIST_STR",
           base::UTF8ToUTF16(base::JoinString(domains, ", ")));
   CUEING_LOG(base::StringPrintf("expand button a11y string: %s",
@@ -896,7 +896,7 @@ void ContextualCueingController::MaybeShowTabList(
       std::make_optional<page_actions::AnchoredMessageExpandableContent>(
           {.heading = heading,
            .items = std::move(tab_items),
-           .expand_button_tooltip = std::move(expand_announcement)}));
+           .expand_button_accessible_name = std::move(expand_announcement)}));
 }
 #endif
 

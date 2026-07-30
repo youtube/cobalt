@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import type {ItemData, Range, SearchOptions} from 'chrome://tab-search.top-chrome/tab_search.js';
 import {getHostname, getTitle, search, TabData, TabItemType} from 'chrome://tab-search.top-chrome/tab_search.js';
 import {assertDeepEquals, assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -41,6 +42,12 @@ function assertResults(expectedRecords: ItemData[], actualRecords: ItemData[]) {
 }
 
 suite('FuzzySearchTest', () => {
+  setup(() => {
+    loadTimeData.overrideValues({
+      cjkWordBoundaryEnabled: true,
+    });
+  });
+
   test('Test the exact match ranking order.', async () => {
     const options = {
       keys: [
@@ -511,5 +518,36 @@ suite('FuzzySearchTest', () => {
 
     // Searching with accents ('café') should also match
     assertResults(cafeMatchedRecords, await search('café', records, options));
+  });
+
+  test('Test exact search ranking with CJK word boundaries.', async () => {
+    const options = {
+      keys: [
+        {
+          name: 'tab.title',
+          getter: getTitle,
+          weight: 1,
+        },
+      ],
+    };
+
+    // Tab list ordered in reverse priority (lowest first) to verify sorting:
+    // 1. "夜桜" -> Match inside a single CJK word segment (others)
+    // 2. "美しい 桜" -> Match at a CJK word start after space (Word Start)
+    // 3. "桜の季節" -> Match at the start of string (String Start)
+    const records = [
+      new TabData(
+          createTab({title: '夜桜'}), TabItemType.OPEN_TAB, 'youtube.com'),
+      new TabData(
+          createTab({title: '美しい 桜'}), TabItemType.OPEN_TAB, 'youtube.com'),
+      new TabData(
+          createTab({title: '桜の季節'}), TabItemType.OPEN_TAB, 'youtube.com'),
+    ];
+
+    // Searching for "桜" should rank:
+    // 1st: "桜の季節" (String Start)
+    // 2nd: "美しい 桜" (Word Start)
+    // 3rd: "美しい桜" (others)
+    await assertSearchOrders('桜', records, options, [2, 1, 0]);
   });
 });

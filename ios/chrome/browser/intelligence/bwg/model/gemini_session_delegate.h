@@ -51,6 +51,9 @@ typedef NS_ENUM(NSInteger, GeminiCancelType) {
 // SessionDelegate.
 @protocol GeminiSessionDelegate
 
+// Whether the current session is the first session.
+@property(nonatomic, assign) BOOL isFirstSession;
+
 // Called when a new session is created.
 - (void)newSessionCreatedWithClientID:(NSString*)clientID
                              serverID:(NSString*)serverID;
@@ -100,6 +103,13 @@ typedef NS_ENUM(NSInteger, GeminiCancelType) {
                    sessionID:(NSString*)sessionID
               conversationID:(NSString*)conversationID;
 @optional
+// Called when the processing status changes with a dormant reason.
+- (void)didUpdateProcessingStatus:(ios::provider::GeminiClientMode)processStatus
+                    dormantReason:
+                        (ios::provider::GeminiDormantReason)dormantReason
+                        sessionID:(NSString*)sessionID
+                   conversationID:(NSString*)conversationID;
+
 // Called when the processing status changes.
 - (void)didUpdateProcessingStatus:(ios::provider::GeminiClientMode)processStatus
                         sessionID:(NSString*)sessionID
@@ -162,6 +172,11 @@ typedef NS_ENUM(NSInteger, GeminiCancelType) {
 // Chrome must present the FRE consent UI and invoke the completion.
 - (void)geminiLive:(UIViewController*)viewController
     showConsentScreenWithCompletion:(void (^)(BOOL accepted))completion;
+
+#pragma mark - Gemini View Delegate
+
+// Called when request is received from SDK to dismiss the UI.
+- (void)didRequestDismissal;
 
 @end
 

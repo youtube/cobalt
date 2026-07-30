@@ -345,7 +345,7 @@ chromium-metrics-reviews@google.com.
 <enum name="VariationsStateEncryptionStatus">
   <int value="0" label="Success"/>
   <int value="1" label="Input empty"/>
-  <int value="2" label="Hpke setup failure"/>
+  <int value="2" label="Hpke setup failure (Obsolete 2026-06)"/>
   <int value="3" label="Hpke seal failure"/>
 </enum>
 

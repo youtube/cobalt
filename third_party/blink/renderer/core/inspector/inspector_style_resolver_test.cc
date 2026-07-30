@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
+#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 namespace blink {
@@ -178,6 +179,31 @@ TEST_F(InspectorStyleResolverTest, HighlightPseudoInheritance) {
 
   // <html>
   EXPECT_EQ(0u, parent_pseudos.at(4)->pseudo_element_rules.size());
+}
+
+TEST_F(InspectorStyleResolverTest, InterestButtonPseudoElementRules) {
+  ScopedHTMLInterestForInterestButtonPseudoForTest scoped_feature(true);
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      #target::interest-button {
+        color: red;
+        content: "X";
+      }
+    </style>
+    <button id="target" interestfor="foo"></button>
+  )HTML");
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  InspectorStyleResolver resolver(target, kPseudoIdInterestButton, g_null_atom);
+  RuleIndexList* matched_rules = resolver.MatchedRules();
+  ASSERT_TRUE(matched_rules);
+  bool matched_author_rule = false;
+  for (unsigned i = 0; i < matched_rules->size(); ++i) {
+    if (matched_rules->at(i).rule->cssText() ==
+        "#target::interest-button { color: red; content: \"X\"; }") {
+      matched_author_rule = true;
+    }
+  }
+  EXPECT_TRUE(matched_author_rule);
 }
 
 }  // namespace blink

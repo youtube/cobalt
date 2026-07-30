@@ -277,6 +277,31 @@ if (is_mac && host_os == "mac") {
 }
 
 template("proto_library") {
+  if (defined(invoker.import_dirs)) {
+    _caller_dir = get_label_info(":$target_name", "dir")
+
+    # TODO(crbug.com/521299828): Remove these exemptions once Perfetto
+    # (https://github.com/google/perfetto/pull/6318) and cast_core
+    # (https://crrev.com/c/7976737) rolls land, and optimization_guide/internal
+    # (https://crrev.com/i/9432554) is cleaned up.
+    _is_exempt = filter_exclude([ _caller_dir ],
+                                [
+                                  "//third_party/perfetto/*",
+                                  "//third_party/cast_core/*",
+                                  "//chromecast/*",
+                                  "//components/policy/*",
+                                  "//components/optimization_guide/internal/*",
+                                ]) == []
+    if (!_is_exempt) {
+      foreach(path, invoker.import_dirs) {
+        assert(
+            rebase_path(path, "//") != "third_party/protobuf/src" &&
+                rebase_path(path, "//") != "third_party/protobuf/src/",
+            "Do not add //third_party/protobuf/src to import_dirs. It is already included by default. Target: $_caller_dir/$target_name")
+      }
+    }
+  }
+
   forward_variables_from(invoker, [ "testonly" ])
 
   # TODO(agrieve): Remove perfetto instances of this.
@@ -413,8 +438,11 @@ template("proto_library") {
           include_dirs += [ _cc_out_dir ]
         }
         if (defined(invoker.import_dirs)) {
-          foreach(path, invoker.import_dirs) {
-            include_dirs += [ "$root_gen_dir/" + rebase_path(path, "//") ]
+          _import_dirs_abspaths = rebase_path(invoker.import_dirs, "//")
+          foreach(_abspath, _import_dirs_abspaths) {
+            _rebased_root_gen_dir = rebase_path(root_gen_dir, "//") + "/"
+            _base_path = string_replace(_abspath, _rebased_root_gen_dir, "")
+            include_dirs += [ "$root_gen_dir/$_base_path" ]
           }
         }
       }

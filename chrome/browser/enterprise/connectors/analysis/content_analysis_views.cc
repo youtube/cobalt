@@ -103,17 +103,4 @@ void ContentAnalysisSideIconImageView::OnThemeChanged() {
 
 BEGIN_METADATA(ContentAnalysisSideIconSpinnerView)
 END_METADATA
-
-void ContentAnalysisSideIconSpinnerView::Update() {
-  if (delegate()->is_result()) {
-    parent()->RemoveChildView(this);
-    delete this;
-  }
-}
-
-void ContentAnalysisSideIconSpinnerView::OnThemeChanged() {
-  views::Throbber::OnThemeChanged();
-  Update();
-}
-
 }  // namespace enterprise_connectors

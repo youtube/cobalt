@@ -235,13 +235,13 @@ void CloudExternalDataPolicyObserverTest::SetUp() {
       TestingBrowserProcess::GetGlobal()->local_state());
   device_local_account_policy_service_ =
       std::make_unique<DeviceLocalAccountPolicyService>(
-          &session_manager_client_, device_settings_service_.get(),
-          ash::CrosSettings::Get(), &invalidation_listener_,
+          shared_url_loader_factory_, &session_manager_client_,
+          device_settings_service_.get(), ash::CrosSettings::Get(),
+          &invalidation_listener_,
           base::SingleThreadTaskRunner::GetCurrentDefault(),
           base::SingleThreadTaskRunner::GetCurrentDefault(),
           base::SingleThreadTaskRunner::GetCurrentDefault(),
-          base::SingleThreadTaskRunner::GetCurrentDefault(),
-          shared_url_loader_factory_);
+          base::SingleThreadTaskRunner::GetCurrentDefault());
 
   user_policy_provider_.SetDefaultReturns(
       /*is_initialization_complete_return=*/true,

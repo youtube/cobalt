@@ -105,7 +105,7 @@ public class MessageTest {
     /** Test that the message container occludes the web contents. */
     @Test
     @SmallTest
-    @DisabledTest(message = "b/514878860")
+    @DisabledTest(message = "crbug.com/527658185")
     // TODO(crbug.com/514848255): Failing on other larger form factors.
     @Restriction(DeviceFormFactor.PHONE)
     @Features.EnableFeatures({AccessibilityFeatures.ACCESSIBILITY_HANDLE_OCCLUDING_VIEWS})
@@ -141,7 +141,7 @@ public class MessageTest {
         CriteriaHelper.pollUiThread(
                 () -> wcax.getAccessibilityNodeProvider() != null,
                 "AccessibilityNodeProvider should be initialized",
-                8000L,
+                CriteriaHelper.DEFAULT_MAX_TIME_TO_POLL_LONG,
                 CriteriaHelper.DEFAULT_POLLING_INTERVAL);
 
         CriteriaHelper.pollUiThread(
@@ -151,7 +151,7 @@ public class MessageTest {
                     return buttonNodeId[0] != -1;
                 },
                 "Button should be found",
-                8000L,
+                CriteriaHelper.DEFAULT_MAX_TIME_TO_POLL_LONG,
                 CriteriaHelper.DEFAULT_POLLING_INTERVAL);
 
         ThreadUtils.runOnUiThreadBlocking(
@@ -166,14 +166,15 @@ public class MessageTest {
 
         onView(withId(R.id.message_primary_button)).check(matches(isDisplayed()));
 
-        ThreadUtils.runOnUiThreadBlocking(
+        CriteriaHelper.pollUiThread(
                 () -> {
                     AccessibilityNodeInfoCompat buttonNode =
                             wcax.createAccessibilityNodeInfo(buttonNodeId[0]);
-                    Assert.assertFalse(
-                            "Button node should be mostly occluded, thus not visible",
-                            buttonNode.isVisibleToUser());
-                });
+                    return !buttonNode.isVisibleToUser();
+                },
+                "Button node should be mostly occluded, thus not visible",
+                CriteriaHelper.DEFAULT_MAX_TIME_TO_POLL_LONG,
+                CriteriaHelper.DEFAULT_POLLING_INTERVAL);
     }
 
     /**

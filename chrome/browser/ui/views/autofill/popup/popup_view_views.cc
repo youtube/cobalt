@@ -1208,8 +1208,8 @@ void PopupViewViews::CreateSuggestionViews() {
               body_container->AddChildView(std::make_unique<PopupTitleView>(
                   suggestions[current_line_number].main_text.value)));
           break;
-        case SuggestionType::kMixedFormMessage:
         case SuggestionType::kInsecureContextPaymentDisabledMessage:
+        case SuggestionType::kMixedFormMessage:
           rows_.push_back(
               body_container->AddChildView(std::make_unique<PopupWarningView>(
                   suggestions[current_line_number])));
@@ -1219,6 +1219,15 @@ void PopupViewViews::CreateSuggestionViews() {
               body_container->AddChildView(std::make_unique<PopupLoadingView>(
                   suggestions[current_line_number]
                       .expected_number_of_suggestions.value_or(1))));
+          break;
+        }
+        case SuggestionType::kPersonalContextNotice: {
+          rows_.push_back(body_container->AddChildView(
+              std::make_unique<PopupPersonalContextNoticeView>(
+                  /*a11y_selection_delegate=*/*this,
+                  /*selection_delegate=*/*this, controller(),
+                  current_line_number,
+                  std::make_unique<PopupRowContentView>())));
           break;
         }
         // The default section contains all selectable rows and includes
@@ -1372,13 +1381,6 @@ void PopupViewViews::CreateSuggestionViews() {
           std::make_unique<PopupBnplFootnoteView>(
               controller(), /*a11y_selection_delegate=*/*this,
               base::BindRepeating(&DefaultA11yAnnouncer))));
-    } else if (suggestions[current_line_number].type ==
-               SuggestionType::kPersonalContextNotice) {
-      auto view = std::make_unique<PopupRowContentView>();
-      rows_.push_back(footer_container_->AddChildView(
-          std::make_unique<PopupPersonalContextNoticeView>(
-              /*a11y_selection_delegate=*/*this, /*selection_delegate=*/*this,
-              controller(), current_line_number, std::move(view))));
     } else {
       rows_.push_back(footer_container_->AddChildView(CreatePopupRowView(
           controller(), /*a11y_selection_delegate=*/*this,

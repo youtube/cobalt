@@ -15,6 +15,7 @@ import type {AppElement, CustomizeButtonsElement, NtpSearchboxElement, PageRemot
 import {NtpBackgroundImageSource, PageCallbackRouter, PageHandlerRemote} from 'chrome://new-tab-page/new_tab_page.js';
 import {PageCallbackRouter as ComposeboxPageCallbackRouter, PageHandlerRemote as ComposeboxPageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
 import {ToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
+import type {ComposeboxVoiceSearchElement} from 'chrome://resources/cr_components/composebox/composebox_voice_search.js';
 import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {Command, CommandHandlerRemote} from 'chrome://resources/js/browser_command.mojom-webui.js';
@@ -1299,6 +1300,48 @@ suite('NewTabPageAppTest', () => {
           app.shadowRoot.querySelector<ComposeboxUnionElement>('#composebox');
       assertTrue(!!composebox);
       assertStyle($$(app, '#searchbox')!, 'visibility', 'hidden');
+    });
+
+    test('composebox state toggles inert attribute on siblings', async () => {
+      // Arrange: Verify blocked elements do NOT have inert initially.
+      const blockedElements = app.shadowRoot.querySelectorAll<HTMLElement>(
+          '#content > :not(#logo):not(#searchboxContainer)');
+      assertTrue(blockedElements.length > 0);
+      blockedElements.forEach(el => {
+        assertFalse(el.hasAttribute('inert'));
+      });
+
+      // Act: Open composebox.
+      ($$(app, '#searchbox')!.dispatchEvent(new CustomEvent('open-composebox', {
+        detail: {text: '', files: []},
+      })));
+      await microtasksFinished();
+
+      // Assert: Allowed elements do NOT have inert.
+      const logo = $$(app, '#logo')!;
+      const searchboxContainer = $$(app, '#searchboxContainer')!;
+      assertFalse(logo.hasAttribute('inert'));
+      assertFalse(searchboxContainer.hasAttribute('inert'));
+
+      // Assert: Blocked elements DO have inert.
+      blockedElements.forEach(el => {
+        assertTrue(el.hasAttribute('inert'));
+      });
+
+      // Act: Close composebox.
+      const composebox =
+          app.shadowRoot.querySelector<ComposeboxUnionElement>('#composebox')!;
+      composebox.dispatchEvent(new CustomEvent('close-composebox', {
+        detail: {composeboxText: ''},
+        bubbles: true,
+        composed: true,
+      }));
+      await microtasksFinished();
+
+      // Assert: Blocked elements do NOT have inert anymore.
+      blockedElements.forEach(el => {
+        assertFalse(el.hasAttribute('inert'));
+      });
     });
 
     test('Sequential ESC clears input then closes composebox', async () => {
@@ -2631,6 +2674,21 @@ suite('NewTabPageAppTest', () => {
   });
 
   suite('VoiceSearchCoherence', () => {
+    class MockSpeechRecognition {
+      onend: (() => void)|null = null;
+      start() {}
+      stop() {}
+      abort() {
+        if (this.onend) {
+          this.onend();
+        }
+      }
+    }
+
+    suiteSetup(() => {
+      Object.assign(window, {webkitSpeechRecognition: MockSpeechRecognition});
+    });
+
     async function recreateApp() {
       document.body.innerHTML = window.trustedTypes!.emptyHTML;
       app = document.createElement('ntp-app');
@@ -2662,6 +2720,7 @@ suite('NewTabPageAppTest', () => {
             '(realbox) voice search coherence with live transcription is enabled',
         async () => {
           loadTimeData.overrideValues({
+            googleBaseUrl: 'chrome://new-tab-page/',
             voiceSearchCoherenceAnySearchboxExperimentEnabled: true,
             voiceSearchCoherenceSearchboxWithLiveTranscriptionEnabled: true,
           });
@@ -2726,81 +2785,111 @@ suite('NewTabPageAppTest', () => {
           // Assert dialog is closed (removed from DOM).
           assertFalse(!!app.shadowRoot.querySelector('#voiceSearchDialog'));
 
-          // Assert submitQuery was called on the searchbox page handler with
-          // correct arguments.
-          assertEquals(1, searchboxHandler.getCallCount('submitQuery'));
-          const args = searchboxHandler.getArgs('submitQuery')[0];
-          assertEquals('hello world', args[0]);  // queryText
-          assertEquals(0, args[1]);              // button
-          assertEquals(false, args[2]);          // altKey
-          assertEquals(false, args[3]);          // ctrlKey
-          assertEquals(false, args[4]);          // metaKey
-          assertEquals(false, args[5]);          // shiftKey
-          assertEquals(true, args[6]);           // isVoiceSearch
+          // Assert windowProxy.navigate was called with correct URL.
+          assertEquals(1, windowProxy.getCallCount('navigate'));
+          const navigatedUrl = windowProxy.getArgs('navigate')[0];
+          assertEquals(
+              'chrome://new-tab-page/search?q=hello+world&gs_ivs=1&sourceid=chrome',
+              navigatedUrl);
         });
 
     test(
-        'dialog handles recording stopped event when NTP searchbox (realbox) ' +
-            'voice search coherence with live transcription is enabled',
+        'navigates directly to regular search when voiceSearchCoherenceAnySearchboxExperimentEnabled is true',
         async () => {
-      loadTimeData.overrideValues({
-        voiceSearchCoherenceAnySearchboxExperimentEnabled: true,
-        voiceSearchCoherenceSearchboxWithLiveTranscriptionEnabled: true,
-      });
-      await recreateApp();
+          loadTimeData.overrideValues({
+            googleBaseUrl: 'https://www.google.com/',
+            voiceSearchCoherenceAnySearchboxExperimentEnabled: true,
+          });
+          await recreateApp();
 
-      // Open voice search dialog.
-      $$(app, '#searchbox')!.dispatchEvent(new Event('open-voice-search'));
-      await microtasksFinished();
+          // Open voice search dialog.
+          $$(app, '#searchbox')!.dispatchEvent(new Event('open-voice-search'));
+          await microtasksFinished();
 
-      let dialog =
-          app.shadowRoot.querySelector<HTMLDialogElement>('#voiceSearchDialog');
-      assertTrue(!!dialog);
-      assertTrue(dialog.open);
+          const voiceSearch =
+              app.shadowRoot.querySelector('cr-composebox-voice-search');
+          assertTrue(!!voiceSearch);
 
-      const voiceSearch =
-          app.shadowRoot.querySelector('cr-composebox-voice-search');
-      assertTrue(!!voiceSearch);
+          // Simulate final result event.
+          voiceSearch.dispatchEvent(
+              new CustomEvent('voice-search-final-result', {
+                detail: 'hello world',
+              }));
+          await microtasksFinished();
 
-      // Simulate recording stopped event with empty query.
-      voiceSearch.dispatchEvent(new CustomEvent('recording-stopped', {
-        detail: '   ',
-      }));
-      await microtasksFinished();
+          // Assert windowProxy.navigate was called with correct URL.
+          assertEquals(1, windowProxy.getCallCount('navigate'));
+          const navigatedUrl = windowProxy.getArgs('navigate')[0];
+          assertEquals(
+              'https://www.google.com/search?q=hello+world&gs_ivs=1&sourceid=chrome',
+              navigatedUrl);
+        });
 
-      // Assert dialog is closed (removed from DOM) and query not submitted.
-      assertFalse(!!app.shadowRoot.querySelector('#voiceSearchDialog'));
-      assertEquals(0, searchboxHandler.getCallCount('submitQuery'));
+    test(
+        'dialog handles recording stopped event by setting searchbox text',
+        async () => {
+          loadTimeData.overrideValues({
+            googleBaseUrl: 'https://www.google.com/',
+            voiceSearchCoherenceAnySearchboxExperimentEnabled: true,
+            voiceSearchCoherenceSearchboxWithLiveTranscriptionEnabled: true,
+          });
+          await recreateApp();
 
-      // Re-open dialog for recording stopped with valid query testing.
-      $$(app, '#searchbox')!.dispatchEvent(new Event('open-voice-search'));
-      await microtasksFinished();
-      dialog =
-          app.shadowRoot.querySelector<HTMLDialogElement>('#voiceSearchDialog');
-      assertTrue(!!dialog);
-      assertTrue(dialog.open);
+          // Open voice search dialog.
+          $$(app, '#searchbox')!.dispatchEvent(new Event('open-voice-search'));
+          await microtasksFinished();
 
-      // Simulate recording stopped event with valid query.
-      voiceSearch.dispatchEvent(new CustomEvent('recording-stopped', {
-        detail: 'hello world',
-      }));
-      await microtasksFinished();
+          let dialog = app.shadowRoot.querySelector<HTMLDialogElement>(
+              '#voiceSearchDialog');
+          assertTrue(!!dialog);
+          assertTrue(dialog.open);
 
-      // Assert dialog is closed (removed from DOM).
-      assertFalse(!!app.shadowRoot.querySelector('#voiceSearchDialog'));
+          const voiceSearch =
+              app.shadowRoot.querySelector('cr-composebox-voice-search');
+          assertTrue(!!voiceSearch);
 
-      // Assert submitQuery was called on the searchbox page handler with
-      // correct arguments.
-      assertEquals(1, searchboxHandler.getCallCount('submitQuery'));
-      const args = searchboxHandler.getArgs('submitQuery')[0];
-      assertEquals('hello world', args[0]);  // queryText
-      assertEquals(0, args[1]);              // button
-      assertEquals(false, args[2]);          // altKey
-      assertEquals(false, args[3]);          // ctrlKey
-      assertEquals(false, args[4]);          // metaKey
-      assertEquals(false, args[5]);          // shiftKey
-      assertEquals(true, args[6]);           // isVoiceSearch
-    });
+          // Simulate recording stopped event with empty query.
+          voiceSearch.dispatchEvent(new CustomEvent('recording-stopped', {
+            detail: '   ',
+          }));
+          await microtasksFinished();
+
+          // Assert dialog is closed (removed from DOM) and query not submitted.
+          assertFalse(!!app.shadowRoot.querySelector('#voiceSearchDialog'));
+          assertEquals(0, windowProxy.getCallCount('navigate'));
+
+          // Re-open dialog for recording stopped with actual words spoken.
+          $$(app, '#searchbox')!.dispatchEvent(new Event('open-voice-search'));
+          await microtasksFinished();
+          dialog = app.shadowRoot.querySelector<HTMLDialogElement>(
+              '#voiceSearchDialog');
+          assertTrue(!!dialog);
+          assertTrue(dialog.open);
+
+          // Override setInputText to verify it is called.
+          const searchboxEl = $$(app, '#searchbox') as NtpSearchboxElement;
+          let setInputTextCalledWith = '';
+          const originalSetInputText = searchboxEl.setInputText;
+          searchboxEl.setInputText = (text: string) => {
+            setInputTextCalledWith = text;
+            originalSetInputText.call(searchboxEl, text);
+          };
+
+          // Simulate recording stopped event with valid query.
+          voiceSearch.dispatchEvent(new CustomEvent('recording-stopped', {
+            detail: 'hello world',
+          }));
+          await microtasksFinished();
+
+          // Assert dialog is closed (removed from DOM).
+          assertFalse(!!app.shadowRoot.querySelector('#voiceSearchDialog'));
+
+          // Assert windowProxy.navigate was NOT called.
+          assertEquals(0, windowProxy.getCallCount('navigate'));
+
+          // Assert setInputText was called with correct query.
+          assertEquals('hello world', setInputTextCalledWith);
+        });
 
     test(
         'renders TicTac animation and stop/submit buttons when NTP searchbox ' +
@@ -3059,10 +3148,11 @@ suite('NewTabPageAppTest', () => {
       }
 
       test(
-          'autosubmitEnabled = false prevents automatic submission and ' +
-              'relies on recording-stopped',
+          'autosubmitEnabled = true automatically submits the query upon ' +
+              'voice recognition end',
           async () => {
             loadTimeData.overrideValues({
+              googleBaseUrl: 'chrome://new-tab-page/',
               voiceSearchCoherenceAnySearchboxExperimentEnabled: true,
             });
             await recreateApp();
@@ -3077,8 +3167,8 @@ suite('NewTabPageAppTest', () => {
                 app.shadowRoot.querySelector('cr-composebox-voice-search');
             assertTrue(!!voiceSearch);
 
-            // Verify that autosubmitEnabled is false.
-            assertFalse(voiceSearch.autosubmitEnabled);
+            // Verify that autosubmitEnabled is true.
+            assertTrue(voiceSearch.autosubmitEnabled);
 
             // Simulate speech recognition result (user speaks).
             const results = createResults('test query', /*isFinal=*/ true);
@@ -3089,10 +3179,12 @@ suite('NewTabPageAppTest', () => {
             mockSpeechRecognition.onend!();
             await microtasksFinished();
 
-            // Verify that the query is submitted to searchbox handler.
-            assertEquals(1, searchboxHandler.getCallCount('submitQuery'));
-            const submitArgs = searchboxHandler.getArgs('submitQuery')[0];
-            assertEquals('test query', submitArgs[0]);
+            // Verify that the query is submitted via navigation.
+            assertEquals(1, windowProxy.getCallCount('navigate'));
+            const navigatedUrl = windowProxy.getArgs('navigate')[0];
+            assertEquals(
+                'chrome://new-tab-page/search?q=test+query&gs_ivs=1&sourceid=chrome',
+                navigatedUrl);
           });
 
       test(
@@ -3101,6 +3193,7 @@ suite('NewTabPageAppTest', () => {
               'coherence experiment is enabled',
           async () => {
             loadTimeData.overrideValues({
+              googleBaseUrl: 'chrome://new-tab-page/',
               voiceSearchCoherenceAnySearchboxExperimentEnabled: true,
             });
             await recreateApp();
@@ -3122,7 +3215,8 @@ suite('NewTabPageAppTest', () => {
             mockSpeechRecognition.onresult!
                 (createResults(exactLimitTranscript, /*isFinal=*/ false));
             await microtasksFinished();
-            assertEquals(0, searchboxHandler.getCallCount('submitQuery'));
+
+            assertEquals(0, windowProxy.getCallCount('navigate'));
 
             // Construct a long transcript exceeding the limit (121 chars).
             const longTranscript = 'a'.repeat(121);
@@ -3130,10 +3224,13 @@ suite('NewTabPageAppTest', () => {
                 (createResults(longTranscript, /*isFinal=*/ false));
             await microtasksFinished();
 
-            // Verify that the query is force-submitted.
-            assertEquals(1, searchboxHandler.getCallCount('submitQuery'));
-            const submitArgs = searchboxHandler.getArgs('submitQuery')[0];
-            assertEquals(longTranscript, submitArgs[0]);
+            // Verify that the query is force-submitted via navigation.
+            assertEquals(1, windowProxy.getCallCount('navigate'));
+            const navigatedUrl = windowProxy.getArgs('navigate')[0];
+            assertEquals(
+                `chrome://new-tab-page/search?q=${
+                    longTranscript}&gs_ivs=1&sourceid=chrome`,
+                navigatedUrl);
           });
 
       test(
@@ -3165,6 +3262,211 @@ suite('NewTabPageAppTest', () => {
             assertFalse(
                 has8000Timeout,
                 'Should not start idle timer when dynamicTimeout is enabled');
+          });
+
+      test('Activation via mic click with experiment enabled', async () => {
+        loadTimeData.overrideValues({
+          voiceSearchCoherenceAnySearchboxExperimentEnabled: true,
+        });
+        await recreateApp();
+
+        metrics = fakeMetricsPrivate();
+
+        // Act: Open voice search dialog.
+        $$(app, '#searchbox')!.dispatchEvent(new Event('open-voice-search'));
+        await app.updateComplete;
+
+        const voiceSearch =
+            app.shadowRoot.querySelector<ComposeboxVoiceSearchElement>(
+                'cr-composebox-voice-search');
+        assertTrue(!!voiceSearch);
+        await voiceSearch.updateComplete;
+        assertEquals('NTP_REALBOX', voiceSearch.metricSource);
+
+        // Assert dual-logging (both new unified metrics and legacy NTP
+        // metrics).
+        assertEquals(1, metrics.count('VoiceSearch.Action'));
+        assertEquals(
+            1, metrics.count('VoiceSearch.Action', 0 /* ACTIVATED_BY_ICON */));
+        assertEquals(1, metrics.count('VoiceSearch.Action.NTP_REALBOX'));
+        assertEquals(
+            1,
+            metrics.count(
+                'VoiceSearch.Action.NTP_REALBOX', 0 /* ACTIVATED_BY_ICON */));
+        assertEquals(1, metrics.count(VOICE_ACTIONS_METRIC));
+        assertEquals(
+            1, metrics.count(VOICE_ACTIONS_METRIC, VoiceAction.ACTIVATE));
+      });
+
+      test(
+          'Activation via keyboard shortcut with experiment enabled',
+          async () => {
+            loadTimeData.overrideValues({
+              voiceSearchCoherenceAnySearchboxExperimentEnabled: true,
+            });
+            await recreateApp();
+
+            metrics = fakeMetricsPrivate();
+
+            // Act: Press shortcut keys.
+            window.dispatchEvent(new KeyboardEvent('keydown', {
+              ctrlKey: true,
+              shiftKey: true,
+              code: 'Period',
+            }));
+            await app.updateComplete;
+
+            const voiceSearch =
+                app.shadowRoot.querySelector<ComposeboxVoiceSearchElement>(
+                    'cr-composebox-voice-search');
+            assertTrue(!!voiceSearch);
+            await voiceSearch.updateComplete;
+            assertEquals('NTP_REALBOX', voiceSearch.metricSource);
+
+            // Assert dual-logging (both new unified metrics and legacy NTP
+            // metrics).
+            assertEquals(1, metrics.count('VoiceSearch.Action'));
+            assertEquals(
+                1,
+                metrics.count(
+                    'VoiceSearch.Action', 1 /* ACTIVATED_BY_KEYBOARD */));
+            assertEquals(1, metrics.count('VoiceSearch.Action.NTP_REALBOX'));
+            assertEquals(
+                1,
+                metrics.count(
+                    'VoiceSearch.Action.NTP_REALBOX',
+                    1 /* ACTIVATED_BY_KEYBOARD */));
+            assertEquals(1, metrics.count(VOICE_ACTIONS_METRIC));
+            assertEquals(
+                1,
+                metrics.count(
+                    VOICE_ACTIONS_METRIC, VoiceAction.ACTIVATE_KEYBOARD));
+          });
+
+      // TODO(crbug.com/527969922): Re-enable this test
+      test.skip('Activation via mic click with experiment disabled', async () => {
+        loadTimeData.overrideValues({
+          voiceSearchCoherenceAnySearchboxExperimentEnabled: false,
+          voiceSearchCoherenceSearchboxWithLiveTranscriptionEnabled: false,
+        });
+        await recreateApp();
+
+        metrics = fakeMetricsPrivate();
+
+        // Act: Open voice search dialog.
+        $$(app, '#searchbox')!.dispatchEvent(new Event('open-voice-search'));
+        await microtasksFinished();
+
+        // Assert: Logs original legacy metrics, does NOT log new metrics.
+        assertEquals(1, metrics.count(VOICE_ACTIONS_METRIC));
+        assertEquals(
+            1, metrics.count(VOICE_ACTIONS_METRIC, VoiceAction.ACTIVATE));
+        assertEquals(0, metrics.count('VoiceSearch.Action'));
+        assertEquals(0, metrics.count('VoiceSearch.Action.NTP_REALBOX'));
+      });
+
+      // TODO(crbug.com/527969922): Re-enable this test
+      test.skip(
+          'Activation via keyboard shortcut with experiment disabled',
+          async () => {
+            loadTimeData.overrideValues({
+              voiceSearchCoherenceAnySearchboxExperimentEnabled: false,
+              voiceSearchCoherenceSearchboxWithLiveTranscriptionEnabled: false,
+            });
+            await recreateApp();
+
+            metrics = fakeMetricsPrivate();
+
+            // Act: Press shortcut keys.
+            window.dispatchEvent(new KeyboardEvent('keydown', {
+              ctrlKey: true,
+              shiftKey: true,
+              code: 'Period',
+            }));
+            await microtasksFinished();
+
+            // Assert: Logs original legacy metrics, does NOT log new metrics.
+            assertEquals(1, metrics.count(VOICE_ACTIONS_METRIC));
+            assertEquals(
+                1,
+                metrics.count(
+                    VOICE_ACTIONS_METRIC, VoiceAction.ACTIVATE_KEYBOARD));
+            assertEquals(0, metrics.count('VoiceSearch.Action'));
+            assertEquals(0, metrics.count('VoiceSearch.Action.NTP_REALBOX'));
+          });
+
+      test(
+          'QUERY_SUBMITTED does not log legacy NewTabPage.VoiceActions when experiment enabled',
+          async () => {
+            loadTimeData.overrideValues({
+              voiceSearchCoherenceAnySearchboxExperimentEnabled: true,
+            });
+            await recreateApp();
+
+            metrics = fakeMetricsPrivate();
+
+            $$(app, '#searchbox')!.dispatchEvent(
+                new CustomEvent('open-composebox', {
+                  detail: {text: '', files: []},
+                }));
+            await microtasksFinished();
+
+            const composebox =
+                app.shadowRoot.querySelector('ntp-composebox, cr-composebox');
+            assertTrue(!!composebox);
+            composebox.dispatchEvent(new CustomEvent(
+                'voice-search-action',
+                {detail: {value: VoiceSearchAction.QUERY_SUBMITTED}}));
+            await microtasksFinished();
+
+            // Assert: Legacy classic histogram NewTabPage.VoiceActions does NOT
+            // log QUERY_SUBMITTED (enum value 1) due to early return.
+            assertEquals(
+                0,
+                metrics.count(
+                    VOICE_ACTIONS_METRIC, VoiceAction.QUERY_SUBMITTED));
+          });
+
+      // TODO(crbug.com/527969922): Re-enable this test
+      test.skip(
+          'QUERY_SUBMITTED logs legacy NewTabPage.VoiceActions when experiment disabled',
+          async () => {
+            loadTimeData.overrideValues({
+              composeboxSource: 'NTP_REALBOX',
+              voiceSearchCoherenceAnySearchboxExperimentEnabled: false,
+              voiceSearchCoherenceSearchboxWithLiveTranscriptionEnabled: false,
+              voiceSearchCoherenceComposeboxesEnabled: false,
+            });
+            await recreateApp();
+
+            metrics = fakeMetricsPrivate();
+
+            $$(app, '#searchbox')!.dispatchEvent(
+                new CustomEvent('open-composebox', {
+                  detail: {text: '', files: []},
+                }));
+            await microtasksFinished();
+
+            const composebox =
+                app.shadowRoot.querySelector('ntp-composebox, cr-composebox');
+            assertTrue(!!composebox);
+            composebox.dispatchEvent(new CustomEvent(
+                'voice-search-action',
+                {detail: {value: VoiceSearchAction.QUERY_SUBMITTED}}));
+            await microtasksFinished();
+
+            // Assert: Legacy classic histogram NewTabPage.VoiceActions logs
+            // QUERY_SUBMITTED (enum value 1).
+            assertEquals(1, metrics.count(VOICE_ACTIONS_METRIC));
+            assertEquals(
+                1,
+                metrics.count(
+                    VOICE_ACTIONS_METRIC, VoiceAction.QUERY_SUBMITTED));
+
+            // Assert: New unified histograms are NOT logged when experiment is
+            // disabled.
+            assertEquals(0, metrics.count('VoiceSearch.Action'));
+            assertEquals(0, metrics.count('VoiceSearch.Action.NTP_REALBOX'));
           });
     });
   });

@@ -241,24 +241,19 @@ UIColor* AccountParticleDiscBadgeBackgroundColor(UIUserInterfaceStyle style) {
     palette = [self.traitCollection objectForNewTabPageTrait];
   }
 
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    backgroundColor = [self defaultButtonBackgroundColor];
-    foregroundColor = [UIColor colorNamed:kBlue600Color];
-  } else {
-    if ([self.traitCollection boolForNewTabPageImageBackgroundTrait]) {
-      UIVisualEffect* blurEffect =
-          [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
-      UIVisualEffectView* blurBackgroundView =
-          [[UIVisualEffectView alloc] initWithEffect:blurEffect];
-      buttonConfiguration.background.customView = blurBackgroundView;
+  if ([self.traitCollection boolForNewTabPageImageBackgroundTrait]) {
+    UIVisualEffect* blurEffect =
+        [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
+    UIVisualEffectView* blurBackgroundView =
+        [[UIVisualEffectView alloc] initWithEffect:blurEffect];
+    buttonConfiguration.background.customView = blurBackgroundView;
 
-      foregroundColor = [UIColor colorNamed:kTextPrimaryColor];
-    } else {
-      foregroundColor =
-          palette ? palette.tintColor : [UIColor colorNamed:kBlue600Color];
-      backgroundColor = palette ? palette.headerButtonColor
-                                : [self defaultButtonBackgroundColor];
-    }
+    foregroundColor = [UIColor colorNamed:kTextPrimaryColor];
+  } else {
+    foregroundColor =
+        palette ? palette.tintColor : [UIColor colorNamed:kBlue600Color];
+    backgroundColor = palette ? palette.headerButtonColor
+                              : [self defaultButtonBackgroundColor];
   }
 
   if (backgroundColor) {

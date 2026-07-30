@@ -22,6 +22,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.browser_ui.media.AudioBecomingNoisyReceiver;
 import org.chromium.components.browser_ui.media.MediaFeatureList;
@@ -33,6 +34,9 @@ import org.chromium.content_public.browser.test.mock.MockWebContents;
 /** Tests for {@link MediaSessionTabHelper} lazy-initialization and cleanup. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
+// TODO(crbug.com/522397811): Add tests with ALLOW_MULTIPLE_MEDIA_NOTIFICATIONS enabled once
+// the feature is implemented.
+@DisableFeatures(ChromeFeatureList.ALLOW_MULTIPLE_MEDIA_NOTIFICATIONS)
 public class MediaSessionTabHelperTest {
     private Tab mTab;
     private MockWebContents mWebContents;

@@ -228,15 +228,15 @@ int RunExecutable(const base::FilePath& existence_checker_path,
     write_fd.reset();
 
     std::string output;
-    base::Time deadline = base::Time::Now() + timeout;
+    base::LiveTicks deadline = base::LiveTicks::Now() + timeout;
 
     static constexpr size_t kBufferSize = 1024;
     base::CheckedNumeric<size_t> total_bytes_read = 0;
     ssize_t read_this_pass = 0;
     do {
       struct pollfd fds[1] = {{.fd = read_fd.get(), .events = POLLIN}};
-      int timeout_remaining_ms =
-          static_cast<int>((deadline - base::Time::Now()).InMilliseconds());
+      int timeout_remaining_ms = static_cast<int>(
+          (deadline - base::LiveTicks::Now()).InMilliseconds());
       if (timeout_remaining_ms < 0 || poll(fds, 1, timeout_remaining_ms) != 1) {
         break;
       }
@@ -263,7 +263,7 @@ int RunExecutable(const base::FilePath& existence_checker_path,
     VLOG(1) << "Output from " << executable << ": " << output;
 
     if (!proc.WaitForExitWithTimeout(
-            std::max(deadline - base::Time::Now(), base::TimeDelta()),
+            std::max(deadline - base::LiveTicks::Now(), base::TimeDelta()),
             &exit_code)) {
       return std::to_underlying(InstallErrors::kExecutableWaitForExitFailed);
     }

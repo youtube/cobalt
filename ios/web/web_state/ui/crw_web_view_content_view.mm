@@ -114,6 +114,7 @@ NSString* const kPDFMimeType = @"application/pdf";
 }
 
 - (void)layoutSubviews {
+  [super layoutSubviews];
   switch (self.webViewResizingType) {
     case WebViewResizingType::kContentInset:
       if (_hasPendingViewportInsets) {
@@ -131,7 +132,6 @@ NSString* const kPDFMimeType = @"application/pdf";
       }
       break;
   }
-  [super layoutSubviews];
 }
 
 #pragma mark Layout
@@ -223,8 +223,11 @@ NSString* const kPDFMimeType = @"application/pdf";
 - (void)setMinimumViewportInset:(UIEdgeInsets)minInset
            maximumViewportInset:(UIEdgeInsets)maxInset {
   switch (self.webViewResizingType) {
-    case WebViewResizingType::kContentInset:
-      if (_webView.window) {
+    case WebViewResizingType::kContentInset: {
+      CGRect insetRect = UIEdgeInsetsInsetRect(_webView.bounds, maxInset);
+      // Only apply the viewport insets if the web view's frame is large enough
+      // to accommodate them.
+      if (_webView.window && !CGRectIsEmpty(insetRect)) {
         [_webView setMinimumViewportInset:minInset
                      maximumViewportInset:maxInset];
         [_webView setNeedsLayout];
@@ -235,6 +238,7 @@ NSString* const kPDFMimeType = @"application/pdf";
         _hasPendingViewportInsets = YES;
       }
       break;
+    }
     case WebViewResizingType::kFrame: {
       _maxViewportInset = maxInset;
 

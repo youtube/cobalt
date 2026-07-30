@@ -16,15 +16,15 @@ TEST_F(TestExpectationsTest, ParseSimpleExpectation) {
       [[TestExpectations alloc] initWithContent:content];
   [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"iOS"]];
 
-  NSString* reason = nil;
-  EXPECT_TRUE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                methodName:@"testMethod"
-                                                 outReason:&reason]);
-  EXPECT_NSEQ(@"Expected failure", reason);
+  TestExpectationEntry* entry =
+      [expectations expectationEntryForTestCase:@"MyTestCase"
+                                     methodName:@"testMethod"];
+  EXPECT_TRUE(entry != nil);
+  EXPECT_NSEQ(@"Expected failure", entry.bug);
+  EXPECT_EQ(TestExpectationTypeFailure, entry.type);
 
-  EXPECT_FALSE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                 methodName:@"otherMethod"
-                                                  outReason:nil]);
+  EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
+                                             methodName:@"otherMethod"] == nil);
 }
 
 TEST_F(TestExpectationsTest, ParseWithBugIdentifier) {
@@ -34,16 +34,18 @@ TEST_F(TestExpectationsTest, ParseWithBugIdentifier) {
       [[TestExpectations alloc] initWithContent:content];
   [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"iOS"]];
 
-  NSString* reason = nil;
-  EXPECT_TRUE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                methodName:@"testMethod"
-                                                 outReason:&reason]);
-  EXPECT_NSEQ(@"crbug.com/12345", reason);
+  TestExpectationEntry* entry =
+      [expectations expectationEntryForTestCase:@"MyTestCase"
+                                     methodName:@"testMethod"];
+  EXPECT_TRUE(entry != nil);
+  EXPECT_NSEQ(@"crbug.com/12345", entry.bug);
+  EXPECT_EQ(TestExpectationTypeFailure, entry.type);
 
-  EXPECT_TRUE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                methodName:@"testOtherMethod"
-                                                 outReason:&reason]);
-  EXPECT_NSEQ(@"b/98765", reason);
+  entry = [expectations expectationEntryForTestCase:@"MyTestCase"
+                                         methodName:@"testOtherMethod"];
+  EXPECT_TRUE(entry != nil);
+  EXPECT_NSEQ(@"b/98765", entry.bug);
+  EXPECT_EQ(TestExpectationTypeFailure, entry.type);
 }
 
 TEST_F(TestExpectationsTest, ParseWithMatchingTags) {
@@ -55,14 +57,13 @@ TEST_F(TestExpectationsTest, ParseWithMatchingTags) {
       setOverrideActiveTagsForTesting:[NSSet setWithObjects:@"iOS", @"iOS26",
                                                             @"Simulator", nil]];
 
-  EXPECT_TRUE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                methodName:@"testMethod"
-                                                 outReason:nil]);
+  EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
+                                             methodName:@"testMethod"] != nil);
 
   // iOS18 tag doesn't match active tags (iOS26), so the expectation is ignored.
-  EXPECT_FALSE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                 methodName:@"testOtherMethod"
-                                                  outReason:nil]);
+  EXPECT_TRUE([expectations
+                  expectationEntryForTestCase:@"MyTestCase"
+                                   methodName:@"testOtherMethod"] == nil);
 }
 
 TEST_F(TestExpectationsTest, ClassLevelExpectation) {
@@ -71,12 +72,11 @@ TEST_F(TestExpectationsTest, ClassLevelExpectation) {
       [[TestExpectations alloc] initWithContent:content];
   [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"iOS"]];
 
-  EXPECT_TRUE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                methodName:@"testMethod"
-                                                 outReason:nil]);
-  EXPECT_TRUE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                methodName:@"anotherMethod"
-                                                 outReason:nil]);
+  EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
+                                             methodName:@"testMethod"] != nil);
+  EXPECT_TRUE([expectations
+                  expectationEntryForTestCase:@"MyTestCase"
+                                   methodName:@"anotherMethod"] != nil);
 }
 
 TEST_F(TestExpectationsTest, Normalization) {
@@ -85,9 +85,8 @@ TEST_F(TestExpectationsTest, Normalization) {
       [[TestExpectations alloc] initWithContent:content];
   [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"iOS"]];
 
-  EXPECT_TRUE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                methodName:@"testMethod"
-                                                 outReason:nil]);
+  EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
+                                             methodName:@"testMethod"] != nil);
 }
 
 TEST_F(TestExpectationsTest, CommentsAndBlankLines) {
@@ -99,15 +98,13 @@ TEST_F(TestExpectationsTest, CommentsAndBlankLines) {
       [[TestExpectations alloc] initWithContent:content];
   [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"iOS"]];
 
-  NSString* reason = nil;
-  EXPECT_TRUE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                methodName:@"testMethod"
-                                                 outReason:&reason]);
-  EXPECT_NSEQ(@"crbug.com/123", reason);
+  TestExpectationEntry* entry =
+      [expectations expectationEntryForTestCase:@"MyTestCase"
+                                     methodName:@"testMethod"];
+  EXPECT_TRUE(entry != nil);
+  EXPECT_NSEQ(@"crbug.com/123", entry.bug);
 }
 
-// Verify that tags, build numbers, and the word 'Failure' are matched
-// case-insensitively.
 TEST_F(TestExpectationsTest, CaseInsensitiveMatching) {
   NSString* content =
       @"[ ios26 simulator ] MyTestCase/testMethod1 [ failure ]\n"
@@ -119,12 +116,10 @@ TEST_F(TestExpectationsTest, CaseInsensitiveMatching) {
                                                             @"Simulator",
                                                             @"23F5067a", nil]];
 
-  EXPECT_TRUE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                methodName:@"testMethod1"
-                                                 outReason:nil]);
-  EXPECT_TRUE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                methodName:@"testMethod2"
-                                                 outReason:nil]);
+  EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
+                                             methodName:@"testMethod1"] != nil);
+  EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
+                                             methodName:@"testMethod2"] != nil);
 }
 
 TEST_F(TestExpectationsTest, MinorAndPatchOSVersionMatching) {
@@ -138,15 +133,12 @@ TEST_F(TestExpectationsTest, MinorAndPatchOSVersionMatching) {
                                                             @"iOS18.2",
                                                             @"iOS18.2.1", nil]];
 
-  EXPECT_TRUE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                methodName:@"testMethod1"
-                                                 outReason:nil]);
-  EXPECT_TRUE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                methodName:@"testMethod2"
-                                                 outReason:nil]);
-  EXPECT_FALSE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                 methodName:@"testMethod3"
-                                                  outReason:nil]);
+  EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
+                                             methodName:@"testMethod1"] != nil);
+  EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
+                                             methodName:@"testMethod2"] != nil);
+  EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
+                                             methodName:@"testMethod3"] == nil);
 }
 
 TEST_F(TestExpectationsTest, BuildNumberMatching) {
@@ -158,10 +150,112 @@ TEST_F(TestExpectationsTest, BuildNumberMatching) {
       setOverrideActiveTagsForTesting:[NSSet setWithObjects:@"iOS26", @"17F42",
                                                             nil]];
 
-  EXPECT_TRUE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                methodName:@"testMethod1"
-                                                 outReason:nil]);
-  EXPECT_FALSE([expectations shouldExpectFailureForTestCase:@"MyTestCase"
-                                                 methodName:@"testMethod2"
-                                                  outReason:nil]);
+  EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
+                                             methodName:@"testMethod1"] != nil);
+  EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
+                                             methodName:@"testMethod2"] == nil);
+}
+
+TEST_F(TestExpectationsTest, IPadIPhoneTagsMatching) {
+  NSString* content = @"[ ipad ] MyTestCase/testMethod1 [ Failure ]\n"
+                      @"[ iphone ] MyTestCase/testMethod2 [ Failure ]\n";
+  TestExpectations* expectations =
+      [[TestExpectations alloc] initWithContent:content];
+
+  // Test with 'ipad' tag.
+  [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"ipad"]];
+  EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
+                                             methodName:@"testMethod1"] != nil);
+  EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
+                                             methodName:@"testMethod2"] == nil);
+
+  // Test with 'iphone' tag.
+  [expectations
+      setOverrideActiveTagsForTesting:[NSSet setWithObject:@"iphone"]];
+  EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
+                                             methodName:@"testMethod1"] == nil);
+  EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
+                                             methodName:@"testMethod2"] != nil);
+}
+
+TEST_F(TestExpectationsTest, SkipExpectation) {
+  NSString* content = @"NotABug MyTestCase/testMethod1 [ Skip ]\n"
+                      @"crbug.com/98765 MyTestCase/testMethod2 [ Skip ]\n"
+                      @"MyTestCase/testMethod3 [ Failure ]\n";
+  TestExpectations* expectations =
+      [[TestExpectations alloc] initWithContent:content];
+  [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"ios"]];
+
+  // testMethod1: Skip -> outReason is "NotABug"
+  TestExpectationEntry* entry =
+      [expectations expectationEntryForTestCase:@"MyTestCase"
+                                     methodName:@"testMethod1"];
+  EXPECT_TRUE(entry != nil);
+  EXPECT_EQ(TestExpectationTypeSkip, entry.type);
+  EXPECT_NSEQ(@"NotABug", entry.bug);
+
+  // testMethod2: Skip -> outReason is "crbug.com/98765"
+  entry = [expectations expectationEntryForTestCase:@"MyTestCase"
+                                         methodName:@"testMethod2"];
+  EXPECT_TRUE(entry != nil);
+  EXPECT_EQ(TestExpectationTypeSkip, entry.type);
+  EXPECT_NSEQ(@"crbug.com/98765", entry.bug);
+}
+
+TEST_F(TestExpectationsTest, CrashExpectation) {
+  NSString* content = @"NotABug MyTestCase/testMethod1 [ Crash ]\n"
+                      @"crbug.com/54321 MyTestCase/testMethod2 [ Crash ]\n"
+                      @"MyTestCase/testMethod3 [ Failure ]\n";
+  TestExpectations* expectations =
+      [[TestExpectations alloc] initWithContent:content];
+  [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"ios"]];
+
+  // testMethod1: Crash -> outReason is "NotABug"
+  TestExpectationEntry* entry =
+      [expectations expectationEntryForTestCase:@"MyTestCase"
+                                     methodName:@"testMethod1"];
+  EXPECT_TRUE(entry != nil);
+  EXPECT_EQ(TestExpectationTypeCrash, entry.type);
+  EXPECT_NSEQ(@"NotABug", entry.bug);
+
+  // testMethod2: Crash -> outReason is "crbug.com/54321"
+  entry = [expectations expectationEntryForTestCase:@"MyTestCase"
+                                         methodName:@"testMethod2"];
+  EXPECT_TRUE(entry != nil);
+  EXPECT_EQ(TestExpectationTypeCrash, entry.type);
+  EXPECT_NSEQ(@"crbug.com/54321", entry.bug);
+}
+
+TEST_F(TestExpectationsTest, MultipleExpectationsCombinations) {
+  NSString* content =
+      @"crbug.com/111 MyTestCase/testMethod1 [ Failure Crash ]\n"
+      @"crbug.com/222 MyTestCase/testMethod2 [ Pass Failure Crash ]\n"
+      @"crbug.com/333 MyTestCase/testMethod3 [ Pass Crash ]\n";
+  TestExpectations* expectations =
+      [[TestExpectations alloc] initWithContent:content];
+  [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"ios"]];
+
+  // testMethod1: Failure Crash
+  TestExpectationEntry* entry =
+      [expectations expectationEntryForTestCase:@"MyTestCase"
+                                     methodName:@"testMethod1"];
+  EXPECT_TRUE(entry != nil);
+  EXPECT_EQ(TestExpectationTypeFailure | TestExpectationTypeCrash, entry.type);
+  EXPECT_NSEQ(@"crbug.com/111", entry.bug);
+
+  // testMethod2: Pass Failure Crash
+  entry = [expectations expectationEntryForTestCase:@"MyTestCase"
+                                         methodName:@"testMethod2"];
+  EXPECT_TRUE(entry != nil);
+  EXPECT_EQ(TestExpectationTypePass | TestExpectationTypeFailure |
+                TestExpectationTypeCrash,
+            entry.type);
+  EXPECT_NSEQ(@"crbug.com/222", entry.bug);
+
+  // testMethod3: Pass Crash
+  entry = [expectations expectationEntryForTestCase:@"MyTestCase"
+                                         methodName:@"testMethod3"];
+  EXPECT_TRUE(entry != nil);
+  EXPECT_EQ(TestExpectationTypePass | TestExpectationTypeCrash, entry.type);
+  EXPECT_NSEQ(@"crbug.com/333", entry.bug);
 }

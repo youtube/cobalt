@@ -19,9 +19,12 @@
 #include "chrome/browser/ui/actions/actions_util.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/toasts/api/toast_id.h"
+#include "chrome/browser/ui/toasts/toast_controller.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/common/pref_names.h"
@@ -285,19 +288,28 @@ void VerticalTabStripStateController::NotifyModeChanged() {
 }
 
 void VerticalTabStripStateController::OnModeChanged() {
-  if (pref_service_->GetBoolean(prefs::kVerticalTabsEnabled) &&
+  const bool new_enabled =
+      pref_service_->GetBoolean(prefs::kVerticalTabsEnabled);
+  if (new_enabled &&
       !pref_service_->GetBoolean(prefs::kVerticalTabsEnabledFirstTime)) {
     base::RecordAction(
         base::UserMetricsAction("VerticalTabs_EnabledFirstTime"));
     pref_service_->SetBoolean(prefs::kVerticalTabsEnabledFirstTime, true);
   }
-
   if (enable_state_lock_count_ > 0) {
+    if (new_enabled != is_vertical_tabs_enabled_) {
+      ToastController* const toast_controller =
+          ToastController::From(browser_window_);
+      if (toast_controller) {
+        toast_controller->MaybeShowToast(ToastParams(
+            new_enabled ? ToastId::kTabStripSwitchDelayedVertical
+                        : ToastId::kTabStripSwitchDelayedHorizontal));
+      }
+    }
     return;
   }
 
-  is_vertical_tabs_enabled_ =
-      pref_service_->GetBoolean(prefs::kVerticalTabsEnabled);
+  is_vertical_tabs_enabled_ = new_enabled;
 
   NotifyModeChanged();
 }

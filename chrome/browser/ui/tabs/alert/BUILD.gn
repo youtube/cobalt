@@ -76,7 +76,10 @@ source_set("interactive_ui_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
-  sources = [ "tab_alert_controller_interactive_uitest.cc" ]
+  sources = [
+    "tab_alert_controller_interactive_uitest.cc",
+    "unload_controller_glic_interactive_uitest.cc",
+  ]
 
   deps = [
     ":impl",

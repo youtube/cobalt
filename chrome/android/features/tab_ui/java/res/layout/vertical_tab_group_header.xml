@@ -26,6 +26,8 @@ found in the LICENSE file.
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:layout_marginEnd="@dimen/vertical_tab_item_title_margin_end"
+        android:gravity="start"
+        android:textAlignment="viewStart"
         android:singleLine="true"
         android:ellipsize="end"
         android:textAppearance="@style/TextAppearance.TextMedium.Primary"

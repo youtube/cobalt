@@ -92,7 +92,7 @@ bool IsPermissionEligibleForAutoRevocation(ContentSettingsType type);
 // auto-revoked as unused permission. If this returns true, then
 // IsPermissionElibigleForAutoRevocation(type) should also return true.
 bool CanBeAutoRevokedAsUnusedPermission(ContentSettingsType type,
-                                        const base::Value& value,
+                                        const PermissionSetting& setting,
                                         bool is_one_time = false);
 
 // Returns true if the type and metadata correspond

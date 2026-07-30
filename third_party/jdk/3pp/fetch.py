@@ -23,7 +23,7 @@ def get_artifact_regex(platform_3pp):
 
 if __name__ == '__main__':
     fetch_github_release.main(
-        project='adoptium/temurin23-binaries',
+        project='adoptium/temurin25-binaries',
         artifact_extension='.tar.gz',
         artifact_regex=get_artifact_regex(os.environ['_3PP_PLATFORM']),
         install_scripts=[_3PP_DIR / 'install.sh'])

@@ -623,9 +623,6 @@ void NavigateClient(
     return;
   }
 
-  bool set_initiator = base::FeatureList::IsEnabled(
-      features::kServiceWorkerWindowClientInitiator);
-
   FrameTreeNodeId frame_tree_node_id =
       rfhi->frame_tree_node()->frame_tree_node_id();
   Navigator& navigator = rfhi->frame_tree_node()->navigator();
@@ -639,15 +636,11 @@ void NavigateClient(
   // Service workers don't have documents, so it's ok to use nullopt for
   // `initiator_base_url` in the following call.
   navigator.RequestOpenURL(
-      rfhi, url,
-      set_initiator ? &(rfhi->GetFrameToken())
-                    : nullptr /* initiator_frame_token */,
-      set_initiator
-          ? rfhi->GetProcess()->GetDeprecatedID()
-          : ChildProcessHost::kInvalidUniqueID /* initiator_process_id */,
+      rfhi, url, &(rfhi->GetFrameToken()) /* initiator_frame_token */,
+      rfhi->GetProcess()->GetDeprecatedID() /* initiator_process_id */,
       url::Origin::Create(script_url), /* initiator_base_url= */ std::nullopt,
-      set_initiator ? rfhi->CreateInitiatorStateFromCurrentFrame() : nullptr,
-      nullptr /* post_body */, std::string() /* extra_headers */,
+      rfhi->CreateInitiatorStateFromCurrentFrame(), nullptr /* post_body */,
+      std::string() /* extra_headers */,
       Referrer::SanitizeForRequest(
           url, Referrer(script_url, network::mojom::ReferrerPolicy::kDefault)),
       WindowOpenDisposition::CURRENT_TAB,

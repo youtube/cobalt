@@ -54,6 +54,7 @@ enum class MemoryDataType {
   kShipmentCarrierName,
   kShipmentCarrierDomain,
   kShipmentEstimatedDeliveryDate,
+  kShipmentShippedDate,
   kNationalIdCardFull,
   kNationalIdCardName,
   kNationalIdCardCountry,

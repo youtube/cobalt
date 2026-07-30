@@ -18,6 +18,7 @@
 #import "ios/chrome/browser/autofill/ui_bundled/util/autofill_credit_card_util.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
+#import "ios/chrome/browser/metrics/model/activity_reporter.h"
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/coordinator/autofill_and_passwords_coordinator.h"
 #import "ios/chrome/browser/settings/google_services/coordinator/google_services_settings_coordinator.h"
 #import "ios/chrome/browser/settings/google_services/ui/google_services_settings_view_controller.h"
@@ -179,6 +180,7 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
   BOOL _dismissalUserActionReported;
   // Autofill and Passwords coordinator.
   AutofillAndPasswordsCoordinator* _autofillAndPasswordsCoordinator;
+  ActivityReporter* _activityReporter;
 }
 
 #pragma mark - SettingsNavigationController methods.
@@ -635,6 +637,8 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
   if (self) {
     _browser = browser;
     _settingsNavigationDelegate = delegate;
+    _activityReporter =
+        [[ActivityReporter alloc] initWithDomain:ActivityReportDomainSettings];
 
     // FIXME -- RTTI is bad.
     if ([rootViewController
@@ -672,6 +676,16 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
 
   // Set the NavigationController delegate.
   self.delegate = self;
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+  [super viewWillAppear:animated];
+  [_activityReporter reportActive];
+}
+
+- (void)viewDidDisappear:(BOOL)animated {
+  [super viewDidDisappear:animated];
+  [_activityReporter reportInactive];
 }
 
 #pragma mark - Public

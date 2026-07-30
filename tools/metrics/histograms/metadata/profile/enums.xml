@@ -26,6 +26,18 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
+<!-- LINT.IfChange(FeatureShowcaseStep) -->
+
+<enum name="FeatureShowcaseStep">
+  <summary>Steps shown in the Feature Showcase.</summary>
+  <int value="0" label="DefaultBrowser"/>
+  <int value="1" label="GoogleLens"/>
+  <int value="2" label="PasswordManager"/>
+  <int value="3" label="ThemesAndCustomization"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/ui/views/profiles/first_run_flow_controller.h:FeatureShowcaseStep) -->
+
 <enum name="FirstRunCloudPolicyStoreState">
   <int value="0" label="Loaded before initialization">
     The cloud policy store was already loaded when the FRE intro was first
@@ -476,6 +488,7 @@ chromium-metrics-reviews@google.com.
   <int value="30"
       label="Batch Upload for Windows Deprecation as primary button"/>
   <int value="31" label="Passkey unlock button"/>
+  <int value="32" label="Sign-in on phone button"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/views/profiles/profile_menu_view_base.h:ActionableItem) -->

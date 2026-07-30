@@ -77,7 +77,6 @@ class CanvasGradient;
 class CanvasImageSource;
 class CanvasPattern;
 class CanvasRenderingContextHost;
-class CanvasResourceProvider;
 class DOMMatrix;
 class DOMMatrixInit;
 class ExceptionState;

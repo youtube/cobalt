@@ -75,8 +75,6 @@ base::expected<url::Origin, std::string_view> ConvertOrigin(
 
 }  // namespace
 
-ActorContainerConfig::ActorContainerConfig() = default;
-
 ActorContainerConfig::ActorContainerConfig(const ActorContainerConfig&) =
     default;
 
@@ -84,21 +82,9 @@ ActorContainerConfig::ActorContainerConfig(ActorContainerConfig&&) = default;
 
 ActorContainerConfig::~ActorContainerConfig() = default;
 
-void ActorContainerConfig::Assign(
-    base::optional_ref<const optimization_guide::proto::AgentContainerConfig>
-        config) {
-  if (assign_attempted_) {
-    return;
-  }
-  assign_attempted_ = true;
-  CHECK(!rules_.has_value());
-
-  if (!config.has_value()) {
-    return;
-  }
-
-  rules_.emplace();
-  for (const auto& rule_proto : config->location_rules()) {
+ActorContainerConfig::ActorContainerConfig(
+    const optimization_guide::proto::AgentContainerConfig& config) {
+  for (const auto& rule_proto : config.location_rules()) {
     base::expected<Location, std::string_view> destination_result =
         Location::Create(rule_proto.location());
     if (!destination_result.has_value()) {
@@ -111,10 +97,10 @@ void ActorContainerConfig::Assign(
       continue;
     }
     const Location& destination = destination_result.value();
-    if (auto it = rules_->find(destination); it != rules_->end()) {
+    if (auto it = rules_.find(destination); it != rules_.end()) {
       DLOG(ERROR) << "Duplicate rule for " << destination.ToDebugString();
     }
-    rules_->insert_or_assign(destination, rule.value());
+    rules_.insert_or_assign(destination, rule.value());
   }
 }
 
@@ -234,18 +220,16 @@ bool ActorContainerConfig::Rule::CanNavigate() const {
 bool ActorContainerConfig::IsNavigationAllowed(
     const url::Origin& source,
     const url::Origin& destination) const {
-  CHECK(IsActive());
+  if (const auto* rule = base::FindOrNull(rules_, Location(destination));
+      rule && rule->MatchesNavigationSource(source)) {
+    return rule->CanNavigate();
+  }
   if (const auto* rule =
-          base::FindOrNull(rules_.value(), Location(destination));
+          base::FindOrNull(rules_, Location(net::SchemefulSite(destination)));
       rule && rule->MatchesNavigationSource(source)) {
     return rule->CanNavigate();
   }
-  if (const auto* rule = base::FindOrNull(
-          rules_.value(), Location(net::SchemefulSite(destination)));
-      rule && rule->MatchesNavigationSource(source)) {
-    return rule->CanNavigate();
-  }
-  if (const auto* rule = base::FindOrNull(rules_.value(), Location(Wildcard()));
+  if (const auto* rule = base::FindOrNull(rules_, Location(Wildcard()));
       rule && rule->MatchesNavigationSource(source)) {
     return rule->CanNavigate();
   }
@@ -254,17 +238,14 @@ bool ActorContainerConfig::IsNavigationAllowed(
 
 bool ActorContainerConfig::IsActuationAllowed(
     const url::Origin& location_origin) const {
-  CHECK(IsActive());
-  if (const auto* rule =
-          base::FindOrNull(rules_.value(), Location(location_origin))) {
+  if (const auto* rule = base::FindOrNull(rules_, Location(location_origin))) {
     return rule->CanNavigate();
   }
   if (const auto* rule = base::FindOrNull(
-          rules_.value(), Location(net::SchemefulSite(location_origin)))) {
+          rules_, Location(net::SchemefulSite(location_origin)))) {
     return rule->CanNavigate();
   }
-  if (const auto* rule =
-          base::FindOrNull(rules_.value(), Location(Wildcard()))) {
+  if (const auto* rule = base::FindOrNull(rules_, Location(Wildcard()))) {
     return rule->CanNavigate();
   }
   return false;

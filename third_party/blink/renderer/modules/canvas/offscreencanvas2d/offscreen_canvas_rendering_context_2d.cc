@@ -133,13 +133,14 @@ void OffscreenCanvasRenderingContext2D::FinalizeFrame(FlushReason reason) {
 
   // Make sure surface is ready for painting: fix the rendering mode now
   // because it will be too late during the paint invalidation phase.
-  InitializeResourceProvider();
-  if (shared_image_provider_ && shared_image_provider_->IsValid()) {
-    shared_image_provider_->Flush(reason);
-  } else if (bitmap_provider_ && bitmap_provider_->IsValid()) {
-    bitmap_provider_->Flush(reason);
-  } else {
+  if (!InitializeResourceProvider()) {
     return;
+  }
+
+  if (shared_image_provider_) {
+    shared_image_provider_->Flush(reason);
+  } else {
+    bitmap_provider_->Flush(reason);
   }
   Host()->NotifyCachesOfSwitchingFrame();
 }
@@ -274,27 +275,25 @@ bool OffscreenCanvasRenderingContext2D::InitializeResourceProvider() {
     // visible on screen, but at least readbacks will work. Failure to create
     // another type of resource prover above is a sign that the graphics
     // pipeline is in a bad state (e.g. gpu process crashed, out of memory)
-    bitmap_provider_ = Canvas2DResourceProviderBitmap::CreateWithClear(
+    bitmap_provider_ = Canvas2DBitmapProvider::CreateWithClear(
         host->Size(), format, alpha_type, color_space, hdr_metadata, host);
   }
 
   Host()->UpdateMemoryUsage();
 
   if (shared_image_provider_) {
-    CHECK(shared_image_provider_->IsValid());
     base::UmaHistogramBoolean("Blink.Canvas.ResourceProviderIsAccelerated",
                               shared_image_provider_->IsAccelerated());
     base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
-                                  shared_image_provider_->GetType());
+                                  CanvasResourceProviderType::kSharedImage);
     host->DidDraw();
     return true;
   }
   if (bitmap_provider_) {
-    CHECK(bitmap_provider_->IsValid());
     base::UmaHistogramBoolean("Blink.Canvas.ResourceProviderIsAccelerated",
                               false);
     base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
-                                  bitmap_provider_->GetType());
+                                  CanvasResourceProviderType::kBitmap);
 
     host->DidDraw();
     return true;
@@ -321,8 +320,7 @@ void OffscreenCanvasRenderingContext2D::Reset() {
 
 scoped_refptr<CanvasResource>
 OffscreenCanvasRenderingContext2D::ProduceCanvasResource(FlushReason reason) {
-  InitializeResourceProvider();
-  if (!shared_image_provider_ || !shared_image_provider_->IsValid()) {
+  if (!InitializeResourceProvider() || !shared_image_provider_) {
     return nullptr;
   }
 

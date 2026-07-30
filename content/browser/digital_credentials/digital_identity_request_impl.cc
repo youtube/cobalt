@@ -571,8 +571,14 @@ void DigitalIdentityRequestImpl::Get(
     return;
   }
 
+  if (origin().opaque()) {
+    ReportBadMessageAndDeleteThis(
+        "DigitalIdentityRequest is not allowed in opaque origins.");
+    return;
+  }
+
   if (render_frame_host().IsNestedWithinFencedFrame()) {
-    mojo::ReportBadMessage(
+    ReportBadMessageAndDeleteThis(
         "DigitalIdentityRequest should not be allowed in fenced frame "
         "trees.");
     return;
@@ -687,8 +693,14 @@ void DigitalIdentityRequestImpl::Create(
     return;
   }
 
+  if (origin().opaque()) {
+    ReportBadMessageAndDeleteThis(
+        "DigitalIdentityRequest is not allowed in opaque origins.");
+    return;
+  }
+
   if (render_frame_host().IsNestedWithinFencedFrame()) {
-    mojo::ReportBadMessage(
+    ReportBadMessageAndDeleteThis(
         "DigitalIdentityRequest should not be allowed in fenced frame "
         "trees.");
     return;

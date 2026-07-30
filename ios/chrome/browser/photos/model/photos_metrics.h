@@ -15,6 +15,8 @@ extern const char kSaveToPhotosSettingsActionsHistogram[];
 extern const char kSaveToPhotosUploadSuccessLatencyHistogram[];
 extern const char kSaveToPhotosUploadFailureLatencyHistogram[];
 extern const char kSaveToPhotosUploadFailureTypeHistogram[];
+extern const char kSaveToPhotosSignInStatusHistogram[];
+extern const char kSaveToPhotosSignInResultHistogram[];
 
 // Enum for the IOS.SaveToPhotos histogram.
 // Keep in sync with "IOSSaveToPhotosType"
@@ -119,5 +121,27 @@ enum class PhotosServiceUploadFailureType : NSUInteger {
   kMaxValue = kUploadPhoto2NotEnoughStorage,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml)
+
+// The sign in status of the user when they start the Save to Photos flow.
+// Enum for the IOS.SaveToPhotos.SignIn.Status histogram.
+// LINT.IfChange(SaveToPhotosSignInStatus)
+enum class SaveToPhotosSignInStatus {
+  kSignedIn = 0,
+  kSignedOutWithoutAccountOnDevice = 1,
+  kSignedOutWithAccountOnDevice = 2,
+  kMaxValue = kSignedOutWithAccountOnDevice,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSSaveToPhotosSignInStatusType)
+
+// The result of the sign in flow.
+// Enum for the IOS.SaveToPhotos.SignIn.Result histogram.
+// LINT.IfChange(SaveToPhotosSignInResult)
+enum class SaveToPhotosSignInResult {
+  kSignInSuccess = 0,
+  kSignInCanceled = 1,
+  kSignInFailed = 2,
+  kMaxValue = kSignInFailed,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSSaveToPhotosSignInResultType)
 
 #endif  // IOS_CHROME_BROWSER_PHOTOS_MODEL_PHOTOS_METRICS_H_

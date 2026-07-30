@@ -97,16 +97,7 @@ void Ecdsa::OverrideNonceForTesting(int key_version, uint32_t nonce) {
   request_query_cup2key_ = base::StringPrintf("%d:%u", pub_key_version_, nonce);
 }
 
-void Ecdsa::SignRequest(std::string_view request_body,
-                        std::string* query_params) {
-  DCHECK(query_params);
-  Ecdsa::RequestParameters request_parameters = SignRequest(request_body);
-  *query_params = base::StringPrintf("cup2key=%s&cup2hreq=%s",
-                                     request_parameters.query_cup2key.c_str(),
-                                     request_parameters.hash_hex.c_str());
-}
-
-Ecdsa::RequestParameters Ecdsa::SignRequest(std::string_view request_body) {
+std::string Ecdsa::PrepareRequestParameters(std::string_view request_body) {
   // Generate a random nonce to use for freshness, build the cup2key query
   // string, and compute the SHA-256 hash of the request body. Set these
   // two pieces of data aside to use during ValidateResponse().
@@ -123,9 +114,8 @@ Ecdsa::RequestParameters Ecdsa::SignRequest(std::string_view request_body) {
       base::StringPrintf("%d:%s", pub_key_version_, nonce_b64);
   request_hash_ = crypto::hash::Sha256(base::as_byte_span(request_body));
 
-  // Return the query string for the user to send with the request.
-  return {.query_cup2key = request_query_cup2key_,
-          .hash_hex = base::HexEncodeLower(request_hash_)};
+  return base::StringPrintf("cup2key=%s&cup2hreq=%s", request_query_cup2key_,
+                            base::HexEncodeLower(request_hash_));
 }
 
 bool Ecdsa::ValidateResponse(std::string_view response_body,

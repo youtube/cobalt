@@ -583,8 +583,6 @@ class MOJO_SYSTEM_IMPL_EXPORT Channel
  protected:
   void RecordSentMessageMetricsSubsampled(size_t payload_size);
 
-  void RecordReceivedMessageProcessTypeSubsampled();
-
   // Take delayed messages with increasing message count one by one and dispatch
   // them until there is a new gap.
   bool DispatchDelayedMessages();
@@ -595,10 +593,6 @@ class MOJO_SYSTEM_IMPL_EXPORT Channel
   // Records histograms counting sent messages per process type. Must be
   // subsampled.
   static void RecordSentMessageProcessType();
-
-  // Records histograms counting received messages per process type. Must be
-  // subsampled.
-  static void RecordReceivedMessageProcessType();
 
   // Used to store messaged for delayed dispatch. Such message reordering is
   // only needed when SupportsMultipleNotifiers() is true.

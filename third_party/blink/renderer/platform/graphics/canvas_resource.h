@@ -280,7 +280,6 @@ class PLATFORM_EXPORT ExternalCanvasResource final : public CanvasResource {
   bool CreatesAcceleratedTransferableResources() const override { return true; }
   void NotifyResourceLost() override { resource_is_lost_ = true; }
   void WaitSyncToken(const gpu::SyncToken&) override;
-  void ProduceSyncToken();
 
   scoped_refptr<StaticBitmapImage> Bitmap() override;
   const gfx::HDRMetadata& GetHdrMetadata() const override {
@@ -313,6 +312,9 @@ class PLATFORM_EXPORT ExternalCanvasResource final : public CanvasResource {
   viz::ReleaseCallback release_callback_;
   bool resource_is_lost_ = false;
   const SkAlphaType alpha_type_;
+
+  // SyncToken to wait on at destruction.
+  gpu::SyncToken destruction_sync_token_;
 };
 
 }  // namespace blink

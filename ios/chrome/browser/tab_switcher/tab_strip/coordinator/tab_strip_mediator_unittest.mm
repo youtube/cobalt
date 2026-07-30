@@ -37,6 +37,7 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/shared/public/commands/tab_strip_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_strip_last_tab_dragged_alert_command.h"
+#import "ios/chrome/browser/shared/ui/util/color_palette/tab_group_color_palette.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_browser_agent.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_source_tab_helper.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
@@ -103,8 +104,25 @@ SavedTabGroup TestSavedGroup(
   return saved_group;
 }
 
-MATCHER_P2(TabTitleAndURLEq, title, url, "") {
-  return arg.title() == title && arg.url() == url;
+// Returns true if the two colors are equal, resolving dynamic colors if
+// necessary.
+bool ColorsAreEqual(const UIColor* color1, const UIColor* color2) {
+  if (color1 == color2) {
+    return true;
+  }
+  if (!color1 || !color2) {
+    return false;
+  }
+  UIColor* c1 = (UIColor*)color1;
+  UIColor* c2 = (UIColor*)color2;
+  UITraitCollection* lightTrait = [UITraitCollection
+      traitCollectionWithUserInterfaceStyle:UIUserInterfaceStyleLight];
+  UITraitCollection* darkTrait = [UITraitCollection
+      traitCollectionWithUserInterfaceStyle:UIUserInterfaceStyleDark];
+  return [[c1 resolvedColorWithTraitCollection:lightTrait]
+             isEqual:[c2 resolvedColorWithTraitCollection:lightTrait]] &&
+         [[c1 resolvedColorWithTraitCollection:darkTrait]
+             isEqual:[c2 resolvedColorWithTraitCollection:darkTrait]];
 }
 
 }  // namespace
@@ -279,8 +297,9 @@ TEST_F(TabStripMediatorTest, ConsumerPopulated) {
   EXPECT_EQ(web_state_list_->GetWebStateAt(0)->GetUniqueIdentifier(),
             consumer_.items[1].tabSwitcherItem.identifier);
   EXPECT_EQ(group_0, consumer_.itemParents[consumer_.items[1]].tabGroup);
-  EXPECT_NSEQ(tab_groups::ColorForTabGroupColorId(group_0->GetColor()),
-              consumer_.itemData[consumer_.items[1]].groupStrokeColor);
+  EXPECT_TRUE(
+      ColorsAreEqual([TabGroupColorPalette commonColor:group_0->GetColor()],
+                     consumer_.itemData[consumer_.items[1]].groupStrokeColor));
   EXPECT_EQ(web_state_list_->GetWebStateAt(1)->GetUniqueIdentifier(),
             consumer_.items[2].tabSwitcherItem.identifier);
   EXPECT_NSEQ(nil, consumer_.itemData[consumer_.items[2]].groupStrokeColor);
@@ -315,9 +334,9 @@ TEST_F(TabStripMediatorTest, TabStripItemDataUpdated) {
   const TabGroup* group_0 = builder.GetTabGroupForIdentifier('0');
   const TabGroup* group_1 = builder.GetTabGroupForIdentifier('1');
   const UIColor* group_0_color =
-      tab_groups::ColorForTabGroupColorId(group_0->GetColor());
+      [TabGroupColorPalette commonColor:group_0->GetColor()];
   const UIColor* group_1_color =
-      tab_groups::ColorForTabGroupColorId(group_1->GetColor());
+      [TabGroupColorPalette commonColor:group_1->GetColor()];
 
   ASSERT_EQ(10ul, consumer_.items.count);
   TabStripItemIdentifier* item_a = consumer_.items[0];
@@ -337,13 +356,19 @@ TEST_F(TabStripMediatorTest, TabStripItemDataUpdated) {
   EXPECT_NSEQ(consumer_.itemData[item_a].groupStrokeColor, nil);
   EXPECT_NSEQ(consumer_.itemData[item_b].groupStrokeColor, nil);
   EXPECT_NSEQ(consumer_.itemData[item_c].groupStrokeColor, nil);
-  EXPECT_NSEQ(consumer_.itemData[item_0].groupStrokeColor, group_0_color);
-  EXPECT_NSEQ(consumer_.itemData[item_d].groupStrokeColor, group_0_color);
-  EXPECT_NSEQ(consumer_.itemData[item_e].groupStrokeColor, group_0_color);
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_0].groupStrokeColor,
+                             group_0_color));
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_d].groupStrokeColor,
+                             group_0_color));
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_e].groupStrokeColor,
+                             group_0_color));
   EXPECT_NSEQ(consumer_.itemData[item_f].groupStrokeColor, nil);
-  EXPECT_NSEQ(consumer_.itemData[item_1].groupStrokeColor, group_1_color);
-  EXPECT_NSEQ(consumer_.itemData[item_g].groupStrokeColor, group_1_color);
-  EXPECT_NSEQ(consumer_.itemData[item_h].groupStrokeColor, group_1_color);
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_1].groupStrokeColor,
+                             group_1_color));
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_g].groupStrokeColor,
+                             group_1_color));
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_h].groupStrokeColor,
+                             group_1_color));
 
   // Test is first tab in group.
   EXPECT_EQ(consumer_.itemData[item_a].isFirstTabInGroup, NO);
@@ -388,7 +413,8 @@ TEST_F(TabStripMediatorTest, TabStripItemDataUpdated) {
             "a b | c* [ 0 d e ] f [ 1 g h ]");
   // Group stroke color of 'e' should be back to its previous value, and be the
   // last tab of its group.
-  EXPECT_NSEQ(consumer_.itemData[item_e].groupStrokeColor, group_0_color);
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_e].groupStrokeColor,
+                             group_0_color));
   EXPECT_EQ(consumer_.itemData[item_d].isLastTabInGroup, NO);
   EXPECT_EQ(consumer_.itemData[item_e].isLastTabInGroup, YES);
 
@@ -421,7 +447,8 @@ TEST_F(TabStripMediatorTest, TabStripItemDataUpdated) {
           web_state_list_->GetIndexOfWebState(web_state_e))
           .InGroup(group_0));
   ASSERT_EQ(builder.GetWebStateListDescription(), "a b | c* [ 0 d e ] f g h");
-  EXPECT_NSEQ(consumer_.itemData[item_d].groupStrokeColor, group_0_color);
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_d].groupStrokeColor,
+                             group_0_color));
   EXPECT_EQ(consumer_.itemData[item_d].isFirstTabInGroup, YES);
   EXPECT_EQ(consumer_.itemData[item_e].isFirstTabInGroup, NO);
   EXPECT_EQ(consumer_.itemData[item_d].isLastTabInGroup, NO);
@@ -451,15 +478,21 @@ TEST_F(TabStripMediatorTest, TabStripItemDataUpdated) {
                                    {}, TabGroupId::GenerateNew());
   builder.SetTabGroupIdentifier(group_2, '2');
   UIColor* group_2_color =
-      tab_groups::ColorForTabGroupColorId(group_2->GetColor());
+      [TabGroupColorPalette commonColor:group_2->GetColor()];
   ASSERT_EQ(builder.GetWebStateListDescription(),
             "a b | [ 2 c* d f g h ] [ 0 e ]");
-  EXPECT_NSEQ(consumer_.itemData[item_c].groupStrokeColor, group_2_color);
-  EXPECT_NSEQ(consumer_.itemData[item_d].groupStrokeColor, group_2_color);
-  EXPECT_NSEQ(consumer_.itemData[item_f].groupStrokeColor, group_2_color);
-  EXPECT_NSEQ(consumer_.itemData[item_g].groupStrokeColor, group_2_color);
-  EXPECT_NSEQ(consumer_.itemData[item_h].groupStrokeColor, group_2_color);
-  EXPECT_NSEQ(consumer_.itemData[item_e].groupStrokeColor, group_0_color);
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_c].groupStrokeColor,
+                             group_2_color));
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_d].groupStrokeColor,
+                             group_2_color));
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_f].groupStrokeColor,
+                             group_2_color));
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_g].groupStrokeColor,
+                             group_2_color));
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_h].groupStrokeColor,
+                             group_2_color));
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_e].groupStrokeColor,
+                             group_0_color));
   EXPECT_EQ(consumer_.itemData[item_c].isFirstTabInGroup, YES);
   EXPECT_EQ(consumer_.itemData[item_d].isFirstTabInGroup, NO);
   EXPECT_EQ(consumer_.itemData[item_e].isFirstTabInGroup, YES);
@@ -471,13 +504,19 @@ TEST_F(TabStripMediatorTest, TabStripItemDataUpdated) {
   TabStripItemIdentifier* item_2 = consumer_.items[2];
   web_state_list_->UpdateGroupVisualData(
       group_2, {u"Updated Group Name", tab_groups::TabGroupColorId::kRed});
-  group_2_color = tab_groups::ColorForTabGroupColorId(group_2->GetColor());
-  EXPECT_NSEQ(consumer_.itemData[item_2].groupStrokeColor, group_2_color);
-  EXPECT_NSEQ(consumer_.itemData[item_c].groupStrokeColor, group_2_color);
-  EXPECT_NSEQ(consumer_.itemData[item_d].groupStrokeColor, group_2_color);
-  EXPECT_NSEQ(consumer_.itemData[item_f].groupStrokeColor, group_2_color);
-  EXPECT_NSEQ(consumer_.itemData[item_g].groupStrokeColor, group_2_color);
-  EXPECT_NSEQ(consumer_.itemData[item_h].groupStrokeColor, group_2_color);
+  group_2_color = [TabGroupColorPalette commonColor:group_2->GetColor()];
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_2].groupStrokeColor,
+                             group_2_color));
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_c].groupStrokeColor,
+                             group_2_color));
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_d].groupStrokeColor,
+                             group_2_color));
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_f].groupStrokeColor,
+                             group_2_color));
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_g].groupStrokeColor,
+                             group_2_color));
+  EXPECT_TRUE(ColorsAreEqual(consumer_.itemData[item_h].groupStrokeColor,
+                             group_2_color));
 }
 
 // Test that parent elements are updated accordingly.

@@ -11,6 +11,8 @@
 #import "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
 #import "components/autofill/core/common/autofill_features.h"
 #import "components/autofill/core/common/autofill_prefs.h"
+#import "components/optimization_guide/core/feature_registry/feature_registration.h"
+#import "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #import "components/prefs/pref_service.h"
 #import "components/sync/test/test_sync_service.h"
 #import "ios/chrome/browser/autofill/model/ios_autofill_entity_data_manager_factory.h"
@@ -175,12 +177,12 @@ TEST_F(IdentityDocsMediatorTest, PrefChangeUpdatesConsumer) {
       autofill::prefs::kAutofillAiIdentityEntitiesEnabled, false);
   mediator_.consumer = consumer_;
 
-  OCMExpect([consumer_ setIdentityDocsToggleState:YES enabled:YES]);
+  OCMExpect([consumer_ setIdentityDocsToggleState:YES enabled:YES managed:NO]);
   profile_->GetPrefs()->SetBoolean(
       autofill::prefs::kAutofillAiIdentityEntitiesEnabled, true);
   [consumer_ verify];
 
-  OCMExpect([consumer_ setIdentityDocsToggleState:NO enabled:YES]);
+  OCMExpect([consumer_ setIdentityDocsToggleState:NO enabled:YES managed:NO]);
   profile_->GetPrefs()->SetBoolean(
       autofill::prefs::kAutofillAiIdentityEntitiesEnabled, false);
   [consumer_ verify];
@@ -195,13 +197,41 @@ TEST_F(IdentityDocsMediatorTest, AutofillProfilePrefChangeUpdatesConsumer) {
       autofill::prefs::kAutofillAiIdentityEntitiesEnabled, true);
   mediator_.consumer = consumer_;
 
-  OCMExpect([consumer_ setIdentityDocsToggleState:NO enabled:NO]);
+  OCMExpect([consumer_ setIdentityDocsToggleState:NO enabled:NO managed:NO]);
   profile_->GetPrefs()->SetBoolean(autofill::prefs::kAutofillProfileEnabled,
                                    false);
   [consumer_ verify];
 
-  OCMExpect([consumer_ setIdentityDocsToggleState:YES enabled:YES]);
+  OCMExpect([consumer_ setIdentityDocsToggleState:YES enabled:YES managed:NO]);
   profile_->GetPrefs()->SetBoolean(autofill::prefs::kAutofillProfileEnabled,
                                    true);
+  [consumer_ verify];
+}
+
+// Tests that a policy preference change updates the consumer toggle managed
+// state.
+TEST_F(IdentityDocsMediatorTest, PolicyPrefChangeUpdatesConsumer) {
+  using optimization_guide::model_execution::prefs::
+      ModelExecutionEnterprisePolicyValue;
+  const std::string kPolicyPref = optimization_guide::prefs::
+      kAutofillPredictionImprovementsEnterprisePolicyAllowed;
+
+  profile_->GetPrefs()->SetBoolean(
+      autofill::prefs::kAutofillAiIdentityEntitiesEnabled, true);
+  profile_->GetPrefs()->SetInteger(
+      kPolicyPref,
+      static_cast<int>(ModelExecutionEnterprisePolicyValue::kAllow));
+  mediator_.consumer = consumer_;
+
+  OCMExpect([consumer_ setIdentityDocsToggleState:YES enabled:YES managed:YES]);
+  profile_->GetPrefs()->SetInteger(
+      kPolicyPref,
+      static_cast<int>(ModelExecutionEnterprisePolicyValue::kDisable));
+  [consumer_ verify];
+
+  OCMExpect([consumer_ setIdentityDocsToggleState:YES enabled:YES managed:NO]);
+  profile_->GetPrefs()->SetInteger(
+      kPolicyPref,
+      static_cast<int>(ModelExecutionEnterprisePolicyValue::kAllow));
   [consumer_ verify];
 }

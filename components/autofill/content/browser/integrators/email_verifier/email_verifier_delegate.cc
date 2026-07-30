@@ -19,6 +19,7 @@
 #include "components/autofill/content/browser/renderer_forms_from_browser_form.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
+#include "components/autofill/core/browser/data_quality/validation.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
@@ -107,6 +108,7 @@ void EmailVerifierDelegate::Verify(
     NotifyFlowCompleted(EvpAutofillFlowResult::kVerifierUnavailable);
     return;
   }
+  in_flight_verify_count_++;
   verifier->Verify(
       result, nonce,
       base::BindOnce(&EmailVerifierDelegate::OnVerificationResponseReceived,
@@ -121,6 +123,12 @@ void EmailVerifierDelegate::OnVerificationResponseReceived(
     FieldGlobalId token_field_id,
     net::SchemefulSite issuer_site,
     std::optional<std::string> token) {
+  if (in_flight_verify_count_ == 0) {
+    // Navigation already completed this flow and recorded
+    // kPageNavigatedDuringVerification.
+    return;
+  }
+  in_flight_verify_count_--;
   if (!manager) {
     NotifyFlowCompleted(EvpAutofillFlowResult::kManagerDestroyed);
     return;
@@ -281,10 +289,19 @@ void EmailVerifierDelegate::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
   if (navigation_handle->IsInPrimaryMainFrame() &&
       navigation_handle->HasCommitted()) {
+    if (!navigation_handle->IsSameDocument() && in_flight_verify_count_ > 0) {
+      for (size_t i = 0; i < in_flight_verify_count_; ++i) {
+        NotifyFlowCompleted(
+            EvpAutofillFlowResult::kPageNavigatedDuringVerification);
+      }
+      in_flight_verify_count_ = 0;
+    }
     // `HasCommitted` returns true even for same document commits, e.g.
     // if the state is cleared on pushState() or #anchor navigations.
     // We clear the issuers_ map on these navigations too.
     issuers_.clear();
+    last_focused_field_ = std::nullopt;
+    last_verified_values_.clear();
   }
 }
 
@@ -377,6 +394,77 @@ void EmailVerifierDelegate::OnBeforeFormWithEmailVerificationTokenSubmitted(
     manager.client().ShowEmailVerifiedToast(issuer_url);
     NotifyFlowCompleted(EvpAutofillFlowResult::kSuccess);
   }
+}
+
+void EmailVerifierDelegate::OnAfterFocusOnFormField(AutofillManager& manager,
+                                                    FormGlobalId form_id,
+                                                    FieldGlobalId field_id) {
+  if (last_focused_field_ && *last_focused_field_ != field_id) {
+    OnFieldLostFocus(manager, *last_focused_field_);
+  }
+  last_focused_field_ = field_id;
+}
+
+void EmailVerifierDelegate::OnAfterFocusOnNonFormField(
+    AutofillManager& manager) {
+  if (last_focused_field_) {
+    OnFieldLostFocus(manager, *last_focused_field_);
+    last_focused_field_ = std::nullopt;
+  }
+}
+
+void EmailVerifierDelegate::OnFieldLostFocus(AutofillManager& manager,
+                                             const FieldGlobalId& field_id) {
+  if (!base::FeatureList::IsEnabled(::features::kEmailVerificationProtocol)) {
+    return;
+  }
+  const FormStructure* form = manager.FindCachedFormById(field_id);
+  if (!form) {
+    return;
+  }
+  const AutofillField* email_field = form->GetFieldById(field_id);
+  if (!email_field) {
+    return;
+  }
+
+  // Check 1: Type is EMAIL_ADDRESS
+  if (email_field->Type().GetAddressType() != EMAIL_ADDRESS) {
+    return;
+  }
+
+  // Check 2: User Edit (last_modifier is kUser)
+  if (email_field->last_modifier() != FieldModifier::kUser) {
+    return;
+  }
+
+  // Check 3: Value validation
+  const std::u16string& value = email_field->value();
+  if (!IsValidEmailAddress(value)) {
+    return;
+  }
+
+  // Check 4: Deduplication (LRU Cache)
+  auto it = std::ranges::find_if(last_verified_values_, [&](const auto& pair) {
+    return pair.first == field_id;
+  });
+  if (it != last_verified_values_.end() && it->second == value) {
+    // Value is same, deduplicate. Move to back to update LRU status.
+    auto pair = *it;
+    last_verified_values_.erase(it);
+    last_verified_values_.push_back(pair);
+    return;
+  }
+
+  // Value is different or new. Update cache and trigger.
+  if (it != last_verified_values_.end()) {
+    last_verified_values_.erase(it);
+  }
+  last_verified_values_.push_back({field_id, value});
+  if (last_verified_values_.size() > 5) {
+    last_verified_values_.erase(last_verified_values_.begin());
+  }
+
+  TriggerVerification(manager, *form, *email_field, value);
 }
 
 void EmailVerifierDelegate::TriggerVerification(

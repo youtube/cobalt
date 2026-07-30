@@ -9,7 +9,9 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/sequence_checker.h"
+#include "base/strings/strcat.h"
 #include "base/time/time.h"
 #include "components/enterprise/browser/reporting/browser_launch/browser_launch_event_uploader.h"
 #include "components/policy/core/common/policy_logger.h"
@@ -30,6 +32,26 @@ const net::BackoffEntry::Policy kRetryPolicy = {
 };
 
 const int kMaxAttempts = 5;
+
+constexpr char kUploadResultHistogramPrefix[] =
+    "Enterprise.BrowserLaunchEvent.UploadResult.";
+constexpr char kSwitchCountHistogramPrefix[] =
+    "Enterprise.BrowserLaunchEvent.SwitchCount.";
+constexpr char kRetryCountHistogramPrefix[] =
+    "Enterprise.BrowserLaunchEvent.RetryCount.";
+constexpr char kProcessCreationToUploadLatencyHistogramPrefix[] =
+    "Enterprise.BrowserLaunchEvent.ProcessCreationToUploadLatency.";
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(EnterpriseReportingUploadResult)
+enum class EnterpriseReportingUploadResult {
+  kSuccess = 0,
+  kFailedRetryLimit = 1,
+  kFailedPermanent = 2,
+  kMaxValue = kFailedPermanent,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/enterprise/enums.xml:EnterpriseReportingUploadResult)
 
 }  // namespace
 
@@ -53,6 +75,10 @@ void BrowserLaunchEventController::CollectAndUpload() {
 
   pending_upload_event_ = collector_->GetEvent();
 
+  base::UmaHistogramCounts100(
+      base::StrCat({kSwitchCountHistogramPrefix, uploader_->GetMetricSuffix()}),
+      pending_upload_event_->command_line_switch_keys_size());
+
   AttemptUpload();
 }
 
@@ -70,7 +96,28 @@ void BrowserLaunchEventController::OnEventUploaded(
     policy::CloudPolicyClient::Result result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+  std::string_view suffix = uploader_->GetMetricSuffix();
+
   if (result.IsSuccess()) {
+    base::UmaHistogramEnumeration(
+        base::StrCat({kUploadResultHistogramPrefix, suffix}),
+        EnterpriseReportingUploadResult::kSuccess);
+    base::UmaHistogramCounts100(
+        base::StrCat({kRetryCountHistogramPrefix, suffix}),
+        retry_backoff_.failure_count());
+    if (pending_upload_event_.has_value()) {
+      base::TimeDelta process_creation_to_upload_latency =
+          base::Time::Now() - base::Time::FromMillisecondsSinceUnixEpoch(
+                                  pending_upload_event_->launch_time_millis());
+      base::UmaHistogramCustomTimes(
+          base::StrCat({kProcessCreationToUploadLatencyHistogramPrefix, suffix}),
+          process_creation_to_upload_latency, base::Seconds(1),
+          base::Minutes(20), 50);
+    }
+    return;
+  }
+
+  if (result.IsClientNotRegisteredError()) {
     return;
   }
 
@@ -86,6 +133,9 @@ void BrowserLaunchEventController::OnEventUploaded(
       LOG_POLICY(ERROR, REPORTING)
           << "Browser launch event upload failed with non-retryable status: "
           << result.GetDMServerError();
+      base::UmaHistogramEnumeration(
+          base::StrCat({kUploadResultHistogramPrefix, suffix}),
+          EnterpriseReportingUploadResult::kFailedPermanent);
       return;
   }
 
@@ -96,6 +146,9 @@ void BrowserLaunchEventController::OnEventUploaded(
         << "Browser launch event upload failed after " << kMaxAttempts
         << " attempts. Giving up. Last failure status: "
         << result.GetDMServerError();
+    base::UmaHistogramEnumeration(
+        base::StrCat({kUploadResultHistogramPrefix, suffix}),
+        EnterpriseReportingUploadResult::kFailedRetryLimit);
     return;
   }
 

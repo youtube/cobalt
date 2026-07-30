@@ -22,7 +22,7 @@ PerformanceContainerTiming* PerformanceContainerTiming::Create(
     Element* last_painted_element,
     DOMHighResTimeStamp first_render_time,
     DOMWindow* source,
-    uint32_t navigation_id) {
+    uint64_t navigation_id) {
   // duration is set to 0 by specification, so we set same finish and start
   // time
   return MakeGarbageCollected<PerformanceContainerTiming>(
@@ -42,7 +42,7 @@ PerformanceContainerTiming::PerformanceContainerTiming(
     Element* last_painted_element,
     DOMHighResTimeStamp first_render_time,
     DOMWindow* source,
-    uint32_t navigation_id)
+    uint64_t navigation_id)
     : PerformanceEntry(name, start_time, end_time, source, navigation_id),
       intersection_rect_(DOMRectReadOnly::FromRect(intersection_rect)),
       size_(size),

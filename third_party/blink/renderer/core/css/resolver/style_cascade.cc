@@ -1219,7 +1219,7 @@ StyleCascade::MakeFunctionContextFromMixinAndResolveSubstitutions(
     // We have all the mixin context that we need, so we can now do the actual
     // resolution.
     if (const auto* v = DynamicTo<CSSUnparsedDeclarationValue>(value)) {
-      if (property.GetCSSPropertyName().IsCustomProperty()) {
+      if (IsA<CustomProperty>(property)) {
         return ResolveCustomProperty(property, *v, tree_scope, function_context,
                                      resolver);
       } else {

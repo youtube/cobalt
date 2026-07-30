@@ -957,5 +957,32 @@ TEST_F(ScrollPredictorTest, SyntheticFilterBypass) {
   EXPECT_NEAR(screen_movement.y(), model_movement.y(), kEpsilon);
 }
 
+TEST_F(ScrollPredictorTest, ResetOnGestureScrollBeginClearsState) {
+  // 1. Send a touchscreen GestureScrollBegin.
+  WebGestureEvent touchscreen_gsb(WebInputEvent::Type::kGestureScrollBegin,
+                                  WebInputEvent::kNoModifiers,
+                                  WebInputEvent::GetStaticTimeStampForTests(),
+                                  WebGestureDevice::kTouchscreen);
+  scroll_predictor_->ResetOnGestureScrollBegin(touchscreen_gsb);
+  EXPECT_TRUE(GetResamplingState());
+
+  // 2. Send a touchscreen GestureScrollUpdate to populate prediction state.
+  std::unique_ptr<WebInputEvent> touchscreen_gsu =
+      CreateGestureScrollUpdate(0, -10, 10);
+  HandleResampleScrollEvents(touchscreen_gsu, 10);
+  EXPECT_FALSE(GetLastAccumulatedDelta().IsOrigin());
+
+  // 3. Send a non-touchscreen GestureScrollBegin (e.g., touchpad).
+  WebGestureEvent touchpad_gsb(
+      WebInputEvent::Type::kGestureScrollBegin, WebInputEvent::kNoModifiers,
+      WebInputEvent::GetStaticTimeStampForTests(), WebGestureDevice::kTouchpad);
+  scroll_predictor_->ResetOnGestureScrollBegin(touchpad_gsb);
+
+  // 4. Verify that resampling is now disabled, and the internal prediction
+  // state has been reset.
+  EXPECT_FALSE(GetResamplingState());
+  EXPECT_TRUE(GetLastAccumulatedDelta().IsOrigin());
+}
+
 }  // namespace test
 }  // namespace blink

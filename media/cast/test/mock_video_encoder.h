@@ -33,7 +33,7 @@ class MockVideoEncoder : public VideoEncoder {
               (override));
 
   // Inform the encoder about the new target bit rate.
-  MOCK_METHOD(void, SetBitRate, (int new_bit_rate), (override));
+  MOCK_METHOD(void, SetBitRate, (uint32_t new_bit_rate), (override));
 
   // Inform the encoder to encode the next frame as a key frame.
   MOCK_METHOD(void, GenerateKeyFrame, (), (override));

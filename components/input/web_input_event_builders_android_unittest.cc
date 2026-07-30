@@ -177,6 +177,38 @@ TEST(WebInputEventBuilderAndroidTest, DomKeySyntheticEvent) {
   EXPECT_EQ(ui::DomKey::UNIDENTIFIED, ui::DomKey(web_event.dom_key));
 }
 
+// Verifies that supplementary-plane code points (e.g. emojis or extra-plane
+// chars) are encoded as surrogate pairs in unmodified_text and text, matching
+// dom_key and avoiding truncation / narrowing.
+TEST(WebInputEventBuilderAndroidTest, SupplementaryPlaneTextVsDomKeyMatch) {
+  constexpr int kCodePoint = 0x1F600;  // U+1F600 GRINNING FACE
+
+  // Use the synthetic-event form (env=nullptr) so the test doesn't depend on a
+  // device KCM; |unicode_character| is supplied directly, mirroring what
+  // ImeAdapterImpl.sendKeyEvent forwards from KeyEvent.getUnicodeChar().
+  WebKeyboardEvent web_event = input::WebKeyboardEventBuilder::Build(
+      /*env=*/nullptr, /*android_key_event=*/nullptr,
+      WebKeyboardEvent::Type::kKeyDown, /*modifiers=*/0,
+      blink::WebInputEvent::GetStaticTimeStampForTests(),
+      /*keycode=*/AKEYCODE_A, /*scancode=*/0,
+      /*unicode_character=*/kCodePoint,
+      /*is_system_key=*/false);
+
+  // dom_key preserves the full 21-bit scalar -> JS event.key will be "😀".
+  EXPECT_EQ(ui::DomKey::FromCharacter(kCodePoint),
+            ui::DomKey(web_event.dom_key))
+      << "dom_key must hold the full code point";
+  std::string js_event_key =
+      ui::KeycodeConverter::DomKeyToKeyString(ui::DomKey(web_event.dom_key));
+  EXPECT_EQ("\xF0\x9F\x98\x80", js_event_key);  // UTF-8 of U+1F600
+
+  // text[] now holds the properly encoded UTF-16 surrogate pair.
+  std::u16string text(web_event.text.data());
+  EXPECT_EQ(2u, text.size()) << "text[] must hold the 2 surrogate code units";
+  EXPECT_EQ(std::u16string(u"\U0001F600"), text)
+      << "text[] must match the saved-password encoding (surrogate pair)";
+}
+
 // Testing new Android keycode introduced in API 24.
 TEST(WebInputEventBuilderAndroidTest, CutCopyPasteKey) {
   JNIEnv* env = AttachCurrentThread();

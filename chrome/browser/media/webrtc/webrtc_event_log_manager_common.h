@@ -63,13 +63,13 @@ extern const size_t kInvalidWebRtcEventLogWebAppId;
 // applied globally (all browser contexts are limited together).
 extern const size_t kMaxActiveRemoteBoundWebRtcEventLogs;
 
-// Limit over the number of pending logs (logs stored on disk and awaiting to
-// be uploaded to a remote server). This limit avoids excessive storage. If a
+// Limit over the number of logs stored on disk, local-only or awaiting to
+// be uploaded to a remote server. This limit avoids excessive storage. If a
 // user chooses to have multiple profiles (and hence browser contexts) on a
 // system, it is assumed that the user has enough storage to accommodate
 // the increased storage consumption that comes with it. Therefore, this
 // limit is applied per browser context.
-extern const size_t kMaxPendingRemoteBoundWebRtcEventLogs;
+extern const size_t kMaxPendingAndLocalOnlyRemoteBoundWebRtcEventLogs;
 
 // Max number of history files that may be kept; after this number is exceeded,
 // the oldest logs should be pruned.
@@ -571,6 +571,10 @@ base::FilePath WebRtcEventLogPath(const base::FilePath& remote_logs_dir,
 // even log. These functions do not examine the file's content or its extension.
 bool IsValidRemoteBoundLogFilename(const std::string& filename);
 bool IsValidRemoteBoundLogFilePath(const base::FilePath& path);
+
+// Checks whether the path/filename refers to a local-only remote-bound log.
+bool IsLocalOnlyRemoteBoundLogFilename(const std::string& filename);
+bool IsLocalOnlyRemoteBoundLogFilePath(const base::FilePath& path);
 
 // Given WebRTC event log's path, return the path to the history file that
 // is, or would be, associated with it.

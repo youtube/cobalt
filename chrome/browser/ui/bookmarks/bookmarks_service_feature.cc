@@ -8,8 +8,10 @@
 #include "components/browser_apis/bookmarks/bookmarks_service_impl.h"
 
 BookmarksServiceFeature::BookmarksServiceFeature(
-    bookmarks::BookmarkModel* bookmark_model)
-    : bookmark_model_(bookmark_model) {
+    bookmarks::BookmarkModel* bookmark_model,
+    bookmarks::ManagedBookmarkService* managed_bookmark_service)
+    : bookmark_model_(bookmark_model),
+      managed_bookmark_service_(managed_bookmark_service) {
   CHECK(bookmark_model_);
   observation_.Observe(bookmark_model);
   if (bookmark_model_->loaded()) {
@@ -50,8 +52,8 @@ void BookmarksServiceFeature::InitializeService() {
   if (bookmarks_service_) {
     return;
   }
-  bookmarks_service_ =
-      std::make_unique<bookmarks_api::BookmarksServiceImpl>(bookmark_model_);
+  bookmarks_service_ = std::make_unique<bookmarks_api::BookmarksServiceImpl>(
+      bookmark_model_, managed_bookmark_service_);
   for (auto& receiver : queued_receivers_) {
     bookmarks_service_->Accept(std::move(receiver));
   }

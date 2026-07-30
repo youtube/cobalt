@@ -261,7 +261,8 @@ class WebRequestAPI : public BrowserContextKeyedAPI,
       const net::SiteForCookies& site_for_cookies,
       const std::optional<std::string>& user_agent,
       mojo::PendingRemote<network::mojom::WebSocketHandshakeClient>
-          handshake_client);
+          handshake_client,
+      mojo::PendingRemote<network::mojom::TrustedHeaderClient> header_client);
 
   // Starts proxying WebTransport handshake.
   void ProxyWebTransport(

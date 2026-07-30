@@ -25,6 +25,8 @@ class IdentityManager;
 
 @end
 
+@protocol ReauthenticationProtocol;
+
 // Mediator for the Autofill settings page.
 @interface AutofillSettingsMediator : NSObject <AutofillSettingsMutator>
 
@@ -36,6 +38,8 @@ class IdentityManager;
 
 - (instancetype)initWithPrefService:(PrefService*)prefs
                     identityManager:(signin::IdentityManager*)identityManager
+             reauthenticationModule:(id<ReauthenticationProtocol>)reauthModule
+              shouldShowWalletPromo:(BOOL)shouldShowWalletPromo
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;

@@ -14,8 +14,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
-#include "chrome/browser/ui/omnibox/everywhere_omnibox_service.h"
-#include "chrome/browser/ui/omnibox/everywhere_omnibox_service_factory.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -69,7 +67,7 @@ bool OmniboxPopupUIConfig::IsWebUIEnabled(
   return omnibox::IsAimPopupFeatureEnabled() ||
          omnibox::IsWebUIOmniboxFullPopupEnabled() ||
          omnibox::IsWebUIOmniboxPopupEnabled() ||
-         base::FeatureList::IsEnabled(omnibox::kEverywhereOmnibox) ||
+         base::FeatureList::IsEnabled(omnibox::kOmniboxEverywhere) ||
          features::IsWebUILocationBarEnabled();
 }
 
@@ -84,7 +82,7 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
                                /*enable_chrome_histograms=*/true),
       profile_(Profile::FromWebUI(web_ui)) {
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
-      Profile::FromWebUI(web_ui), chrome::kChromeUIOmniboxPopupHost);
+      profile_, chrome::kChromeUIOmniboxPopupHost);
 
   bool session_allows_drag_and_drop = false;
   if (auto* session_handle = GetOrCreateContextualSessionHandle()) {
@@ -92,33 +90,14 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
         session_handle->CheckSearchContentSharingSettings(profile_->GetPrefs());
   }
 
-  bool is_everywhere_popup = false;
-  if (base::FeatureList::IsEnabled(omnibox::kEverywhereOmnibox)) {
-    if (auto* service =
-            EverywhereOmniboxServiceFactory::GetForProfile(profile_)) {
-      is_everywhere_popup =
-          service->IsEverywherePopup(web_ui->GetWebContents());
-    }
-  }
-
   source->AddLocalizedStrings(SearchboxHandler::GetWebUIDataSourceDict(
       Profile::FromWebUI(web_ui),
       {.enable_voice_search = true,
-       .enable_lens_search = is_everywhere_popup,
+       .enable_lens_search = false,
        .session_allows_drag_and_drop = session_allows_drag_and_drop}));
 
   source->AddBoolean("isTopChromeSearchbox", true);
   source->AddBoolean("isTouchUi", ui::TouchUiController::Get()->touch_ui());
-  if (is_everywhere_popup) {
-    source->AddBoolean("isTopChromeSearchbox", false);
-    source->AddBoolean("searchboxShowComposeEntrypoint", true);
-    source->AddBoolean("searchboxShowComposebox", true);
-    source->AddBoolean("searchboxCr23Theming", true);
-    source->AddBoolean("searchboxCr23SteadyStateShadow", true);
-    source->AddBoolean("ntpRealboxNextEnabled", true);
-    source->AddBoolean("voiceSearchCoherenceComposeboxesEnabled", true);
-    source->AddBoolean("contextualMenuUsePecApi", true);
-  }
   source->AddBoolean("omniboxAimPopupEnabled",
                      omnibox::IsAimPopupFeatureEnabled());
   source->AddBoolean("omniboxShowContextButtonSuggestionLabel",
@@ -129,6 +108,10 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
   source->AddBoolean("webuiOmniboxPopupSelectionControlEnabled",
                      base::FeatureList::IsEnabled(
                          omnibox::kWebUIOmniboxPopupSelectionControl));
+  source->AddBoolean(
+      "searchboxMultiline",
+      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup) &&
+          omnibox::kWebUIOmniboxFullPopupMultiline.Get());
 
   source->AddBoolean("reportMetrics", true);
   source->AddString("charTypedToPaintMetricName",
@@ -182,8 +165,6 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
                          omnibox::internal::kWebUIOmniboxSimplification));
   source->AddBoolean("hideClassicContextButton",
                      omnibox::kHideClassicContextButton.Get());
-  source->AddBoolean("composeboxForkEnabled",
-                     omnibox::kUseComposeboxFork.Get());
   source->AddBoolean(
       "contextManagementInComposeboxEnabled",
       base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox) &&
@@ -217,9 +198,7 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
                      omnibox::kContextButtonShapeIsOblong.Get());
 
   int default_resource = IDR_OMNIBOX_POPUP_OMNIBOX_POPUP_HTML;
-  if (is_everywhere_popup) {
-    default_resource = IDR_OMNIBOX_POPUP_OMNIBOX_POPUP_EVERYWHERE_HTML;
-  } else if (omnibox::IsWebUIOmniboxFullPopupEnabled()) {
+  if (omnibox::IsWebUIOmniboxFullPopupEnabled()) {
     default_resource = IDR_OMNIBOX_POPUP_OMNIBOX_POPUP_FULL_HTML;
   }
   webui::SetupWebUIDataSource(source, kOmniboxPopupResources, default_resource);
@@ -280,8 +259,15 @@ void OmniboxPopupUI::BindInterface(
 void OmniboxPopupUI::CreatePageHandler(
     mojo::PendingRemote<omnibox_popup::mojom::Page> page,
     mojo::PendingReceiver<omnibox_popup::mojom::PageHandler> receiver) {
+  auto* omnibox_controller =
+      OmniboxPopupWebContentsHelper::GetOrCreateForWebContents(
+          web_ui()->GetWebContents())
+          ->get_omnibox_controller();
+  CHECK(omnibox_controller);
+
   popup_handler_ = std::make_unique<OmniboxPopupHandler>(
-      std::move(receiver), std::move(page), web_ui()->GetWebContents());
+      std::move(receiver), std::move(page), web_ui()->GetWebContents(),
+      omnibox_controller);
   popup_handler_->set_embedder(embedder());
 }
 

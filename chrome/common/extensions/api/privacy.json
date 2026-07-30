@@ -12,6 +12,33 @@
         "type": "string",
         "enum": ["default", "default_public_and_private_interfaces", "default_public_interface_only", "disable_non_proxied_udp"],
         "description": "The IP handling policy of WebRTC."
+      },
+      {
+        "id": "AutofillBlockedType",
+        "type": "string",
+        "enum": ["contact_info", "payments", "identity_docs", "travel"],
+        "description": "Categories of Autofill data."
+      },
+      {
+        "id": "AutofillSettings",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "urlPattern": {
+              "type": "string",
+              "description": "A URL pattern specifying the sites for which the block rule applies."
+            },
+            "blockedTypes": {
+              "type": "array",
+              "items": {
+                "$ref": "AutofillBlockedType"
+              },
+              "description": "The categories of Autofill data to block on matching sites."
+            }
+          }
+        },
+        "description": "Site-specific block rules for Autofill features."
       }
     ],
     "properties": {
@@ -57,6 +84,11 @@
             "$ref": "types.ChromeSetting",
             "value": ["autofillCreditCardEnabled", {"type":"boolean"}],
             "description": "If enabled, Chrome offers to automatically fill in credit card forms. This preference's value is a boolean, defaulting to <code>true</code>."
+          },
+          "autofillSettings": {
+            "$ref": "types.ChromeSetting",
+            "value": ["autofillSettings", {"$ref":"AutofillSettings"}],
+            "description": "If set, allows site-specific control over Autofill features by blocking specific data categories on matching URL patterns."
           },
           "passwordSavingEnabled": {
             "$ref": "types.ChromeSetting",

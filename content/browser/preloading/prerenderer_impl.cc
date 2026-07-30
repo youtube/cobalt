@@ -329,7 +329,7 @@ void PrerendererImpl::ProcessCandidatesForPrerender(
   }
 
   // Canceled prerenders by kSpeculationRuleRemoved should have already been
-  // removed from `started_prerenders_` via `OnCancel`.
+  // removed from `started_prerenders_` via `OnRetriggerable`.
   CHECK(std::find_if(started_prerenders_.begin(), started_prerenders_.end(),
                      [&](const PrerenderInfo& x) {
                        return canceled_prerender_rules_set.contains(
@@ -584,10 +584,12 @@ bool PrerendererImpl::ShouldWaitForPrerenderResult(const GURL& url) {
   return begin != end;
 }
 
-void PrerendererImpl::OnCancel(PrerenderHostId host_id,
-                               const PrerenderCancellationReason& reason) {
+void PrerendererImpl::OnRetriggerable(
+    PrerenderHostId host_id,
+    const PrerenderCancellationReason& reason) {
   switch (reason.final_status()) {
     // TODO(crbug.com/40275452): Support other final status cases.
+    case PrerenderFinalStatus::kActivated:
     case PrerenderFinalStatus::kTimeoutBackgrounded:
     case PrerenderFinalStatus::kMaxNumOfRunningNonImmediatePrerendersExceeded:
     case PrerenderFinalStatus::kSpeculationRuleRemoved: {

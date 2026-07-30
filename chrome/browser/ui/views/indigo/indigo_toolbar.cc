@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/functional/function_ref.h"
 #include "base/logging.h"
@@ -28,6 +29,7 @@
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/image_button_factory.h"
+#include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/separator.h"
@@ -57,7 +59,7 @@ constexpr int kToolbarInitialOffset = 20;
 constexpr int kSeparatorHorizontalPadding = 8;
 constexpr int kControlIconSize = 16;
 constexpr int kActionIconSize = 16;
-constexpr int kLabelLeftMargin = 12;
+constexpr int kLabelLeftMargin = 8;
 
 class IndigoOverlayTargeterDelegate : public views::ViewTargeterDelegate {
  public:
@@ -129,11 +131,94 @@ class IndigoOverlayLayoutManager : public views::LayoutManagerBase {
   }
 };
 
+ui::ImageModel GetChevronImageModel(bool is_expanded) {
+  return ui::ImageModel::FromVectorIcon(
+      is_expanded ? (features::IsRoundedIconsEnabled()
+                         ? vector_icons::kKeyboardArrowUpIcon
+                         : vector_icons::kCaretUpOldIcon)
+                  : (features::IsRoundedIconsEnabled()
+                         ? vector_icons::kKeyboardArrowDownIcon
+                         : vector_icons::kCaretDownOldIcon),
+      ui::kColorSysOnSurfaceSubtle, kControlIconSize);
+}
+
+class IndigoExpandButton : public HoverButton {
+  METADATA_HEADER(IndigoExpandButton, HoverButton)
+
+ public:
+  explicit IndigoExpandButton(PressedCallback callback, bool is_expanded)
+      : HoverButton(std::move(callback),
+                    /*icon_view=*/nullptr,
+                    l10n_util::GetStringUTF16(IDS_INDIGO_TOOLBAR_CAPTION),
+                    /*subtitle=*/std::u16string(),
+                    CreateChevronView(is_expanded),
+                    /*add_vertical_label_spacing=*/false) {
+    SetProperty(views::kElementIdentifierKey,
+                IndigoToolbar::kExpandButtonElementId);
+    SetProperty(
+        views::kFlexBehaviorKey,
+        views::FlexSpecification(views::MinimumFlexSizeRule::kPreferred,
+                                 views::MaximumFlexSizeRule::kUnbounded));
+    gfx::Insets insets = GetInsets();
+    insets.set_left_right(kToolbarPadding, kToolbarPadding);
+    SetBorder(views::CreateEmptyBorder(insets));
+    title()->SetTextContext(views::style::CONTEXT_LABEL);
+    title()->SetTextStyle(views::style::STYLE_SECONDARY);
+    title()->SetEnabledColor(ui::kColorSysOnSurfaceSubtle);
+    title()->SetProperty(views::kMarginsKey,
+                         gfx::Insets::TLBR(0, kLabelLeftMargin, 0, 0));
+    views::InstallRoundRectHighlightPathGenerator(
+        this, gfx::Insets(),
+        views::LayoutProvider::Get()->GetCornerRadiusMetric(
+            views::Emphasis::kMedium));
+
+    chevron_ = views::AsViewClass<views::ImageView>(secondary_view());
+    is_expanded_ = is_expanded;
+    UpdateState();
+  }
+
+  IndigoExpandButton(const IndigoExpandButton&) = delete;
+  IndigoExpandButton& operator=(const IndigoExpandButton&) = delete;
+  ~IndigoExpandButton() override = default;
+
+  void SetExpanded(bool expanded) {
+    CHECK_NE(expanded, is_expanded_);
+    is_expanded_ = expanded;
+    UpdateState();
+  }
+
+ private:
+  static std::unique_ptr<views::ImageView> CreateChevronView(bool is_expanded) {
+    auto chevron = std::make_unique<views::ImageView>();
+    chevron->SetProperty(views::kElementIdentifierKey,
+                         IndigoToolbar::kChevronElementId);
+    chevron->SetImage(GetChevronImageModel(is_expanded));
+    return chevron;
+  }
+
+  void UpdateState() {
+    SetTooltipText(l10n_util::GetStringUTF16(is_expanded_
+                                                 ? IDS_INDIGO_TOOLBAR_COLLAPSE
+                                                 : IDS_INDIGO_TOOLBAR_EXPAND));
+
+    if (chevron_) {
+      chevron_->SetImage(GetChevronImageModel(is_expanded_));
+    }
+  }
+
+  bool is_expanded_ = false;
+  raw_ptr<views::ImageView> chevron_ = nullptr;
+};
+
+BEGIN_METADATA(IndigoExpandButton)
+END_METADATA
+
 }  // namespace
 
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(IndigoToolbar, kToolbarElementId);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(IndigoToolbar, kCloseButtonElementId);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(IndigoToolbar, kExpandButtonElementId);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(IndigoToolbar, kChevronElementId);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(IndigoToolbar,
                                       kExpandedContainerElementId);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(IndigoToolbar,
@@ -192,55 +277,12 @@ std::unique_ptr<views::View> IndigoToolbar::CreateToolbarView() {
                   .SetDefault(views::kMarginsKey, gfx::Insets(kToolbarPadding))
                   .SetCollapseMargins(true)
                   .AddChildren(
-                      views::Builder<views::Label>()
-                          .SetProperty(
-                              views::kMarginsKey,
-                              gfx::Insets::TLBR(0, kLabelLeftMargin, 0, 0))
-                          .SetText(l10n_util::GetStringUTF16(
-                              IDS_INDIGO_TOOLBAR_CAPTION))
-                          .SetTextContext(views::style::CONTEXT_LABEL)
-                          .SetTextStyle(views::style::STYLE_SECONDARY)
-                          .SetEnabledColor(ui::kColorSysOnSurfaceSubtle)
-                          .SetHorizontalAlignment(gfx::ALIGN_LEFT)
-                          .SetProperty(
-                              views::kFlexBehaviorKey,
-                              views::FlexSpecification(
-                                  views::MinimumFlexSizeRule::kPreferred,
-                                  views::MaximumFlexSizeRule::kUnbounded)),
-                      views::Builder<views::ToggleImageButton>(
-                          views::CreateVectorToggleImageButton(
+                      views::Builder<HoverButton>(
+                          std::make_unique<IndigoExpandButton>(
                               base::BindRepeating(
                                   &IndigoToolbar::OnExpandButtonClicked,
-                                  base::Unretained(this))))
-                          .SetProperty(views::kElementIdentifierKey,
-                                       kExpandButtonElementId)
-                          .SetImageModel(
-                              views::Button::STATE_NORMAL,
-                              ui::ImageModel::FromVectorIcon(
-                                  features::IsRoundedIconsEnabled()
-                                      ? vector_icons::kKeyboardArrowDownIcon
-                                      : vector_icons::kCaretDownOldIcon,
-                                  ui::kColorSysOnSurfaceSubtle,
-                                  kControlIconSize))
-                          .SetToggledImageModel(
-                              views::Button::STATE_NORMAL,
-                              ui::ImageModel::FromVectorIcon(
-                                  features::IsRoundedIconsEnabled()
-                                      ? vector_icons::kKeyboardArrowUpIcon
-                                      : vector_icons::kCaretUpOldIcon,
-                                  ui::kColorSysOnSurfaceSubtle,
-                                  kControlIconSize))
-                          .SetTooltipText(l10n_util::GetStringUTF16(
-                              IDS_INDIGO_TOOLBAR_EXPAND))
-                          .SetToggledTooltipText(l10n_util::GetStringUTF16(
-                              IDS_INDIGO_TOOLBAR_COLLAPSE))
-                          .CustomConfigure(base::BindOnce(
-                              [](views::ToggleImageButton* button) {
-                                // CreateVectorToggleImageButton doesn't set the
-                                // ink drop base color automatically.
-                                views::InkDrop::Get(button)->SetBaseColor(
-                                    ui::kColorSysOnSurfaceSubtle);
-                              })),
+                                  base::Unretained(this)),
+                              is_expanded_)),
                       views::Builder<views::Separator>()
                           .SetOrientation(
                               views::Separator::Orientation::kVertical)
@@ -420,10 +462,10 @@ void IndigoToolbar::OnExpandButtonClicked() {
 
   is_expanded_ = !is_expanded_;
 
-  auto* expand_button = views::AsViewClass<views::ToggleImageButton>(
+  auto* expand_button = views::AsViewClass<IndigoExpandButton>(
       view->GetViewByElementId(kExpandButtonElementId));
   if (expand_button) {
-    expand_button->SetToggled(is_expanded_);
+    expand_button->SetExpanded(is_expanded_);
   }
 
   auto* expanded_container =

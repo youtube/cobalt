@@ -34,7 +34,6 @@
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/color_palette/tab_group_color_palette.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_toolbars_mutator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_group_sync_service_observer_bridge.h"
@@ -382,11 +381,7 @@ NSString* CreationText(base::Time creation_date) {
     itemData.title = l10n_util::GetPluralNSStringF(
         IDS_IOS_TAB_GROUP_TABS_NUMBER, numberOfTabs);
   }
-  if (IsTabGroupColorOnSurfaceEnabled()) {
-    itemData.color = [TabGroupColorPalette commonColor:group->color()];
-  } else {
-    itemData.color = tab_groups::ColorForTabGroupColorId(group->color());
-  }
+  itemData.color = [TabGroupColorPalette commonColor:group->color()];
   itemData.creationText = CreationText(group->creation_time());
   itemData.numberOfTabs = static_cast<NSUInteger>(numberOfTabs);
 

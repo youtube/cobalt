@@ -16,6 +16,8 @@ class InterfaceBase;
 
 namespace media {
 
+using GetSyncTokenCallback = base::OnceCallback<gpu::SyncToken()>;
+
 class MEDIA_EXPORT WaitAndReplaceSyncTokenClient
     : public VideoFrame::SyncTokenClient {
  public:
@@ -23,6 +25,8 @@ class MEDIA_EXPORT WaitAndReplaceSyncTokenClient
   WaitAndReplaceSyncTokenClient(
       gpu::InterfaceBase* ib,
       std::unique_ptr<gpu::RasterScopedAccess> ri_access);
+  WaitAndReplaceSyncTokenClient(gpu::InterfaceBase* ib,
+                                GetSyncTokenCallback sync_callback);
   ~WaitAndReplaceSyncTokenClient() override;
 
   WaitAndReplaceSyncTokenClient(const WaitAndReplaceSyncTokenClient&) = delete;
@@ -34,7 +38,7 @@ class MEDIA_EXPORT WaitAndReplaceSyncTokenClient
 
  private:
   raw_ptr<gpu::InterfaceBase> ib_;
-  std::unique_ptr<gpu::RasterScopedAccess> ri_access_;
+  GetSyncTokenCallback sync_callback_;
 };
 
 }  // namespace media

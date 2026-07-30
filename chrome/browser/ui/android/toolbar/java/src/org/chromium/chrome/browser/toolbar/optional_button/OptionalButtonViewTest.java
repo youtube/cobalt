@@ -1325,4 +1325,62 @@ public class OptionalButtonViewTest {
         assertEquals(ColorStateList.valueOf(Color.BLUE), ImageViewCompat.getImageTintList(mButton));
         assertEquals(Color.BLUE, mActionChipLabel.getCurrentTextColor());
     }
+
+    @Test
+    public void testUpdateButton_withoutAnimations_preservesContentDescription() {
+        ButtonDataImpl buttonData = getDataForReaderModeIconButton();
+        String contentDescriptionString = buttonData.getButtonSpec().getContentDescription();
+
+        // Disable animations.
+        when(mMockAnimationChecker.getAsBoolean()).thenReturn(false);
+
+        // Update the button.
+        mOptionalButtonView.updateButtonWithAnimation(buttonData);
+
+        // Content description should be set immediately.
+        assertEquals(contentDescriptionString, mButton.getContentDescription());
+
+        // Simulate transition start with a 0-duration transition.
+        Transition transition = mock(Transition.class);
+        when(transition.getDuration()).thenReturn(0L);
+        mOptionalButtonView.onTransitionStart(transition);
+
+        // Content description should NOT be cleared to null.
+        assertEquals(contentDescriptionString, mButton.getContentDescription());
+
+        // Simulate transition end.
+        mOptionalButtonView.onTransitionEnd(transition);
+
+        // Content description should still be correct.
+        assertEquals(contentDescriptionString, mButton.getContentDescription());
+    }
+
+    @Test
+    public void testUpdateButton_withAnimations_clearsContentDescriptionDuringTransition() {
+        ButtonDataImpl buttonData = getDataForReaderModeIconButton();
+        String contentDescriptionString = buttonData.getButtonSpec().getContentDescription();
+
+        // Enable animations.
+        when(mMockAnimationChecker.getAsBoolean()).thenReturn(true);
+
+        // Update the button.
+        mOptionalButtonView.updateButtonWithAnimation(buttonData);
+
+        // Content description should be set immediately.
+        assertEquals(contentDescriptionString, mButton.getContentDescription());
+
+        // Simulate transition start with an animated transition (duration > 0).
+        Transition transition = mock(Transition.class);
+        when(transition.getDuration()).thenReturn(225L);
+        mOptionalButtonView.onTransitionStart(transition);
+
+        // Content description should be cleared to null during transition.
+        assertNull(mButton.getContentDescription());
+
+        // Simulate transition end.
+        mOptionalButtonView.onTransitionEnd(transition);
+
+        // Content description should be restored.
+        assertEquals(contentDescriptionString, mButton.getContentDescription());
+    }
 }

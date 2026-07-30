@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/timer/elapsed_timer.h"
@@ -124,19 +125,41 @@ OnDeviceModelFeatureAdapter::ConstructTextSafetyRequest(
 
 SamplingParamsConfig OnDeviceModelFeatureAdapter::GetSamplingParamsConfig()
     const {
+  std::string feature_name =
+      proto::ModelExecutionFeature_Name(config_.feature());
+
   if (!config_.has_sampling_params()) {
     // Returns default value if the sampling params are not configured.
-    return SamplingParamsConfig{
+    const SamplingParamsConfig result{
         .default_top_k = uint32_t(features::GetOnDeviceModelDefaultTopK()),
         .default_temperature =
             float(features::GetOnDeviceModelDefaultTemperature()),
     };
+    VLOG(1) << feature_name << "'s config does not specify sampling params; "
+            << __func__ << " for " << feature_name << " yields fallbacks: "
+            << "{top_k=" << result.default_top_k
+            << ", temperature=" << result.default_temperature << "}";
+    return result;
   }
 
-  return SamplingParamsConfig{
+  const SamplingParamsConfig result{
       .default_top_k = config_.sampling_params().top_k(),
       .default_temperature = config_.sampling_params().temperature(),
   };
+
+  if (!config_.sampling_params().has_top_k()) {
+    VLOG(1) << feature_name << "'s config does not specify top_k; using "
+            << "protobuf default: top_k=" << result.default_top_k;
+  }
+  if (!config_.sampling_params().has_temperature()) {
+    VLOG(1) << feature_name << "'s config does not specify temperature; using "
+            << "protobuf default: temperature=" << result.default_temperature;
+  }
+
+  VLOG(1) << __func__ << " for " << feature_name << " yields: "
+          << "{top_k=" << result.default_top_k
+          << ", temperature=" << result.default_temperature << "}";
+  return result;
 }
 
 SamplingParams OnDeviceModelFeatureAdapter::GetDefaultSamplingParams() const {

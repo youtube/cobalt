@@ -33,6 +33,11 @@ class FetchBundleTest(unittest.TestCase):
     bundle_dir = cipd.fetch_recipe_bundle('chrome', True)
     self.assertEqual(bundle_dir, self.tmp_dir.joinpath('chrome'))
 
+    bundle_dir = cipd.fetch_recipe_bundle('dawn', True)
+    self.assertEqual(bundle_dir, self.tmp_dir.joinpath('dawn'))
+    self.assertIn(cipd._CHROMIUM_RECIPE_BUNDLE,
+                  self.subp_mock.call_args.args[0])
+
   def testUnknownProject(self):
     # Unknown project defaults to chrome for safety.
     bundle_dir = cipd.fetch_recipe_bundle('unknown-project', True)

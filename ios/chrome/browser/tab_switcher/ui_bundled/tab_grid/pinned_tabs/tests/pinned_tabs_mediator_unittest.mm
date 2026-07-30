@@ -158,20 +158,19 @@ class PinnedTabsMediatorTest : public PlatformTest {
   }
 
  protected:
-  std::unique_ptr<TestBrowser> regular_browser_;
-  std::unique_ptr<Browser> incognito_browser_;
-  FakePinnedTabCollectionConsumer* consumer_;
-  PinnedTabsMediator* mediator_;
-  base::HistogramTester histogram_tester_;
-
- private:
   web::WebTaskEnvironment task_environment_;
   base::test::ScopedFeatureList feature_list_;
-  raw_ptr<BrowserList, DanglingUntriaged> browser_list_;
   std::unique_ptr<TestProfileIOS> profile_;
+  raw_ptr<BrowserList> browser_list_;
+  std::unique_ptr<TestBrowser> regular_browser_;
+  std::unique_ptr<Browser> incognito_browser_;
   std::unique_ptr<TestSceneUrlLoadingService> scene_loader_;
   raw_ptr<UrlLoadingBrowserAgent> loader_;
   FakeURLLoadingDelegate* url_loading_delegate_;
+
+  FakePinnedTabCollectionConsumer* consumer_;
+  PinnedTabsMediator* mediator_;
+  base::HistogramTester histogram_tester_;
 };
 
 // Tests that the consumer is notified when a web state is pinned.

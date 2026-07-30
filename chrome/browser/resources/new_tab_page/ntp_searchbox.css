@@ -86,6 +86,10 @@
   width: 100%;
 }
 
+:host([in-voice-search-mode]) #inputWrapper {
+  display: none;
+}
+
 :host([ntp-realbox-next-enabled]) #inputWrapper {
   /* Elements like the IPH must overflow. */
   overflow: visible;

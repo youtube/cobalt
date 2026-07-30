@@ -1,216 +1,24 @@
 This is a testharness.js-based test.
-Found 106 FAIL, 0 TIMEOUT, 0 NOTRUN.
-[FAIL] Import of a text module with MIME type  should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type text should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type text/plain should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type text/json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type text/html+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type image/svg+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type text/json;boundary=something should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type text/json;foo=bar should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type text/json;+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type text/html+xml+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/json+protobuf should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/json+blah should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type text/x-json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type text/json+blah should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/blahjson should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type image/json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type text+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type json+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type text/json/json+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type text/html;+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type text/html+json+xml should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type text/json/json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic	ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic\nation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic\ration/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd	.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd\n.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd\r.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd .api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic"ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic(ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic)ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic,ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic:ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic;ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic<ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic>ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic=ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic?ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic@ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic[ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic]ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic{ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic}ation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd"api"+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd(api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd)api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd,api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd:api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd;api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd<api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd>api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd=api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd?api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd@api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd[api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd]api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd{api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd}api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type aplicación/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
+Found 10 FAIL, 0 TIMEOUT, 0 NOTRUN.
 [FAIL] Import of a text module with MIME type 申请/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
+  promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch dynamically imported module: http://web-platform.test:8001/html/semantics/scripting-1/the-script-element/text-module/file.txt?pipe=header(Content-Type,%E7%94%B3%E8%AF%B7%2Fvnd.api%2Bjson)"
 [FAIL] Import of a text module with MIME type app™lication/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
+  promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch dynamically imported module: http://web-platform.test:8001/html/semantics/scripting-1/the-script-element/text-module/file.txt?pipe=header(Content-Type,app%E2%84%A2lication%2Fvnd.api%2Bjson)"
 [FAIL] Import of a text module with MIME type appli€cation/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
+  promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch dynamically imported module: http://web-platform.test:8001/html/semantics/scripting-1/the-script-element/text-module/file.txt?pipe=header(Content-Type,appli%E2%82%ACcation%2Fvnd.api%2Bjson)"
 [FAIL] Import of a text module with MIME type 🚀application/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applicatioñ/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vñd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd.apí+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
+  promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch dynamically imported module: http://web-platform.test:8001/html/semantics/scripting-1/the-script-element/text-module/file.txt?pipe=header(Content-Type,%F0%9F%9A%80application%2Fvnd.api%2Bjson)"
 [FAIL] Import of a text module with MIME type application/vnd.api™+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
+  promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch dynamically imported module: http://web-platform.test:8001/html/semantics/scripting-1/the-script-element/text-module/file.txt?pipe=header(Content-Type,application%2Fvnd.api%E2%84%A2%2Bjson)"
 [FAIL] Import of a text module with MIME type application/vnd.api€+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
+  promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch dynamically imported module: http://web-platform.test:8001/html/semantics/scripting-1/the-script-element/text-module/file.txt?pipe=header(Content-Type,application%2Fvnd.api%E2%82%AC%2Bjson)"
 [FAIL] Import of a text module with MIME type application/vnd.中文+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
+  promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch dynamically imported module: http://web-platform.test:8001/html/semantics/scripting-1/the-script-element/text-module/file.txt?pipe=header(Content-Type,application%2Fvnd.%E4%B8%AD%E6%96%87%2Bjson)"
 [FAIL] Import of a text module with MIME type application/vnd.api🚀+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/café.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic ation/vnd api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic"ation/vnd"api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic(ation/vnd(api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic)ation/vnd)api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic,ation/vnd,api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic=ation/vnd=api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
+  promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch dynamically imported module: http://web-platform.test:8001/html/semantics/scripting-1/the-script-element/text-module/file.txt?pipe=header(Content-Type,application%2Fvnd.api%F0%9F%9A%80%2Bjson)"
 [FAIL] Import of a text module with MIME type 申请/中文.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
+  promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch dynamically imported module: http://web-platform.test:8001/html/semantics/scripting-1/the-script-element/text-module/file.txt?pipe=header(Content-Type,%E7%94%B3%E8%AF%B7%2F%E4%B8%AD%E6%96%87.api%2Bjson)"
 [FAIL] Import of a text module with MIME type app™/vnd€.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic;ation/vnd;api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic{ation/vnd{api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic}ation/vnd}api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic[ation/vnd[api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic]ation/vnd]api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic<ation/vnd<api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type applic>ation/vnd>api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type "application/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application"/vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application /vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type /vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/"vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd.api"+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/ vnd.api+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd.api +json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type application/vnd.api+json" should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type "application"/"vnd.api"+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
-[FAIL] Import of a text module with MIME type app(lic)ation/vnd(api)+json should succeed
-  promise_test: Unhandled rejection with value: object "TypeError: "text" is not a valid module type."
+  promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch dynamically imported module: http://web-platform.test:8001/html/semantics/scripting-1/the-script-element/text-module/file.txt?pipe=header(Content-Type,app%E2%84%A2%2Fvnd%E2%82%AC.api%2Bjson)"
 Harness: the test ran to completion.
 

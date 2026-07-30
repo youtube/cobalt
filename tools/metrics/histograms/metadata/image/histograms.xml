@@ -23,15 +23,15 @@ chromium-metrics-reviews@google.com.
 <histograms>
 
 <variants name="ImageAnnotationServiceAnnotationType">
-  <variant name="DescCaption."
+  <variant name="DescCaption"
       summary="Caption annotations from the description engine"/>
-  <variant name="DescLabel."
+  <variant name="DescLabel"
       summary="Label annotations from the description engine"/>
-  <variant name="DescOcr."
+  <variant name="DescOcr"
       summary="OCR (text extraction) annotations from the description engine"/>
-  <variant name="DescUnknown."
+  <variant name="DescUnknown"
       summary="Annotations of an unknown type from the description engine"/>
-  <variant name="Ocr."
+  <variant name="Ocr"
       summary="OCR (text extraction) annotations from the specialized OCR
                engine"/>
 </variants>
@@ -186,7 +186,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ImageAnnotationService.AccessibilityV1.EngineKnown"
-    enum="BooleanKnown" expires_after="2026-08-01">
+    enum="BooleanKnown" expires_after="2027-06-20">
   <owner>dtseng@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>mschillaci@google.com</owner>
@@ -202,7 +202,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ImageAnnotationService.AccessibilityV1.ImageRequestIncludesDesc"
-    enum="BooleanIncluded" expires_after="2026-08-01">
+    enum="BooleanIncluded" expires_after="2027-06-20">
   <owner>dtseng@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>mschillaci@google.com</owner>
@@ -222,7 +222,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ImageAnnotationService.AccessibilityV1.ImageRequestIncludesIcon"
-    enum="BooleanIncluded" expires_after="2026-08-01">
+    enum="BooleanIncluded" expires_after="2027-06-20">
   <owner>dtseng@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>mschillaci@google.com</owner>
@@ -240,7 +240,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ImageAnnotationService.AccessibilityV1.JsonParseSuccess"
-    enum="BooleanSuccess" expires_after="2026-08-01">
+    enum="BooleanSuccess" expires_after="2027-06-20">
   <owner>dtseng@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>mschillaci@google.com</owner>
@@ -255,7 +255,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ImageAnnotationService.AccessibilityV1.PixelFetchSuccess"
-    enum="BooleanSuccess" expires_after="2026-08-01">
+    enum="BooleanSuccess" expires_after="2027-06-20">
   <owner>dtseng@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>mschillaci@google.com</owner>
@@ -286,7 +286,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ImageAnnotationService.AccessibilityV1.ServerLatencyMs"
-    units="ms" expires_after="2026-08-01">
+    units="ms" expires_after="2027-06-20">
   <owner>dtseng@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>mschillaci@google.com</owner>
@@ -301,7 +301,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ImageAnnotationService.AccessibilityV1.ServerNetError"
-    enum="NetErrorCodes" expires_after="2026-08-01">
+    enum="NetErrorCodes" expires_after="2027-06-20">
   <owner>dtseng@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>mschillaci@google.com</owner>
@@ -333,7 +333,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ImageAnnotationService.AccessibilityV1.ServerResponseSizeBytes"
-    units="bytes" expires_after="2026-08-01">
+    units="bytes" expires_after="2027-06-20">
   <owner>dtseng@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>mschillaci@google.com</owner>
@@ -348,7 +348,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ImageAnnotationService.AccessibilityV1.SourcePixelCount"
-    units="pixels" expires_after="2026-08-01">
+    units="pixels" expires_after="2027-06-20">
   <owner>dtseng@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>mschillaci@google.com</owner>
@@ -364,8 +364,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="ImageAnnotationService.{ImageAnnotationServiceAnnotationType}AccessibilityV1.Confidence"
-    units="%" expires_after="2026-08-01">
+    name="ImageAnnotationService.{ImageAnnotationServiceAnnotationType}.AccessibilityV1.Confidence"
+    units="%" expires_after="2027-06-20">
   <owner>dtseng@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>mschillaci@google.com</owner>
@@ -375,16 +375,15 @@ chromium-metrics-reviews@google.com.
     server, records the confidence (as a percentage) produced by the ML model
     for the annotation. {ImageAnnotationServiceAnnotationType}
 
-    Warning: This histogram was expired from 2022-04-24 to 2023-06-23; data may
-    be missing. Use data from M117+ only.
+    This metric was recorded with a wrong name before M151.
   </summary>
   <token key="ImageAnnotationServiceAnnotationType"
       variants="ImageAnnotationServiceAnnotationType"/>
 </histogram>
 
 <histogram
-    name="ImageAnnotationService.{ImageAnnotationServiceAnnotationType}AccessibilityV1.Empty"
-    enum="BooleanEmpty" expires_after="2026-08-01">
+    name="ImageAnnotationService.{ImageAnnotationServiceAnnotationType}.AccessibilityV1.Empty"
+    enum="BooleanEmpty" expires_after="2027-06-20">
   <owner>dtseng@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>mschillaci@google.com</owner>
@@ -395,15 +394,14 @@ chromium-metrics-reviews@google.com.
     sometimes valid, e.g. for text extraction (OCR) on an image that does not
     contain any text. {ImageAnnotationServiceAnnotationType}
 
-    Warning: This histogram was expired from 2022-04-24 to 2023-06-23; data may
-    be missing. Use data from M117+ only.
+    This metric was recorded with a broken name before M151.
   </summary>
   <token key="ImageAnnotationServiceAnnotationType"
       variants="ImageAnnotationServiceAnnotationType"/>
 </histogram>
 
 <histogram
-    name="ImageAnnotationService.{ImageAnnotationServiceAnnotationType}AccessibilityV1.Status"
+    name="ImageAnnotationService.{ImageAnnotationServiceAnnotationType}.AccessibilityV1.Status"
     enum="GoogleRpcCode" expires_after="2026-08-01">
   <owner>dtseng@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
@@ -413,48 +411,10 @@ chromium-metrics-reviews@google.com.
     For each annotation backend run by the image annotation server, records the
     gRPC status reported. {ImageAnnotationServiceAnnotationType}
 
-    Warning: This histogram was expired from 2022-04-24 to 2023-06-23; data may
-    be missing. Use data from M117+ only.
+    This metric was recorded with a broken name before M151.
   </summary>
   <token key="ImageAnnotationServiceAnnotationType"
       variants="ImageAnnotationServiceAnnotationType"/>
-</histogram>
-
-<histogram name="ImageDecoder.Png.UiGfxIntoSkBitmap" units="microseconds"
-    expires_after="2026-07-26">
-  <owner>lukasza@chromium.org</owner>
-  <owner>chrome-rust-experiments@google.com</owner>
-  <summary>
-    Measures the runtime of the variant of `gfx::PNGCodec::Decode()` that
-    returns an `SkBitmap`. Logged every time the API is called. Primarily used
-    to evaluate the go/rusty-png-ui-gfx-decoder project.
-
-    The metric is reported for only clients with high-resolution clocks (i.e.
-    excludes a small percentage of Windows users population - see the
-    Windows.HasHighResolutionTimeTicks metric). This is okay, because we are
-    mostly interested in comparing C++ vs Rust and it seems okay to assume that
-    such comparison would give similar results for the filtered and non-filtered
-    population.
-  </summary>
-</histogram>
-
-<histogram name="ImageDecoder.Png.UiGfxIntoVector" units="microseconds"
-    expires_after="2026-07-26">
-  <owner>lukasza@chromium.org</owner>
-  <owner>chrome-rust-experiments@google.com</owner>
-  <summary>
-    Measures the runtime of the `gfx::PNGCodec::Decode(...,
-    std::vector&lt;unsigned char&gt;* output, ...)` API. Logged every time the
-    API is called. Primarily used to evaluate the go/rusty-png-ui-gfx-decoder
-    project.
-
-    The metric is reported for only clients with high-resolution clocks (i.e.
-    excludes a small percentage of Windows users population - see the
-    Windows.HasHighResolutionTimeTicks metric). This is okay, because we are
-    mostly interested in comparing C++ vs Rust and it seems okay to assume that
-    such comparison would give similar results for the filtered and non-filtered
-    population.
-  </summary>
 </histogram>
 
 <histogram name="ImageFetcher.CacheMetadataCount{ImageFetcherCacheStrategy}"

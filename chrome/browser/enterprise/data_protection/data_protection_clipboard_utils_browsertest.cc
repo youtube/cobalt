@@ -81,7 +81,6 @@ class DataControlsClipboardUtilsBrowserTest
  public:
   DataControlsClipboardUtilsBrowserTest() {
     std::vector<base::test::FeatureRef> enabled_features = {
-        data_controls::kDataControlsDragEnforcement,
         data_controls::kDataControlsSearchWith,
         enterprise_connectors::kGlicBulkDataEntrySupport,
         data_controls::kDataControlsGlic};

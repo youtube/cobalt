@@ -6,19 +6,24 @@
 #define CHROME_BROWSER_DICTATION_DICTATION_KEYED_SERVICE_H_
 
 #include <memory>
+#include <string>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/dictation/connector_component_extension.h"
 #include "chrome/browser/dictation/dictation_multiplexer.h"
+#include "chrome/browser/dictation/onboarding_manager.h"
 #include "chrome/browser/dictation/session_controller.h"
 #include "chrome/browser/dictation/session_controller_delegate.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/prefs/pref_change_registrar.h"
 
 class BrowserWindowInterface;
 class Profile;
 
 namespace content {
 class BrowserContext;
+class RenderFrameHost;
 }
 
 namespace dictation {
@@ -64,7 +69,9 @@ class DictationKeyedService : public KeyedService,
   bool ShouldShowContextMenuItem() const;
 
   // Handles the context menu item click.
-  void ContextMenuHandler(BrowserWindowInterface& window);
+  void ContextMenuHandler(BrowserWindowInterface& window,
+                          content::RenderFrameHost& rfh,
+                          const std::u16string& selected_text);
 
   // Returns null when no session is in progress.
   SessionController* session_controller() {
@@ -77,9 +84,21 @@ class DictationKeyedService : public KeyedService,
   DictationMultiplexer& multiplexer() { return multiplexer_; }
 
  private:
+  void OnPrefChanged();
+
+  // Returns true if dictation feature is enabled by all flags and policies and
+  // the system is fully initialized and ready to use.
+  bool IsEnabled() const;
+
   raw_ptr<Profile> profile_;
 
+  PrefChangeRegistrar pref_change_registrar_;
+
+  ConnectorComponentExtension connector_extension_;
+
   DictationMultiplexer multiplexer_;
+
+  OnboardingManager onboarding_manager_;
 
   struct SessionState {
     SessionState(SessionControllerDelegate& delegate,

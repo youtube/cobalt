@@ -53,16 +53,19 @@ void SetReferrer(
   network::mojom::ReferrerPolicy referrer_policy_to_use =
       request.GetReferrerPolicy();
 
-  if (referrer_to_use == Referrer::ClientReferrerString()) {
-    referrer_to_use = fetch_client_settings_object.GetOutgoingReferrer();
-  }
-
   if (referrer_policy_to_use == network::mojom::ReferrerPolicy::kDefault) {
     referrer_policy_to_use = fetch_client_settings_object.GetReferrerPolicy();
   }
 
-  Referrer generated_referrer = SecurityPolicy::GenerateReferrer(
-      referrer_policy_to_use, request.Url(), referrer_to_use);
+  Referrer generated_referrer;
+  if (referrer_to_use == Referrer::ClientReferrerString()) {
+    generated_referrer = SecurityPolicy::GenerateReferrer(
+        referrer_policy_to_use, request.Url(),
+        fetch_client_settings_object.GetOutgoingReferrerUrl());
+  } else {
+    generated_referrer = SecurityPolicy::GenerateReferrer(
+        referrer_policy_to_use, request.Url(), referrer_to_use);
+  }
 
   request.SetReferrerString(generated_referrer.referrer);
   request.SetReferrerPolicy(generated_referrer.referrer_policy);

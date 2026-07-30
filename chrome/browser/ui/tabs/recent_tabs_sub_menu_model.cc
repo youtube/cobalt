@@ -47,6 +47,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/favicon/core/history_ui_favicon_request_handler.h"
 #include "components/favicon_base/favicon_types.h"
+#include "components/history/core/common/pref_names.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/sessions/core/tab_restore_service.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
@@ -186,6 +187,41 @@ RecentTabsSubMenuModel::RecentTabsSubMenuModel(
         IDC_RESTORE_TAB, &reopen_closed_tab_accelerator_);
     accelerator_provider->GetAcceleratorForCommandId(
         IDC_SHOW_HISTORY, &show_history_accelerator_);
+  }
+
+  // Register for preference changes
+  pref_change_registrar_.Init(browser_->profile()->GetPrefs());
+  pref_change_registrar_.Add(
+      prefs::kSavingBrowserHistoryDisabled,
+      base::BindRepeating(
+          &RecentTabsSubMenuModel::OnSavingBrowserHistoryDisabledChanged,
+          base::Unretained(this)));
+}
+
+bool RecentTabsSubMenuModel::ShouldShowRecentTabEntries() const {
+  return !browser_->profile()->GetPrefs()->GetBoolean(
+      prefs::kSavingBrowserHistoryDisabled);
+}
+
+void RecentTabsSubMenuModel::OnSavingBrowserHistoryDisabledChanged() {
+  // Clear all data entries from the menu, leaving the permanent header items
+  // (Show History, side panel links) in place.
+  ClearLocalEntries();
+  ClearTabsFromOtherDevices();
+
+  if (ShouldShowRecentTabEntries()) {
+    Clear();
+    Build();
+  } else {
+    if (GetItemCount() > history_separator_index_) {
+      RemoveItemAt(history_separator_index_);
+    }
+    is_dynamic_section_built_ = false;
+  }
+
+  ui::MenuModelDelegate* delegate = menu_model_delegate();
+  if (delegate) {
+    delegate->OnMenuStructureChanged();
   }
 }
 
@@ -403,10 +439,20 @@ void RecentTabsSubMenuModel::Build() {
     }
   }
 
+  history_separator_index_ = GetItemCount();
+  last_local_model_index_ = history_separator_index_;
+
+  // When history saving is disabled by policy, don't populate local recently
+  // closed tabs or synced tabs from other devices.
+  if (!ShouldShowRecentTabEntries()) {
+    is_dynamic_section_built_ = false;
+    return;
+  }
+
   AddSeparator(ui::NORMAL_SEPARATOR);
-  history_separator_index_ = GetItemCount() - 1;
   BuildLocalEntries();
   BuildTabsFromOtherDevices();
+  is_dynamic_section_built_ = true;
 }
 
 void RecentTabsSubMenuModel::BuildLocalEntries() {
@@ -1062,8 +1108,15 @@ RecentTabsSubMenuModel::GetOpenTabsUIDelegate() {
 
 void RecentTabsSubMenuModel::TabRestoreServiceChanged(
     sessions::TabRestoreService* service) {
-  ClearLocalEntries();
+  // If the dynamic section is not built (e.g. history saving is disabled), do
+  // not rebuild local entries. This prevents out-of-bounds insertion crashes if
+  // this observer fires during policy state transitions before the separator is
+  // re-added.
+  if (!is_dynamic_section_built_) {
+    return;
+  }
 
+  ClearLocalEntries();
   BuildLocalEntries();
 
   ui::MenuModelDelegate* delegate = menu_model_delegate();
@@ -1078,8 +1131,13 @@ void RecentTabsSubMenuModel::TabRestoreServiceDestroyed(
 }
 
 void RecentTabsSubMenuModel::OnForeignSessionUpdated() {
-  ClearTabsFromOtherDevices();
+  // Prevent updating remote entries if the dynamic section is not built to
+  // avoid out-of-bounds insertion crashes during preference state transitions.
+  if (!is_dynamic_section_built_) {
+    return;
+  }
 
+  ClearTabsFromOtherDevices();
   BuildTabsFromOtherDevices();
 
   ui::MenuModelDelegate* delegate = menu_model_delegate();

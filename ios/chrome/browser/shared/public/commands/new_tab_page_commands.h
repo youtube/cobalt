@@ -25,6 +25,9 @@ typedef NS_ENUM(NSInteger, FeedLayoutUpdateType);
 // Presents an IPH bubble to highlight scrolling on the feed.
 - (void)presentFeedSwipeFirstRunBubble;
 
+// Presents the Home Customization menu.
+- (void)customizationMenuWasTapped;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_COMMANDS_NEW_TAB_PAGE_COMMANDS_H_

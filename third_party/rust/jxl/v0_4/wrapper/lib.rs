@@ -70,14 +70,16 @@ mod ffi {
         /// Decoder type
         type JxlRsDecoder;
 
-        /// Unlike `jxl_rs_decoder_create`, the decoder created by `jxl_rs_scan_decoder_create`
-        /// cannot decode pixels. This makes the decoder significantly faster to use for
+        /// Unlike `jxl_rs_decoder_create`, the decoder created by
+        /// `jxl_rs_scan_decoder_create` cannot decode pixels. This
+        /// makes the decoder significantly faster to use for
         /// scanning image metadata such as frame counts and timestamps.
         fn jxl_rs_scan_decoder_create(pixel_limit: u64) -> Box<JxlRsDecoder>;
         fn jxl_rs_decoder_create(pixel_limit: u64, premultiply_alpha: bool) -> Box<JxlRsDecoder>;
         fn jxl_rs_signature_check(data: &[u8]) -> bool;
 
-        /// Set the output pixel format. Must be called after getting basic info.
+        /// Set the output pixel format. Must be called after getting basic
+        /// info.
         fn set_pixel_format(
             self: &mut JxlRsDecoder,
             format: JxlRsPixelFormat,

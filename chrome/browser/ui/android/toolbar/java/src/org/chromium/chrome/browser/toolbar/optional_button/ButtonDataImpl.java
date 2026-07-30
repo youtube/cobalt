@@ -23,8 +23,16 @@ public class ButtonDataImpl implements ButtonData {
 
     private @SuppressWarnings("NullAway.Init") ButtonSpec mButtonSpec;
 
+    /** Creates a new, empty {@link ButtonDataImpl} instance. */
     public ButtonDataImpl() {}
 
+    /**
+     * Creates a new {@link ButtonDataImpl} with the specified properties.
+     *
+     * @param canShow Whether the button can be shown in the current state.
+     * @param isEnabled Whether the button is enabled and clickable.
+     * @param buttonSpec The visual and behavioral specification for the button.
+     */
     public ButtonDataImpl(boolean canShow, boolean isEnabled, ButtonSpec buttonSpec) {
         mCanShow = canShow;
         mIsEnabled = isEnabled;
@@ -51,18 +59,38 @@ public class ButtonDataImpl implements ButtonData {
         return mButtonSpec;
     }
 
+    /**
+     * Sets the visual and behavioral specification for this button.
+     *
+     * @param buttonSpec The new {@link ButtonSpec}.
+     */
     public void setButtonSpec(ButtonSpec buttonSpec) {
         mButtonSpec = buttonSpec;
     }
 
+    /**
+     * Sets whether this button can be shown in the current state.
+     *
+     * @param canShow {@code true} if the button can be shown, {@code false} otherwise.
+     */
     public void setCanShow(boolean canShow) {
         mCanShow = canShow;
     }
 
+    /**
+     * Sets whether a text bubble (IPH) should be shown instead of an animation.
+     *
+     * @param show {@code true} if the text bubble should be shown, {@code false} otherwise.
+     */
     public void setShouldShowTextBubble(boolean show) {
         mShouldShowTextBubble = show;
     }
 
+    /**
+     * Sets whether this button is enabled and clickable.
+     *
+     * @param enabled {@code true} if the button should be enabled, {@code false} otherwise.
+     */
     public void setEnabled(boolean enabled) {
         mIsEnabled = enabled;
     }
@@ -83,7 +111,11 @@ public class ButtonDataImpl implements ButtonData {
                         .build());
     }
 
-    /** Convenience method to update the action chip string resource ID. */
+    /**
+     * Convenience method to update the button's drawable icon.
+     *
+     * @param newDrawable The new {@link Drawable} icon, or {@code null} to clear it.
+     */
     public void updateDrawable(@Nullable Drawable newDrawable) {
         setButtonSpec(new ButtonSpec.Builder(getButtonSpec()).setDrawable(newDrawable).build());
     }

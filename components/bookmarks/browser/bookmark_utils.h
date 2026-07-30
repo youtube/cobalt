@@ -81,7 +81,7 @@ void CopyToClipboard(
 
 // Returns a vector containing of the most recently modified user folders. This
 // never returns an empty vector.
-std::vector<const BookmarkNode*> GetMostRecentlyModifiedUserFolders(
+std::vector<raw_ptr<const BookmarkNode>> GetMostRecentlyModifiedUserFolders(
     BookmarkModel* model);
 
 // If this should be used on mobile we need to reevaluate if this implementation
@@ -97,8 +97,8 @@ struct BookmarkNodesSplitByAccountAndLocal final {
       const BookmarkNodesSplitByAccountAndLocal&);
   ~BookmarkNodesSplitByAccountAndLocal();
 
-  std::vector<const BookmarkNode*> account_nodes;
-  std::vector<const BookmarkNode*> local_nodes;
+  std::vector<raw_ptr<const BookmarkNode>> account_nodes;
+  std::vector<raw_ptr<const BookmarkNode>> local_nodes;
 };
 
 // Get recently-used-folders, including permanent nodes for display split up by

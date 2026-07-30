@@ -162,6 +162,7 @@ std::u16string AutofillAiImportDataControllerImpl::GetSaveUpdateDialogTitle()
     const {
   return GetPromptTitle(GetSaveUpdateState().new_entity.type().name(),
                         IsSavePrompt(),
+                        /*is_banner_prompt=*/false,
                         /*is_server_wallet=*/IsWalletableEntity());
 }
 

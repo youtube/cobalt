@@ -1,6 +1,7 @@
 include_rules = [
   '-chrome/browser/actor/ui',
   '+components/actor',
+  '+components/origin_gating',
 ]
 
 specific_include_rules = {
@@ -14,6 +15,12 @@ specific_include_rules = {
     "+chrome/browser/actor/ui/actor_ui_state_manager_interface.h",
     # Required to create the ActorTask.
     "+chrome/browser/actor/ui/event_dispatcher.h",
+  ],
+  'actor_tab_strip_tracker_desktop\\.cc': [
+    "+chrome/browser/actor/ui/actor_task_unload_handler.h",
+  ],
+  'tool_agnostic_browsertest\\.cc': [
+    "+chrome/browser/actor/ui/actor_task_unload_handler.h",
   ],
   'actor_tab_data\\.cc': [
     # Possible work-around to dependency: introduce an ActorUiTabData class,

@@ -31,6 +31,7 @@
 #include <algorithm>
 
 #include "third_party/blink/renderer/core/accessibility/ax_object_cache.h"
+#include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/frame_request_callback_collection.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/dom/node_traversal.h"
@@ -342,13 +343,25 @@ void DocumentMarkerController::AddTextFragmentMarker(
 void DocumentMarkerController::AddCustomHighlightMarker(
     const EphemeralRange& range,
     const String& highlight_name,
-    const Member<Highlight> highlight) {
+    const Member<Highlight> highlight,
+    base::FunctionRef<void(const Element&)>* on_element_node) {
   DCHECK(!document_->NeedsLayoutTreeUpdate());
+  // When the caller wants to observe non-Text nodes the range crosses (e.g.
+  // to track replaced elements like <img>), emit an object replacement
+  // character for each replaced element so this single TextIterator pass
+  // surfaces them.
+  const TextIteratorBehavior behavior =
+      on_element_node ? TextIteratorBehavior::Builder()
+                            .SetEmitsObjectReplacementCharacter(true)
+                            .Build()
+                      : TextIteratorBehavior();
   AddMarkerInternal(
-      range, [highlight_name, highlight](int start_offset, int end_offset) {
+      range,
+      [highlight_name, highlight](int start_offset, int end_offset) {
         return MakeGarbageCollected<CustomHighlightMarker>(
             start_offset, end_offset, highlight_name, highlight);
-      });
+      },
+      behavior, on_element_node);
 }
 
 void DocumentMarkerController::AddGlicMarker(const EphemeralRange& range) {
@@ -398,7 +411,8 @@ void DocumentMarkerController::RemoveMarkersInRange(
 void DocumentMarkerController::AddMarkerInternal(
     const EphemeralRange& range,
     base::FunctionRef<DocumentMarker*(int, int)> create_marker_from_offsets,
-    const TextIteratorBehavior& iterator_behavior) {
+    const TextIteratorBehavior& iterator_behavior,
+    base::FunctionRef<void(const Element&)>* on_element_node) {
   DocumentMarkerGroup* new_marker_group =
       MakeGarbageCollected<DocumentMarkerGroup>();
   for (TextIterator marked_text(range.StartPosition(), range.EndPosition(),
@@ -423,6 +437,17 @@ void DocumentMarkerController::AddMarkerInternal(
     // newlines)
     const auto* text_node = DynamicTo<Text>(marked_text.CurrentContainer());
     if (!text_node) {
+      // With object replacement characters enabled, the iterator surfaces
+      // replaced elements here: the current container is the parent (so it is
+      // not a Text), while GetNode() resolves to the child at the current
+      // offset (the replaced element itself, e.g. an <img>). Report that
+      // element so callers (e.g. the highlight registry) can track replaced
+      // elements covered by the range without a second tree walk.
+      if (on_element_node) {
+        if (const auto* element = DynamicTo<Element>(marked_text.GetNode())) {
+          (*on_element_node)(*element);
+        }
+      }
       continue;
     }
 

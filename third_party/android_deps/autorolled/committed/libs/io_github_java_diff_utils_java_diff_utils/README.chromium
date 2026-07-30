@@ -1,0 +1,16 @@
+Name: java-diff-utils
+Short Name: java-diff-utils
+URL: https://repo.maven.apache.org/maven2/io/github/java-diff-utils/java-diff-utils/4.12/java-diff-utils-4.12.jar
+Version: 4.12
+Update Mechanism: Autoroll
+License: Apache-2.0
+License File: LICENSE
+CPEPrefix: unknown
+Security Critical: no
+Shipped: no
+
+Description:
+Io github java diff utils java diff utils pulled in via gradle.
+
+Local Modifications:
+No modifications.

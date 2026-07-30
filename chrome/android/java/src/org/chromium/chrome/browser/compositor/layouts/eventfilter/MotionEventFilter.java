@@ -17,6 +17,7 @@ import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.layouts.EventFilter;
+import org.chromium.ui.util.MotionEventUtils;
 
 /**
  * Filters events that would trigger gestures like scroll and fling and other motion events like
@@ -35,6 +36,7 @@ public class MotionEventFilter extends EventFilter {
     private int mButtons;
     private final LongPressRunnable mLongPressRunnable = new LongPressRunnable();
     private final Handler mLongPressHandler = new Handler();
+    private boolean mIgnoreCurrentEventStream;
 
     /** A runnable to send a delayed long press. */
     private class LongPressRunnable implements Runnable {
@@ -213,8 +215,28 @@ public class MotionEventFilter extends EventFilter {
         longPressRunnable.cancel();
     }
 
+    private boolean shouldIgnoreEvent(MotionEvent e) {
+        final int action = e.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) {
+            mIgnoreCurrentEventStream = MotionEventUtils.isSecondaryClick(e.getButtonState());
+        }
+
+        if (mIgnoreCurrentEventStream) {
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                mIgnoreCurrentEventStream = false;
+            }
+            return true;
+        }
+        return false;
+    }
+
     @Override
     public boolean onTouchEventInternal(MotionEvent e) {
+        // Certain event streams are ignored as they may duplicate user actions.
+        if (shouldIgnoreEvent(e)) {
+            return true;
+        }
+
         final int action = e.getActionMasked();
         var longPressRunnable = mLongPressRunnable;
         boolean isMultiTouch = e.getPointerCount() > 1;

@@ -8,10 +8,12 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "base/check_op.h"
 #include "base/hash/hash.h"
 #include "base/memory_coordinator/mock_memory_consumer.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
@@ -45,11 +47,13 @@ class DummyChildMemoryConsumerRegistryHost
     coordinator_.Bind(std::move(coordinator));
   }
 
-  void Register(const uint32_t consumer_id,
-                const std::string& consumer_name,
-                std::optional<base::MemoryConsumerTraits> traits) override {
-    auto [_, inserted] = registered_ids_.insert(consumer_id);
-    CHECK(inserted);
+  void Register(std::vector<mojom::MemoryConsumerRegistrationPtr> registrations)
+      override {
+    ++register_count_;
+    for (const auto& registration : registrations) {
+      auto [_, inserted] = registered_ids_.insert(registration->consumer_id);
+      CHECK(inserted);
+    }
   }
 
   void Unregister(const uint32_t consumer_id) override {
@@ -63,11 +67,15 @@ class DummyChildMemoryConsumerRegistryHost
     return registered_ids_.find(consumer_id) != registered_ids_.end();
   }
 
+  // Number of Register() calls received.
+  int register_count() const { return register_count_; }
+
  private:
   mojo::Receiver<mojom::ChildMemoryConsumerRegistryHost> receiver_;
 
   mojo::Remote<mojom::ChildMemoryCoordinator> coordinator_;
   absl::flat_hash_set<uint32_t> registered_ids_;
+  int register_count_ = 0;
 };
 
 const std::optional<base::MemoryConsumerTraits> kTestTraits1 = std::nullopt;
@@ -142,6 +150,78 @@ TEST_F(BrowserMemoryCoordinatorBridgeTest,
   // Wait for the Unregister call.
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return !registry_host->IsRegistered(kConsumerId); }));
+}
+
+// Tests that consumers that registered before the host connected are sent to
+// the browser in a single batched Register() call.
+
+TEST_F(BrowserMemoryCoordinatorBridgeTest, BindBrowser_BatchesEarlyConsumers) {
+  base::MockMemoryConsumer consumer_a;
+  base::MockMemoryConsumer consumer_b;
+  base::MockMemoryConsumer consumer_c;
+  const std::string kNameA = "consumer_a";
+  const std::string kNameB = "consumer_b";
+  const std::string kNameC = "consumer_c";
+
+  // Register three consumers before the host connects to the browser.
+  registry().AddMemoryConsumer(kNameA, kTestTraits1, &consumer_a);
+  registry().AddMemoryConsumer(kNameB, kTestTraits1, &consumer_b);
+  registry().AddMemoryConsumer(kNameC, kTestTraits1, &consumer_c);
+  ASSERT_EQ(registry().size(), 3u);
+
+  auto registry_host = CreateRegistryHost();
+
+  // Wait until all three have reached the browser.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return registry_host->IsRegistered(base::PersistentHash(kNameA)) &&
+           registry_host->IsRegistered(base::PersistentHash(kNameB)) &&
+           registry_host->IsRegistered(base::PersistentHash(kNameC));
+  }));
+
+  // They arrived as a single batched Register().
+  EXPECT_EQ(registry_host->register_count(), 1);
+
+  // Cleanup.
+  registry().RemoveMemoryConsumer(kNameA, &consumer_a);
+  registry().RemoveMemoryConsumer(kNameB, &consumer_b);
+  registry().RemoveMemoryConsumer(kNameC, &consumer_c);
+}
+
+// Tests that multiple consumers added while connected, within the same task,
+// are coalesced into a single batched Register() call.
+TEST_F(BrowserMemoryCoordinatorBridgeTest, CoalescesPostConnectBurst) {
+  base::HistogramTester histograms;
+  auto registry_host = CreateRegistryHost();
+
+  base::MockMemoryConsumer consumer_a;
+  base::MockMemoryConsumer consumer_b;
+  base::MockMemoryConsumer consumer_c;
+  const std::string kNameA = "consumer_a";
+  const std::string kNameB = "consumer_b";
+  const std::string kNameC = "consumer_c";
+
+  // Add three consumers in one task, while already connected.
+  registry().AddMemoryConsumer(kNameA, kTestTraits1, &consumer_a);
+  registry().AddMemoryConsumer(kNameB, kTestTraits1, &consumer_b);
+  registry().AddMemoryConsumer(kNameC, kTestTraits1, &consumer_c);
+
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return registry_host->IsRegistered(base::PersistentHash(kNameA)) &&
+           registry_host->IsRegistered(base::PersistentHash(kNameB)) &&
+           registry_host->IsRegistered(base::PersistentHash(kNameC));
+  }));
+
+  // The burst coalesced into one Register() and the batch size (3) was
+  // recorded.
+  EXPECT_EQ(registry_host->register_count(), 1);
+
+  histograms.ExpectUniqueSample("Memory.Coordinator.RegistrationBatchSize", 3,
+                                1);
+
+  // Cleanup.
+  registry().RemoveMemoryConsumer(kNameA, &consumer_a);
+  registry().RemoveMemoryConsumer(kNameB, &consumer_b);
+  registry().RemoveMemoryConsumer(kNameC, &consumer_c);
 }
 
 // Tests that browser notifications are correctly routed through the bridge to

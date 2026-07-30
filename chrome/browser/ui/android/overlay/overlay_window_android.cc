@@ -346,7 +346,8 @@ void OverlayWindowAndroid::SetImmersiveVideoOptionsJava(
   }
   Java_VideoOverlayActivity_setImmersiveVideoOptions(
       env, obj, static_cast<int>(immersive_options.stereo_mode),
-      static_cast<int>(immersive_options.projection_type));
+      static_cast<int>(immersive_options.projection_type),
+      immersive_options.is_recommended);
 }
 
 void OverlayWindowAndroid::Close() {

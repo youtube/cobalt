@@ -58,6 +58,7 @@ import org.chromium.base.test.params.ParameterAnnotations.UseRunnerDelegate;
 import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.DisableLeakChecks;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
@@ -118,6 +119,7 @@ import java.io.IOException;
 @UseRunnerDelegate(ChromeJUnit4RunnerDelegate.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @DisableFeatures(SigninFeatures.SIGNIN_LEVEL_UP_BUTTON)
+@DisableLeakChecks("crbug.com/527131198")
 public class IdentityDiscControllerTest {
 
     private final FreshCtaTransitTestRule mActivityTestRule =

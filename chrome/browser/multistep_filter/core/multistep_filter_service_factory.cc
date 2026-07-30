@@ -16,7 +16,9 @@
 #include "components/multistep_filter/core/extraction/filter_extractor.h"
 #include "components/multistep_filter/core/features.h"
 #include "components/multistep_filter/core/multistep_filter_service.h"
+#include "components/multistep_filter/core/prefs/multistep_filter_retention_prefs.h"
 #include "components/multistep_filter/core/storage/filter_store.h"
+#include "components/pref_registry/pref_registry_syncable.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/unified_consent/url_keyed_data_collection_consent_helper.h"
 #include "content/public/browser/browser_context.h"
@@ -75,9 +77,15 @@ MultistepFilterServiceFactory::BuildServiceInstanceForBrowserContext(
   params.log_router = log_router;
   params.history_service = HistoryServiceFactory::GetForProfile(
       profile, ServiceAccessType::EXPLICIT_ACCESS);
+  params.pref_service = profile->GetPrefs();
   params.sync_service = SyncServiceFactory::GetForProfile(profile);
 
   return std::make_unique<MultistepFilterService>(std::move(params));
+}
+
+void MultistepFilterServiceFactory::RegisterProfilePrefs(
+    user_prefs::PrefRegistrySyncable* registry) {
+  RegisterRetentionProfilePrefs(registry);
 }
 
 }  // namespace multistep_filter

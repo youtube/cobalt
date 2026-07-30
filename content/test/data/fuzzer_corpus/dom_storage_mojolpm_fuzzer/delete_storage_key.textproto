@@ -1,0 +1,39 @@
+# Exercises SessionStorageImpl::DeleteStorage(storage_key, namespace_id) which
+# dispatches to SessionStorageNamespaceImpl::RemoveStorageKeyData() for a
+# populated namespace.
+
+# actions[0]: Bind a session area on ORIGIN_A (populates the namespace).
+actions {
+  new_session_storage_area {
+    id: 0
+    origin_id: ORIGIN_A
+    renderer_id: RENDERER_A
+  }
+}
+# actions[1]: Put a value into the ORIGIN_A area.
+actions {
+  storage_area_remote_action {
+    id: 0
+    m_put {
+      m_key { values { value: 65 } }
+      m_value { values { value: 66 } }
+    }
+  }
+}
+# actions[2]: IO-thread drain.
+actions { run_thread { id: IO } }
+# actions[3]: DeleteStorage on ORIGIN_A -> RemoveStorageKeyData (area found).
+actions {
+  delete_storage_key {
+    origin_id: ORIGIN_A
+  }
+}
+# actions[4]: DeleteStorage on ORIGIN_B, which has no area -> not-found branch.
+actions {
+  delete_storage_key {
+    origin_id: ORIGIN_B
+  }
+}
+
+sequences { action_indexes: [0, 1, 2, 3, 2, 4, 2] }
+sequence_indexes: [0]

@@ -228,6 +228,29 @@ TEST_F(SamplingPartitionAllocShimsTest, SamplingRange) {
   runTest("SamplingRange");
 }
 
+MULTIPROCESS_TEST_MAIN_WITH_SETUP(
+    AlignedAlloc,
+    SamplingPartitionAllocShimsTest::multiprocessTestSetup) {
+  partition_alloc::PartitionAllocator allocator;
+  allocator.init(kAllocatorOptions);
+
+  for (size_t i = 0; i < kLoopIterations; i++) {
+    // This used to die on an assertion due to misaligned return value when GWP
+    // asan sampled the allocation. See crbug.com/506860289.
+    void* ptr = allocator.root()->AlignedAlloc(512, 32);
+    if (!ptr) {
+      continue;
+    }
+    allocator.root()->Free(ptr);
+  }
+
+  return kSuccess;
+}
+
+TEST_F(SamplingPartitionAllocShimsTest, AlignedAlloc) {
+  runTest("AlignedAlloc");
+}
+
 }  // namespace
 
 }  // namespace internal

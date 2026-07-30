@@ -59,7 +59,7 @@
 
 namespace {
 
-views::BubbleDialogModelHost* g_instance_for_test = nullptr;
+views::BubbleDialogDelegate* g_instance_for_test = nullptr;
 
 enum SessionCrashedBubbleHistogramValue {
   SESSION_CRASHED_BUBBLE_SHOWN,
@@ -105,20 +105,10 @@ class SessionCrashedBubbleDelegate : public ui::DialogModelDelegate {
       crashed_lock_ = exit_type_service->CreateCrashedLock();
     }
 
-    change_metrics_reporting_state_callback_ =
-        base::BindRepeating([](metrics::MetricsReportingLevel level) {
-          metrics::ChangeMetricsReportingState(
-              level, metrics::ChangeMetricsReportingStateCalledFrom::
-                         kSessionCrashedDialog);
-        });
   }
 
   ~SessionCrashedBubbleDelegate() override { g_instance_for_test = nullptr; }
 
-  void set_change_metrics_reporting_state_callback(
-      SessionCrashedBubbleView::ChangeMetricsReportingStateCallback callback) {
-    change_metrics_reporting_state_callback_ = std::move(callback);
-  }
 
   void OpenStartupPages(BrowserWindowInterface* browser) {
     ignored_ = false;
@@ -165,10 +155,9 @@ class SessionCrashedBubbleDelegate : public ui::DialogModelDelegate {
     if (dialog_model()
             ->GetCheckboxByUniqueId(kUmaConsentCheckboxId)
             ->is_checked()) {
-      // TODO(crbug.com/483043192): should we enable kAdvanced if the user
-      // also has history (and other) syncs enabled?
-      change_metrics_reporting_state_callback_.Run(
-          metrics::MetricsReportingLevel::kBasic);
+      metrics::ChangeMetricsReportingState(
+          true, metrics::ChangeMetricsReportingStateCalledFrom::
+                    kSessionCrashedDialog);
       RecordBubbleHistogramValue(SESSION_CRASHED_BUBBLE_UMA_OPTIN);
     }
   }
@@ -176,8 +165,6 @@ class SessionCrashedBubbleDelegate : public ui::DialogModelDelegate {
  private:
   bool ignored_ = true;
   std::unique_ptr<ExitTypeService::CrashedLock> crashed_lock_;
-  SessionCrashedBubbleView::ChangeMetricsReportingStateCallback
-      change_metrics_reporting_state_callback_;
 };
 
 }  // namespace
@@ -266,27 +253,11 @@ void SessionCrashedBubbleView::Show(
 }
 
 // static
-views::BubbleDialogModelHost*
-SessionCrashedBubbleView::GetModelHostForTesting() {
+views::BubbleDialogDelegate* SessionCrashedBubbleView::GetInstanceForTest() {
   return g_instance_for_test;
 }
 
-// static
-ui::ElementIdentifier
-SessionCrashedBubbleView::GetUmaConsentCheckboxIdForTesting() {
-  return kUmaConsentCheckboxId;
-}
-
-// static
-void SessionCrashedBubbleView::
-    SetChangeMetricsReportingStateCallbackForTesting(  // IN-TEST
-        ui::DialogModel* model,
-        ChangeMetricsReportingStateCallback callback) {
-  static_cast<SessionCrashedBubbleDelegate*>(model->delegate())
-      ->set_change_metrics_reporting_state_callback(std::move(callback));
-}
-
-views::BubbleDialogModelHost* SessionCrashedBubbleView::ShowBubble(
+views::BubbleDialogDelegate* SessionCrashedBubbleView::ShowBubble(
     BrowserWindowInterface* browser,
     bool uma_opted_in_already,
     bool offer_uma_optin) {
@@ -344,11 +315,10 @@ views::BubbleDialogModelHost* SessionCrashedBubbleView::ShowBubble(
       ui::DialogModel::Button::Params().SetLabel(
           l10n_util::GetStringUTF16(IDS_SESSION_CRASHED_VIEW_RESTORE_BUTTON)));
 
-  auto model = dialog_builder.Build();
   auto bubble = std::make_unique<views::BubbleDialogModelHost>(
-      std::move(model), anchor, views::BubbleBorder::TOP_RIGHT);
+      dialog_builder.Build(), anchor, views::BubbleBorder::TOP_RIGHT);
 
-  views::BubbleDialogModelHost* bubble_ptr = bubble.get();
+  views::BubbleDialogDelegate* bubble_ptr = bubble.get();
   g_instance_for_test = bubble_ptr;
   views::BubbleDialogDelegate::CreateBubbleDeprecated(
       std::move(bubble), views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET)

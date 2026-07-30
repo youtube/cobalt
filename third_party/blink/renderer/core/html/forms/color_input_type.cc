@@ -106,7 +106,84 @@ bool ColorInputType::SupportsRequired() const {
   return false;
 }
 
+bool ColorInputType::IsDisplayP3ColorSpace() const {
+  return RuntimeEnabledFeatures::InputTypeColorEnhancementsEnabled() &&
+         EqualIgnoringAsciiCase(
+             GetElement().FastGetAttribute(html_names::kColorspaceAttr),
+             "display-p3");
+}
+
+bool ColorInputType::HasAlphaComponent() const {
+  return RuntimeEnabledFeatures::InputTypeColorEnhancementsEnabled() &&
+         GetElement().FastHasAttribute(html_names::kAlphaAttr);
+}
+
+String ColorInputType::SerializeColorForColorSpaceAndAlpha(Color color) const {
+  const bool alpha = HasAlphaComponent();
+  // If the alpha attribute is absent, the color is made fully opaque.
+  if (!alpha) {
+    color = color.MakeOpaque();
+  }
+
+  if (IsDisplayP3ColorSpace()) {
+    if (color.GetColorSpace() != Color::ColorSpace::kDisplayP3) {
+      // An achromatic (neutral) sRGB color has identical Display P3 components
+      // because the two color spaces share a white point. The float matrix
+      // conversion would otherwise introduce ~1e-4 of error, so convert
+      // neutrals directly to keep them exact (e.g. white serializes as
+      // "color(display-p3 1 1 1)").
+      Color srgb = color;
+      srgb.ConvertToColorSpace(Color::ColorSpace::kSRGB);
+      if (!srgb.HasNoneParams() && srgb.Param0() == srgb.Param1() &&
+          srgb.Param0() == srgb.Param2()) {
+        color =
+            Color::FromColorSpace(Color::ColorSpace::kDisplayP3, srgb.Param0(),
+                                  srgb.Param1(), srgb.Param2(), srgb.Alpha());
+      } else {
+        color.ConvertToColorSpace(Color::ColorSpace::kDisplayP3);
+      }
+    }
+  } else if (alpha) {
+    // limited-srgb with alpha serializes as color(srgb ...).
+    color.ConvertToColorSpace(Color::ColorSpace::kSRGB);
+  } else {
+    // limited-srgb without alpha serializes as a valid lowercase simple color
+    // (#rrggbb).
+    return Color::FromRGBA32(color.MakeOpaque().Rgb())
+        .SerializeAsCanvasColor()
+        .ToAsciiLower();
+  }
+
+  // Resolve any missing ("none") components to zero before serializing. e.g.
+  // "color(display-p3 3 none .2)" becomes "color(display-p3 3 0 0.2)". Note
+  // that out-of-gamut component values are intentionally preserved.
+  if (color.HasNoneParams()) {
+    color = Color::FromColorSpace(color.GetColorSpace(),
+                                  color.Param0IsNone() ? 0.0f : color.Param0(),
+                                  color.Param1IsNone() ? 0.0f : color.Param1(),
+                                  color.Param2IsNone() ? 0.0f : color.Param2(),
+                                  color.AlphaIsNone() ? 0.0f : color.Alpha());
+  }
+  return color.SerializeAsCSSColor();
+}
+
 String ColorInputType::SanitizeValue(const String& proposed_value) const {
+  if (RuntimeEnabledFeatures::InputTypeColorEnhancementsEnabled()) {
+    Color color;
+    // 'currentcolor' is resolved to black.
+    if (CssValueKeywordID(proposed_value) == CSSValueID::kCurrentcolor) {
+      color = Color::kBlack;
+    } else if (!CSSParser::ParseColor(color, proposed_value) &&
+               !CSSParser::ParseSystemColor(
+                   color, proposed_value, mojom::blink::ColorScheme::kLight,
+                   /*color_provider=*/nullptr,
+                   /*can_expose_accent_color=*/false)) {
+      // An unparsable value falls back to opaque black.
+      color = Color::kBlack;
+    }
+    return SerializeColorForColorSpaceAndAlpha(color);
+  }
+
   if (RuntimeEnabledFeatures::ColorInputAcceptsCSSColorsEnabled()) {
     // 'currentcolor' is resolved to black.
     if (CssValueKeywordID(proposed_value) == CSSValueID::kCurrentcolor) {
@@ -120,7 +197,7 @@ String ColorInputType::SanitizeValue(const String& proposed_value) const {
         CSSParser::ParseSystemColor(color, proposed_value,
                                     mojom::blink::ColorScheme::kLight,
                                     /*color_provider=*/nullptr,
-                                    /*is_in_web_app_scope=*/false)) {
+                                    /*can_expose_accent_color=*/false)) {
       // If the input color has transparency, we drop the alpha channel (make
       // it opaque). Convert to sRGB and serialize as #rrggbb.
       return Color::FromRGBA32(color.MakeOpaque().Rgb())
@@ -138,7 +215,9 @@ String ColorInputType::SanitizeValue(const String& proposed_value) const {
 
 Color ColorInputType::ValueAsColor() const {
   Color color;
-  bool success = color.SetFromString(GetElement().Value());
+  // The stored value is already sanitized, so it is one of #rrggbb,
+  // color(srgb ...) or color(display-p3 ...), all of which ParseColor handles.
+  bool success = CSSParser::ParseColor(color, GetElement().Value());
   DCHECK(success);
   return color;
 }
@@ -228,11 +307,24 @@ bool ColorInputType::ShouldRespectListAttribute() {
 }
 
 bool ColorInputType::TypeMismatchFor(const String& value) const {
+  if (RuntimeEnabledFeatures::InputTypeColorEnhancementsEnabled()) {
+    Color color;
+    return !CSSParser::ParseColor(color, value);
+  }
   return !IsValidColorString(value);
 }
 
 void ColorInputType::WarnIfValueIsInvalid(const String& value) const {
-  if (!EqualIgnoringAsciiCase(value, GetElement().SanitizeValue(value))) {
+  if (EqualIgnoringAsciiCase(value, GetElement().SanitizeValue(value))) {
+    return;
+  }
+  if (RuntimeEnabledFeatures::InputTypeColorEnhancementsEnabled() ||
+      RuntimeEnabledFeatures::ColorInputAcceptsCSSColorsEnabled()) {
+    AddWarningToConsole(
+        "The specified value %s does not conform to the required format.  The "
+        "value must be a valid CSS color.",
+        value);
+  } else {
     AddWarningToConsole(
         "The specified value %s does not conform to the required format.  The "
         "format is \"#rrggbb\" where rr, gg, bb are two-digit hexadecimal "
@@ -251,8 +343,7 @@ void ColorInputType::DidChooseColor(const Color& color) {
       color == ValueAsColor())
     return;
   EventQueueScope scope;
-  // TODO(crbug.com/1333988): Serialize as CSSColor
-  GetElement().SetValueFromRenderer(color.SerializeAsCanvasColor());
+  GetElement().SetValueFromRenderer(SerializeColorForColorSpaceAndAlpha(color));
   GetElement().UpdateView();
 }
 
@@ -264,6 +355,24 @@ void ColorInputType::DidEndChooser() {
     GetElement().GetLayoutObject()->SetShouldDoFullPaintInvalidation();
   }
   GetElement().PseudoStateChanged(CSSSelector::kPseudoOpen);
+}
+
+void ColorInputType::ColorSpaceOrAlphaAttributeChanged() {
+  if (!RuntimeEnabledFeatures::InputTypeColorEnhancementsEnabled()) {
+    return;
+  }
+  // Re-run the value sanitization algorithm so the serialization reflects the
+  // new `colorspace`/`alpha` attributes. For a non-dirty value we re-sanitize
+  // from the `value` content attribute rather than the cached value, since the
+  // latter may have lost information (e.g. an alpha channel) under the previous
+  // attributes.
+  if (GetElement().HasDirtyValue()) {
+    GetElement().SetValue(GetElement().Value());
+  } else {
+    GetElement().SetNonDirtyValue(
+        GetElement().FastGetAttribute(html_names::kValueAttr));
+  }
+  GetElement().UpdateView();
 }
 
 void ColorInputType::UpdateView() {
@@ -312,8 +421,9 @@ Vector<mojom::blink::ColorSuggestionPtr> ColorInputType::Suggestions() const {
       if (!GetElement().IsValidValue(option->value()))
         continue;
       Color color;
-      if (!color.SetFromString(option->value()))
+      if (!CSSParser::ParseColor(color, option->value())) {
         continue;
+      }
       suggestions.push_back(mojom::blink::ColorSuggestion::New(
           color.Rgb(), option->label().substr(0, kMaxSuggestionLabelLength)));
       if (suggestions.size() >= kMaxSuggestions)

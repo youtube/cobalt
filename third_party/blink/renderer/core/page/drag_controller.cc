@@ -189,7 +189,7 @@ static DocumentFragment* DocumentFragmentFromDragData(
     DragSourceType& drag_source_type,
     bool is_richly_editable_position) {
   DCHECK(drag_data);
-  drag_source_type = DragSourceType::kHTMLSource;
+  drag_source_type = DragSourceType::kHtmlSource;
 
   Document& document = context->OwnerDocument();
   if (drag_data->ContainsCompatibleContent()) {
@@ -698,7 +698,7 @@ bool DragController::ConcludeEditDrag(DragData* drag_data) {
       IsRichlyEditablePosition(drag_caret.Anchor());
 
   if (drag_is_move || is_richly_editable_position) {
-    DragSourceType drag_source_type = DragSourceType::kHTMLSource;
+    DragSourceType drag_source_type = DragSourceType::kHtmlSource;
     DocumentFragment* fragment = DocumentFragmentFromDragData(
         drag_data, inner_frame, range, true, drag_source_type,
         is_richly_editable_position);

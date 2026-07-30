@@ -14,9 +14,9 @@ import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
-import org.chromium.chrome.browser.enterprise.util.EnterpriseInfo;
 import org.chromium.chrome.browser.policy.PolicyServiceFactory;
 import org.chromium.chrome.browser.signin.AppRestrictionSupplier;
+import org.chromium.components.policy.EnterpriseInfo;
 import org.chromium.components.policy.PolicyService;
 
 /**

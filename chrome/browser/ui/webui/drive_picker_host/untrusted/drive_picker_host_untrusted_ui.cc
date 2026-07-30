@@ -55,13 +55,13 @@ DrivePickerUntrustedHostUI::DrivePickerUntrustedHostUI(content::WebUI* web_ui)
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ScriptSrc,
       "script-src 'self' chrome-untrusted://resources/ "
-      "https://apis.google.com;");
+      "chrome-untrusted://webui-test https://apis.google.com;");
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ConnectSrc,
       "connect-src 'self' https://apis.google.com;");
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::FrameSrc,
-      "frame-src 'self' https://docs.google.com;");
+      "frame-src 'self' https://docs.google.com https://consent.google.com;");
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ImgSrc,
       "img-src 'self' chrome-untrusted://resources/ "
@@ -122,6 +122,13 @@ void DrivePickerUntrustedHostUI::ShowDrivePicker(
     }
     pending_request_ = std::make_unique<PendingRequest>(
         std::move(result_handler), std::move(keys));
+  }
+}
+
+void DrivePickerUntrustedHostUI::LoadConsentKitUrl(
+    const GURL& consent_kit_url) {
+  if (page_.is_bound() && page_.is_connected()) {
+    page_->LoadConsentKitUrl(consent_kit_url);
   }
 }
 

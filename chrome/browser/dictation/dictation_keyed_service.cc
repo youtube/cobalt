@@ -5,16 +5,26 @@
 #include "chrome/browser/dictation/dictation_keyed_service.h"
 
 #include "base/feature_list.h"
+#include "base/functional/bind.h"
+#include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/dictation/connector_component_extension.h"
 #include "chrome/browser/dictation/dictation_keyed_service_factory.h"
 #include "chrome/browser/dictation/features.h"
 #include "chrome/browser/dictation/listener_stream_provider.h"
+#include "chrome/browser/dictation/onboarding_manager.h"
 #include "chrome/browser/dictation/session_controller.h"
 #include "chrome/browser/dictation/session_ui_impl.h"
 #include "chrome/browser/dictation/target.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/common/pref_names.h"
+#include "components/prefs/pref_service.h"
 
 namespace dictation {
+
+namespace {
+constexpr int kVoiceTypingSettingsDisabled = 2;
+}  // namespace
 
 // static
 DictationKeyedService* DictationKeyedService::Get(
@@ -30,8 +40,15 @@ DictationKeyedService::SessionState::SessionState(
 DictationKeyedService::SessionState::~SessionState() = default;
 
 DictationKeyedService::DictationKeyedService(Profile* profile)
-    : profile_(profile) {
+    : profile_(profile),
+      connector_extension_(profile),
+      onboarding_manager_(*this, *profile->GetPrefs()) {
   CHECK(base::FeatureList::IsEnabled(kDictation));
+  pref_change_registrar_.Init(profile_->GetPrefs());
+  pref_change_registrar_.Add(
+      prefs::kVoiceTypingSettings,
+      base::BindRepeating(&DictationKeyedService::OnPrefChanged,
+                          base::Unretained(this)));
 }
 
 DictationKeyedService::~DictationKeyedService() = default;
@@ -57,7 +74,15 @@ std::unique_ptr<SessionUi> DictationKeyedService::CreateUi(
 
 void DictationKeyedService::StartSession(BrowserWindowInterface& window,
                                          std::unique_ptr<Target> target) {
+  CHECK(IsEnabled());
   CHECK(!session_);
+
+  // ShowOnboardingIfNeeded conditionally moves the target unique_ptr if it
+  // returns true.
+  if (onboarding_manager_.ShowOnboardingIfNeeded(window, target)) {
+    // If onboarding is shown, it will call StartSession again if needed.
+    return;
+  }
 
   session_.emplace(*this, window.GetWeakPtr());
 
@@ -73,13 +98,41 @@ void DictationKeyedService::EndSession() {
 }
 
 bool DictationKeyedService::ShouldShowContextMenuItem() const {
+  if (!IsEnabled()) {
+    return false;
+  }
   return !session_;
 }
 
-void DictationKeyedService::ContextMenuHandler(BrowserWindowInterface& window) {
-  // TODO(crbug.com/508729855) Populate target with information about the
-  // targeted field from context menu params.
-  StartSession(window, std::make_unique<Target>());
+void DictationKeyedService::ContextMenuHandler(
+    BrowserWindowInterface& window,
+    content::RenderFrameHost& rfh,
+    const std::u16string& selected_text) {
+  // Policy could have changed to disabled while the context menu was open.
+  if (!IsEnabled()) {
+    return;
+  }
+
+  // TODO(crbug.com/525856380): Handle changes to the focused element. Identify
+  // the targeted element for the dictation Target.
+  StartSession(
+      window, std::make_unique<Target>(&rfh, base::UTF16ToUTF8(selected_text)));
+}
+
+bool DictationKeyedService::IsEnabled() const {
+  CHECK(profile_);
+  bool disabled_by_policy =
+      profile_->GetPrefs()->GetInteger(prefs::kVoiceTypingSettings) ==
+      kVoiceTypingSettingsDisabled;
+
+  // Until the connector extension is available consider the feature disabled.
+  return !connector_extension_.IsPending() && !disabled_by_policy;
+}
+
+void DictationKeyedService::OnPrefChanged() {
+  if (!IsEnabled()) {
+    EndSession();
+  }
 }
 
 }  // namespace dictation

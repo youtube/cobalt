@@ -4,13 +4,17 @@
 
 #include "chrome/browser/web_applications/jobs/uninstall/remove_web_app_job.h"
 
+#include <algorithm>
+#include <functional>
 #include <memory>
 
+#include "base/barrier_callback.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/functional/concurrent_callbacks.h"
 #include "base/functional/concurrent_closures.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
@@ -230,10 +234,6 @@ void RemoveWebAppJob::Start(AllAppsLock& lock, Callback callback) {
     return;
   }
 
-  if (app->isolation_data().has_value()) {
-    has_isolated_storage_ = true;
-  }
-
   if (webapps::IsUserUninstall(uninstall_source_)) {
     CHECK(app->CanUserUninstallWebApp());
     if (app->IsPreinstalledApp()) {
@@ -264,125 +264,106 @@ void RemoveWebAppJob::Start(AllAppsLock& lock, Callback callback) {
     mutable_app->SetIsUninstalling(true);
   }
 
+  base::ConcurrentCallbacks<bool> concurrent;
+
   // For Isolated Web App:
   // - Sets pref value to garbage-collect StoragePartitions on next start up.
   // - Clears data on StoragePartitions to prevent data leak on reinstall
   // before GC.
-  if (has_isolated_storage_) {
+  if (app->isolation_data().has_value()) {
     profile_->GetPrefs()->SetBoolean(
         prefs::kShouldGarbageCollectStoragePartitions, true);
-
-    location_ = app->isolation_data()->location();
 
     url::Origin iwa_origin = url::Origin::Create(app->scope());
     web_app::RemoveIsolatedWebAppBrowsingData(
         &profile_.get(), iwa_origin,
-        base::BindOnce(&RemoveWebAppJob::OnIsolatedWebAppBrowsingDataCleared,
-                       weak_ptr_factory_.GetWeakPtr()));
+        base::BindOnce(
+            GetLogCallback("isolated_web_app_browsing_data_cleared_success",
+                           concurrent.CreateCallback()),
+            true));
+
+    web_app::CloseAndDeleteBundle(
+        &profile_.get(), app->isolation_data()->location(),
+        base::BindOnce(GetLogCallback("isolated_web_app_bundle_deleted_success",
+                                      concurrent.CreateCallback()),
+                       true));
   }
   lock_->os_integration_manager().Synchronize(
       app_id_, base::BindOnce(&RemoveWebAppJob::SynchronizeAndUninstallOsHooks,
-                              weak_ptr_factory_.GetWeakPtr()));
+                              weak_ptr_factory_.GetWeakPtr(),
+                              concurrent.CreateCallback()));
 
   // While sometimes `Synchronize` needs to read icon data, for the uninstall
   // case it never needs to be read. Thus, it is safe to schedule this now and
   // not after the `Synchronize` call completes.
   lock_->icon_manager().DeleteData(
-      app_id_, base::BindOnce(&RemoveWebAppJob::OnIconDataDeleted,
-                              weak_ptr_factory_.GetWeakPtr()));
+      app_id_,
+      GetLogCallback("app_data_deleted_success", concurrent.CreateCallback()));
 
   lock_->translation_manager().DeleteTranslations(
-      app_id_, base::BindOnce(&RemoveWebAppJob::OnTranslationDataDeleted,
-                              weak_ptr_factory_.GetWeakPtr()));
+      app_id_, GetLogCallback("translation_data_deleted_success",
+                              concurrent.CreateCallback()));
+
+  std::move(concurrent)
+      .Done(base::BindOnce(&RemoveWebAppJob::OnAllDataDeleted,
+                           weak_ptr_factory_.GetWeakPtr()));
 }
 
 webapps::WebappUninstallSource RemoveWebAppJob::uninstall_source() const {
   return uninstall_source_;
 }
 
-void RemoveWebAppJob::SynchronizeAndUninstallOsHooks() {
-  CHECK(!primary_removal_result_.has_value());
-  bool os_integration_removal_success = IsOsIntegrationRemovedForApp(
-      lock_->registrar().GetAppCurrentOsIntegrationState(app_id_));
-  debug_value_->Set("os_integration_removal_success",
-                    os_integration_removal_success);
-  errors_ = errors_ || !os_integration_removal_success;
+base::OnceCallback<void(bool)> RemoveWebAppJob::GetLogCallback(
+    std::string key,
+    base::OnceCallback<void(bool)> callback) {
+  return base::BindOnce(
+             [](base::WeakPtr<RemoveWebAppJob> job, std::string key,
+                bool success) {
+               if (job) {
+                 job->debug_value_->Set(key, success);
+               }
+               return success;
+             },
+             weak_ptr_factory_.GetWeakPtr(), std::move(key))
+      .Then(std::move(callback));
+}
+
+void RemoveWebAppJob::SynchronizeAndUninstallOsHooks(
+    base::OnceCallback<void(bool)> callback) {
+  auto barrier = base::BarrierCallback<bool>(
+      2, base::BindOnce([](std::vector<bool> results) {
+           return std::ranges::all_of(results, std::identity{});
+         }).Then(std::move(callback)));
+
+  CheckOsIntegrationHooksRemoved(
+      GetLogCallback("os_integration_removal_success", barrier));
+  RemoveOsIntegrationDirectory(
+      GetLogCallback("os_integration_directory_removed", barrier));
+}
+
+void RemoveWebAppJob::CheckOsIntegrationHooksRemoved(
+    base::OnceCallback<void(bool)> callback) {
+  std::move(callback).Run(IsOsIntegrationRemovedForApp(
+      lock_->registrar().GetAppCurrentOsIntegrationState(app_id_)));
+}
+
+void RemoveWebAppJob::RemoveOsIntegrationDirectory(
+    base::OnceCallback<void(bool)> callback) {
   GURL start_url = lock_->registrar().GetAppStartUrl(app_id_);
+  base::FilePath profile_path = profile_->GetPath();
+
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::TaskPriority::USER_VISIBLE, base::MayBlock()},
-      base::BindOnce(
-          [](Profile& profile, const webapps::AppId& app_id,
-             const GURL& start_url) {
-            return base::DeletePathRecursively(
-                GetOsIntegrationResourcesDirectoryForApp(profile.GetPath(),
-                                                         app_id, start_url));
-          },
-          std::ref(profile_.get()), app_id_, std::move(start_url)),
-      base::BindOnce(
-          &RemoveWebAppJob::OnOsResourcesCleanedMaybeCompleteUninstall,
-          weak_ptr_factory_.GetWeakPtr()));
+      base::BindOnce(&base::DeletePathRecursively,
+                     GetOsIntegrationResourcesDirectoryForApp(
+                         profile_path, app_id_, start_url)),
+      std::move(callback));
 }
 
-void RemoveWebAppJob::OnOsResourcesCleanedMaybeCompleteUninstall(
-    bool os_integration_directory_removed) {
-  CHECK(!hooks_uninstalled_);
-  hooks_uninstalled_ = true;
-  debug_value_->Set("os_integration_directory_removed",
-                    os_integration_directory_removed);
-  errors_ = errors_ || !os_integration_directory_removed;
-  MaybeFinishPrimaryRemoval();
-}
-
-void RemoveWebAppJob::OnIconDataDeleted(bool success) {
+void RemoveWebAppJob::OnAllDataDeleted(std::vector<bool> results) {
   CHECK(!primary_removal_result_.has_value());
-  CHECK(!app_data_deleted_);
-  app_data_deleted_ = true;
-  debug_value_->Set("app_data_deleted_success", success);
-  errors_ = errors_ || !success;
-  MaybeFinishPrimaryRemoval();
-}
 
-void RemoveWebAppJob::OnTranslationDataDeleted(bool success) {
-  CHECK(!primary_removal_result_.has_value());
-  CHECK(!translation_data_deleted_);
-  translation_data_deleted_ = true;
-  debug_value_->Set("translation_data_deleted_success", success);
-  errors_ = errors_ || !success;
-  MaybeFinishPrimaryRemoval();
-}
-
-void RemoveWebAppJob::OnIsolatedWebAppBrowsingDataCleared() {
-  CHECK(!primary_removal_result_.has_value());
-  CHECK(!isolated_web_app_browsing_data_cleared_);
-  // Must be an Isolated Web App.
-  CHECK(has_isolated_storage_);
-  CHECK(location_.has_value());
-  isolated_web_app_browsing_data_cleared_ = true;
-  debug_value_->Set("isolated_web_app_browsing_data_cleared_success", true);
-
-  web_app::CloseAndDeleteBundle(
-      &profile_.get(), location_.value(),
-      base::BindOnce(&RemoveWebAppJob::OnIsolatedWebAppOwnedLocationDeleted,
-                     weak_ptr_factory_.GetWeakPtr()));
-}
-
-void RemoveWebAppJob::OnIsolatedWebAppOwnedLocationDeleted() {
-  CHECK(!primary_removal_result_.has_value());
-  CHECK(has_isolated_storage_);
-  CHECK(!isolated_web_app_owned_location_deleted_);
-
-  isolated_web_app_owned_location_deleted_ = true;
-  MaybeFinishPrimaryRemoval();
-}
-
-void RemoveWebAppJob::MaybeFinishPrimaryRemoval() {
-  CHECK(!primary_removal_result_.has_value());
-  const bool is_iwa_fully_removed = isolated_web_app_browsing_data_cleared_ &&
-                                    isolated_web_app_owned_location_deleted_;
-  if (!hooks_uninstalled_ || !app_data_deleted_ || !translation_data_deleted_ ||
-      (has_isolated_storage_ && !is_iwa_fully_removed)) {
-    return;
-  }
+  bool errors = !std::ranges::all_of(results, std::identity{});
 
   {
     CHECK_NE(lock_->registrar().GetAppById(app_id_), nullptr);
@@ -390,11 +371,11 @@ void RemoveWebAppJob::MaybeFinishPrimaryRemoval() {
     update->DeleteApp(app_id_);
   }
 
-  primary_removal_result_ = errors_ ? webapps::UninstallResultCode::kError
-                                    : webapps::UninstallResultCode::kAppRemoved;
+  primary_removal_result_ = errors ? webapps::UninstallResultCode::kError
+                                   : webapps::UninstallResultCode::kAppRemoved;
   debug_value_->Set("primary_removal_result",
                     base::ToString(primary_removal_result_.value()));
-  base::UmaHistogramBoolean("WebApp.Uninstall.Result", !errors_);
+  base::UmaHistogramBoolean("WebApp.Uninstall.Result", !errors);
 
   lock_->install_manager().NotifyWebAppUninstalled(app_id_, uninstall_source_);
 

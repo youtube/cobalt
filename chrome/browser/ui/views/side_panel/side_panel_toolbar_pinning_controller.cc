@@ -9,10 +9,13 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_key.h"
 #include "chrome/browser/ui/side_panel/side_panel_metrics.h"
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_desktop.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
@@ -40,10 +43,38 @@ SidePanelToolbarPinningController::~SidePanelToolbarPinningController() =
 
 void SidePanelToolbarPinningController::OnActionsChanged() {
   pin_state_change_observers_.Notify(&Observer::OnPinStateChanged);
+  ReevaluateActiveState();
 }
 
 void SidePanelToolbarPinningController::OnToolbarPinnedActionsChanged() {
   pin_state_change_observers_.Notify(&Observer::OnPinStateChanged);
+  ReevaluateActiveState();
+}
+
+void SidePanelToolbarPinningController::ReevaluateActiveState() {
+  if (auto* side_panel_ui = SidePanelUI::From(&*browser_)) {
+    if (std::optional<SidePanelEntryId> current_id =
+            side_panel_ui->GetCurrentEntryId()) {
+      if (current_id == SidePanelEntryId::kExtension) {
+        return;
+      }
+      SidePanelEntryKey key(*current_id);
+      SidePanelEntry* entry = nullptr;
+      if (auto* global_registry = SidePanelRegistry::From(&*browser_)) {
+        entry = global_registry->GetEntryForKey(key);
+      }
+      if (!entry) {
+        if (auto* tab_interface = browser_->GetActiveTabInterface()) {
+          if (auto* tab_registry = SidePanelRegistry::From(tab_interface)) {
+            entry = tab_registry->GetEntryForKey(key);
+          }
+        }
+      }
+      if (entry) {
+        UpdateActiveState(key, ShouldShowActiveInToolbar(entry));
+      }
+    }
+  }
 }
 
 void SidePanelToolbarPinningController::AddObserver(Observer* observer) {

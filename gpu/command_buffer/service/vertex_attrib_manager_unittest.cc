@@ -32,7 +32,7 @@ class VertexAttribManagerTest : public GpuServiceTest {
   void SetUp() override {
     GpuServiceTest::SetUp();
 
-    manager_ = new VertexAttribManager(false);
+    manager_ = base::MakeRefCounted<VertexAttribManager>(false);
     manager_->Initialize(kNumVertexAttribs);
     manager_->SetIsBound(true);
   }

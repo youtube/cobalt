@@ -94,7 +94,7 @@ final class AutofillExpirationDateFixFlowBridge
         }
 
         mExpirationDateFixFlowPrompt =
-                AutofillExpirationDateFixFlowPrompt.createAsInfobarFixFlowPrompt(
+                AutofillExpirationDateFixFlowPrompt.createAsMessageFixFlowPrompt(
                         activity, this, mTitle, mIconId, mCardLabel, mConfirmButtonLabel);
         mExpirationDateFixFlowPrompt.show(activity, windowAndroid.getModalDialogManager());
     }

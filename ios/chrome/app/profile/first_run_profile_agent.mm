@@ -46,10 +46,10 @@
 
 // Used to create PassKey to access the UIViewController through the
 // BrowserProvider interface (crbug.com/40606165).
-class FirstRunProfileAgentHelper {
+class FirstRunProfileAgentPassKeyFactory {
  public:
   static BrowserProviderPassKey CreateKey() {
-    return base::PassKey<FirstRunProfileAgentHelper>();
+    return base::PassKey<FirstRunProfileAgentPassKeyFactory>();
   }
 };
 
@@ -371,7 +371,7 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
       [[FirstRunScreenProvider alloc] initForProfile:profile];
   UIViewController* baseViewController =
       [_presentingSceneState.browserProviderInterface.currentBrowserProvider
-          viewController:FirstRunProfileAgentHelper::CreateKey()];
+          viewController:FirstRunProfileAgentPassKeyFactory::CreateKey()];
   Browser* mainBrowser = _presentingSceneState.browserProviderInterface
                              .mainBrowserProvider.browser;
   _firstRunCoordinator =
@@ -430,7 +430,7 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
   _guidedTourPromoCoordinator = [[GuidedTourPromoCoordinator alloc]
       initWithBaseViewController:
           [presentingInterface
-              viewController:FirstRunProfileAgentHelper::CreateKey()]
+              viewController:FirstRunProfileAgentPassKeyFactory::CreateKey()]
                          browser:browser];
   _guidedTourPromoCoordinator.delegate = self;
   [_guidedTourPromoCoordinator start];

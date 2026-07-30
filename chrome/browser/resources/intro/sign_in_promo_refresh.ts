@@ -75,6 +75,7 @@ export class SignInPromoRefreshElement extends SignInPromoRefreshElementBase {
       anyButtonClicked_: {type: Boolean},
       usePrimaryAndTonalButtonsForPromos_: {type: Boolean},
       shouldDisableAnimations_: {type: Boolean},
+      isFirstRunDesktopRevampEnabled_: {type: Boolean},
       isDarkMode_: {type: Boolean},
     };
   }
@@ -83,6 +84,8 @@ export class SignInPromoRefreshElement extends SignInPromoRefreshElementBase {
   protected accessor managedDeviceDisclaimer_: string = '';
   protected accessor isDeviceManaged_: boolean =
       loadTimeData.getBoolean('isDeviceManaged');
+  protected accessor isFirstRunDesktopRevampEnabled_: boolean =
+      loadTimeData.getBoolean('isFirstRunDesktopRevampEnabled');
   protected accessor usePrimaryAndTonalButtonsForPromos_: boolean =
       loadTimeData.getBoolean('usePrimaryAndTonalButtonsForPromos');
   // Animations are disabled if the feature is disabled (there is no mechanism

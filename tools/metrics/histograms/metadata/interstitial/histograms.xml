@@ -179,7 +179,7 @@ chromium-metrics-reviews@google.com.
 <histogram
     name="interstitial.phishing.decision{RepeatVisit}.from_client_side_detection{SecurityInterstitialSBWithSourceSubtype}"
     enum="SecurityInterstitialDecision" expires_after="2026-12-06">
-  <owner>andysjlim@chromium.org</owner>
+  <owner>nwokedi@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@Google.com</owner>
   <summary>
     User decision when presented with a security interstitial{RepeatVisit}
@@ -195,7 +195,7 @@ chromium-metrics-reviews@google.com.
 <histogram
     name="interstitial.phishing.interaction.from_client_side_detection{SecurityInterstitialSBWithSourceSubtype}"
     enum="SecurityInterstitialDecision" expires_after="2027-03-02">
-  <owner>andysjlim@chromium.org</owner>
+  <owner>nwokedi@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@Google.com</owner>
   <summary>
     User interactions with a security interstitial that comes from client side
@@ -208,7 +208,7 @@ chromium-metrics-reviews@google.com.
 <histogram
     name="interstitial.phishing.show_delay{TimeRange}.from_client_side_detection{SecurityInterstitialSBWithSourceSubtype}"
     enum="SecurityInterstitialDecision" expires_after="2026-12-06">
-  <owner>andysjlim@chromium.org</owner>
+  <owner>nwokedi@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@Google.com</owner>
   <summary>
     The time {TimeRange} between when the blocked page is shown and when the

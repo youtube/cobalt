@@ -9,12 +9,12 @@
 #include <vector>
 
 #include "base/functional/callback.h"
-#include "components/omnibox/browser/ai_mode_button_service.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/autocomplete_controller_config.h"
 #include "components/omnibox/browser/autocomplete_scheme_classifier.h"
 #include "components/omnibox/browser/fake_autocomplete_provider_client.h"
 #include "components/omnibox/browser/mock_unscoped_extension_provider_delegate.h"
+#include "components/search_engines/ai_mode_button_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -25,7 +25,12 @@ TestOmniboxClient::TestOmniboxClient()
     : session_id_(SessionID::FromSerializedValue(1)),
       ai_mode_button_service_(std::make_unique<TestAiModeButtonService>(
           GetTemplateURLService(),
-          AiModeButtonService::GoogleStrings())),
+          []() {
+            AiModeButtonService::GoogleStrings strings;
+            strings.entrypoint_label = u"Google AI";
+            strings.context_menu_label = u"Show Google AI";
+            return strings;
+          }())),
       autocomplete_classifier_(
           std::make_unique<AutocompleteController>(
               CreateAutocompleteProviderClient(),

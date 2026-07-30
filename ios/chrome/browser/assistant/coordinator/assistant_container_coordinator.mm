@@ -22,6 +22,7 @@
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -41,7 +42,8 @@ enum class TransitionState {
 }  // namespace
 
 @interface AssistantContainerCoordinator () <FullscreenUIElement,
-                                             FullscreenBrowserAgentObserving>
+                                             FullscreenBrowserAgentObserving,
+                                             TabGridStateObserving>
 @end
 
 @implementation AssistantContainerCoordinator {
@@ -64,6 +66,8 @@ enum class TransitionState {
   std::vector<AssistantContainerDetent> _detents;
   // The height for the minimized detent.
   NSInteger _minimizedDetentHeight;
+  // The tab grid state being observed.
+  TabGridState* _tabGridState;
 }
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
@@ -118,10 +122,20 @@ enum class TransitionState {
 
   _containerViewController.layoutState = self.sceneState.layoutState;
 
-  // Resolve layout guide.
-  GuideName* guideName = kSecondaryToolbarGuide;
+  // Resolve initial layout guide name.
   LayoutGuideCenter* center = LayoutGuideCenterForBrowser(self.browser);
-  _containerViewController.anchorView = [center referencedViewUnderName:guideName];
+  _containerViewController.layoutGuideCenter = center;
+
+  if (IsChromeNextIaEnabled()) {
+    _tabGridState = self.browser->GetSceneState().tabGridState;
+    [_tabGridState addObserver:self];
+  }
+
+  if (_tabGridState && _tabGridState.tabGridVisible) {
+    _containerViewController.guideName = kTabGridBottomToolbarGuide;
+  } else {
+    _containerViewController.guideName = kSecondaryToolbarGuide;
+  }
 
   if ([_delegate respondsToSelector:@selector(assistantContainer:
                                               willAppearAnimated:)]) {
@@ -327,6 +341,8 @@ enum class TransitionState {
   // Cleanup view controller and state.
   _fullscreenUIUpdater = nullptr;
   _fullscreenBrowserAgentObserverBridge = nullptr;
+  [_tabGridState removeObserver:self];
+  _tabGridState = nil;
 
   if (IsUseSceneViewControllerEnabled()) {
     [self.presenter removeAssistantContainerViewController];
@@ -389,6 +405,16 @@ enum class TransitionState {
 
 - (void)fullscreenWillUpdateState:(FullscreenBrowserAgent*)agent {
   [self updateForFullscreenProgress:agent->bottom_progress()];
+}
+
+#pragma mark - TabGridStateObserving
+
+- (void)willEnterTabGrid {
+  _containerViewController.guideName = kTabGridBottomToolbarGuide;
+}
+
+- (void)willExitTabGrid {
+  _containerViewController.guideName = kSecondaryToolbarGuide;
 }
 
 @end

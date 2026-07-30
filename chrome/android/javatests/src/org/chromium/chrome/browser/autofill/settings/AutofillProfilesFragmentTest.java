@@ -80,6 +80,7 @@ import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
+import org.chromium.base.test.util.UserActionTester;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.autofill.AndroidAutofillAvailabilityStatus;
@@ -216,6 +217,7 @@ public class AutofillProfilesFragmentTest {
     @Mock private EntityDataManager mEntityDataManager;
 
     private AutofillTestHelper mHelper;
+    private UserActionTester mUserActionTester;
 
     @Before
     public void setUp() throws TimeoutException {
@@ -278,10 +280,12 @@ public class AutofillProfilesFragmentTest {
                             AndroidAutofillAvailabilityStatus.SETTING_TURNED_OFF);
                 });
         HelpAndFeedbackLauncherFactory.setInstanceForTesting(mHelpAndFeedbackLauncher);
+        mUserActionTester = new UserActionTester();
     }
 
     @After
     public void tearDown() throws TimeoutException {
+        mUserActionTester.tearDown();
         Intents.release();
         mHelper.clearAllDataForTesting();
     }
@@ -320,6 +324,7 @@ public class AutofillProfilesFragmentTest {
         AutofillProfileEditorPreference addedProfile = findPreference("Alice Doe");
         assertNotNull(addedProfile);
         assertEquals("111 Added St, 90291", addedProfile.getSummary());
+        assertTrue(mUserActionTester.getActions().contains("AutofillAddressesAdded"));
     }
 
     /**
@@ -609,6 +614,7 @@ public class AutofillProfilesFragmentTest {
         assertNotNull(editedProfile);
         assertEquals("111 Edited St, 90291", editedProfile.getSummary());
         assertNull(findPreference("John Doe"));
+        assertTrue(mUserActionTester.getActions().contains("AutofillAddressesEdited"));
     }
 
     @Test
@@ -686,6 +692,7 @@ public class AutofillProfilesFragmentTest {
         // Check if the preferences are updated correctly.
         checkPreferenceCount(7 /* One toggle + one add button + five profiles. */);
         assertNotNull(findPreference("Account Updated #2"));
+        assertTrue(mUserActionTester.getActions().contains("AutofillAddressesEdited"));
     }
 
     @Test

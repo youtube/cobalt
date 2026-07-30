@@ -78,6 +78,7 @@
 <translation id="2386292341327187942">‏أدخِل كلمة "Chromium" في مربّع "البحث في التطبيقات المصغّرة"</translation>
 <translation id="2389827884654658221">‏يمكنك الوصول إلى Chromium بشكل أسرع من خلال الشاشة الرئيسية على جهاز iPad.</translation>
 <translation id="2426113998523353159">‏تطلُب المؤسسة منك تسجيل الدخول للتمكّن من استخدام Chromium.</translation>
+<translation id="244367646885670394">‏يُرجى إثبات هويتك لحفظ كلمة المرور هذه ومزامنة بيانات Chromium على جميع أجهزتك</translation>
 <translation id="2450140762465183767">‏يمكنك الآن استخدام Chromium في أي وقت تنقر فيه على الروابط في الرسائل والمستندات والتطبيقات الأخرى.</translation>
 <translation id="2459183986985456602">‏يؤدي هذا الاختصار إلى فتح آخر علامة تبويب في Chromium.</translation>
 <translation id="2476409803017965813">‏يمكنك تعديل اختياراتك متى شئت من خلال إعدادات Chromium.</translation>
@@ -108,6 +109,7 @@
 <translation id="3054480780637153380">‏افتح إعدادات Chromium في نظام التشغيل iOS، ثم انقر على "تطبيق المتصفِّح التلقائي" واختَر Chromium.</translation>
 <translation id="3115956258722352278">‏هل تريد أن يكون Chromium المتصفِّح التلقائي؟</translation>
 <translation id="3180939591219927904">‏يجب تفعيل خيار "قفل علامات التبويب في وضع التصفّح المتخفي عند إغلاق Chromium"</translation>
+<translation id="327628223428512207">‏يُرجى إدخال عبارة المرور لحفظ كلمة المرور هذه ومزامنة بيانات Chromium على جميع أجهزتك</translation>
 <translation id="328933489847748230">{count,plural, =1{‏يتم الآن عرض نافذة واحدة في Chromium.}zero{‏يتم الآن عرض {count} نافذة في Chromium.}two{‏يتم الآن عرض نافذتَين ({count}) في Chromium.}few{‏يتم الآن عرض {count} نوافذ في Chromium.}many{‏يتم الآن عرض {count} نافذة في Chromium.}other{‏يتم الآن عرض {count} نافذة في Chromium.}}</translation>
 <translation id="3344973607274501920">‏تعذّر على متصفِّح Chromium التحقُّق من كلمات المرور. يُرجى التحقُّق من اتصال الإنترنت.</translation>
 <translation id="3366305173356742781">‏بيانات Chromium في حسابك</translation>

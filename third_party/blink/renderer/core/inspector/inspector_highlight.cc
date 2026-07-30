@@ -786,8 +786,8 @@ std::unique_ptr<protocol::ListValue> BuildGridTrackSizes(
     if (rtl_offset && direction == kForColumns) {
       main_axis_pos = *rtl_offset + prev_position - width / 2;
     }
-    auto adjusted_size =
-        AdjustForAbsoluteZoom::AdjustFloat(width * scale, layout_box->StyleRef());
+    auto adjusted_size = AdjustForAbsoluteZoom::AdjustFloat(
+        width.ToFloat(), layout_box->StyleRef());
     PhysicalOffset track_size_pos(main_axis_pos, *alt_axis_pos);
     if (direction == kForRows)
       track_size_pos = Transpose(track_size_pos);

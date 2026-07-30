@@ -1462,17 +1462,25 @@ TEST_F(ScriptExecutionTest, UserScriptOnHttpPage) {
 // URLs have elevated privileges and JavaScript execution should not be allowed
 // for them.
 TEST_F(ScriptExecutionTest, UserScriptOnAppSpecificPage) {
+  LoadHtml(@"<html></html>", GURL(kTestAppSpecificURL));
+
+  NSError* error = nil;
+  EXPECT_FALSE(ExecuteUserJavaScript(@"window.w = 0;", &error));
+  ASSERT_TRUE(error);
+  EXPECT_NSEQ(kJSEvaluationErrorDomain, error.domain);
+  EXPECT_EQ(JS_EVALUATION_ERROR_CODE_REJECTED, error.code);
+
+  EXPECT_FALSE(ExecuteJavaScript(@"window.w"));
+}
+
+// Tests that user script is rejected when there is no main frame to execute it
+// in.
+TEST_F(ScriptExecutionTest, UserScriptRejectedWithoutMainFrame) {
   LoadHtml(@"<html></html>", GURL(kTestURLString));
 
-  // Change last committed URL to app-specific URL.
-  NavigationManagerImpl& nav_manager =
-      [web_controller() webStateImpl]->GetNavigationManagerImpl();
-  nav_manager.AddPendingItem(
-      GURL(kTestAppSpecificURL), Referrer(), ui::PAGE_TRANSITION_TYPED,
-      NavigationInitiationType::BROWSER_INITIATED,
-      /*is_post_navigation=*/false, /*is_error_navigation=*/false,
-      web::HttpsUpgradeType::kNone);
-  nav_manager.CommitPendingItem();
+  // Simulate the embedder having no main frame for the current page (e.g.
+  // because the page navigated away before frame registration completed).
+  [web_controller() webStateImpl]->RemoveAllWebFrames();
 
   NSError* error = nil;
   EXPECT_FALSE(ExecuteUserJavaScript(@"window.w = 0;", &error));

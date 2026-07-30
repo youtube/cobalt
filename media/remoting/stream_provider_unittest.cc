@@ -339,7 +339,8 @@ TEST_F(StreamProviderTest, DuplicateAcquireDemuxer) {
   EXPECT_TRUE(stream_provider_initialized_);
 
   // Cache raw pointers.
-  std::vector<DemuxerStream*> streams = stream_provider_->GetAllStreams();
+  std::vector<raw_ptr<DemuxerStream>> streams =
+      stream_provider_->GetAllStreams();
   ASSERT_EQ(streams.size(), 2u);
   DemuxerStream* cached_audio =
       streams[0]->type() == DemuxerStream::AUDIO ? streams[0] : streams[1];

@@ -106,6 +106,12 @@ static_assert(static_cast<uint16_t>(kLastScriptWrappableTag) <
               "disjoint. If they overlap, then the gin:Wrappable range should "
               "be moved backwards");
 
+static_assert(
+    static_cast<uint16_t>(gin::kLastPointerTag) <
+        static_cast<uint16_t>(v8::CppHeapPointerTag::kFirstV8InternalTag),
+    "The tag range of gin::Wrappable and v8-internal tags should be "
+    "disjoint.");
+
 static_assert(static_cast<std::underlying_type_t<v8::CppHeapPointerTag>>(
                   CppHeapExternalTag::kLastTag) < kScriptWrappableStartTag);
 

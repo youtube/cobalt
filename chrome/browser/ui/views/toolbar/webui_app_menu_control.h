@@ -51,6 +51,9 @@ class WebUIAppMenuControl : public AppMenuControl {
   // Returns the current state of the app menu control.
   toolbar_ui_api::mojom::AppMenuControlStatePtr GetState() const;
 
+  // Called by the WebUIToolbarWebView when the WebUI reports a focus change.
+  void SetFocused(bool focused);
+
   // Handles the context menu for the app menu.
   void HandleContextMenu(const gfx::Rect& anchor_bounds,
                          ui::mojom::MenuSourceType source);
@@ -64,6 +67,8 @@ class WebUIAppMenuControl : public AppMenuControl {
       AppMenuIconController::IconType::kNone,
       AppMenuIconController::Severity::kNone};
   int trailing_margin_ = 0;
+  // Caches the focus state of the button within the WebUI.
+  bool focused_ = false;
   std::unique_ptr<AppMenuModel> menu_model_;
   std::unique_ptr<views::MenuRunner> menu_runner_;
 

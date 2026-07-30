@@ -175,6 +175,9 @@ class LensOverlayController : public OverlayBaseController,
   // Returns true if the overlay has a region selection.
   bool HasRegionSelection() const;
 
+  // Returns true if the results side panel is currently showing, or is opening.
+  bool IsResultsSidePanelShowingOrWillOpen();
+
   // Pass a result frame URL to load in the side panel.
   void LoadURLInResultsFrame(const GURL& url);
 

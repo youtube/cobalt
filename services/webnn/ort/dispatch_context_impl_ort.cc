@@ -5,6 +5,7 @@
 #include "services/webnn/ort/dispatch_context_impl_ort.h"
 
 #include "base/containers/flat_map.h"
+#include "base/logging.h"
 #include "services/webnn/gpu_task_scheduler.h"
 #include "services/webnn/ort/graph_impl_ort.h"
 #include "services/webnn/ort/ort_data_type.h"
@@ -30,7 +31,8 @@ DispatchContextImplOrt::Create(
     scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
     gpu::SharedImageManager* shared_image_manager,
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
-    ScopedTrace scoped_trace) {
+    ScopedTrace scoped_trace,
+    EpDeviceInfo target_device) {
   DCHECK(owning_task_runner->RunsTasksInCurrentSequence());
 
   auto task_runner = owning_task_runner;
@@ -47,7 +49,8 @@ DispatchContextImplOrt::Create(
           std::move(write_tensor_consumer), std::move(read_tensor_producer),
           std::move(env), std::move(gpu_task_scheduler),
           std::move(memory_tracker), std::move(owning_task_runner),
-          shared_image_manager, std::move(main_task_runner)),
+          shared_image_manager, std::move(main_task_runner),
+          std::move(target_device)),
       OnTaskRunnerDeleter(std::move(task_runner)));
   return context_impl;
 }
@@ -66,7 +69,8 @@ DispatchContextImplOrt::DispatchContextImplOrt(
     scoped_refptr<gpu::MemoryTracker> memory_tracker,
     scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
     gpu::SharedImageManager* shared_image_manager,
-    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner)
+    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
+    EpDeviceInfo target_device)
     : ContextImplOrt(std::move(receiver),
                      std::move(context_provider),
                      ep_workarounds,
@@ -80,7 +84,8 @@ DispatchContextImplOrt::DispatchContextImplOrt(
                      std::move(memory_tracker),
                      std::move(owning_task_runner),
                      shared_image_manager,
-                     std::move(main_task_runner)) {}
+                     std::move(main_task_runner)),
+      target_device_(std::move(target_device)) {}
 
 DispatchContextImplOrt::~DispatchContextImplOrt() = default;
 
@@ -96,6 +101,44 @@ void DispatchContextImplOrt::BindModelLoader(
     mojo::PendingReceiver<mojom::WebNNModelLoader> receiver) {
   model_loader_receiver_.reset();
   model_loader_receiver_.Bind(std::move(receiver));
+}
+
+void DispatchContextImplOrt::RequestCompilerContext(
+    mojo::PendingReceiver<mojom::WebNNCompilerContext>
+        compiler_context_receiver) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  // Create the ModelLoader pipe pair on this thread (the owning thread where
+  // model_loader_receiver_ lives), avoiding cross-thread posting.
+  model_loader_receiver_.reset();
+  auto model_loader_remote = model_loader_receiver_.BindNewPipeAndPassRemote();
+
+  // Post to the main thread where `context_provider_` (a WeakPtr bound to the
+  // main sequence) can be safely dereferenced.
+  main_task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](base::WeakPtr<WebNNContextProviderImpl> context_provider,
+             mojom::CreateContextOptionsPtr options,
+             ContextProperties properties, EpDeviceInfo target_device,
+             mojo::PendingReceiver<mojom::WebNNCompilerContext>
+                 compiler_context_receiver,
+             mojo::PendingRemote<mojom::WebNNModelLoader> model_loader_remote) {
+            if (!context_provider) {
+              // Drop the pipe endpoints — peer endpoints will observe a
+              // disconnect.
+              LOG(ERROR) << "[WebNN] RequestCompilerContext() failed: "
+                            "WebNNContextProviderImpl is no longer available.";
+              return;
+            }
+            context_provider->ReconnectCompilerContext(
+                std::move(options), properties, std::move(target_device),
+                std::move(compiler_context_receiver),
+                std::move(model_loader_remote));
+          },
+          context_provider_, options_->Clone(), properties_, target_device_,
+          std::move(compiler_context_receiver),
+          std::move(model_loader_remote)));
 }
 
 void DispatchContextImplOrt::LoadCompiledGraph(

@@ -68,6 +68,34 @@ base::Time ProtoTimeToTime(int64_t proto_t) {
   return base::Time::FromDeltaSinceWindowsEpoch(base::Microseconds(proto_t));
 }
 
+// Returns true if the entry point represents a real user activation, i.e. the
+// tab becomes visible to the user.
+bool IsActivationUserVisible(ShareActivatedEntryPoint entry_point) {
+  switch (entry_point) {
+    case ShareActivatedEntryPoint::kAutoOpened:
+    case ShareActivatedEntryPoint::kDesktopToast:
+    case ShareActivatedEntryPoint::kDesktopToolbarBubble:
+    case ShareActivatedEntryPoint::kMobileNotification:
+    case ShareActivatedEntryPoint::kTabStrip:
+    case ShareActivatedEntryPoint::kChromeOSBirch:
+      return true;
+    case ShareActivatedEntryPoint::kTabOrBrowserClosedWithoutActivation:
+    case ShareActivatedEntryPoint::kSTTSEntryExpiredWithoutActivation:
+      return false;
+  }
+}
+
+void RecordActivationMetrics(ShareActivatedEntryPoint entry_point,
+                             base::Time activated_time,
+                             base::Time opened_time,
+                             base::Time shared_time) {
+  RecordActivatedEntryPoint(entry_point);
+  if (IsActivationUserVisible(entry_point)) {
+    RecordTimeOpenedToActivated(activated_time - opened_time);
+    RecordTimeSentToActivated(activated_time - shared_time);
+  }
+}
+
 // Allocate a EntityData and copies |specifics| into it.
 std::unique_ptr<syncer::EntityData> CopyToEntityData(
     const sync_pb::SendTabToSelfSpecifics& specifics) {
@@ -252,6 +280,19 @@ SendTabToSelfBridge::ApplyIncrementalSyncChanges(
                                    remote_entry->GetSharedTime());
             needs_reupload = true;
           }
+          if (unknown_activated_entries_.contains(remote_entry->GetGUID())) {
+            // This entry was activated (for example, in case the tab was
+            // received and opened via a notification) before it was received
+            // via sync.
+            auto [activated_time, entry_point] =
+                unknown_activated_entries_[remote_entry->GetGUID()];
+            unknown_activated_entries_.erase(remote_entry->GetGUID());
+            remote_entry->MarkActivated(activated_time);
+            RecordActivationMetrics(entry_point, activated_time,
+                                    remote_entry->GetOpenedTime(),
+                                    remote_entry->GetSharedTime());
+            needs_reupload = true;
+          }
           // Reupload the entry to the server so the sending device can
           // observe the acknowledgment. This is safe because it happens at
           // most once per entry (the IsReceived() guard above prevents
@@ -422,6 +463,17 @@ SendTabToSelfBridge::GetUnopenedEntriesTargetedToLocalDevice() const {
   return unopened_entries;
 }
 
+std::vector<const SendTabToSelfEntry*>
+SendTabToSelfBridge::GetOpenedEntriesTargetedToLocalDevice() const {
+  std::vector<const SendTabToSelfEntry*> opened_entries;
+  for (const auto& [guid, entry] : entries_) {
+    if (IsTargetedToLocalDevice(*entry) && entry->IsOpened()) {
+      opened_entries.push_back(entry.get());
+    }
+  }
+  return opened_entries;
+}
+
 const SendTabToSelfEntry* SendTabToSelfBridge::SendEntry(
     const GURL& url,
     const std::string& title,
@@ -538,17 +590,7 @@ void SendTabToSelfBridge::DismissEntry(std::string_view guid) {
   DCHECK(change_processor()->IsTrackingMetadata());
 
   entry->SetNotificationDismissed(true);
-
-  std::unique_ptr<DataTypeStore::WriteBatch> batch = store_->CreateWriteBatch();
-
-  auto entity_data = CopyToEntityData(entry->AsLocalProto().specifics());
-
-  change_processor()->Put(std::string(guid), std::move(entity_data),
-                          batch->GetMetadataChangeList());
-
-  batch->WriteData(std::string(guid),
-                   entry->AsLocalProto().SerializeAsString());
-  Commit(std::move(batch));
+  CommitLocalEntryMutation(*entry);
 }
 
 void SendTabToSelfBridge::MarkEntryOpened(std::string_view guid) {
@@ -569,16 +611,46 @@ void SendTabToSelfBridge::MarkEntryOpened(std::string_view guid) {
   entry->MarkOpened(clock_->Now());
 
   RecordTimeSentToOpened(entry->GetOpenedTime() - entry->GetSharedTime());
+  CommitLocalEntryMutation(*entry);
+}
 
+void SendTabToSelfBridge::MarkEntryActivated(
+    std::string_view guid,
+    ShareActivatedEntryPoint entry_point) {
+  MarkEntryActivatedImpl(guid, entry_point, clock_->Now());
+}
+
+void SendTabToSelfBridge::MarkEntryActivatedImpl(
+    std::string_view guid,
+    ShareActivatedEntryPoint entry_point,
+    base::Time activated_time) {
+  SendTabToSelfEntry* entry = GetMutableEntryByGUID(guid);
+  if (!entry) {
+    // If the entry is not yet in the model (because it has not loaded yet or
+    // has not been received from the server yet), store the activated time and
+    // entry point and apply it when the entry is added to the model.
+    unknown_activated_entries_.emplace(
+        guid, std::make_pair(activated_time, entry_point));
+    return;
+  }
+  RecordActivationMetrics(entry_point, activated_time, entry->GetOpenedTime(),
+                          entry->GetSharedTime());
+
+  entry->MarkActivated(activated_time);
+  CommitLocalEntryMutation(*entry);
+}
+
+void SendTabToSelfBridge::CommitLocalEntryMutation(
+    const SendTabToSelfEntry& entry) {
+  if (!change_processor()->IsTrackingMetadata()) {
+    return;
+  }
   std::unique_ptr<DataTypeStore::WriteBatch> batch = store_->CreateWriteBatch();
-
-  auto entity_data = CopyToEntityData(entry->AsLocalProto().specifics());
-
-  change_processor()->Put(std::string(guid), std::move(entity_data),
+  std::unique_ptr<syncer::EntityData> entity_data =
+      CopyToEntityData(entry.AsLocalProto().specifics());
+  change_processor()->Put(entry.GetGUID(), std::move(entity_data),
                           batch->GetMetadataChangeList());
-
-  batch->WriteData(std::string(guid),
-                   entry->AsLocalProto().SerializeAsString());
+  batch->WriteData(entry.GetGUID(), entry.AsLocalProto().SerializeAsString());
   Commit(std::move(batch));
 }
 
@@ -799,6 +871,19 @@ void SendTabToSelfBridge::OnReadAllMetadata(
   change_processor()->ModelReadyToSync(std::move(metadata_batch));
 
   if (IsReady()) {
+    // TODO(crbug.com/503283050): Also implement this for
+    // `unknown_opened_entries_`. On cold startups (for example if the tab is
+    // opened from a system-level notification), opening metrics won't otherwise
+    // be recorded given that the model won't be ready yet.
+    base::flat_map<std::string, std::pair<base::Time, ShareActivatedEntryPoint>,
+                   std::less<>>
+        queued = std::move(unknown_activated_entries_);
+    unknown_activated_entries_.clear();
+    for (const auto& [guid, data] : queued) {
+      MarkEntryActivatedImpl(guid, /*entry_point=*/data.second,
+                             /*activated_time=*/data.first);
+    }
+
     for (auto& observer : observers_) {
       observer.OnModelReady();
     }
@@ -873,6 +958,10 @@ void SendTabToSelfBridge::DoGarbageCollection() {
     DCHECK_EQ(it.first, it.second->GetGUID());
 
     if (it.second->IsExpired(clock_->Now())) {
+      if (it.second->IsOpened() && !it.second->IsActivated()) {
+        RecordActivatedEntryPoint(
+            ShareActivatedEntryPoint::kSTTSEntryExpiredWithoutActivation);
+      }
       removed_guids.push_back(it.first);
     }
   }
@@ -947,6 +1036,7 @@ void SendTabToSelfBridge::DeleteAllEntries() {
   commit_tracker_->OnAllEntriesRemoved();
   entries_.clear();
   unknown_opened_entries_.clear();
+  unknown_activated_entries_.clear();
   mru_entry_guid_.clear();
 
   Commit(std::move(batch));
@@ -965,6 +1055,10 @@ void SendTabToSelfBridge::EraseEntryInBatch(std::string_view guid,
   if (auto it = unknown_opened_entries_.find(guid);
       it != unknown_opened_entries_.end()) {
     unknown_opened_entries_.erase(it);
+  }
+  if (auto it = unknown_activated_entries_.find(guid);
+      it != unknown_activated_entries_.end()) {
+    unknown_activated_entries_.erase(it);
   }
   batch->DeleteData(std::string(guid));
 

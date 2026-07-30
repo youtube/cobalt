@@ -645,6 +645,7 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
 
     /** Recalculate the browser controls height based on layer sizes. */
     private void recalculateLayerSizes() {
+        mLayerHasMinHeight.clear();
         int height = 0;
         int minHeight = 0;
         boolean hasNeverScrollOffLayer = false;
@@ -715,6 +716,7 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
     }
 
     private void recalculateLayerRestingOffsets() {
+        mLayerRestingOffsets.clear();
         int cumulativeHeight = 0;
         for (int i = STACK_ORDER.length - 1; i >= 0; i--) {
             int type = STACK_ORDER[i];

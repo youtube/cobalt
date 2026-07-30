@@ -31,10 +31,14 @@ source_set("unit_tests") {
   if (is_chromeos) {
     sources += [ "ash/kcer_certificate_store_unittest.cc" ]
     deps += [
+      "//chrome/browser/ash/login/users:test_support",
+      "//chrome/browser/ash/profiles",
       "//chromeos/ash/components/kcer",
       "//chromeos/ash/components/kcer:chaps_proto",
       "//chromeos/ash/components/kcer:test_support",
       "//components/prefs:test_support",
+      "//components/user_manager",
+      "//components/user_manager:common",
       "//crypto:test_support",
     ]
   }

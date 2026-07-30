@@ -103,6 +103,7 @@
 <translation id="1335767868357998043">Kies adresbalk se posisie</translation>
 <translation id="1347468774581902829">Bestuur aktiwiteit</translation>
 <translation id="1348596747084433075">https://www.amazon.com/Wife-Gifts/s?k=for+Wife+Gifts</translation>
+<translation id="1353169676553627502">Skakel vorderingopdaterings af</translation>
 <translation id="1355337783640312381">Tik op jou rekeningikoon om tussen rekeninge te wissel</translation>
 <translation id="135806768612505061">Alle oortjies</translation>
 <translation id="1358106883354237005">Bestuurde rekening</translation>
@@ -609,6 +610,7 @@
 <translation id="3073633853887034268">Het dit</translation>
 <translation id="3080525922482950719">Jy kan bladsye stoor om later of vanlyn te lees</translation>
 <translation id="3081338492074632642">Maak seker dat die wagwoord wat jy stoor, ooreenstem met jou wagwoord vir <ph name="WEBSITE" /></translation>
+<translation id="3084484227247071193">Skakel vorderingopdaterings aan</translation>
 <translation id="3087734570205094154">Onderkant</translation>
 <translation id="309710370695886264">Jy het 1 hergebruikte wagwoord. Maak dit nou reg om veilig te bly.</translation>
 <translation id="3099402981545350675">Dit vee adresse uit wat op hierdie toestel gestoor is. Dit verwyder ook geselekteerde inligting uit Chrome, maar dit vee nie hierdie inligting in jou Google-rekening uit nie.</translation>
@@ -708,6 +710,7 @@
 <translation id="3449029510150690417">Skep jou nuwe oortjiegroep deur dit ’n naam en kleur te gee</translation>
 <translation id="345348365500626747">Adres gevind</translation>
 <translation id="3459644598174926977">Gebruik Live met Gemini om oor ’n bladsy te vra, hardop ’n dinkskrum te hou, en heen en weer te gesels.</translation>
+<translation id="3462768334899086950">Dit beteken dat jy jou ongestoorde lêer en huidige oortjies sal verloor</translation>
 <translation id="3464194322481586217">Kon nie die prys naspoor nie.</translation>
 <translation id="3469117812148449995">Opsies om wagwoord te stoor</translation>
 <translation id="3472469028191701821">Maak in nuwe oortjie oop</translation>
@@ -836,7 +839,6 @@
 <translation id="391904960191284041">Produkresensies</translation>
 <translation id="3921585859122905677">Adresbalkposisie</translation>
 <translation id="3922185497376658606">Laai webbladsye vooraf</translation>
-<translation id="3922395466317605522">Pasmaak kieslys</translation>
 <translation id="3926703470020109118">Aflaai is gekanselleer</translation>
 <translation id="3929457972718048006">Adresse</translation>
 <translation id="3931215329146376310">{count,plural, =1{Nuwe wagwoord vir hierdie werf}other{Nuwe wagwoorde vir hierdie werf}}</translation>
@@ -965,6 +967,7 @@
 <translation id="4326912346867677256">Tik op “Gebruik wagwoord” om veilig aan te meld.</translation>
 <translation id="4328843285884395590">My Drive</translation>
 <translation id="4331177082088332784">Jy kan dit bestuur in BEGIN_LINK inhoudinstellings END_LINK</translation>
+<translation id="4331712008356052424">Meld aan by jou ander toestel met <ph name="USER_EMAIL" /> om hierdie skakel te stuur</translation>
 <translation id="4334428914252001502">1 ongeleesde artikel.</translation>
 <translation id="4338258232580025606">Kan nie aanmeld nie</translation>
 <translation id="4338650699862464074">Stuur URL'e van bladsye wat jy besoek na Google toe.</translation>
@@ -1269,6 +1272,7 @@
 <translation id="5336910966955551309">Tik en hou om jou gunstelingwerwe vas te speld</translation>
 <translation id="5338512273860059533">Aanmelding is aan die gang.</translation>
 <translation id="5343472494710226394">Nuus, sport en inhoud wat op jou belangstellings gebaseer is.</translation>
+<translation id="5351613737248079168">Jy moet aangemeld wees om Level Up te gebruik</translation>
 <translation id="5352128922772839949">Stoor lêer</translation>
 <translation id="5355191726083956201">Verbeterde Beskerming is aan</translation>
 <translation id="536067926684072644">Wys boekmerke</translation>
@@ -1471,6 +1475,7 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="6040143037577758943">Maak toe</translation>
 <translation id="6042308850641462728">Meer</translation>
 <translation id="6045460247888249350">Voeg titel by</translation>
+<translation id="6050237559175440178">Verifieer dat dit jy is om jou inligting op al jou toestelle te gebruik en te stoor</translation>
 <translation id="6052269326659653305">Wissel profiel</translation>
 <translation id="605721222689873409">YY</translation>
 <translation id="6059830886158432458">Beheer jou stories en aktiwiteit hier</translation>
@@ -1690,7 +1695,6 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="6674917187596384849">Jy kan maklik tussen rekeninge wissel</translation>
 <translation id="6676349090816247042">Aanmeldopsies.</translation>
 <translation id="667999046851023355">Dokument</translation>
-<translation id="6680416467695217368">Pasmaak kieslys</translation>
 <translation id="6681791404926413601">{count,plural, =1{{count} opsie vir betaalmetode is bo jou sleutelbord beskikbaar.}other{{count} opsies vir betaalmetode is bo jou sleutelbord beskikbaar.}}</translation>
 <translation id="6682680306647339111">Onthounota is verwyder</translation>
 <translation id="6684262542644248484">Meld by ’n webwerf aan</translation>
@@ -1846,6 +1850,7 @@ Skakel oor na <ph name="OTHER_EMAIL" /> om van jou rekenaar af voort te gaan. Jy
 <translation id="722339453342442311">Kontroleer nou</translation>
 <translation id="7227235818314667565">Bestuur deling</translation>
 <translation id="7233006041370588369">Kies ’n wagwoord om in te vul.</translation>
+<translation id="723874023660911012">Wissel profiele</translation>
 <translation id="7241135764990439166">Incognito-modus is onbeskikbaar</translation>
 <translation id="7248046129087111453"><ph name="BEGIN_LINK" />Soekgeskiedenis<ph name="END_LINK" /> en <ph name="BEGIN_LINK" />ander vorme van aktiwiteit<ph name="END_LINK" /> kan in jou Google-rekening gestoor word.</translation>
 <translation id="7253951228444156601">Gaan tans wagwoorde na …</translation>
@@ -2072,6 +2077,7 @@ Skakel oor na <ph name="OTHER_EMAIL" /> om van jou rekenaar af voort te gaan. Jy
 <translation id="7996239959906074962">Stel op …</translation>
 <translation id="800361585186029508">Maak die URL'e wat ingevoer is in Google Chrome oop.</translation>
 <translation id="8005666035647241369">Na Google Wagwoordbestuurder op hierdie toestel</translation>
+<translation id="8007106936382123905">{count,plural, =1{1 voltooide taak}other{# voltooide take}}</translation>
 <translation id="8010488806779226127">Verken kenmerke wat jou kan help om meer te doen terwyl jy blaai</translation>
 <translation id="8011489434346330032">Webinspekteur</translation>
 <translation id="8014007212279733632">Verifieer dat dit jy is om sensitiewe inligting te outovul</translation>
@@ -2155,6 +2161,7 @@ Skakel oor na <ph name="OTHER_EMAIL" /> om van jou rekenaar af voort te gaan. Jy
 <translation id="826614135184049678">Jy is as deel van jou iPad-terugstelling uit jou rekening, <ph name="USER_NAME" />, afgemeld. Tik op “Gaan voort” hier onder om weer aan te meld.</translation>
 <translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">Jy sal inligting in <ph name="URL" /> invul</translation>
+<translation id="8274795744553482834">Jy staan op die punt om profiele te wissel</translation>
 <translation id="8275068909952022340">Meer …</translation>
 <translation id="8280797717392145626">Skakels ontvang</translation>
 <translation id="8281781826761538115">Verstek – <ph name="DEFAULT_LOCALE" /></translation>

@@ -560,8 +560,7 @@ TEST_P(DiceResponseHandlerParamTest,
   // Simulate GaiaAuthFetcher failure for initiator.
   GaiaAuthConsumer* consumer = signin_client_.GetAndClearConsumer();
   ASSERT_THAT(consumer, testing::NotNull());
-  consumer->OnClientOAuthFailure(
-      GoogleServiceAuthError(GoogleServiceAuthError::SERVICE_ERROR));
+  consumer->OnClientOAuthFailure(GoogleServiceAuthError::FromServiceError(""));
 
   // No more fetchers should be created.
   EXPECT_EQ(signin_client_.GetTestURLLoaderFactory()->NumPending(), 0);
@@ -616,8 +615,7 @@ TEST_P(DiceResponseHandlerParamTest,
   // Simulate failure for the first secondary account (account 0).
   consumer = signin_client_.GetAndClearConsumer();
   ASSERT_THAT(consumer, testing::NotNull());
-  consumer->OnClientOAuthFailure(
-      GoogleServiceAuthError(GoogleServiceAuthError::SERVICE_ERROR));
+  consumer->OnClientOAuthFailure(GoogleServiceAuthError::FromServiceError(""));
 
   // Simulate success for the remaining secondaries (if any).
   for (size_t i = 0; i < account_count - 2; ++i) {

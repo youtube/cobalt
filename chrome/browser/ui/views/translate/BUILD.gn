@@ -1,0 +1,196 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/ui.gni")
+
+assert(toolkit_views)
+
+source_set("translate") {
+  public = [
+    "partial_translate_bubble_view.h",
+    "translate_bubble_controller.h",
+    "translate_bubble_view.h",
+    "translate_language_search_view.h",
+    "translate_page_action_controller.h",
+  ]
+  public_deps = [
+    "//base",
+    "//chrome/browser/translate",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/page_action",
+    "//chrome/browser/ui/tabs:tab_model",
+    "//chrome/browser/ui/translate",
+    "//chrome/browser/ui/translate:test_support",
+    "//chrome/browser/ui/views/location_bar",
+    "//components/language/core/common",
+    "//components/tabs:public",
+    "//components/translate/content/browser",
+    "//components/translate/core/browser",
+    "//components/translate/core/common",
+    "//content/public/browser",
+    "//ui/actions",
+    "//ui/base",
+    "//ui/base/interaction",
+    "//ui/base/unowned_user_data",
+    "//ui/menus",
+    "//ui/views",
+  ]
+}
+
+source_set("impl") {
+  sources = [
+    "partial_translate_bubble_view.cc",
+    "translate_bubble_controller.cc",
+    "translate_bubble_view.cc",
+    "translate_language_search_view.cc",
+    "translate_page_action_controller.cc",
+  ]
+  deps = [
+    ":translate",
+    "//chrome/app:generated_resources",
+    "//chrome/app/theme:theme_resources",
+    "//chrome/app/vector_icons",
+    "//chrome/browser:browser_process",
+    "//chrome/browser:primitives",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/search_engines",
+    "//chrome/browser/ui:browser_actions",
+    "//chrome/browser/ui:browser_element_identifiers",
+    "//chrome/browser/ui:ui_features",
+    "//chrome/browser/ui/actions:actions_headers",
+    "//chrome/browser/ui/page_action:icon_type",
+    "//chrome/browser/ui/tabs:tabs_public",
+    "//chrome/browser/ui/translate:impl",
+    "//chrome/browser/ui/views:layout_provider",
+    "//chrome/browser/ui/views/controls",
+    "//chrome/browser/ui/views/frame:toolbar_button_provider",
+    "//components/language_detection/core",
+    "//components/prefs",
+    "//components/strings:components_strings",
+    "//components/touch_to_search/core/browser",
+    "//components/vector_icons",
+    "//services/network/public/cpp",
+    "//ui/strings:ui_strings",
+  ]
+  public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+}
+
+source_set("test_support") {
+  testonly = true
+  sources = [ "translate_bubble_test_utils_views.cc" ]
+  deps = [
+    ":translate",
+    "//base",
+    "//chrome/browser/ui",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/translate",
+    "//chrome/browser/ui/translate:test_support",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "partial_translate_bubble_view_unittest.cc",
+    "translate_bubble_controller_unittest.cc",
+    "translate_bubble_view_unittest.cc",
+  ]
+  deps = [
+    ":translate",
+    "//base",
+    "//chrome/app:generated_resources",
+    "//chrome/browser/ui:test_support",
+    "//chrome/browser/ui/actions:actions_headers",
+    "//chrome/browser/ui/translate",
+    "//chrome/browser/ui/translate:impl",
+    "//chrome/browser/ui/views/controls",
+    "//chrome/test:test_support",
+    "//components/strings:components_strings",
+    "//components/tabs:test_support",
+    "//components/translate/core/browser",
+    "//components/translate/core/browser:test_support",
+    "//components/translate/core/common",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//ui/actions",
+    "//ui/base",
+    "//ui/events",
+    "//ui/views",
+    "//ui/views:test_support",
+  ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [ "translate_bubble_view_browsertest.cc" ]
+  deps = [
+    ":test_support",
+    ":translate",
+    "//base",
+    "//chrome/app:generated_resources",
+    "//chrome/browser/translate",
+    "//chrome/browser/translate:test_support",
+    "//chrome/browser/ui",
+    "//chrome/browser/ui:browser_element_identifiers",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/tabs:tab_strip",
+    "//chrome/browser/ui/test:test_support",
+    "//chrome/browser/ui/translate",
+    "//chrome/browser/ui/translate:test_support",
+    "//chrome/browser/ui/views/controls",
+    "//chrome/common",
+    "//chrome/test:test_support",
+    "//components/strings:components_strings",
+    "//components/translate/core/browser",
+    "//components/translate/core/common",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//ui/base",
+    "//ui/views:test_support",
+  ]
+}
+
+source_set("interactive_ui_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [
+    "translate_bubble_view_interactive_uitest.cc",
+    "translate_page_action_interactive_uitest.cc",
+  ]
+  deps = [
+    ":translate",
+    "//base",
+    "//chrome/app:generated_resources",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/translate",
+    "//chrome/browser/translate:test_support",
+    "//chrome/browser/ui",
+    "//chrome/browser/ui:browser_actions",
+    "//chrome/browser/ui:ui_features",
+    "//chrome/browser/ui/actions:actions_headers",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/interaction",
+    "//chrome/browser/ui/views/frame",
+    "//chrome/browser/ui/views/frame:toolbar_button_provider",
+    "//chrome/browser/ui/views/page_action",
+    "//chrome/browser/ui/views/page_action:page_action_test_support",
+    "//chrome/common",
+    "//chrome/test:test_support",
+    "//chrome/test:test_support_ui",
+    "//components/translate/core/browser",
+    "//components/translate/core/common",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//ui/accessibility",
+    "//ui/base",
+    "//ui/base:test_support",
+    "//ui/base/interaction",
+    "//ui/events",
+    "//ui/views",
+    "//ui/views:test_support",
+  ]
+}

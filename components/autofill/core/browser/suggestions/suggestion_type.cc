@@ -29,6 +29,8 @@ std::string_view SuggestionTypeToStringView(SuggestionType type) {
       return "kManageAutofillAi";
     case SuggestionType::kManageAutofillAiIdentityDocs:
       return "kManageAutofillAiIdentityDocs";
+    case SuggestionType::kManageAutofillAiShopping:
+      return "kManageAutofillAiShopping";
     case SuggestionType::kManageAutofillAiTravel:
       return "kManageAutofillAiTravel";
     case SuggestionType::kManageCreditCard:
@@ -145,6 +147,8 @@ std::string_view SuggestionTypeToStringView(SuggestionType type) {
       return "kAtMemoryGenericError";
     case SuggestionType::kMaximizeCreditCardBenefitsEntry:
       return "kMaximizeCreditCardBenefitsEntry";
+    case SuggestionType::kAutofillAiOtherOrders:
+      return "kAutofillAiOtherOrders";
   }
   NOTREACHED();
 }

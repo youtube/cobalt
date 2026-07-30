@@ -43,6 +43,7 @@ import java.util.List;
 public class BottomBarButtonManagerUnitTest {
     private static final int HOME = ActionId.HOME_BUTTON;
     private static final int GLIC = ActionId.GLIC;
+    private static final int AI_MODE = ActionId.AI_MODE;
     private static final int NEW_TAB = ActionId.NEW_TAB;
     private static final int TAB_SWITCHER = ActionId.TAB_SWITCHER;
     private static final int APP_MENU = ActionId.APP_MENU;
@@ -52,7 +53,7 @@ public class BottomBarButtonManagerUnitTest {
     @Mock private PropertyModelChangeProcessor.ViewBinder<PropertyModel, View, PropertyKey> mBinder;
     @Mock private BottomBarButtonManager.Listener mListener;
     @Mock private BottomBarButtonContainer mContainerHome;
-    @Mock private BottomBarButtonContainer mContainerGlic;
+    @Mock private BottomBarButtonContainer mContainerExtra;
     @Mock private BottomBarButtonContainer mContainerNewTab;
     @Mock private BottomBarButtonContainer mContainerTabSwitcher;
     @Mock private BottomBarButtonContainer mContainerAppMenu;
@@ -302,7 +303,8 @@ public class BottomBarButtonManagerUnitTest {
             case HOME:
                 return mContainerHome;
             case GLIC:
-                return mContainerGlic;
+            case AI_MODE:
+                return mContainerExtra;
             case NEW_TAB:
                 return mContainerNewTab;
             case TAB_SWITCHER:
@@ -319,7 +321,8 @@ public class BottomBarButtonManagerUnitTest {
             case HOME:
                 return BottomBarProperties.IS_HOME_BUTTON_VISIBLE;
             case GLIC:
-                return BottomBarProperties.IS_GLIC_BUTTON_VISIBLE;
+            case AI_MODE:
+                return BottomBarProperties.IS_EXTRA_BUTTON_VISIBLE;
             case NEW_TAB:
                 return BottomBarProperties.IS_NEW_TAB_BUTTON_VISIBLE;
             case TAB_SWITCHER:

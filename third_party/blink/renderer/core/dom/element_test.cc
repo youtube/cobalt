@@ -1745,4 +1745,56 @@ TEST_F(ElementTest, TrackPasswordTrackingElementRectCSSHeuristic) {
   EXPECT_TRUE(div->GetTrackedElementSubRect(tracking_feature));
 }
 
+TEST_F(ElementTest, OverscrollBackdropPseudoElement) {
+  {
+    ScopedOverscrollGesturesForTest enabled(true);
+
+    GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+      <style>
+      #menu::backdrop { display: block; }
+      #menu::overscroll-backdrop { display: block; }
+      </style>
+      <div id="container" overscrollcontainer>
+        <div id="menu" overscrollarea></div>
+      </div>
+      )HTML");
+
+    GetDocument().UpdateStyleAndLayoutTree();
+
+    Element* menu = GetElementById("menu");
+    ASSERT_NE(menu, nullptr);
+
+    // ::overscroll-backdrop should be generated.
+    EXPECT_NE(menu->GetPseudoElement(PseudoId::kPseudoIdOverscrollBackdrop),
+              nullptr);
+
+    // ::backdrop should NOT be generated.
+    EXPECT_EQ(menu->GetPseudoElement(PseudoId::kPseudoIdBackdrop), nullptr);
+  }
+
+  {
+    ScopedOverscrollGesturesForTest disabled(false);
+
+    GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+      <style>
+      #menu::backdrop { display: block; }
+      #menu::overscroll-backdrop { display: block; }
+      </style>
+      <div id="container" overscrollcontainer>
+        <div id="menu" overscrollarea></div>
+      </div>
+      )HTML");
+
+    GetDocument().UpdateStyleAndLayoutTree();
+
+    Element* menu = GetElementById("menu");
+    ASSERT_NE(menu, nullptr);
+
+    // Neither should be generated when disabled.
+    EXPECT_EQ(menu->GetPseudoElement(PseudoId::kPseudoIdOverscrollBackdrop),
+              nullptr);
+    EXPECT_EQ(menu->GetPseudoElement(PseudoId::kPseudoIdBackdrop), nullptr);
+  }
+}
+
 }  // namespace blink

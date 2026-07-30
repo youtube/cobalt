@@ -48,8 +48,9 @@ if (enable_cast_receiver || is_cast_android || is_castos) {
   }
   declare_args() {
     # Enable WebUI Contextual Tasks Composebox.
-    enable_webui_contextual_tasks_composebox =
-        enable_webui_ntp || is_desktop_android
+    # TODO(crbug.com/527601593): Revert to only enable for desktop_android if we
+    # want to disable composebox on Android phones.
+    enable_webui_contextual_tasks_composebox = enable_webui_ntp || is_android
   }
   if (enable_webui_ntp) {
     # NTP relies on chrome.metricsPrivate, which is an extensions API.

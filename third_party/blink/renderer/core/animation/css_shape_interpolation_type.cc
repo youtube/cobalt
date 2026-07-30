@@ -534,7 +534,7 @@ class ShapeInterpolationReader {
     return LengthPoint(x, y);
   }
 
-  size_t index_ = 0;
+  wtf_size_t index_ = 0;
   const InterpolableList& value_list_;
   const CSSToLengthConversionData& conversion_data_;
   LengthPoint origin_;

@@ -41,14 +41,14 @@ namespace variations {
 namespace {
 
 // Size of the "variations" crash key (kExperimentListKey) in bytes.
-// 1024*6 bytes should be able to hold about 341 entries, given each entry is
+// 1024*7 bytes should be able to hold about 398 entries, given each entry is
 // 18 bytes long (due to being of the form "8e7abfb0-c16397b7,").
 #if BUILDFLAG(LARGE_VARIATION_KEY_SIZE)
 constexpr size_t kVariationsKeySize = 1024 * 8;
 constexpr char kVariationKeySizeHistogram[] =
     "Variations.Limits.VariationKeySize.Large";
 #else
-constexpr size_t kVariationsKeySize = 1024 * 6;
+constexpr size_t kVariationsKeySize = 1024 * 7;
 constexpr char kVariationKeySizeHistogram[] =
     "Variations.Limits.VariationKeySize.Default";
 #endif

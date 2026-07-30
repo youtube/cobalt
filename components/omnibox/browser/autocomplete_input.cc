@@ -112,7 +112,6 @@ AutocompleteInput::AutocompleteInput()
       current_page_classification_(metrics::OmniboxEventProto::INVALID_SPEC),
       type_(metrics::OmniboxInputType::EMPTY),
       prevent_inline_autocomplete_(false),
-      prefer_keyword_(false),
       allow_exact_keyword_match_(true),
       in_keyword_mode_(false),
       omit_asynchronous_matches_(false),
@@ -957,8 +956,8 @@ void AutocompleteInput::Clear() {
   scheme_.clear();
   canonicalized_url_ = GURL();
   prevent_inline_autocomplete_ = false;
-  prefer_keyword_ = false;
   allow_exact_keyword_match_ = false;
+  in_keyword_mode_ = false;
   omit_asynchronous_matches_ = false;
   focus_type_ = metrics::OmniboxFocusType::INTERACTION_DEFAULT;
   terms_prefixed_by_http_or_https_.clear();

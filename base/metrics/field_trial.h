@@ -505,13 +505,17 @@ class BASE_EXPORT FieldTrialList {
   // Fills in the supplied vector |active_groups| (which must be empty when
   // called) with a snapshot of all registered FieldTrials for which the group
   // has been chosen and externally observed (via |group()|) and which have
-  // not been disabled.
+  // not been disabled. If |include_runtime_overrides| is true, the returned
+  // groups will include the runtime FieldTrial overrides (see
+  // RuntimeFieldTrialOverrides class), and the trials that are overridden by
+  // them will be excluded from the output. Note that if setting this to true,
+  // this must be called on the main sequence.
   //
   // This does not return low anonymity field trials. Callers who need access to
   // low anonymity field trials should use
   // |FieldTrialListIncludingLowAnonymity.GetActiveFieldTrialGroups()|.
-  static void GetActiveFieldTrialGroups(
-      FieldTrial::ActiveGroups* active_groups);
+  static void GetActiveFieldTrialGroups(FieldTrial::ActiveGroups* active_groups,
+                                        bool include_runtime_overrides = false);
 
   // Returns the names of field trials that are active in the parent process.
   // If this process is not a child process with inherited field trials passed
@@ -662,6 +666,8 @@ class BASE_EXPORT FieldTrialList {
                            SerializeSharedMemoryRegionMetadata);
   friend int SerializeSharedMemoryRegionMetadata();
   FRIEND_TEST_ALL_PREFIXES(FieldTrialListTest, CheckReadOnlySharedMemoryRegion);
+  FRIEND_TEST_ALL_PREFIXES(FieldTrialListTest,
+                           GetActiveFieldTrialGroups_RuntimeOverrides);
   FRIEND_TEST_ALL_PREFIXES(TestFeatureVisitor, FeatureHasParams);
 
   // Required so that |FieldTrialListIncludingLowAnonymity| can expose APIs from
@@ -745,12 +751,17 @@ class BASE_EXPORT FieldTrialList {
       const std::vector<FieldTrial::State>& entries);
 
   // The same as |GetActiveFieldTrialGroups| but also gives access to low
-  // anonymity field trials.
+  // anonymity field trials. If |include_runtime_overrides| is true, the
+  // returned groups will include the runtime FieldTrial overrides (see
+  // RuntimeFieldTrialOverrides class), and the trials that are overridden by
+  // them will be excluded from the output. Note that if setting this to true,
+  // this must be called on the main sequence.
   // Restricted to specifically allowed friends - access via
   // |FieldTrialListIncludingLowAnonymity::GetActiveFieldTrialGroups|.
   static void GetActiveFieldTrialGroupsInternal(
       FieldTrial::ActiveGroups* active_groups,
-      bool include_low_anonymity);
+      bool include_low_anonymity,
+      bool include_runtime_overrides = false);
 
   // The same as |AddObserver| but is notified for low anonymity field trials
   // too.

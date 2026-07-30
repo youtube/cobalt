@@ -65,6 +65,8 @@ const net::BackoffEntry::Policy kBackoffPolicy = {
 constexpr char kPersonalProfileNameForTesting[] =
     "bf09f5cf-94cc-4336-9cc2-26a5e1b8c358";
 
+constexpr base::TimeDelta kForceMigrationGracePeriod = base::Days(90);
+
 using ProfileNameToGaiaIds =
     std::map<std::string, std::set<GaiaId, std::less<>>, std::less<>>;
 
@@ -905,14 +907,24 @@ void AccountProfileMapper::Assigner::MaybeMigratePrimaryManagedAccount(
     local_pref_service_->SetTime(
         prefs::kWaitingForMultiProfileForcedMigrationTimestamp,
         base::Time::Now());
-    return;
+    // If the *immediate* migration is not enabled (i.e. there's a non-zero
+    // grace period), there's nothing else to do for now. Otherwise, continue
+    // so that the force-migration may run now.
+    if (!base::FeatureList::IsEnabled(
+            kSeparateProfilesForManagedAccountsImmediateForceMigration)) {
+      return;
+    }
   }
 
   if (!base::FeatureList::IsEnabled(
-          kSeparateProfilesForManagedAccountsForceMigration) ||
-      // If the grace period is not over yet, do nothing.
-      base::Time::Now() - recorded_at <
-          kMultiProfileMigrationGracePeriod.Get()) {
+          kSeparateProfilesForManagedAccountsForceMigration)) {
+    return;
+  }
+
+  // If the grace period should be observed but is not over yet, do nothing.
+  if (!base::FeatureList::IsEnabled(
+          kSeparateProfilesForManagedAccountsImmediateForceMigration) &&
+      base::Time::Now() - recorded_at < kForceMigrationGracePeriod) {
     return;
   }
 

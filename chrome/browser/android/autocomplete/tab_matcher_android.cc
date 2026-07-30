@@ -5,6 +5,7 @@
 #include "chrome/browser/android/autocomplete/tab_matcher_android.h"
 
 #include "base/android/device_info.h"
+#include "base/android/jni_array.h"
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/android/tab_android.h"
@@ -119,7 +120,8 @@ std::vector<TabMatcher::TabWrapper> TabMatcherAndroid::GetOpenTabs(
     const AutocompleteInput* input,
     bool unused_exclude_active_tab) const {
   std::vector<TabMatcher::TabWrapper> open_tabs;
-  for (auto& open_tab : GetOpenAndroidTabs(input)) {
+  for (int64_t tab_ptr : GetOpenAndroidTabs(input)) {
+    TabAndroid* open_tab = reinterpret_cast<TabAndroid*>(tab_ptr);
     open_tabs.emplace_back(open_tab->GetTitle(), open_tab->GetURL(),
                            open_tab->GetLastShownTimestamp());
   }
@@ -127,8 +129,8 @@ std::vector<TabMatcher::TabWrapper> TabMatcherAndroid::GetOpenTabs(
   return open_tabs;
 }
 
-std::vector<raw_ptr<TabAndroid, VectorExperimental>>
-TabMatcherAndroid::GetOpenAndroidTabs(const AutocompleteInput* input) const {
+std::vector<int64_t> TabMatcherAndroid::GetOpenAndroidTabs(
+    const AutocompleteInput* input) const {
   using chrome::android::ActivityType;
   static const bool is_desktop = base::android::device_info::is_desktop();
   // Collect tab models that host tabs eligible for SwitchToTab.
@@ -167,8 +169,9 @@ TabMatcherAndroid::GetOpenAndroidTabs(const AutocompleteInput* input) const {
   }
 
   // Short circuit in the event we have no tab models hosting eligible tabs.
-  if (tab_models.size() == 0)
-    return std::vector<raw_ptr<TabAndroid, VectorExperimental>>();
+  if (tab_models.size() == 0) {
+    return std::vector<int64_t>();
+  }
 
   // Create and populate an array of Java TabModels.
   // The most expensive series of calls that reach to Java for every single tab
@@ -184,13 +187,8 @@ TabMatcherAndroid::GetOpenAndroidTabs(const AutocompleteInput* input) const {
   }
 
   // Retrieve all Tabs associated with previously built TabModels array.
-  base::android::ScopedJavaLocalRef<jobjectArray> j_tabs =
-      Java_ChromeAutocompleteProviderClient_getAllEligibleTabs(
-          env, j_tab_model_array, input->current_page_classification());
-  if (j_tabs.is_null())
-    return std::vector<raw_ptr<TabAndroid, VectorExperimental>>();
-
-  return TabAndroid::GetAllNativeTabs(env, j_tabs);
+  return Java_ChromeAutocompleteProviderClient_getAllEligibleTabs(
+      env, j_tab_model_array, input->current_page_classification());
 }
 
 TabMatcher::GURLToTabInfoMap TabMatcherAndroid::GetAllHiddenAndNonCCTTabInfos(
@@ -198,7 +196,8 @@ TabMatcher::GURLToTabInfoMap TabMatcherAndroid::GetAllHiddenAndNonCCTTabInfos(
   using chrome::android::ActivityType;
   GURLToTabInfoMap tab_infos;
 
-  for (TabAndroid* tab : GetOpenAndroidTabs(input)) {
+  for (int64_t ptr : GetOpenAndroidTabs(input)) {
+    TabAndroid* tab = reinterpret_cast<TabAndroid*>(ptr);
     // Browser did not load the tab yet after Chrome started. To avoid
     // reloading WebContents, we just compare URLs.
     AutocompleteClientTabAndroidUserData::CreateForTabAndroid(tab);

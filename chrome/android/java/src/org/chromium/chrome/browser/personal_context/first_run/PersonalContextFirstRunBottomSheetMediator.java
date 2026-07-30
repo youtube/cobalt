@@ -31,7 +31,7 @@ import org.chromium.components.browser_ui.settings.SettingsCustomTabLauncher;
                 @Override
                 public void onSheetClosed(@StateChangeReason int reason) {
                     if (reason != StateChangeReason.INTERACTION_COMPLETE) {
-                        mDelegate.onInfoDismissed();
+                        mDelegate.onNoticeDismissed();
                     }
                     mBottomSheetController.removeObserver(this);
                 }
@@ -70,7 +70,7 @@ import org.chromium.components.browser_ui.settings.SettingsCustomTabLauncher;
 
     /** Handles the acknowledge action. */
     void onAcknowledgeClicked() {
-        mDelegate.onInfoAcknowledged();
+        mDelegate.onNoticeAcknowledged();
         hide(StateChangeReason.INTERACTION_COMPLETE);
     }
 

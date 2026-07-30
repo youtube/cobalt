@@ -32,10 +32,6 @@ std::optional<cx_diag::RoutineFinishedDetailUnion> ConvertRoutineDetailUnionPtr(
     case crosapi::TelemetryDiagnosticRoutineDetail::Tag::kMemory:
       detail.memory = ConvertPtr(std::move(input->get_memory()));
       return detail;
-    case crosapi::TelemetryDiagnosticRoutineDetail::Tag::kVolumeButton:
-      // This member type in the union is kept only for backward compatibility.
-      // There is no such a field in the web IDL definition.
-      return std::nullopt;
     case crosapi::TelemetryDiagnosticRoutineDetail::Tag::kFan:
       detail.fan = ConvertPtr(std::move(input->get_fan()));
       return detail;
@@ -177,16 +173,6 @@ cx_diag::LegacyMemoryRoutineFinishedInfo UncheckedConvertPtr(
     result.result->passed_items = std::move(detail.result->passed_items);
     result.result->failed_items = std::move(detail.result->failed_items);
   }
-  return result;
-}
-
-cx_diag::LegacyVolumeButtonRoutineFinishedInfo UncheckedConvertPtr(
-    crosapi::TelemetryDiagnosticVolumeButtonRoutineDetailPtr input,
-    base::Uuid uuid,
-    bool has_passed) {
-  cx_diag::LegacyVolumeButtonRoutineFinishedInfo result;
-  result.uuid = uuid.AsLowercaseString();
-  result.has_passed = has_passed;
   return result;
 }
 

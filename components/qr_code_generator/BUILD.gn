@@ -71,6 +71,7 @@ source_set("unit_tests") {
     ":qr_code_generator",
     "//base",
     "//base/test:test_support",
+    "//skia:skia_core_public_headers",
     "//testing/gtest",
   ]
 }

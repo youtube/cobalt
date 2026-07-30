@@ -834,17 +834,6 @@ useful for Chirp alerts (go/crca-alerts). -->
   </summary>
 </histogram>
 
-<histogram name="SafeBrowsing.CookieAgeHours2" units="hours"
-    expires_after="2026-06-26">
-  <owner>drubery@chromium.org</owner>
-  <owner>chrome-counter-abuse-alerts@google.com</owner>
-  <summary>
-    Records the age of the Safe Browsing cookie at profile startup or when a new
-    profile is created, if there is a cookie present. Recorded for regular or
-    incognito profiles.
-  </summary>
-</histogram>
-
 <histogram
     name="SafeBrowsing.Daily.BypassCountLast28Days.{UserState}.AllEvents"
     units="events" expires_after="2027-02-13">
@@ -1760,16 +1749,6 @@ useful for Chirp alerts (go/crca-alerts). -->
     introduced because SOCIAL_ENGINEERING is switched from 2 to 5.
   </summary>
   <token key="Protocol" variants="GmsSafeBrowsingApiProtocol"/>
-</histogram>
-
-<histogram name="SafeBrowsing.HasCookieAtStartup2" enum="Boolean"
-    expires_after="2026-06-26">
-  <owner>drubery@chromium.org</owner>
-  <owner>chrome-counter-abuse-alerts@google.com</owner>
-  <summary>
-    Records whether a Safe Browsing cookie exists at profile startup or when a
-    new profile is created. Recorded for regular or incognito profiles.
-  </summary>
 </histogram>
 
 <histogram name="SafeBrowsing.HPRT.AllowlistSizeTooSmall"
@@ -3165,25 +3144,6 @@ useful for Chirp alerts (go/crca-alerts). -->
     {UserCategory}
   </summary>
   <token key="UserCategory" variants="RealTimeUrlCheckUserCategory"/>
-</histogram>
-
-<histogram name="SafeBrowsing.RT.Request.HadCookie.{RequestType}{UserType}"
-    enum="BooleanPresent" expires_after="2026-06-26">
-  <owner>drubery@chromium.org</owner>
-  <owner>chrome-counter-abuse-alerts@google.com</owner>
-  <summary>
-    Logs whether the Safe Browsing real time request had a cookie, recorded for
-    {RequestType} upon completion of the URL request. Logged for {UserType}.
-  </summary>
-  <token key="RequestType">
-    <variant name="FirstRequest"
-        summary="the first request after service startup"/>
-    <variant name="SubsequentRequest" summary="any subsequent request"/>
-  </token>
-  <token key="UserType">
-    <variant name="" summary="any user"/>
-    <variant name=".SignedOutEsbUser" summary="only signed-out ESB users"/>
-  </token>
 </histogram>
 
 <histogram name="SafeBrowsing.RT.Request.ReferrerChainLength{UserCategory}"

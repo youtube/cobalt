@@ -11,16 +11,20 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
+#include "base/strings/stringprintf.h"
 #include "base/test/gtest_util.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
+#include "components/private_verification_tokens/common/private_verification_tokens_token.h"
 #include "sql/database.h"
 #include "sql/meta_table.h"
 #include "sql/statement.h"
 #include "sql/test/test_helpers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
+#include "url/origin.h"
 
 namespace private_verification_tokens {
 
@@ -42,9 +46,9 @@ int VersionFromMetaTable(sql::Database& db) {
 }
 
 // Returns a vector of tokens from a given map. Keys of the map argument are
-// etld_plus_one.
+// issuer origins.
 std::vector<PrivateVerificationTokensToken> CreateTokens(
-    std::map<std::string, std::vector<SerializedToken>> token_map,
+    std::map<url::Origin, std::vector<SerializedToken>> token_map,
     uint32_t key_id,
     const base::Time expiration,
     uint32_t version) {
@@ -86,18 +90,18 @@ class PrivateVerificationTokensDatabaseTest : public testing::Test {
 
   std::vector<PrivateVerificationTokensToken> GetAllTokens(sql::Database& db) {
     sql::Statement statement(db.GetUniqueStatement(
-        "SELECT etld_plus_one, token, key_id, "
+        "SELECT issuer, token, key_id, "
         "expiration, version, creation_time FROM tokens"));
     std::vector<PrivateVerificationTokensToken> tokens;
     while (statement.Step()) {
-      std::string etld_plus_one = statement.ColumnString(0);
+      std::string issuer_str = statement.ColumnString(0);
       SerializedToken token = statement.ColumnBlobAsVector(1);
       uint32_t key_id = statement.ColumnInt64(2);
       int64_t expiration = statement.ColumnInt64(3);
       uint32_t version = statement.ColumnInt64(4);
       int64_t creation_time = statement.ColumnInt64(5);
       tokens.emplace_back(
-          std::move(etld_plus_one), std::move(token), key_id,
+          url::Origin::Create(GURL(issuer_str)), std::move(token), key_id,
           base::Time::UnixEpoch() + base::Seconds(expiration), version,
           base::Time::UnixEpoch() + base::Seconds(creation_time));
     }
@@ -124,6 +128,14 @@ class PrivateVerificationTokensDatabaseTest : public testing::Test {
   base::ScopedTempDir temp_dir_;
   base::FilePath db_path_;
   std::unique_ptr<PrivateVerificationTokensDatabase> pvt_database_;
+
+  const url::Origin kOriginA = url::Origin::Create(GURL("https://a.com"));
+  const url::Origin kOriginB = url::Origin::Create(GURL("https://b.com"));
+  const url::Origin kOriginC = url::Origin::Create(GURL("https://c.com"));
+  const url::Origin kOriginD = url::Origin::Create(GURL("https://d.com"));
+  const url::Origin kOriginE = url::Origin::Create(GURL("https://e.com"));
+  const url::Origin kOriginBTri = url::Origin::Create(GURL("https://b.tri"));
+  const url::Origin kOriginCEee = url::Origin::Create(GURL("https://c.eee"));
 };
 
 TEST_F(PrivateVerificationTokensDatabaseTest, Create_ValidPath_Success) {
@@ -213,7 +225,7 @@ TEST_F(PrivateVerificationTokensDatabaseTest,
 
   // meta, tokens and keys tables
   EXPECT_EQ(3u, sql::test::CountSQLTables(&database));
-  EXPECT_EQ(2, VersionFromMetaTable(database));
+  EXPECT_EQ(3, VersionFromMetaTable(database));
 
   EXPECT_EQ(8u, sql::test::CountTableColumns(&database, kTokenTableName));
   VerifyTableRowCount(database, kTokenTableName, 0u);
@@ -224,13 +236,12 @@ TEST_F(PrivateVerificationTokensDatabaseTest, StoreTokens_SingleToken_Success) {
   CreateDatabase(db_path_);
   EXPECT_FALSE(base::PathExists(db_path_));
 
-  const std::string etld_plus_one = "a.com";
   uint32_t key_id = 1;
   int64_t expiration = 7;
   uint32_t version = 1;
   std::vector<PrivateVerificationTokensToken> tokens = {
       PrivateVerificationTokensToken(
-          etld_plus_one, {1, 2, 3}, key_id,
+          kOriginA, {1, 2, 3}, key_id,
           base::Time::UnixEpoch() + base::Seconds(expiration), version),
   };
   EXPECT_TRUE(pvt_database_->StoreTokens(tokens));
@@ -243,7 +254,7 @@ TEST_F(PrivateVerificationTokensDatabaseTest, StoreTokens_SingleToken_Success) {
 
   // meta, tokens and keys tables
   EXPECT_EQ(3u, sql::test::CountSQLTables(&database));
-  EXPECT_EQ(2, VersionFromMetaTable(database));
+  EXPECT_EQ(3, VersionFromMetaTable(database));
   EXPECT_EQ(8u, sql::test::CountTableColumns(&database, kTokenTableName));
   VerifyTableRowCount(database, kTokenTableName, 1);
 }
@@ -255,11 +266,11 @@ TEST_F(PrivateVerificationTokensDatabaseTest,
   CreateDatabase(db_path_);
   EXPECT_FALSE(base::PathExists(db_path_));
 
-  std::map<std::string, std::vector<SerializedToken>> all_tokens = {
-      {"a.com", {{1, 2, 3}, {11, 12, 13}, {14, 15, 16}}},
-      {"b.com", {{4, 5, 6}}},
-      {"c.com", {{7, 8, 9}, {47, 48, 49}}},
-      {"d.com", {{10, 11, 12}, {20, 12, 13}, {30, 15, 16}, {40, 41, 42}}},
+  std::map<url::Origin, std::vector<SerializedToken>> all_tokens = {
+      {kOriginA, {{1, 2, 3}, {11, 12, 13}, {14, 15, 16}}},
+      {kOriginB, {{4, 5, 6}}},
+      {kOriginC, {{7, 8, 9}, {47, 48, 49}}},
+      {kOriginD, {{10, 11, 12}, {20, 12, 13}, {30, 15, 16}, {40, 41, 42}}},
   };
   auto tokens_to_store =
       CreateTokens(all_tokens, /* key_id = */ 1,
@@ -286,19 +297,19 @@ TEST_F(PrivateVerificationTokensDatabaseTest, GetToken_ExistingToken_Success) {
   uint32_t key_id = 1;
   const base::Time expiration = base::Time::UnixEpoch() + base::Seconds(7);
   uint32_t version = 1;
-  std::map<std::string, std::vector<SerializedToken>> all_tokens = {
-      {"a.com", {{1, 2, 3}, {11, 12, 13}, {14, 15, 16}}},
-      {"b.com", {{4, 5, 6}}},
-      {"c.com", {{7, 8, 9}, {47, 48, 49}}},
-      {"d.com", {{10, 11, 12}, {20, 12, 13}, {30, 15, 16}, {40, 41, 42}}},
+  std::map<url::Origin, std::vector<SerializedToken>> all_tokens = {
+      {kOriginA, {{1, 2, 3}, {11, 12, 13}, {14, 15, 16}}},
+      {kOriginB, {{4, 5, 6}}},
+      {kOriginC, {{7, 8, 9}, {47, 48, 49}}},
+      {kOriginD, {{10, 11, 12}, {20, 12, 13}, {30, 15, 16}, {40, 41, 42}}},
   };
   auto tokens_to_store = CreateTokens(all_tokens, key_id, expiration, version);
   EXPECT_TRUE(pvt_database_->StoreTokens(tokens_to_store));
-  auto result = pvt_database_->GetToken("a.com");
+  auto result = pvt_database_->GetToken(kOriginA);
   ASSERT_TRUE(result.has_value());
   SerializedToken serialized_token = result->token.token();
 
-  EXPECT_THAT(all_tokens.at("a.com"), testing::Contains(serialized_token));
+  EXPECT_THAT(all_tokens.at(kOriginA), testing::Contains(serialized_token));
 }
 
 TEST_F(PrivateVerificationTokensDatabaseTest, GetToken_NoTokens_Failure) {
@@ -308,12 +319,12 @@ TEST_F(PrivateVerificationTokensDatabaseTest, GetToken_NoTokens_Failure) {
 
   const base::Time expiration = base::Time::UnixEpoch() + base::Seconds(7);
   std::vector<PrivateVerificationTokensToken> tokens = {
-      PrivateVerificationTokensToken("a.com", {1, 2, 3},
+      PrivateVerificationTokensToken(kOriginA, {1, 2, 3},
                                      /* key_id = */ 1, expiration,
                                      /* version = */ 1)};
 
   EXPECT_TRUE(pvt_database_->StoreTokens(tokens));
-  auto result = pvt_database_->GetToken("e.com");
+  auto result = pvt_database_->GetToken(kOriginE);
   EXPECT_FALSE(result.has_value());
   pvt_database_.reset();
 
@@ -334,14 +345,14 @@ TEST_F(PrivateVerificationTokensDatabaseTest, SetRedeemed_ValidId_Success) {
   uint32_t key_id = 678;
   const base::Time expiration = base::Time::UnixEpoch() + base::Seconds(7);
   uint32_t version = 1;
-  std::map<std::string, std::vector<SerializedToken>> all_tokens = {
-      {"a.com", {{1, 2, 3}, {11, 12, 13}, {14, 15, 16}}},
-      {"b.com", {{4, 5, 6}}},
+  std::map<url::Origin, std::vector<SerializedToken>> all_tokens = {
+      {kOriginA, {{1, 2, 3}, {11, 12, 13}, {14, 15, 16}}},
+      {kOriginB, {{4, 5, 6}}},
   };
   EXPECT_TRUE(pvt_database_->StoreTokens(
       CreateTokens(all_tokens, key_id, expiration, version)));
 
-  auto a_token = pvt_database_->GetToken("a.com");
+  auto a_token = pvt_database_->GetToken(kOriginA);
   ASSERT_TRUE(a_token.has_value());
   EXPECT_TRUE(pvt_database_->SetRedeemed(a_token->id));
   pvt_database_.reset();
@@ -359,12 +370,12 @@ TEST_F(PrivateVerificationTokensDatabaseTest, SetRedeemed_NonExistentId_NoOp) {
 
   const base::Time expiration = base::Time::UnixEpoch() + base::Seconds(7);
   std::vector<PrivateVerificationTokensToken> tokens = {
-      PrivateVerificationTokensToken("a.com", {1, 2, 3},
+      PrivateVerificationTokensToken(kOriginA, {1, 2, 3},
                                      /* key_id = */ 678, expiration,
                                      /* version = */ 1)};
   EXPECT_TRUE(pvt_database_->StoreTokens(tokens));
 
-  auto token1 = pvt_database_->GetToken("a.com");
+  auto token1 = pvt_database_->GetToken(kOriginA);
   ASSERT_TRUE(token1.has_value());
   ASSERT_LT(token1->id, std::numeric_limits<int64_t>::max());
   // token with id (token1->id + 1) does not exist.
@@ -383,30 +394,30 @@ TEST_F(PrivateVerificationTokensDatabaseTest,
   uint32_t key_id = 678;
   const base::Time expiration = base::Time::UnixEpoch() + base::Seconds(7);
   uint32_t version = 1;
-  std::map<std::string, std::vector<SerializedToken>> all_tokens = {
-      {"a.com", {{1, 2, 3}, {11, 12, 13}, {14, 15, 16}}},
-      {"b.com", {{4, 5, 6}}},
-      {"c.com", {{7, 8, 9}, {47, 48, 49}}},
-      {"d.com", {{10, 11, 12}, {20, 12, 13}, {30, 15, 16}, {40, 41, 42}}},
+  std::map<url::Origin, std::vector<SerializedToken>> all_tokens = {
+      {kOriginA, {{1, 2, 3}, {11, 12, 13}, {14, 15, 16}}},
+      {kOriginB, {{4, 5, 6}}},
+      {kOriginC, {{7, 8, 9}, {47, 48, 49}}},
+      {kOriginD, {{10, 11, 12}, {20, 12, 13}, {30, 15, 16}, {40, 41, 42}}},
   };
   EXPECT_TRUE(pvt_database_->StoreTokens(
       CreateTokens(all_tokens, key_id, expiration, version)));
 
-  auto token1 = pvt_database_->GetToken("a.com");
+  auto token1 = pvt_database_->GetToken(kOriginA);
   ASSERT_TRUE(token1.has_value());
   EXPECT_TRUE(pvt_database_->SetRedeemed(token1->id));
 
-  auto token2 = pvt_database_->GetToken("a.com");
+  auto token2 = pvt_database_->GetToken(kOriginA);
   ASSERT_TRUE(token2.has_value());
   EXPECT_TRUE(pvt_database_->SetRedeemed(token2->id));
 
-  auto token3 = pvt_database_->GetToken("b.com");
+  auto token3 = pvt_database_->GetToken(kOriginB);
   ASSERT_TRUE(token3.has_value());
   EXPECT_TRUE(pvt_database_->SetRedeemed(token3->id));
 
   EXPECT_TRUE(pvt_database_->DeleteRedeemedTokens());
   // no tokens for b.com left
-  EXPECT_FALSE(pvt_database_->GetToken("b.com").has_value());
+  EXPECT_FALSE(pvt_database_->GetToken(kOriginB).has_value());
   pvt_database_.reset();
 
   sql::Database database(sql::test::kTestTag);
@@ -427,9 +438,9 @@ TEST_F(PrivateVerificationTokensDatabaseTest,
   std::vector<uint8_t> key_b = {4, 5, 6};
   const auto exp = base::Time::UnixEpoch() + base::Seconds(5);
   std::vector<PrivateVerificationTokensPublicKey> keys{
-      PrivateVerificationTokensPublicKey("a.com", key_a, /*key_id=*/3,
+      PrivateVerificationTokensPublicKey(kOriginA, key_a, /*key_id=*/3,
                                          /*expiration=*/exp, /*version=*/1),
-      PrivateVerificationTokensPublicKey("b.tri", key_b, /*key_id=*/4,
+      PrivateVerificationTokensPublicKey(kOriginBTri, key_b, /*key_id=*/4,
                                          /*expiration=*/exp, /*version=*/2),
   };
   EXPECT_TRUE(pvt_database_->StoreKeys(keys));
@@ -455,7 +466,7 @@ TEST_F(PrivateVerificationTokensDatabaseTest,
   std::vector<uint8_t> key_a = {1, 2, 3};
   const auto exp = base::Time::UnixEpoch() + base::Seconds(5);
   std::vector<PrivateVerificationTokensPublicKey> keys{
-      PrivateVerificationTokensPublicKey("a.com", key_a, /*key_id=*/3,
+      PrivateVerificationTokensPublicKey(kOriginA, key_a, /*key_id=*/3,
                                          /*expiration=*/exp, /*version=*/1),
   };
   EXPECT_TRUE(pvt_database_->StoreKeys(keys));
@@ -463,7 +474,7 @@ TEST_F(PrivateVerificationTokensDatabaseTest,
   std::vector<uint8_t> key_a_new = {7, 8, 9};
   const auto exp_new = base::Time::UnixEpoch() + base::Seconds(10);
   std::vector<PrivateVerificationTokensPublicKey> keys_new{
-      PrivateVerificationTokensPublicKey("a.com", key_a_new, /*key_id=*/3,
+      PrivateVerificationTokensPublicKey(kOriginA, key_a_new, /*key_id=*/3,
                                          /*expiration=*/exp_new, /*version=*/2),
   };
   EXPECT_TRUE(pvt_database_->StoreKeys(keys_new));
@@ -494,34 +505,34 @@ TEST_F(PrivateVerificationTokensDatabaseTest,
   // b.tri has 3 keys
   std::vector<PrivateVerificationTokensPublicKey> keys{
       PrivateVerificationTokensPublicKey(
-          "a.com", key_a, /*key_id=*/3,
+          kOriginA, key_a, /*key_id=*/3,
           /*expiration=*/
           base::Time::UnixEpoch() + base::Seconds(5),
           /*version=*/1),
       PrivateVerificationTokensPublicKey(
-          "b.tri", key_b_1, /*key_id=*/4,
+          kOriginBTri, key_b_1, /*key_id=*/4,
           /*expiration=*/
           base::Time::UnixEpoch() + base::Seconds(6),
           /*version=*/2),
       PrivateVerificationTokensPublicKey(
-          "c.eee", key_c, /*key_id=*/4,
+          kOriginCEee, key_c, /*key_id=*/4,
           /*expiration=*/
           base::Time::UnixEpoch() + base::Seconds(6),
           /*version=*/2),
       PrivateVerificationTokensPublicKey(
-          "b.tri", key_b_2, /*key_id=*/5,
+          kOriginBTri, key_b_2, /*key_id=*/5,
           /*expiration=*/
           base::Time::UnixEpoch() + base::Seconds(6),
           /*version=*/2),
       PrivateVerificationTokensPublicKey(
-          "b.tri", key_b_3, /*key_id=*/6,
+          kOriginBTri, key_b_3, /*key_id=*/6,
           /*expiration=*/
           base::Time::UnixEpoch() + base::Seconds(6),
           /*version=*/2),
   };
   EXPECT_TRUE(pvt_database_->StoreKeys(keys));
   // this should remove all three keys for b.tri
-  EXPECT_TRUE(pvt_database_->RemoveKeysFor("b.tri"));
+  EXPECT_TRUE(pvt_database_->RemoveKeysFor(kOriginBTri));
   std::vector<PrivateVerificationTokensPublicKey> got_keys =
       pvt_database_->GetKeys();
   EXPECT_THAT(got_keys, testing::UnorderedElementsAre(keys[0], keys[2]));
@@ -544,23 +555,23 @@ TEST_F(PrivateVerificationTokensDatabaseTest, RemoveKey_ExistingId_KeyRemoved) {
   std::vector<uint8_t> key_c = {7, 8, 9};
   std::vector<PrivateVerificationTokensPublicKey> keys{
       PrivateVerificationTokensPublicKey(
-          "a.com", key_a, /*key_id=*/3,
+          kOriginA, key_a, /*key_id=*/3,
           /*expiration=*/
           base::Time::UnixEpoch() + base::Seconds(5),
           /*version=*/1),
       PrivateVerificationTokensPublicKey(
-          "b.tri", key_b, /*key_id=*/4,
+          kOriginBTri, key_b, /*key_id=*/4,
           /*expiration=*/
           base::Time::UnixEpoch() + base::Seconds(6),
           /*version=*/2),
       PrivateVerificationTokensPublicKey(
-          "c.eee", key_c, /*key_id=*/5,
+          kOriginCEee, key_c, /*key_id=*/5,
           /*expiration=*/
           base::Time::UnixEpoch() + base::Seconds(6),
           /*version=*/2),
   };
   EXPECT_TRUE(pvt_database_->StoreKeys(keys));
-  EXPECT_TRUE(pvt_database_->RemoveKey("b.tri", 4));
+  EXPECT_TRUE(pvt_database_->RemoveKey(kOriginBTri, 4));
   std::vector<PrivateVerificationTokensPublicKey> got_keys =
       pvt_database_->GetKeys();
   EXPECT_THAT(got_keys, testing::UnorderedElementsAre(keys[0], keys[2]));
@@ -579,12 +590,12 @@ TEST_F(PrivateVerificationTokensDatabaseTest, RemoveKey_NonExistentId_NoOp) {
   std::vector<uint8_t> key_a = {1, 2, 3};
   std::vector<PrivateVerificationTokensPublicKey> keys{
       PrivateVerificationTokensPublicKey(
-          "a.com", key_a, /*key_id=*/3,
+          kOriginA, key_a, /*key_id=*/3,
           base::Time::UnixEpoch() + base::Seconds(5), 1),
   };
   EXPECT_TRUE(pvt_database_->StoreKeys(keys));
 
-  EXPECT_TRUE(pvt_database_->RemoveKey("a.com", 4));
+  EXPECT_TRUE(pvt_database_->RemoveKey(kOriginA, 4));
 
   std::vector<PrivateVerificationTokensPublicKey> got_keys =
       pvt_database_->GetKeys();
@@ -621,7 +632,7 @@ TEST_F(PrivateVerificationTokensDatabaseTest,
   std::vector<uint8_t> key_a = {1, 2, 3};
   const auto exp = base::Time::UnixEpoch() + base::Seconds(5);
   std::vector<PrivateVerificationTokensPublicKey> keys{
-      PrivateVerificationTokensPublicKey("a.com", key_a, /*key_id=*/3,
+      PrivateVerificationTokensPublicKey(kOriginA, key_a, /*key_id=*/3,
                                          /*expiration=*/exp, /*version=*/1),
   };
 
@@ -689,7 +700,7 @@ TEST_F(PrivateVerificationTokensDatabaseTest,
     sql::Database db(sql::test::kTestTag);
     ASSERT_TRUE(db.Open(db_path_));
     sql::MetaTable meta_table;
-    ASSERT_TRUE(meta_table.Init(&db, 3, 3));
+    ASSERT_TRUE(meta_table.Init(&db, 4, 4));
   }
 
   CreateDatabase(db_path_);
@@ -697,7 +708,7 @@ TEST_F(PrivateVerificationTokensDatabaseTest,
   std::vector<uint8_t> key_a = {1, 2, 3};
   const auto exp = base::Time::UnixEpoch() + base::Seconds(5);
   std::vector<PrivateVerificationTokensPublicKey> keys{
-      PrivateVerificationTokensPublicKey("a.com", key_a, 3, exp, 1),
+      PrivateVerificationTokensPublicKey(kOriginA, key_a, 3, exp, 1),
   };
   EXPECT_TRUE(pvt_database_->StoreKeys(keys));
   pvt_database_.reset();
@@ -716,32 +727,32 @@ TEST_F(PrivateVerificationTokensDatabaseTest,
   const base::Time expiration = base::Time::UnixEpoch() + base::Seconds(5);
   const uint32_t version = 1;
 
-  std::map<std::string, std::vector<SerializedToken>> all_tokens = {
-      {"a.com", {{1, 2, 3}, {11, 12, 13}, {14, 15, 16}}},
-      {"b.com", {{4, 5, 6}}},
-      {"c.com", {{7, 8, 9}, {47, 48, 49}}},
-      {"d.com", {{10, 11, 12}, {20, 12, 13}, {30, 15, 16}, {40, 41, 42}}},
+  std::map<url::Origin, std::vector<SerializedToken>> all_tokens = {
+      {kOriginA, {{1, 2, 3}, {11, 12, 13}, {14, 15, 16}}},
+      {kOriginB, {{4, 5, 6}}},
+      {kOriginC, {{7, 8, 9}, {47, 48, 49}}},
+      {kOriginD, {{10, 11, 12}, {20, 12, 13}, {30, 15, 16}, {40, 41, 42}}},
   };
   EXPECT_TRUE(pvt_database_->StoreTokens(
       CreateTokens(all_tokens, key_id, expiration, version)));
-  std::map<std::string, TokenWithId> tokens =
+  std::map<url::Origin, TokenWithId> tokens =
       pvt_database_->GetTokensFromEach();
   EXPECT_EQ(tokens.size(), 4u);
-  EXPECT_THAT(all_tokens.at("a.com"),
-              testing::Contains(tokens.at("a.com").token.token()));
-  EXPECT_THAT(all_tokens.at("b.com"),
-              testing::Contains(tokens.at("b.com").token.token()));
-  EXPECT_THAT(all_tokens.at("c.com"),
-              testing::Contains(tokens.at("c.com").token.token()));
-  EXPECT_THAT(all_tokens.at("d.com"),
-              testing::Contains(tokens.at("d.com").token.token()));
+  EXPECT_THAT(all_tokens.at(kOriginA),
+              testing::Contains(tokens.at(kOriginA).token.token()));
+  EXPECT_THAT(all_tokens.at(kOriginB),
+              testing::Contains(tokens.at(kOriginB).token.token()));
+  EXPECT_THAT(all_tokens.at(kOriginC),
+              testing::Contains(tokens.at(kOriginC).token.token()));
+  EXPECT_THAT(all_tokens.at(kOriginD),
+              testing::Contains(tokens.at(kOriginD).token.token()));
 }
 
 TEST_F(PrivateVerificationTokensDatabaseTest,
        GetTokensFromEach_NoTokens_Success) {
   CreateDatabase(db_path_);
   // This call creates the DB file.
-  std::map<std::string, TokenWithId> tokens =
+  std::map<url::Origin, TokenWithId> tokens =
       pvt_database_->GetTokensFromEach();
   pvt_database_.reset();
   ASSERT_TRUE(base::PathExists(db_path_));
@@ -758,19 +769,44 @@ TEST_F(PrivateVerificationTokensDatabaseTest, DeleteTokens_Neither) {
   uint32_t key_id = 678;
   const base::Time expiration = base::Time::UnixEpoch() + base::Seconds(7);
   uint32_t version = 1;
-  std::map<std::string, std::vector<SerializedToken>> all_tokens = {
-      {"a.com", {{1, 2, 3}, {11, 12, 13}, {14, 15, 16}}},
-      {"b.com", {{4, 5, 6}}},
+  std::map<url::Origin, std::vector<SerializedToken>> all_tokens = {
+      {kOriginA, {{1, 2, 3}, {11, 12, 13}, {14, 15, 16}}},
+      {kOriginB, {{4, 5, 6}}},
   };
   EXPECT_TRUE(pvt_database_->StoreTokens(
       CreateTokens(all_tokens, key_id, expiration, version)));
 
-  EXPECT_TRUE(pvt_database_->DeleteTokens(std::nullopt, std::nullopt));
+  EXPECT_TRUE(pvt_database_->DeleteTokens(base::Time(), base::Time::Max(),
+                                          std::nullopt));
   pvt_database_.reset();
 
   sql::Database database(sql::test::kTestTag);
   EXPECT_TRUE(database.Open(db_path_));
   VerifyTableRowCount(database, kTokenTableName, 0);
+  database.Close();
+}
+
+TEST_F(PrivateVerificationTokensDatabaseTest, DeleteTokens_EmptyOriginVector) {
+  CreateDatabase(db_path_);
+
+  uint32_t key_id = 678;
+  const base::Time expiration = base::Time::UnixEpoch() + base::Seconds(7);
+  uint32_t version = 1;
+  std::map<url::Origin, std::vector<SerializedToken>> all_tokens = {
+      {kOriginA, {{1, 2, 3}, {11, 12, 13}, {14, 15, 16}}},
+      {kOriginB, {{4, 5, 6}}},
+  };
+  EXPECT_TRUE(pvt_database_->StoreTokens(
+      CreateTokens(all_tokens, key_id, expiration, version)));
+
+  // Passing an empty vector should delete nothing.
+  EXPECT_TRUE(pvt_database_->DeleteTokens(base::Time(), base::Time::Max(),
+                                          std::vector<url::Origin>{}));
+  pvt_database_.reset();
+
+  sql::Database database(sql::test::kTestTag);
+  EXPECT_TRUE(database.Open(db_path_));
+  VerifyTableRowCount(database, kTokenTableName, 4);
   database.Close();
 }
 
@@ -786,13 +822,13 @@ TEST_F(PrivateVerificationTokensDatabaseTest, DeleteTokens_TimeOnly) {
   base::Time t3 = base::Time::UnixEpoch() + base::Seconds(30);
 
   std::vector<PrivateVerificationTokensToken> tokens = {
-      PrivateVerificationTokensToken("a.com", {1, 2, 3}, key_id, expiration,
+      PrivateVerificationTokensToken(kOriginA, {1, 2, 3}, key_id, expiration,
                                      version, t1),
-      PrivateVerificationTokensToken("b.com", {4, 5, 6}, key_id, expiration,
+      PrivateVerificationTokensToken(kOriginB, {4, 5, 6}, key_id, expiration,
                                      version, t2),
-      PrivateVerificationTokensToken("c.com", {7, 8, 9}, key_id, expiration,
+      PrivateVerificationTokensToken(kOriginC, {7, 8, 9}, key_id, expiration,
                                      version, t3),
-      PrivateVerificationTokensToken("a.com", {10, 11, 12}, key_id, expiration,
+      PrivateVerificationTokensToken(kOriginA, {10, 11, 12}, key_id, expiration,
                                      version, t2),
   };
   EXPECT_TRUE(pvt_database_->StoreTokens(tokens));
@@ -800,7 +836,7 @@ TEST_F(PrivateVerificationTokensDatabaseTest, DeleteTokens_TimeOnly) {
   // Delete tokens created on/after t2.
   // This should delete tokens[1] ("b.com" @ t2), tokens[2] ("c.com" @ t3) and
   // tokens[3] ("a.com" @ t2).
-  EXPECT_TRUE(pvt_database_->DeleteTokens(t2, std::nullopt));
+  EXPECT_TRUE(pvt_database_->DeleteTokens(t2, base::Time::Max(), std::nullopt));
 
   pvt_database_.reset();
   {
@@ -825,18 +861,19 @@ TEST_F(PrivateVerificationTokensDatabaseTest, DeleteTokens_OriginOnly) {
   base::Time t3 = base::Time::UnixEpoch() + base::Seconds(30);
 
   std::vector<PrivateVerificationTokensToken> tokens = {
-      PrivateVerificationTokensToken("a.com", {1, 2, 3}, key_id, expiration,
+      PrivateVerificationTokensToken(kOriginA, {1, 2, 3}, key_id, expiration,
                                      version, t1),
-      PrivateVerificationTokensToken("b.com", {4, 5, 6}, key_id, expiration,
+      PrivateVerificationTokensToken(kOriginB, {4, 5, 6}, key_id, expiration,
                                      version, t2),
-      PrivateVerificationTokensToken("c.com", {7, 8, 9}, key_id, expiration,
+      PrivateVerificationTokensToken(kOriginC, {7, 8, 9}, key_id, expiration,
                                      version, t3),
-      PrivateVerificationTokensToken("a.com", {10, 11, 12}, key_id, expiration,
+      PrivateVerificationTokensToken(kOriginA, {10, 11, 12}, key_id, expiration,
                                      version, t2),
   };
   EXPECT_TRUE(pvt_database_->StoreTokens(tokens));
 
-  EXPECT_TRUE(pvt_database_->DeleteTokens(std::nullopt, "a.com"));
+  EXPECT_TRUE(pvt_database_->DeleteTokens(base::Time(), base::Time::Max(),
+                                          std::vector<url::Origin>{kOriginA}));
 
   pvt_database_.reset();
   {
@@ -847,6 +884,50 @@ TEST_F(PrivateVerificationTokensDatabaseTest, DeleteTokens_OriginOnly) {
         GetAllTokens(database);
     EXPECT_THAT(got_tokens,
                 testing::UnorderedElementsAre(tokens[1], tokens[2]));
+  }
+}
+
+TEST_F(PrivateVerificationTokensDatabaseTest,
+       DeleteTokens_OriginOnlyChunkedDelete) {
+  CreateDatabase(db_path_);
+
+  uint32_t key_id = 678;
+  const base::Time expiration = base::Time::UnixEpoch() + base::Seconds(7);
+  uint32_t version = 1;
+
+  base::Time t1 = base::Time::UnixEpoch() + base::Seconds(10);
+
+  PrivateVerificationTokensToken unmatched_token(kOriginA, {1, 2, 3}, key_id,
+                                                 expiration, version, t1);
+  std::vector<url::Origin> many_origins;
+  // A number of origins well above the chromium sqlite configured max
+  // placeholder count.
+  size_t many_origins_size = 32768 + 100;
+  many_origins.reserve(many_origins_size);
+  for (size_t i = 0; i < many_origins_size; i++) {
+    many_origins.push_back(url::Origin::Create(
+        GURL(base::StringPrintf("https://example-%zu.com", i))));
+  }
+  std::vector<PrivateVerificationTokensToken> tokens = {unmatched_token};
+  tokens.reserve(many_origins_size + 1);
+  for (auto origin : many_origins) {
+    tokens.push_back(PrivateVerificationTokensToken(origin, {1, 2, 3}, key_id,
+                                                    expiration, version, t1));
+  }
+
+  EXPECT_TRUE(pvt_database_->StoreTokens(tokens));
+
+  EXPECT_TRUE(pvt_database_->DeleteTokens(base::Time(), base::Time::Max(),
+                                          many_origins));
+
+  pvt_database_.reset();
+  {
+    sql::Database database(sql::test::kTestTag);
+    ASSERT_TRUE(database.Open(db_path_));
+    VerifyTableRowCount(database, kTokenTableName, 1);
+    std::vector<PrivateVerificationTokensToken> got_tokens =
+        GetAllTokens(database);
+    EXPECT_THAT(got_tokens, testing::UnorderedElementsAre(unmatched_token));
   }
 }
 
@@ -862,18 +943,19 @@ TEST_F(PrivateVerificationTokensDatabaseTest, DeleteTokens_TimeAndOrigin) {
   base::Time t3 = base::Time::UnixEpoch() + base::Seconds(30);
 
   std::vector<PrivateVerificationTokensToken> tokens = {
-      PrivateVerificationTokensToken("a.com", {1, 2, 3}, key_id, expiration,
+      PrivateVerificationTokensToken(kOriginA, {1, 2, 3}, key_id, expiration,
                                      version, t1),
-      PrivateVerificationTokensToken("b.com", {4, 5, 6}, key_id, expiration,
+      PrivateVerificationTokensToken(kOriginB, {4, 5, 6}, key_id, expiration,
                                      version, t2),
-      PrivateVerificationTokensToken("c.com", {7, 8, 9}, key_id, expiration,
+      PrivateVerificationTokensToken(kOriginC, {7, 8, 9}, key_id, expiration,
                                      version, t3),
-      PrivateVerificationTokensToken("a.com", {10, 11, 12}, key_id, expiration,
+      PrivateVerificationTokensToken(kOriginA, {10, 11, 12}, key_id, expiration,
                                      version, t2),
   };
   EXPECT_TRUE(pvt_database_->StoreTokens(tokens));
 
-  EXPECT_TRUE(pvt_database_->DeleteTokens(t2, "a.com"));
+  EXPECT_TRUE(pvt_database_->DeleteTokens(t2, base::Time::Max(),
+                                          std::vector<url::Origin>{kOriginA}));
 
   pvt_database_.reset();
   {
@@ -884,6 +966,82 @@ TEST_F(PrivateVerificationTokensDatabaseTest, DeleteTokens_TimeAndOrigin) {
         GetAllTokens(database);
     EXPECT_THAT(got_tokens,
                 testing::UnorderedElementsAre(tokens[0], tokens[1], tokens[2]));
+  }
+}
+
+TEST_F(PrivateVerificationTokensDatabaseTest, DeleteTokens_MultipleOrigins) {
+  CreateDatabase(db_path_);
+
+  uint32_t key_id = 678;
+  const base::Time expiration = base::Time::UnixEpoch() + base::Seconds(7);
+  uint32_t version = 1;
+
+  base::Time t1 = base::Time::UnixEpoch() + base::Seconds(10);
+  base::Time t2 = base::Time::UnixEpoch() + base::Seconds(20);
+  base::Time t3 = base::Time::UnixEpoch() + base::Seconds(30);
+
+  std::vector<PrivateVerificationTokensToken> tokens = {
+      PrivateVerificationTokensToken(kOriginA, {1, 2, 3}, key_id, expiration,
+                                     version, t1),
+      PrivateVerificationTokensToken(kOriginB, {4, 5, 6}, key_id, expiration,
+                                     version, t2),
+      PrivateVerificationTokensToken(kOriginC, {7, 8, 9}, key_id, expiration,
+                                     version, t3),
+      PrivateVerificationTokensToken(kOriginA, {10, 11, 12}, key_id, expiration,
+                                     version, t2),
+  };
+  EXPECT_TRUE(pvt_database_->StoreTokens(tokens));
+
+  EXPECT_TRUE(pvt_database_->DeleteTokens(
+      base::Time(), base::Time::Max(),
+      std::vector<url::Origin>{kOriginA, kOriginC}));
+
+  pvt_database_.reset();
+  {
+    sql::Database database(sql::test::kTestTag);
+    ASSERT_TRUE(database.Open(db_path_));
+    VerifyTableRowCount(database, kTokenTableName, 1);
+    std::vector<PrivateVerificationTokensToken> got_tokens =
+        GetAllTokens(database);
+    EXPECT_THAT(got_tokens, testing::UnorderedElementsAre(tokens[1]));
+  }
+}
+
+TEST_F(PrivateVerificationTokensDatabaseTest, DeleteTokens_TimeRange) {
+  CreateDatabase(db_path_);
+
+  uint32_t key_id = 678;
+  const base::Time expiration = base::Time::UnixEpoch() + base::Seconds(7);
+  uint32_t version = 1;
+
+  base::Time t1 = base::Time::UnixEpoch() + base::Seconds(10);
+  base::Time t2 = base::Time::UnixEpoch() + base::Seconds(20);
+  base::Time t3 = base::Time::UnixEpoch() + base::Seconds(30);
+
+  std::vector<PrivateVerificationTokensToken> tokens = {
+      PrivateVerificationTokensToken(kOriginA, {1, 2, 3}, key_id, expiration,
+                                     version, t1),
+      PrivateVerificationTokensToken(kOriginB, {4, 5, 6}, key_id, expiration,
+                                     version, t2),
+      PrivateVerificationTokensToken(kOriginC, {7, 8, 9}, key_id, expiration,
+                                     version, t3),
+  };
+  EXPECT_TRUE(pvt_database_->StoreTokens(tokens));
+
+  // Delete tokens created in range [t2, t3).
+  // This should delete tokens[1] ("b.com" @ t2), but keep tokens[0] ("a.com" @
+  // t1) and tokens[2] ("c.com" @ t3).
+  EXPECT_TRUE(pvt_database_->DeleteTokens(t2, t3, std::nullopt));
+
+  pvt_database_.reset();
+  {
+    sql::Database database(sql::test::kTestTag);
+    ASSERT_TRUE(database.Open(db_path_));
+    VerifyTableRowCount(database, kTokenTableName, 2);
+    std::vector<PrivateVerificationTokensToken> got_tokens =
+        GetAllTokens(database);
+    EXPECT_THAT(got_tokens,
+                testing::UnorderedElementsAre(tokens[0], tokens[2]));
   }
 }
 

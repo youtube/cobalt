@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://crbug.com/508672616">
+<link rel="match" href="unbounded-element-scroll-parent-ref.html">
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="resources/unbounded-utils.js"></script>
+
+<style>
+  #parent {
+    position: absolute;
+    top: 100px;
+    left: 100px;
+    width: 200px;
+    height: 200px;
+    overflow: scroll;
+    scrollbar-width: none;
+    background: transparent;
+    border: 1px dotted black;
+  }
+  #parent::-webkit-scrollbar {
+    display: none;
+  }
+  #spacer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 400px;
+    height: 400px;
+  }
+  #target {
+    position: absolute;
+    top: 50px;
+    left: 50px;
+    width: 200px;
+    height: 200px;
+    background: green;
+  }
+</style>
+
+<div id="parent">
+  <div id="spacer"></div>
+  <div id="target" unbounded></div>
+</div>
+
+<script>
+unbounded_appearance_test(async () => {
+  await showUnboundedElement(target);
+
+  // Scroll the parent container
+  parent.scrollTop = 50;
+  parent.scrollLeft = 50;
+
+  // Wait for layout/paint to update
+  await new Promise(requestAnimationFrame);
+  await new Promise(requestAnimationFrame);
+
+  visual_assert_true(target.matches(':unbounded'), "Target should still be unbounded after scroll");
+});
+</script>

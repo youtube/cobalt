@@ -118,12 +118,13 @@ NSString* const kAccessoryKeyboardAccessibilityIdentifier =
     case autofill::FillingProduct::kDataList:
     case autofill::FillingProduct::kNone:
       return manual_fill::ManualFillDataType::kOther;
+    case autofill::FillingProduct::kAtMemory:
+      return manual_fill::ManualFillDataType::kAtMemory;
     case autofill::FillingProduct::kCompose:
     case autofill::FillingProduct::kMerchantPromoCode:
     case autofill::FillingProduct::kLoyaltyCard:
     case autofill::FillingProduct::kIdentityCredential:
     case autofill::FillingProduct::kOneTimePassword:
-    case autofill::FillingProduct::kAtMemory:
       // These cases are currently not available on iOS.
       NOTREACHED();
   }

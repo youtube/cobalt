@@ -857,6 +857,13 @@ Called by update_protocol_commands_enum.py.-->
       label="Teaser for Console Insight - Model download completed"/>
   <int value="199" label="AI Code Generation - Error"/>
   <int value="200" label="AI Code Generation - Request triggered"/>
+  <int value="201" label="AI Code Completion - Request triggered from Console"/>
+  <int value="202" label="AI Code Completion - Request triggered from Sources"/>
+  <int value="203" label="AI Code Completion - Request triggered from Styles"/>
+  <int value="204" label="AI Code Generation - Request triggered from Console"/>
+  <int value="205" label="AI Code Generation - Request triggered from Sources"/>
+  <int value="206" label="AI Code Completion - FRE completed from Console"/>
+  <int value="207" label="AI Code Completion - FRE completed from Sources"/>
 </enum>
 
 <enum name="DevToolsBuiltInAiAvailability">

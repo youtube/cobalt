@@ -1742,6 +1742,92 @@ IN_PROC_BROWSER_TEST_P(IsolatedWebAppLaunchHandlingBrowserTest, ServiceWorker) {
   WaitForLaunchQueueEntryWithURL(target_contents, url.spec());
 }
 
+IN_PROC_BROWSER_TEST_P(IsolatedWebAppLaunchHandlingBrowserTest,
+                       CrossOriginServiceWorkerOpenWindow) {
+  std::unique_ptr<ScopedBundledIsolatedWebApp> source_app =
+      IsolatedWebAppBuilder(ManifestBuilder())
+          .AddJs("/service_worker.js", R"(
+            self.addEventListener('notificationclick', event => {
+              event.waitUntil((async () => {
+                try {
+                  await clients.openWindow(event.notification.body);
+                } catch (e) {}
+                const all =
+                    await clients.matchAll({includeUncontrolled: true});
+                for (const c of all) {
+                  c.postMessage('open-window-settled');
+                }
+              })());
+            });
+            self.addEventListener('message', event => {
+              event.source.postMessage('ready');
+            });
+          )")
+          .BuildBundle();
+  ASSERT_OK_AND_ASSIGN(IsolatedWebAppUrlInfo source_url_info,
+                       source_app->Install(profile()));
+
+  std::unique_ptr<ScopedBundledIsolatedWebApp> target_app =
+      IsolatedWebAppBuilder(
+          ManifestBuilder().SetLaunchHandlerClientMode(GetParam()))
+          .AddHtml("/something/weird.html", "meow")
+          .BuildBundle();
+  ASSERT_OK_AND_ASSIGN(IsolatedWebAppUrlInfo target_url_info,
+                       target_app->Install(profile()));
+
+  content::WebContents* web_contents =
+      content::WebContents::FromRenderFrameHost(
+          OpenIsolatedWebApp(profile(), source_url_info.app_id()));
+
+  static constexpr std::string_view kServiceWorkerRegister = R"(
+    new Promise(async (resolve) => {
+      const policy = trustedTypes.createPolicy("default", {
+        createScriptURL: (url) => url,
+      });
+      await navigator.serviceWorker.register(
+        policy.createScriptURL('/service_worker.js')
+      );
+      navigator.serviceWorker.addEventListener('message', e => {
+        if (e.data == 'ready') resolve();
+      });
+      (await navigator.serviceWorker.ready).active.postMessage('ping');
+    });
+  )";
+  ASSERT_TRUE(content::ExecJs(web_contents, kServiceWorkerRegister));
+
+  const size_t browsers_before =
+      GlobalBrowserCollection::GetInstance()->GetSize();
+
+  static constexpr std::string_view kSetUpOpenWindowWaiter = R"(
+    window.__openWindowSettled = new Promise(resolve => {
+      navigator.serviceWorker.addEventListener('message', e => {
+        if (e.data == 'open-window-settled') resolve(true);
+      });
+    });
+    true;
+  )";
+  ASSERT_TRUE(content::ExecJs(web_contents, kSetUpOpenWindowWaiter));
+
+  const GURL target_url =
+      target_url_info.origin().GetURL().Resolve("/something/weird.html");
+  blink::PlatformNotificationData notification_data;
+  notification_data.body = base::UTF8ToUTF16(target_url.spec());
+  content::DispatchServiceWorkerNotificationClick(
+      profile()
+          ->GetStoragePartition(
+              source_url_info.storage_partition_config(profile()))
+          ->GetServiceWorkerContext(),
+      source_url_info.origin().GetURL(), notification_data);
+
+  EXPECT_EQ(true, content::EvalJs(web_contents, "window.__openWindowSettled"));
+
+  // The cross-origin `clients.openWindow()` must not open or focus a window
+  // for the target app.
+  EXPECT_FALSE(AppBrowserController::FindForWebApp(*profile(),
+                                                   target_url_info.app_id()));
+  EXPECT_EQ(browsers_before, GlobalBrowserCollection::GetInstance()->GetSize());
+}
+
 IN_PROC_BROWSER_TEST_P(IsolatedWebAppLaunchHandlingBrowserTest, PlainLaunch) {
   std::unique_ptr<ScopedBundledIsolatedWebApp> app =
       IsolatedWebAppBuilder(

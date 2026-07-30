@@ -253,11 +253,14 @@ void FrameTreeData::UpdateForNavigation(
     SetFrameSize(*(render_frame_host->GetFrameSize()));
 
   // For frames triggered on render, their origin is their parent's origin.
+  initial_origin_ = render_frame_host->GetLastCommittedOrigin();
   origin_status_ =
       AdsPageLoadMetricsObserver::IsFrameSameOriginToOutermostMainFrame(
           render_frame_host)
           ? OriginStatus::kSame
           : OriginStatus::kCross;
+
+  devtools_frame_token_ = render_frame_host->GetDevToolsFrameToken();
 
   root_frame_depth_ = GetFullFrameDepth(render_frame_host);
 }

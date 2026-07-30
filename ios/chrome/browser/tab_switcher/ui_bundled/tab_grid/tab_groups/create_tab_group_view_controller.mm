@@ -314,12 +314,7 @@ const CGFloat kClearButtonWidthAndHeight = 40;
   tab_groups::TabGroupColorId colorID =
       static_cast<tab_groups::TabGroupColorId>(_selectedButton.tag);
 
-  UIColor* defaultColor;
-  if (IsTabGroupColorOnSurfaceEnabled()) {
-    defaultColor = [TabGroupColorPalette commonColor:colorID];
-  } else {
-    defaultColor = tab_groups::ColorForTabGroupColorId(colorID);
-  }
+  UIColor* defaultColor = [TabGroupColorPalette commonColor:colorID];
   _dotView = [self groupDotViewWithColor:defaultColor];
   _tabGroupTextField = [self configuredTabGroupNameTextFieldInput];
 
@@ -494,12 +489,8 @@ const CGFloat kClearButtonWidthAndHeight = 40;
   [_selectedButton setSelected:YES];
   tab_groups::TabGroupColorId colorID =
       static_cast<tab_groups::TabGroupColorId>(_selectedButton.tag);
-  if (IsTabGroupColorOnSurfaceEnabled()) {
-    [_dotView setBackgroundColor:[TabGroupColorPalette commonColor:colorID]];
-    [self updateSurfaceColors];
-  } else {
-    [_dotView setBackgroundColor:tab_groups::ColorForTabGroupColorId(colorID)];
-  }
+  [_dotView setBackgroundColor:[TabGroupColorPalette commonColor:colorID]];
+  [self updateSurfaceColors];
 }
 
 // Creates all the available color buttons.
@@ -541,12 +532,7 @@ const CGFloat kClearButtonWidthAndHeight = 40;
                             weight:UIImageSymbolWeightRegular
                              scale:UIImageSymbolScaleDefault];
 
-    UIColor* buttonColor;
-    if (IsTabGroupColorOnSurfaceEnabled()) {
-      buttonColor = [TabGroupColorPalette commonColor:colorID];
-    } else {
-      buttonColor = tab_groups::ColorForTabGroupColorId(colorID);
-    }
+    UIColor* buttonColor = [TabGroupColorPalette commonColor:colorID];
 
     UIImage* normalSymbolImage =
         DefaultSymbolWithConfiguration(kCircleFillSymbol, configuration);
@@ -678,10 +664,8 @@ const CGFloat kClearButtonWidthAndHeight = 40;
   _creationButtonCompact = [self configuredCreateGroupButtonCompacted:YES];
   _cancelButtonCompact = [self configuredCancelButtonCompacted:YES];
 
-  if (IsTabGroupColorOnSurfaceEnabled()) {
-    _containerBackground = [self configuredBackground];
-    [self.view addSubview:_containerBackground];
-  }
+  _containerBackground = [self configuredBackground];
+  [self.view addSubview:_containerBackground];
 
   UIView* container = [[UIView alloc] init];
   container.translatesAutoresizingMaskIntoConstraints = NO;
@@ -805,10 +789,8 @@ const CGFloat kClearButtonWidthAndHeight = 40;
                                               .widthAnchor],
     keyboardConstraint,
   ]];
-  if (IsTabGroupColorOnSurfaceEnabled()) {
-    AddSameConstraints(self.view, _containerBackground);
-    [self updateSurfaceColors];
-  }
+  AddSameConstraints(self.view, _containerBackground);
+  [self updateSurfaceColors];
 }
 
 // Returns the view which contains all the selected tabs' snapshot which will be

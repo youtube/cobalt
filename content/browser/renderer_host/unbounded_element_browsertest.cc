@@ -35,8 +35,8 @@ class UnboundedElementBrowserTest : public ContentBrowserTest {
   UnboundedElementBrowserTest() = default;
   ~UnboundedElementBrowserTest() override = default;
   void SetUp() override {
-#if BUILDFLAG(IS_ANDROID)
-    // TODO(crbug.com/508672616): Not yet implemented on Android.
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+    // TODO(crbug.com/508672616): Not yet implemented on Android/iOS.
     GTEST_SKIP();
 #elif BUILDFLAG(IS_LINUX)
     // TODO(crbug.com/525899641): Flaky/failing on Linux Aura/Wayland.
@@ -285,6 +285,28 @@ IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest, CompositorPopupAllocation) {
   gfx::Rect bounds = window->GetBounds();
   EXPECT_EQ(100, bounds.width());
   EXPECT_EQ(100, bounds.height());
+}
+
+IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest, VisualOverflowBounds) {
+  GURL url(embedded_test_server()->GetURL("/title1.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+
+  std::string script = R"(
+    document.body.innerHTML = `
+      <div id="target" style="width:100px; height:100px;
+           filter:drop-shadow(50px 50px 0px green);" unbounded></div>
+    `;
+    document.getElementById('target').showUnboundedElement();
+  )";
+  EXPECT_TRUE(ExecJs(primary_main_frame_host(), script));
+  WaitForFrameReady();
+
+  UnboundedSurfaceWindow* window =
+      primary_main_frame_host()->GetUnboundedSurfaceWindow();
+  ASSERT_TRUE(window);
+  gfx::Rect bounds = window->GetBounds();
+  EXPECT_EQ(150, bounds.width());
+  EXPECT_EQ(150, bounds.height());
 }
 
 IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest,
@@ -748,6 +770,36 @@ IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest, CloseOnWindowFocusLost) {
   EXPECT_EQ("hidden", EvalJs(primary_main_frame_host(), get_style));
 
   WaitForDestruction(std::move(tracker));
+}
+
+IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest,
+                       MultipleUnboundedElementsDismissesFirst) {
+  GURL url(embedded_test_server()->GetURL("/title1.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+
+  std::string script = R"JS(
+    document.body.innerHTML = `
+      <div id="first" style="width:50px; height:50px;" unbounded></div>
+      <div id="second" style="width:50px; height:50px;" unbounded></div>
+    `;
+    const first = document.getElementById('first');
+    const second = document.getElementById('second');
+    let results = [];
+    first.showUnboundedElement()
+      .then(() => {
+        results.push(getComputedStyle(first).visibility);
+        results.push(getComputedStyle(second).visibility);
+        return second.showUnboundedElement();
+      })
+      .then(() => {
+        results.push(getComputedStyle(first).visibility);
+        results.push(getComputedStyle(second).visibility);
+        return results.join(',');
+      });
+  )JS";
+
+  EXPECT_EQ("visible,hidden,hidden,visible",
+            EvalJs(primary_main_frame_host(), script).ExtractString());
 }
 
 }  // namespace content

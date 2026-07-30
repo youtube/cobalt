@@ -65,16 +65,16 @@ import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
-import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.CtaPageStation;
+import org.chromium.chrome.test.transit.page.RecentTabsPageStation;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
-import org.chromium.chrome.test.util.RecentTabsPageTestUtils;
 import org.chromium.chrome.test.util.browser.signin.SigninTestRule;
 import org.chromium.chrome.test.util.browser.signin.SigninTestUtil;
-import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.messages.MessageDispatcher;
 import org.chromium.components.messages.MessageDispatcherProvider;
@@ -124,17 +124,16 @@ public class RecentTabsPageTest {
 
     @Spy private FakeRecentlyClosedTabManager mManager = new FakeRecentlyClosedTabManager();
     private ChromeTabbedActivity mActivity;
-    private Tab mTab;
     private TabModel mTabModel;
     private RecentTabsPage mPage;
+    private CtaPageStation mPageStation;
 
     @Before
     public void setUp() throws Exception {
         RecentlyClosedEntriesManager.setRecentlyClosedTabManagerForTests(mManager);
-        mActivityTestRule.startOnBlankPage();
-        mActivity = mActivityTestRule.getActivity();
-        mTabModel = mActivity.getTabModelSelector().getModel(false);
-        mTab = mActivityTestRule.getActivityTab();
+        mPageStation = mActivityTestRule.startOnBlankPage();
+        mActivity = mPageStation.getActivity();
+        mTabModel = mPageStation.getTabModel();
     }
 
     @After
@@ -313,6 +312,8 @@ public class RecentTabsPageTest {
                                             R.string.recent_tabs_group_closure_with_title,
                                             group.getTitle());
                         });
+        final int accessibilityResId =
+                R.string.recent_tabs_group_closure_with_title_with_color_accessibility;
         final String groupAccessibilityString =
                 ThreadUtils.runOnUiThreadBlocking(
                         () -> {
@@ -322,10 +323,7 @@ public class RecentTabsPageTest {
                                             .getTabGroupColorPickerItemColorAccessibilityString(
                                                     group.getColor());
                             return res.getString(
-                                    R.string
-                                            .recent_tabs_group_closure_with_title_with_color_accessibility,
-                                    group.getTitle(),
-                                    res.getString(colorDesc));
+                                    accessibilityResId, group.getTitle(), res.getString(colorDesc));
                         });
         final View view = waitForView(groupString);
         assertEquals(groupAccessibilityString, view.getContentDescription());
@@ -385,6 +383,8 @@ public class RecentTabsPageTest {
                                             group.getTabs().size(),
                                             group.getTabs().size());
                         });
+        final int accessibilityResId =
+                R.plurals.recent_tabs_group_closure_without_title_with_color_accessibility;
         final String groupAccessibilityString =
                 ThreadUtils.runOnUiThreadBlocking(
                         () -> {
@@ -394,8 +394,7 @@ public class RecentTabsPageTest {
                                             .getTabGroupColorPickerItemColorAccessibilityString(
                                                     group.getColor());
                             return res.getQuantityString(
-                                    R.plurals
-                                            .recent_tabs_group_closure_without_title_with_color_accessibility,
+                                    accessibilityResId,
                                     group.getTabs().size(),
                                     group.getTabs().size(),
                                     res.getString(colorDesc));
@@ -775,23 +774,20 @@ public class RecentTabsPageTest {
     }
 
     private RecentTabsPage loadRecentTabsPage() {
-        mActivityTestRule.loadUrl(UrlConstants.RECENT_TABS_URL);
-        RecentTabsPageTestUtils.waitForRecentTabsPageLoaded(mTab);
-        return (RecentTabsPage) mTab.getNativePage();
+        RecentTabsPageStation recentTabsPage =
+                mPageStation.loadPageProgrammatically(
+                        RecentTabsPageStation.RECENT_TABS_URL, RecentTabsPageStation.newBuilder());
+        mPageStation = recentTabsPage;
+        return recentTabsPage.nativePageElement.get();
     }
 
     /**
      * Leaves and destroys the {@link RecentTabsPage} by navigating the tab to {@code about:blank}.
      */
     private void leaveRecentTabsPage() {
-        mActivityTestRule.loadUrl(ContentUrlConstants.ABOUT_BLANK_DISPLAY_URL);
-        CriteriaHelper.pollUiThread(
-                () -> {
-                    Criteria.checkThat(
-                            "RecentTabsPage is still there",
-                            mTab.getNativePage(),
-                            Matchers.not(Matchers.instanceOf(RecentTabsPage.class)));
-                });
+        mPageStation =
+                mPageStation.loadPageProgrammatically(
+                        ContentUrlConstants.ABOUT_BLANK_DISPLAY_URL, WebPageStation.newBuilder());
     }
 
     /** Waits for the view with the specified text to appear. */

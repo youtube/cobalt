@@ -12,6 +12,7 @@ export function getHtml(this: AvatarButtonElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
 <cr-button id="button"
+    class="${this.getButtonClass_()}"
     ?disabled="${!this.state.enabled}"
     ?has-border="${this.shouldPaintBorder()}"
     title="${this.getTooltip_() || ''}"
@@ -22,10 +23,11 @@ export function getHtml(this: AvatarButtonElement) {
     @mouseleave="${this.onMouseleave_}"
     @focus="${this.onFocus_}"
     @blur="${this.onBlur_}">
-  ${this.state.iconUrl ? html`
-    <img id="icon" src="${this.state.iconUrl}" alt="">
+  ${(this.state.icon?.handleId ?? 0n) !== 0n ? html`
+    <icon-from-table slot="prefix-icon" id="icon"
+        .iconHandle="${this.state.icon}"></icon-from-table>
   ` : html`
-    <cr-icon id="icon" icon="cr:person"></cr-icon>
+    <cr-icon slot="prefix-icon" id="icon" icon="cr:person"></cr-icon>
   `}
   <span id="text" ?visible="${!!this.state.text}">
     ${this.state.text || ''}

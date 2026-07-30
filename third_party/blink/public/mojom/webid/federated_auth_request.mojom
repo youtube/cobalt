@@ -10,11 +10,10 @@ import "third_party/blink/public/mojom/credentialmanagement/credential_manager.m
 import "url/mojom/origin.mojom";
 import "url/mojom/url.mojom";
 
-// Implementation of the proposed FedCM API.
-//
-// Proposal: https://fedidcg.github.io/FedCM/
+// Implementation of the FedCM API.
+// See also: https://fedidcg.github.io/FedCM/
 
-// Represents the fetch result from a federated authentication request. It is
+// Represents the fetch result from a federated token request. It is
 // used to determine whether a JavaScript exception should be thrown, and what
 // the error message of such exception should say. This enum is a subset of
 // FederatedAuthRequestResult in
@@ -207,13 +206,26 @@ struct IdentityProviderGetParameters {
   RpMode mode;
 };
 
-// The error which occurred during the retrieval of a token.
+// Represents the error when a federated token request fails.
 struct TokenError {
   // Type of error which resulted in an IdentityCredential not being created.
   string? code;
 
-  // String URL where the user can learn more information about the error.
-  string? url;
+  // URL where the user can learn more information about the error.
+  url.mojom.Url? url;
+};
+
+// The information returned upon a successful token request.
+struct TokenRequestSuccess {
+  url.mojom.Url selected_idp_config_url;
+  mojo_base.mojom.Value? token;
+  bool is_auto_selected;
+};
+
+// The information returned upon a failed token request.
+struct TokenRequestFailure {
+  RequestTokenStatus status;
+  TokenError? error;
 };
 
 // Create a federated sign-in request using the specified provider.
@@ -296,20 +308,30 @@ interface FederatedAuthRequest {
 // Represents an active federated sign-in request session. Lifetime is bound to
 // the lifecycle of a single token request session.
 interface FederatedRequest {
+  // Aborts the ongoing federated identity request.
+  Abort();
 };
 
 // Represents the result of a federated user info request.
 union RequestUserInfoResult {
-  // TODO(https://crbug.com/519217823): Change this to a more specific error enum
-  // once the legacy FederatedAuthRequest::RequestUserInfo is removed and
+  // TODO(https://crbug.com/519217823): Change this to a more specific error
+  // enum once the legacy FederatedAuthRequest::RequestUserInfo is removed and
   // RequestUserInfoStatus is deleted.
   RequestUserInfoStatus status;
   array<IdentityUserInfo> user_info;
 };
 
-// Manages federated identity request sessions. Implemented by the browser process
-// via content::webid::RequestService, and invoked from the renderer process.
+// Manages federated identity request sessions. Implemented by the browser
+// process via content::webid::RequestService, and invoked from the renderer
+// process.
 interface FederatedRequestService {
+  // Requests a token to be retrieved, given an array of
+  // IdentityProviderGetParameters.
+  StartTokenRequest(array<IdentityProviderGetParameters> idp_get_params,
+                    CredentialMediationRequirement requirement,
+                    pending_receiver<FederatedRequest> request_receiver)
+      => result<TokenRequestSuccess, TokenRequestFailure>;
+
   // Registers the url as an IdP's configURL of the user's preference.
   RegisterIdP(url.mojom.Url url) => (RegisterIdpStatus status);
 
@@ -328,4 +350,20 @@ interface FederatedRequestService {
   // Disconnects an account for the given IdP.
   Disconnect(IdentityCredentialDisconnectOptions options)
       => (DisconnectStatus status);
+
+  // Resolve the token request from a JS call from a WebView dialog,
+  // when the id_assertion_endpoint returns a continue_on rather than the
+  // actual token.
+  // If `params` specifies a redirect, that URL is loaded in the context that
+  // triggered the FedCM call using the HTTP method and request body (if any)
+  // specified in the redirect parameters.
+  // If no account ID is provided, the account ID of the account that was
+  // selected in the account chooser will be used.
+  ResolveTokenRequest(string? account_id, ResolveTokenParams params)
+      => (bool success);
+
+  // Marks the user as logged in/out to the IDP on this origin.
+  SetIdpSigninStatus(url.mojom.Origin origin,
+                     IdpSigninStatus status,
+                     LoginStatusOptions? options) => ();
 };

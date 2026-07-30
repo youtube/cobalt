@@ -6,6 +6,7 @@
 
 #import <Foundation/Foundation.h>
 
+#import "components/sync/test/test_sync_service.h"
 #import "ios/chrome/app/application_delegate/fake_startup_information.h"
 #import "ios/chrome/app/profile/profile_init_stage.h"
 #import "ios/chrome/app/profile/profile_state.h"
@@ -29,6 +30,8 @@
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/common/ui/confirmation_alert/confirmation_alert_action_handler.h"
 #import "ios/chrome/common/ui/confirmation_alert/confirmation_alert_view_controller.h"
 #import "ios/chrome/common/ui/promo_style/promo_style_view_controller.h"
@@ -53,6 +56,8 @@ class PromosManagerCoordinatorTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
     profile_ = std::move(builder).Build();
 
     view_controller_ = [[UIViewController alloc] init];
@@ -76,6 +81,9 @@ class PromosManagerCoordinatorTest : public PlatformTest {
   void TearDown() override {
     [coordinator_ stop];
     [scene_state_ shutdown];
+    coordinator_ = nil;
+    mock_pip_handler_ = nil;
+    mock_promos_manager_handler_ = nil;
     scene_state_ = nil;
     PlatformTest::TearDown();
   }

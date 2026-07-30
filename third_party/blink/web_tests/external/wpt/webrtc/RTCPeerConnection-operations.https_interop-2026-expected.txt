@@ -1,5 +1,4 @@
 This is a testharness.js-based test.
-Harness Error. harness_status.status = 1 , harness_status.message = Unhandled rejection: Failed to execute 'setLocalDescription' on 'RTCPeerConnection': Failed to parse SessionDescription.  Expect line: v=
 [FAIL] createOffer must detect InvalidStateError synchronously when chain is empty (prerequisite)
   assert_equals: expected "InvalidStateError" but got "Error"
 [FAIL] createAnswer must detect InvalidStateError synchronously when chain is empty (prerequisite)
@@ -30,9 +29,5 @@ Harness Error. harness_status.status = 1 , harness_status.message = Unhandled re
   assert_true: Empty chain expected true got false
 [FAIL] receiver.getStats does NOT use the operations chain
   assert_true: Empty chain expected true got false
-[FAIL] Pack operations queue with implicit offer and answer
-  promise_test: Unhandled rejection with value: object "OperationError: Failed to execute 'setLocalDescription' on 'RTCPeerConnection': Failed to parse SessionDescription.  Expect line: v="
-[TIMEOUT] Negotiate solely by operations queue and signaling state
-  Test timed out
 Harness: the test ran to completion.
 

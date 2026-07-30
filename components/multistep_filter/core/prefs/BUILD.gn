@@ -1,0 +1,28 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("prefs") {
+  sources = [
+    "multistep_filter_retention_prefs.cc",
+    "multistep_filter_retention_prefs.h",
+    "retention_state_snapshot.h",
+  ]
+  deps = [
+    "//base",
+    "//components/multistep_filter/core/data_models",
+    "//components/prefs",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "multistep_filter_retention_prefs_unittest.cc" ]
+  deps = [
+    ":prefs",
+    "//base",
+    "//base/test:test_support",
+    "//components/prefs:test_support",
+    "//testing/gtest",
+  ]
+}

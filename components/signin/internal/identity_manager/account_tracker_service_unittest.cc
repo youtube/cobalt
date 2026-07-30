@@ -1819,6 +1819,66 @@ TEST_F(AccountTrackerServiceTest, CountOfLoadedAccounts_TwoAccounts) {
       testing::ElementsAre(base::Bucket(2, 1)));
 }
 
+TEST_F(AccountTrackerServiceTest, SaveToPrefs_CapabilityOverridesOverwritten) {
+  base::ScopedTempDir scoped_user_data_dir;
+  ASSERT_TRUE(scoped_user_data_dir.CreateUniqueTempDir());
+
+  ResetAccountTrackerWithPersistence(scoped_user_data_dir.GetPath());
+
+  // Set an override.
+  AccountCapabilities capabilities;
+  AccountCapabilitiesTestMutator mutator(&capabilities);
+  mutator.SetCapabilityOverride(
+      kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName,
+      signin::Tribool::kTrue);
+
+  AccountInfo account_info =
+      AccountInfo::Builder(AccountKeyToGaiaId(kAccountKeyAlpha),
+                           AccountKeyToEmail(kAccountKeyAlpha))
+          .SetAccountId(AccountKeyToAccountId(kAccountKeyAlpha))
+          .SetAccountCapabilities(capabilities)
+          .Build();
+
+  // Save to prefs.
+  SaveToPrefs(account_info);
+
+  // Verify that it is loaded back correctly from prefs.
+  ResetAccountTrackerWithPersistence(scoped_user_data_dir.GetPath());
+  std::vector<AccountInfo> infos = account_tracker()->GetAccounts();
+  ASSERT_EQ(1u, infos.size());
+  EXPECT_EQ(
+      infos[0]
+          .GetAccountCapabilities()
+          .can_show_history_sync_opt_ins_without_minor_mode_restrictions(),
+      signin::Tribool::kTrue);
+
+  // Clear the overrides.
+  AccountCapabilities capabilities_updated;
+  AccountInfo account_info_updated =
+      AccountInfo::Builder(AccountKeyToGaiaId(kAccountKeyAlpha),
+                           AccountKeyToEmail(kAccountKeyAlpha))
+          .SetAccountId(AccountKeyToAccountId(kAccountKeyAlpha))
+          .SetAccountCapabilities(capabilities_updated)
+          .Build();
+
+  // Save to prefs again.
+  SaveToPrefs(account_info_updated);
+
+  // Reload and verify that the capability override was cleared.
+  ResetAccountTrackerWithPersistence(scoped_user_data_dir.GetPath());
+  infos = account_tracker()->GetAccounts();
+  ASSERT_EQ(1u, infos.size());
+  EXPECT_EQ(
+      infos[0]
+          .GetAccountCapabilities()
+          .can_show_history_sync_opt_ins_without_minor_mode_restrictions(),
+      signin::Tribool::kUnknown);
+
+  // Clean up.
+  ResetAccountTracker();
+  ASSERT_TRUE(scoped_user_data_dir.Delete());
+}
+
 #if BUILDFLAG(IS_CHROMEOS)
 TEST_F(AccountTrackerServiceTest, Migrate_CountOfLoadedAccounts_TwoAccounts) {
   const std::string email_alpha = AccountKeyToEmail(kAccountKeyAlpha);

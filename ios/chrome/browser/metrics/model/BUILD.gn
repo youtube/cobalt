@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/apple/swift_source_set.gni")
+
 source_set("demographics_client") {
   sources = [
     "demographics_client.h",
@@ -210,6 +212,7 @@ source_set("model") {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "activity_reporter_unittest.mm",
     "demographics_client_unittest.mm",
     "incognito_usage_app_state_agent_unittest.mm",
     "ios_chrome_default_browser_metrics_provider_unittest.mm",
@@ -226,6 +229,7 @@ source_set("unit_tests") {
   ]
   deps = [
     ":accessor",
+    ":activity_reporter",
     ":constants",
     ":demographics_client",
     ":model",
@@ -247,6 +251,7 @@ source_set("unit_tests") {
     "//components/supervised_user/core/browser",
     "//components/supervised_user/core/browser:test_support",
     "//components/supervised_user/core/common",
+    "//components/sync:test_support",
     "//components/sync_preferences:test_support",
     "//components/ukm",
     "//components/ukm:test_support",
@@ -279,6 +284,8 @@ source_set("unit_tests") {
     "//ios/chrome/browser/signin/model:test_support",
     "//ios/chrome/browser/supervised_user/model",
     "//ios/chrome/browser/supervised_user/model:sync_settings_factory",
+    "//ios/chrome/browser/sync/model",
+    "//ios/chrome/browser/sync/model:test_support",
     "//ios/chrome/test:test_support",
     "//ios/web/common",
     "//ios/web/public",
@@ -511,4 +518,10 @@ source_set("eg_test_support+eg2") {
     "//ios/testing/earl_grey:eg_test_support+eg2",
     "//third_party/metrics_proto",
   ]
+}
+
+swift_source_set("activity_reporter") {
+  sources = [ "activity_reporter.swift" ]
+  frameworks = [ "Foundation.framework" ]
+  weak_frameworks = [ "MetricKit.framework" ]
 }

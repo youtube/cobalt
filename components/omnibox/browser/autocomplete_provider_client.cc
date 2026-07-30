@@ -27,6 +27,11 @@ AutocompleteProviderClient::GetDocumentSuggestionsService() const {
   return nullptr;
 }
 
+AiModeButtonService* AutocompleteProviderClient::GetAiModeButtonService()
+    const {
+  return nullptr;
+}
+
 bool AutocompleteProviderClient::AllowDeletingBrowserHistory() const {
   return true;
 }

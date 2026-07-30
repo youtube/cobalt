@@ -103,7 +103,7 @@ Dispatchable::Dispatchable(span<uint8_t> serialized,
     : serialized_(serialized),
       associated_data_(associated_data),
       fallthrough_callback_(std::move(fallthrough_callback)) {
-  Status s = cbor::CheckCBORMessage(serialized);
+  Status s = cbor::CheckCBORMessage(serialized).status();
   if (!s.ok()) {
     status_ = {Error::MESSAGE_MUST_BE_AN_OBJECT, s.pos};
     return;

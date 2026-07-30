@@ -10,8 +10,12 @@
 #include "base/functional/callback_helpers.h"
 #include "base/no_destructor.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/values.h"
 #include "chrome/browser/devtools/chrome_devtools_manager_delegate.h"
 #include "chrome/browser/devtools/devtools_window.h"
+#include "components/policy/core/browser/browser_policy_connector.h"
+#include "components/policy/core/common/policy_map.h"
+#include "components/policy/policy_constants.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -211,6 +215,28 @@ void DevToolsWindowTesting::CloseDevToolsWindowSync(
   DevToolsWindowTesting::Get(window)->SetCloseCallback(runner->QuitClosure());
   CloseDevToolsWindow(window);
   runner->Run();
+}
+
+// DevToolsDisabler() ---------------------------------------------------------
+
+DevToolsDisabler::DevToolsDisabler() = default;
+DevToolsDisabler::~DevToolsDisabler() = default;
+
+void DevToolsDisabler::SetUp() {
+  provider_.SetDefaultReturns(
+      /*is_initialization_complete_return=*/true,
+      /*is_first_policy_load_complete_return=*/true);
+  policy::BrowserPolicyConnector::SetPolicyProviderForTesting(&provider_);
+}
+
+void DevToolsDisabler::DisableDevTools() {
+  base::ListValue blocklist;
+  blocklist.Append("devtools://*");
+  policy::PolicyMap policies;
+  policies.Set(policy::key::kURLBlocklist, policy::POLICY_LEVEL_MANDATORY,
+               policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
+               base::Value(std::move(blocklist)), nullptr);
+  provider_.UpdateChromePolicy(policies);
 }
 
 // DevToolsWindowCreationObserver ---------------------------------------------

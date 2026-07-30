@@ -75,10 +75,9 @@ ui::PredictionMetricsHandler& ScrollPredictor::GetMetricsHandler(
 void ScrollPredictor::ResetOnGestureScrollBegin(const WebGestureEvent& event) {
   DCHECK(event.GetType() == WebInputEvent::Type::kGestureScrollBegin);
   // Only do resampling for scroll on touchscreen.
-  if (event.SourceDevice() == WebGestureDevice::kTouchscreen) {
-    should_resample_scroll_events_ = true;
-    Reset();
-  }
+  should_resample_scroll_events_ =
+      event.SourceDevice() == WebGestureDevice::kTouchscreen;
+  Reset();
 }
 
 std::unique_ptr<EventWithCallback> ScrollPredictor::ResampleScrollEvents(

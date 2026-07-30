@@ -103,6 +103,10 @@ bool RenderPageToDC(FPDF_PAGE page,
                     HDC dc);
 #endif
 
+// Retrieves the language of the PDF document using FPDFCatalog_GetLanguage().
+// Returns an empty std::string if the language is not specified.
+std::string GetDocumentLanguage(FPDF_DOCUMENT document);
+
 }  // namespace chrome_pdf
 
 #endif  // PDF_PDFIUM_PDFIUM_API_WRAPPERS_H_

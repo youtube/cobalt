@@ -15,6 +15,8 @@
 #include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
+#include "base/i18n/tag_converters.h"
+#include "base/i18n/tags.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -567,6 +569,7 @@ TEST_P(PDFiumEngineTest, GetDocumentMetadata) {
   ASSERT_TRUE(
       base::Time::FromUTCString("2020-02-06 09:42:34", &expected_mod_date));
   EXPECT_EQ(expected_mod_date, doc_metadata.mod_date);
+  EXPECT_EQ(std::nullopt, doc_metadata.language_tag);
 }
 
 TEST_P(PDFiumEngineTest, GetEmptyDocumentMetadata) {
@@ -588,6 +591,17 @@ TEST_P(PDFiumEngineTest, GetEmptyDocumentMetadata) {
   EXPECT_THAT(doc_metadata.producer, IsEmpty());
   EXPECT_TRUE(doc_metadata.creation_date.is_null());
   EXPECT_TRUE(doc_metadata.mod_date.is_null());
+  EXPECT_EQ(std::nullopt, doc_metadata.language_tag);
+}
+
+TEST_P(PDFiumEngineTest, GetLanguageTagFromDocumentMetadata) {
+  TestClient client(/*use_skia_renderer=*/GetParam());
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("tags.pdf"));
+  ASSERT_TRUE(engine);
+
+  const DocumentMetadata& doc_metadata = engine->GetDocumentMetadata();
+  EXPECT_EQ(base::i18n::language_tags::ENGLISH_US(), doc_metadata.language_tag);
 }
 
 TEST_P(PDFiumEngineTest, HasMeaningfulText) {
@@ -3194,17 +3208,20 @@ class PDFiumEngineInkDrawTextTest : public PDFiumTestBase {
   };
 
   static DrawTextData GetGlyphsForText(std::string_view text, float font_size) {
-    CHECK(base::IsStringASCII(text));
-    sk_sp<SkTypeface> default_typeface = skia::DefaultTypeface();
-    std::vector<SkGlyphID> sk_glyphs(text.size());
-    size_t glyph_count = default_typeface->textToGlyphs(
-        text.data(), text.size(), SkTextEncoding::kUTF8,
-        SkSpan<SkGlyphID>(sk_glyphs));
-    CHECK_EQ(glyph_count, sk_glyphs.size());  // Since `text` is ASCII.
+    CHECK(!text.empty());
+    SkFont default_font(skia::DefaultTypeface(), font_size);
 
-    SkFont default_font(default_typeface, font_size);
+    size_t glyph_count =
+        default_font.countText(text.data(), text.size(), SkTextEncoding::kUTF8);
+    CHECK_GT(glyph_count, 0u);
+
+    std::vector<SkGlyphID> sk_glyphs(glyph_count);
+    size_t actual_glyph_count = default_font.textToGlyphs(
+        text.data(), text.size(), SkTextEncoding::kUTF8, sk_glyphs);
+    CHECK_EQ(glyph_count, actual_glyph_count);
+
     std::vector<SkScalar> sk_xpos(sk_glyphs.size());
-    default_font.getXPos(sk_glyphs, SkSpan<SkScalar>(sk_xpos));
+    default_font.getXPos(sk_glyphs, sk_xpos);
 
     return DrawTextData{
         .glyphs = std::vector<uint32_t>(sk_glyphs.begin(), sk_glyphs.end()),
@@ -3259,7 +3276,8 @@ class PDFiumEngineInkDrawTextTest : public PDFiumTestBase {
     FPDF_PAGEOBJECT new_obj =
         FPDFPage_GetObject(page.GetPage(), new_obj_count - 1);
 
-    ASSERT_EQ(2, FPDFPageObj_CountMarks(new_obj));
+    const bool is_ascii = base::IsStringASCII(text_data.text);
+    ASSERT_EQ(is_ascii ? 1 : 2, FPDFPageObj_CountMarks(new_obj));
 
     FPDF_PAGEOBJECTMARK mark1 = FPDFPageObj_GetMark(new_obj, 0);
     ASSERT_EQ(kInkTextAnnotationIdentifierKey,
@@ -3267,10 +3285,12 @@ class PDFiumEngineInkDrawTextTest : public PDFiumTestBase {
     EXPECT_THAT(GetPageObjectMarkIntParam(mark1, "TextboxId"),
                 Optional(expected_textbox_id));
 
-    FPDF_PAGEOBJECTMARK mark2 = FPDFPageObj_GetMark(new_obj, 1);
-    ASSERT_EQ("Span", base::UTF16ToUTF8(GetPageObjectMarkName(mark2)));
-    EXPECT_THAT(GetPageObjectMarkBlobParam(mark2, "ActualText"),
-                Optional(ResultOf(UTF16BEBlobToString, text_data.text)));
+    if (!is_ascii) {
+      FPDF_PAGEOBJECTMARK mark2 = FPDFPageObj_GetMark(new_obj, 1);
+      ASSERT_EQ("Span", base::UTF16ToUTF8(GetPageObjectMarkName(mark2)));
+      EXPECT_THAT(GetPageObjectMarkBlobParam(mark2, "ActualText"),
+                  Optional(ResultOf(UTF16BEBlobToString, text_data.text)));
+    }
   }
 };
 
@@ -4045,7 +4065,7 @@ TEST_P(PDFiumEngineInkDrawTextTest, DrawTextSavesMetadata) {
   std::string textbox_id;
   for (int i = 0; i < obj_count; ++i) {
     FPDF_PAGEOBJECT obj = FPDFPage_GetObject(pdf_page, i);
-    ASSERT_EQ(2, FPDFPageObj_CountMarks(obj));
+    ASSERT_EQ(1, FPDFPageObj_CountMarks(obj));
 
     FPDF_PAGEOBJECTMARK mark = FPDFPageObj_GetMark(obj, 0);
     EXPECT_EQ(kInkTextAnnotationIdentifierKey,
@@ -4111,6 +4131,10 @@ TEST_P(PDFiumEngineInkDrawTextTest, DrawTextSaveAndLoad) {
   // Save the PDF data.
   std::vector<uint8_t> saved_pdf_data = engine->GetSaveData();
   ASSERT_FALSE(saved_pdf_data.empty());
+
+  // The size should be small due to font subsetting.
+  constexpr size_t kMaxFileSizeWithSubsettedFont = 15 * 1024;
+  EXPECT_LT(saved_pdf_data.size(), kMaxFileSizeWithSubsettedFont);
 
   // Load the saved PDF data into a new engine.
   NiceMock<TestClient> saved_client(/*use_skia_renderer=*/GetParam());
@@ -4237,6 +4261,30 @@ TEST_P(PDFiumEngineInkDrawTextTest, DrawTextWrapsTextboxId) {
   // Third draw: Should use 1.
   DrawAndVerifyMarks(engine.get(), page, font_id, text_data, InkTextId(102),
                      /*expected_textbox_id=*/1);
+}
+
+TEST_P(PDFiumEngineInkDrawTextTest, DrawTextNonASCII) {
+  NiceMock<TestClient> client(/*use_skia_renderer=*/GetParam());
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("blank.pdf"));
+  ASSERT_TRUE(engine);
+  int page_count = FPDF_GetPageCount(engine->doc());
+  ASSERT_EQ(page_count, 1);
+
+  constexpr int kPageIndex = 0;
+  PDFiumPage& page = GetPDFiumPage(*engine, kPageIndex);
+
+  FontId font_id = AddDefaultFont(engine.get());
+  constexpr std::string_view kNonAsciiTextToDraw = "Héllo!";
+  DrawTextData text_data =
+      GetGlyphsForText(kNonAsciiTextToDraw, /*font_size=*/10.0f);
+  ASSERT_FALSE(text_data.glyphs.empty());
+  ASSERT_FALSE(text_data.glyph_positions.empty());
+
+  engine->set_next_textbox_id_for_testing(0);
+
+  DrawAndVerifyMarks(engine.get(), page, font_id, text_data, InkTextId(100),
+                     /*expected_textbox_id=*/0);
 }
 
 TEST_P(PDFiumEngineInkDrawTextTest, DrawTextAndDiscardStrokes) {

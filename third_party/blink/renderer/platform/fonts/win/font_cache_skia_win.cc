@@ -63,8 +63,6 @@
 
 namespace blink {
 
-WebFontPrewarmer* FontCache::prewarmer_ = nullptr;
-
 // Cached system font metrics.
 AtomicString* FontCache::menu_font_family_name_ = nullptr;
 int32_t FontCache::menu_font_height_ = 0;
@@ -121,21 +119,6 @@ const LayoutLocale* FallbackLocaleForCharacter(
 }
 
 }  // namespace
-
-// static
-void FontCache::PrewarmFamily(const AtomicString& family_name) {
-  DCHECK(IsMainThread());
-
-  if (!prewarmer_)
-    return;
-
-  DEFINE_STATIC_LOCAL(HashSet<AtomicString>, prewarmed_families, ());
-  const auto result = prewarmed_families.insert(family_name);
-  if (!result.is_new_entry)
-    return;
-
-  prewarmer_->PrewarmFamily(family_name);
-}
 
 //static
 void FontCache::SetSystemFontFamily(const AtomicString&) {

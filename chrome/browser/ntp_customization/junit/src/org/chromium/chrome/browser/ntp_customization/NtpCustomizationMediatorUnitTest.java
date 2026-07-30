@@ -532,17 +532,6 @@ public class NtpCustomizationMediatorUnitTest {
     }
 
     @Test
-    @Features.DisableFeatures({ChromeFeatureList.NTP_SIMPLIFICATION})
-    public void testBuildListContent_IncludesFeedOnAndroidDesktopWhenNtpSimplificationDisabled() {
-        DeviceInfo.setIsDesktopForTesting(true);
-        when(mPrefService.getBoolean(Pref.ENABLE_SNIPPETS_BY_DSE)).thenReturn(true);
-        when(mFeedServiceBridgeJniMock.isEnabled()).thenReturn(true);
-
-        assertTrue(FeedFeatures.isFeedEnabled(mProfile));
-        assertTrue(mMediator.buildListContent(mContext).contains(FEED));
-    }
-
-    @Test
     public void testUpdateFeedSectionSubtitle() {
         mMediator.updateFeedSectionSubtitle(/* isFeedVisible= */ true);
         verify(mContainerPropertyModel)

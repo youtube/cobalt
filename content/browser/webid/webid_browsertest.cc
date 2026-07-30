@@ -2450,10 +2450,9 @@ class WebIdNavigationInterceptionTest : public WebIdBrowserTest {
 IN_PROC_BROWSER_TEST_F(WebIdNavigationInterceptionTest, resolveWithRedirect) {
   // For this test, we just want to test redirects without having to also
   // trigger interception, so override the check.
-  auto* request = webid::RequestService::GetOrCreateForCurrentDocument(
-                      shell()->web_contents()->GetPrimaryMainFrame())
-                      ->GetOrCreateActiveRequest();
-  request->SetForceAllowRedirectToForTesting(true);
+  webid::RequestService::GetOrCreateForCurrentDocument(
+      shell()->web_contents()->GetPrimaryMainFrame())
+      ->SetForceAllowRedirectToForTesting(true);
 
   IdpTestServer::ConfigDetails config_details = BuildValidConfigDetails();
 
@@ -2580,10 +2579,9 @@ IN_PROC_BROWSER_TEST_F(WebIdNavigationInterceptionTest, resolveWithRedirect) {
 IN_PROC_BROWSER_TEST_F(WebIdNavigationInterceptionTest, redirectPOST) {
   // For this test, we just want to test redirects without having to also
   // trigger interception, so override the check.
-  auto* request = webid::RequestService::GetOrCreateForCurrentDocument(
-                      shell()->web_contents()->GetPrimaryMainFrame())
-                      ->GetOrCreateActiveRequest();
-  request->SetForceAllowRedirectToForTesting(true);
+  webid::RequestService::GetOrCreateForCurrentDocument(
+      shell()->web_contents()->GetPrimaryMainFrame())
+      ->SetForceAllowRedirectToForTesting(true);
 
   IdpTestServer::ConfigDetails config_details = BuildValidConfigDetails();
 

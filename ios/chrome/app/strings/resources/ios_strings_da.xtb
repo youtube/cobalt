@@ -103,6 +103,7 @@
 <translation id="1335767868357998043">Vælg placeringen for adresselinjen</translation>
 <translation id="1347468774581902829">Administrer aktivitet</translation>
 <translation id="1348596747084433075">https://www.amazon.com/Wife-Gifts/s?k=for+Wife+Gifts</translation>
+<translation id="1353169676553627502">Deaktiver statusopdateringer</translation>
 <translation id="1355337783640312381">Tryk på dit kontoikon for at skifte mellem konti</translation>
 <translation id="135806768612505061">Alle faner</translation>
 <translation id="1358106883354237005">Administreret konto</translation>
@@ -609,6 +610,7 @@
 <translation id="3073633853887034268">OK</translation>
 <translation id="3080525922482950719">Du kan gemme sider, som du vil læse senere, eller når du er offline</translation>
 <translation id="3081338492074632642">Sørg for, at den adgangskode, du gemmer, er den samme som din adgangskode til <ph name="WEBSITE" /></translation>
+<translation id="3084484227247071193">Aktivér statusopdateringer</translation>
 <translation id="3087734570205094154">Bund</translation>
 <translation id="309710370695886264">Du har 1 genbrugt adgangskode. Løs problemet nu for at forblive beskyttet.</translation>
 <translation id="3099402981545350675">Denne handling sletter adresser, der er gemt på denne enhed. Den fjerner også de valgte oplysninger fra Chrome, men sletter ikke disse oplysninger fra din Google-konto.</translation>
@@ -708,6 +710,7 @@
 <translation id="3449029510150690417">Opret din nye fanegruppe ved at give den et navn og en farve</translation>
 <translation id="345348365500626747">Adressen blev fundet</translation>
 <translation id="3459644598174926977">Brug Live med Gemini til at spørge om en side, brainstorme højt og føre samtaler.</translation>
+<translation id="3462768334899086950">Det betyder, at du mister din ikke-gemte fil og dine aktuelle faner</translation>
 <translation id="3464194322481586217">Prissporing mislykkedes.</translation>
 <translation id="3469117812148449995">Valgmuligheder for at gemme adgangskode</translation>
 <translation id="3472469028191701821">Åbner på en ny fane</translation>
@@ -836,7 +839,6 @@
 <translation id="391904960191284041">Produktanmeldelser</translation>
 <translation id="3921585859122905677">Adresselinjens placering</translation>
 <translation id="3922185497376658606">Forudindlæs websider</translation>
-<translation id="3922395466317605522">Tilpas menuen</translation>
 <translation id="3926703470020109118">Downloaden blev annulleret</translation>
 <translation id="3929457972718048006">Adresser</translation>
 <translation id="3931215329146376310">{count,plural, =1{Ny adgangskode til dette website}one{Ny adgangskode til dette website}other{Nye adgangskoder til dette website}}</translation>
@@ -965,6 +967,7 @@
 <translation id="4326912346867677256">Tryk på "Brug adgangskode" for at logge ind på en sikker måde.</translation>
 <translation id="4328843285884395590">Mit drev</translation>
 <translation id="4331177082088332784">Du kan administrere dette under BEGIN_LINKIndstillinger for indholdEND_LINK</translation>
+<translation id="4331712008356052424">Hvis du vil sende dette link, skal du logge ind på din anden enhed med <ph name="USER_EMAIL" /></translation>
 <translation id="4334428914252001502">1 ulæst artikel.</translation>
 <translation id="4338258232580025606">Kan ikke logge ind</translation>
 <translation id="4338650699862464074">Sender webadresser på de sider, du besøger, til Google.</translation>
@@ -1269,6 +1272,7 @@
 <translation id="5336910966955551309">Hold fingeren på feltet for at fastgøre dine foretrukne websites</translation>
 <translation id="5338512273860059533">Login er i gang.</translation>
 <translation id="5343472494710226394">Nyheder, sport og indhold baseret på dine interesser.</translation>
+<translation id="5351613737248079168">Du skal være logget ind for at bruge Level Up</translation>
 <translation id="5352128922772839949">Gem fil</translation>
 <translation id="5355191726083956201">Forbedret beskyttelse er aktiveret</translation>
 <translation id="536067926684072644">Vis bogmærker</translation>
@@ -1471,6 +1475,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="6040143037577758943">Luk</translation>
 <translation id="6042308850641462728">Mere</translation>
 <translation id="6045460247888249350">Tilføj titel</translation>
+<translation id="6050237559175440178">Verificer din identitet for at bruge og gemme dine oplysninger på alle dine enheder</translation>
 <translation id="6052269326659653305">Skift profil</translation>
 <translation id="605721222689873409">ÅÅ</translation>
 <translation id="6059830886158432458">Administrer dine historier og din aktivitet her</translation>
@@ -1690,7 +1695,6 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="6674917187596384849">Du kan nemt skifte mellem konti</translation>
 <translation id="6676349090816247042">Loginmetoder.</translation>
 <translation id="667999046851023355">Dokument</translation>
-<translation id="6680416467695217368">Tilpas menu</translation>
 <translation id="6681791404926413601">{count,plural, =1{{count} mulig betalingsmetode er tilgængelig over dit tastatur.}one{{count} mulig betalingsmetode er tilgængelig over dit tastatur.}other{{count} mulige betalingsmetode er tilgængelige over dit tastatur.}}</translation>
 <translation id="6682680306647339111">Påmindelsen er fjernet</translation>
 <translation id="6684262542644248484">Log ind på et website</translation>
@@ -1846,6 +1850,7 @@ Skift til <ph name="OTHER_EMAIL" /> for at fortsætte på din computer. Du får 
 <translation id="722339453342442311">Tjek nu</translation>
 <translation id="7227235818314667565">Administrer deling</translation>
 <translation id="7233006041370588369">Vælg en adgangskode, der skal udfyldes.</translation>
+<translation id="723874023660911012">Skift profil</translation>
 <translation id="7241135764990439166">Inkognitotilstand er ikke tilgængelig</translation>
 <translation id="7248046129087111453"><ph name="BEGIN_LINK" />Søgehistorikken<ph name="END_LINK" /> og <ph name="BEGIN_LINK" />andre former for aktivitet<ph name="END_LINK" /> gemmes muligvis på din Google-konto.</translation>
 <translation id="7253951228444156601">Tjekker adgangskoder…</translation>
@@ -2072,6 +2077,7 @@ Skift til <ph name="OTHER_EMAIL" /> for at fortsætte på din computer. Du får 
 <translation id="7996239959906074962">Indstil…</translation>
 <translation id="800361585186029508">Åbner de angivne webadresser i Google Chrome.</translation>
 <translation id="8005666035647241369">I Google Adgangs­kode­admin­istrator på denne enhed</translation>
+<translation id="8007106936382123905">{count,plural, =1{1 udført opgave}one{# udført opgave}other{# udførte opgaver}}</translation>
 <translation id="8010488806779226127">Prøv funktioner, der kan hjælpe dig med at gøre mere, mens du browser</translation>
 <translation id="8011489434346330032">Web Inspector</translation>
 <translation id="8014007212279733632">Verificer din identitet for at bruge autofyld til følsomme oplysninger</translation>
@@ -2155,6 +2161,7 @@ Skift til <ph name="OTHER_EMAIL" /> for at fortsætte på din computer. Du får 
 <translation id="826614135184049678">Du blev logget ud af din konto, <ph name="USER_NAME" />, som en del af nulstillingen af din iPad. Tryk på "Fortsæt" nedenfor for at logge ind igen.</translation>
 <translation id="8270320981823560179">Drev</translation>
 <translation id="8273982424131314219">Du skal udfylde oplysningerne på <ph name="URL" /></translation>
+<translation id="8274795744553482834">Du er ved at skifte profil</translation>
 <translation id="8275068909952022340">Mere…</translation>
 <translation id="8280797717392145626">Der er modtaget links</translation>
 <translation id="8281781826761538115">Standardsprog – <ph name="DEFAULT_LOCALE" /></translation>

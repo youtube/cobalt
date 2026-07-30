@@ -52,6 +52,7 @@ export class ContextualEntrypointAndMenuElement extends
       // Public properties
       // =========================================================================
       fileNum: {type: Number},
+      nonTabFileNum: {type: Number},
       showContextMenuDescription: {type: Boolean},
       smartTabSharingActive: {type: Boolean},
       smartTabSharingVisible: {type: Boolean},
@@ -86,6 +87,7 @@ export class ContextualEntrypointAndMenuElement extends
   }
 
   accessor fileNum: number = 0;
+  accessor nonTabFileNum: number = 0;
   accessor showContextMenuDescription: boolean = false;
   accessor smartTabSharingActive: boolean = false;
   accessor smartTabSharingVisible: boolean = false;

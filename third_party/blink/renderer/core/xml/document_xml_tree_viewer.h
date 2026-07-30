@@ -9,7 +9,7 @@ namespace blink {
 
 class Document;
 
-void TransformDocumentToXMLTreeView(Document&);
+void TransformDocumentToXMLTreeView(Document&, bool preserve_document_element);
 
 }  // namespace blink
 

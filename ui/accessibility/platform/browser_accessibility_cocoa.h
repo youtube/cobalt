@@ -40,6 +40,11 @@ struct COMPONENT_EXPORT(AX_PLATFORM) AXTextEdit {
 // Returns true if the given object is an NSRange instance.
 bool IsNSRange(id value);
 
+// Per-node "announceable" predicate backing the Mac AXEmptyGroup subrole.
+// Returns true when `data` carries semantics that make the node (and therefore
+// any group ancestor wrapping it) non-empty for VoiceOver.
+bool HasNonEmptyGroupSemantics(const AXNodeData& data);
+
 }  // namespace ui
 
 // BrowserAccessibilityCocoa is a cocoa wrapper around the BrowserAccessibility
@@ -61,6 +66,17 @@ COMPONENT_EXPORT(AX_PLATFORM)
 
 // Invalidate children for a non-ignored ancestor (including self).
 - (void)childrenChanged;
+
+// Clears the AXEmptyGroup cache on this node and walks up the parent chain.
+// Structural changes use -childrenChanged. Diff axes: keep in sync with
+// BrowserAccessibilityManagerMac::OnNodeDataChanged.
+- (void)invalidateEmptyGroupCacheUpwards;
+
+// Memoized WebKit-parity AXEmptyGroup predicate; also used from -subrole.
+- (BOOL)isEmptyGroupSubtree;
+
+// Test-only raw emptyGroupCache value (0=unknown, 1=empty, 2=non-empty).
+- (NSUInteger)emptyGroupCacheValueForTesting;
 
 // Get the BrowserAccessibility that this object wraps.
 - (ui::BrowserAccessibility*)owner;

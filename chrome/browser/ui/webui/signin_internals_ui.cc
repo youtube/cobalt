@@ -13,13 +13,16 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/about_signin_internals_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/common/channel_info.h"
 #include "chrome/common/url_constants.h"
 #include "components/grit/signin_internals_resources.h"
+#include "components/version_info/channel.h"
 #include "components/grit/signin_internals_resources_map.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/signin/public/identity_manager/tribool.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
@@ -123,6 +126,53 @@ void SignInInternalsHandler::RegisterMessages() {
       "getSigninInfo",
       base::BindRepeating(&SignInInternalsHandler::HandleGetSignInInfo,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "overrideCapability",
+      base::BindRepeating(&SignInInternalsHandler::HandleOverrideCapability,
+                          base::Unretained(this)));
+}
+
+void SignInInternalsHandler::HandleOverrideCapability(
+    const base::ListValue& args) {
+  AllowJavascript();
+
+  if (!AreAccountCapabilitiesOverridesAllowed()) {
+    return;
+  }
+
+  Profile* profile = Profile::FromWebUI(web_ui());
+  if (!profile) {
+    return;
+  }
+
+  CHECK_EQ(args.size(), 3u);
+  std::string account_id_str = args[0].GetString();
+  std::string capability_name = args[1].GetString();
+  std::string value_str = args[2].GetString();
+
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile);
+  if (!identity_manager) {
+    return;
+  }
+
+  CoreAccountId account_id = CoreAccountId::FromString(account_id_str);
+  std::optional<signin::Tribool> override_value;
+
+  if (value_str == "True") {
+    override_value = signin::Tribool::kTrue;
+  } else if (value_str == "False") {
+    override_value = signin::Tribool::kFalse;
+  } else if (value_str == "Unknown") {
+    override_value = signin::Tribool::kUnknown;
+  } else if (value_str.empty()) {
+    override_value = std::nullopt;
+  } else {
+    NOTREACHED() << "Invalid override value: " << value_str;
+  }
+
+  identity_manager->SetCapabilityOverride(account_id, capability_name,
+                                          override_value);
 }
 
 void SignInInternalsHandler::HandleGetSignInInfo(const base::ListValue& args) {
@@ -144,6 +194,8 @@ void SignInInternalsHandler::HandleGetSignInInfo(const base::ListValue& args) {
   base::DictValue signin_status =
       about_signin_internals ? about_signin_internals->GetSigninStatus()
                              : base::DictValue();
+  signin_status.Set("canOverrideAccountInfo",
+                    AreAccountCapabilitiesOverridesAllowed());
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   AppendBoundSessionInfo(
       signin_status,
@@ -167,10 +219,12 @@ void SignInInternalsHandler::HandleGetSignInInfo(const base::ListValue& args) {
 }
 
 void SignInInternalsHandler::OnSigninStateChanged(const base::DictValue& info) {
+  base::DictValue signin_status = info.Clone();
+  signin_status.Set("canOverrideAccountInfo",
+                    AreAccountCapabilitiesOverridesAllowed());
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   Profile* profile = Profile::FromWebUI(web_ui());
   if (profile) {
-    base::DictValue signin_status = info.Clone();
     AppendBoundSessionInfo(
         signin_status,
         BoundSessionCookieRefreshServiceFactory::GetForProfile(profile),
@@ -180,10 +234,19 @@ void SignInInternalsHandler::OnSigninStateChanged(const base::DictValue& info) {
   }
 #endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 
-  FireWebUIListener("signin-info-changed", info);
+  FireWebUIListener("signin-info-changed", signin_status);
 }
 
 void SignInInternalsHandler::OnCookieAccountsFetched(
     const base::DictValue& info) {
   FireWebUIListener("update-cookie-accounts", info);
+}
+
+bool SignInInternalsHandler::AreAccountCapabilitiesOverridesAllowed() const {
+  // Do not allow capability overrides on non-dev builds, as this is only
+  // intended for testing purposes.
+  //
+  // TODO: crbug.com/526865387 - Also allow overrides for test accounts in
+  // non-dev builds.
+  return chrome::GetChannel() == version_info::Channel::UNKNOWN;
 }

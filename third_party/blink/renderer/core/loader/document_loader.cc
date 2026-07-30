@@ -443,6 +443,7 @@ struct SameSizeAsDocumentLoader
   mojo::PendingRemote<mojom::blink::CodeCacheHost>
       pending_code_cache_host_for_background;
   HashMap<KURL, EarlyHintsPreloadEntry> early_hints_preloaded_resources;
+  Vector<DocumentLoader::Preconnect> preconnects;
   std::optional<Vector<KURL>> ad_auction_components;
   std::unique_ptr<ExtraData> extra_data;
   AtomicString reduced_accept_language;
@@ -688,6 +689,11 @@ DocumentLoader::DocumentLoader(
     early_hints_preloaded_resources_.insert(
         KURL(resource.url),
         EarlyHintsPreloadEntry(resource.as, resource.cross_origin));
+  }
+
+  for (const auto& preconnect : params_->preconnects) {
+    preconnects_.push_back(Preconnect{
+        KURL(preconnect.url), preconnect.cross_origin, preconnect.early_hint});
   }
 
   CHECK_EQ(IsBackForwardOrRestore(params_->frame_load_type), !!history_item_);

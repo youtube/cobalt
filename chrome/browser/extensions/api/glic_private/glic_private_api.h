@@ -5,6 +5,9 @@
 #ifndef CHROME_BROWSER_EXTENSIONS_API_GLIC_PRIVATE_GLIC_PRIVATE_API_H_
 #define CHROME_BROWSER_EXTENSIONS_API_GLIC_PRIVATE_GLIC_PRIVATE_API_H_
 
+#include <optional>
+#include <vector>
+
 #include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/common/extensions/api/glic_private.h"
 #include "extensions/browser/extension_function.h"
@@ -59,12 +62,14 @@ class GlicPrivateInvokeFunction : public GlicPrivateFunction {
   ResponseValue GetPromptResponseValueAndLog(
       extensions::api::glic_private::ErrorCode result);
 
-  void OnPromptRetrieved(glic::GlicInvokeOptions options,
-                         api::glic_private::InvocationSource invocation_source,
-                         bool in_new_tab,
-                         const std::string& document_id,
-                         extensions::api::glic_private::ErrorCode result,
-                         std::optional<std::string> prompt);
+  void OnPromptRetrieved(
+      glic::GlicInvokeOptions options,
+      api::glic_private::InvocationSource invocation_source,
+      bool in_new_tab,
+      const std::string& document_id,
+      extensions::api::glic_private::ErrorCode result,
+      std::optional<std::string> prompt,
+      std::optional<std::vector<uint8_t>> serialized_metadata = std::nullopt);
 };
 
 class GlicPrivateHasConversationFunction : public GlicPrivateFunction {

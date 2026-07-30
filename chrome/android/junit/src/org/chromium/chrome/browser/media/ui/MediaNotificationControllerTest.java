@@ -71,7 +71,8 @@ public class MediaNotificationControllerTest extends MediaNotificationTestBase {
         // Create a fresh controller to avoid spy vs inner class state discrepancy
         MediaNotificationController controller =
                 new MockMediaNotificationController(
-                        new ChromeMediaNotificationControllerDelegate(getNotificationId()));
+                        new ChromeMediaNotificationControllerDelegate(
+                                getNotificationId(), getNotificationId()));
         controller.mMediaNotificationInfo = mMediaNotificationInfoBuilder.setPaused(true).build();
 
         // Mock MediaSession for the controller

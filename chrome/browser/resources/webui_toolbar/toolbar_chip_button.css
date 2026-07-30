@@ -1,0 +1,159 @@
+/* Copyright 2026 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+/* #css_wrapper_metadata_start
+ * #type=style-lit
+ * #import=//resources/cr_elements/cr_shared_vars.css.js
+ * #scheme=relative
+ * #css_wrapper_metadata_end */
+
+:host {
+  color: var(--toolbar-chip-fg-color, var(--color-toolbar-button-icon));
+  flex-shrink: 0;
+  font-family: var(--toolbar-chip-font-family);
+  vertical-align: middle;
+  width: auto;
+  min-width: max-content;
+
+  /* Defaults to inherit from the page body (which loads text_defaults.css
+     to get platform-specific font family and default size). */
+  --toolbar-chip-font-family: inherit;
+  --toolbar-chip-font-size: inherit;
+  --toolbar-chip-font-weight: inherit;
+
+  --toolbar-chip-ink-drop-hover-color: var(--color-toolbar-ink-drop-hover);
+  --toolbar-chip-ink-drop-ripple-color: var(--color-toolbar-ink-drop-ripple);
+
+  --toolbar-chip-height: var(--toolbar-button-height);
+  --toolbar-chip-icon-size: var(--toolbar-button-icon-size);
+  --toolbar-chip-icon-label-gap: 0px;
+  --toolbar-chip-border-radius: calc(var(--toolbar-chip-height) / 2);
+  --toolbar-chip-padding-start: 0px;
+  --toolbar-chip-padding-end: 0px;
+
+  /* External margins implemented as host padding to expand the clickable
+   * hit target to the screen edges (Fitts's Law) without stretching the
+   * internal visual button. Defaults to 0; currently used by the App Menu
+   * button to extend its hit target to the screen corner. */
+  padding-inline-end: var(--toolbar-chip-trailing-margin, 0);
+  padding-inline-start: var(--toolbar-chip-leading-margin, 0);
+
+  /* Animation durations matching Native Views parity. */
+  /* (see views::kHighlightFadeOutOnHoverChangeDuration in views/animation/ink_drop_host.cc) */
+  --toolbar-chip-highlight-fade-duration: 250ms;
+  /* (see views::FloodFillInkDropRipple::ACTION_TRIGGERED_FADE_OUT in
+   *  views/animation/flood_fill_ink_drop_ripple.cc) */
+  --toolbar-chip-pressed-fade-duration: 300ms;
+}
+
+/* The base layer of the button, defining its shape, size, and base background
+   color, etc. */
+#button {
+  align-items: center;
+  background-color: var(--toolbar-chip-bg-color, transparent);
+  border: none;
+  border-radius: 50%; /* Default for icon-only chips */
+  color: inherit;
+  cursor: default;
+  display: flex;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  gap: var(--toolbar-chip-icon-label-gap);
+  height: var(--toolbar-chip-height);
+  justify-content: center;
+  min-width: var(--toolbar-chip-height);
+  outline: none;
+  padding: 0;
+  position: relative;
+  user-select: none; /* Disables text selection on double-click/drag */
+  width: 100%;
+
+  /* Disables the default browser tap highlight so that our custom InkDrop
+     overlay provides the sole visual feedback for taps. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* --- HIGHLIGHT ENGINE ---
+ * Mimics views::InkDrop highlight and pressed states for 1:1 parity.
+ * We use ::before for the hover highlight and ::after for the pressed highlight.
+ * Slotted elements are positioned (position: relative; z-index: 1) to paint
+ * cleanly on top of these absolute background highlights. */
+
+#button::before {
+  border-radius: inherit;
+  content: '';
+  inset: 0;
+  opacity: var(--toolbar-chip-highlight-opacity, 0);
+  pointer-events: none;
+  position: absolute;
+  background-color: var(--toolbar-chip-ink-drop-hover-color);
+  transition: opacity var(--toolbar-chip-highlight-fade-duration) ease-in-out;
+}
+
+#button::after {
+  border-radius: inherit;
+  content: '';
+  inset: 0;
+  opacity: var(--toolbar-chip-highlight-opacity, 0);
+  pointer-events: none;
+  position: absolute;
+  background-color: var(--toolbar-chip-ink-drop-ripple-color);
+  transition: opacity var(--toolbar-chip-pressed-fade-duration) ease-in-out;
+}
+
+/* HOVER STATE: Highlight layer fade-in.
+ * SHOW_ON_RIPPLE compositing: Hover layer stays visible during active/menu states. */
+:host(:hover) #button::before,
+:host([is-menu-open]) #button::before {
+  opacity: 1;
+}
+
+/* --- PRESSED/MENU STATE ---
+ * Pressed highlight layer fade-in. This layer composites on top of the hover layer. */
+:host(:active) #button::after,
+:host([is-menu-open]) #button::after {
+  opacity: 1;
+  transition-duration: 0s; /* Instant for pressed state */
+}
+
+#button:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--cr-focus-outline-color);
+}
+
+@media (forced-colors: active) {
+  #button:focus-visible {
+    outline: var(--cr-focus-outline-hcm, 2px solid transparent);
+  }
+}
+
+#button ::slotted(*) {
+  flex-shrink: 0;
+  font-size: var(--toolbar-chip-font-size);
+  font-weight: var(--toolbar-chip-font-weight);
+  position: relative; /* Stacks above absolute background pseudo-element highlights */
+  white-space: nowrap;
+  z-index: 1;
+}
+
+#button ::slotted(cr-icon),
+#button ::slotted([slot='prefix-icon']),
+#button ::slotted([slot='suffix-icon']) {
+  height: var(--toolbar-chip-icon-size);
+  width: var(--toolbar-chip-icon-size);
+}
+
+:host([has-label]) {
+  color: var(--toolbar-chip-fg-color, var(--color-toolbar-button-text));
+}
+
+/* Tonal look for chips with labels. */
+:host([has-label]) #button {
+  background-color: var(--toolbar-chip-bg-color, var(--color-toolbar-background-subtle-emphasis));
+  border-radius: var(--toolbar-chip-border-radius);
+  color: inherit;
+
+  padding-inline-end: var(--toolbar-chip-padding-end);
+  padding-inline-start: calc(var(--toolbar-chip-padding-start) + var(--toolbar-chip-height) / 4);
+}

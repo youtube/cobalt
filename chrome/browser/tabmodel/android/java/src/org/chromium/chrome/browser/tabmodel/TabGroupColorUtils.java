@@ -11,8 +11,8 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.Token;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.tab_groups.TabGroupColorId;
+import org.chromium.components.tab_groups.TabGroupColorPickerUtils;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,24 +77,9 @@ public class TabGroupColorUtils {
         return getNextSuggestedColorId(currentColorCountMap);
     }
 
-    /**
-     * This method returns the color id list attributed to tab groups specifically.
-     *
-     * @return An array list of ids from 0 to n representing all colors in the palette
-     */
-    public static List<Integer> getTabGroupColorIdList() {
-        // The color ids used here can be found in {@link TabGroupColorId}. Note that it is assumed
-        // the id list is contiguous from 0 to size-1.
-        List<Integer> colors = new ArrayList<>(TabGroupColorId.NUM_ENTRIES);
-        for (int i = 0; i < TabGroupColorId.NUM_ENTRIES; i++) {
-            colors.add(i);
-        }
-        return colors;
-    }
-
     /** Get a map that indicates the current usage count of each tab group color. */
     private static Map<Integer, Integer> getCurrentColorCountMap(TabModel tabModel) {
-        List<Integer> colorList = getTabGroupColorIdList();
+        List<Integer> colorList = TabGroupColorPickerUtils.getTabGroupColorIdList();
         Map<Integer, Integer> colorCountMap = new LinkedHashMap<>(colorList.size());
         for (Integer colorId : colorList) {
             colorCountMap.put(colorId, 0);

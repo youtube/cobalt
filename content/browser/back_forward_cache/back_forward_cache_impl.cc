@@ -39,6 +39,7 @@
 #include "content/browser/renderer_host/render_view_host_impl.h"
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/browser/renderer_host/visible_time_request_trigger.h"
+#include "content/browser/web_contents/web_contents_impl.h"
 #include "content/browser/webid/idp_network_request_manager.h"
 #include "content/browser/worker_host/shared_worker_service_impl.h"
 #include "content/common/content_navigation_policy.h"
@@ -697,16 +698,15 @@ BackForwardCacheTestDelegate::~BackForwardCacheTestDelegate() {
   g_bfcache_disabled_test_observer = nullptr;
 }
 
-BackForwardCacheImpl::BackForwardCacheImpl(
-    NavigationControllerImpl& navigation_controller)
-    : controller_(navigation_controller),
+BackForwardCacheImpl::BackForwardCacheImpl(WebContentsImpl& web_contents)
+    : web_contents_(web_contents),
       allowed_urls_(ParseCommaSeparatedURLs(GetAllowedURLList())),
       blocked_urls_(ParseCommaSeparatedURLs(GetBlockedURLList())),
       blocked_cgi_params_(ParseBlockedCgiParams(GetBlockedCgiParams())),
       max_cache_size_(GetDefaultMaxCacheSize()),
       max_foreground_cache_size_(GetDefaultMaxForegroundCacheSize()),
       weak_factory_(this) {
-  BrowserContext* browser_context = navigation_controller.GetBrowserContext();
+  BrowserContext* browser_context = web_contents.GetBrowserContext();
   should_allow_storing_pages_with_cache_control_no_store_ =
       browser_context &&
       GetContentClient()
@@ -724,6 +724,11 @@ BackForwardCacheImpl::BackForwardCacheImpl(
 
 BackForwardCacheImpl::~BackForwardCacheImpl() {
   Shutdown();
+}
+
+NavigationControllerImpl& BackForwardCacheImpl::GetNavigationController()
+    const {
+  return web_contents_->GetController();
 }
 
 std::optional<int> GetFieldTrialParamByFeatureAsOptionalInt(
@@ -783,6 +788,10 @@ std::optional<size_t> BackForwardCacheImpl::GetForegroundedEntriesCacheSize() {
 
 bool BackForwardCacheImpl::UsingForegroundBackgroundCacheSizeLimit() {
   return max_foreground_cache_size_.has_value();
+}
+
+bool BackForwardCacheImpl::IsVisible() {
+  return web_contents_->GetVisibility() == Visibility::VISIBLE;
 }
 
 BackForwardCacheImpl::Entry* BackForwardCacheImpl::FindMatchingEntry(
@@ -1526,7 +1535,7 @@ void BackForwardCacheImpl::SetEmbedderSuppliedCacheForwardEntriesAllowed(
   embedder_supplied_cache_forward_entries_allowed_ =
       embedder_supplied_cache_forward_entries_allowed;
   if (!embedder_supplied_cache_forward_entries_allowed && !entries_.empty()) {
-    PruneForwardEntries(controller_->GetLastCommittedEntryIndex());
+    PruneForwardEntries(GetNavigationController().GetLastCommittedEntryIndex());
   }
 }
 
@@ -1811,7 +1820,7 @@ void BackForwardCacheImpl::RenderViewHostNoLongerStored(
 
 bool BackForwardCacheImpl::IsForwardEntry(const std::unique_ptr<Entry>& entry,
                                           int current_nav_entry_index) {
-  int entry_index = controller_->GetEntryIndexWithUniqueID(
+  int entry_index = GetNavigationController().GetEntryIndexWithUniqueID(
       entry->render_frame_host()->nav_entry_id());
   return entry_index != -1 && entry_index > current_nav_entry_index;
 }
@@ -1842,7 +1851,7 @@ void BackForwardCacheImpl::RecordEntryMatch(const GURL& new_url,
   for (const auto& entry : entries_) {
     if (entry->render_frame_host()->GetLastCommittedURL() == new_url) {
       match_found = true;
-      int entry_index = controller_->GetEntryIndexWithUniqueID(
+      int entry_index = GetNavigationController().GetEntryIndexWithUniqueID(
           entry->render_frame_host()->nav_entry_id());
       if (entry_index == target_nav_entry_index) {
         index_match_found = true;
@@ -1873,25 +1882,19 @@ void BackForwardCacheImpl::OnMemoryPressure(
     return;
   }
 
-  // Check if the page is backgrounded or has a pending navigation.
-  // Since BackForwardCacheImpl is instantiated per
-  // WebContents/NavigationController, we can just check the status of the first
-  // entry.
-  RenderFrameHostImpl* rfh = entries_.front()->render_frame_host();
-
+  // Determine the cache size depending on the visibility.
   int cache_size = -1;
   BackForwardCache::NotRestoredReason reason;
-  bool foregrounded = rfh->delegate()->GetVisibility() == Visibility::VISIBLE;
   switch (memory_pressure_level) {
     case base::MEMORY_PRESSURE_LEVEL_MODERATE:
-      cache_size = foregrounded ? ForegroundCacheSizeOnModeratePressure()
-                                : BackgroundCacheSizeOnModeratePressure();
+      cache_size = IsVisible() ? ForegroundCacheSizeOnModeratePressure()
+                               : BackgroundCacheSizeOnModeratePressure();
       reason = BackForwardCache::NotRestoredReason::
           kCacheLimitPrunedOnModerateMemoryPressure;
       break;
     case base::MEMORY_PRESSURE_LEVEL_CRITICAL:
-      cache_size = foregrounded ? ForegroundCacheSizeOnCriticalPressure()
-                                : BackgroundCacheSizeOnCriticalPressure();
+      cache_size = IsVisible() ? ForegroundCacheSizeOnCriticalPressure()
+                               : BackgroundCacheSizeOnCriticalPressure();
       reason = BackForwardCache::NotRestoredReason::
           kCacheLimitPrunedOnCriticalMemoryPressure;
       break;
@@ -1911,7 +1914,7 @@ void BackForwardCacheImpl::OnMemoryPressure(
   // it or removing it the metric.
   size_t number_of_tabs = 0;
   size_t number_of_cached_entries = 0;
-  if (!controller_->GetPendingEntry()) {
+  if (!GetNavigationController().GetPendingEntry()) {
     size_t count = Prune(cache_size, reason);
     if (count > 0) {
       number_of_tabs++;

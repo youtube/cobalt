@@ -2,18 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/python.gni")
 import("//tools/grit/grit_args.gni")
 
 template("preprocess_if_expr") {
-  action(target_name) {
+  action_with_pydeps(target_name) {
     script = "//tools/grit/preprocess_if_expr.py"
-
-    # Declare deps of preprocess_if_expr.py as inputs as well, to re-trigger
-    # preprocess_if_expr() targets whenever those change.
-    inputs = [
-      "//tools/grit/grit/node/base.py",
-      "//tools/grit/grit/format/html_inline.py",
-    ]
 
     forward_variables_from(invoker,
                            [
@@ -22,6 +16,7 @@ template("preprocess_if_expr") {
                              "visibility",
                            ])
 
+    inputs = []
     outputs = []
 
     in_folder = "."

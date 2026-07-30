@@ -88,9 +88,6 @@ public class X509Util {
     /** A root that will be installed as a user-trusted root for testing purposes. */
     private static @Nullable X509Certificate sTestRoot;
 
-    // Don't use directly - call shouldUseLockFreeVerification() instead.
-    private static volatile @Nullable Boolean sUseLockFreeVerification;
-
     /** Lock object used to synchronize all calls that modify or depend on the trust managers. */
     private static final Object sLock = new Object();
 
@@ -156,15 +153,8 @@ public class X509Util {
                 }
 
                 if (shouldReloadTrustManager) {
-                    if (shouldUseLockFreeVerification()) {
-                        sCertVerifier.reinitialize();
-                        X509UtilJni.get().notifyTrustStoreChanged();
-                    } else {
-                        synchronized (sLock) {
-                            sCertVerifier.reinitialize();
-                            X509UtilJni.get().notifyTrustStoreChanged();
-                        }
-                    }
+                    sCertVerifier.reinitialize();
+                    X509UtilJni.get().notifyTrustStoreChanged();
                 }
             }
         }
@@ -273,18 +263,12 @@ public class X509Util {
         }
 
         public @Nullable CertificateVerifier get() {
-            if (shouldUseLockFreeVerification()) {
-                // If we're using the lock-free implementation then `get()` can be called
-                // concurrently from multiple threads. In order to avoid creating multiple
-                // certVerifiers, do a double check locking around mCertVerifier.
-                if (mCertVerifier == null) {
-                    synchronized (sFirstInitializationLock) {
-                        if (mCertVerifier == null) reinitialize();
-                    }
+            // `get()` can be called concurrently from multiple threads. In order to avoid creating
+            // multiple  certVerifiers, do a double check locking around mCertVerifier.
+            if (mCertVerifier == null) {
+                synchronized (sFirstInitializationLock) {
+                    if (mCertVerifier == null) reinitialize();
                 }
-            } else {
-                assert Thread.holdsLock(sLock);
-                if (mCertVerifier == null) reinitialize();
             }
             return mCertVerifier;
         }
@@ -296,15 +280,6 @@ public class X509Util {
         public void reinitialize() {
             mCertVerifier = mCertificateVerifierSupplier.supply();
         }
-    }
-
-    private static boolean shouldUseLockFreeVerification() {
-        // Multiple threads could initialize the same variable. However, that
-        // should not be an issue as it can never flip flop between different values.
-        if (sUseLockFreeVerification == null) {
-            sUseLockFreeVerification = X509UtilJni.get().useLockFreeVerification();
-        }
-        return sUseLockFreeVerification;
     }
 
     /**
@@ -442,7 +417,7 @@ public class X509Util {
         return false;
     }
 
-    public static AndroidCertVerifyResult verifyServerCertificatesMaybeLocked(
+    public static AndroidCertVerifyResult verifyServerCertificates(
             byte[][] certChain,
             String authType,
             String host,
@@ -470,24 +445,6 @@ public class X509Util {
                                     certChain, authType, host, ocspResponse, sctList);
         }
         return result;
-    }
-
-    public static AndroidCertVerifyResult verifyServerCertificates(
-            byte[][] certChain,
-            String authType,
-            String host,
-            byte @Nullable [] ocspResponse,
-            byte @Nullable [] sctList)
-            throws KeyStoreException, NoSuchAlgorithmException, CertificateException {
-        if (shouldUseLockFreeVerification()) {
-            return verifyServerCertificatesMaybeLocked(
-                    certChain, authType, host, ocspResponse, sctList);
-        } else {
-            synchronized (sLock) {
-                return verifyServerCertificatesMaybeLocked(
-                        certChain, authType, host, ocspResponse, sctList);
-            }
-        }
     }
 
     /**
@@ -721,7 +678,5 @@ public class X509Util {
         void notifyTrustStoreChanged();
 
         void notifyClientCertStoreChanged();
-
-        boolean useLockFreeVerification();
     }
 }

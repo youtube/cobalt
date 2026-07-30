@@ -56,7 +56,6 @@ class AppsSection : public OsSettingsSection,
   void OnQuietModeChanged(bool in_quiet_mode) override;
 
   void AddAndroidAppStrings(content::WebUIDataSource* html_source);
-  void AddPluginVmLoadTimeData(content::WebUIDataSource* html_source);
 
   void UpdateAndroidSearchTags();
 

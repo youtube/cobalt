@@ -60,6 +60,7 @@ build_webui("build") {
     ts_files += [
       "finish_or_continue/app.html.ts",
       "finish_or_continue/app.ts",
+      "finish_or_continue/finish_or_continue_browser_proxy.ts",
       "sign_in_celebration/app.html.ts",
       "sign_in_celebration/app.ts",
       "sign_in_celebration/sign_in_celebration_browser_proxy.ts",
@@ -100,6 +101,7 @@ build_webui("build") {
   mojo_files_deps =
       [ "//chrome/browser/ui/webui/intro:mojo_bindings_ts__generator" ]
   mojo_files = [
+    "$root_gen_dir/chrome/browser/ui/webui/intro/finish_or_continue.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/ui/webui/intro/intro.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/ui/webui/intro/sign_in_celebration.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/ui/webui/intro/sign_in_promo.mojom-webui.ts",

@@ -34,24 +34,6 @@ namespace {
 constexpr char kNotifierId[] = "arc_vm_data_migration_notifier";
 constexpr char kNotificationId[] = "arc_vm_data_migration_notification";
 
-bool ShouldShowNotification(Profile* profile) {
-  switch (GetArcVmDataMigrationStatus(profile->GetPrefs())) {
-    case ArcVmDataMigrationStatus::kUnnotified:
-    case ArcVmDataMigrationStatus::kNotified:
-    case ArcVmDataMigrationStatus::kConfirmed:
-      return !policy_util::IsAccountManaged(profile) ||
-             GetArcVmDataMigrationStrategy(profile->GetPrefs()) ==
-                 ArcVmDataMigrationStrategy::kPrompt;
-    case ArcVmDataMigrationStatus::kStarted:
-    case ArcVmDataMigrationStatus::kFinished:
-      return false;
-  }
-}
-
-void ReportNotificationShownForTheFirstTime() {
-  base::UmaHistogramBoolean(
-      "Arc.VmDataMigration.NotificationShownForTheFirstTime", true);
-}
 
 void ReportNotificationShown(int days_until_deadline) {
   base::UmaHistogramExactLinear(
@@ -84,25 +66,8 @@ void ArcVmDataMigrationNotifier::OnArcStarted() {
           kArcVmDataMigrationStatusOnArcStartedHistogramName, profile_),
       GetArcVmDataMigrationStatus(profile_->GetPrefs()));
 
-  // Do not show a notification if virtio-blk /data is forcibly enabled, in
-  // which case the migration is not needed.
-  if (base::FeatureList::IsEnabled(kEnableVirtioBlkForData))
-    return;
-
-  if (!ShouldShowNotification(profile_)) {
-    return;
-  }
-
-  if (GetArcVmDataMigrationStatus(profile_->GetPrefs()) ==
-      ArcVmDataMigrationStatus::kUnnotified) {
-    ReportNotificationShownForTheFirstTime();
-    profile_->GetPrefs()->SetTime(
-        prefs::kArcVmDataMigrationNotificationFirstShownTime,
-        base::Time::Now());
-  }
-  SetArcVmDataMigrationStatus(profile_->GetPrefs(),
-                              ArcVmDataMigrationStatus::kNotified);
-  ShowNotification();
+  // Note: As we are in the process of deprecating the ARCVM data migrator,
+  // we no longer show the migration prompt to prevent new migrations.
 }
 
 void ArcVmDataMigrationNotifier::OnArcSessionStopped(ArcStopReason reason) {

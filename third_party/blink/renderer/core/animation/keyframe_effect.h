@@ -116,6 +116,7 @@ class CORE_EXPORT KeyframeEffect final : public AnimationEffect {
   CompositorAnimations::FailureReasons CheckCanStartAnimationOnCompositor(
       const PaintArtifactCompositor*,
       double animation_playback_rate,
+      StartOnCompositorReason start_reason,
       PropertyHandleSet* unsupported_properties_for_tracing = nullptr) const;
   // Must only be called once.
   void StartAnimationOnCompositor(int group,

@@ -7,6 +7,7 @@
 
 #include <variant>
 
+#include "base/functional/callback.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -22,6 +23,8 @@ class PlusSevenMathService : public MathService {
   PlusSevenMathService(const PlusSevenMathService&) = delete;
   PlusSevenMathService& operator=(const PlusSevenMathService&) = delete;
   ~PlusSevenMathService() override;
+
+  void set_disconnect_handler(base::OnceClosure handler);
 
   // MathService implementation:
   void Add(uint32_t a, uint32_t b, AddCallback callback) override;

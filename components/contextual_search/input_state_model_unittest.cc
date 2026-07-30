@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "components/contextual_search/contextual_search_session_handle.h"
@@ -57,7 +58,8 @@ class InputStateModelTest : public testing::Test {
   omnibox::SearchboxConfig config_;
   GURL active_url_;
   InputState state_;
-  const std::vector<const contextual_search::FileInfo*> empty_file_info_list_;
+  const std::vector<raw_ptr<const contextual_search::FileInfo>>
+      empty_file_info_list_;
 };
 
 TEST_F(InputStateModelTest, DoesNotRemoveDriveInputWhenSignedInAndFlagEnabled) {
@@ -1244,5 +1246,72 @@ TEST_F(InputStateModelTest, DriveConsentStateTogglesDriveInput) {
               testing::UnorderedElementsAre(omnibox::INPUT_TYPE_LENS_IMAGE,
                                             omnibox::INPUT_TYPE_LENS_FILE,
                                             omnibox::INPUT_TYPE_BROWSER_TAB));
+}
+
+TEST_F(InputStateModelTest, DriveConsentStateWithDisclaimerToggle) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      {omnibox::kComposeboxDriveContextMenuOption,
+       omnibox::kComposeboxDriveContextMenuOptionDisclaimer},
+      {});
+
+  omnibox::SearchboxConfig config;
+  config.add_input_type_configs()->set_input_type(
+      omnibox::InputType::INPUT_TYPE_LENS_IMAGE);
+  config.add_input_type_configs()->set_input_type(
+      omnibox::InputType::INPUT_TYPE_LENS_FILE);
+  config.add_input_type_configs()->set_input_type(
+      omnibox::InputType::INPUT_TYPE_DRIVE);
+
+  input_state_model_ = std::make_unique<InputStateModel>(
+      session_handle_, config, active_url_, /*is_off_the_record=*/false,
+      /*browser_identity_matches_aim_identity=*/true);
+  input_state_model_->SetPrefService(&pref_service_);
+
+  // When Disclaimer is enabled, kNotConsent should allow Drive input.
+  input_state_model_->SetDriveConsentState(DriveConsentState::kNotConsent);
+  EXPECT_THAT(input_state_model_->get_state_for_testing().allowed_input_types,
+              testing::UnorderedElementsAre(
+                  omnibox::INPUT_TYPE_LENS_IMAGE, omnibox::INPUT_TYPE_LENS_FILE,
+                  omnibox::INPUT_TYPE_BROWSER_TAB, omnibox::INPUT_TYPE_DRIVE));
+
+  // kConsent should also allow Drive input.
+  input_state_model_->SetDriveConsentState(DriveConsentState::kConsent);
+  EXPECT_THAT(input_state_model_->get_state_for_testing().allowed_input_types,
+              testing::UnorderedElementsAre(
+                  omnibox::INPUT_TYPE_LENS_IMAGE, omnibox::INPUT_TYPE_LENS_FILE,
+                  omnibox::INPUT_TYPE_BROWSER_TAB, omnibox::INPUT_TYPE_DRIVE));
+
+  // kNotReady should NOT allow Drive input.
+  input_state_model_->SetDriveConsentState(DriveConsentState::kNotReady);
+  EXPECT_THAT(input_state_model_->get_state_for_testing().allowed_input_types,
+              testing::UnorderedElementsAre(omnibox::INPUT_TYPE_LENS_IMAGE,
+                                            omnibox::INPUT_TYPE_LENS_FILE,
+                                            omnibox::INPUT_TYPE_BROWSER_TAB));
+
+  // kRestricted should NOT allow Drive input.
+  input_state_model_->SetDriveConsentState(DriveConsentState::kRestricted);
+  EXPECT_THAT(input_state_model_->get_state_for_testing().allowed_input_types,
+              testing::UnorderedElementsAre(omnibox::INPUT_TYPE_LENS_IMAGE,
+                                            omnibox::INPUT_TYPE_LENS_FILE,
+                                            omnibox::INPUT_TYPE_BROWSER_TAB));
+
+  // Disable Disclaimer flag, and verify kNotConsent no longer allows Drive.
+  base::test::ScopedFeatureList disclaimer_disabled_list;
+  disclaimer_disabled_list.InitWithFeatures(
+      {}, {omnibox::kComposeboxDriveContextMenuOptionDisclaimer});
+
+  input_state_model_->SetDriveConsentState(DriveConsentState::kNotConsent);
+  EXPECT_THAT(input_state_model_->get_state_for_testing().allowed_input_types,
+              testing::UnorderedElementsAre(omnibox::INPUT_TYPE_LENS_IMAGE,
+                                            omnibox::INPUT_TYPE_LENS_FILE,
+                                            omnibox::INPUT_TYPE_BROWSER_TAB));
+
+  // Verify kConsent still allows Drive.
+  input_state_model_->SetDriveConsentState(DriveConsentState::kConsent);
+  EXPECT_THAT(input_state_model_->get_state_for_testing().allowed_input_types,
+              testing::UnorderedElementsAre(
+                  omnibox::INPUT_TYPE_LENS_IMAGE, omnibox::INPUT_TYPE_LENS_FILE,
+                  omnibox::INPUT_TYPE_BROWSER_TAB, omnibox::INPUT_TYPE_DRIVE));
 }
 }  // namespace contextual_search

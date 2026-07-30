@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_OPTIMIZATION_GUIDE_CONTENT_BROWSER_PAGE_CONTEXT_ELIGIBILITY_API_H_
 #define COMPONENTS_OPTIMIZATION_GUIDE_CONTENT_BROWSER_PAGE_CONTEXT_ELIGIBILITY_API_H_
 
+#include <cstdint>
 #include <stddef.h>
 
 #include <string>
@@ -24,6 +25,19 @@ struct MetaTag {
 
   std::string name;
   std::string content;
+};
+
+// A frame URL represented by its host and path.
+struct FrameUrl {
+  explicit FrameUrl(std::string_view host, std::string_view path);
+  FrameUrl(const FrameUrl& other);
+  FrameUrl& operator=(const FrameUrl& other);
+  ~FrameUrl();
+
+  // The host of the URL of the frame.
+  std::string host;
+  // The path of the URL of the frame.
+  std::string path;
 };
 
 // Metadata about a frame.
@@ -47,6 +61,24 @@ struct FrameMetadata {
 struct StringViewSpan {
   const std::string_view* data;
   size_t size;
+};
+
+enum class PageEligibility : int32_t {
+  // The page is definitively ineligible. Stop processing.
+  kIneligible,
+  // The page is fully eligible. No further checks needed.
+  kEligible,
+  // Eligibility depends on meta tags. Extract the tags in
+  // `meta_tag_names_affecting_eligibility` and pass them to
+  // `IsPageContextEligible`.
+  kConditionalOnMetaTags
+};
+
+struct PageEligibilityResult {
+  PageEligibility status;
+
+  // Only meaningful if status is kConditionalOnMetaTags.
+  StringViewSpan meta_tag_names_affecting_eligibility;
 };
 
 // Table of C API functions defined within the library.
@@ -74,6 +106,23 @@ struct PageContextEligibilityAPI {
       std::string_view host,
       std::string_view path,
       const std::vector<FrameMetadata>& frame_metadata);
+  // Checks the page eligibility based on frame URLs before page metadata extraction.
+  // The first entry in `frames` must correspond to the main frame.
+  //
+  // Caller Flow:
+  // 1. Call this method when the set of `frames` or their URLs change.
+  // 2. If the returned `status` is PageEligibility::kIneligible:
+  //    The page is definitively ineligible; stop processing.
+  // 3. If the returned `status` is PageEligibility::kEligible:
+  //    The page is unconditionally eligible; no further checks or tag extraction
+  //    are needed.
+  // 4. If the returned `status` is PageEligibility::kConditionalOnMetaTags:
+  //    Page eligibility depends on meta tags. Extract the meta tags whose names
+  //    are in `meta_tag_names_affecting_eligibility` for each frame, and pass
+  //    them to `IsPageContextEligible` (or `IsPageContextEligibleWithAccount`) to
+  //    evaluate final eligibility whenever the tags change.
+  PageEligibilityResult (*CheckPageEligibility)(
+      const std::vector<FrameUrl>& frames);
 };
 
 // Signature of the GetPageContextEligibilityAPI() function which the shared

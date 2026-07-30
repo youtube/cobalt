@@ -10,6 +10,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/types/optional_ref.h"
 #include "content/common/content_export.h"
+#include "content/public/browser/global_routing_id.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/clipboard_format_type.h"
@@ -122,6 +123,11 @@ class CONTENT_EXPORT ClipboardEndpoint {
   // the tab has been closed.
   WebContents* web_contents() const;
 
+  // RenderFrameHost that initiated the clipboard interaction when it
+  // corresponds to a browser tab. This can be null if the endpoint is not a
+  // Chrome tab, or if the frame has since been destroyed.
+  RenderFrameHost* render_frame_host() const;
+
  private:
   // The `ui::DataTransferEndpoint` corresponding to the clipboard interaction.
   // An empty value represents a copy from Chrome's omnibox, a copy from a
@@ -136,6 +142,10 @@ class CONTENT_EXPORT ClipboardEndpoint {
 
   // null if the endpoint has no associated WebContents, or if it's been closed.
   base::WeakPtr<WebContents> web_contents_;
+
+  // ID of the RenderFrameHost that initiated the clipboard interaction.
+  // Defaults to an invalid ID when the endpoint has no associated frame.
+  GlobalRenderFrameHostId render_frame_host_id_;
 };
 
 // Chromium-only type to associate clipboard data to the RFH it originated from.

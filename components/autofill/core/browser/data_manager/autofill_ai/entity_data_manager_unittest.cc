@@ -492,8 +492,8 @@ TEST_F(EntityDataManagerTest_InitiallyEmpty, OnPrefetchContextComplete) {
       {.record_type = EntityInstance::RecordType::kPersonalContext});
 
   EXPECT_CALL(observer, OnEntityInstancesChanged);
-  entity_data_manager().OnPrefetchContextComplete(pcontext_manager(),
-                                                  {order, shipment});
+  entity_data_manager().OnPrefetchContextComplete(
+      pcontext_manager(), std::vector<EntityInstance>{order, shipment});
   EXPECT_THAT(GetEntityInstances(), UnorderedElementsAre(order, shipment));
 }
 
@@ -516,8 +516,8 @@ TEST_F(EntityDataManagerTest_InitiallyEmpty, OnMaskedEntityTypeEvicted) {
   // Expect OnEntityInstancesChanged() to be called once after prefetching and
   // once after eviction.
   EXPECT_CALL(observer, OnEntityInstancesChanged).Times(2);
-  entity_data_manager().OnPrefetchContextComplete(pcontext_manager(),
-                                                  {order, shipment});
+  entity_data_manager().OnPrefetchContextComplete(
+      pcontext_manager(), std::vector<EntityInstance>{order, shipment});
   ASSERT_THAT(GetEntityInstances(), UnorderedElementsAre(order, shipment));
 
   // Evict orders.
@@ -562,7 +562,8 @@ TEST_F(EntityDataManagerTest_InitiallyEmpty,
           {.number = u"DL9999",
            .record_type = EntityInstance::RecordType::kPersonalContext});
   entity_data_manager().OnPrefetchContextComplete(
-      pcontext_manager(), {flight_pc, passport_pc, license_pc});
+      pcontext_manager(),
+      std::vector<EntityInstance>{flight_pc, passport_pc, license_pc});
   helper().WaitUntilIdle();
 
   EXPECT_THAT(GetEntityInstances(),
@@ -592,8 +593,8 @@ TEST_F(EntityDataManagerTest_InitiallyEmpty,
            .confirmation_code = u"CONF123",
            .name = u"Jane Doe",
            .record_type = EntityInstance::RecordType::kPersonalContext});
-  entity_data_manager().OnPrefetchContextComplete(pcontext_manager(),
-                                                  {flight_pc});
+  entity_data_manager().OnPrefetchContextComplete(
+      pcontext_manager(), std::vector<EntityInstance>{flight_pc});
 
   // Wait for the database
   helper().WaitUntilIdle();
@@ -614,8 +615,8 @@ TEST_F(
            .confirmation_code = u"CONF123",
            .name = u"Jane Doe",
            .record_type = EntityInstance::RecordType::kPersonalContext});
-  entity_data_manager().OnPrefetchContextComplete(pcontext_manager(),
-                                                  {flight_pc});
+  entity_data_manager().OnPrefetchContextComplete(
+      pcontext_manager(), std::vector<EntityInstance>{flight_pc});
   ASSERT_THAT(GetEntityInstances(), UnorderedElementsAre(flight_pc));
 
   EntityInstance flight_local =

@@ -26,19 +26,23 @@ HeadlessDevTooledBrowserTest::HeadlessDevTooledBrowserTest() = default;
 HeadlessDevTooledBrowserTest::~HeadlessDevTooledBrowserTest() = default;
 
 void HeadlessDevTooledBrowserTest::RunTest() {
-  HeadlessBrowserContext::Builder builder =
-      browser()->CreateBrowserContextBuilder();
-  CustomizeHeadlessBrowserContext(builder);
-  browser_context_ = builder.Build();
+  HeadlessBrowserContext::CreateParams params;
+  CustomizeHeadlessBrowserContext(params);
+  browser_context_ = browser()->CreateBrowserContext(std::move(params));
+  ASSERT_TRUE(browser_context_);
+
   browser()->SetDefaultBrowserContext(browser_context_);
 
   browser_devtools_client_.AttachToBrowser();
 
-  HeadlessWebContents::Builder web_contents_builder =
-      browser_context_->CreateWebContentsBuilder();
-  web_contents_builder.SetEnableBeginFrameControl(GetEnableBeginFrameControl());
-  CustomizeHeadlessWebContents(web_contents_builder);
-  web_contents_ = web_contents_builder.Build();
+  // Scope `create_params` so it is destroyed before `browser_context_` is
+  // closed, preventing dangling raw_ptr detection at function exit.
+  {
+    HeadlessWebContents::CreateParams create_params(browser_context_);
+    create_params.enable_begin_frame_control = GetEnableBeginFrameControl();
+    CustomizeHeadlessWebContents(create_params);
+    web_contents_ = browser_context_->CreateWebContents(create_params);
+  }
   Observe(HeadlessWebContentsImpl::From(web_contents_)->web_contents());
 
   PreRunAsynchronousTest();
@@ -98,10 +102,10 @@ bool HeadlessDevTooledBrowserTest::GetEnableBeginFrameControl() {
 }
 
 void HeadlessDevTooledBrowserTest::CustomizeHeadlessBrowserContext(
-    HeadlessBrowserContext::Builder& builder) {}
+    HeadlessBrowserContext::CreateParams& params) {}
 
 void HeadlessDevTooledBrowserTest::CustomizeHeadlessWebContents(
-    HeadlessWebContents::Builder& builder) {}
+    HeadlessWebContents::CreateParams& params) {}
 
 // DevTooled browser tests ---------------------------------------------------
 

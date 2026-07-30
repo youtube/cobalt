@@ -26,13 +26,13 @@ class ChromePDFDocumentHelperClient : public pdf::PDFDocumentHelperClient {
  private:
   // pdf::PDFDocumentHelperClient:
   void OnDocumentLoadComplete(
-      content::RenderFrameHost* render_frame_host) override;
-  void UpdateContentRestrictions(content::RenderFrameHost* render_frame_host,
+      content::RenderFrameHost& render_frame_host) override;
+  void UpdateContentRestrictions(content::RenderFrameHost& render_frame_host,
                                  int content_restrictions) override;
   void OnSaveURL() override;
-  void SetPluginCanSave(content::RenderFrameHost* render_frame_host,
+  void SetPluginCanSave(content::RenderFrameHost& render_frame_host,
                         bool can_save) override;
-  void OnSearchifyStarted(content::RenderFrameHost* render_frame_host) override;
+  void OnSearchifyStarted(content::RenderFrameHost& render_frame_host) override;
 
   void OnPdfTextExtracted(content::GlobalRenderFrameHostId render_frame_host_id,
                           const std::u16string& text);

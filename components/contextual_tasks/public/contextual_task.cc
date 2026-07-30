@@ -4,6 +4,7 @@
 
 #include "components/contextual_tasks/public/contextual_task.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -84,6 +85,15 @@ bool ContextualTask::AddUrlResource(const UrlResource& url_resource) {
 
 void ContextualTask::SetUrlResourcesFromServer(
     std::vector<UrlResource> url_resources) {
+  // Sort tabs submitted from contextual tasks such that the most recently
+  // selected is the leftmost tab.
+  std::stable_sort(url_resources.begin(), url_resources.end(),
+                   [](const UrlResource& a, const UrlResource& b) {
+                     if (a.timestamp.has_value() && b.timestamp.has_value()) {
+                       return a.timestamp.value() < b.timestamp.value();
+                     }
+                     return b.timestamp.has_value();
+                   });
   url_resources_ = std::move(url_resources);
 }
 

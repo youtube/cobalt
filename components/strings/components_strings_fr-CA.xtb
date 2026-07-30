@@ -477,6 +477,7 @@
 <translation id="173080396488393970">Ce type de carte n'est pas pris en charge</translation>
 <translation id="1731563515262205847">ML-DSA-65</translation>
 <translation id="1732445923934584865">Demander plutôt en personne</translation>
+<translation id="1732796940245838248">Mettre à jour le numéro de recours dans Google Portefeuille</translation>
 <translation id="1733064249834771892">Polices</translation>
 <translation id="1733631169686303142">Équipement audio</translation>
 <translation id="1733762317901693627">Même les sites normalement sûrs sont parfois compromis par des pirates informatiques. Visitez <ph name="BEGIN_LINK" />ce site dangereux<ph name="END_LINK" /> uniquement si vous êtes sûr de comprendre les risques.</translation>
@@ -581,6 +582,7 @@
 <translation id="1902576642799138955">Période de validité</translation>
 <translation id="1908217026282415406">Utilisation et mouvement de la caméra</translation>
 <translation id="1908690643053136980">Votre administrateur n'a pas donné l'autorisation suivante pour ce site : <ph name="PERMISSION" /></translation>
+<translation id="1912750443952232242">Enregistrez la carte d'identité dans Google Portefeuille</translation>
 <translation id="1913037223029790376">Utiliser le code CVC pour cette carte virtuelle</translation>
 <translation id="191374271204266022">Copier au format JSON</translation>
 <translation id="1914326953223720820">Service de décompression</translation>
@@ -711,6 +713,7 @@
 <translation id="2122165854541876335">Ressources pour les consommateurs</translation>
 <translation id="2122214041802369259">Le prix est élevé</translation>
 <translation id="2122719317867821810">Cette politique fonctionne comme prévu, mais notez qu'une valeur conflictuelle a été définie ailleurs et que cette politique la remplace.</translation>
+<translation id="2124081665399116863">Mettre à jour le véhicule dans Google Portefeuille</translation>
 <translation id="2126374524350484896">Outil de conversion en PDF :</translation>
 <translation id="2127090458081644412">Mot de passe enregistré sur cet appareil</translation>
 <translation id="2127747486437921899">Italique</translation>
@@ -993,6 +996,7 @@
 <translation id="2524962131655207565"><ph name="BEGIN_BOLD" />Le contenu de la page de paiement est partagé avec Google pour proposer ces options.<ph name="END_BOLD" /> Les forfaits de paiement sont assujettis à des critères d'admissibilité. Pour masquer les options de paiement différé, accédez aux <ph name="BEGIN_LINK" />paramètres des paiements<ph name="END_LINK" />.</translation>
 <translation id="2526062290525841862">Pour exécuter cette appli, réactivez le mode Développeur pour les applis Web isolées</translation>
 <translation id="2526280916094749336">Vous pouvez utiliser les adresses enregistrées avec tous les produits Google. Cette adresse sera enregistrée dans votre compte Google, <ph name="ACCOUNT" />.</translation>
+<translation id="2526590354069164005">Ordinateur de bureau</translation>
 <translation id="2527451058878391043">Votre code CVC se trouve au recto de votre carte. Il s'agit du code à 4 chiffres en haut à droite au-dessus de votre numéro de carte.</translation>
 <translation id="2529899080962247600">Ce champ ne peut pas contenir plus de <ph name="MAX_ITEMS_LIMIT" /> entrées. Toutes les entrées supplémentaires seront ignorées.</translation>
 <translation id="2530042584066815841">Verrouillage et utilisation de la souris</translation>
@@ -1493,6 +1497,7 @@ Pour masquer les options de paiement différé, accédez aux <ph name="BEGIN_LIN
 <translation id="3325568918769906282">en ordre décroissant</translation>
 <translation id="3325662270238538525">Accès récents aux fichiers et modifications récentes, y compris les noms de fichiers, les empreintes numériques du contenu des fichiers, la source de téléchargement et les métadonnées</translation>
 <translation id="3329013043687509092">Saturation</translation>
+<translation id="3330483197654063678">Lorsque cette option est activée, Chrome partagera les onglets ouverts de cette fenêtre pour vous aider à obtenir des réponses plus pertinentes.</translation>
 <translation id="3333762389743153920">Non admissible pour carte virtuelle</translation>
 <translation id="3338095232262050444">Sécuritaire</translation>
 <translation id="333839153442689579">Entraînement fractionné de haute intensité</translation>
@@ -1546,6 +1551,7 @@ Pour masquer les options de paiement différé, accédez aux <ph name="BEGIN_LIN
 <translation id="3422472998109090673"><ph name="HOST_NAME" /> est actuellement inaccessible.</translation>
 <translation id="3422794267539320056">Touchez le dinosaure ou appuyez sur la barre d'espace pour jouer</translation>
 <translation id="3423742043356668186">Spécifié par le système</translation>
+<translation id="3426672782316020729">Mettre à jour le passeport dans Google Portefeuille</translation>
 <translation id="3427342743765426898">&amp;Rétablir la modification</translation>
 <translation id="342781501876943858">Chromium recommande de réinitialiser votre mot de passe si vous l'avez réutilisé sur d'autres sites.</translation>
 <translation id="3428151540071562330">Une ou plusieurs des URL de modèle de serveur DnsOverHttpsTemplates sont incorrectes et ne seront pas utilisées.</translation>
@@ -2406,6 +2412,7 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="4766713847338118463">Double agrafe en bas</translation>
 <translation id="4768816584204270288">Lorsque vous payez au fil du temps, un numéro de carte virtuelle unique est rempli. Vous pouvez cliquer pour copier-coller les détails de la carte pour cet achat.</translation>
 <translation id="4768864802656530630">Journaux détaillés du système. <ph name="BEGIN_LINK" />En savoir plus<ph name="END_LINK" /></translation>
+<translation id="4770909831299304090">Mettre à jour le numéro KTN dans Google Portefeuille</translation>
 <translation id="4771249073710170730">Radiocommande et modélisation</translation>
 <translation id="4771973620359291008">Une erreur inconnue s'est produite.</translation>
 <translation id="4774055414220872623">Matériel d'arts plastiques</translation>
@@ -2846,6 +2853,7 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="5458150163479425638">{CONTACT,plural, =0{<ph name="CONTACT_PREVIEW" />}=1{<ph name="CONTACT_PREVIEW" /> et <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> autre contact}one{<ph name="CONTACT_PREVIEW" /> et <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> autre contact}other{<ph name="CONTACT_PREVIEW" /> et <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> autres contacts}}</translation>
 <translation id="5463625433003343978">Recherche d'appareils en cours…</translation>
 <translation id="5464236009658034488">Articles de bureau</translation>
+<translation id="5465128270485645058">Obtenez des réponses plus personnalisées en partageant automatiquement les onglets ouverts dans cette fenêtre s'ils sont liés à ce fil.</translation>
 <translation id="5465724643247062031">Verre (opaque)</translation>
 <translation id="5466018172325111652">Vous n'avez pas reçu votre code? <ph name="BEGIN_LINK" />Obtenir un nouveau code<ph name="END_LINK" /></translation>
 <translation id="5466818462212249084">Applis de paiement</translation>
@@ -3128,6 +3136,7 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="5911020115933784199">Événements et répertoires</translation>
 <translation id="5911110632211230665">Ouverture bloquée</translation>
 <translation id="5912796581727968237">Ouvrez Google Portefeuille</translation>
+<translation id="5914185423510719251">Enregistrez le numéro KTN dans Google Portefeuille</translation>
 <translation id="5914465277418006379"><ph name="MEMBER_FIRST_NAME" /> a ajouté cet onglet</translation>
 <translation id="5915189366813702112">Régimes de travail flexibles</translation>
 <translation id="59174027418879706">Activé</translation>
@@ -3651,6 +3660,7 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="6702851555558236418">Logiciels audio et de musique</translation>
 <translation id="6702919718839027939">Présentation</translation>
 <translation id="6704458454638854812">La propriété « Taille_personnalisée » est définie, le nom doit être « Personnalisé ».</translation>
+<translation id="670477556876354552">Un redémarrage est requis</translation>
 <translation id="6706005862292023715">Rideaux et accessoires de fenêtre</translation>
 <translation id="6706210727756204531">Portée</translation>
 <translation id="6706678697074905703">Cet IBAN n'a pas pu être enregistré dans votre compte Google. Il est plutôt enregistré dans Chrome sur cet appareil.</translation>
@@ -3908,6 +3918,7 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="7110116949943042888">Emplois temporaires et saisonniers</translation>
 <translation id="7110368079836707726">Collèges et universités</translation>
 <translation id="7111507312244504964">Évaluations et expertises immobilières</translation>
+<translation id="7117290130383718594">Annotations de texte</translation>
 <translation id="7118618213916969306">Rechercher l'URL du presse-papiers : <ph name="SHORT_URL" /></translation>
 <translation id="7118852830504022370">Cet avertissement s'affiche parce que ce site ne prend pas en charge le protocole HTTPS. <ph name="BEGIN_LEARN_MORE_LINK" />En savoir plus sur cet avertissement<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7119063404975271297">Téléséries dramatiques</translation>
@@ -4216,6 +4227,7 @@ Détails supplémentaires :
 <translation id="7569490014721427265">Golf</translation>
 <translation id="7569952961197462199">Supprimer la carte de crédit de Chrome?</translation>
 <translation id="7569983096843329377">Noir</translation>
+<translation id="7570524564113479209">Mettre à jour la carte d'identité dans Google Portefeuille</translation>
 <translation id="7570862164055912832">Numéros de recours</translation>
 <translation id="7571813784389228510">Mode IA de Google</translation>
 <translation id="7574998639136359461">Équipement de sports d'hiver</translation>
@@ -4737,6 +4749,7 @@ Détails supplémentaires :
 <translation id="8389940864052787379">Véhicules sur mesure et de performance</translation>
 <translation id="8390725133630534698">La politique de l'administrateur bloque le partage de <ph name="ORIGIN_NAME" /> vers <ph name="VM_NAME" /></translation>
 <translation id="8392783408127179588">Actualisation des politiques en cours…</translation>
+<translation id="8393948304336153065">Mettre à jour le permis de conduire dans Google Portefeuille</translation>
 <translation id="8396522675989118466">Il s'agit du code à <ph name="NUMBER_OF_DIGITS" /> chiffres qui se trouve au <ph name="SIDE_OF_CARD" /></translation>
 <translation id="8398335999901363925">Les modes de paiement accessibles à remplir au toucher sont ouverts à la pleine hauteur.</translation>
 <translation id="8398446215576328011">Rétablir les politiques appliquées</translation>
@@ -4898,7 +4911,6 @@ Détails supplémentaires :
 <translation id="8671519637524426245">La valeur <ph name="SECURE_DNS_SALT" /> ne respecte pas les exigences de taille.</translation>
 <translation id="867224526087042813">Signature</translation>
 <translation id="8672535691554698269">Réseaux informatiques</translation>
-<translation id="8673710317985154384">{NUM_TABS,plural, =1{Afficher les détails du partage d'onglets. Partage d'un onglet à partir de {WEBSITE_LIST_STR}}one{Afficher les détails du partage d'onglets. Partage de {NUM_TABS} onglet à partir de {WEBSITE_LIST_STR}}other{Afficher les détails du partage d'onglets. Partage de {NUM_TABS} onglets à partir de {WEBSITE_LIST_STR}}}</translation>
 <translation id="8675446170353411473">Vos fichiers sont en cours de téléversement dans <ph name="CLOUD_PROVIDER" /></translation>
 <translation id="8676424191133491403">Aucun délai</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, réponse, <ph name="ANSWER" /></translation>

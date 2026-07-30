@@ -232,6 +232,10 @@ public class SearchActivity extends AsyncInitializationActivity
 
     private final StartupMetricsTracker mStartupMetricsTracker;
     private final SearchUiCoordinator mSearchUiCoordinator;
+    // SearchBoxDataProvider is passed to several child components upon construction.
+    // Ensure we don't accidentally introduce disconnection by keeping only a single live instance
+    // here.
+    private final SearchBoxDataProvider mSearchBoxDataProvider = new SearchBoxDataProvider();
 
     private SnackbarManager mSnackbarManager;
     private final SettableMonotonicObservableSupplier<Profile> mProfileSupplier =
@@ -242,7 +246,7 @@ public class SearchActivity extends AsyncInitializationActivity
 
     public SearchActivity() {
         mStartupMetricsTracker = new StartupMetricsTracker(mTabModelSelectorSupplier, () -> false);
-        mSearchUiCoordinator = new SearchUiCoordinator(this);
+        mSearchUiCoordinator = new SearchUiCoordinator(this, mSearchBoxDataProvider);
     }
 
     @Override
@@ -277,7 +281,7 @@ public class SearchActivity extends AsyncInitializationActivity
     protected void triggerLayoutInflation() {
         enableHardwareAcceleration();
         boolean isIncognito = SearchActivityUtils.getIntentIncognitoStatus(getIntent());
-        mSearchUiCoordinator.getSearchBoxDataProvider().initialize(this, isIncognito);
+        mSearchBoxDataProvider.initialize(this, isIncognito);
 
         ViewGroup rootView = (ViewGroup) getWindow().getDecorView().getRootView();
         // Setting fitsSystemWindows to false ensures that the root view doesn't consume the
@@ -357,17 +361,15 @@ public class SearchActivity extends AsyncInitializationActivity
 
         recordUsage(mIntentOrigin, mSearchType);
 
-        SearchBoxDataProvider searchBoxDataProvider =
-                mSearchUiCoordinator.getSearchBoxDataProvider();
         LocationBarEmbedderUiOverrides locationBarUiOverrides =
                 mSearchUiCoordinator.getLocationBarUiOverrides();
 
-        searchBoxDataProvider.setCurrentUrl(SearchActivityUtils.getIntentUrl(intent));
+        mSearchBoxDataProvider.setCurrentUrl(SearchActivityUtils.getIntentUrl(intent));
 
         switch (mIntentOrigin) {
             case IntentOrigin.CUSTOM_TAB:
                 // Note: this may be refined by refinePageClassWithProfile().
-                searchBoxDataProvider.setPageClassification(PageClassification.OTHER_ON_CCT_VALUE);
+                mSearchBoxDataProvider.setPageClassification(PageClassification.OTHER_ON_CCT_VALUE);
                 locationBarUiOverrides
                         .setLensEntrypointAllowed(false)
                         .setVoiceEntrypointAllowed(false);
@@ -377,7 +379,7 @@ public class SearchActivity extends AsyncInitializationActivity
                 locationBarUiOverrides
                         .setLensEntrypointAllowed(true)
                         .setVoiceEntrypointAllowed(true);
-                searchBoxDataProvider.setPageClassification(
+                mSearchBoxDataProvider.setPageClassification(
                         PageClassification.ANDROID_SHORTCUTS_WIDGET_VALUE);
                 break;
 
@@ -387,7 +389,7 @@ public class SearchActivity extends AsyncInitializationActivity
                         .setLensEntrypointAllowed(false)
                         .setVoiceEntrypointAllowed(false)
                         .setEmbedderControlledHint(true);
-                searchBoxDataProvider.setPageClassification(PageClassification.ANDROID_HUB_VALUE);
+                mSearchBoxDataProvider.setPageClassification(PageClassification.ANDROID_HUB_VALUE);
                 setHubSearchBoxVisualElements();
                 break;
 
@@ -396,8 +398,8 @@ public class SearchActivity extends AsyncInitializationActivity
                         .setLensEntrypointAllowed(true)
                         .setVoiceEntrypointAllowed(true);
                 var jumpStartContext = CachedZeroSuggestionsManager.readJumpStartContext();
-                searchBoxDataProvider.setCurrentUrl(jumpStartContext.url);
-                searchBoxDataProvider.setPageClassification(jumpStartContext.pageClass);
+                mSearchBoxDataProvider.setCurrentUrl(jumpStartContext.url);
+                mSearchBoxDataProvider.setPageClassification(jumpStartContext.pageClass);
                 break;
 
             case IntentOrigin.SEARCH_WIDGET:
@@ -407,7 +409,7 @@ public class SearchActivity extends AsyncInitializationActivity
                 locationBarUiOverrides
                         .setLensEntrypointAllowed(false)
                         .setVoiceEntrypointAllowed(true);
-                searchBoxDataProvider.setPageClassification(
+                mSearchBoxDataProvider.setPageClassification(
                         PageClassification.ANDROID_SEARCH_WIDGET_VALUE);
                 break;
         }
@@ -421,9 +423,7 @@ public class SearchActivity extends AsyncInitializationActivity
     /** Translate current intent origin and extras to a PageClassification. */
     @VisibleForTesting
     /* package */ void refinePageClassWithProfile(Profile profile) {
-        SearchBoxDataProvider searchBoxDataProvider =
-                mSearchUiCoordinator.getSearchBoxDataProvider();
-        int pageClass = searchBoxDataProvider.getPageClassification(/* prefetch= */ false);
+        int pageClass = mSearchBoxDataProvider.getPageClassification(/* prefetch= */ false);
 
         // Verify if the PageClassification can be refined.
         var url = SearchActivityUtils.getIntentUrl(getIntent());
@@ -433,10 +433,10 @@ public class SearchActivity extends AsyncInitializationActivity
 
         var templateSvc = TemplateUrlServiceFactory.getForProfile(profile);
         if (templateSvc != null && templateSvc.isSearchResultsPageFromDefaultSearchProvider(url)) {
-            searchBoxDataProvider.setPageClassification(
+            mSearchBoxDataProvider.setPageClassification(
                     PageClassification.SEARCH_RESULT_PAGE_ON_CCT_VALUE);
         } else {
-            searchBoxDataProvider.setPageClassification(PageClassification.OTHER_ON_CCT_VALUE);
+            mSearchBoxDataProvider.setPageClassification(PageClassification.OTHER_ON_CCT_VALUE);
         }
     }
 
@@ -588,6 +588,7 @@ public class SearchActivity extends AsyncInitializationActivity
             mSearchUiCoordinator.removeUrlFocusChangeListener(this);
             mSearchUiCoordinator.destroy();
         }
+        mSearchBoxDataProvider.destroy();
         mHandler.removeCallbacksAndMessages(null);
         if (mSnackbarManager != null) {
             mSnackbarManager.destroy();
@@ -609,7 +610,7 @@ public class SearchActivity extends AsyncInitializationActivity
     }
 
     private void setHubSearchBoxUrlBarElements() {
-        boolean isIncognito = mSearchUiCoordinator.getSearchBoxDataProvider().isIncognitoBranded();
+        boolean isIncognito = mSearchBoxDataProvider.isIncognitoBranded();
         @StringRes int regularHintTextRes = R.string.hub_search_empty_hint;
         @StringRes
         int hintTextRes =
@@ -633,7 +634,7 @@ public class SearchActivity extends AsyncInitializationActivity
             intent.putExtra(SearchWidgetProvider.EXTRA_FROM_SEARCH_WIDGET, true);
         }
 
-        if (mSearchUiCoordinator.getSearchBoxDataProvider().isIncognitoBranded()) {
+        if (mSearchBoxDataProvider.isIncognitoBranded()) {
             intent.putExtra(Browser.EXTRA_APPLICATION_ID, getApplicationContext().getPackageName());
             intent.putExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_TAB, true);
             IntentUtils.addTrustedIntentExtras(intent);
@@ -821,7 +822,7 @@ public class SearchActivity extends AsyncInitializationActivity
     private OmniboxActionDelegateImpl createOmniboxActionDelegate() {
         return new OmniboxActionDelegateImpl(
                 this,
-                () -> mSearchUiCoordinator.getSearchBoxDataProvider().getTab(),
+                () -> mSearchBoxDataProvider.getTab(),
                 // TODO(ender): phase out callbacks when the modules below are components.
                 // Open URL in an existing, else new regular tab.
                 url -> {
@@ -872,7 +873,7 @@ public class SearchActivity extends AsyncInitializationActivity
     }
 
     /* package */ SearchBoxDataProvider getSearchBoxDataProviderForTesting() {
-        return mSearchUiCoordinator.getSearchBoxDataProvider();
+        return mSearchBoxDataProvider;
     }
 
     /* package */ LocationBarEmbedderUiOverrides getEmbedderUiOverridesForTesting() {

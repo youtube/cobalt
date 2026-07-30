@@ -421,6 +421,11 @@ sk_sp<SkDocument> MakePdfDocument(
   metadata.fTitle = SkString(title);
   metadata.fRasterDPI = 300.0f;
 
+#if BUILDFLAG(IS_MAC)
+  // Avoid macOS PDF-to-PostScript aborts on Skia alpha-gradient soft masks.
+  metadata.fRasterizeAlphaGradientsForPrinting = true;
+#endif  // BUILDFLAG(IS_MAC)
+
   SkPDF::StructureElementNode tag_root = {};
   if (!accessibility_tree.nodes.empty()) {
     ui::AXTree tree(accessibility_tree);

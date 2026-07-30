@@ -187,6 +187,10 @@ class CRYPTO_EXPORT UnexportableKeyProvider {
   // SelectAlgorithm returns which signature algorithm from
   // |acceptable_algorithms| would be used if |acceptable_algorithms| was passed
   // to |GenerateSigningKeySlowly|.
+  //
+  // Note: on Windows, calling this function may trigger a synchronous load of
+  // `ncrypt.dll`. Therefore, to avoid blocking the UI thread (and potentially
+  // causing hangs), this function should be called on a background thread.
   virtual std::optional<SignatureVerifier::SignatureAlgorithm> SelectAlgorithm(
       base::span<const SignatureVerifier::SignatureAlgorithm>
           acceptable_algorithms) = 0;

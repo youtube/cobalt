@@ -6,16 +6,16 @@
 #define COMPONENTS_PRIVATE_VERIFICATION_TOKENS_COMMON_PRIVATE_VERIFICATION_TOKENS_PUBLIC_KEY_H_
 
 #include <cstdint>
-#include <string>
 #include <vector>
 
 #include "base/time/time.h"
+#include "url/origin.h"
 
 namespace private_verification_tokens {
 
 class PrivateVerificationTokensPublicKey {
  public:
-  PrivateVerificationTokensPublicKey(std::string etld_plus_one,
+  PrivateVerificationTokensPublicKey(url::Origin issuer,
                                      std::vector<uint8_t> public_key,
                                      uint32_t key_id,
                                      base::Time expiration,
@@ -29,7 +29,7 @@ class PrivateVerificationTokensPublicKey {
 
   ~PrivateVerificationTokensPublicKey();
 
-  const std::string& etld_plus_one() const;
+  const url::Origin& issuer() const;
   const std::vector<uint8_t>& public_key() const;
   uint32_t key_id() const;
   base::Time expiration() const;
@@ -38,7 +38,7 @@ class PrivateVerificationTokensPublicKey {
   bool operator==(const PrivateVerificationTokensPublicKey&) const = default;
 
  private:
-  std::string etld_plus_one_;
+  url::Origin issuer_;
   std::vector<uint8_t> public_key_;
   uint32_t key_id_;
   base::Time expiration_;

@@ -70,6 +70,17 @@ be used.
 [devtools-experiments]: https://developer.chrome.com/docs/devtools/settings/experiments
 [devtools-cli-docs]: https://chromium.googlesource.com/devtools/devtools-frontend/+/HEAD/docs/contributing/settings-experiments-features.md#how-to-add-command-line-flags
 
+### To Use the Flag in Features Spanning Multiple Directories
+
+Add a `base::Feature` to the feature files in the lowest-level directory that
+encompasses the code.
+
+For example, for features used by `/pdf` and additional higher level code, the
+base::Features should be added to the following files:
+
+* [pdf/pdf_features.cc](https://cs.chromium.org/chromium/src/pdf/pdf_features.cc)
+* [pdf/pdf_features.h](https://cs.chromium.org/chromium/src/pdf/pdf_features.h)
+
 ### Examples
 
 You can refer to [this CL](https://chromium-review.googlesource.com/c/554510/)

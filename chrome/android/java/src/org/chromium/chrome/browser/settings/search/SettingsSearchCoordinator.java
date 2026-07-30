@@ -28,6 +28,7 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewGroup.LayoutParams;
 import android.view.ViewTreeObserver.OnGlobalLayoutListener;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.inputmethod.EditorInfo;
@@ -254,8 +255,10 @@ public class SettingsSearchCoordinator
         // AppBarLayout(app_bar_layout)
         //         +-- FrameLayout
         //         |       +----- MaterialToolbar(action_bar)
+        //         |                  +------ homeButton (back)
         //         |                  +------ searchBox (dual-column)
         //         |                  +------ searchQuery
+        //         |                  +------ help/menuButton
         //         +--- searchBox (single-column)
         Toolbar actionBar = mActivity.findViewById(R.id.action_bar);
         ViewGroup appBar = mActivity.findViewById(R.id.app_bar_layout);
@@ -429,6 +432,14 @@ public class SettingsSearchCoordinator
         assert mMultiColumnSettings != null;
         if (mMultiColumnSettings == null) return;
 
+        View detailPane = mActivity.findViewById(R.id.preferences_detail);
+        if (detailPane != null) {
+            detailPane.addOnLayoutChangeListener(
+                    (v, l, t, r, b, ol, ot, or, ob) -> {
+                        if (r - l != or - ol) updateSearchUiWidth();
+                    });
+        }
+
         updateSearchUiWidth();
 
         // Determine the search bar visibility.
@@ -577,7 +588,7 @@ public class SettingsSearchCoordinator
     private void showUiInSingleColumn(View searchBox, boolean show) {
         // Delay showing the UI until its width gets set. This mitigates the UI being seen
         // with a wrong width initially.
-        if (show && searchBox.getLayoutParams().width == ViewGroup.LayoutParams.MATCH_PARENT) {
+        if (show && searchBox.getLayoutParams().width == LayoutParams.MATCH_PARENT) {
             mHandler.post(() -> showUiInSingleColumn(searchBox, show));
             return;
         }
@@ -1004,16 +1015,21 @@ public class SettingsSearchCoordinator
             View detailPane = mActivity.findViewById(R.id.preferences_detail);
             if (searchBox == null || query == null || detailPane == null) return;
 
-            int settingsMargin = getPixelSize(R.dimen.settings_item_margin);
             int detailPaneWidth = detailPane.getWidth();
-            if (detailPaneWidth == 0 || getHelpMenuView() == null) {
+            if (detailPaneWidth == 0) {
                 mHandler.post(this::updateSearchUiWidth);
                 return;
             }
-            int width = detailPaneWidth - settingsMargin * 2 - getMenuWidth();
-            updateView(searchBox, 0, settingsMargin, width);
-            updateView(query, 0, settingsMargin, width);
-
+            int maxDetailWidthPx = getPixelSize(R.dimen.settings_min_multi_column_screen_width);
+            int minGapPx = getPixelSize(R.dimen.settings_multi_column_pane_gap);
+            int excessPx = detailPaneWidth - maxDetailWidthPx - minGapPx * 2;
+            int gapPx = (excessPx > 0 ? excessPx / 2 : 0) + minGapPx;
+            View actionBar = mActivity.findViewById(R.id.action_bar);
+            int actionBarEndMargin = gapPx - getPixelSize(R.dimen.settings_menu_icon_margin);
+            updateView(actionBar, 0, actionBarEndMargin, LayoutParams.MATCH_PARENT);
+            int searchUiWidth = detailPaneWidth - gapPx * 2 - getMenuWidth();
+            updateView(searchBox, 0, 0, searchUiWidth);
+            updateView(query, 0, 0, searchUiWidth);
             showBackIcon = true;
         } else {
             updateSingleColumnSearchUiWidth();

@@ -85,6 +85,8 @@ CONTENT_EXPORT
 - (void)updateScreenProperties;
 // Indicate if the embedding WebContents is showing a web content context menu.
 - (void)setShowingContextMenu:(BOOL)showing;
+// Indicate if the native context menu should display "AutoFill" items.
+- (void)setSupportsAutoFill:(BOOL)supports;
 // Set the current TextInputManager::TextSelection from the renderer.
 - (void)setTextSelectionText:(std::u16string)text
                       offset:(size_t)offset

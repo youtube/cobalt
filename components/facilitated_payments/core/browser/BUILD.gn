@@ -4,6 +4,7 @@
 
 static_library("browser") {
   sources = [
+    "account_linking_result.h",
     "device_delegate.h",
     "facilitated_payments_api_client.h",
     "facilitated_payments_app_info_list.h",

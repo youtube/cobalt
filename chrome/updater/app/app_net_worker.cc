@@ -20,6 +20,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/task/bind_post_task.h"
@@ -37,6 +38,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "mojo/public/cpp/platform/platform_channel.h"
+#include "mojo/public/cpp/system/data_pipe.h"
 #include "mojo/public/cpp/system/invitation.h"
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "url/gurl.h"
@@ -92,18 +94,13 @@ class FileDownloadObserverWrapper
     : public base::RefCountedThreadSafe<FileDownloadObserverWrapper> {
  public:
   explicit FileDownloadObserverWrapper(
-      mojom::FetchService::DownloadToFileCallback callback) {
+      mojom::FetchService::DownloadToStreamCallback callback) {
     std::move(callback).Run(observer_.BindNewPipeAndPassReceiver());
   }
 
   void OnResponseStarted(int32_t http_status_code, int64_t content_length) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     observer_->OnResponseStarted(http_status_code, content_length);
-  }
-
-  void OnProgress(int64_t current) {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    observer_->OnProgress(current);
   }
 
   void OnDownloadComplete(int32_t net_error, int64_t content_length) {
@@ -138,10 +135,10 @@ class FetchServiceImpl : public mojom::FetchService {
                    std::vector<mojom::HttpHeaderPtr> additional_headers,
                    mojom::FetchService::PostRequestCallback callback) override;
 
-  void DownloadToFile(
+  void DownloadToStream(
       const ::GURL& url,
-      ::base::File output_file,
-      mojom::FetchService::DownloadToFileCallback callback) override;
+      mojo::ScopedDataPipeProducerHandle response_stream,
+      mojom::FetchService::DownloadToStreamCallback callback) override;
 
  private:
   SEQUENCE_CHECKER(sequence_checker_);
@@ -202,28 +199,25 @@ void FetchServiceImpl::PostRequest(
           std::move(fetcher), wrapper));
 }
 
-void FetchServiceImpl::DownloadToFile(
-    const ::GURL& url,
-    ::base::File output_file,
-    mojom::FetchService::DownloadToFileCallback callback) {
+void FetchServiceImpl::DownloadToStream(
+    const GURL& url,
+    mojo::ScopedDataPipeProducerHandle response_stream,
+    mojom::FetchService::DownloadToStreamCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto wrapper =
       base::MakeRefCounted<FileDownloadObserverWrapper>(std::move(callback));
-  std::unique_ptr<NetworkFileFetcher> file_fetcher =
-      std::make_unique<NetworkFileFetcher>();
-  NetworkFileFetcher* file_fetcher_ptr = file_fetcher.get();
-  file_fetcher_ptr->Download(
-      url, std::move(output_file),
+  auto stream_fetcher = base::MakeRefCounted<NetworkStreamFetcher>();
+  stream_fetcher->Download(
+      url, std::move(response_stream),
       base::BindRepeating(&FileDownloadObserverWrapper::OnResponseStarted,
                           wrapper),
-      base::BindRepeating(&FileDownloadObserverWrapper::OnProgress, wrapper),
       base::BindOnce(
-          [](std::unique_ptr<NetworkFileFetcher> /*file_fetcher*/,
+          [](scoped_refptr<NetworkStreamFetcher> /*stream_fetcher*/,
              scoped_refptr<FileDownloadObserverWrapper> wrapper,
              int32_t net_error, int64_t content_length) {
             wrapper->OnDownloadComplete(net_error, content_length);
           },
-          std::move(file_fetcher), wrapper));
+          stream_fetcher, wrapper));
 }
 
 // AppNetWorker runs networking tasks in a dedicated process.

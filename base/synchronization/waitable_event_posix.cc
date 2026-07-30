@@ -85,6 +85,10 @@ bool WaitableEvent::IsSignaled() const {
   return result;
 }
 
+bool WaitableEvent::IsDefinitelySignaled() const {
+  return IsSignaled();
+}
+
 // -----------------------------------------------------------------------------
 // Synchronous waits
 

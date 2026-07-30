@@ -6,9 +6,16 @@ if (is_android) {
   import("//build/config/android/config.gni")
   import("//build/config/android/rules.gni")
   import("//chrome/browser/buildflags.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 
   source_set("lens") {
     public = [ "android/lens_prefs.h" ]
+  }
+
+  generate_jni("jni_headers") {
+    sources = [
+      "java/src/org/chromium/chrome/browser/lens/LensSupportStatusHelper.java",
+    ]
   }
 
   source_set("impl") {
@@ -23,6 +30,7 @@ if (is_android) {
     ]
 
     deps = [
+      ":jni_headers",
       "//chrome/android:jni_headers",
       "//components/policy/core/common:common_constants",
       "//components/prefs",
@@ -82,6 +90,7 @@ if (is_android) {
     ]
     deps = [
       "//base:base_java",
+      "//build/android:build_java",
       "//chrome/browser/flags:java",
       "//chrome/browser/gsa:java",
       "//chrome/browser/profiles/android:java",
@@ -91,6 +100,7 @@ if (is_android) {
       "//components/signin/public/android:java",
       "//content/public/android:content_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/jni_zero:jni_zero_java",
     ]
   }
 

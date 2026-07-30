@@ -216,10 +216,12 @@
       base::Time(),
       @"kWaitingForMultiProfileForcedMigrationTimestamp should not be set");
 
-  // Relaunch with the multi-profile features enabled.
+  // Relaunch with the multi-profile features enabled, but without
+  // force-migration (which might otherwise trigger immediately).
   [self relaunchWithIdentities:@[ personalIdentity, managedIdentity ]
                enabledFeatures:{kSeparateProfilesForManagedAccounts}
-              disabledFeatures:{}];
+              disabledFeatures:
+                  {kSeparateProfilesForManagedAccountsForceMigration}];
 
   // Verify that the managed account remained in the personal profile, since it
   // is the primary account.
@@ -247,10 +249,12 @@
       localStateTimePref:prefs::
                              kWaitingForMultiProfileForcedMigrationTimestamp];
 
-  // Relaunch with the multi-profile features enabled.
+  // Relaunch with the multi-profile features enabled, but without
+  // force-migration (which might otherwise trigger immediately).
   [self relaunchWithIdentities:@[ personalIdentity, managedIdentity ]
                enabledFeatures:{kSeparateProfilesForManagedAccounts}
-              disabledFeatures:{}];
+              disabledFeatures:
+                  {kSeparateProfilesForManagedAccountsForceMigration}];
 
   // Verify that the managed account remained in the personal profile.
   {
@@ -355,10 +359,12 @@
       base::Time(),
       @"kWaitingForMultiProfileForcedMigrationTimestamp should not be set");
 
-  // Relaunch with the multi-profile features enabled.
+  // Relaunch with the multi-profile features enabled, but without
+  // force-migration (which might otherwise trigger immediately).
   [self relaunchWithIdentities:@[ personalIdentity, managedIdentity ]
                enabledFeatures:{kSeparateProfilesForManagedAccounts}
-              disabledFeatures:{}];
+              disabledFeatures:
+                  {kSeparateProfilesForManagedAccountsForceMigration}];
 
   // Verify that the managed account remained in the personal profile, since it
   // is the primary account.
@@ -439,7 +445,8 @@
       relaunchWithIdentities:@[ personalIdentity, managedIdentity ]
              enabledFeatures:{kSeparateProfilesForManagedAccounts,
                               kSeparateProfilesForManagedAccountsForceMigration}
-            disabledFeatures:{}];
+            disabledFeatures:
+                {kSeparateProfilesForManagedAccountsImmediateForceMigration}];
 
   // Verify that the managed account remained in the personal profile, since it
   // is the primary account.
@@ -476,7 +483,8 @@
       relaunchWithIdentities:@[ personalIdentity, managedIdentity ]
              enabledFeatures:{kSeparateProfilesForManagedAccounts,
                               kSeparateProfilesForManagedAccountsForceMigration}
-            disabledFeatures:{}];
+            disabledFeatures:
+                {kSeparateProfilesForManagedAccountsImmediateForceMigration}];
 
   // Verify that the managed account is now in the converted-to-managed personal
   // profile.
@@ -524,7 +532,8 @@
       relaunchWithIdentities:@[ personalIdentity, managedIdentity ]
              enabledFeatures:{kSeparateProfilesForManagedAccounts,
                               kSeparateProfilesForManagedAccountsForceMigration}
-            disabledFeatures:{}];
+            disabledFeatures:
+                {kSeparateProfilesForManagedAccountsImmediateForceMigration}];
   [[EarlGrey selectElementWithMatcher:
                  grey_accessibilityID(
                      kManagedProfileCreationScreenAccessibilityIdentifier)]

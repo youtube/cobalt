@@ -119,23 +119,9 @@ class TaskManagerView : public TableViewDelegate,
   static TaskManagerView* GetInstanceForTests();
 
  private:
-  // Used for the TaskManagerDesktopRefresh.
-  // Determines how the UI for the TaskManager is rendered. Each boolean
-  // controls a specific deviation from the original TaskManager UI.
-  // TODO(crbug.com/364926055): Remove after feature is enabled by default.
-  struct TableConfigs {
-    bool table_has_border;
-    bool table_refresh;
-    bool dialog_button_disabled;
-    bool sort_on_cpu_by_default;
-  };
-
   friend class TaskManagerViewTest;
 
   explicit TaskManagerView(StartAction start_action = StartAction::kOther);
-
-  // Returns flags that describe how the TaskManagerView should be rendered.
-  static TableConfigs GetTableConfigs();
 
   // Creates the header for the view.
   void CreateHeader(const ChromeLayoutProvider* provider);
@@ -156,8 +142,7 @@ class TaskManagerView : public TableViewDelegate,
   std::unique_ptr<views::View> CreateSearchBar(
       const ChromeLayoutProvider* provider);
   std::unique_ptr<views::ScrollView> CreateProcessView(
-      std::unique_ptr<views::TableView> tab_table,
-      bool table_has_border);
+      std::unique_ptr<views::TableView> tab_table);
 
   // Creates the child controls (header, table, etc).
   void Init();
@@ -195,9 +180,6 @@ class TaskManagerView : public TableViewDelegate,
 
   raw_ptr<views::TableView> tab_table_ = nullptr;
 
-  // Specifications on how to layout the table.
-  TableConfigs table_config_;
-
   // all possible columns, not necessarily visible.
   std::vector<ui::TableColumn> columns_;
 
@@ -219,8 +201,6 @@ class TaskManagerView : public TableViewDelegate,
 
   // True when the Task Manager window should be shown on top of other windows.
   bool is_always_on_top_;
-
-  base::WeakPtrFactory<TaskManagerView> weak_factory_{this};
 };
 
 }  // namespace task_manager

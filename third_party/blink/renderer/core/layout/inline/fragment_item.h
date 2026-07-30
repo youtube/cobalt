@@ -512,15 +512,19 @@ class CORE_EXPORT FragmentItem final {
   // These functions are valid only if IsText() is true.
   bool HasOverAnnotation() const { return has_over_annotation_; }
   bool HasUnderAnnotation() const { return has_under_annotation_; }
-  // Returns the height of over/under ruby annotations for this fragment,
-  // measured from the annotation's baseline.
+  // This function represents how far emphasis marks should be painted from
+  // this text.
   //
-  // If this FragmentItem is associated with multiple ruby texts, the returned
-  // metrics only include the annotations directly associated with this fragment
-  // for now, and do not account for heights of other ruby annotations.
-  // For example, in:
-  // <ruby><ruby>base<rt><em>THIS</em></rt></ruby><rt>outer rt</rt></ruby>
-  // the returned metrics for |THIS| do not include those of |outer rt|.
+  // AnnotationMetrics().ascent is the distance from the line-over of this
+  // FragmentItem to the bottom edge of the over text-emphasis. This value
+  // can be negative for fonts with large internal leading.
+  //
+  // AnnotationMetrics().descent is the distance from the line-under of this
+  // FragmentItem to the top edge of the under text-emphasis. This value
+  // can be negative for fonts with large internal leading.
+  //
+  // This function returns a valid value only when it is a Text FragmentItem
+  // with text-emphasis enabled, otherwise it returns {0, 0}.
   FontHeight AnnotationMetrics() const;
 
   // Whether this item was marked dirty for reuse or not.

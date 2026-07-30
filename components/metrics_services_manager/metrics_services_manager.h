@@ -7,7 +7,6 @@
 
 #include <memory>
 
-#include "base/callback_list.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/field_trial.h"
 #include "base/threading/thread_checker.h"
@@ -177,8 +176,6 @@ class MetricsServicesManager {
   // Called when loading state changed.
   void LoadingStateChanged(bool is_loading);
 
-  // Called when the metrics reporting level has changed.
-  void OnMetricsReportingLevelChanged();
 
   // Used by |GetOnRendererUnresponsiveCb| to construct the callback that will
   // be run by |MetricsServicesWebContentsObserver|.
@@ -187,9 +184,6 @@ class MetricsServicesManager {
   // The client passed in from the embedder.
   const std::unique_ptr<MetricsServicesManagerClient> client_;
 
-  // Subscription for receiving callbacks when the metrics reporting level
-  // changes.
-  base::CallbackListSubscription metrics_reporting_choice_service_subscription_;
 
   // Ensures that all functions are called from the same thread.
   base::ThreadChecker thread_checker_;

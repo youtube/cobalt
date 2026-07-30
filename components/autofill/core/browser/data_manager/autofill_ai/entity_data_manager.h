@@ -165,7 +165,7 @@ class EntityDataManager : public KeyedService,
   // PersonalContextAccessManager::Observer:
   void OnPrefetchContextComplete(
       const PersonalContextAccessManager& manager,
-      base::span<const EntityInstance> entities) override;
+      std::optional<base::span<const EntityInstance>> entities) override;
   void OnMaskedEntityTypeEvicted(const PersonalContextAccessManager& manager,
                                  EntityType type) override;
 

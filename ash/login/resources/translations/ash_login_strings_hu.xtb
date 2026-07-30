@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">A hiba javításához kipróbálhatja a <ph name="GUEST_SIGNIN_LINK_START" />vendégként történő böngészést is<ph name="GUEST_SIGNIN_LINK_END" />.</translation>
 <translation id="1201402288615127009">Tovább</translation>
 <translation id="1222835797152767346">PIN-kód beállítása az eszközhöz a bejelentkezés megkönnyítése érdekében</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Hibakeresési funkciók<ph name="END_H3" />
+          <ph name="BR" />
+          ChromeOS-eszközén engedélyezheti a hibakeresési funkciókat, melyekkel egyéni kódot telepíthet és tesztelhet az eszközén. Ezzel az alábbiakra nyílik lehetősége:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Rootfs ellenőrzés eltávolítása, hogy módosítani tudja az operációs rendszer fájljait.
+            <ph name="LIST_ITEM" />SSH-alapú hozzáférés engedélyezése az eszközhöz a standard tesztelési kulcsok használatával, így használhat olyan eszközöket az eszközhöz való hozzáféréshez, mint a „<ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" />”.
+            <ph name="LIST_ITEM" />USB-eszközről történő rendszerindítás engedélyezése, így telepítheti a kívánt operációs rendszer lemezképét USB-meghajtóról.
+            <ph name="LIST_ITEM" />A fejlesztői és a rendszer root bejelentkezési jelszavának beállítása egyedi értékre, hogy manuálisan be tudjon jelentkezni az eszközre SSH használatával.
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Miután aktiválja őket, a hibakeresési funkciók nagy része még akkor is engedélyezve marad, ha powerwash műveletet hajt végre, vagy ha visszaállíthatatlanul törli az adatokat a vállalati felügyelt eszközről. Az összes hibakeresési funkció teljes letiltásához hajtsa végre a ChromeOS helyreállítási folyamatát (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          További információ a hibakeresési funkciókról:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Megjegyzés:<ph name="END_BOLD" /> A rendszer újraindul a folyamat során.</translation>
 <translation id="1347625331607114917">Ellenőrizze a kódot androidos telefonon</translation>
 <translation id="1347975661240122359">A frissítés akkor kezdődik, amikor az akkumulátor töltöttsége legalább <ph name="BATTERY_LEVEL" />%.</translation>
 <translation id="1375938286942050085">A beállítás megtörtént. Most készítse fel eszközét a játékra</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Alkalmazások letöltése folyamatban</translation>
 <translation id="5045550434625856497">Helytelen jelszó</translation>
 <translation id="5062930723426326933">A bejelentkezés nem sikerült. Kérjük, kapcsolódjon az internethez, majd próbálja újra.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />A Geminivel csevegve a Google AI segítségével elkezdhet írni valamit, tervezhet, tanulhat stb.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />A beállítást követően elkezdheti használni a Geminit. Ehhez válassza ki a Gemini alkalmazást a polcon, a képernyő alján.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Csatlakoztassa <ph name="DEVICE_TYPE" /> eszközét áramforráshoz.</translation>
 <translation id="5147516217412920887">A kód megerősítéséhez kövesse a telefonon megjelenő utasításokat.</translation>
 <translation id="5160857336552977725">Jelentkezzen be <ph name="DEVICE_TYPE" /> eszközén</translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Hibakeresési funkciók<ph name="END_H3" />
+          <ph name="BR" />
+          ChromeOS Flex-eszközén engedélyezheti a hibakeresési funkciókat, melyekkel egyéni kódot telepíthet és tesztelhet az eszközén. Ezzel az alábbiakra nyílik lehetősége:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Rootfs ellenőrzés eltávolítása, hogy módosítani tudja az operációs rendszer fájljait.
+            <ph name="LIST_ITEM" />SSH-alapú hozzáférés engedélyezése az eszközhöz a standard tesztelési kulcsok használatával, így használhat olyan eszközöket az eszközhöz való hozzáféréshez, mint a „<ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" />”.
+            <ph name="LIST_ITEM" />USB-eszközről történő rendszerindítás engedélyezése, így telepítheti a kívánt operációs rendszer lemezképét USB-meghajtóról.
+            <ph name="LIST_ITEM" />A fejlesztői és a rendszer root bejelentkezési jelszavának beállítása egyedi értékre, hogy manuálisan be tudjon jelentkezni az eszközre SSH használatával.
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Miután aktiválja őket, a hibakeresési funkciók nagy része még akkor is engedélyezve marad, ha powerwash műveletet hajt végre, vagy ha visszaállíthatatlanul törli az adatokat a vállalati felügyelt eszközről. Az összes hibakeresési funkció teljes letiltásához hajtsa végre a ChromeOS helyreállítási folyamatát (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          További információ a hibakeresési funkciókról:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Megjegyzés:<ph name="END_BOLD" /> A rendszer újraindul a folyamat során.</translation>
 <translation id="523505283826916779">Kisegítő beállítások</translation>
 <translation id="5240931875940563122">Belépés androidos telefonnal</translation>
 <translation id="5255859108402770436">Újbóli bejelentkezés</translation>
@@ -193,6 +231,10 @@
 <translation id="6955698182324067397">Ön engedélyezi a ChromeOS hibakeresési funkcióit, melyek be fogják állítani az sshd daemon szolgáltatást, és engedélyezni fogják az USB-meghajtókról való indítást.</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6981982820502123353">Kisegítő lehetőségek</translation>
+<translation id="6984652455487792101">Ha proxyszervert használ, tekintse át a proxybeállításokat, vagy
+        forduljon hálózati rendszergazdájához, hogy ellenőrizze a proxyszerver
+működését. Ha úgy véli, hogy nem kellene proxyszervert használnia,
+        módosítsa a <ph name="LINK_START" />proxybeállításokat<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">Kapcsolja be a telefon Bluetooth- és Wi-Fi-kapcsolatát.</translation>
 <translation id="7077829361966535409">A bejelentkezési oldalt a jelenlegi proxybeállítások mellett nem lehetett betölteni. Kérjük, <ph name="GAIA_RELOAD_LINK_START" />próbáljon újra bejelentkezni<ph name="GAIA_RELOAD_LINK_END" />, vagy használjon más <ph name="PROXY_SETTINGS_LINK_START" />proxybeállításokat<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="7114054701490058191">A jelszavak nem egyeznek</translation>
@@ -205,6 +247,9 @@
 <translation id="7345706641791090287">Erősítse meg a jelszót</translation>
 <translation id="7352651011704765696">Valami nem működik</translation>
 <translation id="7476454130948140105">Az akkumulátor töltöttségi szintje túl alacsony a frissítéshez (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />A regisztráció előtt ki kell ürítenie a TPM-et, hogy a <ph name="DEVICE_OS" /> tulajdonba vehesse az eszközt.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Arra is lehetősége van, hogy teljesen kikapcsolja a TPM-eszközt. Adatait biztonságosan, szoftveres titkosítással tárolja a rendszer, de bizonyos biztonsági funkciók (például a hardveresen támogatott tanúsítványok) letiltásra kerülnek.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />TPM-beállításait a rendszert újraindítva, majd a BIOS-/UEFI-beállításokba belépve módosíthatja. A lépések eszközmodellenként eltérők lehetnek. További információért az újraindítás előtt nyissa meg egy másik eszközön a <ph name="DEVICE_OS" /> dokumentációját: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Hibakeresési szolgáltatások bekapcsolása ennél a(z) <ph name="IDS_SHORT_PRODUCT_NAME" /> eszköznél</translation>
 <translation id="7553242001898162573">Adja meg a jelszavát</translation>
 <translation id="7556242789364317684">Sajnos a(z) <ph name="SHORT_PRODUCT_NAME" /> nem tudja visszaállítani a beállításokat. A hiba kijavításához a(z) <ph name="SHORT_PRODUCT_NAME" /> alkalmazásnak a Powerwash eljárást kell alkalmaznia.</translation>
@@ -251,6 +296,10 @@
 <translation id="8452105022015742247">Google-fiókadatok átvitele androidos telefonról…</translation>
 <translation id="8524841856047224176">Személyre szabhatja a kameraháttereket a videohívásokhoz és egyebekhez.</translation>
 <translation id="8569673829373920831">További információ erről: <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">A QR-kód beolvasásához kövesse a telefonján megjelenő utasításokat. Ellenőrizze, hogy be van-e kapcsolva a Bluetooth a telefonon.
+        <ph name="BR" />
+        <ph name="BR" />
+        A következőként látható a közeli eszközök számára: <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />…</translation>
 <translation id="8655972064210167941">A bejelentkezés nem sikerült, mert a jelszót nem sikerült ellenőrizni. Kérjük, forduljon rendszergazdájához vagy próbálja újra.</translation>
 <translation id="8674903726754070732">Sajnos számítógépe nem megfelelő formátumú hardverazonosítóval van konfigurálva. Emiatt a ChromeOS nem tud frissülni a legújabb biztonsági javításokkal, és számítógépét <ph name="BEGIN_BOLD" />rosszindulatú támadások érhetik<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Szülői felügyelet hozzáadása beállítás után</translation>
@@ -264,10 +313,20 @@
 <translation id="8830796635868321089">Nem sikerült a frissítés ellenőrzése a jelenlegi proxybeállítások használatával. Kérjük, módosítsa a <ph name="PROXY_SETTINGS_LINK_START" />proxybeállításait<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">Mentett beállításai és tevékenységei minden ChromeOS-eszközön rendelkezésre állnak, amikor be van jelentkezve Google-fiókjával. A Beállítások között bármikor módosíthatja a szinkronizálni kívánt elemeket.</translation>
 <translation id="8875221558267407626">Összefoglalhatja a tartalmat, egyszerűsítheti a bonyolult nyelvezetet, vagy kérdéseket tehet fel</translation>
+<translation id="8913163265790894442">Telefonjával könnyedén beállíthatja a <ph name="DEVICE_TYPE" /> eszközt. Jelszavai manuális megadása nélkül is hozzáadhat Wi-Fi-hálózatot és Google-fiókot.
+        <ph name="BR" />
+        <ph name="BR" />
+        A következőként látható: <ph name="DEVICE_TYPE" />…</translation>
 <translation id="8946359700442089734">A hibakereső szolgáltatásokat nem kapcsolták be teljes körűen ezen a(z) <ph name="IDS_SHORT_PRODUCT_NAME" /> eszközön.</translation>
 <translation id="8965037249707889821">Adja meg a régi jelszót</translation>
 <translation id="8975396729541388937">Bármikor leiratkozhat a kapott e-mailekben található linkre kattintva.</translation>
 <translation id="9033765790910064284">Ennek ellenére folytatom</translation>
 <translation id="903480517321259405">Adja meg újra a PIN-kódot</translation>
 <translation id="9076523132036239772">Elnézést kérünk, de e-mail címének vagy jelszavának ellenőrzése sikertelen volt. Próbáljon csatlakozni egy hálózathoz.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Kizárólag <ph name="DEVICE_TYPE" /> eszközön.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />A generatív AI egy kísérleti szolgáltatás, korai fejlesztési fázisban van, és jelenleg korlátozottan áll rendelkezésre.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Telefonjával könnyedén beállíthatja a <ph name="DEVICE_TYPE" /> eszközt. Google-fiókját jelszava manuális megadása nélkül is hozzáadhatja.
+        <ph name="BR" />
+        <ph name="BR" />
+        A következőként látható: <ph name="DEVICE_TYPE" />…</translation>
 </translationbundle>

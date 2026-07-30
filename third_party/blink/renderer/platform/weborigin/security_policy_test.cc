@@ -680,4 +680,23 @@ TEST(SecurityPolicyTest, ReferrerForCustomScheme) {
             kFullReferrer);
 }
 
+TEST(SecurityPolicyTest, GenerateReferrerKURLOverload) {
+  const KURL destination_url("https://b.test/path/to/file.html");
+  const KURL referrer_url("https://a.test/path/to/file.html");
+
+  // Basic test for generating referrer with KURL overload
+  Referrer result = SecurityPolicy::GenerateReferrer(
+      network::mojom::ReferrerPolicy::kAlways, destination_url, referrer_url);
+  EXPECT_EQ(referrer_url.GetString(), result.referrer);
+
+  Referrer result_never = SecurityPolicy::GenerateReferrer(
+      network::mojom::ReferrerPolicy::kNever, destination_url, referrer_url);
+  EXPECT_EQ(Referrer::NoReferrer(), result_never.referrer);
+
+  // Check invalid KURL referrer is handled correctly
+  Referrer result_invalid = SecurityPolicy::GenerateReferrer(
+      network::mojom::ReferrerPolicy::kAlways, destination_url, KURL());
+  EXPECT_EQ(Referrer::NoReferrer(), result_invalid.referrer);
+}
+
 }  // namespace blink

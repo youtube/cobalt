@@ -406,14 +406,13 @@ class CONTENT_EXPORT RenderProcessHost : public IPC::Listener,
   virtual void RemovePriorityClient(
       RenderProcessHostPriorityClient* priority_client) = 0;
 
-#if !BUILDFLAG(IS_ANDROID)
-  // Sets a process priority override. This overrides the entire built-in
-  // priority setting mechanism for the process.
-  // TODO(pmonette): Make this work well on Android.
+  // Sets a process priority override. On Desktop platforms, this overrides the
+  // entire built-in priority setting mechanism for the process. On Android,
+  // this boost the effective importance of the process.
+  // TODO(b/400850388): Make this work well on Android.
   virtual void SetPriorityOverride(base::Process::Priority priority) = 0;
   virtual bool HasPriorityOverride() = 0;
   virtual void ClearPriorityOverride() = 0;
-#endif
 
 #if BUILDFLAG(IS_ANDROID)
   // Sets whether to consider the process as a spare renderer when
@@ -432,6 +431,7 @@ class CONTENT_EXPORT RenderProcessHost : public IPC::Listener,
   virtual bool ShouldThrottleNavigationForSpareRendererGraduation() = 0;
 
   // Return the highest importance of all widgets in this process.
+  // It might be boosted by the priority override.
   virtual ChildProcessImportance GetEffectiveImportance() = 0;
 
   // Return the highest binding this process has.

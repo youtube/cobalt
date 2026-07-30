@@ -192,7 +192,7 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
   void ExceptionThrown(ErrorEvent*) final;
   void AddInspectorIssue(AuditsIssue) final;
   EventTarget* ErrorEventTarget() final { return this; }
-  String OutgoingReferrer() const final;
+  KURL OutgoingReferrerUrl() const final;
   CoreProbeSink* GetProbeSink() final;
   const BrowserInterfaceBrokerProxy& GetBrowserInterfaceBroker() const final;
   FrameOrWorkerScheduler* GetScheduler() final;

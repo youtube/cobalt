@@ -523,6 +523,16 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_HISTORY_TURN_ON_SYNC_PROMO_DESC" desc="Description of the turn on sync/sign-in promo. Further tells users to turn o sync/sign in to Chrome to see synced tabs from other devices.">
         To get your tabs from your other devices, turn on sync
       </message>
+      <!-- Sign in on your phone (QR code) strings  -->
+      <message name="IDS_HISTORY_SIGNIN_ON_PHONE_PROMO_TITLE" desc="Title of the Cross device sign in promo on the History page, the promo will open the QR code bubble that allows the user to sign in on their phone.">
+        Pick up where you left off
+      </message>
+      <message name="IDS_HISTORY_SIGNIN_ON_PHONE_PROMO_SUBTITLE" desc="Subtitle of the Cross device sign in promo on the History page, the promo will open the QR code bubble that allows the user to sign in on their phone.">
+        Easily get back to sites you've visited by signing in to the same account on both devices
+      </message>
+      <message name="IDS_HISTORY_SIGNIN_ON_PHONE_PROMO_BUTTON" desc="Action button of the Cross device sign in promo on the History page, the promo will open the QR code bubble that allows the user to sign in on their phone. Clicking this button opens the QR code bubble.">
+        Sign in on your phone
+      </message>
 
       <message name="IDS_HISTORY_SYNC_HISTORY_PROMO" desc="Text of the sync hystory promo. This will show up if a user is not logged in and has no synced tabs.">
         Browse across devices
@@ -601,6 +611,10 @@ are declared in tools/grit/grit_args.gni.
         </message>
       </if>
 
+      <message name="IDS_INSPECT_ELEMENT_ANDROID" desc="The name of the Inspect Element command in the context menu for Android.">
+        Inspect
+      </message>
+
        <!-- content area context menus. Android does not use it -->
       <if expr="not is_android">
         <message name="IDS_CONTENT_CONTEXT_INSPECTELEMENT" desc="The name of the Inspect Element command in the content area context menu">
@@ -611,6 +625,9 @@ are declared in tools/grit/grit_args.gni.
         </message>
         <message name="IDS_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS" desc="Context menu item for inspecting the element with DevTools.">
           With DevTools
+        </message>
+        <message name="IDS_CONTENT_CONTEXT_SAVE_TO_MEMORY_BANKS" desc="The name of the Save to Memory Banks command in the context menu">
+          Save to Memory
         </message>
         <message name="IDS_CONTENT_CONTEXT_ACCESSIBILITY_LABELS_DIALOG_TITLE" desc="The title of a dialog that asks whether to integrate the accessibility image labeling service of Google to Chrome.">
           Get image descriptions from Google?
@@ -669,10 +686,6 @@ are declared in tools/grit/grit_args.gni.
           </message>
           <message name="IDS_CONTENT_CONTEXT_ARCHIVE_GLIC" desc="Context menu item to archive Glic conversation">
            Archive
-          </message>
-          <!-- TODO(b/510738735) Placeholder for now so mark translateable=false -->
-          <message name="IDS_CONTENT_CONTEXT_DICTATION" desc="Context menu item to start dictation" translateable="false">
-           Start dictation
           </message>
           <message name="IDS_CONTENT_CONTEXT_RELOAD" desc="The name of the Reload command in the content area context menu">
             &amp;Reload
@@ -6322,6 +6335,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_EXTENSION_SEARCH_OVERRIDDEN_DIALOG_PREVIOUS_CHOICE" desc="Describes why the previous search provider is being presented as an option for which search to use.">
         Your previous choice
       </message>
+      <message name="IDS_EXTENSION_SEARCH_OVERRIDDEN_DIALOG_DEFAULT_SEARCH_ENGINE" desc="The name of the default search engine when the previous default search engine name is not available. Used as a placeholder in the explicit choice dialog.">
+        Default search engine
+      </message>
       <!-- End Extension Settings Overridden Dialog strings. -->
       <!-- Force Installed Deprecated Apps Deletion Dialog strings. -->
       <if expr="is_macosx">
@@ -8601,7 +8617,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Share tabs
       </message>
       <message name="IDS_NTP_COMPOSEBOX_RECENT_TAB_SUFFIX" desc="Suffix label appended after the title of the most recently active tab in the Share tabs flyout. Visual separation from the title is handled by CSS, not by leading white space in this string.">
-        · Recent tab
+        Recent tab
       </message>
       <message name="IDS_NTP_COMPOSE_ADD_IMAGE"  desc="Text for a button label that opens a menu so users can add an image to their search.">
         Add image
@@ -8690,6 +8706,10 @@ Keep your key file in a safe place. You will need it to create new versions of y
        <message name="IDS_COMPOSE_CURRENT_TAB" desc="Label for the row in the Composebox context menu flyout that shows the current tab the user has open.">
         Current tab
       </message>
+      <message name="IDS_COMPOSE_MAX_FILE_UPLOAD_ERROR" desc="Error message shown in toast when file limit maximum is reached.">
+        You can only add up to <ph name="COUNT">$1<ex>10</ex></ph> files
+      </message>
+
       <message name="IDS_NTP_ACTION_CHIP_TAB_HEADING_1" desc="Heading of the tab action chip on the NTP." >
         Ask about previous tab
       </message>
@@ -16179,6 +16199,12 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_MICROPHONE_CAMERA_NOT_ALLOWED" desc="Title for the media activity indicator when a page is not allowed to use the camera and microphone.">
         Camera &amp; microphone not allowed
       </message>
+      <message name="IDS_SENSORS_IN_USE" desc="Title for the sensors activity indicator when a page is using motion sensors.">
+        Sensors in use
+      </message>
+      <message name="IDS_SENSORS_BLOCKED" desc="Title for the sensors activity indicator when a page is not allowed to use motion sensors.">
+        Sensors blocked
+      </message>
       <message name="IDS_MICROPHONE_IN_USE" desc="Title for the media activity indicator when a page is using the microphone.">
         Microphone in use
       </message>
@@ -19112,6 +19138,15 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
       <message name="IDS_SPLIT_VIEW_UNDO_SPLIT_ACTION_BUTTON" desc="Text for the action button on a split view toast notification to undo creating the split view.">
         Undo
+      </message>
+      <message name="IDS_TAB_STRIP_SWITCH_DELAYED_TO_HORIZONTAL_TOAST_BODY" desc="Text on a toast notification shown when the tab strip mode switch to horizontal is delayed because the browser is in immersive fullscreen.">
+        Exit full screen to show tabs horizontally
+      </message>
+      <message name="IDS_TAB_STRIP_SWITCH_DELAYED_TO_VERTICAL_TOAST_BODY" desc="Text on a toast notification shown when the tab strip mode switch to vertical is delayed because the browser is in immersive fullscreen.">
+        Exit full screen to show tabs vertically
+      </message>
+      <message name="IDS_TAB_STRIP_SWITCH_DELAYED_EXIT_FULLSCREEN_ACTION" desc="Action button on a toast notification that exits immersive fullscreen mode.">
+        Exit full screen
       </message>
     </if>
 

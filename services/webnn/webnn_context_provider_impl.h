@@ -138,6 +138,18 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextProviderImpl
 
   void CreateWeightsFile(base::OnceCallback<void(base::File)> callback);
 
+#if BUILDFLAG(IS_WIN)
+  // Called when a renderer requests a new CompilerContext for an existing
+  // context (e.g. after a Compiler process crash or idle shutdown).
+  void ReconnectCompilerContext(
+      mojom::CreateContextOptionsPtr options,
+      ContextProperties properties,
+      EpDeviceInfo target_device,
+      mojo::PendingReceiver<mojom::WebNNCompilerContext>
+          compiler_context_receiver,
+      mojo::PendingRemote<mojom::WebNNModelLoader> model_loader_remote);
+#endif  // BUILDFLAG(IS_WIN)
+
   static void SetBackendForTesting(BackendForTesting* backend_for_testing);
   static bool HasBackendForTesting();
 
@@ -192,7 +204,6 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextProviderImpl
   // enabled. Launches the compiler and requests a CompilerContext before
   // completing context creation.
   void OnDispatchContextCreated(
-      EpDeviceInfo target_device,
       CreateWebNNContextCallback callback,
       mojo::PendingRemote<mojom::WebNNContext> remote,
       mojo::ScopedDataPipeProducerHandle write_tensor_producer,

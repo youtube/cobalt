@@ -20,7 +20,7 @@ namespace {
 // If this is off, then all auxiliary contexts will be created as browser tabs.
 const base::FeatureParam<bool> kEnableAuxContextKeepSameContainer{
     &features::kPwaNavigationCapturing, "aux_context_keep_same_container",
-    /*default_value=*/false};
+    /*default_value=*/true};
 
 }  // namespace
 

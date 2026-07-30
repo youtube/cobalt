@@ -14,10 +14,11 @@ export function getHtml(this: ReadonlyOmniboxElement) {
   return html`<!--_html_template_start_-->
 <div id="textContainerWrap" tabindex="-1">
   <!-- Only one of #textInput and #textContainer is visible at once
-       (by painting them on opaque backgrounds and altering z-index).
-       textInput is out of normal flow (absolutely positioned) and sized to 100%
-       of allocated width; #textContainer is in normal flow and sized based on
-       contents.
+       (by controlling their opacity).
+
+       textInput is out of normal flow (absolutely positioned) and sized to
+       100% of allocated width; #textContainer is in normal flow and sized
+       based on contents.
 
        #textContainer contains richtext version of the input thus far;
        #textInput contains plaintext version of the input plus optionally an

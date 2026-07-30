@@ -207,11 +207,32 @@ public class PageZoomBarCoordinator {
     }
 
     private void updateTranslation() {
-        int sheetOffset =
-                mBottomSheetController != null ? mBottomSheetController.getCurrentOffset() : 0;
-        // The required offset to clear both the bottom controls and the bottom sheet is
-        // the maximum of the bottom controls height and the bottom sheet's current offset.
-        int totalOffset = Math.max(mBottomControlsOffset, sheetOffset);
+        int sheetOffset = 0;
+        boolean isAnchored = false;
+        boolean actsAsBrowserControls = false;
+        if (mBottomSheetController != null) {
+            sheetOffset = mBottomSheetController.getCurrentOffset();
+            isAnchored = mBottomSheetController.isAnchoredToBottomControls();
+            actsAsBrowserControls = mDelegate.isSheetActingAsBrowserControls();
+        }
+
+        int totalOffset;
+        // When the bottom sheet is anchored to the bottom controls, it sits on top of them.
+        // Therefore, we must sum their offsets to clear both. Otherwise, they overlap and
+        // we take the maximum.
+        if (isAnchored) {
+            if (actsAsBrowserControls) {
+                // If the sheet acts as browser controls, mBottomControlsOffset already
+                // includes the sheet's peek height. In PEEK state (which is the only state
+                // we care about since the bar is dismissed in other states), this is equal
+                // to the sheet's offset. So we don't need to sum them.
+                totalOffset = mBottomControlsOffset;
+            } else {
+                totalOffset = mBottomControlsOffset + sheetOffset;
+            }
+        } else {
+            totalOffset = Math.max(mBottomControlsOffset, sheetOffset);
+        }
         setTranslation(totalOffset);
     }
 

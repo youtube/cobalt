@@ -52,6 +52,12 @@ std::string_view WebnnDeviceTypeToString(webnn::mojom::Device device_type) {
   }
 }
 
+// Formats a device for logging as "[<ep_name>, <DEVICE_TYPE>]".
+std::string EpDeviceToString(const webnn::EpDeviceInfo& device) {
+  return base::StrCat({"[", device.ep_name, ", ",
+                       WebnnDeviceTypeToString(device.device_type), "]"});
+}
+
 }  // namespace
 
 WebNNCompilerProcessHost::WebNNCompilerProcessHost() = default;
@@ -62,7 +68,9 @@ void WebNNCompilerProcessHost::RequestCompilerContext(
     webnn::mojom::CreateContextOptionsPtr context_options,
     const webnn::ContextProperties& context_properties,
     const webnn::EpDeviceInfo& target_device,
-    RequestCallback callback) {
+    mojo::PendingReceiver<webnn::mojom::WebNNCompilerContext>
+        compiler_context_receiver,
+    mojo::PendingRemote<webnn::mojom::WebNNModelLoader> model_loader_remote) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   const auto crash_it = GetWebNNCompilerCrashCounts().find(target_device);
@@ -72,30 +80,40 @@ void WebNNCompilerProcessHost::RequestCompilerContext(
           webnn::mojom::features::kWebNNCompilerProcess) ||
       !base::FeatureList::IsEnabled(
           webnn::mojom::features::kWebNNOnnxRuntime)) {
-    std::move(callback).Run(mojo::NullRemote(), mojo::NullReceiver());
+    // Drop the pipe endpoints — peer endpoints will observe a disconnect.
+    LOG(ERROR) << "[WebNN] RequestCompilerContext() failed: "
+                  "WebNN Compiler process is disabled or has crashed too many "
+                  "times for device "
+               << EpDeviceToString(target_device);
     return;
   }
 
   // Always call this function to update the EP info since EPs in `NotPresent`
   // state may be added asynchronously after initialization.
-  webnn::EnsureExecutionProvidersReady(
-      base::BindOnce(&WebNNCompilerProcessHost::OnEpsResolvedForCompilerContext,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(context_options),
-                     context_properties, target_device, std::move(callback)));
+  webnn::EnsureExecutionProvidersReady(base::BindOnce(
+      &WebNNCompilerProcessHost::OnEpsResolvedForCompilerContext,
+      weak_ptr_factory_.GetWeakPtr(), std::move(context_options),
+      context_properties, target_device, std::move(compiler_context_receiver),
+      std::move(model_loader_remote)));
 }
 
 void WebNNCompilerProcessHost::OnEpsResolvedForCompilerContext(
     webnn::mojom::CreateContextOptionsPtr context_options,
     const webnn::ContextProperties& context_properties,
     const webnn::EpDeviceInfo& target_device,
-    RequestCallback callback,
+    mojo::PendingReceiver<webnn::mojom::WebNNCompilerContext>
+        compiler_context_receiver,
+    mojo::PendingRemote<webnn::mojom::WebNNModelLoader> model_loader_remote,
     base::flat_map<std::string, webnn::mojom::EpPackageInfoPtr>
         ep_package_info_map) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   const auto ep_it = ep_package_info_map.find(target_device.ep_name);
   if (ep_it == ep_package_info_map.end()) {
-    std::move(callback).Run(mojo::NullRemote(), mojo::NullReceiver());
+    // Drop the pipe endpoints — peer endpoints will observe a disconnect.
+    LOG(ERROR) << "[WebNN] RequestCompilerContext() failed: "
+                  "EP package info not found for device "
+               << EpDeviceToString(target_device);
     return;
   }
   const base::FilePath& ep_library_path = ep_it->second->library_path;
@@ -106,9 +124,12 @@ void WebNNCompilerProcessHost::OnEpsResolvedForCompilerContext(
   // Launch a new Compiler process for this device if not already running.
   if (!compiler_remote.is_bound()) {
     compiler_remote = LaunchCompilerProcess();
-    // Compiler process could not be launched — return nulls.
+    // Compiler process could not be launched — peer endpoints will observe a
+    // disconnect.
     if (!compiler_remote.is_bound()) {
-      std::move(callback).Run(mojo::NullRemote(), mojo::NullReceiver());
+      LOG(ERROR) << "[WebNN] RequestCompilerContext() failed: "
+                    "WebNN Compiler process could not be launched for device "
+                 << EpDeviceToString(target_device);
       return;
     }
 
@@ -117,30 +138,16 @@ void WebNNCompilerProcessHost::OnEpsResolvedForCompilerContext(
                        base::Unretained(this), target_device));
   }
 
-  // Create CompilerContext pipe pair: Renderer gets the remote, Compiler gets
-  // the receiver.
-  mojo::PendingRemote<webnn::mojom::WebNNCompilerContext>
-      compiler_context_remote;
-  auto compiler_context_receiver =
-      compiler_context_remote.InitWithNewPipeAndPassReceiver();
-
-  // Create ModelLoader pipe pair: Compiler gets the remote (to send compiled
-  // models), GPU gets the receiver (to load them).
-  mojo::PendingRemote<webnn::mojom::WebNNModelLoader> model_loader_remote;
-  auto model_loader_receiver =
-      model_loader_remote.InitWithNewPipeAndPassReceiver();
-
   // Tell the Compiler process to create a per-context compiler state.
   // EP library path and target device information are forwarded via mojom so
   // the Compiler process can initialize its ORT Environment with the correct EP
   // device.
+  // The CompilerContext receiver and ModelLoader remote are forwarded to the
+  // Compiler process, completing the pipe connections.
   compiler_remote->CreateCompilerContext(
       std::move(context_options), context_properties, ep_library_path,
       target_device, std::move(model_loader_remote),
       std::move(compiler_context_receiver));
-
-  std::move(callback).Run(std::move(compiler_context_remote),
-                          std::move(model_loader_receiver));
 }
 
 void WebNNCompilerProcessHost::OnDisconnected(
@@ -157,7 +164,8 @@ void WebNNCompilerProcessHost::OnDisconnected(
     case static_cast<uint32_t>(webnn::CompilerDisconnectReason::kIdleShutdown):
       // The compiler process shut down gracefully after all compiler
       // contexts disconnected and the idle timeout elapsed. Not a crash.
-      DVLOG(1) << "WebNN Compiler process idle shutdown: " << description;
+      DVLOG(1) << "[WebNN] Compiler process idle shutdown for: "
+               << EpDeviceToString(device_info) << " (" << description << ").";
       return;
     default:
       break;
@@ -170,10 +178,9 @@ void WebNNCompilerProcessHost::OnDisconnected(
                     ".", WebnnDeviceTypeToString(device_info.device_type)}),
       crash_count, kMaxCompilerCrashCount + 1);
 
-  LOG(ERROR) << "WebNN Compiler process disconnected unexpectedly for ["
-             << device_info.ep_name << ", "
-             << WebnnDeviceTypeToString(device_info.device_type)
-             << "] (count: " << crash_count << ").";
+  LOG(ERROR) << "[WebNN] Compiler process disconnected unexpectedly for "
+             << EpDeviceToString(device_info) << " (count: " << crash_count
+             << ").";
 }
 
 mojo::Remote<webnn::mojom::WebNNCompilerService>

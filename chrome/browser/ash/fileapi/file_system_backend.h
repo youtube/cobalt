@@ -111,11 +111,6 @@ class FileSystemBackend : public storage::FileSystemBackend {
                        storage::OperationType operation_type,
                        const storage::FileSystemURL& url) const;
 
-  // Returns the list of top level directories that are exposed by this
-  // provider. This list is used to set appropriate child process file access
-  // permissions.
-  std::vector<base::FilePath> GetRootDirectories() const;
-
   // Grants access to |virtual_path| from |origin| URL.
   void GrantFileAccessToOrigin(const url::Origin& origin,
                                const base::FilePath& virtual_path);

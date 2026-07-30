@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 /**
- * These values are persisted to logs and should not be renumbered or re-used.
+ * These values are persisted to logs and should not be renumbered or reused.
  * See tools/metrics/histograms/enums.xml.
  */
 export enum BluetoothUiSurface {
@@ -29,7 +29,7 @@ export function recordBluetoothUiSurfaceMetrics(uiSurface: BluetoothUiSurface): 
 }
 
 /**
- * These values are persisted to logs and should not be renumbered or re-used.
+ * These values are persisted to logs and should not be renumbered or reused.
  * See tools/metrics/histograms/enums.xml.
  */
 export enum FastPairSavedDevicesUiEvent {

@@ -9,7 +9,7 @@ import type {OverflowMenuElement} from './overflow_menu.js';
 // clang-format off
 export function getHtml(this: OverflowMenuElement) {
   return html`<!--_html_template_start_-->
-    <cr-action-menu id="menu">
+    <cr-action-menu id="menu" @open-changed="${this.onOpenChanged_}">
       ${this.shouldShowNewThreadInMenu_() ? html`
         <button class="dropdown-item" id="newThreadButton" @click="${this.onNewThreadClick_}">
           <cr-icon icon="contextual_tasks:edit_square"></cr-icon>
@@ -23,7 +23,7 @@ export function getHtml(this: OverflowMenuElement) {
         </button>
       ` : ''}
       ${this.shouldShowOpenInNewTabInMenu_() ? html`
-        <button class="dropdown-item"
+        <button class="dropdown-item" id="openInNewTabButton"
             @click="${this.onOpenInNewTabClick_}"
             ?disabled="${!this.enableOpenInNewTabButton}">
           <cr-icon icon="contextual_tasks:open_in_full_tab"></cr-icon>
@@ -48,7 +48,7 @@ export function getHtml(this: OverflowMenuElement) {
 </if>
         $i18n{myActivity}
       </button>
-      ${this.contextualTasksEnableSpatialModelToolbarLayout_ ? html`
+      ${this.contextualTasksEnableSpatialModelToolbarLayout ? html`
         <button class="dropdown-item" id="helpButton" @click="${this.onHelpClick_}">
           <cr-icon icon="cr:help-outline"></cr-icon>
           $i18n{help}

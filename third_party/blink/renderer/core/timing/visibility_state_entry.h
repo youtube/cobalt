@@ -17,7 +17,7 @@ class CORE_EXPORT VisibilityStateEntry final : public PerformanceEntry {
   VisibilityStateEntry(AtomicString name,
                        double start_time,
                        DOMWindow* source,
-                       uint32_t navigation_id);
+                       uint64_t navigation_id);
   ~VisibilityStateEntry() override;
 
   const AtomicString& entryType() const override;

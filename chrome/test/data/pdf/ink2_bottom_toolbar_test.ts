@@ -85,7 +85,7 @@ chrome.test.runTests([
     chrome.test.assertFalse(isVisible(textToolbar));
     chrome.test.assertTrue(isVisible(drawToolbar));
     mockMetricsPrivate.assertCount(UserAction.OPEN_INK2_SIDE_PANEL, 0);
-    // Still 1, because we're still using the bottom toolbar, just in a
+    // Still 1, because the bottom toolbar is still in use, just in a
     // different mode.
     mockMetricsPrivate.assertCount(UserAction.OPEN_INK2_BOTTOM_TOOLBAR, 1);
 

@@ -107,6 +107,12 @@ location-icon {
   margin-inline-start: calc(4px - var(--border-radius));
 }
 
+/* Margins expand out to line up with the popup if it's open */
+:host(.popup-open) location-icon {
+  margin-inline-start: calc(12px - var(--border-radius));
+  margin-inline-end: calc(14px - var(--touch-mode)*10px);
+}
+
 selected-keyword {
   flex-shrink: 1;
 }

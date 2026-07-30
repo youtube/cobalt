@@ -28,20 +28,19 @@ typedef NS_ENUM(NSUInteger, ToolbarButtonType) {
 // Sets whether the forward button is enabled.
 - (void)setCanGoForward:(BOOL)canGoForward animated:(BOOL)animated;
 
-// Sets whether the page is loading.
-- (void)setIsLoading:(BOOL)isLoading;
-
-// Sets the `progress` between 0.0 and 1.0 for the loading progress bar.
-- (void)setLoadingProgress:(double)progress;
-
 // Sets whether the share button is enabled.
 - (void)setShareEnabled:(BOOL)enabled;
 
 // Sets whether the toolbar is visible.
 - (void)setVisible:(BOOL)visible;
 
-// Sets whether the current page is the NTP and if it is the Start Surface.
-- (void)setNTPVisible:(BOOL)ntpVisible isStartSurface:(BOOL)isStartSurface;
+// Sets whether the current page is the NTP, if it is the Start Surface, whether
+// the page is loading, and the `progress` between 0.0 and 1.0 for the loading
+// progress bar.
+- (void)setNTPVisible:(BOOL)ntpVisible
+       isStartSurface:(BOOL)isStartSurface
+            isLoading:(BOOL)isLoading
+      loadingProgress:(double)progress;
 
 // Sets the context menu for the Toolbar button with `buttonType`.
 - (void)setMenu:(UIMenu*)menu forButtonType:(ToolbarButtonType)buttonType;

@@ -4,19 +4,25 @@
 
 #include "base/i18n/language_tag.h"
 
+#include <algorithm>
 #include <utility>
 
+#include "base/check_op.h"
+#include "base/i18n/bcp47_extensions.h"
+#include "base/i18n/internal/legacy_icu_converter.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 
-namespace base {
+namespace base::i18n {
 namespace {
 
 // Finds the position of start of the next singleton identified as
 // "-"+<singleton>+"-". Where <singleton> is any alpha ASCII character.
 size_t FindNextSingleton(std::string_view tag) {
-  // Skip the first two characters as they are always present within a language
-  // definition or a subtag inside a non-private extension.
+  // Skip the first two characters as they are always either an extension
+  // singleton (e.g. "u-") or the beginning of the language tag which is at
+  // least two characters long.
   for (size_t i = 2; i + 2 < tag.size(); i++) {
     if (tag[i] == '-' && tag[i + 2] == '-' && base::IsAsciiAlpha(tag[i + 1])) {
       // Skip the first '-', e.g. if "-x-value" was found, "x-value" is
@@ -24,7 +30,6 @@ size_t FindNextSingleton(std::string_view tag) {
       return i + 1;
     }
   }
-
   return std::string_view::npos;
 }
 
@@ -43,7 +48,7 @@ std::string_view GetExtensionString(std::string_view tag, char ext_id) {
     if (tag[0] == ext_id) {
       // Look for the next singleton, that is where the found extension is going
       // to end.
-      size_t next_extension_pos = FindNextSingleton(tag.substr(2));
+      size_t next_extension_pos = FindNextSingleton(tag);
       // The `code` must never start with an extension.
       if (next_extension_pos == 0u) {
         return {};
@@ -53,9 +58,8 @@ std::string_view GetExtensionString(std::string_view tag, char ext_id) {
                  : tag;
     }
 
-    // Move to the next singleton, not that the first two characters are skipped
-    // as they are part of the current singleton.
-    extension_pos = FindNextSingleton(tag.substr(2));
+    // Move to the next singleton.
+    extension_pos = FindNextSingleton(tag);
   }
 
   return {};
@@ -63,22 +67,32 @@ std::string_view GetExtensionString(std::string_view tag, char ext_id) {
 
 }  // namespace
 
-LanguageTag::~LanguageTag() = default;
-LanguageTag::LanguageTag(const LanguageTag&) = default;
-LanguageTag& LanguageTag::operator=(const LanguageTag&) = default;
-
 std::string LanguageTag::ToLegacyICUFormat() const {
-  std::string legacy_tag(tag_string());
-  base::ReplaceSubstringsAfterOffset(&legacy_tag, 0, "-", "_");
-  return legacy_tag;
-}
+  size_t first_extension_pos = FindNextSingleton(tag_.AsString());
+  CHECK_GT(first_extension_pos, 0u);
+  std::string legacy_code;
+  base::ReplaceChars(tag_string().substr(0, first_extension_pos - 1u), "-", "_",
+                     &legacy_code);
+  // If there are no extensions, there is nothing left to do.
+  if (first_extension_pos == std::string_view::npos) {
+    return legacy_code;
+  }
+  std::optional<UnicodeExtension> unicode_extension =
+      GetExtension(bcp47_extensions::unicode());
+  // There is only support to converting unicode extensions to the legacy
+  // format. The rest is ignored.
+  if (!unicode_extension) {
+    return legacy_code;
+  }
 
-std::string_view LanguageTag::tag_string() const {
-  return tag_.AsString();
+  base::StrAppend(&legacy_code,
+                  {"@", internal::ConvertBcp47UnicodeKeywordsToLegacyCode(
+                            unicode_extension->keywords())});
+  return legacy_code;
 }
 
 LanguageTag::LanguageTag(ImmutableStringType tag) : tag_(std::move(tag)) {
-  CHECK(tag_.AsString().size() >= 2);
+  CHECK(tag_string().size() >= 2);
 }
 
 std::optional<RegionSubtag> LanguageTag::region_subtag() const {
@@ -142,4 +156,4 @@ std::string_view LanguageTag::GetExtensionStringInternal(char key) const {
   return GetExtensionString(tag_.AsString(), key);
 }
 
-}  // namespace base
+}  // namespace base::i18n

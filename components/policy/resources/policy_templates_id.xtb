@@ -133,7 +133,6 @@ Catatan: Baca selengkapnya tentang kebijakan mitigasi proses ( https://chromium.
 <translation id="1076751984131277498">Daftar perangkat USB dapat dilepas yang diizinkan</translation>
 <translation id="1077675271127011209">Nonaktifkan pelaporan data penggunaan dan yang terkait error</translation>
 <translation id="1079498696402787191">Gunakan Nilai Default untuk Hash yang Diizinkan di Handshake TLS.</translation>
-<translation id="1079801999187584280">Larang penggunaan Developer Tools</translation>
 <translation id="1081470306474387129">Controlled Frame API, yang tersedia untuk konteks terisolasi tertentu seperti Aplikasi Web Terisolasi (IWA), memungkinkan aplikasi menyematkan dan memanipulasi konten arbitrer.
 Lihat https://github.com/WICG/controlled-frame untuk mengetahui detail selengkapnya.
 
@@ -1203,6 +1202,7 @@ Di <ph name="MAC_OS_NAME" />, kebijakan ini hanya tersedia di instance yang dike
 <translation id="1781356041596378058">Kebijakan ini juga mengontrol akses ke Opsi Developer Android. Jika Anda menyetel kebijakan ini ke true, pengguna tidak dapat mengakses Opsi Developer. Jika Anda menyetel kebijakan ini ke false atau tidak menyetel kebijakan ini, pengguna dapat mengakses Opsi Developer dengan mengetuk tujuh kali nomor versi di aplikasi setelan Android.</translation>
 <translation id="1781720543185538098">Menentukan apakah survei <ph name="PRODUCT_NAME" /> dalam produk ditampilkan kepada pengguna.</translation>
 <translation id="1787790976045065845">Kebijakan ini hanya berlaku jika kebijakan <ph name="SECURITY_TOKEN_SESSION_BEHAVIOR_POLICY_NAME" /> disetel ke <ph name="SECURITY_TOKEN_SESSION_BEHAVIOR_LOCK" /> atau <ph name="SECURITY_TOKEN_SESSION_BEHAVIOR_LOGOUT" />, dan pengguna yang melakukan autentikasi melalui smart card menghapus smart card tersebut. Kemudian, kebijakan ini menentukan berapa detik notifikasi yang memberi tahu pengguna tentang tindakan mendatang akan ditampilkan. Notifikasi ini memblokir layar. Tindakan hanya akan dilakukan setelah notifikasi ini berakhir. Pengguna dapat mencegah tindakan terjadi dengan memasukkan kembali smart card sebelum notifikasi berakhir. Jika kebijakan ini disetel ke nol, tidak akan ada notifikasi yang ditampilkan dan tindakan akan segera dilakukan.</translation>
+<translation id="1788597893274674447">Mengaktifkan Isolasi Situs untuk origin tertentu di perangkat Android (dihentikan)</translation>
 <translation id="1793346220873697538">Nonaktifkan pencetakan PIN secara default</translation>
 <translation id="1794457906032475749">Jika kebijakan ini disetel ke Aktif, opsi untuk menyimpan data penjelajahan yang ada saat membuat profil perusahaan akan dicentang secara default.
 
@@ -1705,6 +1705,11 @@ Jika kebijakan disetel ke 1, grup tab tidak dapat dibagikan.</translation>
       Jika kebijakan ini ditetapkan ke salah (false), pengguna tidak akan dapat mengirim beberapa informasi sistem dan konten halaman ke server Google. Jika ditetapkan ke benar (true) atau tidak dikonfigurasi, pengguna akan diizinkan mengirim beberapa informasi sistem dan konten halaman ke Safe Browsing untuk membantu mendeteksi situs dan aplikasi berbahaya.
 
       Lihat https://developers.google.com/safe-browsing untuk mengetahui info selengkapnya tentang Safe Browsing.</translation>
+<translation id="2126895531607538755">Jika kebijakan ini disetel, jumlah milidetik tidak ada aktivitas sebelum perangkat menerapkan kembali tindakan penangguhan selama interval <ph name="DEVICE_WEEKLY_SCHEDULED_SUSPEND_POLICY_NAME" /> akan ditentukan.
+
+Jika perangkat diaktifkan secara manual (misalnya, dengan input keyboard) selama periode tidur terjadwal, perangkat akan menunggu selama jumlah milidetik ini sebelum menangguhkan ke RAM lagi. Setiap aktivitas pengguna akan mereset timer penangguhan ulang selama aktivitas tersebut masih berada dalam interval penangguhan.
+
+Jika kebijakan ini tidak disetel, perangkat tidak akan otomatis ditangguhkan kembali selama interval tersebut setelah diaktifkan.</translation>
 <translation id="2127599828444728326">Izinkan pemberitahuan di situs ini</translation>
 <translation id="2131902621292742709">Penundaan peredupan layar saat menggunakan daya baterai</translation>
 <translation id="2131915994539959070">Mengaktifkan penghalangan jendela di <ph name="PRODUCT_NAME" />.
@@ -1844,21 +1849,6 @@ Kebijakan ini merupakan tindakan sementara dan akan dihapus tidak lama setelah <
 <translation id="2180958780733364832">Mengontrol penggunaan Mode Headless</translation>
 <translation id="2182291258410176649">Pengguna memutuskan apakah akan mengaktifkan opsi pencadangan dan pemulihan</translation>
 <translation id="2183338188392346527">Jangan laporkan penghitung runtime perangkat</translation>
-<translation id="2183838844225082873">Jika kebijakan ini disetel ke 0 (default), Anda akan dapat mengakses alat developer dan konsol JavaScript. Namun, hal ini tidak berlaku dalam konteks ekstensi yang diinstal oleh kebijakan perusahaan atau, sejak versi 114 dan jika pengguna adalah pengguna terkelola, ekstensi bawaan browser. Jika kebijakan disetel ke 1, Anda akan dapat mengakses alat developer dan konsol JavaScript di semua konteks, termasuk dalam konteks ekstensi yang diinstal oleh kebijakan perusahaan. Jika kebijakan disetel ke 2, Anda tidak akan dapat mengakses alat developer, dan Anda tidak dapat memeriksa elemen situs.
-
-Setelan ini juga menonaktifkan pintasan keyboard dan entri menu atau menu konteks untuk membuka alat developer atau konsol JavaScript.
-
-Mulai <ph name="PRODUCT_NAME" /> versi 99, setelan ini juga mengontrol titik entri untuk fitur 'Lihat sumber halaman'. Jika Anda menyetel kebijakan ini ke 'DeveloperToolsDisallowed' (nilai 2), pengguna tidak dapat mengakses tampilan sumber melalui pintasan keyboard atau menu konteks. Untuk memblokir tampilan sumber sepenuhnya, Anda juga harus menambahkan 'view-source:*' ke kebijakan <ph name="URL_BLOCKLIST_POLICY_NAME" />.
-
-Mulai <ph name="PRODUCT_NAME" /> versi 119, setelan ini juga mengontrol apakah mode developer untuk Aplikasi Web Terisolasi (IWA) dapat diaktifkan dan digunakan.
-
-Mulai <ph name="PRODUCT_NAME" /> versi 128, setelan ini tidak akan mengontrol mode developer di halaman ekstensi jika kebijakan <ph name="EXTENSION_DEVELOPER_MODE_SETTINGS_POLICY_NAME" /> disetel.
-
-Ketersediaan Alat Developer ditentukan dalam urutan prioritas berikut:
-1. Jika URL cocok dengan pola di kebijakan <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />, Alat Developer akan diizinkan.
-2. Jika <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> disetel dan <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> tidak disetel, URL apa pun yang tidak ada dalam daftar yang diizinkan akan diblokir.
-3. Jika URL cocok dengan pola di kebijakan <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />, Alat Developer akan diblokir.
-4. Jika URL tidak tercakup dalam daftar yang diizinkan atau daftar yang tidak diizinkan, kebijakan ini (<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />) adalah penggantinya.</translation>
 <translation id="2187361040843865450">Terima permintaan penyambungan Bluetooth "Just Works"</translation>
 <translation id="2187372280917024033">Template URI pada resolver DNS-over-HTTPS yang diinginkan. Untuk menentukan beberapa resolver DNS-over-HTTPS, pisahkan template URI terkait dengan spasi. Kebijakan ini sangat mirip dengan <ph name="DOH_TEMPLATES_POLICY_NAME" /> yang akan diganti jika ditentukan.
 Berbeda dengan kebijakan <ph name="DOH_TEMPLATES_POLICY_NAME" />, kebijakan ini mendukung penentuan informasi identitas.
@@ -2033,6 +2023,26 @@ Jika kebijakan disetel ke Nonaktif atau tidak disetel, pengguna akan dapat mentr
       Pengguna tidak dapat mengubah atau mengganti setelan ini.
 
       Catatan: Kebijakan ini menyebabkan header X-GoogApps-Allowed-Domains ditambahkan ke semua permintaan HTTP dan HTTPS di semua domain google.com, seperti yang dijelaskan di https://support.google.com/a/answer/1668854.</translation>
+<translation id="2282968242492236886">Jika kebijakan ini disetel, Anda dapat menentukan jenis data Isi Otomatis yang diblokir pada pola URL tertentu.
+
+Kebijakan ini disusun dalam bentuk daftar kamus. Setiap kamus harus berisi:
+* "url_pattern": Pola URL setelan konten (misalnya, "https://[*.]example.com").
+* "blocked_types": Daftar string yang mewakili kategori data Isi Otomatis yang akan diblokir.
+
+Nilai yang didukung untuk "blocked_types" adalah:
+* "contact_info": Memblokir pengisian dan penyimpanan informasi kontak.
+* "payments": Memblokir pengisian dan penyimpanan kartu kredit serta metode pembayaran.
+* "identity_docs": Memblokir pengisian dan penyimpanan dokumen identitas (misalnya, paspor, surat izin mengemudi, kartu identitas nasional).
+* "travel": Memblokir pengisian dan penyimpanan informasi perjalanan (misalnya, reservasi penerbangan, pendaftaran kendaraan).
+
+Jika jenis data diblokir untuk suatu situs, pembuatan saran maupun perintah untuk menyimpan/mengimpor data baru dari jenis tersebut akan dinonaktifkan di situs tersebut.
+
+Jika URL cocok dengan beberapa entri pola dalam daftar, jenis data yang diblokir dari semua entri yang cocok akan digabungkan (union-merged). Pola URL yang tidak valid dalam daftar akan diabaikan.
+
+Jika kebijakan ini tidak disetel, tidak ada jenis data Isi Otomatis yang diblokir berdasarkan domain.
+
+Untuk mengetahui informasi selengkapnya tentang pola URL yang valid, buka:
+https://chromeenterprise.google/policies/url-patterns. Karakter pengganti * didukung. Pola ini cocok dengan URL apa pun, dengan skema, port, dan jalur apa pun.</translation>
 <translation id="2287414160388710497">Mengizinkan administrator menyesuaikan tampilan watermark yang diterapkan oleh aturan Pencegahan Kebocoran Data (DLP). Kebijakan ini mencakup menyetel opasitas isian/garis tepi, dan menentukan ukuran font.
 Jika kebijakan ini atau beberapa nilainya tidak disetel, Chrome akan menggunakan perilaku watermark default.
 Nilai default: opasitas isian 4, opasitas garis tepi 6, dan ukuran font 24.
@@ -3391,6 +3401,7 @@ Jika disetel ke Nonaktif atau tidak disetel, kebijakan ini tidak akan memicu pen
 Laporan berisi status dan informasi penggunaan profil, termasuk tetapi tidak terbatas pada versi OS, versi browser, ekstensi yang diinstal, dan kebijakan yang berlaku.
 
 Kebijakan ini hanya dapat disetel sebagai kebijakan pengguna cloud.</translation>
+<translation id="3060733249129331512">Tanyakan setiap kali situs ingin mendownload beberapa file secara otomatis</translation>
 <translation id="3062559845875011810">Jangan izinkan fitur</translation>
 <translation id="3063302084011279315">Nonaktifkan Screencast</translation>
 <translation id="3063307261083019730">Larang halaman dengan header <ph name="CACHE_CONTROL_NO_STORE_NAME" /> disimpan di back-forward cache.</translation>
@@ -3480,6 +3491,19 @@ Jika kebijakan ini disetel ke nonaktif atau tidak disetel, menu aksesibilitas me
 <translation id="3150351525324499342">Jangan tampilkan ikon <ph name="PRODUCT_NAME" /> di toolbar secara default, tetapi izinkan pengguna memilih</translation>
 <translation id="3152135410085709340">Mengizinkan akses file lokal ke URL file:// di situs ini di Penampil PDF</translation>
 <translation id="3152425128389603870">Membuat Desktop Terpadu tersedia dan aktif secara default</translation>
+<translation id="3157506194753687842">Mengontrol apakah agen <ph name="GEMINI_SPARK_PRODUCT_NAME" /> diizinkan untuk terhubung ke <ph name="PRODUCT_NAME" /> dan menggunakan fitur penjelajahan otomatis.
+
+Nilai 0 = <ph name="GEMINI_SPARK_PRODUCT_NAME" /> diizinkan untuk terhubung ke dan menggunakan fitur penjelajahan otomatis <ph name="PRODUCT_NAME" />
+
+Nilai 1 = <ph name="GEMINI_SPARK_PRODUCT_NAME" /> tidak diizinkan untuk terhubung ke atau menggunakan fitur penjelajahan otomatis <ph name="PRODUCT_NAME" />
+
+Peringatan: Mengizinkan <ph name="GEMINI_SPARK_PRODUCT_NAME" /> terhubung ke <ph name="PRODUCT_NAME" /> dan menggunakan fitur penjelajahan otomatis akan mengizinkan agen <ph name="GEMINI_SPARK_PRODUCT_NAME" /> melakukan tindakan multilangkah otonom di klien <ph name="PRODUCT_NAME" /> menggunakan sesi penjelajahan aktif. Hal ini menimbulkan risiko keamanan yang signifikan, termasuk risiko kredensial, Ingress Jaringan Lokal, dan hilangnya sinyal kontekstual. Kontrol pengelolaan dan keamanan yang ada mungkin tidak dipatuhi.
+
+Administrator disarankan untuk mengevaluasi dengan cermat model ancaman jaringan, kepatuhan, dan panduan privasi organisasi sebelum mengaktifkan fitur ini.
+
+Kebijakan ini tidak akan berpengaruh jika kebijakan aplikasi <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> atau penjelajahan otomatis <ph name="PRODUCT_NAME" /> dinonaktifkan. Misalnya, aplikasi <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> dapat dinonaktifkan oleh kebijakan <ph name="GEMINI_SETTINGS_POLICY_NAME" />. Untuk mengetahui informasi selengkapnya tentang <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> di <ph name="PRODUCT_NAME" />, lihat https://support.google.com/chrome/a?p=gemini_in_chrome.
+
+Penjelajahan otomatis <ph name="PRODUCT_NAME" /> dan <ph name="GEMINI_SPARK_PRODUCT_NAME" /> hanya tersedia di negara atau bahasa tertentu. Jika kebijakan ini disetel ke nilai 0 - Aktif, tidak ada jaminan bahwa fitur akan diaktifkan; fitur tetap bergantung pada ketersediaan. Untuk mengetahui info selengkapnya tentang peluncuran, baca Catatan Rilis Enterprise: https://chromeenterprise.google/resources/release-notes/.</translation>
 <translation id="3159375329008977062">Pengguna diaktifkan untuk mengekspor/mengimpor container Crostini melalui UI</translation>
 <translation id="3163167792874598128">Jika kebijakan disetel ke Aktif atau tidak disetel, pop-up Rating App Store dapat ditampilkan kepada pengguna, paling banyak setahun sekali.
 Jika kebijakan disetel ke Nonaktif, pop-up Rating App Store tidak akan ditampilkan kepada pengguna.</translation>
@@ -4820,6 +4844,13 @@ Nilai 2 = Tidak mengizinkan penggunaan fitur ini.
 Jika kebijakan ini tidak disetel, perilakunya akan ditentukan oleh kebijakan GenAiDefaultSettings.
 
 Untuk mengetahui informasi selengkapnya tentang penanganan data untuk fitur AI generatif, lihat https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
+<translation id="4049815236567245576">Memungkinkan Anda menetapkan daftar pola URL yang menentukan situs yang diizinkan mendownload beberapa file secara otomatis.
+
+Untuk mengetahui informasi selengkapnya tentang pola URL yang valid, buka https://chromeenterprise.google/policies/url-patterns.
+
+Jika URL cocok dengan <ph name="AUTOMATIC_DOWNLOADS_ALLOWED_FOR_URLS_POLICY_NAME" /> dan <ph name="AUTOMATIC_DOWNLOADS_BLOCKED_FOR_URLS_POLICY_NAME" />, AutomaticDownloadsBlockedForUrls akan diprioritaskan.
+
+Jika kebijakan ini tidak disetel, <ph name="DEFAULT_AUTOMATIC_DOWNLOADS_SETTING_POLICY_NAME" /> akan berlaku untuk semua situs, jika disetel. Jika tidak, setelan pribadi pengguna akan digunakan.</translation>
 <translation id="4051723201852944592">Mengaktifkan Penghalangan Jendela</translation>
 <translation id="4052529125939620019">Memuat ekstensi komponen CryptoToken saat browser dimulai</translation>
 <translation id="4053157306171963473">Nonaktifkan pelaporan waktu aktivitas perangkat</translation>
@@ -4919,6 +4950,9 @@ Ketersediaan ekstensi masih dikontrol oleh kebijakan lainnya.</translation>
 
       Catatan: Pembaruan Kebijakan Dinamis hanya didukung di <ph name="PRODUCT_NAME" /> versi 123 dan yang lebih baru. Menonaktifkan "autofill" juga akan menonaktifkan "payments". "typedUrls" merujuk pada semua histori penjelajahan.</translation>
 <translation id="4115501011761259824">Aktifkan Set Pihak Pertama untuk semua pengguna yang terpengaruh</translation>
+<translation id="4119598167427266156">Jika kebijakan ini disetel ke 1, situs akan dapat mendownload beberapa file secara otomatis. Jika kebijakan disetel ke 2, izin ini akan ditolak. Anda dapat menyetel kebijakan untuk menanyakan setiap kali situs ingin mendownload beberapa file secara otomatis.
+
+Jika kebijakan tidak disetel, kebijakan AskAutomaticDownloads akan berlaku, tetapi pengguna dapat mengubah setelan ini.</translation>
 <translation id="4120401094617902941">Interval pada saat penghitung runtime diambil sampelnya dan dikumpulkan. Batas minimum yang diizinkan adalah 1 hari.
 
 Jika tidak disetel, interval default 1 hari akan berlaku.</translation>
@@ -4999,6 +5033,21 @@ Jika kebijakan disetel ke <ph name="DISABLE_UNPUBLISHED" /> (1), ekstensi yang t
 
           Jika kebijakan ini tidak ditetapkan, respons lisan mula-mula akan dinonaktifkan di layar login, tetapi dapat diaktifkan oleh pengguna kapan saja.</translation>
 <translation id="4173974507809462880">Tampilkan layar arah scroll touchpad selama login</translation>
+<translation id="4175846494150407472">Tentukan daftar origin yang berjalan dalam proses khusus pada platform dengan resource terbatas.
+
+Kebijakan ini hanya berfungsi di perangkat dengan memori terbatas (RAM antara 1 GB dan 3,2 GB), karena mengisolasi terlalu banyak situs di perangkat dengan resource terbatas dapat menyebabkan masalah performa. Untuk lingkungan berperforma tinggi (termasuk perangkat <ph name="ANDROID_NAME" /> kelas atas), gunakan <ph name="ISOLATE_ORIGINS_POLICY_NAME" />.
+
+Konfigurasi isolasi proses secara khusus tidak direkomendasikan untuk perangkat dengan memori kurang dari 1 GB.
+
+Setiap proses origin bernama hanya akan diizinkan untuk memuat dokumen dari origin tersebut dan subdomainnya. Misalnya, menentukan https://a1.example.com/ akan mengizinkan https://a2.a1.example.com/ dalam proses yang sama, tetapi tidak mengizinkan https://example.com atau https://b.example.com.
+
+Anda juga dapat menentukan rentang origin yang akan diisolasi menggunakan karakter pengganti. Misalnya, menentukan https://[*.]corp.example.com akan memberikan proses khusus tersendiri bagi setiap origin di bawah https://corp.example.com, termasuk https://corp.example.com itu sendiri, https://a1.corp.example.com, dan https://a2.a1.corp.example.com.
+
+Perhatikan bahwa <ph name="ANDROID_NAME" /> mengisolasi situs sensitif tertentu secara default mulai dari <ph name="PRODUCT_NAME" /> versi 77, dan kebijakan ini memperluas mode tersebut untuk mengisolasi origin tambahan tertentu.
+
+Perhatikan bahwa origin yang diisolasi oleh kebijakan ini tidak akan dapat menjalankan skrip pada origin lain di situs yang sama, yang sebenarnya dapat dilakukan jika dua dokumen dari situs yang sama mengubah nilai document.domain masing-masing agar cocok. Administrator sebaiknya memastikan bahwa perilaku yang tidak lazim ini tidak digunakan pada suatu origin sebelum mengisolasinya.
+
+Jika kebijakan ini disetel ke string kosong atau tidak disetel, isolasi situs tidak akan diperlukan untuk origin tertentu. Pengguna masih dapat mengaktifkan isolasi proses secara manual melalui tanda command line.</translation>
 <translation id="417956245902013347">Mengaktifkan fitur aksesibilitas sorotan kursor teks di layar login.
 
           Jika kebijakan ini ditetapkan ke true, sorotan kursor teks akan selalu diaktifkan di layar login.
@@ -5606,7 +5655,6 @@ Untuk mengetahui informasi selengkapnya tentang pola URL yang valid, lihat https
 <translation id="4561940244682063697">Jangan izinkan situs meminta pengguna untuk membagikan streaming video dari layar mereka</translation>
 <translation id="4562165737444703281">Mengizinkan pengguna untuk [mengaktifkan/mengonfigurasi] penerusan port Crostini</translation>
 <translation id="456450545863578630">Aktifkan transfer file di koneksi dukungan jarak jauh dari admin perusahaan</translation>
-<translation id="4567137030726189378">Izinkan penggunaan Developer Tools</translation>
 <translation id="4570859815763368584">Tidak digunakan lagi di M68. Sebagai gantinya, gunakan DefaultPopupsSetting.
 
       Untuk penjelasan selengkapnya, lihat https://www.chromestatus.com/feature/5675755719622656.
@@ -6362,6 +6410,7 @@ Jika kebijakan ini tidak disetel, fitur Teks Otomatis mula-mula akan dinonaktifk
 <translation id="4970046075219007744">Izinkan aplikasi web meminta pengguna memberikan akses ke berbagai jenis file melalui File Handling API</translation>
 <translation id="4970855112942626932">Nonaktifkan login browser</translation>
 <translation id="4974091268178043378">Mode warna ChromeOS</translation>
+<translation id="4976824366963631628">Memblokir jenis data Isi Otomatis untuk situs tertentu</translation>
 <translation id="4976825008579439428">Jangan izinkan Penelusuran Histori AI.</translation>
 <translation id="4978533099939732984">Selalu tampilkan peringatan ruang penyimpanan hampir penuh</translation>
 <translation id="4979614740553442831">Kebijakan ini mengontrol ketersediaan integrasi Lens di Aplikasi Galeri di <ph name="PRODUCT_OS_NAME" />
@@ -6386,6 +6435,15 @@ Jika kebijakan ini dinonaktifkan, fitur ini akan dinonaktifkan.</translation>
 
       Untuk informasi selengkapnya terkait penghentian penggunaan U2F Security Key API, buka https://groups.google.com/a/chromium.org/g/blink-dev/c/xHC3AtU_65A.</translation>
 <translation id="4988291787868618635">Tindakan yang akan diambil saat penundaan waktu menganggur tercapai</translation>
+<translation id="4988587935113718108">Jika kebijakan ini disetel, setiap origin bernama dalam daftar yang dipisahkan koma akan berjalan dalam proses khusus di <ph name="ANDROID_NAME" />. Setiap proses origin bernama hanya akan diizinkan untuk memuat dokumen dari origin tersebut dan subdomainnya. Misalnya, menentukan https://a1.example.com/ akan mengizinkan https://a2.a1.example.com/ dalam proses yang sama, tetapi tidak mengizinkan https://example.com atau https://b.example.com. Perhatikan bahwa <ph name="ANDROID_NAME" /> mengisolasi situs sensitif tertentu secara default mulai dari <ph name="PRODUCT_NAME" /> versi 77, dan kebijakan ini memperluas mode tersebut untuk mengisolasi origin tambahan tertentu.
+
+Sejak <ph name="PRODUCT_NAME" /> versi 77, Anda juga dapat menentukan rentang origin yang akan diisolasi menggunakan karakter pengganti. Misalnya, menentukan https://[*.]corp.example.com akan memberikan proses khusus tersendiri bagi setiap origin di bawah https://corp.example.com, termasuk https://corp.example.com itu sendiri, https://a1.corp.example.com, dan https://a2.a1.corp.example.com.
+
+Perhatikan bahwa origin yang diisolasi oleh kebijakan ini tidak akan dapat menjalankan skrip pada origin lain di situs yang sama, yang sebenarnya dapat dilakukan jika dua dokumen dari situs yang sama mengubah nilai document.domain masing-masing agar cocok. Administrator sebaiknya memastikan bahwa perilaku yang tidak lazim ini tidak digunakan pada suatu origin sebelum mengisolasinya.
+
+Jika kebijakan ini disetel ke string kosong atau tidak disetel, isolasi situs tidak akan diperlukan untuk origin tertentu. Pengguna masih dapat mengaktifkan isolasi proses secara manual melalui tanda command line.
+
+Catatan: Kebijakan ini sudah tidak digunakan lagi. Sebagai gantinya, gunakan <ph name="ISOLATE_ORIGINS_POLICY_NAME" /> (untuk perangkat performa tinggi) atau <ph name="ISOLATE_ORIGINS_SHORTLIST_POLICY_NAME" />. Kebijakan ini hanya berlaku untuk Chrome di <ph name="ANDROID_NAME" /> yang berjalan pada perangkat dengan RAM lebih dari 1 GB yang tidak disarankan untuk mengonfigurasi isolasi proses secara khusus.</translation>
 <translation id="4991786313466977061">Mengontrol visibilitas badge perusahaan</translation>
 <translation id="4995123966071996433">Jangan izinkan penerusan port ke mesin virtual Linux</translation>
 <translation id="4996068111491152684">Kredensial login <ph name="PRODUCT_OS_NAME" /> tidak akan digunakan untuk autentikasi jaringan.</translation>
@@ -6443,6 +6501,7 @@ Jika kebijakan ini disetel ke <ph name="POLICY_ENUM_RESTOREONSTARTUP_RESTOREONST
 Di <ph name="MS_WIN_NAME" />, kebijakan ini hanya tersedia di instance yang dihubungkan ke domain <ph name="MS_AD_NAME" />, dihubungkan ke <ph name="MS_AAD_NAME" />, atau didaftarkan di <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
 
 Di <ph name="MAC_OS_NAME" />, kebijakan ini hanya tersedia di instance yang dikelola melalui MDM, dihubungkan ke domain melalui MCX, atau didaftarkan di <ph name="CHROME_ENTERPRISE_CORE_NAME" />.</translation>
+<translation id="5036662165765606524">Jangan izinkan situs apa pun mendownload beberapa file secara otomatis</translation>
 <translation id="5037749623252479780">Setelan PageUp/PageDown dinonaktifkan</translation>
 <translation id="5039110755072335605">Dukungan header permintaan non-karakter pengganti CORS</translation>
 <translation id="5039804452771397117">Izinkan</translation>
@@ -6960,6 +7019,7 @@ Akun terkelola tidak memenuhi syarat untuk bergabung atau membuat grup keluarga,
 <translation id="5345892164332459671">Nonaktifkan SSO Mengambang dan jangan pindahkan autentikasi layanan web pengguna ke perangkat baru</translation>
 <translation id="5345910753471481870">Jangan tampilkan tombol Google Lens di kotak penelusuran pada halaman Tab Baru.</translation>
 <translation id="5346587320074666194">Memblokir akses ke sensor di situs ini</translation>
+<translation id="534702079563980696">Izinkan download otomatis di situs ini</translation>
 <translation id="5347735051291224683">Kebijakan ini mengontrol apakah konten web latar belakang dipaksa berjalan pada
 prioritas latar depan.
 
@@ -7402,6 +7462,7 @@ Jika kebijakan ini tidak disetel atau disetel ke daftar kosong, dialog konfirmas
 <translation id="5599461642204007579">Setelan pengelolaan <ph name="MS_AD_NAME" /></translation>
 <translation id="5601503069213153581">PIN</translation>
 <translation id="5605676983184673391">Izinkan Aplikasi Chrome berjalan dalam sesi Kiosk.</translation>
+<translation id="5606477661985737162">Setelan Download Otomatis</translation>
 <translation id="5607021831414604820">Aktifkan pelaporan status penyimpanan perangkat</translation>
 <translation id="5607808178576647930">Izinkan integrasi Mode AI.</translation>
 <translation id="5608114828230655271">Perilaku default perangkat</translation>
@@ -7500,6 +7561,7 @@ Kebijakan ini adalah solusi sementara. Mulai M139, kebijakan ini tidak digunakan
 <translation id="5660950553460381588">Tetapkan penyimpanan default pembuatan kunci sandi ke Rantai Kunci iCloud jika memungkinkan.</translation>
 <translation id="566569751231933416">Gunakan Perilaku default.</translation>
 <translation id="5666457529647159548">Mengizinkan pengguna mengelola sertifikat klien yang terinstal.</translation>
+<translation id="566962283082154427">Jeda penangguhan ulang untuk interval penangguhan terjadwal mingguan dalam milidetik</translation>
 <translation id="5670249935663090320">Jika kebijakan disetel ke Aktif atau tidak disetel, <ph name="PRODUCT_NAME" /> akan diaktifkan dan pengguna dapat meluncurkannya dari menu aplikasi, menu konteks halaman, kontrol media di situs yang kompatibel untuk Cast, dan ikon toolbar Cast (jika ditampilkan).
 
 Jika kebijakan disetel ke Nonaktif, <ph name="PRODUCT_NAME" /> akan dinonaktifkan.</translation>
@@ -7964,6 +8026,13 @@ Mulai <ph name="PRODUCT_NAME" /> 147, kebijakan ini tidak akan digunakan lagi. A
 <translation id="5965344524743236327">ID atau nomor project <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> yang sesuai dengan instance <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> yang akan diaktifkan. Pelajari lebih lanjut project ID di https://docs.cloud.google.com/resource-manager/docs/creating-managing-projects.</translation>
 <translation id="5966615072639944554">Ekstensi yang diizinkan untuk menggunakan API pengesahan jarak jauh</translation>
 <translation id="596732417280023843">Nama profil sertifikat.</translation>
+<translation id="5972475504452039694">Memungkinkan Anda menetapkan daftar pola URL yang menentukan situs yang tidak diizinkan mendownload beberapa file secara otomatis.
+
+Untuk mengetahui informasi selengkapnya tentang pola URL yang valid, buka https://chromeenterprise.google/policies/url-patterns.
+
+Jika URL cocok dengan <ph name="AUTOMATIC_DOWNLOADS_ALLOWED_FOR_URLS_POLICY_NAME" /> dan <ph name="AUTOMATIC_DOWNLOADS_BLOCKED_FOR_URLS_POLICY_NAME" />, AutomaticDownloadsBlockedForUrls akan diprioritaskan.
+
+Jika kebijakan ini tidak disetel, <ph name="DEFAULT_AUTOMATIC_DOWNLOADS_SETTING_POLICY_NAME" /> akan berlaku untuk semua situs, jika disetel. Jika tidak, setelan pribadi pengguna akan digunakan.</translation>
 <translation id="5972538402066550344">Izinkan kontrol pelaporan terperinci</translation>
 <translation id="5973437409890460481">Mengizinkan koneksi akses jarak jauh perusahaan ke perangkat ini</translation>
 <translation id="5975765799383881158">Jika kebijakan disetel ke Aktif atau tidak disetel, pengguna akan dapat mengirimkan masukan ke Google melalui Menu &gt; Bantuan &gt; Laporkan Masalah atau kombinasi tombol.
@@ -8229,6 +8298,7 @@ Waktu tunggu tidak ada aktivitas untuk memulai screensaver dan interval saat gam
 <translation id="6181783961196084973">Nilai tombol alih pengumpulan data aktivitas aplikasi. Jika disetel ke benar (true), aktivitas aplikasi pengguna akan dilaporkan ke server dengan tujuan untuk ditampilkan di aplikasi <ph name="PRODUCT_NAME" /> anak dan orang tua. Jika disetel ke salah (false), fitur Batas waktu per aplikasi akan tetap berfungsi, tetapi tidak ada data yang akan dilaporkan ke server dan oleh karena itu, tidak ada data yang akan ditampilkan di <ph name="PRODUCT_NAME" />.</translation>
 <translation id="6182206125906000651">Nonaktifkan Upgrade HTTPS.</translation>
 <translation id="6182563940865917569">Izinkan Chrome memutar media secara otomatis</translation>
+<translation id="618588573990666077">Setelan download otomatis default</translation>
 <translation id="618635925649844912">Kebijakan ini mengontrol apakah layar pengantar untuk fitur AI dalam sesi akan ditampilkan kepada pengguna selama alur login pertama.
 
       Jika disetel ke nonaktif, layar pengantar AI tidak akan ditampilkan.
@@ -8414,6 +8484,7 @@ tetap dapat disetel secara default. Perilaku ini cocok dengan perilaku lama.
 
 Lihat https://developer.chrome.com/blog/immutable-document-domain/ untuk
 mengetahui detail tambahan.</translation>
+<translation id="626942726350419209">Izinkan situs mendownload beberapa file secara otomatis</translation>
 <translation id="6270615143812355589">Aktifkan input audio</translation>
 <translation id="6270791075656665237">Larang QUIC</translation>
 <translation id="6273015149273504999">
@@ -8873,6 +8944,7 @@ CATATAN: Perilaku default bagi perangkat konsumen dan perusahaan berbeda: P2P ak
 
       Catatan: Jika metode input saat ini tidak didukung, metode akan beralih ke tata letak keyboard hardware (jika diizinkan) atau entri pertama yang valid dalam daftar ini. Metode yang tidak valid atau tidak didukung akan diabaikan.</translation>
 <translation id="6483115462650732746">Tampilkan menu aksesibilitas mengambang dalam mode kios</translation>
+<translation id="6488321500788319000">Mengaktifkan Isolasi Situs untuk origin tertentu di perangkat dengan resource terbatas</translation>
 <translation id="6491139795995924304">Izinkan bluetooth di perangkat</translation>
 <translation id="6491305972928809525">Jangan tampilkan menu aksesibilitas mengambang dalam mode kios</translation>
 <translation id="6492177700737407141">Pengguna yang terdaftar dalam Program Perlindungan Lanjutan hanya akan menerima perlindungan konsumen standar</translation>
@@ -8930,6 +9002,23 @@ Waktu tunggu tidak ada aktivitas untuk memulai screensaver dan interval saat gam
 <translation id="651248769129998376">Jangan membuat atau mengupload permintaan penginstalan ekstensi ke konsol Admin</translation>
 <translation id="6513453889192806240">Latensi HTTPS</translation>
 <translation id="6515357889978918016">Gambar <ph name="PLUGIN_VM_NAME" /></translation>
+<translation id="6515520014183265350">Tentukan daftar origin yang berjalan dalam proses khusus.
+
+Di <ph name="ANDROID_NAME" />, kebijakan ini hanya berfungsi di perangkat dengan memori yang cukup (lebih dari 3,2 GB RAM), karena mengisolasi terlalu banyak situs di perangkat dengan resource terbatas dapat menyebabkan masalah performa. Untuk perangkat <ph name="ANDROID_NAME" /> yang memiliki resource terbatas, gunakan <ph name="ISOLATE_ORIGINS_SHORTLIST_POLICY_NAME" />.
+
+Konfigurasi isolasi proses secara khusus tidak direkomendasikan untuk perangkat dengan memori kurang dari 1 GB.
+
+Setiap proses origin bernama hanya akan diizinkan untuk memuat dokumen dari origin tersebut dan subdomainnya. Misalnya, menentukan https://a1.example.com/ akan mengizinkan https://a2.a1.example.com/ dalam proses yang sama, tetapi tidak mengizinkan https://example.com atau https://b.example.com.
+
+Sejak <ph name="PRODUCT_NAME" /> versi 77, Anda juga dapat menentukan rentang origin yang akan diisolasi menggunakan karakter pengganti. Misalnya, menentukan https://[*.]corp.example.com akan memberikan proses khusus tersendiri bagi setiap origin di bawah https://corp.example.com, termasuk https://corp.example.com itu sendiri, https://a1.corp.example.com, dan https://a2.a1.corp.example.com.
+
+Perhatikan bahwa semua situs (yaitu, skema plus eTLD+1, seperti https://example.com) sudah diisolasi secara default di platform desktop, sebagaimana tercantum dalam kebijakan <ph name="SITE_PER_PROCESS_POLICY_NAME" />. Kebijakan <ph name="ISOLATE_ORIGINS_POLICY_NAME" /> ini berguna untuk mengisolasi origin tertentu pada tingkat perincian yang lebih jauh (misalnya, https://a.example.com).
+
+Perhatikan bahwa <ph name="ANDROID_NAME" /> mengisolasi situs sensitif tertentu secara default mulai dari <ph name="PRODUCT_NAME" /> versi 77, dan kebijakan ini memperluas mode tersebut untuk mengisolasi origin tambahan tertentu.
+
+Perhatikan juga bahwa origin yang diisolasi oleh kebijakan ini tidak akan dapat menjalankan skrip pada origin lain di situs yang sama, yang sebenarnya dapat dilakukan jika dua dokumen dari situs yang sama mengubah nilai document.domain masing-masing agar cocok. Administrator sebaiknya memastikan bahwa perilaku yang tidak lazim ini tidak digunakan pada suatu origin sebelum mengisolasinya.
+
+Jika kebijakan ini disetel ke string kosong atau tidak disetel, isolasi situs tidak akan diperlukan untuk origin tertentu. Pengguna masih dapat mengaktifkan isolasi proses secara manual melalui tanda command line.</translation>
 <translation id="6517859209214570623">Jika kebijakan ini disetel, Anda akan dapat membuat daftar pola URL yang menentukan situs mana yang tidak dapat menyetel cookie.
 
       Jika kebijakan ini tidak disetel, <ph name="DEFAULT_COOKIES_SETTINGS_POLICY_NAME" /> akan digunakan untuk semua situs, jika disetel. Jika tidak disetel, setelan pribadi pengguna akan berlaku.
@@ -10725,6 +10814,7 @@ Jika kebijakan ini dikosongkan, tidak akan ada pengecualian untuk <ph name="FLOA
 <translation id="759957074386651883">Setelan Safe Browsing</translation>
 <translation id="7602621823177962064">Nonaktifkan pelaporan info memori perangkat</translation>
 <translation id="7604169113182304895">Aplikasi Android dapat memilih untuk menerima daftar ini secara sukarela. Anda tidak dapat memaksa aplikasi untuk menerimanya.</translation>
+<translation id="7607831126797434329">Blokir download otomatis di situs ini</translation>
 <translation id="7608186022704392724">Fitur kirim otomatis PIN akan mengubah cara memasukkan PIN di <ph name="PRODUCT_OS_NAME" />.
           Fitur ini akan menampilkan UI khusus yang dengan jelas memperlihatkan kepada pengguna berapa
           digit yang diperlukan untuk PIN mereka,
@@ -11881,7 +11971,6 @@ Ada beberapa kebijakan yang mencantumkan origin yang memengaruhi permintaan ke p
 
           Jika kebijakan ini tidak disetel, 'BlockKeygen' akan digunakan dan pengguna dapat mengubahnya.</translation>
 <translation id="8314214821702356835">Memungkinkan pengguna memutar media saat perangkat terkunci</translation>
-<translation id="8314308739926578606">Larang penggunaan Developer Tools pada aplikasi dan ekstensi yang diinstal oleh kebijakan perusahaan atau, sejak versi 114 dan jika ini adalah pengguna terkelola, ekstensi akan disertakan dalam browser. Izinkan penggunaan Developer Tools dalam konteks lainnya</translation>
 <translation id="8316940611391250886">Larang sertifikat yang tidak dilengkapi ekstensi subjectAlternativeName</translation>
 <translation id="8319678975002906774">Menyetel nilai konfigurasi terkelola bagi situs untuk sumber tertentu</translation>
 <translation id="8320149248919453401">Mode pengisian daya baterai</translation>

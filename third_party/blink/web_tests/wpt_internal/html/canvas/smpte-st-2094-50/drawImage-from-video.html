@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+<script>
+  const videoUrls = [
+    "resources/st2094-50-rec2100-av1-container.webm",
+    "resources/st2094-50-rec2100-vp9-container.webm",
+    "resources/st2094-50-srgb-av1-container.webm",
+    "resources/st2094-50-srgb-vp9-container.webm",
+  ];
+  const expected = [
+    [0.25, 0.50, 0.75, 1.00],
+    [1.00, 2.00, 3.00, 4.00],
+  ];
+  const numTargetHdrHeadrooms = 2;
+  const targetHdrHeadrooms = [0, 2];
+  const willReadFrequentlyValues = [true, false];
+  const width = 1280;
+  const height = numTargetHdrHeadrooms;
+
+  function prepareVideo(url) {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      video.muted = true;
+      video.onerror = () => {
+        if (video.error &&
+            video.error.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+          resolve(null); // Resolve with null to signal skip
+        } else {
+          const errMsg = video.error ? video.error.message : 'unknown error';
+          reject(new Error(`Video load failed: ${errMsg}`));
+        }
+      };
+      video.onloadeddata = () => {
+        resolve(video);
+      };
+      document.body.appendChild(video);
+      video.src = url;
+      video.play().catch(err => {
+        reject(err);
+      });
+    });
+  }
+
+  function waitForFrame(video) {
+    return new Promise((resolve) => {
+      video.requestVideoFrameCallback(() => {
+        video.pause();
+        resolve();
+      });
+    });
+  }
+
+  for (const url of videoUrls) {
+    promise_test(async (t) => {
+      const video = await prepareVideo(url);
+      if (!video) {
+        // Skip test if video format not supported
+        return;
+      }
+      t.add_cleanup(() => {
+        video.pause();
+        video.remove();
+      });
+      await waitForFrame(video);
+
+      for (const willReadFrequently of willReadFrequentlyValues) {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d", {
+          colorSpace: 'srgb-linear',
+          colorType: 'float16',
+          willReadFrequently: willReadFrequently
+        });
+
+        ctx.fillStyle = "blue";
+        ctx.fillRect(0, 0, width, height);
+        for (let hi = 0; hi < numTargetHdrHeadrooms; ++hi) {
+          ctx.globalHDRHeadroom = targetHdrHeadrooms[hi];
+          ctx.drawImage(video, 0, hi);
+        }
+
+        const data = ctx.getImageData(0, 0, width, height,
+            {colorSpace:'srgb-linear', pixelFormat:'rgba-float16'});
+        for (let hi = 0; hi < numTargetHdrHeadrooms; ++hi) {
+          for (let xi = 0; xi < 4; xi++) {
+            const x = xi * width / 4 + width / 8;
+            const y = hi;
+            const allowedPercentError = 10.0;
+            const epsilon = expected[hi][xi] * allowedPercentError / 100.0;
+            assert_approx_equals(
+                data.data[4*(x + width*y)],
+                expected[hi][xi],
+                epsilon,
+                `At headroom ${targetHdrHeadrooms[hi]}, pixel ${xi}, ` +
+                    `willReadFrequently ${willReadFrequently}`);
+          }
+        }
+      }
+    }, `SMPTE ST 2094-50 drawImage from video test for ${url}`);
+  }
+</script>
+</body>

@@ -9,6 +9,8 @@
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "base/metrics/user_metrics.h"
+#include "base/metrics/user_metrics_action.h"
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
@@ -390,6 +392,7 @@ void IntentPickerTabHelper::ShowIntentPickerOrLaunchAppImpl(
   // picker is shown via the Web Install API.
   intent_picker_delegate_->RecordIntentPickerIconEvent(
       apps::IntentPickerIconEvent::kIconClicked);
+  base::RecordAction(base::UserMetricsAction("IntentPickerIconClicked"));
 
   if (apps.size() == 1 && !always_show &&
       intent_picker_delegate_->ShouldLaunchAppDirectly(url, apps[0].launch_name,
@@ -443,6 +446,24 @@ void IntentPickerTabHelper::OnIntentPickerClosedMaybeLaunch(
 
   bool should_launch_app =
       (close_reason == apps::IntentPickerCloseReason::OPEN_APP);
+
+  switch (close_reason) {
+    case apps::IntentPickerCloseReason::OPEN_APP:
+      base::RecordAction(
+          base::UserMetricsAction("IntentPickerViewAcceptLaunchApp"));
+      break;
+    case apps::IntentPickerCloseReason::DIALOG_DEACTIVATED:
+      base::RecordAction(base::UserMetricsAction("IntentPickerViewIgnored"));
+      break;
+    case apps::IntentPickerCloseReason::STAY_IN_CHROME:
+      base::RecordAction(
+          base::UserMetricsAction("IntentPickerViewClosedStayInChrome"));
+      break;
+    case apps::IntentPickerCloseReason::ERROR_BEFORE_PICKER:
+    case apps::IntentPickerCloseReason::ERROR_AFTER_PICKER:
+    case apps::IntentPickerCloseReason::PREFERRED_APP_FOUND:
+      break;
+  }
 
   intent_picker_delegate_->RecordOutputMetrics(
       entry_type, close_reason, should_persist, should_launch_app);

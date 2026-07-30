@@ -75,16 +75,22 @@ NavigationInterceptor::WillStartRequest() {
 
 NavigationThrottle::ThrottleCheckResult
 NavigationInterceptor::WillRedirectRequest() {
-  return ProcessRequest();
+  // Despite the name of this method, the request was already redirected when
+  // this invoked. This implies that the headers we're about to process came
+  // from the 2nd to last URL on the redirect chain.
+  const std::vector<GURL>& redirect_chain =
+      navigation_handle()->GetRedirectChain();
+  CHECK_GE(redirect_chain.size(), 2u);
+  return ProcessRequest(redirect_chain[redirect_chain.size() - 2]);
 }
 
 NavigationThrottle::ThrottleCheckResult
 NavigationInterceptor::WillProcessResponse() {
-  return ProcessRequest();
+  return ProcessRequest(navigation_handle()->GetURL());
 }
 
-NavigationThrottle::ThrottleCheckResult
-NavigationInterceptor::ProcessRequest() {
+NavigationThrottle::ThrottleCheckResult NavigationInterceptor::ProcessRequest(
+    const GURL& intercepted_url) {
   if (!document_.AsRenderFrameHostIfValid()) {
     // Some other navigation has happened in the meantime.
     return PROCEED;
@@ -165,7 +171,7 @@ NavigationInterceptor::ProcessRequest() {
       data_decoder::DataDecoder::ParseStructuredHeaderDictionaryIsolated(
           *connection_status_header,
           base::BindOnce(&NavigationInterceptor::OnConnectionStatusHeaderParsed,
-                         weak_ptr_factory_.GetWeakPtr()));
+                         weak_ptr_factory_.GetWeakPtr(), intercepted_url));
     } else {
       return PROCEED;
     }
@@ -173,7 +179,7 @@ NavigationInterceptor::ProcessRequest() {
     data_decoder::DataDecoder::ParseStructuredHeaderDictionaryIsolated(
         *intercept_header,
         base::BindOnce(&NavigationInterceptor::OnHeaderParsed,
-                       weak_ptr_factory_.GetWeakPtr()));
+                       weak_ptr_factory_.GetWeakPtr(), intercepted_url));
   } else {
     return PROCEED;
   }
@@ -187,6 +193,7 @@ NavigationInterceptor::ProcessRequest() {
 }
 
 void NavigationInterceptor::OnConnectionStatusHeaderParsed(
+    const GURL& intercepted_url,
     base::expected<net::structured_headers::Dictionary, std::string> result) {
   content::RenderFrameHost* rfh = document_.AsRenderFrameHostIfValid();
   if (!rfh) {
@@ -224,9 +231,8 @@ void NavigationInterceptor::OnConnectionStatusHeaderParsed(
     }
 
     // The server can send this header without embedder login request.
-    if (net::SchemefulSite::IsSameSite(
-            embedder_login_request->idp_origin(),
-            url::Origin::Create(navigation_handle()->GetURL()))) {
+    if (net::SchemefulSite::IsSameSite(embedder_login_request->idp_origin(),
+                                       url::Origin::Create(intercepted_url))) {
       if (account_id == embedder_login_request->account_id()) {
         embedder_login_request->OnFederatedResultReceived(
             FederatedLoginResult::kSuccess);
@@ -242,6 +248,7 @@ void NavigationInterceptor::OnConnectionStatusHeaderParsed(
 }
 
 void NavigationInterceptor::OnHeaderParsed(
+    const GURL& intercepted_url,
     base::expected<net::structured_headers::Dictionary, std::string> result) {
   content::RenderFrameHost* rfh = document_.AsRenderFrameHostIfValid();
   if (!rfh) {
@@ -260,8 +267,7 @@ void NavigationInterceptor::OnHeaderParsed(
   }
 
   RequestBuilder request_builder;
-  auto idp_get_params_vector =
-      request_builder.Build(navigation_handle()->GetURL(), *result);
+  auto idp_get_params_vector = request_builder.Build(intercepted_url, *result);
 
   if (!idp_get_params_vector) {
     // The header was available, parsed, but contained an invalid set of
@@ -274,7 +280,7 @@ void NavigationInterceptor::OnHeaderParsed(
   request_factory_.Run(rfh)->RequestToken(
       std::move(*idp_get_params_vector),
       password_manager::CredentialMediationRequirement::kOptional,
-      navigation_handle(),
+      navigation_handle(), intercepted_url,
       base::BindOnce(&NavigationInterceptor::OnTokenResponse,
                      weak_ptr_factory_.GetWeakPtr()));
 }

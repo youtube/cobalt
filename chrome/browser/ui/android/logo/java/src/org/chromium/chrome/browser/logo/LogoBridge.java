@@ -13,6 +13,7 @@ import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 
 /** Provides access to the search provider's logo via the C++ LogoService. */
@@ -22,6 +23,9 @@ public class LogoBridge {
     public static class Logo {
         /** The logo image. Non-null. */
         public final Bitmap image;
+
+        /** The dark mode logo image. May be null. */
+        public final @Nullable Bitmap darkImage;
 
         /** The URL to navigate to when the user clicks on the logo. May be null. */
         public final String onClickUrl;
@@ -34,12 +38,26 @@ public class LogoBridge {
          */
         public final String animatedLogoUrl;
 
+        /**
+         * The URL to download dark mode animated GIF logo. If null, there is no dark animated logo
+         * to download.
+         */
+        public final @Nullable String darkAnimatedLogoUrl;
+
         @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
-        public Logo(Bitmap image, String onClickUrl, String altText, String animatedLogoUrl) {
+        public Logo(
+                Bitmap image,
+                @Nullable Bitmap darkImage,
+                String onClickUrl,
+                String altText,
+                String animatedLogoUrl,
+                @Nullable String darkAnimatedLogoUrl) {
             this.image = image;
+            this.darkImage = darkImage;
             this.onClickUrl = onClickUrl;
             this.altText = altText;
             this.animatedLogoUrl = animatedLogoUrl;
+            this.darkAnimatedLogoUrl = darkAnimatedLogoUrl;
         }
     }
 
@@ -89,8 +107,14 @@ public class LogoBridge {
     }
 
     @CalledByNative
-    private static Logo createLogo(Bitmap image, String onClickUrl, String altText, String gifUrl) {
-        return new Logo(image, onClickUrl, altText, gifUrl);
+    private static Logo createLogo(
+            Bitmap image,
+            @Nullable Bitmap darkImage,
+            String onClickUrl,
+            String altText,
+            String gifUrl,
+            @Nullable String darkGifUrl) {
+        return new Logo(image, darkImage, onClickUrl, altText, gifUrl, darkGifUrl);
     }
 
     @NativeMethods

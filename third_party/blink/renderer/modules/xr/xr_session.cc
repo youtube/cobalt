@@ -14,6 +14,8 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/trace_event/trace_event.h"
 #include "base/types/pass_key.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "device/vr/buildflags/buildflags.h"
 #include "device/vr/public/mojom/hit_test_subscription_id.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
@@ -483,6 +485,20 @@ V8XRVisibilityState XRSession::visibilityState() const {
 
 const FrozenArray<IDLString>& XRSession::enabledFeatures() const {
   return *enabled_features_.Get();
+}
+
+bool XRSession::isSystemKeyboardSupported() const {
+#if BUILDFLAG(ENABLE_VR) && BUILDFLAG(IS_ANDROID)
+  // Cardboard and ARCore technically support the keyboard as-is, but to avoid
+  // exposing it on Quest/OpenXR before the implementation is ready, we guard
+  // it with this flag for all Android for now. This results in false-negatives
+  // for non-OpenXR runtimes, which matches the existing behavior where keyboard
+  // support was always disabled.
+  return base::FeatureList::IsEnabled(
+      device::features::kOpenXrAndroidSystemKeyboard);
+#else
+  return false;
+#endif
 }
 
 XRAnchorSet* XRSession::TrackedAnchors() const {

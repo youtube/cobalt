@@ -329,7 +329,8 @@ class LocalDeviceTestRun(test_run.TestRun):
     host_device_tuples = device_dependencies.ExpandDataDependencies(
         host_device_tuples)
 
-    return sorted(f'{d} <- {os.path.relpath(h)}' for h, d in host_device_tuples)
+    return sorted(host_device_tuples,
+                  key=lambda x: (x[1], os.path.relpath(x[0])))
 
   def _GetTests(self):
     """Get the tests to run on the assigned shard index.

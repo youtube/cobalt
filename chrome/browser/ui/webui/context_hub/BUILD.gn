@@ -7,7 +7,10 @@ import("//mojo/public/tools/bindings/mojom.gni")
 mojom("mojo_bindings") {
   sources = [ "context_hub.mojom" ]
   webui_module_path = "/"
-  public_deps = [ "//url/mojom:url_mojom_gurl" ]
+  public_deps = [
+    "//mojo/public/mojom/base",
+    "//url/mojom:url_mojom_gurl",
+  ]
 }
 
 source_set("context_hub") {
@@ -33,6 +36,10 @@ source_set("context_hub") {
     "//chrome/common",
     "//components/personal_context/proto:personal_context_proto",
   ]
+
+  if (!is_android) {
+    deps += [ "//chrome/browser/ui/webui:favicon_source" ]
+  }
 }
 
 source_set("unit_tests") {

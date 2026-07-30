@@ -3399,4 +3399,61 @@ IN_PROC_BROWSER_TEST_F(ConnectionAllowlistTest,
             static_cast<int>(blink::mojom::ResourceType::kPrefetch));
 }
 
+// `RenderFrameHost::GetConnectionAllowlists()` exposes the Connection-Allowlist
+// committed for the document. An enforced allowlist populates `enforced`; a
+// report-only allowlist populates `report_only`; a document with no allowlist
+// has neither. Browser-process features such as NoStatePrefetch use the
+// enforced allowlist to opt out of behavior that is not yet compatible with
+// Connection-Allowlist enforcement.
+IN_PROC_BROWSER_TEST_F(ConnectionAllowlistTest, GetConnectionAllowlists) {
+  RegisterResponse(
+      "/enforced.html",
+      ResponseEntry("<html><body>enforced</body></html>",
+                    {{"Connection-Allowlist", "(response-origin)"}}));
+  RegisterResponse("/report-only.html",
+                   ResponseEntry("<html><body>report-only</body></html>",
+                                 {{"Connection-Allowlist-Report-Only",
+                                   "(response-origin)"}}));
+  RegisterResponse("/none.html",
+                   ResponseEntry("<html><body>none</body></html>", {}));
+  ASSERT_TRUE(embedded_https_test_server().Start());
+
+  // An enforced Connection-Allowlist populates `enforced`.
+  EXPECT_TRUE(NavigateToURL(shell(), embedded_https_test_server().GetURL(
+                                         "a.test", "/enforced.html")));
+  EXPECT_TRUE(shell()
+                  ->web_contents()
+                  ->GetPrimaryMainFrame()
+                  ->GetConnectionAllowlists()
+                  .enforced.has_value());
+
+  // A report-only Connection-Allowlist populates `report_only`, not `enforced`.
+  EXPECT_TRUE(NavigateToURL(shell(), embedded_https_test_server().GetURL(
+                                         "a.test", "/report-only.html")));
+  EXPECT_FALSE(shell()
+                   ->web_contents()
+                   ->GetPrimaryMainFrame()
+                   ->GetConnectionAllowlists()
+                   .enforced.has_value());
+  EXPECT_TRUE(shell()
+                  ->web_contents()
+                  ->GetPrimaryMainFrame()
+                  ->GetConnectionAllowlists()
+                  .report_only.has_value());
+
+  // No Connection-Allowlist leaves both empty.
+  EXPECT_TRUE(NavigateToURL(
+      shell(), embedded_https_test_server().GetURL("a.test", "/none.html")));
+  EXPECT_FALSE(shell()
+                   ->web_contents()
+                   ->GetPrimaryMainFrame()
+                   ->GetConnectionAllowlists()
+                   .enforced.has_value());
+  EXPECT_FALSE(shell()
+                   ->web_contents()
+                   ->GetPrimaryMainFrame()
+                   ->GetConnectionAllowlists()
+                   .report_only.has_value());
+}
+
 }  // namespace content

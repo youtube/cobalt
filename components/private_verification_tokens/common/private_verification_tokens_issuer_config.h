@@ -14,6 +14,7 @@
 #include "base/files/file_path.h"
 #include "base/values.h"
 #include "components/private_verification_tokens/common/private_verification_tokens_public_key.h"
+#include "url/origin.h"
 
 namespace private_verification_tokens {
 
@@ -73,12 +74,12 @@ class PrivateVerificationTokensIssuerConfig {
 
   ~PrivateVerificationTokensIssuerConfig();
 
-  const std::map<std::string, IssuerConfig>& config() const;
+  const std::map<url::Origin, IssuerConfig>& config() const;
 
  private:
   explicit PrivateVerificationTokensIssuerConfig(
-      std::map<std::string, IssuerConfig> config);
-  const std::map<std::string, IssuerConfig> config_;
+      std::map<url::Origin, IssuerConfig> config);
+  const std::map<url::Origin, IssuerConfig> config_;
 };
 
 }  // namespace private_verification_tokens

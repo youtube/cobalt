@@ -87,6 +87,7 @@ message ContentMetaData {
       CLIPBOARD = 2;
       OTHER_PROFILE = 3;
       SAME_PROFILE = 4;
+      GEMINI_IN_CHROME = 5;
     }
     // Holds Chrome context of copied data.
     optional CopiedTextSourceType context = 2;

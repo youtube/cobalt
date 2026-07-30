@@ -68,7 +68,10 @@ ExternalInstallOptions GetConfigForVids(bool is_standalone_tabbed,
           chromeos::features::kVidsAppConsumerPreinstall)) {
     options.user_type_allowlist.push_back("unmanaged");
   }
-  options.only_for_new_users = user_type == "unmanaged";
+  options.only_for_new_users =
+      !base::FeatureList::IsEnabled(
+          chromeos::features::kVidsAppExistingConsumerPreinstall) &&
+      user_type == "unmanaged";
   options.only_use_app_info_factory = true;
   options.app_info_factory = base::BindRepeating([]() {
     GURL start_url =

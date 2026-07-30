@@ -44,15 +44,16 @@ public class ActorNotificationService {
      *
      * @param task The task to show the notification for.
      * @param isSilent Whether the notification should be silent or popup if it needs to be built.
+     * @param isWarning Whether the notification is in a warning state.
      * @return The notification to be used for the foreground service, or null if the task is null.
      */
     public @Nullable Notification getForegroundNotification(
-            @Nullable ActorTask task, boolean isSilent) {
+            @Nullable ActorTask task, boolean isSilent, boolean isWarning) {
         if (task == null) return null;
 
         // Currently, we only support pinning one task's notification.
         // In the future, this can be extended to return a grouped summary notification.
-        return getCachedNotification(task.getId(), isSilent);
+        return getCachedNotification(task.getId(), isSilent, isWarning);
     }
 
     /**
@@ -61,11 +62,13 @@ public class ActorNotificationService {
      * @param taskId The ID of the task that changed state.
      * @param newState The new state of the task.
      * @param isSilent Whether the notification should be silent or popup.
+     * @param isWarning Whether the notification is in a warning state.
      */
     public void updateNotificationForTask(
-            int taskId, @ActorTaskState int newState, boolean isSilent) {
+            int taskId, @ActorTaskState int newState, boolean isSilent, boolean isWarning) {
         NotificationWrapper old = mNotificationCache.get(taskId);
-        NotificationWrapper current = getOrBuildNotificationWrapper(taskId, newState, isSilent);
+        NotificationWrapper current =
+                getOrBuildNotificationWrapper(taskId, newState, isSilent, isWarning);
         if (current == null) {
             mNotificationManager.cancel(taskId);
             clearTaskData(taskId);
@@ -94,16 +97,18 @@ public class ActorNotificationService {
      *
      * @param taskId The ID of the task.
      * @param isSilent Whether the notification should be silent or popup if it needs to be built.
+     * @param isWarning Whether the notification is in a warning state.
      * @return The {@link Notification} object, or null if the task cannot be found.
      */
     @Nullable
-    public Notification getCachedNotification(int taskId, boolean isSilent) {
-        NotificationWrapper wrapper = getOrBuildNotificationWrapper(taskId, null, isSilent);
+    public Notification getCachedNotification(int taskId, boolean isSilent, boolean isWarning) {
+        NotificationWrapper wrapper =
+                getOrBuildNotificationWrapper(taskId, null, isSilent, isWarning);
         return wrapper != null ? wrapper.getNotification() : null;
     }
 
     private @Nullable NotificationWrapper getOrBuildNotificationWrapper(
-            int taskId, @Nullable Integer newState, boolean isSilent) {
+            int taskId, @Nullable Integer newState, boolean isSilent, boolean isWarning) {
         ActorTask task = getTask(taskId);
         if (task == null) return null;
 
@@ -111,13 +116,15 @@ public class ActorNotificationService {
         Integer oldState = mTaskStates.get(taskId);
         NotificationWrapper cachedNotification = mNotificationCache.get(taskId);
 
-        if (cachedNotification == null
-                || oldState == null
-                || ActorNotificationFactory.shouldUpdateNotification(
-                        oldState, /* wasWarning= */ false, state, /* isWarning= */ false)) {
+        boolean shouldUpdate =
+                (cachedNotification == null)
+                        || isWarning
+                        || (oldState == null)
+                        || ActorNotificationFactory.shouldUpdateNotification(oldState, state);
+
+        if (shouldUpdate) {
             cachedNotification =
-                    ActorNotificationFactory.buildNotification(
-                            task, state, isSilent, /* isWarning= */ false);
+                    ActorNotificationFactory.buildNotification(task, state, isSilent, isWarning);
             mNotificationCache.put(taskId, cachedNotification);
         }
 

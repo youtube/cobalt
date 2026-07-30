@@ -14,6 +14,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "components/content_settings/core/common/content_settings.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/permissions/resolvers/permission_prompt_options.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -30,6 +31,22 @@
 
 class HostContentSettingsMap;
 class TemplateURLService;
+struct AutocompleteMatch;
+
+// LINT.IfChange(OmniboxInlineLocationSuggestionShown)
+enum class OmniboxInlineLocationSuggestionShown {
+  // The suggestion could not be shown because there was no eligible suggestion
+  // found from which to create a duplicate inline location suggestion.
+  kNoEligibleSuggestionFound = 0,
+  // There was a parent suggestion found, but no inline location suggestion was
+  // shown.
+  kOnlyParentSuggestionShown = 1,
+  // An inline location suggestion was shown.
+  kLocationSuggestionShown = 2,
+  // Max value.
+  kMaxValue = kLocationSuggestionShown,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:OmniboxInlineLocationSuggestionShown)
 
 // A KeyedService that handles the generation of the X-Geo header for valid DSE
 // navigations after checking that permissions allow for it.
@@ -76,6 +93,17 @@ class GeolocationHeaderService : public KeyedService {
   std::optional<std::string> GetLocationHeader(const GURL& url,
                                                bool for_automatic_sending);
 
+  // Records metrics about when the inline location suggestion is shown and
+  // clicked.
+  void RecordInlineLocationSuggestionShown(
+      OmniboxInlineLocationSuggestionShown shown_state,
+      size_t match_index) const;
+  void RecordInlineLocationSuggestionClicked(
+      const AutocompleteMatch& match) const;
+
+  // Returns true if the given URL is eligible for the X-Geo header.
+  bool IsUrlEligibleForLocationHeader(const GURL& url) const;
+
   void SetLocationAgeForTesting(base::TimeDelta age) {
     location_age_for_testing_ = age;
   }
@@ -94,13 +122,15 @@ class GeolocationHeaderService : public KeyedService {
   bool IsAllowedByPermission(const GURL& url) const;
   bool HasPrecisePermission(const GURL& url) const;
   bool HasDeviceLocationPermission(GeolocationAccuracy accuracy) const;
-  bool IsUrlEligibleForLocationHeader(const GURL& url) const;
 
   // Encapsulates the logic to connect to the device geolocation service.
   bool EnsureGeolocationServiceConnection(const GURL& requesting_url,
                                           bool use_cache_only = false);
 
   void OnLocationUpdate(device::mojom::GeopositionResultPtr result);
+
+  PermissionSetting GetPermissionSetting(const GURL& url) const;
+  std::optional<PermissionSetting> GetDSEPermissionSetting() const;
 
   scoped_refptr<HostContentSettingsMap> settings_map_;
   raw_ptr<TemplateURLService> template_url_service_;

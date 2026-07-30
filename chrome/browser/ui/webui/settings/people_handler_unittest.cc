@@ -2029,5 +2029,76 @@ TEST_F(PeopleHandlerWithReplaceSyncWithSigninUI, HandleShowAccountSettingsUI) {
       LoginUIServiceFactory::GetForProfile(profile())->current_login_ui());
   ExpectSyncPrefsChanged();
 }
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+TEST(PeopleHandlerDiceTest, RecordSigninOffered) {
+  content::BrowserTaskEnvironment task_environment;
+  network::TestURLLoaderFactory url_loader_factory;
+
+  TestingProfile::Builder builder;
+  builder.AddTestingFactories(
+      IdentityTestEnvironmentProfileAdaptor::
+          GetIdentityTestEnvironmentFactoriesWithAppendedFactories(
+              {TestingProfile::TestingFactory{
+                  ChromeSigninClientFactory::GetInstance(),
+                  base::BindRepeating(&BuildChromeSigninClientWithURLLoader,
+                                      &url_loader_factory)}}));
+
+  std::unique_ptr<TestingProfile> profile = builder.Build();
+
+  auto identity_test_env_adaptor =
+      std::make_unique<IdentityTestEnvironmentProfileAdaptor>(profile.get());
+  auto* identity_test_env = identity_test_env_adaptor->identity_test_env();
+  identity_test_env->SetTestURLLoaderFactory(&url_loader_factory);
+
+  syncer::TestSyncService* sync_service = static_cast<syncer::TestSyncService*>(
+      SyncServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+          profile.get(), base::BindRepeating(&BuildTestSyncService)));
+  sync_service->SetSignedOut();
+
+  content::TestWebUI web_ui;
+  TestingPeopleHandler handler(&web_ui, profile.get());
+  handler.AllowJavascript();
+
+  content::TestWebContentsFactory web_contents_factory;
+  content::WebContents* web_contents =
+      web_contents_factory.CreateWebContents(profile.get());
+  web_ui.set_web_contents(web_contents);
+  handler.RegisterMessages();
+
+  base::HistogramTester histogram_tester;
+
+  // Test with no accounts (NewAccountNoExistingAccount)
+  {
+    base::ListValue args;
+    args.Append(0);  // ChromeSigninAccessPoint::kSettings
+    web_ui.HandleReceivedMessage("RecordSigninOffered", args);
+
+    histogram_tester.ExpectUniqueSample(
+        "Signin.SignIn.Offered", signin_metrics::AccessPoint::kSettings, 1);
+    histogram_tester.ExpectUniqueSample(
+        "Signin.SignIn.Offered.NewAccountNoExistingAccount",
+        signin_metrics::AccessPoint::kSettings, 1);
+  }
+
+  // Test with an account (WithDefault)
+  AccountInfo account_info = identity_test_env->MakeAccountAvailable(
+      "user2@example.com", {.set_cookie = true});
+
+  {
+    base::ListValue args;
+    args.Append(1);  // ChromeSigninAccessPoint::kSettingsYourSavedInfo
+    web_ui.HandleReceivedMessage("RecordSigninOffered", args);
+
+    histogram_tester.ExpectBucketCount(
+        "Signin.SignIn.Offered",
+        signin_metrics::AccessPoint::kSettingsYourSavedInfo, 1);
+    histogram_tester.ExpectBucketCount(
+        "Signin.SignIn.Offered.WithDefault",
+        signin_metrics::AccessPoint::kSettingsYourSavedInfo, 1);
+  }
+}
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 }  // namespace settings

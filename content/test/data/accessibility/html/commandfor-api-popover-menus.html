@@ -12,41 +12,51 @@
 -->
 
 <!-- Non-visible menulist should show collapsed menuitem and button -->
-<button command=toggle-menu commandfor=closedmenu></button>
+<button command=toggle-popover commandfor=closedmenu></button>
 <menubar>
-  <menuitem command=toggle-menu commandfor=closedmenu>First item</menuitem>
+  <submenu>
+    <menuitem>First item</menuitem>
+    <menulist id=closedmenu></menulist>
+  </submenu>
   <menuitem>No command item</menuitem>
   <menuitem command=--custom-command commandfor=closedmenu>Custom command item</menuitem>
 </menubar>
-<menulist id=closedmenu></menulist>
 
 <!-- Visible menulist should show expanded menuitem and button (see script
 below) -->
-<button command=toggle-menu commandfor=openedmenu></button>
+<button command=toggle-popover commandfor=openedmenu></button>
 <menubar>
-  <menuitem command=toggle-menu commandfor=openedmenu>First item</menuitem>
+  <submenu>
+    <menuitem>First item</menuitem>
+    <menulist id=openedmenu></menulist>
+  </submenu>
 </menubar>
-<menulist id=openedmenu></menulist>
 
 <!-- Submenu menuitem shows collapsed state -->
 <menubar>
-  <menuitem command=toggle-menu commandfor=submenu1>First item</menuitem>
+  <submenu>
+    <menuitem>First item</menuitem>
+    <menulist id=submenu1>
+      <menuitem>Submenu1 first item</menuitem>
+      <submenu>
+        <menuitem>Submenu1 second item</menuitem>
+        <menulist id=submenu2>
+          <menuitem>Submenu2 first item</menuitem>
+        </menulist>
+      </submenu>
+    </menulist>
+  </submenu>
 </menubar>
-<menulist id=submenu1>
-  <menuitem>Submenu1 first item</menuitem>
-  <menuitem command=toggle-menu commandfor=submenu2>Submenu1 second item</menuitem>
-</menulist>
-<menulist id=submenu2>
-  <menuitem>Submenu2 first item</menuitem>
-</menulist>
 
 <!-- This menuitem should show a collapsed state; script shows and then hides
 the submenu, which should apply `expanded=true` and then `expanded=false`, thus
 ultimately resulting in the collapsed state -->
 <menubar>
-  <menuitem command=toggle-menu commandfor=submenu2>First item</menuitem>
+  <submenu>
+    <menuitem>First item</menuitem>
+    <menulist id=submenu3></menulist>
+  </submenu>
 </menubar>
-<menulist id=submenu2></menulist>
 
 <script>
   openedmenu.showPopover();

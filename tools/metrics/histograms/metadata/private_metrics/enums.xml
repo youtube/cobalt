@@ -95,6 +95,22 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//components/metrics/private_metrics/private_insights/fcp_event_publisher.h:PrivateInsightsFcpEvent) -->
 
+<!-- LINT.IfChange(PrivateInsightsFederatedComputationOutcome) -->
+
+<enum name="PrivateInsightsFederatedComputationOutcome">
+  <int value="0" label="Success"/>
+  <int value="1" label="Partial"/>
+  <int value="2" label="Failed"/>
+  <int value="3" label="Unknown"/>
+  <int value="4" label="Error: Other"/>
+  <int value="5" label="Error: No Server URI"/>
+  <int value="6" label="Error: Invalid Entry Point URI"/>
+  <int value="7" label="Error: Database Read Failed"/>
+  <int value="8" label="Error: Database Reset Failed"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/metrics/private_metrics/private_insights/private_insights_service.h:PrivateInsightsFederatedComputationOutcome) -->
+
 <!-- LINT.IfChange(PrivateInsightsTriggerUploadOutcome) -->
 
 <enum name="PrivateInsightsTriggerUploadOutcome">

@@ -15,6 +15,10 @@ namespace android_webview::features {
 // Kill switch for Profile.addQuicHints.
 BASE_FEATURE(kWebViewAddQuicHints, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Preloads expensive classes that will be used by WebView on a background
+// thread.
+BASE_FEATURE(kWebViewAwClassPreloader, base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Enable back/forward cache support in WebView. Note that this will only take
 // effect iff both this feature flag and the content/public kBackForwardCache
 // flag is enabled.
@@ -54,7 +58,7 @@ BASE_FEATURE(kWebViewForceWebAuthn, base::FEATURE_DISABLED_BY_DEFAULT);
 // Gate text-size-adjust on whether the app called
 // setLayoutAlgorithm(TEXT_AUTOSIZING).
 BASE_FEATURE(kWebViewGateTextSizeAdjustOnTextAutosizing,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Install the profiling client with memory_system::Initializer. If this is
 // enabled the profiler MAY be started by
@@ -113,6 +117,13 @@ BASE_FEATURE(kWebViewPropagateNetworkChangeSignals,
 // Provide the unreduced product version from the AwContentBrowserClient API,
 // regardless of the user agent reduction policy.
 BASE_FEATURE(kWebViewUnreducedProductVersion, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls whether we ignore duplicate navigations or not, in favor of
+// preserving the already ongoing navigation.
+BASE_FEATURE(kWebViewIgnoreDuplicateNavs, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<base::TimeDelta> kWebViewDuplicateNavThreshold{
+    &kWebViewIgnoreDuplicateNavs, "duplicate_nav_threshold", base::Seconds(3)};
 
 // If enabled zoom picker is invoked on every kGestureScrollUpdate consumed ack,
 // otherwise the zoom picker is persistently shown from scroll start to scroll
@@ -235,6 +246,12 @@ BASE_FEATURE(kWebViewOptInToGmsBindServiceOptimization,
 // when async startup takes place.
 BASE_FEATURE(kWebViewMoveWorkToProviderInit, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, WebViewMoveWorkToProviderInit tasks are run on a posted task
+// instead of synchronously during WebView provider initialization. Only has any
+// effect if `kWebViewMoveWorkToProviderInit` is also enabled.
+BASE_FEATURE(kWebViewMoveWorkToProviderInitThreadPool,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, the temporary cookie manager used before WebView startup is
 // bypassed. If WebView isn't already started up, calling
 // `CookieManager.getInstance()` will trigger WebView startup on the main looper
@@ -254,12 +271,11 @@ BASE_FEATURE(kPrerender2WarmUpCompositorForWebView,
 
 // Keeps the renderer process alive after the last WebView is destroyed to
 // allow for reuse.
-BASE_FEATURE(kWebViewRendererKeepAlive, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebViewRendererKeepAlive, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<base::TimeDelta> kWebViewRendererKeepAliveDuration{
     &kWebViewRendererKeepAlive, "webview_renderer_keep_alive_duration",
-    base::Seconds(30)};
-
+    base::Days(1000)};
 
 // Enables recording user actions for API calls.
 BASE_FEATURE(kWebViewEnableApiCallUserActions,
@@ -274,11 +290,6 @@ BASE_FEATURE(kWebViewWebPerformanceMetricsReporting,
 // intended to be used to gate any production code.
 BASE_FEATURE(kWebViewTestNonembeddedLowEntropySource,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, WebView uses the low entropy source provided by the nonembedded
-// WebView service.
-BASE_FEATURE(kWebViewUseNonembeddedLowEntropySource,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, the default user agent string is fetched more quickly without
 // waiting for chromium startup to complete.

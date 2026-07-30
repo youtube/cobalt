@@ -415,6 +415,7 @@ source_set("browser_tests") {
     "cloud/cloud_policy_manager_browsertest.cc",
     "cloud/device_management_service_browsertest.cc",
     "test/accessibility_policy_browsertest.cc",
+    "test/default_sensors_setting_policy_handler_browsertest.cc",
   ]
 
   data_deps = [ "//components/policy:policy_templates" ]
@@ -555,9 +556,11 @@ source_set("browser_tests") {
       "test/browser_dynamic_code_blocked_win_browsertest.cc",
       "test/locale_policy_browsertest.cc",
       "test/printing_lpac_sandbox_enabled_win_browsertest.cc",
+      "test/process_isolation_enabled_browsertest.cc",
       "test/renderer_app_container_enabled_win_browsertest.cc",
       "test/restrict_core_sharing_policy_browsertest.cc",
     ]
+    deps += [ "//chrome/browser/win:isolated_browser_support" ]
   }
 
   if (is_win || is_linux) {
@@ -971,6 +974,7 @@ source_set("impl") {
     "//components/embedder_support",
     "//components/embedder_support:user_agent",
     "//components/enterprise/browser/data_region",
+    "//components/enterprise/net",
     "//components/enterprise/network_header_injection/core:policy",
     "//components/feed/core/shared_prefs:feed_shared_prefs",
     "//components/history/core/common",
@@ -993,6 +997,7 @@ source_set("impl") {
     "//components/reporting/util:status_macros",
     "//components/reporting/util:task_runner_context",
     "//components/safe_browsing/core/common:safe_browsing_policy_handler",
+    "//components/site_isolation",
     "//components/spellcheck:buildflags",
     "//components/spellcheck/browser",
     "//components/unified_consent",
@@ -1082,6 +1087,7 @@ source_set("impl") {
         "cloud/user_policy_signin_service.cc",
         "file_selection_dialogs_policy_handler.cc",
       ]
+      deps += [ "//chrome/browser/enterprise:browser_launch_reporting" ]
     }
   }
 

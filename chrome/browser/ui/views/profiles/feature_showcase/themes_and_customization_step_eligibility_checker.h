@@ -1,0 +1,29 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef CHROME_BROWSER_UI_VIEWS_PROFILES_FEATURE_SHOWCASE_THEMES_AND_CUSTOMIZATION_STEP_ELIGIBILITY_CHECKER_H_
+#define CHROME_BROWSER_UI_VIEWS_PROFILES_FEATURE_SHOWCASE_THEMES_AND_CUSTOMIZATION_STEP_ELIGIBILITY_CHECKER_H_
+
+#include "chrome/browser/ui/views/profiles/feature_showcase/feature_showcase_step_eligibility_checker.h"
+
+inline constexpr char kFeatureShowcaseThemesAndCustomizationStepIdentifier[] =
+    "themes-and-customization";
+
+class ThemesAndCustomizationStepEligibilityChecker
+    : public FeatureShowcaseStepEligibilityChecker {
+ public:
+  ThemesAndCustomizationStepEligibilityChecker();
+  ThemesAndCustomizationStepEligibilityChecker(
+      const ThemesAndCustomizationStepEligibilityChecker&) = delete;
+  ThemesAndCustomizationStepEligibilityChecker& operator=(
+      const ThemesAndCustomizationStepEligibilityChecker&) = delete;
+  ~ThemesAndCustomizationStepEligibilityChecker() override;
+
+  // FeatureShowcaseStepEligibilityChecker:
+  void CheckEligibility(Profile& profile,
+                        base::OnceCallback<void(bool)> callback) override;
+  std::string GetStepIdentifier() const override;
+};
+
+#endif  // CHROME_BROWSER_UI_VIEWS_PROFILES_FEATURE_SHOWCASE_THEMES_AND_CUSTOMIZATION_STEP_ELIGIBILITY_CHECKER_H_

@@ -22,6 +22,12 @@ inline constexpr char kGlicUserEnabledActuationOnWeb[] =
 inline constexpr char kGlicExperimentalTriggeringEnabled[] =
     "glic.experimental_triggering_enabled";
 
+// Integer pref that tracks onboarding interaction status.
+inline constexpr char kGlicOnboardingStatus[] = "glic.onboarding_status";
+// Time prefs that track last invoked and prompt timestamps.
+inline constexpr char kGlicLastInvokedTime[] = "glic.last_invoked_time";
+inline constexpr char kGlicLastPromptTime[] = "glic.last_prompt_time";
+
 }  // namespace glic::prefs
 
 #endif  // CHROME_BROWSER_GLIC_GLIC_PREF_NAMES_INTERNAL_H_

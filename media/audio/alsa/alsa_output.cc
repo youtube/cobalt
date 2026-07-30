@@ -740,9 +740,9 @@ snd_pcm_t* AlsaPcmOutputStream::AutoSelectDevice(unsigned int latency) {
   uint32_t default_channels = channels_;
   if (default_channels > 2) {
     default_channels = 2;
-    channel_mixer_ = std::make_unique<ChannelMixer>(channel_layout_, channels_,
-                                                    kDefaultOutputChannelLayout,
-                                                    default_channels);
+    channel_mixer_ = std::make_unique<ChannelMixer>(
+        ChannelLayoutConfig(channel_layout_, channels_),
+        ChannelLayoutConfig(kDefaultOutputChannelLayout, default_channels));
     mixed_audio_bus_ = AudioBus::Create(
         default_channels, audio_bus_->frames());
   }

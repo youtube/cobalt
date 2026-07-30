@@ -825,7 +825,7 @@ ContentSubresourceFilterThrottleManager::GetAdEvidenceForFrame(
 }
 
 void ContentSubresourceFilterThrottleManager::DidDisallowFirstSubresource() {
-  MaybeShowNotification(receiver_.GetCurrentTargetFrame());
+  MaybeShowNotification(&receiver_.CurrentTargetFrame());
 }
 
 void ContentSubresourceFilterThrottleManager::FrameIsAd() {
@@ -838,10 +838,9 @@ void ContentSubresourceFilterThrottleManager::FrameIsAd() {
   // that case we do can rely on passing through ReadyToCommitNavigation and we
   // do so since fenced frame ad tagging varies significantly from regular
   // iframes, see `AdScriptDidCreateFencedFrame`.
-  content::RenderFrameHost* render_frame_host =
-      receiver_.GetCurrentTargetFrame();
-  CHECK(!render_frame_host->IsFencedFrameRoot());
-  OnFrameIsAd(receiver_.GetCurrentTargetFrame());
+  content::RenderFrameHost& render_frame_host = receiver_.CurrentTargetFrame();
+  CHECK(!render_frame_host.IsFencedFrameRoot());
+  OnFrameIsAd(&render_frame_host);
 }
 
 void ContentSubresourceFilterThrottleManager::SetDocumentLoadStatistics(
@@ -854,7 +853,7 @@ void ContentSubresourceFilterThrottleManager::SetDocumentLoadStatistics(
 void ContentSubresourceFilterThrottleManager::OnAdsViolationTriggered(
     mojom::AdsViolation violation) {
   CHECK(page_);
-  CHECK_EQ(&GetSubresourceFilterRootPage(receiver_.GetCurrentTargetFrame()),
+  CHECK_EQ(&GetSubresourceFilterRootPage(&receiver_.CurrentTargetFrame()),
            page_);
   // TODO(bokan) How should we deal with violations coming from a fenced frame?
   // Should we pass in the fenced frame root instead? crbug.com/1263541.
@@ -862,7 +861,7 @@ void ContentSubresourceFilterThrottleManager::OnAdsViolationTriggered(
 }
 
 void ContentSubresourceFilterThrottleManager::FrameWasCreatedByAdScript() {
-  OnChildFrameWasCreatedByAdScript(receiver_.GetCurrentTargetFrame());
+  OnChildFrameWasCreatedByAdScript(&receiver_.CurrentTargetFrame());
 }
 
 void ContentSubresourceFilterThrottleManager::AdScriptDidCreateFencedFrame(
@@ -885,11 +884,10 @@ void ContentSubresourceFilterThrottleManager::AdScriptDidCreateFencedFrame(
   // which point we cannot inspect the v8 stack so we use this special path for
   // fenced frames.
 
-  content::RenderFrameHost* owner_frame = receiver_.GetCurrentTargetFrame();
-  CHECK(owner_frame);
+  content::RenderFrameHost& owner_frame = receiver_.CurrentTargetFrame();
 
   auto* fenced_frame_root = content::RenderFrameHost::FromPlaceholderToken(
-      owner_frame->GetProcess()->GetDeprecatedID(), placeholder_token);
+      owner_frame.GetProcess()->GetDeprecatedID(), placeholder_token);
 
   if (!fenced_frame_root) {
     return;
@@ -902,7 +900,7 @@ void ContentSubresourceFilterThrottleManager::AdScriptDidCreateFencedFrame(
     return;
   }
 
-  if (fenced_frame_root->GetParentOrOuterDocument() != owner_frame) {
+  if (fenced_frame_root->GetParentOrOuterDocument() != &owner_frame) {
     mojo::ReportBadMessage(
         "AdScriptDidCreateFencedFrame called from non-embedder of fenced "
         "frame.");

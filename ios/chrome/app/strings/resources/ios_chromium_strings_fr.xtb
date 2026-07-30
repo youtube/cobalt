@@ -78,6 +78,7 @@ Vous ne pourrez pas enregistrer de nouveaux favoris dans votre compte tant que v
 <translation id="2386292341327187942">Dans le champ "Rechercher des widgets", saisissez "Chromium".</translation>
 <translation id="2389827884654658221">Accédez plus vite à Chromium depuis l'écran d'accueil de votre iPad.</translation>
 <translation id="2426113998523353159">Votre organisation exige que vous vous connectiez pour utiliser Chromium.</translation>
+<translation id="244367646885670394">Confirmez votre identité pour enregistrer ce mot de passe et accéder aux données Chromium sur tous vos appareils</translation>
 <translation id="2450140762465183767">Chaque fois que vous appuierez sur des liens figurant dans des messages, des documents et d'autres applis, le contenu s'affichera dans Chromium.</translation>
 <translation id="2459183986985456602">Ouvrez votre dernier onglet dans Chromium.</translation>
 <translation id="2476409803017965813">Vous pouvez modifier vos sélections à tout moment dans les réglages Chromium.</translation>
@@ -108,6 +109,7 @@ Pour voir d'autres paramètres qui utilisent les données pour améliorer votre 
 <translation id="3054480780637153380">Ouvrez les réglages Chromium sous iOS, appuyez sur "Appli du navigateur par défaut", puis sélectionnez Chromium.</translation>
 <translation id="3115956258722352278">Définir Chromium comme navigateur par défaut ?</translation>
 <translation id="3180939591219927904">Activez "Verrouiller les onglets de navigation privée lorsque vous fermez Chromium"</translation>
+<translation id="327628223428512207">Saisissez votre phrase secrète pour enregistrer ce mot de passe et accéder aux données Chromium sur tous vos appareils</translation>
 <translation id="328933489847748230">{count,plural, =1{1 fenêtre Chromium actuellement affichée}one{{count} fenêtre Chromium actuellement affichée}other{{count} fenêtres Chromium actuellement affichées}}</translation>
 <translation id="3344973607274501920">Chromium n'est pas parvenu à vérifier vos mots de passe. Vérifiez votre connexion Internet.</translation>
 <translation id="3366305173356742781">Données Chromium de votre compte</translation>

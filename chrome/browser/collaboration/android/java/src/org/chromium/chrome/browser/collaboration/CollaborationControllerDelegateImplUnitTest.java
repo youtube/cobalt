@@ -327,6 +327,26 @@ public class CollaborationControllerDelegateImplUnitTest {
     }
 
     @Test
+    public void testDestroyAfterFlowFinishedDoesNotRunExitCallback() {
+        createDelegate(FlowType.JOIN);
+        long prepareResultCallback = 1;
+        long exitCallback = 2;
+
+        mCollaborationControllerDelegateImpl.prepareFlowUI(exitCallback, prepareResultCallback);
+
+        // Simulate flow finished, which deletes exitCallback.
+        mCollaborationControllerDelegateImpl.onFlowFinished();
+
+        // Simulate subsequent destroy.
+        mCollaborationControllerDelegateImpl.destroy();
+
+        // Delete should have been called, but runExitCallback should never be called.
+        verify(mCollaborationControllerDelegateImplNativeMock).deleteExitCallback(eq(exitCallback));
+        verify(mCollaborationControllerDelegateImplNativeMock, never())
+                .runExitCallback(eq(exitCallback));
+    }
+
+    @Test
     public void testPromoteTabGroup() {
         createDelegate(FlowType.JOIN);
         long resultCallback = 1;

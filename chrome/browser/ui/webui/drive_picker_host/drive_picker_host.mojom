@@ -4,6 +4,8 @@
 
 module drive_picker_host.mojom;
 
+
 // Browser-side handler for chrome://drive-picker-host.
+// Called from TS side of chrome://drive-picker-host (Renderer -> Browser).
 interface DrivePickerHostHandler {
 };

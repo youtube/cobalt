@@ -23,6 +23,7 @@
 #include "components/multistep_filter/core/extraction/filter_extractor.h"
 #include "components/multistep_filter/core/features.h"
 #include "components/multistep_filter/core/multistep_filter_service_test_api.h"
+#include "components/multistep_filter/core/prefs/multistep_filter_retention_prefs.h"
 #include "components/multistep_filter/core/storage/filter_store.h"
 #include "components/multistep_filter/core/suggestion/filter_suggestion_generator.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -91,6 +92,7 @@ class MultistepFilterServiceTest : public testing::Test {
     scoped_feature_list_.InitAndEnableFeature(kMultistepFilter);
     pref_service_.registry()->RegisterBooleanPref(
         unified_consent::prefs::kUrlKeyedAnonymizedDataCollectionEnabled, true);
+    RegisterRetentionProfilePrefs(pref_service_.registry());
     sync_service_.GetUserSettings()->SetSelectedType(
         syncer::UserSelectableType::kHistory, true);
   }
@@ -117,6 +119,7 @@ class MultistepFilterServiceTest : public testing::Test {
     params.identity_manager = identity_manager;
     params.consent_helper = std::move(consent_helper);
     params.log_router = nullptr;
+    params.pref_service = &pref_service_;
     params.sync_service = &sync_service_;
 
     service_ = std::make_unique<MultistepFilterService>(std::move(params));
@@ -443,6 +446,27 @@ TEST_F(MultistepFilterServiceTest,
   // Call OnHistoryDeletions. Since the time_range is invalid, it historically
   // crashed. With the fix, it should succeed without crashing.
   service_->OnHistoryDeletions(/*history_service=*/nullptr, deletion_info);
+}
+
+TEST_F(MultistepFilterServiceTest, RecordSuggestionOutcomesUpdatesPrefs) {
+  CreateService();
+  RetentionStateSnapshot initial_state = GetRetentionState(&pref_service_);
+  EXPECT_EQ(initial_state.suggestion_impressions, 0);
+  EXPECT_EQ(initial_state.suggestion_acceptances, 0);
+  EXPECT_FALSE(initial_state.is_last_suggestion_accepted);
+
+  service_->RecordSuggestionImpression();
+  RetentionStateSnapshot impression_state = GetRetentionState(&pref_service_);
+  EXPECT_EQ(impression_state.suggestion_impressions, 1);
+  EXPECT_EQ(impression_state.suggestion_acceptances, 0);
+  EXPECT_FALSE(impression_state.is_last_suggestion_accepted);
+
+  service_->RecordUserInteractionWithSuggestion(
+      SuggestionUserDecision::kAccepted);
+  RetentionStateSnapshot acceptance_state = GetRetentionState(&pref_service_);
+  EXPECT_EQ(acceptance_state.suggestion_impressions, 1);
+  EXPECT_EQ(acceptance_state.suggestion_acceptances, 1);
+  EXPECT_TRUE(acceptance_state.is_last_suggestion_accepted);
 }
 
 }  // namespace multistep_filter

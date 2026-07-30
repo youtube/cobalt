@@ -105,6 +105,10 @@ bool WebInputElement::ShouldRevealPassword() const {
   return ConstUnwrap<HTMLInputElement>()->ShouldRevealPassword();
 }
 
+void WebInputElement::SetEmailVerificationState(EmailVerificationState state) {
+  Unwrap<HTMLInputElement>()->SetEmailVerificationState(state);
+}
+
 void WebInputElement::DispatchSimulatedEnter() {
   Unwrap<HTMLInputElement>()->DispatchSimulatedEnter();
 }

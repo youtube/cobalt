@@ -7,6 +7,7 @@
 <translation id="1026101648481255140">インストールを再開</translation>
 <translation id="102763973188675173">Google Chrome をカスタマイズしてご活用ください。アップデートが利用可能です。</translation>
 <translation id="1028061813283459617">閲覧履歴データをこのデバイスからのみ削除して、Google アカウントに残すには、<ph name="BEGIN_LINK" />Chrome からログアウト<ph name="END_LINK" />します。</translation>
+<translation id="1028770388543831319">スマートフォンの Chrome アプリで、Google の優れた安全機能を外出先でも利用できます</translation>
 <translation id="1042270987544905725">クリックすると、Chrome のログイン ダイアログを閉じます</translation>
 <translation id="1051793555070215510">シークレット モードの改善のため、1 分程度のアンケートにご協力ください。</translation>
 <translation id="1055295352198814912">Gemini in Chrome を Mac のメニューバーに表示して、キーボード ショートカットをオンにする</translation>
@@ -36,6 +37,7 @@
 <translation id="1341711321000856656">別の Chrome プロフィールに切り替えて、そのプロフィールのパスワードを表示できます</translation>
 <translation id="1343830902827845050">Chrome にログイン</translation>
 <translation id="1356661055722410047">New! 画面上のテキストや画像を翻訳できるようになりました</translation>
+<translation id="1361351916482714918">Google レンズで賢くブラウジング</translation>
 <translation id="1363996462118479832">ログイン時にエラーが発生したため、ChromeOS はデータを同期できませんでした。</translation>
 <translation id="137466361146087520">Google Chrome ベータ版</translation>
 <translation id="1383876407941801731">検索</translation>
@@ -92,6 +94,7 @@
 <translation id="1838374766361614909">検索をクリア</translation>
 <translation id="1843347690926158494">Google レンズでこのタブを検索</translation>
 <translation id="1849248141818021764">パスフレーズを知っているユーザーだけが暗号化されたデータを見ることができます。パスフレーズは Google には送信されず、保存されることもありません。パスフレーズを忘れた場合や、この設定を変更する場合は、<ph name="BEGIN_LINK" />アカウントの Chrome データを削除<ph name="END_LINK" />する必要があります。</translation>
+<translation id="1856809424654973980">Chrome アプリで、ブラウジングを外出先でも続けられます</translation>
 <translation id="1860536484129686729">このサイトを利用するには、Chrome でカメラの使用を許可する必要があります</translation>
 <translation id="1867503717113754604"><ph name="START_GLIC_STYLING" />Gemini<ph name="END_GLIC_STYLING" /> を使用するには、Google アカウントで Chrome にログインしてください</translation>
 <translation id="1873233029667955273">Google Chrome はデフォルトのブラウザとして設定されていません</translation>
@@ -101,13 +104,17 @@
 <translation id="1896602904211344018">Chrome アプリを入手</translation>
 <translation id="1919130412786645364">Chrome へのログインを許可する</translation>
 <translation id="1953553007165777902">ダウンロードしています... 残り <ph name="MINUTE" /> 分です</translation>
+<translation id="1975400514743766362"><ph name="DEVICE_TYPE" /> の Chrome アプリで、Google の安全機能を外出先でも利用できます</translation>
 <translation id="1979600810166324878">iOS 版 Chrome のセーフ ブラウジング保護強化機能により、外出先で安全に使用できます</translation>
 <translation id="2001586581944147178">あなたのインターネット トラフィックにアクセスできるユーザーに、あなたがアクセスしたサイトを知られないようにします。Chrome では、安全な接続を使用して、DNS（ドメイン ネーム システム）でサイトの IP アドレスを検索します。</translation>
+<translation id="2005658457661191636">Chrome アプリで、便利なショッピング ツールを外出先でも利用できます</translation>
 <translation id="2018528049276128029">Chrome の情報（ブックマーク、履歴、パスワードなど）はプロファイルごとに分けて保持されます</translation>
 <translation id="2018879682492276940">インストールできませんでした。もう一度お試しください。</translation>
 <translation id="2024959665595762054">Google アカウントで Chrome のデータを使用、保存するには、本人確認を行ってください</translation>
 <translation id="2034233344106846793">可能な場合に安全でない接続を HTTPS に自動的にアップグレードします</translation>
 <translation id="2039417478970545937">設定に移動。</translation>
+<translation id="2040220733769034247">スマートフォンで QR コードをスキャンして Chrome をダウンロードし、Google アカウントにログインします。</translation>
+<translation id="2050189601866423230">Google 検索の AI モードを固定して、ブラウジング中に質問できます</translation>
 <translation id="2066690553719545730">AI モードを常に表示する</translation>
 <translation id="2091012649849228750">今後、Google Chrome のアップデートを受信するには、Windows 10 以降が必要となります。このパソコンでは Windows 8 が実行されています。</translation>
 <translation id="2094648590148273905">ChromeOS Flex 利用規約</translation>
@@ -230,6 +237,7 @@
 <translation id="3222857603094643834">Google レンズでこのページの内容を検索</translation>
 <translation id="3226612997184048185">ブックマークを Google アカウントにも保存している場合は、Chrome で商品価格をトラッキングして、値下げがあったときに通知を受け取ることができます</translation>
 <translation id="3242123554343253302">Chrome プロファイルを追加</translation>
+<translation id="3242486428260808857"><ph name="DEVICE_TYPE" /> の Chrome アプリで、オンライン ショッピングをさらに便利に利用できます</translation>
 <translation id="3245429137663807393">Chrome の使用状況レポートを送信する場合は、アクセスした URL がこのレポートに含められます</translation>
 <translation id="3259748324892322072">Chrome アプリを入手</translation>
 <translation id="3282568296779691940">Chrome にログイン</translation>
@@ -249,9 +257,11 @@
 <translation id="3451115285585441894">Chrome に追加...</translation>
 <translation id="345171907106878721">Chrome に自分を追加</translation>
 <translation id="3453763134178591239">ChromeOS 利用規約</translation>
+<translation id="3475778264501649775">スマートフォンの Chrome アプリで、パスワードやタブなどを外出先でも使用できます</translation>
 <translation id="3503306920980160878">このサイトで現在地を共有するには、Chrome で位置情報の使用を許可する必要があります</translation>
 <translation id="3512495006767217696">Chrome に組み込まれており、安全なパスワードを作成、保存、自動入力できます。ショートカットを追加すると、簡単にアクセスできます。</translation>
 <translation id="3539955434060988644">Chrome のシークレット ウインドウでリンクを開く(&amp;G)</translation>
+<translation id="354621070532799440">リマインダー: Google の優れた安全機能をポケットに</translation>
 <translation id="3576528680708590453">システム管理者が、<ph name="TARGET_URL_HOSTNAME" /> へのアクセスに代替ブラウザを開くよう Google Chrome を設定しています。</translation>
 <translation id="3582972582564653026">同期してカスタマイズした Chrome をどのデバイスでも使用できます</translation>
 <translation id="3583751698304738917">別の Chrome プロファイルで <ph name="USER_EMAIL_ADDRESS" /> としてすでにログインしています</translation>
@@ -289,6 +299,7 @@
 <translation id="3885770153807205175">言語選択ツール</translation>
 <translation id="3889417619312448367">Google Chrome をアンインストール</translation>
 <translation id="3892148308691398805">テキストをコピー</translation>
+<translation id="3893650521827656233">Chrome で、Google の優れた安全機能を外出先でも利用できます。</translation>
 <translation id="3941890832296813527">インストール エラー: インストーラのファイル名が無効またはサポートされていません。</translation>
 <translation id="395904275706073188">保護されたページは読み込めません。別のページをお試しください。</translation>
 <translation id="3965532487635448963">システムトレイに Gemini in Chrome を表示して、キーボード ショートカットをオンにする</translation>
@@ -321,6 +332,8 @@
 <translation id="4242034826641750751">このサイトを利用するには、Chrome でカメラとマイクの使用を許可する必要があります</translation>
 <translation id="424864128008805179">Chrome からログアウトしますか？</translation>
 <translation id="4251615635259297716">Chrome データをこのアカウントにリンクしますか？</translation>
+<translation id="4252262470181310206">Chrome で、Google ドライブや YouTube などのお気に入りのアプリを外出先でもシームレスに利用できます。</translation>
+<translation id="4266456958461406346">その他メニュー <ph name="THREE_DOTS_ICON" /> を開きます</translation>
 <translation id="4280647692742956593">スマートフォンに Chrome をダウンロードして、外出先でタブグループを開いたり、新しいタブグループを作成したりできます。</translation>
 <translation id="4281844954008187215">利用規約</translation>
 <translation id="430327780270213103">拡張機能に Chrome ツールバーへのアクセス リクエストの表示を許可する</translation>
@@ -423,10 +436,12 @@
 <translation id="5386244825306882791">この拡張機能では、Chrome の起動時、またはアドレスバーからの検索時に表示されるページも制御されます。</translation>
 <translation id="5394833366792865639">Chrome タブの共有</translation>
 <translation id="5402307365844630024">Gemini in Chrome Beta を切り替える</translation>
+<translation id="541844421954567481"><ph name="DEVICE_TYPE" /> の Chrome アプリで、パスワードやタブなどを外出先でも利用できます</translation>
 <translation id="5430073640787465221">ユーザー設定ファイルが壊れているか無効です。設定を復元できません。</translation>
 <translation id="5465210843490471889"><ph name="START_GLIC_STYLING" />Gemini<ph name="END_GLIC_STYLING" /> を使用する Chrome プロファイルを選択してください</translation>
 <translation id="547202872422499512">Windows の起動時に Chrome を自動で起動して、すぐにブラウジングを開始できるようになりました。この動作は設定でオフにできます。</translation>
 <translation id="5486346529181556467">有害と思われるサイトを報告すると、他のユーザーのオンライン セキュリティの向上に役立てられます。詳しくは、<ph name="BEGIN_LINK" />Google の安全でないサイトに関するポリシー<ph name="END_LINK" />をご覧ください。</translation>
+<translation id="5503069778428381665">パソコンで Google レンズを使用すると、ページのタイトル、URL、コンテンツ（PDF を含む）が Google に送信されます</translation>
 <translation id="5524890928877629608">検索範囲の左上隅: 左 <ph name="LEFT" />%、上 <ph name="TOP" />%</translation>
 <translation id="5529390769101499214">Chrome メインメニューの [拡張機能] をクリックして拡張機能を管理できます。</translation>
 <translation id="5550137307985173298">新しいタブページで [Chrome をカスタマイズ] ボタンをクリックして、Chrome のレイアウトを変更できます</translation>
@@ -437,6 +452,7 @@
 <translation id="5602351063754773347">削除することをおすすめします。<ph name="BEGIN_LINK" />サポートされている拡張機能の詳細<ph name="END_LINK" /></translation>
 <translation id="5610759359710387751">自分だけの Chrome を</translation>
 <translation id="5649156266046089790">Chrome プロフィールを使うと、Chrome のあらゆる項目や設定を個別に管理できます。友達や家族のプロフィールを作成したり、仕事とプライベートでプロフィールを使い分けたりできます。</translation>
+<translation id="5655063652337498476">iOS 版 Chrome で、外出先でもカメラで商品を検索したり、値下げをトラッキングしたりできます。</translation>
 <translation id="565744775970812598"><ph name="FILE_NAME" /> は危険なファイルの可能性があるため、Chrome でブロックしました。</translation>
 <translation id="566040795510471729">Chrome をカスタマイズ(&amp;U)</translation>
 <translation id="566568153320186256">バックグラウンド アクティビティと視覚効果（スムーズ スクロールや動画フレームレートなど）を制限することで、バッテリーを節約します。<ph name="BEGIN_LINK" />省エネモードの詳細<ph name="END_LINK" /></translation>
@@ -448,6 +464,7 @@
 <translation id="5709557627224531708">Chrome を既定のブラウザに設定する</translation>
 <translation id="5719246646468301581">Google Chrome および ChromeOS 追加利用規約</translation>
 <translation id="5736850870166430177">サイトがパスワードを不正に取得しようとしている場合や、ユーザーが安全でないファイルをダウンロードしようとした場合は、URL とページ コンテンツの一部をセーフ ブラウジングに送信することがあります</translation>
+<translation id="5742003800414899269">Chrome アプリで、優れた AI ツールを外出先でも利用できます</translation>
 <translation id="5756509061973259733">このアカウントの Chrome プロファイルは、このデバイスにすでに存在します</translation>
 <translation id="5759947850379142561">Google レンズで検索するテキストまたは画像を選択してください。Esc キーを押すと Google レンズを終了します。</translation>
 <translation id="5779427581965287859">Chrome を既定に設定してタスクバーに固定する</translation>
@@ -460,6 +477,7 @@
 <translation id="586971344380992563">安全でないサイトやダウンロードが見つかると <ph name="BEGIN_LINK" />Chrome が警告<ph name="END_LINK" />します</translation>
 <translation id="5894164573378901688">Gemini in Chrome を使用するには、別の Google アカウントでログインしてください</translation>
 <translation id="5895138241574237353">再起動</translation>
+<translation id="5899008323405946573">スマートフォンの Chrome アプリで Google の優れた AI ツールを使用できます</translation>
 <translation id="5903106910045431592"><ph name="PAGE_TITLE" /> - ネットワークにログイン</translation>
 <translation id="5924017743176219022">インターネットに接続しています…</translation>
 <translation id="5925596746603389877">Chrome インストーラをダウンロード</translation>
@@ -486,6 +504,7 @@
 <translation id="6113794647360055231">進化する Chrome</translation>
 <translation id="6116004140911290070">Chrome でスキルを有効にする</translation>
 <translation id="6116252277240876590">この言語が Chrome のメニュー、設定、アラートなどのテキストの表示に使用されます</translation>
+<translation id="6117557075995890082">Chrome アプリで、Google の安全機能を外出先でも利用できます</translation>
 <translation id="6127237283587442951">Chrome を既定に設定してタスクバーに固定する</translation>
 <translation id="6134085236017727171">マイクを使用するには、<ph name="BEGIN_LINK" />システム設定<ph name="END_LINK" />で Chrome にアクセスを許可してください</translation>
 <translation id="6135456723633883042">これらのタブでは追加のリソースが使用されています。パフォーマンスを改善するには、Chrome でこれらのタブを非アクティブにしてください。</translation>
@@ -557,6 +576,7 @@
 <translation id="6706525880530967390">{count,plural, =1{Google アカウントに一部のデータを保存して、すべてのデバイスで使用できるようにするには、Chrome で本人確認を行う必要があります。今すぐログアウトすると、このデータ（1 個のアイテム）は削除されます。}other{Google アカウントに一部のデータを保存して、すべてのデバイスで使用できるようにするには、Chrome で本人確認を行う必要があります。今すぐログアウトすると、このデータ（{count} 個のアイテム）は削除されます。}}</translation>
 <translation id="6712881677154121168">ダウンロード エラー: <ph name="DOWNLOAD_ERROR" />。</translation>
 <translation id="6718739135284199302">Chrome を高速化する</translation>
+<translation id="6723445727540769832">スマートフォンの Chrome アプリで Google を最大限に活用できます</translation>
 <translation id="6734827584173583205">最近アクセスしていないため、Chrome で <ph name="PERMISSION_1" />、<ph name="PERMISSION_2" />、他 <ph name="COUNT" /> 件の権限を削除しました。</translation>
 <translation id="6735387454586646204">ChromeOS Flex システム</translation>
 <translation id="6750954913813541382">スペルミスを修正するために、ブラウザに入力したテキストが Chrome から Google に送信されます</translation>
@@ -572,6 +592,7 @@
 <translation id="6881299373831449287">Chrome を更新しています</translation>
 <translation id="6885412569789873916">Chrome ベータ版アプリ</translation>
 <translation id="6893363893008038481">Chrome からアカウントを削除</translation>
+<translation id="689368324615299626"><ph name="DEVICE_TYPE" /> の Chrome アプリで Google を最大限に活用できます</translation>
 <translation id="6896758677409633944">コピー</translation>
 <translation id="6908182077349113099">パスワード、ブックマーク、履歴をデバイス間で完全に同期できます。既定のブラウザを Chrome に変更すると、お馴染みの機能を簡単に利用できるようになります。</translation>
 <translation id="6930294499209825">Google ソフトウェアを最新の状態に保ちます。このサービスを無効にしたり停止したりすると、Google ソフトウェアが最新の状態に保たれなくなります。その結果、セキュリティ上の脆弱性が見つかっても修正できず、機能が動作しなくなる可能性があります。このサービスを使用する Google ソフトウェアがなくなると、このサービスは自動的にアンインストールされます。</translation>
@@ -595,6 +616,7 @@
 <translation id="7071827361006050863">Chrome でまもなく閲覧データが削除されます</translation>
 <translation id="7085332316435785646">Chrome の履歴などを Google サービスのパーソナライズに使用するかどうかを選択します</translation>
 <translation id="7088681679121566888">Chrome は最新の状態です</translation>
+<translation id="708972073591616506">iOS 版 Chrome で、お気に入りの Google AI ツールを外出先でも利用できます。</translation>
 <translation id="7096221564931416126">Google レンズで検索するテキストや画像を選択</translation>
 <translation id="7098166902387133879">Google Chrome がマイクを使用しています。</translation>
 <translation id="7099479769133613710">再起動して ChromeOS を更新</translation>
@@ -629,6 +651,7 @@
 <translation id="7481213027396403996">Chrome の最高水準のセキュリティで保護</translation>
 <translation id="749228101751499733">Chrome にログイン中は、Google アカウントのパスワードやその他の設定を使用できます。<ph name="SHORTCUT" /> キーを押すと Google サービスの設定を変更できます。</translation>
 <translation id="7496017508659652909">ページがプリロードされ、閲覧と検索をすばやく行えるようになります。<ph name="BEGIN_LINK" />ページのプリロードの詳細<ph name="END_LINK" /></translation>
+<translation id="7510190804000607802">ヒント: Google の優れた機能をいつでも手元に</translation>
 <translation id="7514258452813684157">Google Updater サービス</translation>
 <translation id="7515191208480168435">Google レンズを固定して簡単にアクセスできます</translation>
 <translation id="7535429826459677826">Google Chrome Dev</translation>
@@ -670,6 +693,7 @@
 <translation id="7804364787702057554">Chrome のアカウント設定</translation>
 <translation id="7804947029129221742">検索エンジンが Chrome の外部から変更されました。ユーザーを保護するため、Chrome で元のデフォルトにリセットしました。<ph name="LEARN_MORE_LINK" /></translation>
 <translation id="7808348361785373670">Chrome から削除...</translation>
+<translation id="7812800388699096556">Google レンズによる商品の確認方法を示すイラスト</translation>
 <translation id="7827099906024714326">Google アカウントに一部のデータを保存してすべてのデバイスで使用できるようにするには、Chrome で本人確認を行う必要があります。今すぐログアウトすると、このデータは削除されます。</translation>
 <translation id="7832314606810669113">すべてのデバイスで同じブックマークやその他の設定を使用するには、Chrome にログインしてください。このブックマークは、ログイン後に Google アカウントに保存されます。</translation>
 <translation id="7845233973568007926">インストールいただきありがとうございます。<ph name="BUNDLE_NAME" /> を使用するにはコンピュータを再起動してください。</translation>
@@ -687,6 +711,7 @@
 <translation id="7951272445806340501">アップデートを適用するには ChromeOS Flex を再起動する必要があります。</translation>
 <translation id="7959172989483770734">Chrome プロファイルを管理</translation>
 <translation id="7962410387636238736">Windows XP と Windows Vista はサポートされなくなったため、このパソコンでは今後 Google Chrome のアップデートは受信されません</translation>
+<translation id="7988335136512059384">スマートフォンの Chrome アプリで、気になるアイテムの値下げアラートを受け取ることができます</translation>
 <translation id="8004582292198964060">ブラウザ</translation>
 <translation id="8005666035647241369">保存先: このデバイスの Google パスワード マネージャー</translation>
 <translation id="8008534537613507642">Chrome を再インストール</translation>
@@ -694,6 +719,7 @@
 <translation id="8010081455002666927">自動検出</translation>
 <translation id="8013993649590906847">画像に有効な説明が設定されていない場合に、Chrome で説明を自動的に生成できるよう Google に画像が送信されます。</translation>
 <translation id="8019103195866286235">この拡張機能はデベロッパーが非公開にしており、安全でない可能性があります。アクセスしたサイトでユーザーデータ（個人情報を含む）が参照、変更されないように、Chrome からこの拡張機能を削除してください。</translation>
+<translation id="8038678618803403071"><ph name="DEVICE_TYPE" /> の Chrome で、Google のお気に入りすべてにアクセスできます</translation>
 <translation id="8040768861829554732">拡張機能が Chrome へのログインを求めています</translation>
 <translation id="8041795619940733262">このタブについて <ph name="LINE_BREAK" />Google に質問する</translation>
 <translation id="80471789339884597">インストールいただきありがとうございます。<ph name="BUNDLE_NAME" /> を使用するにはすべてのブラウザを再起動してください。</translation>
@@ -783,6 +809,7 @@
 <translation id="8865415417596392024">アカウント内の Chrome のデータ</translation>
 <translation id="8883862939660515976">Google レンズでこの画像について質問する</translation>
 <translation id="8914504000324227558">Chrome の再起動</translation>
+<translation id="8920304659326707347">iOS 版 Chrome で、中断したところから再開できます。</translation>
 <translation id="8922193594870374009"><ph name="ORIGIN" /> から Android スマートフォンに番号を送信するには、両方のデバイスで Chrome にログインしてください。</translation>
 <translation id="8922998289262614701">Chrome からこのアプリのデータを削除する</translation>
 <translation id="8925636929359899517">情報はこのサービスの改善に役立てられます。<ph name="BEGIN_LINK1" />プライバシー ポリシー<ph name="END_LINK1" />と<ph name="BEGIN_LINK2" />利用規約<ph name="END_LINK2" />をご確認ください。</translation>
@@ -798,6 +825,7 @@
             ブックマーク、履歴、保存したパスワードへの影響はありません。</translation>
 <translation id="8948460679427074738">この拡張機能は、データの収集方法や使用方法などのプライバシー保護の取り組みを公開していません。削除することをおすすめします。</translation>
 <translation id="8958307504142971576">Chrome で新機能をご利用いただけるようになりました</translation>
+<translation id="8987061207681586800">自分だけの Chrome を</translation>
 <translation id="8991530961471831170">Gemini in Chrome を開く</translation>
 <translation id="8992769679401294069">データはパスフレーズで暗号化されます。Google アカウントで Chrome のデータを使用、保存するには、パスフレーズを入力してください。</translation>
 <translation id="8999117580775242387">HTTPS を使用できない場合、Chrome では警告を表示せずに安全でない接続を使用します</translation>
@@ -806,12 +834,14 @@
 <translation id="9018218886431812662">インストールが完了しました</translation>
 <translation id="9024318700713112071">Chrome を既定として設定</translation>
 <translation id="9066987883552592250">Gemini in Chrome Canary を閉じる</translation>
+<translation id="9074041031320636790">これで完了です。ブラウジング中に Google 検索の AI モードで簡単に質問できるようになりました</translation>
 <translation id="9090566250983691233">Chrome で一部のファイルがブロックされる理由</translation>
 <translation id="9106236359747881194">検索するテキストを選択</translation>
 <translation id="911206726377975832">閲覧データも削除しますか？</translation>
 <translation id="9134482777260927479">宿題のサポート</translation>
 <translation id="9138603949443464873">変更を適用するには Chrome を再起動してください</translation>
 <translation id="9148058034647219655">終了</translation>
+<translation id="9150331942025550505"><ph name="DEVICE_TYPE" /> の Chrome アプリで AI を活用できます</translation>
 <translation id="919706545465235479">同期を開始するには、Chrome を更新します</translation>
 <translation id="922152298093051471">Chrome をカスタマイズ</translation>
 <translation id="93760716455950538">ChromeOS Flex を再起動</translation>

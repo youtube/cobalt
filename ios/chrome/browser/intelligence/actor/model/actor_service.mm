@@ -4,19 +4,17 @@
 
 #import "ios/chrome/browser/intelligence/actor/model/actor_service.h"
 
-#import <algorithm>
+#import <set>
 
 #import "base/barrier_callback.h"
+#import "base/check.h"
 #import "base/functional/bind.h"
-#import "base/functional/callback.h"
-#import "base/strings/string_number_conversions.h"
-#import "base/strings/stringprintf.h"
-#import "base/types/expected.h"
+#import "base/strings/sys_string_conversions.h"
 #import "components/actor/core/aggregated_journal.h"
-#import "components/actor/core/journal_details_builder.h"
-#import "components/optimization_guide/proto/features/actions_data.pb.h"
 #import "ios/chrome/browser/intelligence/actor/model/actor_task.h"
 #import "ios/chrome/browser/intelligence/actor/model/snackbar_actor_task_updates_observer.h"
+#import "ios/chrome/browser/intelligence/actor/public/actor_task_updates_observer.h"
+#import "ios/chrome/browser/intelligence/actor/public/actor_types.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool_factory.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool_request.h"
 #import "ios/chrome/browser/intelligence/actor/tools/public/actor_tool_types.h"
@@ -33,43 +31,6 @@
 #import "ios/web/public/web_state.h"
 
 namespace actor {
-
-namespace {
-
-// Fallback tool name string when an action case cannot be mapped.
-constexpr char kUnknownTool[] = "unknown tool";
-
-// Logs a failure to create a tool request to the journal.
-void LogToolRequestCreationFailed(AggregatedJournal* journal,
-                                  ActorTaskId task_id,
-                                  const std::string& tool_name,
-                                  const ToolExecutionResult& error) {
-  CHECK(journal);
-
-  std::vector<mojom::JournalDetailsPtr> details =
-      JournalDetailsBuilder()
-          .AddError(GetToolExecutionResultMessage(error))
-          .Build();
-
-  journal->Log(GURL(), task_id,
-               base::StringPrintf("Failed to create tool request: %s",
-                                  tool_name.c_str()),
-               std::move(details));
-}
-
-// Logs an attempt to create a tool to the journal.
-void LogToolCreationAttempt(AggregatedJournal* journal,
-                            ActorTaskId task_id,
-                            const std::string& tool_name) {
-  CHECK(journal);
-
-  journal->Log(
-      GURL(), task_id,
-      base::StringPrintf("Attempting to create tool: %s", tool_name.c_str()),
-      /*details=*/{});
-}
-
-}  // namespace
 
 ActorService::ActorService(ProfileIOS* profile)
     : profile_(profile),
@@ -105,42 +66,9 @@ ActorTaskId ActorService::CreateTask(const std::string& title,
   return task_id;
 }
 
-CreateActorToolRequestsResult ActorService::CreateActorToolRequests(
-    const std::vector<optimization_guide::proto::Action>& actions,
-    ActorTaskId task_id) {
-  CHECK(IsActorEnabled());
-
-  std::vector<std::unique_ptr<ActorToolRequest>> tool_requests;
-  tool_requests.reserve(actions.size());
-
-  for (const auto& action : actions) {
-    std::string tool_name =
-        ActorActionCaseToToolName(action.action_case()).value_or(kUnknownTool);
-
-    LogToolCreationAttempt(journal_.get(), task_id, tool_name);
-
-    if (action.action_case() ==
-        optimization_guide::proto::Action::ACTION_NOT_SET) {
-      ToolExecutionResult error{InternalToolErrorCode::kUnsupportedAction};
-      LogToolRequestCreationFailed(journal_.get(), task_id, tool_name, error);
-      return base::unexpected(error);
-    }
-
-    if (IsToolDisabled(action.action_case())) {
-      ToolExecutionResult error{InternalToolErrorCode::kToolDisabledByFeature};
-      LogToolRequestCreationFailed(journal_.get(), task_id, tool_name, error);
-      return base::unexpected(error);
-    }
-
-    tool_requests.push_back(std::make_unique<ActorToolRequest>(action));
-  }
-
-  return tool_requests;
-}
-
 void ActorService::PerformActions(
     ActorTaskId task_id,
-    std::vector<std::unique_ptr<ActorToolRequest>> actions,
+    const std::vector<optimization_guide::proto::Action>& actions,
     const std::string& task_update,
     PerformActionsCallback callback) {
   CHECK(IsActorEnabled());
@@ -154,10 +82,16 @@ void ActorService::PerformActions(
     return;
   }
 
-  // Resolve and register target WebStates from requests before execution.
-  AddControlledWebStates(it->second.get(), actions);
+  std::vector<std::unique_ptr<ActorToolRequest>> tool_requests;
+  tool_requests.reserve(actions.size());
+  for (const auto& action : actions) {
+    tool_requests.push_back(std::make_unique<ActorToolRequest>(action));
+  }
 
-  it->second->Act(std::move(actions), task_update,
+  // Resolve and register target WebStates from requests before execution.
+  AddControlledWebStates(it->second.get(), tool_requests);
+
+  it->second->Act(std::move(tool_requests), task_update,
                   base::BindOnce(&ActorService::OnActCompleted,
                                  weak_ptr_factory_.GetWeakPtr(), task_id,
                                  std::move(callback)));
@@ -292,19 +226,13 @@ web::WebState* ActorService::GetWebStateForID(web::WebStateID web_state_id,
     return nullptr;
   }
 
-  web::WebState* web_state =
-      GetWebState(web_state_id, it->second->allow_incognito_web_states());
-  if (!web_state) {
-    return nullptr;
+  for (const auto& weak_ptr : it->second->controlled_web_states()) {
+    if (weak_ptr && weak_ptr->GetUniqueIdentifier() == web_state_id) {
+      return weak_ptr.get();
+    }
   }
 
-  // Check if the WebState is in the task's controlled WebStates.
-  if (!std::ranges::contains(it->second->controlled_web_states(), web_state,
-                             &base::WeakPtr<web::WebState>::get)) {
-    return nullptr;
-  }
-
-  return web_state;
+  return nullptr;
 }
 
 web::WebState* ActorService::GetWebState(web::WebStateID web_state_id,
@@ -352,11 +280,6 @@ void ActorService::StopAllTasks() {
     StopTask(active_tasks_.begin()->first,
              ActorTaskStoppedReason::kStoppedByUser);
   }
-}
-
-std::vector<optimization_guide::proto::Action::ActionCase>
-ActorService::GetSupportedCapabilities() const {
-  return tool_factory_->GetSupportedCapabilities();
 }
 
 }  // namespace actor

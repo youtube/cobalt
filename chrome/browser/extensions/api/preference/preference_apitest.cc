@@ -79,6 +79,16 @@ class ExtensionPreferenceApiTest : public extensions::ExtensionApiTest {
     EXPECT_TRUE(prefs->GetBoolean(autofill::prefs::kAutofillEnabledDeprecated));
     EXPECT_TRUE(prefs->GetBoolean(autofill::prefs::kAutofillCreditCardEnabled));
     EXPECT_TRUE(prefs->GetBoolean(autofill::prefs::kAutofillProfileEnabled));
+    const auto& blocked_types_pref =
+        prefs->GetList(autofill::prefs::kAutofillTypesBlocked);
+    ASSERT_EQ(2u, blocked_types_pref.size());
+    EXPECT_EQ("https://example.com",
+              *blocked_types_pref[0].GetDict().FindString("url_pattern"));
+    EXPECT_EQ("travel", blocked_types_pref[1]
+                            .GetDict()
+                            .FindList("blocked_types")
+                            ->front()
+                            .GetString());
     EXPECT_EQ(GetCookieControlsMode(prefs), CookieControlsMode::kOff);
     EXPECT_TRUE(prefs->GetBoolean(prefs::kEnableHyperlinkAuditing));
     EXPECT_TRUE(prefs->GetBoolean(prefs::kEnableReferrers));
@@ -116,6 +126,7 @@ class ExtensionPreferenceApiTest : public extensions::ExtensionApiTest {
     EXPECT_FALSE(
         prefs->GetBoolean(autofill::prefs::kAutofillCreditCardEnabled));
     EXPECT_FALSE(prefs->GetBoolean(autofill::prefs::kAutofillProfileEnabled));
+    EXPECT_TRUE(prefs->GetList(autofill::prefs::kAutofillTypesBlocked).empty());
     EXPECT_EQ(GetCookieControlsMode(prefs),
               CookieControlsMode::kBlockThirdParty);
     EXPECT_FALSE(prefs->GetBoolean(prefs::kEnableHyperlinkAuditing));

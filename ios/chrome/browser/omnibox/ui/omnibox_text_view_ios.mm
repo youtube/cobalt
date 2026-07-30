@@ -18,6 +18,7 @@
 #import "components/omnibox/browser/autocomplete_input.h"
 #import "components/open_from_clipboard/clipboard_async_wrapper_ios.h"
 #import "ios/chrome/browser/autocomplete/model/autocomplete_scheme_classifier_impl.h"
+#import "ios/chrome/browser/composebox/public/features.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_constants.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_util.h"
@@ -94,6 +95,10 @@ const CGFloat kVerticalOffset = 1;
 
   // Cached single line height.
   CGFloat _cachedSingleLineHeight;
+
+  // Whether a newline is being programmatically inserted (e.g. by
+  // Shift+Return).
+  BOOL _insertingNewline;
 }
 
 @synthesize omniboxTextInputDelegate = _omniboxTextInputDelegate;
@@ -677,6 +682,12 @@ const CGFloat kVerticalOffset = 1;
     return [self.omniboxKeyboardDelegate canPerformKeyboardAction:kRightArrow];
   }
 
+  if (IsComposeboxPhysicalKeyboardReturnKeysEnabled()) {
+    if (action == @selector(forwardKeyCommandShiftReturn:)) {
+      return YES;
+    }
+  }
+
   // Handle pre-edit shortcuts.
   if ([self isPreEditing]) {
     // Allow cut and copy in preedit.
@@ -785,9 +796,17 @@ const CGFloat kVerticalOffset = 1;
   [self.omniboxKeyboardDelegate performKeyboardAction:kRightArrow];
 }
 
+- (void)forwardKeyCommandShiftReturn:(UIKeyCommand*)command {
+  _insertingNewline = YES;
+  [self insertText:@"\n"];
+  _insertingNewline = NO;
+}
+
 // Arrow keys are forwarded to the main OmniboxKeyboardDelegate that will
 // dispatch them to OmniboxPopupViewController or OmniboxViewController, if they
 // don't handle them, default behavior of UITextField applies.
+// Return keys are overridden in composebox and cobrowse to send on
+// return/cmd+return, and add new line on shift+return.
 - (NSArray<UIKeyCommand*>*)keyCommands {
   UIKeyCommand* commandUp =
       [UIKeyCommand keyCommandWithInput:UIKeyInputUpArrow
@@ -810,7 +829,24 @@ const CGFloat kVerticalOffset = 1;
   commandDown.wantsPriorityOverSystemBehavior = YES;
   commandLeft.wantsPriorityOverSystemBehavior = YES;
   commandRight.wantsPriorityOverSystemBehavior = YES;
-  return @[ commandUp, commandDown, commandLeft, commandRight ];
+
+  NSMutableArray<UIKeyCommand*>* commands = [NSMutableArray
+      arrayWithObjects:commandUp, commandDown, commandLeft, commandRight, nil];
+
+  if (IsComposeboxPhysicalKeyboardReturnKeysEnabled() &&
+      (_presentationContext == OmniboxPresentationContext::kComposebox ||
+       _presentationContext == OmniboxPresentationContext::kCobrowse)) {
+    UIKeyCommand* commandShiftReturn = [UIKeyCommand
+        keyCommandWithInput:@"\r"
+              modifierFlags:UIKeyModifierShift
+                     action:@selector(forwardKeyCommandShiftReturn:)];
+
+    commandShiftReturn.wantsPriorityOverSystemBehavior = YES;
+
+    [commands addObject:commandShiftReturn];
+  }
+
+  return commands;
 }
 
 #pragma mark - UIAccessibilityElement
@@ -1281,8 +1317,11 @@ const CGFloat kVerticalOffset = 1;
 - (BOOL)textView:(UITextView*)textView
     shouldChangeTextInRange:(NSRange)range
             replacementText:(NSString*)text {
-  // Prevent new lines.
-  if ([text isEqualToString:@"\n"]) {
+  // Only check for characters sent by the Return/Enter key (\n and \r) to
+  // trigger submission. Other unicode line breaks (e.g. pasted paragraph
+  // separators) should be allowed to be inserted as text.
+  BOOL isNewline = [text isEqualToString:@"\n"] || [text isEqualToString:@"\r"];
+  if (isNewline && !_insertingNewline) {
     return [self.omniboxTextInputDelegate textInputShouldReturn:self];
   }
   return [self.omniboxTextInputDelegate textInput:self

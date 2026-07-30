@@ -23,13 +23,13 @@ import org.chromium.ui.text.SpanApplier;
 public class PersonalContextFirstRunBottomSheetCoordinator {
     /** Delegate interface for handling bottom sheet actions. */
     public interface Delegate {
-        void onInfoAcknowledged();
+        void onNoticeAcknowledged();
 
         void onManageSettingsClicked();
 
         void onLearnMoreClicked();
 
-        void onInfoDismissed();
+        void onNoticeDismissed();
     }
 
     private final PersonalContextFirstRunBottomSheetViewHolder mView;

@@ -247,6 +247,10 @@ class CONTENT_EXPORT RenderWidgetHostImpl
       const override;
   void UpdateTextDirection(base::i18n::TextDirection direction) override;
   void NotifyTextDirection() override;
+  void SetExternallySourcedComposition(
+      const std::u16string& text,
+      const std::vector<ui::ImeTextSpan>& ime_text_spans) override;
+  void CommitExternallySourcedComposition(const std::u16string& text) override;
   void Focus() override;
   void Blur() override;
   void FlushForTesting() override;

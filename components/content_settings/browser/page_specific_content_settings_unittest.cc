@@ -1847,5 +1847,30 @@ TEST_F(PageSpecificContentSettingsIframeTest,
       NavigateAndGetContentSettings(parent_url, child_url);
   EXPECT_TRUE(content_settings->allow_mixed_content);
 }
+TEST_F(PageSpecificContentSettingsTest, Sensors) {
+  NavigateAndCommit(GURL("http://google.com"));
+  PageSpecificContentSettings* content_settings =
+      PageSpecificContentSettings::GetForFrame(
+          web_contents()->GetPrimaryMainFrame());
+
+  EXPECT_FALSE(content_settings->is_any_requested_sensor_available());
+  EXPECT_EQ(0, content_settings->active_available_sensors());
+
+  content_settings->SetRequestedSensorIsAvailable(true);
+  EXPECT_TRUE(content_settings->is_any_requested_sensor_available());
+
+  content_settings->OnSensorStarted();
+  EXPECT_EQ(1, content_settings->active_available_sensors());
+
+  content_settings->OnSensorStarted();
+  EXPECT_EQ(2, content_settings->active_available_sensors());
+
+  content_settings->OnSensorStopped();
+  EXPECT_EQ(1, content_settings->active_available_sensors());
+
+  content_settings->OnSensorStopped();
+  EXPECT_EQ(0, content_settings->active_available_sensors());
+}
+
 #endif  // !BUILDFLAG(IS_IOS)
 }  // namespace content_settings

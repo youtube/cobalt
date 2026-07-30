@@ -13,6 +13,8 @@
 
 #include "base/command_line.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_io_thread.h"
 #include "build/build_config.h"
@@ -218,7 +220,8 @@ class RenderViewTest : public testing::Test {
 
     RendererBlinkPlatformImpl* blink_platform();
 
-    void SetUp();
+    void SetUp(
+        scoped_refptr<base::SingleThreadTaskRunner> io_thread_task_runner);
     void TearDown();
 
    private:

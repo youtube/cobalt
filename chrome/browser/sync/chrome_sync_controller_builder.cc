@@ -17,6 +17,10 @@
 #include "chrome/browser/themes/theme_local_data_batch_uploader.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_syncable_service.h"
+#if !BUILDFLAG(IS_ANDROID)
+#include "components/sync/protocol/theme_specifics.pb.h"
+#include "components/themes/cross_device/cross_device_theme_tracker.h"  // nogncheck
+#endif
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/channel_info.h"
@@ -168,6 +172,14 @@ void ChromeSyncControllerBuilder::SetWifiConfigurationSyncService(
   wifi_configuration_sync_service_.Set(wifi_configuration_sync_service);
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if !BUILDFLAG(IS_ANDROID)
+void ChromeSyncControllerBuilder::SetCrossDeviceThemeTracker(
+    themes::CrossDeviceThemeTracker<sync_pb::ThemeSpecifics>*
+        cross_device_theme_tracker) {
+  cross_device_theme_tracker_.Set(cross_device_theme_tracker);
+}
+#endif
 
 std::vector<std::unique_ptr<syncer::DataTypeController>>
 ChromeSyncControllerBuilder::Build(syncer::SyncService* sync_service) {
@@ -443,6 +455,45 @@ ChromeSyncControllerBuilder::Build(syncer::SyncService* sync_service) {
               sync_service, pref_service_.value()));
     }
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if !BUILDFLAG(IS_ANDROID)
+    if (cross_device_theme_tracker_.value() &&
+        base::FeatureList::IsEnabled(
+            syncer::kNewTabPageCustomizationThemeSync)) {
+      syncer::DataTypeControllerDelegate* android_delegate =
+          cross_device_theme_tracker_.value()
+              ->GetSyncDelegateForType(syncer::THEMES_ANDROID)
+              .get();
+      if (android_delegate) {
+        controllers.push_back(std::make_unique<syncer::DataTypeController>(
+            syncer::THEMES_ANDROID,
+            /*delegate_for_full_sync_mode=*/
+            std::make_unique<syncer::ForwardingDataTypeControllerDelegate>(
+                android_delegate),
+            /*delegate_for_transport_mode=*/
+            std::make_unique<syncer::ForwardingDataTypeControllerDelegate>(
+                android_delegate)));
+      }
+    }
+
+    if (cross_device_theme_tracker_.value() &&
+        base::FeatureList::IsEnabled(syncer::kSyncThemesIos)) {
+      syncer::DataTypeControllerDelegate* ios_delegate =
+          cross_device_theme_tracker_.value()
+              ->GetSyncDelegateForType(syncer::THEMES_IOS)
+              .get();
+      if (ios_delegate) {
+        controllers.push_back(std::make_unique<syncer::DataTypeController>(
+            syncer::THEMES_IOS,
+            /*delegate_for_full_sync_mode=*/
+            std::make_unique<syncer::ForwardingDataTypeControllerDelegate>(
+                ios_delegate),
+            /*delegate_for_transport_mode=*/
+            std::make_unique<syncer::ForwardingDataTypeControllerDelegate>(
+                ios_delegate)));
+      }
+    }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
     return controllers;
 }

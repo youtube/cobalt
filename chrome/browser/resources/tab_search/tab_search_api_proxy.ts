@@ -6,7 +6,7 @@ import type {ProfileData, SwitchToTabInfo, TokenRange} from './tab_search.mojom-
 import {PageCallbackRouter, PageHandlerFactory, PageHandlerRemote} from './tab_search.mojom-webui.js';
 
 /**
- * These values are persisted to logs and should not be renumbered or re-used.
+ * These values are persisted to logs and should not be renumbered or reused.
  * See tools/metrics/histograms/enums.xml.
  */
 export enum RecentlyClosedItemOpenAction {
@@ -25,8 +25,8 @@ export interface TabSearchApiProxy {
 
   getIsSplit(): Promise<{isSplit: boolean}>;
 
-  openRecentlyClosedEntry(
-      id: number, withSearch: boolean, isTab: boolean, index: number): void;
+  openRecentlyClosedEntry(id: number, withSearch: boolean, isTab: boolean):
+      void;
 
   switchToTab(info: SwitchToTabInfo): void;
 
@@ -73,19 +73,13 @@ export class TabSearchApiProxyImpl implements TabSearchApiProxy {
     return this.handler.getIsSplit();
   }
 
-  openRecentlyClosedEntry(
-      id: number, withSearch: boolean, isTab: boolean, index: number) {
+  openRecentlyClosedEntry(id: number, withSearch: boolean, isTab: boolean) {
     chrome.metricsPrivate.recordEnumerationValue(
         isTab ? 'Tabs.TabSearch.WebUI.RecentlyClosedTabOpenAction' :
                 'Tabs.TabSearch.WebUI.RecentlyClosedGroupOpenAction',
         withSearch ? RecentlyClosedItemOpenAction.WITH_SEARCH :
                      RecentlyClosedItemOpenAction.WITHOUT_SEARCH,
         Object.keys(RecentlyClosedItemOpenAction).length);
-    chrome.metricsPrivate.recordSmallCount(
-        withSearch ?
-            'Tabs.TabSearch.WebUI.IndexOfOpenRecentlyClosedEntryInFilteredList' :
-            'Tabs.TabSearch.WebUI.IndexOfOpenRecentlyClosedEntryInUnfilteredList',
-        index);
     this.handler.openRecentlyClosedEntry(id);
   }
 

@@ -124,8 +124,9 @@ size_t GetMaxParallelFeatureExecutions(ModelBasedCapabilityKey feature) {
 
 bool IsEligibleForPrivateAI(ModelBasedCapabilityKey feature) {
   switch (feature) {
-    case ModelBasedCapabilityKey::kZeroStateSuggestions:
     case ModelBasedCapabilityKey::kContextualCueing:
+    case ModelBasedCapabilityKey::kFormsClassifications:
+    case ModelBasedCapabilityKey::kZeroStateSuggestions:
       return true;
     default:
       return false;

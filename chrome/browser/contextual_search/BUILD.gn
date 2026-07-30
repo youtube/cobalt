@@ -4,6 +4,8 @@
 
 source_set("contextual_search") {
   sources = [
+    "chrome_contextual_search_session_tab_validator.cc",
+    "chrome_contextual_search_session_tab_validator.h",
     "contextual_search_service_factory.cc",
     "contextual_search_service_factory.h",
     "contextual_search_web_contents_helper.cc",
@@ -17,6 +19,9 @@ source_set("contextual_search") {
     "//chrome/browser/signin",
     "//chrome/common:channel_info",
     "//components/contextual_search:public",
+    "//components/contextual_tasks/public",
+    "//components/tabs:public",
+    "//components/url_deduplication",
     "//components/version_info",
     "//content/public/browser",
   ]

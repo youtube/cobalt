@@ -57,7 +57,7 @@ interface ModelContextHost {
   // Registers a WebMCP script tool hosted in the caller document. The
   // registration goes to the browser process, so it can alert other relevant
   // frames in the tree about the new tool.
-  RegisterScriptTool(ScriptTool tool);
+  RegisterScriptTool(ScriptTool tool) => ();
 
   // Unregisters a previously-declared tool. When this is called, `name` is
   // guaranteed to match an existing tool; if this invariant is not upheld, the

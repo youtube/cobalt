@@ -38,6 +38,8 @@ class NET_EXPORT Session {
   using Id = SessionKey::Id;
   using KeyIdOrError = unexportable_keys::ServiceErrorOr<
       unexportable_keys::UnexportableSigningKeyId>;
+  using MaybeAttestationKeyIdOrError = unexportable_keys::ServiceErrorOr<
+      std::optional<unexportable_keys::UnexportableAttestationKeyId>>;
 
   Session(const Session& other) = delete;
   Session& operator=(const Session& other) = delete;
@@ -64,6 +66,17 @@ class NET_EXPORT Session {
   }
 
   const KeyIdOrError& unexportable_key_id() const { return key_id_or_error_; }
+
+  void set_unexportable_attestation_key_id(
+      MaybeAttestationKeyIdOrError maybe_attestation_key_id_or_error) {
+    maybe_attestation_key_id_or_error_ =
+        std::move(maybe_attestation_key_id_or_error);
+  }
+
+  const MaybeAttestationKeyIdOrError& maybe_unexportable_attestation_key_id()
+      const {
+    return maybe_attestation_key_id_or_error_;
+  }
 
   // Return whether `request` is in-scope for this session.
   bool IsInScope(DbscRequest& request);
@@ -185,14 +198,18 @@ class NET_EXPORT Session {
   base::Time creation_date_;
   // Expiry date for session, 400 days from last refresh similar to cookies.
   base::Time expiry_date_;
-  // Unexportable key for this session.
-  // NOTE: The key may not be available for sometime after a browser restart.
-  // This is because the key needs to be restored from a corresponding
-  // "wrapped" value that is persisted to disk. This restoration takes time
-  // and can be done lazily. The "wrapped" key and the restore process are
-  // transparent to this class. Once restored, the key can be set using
-  // `set_unexportable_key_id`
+  // Unexportable keys for this session. Attestation keys will only be set for
+  // sessions where `aik_required` is true.
+  //
+  // NOTE: The keys may not be available for some time after a browser
+  // restart. This is because the keys need to be restored from corresponding
+  // "wrapped" values that are persisted to disk. This restoration takes time
+  // and can be done lazily. The "wrapped" keys and the restore process are
+  // transparent to this class. Once restored, the keys can be set using
+  // `set_unexportable_key_id` and `set_unexportable_attestation_key_id`.
   KeyIdOrError key_id_or_error_ =
+      base::unexpected(unexportable_keys::ServiceError::kKeyNotReady);
+  MaybeAttestationKeyIdOrError maybe_attestation_key_id_or_error_ =
       base::unexpected(unexportable_keys::ServiceError::kKeyNotReady);
   // Precached challenge, if any. Should not be persisted.
   std::optional<std::string> cached_challenge_;

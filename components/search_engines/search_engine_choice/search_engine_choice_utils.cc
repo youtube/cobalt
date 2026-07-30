@@ -189,7 +189,8 @@ void RecordChoiceScreenDefaultSearchProviderType(
       base::PumaType::kRc,
       kPumaSearchEngineChoiceScreenDefaultSearchEngineTypeHistogram,
       engine_type, SEARCH_ENGINE_MAX);
-  if (choice_location == ChoiceMadeLocation::kChoiceScreen) {
+  if (choice_location == ChoiceMadeLocation::kChoiceScreen ||
+      choice_location == ChoiceMadeLocation::kDeviceChoiceImport) {
     profile_metrics_service.UmaHistogramEnumeration(
         kSearchEngineChoiceScreenDefaultSearchEngineType2Histogram, engine_type,
         SEARCH_ENGINE_MAX);

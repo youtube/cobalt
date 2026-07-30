@@ -32,6 +32,10 @@ class UtilityBlinkPlatformWithSandboxSupportImpl : public blink::Platform {
   // BlinkPlatformImpl
   blink::WebSandboxSupport* GetSandboxSupport() override;
 
+  // Required for binders to work, for testing, run on a single thread.
+  scoped_refptr<base::SequencedTaskRunner> MediaThreadTaskRunner() override;
+  scoped_refptr<base::SingleThreadTaskRunner> GetIOTaskRunner() const override;
+
  private:
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) || \
     BUILDFLAG(IS_WIN)

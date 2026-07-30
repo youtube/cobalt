@@ -206,13 +206,6 @@ if (!is_android) {
 source_set("unit_tests") {
   testonly = true
 
-  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-
-  # These tests pre-date strict sign-comparison warnings; relax to the warning
-  # posture they had while compiled in //chrome/test.
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-
   sources = [
     "chrome_serialized_navigation_driver_unittest.cc",
     "session_common_utils_unittest.cc",
@@ -273,12 +266,6 @@ if (!is_android) {
   source_set("browser_tests") {
     testonly = true
 
-    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-
-    # These tests pre-date strict sign-comparison warnings; relax to the warning
-    # posture they had while compiled in //chrome/test.
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
     sources = [
@@ -321,6 +308,13 @@ if (!is_android) {
       "//ui/base:ozone_buildflags",
     ]
 
+    # Some of these tests have pre-existing size_t-vs-int comparisons that only
+    # compiled in //chrome/test because it transitively depends on
+    # //third_party/fuzztest, whose public config propagates -Wno-sign-compare.
+    # Depend on it here to inherit that suppression. Remove once
+    # crbug.com/527094632 is fixed.
+    deps += [ "//third_party/fuzztest" ]
+
     if (is_chromeos) {
       sources += [
         "session_restore_browsertest_chromeos.cc",
@@ -345,12 +339,6 @@ if (!is_android) {
     source_set("interactive_ui_tests") {
       testonly = true
 
-      configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-
-      # These tests pre-date strict sign-comparison warnings; relax to the
-      # warning posture they had while compiled in //chrome/test.
-      configs -= [ "//build/config/compiler:chromium_code" ]
-      configs += [ "//build/config/compiler:no_chromium_code" ]
       defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
       sources = [ "session_restore_interactive_uitest.cc" ]

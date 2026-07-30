@@ -142,7 +142,7 @@ VisibleSelection SelectionForParagraphIteration(const VisibleSelection&);
 
 const String& NonBreakingSpaceString();
 
-CORE_EXPORT void TidyUpHTMLStructure(Document&);
+CORE_EXPORT void TidyUpHtmlStructure(Document&);
 
 SelectionInDomTree CorrectedSelectionAfterCommand(const SelectionForUndoStep&,
                                                   Document*);

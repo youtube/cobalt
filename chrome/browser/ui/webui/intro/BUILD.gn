@@ -6,6 +6,7 @@ import("//mojo/public/tools/bindings/mojom.gni")
 
 mojom("mojo_bindings") {
   sources = [
+    "finish_or_continue.mojom",
     "intro.mojom",
     "sign_in_celebration.mojom",
     "sign_in_promo.mojom",
@@ -17,6 +18,7 @@ mojom("mojo_bindings") {
 if (is_win || is_mac || is_linux) {
   source_set("intro") {
     sources = [
+      "finish_or_continue_handler.cc",
       "intro_handler.cc",
       "intro_ui.cc",
       "policy_store_observer.cc",
@@ -24,6 +26,7 @@ if (is_win || is_mac || is_linux) {
       "sign_in_promo_handler.cc",
     ]
     public = [
+      "finish_or_continue_handler.h",
       "intro_handler.h",
       "intro_ui.h",
       "policy_store_observer.h",

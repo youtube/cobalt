@@ -379,6 +379,20 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Sharing.SendTabToSelf.ActivatedEntryPoint"
+    enum="SendTabToSelfShareActivatedEntryPoint" expires_after="2027-06-01">
+  <owner>mtatarski@google.com</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records the entry point from which a received Send Tab to Self tab was
+    activated by the user or automatically activated by the system.
+
+    If a tab is opened in the background but is closed or the browser is shut
+    down before the user activates it, this is recorded as &quot;Tab or Browser
+    Closed Without Activation&quot;.
+  </summary>
+</histogram>
+
 <histogram name="Sharing.SendTabToSelf.AutoOpenOutcome"
     enum="SendTabToSelfAutoOpenOutcome" expires_after="2027-03-30">
   <owner>ankushkush@google.com</owner>
@@ -559,6 +573,33 @@ chromium-metrics-reviews@google.com.
     <variant name=".ToolbarIcon"
         summary="the icon in the toolbar next to the Omnibox"/>
   </token>
+</histogram>
+
+<histogram name="Sharing.SendTabToSelf.TimeOpenedToActivated" units="ms"
+    expires_after="2027-06-01">
+  <owner>ankushkush@google.com</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records the time from when a tab was opened on the target device to the
+    first time it was activated on the target device. An entry is considered
+    activated if the corresponding tab became visible to the user on the target
+    device, either by the tab being opened in the foreground, or by the user
+    manually switching to the tab. Recorded when the entry is activated.
+  </summary>
+</histogram>
+
+<histogram name="Sharing.SendTabToSelf.TimeSentToActivated" units="ms"
+    expires_after="2027-06-01">
+  <owner>ankushkush@google.com</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records the time from when a tab was shared on the sending device to the
+    first time it was activated on the target device. An entry is considered
+    activated if the corresponding tab became visible to the user on the target
+    device, either by the tab being opened in the foreground, or by the user
+    manually switching to the tab. This involves clocks on two different devices
+    so the value may be skewed. Recorded when the entry is activated.
+  </summary>
 </histogram>
 
 <histogram name="Sharing.SendTabToSelf.TimeSentToOpened" units="ms"

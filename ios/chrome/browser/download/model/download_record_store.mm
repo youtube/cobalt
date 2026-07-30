@@ -381,6 +381,8 @@ std::optional<DownloadRecord> DownloadRecordStore::GetById(
 std::vector<DownloadRecord> DownloadRecordStore::GetDownloadsPage(
     const DownloadRecordQuery& query) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // Paginated readers require kDownloadListPagination.
+  DCHECK(pagination_enabled_);
 
   if (!IsDatabaseReady()) {
     return {};
@@ -391,6 +393,7 @@ std::vector<DownloadRecord> DownloadRecordStore::GetDownloadsPage(
 size_t DownloadRecordStore::GetDownloadsCount(
     const DownloadRecordQuery& query) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  DCHECK(pagination_enabled_);
 
   if (!IsDatabaseReady()) {
     return 0;

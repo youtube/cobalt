@@ -9,7 +9,7 @@ import {assert} from 'chrome://resources/js/assert.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import type {Color} from '../constants.js';
-import {hexToColor} from '../pdf_viewer_utils.js';
+import {colorsEqual, hexToColor} from '../pdf_viewer_utils.js';
 
 import {getCss} from './ink_color_selector.css.js';
 import {getHtml} from './ink_color_selector.html.js';
@@ -20,12 +20,6 @@ export interface ColorOption {
   blended: boolean;
 }
 
-/**
- * @returns Whether `lhs` and `rhs` have the same RGB values or not.
- */
-function areColorsEqual(lhs: Color, rhs: Color): boolean {
-  return lhs.r === rhs.r && lhs.g === rhs.g && lhs.b === rhs.b;
-}
 
 const InkColorSelectorElementBase = I18nMixinLit(CrLitElement);
 
@@ -77,7 +71,7 @@ export class InkColorSelectorElement extends InkColorSelectorElementBase {
   }
 
   protected isCurrentColor_(hex: string): boolean {
-    return areColorsEqual(this.currentColor, hexToColor(hex));
+    return colorsEqual(this.currentColor, hexToColor(hex));
   }
 
   protected getBlendedClass_(item: ColorOption): string {
@@ -89,7 +83,7 @@ export class InkColorSelectorElement extends InkColorSelectorElementBase {
     assert(hex);
 
     const newColor: Color = hexToColor(hex);
-    if (areColorsEqual(this.currentColor, newColor)) {
+    if (colorsEqual(this.currentColor, newColor)) {
       return;
     }
 

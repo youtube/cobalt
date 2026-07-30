@@ -161,7 +161,7 @@ class MultiContentsViewUiTest
                        NOTREACHED();
                    }
                  }),
-        WaitForState(observer_id, true));
+        WaitForState(observer_id, true), StopObservingState(observer_id));
     AddDescriptionPrefix(result, "CheckResizeValues()");
     return result;
   }
@@ -199,9 +199,15 @@ class MultiContentsViewUiTest
       base::RepeatingCallback<bool(double, double)> check,
       ui::test::StateIdentifier<MultiContentsViewLayoutObserver> observer_id) {
     auto result = Steps(
-        SendKeyPress(
-            MultiContentsResizeHandle::kMultiContentsResizeHandleElementId,
-            key_code),
+        WithView(MultiContentsResizeHandle::kMultiContentsResizeHandleElementId,
+                 [key_code](MultiContentsResizeHandle* handle) {
+                   ui::KeyEvent press(ui::EventType::kKeyPressed, key_code,
+                                      ui::EF_NONE);
+                   handle->GetWidget()->OnKeyEvent(&press);
+                   ui::KeyEvent release(ui::EventType::kKeyReleased, key_code,
+                                        ui::EF_NONE);
+                   handle->GetWidget()->OnKeyEvent(&release);
+                 }),
         CheckResizeValues(check, observer_id));
     AddDescriptionPrefix(result, "CheckResizeKey()");
     return result;
@@ -572,36 +578,24 @@ IN_PROC_BROWSER_TEST_P(MultiContentsViewUiTest, ResizesToSnapPointSize) {
           kMultiContentsViewLayoutSnapResizeObserver));
 }
 
-// TODO(crbug.com/399212996): Flaky on all platforms.
-IN_PROC_BROWSER_TEST_P(MultiContentsViewUiTest,
-                       DISABLED_ResizesToMinSizePercentage) {
+IN_PROC_BROWSER_TEST_P(MultiContentsViewUiTest, ResizesToMinSizePercentage) {
   RunTestSequence(
-      CreateTabsAndEnterSplitView(), ResizeWindow(500), SetMinSize(60),
+      CreateTabsAndEnterSplitView(), ResizeWindow(500), SetMinSize(80),
       CheckResize(
           10000, base::BindRepeating([](double start_size, double end_size) {
             // On small window, uses percentage of window size vs. flat size
             // for min. Don't check exact number to avoid rounding issues.
             return end_size <
-                       (60 - MultiContentsView::kSplitViewContentInset) &&
+                       (80 - MultiContentsView::kSplitViewContentInset) &&
                    end_size > 0;
           })));
 }
 
-// TODO(crbug.com/399212996): Flaky on Linux, ChromeOS and Windows.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
-#define MAYBE_ResizesViaKeyboard DISABLED_ResizesViaKeyboard
-#else
-#define MAYBE_ResizesViaKeyboard ResizesViaKeyboard
-#endif
 // Check that the MultiContentsView resize area correctly resizes the start and
 // end contents views via key events.
-IN_PROC_BROWSER_TEST_P(MultiContentsViewUiTest, MAYBE_ResizesViaKeyboard) {
+IN_PROC_BROWSER_TEST_P(MultiContentsViewUiTest, ResizesViaKeyboard) {
   DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(MultiContentsViewLayoutObserver,
-                                      kMultiContentsViewLayoutObserver1);
-  DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(MultiContentsViewLayoutObserver,
-                                      kMultiContentsViewLayoutObserver2);
-  DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(MultiContentsViewLayoutObserver,
-                                      kMultiContentsViewLayoutObserver3);
+                                      kMultiContentsViewLayoutObserver);
   auto increase_start_size_key =
       GetParam() == split_tabs::SplitTabLayout::kSideBySide ? ui::VKEY_RIGHT
                                                             : ui::VKEY_DOWN;
@@ -625,20 +619,20 @@ IN_PROC_BROWSER_TEST_P(MultiContentsViewUiTest, MAYBE_ResizesViaKeyboard) {
             return !base::IsApproximatelyEqual(start_size, end_size, 1.0) &&
                    (start_size > end_size);
           }),
-          kMultiContentsViewLayoutObserver1),
+          kMultiContentsViewLayoutObserver),
       CheckResizeKey(
           decrease_start_size_key,
           base::BindRepeating([](double start_size, double end_size) {
             return base::IsApproximatelyEqual(start_size, end_size, 1.0);
           }),
-          kMultiContentsViewLayoutObserver2),
+          kMultiContentsViewLayoutObserver),
       CheckResizeKey(
           decrease_start_size_key,
           base::BindRepeating([](double start_size, double end_size) {
             return !base::IsApproximatelyEqual(start_size, end_size, 1.0) &&
                    (start_size < end_size);
           }),
-          kMultiContentsViewLayoutObserver3));
+          kMultiContentsViewLayoutObserver));
 }
 
 // Check that MultiContentsView only has insets on the contents views when in a

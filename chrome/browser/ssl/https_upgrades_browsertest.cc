@@ -3567,8 +3567,7 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
   GURL http_url = http_server()->GetURL("foo.com", "/simple.html");
   GURL https_url = https_server()->GetURL("foo.com", "/simple.html");
   auto* contents = GetBrowser()->tab_strip_model()->GetActiveWebContents();
-  OmniboxClient* omnibox_client = GetBrowser()
-                                      ->window()
+  OmniboxClient* omnibox_client = BrowserWindow::FromBrowser(GetBrowser())
                                       ->GetLocationBar()
                                       ->GetOmniboxController()
                                       ->client();
@@ -3601,8 +3600,7 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
   GURL http_url = http_server()->GetURL("foo.com", "/simple.html");
   GURL https_url = https_server()->GetURL("foo.com", "/simple.html");
   auto* contents = GetBrowser()->tab_strip_model()->GetActiveWebContents();
-  OmniboxClient* omnibox_client = GetBrowser()
-                                      ->window()
+  OmniboxClient* omnibox_client = BrowserWindow::FromBrowser(GetBrowser())
                                       ->GetLocationBar()
                                       ->GetOmniboxController()
                                       ->client();
@@ -3629,8 +3627,7 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest,
   GURL http_url = http_server()->GetURL("foo.com", "/simple.html");
   GURL https_url = https_server()->GetURL("foo.com", "/simple.html");
   auto* contents = GetBrowser()->tab_strip_model()->GetActiveWebContents();
-  OmniboxClient* omnibox_client = GetBrowser()
-                                      ->window()
+  OmniboxClient* omnibox_client = BrowserWindow::FromBrowser(GetBrowser())
                                       ->GetLocationBar()
                                       ->GetOmniboxController()
                                       ->client();
@@ -3776,8 +3773,10 @@ IN_PROC_BROWSER_TEST_F(
 
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  OmniboxClient* omnibox_client =
-      browser()->window()->GetLocationBar()->GetOmniboxController()->client();
+  OmniboxClient* omnibox_client = BrowserWindow::FromBrowser(browser())
+                                      ->GetLocationBar()
+                                      ->GetOmniboxController()
+                                      ->client();
 
   // Simulate a typed schemeless navigation.
   content::TestNavigationObserver nav_observer(contents, 1);
@@ -3824,8 +3823,10 @@ IN_PROC_BROWSER_TEST_F(
 
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  OmniboxClient* omnibox_client =
-      browser()->window()->GetLocationBar()->GetOmniboxController()->client();
+  OmniboxClient* omnibox_client = BrowserWindow::FromBrowser(browser())
+                                      ->GetLocationBar()
+                                      ->GetOmniboxController()
+                                      ->client();
 
   // Simulate a typed schemeless navigation.
   content::TestNavigationObserver nav_observer(contents, 1);
@@ -3874,8 +3875,10 @@ IN_PROC_BROWSER_TEST_F(
 
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  OmniboxClient* omnibox_client =
-      browser()->window()->GetLocationBar()->GetOmniboxController()->client();
+  OmniboxClient* omnibox_client = BrowserWindow::FromBrowser(browser())
+                                      ->GetLocationBar()
+                                      ->GetOmniboxController()
+                                      ->client();
 
   // Simulate a typed schemeless navigation.
   content::TestNavigationObserver nav_observer(contents, 1);
@@ -3933,8 +3936,10 @@ IN_PROC_BROWSER_TEST_F(
 
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  OmniboxClient* omnibox_client =
-      browser()->window()->GetLocationBar()->GetOmniboxController()->client();
+  OmniboxClient* omnibox_client = BrowserWindow::FromBrowser(browser())
+                                      ->GetLocationBar()
+                                      ->GetOmniboxController()
+                                      ->client();
 
   // Simulate a typed schemeless navigation.
   content::TestNavigationObserver nav_observer(contents, 1);
@@ -3984,8 +3989,10 @@ IN_PROC_BROWSER_TEST_F(
 
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  OmniboxClient* omnibox_client =
-      browser()->window()->GetLocationBar()->GetOmniboxController()->client();
+  OmniboxClient* omnibox_client = BrowserWindow::FromBrowser(browser())
+                                      ->GetLocationBar()
+                                      ->GetOmniboxController()
+                                      ->client();
 
   // Simulate a typed schemeless navigation.
   content::TestNavigationObserver nav_observer(contents, 1);
@@ -4062,8 +4069,10 @@ IN_PROC_BROWSER_TEST_F(
 
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  OmniboxClient* omnibox_client =
-      browser()->window()->GetLocationBar()->GetOmniboxController()->client();
+  OmniboxClient* omnibox_client = BrowserWindow::FromBrowser(browser())
+                                      ->GetLocationBar()
+                                      ->GetOmniboxController()
+                                      ->client();
 
   // Simulate a typed schemeless navigation.
   content::TestNavigationObserver nav_observer(contents, 1);
@@ -4105,8 +4114,10 @@ IN_PROC_BROWSER_TEST_F(
 
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  OmniboxClient* omnibox_client =
-      browser()->window()->GetLocationBar()->GetOmniboxController()->client();
+  OmniboxClient* omnibox_client = BrowserWindow::FromBrowser(browser())
+                                      ->GetLocationBar()
+                                      ->GetOmniboxController()
+                                      ->client();
 
   // Simulate a typed schemeless navigation.
   content::TestNavigationObserver nav_observer(contents, 1);

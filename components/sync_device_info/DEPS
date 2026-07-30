@@ -1,5 +1,6 @@
 include_rules = [
   "+ash/constants",
+  "+base/i18n",
   "+chromeos",
   "+components/desktop_to_mobile_promos",
   "+components/keyed_service",
@@ -13,5 +14,6 @@ include_rules = [
   "+components/sync/protocol",
   "+components/sync/test",
   "+components/version_info",
+  "+third_party/icu/source/common/unicode",
   "+ui/base",
 ]

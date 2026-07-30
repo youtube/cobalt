@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Notifications: showNotification() rejects if permission is revoked during resource loading.</title>
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+    <script src="../serviceworker/resources/test-helpers.js"></script>
+    <script src="resources/test-helpers.js"></script>
+  </head>
+  <body>
+    <script>
+      // Tests that showNotification() rejects the promise with a TypeError when
+      // permission is revoked during asynchronous resource loading.
+
+      async_test(function(test) {
+          var scope = 'resources/scope/' + location.pathname,
+              workerUrl = 'instrumentation-service-worker.js';
+
+          testRunner.setPermission('notifications', 'granted', location.origin, location.origin);
+          getActiveServiceWorkerWithMessagePort(test, workerUrl, scope).then(function(info) {
+              assert_inherits(info.registration, 'showNotification', 'showNotification() must be exposed.');
+
+              // 1. Call showNotification with a slow-loading image to delay the Mojo call.
+              var promise = info.registration.showNotification('Title', {
+                  body: 'Hello, world!',
+                  icon: '/resources/slow-image.php?redirect_name=square100.png&mimeType=image/png&sleep=500'
+              });
+
+              // 2. Immediately revoke permission.
+              testRunner.setPermission('notifications', 'denied', location.origin, location.origin);
+
+              // 3. Assert that the promise rejects with a TypeError.
+              promise.then(test.unreached_func('showNotification() is expected to reject.'))
+                  .catch(test.step_func_done(function(error) {
+                      assert_equals(error.name, 'TypeError', 'Rejected error must be a TypeError');
+                      assert_equals(error.message, "Failed to execute 'showNotification' on 'ServiceWorkerRegistration': No notification permission has been granted for this origin.", 'Expected error message');
+                  }));
+          }).catch(unreached_rejection(test));
+      }, 'showNotification() must reject with a TypeError if permission is revoked asynchronously.');
+    </script>
+  </body>
+</html>

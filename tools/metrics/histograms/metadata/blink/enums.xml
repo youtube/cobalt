@@ -272,6 +272,7 @@ Called by update_document_policy_enum.py.-->
   <int value="9" label="ManagerDestroyed"/>
   <int value="10" label="TokenSentToRenderer"/>
   <int value="11" label="DriverInactive"/>
+  <int value="12" label="PageNavigatedDuringVerification"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/autofill/content/browser/integrators/email_verifier/email_verifier_delegate.h:EvpAutofillFlowResult) -->
@@ -6574,10 +6575,10 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5831" label="SubtleCryptoEncapsulateBits"/>
   <int value="5832" label="SubtleCryptoDecapsulateKey"/>
   <int value="5833" label="SubtleCryptoDecapsulateBits"/>
-  <int value="5834" label="CSSDiscardedVarWithValidArgumentGrammar"/>
-  <int value="5835" label="CSSDiscardedAttrWithValidArgumentGrammar"/>
-  <int value="5836" label="CSSDiscardedEnvWithValidArgumentGrammar"/>
-  <int value="5837" label="CSSDiscardedIfWithValidArgumentGrammar"/>
+  <int value="5834" label="OBSOLETE_CSSDiscardedVarWithValidArgumentGrammar"/>
+  <int value="5835" label="OBSOLETE_CSSDiscardedAttrWithValidArgumentGrammar"/>
+  <int value="5836" label="OBSOLETE_CSSDiscardedEnvWithValidArgumentGrammar"/>
+  <int value="5837" label="OBSOLETE_CSSDiscardedIfWithValidArgumentGrammar"/>
   <int value="5838" label="HttpOnlyCookieShadowedByNonHttpOnlyPartitioned"/>
   <int value="5839" label="XRMeshDetection"/>
   <int value="5840" label="XRFrameDetectedMeshes"/>
@@ -6680,6 +6681,11 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5932" label="ContainerTimingAttribute"/>
   <int value="5933" label="ContainerTimingAttributeHasRootName"/>
   <int value="5934" label="ContainerTimingIgnoreAttribute"/>
+  <int value="5935" label="SVGPathElementSetPathData"/>
+  <int value="5936" label="SubAppsAdd"/>
+  <int value="5937" label="SubAppsRemove"/>
+  <int value="5938" label="SubAppsList"/>
+  <int value="5939" label="RTCLocalSdpModificationMultiOpus"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -9179,6 +9185,10 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="438" label="FlexWrapBalance"/>
   <int value="439" label="TextFit"/>
   <int value="440" label="TextModules"/>
+  <int value="441" label="DRAFT_TemplateFor"/>
+  <int value="442" label="DRAFT_HTMLProcessingInstructions"/>
+  <int value="443" label="DRAFT_HTMLSetterMethods"/>
+  <int value="444" label="DRAFT_HTMLStreamMethods"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

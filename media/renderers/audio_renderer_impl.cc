@@ -1608,9 +1608,9 @@ void AudioRendererImpl::ConfigureChannelMask() {
 
   // Determine the matrix used to upmix the channels.
   std::vector<std::vector<float>> matrix;
-  ChannelMixingMatrix(last_decoded_channel_layout_, last_decoded_channels_,
-                      audio_parameters_.channel_layout(),
-                      audio_parameters_.channels())
+  ChannelMixingMatrix(
+      ChannelLayoutConfig(last_decoded_channel_layout_, last_decoded_channels_),
+      audio_parameters_.channel_layout_config())
       .CreateTransformationMatrix(&matrix);
 
   // All channels with a zero mix are muted and can be ignored.

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+promise_test(async () => {
+  const iframe = document.createElement('iframe');
+  iframe.src = 'resources/iframe-preserve-document-element.xml';
+  document.body.appendChild(iframe);
+  await new Promise(resolve => iframe.onload = resolve);
+
+  const xmlDocument = iframe.contentDocument;
+  const root = xmlDocument.documentElement;
+  assert_equals(root.nodeName, 'root');
+  assert_equals(root.firstElementChild.nodeName, 'item');
+  assert_equals(root.firstElementChild.getAttribute('attr'), 'value');
+  assert_equals(root.textContent, 'Text');
+  assert_equals(xmlDocument.getElementById('webkit-xml-viewer-source-xml'), null);
+
+  const viewer = internals.shadowRoot(root);
+  assert_true(!!viewer, 'The XML tree viewer should use a shadow tree.');
+  const prettyPrint = viewer.querySelector('.pretty-print');
+  assert_true(prettyPrint.textContent.includes('<root>'), prettyPrint.textContent);
+  assert_true(prettyPrint.textContent.includes('<item attr="value">Text</item>'), prettyPrint.textContent);
+
+  const folder = viewer.querySelector('.folder');
+  const button = folder.querySelector('.folder-button');
+  const opened = folder.querySelector('.opened');
+  const folded = folder.querySelector('.folded');
+  assert_true(!!button, 'folder button should be present');
+  assert_false(opened.classList.contains('hidden'));
+  assert_true(folded.classList.contains('hidden'));
+
+  button.click();
+  assert_true(opened.classList.contains('hidden'),
+              'opened content should be hidden after click');
+  assert_false(folded.classList.contains('hidden'),
+               'folded content should be shown after click');
+}, 'XML viewer in iframes preserves the XML document element and source DOM.');
+
+promise_test(async t => {
+  const popup = window.open('resources/iframe-preserve-document-element.xml',
+                            'XMLViewerPopupDocumentElement');
+  t.add_cleanup(() => popup.close());
+  await new Promise(resolve => popup.onload = resolve);
+
+  const root = popup.document.documentElement;
+  assert_equals(root.localName, 'html');
+  assert_equals(root.querySelector('#webkit-xml-viewer-source-xml')
+                    .firstElementChild.nodeName,
+                'root');
+  assert_equals(internals.shadowRoot(root), null);
+}, 'Top-level XML viewer keeps the legacy HTML document element.');
+</script>
+</body>
+</html>

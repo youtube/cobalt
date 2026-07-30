@@ -733,7 +733,7 @@ void PasswordAutofillAgent::PasswordValueGatekeeper::RegisterElement(
   if (was_user_gesture_seen_) {
     ShowValue(element);
   } else {
-    elements_.emplace_back(element);
+    element_ids_.push_back(GetFieldRendererId(element));
   }
 }
 
@@ -742,18 +742,18 @@ void PasswordAutofillAgent::PasswordValueGatekeeper::OnUserGesture() {
     return;
   }
   was_user_gesture_seen_ = true;
-  for (FieldRef element : elements_) {
+  for (FieldRendererId element : element_ids_) {
     if (WebInputElement input_element =
-            element.GetField().DynamicTo<WebInputElement>()) {
+            GetFormControlByRendererId(element).DynamicTo<WebInputElement>()) {
       ShowValue(input_element);
     }
   }
-  elements_.clear();
+  element_ids_.clear();
 }
 
 void PasswordAutofillAgent::PasswordValueGatekeeper::Reset() {
   was_user_gesture_seen_ = false;
-  elements_.clear();
+  element_ids_.clear();
 }
 
 void PasswordAutofillAgent::PasswordValueGatekeeper::ShowValue(
@@ -786,7 +786,7 @@ void PasswordAutofillAgent::NotifyPasswordManagerAboutUserFieldModification(
     return;
   }
   if (element.FormControlTypeForAutofill() == kInputPassword) {
-    auto iter = password_to_username_.find(FieldRef(element));
+    auto iter = password_to_username_.find(GetFieldRendererId(element));
     if ((iter != password_to_username_.end()) &&
         (modification_type == FieldModificationType::kManualTyping)) {
       // Note that the suggested value of `mutable_element` was reset when its
@@ -871,7 +871,7 @@ void PasswordAutofillAgent::FillPasswordSuggestion(
   if (focused_element.FormControlTypeForAutofill() == kInputPassword) {
     CHECK(password_element);
     password_info->password_field_suggestion_was_accepted = true;
-    password_info->password_field = FieldRef(password_element);
+    password_info->password_field_id = GetFieldRendererId(password_element);
   }
   bool success = FillUsernameAndPasswordElements(
       username_element, password_element, username, password,
@@ -1232,17 +1232,18 @@ bool PasswordAutofillAgent::FindPasswordInfoForElement(
       return false;
     }
 
-    auto iter = web_input_to_password_info_.find(FieldRef(element));
+    auto iter = web_input_to_password_info_.find(GetFieldRendererId(element));
     if (iter == web_input_to_password_info_.end()) {
-      auto password_iter = password_to_username_.find(FieldRef(element));
+      auto password_iter =
+          password_to_username_.find(GetFieldRendererId(element));
       if (password_iter == password_to_username_.end()) {
         if (!use_fallback_data || web_input_to_password_info_.empty()) {
           return false;
         }
         iter = last_supplied_password_info_iter_;
       } else {
-        *username_element =
-            password_iter->second.GetField().DynamicTo<WebInputElement>();
+        *username_element = GetFormControlByRendererId(password_iter->second)
+                                .DynamicTo<WebInputElement>();
       }
     }
 
@@ -1260,15 +1261,16 @@ bool PasswordAutofillAgent::FindPasswordInfoForElement(
   if (username_element == nullptr || username_element->IsNull()) {
     return false;
   }
-  auto iter = web_input_to_password_info_.find(FieldRef(*username_element));
+  auto iter =
+      web_input_to_password_info_.find(GetFieldRendererId(*username_element));
   if (iter == web_input_to_password_info_.end()) {
     return false;
   }
   *password_info = &iter->second;
   if (password_element->IsNull()) {
-    if (WebInputElement password_input = (*password_info)
-                                             ->password_field.GetField()
-                                             .DynamicTo<WebInputElement>()) {
+    if (WebInputElement password_input =
+            GetFormControlByRendererId((*password_info)->password_field_id)
+                .DynamicTo<WebInputElement>()) {
       *password_element = password_input;
     }
   }
@@ -1580,7 +1582,8 @@ bool PasswordAutofillAgent::IsUsernameInputField(
     const WebInputElement& input_element) const {
   return input_element &&
          input_element.FormControlTypeForAutofill() != kInputPassword &&
-         web_input_to_password_info_.contains(FieldRef(input_element));
+         web_input_to_password_info_.contains(
+             GetFieldRendererId(input_element));
 }
 
 void PasswordAutofillAgent::ReadyToCommitNavigation(
@@ -1917,7 +1920,7 @@ bool PasswordAutofillAgent::HasAcceptedSuggestionOnOtherField(
                              &password_element, &password_info);
   return password_info &&
          password_info->password_field_suggestion_was_accepted &&
-         element != password_info->password_field.GetField();
+         GetFieldRendererId(element) != password_info->password_field_id;
 }
 
 void PasswordAutofillAgent::CleanupOnDocumentShutdown() {
@@ -1957,7 +1960,8 @@ void PasswordAutofillAgent::InformBrowserAboutUserInput(
   // credential form in the renderer, or if the browser has parsed `element` as
   // password-related and provided filling data for it.
   if (IsRendererRecognizedCredentialForm(*form_data) ||
-      (element && web_input_to_password_info_.contains(FieldRef(element)))) {
+      (element &&
+       web_input_to_password_info_.contains(GetFieldRendererId(element)))) {
     if (unsafe_driver()) {
       unsafe_driver()->InformAboutUserInput(*form_data);
     }
@@ -2227,16 +2231,17 @@ void PasswordAutofillAgent::StoreDataForFillOnAccountSelect(
   PasswordInfo password_info;
   password_info.fill_data = form_data;
   if (password_element) {
-    password_info.password_field = FieldRef(password_element);
+    password_info.password_field_id = GetFieldRendererId(password_element);
   }
   if (main_element) {
-    web_input_to_password_info_[FieldRef(main_element)] = password_info;
+    web_input_to_password_info_[GetFieldRendererId(main_element)] =
+        password_info;
     last_supplied_password_info_iter_ =
-        web_input_to_password_info_.find(FieldRef(main_element));
+        web_input_to_password_info_.find(GetFieldRendererId(main_element));
     if (main_element.FormControlTypeForAutofill() != kInputPassword &&
         password_element && username_element) {
-      password_to_username_[FieldRef(password_element)] =
-          FieldRef(username_element);
+      password_to_username_[GetFieldRendererId(password_element)] =
+          GetFieldRendererId(username_element);
     }
   }
 }
@@ -2253,7 +2258,7 @@ void PasswordAutofillAgent::MaybeStoreFallbackData(
   // PasswordAutofillAgent::FindPasswordInfoForElement to propose to fill.
   PasswordInfo password_info;
   password_info.fill_data = form_data;
-  web_input_to_password_info_[FieldRef()] = password_info;
+  web_input_to_password_info_[FieldRendererId()] = password_info;
   last_supplied_password_info_iter_ = web_input_to_password_info_.begin();
 }
 

@@ -109,6 +109,7 @@ public class ReaderModeManager extends EmptyTabObserver
         EntryPoint.MESSAGE,
         EntryPoint.APP_MENU,
         EntryPoint.TOOLBAR_BUTTON,
+        EntryPoint.CONTEXT_MENU,
         EntryPoint.MAX_VALUE
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -124,7 +125,10 @@ public class ReaderModeManager extends EmptyTabObserver
         /** The user opened reader mode through the toolbar button. */
         int TOOLBAR_BUTTON = 3;
 
-        int MAX_VALUE = TOOLBAR_BUTTON;
+        /** The user opened reader mode through the context menu. */
+        int CONTEXT_MENU = 4;
+
+        int MAX_VALUE = CONTEXT_MENU;
     }
 
     // LINT.ThenChange(//tools/metrics/histograms/metadata/accessibility/enums.xml:DomDistillerEntryPoint)

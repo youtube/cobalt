@@ -16,6 +16,7 @@ class GpuBuilders(builders.Builders):
   def __init__(self, suite: str, include_internal_builders: bool):
     super().__init__(suite, include_internal_builders)
     self._isolate_names: Optional[Set[str]] = None
+    self._fake_ci_builders: Optional[builders.FakeBuildersDict] = None
     self._non_chromium_builders: Optional[Set[data_types.BuilderEntry]] = None
 
   def _BuilderRunsTestOfInterest(self, test_map: Dict[str, Any]) -> bool:
@@ -50,7 +51,24 @@ class GpuBuilders(builders.Builders):
     return self._isolate_names
 
   def GetFakeCiBuilders(self) -> builders.FakeBuildersDict:
-    return {}
+    if self._fake_ci_builders is None:
+      fake_try_builders = {
+          # Not actually fake, but has been unused for long enough that all
+          # builds have aged out of Buildbucket.
+          'Dawn Win10 x86 Experimental Release (NVIDIA)': {
+              'dawn-try-win-x86-nvidia-exp',
+          },
+      }
+      self._fake_ci_builders = {}
+      for ci_builder, try_builders in fake_try_builders.items():
+        ci_entry = data_types.BuilderEntry(ci_builder,
+                                           constants.BuilderTypes.CI, False)
+        try_entries = {
+            data_types.BuilderEntry(b, constants.BuilderTypes.TRY, False)
+            for b in try_builders
+        }
+        self._fake_ci_builders[ci_entry] = try_entries
+    return self._fake_ci_builders
 
   def GetNonChromiumBuilders(self) -> Set[data_types.BuilderEntry]:
     if self._non_chromium_builders is None:

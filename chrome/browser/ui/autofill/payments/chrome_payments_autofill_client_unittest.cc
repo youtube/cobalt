@@ -9,6 +9,8 @@
 
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/values_test_util.h"
+#include "base/values.h"
 #include "build/branding_buildflags.h"
 #include "chrome/browser/ui/autofill/chrome_autofill_client.h"
 #include "chrome/browser/ui/autofill/payments/chrome_payments_autofill_client.h"
@@ -21,7 +23,9 @@
 #include "components/autofill/core/browser/test_utils/valuables_data_test_utils.h"
 #include "components/autofill/core/browser/ui/payments/bnpl_ui_delegate.h"
 #include "components/autofill/core/browser/ui/payments/bubble_show_options.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
+#include "components/autofill/core/common/autofill_prefs.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/web_contents_tester.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -867,6 +871,22 @@ TEST_F(ChromePaymentsAutofillClientTest, DisablePaymentsAutofill) {
   EXPECT_TRUE(chrome_payments_client()->IsAutofillPaymentMethodsEnabled());
 
   chrome_payments_client()->DisablePaymentsAutofill();
+
+  EXPECT_FALSE(chrome_payments_client()->IsAutofillPaymentMethodsEnabled());
+}
+
+TEST_F(ChromePaymentsAutofillClientTest,
+       IsAutofillPaymentMethodsEnabled_BlockedByPolicy) {
+  base::test::ScopedFeatureList feature_list(
+      features::kAutofillEnableAutofillSettingsEnterprisePolicy);
+  NavigateAndCommit(GURL("https://example.com"));
+
+  EXPECT_TRUE(chrome_payments_client()->IsAutofillPaymentMethodsEnabled());
+
+  profile()->GetPrefs()->Set(
+      prefs::kAutofillTypesBlocked,
+      base::test::ParseJson(
+          R"([{"url_pattern": "https://example.com", "blocked_types": ["payments"]}])"));
 
   EXPECT_FALSE(chrome_payments_client()->IsAutofillPaymentMethodsEnabled());
 }

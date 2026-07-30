@@ -621,6 +621,7 @@ if (_is_default_toolchain) {
       "//components/embedder_support/android:application_java",
       "//components/embedder_support/android:context_menu_java",
       "//components/embedder_support/android:embedder_util_java",
+      "//components/embedder_support/android:selection_java",
       "//components/embedder_support/android:util_java",
       "//components/embedder_support/android:web_contents_delegate_java",
       "//components/embedder_support/android:web_contents_delegate_java_resources",

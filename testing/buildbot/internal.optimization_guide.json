@@ -174,8 +174,7 @@
           "--child-processes=1",
           "--driver-name",
           "Google Chrome",
-          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json",
-          "--child-processes=3"
+          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json"
         ],
         "merge": {
           "args": [
@@ -198,7 +197,7 @@
             "pool": "chrome.tests"
           },
           "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 4
+          "shards": 8
         },
         "test": "chrome_ai_wpt_tests",
         "test_id_prefix": "ninja://components/optimization_guide/internal/testing:chrome_ai_wpt_tests/"
@@ -214,8 +213,7 @@
           "--child-processes=1",
           "--driver-name",
           "Google Chrome",
-          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json",
-          "--child-processes=3"
+          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json"
         ],
         "merge": {
           "args": [
@@ -238,7 +236,7 @@
             "pool": "chrome.tests"
           },
           "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 4
+          "shards": 8
         },
         "test": "chrome_ai_wpt_tests",
         "test_id_prefix": "ninja://components/optimization_guide/internal/testing:chrome_ai_wpt_tests/"
@@ -254,8 +252,7 @@
           "--child-processes=1",
           "--driver-name",
           "Google Chrome",
-          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json",
-          "--child-processes=3"
+          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json"
         ],
         "merge": {
           "args": [
@@ -278,7 +275,7 @@
             "pool": "chrome.tests"
           },
           "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 4
+          "shards": 8
         },
         "test": "chrome_ai_wpt_tests",
         "test_id_prefix": "ninja://components/optimization_guide/internal/testing:chrome_ai_wpt_tests/"
@@ -294,8 +291,7 @@
           "--child-processes=1",
           "--driver-name",
           "Google Chrome",
-          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json",
-          "--child-processes=3"
+          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json"
         ],
         "merge": {
           "args": [
@@ -318,7 +314,7 @@
             "pool": "chrome.tests"
           },
           "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 4
+          "shards": 8
         },
         "test": "chrome_ai_wpt_tests",
         "test_id_prefix": "ninja://components/optimization_guide/internal/testing:chrome_ai_wpt_tests/"

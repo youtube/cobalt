@@ -500,18 +500,17 @@ TEST_F(RegularGridMediatorTest, ActivityLabelDataForGroupAfterTabRemoved) {
 // SendTabToSelf, and returns nil after the tab is viewed (WasShown).
 TEST_F(RegularGridMediatorTest, ActivityLabelDataForTab) {
   web::WebState* web_state = browser_->GetWebStateList()->GetWebStateAt(0);
-  web::WebStateID web_state_id = web_state->GetUniqueIdentifier();
+  GridItemIdentifier* item = [GridItemIdentifier tabIdentifier:web_state];
 
   // No activity label for the tab initially.
-  ActivityLabelData* label_data =
-      [mediator_ activityLabelDataForTab:web_state_id];
+  ActivityLabelData* label_data = [mediator_ activityLabelDataForItem:item];
   EXPECT_NSEQ(nil, label_data);
 
   // Attach SendTabToSelfTabCardLabelData to the WebState.
   SendTabToSelfTabCardLabelData::CreateForWebState(web_state, "remote_device");
 
   // Query the activity label again.
-  label_data = [mediator_ activityLabelDataForTab:web_state_id];
+  label_data = [mediator_ activityLabelDataForItem:item];
   EXPECT_NSNE(nil, label_data);
   NSString* expected_text = l10n_util::GetNSStringF(
       IDS_SEND_TAB_TO_SELF_INFOBAR_AUTO_OPEN_SUBTITLE, u"remote_device");
@@ -520,6 +519,6 @@ TEST_F(RegularGridMediatorTest, ActivityLabelDataForTab) {
   // Show the tab (simulating it being viewed). The label data should be
   // automatically cleared.
   web_state->WasShown();
-  label_data = [mediator_ activityLabelDataForTab:web_state_id];
+  label_data = [mediator_ activityLabelDataForItem:item];
   EXPECT_NSEQ(nil, label_data);
 }

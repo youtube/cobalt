@@ -8,9 +8,11 @@
 #include <set>
 #include <vector>
 
+#include "chrome/browser/indigo/resources/grit/indigo_strings.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/controls/hover_button.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/layout/box_layout.h"
@@ -134,11 +136,21 @@ TEST_F(IndigoToolbarTest, ExpandCollapseInteractions) {
   EXPECT_FALSE(replace_photo_button->IsDrawn());
   EXPECT_FALSE(delete_photo_button->IsDrawn());
 
+  std::u16string tooltip_collapsed =
+      expand_button->GetRenderedTooltipText(gfx::Point());
+  EXPECT_EQ(tooltip_collapsed,
+            l10n_util::GetStringUTF16(IDS_INDIGO_TOOLBAR_EXPAND));
+
   // Expand the toolbar.
   gfx::Point initial_origin = toolbar_view->bounds().origin();
   views::test::ButtonTestApi(expand_button).NotifyDefaultMouseClick();
   gfx::Point expanded_origin = toolbar_view->bounds().origin();
   EXPECT_EQ(initial_origin, expanded_origin);
+
+  std::u16string tooltip_expanded =
+      expand_button->GetRenderedTooltipText(gfx::Point());
+  EXPECT_EQ(tooltip_expanded,
+            l10n_util::GetStringUTF16(IDS_INDIGO_TOOLBAR_COLLAPSE));
 
   // Buttons are drawn.
   EXPECT_TRUE(regenerate_button->IsDrawn());
@@ -155,6 +167,8 @@ TEST_F(IndigoToolbarTest, ExpandCollapseInteractions) {
 
   // Collapse the toolbar.
   views::test::ButtonTestApi(expand_button).NotifyDefaultMouseClick();
+  EXPECT_EQ(expand_button->GetRenderedTooltipText(gfx::Point()),
+            tooltip_collapsed);
 
   // Buttons should be hidden again.
   EXPECT_FALSE(regenerate_button->IsDrawn());

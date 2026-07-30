@@ -9,6 +9,7 @@ import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 
+import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {getRequiredElement} from '//resources/js/util.js';
 
@@ -315,6 +316,7 @@ export class ExperimentalOptInApp {
 }
 
 function init() {
+  ColorChangeUpdater.forDocument().start();
   new ExperimentalOptInApp();
 }
 

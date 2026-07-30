@@ -5,8 +5,15 @@
 #include "chrome/browser/actor/actor_task_metadata.h"
 
 #include <optional>
+#include <string_view>
+#include <utility>
+#include <vector>
 
+#include "chrome/browser/actor/actor_container_config.h"
+#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace actor {
 
@@ -54,7 +61,7 @@ ActorTaskMetadata::WithAddedWritableMainframeOriginsForTesting(
 ActorTaskMetadata ActorTaskMetadata::WithAgentContainerConfigForTesting(
     optimization_guide::proto::AgentContainerConfig config_proto) {
   ActorTaskMetadata metadata;
-  metadata.agent_container_config().emplace(config_proto);
+  metadata.agent_container_config_.emplace(std::move(config_proto));
   return metadata;
 }
 

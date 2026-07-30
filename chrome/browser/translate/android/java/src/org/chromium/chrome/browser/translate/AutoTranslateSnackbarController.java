@@ -96,7 +96,7 @@ class AutoTranslateSnackbarController implements SnackbarManager.SnackbarControl
                 LocaleUtils.getUpdatedLocaleForChromium(Locale.forLanguageTag(targetLanguage));
         String targetLanguageName = targetLocale.getDisplayLanguage();
         Drawable icon =
-                AppCompatResources.getDrawable(activity, R.drawable.infobar_translate_compact);
+                AppCompatResources.getDrawable(activity, R.drawable.message_translate_compact);
 
         TargetLanguageData targetLanguageData = new TargetLanguageData(targetLanguage);
         String title =

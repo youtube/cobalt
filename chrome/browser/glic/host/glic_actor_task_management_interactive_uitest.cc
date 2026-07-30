@@ -4,6 +4,7 @@
 
 #include "base/test/metrics/user_action_tester.h"
 #include "build/build_config.h"
+#include "chrome/browser/actor/ui/actor_task_unload_handler.h"
 #include "chrome/browser/download/download_test_file_activity_observer.h"
 #include "chrome/browser/glic/host/glic_actor_interactive_uitest_common.h"
 #include "chrome/browser/glic/host/glic_features.mojom-features.h"
@@ -72,7 +73,20 @@ IN_PROC_BROWSER_TEST_F(GlicActorTaskManagementUiTest, StopActorTask) {
 }
 
 // Tests that closing a tab that's being acted on stops the associated task.
-IN_PROC_BROWSER_TEST_F(GlicActorTaskManagementUiTest, StopActorTaskOnTabClose) {
+class GlicActorTaskManagementTabCloseUiTest
+    : public GlicActorTaskManagementUiTest {
+ public:
+  GlicActorTaskManagementTabCloseUiTest() {
+    scoped_feature_list_.InitAndEnableFeature(features::kGlicConfirmTabClose);
+    actor::ActorTaskTabCloseConfirmDialog::SetSuppressForTesting(false);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(GlicActorTaskManagementTabCloseUiTest,
+                       StopActorTaskOnTabClose) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
 
   const GURL task_url =
@@ -85,6 +99,17 @@ IN_PROC_BROWSER_TEST_F(GlicActorTaskManagementUiTest, StopActorTaskOnTabClose) {
     CheckIsActingOnTab(kNewActorTabId, true),
     PrepareForStopStateChange(task_id_),
     CloseTab(kNewActorTabId),
+    InAnyContext(WaitForShow(
+        actor::ActorTaskTabCloseConfirmDialog::kViewId)),
+    InAnyContext(WithView(actor::ActorTaskTabCloseConfirmDialog::kViewId,
+             [](views::View* view) {
+               auto* widget = view->GetWidget();
+               if (widget) {
+                 widget->widget_delegate()->AsDialogDelegate()->AcceptDialog();
+               }
+             })),
+    InAnyContext(WaitForHide(
+        actor::ActorTaskTabCloseConfirmDialog::kViewId)),
     WaitForActorTaskStateChangeToStopped());
   // clang-format on
 }

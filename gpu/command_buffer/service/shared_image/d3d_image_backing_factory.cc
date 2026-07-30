@@ -1145,6 +1145,13 @@ bool D3DImageBackingFactory::IsSupported(SharedImageUsageSet usage,
   }
 
   if (is_buffer) {
+    // If the SharedImage can be used as a WebGPU buffer, that means it's
+    // readable and writable and must have those usages.
+    if (!usage.HasAll(gpu::SHARED_IMAGE_USAGE_WEBGPU_READ |
+                      gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE)) {
+      return false;
+    }
+
     // If this buffer is for WebNN, only allow usages that WebNN supports.
     // We allow height > 1 because the factory flattens it to a 1D D3D buffer.
     if (usage.Has(gpu::SHARED_IMAGE_USAGE_WEBNN_SHARED_TENSOR)) {

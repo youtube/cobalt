@@ -525,7 +525,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
      * @param extensionsToolbarCoordinator The {@link ExtensionsToolbarCoordinator} to be set.
      */
     public void setExtensionsToolbarCoordinator(
-            ExtensionsToolbarCoordinator extensionsToolbarCoordinator) {
+            @Nullable ExtensionsToolbarCoordinator extensionsToolbarCoordinator) {
         mToolbarLayout.setExtensionsToolbarCoordinator(extensionsToolbarCoordinator);
     }
 

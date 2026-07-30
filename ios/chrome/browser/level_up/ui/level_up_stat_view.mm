@@ -6,17 +6,19 @@
 
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
+#import "ios/public/provider/chrome/browser/lottie/lottie_animation_api.h"
+#import "ios/public/provider/chrome/browser/lottie/lottie_animation_configuration.h"
 
 namespace {
 
 // Spacing for layout margins and stacks.
 const CGFloat kLayoutSpacing = 16.0;
 // The size of the illustration container.
-const CGFloat kIllustrationSize = 64.0;
+const CGFloat kIllustrationSize = 100.0;
 // Spacing between the illustration and the text.
 const CGFloat kIllustrationTextSpacing = 8.0;
 // Spacing within the vertical text labels stack.
-const CGFloat kTextStackSpacing = 4.0;
+const CGFloat kTextStackSpacing = 8.0;
 
 // The corner radius of the card.
 const CGFloat kCardCornerRadius = 24.0;
@@ -36,8 +38,10 @@ const CGFloat kCardShadowAlpha = 0.05;
   UILabel* _titleLabel;
   // Label displaying the stat subtitle description.
   UILabel* _subtitleLabel;
-  // Image view displaying the stat illustration.
-  UIImageView* _imageView;
+  // The stack view containing the card contents.
+  UIStackView* _cardStack;
+  // The Lottie view.
+  UIView* _lottieView;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -55,14 +59,6 @@ const CGFloat kCardShadowAlpha = 0.05;
     self.layer.shadowRadius = kCardShadowRadius;
     self.layer.shadowOffset = CGSizeMake(0, kCardShadowOffset);
     self.layer.masksToBounds = NO;
-
-    _imageView = [[UIImageView alloc] init];
-    _imageView.translatesAutoresizingMaskIntoConstraints = NO;
-    _imageView.contentMode = UIViewContentModeScaleAspectFit;
-    [NSLayoutConstraint activateConstraints:@[
-      [_imageView.widthAnchor constraintEqualToConstant:kIllustrationSize],
-      [_imageView.heightAnchor constraintEqualToConstant:kIllustrationSize],
-    ]];
 
     _titleLabel = [[UILabel alloc] init];
     _titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
@@ -86,17 +82,16 @@ const CGFloat kCardShadowAlpha = 0.05;
     textStack.axis = UILayoutConstraintAxisVertical;
     textStack.spacing = kTextStackSpacing;
 
-    UIStackView* cardStack = [[UIStackView alloc]
-        initWithArrangedSubviews:@[ _imageView, textStack ]];
-    cardStack.translatesAutoresizingMaskIntoConstraints = NO;
-    cardStack.axis = UILayoutConstraintAxisHorizontal;
-    cardStack.spacing = kIllustrationTextSpacing;
-    cardStack.alignment = UIStackViewAlignmentCenter;
+    _cardStack = [[UIStackView alloc] initWithArrangedSubviews:@[ textStack ]];
+    _cardStack.translatesAutoresizingMaskIntoConstraints = NO;
+    _cardStack.axis = UILayoutConstraintAxisHorizontal;
+    _cardStack.spacing = kIllustrationTextSpacing;
+    _cardStack.alignment = UIStackViewAlignmentCenter;
 
-    [self.contentView addSubview:cardStack];
+    [self.contentView addSubview:_cardStack];
 
     AddSameConstraintsWithInsets(
-        cardStack, self.contentView,
+        _cardStack, self.contentView,
         NSDirectionalEdgeInsetsMake(kLayoutSpacing, kLayoutSpacing,
                                     kLayoutSpacing, kLayoutSpacing));
   }
@@ -115,15 +110,34 @@ const CGFloat kCardShadowAlpha = 0.05;
   [super prepareForReuse];
   _titleLabel.text = nil;
   _subtitleLabel.text = nil;
-  _imageView.image = nil;
+  [_lottieView removeFromSuperview];
+  _lottieView = nil;
 }
 
 - (void)setStatTitle:(NSString*)title
             subtitle:(NSString*)subtitle
-               image:(UIImage*)image {
+     imageLottieName:(NSString*)imageLottieName {
   _titleLabel.text = title;
   _subtitleLabel.text = subtitle;
-  _imageView.image = image;
+
+  [_lottieView removeFromSuperview];
+  _lottieView = nil;
+
+  LottieAnimationConfiguration* config =
+      [[LottieAnimationConfiguration alloc] init];
+  config.animationName = imageLottieName;
+
+  id<LottieAnimation> lottieAnimation =
+      ios::provider::GenerateLottieAnimation(config);
+  _lottieView = lottieAnimation.animationView;
+  _lottieView.translatesAutoresizingMaskIntoConstraints = NO;
+  _lottieView.contentMode = UIViewContentModeScaleAspectFit;
+
+  [_cardStack insertArrangedSubview:_lottieView atIndex:0];
+  [NSLayoutConstraint activateConstraints:@[
+    [_lottieView.widthAnchor constraintEqualToConstant:kIllustrationSize],
+    [_lottieView.heightAnchor constraintEqualToConstant:kIllustrationSize],
+  ]];
 }
 
 @end

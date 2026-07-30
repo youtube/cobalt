@@ -133,6 +133,31 @@
         },
         "test": "component_storage_test",
         "test_id_prefix": "ninja://build/fuchsia/test:component_storage_test/"
+      },
+      {
+        "args": [
+          "--platform=fuchsia"
+        ],
+        "ci_only": true,
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//content/shell:content_shell_crash_test",
+        "module_scheme": "single",
+        "name": "content_shell_crash_test",
+        "resultdb": {
+          "enable": true,
+          "result_format": "single"
+        },
+        "swarming": {
+          "dimensions": {
+            "kvm": "1",
+            "os": "Ubuntu-22.04"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "content_shell_crash_test",
+        "test_id_prefix": "ninja://content/shell:content_shell_crash_test/"
       }
     ]
   }

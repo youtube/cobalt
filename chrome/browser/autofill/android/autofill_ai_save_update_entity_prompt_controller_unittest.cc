@@ -10,6 +10,8 @@
 #include "base/android/jni_android.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/mock_callback.h"
+#include "base/test/scoped_feature_list.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "chrome/browser/autofill/android/mock_autofill_ai_save_update_entity_prompt_view.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
@@ -313,6 +315,39 @@ TEST_F(AutofillAiSaveUpdateEntityPromptControllerTest,
                 google_wallet, google_wallet,
                 base::UTF8ToUTF16(TestingProfile::kDefaultProfileUserName)),
             prompt_controller().GetSourceNotice());
+}
+
+TEST_F(AutofillAiSaveUpdateEntityPromptControllerTest,
+       PromptUiStrings_SaveWalletEntity_Branding2026) {
+  base::test::ScopedFeatureList scoped_feature_list{
+      features::kAutofillAiWalletPassBranding2026};
+  SigninUser(TestingProfile::kDefaultProfileUserName,
+             signin::ConsentLevel::kSignin);
+  CreateController(EntityInstance::RecordType::kServerWallet);
+
+  // Prompt title should be BRANDED because it is a modal/bottom sheet prompt
+  // (is_banner_prompt is false).
+  EXPECT_EQ(
+      l10n_util::GetStringUTF16(
+          IDS_AUTOFILL_AI_SAVE_PASSPORT_ENTITY_DIALOG_TITLE_ANDROID_BRANDED),
+      prompt_controller().GetTitle());
+}
+
+TEST_F(AutofillAiSaveUpdateEntityPromptControllerTest,
+       PromptUiStrings_UpdateWalletEntity_Branding2026) {
+  base::test::ScopedFeatureList scoped_feature_list{
+      features::kAutofillAiWalletPassBranding2026};
+  SigninUser(TestingProfile::kDefaultProfileUserName,
+             signin::ConsentLevel::kSignin);
+  CreateController(EntityInstance::RecordType::kServerWallet,
+                   /*entity_updated=*/true);
+
+  // Prompt title should be BRANDED because it is a modal/bottom sheet prompt
+  // (is_banner_prompt is false).
+  EXPECT_EQ(
+      l10n_util::GetStringUTF16(
+          IDS_AUTOFILL_AI_UPDATE_PASSPORT_ENTITY_DIALOG_TITLE_ANDROID_BRANDED),
+      prompt_controller().GetTitle());
 }
 
 }  // namespace

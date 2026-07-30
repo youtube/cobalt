@@ -36,6 +36,9 @@ class AudioSender : public FrameSender::Client {
   // New way of instantiating using an openscreen::cast::Sender. Since the
   // |Sender| instance is destroyed when renegotiation is complete, |this|
   // is also invalid and should be immediately torn down.
+  using AsynchronousEncodeCallback =
+      base::RepeatingCallback<void(std::unique_ptr<AudioBus>, base::TimeTicks)>;
+
   AudioSender(scoped_refptr<CastEnvironment> cast_environment,
               const FrameSenderConfig& audio_config,
               StatusChangeOnceCallback status_change_cb,
@@ -52,9 +55,13 @@ class AudioSender : public FrameSender::Client {
   virtual void InsertAudio(std::unique_ptr<AudioBus> audio_bus,
                            base::TimeTicks recorded_time);
 
+  // Returns a callback that can be safely called from any thread.
+  // It automatically hops the payload to the kAudio thread.
+  virtual AsynchronousEncodeCallback GetAsynchronousEncodeCallback();
+
   void SetTargetPlayoutDelay(base::TimeDelta new_target_playout_delay);
   base::TimeDelta GetTargetPlayoutDelay() const;
-  virtual int GetEncoderBitrate() const;
+  virtual uint32_t GetEncoderBitrate() const;
   virtual int GetFramesInserted() const;
   virtual int GetFramesDropped() const;
 

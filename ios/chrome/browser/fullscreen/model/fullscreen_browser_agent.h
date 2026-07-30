@@ -15,7 +15,7 @@
 #import "ios/chrome/browser/shared/model/browser/browser_user_data.h"
 
 class FullscreenBrowserAgentTest;
-class FullscreenMediatorPassKeyProvider;
+class FullscreenMediatorPassKeyFactory;
 enum class FullscreenModeTransitionTrigger;
 
 // Enum representing the current state of the fullscreen UI.
@@ -33,7 +33,7 @@ class FullscreenBrowserAgent : public BrowserUserData<FullscreenBrowserAgent> {
  public:
   // PassKey allows access to methods that mutate the state / progress.
   using PassKey = base::PassKey<FullscreenBrowserAgentTest,
-                                FullscreenMediatorPassKeyProvider>;
+                                FullscreenMediatorPassKeyFactory>;
 
   ~FullscreenBrowserAgent() override;
 

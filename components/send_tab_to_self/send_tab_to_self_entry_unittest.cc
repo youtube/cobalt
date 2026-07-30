@@ -146,6 +146,8 @@ TEST(SendTabToSelfEntry, AsProto) {
   EXPECT_EQ(entry.GetSharedTime().ToDeltaSinceWindowsEpoch().InMicroseconds(),
             specifics.shared_time_usec());
   EXPECT_FALSE(specifics.has_page_context());
+  EXPECT_FALSE(specifics.has_opened_time_windows_epoch_micros());
+  EXPECT_FALSE(specifics.has_activated_time_windows_epoch_micros());
 }
 
 // Tests that the send tab to self entry is correctly created from the required
@@ -176,13 +178,17 @@ TEST(SendTabToSelfEntry, FromProto) {
   pb_entry.set_target_device_sync_cache_guid("device");
   pb_entry.set_shared_time_usec(1);
 
-  EXPECT_THAT(
-      SendTabToSelfEntry::FromProto(pb_entry, base::Time::FromTimeT(10)),
-      Pointee(MatchesEntry(
-          pb_entry.guid(), GURL(pb_entry.url()), pb_entry.title(),
-          pb_entry.device_name(), pb_entry.target_device_sync_cache_guid(),
-          MatchesPageContext(IsEmpty()),
-          MatchesNavigationHistory(IsEmpty(), testing::Eq(std::nullopt)))));
+  std::unique_ptr<SendTabToSelfEntry> entry =
+      SendTabToSelfEntry::FromProto(pb_entry, base::Time::FromTimeT(10));
+  ASSERT_THAT(entry, testing::NotNull());
+  EXPECT_THAT(*entry, MatchesEntry(pb_entry.guid(), GURL(pb_entry.url()),
+                                   pb_entry.title(), pb_entry.device_name(),
+                                   pb_entry.target_device_sync_cache_guid(),
+                                   MatchesPageContext(IsEmpty()),
+                                   MatchesNavigationHistory(
+                                       IsEmpty(), testing::Eq(std::nullopt))));
+  EXPECT_FALSE(entry->IsOpened());
+  EXPECT_FALSE(entry->IsActivated());
 }
 
 TEST(SendTabToSelfEntry, FromProto_InvalidUrl) {
@@ -547,10 +553,12 @@ TEST(SendTabToSelfEntry, TimestampFieldsRoundTrip) {
 
   entry.MarkReceived(base::Time::FromTimeT(20));
   entry.MarkOpened(base::Time::FromTimeT(30));
+  entry.MarkActivated(base::Time::FromTimeT(40));
 
   SendTabToSelfLocal local_pb = entry.AsLocalProto();
   EXPECT_TRUE(local_pb.specifics().has_received_time_windows_epoch_micros());
   EXPECT_TRUE(local_pb.specifics().has_opened_time_windows_epoch_micros());
+  EXPECT_TRUE(local_pb.specifics().has_activated_time_windows_epoch_micros());
 
   std::unique_ptr<SendTabToSelfEntry> restored = SendTabToSelfEntry::FromProto(
       local_pb.specifics(), base::Time::FromTimeT(100));
@@ -558,6 +566,8 @@ TEST(SendTabToSelfEntry, TimestampFieldsRoundTrip) {
   EXPECT_EQ(base::Time::FromTimeT(20), restored->GetReceivedTime());
   EXPECT_TRUE(restored->IsOpened());
   EXPECT_EQ(base::Time::FromTimeT(30), restored->GetOpenedTime());
+  EXPECT_TRUE(restored->IsActivated());
+  EXPECT_EQ(base::Time::FromTimeT(40), restored->GetActivatedTime());
 }
 
 }  // namespace

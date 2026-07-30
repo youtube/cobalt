@@ -57,6 +57,35 @@ TEST_F(AutofillProfilePrefsTest, SetAutofillProfileEnabledAsNoOp) {
   histogram_tester.ExpectTotalCount("Autofill.Address.IsEnabled.Change", 0);
 }
 
+TEST_F(AutofillProfilePrefsTest, AutofillGmailOtpFillingEnabled_Default) {
+  EXPECT_FALSE(IsAutofillGmailOtpFillingEnabled(pref_service()));
+}
+
+TEST_F(AutofillProfilePrefsTest, AutofillGmailOtpFillingEnabled_Set) {
+  ASSERT_FALSE(IsAutofillGmailOtpFillingEnabled(pref_service()));
+  SetAutofillGmailOtpFillingEnabled(pref_service(), true);
+  EXPECT_TRUE(IsAutofillGmailOtpFillingEnabled(pref_service()));
+  SetAutofillGmailOtpFillingEnabled(pref_service(), false);
+  EXPECT_FALSE(IsAutofillGmailOtpFillingEnabled(pref_service()));
+}
+
+TEST_F(AutofillProfilePrefsTest,
+       AutofillGmailOtpFillingActivationDismissalTimestamp_Default) {
+  EXPECT_TRUE(
+      GetAutofillGmailOtpFillingActivationDismissalTimestamp(pref_service())
+          .is_null());
+}
+
+TEST_F(AutofillProfilePrefsTest,
+       AutofillGmailOtpFillingActivationDismissalTimestamp_Set) {
+  base::Time now = base::Time::Now();
+  ASSERT_FALSE(now.is_null());
+  SetAutofillGmailOtpFillingActivationDismissalTimestamp(pref_service(), now);
+  EXPECT_EQ(
+      GetAutofillGmailOtpFillingActivationDismissalTimestamp(pref_service()),
+      now);
+}
+
 }  // namespace
 
 }  // namespace autofill::prefs

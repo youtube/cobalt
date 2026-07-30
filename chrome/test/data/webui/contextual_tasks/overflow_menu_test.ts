@@ -336,4 +336,36 @@ suite('OverflowMenuTest', () => {
           });
     });
   });
+
+  suite('SpatialModelOpenInNewTabSuppression', () => {
+    test('shown when both spatial model flags are false', async () => {
+      overflowMenu.contextualTasksEnableSpatialModelToolbarLayout = false;
+      overflowMenu.contextualTasksEnableSpatialModelToolbarLayoutNewThreadInOverflow = false;
+      await microtasksFinished();
+
+      const openInNewTabButton = overflowMenu.shadowRoot.querySelector(
+          'button cr-icon[icon="contextual_tasks:open_in_full_tab"]');
+      assertTrue(!!openInNewTabButton);
+    });
+
+    test('hidden when contextualTasksEnableSpatialModelToolbarLayout is true', async () => {
+      overflowMenu.contextualTasksEnableSpatialModelToolbarLayout = true;
+      overflowMenu.contextualTasksEnableSpatialModelToolbarLayoutNewThreadInOverflow = false;
+      await microtasksFinished();
+
+      const openInNewTabButton = overflowMenu.shadowRoot.querySelector(
+          'button cr-icon[icon="contextual_tasks:open_in_full_tab"]');
+      assertFalse(!!openInNewTabButton);
+    });
+
+    test('hidden when contextualTasksEnableSpatialModelToolbarLayoutNewThreadInOverflow is true', async () => {
+      overflowMenu.contextualTasksEnableSpatialModelToolbarLayout = false;
+      overflowMenu.contextualTasksEnableSpatialModelToolbarLayoutNewThreadInOverflow = true;
+      await microtasksFinished();
+
+      const openInNewTabButton = overflowMenu.shadowRoot.querySelector(
+          'button cr-icon[icon="contextual_tasks:open_in_full_tab"]');
+      assertFalse(!!openInNewTabButton);
+    });
+  });
 });

@@ -9,6 +9,8 @@
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/dom/space_split_string.h"
+#include "third_party/blink/renderer/core/event_type_names.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/html/user_media_request_provider.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
@@ -113,14 +115,19 @@ void HTMLUserMediaElement::Trace(Visitor* visitor) const {
 }
 
 bool HTMLUserMediaElement::IsLegacyMode() const {
-  if (!RuntimeEnabledFeatures::UserMediaElementLegacyEnabled(
-          GetExecutionContext())) {
-    return false;
-  }
-  // If the 'type' attribute is explicitly defined, we fallback to legacy
-  // behavior.
-  return FastHasAttribute(html_names::kTypeAttr);
+  return RuntimeEnabledFeatures::UserMediaElementLegacyEnabled(
+             GetExecutionContext()) &&
+         hasAttribute(html_names::kTypeAttr) &&
+         !has_constraints_;
 }
+
+DOMException* HTMLUserMediaElement::error() const {
+  if (IsLegacyMode()) {
+    return nullptr;
+  }
+  return error_.Get();
+}
+
 void HTMLUserMediaElement::OnConstraintsSet(bool has_video, bool has_audio) {
   has_constraints_ = true;
   // If permission descriptors are already set, we do not need to update them.
@@ -203,6 +210,9 @@ void HTMLUserMediaElement::OnEmbeddedPermissionsDecided(
   // TODO(b/519072607): Make sure only the correct events are dispatched for OT
   // and MVP clients.
   HTMLCapabilityElementBase::OnEmbeddedPermissionsDecided(result);
+  if (IsLegacyMode()) {
+    return;
+  }
   if (result == mojom::blink::EmbeddedPermissionControlResult::kDismissed ||
       result == mojom::blink::EmbeddedPermissionControlResult::kDenied) {
     SetError(MakeGarbageCollected<DOMException>(
@@ -210,23 +220,38 @@ void HTMLUserMediaElement::OnEmbeddedPermissionsDecided(
         result == mojom::blink::EmbeddedPermissionControlResult::kDismissed
             ? "Permission dismissed"
             : "Permission denied"));
-    DispatchEvent(*Event::Create(event_type_names::kCancel));
+    EnqueueEvent(*Event::Create(event_type_names::kCancel),
+                 TaskType::kDOMManipulation);
   }
 }
 
 void HTMLUserMediaElement::DefaultEventHandler(Event& event) {
+  if (IsLegacyMode()) {
+    HTMLCapabilityElementBase::DefaultEventHandler(event);
+    return;
+  }
+
   if (event.type() == event_type_names::kDOMActivate) {
-    if (!event.IsFullyTrusted() &&
+    if ((!GetExecutionContext() || !GetExecutionContext()->IsSecureContext()) &&
         !RuntimeEnabledFeatures::BypassPepcSecurityForTestingEnabled()) {
-      SetError(MakeGarbageCollected<DOMException>(
-          DOMExceptionCode::kInvalidStateError,
-          "The usermedia element activation must be triggered by a user "
-          "gesture."));
-      DispatchEvent(*Event::Create(event_type_names::kError));
       AuditsIssue::ReportPermissionElementIssue(
           GetExecutionContext(), GetDomNodeId(),
-          protocol::Audits::PermissionElementIssueTypeEnum::UntrustedEvent,
+          protocol::Audits::PermissionElementIssueTypeEnum::NonSecureContext,
           GetType(), /*is_warning=*/false);
+      event.SetDefaultHandled();
+      return;
+    }
+    if (!GetDocument().GetFrame() ||
+        (!LocalFrame::HasTransientUserActivation(GetDocument().GetFrame()) &&
+         !RuntimeEnabledFeatures::BypassPepcSecurityForTestingEnabled())) {
+      AuditsIssue::ReportPermissionElementIssue(
+          GetExecutionContext(), GetDomNodeId(),
+          protocol::Audits::PermissionElementIssueTypeEnum::
+              MissingTransientUserActivation,
+          GetType(), /*is_warning=*/false);
+      OnActivationFailed(
+          "The permission element activation must be triggered by a user "
+          "gesture.");
       event.SetDefaultHandled();
       return;
     }
@@ -245,6 +270,16 @@ void HTMLUserMediaElement::DefaultEventHandler(Event& event) {
     return;
   }
   HTMLCapabilityElementBase::DefaultEventHandler(event);
+}
+
+void HTMLUserMediaElement::OnActivationFailed(const String& error_message) {
+  if (IsLegacyMode()) {
+    return;
+  }
+  SetError(MakeGarbageCollected<DOMException>(
+      DOMExceptionCode::kInvalidStateError, error_message));
+  EnqueueEvent(*Event::Create(event_type_names::kError),
+               TaskType::kDOMManipulation);
 }
 
 mojom::blink::EmbeddedPermissionRequestDescriptorPtr

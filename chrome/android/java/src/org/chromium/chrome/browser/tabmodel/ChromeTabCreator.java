@@ -647,7 +647,7 @@ public class ChromeTabCreator implements TabCreator, NeedsTabModel, NeedsTabMode
                                 i,
                                 intent,
                                 /* copyHistory= */ false);
-                assert newTab != null;
+                if (newTab == null) return null;
                 TabAssociatedApp.from(newTab).setAppId(appId);
                 mTabModel
                         .getTabRemover()

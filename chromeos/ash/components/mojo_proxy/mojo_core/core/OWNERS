@@ -1,0 +1,5 @@
+per-file *_messages*.h=set noparent
+per-file *_messages*.h=file://ipc/SECURITY_OWNERS
+
+hidehiko@chromium.org
+andreaorru@chromium.org

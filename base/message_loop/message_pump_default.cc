@@ -8,6 +8,7 @@
 
 #include "base/auto_reset.h"
 #include "base/logging.h"
+#include "base/message_loop/message_pump_wakeup_counter.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/rand_util.h"
 #include "base/synchronization/waitable_event.h"
@@ -84,15 +85,21 @@ void MessagePumpDefault::Run(Delegate* delegate) {
     }
 
     bool should_busy_loop = ShouldBusyLoop();
-    bool signaled = false;
+    bool found_in_busy_loop = false;
+    bool woke_from_os = false;
     if (should_busy_loop) {
-      signaled = BusyWaitOnEvent(before, next_work_info.remaining_delay());
-      if (!signaled) {
+      found_in_busy_loop =
+          BusyWaitOnEvent(before, next_work_info.remaining_delay());
+      if (!found_in_busy_loop) {
         next_work_info.recent_now = base::TimeTicks::Now();
-        event_.TimedWait(next_work_info.remaining_delay());
+        woke_from_os = event_.TimedWait(next_work_info.remaining_delay());
       }
     } else {
-      event_.TimedWait(next_work_info.remaining_delay());
+      woke_from_os = event_.TimedWait(next_work_info.remaining_delay());
+    }
+
+    if (woke_from_os) {
+      MessagePumpWakeupCounter::GetForCurrentThread().RecordWakeup();
     }
 
     if (may_busy_loop) {
@@ -102,8 +109,9 @@ void MessagePumpDefault::Run(Delegate* delegate) {
       if (base::ShouldRecordSubsampledMetric(0.001)) {
         BusyLoopPredictionAccuracy heuristic_result =
             should_busy_loop
-                ? (signaled ? BusyLoopPredictionAccuracy::kTruePositive
-                            : BusyLoopPredictionAccuracy::kFalsePositive)
+                ? (found_in_busy_loop
+                       ? BusyLoopPredictionAccuracy::kTruePositive
+                       : BusyLoopPredictionAccuracy::kFalsePositive)
                 : (wait_time > max_busy_loop_time_
                        ? BusyLoopPredictionAccuracy::kTrueNegative
                        : BusyLoopPredictionAccuracy::kFalseNegative);
@@ -145,6 +153,10 @@ void MessagePumpDefault::RecordWaitTime(base::TimeDelta wait_time) {
 }
 
 bool MessagePumpDefault::ShouldBusyLoop() const {
+  if (should_busy_loop_for_testing_.has_value()) {
+    return should_busy_loop_for_testing_.value();
+  }
+
   // Should only busy loop when the expected wait time is short. Of course, we
   // don't know whether it will be, but we have two crude heuristics here:
   // - Last wait was short, maybe the next one will. Not that if this one is

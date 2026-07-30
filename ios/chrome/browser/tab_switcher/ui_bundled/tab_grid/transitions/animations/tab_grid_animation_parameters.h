@@ -7,6 +7,8 @@
 
 #import <UIKit/UIKit.h>
 
+#import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
+
 // Config class that contains all the parameters needed to perform a tab grid
 // transition animation.
 @interface TabGridAnimationParameters : NSObject
@@ -54,6 +56,9 @@
 // Whether the top toolbar is hidden during the animation.
 @property(nonatomic, assign, readonly) BOOL topToolbarHidden;
 
+// The command handler that conforms to the TabGridCommands protocol.
+@property(nonatomic, weak, readonly) id<TabGridCommands> handler;
+
 - (instancetype)initWithDestinationFrame:(CGRect)destinationFrame
                              originFrame:(CGRect)originFrame
                               activeGrid:(UIViewController*)activeGrid
@@ -68,6 +73,7 @@
                    shouldScaleTopToolbar:(BOOL)shouldScaleTopToolbar
                                incognito:(BOOL)incognito
                         topToolbarHidden:(BOOL)topToolbarHidden
+                          commandHandler:(id<TabGridCommands>)handler
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;

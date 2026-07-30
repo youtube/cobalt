@@ -103,6 +103,7 @@
 <translation id="1335767868357998043">选择地址栏位置</translation>
 <translation id="1347468774581902829">管理我的活动记录</translation>
 <translation id="1348596747084433075">https://www.amazon.com/Wife-Gifts/s?k=for+Wife+Gifts</translation>
+<translation id="1353169676553627502">关闭进度更新</translation>
 <translation id="1355337783640312381">如需在账号之间切换，请点按您的账号图标</translation>
 <translation id="135806768612505061">所有标签页</translation>
 <translation id="1358106883354237005">受管理的账号</translation>
@@ -609,6 +610,7 @@
 <translation id="3073633853887034268">知道了</translation>
 <translation id="3080525922482950719">您可保存网页以供日后阅读或离线阅读</translation>
 <translation id="3081338492074632642">请确保您要保存的密码与您用来登录 <ph name="WEBSITE" /> 的密码相符</translation>
+<translation id="3084484227247071193">开启进度更新</translation>
 <translation id="3087734570205094154">底部</translation>
 <translation id="309710370695886264">您有 1 个重复使用的密码。请立即修正它以确保安全。</translation>
 <translation id="3099402981545350675">此操作会删除保存在此设备上的地址，还会从 Chrome 中移除所选信息，但不会从您的 Google 账号中删除这些信息。</translation>
@@ -708,6 +710,7 @@
 <translation id="3449029510150690417">为新标签页分组命名并选择颜色，即可创建该标签页分组</translation>
 <translation id="345348365500626747">找到地址</translation>
 <translation id="3459644598174926977">开启 Gemini Live，就网页内容提问、随心畅谈灵感，展开实时互动对话。</translation>
+<translation id="3462768334899086950">这意味着您将丢失未保存的文件和当前标签页</translation>
 <translation id="3464194322481586217">无法跟踪价格。</translation>
 <translation id="3469117812148449995">密码保存选项</translation>
 <translation id="3472469028191701821">在新标签页中打开</translation>
@@ -836,7 +839,6 @@
 <translation id="391904960191284041">商品评价</translation>
 <translation id="3921585859122905677">地址栏位置</translation>
 <translation id="3922185497376658606">预加载网页</translation>
-<translation id="3922395466317605522">自定义菜单</translation>
 <translation id="3926703470020109118">下载已取消</translation>
 <translation id="3929457972718048006">地址</translation>
 <translation id="3931215329146376310">{count,plural, =1{用于登录此网站的新密码}other{用于登录此网站的新密码}}</translation>
@@ -965,6 +967,7 @@
 <translation id="4326912346867677256">点按“使用密码”安全登录。</translation>
 <translation id="4328843285884395590">我的云端硬盘</translation>
 <translation id="4331177082088332784">您可以在BEGIN_LINK内容设置END_LINK中管理此设置</translation>
+<translation id="4331712008356052424">若要发送此链接，请使用 <ph name="USER_EMAIL" /> 在其他设备上登录</translation>
 <translation id="4334428914252001502">有 1 篇未读文章。</translation>
 <translation id="4338258232580025606">无法登录</translation>
 <translation id="4338650699862464074">将您访问的网页网址发送给 Google。</translation>
@@ -1269,6 +1272,7 @@
 <translation id="5336910966955551309">长按即可固定喜爱的网站</translation>
 <translation id="5338512273860059533">正在登录。</translation>
 <translation id="5343472494710226394">根据您的兴趣推送的新闻、体育赛事和内容。</translation>
+<translation id="5351613737248079168">您必须登录账号，才能使用 Level Up</translation>
 <translation id="5352128922772839949">保存文件</translation>
 <translation id="5355191726083956201">已开启增强型保护</translation>
 <translation id="536067926684072644">显示书签</translation>
@@ -1471,6 +1475,7 @@
 <translation id="6040143037577758943">关闭</translation>
 <translation id="6042308850641462728">更多</translation>
 <translation id="6045460247888249350">添加标题</translation>
+<translation id="6050237559175440178">验证您的身份才能在所有设备上使用和保存您的信息</translation>
 <translation id="6052269326659653305">切换个人资料</translation>
 <translation id="605721222689873409">YY</translation>
 <translation id="6059830886158432458">在此处控制您的报道和活动</translation>
@@ -1690,7 +1695,6 @@
 <translation id="6674917187596384849">您可以轻松地在账号之间切换</translation>
 <translation id="6676349090816247042">登录方式。</translation>
 <translation id="667999046851023355">文档</translation>
-<translation id="6680416467695217368">自定义菜单</translation>
 <translation id="6681791404926413601">{count,plural, =1{键盘上方显示了 {count} 个支付方式选项。}other{键盘上方显示了 {count} 个支付方式选项。}}</translation>
 <translation id="6682680306647339111">提醒已移除</translation>
 <translation id="6684262542644248484">登录相应网站</translation>
@@ -1846,6 +1850,7 @@
 <translation id="722339453342442311">立即检查</translation>
 <translation id="7227235818314667565">管理共享设置</translation>
 <translation id="7233006041370588369">选择要填充的密码。</translation>
+<translation id="723874023660911012">切换个人资料</translation>
 <translation id="7241135764990439166">无痕模式不可用</translation>
 <translation id="7248046129087111453"><ph name="BEGIN_LINK" />搜索记录<ph name="END_LINK" />和<ph name="BEGIN_LINK" />其他形式的活动记录<ph name="END_LINK" />可能会保存在您的 Google 账号中。</translation>
 <translation id="7253951228444156601">正在检查密码…</translation>
@@ -2072,6 +2077,7 @@
 <translation id="7996239959906074962">设置…</translation>
 <translation id="800361585186029508">在 Google Chrome 中打开输入的网址。</translation>
 <translation id="8005666035647241369">保存到此设备上的 Google 密码管理工具中</translation>
+<translation id="8007106936382123905">{count,plural, =1{已完成 1 项任务}other{已完成 # 项任务}}</translation>
 <translation id="8010488806779226127">探索提升浏览体验的实用功能</translation>
 <translation id="8011489434346330032">网页检查器</translation>
 <translation id="8014007212279733632">先验证身份，再自动填充敏感信息</translation>
@@ -2155,6 +2161,7 @@
 <translation id="826614135184049678">您在 iPad 重置过程中退出了账号 <ph name="USER_NAME" />。如需重新登录，请点按下方的“继续”。</translation>
 <translation id="8270320981823560179">云端硬盘</translation>
 <translation id="8273982424131314219">信息即将填写到 <ph name="URL" /></translation>
+<translation id="8274795744553482834">您即将切换个人资料</translation>
 <translation id="8275068909952022340">更多…</translation>
 <translation id="8280797717392145626">已收到链接</translation>
 <translation id="8281781826761538115">默认语言区域 - <ph name="DEFAULT_LOCALE" /></translation>

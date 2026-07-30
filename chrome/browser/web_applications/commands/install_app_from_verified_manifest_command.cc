@@ -9,7 +9,6 @@
 #include <string_view>
 #include <utility>
 
-#include "base/check_is_test.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/containers/flat_tree.h"
 #include "base/functional/bind.h"
@@ -18,6 +17,7 @@
 #include "chrome/browser/web_applications/commands/command_metrics.h"
 #include "chrome/browser/web_applications/jobs/finalize_install_job.h"
 #include "chrome/browser/web_applications/jobs/manifest_to_web_app_install_info_job.h"
+#include "chrome/browser/web_applications/jobs/parse_manifest_from_string_job.h"
 #include "chrome/browser/web_applications/locks/shared_web_contents_lock.h"
 #include "chrome/browser/web_applications/locks/shared_web_contents_with_app_lock.h"
 #include "chrome/browser/web_applications/locks/web_app_lock_manager.h"
@@ -31,16 +31,10 @@
 #include "chrome/browser/web_applications/web_contents/web_contents_manager.h"
 #include "components/webapps/browser/install_result_code.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
-#include "components/webapps/browser/web_contents/web_app_url_loader.h"
 #include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/web_contents.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/url_util.h"
-#include "services/service_manager/public/cpp/interface_provider.h"
-#include "third_party/blink/public/common/manifest/manifest_util.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
-#include "third_party/blink/public/mojom/manifest/manifest_manager.mojom.h"
-#include "url/url_constants.h"
 
 namespace web_app {
 
@@ -52,18 +46,6 @@ namespace {
 constexpr auto kHostAllowlist = base::MakeFixedFlatSet<std::string_view>(
     {"googleusercontent.com", "gstatic.com", "youtube.com",
      "127.0.0.1" /*FOR TESTING*/});
-
-bool HasRequiredManifestFields(const blink::mojom::ManifestPtr& manifest) {
-  if (!manifest->has_valid_specified_start_url) {
-    return false;
-  }
-
-  if (!manifest->short_name.has_value() && !manifest->name.has_value()) {
-    return false;
-  }
-
-  return true;
-}
 
 }  // namespace
 
@@ -118,64 +100,29 @@ void InstallAppFromVerifiedManifestCommand::StartWithLock(
     std::unique_ptr<SharedWebContentsLock> lock) {
   web_contents_lock_ = std::move(lock);
 
-  url_loader_ = web_contents_lock_->web_contents_manager().CreateUrlLoader();
   data_retriever_ =
       web_contents_lock_->web_contents_manager().CreateDataRetriever();
-  url_loader_->LoadUrl(
-      GURL(url::kAboutBlankURL), &web_contents_lock_->shared_web_contents(),
-      webapps::WebAppUrlLoader::UrlComparison::kExact,
-      base::BindOnce(&InstallAppFromVerifiedManifestCommand::OnAboutBlankLoaded,
-                     weak_ptr_factory_.GetWeakPtr()));
-}
 
-void InstallAppFromVerifiedManifestCommand::OnAboutBlankLoaded(
-    webapps::WebAppUrlLoaderResult result) {
-  if (result != webapps::WebAppUrlLoaderResult::kUrlLoaded) {
-    Abort(CommandResult::kFailure,
-          webapps::InstallResultCode::kInstallURLLoadFailed);
-    return;
-  }
-
-  // The shared web contents must have been reset to about:blank before command
-  // execution.
-  DCHECK_EQ(web_contents_lock_->shared_web_contents().GetURL(),
-            GURL(url::kAboutBlankURL));
-
-  web_contents_lock_->shared_web_contents()
-      .GetPrimaryMainFrame()
-      ->GetRemoteInterfaces()
-      ->GetInterface(manifest_manager_.BindNewPipeAndPassReceiver());
-  manifest_manager_.set_disconnect_handler(
-      base::BindOnce(&InstallAppFromVerifiedManifestCommand::Abort,
-                     weak_ptr_factory_.GetWeakPtr(), CommandResult::kFailure,
-                     webapps::InstallResultCode::kWebContentsDestroyed));
-
-  manifest_manager_->ParseManifestFromString(
-      document_url_, verified_manifest_url_, verified_manifest_contents_,
+  parse_job_ = std::make_unique<ParseManifestFromStringJob>(
+      web_contents_lock_->web_contents_manager(),
+      web_contents_lock_->shared_web_contents(), document_url_,
+      verified_manifest_url_,
+      std::move(verified_manifest_contents_),  // Consumed by parse_job_.
+      *GetMutableDebugValue().EnsureDict("parse_manifest_from_string_job"),
       base::BindOnce(&InstallAppFromVerifiedManifestCommand::OnManifestParsed,
                      weak_ptr_factory_.GetWeakPtr()));
+  parse_job_->Start();
 }
 
 void InstallAppFromVerifiedManifestCommand::OnManifestParsed(
     blink::mojom::ManifestPtr manifest) {
-  // Note that most errors during parsing (e.g. errors to do with parsing a
-  // particular field) are silently ignored. As long as the manifest is valid
-  // JSON and contains a valid start_url and name, installation will proceed.
-  if (blink::IsEmptyManifest(manifest) ||
-      !HasRequiredManifestFields(manifest)) {
+  parse_job_.reset();
+
+  if (!manifest) {
     Abort(CommandResult::kFailure,
           webapps::InstallResultCode::kNotValidManifestForWebApp);
     return;
   }
-
-  if (manifest->manifest_url != verified_manifest_url_) {
-    mojo::ReportBadMessage("Returned manifest has incorrect manifest URL");
-    Abort(CommandResult::kFailure,
-          webapps::InstallResultCode::kNotValidManifestForWebApp);
-    return;
-  }
-
-  GetMutableDebugValue().Set("manifest_parsed", true);
 
   auto icon_url_modifications = [](IconUrlSizeSet& icon_urls) {
     base::EraseIf(icon_urls, [](const IconUrlWithSize& url_with_size) {

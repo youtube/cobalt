@@ -178,11 +178,8 @@ BASE_FEATURE(kMostVisitedTilesHorizontalRenderGroup,
 // accommodate the autocompletions.
 BASE_FEATURE(kRichAutocompletion, "OmniboxRichAutocompletion", ENABLED);
 
-// When enabled, the multimodal input button is shown in the Omnibox.
-BASE_FEATURE(kOmniboxMultimodalInput, DISABLED);
-
-// An additional gate to the behavior of OmniboxMultimodalInput on desktop.
-BASE_FEATURE(kAndroidDesktopAimGate, DISABLED);
+// Enables the AIM eligibility diagnostic component extension.
+BASE_FEATURE(kAimEligibilityComponentExtension, DISABLED);
 
 // Whether the aim button should dynamically change to portray the submission
 // type.
@@ -200,6 +197,15 @@ BASE_FEATURE(kHideAimEntrypointOnUserInput,
 // Hides the AIM entrypoint in the Omnibox when the default suggestion is a URL.
 // Only used on desktop platforms.
 BASE_FEATURE(kHideAimEntrypointForUrlSuggestions, DISABLED);
+
+// When enabled, the multimodal input button is shown in the Omnibox.
+BASE_FEATURE(kOmniboxMultimodalInput, DISABLED);
+
+// An additional gate to the behavior of OmniboxMultimodalInput on desktop.
+BASE_FEATURE(kAndroidDesktopAimGate, DISABLED);
+
+// Enables the AIM entrypoint for third party search engines.
+BASE_FEATURE(kAim3pEntrypoint, DISABLED);
 
 // When enabled, AI mode will remove verbatim suggestions from the suggestions
 // list.
@@ -225,6 +231,10 @@ BASE_FEATURE(kOmniboxWebUIDetachWebContentsOnHide, ENABLED);
 // When enabled, the Omnibox WebUI popup will mark its web contents as hidden
 // when hidden, to unlock frames from compositor cache.
 BASE_FEATURE(kOmniboxWebUIPopupMarkAsHidden, DISABLED);
+
+// When enabled, the WebUI searchbox will bypass OmniboxController and
+// OmniboxEditModel.
+BASE_FEATURE(kWebUISearchboxWithoutModelController, DISABLED);
 
 // Feature used to default typed navigations to use HTTPS instead of HTTP.
 // This only applies to navigations that don't have a scheme such as
@@ -388,6 +398,8 @@ BASE_FEATURE(kComposeboxAttachmentsTypedState, DISABLED);
 
 // Whether to enable Google Drive context menu option in the composebox.
 BASE_FEATURE(kComposeboxDriveContextMenuOption, DISABLED);
+const base::FeatureParam<bool> kComposeboxDriveIdentityFallback{
+    &kComposeboxDriveContextMenuOption, "enable_identity_fallback", true};
 
 // Whether to enable Google Drive context menu option's disclaimer flow in the
 // composebox.
@@ -464,7 +476,6 @@ BASE_FEATURE(kDiagnostics, "OmniboxDiagnostics", DISABLED);
 
 // Force the realbox on Android regardless of platform/configuration checks.
 BASE_FEATURE(kForceAndroidRealbox, DISABLED);
-
 
 // If enabled, disables ligatures in the URL bar on Android.
 BASE_FEATURE(kUrlBarWithoutLigatures, ENABLED);

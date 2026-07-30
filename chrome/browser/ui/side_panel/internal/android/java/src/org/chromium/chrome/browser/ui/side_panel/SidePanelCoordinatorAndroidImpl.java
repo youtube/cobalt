@@ -55,15 +55,6 @@ public final class SidePanelCoordinatorAndroidImpl implements SidePanelCoordinat
     }
 
     @Override
-    public void onWindowResized(boolean canShowSidePanel) {
-        log(TAG, "onWindowResized", canShowSidePanel);
-        if (mNativeSidePanelCoordinatorAndroid != 0) {
-            SidePanelCoordinatorAndroidImplJni.get()
-                    .onWindowResized(mNativeSidePanelCoordinatorAndroid, canShowSidePanel);
-        }
-    }
-
-    @Override
     public boolean hasContentToShow() {
         boolean hasContentToShow =
                 mNativeSidePanelCoordinatorAndroid != 0
@@ -80,6 +71,24 @@ public final class SidePanelCoordinatorAndroidImpl implements SidePanelCoordinat
         log(TAG, "init");
         if (mNativeSidePanelCoordinatorAndroid != 0) {
             SidePanelCoordinatorAndroidImplJni.get().init(mNativeSidePanelCoordinatorAndroid);
+        }
+    }
+
+    @Override
+    public void onWillAutoClose() {
+        log(TAG, "onWillAutoClose");
+        if (mNativeSidePanelCoordinatorAndroid != 0) {
+            SidePanelCoordinatorAndroidImplJni.get()
+                    .onWillAutoClose(mNativeSidePanelCoordinatorAndroid);
+        }
+    }
+
+    @Override
+    public void onWillAutoRestore() {
+        log(TAG, "onWillAutoRestore");
+        if (mNativeSidePanelCoordinatorAndroid != 0) {
+            SidePanelCoordinatorAndroidImplJni.get()
+                    .onWillAutoRestore(mNativeSidePanelCoordinatorAndroid);
         }
     }
 
@@ -228,15 +237,6 @@ public final class SidePanelCoordinatorAndroidImpl implements SidePanelCoordinat
         void onContentPopulated(long nativeSidePanelCoordinatorAndroid);
 
         /**
-         * See {@link SidePanelCoordinatorAndroid#onWindowResized(boolean).
-         *
-         * @param nativeSidePanelCoordinatorAndroid The address of the native {@code
-         *     SidePanelCoordinatorAndroid}.
-         * @param canShowSidePanel Whether the side panel can be shown.
-         */
-        void onWindowResized(long nativeSidePanelCoordinatorAndroid, boolean canShowSidePanel);
-
-        /**
          * Initializes the native coordinator and restores the active entry if one exists.
          *
          * @param nativeSidePanelCoordinatorAndroid The address of the native {@code
@@ -252,5 +252,21 @@ public final class SidePanelCoordinatorAndroidImpl implements SidePanelCoordinat
          * @see org.chromium.chrome.browser.ui.side_ui.SideUiContainer#hasContentToShow
          */
         boolean hasContentToShow(long nativeSidePanelCoordinatorAndroid);
+
+        /**
+         * See {@link SidePanelCoordinatorAndroid#onWillAutoClose()}.
+         *
+         * @param nativeSidePanelCoordinatorAndroid The address of the native {@code
+         *     SidePanelCoordinatorAndroid}.
+         */
+        void onWillAutoClose(long nativeSidePanelCoordinatorAndroid);
+
+        /**
+         * See {@link SidePanelCoordinatorAndroid#onWillAutoRestore()}.
+         *
+         * @param nativeSidePanelCoordinatorAndroid The address of the native {@code
+         *     SidePanelCoordinatorAndroid}.
+         */
+        void onWillAutoRestore(long nativeSidePanelCoordinatorAndroid);
     }
 }

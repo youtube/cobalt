@@ -9,6 +9,8 @@
 #import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
 #import "ios/chrome/browser/keyboard/ui_bundled/key_command_actions.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state_test_passkey_factory.h"
+#import "ios/chrome/browser/shared/ui/util/util_swift.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/test/app/uikit_test_util.h"
 #import "testing/gtest/include/gtest/gtest.h"
@@ -29,6 +31,7 @@
 @interface AssistantContainerViewController (TestingHelpers)
 @property(nonatomic, readonly) NSLayoutConstraint* heightConstraint;
 @property(nonatomic, readonly) UIPanGestureRecognizer* headerPanGesture;
+@property(nonatomic, readonly) NSLayoutConstraint* outerBottomConstraint;
 @property(nonatomic, assign) BOOL isAnimating;
 @end
 
@@ -40,9 +43,14 @@
 - (UIPanGestureRecognizer*)headerPanGesture {
   return [self valueForKey:@"_headerPanGesture"];
 }
+- (NSLayoutConstraint*)outerBottomConstraint {
+  return [self valueForKey:@"_outerBottomConstraint"];
+}
 @end
 
 namespace {
+
+using layout_state::LayoutStateTestPassKeyFactory;
 
 class AssistantContainerViewControllerTest : public PlatformTest {
  protected:
@@ -334,7 +342,9 @@ TEST_F(AssistantContainerViewControllerTest, UpdatesLayoutOnLayoutStateChange) {
             AssistantPresentationContext::kSheet);
 
   // Update state to supported.
-  layout_state.containedLayoutSupported = YES;
+  [layout_state setContainedLayoutSupported:YES
+                                    passKey:LayoutStateTestPassKeyFactory::
+                                                CreateSceneKey()];
 
   // Should switch to panel mode.
   EXPECT_EQ(view_controller_.presentationContext,
@@ -412,6 +422,40 @@ TEST_F(AssistantContainerViewControllerTest,
 
   BOOL handled = [view_controller_ accessibilityPerformEscape];
   EXPECT_FALSE(handled);
+}
+
+// Tests that setting guideName and layoutGuideCenter dynamically updates
+// the container's bottom constraint to anchor to the resolved guide.
+TEST_F(AssistantContainerViewControllerTest, AnchorsToLayoutGuide) {
+  // Create a mock LayoutGuideCenter.
+  NSString* const kMockGuideName = @"MockGuide";
+  id layout_guide_center_mock = OCMClassMock([LayoutGuideCenter class]);
+
+  // Create an anchor view and add it to the same view hierarchy.
+  UIView* anchor_view = [[UIView alloc] init];
+  anchor_view.translatesAutoresizingMaskIntoConstraints = NO;
+  [window_.rootViewController.view addSubview:anchor_view];
+
+  // Stub referencedViewUnderName: to return our anchor view.
+  OCMStub([layout_guide_center_mock referencedViewUnderName:kMockGuideName])
+      .andReturn(anchor_view);
+
+  // Assign guideName and layoutGuideCenter.
+  view_controller_.layoutGuideCenter = layout_guide_center_mock;
+  view_controller_.guideName = kMockGuideName;
+
+  // Trigger layout pass.
+  [window_ layoutIfNeeded];
+
+  // Retrieve the private outerBottomConstraint using the type-safe accessor.
+  NSLayoutConstraint* outer_bottom_constraint =
+      view_controller_.outerBottomConstraint;
+
+  // Verify that the constraint is active and resolved against the anchor
+  // view's top anchor.
+  ASSERT_NE(nil, outer_bottom_constraint);
+  EXPECT_TRUE(outer_bottom_constraint.active);
+  EXPECT_EQ(outer_bottom_constraint.secondAnchor, anchor_view.topAnchor);
 }
 
 }  // namespace

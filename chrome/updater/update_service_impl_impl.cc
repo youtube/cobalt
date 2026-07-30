@@ -33,7 +33,6 @@
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
-#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
@@ -74,6 +73,7 @@
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_client_errors.h"
 #include "components/update_client/utils.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 #if BUILDFLAG(IS_MAC)
 #include <sys/mount.h>
@@ -380,7 +380,7 @@ std::wstring GetTextForUpdateCheckError(int error,
       return GetLocalizedStringF(
           IDS_GENERIC_UPDATE_CHECK_ERROR_BASE,
           error >= 400 && error < 600
-              ? base::UTF8ToWide(base::StringPrintf("HTTP %d", error))
+              ? base::UTF8ToWide(absl::StrFormat("HTTP %d", error))
               : GetTextForSystemError(error),
           language);
   }
@@ -462,10 +462,10 @@ std::string GetInstallerText(UpdateService::ErrorCategory error_category,
            return std::wstring();
          }
          return base::StrCat(
-             {L"\n", GetLocalizedStringF(IDS_EXTRA_CODE_BASE,
-                                         base::UTF8ToWide(base::StringPrintf(
-                                             "%#x", extra_code)),
-                                         language_w)});
+             {L"\n", GetLocalizedStringF(
+                         IDS_EXTRA_CODE_BASE,
+                         base::UTF8ToWide(absl::StrFormat("%#x", extra_code)),
+                         language_w)});
        }()}));
 }
 #endif  // BUILDFLAG(IS_WIN)

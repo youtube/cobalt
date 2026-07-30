@@ -16,13 +16,20 @@ declare_args() {
   # Enable active iterator counting in blink::HeapVector to detect
   # use-after-free.
   enable_heap_vector_active_iterator_checks = false
+
+  # Enable active iterator counting in non-garbage-collected blink::Vector
+  # (i.e. PartitionAllocator-backed) to detect use-after-free.
+  enable_vector_active_iterator_checks = false
 }
 
 buildflag_header("wtf_buildflags") {
   header = "wtf_buildflags.h"
   header_dir = "third_party/blink/renderer/platform/wtf"
 
-  flags = [ "ENABLE_HEAP_VECTOR_ACTIVE_ITERATOR_CHECKS=$enable_heap_vector_active_iterator_checks" ]
+  flags = [
+    "ENABLE_HEAP_VECTOR_ACTIVE_ITERATOR_CHECKS=$enable_heap_vector_active_iterator_checks",
+    "ENABLE_VECTOR_ACTIVE_ITERATOR_CHECKS=$enable_vector_active_iterator_checks",
+  ]
 }
 
 visibility = [
@@ -219,6 +226,7 @@ component("wtf") {
     "type_traits.h",
     "uuid.cc",
     "uuid.h",
+    "vector.cc",
     "vector.h",
     "vector_backed_linked_list.h",
     "vector_traits.h",

@@ -43,6 +43,7 @@ import {getTemplate} from './glic_subpage.html.js';
 
 export enum SettingsGlicPageFeaturePrefName {
   CLOSED_CAPTIONS_ENABLED = 'glic.closed_captioning_enabled',
+  MEDIA_UNDERSTANDING_ENABLED = 'glic.media_understanding_enabled',
   GEOLOCATION_ENABLED = 'glic.geolocation_enabled',
   LAUNCHER_ENABLED = 'glic.launcher_enabled',
   MICROPHONE_ENABLED = 'glic.microphone_enabled',
@@ -123,6 +124,11 @@ export class SettingsGlicSubpageElement extends SettingsGlicSubpageElementBase {
         value: () => {
           return loadTimeData.getBoolean('glicCanUseLive');
         },
+      },
+
+      headlessCaptionsEnabled_: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('headlessCaptionsEnabled'),
       },
 
       glicExtensionsFeatureEnabled_: {
@@ -345,6 +351,7 @@ export class SettingsGlicSubpageElement extends SettingsGlicSubpageElementBase {
   declare private tabAccessToggleExpanded_: boolean;
   declare private defaultTabAccessToggleExpanded_: boolean;
   declare private closedCaptionsToggleEnabled_: boolean;
+  declare private headlessCaptionsEnabled_: boolean;
   declare private glicExtensionsFeatureEnabled_: boolean;
   declare private glicUserStatusCheckFeatureEnabled_: boolean;
   declare private glicSelectionFeatureEnabled_: boolean;
@@ -792,6 +799,12 @@ export class SettingsGlicSubpageElement extends SettingsGlicSubpageElementBase {
       webActuationEnabled: boolean,
       isWebActuationDisabledForEnterprise: boolean): boolean {
     return !webActuationEnabled || isWebActuationDisabledForEnterprise;
+  }
+
+  private onMediaUnderstandingToggleLearnMoreClick_() {
+    // URL for "some websites" link.
+    OpenWindowProxyImpl.getInstance().openUrl(
+        'https://support.google.com/gemini/answer/16283624');
   }
 }
 

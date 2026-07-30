@@ -54,7 +54,7 @@ public class AutofillAiPreference extends ChromeSwitchPreference
                 holder.findViewById(R.id.autofill_ai_when_on),
                 R.string.settings_autofill_ai_when_on,
                 R.string.settings_autofill_ai_when_on_can_fill_difficult_fields,
-                R.drawable.text_analysis_24dp);
+                R.drawable.ic_text_analysis_24dp);
 
         View thingsToConsider = holder.findViewById(R.id.autofill_ai_things_to_consider);
         setInfoItemDetails(

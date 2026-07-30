@@ -54,6 +54,23 @@ struct ConnectionAllowlist {
   array<ConnectionAllowlistIssue> issues;
   RedirectBehavior redirect_behavior;
   WebRtcBehavior webrtc_behavior;
+
+  // True when the allowlist carried the `response-origin` token but its
+  // resolution was deferred rather than added to `allowlist`. This happens when
+  // the allowlist is parsed without knowing the response origin it should
+  // resolve against -- e.g. parsed in the renderer for an iframe's
+  // `connectionallowlist` attribute, where the framed document's response
+  // origin isn't known yet. The browser resolves this against the actual
+  // response origin before the allowlist is enforced. When parsing a response
+  // header (where the origin is known), `response-origin` is resolved eagerly
+  // into `allowlist` and this stays false.
+  bool match_response_origin;
+
+  // The original serialized value this allowlist was parsed from (e.g. the
+  // iframe `connectionallowlist` attribute string), retained so the browser can
+  // re-emit it in the `Sec-Required-Connection-Allowlist` request header. Empty
+  // unless populated by the producer (the iframe attribute parser).
+  string serialized_value;
 };
 
 // The set of allowlists associated with a given response.

@@ -60,6 +60,10 @@ enum class GoogleOneOutcome {
 - (void)launchWithViewController:(UIViewController*)viewController
                       completion:(void (^)(NSError*))completion;
 
+- (void)launchWithViewController:(UIViewController*)viewController
+                             URL:(NSURL*)url
+                      completion:(void (^)(NSError*))completion;
+
 // Stop the GoogleOneController.
 // This will dismiss the viewController presented by `launchWithViewController`.
 // Do not call if the flow completion was already called (the service is already
@@ -69,11 +73,17 @@ enum class GoogleOneOutcome {
 @end
 
 // A protocol to replace the Google One providers in tests.
-@protocol GoogleOneControllerFactory
+@protocol GoogleOneControllerFactory <NSObject>
 
 // Create a GoogleOneController.
 - (id<GoogleOneController>)createControllerWithConfiguration:
     (GoogleOneConfiguration*)configuration;
+
+@optional
+// Returns true if the URL can be handled.
+- (BOOL)canHandleURL:(NSURL*)url;
+// Extract account email from deep link URL.
+- (NSString*)emailFromURL:(NSURL*)url;
 
 @end
 
@@ -85,6 +95,12 @@ void SetGoogleOneControllerFactory(id<GoogleOneControllerFactory> factory);
 // Creates an instance of GoogleOneController.
 id<GoogleOneController> CreateGoogleOneController(
     GoogleOneConfiguration* configuration);
+
+// Returns true if the given `url` can be handled by Google One.
+BOOL CanHandleGoogleOneURL(NSURL* url);
+
+// Extracts the email string from `url`. Returns nil if no email is found.
+NSString* GoogleOneEmailFromURL(NSURL* url);
 
 }  // namespace ios::provider
 

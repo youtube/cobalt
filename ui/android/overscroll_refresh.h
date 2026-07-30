@@ -6,6 +6,7 @@
 #define UI_ANDROID_OVERSCROLL_REFRESH_H_
 
 #include <optional>
+#include <variant>
 
 #include "base/memory/raw_ptr.h"
 #include "third_party/blink/public/common/input/web_gesture_device.h"
@@ -143,11 +144,13 @@ class UI_ANDROID_EXPORT OverscrollRefresh {
   bool bottom_at_scroll_start_;
   bool overflow_y_hidden_;
 
-  enum class ScrollConsumptionState {
-    kDisabled,
-    kAwaitingScrollUpdateAck,
-    kEnabled,
-  } scroll_consumption_state_;
+  struct Disabled {};
+  struct AwaitingScrollUpdateAck {};
+  struct ActiveAction {
+    OverscrollAction action = OverscrollAction::kNone;
+    std::optional<BackGestureEventSwipeEdge> edge;
+    std::optional<blink::WebGestureDevice> device;
+  };
 
   float viewport_width_ = 0.f;
   float scroll_begin_x_ = 0.f;
@@ -156,12 +159,33 @@ class UI_ANDROID_EXPORT OverscrollRefresh {
   const raw_ptr<OverscrollRefreshHandler, DanglingUntriaged> handler_;
   bool touchpad_overscroll_history_navigation_enabled_ = false;
   bool is_gesture_navigation_mode_ = false;
-  struct ActiveAction {
-    OverscrollAction action = OverscrollAction::kNone;
-    std::optional<BackGestureEventSwipeEdge> edge;
-    std::optional<blink::WebGestureDevice> device;
-  };
-  std::optional<ActiveAction> active_action_;
+
+  class ScrollState {
+   public:
+    void Reset() { state_ = Disabled{}; }
+    void StartAwaitingAck() { state_ = AwaitingScrollUpdateAck{}; }
+    void SetEnabled(const ActiveAction& action) {
+      CHECK(!IsEnabled());
+      state_ = action;
+    }
+
+    bool IsDisabled() const { return std::holds_alternative<Disabled>(state_); }
+    bool IsAwaitingAck() const {
+      return std::holds_alternative<AwaitingScrollUpdateAck>(state_);
+    }
+    bool IsEnabled() const {
+      return std::holds_alternative<ActiveAction>(state_);
+    }
+
+    const ActiveAction& GetAction() const {
+      CHECK(IsEnabled());
+      return std::get<ActiveAction>(state_);
+    }
+
+   private:
+    std::variant<Disabled, AwaitingScrollUpdateAck, ActiveAction> state_ =
+        Disabled{};
+  } scroll_state_;
 };
 
 }  // namespace ui

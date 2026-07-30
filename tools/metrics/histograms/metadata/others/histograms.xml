@@ -4972,27 +4972,13 @@ chromium-metrics-reviews@google.com.
     expires_after="2027-05-22">
   <owner>nafisabedin@google.com</owner>
   <owner>pasko@chromium.org</owner>
+  <owner>bgeffon@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     Measures the time taken to write a channel message to the underlying
     transport in Mojo. The metric is downsampled to reduce its costs.
 
     This is only recorded on clients with high-resolution clocks.
-  </summary>
-</histogram>
-
-<histogram name="Mojo.Channel.WriteMessageLatency" units="ms"
-    expires_after="2026-11-29">
-  <owner>amistry@chromium.org</owner>
-  <owner>bgeffon@chromium.org</owner>
-  <owner>rockot@google.com</owner>
-  <improvement direction="LOWER_IS_BETTER"/>
-  <summary>
-    Measures the time taken to fully write a channel message to the underlying
-    channel.
-
-    On some clients this metric is logged only one time out of one thousand to
-    reduce measurment overhead.
   </summary>
 </histogram>
 
@@ -5011,16 +4997,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     The number queued messages waiting to be written, measured when a channel
     flush is attempted.
-  </summary>
-</histogram>
-
-<histogram name="Mojo.Channel.WriteReceiveMessageProcessType"
-    enum="ShortProcessType" expires_after="2026-11-15">
-  <owner>amanvr@chromium.org</owner>
-  <owner>woa-performance@google.com</owner>
-  <summary>
-    Records the number of received Mojo IPCs, split per process. Emitted each
-    time a mojo IPC is received.
   </summary>
 </histogram>
 
@@ -6013,6 +5989,18 @@ chromium-metrics-reviews@google.com.
     <variant name="SpawnTarget"/>
     <variant name="Total" summary="the total time"/>
   </token>
+</histogram>
+
+<histogram name="Process.ThreadTypeSwitcher.BatchSize" units="requests"
+    expires_after="2026-12-16">
+  <owner>kmg@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <summary>
+    Records the number of thread type change requests batched together in a
+    single ThreadTypeSwitcher::SetThreadTypes IPC message. Emitted by the
+    browser process when receiving thread priority change requests from a child
+    process on Linux and ChromeOS.
+  </summary>
 </histogram>
 
 <histogram name="PushMessaging.DeliveryStatus" enum="PushEventStatus"
@@ -7105,6 +7093,20 @@ useful for Chirp alerts (go/crca-alerts). -->
   <summary>
     The average number of words checked per hour. Sampled every 30 minutes.
     Warning: this histogram was expired from M83 to M107; data may be missing.
+  </summary>
+</histogram>
+
+<histogram name="Spellcheck.DocumentCustomDictionary.WordCount" units="words"
+    expires_after="2027-06-01">
+  <owner>shend@chromium.org</owner>
+  <owner>zsun@igalia.com</owner>
+  <summary>
+    Number of words accepted into a single RenderFrame's per-document custom
+    dictionary, which is populated via the SpellCheckCustomDictionary web API.
+
+    Recorded once per document, when the document is replaced by a new document
+    (navigation) or the frame is torn down. Documents that never added a word
+    through the API are not recorded.
   </summary>
 </histogram>
 

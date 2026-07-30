@@ -8,8 +8,10 @@
 #include <string>
 #include <type_traits>
 
+#include "base/byte_size.h"
 #include "base/memory/memory_pressure_level.h"
 #include "base/run_loop.h"
+#include "base/test/scoped_amount_of_physical_memory_override.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/browser_features.h"
@@ -290,14 +292,19 @@ class GlicProfileManagerPreloadingTest
     : public InProcessBrowserTest,
       public testing::WithParamInterface<bool> {
  public:
-  explicit GlicProfileManagerPreloadingTest(const std::string& delay_ms) {
+  explicit GlicProfileManagerPreloadingTest(
+      const std::string& delay_ms,
+      const std::string& min_required_ram_mb = "0") {
     if (IsPrewarmingEnabled()) {
       scoped_feature_list_.InitWithFeaturesAndParameters(
           /*enabled_features=*/{{features::kGlicWarming,
                                  {{features::kGlicWarmingDelayMs.name,
                                    delay_ms},
-                                  {features::kGlicWarmingJitterMs.name, "0"}}},
-                                {features::kGlicAnchorEntryPointForOnboardedUsers,
+                                  {features::kGlicWarmingJitterMs.name, "0"},
+                                  {features::kGlicWarmingMinRequiredRamMb.name,
+                                   min_required_ram_mb}}},
+                                {features::
+                                     kGlicAnchorEntryPointForOnboardedUsers,
                                  {}}},
           /*disabled_features=*/{});
     } else {
@@ -312,7 +319,8 @@ class GlicProfileManagerPreloadingTest
         net::NetworkChangeNotifier::ConnectionType::CONNECTION_WIFI);
   }
 
-  GlicProfileManagerPreloadingTest() : GlicProfileManagerPreloadingTest("0") {}
+  GlicProfileManagerPreloadingTest()
+      : GlicProfileManagerPreloadingTest("0", "0") {}
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
@@ -404,6 +412,49 @@ IN_PROC_BROWSER_TEST_P(GlicProfileManagerPreloadingTest,
 
   EXPECT_EQ(WaitForShouldPreload(),
             GlicPrewarmingChecksResult::kUnderMemoryPressure);
+}
+
+class GlicProfileManagerLowMemoryPreloadingTest
+    : public GlicProfileManagerPreloadingTest {
+ public:
+  GlicProfileManagerLowMemoryPreloadingTest()
+      : GlicProfileManagerPreloadingTest(/*delay_ms=*/"0",
+                                         /*min_required_ram_mb=*/"4096") {}
+  ~GlicProfileManagerLowMemoryPreloadingTest() override = default;
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         GlicProfileManagerLowMemoryPreloadingTest,
+                         ::testing::Bool());
+
+IN_PROC_BROWSER_TEST_P(GlicProfileManagerLowMemoryPreloadingTest,
+                       ShouldPreloadForProfile_LowMemoryDevice) {
+  if (!IsPrewarmingEnabled()) {
+    GTEST_SKIP() << "This test only applies if prewarming is enabled.";
+  }
+  ResetPrewarming();
+
+  // Set the physical memory override to 2GB (2048MB), which is less than 4GB.
+  base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(
+      base::GiBU(2));
+
+  EXPECT_EQ(WaitForShouldPreload(),
+            GlicPrewarmingChecksResult::kDeviceLowMemory);
+}
+
+IN_PROC_BROWSER_TEST_P(GlicProfileManagerLowMemoryPreloadingTest,
+                       ShouldPreloadForProfile_SufficientMemory) {
+  if (!IsPrewarmingEnabled()) {
+    GTEST_SKIP() << "This test only applies if prewarming is enabled.";
+  }
+  ResetPrewarming();
+
+  // Set the physical memory override to 8GB (8192MB), which is greater than
+  // 4GB.
+  base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(
+      base::GiBU(8));
+
+  EXPECT_EQ(WaitForShouldPreload(), GlicPrewarmingChecksResult::kSuccess);
 }
 
 IN_PROC_BROWSER_TEST_P(GlicProfileManagerPreloadingTest,

@@ -13,8 +13,8 @@ import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {Size} from '//resources/mojo/ui/gfx/geometry/mojom/geometry.mojom-webui.js';
 
-import {SubmitButtonIconType} from './composebox.js';
 import type {PageHandlerRemote} from './composebox.mojom-webui.js';
+import {SubmitButtonIconType} from './composebox_mixin.js';
 import {ComposeboxProxyImpl} from './composebox_proxy.js';
 import {getCss} from './composebox_voice_search.css.js';
 import {getHtml} from './composebox_voice_search.html.js';
@@ -132,12 +132,7 @@ function toError(webkitError: string): VoiceSearchError {
   }
 }
 
-// TODO(crbug.com/40449919): Remove when bug is fixed.
-declare global {
-  interface Window {
-    webkitSpeechRecognition: typeof SpeechRecognition;
-  }
-}
+
 
 export interface ComposeboxVoiceSearchElement {
   $: {
@@ -167,6 +162,7 @@ export class ComposeboxVoiceSearchElement extends
       submitStopButtonsEnabled: {type: Boolean},
       liveTranscriptEnabled: {type: Boolean},
       pageCallbackRouter: {type: Object},
+      metricSource: {type: String, attribute: 'metric-source'},
       transcript_: {type: String},
       listeningPlaceholder_: {type: String},
       state_: {type: Number},
@@ -206,9 +202,14 @@ export class ComposeboxVoiceSearchElement extends
        * `dynamicTimeoutEnabled` is set, then this number is ignored.
        */
       idleTimeout: {type: Number},
+      /**
+       * Whether voice search was activated by a keyboard shortcut.
+       */
+      activatedByKeyboard: {type: Boolean},
     };
   }
 
+  accessor activatedByKeyboard: boolean = false;
   accessor submitStopButtonsEnabled: boolean = false;
   accessor liveTranscriptEnabled: boolean = true;
   // Accept page callback router attribute asynchronously, so that the parent
@@ -229,7 +230,7 @@ export class ComposeboxVoiceSearchElement extends
   accessor isPermissionPromptOpen: boolean = false;
 
   private accessor state_: State = State.UNINITIALIZED;
-  private metricSource_: string = '';
+  accessor metricSource: string = '';
   private blurTimeoutId_: number|null = null;
 
   // Shared statically to coordinate the singleton SpeechRecognition service
@@ -255,7 +256,8 @@ export class ComposeboxVoiceSearchElement extends
 
   constructor() {
     super();
-    this.voiceRecognition_ = new window.webkitSpeechRecognition();
+    this.voiceRecognition_ =
+        WindowProxy.getInstance().createSpeechRecognition();
     this.voiceRecognition_.interimResults = true;
     this.voiceRecognition_.lang = window.navigator.language;
     this.voiceRecognition_.onresult = this.onResult_.bind(this);
@@ -272,9 +274,11 @@ export class ComposeboxVoiceSearchElement extends
 
   override connectedCallback() {
     super.connectedCallback();
-    this.searchboxHandler_.getPageClassification().then(({metricSource}) => {
-      this.metricSource_ = metricSource || '';
-    });
+    if (!this.metricSource) {
+      this.searchboxHandler_.getPageClassification().then(({metricSource}) => {
+        this.metricSource = metricSource || '';
+      });
+    }
   }
 
   override disconnectedCallback() {
@@ -324,10 +328,10 @@ export class ComposeboxVoiceSearchElement extends
     ComposeboxVoiceSearchElement.activeRecognition_ = this.voiceRecognition_;
     this.state_ = State.STARTED;
     this.resetIdleTimer_();
-    // TODO(crbug.com/504726157): When the NTP searchbox migrates to use this
-    // component, it will need to log VoiceSearchAction.ACTIVATED_BY_KEYBOARD.
     this.recordMetric_(
-        VoiceSearchMetricType.ACTION, VoiceSearchAction.ACTIVATED_BY_ICON,
+        VoiceSearchMetricType.ACTION,
+        this.activatedByKeyboard ? VoiceSearchAction.ACTIVATED_BY_KEYBOARD :
+                                   VoiceSearchAction.ACTIVATED_BY_ICON,
         VoiceSearchAction.MAX_VALUE + 1);
     this.addOutsideListeners_();
   }
@@ -591,11 +595,11 @@ export class ComposeboxVoiceSearchElement extends
     if (!chrome.metricsPrivate) {
       return;
     }
-    if (!this.metricSource_) {
+    if (!this.metricSource) {
       return;
     }
 
-    const metricName = `VoiceSearch.${type}.${this.metricSource_}`;
+    const metricName = `VoiceSearch.${type}.${this.metricSource}`;
     chrome.metricsPrivate.recordEnumerationValue(
         metricName, metricEnumValue, max);
 
@@ -606,7 +610,7 @@ export class ComposeboxVoiceSearchElement extends
     // TODO(b/501544449): This dual-logging block is temporary to ensure data
     // continuity. Remove this once the unified VoiceSearch metrics are
     // validated.
-    if (this.metricSource_ === 'NTP_REALBOX') {
+    if (this.metricSource === 'NTP_REALBOX') {
       if (type === VoiceSearchMetricType.ACTION) {
         // Handle the case that NewTabPage metric `CLOSE_OVERLAY` is replaced by
         // `CANCELED_BY_USER`.

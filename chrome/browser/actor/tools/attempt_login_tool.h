@@ -86,6 +86,9 @@ class AttemptLoginTool : public Tool {
   void MaybeRetryCredentialNeedingFocus();
 
   actor_login::ActorLoginService& GetActorLoginService();
+  actor_login::FrameFillingStartedCallback GetFrameFillingStartedCallback(
+      tabs::TabInterface* tab,
+      const actor_login::Credential& credential);
 
   // Holds the credentials after they are returned from the login service. The
   // credentials are cleared after the login attempt is made.

@@ -20,6 +20,7 @@ import action_sanitizers
 import context as translation_context
 import logging as log
 import translation_config
+from components.cronet.gn2bp.arguments import CommandLineUtility
 
 REPOSITORY_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
@@ -154,15 +155,16 @@ def create_proto_modules(blueprint, gn, target, is_test_target, context):
             args = arch.args
             if not args:
                 continue
-            arg_count = args.count(arg_name)
-            if arg_count == 0:
+            util = CommandLineUtility(args)
+            if not util.has_arg(arg_name):
                 arch_values.add(None)
                 continue
-            assert arg_count == 1, (arg_name, target.name, arch_name)
-            value_index = args.index(arg_name) + 1
-            assert (value_index
-                    < len(args)), (arg_name, target.name, arch_name)
-            arch_value = args[value_index]
+            try:
+                arch_value = util.get_flag_value(arg_name)
+            except AssertionError as e:
+                raise AssertionError(
+                    f"Error getting {arg_name} for {target.name} ({arch_name}): {e}"
+                ) from e
             if sanitize is not None:
                 arch_value = sanitize(arch_value)
             arch_values.add(arch_value)
@@ -649,16 +651,13 @@ def get_bindgen_flags(args: List[str]) -> List[str]:
   Returns:
     Gets the appropriate bindgen_flags from the GN target args
   """
-    if "--bindgen-flags" not in args:
+    util = CommandLineUtility(args)
+    if not util.has_arg("--bindgen-flags"):
         return []
 
     bindgen_flags = []
-    for arg in args[args.index("--bindgen-flags") + 1:]:
-        if arg.startswith("--"):
-            # This is a new argument for the python script and not a bindgen argument.
-            break
+    for arg in util.get_list_values("--bindgen-flags"):
         bindgen_flags.append("--" + arg)
-
     return bindgen_flags
 
 

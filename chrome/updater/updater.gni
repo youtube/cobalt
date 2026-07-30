@@ -1,0 +1,9 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Targets in the updater project should not depend on these packages.
+updater_assert_no_deps = [
+  "//third_party/libaom",  # Avoids redistribution issues.
+  "//ui/base",  # Undesirable dependency.
+]

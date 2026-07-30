@@ -116,7 +116,7 @@ AXWebArea
 ++++AXColumn
 ++++++AXCell
 ++++++++AXStaticText AXValue='B'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++AXTable
 ++++AXRow AXTitle='AlphabetAB'
 ++++++AXCell
@@ -134,7 +134,7 @@ AXWebArea
 ++++AXColumn
 ++++++AXCell
 ++++++++AXStaticText AXValue='B'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++AXTable
 ++++AXRow AXTitle='AlphabetAB'
 ++++++AXCell AXSortDirection='AXAscendingSortDirection'
@@ -152,7 +152,7 @@ AXWebArea
 ++++AXColumn
 ++++++AXCell
 ++++++++AXStaticText AXValue='B'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++AXTable
 ++++AXRow AXTitle='AlphabetBA'
 ++++++AXCell AXSortDirection='AXDescendingSortDirection'
@@ -170,7 +170,7 @@ AXWebArea
 ++++AXColumn
 ++++++AXCell
 ++++++++AXStaticText AXValue='A'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++AXTable
 ++++AXRow AXTitle='AlphabetAA'
 ++++++AXCell AXSortDirection='AXUnknownSortDirection'
@@ -188,4 +188,4 @@ AXWebArea
 ++++AXColumn
 ++++++AXCell
 ++++++++AXStaticText AXValue='A'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup

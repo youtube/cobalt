@@ -25,7 +25,7 @@ typedef v8::ModuleImportPhase ModuleImportPhase;
 
 // Spec module types. Return value of
 // "https://html.spec.whatwg.org/#module-type-from-module-request".
-enum class ModuleType { kInvalid, kJavaScriptOrWasm, kJSON, kCSS };
+enum class ModuleType { kInvalid, kJavaScriptOrWasm, kJSON, kCSS, kTEXT };
 
 // Non-standard internal module types. The spec defines javascript-or-wasm
 // as the module type for module requests without an explicit type and uses
@@ -33,7 +33,7 @@ enum class ModuleType { kInvalid, kJavaScriptOrWasm, kJSON, kCSS };
 // We don't pass the MIME type to `ModuleScript`, instead, we resolve the
 // kJavascriptOrWasm type to kJavaScript or kWasm before calling the
 // ModuleScriptCreationParams constructor.
-enum class ResolvedModuleType { kJSON, kCSS, kJavaScript, kWasm };
+enum class ResolvedModuleType { kJSON, kCSS, kJavaScript, kWasm, kTEXT };
 
 class CORE_EXPORT ModuleScriptCreationParams {
   DISALLOW_NEW();

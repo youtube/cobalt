@@ -49,10 +49,12 @@
 #include "third_party/blink/renderer/core/html/forms/html_button_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_data_list_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
+#include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_opt_group_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_select_element.h"
 #include "third_party/blink/renderer/core/html/forms/menu_list_inner_element.h"
 #include "third_party/blink/renderer/core/html/forms/popup_menu.h"
+#include "third_party/blink/renderer/core/html/html_div_element.h"
 #include "third_party/blink/renderer/core/html/html_hr_element.h"
 #include "third_party/blink/renderer/core/html/html_slot_element.h"
 #include "third_party/blink/renderer/core/html/html_span_element.h"
@@ -616,7 +618,8 @@ void MenuListSelectType::CreateShadowSubtree(ShadowRoot& root) {
   popover_->setAttribute(html_names::kPopoverAttr, AtomicString("auto"));
 
   popover_options_slot_ = MakeGarbageCollected<HTMLSlotElement>(doc);
-  popover_options_slot_->SetIdAttribute(shadow_element_names::kSelectOptions);
+  popover_options_slot_->SetIdAttribute(
+      shadow_element_names::kPseudoSelectOptionsSlot);
 
   autofill_popover_ =
       MakeGarbageCollected<HTMLSelectElement::SelectAutofillPreviewElement>(
@@ -650,10 +653,8 @@ void MenuListSelectType::CreateShadowSubtree(ShadowRoot& root) {
     popover_input_slot_->SetIdAttribute(shadow_element_names::kSelectInput);
     popover_->AppendChild(popover_input_slot_);
 
-    // TODO(crbug.com/453705243): Consider making this listbox element
-    // display:contents so it doesn't interfere with author styling, since it
-    // isn't exposed as a part-like pseudo-element.
     HTMLDivElement* listbox = MakeGarbageCollected<HTMLDivElement>(doc);
+    listbox->SetShadowPseudoId(shadow_element_names::kSelectListbox);
     listbox->setAttribute(html_names::kRoleAttr, AtomicString("listbox"));
     popover_->AppendChild(listbox);
     listbox->AppendChild(popover_options_slot_);
@@ -693,6 +694,10 @@ void MenuListSelectType::ManuallyAssignSlots() {
     if (RuntimeEnabledFeatures::FilterableSelectEnabled() &&
         select_->NumDescendantInputs()) {
       CHECK(popover_input_slot_);
+      if (IsA<HTMLInputElement>(child)) {
+        children_with_descendant_input.push_back(child);
+        continue;
+      }
       auto it = select_->ChildrenDescendantCounts().find(&child);
       if (it != select_->ChildrenDescendantCounts().end()) {
         if (it->value.num_inputs && !it->value.num_options) {
@@ -1329,6 +1334,7 @@ class ListBoxSelectType final : public SelectType {
   Member<HTMLOptionElement> active_selection_end_;
   Member<HTMLSlotElement> option_slot_;
   Member<HTMLSlotElement> input_slot_;
+  Member<HTMLDivElement> listbox_;
   bool is_in_non_contiguous_selection_ = false;
   bool active_selection_state_ = false;
   AppearanceState appearance_state_ = AppearanceState::kNoStyle;
@@ -1345,6 +1351,7 @@ void ListBoxSelectType::Trace(Visitor* visitor) const {
   visitor->Trace(active_selection_end_);
   visitor->Trace(option_slot_);
   visitor->Trace(input_slot_);
+  visitor->Trace(listbox_);
   SelectType::Trace(visitor);
 }
 
@@ -1741,21 +1748,29 @@ void ListBoxSelectType::ScrollToOption(HTMLOptionElement* option) {
 
 void ListBoxSelectType::ScrollToOptionTask() {
   HTMLOptionElement* option = option_to_scroll_to_.Release();
-  if (!option || !select_->isConnected() || will_be_destroyed_)
+  if (!option || !select_->isConnected() || will_be_destroyed_) {
     return;
+  }
   // OptionRemoved() makes sure option_to_scroll_to_ doesn't have an option
   // with another owner.
   DCHECK_EQ(option->OwnerSelectElement(), select_);
   select_->GetDocument().UpdateStyleAndLayoutForNode(
       select_, DocumentUpdateReason::kScroll);
-  if (!select_->GetLayoutObject())
+  if (!select_->GetLayoutObject()) {
     return;
+  }
   PhysicalRect bounds = option->BoundingBoxForScrollIntoView();
 
   // The following code will not scroll parent boxes unlike ScrollRectToVisible.
-  auto* box = select_->GetLayoutBox();
-  if (!box->IsScrollContainer())
+  LayoutBox* box = nullptr;
+  if (listbox_) {
+    box = listbox_->GetLayoutBox();
+  } else {
+    box = select_->GetLayoutBox();
+  }
+  if (!box || !box->IsScrollContainer()) {
     return;
+  }
   DCHECK(box->Layer());
   DCHECK(box->Layer()->GetScrollableArea());
   box->Layer()->GetScrollableArea()->ScrollIntoView(
@@ -1962,7 +1977,7 @@ void ListBoxSelectType::SetListBoxActiveSelection(HTMLOptionElement* option) {
 void ListBoxSelectType::CreateShadowSubtree(ShadowRoot& root) {
   Document& doc = select_->GetDocument();
   option_slot_ = MakeGarbageCollected<HTMLSlotElement>(doc);
-  option_slot_->SetIdAttribute(shadow_element_names::kSelectOptions);
+  option_slot_->SetIdAttribute(shadow_element_names::kPseudoSelectOptionsSlot);
 
   if (RuntimeEnabledFeatures::FilterableSelectEnabled() &&
       select_->NumDescendantInputs()) {
@@ -1970,17 +1985,17 @@ void ListBoxSelectType::CreateShadowSubtree(ShadowRoot& root) {
     input_slot_->SetIdAttribute(shadow_element_names::kSelectInput);
     root.appendChild(input_slot_);
 
-    // TODO(crbug.com/453705243): Consider making this listbox element
-    // display:contents so it doesn't interfere with author styling, since it
-    // isn't exposed as a part-like pseudo-element.
     HTMLDivElement* listbox = MakeGarbageCollected<HTMLDivElement>(doc);
+    listbox->SetShadowPseudoId(shadow_element_names::kSelectListbox);
     listbox->setAttribute(html_names::kRoleAttr, AtomicString("listbox"));
     root.appendChild(listbox);
     listbox->AppendChild(option_slot_);
+    listbox_ = listbox;
   } else {
     CHECK(!select_->NumDescendantInputs());
     input_slot_ = nullptr;
     root.appendChild(option_slot_);
+    listbox_ = nullptr;
   }
 }
 
@@ -1990,6 +2005,11 @@ void ListBoxSelectType::ManuallyAssignSlots() {
   for (Node& child : NodeTraversal::ChildrenOf(*select_)) {
     if (RuntimeEnabledFeatures::FilterableSelectEnabled() &&
         select_->NumDescendantInputs()) {
+      if (IsA<HTMLInputElement>(child)) {
+        CHECK(input_slot_);
+        children_with_descendant_input.push_back(child);
+        continue;
+      }
       auto it = select_->ChildrenDescendantCounts().find(&child);
       if (it != select_->ChildrenDescendantCounts().end()) {
         if (it->value.num_inputs && !it->value.num_options) {

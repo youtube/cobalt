@@ -4,17 +4,17 @@ AXWebArea AXTitle='Material Web Select Events'
 ++++AXGroup
 ++++++AXComboBox AXDescription='Test Select' AXValue='Test Select Option 1'
 ++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++AXGroup
-++++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++++AXGroup
 ++++++++++++++AXGroup
 ++++++++++++++++AXGroup
 ++++++++++++++++++AXStaticText AXValue='Test Select'
 ++++++++++++++AXGroup
 ++++++++++++++++AXStaticText AXValue='Option 1'
-++++++++++++AXGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++++++AXImage
 === End accessibility tree ===
 AXTitleChanged on AXStaticText AXValue='Option 2'
@@ -24,17 +24,17 @@ AXWebArea AXTitle='Material Web Select Events'
 ++++AXGroup
 ++++++AXComboBox AXDescription='Test Select' AXValue='Test Select Option 1'
 ++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++AXGroup
-++++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++++AXGroup
 ++++++++++++++AXGroup
 ++++++++++++++++AXGroup
 ++++++++++++++++++AXStaticText AXValue='Test Select'
 ++++++++++++++AXGroup
 ++++++++++++++++AXStaticText AXValue='Option 2' <<<<<< CHANGED
-++++++++++++AXGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++++++AXImage
 === End accessibility tree ===
 === Start Continuation ===
@@ -44,17 +44,17 @@ AXWebArea AXTitle='Material Web Select Events'
 ++++AXGroup
 ++++++AXComboBox AXDescription='Test Select' AXValue='Test Select Option 1'
 ++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++AXGroup
-++++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++++AXGroup
 ++++++++++++++AXGroup
 ++++++++++++++++AXGroup
 ++++++++++++++++++AXStaticText AXValue='Test Select'
 ++++++++++++++AXGroup
 ++++++++++++++++AXStaticText AXValue='Option 2'
-++++++++++++AXGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++++++AXImage
 === End accessibility tree ===
 AXTitleChanged on AXStaticText AXValue='Option 3'
@@ -64,17 +64,17 @@ AXWebArea AXTitle='Material Web Select Events'
 ++++AXGroup
 ++++++AXComboBox AXDescription='Test Select' AXValue='Test Select Option 1'
 ++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++AXGroup
-++++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++++AXGroup
 ++++++++++++++AXGroup
 ++++++++++++++++AXGroup
 ++++++++++++++++++AXStaticText AXValue='Test Select'
 ++++++++++++++AXGroup
 ++++++++++++++++AXStaticText AXValue='Option 3' <<<<<< CHANGED
-++++++++++++AXGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++++++AXImage
 === End accessibility tree ===
 === Start Continuation ===
@@ -84,17 +84,17 @@ AXWebArea AXTitle='Material Web Select Events'
 ++++AXGroup
 ++++++AXComboBox AXDescription='Test Select' AXValue='Test Select Option 1'
 ++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++AXGroup
-++++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++++AXGroup
 ++++++++++++++AXGroup
 ++++++++++++++++AXGroup
 ++++++++++++++++++AXStaticText AXValue='Test Select'
 ++++++++++++++AXGroup
 ++++++++++++++++AXStaticText AXValue='Option 3'
-++++++++++++AXGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++++++AXImage
 === End accessibility tree ===
 AXTitleChanged on AXStaticText AXValue='Option 1'
@@ -104,16 +104,16 @@ AXWebArea AXTitle='Material Web Select Events'
 ++++AXGroup
 ++++++AXComboBox AXDescription='Test Select' AXValue='Test Select Option 1'
 ++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++AXGroup
-++++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++++AXGroup
 ++++++++++++++AXGroup
 ++++++++++++++++AXGroup
 ++++++++++++++++++AXStaticText AXValue='Test Select'
 ++++++++++++++AXGroup
 ++++++++++++++++AXStaticText AXValue='Option 1' <<<<<< CHANGED
-++++++++++++AXGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++++++AXImage
 === End accessibility tree ===

@@ -79,7 +79,8 @@ ChildMemoryConsumerRegistryHost::ChildMemoryConsumerRegistryHost(
       disconnect_handler_(std::move(disconnect_handler)) {
   CHECK(disconnect_handler_);
 
-  controller_->AddMemoryConsumerGroupHost(child_process_id_, this);
+  controller_->AddMemoryConsumerGroupHost(process_type_, child_process_id_,
+                                          this);
 
   // The use of Unretained is safe here because `this` owns the receiver and
   // will always outlive it.
@@ -129,42 +130,58 @@ void ChildMemoryConsumerRegistryHost::BindCoordinator(
 }
 
 void ChildMemoryConsumerRegistryHost::Register(
+    std::vector<mojom::MemoryConsumerRegistrationPtr> registrations) {
+  for (auto& registration : registrations) {
+    if (!RegisterImpl(registration->consumer_id, registration->consumer_name,
+                      registration->traits)) {
+      // RegisterImpl() reported a bad message; stop processing the rest of the
+      // (now-rejected) batch. We don't need to unregister any that succeeded
+      // prior to the one that failed since that will happen automatically when
+      // the remote process is terminated, which will happen on the first bad
+      // message.
+      return;
+    }
+  }
+}
+
+bool ChildMemoryConsumerRegistryHost::RegisterImpl(
     uint32_t consumer_id,
     const std::string& consumer_name,
     std::optional<base::MemoryConsumerTraits> traits) {
   if (!coordinator_remote_.is_bound()) {
     mojo::ReportBadMessage("Register called before BindCoordinator");
-    return;
+    return false;
   }
 
   // Ensure a child process cannot flood the browser with too many memory
   // consumers.
   if (consumers_.size() >= kMaxMemoryConsumersPerProcess) {
     mojo::ReportBadMessage("Too many memory consumers registered");
-    return;
+    return false;
   }
 
   // Ensure a child process cannot send overly large strings to the browser
   // process.
   if (consumer_name.length() > kMaxMemoryConsumerNameLength) {
     mojo::ReportBadMessage("Memory consumer name is too long");
-    return;
+    return false;
   }
 
   if (consumer_id != base::PersistentHash(consumer_name)) {
     mojo::ReportBadMessage(
         "consumer_id does not match the hash of consumer_name");
-    return;
+    return false;
   }
 
   auto [_, inserted] = consumers_.insert(consumer_id);
   if (!inserted) {
     mojo::ReportBadMessage("Register called for an existing consumer_id");
-    return;
+    return false;
   }
 
   controller_->OnConsumerGroupAdded(consumer_id, consumer_name, traits,
-                                    process_type_, child_process_id_);
+                                    child_process_id_);
+  return true;
 }
 
 void ChildMemoryConsumerRegistryHost::Unregister(uint32_t consumer_id) {

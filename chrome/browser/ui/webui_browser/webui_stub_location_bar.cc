@@ -140,6 +140,11 @@ bool WebUIStubLocationBar::IsEditingOrEmpty() const {
   return false;
 }
 
+bool WebUIStubLocationBar::IsMouseHovered() const {
+  NOTIMPLEMENTED();
+  return false;
+}
+
 void WebUIStubLocationBar::InvalidateLayout() {
   NOTIMPLEMENTED();
 }

@@ -32,6 +32,9 @@
 #include "base/types/expected.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/device_info.h"
+#endif
 #include "components/enterprise/common/proto/synced/browser_events.pb.h"
 #include "components/enterprise/common/proto/synced_from_google3/chrome_reporting_entity.pb.h"
 #include "components/enterprise/common/proto/upload_request_response.pb.h"
@@ -212,6 +215,7 @@ em::DeviceManagementRequest GetPolicyRequest() {
   em::PolicyFetchRequest* policy_fetch_request =
       policy_request.mutable_policy_request()->add_requests();
   policy_fetch_request->set_policy_type(dm_protocol::GetChromeUserPolicyType());
+  policy_fetch_request->mutable_device_info()->set_form_factor(GetFormFactor());
   policy_fetch_request->set_signature_type(em::PolicyFetchRequest::SHA256_RSA);
   policy_fetch_request->set_verification_key_hash(kPolicyVerificationKeyHash);
   policy_fetch_request->set_device_dm_token(kDeviceDMToken);
@@ -233,6 +237,7 @@ em::DeviceManagementRequest GetRegistrationRequest() {
   em::DeviceRegisterRequest* register_request =
       request.mutable_register_request();
   register_request->set_type(em::DeviceRegisterRequest::USER);
+  register_request->mutable_device_info()->set_form_factor(GetFormFactor());
   register_request->set_machine_id(kMachineID);
   register_request->set_machine_model(kMachineModel);
   register_request->set_brand_code(kBrandCode);
@@ -271,6 +276,7 @@ em::DeviceManagementRequest GetReregistrationRequest() {
   em::DeviceRegisterRequest* reregister_request =
       request.mutable_register_request();
   reregister_request->set_type(em::DeviceRegisterRequest::USER);
+  reregister_request->mutable_device_info()->set_form_factor(GetFormFactor());
   reregister_request->set_machine_id(kMachineID);
   reregister_request->set_machine_model(kMachineModel);
   reregister_request->set_brand_code(kBrandCode);
@@ -297,6 +303,7 @@ em::DeviceManagementRequest GetTokenBasedDeviceRegistrationRequest() {
       request.mutable_token_based_device_register_request()
           ->mutable_device_register_request();
   register_request->set_type(em::DeviceRegisterRequest::DEVICE);
+  register_request->mutable_device_info()->set_form_factor(GetFormFactor());
   register_request->set_machine_id(kMachineID);
   register_request->set_machine_model(kMachineModel);
   register_request->set_brand_code(kBrandCode);
@@ -330,6 +337,7 @@ em::DeviceManagementRequest GetCertBasedRegistrationRequest(
   em::DeviceRegisterRequest* register_request =
       data.mutable_device_register_request();
   register_request->set_type(em::DeviceRegisterRequest::DEVICE);
+  register_request->mutable_device_info()->set_form_factor(GetFormFactor());
   register_request->set_machine_id(kMachineID);
   register_request->set_machine_model(kMachineModel);
   register_request->set_brand_code(kBrandCode);
@@ -3961,5 +3969,76 @@ TEST_P(CloudPolicyClientCertProvisioningRequestTest, NonSuccessStatus) {
 INSTANTIATE_TEST_SUITE_P(,
                          CloudPolicyClientCertProvisioningRequestTest,
                          ::testing::Values(std::string(), kDeviceDMToken));
+
+#if BUILDFLAG(IS_ANDROID)
+// Constantly failing on android-automotive-12l-x64-rel-tests.
+// crbug.com/528019503
+TEST_F(CloudPolicyClientTest, DISABLED_PolicyFetchDesktopAndroid) {
+  base::android::device_info::set_is_desktop_for_testing(true);
+  policy_type_ = dm_protocol::GetChromeUserPolicyType();
+  CreateClient();
+
+  RegisterClient();
+
+  em::DeviceManagementRequest expected_request = GetPolicyRequest();
+
+  ExpectAndCaptureJob(GetPolicyResponse());
+
+  RunClientTaskAndWaitPolicyFetch(base::BindLambdaForTesting(
+      [this]() { client_->FetchPolicy(kPolicyFetchReason); }));
+
+  EXPECT_EQ(DeviceManagementService::JobConfiguration::TYPE_POLICY_FETCH,
+            job_type_);
+  EXPECT_EQ(auth_data_, DMAuth::FromDMToken(kDMToken));
+  EXPECT_EQ(job_request_.SerializePartialAsString(),
+            expected_request.SerializePartialAsString());
+  ASSERT_TRUE(job_request_.has_policy_request());
+  ASSERT_GE(job_request_.policy_request().requests_size(), 1);
+  const auto& policy_request = job_request_.policy_request().requests(0);
+  ASSERT_TRUE(policy_request.has_device_info());
+  const auto& device_info = policy_request.device_info();
+  ASSERT_TRUE(device_info.has_form_factor());
+  EXPECT_EQ(device_info.form_factor(), em::FORM_FACTOR_DESKTOP);
+
+  base::android::device_info::reset_is_desktop_for_testing();
+}
+
+// Constantly failing on android-automotive-12l-x64-rel-tests.
+// crbug.com/528019503
+TEST_F(CloudPolicyClientTest, DISABLED_RegistrationDesktopAndroid) {
+  base::android::device_info::set_is_desktop_for_testing(true);
+  policy_type_ = dm_protocol::GetChromeUserPolicyType();
+  CreateClient();
+
+  em::DeviceManagementRequest expected_request = GetRegistrationRequest();
+
+  ExpectAndCaptureJob(GetRegistrationResponse());
+  EXPECT_CALL(device_dmtoken_callback_observer_,
+              OnDeviceDMTokenRequested(
+                  /*user_affiliation_ids=*/std::vector<std::string>()))
+      .WillOnce(Return(kDeviceDMToken));
+
+  RunClientTaskAndWaitRegistration(base::BindLambdaForTesting([this]() {
+    CloudPolicyClient::RegistrationParameters register_user(
+        em::DeviceRegisterRequest::USER,
+        em::DeviceRegisterRequest::FLAVOR_USER_REGISTRATION);
+    client_->Register(register_user, std::string() /* no client_id*/,
+                      kOAuthToken);
+  }));
+
+  EXPECT_EQ(DeviceManagementService::JobConfiguration::TYPE_REGISTRATION,
+            job_type_);
+  EXPECT_EQ(job_request_.SerializePartialAsString(),
+            expected_request.SerializePartialAsString());
+  ASSERT_TRUE(job_request_.has_register_request());
+  const auto& register_request = job_request_.register_request();
+  ASSERT_TRUE(register_request.has_device_info());
+  const auto& device_info = register_request.device_info();
+  ASSERT_TRUE(device_info.has_form_factor());
+  EXPECT_EQ(device_info.form_factor(), em::FORM_FACTOR_DESKTOP);
+
+  base::android::device_info::reset_is_desktop_for_testing();
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace policy

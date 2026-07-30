@@ -5,6 +5,10 @@
 #ifndef CHROME_BROWSER_PLATFORM_EXPERIENCE_DELEGATED_TASKS_DELEGATED_TASK_H_
 #define CHROME_BROWSER_PLATFORM_EXPERIENCE_DELEGATED_TASKS_DELEGATED_TASK_H_
 
+#include <optional>
+#include <string_view>
+
+#include "base/command_line.h"
 #include "base/time/time.h"
 
 namespace platform_experience {
@@ -13,13 +17,20 @@ namespace platform_experience {
 enum class DelegatedTaskStatus {
   kSuccess = 0,
   kFailure = 1,
-  kMaxValue = kFailure,
+  kRunnerBusy = 2,
+  kPehNotFound = 3,
+  kProcessLaunchFailure = 4,
+  kRunnerDestroyedBeforeTaskCompletion = 5,
+  kMaxValue = kRunnerDestroyedBeforeTaskCompletion,
 };
 
 enum class DelegatedTaskType {
   kRegisterSearchPromotion = 0,
   kMaxValue = kRegisterSearchPromotion,
 };
+
+std::optional<DelegatedTaskType> ParseDelegatedTaskType(
+    std::string_view task_name);
 
 // Interface/Base class defining a delegated logic task. Concrete
 // implementations define the task type, timeout, and exit code interpretation.
@@ -30,12 +41,18 @@ class DelegatedTask {
   // The delegated task type to be executed.
   virtual DelegatedTaskType GetTaskType() const = 0;
 
-  // The execution timeout for this task. Defaults to 10 seconds.
-  virtual base::TimeDelta GetTimeout() const;
+  // Returns the task name.
+  virtual std::string_view GetTaskName() const = 0;
+
+  // Optionally appends task-specific command line switches. Defaults to no-op.
+  virtual void AppendCommandLineSwitches(base::CommandLine& cmd_line) const;
 
   // Maps task-specific exit codes that are not handled by the
   // `PehDelegatedTaskRunner` to a ResultStatus.
   virtual DelegatedTaskStatus ParseExitCode(int exit_code) const = 0;
+
+  // The execution timeout for this task. Defaults to 10 seconds.
+  virtual base::TimeDelta GetTimeout() const;
 };
 
 }  // namespace platform_experience

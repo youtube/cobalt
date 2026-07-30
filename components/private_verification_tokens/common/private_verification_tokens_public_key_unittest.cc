@@ -9,20 +9,22 @@
 
 #include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
+#include "url/origin.h"
 
 namespace private_verification_tokens {
 
 namespace {
 
 TEST(PrivateVerificationTokensPublicKey, Create) {
-  std::string etld_plus_one = "a.example";
+  url::Origin issuer = url::Origin::Create(GURL("https://a.example"));
   std::vector<uint8_t> public_key = {2, 3, 6, 8};
   uint32_t version = 3;
   uint32_t key_id = 7;
   base::Time expiration = base::Time::FromMillisecondsSinceUnixEpoch(42);
-  PrivateVerificationTokensPublicKey pvt_key(etld_plus_one, public_key, key_id,
+  PrivateVerificationTokensPublicKey pvt_key(issuer, public_key, key_id,
                                              expiration, version);
-  EXPECT_EQ(pvt_key.etld_plus_one(), etld_plus_one);
+  EXPECT_EQ(pvt_key.issuer(), issuer);
   EXPECT_EQ(pvt_key.public_key(), public_key);
   EXPECT_EQ(pvt_key.key_id(), key_id);
   EXPECT_EQ(pvt_key.expiration(), expiration);

@@ -63,6 +63,7 @@
 #include "components/origin_matcher/origin_matcher.h"
 #include "components/origin_trials/browser/leveldb_persistence_provider.h"
 #include "components/origin_trials/browser/origin_trials.h"
+#include "components/performance_manager/embedder/performance_manager_registry.h"
 #include "components/policy/core/browser/browser_policy_connector_base.h"
 #include "components/policy/core/browser/configuration_policy_pref_store.h"
 #include "components/policy/core/browser/url_list/url_blocklist_manager.h"
@@ -181,9 +182,18 @@ AwBrowserContext::AwBrowserContext(std::string name,
       std::make_unique<AwContentRestrictionManagerClient>();
   content_restriction_blocked_navigation_tracker_ =
       std::make_unique<AwContentRestrictionBlockedNavigationTracker>();
+
+  if (auto* pm_registry =
+          performance_manager::PerformanceManagerRegistry::GetInstance()) {
+    pm_registry->NotifyBrowserContextAdded(this);
+  }
 }
 
 AwBrowserContext::~AwBrowserContext() {
+  if (auto* pm_registry =
+          performance_manager::PerformanceManagerRegistry::GetInstance()) {
+    pm_registry->NotifyBrowserContextRemoved(this);
+  }
   NotifyWillBeDestroyed();
   SimpleKeyMap::GetInstance()->Dissociate(this);
   ShutdownStoragePartitions();

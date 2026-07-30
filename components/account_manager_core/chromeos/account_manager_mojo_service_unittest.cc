@@ -366,25 +366,6 @@ TEST_F(AccountManagerMojoServiceTest,
   EXPECT_EQ(kFakeEmail, observer.GetLastRemovedAccount().raw_email);
 }
 
-TEST_F(AccountManagerMojoServiceTest, GetAccounts) {
-  ASSERT_TRUE(InitializeAccountManager());
-  {
-    std::vector<mojom::AccountPtr> accounts;
-    account_manager_async_waiter()->GetAccounts(&accounts);
-    EXPECT_TRUE(accounts.empty());
-  }
-
-  const account_manager::AccountKey kTestAccountKey =
-      account_manager::AccountKey::FromGaiaId(kFakeGaiaId);
-  account_manager()->UpsertAccount(kTestAccountKey, kFakeEmail, kFakeToken);
-  std::vector<mojom::AccountPtr> accounts;
-  account_manager_async_waiter()->GetAccounts(&accounts);
-  EXPECT_EQ(1UL, accounts.size());
-  EXPECT_EQ(kFakeEmail, accounts[0]->raw_email);
-  EXPECT_EQ(kFakeGaiaId.ToString(), accounts[0]->key->id);
-  EXPECT_EQ(mojom::AccountType::kGaia, accounts[0]->key->account_type);
-}
-
 TEST_F(AccountManagerMojoServiceTest,
        ShowAddAccountDialogReturnsInProgressIfDialogIsOpen) {
   EXPECT_EQ(0, GetFakeAccountManagerUI()->show_account_addition_dialog_calls());

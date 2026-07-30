@@ -175,7 +175,7 @@ void StarterPackBookmarksAction::Execute(ExecutionContext& context) const {
 #if defined(SUPPORT_PEDALS_VECTOR_ICONS)
 const gfx::VectorIcon& StarterPackBookmarksAction::GetVectorIcon() const {
   return features::IsRoundedIconsEnabled()
-             ? omnibox::kStarFilledCustomIcon
+             ? omnibox::kStarFilledIcon
              : omnibox::kStarActiveChromeRefreshOldIcon;
 }
 #endif  // defined(SUPPORT_PEDALS_VECTOR_ICONS)

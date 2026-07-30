@@ -109,6 +109,11 @@ def add_common_args(parser):
       'test binaries. Will use a build dir in //out/ named after the builder '
       'if not specified: //out/UTR${{builder_name}}')
   parser.add_argument(
+      '--checkout-dir',
+      type=pathlib.Path,
+      help='Path to the source checkout directory to build and test against. '
+      'Defaults to the current checkout root.')
+  parser.add_argument(
       '--recipe-dir',
       '--recipe-path',
       '-r',
@@ -240,10 +245,12 @@ def parse_args(args=None):
       args.project = 'chromium'
     elif re.fullmatch(r'chrome(-m\d+)?', args.project):
       args.project = 'chrome'
+    elif args.project == 'dawn':
+      pass
     else:
       parser.error(
-          f'Unknown project: "{args.project}". Please select "chrome" or '
-          '"chromium".')
+          f'Unknown project: "{args.project}". Please select "chrome", '
+          '"chromium", or "dawn".')
   return args
 
 
@@ -255,6 +262,7 @@ def main():
 @tracer.start_as_current_span('chromium.tools.utr.main')
 def _main_impl():
   args = parse_args()
+  src_dir = args.checkout_dir.resolve() if args.checkout_dir else _SRC_DIR
   logging.basicConfig(level=logging.DEBUG if args.verbosity else logging.INFO,
                       format='%(message)s',
                       handlers=[
@@ -264,7 +272,13 @@ def _main_impl():
                                       markup=True)
                       ])
 
-  cipd_bin_path = _SRC_DIR.joinpath('third_party', 'depot_tools', '.cipd_bin')
+  # Check for depot_tools in whatever repo we are running in and fall back to
+  # the Chromium checkout's version if it is not found. This is intended to
+  # support non-Chromium repos such as Dawn which are otherwise compatible with
+  # the UTR.
+  cipd_bin_path = src_dir.joinpath('third_party', 'depot_tools', '.cipd_bin')
+  if not cipd_bin_path.exists():
+    cipd_bin_path = _SRC_DIR.joinpath('third_party', 'depot_tools', '.cipd_bin')
   if not cipd_bin_path.exists():
     logging.warning(
         ".cipd_bin folder not found. To resolve missing dependencies in a "
@@ -301,7 +315,7 @@ def _main_impl():
 
   build_dir = args.build_dir
   if not args.build_dir:
-    build_dir = _SRC_DIR.joinpath('out', 'UTR' + '_'.join(builder_name.split()))
+    build_dir = src_dir.joinpath('out', 'UTR' + '_'.join(builder_name.split()))
     logging.info('[cyan]Using the following build dir:[/]')
     logging.getLogger('basic_logger').info(build_dir)
     logging.info('')
@@ -334,6 +348,7 @@ def _main_impl():
         no_siso=args.no_siso,
         use_autoninja=not skip_compile and args.use_autoninja,
         omit_default_test_args=args.omit_default_test_args,
+        src_dir=src_dir,
     )
     exit_code, error_msg = recipe_runner.run_recipe(
         filter_stdout=args.verbosity < 2)

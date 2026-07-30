@@ -48,6 +48,7 @@ class CORE_EXPORT SVGLengthContext {
                                   SVGLengthMode,
                                   CSSPrimitiveValue::UnitType to_unit) const;
   float ResolveValue(const CSSMathFunctionValue&, SVGLengthMode) const;
+  float GetZoom() const;
 
   const CSSValue* MaybeResolveUnparsedValue(const CSSValue& value) const;
 

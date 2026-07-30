@@ -1965,6 +1965,16 @@ gfx::Rect LayoutObject::AbsoluteBoundingBoxRect(
   return gfx::ToEnclosingRect(result);
 }
 
+gfx::Rect LayoutObject::AbsoluteBoundingBoxRectForUnboundedElement() const {
+  NOT_DESTROYED();
+  DCHECK(RuntimeEnabledFeatures::UnboundedElementEnabled());
+  if (const auto* box_model = DynamicTo<LayoutBoxModelObject>(this)) {
+    PhysicalRect overflow = box_model->VisualOverflowRectIncludingFilters();
+    return ToEnclosingRect(LocalToAbsoluteRect(overflow));
+  }
+  return AbsoluteBoundingBoxRect();
+}
+
 PhysicalRect LayoutObject::AbsoluteBoundingBoxRectHandlingEmptyInline(
     MapCoordinatesFlags flags) const {
   NOT_DESTROYED();
@@ -3371,8 +3381,7 @@ void LayoutObject::StyleDidChange(
   if (StyleRef().AnchorName())
     MarkMayContainAnchor();
 
-  if (MayContainAnchor() && old_style &&
-      RuntimeEnabledFeatures::CSSAnchorWithTransformsEnabled()) {
+  if (MayContainAnchor() && old_style) {
     // If there's an anchor here, and the new style might want to run animations
     // on the compositor, anchors may affect layout of the anchored elements.
     // Mark for layout to update the anchor references and thus request main
@@ -5421,9 +5430,7 @@ void LayoutObject::InvalidateSubtreePositionTry(bool mark_style_dirty) {
 bool LayoutObject::IsBackdropForOverscrollAreaParent() const {
   NOT_DESTROYED();
   const auto* pseudo = DynamicTo<PseudoElement>(GetNode());
-  return pseudo && pseudo->GetPseudoId() == kPseudoIdBackdrop &&
-         pseudo->UltimateOriginatingElement().GetPseudoElement(
-             kPseudoIdOverscrollAreaParent);
+  return pseudo && pseudo->GetPseudoId() == kPseudoIdOverscrollBackdrop;
 }
 
 }  // namespace blink

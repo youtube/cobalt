@@ -9,6 +9,7 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/timer/timer.h"
 #include "content/common/content_export.h"
+#include "content/common/memory_coordinator/memory_coordinator_policy.h"
 #include "content/common/memory_coordinator/predicate_memory_coordinator_policy.h"
 
 namespace content {
@@ -36,6 +37,8 @@ class CONTENT_EXPORT LastResortGCPolicy
   void OnRestoreLimitTimerFired();
 
   base::OneShotTimer restore_limit_timer_;
+
+  MemoryCoordinatorPolicyRegistration policy_registration_;
 };
 
 }  // namespace content

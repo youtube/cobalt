@@ -20,6 +20,10 @@
 - (void)autofillSettingsTableViewControllerDidRemove:
     (AutofillSettingsTableViewController*)controller;
 
+// Called when the user taps on the Google Wallet promo button.
+- (void)autofillSettingsTableViewControllerDidTapWalletPromoCard:
+    (AutofillSettingsTableViewController*)controller;
+
 @end
 
 // The TableView for Autofill settings page.

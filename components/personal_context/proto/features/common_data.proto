@@ -167,10 +167,14 @@ message Shipment {
   string carrier_domain = 4;
 
   // The date on which the shipment is estimated to be delivered.
-  Date estimated_delivery_date = 5;
+  // Deprecated: use ship_date instead.
+  Date estimated_delivery_date = 5 [deprecated = true];
 
   // The zip code of the delivery address.
   string delivery_zip_code = 6;
+
+  // The date on which the shipment was shipped.
+  Date ship_date = 7;
 }
 
 // Represents a government-issued driver's license.

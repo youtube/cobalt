@@ -291,7 +291,7 @@ public class NewTabPageCoordinatorUnitTest {
     }
 
     @Test
-    public void testInitializeHomeModules_NtpSimplificationEnabledOnDesktop() {
+    public void testInitializeHomeModules_OnDesktop() {
         mCoordinator.destroy();
         DeviceInfo.setIsDesktopForTesting(true);
 

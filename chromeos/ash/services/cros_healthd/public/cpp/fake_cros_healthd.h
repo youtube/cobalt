@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/observer_list.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chromeos/ash/components/mojo_service_manager/mojom/mojo_service_manager.mojom.h"
@@ -94,6 +95,13 @@ class FakeCrosHealthd final : public mojom::CrosHealthdDiagnosticsService,
     bool include_output;
   };
 
+  class Observer : public base::CheckedObserver {
+   public:
+    ~Observer() override = default;
+
+    virtual void OnRoutineCreated() {}
+  };
+
   FakeCrosHealthd(const FakeCrosHealthd&) = delete;
   FakeCrosHealthd& operator=(const FakeCrosHealthd&) = delete;
 
@@ -114,6 +122,9 @@ class FakeCrosHealthd final : public mojom::CrosHealthdDiagnosticsService,
   // Gets the global instance. A `nullptr` could be returned if it is not
   // initialized.
   static FakeCrosHealthd* Get();
+
+  void AddObserver(Observer* observer);
+  void RemoveObserver(Observer* observer);
 
   // Set the list of routines that will be used in the response to any
   // GetAvailableRoutines IPCs received.
@@ -364,6 +375,8 @@ class FakeCrosHealthd final : public mojom::CrosHealthdDiagnosticsService,
   void IsRoutineArgumentSupported(
       mojom::RoutineArgumentPtr arg,
       IsRoutineArgumentSupportedCallback callback) override;
+
+  base::ObserverList<Observer> observers_;
 
   // Used as the response to any GetAvailableRoutines IPCs received.
   std::vector<mojom::DiagnosticRoutineEnum> available_routines_;

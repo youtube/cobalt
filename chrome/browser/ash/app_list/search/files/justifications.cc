@@ -7,6 +7,7 @@
 #include "ash/constants/ash_features.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "base/i18n/time_formatting.h"
+#include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/file_suggest/file_suggest_util.h"
@@ -101,10 +102,8 @@ std::u16string GetActionString(ash::FileSuggestionJustificationType type,
           IDS_FILE_SUGGESTION_JUSTIFICATION_USER_SHARED_ACTION,
           base::UTF8ToUTF16(user_name));
     }
-    case ash::FileSuggestionJustificationType::kUnknown: {
-      return u"";
-    }
   }
+  NOTREACHED();
 }
 
 }  // namespace
@@ -125,9 +124,9 @@ std::optional<std::u16string> GetJustificationString(
     case ash::FileSuggestionJustificationType::kModifiedByCurrentUser:
       return GetEditStringFromTime(timestamp);
     case ash::FileSuggestionJustificationType::kShared:
-    case ash::FileSuggestionJustificationType::kUnknown:
       return std::nullopt;
   }
+  NOTREACHED();
 }
 
 }  // namespace app_list

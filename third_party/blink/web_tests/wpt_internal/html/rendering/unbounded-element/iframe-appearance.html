@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://crbug.com/508672616">
+<link rel="match" href="iframe-appearance-ref.html">
+
+<style>
+  iframe, #red {
+    position: absolute;
+    top: 50px;
+    left: 50px;
+  }
+  iframe {
+    width: 100px;
+    height: 100px;
+    border: 0;
+  }
+  #red {
+    width: 201px;
+    height: 201px;
+    background: red;
+    z-index: -1;
+  }
+</style>
+
+<div id="red"></div>
+<iframe id="iframe" srcdoc="
+  <style>
+    #target {
+      position: absolute;
+      inset:0;
+      width: 201px;
+      height: 201px;
+      background: green;
+    }
+  </style>
+
+  <div id='target' unbounded></div>
+  <button id='btn'>Click</button>
+
+  <script>
+    btn.onclick = () => target.showUnboundedElement().then(parent.finish);
+  </script>
+"></iframe>
+
+<script>
+window.finish = () => {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.documentElement.classList.remove('reftest-wait');
+    });
+  });
+};
+window.onload = () => {
+  if (!('showUnboundedElement' in HTMLElement.prototype) ||
+    !window.chrome || !chrome.gpuBenchmarking) {
+    document.body.append("Not supported");
+    document.documentElement.classList.remove('reftest-wait');
+    return;
+  }
+
+  const b = iframe.contentWindow.btn.getBoundingClientRect();
+  const r = iframe.getBoundingClientRect();
+  const clickX = r.left + b.left + b.width / 2;
+  const clickY = r.top + b.top + b.height / 2;
+  chrome.gpuBenchmarking.pointerActionSequence([{
+    source: 'mouse',
+    actions: [
+      { name: 'pointerMove', x: clickX, y: clickY },
+      { name: 'pointerDown', x: clickX, y: clickY },
+      { name: 'pointerUp' }
+    ]
+  }], () => {});
+};
+</script>
+

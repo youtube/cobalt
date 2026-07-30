@@ -2,6 +2,6 @@ AXWebArea
 ++AXOutline
 ++++AXRow AXSubrole=AXOutlineRow AXIndex=0 AXTitle='card content'
 ++++++AXStaticText AXValue='card content'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++++AXRow AXSubrole=AXOutlineRow AXIndex=1 AXTitle='card content'
 ++++++AXStaticText AXValue='card content'

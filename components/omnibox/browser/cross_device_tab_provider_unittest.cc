@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/memory/scoped_refptr.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
@@ -68,17 +69,24 @@ class CrossDeviceTabProviderTest : public testing::Test {
 };
 
 TEST_F(CrossDeviceTabProviderTest, NoRemoteSessions) {
+  base::HistogramTester histogram_tester;
   provider_->Start(CreateZeroSuggestInput(), false);
 
   EXPECT_THAT(provider_->matches(), IsEmpty());
+  EXPECT_TRUE(provider_->most_recent_tab_timestamp().is_null());
+  histogram_tester.ExpectUniqueSample(
+      "Omnibox.CrossDeviceTab.Provider.Eligibility",
+      CrossDeviceTabProvider::Eligibility::kNoForeignSessions, 1);
 }
 
 TEST_F(CrossDeviceTabProviderTest, MostRecentTab) {
+  base::HistogramTester histogram_tester;
   auto session = std::make_unique<sync_sessions::SyncedSession>();
   auto window = std::make_unique<sync_sessions::SyncedSessionWindow>();
   auto tab = std::make_unique<sessions::SessionTab>();
 
-  tab->timestamp = base::Time::Now() - base::Minutes(1);
+  const base::Time tab_timestamp = base::Time::Now() - base::Minutes(1);
+  tab->timestamp = tab_timestamp;
   tab->navigations.push_back(sessions::SerializedNavigationEntry());
   tab->navigations.back().set_virtual_url(GURL("https://example.com/"));
   tab->navigations.back().set_title(u"Example");
@@ -94,11 +102,20 @@ TEST_F(CrossDeviceTabProviderTest, MostRecentTab) {
   EXPECT_EQ(provider_->matches()[0].destination_url,
             GURL("https://example.com/"));
   EXPECT_EQ(provider_->matches()[0].description, u"Example");
+  EXPECT_EQ(provider_->most_recent_tab_timestamp(), tab_timestamp);
+
+  histogram_tester.ExpectUniqueSample(
+      "Omnibox.CrossDeviceTab.Provider.Eligibility",
+      CrossDeviceTabProvider::Eligibility::kMatchCreated, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Omnibox.CrossDeviceTab.Provider.MostRecentTabAge",
+      base::Minutes(1).InMilliseconds(), 1);
 }
 
 TEST_F(CrossDeviceTabProviderTest, AgeLimit) {
   task_environment_.FastForwardBy(base::Minutes(10));
 
+  base::HistogramTester histogram_tester;
   auto session = std::make_unique<sync_sessions::SyncedSession>();
   auto window = std::make_unique<sync_sessions::SyncedSessionWindow>();
   auto tab = std::make_unique<sessions::SessionTab>();
@@ -116,6 +133,14 @@ TEST_F(CrossDeviceTabProviderTest, AgeLimit) {
   provider_->Start(CreateZeroSuggestInput(), false);
 
   EXPECT_THAT(provider_->matches(), IsEmpty());
+  EXPECT_TRUE(provider_->most_recent_tab_timestamp().is_null());
+
+  histogram_tester.ExpectUniqueSample(
+      "Omnibox.CrossDeviceTab.Provider.Eligibility",
+      CrossDeviceTabProvider::Eligibility::kLocalSessionNotRecent, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Omnibox.CrossDeviceTab.Provider.MostRecentTabAge",
+      base::Minutes(10).InMilliseconds(), 1);
 }
 
 TEST_F(CrossDeviceTabProviderTest, CustomAgeLimit) {
@@ -131,7 +156,8 @@ TEST_F(CrossDeviceTabProviderTest, CustomAgeLimit) {
   auto tab = std::make_unique<sessions::SessionTab>();
 
   // Age is 10 minutes, custom limit is 15 minutes.
-  tab->timestamp = base::Time::Now() - base::Minutes(10);
+  const base::Time tab_timestamp = base::Time::Now() - base::Minutes(10);
+  tab->timestamp = tab_timestamp;
   tab->navigations.push_back(sessions::SerializedNavigationEntry());
   tab->navigations.back().set_virtual_url(GURL("https://example.com/"));
 
@@ -143,9 +169,81 @@ TEST_F(CrossDeviceTabProviderTest, CustomAgeLimit) {
   provider_->Start(CreateZeroSuggestInput(), false);
 
   EXPECT_THAT(provider_->matches(), SizeIs(1u));
+  EXPECT_EQ(provider_->most_recent_tab_timestamp(), tab_timestamp);
+}
+
+TEST_F(CrossDeviceTabProviderTest, NoSyncService) {
+  base::HistogramTester histogram_tester;
+  client_->set_session_sync_service(nullptr);
+
+  provider_->Start(CreateZeroSuggestInput(), false);
+
+  EXPECT_THAT(provider_->matches(), IsEmpty());
+  EXPECT_TRUE(provider_->most_recent_tab_timestamp().is_null());
+  histogram_tester.ExpectUniqueSample(
+      "Omnibox.CrossDeviceTab.Provider.Eligibility",
+      CrossDeviceTabProvider::Eligibility::kNoSyncService, 1);
+}
+
+TEST_F(CrossDeviceTabProviderTest, NoOpenTabsDelegate) {
+  base::HistogramTester histogram_tester;
+  EXPECT_CALL(session_sync_service_, GetOpenTabsUIDelegate())
+      .WillOnce(Return(nullptr));
+
+  provider_->Start(CreateZeroSuggestInput(), false);
+
+  EXPECT_THAT(provider_->matches(), IsEmpty());
+  EXPECT_TRUE(provider_->most_recent_tab_timestamp().is_null());
+  histogram_tester.ExpectUniqueSample(
+      "Omnibox.CrossDeviceTab.Provider.Eligibility",
+      CrossDeviceTabProvider::Eligibility::kNoOpenTabsDelegate, 1);
+}
+
+TEST_F(CrossDeviceTabProviderTest, NoTabs) {
+  base::HistogramTester histogram_tester;
+  auto session = std::make_unique<sync_sessions::SyncedSession>();
+  auto window = std::make_unique<sync_sessions::SyncedSessionWindow>();
+  // Window has no tabs.
+  session->windows[SessionID::NewUnique()] = std::move(window);
+  open_tabs_ui_delegate_.AddForeignSession(std::move(session));
+
+  provider_->Start(CreateZeroSuggestInput(), false);
+
+  EXPECT_THAT(provider_->matches(), IsEmpty());
+  EXPECT_TRUE(provider_->most_recent_tab_timestamp().is_null());
+  histogram_tester.ExpectUniqueSample(
+      "Omnibox.CrossDeviceTab.Provider.Eligibility",
+      CrossDeviceTabProvider::Eligibility::kNoTabs, 1);
+}
+
+TEST_F(CrossDeviceTabProviderTest, InvalidURL) {
+  base::HistogramTester histogram_tester;
+  auto session = std::make_unique<sync_sessions::SyncedSession>();
+  auto window = std::make_unique<sync_sessions::SyncedSessionWindow>();
+  auto tab = std::make_unique<sessions::SessionTab>();
+
+  tab->timestamp = base::Time::Now() - base::Minutes(1);
+  tab->navigations.push_back(sessions::SerializedNavigationEntry());
+  // Invalid URL (empty GURL is invalid).
+  tab->navigations.back().set_virtual_url(GURL());
+
+  window->wrapped_window.tabs.push_back(std::move(tab));
+  session->windows[SessionID::NewUnique()] = std::move(window);
+  open_tabs_ui_delegate_.AddForeignSession(std::move(session));
+
+  provider_->Start(CreateZeroSuggestInput(), false);
+
+  EXPECT_THAT(provider_->matches(), IsEmpty());
+  EXPECT_TRUE(provider_->most_recent_tab_timestamp().is_null());
+  histogram_tester.ExpectUniqueSample(
+      "Omnibox.CrossDeviceTab.Provider.Eligibility",
+      CrossDeviceTabProvider::Eligibility::kInvalidUrl, 1);
+  histogram_tester.ExpectTotalCount(
+      "Omnibox.CrossDeviceTab.Provider.MostRecentTabAge", 0);
 }
 
 TEST_F(CrossDeviceTabProviderTest, MeetsDelayedContinuationCriterion) {
+  base::HistogramTester histogram_tester;
   // Fast forward to 2 minutes after provider creation.
   task_environment_.FastForwardBy(base::Minutes(2));
 
@@ -169,9 +267,13 @@ TEST_F(CrossDeviceTabProviderTest, MeetsDelayedContinuationCriterion) {
   provider_->Start(CreateZeroSuggestInput(), false);
 
   EXPECT_THAT(provider_->matches(), SizeIs(1u));
+  histogram_tester.ExpectUniqueSample(
+      "Omnibox.CrossDeviceTab.Provider.Eligibility",
+      CrossDeviceTabProvider::Eligibility::kMatchCreated, 1);
 }
 
 TEST_F(CrossDeviceTabProviderTest, FailsBothAgeCriteria) {
+  base::HistogramTester histogram_tester;
   // Fast forward to 2 minutes after provider creation.
   task_environment_.FastForwardBy(base::Minutes(2));
 
@@ -194,9 +296,13 @@ TEST_F(CrossDeviceTabProviderTest, FailsBothAgeCriteria) {
   provider_->Start(CreateZeroSuggestInput(), false);
 
   EXPECT_THAT(provider_->matches(), IsEmpty());
+  histogram_tester.ExpectUniqueSample(
+      "Omnibox.CrossDeviceTab.Provider.Eligibility",
+      CrossDeviceTabProvider::Eligibility::kTabTooOld, 1);
 }
 
 TEST_F(CrossDeviceTabProviderTest, FailsDelayedContinuationUptime) {
+  base::HistogramTester histogram_tester;
   // Fast forward to 10 minutes after provider creation.
   task_environment_.FastForwardBy(base::Minutes(10));
 
@@ -220,6 +326,9 @@ TEST_F(CrossDeviceTabProviderTest, FailsDelayedContinuationUptime) {
   provider_->Start(CreateZeroSuggestInput(), false);
 
   EXPECT_THAT(provider_->matches(), IsEmpty());
+  histogram_tester.ExpectUniqueSample(
+      "Omnibox.CrossDeviceTab.Provider.Eligibility",
+      CrossDeviceTabProvider::Eligibility::kLocalSessionNotRecent, 1);
 }
 
 }  // namespace

@@ -62,11 +62,11 @@ TEST(HEVCAnalyzeAnnexBTest, InvalidAnnexBConstructs) {
       // For these cases, lack of conformance is determined before detecting any
       // IDR or non-IDR slices, so the non-conformant frames' keyframe analysis
       // reports std::nullopt (which means undetermined analysis result).
-      {"AUD", std::nullopt},        // No VCL present.
-      {"AUD,SPS", std::nullopt},    // No VCL present.
-      {"SPS AUD I", std::nullopt},  // Parameter sets must come after AUD.
-      {"EOS", std::nullopt},        // EOS must come after a VCL.
-      {"EOB", std::nullopt},        // EOB must come after a VCL.
+      {"AUD", std::nullopt},      // No VCL present.
+      {"AUD,SPS", std::nullopt},  // No VCL present.
+      {"SPS AUD I", true},        // Parameter sets must come after AUD.
+      {"EOS", std::nullopt},      // EOS must come after a VCL.
+      {"EOB", std::nullopt},      // EOB must come after a VCL.
 
       // For these cases, IDR slice is first VCL and is detected before
       // conformance failure, so the non-conformant frame is reported as a
@@ -75,6 +75,7 @@ TEST(HEVCAnalyzeAnnexBTest, InvalidAnnexBConstructs) {
       {"I SPS", true},      // SPS must come before first VCL.
       {"FD PREFIX_SEI I",
        true},  // FD before VCL is non-conformant but keyframe is detected.
+      {"PREFIX_SEI AUD I", true},  // AUD must be first NALU.
 
       // For this case, P slice is first VCL and is detected before conformance
       // failure, so the non-conformant frame is reported as a non-keyframe.

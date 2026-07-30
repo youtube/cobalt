@@ -80,24 +80,14 @@ void GetMetadataOnIOThread(
 
 }  // namespace
 
-RecentDiskSource::RecentDiskSource::CallContext::CallContext(
-    const Params& params,
-    GetRecentFilesCallback callback)
+RecentDiskSource::CallContext::CallContext(const Params& params,
+                                           GetRecentFilesCallback callback)
     : params(params),
       callback(std::move(callback)),
       build_start_time(base::TimeTicks::Now()),
       accumulator(params.max_files()) {}
 
-RecentDiskSource::RecentDiskSource::CallContext::CallContext(
-    CallContext&& context)
-    : params(context.params),
-      callback(std::move(context.callback)),
-      build_start_time(context.build_start_time),
-      inflight_readdirs(context.inflight_readdirs),
-      inflight_stats(context.inflight_stats),
-      accumulator(std::move(context.accumulator)) {}
-
-RecentDiskSource::RecentDiskSource::CallContext::~CallContext() = default;
+RecentDiskSource::CallContext::~CallContext() = default;
 
 RecentDiskSource::RecentDiskSource(
     extensions::api::file_manager_private::VolumeType volume_type,

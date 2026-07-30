@@ -24,6 +24,7 @@
 #include "third_party/blink/renderer/core/svg/svg_path_byte_stream_source.h"
 #include "third_party/blink/renderer/core/svg/svg_path_parser.h"
 #include "third_party/blink/renderer/core/svg/svg_path_segments_builder.h"
+#include "third_party/blink/renderer/core/svg/svg_path_segments_source.h"
 #include "third_party/blink/renderer/core/svg/svg_path_string_builder.h"
 #include "third_party/blink/renderer/core/svg/svg_path_string_source.h"
 #include "third_party/blink/renderer/platform/geometry/path.h"
@@ -100,6 +101,14 @@ HeapVector<Member<SVGPathSegment>> BuildPathSegmentsFromByteStream(
     svg_path_parser::ParsePath(source, builder);
   }
   return builder.Finalize();
+}
+
+SVGPathByteStream BuildByteStreamFromSegments(
+    const HeapVector<Member<SVGPathSegment>>& segments) {
+  SVGPathByteStreamBuilder builder;
+  SVGPathSegmentsSource source(segments);
+  svg_path_parser::ParsePath(source, builder);
+  return builder.CopyByteStream();
 }
 
 }  // namespace blink

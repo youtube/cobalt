@@ -171,7 +171,7 @@ bool HashPrefixContainer::FileInfo::Initialize(const std::string& extension,
   }
 
   if (IsReadable()) {
-    CHECK_EQ(file_.length(), expected_file_size);
+    CHECK_EQ(file_.bytes().size(), expected_file_size);
     return true;
   }
 
@@ -182,7 +182,7 @@ bool HashPrefixContainer::FileInfo::Initialize(const std::string& extension,
     return false;
   }
 
-  if (file_.length() != static_cast<size_t>(actual_file_size.value())) {
+  if (file_.bytes().size() != static_cast<size_t>(actual_file_size.value())) {
     if (initialize_after_write) {
       LogWriteError(WriteError::kMmapSizeMismatch, metric_prefix);
     }

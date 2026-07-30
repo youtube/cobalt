@@ -72,9 +72,9 @@ class CONTENT_EXPORT BrowserMemoryCoordinator {
 
   MemoryPressureListenerPolicy memory_pressure_listener_policy_{
       policy_manager_};
-  MemoryCoordinatorPolicyRegistration<MemoryPressureListenerPolicy>
-      pressure_listener_registration_{policy_manager_,
-                                      memory_pressure_listener_policy_};
+  MemoryCoordinatorPolicyRegistration
+      memory_pressure_listener_policy_registration_{
+          policy_manager_, memory_pressure_listener_policy_};
 
 #if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
   size_t diagnostic_observer_count_ = 0u;

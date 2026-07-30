@@ -30,7 +30,7 @@ import java.util.List;
 @NullMarked
 public class PdfToolbarCoordinator implements View.OnClickListener, View.OnKeyListener {
     private static final float THRESHOLD_DOWNLOAD_DP = 800f;
-    private static final float THRESHOLD_ROTATE_DP = 750f;
+
     private static final float THRESHOLD_FIT_DP = 700f;
     private static final float THRESHOLD_ZOOM_DP = 650f;
     private static final float THRESHOLD_NAV_EDIT_DP = 600f;
@@ -67,11 +67,13 @@ public class PdfToolbarCoordinator implements View.OnClickListener, View.OnKeyLi
                         .with(PdfToolbarProperties.ZOOM_LEVEL, 1.0f)
                         .with(PdfToolbarProperties.SHOW_FIT_TO_HEIGHT_ICON, true)
                         .with(PdfToolbarProperties.TWO_PAGES_PER_ROW_ACTIVE, false)
-                        .with(PdfToolbarProperties.DOWNLOAD_BUTTON_VISIBLE, true)
-                        .with(PdfToolbarProperties.ROTATE_BUTTON_VISIBLE, true)
+                        .with(
+                                PdfToolbarProperties.DOWNLOAD_BUTTON_VISIBLE,
+                                PdfUtils.isInlinePdfV2DownloadEnabled())
                         .with(PdfToolbarProperties.FIT_TO_PAGE_BUTTON_VISIBLE, true)
                         .with(PdfToolbarProperties.ZOOM_CONTROLS_VISIBLE, true)
                         .with(PdfToolbarProperties.PAGE_NAV_AND_EDIT_VISIBLE, true)
+                        .with(PdfToolbarProperties.DONE_BUTTON_VISIBLE, false)
                         .build();
 
         toolbar.setOnWidthChangedListener(this::onWidthChanged);
@@ -97,12 +99,13 @@ public class PdfToolbarCoordinator implements View.OnClickListener, View.OnKeyLi
             mModel.set(PdfToolbarProperties.SHOW_FIT_TO_HEIGHT_ICON, !showFitToHeight);
         } else if (actionId == R.id.download_button) {
             mDelegate.download();
-        } else if (actionId == R.id.rotate_button) {
-            mDelegate.rotate();
+
         } else if (actionId == R.id.more_menu_button) {
             showMenu(view);
         } else if (actionId == R.id.print_button) {
             mDelegate.print();
+        } else if (actionId == R.id.done_button) {
+            mDelegate.setEditMode(false);
         } else if (actionId == R.id.edit_button) {
             mDelegate.setEditMode(!mModel.get(PdfToolbarProperties.EDIT_MODE_ACTIVE));
         }
@@ -120,7 +123,8 @@ public class PdfToolbarCoordinator implements View.OnClickListener, View.OnKeyLi
     private void showMenu(View anchorView) {
         ModelList modelList = new ModelList();
 
-        if (!mModel.get(PdfToolbarProperties.DOWNLOAD_BUTTON_VISIBLE)) {
+        if (PdfUtils.isInlinePdfV2DownloadEnabled()
+                && !mModel.get(PdfToolbarProperties.DOWNLOAD_BUTTON_VISIBLE)) {
             modelList.add(
                     new ListItemBuilder()
                             .withTitleRes(R.string.pdf_download)
@@ -131,17 +135,7 @@ public class PdfToolbarCoordinator implements View.OnClickListener, View.OnKeyLi
                                     })
                             .build());
         }
-        if (!mModel.get(PdfToolbarProperties.ROTATE_BUTTON_VISIBLE)) {
-            modelList.add(
-                    new ListItemBuilder()
-                            .withTitleRes(R.string.pdf_rotate)
-                            .withClickListener(
-                                    v -> {
-                                        mDelegate.rotate();
-                                        dismissMenu();
-                                    })
-                            .build());
-        }
+
         if (!mModel.get(PdfToolbarProperties.FIT_TO_PAGE_BUTTON_VISIBLE)) {
             boolean showFitToHeight = mModel.get(PdfToolbarProperties.SHOW_FIT_TO_HEIGHT_ICON);
             int fitTitleRes = showFitToHeight ? R.string.pdf_fit_height : R.string.pdf_fit_width;
@@ -317,18 +311,28 @@ public class PdfToolbarCoordinator implements View.OnClickListener, View.OnKeyLi
         float density = mToolbar.getResources().getDisplayMetrics().density;
         float widthDp = widthPx / density;
 
+        boolean showNavEdit = widthDp > THRESHOLD_NAV_EDIT_DP;
         mModel.set(
-                PdfToolbarProperties.DOWNLOAD_BUTTON_VISIBLE, widthDp > THRESHOLD_DOWNLOAD_DP);
-        mModel.set(PdfToolbarProperties.ROTATE_BUTTON_VISIBLE, widthDp > THRESHOLD_ROTATE_DP);
-        mModel.set(
-                PdfToolbarProperties.FIT_TO_PAGE_BUTTON_VISIBLE, widthDp > THRESHOLD_FIT_DP);
+                PdfToolbarProperties.DOWNLOAD_BUTTON_VISIBLE,
+                PdfUtils.isInlinePdfV2DownloadEnabled() && widthDp > THRESHOLD_DOWNLOAD_DP);
+
+        mModel.set(PdfToolbarProperties.FIT_TO_PAGE_BUTTON_VISIBLE, widthDp > THRESHOLD_FIT_DP);
         mModel.set(PdfToolbarProperties.ZOOM_CONTROLS_VISIBLE, widthDp > THRESHOLD_ZOOM_DP);
-        mModel.set(PdfToolbarProperties.PAGE_NAV_AND_EDIT_VISIBLE, widthDp > THRESHOLD_NAV_EDIT_DP);
+        mModel.set(PdfToolbarProperties.PAGE_NAV_AND_EDIT_VISIBLE, showNavEdit);
+        updateDoneButtonVisibility();
+        mDelegate.onPageNavAndEditVisibilityChanged(showNavEdit);
     }
+
 
     /** Sets whether edit mode is active in the model. */
     public void setEditModeActive(boolean active) {
         mModel.set(PdfToolbarProperties.EDIT_MODE_ACTIVE, active);
+        updateDoneButtonVisibility();
+    }
+
+    private void updateDoneButtonVisibility() {
+        boolean editMode = mModel.get(PdfToolbarProperties.EDIT_MODE_ACTIVE);
+        mModel.set(PdfToolbarProperties.DONE_BUTTON_VISIBLE, editMode);
     }
 
     /** Destroys the coordinator and releases references held by the change processor. */

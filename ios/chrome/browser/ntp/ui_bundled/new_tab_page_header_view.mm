@@ -39,6 +39,7 @@
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_container_view.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_field_ios.h"
+#import "ios/chrome/browser/popup_menu/overflow_menu/public/features.h"
 #import "ios/chrome/browser/shared/model/profile/features.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -307,15 +308,12 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
       UITraitPreferredContentSizeCategory.class, UITraitUserInterfaceStyle.class
     ]
                       withHandler:handler];
-    NSMutableArray<UITrait>* buttonTraits =
-        [@[ UITraitUserInterfaceStyle.class ] mutableCopy];
-    if (IsNTPBackgroundCustomizationEnabled()) {
-      NSArray<UITrait>* customizationTraits =
-          @[ NewTabPageTrait.class, NewTabPageImageBackgroundTrait.class ];
-      [buttonTraits addObjectsFromArray:customizationTraits];
-      [self registerForTraitChanges:customizationTraits
-                         withAction:@selector(applyBackgroundTheme)];
-    }
+    NSArray<UITrait>* customizationTraits =
+        @[ NewTabPageTrait.class, NewTabPageImageBackgroundTrait.class ];
+    NSArray<UITrait>* buttonTraits = [@[ UITraitUserInterfaceStyle.class ]
+        arrayByAddingObjectsFromArray:customizationTraits];
+    [self registerForTraitChanges:customizationTraits
+                       withAction:@selector(applyBackgroundTheme)];
     [self registerForTraitChanges:buttonTraits
                        withAction:@selector
                        (updateButtonsForCurrentTraitCollection)];
@@ -388,7 +386,9 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   [self setupFakeTapView];
   [self setupIdentityDisc];
   [self addSeparatorToSearchField:self.fakeOmniboxContainer];
-  [self addCustomizationMenu];
+  if (!IsOverflowMenuHomeCustomizationEntrypointEnabled()) {
+    [self addCustomizationMenu];
+  }
   if (IsChromeNextIaEnabled()) {
     if (!CanShowTabStrip(self) && !IsRegularXRegularSizeClass(self)) {
       [self addToolsMenu];
@@ -697,9 +697,8 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   const BOOL darkUIStyle =
       self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark;
   const BOOL ntpHasCustomBackground =
-      IsNTPBackgroundCustomizationEnabled() &&
-      ([self.traitCollection boolForNewTabPageImageBackgroundTrait] ||
-       [self.traitCollection objectForNewTabPageTrait]);
+      [self.traitCollection boolForNewTabPageImageBackgroundTrait] ||
+      [self.traitCollection objectForNewTabPageTrait];
   const BOOL useColorIcon =
       !darkUIStyle && !forceDisableColors && !ntpHasCustomBackground;
 
@@ -1028,41 +1027,37 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 
 - (void)setCustomizationMenuButton:(UIButton*)customizationMenuButton
                       withNewBadge:(BOOL)hasNewBadge {
+  CHECK(!IsOverflowMenuHomeCustomizationEntrypointEnabled());
   if (_customizationMenuButton) {
     [_customizationMenuButton removeFromSuperview];
   }
 
-  if (IsNTPBackgroundCustomizationEnabled()) {
-    UIButtonConfiguration* configuration =
-        [UIButtonConfiguration plainButtonConfiguration];
+  UIButtonConfiguration* configuration =
+      [UIButtonConfiguration plainButtonConfiguration];
 
-    UIImage* icon = DefaultSymbolTemplateWithPointSize(
-        kPencilSymbol, ntp_home::kNTPMenuButtonIconSize);
-    configuration.image = icon;
-    configuration.background.cornerRadius =
-        ntp_home::kNTPMenuButtonCornerRadius;
-    customizationMenuButton.configuration = configuration;
+  UIImage* icon = DefaultSymbolTemplateWithPointSize(
+      kPencilSymbol, ntp_home::kNTPMenuButtonIconSize);
+  configuration.image = icon;
+  configuration.background.cornerRadius = ntp_home::kNTPMenuButtonCornerRadius;
+  customizationMenuButton.configuration = configuration;
 
-    UIColor* unthemedTintColor = [UIColor colorNamed:kBlue600Color];
-    customizationMenuButton.configurationUpdateHandler =
-        CreateThemedButtonConfigurationUpdateHandler(
-            unthemedTintColor, ^UIColor*(NewTabPageColorPalette* palette) {
-              if (palette) {
-                return palette.headerButtonColor;
-              }
+  UIColor* unthemedTintColor = [UIColor colorNamed:kBlue600Color];
+  customizationMenuButton.configurationUpdateHandler =
+      CreateThemedButtonConfigurationUpdateHandler(
+          unthemedTintColor, ^UIColor*(NewTabPageColorPalette* palette) {
+            if (palette) {
+              return palette.headerButtonColor;
+            }
 
-              return [UIColor colorWithDynamicProvider:^UIColor*(
-                                  UITraitCollection* traits) {
-                return traits.userInterfaceStyle == UIUserInterfaceStyleDark
-                           ? [UIColor
-                                 colorNamed:kTabGroupFaviconBackgroundColor]
-                           : [[UIColor colorNamed:kSolidWhiteColor]
-                                 colorWithAlphaComponent:
-                                     ntp_home::
-                                         kNTPMenuButtonLightUnthemedAlpha];
-              }];
-            });
-  }
+            return [UIColor colorWithDynamicProvider:^UIColor*(
+                                UITraitCollection* traits) {
+              return traits.userInterfaceStyle == UIUserInterfaceStyleDark
+                         ? [UIColor colorNamed:kTabGroupFaviconBackgroundColor]
+                         : [[UIColor colorNamed:kSolidWhiteColor]
+                               colorWithAlphaComponent:
+                                   ntp_home::kNTPMenuButtonLightUnthemedAlpha];
+            }];
+          });
 
   customizationMenuButton.translatesAutoresizingMaskIntoConstraints = NO;
   customizationMenuButton.pointerInteractionEnabled = YES;
@@ -1101,10 +1096,7 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 
   [self.layoutGuideCenter referenceView:customizationMenuButton
                               underName:kFeedIPHNamedGuide];
-
-  if (IsNTPBackgroundCustomizationEnabled()) {
-    [self applyBackgroundTheme];
-  }
+  [self applyBackgroundTheme];
 }
 
 - (void)setToolsMenuButton:(UIButton*)toolsMenuButton {
@@ -1115,42 +1107,46 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
     return;
   }
 
-  if (IsNTPBackgroundCustomizationEnabled()) {
-    UIButtonConfiguration* configuration =
-        [UIButtonConfiguration plainButtonConfiguration];
-    UIImage* icon = DefaultSymbolTemplateWithPointSize(
-        kMenuSymbol, ntp_home::kNTPMenuButtonIconSize);
-    configuration.image = icon;
-    configuration.background.cornerRadius =
-        ntp_home::kNTPMenuButtonCornerRadius;
-    toolsMenuButton.configuration = configuration;
+  UIButtonConfiguration* configuration =
+      [UIButtonConfiguration plainButtonConfiguration];
+  UIImage* icon = DefaultSymbolTemplateWithPointSize(
+      kMenuSymbol, ntp_home::kNTPMenuButtonIconSize);
+  configuration.image = icon;
+  configuration.background.cornerRadius = ntp_home::kNTPMenuButtonCornerRadius;
+  toolsMenuButton.configuration = configuration;
 
-    UIColor* unthemedTintColor = [UIColor colorNamed:kBlue600Color];
-    toolsMenuButton.configurationUpdateHandler =
-        CreateThemedButtonConfigurationUpdateHandler(
-            unthemedTintColor, ^UIColor*(NewTabPageColorPalette* palette) {
-              if (palette) {
-                return palette.headerButtonColor;
-              }
+  UIColor* unthemedTintColor = [UIColor colorNamed:kBlue600Color];
+  toolsMenuButton.configurationUpdateHandler =
+      CreateThemedButtonConfigurationUpdateHandler(
+          unthemedTintColor, ^UIColor*(NewTabPageColorPalette* palette) {
+            if (palette) {
+              return palette.headerButtonColor;
+            }
 
-              return [UIColor colorWithDynamicProvider:^UIColor*(
-                                  UITraitCollection* traits) {
-                return traits.userInterfaceStyle == UIUserInterfaceStyleDark
-                           ? [UIColor
-                                 colorNamed:kTabGroupFaviconBackgroundColor]
-                           : [[UIColor colorNamed:kSolidWhiteColor]
-                                 colorWithAlphaComponent:
-                                     ntp_home::
-                                         kNTPMenuButtonLightUnthemedAlpha];
-              }];
-            });
-  }
+            return [UIColor colorWithDynamicProvider:^UIColor*(
+                                UITraitCollection* traits) {
+              return traits.userInterfaceStyle == UIUserInterfaceStyleDark
+                         ? [UIColor colorNamed:kTabGroupFaviconBackgroundColor]
+                         : [[UIColor colorNamed:kSolidWhiteColor]
+                               colorWithAlphaComponent:
+                                   ntp_home::kNTPMenuButtonLightUnthemedAlpha];
+            }];
+          });
 
   toolsMenuButton.translatesAutoresizingMaskIntoConstraints = NO;
   toolsMenuButton.pointerInteractionEnabled = YES;
   toolsMenuButton.clipsToBounds = YES;
 
   [self.toolBarView addSubview:toolsMenuButton];
+
+  NSLayoutAnchor* leadingAnchor =
+      IsOverflowMenuHomeCustomizationEntrypointEnabled()
+          ? self.safeAreaLayoutGuide.leadingAnchor
+          : self.customizationMenuButton.trailingAnchor;
+  CGFloat leadingConstant =
+      IsOverflowMenuHomeCustomizationEntrypointEnabled()
+          ? (ntp_home::kIdentityAvatarPadding + ntp_home::kHeaderIconMargin)
+          : ntp_home::kHeaderIconMargin;
 
   [NSLayoutConstraint activateConstraints:@[
     [toolsMenuButton.centerYAnchor
@@ -1159,16 +1155,13 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
         constraintEqualToConstant:ntp_home::kNTPMenuButtonDimension],
     [toolsMenuButton.widthAnchor
         constraintEqualToAnchor:toolsMenuButton.heightAnchor],
-    [toolsMenuButton.leadingAnchor
-        constraintEqualToAnchor:self.customizationMenuButton.trailingAnchor
-                       constant:ntp_home::kHeaderIconMargin]
+    [toolsMenuButton.leadingAnchor constraintEqualToAnchor:leadingAnchor
+                                                  constant:leadingConstant]
   ]];
 
   _toolsMenuButton = toolsMenuButton;
 
-  if (IsNTPBackgroundCustomizationEnabled()) {
-    [self applyBackgroundTheme];
-  }
+  [self applyBackgroundTheme];
 }
 
 - (void)hideBadgeOnCustomizationMenu {
@@ -1326,23 +1319,9 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 
 // Creates the Home customization menu and adds it to the header view.
 - (void)addCustomizationMenu {
+  CHECK(!IsOverflowMenuHomeCustomizationEntrypointEnabled());
   UIButton* customizationMenuButton =
       [[ExtendedTouchTargetButton alloc] initWithFrame:CGRectZero];
-
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    UIImage* icon = DefaultSymbolTemplateWithPointSize(
-        kPencilSymbol, ntp_home::kNTPMenuButtonIconSize);
-    [customizationMenuButton setImage:icon forState:UIControlStateNormal];
-    customizationMenuButton.backgroundColor =
-        [self defaultButtonBackgroundColor];
-
-    UIColor* tintColor = [UIColor colorNamed:kBlue600Color];
-    customizationMenuButton.tintColor = tintColor;
-
-    customizationMenuButton.layer.cornerRadius =
-        ntp_home::kNTPMenuButtonCornerRadius;
-    customizationMenuButton.clipsToBounds = YES;
-  }
 
   customizationMenuButton.accessibilityIdentifier =
       kNTPCustomizationMenuButtonIdentifier;
@@ -1369,18 +1348,6 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 
   UIButton* toolsMenuButton =
       [[ExtendedTouchTargetButton alloc] initWithFrame:CGRectZero];
-
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    UIImage* icon = DefaultSymbolTemplateWithPointSize(
-        kEllipsisSymbol, ntp_home::kNTPMenuButtonIconSize);
-    [toolsMenuButton setImage:icon forState:UIControlStateNormal];
-    toolsMenuButton.backgroundColor = [self defaultButtonBackgroundColor];
-
-    UIColor* tintColor = [UIColor colorNamed:kBlue600Color];
-    toolsMenuButton.tintColor = tintColor;
-    toolsMenuButton.layer.cornerRadius = ntp_home::kNTPMenuButtonCornerRadius;
-    toolsMenuButton.clipsToBounds = YES;
-  }
 
   toolsMenuButton.accessibilityIdentifier = kNTPToolsMenuButtonIdentifier;
   toolsMenuButton.accessibilityLabel =
@@ -1434,9 +1401,6 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 
   // Fakebox coloring looks at image/color/default to determine correct colors.
   [self setFakeboxColorsWithProgress:_lastAnimationPercent];
-
-
-  [self.fakeLocationBar applyBackgroundTheme];
 }
 
 // Empties the fakebox buttons stack.
@@ -1672,9 +1636,6 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 // Creates a thin grey divider that acts as a visual separator.
 - (UIView*)createDivider {
   UIView* divider = [[UIView alloc] init];
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    divider.backgroundColor = [UIColor colorNamed:kGrey600Color];
-  }
   divider.translatesAutoresizingMaskIntoConstraints = NO;
   CGFloat dividerWidth = 1.0 / [[UIScreen mainScreen] scale];
 
@@ -2045,10 +2006,13 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
     self.fakeLocationBarTrailingConstraint.constant =
         -(self.fakeOmniboxContainer.bounds.size.width -
           (omniboxFrameInFakebox.origin.x + omniboxFrameInFakebox.size.width));
-    self.voiceSearchButton.alpha = 0;
-    self.cancelButton.alpha = 0.7;
-    self.omnibox.alpha = 1;
-    self.searchHintLabel.alpha = 0;
+    [self updateFakeboxElementsForExpansion:YES];
+  }
+}
+
+- (void)revertHeaderExpansionOnUnfocus {
+  if (!IsComposeboxIOSEnabled()) {
+    [self updateFakeboxElementsForExpansion:NO];
   }
 }
 
@@ -2107,6 +2071,21 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 }
 
 #pragma mark - Private (Fakebox & Logo Layout Helpers)
+
+// Updates the elements inside the fakebox based on whether it is part of an
+// expansion.
+- (void)updateFakeboxElementsForExpansion:(BOOL)expansion {
+  if (expansion) {
+    self.voiceSearchButton.alpha = 0;
+    self.cancelButton.alpha = 0.7;
+    self.omnibox.alpha = 1;
+    self.searchHintLabel.alpha = 0;
+  } else {
+    self.voiceSearchButton.alpha = 1;
+    self.cancelButton.alpha = 1;
+    self.searchHintLabel.alpha = 1;
+  }
+}
 
 - (void)updateFakeboxDisplay {
   self.doodleTopMarginConstraint.constant =

@@ -28,6 +28,8 @@ class FakeWebUIContentsContainer : public WebUIContentsContainer {
 
   void AttachToHost(Host* host) override {}
   void SetVisibility(content::Visibility visibility) override {}
+  void OnActuatingChanged(bool actuating) override {}
+  void OnTaskTabsVisibilityChanged(bool has_visible_tab) override {}
   content::WebContents* web_contents() const override { return web_contents_; }
 
  private:

@@ -29,6 +29,17 @@ class BrowserDownloadService : public KeyedService,
 
   ~BrowserDownloadService() override;
 
+  // Returns whether all downloads (both to the local filesystem and to Google
+  // Drive) should be restricted. This is more permissive than
+  // `ShouldRestrictLocalDownloads` because a download might still be allowed
+  // if it can be saved to Google Drive, even if local downloads are restricted.
+  static bool ShouldRestrictAllDownloads(web::WebState* web_state);
+
+  // Returns whether downloading to the local filesystem is restricted by
+  // policy. Unlike `ShouldRestrictAllDownloads`, this does not check if the
+  // download can be saved to Google Drive.
+  static bool ShouldRestrictLocalDownloads(web::WebState* web_state);
+
  private:
   // web::DownloadControllerDelegate overrides:
   void OnDownloadCreated(web::DownloadController*,

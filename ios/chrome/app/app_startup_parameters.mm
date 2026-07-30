@@ -204,6 +204,9 @@ ApplicationModeRequestStatus ApplicationModeAvailability(
     case ADD_READING_LIST_ITEMS:
       [description appendString:@", should add reading list items"];
       break;
+    case SHOW_GOOGLE_ONE_SCREEN:
+      [description appendString:@", should show Google One screen"];
+      break;
     default:
       break;
   }
@@ -236,6 +239,7 @@ ApplicationModeRequestStatus ApplicationModeAvailability(
     case START_LENS_FROM_SPOTLIGHT:
     case OPEN_LATEST_TAB:
     case START_LENS_FROM_INTENTS:
+    case SHOW_GOOGLE_ONE_SCREEN:
       if (_externalURL.is_empty()) {
         return YES;
       }

@@ -225,6 +225,9 @@ enum class GeminiFirstRunType {
 // The entry point that triggered the Gemini session.
 @property(nonatomic, assign) gemini::EntryPoint entryPoint;
 
+// Whether this is the first Gemini session.
+@property(nonatomic, assign) BOOL isFirstSession;
+
 // An optional image to attach to the query.
 @property(nonatomic, strong) UIImage* imageAttachment;
 

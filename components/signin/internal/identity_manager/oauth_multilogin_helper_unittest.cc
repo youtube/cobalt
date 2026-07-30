@@ -374,6 +374,10 @@ class MockBoundSessionOAuthMultiLoginDelegate
               (const OAuthMultiloginResult&),
               (override));
   MOCK_METHOD(void, OnCookiesSet, (), (override));
+  MOCK_METHOD((std::vector<std::pair<GURL, std::string>>),
+              GetAllSessions,
+              (),
+              (const, override));
 };
 
 std::string CreateMultiOAuthAuthorizationHeader(

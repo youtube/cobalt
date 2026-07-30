@@ -1,0 +1,98 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+assert(!is_android)
+
+source_set("read_anything") {
+  sources = [
+    "chrome_os_extension_wrapper.cc",
+    "read_anything_untrusted_page_handler.cc",
+    "read_anything_untrusted_ui.cc",
+  ]
+  public = [
+    "chrome_os_extension_wrapper.h",
+    "read_anything_untrusted_page_handler.h",
+    "read_anything_untrusted_ui.h",
+  ]
+  public_deps = [
+    "//chrome/browser:browser_public_dependencies",
+    "//chrome/browser/ui/read_anything",
+    "//chrome/browser/ui/toolbar/pinned_toolbar",
+    "//chrome/browser/ui/webui/top_chrome",
+    "//chrome/common/read_anything:mojo_bindings",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+  ]
+  deps = [
+    "//chrome/app:command_ids",
+    "//chrome/browser/accessibility",
+    "//chrome/browser/accessibility/phrase_segmentation",
+    "//chrome/browser/component_updater",
+    "//chrome/browser/dom_distiller",
+    "//chrome/browser/extensions",
+    "//chrome/browser/language",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/resources/side_panel/read_anything:resources",
+    "//chrome/browser/resources/side_panel/shared:resources_grit",
+    "//chrome/browser/screen_ai:screen_ai_service_router_factory",
+    "//chrome/browser/speech",
+    "//chrome/browser/translate",
+    "//chrome/browser/ui:accelerator_table",
+    "//chrome/browser/ui:browser_element_identifiers",
+    "//chrome/browser/ui:ui_features",
+    "//chrome/browser/ui/side_panel",
+    "//chrome/browser/ui/tabs:tab_strip",
+    "//chrome/browser/ui/toolbar",
+    "//chrome/browser/ui/webui:theme_source",
+    "//chrome/common",
+    "//components/dom_distiller/content/browser",
+    "//components/language/core/common",
+    "//components/language_detection/core",
+    "//components/pdf/common:util",
+    "//components/user_education/webui",
+    "//extensions/browser/mime_handler",
+    "//pdf:features",
+    "//ui/webui",
+    "//ui/webui/tracked_element",
+  ]
+
+  if (is_chromeos) {
+    public_deps += [ "//chromeos/ash/components/language_packs" ]
+  }
+
+  if (is_mac) {
+    deps += [ "//chrome/browser:global_keyboard_shortcuts_mac" ]
+  }
+
+  # Forms an include cycle with //chrome/browser/ui/read_anything: it includes
+  # this target's _ui.h / _page_handler.h, and this target's page handler
+  # includes its controller headers (read_anything_controller.h,
+  # read_anything_side_panel_controller.h).
+  allow_circular_includes_from = [ "//chrome/browser/ui/read_anything" ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [
+    "read_anything_app_e2e_browsertest.cc",
+    "read_anything_untrusted_page_handler_browsertest.cc",
+  ]
+  deps = [
+    ":read_anything",
+    "//chrome/browser/pdf:pdf_extension_test_utils",
+    "//chrome/browser/speech",
+    "//chrome/browser/ui/side_panel",
+    "//chrome/browser/ui/side_panel:side_panel_views_dependent",
+    "//chrome/test:test_support",
+    "//chrome/test:test_support_ui",
+    "//components/language_detection/core",
+    "//content/test:browsertest_support",
+    "//content/test:test_support",
+    "//extensions/browser/mime_handler",
+    "//pdf:features",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

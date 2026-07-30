@@ -28,8 +28,7 @@ class MEDIA_EXPORT HlsDataSourceProviderImpl : public HlsDataSourceProvider {
       std::unique_ptr<CrossOriginDataSource::Factory> factory);
 
   // HlsDataSourceProvider implementation
-  void ReadFromCombinedUrlQueue(SegmentQueue segments,
-                                ReadCb callback) override;
+  void ReadFromUrl(UrlDataSegment segment, ReadCb callback) override;
 
   void ReadFromExistingStream(std::unique_ptr<HlsDataSourceStream> stream,
                               ReadCb callback) override;

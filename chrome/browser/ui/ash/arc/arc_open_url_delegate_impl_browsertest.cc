@@ -65,7 +65,7 @@ class ArcOpenUrlDelegateImplWebAppBrowserTest
   ArcOpenUrlDelegateImplWebAppBrowserTest() {
     features_list_.InitWithFeaturesAndParameters(
         apps::test::GetFeaturesToEnableLinkCapturingUX(
-            apps::test::LinkCapturingFeatureVersion::kV2DefaultOff),
+            apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
         {});
   }
 
@@ -75,9 +75,6 @@ class ArcOpenUrlDelegateImplWebAppBrowserTest
 
 IN_PROC_BROWSER_TEST_F(ArcOpenUrlDelegateImplWebAppBrowserTest, OpenWebApp) {
   InstallTestWebApp();
-  // Enabling link capturing to ensure it doesn't interfere.
-  ASSERT_EQ(apps::test::EnableLinkCapturingByUser(profile(), test_web_app_id()),
-            base::ok());
   const GURL app_url = embedded_https_test_server().GetURL(GetAppUrlHost(), GetAppUrlPath());
   const char* key =
       arc::ArcWebContentsData::ArcWebContentsData::kArcTransitionFlag;
@@ -135,9 +132,6 @@ IN_PROC_BROWSER_TEST_F(ArcOpenUrlDelegateImplWebAppBrowserTest,
   web_app_info->share_target = share_target;
   std::string id =
       web_app::test::InstallWebApp(profile(), std::move(web_app_info));
-  // Enabling link capturing to ensure it doesn't interfere.
-  ASSERT_EQ(apps::test::EnableLinkCapturingByUser(profile(), id), base::ok());
-
   const char* arc_transition_key =
       arc::ArcWebContentsData::ArcWebContentsData::kArcTransitionFlag;
 

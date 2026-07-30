@@ -390,6 +390,9 @@ DataTypeSet TypesRequiringUnsyncedDataCheckOnSignout();
 // superset of AlwaysEncryptedUserTypes();
 DataTypeSet EncryptableUserTypes();
 
+// Returns the set of data types that support local sync.
+DataTypeSet LocalSyncSupportedTypes();
+
 // Determine a data type from the field number of its associated
 // EntitySpecifics field.  Returns UNSPECIFIED if the field number is
 // not recognized.

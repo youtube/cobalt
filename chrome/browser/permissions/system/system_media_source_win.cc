@@ -116,7 +116,7 @@ SystemMediaSourceWin::SystemMediaSourceWin() {
   }
 
   camera_capability_ = CreateAppCapability("webcam");
-  microphone_capability_ = CreateAppCapability("Microphone");
+  microphone_capability_ = CreateAppCapability("microphone");
 
   if (has_sta) {
     CoRegisterMessageFilter(old_filter.Get(), nullptr);

@@ -382,14 +382,12 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
     uses_glyph_relative_units_ = uses_glyph_relative_units;
   }
 
-  bool UsesRootFontRelativeUnits() const {
-    return uses_root_font_relative_units_;
+  bool UsesRootRelativeUnits() const { return uses_root_relative_units_; }
+  void SetUsesRootRelativeUnits(bool uses_root_relative_units) {
+    uses_root_relative_units_ = uses_root_relative_units;
   }
-  void SetUsesRootFontRelativeUnits(bool uses_root_font_relative_units) {
-    uses_root_font_relative_units_ = uses_root_font_relative_units;
-  }
-  bool UpdateRootFontRelativeUnits(const ComputedStyle* old_root_style,
-                                   const ComputedStyle* new_root_style);
+  bool UpdateRootRelativeUnits(const ComputedStyle* old_root_style,
+                               const ComputedStyle* new_root_style);
   void SetUsesTreeCountingFunctions() { uses_tree_counting_functions_ = true; }
 
   void ResetCSSFeatureFlags(const RuleFeatureSet&);
@@ -1059,7 +1057,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   // the need to call UpdateCounters.
   bool counters_changed_{false};
 
-  bool uses_root_font_relative_units_{false};
+  bool uses_root_relative_units_{false};
   bool uses_glyph_relative_units_{false};
   bool uses_line_height_units_{false};
   // True if we ever resolved style that involved tree-counting functions such

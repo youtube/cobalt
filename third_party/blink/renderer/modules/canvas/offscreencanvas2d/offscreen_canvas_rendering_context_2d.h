@@ -20,7 +20,7 @@
 
 namespace blink {
 
-class Canvas2DResourceProviderBitmap;
+class Canvas2DBitmapProvider;
 class Canvas2DResourceProviderSharedImage;
 class ExceptionState;
 class ExecutionContext;
@@ -148,7 +148,7 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   bool InitializeResourceProvider() override;
 
   std::unique_ptr<Canvas2DResourceProviderSharedImage> shared_image_provider_;
-  std::unique_ptr<Canvas2DResourceProviderBitmap> bitmap_provider_;
+  std::unique_ptr<Canvas2DBitmapProvider> bitmap_provider_;
 };
 
 }  // namespace blink

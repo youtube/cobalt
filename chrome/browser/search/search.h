@@ -21,6 +21,9 @@ class WebContents;
 
 namespace search {
 
+// UserData key to tag RenderProcessHosts hosting the NTP in chrome/.
+extern const void* const kIsNTPProcessKey;
+
 // Returns whether Google is selected as the default search engine.
 bool DefaultSearchProviderIsGoogle(Profile* profile);
 

@@ -68,6 +68,12 @@ class NET_EXPORT CachingCertVerifier : public CertVerifier,
   FRIEND_TEST_ALL_PREFIXES(CachingCertVerifierTest, CacheHit);
   FRIEND_TEST_ALL_PREFIXES(CachingCertVerifierTest, CacheHitCTResultsCached);
   FRIEND_TEST_ALL_PREFIXES(CachingCertVerifierTest, DifferentCACerts);
+  FRIEND_TEST_ALL_PREFIXES(CachingCertVerifierTest,
+                           CacheCertVerificationDisabled);
+  FRIEND_TEST_ALL_PREFIXES(CachingCertVerifierTestWithMockTime,
+                           CacheEntryTtlRespected);
+  FRIEND_TEST_ALL_PREFIXES(CachingCertVerifierTestWithMockTime,
+                           CacheEntryMaxTtlEnforced);
   FRIEND_TEST_ALL_PREFIXES(CachingCertVerifierCacheClearingTest,
                            CacheClearedSyncVerification);
   FRIEND_TEST_ALL_PREFIXES(CachingCertVerifierCacheClearingTest,

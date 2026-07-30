@@ -734,9 +734,10 @@ TEST_P(CommandStorageBackendParamTest, AppendCommandsTwice) {
       {1, "a"},
       {2, "bc"},
       {3, "def"},
+      {4, "ghij"},
   });
 
-  // Write the first command.
+  // Write the first command, with truncate=true.
   SessionCommands commands;
   commands.push_back(CreateCommandFromData(data[0]));
   bool write_error_occurred = false;
@@ -746,23 +747,33 @@ TEST_P(CommandStorageBackendParamTest, AppendCommandsTwice) {
                           }));
   EXPECT_FALSE(write_error_occurred);
 
-  // Append the next two commands to the same file.
+  // Append another commands to the same file.
   commands.clear();
   commands.push_back(CreateCommandFromData(data[1]));
-  commands.push_back(CreateCommandFromData(data[2]));
   backend->AppendCommands(std::move(commands), /*truncate=*/false,
                           base::BindLambdaForTesting([&write_error_occurred]() {
                             write_error_occurred = true;
                           }));
   EXPECT_FALSE(write_error_occurred);
 
-  // Read it back in and verify all 3 commands are present.
+  // Append two more commands to the same file.
+  commands.clear();
+  commands.push_back(CreateCommandFromData(data[2]));
+  commands.push_back(CreateCommandFromData(data[3]));
+  backend->AppendCommands(std::move(commands), /*truncate=*/false,
+                          base::BindLambdaForTesting([&write_error_occurred]() {
+                            write_error_occurred = true;
+                          }));
+  EXPECT_FALSE(write_error_occurred);
+
+  // Read it back in and verify all commands are present.
   backend->MoveCurrentSessionToLastSession();
   commands = backend->ReadLastSessionCommands().commands;
-  ASSERT_EQ(3U, commands.size());
+  ASSERT_EQ(4U, commands.size());
   AssertCommandEqualsData(data[0], commands[0].get());
   AssertCommandEqualsData(data[1], commands[1].get());
   AssertCommandEqualsData(data[2], commands[2].get());
+  AssertCommandEqualsData(data[3], commands[3].get());
   histogram_tester.ExpectTotalCount(
       GetHistogramName("AppendCommands", "Truncate", "Status"), 1);
   histogram_tester.ExpectTotalCount(
@@ -770,11 +781,11 @@ TEST_P(CommandStorageBackendParamTest, AppendCommandsTwice) {
   histogram_tester.ExpectTotalCount(
       GetHistogramName("AppendCommands", "Truncate", "FileSize"), 1);
   histogram_tester.ExpectTotalCount(
-      GetHistogramName("AppendCommands", "Append", "Status"), 1);
+      GetHistogramName("AppendCommands", "Append", "Status"), 2);
   histogram_tester.ExpectTotalCount(
-      GetHistogramName("AppendCommands", "Append", "Duration"), 1);
+      GetHistogramName("AppendCommands", "Append", "Duration"), 2);
   histogram_tester.ExpectTotalCount(
-      GetHistogramName("AppendCommands", "Append", "FileSize"), 1);
+      GetHistogramName("AppendCommands", "Append", "FileSize"), 2);
 }
 
 // Writes a command, appends another command with reset to true, then reads

@@ -4,10 +4,12 @@
 
 source_set("dictation") {
   public = [
+    "connector_component_extension.h",
     "dictation_keyed_service.h",
     "dictation_keyed_service_factory.h",
     "dictation_multiplexer.h",
     "features.h",
+    "onboarding_manager.h",
     "session_controller.h",
     "session_controller_delegate.h",
     "session_state.h",
@@ -20,33 +22,49 @@ source_set("dictation") {
   public_deps = [
     "//base",
     "//chrome/browser/profiles:profile",
+    "//content/public/browser",
   ]
+  deps = [ "//components/prefs" ]
 }
 
 source_set("impl") {
   sources = [
+    "connector_component_extension.cc",
+    "dictation_context.cc",
+    "dictation_context.h",
+    "dictation_context_fetcher.cc",
+    "dictation_context_fetcher.h",
     "dictation_keyed_service.cc",
     "dictation_keyed_service_factory.cc",
     "dictation_multiplexer.cc",
     "features.cc",
     "listener_stream_provider.cc",
     "listener_stream_provider.h",
+    "onboarding_manager.cc",
     "session_controller.cc",
     "session_state.cc",
     "session_ui_impl.cc",
     "session_ui_impl.h",
+    "target.cc",
   ]
 
   deps = [
     ":dictation",
     "//base",
+    "//chrome/browser/component_updater",
+    "//chrome/browser/extensions",
+    "//chrome/browser/page_content_annotations:fetcher",
     "//chrome/browser/ui",
     "//chrome/browser/ui:browser_element_identifiers",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/views/interaction",
     "//chrome/common/extensions/api",
+    "//components/optimization_guide/content/browser",
+    "//components/optimization_guide/proto:optimization_guide_proto",
+    "//components/page_content_annotations/content",
     "//content/public/browser",
     "//extensions/browser",
+    "//ui/base",
     "//ui/views",
   ]
 }
@@ -61,7 +79,9 @@ source_set("test_support") {
   public_deps = [
     ":dictation",
     "//base",
+    "//base/test:test_support",
     "//chrome/common/extensions/api",
+    "//chrome/test:test_support",
     "//testing/gmock",
     "//testing/gtest",
   ]
@@ -70,6 +90,7 @@ source_set("test_support") {
     ":impl",
     "//chrome/browser/extensions:test_support",
     "//chrome/common:constants",
+    "//components/prefs",
     "//content/test:test_support",
     "//extensions/browser:test_support",
   ]
@@ -87,6 +108,8 @@ source_set("unit_tests") {
     ":test_support",
     "//base/test:test_support",
     "//chrome/browser/ui:test_support",
+    "//chrome/test:test_support",
+    "//content/test:test_support",
   ]
 }
 
@@ -94,12 +117,20 @@ source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [
+    "dictation_browser_test_base.cc",
+    "dictation_browser_test_base.h",
+    "dictation_context_browsertest.cc",
+    "dictation_interactive_browser_test_base.cc",
+    "dictation_interactive_browser_test_base.h",
     "dictation_keyed_service_browsertest.cc",
+    "dictation_onboarding_browsertest.cc",
+    "policy_browsertest.cc",
     "session_ui_impl_browsertest.cc",
   ]
   deps = [
     ":impl",
     ":test_support",
+    "//chrome/browser/policy:test_support",
     "//chrome/browser/profiles:profile",
     "//chrome/test:test_support",
     "//content/test:test_support",

@@ -25,9 +25,9 @@ FrameSenderConfig::FrameSenderConfig(
     bool use_hardware_encoder,
     int rtp_timebase,
     int channels,
-    int max_bitrate,
-    int min_bitrate,
-    int start_bitrate,
+    uint32_t max_bitrate,
+    uint32_t min_bitrate,
+    uint32_t start_bitrate,
     double max_frame_rate,
     std::optional<VideoCodecParams> video_codec_params,
     std::optional<AudioCodecParams> audio_codec_params)

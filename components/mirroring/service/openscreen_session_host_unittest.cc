@@ -30,6 +30,7 @@
 #include "media/cast/cast_config.h"
 #include "media/cast/common/openscreen_conversion_helpers.h"
 #include "media/cast/encoding/encoding_support.h"
+#include "media/cast/sender/audio_sender.h"
 #include "media/cast/test/openscreen_test_helpers.h"
 #include "media/cast/test/utility/default_config.h"
 #include "media/media_buildflags.h"
@@ -951,9 +952,9 @@ TEST_F(OpenscreenSessionHostTest, ChangeTargetPlayoutDelay) {
   // Currently new delays are ignored due to the playout delay being bounded by
   // the minimum and maximum both being set to the default value.
   session_host().SetTargetPlayoutDelay(base::Milliseconds(300));
-  EXPECT_EQ(session_host().audio_stream_->GetTargetPlayoutDelay(),
+  EXPECT_EQ(session_host().audio_sender_->GetTargetPlayoutDelay(),
             kDefaultPlayoutDelay);
-  EXPECT_EQ(session_host().audio_stream_->GetTargetPlayoutDelay(),
+  EXPECT_EQ(session_host().audio_sender_->GetTargetPlayoutDelay(),
             kDefaultPlayoutDelay);
 
   StopSession();
@@ -963,10 +964,10 @@ TEST_F(OpenscreenSessionHostTest, UpdateBandwidthEstimate) {
   CreateSession(SessionType::VIDEO_ONLY);
   StartSession();
 
-  constexpr int kMinVideoBitrate = 393216;
-  constexpr int kMaxVideoBitrate = 1250000;
-  // Default bitrate should be twice the minimum.
-  EXPECT_EQ(786432, session_host().GetVideoNetworkBandwidth());
+  constexpr uint32_t kMinVideoBitrate = 393216;
+  constexpr uint32_t kMaxVideoBitrate = 1250000;
+  // Default bitrate should match kDefaultBitrate (5 Mbps).
+  EXPECT_EQ(5000000u, session_host().GetVideoNetworkBandwidth());
 
   // If the estimate is below the minimum, it should stay at the minimum.
   session_host().forced_bandwidth_estimate_for_testing_ = 1000;
@@ -976,15 +977,15 @@ TEST_F(OpenscreenSessionHostTest, UpdateBandwidthEstimate) {
   // It should gradually reach the max bandwidth estimate when raised.
   session_host().forced_bandwidth_estimate_for_testing_ = 1000000;
   session_host().UpdateBandwidthEstimate();
-  EXPECT_EQ(432537, session_host().GetVideoNetworkBandwidth());
+  EXPECT_EQ(432537u, session_host().GetVideoNetworkBandwidth());
 
   session_host().UpdateBandwidthEstimate();
-  EXPECT_EQ(475790, session_host().GetVideoNetworkBandwidth());
+  EXPECT_EQ(475790u, session_host().GetVideoNetworkBandwidth());
   for (int i = 0; i < 20; ++i) {
     session_host().UpdateBandwidthEstimate();
   }
   // The max should be 80% of `forced_bandwidth_estimate_for_testing_`.
-  EXPECT_EQ(800000, session_host().GetVideoNetworkBandwidth());
+  EXPECT_EQ(800000u, session_host().GetVideoNetworkBandwidth());
 
   // The video bitrate should stay saturated at the cap when reached.
   session_host().forced_bandwidth_estimate_for_testing_ = kMaxVideoBitrate + 1;
@@ -992,7 +993,7 @@ TEST_F(OpenscreenSessionHostTest, UpdateBandwidthEstimate) {
     session_host().UpdateBandwidthEstimate();
   }
   // The max should be 80% of `kMaxVideoBitrate`.
-  EXPECT_EQ(1000000, session_host().GetVideoNetworkBandwidth());
+  EXPECT_EQ(1000000u, session_host().GetVideoNetworkBandwidth());
 
   StopSession();
 }

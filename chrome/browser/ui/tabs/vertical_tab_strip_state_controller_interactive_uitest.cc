@@ -8,10 +8,15 @@
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+#include "chrome/browser/ui/toasts/api/toast_id.h"
+#include "chrome/browser/ui/toasts/toast_controller.h"
+#include "chrome/browser/ui/toasts/toast_view.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/frame/system_menu_model_builder.h"
 #include "chrome/browser/ui/views/test/tab_strip_interactive_test_mixin.h"
@@ -25,10 +30,69 @@
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/models/menu_model.h"
 #include "ui/base/test/ui_controls.h"
+#include "ui/base/unowned_user_data/user_data_factory.h"
 #include "ui/views/controls/menu/menu_item_view.h"
 #include "ui/views/interaction/interactive_views_test.h"
 
 namespace base::test {
+
+class FakeImmersiveModeController : public ImmersiveModeController {
+ public:
+  explicit FakeImmersiveModeController(ui::UnownedUserDataHost& host)
+      : ImmersiveModeController(host) {}
+  ~FakeImmersiveModeController() override = default;
+
+  void Init(BrowserView* browser_view) override {
+    browser_view_ = browser_view;
+  }
+  void SetEnabled(bool enabled) override {
+    enabled_ = enabled;
+#if BUILDFLAG(IS_MAC)
+    if (browser_view_ && browser_view_->overlay_widget()) {
+      if (enabled_) {
+        browser_view_->overlay_widget()->Show();
+      } else {
+        browser_view_->overlay_widget()->Hide();
+      }
+    }
+#endif
+    if (enabled_) {
+      for (Observer& observer : observers_) {
+        observer.OnImmersiveFullscreenEntered();
+      }
+    } else {
+      for (Observer& observer : observers_) {
+        observer.OnImmersiveFullscreenExited();
+      }
+    }
+  }
+  bool IsEnabled() const override { return enabled_; }
+  bool IsRevealed() const override { return false; }
+  int GetTopContainerVerticalOffset(
+      const gfx::Size& top_container_size) const override {
+    return 0;
+  }
+  std::unique_ptr<ImmersiveRevealedLock> GetRevealedLock(
+      AnimateReveal animate_reveal) override {
+    return nullptr;
+  }
+  void OnFindBarVisibleBoundsChanged(
+      const gfx::Rect& new_visible_bounds_in_screen) override {}
+  bool ShouldStayImmersiveAfterExitingFullscreen() override { return true; }
+  int GetMinimumContentOffset() const override { return 0; }
+  int GetExtraInfobarOffset() const override { return 0; }
+  void OnContentFullscreenChanged(bool is_content_fullscreen) override {}
+  void AddObserver(Observer* observer) override {
+    ImmersiveModeController::AddObserver(observer);
+  }
+  void RemoveObserver(Observer* observer) override {
+    ImmersiveModeController::RemoveObserver(observer);
+  }
+
+ private:
+  raw_ptr<BrowserView> browser_view_ = nullptr;
+  bool enabled_ = false;
+};
 
 class VerticalTabStripInteractiveUiTest : public InteractiveBrowserTest {
  public:
@@ -40,6 +104,12 @@ class VerticalTabStripInteractiveUiTest : public InteractiveBrowserTest {
         /* enabled_features */ {tabs::kVerticalTabs,
                                 tabs::kVerticalTabsExpandOnHover},
         /* disabled_features */ {});
+    override_ =
+        BrowserWindowFeatures::GetUserDataFactoryForTesting()
+            .AddOverrideForTesting<FakeImmersiveModeController>(
+                base::BindRepeating(
+                    &VerticalTabStripInteractiveUiTest::CreateFakeController,
+                    base::Unretained(this)));
     InteractiveBrowserTest::SetUp();
   }
 
@@ -54,8 +124,25 @@ class VerticalTabStripInteractiveUiTest : public InteractiveBrowserTest {
     return false;
   }
 
+  void PostRunTestOnMainThread() override {
+    fake_controller_ = nullptr;
+    InteractiveBrowserTest::PostRunTestOnMainThread();
+  }
+
+ protected:
+  std::unique_ptr<FakeImmersiveModeController> CreateFakeController(
+      BrowserWindowInterface& owner) {
+    auto controller = std::make_unique<FakeImmersiveModeController>(
+        owner.GetUnownedUserDataHost());
+    fake_controller_ = controller.get();
+    return controller;
+  }
+
+  raw_ptr<FakeImmersiveModeController> fake_controller_ = nullptr;
+
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
+  std::optional<ui::UserDataFactory::ScopedOverride> override_;
 };
 
 // Unable to programmatically click System Context Menu Items in Windows.
@@ -254,5 +341,106 @@ INSTANTIATE_TEST_SUITE_P(
                  ? "PreviewBadge"
                  : "NewBadge";
     });
+
+IN_PROC_BROWSER_TEST_F(VerticalTabStripInteractiveUiTest,
+                       ImmersiveFullscreenSwitchShowToast) {
+  // Enter immersive fullscreen
+  ui_test_utils::ToggleFullscreenModeAndWait(browser());
+  ASSERT_TRUE(browser()->GetWindow()->IsFullscreen());
+  fake_controller_->SetEnabled(true);
+
+  // Get ToastController
+  ToastController* const toast_controller =
+      browser()->browser_window_features()->toast_controller();
+  ASSERT_NE(toast_controller, nullptr);
+  EXPECT_FALSE(toast_controller->IsShowingToast());
+
+  // Try to enable vertical tabs
+  tabs::VerticalTabStripStateController::From(browser())
+      ->SetVerticalTabsEnabled(true);
+
+  // Stop the timer so it doesn't auto-dismiss during test execution.
+  toast_controller->GetToastCloseTimerForTesting()->Stop();
+
+  // Verify that vertical tabs are NOT enabled because we are in immersive
+  // fullscreen (state is locked)
+  EXPECT_FALSE(tabs::VerticalTabStripStateController::From(browser())
+                   ->ShouldDisplayVerticalTabs());
+
+  // Verify that toast is showing and has the correct ID
+  EXPECT_TRUE(toast_controller->IsShowingToast());
+  EXPECT_EQ(toast_controller->GetCurrentToastId(),
+            ToastId::kTabStripSwitchDelayedVertical);
+
+  // Click the action button on the toast to exit fullscreen.
+  RunTestSequence(
+      WaitForShow(toasts::ToastView::kToastActionButton), Do([]() {
+        base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
+        base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+            FROM_HERE, run_loop.QuitClosure(), base::Seconds(20));
+        run_loop.Run();
+      }),
+      PressButton(toasts::ToastView::kToastActionButton),
+      WaitForHide(toasts::ToastView::kToastViewId));
+
+  // Verify we exited fullscreen and vertical tabs are now enabled!
+  fake_controller_->SetEnabled(false);
+  EXPECT_FALSE(browser()->GetWindow()->IsFullscreen());
+  EXPECT_TRUE(tabs::VerticalTabStripStateController::From(browser())
+                  ->ShouldDisplayVerticalTabs());
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabStripInteractiveUiTest,
+                       ImmersiveFullscreenSwitchShowHorizontalToast) {
+  // Enable vertical tabs first
+  tabs::VerticalTabStripStateController::From(browser())
+      ->SetVerticalTabsEnabled(true);
+  ASSERT_TRUE(tabs::VerticalTabStripStateController::From(browser())
+                  ->ShouldDisplayVerticalTabs());
+
+  // Enter immersive fullscreen
+  ui_test_utils::ToggleFullscreenModeAndWait(browser());
+  ASSERT_TRUE(browser()->GetWindow()->IsFullscreen());
+  fake_controller_->SetEnabled(true);
+
+  // Get ToastController
+  ToastController* const toast_controller =
+      browser()->browser_window_features()->toast_controller();
+  ASSERT_NE(toast_controller, nullptr);
+  EXPECT_FALSE(toast_controller->IsShowingToast());
+
+  // Try to disable vertical tabs
+  tabs::VerticalTabStripStateController::From(browser())
+      ->SetVerticalTabsEnabled(false);
+
+  // Stop the timer so it doesn't auto-dismiss during test execution.
+  toast_controller->GetToastCloseTimerForTesting()->Stop();
+
+  // Verify that vertical tabs are STILL enabled because state is locked
+  EXPECT_TRUE(tabs::VerticalTabStripStateController::From(browser())
+                  ->ShouldDisplayVerticalTabs());
+
+  // Verify that horizontal toast is showing
+  EXPECT_TRUE(toast_controller->IsShowingToast());
+  EXPECT_EQ(toast_controller->GetCurrentToastId(),
+            ToastId::kTabStripSwitchDelayedHorizontal);
+
+  // Click action button to exit fullscreen
+  RunTestSequence(
+      WaitForShow(toasts::ToastView::kToastActionButton), Do([]() {
+        base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
+        base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+            FROM_HERE, run_loop.QuitClosure(), base::Seconds(20));
+        run_loop.Run();
+      }),
+      PressButton(toasts::ToastView::kToastActionButton),
+      WaitForHide(toasts::ToastView::kToastViewId));
+
+  // Verify we exited fullscreen and vertical tabs are now disabled!
+  fake_controller_->SetEnabled(false);
+  EXPECT_FALSE(browser()->GetWindow()->IsFullscreen());
+  EXPECT_FALSE(tabs::VerticalTabStripStateController::From(browser())
+                   ->ShouldDisplayVerticalTabs());
+}
 
 }  // namespace base::test

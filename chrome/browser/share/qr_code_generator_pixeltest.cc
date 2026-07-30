@@ -9,6 +9,7 @@
 #include "components/qr_code_generator/bitmap_generator.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/test/skia_gold_pixel_diff.h"
 
 namespace qrcode_generator {
@@ -25,7 +26,22 @@ class QrCodeGeneratorServicePixelTest : public PlatformBrowserTest {
     auto response = qr_code_generator::GenerateBitmap(
         base::as_byte_span(data), module_style, locator_style, center_image,
         qr_code_generator::QuietZone::kIncluded);
+    VerifyGolden(response);
+  }
 
+  void TestGolden(const std::string& data,
+                  const SkBitmap& center_image,
+                  const qr_code_generator::ModuleStyle& module_style,
+                  const qr_code_generator::LocatorStyle& locator_style) {
+    auto response = qr_code_generator::GenerateBitmap(
+        base::as_byte_span(data), module_style, locator_style, center_image,
+        qr_code_generator::QuietZone::kIncluded);
+    VerifyGolden(response);
+  }
+
+ private:
+  void VerifyGolden(
+      const base::expected<SkBitmap, qr_code_generator::Error>& response) {
     // Verify that we got a successful response.
     ASSERT_TRUE(response.has_value());
 
@@ -181,6 +197,17 @@ IN_PROC_BROWSER_TEST_F(QrCodeGeneratorServicePixelTest, HugeUrl) {
       "dignissim+quam+quis+nibh+tempus+rhoncus.+Quisque+in+sapien+vitae+lectus+"
       "malesuada+finibus+et+et+n";
   TestGolden(kInput, qr_code_generator::CenterImage::kDino,
+             qr_code_generator::ModuleStyle::kCircles,
+             qr_code_generator::LocatorStyle::kRounded);
+}
+
+IN_PROC_BROWSER_TEST_F(QrCodeGeneratorServicePixelTest,
+                       CustomCenterImageRoundQrPixelsAndLocators) {
+  SkBitmap custom_image;
+  custom_image.allocN32Pixels(40, 40);
+  custom_image.eraseColor(0xFFFF0000);  // Red
+
+  TestGolden("https://example.com", custom_image,
              qr_code_generator::ModuleStyle::kCircles,
              qr_code_generator::LocatorStyle::kRounded);
 }

@@ -10,6 +10,7 @@
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/message_loop/io_watcher.h"
+#include "base/message_loop/message_pump_wakeup_counter.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/posix/eintr_wrapper.h"
@@ -721,6 +722,8 @@ gboolean MessagePumpGlib::HandleCheck() {
 }
 
 void MessagePumpGlib::HandleDispatch() {
+  MessagePumpWakeupCounter::GetForCurrentThread().RecordWakeup();
+
   // Contingency 3.2.1
   EnsureClearedScopedWorkItem();
 
@@ -846,6 +849,9 @@ bool MessagePumpGlib::HandleFdWatchDispatch(FdWatchController* controller) {
   const bool is_persistent = controller->is_persistent_;
   const bool can_write = flags & G_IO_OUT;
   const bool can_read = flags & G_IO_IN && (is_persistent || !can_write);
+
+  DCHECK(can_read || can_write);
+  MessagePumpWakeupCounter::GetForCurrentThread().RecordWakeup();
 
   if (can_read && can_write) {
     // In case both callbacks can be called, it's necessary to check that

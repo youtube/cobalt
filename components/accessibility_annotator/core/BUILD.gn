@@ -25,6 +25,7 @@ source_set("core") {
     "//components/prefs",
     "//components/signin/public/identity_manager",
     "//components/subscription_eligibility",
+    "//net",
     "//url",
   ]
 }
@@ -82,6 +83,7 @@ source_set("unit_tests") {
     "//components/subscription_eligibility",
     "//components/sync:test_support",
     "//components/sync_preferences:test_support",
+    "//net:test_support",
     "//testing/gmock",
     "//testing/gtest",
   ]

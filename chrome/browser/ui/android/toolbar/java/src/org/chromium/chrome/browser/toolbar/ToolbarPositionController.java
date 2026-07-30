@@ -145,6 +145,7 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
     private final TopInsetProvider mTopInsetProvider;
     private final MonotonicObservableSupplier<Profile> mProfileSupplier;
     private final Supplier<@Nullable Tab> mActiveTabSupplier;
+    private final Supplier<Integer> mBookmarkBarIdSupplier;
     private final Handler mHandler;
     private @LayerVisibility int mLayerVisibility;
     private int mControlContainerHeight;
@@ -236,6 +237,7 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
             MonotonicObservableSupplier<Profile> profileSupplier,
             Supplier<@Nullable Tab> activeTabSupplier,
             NonNullObservableSupplier<Integer> keyboardHeightSupplier,
+            Supplier<Integer> bookmarkBarIdSupplier,
             WindowAndroid windowAndroid) {
         mBrowserControlsSizer = browserControlsSizer;
         mIsNtpWithFakeboxShowingSupplier = isNtpWithFakeboxShowingSupplier;
@@ -262,6 +264,7 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
         mCurrentPosition.set(mBrowserControlsSizer.getControlsPosition());
         mProfileSupplier = profileSupplier;
         mActiveTabSupplier = activeTabSupplier;
+        mBookmarkBarIdSupplier = bookmarkBarIdSupplier;
 
         mIsFirstPositionChange = true;
         mHairlineHeight =
@@ -995,7 +998,14 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
                     if (mCurrentPosition.get() != ControlsPosition.TOP) return;
                     LayoutParams progressBarLayoutParams =
                             (LayoutParams) mToolbarProgressBarContainer.getLayoutParams();
-                    progressBarLayoutParams.setAnchorId(mControlContainer.getView().getId());
+
+                    int targetAnchorId = mControlContainer.getView().getId();
+                    if (mTopControlsStacker.isLayerAtBottom(TopControlType.BOOKMARK_BAR)
+                            && mBookmarkBarIdSupplier.get() != 0) {
+                        targetAnchorId = mBookmarkBarIdSupplier.get();
+                    }
+                    progressBarLayoutParams.setAnchorId(targetAnchorId);
+
                     progressBarLayoutParams.anchorGravity = Gravity.BOTTOM;
                     if (ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser.isEnabled()
                             && ChromeFeatureList.sAndroidApb144Patch4.isEnabled()) {

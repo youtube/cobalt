@@ -2398,7 +2398,6 @@ interface Element : Node
     attribute @@toStringTag
     attribute @@unscopables
     getter activeViewTransition
-    getter ariaActionsElements
     getter ariaActiveDescendantElement
     getter ariaAtomic
     getter ariaAutoComplete
@@ -2580,7 +2579,6 @@ interface Element : Node
     method webkitMatchesSelector
     method webkitRequestFullScreen
     method webkitRequestFullscreen
-    setter ariaActionsElements
     setter ariaActiveDescendantElement
     setter ariaAtomic
     setter ariaAutoComplete
@@ -2666,7 +2664,6 @@ interface ElementImage
     method constructor
 interface ElementInternals
     attribute @@toStringTag
-    getter ariaActionsElements
     getter ariaActiveDescendantElement
     getter ariaAtomic
     getter ariaAutoComplete
@@ -2733,7 +2730,6 @@ interface ElementInternals
     method setFormValue
     method setToolParamSchema
     method setValidity
-    setter ariaActionsElements
     setter ariaActiveDescendantElement
     setter ariaAtomic
     setter ariaAutoComplete
@@ -3482,10 +3478,6 @@ interface GeolocationCoordinates
     getter speed
     method constructor
     method toJSON
-interface GeolocationPermissionStatus : PermissionStatus
-    attribute @@toStringTag
-    getter accuracyMode
-    method constructor
 interface GeolocationPosition
     attribute @@toStringTag
     getter coords
@@ -3831,6 +3823,7 @@ interface HTMLElement : Element
     getter accessKeyLabel
     getter attributeStyleMap
     getter autocapitalize
+    getter autocorrect
     getter autofocus
     getter contentEditable
     getter dataset
@@ -3985,6 +3978,7 @@ interface HTMLElement : Element
     method togglePopover
     setter accessKey
     setter autocapitalize
+    setter autocorrect
     setter autofocus
     setter contentEditable
     setter dir
@@ -4435,10 +4429,12 @@ interface HTMLInputElement : HTMLElement
     attribute @@toStringTag
     getter accept
     getter align
+    getter alpha
     getter alt
     getter autocomplete
     getter capture
     getter checked
+    getter colorSpace
     getter defaultChecked
     getter defaultValue
     getter dirName
@@ -4496,10 +4492,12 @@ interface HTMLInputElement : HTMLElement
     method stepUp
     setter accept
     setter align
+    setter alpha
     setter alt
     setter autocomplete
     setter capture
     setter checked
+    setter colorSpace
     setter defaultChecked
     setter defaultValue
     setter dirName
@@ -5042,6 +5040,9 @@ interface HTMLStyleElement : HTMLElement
     setter disabled
     setter media
     setter type
+interface HTMLSubMenuElement : HTMLElement
+    attribute @@toStringTag
+    method constructor
 interface HTMLSubmitButtonBehavior : ElementBehavior
     attribute @@toStringTag
     getter disabled
@@ -7523,6 +7524,12 @@ interface PopStateEvent : Event
     getter hasUAVisualTransition
     getter state
     method constructor
+interface PreconnectData
+    attribute @@toStringTag
+    getter crossorigin
+    getter earlyhint
+    getter origin
+    method constructor
 interface PreferenceManager
     attribute @@toStringTag
     getter colorScheme
@@ -9007,6 +9014,7 @@ interface SVGPathElement : SVGGeometryElement
     attribute @@toStringTag
     method constructor
     method getPathData
+    method setPathData
 interface SVGPatternElement : SVGElement
     attribute @@toStringTag
     getter height
@@ -9631,6 +9639,7 @@ interface SpeculationData
     attribute @@toStringTag
     getter navigationDestinationURL
     getter navigations
+    getter preconnects
     getter preloads
     method constructor
 interface SpeculationNavigationData

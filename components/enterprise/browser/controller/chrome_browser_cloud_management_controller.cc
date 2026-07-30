@@ -23,6 +23,7 @@
 #include "components/enterprise/browser/device_trust/device_trust_key_manager.h"
 #include "components/enterprise/browser/enterprise_switches.h"
 #include "components/enterprise/browser/groups/enterprise_groups_handler.h"
+#include "components/enterprise/browser/reporting/browser_launch/browser_launch_event_controller.h"
 #include "components/enterprise/browser/reporting/real_time_report_controller.h"
 #include "components/enterprise/browser/reporting/report_scheduler.h"
 #include "components/enterprise/browser/reporting/reporting_delegate_factory.h"
@@ -590,6 +591,15 @@ void ChromeBrowserCloudManagementController::InitializeReporting() {
       saas_usage_report_scheduler_ =
           enterprise_reporting::SaasUsageReportScheduler::Create(
               "browser", saas_usage_reporting_delegate_factory.get());
+    }
+  }
+
+  if (base::FeatureList::IsEnabled(
+          enterprise_reporting::kBrowserLaunchMetadataReporting)) {
+    browser_launch_controller_ =
+        delegate_->CreateBrowserLaunchEventController();
+    if (browser_launch_controller_) {
+      browser_launch_controller_->CollectAndUpload();
     }
   }
 

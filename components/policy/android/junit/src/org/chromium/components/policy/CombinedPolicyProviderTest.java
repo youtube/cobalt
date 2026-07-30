@@ -167,6 +167,31 @@ public class CombinedPolicyProviderTest {
     }
 
     @Test
+    public void testLinkNativeUnlink() {
+        CombinedPolicyProvider.linkNative(NATIVE_POINTER, mPolicyConverter);
+
+        PolicyProvider provider = new DummyPolicyProvider();
+        CombinedPolicyProvider.get().registerProvider(provider);
+
+        // Cache policies, which disables cache readability during the active session.
+        PolicyCacheUpdater.cachePolicies(mPolicyMap);
+        Assert.assertFalse(PolicyCache.get().isReadable());
+
+        // Unlink the native policy provider (passing 0).
+        CombinedPolicyProvider.linkNative(0, null);
+
+        // Verify that unlinking restores cache readability.
+        Assert.assertTrue(PolicyCache.get().isReadable());
+
+        // Trigger a policy update after unlinking and verify that the updates are ignored.
+        Bundle b = new Bundle();
+        b.putBoolean("BoolPolicy", false);
+        CombinedPolicyProvider.get().onSettingsAvailable(0, b);
+        verify(mPolicyConverter, never()).setPolicy("BoolPolicy", false);
+        verify(mCombinedPolicyConverterJniMock, never()).flushPolicies(anyInt());
+    }
+
+    @Test
     public void testRefreshPolicies() {
         CombinedPolicyProvider.linkNative(NATIVE_POINTER, mPolicyConverter);
         verify(mCombinedPolicyConverterJniMock, never()).flushPolicies(NATIVE_POINTER);

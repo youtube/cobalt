@@ -117,6 +117,7 @@ class OmniboxEditModel {
   void set_view(OmniboxView* view) { view_ = view; }
   OmniboxView* view() const { return view_; }
   void set_popup_view(OmniboxPopupView* popup_view);
+  OmniboxPopupView* popup_view() const { return popup_view_; }
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
@@ -262,14 +263,20 @@ class OmniboxEditModel {
                       AutocompleteMatch* match,
                       GURL* alternate_nav_url) const;
 
+  // How the user activated (or didn't activate) the AIM button.
+  enum class AimActivation {
+    // `kNotActivated` is used by `RecordAiModeMetrics()` to record metrics
+    // when the user did not activate AIM.
+    kNotActivated,
+    kKeyboard,
+    kClickOrGesture,
+    kContextMenu,
+  };
   // Navigates to AI Mode, with the contents of the currently selected match, if
-  // any. `via_keyboard` is set to `true` if AI Mode was invoked via keyboard
-  // event and is set to `false` if AI Mode was invoked via mouse / gesture
-  // event. `via_context_menu` is used to differentiate between users that open
-  // the popup via the AI mode button vs context menu and allow for the popup
-  // to open rather than navigate to the Google AI page when context is added.
+  // any. `activation` affects whether AIM popup will open or an AI navigation
+  // will occur. It also affects metrics.
   // Virtual for testing.
-  virtual void OpenAiMode(bool via_keyboard, bool via_context_menu);
+  virtual void OpenAiMode(AimActivation activation);
 
   // Returns true if the popup is open and is in in AI-Mode.
   bool PopupInAiMode() const;
@@ -751,21 +758,14 @@ class OmniboxEditModel {
                       metrics::OmniboxEventProto::KeywordModeEntryMethod
                           keyword_mode_entry_method);
 
-  // Record various UMA metrics associated with the AIM page action.
-  // `query_text` represents the text entered by the user at activation time.
-  // `activated` represents whether or not the user activated the page action.
-  // `via_keyboard` represents the page action entry method (i.e. `true` =
-  // keyboard event / `false` = mouse/gesture event).
-  void RecordAiModeMetrics(const std::u16string& query_text,
-                           bool activated,
-                           bool via_keyboard);
-
-  // TODO(niharm): Add comment.
-  void RecordAiModeButtonClick();
+  // Record AIM metrics. `query` is the user text when activated. `activation`
+  // is how it was activated, or whether it was not activated.
+  void RecordAiModeMetrics(const std::u16string& query,
+                           AimActivation activation);
 
   // Helper for `OpenAiMode()` to determine whether the AIM popup should open or
   // a navigation should occur.
-  bool ShouldOpenAimPopup(bool via_context_menu,
+  bool ShouldOpenAimPopup(AimActivation activation,
                           AutocompleteMatchType::Type current_match_type);
 
   // Helper for `OpenAiMode()` to initialize `query_contextualizer_`. No-op if

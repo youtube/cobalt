@@ -11,6 +11,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_tasks/ai_mode_context_library_converter.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks.mojom-shared.h"
@@ -53,6 +54,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/sessions/core/session_id.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "google_apis/gaia/gaia_constants.h"
@@ -557,12 +559,25 @@ void ContextualTasksPageHandler::GetCommonSearchParams(
 }
 
 void ContextualTasksPageHandler::OnboardingTooltipDismissed() {
-  PrefService* prefs = web_ui_controller_->GetProfile()->GetPrefs();
+  Profile* profile = web_ui_controller_->GetProfile();
+  PrefService* prefs = profile->GetPrefs();
   int count = prefs->GetInteger(
       contextual_tasks::kContextualTasksOnboardingTooltipDismissedCount);
   prefs->SetInteger(
       contextual_tasks::kContextualTasksOnboardingTooltipDismissedCount,
       count + 1);
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Notify feature engagement that onboarding was dismissed.
+  feature_engagement::Tracker* tracker =
+      feature_engagement::TrackerFactory::GetForBrowserContext(profile);
+  if (tracker) {
+    tracker->NotifyEvent("contextual_tasks_onboarding_dismissed");
+  }
+
+  prefs->SetInteger(
+      contextual_tasks::kContextualTasksSessionCountPostOnboarding, 0);
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 void ContextualTasksPageHandler::ReopenTabs() {
@@ -672,7 +687,9 @@ void ContextualTasksPageHandler::OnReceivedUpdatedThreadContextLibrary(
 
   // Populate restored tabs in the composebox.
   if (contextual_tasks_service_ &&
-      base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox)) {
+      base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox) &&
+      web_ui_controller_->is_history_thread_loading()) {
+    web_ui_controller_->set_is_history_thread_loading(false);
     contextual_tasks_service_->GetContextForTask(
         *task_id, {},
         std::make_unique<contextual_tasks::ContextDecorationParams>(),
@@ -918,13 +935,22 @@ void ContextualTasksPageHandler::MaybeTriggerPinningPromo() {
     return;
   }
 
-  // 3. Attempt to show the IPH!
+  // 3. Verify we have reached the session count threshold after onboarding
+  // tooltip was dismissed.
+  int post_onboarding_sessions = profile->GetPrefs()->GetInteger(
+      contextual_tasks::kContextualTasksSessionCountPostOnboarding);
+  if (post_onboarding_sessions <
+      contextual_tasks::GetContextualTasksNumSessionsBeforeRequestPinPromo()) {
+    return;
+  }
+
+  // 4. Attempt to show the IPH!
   BrowserWindowInterface* browser_window = web_ui_controller_->GetBrowser();
   if (!browser_window) {
     return;
   }
   BrowserUserEducationInterface::From(browser_window)
       ->MaybeShowFeaturePromo(
-          feature_engagement::kIPHSidePanelContextualTasksPinnableFeature);
+              feature_engagement::kIPHSidePanelContextualTasksPinnableFeature);
 #endif
 }

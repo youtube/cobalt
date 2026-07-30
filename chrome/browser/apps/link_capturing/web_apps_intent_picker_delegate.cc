@@ -9,8 +9,6 @@
 #include "base/containers/flat_map.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/user_metrics.h"
-#include "base/metrics/user_metrics_action.h"
 #include "base/task/bind_post_task.h"
 #include "chrome/browser/apps/link_capturing/apps_intent_picker_delegate.h"
 #include "chrome/browser/apps/link_capturing/enable_link_capturing_infobar_delegate.h"
@@ -182,9 +180,6 @@ void WebAppsIntentPickerDelegate::RecordIntentPickerIconEvent(
     apps::IntentPickerIconEvent event) {
   base::UmaHistogramEnumeration("Webapp.Site.Intents.IntentPickerIconEvent",
                                 event);
-  if (event == apps::IntentPickerIconEvent::kIconClicked) {
-    base::RecordAction(base::UserMetricsAction("IntentPickerIconClicked"));
-  }
 }
 
 bool WebAppsIntentPickerDelegate::ShouldLaunchAppDirectly(
@@ -217,25 +212,6 @@ void WebAppsIntentPickerDelegate::RecordOutputMetrics(
   // supported by the intent filters are PWAs, and the persistence checkbox does
   // not show up on the intent picker bubble for desktop platforms.
   CHECK_EQ(should_persist, false);
-  switch (close_reason) {
-    case IntentPickerCloseReason::OPEN_APP:
-      base::RecordAction(
-          base::UserMetricsAction("IntentPickerViewAcceptLaunchApp"));
-      break;
-    case apps::IntentPickerCloseReason::DIALOG_DEACTIVATED:
-      base::RecordAction(base::UserMetricsAction("IntentPickerViewIgnored"));
-      break;
-    case apps::IntentPickerCloseReason::STAY_IN_CHROME:
-      base::RecordAction(
-          base::UserMetricsAction("IntentPickerViewClosedStayInChrome"));
-      break;
-    case apps::IntentPickerCloseReason::ERROR_BEFORE_PICKER:
-    case apps::IntentPickerCloseReason::ERROR_AFTER_PICKER:
-    case apps::IntentPickerCloseReason::PREFERRED_APP_FOUND:
-      break;
-    default:
-      NOTREACHED();
-  }
 }
 
 // Persisting intent preferences for an app is a no-op, since the checkbox in

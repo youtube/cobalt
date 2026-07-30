@@ -19,6 +19,7 @@
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 
 namespace {
@@ -202,11 +203,11 @@ NSAttributedString* FormatHTMLListForUILabel(NSString* listString) {
 
   [self.view addSubview:primaryButton];
 
-  UIUserInterfaceIdiom idiom = [[UIDevice currentDevice] userInterfaceIdiom];
-
   // Only apply a width offset if the device is Ipad.
   CGFloat incognitoStackWidthOffset =
-      (idiom == UIUserInterfaceIdiomPad) ? kIncognitoStackWidthOffset : 0;
+      (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET)
+          ? kIncognitoStackWidthOffset
+          : 0;
 
   [NSLayoutConstraint activateConstraints:@[
     [_scrollView.topAnchor constraintEqualToAnchor:self.view.topAnchor],

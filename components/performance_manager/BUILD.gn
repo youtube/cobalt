@@ -68,6 +68,8 @@ static_library("performance_manager") {
     "execution_context_priority/frame_capturing_media_stream_voter.h",
     "execution_context_priority/frame_visibility_voter.cc",
     "execution_context_priority/frame_visibility_voter.h",
+    "execution_context_priority/glic_actuation_priority_voter.cc",
+    "execution_context_priority/glic_actuation_priority_voter.h",
     "execution_context_priority/inherit_client_priority_voter.cc",
     "execution_context_priority/inherit_client_priority_voter.h",
     "execution_context_priority/inherit_parent_priority_voter.cc",
@@ -119,6 +121,8 @@ static_library("performance_manager") {
     "graph/page_node_impl.h",
     "graph/page_node_impl_describer.cc",
     "graph/page_node_impl_describer.h",
+    "graph/policies/process_priority_policy.cc",
+    "graph/policies/process_priority_policy.h",
     "graph/process_node.cc",
     "graph/process_node_impl.cc",
     "graph/process_node_impl.h",
@@ -213,6 +217,7 @@ static_library("performance_manager") {
     "public/persistence/site_data/feature_usage.h",
     "public/persistence/site_data/site_data_reader.h",
     "public/power/battery_level_provider_creator.h",
+    "public/process_priority_policy_settings.h",
     "public/render_frame_host_proxy.h",
     "public/render_process_host_id.h",
     "public/render_process_host_proxy.h",
@@ -342,13 +347,6 @@ static_library("performance_manager") {
     deps += [ "//components/guest_view/browser" ]
   }
 
-  if (!is_android) {
-    sources += [
-      "graph/policies/process_priority_policy.cc",
-      "graph/policies/process_priority_policy.h",
-    ]
-  }
-
   if (is_chromeos) {
     deps += [
       "//chromeos/dbus/power",
@@ -390,6 +388,7 @@ source_set("unit_tests") {
     "execution_context_priority/frame_audible_voter_unittest.cc",
     "execution_context_priority/frame_capturing_media_stream_voter_unittest.cc",
     "execution_context_priority/frame_visibility_voter_unittest.cc",
+    "execution_context_priority/glic_actuation_priority_voter_unittest.cc",
     "execution_context_priority/inherit_client_priority_voter_unittest.cc",
     "execution_context_priority/inherit_parent_priority_voter_unittest.cc",
     "execution_context_priority/loading_page_voter_unittest.cc",

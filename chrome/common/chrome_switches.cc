@@ -760,10 +760,6 @@ const char kAuthAndroidNegotiateAccountType[] = "auth-spnego-account-type";
 // Disable the default browser promo.
 const char kDisableDefaultBrowserPromo[] = "disable-default-browser-promo";
 
-// Forces the device to report being owned by an enterprise. This mimics the
-// presence of an app signaling device ownership.
-const char kForceDeviceOwnership[] = "force-device-ownership";
-
 // Forces the night mode to be enabled.
 const char kForceEnableNightMode[] = "force-enable-night-mode";
 

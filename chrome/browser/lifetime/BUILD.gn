@@ -169,3 +169,81 @@ source_set("impl") {
     deps += [ "//chrome/browser/background/extensions" ]
   }
 }
+
+if (!is_android) {
+  source_set("unit_tests") {
+    testonly = true
+
+    sources = [
+      "restartability_monitor_unittest.cc",
+      "smart_restart_metrics_observer_unittest.cc",
+      "smart_restart_policy_unittest.cc",
+    ]
+    deps = [
+      ":lifetime",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser/upgrade_detector",
+      "//chrome/test:test_support",
+      "//content/test:test_support",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+
+    if (is_chromeos) {
+      sources += [ "application_lifetime_chromeos_unittest.cc" ]
+      deps += [
+        ":lifetime",
+        "//base",
+        "//chrome/test:test_support",
+        "//content/test:test_support",
+        "//testing/gtest",
+      ]
+    } else {
+      sources += [ "switch_utils_unittest.cc" ]
+    }
+  }
+
+  source_set("browser_tests") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [
+      "browser_close_manager_browsertest.cc",
+      "browser_shutdown_browsertest.cc",
+      "smart_restart_manager_browsertest.cc",
+      "smart_restart_metrics_observer_browsertest.cc",
+    ]
+
+    deps = [
+      ":lifetime",
+      ":termination_notification",
+      "//base",
+      "//chrome/browser:chrome_browser_main",
+      "//chrome/browser/download:test_support",
+      "//chrome/browser/prefs:util",
+      "//chrome/browser/ui",
+      "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/tabs:tab_strip",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//components/javascript_dialogs",
+      "//content/test:test_support",
+      "//testing/gtest",
+      "//ui/events:test_support",
+    ]
+
+    if (enable_background_mode) {
+      deps += [ "//chrome/browser/background/extensions" ]
+    }
+
+    if (!is_chromeos) {
+      sources += [ "application_lifetime_browsertest.cc" ]
+    }
+
+    if (is_chromeos) {
+      sources += [ "application_lifetime_chromeos_browsertest.cc" ]
+    }
+  }
+}

@@ -112,6 +112,10 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
 
   // Resets all image replacements and hides the toolbar.
   void Reset(ResetType reset_type);
+
+  // Dismisses the page action anchored message.
+  void DismissAnchoredMessage();
+
   // Shows the toolbar using the latest tracked bounds, if available.
   void ShowToolbar();
 
@@ -121,6 +125,13 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
 
   // Shows a toast notification informing the user that an error has occurred.
   void ShowInvocationErrorToast();
+
+  base::WeakPtr<IndigoPageActionController> GetWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
+  // Opens the settings page for Indigo.
+  virtual void OpenSettings();
 
   // content::WebContentsObserver:
   void DidFinishNavigation(

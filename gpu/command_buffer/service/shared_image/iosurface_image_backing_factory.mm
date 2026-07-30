@@ -277,10 +277,18 @@ bool IOSurfaceImageBackingFactory::IsSupported(
     gfx::GpuMemoryBufferType gmb_type,
     GrContextType gr_context_type,
     base::span<const uint8_t> pixel_data) {
-  // Only allow WebGPU shared buffer for WebNN use case for now.
-  if (usage.Has(SHARED_IMAGE_USAGE_WEBGPU_SHARED_BUFFER) &&
-      !usage.Has(SHARED_IMAGE_USAGE_WEBNN_SHARED_TENSOR)) {
-    return false;
+  if (usage.Has(SHARED_IMAGE_USAGE_WEBGPU_SHARED_BUFFER)) {
+    // If the SharedImage can be used as a WebGPU buffer, that means it's
+    // readable and writable and must have those usages.
+    if (!usage.HasAll(gpu::SHARED_IMAGE_USAGE_WEBGPU_READ |
+                      gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE)) {
+      return false;
+    }
+
+    // Only allow WebGPU shared buffer for WebNN use case for now.
+    if (!usage.Has(SHARED_IMAGE_USAGE_WEBNN_SHARED_TENSOR)) {
+      return false;
+    }
   }
 
   // This is the only format that can be used as MLMultiArray for WebNN.

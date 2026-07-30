@@ -222,6 +222,7 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
         reflect: true,
       },
       isAiPage_: {type: Boolean, reflect: true},
+      isUserSignedIn_: {type: Boolean},
       isLensOverlayShowing_: {type: Boolean},
       isOverlayOpenForAimVisualSearch_: {type: Boolean},
       isGhostLoaderVisible_: {type: Boolean, reflect: true},
@@ -278,6 +279,10 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
         type: Boolean,
         reflect: true,
       },
+      isInitialFrameLoad_: {
+        type: Boolean,
+        reflect: true,
+      },
       onboardingTooltipShowing_: {type: Boolean},
     };
   }
@@ -309,12 +314,15 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
   // though top-level navigation could fail for numerous reasons.
   protected accessor isLoadError_: boolean = !window.navigator.onLine;
   protected accessor isAiPage_: boolean = loadTimeData.getBoolean('isAiPage');
+  protected accessor isUserSignedIn_: boolean =
+      loadTimeData.getBoolean('isSignedIn');
   protected accessor isAimEligible_: boolean =
       loadTimeData.getBoolean('isAimEligible');
   protected accessor isLensOverlayShowing_: boolean = false;
   protected accessor isOverlayOpenForAimVisualSearch_: boolean = false;
   // Indicates if in tab mode. Most start in a tab.
-  protected accessor isShownInTab_: boolean = true;
+  protected accessor isShownInTab_: boolean =
+      loadTimeData.getBoolean('isShownInTab');
   protected accessor darkMode_: boolean = loadTimeData.getBoolean('darkMode');
   protected accessor isErrorDialogVisible_: boolean = false;
   private pendingUrl_: string = '';
@@ -326,8 +334,8 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
   // Whether no queries have been submitted in the current AIM thread. This
   // can be undefined on initial load to prevent the composebox from flashing
   // briefly before the zero state is rendered.
-  protected accessor isZeroState_: boolean|undefined =
-      loadTimeData.getBoolean('isGhostLoaderVisible') ? false : undefined;
+  protected accessor isZeroState_: boolean =
+      loadTimeData.getBoolean('isZeroState');
   protected accessor enableNativeZeroStateSuggestions_: boolean =
       loadTimeData.getBoolean('enableNativeZeroStateSuggestions');
   protected accessor inNlm_: boolean = false;
@@ -353,6 +361,9 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
   protected accessor friendlyZeroStateTitle: string =
       loadTimeData.getString('friendlyZeroStateTitle');
   protected accessor isDomContentLoaded_: boolean = false;
+  // Tracks whether the frame is loading for the very first time to prevent
+  // double animations.
+  protected accessor isInitialFrameLoad_: boolean = true;
   // Tracks whether the frame is currently loading. Needed to avoid race
   // condition while awaiting isAiPage.
   private isFrameLoading: boolean = false;
@@ -393,9 +404,6 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
   // even if the load is aborted and the frame therefore never changes.
   private lastThreadFrameLoadStartEvent_: chrome.webviewTag.LoadStartEvent|
       LoadEvent|null = null;
-  // Tracks whether the frame is loading for the very first time to prevent
-  // double animations.
-  private isInitialFrameLoad_: boolean = true;
   private contextManagementInComposeboxEnabled_: boolean =
       loadTimeData.getBoolean('contextManagementInComposeboxEnabled');
 
@@ -625,7 +633,7 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
         this.isDomContentLoaded_ = true;
         // Play the zero state animations, unhide the composebox/header,
         // and focus the composebox.
-        if (this.isZeroState_) {
+        if (this.isZeroState_ && this.isShownInTab_) {
           this.playZeroStateAnimations_();
           this.forceComposeboxFocus();
         }
@@ -705,9 +713,11 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
 
     // Add this fallback: If the DOM already loaded while we were awaiting, play
     // it now!
-    if (this.isZeroState_ && this.isDomContentLoaded_) {
+    if (this.isZeroState_ && this.isDomContentLoaded_ && this.isShownInTab_) {
       this.playZeroStateAnimations_();
       this.forceComposeboxFocus();
+    } else if (this.isZeroState_ && !this.isShownInTab_) {
+      this.playZeroStateAnimations_();
     }
 
     // The thread URL is considered pending (not loaded immediately in the
@@ -777,6 +787,15 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
             this.requestUpdate();
           }
         });
+
+    // <if expr="is_android and not is_desktop_android">
+    this.isDomContentLoaded_ = true;
+    if (this.isInitialFrameLoad_ && this.isZeroState_) {
+      this.playZeroStateAnimations_();
+      // Omit calling this.forceComposeboxFocus() on mobile Android startup to
+      // avoid automatically popping up the software keyboard on page load.
+    }
+    // </if>
   }
 
   override updated(changedProperties: PropertyValues<this>) {
@@ -937,6 +956,16 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
     }
     this.updateBasicModeAfterNavigation();
     this.maybeOnThreadFrameTopLevelNavigation(ev.url);
+
+    // <if expr="is_android and not is_desktop_android">
+    // On standard mobile Android phones, since guest-to-host script
+    // communication is not supported, must set isDomContentLoaded_ on
+    // loadcommit rather than waiting for a domContentLoaded message.
+    this.isDomContentLoaded_ = true;
+    if (this.isZeroState_) {
+      this.playZeroStateAnimations_();
+    }
+    // </if>
   }
 
   private onThreadFrameContentLoad() {
@@ -1020,8 +1049,17 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
 
     if (isAiPage && isZeroState) {
       this.isZeroState_ = true;
-      if (!this.isInitialFrameLoad_ && this.isDomContentLoaded_) {
-        this.playZeroStateAnimations_();
+      if (!this.isInitialFrameLoad_) {
+        // Tab instances synchronize animations with the web document lifecycle
+        // (waiting for DOM load), while side panel instances trigger them
+        // immediately to match the native UI transition.
+        if (this.isShownInTab_) {
+          if (this.isDomContentLoaded_) {
+            this.playZeroStateAnimations_();
+          }
+        } else {
+          this.playZeroStateAnimations_();
+        }
       }
     }
 
@@ -1089,7 +1127,7 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
       const currentHeight = composebox.offsetHeight;
       const currentUrl = this.$.threadFrame.src;
       if (currentUrl.includes(AIOH_URL_IDENTIFIER) &&
-          this.forcedComposeboxBounds_ === null) {
+          this.forcedComposeboxBounds_ === null && !this.isZeroState_) {
         this.playComposeboxAiohFadeInAnimation_();
       }
       if (currentHeight !== inputRect.height) {
@@ -1404,26 +1442,6 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
           },
           ['blocking']);
 
-      // Allow downloading files. This is necessary since aim can generate
-      // images for download.
-      this.$.threadFrame.addEventListener(
-          'permissionrequest',
-          (e: chrome.webviewTag.PermissionRequestEvent|
-           PermissionRequestEvent) => {
-            if (e.permission === 'download') {
-              e.request.allow();
-            } else if (e.permission === 'geolocation') {
-              e.request.allow();
-            }
-          });
-
-      // Sets the user agent to the default user agent + the contextual tasks
-      // custom suffix.
-      const userAgent = this.$.threadFrame.getUserAgent();
-      const userAgentSuffix = loadTimeData.getString('userAgentSuffix');
-      this.$.threadFrame.setUserAgentOverride(
-          `${userAgent} ${userAgentSuffix}`);
-
       // Inject a script to notify the embedder when the DOM has loaded so the
       // app knows when to show the header and composebox.
       this.$.threadFrame.addContentScripts([{
@@ -1454,6 +1472,27 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
         },
         run_at: 'document_start',
       }]);
+    }
+
+    // Allow downloading files. This is necessary since aim can generate
+    // images for download.
+    this.$.threadFrame.addEventListener('permissionrequest', (e: Event) => {
+      const permissionEvent = e as chrome.webviewTag.PermissionRequestEvent |
+          PermissionRequestEvent;
+      if (permissionEvent.permission === 'download') {
+        permissionEvent.request.allow();
+      } else if (permissionEvent.permission === 'geolocation') {
+        permissionEvent.request.allow();
+      }
+    });
+
+    const userAgentSuffix = loadTimeData.getString('userAgentSuffix');
+    if (userAgentSuffix) {
+      const userAgent = this.$.threadFrame.getUserAgent();
+      if (!userAgent.endsWith(userAgentSuffix)) {
+        this.$.threadFrame.setUserAgentOverride(
+            `${userAgent} ${userAgentSuffix}`);
+      }
     }
   }
 
@@ -1626,8 +1665,12 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
     await this.onThreadFrameLoadAbort(event);
   }
 
-  setIsZeroStateForTesting(isZeroState: boolean|undefined) {
+  setIsZeroStateForTesting(isZeroState: boolean) {
     this.isZeroState_ = isZeroState;
+  }
+
+  setIsInitialFrameLoadForTesting(isInitialFrameLoad: boolean) {
+    this.isInitialFrameLoad_ = isInitialFrameLoad;
   }
 
   setInNlmForTesting(inNlm: boolean) {

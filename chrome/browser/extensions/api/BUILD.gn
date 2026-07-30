@@ -76,6 +76,7 @@ group("api_implementations") {
       "//chrome/browser/extensions/api/experimental_ai_data",
       "//chrome/browser/extensions/api/idltest",
       "//chrome/browser/extensions/api/networking_private",
+      "//chrome/browser/extensions/api/passwords_private",
       "//chrome/browser/extensions/api/resources_private",
       "//chrome/browser/extensions/api/safe_browsing_private",
       "//chrome/browser/extensions/api/settings_overrides",

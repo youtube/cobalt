@@ -28,11 +28,6 @@ const base::FilePath::CharType kAdapterCacheFile[] =
 const base::FilePath::CharType kProgramCacheFile[] =
     FILE_PATH_LITERAL("program_cache.bin");
 
-const base::FilePath::CharType kTsDataFile[] = FILE_PATH_LITERAL("ts.bin");
-
-const base::FilePath::CharType kTsSpModelFile[] =
-    FILE_PATH_LITERAL("ts_spm.model");
-
 const base::FilePath::CharType kOnDeviceModelExecutionConfigFile[] =
     FILE_PATH_LITERAL("on_device_model_execution_config.pb");
 

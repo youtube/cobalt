@@ -251,8 +251,7 @@ void DownloadRequestLimiter::TabDownloadState::SetContentSetting(
           permissions::features::
               kSafetyHubUnusedPermissionRevocationForAllSurfaces) &&
       content_settings::CanBeAutoRevokedAsUnusedPermission(
-          ContentSettingsType::AUTOMATIC_DOWNLOADS,
-          content_settings::ContentSettingToValue(setting))) {
+          ContentSettingsType::AUTOMATIC_DOWNLOADS, setting)) {
     constraints.set_track_last_visit_for_autoexpiration(true);
   }
 

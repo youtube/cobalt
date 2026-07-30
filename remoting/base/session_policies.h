@@ -81,6 +81,11 @@ struct SessionPolicies {
   // Defaults to true. No Corresponding Chrome Policy as the admin can block
   // installation of the WebAuthn forwarding extension if needed.
   std::optional<bool> allow_webauthn_forwarding;
+
+  // Allow the client to service security key (gnubby) requests generated on the
+  // host machine. Defaults to true.
+  // Corresponding Chrome policy: RemoteAccessHostAllowGnubbyAuth
+  std::optional<bool> allow_gnubby_forwarding;
 };
 
 std::ostream& operator<<(std::ostream& os,

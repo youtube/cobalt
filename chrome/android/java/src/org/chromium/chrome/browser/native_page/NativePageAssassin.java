@@ -29,7 +29,7 @@ public class NativePageAssassin {
     /**
      * The number of hidden tabs to consider "recent". Any non-recent native page will be frozen.
      */
-    private static final int MAX_RECENT_TABS = 3;
+    private static final int MAX_RECENT_TABS = 5;
 
     /**
      * The most recently hidden tabs, limited to MAX_RECENT_TABS elements, ordered from oldest to

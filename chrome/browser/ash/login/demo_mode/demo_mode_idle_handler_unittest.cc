@@ -180,8 +180,10 @@ TEST_F(DemoModeIdleHandlerTest, CloseAllBrowsers) {
   // `kReLuanchDemoAppIdleDuration`.
   SimulateUserActivity();
   FastForwardBy(kReLuanchDemoAppIdleDuration);
-  EXPECT_TRUE(static_cast<TestBrowserWindow*>(browser_1->window())->IsClosed());
-  EXPECT_TRUE(static_cast<TestBrowserWindow*>(browser_2->window())->IsClosed());
+  EXPECT_TRUE(
+      static_cast<TestBrowserWindow*>(browser_1->GetWindow())->IsClosed());
+  EXPECT_TRUE(
+      static_cast<TestBrowserWindow*>(browser_2->GetWindow())->IsClosed());
   // `TestBrowserWindow` does not destroy `Browser` when `Close()` is called,
   // but real browser window does. Reset both browsers here to fake this
   // behavior.

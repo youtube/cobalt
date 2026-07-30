@@ -9,6 +9,7 @@
 #import "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
 #import "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #import "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h"
+#import "components/autofill/core/common/autofill_features.h"
 #import "components/personal_context/core/personal_context_types.h"
 #import "components/subscription_eligibility/subscription_eligibility_service.h"
 #import "components/variations/service/variations_service.h"
@@ -80,6 +81,11 @@ bool CanPerformAutofillAiAction(ProfileIOS* profile,
       personal_context::PersonalContextEnablementState::kDisabledNotEligible,
       action, entity_type);
 }
+
+bool IsAutofillAtMemoryEnabled() {
+  return base::FeatureList::IsEnabled(features::kAutofillAtMemory);
+}
+
 bool IsEnhancedAutofillEnabled(ProfileIOS* profile) {
   ProfileIOS* original_profile = profile->GetOriginalProfile();
   return GetAutofillAiOptInStatus(

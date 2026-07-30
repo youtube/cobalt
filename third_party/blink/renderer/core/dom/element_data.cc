@@ -129,7 +129,7 @@ void ElementData::TraceAfterDispatch(blink::Visitor* visitor) const {
 ShareableElementData::ShareableElementData(
     const Vector<Attribute, kAttributePrealloc>& attributes)
     : ElementData(attributes.size()) {
-  for (size_t i = 0; i < attributes.size(); ++i) {
+  for (wtf_size_t i = 0; i < attributes.size(); ++i) {
     new (&AttributesSpan()[i]) Attribute(attributes[i]);
   }
 }

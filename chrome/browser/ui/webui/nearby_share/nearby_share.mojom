@@ -149,9 +149,9 @@ interface TransferUpdateListener {
   OnTransferUpdate(TransferStatus status, string? token);
 };
 
-// This enum contains the results from attempting to to start nearby discovery.
+// This enum contains the results from attempting to start nearby discovery.
 enum StartDiscoveryResult {
-  // Nearby was able to start its discovery process sucessfully.
+  // Nearby was able to start its discovery process successfully.
   kSuccess,
   // Nearby cannot start discovery because there is an existing file transfer
   // in progress.

@@ -1079,7 +1079,7 @@ bool PrerenderHostRegistry::CancelHostInternal(
   prerender_host->OnWillBeCancelled(reason);
   reason.ReportMetrics(prerender_host->GetHistogramSuffix());
 
-  NotifyCancel(prerender_host->prerender_host_id(), reason);
+  NotifyRetriggerable(prerender_host->prerender_host_id(), reason);
 
   // If the host we are attempting to cancel is the new-tab host and initiator
   // WebContents's PrerenderHostRegistry for this host is still alive, invoke
@@ -1123,7 +1123,7 @@ bool PrerenderHostRegistry::CancelNewTabHostInternal(
 
   std::unique_ptr<PrerenderNewTabHandle> handle = std::move(iter->second);
   prerender_new_tab_handle_by_id_.erase(iter);
-  NotifyCancel(handle->prerender_host_id(), reason);
+  NotifyRetriggerable(handle->prerender_host_id(), reason);
 
   PrerenderNewTabHandle::CancelPrerenderingAndDestroy(std::move(handle),
                                                       reason);
@@ -1340,6 +1340,12 @@ PrerenderHostRegistry::TakePreCreatedWebContentsForNewTabIfExists(
         iter.second->TakeWebContentsIfAvailable(create_new_window_params,
                                                 web_contents_create_params);
     if (web_contents) {
+      // Notify observers that this prerender was consumed by activation so that
+      // it can be re-triggered if needed.
+      // See crbug.com/513412121 for more details.
+      NotifyRetriggerable(
+          iter.second->prerender_host_id(),
+          PrerenderCancellationReason(PrerenderFinalStatus::kActivated));
       prerender_new_tab_handle_by_id_.erase(iter);
       return web_contents;
     }
@@ -1886,11 +1892,11 @@ void PrerenderHostRegistry::NotifyTrigger(const GURL& url) {
   }
 }
 
-void PrerenderHostRegistry::NotifyCancel(
+void PrerenderHostRegistry::NotifyRetriggerable(
     PrerenderHostId prerender_host_id,
     const PrerenderCancellationReason& reason) {
   for (Observer& obs : observers_) {
-    obs.OnCancel(prerender_host_id, reason);
+    obs.OnRetriggerable(prerender_host_id, reason);
   }
 }
 
@@ -2121,6 +2127,21 @@ PrerenderHostRegistry::FindAndTakePrerenderHostToReuse(
     return reuse_host;
   }
   return nullptr;
+}
+
+int PrerenderHostRegistry::GetProcessReuseCount() const {
+  return process_reuse_count_;
+}
+
+base::ScopedClosureRunner PrerenderHostRegistry::IncrementProcessReuseCount() {
+  process_reuse_count_++;
+  return base::ScopedClosureRunner(
+      base::BindOnce(&PrerenderHostRegistry::DecrementProcessReuseCount,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void PrerenderHostRegistry::DecrementProcessReuseCount() {
+  process_reuse_count_--;
 }
 
 }  // namespace content

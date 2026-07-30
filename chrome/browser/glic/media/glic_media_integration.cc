@@ -6,6 +6,7 @@
 
 #include "base/supports_user_data.h"
 #include "chrome/browser/accessibility/live_caption/live_caption_controller_factory.h"
+#include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/media/glic_media_context.h"
 #include "chrome/browser/glic/media/glic_media_page_cache.h"
 #include "chrome/browser/glic/media/media_transcript_provider_impl.h"
@@ -19,6 +20,7 @@
 #include "components/live_caption/pref_names.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/peer_connection_tracker_host_observer.h"
 #include "content/public/browser/web_contents.h"
@@ -127,6 +129,7 @@ class GlicMediaIntegrationImpl : public glic::GlicMediaIntegration,
 
   // GlicMediaIntegrationImpl:
   void OnContextUpdated(glic::GlicMediaContext* context);
+  void OnListenerDestroyed();
 
   // Returns whether `web_contents` should be excluded by origin checks.  This
   // includes subframes.
@@ -144,12 +147,24 @@ class GlicMediaIntegrationImpl : public glic::GlicMediaIntegration,
   std::unique_ptr<GlicMediaPeerConnectionObserver> rtc_observer_;
   std::vector<url::Origin> excluded_origins_;
   base::CallbackListSubscription subscription_;
+
+ private:
+  void OnPrefChanged();
+
+  PrefChangeRegistrar pref_change_registrar_;
+  raw_ptr<captions::CaptionControllerBase::Listener> listener_ = nullptr;
 };
 
 class CaptionListenerImpl : public captions::CaptionControllerBase::Listener {
  public:
   explicit CaptionListenerImpl(Profile* profile) : profile_(profile) {}
-  ~CaptionListenerImpl() override = default;
+  ~CaptionListenerImpl() override {
+    auto* integration = static_cast<GlicMediaIntegrationImpl*>(
+        profile_->GetUserData(kGlicMediaIntegrationKey));
+    if (integration) {
+      integration->OnListenerDestroyed();
+    }
+  }
 
   bool OnTranscription(content::RenderFrameHost* rfh,
                        captions::CaptionBubbleContext*,
@@ -207,8 +222,14 @@ void GlicMediaIntegrationImpl::Initialize() {
   CHECK(!rtc_observer_);
 
   rtc_observer_ = std::make_unique<GlicMediaPeerConnectionObserver>();
-  auto* lc = captions::LiveCaptionControllerFactory::GetForProfile(profile_);
-  lc->AddListener(std::make_unique<CaptionListenerImpl>(profile_));
+
+  pref_change_registrar_.Init(profile_->GetPrefs());
+  pref_change_registrar_.Add(
+      glic::prefs::kGlicMediaUnderstandingEnabled,
+      base::BindRepeating(&GlicMediaIntegrationImpl::OnPrefChanged,
+                          base::Unretained(this)));
+
+  OnPrefChanged();
 
   // For now, enable the pref if we get this far.  Do this after getting the
   // Live Caption controller, since it resets the pref to false.
@@ -219,6 +240,33 @@ void GlicMediaIntegrationImpl::Initialize() {
       url::Origin::Create(GURL("https://www.youtube.com")),
       url::Origin::Create(GURL("http://www.youtube.com"))};
   SetExcludedOrigins(std::move(excluded_origins));
+}
+
+void GlicMediaIntegrationImpl::OnPrefChanged() {
+  bool enabled = profile_->GetPrefs()->GetBoolean(
+      glic::prefs::kGlicMediaUnderstandingEnabled);
+  auto* lc = captions::LiveCaptionControllerFactory::GetForProfile(profile_);
+  if (enabled) {
+    if (!listener_) {
+      auto listener = std::make_unique<CaptionListenerImpl>(profile_);
+      listener_ = listener.get();
+      lc->AddListener(std::move(listener));
+    }
+  } else {
+    if (listener_) {
+      lc->RemoveSoon(listener_);
+      listener_ = nullptr;
+
+      // Discard all transcripts when disabled.
+      for (base::LinkNode<glic::GlicMediaPageCache::Entry>* node =
+               page_cache_.head();
+           node != page_cache_.end(); node = node->next()) {
+        auto* entry = static_cast<glic::GlicMediaPageCache::Entry*>(node);
+        auto* context = static_cast<glic::GlicMediaContext*>(entry);
+        context->ClearAllTranscripts();
+      }
+    }
+  }
 }
 
 bool GlicMediaIntegrationImpl::IsExcludedByOrigin(
@@ -327,6 +375,10 @@ void GlicMediaIntegrationImpl::AppendContextForFrame(
 void GlicMediaIntegrationImpl::OnContextUpdated(
     glic::GlicMediaContext* context) {
   page_cache_.PlaceAtFront(context);
+}
+
+void GlicMediaIntegrationImpl::OnListenerDestroyed() {
+  listener_ = nullptr;
 }
 
 void GlicMediaIntegrationImpl::OnPeerConnectionAddedForTesting(

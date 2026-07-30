@@ -78,6 +78,7 @@ Nove oznake se ne mogu sačuvati na računu dok ne izbrišete neke. Ako se sada 
 <translation id="2386292341327187942">U polju Vidžeti za pretraživanje unesite Chromium</translation>
 <translation id="2389827884654658221">Brže pristupajte Chromiumu s početnog ekrana iPada.</translation>
 <translation id="2426113998523353159">Vaša organizacija zahtijeva da se prijavite da koristite Chromium.</translation>
+<translation id="244367646885670394">Potvrdite identitet da sačuvate lozinku i dobijete podatke iz Chromiuma na svim svojim uređajima</translation>
 <translation id="2450140762465183767">Sada možete koristiti Chromium svaki put kada dodirnete linkove u porukama, dokumentima i drugim aplikacijama.</translation>
 <translation id="2459183986985456602">Otvaranje posljednje kartice u Chromiumu.</translation>
 <translation id="2476409803017965813">Možete ažurirati odabire bilo kada u postavkama Chromiuma.</translation>
@@ -108,6 +109,7 @@ Za više postavki koje koriste podatke radi poboljšanja iskustva u Chromiumu id
 <translation id="3054480780637153380">Otvorite postavke Chromiuma u iOS-u, a zatim dodirnite "Zadana aplikacija preglednika" i odaberite Chromium.</translation>
 <translation id="3115956258722352278">Postaviti Chromium kao zadani preglednik?</translation>
 <translation id="3180939591219927904">Uključite "Zaključaj anonimne kartice prilikom zatvaranja Chromiuma"</translation>
+<translation id="327628223428512207">Unesite pristupni izraz da sačuvate lozinku i dobijete podatke iz Chromiuma na svim svojim uređajima</translation>
 <translation id="328933489847748230">{count,plural, =1{Trenutno se prikazuje 1 prozor Chromiuma}one{Trenutno se prikazuje {count} prozor Chromiuma}few{Trenutno se prikazuju {count} prozora Chromiuma}other{Trenutno se prikazuje {count} prozora Chromiuma}}</translation>
 <translation id="3344973607274501920">Chromium nije mogao provjeriti vaše lozinke. Predlažemo da provjerite internetsku vezu.</translation>
 <translation id="3366305173356742781">Podaci Chromiuma na vašem računu</translation>

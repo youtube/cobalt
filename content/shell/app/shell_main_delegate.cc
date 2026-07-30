@@ -98,6 +98,7 @@ namespace {
 enum class LoggingDest {
   kFile,
   kStderr,
+  kSystem,
 #if BUILDFLAG(IS_WIN)
   kHandle,
 #endif
@@ -131,14 +132,18 @@ const GUID kContentShellProviderName = {
 void InitLogging(const base::CommandLine& command_line) {
   LoggingDest dest = LoggingDest::kFile;
 
-  if (command_line.GetSwitchValueASCII(switches::kEnableLogging) == "stderr") {
+  const std::string logging_dest =
+      command_line.GetSwitchValueASCII(switches::kEnableLogging);
+  if (logging_dest == "stderr") {
     dest = LoggingDest::kStderr;
+  } else if (logging_dest == "system") {
+    dest = LoggingDest::kSystem;
   }
 
 #if BUILDFLAG(IS_WIN)
   // On Windows child process may be given a handle in the --log-file switch.
   base::win::ScopedHandle log_handle;
-  if (command_line.GetSwitchValueASCII(switches::kEnableLogging) == "handle") {
+  if (logging_dest == "handle") {
     auto handle_str = command_line.GetSwitchValueNative(switches::kLogFile);
     uint32_t handle_value = 0;
     if (base::StringToUint(handle_str, &handle_value)) {
@@ -184,8 +189,9 @@ void InitLogging(const base::CommandLine& command_line) {
   }
 
   if (dest == LoggingDest::kStderr) {
-    settings.logging_dest =
-        logging::LOG_TO_STDERR | logging::LOG_TO_SYSTEM_DEBUG_LOG;
+    settings.logging_dest = logging::LOG_TO_STDERR;
+  } else if (dest == LoggingDest::kSystem) {
+    settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
   } else {
     // Includes both handle or provided filename on Windows.
     settings.logging_dest = logging::LOG_TO_ALL;

@@ -15,11 +15,11 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/immersive/immersive_mode_controller.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/toolbar/app_menu_model.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/user_education/user_education_service.h"
 #include "chrome/common/chrome_features.h"
@@ -162,21 +162,15 @@ void SystemMenuModelBuilder::BuildSystemMenuForBrowserWindow(
   AddItemWithIconMaybe(model, IDC_NAME_WINDOW, IDS_NAME_WINDOW,
                        kNameWindowOldIcon);
 #endif  // BUILDFLAG(IS_MAC)
-
-  if (base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton)) {
-    model->AddSeparator(ui::NORMAL_SEPARATOR);
-    model->AddItemWithStringId(IDC_TAB_SEARCH_TOGGLE_PIN,
-                               IDS_TAB_STRIP_PIN_TAB_SEARCH);
-  }
+  model->AddSeparator(ui::NORMAL_SEPARATOR);
+  model->AddItemWithStringId(IDC_TAB_SEARCH_TOGGLE_PIN,
+                             IDS_TAB_STRIP_PIN_TAB_SEARCH);
 
 #if BUILDFLAG(IS_WIN)
   // On Windows we can not remove an item when showing the menu. So only add
   // the glic toggle option if glic is enabled when building the menu.
   if (glic::GlicEnabling::IsEnabledForProfile(browser()->profile())) {
 #endif  // BUILDFLAG(IS_WIN)
-    if (!base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton)) {
-      model->AddSeparator(ui::NORMAL_SEPARATOR);
-    }
     model->AddItemWithStringId(IDC_GLIC_TOGGLE_PIN, IDS_GLIC_PIN);
 #if BUILDFLAG(IS_WIN)
   }
@@ -184,60 +178,49 @@ void SystemMenuModelBuilder::BuildSystemMenuForBrowserWindow(
 
   if (auto* controller =
           tabs::VerticalTabStripStateController::From(browser())) {
-    // TODO(crbug.com/475222200): When in immersive, swapping between tab
-    // strip types create duplicate tab strips. Until that is resolved, disable
-    // the ability to swap between tab strips while in immersive.
-    const bool show_toggle_tabs =
-        !ImmersiveModeController::From(browser())->IsEnabled();
+    model->AddSeparator(ui::NORMAL_SEPARATOR);
+
+    if (controller->ShouldDisplayVerticalTabs()) {
+      model->AddItemWithStringId(IDC_TOGGLE_VERTICAL_TABS,
+                                 IDS_SWITCH_TO_HORIZONTAL_TAB);
+    } else {
+      model->AddItemWithStringId(IDC_TOGGLE_VERTICAL_TABS,
+                                 IDS_SWITCH_TO_VERTICAL_TAB);
+      const bool use_preview_badge =
+          base::FeatureList::IsEnabled(tabs::kVerticalTabsPreviewBadge);
+      const ui::NewBadgeType badge_type = use_preview_badge
+                                              ? ui::NewBadgeType::kPreview
+                                              : ui::NewBadgeType::kNew;
+      const user_education::DisplayNewBadge show_badge =
+          UserEducationService::MaybeShowNewBadge(
+              browser()->GetProfile(), use_preview_badge
+                                           ? tabs::kVerticalTabsPreviewBadge
+                                           : tabs::kVerticalTabsNewBadge);
+      model->SetIsNewFeatureAt(
+          model->GetIndexOfCommandId(IDC_TOGGLE_VERTICAL_TABS).value(),
+          show_badge, badge_type);
+    }
+    model->SetElementIdentifierAt(
+        model->GetIndexOfCommandId(IDC_TOGGLE_VERTICAL_TABS).value(),
+        kToggleVerticalTabsElementId);
+
     const bool show_expand_on_hover =
         tabs::IsVerticalTabsExpandOnHoverFeatureEnabled() &&
         controller->ShouldDisplayVerticalTabs();
-    const bool show_section = show_toggle_tabs || show_expand_on_hover;
-
-    if (show_section) {
-      model->AddSeparator(ui::NORMAL_SEPARATOR);
-
-      if (show_toggle_tabs) {
-        if (controller->ShouldDisplayVerticalTabs()) {
-          model->AddItemWithStringId(IDC_TOGGLE_VERTICAL_TABS,
-                                     IDS_SWITCH_TO_HORIZONTAL_TAB);
-        } else {
-          model->AddItemWithStringId(IDC_TOGGLE_VERTICAL_TABS,
-                                     IDS_SWITCH_TO_VERTICAL_TAB);
-          const bool use_preview_badge =
-              base::FeatureList::IsEnabled(tabs::kVerticalTabsPreviewBadge);
-          const ui::NewBadgeType badge_type = use_preview_badge
-                                                  ? ui::NewBadgeType::kPreview
-                                                  : ui::NewBadgeType::kNew;
-          const user_education::DisplayNewBadge show_badge =
-              UserEducationService::MaybeShowNewBadge(
-                  browser()->GetProfile(), use_preview_badge
-                                               ? tabs::kVerticalTabsPreviewBadge
-                                               : tabs::kVerticalTabsNewBadge);
-          model->SetIsNewFeatureAt(
-              model->GetIndexOfCommandId(IDC_TOGGLE_VERTICAL_TABS).value(),
-              show_badge, badge_type);
-        }
-        model->SetElementIdentifierAt(
-            model->GetIndexOfCommandId(IDC_TOGGLE_VERTICAL_TABS).value(),
-            kToggleVerticalTabsElementId);
-      }
-
-      if (show_expand_on_hover) {
-        model->AddItemWithStringId(
-            IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER,
-            controller->IsExpandOnHoverEnabled()
-                ? IDS_VERTICAL_TABS_DISABLE_EXPAND_ON_HOVER
-                : IDS_VERTICAL_TABS_ENABLE_EXPAND_ON_HOVER);
-        model->SetElementIdentifierAt(
-            model->GetIndexOfCommandId(IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER)
-                .value(),
-            kToggleVerticalTabsExpandOnHoverElementId);
-      }
-
-      model->AddItemWithStringId(IDC_VERTICAL_TABS_SEND_FEEDBACK,
-                                 IDS_VERTICAL_TABS_SEND_FEEDBACK);
+    if (show_expand_on_hover) {
+      model->AddItemWithStringId(
+          IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER,
+          controller->IsExpandOnHoverEnabled()
+              ? IDS_VERTICAL_TABS_DISABLE_EXPAND_ON_HOVER
+              : IDS_VERTICAL_TABS_ENABLE_EXPAND_ON_HOVER);
+      model->SetElementIdentifierAt(
+          model->GetIndexOfCommandId(IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER)
+              .value(),
+          kToggleVerticalTabsExpandOnHoverElementId);
     }
+
+    model->AddItemWithStringId(IDC_VERTICAL_TABS_SEND_FEEDBACK,
+                               IDS_VERTICAL_TABS_SEND_FEEDBACK);
   }
 
   if (chrome::CanOpenTaskManager()) {
@@ -309,8 +292,8 @@ void SystemMenuModelBuilder::BuildSystemMenuForAppOrPopupWindow(
     zoom_menu_contents_->AddItemWithStringId(IDC_ZOOM_PLUS, IDS_ZOOM_PLUS);
     zoom_menu_contents_->AddItemWithStringId(IDC_ZOOM_NORMAL, IDS_ZOOM_NORMAL);
     zoom_menu_contents_->AddItemWithStringId(IDC_ZOOM_MINUS, IDS_ZOOM_MINUS);
-    model->AddSubMenuWithStringId(IDC_ZOOM_MENU, IDS_ZOOM_MENU,
-                                  zoom_menu_contents_.get());
+    model->AddSubMenuWithStringId(AppMenuModel::kZoomMenuPlaceholder,
+                                  IDS_ZOOM_MENU, zoom_menu_contents_.get());
   }
 
   bool should_show_task_manager =

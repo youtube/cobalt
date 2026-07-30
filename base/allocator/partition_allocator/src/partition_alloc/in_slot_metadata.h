@@ -180,6 +180,10 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) InSlotMetadata {
     CountType old_count = count_.fetch_add(kPtrInc, std::memory_order_relaxed);
     // Check overflow.
     PA_CHECK((old_count & kPtrCountMask) != kMaxPtrCount);
+    // Should not allow refcount++ once refcount == 0 and
+    // !kMemoryHeldByAllocator.
+    PA_CHECK((old_count & (kMemoryHeldByAllocatorBit | kPtrCountMask |
+                           kUnprotectedPtrCountMask)) != 0);
   }
 
   // Similar to |Acquire()|, but for raw_ptr<T, DisableDanglingPtrDetection>
@@ -191,6 +195,10 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) InSlotMetadata {
         count_.fetch_add(kUnprotectedPtrInc, std::memory_order_relaxed);
     // Check overflow.
     PA_CHECK((old_count & kUnprotectedPtrCountMask) != kMaxUnprotectedPtrCount);
+    // Should not allow refcount++ once refcount == 0 and
+    // !kMemoryHeldByAllocator.
+    PA_CHECK((old_count & (kMemoryHeldByAllocatorBit | kPtrCountMask |
+                           kUnprotectedPtrCountMask)) != 0);
 #else
     Acquire();
 #endif
@@ -293,6 +301,11 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) InSlotMetadata {
       CheckCookieIfSupported();
     }
     return alive;
+  }
+
+  PA_ALWAYS_INLINE bool HasNonZeroRefsForTesting() {
+    static constexpr CountType mask = kPtrCountMask | kUnprotectedPtrCountMask;
+    return (count_.load(std::memory_order_acquire) & mask) != 0;
   }
 
   // Assertion to allocation which ought to be alive.

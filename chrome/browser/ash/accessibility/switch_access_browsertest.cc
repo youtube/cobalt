@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "ash/constants/ash_extension_constants.h"
 #include "ash/public/cpp/window_tree_host_lookup.h"
 #include "ash/shell.h"
 #include "chrome/browser/ash/accessibility/accessibility_feature_browsertest.h"
@@ -10,7 +11,6 @@
 #include "chrome/browser/ash/accessibility/automation_test_utils.h"
 #include "chrome/browser/ash/accessibility/switch_access_test_utils.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
@@ -143,7 +143,9 @@ IN_PROC_BROWSER_TEST_F(SwitchAccessTest, MAYBE_ConsumesKeyEvents) {
 //
 // A separate bug (crbug.com/431933537) is filed to specifically track the
 // blink::CSSParserImpl::ParseStyleSheet issue.
-#if defined(MEMORY_SANITIZER)
+//
+// TODO(crbug.com/516557726): Also flaky on ASan/LSan and debug builds.
+#if defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER) || !defined(NDEBUG)
 #define MAYBE_NavigateGroupings DISABLED_NavigateGroupings
 #else
 #define MAYBE_NavigateGroupings NavigateGroupings

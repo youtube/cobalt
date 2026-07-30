@@ -98,10 +98,7 @@ StorageAreaImpl::~StorageAreaImpl() {
   base::UmaHistogramBoolean(histogram_name,
                             has_pending_load_read_write_tasks());
 
-  if (commit_batch_) {
-    CommitChanges();
-  }
-
+  CommitChanges();
   if (database_) {
     database_->RemoveCommitter(this);
   }
@@ -179,7 +176,7 @@ void StorageAreaImpl::ScheduleImmediateCommit() {
     return;
   }
 
-  if (!database_ || !commit_batch_) {
+  if (!database_) {
     return;
   }
   CommitChanges();
@@ -580,8 +577,7 @@ void StorageAreaImpl::LoadMap(OnLoadCompleteTask completion_task) {
   if (map_state_ == MapState::LOADED_KEYS_ONLY) {
     DCHECK(on_load_complete_tasks_.empty());
     DCHECK(database_);
-    if (commit_batch_)
-      CommitChanges();
+    CommitChanges();
     // Make sure the keys only map is not used when on load tasks are in queue.
     // The changes to the area will be queued to on load tasks.
     keys_only_map_.clear();
@@ -847,9 +843,7 @@ void StorageAreaImpl::DoForkOperation(
   // will correctly delete the database?
   if (database_) {
     // All changes must be stored in the database before the copy operation.
-    if (has_changes_to_commit()) {
-      CommitChanges();
-    }
+    CommitChanges();
 
     // Commit the forked map to the database, which copies the source map's
     // key/value pairs.

@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/functional/callback_helpers.h"
 #include "base/functional/concurrent_closures.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_form_finder.h"
 #include "components/password_manager/core/browser/password_form_manager.h"
@@ -30,6 +31,9 @@ AutomatedPasswordChangeCredentialFiller::
                                  std::move(mqls_logger),
                                  attempt_login_start_time,
                                  std::move(is_task_in_focus),
+                                 // This APC flow does not utilise the OTP tool,
+                                 // so no point in providing the callback.
+                                 /*frame_filling_started_cb=*/{},
                                  std::move(callback)),
       username_(std::move(username)),
       password_(std::move(password)) {}

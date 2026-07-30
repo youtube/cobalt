@@ -45,6 +45,7 @@
           "project": "chromium"
         }
       ],
+      "retry_failed_shards": false,
       "targets_spec_directory": "infra/config/generated/builders/try/android-16-x64-leakcanary-rel/targets"
     }
   },

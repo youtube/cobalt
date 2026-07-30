@@ -22,12 +22,6 @@ HTMLMenuOwnerElement::HTMLMenuOwnerElement(HTMLQualifiedName tag_name,
   DCHECK(RuntimeEnabledFeatures::MenuElementsEnabled());
 }
 
-bool HTMLMenuOwnerElement::IsValidBuiltinCommand(HTMLElement& invoker,
-                                                 CommandEventType command) {
-  return HTMLElement::IsValidBuiltinCommand(invoker, command) ||
-         command == CommandEventType::kToggleMenu;
-}
-
 MenuItemList HTMLMenuOwnerElement::ItemList() const {
   return MenuItemList(*this);
 }
@@ -85,24 +79,6 @@ String HTMLMenuOwnerElement::OptionAtIndex(int index) const {
   CHECK_GE(index, 0);
   DCHECK_LE((unsigned)index, ItemList().size());
   return ItemList().at((unsigned)index).textContent();
-}
-
-bool HTMLMenuOwnerElement::MenuTreeContainsNode(Node& node) {
-  HTMLMenuOwnerElement* ancestor_menuowner =
-      Traversal<HTMLMenuOwnerElement>::FirstAncestorOrSelf(node);
-  while (ancestor_menuowner) {
-    if (ancestor_menuowner == this) {
-      return true;
-    }
-    if (auto* menulist = DynamicTo<HTMLMenuListElement>(ancestor_menuowner)) {
-      if (HTMLMenuItemElement* invoker = menulist->InvokingMenuItem()) {
-        ancestor_menuowner = invoker->OwningMenuElement();
-        continue;
-      }
-    }
-    ancestor_menuowner = nullptr;
-  }
-  return false;
 }
 
 }  // namespace blink

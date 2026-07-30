@@ -127,10 +127,8 @@ struct ViewConfig {
       };
     }
 
-    if (IsNTPBackgroundCustomizationEnabled()) {
-      [self registerForTraitChanges:@[ NewTabPageTrait.class ]
-                         withAction:@selector(applyBackgroundColors)];
-    }
+    [self registerForTraitChanges:@[ NewTabPageTrait.class ]
+                       withAction:@selector(applyBackgroundColors)];
     [self applyBackgroundColors];
   }
   return self;
@@ -207,9 +205,7 @@ struct ViewConfig {
 
 - (void)applyBackgroundColors {
   NewTabPageColorPalette* colorPalette =
-      IsNTPBackgroundCustomizationEnabled()
-          ? [self.traitCollection objectForNewTabPageTrait]
-          : nil;
+      [self.traitCollection objectForNewTabPageTrait];
   if (colorPalette) {
     _iconContainerView.backgroundColor = colorPalette.tertiaryColor;
   } else {

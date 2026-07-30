@@ -4,6 +4,8 @@
 
 #include "chrome/browser/glic/browser_ui/glic_selection_widget.h"
 
+#include "base/run_loop.h"
+#include "base/scoped_observation.h"
 #include "base/test/bind.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/grit/generated_resources.h"
@@ -14,6 +16,7 @@
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/test/button_test_api.h"
 #include "ui/views/view_utils.h"
+#include "ui/views/widget/widget_observer.h"
 
 namespace glic {
 
@@ -29,6 +32,29 @@ class GlicSelectionWidgetTest : public ChromeViewsTestBase {
   }
 };
 
+class TestWidgetObserver : public views::WidgetObserver {
+ public:
+  explicit TestWidgetObserver(views::Widget* widget) {
+    observation_.Observe(widget);
+  }
+  ~TestWidgetObserver() override = default;
+
+  void OnWidgetDestroyed(views::Widget* widget) override {
+    observation_.Reset();
+    widget_destroyed = true;
+    if (quit_closure) {
+      std::move(quit_closure).Run();
+    }
+  }
+
+  bool widget_destroyed = false;
+  base::OnceClosure quit_closure;
+
+ private:
+  base::ScopedObservation<views::Widget, views::WidgetObserver> observation_{
+      this};
+};
+
 class TestWidgetActionDelegate
     : public GlicSelectionWidgetDelegate::ActionDelegate {
  public:
@@ -41,6 +67,9 @@ class TestWidgetActionDelegate
   }
   void OnHideForThisSite() override { hide_for_this_site_called = true; }
   void OnSettings() override { settings_called = true; }
+  void OnWidgetClose() override { widget_close_called = true; }
+
+  bool widget_close_called = false;
 
   bool ask_gemini_called = false;
   bool copy_called = false;
@@ -130,6 +159,37 @@ TEST_F(GlicSelectionWidgetTest, ButtonsTriggerCallbacks) {
       widget_delegate.get(),
       static_cast<int>(GlicSelectionWidgetDelegate::MenuCommand::kSettings));
   EXPECT_TRUE(test_delegate->settings_called);
+}
+
+TEST_F(GlicSelectionWidgetTest, ShowAndCloseWidget) {
+  gfx::Rect anchor_rect(10, 10, 100, 100);
+  std::u16string selected_text = u"selected text";
+
+  auto test_delegate = std::make_unique<TestWidgetActionDelegate>();
+  auto widget_delegate = std::make_unique<GlicSelectionWidgetDelegate>(
+      *test_delegate, anchor_rect, gfx::Rect(), selected_text,
+      /*is_pinned=*/false);
+
+  EXPECT_FALSE(widget_delegate->GetWidget());
+
+  std::unique_ptr<views::Widget> anchor_widget =
+      CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
+  anchor_widget->Show();
+  widget_delegate->set_parent_window(anchor_widget->GetNativeView());
+  widget_delegate->ShowWidget();
+  views::Widget* widget = widget_delegate->GetWidget();
+  ASSERT_TRUE(widget);
+  EXPECT_TRUE(widget->IsVisible());
+
+  TestWidgetObserver observer(widget);
+  base::RunLoop run_loop;
+  observer.quit_closure = run_loop.QuitClosure();
+
+  widget_delegate->CloseWidget();
+  run_loop.Run();
+
+  EXPECT_TRUE(observer.widget_destroyed);
+  EXPECT_TRUE(test_delegate->widget_close_called);
 }
 
 }  // namespace glic

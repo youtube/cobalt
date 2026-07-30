@@ -42,6 +42,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="1345251407431278948">Pinned! You can access image search again from the new button on the toolbar</translation>
 <translation id="1356661055722410047">New! You can translate both text and images on your screen</translation>
 <translation id="1383876407941801731">Search</translation>
+<translation id="1388276868779258475">Use the Chromium app to keep browsing on the go</translation>
 <translation id="1397530502368084401">&amp;Manage Chromium profiles</translation>
 <translation id="1404026649028693342">Always show AI Mode</translation>
 <translation id="141901961143729572">Share your thoughts</translation>
@@ -57,6 +58,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="1574377791422810894">Chromium's safety tools</translation>
 <translation id="1594928384848033697">Chromium wants to delete your Password Manager data. Type in your Windows password to allow this.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{Your administrator requires that you relaunch Chromium to apply an update}=1{Your administrator requires that you relaunch Chromium to apply an update. Your Incognito window won't reopen.}other{Your administrator requires that you relaunch Chromium to apply an update. Your # Incognito windows won't reopen.}}</translation>
+<translation id="1623563412065267963">Get the best of Google with the Chromium app on your phone</translation>
 <translation id="1625909126243026060">Review key privacy and security controls in Chromium</translation>
 <translation id="1640672724030957280">Downloading ...</translation>
 <translation id="1680687534629375545">Ask image search about this page</translation>
@@ -114,6 +116,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="2185166961232948079">Chromium – Network sign-in – <ph name="PAGE_TITLE" /></translation>
 <translation id="2190166659037789668">Update check error: <ph name="UPDATE_CHECK_ERROR" />.</translation>
 <translation id="2199210295479376551">Remove account from Chromium</translation>
+<translation id="2201788217099588893">Use the Chromium app to take the best shopping tools on the go</translation>
 <translation id="2210502920229141283">Stay safer on the go with Enhanced Safe Browsing on Chromium for iOS</translation>
 <translation id="2210682093923538346">Dangerous site. Chromium removed notifications.</translation>
 <translation id="2236949375853147973">My Activity</translation>
@@ -147,6 +150,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="2572494885440352020">Chromium Helper</translation>
 <translation id="2575822587468774919">Select anything to search with image search</translation>
 <translation id="2576118232315942160">To get your passwords and more on all your devices, sign in to Chromium</translation>
+<translation id="2587622539943955767">Scan the QR code with your phone to download Chromium and sign in to your Google Account.</translation>
 <translation id="2592940277904433508">Continue using Chromium</translation>
 <translation id="259935314519650377">Failed to cache the downloaded installer. Error: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
 <translation id="2620436844016719705">System</translation>
@@ -168,6 +172,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="2799223571221894425">Relaunch</translation>
 <translation id="2803971713792056305">Your Chromium</translation>
 <translation id="2816462166102338036">Search this video with image search</translation>
+<translation id="282591729717417030">Discover products with your camera, track price drops and more on the go with Chromium on iOS.</translation>
 <translation id="2841525013647267359">Translate from</translation>
 <translation id="2846251086934905009">Install error: The installer did not complete. The installation has been aborted.</translation>
 <translation id="2847479871509788944">Remove from Chromium...</translation>
@@ -193,6 +198,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="3068187312562070417">Other Chromium profiles</translation>
 <translation id="3068290154869370196">Extensions are add-ons that let you customise Chromium. From staying organised to simplifying everyday tasks, extensions help you make Chromium your own.</translation>
 <translation id="3068515742935458733">Help make Chromium better by sending crash reports and <ph name="UMA_LINK" /> to Google</translation>
+<translation id="3071024987058544609">Use the Chromium app to take the safety of Google on the go</translation>
 <translation id="3079753320517721795">{NUM_DEVICES,plural, =0{1 USB device was being accessed by one or more Chromium extensions}=1{1 USB device is being accessed by one or more Chromium extensions}other{# USB devices are being accessed by one or more Chromium extensions}}</translation>
 <translation id="3095811995836568724">Chromium history</translation>
 <translation id="3103660991484857065">The installer failed to uncompress archive. Please download Chromium again.</translation>
@@ -217,6 +223,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="3258596308407688501">Chromium cannot read and write to its data directory:
 
 <ph name="USER_DATA_DIRECTORY" /></translation>
+<translation id="3263249950597659484">Take your favourite Google AI tools on the go with Chromium on iOS.</translation>
 <translation id="3286538390144397061">Restart Now</translation>
 <translation id="328888136576916638">Google API keys are missing. Some functionality of Chromium will be disabled.</translation>
 <translation id="3296368748942286671">Continue running background apps when Chromium is closed</translation>
@@ -237,6 +244,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="3522404737534491619">To share your window, allow screen recording for Chromium in System Settings</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> is already signed in.  To keep your browsing separate, sign in to Chromium in your own profile as <ph name="USER_EMAIL_ADDRESS" />.</translation>
 <translation id="3531741627422851418">QR code to download Chromium browser on mobile devices</translation>
+<translation id="354621070532799440">Reminder: Google's best safety features in your pocket</translation>
 <translation id="3561853857681580870">To share your screen, allow screen recording for Chromium in System Settings.</translation>
 <translation id="3588112919289558122">Enhanced protection turns off JavaScript optimisation for sites that Chromium doesn't recognise</translation>
 <translation id="3597003331831379823">Failed to run setup with elevated privileges. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -362,11 +370,14 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="4987820182225656817">Guests can use Chromium without leaving anything behind.</translation>
 <translation id="4992938037305302429">Your account in Chromium</translation>
 <translation id="4994636714258228724">Add yourself to Chromium</translation>
+<translation id="504699503110800016">Open the overflow menu</translation>
+<translation id="5074496654342756568">Access all of your Google favourites with Chromium on your <ph name="DEVICE_TYPE" /></translation>
 <translation id="5123973130450702873">Chromium needs permission to track your hands</translation>
 <translation id="5141988424377517949">You haven't visited recently. Chromium removed <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" />.</translation>
 <translation id="5174969993834422967">You usually block notifications. To let this site notify you, click the notification icon on the right corner of your location bar.</translation>
 <translation id="5174983315706567306">Not enough disk space.</translation>
 <translation id="5187123684706427865">Chromium account requires re-authentication</translation>
+<translation id="5223510345050543907">Pick up right where you left off with Chromium on iOS.</translation>
 <translation id="5231355151045086930">Sign out of Chromium</translation>
 <translation id="5234764350956374838">Dismiss</translation>
 <translation id="5249261924633168472">Open link in Chromium Inco&amp;gnito window</translation>
@@ -399,6 +410,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="5480860683791598150">Chromium needs access to your location to share your location with this site</translation>
 <translation id="549669000822060376">Please wait while Chromium installs the latest system updates.</translation>
 <translation id="5496810170689441661">Chromium is trying to edit passwords. Type your Windows password to allow this.</translation>
+<translation id="549975168243349205">Seamlessly work with your favourite apps like Google Drive and YouTube on the go with Chromium.</translation>
 <translation id="5524890928877629608">top-left corner of search area: left <ph name="LEFT" />%, top <ph name="TOP" />%</translation>
 <translation id="5527463683072221100">Open PDFs in Chromium</translation>
 <translation id="5536164441519929134">Ask<ph name="LINE_BREAK" />about this tab</translation>
@@ -444,6 +456,7 @@ If this page isn't working as expected, try allowing optimisation.</translation>
 <translation id="6003112304606738118">Downloading… <ph name="HOURS" /> hour(s) remaining</translation>
 <translation id="6009821354356307391">Ask a follow-up</translation>
 <translation id="6040143037577758943">Close</translation>
+<translation id="6044357424127037044">Get more out of online shopping when you use the Chromium app on your <ph name="DEVICE_TYPE" /></translation>
 <translation id="6058380562449900225">To protect your data, let Chromium remove permissions from sites you haven't visited recently. Doesn't stop notifications.</translation>
 <translation id="6063093106622310249">&amp;Open in Chromium</translation>
 <translation id="6069027071882229820">Copy as image</translation>
@@ -471,6 +484,7 @@ If this page isn't working as expected, try allowing optimisation.</translation>
 <translation id="6245734527075554892">Checks URLs with a list of unsafe sites stored in Chromium</translation>
 <translation id="6248213926982192922">Make Chromium the default browser</translation>
 <translation id="6248988683584659830">Search settings</translation>
+<translation id="6261803579884938625">Get Google's best safety features on the go, with the Chromium app on your phone</translation>
 <translation id="6268381023930128611">Sign out of Chromium?</translation>
 <translation id="6270547683008298381">These tabs are using extra resources. To improve your performance, let Chromium make them inactive.</translation>
 <translation id="6281746429495226318">Customise your Chromium profile</translation>
@@ -509,6 +523,7 @@ If this page isn't working as expected, try allowing optimisation.</translation>
 <translation id="6564039629497156115">Changes to this setting will be applied once Chromium restarts.</translation>
 <translation id="6567032987737689854">Manage your extensions by clicking Extensions in the Chromium main menu.</translation>
 <translation id="656935081669708576">You can switch to see passwords from another Chromium profile</translation>
+<translation id="6569556444379005948">Use the Chromium app to take the best AI tools on the go</translation>
 <translation id="6570579332384693436">To fix spelling errors, Chromium sends the text that you type in text fields to Google</translation>
 <translation id="6598877126913850652">Go to Chromium notification settings</translation>
 <translation id="6600016381025017075">Search anything on this page</translation>
@@ -541,6 +556,7 @@ Some features may be unavailable. Please specify a different profile directory o
 <translation id="6873893289264747459">Chromium found that '<ph name="EXTENSION_NAME" />' contains malware</translation>
 <translation id="6877155553248388166">bottom-right corner of search area: right <ph name="RIGHT" />%, bottom <ph name="BOTTOM" />%</translation>
 <translation id="6896758677409633944">Copy</translation>
+<translation id="6898028264630240901">You can pin Contextual tasks to ask questions as you browse</translation>
 <translation id="6901631050894301805">Set Chromium as your default browser and pin it to your taskbar</translation>
 <translation id="6909503629704372277">&amp;Manage Chromium profiles</translation>
 <translation id="6919942714452658456">This action will:
@@ -569,6 +585,8 @@ New bookmarks can't be saved in your account until you delete some. If you sign 
 <translation id="7047386856539490735">Are these results useful?</translation>
 <translation id="705851970750939768">Update Chromium</translation>
 <translation id="7067091210845072982">If an image doesn’t have a useful description, Chromium will try to provide one for you. To create descriptions, images are sent to Google.</translation>
+<translation id="7074836723476134809">Get the power of AI when you use the Chromium app on your <ph name="DEVICE_TYPE" /></translation>
+<translation id="7134687062119989071">Take your passwords, tabs and more on the go with the Chromium app on your phone</translation>
 <translation id="7141270731789036260">Customise Chrome for testing</translation>
 <translation id="7147227333672430807">You can use Chromium at any time that you click links in messages, documents and other apps</translation>
 <translation id="7163519456498498587">Remove <ph name="EXTENSION_NAME" /> from Chromium</translation>
@@ -608,6 +626,7 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="7461356015007898716">To get future Chromium updates, you'll need Windows 10 or later. This computer is using Windows 7.</translation>
 <translation id="7467949745582939695">Relaunch Chromium?</translation>
 <translation id="7483335560992089831">Cannot install the same Chromium version that is currently running. Please close Chromium and try again.</translation>
+<translation id="7510190804000607802">Reminder: The best of Google in your pocket</translation>
 <translation id="751935028865900641">Sites will probably work as expected. You'll be signed out of most sites when you close all Chromium windows, except your Google Account if you're signed in to Chromium.</translation>
 <translation id="753534427205733210">{0,plural, =1{Chromium will relaunch in 1 minute}other{Chromium will relaunch in # minutes}}</translation>
 <translation id="7565444033145385702">To protect your data, let Chromium remove permissions from sites that you haven't visited recently.</translation>
@@ -649,6 +668,7 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="7937630085815544518">You were signed in to Chromium as <ph name="USER_EMAIL_ADDRESS" />. Please use the same account to sign in again.</translation>
 <translation id="7975919845073681630">This is a secondary installation of Chromium, and cannot be made your default browser.</translation>
 <translation id="7997934263947464652">Extensions, apps and themes from unknown sources can harm your device. Chromium recommends only installing them from the <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /></translation>
+<translation id="8000759043835159571">Get the best of Google with the Chromium app on your <ph name="DEVICE_TYPE" /></translation>
 <translation id="8004582292198964060">Browser</translation>
 <translation id="8010081455002666927">Auto-detect</translation>
 <translation id="8013436988911883588">Once Chromium has access, websites will be able to ask you for access.</translation>
@@ -662,6 +682,7 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="8096472344908884505"><ph name="PAGE_TITLE" /> – Google Chrome for Testing</translation>
 <translation id="8105840573057009683">Chromium needs location permission for this site</translation>
 <translation id="8107060931443639922">Next time you open Chromium on your <ph name="DEVICE_TYPE" />, you'll see a prompt to enable price tracking alerts.</translation>
+<translation id="8117908349476699973">Get price drop alerts on items that you're interested in with the Chromium app on your phone</translation>
 <translation id="8118331347066725040">Send feedback for search with Lens</translation>
 <translation id="8133124826068723441">Chromium OS could not sync your data because sync is not available for your domain.</translation>
 <translation id="813913629614996137">Initialising...</translation>
@@ -706,6 +727,7 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="850264194101621529">Thanks for choosing Chromium as your default browser!</translation>
 <translation id="8522801943730206384">Chromium can check your passwords when you save them</translation>
 <translation id="8525579356836940628">Installation stopped</translation>
+<translation id="8545729292258443488">Take your passwords, tabs and more on the go with the Chromium app on your <ph name="DEVICE_TYPE" /></translation>
 <translation id="8548787790260785208">Get warned if Chromium finds one of your passwords in a public data breach</translation>
 <translation id="8555465886620020932">Service error: <ph name="SERVICE_ERROR" />.</translation>
 <translation id="8556055872671007529">Some Chromium features and extensions come with shortcuts. You can choose to turn them back on.</translation>
@@ -747,6 +769,7 @@ Google Chrome is unable to recover your settings.</translation>
             <ph name="LINE_BREAKS" />
             Bookmarks, history and saved passwords won't be affected.</translation>
 <translation id="897581876605952338">Chromium Enterprise logo</translation>
+<translation id="8980139959902937527">Take the safety of Google on the go with the Chromium app on your <ph name="DEVICE_TYPE" /></translation>
 <translation id="8981150672034878610">Cannot start Chromium because something went wrong when opening your profile. Try to restart Chromium.</translation>
 <translation id="8988036198400390003">Manage Chromium profiles</translation>
 <translation id="9018218886431812662">Installation complete</translation>
@@ -754,6 +777,7 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="9022552996538154597">Sign in to Chromium</translation>
 <translation id="904366664621834601">Chromium blocked this download because the archive file includes other files that may hide malware</translation>
 <translation id="9053882453960391422">Keep your passwords, bookmarks and history perfectly synced across devices. Easily access the features that you know and love by updating your default browser to Chromium. Chromium will be pinned to your taskbar for quick access.</translation>
+<translation id="9056398481763999048">Use Google's best AI tools with the Chromium app on your phone</translation>
 <translation id="9062666675513499497">Sign in to Chromium when you sign in to other Google services</translation>
 <translation id="9078733879136747090">Chromium was automatically closed</translation>
 <translation id="9089354809943900324">Chromium is out of date</translation>
@@ -770,6 +794,7 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="9190841055450128916">Chromium (mDNS-In)</translation>
 <translation id="924957577793602335">Make Chromium your own</translation>
 <translation id="93478295209880648">Chromium may not function correctly because it is no longer supported on Windows XP or Windows Vista</translation>
+<translation id="945098430667185067">Get Google's best safety features on the go with Chromium.</translation>
 <translation id="945522503751344254">Send feedback</translation>
 <translation id="965162752251293939">Who's using Chromium?</translation>
 <translation id="967427899662692980">Get Chromium's strongest security</translation>

@@ -41,6 +41,7 @@
 #include "third_party/blink/renderer/core/paint/svg_shape_painter.h"
 #include "third_party/blink/renderer/core/svg/svg_geometry_element.h"
 #include "third_party/blink/renderer/core/svg/svg_length_functions.h"
+#include "third_party/blink/renderer/core/svg/svg_zoom_migration.h"
 #include "third_party/blink/renderer/platform/geometry/path_builder.h"
 #include "third_party/blink/renderer/platform/geometry/stroke_data.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
@@ -119,6 +120,17 @@ void LayoutSVGShape::StyleDidChange(
         SetNeedsTransformUpdate();
         SetNeedsPaintPropertyUpdate();
       }
+    }
+
+    // Under SvgNewZoom, geometry resolution (ValueForLength, AsPath, etc.) is
+    // scaled by EffectiveZoom, so the cached `path_` and `fill_bounding_box_`
+    // become stale when the zoom changes. Per-subclass
+    // GeometryPropertiesChanged helpers only inspect Length-valued properties,
+    // which are zoom-independent, so they would not otherwise notice. Force a
+    // shape update here.
+    if (RuntimeEnabledFeatures::SvgNewZoomEnabled() &&
+        old_style->EffectiveZoom() != style.EffectiveZoom()) {
+      SetNeedsShapeUpdate();
     }
   }
 
@@ -258,11 +270,14 @@ bool LayoutSVGShape::ShapeDependentStrokeContains(
 
     AffineTransform root_transform;
     if (HasNonScalingStroke()) {
-      // Un-scale to get back to the root-transform (cheaper than re-computing
-      // the root transform from scratch).
-      root_transform.Scale(StyleRef().EffectiveZoom())
-          .PreConcat(NonScalingStrokeTransform());
-
+      if (RuntimeEnabledFeatures::SvgNewZoomEnabled()) {
+        root_transform = NonScalingStrokeTransform();
+      } else {
+        // Un-scale to get back to the root-transform (cheaper than re-computing
+        // the root transform from scratch).
+        root_transform.Scale(StyleRef().EffectiveZoom())
+            .PreConcat(NonScalingStrokeTransform());
+      }
       path = &NonScalingStrokePath();
     } else {
       root_transform = ComputeRootTransform();
@@ -474,8 +489,12 @@ AffineTransform LayoutSVGShape::ComputeNonScalingStrokeTransform(
   // unpleasant ways (see crbug.com/747708 for an example.) Maybe it would be
   // better to apply this effect during rasterization?
   AffineTransform host_transform;
-  host_transform.Scale(1 / StyleRef().EffectiveZoom())
-      .PreConcat(ComputeRootTransform());
+  if (RuntimeEnabledFeatures::SvgNewZoomEnabled()) {
+    host_transform.Scale(1 / StyleRef().EffectiveZoom())
+        .PreConcat(ComputeRootTransform());
+  } else {
+    host_transform = ComputeRootTransform();
+  }
 
   if (mode == NonScalingStrokeTransformMode::kClearTranslation) {
     // Width of non-scaling stroke is independent of translation, so zero it out
@@ -618,7 +637,8 @@ gfx::RectF LayoutSVGShape::CalculateNonScalingStrokeBoundingBox() const {
 float LayoutSVGShape::StrokeWidth() const {
   NOT_DESTROYED();
   const SVGViewportResolver viewport_resolver(*this);
-  return ValueForLength(StyleRef().StrokeWidth(), viewport_resolver);
+  return ValueForLength(StyleRef().StrokeWidth(), viewport_resolver,
+                        StyleRef().EffectiveZoom());
 }
 
 float LayoutSVGShape::StrokeWidthForMarkerUnits() const {
@@ -633,8 +653,10 @@ float LayoutSVGShape::StrokeWidthForMarkerUnits() const {
                              non_scaling_transform.YScaleSquared()) /
                             2));
     stroke_width /= scale_factor;
+    return stroke_width;
   }
-  return stroke_width;
+
+  return NoopWillBeInvScaleScalar(stroke_width, StyleRef().EffectiveZoom());
 }
 
 LayoutSVGShapeRareData& LayoutSVGShape::EnsureRareData() const {

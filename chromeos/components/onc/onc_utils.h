@@ -43,6 +43,10 @@ std::optional<base::DictValue> Decrypt(const base::DictValue& onc);
 COMPONENT_EXPORT(CHROMEOS_ONC)
 std::string GetSourceAsString(::onc::ONCSource source);
 
+// Returns true if the ONC source is a policy (User or Device).
+COMPONENT_EXPORT(CHROMEOS_ONC)
+bool IsPolicyOncSource(::onc::ONCSource source);
+
 // Replaces all expandable fields that are mentioned in the ONC
 // specification. The object of |onc_object| is modified in place.
 // The substitution is performed using the passed |variable_expander|, which

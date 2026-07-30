@@ -53,7 +53,7 @@ class UniqueElementData;
 
 // ElementData represents very common, but not necessarily unique to an element,
 // data such as attributes, inline style, and parsed class names and ids.
-class ElementData : public GarbageCollected<ElementData> {
+class CORE_EXPORT ElementData : public GarbageCollected<ElementData> {
  public:
   // Override GarbageCollected's finalizeGarbageCollectedObject to
   // dispatch to the correct subclass destructor.
@@ -173,7 +173,7 @@ struct ThreadingTrait<T> {
 // the parser during page load for elements that have identical attributes. This
 // is a memory optimization since it's very common for many elements to have
 // duplicate sets of attributes (ex. the same classes).
-class ShareableElementData final : public ElementData {
+class CORE_EXPORT ShareableElementData final : public ElementData {
  public:
   static ShareableElementData* CreateWithAttributes(
       const Vector<Attribute, kAttributePrealloc>&);

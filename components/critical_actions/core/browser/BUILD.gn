@@ -4,6 +4,8 @@
 
 static_library("browser") {
   sources = [
+    "critical_action_backend.cc",
+    "critical_action_backend.h",
     "critical_action_database.cc",
     "critical_action_database.h",
     "critical_action_types.cc",
@@ -19,7 +21,10 @@ static_library("browser") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "critical_action_database_unittest.cc" ]
+  sources = [
+    "critical_action_backend_unittest.cc",
+    "critical_action_database_unittest.cc",
+  ]
 
   deps = [
     ":browser",
@@ -28,5 +33,6 @@ source_set("unit_tests") {
     "//sql:test_support",
     "//testing/gtest",
     "//third_party/sqlite",
+    "//url",
   ]
 }

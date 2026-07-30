@@ -1,2 +1,2 @@
 AXWebArea AXRoleDescription='HTML content'
-++AXGroup AXSubrole=AXLandmarkNavigation AXRoleDescription='navigation'
+++AXGroup AXSubrole=AXEmptyGroup AXRoleDescription='navigation'

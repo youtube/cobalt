@@ -1,5 +1,5 @@
 AXWebArea
 ++AXGroup
-++++AXPopUpButton AXTitle='Open Menu'
+++++AXPopUpButton AXExpanded=1 AXTitle='Open Menu'
 ++++AXMenu AXTitle='Open Menu'
 ++++++AXMenuItem AXTitle='Item 1'

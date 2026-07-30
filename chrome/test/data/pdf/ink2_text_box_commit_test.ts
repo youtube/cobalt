@@ -255,4 +255,51 @@ chrome.test.runTests([
 
     chrome.test.succeed();
   },
+
+  async function testCommitNoEditsDoesNotFetchFont() {
+    const {manager, privateProxy, textbox, viewport} = await setupTextBoxTest();
+    assertDeepEquals([], manager.getKnownFontIds());
+
+    // Set up test font information.
+    privateProxy.reset();
+    privateProxy.setGetTextInfoResult({
+      typefaces: [{uniqueId: 123, serializedTypeface: new ArrayBuffer(10)}],
+      mojoTextInfo: new ArrayBuffer(5),
+    });
+
+    // Simulate opening a loaded text annotation by reactivating the annotation.
+    const loadedAnnotation = getTestAnnotation(
+        {locationX: 20, locationY: 27, height: 50, width: 50}, 1.0);
+    reactivateBox(textbox, viewport, loadedAnnotation);
+    await microtasksFinished();
+    chrome.test.assertTrue(isVisible(textbox));
+
+    // Commit without making any edits.
+    await textbox.commitTextAnnotation();
+    await microtasksFinished();
+
+    chrome.test.assertEq(0, privateProxy.getCallCount('getTextInfo'));
+    assertDeepEquals([], manager.getKnownFontIds());
+
+    // Initialize a new box.
+    initializeBox(100, 100, 50, 50);
+    await microtasksFinished();
+
+    // Type some text to make it edited.
+    textbox.$.textbox.value = 'New Annotation';
+    textbox.$.textbox.dispatchEvent(new CustomEvent('input'));
+    await microtasksFinished();
+
+    // Commit the new annotation.
+    await textbox.commitTextAnnotation();
+    await microtasksFinished();
+
+    // Verify that getTextInfo() was called and a new font was collected.
+    chrome.test.assertEq(1, privateProxy.getCallCount('getTextInfo'));
+    const getTextInfoArgs = await privateProxy.whenCalled('getTextInfo');
+    assertDeepEquals([], getTextInfoArgs.knownFontIds);
+    assertDeepEquals([123], manager.getKnownFontIds());
+
+    chrome.test.succeed();
+  },
 ]);

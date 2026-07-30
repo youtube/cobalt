@@ -43,9 +43,8 @@ pub type InterfaceId = u32;
 
 /// This ID is assigned to the primary interface, which owns the message pipe.
 pub(super) const PRIMARY_INTERFACE_ID: InterfaceId = 0;
-/// These IDs are used for control messages (e.g. disconnect notifications).
-pub(super) const CONTROL_INTERFACE_ID_1: InterfaceId = u32::MAX;
-pub(super) const CONTROL_INTERFACE_ID_2: InterfaceId = u32::MAX - 1;
+/// This ID is used for control messages (e.g. disconnect notifications).
+pub(super) const CONTROL_INTERFACE_ID: InterfaceId = u32::MAX;
 /// Routers always either generate IDs with the high bit set, or always generate
 /// IDs with the high bit unset.
 const HIGH_BIT_MASK: InterfaceId = 0x80000000;
@@ -128,10 +127,7 @@ impl EndpointRegistry {
         let ret = self.next_interface_id;
         self.next_interface_id += 1;
         // Make sure we didn't wrap around or flip the high bit.
-        if matches!(
-            self.next_interface_id,
-            CONTROL_INTERFACE_ID_1 | CONTROL_INTERFACE_ID_2 | HIGH_BIT_MASK
-        ) {
+        if matches!(self.next_interface_id, CONTROL_INTERFACE_ID | HIGH_BIT_MASK) {
             panic!("MultiplexRouter ran out of interface IDs to allocate")
         }
         ret

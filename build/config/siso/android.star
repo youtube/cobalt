@@ -276,7 +276,7 @@ def __step_config(ctx, step_config):
             "name": "android/apkbuilder",
             "command_prefix": "python3 ../../build/android/gyp/apkbuilder.py",
             "handler": "android_apkbuilder",
-            "remote": config.get(ctx, "remote-link") or config.get(ctx, "builder"),
+            "remote": config.get(ctx, "remote-link") or config.get(ctx, "default-remote") or config.get(ctx, "builder"),
             "platform_ref": "large",
             "timeout": "5m",
             "exclude_input_patterns": [

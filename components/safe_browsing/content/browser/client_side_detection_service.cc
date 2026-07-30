@@ -25,7 +25,6 @@
 #include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
 #include "components/optimization_guide/proto/models.pb.h"
 #include "components/prefs/pref_service.h"
-#include "components/safe_browsing/content/browser/client_side_phishing_model.h"
 #include "components/safe_browsing/content/browser/web_ui/web_ui_content_info_singleton.h"
 #include "components/safe_browsing/content/common/safe_browsing.mojom.h"
 #include "components/safe_browsing/core/common/fbs/client_model_generated.h"
@@ -82,8 +81,8 @@ ClientSideDetectionService::ClientSideDetectionService(
 
   if (!base::FeatureList::IsEnabled(kClientSideDetectionKillswitch) &&
       opt_guide) {
-    client_side_phishing_model_ =
-        std::make_unique<ClientSidePhishingModel>(opt_guide);
+    client_side_phishing_model_ = std::make_unique<ClientSidePhishingModel>(
+        opt_guide, base::SequencedTaskRunner::GetCurrentDefault());
   }
 
   url_loader_factory_ = delegate_->GetSafeBrowsingURLLoaderFactory();

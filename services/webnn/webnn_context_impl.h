@@ -269,6 +269,8 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
       const base::flat_map<std::string, blink::WebNNTensorToken>& named_outputs)
       override;
   void DestroyGraph(const blink::WebNNGraphToken& graph_handle) override;
+  void RequestCompilerContext(mojo::PendingReceiver<mojom::WebNNCompilerContext>
+                                  compiler_context_receiver) override;
 
   // This method will be called by `CreateTensor()` after the tensor info is
   // validated. A backend subclass should implement this method to create and

@@ -13,7 +13,7 @@
 import {assert} from 'chrome://resources/js/assert.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 
-import {androidAppsVisible, isAppParentalControlsFeatureAvailable, isArcVmEnabled, isCrostiniSupported, isGuest, isKerberosEnabled, isPluginVmAvailable} from './common/load_time_booleans.js';
+import {androidAppsVisible, isAppParentalControlsFeatureAvailable, isArcVmEnabled, isCrostiniSupported, isGuest, isKerberosEnabled} from './common/load_time_booleans.js';
 import * as routesMojom from './mojom-webui/routes.mojom-webui.js';
 
 /**
@@ -148,8 +148,6 @@ export interface OsSettingsRoutes extends MinimumRoutes {
   APP_NOTIFICATIONS_MANAGER: Route;
   APP_MANAGEMENT: Route;
   APP_MANAGEMENT_DETAIL: Route;
-  APP_MANAGEMENT_PLUGIN_VM_SHARED_PATHS: Route;
-  APP_MANAGEMENT_PLUGIN_VM_SHARED_USB_DEVICES: Route;
   APP_PARENTAL_CONTROLS: Route;
   APPS: Route;
   ANDROID_APPS_DETAILS: Route;
@@ -418,14 +416,6 @@ export function createRoutes(): OsSettingsRoutes {
           routesMojom.ARC_VM_USB_PREFERENCES_SUBPAGE_PATH,
           Subpage.kArcVmUsbPreferences);
     }
-  }
-  if (isPluginVmAvailable()) {
-    r.APP_MANAGEMENT_PLUGIN_VM_SHARED_PATHS = createSubpage(
-        r.APP_MANAGEMENT, routesMojom.PLUGIN_VM_SHARED_PATHS_SUBPAGE_PATH,
-        Subpage.kPluginVmSharedPaths);
-    r.APP_MANAGEMENT_PLUGIN_VM_SHARED_USB_DEVICES = createSubpage(
-        r.APP_MANAGEMENT, routesMojom.PLUGIN_VM_USB_PREFERENCES_SUBPAGE_PATH,
-        Subpage.kPluginVmUsbPreferences);
   }
 
   if (isAppParentalControlsFeatureAvailable()) {

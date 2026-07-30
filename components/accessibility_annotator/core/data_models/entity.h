@@ -88,7 +88,7 @@ struct Shipment {
   std::string delivery_zip_code;
   std::string carrier_name;
   GURL carrier_domain;
-  std::optional<Date> estimated_delivery_date;
+  std::optional<Date> shipped_date;
 };
 
 struct DriversLicense {

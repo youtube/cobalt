@@ -43,15 +43,15 @@ class CONTENT_EXPORT ChildMemoryCoordinator {
 
   BrowserMemoryCoordinatorBridge browser_memory_coordinator_bridge_{
       policy_manager_};
-  MemoryCoordinatorPolicyRegistration<BrowserMemoryCoordinatorBridge>
-      browser_bridge_registration_{policy_manager_,
-                                   browser_memory_coordinator_bridge_};
+  MemoryCoordinatorPolicyRegistration
+      browser_memory_coordinator_bridge_registration_{
+          policy_manager_, browser_memory_coordinator_bridge_};
 
   MemoryPressureListenerPolicy memory_pressure_listener_policy_{
       policy_manager_};
-  MemoryCoordinatorPolicyRegistration<MemoryPressureListenerPolicy>
-      pressure_listener_registration_{policy_manager_,
-                                      memory_pressure_listener_policy_};
+  MemoryCoordinatorPolicyRegistration
+      memory_pressure_listener_policy_registration_{
+          policy_manager_, memory_pressure_listener_policy_};
 };
 
 }  // namespace content

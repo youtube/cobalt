@@ -102,4 +102,36 @@ public class AdaptiveToolbarFeaturesUnitTest {
         when(mPrefService.getBoolean(Pref.OFFER_TRANSLATE_ENABLED)).thenReturn(false);
         assertTrue(AdaptiveToolbarFeatures.isTranslateEnabled(mProfile));
     }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.GLIC)
+    @DisableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    public void testIsGlicEnabledForAdaptiveToolbar_EnabledOnPhone() {
+        assertTrue(AdaptiveToolbarFeatures.isGlicEnabledForAdaptiveToolbar(mContext, mProfile));
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures({ChromeFeatureList.GLIC, ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL})
+    @DisableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    public void testIsGlicEnabledForAdaptiveToolbar_EnabledOnPhone_SidePanelEnabled() {
+        assertTrue(AdaptiveToolbarFeatures.isGlicEnabledForAdaptiveToolbar(mContext, mProfile));
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.GLIC)
+    @DisableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    @Config(qualifiers = "sw600dp")
+    public void testIsGlicEnabledForAdaptiveToolbar_TabletDisabled() {
+        assertFalse(AdaptiveToolbarFeatures.isGlicEnabledForAdaptiveToolbar(mContext, mProfile));
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures({ChromeFeatureList.GLIC, ChromeFeatureList.ANDROID_BOTTOM_BAR})
+    public void testIsGlicEnabledForAdaptiveToolbar_BottomBarEnabled() {
+        assertFalse(AdaptiveToolbarFeatures.isGlicEnabledForAdaptiveToolbar(mContext, mProfile));
+    }
 }

@@ -180,13 +180,13 @@ void OmniboxPopupFileSelector::MultiFilesSelected(
   file_dialog_.reset();
 
   if (!has_posted_tasks) {
-    edit_model_->OpenAiMode(/*via_keyboard=*/false, /*via_context_menu=*/true);
+    edit_model_->OpenAiMode(OmniboxEditModel::AimActivation::kContextMenu);
   }
 }
 
 void OmniboxPopupFileSelector::FileSelectionCanceled() {
   if (was_ai_mode_open_) {
-    edit_model_->OpenAiMode(/*via_keyboard=*/false, /*via_context_menu=*/true);
+    edit_model_->OpenAiMode(OmniboxEditModel::AimActivation::kContextMenu);
   }
 }
 
@@ -210,7 +210,7 @@ void OmniboxPopupFileSelector::OnFileDataReady(
     UpdateSearchboxContextData(lens::MimeType::kUnknown, "", file_data->name,
                                file_data->mime_type,
                                base::ok(base::UnguessableToken::Create()));
-    edit_model_->OpenAiMode(false, /*via_context_menu=*/true);
+    edit_model_->OpenAiMode(OmniboxEditModel::AimActivation::kContextMenu);
     return;
   }
 
@@ -248,7 +248,7 @@ void OmniboxPopupFileSelector::OnFileDataReady(
     }
   }
 
-  edit_model_->OpenAiMode(false, /*via_context_menu=*/true);
+  edit_model_->OpenAiMode(OmniboxEditModel::AimActivation::kContextMenu);
   const std::string prefix = was_ai_mode_open_
                                  ? kAimContextTypeHistogramPrefix
                                  : kClassicContextTypeHistogramPrefix;

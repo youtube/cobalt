@@ -74,6 +74,7 @@ using testing::AtLeast;
 using testing::ByMove;
 using testing::Contains;
 using testing::DoAll;
+using testing::Each;
 using testing::ElementsAre;
 using testing::Eq;
 using testing::Ge;
@@ -1201,6 +1202,46 @@ TEST_F(MostVisitedSitesTest, CustomLinksCappedAtTenWhenRedesignDisabled) {
   EXPECT_EQ(10ul, sections.at(SectionType::PERSONALIZED).size());
 }
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+
+// Existing tests check the default 8-link mobile cap. This dedicated test
+// verifies the 10-link limit configured on WebUI NTP (AL) builds.
+TEST_F(MostVisitedSitesTest, CustomLinksCappedAtTenWhenWebUiNtpEnabled) {
+  EnableCustomLinks();
+  RecreateMostVisitedSites();
+
+  std::vector<CustomLinksManager::Link> custom_links;
+  for (int i = 0; i < 15; ++i) {
+    custom_links.push_back({GURL("http://site/"), u"Title"});
+  }
+
+  EXPECT_CALL(*mock_custom_links_manager_, IsInitialized())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(*mock_custom_links_manager_, GetMaxLinks())
+      .WillRepeatedly(Return(10));
+  EXPECT_CALL(*mock_custom_links_manager_, GetLinks())
+      .WillOnce(ReturnRef(custom_links));
+  EXPECT_CALL(*mock_top_sites_, SyncWithHistory());
+  EXPECT_CALL(*mock_custom_links_manager_, RegisterCallbackForOnChanged(_));
+
+  base::RunLoop run_loop;
+  std::map<SectionType, NTPTilesVector> sections;
+
+  EXPECT_CALL(mock_observer_, OnURLsAvailable(_, _))
+      .WillOnce(
+          testing::DoAll(testing::SaveArg<1>(&sections),
+                         base::test::RunOnceClosure(run_loop.QuitClosure())));
+
+  most_visited_sites_->AddMostVisitedURLsObserver(&mock_observer_,
+                                                  /*max_num_sites=*/8);
+  run_loop.Run();
+
+  EXPECT_THAT(
+      sections,
+      Contains(Pair(
+          SectionType::PERSONALIZED,
+          AllOf(SizeIs(10), Each(MatchesTile(u"Title", "http://site/",
+                                             TileSource::CUSTOM_LINKS))))));
+}
 
 TEST_F(MostVisitedSitesTest, ShouldDeduplicateDomainWithNoWwwDomain) {
   EXPECT_TRUE(MostVisitedSites::IsHostOrMobilePageKnown({"www.mobile.de"},

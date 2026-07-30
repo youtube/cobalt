@@ -75,6 +75,8 @@ CONTENT_EXPORT extern const base::FeatureParam<std::string>
     kPrerender2ReuseInitiatorProcessActionType;
 CONTENT_EXPORT extern const base::FeatureParam<std::string>
     kPrerender2ReuseInitiatorProcessEagerness;
+CONTENT_EXPORT extern const base::FeatureParam<int>
+    kPrerender2ReuseInitiatorProcessMaxReuseCount;
 
 CONTENT_EXPORT bool UsePrefetchPrerenderIntegration();
 }  // namespace features

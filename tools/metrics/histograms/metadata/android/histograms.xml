@@ -178,6 +178,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".PermissionBlocked"/>
   <variant name=".PermissionPromptLoud"/>
   <variant name=".PermissionUpdate"/>
+  <variant name=".PersonalContextFetchingFailure"/>
   <variant name=".PopupBlocked"/>
   <variant name=".PromptHatsCameraCustomInvitation"/>
   <variant name=".PromptHatsCameraGenericInvitation"/>
@@ -1283,10 +1284,15 @@ chromium-metrics-reviews@google.com.
     Recorded when the {IPHType} In-Product Help (IPH) in the Android Bottom Bar
     triggers (is shown or dismissed).
   </summary>
+<!-- LINT.IfChange(AndroidBottomBarIphFeature) -->
+
   <token key="IPHType">
+    <variant name="Aim" summary="AI Mode button"/>
     <variant name="Glic" summary="Gemini button"/>
     <variant name="NewTab" summary="New Tab button"/>
   </token>
+<!-- LINT.ThenChange(//chrome/browser/ui/android/bottombar/java/src/org/chromium/chrome/browser/ui/bottombar/BottomBarMetrics.java:AndroidBottomBarIphFeature) -->
+
 </histogram>
 
 <histogram name="Android.BottomBar.Promo.Event"
@@ -2429,6 +2435,36 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="Android.ExternalBeginFrameSourceAChoreographerImpl.VsyncIntervalSource"
+    enum="AndroidExternalBeginFrameSourceAChoreographerImplVsyncIntervalSource"
+    expires_after="2026-10-22">
+  <owner>petrcermak@chromium.org</owner>
+  <owner>woa-performance-team@google.com</owner>
+  <summary>
+    Source of the VSync interval (aka VSync period) that
+    `ExternalBeginFrameSourceAndroid::AChoreographerImpl` provides to
+    `ExternalBeginFrameSourceAndroid`, together with the reason for choosing the
+    particular source.
+
+    It can either FORWARD the VSync interval that the OS provided to
+    `ExternalBeginFrameSourceAndroid::AChoreographerImpl::RefreshRateCallback`
+    (registered via `AChoreographer_registerRefreshRateCallback`), or DERIVE the
+    VSync interval from the frame timelines that the OS provided to
+    `ExternalBeginFrameSourceAndroid::AChoreographerImpl::VsyncCallback` (posted
+    via `AChoreographer_postVsyncCallback`) by taking the difference between the
+    presentation timestamps of the first two timelines. `AChoreographerImpl`
+    might choose to snap the timeline-derived interval to the closest supported
+    interval in `Display.getSupportedRefreshRates()`.
+
+    The advantage of deriving the VSync interval is that it avoids using an
+    incorrect VSync interval immediately before/after a refresh rate change,
+    because frame timelines are synchronized with the Android choreographer.
+
+    Subsampled with probability 1/100 for each VSync.
+  </summary>
+</histogram>
+
+<histogram
     name="Android.FamilyLinkUser.LocalApprovalParentAuthenticationError.{Flow}"
     units="Status error codes raised in GMS Core" expires_after="2026-11-01">
   <owner>anthie@google.com</owner>
@@ -3131,16 +3167,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Android.Intent.ShareIntentUrlCount" units="URLs"
-    expires_after="2026-07-26">
-  <owner>mthiesse@chromium.org</owner>
-  <owner>tedchoc@google.com</owner>
-  <summary>
-    Number of URLs present in Text Share intents (ACTION_SEND) received by
-    Chrome.
-  </summary>
-</histogram>
-
 <histogram name="Android.Intent.TrustedReferrer" enum="IntentReferrer"
     expires_after="2027-06-09">
   <owner>mthiesse@chromium.org</owner>
@@ -3148,16 +3174,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records whether, and why, we used a trusted referrer on an Intent coming
     from another app.
-  </summary>
-</histogram>
-
-<histogram name="Android.Intent.TrustedTransitionTypeUsed"
-    enum="IntentTransitionType" expires_after="2027-06-09">
-  <owner>mthiesse@chromium.org</owner>
-  <owner>yfriedman@google.com</owner>
-  <summary>
-    Records whether, and why, we used a trusted TransitionType on an Intent
-    coming from another app.
   </summary>
 </histogram>
 
@@ -7815,21 +7831,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram
-    name="Android.WebView.FilteredClassLoader.FindClassReturnedAllowedClass"
-    enum="Boolean" expires_after="2026-10-29">
-  <owner>abhijithnair@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
-  <summary>
-    Records whether `FilteredClassLoader.findClass` returned an allowed class.
-    Logged when `findClass` is called. This histogram is used to measure how
-    often an exception would be thrown if class filtering restriction is
-    enforced.
-
-    Only logged for Android WebView.
-  </summary>
-</histogram>
-
 <histogram name="Android.WebView.GetCacheQuotaSizeTime" units="ms"
     expires_after="2026-06-01">
   <owner>abhijithnair@chromium.org</owner>
@@ -8482,34 +8483,6 @@ chromium-metrics-reviews@google.com.
     This histogram replaces Android.WebView.Memory.FaviconJavaAllocatedMemory,
     which was configured with a min-value of 1000, and thus put most values in
     the 0 bucket.
-  </summary>
-</histogram>
-
-<histogram name="Android.WebView.Memory.FunctorReclaim.OtherPrivateDirty"
-    units="MB" expires_after="2024-11-03">
-  <owner>lizeb@chromium.org</owner>
-  <owner>chrome-gpu-memory@google.com</owner>
-  <summary>
-    Reports the app's &quot;other private dirty&quot; memory usage after some
-    time in background. Collects the same data as
-    Memory.Experimental.Gpu2.OtherPss, with the same caveats. Due to these, this
-    should not be relied on to get accurate estimates of memory usage or deltas,
-    but mostly used as a signal in Finch experiments. This is intended to
-    evaluate the impact of draw functor reclaim.
-  </summary>
-</histogram>
-
-<histogram name="Android.WebView.Memory.FunctorReclaim.OtherPss" units="MB"
-    expires_after="2024-11-03">
-  <owner>lizeb@chromium.org</owner>
-  <owner>chrome-gpu-memory@google.com</owner>
-  <summary>
-    Reports the app's &quot;other PSS&quot; memory usage after some time in
-    background. Collects the same data as Memory.Experimental.Gpu2.OtherPss,
-    with the same caveats. Due to these, this should not be relied on to get
-    accurate estimates of memory usage or deltas, but mostly used as a signal in
-    Finch experiments. This is intended to evaluate the impact of draw functor
-    reclaim.
   </summary>
 </histogram>
 

@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_TIMING_SPECULATION_DATA_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/timing/preconnect_data.h"
 #include "third_party/blink/renderer/core/timing/preload_data.h"
 #include "third_party/blink/renderer/core/timing/speculation_navigation_data.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -23,10 +24,14 @@ class SpeculationData final : public ScriptWrappable {
 
  public:
   SpeculationData(HeapVector<Member<PreloadData>> preloads,
+                  HeapVector<Member<PreconnectData>> preconnects,
                   HeapVector<Member<SpeculationNavigationData>> navigations,
                   const KURL& navigation_destination_url);
 
   const HeapVector<Member<PreloadData>>& preloads() const { return preloads_; }
+  const HeapVector<Member<PreconnectData>>& preconnects() const {
+    return preconnects_;
+  }
   const HeapVector<Member<SpeculationNavigationData>>& navigations() const {
     return navigations_;
   }
@@ -38,6 +43,7 @@ class SpeculationData final : public ScriptWrappable {
 
  private:
   HeapVector<Member<PreloadData>> preloads_;
+  HeapVector<Member<PreconnectData>> preconnects_;
   HeapVector<Member<SpeculationNavigationData>> navigations_;
   const KURL navigation_destination_url_;
 };

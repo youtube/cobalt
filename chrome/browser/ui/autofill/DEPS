@@ -5,6 +5,7 @@ include_rules = [
   '+components/device_reauth',
   '+components/personal_context/first_run',
   '+components/plus_addresses',
+  '+components/resources/android',
   '+components/webauthn',
   '+third_party/libaddressinput/chromium/chrome_metadata_source.h',
   '+third_party/libaddressinput/messages.h',

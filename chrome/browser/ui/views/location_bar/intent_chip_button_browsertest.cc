@@ -80,17 +80,18 @@ class IntentChipButtonBrowserTest
   }
 
   bool LinkCapturingEnabledByDefault() const {
-#if BUILDFLAG(IS_CHROMEOS)
-    return false;
-#else
     return std::get<0>(GetParam()) ==
            apps::test::LinkCapturingFeatureVersion::kV2DefaultOn;
-#endif  // BUILDFLAG(IS_CHROMEOS)
   }
 
   void SetUpOnMainThread() override {
     web_app::WebAppNavigationBrowserTest::SetUpOnMainThread();
     InstallTestWebApp();
+    if (!LinkCapturingEnabledByDefault()) {
+      CHECK_EQ(
+          apps::test::EnableLinkCapturingByUser(profile(), test_web_app_id()),
+          base::ok());
+    }
   }
 
   void TearDownOnMainThread() override {
@@ -172,6 +173,11 @@ class IntentChipButtonBrowserTest
         web_app::test::InstallWebApp(profile(), std::move(web_app_info));
     DCHECK(!overlapping_app_id_.empty());
     apps::AppReadinessWaiter(profile(), overlapping_app_id_).Await();
+    if (!LinkCapturingEnabledByDefault()) {
+      CHECK_EQ(
+          apps::test::EnableLinkCapturingByUser(profile(), overlapping_app_id_),
+          base::ok());
+    }
   }
 
  protected:
@@ -182,7 +188,7 @@ class IntentChipButtonBrowserTest
 };
 
 IN_PROC_BROWSER_TEST_P(IntentChipButtonBrowserTest,
-                       NavigationToInScopeLinkShowsIntentChip) {
+                       NavigationToInScopeLinkShowsIntentChipAndLaunchesApp) {
   const GURL in_scope_url =
       embedded_https_test_server().GetURL(GetAppUrlHost(), GetInScopeUrlPath());
   EXPECT_TRUE(DoAndWaitForIntentPickerIconUpdate([this, in_scope_url] {
@@ -191,23 +197,14 @@ IN_PROC_BROWSER_TEST_P(IntentChipButtonBrowserTest,
   EXPECT_TRUE(WaitForPageActionButtonVisible(browser()));
   EXPECT_TRUE(GetIntentChip(browser())->GetVisible());
 
-// If a single app is installed, then clicking on the intent chip button
-// opens the intent picker view on ChromeOS, and directly launches the
-// app on other desktop platforms.
-#if BUILDFLAG(IS_CHROMEOS)
-  views::NamedWidgetShownWaiter waiter(views::test::AnyWidgetTestPasskey{},
-                                       "IntentPickerBubbleView");
-  ClickIntentChip(/*wait_for_browser=*/false);
-
-  waiter.WaitIfNeededAndGet();
-  ASSERT_TRUE(IntentPickerBubbleView::intent_picker_bubble());
-#else
+  // If a single app is installed, then clicking on the intent chip button
+  // directly launches the app on all platforms, if the app is set to be the
+  // preferred app for capturing links.
   base::UserActionTester user_action_tester;
   Browser* app_browser = ClickIntentChip(/*wait_for_browser=*/true);
   ASSERT_EQ(1, user_action_tester.GetActionCount("IntentPickerIconClicked"));
   ASSERT_TRUE(app_browser);
   ASSERT_TRUE(app_browser->is_type_app());
-#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 IN_PROC_BROWSER_TEST_P(IntentChipButtonBrowserTest,
@@ -220,9 +217,6 @@ IN_PROC_BROWSER_TEST_P(IntentChipButtonBrowserTest,
 
 IN_PROC_BROWSER_TEST_P(IntentChipButtonBrowserTest,
                        ShowsIntentChipExpandedForPreferredApp) {
-  EXPECT_EQ(apps::test::EnableLinkCapturingByUser(profile(), test_web_app_id()),
-            base::ok());
-
   const GURL in_scope_url =
       embedded_https_test_server().GetURL(GetAppUrlHost(), GetInScopeUrlPath());
   const GURL out_of_scope_url = embedded_https_test_server().GetURL(
@@ -280,12 +274,8 @@ INSTANTIATE_TEST_SUITE_P(
     ,
     IntentChipButtonBrowserTest,
     testing::Combine(
-#if BUILDFLAG(IS_CHROMEOS)
-        testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff),
-#else
         testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff,
                         apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
-#endif  // BUILDFLAG(IS_CHROMEOS)
         testing::Bool()),
     [](const auto& param_info) {
       return IntentChipButtonTestBase::GenerateIntentChipTestName(param_info);
@@ -370,12 +360,7 @@ INSTANTIATE_TEST_SUITE_P(
     ,
     IntentChipButtonBrowserUiTest,
     testing::Combine(
-#if BUILDFLAG(IS_CHROMEOS)
-        testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff)
-#else
-        testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOn)
-#endif  // BUILDFLAG(IS_CHROMEOS)
-            ,
+        testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
         testing::Bool()),
     [](const auto& param_info) {
       return IntentChipButtonTestBase::GenerateIntentChipTestName(param_info);

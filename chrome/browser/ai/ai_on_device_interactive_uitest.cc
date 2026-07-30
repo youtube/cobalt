@@ -7,10 +7,12 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/scoped_feature_list.h"
+#include "chrome/browser/optimization_guide/model_execution/optimization_guide_global_state.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/embedder_support/switches.h"
+#include "components/optimization_guide/core/model_execution/manifest_broker/test/manifest_builder.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
@@ -163,16 +165,19 @@ class MAYBE_AIOnDeviceBrowserTest
     // Specify the OT test public key to make the test token effective.
     command_line->AppendSwitchASCII(embedder_support::kOriginTrialPublicKey,
                                     kOriginTrialPublicKeyForTesting);
+    command_line->AppendSwitchPath("optimization-guide-manifest-override",
+                                   manifest_override_.path());
+    base::flat_map<base::test::FeatureRef, bool> feature_states;
+    feature_states[optimization_guide::kOptimizationGuideManifestBroker] = true;
     if (IsAPIKillSwitchTriggered(GetParam())) {
-      base::flat_map<base::test::FeatureRef, bool> feature_states;
       feature_states[blink::features::kAIPromptAPI] = false;
       feature_states[blink::features::kAIPromptAPIMultimodalInput] = false;
       feature_states[blink::features::kAIProofreadingAPI] = false;
       feature_states[blink::features::kAIRewriterAPI] = false;
       feature_states[blink::features::kAISummarizationAPI] = false;
       feature_states[blink::features::kAIWriterAPI] = false;
-      feature_list_.InitWithFeatureStates(feature_states);
     }
+    feature_list_.InitWithFeatureStates(feature_states);
   }
 
   void SetUpOnMainThread() override {
@@ -212,6 +217,12 @@ class MAYBE_AIOnDeviceBrowserTest
 
  private:
   base::test::ScopedFeatureList feature_list_;
+  optimization_guide::ManifestComponentDirectory manifest_component_dir_{
+      optimization_guide::ManifestBuilder().Build()};
+  optimization_guide::ManifestOverrideFile manifest_override_{
+      optimization_guide::ManifestOverrideBuilder()
+          .SetManifestPath(manifest_component_dir_.path())
+          .Build()};
 };
 
 INSTANTIATE_TEST_SUITE_P(

@@ -36,7 +36,7 @@ TitleResources GetResourcesForType(EntityTypeName type_name) {
           .update_title_id =
               IDS_AUTOFILL_AI_UPDATE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE_ANDROID,
           .update_title_branded_id =
-              IDS_AUTOFILL_AI_UPDATE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE_ANDROID,
+              IDS_AUTOFILL_AI_UPDATE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE_ANDROID_BRANDED,
       };
     case EntityTypeName::kKnownTravelerNumber:
       return {
@@ -47,7 +47,7 @@ TitleResources GetResourcesForType(EntityTypeName type_name) {
           .update_title_id =
               IDS_AUTOFILL_AI_UPDATE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE_ANDROID,
           .update_title_branded_id =
-              IDS_AUTOFILL_AI_UPDATE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE_ANDROID,
+              IDS_AUTOFILL_AI_UPDATE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE_ANDROID_BRANDED,
       };
     case EntityTypeName::kNationalIdCard:
       return {
@@ -58,7 +58,7 @@ TitleResources GetResourcesForType(EntityTypeName type_name) {
           .update_title_id =
               IDS_AUTOFILL_AI_UPDATE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE_ANDROID,
           .update_title_branded_id =
-              IDS_AUTOFILL_AI_UPDATE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE_ANDROID,
+              IDS_AUTOFILL_AI_UPDATE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE_ANDROID_BRANDED,
       };
     case EntityTypeName::kPassport:
       return {
@@ -69,7 +69,7 @@ TitleResources GetResourcesForType(EntityTypeName type_name) {
           .update_title_id =
               IDS_AUTOFILL_AI_UPDATE_PASSPORT_ENTITY_DIALOG_TITLE_ANDROID,
           .update_title_branded_id =
-              IDS_AUTOFILL_AI_UPDATE_PASSPORT_ENTITY_DIALOG_TITLE_ANDROID,
+              IDS_AUTOFILL_AI_UPDATE_PASSPORT_ENTITY_DIALOG_TITLE_ANDROID_BRANDED,
       };
     case EntityTypeName::kRedressNumber:
       return {
@@ -80,7 +80,7 @@ TitleResources GetResourcesForType(EntityTypeName type_name) {
           .update_title_id =
               IDS_AUTOFILL_AI_UPDATE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE_ANDROID,
           .update_title_branded_id =
-              IDS_AUTOFILL_AI_UPDATE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE_ANDROID,
+              IDS_AUTOFILL_AI_UPDATE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE_ANDROID_BRANDED,
       };
     case EntityTypeName::kVehicle:
       return {
@@ -91,7 +91,7 @@ TitleResources GetResourcesForType(EntityTypeName type_name) {
           .update_title_id =
               IDS_AUTOFILL_AI_UPDATE_VEHICLE_ENTITY_DIALOG_TITLE_ANDROID,
           .update_title_branded_id =
-              IDS_AUTOFILL_AI_UPDATE_VEHICLE_ENTITY_DIALOG_TITLE_ANDROID,
+              IDS_AUTOFILL_AI_UPDATE_VEHICLE_ENTITY_DIALOG_TITLE_ANDROID_BRANDED,
       };
     case EntityTypeName::kFlightReservation:
     case EntityTypeName::kOrder:
@@ -182,10 +182,12 @@ TitleResources GetResourcesForType(EntityTypeName type_name) {
 
 std::u16string GetPromptTitle(EntityTypeName type_name,
                               bool is_save_prompt,
+                              bool is_banner_prompt,
                               bool is_server_wallet) {
   TitleResources resources = GetResourcesForType(type_name);
 
   const bool is_wallet_branded =
+      !is_banner_prompt &&
       is_server_wallet &&
       base::FeatureList::IsEnabled(features::kAutofillAiWalletPassBranding2026);
 

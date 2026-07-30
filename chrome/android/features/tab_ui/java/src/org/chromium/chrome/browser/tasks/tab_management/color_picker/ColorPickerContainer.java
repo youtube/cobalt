@@ -7,16 +7,17 @@ package org.chromium.chrome.browser.tasks.tab_management.color_picker;
 import android.content.Context;
 import android.util.AttributeSet;
 import android.view.View;
-import android.widget.LinearLayout;
+
+import com.google.android.material.button.MaterialButtonToggleGroup;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.tasks.tab_management.color_picker.ColorPickerCoordinator.ColorPickerLayoutType;
 
 import java.util.List;
 
-/** LinearLayout for the {@link ColorPickerCoordinator} component. */
+/** MaterialButtonToggleGroup for the {@link ColorPickerCoordinator} component. */
 @NullMarked
-public abstract class ColorPickerContainer extends LinearLayout {
+public abstract class ColorPickerContainer extends MaterialButtonToggleGroup {
     /** Constructs a new color picker. */
     public ColorPickerContainer(Context context, AttributeSet attrs) {
         super(context, attrs);

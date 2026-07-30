@@ -12,8 +12,8 @@
 #include "ui/views/view_tracker.h"
 
 class LocationBarView;
-class Browser;
 class BrowserView;
+class BrowserWindowInterface;
 class EmbeddedWebView;
 class RoundedOmniboxResultsFrame;
 
@@ -21,13 +21,13 @@ class RoundedOmniboxResultsFrame;
 // `BrowserView`. This is used for the next-gen Omnibox experience where the
 // full WebUI (input and suggestions) is rendered inside `BrowserView` to avoid
 // overlapping and window management issues associated with separate widgets.
-// Gated behind `omnibox::kWebUIOmniboxFullPopupV2` with
+// Gated behind `omnibox::kWebUIOmniboxFullPopup` with
 // `Omnibox_UseBrowserView` param.
 class OmniboxPopupViewBrowserView : public OmniboxPopupView,
                                     public OmniboxEditModel::Observer {
  public:
   OmniboxPopupViewBrowserView(LocationBarView* location_bar_view,
-                              Browser* browser);
+                              BrowserWindowInterface* browser);
   OmniboxPopupViewBrowserView(const OmniboxPopupViewBrowserView&) = delete;
   OmniboxPopupViewBrowserView& operator=(const OmniboxPopupViewBrowserView&) =
       delete;
@@ -65,7 +65,7 @@ class OmniboxPopupViewBrowserView : public OmniboxPopupView,
   void OnWebViewResize(const gfx::Size& new_size);
 
   const raw_ptr<LocationBarView> location_bar_view_;
-  const raw_ptr<Browser> browser_;
+  const raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<BrowserView> browser_view_ = nullptr;
   raw_ptr<EmbeddedWebView> web_view_ = nullptr;
   // Tracks the popup frame which is owned by `browser_view_` and may be

@@ -687,6 +687,25 @@ TEST_F(ElementRuleCollectorTest, CheckMarkAndPickerIconUseCounted) {
   EXPECT_TRUE(GetDocument().IsUseCounted(WebFeature::kPickerIconPseudoElement));
 }
 
+// Force recompile
+TEST_F(ElementRuleCollectorTest, InterestButtonUseCounted) {
+  ScopedHTMLInterestForInterestButtonPseudoForTest scoped_feature(true);
+  EXPECT_FALSE(
+      GetDocument().IsUseCounted(WebFeature::kInterestButtonPseudoElement));
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      button[interestfor]::interest-button {
+        content: "X";
+        color: #999999;
+      }
+    </style>
+    <button interestfor="foo">Click</button>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_TRUE(
+      GetDocument().IsUseCounted(WebFeature::kInterestButtonPseudoElement));
+}
+
 TEST_F(ElementRuleCollectorTest, BeforeAfterUseCounted) {
   EXPECT_FALSE(GetDocument().IsUseCounted(WebFeature::kBeforePseudoElement));
   EXPECT_FALSE(GetDocument().IsUseCounted(WebFeature::kAfterPseudoElement));

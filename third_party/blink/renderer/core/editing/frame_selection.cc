@@ -67,6 +67,7 @@
 #include "third_party/blink/renderer/core/editing/visible_position.h"
 #include "third_party/blink/renderer/core/editing/visible_selection.h"
 #include "third_party/blink/renderer/core/editing/visible_units.h"
+#include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
@@ -222,8 +223,40 @@ void FrameSelection::MoveCaretSelection(const gfx::Point& point) {
 void FrameSelection::SetSelection(const SelectionInDomTree& selection,
                                   const SetSelectionOptions& data) {
   TRACE_EVENT0("blink", "FrameSelection::SetSelection");
-  if (SetSelectionDeprecated(selection, data))
+  if (SetSelectionDeprecated(selection, data)) {
     DidSetSelectionDeprecated(selection, data);
+  } else {
+    MaybeNotifyEventHandlerForSelectionChange(data);
+  }
+}
+
+// If a selection range is programmatically set (e.g. via setSelectionRange)
+// to the same range, we notify the selection controller so that subsequent
+// mouse releases do not collapse it. However, if this occurs during a mouse
+// or touch release event (mouseup, click, pointerup, touchend), the user is
+// clicking on an already-selected range, so the selection should still
+// collapse as expected.
+void FrameSelection::MaybeNotifyEventHandlerForSelectionChange(
+    const SetSelectionOptions& options) {
+  if (!RuntimeEnabledFeatures::
+          NotifySelectionControllerOnUnchangedSelectionEnabled()) {
+    return;
+  }
+  if (!options.ShouldNotifySelectionControllerOfUnchangedSelection()) {
+    return;
+  }
+  if (LocalDOMWindow* window = frame_->DomWindow()) {
+    if (Event* current_event = window->CurrentEvent()) {
+      const AtomicString& type = current_event->type();
+      if (type == event_type_names::kMouseup ||
+          type == event_type_names::kClick ||
+          type == event_type_names::kPointerup ||
+          type == event_type_names::kTouchend) {
+        return;
+      }
+    }
+  }
+  NotifyEventHandlerForSelectionChange();
 }
 
 void FrameSelection::SetSelectionAndEndTyping(
@@ -1243,7 +1276,7 @@ static String ExtractSelectedText(const FrameSelection& selection,
   return PlainText(range, behavior).Replace(0, "");
 }
 
-String FrameSelection::SelectedHTMLForClipboard() const {
+String FrameSelection::SelectedHtmlForClipboard() const {
   const EphemeralRangeInFlatTree& range =
       ComputeRangeForSerialization(GetSelectionInDomTree());
   return CreateMarkup(range.StartPosition(), range.EndPosition(),

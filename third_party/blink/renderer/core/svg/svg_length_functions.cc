@@ -32,6 +32,7 @@
 #include "third_party/blink/renderer/core/svg/svg_symbol_element.h"
 #include "third_party/blink/renderer/platform/geometry/length.h"
 #include "third_party/blink/renderer/platform/geometry/length_functions.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "ui/gfx/geometry/size_f.h"
 #include "ui/gfx/geometry/vector2d_f.h"
 
@@ -93,6 +94,9 @@ float ValueForLength(const Length& length, float zoom, float dimension) {
   if (!length.HasOnlyFixedAndPercent()) {
     return 0;
   }
+  if (RuntimeEnabledFeatures::SvgNewZoomEnabled()) {
+    return FloatValueForLength(length, dimension);
+  }
   return FloatValueForLength(length, dimension * zoom) / zoom;
 }
 
@@ -106,7 +110,6 @@ float ValueForLength(const Length& length,
                      const SVGViewportResolver& viewport_resolver,
                      float zoom,
                      SVGLengthMode mode) {
-  // The viewport will be unaffected by zoom.
   const float dimension = length.MayHavePercentDependence()
                               ? viewport_resolver.ViewportDimension(mode)
                               : 0;
@@ -122,7 +125,20 @@ float ValueForLength(const Length& length,
 
 float ValueForLength(const UnzoomedLength& unzoomed_length,
                      const SVGViewportResolver& viewport_resolver,
+                     float zoom,
                      SVGLengthMode mode) {
+  if (RuntimeEnabledFeatures::SvgNewZoomEnabled()) {
+    const Length& length = unzoomed_length.length();
+    // Only "specified" lengths have meaning for SVG.
+    if (!length.HasOnlyFixedAndPercent()) {
+      return 0;
+    }
+
+    const float dimension = length.MayHavePercentDependence()
+                                ? viewport_resolver.ViewportDimension(mode)
+                                : 0;
+    return FloatValueForLength(length, dimension / zoom) * zoom;
+  }
   return ValueForLength(unzoomed_length.length(), viewport_resolver, 1, mode);
 }
 

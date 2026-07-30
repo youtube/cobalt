@@ -7,15 +7,14 @@
 
 #import <Foundation/Foundation.h>
 
-// The width of the app bar when in landscape.
-extern const CGFloat kAppBarHeight;
+// Returns the height of the app bar in portrait.
+CGFloat AppBarHeightPortrait();
 
 // The height of the app bar when in fullscreen (portrait).
 extern const CGFloat kAppBarHeightFullscreen;
 
-// The height of the app bar when in landscape.
-extern const CGFloat kAppBarHeightLandscape;
-
+// Returns the height of the app bar in landscape.
+CGFloat AppBarHeightLandscape();
 
 // Accessibility identifier for the assistant button.
 extern NSString* const kAppBarAssistantButtonId;

@@ -12,7 +12,7 @@ namespace blink {
 VisibilityStateEntry::VisibilityStateEntry(AtomicString name,
                                            double start_time,
                                            DOMWindow* source,
-                                           uint32_t navigation_id)
+                                           uint64_t navigation_id)
     : PerformanceEntry(/*duration=*/0.0,
                        name,
                        start_time,

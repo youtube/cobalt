@@ -3480,6 +3480,12 @@ AccessibilityExpanded AXNodeObject::IsExpanded() const {
     }
   }
 
+  if (auto* menuitem = DynamicTo<HTMLMenuItemElement>(element)) {
+    if (HTMLMenuListElement* submenu = menuitem->GetInvokedSubmenu()) {
+      return submenu->popoverOpen() ? kExpandedExpanded : kExpandedCollapsed;
+    }
+  }
+
   if (IsA<HTMLSummaryElement>(*element)) {
     if (element->parentNode() &&
         IsA<HTMLDetailsElement>(element->parentNode())) {
@@ -4938,10 +4944,10 @@ ax::mojom::blink::HasPopup AXNodeObject::HasPopup() const {
     return ax::mojom::blink::HasPopup::kMenu;
   }
 
-  // If this element invokes a menulist via popovertarget OR commandfor, give it
-  // haspopup=menu.
-  Element* invoked_target = nullptr;
+  // If this element (typically a button) invokes a menulist via popovertarget
+  // OR commandfor, give it haspopup=menu.
   if (auto* html_element = DynamicTo<HTMLElement>(GetElement())) {
+    Element* invoked_target = nullptr;
     if (HTMLElement* command_for_element =
             DynamicTo<HTMLElement>(html_element->commandForElement())) {
       CommandEventType command = command_for_element->GetCommandEventType(
@@ -4956,10 +4962,16 @@ ax::mojom::blink::HasPopup AXNodeObject::HasPopup() const {
         invoked_target = form_control->popoverTargetElement().popover;
       }
     }
+    if (invoked_target && IsA<HTMLMenuListElement>(invoked_target)) {
+      return ax::mojom::blink::HasPopup::kMenu;
+    }
   }
 
-  if (invoked_target && IsA<HTMLMenuListElement>(invoked_target)) {
-    return ax::mojom::blink::HasPopup::kMenu;
+  // Also give haspopup=menu for menuitems associated via DOM structure.
+  if (auto* menuitem = DynamicTo<HTMLMenuItemElement>(GetNode())) {
+    if (menuitem->GetInvokedSubmenu()) {
+      return ax::mojom::blink::HasPopup::kMenu;
+    }
   }
 
   return AXObject::HasPopup();

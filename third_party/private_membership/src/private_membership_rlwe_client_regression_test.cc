@@ -7,6 +7,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include "absl/status/status.h"
+#include "third_party/private-join-and-compute/src/crypto/context.h"
+#include "third_party/private_membership/src/internal/rlwe_id_utils.h"
 #include "third_party/shell-encryption/src/testing/status_testing.h"
 
 namespace private_membership {
@@ -84,5 +86,111 @@ TEST(PrivateMembershipRlweClientRegressionTest, TestMembership) {
 }
 
 }  // namespace
+
+class PrivateMembershipRlweClientTestPeer {
+ public:
+  static ::rlwe::StatusOr<private_membership::MembershipResponse> CheckMembership(
+      PrivateMembershipRlweClient* client,
+      absl::string_view server_encrypted_id,
+      const private_membership::rlwe::EncryptedBucket& encrypted_bucket) {
+    return client->CheckMembership(server_encrypted_id, encrypted_bucket);
+  }
+
+  static void SetEncryptedBucketParams(
+      PrivateMembershipRlweClient* client,
+      const private_membership::rlwe::EncryptedBucketsParameters& params) {
+    client->encrypted_bucket_params_ = params;
+  }
+
+  static ::private_join_and_compute::Context* GetContext(
+      PrivateMembershipRlweClient* client) {
+    return &client->context_;
+  }
+};
+
+namespace {
+
+TEST(PrivateMembershipRlweClientTest, CheckMembershipOversizedEncryptedId) {
+  RlwePlaintextId plaintext_id;
+  plaintext_id.set_non_sensitive_id("nsid");
+  plaintext_id.set_sensitive_id("sid");
+  ASSERT_OK_AND_ASSIGN(
+      auto client,
+      PrivateMembershipRlweClient::Create(
+          private_membership::rlwe::TEST_USE_CASE,
+          {plaintext_id}));
+
+  private_membership::rlwe::EncryptedBucketsParameters params;
+  params.set_encrypted_bucket_id_length(8);
+  params.set_sensitive_id_hash_type(private_membership::SHA256_NON_SENSITIVE_AND_SENSITIVE_ID);
+  PrivateMembershipRlweClientTestPeer::SetEncryptedBucketParams(client.get(), params);
+
+  std::string server_encrypted_id = "some_server_encrypted_id";
+  ASSERT_OK_AND_ASSIGN(
+      std::string to_match_hash,
+      ComputeBucketStoredEncryptedId(server_encrypted_id, params,
+                                     PrivateMembershipRlweClientTestPeer::GetContext(client.get())));
+
+  // Craft an oversized encrypted_id starting with `to_match_hash`.
+  std::string oversized_encrypted_id = to_match_hash + "extra_bytes_that_make_it_longer";
+
+  // Create an EncryptedBucket containing this oversized encrypted_id.
+  private_membership::rlwe::EncryptedBucket encrypted_bucket;
+  auto* pair = encrypted_bucket.add_encrypted_id_value_pairs();
+  pair->set_encrypted_id(oversized_encrypted_id);
+  pair->set_encrypted_value("some_encrypted_value");
+
+  // Call CheckMembership.
+  ASSERT_OK_AND_ASSIGN(
+      auto response,
+      PrivateMembershipRlweClientTestPeer::CheckMembership(
+          client.get(), server_encrypted_id, encrypted_bucket));
+
+  // The oversized encrypted_id should not be considered a match, because its size is greater
+  // than `to_match_hash.size()`.
+  EXPECT_FALSE(response.is_member());
+}
+
+TEST(PrivateMembershipRlweClientTest, CheckMembershipExactMatch) {
+  RlwePlaintextId plaintext_id;
+  plaintext_id.set_non_sensitive_id("nsid");
+  plaintext_id.set_sensitive_id("sid");
+  ASSERT_OK_AND_ASSIGN(
+      auto client,
+      PrivateMembershipRlweClient::Create(
+          private_membership::rlwe::TEST_USE_CASE,
+          {plaintext_id}));
+
+  private_membership::rlwe::EncryptedBucketsParameters params;
+  params.set_encrypted_bucket_id_length(8);
+  params.set_sensitive_id_hash_type(private_membership::SHA256_NON_SENSITIVE_AND_SENSITIVE_ID);
+  PrivateMembershipRlweClientTestPeer::SetEncryptedBucketParams(client.get(), params);
+
+  std::string server_encrypted_id = "some_server_encrypted_id";
+  ASSERT_OK_AND_ASSIGN(
+      std::string to_match_hash,
+      ComputeBucketStoredEncryptedId(server_encrypted_id, params,
+                                     PrivateMembershipRlweClientTestPeer::GetContext(client.get())));
+
+  // Exact matching encrypted_id.
+  std::string matching_encrypted_id = to_match_hash;
+
+  // Create an EncryptedBucket containing this matching encrypted_id.
+  private_membership::rlwe::EncryptedBucket encrypted_bucket;
+  auto* pair = encrypted_bucket.add_encrypted_id_value_pairs();
+  pair->set_encrypted_id(matching_encrypted_id);
+
+  // Call CheckMembership.
+  ASSERT_OK_AND_ASSIGN(
+      auto response,
+      PrivateMembershipRlweClientTestPeer::CheckMembership(
+          client.get(), server_encrypted_id, encrypted_bucket));
+
+  // It should be a member.
+  EXPECT_TRUE(response.is_member());
+}
+
+}  // namespace
 }  // namespace rlwe
 }  // namespace private_membership
+

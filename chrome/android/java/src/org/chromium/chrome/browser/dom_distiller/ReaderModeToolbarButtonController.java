@@ -83,14 +83,18 @@ public class ReaderModeToolbarButtonController extends BaseButtonDataProvider
                     public void onUrlUpdated(@Nullable Tab tab) {
                         GURL currentUrl = tab == null ? null : tab.getUrl();
                         if (Objects.equals(currentUrl, mTabLastUrlSeen)) return;
+                        boolean isExitingReaderMode =
+                                DomDistillerUrlUtils.isExitingReaderMode(
+                                        mTabLastUrlSeen, currentUrl);
                         mTabLastUrlSeen = currentUrl;
 
-                        maybeRefreshButton(tab);
+                        maybeRefreshButton(tab, isExitingReaderMode);
                     }
 
                     @Override
                     protected void onObservingDifferentTab(@Nullable Tab tab) {
-                        maybeRefreshButton(tab);
+                        mTabLastUrlSeen = tab == null ? null : tab.getUrl();
+                        maybeRefreshButton(tab, /* isExitingReaderMode= */ false);
                     }
                 };
 
@@ -176,7 +180,7 @@ public class ReaderModeToolbarButtonController extends BaseButtonDataProvider
         notifyObservers(mShouldShowButtonForCurrentPage);
     }
 
-    private void maybeRefreshButton(@Nullable Tab tab) {
+    private void maybeRefreshButton(@Nullable Tab tab, boolean isExitingReaderMode) {
         // The callback controller may still have a pending task to hide the button. Destroy it and
         // create a new one to ensure that the button can be shown again.
         mCallbackController.destroy();
@@ -184,11 +188,11 @@ public class ReaderModeToolbarButtonController extends BaseButtonDataProvider
 
         if (tab != null && DomDistillerUrlUtils.isDistilledPage(tab.getUrl())) {
             mButtonData.setButtonSpec(mExitPointSpec);
+            setCanShowButton(true);
         } else {
             mButtonData.setButtonSpec(mEntryPointSpec);
+            setCanShowButton(!isExitingReaderMode);
         }
-
-        setCanShowButton(true);
     }
 
     // Testing-specific functions

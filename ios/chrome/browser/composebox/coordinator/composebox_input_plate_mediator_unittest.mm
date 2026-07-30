@@ -57,6 +57,7 @@
 #import "services/network/test/test_url_loader_factory.h"
 #import "testing/gmock/include/gmock/gmock.h"
 #import "testing/gtest/include/gtest/gtest.h"
+#import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 #import "third_party/omnibox_proto/searchbox_config.pb.h"
 
@@ -142,7 +143,8 @@ class ComposeboxInputPlateMediatorTest : public PlatformTest {
     fake_variations_client_ = std::make_unique<FakeVariationsClient>();
     service_ = std::make_unique<contextual_search::ContextualSearchService>(
         nullptr, shared_url_loader_factory_, template_url_service(),
-        fake_variations_client_.get(), version_info::Channel::STABLE, "en-US");
+        fake_variations_client_.get(), version_info::Channel::STABLE, "en-US",
+        /*tab_validator=*/nullptr);
     auto config_params = std::make_unique<
         contextual_search::ContextualSearchContextController::ConfigParams>();
     static base::NoDestructor<network::TestURLLoaderFactory>
@@ -1013,6 +1015,47 @@ TEST_F(ComposeboxInputPlateMediatorTest, LogsOmniboxMetricOnStartSurface) {
       kActionOnStartHistogram, static_cast<int>(IOSHomeActionType::kOmnibox),
       1);
   histogram_tester.ExpectTotalCount(kActionOnNTPHistogram, 0);
+}
+
+// Tests that processContextLibraryWebpageSignalWithURL:title: successfully adds
+// the webpage context item when the entrypoint is kCobrowse.
+TEST_F(ComposeboxInputPlateMediatorTest,
+       ProcessContextLibraryWebpageSignalSuccessfulWithCobrowse) {
+  ComposeboxInputPlateMediator* mediator = [[ComposeboxInputPlateMediator alloc]
+      initWithContextualSearchSession:nullptr
+                         webStateList:web_state_list_.get()
+                        faviconLoader:nullptr
+               persistTabContextAgent:nullptr
+                          isIncognito:NO
+                           modeHolder:[[ComposeboxModeHolder alloc] init]
+                   templateURLService:template_url_service()
+                aimEligibilityService:aim_eligibility_service_.get()
+                          prefService:&pref_service_
+                              profile:profile_.get()
+                 cobrowseBrowserAgent:nil
+            browserCoordinatorHandler:nil
+                         sceneHandler:nil
+                           entrypoint:ComposeboxEntrypoint::kCobrowse];
+
+  TestComposeboxInputPlateConsumer* consumer =
+      [[TestComposeboxInputPlateConsumer alloc] init];
+  mediator.consumer = consumer;
+
+  NSArray<ComposeboxInputItem*>* items = consumer.items;
+  ASSERT_EQ(items.count, 0U);
+
+  GURL url("https://example.com");
+  NSString* title = @"Example Title";
+
+  [mediator processContextLibraryWebpageSignalWithURL:url title:title];
+
+  items = consumer.items;
+  ASSERT_EQ(items.count, 1U);
+  ComposeboxInputItem* item = items.firstObject;
+  EXPECT_EQ(item.type, ComposeboxInputItemType::kComposeboxInputItemTypeTab);
+  EXPECT_NSEQ(item.title, title);
+
+  [mediator disconnect];
 }
 
 }  // namespace

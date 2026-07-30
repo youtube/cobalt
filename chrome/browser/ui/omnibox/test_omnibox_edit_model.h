@@ -70,6 +70,7 @@ class TestOmniboxEditModel : public OmniboxEditModel {
   bool is_temporary_text() const { return is_temporary_text_; }
 
   using OmniboxEditModel::NavigateToThirdPartyAiMode;
+  using OmniboxEditModel::RecordAiModeMetrics;
 
   using OmniboxEditModel::has_temporary_text_;
   using OmniboxEditModel::user_input_in_progress_;

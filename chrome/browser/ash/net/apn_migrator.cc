@@ -7,7 +7,6 @@
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/network_config_service.h"
 #include "base/values.h"
-#include "chromeos/ash/components/login/login_state/login_state.h"
 #include "chromeos/ash/components/network/managed_cellular_pref_handler.h"
 #include "chromeos/ash/components/network/managed_network_configuration_handler.h"
 #include "chromeos/ash/components/network/metrics/cellular_network_metrics_logger.h"
@@ -16,6 +15,9 @@
 #include "chromeos/ash/components/network/network_state_handler.h"
 #include "chromeos/services/network_config/public/cpp/cros_network_config_util.h"
 #include "components/device_event_log/device_event_log.h"
+#include "components/session_manager/core/session.h"
+#include "components/session_manager/core/session_manager.h"
+#include "components/user_manager/user_manager.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 
 namespace ash {
@@ -277,8 +279,12 @@ void ApnMigrator::MigrateNetwork(const NetworkState& network) {
 
   NET_LOG(EVENT) << "Fetching managed properties for network: "
                  << network.iccid();
+  const AccountId& account_id =
+      session_manager::SessionManager::Get()->GetPrimarySession()->account_id();
+  const std::string& username_hash =
+      user_manager::UserManager::Get()->FindUser(account_id)->username_hash();
   network_configuration_handler_->GetManagedProperties(
-      LoginState::Get()->primary_user_hash(), network.path(),
+      username_hash, network.path(),
       base::BindOnce(&ApnMigrator::OnGetManagedProperties,
                      weak_factory_.GetWeakPtr(), network.iccid(),
                      network.guid()));

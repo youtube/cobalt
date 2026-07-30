@@ -63,6 +63,7 @@ QuicChromiumClientStream::Handle::max_stream_limit_pending_delay() const {
 }
 
 QuicChromiumClientStream::Handle::~Handle() {
+  UnregisterHttp3DatagramVisitor();
   if (stream_) {
     stream_->ClearHandle();
     // TODO(rch): If stream_ is still valid, it should probably be Reset()

@@ -7,10 +7,16 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
+#include "base/types/expected.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
 
 class AutocompleteInput;
 class AutocompleteProviderClient;
+struct OmniboxLog;
+
+namespace sessions {
+struct SessionTab;
+}  // namespace sessions
 
 // Autocomplete provider for tabs from other devices.
 class CrossDeviceTabProvider : public AutocompleteProvider {
@@ -23,8 +29,39 @@ class CrossDeviceTabProvider : public AutocompleteProvider {
   // AutocompleteProvider:
   void Start(const AutocompleteInput& input, bool minimal_changes) override;
 
- private:
+  base::Time most_recent_tab_timestamp() const {
+    return most_recent_tab_timestamp_;
+  }
+
+  // Records interaction metrics (`ShowAge`, `FocusToOpenTime`, `ClickAge`) for
+  // the `CrossDeviceTab` match and action if they are present in `log`.
+  static void RecordInteractionMetrics(const OmniboxLog& log);
+
+  // Exposed publicly for testing purposes only.
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  // LINT.IfChange(CrossDeviceTabProviderEligibility)
+  enum class Eligibility {
+    kMatchCreated = 0,
+    kNoSyncService = 1,
+    kNoOpenTabsDelegate = 2,
+    kNoForeignSessions = 3,
+    kNoTabs = 4,
+    kTabTooOld = 5,
+    kInvalidUrl = 6,
+    kLocalSessionNotRecent = 7,
+    kMaxValue = kLocalSessionNotRecent,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:CrossDeviceTabProviderEligibility)
+
+ protected:
   ~CrossDeviceTabProvider() override;
+
+ private:
+  using QueryResult = base::expected<const sessions::SessionTab*, Eligibility>;
+
+  QueryResult GetMostRecentTab();
+  void LogEligibility(Eligibility eligibility);
 
   // Covers the user journey where the user switches to another (this) device
   // shortly after navigating on a remote device (e.g. using both devices
@@ -59,6 +96,11 @@ class CrossDeviceTabProvider : public AutocompleteProvider {
       base::Time timestamp) const;
 
   const raw_ptr<AutocompleteProviderClient> client_;
+
+  // The timestamp of the tab (when it was last active on the remote device),
+  // updated as part of `Start()`. Null if it produced no matches (i.e.
+  // `matches_` is empty).
+  base::Time most_recent_tab_timestamp_;
 };
 
 #endif  // COMPONENTS_OMNIBOX_BROWSER_CROSS_DEVICE_TAB_PROVIDER_H_

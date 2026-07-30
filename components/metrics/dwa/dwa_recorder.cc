@@ -49,7 +49,8 @@ void PopulateFieldTrialsForDwaEvent(
 std::vector<::dwa::DeidentifiedWebAnalyticsEvent> BuildDwaEvents(
     const std::vector<::metrics::dwa::mojom::DwaEntryPtr>& entries) {
   base::FieldTrial::ActiveGroups active_groups;
-  base::FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
+  base::FieldTrialList::GetActiveFieldTrialGroups(
+      &active_groups, /*include_runtime_overrides=*/true);
   std::unordered_map<std::string, std::string> active_field_trial_groups;
 
   for (const auto& active_group : active_groups) {

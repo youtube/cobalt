@@ -103,6 +103,7 @@
 <translation id="1335767868357998043">Elige la posición de la barra de direcciones</translation>
 <translation id="1347468774581902829">Administrar actividad</translation>
 <translation id="1348596747084433075">https://www.amazon.com/Wife-Gifts/s?k=for+Wife+Gifts</translation>
+<translation id="1353169676553627502">Desactivar las actualizaciones de progreso</translation>
 <translation id="1355337783640312381">Para cambiar de cuenta, presiona el ícono de tu cuenta</translation>
 <translation id="135806768612505061">Todas las pestañas</translation>
 <translation id="1358106883354237005">Cuenta administrada</translation>
@@ -609,6 +610,7 @@
 <translation id="3073633853887034268">Entendido</translation>
 <translation id="3080525922482950719">Puedes guardar páginas para leerlas más tarde o sin conexión.</translation>
 <translation id="3081338492074632642">Asegúrate de que la contraseña que guardes coincida con la de <ph name="WEBSITE" /></translation>
+<translation id="3084484227247071193">Activar las actualizaciones de progreso</translation>
 <translation id="3087734570205094154">Inferior</translation>
 <translation id="309710370695886264">Tienes 1 contraseña reutilizada. Cámbiala ahora para mantener tu cuenta segura.</translation>
 <translation id="3099402981545350675">Se borrarán las direcciones guardadas en este dispositivo. También se quitará la información seleccionada de Chrome, pero no se borrará de tu Cuenta de Google.</translation>
@@ -708,6 +710,7 @@
 <translation id="3449029510150690417">Crea tu nuevo grupo de pestañas dándole un nombre y un color.</translation>
 <translation id="345348365500626747">Se encontró una dirección</translation>
 <translation id="3459644598174926977">Usa Live con Gemini para hacer preguntas sobre una página, intercambiar ideas en voz alta y conversar.</translation>
+<translation id="3462768334899086950">Esto significa que perderás el archivo no guardado y las pestañas actuales</translation>
 <translation id="3464194322481586217">No se pudo realizar el seguimiento del precio.</translation>
 <translation id="3469117812148449995">Opciones para guardar contraseñas</translation>
 <translation id="3472469028191701821">Se abrirá en una pestaña nueva</translation>
@@ -836,7 +839,6 @@
 <translation id="391904960191284041">Opiniones sobre productos</translation>
 <translation id="3921585859122905677">Posición de la barra de direcciones</translation>
 <translation id="3922185497376658606">Precargar páginas web</translation>
-<translation id="3922395466317605522">Personalizar menú</translation>
 <translation id="3926703470020109118">Descarga cancelada</translation>
 <translation id="3929457972718048006">Direcciones</translation>
 <translation id="3931215329146376310">{count,plural, =1{Contraseña nueva para este sitio}other{Contraseñas nuevas para este sitio}}</translation>
@@ -965,6 +967,7 @@
 <translation id="4326912346867677256">Presiona “Usar contraseña” para acceder de forma segura.</translation>
 <translation id="4328843285884395590">Mi unidad</translation>
 <translation id="4331177082088332784">Puedes administrar esto en la BEGIN_LINK Configuración de contenido END_LINK</translation>
+<translation id="4331712008356052424">Para enviar este vínculo, accede a tu otro dispositivo con <ph name="USER_EMAIL" /></translation>
 <translation id="4334428914252001502">1 artículo sin leer.</translation>
 <translation id="4338258232580025606">No se puede acceder</translation>
 <translation id="4338650699862464074">Envía a Google las URLs de las páginas que visitas.</translation>
@@ -1269,6 +1272,7 @@
 <translation id="5336910966955551309">Mantén presionado para fijar tus sitios favoritos</translation>
 <translation id="5338512273860059533">Acceso en curso.</translation>
 <translation id="5343472494710226394">Noticias, deportes y contenido según tus intereses.</translation>
+<translation id="5351613737248079168">Debes acceder a tu cuenta para usar Level Up</translation>
 <translation id="5352128922772839949">Guardar archivo</translation>
 <translation id="5355191726083956201">Se activó la protección mejorada</translation>
 <translation id="536067926684072644">Ver Favoritos</translation>
@@ -1471,6 +1475,7 @@ Handoff también debe estar habilitado en la sección General de la configuraci�
 <translation id="6040143037577758943">Cerrar</translation>
 <translation id="6042308850641462728">Más</translation>
 <translation id="6045460247888249350">Agrega un título</translation>
+<translation id="6050237559175440178">Verifica tu identidad para usar y guardar tu información en todos tus dispositivos</translation>
 <translation id="6052269326659653305">Cambiar de perfil</translation>
 <translation id="605721222689873409">AA</translation>
 <translation id="6059830886158432458">Controla tus noticias y actividad aquí</translation>
@@ -1690,7 +1695,6 @@ Handoff también debe estar habilitado en la sección General de la configuraci�
 <translation id="6674917187596384849">Puedes cambiar fácilmente entre cuentas</translation>
 <translation id="6676349090816247042">Opciones de acceso.</translation>
 <translation id="667999046851023355">Documento</translation>
-<translation id="6680416467695217368">Personalizar menú</translation>
 <translation id="6681791404926413601">{count,plural, =1{Hay {count} opción de forma de pago disponible arriba del teclado.}other{Hay {count} opciones de forma de pago disponibles arriba del teclado.}}</translation>
 <translation id="6682680306647339111">Se quitó el recordatorio</translation>
 <translation id="6684262542644248484">Accede a un sitio web.</translation>
@@ -1846,6 +1850,7 @@ Para continuar desde tu computadora, cambia a <ph name="OTHER_EMAIL" />. Obtendr
 <translation id="722339453342442311">Verificar ahora</translation>
 <translation id="7227235818314667565">Administrar el uso compartido</translation>
 <translation id="7233006041370588369">Selecciona una contraseña para completarla.</translation>
+<translation id="723874023660911012">Cambiar de perfil</translation>
 <translation id="7241135764990439166">El modo Incógnito no está disponible</translation>
 <translation id="7248046129087111453">Es posible que el <ph name="BEGIN_LINK" />historial de búsqueda<ph name="END_LINK" /> y <ph name="BEGIN_LINK" />otras formas de actividad<ph name="END_LINK" /> se guarden en tu Cuenta de Google.</translation>
 <translation id="7253951228444156601">Verificando contraseñas…</translation>
@@ -2072,6 +2077,7 @@ Para continuar desde tu computadora, cambia a <ph name="OTHER_EMAIL" />. Obtendr
 <translation id="7996239959906074962">Configuración…</translation>
 <translation id="800361585186029508">Abre las URL ingresadas en Google Chrome.</translation>
 <translation id="8005666035647241369">En el Administrador de contraseñas de Google en este dispositivo</translation>
+<translation id="8007106936382123905">{count,plural, =1{1 tarea completada}other{# tareas completadas}}</translation>
 <translation id="8010488806779226127">Explora funciones que pueden ayudarte a hacer más mientras navegas</translation>
 <translation id="8011489434346330032">Inspector web</translation>
 <translation id="8014007212279733632">Verificar tu identidad para autocompletar información sensible</translation>
@@ -2155,6 +2161,7 @@ Para continuar desde tu computadora, cambia a <ph name="OTHER_EMAIL" />. Obtendr
 <translation id="826614135184049678">Saliste de tu cuenta <ph name="USER_NAME" /> como parte del restablecimiento de tu iPad. Para volver a acceder, presiona "Continuar".</translation>
 <translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">Se rellenará la información en <ph name="URL" /></translation>
+<translation id="8274795744553482834">Estás a punto de cambiar de perfil</translation>
 <translation id="8275068909952022340">Más…</translation>
 <translation id="8280797717392145626">Vínculos recibidos</translation>
 <translation id="8281781826761538115">Predeterminado: <ph name="DEFAULT_LOCALE" /></translation>

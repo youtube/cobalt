@@ -62,6 +62,7 @@ source_set("history") {
       "//chrome/browser/ui/webui/history_clusters",
       "//chrome/browser/ui/webui/ntp",
       "//chrome/browser/ui/webui/page_not_available_for_guest",
+      "//chrome/browser/ui/webui/side_panel/tabs_from_other_devices",
       "//chrome/browser/ui/webui/signin:signin_utils",
       "//chrome/browser/ui/webui/top_chrome",
       "//chrome/common",

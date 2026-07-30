@@ -11,6 +11,8 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.h"
 #include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
@@ -18,6 +20,7 @@
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/user_education/common/user_education_class_properties.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/models/image_model_utils.h"
 #include "ui/base/webui/web_ui_util.h"
 #include "ui/color/color_provider.h"
 #include "ui/views/accessibility/view_accessibility.h"
@@ -249,6 +252,10 @@ bool WebUIAvatarToolbarButton::
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 void WebUIAvatarToolbarButton::NotifyIPHPromoChanged(bool has_promo) {
+  if (is_showing_iph_promo_ == has_promo) {
+    return;
+  }
+  is_showing_iph_promo_ = has_promo;
   if (state_manager_ && delegate_->GetView()->GetWidget()) {
     state_manager_->NotifyIPHPromoChanged(has_promo);
   }
@@ -269,7 +276,44 @@ void WebUIAvatarToolbarButton::UpdateState() {
 
   state->state = MapAvatarState(state_manager_->GetActiveState());
 
-  state->icon_url = state_provider->GetAvatarIconUrl();
+  bool is_enabled = true;
+#if BUILDFLAG(IS_CHROMEOS)
+  Profile* profile = delegate_->GetBrowser()->GetProfile();
+  is_enabled = profile->IsOffTheRecord() && !profile->IsGuestSession() &&
+               !profile->GetOTRProfileID().IsCaptivePortal();
+#endif
+
+  const ui::ColorProvider* const color_provider =
+      delegate_->GetView()->GetColorProvider();
+  if (color_provider) {
+    int icon_size = GetLayoutConstant(LayoutConstant::kToolbarButtonIconSize);
+    bool is_label_present = !state_provider->GetText().empty();
+    SkColor icon_color;
+    if (is_label_present) {
+      std::optional<SkColor> highlight_color =
+          state_provider->GetHighlightTextColor(*color_provider);
+      icon_color = highlight_color.value_or(color_provider->GetColor(
+          kColorAvatarButtonHighlightDefaultForeground));
+    } else if (IsShowingIPHPromo()) {
+      icon_color = color_provider->GetColor(kColorToolbarFeaturePromoHighlight);
+    } else {
+      icon_color = color_provider->GetColor(kColorToolbarButtonIcon);
+    }
+
+    auto [icon, icon_type] =
+        state_provider->GetAvatarIcon(icon_size, icon_color, *color_provider);
+
+    if (!is_enabled) {
+      icon = ui::GetDefaultDisabledIconFromImageModel(icon);
+    }
+
+    avatar_icon_handle_ = delegate_->GetIconTable().RegisterImageModelTryReuse(
+        icon, avatar_icon_handle_);
+    state->icon = avatar_icon_handle_;
+  } else {
+    avatar_icon_handle_ = toolbar_ui_api::IconHandle();
+    state->icon = avatar_icon_handle_;
+  }
 
   state->text = state_provider->GetText();
   state->tooltip = state_provider->GetAvatarTooltipText();
@@ -278,13 +322,7 @@ void WebUIAvatarToolbarButton::UpdateState() {
       state_manager_->GetAccessibilityLabels(state_provider->GetText());
   state->accessibility_name = name;
   state->accessibility_description = description;
-#if BUILDFLAG(IS_CHROMEOS)
-  Profile* profile = delegate_->GetBrowser()->GetProfile();
-  state->enabled = profile->IsOffTheRecord() && !profile->IsGuestSession() &&
-                   !profile->GetOTRProfileID().IsCaptivePortal();
-#else
-  state->enabled = true;
-#endif
+  state->enabled = is_enabled;
 
   if (delegate_) {
     delegate_->OnAvatarControlStateChanged(std::move(state));

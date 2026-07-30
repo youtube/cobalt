@@ -166,6 +166,9 @@ MATCHER(UniquePtrMatches, negation ? "do not match" : "match") {
 class CommitToActiveTreeLayerTreeHostImplTest
     : public LayerTreeHostImplTestBase {
  public:
+  CommitToActiveTreeLayerTreeHostImplTest()
+      : LayerTreeHostImplTestBase(base::test::ScopedFeatureList()) {}
+
   LayerTreeSettings DefaultSettings() override {
     LayerTreeSettings settings = LayerTreeHostImplTestBase::DefaultSettings();
     settings.commit_to_active_tree = true;
@@ -212,6 +215,9 @@ INSTANTIATE_ANIMATIONS_TREE_TEST_P(LayerTreeHostImplTimelinesTest);
 class FluentOverlayScrollbarLayerTreeHostImplTest
     : public LayerTreeHostImplTestBase {
  public:
+  FluentOverlayScrollbarLayerTreeHostImplTest()
+      : LayerTreeHostImplTestBase(base::test::ScopedFeatureList()) {}
+
   void SetUp() override {
     LayerTreeSettings settings = DefaultSettings();
     settings.enable_fluent_overlay_scrollbar = true;
@@ -14886,7 +14892,11 @@ struct PreservationTestCase {
 
 class LayerTreeHostImplEventMetricPreservationTest
     : public LayerTreeHostImplTestBase,
-      public testing::WithParamInterface<PreservationTestCase> {};
+      public testing::WithParamInterface<PreservationTestCase> {
+ public:
+  LayerTreeHostImplEventMetricPreservationTest()
+      : LayerTreeHostImplTestBase(base::test::ScopedFeatureList()) {}
+};
 
 INSTANTIATE_TEST_SUITE_P(
     LayerTreeHostImplEventMetricPreservationTest,

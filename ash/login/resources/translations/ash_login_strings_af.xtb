@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Jy kan ook probeer om <ph name="GUEST_SIGNIN_LINK_START" />as gas te blaai<ph name="GUEST_SIGNIN_LINK_END" /> om hierdie netwerkfout reg te stel.</translation>
 <translation id="1201402288615127009">Volgende</translation>
 <translation id="1222835797152767346">Stel ’n PIN om dit makliker te maak om aan te meld</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Ontfoutingkenmerke<ph name="END_H3" />
+          <ph name="BR" />
+      Jy kan die ontfoutingkenmerke op jou ChromeOS-toestel aktiveer om gepasmaakte kode op jou toestel te installeer en te toets. Dit sal jou toelaat om:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Rootfs-verifikasie te verwyder sodat jy bedryfstelsellêers kan wysig
+            <ph name="LIST_ITEM" />SSH-toegang tot die toestel met die standaardtoetssleutels te aktiveer sodat jy nutsgoed soos <ph name="BEGIN_CODE" />"cros flash"<ph name="END_CODE" />kan gebruik om toegang tot die toestel te kry
+            <ph name="LIST_ITEM" />Selflaai vanaf USB moontlik te maak sodat jy ’n bedryfstelselkopie van ’n USB-datastokkie af kan installeer
+            <ph name="LIST_ITEM" />Sowel die ontwikkelaar- as die stelselkernaanmeldwagwoord op ’n gepasmaakte waarde te stel sodat jy SSH handmatig op die toestel kan gebruik
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Wanneer dit geaktiveer is, sal die meeste van die ontfoutingkenmerke geaktiveer bly selfs nadat ’n Powerwash uitgevoer is of die data op ’n ondernemingbestuurde toestel uitgevee is. Om alle ontfoutingkenmerke heeltemal te deaktiveer, moet jy Chrome-bedryfstesel se terugstellingproses (https://support.google.com/chromebook/answer/1080595) voltooi.
+          <ph name="BR" />
+          <ph name="BR" />
+          Vir meer inligting oor die ontfoutingkenmerke, sien:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Let wel:<ph name="END_BOLD" /> Die stelsel sal tydens die proses herselflaai.</translation>
 <translation id="1347625331607114917">Verifieer die kode op jou Android-foon</translation>
 <translation id="1347975661240122359">Die opdatering sal begin wanneer die battery <ph name="BATTERY_LEVEL" />% bereik.</translation>
 <translation id="1375938286942050085">Opstelling is voltooi! Kry volgende jou toestel vir speletjies gereed</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Programme laai nou af</translation>
 <translation id="5045550434625856497">Verkeerde wagwoord</translation>
 <translation id="5062930723426326933">Kon nie aanmeld nie. Koppel asseblief aan die internet en probeer weer.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Klets met Gemini om met Google KI te begin skryf, beplan, leer en meer.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Begin ná opstelling Gemini gebruik deur die Gemini-app op jou rak onderaan jou skerm te kies.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Prop jou <ph name="DEVICE_TYPE" /> by 'n kragbron in.</translation>
 <translation id="5147516217412920887">Volg die instruksies op jou foon om die kode te verifieer</translation>
 <translation id="5160857336552977725">Meld by jou <ph name="DEVICE_TYPE" /> aan</translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Ontfoutingkenmerke<ph name="END_H3" />
+          <ph name="BR" />
+          Jy kan die ontfoutingkenmerke op jou ChromeOS Flex-toestel aktiveer om gepasmaakte kode op jou toestel te installeer en te toets. Dit sal dit vir jou moontlik maak om:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />rootfs-verifikasie te verwyder sodat jy bedryfstelsellêers kan wysig
+            <ph name="LIST_ITEM" />SSH-toegang tot die toestel met die standaardtoetssleutels te aktiveer sodat jy nutsgoed soos <ph name="BEGIN_CODE" />"cros flash"<ph name="END_CODE" /> kan gebruik om toegang tot die toestel te kry
+            <ph name="LIST_ITEM" />Selflaai vanaf USB moontlik te maak sodat jy ’n bedryfstelselkopie van ’n USB-datastokkie af kan installeer
+            <ph name="LIST_ITEM" />Sowel die ontwikkelaar- as die stelselkernaanmeldwagwoord op ’n gepasmaakte waarde te stel sodat jy SSH handmatig op die toestel kan gebruik
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Wanneer dit geaktiveer is, sal die meeste van die ontfoutingkenmerke geaktiveer bly selfs nadat ’n Powerwash uitgevoer is of die data op ’n ondernemingbestuurde toestel uitgevee is. Om alle ontfoutingkenmerke heeltemal te deaktiveer, moet jy Chrome-bedryfstesel se terugstellingproses (https://support.google.com/chromebook/answer/1080595) voltooi.
+          <ph name="BR" />
+          <ph name="BR" />
+          Vir meer inligting oor die ontfoutingkenmerke, sien:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Let wel:<ph name="END_BOLD" /> Die stelsel sal tydens die proses herselflaai.</translation>
 <translation id="523505283826916779">Toeganklikheidsinstellings</translation>
 <translation id="5240931875940563122">Meld aan met Android-foon</translation>
 <translation id="5255859108402770436">Meld weer aan</translation>
@@ -193,6 +231,10 @@
 <translation id="6955698182324067397">Jy aktiveer tans Chrome-bedryfstelselontfoutingkenmerke wat sshd daemon sal opstel en selflaai van USB-datastokkies af moontlik sal maak.</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6981982820502123353">Toeganklikheid</translation>
+<translation id="6984652455487792101">As jy ’n instaanbediener gebruik, moet jy jou instaanbedienerinstellings nagaan of
+        jou netwerkadministrateur kontak om seker te maak dat die instaanbediener
+        werk. As jy nie dink dat jy ’n
+        instaanbediener moet gebruik nie, moet jy jou <ph name="LINK_START" />instaanbedienerinstellings<ph name="LINK_END" /> aanpas.</translation>
 <translation id="6996245928508281884">Skakel jou foon se Bluetooth en wi-fi aan</translation>
 <translation id="7077829361966535409">Die aanmeldbladsy kon nie met die huidige instaanbedienerinstellings gelaai word nie. <ph name="GAIA_RELOAD_LINK_START" />Probeer asseblief weer om aan te meld<ph name="GAIA_RELOAD_LINK_END" />, of gebruik ander <ph name="PROXY_SETTINGS_LINK_START" />instaanbedienerinstellings<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="7114054701490058191">Wagwoorde stem nie ooreen nie</translation>
@@ -205,6 +247,9 @@
 <translation id="7345706641791090287">Bevestig jou wagwoord</translation>
 <translation id="7352651011704765696">Iets het verkeerd geloop</translation>
 <translation id="7476454130948140105">Die battery is te pap om op te dateer (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Voordat jy inskryf, moet jy die TPM skoonmaak sodat <ph name="DEVICE_OS" /> eienaarskap van die toestel kan oorneem.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Jy kan die TPM-toestel ook heeltemal afskakel. Jou data sal veilig geberg word met sagteware-enkripsie, maar sekere sekuriteitkenmerke, soos sertifikate wat deur hardeware ondersteun word, sal gedeaktiveer word.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Jy kan jou TPM-instellings verander deur te herselflaai en die stelsel se BIOS/UEFI-instellings in te voer. Stappe wat op die toestelmodel gegrond is. Vir meer inligting moet jy die <ph name="DEVICE_OS" />-dokumente op ’n ander toestel oopmaak voordat jy herselflaai: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Aktiveer ontfoutingkenmerke op hierdie <ph name="IDS_SHORT_PRODUCT_NAME" />-toestel</translation>
 <translation id="7553242001898162573">Voer jou wagwoord in</translation>
 <translation id="7556242789364317684"><ph name="SHORT_PRODUCT_NAME" /> kan ongelukkig nie jou instellings terugstel nie. Om die fout reg te stel, moet <ph name="SHORT_PRODUCT_NAME" /> jou toestel met Kragwas terugstel.</translation>
@@ -251,6 +296,10 @@
 <translation id="8452105022015742247">Dra tans Google-rekeninginligting van jou Android-foon af oor</translation>
 <translation id="8524841856047224176">Personaliseer jou kamera-agtergronde vir video-oproepe en meer</translation>
 <translation id="8569673829373920831">Meer oor <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">Volg die instruksies op jou foon om die QR-kode te skandeer. Maak seker dat jou foon se Bluetooth aangeskakel is.
+        <ph name="BR" />
+        <ph name="BR" />
+        Sigbaar as <ph name="QUICK_START_DEVICE_DISPLAY_NAME" /> vir toestelle naby jou …</translation>
 <translation id="8655972064210167941">Kon nie aanmeld nie omdat jou wagwoord nie geverifieer kon word nie. Kontak jou administrateur of probeer weer.</translation>
 <translation id="8674903726754070732">Ongelukkig is jou rekenaar opgestel met ’n misvormde hardeware-ID. Dit verhinder Chrome-bedryfstelsel om met die nuutste sekuriteitsoplossings op te dateer, en jou rekenaar <ph name="BEGIN_BOLD" />sal dalk blootgestel wees aan kwaadwillige aanvalle<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Voeg ouerkontroles by ná opstelling</translation>
@@ -264,10 +313,20 @@
 <translation id="8830796635868321089">Die opdateringkontrolering het misluk met die huidige instaanbedienerinstellings. Verstel asseblief jou <ph name="PROXY_SETTINGS_LINK_START" />instaanbedienerinstellings<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">Jou gestoorde voorkeure en aktiwiteit sal op enige Chrome-bedryfstelseltoestel gereed wees wanneer jy met jou Google-rekening aanmeld. Jy kan in Instellings kies wat om te sinkroniseer.</translation>
 <translation id="8875221558267407626">Som inhoud op, vereenvoudig ingewikkelde taal of vrae vra</translation>
+<translation id="8913163265790894442">Stel jou <ph name="DEVICE_TYPE" /> maklik met jou foon op. Jy kan jou wi-fi en Google-rekening byvoeg sonder om jou wagwoorde handmatig in te voer.
+        <ph name="BR" />
+        <ph name="BR" />
+        Sigbaar as <ph name="DEVICE_TYPE" /> …</translation>
 <translation id="8946359700442089734">Ontfoutingkenmerke is nie heeltemal op hierdie <ph name="IDS_SHORT_PRODUCT_NAME" />-toestel geaktiveer nie.</translation>
 <translation id="8965037249707889821">Voeg ou wagwoord in</translation>
 <translation id="8975396729541388937">Teken enige tyd uit deur die skakel te klik in die e-posse wat jy ontvang.</translation>
 <translation id="9033765790910064284">Gaan in elk geval voort</translation>
 <translation id="903480517321259405">Tik die PIN weer in</translation>
 <translation id="9076523132036239772">Jammer, jou e-pos of wagwoord kon nie geverifieer word nie. Probeer om eers aan 'n netwerk te koppel.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Eksklusief vir <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Generatiewe KI is eksperimenteel, in vroeë ontwikkeling en het tans beperkte beskikbaarheid.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Stel jou <ph name="DEVICE_TYPE" /> maklik met jou foon op. Jy kan jou Google-rekening byvoeg sonder om jou wagwoorde handmatig in te voer.
+        <ph name="BR" />
+        <ph name="BR" />
+        Sigbaar as <ph name="DEVICE_TYPE" /> …</translation>
 </translationbundle>

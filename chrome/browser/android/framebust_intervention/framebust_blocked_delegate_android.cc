@@ -70,7 +70,7 @@ bool FramebustBlockedMessageDelegate::ShowMessage(
       allow_settings_changes_ ? IDS_ALWAYS_ALLOW_REDIRECTS : IDS_OK;
   message->SetPrimaryButtonText(l10n_util::GetStringUTF16(button_text_id));
   message->SetIconResourceId(message_dispatcher_bridge->MapToJavaDrawableId(
-      IDR_ANDROID_INFOBAR_BLOCKED_POPUPS));
+      IDR_ANDROID_MESSAGE_BLOCKED_POPUPS));
 
   // On rare occasions, such as the moment when activity is being recreated
   // or destroyed, framebust blocked message will not be displayed and the

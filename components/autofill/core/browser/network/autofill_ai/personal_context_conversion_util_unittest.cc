@@ -329,9 +329,9 @@ TEST(AutofillAiPersonalContextConverters, ConvertShipment) {
   shipment.set_tracking_number("TRACK-888");
   shipment.set_carrier_name("ExpressMail");
   shipment.set_carrier_domain("expressmail.com");
-  shipment.mutable_estimated_delivery_date()->set_year(2026);
-  shipment.mutable_estimated_delivery_date()->set_month(5);
-  shipment.mutable_estimated_delivery_date()->set_day(28);
+  shipment.mutable_ship_date()->set_year(2026);
+  shipment.mutable_ship_date()->set_month(5);
+  shipment.mutable_ship_date()->set_day(28);
   shipment.add_associated_order_ids("ORD-001");
   shipment.add_associated_order_ids("ORD-002");
 
@@ -349,7 +349,7 @@ TEST(AutofillAiPersonalContextConverters, ConvertShipment) {
   ExpectAttributeValue(result, kShipmentTrackingNumber, u"TRACK-888");
   ExpectAttributeValue(result, kShipmentCarrierName, u"ExpressMail");
   ExpectAttributeValue(result, kShipmentCarrierDomain, u"expressmail.com");
-  ExpectAttributeValue(result, kShipmentEstimatedDeliveryDate, u"2026-05-28");
+  ExpectAttributeValue(result, kShipmentShippedDate, u"2026-05-28");
   ExpectAttributeValue(result, kShipmentOrderIds, u"ORD-001, ORD-002");
 }
 

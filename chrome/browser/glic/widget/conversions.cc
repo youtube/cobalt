@@ -19,6 +19,7 @@ GlicSidePanelCoordinator::ShowOptions ConvertToCoordinatorShowOptions(
     target_options.initial_state =
         GlicSidePanelCoordinator::ShowOptions::InitialState::kPeeked;
   }
+  target_options.open_trigger = side_panel_options.open_trigger;
 
   return target_options;
 }

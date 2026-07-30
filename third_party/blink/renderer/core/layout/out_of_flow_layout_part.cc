@@ -2335,7 +2335,6 @@ OutOfFlowLayoutPart::OffsetInfo OutOfFlowLayoutPart::CalculateOffset(
       anchor_evaluator.GetDisplayLocksAffectedByAnchors();
 
   if (anchor_evaluator.DidResolveAnchorWithRunningTransformAnimation()) {
-    DCHECK(RuntimeEnabledFeatures::CSSAnchorWithTransformsEnabled());
     container_builder_->SetHasRunningAnchorTransformAnimation();
   }
 

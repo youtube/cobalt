@@ -32,7 +32,7 @@ class FindResultsTest : public EditingTestBase {
     return offsets;
   }
 
-  TextSearcherICU main_searcher_;
+  TextSearcherIcu main_searcher_;
 };
 
 TEST_F(FindResultsTest, MultipleIdenticalCorpora) {

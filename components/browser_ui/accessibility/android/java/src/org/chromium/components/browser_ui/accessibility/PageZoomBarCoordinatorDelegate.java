@@ -11,8 +11,11 @@ import org.chromium.build.annotations.NullMarked;
 /** Delegate interface for any class that wants a |PageZoomCoordinator|. */
 @NullMarked
 public interface PageZoomBarCoordinatorDelegate {
-    /**
-     * @return the View that should be used to render the zoom control.
-     */
+    /** Returns the View that should be used to render the zoom control. */
     View getZoomControlView();
+
+    /** Returns whether the bottom sheet is currently acting as browser controls. */
+    default boolean isSheetActingAsBrowserControls() {
+        return false;
+    }
 }

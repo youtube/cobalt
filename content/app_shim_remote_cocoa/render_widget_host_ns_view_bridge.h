@@ -77,6 +77,7 @@ class RenderWidgetHostNSViewBridge : public mojom::RenderWidgetHostNSView,
   void SetCompositionRangeInfo(const gfx::Range& range) override;
   void CancelComposition() override;
   void SetShowingContextMenu(bool showing) override;
+  void SetSupportsAutoFill(bool supports) override;
   void DisplayCursor(const ui::Cursor& cursor) override;
   void SetCursorLocked(bool locked) override;
   void SetCursorLockedUnacceleratedMovement(bool unaccelerated) override;

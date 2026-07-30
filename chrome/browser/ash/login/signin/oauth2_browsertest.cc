@@ -223,6 +223,7 @@ class RequestDeferrer {
 
     signal_ = std::make_unique<base::test::TestFuture<void>>();
     EXPECT_TRUE(signal_->Wait());
+    signal_.reset();
   }
 
   void InterceptRequest(const HttpRequest& request) {

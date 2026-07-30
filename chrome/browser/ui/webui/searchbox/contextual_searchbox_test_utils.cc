@@ -203,6 +203,7 @@ ContextualSearchboxHandlerTestHarness::GetTestingFactories() const {
                 /*url_loader_factory=*/nullptr,
                 /*template_url_service=*/nullptr,
                 /*variations_client=*/nullptr, version_info::Channel::UNKNOWN,
-                "en-US");
+                "en-US",
+                /*tab_validator=*/nullptr);
           })}};
 }

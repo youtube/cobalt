@@ -132,25 +132,6 @@ IntentHandlingMetrics::Platform GetMetricsPlatform(AppType app_type) {
   }
 }
 
-void LaunchApp(base::WeakPtr<AppServiceProxy> proxy,
-               const std::string& app_id,
-               int32_t event_flags,
-               GURL url,
-               LaunchSource launch_source,
-               WindowInfoPtr window_info,
-               AppType app_type,
-               base::OnceClosure callback) {
-  if (!proxy) {
-    return;
-  }
-
-  proxy->LaunchAppWithUrl(app_id, event_flags, url, launch_source,
-                          std::move(window_info),
-                          base::IgnoreArgs<LaunchResult>(std::move(callback)));
-
-  IntentHandlingMetrics::RecordPreferredAppLinkClickMetrics(
-      GetMetricsPlatform(app_type));
-}
 
 ui::PageTransition MaskOutPageTransition(ui::PageTransition page_transition,
                                          ui::PageTransition mask) {
@@ -583,19 +564,17 @@ ThrottleCheckResult ChromeOsReimplNavigationCapturingThrottle::HandleRequest() {
       return content::NavigationThrottle::CANCEL_AND_IGNORE;
     }
   }
-  base::OnceClosure launch_callback = base::BindOnce(
-      [](std::unique_ptr<ScopedKeepAlive> browser_keep_alive,
-         std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive) {},
-      std::move(browser_keep_alive), std::move(profile_keep_alive));
 
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE,
-      base::BindOnce(&LaunchApp, proxy->GetWeakPtr(), launch_app_id,
-                     GetEventFlags(WindowOpenDisposition::NEW_WINDOW,
-                                   /*prefer_container=*/true),
-                     redirected_url, launch_source,
-                     std::make_unique<WindowInfo>(display::kDefaultDisplayId),
-                     app_type, std::move(launch_callback)));
+  proxy->LaunchAppWithUrl(
+      launch_app_id,
+      GetEventFlags(WindowOpenDisposition::NEW_WINDOW,
+                    /*prefer_container=*/true),
+      redirected_url, launch_source,
+      std::make_unique<WindowInfo>(display::kDefaultDisplayId),
+      base::DoNothingWithBoundArgs(std::move(browser_keep_alive),
+                                   std::move(profile_keep_alive)));
+  IntentHandlingMetrics::RecordPreferredAppLinkClickMetrics(
+      GetMetricsPlatform(app_type));
 
   return content::NavigationThrottle::CANCEL_AND_IGNORE;
 }

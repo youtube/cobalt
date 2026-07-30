@@ -12,7 +12,7 @@
 #include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/test/mock_callback.h"
-#include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_delegate_android_impl.h"
+#include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_delegate_android_impl.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view_controller.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
@@ -115,18 +115,19 @@ class MockTouchToFillPaymentMethodViewImpl
   MOCK_METHOD(void, SetVisible, (bool visible));
 };
 
-class MockTouchToFillDelegateAndroidImpl
-    : public TouchToFillDelegateAndroidImpl {
+class MockTouchToFillPaymentMethodDelegateAndroidImpl
+    : public TouchToFillPaymentMethodDelegateAndroidImpl {
  public:
-  explicit MockTouchToFillDelegateAndroidImpl(
+  explicit MockTouchToFillPaymentMethodDelegateAndroidImpl(
       TestBrowserAutofillManager* autofill_manager)
-      : TouchToFillDelegateAndroidImpl(autofill_manager) {
+      : TouchToFillPaymentMethodDelegateAndroidImpl(autofill_manager) {
     ON_CALL(*this, ShouldShowScanCreditCard).WillByDefault(Return(true));
     ON_CALL(*this, ShouldShowGPayLogo).WillByDefault(Return(true));
   }
-  ~MockTouchToFillDelegateAndroidImpl() override = default;
+  ~MockTouchToFillPaymentMethodDelegateAndroidImpl() override = default;
 
-  base::WeakPtr<MockTouchToFillDelegateAndroidImpl> GetWeakPointer() {
+  base::WeakPtr<MockTouchToFillPaymentMethodDelegateAndroidImpl>
+  GetWeakPointer() {
     return weak_factory_.GetWeakPtr();
   }
 
@@ -173,7 +174,8 @@ class MockTouchToFillDelegateAndroidImpl
 
  private:
   std::unique_ptr<TouchToFillKeyboardSuppressor> suppressor_;
-  base::WeakPtrFactory<MockTouchToFillDelegateAndroidImpl> weak_factory_{this};
+  base::WeakPtrFactory<MockTouchToFillPaymentMethodDelegateAndroidImpl>
+      weak_factory_{this};
 };
 
 class TestContentAutofillClientWithTouchToFillPaymentMethodController
@@ -207,7 +209,7 @@ class TouchToFillPaymentMethodControllerImplTest
     FocusWebContentsOnMainFrame();
     ASSERT_TRUE(web_contents()->GetFocusedFrame());
     autofill_manager().set_touch_to_fill_payment_method_delegate(
-        std::make_unique<MockTouchToFillDelegateAndroidImpl>(
+        std::make_unique<MockTouchToFillPaymentMethodDelegateAndroidImpl>(
             &autofill_manager()));
     mock_view_ = std::make_unique<MockTouchToFillPaymentMethodViewImpl>();
   }
@@ -252,8 +254,8 @@ class TouchToFillPaymentMethodControllerImplTest
     return autofill_client().payment_method_controller();
   }
 
-  MockTouchToFillDelegateAndroidImpl& ttf_delegate() {
-    return *static_cast<MockTouchToFillDelegateAndroidImpl*>(
+  MockTouchToFillPaymentMethodDelegateAndroidImpl& ttf_delegate() {
+    return *static_cast<MockTouchToFillPaymentMethodDelegateAndroidImpl*>(
         autofill_manager().touch_to_fill_payment_method_delegate());
   }
 

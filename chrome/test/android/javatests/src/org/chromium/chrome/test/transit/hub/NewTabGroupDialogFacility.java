@@ -6,12 +6,13 @@ package org.chromium.chrome.test.transit.hub;
 
 import static androidx.test.espresso.action.ViewActions.replaceText;
 import static androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom;
+import static androidx.test.espresso.matcher.ViewMatchers.isChecked;
 import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
 import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.startsWith;
+import static org.hamcrest.CoreMatchers.not;
 
 import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
 import static org.chromium.base.test.transit.ViewElement.inDialogOption;
@@ -34,7 +35,6 @@ import org.chromium.base.test.transit.ViewSpec;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tabmodel.TabGroupColorUtils;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.test.transit.ChromeActivityTabModelBoundStation;
@@ -60,6 +60,7 @@ public class NewTabGroupDialogFacility<
     private final SoftKeyboardFacility mSoftKeyboard;
     public ViewElement<View> dialogElement;
     public ViewElement<View> titleInputElement;
+    public ViewElement<View> colorPickerElement;
     public ViewElement<View>[] colorElements;
     public ViewElement<View> doneButtonElement;
     private @Nullable String mTitle;
@@ -113,8 +114,8 @@ public class NewTabGroupDialogFacility<
                 inDialogOption());
 
         // TODO(crbug.com/346377124): Partially cut off in android_30_google_apis_x86.textpb
-        declareView(withId(R.id.color_picker_container));
-        @TabGroupColorId List<Integer> colors = TabGroupColorUtils.getTabGroupColorIdList();
+        colorPickerElement = declareView(withId(R.id.color_picker_container));
+        @TabGroupColorId List<Integer> colors = TabGroupColorPickerUtils.getTabGroupColorIdList();
         // Only the first 5 colors are displayed reliably when the soft keyboard opens.
         colorElements = new ViewElement[5];
         for (int i = 0; i < 5; i++) {
@@ -161,15 +162,11 @@ public class NewTabGroupDialogFacility<
                 context.getString(
                         TabGroupColorPickerUtils.getTabGroupColorPickerItemColorAccessibilityString(
                                 color));
-        Matcher<View> contentDescriptionMatcher;
+        Matcher<View> matcher = withContentDescription(colorName);
         if (selected != null) {
-            contentDescriptionMatcher =
-                    withContentDescription(
-                            colorName + " " + (selected ? "Selected" : "Not selected"));
-        } else {
-            contentDescriptionMatcher = withContentDescription(startsWith(colorName));
+            matcher = allOf(matcher, selected ? isChecked() : not(isChecked()));
         }
-        return viewSpec(withId(R.id.color_picker_icon), contentDescriptionMatcher);
+        return colorPickerElement.descendant(matcher);
     }
 
     /** Input a new tab group name. */

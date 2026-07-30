@@ -33,7 +33,7 @@ class CORE_EXPORT PerformanceElementTiming final : public PerformanceEntry {
                                           const AtomicString& id,
                                           Element*,
                                           DOMWindow* source,
-                                          uint32_t navigation_id);
+                                          uint64_t navigation_id);
   PerformanceElementTiming(const AtomicString& name,
                            DOMHighResTimeStamp start_time,
                            const String& url,
@@ -46,7 +46,7 @@ class CORE_EXPORT PerformanceElementTiming final : public PerformanceEntry {
                            const AtomicString& id,
                            Element*,
                            DOMWindow* source,
-                           uint32_t navigation_id);
+                           uint64_t navigation_id);
 
   ~PerformanceElementTiming() override;
 

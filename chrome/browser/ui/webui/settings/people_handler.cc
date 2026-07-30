@@ -436,6 +436,10 @@ void PeopleHandler::RegisterMessages() {
       "RecordSigninPendingOffered",
       base::BindRepeating(&PeopleHandler::HandleRecordSigninPendingOffered,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "RecordSigninOffered",
+      base::BindRepeating(&PeopleHandler::HandleRecordSigninOffered,
+                          base::Unretained(this)));
 #endif
 }
 
@@ -1522,6 +1526,21 @@ void PeopleHandler::HandleRecordSigninPendingOffered(
     const base::ListValue& /*args*/) {
   signin_metrics::LogSigninPendingOffered(
       signin_metrics::AccessPoint::kSettings);
+}
+
+void PeopleHandler::HandleRecordSigninOffered(const base::ListValue& args) {
+  CHECK_EQ(1U, args.size());
+  auto access_point =
+      GetAccessPoint(static_cast<ChromeSigninAccessPoint>(args[0].GetInt()));
+
+  auto* identity_manager = IdentityManagerFactory::GetForProfile(profile_);
+  signin_metrics::PromoAction promo_action =
+      signin_ui_util::GetSingleAccountForPromos(identity_manager).IsEmpty()
+          ? signin_metrics::PromoAction::
+                PROMO_ACTION_NEW_ACCOUNT_NO_EXISTING_ACCOUNT
+          : signin_metrics::PromoAction::PROMO_ACTION_WITH_DEFAULT;
+
+  signin_metrics::LogSignInOffered(access_point, promo_action);
 }
 #endif
 

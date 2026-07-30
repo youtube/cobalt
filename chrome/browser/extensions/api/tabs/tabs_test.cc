@@ -1587,6 +1587,7 @@ INSTANTIATE_TEST_SUITE_P(
 using ExtensionApiTabsIwaMoveTest = ExtensionIwaTestBase;
 
 using ExtensionApiTabsIwaNavigateTest = ExtensionIwaTestBase;
+using ExtensionApiTabsIwaDuplicateTest = ExtensionIwaTestBase;
 
 // `tabs.create` does not support `isolated-app:` URLs, even when targeting an
 // existing IWA window. `windows.create` is the supported entry point and
@@ -1704,6 +1705,35 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTabsIwaMoveTest,
       function.get(), args, profile());
 
   EXPECT_EQ(error, "The tab of an Isolated Web App cannot be moved.");
+}
+
+// Tests that duplicating an IWA tab via the chrome.tabs.duplicate Extension API
+// is disallowed.
+IN_PROC_BROWSER_TEST_F(ExtensionApiTabsIwaDuplicateTest,
+                       DuplicateTabDisallowed) {
+  web_app::IsolatedWebAppUrlInfo url_info = InstallAndTrustBundle();
+  BrowserWindowInterface* iwa_browser = OpenIwa(url_info);
+  ASSERT_TRUE(iwa_browser);
+
+  TabListInterface* iwa_tab_list = TabListInterface::From(iwa_browser);
+  ASSERT_EQ(iwa_tab_list->GetTabCount(), 1);
+  auto* iwa_web_contents = iwa_tab_list->GetActiveTab()->GetContents();
+  content::WaitForLoadStop(iwa_web_contents);
+  int iwa_tab_id = ExtensionTabUtil::GetTabId(iwa_web_contents);
+
+  scoped_refptr<const Extension> extension =
+      ExtensionBuilder("ExtensionApiTabsIwaDuplicateTest")
+          .AddAPIPermission("tabs")
+          .Build();
+
+  auto function = base::MakeRefCounted<TabsDuplicateFunction>();
+  function->set_extension(extension);
+
+  std::string args = base::StringPrintf("[%d]", iwa_tab_id);
+  std::string error = api_test_utils::RunFunctionAndReturnError(
+      function.get(), args, profile());
+
+  EXPECT_EQ(error, "The tab of an Isolated Web App cannot be duplicated.");
 }
 
 IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, DuplicateTab) {
@@ -5507,6 +5537,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsWebContentsDiscardDisabledTest,
   // Wait for the JS test to catch the event and send "success".
   ASSERT_TRUE(success_listener.WaitUntilSatisfied());
 }
+
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace extensions

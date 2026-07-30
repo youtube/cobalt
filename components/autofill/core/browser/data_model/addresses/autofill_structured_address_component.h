@@ -149,7 +149,7 @@ class AddressComponent {
   // AddressComponentsStore is being destroyed, the WipeRawPtrsForDestruction
   // function is used to clear the list of child pointers. This prevents
   // dangling pointers during the destruction process.
-  using SubcomponentsList = std::vector<AddressComponent*>;
+  using SubcomponentsList = std::vector<raw_ptr<AddressComponent>>;
 
   // Constructor for a compound child node.
   AddressComponent(FieldType storage_type,

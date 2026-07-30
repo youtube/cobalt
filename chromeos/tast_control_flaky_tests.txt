@@ -1,0 +1,12 @@
+# To list flaky tests in chrome_all_tast_tests, add the name of the test
+# to the following list and cite a bug.
+#
+# To specify the test only on a specific board, add an at-mark ( @ ) and the
+# board name at the end of the entry (eg. "login.Chrome@kevin" specifies
+# "login.Chrome" test only on "kevin" device). An asterisk is not supported in
+# the board name.
+#
+# DO NOT ADD QUOTATION MARK AND TRAILING COMMA AT EACH LINE
+
+# b/512598250
+tast.crostini.AppAndroidStudio.bookworm_clamshell_stable

@@ -31,6 +31,7 @@
 #include "chrome/browser/glic/public/service/glic_instance_coordinator.h"
 #include "chrome/browser/glic/service/glic_instance_impl.h"
 #include "chrome/browser/glic/service/glic_invoke_handler.h"
+#include "chrome/browser/glic/service/glic_onboarding_tracker.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_coordinator_metrics.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -102,6 +103,8 @@ class GlicInstanceCoordinatorImpl
       size_t limit) override;
   void ContextAccessIndicatorChanged(GlicInstanceImpl& instance,
                                      bool enabled) override;
+  void OnInvoked() override;
+  void OnUserInputSubmitted() override;
   std::unique_ptr<WebUIContentsContainer> CreateWebUIContentsContainer()
       override;
 
@@ -205,6 +208,8 @@ class GlicInstanceCoordinatorImpl
   GlicInstanceImpl* GetInstanceImplFor(const InstanceId& id) const;
   GlicInstanceImpl* GetInstanceImplForTab(const tabs::TabInterface* tab) const;
 
+  void RemoveInstance(InstanceId id) override;
+
  private:
   void RemoveAllInstances();
   base::WeakPtr<GlicInstance> InvokeInternal(
@@ -252,8 +257,6 @@ class GlicInstanceCoordinatorImpl
   void OnMemoryPressure(base::MemoryPressureLevel level) override;
   void ApplyMaxAwakeInstancesLimit();
 
-  void RemoveInstance(InstanceId id) override;
-
   void NotifyActiveInstanceChanged();
   void ComputeContentAccessIndicator();
 
@@ -299,6 +302,8 @@ class GlicInstanceCoordinatorImpl
       memory_pressure_listener_registration_;
 
   bool warming_enabled_ = true;
+
+  std::unique_ptr<GlicOnboardingTracker> onboarding_tracker_;
 
   GlicInstanceCoordinatorMetrics metrics_;
 

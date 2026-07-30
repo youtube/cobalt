@@ -15,6 +15,7 @@ static_library("desk_api") {
   public_deps = [ "//chrome/browser:browser_public_dependencies" ]
 
   deps = [
+    "//ash/constants",
     "//base",
     "//chrome/browser:resources",
     "//chrome/browser/profiles:profile",

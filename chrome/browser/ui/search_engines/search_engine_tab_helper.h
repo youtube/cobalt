@@ -6,7 +6,6 @@
 #define CHROME_BROWSER_UI_SEARCH_ENGINES_SEARCH_ENGINE_TAB_HELPER_H_
 
 #include "base/scoped_observation.h"
-#include "chrome/browser/ui/find_bar/find_bar_controller.h"
 #include "chrome/common/open_search_description_document_handler.mojom.h"
 #include "components/favicon/core/favicon_driver.h"
 #include "components/favicon/core/favicon_driver_observer.h"

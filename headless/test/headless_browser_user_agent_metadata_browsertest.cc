@@ -76,16 +76,15 @@ class HeadlessBrowserNavigatorUADataTest : public HeadlessBrowserTest {
   void SetUpOnMainThread() override {
     HeadlessBrowserTest::SetUpOnMainThread();
 
-    EXPECT_TRUE(embedded_test_server()->Start());
+    ASSERT_TRUE(embedded_test_server()->Start());
 
-    HeadlessBrowserContext* browser_context =
-        browser()->CreateBrowserContextBuilder().Build();
+    HeadlessBrowserContext* browser_context = browser()->CreateBrowserContext();
+    ASSERT_TRUE(browser_context);
 
-    web_contents_ =
-        browser_context->CreateWebContentsBuilder()
-            .SetInitialURL(embedded_test_server()->GetURL("/hello.html"))
-            .Build();
-    EXPECT_TRUE(WaitForLoad(web_contents_));
+    web_contents_ = browser_context->CreateWebContents(
+        embedded_test_server()->GetURL("/hello.html"));
+    ASSERT_TRUE(web_contents_);
+    ASSERT_TRUE(WaitForLoad(web_contents_));
 
     devtools_client_.AttachToWebContents(
         HeadlessWebContentsImpl::From(web_contents_)->web_contents());
@@ -223,22 +222,21 @@ class HeadlessBrowserUAHeaderTest : public HeadlessBrowserTest {
   void SetUpOnMainThread() override {
     HeadlessBrowserTest::SetUpOnMainThread();
 
-    EXPECT_TRUE(embedded_test_server()->InitializeAndListen());
+    ASSERT_TRUE(embedded_test_server()->InitializeAndListen());
     embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
         &HeadlessBrowserUAHeaderTest::HandleRequest, base::Unretained(this)));
     embedded_test_server()->StartAcceptingConnections();
 
-    HeadlessBrowserContext* browser_context =
-        browser()->CreateBrowserContextBuilder().Build();
+    HeadlessBrowserContext* browser_context = browser()->CreateBrowserContext();
+    ASSERT_TRUE(browser_context);
 
     // Capture the initial request.
     CaptureHeadersForPath("/hello.html");
 
-    web_contents_ =
-        browser_context->CreateWebContentsBuilder()
-            .SetInitialURL(embedded_test_server()->GetURL("/hello.html"))
-            .Build();
-    EXPECT_TRUE(WaitForLoad(web_contents_));
+    web_contents_ = browser_context->CreateWebContents(
+        embedded_test_server()->GetURL("/hello.html"));
+    ASSERT_TRUE(web_contents_);
+    ASSERT_TRUE(WaitForLoad(web_contents_));
 
     devtools_client_.AttachToWebContents(
         HeadlessWebContentsImpl::From(web_contents_)->web_contents());
@@ -322,7 +320,7 @@ class HeadlessBrowserUAHeaderTest : public HeadlessBrowserTest {
         SendCommandSync(devtools_client_, "Page.reload", std::move(params));
     std::string* err = result.FindStringByDottedPath("error.data");
     CHECK(!err) << "Error invoking Page.reload: \n" << *err;
-    EXPECT_TRUE(WaitForLoad(web_contents_));
+    ASSERT_TRUE(WaitForLoad(web_contents_));
   }
 
   // Use the fetch API to make a subresource request.

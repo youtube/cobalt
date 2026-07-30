@@ -19,6 +19,7 @@
 #include "media/base/test_data_util.h"
 #include "media/filters/h26x_annex_b_bitstream_builder.h"
 #include "media/gpu/h264_builder.h"
+#include "media/parsers/h26x_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "ui/gfx/geometry/rect.h"
@@ -346,6 +347,52 @@ TEST(H264ParserTest, RecoveryPointSEIParsing) {
   EXPECT_EQ(pic_timing_sei.msgs.size(), 0u);
 }
 
+// Verify T35 SEI is correctly parsed.
+TEST(H264ParserTest, T35SEIParsing) {
+  constexpr uint8_t kStream[] = {
+      // Start code.
+      0x00,
+      0x00,
+      0x00,
+      0x01,
+      // NALU type = 6 (kSEIMessage).
+      0x06,
+      // SEI payload type = 4 (user_data_registered_itu_t_t35).
+      0x04,
+      // SEI payload size = 5.
+      0x05,
+      // Country code = 0xB5.
+      0xB5,
+      // Payload data (4 bytes).
+      0x01,
+      0x02,
+      0x03,
+      0x04,
+      // RBSP trailing bits.
+      0x80,
+  };
+
+  H264Parser parser;
+  parser.SetStream(kStream);
+
+  H264NALU target_nalu;
+  ASSERT_EQ(H264Parser::kOk, parser.AdvanceToNextNALU(&target_nalu));
+  EXPECT_EQ(target_nalu.nal_unit_type, H264NALU::kSEIMessage);
+
+  H264SEI sei;
+  ASSERT_EQ(H264Parser::kOk, parser.ParseSEI(&sei));
+  ASSERT_EQ(sei.msgs.size(), 1u);
+
+  const auto* t35 = std::get_if<H26xSEIUserDataRegisteredT35>(&sei.msgs[0]);
+  ASSERT_TRUE(t35);
+  EXPECT_EQ(t35->country_code, 0xB5);
+  ASSERT_EQ(t35->payload.size(), 4u);
+  EXPECT_EQ(t35->payload[0], 0x01);
+  EXPECT_EQ(t35->payload[1], 0x02);
+  EXPECT_EQ(t35->payload[2], 0x03);
+  EXPECT_EQ(t35->payload[3], 0x04);
+}
+
 // Verify both MDCV and CLLI message can be correctly parsed in the same SEI
 // NALU.
 TEST(H264ParserTest, RecursiveSEIParsing) {
@@ -411,12 +458,12 @@ TEST(H264ParserTest, RecursiveSEIParsing) {
   EXPECT_EQ(clli_mdcv_sei.msgs.size(), 2u);
 
   for (const auto& sei_msg : clli_mdcv_sei.msgs) {
-    std::visit(absl::Overload{[](const H264SEIContentLightLevelInfo& info) {
+    std::visit(absl::Overload{[](const H26xSEIContentLightLevelInfo& info) {
                                 EXPECT_EQ(info.max_content_light_level, 1000u);
                                 EXPECT_EQ(info.max_picture_average_light_level,
                                           200u);
                               },
-                              [](const H264SEIMasteringDisplayInfo& info) {
+                              [](const H26xSEIMasteringDisplayInfo& info) {
                                 EXPECT_EQ(info.display_primaries[0][0], 13249u);
                                 EXPECT_EQ(info.display_primaries[0][1], 34499u);
                                 EXPECT_EQ(info.display_primaries[1][0], 7500u);

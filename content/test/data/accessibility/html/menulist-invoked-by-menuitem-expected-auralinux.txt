@@ -3,5 +3,5 @@
 ++++[push button] name='Open Main Menu' label-for=[menu] name-from:contents
 ++++[menu] name='Open Main Menu' labelled-by=[push button] name-from:related-element
 ++++++[menu item] name='Submenu' label-for=[menu] name-from:contents
-++++[menu] name='Submenu' labelled-by=[menu item] name-from:related-element
-++++++[menu item] name='Item 1' name-from:contents
+++++++[menu] name='Submenu' labelled-by=[menu item] name-from:related-element
+++++++++[menu item] name='Item 1' name-from:contents

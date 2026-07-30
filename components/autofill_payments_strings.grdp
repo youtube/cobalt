@@ -1751,5 +1751,8 @@
   <message name="IDS_AUTOFILL_IPH_OMNIBOX_PAYMENT_CHIP_LABEL_SCREENREADER" is_accessibility_with_no_ui="true" desc="Screenreader text for the IPH bubble for the Autofill payment omnibox page action chip.">
     To autofill using a saved payment method, select the Autofill payment button.
   </message>
+  <message name="IDS_AUTOFILL_OMNIBOX_BUBBLE_TITLE" desc="Text shown in the Autofill payment omnibox bubble title.">
+    Choose payment method
+  </message>
 
 </grit-part>

@@ -4,6 +4,8 @@
 
 #import "ios/chrome/browser/start_surface/ui_bundled/start_surface_features.h"
 
+#import <Foundation/Foundation.h>
+
 #import "base/metrics/field_trial_params.h"
 
 namespace {
@@ -12,22 +14,20 @@ constexpr base::TimeDelta kDefaultShowTabGroupInGridInactiveDuration =
     base::Hours(1);
 }  // anonymous namespace
 
-BASE_FEATURE(kShowTabGroupInGridOnStart, base::FEATURE_DISABLED_BY_DEFAULT);
-
-const char kShowTabGroupInGridInactiveDurationInSeconds[] =
-    "ShowTabGridInactiveDurationInSeconds";
+// Key for the tab group in grid inactive duration testing override.
+NSString* const kShowTabGroupInGridInactiveDurationKey =
+    @"ShowTabGroupInGridInactiveDuration";
 
 const char kReturnToStartSurfaceInactiveDurationInSeconds[] =
     "ReturnToStartSurfaceInactiveDurationInSeconds";
 
-bool IsShowTabGroupInGridOnStartEnabled() {
-  return base::FeatureList::IsEnabled(kShowTabGroupInGridOnStart);
-}
-
 base::TimeDelta GetReturnToTabGroupInGridDuration() {
-  return base::Seconds(base::GetFieldTrialParamByFeatureAsDouble(
-      kShowTabGroupInGridOnStart, kShowTabGroupInGridInactiveDurationInSeconds,
-      kDefaultShowTabGroupInGridInactiveDuration.InSecondsF()));
+  NSNumber* testing_override = [[NSUserDefaults standardUserDefaults]
+      objectForKey:kShowTabGroupInGridInactiveDurationKey];
+  if (testing_override) {
+    return base::Seconds([testing_override doubleValue]);
+  }
+  return kDefaultShowTabGroupInGridInactiveDuration;
 }
 
 BASE_FEATURE(kStartSurfaceUserSetting, base::FEATURE_DISABLED_BY_DEFAULT);

@@ -26,6 +26,9 @@ build_webui_tests("build") {
     "composebox_test.ts",
     "composebox_test_utils.ts",
     "composebox_voice_search_test.ts",
+    "composebox_voice_search_metrics_test.ts",
+    "composebox_voice_search_recognition_test.ts",
+    "composebox_voice_search_flags_test.ts",
     "contextual_action_menu_test.ts",
     "contextual_entrypoint_and_menu_test.ts",
     "contextual_entrypoint_button_test.ts",
@@ -34,6 +37,7 @@ build_webui_tests("build") {
   ]
 
   ts_deps = [
+    "//chrome/test/data/webui:build_ts",
     "//third_party/lit/v3_0:build_ts",
     "//ui/webui/resources/cr_components/composebox:build_ts",
     "//ui/webui/resources/cr_components/search:build_ts",

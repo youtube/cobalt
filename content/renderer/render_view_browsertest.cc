@@ -1515,6 +1515,46 @@ TEST_F(RenderViewImplTextInputStateChanged,
             actual_active_element_selection_bounds);
 }
 
+// Ensure `EditContext::DeleteSurroundingText` clamps `before`/`after` such that
+// the synced selection stays within the text bounds even if a deletion range
+// is provided that would otherwise exceed the bounds of the text.
+TEST_F(RenderViewImplTextInputStateChanged,
+       DeleteSurroundingTextUnderflowDoesNotCorruptSyncedSelection) {
+  LoadHTML(
+      "<html>"
+      "<head>"
+      "</head>"
+      "<body>"
+      "</body>"
+      "</html>");
+  GetWidgetInputHandler()->SetFocus(blink::mojom::FocusState::kFocused);
+
+  // Attach an EditContext and collapse the selection near the very start,
+  // leaving only a single character before the caret.
+  ExecuteJavaScriptForTests(
+      "const editContext = new EditContext({text: 'hello world'});"
+      "document.body.editContext = editContext;"
+      "document.body.focus();"
+      "editContext.updateSelection(1, 1);");
+  // Wait for the EditContext setup to sync its initial state, then drop it so
+  // the post-deletion assertions observe only the deletion's sync.
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !updated_states().empty(); }));
+  ClearState();
+
+  // Request the deletion of far more characters before the caret than
+  // actually exist. This must not crash when syncing the selection to the
+  // browser, and the synced selection must stay within the text bounds.
+  GetFrameWidgetInputHandler()->DeleteSurroundingText(50, 0);
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !updated_states().empty(); }));
+
+  const ui::mojom::TextInputState* state = updated_states().back().get();
+  ASSERT_TRUE(state->value.has_value());
+  EXPECT_LE(state->selection.start(), state->value->length());
+  EXPECT_LE(state->selection.end(), state->value->length());
+}
+
 TEST_F(RenderViewImplTextInputStateChanged, ActiveElementGetLayoutBounds) {
   // Load an HTML page consisting of one input fields.
   LoadHTML(R"HTML(

@@ -131,7 +131,6 @@ Let op: Lees meer informatie over het beleid voor procesbeperking (https://chrom
 <translation id="1076751984131277498">Toelatingslijst met USB-apparaten die mogen worden ontkoppeld</translation>
 <translation id="1077675271127011209">Rapportage van gebruiks- en crashgegevens uitzetten</translation>
 <translation id="1079498696402787191">Gebruik de standaardwaarde voor hashes die zijn toegestaan in TLS-handshakes.</translation>
-<translation id="1079801999187584280">Het gebruik van de hulpprogramma's voor ontwikkelaars niet toestaan</translation>
 <translation id="1081470306474387129">Met de Controlled Frame API, die beschikbaar is voor bepaalde geïsoleerde contexten zoals geïsoleerde web-apps (GWA's), kan een app willekeurige content insluiten en manipuleren.
 Ga naar https://github.com/WICG/controlled-frame voor meer informatie.
 
@@ -1155,6 +1154,7 @@ In <ph name="MAC_OS_NAME" /> is dit beleid alleen beschikbaar voor instanties di
 <translation id="1781356041596378058">Met dit beleid wordt ook de toegang tot de ontwikkelaarsopties van Android beheerd. Als je dit beleid instelt op 'True', hebben gebruikers geen toegang tot ontwikkelaarsopties. Als je dit beleid instelt op 'False' of niet instelt, hebben gebruikers toegang tot ontwikkelaarsopties door zeven keer op het buildnummer te tikken in de app Instellingen van Android.</translation>
 <translation id="1781720543185538098">Hiermee bepaal je of <ph name="PRODUCT_NAME" />-enquêtes in het product rechtstreeks aan gebruikers worden getoond.</translation>
 <translation id="1787790976045065845">Dit beleid is alleen van kracht als het beleid <ph name="SECURITY_TOKEN_SESSION_BEHAVIOR_POLICY_NAME" /> is ingesteld op <ph name="SECURITY_TOKEN_SESSION_BEHAVIOR_LOCK" /> of <ph name="SECURITY_TOKEN_SESSION_BEHAVIOR_LOGOUT" /> en een gebruiker die verificatie via een smartcard uitvoert, die smartcard verwijdert. Dit beleid geeft dan aan hoelang (in seconden) een melding wordt getoond waarin de gebruiker wordt geïnformeerd over de komende actie. Deze melding blokkeert het scherm. De actie wordt pas uitgevoerd nadat de melding is verlopen. De gebruiker kan voorkomen dat de actie wordt uitgevoerd door de smartcard terug te plaatsen voordat de melding verloopt. Als dit beleid is ingesteld op nul, wordt er geen melding getoond en wordt de actie meteen uitgevoerd.</translation>
+<translation id="1788597893274674447">Site-isolatie aanzetten voor aangegeven oorsprongen op Android-apparaten (beëindigd)</translation>
 <translation id="1793346220873697538">Afdrukken met pincode standaard uitzetten</translation>
 <translation id="1794457906032475749">Als je dit beleid toepast, is de optie om bestaande browsegegevens te behouden bij het maken van een zakelijk profiel standaard aangevinkt.
 
@@ -1654,6 +1654,11 @@ Als je het beleid instelt op 1, kunnen tabbladgroepen niet worden gedeeld.</tran
       Als je dit beleid instelt op False, kunnen gebruikers bepaalde systeeminformatie en paginacontent niet meer naar de servers van Google sturen. Als je dit beleid instelt op True of niet instelt, kunnen gebruikers bepaalde systeeminformatie en paginacontent naar Safe Browsing sturen om te helpen bij de detectie van gevaarlijke apps en sites.
 
       Zie https://developers.google.com/safe-browsing voor meer informatie over Safe Browsing.</translation>
+<translation id="2126895531607538755">Als je het beleid instelt, geef je het aantal milliseconden van inactiviteit aan voordat het apparaat de actie voor opschorten opnieuw toepast tijdens een interval van <ph name="DEVICE_WEEKLY_SCHEDULED_SUSPEND_POLICY_NAME" />.
+
+Als een apparaat handmatig wordt geactiveerd (bijvoorbeeld door toetsenbordinvoer) tijdens de geplande slaapstand, wacht het apparaat dit aantal milliseconden voordat het weer wordt opgeschort naar RAM. Elke gebruikersactiviteit reset de timer voor opnieuw opschorten zolang deze binnen het opschortingsinterval blijft.
+
+Als je het beleid niet instelt, wordt het apparaat niet automatisch opnieuw opgeschort tijdens het interval nadat het is gewekt.</translation>
 <translation id="2127599828444728326">Meldingen op deze sites toestaan</translation>
 <translation id="2131902621292742709">Vertraging van dimmen van scherm wanneer op de batterij wordt gewerkt</translation>
 <translation id="2131915994539959070">Hiermee staat de occlusie van vensters aan in <ph name="PRODUCT_NAME" />.
@@ -1781,21 +1786,6 @@ Dit beleid is een tijdelijke maatregel en wordt verwijderd na <ph name="PRODUCT_
 <translation id="2180958780733364832">Gebruik van de stand zonder interface beheer</translation>
 <translation id="2182291258410176649">De gebruiker beslist of back-up maken en terugzetten moet worden aangezet</translation>
 <translation id="2183338188392346527">Runtime-tellers voor apparaat niet rapporteren</translation>
-<translation id="2183838844225082873">Als je het beleid instelt op 0 (standaardinstelling), heb je toegang tot de tools voor ontwikkelaars en de JavaScript-console, maar niet in de context van extensies die via het organisatiebeleid zijn geïnstalleerd of, sinds versie 114 en als dit een beheerde gebruiker is, extensies die in de browser zijn ingebouwd. Als je het beleid instelt op 1, heb je toegang tot de tools voor ontwikkelaars en de JavaScript-console in alle contexten, waaronder die van extensies die via het organisatiebeleid zijn geïnstalleerd. Als je het beleid instelt op 2, heb je geen toegang tot de tools voor ontwikkelaars en kun je website-elementen niet inspecteren.
-
-Met deze instelling worden sneltoetsen en menu- en contextmenu-opties uitgezet waarmee tools voor ontwikkelaars of de JavaScript-console kunnen worden geopend.
-
-Vanaf <ph name="PRODUCT_NAME" /> versie 99 beheert deze instelling ook de startpunten voor de functie Paginabron bekijken. Als je dit beleid instelt op 'DeveloperToolsDisallowed' (waarde 2), kunnen gebruikers de bron niet bekijken via een sneltoets of het contextmenu. Als je het bekijken van de bron helemaal wilt blokkeren, moet je ook 'view-source:*' toevoegen aan het beleid <ph name="URL_BLOCKLIST_POLICY_NAME" />.
-
-Vanaf <ph name="PRODUCT_NAME" /> versie 119 bepaalt deze instelling ook of de ontwikkelaarsmodus voor geïsoleerde web-apps kan worden geactiveerd en gebruikt.
-
-Vanaf <ph name="PRODUCT_NAME" /> versie 128 bepaalt deze instelling niet de ontwikkelaarsmodus op de pagina Extensies als het beleid <ph name="EXTENSION_DEVELOPER_MODE_SETTINGS_POLICY_NAME" /> is ingesteld.
-
-De beschikbaarheid van Tools voor ontwikkelaars wordt bepaald in deze volgorde van prioriteit:
-1. Als een URL overeenkomt met een patroon in het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />, zijn Tools voor ontwikkelaars toegestaan.
-2. Als je <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> instelt en <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> niet, wordt elke URL die niet op de toelatingslijst staat, geblokkeerd.
-3. Als een URL overeenkomt met een patroon in het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />, worden Tools voor ontwikkelaars geblokkeerd.
-4. Als een URL niet onder de toelatingslijst of blokkeerlijst valt, is dit beleid (<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />) de reserve.</translation>
 <translation id="2187361040843865450">Just Works-koppelingsverzoeken voor bluetooth accepteren</translation>
 <translation id="2187372280917024033">De URI-template van de gewenste DNS-over-HTTPS-resolver. Als je meerdere DNS-over-HTTPS-resolvers wilt invoeren, scheid je de overeenkomstige URI-templates met een spatie. Dit beleid lijkt sterk op <ph name="DOH_TEMPLATES_POLICY_NAME" />, dat wordt overschreven als dit is gespecificeerd.
 In tegenstelling tot het beleid <ph name="DOH_TEMPLATES_POLICY_NAME" /> ondersteunt dit beleid het invoeren van identiteitsgegevens.
@@ -1969,6 +1959,26 @@ Als je het beleid niet toepast of niet instelt, kunnen gebruikers bestanden over
       Gebruikers kunnen deze instelling niet wijzigen of overschrijven.
 
       Opmerking: Door dit beleid wordt de kop 'X-GoogApps-Allowed-Domains' toegevoegd aan alle HTTP- en HTTPS-verzoeken voor alle google.com-domeinen, zoals beschreven in https://support.google.com/a/answer/1668854.</translation>
+<translation id="2282968242492236886">Als je dit beleid instelt, kun je aangeven welke gegevenstypen voor automatisch invullen worden geblokkeerd voor specifieke URL-patronen.
+
+Het beleid is gestructureerd als een lijst met woordenboeken. Elk woordenboek moet het volgende bevatten:
+* 'url_pattern': Een URL-patroon voor het instellen van content (bijv. 'https://[*.]example.com').
+* 'blocked_types': Een lijst met tekenreeksen die de categorieën van gegevens voor automatisch invullen aangeven die moeten worden geblokkeerd.
+
+De ondersteunde waarden voor 'blocked_types' zijn:
+* 'contact_info': Blokkeert het invullen en opslaan van contactgegevens.
+* 'payments': Blokkeert het invullen en opslaan van creditcards en betaalmethoden.
+* 'identity_docs': Blokkeert het invullen en opslaan van identiteitsdocumenten (bijv. paspoort, rijbewijs, nationale ID).
+* 'travel': Blokkeert het invullen en opslaan van reisinformatie (bijv. vluchtreservering, voertuigregistratie).
+
+Als een gegevenstype is geblokkeerd voor een site, wordt zowel het genereren van suggesties als de prompt om nieuwe gegevens van dat type op te slaan/te importeren uitgezet op die site.
+
+Als een URL overeenkomt met meerdere patroonitems in de lijst, worden de geblokkeerde typen van alle overeenkomende items gecombineerd (samengevoegd). Ongeldige URL-patronen in de lijst worden genegeerd.
+
+Als je dit beleid niet instelt, worden er geen gegevenstypen voor automatisch invullen geblokkeerd op domein.
+
+Ga voor gedetailleerde informatie over geldige URL-patronen naar:
+https://chromeenterprise.google/policies/url-patterns. Het jokerteken * wordt ondersteund. Dit patroon komt overeen met elke URL, met elk schema, elke poort en elk pad.</translation>
 <translation id="2287414160388710497">Hiermee kunnen beheerders het uiterlijk van watermerken aanpassen die worden toegepast door regels voor Gegevensverlies voorkomen (Data Loss Prevention, DLP). Dit omvat het instellen van de ondoorzichtigheid van de opvulling/omtrek en het definiëren van de lettergrootte.
 Als je dit beleid of bepaalde waarden niet instelt, gebruikt Chrome het standaardgedrag voor watermerken.
 De standaardwaarden zijn: ondoorzichtigheid van opvulling op 4, ondoorzichtigheid van omtrek op 6 en lettergrootte op 24.
@@ -3260,6 +3270,7 @@ Als je dit beleid niet toepast of niet instelt, worden er geen beveiligingssigna
 Het rapport bevat de profielstatus en gebruiksinformatie, inclusief maar niet beperkt tot de OS-versie, browserversie, geïnstalleerde extensies en toegepaste beleidsregels.
 
 Dit beleid kan alleen worden ingesteld als cloudgebruikersbeleid.</translation>
+<translation id="3060733249129331512">Vragen als een site automatisch meerdere bestanden wil downloaden</translation>
 <translation id="3062559845875011810">Functie niet toestaan</translation>
 <translation id="3063302084011279315">Screencast uitzetten</translation>
 <translation id="3063307261083019730">Niet toestaan dat pagina's met de koptekst <ph name="CACHE_CONTROL_NO_STORE_NAME" /> worden opgeslagen in Back-Forward Cache.</translation>
@@ -3348,6 +3359,19 @@ Als je dit beleid niet instelt, geldt de standaardwaarde 'niet toegestaan' voor 
 <translation id="3150351525324499342">Het icoon voor <ph name="PRODUCT_NAME" /> niet standaard tonen in de werkbalk, maar gebruikers laten kiezen</translation>
 <translation id="3152135410085709340">Lokale bestandstoegang tot file://-URL's op deze sites toestaan in de pdf-viewer</translation>
 <translation id="3152425128389603870">Maak Samengestelde desktop beschikbaar en zet deze standaard aan</translation>
+<translation id="3157506194753687842">Hiermee bepaal je of de <ph name="GEMINI_SPARK_PRODUCT_NAME" />-agent verbinding mag maken met <ph name="PRODUCT_NAME" /> en automatisch browsen mag gebruiken.
+
+0 = <ph name="GEMINI_SPARK_PRODUCT_NAME" /> mag verbinding maken met en automatisch gebruiken browsen in <ph name="PRODUCT_NAME" />
+
+1 = <ph name="GEMINI_SPARK_PRODUCT_NAME" /> mag geen verbinding maken met of automatisch gebruiken browsen in <ph name="PRODUCT_NAME" />
+
+Waarschuwing: Als je <ph name="GEMINI_SPARK_PRODUCT_NAME" /> toestaat verbinding te maken met <ph name="PRODUCT_NAME" /> en automatisch browsen te gebruiken, kan de <ph name="GEMINI_SPARK_PRODUCT_NAME" />-agent zelfstandige acties in meerdere stappen uitvoeren op <ph name="PRODUCT_NAME" />-clients met de actieve browsersessie. Dit brengt aanzienlijke beveiligingsrisico's met zich mee, waaronder risico's voor inloggegevens, toegang tot het lokale netwerk en verlies van contextafhankelijke signalen. Bestaande beheer- en beveiligingsfuncties worden misschien niet gerespecteerd.
+
+We raden beheerders aan het model voor netwerkdreigingen, de nalevingsrichtlijnen en de privacyrichtlijnen van hun organisatie zorgvuldig te evalueren voordat ze deze functie aanzetten.
+
+Dit beleid heeft geen effect als de beleidsregels voor de <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />-app of automatisch browsen in <ph name="PRODUCT_NAME" /> niet worden toegepast. De <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />-app kan bijvoorbeeld worden uitgezet met het beleid <ph name="GEMINI_SETTINGS_POLICY_NAME" />. Ga voor meer informatie over <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> in <ph name="PRODUCT_NAME" /> naar https://support.google.com/chrome/a?p=gemini_in_chrome.
+
+Automatisch browsen in <ph name="PRODUCT_NAME" /> en <ph name="GEMINI_SPARK_PRODUCT_NAME" /> zijn niet in alle landen of alle talen beschikbaar. Als je dit beleid instelt op 0 - Enabled (Aan), garandeert dit niet dat de functie wordt aangezet. De functie blijft afhankelijk van de beschikbaarheid. Check de release-opmerkingen voor Chrome Enterprise voor meer informatie over de uitrol: https://chromeenterprise.google/resources/release-notes/.</translation>
 <translation id="3159375329008977062">Gebruiker kan Crostini-containers exporteren/importeren via de gebruikersinterface</translation>
 <translation id="3163167792874598128">Als je het beleid toepast of niet instelt, kan de promotie voor appstore-beoordelingen maximaal één keer per jaar worden getoond aan de gebruiker.
 Als je het beleid niet toepast, wordt de promotie voor appstore-beoordelingen niet getoond aan de gebruiker.</translation>
@@ -4645,6 +4669,13 @@ Als je dit beleid toepast, kan een gebruiker een proces starten waarbij de brows
 Als je het beleid niet instelt, wordt het gedrag bepaald door het beleid GenAiDefaultSettings.
 
 Ga naar https://support.google.com/chrome/a?p=generative_ai_settings voor meer informatie over gegevensverwerking voor generatieve AI-functies.</translation>
+<translation id="4049815236567245576">Hiermee kun je een lijst met URL-patronen instellen van sites die automatisch meerdere bestanden mogen downloaden.
+
+Ga naar https://chromeenterprise.google/policies/url-patterns voor gedetailleerde informatie over geldige URL-patronen.
+
+Als een URL overeenkomt met zowel <ph name="AUTOMATIC_DOWNLOADS_ALLOWED_FOR_URLS_POLICY_NAME" /> als <ph name="AUTOMATIC_DOWNLOADS_BLOCKED_FOR_URLS_POLICY_NAME" />, heeft AutomaticDownloadsBlockedForUrls voorrang.
+
+Als je dit beleid niet instelt, is <ph name="DEFAULT_AUTOMATIC_DOWNLOADS_SETTING_POLICY_NAME" /> (indien ingesteld) van toepassing op alle sites. Zo niet, dan gelden de persoonlijke instellingen van de gebruiker.</translation>
 <translation id="4051723201852944592">Occlusie van vensters aanzetten</translation>
 <translation id="4052529125939620019">De componentextensie CryptoToken laden bij opstarten</translation>
 <translation id="4053157306171963473">Rapportage voor tijd van apparaatactiviteit uitzetten</translation>
@@ -4739,6 +4770,9 @@ De beschikbaarheid van extensies wordt nog steeds beheerd door andere beleidsreg
 
       Opmerkingen: Beleid dynamisch vernieuwen wordt alleen ondersteund in <ph name="PRODUCT_NAME" /> versie 123 en hoger. Als je 'autofill' uitzet, wordt 'payments' ook uitgezet. 'typedUrls' verwijst naar de hele browsegeschiedenis.</translation>
 <translation id="4115501011761259824">First-Party Sets aanzetten voor alle betrokken gebruikers</translation>
+<translation id="4119598167427266156">Als je het beleid instelt op 1, kunnen websites automatisch meerdere bestanden downloaden. Als je het beleid instelt op 2, wordt dit recht geweigerd. Je kunt het beleid zo instellen dat om goedkeuring wordt gevraagd als een website automatisch meerdere bestanden wil downloaden.
+
+Als je het beleid niet instelt, is het beleid AskAutomaticDownloads van toepassing maar kunnen gebruikers deze instelling wijzigen.</translation>
 <translation id="4120401094617902941">Snelheid waarmee runtime-tellers worden bemonsterd en verzameld. Het toegestane minimum is 1 dag.
 
 Als je dit niet instelt, is de standaardsnelheid van 1 dag van toepassing.</translation>
@@ -4815,6 +4849,21 @@ Als je het beleid instelt op <ph name="DISABLE_UNPUBLISHED" /> (1), worden exten
 
           Als dit beleid niet is ingesteld, staat gesproken feedback op het inlogscherm in eerste instantie uit. De gebruiker kan deze functie op elk gewenst moment aanzetten.</translation>
 <translation id="4173974507809462880">Het scherm met de scrollrichting van de touchpad tonen tijdens het inloggen</translation>
+<translation id="4175846494150407472">Geef een lijst aan met oorsprongen die worden uitgevoerd in een eigen proces op platforms met beperkte bronnen.
+
+Dit beleid werkt alleen op apparaten met beperkt geheugen (tussen 1 GB en 3,2 GB RAM), omdat het isoleren van te veel sites op apparaten met beperkte bronnen prestatieproblemen kan veroorzaken. Voor omgevingen met hoge prestaties (waaronder geavanceerde <ph name="ANDROID_NAME" />-apparaten) gebruik je in plaats daarvan <ph name="ISOLATE_ORIGINS_POLICY_NAME" />.
+
+We raden af om procesisolatie in te stellen op apparaten met minder dan 1 GB geheugen.
+
+Elk proces van een benoemde oorsprong mag alleen documenten bevatten van de betreffende oorsprong en de subdomeinen daarvan. Als je bijvoorbeeld https://a1.example.com/ aangeeft, valt https://a2.a1.example.com/ onder hetzelfde proces, maar https://example.com of https://b.example.com niet.
+
+Je kunt ook met een jokerteken een oorsprongbereik aangeven om te isoleren. Als je bijvoorbeeld https://[*.]corp.example.com aangeeft, krijgt elke oorsprong onder https://corp.example.com een eigen proces, waaronder https://corp.example.com zelf, https://a1.corp.example.com en https://a2.a1.corp.example.com.
+
+Vanaf <ph name="PRODUCT_NAME" /> versie 77 worden bepaalde gevoelige sites standaard geïsoleerd op <ph name="ANDROID_NAME" />. Dit beleid vormt daarvan een uitbreiding waarbij nog meer specifieke oorsprongen worden geïsoleerd.
+
+Oorsprongen die door dit beleid worden geïsoleerd, kunnen geen scripts uitvoeren van andere oorsprongen binnen dezelfde site. Normaal is dit wel mogelijk als 2 documenten van dezelfde site hun waarden voor document.domain op elkaar afstemmen. Beheerders moeten bevestigen dat dit ongebruikelijke gedrag niet wordt toegepast op een oorsprong voordat deze wordt geïsoleerd.
+
+Als je het beleid instelt op een lege tekenreeks of niet instelt, is site-isolatie niet vereist voor specifieke oorsprongen. Gebruikers kunnen procesisolatie nog steeds handmatig aanzetten via de opdrachtregelflag.</translation>
 <translation id="417956245902013347">Zet de toegankelijkheidsfunctie voor de markering van het caret-teken op het inlogscherm aan.
 
           Als dit beleid is ingesteld op True, staat de markering van het caret-teken altijd aan op het inlogscherm.
@@ -5409,7 +5458,6 @@ Ga naar https://chromeenterprise.google/policies/url-patterns voor gedetailleerd
 <translation id="4561940244682063697">Niet toestaan dat sites gebruikers vragen om een videostream van hun scherm te delen</translation>
 <translation id="4562165737444703281">Toestaan dat gebruikers Crostini-poortdoorschakeling [aanzetten/configureren]</translation>
 <translation id="456450545863578630">Bestandsoverdracht in verbindingen voor externe support van bedrijfsbeheerders aanzetten</translation>
-<translation id="4567137030726189378">Het gebruik van de hulpprogramma's voor ontwikkelaars toestaan</translation>
 <translation id="4570859815763368584">Beëindigd in M68. Gebruik in plaats hiervan DefaultPopupsSetting.
 
 Ga naar https://www.chromestatus.com/feature/5675755719622656 voor een volledige uitleg.
@@ -6098,6 +6146,7 @@ Als je dit beleid niet instelt, staat Live ondertiteling in eerste instantie uit
 <translation id="4970046075219007744">Web-apps toestaan om de gebruiker toegang te geven tot bestandstypen via de File Handling API</translation>
 <translation id="4970855112942626932">Inloggen bij browser uitzetten</translation>
 <translation id="4974091268178043378">Chrome OS-kleurmodus</translation>
+<translation id="4976824366963631628">Gegevenstypen voor automatisch invullen blokkeren voor specifieke sites</translation>
 <translation id="4976825008579439428">Sta AI-gestuurd zoeken in geschiedenis niet toe.</translation>
 <translation id="4978533099939732984">Waarschuwingen voor weinig schijfruimte altijd tonen</translation>
 <translation id="4979614740553442831">Dit beleid beheert de beschikbaarheid van de Lens-integratie in de Galerij-app op <ph name="PRODUCT_OS_NAME" />.
@@ -6122,6 +6171,15 @@ Als je het beleid niet toepast, staat deze functie uit.</translation>
 
       Ga naar https://groups.google.com/a/chromium.org/g/blink-dev/c/xHC3AtU_65A voor informatie over de beëindiging van de U2F-beveiligingssleutel-API.</translation>
 <translation id="4988291787868618635">Actie die wordt ondernomen wanneer de inactieve vertraging wordt bereikt</translation>
+<translation id="4988587935113718108">Als je dit beleid toepast, wordt elk van de benoemde oorsprongen in een door komma's gescheiden lijst uitgevoerd in een eigen proces op <ph name="ANDROID_NAME" />. Elk proces van een benoemde oorsprong mag alleen documenten bevatten van de betreffende oorsprong en de subdomeinen daarvan. Als je bijvoorbeeld https://a1.example.com/ aangeeft, is https://a2.a1.example.com/ toegestaan in hetzelfde proces, maar https://example.com of https://b.example.com niet. Vanaf <ph name="PRODUCT_NAME" /> versie 77 worden bepaalde gevoelige sites standaard geïsoleerd op <ph name="ANDROID_NAME" />. Dit beleid vormt daarvan een uitbreiding waarbij nog meer specifieke oorsprongen worden geïsoleerd.
+
+Sinds <ph name="PRODUCT_NAME" /> 77 kun je met een jokerteken een oorsprongbereik aangeven om te isoleren. Als je bijvoorbeeld https://[*.]corp.example.com aangeeft, wordt elke oorsprong onder https://corp.example.com uitgevoerd in een eigen proces, waaronder https://corp.example.com zelf, https://a1.corp.example.com en https://a2.a1.corp.example.com.
+
+Oorsprongen die door dit beleid worden geïsoleerd, kunnen geen scripts uitvoeren van andere oorsprongen binnen dezelfde site. Normaal is dit wel mogelijk als 2 documenten van dezelfde site hun waarden voor document.domain op elkaar afstemmen. Beheerders moeten bevestigen dat dit ongebruikelijke gedrag niet wordt toegepast op een oorsprong voordat deze wordt geïsoleerd.
+
+Als je het beleid instelt op een lege tekenreeks of niet instelt, is site-isolatie niet vereist voor specifieke oorsprongen. Gebruikers kunnen procesisolatie nog steeds handmatig aanzetten via de opdrachtregelflag.
+
+Opmerking: Dit beleid is beëindigd. Gebruik in plaats daarvan <ph name="ISOLATE_ORIGINS_POLICY_NAME" /> (voor apparaten met hoge prestaties) of <ph name="ISOLATE_ORIGINS_SHORTLIST_POLICY_NAME" />. Dit beleid is alleen van toepassing op Chrome op <ph name="ANDROID_NAME" /> op apparaten met meer dan 1 GB RAM. Het wordt niet aanbevolen om specifieke procesisolatie in te stellen.</translation>
 <translation id="4991786313466977061">De zichtbaarheid van zakelijke badges beheren</translation>
 <translation id="4995123966071996433">Poortdoorschakeling naar virtuele Linux-machines niet toestaan</translation>
 <translation id="4996068111491152684">De inloggegevens van <ph name="PRODUCT_OS_NAME" /> worden niet gebruikt voor netwerkverificatie.</translation>
@@ -6179,6 +6237,7 @@ Als je dit beleid instelt op <ph name="POLICY_ENUM_RESTOREONSTARTUP_RESTOREONSTA
 In <ph name="MS_WIN_NAME" /> is dit beleid alleen beschikbaar voor instanties die zijn gekoppeld aan een <ph name="MS_AD_NAME" />-domein of aan <ph name="MS_AAD_NAME" />, of die zijn ingeschreven voor <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
 
 In <ph name="MAC_OS_NAME" /> is dit beleid alleen beschikbaar voor instanties die via MDM worden beheerd, via een MCX aan een domein zijn gekoppeld of zijn ingeschreven voor <ph name="CHROME_ENTERPRISE_CORE_NAME" />.</translation>
+<translation id="5036662165765606524">Sites niet toestaan automatisch meerdere bestanden te downloaden</translation>
 <translation id="5037749623252479780">Instellingen voor PageUp/PageDown staan uit</translation>
 <translation id="5039110755072335605">Ondersteuning voor CORS-verzoekheaders zonder jokertekens</translation>
 <translation id="5039804452771397117">Toestaan</translation>
@@ -6676,6 +6735,7 @@ Beheerde accounts kunnen geen lid te worden van een gezinsgroep of er zelf een m
 <translation id="5345892164332459671">Zwevende SSO uitzetten en de webserviceverificaties van de gebruiker niet naar een nieuw apparaat verplaatsen</translation>
 <translation id="5345910753471481870">De Google Lens-knop niet tonen in het zoekvak op de pagina Nieuw tabblad.</translation>
 <translation id="5346587320074666194">Toegang tot sensoren op deze sites blokkeren</translation>
+<translation id="534702079563980696">Automatische downloads toestaan op deze sites</translation>
 <translation id="5347735051291224683">Met dit beleid bepaal je of webcontent op de achtergrond moet worden uitgevoerd met prioriteit op de voorgrond.
 
 De browser optimaliseert standaard resources door content op tabbladen op de achtergrond minder prioriteit te geven. Als je dit beleid aanzet, wordt dat gedrag overschreven en worden achtergrondtabbladen op dezelfde manier gepland als het actieve tabblad.
@@ -7104,6 +7164,7 @@ Als je het beleid niet instelt of instelt op een lege lijst, worden bevestigings
 <translation id="5599461642204007579">Beheerinstellingen voor <ph name="MS_AD_NAME" /></translation>
 <translation id="5601503069213153581">Pincode</translation>
 <translation id="5605676983184673391">Chrome-apps uitvoeren in kiosksessies toestaan.</translation>
+<translation id="5606477661985737162">Instellingen voor automatische downloads</translation>
 <translation id="5607021831414604820">Rapportage van opslagstatus van apparaat aanzetten</translation>
 <translation id="5607808178576647930">Integraties van de AI-modus toestaan.</translation>
 <translation id="5608114828230655271">Standaard apparaatgedrag</translation>
@@ -7200,6 +7261,7 @@ Dit beleid is een tijdelijke oplossing. Dit beleid is beëindigd vanaf M139.</tr
 <translation id="5660950553460381588">Toegangssleutels waar mogelijk standaard maken in iCloud Sleutelhanger.</translation>
 <translation id="566569751231933416">Standaardgedrag gebruiken.</translation>
 <translation id="5666457529647159548">Gebruikers toestaan geïnstalleerde clientcertificaten te beheren.</translation>
+<translation id="566962283082154427">Vertraging voor opnieuw opschorten voor wekelijks geplande opschortingsintervallen in milliseconden</translation>
 <translation id="5670249935663090320">Als je het beleid toepast of niet instelt, wordt <ph name="PRODUCT_NAME" /> aangezet en kunnen gebruikers dit starten via het app-menu, de paginacontextmenu's, mediabediening op websites die werken met Cast en (als dit wordt getoond) het Cast-icoon op de werkbalk.
 
 Als je het beleid niet toepast, wordt <ph name="PRODUCT_NAME" /> uitgezet.</translation>
@@ -7647,6 +7709,13 @@ Vanaf <ph name="PRODUCT_NAME" /> 147 wordt dit beleid beëindigd. IT-beheerders 
 <translation id="5965344524743236327">De ID of het nummer van het <ph name="GOOGLE_CLOUD_PRODUCT_NAME" />-project dat overeenkomt met de <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />-instantie die moet worden aangezet. Ga naar https://docs.cloud.google.com/resource-manager/docs/creating-managing-projects voor meer informatie over project-ID's.</translation>
 <translation id="5966615072639944554">Extensies die toestemming hebben de API voor externe bevestiging te gebruiken</translation>
 <translation id="596732417280023843">De naam van het certificaatprofiel.</translation>
+<translation id="5972475504452039694">Hiermee kun je een lijst met URL-patronen instellen van sites die niet automatisch meerdere bestanden mogen downloaden.
+
+Ga naar https://chromeenterprise.google/policies/url-patterns voor gedetailleerde informatie over geldige URL-patronen.
+
+Als een URL overeenkomt met zowel <ph name="AUTOMATIC_DOWNLOADS_ALLOWED_FOR_URLS_POLICY_NAME" /> als <ph name="AUTOMATIC_DOWNLOADS_BLOCKED_FOR_URLS_POLICY_NAME" />, heeft AutomaticDownloadsBlockedForUrls voorrang.
+
+Als je dit beleid niet instelt, is <ph name="DEFAULT_AUTOMATIC_DOWNLOADS_SETTING_POLICY_NAME" /> (indien ingesteld) van toepassing op alle sites. Zo niet, dan gelden de persoonlijke instellingen van de gebruiker.</translation>
 <translation id="5972538402066550344">Opties voor gedetailleerde rapportage toestaan</translation>
 <translation id="5973437409890460481">Verbindingen voor externe zakelijke toegang voor deze machine toestaan</translation>
 <translation id="5975765799383881158">Als je het beleid toepast of niet instelt, kunnen gebruikers feedback naar Google sturen via Menu &gt; Hulp &gt; Een probleem melden of via een toetscombinatie.
@@ -7900,6 +7969,7 @@ De time-out voor inactiviteit waarna de screensaver wordt gestart en het interva
 <translation id="6181783961196084973">De waarde van de schakelaar voor de verzameling van app-activiteit. Als de schakelaar is ingesteld op True, wordt app-activiteit gerapporteerd aan de server zodat het te zien is in de <ph name="PRODUCT_NAME" />-app van het kind en de ouder. Als ingesteld op False, werkt de functie voor tijdslimieten per app nog steeds, maar worden er geen gegevens gerapporteerd aan de server en getoond in <ph name="PRODUCT_NAME" />.</translation>
 <translation id="6182206125906000651">HTTPS-upgrades uitzetten.</translation>
 <translation id="6182563940865917569">Toestaan dat Chrome media automatisch afspeelt</translation>
+<translation id="618588573990666077">Standaardinstelling voor automatische downloads</translation>
 <translation id="618635925649844912">Met dit beleid bepaal je of het introductiescherm voor AI-functies in de sessie aan de gebruiker wordt getoond tijdens de eerste keer inloggen.
 
       Als je dit beleid niet toepast, wordt het AI-introductiescherm niet getoond.
@@ -8069,6 +8139,7 @@ Als je dit beleid toepast of niet instelt, volgt de browser deze nieuwe standaar
 Als je dit beleid niet toepast, wordt deze wijziging teruggedraaid en worden documenten zonder een header Origin-Agent-Cluster: toegewezen aan site-keyed agentclusters. Als gevolg hiervan blijft de accessor document.domain standaard instelbaar. Dit komt overeen met het verouderde gedrag.
 
 Zie https://developer.chrome.com/blog/immutable-document-domain/ voor meer informatie.</translation>
+<translation id="626942726350419209">Sites toestaan automatisch meerdere bestanden te downloaden</translation>
 <translation id="6270615143812355589">Audio-invoer aanzetten</translation>
 <translation id="6270791075656665237">QUIC niet toestaan</translation>
 <translation id="6273015149273504999">
@@ -8467,6 +8538,7 @@ OPMERKING: Het standaardgedrag voor consumenten- en zakelijke apparaten verschil
 
       Opmerking: Als de huidige invoermethode niet wordt ondersteund, wordt de invoermethode overgeschakeld naar het hardwaretoetsenbord (indien toegestaan) of het eerste geldige item in deze lijst. Ongeldige of niet-ondersteunde methoden worden genegeerd.</translation>
 <translation id="6483115462650732746">Zwevend toegankelijkheidsmenu tonen in de kioskmodus</translation>
+<translation id="6488321500788319000">Site-isolatie aanzetten voor aangegeven oorsprongen op apparaten met beperkte bronnen</translation>
 <translation id="6491139795995924304">Bluetooth toestaan op apparaat</translation>
 <translation id="6491305972928809525">Zwevend toegankelijkheidsmenu niet tonen in de kioskmodus</translation>
 <translation id="6492177700737407141">Gebruikers die zijn ingeschreven voor Geavanceerde beveiliging krijgen alleen standaardbescherming voor consumenten</translation>
@@ -8520,6 +8592,23 @@ De time-out voor inactiviteit waarna de screensaver wordt gestart en het interva
 <translation id="651248769129998376">Geen installatieverzoeken voor extensies maken of uploaden naar de Beheerdersconsole</translation>
 <translation id="6513453889192806240">HTTPS-latentie</translation>
 <translation id="6515357889978918016"><ph name="PLUGIN_VM_NAME" />-afbeelding</translation>
+<translation id="6515520014183265350">Geef een lijst aan met oorsprongen die in een eigen proces worden uitgevoerd.
+
+Op <ph name="ANDROID_NAME" /> werkt dit beleid alleen voor apparaten met voldoende geheugen (meer dan 3,2 GB RAM), omdat het isoleren van te veel sites op apparaten met beperkte bronnen prestatieproblemen kan veroorzaken. Gebruik <ph name="ISOLATE_ORIGINS_SHORTLIST_POLICY_NAME" /> voor <ph name="ANDROID_NAME" />-apparaten met beperkte bronnen.
+
+We raden af om procesisolatie in te stellen op apparaten met minder dan 1 GB geheugen.
+
+Elk proces van een benoemde oorsprong mag alleen documenten bevatten van de betreffende oorsprong en de subdomeinen daarvan. Als je bijvoorbeeld https://a1.example.com/ aangeeft, valt https://a2.a1.example.com/ onder hetzelfde proces, maar https://example.com of https://b.example.com niet.
+
+Sinds <ph name="PRODUCT_NAME" /> 77 kun je met een jokerteken een oorsprongbereik aangeven om te isoleren. Als je bijvoorbeeld https://[*.]corp.example.com aangeeft, wordt elke oorsprong onder https://corp.example.com uitgevoerd in een eigen proces, waaronder https://corp.example.com zelf, https://a1.corp.example.com en https://a2.a1.corp.example.com.
+
+Zoals wordt vermeld in ons beleid <ph name="SITE_PER_PROCESS_POLICY_NAME" />, zijn op desktopplatforms alle sites (dus het schema plus eTLD+1, zoals https://example.com) standaard geïsoleerd. Het beleid <ph name="ISOLATE_ORIGINS_POLICY_NAME" /> is handig om specifieke oorsprongen op een lager detailniveau te isoleren (bijvoorbeeld https://a.example.com).
+
+<ph name="ANDROID_NAME" /> isoleert bepaalde gevoelige sites standaard vanaf versie 77 van <ph name="PRODUCT_NAME" />. Dit beleid breidt die modus uit om specifieke extra oorsprongen te isoleren.
+
+Oorsprongen die door dit beleid worden geïsoleerd, kunnen geen scripts uitvoeren van andere oorsprongen binnen dezelfde site. Normaal is dit wel mogelijk als 2 documenten van dezelfde site hun waarden voor document.domain op elkaar afstemmen. Beheerders moeten bevestigen dat dit ongebruikelijke gedrag niet wordt toegepast op een oorsprong voordat deze wordt geïsoleerd.
+
+Als je het beleid instelt op een lege tekenreeks of niet instelt, is site-isolatie niet vereist voor specifieke oorsprongen. Gebruikers kunnen procesisolatie nog steeds handmatig aanzetten via de opdrachtregelflag.</translation>
 <translation id="6517859209214570623">Als je het beleid instelt, kun je een lijst met URL-patronen aangeven van sites die geen cookies mogen instellen.
 
       Als je het beleid niet instelt, wordt <ph name="DEFAULT_COOKIES_SETTINGS_POLICY_NAME" /> gebruikt voor alle sites als dit is ingesteld. Zo niet, dan gelden de persoonlijke instellingen van de gebruiker.
@@ -10227,6 +10316,7 @@ Als je geen beleid opgeeft, zijn er geen uitzonderingen toegestaan op <ph name="
 <translation id="759957074386651883">Safe Browsing-instellingen</translation>
 <translation id="7602621823177962064">Rapportage van geheugeninformatie van apparaat uitzetten</translation>
 <translation id="7604169113182304895">Het is mogelijk dat Android-apps deze lijst op vrijwillige basis respecteren. Je kunt ze niet dwingen om de lijst te respecteren.</translation>
+<translation id="7607831126797434329">Automatische downloads blokkeren op deze sites</translation>
 <translation id="7608186022704392724">Met de functie voor automatisch versturen van pincodes kun je wijzigen hoe pincodes worden ingevoerd in <ph name="PRODUCT_OS_NAME" />.
           Deze functie heeft een speciale UI die gebruikers duidelijk laat zien hoeveel tekens er voor hun pincode zijn vereist in plaats van hetzelfde tekstveld voor de invoer van het wachtwoord te tonen. Hierdoor wordt de lengte van de pincode van de gebruiker niet samen met de versleutelde gegevens van die gebruiker opgeslagen. Alleen pincodes die tussen 6 en 12 cijfers lang zijn, worden ondersteund.
 
@@ -11347,7 +11437,6 @@ Er zijn meerdere beleidsregels met oorsprongen die van invloed zijn op verzoeken
 
           Als dit beleid niet wordt ingesteld, wordt 'BlockKeygen' gebruikt en kan de gebruiker dit wijzigen.</translation>
 <translation id="8314214821702356835">Hiermee kunnen gebruikers media afspelen wanneer het apparaat vergrendeld is</translation>
-<translation id="8314308739926578606">Het gebruik van de tools voor ontwikkelaars niet toestaan voor apps en extensies die via het organisatiebeleid zijn geïnstalleerd of, sinds versie 114 en als dit een beheerde gebruiker is, extensies die in de browser zijn ingebouwd. Het gebruik van de tools voor ontwikkelaars toestaan in andere contexten.</translation>
 <translation id="8316940611391250886">Certificaten zonder de extensie subjectAlternativeName niet toestaan</translation>
 <translation id="8319678975002906774">Stelt waarden voor beheerde configuraties voor websites in voor specifieke herkomsten</translation>
 <translation id="8320149248919453401">Batterijoplaadmodus</translation>

@@ -314,6 +314,20 @@ chromium-metrics-reviews@google.com.
   <int value="13" label="Downgrade is not allowed"/>
 </enum>
 
+<!-- LINT.IfChange(IwaComponentBestEffortWaitOutcome) -->
+
+<enum name="IwaComponentBestEffortWaitOutcome">
+  <int value="0" label="Component already ready (No wait needed)"/>
+  <int value="1"
+      label="Fell back to preload (On-demand update timed out/failed)"/>
+  <int value="2"
+      label="Loaded existing cache (Completed waiting for local disk read)"/>
+  <int value="3"
+      label="Downloaded new component (Successfully fetched newer version)"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/web_applications/isolated_web_apps/key_distribution/iwa_key_distribution_histograms.h:IwaComponentBestEffortWaitOutcome) -->
+
 <!-- LINT.IfChange(IwaComponentUpdateError) -->
 
 <enum name="IwaComponentUpdateError">

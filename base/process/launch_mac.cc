@@ -66,8 +66,6 @@ int posix_spawnattr_set_csm_np(const posix_spawnattr_t*, uint32_t)
 #endif  // TARGET_OS_SIMULATOR
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
-#include "base/process/launch.h"
-
 #include <crt_externs.h>
 #include <mach/mach.h>
 #include <spawn.h>
@@ -76,11 +74,14 @@ int posix_spawnattr_set_csm_np(const posix_spawnattr_t*, uint32_t)
 
 #include "base/apple/mach_port_rendezvous.h"
 #include "base/command_line.h"
+#include "base/containers/auto_spanification_helper.h"
+#include "base/containers/span.h"
 #include "base/files/scoped_file.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/process/environment_internal.h"
+#include "base/process/launch.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/trace_event/trace_event.h"
@@ -322,16 +323,23 @@ Process LaunchProcess(const std::vector<std::string>& argv,
   for (const auto& arg : argv) {
     argv_cstr.push_back(const_cast<char*>(arg.c_str()));
   }
+
   argv_cstr.push_back(nullptr);
 
+  base::span<const char* const> new_environ;
+  if (!options.clear_environment) {
+    new_environ = internal::GetEnvironment();
+  }
+
   base::HeapArray<char*> owned_environ;
-  char* empty_environ = nullptr;
-  char** new_environ =
-      options.clear_environment ? &empty_environ : *_NSGetEnviron();
   if (!new_environment_map.empty()) {
-    owned_environ =
-        internal::AlterEnvironment(new_environ, new_environment_map);
-    new_environ = owned_environ.data();
+    // SAFETY: AlterEnvironment() requires each string in the input span to be
+    // null-terminated. internal::GetEnvironment() promises in its header
+    // contract (see environment_internal.h) that each string it returns is
+    // null-terminated, satisfying this requirement. See:
+    // https://leopard-adc.pepas.com/documentation/Darwin/Reference/ManPages/man7/environ.7.html
+    owned_environ = UNSAFE_BUFFERS(
+        internal::AlterEnvironment(new_environ, new_environment_map));
   }
 
   const char* executable_path = !options.real_path.empty()
@@ -389,8 +397,15 @@ Process LaunchProcess(const std::vector<std::string>& argv,
             : nullptr);
 #endif
     // Use posix_spawnp as some callers expect to have PATH consulted.
-    rv = posix_spawnp(&pid, executable_path, file_actions.get(), attr.get(),
-                      &argv_cstr[0], new_environ);
+    //
+    // SAFETY: `new_environ.data()` points to the system's `environ` array,
+    // which is actually mutable (`char**`). `posix_spawnp` does not modify
+    // the envp array or the strings it points to, so casting away constness
+    // to match the posix_spawnp signature is safe.
+    rv = posix_spawnp(
+        &pid, executable_path, file_actions.get(), attr.get(), &argv_cstr[0],
+        owned_environ.empty() ? const_cast<char**>(new_environ.data())
+                              : owned_environ.data());
 
 #if !BUILDFLAG(IS_IOS)
     if (needs_rendezvous_lock) {

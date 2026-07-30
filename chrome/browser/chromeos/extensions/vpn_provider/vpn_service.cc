@@ -15,9 +15,9 @@
 #include "base/task/sequenced_task_runner_helpers.h"
 #include "base/uuid.h"
 #include "base/values.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/common/extensions/api/vpn_provider.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/components/dbus/shill/shill_third_party_vpn_driver_client.h"
 #include "chromeos/ash/components/dbus/shill/shill_third_party_vpn_observer.h"
 #include "chromeos/ash/components/network/network_configuration_handler.h"
@@ -253,8 +253,9 @@ void VpnService::CreateConfiguration(const std::string& extension_id,
   const ash::NetworkProfile* profile =
       ash::NetworkHandler::Get()
           ->network_profile_handler()
-          ->GetProfileForUserhash(ash::ProfileHelper::GetUserIdHashFromProfile(
-              ProfileManager::GetPrimaryUserProfile()));
+          ->GetProfileForUserhash(
+              ash::BrowserContextHelper::GetUserIdHashFromBrowserContext(
+                  ProfileManager::GetPrimaryUserProfile()));
   if (!profile) {
     std::move(failure).Run(
         /*error_name=*/"",

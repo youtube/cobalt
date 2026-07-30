@@ -43,6 +43,7 @@ import org.robolectric.annotation.Config;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.omnibox.R;
@@ -448,6 +449,9 @@ public class OmniboxSuggestionsDropdownUnitTest {
 
         PreWarmingRecycledViewPool pool =
                 (PreWarmingRecycledViewPool) dropdown.getRecycledViewPool();
+
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
+
         // Verify pool is initially pre-warmed.
         assertEquals(
                 PreWarmingRecycledViewPool.PRE_WARMED_DEFAULT_VIEW_COUNT,

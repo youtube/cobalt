@@ -167,6 +167,8 @@ enum {
   kBookmarkBarVisibilityState = 116,
   kSyncableAccountScopedPrefForTesting = 117,  // For tests.
   kAutofillAtMemoryTriggerInfo = 118,
+  kAutofillGmailOtpFillingEnabled = 119,
+  kAutofillGmailOtpFillingActivationDismissalTimestamp = 120,
   // New entries should be added above this line.
   kSubscriptionEligibilityAiSubscriptionTier =
       100338,  // (different ID as it's a move from //chrome)
@@ -494,6 +496,13 @@ constexpr auto kCommonSyncablePrefsAllowlist =
         {autofill::prefs::kAutofillAtMemoryTriggerInfo,
          {syncable_prefs_ids::kAutofillAtMemoryTriggerInfo, syncer::PREFERENCES,
           PrefSensitivity::kNone, MergeBehavior::kNone}},
+        {autofill::prefs::kAutofillGmailOtpFillingEnabled,
+         {syncable_prefs_ids::kAutofillGmailOtpFillingEnabled,
+          syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
+        {autofill::prefs::kAutofillGmailOtpFillingActivationDismissalTimestamp,
+         {syncable_prefs_ids::
+              kAutofillGmailOtpFillingActivationDismissalTimestamp,
+          syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
     });
 
 }  // namespace

@@ -50,13 +50,11 @@ class IOSPasskeyClient {
   virtual void SetIOSPasskeyClientCommandsHandler(
       id<IOSPasskeyClientCommands> handler) = 0;
 
-  // Performs user verification and returns whether it was successful.
-  virtual bool PerformUserVerification() = 0;
-
   // Fetches the keys for the provided purpose and calls the callback with the
   // fetched keys as input.
   virtual void FetchKeys(ReauthenticatePurpose purpose,
-                         KeysFetchedCallback callback) = 0;
+                         PasskeyUserVerificationStatus user_verification_status,
+                         FetchKeysCallback callback) = 0;
 
   // Shows the bottom sheet with passkey suggestions.
   virtual void ShowSuggestionBottomSheet(RequestInfo request_info) = 0;
@@ -79,6 +77,9 @@ class IOSPasskeyClient {
   // Returns whether passkeys can be saved to Google Password Manager based on
   // enterprise policies and sync status.
   virtual bool IsGpmPasskeySavingEnabled() const = 0;
+
+  // Returns whether biometric authentication is enabled.
+  virtual bool IsBiometricsEnabled() const = 0;
 
  protected:
   IOSPasskeyClient() = default;

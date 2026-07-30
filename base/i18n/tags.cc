@@ -8,30 +8,29 @@
 #include "base/i18n/tag_converters.h"
 #include "base/no_destructor.h"
 
-namespace base::language_tags {
+namespace base::i18n::language_tags {
 namespace {
 
 LanguageTag CreateChecked(std::string_view tag) {
-  std::optional<LanguageTag> lang_tag =
+  std::optional<LanguageTag> lt =
       LanguageTagConverter::GetInstance().FromString(tag);
-  CHECK(lang_tag.has_value()) << "Invalid language tag: " << tag;
-  return std::move(lang_tag).value();
+  CHECK(lt.has_value()) << "Invalid language tag: " << tag;
+  return std::move(lt).value();
 }
 
 }  // namespace
 
-const base::LanguageTag& UNDEFINED() {
+const LanguageTag& UNDEFINED() {
   static const base::NoDestructor<LanguageTag> kundefined(CreateChecked("und"));
   return *kundefined;
 }
 
 #define IMPL_LANGUAGECODE_TAG_NAME(tag, name)                               \
-  const base::LanguageTag& name() {                                         \
+  const LanguageTag& name() {                                               \
     static const base::NoDestructor<LanguageTag> kname(CreateChecked(tag)); \
     return *kname;                                                          \
   }
-
 #include "base/i18n/internal/canonical_language_tags.inc"
 #undef IMPL_LANGUAGECODE_TAG_NAME
 
-}  // namespace base::language_tags
+}  // namespace base::i18n::language_tags

@@ -34,6 +34,7 @@ static_library("accessibility") {
 
   deps = [
     "//ash",
+    "//ash/constants",
     "//ash/webui/settings/public/constants",
     "//chrome/browser:browser_process",
     "//chrome/browser:resources_grit",
@@ -200,6 +201,7 @@ source_set("browser_tests") {
     ":test_support",
     "//ash/app_list",
     "//ash/app_list/model:app_list_model",
+    "//ash/constants",
     "//base",
     "//chrome/app:command_ids",
     "//chrome/browser:browser_process_platform_part",
@@ -248,6 +250,7 @@ if (is_chromeos_device) {
     deps = [
       ":accessibility",
       "//ash",
+      "//ash/constants",
       "//base",
       "//chrome/browser/speech",
       "//chrome/common",

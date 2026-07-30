@@ -266,12 +266,6 @@ std::unique_ptr<permissions::PermissionPrompt> CreateQuietPrompt(
 std::unique_ptr<permissions::PermissionPrompt> CreatePermissionPrompt(
     content::WebContents* web_contents,
     permissions::PermissionPrompt::Delegate* delegate) {
-  if (!GetBrowser(web_contents)) {
-    DLOG(WARNING) << "Permission prompt suppressed because the WebContents is "
-                     "not attached to any Browser window.";
-    return nullptr;
-  }
-
   if (delegate->ShouldDropCurrentRequestIfCannotShowQuietly() &&
       IsFullScreenMode(web_contents)) {
     return nullptr;

@@ -63,10 +63,10 @@ class PrivateVerificationTokensServiceBrowserTest : public PlatformBrowserTest {
     std::vector<private_verification_tokens::PrivateVerificationTokensToken>
         tokens;
     const auto expiration = base::Time::Now() + base::Hours(2);
-    tokens.emplace_back("a.com", std::vector<uint8_t>{1, 2, 3}, 1, expiration,
-                        1);
-    tokens.emplace_back("b.org", std::vector<uint8_t>{4, 5, 6, 7}, 2,
-                        expiration, 1);
+    tokens.emplace_back(url::Origin::Create(GURL("https://a.com")),
+                        std::vector<uint8_t>{1, 2, 3}, 1, expiration, 1);
+    tokens.emplace_back(url::Origin::Create(GURL("https://b.org")),
+                        std::vector<uint8_t>{4, 5, 6, 7}, 2, expiration, 1);
     return tokens;
   }
 
@@ -114,8 +114,7 @@ class PrivateVerificationTokensServiceBrowserTest : public PlatformBrowserTest {
           expected_tokens) {
     base::flat_map<url::Origin, std::vector<uint8_t>> expected_map;
     for (const auto& token : expected_tokens) {
-      expected_map[url::Origin::Create(
-          GURL("https://" + token.etld_plus_one()))] = token.token();
+      expected_map[token.issuer()] = token.token();
     }
 
     EXPECT_EQ(actual_tokens.size(), expected_map.size());

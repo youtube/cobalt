@@ -58,17 +58,15 @@ UIColor* FakeboxBottomColor() {
     [self addSubview:_fakeLocationBarGradientView];
     AddSameConstraints(self, _fakeLocationBarGradientView);
 
-    if (IsNTPBackgroundCustomizationEnabled()) {
-      UIVisualEffect* blurEffect =
-          [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThickMaterial];
-      _fakeLocationBarBlurEffectView =
-          [[UIVisualEffectView alloc] initWithEffect:blurEffect];
-      _fakeLocationBarBlurEffectView.userInteractionEnabled = NO;
-      _fakeLocationBarBlurEffectView.translatesAutoresizingMaskIntoConstraints =
-          NO;
-      [self addSubview:_fakeLocationBarBlurEffectView];
-      AddSameConstraints(self, _fakeLocationBarBlurEffectView);
-    }
+    UIVisualEffect* blurEffect =
+        [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThickMaterial];
+    _fakeLocationBarBlurEffectView =
+        [[UIVisualEffectView alloc] initWithEffect:blurEffect];
+    _fakeLocationBarBlurEffectView.userInteractionEnabled = NO;
+    _fakeLocationBarBlurEffectView.translatesAutoresizingMaskIntoConstraints =
+        NO;
+    [self addSubview:_fakeLocationBarBlurEffectView];
+    AddSameConstraints(self, _fakeLocationBarBlurEffectView);
 
     _fakeLocationBarHighlightView = [[UIView alloc] init];
     _fakeLocationBarHighlightView.userInteractionEnabled = NO;
@@ -79,12 +77,9 @@ UIColor* FakeboxBottomColor() {
     AddSameConstraints(self, _fakeLocationBarHighlightView);
 
     // Make sure the correct background is visible.
-    if (IsNTPBackgroundCustomizationEnabled()) {
-      [self applyBackgroundTheme];
-    } else {
-      _fakeLocationBarGradientView.hidden = NO;
-      _fakeLocationBarBlurEffectView.hidden = YES;
-    }
+    [self registerForTraitChanges:@[ NewTabPageImageBackgroundTrait.class ]
+                       withAction:@selector(applyBackgroundTheme)];
+    [self applyBackgroundTheme];
   }
   return self;
 }

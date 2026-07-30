@@ -2718,6 +2718,44 @@ TEST_F(RenderWidgetHostTest, AddAndRemoveImeInputEventObserver) {
 }
 #endif
 
+TEST_F(RenderWidgetHostTest, SetAndCommitExternallySourcedComposition) {
+  std::u16string text = u"hello";
+  int length = text.length();
+
+  ui::ImeTextSpan ime_text_span;
+  ime_text_span.end_offset = length;
+  ime_text_span.underline_style = ui::ImeTextSpan::UnderlineStyle::kDot;
+  host_->SetExternallySourcedComposition(text, {ime_text_span});
+
+  {
+    MockWidgetInputHandler::MessageVector dispatched_messages =
+        host_->mock_render_input_router()->GetAndResetDispatchedMessages();
+    ASSERT_EQ(1u, dispatched_messages.size());
+    MockWidgetInputHandler::DispatchedIMEMessage* ime_message =
+        dispatched_messages[0]->ToIME();
+    ASSERT_TRUE(ime_message);
+    EXPECT_EQ("SetComposition", ime_message->name());
+    EXPECT_TRUE(ime_message->Matches(text, {ime_text_span},
+                                     gfx::Range::InvalidRange(), length, length,
+                                     blink::mojom::ImeState::kNone));
+  }
+
+  host_->CommitExternallySourcedComposition(text);
+
+  {
+    MockWidgetInputHandler::MessageVector dispatched_messages =
+        host_->mock_render_input_router()->GetAndResetDispatchedMessages();
+    ASSERT_EQ(1u, dispatched_messages.size());
+    MockWidgetInputHandler::DispatchedIMEMessage* ime_message =
+        dispatched_messages[0]->ToIME();
+    ASSERT_TRUE(ime_message);
+    EXPECT_EQ("CommitText", ime_message->name());
+    EXPECT_TRUE(ime_message->Matches(text, std::vector<ui::ImeTextSpan>(),
+                                     gfx::Range::InvalidRange(), 0, 0,
+                                     blink::mojom::ImeState::kNone));
+  }
+}
+
 // Tests that vertical scroll direction changes are propagated to the delegate.
 TEST_F(RenderWidgetHostTest, OnVerticalScrollDirectionChanged) {
   const auto NotifyVerticalScrollDirectionChanged =

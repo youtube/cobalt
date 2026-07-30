@@ -185,9 +185,9 @@ class MockDnsNetworkContext : public network::TestNetworkContext {
       return;
     }
 
-    if (simulate_failure_) {
-      client->OnComplete(net::ERR_NAME_NOT_RESOLVED,
-                         net::ResolveErrorInfo(net::ERR_NAME_NOT_RESOLVED),
+    if (simulated_error_ != net::OK) {
+      client->OnComplete(simulated_error_,
+                         net::ResolveErrorInfo(simulated_error_),
                          /*resolved_addresses=*/net::AddressList(),
                          /*alternative_endpoints=*/{});
       return;
@@ -209,13 +209,13 @@ class MockDnsNetworkContext : public network::TestNetworkContext {
 
   int resolve_host_called_count() const { return resolve_host_called_count_; }
   void reset_called_count() { resolve_host_called_count_ = 0; }
-  void set_simulate_failure(bool failure) { simulate_failure_ = failure; }
   void set_simulate_timeout(bool timeout) { simulate_timeout_ = timeout; }
+  void set_simulated_error(net::Error error) { simulated_error_ = error; }
 
  private:
   int resolve_host_called_count_ = 0;
-  bool simulate_failure_ = false;
   bool simulate_timeout_ = false;
+  net::Error simulated_error_ = net::OK;
   std::vector<mojo::Remote<network::mojom::ResolveHostClient>> pending_clients_;
 };
 
@@ -577,7 +577,7 @@ TEST_P(RealTimeUrlLookupServiceStartFillingRequestProtoTest,
 TEST_F(RealTimeUrlLookupServiceTest, DnsResolutionFails) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(kSafeBrowsingWaitForDnsForRealTimeLookup);
-  mock_network_context_.set_simulate_failure(true);
+  mock_network_context_.set_simulated_error(net::ERR_NAME_NOT_RESOLVED);
 
   GURL url("http://example.com/");
   EXPECT_CALL(*referrer_chain_provider_,
@@ -627,6 +627,34 @@ TEST_F(RealTimeUrlLookupServiceTest, DnsResolutionTimesOut) {
   histogram_tester.ExpectUniqueSample(
       "SafeBrowsing.RT.DnsResolution.Result",
       RealTimeUrlLookupServiceBase::DnsResolutionResult::kTimeout, 1);
+  histogram_tester.ExpectTotalCount("SafeBrowsing.RT.DnsResolution.Time", 1);
+}
+
+TEST_F(RealTimeUrlLookupServiceTest, DnsResolutionSkipped) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kSafeBrowsingWaitForDnsForRealTimeLookup);
+  mock_network_context_.set_simulated_error(net::ERR_DNS_DIRECT_ONLY);
+
+  GURL url("http://example.com/");
+  EXPECT_CALL(*referrer_chain_provider_,
+              IdentifyReferrerChainByPendingEventURL(_, _, _))
+      .WillRepeatedly([](const GURL& event_url, int user_gesture_count_limit,
+                         ReferrerChain* out_referrer_chain) {
+        out_referrer_chain->Add();
+        return ReferrerChainProvider::SUCCESS;
+      });
+
+  base::HistogramTester histogram_tester;
+  auto result = StartFillingRequestProto(url, /*is_sampled_report=*/false);
+  ASSERT_TRUE(result);
+  EXPECT_EQ(mock_network_context_.resolve_host_called_count(), 1);
+  ASSERT_EQ(result->referrer_chain_size(), 1);
+  // IP addresses should be empty since DNS was skipped.
+  EXPECT_EQ(result->referrer_chain(0).ip_addresses_size(), 0);
+
+  histogram_tester.ExpectUniqueSample(
+      "SafeBrowsing.RT.DnsResolution.Result",
+      RealTimeUrlLookupServiceBase::DnsResolutionResult::kSkipped, 1);
   histogram_tester.ExpectTotalCount("SafeBrowsing.RT.DnsResolution.Time", 1);
 }
 

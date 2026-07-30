@@ -51,14 +51,29 @@
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/views/controls/button/menu_button.h"
 #include "ui/views/controls/combobox/combobox.h"
+#include "ui/views/controls/scroll_view.h"
 #include "ui/views/controls/tabbed_pane/tabbed_pane.h"
 #include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/interaction/interaction_sequence_views.h"
+#include "ui/views/layout/box_layout_view.h"
 #include "ui/views/test/button_test_api.h"
+#include "ui/views/view_utils.h"
 
 namespace translate {
 
 namespace {
+
+views::BoxLayoutView* GetListView(views::View* search_view) {
+  if (search_view->children().size() < 2) {
+    return nullptr;
+  }
+  views::View* scroll_view = search_view->children()[1];
+  if (views::IsViewClass<views::ScrollView>(scroll_view)) {
+    return views::AsViewClass<views::BoxLayoutView>(
+        static_cast<views::ScrollView*>(scroll_view)->contents());
+  }
+  return nullptr;
+}
 
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kTranslateSettingsElementId);
 
@@ -492,10 +507,7 @@ IN_PROC_BROWSER_TEST_P(TranslateBubbleViewSearchUIUITest,
           TranslateBubbleView::kTargetLanguageCombobox,
           "TargetLanguageHoverButton",
           base::BindRepeating([](views::View* search_view) -> views::View* {
-            return static_cast<TranslateLanguageSearchView*>(search_view)
-                ->get_list_view_for_testing()
-                ->children()
-                .front();
+            return GetListView(search_view)->children().front();
           })),
       PressButton("TargetLanguageHoverButton"),
       PressButton(TranslateBubbleView::kTargetLanguageDoneButton),

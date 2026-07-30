@@ -693,16 +693,57 @@ TEST_F(GWSPageLoadMetricsObserverTest, NoServiceWorker) {
 }
 
 TEST_F(GWSPageLoadMetricsObserverTest, FontLoadingMetrics) {
+  constexpr base::TimeDelta kFallbackDuration = base::Milliseconds(150);
+  constexpr uint32_t kFallbackCount = 14;
+  constexpr base::TimeDelta kFallbackInitialDuration = base::Milliseconds(42);
+  constexpr uint32_t kShapeCacheHitCount = 80;
+  constexpr uint32_t kShapeCacheMissCount = 20;
+  constexpr uint32_t kShapeCacheHitRate = 80;
+  constexpr uint32_t kLatinFallbackCount = 3;
+  constexpr uint32_t kHanFallbackCount = 2;
+  constexpr uint32_t kEmojiFallbackCount = 4;
+  constexpr uint32_t kCommonFallbackCount = 5;
+
   page_load_metrics::mojom::PageLoadTiming timing;
   InitializeTestPageLoadTiming(&timing);
 
   auto font_loading_metrics =
       page_load_metrics::mojom::FontLoadingMetrics::New();
-  font_loading_metrics->fallback_duration = base::Milliseconds(150);
-  font_loading_metrics->fallback_count = 5;
-  font_loading_metrics->fallback_initial_duration = base::Milliseconds(42);
-  font_loading_metrics->shape_cache_hit_count = 80;
-  font_loading_metrics->shape_cache_miss_count = 20;
+  font_loading_metrics->fallback_duration = kFallbackDuration;
+  font_loading_metrics->fallback_count = kFallbackCount;
+  font_loading_metrics->fallback_initial_duration = kFallbackInitialDuration;
+  font_loading_metrics->shape_cache_hit_count = kShapeCacheHitCount;
+  font_loading_metrics->shape_cache_miss_count = kShapeCacheMissCount;
+
+  auto latin_script_metrics =
+      page_load_metrics::mojom::ScriptFallbackInfo::New();
+  latin_script_metrics->script_type =
+      page_load_metrics::mojom::ScriptType::kLatin;
+  latin_script_metrics->fallback_count = kLatinFallbackCount;
+  font_loading_metrics->script_fallback_metrics.push_back(
+      std::move(latin_script_metrics));
+
+  auto han_script_metrics = page_load_metrics::mojom::ScriptFallbackInfo::New();
+  han_script_metrics->script_type = page_load_metrics::mojom::ScriptType::kHan;
+  han_script_metrics->fallback_count = kHanFallbackCount;
+  font_loading_metrics->script_fallback_metrics.push_back(
+      std::move(han_script_metrics));
+
+  auto emoji_script_metrics =
+      page_load_metrics::mojom::ScriptFallbackInfo::New();
+  emoji_script_metrics->script_type =
+      page_load_metrics::mojom::ScriptType::kEmoji;
+  emoji_script_metrics->fallback_count = kEmojiFallbackCount;
+  font_loading_metrics->script_fallback_metrics.push_back(
+      std::move(emoji_script_metrics));
+
+  auto common_script_metrics =
+      page_load_metrics::mojom::ScriptFallbackInfo::New();
+  common_script_metrics->script_type =
+      page_load_metrics::mojom::ScriptType::kCommon;
+  common_script_metrics->fallback_count = kCommonFallbackCount;
+  font_loading_metrics->script_fallback_metrics.push_back(
+      std::move(common_script_metrics));
 
   // Wait until the browser init is complete.
   AfterStartupTaskUtils::SetBrowserStartupIsCompleteForTesting();
@@ -715,18 +756,35 @@ TEST_F(GWSPageLoadMetricsObserverTest, FontLoadingMetrics) {
   tester()->histogram_tester().ExpectTotalCount(
       "PageLoad.Clients.GoogleSearch.FontLoading.FallbackDuration2.FCP", 1);
   tester()->histogram_tester().ExpectBucketCount(
-      "PageLoad.Clients.GoogleSearch.FontLoading.FallbackDuration2.FCP", 150,
-      1);
+      "PageLoad.Clients.GoogleSearch.FontLoading.FallbackDuration2.FCP",
+      kFallbackDuration.InMilliseconds(), 1);
 
   tester()->histogram_tester().ExpectTotalCount(
       "PageLoad.Clients.GoogleSearch.FontLoading.FallbackCount.FCP", 1);
   tester()->histogram_tester().ExpectBucketCount(
-      "PageLoad.Clients.GoogleSearch.FontLoading.FallbackCount.FCP", 5, 1);
+      "PageLoad.Clients.GoogleSearch.FontLoading.FallbackCount.FCP",
+      kFallbackCount, 1);
 
   tester()->histogram_tester().ExpectTotalCount(
       "PageLoad.Clients.GoogleSearch.FontLoading.ShapeCacheHitRate.FCP", 1);
   tester()->histogram_tester().ExpectBucketCount(
-      "PageLoad.Clients.GoogleSearch.FontLoading.ShapeCacheHitRate.FCP", 80, 1);
+      "PageLoad.Clients.GoogleSearch.FontLoading.ShapeCacheHitRate.FCP",
+      kShapeCacheHitRate, 1);
+
+  auto expect_script_count = [&](const char* script, const char* milestone,
+                                 int bucket_value) {
+    std::string histogram = base::StrCat(
+        {"PageLoad.Clients.GoogleSearch.FontLoading.FallbackCount.", script,
+         ".", milestone});
+    tester()->histogram_tester().ExpectTotalCount(histogram, 1);
+    tester()->histogram_tester().ExpectBucketCount(histogram, bucket_value, 1);
+  };
+
+  // Verify FCP script-specific metrics
+  expect_script_count("Latn", "FCP", kLatinFallbackCount);
+  expect_script_count("Hani", "FCP", kHanFallbackCount);
+  expect_script_count("Emoji", "FCP", kEmojiFallbackCount);
+  expect_script_count("Zyyy", "FCP", kCommonFallbackCount);
 
   // Simulate AFTEnd mark.
   page_load_metrics::mojom::CustomUserTimingMark timing_mark;
@@ -738,13 +796,20 @@ TEST_F(GWSPageLoadMetricsObserverTest, FontLoadingMetrics) {
   tester()->histogram_tester().ExpectTotalCount(
       "PageLoad.Clients.GoogleSearch.FontLoading.FallbackDuration2.AFTEnd", 1);
   tester()->histogram_tester().ExpectBucketCount(
-      "PageLoad.Clients.GoogleSearch.FontLoading.FallbackDuration2.AFTEnd", 150,
-      1);
+      "PageLoad.Clients.GoogleSearch.FontLoading.FallbackDuration2.AFTEnd",
+      kFallbackDuration.InMilliseconds(), 1);
 
   tester()->histogram_tester().ExpectTotalCount(
       "PageLoad.Clients.GoogleSearch.FontLoading.FallbackCount.AFTEnd", 1);
   tester()->histogram_tester().ExpectBucketCount(
-      "PageLoad.Clients.GoogleSearch.FontLoading.FallbackCount.AFTEnd", 5, 1);
+      "PageLoad.Clients.GoogleSearch.FontLoading.FallbackCount.AFTEnd",
+      kFallbackCount, 1);
+
+  // Verify AFTEnd script-specific metrics
+  expect_script_count("Latn", "AFTEnd", kLatinFallbackCount);
+  expect_script_count("Hani", "AFTEnd", kHanFallbackCount);
+  expect_script_count("Emoji", "AFTEnd", kEmojiFallbackCount);
+  expect_script_count("Zyyy", "AFTEnd", kCommonFallbackCount);
 
   // Navigate again to force Complete logging.
   tester()->NavigateToUntrackedUrl();
@@ -752,14 +817,15 @@ TEST_F(GWSPageLoadMetricsObserverTest, FontLoadingMetrics) {
   tester()->histogram_tester().ExpectTotalCount(
       "PageLoad.Clients.GoogleSearch.FontLoading.FallbackCount.Complete", 1);
   tester()->histogram_tester().ExpectBucketCount(
-      "PageLoad.Clients.GoogleSearch.FontLoading.FallbackCount.Complete", 5, 1);
+      "PageLoad.Clients.GoogleSearch.FontLoading.FallbackCount.Complete",
+      kFallbackCount, 1);
 
   tester()->histogram_tester().ExpectTotalCount(
       "PageLoad.Clients.GoogleSearch.FontLoading.FallbackDuration2.Complete",
       1);
   tester()->histogram_tester().ExpectBucketCount(
       "PageLoad.Clients.GoogleSearch.FontLoading.FallbackDuration2.Complete",
-      150, 1);
+      kFallbackDuration.InMilliseconds(), 1);
 
   tester()->histogram_tester().ExpectTotalCount(
       "PageLoad.Clients.GoogleSearch.FontLoading.InitialFallbackDuration2."
@@ -768,5 +834,58 @@ TEST_F(GWSPageLoadMetricsObserverTest, FontLoadingMetrics) {
   tester()->histogram_tester().ExpectBucketCount(
       "PageLoad.Clients.GoogleSearch.FontLoading.InitialFallbackDuration2."
       "Complete",
-      42, 1);
+      kFallbackInitialDuration.InMilliseconds(), 1);
+
+  // Verify Complete script-specific metrics
+  expect_script_count("Latn", "Complete", kLatinFallbackCount);
+  expect_script_count("Hani", "Complete", kHanFallbackCount);
+  expect_script_count("Emoji", "Complete", kEmojiFallbackCount);
+  expect_script_count("Zyyy", "Complete", kCommonFallbackCount);
+}
+
+TEST_F(GWSPageLoadMetricsObserverTest, InteractionToAFTEnd) {
+  // Wait until the browser init is complete.
+  AfterStartupTaskUtils::SetBrowserStartupIsCompleteForTesting();
+
+  // Set up navigation timing with user interaction.
+  content::NavigationHandleTiming timing;
+  base::TimeTicks now = base::TimeTicks::Now();
+  timing.user_interaction = now - base::Milliseconds(100);
+  timing.actual_navigation_start = now - base::Milliseconds(50);
+  timing.before_unload_dialog_duration = base::Milliseconds(10);
+
+  content::MockNavigationHandle handle(GURL(kGoogleSearchResultsUrl),
+                                       main_rfh());
+  EXPECT_CALL(handle, GetNavigationHandleTiming())
+      .WillRepeatedly(testing::ReturnRef(timing));
+  handle.set_was_response_cached(false);
+
+  NavigateAndCommit(GURL(kGoogleSearchResultsUrl));
+  observer_->OnCommit(&handle);
+
+  // Set up page load timing with FCP and LCP so LogMetricsOnComplete doesn't
+  // return early.
+  page_load_metrics::mojom::PageLoadTiming timing_update;
+  InitializeTestPageLoadTiming(&timing_update);
+  tester()->SimulateTimingUpdate(timing_update);
+
+  // Simulate AFT End mark.
+  page_load_metrics::mojom::CustomUserTimingMark timing_mark;
+  timing_mark.mark_name = internal::kGwsAFTEndMarkName;
+  timing_mark.start_time = base::Milliseconds(500);
+  tester()->SimulateCustomUserTimingUpdate(timing_mark.Clone());
+
+  // Navigate away to force logging.
+  tester()->NavigateToUntrackedUrl();
+
+  // NavigationStart is 'now'.
+  // Duration = NavigationStart - user_interaction -
+  // before_unload_dialog_duration
+  //          = now - (now - 100ms) - 10ms = 90ms.
+  // AFTEnd time = 500ms.
+  // Expected value = 90ms + 500ms = 590ms.
+  tester()->histogram_tester().ExpectTotalCount(
+      internal::kHistogramGWSInteractionToAFTEnd, 1);
+  tester()->histogram_tester().ExpectBucketCount(
+      internal::kHistogramGWSInteractionToAFTEnd, 590, 1);
 }

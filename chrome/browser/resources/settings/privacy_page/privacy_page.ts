@@ -283,6 +283,7 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
       case 'siteSettingsHidDevices':
       case 'siteSettingsIdleDetection':
       case 'siteSettingsImages':
+      case 'siteSettingsInlineCueMenu':
       case 'siteSettingsJavascript':
       case 'siteSettingsJavascriptOptimizer':
       case 'siteSettingsKeyboardLock':

@@ -138,4 +138,9 @@ public interface ImeAdapter {
      * @param suppressed True to suppress the soft keyboard, false to allow it.
      */
     void setKeyboardSuppressed(boolean suppressed);
+
+    /**
+     * @return the active {@link InputMethodManagerWrapper} that the ImeAdapter uses.
+     */
+    InputMethodManagerWrapper getInputMethodManagerWrapper();
 }

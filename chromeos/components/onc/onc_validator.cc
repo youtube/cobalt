@@ -22,6 +22,7 @@
 #include "base/strings/string_util.h"
 #include "base/values.h"
 #include "chromeos/components/onc/onc_signature.h"
+#include "chromeos/components/onc/onc_utils.h"
 #include "components/crx_file/id_util.h"
 #include "components/device_event_log/device_event_log.h"
 #include "components/onc/onc_constants.h"
@@ -400,6 +401,8 @@ base::DictValue Validator::MapObject(const OncValueSignature& signature,
       valid = ValidateProxyLocation(&repaired);
     } else if (&signature == &kEAPSignature) {
       valid = ValidateEAP(&repaired);
+    } else if (&signature == &kL2TPSignature) {
+      valid = ValidateL2TP(&repaired);
     } else if (&signature == &kEAPSubjectAlternativeNameMatchSignature) {
       valid = ValidateSubjectAlternativeNameMatch(&repaired);
     } else if (&signature == &kCertificateSignature) {
@@ -1437,6 +1440,23 @@ bool Validator::ValidateProxyLocation(base::DictValue* result) {
 }
 
 bool Validator::ValidateEAP(base::DictValue* result) {
+  // The "${PASSWORD}" placeholder instructs shill to substitute the user's
+  // ChromeOS login password. Only managed policy may set this; reject it from
+  // user-supplied ONC so a user-imported network cannot exfiltrate the login
+  // password to an attacker-controlled RADIUS server.
+  const std::string* password = result->FindString(::onc::eap::kPassword);
+  if (password &&
+      *password == ::onc::substitutes::kPasswordPlaceholderVerbatim &&
+      !::chromeos::onc::IsPolicyOncSource(onc_source_)) {
+    std::ostringstream msg;
+    msg << "EAP.Password placeholder '"
+        << ::onc::substitutes::kPasswordPlaceholderVerbatim
+        << "' is only allowed in policy ONC.";
+    AddValidationIssue(/*is_error=*/true, msg.str());
+    result->Remove(::onc::eap::kPassword);
+    return false;
+  }
+
   // If this EAP dict is in a IPsec dict (i.e., IPsec is the second-to-last
   // element in its path), the only valid method is MSCHAPv2.
   std::vector<const char*> valid_outer_values = GetValidEAPOuterValues();
@@ -1464,6 +1484,26 @@ bool Validator::ValidateEAP(base::DictValue* result) {
   bool all_required_exist = RequireField(*result, ::onc::eap::kOuter);
 
   return !error_on_missing_field_ || all_required_exist;
+}
+
+bool Validator::ValidateL2TP(base::DictValue* result) {
+  // The "${PASSWORD}" placeholder instructs shill to substitute the user's
+  // ChromeOS login password. Only managed policy may set this; reject it from
+  // user-supplied ONC so a user-imported network cannot exfiltrate the login
+  // password to an attacker-controlled RADIUS server.
+  const std::string* password = result->FindString(::onc::l2tp::kPassword);
+  if (password &&
+      *password == ::onc::substitutes::kPasswordPlaceholderVerbatim &&
+      !::chromeos::onc::IsPolicyOncSource(onc_source_)) {
+    std::ostringstream msg;
+    msg << "L2TP.Password placeholder '"
+        << ::onc::substitutes::kPasswordPlaceholderVerbatim
+        << "' is only allowed in policy ONC.";
+    AddValidationIssue(/*is_error=*/true, msg.str());
+    result->Remove(::onc::l2tp::kPassword);
+    return false;
+  }
+  return true;
 }
 
 bool Validator::ValidateSubjectAlternativeNameMatch(base::DictValue* result) {

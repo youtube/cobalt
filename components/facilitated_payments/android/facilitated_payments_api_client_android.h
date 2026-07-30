@@ -48,12 +48,19 @@ class FacilitatedPaymentsApiClientAndroid
       CoreAccountInfo primary_account,
       const SecurePayload& secure_payload,
       base::OnceCallback<void(PurchaseActionResult)> callback) override;
+  void InvokeInstrumentManager(
+      CoreAccountInfo primary_account,
+      const std::vector<uint8_t>& action_token,
+      base::OnceCallback<void(AccountLinkingResult)> callback) override;
 
   void OnIsAvailable(JNIEnv* env, bool is_available);
   void OnGetClientToken(
       JNIEnv* env,
       const base::android::JavaRef<jbyteArray>& jclient_token_byte_array);
   void OnPurchaseActionResultEnum(JNIEnv* env, int32_t purchase_action_result);
+  void OnInvokeInstrumentManagerResult(
+      JNIEnv* env,
+      const base::android::JavaRef<jobject>& jaccount_linking_result);
 
  private:
   bool IsAnyCallbackPending() const;
@@ -62,6 +69,8 @@ class FacilitatedPaymentsApiClientAndroid
   base::OnceCallback<void(bool)> is_available_callback_;
   base::OnceCallback<void(std::vector<uint8_t>)> get_client_token_callback_;
   base::OnceCallback<void(PurchaseActionResult)> purchase_action_callback_;
+  base::OnceCallback<void(AccountLinkingResult)>
+      invoke_instrument_manager_callback_;
 };
 
 }  // namespace payments::facilitated

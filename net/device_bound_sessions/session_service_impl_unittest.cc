@@ -2607,6 +2607,77 @@ TEST_F(SessionServiceImplWithStoreTest, GetAllSessionsWaitsForSessionsToLoad) {
   EXPECT_THAT(future.Take(), UnorderedElementsAre(ExpectId("session_id")));
 }
 
+TEST_F(SessionServiceImplWithStoreTest,
+       DeleteAllSessionsWaitsForSessionsToLoad) {
+  // Start loading
+  EXPECT_CALL(store(), LoadSessions).Times(1);
+  service().LoadSessionsAsync();
+
+  // Call DeleteAllSessions, which should wait until we finish loading.
+  base::test::TestFuture<void> future;
+  service().DeleteAllSessions(DeletionReason::kStoragePartitionCleared,
+                              std::nullopt, std::nullopt, base::NullCallback(),
+                              future.GetCallback());
+
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<Session> session,
+                       Session::CreateIfValid(SessionParams{
+                           .session_id = "session_id",
+                           .fetcher_url = kTestUrl,
+                           .refresh_url = kRefreshUrlString,
+                           .scope = {.origin = kOrigin},
+                       }));
+  ASSERT_TRUE(session);
+
+  // Expected deletion call when DeleteAllSessions finally runs.
+  EXPECT_CALL(store(), DeleteSession).Times(1);
+
+  // Complete loading. The session is loaded, but then DeleteAllSessions should
+  // run.
+  SessionStore::SessionsMap session_map;
+  session_map.insert(
+      {SessionKey{SchemefulSite(kTestUrl), session->id()}, std::move(session)});
+  FinishLoadingSessions(std::move(session_map));
+
+  // The DeleteAllSessions callback should have run.
+  EXPECT_TRUE(future.Wait());
+
+  // The session should be deleted.
+  EXPECT_EQ(GetSiteSessionsCount(SchemefulSite(kTestUrl)), 0u);
+}
+
+TEST_F(SessionServiceImplWithStoreTest,
+       DeleteSessionAndNotifyWaitsForSessionsToLoad) {
+  // Start loading
+  EXPECT_CALL(store(), LoadSessions).Times(1);
+  service().LoadSessionsAsync();
+
+  // Call DeleteSessionAndNotify, which should wait until we finish loading.
+  SessionKey session_key{SchemefulSite(kTestUrl), Session::Id("session_id")};
+  service().DeleteSessionAndNotify(DeletionReason::kStoragePartitionCleared,
+                                   session_key, base::NullCallback());
+
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<Session> session,
+                       Session::CreateIfValid(SessionParams{
+                           .session_id = "session_id",
+                           .fetcher_url = kTestUrl,
+                           .refresh_url = kRefreshUrlString,
+                           .scope = {.origin = kOrigin},
+                       }));
+  ASSERT_TRUE(session);
+
+  // Expected deletion call when DeleteSessionAndNotify finally runs.
+  EXPECT_CALL(store(), DeleteSession).Times(1);
+
+  // Complete loading.
+  SessionStore::SessionsMap session_map;
+  session_map.insert(
+      {SessionKey{SchemefulSite(kTestUrl), session->id()}, std::move(session)});
+  FinishLoadingSessions(std::move(session_map));
+
+  // The session should be deleted.
+  EXPECT_EQ(GetSiteSessionsCount(SchemefulSite(kTestUrl)), 0u);
+}
+
 TEST_F(SessionServiceImplWithStoreTest, RequestsWaitForSessionsToLoad) {
   // Start loading
   EXPECT_CALL(store(), LoadSessions).Times(1);

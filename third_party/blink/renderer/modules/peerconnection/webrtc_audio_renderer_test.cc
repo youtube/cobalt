@@ -131,6 +131,15 @@ class AudioDeviceFactoryTestingPlatformSupport : public blink::Platform {
 
   media::MockAudioRendererSink* mock_sink() { return mock_sink_.get(); }
 
+  // Required for binders to work, for testing, run on a single thread.
+  scoped_refptr<base::SequencedTaskRunner> MediaThreadTaskRunner() override {
+    return base::SequencedTaskRunner::GetCurrentDefault();
+  }
+
+  scoped_refptr<base::SingleThreadTaskRunner> GetIOTaskRunner() const override {
+    return base::SingleThreadTaskRunner::GetCurrentDefault();
+  }
+
  private:
   scoped_refptr<media::MockAudioRendererSink> mock_sink_;
 };

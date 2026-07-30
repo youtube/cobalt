@@ -62,6 +62,8 @@ blink_modules_sources("indexeddb") {
     "indexed_db_blink_mojom_traits.h",
     "inspector_indexed_db_agent.cc",
     "inspector_indexed_db_agent.h",
+    "shared_idb_database_connection.cc",
+    "shared_idb_database_connection.h",
   ]
 
   public_deps = [

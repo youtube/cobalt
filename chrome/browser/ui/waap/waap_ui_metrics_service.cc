@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/waap/waap_ui_metrics_service_factory.h"
 #include "components/startup_metric_utils/browser/startup_metric_utils.h"
 #include "components/startup_metric_utils/common/startup_metric_utils.h"
+#include "third_party/perfetto/include/perfetto/tracing/tracing.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
 
 namespace {
@@ -83,6 +84,9 @@ void EmitHistogramWithTraceEvent(const char* event_name,
                                  base::TimeTicks start_ticks,
                                  base::TimeTicks end_ticks) {
   auto track = perfetto::NamedTrack(perfetto::DynamicString(event_name));
+  if (perfetto::Tracing::IsInitialized()) {
+    base::TrackEvent::SetTrackDescriptor(track, track.Serialize());
+  }
   TRACE_EVENT_BEGIN("waap", perfetto::DynamicString(event_name), track,
                     start_ticks);
   TRACE_EVENT_END("waap", track, end_ticks);
@@ -98,6 +102,9 @@ void EmitReloadButtonHistogramWithTraceEvent(const char* event_name,
                                              base::TimeTicks end_ticks) {
   const base::TimeDelta duration = end_ticks - start_ticks;
   auto track = perfetto::NamedTrack(perfetto::DynamicString(event_name));
+  if (perfetto::Tracing::IsInitialized()) {
+    base::TrackEvent::SetTrackDescriptor(track, track.Serialize());
+  }
   TRACE_EVENT_BEGIN("waap", perfetto::DynamicString(event_name), track,
                     start_ticks);
   TRACE_EVENT_END("waap", track, end_ticks);
@@ -163,6 +170,7 @@ void RecordNewWindowPaintMetric(std::string_view paint_metric_base,
                                 base::TimeTicks paint_time) {
   const std::string_view with_existing_window_str =
       ExistingWindowToString(with_existing_window);
+
   // Record aggregated metric.
   EmitHistogramWithTraceEvent(
       base::StrCat({"InitialWebUI.NewWindow.AllSources.",

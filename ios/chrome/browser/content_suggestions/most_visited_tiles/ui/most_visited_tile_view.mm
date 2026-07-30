@@ -103,12 +103,7 @@
   BOOL hasPreviousItem = _configuration;
   _configuration = [item copy];
   // Update the layout according to `item`.
-  if (IsNTPBackgroundCustomizationEnabled()) {
-    [self applyBackgroundColors];
-  } else {
-    self.imageContainerView.backgroundColor =
-        [UIColor colorNamed:kGrey100Color];
-  }
+  [self applyBackgroundColors];
 
   if (item.isPinned) {
     self.titleLabel.attributedText = [self pinnedTitle:item.title];
@@ -245,10 +240,8 @@
 // `applyBackgroundColors` function whenever one of the observed trait's values
 // change.
 - (void)registerViewForTraitChanges {
-  if (IsNTPBackgroundCustomizationEnabled()) {
-    [self registerForTraitChanges:@[ NewTabPageTrait.class ]
-                       withAction:@selector(applyBackgroundColors)];
-  }
+  [self registerForTraitChanges:@[ NewTabPageTrait.class ]
+                     withAction:@selector(applyBackgroundColors)];
 }
 
 // Returns an attributed string prepended by the "pin" symbol. Helper method to

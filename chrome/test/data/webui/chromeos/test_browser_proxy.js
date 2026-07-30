@@ -8,7 +8,7 @@ import {PromiseResolver} from 'chrome://resources/ash/common/promise_resolver.js
 /**
  * @typedef {{resolver: !PromiseResolver,
  *            args: !Array<*>,
- *            resultMapper: (!Function|undefined)}}
+ *            resultMapper: (!Function|undefined)}} MethodData
  */
 let MethodData;
 

@@ -57,7 +57,7 @@ TEST_F(PersonalContextResolverImplTest, QueryWhenNullServiceReturnsEmpty) {
 }
 
 // Tests that a Query request is correctly forwarded to the
-// `PersonalContextService` with appropriate metadata.
+// `PersonalContextService` with appropriate metadata and timeout.
 TEST_F(PersonalContextResolverImplTest, QuerySendsCorrectRequest) {
   PersonalContextResolverImpl resolver(&mock_service_, "en-US");
   std::u16string query = u"my test query";
@@ -66,8 +66,11 @@ TEST_F(PersonalContextResolverImplTest, QuerySendsCorrectRequest) {
       mock_service_,
       FetchContext(personal_context::proto::CONTEXT_MEMORY_FEATURE_AT_MEMORY, _,
                    _, _))
-      .WillOnce(WithArg<1>([](const google::protobuf::MessageLite&
-                                  request_metadata) {
+      .WillOnce([](personal_context::proto::ContextMemoryFeature feature,
+                   const google::protobuf::MessageLite& request_metadata,
+                   const personal_context::ContextMemoryRequestOptions&
+                       options,
+                   personal_context::FetchContextCallback callback) {
         const auto& request =
             static_cast<const personal_context::proto::AtMemoryQueryRequest&>(
                 request_metadata);
@@ -76,7 +79,8 @@ TEST_F(PersonalContextResolverImplTest, QuerySendsCorrectRequest) {
         EXPECT_GT(request.supported_local_data_types_size(), 0);
         EXPECT_EQ(request.supported_local_data_types(0),
                   personal_context::proto::MEMORY_DATA_TYPE_NAME_FULL);
-      }));
+        EXPECT_EQ(options.request_timeout, base::Seconds(30));
+      });
 
   resolver.Query(query, base::DoNothing());
 }

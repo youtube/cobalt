@@ -27,6 +27,7 @@ export function getHtml(this: ContextualEntrypointAndMenuElement) {
     ` : ''}
     <cr-composebox-contextual-action-menu id="menu"
         .fileNum="${this.fileNum}"
+        .nonTabFileNum="${this.nonTabFileNum}"
         .isSidePanel="${this.isSidePanel}"
         .disabledTabIds="${this.disabledTabIds}"
         .aimThreadRestoredTabs="${this.aimThreadRestoredTabs}"

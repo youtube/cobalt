@@ -88,7 +88,15 @@ class MockTabContextualizationController
 }  // namespace
 
 MockLensSearchController::MockLensSearchController(tabs::TabInterface* tab)
-    : LensSearchController(tab) {}
+    : LensSearchController(tab) {
+  ON_CALL(*this, IsActive()).WillByDefault([this]() {
+    return LensSearchController::IsActive();
+  });
+  ON_CALL(*this, CloseLensSync(testing::_))
+      .WillByDefault([this](lens::LensOverlayDismissalSource dismissal_source) {
+        LensSearchController::CloseLensSync(dismissal_source);
+      });
+}
 
 MockLensSearchController::~MockLensSearchController() = default;
 

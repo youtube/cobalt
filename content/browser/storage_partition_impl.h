@@ -26,6 +26,7 @@
 #include "components/services/storage/public/mojom/storage_service.mojom-forward.h"
 #include "content/browser/background_sync/background_sync_context_impl.h"
 #include "content/browser/content_index/content_index_context_impl.h"
+#include "content/browser/declarative_performance_observer/declarative_performance_observer_store.h"
 #include "content/browser/dom_storage/dom_storage_context_wrapper.h"
 #include "content/browser/locks/lock_manager.h"
 #include "content/browser/notifications/platform_notification_context_impl.h"
@@ -573,6 +574,11 @@ class CONTENT_EXPORT StoragePartitionImpl
   void DecrementActiveDocumentCount(const net::NetworkIsolationKey& nik);
   int GetActiveDocumentCount(const net::NetworkIsolationKey& nik);
 
+  DeclarativePerformanceObserverStore*
+  GetDeclarativePerformanceObserverStore() {
+    return declarative_performance_observer_store_.get();
+  }
+
   enum class ContextType {
     kRenderFrameHostContext,
     kNavigationRequestContext,
@@ -997,6 +1003,9 @@ class CONTENT_EXPORT StoragePartitionImpl
       performance_scenarios::PerformanceScenarioObserverList,
       performance_scenarios::MatchingScenarioObserver>
       performance_scenario_observation_{this};
+
+  std::unique_ptr<DeclarativePerformanceObserverStore>
+      declarative_performance_observer_store_;
 
   base::WeakPtrFactory<StoragePartitionImpl> weak_factory_{this};
 };

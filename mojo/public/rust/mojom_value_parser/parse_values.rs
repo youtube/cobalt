@@ -780,9 +780,9 @@ fn extract_interface_ids(
             let MojomValue::UInt32(id_u32) = id else {
                 unreachable!(); // We specified UInt32 earlier
             };
-            // Interface IDs in the body of a message should never be 0 or one
-            // of the control interface IDs.
-            if matches!(id_u32, 0 | 0xffffffff | 0xfffffffe) {
+            // Interface IDs in the body of a message should never be 0 or
+            // the control interface ID.
+            if matches!(id_u32, 0 | 0xffffffff) {
                 return Err(ParsingError::invalid_interface_id(
                     interface_ids_offset as usize,
                     idx,

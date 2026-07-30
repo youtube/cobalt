@@ -20,6 +20,9 @@ MockAimEligibilityService::MockAimEligibilityService(
                             std::move(configuration)) {
   ON_CALL(*this, IsServerEligibilityEnabled())
       .WillByDefault(testing::Return(true));
+  ON_CALL(*this, IsAimAllowedByDse()).WillByDefault(testing::Return(true));
+  ON_CALL(*this, IsAimAllowedByFeatureAndPolicy())
+      .WillByDefault(testing::Return(true));
   ON_CALL(*this, IsAimLocallyEligible()).WillByDefault(testing::Return(true));
   ON_CALL(*this, IsAimEligible()).WillByDefault(testing::Return(true));
   ON_CALL(*this, IsCanvasEligible()).WillByDefault(testing::Return(true));

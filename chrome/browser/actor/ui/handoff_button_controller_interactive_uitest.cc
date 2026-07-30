@@ -60,7 +60,7 @@ class ActorUiHandoffButtonControllerInteractiveUiTest
             {features::kGlicActorUi,
              {{features::kGlicActorUiHandoffButtonName, "true"}}},
         },
-        /*disabled_features=*/{features::kGlicDetached});
+        /*disabled_features=*/{});
     InteractiveBrowserTest::SetUp();
   }
 

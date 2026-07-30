@@ -695,6 +695,51 @@ TEST(RegistrationFetcherParamTest, ValidProviderParams) {
   EXPECT_EQ(param.provider_session_id(), Session::Id("id"));
 }
 
+TEST(RegistrationFetcherParamTest, ValidProviderParamsWithoutSessionId) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kDeviceBoundSessionsForSingleSignOn);
+
+  const GURL registration_request("https://www.example.com/registration");
+  scoped_refptr<net::HttpResponseHeaders> response_headers =
+      HttpResponseHeaders::Builder({1, 1}, "200 OK").Build();
+  response_headers->AddHeader(
+      kRegistrationHeaderName,
+      "(ES256);path=\"startsession\";challenge=\"c1\";provider_key=\"key\";"
+      "provider_url=\"https://provider.example.com\"");
+  std::vector<RegistrationFetcherParam> params =
+      RegistrationFetcherParam::CreateIfValid(
+          registration_request, response_headers.get(),
+          /*restricted_sites=*/std::vector<SchemefulSite>());
+  ASSERT_EQ(params.size(), 1U);
+  const auto& param = params[0];
+  EXPECT_EQ(param.registration_endpoint(),
+            GURL("https://www.example.com/startsession"));
+  EXPECT_THAT(param.supported_algos(), UnorderedElementsAre(ECDSA_SHA256));
+  EXPECT_EQ(param.challenge(), "c1");
+  EXPECT_EQ(param.provider_key(), "key");
+  EXPECT_EQ(param.provider_url(), GURL("https://provider.example.com"));
+  EXPECT_FALSE(param.provider_session_id().has_value());
+}
+
+TEST(RegistrationFetcherParamTest, InvalidProviderParamsWithoutSessionId) {
+  const GURL registration_request("https://www.example.com/registration");
+  scoped_refptr<net::HttpResponseHeaders> response_headers =
+      HttpResponseHeaders::Builder({1, 1}, "200 OK").Build();
+  response_headers->AddHeader(
+      kRegistrationHeaderName,
+      "(ES256);path=\"startsession\";challenge=\"c1\";provider_key=\"key\";"
+      "provider_url=\"https://provider.example.com\"");
+  std::vector<RegistrationFetcherParam> params =
+      RegistrationFetcherParam::CreateIfValid(
+          registration_request, response_headers.get(),
+          /*restricted_sites=*/std::vector<SchemefulSite>());
+
+  // `provider_key` + `provider_url` only should not return a valid
+  // `RegistrationFetcherParam` if SSO feature is not enabled.
+  ASSERT_EQ(params.size(), 0U);
+}
+
 TEST(RegistrationFetcherParamTest, IncompleteProviderParams) {
   const GURL registration_request("https://www.example.com/registration");
   scoped_refptr<net::HttpResponseHeaders> response_headers =

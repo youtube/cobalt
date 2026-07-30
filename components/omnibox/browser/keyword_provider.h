@@ -81,15 +81,17 @@ class KeywordProvider : public AutocompleteProvider {
 
   ~KeywordProvider() override;
 
-  // Determines the relevance for some input, given its type, whether the user
-  // typed the complete keyword, and whether the user is in
-  // "prefer keyword matches" mode, and whether the keyword supports
-  // replacement. If |allow_exact_keyword_match| is false, the relevance for
-  // keywords that support replacements is degraded.
+  // Determines the relevance for some input given its:
+  // - type
+  // - whether the user typed the complete keyword
+  // - whether the user is in keyword mode
+  // - whether the keyword supports replacement
+  // If `allow_exact_keyword_match` is false, the relevance for keywords that
+  // support replacements is degraded.
   static int CalculateRelevance(metrics::OmniboxInputType type,
                                 bool complete,
                                 bool support_replacement,
-                                bool prefer_keyword,
+                                bool in_keyword_mode,
                                 bool allow_exact_keyword_match);
 
   // Creates a fully marked-up AutocompleteMatch from the user's input.

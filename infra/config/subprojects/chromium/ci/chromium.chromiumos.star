@@ -514,7 +514,7 @@ ci.builder(
             ),
             "browser_tests": targets.mixin(
                 swarming = targets.swarming(
-                    shards = 160,
+                    shards = 200,
                 ),
             ),
             "content_browsertests": targets.mixin(

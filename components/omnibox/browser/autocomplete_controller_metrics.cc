@@ -16,6 +16,12 @@
 #include "components/omnibox/browser/autocomplete_result.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 
+#if !BUILDFLAG(IS_IOS)
+#include "base/feature_list.h"
+#include "components/omnibox/browser/geolocation_header_service.h"
+#include "components/omnibox/common/omnibox_features.h"
+#endif
+
 namespace {
 
 enum class MetricNameSuffix {
@@ -147,8 +153,9 @@ void AutocompleteControllerMetrics::OnStart() {
 }
 
 void AutocompleteControllerMetrics::OnNotifyChanged(
-    std::vector<AutocompleteResult::MatchDedupComparator> last_result,
-    std::vector<AutocompleteResult::MatchDedupComparator> new_result) {
+    std::vector<AutocompleteResult::MatchDedupComparator>
+        last_result_comparators,
+    const AutocompleteResult& new_result) {
   // Only log metrics for async requests.
   if (controller_->input().omit_asynchronous_matches()) {
     return;
@@ -161,13 +168,17 @@ void AutocompleteControllerMetrics::OnNotifyChanged(
     return;
   }
 
+  std::vector<AutocompleteResult::MatchDedupComparator> new_result_comparators =
+      new_result.GetMatchDedupComparators();
+
   // Log suggestion changes.
 
   bool any_match_changed_or_removed = false;
-  for (size_t i = 0; i < last_result.size(); ++i) {
+  for (size_t i = 0; i < last_result_comparators.size(); ++i) {
     // Log changed or removed matches. Don't log for matches appended to the
     // bottom since that's less disruptive.
-    if (i >= new_result.size() || last_result[i] != new_result[i]) {
+    if (i >= new_result_comparators.size() ||
+        last_result_comparators[i] != new_result_comparators[i]) {
       LogSuggestionChangeIndexMetrics(i);
       any_match_changed_or_removed = true;
     }
@@ -187,9 +198,11 @@ void AutocompleteControllerMetrics::OnNotifyChanged(
   }
 
   const bool any_match_changed_or_removed_or_added =
-      any_match_changed_or_removed || last_result.size() != new_result.size();
+      any_match_changed_or_removed ||
+      last_result_comparators.size() != new_result_comparators.size();
   const bool default_match_changed_or_removed_or_added =
-      last_result.empty() || last_result[0] != new_result[0];
+      last_result_comparators.empty() ||
+      last_result_comparators[0] != new_result_comparators[0];
 
   if (any_match_changed_or_removed_or_added) {
     last_change_time_ = base::TimeTicks::Now();
@@ -206,7 +219,7 @@ void AutocompleteControllerMetrics::OnNotifyChanged(
   //   to allow history embedding answers and unscoped extension suggestions to
   //   ignore the stop timer, we need to check it anyways.
   if (controller_->done() && !logged_finalization_metrics_) {
-    LogSuggestionFinalizationMetrics();
+    LogSuggestionFinalizationMetrics(new_result);
   }
 }
 
@@ -249,11 +262,12 @@ void AutocompleteControllerMetrics::OnStop() {
   //   bandaid to allow history embedding answers and unscoped extension
   //   answers to ignore the stop timer, we need to check it anyways.
   if (!controller_->done() && !logged_finalization_metrics_) {
-    LogSuggestionFinalizationMetrics();
+    LogSuggestionFinalizationMetrics(controller_->result());
   }
 }
 
-void AutocompleteControllerMetrics::LogSuggestionFinalizationMetrics() {
+void AutocompleteControllerMetrics::LogSuggestionFinalizationMetrics(
+    const AutocompleteResult& result) {
   // Finalization metrics should be logged once only, either when all
   // async providers complete or they're interrupted before completion.
 #if BUILDFLAG(IS_IOS)
@@ -281,6 +295,9 @@ void AutocompleteControllerMetrics::LogSuggestionFinalizationMetrics() {
                                     last_change_elapsed_time);
   LogAsyncAutocompletionTimeMetrics(kLastDefaultChange, is_completed,
                                     last_default_change_elapsed_time);
+#if !BUILDFLAG(IS_IOS)
+  LogInlineLocationSuggestionMetrics(result);
+#endif  // !BUILDFLAG(IS_IOS)
 }
 
 void AutocompleteControllerMetrics::LogProviderTimeMetrics(
@@ -322,3 +339,36 @@ void AutocompleteControllerMetrics::LogSuggestionChangeInAnyPositionMetrics(
     UMA_HISTOGRAM_BOOLEAN(base::StrCat({kName, ".Async"}), changed);
   }
 }
+
+#if !BUILDFLAG(IS_IOS)
+void AutocompleteControllerMetrics::LogInlineLocationSuggestionMetrics(
+    const AutocompleteResult& result) const {
+  if (!base::FeatureList::IsEnabled(omnibox::kInlineLocationSignaling)) {
+    return;
+  }
+
+  const auto* geolocation_service = controller_->autocomplete_provider_client()
+                                        ->GetGeolocationHeaderService();
+  if (!geolocation_service) {
+    return;
+  }
+
+  size_t position = 0;
+  OmniboxInlineLocationSuggestionShown shown =
+      OmniboxInlineLocationSuggestionShown::kNoEligibleSuggestionFound;
+
+  for (size_t i = 0; i < result.size(); ++i) {
+    const auto& match = result.match_at(i);
+    if (match.extra_headers.contains(kXGeoHeader)) {
+      shown = OmniboxInlineLocationSuggestionShown::kLocationSuggestionShown;
+      position = i;
+      break;
+    }
+    if (match.subtypes.contains(omnibox::SUBTYPE_LOCATION_SUGGEST_TRIGGER)) {
+      shown = OmniboxInlineLocationSuggestionShown::kOnlyParentSuggestionShown;
+    }
+  }
+
+  geolocation_service->RecordInlineLocationSuggestionShown(shown, position);
+}
+#endif

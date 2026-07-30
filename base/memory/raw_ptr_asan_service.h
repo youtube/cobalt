@@ -68,10 +68,16 @@ class BASE_EXPORT RawPtrAsanService {
   };
 
   struct AllocationMetadata {
-    RefCountType count = 0u;
+    RefCountType count = 0u;  // # of protective (normal) raw_ptr refs.
     QuarantineFlag quarantine_flag = QuarantineFlag::NotQuarantined;
     internal::RawPtrAsanThreadId alloc_thread_id;  // who allocated
     internal::RawPtrAsanThreadId free_thread_id;   // who quarantined
+    // # of refs from raw_ptr<T, kUnprotectedInRelease>. These keep the
+    // allocation quarantined so the dangling access can still be detected, but
+    // they do NOT count as protection: such a field uses the no-op impl (no
+    // protection) in a release build. Kept last so existing aggregate
+    // initializers (which omit it) leave it default-initialized.
+    RefCountType unprotected_in_release_count = 0u;
   };
 
   template <typename Key, typename T>
@@ -101,6 +107,10 @@ class BASE_EXPORT RawPtrAsanService {
     ReportType type = ReportType::kDereference;
     uintptr_t allocation_base = 0;
     size_t allocation_size = 0;
+    // True when the raw_ptr<T> that recorded this report is marked
+    // kUnprotectedInRelease, i.e. it is instrumented in this build but would be
+    // unprotected (RawPtrNoOpImpl) in a release build.
+    bool unprotected_in_release = false;
   };
 #endif  // PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR_V2)
 
@@ -149,11 +159,18 @@ class BASE_EXPORT RawPtrAsanService {
 
 #if PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR_V2)
   uintptr_t GetAllocationStart(uintptr_t address) const;
-  void AcquireInternal(uintptr_t address, bool is_copy = false) const;
-  void ReleaseInternal(uintptr_t address) const;
+  void AcquireInternal(uintptr_t address,
+                       bool is_copy = false,
+                       bool unprotected_in_release = false) const;
+  void ReleaseInternal(uintptr_t address,
+                       bool unprotected_in_release = false) const;
 
   bool IsQuarantined(uintptr_t address) const;
   bool IsFreed(uintptr_t address) const;
+  // True iff `address` is in a currently-tracked allocation that is kept alive
+  // ONLY by raw_ptr<T, kUnprotectedInRelease> references (no protective refs),
+  // i.e. it would be unprotected in a release build.
+  bool IsUnprotectedInReleaseOnly(uintptr_t address) const;
   void CheckLogAndAbortOnError();
 
   internal::RawPtrAsanThreadId GetFreeThreadIdOfAllocation(
@@ -162,7 +179,9 @@ class BASE_EXPORT RawPtrAsanService {
   void WarnOnDanglingExtraction(const volatile void* ptr) const;
   void CrashOnDanglingInstantiation(const volatile void* ptr) const;
 
-  static void SetPendingReport(ReportType type, const volatile void* ptr);
+  static void SetPendingReport(ReportType type,
+                               const volatile void* ptr,
+                               bool unprotected_in_release = false);
 #endif  // PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR_V2)
 
  private:

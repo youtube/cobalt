@@ -1,3 +1,5 @@
-GdkPixbuf* gdk_pixbuf_new_from_file_at_size(const char* filename, int width, int height, GError** error);
+GdkPixbuf* gdk_pixbuf_new(GdkColorspace colorspace, gboolean has_alpha, int bits_per_sample, int width, int height);
+guchar* gdk_pixbuf_get_pixels(const GdkPixbuf* pixbuf);
+int gdk_pixbuf_get_rowstride(const GdkPixbuf* pixbuf);
 int gdk_pixbuf_get_width(const GdkPixbuf* pixbuf);
 int gdk_pixbuf_get_height(const GdkPixbuf* pixbuf);

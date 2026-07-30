@@ -10,6 +10,7 @@
 #import "components/signin/public/base/signin_metrics.h"
 #import "components/sync/base/features.h"
 #import "components/sync/protocol/sync_enums.pb.h"
+#import "components/sync/test/test_sync_service.h"
 #import "components/sync_sessions/sync_sessions_client.h"
 #import "components/sync_sessions/test_synced_window_delegates_getter.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
@@ -22,6 +23,8 @@
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/navigation/navigation_item.h"
 #import "ios/web/public/test/fakes/fake_navigation_manager.h"
@@ -159,6 +162,8 @@ TEST_F(IOSChromeSyncedTabDelegateTest,
       AuthenticationServiceFactory::GetInstance(),
       AuthenticationServiceFactory::GetFactoryWithDelegate(
           std::make_unique<FakeAuthenticationServiceDelegate>()));
+  builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                            base::BindRepeating(&CreateTestSyncService));
   TestProfileIOS* profile =
       profile_manager.AddProfileWithBuilder(std::move(builder));
 

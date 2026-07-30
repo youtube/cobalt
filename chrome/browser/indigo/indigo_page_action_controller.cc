@@ -38,11 +38,13 @@
 #include "chrome/browser/skills/skills_service_factory.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/page_action/page_action_controller.h"
 #include "chrome/browser/ui/toasts/api/toast_id.h"
 #include "chrome/browser/ui/toasts/toast_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome/common/webui_url_constants.h"
 #include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #include "components/optimization_guide/core/hints/optimization_guide_decision.h"
 #include "components/page_content_annotations/core/tracked_element_feature.h"
@@ -139,6 +141,16 @@ void RecordInvokeEntryPointMetrics(EntryPoint entry_point) {
       break;
   }
 }
+
+class Require1PSkillRefreshObserver : public skills::SkillsService::Observer {
+ public:
+  Require1PSkillRefreshObserver() = default;
+  ~Require1PSkillRefreshObserver() override = default;
+
+  // skills::SkillsService::Observer:
+  bool Require1PSkillRefresh() override { return true; }
+};
+
 }  // namespace
 
 DEFINE_USER_DATA(IndigoPageActionController);
@@ -404,6 +416,7 @@ void IndigoPageActionController::ShowOnboardingDialog(
         IndigoOnboardingDialog::Show(tab(), url, std::move(callback));
   }
 }
+
 void IndigoPageActionController::Reset(ResetType reset_type) {
   DestroyToolbar();
   tracked_bounds_ = std::nullopt;
@@ -425,6 +438,11 @@ void IndigoPageActionController::Reset(ResetType reset_type) {
     }
   }
 }
+
+void IndigoPageActionController::DismissAnchoredMessage() {
+  page_action_controller_->HideAnchoredMessage(kActionIndigo);
+}
+
 void IndigoPageActionController::ShowToolbar() {
   if (!toolbar_) {
     toolbar_ = std::make_unique<IndigoToolbar>(this);
@@ -442,6 +460,12 @@ void IndigoPageActionController::ShowInvocationErrorToast() {
   if (toast_controller) {
     toast_controller->MaybeShowToast(ToastParams(ToastId::kIndigoInvokeError));
   }
+}
+
+void IndigoPageActionController::OpenSettings() {
+  chrome::ShowSettingsSubPageForProfile(
+      tab().GetBrowserWindowInterface()->GetProfile(),
+      chrome::kSuggestionsSubPage);
 }
 
 void IndigoPageActionController::DidFinishNavigation(
@@ -587,6 +611,21 @@ void IndigoPageActionController::UpdateEntryPointsState() {
       page_action_controller_->ShowSuggestionChip(kActionIndigo);
     }
     base::RecordAction(base::UserMetricsAction("Indigo.PageAction.Show"));
+
+    // Refresh discovery skills to make sure the latest skills are available for
+    // the user.
+    if (content::WebContents* web_contents = tab().GetContents()) {
+      if (Profile* profile =
+              Profile::FromBrowserContext(web_contents->GetBrowserContext())) {
+        if (skills::SkillsService* skills_service =
+                skills::SkillsServiceFactory::GetForProfile(profile)) {
+          Require1PSkillRefreshObserver observer;
+          skills_service->AddObserver(&observer);
+          skills_service->RefreshDiscoverySkills();
+          skills_service->RemoveObserver(&observer);
+        }
+      }
+    }
   } else {
     page_action_controller_->Hide(kActionIndigo);
   }

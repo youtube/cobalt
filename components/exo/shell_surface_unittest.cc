@@ -4941,9 +4941,9 @@ TEST_F(ShellSurfaceTest, DisplayLayoutConfigurationUpdatesSurfaceOrigin) {
   EXPECT_EQ(kNewOrigin + gfx::Vector2d(0, kVerticalOffset), client_origin);
 }
 
-// Tests the unnecessary occlusion events are fired when opaque buffer and no
+// Tests that minimal occlusion events are fired when opaque buffer and no
 // frame are used.
-TEST_F(ShellSurfaceTest, DisplayScaleChangeDoesNotSendOcclusionUpdates) {
+TEST_F(ShellSurfaceTest, DisplayScaleChangeSendsMinimalOcclusionUpdates) {
   std::unique_ptr<ShellSurface> shell_surface1 =
       test::ShellSurfaceBuilder({256, 256})
           .SetRootFormat(kOpaqueFormat)
@@ -4978,9 +4978,12 @@ TEST_F(ShellSurfaceTest, DisplayScaleChangeDoesNotSendOcclusionUpdates) {
 
   EXPECT_FALSE(window1->GetTransparent());
   EXPECT_FALSE(window2->GetTransparent());
-  const std::vector<gfx::Rect> kMaximizedOpaqueRegion{gfx::Rect(800, 552)};
-  EXPECT_EQ(kMaximizedOpaqueRegion, window1->opaque_regions_for_occlusion());
-  EXPECT_EQ(kMaximizedOpaqueRegion, window2->opaque_regions_for_occlusion());
+
+  // Before commit, the host window is still 256x256 and centered.
+  const std::vector<gfx::Rect> kIntermediateOpaqueRegion{
+      gfx::Rect(272, 148, 256, 256)};
+  EXPECT_EQ(kIntermediateOpaqueRegion, window1->opaque_regions_for_occlusion());
+  EXPECT_EQ(kIntermediateOpaqueRegion, window2->opaque_regions_for_occlusion());
 
   // Update root surfaces (this happens asynchronously normally) and set
   // occlusion tracking.
@@ -4994,6 +4997,10 @@ TEST_F(ShellSurfaceTest, DisplayScaleChangeDoesNotSendOcclusionUpdates) {
       test::ExoTestHelper::CreateBuffer(shell_surface2.get(), kOpaqueFormat);
   surface2->Attach(surface2_buffer.get());
   surface2->Commit();
+
+  const std::vector<gfx::Rect> kMaximizedOpaqueRegion{gfx::Rect(800, 552)};
+  EXPECT_EQ(kMaximizedOpaqueRegion, window1->opaque_regions_for_occlusion());
+  EXPECT_EQ(kMaximizedOpaqueRegion, window2->opaque_regions_for_occlusion());
 
   SurfaceObserverForTest observer1(surface1->window()->GetOcclusionState());
   surface1->AddSurfaceObserver(&observer1);
@@ -5023,7 +5030,7 @@ TEST_F(ShellSurfaceTest, DisplayScaleChangeDoesNotSendOcclusionUpdates) {
     surface2->Attach(surface2_buffer_zoom.get());
     surface2->Commit();
   }
-  EXPECT_EQ(0, observer1.num_occlusion_state_changes());
+  EXPECT_EQ(2, observer1.num_occlusion_state_changes());
   EXPECT_EQ(0, observer2.num_occlusion_state_changes());
 
   display_manager->ZoomDisplay(display_id, /*up=*/false);
@@ -5039,7 +5046,7 @@ TEST_F(ShellSurfaceTest, DisplayScaleChangeDoesNotSendOcclusionUpdates) {
   }
   // Should not get any occlusion changes - requires occlusion tracking clip
   // to the root window and that the shelf occlude what is below it, too.
-  EXPECT_EQ(0, observer1.num_occlusion_state_changes());
+  EXPECT_EQ(2, observer1.num_occlusion_state_changes());
   EXPECT_EQ(0, observer2.num_occlusion_state_changes());
 
   // Test Snapped State
@@ -5049,7 +5056,7 @@ TEST_F(ShellSurfaceTest, DisplayScaleChangeDoesNotSendOcclusionUpdates) {
 
   window_state1->OnWMEvent(&snap_event);
   window_state2->OnWMEvent(&snap_event);
-  EXPECT_EQ(0, observer1.num_occlusion_state_changes());
+  EXPECT_EQ(2, observer1.num_occlusion_state_changes());
   EXPECT_EQ(0, observer2.num_occlusion_state_changes());
 
   EXPECT_TRUE(window1->GetTransparent());
@@ -5069,7 +5076,7 @@ TEST_F(ShellSurfaceTest, DisplayScaleChangeDoesNotSendOcclusionUpdates) {
     surface2->Attach(snapped_buffer2.get());
     surface2->Commit();
   }
-  EXPECT_EQ(0, observer1.num_occlusion_state_changes());
+  EXPECT_EQ(2, observer1.num_occlusion_state_changes());
   EXPECT_EQ(0, observer2.num_occlusion_state_changes());
 
   display_manager->ZoomDisplay(display_id, /*up=*/true);
@@ -5084,7 +5091,7 @@ TEST_F(ShellSurfaceTest, DisplayScaleChangeDoesNotSendOcclusionUpdates) {
     surface2->Attach(snapped_buffer2.get());
     surface2->Commit();
   }
-  EXPECT_EQ(0, observer1.num_occlusion_state_changes());
+  EXPECT_EQ(4, observer1.num_occlusion_state_changes());
   EXPECT_EQ(0, observer2.num_occlusion_state_changes());
 
   display_manager->ZoomDisplay(display_id, /*up=*/false);
@@ -5099,16 +5106,61 @@ TEST_F(ShellSurfaceTest, DisplayScaleChangeDoesNotSendOcclusionUpdates) {
     surface2->Attach(snapped_buffer2.get());
     surface2->Commit();
   }
-  EXPECT_EQ(0, observer1.num_occlusion_state_changes());
+  EXPECT_EQ(4, observer1.num_occlusion_state_changes());
   EXPECT_EQ(0, observer2.num_occlusion_state_changes());
 
   // Make sure the occlusion tracking is working.
   surface2->RemoveSurfaceObserver(&observer2);
   shell_surface2.reset();
 
-  EXPECT_EQ(1, observer1.num_occlusion_state_changes());
+  EXPECT_EQ(5, observer1.num_occlusion_state_changes());
 
   surface1->RemoveSurfaceObserver(&observer1);
+}
+
+// A frameless xdg-toplevel with a tiny opaque buffer can be maximized to trick
+// occlusion tracking. This test ensures the opaque region is properly clamped
+// to the surface content to prevent DLP bypass.
+TEST_F(ShellSurfaceTest, TinyOpaqueMaximizedSurfaceFalselyOccludesUnderlying) {
+  const gfx::Rect work_area =
+      display::Screen::Get()->GetPrimaryDisplay().work_area();
+
+  // Stand-in for a Chrome browser window hosting confidential WebContents.
+  // Occlusion tracking feeds WebContents::GetVisibility().
+  std::unique_ptr<aura::Window> victim = CreateToplevelTestWindow(work_area);
+  victim->TrackOcclusionState();
+  ASSERT_EQ(aura::Window::OcclusionState::VISIBLE, victim->GetOcclusionState());
+
+  // An untrusted Crostini Wayland client creates a frameless xdg-toplevel with
+  // a 4x4 opaque buffer. This makes FillsBoundsOpaquely() evaluate to true.
+  constexpr gfx::Size kTinyBuffer(4, 4);
+  std::unique_ptr<ShellSurface> attacker =
+      test::ShellSurfaceBuilder(kTinyBuffer)
+          .SetRootFormat(kOpaqueFormat)
+          .BuildShellSurface();
+  aura::Window* attacker_widget = attacker->GetWidget()->GetNativeWindow();
+
+  ASSERT_EQ(ui::LAYER_NOT_DRAWN, attacker_widget->layer()->type());
+  ASSERT_TRUE(attacker->root_surface()->FillsBoundsOpaquely());
+
+  // The client maximizes the window but never resizes its buffer.
+  attacker->Maximize();
+
+  // The opaque_regions_for_occlusion is correctly set to the 4x4 surface
+  // content.
+  ASSERT_FALSE(attacker_widget->opaque_regions_for_occlusion().empty());
+  EXPECT_EQ(kTinyBuffer,
+            attacker_widget->opaque_regions_for_occlusion()[0].size());
+
+  // WindowOcclusionTracker does not union the full work area.
+  // The underlying victim window remains VISIBLE.
+  EXPECT_EQ(aura::Window::OcclusionState::VISIBLE, victim->GetOcclusionState());
+
+  // The cc/viz compositor keeps compositing the victim's pixels.
+  // This is now consistent with the occlusion tracker.
+  EXPECT_EQ(kTinyBuffer, attacker->host_window()->bounds().size());
+  EXPECT_TRUE(attacker->host_window()->GetTransparent());
+  EXPECT_EQ(gfx::SizeF(kTinyBuffer), attacker->root_surface()->content_size());
 }
 
 TEST_F(ShellSurfaceTest, GetWidgetHitTestMask) {

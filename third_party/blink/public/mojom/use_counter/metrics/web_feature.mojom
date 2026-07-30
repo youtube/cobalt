@@ -5148,10 +5148,10 @@ enum WebFeature {
   kSubtleCryptoEncapsulateBits = 5831,
   kSubtleCryptoDecapsulateKey = 5832,
   kSubtleCryptoDecapsulateBits = 5833,
-  kCSSDiscardedVarWithValidArgumentGrammar = 5834,
-  kCSSDiscardedAttrWithValidArgumentGrammar = 5835,
-  kCSSDiscardedEnvWithValidArgumentGrammar = 5836,
-  kCSSDiscardedIfWithValidArgumentGrammar = 5837,
+  kOBSOLETE_CSSDiscardedVarWithValidArgumentGrammar = 5834,
+  kOBSOLETE_CSSDiscardedAttrWithValidArgumentGrammar = 5835,
+  kOBSOLETE_CSSDiscardedEnvWithValidArgumentGrammar = 5836,
+  kOBSOLETE_CSSDiscardedIfWithValidArgumentGrammar = 5837,
   kHttpOnlyCookieShadowedByNonHttpOnlyPartitioned = 5838,
   kXRMeshDetection = 5839,
   kXRFrameDetectedMeshes = 5840,
@@ -5249,6 +5249,11 @@ enum WebFeature {
   kContainerTimingAttribute = 5932,
   kContainerTimingAttributeHasRootName = 5933,
   kContainerTimingIgnoreAttribute = 5934,
+  kSVGPathElementSetPathData = 5935,
+  kSubAppsAdd = 5936,
+  kSubAppsRemove = 5937,
+  kSubAppsList = 5938,
+  kRTCLocalSdpModificationMultiOpus = 5939,
 
   // Add new features immediately above this line. Don't change the existing
   // numbers of any item, and don't reuse removed slots. Also don't add extra

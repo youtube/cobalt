@@ -16,6 +16,7 @@
 #include "base/task/thread_pool.h"
 #include "base/trace_event/trace_event.h"
 #include "base/uuid.h"
+#include "components/optimization_guide/core/delivery/model_info.h"
 #include "components/optimization_guide/core/delivery/model_store_metadata_entry.h"
 #include "components/optimization_guide/core/delivery/model_util.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
@@ -29,35 +30,6 @@ namespace {
 
 constexpr size_t kBytesPerMegabyte = 1024 * 1024;
 
-// Returns all the model file paths for the model |model_info| in
-// |base_model_dir|.
-std::vector<base::FilePath> GetModelFilePaths(
-    const proto::ModelInfo& model_info,
-    const base::FilePath& base_model_dir) {
-  std::vector<base::FilePath> model_file_paths;
-  model_file_paths.emplace_back(
-      base_model_dir.Append(GetBaseFileNameForModels()));
-  model_file_paths.emplace_back(
-      base_model_dir.Append(GetBaseFileNameForModelInfo()));
-  for (const auto& additional_file : model_info.additional_files()) {
-    auto additional_filepath = StringToFilePath(additional_file.file_path());
-    if (!additional_filepath) {
-      continue;
-    }
-    if (!additional_filepath->IsAbsolute()) {
-      model_file_paths.emplace_back(
-          base_model_dir.Append(*additional_filepath));
-    } else {
-      // In older versions (<=127), additional files had absolute path in model
-      // info in the store. For backward compatibility, allow the absolute path
-      // to be used. This can be changed to
-      // `CHECK(!additional_filepath->IsAbsolute())` after a few of
-      // milestones.
-      model_file_paths.emplace_back(*additional_filepath);
-    }
-  }
-  return model_file_paths;
-}
 
 // Parses the OptimizationTarget from the string.
 proto::OptimizationTarget ParseOptimizationTargetFromString(
@@ -270,52 +242,11 @@ void PredictionModelStore::LoadModel(
 
   model_task_runner->PostTaskAndReplyWithResult(
       FROM_HERE,
-      base::BindOnce(&PredictionModelStore::LoadAndVerifyModelOffThread,
-                     optimization_target,
+      base::BindOnce(&LoadAndVerifyModelOffThread, optimization_target,
                      base_store_dir_.Append(*base_model_dir)),
       base::BindOnce(&PredictionModelStore::OnModelLoaded,
                      weak_ptr_factory_.GetWeakPtr(), optimization_target,
                      model_cache_key, std::move(callback)));
-}
-
-// static
-std::unique_ptr<proto::PredictionModel>
-PredictionModelStore::LoadAndVerifyModelOffThread(
-    proto::OptimizationTarget optimization_target,
-    const base::FilePath& base_model_dir) {
-  TRACE_EVENT("optimization_guide",
-              "PredictionModelStore::LoadAndVerifyModelOffThread", "target",
-              GetStringNameForOptimizationTarget(optimization_target));
-
-  auto model_info = ParseModelInfoFromFile(
-      base_model_dir.Append(GetBaseFileNameForModelInfo()));
-  if (!model_info) {
-    return nullptr;
-  }
-  DCHECK_EQ(optimization_target, model_info->optimization_target());
-  // Make sure the model file, the full modelinfo file and all additional
-  // files still exist.
-  auto file_paths_to_check = GetModelFilePaths(*model_info, base_model_dir);
-  if (!CheckAllPathsExist(file_paths_to_check)) {
-    return nullptr;
-  }
-  std::unique_ptr<proto::PredictionModel> model =
-      std::make_unique<proto::PredictionModel>();
-  *model->mutable_model_info() = *model_info;
-  model->mutable_model()->set_download_url(
-      FilePathToString(base_model_dir.Append(GetBaseFileNameForModels())));
-
-  // Convert the additional files to absolute paths.
-  model->mutable_model_info()->clear_additional_files();
-  for (const auto& additional_file : model_info->additional_files()) {
-    auto additional_filepath = StringToFilePath(additional_file.file_path());
-    if (!additional_filepath->IsAbsolute()) {
-      additional_filepath = base_model_dir.Append(*additional_filepath);
-    }
-    model->mutable_model_info()->add_additional_files()->set_file_path(
-        FilePathToString(*additional_filepath));
-  }
-  return model;
 }
 
 void PredictionModelStore::OnModelLoaded(

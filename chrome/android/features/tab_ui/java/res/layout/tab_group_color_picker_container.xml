@@ -4,24 +4,27 @@ Copyright 2024 The Chromium Authors
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 -->
-<org.chromium.chrome.browser.tasks.tab_management.TabGroupColorPickerContainer
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/color_picker_container"
-    android:layout_width="match_parent"
+<!--
+  We wrap the TabGroupColorPickerContainer in a FrameLayout to prevent
+  AnchoredPopupWindowUtils from automatically overriding the popup width.
+  AnchoredPopupWindowUtils has a special case where it sums the widths of
+  all children if the root view is a horizontal LinearLayout. Since
+  TabGroupColorPickerContainer extends MaterialButtonToggleGroup (which is
+  a horizontal LinearLayout), it would trigger this override and force a
+  single-row width calculation, cutting off the 2-row layout on narrow screens.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:orientation="vertical" >
-    <LinearLayout
-        android:id="@+id/color_picker_first_row"
+    android:layout_gravity="center_horizontal">
+
+    <org.chromium.chrome.browser.tasks.tab_management.TabGroupColorPickerContainer
+        android:id="@+id/color_picker_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:orientation="horizontal" >
-    </LinearLayout>
-    <LinearLayout
-        android:id="@+id/color_picker_second_row"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:orientation="horizontal" >
-    </LinearLayout>
-</org.chromium.chrome.browser.tasks.tab_management.TabGroupColorPickerContainer>
+        android:orientation="horizontal"
+        android:spacing="0dp"
+        app:singleSelection="true"
+        app:overflowMode="wrap" />
+</FrameLayout>

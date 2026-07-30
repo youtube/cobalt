@@ -5252,3 +5252,16 @@ EVENT_TYPE(PROXY_OVERRIDE_END_HOST_RESOLUTION)
 //       }]
 //   }
 EVENT_TYPE(PROXY_RESOLUTION_OVERRIDE_RULE_APPLIED)
+
+// This event is logged by a TrustedHeaderClient when it modifies headers
+// during OnBeforeSendHeaders. The event can be logged by multiple clients,
+// each putting their own dictionary under a distinct key.
+//   {
+//      "http_header_injection_policy": {
+//         <header name>: {
+//           "value": <string>,
+//           "is_override": <bool>
+//         }, ...
+//      }
+//   }
+EVENT_TYPE(ON_BEFORE_SEND_HEADERS_RESULT)

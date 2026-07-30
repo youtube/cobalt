@@ -64,6 +64,10 @@ class SendTabToSelfModel {
   virtual std::vector<const SendTabToSelfEntry*>
   GetUnopenedEntriesTargetedToLocalDevice() const = 0;
 
+  // Returns opened entries targeted to the local device.
+  virtual std::vector<const SendTabToSelfEntry*>
+  GetOpenedEntriesTargetedToLocalDevice() const = 0;
+
   // Adds `url` at the top of the entries. The entry title will be a
   // trimmed copy of `title`. Allows clients to modify the state of the model
   // as driven by user behaviors.
@@ -96,6 +100,11 @@ class SendTabToSelfModel {
   // the tab can be additionally received/displayed by layers other than
   // SendTabToSelfModel, to avoid showing the same notification twice.
   virtual void MarkEntryOpened(std::string_view guid) = 0;
+
+  // Marks the entry as activated (interacted with by the user) and records
+  // activation metrics.
+  virtual void MarkEntryActivated(std::string_view guid,
+                                  ShareActivatedEntryPoint entry_point) = 0;
 
   // Guarantee that the model is operational and syncing, i.e., the local
   // database is started and the initial data has been downloaded.

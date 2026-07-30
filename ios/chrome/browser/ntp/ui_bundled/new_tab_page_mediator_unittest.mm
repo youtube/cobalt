@@ -55,6 +55,8 @@
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/test/toolbar_test_navigation_manager.h"
 #import "ios/chrome/browser/url_loading/model/fake_url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_notifier_browser_agent.h"
@@ -112,6 +114,9 @@ class NewTabPageMediatorTest : public PlatformTest {
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
     test_profile_builder.AddTestingFactory(
+        SyncServiceFactory::GetInstance(),
+        base::BindRepeating(&CreateTestSyncService));
+    test_profile_builder.AddTestingFactory(
         HomeBackgroundCustomizationServiceFactory::GetInstance(),
         base::BindRepeating(
             [](ProfileIOS* profile) -> std::unique_ptr<KeyedService> {
@@ -137,9 +142,6 @@ class NewTabPageMediatorTest : public PlatformTest {
     profile_ = std::move(test_profile_builder).Build();
     browser_ = std::make_unique<TestBrowser>(profile_.get());
 
-    std::unique_ptr<ToolbarTestNavigationManager> navigation_manager =
-        std::make_unique<ToolbarTestNavigationManager>();
-    navigation_manager_ = navigation_manager.get();
     initial_web_state_ = CreateWebStateWithURL(GURL("chrome://newtab"), 0.0);
 
     UrlLoadingNotifierBrowserAgent::CreateForBrowser(browser_.get());
@@ -273,7 +275,6 @@ class NewTabPageMediatorTest : public PlatformTest {
       discover_feed_visibility_browser_agent_;
   FakeDiscoverFeedEligibilityHandler* eligibility_handler_;
   NewTabPageMediator* mediator_;
-  raw_ptr<ToolbarTestNavigationManager, DanglingUntriaged> navigation_manager_;
   raw_ptr<FakeUrlLoadingBrowserAgent> url_loader_;
   raw_ptr<BrowserViewVisibilityNotifierBrowserAgent>
       browser_view_visibility_notifier_;

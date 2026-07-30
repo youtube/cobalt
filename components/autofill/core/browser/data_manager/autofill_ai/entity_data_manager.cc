@@ -257,16 +257,15 @@ void EntityDataManager::OnHistoryDeletions(
 
 void EntityDataManager::OnPrefetchContextComplete(
     const PersonalContextAccessManager& manager,
-    base::span<const EntityInstance> entities) {
-  if (entities.empty()) {
+    std::optional<base::span<const EntityInstance>> entities) {
+  if (!entities.has_value() || entities->empty()) {
     return;
   }
-  CHECK(std::ranges::all_of(entities, [](const EntityInstance& entity) {
+  CHECK(std::ranges::all_of(*entities, [](const EntityInstance& entity) {
     return entity.record_type() == EntityInstance::RecordType::kPersonalContext;
   }));
   // insert() doesn't replace existing values. This suffices, because previously
-  // fetched entities are evicted before new ones are broadcast.
-  entities_.insert(entities.begin(), entities.end());
+  entities_.insert(entities->begin(), entities->end());
   DedupePersonalContextEntities();
   NotifyEntityInstancesChanged();
 }

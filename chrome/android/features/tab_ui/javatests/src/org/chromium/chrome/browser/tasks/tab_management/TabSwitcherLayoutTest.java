@@ -502,12 +502,7 @@ public class TabSwitcherLayoutTest {
         editGroupVisualDataDialogTitle(cta, "Test");
         // Change the color.
         String blueColor = cta.getString(R.string.tab_group_color_blue);
-        String notSelectedStringBlue =
-                cta.getString(
-                        R.string
-                                .accessibility_tab_group_color_picker_color_item_not_selected_description,
-                        blueColor);
-        onView(withContentDescription(notSelectedStringBlue)).perform(click());
+        onView(withContentDescription(blueColor)).perform(click());
 
         // Accept the change.
         onView(withId(R.id.positive_button)).perform(click());
@@ -553,12 +548,7 @@ public class TabSwitcherLayoutTest {
         editGroupVisualDataDialogTitle(cta, "Test");
         // Change the color.
         String blueColor = cta.getString(R.string.tab_group_color_blue);
-        String notSelectedStringBlue =
-                cta.getString(
-                        R.string
-                                .accessibility_tab_group_color_picker_color_item_not_selected_description,
-                        blueColor);
-        onView(withContentDescription(notSelectedStringBlue)).perform(click());
+        onView(withContentDescription(blueColor)).perform(click());
 
         // Decline the change.
         onView(withId(R.id.negative_button)).perform(click());

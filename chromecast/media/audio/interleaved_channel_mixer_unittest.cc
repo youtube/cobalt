@@ -52,8 +52,9 @@ TEST_P(InterleavedChannelMixerTest, Transform) {
 
   // Check that the output of upstream ChannelMixer + interleave is the same
   // as the output of interleave + InterleavedChannelMixer.
-  ::media::ChannelMixer channel_mixer(input_layout, num_input_channels,
-                                      output_layout, num_output_channels);
+  ::media::ChannelMixer channel_mixer(
+      ::media::ChannelLayoutConfig(input_layout, num_input_channels),
+      ::media::ChannelLayoutConfig(output_layout, num_output_channels));
   channel_mixer.Transform(original.get(), transformed.get());
 
   std::vector<float> original_interleaved(num_input_channels * kNumFrames);

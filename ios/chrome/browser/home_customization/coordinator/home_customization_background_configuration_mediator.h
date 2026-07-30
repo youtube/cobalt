@@ -75,6 +75,9 @@ class UserUploadedImageManager;
 // Does any necessary clean up if the selection is cancelled.
 - (void)cancelThemeSelection;
 
+// Disconnects the mediator from all observers.
+- (void)disconnect;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_HOME_CUSTOMIZATION_COORDINATOR_HOME_CUSTOMIZATION_BACKGROUND_CONFIGURATION_MEDIATOR_H_

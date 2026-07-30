@@ -5,13 +5,15 @@
 import '//resources/cr_elements/cr_button/cr_button.js';
 import '//resources/cr_elements/cr_lottie/cr_lottie.js';
 import '//resources/cr_elements/cr_view_manager/cr_view_manager.js';
+import '/strings.m.js';
+import './feature_showcase_step.js';
 import './feature_showcase_stepper.js';
 import './default_browser/default_browser_step.js';
-import './example/example_step.js';
-import './feature_showcase_step.js';
 import './google_lens/google_lens_step.js';
+import './themes_and_customization/themes_and_customization_step.js';
 import './password_manager/password_manager_step.js';
 
+import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 import type {CrLottieElement} from '//resources/cr_elements/cr_lottie/cr_lottie.js';
 import type {CrViewManagerElement} from '//resources/cr_elements/cr_view_manager/cr_view_manager.js';
 import {assert} from '//resources/js/assert.js';
@@ -67,14 +69,29 @@ export class FeatureShowcaseAppElement extends CrLitElement {
 
     this.matchMedia_ = window.matchMedia('(prefers-color-scheme: dark)');
     this.isDarkMode_ = this.matchMedia_.matches;
-    this.darkModeListener_ = (e: MediaQueryListEvent) => {
+    this.darkModeListener_ = async (e: MediaQueryListEvent) => {
       this.isDarkMode_ = e.matches;
+      await this.updateComplete;
+
+      // Play a single frame to prevent lottie engine from exiting internal loop
+      // early. When frames are equal, lottie thinks it has already reached the
+      // end of the animation and sends 'complete' event, cancelling all pending
+      // RequestAnimationFrame.
+      // TODO(crbug.com/500662042): Consider exposing goToAndStop(...).
+      const currentFrame = this.activeStepIndex * 120;
+      this.$.rightAnimation.playSegments([currentFrame, currentFrame + 1]);
+      this.$.bottomAnimation.playSegments([currentFrame, currentFrame + 1]);
     };
   }
 
   override connectedCallback() {
     super.connectedCallback();
     this.matchMedia_.addEventListener('change', this.darkModeListener_);
+    const updater = ColorChangeUpdater.forDocument();
+    updater.start();
+    // Force an initial refresh to avoid the race condition where the profile
+    // theme loads after the page, but before the listener is ready.
+    updater.refreshColorsCss();
   }
 
   override disconnectedCallback() {
@@ -89,7 +106,9 @@ export class FeatureShowcaseAppElement extends CrLitElement {
         this.steps.length > 0, 'Feature showcase requires at least one step.');
 
     const step = this.steps[this.activeStepIndex]!;
-    this.$.viewManager.switchView(step);
+    this.$.viewManager.switchView(step).then(() => {
+      this.notifyStepShown_();
+    });
   }
 
   protected getAnimationUrl_(position: 'right'|'bottom'): string {
@@ -111,12 +130,17 @@ export class FeatureShowcaseAppElement extends CrLitElement {
       const step = this.steps[this.activeStepIndex]!;
       this.$.viewManager.switchView(step).then(() => {
         this.areButtonsDisabled_ = false;
+        this.notifyStepShown_();
       });
       return;
     }
 
     FeatureShowcaseBrowserProxyImpl.getInstance()
         .handler.finishFeatureShowcase();
+  }
+
+  private notifyStepShown_() {
+    FeatureShowcaseBrowserProxyImpl.getInstance().handler.nextStepShown();
   }
 
   private tryPlayingTransitionAnimations() {

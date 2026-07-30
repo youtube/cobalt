@@ -368,6 +368,7 @@ PictureInPictureResult VideoPictureInPictureWindowControllerImpl::StartSession(
 
 void VideoPictureInPictureWindowControllerImpl::
     RequestImmersivePlaybackConfirmation(
+        const content::ImmersiveOptions& default_options,
         RequestImmersivePlaybackConfirmationCallback callback) {
   WebContentsDelegate* delegate = web_contents()->GetDelegate();
   if (!delegate || !delegate->IsImmersivePlaybackEnabled()) {
@@ -377,7 +378,8 @@ void VideoPictureInPictureWindowControllerImpl::
     return;
   }
 
-  delegate->RequestImmersivePlaybackConfirmation(std::move(callback));
+  delegate->RequestImmersivePlaybackConfirmation(default_options,
+                                                 std::move(callback));
 }
 
 void VideoPictureInPictureWindowControllerImpl::OnServiceDeleted(

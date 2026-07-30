@@ -185,6 +185,9 @@ class ArcFileSystemBridge
                           bool success,
                           const std::string& failure_reason);
 
+  // Returns true if it's OK to allow ARC apps to read the given URL.
+  bool IsUrlAllowed(const GURL& url);
+
   // Used to implement OpenFileToRead(), needs to be testable.
   //
   // Decode a percent-encoded externalfile: URL to an absolute path on

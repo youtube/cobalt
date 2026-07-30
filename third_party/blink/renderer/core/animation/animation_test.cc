@@ -1155,6 +1155,36 @@ TEST_P(AnimationAnimationTestNoCompositing, AnimationsReturnTimeToNextEffect) {
                    animation->TimeToEffectChange().value());
 }
 
+// Regression test: when an animation with a positive start delay is reversed
+// while in the before phase, TimeToEffectChange() must return a finite value
+// so the animation resolves its finished promise at the end of its start
+// delay. See crbug.com/386304676 for details.
+TEST_P(AnimationAnimationTestNoCompositing,
+       TimeToNextEffectReversedWithStartDelay) {
+  Timing timing;
+  timing.start_delay = Timing::Delay(ANIMATION_TIME_DELTA_FROM_SECONDS(1));
+  timing.iteration_duration = ANIMATION_TIME_DELTA_FROM_SECONDS(1);
+  auto* keyframe_effect = MakeGarbageCollected<KeyframeEffect>(
+      nullptr, MakeSimpleEffectModel(), timing);
+  animation = timeline->Play(keyframe_effect);
+  animation->setStartTime(MakeGarbageCollected<V8CSSNumberish>(0),
+                          ASSERT_NO_EXCEPTION);
+
+  SimulateFrame(0);
+  animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(100),
+                            ASSERT_NO_EXCEPTION);
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
+
+  // Reverse the animation and ensure that TimeToEffectChange() returns the
+  // time when the animation will finish.
+  animation->setPlaybackRate(-1);
+  animation->Update(kTimingUpdateOnDemand);
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
+  EXPECT_TRUE(animation->TimeToEffectChange().has_value());
+  EXPECT_TIMEDELTA(ANIMATION_TIME_DELTA_FROM_MILLISECONDS(100),
+                   animation->TimeToEffectChange().value());
+}
+
 TEST_P(AnimationAnimationTestNoCompositing, TimeToNextEffectWhenPaused) {
   EXPECT_TIMEDELTA(AnimationTimeDelta(),
                    animation->TimeToEffectChange().value());

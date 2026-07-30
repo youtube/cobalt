@@ -71,6 +71,63 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="PrivateMetrics.PrivateInsights.ContextualCueEvents.Logging.QueuedCount"
+    units="events" expires_after="2027-06-01">
+  <owner>kjarosz@google.com</owner>
+  <owner>private-metrics@google.com</owner>
+  <summary>
+    The number of in-memory queued contextual cue events immediately after
+    logging a new contextual cue event. Logged each time LogContextualCueEvent
+    is called.
+  </summary>
+</histogram>
+
+<histogram
+    name="PrivateMetrics.PrivateInsights.ContextualCueEvents.Logging.RemovedCount"
+    units="events" expires_after="2027-06-01">
+  <owner>kjarosz@google.com</owner>
+  <owner>private-metrics@google.com</owner>
+  <summary>
+    The number of contextual cue events removed from the queue due to exceeding
+    the maximum configured queue limit. Logged when events are removed during
+    LogContextualCueEvent.
+  </summary>
+</histogram>
+
+<histogram
+    name="PrivateMetrics.PrivateInsights.ContextualCueEvents.Requeuing.DroppedCount"
+    units="events" expires_after="2027-06-01">
+  <owner>kjarosz@google.com</owner>
+  <owner>private-metrics@google.com</owner>
+  <summary>
+    The number of contextual cue events dropped when attempting to requeue them
+    due to exceeding the maximum configured queue limit. Logged during
+    RequeueEvents.
+  </summary>
+</histogram>
+
+<histogram
+    name="PrivateMetrics.PrivateInsights.ContextualCueEvents.Requeuing.RequeuedCount"
+    units="events" expires_after="2027-06-01">
+  <owner>kjarosz@google.com</owner>
+  <owner>private-metrics@google.com</owner>
+  <summary>
+    The number of contextual cue events successfully prepended back to the queue
+    after a failed upload attempt. Logged during RequeueEvents.
+  </summary>
+</histogram>
+
+<histogram name="PrivateMetrics.PrivateInsights.ContributedTaskCount"
+    units="tasks" expires_after="2027-06-01">
+  <owner>kjarosz@google.com</owner>
+  <owner>private-metrics@google.com</owner>
+  <summary>
+    The number of contributed tasks in a Private Insights federated computation
+    attempt. Logged when federated computation completes.
+  </summary>
+</histogram>
+
 <histogram name="PrivateMetrics.PrivateInsights.FcpEvent"
     enum="PrivateInsightsFcpEvent" expires_after="2027-06-01">
   <owner>kjarosz@google.com</owner>
@@ -78,6 +135,17 @@ chromium-metrics-reviews@google.com.
   <summary>
     FCP-client-related events, as reported by FCP's event publisher interface.
     Logged each time the FCP client publishes an event.
+  </summary>
+</histogram>
+
+<histogram name="PrivateMetrics.PrivateInsights.FederatedComputationOutcome"
+    enum="PrivateInsightsFederatedComputationOutcome"
+    expires_after="2027-06-01">
+  <owner>kjarosz@google.com</owner>
+  <owner>private-metrics@google.com</owner>
+  <summary>
+    The outcome of a Private Insights federated computation attempt. Logged when
+    federated computation completes.
   </summary>
 </histogram>
 

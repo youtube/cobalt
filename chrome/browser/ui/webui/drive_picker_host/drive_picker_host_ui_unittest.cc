@@ -44,6 +44,7 @@ class MockDrivePickerBridge
       (mojo::PendingRemote<drive_picker_host::mojom::DrivePickerResultHandler>,
        drive_picker_host_untrusted::mojom::DrivePickerKeysPtr),
       (override));
+  MOCK_METHOD(void, LoadConsentKitUrl, (const GURL&), (override));
 
  private:
   mojo::Receiver<drive_picker_host_untrusted::mojom::DrivePickerBridge>
@@ -219,7 +220,25 @@ TEST_F(DrivePickerHostUITest, TriggerDrivePickerHostReportsTokenFetchFailure) {
   controller.SetBridge(mock_bridge.BindAndGetRemote());
 
   identity_test_env()->WaitForAccessTokenRequestIfNecessaryAndRespondWithError(
-      GoogleServiceAuthError(GoogleServiceAuthError::SERVICE_UNAVAILABLE));
+      GoogleServiceAuthError::FromServiceUnavailable(""));
 
   base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(DrivePickerHostUITest, LoadConsentKitUrl_ForwardsToUntrusted) {
+  content::TestWebUI test_web_ui;
+  test_web_ui.set_web_contents(web_contents());
+  DrivePickerHostUI controller(&test_web_ui);
+
+  MockDrivePickerBridge mock_bridge;
+  controller.SetBridge(mock_bridge.BindAndGetRemote());
+
+  const GURL test_url("https://consent.google.com/primitive?hl=en");
+  base::RunLoop run_loop;
+  EXPECT_CALL(mock_bridge, LoadConsentKitUrl(test_url))
+      .WillOnce(testing::InvokeWithoutArgs([&run_loop]() { run_loop.Quit(); }));
+
+  controller.LoadConsentKitUrl(test_url);
+
+  run_loop.Run();
 }

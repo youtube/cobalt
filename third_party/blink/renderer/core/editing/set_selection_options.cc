@@ -81,4 +81,10 @@ SetSelectionOptions::Builder& SetSelectionOptions::Builder::SetIsDirectional(
   data_.is_directional_ = new_value;
   return *this;
 }
+
+SetSelectionOptions::Builder& SetSelectionOptions::Builder::
+    SetShouldNotifySelectionControllerOfUnchangedSelection(bool new_value) {
+  data_.should_notify_selection_controller_of_unchanged_selection_ = new_value;
+  return *this;
+}
 }  // namespace blink

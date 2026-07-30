@@ -6,6 +6,7 @@
 #define CONTENT_BROWSER_RENDERER_HOST_UNBOUNDED_SURFACE_WINDOW_H_
 
 #include "base/functional/callback.h"
+#include "base/memory/weak_ptr.h"
 #include "components/viz/common/surfaces/frame_sink_id.h"
 #include "components/viz/common/surfaces/local_surface_id.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -45,6 +46,7 @@ class UnboundedSurfaceWindow {
       base::TimeDelta timeout,
       base::OnceCallback<void(const content::CopyFromSurfaceResult&)>
           callback) = 0;
+  virtual base::WeakPtr<UnboundedSurfaceWindow> GetWeakPtr() = 0;
   virtual void EnsureSurfaceSynchronizedForWebTest() = 0;
 };
 

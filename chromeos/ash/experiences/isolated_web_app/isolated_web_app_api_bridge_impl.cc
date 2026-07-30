@@ -152,7 +152,7 @@ void IsolatedWebAppApiBridgeImpl::SetShape(const std::vector<gfx::Rect>& rects,
   }
 
   if (rects.size() > blink::mojom::kMaxSetShapeRects) {
-    std::move(callback).Run(blink::mojom::SetShapeResult::kInvalidLength);
+    receiver_.ReportBadMessage("SetShape called with too many rects.");
     return;
   }
 

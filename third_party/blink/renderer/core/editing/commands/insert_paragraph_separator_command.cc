@@ -374,8 +374,9 @@ void InsertParagraphSeparatorCommand::DoApply(EditingState* editing_state) {
       if (paste_blockquote_into_unquoted_area_) {
         if (auto* highest_blockquote =
                 To<HTMLQuoteElement>(HighestEnclosingNodeOfType(
-                    canonical_pos, &IsMailHTMLBlockquoteElement)))
+                    canonical_pos, &IsMailHtmlBlockquoteElement))) {
           start_block = highest_blockquote;
+        }
       }
 
       if (list_child && list_child != start_block) {

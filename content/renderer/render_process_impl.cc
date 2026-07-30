@@ -172,6 +172,9 @@ RenderProcessImpl::RenderProcessImpl()
                           "--js-source-phase-imports",
                           "--no-js-source-phase-imports");
 
+    SetV8FlagIfOverridden(blink::features::kJavaScriptImportText,
+                          "--js-import-text", "--no-js-import-text");
+
     SetV8FlagIfOverridden(features::kDevToolsLiveEdit, "--inspector-live-edit",
                           "--no-inspector-live-edit");
   }

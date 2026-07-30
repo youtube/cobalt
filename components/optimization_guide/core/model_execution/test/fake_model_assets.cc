@@ -167,14 +167,12 @@ FakeSafetyModelAsset::FakeSafetyModelAsset(
 FakeSafetyModelAsset::FakeSafetyModelAsset(
     FakeSafetyModelAsset::Content&& content) {
   CHECK(temp_dir_.CreateUniqueTempDir());
-  auto data_path = temp_dir_.GetPath().Append(kTsDataFile);
-  auto model_path = temp_dir_.GetPath().Append(kTsSpModelFile);
+  auto data_path =
+      temp_dir_.GetPath().Append(FILE_PATH_LITERAL("model.tflite"));
   CHECK(base::WriteFile(data_path, on_device_model::FakeTsData()));
-  CHECK(base::WriteFile(model_path, on_device_model::FakeTsSpModel()));
   model_info_ = TestModelInfoBuilder()
                     .SetModelFilePath(data_path)
                     .SetVersion(content.model_info_version)
-                    .SetAdditionalFiles({data_path, model_path})
                     .SetModelMetadata(AnyWrapProto(content.metadata))
                     .Build();
 }

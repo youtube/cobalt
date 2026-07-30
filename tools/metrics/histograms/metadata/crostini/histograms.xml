@@ -696,17 +696,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Crostini.UpgradeDialogEvent" enum="CrostiniUpgradeDialogEvent"
-    expires_after="2027-07-01">
-  <owner>drmasquatch@google.com</owner>
-  <owner>zihanchen@chromium.org</owner>
-  <owner>clumptini@google.com</owner>
-  <summary>
-    A collection of events that can occur while upgrading the crostini
-    container, recorded as they occur.
-  </summary>
-</histogram>
-
 <histogram name="Crostini.UpgradeSource" enum="CrostiniUISurface"
     expires_after="2027-07-01">
   <owner>drmasquatch@google.com</owner>

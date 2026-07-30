@@ -895,6 +895,13 @@ TEST_F(FrameSchedulerImplTest, PauseAndResume) {
   UnpausableTaskQueue()->GetTaskRunnerWithDefaultTaskType()->PostTask(
       FROM_HERE, base::BindOnce(&IncrementCounter, base::Unretained(&counter)));
 
+  std::unique_ptr<WebSchedulingTaskQueue> web_scheduling_task_queue =
+      frame_scheduler_->CreateWebSchedulingTaskQueue(
+          WebSchedulingQueueType::kTaskQueue,
+          WebSchedulingPriority::kUserVisiblePriority);
+  web_scheduling_task_queue->GetTaskRunner()->PostTask(
+      FROM_HERE, base::BindOnce(&IncrementCounter, base::Unretained(&counter)));
+
   frame_scheduler_->SetPaused(true);
 
   EXPECT_EQ(0, counter);
@@ -905,7 +912,30 @@ TEST_F(FrameSchedulerImplTest, PauseAndResume) {
 
   EXPECT_EQ(1, counter);
   base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(5, counter);
+  EXPECT_EQ(6, counter);
+}
+
+TEST_F(FrameSchedulerImplTest, PauseBeforeWebSchedulingQueueCreated) {
+  int counter = 0;
+
+  frame_scheduler_->SetPaused(true);
+
+  std::unique_ptr<WebSchedulingTaskQueue> web_scheduling_task_queue =
+      frame_scheduler_->CreateWebSchedulingTaskQueue(
+          WebSchedulingQueueType::kTaskQueue,
+          WebSchedulingPriority::kUserVisiblePriority);
+  web_scheduling_task_queue->GetTaskRunner()->PostTask(
+      FROM_HERE, base::BindOnce(&IncrementCounter, base::Unretained(&counter)));
+
+  EXPECT_EQ(0, counter);
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(0, counter);
+
+  frame_scheduler_->SetPaused(false);
+
+  EXPECT_EQ(0, counter);
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(1, counter);
 }
 
 namespace {

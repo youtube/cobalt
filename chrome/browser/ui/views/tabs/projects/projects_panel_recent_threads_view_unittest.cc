@@ -87,7 +87,8 @@ TEST_F(ProjectsPanelRecentThreadsViewTest, PopulatesThreadsList) {
 
   // Verify that the labels are set correctly.
   for (size_t i = 0; i < threads.size(); ++i) {
-    auto* thread_item_view = recent_threads_view->item_views_for_testing()[i];
+    auto* thread_item_view =
+        recent_threads_view->item_views_for_testing()[i].get();
     EXPECT_THAT(thread_item_view, IsForThread(threads[i]));
   }
 }
@@ -106,7 +107,8 @@ TEST_F(ProjectsPanelRecentThreadsViewTest, SetThreadsUpdatesList) {
   EXPECT_EQ(2u, recent_threads_view->children().size());
 
   for (size_t i = 0; i < new_threads.size(); ++i) {
-    auto* thread_item_view = recent_threads_view->item_views_for_testing()[i];
+    auto* thread_item_view =
+        recent_threads_view->item_views_for_testing()[i].get();
     EXPECT_THAT(thread_item_view, IsForThread(new_threads[i]));
   }
 }
@@ -122,7 +124,8 @@ TEST_F(ProjectsPanelRecentThreadsViewTest, PropagatesCallbackToItems) {
   EXPECT_CALL(mock_callback, Run(GetThread1().server_id, GetThread1().type))
       .Times(1);
 
-  auto* thread_item_view = recent_threads_view->item_views_for_testing()[0];
+  auto* thread_item_view =
+      recent_threads_view->item_views_for_testing()[0].get();
   ui::MouseEvent event(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                        base::TimeTicks(), ui::EF_LEFT_MOUSE_BUTTON,
                        ui::EF_LEFT_MOUSE_BUTTON);

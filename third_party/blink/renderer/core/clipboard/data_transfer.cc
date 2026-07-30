@@ -584,7 +584,7 @@ void DataTransfer::WriteSelection(const FrameSelection& selection) {
 
   if (!EnclosingTextControl(
           selection.ComputeVisibleSelectionInDomTree().Start())) {
-    data_object_->SetHTMLAndBaseURL(selection.SelectedHTMLForClipboard(),
+    data_object_->SetHTMLAndBaseURL(selection.SelectedHtmlForClipboard(),
                                     selection.GetFrame()->GetDocument()->Url());
   }
 

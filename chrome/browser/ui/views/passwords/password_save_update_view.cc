@@ -106,12 +106,17 @@ class CancelSplitButton : public views::View,
         l10n_util::GetStringUTF16(IDS_NOT_NOW)));
     not_now_button_->SetStyle(ui::ButtonStyle::kTonal);
     not_now_button_->SetID(PasswordSaveUpdateView::kNotNowButton);
+    not_now_button_->SetProperty(
+        views::kElementIdentifierKey,
+        PasswordSaveUpdateView::kNotNowButtonElementId);
     // create caret button that opens menu with "never" option
     caret_button_ = AddChildView(std::make_unique<views::MdTextButton>(
         base::BindRepeating(&CancelSplitButton::OnCaretClicked,
                             base::Unretained(this)),
         std::u16string()));
     caret_button_->SetID(PasswordSaveUpdateView::kCaretButton);
+    caret_button_->SetProperty(views::kElementIdentifierKey,
+                               PasswordSaveUpdateView::kCaretButtonElementId);
     caret_button_->GetViewAccessibility().SetName(
         l10n_util::GetStringUTF16(IDS_TAB_GROUP_MORE_OPTIONS));
     caret_button_->SetImageModel(views::Button::STATE_NORMAL,
@@ -129,6 +134,8 @@ class CancelSplitButton : public views::View,
     menu_model_->AddItemWithStringId(
         static_cast<int>(CommandId::kNeverForThisSite),
         IDS_PASSWORD_MANAGER_TOOLTIP_BLOCKED);
+    menu_model_->SetElementIdentifierAt(
+        0, PasswordSaveUpdateView::kNeverMenuItemElementId);
   }
 
   void ExecuteCommand(int command_id, int event_flags) override {
@@ -865,3 +872,9 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(PasswordSaveUpdateView,
                                       kPasswordBubbleElementId);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(PasswordSaveUpdateView,
                                       kExtraButtonElementId);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(PasswordSaveUpdateView,
+                                      kNotNowButtonElementId);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(PasswordSaveUpdateView,
+                                      kCaretButtonElementId);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(PasswordSaveUpdateView,
+                                      kNeverMenuItemElementId);

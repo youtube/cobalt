@@ -82,6 +82,7 @@ class EventEmitter final : public gin::Wrappable<EventEmitter> {
   bool HasListeners() const;
 
   size_t GetNumListenersForTesting() const;
+  size_t GetNumPendingFiltersForTesting() const;
 
   // Saves a given filter in an internal filter_id based mapping. This is
   // needed in order to allow asynchronous usage of filters.

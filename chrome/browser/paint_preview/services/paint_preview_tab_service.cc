@@ -97,8 +97,7 @@ PaintPreviewTabService::PaintPreviewTabService(
           /*consumer_name=*/"PaintPreviewTabService",
           kPaintPreviewTabServiceTraits,
           this,
-          base::MemoryConsumerRegistration::CheckUnregister::kDisabled,
-          base::MemoryConsumerRegistration::CheckRegistryExists::kDisabled) {
+          base::MemoryConsumerRegistration::CheckUnregister::kDisabled) {
   GetFileMixin()->GetTaskRunner()->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(&FileManager::ListUsedKeys,

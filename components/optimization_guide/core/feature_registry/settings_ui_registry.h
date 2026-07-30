@@ -46,7 +46,9 @@ class SettingsUiMetadata {
 
 class SettingsUiRegistry {
  public:
+  COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
   SettingsUiRegistry();
+  COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
   ~SettingsUiRegistry();
 
   COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)

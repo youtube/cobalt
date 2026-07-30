@@ -135,7 +135,7 @@ TEST_F(ManifestSolutionFactoryTest, ExecuteTestFeature) {
       ("Encoder cache weight: 1016"
        "Adapter cache weight: 1017"
        "hello max:1024"
-       "TopK: 3, Temp: 0.800000011920929");
+       "TopK: 64, Temp: 1");
   EXPECT_EQ(*response.value(), expected_response);
 }
 
@@ -226,7 +226,7 @@ TEST_F(ManifestSolutionFactoryTest, ExecuteTestFeatureWithHints) {
        "Encoder cache weight: 1016"
        "Adapter cache weight: 1017"
        "hello max:1024"
-       "TopK: 3, Temp: 0.800000011920929");
+       "TopK: 64, Temp: 1");
   EXPECT_EQ(*response.value(), expected_response);
 }
 
@@ -258,7 +258,7 @@ TEST_F(ManifestSolutionFactoryTest, ExecuteTestFeatureWithAdaptation) {
        "Encoder cache weight: 1016"
        "Adapter cache weight: 1017"
        "hello max:1024"
-       "TopK: 3, Temp: 0.800000011920929");
+       "TopK: 64, Temp: 1");
   EXPECT_EQ(*response.value(), expected_response);
 }
 
@@ -295,7 +295,7 @@ TEST_F(ManifestSolutionFactoryTest, ExecuteTestFeatureWithSafety) {
       ("Encoder cache weight: 1016"
        "Adapter cache weight: 1017"
        "execute:hello max:1024"
-       "TopK: 3, Temp: 0.800000011920929");
+       "TopK: 64, Temp: 1");
   EXPECT_EQ(*response.value(), expected_response);
 }
 

@@ -46,6 +46,7 @@ source_set("signin") {
       "promos/signin_promo_tab_helper.h",
       "signin_qrcode_infobar.h",
       "signin_qrcode_infobar_delegate.h",
+      "signin_qrcode_model.h",
     ]
     public_deps += [
       "//chrome/browser/signin",
@@ -114,6 +115,7 @@ source_set("impl") {
       "promos/signin_promo_tab_helper.cc",
       "signin_qrcode_infobar.cc",
       "signin_qrcode_infobar_delegate.cc",
+      "signin_qrcode_model.cc",
     ]
 
     deps += [

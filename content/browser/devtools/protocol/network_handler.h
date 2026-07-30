@@ -337,6 +337,17 @@ class NetworkHandler : public DevToolsDomainHandler,
                     const network::mojom::URLResponseHeadDevToolsInfo&>>
           redirect_info);
 
+  void PrefetchActivationBeaconWillBeSent(
+      const std::string& request_id,
+      const network::ResourceRequest& request,
+      const GURL& initiator_url,
+      std::optional<std::string> frame_token,
+      base::TimeTicks timestamp,
+      std::optional<
+          std::pair<const GURL&,
+                    const network::mojom::URLResponseHeadDevToolsInfo&>>
+          redirect_info);
+
   void OnSignedExchangeReceived(
       std::optional<const base::UnguessableToken> devtools_navigation_token,
       const GURL& outer_request_url,
@@ -423,6 +434,24 @@ class NetworkHandler : public DevToolsDomainHandler,
       base::TimeTicks timestamp);
 
  private:
+  void RequestWillBeSent(
+      const std::string& request_id,
+      const std::string& loader_id,
+      const network::ResourceRequest& request,
+      const GURL& initiator_url,
+      const std::string& initiator_type,
+      const std::string& resource_type,
+      std::optional<std::string> frame_token,
+      base::TimeTicks timestamp,
+      std::optional<
+          std::pair<const GURL&,
+                    const network::mojom::URLResponseHeadDevToolsInfo&>>
+          redirect_info = std::nullopt,
+      const std::string& initiator_devtools_request_id = "",
+      std::vector<base::expected<std::vector<uint8_t>, std::string>>
+          request_bodies = {},
+      std::optional<std::string> mixed_content_type = std::nullopt);
+
   void OnLoadNetworkResourceFinished(DevToolsNetworkResourceLoader* loader,
                                      const net::HttpResponseHeaders* rh,
                                      bool success,

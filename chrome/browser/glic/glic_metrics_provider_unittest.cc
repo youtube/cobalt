@@ -9,12 +9,21 @@
 #include "base/memory/raw_ptr.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/glic_pref_names_internal.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
-#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/service/glic_onboarding_tracker.h"
+#include "chrome/common/chrome_features.h"
+#include "chrome/test/base/scoped_metrics_service_for_synthetic_trials.h"
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/constants/chromeos_features.h"
+#endif
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/prefs/pref_service.h"
+#include "components/variations/active_field_trials.h"
+#include "components/variations/synthetic_trial_registry.h"
+#include "components/variations/variations_test_utils.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -23,12 +32,21 @@ namespace glic {
 class GlicMetricsProviderTest : public testing::Test {
  public:
   void SetUp() override {
-    GlicEnabling::SetBypassEnablementChecksForTesting(true);
+    std::vector<base::test::FeatureRef> enabled_features = {
+        features::kGlic, features::kGlicRollout,
+        features::kGlicShowForSignedOut};
+#if BUILDFLAG(IS_CHROMEOS)
+    enabled_features.push_back(chromeos::features::kFeatureManagementGlic);
+#endif
+    scoped_feature_list_.InitWithFeatures(
+        enabled_features,
+        {features::kGlicCountryFiltering, features::kGlicLocaleFiltering});
 
     testing_profile_manager_ =
         TestingBrowserProcess::GetGlobal()->SetUpGlobalFeaturesForTesting(
             /*profile_manager=*/true);
-
+    metrics_service_ = std::make_unique<ScopedMetricsServiceForSyntheticTrials>(
+        TestingBrowserProcess::GetGlobal());
     profile1_ = profile_manager()->CreateTestingProfile("profile1");
     profile2_ = profile_manager()->CreateTestingProfile("profile2");
   }
@@ -36,6 +54,7 @@ class GlicMetricsProviderTest : public testing::Test {
   void TearDown() override {
     profile1_ = nullptr;
     profile2_ = nullptr;
+    metrics_service_.reset();
     testing_profile_manager_ = nullptr;
     TestingBrowserProcess::GetGlobal()->TearDownGlobalFeaturesForTesting();
   }
@@ -45,8 +64,15 @@ class GlicMetricsProviderTest : public testing::Test {
   Profile* profile1() { return profile1_; }
   Profile* profile2() { return profile2_; }
 
+  std::vector<variations::ActiveGroupId> GetSyntheticFieldTrials() {
+    return metrics_service_->Get()
+        ->GetSyntheticTrialRegistry()
+        ->GetCurrentSyntheticFieldTrialsForTest();
+  }
+
  private:
   content::BrowserTaskEnvironment task_environment_;
+  std::unique_ptr<ScopedMetricsServiceForSyntheticTrials> metrics_service_;
   base::test::ScopedFeatureList scoped_feature_list_;
   raw_ptr<TestingProfileManager> testing_profile_manager_;
   raw_ptr<Profile> profile1_;
@@ -66,9 +92,8 @@ TEST_F(GlicMetricsProviderTest, ProvideCurrentSessionData) {
 
 TEST_F(GlicMetricsProviderTest, ProvideCurrentSessionData_ZoomLevel) {
   // Set FRE completion for profile2 only.
-  GlicKeyedService::Get(profile2())
-      ->enabling()
-      .SetCompletedFre(prefs::FreStatus::kCompleted);
+  profile2()->GetPrefs()->SetInteger(
+      prefs::kGlicCompletedFre, static_cast<int>(prefs::FreStatus::kCompleted));
   // Set zoom level for profile2.
   profile2()->GetPrefs()->SetInteger(prefs::kGlicZoomLevel, 125);
 
@@ -81,12 +106,61 @@ TEST_F(GlicMetricsProviderTest, ProvideCurrentSessionData_ZoomLevel) {
   histograms.ExpectUniqueSample("Glic.ZoomLevel.SteadyState", 125, 1);
 
   // Set FRE completion for profile1.
-  GlicKeyedService::Get(profile1())
-      ->enabling()
-      .SetCompletedFre(prefs::FreStatus::kCompleted);
+  profile1()->GetPrefs()->SetInteger(
+      prefs::kGlicCompletedFre, static_cast<int>(prefs::FreStatus::kCompleted));
 
   provider.ProvideCurrentSessionData(nullptr);
   histograms.ExpectTotalCount("Glic.ZoomLevel.SteadyState", 3);
+}
+
+TEST_F(GlicMetricsProviderTest, ProvideCurrentSessionData_OnboardingStatus) {
+  GlicMetricsProvider provider;
+  base::HistogramTester histograms;
+
+  provider.ProvideCurrentSessionData(nullptr);
+
+  histograms.ExpectUniqueSample("Glic.Onboarding.Profiles.Status",
+                                OnboardingStatus::kNoInteraction, 1);
+  histograms.ExpectUniqueSample("Glic.Onboarding.Profiles.Invoked",
+                                GlicProfilesAllSomeNone::kNone, 1);
+  histograms.ExpectUniqueSample("Glic.Onboarding.Profiles.OptIn",
+                                GlicProfilesAllSomeNone::kNone, 1);
+  histograms.ExpectUniqueSample("Glic.Onboarding.Profiles.UserSubmit",
+                                GlicProfilesAllSomeNone::kNone, 1);
+  EXPECT_TRUE(variations::ContainsTrialAndGroupName(
+      GetSyntheticFieldTrials(), "GlicOnboardingStatus", "NoInteraction"));
+
+  // Set profile1 to kNotOptedInButInvoked (Invoked=Some, OptIn=None,
+  // UserSubmit=None)
+  profile1()->GetPrefs()->SetInteger(
+      prefs::kGlicOnboardingStatus,
+      static_cast<int>(OnboardingStatus::kNotOptedInButInvoked));
+
+  provider.ProvideCurrentSessionData(nullptr);
+  histograms.ExpectBucketCount("Glic.Onboarding.Profiles.Status",
+                               OnboardingStatus::kNotOptedInButInvoked, 1);
+  histograms.ExpectBucketCount("Glic.Onboarding.Profiles.Invoked",
+                               GlicProfilesAllSomeNone::kSome, 1);
+  EXPECT_TRUE(variations::ContainsTrialAndGroupName(GetSyntheticFieldTrials(),
+                                                    "GlicOnboardingStatus",
+                                                    "NotOptedInButInvoked"));
+
+  // Set profile2 to kPromptAndOptIn (Invoked=All, OptIn=Some, UserSubmit=Some)
+  profile2()->GetPrefs()->SetInteger(
+      prefs::kGlicOnboardingStatus,
+      static_cast<int>(OnboardingStatus::kPromptAndOptIn));
+
+  provider.ProvideCurrentSessionData(nullptr);
+  histograms.ExpectBucketCount("Glic.Onboarding.Profiles.Status",
+                               OnboardingStatus::kPromptAndOptIn, 1);
+  histograms.ExpectBucketCount("Glic.Onboarding.Profiles.Invoked",
+                               GlicProfilesAllSomeNone::kAll, 1);
+  histograms.ExpectBucketCount("Glic.Onboarding.Profiles.OptIn",
+                               GlicProfilesAllSomeNone::kSome, 1);
+  histograms.ExpectBucketCount("Glic.Onboarding.Profiles.UserSubmit",
+                               GlicProfilesAllSomeNone::kSome, 1);
+  EXPECT_TRUE(variations::ContainsTrialAndGroupName(
+      GetSyntheticFieldTrials(), "GlicOnboardingStatus", "PromptAndOptIn"));
 }
 
 }  // namespace glic

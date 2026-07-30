@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+#include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_activation_tracker.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_util.h"
 #include "chrome/browser/ui/toasts/api/toast_id.h"
 #include "chrome/browser/ui/toasts/toast_controller.h"
@@ -71,7 +72,8 @@ void SendTabToSelfToolbarIconController::DisplayNewEntries(
     if (base::FeatureList::IsEnabled(kSendTabToSelfAutoOpen)) {
       // Open the first tab in the foreground and all the others in the
       // background.
-      OpenEntryInNewForegroundTab(profile_, *new_entries[0]);
+      OpenEntryInNewForegroundTab(profile_, *new_entries[0],
+                                  ShareActivatedEntryPoint::kAutoOpened);
       RecordAutoOpenOutcome(AutoOpenOutcome::kSuccess);
       for (size_t ii = 1; ii < new_entries.size(); ++ii) {
         OpenEntryInNewBackgroundTab(profile_, *new_entries[ii]);
@@ -235,8 +237,13 @@ void SendTabToSelfToolbarIconController::SwitchToLatestTabsOpenedInBackground(
 
   for (const base::WeakPtr<tabs::TabInterface>& tab :
        latest_tabs_opened_in_background_) {
+    if (!tab) {
+      continue;
+    }
     int index = browser->GetTabStripModel()->GetIndexOfTab(tab.get());
     if (index != TabStripModel::kNoTab) {
+      SendTabToSelfActivationTracker::SetEntryOpenedViaToast(
+          tab->GetContents());
       browser->GetTabStripModel()->ActivateTabAt(index);
       return;
     }

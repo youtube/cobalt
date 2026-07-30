@@ -334,6 +334,28 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
                             modelSelectorButton.getKeyboardFocusRingColor());
         }
 
+        TintedCompositorButton tabSearchButton =
+                (TintedCompositorButton)
+                        layoutHelper.getActiveStripLayoutHelper().getTabSearchButton();
+        if (tabSearchButton != null) {
+            boolean tabSearchButtonVisible = tabSearchButton.isVisible();
+            TabStripSceneLayerJni.get()
+                    .updateTabSearchButton(
+                            mNativePtr,
+                            tabSearchButton.getResourceId(),
+                            tabSearchButton.getBackgroundResourceId(),
+                            Math.round(tabSearchButton.getDrawX() * mDpToPx),
+                            Math.round(tabSearchButton.getDrawY() * mDpToPx),
+                            tabSearchButtonVisible,
+                            tabSearchButton.getShouldApplyHoverBackground(),
+                            tabSearchButton.getTint(),
+                            tabSearchButton.getBackgroundTint(),
+                            tabSearchButton.getOpacity(),
+                            tabSearchButton.isKeyboardFocused(),
+                            TabUiThemeUtil.getCircularButtonKeyboardFocusDrawableRes(),
+                            tabSearchButton.getKeyboardFocusRingColor());
+        }
+
         TabStripSceneLayerJni.get()
                 .updateTabStripFade(
                         mNativePtr,
@@ -446,7 +468,8 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
                             Math.round(FOLIO_FOOT_LENGTH_DP * mDpToPx),
                             isPinned,
                             Math.round(st.getPinnedTabFaviconOffsetX() * mDpToPx),
-                            st.isUnderlined(),
+                            st.getUnderlineOpacity(),
+                            st.getUnderlineShimmerOffset(),
                             underlineStartColor,
                             underlineEndColor,
                             Math.round(StripLayoutTab.FAVICON_WIDTH * 2 * mDpToPx));
@@ -622,6 +645,21 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
                 @DrawableRes int keyboardFocusRingResourceId,
                 @ColorInt int keyboardFocusRingColor);
 
+        void updateTabSearchButton(
+                long nativeTabStripSceneLayer,
+                @DrawableRes int resourceId,
+                @DrawableRes int backgroundResourceId,
+                float x,
+                float y,
+                boolean visible,
+                boolean isHovered,
+                @ColorInt int tint,
+                @ColorInt int backgroundTint,
+                float buttonAlpha,
+                boolean isKeyboardFocused,
+                @DrawableRes int keyboardFocusRingResourceId,
+                @ColorInt int keyboardFocusRingColor);
+
         void updateTabStripFade(
                 long nativeTabStripSceneLayer,
                 boolean isLeft,
@@ -685,7 +723,8 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
                 float folioFootLength,
                 boolean isPinned,
                 float pinnedIconOffsetX,
-                boolean isUnderlined,
+                float underlineOpacity,
+                float underlineShimmerOffset,
                 @ColorInt int underlineStartColor,
                 @ColorInt int underlineEndColor,
                 int underlineWidthThreshold);

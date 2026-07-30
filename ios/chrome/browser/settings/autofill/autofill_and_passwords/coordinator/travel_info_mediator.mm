@@ -88,7 +88,7 @@ static constexpr autofill::DenseSet<autofill::EntityTypeName> kTravelInfo = {
   }
 }
 
-#pragma mark - Private
+#pragma mark - Protected
 
 - (void)updateConsumerToggleState {
   if (!self.consumer) {
@@ -97,8 +97,10 @@ static constexpr autofill::DenseSet<autofill::EntityTypeName> kTravelInfo = {
   BOOL profileEnabled =
       _autofillProfileEnabled ? _autofillProfileEnabled.value : YES;
   BOOL travelInfoEnabled = _travelInfoEnabled ? _travelInfoEnabled.value : YES;
+  BOOL managed = [self isAutofillAiDisabledByEnterprisePolicy];
   [self.consumer setTravelInfoToggleState:travelInfoEnabled && profileEnabled
-                                  enabled:profileEnabled];
+                                  enabled:profileEnabled
+                                  managed:managed];
 }
 
 #pragma mark - TravelInfoMutator

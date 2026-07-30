@@ -27,6 +27,11 @@ class TabDragWindowRegistry {
   // Retrieves the window associated with the ID, or nullptr if not found.
   TabDragWindowAdapter* Get(TabDragWindowId id) const;
 
+  // Finds the window ID associated with the given native window handle.
+  // Returns an invalid ID if not found.
+  TabDragWindowId FindWindowIdByNativeWindow(
+      gfx::NativeWindow native_window) const;
+
  private:
   std::map<TabDragWindowId, TabDragWindowAdapter*> windows_;
   TabDragWindowId::Generator id_generator_;

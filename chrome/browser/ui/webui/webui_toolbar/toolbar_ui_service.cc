@@ -272,4 +272,23 @@ void ToolbarUIService::SetAvatarButtonFocused(
   }
 }
 
+void ToolbarUIService::SetAvatarButtonIphPromoShowing(
+    bool showing,
+    SetAvatarButtonIphPromoShowingCallback callback) {
+  if (delegate_) {
+    delegate_->SetAvatarButtonIPHPromoShowing(showing);
+    std::move(callback).Run({});
+  } else {
+    std::move(callback).Run(
+        base::unexpected(Error::New(Code::kFailedPrecondition,
+                                    "ToolbarUIService: cannot set IPH promo "
+                                    "showing on avatar without delegate_")));
+  }
+}
+
+void ToolbarUIService::OnAppMenuFocusChanged(bool focused) {
+  if (delegate_) {
+    delegate_->OnAppMenuFocusChanged(focused);
+  }
+}
 }  // namespace toolbar_ui_api

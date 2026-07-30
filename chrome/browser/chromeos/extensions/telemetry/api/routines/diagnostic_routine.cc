@@ -34,7 +34,7 @@ namespace cx_diag = api::os_diagnostics;
 DiagnosticRoutine::DiagnosticRoutine(
     mojo::PendingRemote<crosapi::TelemetryDiagnosticRoutineControl>
         control_remote,
-    mojo::PendingReceiver<crosapi::TelemetryDiagnosticRoutineObserver>
+    mojo::PendingReceiver<ash::cros_healthd::mojom::RoutineObserver>
         observer_receiver,
     DiagnosticRoutineInfo info,
     OnRoutineFinishedOrException on_routine_finished_or_exception)

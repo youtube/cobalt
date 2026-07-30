@@ -49,7 +49,6 @@ import org.chromium.chrome.browser.tab_ui.RecyclerViewPosition;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tab_ui.TabContentManagerThumbnailProvider;
 import org.chromium.chrome.browser.tab_ui.TabListMode;
-import org.chromium.chrome.browser.tabmodel.TabGroupColorUtils;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tasks.tab_management.TabGridDialogMediator.AnimationSourceViewProvider;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorCoordinator.CreationMode;
@@ -58,6 +57,7 @@ import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabListI
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherMessageManager.MessageType;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiMetricsHelper.TabGroupColorChangeActionType;
+import org.chromium.chrome.browser.tasks.tab_management.color_picker.ColorPickerContainer;
 import org.chromium.chrome.browser.tasks.tab_management.color_picker.ColorPickerCoordinator;
 import org.chromium.chrome.browser.tasks.tab_management.color_picker.ColorPickerCoordinator.ColorPickerLayoutType;
 import org.chromium.chrome.browser.tasks.tab_management.color_picker.ColorPickerType;
@@ -70,6 +70,7 @@ import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.components.collaboration.CollaborationService;
 import org.chromium.components.collaboration.ServiceStatus;
 import org.chromium.components.data_sharing.DataSharingService;
+import org.chromium.components.tab_groups.TabGroupColorPickerUtils;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.LayoutViewBuilder;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -417,13 +418,16 @@ public class TabGridDialogCoordinator implements TabGridDialogMediator.DialogCon
                     }
                 };
 
-        List<Integer> colors = TabGroupColorUtils.getTabGroupColorIdList();
+        List<Integer> colors = TabGroupColorPickerUtils.getTabGroupColorIdList();
+        View root =
+                LayoutInflater.from(mActivity)
+                        .inflate(R.layout.tab_group_color_picker_container, null);
+        ColorPickerContainer container = root.findViewById(R.id.color_picker_container);
         mColorPickerCoordinator =
                 new ColorPickerCoordinator(
                         mActivity,
                         colors,
-                        LayoutInflater.from(mActivity)
-                                .inflate(R.layout.tab_group_color_picker_container, null),
+                        container,
                         ColorPickerType.TAB_GROUP,
                         mModel.get(TabGridDialogProperties.IS_INCOGNITO),
                         ColorPickerLayoutType.DOUBLE_ROW,
@@ -458,7 +462,7 @@ public class TabGridDialogCoordinator implements TabGridDialogMediator.DialogCon
                         mActivity,
                         decorView,
                         AppCompatResources.getDrawable(mActivity, bgDrawableId),
-                        contentView,
+                        root,
                         new ViewRectProvider(anchorView));
         mColorIconPopupWindow.addOnDismissListener(onDismissListener);
         mColorIconPopupWindow.setFocusable(true);

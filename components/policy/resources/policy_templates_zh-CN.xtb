@@ -131,7 +131,6 @@
 <translation id="1076751984131277498">分离式 USB 设备许可名单</translation>
 <translation id="1077675271127011209">禁止报告与使用情况和崩溃情况相关的数据</translation>
 <translation id="1079498696402787191">使用已允许在 TLS 握手时使用的哈希的默认值。</translation>
-<translation id="1079801999187584280">禁止使用开发者工具</translation>
 <translation id="1081470306474387129">Controlled Frame API 适用于某些独立的环境（例如独立式 Web 应用 [IWA]），使应用能够嵌入和操作任意内容。
 如需了解详情，请访问 https://github.com/WICG/controlled-frame。
 
@@ -1145,6 +1144,7 @@ Chrome 政策的优先级高于此政策，例如：如果某个扩展程序已�
 <translation id="1781356041596378058">此政策亦用于控制对 Android 开发者选项的访问。如果此政策设为 true，用户将无法访问开发者选项。如果此政策设为 false 或未设置，用户只需在 Android 的“设置”应用中连续点按 7 次 Build 号即可访问开发者选项。</translation>
 <translation id="1781720543185538098">指定是否向用户显示产品内 <ph name="PRODUCT_NAME" /> 调查问卷。</translation>
 <translation id="1787790976045065845">仅当 <ph name="SECURITY_TOKEN_SESSION_BEHAVIOR_POLICY_NAME" /> 政策设为 <ph name="SECURITY_TOKEN_SESSION_BEHAVIOR_LOCK" /> 或 <ph name="SECURITY_TOKEN_SESSION_BEHAVIOR_LOGOUT" />，并且通过智能卡验证身份的用户移除该卡时，此政策才会生效。通过设置此政策，您可指定旨在让用户知道系统即将执行的操作的通知应持续显示多少秒。此通知会遮住屏幕上的其他内容。仅当此通知显示完毕后，系统才会执行相应操作。用户只需在此通知显示完毕前重新插入智能卡，便能阻止系统执行该操作。如果此政策设为零，系统将不会显示任何通知，并且会立即执行该操作。</translation>
+<translation id="1788597893274674447">在 Android 设备上为指定源启用网站隔离功能（已弃用）</translation>
 <translation id="1793346220873697538">默认停用 PIN 码打印</translation>
 <translation id="1794457906032475749">如果此政策已启用，系统会默认勾选相应选项，允许在创建企业资料时保留所有现有浏览数据。
 
@@ -1643,6 +1643,11 @@ Chrome 政策的优先级高于此政策，例如：如果某个扩展程序已�
       如果此政策设为 false，用户将无法选择向 Google 服务器发送一些系统信息和网页内容。如果此设置设为 true 或未配置，用户将能够向“安全浏览”功能发送一些系统信息和网页内容，以帮助检测危险应用和网站。
 
       如需详细了解“安全浏览”功能，请访问 https://developers.google.com/safe-browsing。</translation>
+<translation id="2126895531607538755">通过设置此政策，您可以指定设备在 <ph name="DEVICE_WEEKLY_SCHEDULED_SUSPEND_POLICY_NAME" /> 规定的时间间隔内重新应用挂起操作之前等待的毫秒数。
+
+如果设备在预定的休眠时段内被手动唤醒（例如通过键盘输入），则设备会先按照此毫秒数稍作等待，然后再挂起到 RAM。只要在挂起时间间隔内发生任何用户活动，重新挂起计时器都会重置。
+
+如果此政策未设置，则在挂起时间间隔内唤醒设备时，设备不会自动重新挂起。</translation>
 <translation id="2127599828444728326">允许在这些网站上显示通知</translation>
 <translation id="2131902621292742709">使用电源供电时的屏幕变暗延迟时间</translation>
 <translation id="2131915994539959070">在 <ph name="PRODUCT_NAME" /> 中启用窗口遮挡。
@@ -1770,21 +1775,6 @@ Chrome 政策的优先级高于此政策，例如：如果某个扩展程序已�
 <translation id="2180958780733364832">控制对无头模式的使用权限</translation>
 <translation id="2182291258410176649">用户可决定是否启用备份和恢复服务</translation>
 <translation id="2183338188392346527">不报告设备运行时计数器数据</translation>
-<translation id="2183838844225082873">如果此政策设为 0（默认值），您可以访问开发者工具和 JavaScript 控制台，但无法在由企业政策安装的扩展程序中访问它们；自 114 版起，若是受管理的用户，也无法在浏览器内置的扩展程序中访问它们。如果此政策设为 1，无论在什么情境下（包括在由企业政策安装的扩展程序中），您都可以访问开发者工具和 JavaScript 控制台。如果此政策设为 2，您既无法访问开发者工具，也无法检查网站元素。
-
-此设置还会关闭用于打开开发者工具或 JavaScript 控制台的键盘快捷键及菜单（或上下文菜单）条目。
-
-自 <ph name="PRODUCT_NAME" /> 99 版起，此设置还可控制“查看网页源代码”功能的入口点。如果此政策设为“DeveloperToolsDisallowed”（值为 2），用户将无法通过键盘快捷键或上下文菜单查看源代码。若要完全阻止查看源代码，您还必须将“view-source:*”添加到 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 政策中。
-
-自 <ph name="PRODUCT_NAME" /> 119 版起，此设置还可控制是否可以对独立式 Web 应用 (IWA) 启用和使用开发者模式。
-
-自 <ph name="PRODUCT_NAME" /> 128 版起，如果设置了 <ph name="EXTENSION_DEVELOPER_MODE_SETTINGS_POLICY_NAME" /> 政策，此设置将不会控制扩展程序页面上的开发者模式。
-
-开发者工具的可用性按以下优先顺序确定：
-1. 如果网址与 <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> 政策中的格式匹配，则允许使用开发者工具。
-2. 如果已设置 <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />，但未设置 <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />，则所有不在许可清单上的网址都会被屏蔽。
-3. 如果网址与 <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> 政策中的格式匹配，则开发者工具会被屏蔽。
-4. 如果网址不在许可清单或屏蔽清单中，则此政策 (<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />) 将作为后备政策。</translation>
 <translation id="2187361040843865450">接受“Just Works”蓝牙配对请求</translation>
 <translation id="2187372280917024033">此政策用于指定所需 DNS-over-HTTPS 解析器的 URI 模板。若要指定多个 DNS-over-HTTPS 解析器，请使用空格分隔相应的 URI 模板。此政策与 <ph name="DOH_TEMPLATES_POLICY_NAME" /> 非常相似，并会覆盖后者（若已指定）。
 与 <ph name="DOH_TEMPLATES_POLICY_NAME" /> 政策相反，此政策支持指定身份信息。
@@ -1959,6 +1949,26 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
       用户无法更改或覆盖此设置。
 
       请注意：此政策会致使系统将 X-GoogApps-Allowed-Domains 标头附加到向所有 google.com 网域发送的所有 HTTP 和 HTTPS 请求中，如 https://support.google.com/a/answer/1668854 中所述。</translation>
+<translation id="2282968242492236886">通过设置此政策，您可以针对特定的网址格式，指定要屏蔽哪些类型的自动填充数据。
+
+此政策的结构是一个字典列表。每个字典必须包含：
+*“url_pattern”：内容设置网址格式（例如“https://[*.]example.com”）。
+*“blocked_types”：字符串列表，表示要屏蔽的自动填充数据类别。
+
+“blocked_types”支持的值包括：
+*“contact_info”：禁止填充和保存联系信息。
+*“payments”：禁止填充和保存信用卡及支付方式。
+*“identity_docs”：禁止填充和保存身份证件（例如护照、驾照、国民身份证）。
+*“travel”：禁止填充和保存出行信息（例如航班预订、车辆登记信息）。
+
+如果某个网站屏蔽了某种数据类型，则该网站将无法生成相关建议，系统也不会再提示在该网站上保存或导入该类型的新数据。
+
+如果某个网址与列表中的多个格式条目匹配，则所有匹配条目中被屏蔽的类型将合并（取并集）。系统会忽略列表中的无效网址格式。
+
+如果未设置此政策，系统不会按网域屏蔽任何自动填充数据类型。
+
+如需详细了解有效的网址格式，请访问：
+https://chromeenterprise.google/policies/url-patterns。支持通配符 *，此格式会匹配包含任何协议、端口和路径的任何网址。</translation>
 <translation id="2287414160388710497">允许管理员自定义数据泄露防护 (DLP) 规则应用的水印外观。这包括设置填充/轮廓不透明度，以及定义字体大小。
 如果未设置此政策或某些值，Chrome 将使用其默认水印行为。
 默认值如下：填充不透明度为 4，轮廓不透明度为 6，字体大小为 24。
@@ -3251,6 +3261,7 @@ PAC 样式的字符串：
 该报告包含资料状态和使用情况信息，包括但不限于操作系统版本、浏览器版本、已安装的扩展程序和应用的政策。
 
 此政策只能设为云用户政策。</translation>
+<translation id="3060733249129331512">每次网站想自动下载多个文件时都询问</translation>
 <translation id="3062559845875011810">不允许使用该功能</translation>
 <translation id="3063302084011279315">停用“屏幕录制”功能</translation>
 <translation id="3063307261083019730">禁止具有“<ph name="CACHE_CONTROL_NO_STORE_NAME" />”标头的网页储存在往返缓存中。</translation>
@@ -3339,6 +3350,19 @@ PAC 样式的字符串：
 <translation id="3150351525324499342">默认情况下不在工具栏中显示 <ph name="PRODUCT_NAME" /> 图标，但允许用户选择是否显示</translation>
 <translation id="3152135410085709340">允许这些网站使用 PDF 查看器对 file:// 网址进行本地文件访问</translation>
 <translation id="3152425128389603870">使“统一桌面”功能可供用户使用，并使其在默认情况下处于启用状态</translation>
+<translation id="3157506194753687842">控制是否允许 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 智能体连接到 <ph name="PRODUCT_NAME" /> 并使用自动浏览功能。
+
+0 = 允许 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 连接到 <ph name="PRODUCT_NAME" /> 并使用自动浏览功能
+
+1 = 不允许 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 连接到 <ph name="PRODUCT_NAME" /> 或使用自动浏览功能
+
+警告：如果允许 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 连接到 <ph name="PRODUCT_NAME" /> 并使用自动浏览功能，<ph name="GEMINI_SPARK_PRODUCT_NAME" /> 智能体将能够使用活跃的浏览器会话在 <ph name="PRODUCT_NAME" /> 客户端上执行自主的多步操作。这涉及重大的安全风险，包括凭证泄露风险、本地网络入站访问风险以及情境感知信号的丢失。现有的管理和安全控制措施可能无法得到遵守。
+
+建议管理员在启用此功能之前，仔细评估组织的网络威胁模型、合规性和隐私权准则。
+
+如果 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> 应用或 <ph name="PRODUCT_NAME" /> 自动浏览政策已停用，则此政策不会生效。例如，可通过 <ph name="GEMINI_SETTINGS_POLICY_NAME" /> 政策停用 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> 应用。如需详细了解 <ph name="PRODUCT_NAME" /> 中的 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />，请访问 https://support.google.com/chrome/a?p=gemini_in_chrome。
+
+<ph name="PRODUCT_NAME" /> 自动浏览和 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 仅在部分国家/地区推出，且仅支持部分语言。将此政策设为 0（即已启用）并不能保证该功能一定会生效；其启用情况仍取决于实际的可用性。如需详细了解推出情况，请查看企业版版本说明：https://chromeenterprise.google/resources/release-notes/。</translation>
 <translation id="3159375329008977062">允许用户通过界面导出/导入 Crostini 容器</translation>
 <translation id="3163167792874598128">如果此政策未设置或已启用，弹出式提醒“App Store 评分”可能每年最多向用户显示 1 次。
 如果此政策已停用，系统将不会向用户显示弹出式提醒“App Store 评分”。</translation>
@@ -4629,6 +4653,13 @@ SwiftShader 曾用于在没有 GPU 加速的系统（例如无头系统或虚拟
 如果此政策未设置，其行为将由 GenAiDefaultSettings 政策决定。
 
 如需详细了解生成式 AI 功能的数据处理机制，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
+<translation id="4049815236567245576">此政策允许您设置一个网址格式列表，用于指定允许哪些网站自动下载多个文件。
+
+如需详细了解有效的网址格式，请访问 https://chromeenterprise.google/policies/url-patterns。
+
+如果某个网址与 <ph name="AUTOMATIC_DOWNLOADS_ALLOWED_FOR_URLS_POLICY_NAME" /> 和 <ph name="AUTOMATIC_DOWNLOADS_BLOCKED_FOR_URLS_POLICY_NAME" /> 政策都相符，则优先应用 AutomaticDownloadsBlockedForUrls。
+
+如果未设置此政策，那么只要设置了 <ph name="DEFAULT_AUTOMATIC_DOWNLOADS_SETTING_POLICY_NAME" />，系统就会将其应用于所有网站。否则，系统会应用用户的个人设置。</translation>
 <translation id="4051723201852944592">启用窗口遮挡</translation>
 <translation id="4052529125939620019">在浏览器启动时加载 CryptoToken 组件扩展程序</translation>
 <translation id="4053157306171963473">停用设备活动时长报告功能</translation>
@@ -4723,6 +4754,9 @@ SwiftShader 曾用于在没有 GPU 加速的系统（例如无头系统或虚拟
 
       注意：只有 <ph name="PRODUCT_NAME" /> 版本 123 及更高版本支持动态政策刷新。停用“autofill”也会停用“payments”。“typedUrls”是指所有浏览记录。</translation>
 <translation id="4115501011761259824">对所有受影响客户启用 First-Party Sets 功能</translation>
+<translation id="4119598167427266156">如果此政策设为 1，系统会允许网站自动下载多个文件。如果此政策设为 2，系统会拒绝向网站授予此权限。您可通过设置此政策，让网站在每次想要自动下载多个文件时都先询问用户。
+
+如果此政策未设置，系统将应用 AskAutomaticDownloads 政策，但用户仍可更改此设置。</translation>
 <translation id="4120401094617902941">对运行时计数器进行数据采样和收集的时间间隔。所允许的最短时间间隔为 1 天。
 
 如果此政策未设置，系统会应用默认时间间隔（1 天）。</translation>
@@ -4799,6 +4833,21 @@ SwiftShader 曾用于在没有 GPU 加速的系统（例如无头系统或虚拟
 
           如果您未设置此政策，语音反馈在登录屏幕上最初会处于停用状态，但用户可随时启用它。</translation>
 <translation id="4173974507809462880">在用户登录期间显示触控板滚动方向界面</translation>
+<translation id="4175846494150407472">指定一系列源，使其在资源受限的平台上通过专用进程运行。
+
+此政策仅适用于内存有限（RAM 容量介于 1 GB 到 3.2 GB 之间）的设备，因为在资源受限的设备上隔离过多网站可能会导致性能问题。对于高性能环境（包括高端 <ph name="ANDROID_NAME" /> 设备），请改用 <ph name="ISOLATE_ORIGINS_POLICY_NAME" />。
+
+对于内存小于 1 GB 的设备，不建议专门配置任何进程隔离。
+
+每个指定源的进程将仅允许包含来自该源及其子网域的文档。例如，如果指定 https://a1.example.com/，则同一进程中可以包含 https://a2.a1.example.com/，但不可包含 https://example.com 或 https://b.example.com。
+
+您也可以使用通配符指定一系列要隔离的源。例如，如果指定 https://[*.]corp.example.com，则 https://corp.example.com 下的每个源都会获得各自的专用进程，包括 https://corp.example.com 本身、https://a1.corp.example.com 以及 https://a2.a1.corp.example.com。
+
+请注意，从 <ph name="PRODUCT_NAME" /> 77 版本开始，<ph name="ANDROID_NAME" /> 默认会隔离某些敏感网站，而此政策则扩展了该模式，以便隔离其他特定的源。
+
+请注意，此政策所隔离的源将无法通过脚本访问同一网站中的其他源，除非同一网站上有两个文档将各自的 document.domain 值改为一致的值。在隔离某个源之前，管理员应确认此源没有这种不常见的行为。
+
+如果此政策设为空字符串或未设置，系统不会要求对任何特定源进行网站隔离。不过，用户仍能通过命令行 flag 手动开启进程隔离。</translation>
 <translation id="417956245902013347">在登录屏幕上启用“插入符号突出显示”无障碍功能。
 
           如果此政策设为 true、“插入符号突出显示”在登录屏幕上将始终处于启用状态。
@@ -5385,7 +5434,6 @@ SwiftShader 曾用于在没有 GPU 加速的系统（例如无头系统或虚拟
 <translation id="4561940244682063697">不允许网站提示用户分享录屏</translation>
 <translation id="4562165737444703281">允许用户 [启用/配置] Crostini 端口转发</translation>
 <translation id="456450545863578630">允许在由企业管理员建立的远程支持连接中传输文件</translation>
-<translation id="4567137030726189378">允许使用开发者工具</translation>
 <translation id="4570859815763368584">已在 M68 中弃用。请改用 DefaultPopupsSetting。
 
       如需查看完整说明，请访问 https://www.chromestatus.com/feature/5675755719622656。
@@ -6076,6 +6124,7 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 <translation id="4970046075219007744">允许 Web 应用通过 File Handling API 请求用户授权其访问各类文件</translation>
 <translation id="4970855112942626932">禁止登录浏览器</translation>
 <translation id="4974091268178043378">ChromeOS 颜色模式</translation>
+<translation id="4976824366963631628">针对特定网站屏蔽自动填充数据类型</translation>
 <translation id="4976825008579439428">不允许使用“AI 历史记录搜索”功能。</translation>
 <translation id="4978533099939732984">一律显示磁盘空间不足警告</translation>
 <translation id="4979614740553442831">此政策用于控制 <ph name="PRODUCT_OS_NAME" /> 上媒体库应用中的智能镜头集成是否可用
@@ -6100,6 +6149,15 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 
       有关 U2F Security Key API 弃用情况的更多信息，请参阅 https://groups.google.com/a/chromium.org/g/blink-dev/c/xHC3AtU_65A。</translation>
 <translation id="4988291787868618635">闲置延迟时间已过时执行的操作</translation>
+<translation id="4988587935113718108">设置此政策后，逗号分隔列表所指定的每个源都将在 <ph name="ANDROID_NAME" /> 上的专用进程中运行。每个指定源的进程将仅允许包含来自该源及其子网域的文档。例如，如果指定 https://a1.example.com/，则同一进程中可以包含 https://a2.a1.example.com/，但不可包含 https://example.com 或 https://b.example.com。请注意，从 <ph name="PRODUCT_NAME" /> 77 版本开始，<ph name="ANDROID_NAME" /> 默认会隔离某些敏感网站，而此政策则扩展了该模式，以便隔离其他特定的源。
+
+      从 <ph name="PRODUCT_NAME" /> 77 版起，您也可以使用通配符指定一系列要隔离的源。例如，如果指定 https://[*.]corp.example.com，则 https://corp.example.com 下的每个源都会获得各自的专用进程，包括 https://corp.example.com 本身、https://a1.corp.example.com 和 https://a2.a1.corp.example.com。
+
+请注意，此政策所隔离的源将无法通过脚本访问同一网站中的其他源，除非同一网站上有两个文档将各自的 document.domain 值改为一致的值。在隔离某个源之前，管理员应确认此源没有这种不常见的行为。
+
+如果此政策设为空字符串或未设置，系统不会要求对任何特定源进行网站隔离。不过，用户仍能通过命令行 flag 手动开启进程隔离。
+
+注意：此政策已被弃用，请改用 <ph name="ISOLATE_ORIGINS_POLICY_NAME" />（适用于高性能设备）或 <ph name="ISOLATE_ORIGINS_SHORTLIST_POLICY_NAME" />。此政策仅适用于在 RAM 严格超过 1 GB 的设备上运行的 <ph name="ANDROID_NAME" /> 版 Chrome。对于内存不超过 1 GB 的设备，不建议专门配置任何进程隔离。</translation>
 <translation id="4991786313466977061">控制是否显示企业标记</translation>
 <translation id="4995123966071996433">不允许端口转发到 Linux 虚拟机</translation>
 <translation id="4996068111491152684"><ph name="PRODUCT_OS_NAME" />登录凭证不会被用于网络身份验证。</translation>
@@ -6157,6 +6215,7 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 在 <ph name="MS_WIN_NAME" /> 上，此政策仅适用于已加入 <ph name="MS_AD_NAME" /> 网域的实例、已加入 <ph name="MS_AAD_NAME" /> 的实例或已在 <ph name="CHROME_ENTERPRISE_CORE_NAME" />中注册的实例。
 
 在 <ph name="MAC_OS_NAME" /> 上，此政策仅适用于通过 MDM 进行管理的实例、已通过 MCX 加入网域的实例或已在 <ph name="CHROME_ENTERPRISE_CORE_NAME" />中注册的实例。</translation>
+<translation id="5036662165765606524">禁止任何网站自动下载多个文件</translation>
 <translation id="5037749623252479780">PageUp/PageDown 设置已停用</translation>
 <translation id="5039110755072335605">对 CORS 非通配符式请求标头的支持情况</translation>
 <translation id="5039804452771397117">允许</translation>
@@ -6654,6 +6713,7 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 <translation id="5345892164332459671">停用流动单点登录，并且不将用户的 Web 服务身份验证移至新设备</translation>
 <translation id="5345910753471481870">不在“新标签页”页面上的搜索框中显示 Google 智能镜头按钮。</translation>
 <translation id="5346587320074666194">禁止在这些网站上使用传感器</translation>
+<translation id="534702079563980696">允许在这些网站上自动下载</translation>
 <translation id="5347735051291224683">此政策用于控制是否强制以前台优先级运行后台 Web 内容。
 
 默认情况下，浏览器会降低后台标签页中内容的优先级，以此优化资源利用。启用此政策会覆盖以上行为，导致后台标签页的调度方式与活动标签页相同。
@@ -7078,6 +7138,7 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 <translation id="5599461642204007579"><ph name="MS_AD_NAME" /> 管理设置</translation>
 <translation id="5601503069213153581">PIN 码</translation>
 <translation id="5605676983184673391">允许 Chrome 应用在自助服务终端会话中运行。</translation>
+<translation id="5606477661985737162">自动下载设置</translation>
 <translation id="5607021831414604820">启用设备存储状态报告功能</translation>
 <translation id="5607808178576647930">允许集成 AI 模式。</translation>
 <translation id="5608114828230655271">默认设备行为</translation>
@@ -7172,6 +7233,7 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 <translation id="5660950553460381588">默认尽可能在 iCloud 钥匙串中创建通行密钥。</translation>
 <translation id="566569751231933416">使用默认行为。</translation>
 <translation id="5666457529647159548">允许用户管理已安装的客户端证书。</translation>
+<translation id="566962283082154427">每周预定挂起时间间隔内的重新挂起延迟（以毫秒为单位）</translation>
 <translation id="5670249935663090320">如果此政策已启用或未设置，系统将会开启 <ph name="PRODUCT_NAME" /> 以供用户从以下位置启动：应用菜单、页面上下文菜单、支持 Cast 的网站上的媒体控件，以及（如果显示的话）Cast 工具栏图标。
 
 如果此政策已停用，系统会关闭 <ph name="PRODUCT_NAME" />。</translation>
@@ -7620,6 +7682,13 @@ IP 地址空间覆盖有两种形式：
 <translation id="5965344524743236327">要启用的 <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 实例所对应的 <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> 项目的 ID 或编号。如需详细了解项目 ID，请访问 https://docs.cloud.google.com/resource-manager/docs/creating-managing-projects。</translation>
 <translation id="5966615072639944554">允许扩展程序使用 Remote Attestation API</translation>
 <translation id="596732417280023843">证书资料的名称。</translation>
+<translation id="5972475504452039694">此政策允许您设置一个网址格式列表，用于指定不允许哪些网站自动下载多个文件。
+
+如需详细了解有效的网址格式，请访问 https://chromeenterprise.google/policies/url-patterns。
+
+如果某个网址与 <ph name="AUTOMATIC_DOWNLOADS_ALLOWED_FOR_URLS_POLICY_NAME" /> 和 <ph name="AUTOMATIC_DOWNLOADS_BLOCKED_FOR_URLS_POLICY_NAME" /> 政策都相符，则优先应用 AutomaticDownloadsBlockedForUrls。
+
+如果未设置此政策，那么只要设置了 <ph name="DEFAULT_AUTOMATIC_DOWNLOADS_SETTING_POLICY_NAME" />，系统就会将其应用于所有网站。否则，系统会应用用户的个人设置。</translation>
 <translation id="5972538402066550344">允许使用精细报告控件</translation>
 <translation id="5973437409890460481">允许企业与这台计算机建立远程访问连接</translation>
 <translation id="5975765799383881158">如果此政策已启用或未设置，用户便可通过依次转到“菜单”&gt;“帮助”&gt;“报告问题”或按下组合键来向 Google 发送反馈。
@@ -7873,6 +7942,7 @@ IP 地址空间覆盖有两种形式：
 <translation id="6181783961196084973">用于切换应用活动记录功能的状态的值。如果设为 true，系统会向服务器报告用户的应用活动，以便在孩子和家长的 <ph name="PRODUCT_NAME" /> 应用中显示该数据。如果设为 false，各应用的使用时限功能仍会正常运行，但系统不会向服务器报告任何数据，因此 <ph name="PRODUCT_NAME" /> 中也不会显示任何数据。</translation>
 <translation id="6182206125906000651">停用 HTTPS 升级。</translation>
 <translation id="6182563940865917569">允许 Chrome 自动播放媒体</translation>
+<translation id="618588573990666077">默认自动下载设置</translation>
 <translation id="618635925649844912">此政策用于控制是否在用户首次登录流程中显示会话内 AI 功能的介绍界面。
 
       如果此政策已停用，系统将不会显示 AI 介绍界面。
@@ -8044,6 +8114,7 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 如果此政策已停用，这项更改会反转，不带 Origin-Agent-Cluster 标头的文档将被分配给以网站为键的代理集群。因此，document.domain 访问函数会默认处于可设置状态。这与旧版行为一致。
 
 如需了解详情，请访问 https://developer.chrome.com/blog/immutable-document-domain/。</translation>
+<translation id="626942726350419209">允许网站自动下载多个文件</translation>
 <translation id="6270615143812355589">启用音频输入</translation>
 <translation id="6270791075656665237">禁止使用 QUIC</translation>
 <translation id="6273015149273504999">
@@ -8442,6 +8513,7 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 
       注意：如果当前输入法不受支持，它会切换为硬件键盘布局（如果允许）或此列表中的第一个有效条目。无效输入法或不受支持的输入法将被忽略。</translation>
 <translation id="6483115462650732746">在自助服务终端模式下显示悬浮式无障碍菜单</translation>
+<translation id="6488321500788319000">在资源受限的设备上为指定源启用网站隔离功能</translation>
 <translation id="6491139795995924304">允许在设备上使用蓝牙功能</translation>
 <translation id="6491305972928809525">不在自助服务终端模式下显示悬浮式无障碍菜单</translation>
 <translation id="6492177700737407141">注册“高级保护计划”的用户将只能获享标准的消费者级别保护功能</translation>
@@ -8495,6 +8567,23 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 <translation id="651248769129998376">请勿创建扩展程序安装请求或将其上传到管理控制台</translation>
 <translation id="6513453889192806240">HTTPS 延迟</translation>
 <translation id="6515357889978918016"><ph name="PLUGIN_VM_NAME" /> 图片</translation>
+<translation id="6515520014183265350">指定在专用进程中运行的源列表。
+
+在 <ph name="ANDROID_NAME" /> 上，此政策仅适用于内存充足（RAM 必须超过 3.2 GB）的设备，因为在资源受限的设备上隔离过多网站可能会导致性能问题。对于资源受限的 <ph name="ANDROID_NAME" /> 设备，请改用 <ph name="ISOLATE_ORIGINS_SHORTLIST_POLICY_NAME" />。
+
+对于内存小于 1 GB 的设备，不建议专门配置任何进程隔离。
+
+每个指定源的进程将仅允许包含来自该源及其子网域的文档。例如，如果指定 https://a1.example.com/，则同一进程中可以包含 https://a2.a1.example.com/，但不可包含 https://example.com 或 https://b.example.com。
+
+从 <ph name="PRODUCT_NAME" /> 77 版起，您也可以使用通配符指定一系列要隔离的源。例如，如果指定 https://[*.]corp.example.com，则 https://corp.example.com 下的每个源都会获得各自的专用进程，包括 https://corp.example.com 本身、https://a1.corp.example.com 和 https://a2.a1.corp.example.com。
+
+请注意，如 <ph name="SITE_PER_PROCESS_POLICY_NAME" /> 政策中所述，系统已默认在桌面平台上隔离所有网站（网址格式为协议加上 eTLD+1，例如 https://example.com）。此 <ph name="ISOLATE_ORIGINS_POLICY_NAME" /> 政策适用于以更细的粒度隔离特定的源（例如，https://a.example.com）。
+
+请注意，从 <ph name="PRODUCT_NAME" /> 77 版本开始，<ph name="ANDROID_NAME" /> 默认会隔离某些敏感网站，而此政策则扩展了该模式，以便隔离其他特定的源。
+
+      另请注意，此政策所隔离的源将无法通过脚本访问同一网站中的其他源，除非同一网站上有两个文档将各自的 document.domain 值改为一致的值。在隔离某个源之前，管理员应确认此源没有这种不常见的行为。
+
+如果此政策设为空字符串或未设置，系统不会要求对任何特定源进行网站隔离。不过，用户仍能通过命令行 flag 手动开启进程隔离。</translation>
 <translation id="6517859209214570623">通过设置此政策，您可以创建一个网址格式列表，用于指定哪些网站无法设置 Cookie。
 
       未设置此政策时，如果 <ph name="DEFAULT_COOKIES_SETTINGS_POLICY_NAME" /> 已设置，系统便会将它应用于所有网站，否则就会应用用户的个人设置。
@@ -10184,6 +10273,7 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="759957074386651883">安全浏览设置</translation>
 <translation id="7602621823177962064">停用设备内存信息报告功能</translation>
 <translation id="7604169113182304895">Android 应用可能会主动选择采纳该列表。您无法强制此类应用采纳该列表。</translation>
+<translation id="7607831126797434329">禁止在这些网站上自动下载</translation>
 <translation id="7608186022704392724">PIN 码自动提交功能会更改 PIN 码在 <ph name="PRODUCT_OS_NAME" /> 中的输入方式。
           该功能会显示一个特殊界面以清楚地指明用户的 PIN 码需要包含的位数，而不会显示原本用于输入密码的文本字段。因此，用户的 PIN 码长度会存储在用户加密数据之外。仅支持长度介于 6-12 位数字的 PIN 码。
 
@@ -11291,7 +11381,6 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 
           如果此政策未设置，系统将使用“BlockKeygen”，并且用户可以更改此设置。</translation>
 <translation id="8314214821702356835">允许用户在设备锁定时播放媒体</translation>
-<translation id="8314308739926578606">禁止在由企业政策安装的应用和扩展程序中使用开发者工具；自 114 版起，也禁止受管理的用户在浏览器内置的扩展程序中使用开发者工具。允许在其他情境下使用开发者工具</translation>
 <translation id="8316940611391250886">禁止使用缺少 subjectAlternativeName 扩展项的证书</translation>
 <translation id="8319678975002906774">为特定来源的网站设定受管理配置值</translation>
 <translation id="8320149248919453401">电池充电模式</translation>

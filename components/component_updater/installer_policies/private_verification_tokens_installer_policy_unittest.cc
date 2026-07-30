@@ -25,6 +25,8 @@
 #include "components/component_updater/component_installer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
+#include "url/origin.h"
 
 namespace component_updater {
 
@@ -129,13 +131,15 @@ TEST_F(PrivateVerificationTokensInstallerPolicyTest, ParsesValidJson) {
         ASSERT_TRUE(base::Base64Decode("cHZ0LWtleQ==", &decoded_key_a));
         std::vector<uint8_t> expected_key_bytes_a(decoded_key_a.begin(),
                                                   decoded_key_a.end());
+        const url::Origin origin_a =
+            url::Origin::Create(GURL("https://a.example"));
         const private_verification_tokens::PrivateVerificationTokensPublicKey
-            expected_pk_a{"a.example", expected_key_bytes_a, 2,
+            expected_pk_a{origin_a, expected_key_bytes_a, 2,
                           base::Time::UnixEpoch() + base::Seconds(12), 1};
 
-        EXPECT_TRUE(got->config().contains("a.example"));
+        EXPECT_TRUE(got->config().contains(origin_a));
         const private_verification_tokens::IssuerConfig& config_a =
-            got->config().at("a.example");
+            got->config().at(origin_a);
         EXPECT_EQ(config_a.batch_size, 4);
         EXPECT_EQ(config_a.public_key, expected_pk_a);
 
@@ -144,13 +148,15 @@ TEST_F(PrivateVerificationTokensInstallerPolicyTest, ParsesValidJson) {
             base::Base64Decode("YW5vdGhlci1hd2Vzb21lLWtleQ==", &decoded_key_b));
         std::vector<uint8_t> expected_key_bytes_b(decoded_key_b.begin(),
                                                   decoded_key_b.end());
+        const url::Origin origin_b =
+            url::Origin::Create(GURL("https://b.example"));
         private_verification_tokens::PrivateVerificationTokensPublicKey
-            expected_pk_b{"b.example", expected_key_bytes_b, 4,
+            expected_pk_b{origin_b, expected_key_bytes_b, 4,
                           base::Time::UnixEpoch() + base::Seconds(24), 1};
 
-        EXPECT_TRUE(got->config().contains("b.example"));
+        EXPECT_TRUE(got->config().contains(origin_b));
         const private_verification_tokens::IssuerConfig& config_b =
-            got->config().at("b.example");
+            got->config().at(origin_b);
         EXPECT_EQ(config_b.batch_size, 3);
         EXPECT_EQ(config_b.public_key, expected_pk_b);
 

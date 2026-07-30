@@ -70,6 +70,11 @@ struct WhatsNewEditionDemoPageInfo {
 // Provides access to browser-side user education data for
 // chrome://user-education-internals
 interface UserEducationInternalsPageHandler {
+  // Determine if the Feature Engagement backend is initialized. Calling other
+  // methods will result in incomplete data/failures if this hasn't returned
+  // true.
+  IsFeatureEngagementInitialized() => (bool is_initialized);
+
   // Get the list of all available tutorials. Only needs to be called once
   // since the browser-side list is static and does not change.
   GetTutorials() => (array<FeaturePromoDemoPageInfo> tutorial_infos);

@@ -25,6 +25,7 @@
 #include "chrome/grit/skills_resources.h"
 #include "chrome/grit/skills_resources_map.h"
 #include "components/application_locale_storage/application_locale_storage.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/skills/features.h"
 #include "components/skills/public/skill.h"
 #include "components/skills/public/skills_metrics.h"
@@ -32,6 +33,7 @@
 #include "content/public/browser/url_data_source.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "google_apis/gaia/gaia_auth_util.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/webui/webui_util.h"
 
@@ -155,11 +157,14 @@ SkillsUI::SkillsUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
 
   auto* command_line = base::CommandLine::ForCurrentProcess();
   source->AddBoolean("devMode", command_line->HasSwitch("skills-dev"));
-  source->AddString("skillsApiAllowedOrigins",
-                    "https://chromeskills-staging.corp.google.com");
-  source->AddString(
-      "skillsHostUrl",
-      "https://chromeskills-staging.corp.google.com/chromeskills/browse");
+
+  bool is_internal_user = false;
+  if (auto* identity_manager = IdentityManagerFactory::GetForProfile(profile)) {
+    is_internal_user = gaia::IsGoogleInternalAccountEmail(
+        identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
+            .email);
+  }
+  source->AddBoolean("isInternalUser", is_internal_user);
 
   // Shared strings for Skills V1/V2.
   // TODO(b/521780336): Remove search results strings once we migrate to v2.
@@ -172,7 +177,8 @@ SkillsUI::SkillsUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
       {"noSearchResultsDescription", IDS_SKILLS_NO_SEARCH_RESULT_DESCRIPTION},
       {"disabledErrorPageDescription",
        IDS_SKILLS_DISABLED_ERROR_PAGE_DESCRIPTION},
-
+      {"remoteAuthorityUnreachableDescription",
+       IDS_SKILLS_REMOTE_AUTHORITY_UNREACHABLE_DESCRIPTION},
   };
 
   source->AddLocalizedStrings(kStrings);

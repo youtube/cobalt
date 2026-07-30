@@ -103,5 +103,9 @@ class CONTENT_EXPORT OriginAgentClusterIsolationState {
   AgentClusterKey::OACStatus process_isolation_oac_status_;
 };
 
+CONTENT_EXPORT std::ostream& operator<<(
+    std::ostream& out,
+    const OriginAgentClusterIsolationState& state);
+
 }  // namespace content
 #endif  // CONTENT_BROWSER_ORIGIN_AGENT_CLUSTER_ISOLATION_STATE_H_

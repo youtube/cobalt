@@ -28,6 +28,10 @@ inline constexpr std::string_view kAccountIdKey = "account_id";
 // `AccountInfo` dictionary.
 inline constexpr std::string_view kLastDownloadedImageURLWithSizeKey =
     "last_downloaded_image_url_with_size";
+// Key for the `accountcapability_overrides` in the serialized `AccountInfo`
+// dictionary.
+inline constexpr std::string_view kAccountCapabilityOverridesKey =
+    "accountcapability_overrides";
 
 // Builds an `AccountInfo` from the JSON data returned by the Gaia servers, if
 // possible.
@@ -45,7 +49,13 @@ base::DictValue SerializeAccountCapabilities(
 
 // Deserializes an `AccountCapabilities` from a `base::DictValue` previously
 // created by `SerializeAccountCapabilities()`.
-AccountCapabilities DeserializeAccountCapabilities(const base::DictValue& dict);
+AccountCapabilities DeserializeAccountCapabilities(
+    const base::DictValue& capabilities_dict,
+    const base::DictValue& overrides_dict);
+
+// Serializes an `AccountCapabilities` overrides to a `base::DictValue`.
+base::DictValue SerializeAccountCapabilityOverrides(
+    const AccountCapabilities& account_capabilities);
 
 // Serializes an `AccountInfo` object to a `base::DictValue`.
 base::DictValue SerializeAccountInfo(const AccountInfo& account_info);

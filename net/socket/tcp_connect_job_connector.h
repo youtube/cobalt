@@ -91,6 +91,12 @@ class TcpConnectJob::Connector {
            current_address_->GetFamily() == ADDRESS_FAMILY_IPV6;
   }
 
+  const std::optional<IPEndPoint>& current_address() const {
+    return current_address_;
+  }
+
+  base::TimeTicks start_time() const { return start_time_; }
+
  private:
   // Note that while in either of the "Wait" states, this is waiting on more
   // ServiceEndpoint data. The parent ConnectJob signals that data may be
@@ -147,10 +153,19 @@ class TcpConnectJob::Connector {
 
   std::optional<IPEndPoint> current_address_;
 
+  // The ServiceEndpoint corresponding to `current_address_`. This is only saved
+  // for stale connectors, ensuring the metadata is preserved even if the stale
+  // DNS results are overwritten by fresh ones during the connection attempt.
+  // Fresh connectors do not need to save this, as their DNS results are never
+  // overwritten.
+  std::optional<ServiceEndpoint> current_service_endpoint_;
+
   State next_state_ = State::kWaitForIPEndPoint;
 
   std::unique_ptr<StreamSocket> transport_socket_;
   std::optional<ServiceEndpoint> final_service_endpoint_;
+
+  base::TimeTicks start_time_;
 };
 
 }  // namespace net

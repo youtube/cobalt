@@ -53,13 +53,7 @@ source_set("e2e_test_support") {
 test("glic_internal_e2e_interactive_ui_tests") {
   use_xvfb = use_xvfb_in_this_config
   configs += [ "//build/config:precompiled_headers" ]
-  sources = [
-    # TODO(crbug.com/399665693): This is needed because we are using WPR
-    # definition in autofill test utilities. This can be removed when WPR
-    # utilities is separated.
-    "../../../browser/ui/views/translate/translate_bubble_test_utils_views.cc",
-    "../../../test/base/interactive_ui_tests_main.cc",
-  ]
+  sources = [ "../../../test/base/interactive_ui_tests_main.cc" ]
   data = [
     "//chrome/browser/internal/resources/signin/test_accounts.json",
 
@@ -72,12 +66,7 @@ test("glic_internal_e2e_interactive_ui_tests") {
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   deps = [
     ":e2e_test_support",
-
-    # TODO(crbug.com/399665693): Remove unneeded deps after refactoring.
-    # Required for translate_bubble_test_utils_views.cc
-    "//chrome/browser/ssl",
-    "//chrome/browser/ui/browser_window",
-    "//chrome/browser/ui/translate:test_support",
+    "//chrome/browser/ui/views/translate:test_support",
     "//chrome/test:chrome_test_launcher",
     "//chrome/test:test_support",
     "//chrome/test:test_support_ui",

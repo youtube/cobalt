@@ -46,8 +46,7 @@ LRURendererCache::LRURendererCache(content::BrowserContext* browser_context,
           "LRURendererCache",
           kLRURendererCacheTraits,
           this,
-          base::MemoryConsumerRegistration::CheckUnregister::kDisabled,
-          base::MemoryConsumerRegistration::CheckRegistryExists::kDisabled),
+          base::MemoryConsumerRegistration::CheckUnregister::kDisabled),
       weak_factory_(this) {
   DCHECK(browser_context_);
   // Ensure any already assigned memory limit is honored.

@@ -617,7 +617,7 @@
     {
       // https://chromestatus.com/feature/6046278267043840
       name: "AnimationEventAnimation",
-      status: "experimental",
+      status: "stable",
     },
     {
       // https://chromestatus.com/feature/5083257285378048
@@ -632,6 +632,11 @@
     },
     {
       name: "AnimationWorklet",
+    },
+    {
+      // crbug.com/445727139
+      name: "AnnotationSpaceOnStart",
+      status: "experimental",
     },
     {
       name: "AnonymousIframe",
@@ -688,7 +693,11 @@
     },
     {
       name: "AriaActions",
-      status: "experimental",
+      // Not yet implemented on ChromeOS or Android, per the M151 launch
+      // intent (https://groups.google.com/a/chromium.org/g/blink-dev/c/DNE6dB1AS0Y).
+      // Note that omitting the "Android" key disables the feature on both
+      // Chrome for Android and Android WebView.
+      status: {"Win": "stable", "Mac": "stable", "Linux": "stable"},
     },
     {
       name: "AriaNotify",
@@ -780,6 +789,13 @@
       origin_trial_allows_third_party: true,
       status: "experimental",
       public: true,
+    },
+    {
+      // Pins a generic font-family on the autofill preview pseudo-elements so
+      // an author @font-face cannot oracle the previewed text.
+      // crbug.com/517710554.
+      name: "AutofillPreviewGenericFontFamily",
+      status: "stable",
     },
     {
       name: "AutomationControlled",
@@ -1275,10 +1291,6 @@
       public: true,
     },
     {
-      name: "CompositedAnimationsCancelledAsynchronously",
-      status: "stable"
-    },
-    {
       name: "CompositedSelectionUpdate",
       public: true,
       status: {"Android": "stable"},
@@ -1515,11 +1527,6 @@
       status: "stable",
     },
     {
-      // Let transforms affect anchor() and anchor-size() functions.
-      name: "CSSAnchorWithTransforms",
-      status: "stable",
-    },
-    {
       // https://drafts.csswg.org/web-animations-2/#iteration-composite-operation
       name: "CSSAnimationIterationComposite",
       status: "experimental",
@@ -1752,7 +1759,7 @@
     },
     {
       name: "CSSLineClamp",
-      status: "stable",
+      status: "experimental",
     },
     {
       name: "CSSLineClampAsShorthand",
@@ -1762,7 +1769,7 @@
     {
       name: "CSSLineClampLineBreakingEllipsis",
       depends_on: ["CSSLineClamp"],
-      status: "stable",
+      status: "experimental",
     },
     {
       // Implements `counter-increment` and `counter-set` for the non-<li>
@@ -2187,6 +2194,12 @@
       status: "experimental",
     },
     {
+      name: "DeclarativePerformanceObserver",
+      origin_trial_feature_name: "DeclarativePerformanceObserver",
+      status: "experimental",
+      base_feature: "none",
+    },
+    {
       name: "DeclarativeSkeletons",
     },
     {
@@ -2325,6 +2338,17 @@
       status: "experimental",
     },
     {
+      // Prevents the change event from being fired within
+      // HTMLFieldSetElement::ChildrenChanged because we aren't supposed to
+      // fire events during mutations like that.
+      // https://issues.chromium.org/issues/523756329
+      // https://issues.chromium.org/issues/523748081
+      // https://issues.chromium.org/issues/523737685
+      // Enabled in 151, safe to remove in 153.
+      name: "DisableFormControlChangeEventDuringMutation",
+      status: "stable",
+    },
+    {
       name: "DisableReduceAcceptLanguage",
       origin_trial_feature_name: "DisableReduceAcceptLanguage",
       origin_trial_type: "deprecation",
@@ -2351,7 +2375,7 @@
     },
     {
       name: "DisconnectWebSocketOnBFCache",
-      status: "test",
+      status: "stable",
     },
     {
       // `kHidden` and `kHiddenButPainting` visibility states are treated as
@@ -2607,6 +2631,11 @@
       browser_process_read_access: true,
     },
     {
+      name: "EmailVerificationStatusIndicator",
+      status: "experimental",
+      depends_on: ["EmailVerificationProtocol"],
+    },
+    {
       // This was added in M151 and can be removed after M153.
       // https://issues.chromium.org/issues/525074815
       name: "EmbeddedContentCenterAlignBaseline",
@@ -2773,7 +2802,7 @@
     {
       name: "FedCmMultipleRequests",
       depends_on: ["FedCm"],
-      status: "test",
+      status: "stable",
       public: true,
       base_feature: "none",
     },
@@ -3600,6 +3629,15 @@
       // iOS.
       status: {"Android": "test", "iOS": "test", "default": "stable"},
     },
+    // Enables the `alpha` and `colorspace` content/IDL attributes on
+    // <input type=color>, allowing alpha and Display P3 color values.
+    // https://html.spec.whatwg.org/multipage/input.html#dom-input-colorspace
+    // https://html.spec.whatwg.org/multipage/input.html#dom-input-alpha
+    // https://chromestatus.com/feature/5736024861966336
+    {
+      name: "InputTypeColorEnhancements",
+      status: "experimental",
+    },
     // Insert a blockquote before a outer block after creating the blockquote
     // when indenting a node whose outer block is a blockquote. See
     // https://crbug.com/327665597
@@ -3663,6 +3701,10 @@
       name: "JavaScriptCompileHintsPerFunctionMagicRuntime",
       status: "experimental",
       origin_trial_feature_name: "JavaScriptCompileHintsPerFunctionMagic",
+    },
+    {
+      name: "JavaScriptImportText",
+      status: "experimental",
     },
     {
       name: "JavaScriptSourcePhaseImports",
@@ -3805,14 +3847,6 @@
       public: true,
     },
     {
-      // When the start-of-line position cannot be determined (e.g., because
-      // the caret is in an empty inline element with no layout information),
-      // fall back to the start of the enclosing block rather than the start
-      // of the entire editable root. See https://crbug.com/41053053.
-      name: "LogicalStartOfLineBlockFallback",
-      status: "stable",
-    },
-    {
       name: "LoginElement",
       depends_on: ["FedCm"],
       status: "experimental",
@@ -3895,6 +3929,11 @@
     {
       name: "MaskDeserializationTimeForCrossOriginMessages",
       status: "stable",
+    },
+    {
+      // Enables MathMLAnchorElement
+      name: "MathMLAnchorElement",
+      status: "test",
     },
     {
       // Enables mirroring for stretchy and large MathML operators when
@@ -4141,7 +4180,7 @@
       // https://github.com/whatwg/fetch/pull/1931
       // https://github.com/whatwg/html/pull/12513
       name: "NavigationTimingRedirectTimingViaTAO",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "NavigatorContentUtils",
@@ -4254,6 +4293,13 @@
       base_feature: "none",
     },
     {
+      // Notify selection controller of selection changes even when the new
+      // selection matches the old selection, keeping the selection state in
+      // sync. This flag ships in M151 and can be removed in M153.
+      name: "NotifySelectionControllerOnUnchangedSelection",
+      status: "stable",
+    },
+    {
       name: "NumberInputFullWidthChars",
       status: "stable",
     },
@@ -4308,6 +4354,7 @@
       // their ancestor select element is disabled.
       // https://github.com/w3c/csswg-drafts/issues/13383
       // https://issues.chromium.org/issues/490082172
+      // Enabled in M149, modified in M151, safe to remove in M153.
       name: "OptionDisablednessCheckAncestors",
       status: "stable",
     },
@@ -4933,6 +4980,14 @@
       // enabled to make the whole feature work.
     },
     {
+      // Kill switch for https://crbug.com/376516545.
+      // Releases paint holding (deferred compositor commits) early for pages
+      // that finish parsing and produce a first paint but never reach First
+      // Contentful Paint (e.g. background-color only pages).
+      name: "ReleasePaintHoldingWithoutContentfulPaint",
+      status: "stable",
+    },
+    {
       name: "RelOpenerBcgDependencyHint",
       status: "experimental",
     },
@@ -5041,7 +5096,7 @@
     },
     {
       name: "RequestMainFrameAfterFirstVideoFrame",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "ResolveVarStylesOnCopy",
@@ -5101,7 +5156,8 @@
     },
     {
       name: "RTCDiagnosticLogging",
-      status: "test",
+      origin_trial_feature_name: "RTCDiagnosticLogging",
+      status: "experimental",
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
     },
@@ -5677,15 +5733,6 @@
       status: "stable",
     },
     {
-      // Skip lines that contain only pseudo-element content (like ::before
-      // or ::after) when determining valid caret positions for line
-      // navigation. Pseudo-elements don't have DOM nodes for caret positioning,
-      // so including them caused incorrect selection behavior.
-      // See crbug.com/357889508
-      name: "SkipPseudoOnlyLinesInLineNavigation",
-      status: "stable",
-    },
-    {
       // Skips the browser touch event filter, ensuring that events that reach
       // the queue and would otherwise be filtered out will instead be passed
       // onto the renderer compositor process as long as the page hasn't timed
@@ -5703,6 +5750,11 @@
     {
       // See crbug.com/446113738.
       name: "SkipUnselectableElementsInParagraphBoundary",
+      status: "stable",
+    },
+    {
+      // See crbug.com/502616235.
+      name: "SkipViewTransitionSnapshotResumeRendering",
       status: "stable",
     },
     {
@@ -5744,9 +5796,7 @@
     },
     {
       name: "SoftNavigationHeuristics",
-      status: "experimental",
-      origin_trial_allows_third_party: true,
-      origin_trial_feature_name: "SoftNavigationHeuristics",
+      status: "stable",
     },
     {
       name: "SortedLayoutShiftSourcesByImpactArea",
@@ -5963,6 +6013,9 @@
       status: "stable",
     },
     {
+      name: "SvgNewZoom",
+    },
+    {
       // Structured access to SVG path segments via getPathData/setPathData.
       // https://issues.chromium.org/40441025
       name: "SVGPathDataAPI",
@@ -6028,6 +6081,10 @@
       status: "experimental",
     },
     {
+      name: "TabAlignmentWithFloats",
+      status: "stable",
+    },
+    {
       // Don't trigger table border rendering with only bordercolor attribute.
       // This shipped in M146 and can be removed in M148.
       name: "TableBorderColorNoImplicitBorder",
@@ -6036,7 +6093,7 @@
     {
       // Remove <table>'s explicit `border-color: gray` UA stylesheet rule,
       // since it is non-standard. See crbug.com/494554835.
-      // This shipped in M149, and can be removed in M151.
+      // This shipped in M149, was updated in M151, and can be removed in M153.
       name: "TableDefaultBorderColorCurrentColor",
       status: "stable",
     },
@@ -6129,6 +6186,12 @@
       status: "stable",
     },
     {
+      // crbug.com/523134883: Ignore ruby annotation text when computing
+      // text-autospace boundaries.
+      name: "TextAutoSpaceIgnoreRubyAnnotation",
+      status: "stable",
+    },
+    {
       name: "TextBoxTrimForNestedList",
       status: "stable",
     },
@@ -6137,9 +6200,9 @@
       status: "experimental",
     },
     {
-      // crbug.com/522298908
+      // crbug.com/488458870, crbug.com/522298908, and crbug.com/522298908
       name: "TextEmphasisAsRuby",
-      status: "experimental",
+      status: "stable",
     },
     {
       // crbug.com/40812040
@@ -7212,7 +7275,7 @@
     // https://crbug.com/40704952
     {
       name: "WheelEventMomentum",
-      status: "experimental",
+      status: "stable",
     },
     // If enabled, window.default[Ss]tatus will be supported. This is disabled
     // by default, and is here to allow this behavior to be re-enabled via Finch
@@ -7256,6 +7319,10 @@
     {
       name: "XMLSerializerConsistentDefaultNsDeclMatching",
       status: "test",
+    },
+    {
+      name: "XMLViewerForIframes",
+      status: "experimental",
     },
     {
       // Support XPath evaluation within Shadow DOM.

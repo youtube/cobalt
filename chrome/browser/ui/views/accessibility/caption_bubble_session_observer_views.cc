@@ -4,8 +4,6 @@
 
 #include "chrome/browser/ui/views/accessibility/caption_bubble_session_observer_views.h"
 
-#include <memory>
-
 #include "components/live_caption/caption_bubble_session_observer.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/navigation_handle.h"

@@ -104,6 +104,10 @@ class WebState;
 // Dismisses all presented views owned by the NTP.
 - (void)clearPresentedState;
 
+// Called when the home customization action is tapped in the NTP overflow menu.
+// Presents the  customization menu.
+- (void)customizationMenuWasTapped;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_NTP_UI_BUNDLED_NEW_TAB_PAGE_COORDINATOR_H_

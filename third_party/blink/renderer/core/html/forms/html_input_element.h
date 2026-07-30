@@ -27,6 +27,7 @@
 
 #include "base/gtest_prod_util.h"
 #include "build/build_config.h"
+#include "third_party/blink/public/common/webid/email_verification_state.h"
 #include "third_party/blink/public/mojom/input/focus_type.mojom-blink-forward.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -358,6 +359,8 @@ class CORE_EXPORT HTMLInputElement
   bool ShouldDrawCapsLockIndicator() const;
   void SetShouldRevealPassword(bool value);
   bool ShouldRevealPassword() const { return should_reveal_password_; }
+  void SetEmailVerificationState(EmailVerificationState state);
+  EmailVerificationState GetEmailVerificationState() const;
   void DispatchSimulatedEnter();
   AXObject* PopupRootAXObject();
   void DidNotifySubtreeInsertionsToDocument() override;
@@ -486,7 +489,7 @@ class CORE_EXPORT HTMLInputElement
   bool IsRequiredFormControl() const final;
   bool RecalcWillValidate() const final;
   void RequiredAttributeChanged() final;
-  void DisabledAttributeChanged() final;
+  void DisabledAttributeChanged(DisabledChangedReason) final;
 
   void InitializeTypeInParsing();
   void UpdateType(const AtomicString&);

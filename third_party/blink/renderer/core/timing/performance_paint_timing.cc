@@ -36,7 +36,7 @@ PerformancePaintTiming::PerformancePaintTiming(
     PaintType type,
     const DOMPaintTimingInfo& paint_timing_info,
     DOMWindow* source,
-    uint32_t navigation_id)
+    uint64_t navigation_id)
     : PerformanceEntry(
           /*duration=*/0.0,
           FromPaintTypeToString(type),

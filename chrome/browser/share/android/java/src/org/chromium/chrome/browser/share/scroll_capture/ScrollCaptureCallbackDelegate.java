@@ -84,7 +84,8 @@ public class ScrollCaptureCallbackDelegate {
 
         // If the system is under memory pressure, don't give the user the option to create
         // a long screenshot.
-        if (pressure >= threshold) {
+        boolean skipMemoryCheck = ChromeFeatureList.sLongScreenshotsNoMemoryCheck.isEnabled();
+        if (!skipMemoryCheck && pressure >= threshold) {
             return new Rect();
         }
 

@@ -4,12 +4,12 @@ AXWebArea AXTitle='Material Web Slider Events'
 ++++AXGroup
 ++++++AXGroup
 ++++++++AXSlider AXDescription='Test Slider' AXValue=0
-++++++++AXGroup
-++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
-++++++++++++++AXGroup
-++++++++++++++++AXGroup
+++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++++++AXGroup AXSubrole=AXEmptyGroup
 === End accessibility tree ===
 AXValueChanged on AXSlider AXDescription='Test Slider' AXValue=25
 === Accessibility tree after go() pass 1 ===
@@ -18,12 +18,12 @@ AXWebArea AXTitle='Material Web Slider Events'
 ++++AXGroup
 ++++++AXGroup
 ++++++++AXSlider AXDescription='Test Slider' AXValue=25 <<<<<< CHANGED
-++++++++AXGroup
-++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
-++++++++++++++AXGroup
-++++++++++++++++AXGroup
+++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++++++AXGroup AXSubrole=AXEmptyGroup
 === End accessibility tree ===
 === Start Continuation ===
 === Accessibility tree before go() pass 2 ===
@@ -32,12 +32,12 @@ AXWebArea AXTitle='Material Web Slider Events'
 ++++AXGroup
 ++++++AXGroup
 ++++++++AXSlider AXDescription='Test Slider' AXValue=25
-++++++++AXGroup
-++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
-++++++++++++++AXGroup
-++++++++++++++++AXGroup
+++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++++++AXGroup AXSubrole=AXEmptyGroup
 === End accessibility tree ===
 AXValueChanged on AXSlider AXDescription='Test Slider' AXValue=75
 === Accessibility tree after go() pass 2 ===
@@ -46,12 +46,12 @@ AXWebArea AXTitle='Material Web Slider Events'
 ++++AXGroup
 ++++++AXGroup
 ++++++++AXSlider AXDescription='Test Slider' AXValue=75 <<<<<< CHANGED
-++++++++AXGroup
-++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
-++++++++++++++AXGroup
-++++++++++++++++AXGroup
+++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++++++AXGroup AXSubrole=AXEmptyGroup
 === End accessibility tree ===
 === Start Continuation ===
 === Accessibility tree before go() pass 3 ===
@@ -60,12 +60,12 @@ AXWebArea AXTitle='Material Web Slider Events'
 ++++AXGroup
 ++++++AXGroup
 ++++++++AXSlider AXDescription='Test Slider' AXValue=75
-++++++++AXGroup
-++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
-++++++++++++++AXGroup
-++++++++++++++++AXGroup
+++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++++++AXGroup AXSubrole=AXEmptyGroup
 === End accessibility tree ===
 AXValueChanged on AXSlider AXDescription='Test Slider' AXValue=50
 === Accessibility tree after go() pass 3 ===
@@ -74,10 +74,10 @@ AXWebArea AXTitle='Material Web Slider Events'
 ++++AXGroup
 ++++++AXGroup
 ++++++++AXSlider AXDescription='Test Slider' AXValue=50 <<<<<< CHANGED
-++++++++AXGroup
-++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
-++++++++++++++AXGroup
-++++++++++++++++AXGroup
+++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++++++AXGroup AXSubrole=AXEmptyGroup
 === End accessibility tree ===

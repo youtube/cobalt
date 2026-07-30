@@ -6,6 +6,8 @@ package org.chromium.chrome.browser.ui.autofill;
 
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.FLYOUT_SUGGESTIONS;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.IS_LOADING;
+import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.IS_NOTICE_VISIBLE;
+import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.NOTICE_OK_CLICK_LISTENER;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.ON_QUERY_SUBMITTED_CALLBACK;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.ON_QUERY_TEXT_CHANGED_CALLBACK;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.SHOW_SUGGESTIONS_BACKGROUND;
@@ -34,6 +36,10 @@ class AtMemoryBottomSheetViewBinder {
             view.setShowSuggestionsBackground(model.get(SHOW_SUGGESTIONS_BACKGROUND));
         } else if (propertyKey == FLYOUT_SUGGESTIONS) {
             view.setFlyoutSuggestions(model.get(FLYOUT_SUGGESTIONS));
+        } else if (propertyKey == IS_NOTICE_VISIBLE) {
+            view.setNoticeVisible(model.get(IS_NOTICE_VISIBLE));
+        } else if (propertyKey == NOTICE_OK_CLICK_LISTENER) {
+            view.setNoticeOkButtonClickListener(model.get(NOTICE_OK_CLICK_LISTENER));
         }
     }
 }

@@ -79,17 +79,7 @@ class WebContentsState {
                                         int saved_state_version,
                                         const DeletionPredicate& predicate);
 
-  // Extracts display title from serialized tab data on restore.
-  static std::optional<std::u16string> GetDisplayTitleFromByteBuffer(
-      JNIEnv* env,
-      base::span<const uint8_t> buffer,
-      int saved_state_version);
 
-  // Extracts virtual url from serialized tab data on restore.
-  static std::optional<std::string> GetVirtualUrlFromByteBuffer(
-      JNIEnv* env,
-      base::span<const uint8_t> buffer,
-      int saved_state_version);
 
   // Restores a WebContents from the passed in state using JNI parameters.
   static base::android::ScopedJavaLocalRef<jobject>
@@ -115,6 +105,14 @@ class WebContentsState {
       bool* is_off_the_record,
       int* current_entry_index,
       std::vector<sessions::SerializedNavigationEntry>* navigations);
+
+  // Extracts only the metadata (title, virtual URL, and incognito status)
+  // of the active navigation entry, avoiding full deserialization.
+  static bool ExtractMetadata(base::span<const uint8_t> buffer,
+                              int saved_state_version,
+                              bool* is_off_the_record,
+                              std::u16string* title,
+                              std::string* virtual_url);
 
   // Synthesizes a stub, single-navigation state for a tab that will be loaded
   // lazily.

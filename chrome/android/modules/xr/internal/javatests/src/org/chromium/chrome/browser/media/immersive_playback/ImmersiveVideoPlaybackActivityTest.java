@@ -141,7 +141,7 @@ public class ImmersiveVideoPlaybackActivityTest {
                     ImmersiveVideoPlaybackActivity activity = new ImmersiveVideoPlaybackActivity();
                     activity.setPlaybackState(PlaybackState.PLAYING);
                     activity.updateVideoSize(VIDEO_WIDTH, VIDEO_HEIGHT);
-                    activity.setImmersiveVideoOptions(STEREO_MODE, PROJECTION_TYPE);
+                    activity.setImmersiveVideoOptions(STEREO_MODE, PROJECTION_TYPE, true);
                     activity.setMediaPosition(DURATION_MS, POSITION_MS, PLAYBACK_RATE);
 
                     ImmersiveVideoPlaybackActivity.PendingState pendingState =
@@ -167,6 +167,10 @@ public class ImmersiveVideoPlaybackActivityTest {
                             PROJECTION_TYPE,
                             pendingState.mProjectionType.intValue());
                     Assert.assertEquals(
+                            "Is recommended mismatch",
+                            true,
+                            pendingState.mIsRecommended.booleanValue());
+                    Assert.assertEquals(
                             "Duration mismatch", DURATION_MS, pendingState.mDurationMs.longValue());
                     Assert.assertEquals(
                             "Position mismatch", POSITION_MS, pendingState.mPositionMs.longValue());
@@ -184,8 +188,8 @@ public class ImmersiveVideoPlaybackActivityTest {
     public void testSetImmersiveVideoOptionsForwardsToCoordinatorMock() throws Throwable {
         ImmersiveVideoPlaybackActivity activity = startImmersiveVideoPlaybackActivity();
 
-        activity.setImmersiveVideoOptions(STEREO_MODE, PROJECTION_TYPE);
-        verify(mCoordinatorMock).updateVideoLayout(STEREO_MODE, PROJECTION_TYPE);
+        activity.setImmersiveVideoOptions(STEREO_MODE, PROJECTION_TYPE, true);
+        verify(mCoordinatorMock).setImmersiveVideoOptions(STEREO_MODE, PROJECTION_TYPE, true);
 
         testExitOn(activity, () -> activity.close());
     }

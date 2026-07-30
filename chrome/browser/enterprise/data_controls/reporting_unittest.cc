@@ -818,6 +818,16 @@ TEST_F(DataControlsReportingTest, GetClipboardSource_Incognito) {
       "INCOGNITO");
 }
 
+TEST_F(DataControlsReportingTest, GetClipboardSourceString_Gemini) {
+  enterprise_connectors::ContentMetaData::CopiedTextSource source;
+  source.set_context(enterprise_connectors::ContentMetaData::CopiedTextSource::
+                         GEMINI_IN_CHROME);
+  ASSERT_EQ(
+      enterprise_connectors::ReportingEventRouter::GetClipboardSourceString(
+          source),
+      "GEMINI_IN_CHROME");
+}
+
 TEST_F(DataControlsReportingTest,
        GetClipboardSource_OSClipboardOnManagedBrowser) {
   managed_profile_->GetPrefs()->SetInteger(kDataControlsRulesScopePref,

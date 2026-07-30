@@ -170,6 +170,21 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//components/contextual_search/contextual_search_types.h:ContextUploadStatus) -->
 
+<!-- LINT.IfChange(CrossDeviceTabProviderEligibility) -->
+
+<enum name="CrossDeviceTabProviderEligibility">
+  <int value="0" label="Match created"/>
+  <int value="1" label="No sync service"/>
+  <int value="2" label="No open tabs delegate"/>
+  <int value="3" label="No foreign sessions"/>
+  <int value="4" label="No tabs"/>
+  <int value="5" label="Tab too old"/>
+  <int value="6" label="Invalid URL"/>
+  <int value="7" label="Local session not recent"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/omnibox/browser/cross_device_tab_provider.h:CrossDeviceTabProviderEligibility) -->
+
 <enum name="DocumentProviderAllowedReason">
   <int value="0" label="Allowed"/>
   <int value="1" label="Unknown"/>
@@ -324,6 +339,17 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Closed popup and cleared user input"/>
   <int value="5" label="Blurred"/>
 </enum>
+
+<!-- LINT.IfChange(OmniboxInlineLocationSuggestionShown) -->
+
+<enum name="OmniboxInlineLocationSuggestionShown">
+  <int value="0" label="No eligible suggestion found"/>
+  <int value="1"
+      label="Only parent suggestion shown (no inline location suggestion)"/>
+  <int value="2" label="Inline location suggestion shown"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/omnibox/browser/geolocation_header_service.h:OmniboxInlineLocationSuggestionShown) -->
 
 <enum name="OmniboxInputType">
   <int value="0" label="empty"/>

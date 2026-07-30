@@ -245,7 +245,7 @@ WebRequestProxyingURLLoaderFactory::InProgressRequest::~InProgressRequest() {
   }
   if (on_before_send_headers_callback_) {
     std::move(on_before_send_headers_callback_)
-        .Run(net::ERR_ABORTED, std::nullopt);
+        .Run(net::ERR_ABORTED, std::nullopt, std::nullopt);
   }
   if (on_headers_received_callback_) {
     std::move(on_headers_received_callback_)
@@ -619,7 +619,7 @@ void WebRequestProxyingURLLoaderFactory::InProgressRequest::OnBeforeSendHeaders(
                   request_id_, kWebRequestProxyingURLLoaderFactoryScope));
 
   if (!current_request_uses_header_client_) {
-    std::move(callback).Run(net::OK, std::nullopt);
+    std::move(callback).Run(net::OK, std::nullopt, std::nullopt);
     return;
   }
 
@@ -894,7 +894,7 @@ void WebRequestProxyingURLLoaderFactory::InProgressRequest::
   if (current_request_uses_header_client_) {
     DCHECK(on_before_send_headers_callback_);
     std::move(on_before_send_headers_callback_)
-        .Run(error_code, request_.headers);
+        .Run(error_code, request_.headers, std::nullopt);
   } else if (pending_follow_redirect_params_) {
     pending_follow_redirect_params_->headers_update_params.removed_headers
         .insert(pending_follow_redirect_params_->headers_update_params

@@ -25,6 +25,14 @@ export function getHtml(this: AimEligibilityAppElement) {
           ${this.getPolicyEligibilityText_()}
         </span>
       </div>
+      <div class="check-label">ThirdPartyAiChatSettings Policy:</div>
+      <div class="check-item">
+        <span class="check-value ${
+            this.getCheckClass_(
+                this.eligibilityState_.isThirdPartyEligibleByPolicy)}">
+          ${this.getThirdPartyPolicyEligibilityText_()}
+        </span>
+      </div>
       <div class="check-label">Default Search Engine:</div>
       <div class="check-item">
         <span class="check-value ${

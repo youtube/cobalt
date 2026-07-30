@@ -829,13 +829,14 @@ def CheckDevicePolicies(input_api, output_api):
 
   # Check that the proto field is equal to the policy name for new policies
   for policy_change in policy_changelist:
-    if not policy_change['new_policy'].get('device_only', False):
+    new_policy = policy_change['new_policy']
+    if not new_policy or not new_policy.get('device_only', False):
       continue
     if ('old_policy' in policy_change and
         policy_change['old_policy'] is not None):
       # Ignore existing policies
       continue
-    if policy.get('generate_device_proto', True):
+    if new_policy.get('generate_device_proto', True):
       # Ignore policies which will be generated automatically
       continue
     policy_name = policy_change['policy']

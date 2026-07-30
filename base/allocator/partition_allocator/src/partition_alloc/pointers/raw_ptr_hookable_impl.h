@@ -20,14 +20,23 @@
 namespace base::internal {
 
 struct RawPtrHooks {
-  using WrapPtr = void(uintptr_t address);
-  using ReleaseWrappedPtr = void(uintptr_t address);
-  using SafelyUnwrapForDereference = void(uintptr_t address);
-  using SafelyUnwrapForExtraction = void(uintptr_t address);
+  // `unprotected_in_release` is true when the originating raw_ptr<T> is marked
+  // kUnprotectedInRelease, i.e. it is instrumented in this build but would be
+  // unprotected (RawPtrNoOpImpl) in a release build. Hooks use this to report
+  // the correct protection status (BRP-ASan V1) and to avoid counting the
+  // pointer as a protective reference (BRP-ASan V2).
+  using WrapPtr = void(uintptr_t address, bool unprotected_in_release);
+  using ReleaseWrappedPtr = void(uintptr_t address,
+                                 bool unprotected_in_release);
+  using SafelyUnwrapForDereference = void(uintptr_t address,
+                                          bool unprotected_in_release);
+  using SafelyUnwrapForExtraction = void(uintptr_t address,
+                                         bool unprotected_in_release);
   using UnsafelyUnwrapForComparison = void(uintptr_t address);
   using Advance = void(uintptr_t old_address, uintptr_t new_address);
-  using Duplicate = void(uintptr_t address);
-  using WrapPtrForDuplication = void(uintptr_t address);
+  using Duplicate = void(uintptr_t address, bool unprotected_in_release);
+  using WrapPtrForDuplication = void(uintptr_t address,
+                                     bool unprotected_in_release);
   using UnsafelyUnwrapForDuplication = void(uintptr_t address);
 
   WrapPtr* wrap_ptr;
@@ -45,7 +54,7 @@ PA_COMPONENT_EXPORT(RAW_PTR) const RawPtrHooks* GetRawPtrHooks();
 PA_COMPONENT_EXPORT(RAW_PTR) void InstallRawPtrHooks(const RawPtrHooks*);
 PA_COMPONENT_EXPORT(RAW_PTR) void ResetRawPtrHooks();
 
-template <bool EnableHooks>
+template <bool EnableHooks, bool IsUnprotectedInRelease = false>
 struct RawPtrHookableImpl {
   // Since this Impl is used for BRP-ASan, match BRP as closely as possible.
   static constexpr bool kMustZeroOnConstruct = true;
@@ -57,7 +66,8 @@ struct RawPtrHookableImpl {
   PA_ALWAYS_INLINE static constexpr T* WrapRawPtr(T* ptr) {
     if (!std::is_constant_evaluated()) {
       if (EnableHooks) {
-        GetRawPtrHooks()->wrap_ptr(reinterpret_cast<uintptr_t>(ptr));
+        GetRawPtrHooks()->wrap_ptr(reinterpret_cast<uintptr_t>(ptr),
+                                   IsUnprotectedInRelease);
       }
     }
     return ptr;
@@ -68,7 +78,8 @@ struct RawPtrHookableImpl {
   PA_ALWAYS_INLINE static constexpr void ReleaseWrappedPtr(T* ptr) {
     if (!std::is_constant_evaluated()) {
       if (EnableHooks) {
-        GetRawPtrHooks()->release_wrapped_ptr(reinterpret_cast<uintptr_t>(ptr));
+        GetRawPtrHooks()->release_wrapped_ptr(reinterpret_cast<uintptr_t>(ptr),
+                                              IsUnprotectedInRelease);
       }
     }
   }
@@ -81,7 +92,7 @@ struct RawPtrHookableImpl {
     if (!std::is_constant_evaluated()) {
       if (EnableHooks) {
         GetRawPtrHooks()->safely_unwrap_for_dereference(
-            reinterpret_cast<uintptr_t>(wrapped_ptr));
+            reinterpret_cast<uintptr_t>(wrapped_ptr), IsUnprotectedInRelease);
       }
     }
     return wrapped_ptr;
@@ -95,7 +106,7 @@ struct RawPtrHookableImpl {
     if (!std::is_constant_evaluated()) {
       if (EnableHooks) {
         GetRawPtrHooks()->safely_unwrap_for_extraction(
-            reinterpret_cast<uintptr_t>(wrapped_ptr));
+            reinterpret_cast<uintptr_t>(wrapped_ptr), IsUnprotectedInRelease);
       }
     }
     return wrapped_ptr;
@@ -179,7 +190,8 @@ struct RawPtrHookableImpl {
   PA_ALWAYS_INLINE static constexpr T* Duplicate(T* wrapped_ptr) {
     if (!std::is_constant_evaluated()) {
       if (EnableHooks) {
-        GetRawPtrHooks()->duplicate(reinterpret_cast<uintptr_t>(wrapped_ptr));
+        GetRawPtrHooks()->duplicate(reinterpret_cast<uintptr_t>(wrapped_ptr),
+                                    IsUnprotectedInRelease);
       }
     }
     return wrapped_ptr;
@@ -192,7 +204,7 @@ struct RawPtrHookableImpl {
     if (!std::is_constant_evaluated()) {
       if (EnableHooks) {
         GetRawPtrHooks()->wrap_ptr_for_duplication(
-            reinterpret_cast<uintptr_t>(ptr));
+            reinterpret_cast<uintptr_t>(ptr), IsUnprotectedInRelease);
       }
     }
     return ptr;

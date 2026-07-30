@@ -4,6 +4,7 @@
 
 #include "base/run_loop.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "base/test/test_mock_time_task_runner.h"
 #include "base/time/time.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
@@ -11,7 +12,9 @@
 #include "chrome/browser/ui/views/exclusive_access_bubble_views.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/test/base/interactive_test_utils.h"
+#include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "ui/base/ozone_buildflags.h"
 #include "ui/base/test/ui_controls.h"
 #include "ui/gfx/animation/animation_test_api.h"
@@ -175,7 +178,14 @@ IN_PROC_BROWSER_TEST_F(ExclusiveAccessBubbleViewsTest, MAYBE_ReshowOnClick) {
   EXPECT_TRUE(IsExclusiveAccessBubbleDisplayed());
 }
 
-IN_PROC_BROWSER_TEST_F(ExclusiveAccessBubbleViewsTest, PresentationWatchdog) {
+// TODO(crbug.com/528276492): Reenable on Mac.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_PresentationWatchdog DISABLED_PresentationWatchdog
+#else
+#define MAYBE_PresentationWatchdog PresentationWatchdog
+#endif
+IN_PROC_BROWSER_TEST_F(ExclusiveAccessBubbleViewsTest,
+                       MAYBE_PresentationWatchdog) {
   ExclusiveAccessBubbleViews::set_simulate_gpu_hang_for_testing(true);
 
   // Enter fullscreen. This should trigger bubble creation.
@@ -193,3 +203,79 @@ IN_PROC_BROWSER_TEST_F(ExclusiveAccessBubbleViewsTest, PresentationWatchdog) {
   // Clean up.
   ExclusiveAccessBubbleViews::set_simulate_gpu_hang_for_testing(false);
 }
+
+// This test is Windows-only because it tests Win32-specific pointer-lock
+// behavior (unadjusted movement drifting cursor to screen boundaries causing
+// DWM caption click interception) and utilizes Win32-specific APIs
+// (GetCursorPos).
+#if BUILDFLAG(IS_WIN)
+IN_PROC_BROWSER_TEST_F(ExclusiveAccessBubbleViewsTest,
+                       PointerLockUnadjustedMovementFullscreenClickAtTop) {
+  // Navigate to a blank page.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
+
+  // Focus the tab content.
+  ui_test_utils::ClickOnView(browser(), VIEW_ID_TAB_CONTAINER);
+
+  // Enter tab fullscreen.
+  EnterActiveTabFullscreen();
+  ASSERT_TRUE(IsWindowFullscreenForTabOrPending());
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Set up listeners for lock and mouse events.
+  ASSERT_TRUE(content::ExecJs(web_contents, R"(
+    window.lockStatus = '';
+    window.mousedownCount = 0;
+    window.mouseupCount = 0;
+    window.addEventListener('mousedown', () => { window.mousedownCount++; });
+    window.addEventListener('mouseup', () => { window.mouseupCount++; });
+    document.addEventListener('click', () => {
+      document.body.requestPointerLock({unadjustedMovement: true})
+        .then(() => { window.lockStatus = 'success'; })
+        .catch((e) => { window.lockStatus = 'error: ' + e.name; });
+    }, {once: true});
+  )"));
+
+  // Send a click in the center of the window to trigger pointer lock.
+  gfx::Rect window_bounds =
+      BrowserView::GetBrowserViewForBrowser(browser())->GetBoundsInScreen();
+  gfx::Point center_point = window_bounds.CenterPoint();
+  ASSERT_TRUE(ui_test_utils::SendMouseMoveSync(center_point));
+  ASSERT_TRUE(ui_test_utils::SendMouseEventsSync(
+      ui_controls::LEFT, ui_controls::DOWN | ui_controls::UP));
+
+  // Wait for pointer lock to be acquired.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return !content::EvalJs(web_contents, "window.lockStatus")
+                .ExtractString()
+                .empty();
+  }));
+  EXPECT_EQ(content::EvalJs(web_contents, "window.lockStatus").ExtractString(),
+            "success");
+
+  // Move the mouse to the top edge of the screen (y = bounds.y()).
+  gfx::Point top_point(window_bounds.CenterPoint().x(), window_bounds.y());
+  ASSERT_TRUE(ui_test_utils::SendMouseMoveSync(top_point));
+
+  // Check the physical cursor position.
+  // The cursor should have drifted to the top and been clipped by ClipCursor
+  // (which insets by 5 pixels).
+  POINT cursor_pos;
+  ASSERT_TRUE(::GetCursorPos(&cursor_pos));
+  EXPECT_LE(cursor_pos.y, 5);
+
+  // Click at the top edge.
+  ASSERT_TRUE(ui_test_utils::SendMouseEventsSync(
+      ui_controls::LEFT, ui_controls::DOWN | ui_controls::UP));
+
+  // Check if mouse down and up events were registered on the page.
+  // With the OnNCHitTest fix, the click should be routed to the client area
+  // and reach the page.
+  EXPECT_EQ(
+      2, content::EvalJs(web_contents, "window.mousedownCount").ExtractInt());
+  EXPECT_EQ(2,
+            content::EvalJs(web_contents, "window.mouseupCount").ExtractInt());
+}
+#endif

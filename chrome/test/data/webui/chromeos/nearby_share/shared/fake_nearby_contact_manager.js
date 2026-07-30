@@ -15,11 +15,11 @@ export class FakeContactManager {
   constructor() {
     /**
      * Restore ContactRecord type when migrated to TS.
-     * @type {?Array<!Object>}
+     * @private {?Array<!Object>}
      */
-    this.contactRecords = null;
-    /** @type {!Array<!string>} */
-    this.allowedContacts = [];
+    this.contactRecords_ = null;
+    /** @private {!Array<!string>} */
+    this.allowedContacts_ = [];
     /** @private {number} */
     this.numUnreachable_ = 3;
     /**
@@ -31,8 +31,8 @@ export class FakeContactManager {
     this.$ = {
       close() {},
     };
-    /** @type {boolean} */
-    this.downloadContactsCalled = false;
+    /** @private {boolean} */
+    this.downloadContactsCalled_ = false;
   }
 
   /**
@@ -94,5 +94,32 @@ export class FakeContactManager {
     this.observer_.onContactsDownloaded(
         this.allowedContacts, this.contactRecords || [],
         /*num_unreachable_contacts_filtered_out=*/ this.numUnreachable_);
+  }
+
+  /** @return {?Array<!Object>} */
+  get contactRecords() {
+    return this.contactRecords_ || null;
+  }
+  /** @param {?Array<!Object>} val */
+  set contactRecords(val) {
+    this.contactRecords_ = val;
+  }
+
+  /** @return {!Array<!string>} */
+  get allowedContacts() {
+    return this.allowedContacts_;
+  }
+  /** @param {!Array<!string>} val */
+  set allowedContacts(val) {
+    this.allowedContacts_ = val || [];
+  }
+
+  /** @return {boolean} */
+  get downloadContactsCalled() {
+    return !!this.downloadContactsCalled_;
+  }
+  /** @param {boolean} val */
+  set downloadContactsCalled(val) {
+    this.downloadContactsCalled_ = val;
   }
 }

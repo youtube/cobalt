@@ -62,6 +62,7 @@ enum class ActionType {
   ShareThisPage,
   Signin,
   Identity,
+  CustomizeHomePage,
 };
 // LINT.ThenChange(/ios/chrome/browser/popup_menu/overflow_menu/ui/overflow_menu_metrics.h:actionType)
 

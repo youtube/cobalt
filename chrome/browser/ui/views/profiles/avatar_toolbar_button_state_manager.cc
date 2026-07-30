@@ -47,7 +47,9 @@
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/profiles/profile_colors_util.h"
+#include "chrome/browser/ui/profiles/profile_view_utils.h"
 #include "chrome/browser/ui/signin/dice_migration_service.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
@@ -216,12 +218,36 @@ ui::ImageModel GetAvatarImageWithDottedRing(
       image_with_ring.size().height(), profiles::AvatarShape::SHAPE_CIRCLE));
 }
 
+// Adjust the layout insets so the the AI rings fits comfortable
+// outside the avatar, preserving the original avatar size.
+const gfx::Insets CalculateInsetsForAvatarRing(int total_icon_size,
+                                               int avatar_size,
+                                               const gfx::Insets& insets,
+                                               bool is_label_visible) {
+  gfx::Insets adjusted_insets = insets;
+  // `total_icon_size` consists of the `avatar_size` plus the ring width and the
+  // intermediate gap.
+  int delta = std::max(0, (total_icon_size - avatar_size) / 2);
+  adjusted_insets.set_top_bottom(std::max(0, insets.top() - delta),
+                                 std::max(0, insets.bottom() - delta));
+  adjusted_insets.set_left(std::max(0, insets.left() - delta));
+  if (!is_label_visible) {
+    // The right inset is the padding after the label text, which doesn't
+    // need to be reduced when the label is visible since the image is on the
+    // left. Reducing it would cause the text to touch the right border.
+    adjusted_insets.set_right(std::max(0, insets.right() - delta));
+  }
+  return adjusted_insets;
+}
+
 class PrivateBaseStateProvider : public StateProvider,
                                  public BrowserCollectionObserver {
  public:
   explicit PrivateBaseStateProvider(Profile* profile,
                                     StateObserver* state_observer)
-      : StateProvider(profile, state_observer) {
+      : StateProvider(profile,
+                      state_observer,
+                      /*should_consider_ai_subscription=*/false) {
     browser_collection_observer_.Observe(
         GlobalBrowserCollection::GetInstance());
   }
@@ -350,7 +376,9 @@ class ExplicitStateProvider : public StateProvider {
       std::u16string explicit_text,
       std::optional<std::u16string> accessibility_label,
       std::optional<base::RepeatingCallback<void(bool)>> explicit_action)
-      : StateProvider(profile, state_observer),
+      : StateProvider(profile,
+                      state_observer,
+                      /*should_consider_ai_subscription=*/true),
         explicit_text_(std::move(explicit_text)),
         accessibility_label_(std::move(accessibility_label)),
         explicit_action_(std::move(explicit_action)) {}
@@ -582,7 +610,9 @@ class OnSigninStateProvider : public StateProvider {
  public:
   explicit OnSigninStateProvider(Browser* browser,
                                  StateObserver* state_observer)
-      : StateProvider(browser->profile(), state_observer),
+      : StateProvider(browser->profile(),
+                      state_observer,
+                      /*should_consider_ai_subscription=*/true),
         browser_(*browser),
         coordinator_(OnSigninCoordinator::GetForProfile(*browser->profile())) {}
   ~OnSigninStateProvider() override = default;
@@ -637,7 +667,9 @@ class ShowIdentityNameStateProvider : public StateProvider,
       Profile* profile,
       StateObserver* state_observer,
       AvatarToolbarButtonInterface* avatar_control)
-      : StateProvider(profile, state_observer),
+      : StateProvider(profile,
+                      state_observer,
+                      /*should_consider_ai_subscription=*/true),
         avatar_control_(*avatar_control) {
     signin::IdentityManager* identity_manager =
         IdentityManagerFactory::GetForProfile(profile);
@@ -1260,7 +1292,9 @@ class PromoStateProviderCoordinator
 class PromoStateProvider : public StateProvider {
  public:
   explicit PromoStateProvider(Browser* browser, StateObserver* state_observer)
-      : StateProvider(browser->profile(), state_observer),
+      : StateProvider(browser->profile(),
+                      state_observer,
+                      /*should_consider_ai_subscription=*/true),
         coordinator_(PromoStateProviderCoordinator::GetOrCreateForProfile(
             *browser->profile())),
         browser_(*browser) {}
@@ -1349,7 +1383,9 @@ class PasskeyStateProvider : public StateProvider,
   ~PasskeyStateProvider() override = default;
 
   explicit PasskeyStateProvider(Profile* profile, StateObserver* state_observer)
-      : StateProvider(profile, state_observer) {
+      : StateProvider(profile,
+                      state_observer,
+                      /*should_consider_ai_subscription=*/false) {
     passkey_manager_observation_.Observe(
         webauthn::PasskeyUnlockManagerFactory::GetForProfile(profile));
   }
@@ -1461,8 +1497,9 @@ class SyncErrorBaseStateProvider : public StateProvider,
   explicit SyncErrorBaseStateProvider(
       Profile* profile,
       StateObserver* state_observer,
-      std::optional<syncer::SyncService::UserActionableError> sync_error_type)
-      : StateProvider(profile, state_observer),
+      std::optional<syncer::SyncService::UserActionableError> sync_error_type,
+      bool should_consider_ai_subscription = false)
+      : StateProvider(profile, state_observer, should_consider_ai_subscription),
         sync_error_type_(sync_error_type),
         last_avatar_error_(GetAvatarError(profile)) {
     if (auto* sync_service = SyncServiceFactory::GetForProfile(profile)) {
@@ -1661,7 +1698,8 @@ class GenericSyncErrorStateProvider : public SyncErrorBaseStateProvider {
                                          StateObserver* state_observer)
       : SyncErrorBaseStateProvider(profile,
                                    state_observer,
-                                   /*sync_error_type=*/std::nullopt) {}
+                                   /*sync_error_type=*/std::nullopt,
+                                   /*should_consider_ai_subscription=*/false) {}
 
   ~GenericSyncErrorStateProvider() override = default;
 
@@ -1750,7 +1788,9 @@ class SigninPendingStateProvider : public StateProvider,
       Profile* profile,
       StateObserver* state_observer,
       AvatarToolbarButtonInterface* avatar_control)
-      : StateProvider(profile, state_observer),
+      : StateProvider(profile,
+                      state_observer,
+                      /*should_consider_ai_subscription=*/false),
         identity_manager_(*IdentityManagerFactory::GetForProfile(profile)),
         avatar_control_(*avatar_control) {
     identity_manager_observation_.Observe(&identity_manager_.get());
@@ -1908,7 +1948,9 @@ class ManagementStateProvider : public StateProvider,
   explicit ManagementStateProvider(Profile* profile,
                                    StateObserver* state_observer,
                                    AvatarToolbarButtonInterface* avatar_control)
-      : StateProvider(profile, state_observer),
+      : StateProvider(profile,
+                      state_observer,
+                      /*should_consider_ai_subscription=*/true),
         avatar_control_(*avatar_control) {
     browser_collection_observer_.Observe(
         GlobalBrowserCollection::GetInstance());
@@ -1980,7 +2022,9 @@ class ManagementStateProvider : public StateProvider,
 class NormalStateProvider : public StateProvider {
  public:
   explicit NormalStateProvider(Profile* profile, StateObserver* state_observer)
-      : StateProvider(profile, state_observer) {}
+      : StateProvider(profile,
+                      state_observer,
+                      /*should_consider_ai_subscription=*/true) {}
 
   // StateProvider:
   bool IsActive() const override {
@@ -2003,8 +2047,12 @@ class NormalStateProvider : public StateProvider {
 
 }  // namespace
 
-StateProvider::StateProvider(Profile* profile, StateObserver* state_observer)
-    : profile_(*profile), state_observer_(*state_observer) {}
+StateProvider::StateProvider(Profile* profile,
+                             StateObserver* state_observer,
+                             bool should_consider_ai_subscription)
+    : profile_(*profile),
+      state_observer_(*state_observer),
+      should_consider_ai_subscription_(should_consider_ai_subscription) {}
 
 StateProvider::~StateProvider() = default;
 
@@ -2026,45 +2074,28 @@ std::pair<ui::ImageModel, AvatarIconType> StateProvider::GetAvatarIcon(
     const ui::ColorProvider& color_provider) const {
   auto [image, icon_type] =
       GetProfileAvatarImage(profile(), color_provider, icon_size);
-  return {ui::ImageModel::FromImage(profiles::GetSizedAvatarIcon(
-              image, icon_size, icon_size, profiles::SHAPE_CIRCLE)),
-          icon_type};
+  ui::ImageModel avatar_model =
+      ui::ImageModel::FromImage(profiles::GetSizedAvatarIcon(
+          image, icon_size, icon_size, profiles::SHAPE_CIRCLE));
+
+  // TODO(crbug.com/516795763): Ensure this is is triggered every time the ai
+  // subscription level changes (via listening for changes).
+  if (ShouldShowAiAvatarRing()) {
+    gfx::ImageSkia avatar_with_ai_ring =
+        AddAiRingToAvatar(avatar_model, color_provider, icon_size);
+    return {ui::ImageModel::FromImageSkia(avatar_with_ai_ring), icon_type};
+  }
+
+  return {avatar_model, icon_type};
 }
 
-std::string StateProvider::GetAvatarIconUrl() const {
-  ProfileAttributesEntry* entry = GetProfileAttributesEntry(profile());
-  if (!entry) {
-    return std::string();
+bool StateProvider::ShouldShowAiAvatarRing() const {
+  if (!should_consider_ai_subscription_) {
+    return false;
   }
-
-  // If using GAIA picture, return that URL.
-  if (entry->IsUsingGAIAPicture()) {
-    std::string url = entry->GetLastDownloadedGAIAPictureUrlWithSize();
-    if (!url.empty()) {
-      return url;
-    }
-  }
-
-  // If not using GAIA picture but we have a GAIA account image URL (from test
-  // or Dice), use it.
-  signin::IdentityManager* identity_manager =
-      IdentityManagerFactory::GetForProfile(&profile());
-  if (identity_manager &&
-      identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
-    AccountInfo info = identity_manager->FindExtendedAccountInfoByAccountId(
-        identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin));
-    if (!info.IsEmpty()) {
-      std::optional<std::string_view> url =
-          info.GetLastDownloadedAvatarUrlWithSize();
-      if (url.has_value() && !url->empty()) {
-        return std::string(*url);
-      }
-    }
-  }
-
-  // Fallback to theme icon.
-  return profiles::GetDefaultAvatarIconUrl(entry->GetAvatarIconIndex());
+  return IsAiSubscriptionRingEnabled(&profile());
 }
+
 
 std::u16string StateProvider::GetAvatarTooltipText() const {
   return profiles::GetAvatarNameForProfile(profile().GetPath());
@@ -2110,6 +2141,18 @@ Profile& StateProvider::profile() const {
   return profile_.get();
 }
 
+gfx::Insets StateProvider::GetLayoutInsets(int total_size,
+                                           int avatar_size,
+                                           bool is_label_visible) const {
+  gfx::Insets insets = ::GetLayoutInsets(is_label_visible ? AVATAR_CHIP_PADDING
+                                                          : TOOLBAR_BUTTON);
+  if (ShouldShowAiAvatarRing()) {
+    return CalculateInsetsForAvatarRing(total_size, avatar_size, insets,
+                                        is_label_visible);
+  }
+  return insets;
+}
+
 void StateProvider::RequestUpdate() {
   state_observer_->OnStateProviderUpdateRequest(this);
 }
@@ -2147,8 +2190,8 @@ void AvatarToolbarButtonStateManager::InitializeStates() {
 }
 
 StateProvider* AvatarToolbarButtonStateManager::GetActiveStateProvider() const {
-  return current_active_state_pair_ ? current_active_state_pair_->second.get()
-                                    : nullptr;
+  CHECK(current_active_state_pair_);
+  return current_active_state_pair_->second.get();
 }
 
 ::AvatarToolbarButtonState AvatarToolbarButtonStateManager::GetActiveState()
@@ -2196,6 +2239,15 @@ bool AvatarToolbarButtonStateManager::HasExplicitButtonState() const {
   return current_active_state_pair_->first == ButtonState::kExplicitTextShowing;
 }
 
+gfx::Insets AvatarToolbarButtonStateManager::GetLayoutInsets(
+    int total_size,
+    int avatar_size,
+    bool is_label_visible) const {
+  StateProvider* active_state = GetActiveStateProvider();
+  return active_state->GetLayoutInsets(total_size, avatar_size,
+                                       is_label_visible);
+}
+
 void AvatarToolbarButtonStateManager::AddObserver(
     AvatarToolbarButtonInterface::Observer* observer) {
   observer_list_.AddObserver(observer);
@@ -2241,7 +2293,6 @@ void AvatarToolbarButtonStateManager::HandleButtonPressed(
   NotifyButtonPressed();
 
   StateProvider* active_state_provider = GetActiveStateProvider();
-  CHECK(active_state_provider);
   std::optional<base::RepeatingCallback<void(bool)>> action_override =
       active_state_provider->GetButtonActionOverride();
   if (action_override.has_value()) {
@@ -2260,9 +2311,6 @@ std::pair<std::u16string, std::u16string>
 AvatarToolbarButtonStateManager::GetAccessibilityLabels(
     std::u16string_view button_text) const {
   StateProvider* state_provider = GetActiveStateProvider();
-  if (!state_provider) {
-    return {std::u16string(), std::u16string()};
-  }
   std::optional<std::u16string> accessibility_label =
       state_provider->GetAccessibilityLabel();
 
@@ -2447,6 +2495,10 @@ void AvatarToolbarButtonStateManager::CreateStatesAndListeners(
 
 void AvatarToolbarButtonStateManager::OnStateProviderUpdateRequest(
     StateProvider* requesting_state) {
+  if (is_initializing_) {
+    return;
+  }
+
   if (!requesting_state->IsActive()) {
     // Updates goes through if the requesting state was the current button
     // active state, since we are now clearing it, otherwise we just ignore

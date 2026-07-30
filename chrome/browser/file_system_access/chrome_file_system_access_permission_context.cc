@@ -65,6 +65,8 @@
 #include "content/public/browser/disallow_activation_reason.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/security_principal.h"
+#include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/buildflags/buildflags.h"
 #include "third_party/blink/public/common/features_generated.h"
@@ -2280,6 +2282,16 @@ ChromeFileSystemAccessPermissionContext::CanShowFilePicker(
     return base::ok();
   }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE) && BUILDFLAG(ENABLE_GUEST_VIEW)
+
+  // Because permission is scoped to the profile, guest contexts (like
+  // <controlledframe> and SlimWebView), despite having isolated
+  // StoragePartitions, would share File System Access permissions with the rest
+  // of the profile. Therefore, we disable File System Access for guest
+  // contexts. Note that on desktop, <webview> is explicitly allowed to use FSA
+  // in the block above to avoid breaking existing usage.
+  if (rfh->GetSiteInstance()->GetSecurityPrincipal().IsGuest()) {
+    return base::unexpected(kDefaultNotAllowedMessage);
+  }
 
   // Disable any other non-default StoragePartition contexts. However, unique
   // schemes (e.g. isolated-app://) are exempt here.

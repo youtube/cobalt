@@ -44,7 +44,7 @@ const CGFloat kProgressCellHeight = 150.0;
 // Width ratio for stats card group.
 const CGFloat kStatCardWidthRatio = 0.88;
 // Height of the stats card cell.
-const CGFloat kStatCardHeight = 96.0;
+const CGFloat kStatCardHeight = 140.0;
 // Height of the tasks card cell.
 const CGFloat kTasksCellHeight = 350.0;
 }  // namespace
@@ -151,7 +151,9 @@ const CGFloat kTasksCellHeight = 350.0;
     NSString* statIdentifier =
         [NSString stringWithFormat:@"StatCardItem_%d", stat.type];
     if ([statIdentifier isEqualToString:itemIdentifier]) {
-      [cell setStatTitle:stat.title subtitle:stat.subtitle image:stat.image];
+      [cell setStatTitle:stat.title
+                 subtitle:stat.subtitle
+          imageLottieName:stat.imageLottieName];
       break;
     }
   }

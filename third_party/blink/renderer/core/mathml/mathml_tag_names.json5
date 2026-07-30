@@ -16,6 +16,11 @@
       interfaceName: "MathMLElement",
     },
     {
+      name: "a",
+      interfaceName: "MathMLAnchorElement",
+      runtimeEnabled: "MathMLAnchorElement",
+    },
+    {
       name: "maction",
       interfaceName: "MathMLRowElement",
     },

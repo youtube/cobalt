@@ -1,0 +1,11 @@
+# See go/reading-mode-code-reviews if in doubt about who to send a review to.
+# Prefer sending reviews to these owners first.
+alfredohiguera@google.com
+rrodriguezh@google.com
+
+# Backup.
+kristislee@google.com
+lwinston@google.com
+eitang@google.com
+trewin@google.com
+

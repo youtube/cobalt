@@ -17,9 +17,11 @@
 <translation id="1052842760770519282">Vissa av dina lösenord är inte tillgängliga</translation>
 <translation id="1057623954802068161">Scrolla högst upp på sidan</translation>
 <translation id="1066338698580889414">Kampanjen för tipsaviseringar har öppnats över hela skärmen</translation>
+<translation id="1067048845568873861">Skapad</translation>
 <translation id="1070689840697074178">Du kan ladda ned PDF-filer här</translation>
 <translation id="107147699690128016">Om du ändrar filnamnstillägget kanske filen öppnas i ett annat program vilket kan utgöra en fara för enheten.</translation>
 <translation id="1073328695547557412">Tryck på Google Lens-ikonen</translation>
+<translation id="1075811647922107217">Sidstorlek</translation>
 <translation id="1080116354587839789">Anpassa till fönstrets bredd</translation>
 <translation id="1086486568852410168">Sök med Google Lens</translation>
 <translation id="1087799850623149508">Du kan trycka länge för att flytta adressfältet längst ned</translation>
@@ -32,7 +34,6 @@
 <translation id="1108938384783527433">Synkronisera historiken</translation>
 <translation id="1111673857033749125">Här visas bokmärken som du har sparat på andra enheter.</translation>
 <translation id="1123537484474186311"><ph name="TAB_TITLE" />, flik med bild-i-bild</translation>
-<translation id="1124357650933674597">{NUM_WINDOWS,plural, =1{Återställ 1 fönster}other{Återställ # fönster}}</translation>
 <translation id="1126696498560056882">Hantera konton på den här enheten</translation>
 <translation id="1135018701024399762">Med inkognitoläget skyddas ditt surfande från andra som använder din enhet</translation>
 <translation id="113752097246673894">Logga in i Chrome som <ph name="EMAIL" /> om du vill få tillgång till dina bokmärken med mera på alla dina enheter</translation>
@@ -183,6 +184,7 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="1792959175193046959">Ändra standardplats för nedladdningar när som helst</translation>
 <translation id="1796666869097395659">Minimera fliken om du vill återvända till den senare</translation>
 <translation id="1799920918471566157">Chrome-tips</translation>
+<translation id="1803799720926799756">Filstorlek</translation>
 <translation id="1807246157184219062">Ljust</translation>
 <translation id="1807709131360304325">Öppna ett nytt fönster</translation>
 <translation id="1812027881030482584"><ph name="SITE_ETLD_PLUS_ONE" /> kan inte fortsätta använda <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
@@ -518,7 +520,6 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="3166827708714933426">Kortkommandon för flikar och fönster</translation>
 <translation id="3167258285411721858">Du kan begära den mobila webbplatsen för <ph name="HOST_NAME" /></translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, fäst inkognitoflik med ljud av som har valts tillsammans med andra</translation>
-<translation id="3183941812169784232">Vill du återställa alla fönster?</translation>
 <translation id="3187472288455401631">Annonsmätning</translation>
 <translation id="3189635831478931757">Flikgruppen <ph name="GROUP_TITLE" /></translation>
 <translation id="3200536777393523575">Vill du stänga det aktuella fönstret?</translation>
@@ -567,6 +568,7 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="3435575784518354875">Om du vill behålla åtkomsten till dina lösenord kan du exportera dem nu, uppdatera Google Play-tjänster och sedan importera dem till Google Lösenordshantering. <ph name="BEGIN_LINK" />Se fullständiga instruktioner<ph name="END_LINK" />.</translation>
 <translation id="3435738964857648380">Säkerhet</translation>
 <translation id="3435914367318771664">Lägg till fliken i en ny grupp</translation>
+<translation id="3436118221454753036">Fråga AI-läget</translation>
 <translation id="3438681572027105609">Logga in i Chrome om du vill få tillgång till dina lösenord med mera på alla dina enheter</translation>
 <translation id="3439276997620616816">Du hittar dina senaste flikar här</translation>
 <translation id="3443221991560634068">Läs in den aktuella sidan igen</translation>
@@ -642,6 +644,7 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="3739899004075612870">Bokmärket har lagts till i <ph name="PRODUCT_NAME" /></translation>
 <translation id="3740290940447881599">Se till att du litar på den här webbplatsen</translation>
 <translation id="3740525748616366977">Röstsökning är inte tillgängligt på enheten</translation>
+<translation id="3749289110408117711">Filnamn</translation>
 <translation id="3756823472711156529">Återställ grupp</translation>
 <translation id="3763110477555836428">Ett virtuellt kortnummer fylls i när du betalar med det här kortet för att skydda dina faktiska uppgifter. Hantera detta i Google Wallet. <ph name="BEGIN_LINK1" />Läs mer om virtuella kort<ph name="END_LINK1" />.</translation>
 <translation id="376561056759077985">Viss data har inte sparats ännu</translation>
@@ -674,6 +677,7 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="3870538285500327859"><ph name="TAB_TITLE" />, vald flik för bild-i-bild</translation>
 <translation id="3870908470613821006">Alla förlorar omedelbart åtkomst till flikgruppen <ph name="GROUP_NAME" /> och den raderas från alla enheter</translation>
 <translation id="3873174561423636563"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> delar <ph name="FIELDS_STRING" /> med den här webbplatsen om du fortsätter. Läs webbplatsens <ph name="BEGIN_LINK1" />användarvillkor<ph name="END_LINK1" />.</translation>
+<translation id="3882323608730650973">Ändrad</translation>
 <translation id="3892148308691398805">Kopiera text</translation>
 <translation id="3893858854379998374">Radera oanvända bokmärken om du vill spara bokmärken i kontot</translation>
 <translation id="3898498281932368596">Blockera och lämna</translation>
@@ -704,6 +708,7 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="399788104667917863">Fäst i verktygsfältet</translation>
 <translation id="4000212216660919741">Startsida offline</translation>
 <translation id="4000670338830950598">Anpassa och kontrollera Google Chrome med ett markerat objekt</translation>
+<translation id="4002066346123236978">Titel</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{1 utsatt lösenord i Google-kontot}other{# utsatta lösenord i Google-kontot}}</translation>
 <translation id="4023638601467301498">Logga in i Chrome om du vill få tillgång till dina bokmärken med mera på alla dina enheter</translation>
 <translation id="4024768890073681126">Webbläsaren hanteras av din förälder</translation>
@@ -1412,6 +1417,7 @@ Vissa webbplatser kan till exempel svara på begäran genom att visa annonser so
 <translation id="6846298663435243399">Läser in …</translation>
 <translation id="6850409657436465440">Nedladdningen pågår fortfarande</translation>
 <translation id="6850830437481525139"><ph name="TAB_COUNT" /> flikar har stängts</translation>
+<translation id="6852437757508328589">{NUM_RESULTS,plural, =1{1 resultat hittades}other{# resultat hittades}}</translation>
 <translation id="685340923442249391">{FILE_COUNT,plural, =1{Ljudfiler, 1 ljudfil i listan}other{Ljudfiler, # ljudfiler i listan}}</translation>
 <translation id="685850645784703949">Förslag från Google – av</translation>
 <translation id="6864459304226931083">Ladda ned bild</translation>
@@ -1988,6 +1994,7 @@ Om du vill ändra den här inställningen <ph name="BEGIN_LINK" />raderar du Chr
 <translation id="9093915805850895575">Öppna i Chrome-fönster</translation>
 <translation id="909756639352028172">Få en så anpassad upplevelse som möjligt genom att inkludera Chrome i webb- och appaktiviteten och dina länkade Google-tjänster</translation>
 <translation id="9099220545925418560">Baserat på din webbhistorik. Inställningen är inaktiverad.</translation>
+<translation id="9099674669267916096">Sidantal</translation>
 <translation id="9100610230175265781">Lösenfras krävs</translation>
 <translation id="9101137867221042551">Hantering</translation>
 <translation id="9102803872260866941">Fliken Förhandsgranskning har öppnats</translation>
@@ -2033,7 +2040,6 @@ Om du vill ändra den här inställningen <ph name="BEGIN_LINK" />raderar du Chr
 <translation id="939598580284253335">Ange lösenfras</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" />, fäst inkognitoflik med bild-i-bild</translation>
 <translation id="945522503751344254">Skicka feedback</translation>
-<translation id="949667118776341807">Rotera</translation>
 <translation id="95817756606698420">Chrome kan använda <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> som sökmotor i Kina. Du kan ändra detta i <ph name="BEGIN_LINK" />inställningarna<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Radera webbinformation</translation>
 <translation id="963246339335003378">Öppna Aktivitetshanteraren</translation>

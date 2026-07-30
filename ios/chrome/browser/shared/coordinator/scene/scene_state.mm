@@ -23,6 +23,7 @@
 #import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/scene_ui_blocker_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/ui/chrome_overlay_window/chrome_overlay_window.h"
 
@@ -307,29 +308,25 @@
 // Will create the SceneStatePrefs if the object is ready. Can be called
 // when any condition controlling the creation of the object has changed.
 - (void)createPrefsIfPossible {
-  ProfileIOS* profile = _profileState.profile;
-  if (!_scene || _sceneSessionID.empty() || !profile ||
+  if (!_scene || _sceneSessionID.empty() ||
       _profileState.initStage < ProfileInitStage::kProfileLoaded) {
     return;
   }
 
-  // On iPhone, even if the device only supports a single window, the
-  // swipe gesture is sometimes interpreted by iOS as a request to close
-  // the current UIScene instead of a request to terminate the app. This
-  // would cause the app to start with a new UISceneSession on the next
-  // executation, and the data stored there would be lost. Since this is
-  // unexpected, Chrome does not store data in the UISceneSession in that
-  // case, instead storing the data in the NSUserDefaults.
-  UISceneSession* session = nil;
-  if (base::ios::IsMultipleScenesSupported()) {
-    session = _scene.session;
+  // During unit tests, the profile or the profile manager may not be
+  // initialized. Avoid crashing by returning early.
+  ProfileIOS* profile = _profileState.profile;
+  ProfileManagerIOS* manager = GetApplicationContext()->GetProfileManager();
+  if (!profile || !manager) {
+    return;
   }
 
   [_profileState removeObserver:self];
-  _prefs = [[SceneStatePrefs alloc]
-      initWithSessionIdentifier:_sceneSessionID
-                    profileName:profile->GetProfileName()
-                   sceneSession:session];
+  const std::string& profile_name = profile->GetProfileName();
+  _prefs = [[SceneStatePrefs alloc] initWithProfileManager:manager
+                                               profileName:profile_name
+                                         sessionIdentifier:_sceneSessionID
+                                              sceneSession:_scene.session];
   [_incognitoState preferencesDidLoad];
 }
 

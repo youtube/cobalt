@@ -111,6 +111,9 @@ INSTANTIATE_TEST_SUITE_P(
         InvocationSourceParamTestCase{
             lens::LensOverlayInvocationSource::kOmniboxContextualQuery, "obic"},
         InvocationSourceParamTestCase{
-            lens::LensOverlayInvocationSource::kCobrowseToolbarButton, "cct"}));
+            lens::LensOverlayInvocationSource::kCobrowseToolbarButton, "cct"},
+        InvocationSourceParamTestCase{
+            lens::LensOverlayInvocationSource::kCobrowsePinnedToolbarButton,
+            "ccpt"}));
 
 }  // namespace lens

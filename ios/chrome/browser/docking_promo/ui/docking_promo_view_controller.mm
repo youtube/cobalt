@@ -9,6 +9,7 @@
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 
 namespace {
@@ -58,10 +59,9 @@ NSString* GetSubtitleString() {
 
   if (param == kIOSDockingPromoV2VariationHeader1 ||
       param == kIOSDockingPromoV2VariationHeader2) {
-    return
-        [[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad
-            ? l10n_util::GetNSString(IDS_IOS_DOCKING_PROMO_SUBTITLE_IPAD)
-            : l10n_util::GetNSString(IDS_IOS_DOCKING_PROMO_SUBTITLE);
+    return (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET)
+               ? l10n_util::GetNSString(IDS_IOS_DOCKING_PROMO_SUBTITLE_IPAD)
+               : l10n_util::GetNSString(IDS_IOS_DOCKING_PROMO_SUBTITLE);
   }
   return nil;
 }

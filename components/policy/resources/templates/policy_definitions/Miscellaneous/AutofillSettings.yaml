@@ -12,6 +12,7 @@ desc: |-
   * "payments": Blocks filling and saving of credit cards and payment methods.
   * "identity_docs": Blocks filling and saving of identity documents (e.g. passport, drivers license, national id).
   * "travel": Blocks filling and saving of travel information (e.g. flight reservation, vehicle registration).
+  * "shopping": Blocks filling and saving of shopping information (e.g. online orders, shipments).
 
   If a data type is blocked for a site, both the generation of suggestions and the prompt to save/import new data of that type are disabled on that site.
 
@@ -50,6 +51,7 @@ schema:
           - payments
           - identity_docs
           - travel
+          - shopping
           type: string
         type: array
     required:
@@ -62,5 +64,6 @@ future_on:
 - chrome_os
 - android
 - ios
+- fuchsia
 tags: []
 type: dict

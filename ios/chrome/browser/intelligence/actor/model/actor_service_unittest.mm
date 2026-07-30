@@ -318,10 +318,10 @@ TEST_F(ActorServiceTest, GetWebStateForID_Controlled) {
   test_browser->GetWebStateList()->InsertWebState(std::move(fake_web_state));
 
   // Make the tab controlled by the task by performing an action targeting it.
-  std::vector<std::unique_ptr<ActorToolRequest>> actions;
-  actions.push_back(MakeSuccessfulActorToolRequest(web_state_id));
+  std::vector<optimization_guide::proto::Action> actions;
+  actions.push_back(MakeSuccessfulActorAction(web_state_id));
 
-  service->PerformActions(task_id, std::move(actions), "Update",
+  service->PerformActions(task_id, actions, "Update",
                           base::BindOnce(^(PerformActionsResult result){
                               // Do nothing.
                           }));
@@ -333,6 +333,7 @@ TEST_F(ActorServiceTest, GetWebStateForID_Controlled) {
       service->GetWebStateForID(web_state_id, task_id);
   EXPECT_NE(nullptr, resolved_web_state);
   EXPECT_EQ(web_state_id, resolved_web_state->GetUniqueIdentifier());
+  EXPECT_EQ(fake_web_state_ptr, resolved_web_state);
 
   browser_list->RemoveBrowser(test_browser.get());
 }
@@ -451,13 +452,13 @@ TEST_F(ActorServiceTest, PerformActions_NoLoading_InstantCompletion) {
   auto* fake_web_state_ptr = fake_web_state.get();
   test_browser->GetWebStateList()->InsertWebState(std::move(fake_web_state));
 
-  std::vector<std::unique_ptr<ActorToolRequest>> actions;
-  actions.push_back(MakeSuccessfulActorToolRequest(
-      fake_web_state_ptr->GetUniqueIdentifier()));
+  std::vector<optimization_guide::proto::Action> actions;
+  actions.push_back(
+      MakeSuccessfulActorAction(fake_web_state_ptr->GetUniqueIdentifier()));
 
   bool callback_called = false;
   service->PerformActions(
-      task_id, std::move(actions), "Update",
+      task_id, actions, "Update",
       base::BindOnce(
           [](bool* called, PerformActionsResult result) { *called = true; },
           base::Unretained(&callback_called)));
@@ -496,13 +497,13 @@ TEST_F(ActorServiceTest, PerformActions_Loading_DeferredUntilStopLoading) {
   // Set the WebState to a loading state.
   fake_web_state_ptr->SetLoading(true);
 
-  std::vector<std::unique_ptr<ActorToolRequest>> actions;
-  actions.push_back(MakeSuccessfulActorToolRequest(
-      fake_web_state_ptr->GetUniqueIdentifier()));
+  std::vector<optimization_guide::proto::Action> actions;
+  actions.push_back(
+      MakeSuccessfulActorAction(fake_web_state_ptr->GetUniqueIdentifier()));
 
   bool callback_called = false;
   service->PerformActions(
-      task_id, std::move(actions), "Update",
+      task_id, actions, "Update",
       base::BindOnce(
           [](bool* called, PerformActionsResult result) { *called = true; },
           base::Unretained(&callback_called)));
@@ -550,13 +551,13 @@ TEST_F(ActorServiceMockTimeTest,
   // Set the WebState to a loading state.
   fake_web_state_ptr->SetLoading(true);
 
-  std::vector<std::unique_ptr<ActorToolRequest>> actions;
-  actions.push_back(MakeSuccessfulActorToolRequest(
-      fake_web_state_ptr->GetUniqueIdentifier()));
+  std::vector<optimization_guide::proto::Action> actions;
+  actions.push_back(
+      MakeSuccessfulActorAction(fake_web_state_ptr->GetUniqueIdentifier()));
 
   bool callback_called = false;
   service->PerformActions(
-      task_id, std::move(actions), "Update",
+      task_id, actions, "Update",
       base::BindOnce(
           [](bool* called, PerformActionsResult result) { *called = true; },
           base::Unretained(&callback_called)));
@@ -642,7 +643,8 @@ TEST_F(ActorServiceTest, TracksOnlyLatestCreatedTaskObserver) {
       }]
               additionalBottomOffset:kGeminiActorSnackbarBottomOffset];
 
-  service->PerformActions(task_id1, {}, "Updating first again",
+  std::vector<optimization_guide::proto::Action> actions2;
+  service->PerformActions(task_id1, actions2, "Updating first again",
                           base::BindOnce(^(PerformActionsResult result){
                               // Do nothing.
                           }));

@@ -125,6 +125,10 @@ public class AddressEditorCoordinator {
         mMediator.setAllowDelete(allowDelete);
     }
 
+    public @SaveUpdateAddressProfilePromptMode int getPromptMode() {
+        return mMediator.getPromptMode();
+    }
+
     /** Notifies underlying view that device configuration has changed. */
     public void onConfigurationChanged() {
         mEditorDialog.onConfigurationChanged();

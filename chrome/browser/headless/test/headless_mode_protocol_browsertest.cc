@@ -393,6 +393,15 @@ HEADLESS_MODE_PROTOCOL_TEST(DISABLED_MoveWindowBetweenScreens,
 HEADLESS_MODE_PROTOCOL_TEST(WindowOpenOnSecondaryScreen,
                             "shared/window-open-on-secondary-screen.js")
 
+HEADLESS_MODE_PROTOCOL_TEST(WindowOpenClickOpenerId,
+                            "shared/window-open-click-opener-id.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(WindowOpenNoopenerClickOpenerId,
+                            "shared/window-open-noopener-click-opener-id.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(WindowOpenShiftClickOpenerId,
+                            "shared/window-open-shift-click-opener-id.js")
+
 // TODO(crbug.com/40283476): CreateTargetSecondaryScreen is failing on Mac
 #if !BUILDFLAG(IS_MAC)
 #define MAYBE_CreateTargetSecondaryScreen CreateTargetSecondaryScreen
@@ -521,5 +530,11 @@ HEADLESS_MODE_PROTOCOL_TEST(RangeMouseEventAfterNodeRemoval,
 
 HEADLESS_MODE_PROTOCOL_TEST(GetCanvasContextWebGL,
                             "shared/get-canvas-context-webgl.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(PopupWindowHasOpener,
+                            "shared/popup-window-has-opener.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(NormalWindowHasOpener,
+                            "shared/normal-window-has-opener.js")
 
 }  // namespace headless

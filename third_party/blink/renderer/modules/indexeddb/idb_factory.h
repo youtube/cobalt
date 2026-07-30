@@ -51,6 +51,7 @@ class ExceptionState;
 class ScriptState;
 class IDBDatabaseInfo;
 class IDBFactoryClient;
+class SharedIDBDatabaseConnection;
 
 // This implements the IDBFactory Web IDL interface, i.e. the `window.indexedDB`
 // object.
@@ -93,12 +94,30 @@ class MODULES_EXPORT IDBFactory final
   void GetDatabaseInfoForDevTools(
       mojom::blink::IDBFactory::GetDatabaseInfoCallback callback);
 
+  // Registers a newly established connection in the cache to be shared by
+  // future open requests.
+  void RegisterSharedConnection(const String& name,
+                                SharedIDBDatabaseConnection* connection);
+
+  // Removes `request` from the pending primary requests map if it was the
+  // active primary request for its database. This is a no-op if `request` was
+  // a shared request (which is never in the map) or if it was a primary request
+  // that has already been overwritten by a newer request (e.g., with a
+  // different version).
+  void UnregisterPendingRequest(IDBOpenDBRequest* request);
+  void PromoteSharedRequest(
+      IDBOpenDBRequest* old_primary,
+      const HeapVector<Member<IDBOpenDBRequest>>& shared_requests);
+
   // ExecutionContextLifecycleObserver
   void ContextDestroyed() override;
 
   void Trace(Visitor*) const override;
 
  private:
+  // Returns the cached shared connection for the database `name`, if any.
+  SharedIDBDatabaseConnection* GetSharedConnectionIfExists(const String& name);
+
   ExecutionContext* GetValidContext(ScriptState* script_state);
 
   // Initializes and returns the mojo pipe to the back end.
@@ -144,6 +163,11 @@ class MODULES_EXPORT IDBFactory final
   mojo::PendingAssociatedRemote<mojom::blink::IDBFactoryClient>
   CreatePendingRemote(std::unique_ptr<IDBFactoryClient> client);
 
+  // Removes the connection from the cache (e.g. on disconnect or forced close).
+  // Also called during upgrades or deletes to ensure future requests don't
+  // share the outdated connection.
+  void RemoveSharedConnection(const String& name);
+
   // Whether the context has permission to use IDB.
   std::optional<bool> allowed_;
   // Holds requests that were paused while `allowed_` is being fetched. These
@@ -156,6 +180,14 @@ class MODULES_EXPORT IDBFactory final
       remote_connector_;
 
   HeapMojoRemote<mojom::blink::IDBFactory> remote_;
+
+  HeapHashMap<String, Member<SharedIDBDatabaseConnection>> shared_connections_;
+
+  // Map of database name to the primary pending open request. The primary
+  // request is the one that actually requests a new connection from the
+  // browser. Subsequent requests for the same database version will attempt to
+  // piggyback on this primary request.
+  HeapHashMap<String, Member<IDBOpenDBRequest>> primary_pending_requests_;
 
   WeakCellFactory<IDBFactory> weak_factory_{this};
 };

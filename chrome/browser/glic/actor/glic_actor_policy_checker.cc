@@ -38,6 +38,7 @@
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
+#include "google_apis/gaia/gaia_auth_util.h"
 
 #if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS) || \
     BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
@@ -57,6 +58,7 @@ std::ostream& operator<<(std::ostream& os,
     case GlicActorEnterprisePrefDefault::kForcedDisabled:
       return os << "forced_disabled";
   }
+  return os << "unknown(" << static_cast<int>(value) << ")";
 }
 }  // namespace features
 
@@ -71,6 +73,7 @@ std::ostream& operator<<(std::ostream& os,
     case GlicActuationOnWebPolicyState::kDisabled:
       return os << "kDisabled";
   }
+  return os << "kUnknown(" << static_cast<int>(value) << ")";
 }
 }  // namespace prefs
 
@@ -84,6 +87,7 @@ std::ostream& operator<<(std::ostream& os,
     case GlicActorPolicyChecker::CanActOutcome::kByAllowlistOnly:
       return os << "kByAllowlistOnly";
   }
+  return os << "kUnknown(" << static_cast<int>(value) << ")";
 }
 
 std::ostream& operator<<(std::ostream& os, CannotActReason value) {
@@ -99,6 +103,7 @@ std::ostream& operator<<(std::ostream& os, CannotActReason value) {
     case CannotActReason::kEnterpriseWithoutManagement:
       return os << "kEnterpriseWithoutManagement";
   }
+  return os << "kUnknown(" << static_cast<int>(value) << ")";
 }
 
 std::ostream& operator<<(
@@ -111,15 +116,16 @@ std::ostream& operator<<(
 namespace {
 
 bool ActuationEnabledForManagedUser(Profile& profile,
-                                    actor::AggregatedJournal& journal) {
+                                    actor::AggregatedJournal& journal,
+                                    bool emit_metric) {
   features::GlicActorEnterprisePrefDefault default_pref =
       features::kGlicActorEnterprisePrefDefault.Get();
   auto* pref_service = profile.GetPrefs();
   CHECK(pref_service);
 
   auto capability_pref =
-      static_cast<glic::prefs::GlicActuationOnWebPolicyState>(
-          pref_service->GetInteger(glic::prefs::kGlicActuationOnWeb));
+      glic::prefs::GetActuationOnWebCapability(pref_service)
+          .value_or(glic::prefs::GlicActuationOnWebPolicyState::kDisabled);
 
   bool is_enabled = false;
   if (default_pref ==
@@ -139,8 +145,10 @@ bool ActuationEnabledForManagedUser(Profile& profile,
                   .Build());
 
   // Emit the UMA histogram metric
-  base::UmaHistogramBoolean("Glic.Actor.ManagedUserActuationEnabled",
-                            is_enabled);
+  if (emit_metric) {
+    base::UmaHistogramBoolean("Glic.Actor.ManagedUserActuationEnabled",
+                              is_enabled);
+  }
 
   return is_enabled;
 }
@@ -199,7 +207,10 @@ GlicActorPolicyChecker::GlicActorPolicyChecker(Profile& profile)
   }
 
   std::tie(can_act_on_web_, cannot_act_on_web_reason_) =
-      ComputeActOnWebCapability();
+      ComputeActOnWebCapability(/*disable_for_enterprise=*/false);
+
+  std::tie(glic_api_can_act_on_web_, glic_api_cannot_act_on_web_reason_) =
+      ComputeActOnWebCapability(/*disable_for_enterprise=*/true);
 
   pref_change_registrar_.Init(profile_->GetPrefs());
   // Listens to policy changes.
@@ -321,17 +332,27 @@ CannotActReason GlicActorPolicyChecker::CannotActOnWebReason() const {
   return cannot_act_on_web_reason_;
 }
 
+bool GlicActorPolicyChecker::GlicApiCanActOnWeb() const {
+  return glic_api_can_act_on_web_ != CanActOutcome::kNo;
+}
+
+CannotActReason GlicActorPolicyChecker::GlicApiCannotActOnWebReason() const {
+  return glic_api_cannot_act_on_web_reason_;
+}
+
 void GlicActorPolicyChecker::OnPrefOrAccountChanged() {
   auto old_value = can_act_on_web_;
   std::tie(can_act_on_web_, cannot_act_on_web_reason_) =
-      ComputeActOnWebCapability();
+      ComputeActOnWebCapability(/*disable_for_enterprise=*/false);
+  std::tie(glic_api_can_act_on_web_, glic_api_cannot_act_on_web_reason_) =
+      ComputeActOnWebCapability(/*disable_for_enterprise=*/true);
   if (old_value != can_act_on_web_) {
     changed_callback_list_.Notify(CanActOnWeb());
   }
 }
 
 std::pair<GlicActorPolicyChecker::CanActOutcome, CannotActReason>
-GlicActorPolicyChecker::ComputeActOnWebCapability() {
+GlicActorPolicyChecker::ComputeActOnWebCapability(bool disable_for_enterprise) {
   auto log_and_return =
       [&](CanActOutcome outcome,
           std::variant<CannotActReason, std::string_view> reason) {
@@ -378,67 +399,93 @@ GlicActorPolicyChecker::ComputeActOnWebCapability() {
   }
 
   bool is_likely_dogfood_client = GlicEnabling::IsLikelyDogfoodClient();
-  if (is_likely_dogfood_client) {
-    return log_and_return(CanActOutcome::kYes, "is likely dogfood client");
+  bool is_google_internal_account =
+      gaia::IsGoogleInternalAccountEmail(profile_->GetProfileUserName());
+  if (is_likely_dogfood_client && is_google_internal_account) {
+    return log_and_return(CanActOutcome::kYes,
+                          "is likely dogfood client with google account");
   }
 
   // Consumer checks.
 
-  bool enterprise_account = IsEnterpriseAccountForActor(*profile_, *journal_);
-  bool has_management = IsBrowserManagedForActor(*profile_);
-  if (!enterprise_account && !has_management) {
-    if (AccountHasChromeBenefits(*profile_, *journal_)) {
-      // Only respect the consumer check if the browser is not managed.
-      return log_and_return(CanActOutcome::kYes,
-                            "Not managed: account has chrome benefits");
+  if (IsEnterpriseAccountForActor(*profile_, *journal_)) {
+    if (disable_for_enterprise) {
+      // If disable_for_enterprise=true,
+      // Enterprise (workspace) account is disabled for now since tier
+      // information is not available in Chrome
+      // TODO(b/525028864): Retrieve enterprise account tier information for
+      // more accurate check.
+      return log_and_return(CanActOutcome::kNo,
+                            CannotActReason::kEnterpriseWithoutManagement);
     }
+
+    if (!IsBrowserManagedForActor(*profile_)) {
+      // Edge (error) case: an enterprise account without management. This means
+      // that policy delivery is not trustworthy (because the policy delivery
+      // over a domain requires management). Fallback to the default policy pref
+      // value. This should be extremely rare.
+      bool default_pref_enabled =
+          features::kGlicActorEnterprisePrefDefault.Get() ==
+          features::GlicActorEnterprisePrefDefault::kEnabledByDefault;
+      if (default_pref_enabled) {
+        return log_and_return(
+            CanActOutcome::kYes,
+            "Enterprise account without management: default pref enabled");
+      } else {
+        return log_and_return(CanActOutcome::kNo,
+                              CannotActReason::kEnterpriseWithoutManagement);
+      }
+    }
+  }
+
+  if (IsBrowserManagedForActor(*profile_)) {
+    bool policy_enabled = ActuationEnabledForManagedUser(
+        *profile_, *journal_, /*emit_metrics=*/!disable_for_enterprise);
+    bool has_allowlist = HasUrlAllowlist(*profile_);
+
+    if (!policy_enabled) {
+      if (has_allowlist) {
+        // If actuation in general is blocked by policy, but there is a
+        // non-empty allow list, then we need `CanActOnWeb()` to be true so we
+        // can attempt actuation up until the point where we evaluate a URL for
+        // its inclusion in the allow list. If it's not explicitly allowed by
+        // the list, then we perform the blocking there.
+        return log_and_return(CanActOutcome::kByAllowlistOnly,
+                              CannotActReason::kDisabledByPolicy);
+      }
+      return log_and_return(CanActOutcome::kNo,
+                            CannotActReason::kDisabledByPolicy);
+    }
+
+    // policy_enabled is true here.
+    // If they have Chrome benefits, they can act everywhere.
+    if (AccountHasChromeBenefits(*profile_, *journal_)) {
+      return log_and_return(
+          CanActOutcome::kYes,
+          "Managed: actuation enabled via policy and account has benefits");
+    }
+
+    // policy_enabled is true, but they don't have Chrome benefits.
+    if (has_allowlist) {
+      // Allowed on allowlisted URLs even without benefits.
+      return log_and_return(CanActOutcome::kByAllowlistOnly,
+                            CannotActReason::kDisabledByPolicy);
+    }
+
+    // policy_enabled is true, no benefits, no allowlist -> blocked.
     return log_and_return(CanActOutcome::kNo,
                           CannotActReason::kAccountMissingChromeBenefits);
   }
 
-  // Chrome Enterprise policy checks.
-
-  if (enterprise_account && !has_management) {
-    // Edge (error) case: an enterprise account without management. This means
-    // that policy delivery is not trustworthy (because the policy delivery over
-    // a domain requires management). Fallback to the default policy pref value.
-    // This should be extremely rare.
-    bool default_pref_enabled =
-        features::kGlicActorEnterprisePrefDefault.Get() ==
-        features::GlicActorEnterprisePrefDefault::kEnabledByDefault;
-    if (default_pref_enabled) {
-      return log_and_return(
-          CanActOutcome::kYes,
-          "Enterprise account without management: default pref enabled");
-    } else {
-      return log_and_return(CanActOutcome::kNo,
-                            CannotActReason::kEnterpriseWithoutManagement);
-    }
-  }
-
-  // From this point on, the browser must have some level of management. Both
-  // regular accounts and enterprise accounts therefore are subject to policy
-  // control.
-
-  if (ActuationEnabledForManagedUser(*profile_, *journal_)) {
+  // At this point, the account is neither enterprise nor override by policy.
+  // Check Chrome benefits.
+  if (AccountHasChromeBenefits(*profile_, *journal_)) {
     return log_and_return(CanActOutcome::kYes,
-                          "Managed: actuation enabled via policy");
+                          "Not managed: account has chrome benefits");
   }
-  if (HasUrlAllowlist(*profile_)) {
-    // If actuation in general is blocked by policy, but there is a non-empty
-    // allow list, then we need `CanActOnWeb()` to be true so we can
-    // attempt actuation up until the point where we evaluate a URL for its
-    // inclusion in the allow list. If it's not explicitly allowed by the
-    // list, then we perform the blocking there.
-    return log_and_return(CanActOutcome::kByAllowlistOnly,
-                          CannotActReason::kDisabledByPolicy);
-  }
-  // We reach this point only if:
-  // - Account is eligible for actuation
-  // - Browser has management
-  //   - Actuation is disabled by policy
-  //   - No URL allowlist is present
-  return log_and_return(CanActOutcome::kNo, CannotActReason::kDisabledByPolicy);
+
+  return log_and_return(CanActOutcome::kNo,
+                        CannotActReason::kAccountMissingChromeBenefits);
 }
 
 GlicActorPolicyChecker::UrlBlockReason GlicActorPolicyChecker::Evaluate(

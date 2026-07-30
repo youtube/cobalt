@@ -11,7 +11,6 @@
 #include "base/functional/callback.h"
 #include "base/json/json_reader.h"
 #include "base/test/task_environment.h"
-#include "components/mirroring/service/value_util.h"
 #include "components/openscreen_platform/task_runner.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -121,13 +120,14 @@ TEST_F(RpcDispatcherImplTest, SendsMessages) {
                              base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(value);
 
-  std::string message_type;
-  EXPECT_TRUE(GetString(*value, "type", &message_type));
-  EXPECT_EQ("RPC", message_type);
+  ASSERT_TRUE(value->is_dict());
+  const std::string* message_type = value->GetDict().FindString("type");
+  ASSERT_TRUE(message_type);
+  EXPECT_EQ("RPC", *message_type);
 
-  std::string message_binary;
-  EXPECT_TRUE(GetString(*value, "rpc", &message_binary));
-  EXPECT_EQ("AQIDBA==", message_binary);
+  const std::string* message_binary = value->GetDict().FindString("rpc");
+  ASSERT_TRUE(message_binary);
+  EXPECT_EQ("AQIDBA==", *message_binary);
 }
 
 }  // namespace mirroring

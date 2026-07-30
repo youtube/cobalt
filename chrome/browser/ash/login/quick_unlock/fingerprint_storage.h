@@ -128,7 +128,7 @@ class FingerprintStorage final
   int recent_unlock_attempt_count_ = 0;
 
   // Timestamps of the last fingerprint unlock attempt.
-  base::TimeTicks last_unlock_attempt_timestamp_ = base::TimeTicks::UnixEpoch();
+  base::TimeTicks last_unlock_attempt_timestamp_ = base::TimeTicks();
 
   mojo::Remote<device::mojom::Fingerprint> fp_service_;
 

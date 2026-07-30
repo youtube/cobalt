@@ -171,19 +171,6 @@ struct COMPONENT_EXPORT(SQL) DatabaseOptions {
     return *this;
   }
 
-  // If true, enables preloading the database before opening it.
-  //
-  // Hints the file system that the database will be accessed soon.
-  //
-  // This method should be called on databases that are on the critical path to
-  // Chrome startup. Informing the filesystem about our expected access pattern
-  // early on reduces the likelihood that we'll be blocked on disk I/O. This has
-  // a high impact on startup time.
-  DatabaseOptions& set_preload(bool preload) {
-    preload_ = preload;
-    return *this;
-  }
-
   // If true, transaction commit waits for data to reach persistent media.
   //
   // This is currently only meaningful on macOS. All other operating systems
@@ -367,7 +354,6 @@ struct COMPONENT_EXPORT(SQL) DatabaseOptions {
   bool flush_to_media_ = false;
   int page_size_ = kDefaultPageSize;
   int cache_size_ = 0;
-  bool preload_ = false;
   bool mmap_alt_status_discouraged_ = false;
   bool enable_views_discouraged_ = false;
   const char* vfs_name_discouraged_ = nullptr;
@@ -980,10 +966,6 @@ class COMPONENT_EXPORT(SQL) Database {
   // `file_name` is the SQLite magic memory path :memory:, the database will be
   // opened in-memory.
   bool OpenInternal(const std::string& file_name)
-      VALID_CONTEXT_REQUIRED(sequence_checker_);
-
-  // Requests the operating system to preload the pages on disk into memory.
-  void PreloadInternal(const base::FilePath& path)
       VALID_CONTEXT_REQUIRED(sequence_checker_);
 
   // Configures the underlying sqlite3* object via sqlite3_db_config().

@@ -218,6 +218,7 @@ class CORE_EXPORT InlineNode : public LayoutInputNode {
                                    InlineNodeData* data);
 
   friend class LineBreakerTest;
+  friend class TextAutoSpace;
 };
 
 inline bool InlineNode::IsStickyImagesQuirkForContentSize() const {

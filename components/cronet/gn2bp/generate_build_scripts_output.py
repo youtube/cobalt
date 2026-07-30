@@ -25,7 +25,6 @@ import re
 import subprocess
 import os
 import sys
-import json
 import shutil
 
 REPOSITORY_ROOT = os.path.abspath(
@@ -35,6 +34,7 @@ sys.path.insert(0, REPOSITORY_ROOT)
 import components.cronet.tools.utils as cronet_utils  # pylint: disable=wrong-import-position
 import components.cronet.gn2bp.common as gn2bp_common  # pylint: disable=wrong-import-position
 import components.cronet.gn2bp.gen_android_bp as cronet_gn2bp  # pylint: disable=wrong-import-position
+from components.cronet.gn2bp.arguments import CommandLineUtility
 
 
 def _extract_crate_path(args: List[str]) -> str:
@@ -47,7 +47,8 @@ def _extract_crate_path(args: List[str]) -> str:
   Returns:
     The path to the rust crate relative to Chromium repository.
   """
-    return args[args.index("--src-dir") + 1].replace("../../", "")
+    return CommandLineUtility(args).get_flag_value('--src-dir').replace(
+        "../../", "")
 
 
 def _build_rust_build_script_actions(

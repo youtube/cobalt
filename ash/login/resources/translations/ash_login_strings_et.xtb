@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Võrguvea parandamiseks võite proovida ka <ph name="GUEST_SIGNIN_LINK_START" />külalisena sirvimist<ph name="GUEST_SIGNIN_LINK_END" />.</translation>
 <translation id="1201402288615127009">Järgmine</translation>
 <translation id="1222835797152767346">Sisselogimise hõlbustamiseks määrake PIN-kood</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Silumisfunktsioonid<ph name="END_H3" />
+      <ph name="BR" />
+      Saate lubada Chrome OS-i seadmes silumisfunktsioonid, et installida ja testida seadmes kohandatud koodi. See võimaldab teil teha järgmist.<ph name="BR" />
+      <ph name="BEGIN_LIST" />
+        <ph name="LIST_ITEM" />Eemaldada rootfs-i kinnitamine, mis võimaldab muuta OS-i faile.
+        <ph name="LIST_ITEM" />Lubada seadmele SSH-juurdepääs standardsete testvõtmetega, mis võimaldab kasutada seadmele juurdepääsu saamiseks selliseid tööriistu nagu <ph name="BEGIN_CODE" />„cros flash“<ph name="END_CODE" />.
+        <ph name="LIST_ITEM" />Lubada käivitamine USB-lt, mis võimaldab installida OS-i kujutis USB-kettalt.
+        <ph name="LIST_ITEM" />Määrata nii arendaja kui ka süsteemi juursisselogimisparool kohandatud väärtusele, et kasutada seadmesse käsitsi pääsemiseks SSH-d.
+      <ph name="END_LIST" />
+      <ph name="BR" />
+      Kui see on lubatud, jäävad enamik silumisfunktsioone ettevõtte hallatavas seadmes lubatuks isegi pärast Powerwashiga tehaseseadetele lähtestamist või andmete täielikku kustutamist. Silumisfunktsioonide täielikuks keelamiseks tehke Chrome OS-i taastamine (https://support.google.com/chromebook/answer/1080595).
+      <ph name="BR" />
+      <ph name="BR" />
+      Lisateavet silumisfunktsioonide kohta leiate siit:<ph name="BR" />
+      https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+      <ph name="BR" />
+      <ph name="BR" />
+      <ph name="BEGIN_BOLD" />Märkus.<ph name="END_BOLD" /> Protsessi käigus süsteem taaskäivitatakse.</translation>
 <translation id="1347625331607114917">Kinnitage kood oma Androidi telefonis</translation>
 <translation id="1347975661240122359">Värskendamine algab, kui akutase jõuab <ph name="BATTERY_LEVEL" />%-ni.</translation>
 <translation id="1375938286942050085">Seadistamine on lõpetatud! Valmistage nüüd oma seade mängude jaoks ette</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Rakendusi laaditakse alla</translation>
 <translation id="5045550434625856497">Vale salasõna</translation>
 <translation id="5062930723426326933">Sisselogimine ebaõnnestus. Looge ühendus Internetiga ja proovige uuesti.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Vestelge Geminiga, et alustada Google'i AI abil kirjutamist, plaanimist, õppimist ja muud.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Seadistage Gemini ja alustage selle kasutamist, valides ekraani allosas asuvalt riiulilt Gemini rakenduse.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Ühendage seade <ph name="DEVICE_TYPE" /> toiteallikaga.</translation>
 <translation id="5147516217412920887">Koodi kinnitamiseks järgige oma telefonis kuvatavaid juhiseid</translation>
 <translation id="5160857336552977725">Logige sisse seadmesse <ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Silumisfunktsioonid<ph name="END_H3" />
+      <ph name="BR" />
+      Saate lubada ChromeOS Flexi seadmes silumisfunktsioonid, et installida ja testida seadmes kohandatud koodi. See võimaldab teil teha järgmist.<ph name="BR" />
+      <ph name="BEGIN_LIST" />
+        <ph name="LIST_ITEM" />Eemaldada rootfs-i kinnitamine, mis võimaldab muuta OS-i faile.
+        <ph name="LIST_ITEM" />Lubada seadmele SSH-juurdepääs standardsete testvõtmetega, mis võimaldab kasutada seadmele juurdepääsu saamiseks selliseid tööriistu nagu <ph name="BEGIN_CODE" />„cros flash“<ph name="END_CODE" />.
+        <ph name="LIST_ITEM" />Lubada käivitamine USB-lt, mis võimaldab installida OS-i kujutis USB-kettalt.
+        <ph name="LIST_ITEM" />Määrata nii arendaja kui ka süsteemi juursisselogimisparool kohandatud väärtusele, et kasutada seadmesse käsitsi pääsemiseks SSH-d.
+      <ph name="END_LIST" />
+      <ph name="BR" />
+      Kui see on lubatud, jäävad enamik silumisfunktsioone ettevõtte hallatavas seadmes lubatuks isegi pärast Powerwashiga tehaseseadetele lähtestamist või andmete täielikku kustutamist. Silumisfunktsioonide täielikuks keelamiseks tehke Chrome OS-i taastamine (https://support.google.com/chromebook/answer/1080595).
+      <ph name="BR" />
+      <ph name="BR" />
+      Lisateavet silumisfunktsioonide kohta leiate siit:<ph name="BR" />
+      https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+      <ph name="BR" />
+      <ph name="BR" />
+      <ph name="BEGIN_BOLD" />Märkus.<ph name="END_BOLD" /> Protsessi käigus süsteem taaskäivitatakse.</translation>
 <translation id="523505283826916779">Juurdepääsuseaded</translation>
 <translation id="5240931875940563122">Androidiga sisselogimine</translation>
 <translation id="5255859108402770436">Logi uuesti sisse</translation>
@@ -193,6 +231,7 @@
 <translation id="6955698182324067397">Soovite lubada Chrome OS-i silumisfunktsioonid, mis seadistavad üksuse sshd daemon ja lubavad käivitamise USB-kettalt.</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6981982820502123353">Juurdepääsetavus</translation>
+<translation id="6984652455487792101">Kui kasutate puhverserverit, siis kontrollige oma puhverserveri seadeid või võtke ühendust võrguadministraatoriga, veendumaks, et puhverserver töötab. Kui te ei kasuta enda teada puhverserverit, siis korrigeerige oma <ph name="LINK_START" />puhverserveri seadeid<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">Lülitage telefoni Bluetooth ja WiFi sisse</translation>
 <translation id="7077829361966535409">Sisselogimislehte ei saanud praeguste puhverserveri seadetega laadida. <ph name="GAIA_RELOAD_LINK_START" />Proovige uuesti sisse logida<ph name="GAIA_RELOAD_LINK_END" /> või kasutage teisi <ph name="PROXY_SETTINGS_LINK_START" />puhverserveri seadeid<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="7114054701490058191">Paroolid ei ühti</translation>
@@ -205,6 +244,9 @@
 <translation id="7345706641791090287">Kinnitage oma parool</translation>
 <translation id="7352651011704765696">Midagi läks valesti</translation>
 <translation id="7476454130948140105">Aku on värskendamiseks liiga tühi (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Enne registreerumist peate TPM-i tühjendama, et <ph name="DEVICE_OS" /> saaks seadme üle võtta.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Võite TPM-i ka täielikult välja lülitada. Teie andmed salvestatakse turvaliselt tarkvaralise krüpteerimisega, kuid teatud turvafunktsioonid (nt riistvaratoega sertifikaadid) keelatakse.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Saate oma TPM-i seadeid muuta, taaskäivitades seadme ja sisenedes süsteemi BIOS-i/UEFI seadetesse. Juhised erinevad olenevalt seadme mudelist. Lisateabe saamiseks avage enne taaskäivitamist OS-i <ph name="DEVICE_OS" /> dokumendid teises seadmes: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Luba silumisfunktsioonid selles toote <ph name="IDS_SHORT_PRODUCT_NAME" /> seadmes</translation>
 <translation id="7553242001898162573">Sisestage parool</translation>
 <translation id="7556242789364317684">Kahjuks ei saa teenus <ph name="SHORT_PRODUCT_NAME" /> teie seadeid taastada. Vea parandamiseks peab teenus <ph name="SHORT_PRODUCT_NAME" /> seadme lähtestama funktsiooniga Powerwash.</translation>
@@ -251,6 +293,10 @@
 <translation id="8452105022015742247">Google'i kontoteabe ülekandmine teie Android-telefonist</translation>
 <translation id="8524841856047224176">Isikupärastage oma kaamerataustad videokõnede ja muu jaoks</translation>
 <translation id="8569673829373920831">Lisateave rakenduse <ph name="APP_NAME" /> kohta</translation>
+<translation id="8628232294964836490">QR-koodi skannimiseks järgige oma telefonis olevaid juhiseid. Veenduge, et telefonis oleks Bluetooth sisse lülitatud.
+        <ph name="BR" />
+        <ph name="BR" />
+        Läheduses olevatele seadmetele nähtav nimega <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />…</translation>
 <translation id="8655972064210167941">Sisselogimine ebaõnnestus, kuna teie parooli ei saanud kinnitada. Võtke ühendust administraatoriga või proovige uuesti.</translation>
 <translation id="8674903726754070732">Kahjuks on teie arvuti seadistatud valesti vormindatud riistvara ID-ga. See ei lase Chrome OS-i uusimate turvaparandustega värskendada ja teie arvuti <ph name="BEGIN_BOLD" />võib olla pahatahtlike rünnakute suhtes haavatav<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Lisage vanemlik järelevalve pärast seadistamist</translation>
@@ -264,10 +310,20 @@
 <translation id="8830796635868321089">Värskenduste kontrollimine puhverserveri praeguste seadetega ebaõnnestus. Korrigeerige <ph name="PROXY_SETTINGS_LINK_START" />puhverserveri seadeid<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">Kui logite sisse oma Google'i kontoga, on teie salvestatud eelistused ja tegevused igas Chrome OS-i seadmes valmis. Jaotises Seaded saate valida, mida sünkroonida.</translation>
 <translation id="8875221558267407626">Sisukokkuvõtted, keeruliste lausete lihtsustamine ja küsimuste esitamine</translation>
+<translation id="8913163265790894442">Seadistage <ph name="DEVICE_TYPE" /> hõlpsasti telefoniga. Saate lisada WiFi ja Google'i konto ilma paroole käsitsi sisestamata.
+        <ph name="BR" />
+        <ph name="BR" />
+        Nähtav seadmena <ph name="DEVICE_TYPE" />...</translation>
 <translation id="8946359700442089734">Silumisfunktsioone ei lubatud täielikult selles toote <ph name="IDS_SHORT_PRODUCT_NAME" /> seadmes.</translation>
 <translation id="8965037249707889821">Sisestage vana parool</translation>
 <translation id="8975396729541388937">Tellimuse võite alati tühistada, klõpsates teile saadetud meilides oleval lingil.</translation>
 <translation id="9033765790910064284">Jätka ikkagi</translation>
 <translation id="903480517321259405">Sisestage PIN-kood uuesti</translation>
 <translation id="9076523132036239772">Kahjuks ei õnnestunud teie e-posti aadressi või parooli kinnitada. Proovige kõigepealt luua ühendus võrguga.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Ainult <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Generatiivne AI on katseline ja varajases arendusjärgus ning sellel on praegu piiratud saadavus.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Seadistage <ph name="DEVICE_TYPE" /> hõlpsasti telefoniga. Võite oma Google'i konto lisada ilma parooli käsitsi sisestamata.
+        <ph name="BR" />
+        <ph name="BR" />
+        Nähtav seadmena <ph name="DEVICE_TYPE" />...</translation>
 </translationbundle>

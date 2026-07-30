@@ -21,7 +21,6 @@ suite('CrComponentsNetworkConfigElementBehaviorTest', function() {
       },
     },
 
-    /** @override */
     isNetworkPolicyEnforced(policy) {
       // In tests, toggle |policy| and |enforced| to elicit different behaviors.
       return !!policy && this.enforced;

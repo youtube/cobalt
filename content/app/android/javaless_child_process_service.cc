@@ -344,3 +344,12 @@ EXPORT_TO_ANDROID void NativeChildProcessService_onCreate(
   ANativeService_setOnRebindCallback(service, &content::onRebind);
   ANativeService_setOnDestroyCallback(service, &content::onDestroy);
 }
+
+// This is a hook for libraries to use who might want something happening very
+// early on process start. Note that JNI_OnLoad does not work with javaless
+// renderers, so often things you might put there should go into a override of
+// this instead.
+__attribute__((weak)) bool NativeInitializationHook(
+    base::android::LibraryProcessType library_process_type) {
+  return false;
+}

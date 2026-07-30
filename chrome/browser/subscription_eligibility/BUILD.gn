@@ -26,3 +26,30 @@ source_set("subscription_eligibility") {
     "//third_party/metrics_proto:metrics_proto_gen",
   ]
 }
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [ "subscription_eligibility_service_browsertest.cc" ]
+
+    deps = [
+      ":subscription_eligibility",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser:browser_process",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/profiles:profile_manager",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//components/metrics",
+      "//components/prefs",
+      "//components/subscription_eligibility",
+      "//content/test:test_support",
+      "//testing/gtest",
+      "//third_party/metrics_proto:metrics_proto_gen",
+    ]
+  }
+}

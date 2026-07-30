@@ -42,13 +42,13 @@ class ContextGroupTest : public GpuServiceTest {
     GpuServiceTest::SetUp();
     decoder_ = std::make_unique<MockGLES2Decoder>(
         &client_, &command_buffer_service_, &outputter_);
-    scoped_refptr<FeatureInfo> feature_info = new FeatureInfo;
-    group_ = scoped_refptr<ContextGroup>(new ContextGroup(
+    auto feature_info = base::MakeRefCounted<FeatureInfo>();
+    group_ = base::MakeRefCounted<ContextGroup>(
         gpu_preferences_, /*memory_tracker=*/nullptr,
         /*shader_translator_cache=*/nullptr,
         /*framebuffer_completeness_cache=*/nullptr, feature_info,
         /*progress_reporter=*/nullptr, GpuFeatureInfo(),
-        &shared_image_manager_));
+        &shared_image_manager_);
   }
 
   GpuPreferences gpu_preferences_;

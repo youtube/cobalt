@@ -452,11 +452,22 @@ void BnplManager::OnAmountExtractionReturnedFromAi(
     CHECK(payments_autofill_client().GetBnplStrategy());
     if (base::FeatureList::IsEnabled(
             features::kAutofillEnablePayNowPayLaterTabs)) {
-      std::vector<BnplIssuerContext> issuer_contexts =
-          GetSortedBnplIssuerContext(browser_autofill_manager_->client(),
-                                     /*checkout_amount=*/std::nullopt,
-                                     result.error());
-      ReplaceLoadingThrobberWithIssuerSuggestions(issuer_contexts);
+      using enum BnplStrategy::BnplAiBasedAmountExtractionReturnedNextAction;
+      switch (payments_autofill_client()
+                  .GetBnplStrategy()
+                  ->GetNextActionOnAiBasedAmountExtractionReturned()) {
+        case kReplaceLoadingThrobberWithIssuerSuggestionsOnDesktop: {
+          std::vector<BnplIssuerContext> issuer_contexts =
+              GetSortedBnplIssuerContext(browser_autofill_manager_->client(),
+                                         /*checkout_amount=*/std::nullopt,
+                                         result.error());
+          ReplaceLoadingThrobberWithIssuerSuggestions(issuer_contexts);
+          break;
+        }
+        case kSwitchToIssuerSelectionScreenOnAndroid:
+          // TODO(viplavkadam): Implement Android flow.
+          break;
+      }
     } else {
       using enum BnplStrategy::BeforeSwitchingViewAction;
       switch (payments_autofill_client()
@@ -507,7 +518,18 @@ void BnplManager::OnAmountExtractionReturnedFromAi(
                                    ongoing_flow_state_->final_checkout_amount);
     if (base::FeatureList::IsEnabled(
             features::kAutofillEnablePayNowPayLaterTabs)) {
-      ReplaceLoadingThrobberWithIssuerSuggestions(issuer_contexts);
+      using enum BnplStrategy::BnplAiBasedAmountExtractionReturnedNextAction;
+      switch (payments_autofill_client()
+                  .GetBnplStrategy()
+                  ->GetNextActionOnAiBasedAmountExtractionReturned()) {
+        case kReplaceLoadingThrobberWithIssuerSuggestionsOnDesktop: {
+          ReplaceLoadingThrobberWithIssuerSuggestions(issuer_contexts);
+          break;
+        }
+        case kSwitchToIssuerSelectionScreenOnAndroid:
+          // TODO(viplavkadam): Implement Android flow.
+          break;
+      }
     } else {
       bool is_amount_supported_by_any_issuer =
           IsExtractedAmountSupportedByAnyBnplIssuer(

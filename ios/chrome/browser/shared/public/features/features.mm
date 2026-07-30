@@ -104,7 +104,6 @@ BASE_FEATURE(kLensOverlayCustomBottomSheet, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensSearchHeadersCheckEnabled, base::FEATURE_ENABLED_BY_DEFAULT);
 
-
 BASE_FEATURE(kOmniboxDRSPrototype, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableTraitCollectionWorkAround,
@@ -410,14 +409,11 @@ BASE_FEATURE(kSeparateProfilesForManagedAccounts,
 BASE_FEATURE(kAuthenticationFlowReauthFirstKillswitch,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Feature parameter for kSeparateProfilesForManagedAccountsForceMigration.
-constexpr base::FeatureParam<base::TimeDelta> kMultiProfileMigrationGracePeriod{
-    &kSeparateProfilesForManagedAccountsForceMigration,
-    /*name=*/"MultiProfileMigrationGracePeriod",
-    /*default_value=*/base::Days(90)};
-
 BASE_FEATURE(kSeparateProfilesForManagedAccountsForceMigration,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSeparateProfilesForManagedAccountsImmediateForceMigration,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOmahaResyncTimerOnForeground, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -648,30 +644,13 @@ BASE_FEATURE(kNotificationCollisionManagement,
 BASE_FEATURE(kIOSProvidesAppNotificationSettings,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kNTPBackgroundCustomization, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsNTPBackgroundCustomizationEnabled() {
-  return base::FeatureList::IsEnabled(kNTPBackgroundCustomization);
-}
-
-BASE_FEATURE_PARAM(int,
-                   kMaxRecentlyUsedBackgrounds,
-                   &kNTPBackgroundCustomization,
-                   "max-recently-used-backgrounds",
-                   7);
-
-int MaxRecentlyUsedBackgrounds() {
-  return kMaxRecentlyUsedBackgrounds.Get();
-}
-
 BASE_FEATURE(kNTPBackgroundColorSlider, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsNTPBackgroundColorSliderEnabled() {
   return base::FeatureList::IsEnabled(kNTPBackgroundColorSlider);
 }
 
-BASE_FEATURE(kNTPBackgroundDownsampleImage,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kNTPBackgroundDownsampleImage, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kRunDefaultStatusCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -918,15 +897,6 @@ bool IsComposeboxIOSEnabled() {
 
 BASE_FEATURE(kContextMenuPreviewDownsampleImage,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kTabGroupColorOnSurface, base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsTabGroupColorOnSurfaceEnabled() {
-  if (IsUpdateTabGroupColorsEnabled()) {
-    return true;
-  }
-  return base::FeatureList::IsEnabled(kTabGroupColorOnSurface);
-}
 
 BASE_FEATURE(kOmniboxCrashFixKillSwitch, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -1277,4 +1247,51 @@ BASE_FEATURE(kInfobarBannerRevamp, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsInfobarBannerRevampEnabled() {
   return base::FeatureList::IsEnabled(kInfobarBannerRevamp);
+}
+
+BASE_FEATURE(kIOSPhishGuardPasteShortcutDetection,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool IsIOSPhishGuardPasteShortcutDetectionEnabled() {
+  return base::FeatureList::IsEnabled(kIOSPhishGuardPasteShortcutDetection);
+}
+
+BASE_FEATURE(kAppBarHideLabels, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAppBarLabelsHidden() {
+  return base::FeatureList::IsEnabled(kAppBarHideLabels);
+}
+
+BASE_FEATURE(kSupportGoogleOneDeepLink, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGoogleOneDeepLinkEnabled() {
+  return base::FeatureList::IsEnabled(kSupportGoogleOneDeepLink);
+}
+
+BASE_FEATURE(kEnableDiscoverBackgroundRefresh,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsDiscoverBackgroundRefreshEnabled() {
+  return base::FeatureList::IsEnabled(kEnableDiscoverBackgroundRefresh);
+}
+
+const base::FeatureParam<base::TimeDelta>
+    kDiscoverFeedBackgroundRefreshNoServiceInterval{
+        &kEnableDiscoverBackgroundRefresh,
+        "discover_refresh_no_service_interval", base::Minutes(30)};
+
+const base::FeatureParam<base::TimeDelta>
+    kDiscoverFeedBackgroundRefreshNoDateInterval{
+        &kEnableDiscoverBackgroundRefresh, "discover_refresh_no_date_interval",
+        base::Hours(24)};  // 1 day
+
+const base::FeatureParam<base::TimeDelta>
+    kDiscoverFeedBackgroundRefreshMinBuffer{&kEnableDiscoverBackgroundRefresh,
+                                            "discover_refresh_min_buffer",
+                                            base::Minutes(15)};
+
+BASE_FEATURE(kAppBarHideInFullscreen, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAppBarHiddenInFullscreen() {
+  return base::FeatureList::IsEnabled(kAppBarHideInFullscreen);
 }

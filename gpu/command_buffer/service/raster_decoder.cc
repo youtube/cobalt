@@ -1196,7 +1196,7 @@ Capabilities RasterDecoderImpl::GetCapabilities() {
     caps.context_supports_distance_field_text = true;
     caps.texture_half_float_linear = true;
     caps.use_deferred_graphite_submit =
-        features::kSkiaGraphiteEnableDeferredSubmit.Get();
+        features::SkiaGraphiteEnableDeferredSubmit();
 #if BUILDFLAG(SKIA_USE_DAWN)
     if (shared_context_state_->IsGraphiteDawn()) {
       caps.texture_norm16 =
@@ -3173,7 +3173,7 @@ void RasterDecoderImpl::DoFlushTileRasterGraphiteCommandsCHROMIUM() {
     return;
   }
 
-  if (!features::kSkiaGraphiteEnableDeferredSubmit.Get()) {
+  if (!features::SkiaGraphiteEnableDeferredSubmit()) {
     return;
   }
 

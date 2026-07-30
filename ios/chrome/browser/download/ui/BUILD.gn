@@ -75,6 +75,7 @@ source_set("eg2_tests") {
     ":features",
     ":test_util",
     "//components/enterprise/connectors/core:cloud_content_scanning_test_support",
+    "//components/policy/core/common:common_constants",
     "//components/safe_browsing/core/common",
     "//components/strings",
     "//ios/chrome/app/strings",

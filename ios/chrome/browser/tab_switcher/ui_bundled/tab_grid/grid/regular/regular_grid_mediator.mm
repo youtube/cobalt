@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/regular/regular_grid_mediator.h"
 
+#import "base/apple/foundation_util.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
@@ -46,6 +47,7 @@
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_group_sync_service_observer_bridge.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/toolbars/tab_grid_toolbars_configuration.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_group_item.h"
+#import "ios/chrome/browser/tab_switcher/ui_bundled/web_state_tab_switcher_item.h"
 #import "ios/chrome/browser/tabs/model/tabs_closer.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/web/public/web_state.h"
@@ -389,26 +391,30 @@ using ScopedTabGroupSyncObservation =
   return data;
 }
 
-- (ActivityLabelData*)activityLabelDataForTab:(web::WebStateID)webStateID {
-  // Retrieve the WebState corresponding to the given ID. Note that GetWebState
-  // performs a linear search, but this is cheap as this method is only called
-  // on-demand for visible cells.
-  web::WebState* webState = GetWebState(
-      self.webStateList, WebStateSearchCriteria{.identifier = webStateID});
+- (ActivityLabelData*)activityLabelDataForItem:(GridItemIdentifier*)itemID {
+  if (itemID.type != GridItemType::kTab) {
+    return [super activityLabelDataForItem:itemID];
+  }
+  // TODO(crbug.com/488072250): Add ActivityLabelData as a property of
+  // GridItemIdentifier than exposing the WebState. Instead of lazy loading, it
+  // should be called systematically when creating the GridItemIdentifier-s, and
+  // the relevant service(s) observed to update the relevant item.
+  WebStateTabSwitcherItem* webStateItem =
+      base::apple::ObjCCast<WebStateTabSwitcherItem>(itemID.tabSwitcherItem);
+  web::WebState* webState = webStateItem ? webStateItem.webState : nullptr;
   if (!webState) {
     return nil;
   }
 
-  // If the WebState has SendTabToSelfTabCardLabelData attached (indicating it
-  // was auto-opened via SendTabToSelf), return the formatted label (e.g., "From
-  // <device>").
-  SendTabToSelfTabCardLabelData* labelData =
-      SendTabToSelfTabCardLabelData::FromWebState(webState);
-  if (!labelData) {
+  // If the WebState has a valid Send Tab to Self label text (applicable for
+  // both realized and unrealized WebStates), return the formatted label.
+  NSString* labelText =
+      SendTabToSelfTabCardLabelData::GetLabelTextForWebState(webState);
+  if (!labelText) {
     return nil;
   }
   ActivityLabelData* data = [[ActivityLabelData alloc] init];
-  data.labelString = labelData->GetLabelText();
+  data.labelString = labelText;
   return data;
 }
 
@@ -607,12 +613,7 @@ using ScopedTabGroupSyncObservation =
     return nil;
   }
 
-  UIColor* groupColor;
-  if (IsTabGroupColorOnSurfaceEnabled()) {
-    groupColor = [TabGroupColorPalette commonColor:tabGroup->GetColor()];
-  } else {
-    groupColor = tab_groups::ColorForTabGroupColorId(tabGroup->GetColor());
-  }
+  UIColor* groupColor = [TabGroupColorPalette commonColor:tabGroup->GetColor()];
   return
       [self.regularDelegate facePileProviderForGroupID:collaborationID.value()
                                             groupColor:groupColor];

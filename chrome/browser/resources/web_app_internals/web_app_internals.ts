@@ -429,56 +429,6 @@ getRequiredElement('iwa-updates-search-button')
       messageDiv.innerText = result;
     });
 
-const iwaRotateKeyButton =
-    getRequiredElement<HTMLButtonElement>('iwa-rotate-key-button');
-
-iwaRotateKeyButton.addEventListener('click', () => {
-  const webBundleId =
-      getRequiredElement<HTMLInputElement>('iwa-kr-web-bundle-id');
-  const publicKeyBase64 =
-      getRequiredElement<HTMLInputElement>('iwa-kr-public-key-b64');
-
-  const keyRotationMessageDiv = getRequiredElement('iwa-kr-message');
-  keyRotationMessageDiv.innerText = '';
-
-  if (webBundleId.value.length === 0) {
-    keyRotationMessageDiv.innerText = `web-bundle-id must not be empty.`;
-    return;
-  }
-
-  if (publicKeyBase64.value.length === 0) {
-    keyRotationMessageDiv.innerText = `rotated-key must not be empty.`;
-    return;
-  }
-
-  let publicKeyBytes: number[] = [];
-  try {
-    const pk = atob(publicKeyBase64.value);
-
-    publicKeyBytes = [];
-    for (let i = 0; i < pk.length; i++) {
-      publicKeyBytes.push(pk.charCodeAt(i));
-    }
-  } catch (err) {
-    // This block handles `atob()` errors.
-    keyRotationMessageDiv.innerText =
-        `${publicKeyBase64.value} is not a base64 encoded key.`;
-    return;
-  }
-
-  iwaRotateKeyButton.disabled = true;
-  webAppInternalsHandler.rotateKey(webBundleId.value, publicKeyBytes);
-
-  // Improve end user experience by providing a delay of 1000 ms to enable the
-  // key rotation button.
-  setTimeout(() => {
-    keyRotationMessageDiv.innerText = `Successfully rotated public key for ${
-        webBundleId.value} to ${publicKeyBase64.value}!`;
-    publicKeyBase64.value = '';
-    webBundleId.value = '';
-    iwaRotateKeyButton.disabled = false;
-  }, 1000);
-});
 
 function formatDevModeLocation(location: IwaDevModeLocation): string|void {
   if (location.proxyOrigin) {
@@ -687,10 +637,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (loadTimeData.getBoolean('isIwaDevModeEnabled')) {
-    if (loadTimeData.getBoolean('isIwaKeyDistributionDevModeEnabled')) {
-      showIwaSection('iwa-kr-container');
-    }
-
     showIwaSection('iwa-dev-container');
     const devModeUpdatesMessage = getRequiredElement('iwa-dev-updates-message');
     devModeUpdatesMessage.innerText = 'Loading...';

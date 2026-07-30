@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_TABS_PROJECTS_PROJECTS_PANEL_RECENT_THREADS_VIEW_H_
 
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_thread_item_view.h"
 #include "ui/gfx/animation/animation_delegate.h"
 #include "ui/gfx/animation/slide_animation.h"
@@ -53,7 +54,8 @@ class ProjectsPanelRecentThreadsView : public views::View,
   void AnimationProgressed(const gfx::Animation* animation) override;
   void AnimationEnded(const gfx::Animation* animation) override;
 
-  const std::vector<ProjectsPanelThreadItemView*> item_views_for_testing() {
+  const std::vector<raw_ptr<ProjectsPanelThreadItemView>>
+  item_views_for_testing() {
     return item_views_;
   }
 
@@ -66,7 +68,7 @@ class ProjectsPanelRecentThreadsView : public views::View,
 
   std::vector<contextual_tasks::Thread> threads_;
   bool expanded_ = false;
-  std::vector<ProjectsPanelThreadItemView*> item_views_;
+  std::vector<raw_ptr<ProjectsPanelThreadItemView>> item_views_;
   ThreadPressedCallback thread_button_callback_;
 
   gfx::SlideAnimation expansion_animation_{this};

@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_IOS)
@@ -121,7 +122,8 @@ class ComposeboxQueryController
       override;
   const contextual_search::FileInfo* GetFileInfo(
       const base::UnguessableToken& file_token) override;
-  std::vector<const contextual_search::FileInfo*> GetFileInfoList() override;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> GetFileInfoList()
+      override;
   base::WeakPtr<ContextualSearchContextController> AsWeakPtr() override;
 
   // Returns a request id to use for the viewport image upload request for the

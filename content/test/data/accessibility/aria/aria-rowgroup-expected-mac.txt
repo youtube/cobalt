@@ -2,4 +2,4 @@ AXWebArea
 ++AXTable
 ++++AXRow
 ++++AXRow
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup

@@ -194,10 +194,6 @@ wgpu::BackendType GPUAdapter::backendType() const {
   return backend_type_;
 }
 
-bool GPUAdapter::SupportsMultiPlanarFormats() const {
-  return GetHandle().HasFeature(wgpu::FeatureName::DawnMultiPlanarFormats);
-}
-
 void GPUAdapter::OnRequestDeviceCallback(
     GPUDevice* device,
     const GPUDeviceDescriptor* descriptor,

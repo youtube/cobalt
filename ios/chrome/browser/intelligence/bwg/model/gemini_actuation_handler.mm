@@ -316,19 +316,9 @@ void InjectTabIdIntoAction(optimization_guide::proto::Action& action,
     actions.push_back(action);
   }
 
-  actor::CreateActorToolRequestsResult toolsResult =
-      _actorService->CreateActorToolRequests(actions, taskID);
-  if (!toolsResult.has_value()) {
-    completionBlock(CreateSerializedFailureActionsResult(
-        toolsResult.error().code(),
-        actor::GetToolExecutionResultMessage(toolsResult.error())));
-    return;
-  }
-
   __weak GeminiActuationHandler* weakSelf = self;
   _actorService->PerformActions(
-      taskID, std::move(toolsResult.value()),
-      base::SysNSStringToUTF8(taskUpdate),
+      taskID, actions, base::SysNSStringToUTF8(taskUpdate),
       base::BindOnce(
           [](__weak GeminiActuationHandler* weakSelf, actor::ActorTaskId taskID,
              void (^completionBlock)(NSData*),

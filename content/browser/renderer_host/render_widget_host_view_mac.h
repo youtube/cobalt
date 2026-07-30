@@ -468,6 +468,8 @@ class CONTENT_EXPORT RenderWidgetHostViewMac
 
   void SetShowingContextMenu(bool showing) override;
 
+  void SetSupportsAutoFill(bool supports) override;
+
   // Helper method to obtain ui::TextInputType for the active widget from the
   // TextInputManager.
   ui::TextInputType GetTextInputType();

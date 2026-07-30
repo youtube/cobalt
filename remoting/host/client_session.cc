@@ -66,6 +66,7 @@
 #include "remoting/host/remote_open_url/remote_open_url_util.h"
 #include "remoting/host/remote_open_url/url_forwarder_configurator.h"
 #include "remoting/host/remote_open_url/url_forwarder_control_message_handler.h"
+#include "remoting/host/security_key/security_key_auth_handler.h"
 #include "remoting/host/security_key/security_key_extension.h"
 #include "remoting/host/security_key/security_key_extension_session.h"
 #include "remoting/host/webauthn/remote_webauthn_constants.h"
@@ -157,9 +158,28 @@ ClientSession::ClientSession(
   connection_->session()->AddPlugin(&host_experiment_session_plugin_);
   connection_->SetEventHandler(this);
 
+  HostExtensionSessionManager::HostExtensions all_extensions = extensions;
+  bool gnubby_policy_enabled = true;
+  if (local_session_policies_provider) {
+    gnubby_policy_enabled =
+        local_session_policies_provider->get_local_policies()
+            .allow_gnubby_forwarding.value_or(true);
+  }
+  // TODO(b/517007701): Create SecurityKeyAuthHandler after authentication once
+  // we have completed the data channel migration.
+  if (desktop_environment_options.enable_security_key() &&
+      gnubby_policy_enabled) {
+    security_key_auth_handler_ = SecurityKeyAuthHandler::Create(this);
+    if (security_key_auth_handler_) {
+      security_key_extension_ = std::make_unique<SecurityKeyExtension>(
+          security_key_auth_handler_->GetWeakPtr());
+      all_extensions.push_back(security_key_extension_.get());
+    }
+  }
+
   // Create a manager for the configured extensions, if any.
   extension_manager_ =
-      std::make_unique<HostExtensionSessionManager>(extensions, this);
+      std::make_unique<HostExtensionSessionManager>(all_extensions, this);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   // LocalMouseInputMonitorWin and LocalPointerInputMonitorChromeos filter out
@@ -196,13 +216,6 @@ void ClientSession::NotifyClientResolution(
 
   webrtc::DesktopSize client_size(resolution.width_pixels(),
                                   resolution.height_pixels());
-  // Round down the dimensions to a multiple of 2. Otherwise the dimensions will
-  // be rounded on the receiver, which will cause blurring due to scaling. The
-  // resulting size is still close to the client size and will fit on the
-  // client's screen without scaling.
-  // TODO(sergeyu): Make WebRTC handle odd dimensions properly.
-  // crbug.com/636071
-  client_size.set(client_size.width() & (~1), client_size.height() & (~1));
 
   // TODO(joedow): Determine if other platforms support desktop scaling.
   webrtc::DesktopVector dpi_vector{kDefaultDpi, kDefaultDpi};
@@ -584,6 +597,11 @@ void ClientSession::OnConnectionAuthenticated(
       effective_policies_.allow_webauthn_forwarding.has_value()) {
     options.set_enable_remote_webauthn(
         *effective_policies_.allow_webauthn_forwarding);
+  }
+  if (options.enable_security_key() &&
+      effective_policies_.allow_gnubby_forwarding.has_value()) {
+    options.set_enable_security_key(
+        *effective_policies_.allow_gnubby_forwarding);
   }
   // Create the desktop environment.
   // Note: The handlers for various other events use the created desktop
@@ -1412,15 +1430,21 @@ void ClientSession::OnSecurityKeyConnection(
     mojo::PendingReceiver<mojom::SecurityKeyForwarder> receiver) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  auto* extension_session = static_cast<SecurityKeyExtensionSession*>(
-      extension_manager_->FindExtensionSession(
-          SecurityKeyExtension::kCapability));
-  if (!extension_session) {
-    LOG(WARNING) << "Security key extension not found. "
+  bool allow_gnubby =
+      desktop_environment_options_.enable_security_key() &&
+      effective_policies_.allow_gnubby_forwarding.value_or(true);
+
+  if (!security_key_auth_handler_) {
+    LOG(WARNING) << "Security key forwarding is not supported. Binding request "
+                    "rejected.";
+    return;
+  }
+  if (!allow_gnubby) {
+    LOG(WARNING) << "Security key forwarding is disabled by policy or option. "
                  << "Binding request rejected.";
     return;
   }
-  extension_session->BindSecurityKeyForwarder(std::move(receiver));
+  security_key_auth_handler_->BindSecurityKeyForwarder(std::move(receiver));
 }
 
 void ClientSession::CreateFileTransferMessageHandler(

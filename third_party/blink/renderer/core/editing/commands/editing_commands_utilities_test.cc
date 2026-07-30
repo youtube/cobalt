@@ -60,7 +60,7 @@ TEST_F(EditingCommandsUtilitiesTest, TidyUpHTMLStructureFromBody) {
   MakeDocumentEmpty();
   GetDocument().setDesignMode("on");
   GetDocument().AppendChild(body);
-  TidyUpHTMLStructure(GetDocument());
+  TidyUpHtmlStructure(GetDocument());
 
   EXPECT_TRUE(IsA<HTMLHtmlElement>(GetDocument().documentElement()));
   EXPECT_EQ(body, GetDocument().body());
@@ -72,7 +72,7 @@ TEST_F(EditingCommandsUtilitiesTest, TidyUpHTMLStructureFromDiv) {
   MakeDocumentEmpty();
   GetDocument().setDesignMode("on");
   GetDocument().AppendChild(div);
-  TidyUpHTMLStructure(GetDocument());
+  TidyUpHtmlStructure(GetDocument());
 
   EXPECT_TRUE(IsA<HTMLHtmlElement>(GetDocument().documentElement()));
   EXPECT_TRUE(IsA<HTMLBodyElement>(GetDocument().body()));
@@ -84,7 +84,7 @@ TEST_F(EditingCommandsUtilitiesTest, TidyUpHTMLStructureFromHead) {
   MakeDocumentEmpty();
   GetDocument().setDesignMode("on");
   GetDocument().AppendChild(head);
-  TidyUpHTMLStructure(GetDocument());
+  TidyUpHtmlStructure(GetDocument());
 
   EXPECT_TRUE(IsA<HTMLHtmlElement>(GetDocument().documentElement()));
   EXPECT_TRUE(IsA<HTMLBodyElement>(GetDocument().body()));

@@ -34,7 +34,7 @@ import * as SourceMapScopesModule from 'devtools/models/source_map_scopes/source
     }
 
     const instance = Sources.ScopeChainSidebarPane.ScopeChainSidebarPane.instance();
-    if (!instance.treeOutline) {
+    if (!SourcesTestRunner.scopeChainSections()) {
       await TestRunner.addSnifferPromise(instance, 'sidebarPaneUpdatedForTest');
     }
     SourcesTestRunner.expandScopeVariablesSidebarPane(onSidebarsExpanded);

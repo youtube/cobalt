@@ -119,3 +119,13 @@
   pointer-events: none;
   vertical-align: top;
 }
+
+@media (forced-colors: active) {
+  .cr-nav-menu-item[selected] {
+    background: Highlight;
+    color: HighlightText;
+    --iron-icon-fill-color: HighlightText;
+    /* The default application of forced colors does not work here. */
+    forced-color-adjust: none;
+  }
+}

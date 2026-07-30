@@ -15,6 +15,7 @@ source_set("context_hub") {
   public_deps = [
     "//base",
     "//chrome/browser/context_hub/memory_bank",
+    "//chrome/browser/context_hub/memory_bank:impl",
     "//chrome/browser/personal_context",
     "//chrome/browser/profiles:profile",
     "//components/keyed_service/core",

@@ -94,14 +94,14 @@ sk_sp<SkTypeface> FontCache::CreateLocaleSpecificTypeface(
 
   const char* bcp47 = locale.LocaleForSkFontMgr();
   DCHECK(bcp47);
-  sk_sp<SkTypeface> typeface(skia::DefaultFontMgr()->matchFamilyStyleCharacter(
+  sk_sp<SkTypeface> typeface = MatchFamilyStyleCharacter(
       locale_family_name, font_description.SkiaFontStyle(), &bcp47,
       /* bcp47Count */ 1,
       // |matchFamilyStyleCharacter| is the only API that accepts |bcp47|, but
       // it also checks if a character has a glyph. To look up the first
       // match, use the space character, because all fonts are likely to have
       // a glyph for it.
-      uchar::kSpace));
+      uchar::kSpace);
   if (!typeface)
     return nullptr;
 
@@ -112,9 +112,9 @@ sk_sp<SkTypeface> FontCache::CreateLocaleSpecificTypeface(
   // with what we get.
   SkString skia_family_name;
   typeface->getFamilyName(&skia_family_name);
-  sk_sp<SkTypeface> fallback(skia::DefaultFontMgr()->matchFamilyStyleCharacter(
-      nullptr, font_description.SkiaFontStyle(), &bcp47,
-      /* bcp47Count */ 1, uchar::kSpace));
+  sk_sp<SkTypeface> fallback =
+      MatchFamilyStyleCharacter(nullptr, font_description.SkiaFontStyle(),
+                                &bcp47, /* bcp47Count */ 1, uchar::kSpace);
   SkString skia_fallback_name;
   fallback->getFamilyName(&skia_fallback_name);
   if (typeface != fallback)
@@ -272,8 +272,8 @@ AtomicString FontCache::GetGenericFamilyNameForScript(
 
   Bcp47Vector locales =
       GetBcp47LocaleForRequest(font_description, FontFallbackPriority::kText);
-  sk_sp<SkTypeface> typeface(skia::DefaultFontMgr()->matchFamilyStyleCharacter(
-      nullptr, SkFontStyle(), locales.data(), locales.size(), exampler_char));
+  sk_sp<SkTypeface> typeface = MatchFamilyStyleCharacter(
+      nullptr, SkFontStyle(), locales.data(), locales.size(), exampler_char);
   if (!typeface) {
     return g_empty_atom;
   }

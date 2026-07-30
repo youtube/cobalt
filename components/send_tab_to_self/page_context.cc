@@ -4,9 +4,34 @@
 
 #include "components/send_tab_to_self/page_context.h"
 
+#include "base/notreached.h"
 #include "components/shared_highlighting/core/common/text_fragment.h"
 
 namespace send_tab_to_self {
+
+bool IsSensitiveFieldType(autofill::FormControlType type) {
+  switch (type) {
+    case autofill::FormControlType::kInputPassword:
+    case autofill::FormControlType::kInputHiddenEmailVerification:
+      return true;
+    case autofill::FormControlType::kContentEditable:
+    case autofill::FormControlType::kInputCheckbox:
+    case autofill::FormControlType::kInputDate:
+    case autofill::FormControlType::kInputEmail:
+    case autofill::FormControlType::kInputMonth:
+    case autofill::FormControlType::kInputNumber:
+    case autofill::FormControlType::kInputRadio:
+    case autofill::FormControlType::kInputSearch:
+    case autofill::FormControlType::kInputTelephone:
+    case autofill::FormControlType::kInputText:
+    case autofill::FormControlType::kInputUrl:
+    case autofill::FormControlType::kSelectOne:
+    case autofill::FormControlType::kTextArea:
+      return false;
+  }
+
+  NOTREACHED();
+}
 
 TextFragmentData::TextFragmentData() = default;
 

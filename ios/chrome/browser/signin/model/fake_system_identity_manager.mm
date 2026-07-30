@@ -59,14 +59,15 @@ FakeSystemIdentityManager::FakeSystemIdentityManager(
 
   for (FakeSystemIdentity* fake_identity in fake_identities) {
     [storage_ addFakeIdentity:fake_identity];
-    // Set up capabilities to remove the delay while displaying the history sync
-    // opt-in screen for testing.
+    // Set up capabilities to remove fetch delays during the authentication
+    // flow.
     // TODO(b/327221052): verify if this should be replaced by a handler for
     // default capabilities.
     AccountCapabilitiesTestMutator* mutator =
         GetPendingCapabilitiesMutator(fake_identity);
     mutator->set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
         true);
+    mutator->set_can_sign_in_to_chrome(true);
   }
 }
 
@@ -93,14 +94,14 @@ void FakeSystemIdentityManager::AddIdentity(id<SystemIdentity> identity) {
   [storage_ addFakeIdentity:fake_identity];
   FireIdentityListChanged();
 
-  // Set up capabilities to remove the delay while displaying the history sync
-  // opt-in screen for testing.
+  // Set up capabilities to remove fetch delays during the authentication flow.
   // TODO(b/327221052): verify if this should be replaced by a handler for
   // default capabilities.
   AccountCapabilitiesTestMutator* mutator =
       GetPendingCapabilitiesMutator(identity);
   mutator->set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
       true);
+  mutator->set_can_sign_in_to_chrome(true);
 }
 
 void FakeSystemIdentityManager::AddIdentityWithUnknownCapabilities(

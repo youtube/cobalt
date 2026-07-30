@@ -8,26 +8,180 @@
 
 namespace media {
 
-namespace {
+class HlsNetworkAccessImpl::ParallelFetchState
+    : public base::RefCountedThreadSafe<ParallelFetchState> {
+ public:
+  ParallelFetchState(base::WeakPtr<HlsNetworkAccessImpl> network_access,
+                     url::Origin manifest_origin,
+                     scoped_refptr<hls::MediaSegment::EncryptionData> enc_data,
+                     HlsDataSourceProvider::ReadCb cb)
+      : network_access_(std::move(network_access)),
+        manifest_origin_(std::move(manifest_origin)),
+        enc_data_(std::move(enc_data)),
+        completion_cb_(std::move(cb)) {}
 
-void MergeEncryptionSecurityMetadata(
-    scoped_refptr<hls::MediaSegment::EncryptionData> enc_data,
-    HlsDataSourceProvider::ReadCb cb,
-    HlsDataSourceProvider::ReadResult result) {
-  if (!result.has_value()) {
-    std::move(cb).Run(std::move(result).error().AddHere());
-    return;
+  void Start(std::optional<GURL> key_uri,
+             std::optional<HlsDataSourceProvider::UrlDataSegment> init_segment,
+             HlsDataSourceProvider::UrlDataSegment media_segment,
+             bool read_chunked) {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+    if (key_uri) {
+      key_pending_ = true;
+      if (network_access_) {
+        network_access_->ReadAllInternal(
+            *key_uri, base::BindOnce(&ParallelFetchState::OnKeyLoaded, this));
+      }
+    }
+
+    if (init_segment) {
+      init_pending_ = true;
+      if (network_access_) {
+        auto cb = base::BindOnce(&ParallelFetchState::OnInitLoaded, this);
+        cb = base::BindOnce(&HlsNetworkAccessImpl::ReadUntilExhaustedHelper,
+                            network_access_, std::move(cb));
+
+        network_access_->ReadSegmentInternal(*std::move(init_segment),
+                                             std::move(cb));
+      }
+    }
+
+    segment_pending_ = true;
+    if (network_access_) {
+      auto cb = base::BindOnce(&ParallelFetchState::OnSegmentLoaded, this);
+      if (!read_chunked) {
+        cb = base::BindOnce(&HlsNetworkAccessImpl::ReadUntilExhaustedHelper,
+                            network_access_, std::move(cb));
+      }
+      network_access_->ReadSegmentInternal(media_segment, std::move(cb));
+    }
   }
 
-  auto stream = std::move(result).value();
-  const auto& encryption_metadata = enc_data->GetSecurityMetadata();
-  if (encryption_metadata.has_value()) {
-    stream->MergeSecurityMetadata(*encryption_metadata);
-  }
-  std::move(cb).Run(std::move(stream));
-}
+ private:
+  friend class base::RefCountedThreadSafe<ParallelFetchState>;
+  ~ParallelFetchState() = default;
 
-}  // namespace
+  void OnKeyLoaded(HlsDataSourceProvider::ReadResult result) {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    if (aborted_) {
+      return;
+    }
+    key_pending_ = false;
+    key_result_ = std::move(result);
+    if (!key_result_->has_value()) {
+      OnError(std::move(*key_result_).error());
+      return;
+    }
+    CheckCompleted();
+  }
+
+  void OnInitLoaded(HlsDataSourceProvider::ReadResult result) {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    if (aborted_) {
+      return;
+    }
+    init_pending_ = false;
+    init_result_ = std::move(result);
+    if (!init_result_->has_value()) {
+      OnError(std::move(*init_result_).error());
+      return;
+    }
+    CheckCompleted();
+  }
+
+  void OnSegmentLoaded(HlsDataSourceProvider::ReadResult result) {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    if (aborted_) {
+      return;
+    }
+    segment_pending_ = false;
+    segment_result_ = std::move(result);
+    if (!segment_result_->has_value()) {
+      OnError(std::move(*segment_result_).error());
+      return;
+    }
+    CheckCompleted();
+  }
+
+  void OnError(HlsDataSourceProvider::ReadStatus status) {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    if (aborted_) {
+      DCHECK(!completion_cb_);
+      return;
+    }
+    aborted_ = true;
+    if (completion_cb_) {
+      std::move(completion_cb_).Run(std::move(status));
+    }
+  }
+
+  void CheckCompleted() {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    if (aborted_) {
+      return;
+    }
+    if (key_pending_ || init_pending_ || segment_pending_) {
+      return;
+    }
+    CHECK(completion_cb_);
+
+    if (!network_access_) {
+      std::move(completion_cb_)
+          .Run(HlsDataSourceProvider::ReadStatus::Codes::kAborted);
+      aborted_ = true;
+      return;
+    }
+
+    if (enc_data_ && key_result_.has_value()) {
+      auto key_stream = std::move(*key_result_).value();
+      enc_data_->ImportKey(key_stream->AsString());
+      enc_data_->ImportKeySecurity(key_stream->SecurityInfo());
+      if (enc_data_->NeedsKeyFetch()) {
+        OnError({HlsDataSourceProvider::ReadStatus::Codes::kError,
+                 "Error importing key in encrypted segment fetch"});
+        return;
+      }
+    }
+
+    auto segment_stream = std::move(*segment_result_).value();
+    if (init_result_.has_value()) {
+      auto init_stream = std::move(*init_result_).value();
+      segment_stream->PrependInitStream(std::move(init_stream));
+    }
+
+    if (enc_data_) {
+      const auto& encryption_metadata = enc_data_->GetSecurityMetadata();
+      if (encryption_metadata.has_value()) {
+        segment_stream->MergeSecurityMetadata(*encryption_metadata);
+      }
+    }
+
+    network_access_->MediaSegmentSecurityChecks(
+        std::move(completion_cb_), manifest_origin_, std::move(segment_stream));
+  }
+
+  SEQUENCE_CHECKER(sequence_checker_);
+
+  base::WeakPtr<HlsNetworkAccessImpl> network_access_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+  const url::Origin manifest_origin_ GUARDED_BY_CONTEXT(sequence_checker_);
+  const scoped_refptr<hls::MediaSegment::EncryptionData> enc_data_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+  HlsDataSourceProvider::ReadCb completion_cb_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+
+  std::optional<HlsDataSourceProvider::ReadResult> key_result_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+  std::optional<HlsDataSourceProvider::ReadResult> init_result_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+  std::optional<HlsDataSourceProvider::ReadResult> segment_result_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+
+  bool key_pending_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
+  bool init_pending_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
+  bool segment_pending_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
+  bool aborted_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
+};
 
 HlsNetworkAccessImpl::~HlsNetworkAccessImpl() = default;
 
@@ -38,16 +192,15 @@ HlsNetworkAccessImpl::HlsNetworkAccessImpl(
   DETACH_FROM_SEQUENCE(media_sequence_checker_);
 }
 
-void HlsNetworkAccessImpl::ReadSegmentQueueInternal(
-    HlsDataSourceProvider::SegmentQueue media_segment_url_queue,
+void HlsNetworkAccessImpl::ReadSegmentInternal(
+    HlsDataSourceProvider::UrlDataSegment segment,
     HlsDataSourceProvider::ReadCb cb) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(media_sequence_checker_);
-  // Callers of `ReadSegmentQueueInternal` should enforce this.
+  // Callers of `ReadSegmentInternal` should enforce this.
   CHECK(data_source_provider_);
 
-  data_source_provider_
-      .AsyncCall(&HlsDataSourceProvider::ReadFromCombinedUrlQueue)
-      .WithArgs(std::move(media_segment_url_queue),
+  data_source_provider_.AsyncCall(&HlsDataSourceProvider::ReadFromUrl)
+      .WithArgs(std::move(segment),
                 base::BindPostTaskToCurrentDefault(std::move(cb)));
 }
 
@@ -59,32 +212,12 @@ void HlsNetworkAccessImpl::ReadAllInternal(
   DCHECK_CALLED_ON_VALID_SEQUENCE(media_sequence_checker_);
   // Callers of `ReadAllInternal` should enforce this.
   CHECK(data_source_provider_);
-  HlsDataSourceProvider::SegmentQueue queue;
-  queue.emplace(uri, std::nullopt, cache_mode, encoding_mode);
-  ReadSegmentQueueInternal(
-      std::move(queue),
-      base::BindOnce(&HlsNetworkAccessImpl::ReadUntilExhausted,
+  HlsDataSourceProvider::UrlDataSegment segment(uri, std::nullopt, cache_mode,
+                                                encoding_mode);
+  ReadSegmentInternal(
+      std::move(segment),
+      base::BindOnce(&HlsNetworkAccessImpl::ReadUntilExhaustedHelper,
                      weak_factory_.GetWeakPtr(), std::move(cb)));
-}
-
-void HlsNetworkAccessImpl::OnKeyFetch(
-    scoped_refptr<hls::MediaSegment::EncryptionData> enc_data,
-    base::OnceCallback<void(HlsDataSourceProvider::ReadCb)> next_op,
-    HlsDataSourceProvider::ReadCb cb,
-    HlsDataSourceProvider::ReadResult result) {
-  if (!result.has_value()) {
-    std::move(cb).Run(std::move(result).error().AddHere());
-    return;
-  }
-  auto stream = std::move(result).value();
-  enc_data->ImportKey(stream->AsString());
-  enc_data->ImportKeySecurity(stream->SecurityInfo());
-  if (enc_data->NeedsKeyFetch()) {
-    std::move(cb).Run({HlsDataSourceProvider::ReadStatus::Codes::kError,
-                       "Error importing key in encrypted segment fetch"});
-    return;
-  }
-  std::move(next_op).Run(std::move(cb));
 }
 
 void HlsNetworkAccessImpl::ReadManifest(const GURL& uri,
@@ -96,17 +229,6 @@ void HlsNetworkAccessImpl::ReadManifest(const GURL& uri,
   }
   ReadAllInternal(uri, std::move(cb), DataSource::CacheMode::kBypassCache,
                   DataSource::EncodingMode::kAllowGzip);
-}
-
-void HlsNetworkAccessImpl::ReadKey(
-    const hls::MediaSegment::EncryptionData& data,
-    HlsDataSourceProvider::ReadCb cb) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(media_sequence_checker_);
-  if (!data_source_provider_) {
-    std::move(cb).Run(HlsDataSourceProvider::ReadStatus::Codes::kStopped);
-    return;
-  }
-  ReadAllInternal(data.GetUri(), std::move(cb));
 }
 
 void HlsNetworkAccessImpl::MediaSegmentSecurityChecks(
@@ -168,47 +290,30 @@ void HlsNetworkAccessImpl::ReadMediaSegment(const hls::MediaSegment& segment,
     return;
   }
 
-  // Bind security checks
-  cb = base::BindOnce(&HlsNetworkAccessImpl::MediaSegmentSecurityChecks,
-                      weak_factory_.GetWeakPtr(), std::move(cb),
-                      segment.GetManifestOrigin());
-
-  if (!read_chunked) {
-    cb = base::BindOnce(&HlsNetworkAccessImpl::ReadUntilExhausted,
-                        weak_factory_.GetWeakPtr(), std::move(cb));
+  std::optional<GURL> key_uri;
+  auto enc_data = segment.GetEncryptionData();
+  if (enc_data && enc_data->NeedsKeyFetch()) {
+    key_uri = enc_data->GetUri();
   }
 
-  HlsDataSourceProvider::SegmentQueue queue;
+  std::optional<HlsDataSourceProvider::UrlDataSegment> init_segment;
   if (include_init) {
     if (auto init = segment.GetInitializationSegment()) {
-      queue.emplace(init->GetUri(), init->GetByteRange(),
-                    DataSource::CacheMode::kHitCache);
-    }
-  }
-  queue.emplace(segment.GetUri(), segment.GetByteRange(),
-                DataSource::CacheMode::kHitCache);
-
-  if (auto enc_data = segment.GetEncryptionData()) {
-    // After fetching the media, we need to merge the security metadata into
-    // it's stream so that the populated media content has the full set of
-    // origins from which it is composed.
-    cb = base::BindOnce(&MergeEncryptionSecurityMetadata, enc_data,
-                        std::move(cb));
-
-    if (enc_data->NeedsKeyFetch()) {
-      ReadKey(
-          *enc_data,
-          base::BindOnce(
-              &HlsNetworkAccessImpl::OnKeyFetch, weak_factory_.GetWeakPtr(),
-              enc_data,
-              base::BindOnce(&HlsNetworkAccessImpl::ReadSegmentQueueInternal,
-                             weak_factory_.GetWeakPtr(), std::move(queue)),
-              std::move(cb)));
-      return;
+      init_segment.emplace(init->GetUri(), init->GetByteRange(),
+                           DataSource::CacheMode::kHitCache);
     }
   }
 
-  ReadSegmentQueueInternal(std::move(queue), std::move(cb));
+  HlsDataSourceProvider::UrlDataSegment media_segment(
+      segment.GetUri(), segment.GetByteRange(),
+      DataSource::CacheMode::kHitCache);
+
+  auto state = base::MakeRefCounted<ParallelFetchState>(
+      weak_factory_.GetWeakPtr(), segment.GetManifestOrigin(), enc_data,
+      std::move(cb));
+
+  state->Start(std::move(key_uri), std::move(init_segment),
+               std::move(media_segment), read_chunked);
 }
 
 void HlsNetworkAccessImpl::ReadStream(
@@ -232,6 +337,18 @@ void HlsNetworkAccessImpl::AbortPendingReads(base::OnceClosure cb) {
       .WithArgs(std::move(cb));
 }
 
+// static
+void HlsNetworkAccessImpl::ReadUntilExhaustedHelper(
+    base::WeakPtr<HlsNetworkAccessImpl> network_access,
+    HlsDataSourceProvider::ReadCb cb,
+    HlsDataSourceProvider::ReadResult result) {
+  if (network_access) {
+    network_access->ReadUntilExhausted(std::move(cb), std::move(result));
+  } else {
+    std::move(cb).Run(HlsDataSourceProvider::ReadStatus::Codes::kAborted);
+  }
+}
+
 void HlsNetworkAccessImpl::ReadUntilExhausted(
     HlsDataSourceProvider::ReadCb cb,
     HlsDataSourceProvider::ReadResult result) {
@@ -247,7 +364,7 @@ void HlsNetworkAccessImpl::ReadUntilExhausted(
   }
 
   ReadStream(std::move(stream),
-             base::BindOnce(&HlsNetworkAccessImpl::ReadUntilExhausted,
+             base::BindOnce(&HlsNetworkAccessImpl::ReadUntilExhaustedHelper,
                             weak_factory_.GetWeakPtr(), std::move(cb)));
 }
 

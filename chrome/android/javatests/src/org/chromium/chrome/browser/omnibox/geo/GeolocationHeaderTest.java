@@ -11,19 +11,21 @@ import android.util.Base64;
 
 import androidx.test.filters.SmallTest;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.RequiresRestart;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
@@ -43,21 +45,30 @@ import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.permissions.PermissionsAndroidFeatureList;
 import org.chromium.components.permissions.PermissionsAndroidFeatureMap;
+import org.chromium.net.test.EmbeddedTestServer;
+import org.chromium.net.test.ServerCertificate;
 import org.chromium.url.GURL;
 
 /** Tests for GeolocationHeader and GeolocationTracker. */
 @RunWith(ChromeJUnit4ClassRunner.class)
-@CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
-@Batch(Batch.PER_CLASS)
-@DisableFeatures({OmniboxFeatureList.PLATFORM_AGNOSTIC_X_GEO})
+@CommandLineFlags.Add({
+    ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE,
+    "--host-resolver-rules=MAP www.google.com 127.0.0.1",
+    "--ignore-google-port-numbers",
+    "--ignore-certificate-errors"
+})
+@DisableFeatures({
+    OmniboxFeatureList.PLATFORM_AGNOSTIC_X_GEO,
+    OmniboxFeatureList.USE_FUSED_LOCATION_PROVIDER
+})
 public class GeolocationHeaderTest {
     public @Rule AutoResetCtaTransitTestRule mAutoResetCtaTestRule =
             ChromeTransitTestRules.autoResetCtaActivityRule();
 
     private WebPageStation mCurrentWebPageStation;
+    private EmbeddedTestServer mTestServer;
+    private String mSearchUrl;
 
-    private static final String SEARCH_URL_1 = "https://www.google.com/search?q=potatoes";
-    private static final String SEARCH_URL_2 = "https://www.google.co.jp/webhp?#q=dinosaurs";
     private static final String GOOGLE_BASE_URL_SWITCH = "google-base-url=https://www.google.com";
     private static final double LOCATION_LAT = 20.3;
     private static final double LOCATION_LONG = 155.8;
@@ -65,12 +76,42 @@ public class GeolocationHeaderTest {
 
     @Before
     public void setUp() {
+        mTestServer =
+                EmbeddedTestServer.createAndStartHTTPSServer(
+                        ContextUtils.getApplicationContext(), ServerCertificate.CERT_OK);
+        mSearchUrl = mTestServer.getURLWithHostName("www.google.com", "/search?q=potatoes");
+
         mCurrentWebPageStation = mAutoResetCtaTestRule.startOnBlankPage();
-        LocationSettingsTestUtil.setSystemLocationSettingEnabled(true);
+        LocationSettingsTestUtil.setSystemAndAndroidLocationSettings(true, true, true);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    var profile = mCurrentWebPageStation.getTab().getProfile();
+                    var service = TemplateUrlServiceFactory.getForProfile(profile);
+                    service.addSearchEngine(
+                            "Google Mock",
+                            "googlemock",
+                            mTestServer.getURLWithHostName(
+                                    "www.google.com", "/search?q={searchTerms}"));
+                    service.setSearchEngine("googlemock");
+                });
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    var profile = mCurrentWebPageStation.getTab().getProfile();
+                    var service = TemplateUrlServiceFactory.getForProfile(profile);
+                    var dse = service.getDefaultSearchEngineTemplateUrl();
+                    return dse != null && "googlemock".equals(dse.getKeyword());
+                });
 
         // With incognito windows, this test will create many windows so we need to increase the
         // ChromeTabbedActivity instance limit.
         MultiWindowUtils.setMaxInstancesForTesting(1000);
+    }
+
+    @After
+    public void tearDown() {
+        mTestServer.stopAndDestroyServer();
     }
 
     @Test
@@ -82,7 +123,7 @@ public class GeolocationHeaderTest {
         long now = setMockLocationNow();
 
         // X-Geo should be sent for Google search results page URLs using proto encoding.
-        assertNonNullHeader(SEARCH_URL_1, false, now, /* isPrecise= */ true);
+        assertNonNullHeader(mSearchUrl, false, now, /* isPrecise= */ true);
     }
 
     @Test
@@ -90,6 +131,8 @@ public class GeolocationHeaderTest {
     @Feature({"Location"})
     public void testGeolocationHeaderPrimingEnabledPermissionAllow() {
         setPermission(ContentSetting.ALLOW);
+        GeolocationHeader.setAppPermissionsForTesting(true, true);
+        setMockLocationNow();
         checkHeaderPriming(/* shouldPrimeHeader= */ true);
     }
 
@@ -129,6 +172,29 @@ public class GeolocationHeaderTest {
         omniboxTestUtils.typeText("aaaaaaaaaa", false);
         omniboxTestUtils.waitAnimationsComplete();
         Assert.assertEquals(shouldPrimeHeader, GeolocationHeader.isGeolocationPrimedForTesting());
+        omniboxTestUtils.clearFocus();
+
+        // Verify the network throttle records the correct UMA metric.
+        HistogramWatcher histogramWatcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Omnibox.Search.XGeoHeaderAttached", shouldPrimeHeader);
+
+        mCurrentWebPageStation =
+                mCurrentWebPageStation
+                        .runTo(
+                                () -> {
+                                    omniboxTestUtils.requestFocus();
+                                    omniboxTestUtils.typeText(mSearchUrl, true);
+                                })
+                        .arriveAt(
+                                WebPageStation.newBuilder()
+                                        .initFrom(mCurrentWebPageStation)
+                                        .withExpectedUrlSubstring(mSearchUrl)
+                                        .build());
+
+        // Verify that the navigation throttle recorded the UMA metric even if the header was
+        // added via this legacy path.
+        histogramWatcher.assertExpected();
     }
 
     private long setMockLocationNow() {
@@ -226,7 +292,7 @@ public class GeolocationHeaderTest {
                         approximateGelocationEnabled
                                 ? ContentSettingsType.GEOLOCATION_WITH_OPTIONS
                                 : ContentSettingsType.GEOLOCATION,
-                        SEARCH_URL_1,
+                        mSearchUrl,
                         /* embedder= */ null,
                         /* isEmbargoed= */ false);
         ThreadUtils.runOnUiThreadBlocking(
@@ -236,15 +302,15 @@ public class GeolocationHeaderTest {
                             WebsitePreferenceBridgeJni.get()
                                     .setGeolocationEphemeralGrantForTesting(
                                             ProfileManager.getLastUsedRegularProfile(),
-                                            new GURL(SEARCH_URL_1),
+                                            new GURL(mSearchUrl),
                                             new GeolocationSetting(approximate, precise));
                         } else {
                             WebsitePreferenceBridgeJni.get()
                                     .setEphemeralGrantForTesting(
                                             ProfileManager.getLastUsedRegularProfile(),
                                             ContentSettingsType.GEOLOCATION,
-                                            new GURL(SEARCH_URL_1),
-                                            new GURL(SEARCH_URL_1));
+                                            new GURL(mSearchUrl),
+                                            new GURL(mSearchUrl));
                         }
                     } else {
                         if (approximateGelocationEnabled) {
@@ -284,12 +350,6 @@ public class GeolocationHeaderTest {
     }
 
     private void openBlankPage(boolean isIncognito) {
-        if (isIncognito) {
-            mCurrentWebPageStation =
-                    mCurrentWebPageStation.openNewIncognitoTabOrWindowFast().loadAboutBlank();
-        } else {
-            mCurrentWebPageStation =
-                    mCurrentWebPageStation.openNewTabOrWindowFast().loadAboutBlank();
-        }
+        mCurrentWebPageStation = mCurrentWebPageStation.loadWebPageProgrammatically("about:blank");
     }
 }

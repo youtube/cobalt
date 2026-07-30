@@ -1262,7 +1262,7 @@ IN_PROC_BROWSER_TEST_F(PrintBrowserTest,
 
   // Creates mojom::PrintCompositor.
   client->CompositeDocument(
-      kDefaultDocumentCookie, main_frame,
+      kDefaultDocumentCookie, *main_frame,
       *TestPrintRenderFrame::GetDefaultDidPrintContentParams(),
       ui::AXTreeUpdate(), mojom::GenerateDocumentOutline::kNone,
       base::DoNothing());

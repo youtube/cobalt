@@ -161,6 +161,8 @@ class BASE_EXPORT ThreadLocalStorage {
   friend class internal::ThreadLocalStorageTestInternal;
   friend class trace_event::MallocDumpProvider;
   friend class debug::GlobalActivityTracker;
+  friend class LockMetricsRecorder;
+
   static bool HasBeenDestroyed();
 };
 

@@ -37,7 +37,6 @@
 #include "third_party/blink/renderer/core/css/css_property_names.h"
 #include "third_party/blink/renderer/core/css/css_property_value_set.h"
 #include "third_party/blink/renderer/core/css_value_keywords.h"
-#include "third_party/blink/renderer/core/keywords.h"
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
 #include "third_party/blink/renderer/core/dom/events/event_dispatch_forbidden_scope.h"
 #include "third_party/blink/renderer/core/dom/mutation_observer.h"
@@ -63,8 +62,10 @@
 #include "third_party/blink/renderer/core/html/track/text_track_container.h"
 #include "third_party/blink/renderer/core/html/track/text_track_list.h"
 #include "third_party/blink/renderer/core/html/track/video_track_list.h"
+#include "third_party/blink/renderer/core/keywords.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/page/spatial_navigation.h"
+#include "third_party/blink/renderer/core/pointer_type_names.h"
 #include "third_party/blink/renderer/core/resize_observer/resize_observer.h"
 #include "third_party/blink/renderer/core/resize_observer/resize_observer_entry.h"
 #include "third_party/blink/renderer/modules/media_controls/elements/media_control_animated_arrow_container_element.h"
@@ -246,6 +247,19 @@ base::TimeDelta GetTimeWithoutMouseMovementBeforeHidingMediaControls() {
   return kTimeWithoutMouseMovementBeforeHidingMediaControls;
 }
 
+bool IsMouseInteractionEvent(const Event& event) {
+  const AtomicString& type = event.type();
+  return type == event_type_names::kMouseover ||
+         type == event_type_names::kMousemove ||
+         type == event_type_names::kMousedown ||
+         type == event_type_names::kMouseup ||
+         type == event_type_names::kClick ||
+         type == event_type_names::kPointerover ||
+         type == event_type_names::kPointermove ||
+         type == event_type_names::kPointerdown ||
+         type == event_type_names::kPointerup;
+}
+
 }  // namespace
 
 class MediaControlsImpl::BatchedControlUpdate {
@@ -365,6 +379,10 @@ class MediaControlsImpl::MediaElementMutationCallback
 };
 
 bool MediaControlsImpl::IsTouchEvent(Event* event) {
+  if (auto* pointer_event = DynamicTo<PointerEvent>(event)) {
+    return pointer_event->pointerType() == pointer_type_names::kTouch ||
+           pointer_event->pointerType() == pointer_type_names::kPen;
+  }
   auto* mouse_event = DynamicTo<MouseEvent>(event);
   return IsA<TouchEvent>(event) || IsA<GestureEvent>(event) ||
          (mouse_event && mouse_event->FromTouch());
@@ -1663,8 +1681,12 @@ void MediaControlsImpl::DefaultEventHandler(Event& event) {
   if (is_touch_event)
     HandleTouchEvent(&event);
 
-  if (event.type() == event_type_names::kMouseover && !is_touch_event)
+  // Reset the touch interaction state if we receive any native mouse/pointer
+  // events indicating the user has switched from touch to mouse/pointer
+  // interaction.
+  if (IsMouseInteractionEvent(event) && !is_touch_event) {
     is_touch_interaction_ = false;
+  }
 
   if ((event.type() == event_type_names::kPointerover ||
        event.type() == event_type_names::kPointermove ||

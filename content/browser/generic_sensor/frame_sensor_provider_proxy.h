@@ -48,17 +48,33 @@ class FrameSensorProviderProxy final
                  GetSensorCallback callback) override;
 
   void OnHardwareCheckCompleted(
+      device::mojom::SensorType type,
       blink::mojom::PermissionStatus permission_status,
       bool user_gesture,
+      mojo::PendingReceiver<device::mojom::SensorConnectionWatcher> receiver,
       GetSensorCallback callback,
       device::mojom::SensorCreationResult result,
       device::mojom::SensorInitParamsPtr params);
 
-  void OnPermissionRequestCompleted(device::mojom::SensorInitParamsPtr params,
-                                    GetSensorCallback callback,
-                                    PermissionResult permission_result);
+  void OnHardwareCheckForBlockedSensor(
+      device::mojom::SensorType type,
+      device::mojom::SensorCreationResult result,
+      device::mojom::SensorInitParamsPtr params);
+
+  void OnPermissionRequestCompleted(
+      device::mojom::SensorInitParamsPtr params,
+      GetSensorCallback callback,
+      mojo::PendingReceiver<device::mojom::SensorConnectionWatcher> receiver,
+      PermissionResult permission_result);
 
   void OnPermissionChanged(PermissionResult permission_result);
+
+  void OnSensorDisconnect();
+
+  bool ShouldTrackSensorConnection();
+
+  void FinalizeSensorConnection(
+      mojo::PendingReceiver<device::mojom::SensorConnectionWatcher> receiver);
 
   mojo::ReceiverSet<blink::mojom::WebSensorProvider> receiver_set_;
 

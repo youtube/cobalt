@@ -93,6 +93,9 @@ public class WebContentsAccessibilityEventsTest {
         // Build page from given file and enable testing framework, set a tracker.
         mActivityTestRule.setupTestFromFile(BASE_FILE_PATH + inputFile, shouldFilterTrivialEvents);
 
+        // Inject a separator comment to separate initial page-load events from JS events
+        mActivityTestRule.addCommentToTracker("=== END INITIAL PAGE LOAD ===");
+
         // Execute go() method until it's returning false.
         boolean runGoAgain;
         do {

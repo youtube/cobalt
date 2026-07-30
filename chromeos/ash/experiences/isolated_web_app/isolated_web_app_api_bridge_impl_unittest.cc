@@ -186,4 +186,15 @@ TEST_F(IsolatedWebAppApiBridgeImplTest,
   EXPECT_EQ(future.Get(), blink::mojom::SetShapeResult::kSuccess);
 }
 
+TEST_F(IsolatedWebAppApiBridgeImplTest, SetShapeFailsIfGivenTooManyRects) {
+  std::vector<gfx::Rect> rects(blink::mojom::kMaxSetShapeRects + 1,
+                               gfx::Rect(10, 10, 50, 50));
+
+  mojo::test::BadMessageObserver bad_message_observer;
+  remote_->SetShape(rects, base::DoNothing());
+
+  EXPECT_EQ(bad_message_observer.WaitForBadMessage(),
+            "SetShape called with too many rects.");
+}
+
 }  // namespace ash

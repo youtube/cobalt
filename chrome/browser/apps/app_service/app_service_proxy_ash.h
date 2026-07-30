@@ -140,8 +140,6 @@ class AppServiceProxyAsh : public AppServiceProxyBase,
                            WindowInfoPtr window_info,
                            LaunchCallback callback) override;
 
-  base::WeakPtr<AppServiceProxyAsh> GetWeakPtr();
-
   void ReInitializeCrostiniForTesting();
   void SetDialogCreatedCallbackForTesting(base::OnceClosure callback);
   void UninstallForTesting(const std::string& app_id,

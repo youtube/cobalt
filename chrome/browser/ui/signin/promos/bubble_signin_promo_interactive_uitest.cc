@@ -7,6 +7,7 @@
 #include "base/test/test_future.h"
 #include "base/version.h"
 #include "base/version_info/version_info.h"
+#include "build/build_config.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
@@ -29,6 +30,7 @@
 #include "chrome/browser/ui/signin/promos/bubble_signin_promo_signin_button_view.h"
 #include "chrome/browser/ui/signin/promos/bubble_signin_promo_view.h"
 #include "chrome/browser/ui/signin/promos/signin_promo_tab_helper.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/autofill/address_sign_in_promo_view.h"
 #include "chrome/browser/ui/views/autofill/save_address_profile_view.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bubble_view.h"
@@ -96,6 +98,32 @@ std::unique_ptr<KeyedService> BuildTestSyncService(
     content::BrowserContext* context) {
   return std::make_unique<testing::NiceMock<syncer::TestSyncService>>();
 }
+
+// TODO(crbug.com/528193769): Re-enable this test on Mac.
+#if !BUILDFLAG(IS_MAC)
+// UI variations of the password save/update bubble to test.
+enum PasswordBubbleTestFeature : uint32_t {
+  // Standard 2-button dialog (Save/Update and Cancel).
+  kNone = 0,
+  // 3-button dialog variant featuring an explicit "Never" button.
+  kThreeButtonSaveDialog = 1,
+  // Split-button variant replacing Cancel with a dropdown menu offering
+  // "Never".
+  kDropdownMenuExperiment = 2,
+};
+
+std::string GetPasswordSignInPromoSaveUiInteractiveUITestName(
+    const testing::TestParamInfo<PasswordBubbleTestFeature>& info) {
+  switch (info.param) {
+    case kNone:
+      return "Default";
+    case kThreeButtonSaveDialog:
+      return "ThreeButtonSaveDialog";
+    case kDropdownMenuExperiment:
+      return "DropdownMenuExperiment";
+  }
+}
+#endif  // !BUILDFLAG(IS_MAC)
 
 }  // namespace
 
@@ -428,7 +456,53 @@ void BubbleSignInPromoInteractiveUITest::ExtendAccountInfo(AccountInfo& info) {
 /////////////////////////////////////////////////////////////////
 ///// Password Sign in Promo
 
-IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITest,
+/**
+ * Tests for the password sign in promo.
+ *
+ * The tests are parameterized by the password save UI feature because the
+ * width of the sign-in promo changes depending on which feature flag is
+ * enabled (e.g., kThreeButtonPasswordSaveDialog or
+ * kPasswordSaveUpdateDropdownMenuExperiment). Parameterizing the test suite
+ * ensures that pixel tests (Screenshot) verify promo rendering across all
+ * possible bubble width variations.
+ */
+// TODO(crbug.com/528193769): Re-enable this test on Mac.
+#if !BUILDFLAG(IS_MAC)
+class BubbleSignInPromoPasswordSaveUiInteractiveUITest
+    : public BubbleSignInPromoInteractiveUITest,
+      public ::testing::WithParamInterface<PasswordBubbleTestFeature> {
+ public:
+  BubbleSignInPromoPasswordSaveUiInteractiveUITest() {
+    switch (GetParam()) {
+      case kNone:
+        scoped_feature_list_.InitWithFeatures(
+            /*enabled_features=*/{},
+            /*disabled_features=*/{
+                features::kThreeButtonPasswordSaveDialog,
+                features::kPasswordSaveUpdateDropdownMenuExperiment});
+        break;
+      case kThreeButtonSaveDialog:
+        scoped_feature_list_.InitWithFeatures(
+            /*enabled_features=*/{features::kThreeButtonPasswordSaveDialog},
+            /*disabled_features=*/{
+                features::kPasswordSaveUpdateDropdownMenuExperiment});
+        break;
+      case kDropdownMenuExperiment:
+        scoped_feature_list_.InitWithFeatures(
+            /*enabled_features=*/
+            {features::kPasswordSaveUpdateDropdownMenuExperiment},
+            /*disabled_features=*/{features::kThreeButtonPasswordSaveDialog});
+        break;
+    }
+  }
+
+  ~BubbleSignInPromoPasswordSaveUiInteractiveUITest() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(BubbleSignInPromoPasswordSaveUiInteractiveUITest,
                        PasswordSignInPromoNoAccountPresent) {
   base::HistogramTester histogram_tester;
 
@@ -506,7 +580,7 @@ IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITest,
       signin_metrics::AccessPoint::kPasswordBubble, 0);
 }
 
-IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITest,
+IN_PROC_BROWSER_TEST_P(BubbleSignInPromoPasswordSaveUiInteractiveUITest,
                        PasswordSignInPromoWithWebSignedInAccount) {
   base::HistogramTester histogram_tester;
 
@@ -593,7 +667,7 @@ IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITest,
       signin_metrics::AccessPoint::kPasswordBubble, 0);
 }
 
-IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITest,
+IN_PROC_BROWSER_TEST_P(BubbleSignInPromoPasswordSaveUiInteractiveUITest,
                        PasswordSignInPromoWithAccountSignInPending) {
   // Sign in with an account, and put its refresh token into an error
   // state. This simulates the "sign in pending" state.
@@ -669,6 +743,14 @@ IN_PROC_BROWSER_TEST_F(BubbleSignInPromoInteractiveUITest,
       "Signin.SigninPending.Offered",
       signin_metrics::AccessPoint::kPasswordBubble, 1);
 }
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         BubbleSignInPromoPasswordSaveUiInteractiveUITest,
+                         testing::Values(kNone,
+                                         kThreeButtonSaveDialog,
+                                         kDropdownMenuExperiment),
+                         GetPasswordSignInPromoSaveUiInteractiveUITestName);
+#endif  // !BUILDFLAG(IS_MAC)
 
 /////////////////////////////////////////////////////////////////
 ///// Address Sign in Promo

@@ -202,10 +202,24 @@ void VizProcessTransportFactory::CreateLayerTreeFrameSink(
   // CADisplayLink is not used in headless mode
   // (use_external_begin_frame_control()).
   if (!compositor->use_external_begin_frame_control() &&
-      !display_link_mac_mojo_ &&
+      !vsync_thread_task_posted_ && !display_link_mac_mojo_ &&
       ui::DisplayLinkMac::SupportsDisplayLinkMacInBrowser()) {
-    display_link_mac_mojo_ =
-        std::make_unique<ui::DisplayLinkMacMojo>(GetHostFrameSinkManager());
+    vsync_thread_task_posted_ = true;
+    // Delay the creation of DisplayLinkMacMojo (which starts the dedicated
+    // browser-side VSyncThread) to prevent desktop startup performance
+    // regressions.
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(
+            [](base::WeakPtr<VizProcessTransportFactory> weak_this) {
+              if (weak_this && !weak_this->display_link_mac_mojo_) {
+                weak_this->display_link_mac_mojo_ =
+                    std::make_unique<ui::DisplayLinkMacMojo>(
+                        weak_this->GetHostFrameSinkManager());
+              }
+            },
+            weak_ptr_factory_.GetWeakPtr()),
+        base::Seconds(60));
   }
 #endif
 

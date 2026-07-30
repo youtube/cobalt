@@ -7,6 +7,7 @@
 
 #include "base/check_op.h"
 #include "base/dcheck_is_on.h"
+#include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
@@ -19,7 +20,7 @@ namespace blink {
 // - Ensure completeness of generated data, such as the tree structure and
 //   cached properties, as appropriate for the given stage.
 
-class AXObjectCacheLifecycle {
+class MODULES_EXPORT AXObjectCacheLifecycle {
   DISALLOW_NEW();
 
  public:

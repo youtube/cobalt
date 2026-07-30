@@ -155,27 +155,20 @@
     // the latest content and updated snapshot.
     __weak TabPickerMediator* weakSelf = self;
     [_webStateDeferredExecutor
-                   webState:webState
-        executeOnceRealized:^{
-          [weakSelf
-              cancelPlaceholderForRealizedWebState:webState->GetWeakPtr()];
-        }];
+        ensureWebStateIsRealized:webState
+                  withCompletion:^(web::WebState* innerWebState) {
+                    [weakSelf
+                        cancelPlaceholderForRealizedWebState:innerWebState];
+                  }];
     // Defer snapshot update and item reconfiguration until the web state is
     // fully loaded.
-    [_webStateDeferredExecutor webState:webState
-                      executeOnceLoaded:^(BOOL success) {
-                        if (!success) {
-                          [weakSelf handleFailedTabLoad:itemID];
-                          return;
-                        }
-                        if (!CanExtractPageContextForWebState(webState)) {
-                          [weakSelf handleAttemptToAttachInvalidTab:itemID];
-                          return;
-                        }
-                        [weakSelf
-                            updateSnapshotForWebState:webState->GetWeakPtr()
-                                               itemID:itemID];
-                      }];
+    [_webStateDeferredExecutor
+        ensureWebStateIsLoaded:webState
+                withCompletion:^(web::WebState* innerWebState, BOOL success) {
+                  [weakSelf extractPageItem:itemID
+                                   webState:innerWebState
+                                loadSuccess:success];
+                }];
     return;
   }
 
@@ -327,24 +320,14 @@
   }
 }
 
-- (void)cancelPlaceholderForRealizedWebState:
-    (base::WeakPtr<web::WebState>)weakWebState {
-  web::WebState* webState = weakWebState.get();
-  if (!webState) {
-    return;
-  }
+- (void)cancelPlaceholderForRealizedWebState:(web::WebState*)webState {
   PagePlaceholderTabHelper::FromWebState(webState)
       ->CancelPlaceholderForNextNavigation();
 }
 
 /// Updates the snapshot for the given web state and reconfigures the grid item.
-- (void)updateSnapshotForWebState:(base::WeakPtr<web::WebState>)weakWebState
+- (void)updateSnapshotForWebState:(web::WebState*)webState
                            itemID:(GridItemIdentifier*)itemID {
-  web::WebState* webState = weakWebState.get();
-  if (!webState) {
-    return;
-  }
-
   // This function is called when the web state successfully loaded, so it is
   // not a failed loaded item anymore.
   if ([_failedLoadedItemIDs containsObject:itemID]) {
@@ -377,6 +360,22 @@
   [_failedLoadedItemIDs addObject:itemID];
   [self removeFromSelectionItemID:itemID];
   [self reconfigureGridItem:itemID];
+}
+
+- (void)extractPageItem:(GridItemIdentifier*)itemID
+               webState:(web::WebState*)webState
+            loadSuccess:(BOOL)loadSuccess {
+  if (!loadSuccess) {
+    [self handleFailedTabLoad:itemID];
+    return;
+  }
+
+  if (!CanExtractPageContextForWebState(webState)) {
+    [self handleAttemptToAttachInvalidTab:itemID];
+    return;
+  }
+
+  [self updateSnapshotForWebState:webState itemID:itemID];
 }
 
 /// Handles the scenario where a user attempts to attach an invalid tab.

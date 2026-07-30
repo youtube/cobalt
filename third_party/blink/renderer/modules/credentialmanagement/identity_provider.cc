@@ -381,11 +381,20 @@ ScriptPromise<IDLUndefined> IdentityProvider::resolve(
 
   // There must not be JavaScript execution between getting the request pointer
   // and using it.
-  auto* request =
-      CredentialManagerProxy::From(script_state)->FederatedAuthRequest();
-  request->ResolveTokenRequest(
-      account_id, std::move(params),
-      BindOnce(&OnResolveTokenRequest, WrapPersistent(resolver)));
+  if (RuntimeEnabledFeatures::FedCmMultipleRequestsEnabled(
+          ExecutionContext::From(script_state))) {
+    auto* service =
+        CredentialManagerProxy::From(script_state)->FederatedRequestService();
+    service->ResolveTokenRequest(
+        account_id, std::move(params),
+        BindOnce(&OnResolveTokenRequest, WrapPersistent(resolver)));
+  } else {
+    auto* request =
+        CredentialManagerProxy::From(script_state)->FederatedAuthRequest();
+    request->ResolveTokenRequest(
+        account_id, std::move(params),
+        BindOnce(&OnResolveTokenRequest, WrapPersistent(resolver)));
+  }
 
   return promise;
 }

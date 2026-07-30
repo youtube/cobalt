@@ -88,7 +88,6 @@ class SafetyClientFixture {
     safety_client_.SetLanguageDetectionModel(language_asset_.model_info());
 
     auto safety_model_info = SafetyModelInfo::Load(
-        SafetyModelInfo::SafetyModelType::kTextSafetyModel,
         safety_asset_.model_info());
     if (safety_model_info) {
       safety_client_.MaybeUpdateSafetyModel(std::move(safety_model_info));

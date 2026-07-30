@@ -211,12 +211,12 @@ class ContentDirectoryURLLoader final : public network::mojom::URLLoader {
     // If a MIME type wasn't specified, then fall back on inferring the type
     // from the file's contents.
     if (!mime_type) {
-      if (!net::SniffMimeType(
-              base::as_string_view(mmap_->bytes().first(std::min(
-                  mmap_->length(), static_cast<size_t>(kMaxBytesToSniff)))),
-              request.url, /*type_hint=*/{},
-              net::ForceSniffFileUrlsForHtml::kDisabled,
-              &mime_type.emplace())) {
+      if (auto bytes = mmap_->bytes();
+          !net::SniffMimeType(base::as_string_view(bytes.first(
+                                  std::min(bytes.size(), kMaxBytesToSniff))),
+                              request.url, /*type_hint=*/{},
+                              net::ForceSniffFileUrlsForHtml::kDisabled,
+                              &mime_type.emplace())) {
         if (!mime_type) {
           // Only set the fallback type if SniffMimeType completely gave up on
           // generating a suggestion.
@@ -227,8 +227,8 @@ class ContentDirectoryURLLoader final : public network::mojom::URLLoader {
 
     size_t start_offset;
     size_t content_length;
-    if (!GetRangeForRequest(request.headers, mmap_->length(), &start_offset,
-                            &content_length)) {
+    if (!GetRangeForRequest(request.headers, mmap_->bytes().size(),
+                            &start_offset, &content_length)) {
       client_->OnComplete(network::URLLoaderCompletionStatus(
           net::ERR_REQUEST_RANGE_NOT_SATISFIABLE));
       return;
@@ -284,9 +284,10 @@ class ContentDirectoryURLLoader final : public network::mojom::URLLoader {
     }
 
     network::URLLoaderCompletionStatus status(net::OK);
-    status.encoded_data_length = mmap_->length();
-    status.encoded_body_length = mmap_->length();
-    status.decoded_body_length = mmap_->length();
+    const size_t content_length = mmap_->bytes().size();
+    status.encoded_data_length = content_length;
+    status.encoded_body_length = content_length;
+    status.decoded_body_length = content_length;
     client_->OnComplete(std::move(status));
   }
 

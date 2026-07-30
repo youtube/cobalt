@@ -12,7 +12,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace base {
+namespace base::i18n {
 namespace {
 
 using ::testing::Eq;
@@ -32,8 +32,7 @@ MATCHER_P(OptionalRegionToString, expected, "") {
 }
 
 TEST(LanguageTagTest, ParseAndToString) {
-  EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("en-US"),
-              Optional(language_tags::ENGLISH_US()));
+  EXPECT_THAT(GetKnownLanguageTag<"en-US">(), language_tags::ENGLISH_US());
 
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("EN-us"),
               OptionalToString("en-US"));
@@ -64,7 +63,33 @@ TEST(LanguageTagTest, ValidButUnknowLocales) {
 }
 
 TEST(LanguageTagTest, ToLegacyICUFormat) {
-  EXPECT_EQ(language_tags::BRAZILIAN_PORTUGUESE().ToLegacyICUFormat(), "pt_BR");
+  EXPECT_EQ(GetKnownLanguageTag<"pt-BR">().ToLegacyICUFormat(), "pt_BR");
+
+  {
+    ASSERT_OK_AND_ASSIGN(
+        LanguageTag lt,
+        LanguageTagConverter::GetInstance().FromString("en-US-u-cu-usd"));
+    EXPECT_EQ(lt.ToLegacyICUFormat(), "en_US@currency=USD");
+  }
+  {
+    ASSERT_OK_AND_ASSIGN(LanguageTag lt,
+                         LanguageTagConverter::GetInstance().FromString(
+                             "de-DE-u-ca-gregory-co-phonebk"));
+    EXPECT_EQ(lt.ToLegacyICUFormat(),
+              "de_DE@calendar=gregorian;collation=phonebook");
+  }
+  {
+    ASSERT_OK_AND_ASSIGN(
+        LanguageTag lt,
+        LanguageTagConverter::GetInstance().FromString("ca-ES-u-va-valencia"));
+    EXPECT_EQ(lt.ToLegacyICUFormat(), "ca_ES@valencia");
+  }
+  {
+    ASSERT_OK_AND_ASSIGN(LanguageTag lt,
+                         LanguageTagConverter::GetInstance().FromString(
+                             "ja-u-lb-normal-lw-phrase"));
+    EXPECT_EQ(lt.ToLegacyICUFormat(), "ja@lb=normal;lw=phrase");
+  }
 }
 
 TEST(LanguageTagTest, ComplexLocales) {
@@ -80,6 +105,8 @@ TEST(LanguageTagTest, NumericRegions) {
   // Locales with numeric regions.
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("es-419"),
               Optional(language_tags::SPANISH_LATIN_AMERICAN()));
+  EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("es-419"),
+              Optional(GetKnownLanguageTag<"es-419">()));
 }
 
 TEST(LanguageTagTest, ThreeLetterLanguages) {
@@ -232,17 +259,31 @@ TEST(LanguageTagTest, ExtensionBadlyFormed) {
             std::nullopt);
 }
 
+TEST(LanguageTagTest, MultipleExtensions) {
+  ASSERT_OK_AND_ASSIGN(LanguageTag lc,
+                       LanguageTagConverter::GetInstance().FromString(
+                           "en-US-a-foo-u-ca-gregory-x-private"))
+  EXPECT_EQ(lc.tag_string(), "en-US-a-foo-u-ca-gregory-x-private");
+  EXPECT_THAT(lc.GetExtension(bcp47_extensions::ext<'a'>()),
+              Optional(Property(&Extension::subtags_string, Eq("foo"))));
+  EXPECT_THAT(
+      lc.GetExtension(bcp47_extensions::unicode()),
+      Optional(Property(&UnicodeExtension::ToString, Eq("ca-gregory"))));
+  EXPECT_THAT(
+      lc.GetExtension(bcp47_extensions::priv()),
+      Optional(Property(&PrivateUseSubtags::subtags_string, Eq("private"))));
+}
+
 TEST(LanguageTagTest, PrivateUseSubtags) {
   {
     // Private use subtags.
-    ASSERT_OK_AND_ASSIGN(
-        LanguageTag lc,
-        LanguageTagConverter::GetInstance().FromString("und-x-private"))
-    EXPECT_EQ(lc.tag_string(), "und-x-private");
+    ASSERT_OK_AND_ASSIGN(LanguageTag lc,
+                         LanguageTagConverter::GetInstance().FromString(
+                             "und-u-ca-gregory-x-private"))
+    EXPECT_EQ(lc.tag_string(), "und-u-ca-gregory-x-private");
     EXPECT_THAT(
-        lc.GetExtension(i18n_extensions::priv()),
-        Optional(Property(&i18n_extensions::PrivateUseSubtags::subtags_string,
-                          Eq("private"))));
+        lc.GetExtension(bcp47_extensions::priv()),
+        Optional(Property(&PrivateUseSubtags::subtags_string, Eq("private"))));
   }
   {
     // Single-char private use subtags.
@@ -251,9 +292,8 @@ TEST(LanguageTagTest, PrivateUseSubtags) {
         LanguageTagConverter::GetInstance().FromString("en-US-x-a"))
     EXPECT_EQ(lc.tag_string(), "en-US-x-a");
     EXPECT_THAT(
-        lc.GetExtension(i18n_extensions::priv()),
-        Optional(Property(&i18n_extensions::PrivateUseSubtags::subtags_string,
-                          Eq("a"))));
+        lc.GetExtension(bcp47_extensions::priv()),
+        Optional(Property(&PrivateUseSubtags::subtags_string, Eq("a"))));
   }
   {
     // Long private use subtags.
@@ -266,9 +306,8 @@ TEST(LanguageTagTest, PrivateUseSubtags) {
         LanguageTag lc,
         LanguageTagConverter::GetInstance().FromString("en-US-x-12345678"))
     EXPECT_THAT(
-        lc.GetExtension(i18n_extensions::priv()),
-        Optional(Property(&i18n_extensions::PrivateUseSubtags::subtags_string,
-                          Eq("12345678"))));
+        lc.GetExtension(bcp47_extensions::priv()),
+        Optional(Property(&PrivateUseSubtags::subtags_string, Eq("12345678"))));
   }
 }
 
@@ -355,6 +394,17 @@ TEST(LanguageTagTest, LocaleWithAtSign) {
   EXPECT_THAT(
       LanguageTagConverter::GetInstance().FromString("en-US@timezone=est5edt"),
       OptionalToString("en-US-u-tz-usnyc"));
+}
+
+TEST(LanguageTagTest, LegacyIcuIgnoresPosixEncoding) {
+  EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("en.UTF8@"),
+              OptionalToString("en"));
+  EXPECT_THAT(
+      LanguageTagConverter::GetInstance().FromString("ca.UTF8@valencia"),
+      OptionalToString("ca-u-va-valencia"));
+  EXPECT_THAT(
+      LanguageTagConverter::GetInstance().FromString("ca_ES.UTF8@valencia"),
+      OptionalToString("ca-ES-u-va-valencia"));
 }
 
 TEST(LanguageTagTest, LegacyIcuRobustness) {
@@ -458,6 +508,27 @@ TEST(LanguageTagTest, Canonicalize) {
               Optional(language_tags::CHINESE()));
 }
 
+TEST(LanguageTagTest, LegacyLanguages) {
+  // "sh" and "tl" should NOT be canonicalized.
+  auto sh_tag = LanguageTagConverter::GetInstance().FromString("sh");
+  ASSERT_TRUE(sh_tag.has_value());
+  EXPECT_EQ(sh_tag->tag_string(), "sh");
+
+  auto tl_tag = LanguageTagConverter::GetInstance().FromString("tl");
+  ASSERT_TRUE(tl_tag.has_value());
+  EXPECT_EQ(tl_tag->tag_string(), "tl");
+
+  // Case insensitivity check
+  auto sh_upper = LanguageTagConverter::GetInstance().FromString("SH");
+  ASSERT_TRUE(sh_upper.has_value());
+  EXPECT_EQ(sh_upper->tag_string(), "sh");  // Still lowercased by tag_string()
+                                            // but not canonicalized to sr-Latn
+
+  auto tl_with_region = LanguageTagConverter::GetInstance().FromString("tl-PH");
+  ASSERT_TRUE(tl_with_region.has_value());
+  EXPECT_EQ(tl_with_region->tag_string(), "tl-PH");
+}
+
 TEST(LanguageTagTest, UndefinedLanguageTag) {
   EXPECT_EQ(language_tags::UNDEFINED().tag_string(), "und");
 }
@@ -526,7 +597,6 @@ TEST_P(LanguageTagAllCodesTest, VerifyAllLangCodeFunctions) {
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString(param.tag),
               Optional(param.get_code()));
 }
-
 const LanguageTestData kTestData[] = {
 #define IMPL_LANGUAGECODE_TAG_NAME(tag, name) \
   {tag, #name, &language_tags::name},
@@ -543,4 +613,4 @@ INSTANTIATE_TEST_SUITE_P(
     });
 
 }  // namespace
-}  // namespace base
+}  // namespace base::i18n

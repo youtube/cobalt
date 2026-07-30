@@ -29,6 +29,8 @@ enum class LocatorStyle {
 };
 
 // The center image to superimpose over the QR code.
+// Overloads of `GenerateImage()` or `GenerateBitmap()` allow the caller to
+// specify an arbitrary center image instead of using one of the enums below.
 enum class CenterImage {
   kNoCenterImage,
   kDino,
@@ -74,6 +76,17 @@ base::expected<gfx::ImageSkia, Error> GenerateImage(
     CenterImage center_image,
     QuietZone quiet_zone);
 
+// Generates a gfx::ImageSkia with a QR code that encodes the `data` and
+// overlays a custom image.
+// The `center_image` is rescaled if it is too large to fit in a QR code of the
+// given size.
+base::expected<gfx::ImageSkia, Error> GenerateImage(
+    base::span<const uint8_t> data,
+    ModuleStyle module_style,
+    LocatorStyle locator_style,
+    const gfx::ImageSkia& center_image,
+    QuietZone quiet_zone);
+
 // Generates an `SkBitmap` with a QR code that encodes the `data`.
 //
 // Use GenerateImage() if the QR code might be displayed on a high density
@@ -84,6 +97,16 @@ base::expected<SkBitmap, Error> GenerateBitmap(base::span<const uint8_t> data,
                                                ModuleStyle module_style,
                                                LocatorStyle locator_style,
                                                CenterImage center_image,
+                                               QuietZone quiet_zone);
+
+// Generates an `SkBitmap` with a QR code that encodes the `data` and overlays a
+// custom image `center_image`.
+// The `center_image` is rescaled if it is too large to fit in a QR code of the
+// given size.
+base::expected<SkBitmap, Error> GenerateBitmap(base::span<const uint8_t> data,
+                                               ModuleStyle module_style,
+                                               LocatorStyle locator_style,
+                                               const SkBitmap& center_image,
                                                QuietZone quiet_zone);
 
 }  // namespace qr_code_generator

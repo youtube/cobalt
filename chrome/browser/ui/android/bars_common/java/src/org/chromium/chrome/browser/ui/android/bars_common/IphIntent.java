@@ -106,10 +106,10 @@ public class IphIntent {
 
     /** Configuration for highlight params to bridge the gap for callers needing a config object. */
     public static class HighlightConfig {
-        public final HighlightShape shape;
+        public final @HighlightShape int shape;
         public final boolean boundsRespectPadding;
 
-        public HighlightConfig(HighlightShape shape, boolean boundsRespectPadding) {
+        public HighlightConfig(@HighlightShape int shape, boolean boundsRespectPadding) {
             this.shape = shape;
             this.boundsRespectPadding = boundsRespectPadding;
         }

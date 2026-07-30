@@ -64,6 +64,7 @@
 #include "third_party/blink/public/mojom/window_features/window_features.mojom-blink.h"
 #include "third_party/blink/public/platform/interface_registry.h"
 #include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/platform/web_font_prewarmer.h"
 #include "third_party/blink/public/platform/web_media_player.h"
 #include "third_party/blink/public/platform/web_network_state_notifier.h"
 #include "third_party/blink/public/platform/web_runtime_features.h"
@@ -1911,14 +1912,19 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
   RuntimeEnabledFeatures::SetTranslateServiceEnabled(
       prefs.translate_service_available);
 
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
   if (web_view_impl->GetPage()) {
-    if (auto* prewarmer = WebFontRendering::GetFontPrewarmer()) {
+    if (auto* prewarmer = FontCache::GetFontPrewarmer()) {
       GenericFontFamilySettings& font_settings =
           web_view_impl->GetPage()
               ->GetSettings()
               .GetGenericFontFamilySettings();
+      // On Android, pre-warming a single family (sans-serif) is sufficient to
+      // trigger the expensive SkFontMgr initialization (parsing fonts.xml).
+      // Pre-warming additional families is redundant.
+#if !BUILDFLAG(IS_ANDROID)
       prewarmer->PrewarmFamily(font_settings.Serif());
+#endif
       prewarmer->PrewarmFamily(font_settings.SansSerif());
     }
   }

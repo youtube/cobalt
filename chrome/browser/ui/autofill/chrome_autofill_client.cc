@@ -1033,7 +1033,17 @@ bool ChromeAutofillClient::IsAutofillEnabled() const {
 }
 
 bool ChromeAutofillClient::IsAutofillProfileEnabled() const {
-  return prefs::IsAutofillProfileEnabled(GetPrefs());
+  if (!prefs::IsAutofillProfileEnabled(GetPrefs())) {
+    return false;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillEnableAutofillSettingsEnterprisePolicy) &&
+      IsAutofillTypeBlockedByPolicy(GetLastCommittedPrimaryMainFrameURL(),
+                                    AutofillPolicyDataCategory::kContactInfo)) {
+    return false;
+  }
+  return true;
 }
 
 bool ChromeAutofillClient::IsAutofillTypeBlockedByPolicy(
@@ -1138,7 +1148,9 @@ ChromeAutofillClient::GetOrCreateAtMemoryBottomSheetBridge() {
     if (ui::WindowAndroid* window_android =
             web_contents()->GetTopLevelNativeWindow()) {
       at_memory_bottom_sheet_bridge_ =
-          std::make_unique<AtMemoryBottomSheetBridge>(window_android);
+          std::make_unique<AtMemoryBottomSheetBridge>(
+              window_android,
+              Profile::FromBrowserContext(web_contents()->GetBrowserContext()));
     }
   }
   return at_memory_bottom_sheet_bridge_.get();
@@ -1513,6 +1525,18 @@ void ChromeAutofillClient::ShowAutofillAiFetchFromWalletFailureNotification() {
 #else
   if (ToastController* toast_controller = GetToastController()) {
     ToastParams params(ToastId::kAutofillAiFetchFromWalletErrorMessage);
+    toast_controller->MaybeShowToast(std::move(params));
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+}
+
+void ChromeAutofillClient::ShowAutofillAiPreFetchFailureNotification() {
+#if BUILDFLAG(IS_ANDROID)
+  GetAutofillMessageController()->Show(
+      AutofillMessageModel::CreateForPersonalContextFetchingFailure());
+#else
+  if (ToastController* toast_controller = GetToastController()) {
+    ToastParams params(ToastId::kAutofillAiPreFetchErrorMessage);
     toast_controller->MaybeShowToast(std::move(params));
   }
 #endif  // BUILDFLAG(IS_ANDROID)

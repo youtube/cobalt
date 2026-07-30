@@ -70,7 +70,7 @@ class SearchProvider : public BaseSearchProvider,
   static int CalculateRelevanceForKeywordVerbatim(
       metrics::OmniboxInputType type,
       bool allow_exact_keyword_match,
-      bool prefer_keyword);
+      bool in_keyword_mode);
 
   // The verbatim score for an input which is not a URL.
   static const int kNonURLVerbatimRelevance = 1300;

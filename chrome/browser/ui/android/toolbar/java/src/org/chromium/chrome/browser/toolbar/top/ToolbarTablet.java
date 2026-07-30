@@ -459,16 +459,23 @@ public class ToolbarTablet extends ToolbarLayout {
 
     @Override
     public void setExtensionsToolbarCoordinator(
-            ExtensionsToolbarCoordinator extensionsToolbarCoordinator) {
+            @Nullable ExtensionsToolbarCoordinator extensionsToolbarCoordinator) {
         mExtensionsToolbarCoordinator = extensionsToolbarCoordinator;
-        mToolbarWidthConsumers[ToolbarComponentId.POPPED_EXTENSION_ACTION] =
-                mExtensionsToolbarCoordinator.getPoppedOutActionWidthConsumer();
-        mToolbarWidthConsumers[ToolbarComponentId.EXTENSIONS_MENU_BUTTON] =
-                mExtensionsToolbarCoordinator.getMenuButtonWidthConsumer();
-        mToolbarWidthConsumers[ToolbarComponentId.EXTENSIONS_REQUEST_ACCESS_BUTTON] =
-                mExtensionsToolbarCoordinator.getRequestAccessButtonWidthConsumer();
-        mToolbarWidthConsumers[ToolbarComponentId.EXTENSION_ACTION_LIST] =
-                mExtensionsToolbarCoordinator.getActionListWidthConsumer();
+        if (mExtensionsToolbarCoordinator != null) {
+            mToolbarWidthConsumers[ToolbarComponentId.POPPED_EXTENSION_ACTION] =
+                    mExtensionsToolbarCoordinator.getPoppedOutActionWidthConsumer();
+            mToolbarWidthConsumers[ToolbarComponentId.EXTENSIONS_MENU_BUTTON] =
+                    mExtensionsToolbarCoordinator.getMenuButtonWidthConsumer();
+            mToolbarWidthConsumers[ToolbarComponentId.EXTENSIONS_REQUEST_ACCESS_BUTTON] =
+                    mExtensionsToolbarCoordinator.getRequestAccessButtonWidthConsumer();
+            mToolbarWidthConsumers[ToolbarComponentId.EXTENSION_ACTION_LIST] =
+                    mExtensionsToolbarCoordinator.getActionListWidthConsumer();
+        } else {
+            mToolbarWidthConsumers[ToolbarComponentId.POPPED_EXTENSION_ACTION] = null;
+            mToolbarWidthConsumers[ToolbarComponentId.EXTENSIONS_MENU_BUTTON] = null;
+            mToolbarWidthConsumers[ToolbarComponentId.EXTENSIONS_REQUEST_ACCESS_BUTTON] = null;
+            mToolbarWidthConsumers[ToolbarComponentId.EXTENSION_ACTION_LIST] = null;
+        }
     }
 
     @Override
@@ -502,6 +509,10 @@ public class ToolbarTablet extends ToolbarLayout {
 
     @Override
     public LocationBar getLocationBar() {
+        return mLocationBar;
+    }
+
+    public LocationBarCoordinator getLocationBarCoordinatorForTesting() {
         return mLocationBar;
     }
 

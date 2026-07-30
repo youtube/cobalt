@@ -5,14 +5,19 @@
 #include <stdint.h>
 
 #include <utility>
+#include <vector>
 
 #include "base/functional/bind.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
+#include "base/strings/stringprintf.h"
 #include "base/task/bind_post_task.h"
+#include "components/services/storage/public/mojom/session_storage_control.mojom.h"  // nogncheck
+#include "content/browser/dom_storage/dom_storage_context_wrapper.h"  // nogncheck
 #include "content/browser/dom_storage/session_storage_namespace_impl.h"  // nogncheck
 #include "content/browser/security/cpsp/child_process_security_policy_impl.h"  // nogncheck
-#include "content/browser/storage_partition_impl.h"              // nogncheck
+#include "content/browser/storage_partition_impl.h"  // nogncheck
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/test/test_browser_context.h"
 #include "content/test/fuzzer/dom_storage_mojolpm_fuzzer.pb.h"
@@ -20,6 +25,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/common/dom_storage/session_storage_namespace_id.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
+#include "third_party/blink/public/mojom/dom_storage/session_storage_namespace.mojom-mojolpm.h"
 #include "third_party/blink/public/mojom/dom_storage/storage_area.mojom-mojolpm.h"
 #include "third_party/libprotobuf-mutator/src/src/libfuzzer/libfuzzer_macro.h"
 #include "url/origin.h"
@@ -114,6 +120,10 @@ class DomStorageTestcase
       const blink::StorageKey& storage_key,
       mojo::PendingReceiver<blink::mojom::StorageArea> receiver);
 
+  // Called from the UI thread to bind the session storage namespace.
+  void BindSessionStorageNamespace(
+      mojo::PendingReceiver<blink::mojom::SessionStorageNamespace> receiver);
+
   // Helpers called from the fuzzer thread.
   void CreateAndAddLocalStorageArea(uint32_t id,
                                     const blink::StorageKey& storage_key,
@@ -131,9 +141,62 @@ class DomStorageTestcase
   // to the storage service.
   void FlushStorageOnUIThread();
 
+  void CreateAndAddSessionStorageNamespace(uint32_t id,
+                                           base::OnceClosure done_closure)
+      VALID_CONTEXT_REQUIRED(sequence_checker_);
+
+  // Registers a pending target namespace via CloneFrom(immediately=false),
+  // i.e. CloneNamespace with kWaitForCloneOnNamespace. The service holds the
+  // target in pending-clone state until a later Clone() resolves it.
+  void SetUpPendingClone(uint32_t id, base::OnceClosure done_closure)
+      VALID_CONTEXT_REQUIRED(sequence_checker_);
+
+  void DoSetUpPendingClone(const std::string& target_namespace_id);
+
+  // The target namespace is pending population, so the service queues this
+  // receiver until the source namespace is cloned.
+  void CreateAndAddTargetSessionStorageNamespace(uint32_t pending_clone_id,
+                                                 uint32_t remote_id,
+                                                 base::OnceClosure done_closure)
+      VALID_CONTEXT_REQUIRED(sequence_checker_);
+
+  void BindTargetSessionStorageNamespace(
+      const std::string& target_namespace_id,
+      mojo::PendingReceiver<blink::mojom::SessionStorageNamespace> receiver);
+
+  // Clones the source namespace into a fresh id with kImmediate.
+  void CloneNamespaceImmediate(base::OnceClosure done_closure)
+      VALID_CONTEXT_REQUIRED(sequence_checker_);
+  void DoCloneNamespaceImmediate();
+
+  // Exercises the storage service's on-disk shallow-clone branch:
+  // DeleteNamespace(should_persist=true) followed by CloneNamespace with
+  // kWaitForCloneOnNamespace.
+  void OnDiskClone(uint32_t id, base::OnceClosure done_closure)
+      VALID_CONTEXT_REQUIRED(sequence_checker_);
+  void DoOnDiskClone(const std::string& secondary_id,
+                     const std::string& target_id);
+
+  // Calls SessionStorageControl::PurgeMemory(), which iterates namespaces and
+  // purges each namespace's unbound areas.
+  void PurgeMemory(base::OnceClosure done_closure)
+      VALID_CONTEXT_REQUIRED(sequence_checker_);
+  void DoPurgeMemory();
+
+  // Calls SessionStorageControl::DeleteStorage(), dispatching to
+  // SessionStorageNamespaceImpl::RemoveStorageKeyData() for the namespace.
+  void DeleteStorageKey(const blink::StorageKey& storage_key,
+                        base::OnceClosure done_closure)
+      VALID_CONTEXT_REQUIRED(sequence_checker_);
+  void DoDeleteStorageKey(const blink::StorageKey& storage_key);
+
   std::unique_ptr<TestBrowserContext> browser_context_;
   blink::SessionStorageNamespaceId session_namespace_id_;
   scoped_refptr<SessionStorageNamespaceImpl> session_namespace_;
+  // Keeps alive cloned namespaces created via NewPendingCloneAction so that the
+  // storage service retains their pending-clone state until Clone() is called.
+  std::vector<scoped_refptr<SessionStorageNamespaceImpl>>
+      pending_clone_namespaces_;
 };
 
 DomStorageTestcase::DomStorageTestcase(
@@ -192,6 +255,7 @@ void DomStorageTestcase::TearDown(base::OnceClosure done_closure) {
 void DomStorageTestcase::TearDownOnUIThread(base::OnceClosure done_closure) {
   ChildProcessSecurityPolicyImpl::GetInstance()->Remove(kRendererProcessA);
   ChildProcessSecurityPolicyImpl::GetInstance()->Remove(kRendererProcessB);
+  pending_clone_namespaces_.clear();
   session_namespace_.reset();
   browser_context_.reset();
   GetFuzzerTaskRunner()->PostTask(
@@ -232,8 +296,48 @@ void DomStorageTestcase::RunAction(const ProtoAction& action,
           std::move(done_closure));
       return;
 
+    case ProtoAction::kNewSessionStorageNamespace:
+      CreateAndAddSessionStorageNamespace(
+          action.new_session_storage_namespace().id(), std::move(done_closure));
+      return;
+
+    case ProtoAction::kNewPendingClone:
+      SetUpPendingClone(action.new_pending_clone().id(),
+                        std::move(done_closure));
+      return;
+
+    case ProtoAction::kNewTargetSessionStorageNamespace:
+      CreateAndAddTargetSessionStorageNamespace(
+          action.new_target_session_storage_namespace().id(),
+          action.new_target_session_storage_namespace().remote_id(),
+          std::move(done_closure));
+      return;
+
+    case ProtoAction::kCloneNamespaceImmediate:
+      CloneNamespaceImmediate(std::move(done_closure));
+      return;
+
+    case ProtoAction::kOnDiskClone:
+      OnDiskClone(action.on_disk_clone().id(), std::move(done_closure));
+      return;
+
+    case ProtoAction::kPurgeMemory:
+      PurgeMemory(std::move(done_closure));
+      return;
+
+    case ProtoAction::kDeleteStorageKey:
+      DeleteStorageKey(
+          GetStorageKeyForOriginId(action.delete_storage_key().origin_id()),
+          std::move(done_closure));
+      return;
+
     case ProtoAction::kStorageAreaRemoteAction:
       ::mojolpm::HandleRemoteAction(action.storage_area_remote_action());
+      break;
+
+    case ProtoAction::kSessionStorageNamespaceRemoteAction:
+      ::mojolpm::HandleRemoteAction(
+          action.session_storage_namespace_remote_action());
       break;
 
     // These actions ensure that any tasks currently queued on the named
@@ -298,6 +402,16 @@ void DomStorageTestcase::FlushStorageOnUIThread() {
   }
 }
 
+void DomStorageTestcase::BindSessionStorageNamespace(
+    mojo::PendingReceiver<blink::mojom::SessionStorageNamespace> receiver) {
+  // Bypass StoragePartitionImpl::BindSessionStorageNamespace. It calls
+  // dom_storage_receivers_.GetBadMessageCallback(), which DCHECKs unless called
+  // during a message dispatch on that receiver set. So we bind by directly
+  // calling the wrapper instead.
+  session_namespace_->context()->BindNamespace(
+      session_namespace_id_, base::DoNothing(), std::move(receiver));
+}
+
 void DomStorageTestcase::CreateAndAddLocalStorageArea(
     uint32_t id,
     const blink::StorageKey& storage_key,
@@ -344,6 +458,150 @@ void DomStorageTestcase::CreateAndAddSessionStorageArea(
       ->GetInstance<mojo::Remote<blink::mojom::StorageArea>>(lookup_id)
       ->FlushAsyncForTesting(
           base::BindPostTask(GetFuzzerTaskRunner(), std::move(done_closure)));
+}
+
+void DomStorageTestcase::CreateAndAddSessionStorageNamespace(
+    uint32_t id,
+    base::OnceClosure done_closure) {
+  mojo::Remote<blink::mojom::SessionStorageNamespace> namespace_remote;
+  auto namespace_receiver = namespace_remote.BindNewPipeAndPassReceiver();
+
+  // Bind the session storage namespace on the UI thread.
+  GetUIThreadTaskRunner({})->PostTask(
+      FROM_HERE,
+      base::BindOnce(&DomStorageTestcase::BindSessionStorageNamespace,
+                     base::Unretained(this), std::move(namespace_receiver)));
+
+  // Since the PendingReceiver is consumed asynchronously, flush the remote
+  // before running done_closure.
+  uint32_t lookup_id =
+      ::mojolpm::GetContext()->AddInstance(id, std::move(namespace_remote));
+  ::mojolpm::GetContext()
+      ->GetInstance<mojo::Remote<blink::mojom::SessionStorageNamespace>>(
+          lookup_id)
+      ->FlushAsyncForTesting(
+          base::BindPostTask(GetFuzzerTaskRunner(), std::move(done_closure)));
+}
+
+void DomStorageTestcase::SetUpPendingClone(uint32_t id,
+                                           base::OnceClosure done_closure) {
+  std::string target_id =
+      base::StringPrintf("%08x_0000_0000_0000_%012x", id, id);
+  GetUIThreadTaskRunner({})->PostTaskAndReply(
+      FROM_HERE,
+      base::BindOnce(&DomStorageTestcase::DoSetUpPendingClone,
+                     base::Unretained(this), std::move(target_id)),
+      base::BindPostTask(GetFuzzerTaskRunner(), std::move(done_closure)));
+}
+
+void DomStorageTestcase::DoSetUpPendingClone(
+    const std::string& target_namespace_id) {
+  pending_clone_namespaces_.push_back(SessionStorageNamespaceImpl::CloneFrom(
+      scoped_refptr<DOMStorageContextWrapper>(session_namespace_->context()),
+      target_namespace_id, session_namespace_id_,
+      /*immediately=*/false));
+}
+
+void DomStorageTestcase::BindTargetSessionStorageNamespace(
+    const std::string& target_namespace_id,
+    mojo::PendingReceiver<blink::mojom::SessionStorageNamespace> receiver) {
+  session_namespace_->context()->BindNamespace(
+      target_namespace_id, base::DoNothing(), std::move(receiver));
+}
+
+void DomStorageTestcase::CreateAndAddTargetSessionStorageNamespace(
+    uint32_t pending_clone_id,
+    uint32_t remote_id,
+    base::OnceClosure done_closure) {
+  std::string target_id = base::StringPrintf(
+      "%08x_0000_0000_0000_%012x", pending_clone_id, pending_clone_id);
+
+  mojo::Remote<blink::mojom::SessionStorageNamespace> namespace_remote;
+  auto namespace_receiver = namespace_remote.BindNewPipeAndPassReceiver();
+
+  ::mojolpm::GetContext()->AddInstance(remote_id, std::move(namespace_remote));
+  GetUIThreadTaskRunner({})->PostTaskAndReply(
+      FROM_HERE,
+      base::BindOnce(&DomStorageTestcase::BindTargetSessionStorageNamespace,
+                     base::Unretained(this), std::move(target_id),
+                     std::move(namespace_receiver)),
+      base::BindPostTask(GetFuzzerTaskRunner(), std::move(done_closure)));
+}
+
+void DomStorageTestcase::CloneNamespaceImmediate(
+    base::OnceClosure done_closure) {
+  GetUIThreadTaskRunner({})->PostTaskAndReply(
+      FROM_HERE,
+      base::BindOnce(&DomStorageTestcase::DoCloneNamespaceImmediate,
+                     base::Unretained(this)),
+      base::BindPostTask(GetFuzzerTaskRunner(), std::move(done_closure)));
+}
+
+void DomStorageTestcase::DoCloneNamespaceImmediate() {
+  pending_clone_namespaces_.push_back(session_namespace_->Clone());
+}
+
+void DomStorageTestcase::OnDiskClone(uint32_t id,
+                                     base::OnceClosure done_closure) {
+  std::string secondary_id =
+      base::StringPrintf("%08x_0001_0001_0001_%012x", id, id);
+  std::string target_id =
+      base::StringPrintf("%08x_0002_0002_0002_%012x", id, id);
+  GetUIThreadTaskRunner({})->PostTaskAndReply(
+      FROM_HERE,
+      base::BindOnce(&DomStorageTestcase::DoOnDiskClone, base::Unretained(this),
+                     std::move(secondary_id), std::move(target_id)),
+      base::BindPostTask(GetFuzzerTaskRunner(), std::move(done_closure)));
+}
+
+void DomStorageTestcase::DoOnDiskClone(const std::string& secondary_id,
+                                       const std::string& target_id) {
+  storage::mojom::SessionStorageControl* control =
+      session_namespace_->context()->GetSessionStorageControl();
+
+  control->CreateNamespace(secondary_id);
+
+  mojo::Remote<blink::mojom::SessionStorageNamespace> temp_remote;
+  control->BindNamespace(secondary_id,
+                         temp_remote.BindNewPipeAndPassReceiver());
+
+  control->DeleteNamespace(secondary_id, /*should_persist=*/true);
+
+  control->CloneNamespace(
+      secondary_id, target_id,
+      storage::mojom::SessionStorageCloneType::kWaitForCloneOnNamespace);
+}
+
+void DomStorageTestcase::PurgeMemory(base::OnceClosure done_closure) {
+  GetUIThreadTaskRunner({})->PostTaskAndReply(
+      FROM_HERE,
+      base::BindOnce(&DomStorageTestcase::DoPurgeMemory,
+                     base::Unretained(this)),
+      base::BindPostTask(GetFuzzerTaskRunner(), std::move(done_closure)));
+}
+
+void DomStorageTestcase::DoPurgeMemory() {
+  session_namespace_->context()->GetSessionStorageControl()->PurgeMemory();
+}
+
+void DomStorageTestcase::DeleteStorageKey(const blink::StorageKey& storage_key,
+                                          base::OnceClosure done_closure) {
+  GetUIThreadTaskRunner({})->PostTaskAndReply(
+      FROM_HERE,
+      base::BindOnce(&DomStorageTestcase::DoDeleteStorageKey,
+                     base::Unretained(this), storage_key),
+      base::BindPostTask(GetFuzzerTaskRunner(), std::move(done_closure)));
+}
+
+void DomStorageTestcase::DoDeleteStorageKey(
+    const blink::StorageKey& storage_key) {
+  // StorageKey::Serialize() DCHECKs on opaque origins.
+  if (storage_key.origin().opaque()) {
+    return;
+  }
+
+  session_namespace_->context()->GetSessionStorageControl()->DeleteStorage(
+      storage_key, session_namespace_id_, base::DoNothing());
 }
 
 }  // namespace content

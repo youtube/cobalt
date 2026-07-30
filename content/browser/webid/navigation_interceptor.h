@@ -66,11 +66,13 @@ class CONTENT_EXPORT NavigationInterceptor
   static void MaybeCreateAndAdd(NavigationThrottleRegistry& registry);
 
  private:
-  ThrottleCheckResult ProcessRequest();
+  ThrottleCheckResult ProcessRequest(const GURL& intercepted_url);
 
   void OnHeaderParsed(
+      const GURL& intercepted_url,
       base::expected<net::structured_headers::Dictionary, std::string> result);
   void OnConnectionStatusHeaderParsed(
+      const GURL& intercepted_url,
       base::expected<net::structured_headers::Dictionary, std::string> result);
   void OnTokenResponse(
       blink::mojom::RequestTokenStatus status,

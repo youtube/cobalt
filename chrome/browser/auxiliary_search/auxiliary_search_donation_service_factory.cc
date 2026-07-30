@@ -16,6 +16,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile_selections.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/visited_url_ranking/visited_url_ranking_service_factory.h"
 #include "components/keyed_service/core/keyed_service.h"
 
@@ -43,6 +44,7 @@ AuxiliarySearchDonationServiceFactory::AuxiliarySearchDonationServiceFactory()
   DependsOn(PageContentAnnotationsServiceFactory::GetInstance());
   DependsOn(
       visited_url_ranking::VisitedURLRankingServiceFactory::GetInstance());
+  DependsOn(IdentityManagerFactory::GetInstance());
 }
 
 AuxiliarySearchDonationServiceFactory::
@@ -61,7 +63,7 @@ AuxiliarySearchDonationServiceFactory::BuildServiceInstanceForBrowserContext(
       PageContentAnnotationsServiceFactory::GetForProfile(profile),
       visited_url_ranking::VisitedURLRankingServiceFactory::GetForProfile(
           profile),
-      profile->GetPrefs(),
+      IdentityManagerFactory::GetForProfile(profile), profile->GetPrefs(),
       AuxiliarySearchDonationServiceBridge::CreateDonationCallback());
 }
 

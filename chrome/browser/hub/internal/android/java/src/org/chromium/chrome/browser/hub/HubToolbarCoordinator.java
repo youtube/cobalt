@@ -40,6 +40,8 @@ public class HubToolbarCoordinator {
     private final NonNullObservableSupplier<Boolean> mIsAnimatingSupplier;
     private final NonNullObservableSupplier<Boolean> mBottomToolbarVisibilitySupplier;
     private final HubActionButtonCoordinator mActionButtonCoordinator;
+    private final PropertyModel mModel;
+    private final HubToolbarView mHubToolbarView;
 
     /**
      * Eagerly creates the component, but will not be rooted in the view tree yet.
@@ -67,6 +69,7 @@ public class HubToolbarCoordinator {
             NonNullObservableSupplier<Boolean> isHubAnimatingSupplier,
             NonNullObservableSupplier<Boolean> bottomToolbarVisibilitySupplier,
             Runnable exitHubRunnable) {
+        mHubToolbarView = hubToolbarView;
         mUserEducationHelper = userEducationHelper;
         mMenuButtonCoordinator = menuButtonCoordinator;
         mIsAnimatingSupplier = isHubAnimatingSupplier;
@@ -78,15 +81,15 @@ public class HubToolbarCoordinator {
                 new HubActionButtonCoordinator(
                         hubActionButton, hubToolbarView, paneManager, hubColorMixer);
 
-        PropertyModel model =
+        mModel =
                 new PropertyModel.Builder(HubToolbarProperties.ALL_KEYS)
                         .with(COLOR_MIXER, hubColorMixer)
                         .build();
-        PropertyModelChangeProcessor.create(model, hubToolbarView, HubToolbarViewBinder::bind);
+        PropertyModelChangeProcessor.create(mModel, hubToolbarView, HubToolbarViewBinder::bind);
         mMediator =
                 new HubToolbarMediator(
                         activity,
-                        model,
+                        mModel,
                         paneManager,
                         tracker,
                         searchActivityClient,
@@ -141,9 +144,12 @@ public class HubToolbarCoordinator {
 
     /** Cleans up observers and resources. */
     public void destroy() {
+        mHubToolbarView.destroy();
+        mModel.set(COLOR_MIXER, null);
         mMediator.destroy();
         mIsAnimatingSupplier.removeObserver(mIsAnimatingObserver);
         mBottomToolbarVisibilitySupplier.removeObserver(mBottomToolbarVisibilityObserver);
         mActionButtonCoordinator.destroy();
+        mMenuButtonCoordinator.setMenuButton(null);
     }
 }

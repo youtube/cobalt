@@ -6,7 +6,9 @@
 
 #import "base/apple/foundation_util.h"
 #import "base/check.h"
+#import "base/feature_list.h"
 #import "base/metrics/user_metrics.h"
+#import "components/autofill/core/common/autofill_features.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/signin_promo_view_configurator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/signin_promo_view_delegate.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/table_view_signin_promo_item.h"
@@ -35,7 +37,6 @@
   TableViewDetailIconItem* _autofillProfileDetailItem;
   TableViewDetailIconItem* _identityDocsDetailItem;
   TableViewDetailIconItem* _travelInfoDetailItem;
-  TableViewDetailIconItem* _autofillSettingsDetailItem;
 
   BOOL _settingsAreDismissed;
 }
@@ -90,9 +91,11 @@
         toSectionWithIdentifier:SettingsSectionIdentifierBasics];
   }
 
-  _autofillSettingsDetailItem = AutofillSettingsItem();
-  [model addItem:_autofillSettingsDetailItem
-      toSectionWithIdentifier:SettingsSectionIdentifierBasics];
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillAiWithDataSchema)) {
+    [model addItem:AutofillSettingsItem()
+        toSectionWithIdentifier:SettingsSectionIdentifierBasics];
+  }
 
   [self.delegate autofillAndPasswordsTableViewControllerDidLoadContent:self];
 }
@@ -227,7 +230,13 @@
 }
 
 - (void)setShouldShowAutofillAIFeatures:(BOOL)shouldShow {
+  if (_shouldShowAutofillAIFeatures == shouldShow) {
+    return;
+  }
   _shouldShowAutofillAIFeatures = shouldShow;
+  if (self.isViewLoaded) {
+    [self reloadData];
+  }
 }
 
 #pragma mark - AutofillAndPasswordsSigninPromoConsumer

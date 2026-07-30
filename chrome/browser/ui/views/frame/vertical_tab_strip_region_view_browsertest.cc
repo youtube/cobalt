@@ -28,11 +28,11 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
-#include "chrome/browser/ui/views/tabs/vertical/root_tab_collection_node.h"
-#include "chrome/browser/ui/views/tabs/vertical/vertical_pinned_tab_container_view.h"
-#include "chrome/browser/ui/views/tabs/vertical/vertical_split_tab_view.h"
+#include "chrome/browser/ui/views/tabs/common/pinned_tab_container_view.h"
+#include "chrome/browser/ui/views/tabs/common/root_tab_collection_node.h"
+#include "chrome/browser/ui/views/tabs/common/split_tab_view.h"
+#include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h"
-#include "chrome/browser/ui/views/tabs/vertical/vertical_unpinned_tab_container_view.h"
 #include "chrome/browser/ui/views/test/vertical_tabs_browser_test_mixin.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
@@ -746,17 +746,16 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest,
       {index4}, {}, split_tabs::SplitTabCreatedSource::kTabContextMenu);
 
   auto* pinned_tabs = root_node()->children()[0]->view();
-  EXPECT_TRUE(views::IsViewClass<VerticalPinnedTabContainerView>(pinned_tabs));
+  EXPECT_TRUE(views::IsViewClass<PinnedTabContainerView>(pinned_tabs));
   EXPECT_EQ(pinned_tabs->children().size(), 1);
   auto* unpinned_tabs = root_node()->children()[1]->view();
-  EXPECT_TRUE(
-      views::IsViewClass<VerticalUnpinnedTabContainerView>(unpinned_tabs));
+  EXPECT_TRUE(views::IsViewClass<UnpinnedTabContainerView>(unpinned_tabs));
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return unpinned_tabs->children().size() == 2; }));
 
   // Expect pinned tabs to have equal width.
   auto pinned_split_tab = pinned_tabs->children()[0];
-  EXPECT_TRUE(views::IsViewClass<VerticalSplitTabView>(pinned_split_tab));
+  EXPECT_TRUE(views::IsViewClass<SplitTabView>(pinned_split_tab));
   EXPECT_EQ(pinned_split_tab->children().size(), 2);
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return pinned_split_tab->children()[0]->size().width() ==
@@ -765,7 +764,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest,
 
   // Expect unpinned tabs to have equal width.
   auto unpinned_split_tab = unpinned_tabs->children()[1];
-  EXPECT_TRUE(views::IsViewClass<VerticalSplitTabView>(unpinned_split_tab));
+  EXPECT_TRUE(views::IsViewClass<SplitTabView>(unpinned_split_tab));
   EXPECT_EQ(unpinned_split_tab->children().size(), 2);
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return unpinned_split_tab->children()[0]->size().width() ==

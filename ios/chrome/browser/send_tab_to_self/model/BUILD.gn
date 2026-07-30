@@ -101,7 +101,10 @@ source_set("user_data") {
   ]
   deps = [
     "//base",
+    "//components/send_tab_to_self",
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/sync/model",
     "//ios/web/public",
     "//ui/base",
     "//url",

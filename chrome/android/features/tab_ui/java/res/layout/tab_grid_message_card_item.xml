@@ -21,7 +21,7 @@ found in the LICENSE file.
         android:adjustViewBounds="true"
         android:importantForAccessibility="no"
         android:scaleType="center"/>
-    <org.chromium.ui.widget.TextViewWithLeading
+    <org.chromium.ui.widget.TextViewWithClickableSpans
         android:id="@+id/description"
         android:layout_width="0dp"
         android:layout_height="wrap_content"

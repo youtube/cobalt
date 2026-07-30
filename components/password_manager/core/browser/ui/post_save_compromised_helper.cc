@@ -83,7 +83,7 @@ void PostSaveCompromisedHelper::OnGetPasswordStoreResultsOrErrorFrom(
     return;
   }
   auto results = std::get<LoginsResult>(std::move(results_or_error));
-  std::ranges::move(password_manager::ToPasswordForms(std::move(results)),
+  std::ranges::move(ToPasswordForms(std::move(results)),
                     std::back_inserter(passwords_));
   forms_received_.Run();
 }

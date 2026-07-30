@@ -134,10 +134,10 @@ views::BubbleDialogDelegate* StarView::GetBubble() const {
 
 const gfx::VectorIcon& StarView::GetVectorIcon() const {
   return GetActive() ? features::IsRoundedIconsEnabled()
-                           ? omnibox::kStarFilledCustomIcon
+                           ? omnibox::kStarFilledIcon
                            : omnibox::kStarActiveChromeRefreshOldIcon
          : features::IsRoundedIconsEnabled()
-             ? omnibox::kStarCustomIcon
+             ? omnibox::kStarIcon
              : omnibox::kStarChromeRefreshOldIcon;
 }
 

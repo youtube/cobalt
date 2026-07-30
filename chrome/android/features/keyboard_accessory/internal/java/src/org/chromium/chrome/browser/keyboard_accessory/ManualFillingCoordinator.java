@@ -30,6 +30,7 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.AsyncViewStub;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.insets.InsetObserver;
+import org.chromium.ui.modaldialog.ModalDialogManagerHolder;
 
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -73,6 +74,7 @@ class ManualFillingCoordinator implements ManualFillingComponent {
         mKeyboardAccessoryCoordinator =
                 new KeyboardAccessoryCoordinator(
                         profile,
+                        ((ModalDialogManagerHolder) context).getModalDialogManager(),
                         mMediator,
                         mMediator,
                         edgeToEdgeControllerSupplier,

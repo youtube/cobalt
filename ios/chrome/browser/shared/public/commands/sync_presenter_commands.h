@@ -64,7 +64,6 @@ using SyncPresenterCompletionCallback = ProceduralBlock;
                                                     completion:
                                                         (SyncPresenterCompletionCallback)
                                                             completion;
-;
 
 // Presents the help center article for the bookmarks limit exceeded error.
 - (void)showBookmarksLimitExceededHelp;

@@ -14,6 +14,7 @@
 #include "base/barrier_callback.h"
 #include "base/check.h"
 #include "base/containers/flat_set.h"
+#include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
@@ -311,6 +312,12 @@ BoundSessionCookieRefreshServiceImpl::GetBoundSessionThrottlerParams() const {
     }
   }
   return result;
+}
+
+std::vector<BoundSessionKey>
+BoundSessionCookieRefreshServiceImpl::GetAllSessions() const {
+  return base::ToVector(cookie_controllers_,
+                        [](const auto& key_value) { return key_value.first; });
 }
 
 void BoundSessionCookieRefreshServiceImpl::

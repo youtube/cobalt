@@ -103,6 +103,7 @@
 <translation id="1335767868357998043">Избиране на позиция на адресната лента</translation>
 <translation id="1347468774581902829">Управление на активността</translation>
 <translation id="1348596747084433075">https://www.amazon.com/Wife-Gifts/s?k=for+Wife+Gifts</translation>
+<translation id="1353169676553627502">Изключване на актуализациите за напредъка</translation>
 <translation id="1355337783640312381">За да превключите между профилите, докоснете иконата на профила си</translation>
 <translation id="135806768612505061">Всички раздели</translation>
 <translation id="1358106883354237005">Управляван профил</translation>
@@ -609,6 +610,7 @@
 <translation id="3073633853887034268">Разбрах</translation>
 <translation id="3080525922482950719">Можете да запазвате страници за четене по-късно или офлайн</translation>
 <translation id="3081338492074632642">Уверете се, че запазваната парола съвпада с тази за <ph name="WEBSITE" /></translation>
+<translation id="3084484227247071193">Включване на актуализациите за напредъка</translation>
 <translation id="3087734570205094154">Най-долу</translation>
 <translation id="309710370695886264">Имате 1 повторно използвана парола. Коригирайте я сега, за да сте в безопасност.</translation>
 <translation id="3099402981545350675">Така ще се изтрият адресите, запазени на това устройство. Избраната информация също ще се премахне от Chrome, но няма да бъде изтрита от профила ви в Google.</translation>
@@ -708,6 +710,7 @@
 <translation id="3449029510150690417">Създайте нова група раздели, като ѝ зададете име и цвят</translation>
 <translation id="345348365500626747">Адресът е намерен</translation>
 <translation id="3459644598174926977">Активирайте „Live с Gemini“, за да задавате въпроси за дадена страница, да генерирате идеи на глас и да разговаряте с Gemini.</translation>
+<translation id="3462768334899086950">Това означава, че ще загубите незапазения си файл и текущите раздели</translation>
 <translation id="3464194322481586217">Следенето на цената не бе успешно.</translation>
 <translation id="3469117812148449995">Опции за запазване на паролата</translation>
 <translation id="3472469028191701821">Отваря се в нов раздел</translation>
@@ -793,6 +796,7 @@
 <translation id="3753618528540214374">Изумруденозелена тема</translation>
 <translation id="3759491607478608474">Споделяйте съдържанието на текущия раздел с Gemini, за да получавате по-уместни отговори</translation>
 <translation id="3762232513783804601">Създаден за вашия iPad</translation>
+<translation id="3767529805486761639">Меню „Редактиране“</translation>
 <translation id="3768725474733206671">Повторно отваряне на последно затворения раздел</translation>
 <translation id="3779810277399252432">Няма връзка с интернет.</translation>
 <translation id="3782614601387961027">Отхвърляне на предупреждението</translation>
@@ -836,7 +840,6 @@
 <translation id="391904960191284041">Отзиви за продукта</translation>
 <translation id="3921585859122905677">Позиция на адресната лента</translation>
 <translation id="3922185497376658606">Предварително зареждане на уеб страниците</translation>
-<translation id="3922395466317605522">Персонализиране на менюто</translation>
 <translation id="3926703470020109118">Изтеглянето е анулирано</translation>
 <translation id="3929457972718048006">Адреси</translation>
 <translation id="3931215329146376310">{count,plural, =1{Нова парола за този сайт}other{Нови пароли за този сайт}}</translation>
@@ -965,6 +968,7 @@
 <translation id="4326912346867677256">Докоснете „Използване на паролата“, за да влезете в профила си по сигурен начин.</translation>
 <translation id="4328843285884395590">Моят диск</translation>
 <translation id="4331177082088332784">Можете да управлявате тази функция в BEGIN_LINKнастройките за съдържаниетоEND_LINK</translation>
+<translation id="4331712008356052424">За да изпратите тази връзка, влезте в профила <ph name="USER_EMAIL" /> на другото устройство</translation>
 <translation id="4334428914252001502">1 непрочетена статия.</translation>
 <translation id="4338258232580025606">Не мога да вляза в профила си</translation>
 <translation id="4338650699862464074">Изпраща до Google URL адресите на посещаваните от вас страници.</translation>
@@ -1269,6 +1273,7 @@
 <translation id="5336910966955551309">Докоснете и задръжте, за да фиксирате любимите си сайтове</translation>
 <translation id="5338512273860059533">Влизате в профила си.</translation>
 <translation id="5343472494710226394">Новини, спорт и съдържание въз основа на интересите ви.</translation>
+<translation id="5351613737248079168">Трябва да сте влезли в профила си, за да използвате Level Up</translation>
 <translation id="5352128922772839949">Запазване на файла</translation>
 <translation id="5355191726083956201">Режимът за подобрена защита е включен</translation>
 <translation id="536067926684072644">Показване на отметките</translation>
@@ -1471,6 +1476,7 @@
 <translation id="6040143037577758943">Затваряне</translation>
 <translation id="6042308850641462728">Още</translation>
 <translation id="6045460247888249350">Добавете заглавие</translation>
+<translation id="6050237559175440178">Потвърдете, че сте вие, за да използвате и запазвате информацията си на всичките си устройства</translation>
 <translation id="6052269326659653305">Превключване на потребителския профил</translation>
 <translation id="605721222689873409">ГГ</translation>
 <translation id="6059830886158432458">Управлявайте материалите и активността си тук</translation>
@@ -1633,6 +1639,7 @@
 <translation id="6523575793810663688">Покажете ми как</translation>
 <translation id="6524082013156754186">Запазване в профила</translation>
 <translation id="6524918542306337007">Режимът „инкогнито“ не е налице</translation>
+<translation id="6525550806864373485">Меню „Редактиране“</translation>
 <translation id="6527208859483186860">фон {position} от {total}</translation>
 <translation id="6527303717912515753">Споделяне</translation>
 <translation id="6532106788206463496">Запазване на промените</translation>
@@ -1690,7 +1697,6 @@
 <translation id="6674917187596384849">Можете лесно да превключвате между профилите</translation>
 <translation id="6676349090816247042">Опции за влизане в профила.</translation>
 <translation id="667999046851023355">Документ</translation>
-<translation id="6680416467695217368">Персонализиране на менюто</translation>
 <translation id="6681791404926413601">{count,plural, =1{{count} опция за начин на плащане е налице над клавиатурата ви.}other{{count} опции за начин на плащане са налице над клавиатурата ви.}}</translation>
 <translation id="6682680306647339111">Напомнянето е премахнато</translation>
 <translation id="6684262542644248484">Влезте в уебсайт</translation>
@@ -1846,6 +1852,7 @@
 <translation id="722339453342442311">Проверка сега</translation>
 <translation id="7227235818314667565">Управление на споделянето</translation>
 <translation id="7233006041370588369">Изберете парола, която да се попълни.</translation>
+<translation id="723874023660911012">Превключване на потребителските профили</translation>
 <translation id="7241135764990439166">Режимът „инкогнито“ не е налице</translation>
 <translation id="7248046129087111453">Възможно е <ph name="BEGIN_LINK" />историята на търсенията<ph name="END_LINK" /> и <ph name="BEGIN_LINK" />други видове активност<ph name="END_LINK" /> да се запазват в профила ви в Google.</translation>
 <translation id="7253951228444156601">Паролите се проверяват…</translation>
@@ -2072,6 +2079,7 @@
 <translation id="7996239959906074962">Настройване…</translation>
 <translation id="800361585186029508">Въведените URL адреси се отварят в Google Chrome.</translation>
 <translation id="8005666035647241369">Към мениджъра на паролите в Google на това устройство</translation>
+<translation id="8007106936382123905">{count,plural, =1{1 завършена задача}other{# завършени задачи}}</translation>
 <translation id="8010488806779226127">Разгледайте функции, които могат да ви помогнат да сърфирате по-пълноценно</translation>
 <translation id="8011489434346330032">Web Inspector</translation>
 <translation id="8014007212279733632">Потвърдете, че това сте вие, за да се попълва автоматично поверителната информация</translation>
@@ -2155,6 +2163,7 @@
 <translation id="826614135184049678">Излязохте от профила си <ph name="USER_NAME" /> при нулирането на своя iPad. За да влезете отново, докоснете „Напред“ по-долу.</translation>
 <translation id="8270320981823560179">Диск</translation>
 <translation id="8273982424131314219">Ще попълните информацията на адрес <ph name="URL" /></translation>
+<translation id="8274795744553482834">Превключвате потребителските профили</translation>
 <translation id="8275068909952022340">Още…</translation>
 <translation id="8280797717392145626">Получени са връзки</translation>
 <translation id="8281781826761538115">Стандартно – <ph name="DEFAULT_LOCALE" /></translation>
@@ -2234,6 +2243,7 @@
 <translation id="8534481786647257214">Публикацията в Google+ е завършена.</translation>
 <translation id="8535368836838588657">Показване на паролата</translation>
 <translation id="8540426897269305488">Влизане с(ъс) <ph name="CELL_ACCESSIBILITY_LABEL" /></translation>
+<translation id="8542331710562073430">Нещо се обърка. Докоснете бутона Live, за да опитате отново да активирате съответния режим.</translation>
 <translation id="8545276357312221485">Проверка на стандартните настройки на браузъра ви</translation>
 <translation id="854938212724803178">Имате 1 компрометирана парола. Коригирайте я сега, за да сте в безопасност.</translation>
 <translation id="8551311254462607218">В адресната лента докоснете иконата на камерата на Google Обектив</translation>

@@ -76,6 +76,11 @@ GeoIpCountryCode GenerateGeoIpCountryCode(FuzzedDataProvider& data_provider) {
 }  // namespace
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  // Enforce a reasonable bound on input size to prevent timeouts.
+  if (size > 4096) {
+    return 0;
+  }
+
   static const base::NoDestructor<TestCase> test_case;
   FuzzedDataProvider data_provider(data, size);
   FormData form_data = GenerateFormData(data_provider);

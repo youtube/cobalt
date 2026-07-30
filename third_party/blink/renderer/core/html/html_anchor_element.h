@@ -196,11 +196,6 @@ inline LinkHash HTMLAnchorElementBase::PartitionedVisitedLinkFingerprint()
   return cached_visited_link_hash_;
 }
 
-// Functions shared with the other anchor elements (i.e., SVG).
-
-bool IsEnterKeyKeydownEvent(Event&);
-bool IsLinkClick(Event&);
-
 }  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_HTML_HTML_ANCHOR_ELEMENT_H_

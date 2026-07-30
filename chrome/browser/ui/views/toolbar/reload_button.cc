@@ -19,7 +19,6 @@
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
 #include "chrome/browser/ui/waap/waap_ui_metrics_recorder.h"
-#include "chrome/browser/ui/waap/waap_ui_metrics_service.h"
 #include "chrome/grit/browser_resources.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/vector_icons/vector_icons.h"
@@ -91,8 +90,7 @@ ReloadButton::ReloadButton(
                            : kNavigateStopTouchOldIcon),
       double_click_timer_delay_(views::GetDoubleClickInterval()),
       mode_switch_timer_delay_(base::Milliseconds(1350)),
-      window_metrics_manager_(window_metrics_manager),
-      profile_(*profile) {
+      window_metrics_manager_(window_metrics_manager) {
   if (window_metrics_manager_) {
     window_metrics_manager_->OnReloadButtonCreated();
   }
@@ -238,7 +236,7 @@ void ReloadButton::SetVisibleMode(Mode mode) {
   metrics_recorder_->OnChangeVisibleMode(ToRecorderButtonMode(visible_mode_),
                                          ToRecorderButtonMode(mode),
                                          base::TimeTicks::Now());
-  const bool play_animation = features::IsToolbarGlowUpEnabled() &&
+  const bool play_animation = features::IsToolbarGlowUpReloadEnabled() &&
                               !ui::TouchUiController::Get()->touch_ui() &&
                               animate_transitions_;
 
@@ -396,21 +394,6 @@ void ReloadButton::ButtonPressed(const ui::Event& event) {
     ExecuteBrowserCommand(command, flags);
     metrics_recorder_->DidExecuteReloadCommand(base::TimeTicks::Now());
     ++testing_reload_count_;
-
-    auto* metrics_service = WaapUIMetricsService::Get(&profile_.get());
-    if (metrics_service) {
-      std::optional<WaapUIMetricsRecorder::ReloadButtonInputType> input_type;
-      if (event.IsKeyEvent()) {
-        input_type = WaapUIMetricsRecorder::ReloadButtonInputType::kKeyPress;
-      } else if (event.IsMouseEvent()) {
-        input_type =
-            WaapUIMetricsRecorder::ReloadButtonInputType::kMouseRelease;
-      }
-      if (input_type) {
-        metrics_service->RecordReloadButtonInteractionToReload(
-            event.time_stamp(), base::TimeTicks::Now(), *input_type);
-      }
-    }
   }
 }
 

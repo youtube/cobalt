@@ -446,9 +446,9 @@ bool BookmarkModelsMatch(BookmarkModel* model_a, BookmarkModel* model_b) {
   return !iterator_b.has_next();
 }
 
-std::vector<const BookmarkNode*> GetAllBookmarkNodes(
+std::vector<raw_ptr<const BookmarkNode>> GetAllBookmarkNodes(
     const BookmarkModel* model) {
-  std::vector<const BookmarkNode*> all_nodes;
+  std::vector<raw_ptr<const BookmarkNode>> all_nodes;
 
   // Add root node separately as iterator does not include it.
   all_nodes.push_back(model->root_node());
@@ -985,8 +985,7 @@ SingleBookmarksModelMatcherChecker::~SingleBookmarksModelMatcherChecker() =
 
 bool SingleBookmarksModelMatcherChecker::IsExitConditionSatisfied(
     std::ostream* os) {
-  const std::vector<const BookmarkNode*> all_bookmark_nodes =
-      GetAllBookmarkNodes(bookmark_model());
+  const auto all_bookmark_nodes = GetAllBookmarkNodes(bookmark_model());
 
   testing::StringMatchResultListener result_listener;
   const bool matches = testing::ExplainMatchResult(matcher_, all_bookmark_nodes,

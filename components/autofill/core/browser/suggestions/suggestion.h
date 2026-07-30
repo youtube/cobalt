@@ -502,6 +502,7 @@ struct Suggestion {
         return std::holds_alternative<Guid>(payload) ||
                std::holds_alternative<PasswordSuggestionDetails>(payload);
       case SuggestionType::kFillPassword:
+      case SuggestionType::kPasswordFieldByFieldFilling:
       case SuggestionType::kViewPasswordDetails:
       case SuggestionType::kBackupPasswordEntry:
       case SuggestionType::kTroubleSigningInEntry:

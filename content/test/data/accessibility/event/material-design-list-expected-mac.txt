@@ -4,16 +4,16 @@ AXWebArea AXTitle='Material Web List Events'
 ++++AXList AXSubrole=AXContentList
 ++++++AXGroup
 ++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXGroup
 ++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXGroup
 ++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 === End accessibility tree ===
 AXFocusedUIElementChanged on AXGroup
 === Accessibility tree after go() pass 1 ===
@@ -22,16 +22,16 @@ AXWebArea AXTitle='Material Web List Events'
 ++++AXList AXSubrole=AXContentList
 ++++++AXGroup
 ++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXGroup
 ++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXGroup
 ++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 === End accessibility tree ===
 === Start Continuation ===
 === Accessibility tree before go() pass 2 ===
@@ -40,16 +40,16 @@ AXWebArea AXTitle='Material Web List Events'
 ++++AXList AXSubrole=AXContentList
 ++++++AXGroup
 ++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXGroup
 ++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXGroup
 ++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 === End accessibility tree ===
 AXFocusedUIElementChanged on AXGroup
 === Accessibility tree after go() pass 2 ===
@@ -58,14 +58,14 @@ AXWebArea AXTitle='Material Web List Events'
 ++++AXList AXSubrole=AXContentList
 ++++++AXGroup
 ++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXGroup
 ++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXGroup
 ++++++++AXGroup
-++++++++++AXGroup
-++++++++++++AXGroup
+++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
 === End accessibility tree ===

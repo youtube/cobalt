@@ -39,6 +39,8 @@ export class BookmarksElement extends CrLitElement implements
       id: {value: ''},
       title: '',
       children: [],
+      permanentFolderType: null,
+      isSynced: false,
     },
   };
 
@@ -57,7 +59,15 @@ export class BookmarksElement extends CrLitElement implements
 
   private fetchBookmarks_() {
     BookmarksService.getRemote().getBookmarks().then(snapshot => {
-      this.rootNode_ = snapshot.root;
+      this.rootNode_ = {
+        folder: {
+          id: snapshot.root.id,
+          title: '',
+          children: snapshot.root.children.map(folder => ({folder})),
+          permanentFolderType: null,
+          isSynced: false,
+        },
+      };
       this.receiver_.$.bindHandle(snapshot.stream.handle);
     });
   }

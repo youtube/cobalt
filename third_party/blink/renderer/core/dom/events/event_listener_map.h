@@ -79,6 +79,7 @@ class CORE_EXPORT EventListenerMap final {
               const RegisteredEventListener::OptionsForMatching& options,
               RegisteredEventListener** registered_listener);
   EventListenerVector* Find(const AtomicString& event_type);
+  const EventListenerVector* Find(const AtomicString& event_type) const;
   Vector<AtomicString> EventTypes() const;
 
   template <typename CallbackType>

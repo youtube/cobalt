@@ -8,14 +8,13 @@ if (is_win) {
   source_set("delegated_tasks") {
     public = [
       "delegated_tasks/delegated_task.h",
-      "delegated_tasks/delegated_task_registry.h",
       "delegated_tasks/delegated_task_runner.h",
       "delegated_tasks/peh_launcher.h",
+      "delegated_tasks/peh_switches.h",
     ]
 
     sources = [
       "delegated_tasks/delegated_task.cc",
-      "delegated_tasks/delegated_task_registry.cc",
       "delegated_tasks/delegated_task_runner.cc",
       "delegated_tasks/peh_launcher.cc",
     ]
@@ -25,6 +24,17 @@ if (is_win) {
       "//chrome/common:constants",
       "//chrome/install_static:install_static_util",
     ]
+  }
+
+  source_set("test_support") {
+    testonly = true
+    public = [ "delegated_tasks/test_support/mock_peh_launcher.h" ]
+    sources = [ "delegated_tasks/test_support/mock_peh_launcher.cc" ]
+    public_deps = [
+      ":delegated_tasks",
+      "//testing/gmock",
+    ]
+    deps = [ "//base" ]
   }
 }
 
@@ -61,11 +71,16 @@ source_set("unit_tests") {
     "//testing/gtest",
   ]
   if (is_win) {
-    sources += [ "delegated_tasks/peh_launcher_unittest.cc" ]
+    sources += [
+      "delegated_tasks/delegated_task_runner_unittest.cc",
+      "delegated_tasks/peh_launcher_unittest.cc",
+    ]
     deps += [
       ":delegated_tasks",
+      ":test_support",
       "//chrome/install_static:install_static_util",
       "//chrome/install_static/test:test_support",
+      "//testing/gmock",
     ]
   }
 }

@@ -221,6 +221,9 @@ class HomeBackgroundCustomizationService
   // Return whether the NTP custom background is disabled by enterprise policy.
   bool IsCustomizationDisabledOrColorManagedByPolicy() const;
 
+  // Returns whether theme sync is actively running.
+  bool IsThemeSyncActive();
+
   // Returns the `SyncableService` associated with `THEMES_IOS`. Returns
   // `nullptr` if the feature is disabled.
   syncer::SyncableService* GetThemeSyncableService();

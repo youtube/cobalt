@@ -47,11 +47,12 @@ PluginObserver::PluginObserver(content::WebContents* web_contents)
 PluginObserver::~PluginObserver() = default;
 
 void PluginObserver::OpenPDF(const GURL& url) {
-  content::RenderFrameHost* render_frame_host =
-      plugin_host_receivers_.GetCurrentTargetFrame();
+  content::RenderFrameHost& render_frame_host =
+      plugin_host_receivers_.CurrentTargetFrame();
   // WebViews should never trigger PDF downloads.
-  if (extensions::WebViewGuest::FromRenderFrameHost(render_frame_host))
+  if (extensions::WebViewGuest::FromRenderFrameHost(&render_frame_host)) {
     return;
+  }
 
   content::Referrer referrer;
   if (!CanOpenPdfUrl(render_frame_host, url,
@@ -85,7 +86,7 @@ void PluginObserver::OpenPDF(const GURL& url) {
           }
         })");
   std::unique_ptr<download::DownloadUrlParameters> params =
-      render_frame_host->CreateDownloadUrlParameters(url, traffic_annotation);
+      render_frame_host.CreateDownloadUrlParameters(url, traffic_annotation);
   params->set_referrer(referrer.url);
   params->set_referrer_policy(
       content::Referrer::ReferrerPolicyForUrlRequest(referrer.policy));

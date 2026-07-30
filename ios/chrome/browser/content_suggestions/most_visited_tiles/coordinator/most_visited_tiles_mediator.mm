@@ -43,7 +43,6 @@
 #import "ios/chrome/browser/menu/ui_bundled/browser_action_factory.h"
 #import "ios/chrome/browser/net/model/crurl.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_actions_delegate.h"
-#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/browser/ntp_tiles/model/most_visited_sites_observer_bridge.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
@@ -67,8 +66,6 @@ namespace {
 // Maximum number of most visited tiles fetched that are not pinned sites.
 const NSInteger kMaxNumNonCustomMostVisitedTiles = 4;
 
-// Maximum number of most visited tiles fetched.
-const NSInteger kMaxNumMostVisitedTiles = 8;
 
 // Size below which the provider returns a colored tile instead of an image.
 const CGFloat kMagicStackMostVisitedFaviconMinimalSize = 18;
@@ -164,14 +161,12 @@ GURL GetValidUrl(NSString* urlString) {
     _mostVisitedBridge =
         std::make_unique<ntp_tiles::MostVisitedSitesObserverBridge>(
             self, _mostVisitedSites.get());
-    if (IsContentSuggestionsCustomizable()) {
-      _mostVisitedSites->EnableTileTypes(
-          ntp_tiles::MostVisitedSites::EnableTileTypesOptions()
-              .with_top_sites(true)
-              .with_custom_links(true));
-    }
+    _mostVisitedSites->EnableTileTypes(
+        ntp_tiles::MostVisitedSites::EnableTileTypesOptions()
+            .with_top_sites(true)
+            .with_custom_links(true));
     _mostVisitedSites->AddMostVisitedURLsObserver(
-        _mostVisitedBridge.get(), [MostVisitedTilesMediator maxSitesShown],
+        _mostVisitedBridge.get(), kContentSuggestionsMostVisitedTilesMax,
         kMaxNumNonCustomMostVisitedTiles);
   }
   return self;
@@ -194,10 +189,6 @@ GURL GetValidUrl(NSString* urlString) {
   _prefService = nullptr;
 }
 
-+ (NSUInteger)maxSitesShown {
-  return IsContentSuggestionsCustomizable() ? kMaxNumMostVisitedTiles
-                                            : kMaxNumNonCustomMostVisitedTiles;
-}
 
 - (void)refreshMostVisitedTiles {
   // Refresh in case there are new MVT to show.
@@ -339,7 +330,6 @@ GURL GetValidUrl(NSString* urlString) {
   }
   // Add reorder custom actions.
   if (item.isPinned) {
-    CHECK(IsContentSuggestionsCustomizable());
     __weak MostVisitedTilesMediator* weakSelf = self;
     NSUInteger index = static_cast<NSUInteger>(item.index);
     NSString* moveLeftTitle =
@@ -541,7 +531,6 @@ GURL GetValidUrl(NSString* urlString) {
                                                   fromView:view];
            }]];
   if (item.isPinned) {
-    CHECK(IsContentSuggestionsCustomizable(), base::NotFatalUntil::M148);
     [actions addObject:[self.actionFactory
                            actionToEditPinnedSiteOnMostVisitedTileWithBlock:^{
                              [weakSelf openModalToEditPinnedSite:item];
@@ -551,12 +540,10 @@ GURL GetValidUrl(NSString* urlString) {
                              [weakSelf pinOrUnpinMostVisited:item];
                            }]];
   } else {
-    if (IsContentSuggestionsCustomizable()) {
-      [actions addObject:[self.actionFactory
-                             actionToPinSiteToMostVisitedTileWithBlock:^{
-                               [weakSelf pinOrUnpinMostVisited:item];
-                             }]];
-    }
+    [actions addObject:[self.actionFactory
+                           actionToPinSiteToMostVisitedTileWithBlock:^{
+                             [weakSelf pinOrUnpinMostVisited:item];
+                           }]];
     [actions addObject:[self.actionFactory actionToRemoveWithBlock:^{
                [weakSelf removeMostVisited:item];
              }]];
@@ -593,9 +580,7 @@ GURL GetValidUrl(NSString* urlString) {
 
   [self.consumer setMostVisitedTilesConfig:_mostVisitedConfig];
   [self.contentSuggestionsDelegate contentSuggestionsWasUpdated];
-  if (IsContentSuggestionsCustomizable()) {
-    [self maybeDisplayIPH];
-  }
+  [self maybeDisplayIPH];
 }
 
 // Logs a histogram due to a Most Visited item being opened.
@@ -669,7 +654,6 @@ GURL GetValidUrl(NSString* urlString) {
 
 // Undo the last action that adds/removes/edits a pinned site.
 - (void)undoLastPinAction {
-  CHECK(IsContentSuggestionsCustomizable());
   _mostVisitedSites->UndoCustomLinkAction();
 }
 

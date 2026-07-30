@@ -2,6 +2,27 @@
 
 This is a list of changes to [Soft Navigation Heuristics](https://developer.chrome.com/docs/web-platform/soft-navigations-experiment).
 
+* Chrome 151
+  * Metric bug fix: Directly attribute text node changes instead of marking their parent nodes, avoiding over-attribution of soft navigation paint context to unrelated sibling elements ([7906298](https://chromium-review.googlesource.com/c/chromium/src/+/7906298), [7907938](https://chromium-review.googlesource.com/c/chromium/src/+/7907938)).
+  * Other implementation changes:
+    * Added UKM collection for prerendered page loads and back-forward cache restores prior to soft navigation detection to improve Core Web Vitals blending ([7888147](https://chromium-review.googlesource.com/c/chromium/src/+/7888147), [7930830](https://chromium-review.googlesource.com/c/chromium/src/+/7930830)).
+
+* Chrome 150
+  * **Rename `SoftNavigationEntry` to `PerformanceSoftNavigation`**.
+    * Renamed the performance entry interface to `PerformanceSoftNavigation` to align with the updated specification ([7883927](https://chromium-review.googlesource.com/c/chromium/src/+/7883927)).
+  * **Convert nested ICP getter to a method**.
+    * Replaced the static `largestInteractionContentfulPaint` attribute on `PerformanceSoftNavigation` with a `getLargestInteractionContentfulPaint()` method, allowing developers to query the latest paint candidate at any time (e.g., at beacon time) rather than just the state when the entry was emitted ([7876906](https://chromium-review.googlesource.com/c/chromium/src/+/7876906)).
+  * **Nest LCP entry inside ICP entry**.
+    * Nested the actual `LargestContentfulPaint` entry as a `largestContentfulPaint` attribute inside `InteractionContentfulPaint` (ICP) entries instead of copying/mimicking its properties. This ensures correct LCP performance timing attributes (`startTime`, `duration`) are exposed, and allows for future Container Timing API extensions ([7860127](https://chromium-review.googlesource.com/c/chromium/src/+/7860127)).
+  * Metric bug fix: Fixed soft navigation paint attribution for text pseudo elements with `content` set, matching standard LCP behavior ([7876071](https://chromium-review.googlesource.com/c/chromium/src/+/7876071)).
+  * Metric bug fix: Fixed a soft navigation context mismatch crash caused by nested clicks (e.g., clicking a label that forwards to a form control) ([7870025](https://chromium-review.googlesource.com/c/chromium/src/+/7870025)).
+  * Other implementation changes:
+    * Set up `SoftNavigationPageLoadMetricsObserver` to record SoftNavigation UKM events for prerendered pages and back-forward cache restores ([7817946](https://chromium-review.googlesource.com/c/chromium/src/+/7817946)).
+    * Dropped late arrivals of soft navigation events to avoid browser crashes due to race conditions during page lifecycle state transitions ([7855600](https://chromium-review.googlesource.com/c/chromium/src/+/7855600)).
+
+* Chrome 149
+  * Metric improvement: Removed main-world checks from Task Attribution, and soft-navs/icp, aligning with standard LCP behavior ([7762579](https://chromium-review.googlesource.com/c/chromium/src/+/7762579)).
+
 * Chrome 148
   * Metric bug fix: Use correct `NavigationId` for `InteractionContentfulPaint` entries ([59bc92edc430c](https://chromium-review.googlesource.com/c/chromium/src/+/7704133)).
 

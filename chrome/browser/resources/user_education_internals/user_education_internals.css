@@ -18,7 +18,7 @@
   flex-direction: column;
   height: 100%;
 
-  --advanced-section-border-color: var(--google-green-300);
+  --global-section-border-color: var(--google-green-300);
   --iph-section-border-color: var(--google-blue-300);
   --main-column-max-width: 680px;
   --new-badge-section-border-color: var(--google-yellow-300);
@@ -32,7 +32,7 @@
 
 @media (prefers-color-scheme: dark) {
   :host {
-    --advanced-section-border-color: var(--google-green-700);
+    --global-section-border-color: var(--google-green-700);
     --iph-section-border-color: var(--google-blue-700);
     --new-badge-section-border-color: var(--google-yellow-700);
     --ntp-promos-section-border-color: var(--google-purple-900);
@@ -124,10 +124,18 @@ p {
   width: var(--main-column-max-width);
 }
 
-#advanced {
-  border-inline-start: 1px solid var(--advanced-section-border-color);
+#global {
+  border-inline-start: 1px solid var(--global-section-border-color);
   padding-inline: var(--cr-section-padding);
   scroll-margin-top: 16px;
+}
+
+#session {
+  padding-block-start: 0;
+  padding-block-end: var(--cr-section-vertical-padding);
+  margin-block-start: 0;
+  margin-block-end: var(--cr-section-vertical-padding);
+  padding-inline: var(--cr-section-padding);
 }
 
 #tutorials {
@@ -172,15 +180,9 @@ user-education-whats-new-internals-card {
   padding-inline: var(--cr-section-padding);
 }
 
-#session {
-  padding-block-start: 0;
-  padding-block-end: var(--cr-section-vertical-padding);
-  margin-block-start: 0;
-  margin-block-end: var(--cr-section-vertical-padding);
-  padding-inline: var(--cr-section-padding);
-}
 
-#session li {
+
+#global li {
   margin-block: 1em;
 }
 

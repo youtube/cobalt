@@ -677,8 +677,7 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest, Disposition_NewPopupTrusted) {
   // toolbar.
   EXPECT_NE(browser(), params.browser);
   EXPECT_TRUE(params.browser->GetBrowserForMigrationOnly()->is_type_popup());
-  EXPECT_TRUE(
-      params.browser->GetBrowserForMigrationOnly()->is_trusted_source());
+  EXPECT_TRUE(WindowFeatureController::From(params.browser)->IsTrustedSource());
   EXPECT_FALSE(BrowserWindow::FromBrowser(params.browser)->IsToolbarVisible());
 }
 

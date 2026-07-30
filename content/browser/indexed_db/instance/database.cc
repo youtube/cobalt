@@ -1054,7 +1054,7 @@ bool Database::HasNoConnections() const {
 
 void Database::SendVersionChangeToAllConnections(int64_t old_version,
                                                  int64_t new_version) {
-  for (auto* connection : connections()) {
+  for (content::indexed_db::Connection* connection : connections()) {
     // Before invoking this method, the `ConnectionCoordinator` had
     // set the request state to `kPendingNoConnections`. Now the request will
     // be blocked until all the existing connections to this database is

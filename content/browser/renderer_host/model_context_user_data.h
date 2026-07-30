@@ -129,7 +129,8 @@ class CONTENT_EXPORT ModelContextUserData
   // blink::mojom::ModelContextHost implementation:
   void BindModelContext(
       mojo::PendingRemote<blink::mojom::ModelContext> model_context) override;
-  void RegisterScriptTool(blink::mojom::ScriptToolPtr tool) override;
+  void RegisterScriptTool(blink::mojom::ScriptToolPtr tool,
+                          RegisterScriptToolCallback callback) override;
   void UnregisterScriptTool(const std::string& name) override;
   void GetScriptTools(const std::vector<url::Origin>& from_origins,
                       GetScriptToolsCallback callback) override;

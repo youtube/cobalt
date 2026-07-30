@@ -42,7 +42,8 @@ enum class EvpAutofillFlowResult {
   kManagerDestroyed = 9,
   kTokenSentToRenderer = 10,
   kDriverInactive = 11,
-  kMaxValue = kDriverInactive,
+  kPageNavigatedDuringVerification = 12,
+  kMaxValue = kPageNavigatedDuringVerification,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/blink/enums.xml:EvpAutofillFlowResult)
 
@@ -89,12 +90,23 @@ class EmailVerifierDelegate : public AutofillManager::Observer,
       AutofillManager& manager,
       const FormData& form,
       const FieldGlobalId& field_id) override;
+  void OnAfterFocusOnFormField(AutofillManager& manager,
+                               FormGlobalId form_id,
+                               FieldGlobalId field_id) override;
+  void OnAfterFocusOnNonFormField(AutofillManager& manager) override;
 
   // content::WebContentsObserver:
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
 
  private:
+  class MetricsObserver : public Observer {
+   public:
+    MetricsObserver();
+    ~MetricsObserver() override;
+    void OnFlowCompleted(EvpAutofillFlowResult result) override;
+  };
+
   // Initiates the verification of the given `email_value` by checking the frame
   // for a `nonce` attribute, prompting the user for verification, and sending
   // the token to the renderer on completion.
@@ -138,18 +150,20 @@ class EmailVerifierDelegate : public AutofillManager::Observer,
 
   void NotifyFlowCompleted(EvpAutofillFlowResult result);
 
-  class MetricsObserver : public Observer {
-   public:
-    MetricsObserver();
-    ~MetricsObserver() override;
-    void OnFlowCompleted(EvpAutofillFlowResult result) override;
-  };
+  void OnFieldLostFocus(AutofillManager& manager,
+                        const FieldGlobalId& field_id);
 
   MetricsObserver metrics_observer_;
   base::ObserverList<Observer> observers_;
 
   ScopedAutofillManagersObservation observation_{this};
   std::map<FieldGlobalId, GURL> issuers_;
+  size_t in_flight_verify_count_ = 0;
+  std::optional<FieldGlobalId> last_focused_field_;
+  // A tab-scoped cache of recently verified email values (mapped by field ID)
+  // used to deduplicate verification prompts when the user alternates focus.
+  std::vector<std::pair<FieldGlobalId, std::u16string>> last_verified_values_;
+
   base::WeakPtrFactory<EmailVerifierDelegate> weak_ptr_factory_{this};
 };
 

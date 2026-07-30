@@ -17,9 +17,11 @@
 <translation id="1052842760770519282">Някои от паролите ви не са достъпни</translation>
 <translation id="1057623954802068161">Превъртане до горната част на страницата</translation>
 <translation id="1066338698580889414">Долният лист за известия със съвети е отворен на пълната височина</translation>
+<translation id="1067048845568873861">Дата на създаване</translation>
 <translation id="1070689840697074178">Можете да изтегляте PDF файловете тук</translation>
 <translation id="107147699690128016">Ако промените файловото разширение, файлът може да се отвори в друго приложение и потенциално да навреди на устройството ви.</translation>
 <translation id="1073328695547557412">Докоснете иконата на Google Обектив.</translation>
+<translation id="1075811647922107217">Размер на страницата</translation>
 <translation id="1080116354587839789">Побиране на ширина</translation>
 <translation id="1086486568852410168">Търсене с Google Обектив</translation>
 <translation id="1087799850623149508">Можете да докоснете и задържите, за да преместите адресната лента в долната част</translation>
@@ -32,7 +34,6 @@
 <translation id="1108938384783527433">Синхронизиране на историята</translation>
 <translation id="1111673857033749125">Тук ще се показват отметките, които сте запазили на другите си устройства.</translation>
 <translation id="1123537484474186311"><ph name="TAB_TITLE" /> – раздел „картина в картината“</translation>
-<translation id="1124357650933674597">{NUM_WINDOWS,plural, =1{Възстановяване на 1 прозорец}other{Възстановяване на # прозореца}}</translation>
 <translation id="1126696498560056882">Управление на профилите на това устройство</translation>
 <translation id="1135018701024399762">Режим „инкогнито“ скрива сърфирането ви от другите хора, които използват устройството ви</translation>
 <translation id="113752097246673894">Влезте в Chrome с профила <ph name="EMAIL" />, за да получите отметките си и др. на всичките си устройства</translation>
@@ -183,6 +184,7 @@
 <translation id="1792959175193046959">Променете стандартното местоположение за изтегляне по всяко време</translation>
 <translation id="1796666869097395659">Намалете раздела, за да се върнете към него по-късно</translation>
 <translation id="1799920918471566157">Съвети за Chrome</translation>
+<translation id="1803799720926799756">Файлов размер</translation>
 <translation id="1807246157184219062">Светло</translation>
 <translation id="1807709131360304325">Отваряне на нов прозорец</translation>
 <translation id="1812027881030482584"><ph name="SITE_ETLD_PLUS_ONE" /> не може да продължи да използва <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
@@ -325,6 +327,7 @@
 <translation id="2411239243988279592"><ph name="TAB_TITLE" /> – избран раздел, който възпроизвежда звук</translation>
 <translation id="2413014528833954543">Паролите не могат да се проверяват на това устройство</translation>
 <translation id="2414886740292270097">Тъмно</translation>
+<translation id="2415037988255164008">Да се възстановят ли прозорците?</translation>
 <translation id="2421705177906985956">В момента няма сайтове, които да бъдат показани</translation>
 <translation id="2426805022920575512">Избиране на друг профил</translation>
 <translation id="2427025860753516072">{FILE_COUNT,plural, =1{Видеоклипове, 1 видеоклип в списъка}other{Видеоклипове, # видеоклипа в списъка}}</translation>
@@ -518,7 +521,6 @@
 <translation id="3166827708714933426">Комбинации за раздели и прозорци</translation>
 <translation id="3167258285411721858">Можете да заявите мобилната версия на сайта <ph name="HOST_NAME" /></translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" /> – фиксиран раздел в режим „инкогнито“, чийто звук е спрян и който е избран заедно с други</translation>
-<translation id="3183941812169784232">Да се възстановят ли всички прозорци?</translation>
 <translation id="3187472288455401631">Измерване на рекламите</translation>
 <translation id="3189635831478931757"><ph name="GROUP_TITLE" /> – група раздели</translation>
 <translation id="3200536777393523575">Да се затвори ли текущият прозорец?</translation>
@@ -567,6 +569,7 @@
 <translation id="3435575784518354875">За да запазите достъпа до паролите си, експортирайте ги сега, актуализирайте услугите за Google Play и след това импортирайте паролите отново в Google Мениджър на пароли. <ph name="BEGIN_LINK" />Преглед на пълните инструкции<ph name="END_LINK" />.</translation>
 <translation id="3435738964857648380">Сигурност</translation>
 <translation id="3435914367318771664">Добавяне на раздела към нова група</translation>
+<translation id="3436118221454753036">Режим „Попитайте AI“</translation>
 <translation id="3438681572027105609">Влезте в Chrome, за да получите паролите си и др. на всичките си устройства</translation>
 <translation id="3439276997620616816">Тук ще се показват скорошните ви раздели</translation>
 <translation id="3443221991560634068">Презареждане на текущата страница</translation>
@@ -642,6 +645,7 @@
 <translation id="3739899004075612870">Отметката бе запазена в/ъв <ph name="PRODUCT_NAME" /></translation>
 <translation id="3740290940447881599">Уверете се, че имате доверие на този сайт</translation>
 <translation id="3740525748616366977">На това устройство не може да се търси с глас</translation>
+<translation id="3749289110408117711">Име на файла</translation>
 <translation id="3756823472711156529">Възстановяване на групата</translation>
 <translation id="3763110477555836428">Когато плащате с тази карта, ще бъде попълнен номер на виртуална карта, за да се защитят действителните ви данни. Управлявайте настройките в Google Wallet. <ph name="BEGIN_LINK1" />Научете повече за виртуалните карти<ph name="END_LINK1" /></translation>
 <translation id="376561056759077985">Някои данни още не са запазени</translation>
@@ -673,6 +677,7 @@
 <translation id="3870538285500327859"><ph name="TAB_TITLE" /> – избран раздел „картина в картината“</translation>
 <translation id="3870908470613821006">Всички хора незабавно ще загубят достъп до групата раздели „<ph name="GROUP_NAME" />“ и тя ще бъде изтрита от всички устройства</translation>
 <translation id="3873174561423636563">За да продължите, <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ще сподели с този сайт вашите <ph name="FIELDS_STRING" />. Вижте <ph name="BEGIN_LINK1" />общите условия<ph name="END_LINK1" /> на сайта.</translation>
+<translation id="3882323608730650973">Променено</translation>
 <translation id="3892148308691398805">Копиране на текста</translation>
 <translation id="3893858854379998374">За да се запазят отметките в профила ви, изтрийте неизползваните отметки</translation>
 <translation id="3898498281932368596">Блокиране и напускане</translation>
@@ -703,6 +708,7 @@
 <translation id="399788104667917863">Фиксиране в лентата с инструменти</translation>
 <translation id="4000212216660919741">Начална страница в офлайн режим</translation>
 <translation id="4000670338830950598">Персонализиране и контролиране на Google Chrome с откроен елемент</translation>
+<translation id="4002066346123236978">Заглавие</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{1 компрометирана парола в профила ви в Google}other{# компрометирани пароли в профила ви в Google}}</translation>
 <translation id="4023638601467301498">Влезте в Chrome, за да получите отметките си и др. на всичките си устройства</translation>
 <translation id="4024768890073681126">Браузърът се управлява от родител</translation>
@@ -1333,6 +1339,7 @@
 <translation id="6556501700899673703">Lexend</translation>
 <translation id="6560414384669816528">Търсене със Sogou</translation>
 <translation id="656065428026159829">Вижте още</translation>
+<translation id="6565781844089373403">Възстановяване на прозорците</translation>
 <translation id="6565959834589222080">Wi-Fi се използва, когато е налице</translation>
 <translation id="657177046675873214">За да имате достъп до отметките си на всичките си устройства, включете „Отметки“ в настройките</translation>
 <translation id="6573096386450695060">Разрешаване винаги</translation>
@@ -1411,6 +1418,7 @@
 <translation id="6846298663435243399">Зарежда се…</translation>
 <translation id="6850409657436465440">Изтеглянето продължава</translation>
 <translation id="6850830437481525139">Затворихте <ph name="TAB_COUNT" /> раздела</translation>
+<translation id="6852437757508328589">{NUM_RESULTS,plural, =1{Намерен е 1 резултат}other{Намерени са # резултата}}</translation>
 <translation id="685340923442249391">{FILE_COUNT,plural, =1{Аудиофайлове, 1 аудиофайл в списъка}other{Аудиофайлове, # аудиофайла в списъка}}</translation>
 <translation id="685850645784703949">Discover от Google – изкл.</translation>
 <translation id="6864459304226931083">Изтегляне на изображението</translation>
@@ -1987,6 +1995,7 @@
 <translation id="9093915805850895575">Отваряне в прозорец на Chrome</translation>
 <translation id="909756639352028172">За възможно най-персонализирана практическа работа включете Chrome в „Активност в мрежата и приложенията“ и свързаните услуги на Google</translation>
 <translation id="9099220545925418560">Въз основа на историята ви на сърфиране. Тази настройка е изключена.</translation>
+<translation id="9099674669267916096">Брой страници</translation>
 <translation id="9100610230175265781">Изисква се пропуск</translation>
 <translation id="9101137867221042551">Управление</translation>
 <translation id="9102803872260866941">Разделът за визуализация е отворен</translation>
@@ -2032,7 +2041,6 @@
 <translation id="939598580284253335">Въведете пропуск</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" /> – фиксиран раздел „картина в картината“ в режим „инкогнито“</translation>
 <translation id="945522503751344254">Изпращане на отзиви</translation>
-<translation id="949667118776341807">Завъртане</translation>
 <translation id="95817756606698420">Chrome може да използва <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> за търсене в Китай. Можете да промените това от <ph name="BEGIN_LINK" />Настройки<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Данни за сърфир.: Изтриване</translation>
 <translation id="963246339335003378">Отваряне на „Диспечер на задачите“</translation>

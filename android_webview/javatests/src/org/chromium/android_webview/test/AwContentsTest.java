@@ -1694,8 +1694,6 @@ public class AwContentsTest extends AwParameterizedTest {
         AwTestContainerView testView =
                 mActivityTestRule.createAwTestContainerViewOnMainSync(mContentsClient);
         final AwContents awContents = testView.getAwContents();
-        AwContents.resetRecordMemoryForTesting();
-
         // Load a page to ensure that at least one draw has happened.
         doHardwareRenderingSmokeTest(testView);
         Assert.assertTrue(awContents.hasDrawFunctor());
@@ -1710,23 +1708,12 @@ public class AwContentsTest extends AwParameterizedTest {
                     Assert.assertEquals(1, postTask.getPendingTasksCount());
 
                     postTask.fastForwardBy(AwContents.FUNCTOR_RECLAIM_DELAY_MS);
-                    // Metrics task is still pending.
-                    Assert.assertEquals(1, postTask.getPendingTasksCount());
+                    // Metrics task is no longer posted, so pending task count should be 0.
+                    Assert.assertEquals(0, postTask.getPendingTasksCount());
                     Assert.assertFalse(awContents.hasDrawFunctor());
 
                     awContents.getViewMethods().onWindowVisibilityChanged(View.VISIBLE);
                     Assert.assertFalse(awContents.hasDrawFunctor());
-
-                    // Metrics task will not report histograms because we went back to foreground in
-                    // the meantime.
-                    var histograms =
-                            HistogramWatcher.newBuilder()
-                                    .expectNoRecords(AwContents.PSS_HISTOGRAM)
-                                    .expectNoRecords(AwContents.PRIVATE_DIRTY_HISTOGRAM)
-                                    .build();
-                    postTask.fastForwardBy(AwContents.METRICS_COLLECTION_DELAY_MS);
-                    Assert.assertEquals(0, postTask.getPendingTasksCount());
-                    histograms.assertExpected();
                 });
 
         // Rendering still works.
@@ -1742,8 +1729,6 @@ public class AwContentsTest extends AwParameterizedTest {
     @MediumTest
     public void testClearDrawFunctorInBackgroundMultipleTransitions() throws Throwable {
         mActivityTestRule.startBrowserProcess();
-        AwContents.resetRecordMemoryForTesting();
-
         AwTestContainerView testView =
                 mActivityTestRule.createAwTestContainerViewOnMainSync(mContentsClient);
         final AwContents awContents = testView.getAwContents();
@@ -1779,17 +1764,7 @@ public class AwContentsTest extends AwParameterizedTest {
                     // Functor is reclaimed after enough continuous time in background.
                     postTask.fastForwardBy(AwContents.FUNCTOR_RECLAIM_DELAY_MS);
                     Assert.assertFalse(awContents.hasDrawFunctor());
-
-                    // Metrics task.
-                    var histograms =
-                            HistogramWatcher.newBuilder()
-                                    .expectAnyRecord(AwContents.PSS_HISTOGRAM)
-                                    .expectAnyRecord(AwContents.PRIVATE_DIRTY_HISTOGRAM)
-                                    .build();
-                    Assert.assertEquals(1, postTask.getPendingTasksCount());
-                    postTask.fastForwardBy(AwContents.METRICS_COLLECTION_DELAY_MS);
                     Assert.assertEquals(0, postTask.getPendingTasksCount());
-                    histograms.assertExpected();
                 });
 
         // Not testing rendering here, because all the back and forth advanced the virtual clock too
@@ -1801,8 +1776,6 @@ public class AwContentsTest extends AwParameterizedTest {
     @MediumTest
     public void testClearFunctorOnBackgroundMemorySignal() throws Throwable {
         mActivityTestRule.startBrowserProcess();
-        AwContents.resetRecordMemoryForTesting();
-
         AwTestContainerView testView =
                 mActivityTestRule.createAwTestContainerViewOnMainSync(mContentsClient);
         final AwContents awContents = testView.getAwContents();
@@ -1825,16 +1798,10 @@ public class AwContentsTest extends AwParameterizedTest {
                     awContents.onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_BACKGROUND);
                     Assert.assertFalse(awContents.hasDrawFunctor());
 
-                    // Metrics task.
-                    var histograms =
-                            HistogramWatcher.newBuilder()
-                                    .expectAnyRecord(AwContents.PSS_HISTOGRAM)
-                                    .expectAnyRecord(AwContents.PRIVATE_DIRTY_HISTOGRAM)
-                                    .build();
-                    Assert.assertEquals(2, postTask.getPendingTasksCount());
-                    postTask.fastForwardBy(AwContents.METRICS_COLLECTION_DELAY_MS);
+                    // Reclaim task is still pending.
                     Assert.assertEquals(1, postTask.getPendingTasksCount());
-                    histograms.assertExpected();
+                    postTask.fastForwardBy(AwContents.FUNCTOR_RECLAIM_DELAY_MS);
+                    Assert.assertEquals(0, postTask.getPendingTasksCount());
 
                     awContents.getViewMethods().onWindowVisibilityChanged(View.VISIBLE);
                     Assert.assertFalse(awContents.hasDrawFunctor());

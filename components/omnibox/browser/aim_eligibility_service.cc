@@ -247,11 +247,20 @@ void AimEligibilityService::RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(kResponsePrefName, "");
   registry->RegisterIntegerPref(omnibox::kAIModeSettings,
                                 kAiModeAllowedDefault);
+  registry->RegisterIntegerPref(omnibox::kThirdPartyAiChatSettings,
+                                kAiModeAllowedDefault);
 }
 
 // static
 bool AimEligibilityService::IsAimAllowedByPolicy(const PrefService* prefs) {
   return prefs->GetInteger(omnibox::kAIModeSettings) == kAiModeAllowedDefault;
+}
+
+// static
+bool AimEligibilityService::IsAimAllowedByThirdPartyPolicy(
+    const PrefService* prefs) {
+  return prefs->GetInteger(omnibox::kThirdPartyAiChatSettings) ==
+         kAiModeAllowedDefault;
 }
 
 // static
@@ -317,6 +326,10 @@ AimEligibilityService::AimEligibilityService(
                           weak_factory_.GetWeakPtr()));
   pref_change_registrar_.Add(
       omnibox::kAIModeSettings,
+      base::BindRepeating(&AimEligibilityService::OnPolicyChanged,
+                          weak_factory_.GetWeakPtr()));
+  pref_change_registrar_.Add(
+      omnibox::kThirdPartyAiChatSettings,
       base::BindRepeating(&AimEligibilityService::OnPolicyChanged,
                           weak_factory_.GetWeakPtr()));
 
@@ -416,6 +429,10 @@ bool AimEligibilityService::IsAimAllowedByFeatureAndPolicy() const {
   }
 
   return true;
+}
+
+bool AimEligibilityService::IsAimAllowedByThirdPartyPolicy() const {
+  return IsAimAllowedByThirdPartyPolicy(&pref_service_.get());
 }
 
 bool AimEligibilityService::IsAimLocallyEligible() const {

@@ -300,6 +300,10 @@ class FidoRequestHandlerTest : public ::testing::Test {
     BluetoothAdapterFactory::SetAdapterForTesting(mock_adapter_);
   }
 
+  void TearDown() override {
+    discovery_ = nullptr;
+  }
+
   void ForgeNextHidDiscovery() {
     discovery_ = fake_discovery_factory_.ForgeNextHidDiscovery();
   }
@@ -325,7 +329,7 @@ class FidoRequestHandlerTest : public ::testing::Test {
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   test::FakeFidoDiscoveryFactory fake_discovery_factory_;
   scoped_refptr<::testing::NiceMock<MockBluetoothAdapter>> mock_adapter_;
-  raw_ptr<test::FakeFidoDiscovery, DanglingUntriaged> discovery_;
+  raw_ptr<test::FakeFidoDiscovery> discovery_;
 
  private:
   FakeHandlerFuture handler_completion_future_;
@@ -346,6 +350,7 @@ TEST_F(FidoRequestHandlerTest, TestSingleDeviceSuccess) {
   discovery()->AddDevice(std::move(device));
   EXPECT_TRUE(future().Wait());
   EXPECT_TRUE(std::get<0>(future().Get()));
+  discovery_ = nullptr;
 }
 
 // Tests a scenario where two unresponsive authenticators are connected and
@@ -374,6 +379,7 @@ TEST_F(FidoRequestHandlerTest, TestAuthenticatorHandlerReset) {
   discovery()->AddDevice(std::move(device0));
   discovery()->AddDevice(std::move(device1));
   task_environment_.FastForwardUntilNoTasksRemain();
+  discovery_ = nullptr;
   request_handler.reset();
 }
 
@@ -407,6 +413,7 @@ TEST_F(FidoRequestHandlerTest, TestRequestWithMultipleDevices) {
 
   EXPECT_TRUE(future().Wait());
   EXPECT_TRUE(std::get<0>(future().Get()));
+  discovery_ = nullptr;
 }
 
 // Test a scenario where 2 devices respond successfully with small time
@@ -446,6 +453,7 @@ TEST_F(FidoRequestHandlerTest, TestRequestWithMultipleSuccessResponses) {
   task_environment_.FastForwardUntilNoTasksRemain();
   EXPECT_TRUE(future().Wait());
   EXPECT_TRUE(std::get<0>(future().Get()));
+  discovery_ = nullptr;
 }
 
 // Test a scenario where 3 devices respond with a processing error, an UP(user
@@ -504,6 +512,7 @@ TEST_F(FidoRequestHandlerTest, TestRequestWithMultipleFailureResponses) {
   task_environment_.FastForwardUntilNoTasksRemain();
   EXPECT_TRUE(future().Wait());
   EXPECT_FALSE(std::get<0>(future().Get()));
+  discovery_ = nullptr;
 }
 
 // If a device with transport type kInternal returns a
@@ -544,6 +553,7 @@ TEST_F(FidoRequestHandlerTest,
   task_environment_.FastForwardUntilNoTasksRemain();
   EXPECT_TRUE(future().Wait());
   EXPECT_FALSE(std::get<0>(future().Get()));
+  discovery_ = nullptr;
 }
 
 // Like |TestRequestWithOperationDeniedErrorInternalTransport|, but with a
@@ -569,6 +579,7 @@ TEST_F(FidoRequestHandlerTest,
   task_environment_.FastForwardUntilNoTasksRemain();
   EXPECT_TRUE(future().Wait());
   EXPECT_FALSE(std::get<0>(future().Get()));
+  discovery_ = nullptr;
 }
 
 // Requests should be dispatched to the platform authenticator.
@@ -604,6 +615,7 @@ TEST_F(FidoRequestHandlerTest, TestWithPlatformAuthenticator) {
 
   EXPECT_TRUE(future().Wait());
   EXPECT_TRUE(std::get<0>(future().Get()));
+  discovery_ = nullptr;
 }
 
 TEST_F(FidoRequestHandlerTest, InternalTransportDisallowedIfMarkedUnavailable) {
@@ -617,6 +629,7 @@ TEST_F(FidoRequestHandlerTest, InternalTransportDisallowedIfMarkedUnavailable) {
   observer.WaitForAndExpectAvailableTransportsAre(
       {},
       FidoRequestHandlerBase::RecognizedCredential::kNoRecognizedCredential);
+  discovery_ = nullptr;
 }
 
 TEST_F(FidoRequestHandlerTest,
@@ -630,6 +643,7 @@ TEST_F(FidoRequestHandlerTest,
   observer.WaitForAndExpectAvailableTransportsAre(
       {FidoTransportProtocol::kUsbHumanInterfaceDevice},
       FidoRequestHandlerBase::RecognizedCredential::kNoRecognizedCredential);
+  discovery_ = nullptr;
 }
 
 // This tests sets up a scenario where there are two platform authenticators
@@ -670,6 +684,7 @@ TEST_F(FidoRequestHandlerTest, TestWithMultiplePlatformAuthenticators) {
 
   EXPECT_TRUE(future().Wait());
   EXPECT_TRUE(std::get<0>(future().Get()));
+  discovery_ = nullptr;
 }
 
 #if BUILDFLAG(IS_WIN)
@@ -716,6 +731,7 @@ TEST_F(FidoRequestHandlerTest, TransportAvailabilityOfWindowsAuthenticator) {
     EXPECT_EQ(transport_availability_info.has_win_native_api_authenticator,
               test_case.api_available);
     EXPECT_EQ(transport_availability_info.win_is_uvpaa, test_case.is_uvpaa);
+    discovery_ = nullptr;
   }
 }
 #endif  // BUILDFLAG(IS_WIN)

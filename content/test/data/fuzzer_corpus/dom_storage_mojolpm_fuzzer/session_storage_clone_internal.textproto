@@ -1,0 +1,90 @@
+# Drives the storage-service internal Clone branches of SessionStorageNamespace,
+# cloning one source namespace into disjoint target ids:
+#   - pending target + Clone: found=true branch of RegisterShallowClonedNamespace.
+#   - deferred Bind: Bind() on a pending target queues in run_after_population_.
+#   - kImmediate clone, on-disk clone.
+#   - orphaned pending clone, resolved by DeleteNamespace at teardown.
+#
+# Sequence 0 drains IO between every step for coverage; sequence 1 mixes and
+# drops UI/IO drains so the async clone work races the later clones.
+
+# actions[0]: Bind the source SessionStorageNamespace remote.
+actions { new_session_storage_namespace { id: 0 } }
+
+# actions[1]: Bind a source area on ORIGIN_A (populates the namespace).
+actions {
+  new_session_storage_area {
+    id: 0
+    origin_id: ORIGIN_A
+    renderer_id: RENDERER_A
+  }
+}
+
+# actions[2]: Put a value so the source has data for the clones to copy.
+actions {
+  storage_area_remote_action {
+    id: 0
+    m_put {
+      m_key { values { value: 107 } }
+      m_value { values { value: 118 } }
+    }
+  }
+}
+
+# actions[3]: Pre-register pending target1 (kWaitForCloneOnNamespace).
+actions { new_pending_clone { id: 1 } }
+
+# actions[4]: Clone source onto target1 -> found=true branch of
+# RegisterShallowClonedNamespace.
+actions {
+  session_storage_namespace_remote_action {
+    id: 0
+    m_clone { m_clone_to_namespace: "00000001_0000_0000_0000_000000000001" }
+  }
+}
+
+# actions[5]: Pre-register pending target2.
+actions { new_pending_clone { id: 2 } }
+
+# actions[6]: Bind target2 while pending -> receiver queued in
+# run_after_population_ (deferred Bind).
+actions { new_target_session_storage_namespace { id: 2 remote_id: 10 } }
+
+# actions[7]: Clone source onto target2 -> PopulateAsClone drains the deferred
+# Bind.
+actions {
+  session_storage_namespace_remote_action {
+    id: 0
+    m_clone { m_clone_to_namespace: "00000002_0000_0000_0000_000000000002" }
+  }
+}
+
+# actions[8]: content-side Clone() -> CloneNamespace(kImmediate).
+actions { clone_namespace_immediate {} }
+
+# actions[9]: On-disk clone (create / bind / delete-with-persist / clone).
+actions { on_disk_clone { id: 1 } }
+
+# actions[10]: Orphaned pending clone, never Clone'd -> resolved by
+# DeleteNamespace at teardown.
+actions { new_pending_clone { id: 9 } }
+
+# actions[11]: IO-thread drain.
+actions { run_thread { id: IO } }
+
+# actions[12]: UI-thread drain.
+actions { run_thread { id: UI } }
+
+# Sequence 0: coverage. IO drain (11) between every step lets the service
+# process each clone before the next.
+sequences {
+  action_indexes: [0, 1, 2, 11, 3, 11, 4, 11, 5, 6, 11, 7, 11, 8, 11, 9, 11, 10, 11]
+}
+# Sequence 1: interleaving. UI (12) and IO (11) drains mixed and dropped between
+# dependent steps (e.g. register 3 -> clone 4), so the async work races later
+# clones.
+sequences {
+  action_indexes: [0, 1, 2, 12, 3, 4, 12, 11, 5, 6, 7, 12, 8, 11, 9, 12, 11, 10, 12]
+}
+
+sequence_indexes: [0, 1]

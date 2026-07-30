@@ -164,6 +164,11 @@ void ConnectionProxy::OnProxyToken(
     return;
   }
 
+  // NOTE: If adding/modifying fields in 'context_params' here, also
+  // update the manual copying logic in PrivateAiNetworkDriverIOS
+  // (components/private_ai/ios/private_ai_network_driver_ios.mm) because iOS
+  // does not use the standard multi-process NetworkContext and must manually
+  // configure the in-process network context.
   auto context_params = network::mojom::NetworkContextParams::New();
 #if BUILDFLAG(IS_CT_SUPPORTED)
   context_params->enforce_chrome_ct_policy = true;

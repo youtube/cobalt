@@ -157,7 +157,8 @@ TEST_F(IndexedDBContextTest, GetDefaultBucketError) {
                        database_callbacks->CreateInterfacePtrAndBind(),
                        u"database_name", /*version=*/1,
                        transaction_remote.BindNewEndpointAndPassReceiver(),
-                       /*transaction_id=*/0, /*priority=*/0);
+                       /*transaction_id=*/0, /*priority=*/0,
+                       /*request_shared_connection=*/false);
   loop_2.Run();
 
   // IDBFactory::DeleteDatabase

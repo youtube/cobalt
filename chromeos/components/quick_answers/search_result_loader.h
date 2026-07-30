@@ -9,9 +9,7 @@
 #include <string>
 
 #include "base/memory/scoped_refptr.h"
-#include "base/memory/weak_ptr.h"
 #include "chromeos/components/quick_answers/result_loader.h"
-#include "chromeos/components/quick_answers/search_result_parsers/search_response_parser.h"
 
 namespace network {
 class SharedURLLoaderFactory;
@@ -36,10 +34,6 @@ class SearchResultLoader : public ResultLoader {
   void ProcessResponse(const PreprocessedOutput& preprocessed_output,
                        std::optional<std::string> response_body,
                        ResponseParserCallback complete_callback) override;
-
- private:
-  std::unique_ptr<SearchResponseParser> search_response_parser_;
-  base::WeakPtrFactory<SearchResultLoader> weak_ptr_factory_{this};
 };
 
 }  // namespace quick_answers

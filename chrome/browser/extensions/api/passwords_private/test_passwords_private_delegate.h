@@ -9,6 +9,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_delegate.h"
 #include "chrome/browser/profiles/profile.h"
@@ -26,6 +27,8 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
   TestPasswordsPrivateDelegate();
 
   // PasswordsPrivateDelegate implementation.
+  void AddObserver(PasswordsPrivateDelegate::Observer* observer) override;
+  void RemoveObserver(PasswordsPrivateDelegate::Observer* observer) override;
   password_manager::SavedPasswordsPresenter* GetSavedPasswordsPresenter()
       override;
   void GetSavedPasswordsList(UiEntriesCallback callback) override;
@@ -69,7 +72,7 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
   void ContinueImport(const std::vector<int>& selected_ids,
                       ImportResultsCallback results_callback) override;
   void ResetImporter(bool delete_file) override;
-  void ExportPasswords(base::OnceCallback<void(const std::string&)> callback,
+  void ExportPasswords(base::OnceCallback<void(ExportPasswordsResult)> callback,
                        content::WebContents* web_contents) override;
   api::passwords_private::ExportProgressStatus GetExportProgressStatus()
       override;
@@ -268,6 +271,8 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
 
   std::unique_ptr<password_manager::SavedPasswordsPresenter>
       saved_passwords_presenter_;
+
+  base::ObserverList<PasswordsPrivateDelegate::Observer> observers_;
 
   base::WeakPtrFactory<TestPasswordsPrivateDelegate> weak_ptr_factory_{this};
 };

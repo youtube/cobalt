@@ -85,8 +85,6 @@ class SchedulingEmbedder
     std::vector<std::string> passages;
     ComputePassagesEmbeddingsCallback callback;
 
-    bool in_progress = false;
-
     // Completed embeddings; may be partial.
     std::vector<Embedding> embeddings;
 
@@ -129,16 +127,12 @@ class SchedulingEmbedder
                         ComputeEmbeddingsStatus status,
                         bool record_histograms);
 
-  // When this is non-empty, the embedder is working and its results will be
-  // applied from front to back when `OnEmbeddingsComputed` is called. Not all
-  // of these jobs are necessarily being worked on by the embedder. It may
-  // contain a mix of in-progress, partially completed, and not-yet-started
-  // jobs. In-progress jobs are ordered first, and in the same order as
-  // submitted to the embedder. Partially completed jobs may follow,
-  // still in the order they were last submitted to the embedder.
-  // Not-yet-started jobs are ordered last. All jobs will be re-ordered by
-  // priority before submitting the next batch to the embedder.
-  std::deque<Job> jobs_;
+  // Jobs that are waiting to be scheduled or resumed. They are ordered by
+  // priority before submitting a batch to the embedder.
+  std::deque<Job> pending_jobs_;
+
+  // Jobs that have passages in the current in-flight batch.
+  std::deque<Job> active_jobs_;
 
   // ID to assign to the next Job.
   uint64_t next_job_id_ = 1;

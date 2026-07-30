@@ -169,6 +169,7 @@ public class IdentityDiscController
                                                 FeatureConstants.IDENTITY_DISC_FEATURE,
                                                 R.string.iph_identity_disc_text,
                                                 R.string.iph_identity_disc_accessibility_text))
+                                .setIsIdentityDisc(true)
                                 .build());
     }
 

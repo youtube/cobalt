@@ -183,6 +183,31 @@ export class HostMessageHandler implements PostMessageHandler<WebClientHost> {
     return {};
   }
 
+  async activateTabWithUrl(request: {
+    exactUrl: string,
+    options: {pattern?: string, fallbackWindowId?: string},
+  }) {
+    const response =
+        await this.handler.activateTabWithUrl(urlFromClient(request.exactUrl), {
+          pattern: request.options.pattern !== undefined ?
+              request.options.pattern :
+              '',
+          fallbackWindowId: idFromClient(request.options.fallbackWindowId),
+        });
+    const tabData = response.tabData;
+    if (tabData) {
+      return {
+        tabData: {
+          tabId: idToClient(tabData.tabId),
+          windowId: idToClient(tabData.windowId),
+          url: urlToClient(tabData.url),
+          title: optionalToClient(tabData.title),
+        },
+      };
+    }
+    return {};
+  }
+
   openGlicSettingsPage(request: {options?: OpenSettingsOptions}): void {
     const optionsMojo: OpenSettingsOptionsMojo = {
       highlightField: SettingsPageFieldMojo.kNone,

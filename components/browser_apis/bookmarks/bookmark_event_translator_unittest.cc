@@ -19,7 +19,8 @@ class BookmarkEventTranslatorTest : public testing::Test,
  public:
   BookmarkEventTranslatorTest() {
     model_ = bookmarks::TestBookmarkClient::CreateModel();
-    translator_ = std::make_unique<BookmarkEventTranslator>(model_.get(), this);
+    translator_ = std::make_unique<BookmarkEventTranslator>(
+        model_.get(), /*managed=*/nullptr, this);
   }
 
   // BookmarkEventTranslator::Subscriber:

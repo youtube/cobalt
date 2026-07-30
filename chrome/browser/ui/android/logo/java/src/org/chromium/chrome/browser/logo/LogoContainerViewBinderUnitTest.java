@@ -105,6 +105,7 @@ public class LogoContainerViewBinderUnitTest {
                         mLogoModel, mLogoContainerView, new LogoContainerViewBinder());
         mLogoMediator =
                 new LogoMediator(
+                        mActivity,
                         /* logoClickedCallback= */ null,
                         mLogoModel,
                         /* onLogoAvailableCallback= */ null,
@@ -153,10 +154,12 @@ public class LogoContainerViewBinderUnitTest {
     public void testEndFadeAnimation() {
         Logo logo =
                 new Logo(
-                        Bitmap.createBitmap(1, 1, Bitmap.Config.ALPHA_8),
-                        null,
-                        null,
-                        "https://www.gstatic.com/chrome/ntp/doodle_test/ddljson_android4.json");
+                        /* image= */ Bitmap.createBitmap(1, 1, Bitmap.Config.ALPHA_8),
+                        /* darkImage= */ Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888),
+                        /* onClickUrl= */ null,
+                        /* altText= */ null,
+                        /* animatedLogoUrl= */ "https://www.gstatic.com/chrome/ntp/doodle_test/ddljson_android4.json",
+                        /* darkAnimatedLogoUrl= */ null);
         assertNull(mLogoContainerView.getFadeAnimationForTesting());
         mLogoModel.set(LogoProperties.LOGO, logo);
         assertNotNull(mLogoContainerView.getFadeAnimationForTesting());
@@ -164,10 +167,12 @@ public class LogoContainerViewBinderUnitTest {
         assertNull(mLogoContainerView.getFadeAnimationForTesting());
         Logo newLogo =
                 new Logo(
-                        Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888),
-                        "https://www.google.com",
-                        null,
-                        null);
+                        /* image= */ Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888),
+                        /* darkImage= */ Bitmap.createBitmap(2, 2, Bitmap.Config.ALPHA_8),
+                        /* onClickUrl= */ "https://www.google.com",
+                        /* altText= */ null,
+                        /* animatedLogoUrl= */ null,
+                        /* darkAnimatedLogoUrl= */ null);
         mLogoModel.set(LogoProperties.LOGO, newLogo);
         assertNotNull(mLogoContainerView.getFadeAnimationForTesting());
         mLogoModel.set(LogoProperties.SET_END_FADE_ANIMATION, true);
@@ -179,10 +184,12 @@ public class LogoContainerViewBinderUnitTest {
     public void testUpdateLogo() {
         Logo logo =
                 new Logo(
-                        Bitmap.createBitmap(1, 1, Bitmap.Config.ALPHA_8),
-                        null,
-                        null,
-                        "https://www.gstatic.com/chrome/ntp/doodle_test/ddljson_android4.json");
+                        /* image= */ Bitmap.createBitmap(1, 1, Bitmap.Config.ALPHA_8),
+                        /* darkImage= */ Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888),
+                        /* onClickUrl= */ null,
+                        /* altText= */ null,
+                        /* animatedLogoUrl= */ "https://www.gstatic.com/chrome/ntp/doodle_test/ddljson_android4.json",
+                        /* darkAnimatedLogoUrl= */ null);
         assertNull(mLogoContainerView.getFadeAnimationForTesting());
         assertNotEquals(logo.image, mLogoContainerView.getNewLogoDrawableBitmapForTesting());
         mLogoModel.set(LogoProperties.LOGO, logo);
@@ -207,7 +214,14 @@ public class LogoContainerViewBinderUnitTest {
     @SmallTest
     public void testUpdateLogo_Null_ClearsLogo() {
         mLogoModel.set(LogoProperties.DEFAULT_GOOGLE_LOGO_DRAWABLE, null);
-        Logo logo = new Logo(Bitmap.createBitmap(1, 1, Bitmap.Config.ALPHA_8), null, null, null);
+        Logo logo =
+                new Logo(
+                        /* image= */ Bitmap.createBitmap(1, 1, Bitmap.Config.ALPHA_8),
+                        /* darkImage= */ Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888),
+                        /* onClickUrl= */ null,
+                        /* altText= */ null,
+                        /* animatedLogoUrl= */ null,
+                        /* darkAnimatedLogoUrl= */ null);
         mLogoModel.set(LogoProperties.LOGO, logo);
         mLogoModel.set(LogoProperties.LOGO, null);
         LogoView childLogoView = mLogoContainerView.findViewById(R.id.search_provider_logo);
@@ -341,7 +355,14 @@ public class LogoContainerViewBinderUnitTest {
         mLogoModel.set(LogoProperties.LOGO_AVAILABLE_CALLBACK, callback);
         assertFalse(callbackCalled[0]);
 
-        Logo logo = new Logo(Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888), null, null, null);
+        Logo logo =
+                new Logo(
+                        /* image= */ Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888),
+                        /* darkImage= */ Bitmap.createBitmap(1, 1, Bitmap.Config.ALPHA_8),
+                        /* onClickUrl= */ null,
+                        /* altText= */ null,
+                        /* animatedLogoUrl= */ null,
+                        /* darkAnimatedLogoUrl= */ null);
         mLogoModel.set(LogoProperties.LOGO, logo);
         mLogoContainerView.endAnimationsForTesting();
         assertTrue(callbackCalled[0]);

@@ -87,7 +87,7 @@ void PeripheralsAppDelegateImpl::GetCompanionAppInfo(
   Profile* active_user_profile = GetActiveUserProfile();
 
   apps::proto::PeripheralsGetRequest request;
-  request.set_device(GetDeviceKeyForMetadataRequest(device_key));
+  request.set_device(device_key);
 
   QueryAlmanacApiWithContext<apps::proto::PeripheralsGetRequest,
                              apps::proto::PeripheralsGetResponse>(

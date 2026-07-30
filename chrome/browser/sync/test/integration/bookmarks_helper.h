@@ -348,7 +348,8 @@ class SingleBookmarkModelStatusChangeChecker
 class SingleBookmarksModelMatcherChecker
     : public SingleBookmarkModelStatusChangeChecker {
  public:
-  using Matcher = testing::Matcher<std::vector<const bookmarks::BookmarkNode*>>;
+  using Matcher =
+      testing::Matcher<std::vector<raw_ptr<const bookmarks::BookmarkNode>>>;
 
   SingleBookmarksModelMatcherChecker(int profile_index, const Matcher& matcher);
   ~SingleBookmarksModelMatcherChecker() override;

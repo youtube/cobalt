@@ -31,10 +31,6 @@ inline constexpr const uint8_t kNamespaceStorageKeySeparator = '-';
 // "map-<map_id>-<key from script>".
 inline constexpr const uint8_t kMapIdKeySeparator = '-';
 
-// The "next-map-id" key.
-inline constexpr const uint8_t kNextMapIdKey[] = {'n', 'e', 'x', 't', '-', 'm',
-                                                  'a', 'p', '-', 'i', 'd'};
-
 // The schema "version" key.
 inline constexpr const uint8_t kSessionStorageLevelDBVersionKey[] = {
     'v', 'e', 'r', 's', 'i', 'o', 'n'};
@@ -119,13 +115,6 @@ class SessionStorageLevelDB : public DomStorageDatabase {
   DomStorageDatabaseLevelDB& GetLevelDBForTesting();
 
  private:
-  // Parses the value from the next map ID key in the LevelDB.  Converts the
-  // value from a integer text string like "234" to an `int64_t`.  Returns 0
-  // as the default value to use when the next map key does not exist in the
-  // LevelDB.  The next map ID determines the next available ID for a new map to
-  // use.
-  StatusOr<int64_t> ReadNextMapId() const;
-
   // Parses all "namespace-" entries.  Each key contains a session ID and
   // storage key.  Each value contains the map ID integer text string.  Combines
   // these to create a `MapLocator` in a `MapMetadata` for each "namespace-"

@@ -180,11 +180,11 @@ export class OmniboxAimAppElement extends CrLitElement {
   // Fired from voice search component in cr-composebox if minimum height
   // and width are non zero when permission prompt is displayed, or any time
   // when permission prompt hides.
-  protected onEmbeddedVoicePermissionPromptChanged(
+  protected onVoicePermissionPromptChanged(
       e: CustomEvent<VoicePermissionPromptState>) {
     if (e.detail.isOpened) {  // Permission prompt opened.
       if (this.$.composebox) {
-        this.$.composebox.classList.add('has-embedded-permission-prompt');
+        this.$.composebox.classList.add('has-permission-prompt');
         this.$.composebox.style.setProperty(
             '--cr_composebox_minimum_height', `${e.detail.height}px`);
         this.$.composebox.style.setProperty(
@@ -192,7 +192,7 @@ export class OmniboxAimAppElement extends CrLitElement {
       }
     } else {  // Permission prompt closed.
       if (this.$.composebox) {
-        this.$.composebox.classList.remove('has-embedded-permission-prompt');
+        this.$.composebox.classList.remove('has-permission-prompt');
         this.$.composebox.style.removeProperty(
             '--cr_composebox_minimum_height');
         this.$.composebox.style.removeProperty('--cr_composebox_minimum_width');

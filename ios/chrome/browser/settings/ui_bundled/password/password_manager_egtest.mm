@@ -2423,8 +2423,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 }
 
 // Checks interaction with an info button for a hidden passkey.
-// TODO(crbug.com/442428665): Test is flaky on physical phone devices.
-- (void)MAYBE_testTappingInfoButtonForHiddenPasskey {
+- (void)testTappingInfoButtonForHiddenPasskey {
   SaveHiddenPasskeyToStore();
 
   OpenPasswordManager();

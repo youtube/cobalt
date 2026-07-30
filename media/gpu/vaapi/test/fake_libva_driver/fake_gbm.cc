@@ -55,7 +55,8 @@ struct gbm_bo_mapping {
   size_t size;
 };
 
-uint32_t get_y_subsample(struct gbm_bo* bo, size_t plane) {
+uint32_t get_y_subsample(struct gbm_bo* bo, int plane) {
+  CHECK(plane >= 0 && plane < gbm_bo_get_plane_count(bo));
   if (plane == 0) {
     return 1;
   } else {
@@ -63,7 +64,8 @@ uint32_t get_y_subsample(struct gbm_bo* bo, size_t plane) {
   }
 }
 
-uint32_t get_x_subsample(struct gbm_bo* bo, size_t plane) {
+uint32_t get_x_subsample(struct gbm_bo* bo, int plane) {
+  CHECK(plane >= 0 && plane < gbm_bo_get_plane_count(bo));
   if (plane == 0) {
     return 1;
   }
@@ -79,7 +81,8 @@ uint32_t get_x_subsample(struct gbm_bo* bo, size_t plane) {
   }
 }
 
-uint32_t get_plane_min_size(struct gbm_bo* bo, size_t plane) {
+uint32_t get_plane_min_size(struct gbm_bo* bo, int plane) {
+  CHECK(plane >= 0 && plane < gbm_bo_get_plane_count(bo));
   return UNSAFE_TODO(bo->meta.strides[plane]) *
          ALIGN(bo->meta.height, get_y_subsample(bo, plane)) /
          get_y_subsample(bo, plane);
@@ -170,11 +173,11 @@ extern "C" GBM_EXPORT void* gbm_bo_map2(struct gbm_bo* bo,
                                         void** map_data,
                                         int plane) {
   CHECK(bo);
+  CHECK(plane >= 0 && plane < gbm_bo_get_plane_count(bo));
   CHECK(x + width <= bo->meta.width);
   CHECK(y + height <= bo->meta.height);
   CHECK(ALIGN(x, get_x_subsample(bo, plane)) == x);
   CHECK(ALIGN(y, get_y_subsample(bo, plane)) == y);
-  CHECK(static_cast<int>(plane) < gbm_bo_get_plane_count(bo));
 
   size_t size = ALIGN(get_plane_min_size(bo, plane), PAGE_SIZE);
   void* addr = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED,
@@ -229,8 +232,7 @@ extern "C" GBM_EXPORT int gbm_bo_get_fd(struct gbm_bo* bo) {
 extern "C" GBM_EXPORT int gbm_bo_get_fd_for_plane(struct gbm_bo* bo,
                                                   int plane) {
   CHECK(bo);
-  CHECK(plane >= 0);
-  CHECK(static_cast<int>(plane) < gbm_bo_get_plane_count(bo));
+  CHECK(plane >= 0 && plane < gbm_bo_get_plane_count(bo));
 
   return gbm_bo_get_fd(bo);
 }
@@ -245,18 +247,17 @@ extern "C" GBM_EXPORT uint32_t gbm_bo_get_format(struct gbm_bo* bo) {
   return bo->meta.format;
 }
 
-extern "C" GBM_EXPORT uint32_t gbm_bo_get_offset(struct gbm_bo* bo,
-                                                 size_t plane) {
+extern "C" GBM_EXPORT uint32_t gbm_bo_get_offset(struct gbm_bo* bo, int plane) {
   CHECK(bo);
-  CHECK(static_cast<int>(plane) < gbm_bo_get_plane_count(bo));
+  CHECK(plane >= 0 && plane < gbm_bo_get_plane_count(bo));
 
   return UNSAFE_TODO(bo->meta.offsets[plane]);
 }
 
 extern "C" GBM_EXPORT uint32_t gbm_bo_get_stride_for_plane(struct gbm_bo* bo,
-                                                           size_t plane) {
+                                                           int plane) {
   CHECK(bo);
-  CHECK(static_cast<int>(plane) < gbm_bo_get_plane_count(bo));
+  CHECK(plane >= 0 && plane < gbm_bo_get_plane_count(bo));
 
   return UNSAFE_TODO(bo->meta.strides[plane]);
 }

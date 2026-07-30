@@ -27,6 +27,10 @@ class PrefRegistrySimple;
 namespace page_content_annotations {
 class PageContentAnnotationsResult;
 }
+struct CoreAccountInfo;
+namespace signin {
+class IdentityManager;
+}
 namespace visited_url_ranking {
 class VisitedURLRankingService;
 struct URLVisitsMetadata;
@@ -66,12 +70,13 @@ class AuxiliarySearchDonationService
     ~HistoryData();
   };
   using DonateCallback =
-      base::RepeatingCallback<void(std::vector<HistoryData>)>;
+      base::RepeatingCallback<void(std::vector<HistoryData>, CoreAccountInfo)>;
 
   explicit AuxiliarySearchDonationService(
       page_content_annotations::PageContentAnnotationsService*
           page_content_annotations_service,
       visited_url_ranking::VisitedURLRankingService* ranking_service,
+      signin::IdentityManager* identity_manager,
       PrefService* pref_service,
       DonateCallback donate_callback);
   ~AuxiliarySearchDonationService() override;
@@ -107,6 +112,7 @@ class AuxiliarySearchDonationService
   const raw_ref<page_content_annotations::PageContentAnnotationsService>
       page_content_annotations_service_;
   const raw_ref<visited_url_ranking::VisitedURLRankingService> ranking_service_;
+  const raw_ref<signin::IdentityManager> identity_manager_;
   const raw_ref<PrefService> pref_service_;
   const DonateCallback donate_callback_;
   std::unique_ptr<base::android::ApplicationStatusListener>

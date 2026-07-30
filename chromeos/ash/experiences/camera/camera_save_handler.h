@@ -5,6 +5,7 @@
 #ifndef CHROMEOS_ASH_EXPERIENCES_CAMERA_CAMERA_SAVE_HANDLER_H_
 #define CHROMEOS_ASH_EXPERIENCES_CAMERA_CAMERA_SAVE_HANDLER_H_
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>

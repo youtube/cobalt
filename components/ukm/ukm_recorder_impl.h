@@ -258,6 +258,7 @@ class COMPONENT_EXPORT(UKM_RECORDER) UkmRecorderImpl : public UkmRecorder {
       GetDocumentToNavigationUrlsMap_MissingSubframeSource);
   FRIEND_TEST_ALL_PREFIXES(UkmRecorderImplTest,
                            GetDocumentToNavigationUrlsMap_Redirect);
+  FRIEND_TEST_ALL_PREFIXES(UkmRecorderImplTest, DocumentCreatedNotSerialized);
   FRIEND_TEST_ALL_PREFIXES(UkmRecorderImplTest,
                            StoreDownsamplingParametersInReport);
 

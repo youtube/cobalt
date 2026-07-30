@@ -71,6 +71,12 @@ public class NetworkChangeNotifier {
         return sInstance != null;
     }
 
+    /** Forwards the kDeriveConnectionTypeFromCapabilities feature flag from native to Java. */
+    @CalledByNative
+    public static void setDeriveConnectionTypeFromCapabilities(boolean enabled) {
+        ConnectivityManagerWrapper.setDeriveConnectionTypeFromCapabilities(enabled);
+    }
+
     public static void resetInstanceForTests() {
         sInstance = new NetworkChangeNotifier();
     }

@@ -35,6 +35,7 @@ class DeviceTrustKeyManager;
 }  // namespace enterprise_connectors
 
 namespace enterprise_reporting {
+class BrowserLaunchEventController;
 class ReportingDelegateFactory;
 class ReportScheduler;
 class SaasUsageReportScheduler;
@@ -153,6 +154,10 @@ class ChromeBrowserCloudManagementController
     virtual std::unique_ptr<
         enterprise_reporting::SaasUsageReportingDelegateFactory>
     GetSaasUsageReportingDelegateFactory() = 0;
+
+    // Creates the platform-specific browser launch event controller.
+    virtual std::unique_ptr<enterprise_reporting::BrowserLaunchEventController>
+    CreateBrowserLaunchEventController() = 0;
 
     // Creates a platform-specific DeviceTrustKeyManager instance.
     virtual std::unique_ptr<enterprise_connectors::DeviceTrustKeyManager>
@@ -340,6 +345,8 @@ class ChromeBrowserCloudManagementController
   std::unique_ptr<enterprise_reporting::ReportScheduler> report_scheduler_;
   std::unique_ptr<enterprise_reporting::SaasUsageReportScheduler>
       saas_usage_report_scheduler_;
+  std::unique_ptr<enterprise_reporting::BrowserLaunchEventController>
+      browser_launch_controller_;
 
   std::unique_ptr<CloudPolicyClient> cloud_policy_client_;
 

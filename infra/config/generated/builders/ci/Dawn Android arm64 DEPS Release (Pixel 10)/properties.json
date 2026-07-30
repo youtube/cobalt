@@ -78,6 +78,12 @@
           "project": "chromium"
         }
       ],
+      "mirroring_builder_group_and_names": [
+        {
+          "builder": "dawn-android-arm64-deps-rel",
+          "group": "tryserver.chromium.dawn"
+        }
+      ],
       "targets_spec_directory": "infra/config/generated/builders/ci/Dawn Android arm64 DEPS Release (Pixel 10)/targets"
     }
   },
@@ -90,5 +96,11 @@
   },
   "builder_group": "chromium.dawn",
   "dawn_ref": "refs/heads/main",
-  "recipe": "chromium"
+  "gardener_rotations": [
+    "dawn"
+  ],
+  "recipe": "chromium",
+  "sheriff_rotations": [
+    "dawn"
+  ]
 }

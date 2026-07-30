@@ -117,6 +117,24 @@ HeapVector<Member<SVGPathSegment>> SVGPathElement::getPathData(
                                          normalize);
 }
 
+void SVGPathElement::setPathData(
+    const HeapVector<Member<SVGPathSegment>>& path_data) {
+  // Build the valid-prefix byte stream and route it through setAttribute("d")
+  // so the full attribute mutation pipeline fires (invalidation, <use>
+  // instances, MutationObserver).
+  // TODO(crbug.com/40441025): Write the byte stream directly into SVGPath
+  // once lazy attribute sync fires Will/DidModifyAttribute.
+  SVGPathByteStream byte_stream = BuildByteStreamFromSegments(path_data);
+  // An empty result removes the attribute, matching other list-valued
+  // attributes.
+  if (byte_stream.IsEmpty()) {
+    removeAttribute(svg_names::kDAttr);
+    return;
+  }
+  setAttribute(svg_names::kDAttr, AtomicString(BuildStringFromByteStream(
+                                      byte_stream, kNoTransformation)));
+}
+
 void SVGPathElement::DidRecalcStyle(const StyleRecalcChange change) {
   SVGGeometryElement::DidRecalcStyle(change);
   InvalidateMPathDependencies();

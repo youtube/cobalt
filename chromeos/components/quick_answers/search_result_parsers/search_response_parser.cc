@@ -7,7 +7,8 @@
 #include <memory>
 #include <utility>
 
-#include "base/functional/bind.h"
+#include "base/json/json_reader.h"
+#include "base/logging.h"
 #include "base/values.h"
 #include "chromeos/components/quick_answers/quick_answers_model.h"
 #include "chromeos/components/quick_answers/search_result_parsers/result_parser.h"
@@ -18,64 +19,48 @@ namespace {
 // String to prepend to JSON responses to prevent XSSI. See http://go/xssi.
 constexpr char kJsonSafetyPrefix[] = ")]}'\n";
 
+std::unique_ptr<QuickAnswersSession> ProcessResult(const base::Value& result);
+
 }  // namespace
 
-SearchResponseParser::SearchResponseParser(
-    SearchResponseParserCallback complete_callback) {
-  complete_callback_ = std::move(complete_callback);
-}
-
-SearchResponseParser::~SearchResponseParser() {
-  if (complete_callback_)
-    std::move(complete_callback_).Run(/*quick_answer=*/nullptr);
-}
-
-void SearchResponseParser::ProcessResponse(const std::string& response_body) {
+std::unique_ptr<QuickAnswersSession> ParseSearchResponse(
+    const std::string& response_body) {
   if (response_body.length() < strlen(kJsonSafetyPrefix) ||
       response_body.substr(0, strlen(kJsonSafetyPrefix)) != kJsonSafetyPrefix) {
     LOG(ERROR) << "Invalid search response.";
-    std::move(complete_callback_).Run(nullptr);
-    return;
+    return nullptr;
   }
-  data_decoder::DataDecoder::ParseJsonIsolated(
-      response_body.substr(strlen(kJsonSafetyPrefix)),
-      base::BindOnce(&SearchResponseParser::OnJsonParsed,
-                     weak_factory_.GetWeakPtr()));
-}
 
-void SearchResponseParser::OnJsonParsed(
-    data_decoder::DataDecoder::ValueOrError result) {
-  DCHECK(complete_callback_);
-
+  base::JSONReader::Result result =
+      base::JSONReader::ReadAndReturnValueWithError(
+          response_body.substr(strlen(kJsonSafetyPrefix)),
+          base::JSON_PARSE_RFC);
   if (!result.has_value()) {
-    LOG(ERROR) << "JSON parsing failed: " << result.error();
-    std::move(complete_callback_).Run(nullptr);
-    return;
+    LOG(ERROR) << "JSON parsing failed: " << result.error().message;
+    return nullptr;
   }
 
   // Get the first result.
-  const base::ListValue* entries =
-      result->GetDict().FindListByDottedPath("results");
+  const base::ListValue* entries = result->GetDict().FindList("results");
   if (!entries) {
-    std::move(complete_callback_).Run(nullptr);
-    return;
+    return nullptr;
   }
 
   for (const auto& entry : *entries) {
     std::unique_ptr<QuickAnswersSession> quick_answers_session =
-        ProcessResult(&entry);
+        ProcessResult(entry);
     if (quick_answers_session) {
-      std::move(complete_callback_).Run(std::move(quick_answers_session));
-      return;
+      return quick_answers_session;
     }
   }
 
-  std::move(complete_callback_).Run(nullptr);
+  return nullptr;
 }
 
-std::unique_ptr<QuickAnswersSession> SearchResponseParser::ProcessResult(
-    const base::Value* result) {
-  const base::DictValue& dict = result->GetDict();
+namespace {
+
+std::unique_ptr<QuickAnswersSession> ProcessResult(const base::Value& result) {
+  const base::DictValue& dict = result.GetDict();
   auto one_namespace_type = dict.FindInt("oneNamespaceType");
   if (!one_namespace_type.has_value()) {
     // Can't find valid one namespace type from the response.
@@ -123,5 +108,7 @@ std::unique_ptr<QuickAnswersSession> SearchResponseParser::ProcessResult(
   quick_answers_session->quick_answer = std::move(quick_answer);
   return quick_answers_session;
 }
+
+}  // namespace
 
 }  // namespace quick_answers

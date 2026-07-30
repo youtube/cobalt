@@ -17,9 +17,11 @@
 <translation id="1052842760770519282">നിങ്ങളുടെ ചില പാസ്‌വേഡുകൾ ആക്‌സസ് ചെയ്യാനാകുന്നില്ല</translation>
 <translation id="1057623954802068161">പേജിന്റെ മുകളിലേക്ക് സ്ക്രോൾ ചെയ്യുക</translation>
 <translation id="1066338698580889414">'നുറുങ്ങുകളെ കുറിച്ചുള്ള അറിയിപ്പുകൾ' പ്രമോ മുഴുവനായും തുറന്നു</translation>
+<translation id="1067048845568873861">സൃഷ്‌ടിച്ചു</translation>
 <translation id="1070689840697074178">നിങ്ങൾക്ക് ഇവിടെ PDF-കൾ ഡൗൺലോഡ് ചെയ്യാം</translation>
 <translation id="107147699690128016">ഫയൽ എക്സ്റ്റൻഷൻ മാറ്റിയാൽ, ഫയൽ വ്യത്യസ്ത ആപ്പിൽ തുറന്നേക്കാം, ഒപ്പം അത് നിങ്ങളുടെ ഉപകരണത്തിന് ദോഷകരമാവാൻ സാധ്യതയുണ്ട്.</translation>
 <translation id="1073328695547557412">Google Lens ഐക്കൺ ടാപ്പ് ചെയ്യുക</translation>
+<translation id="1075811647922107217">പേജിന്റെ വലുപ്പം</translation>
 <translation id="1080116354587839789">അനുയോജ്യമായ വീതിയിലാക്കുക</translation>
 <translation id="1086486568852410168">Google Lens ഉപയോഗിച്ച് തിരയുക</translation>
 <translation id="1087799850623149508">വിലാസ ബാർ താഴേക്ക് നീക്കാൻ നിങ്ങൾക്ക് സ്‌പർശിച്ച് പിടിക്കാം</translation>
@@ -32,7 +34,6 @@
 <translation id="1108938384783527433">ചരിത്രം സമന്വയിപ്പിക്കൽ</translation>
 <translation id="1111673857033749125">നിങ്ങളുടെ മറ്റ് ഉപകരണങ്ങളിൽ സംരക്ഷിച്ച ബുക്ക്‌മാർക്കുകൾ ഇവിടെ ദൃശ്യമാകും.</translation>
 <translation id="1123537484474186311"><ph name="TAB_TITLE" />, ചിത്രത്തിനുള്ളിൽ ചിത്രം ടാബ്</translation>
-<translation id="1124357650933674597">{NUM_WINDOWS,plural, =1{ഒരു വിൻഡോ പുനഃസ്ഥാപിക്കുക}other{# വിൻഡോകൾ പുനഃസ്ഥാപിക്കുക}}</translation>
 <translation id="1126696498560056882">ഈ ഉപകരണത്തിലെ അക്കൗണ്ടുകൾ മാനേജ് ചെയ്യുക</translation>
 <translation id="1135018701024399762">അദൃശ്യ മോഡ്, നിങ്ങളുടെ ഉപകരണം ഉപയോഗിക്കുന്ന മറ്റുള്ളവരിൽ നിന്ന് നിങ്ങളുടെ ബ്രൗസിംഗിനെ സ്വകാര്യമായി സൂക്ഷിക്കുന്നു</translation>
 <translation id="113752097246673894">ബുക്ക്‌മാർക്കുകളും മറ്റും നിങ്ങളുടെ എല്ലാ ഉപകരണങ്ങളിലും ലഭിക്കാൻ <ph name="EMAIL" /> എന്നയാളായി Chrome-ലേക്ക് സൈൻ ഇൻ ചെയ്യുക</translation>
@@ -183,6 +184,7 @@
 <translation id="1792959175193046959">ഏതുസമയത്തും ഡിഫോൾട്ട് ഡൗൺലോഡ് ലൊക്കേഷൻ മാറ്റുക</translation>
 <translation id="1796666869097395659">പിന്നീട് അതിലേക്ക് തിരികെ വരാൻ ടാബ് ചെറുതാക്കുക</translation>
 <translation id="1799920918471566157">Chrome നുറുങ്ങുകൾ</translation>
+<translation id="1803799720926799756">ഫയൽ വലുപ്പം</translation>
 <translation id="1807246157184219062">ലൈറ്റ്</translation>
 <translation id="1807709131360304325">ഒരു പുതിയ വിൻഡോ തുറക്കുക</translation>
 <translation id="1812027881030482584"><ph name="SITE_ETLD_PLUS_ONE" /> എന്നതിന് <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ഉപയോഗിക്കുന്നത് തുടരാനാകുന്നില്ല</translation>
@@ -325,6 +327,7 @@
 <translation id="2411239243988279592"><ph name="TAB_TITLE" />, തിരഞ്ഞെടുത്ത, ഓഡിയോ പ്ലേ ചെയ്യുന്ന ടാബ്</translation>
 <translation id="2413014528833954543">ഈ ഉപകരണത്തിൽ പാസ്‌വേഡ് പരിശോധിക്കാനാകുന്നില്ല</translation>
 <translation id="2414886740292270097">ഇരുണ്ടത്</translation>
+<translation id="2415037988255164008">വിൻഡോകൾ പുനഃസ്ഥാപിക്കണോ?</translation>
 <translation id="2421705177906985956">ഇപ്പോൾ കാണിക്കാൻ സൈറ്റുകളൊന്നുമില്ല</translation>
 <translation id="2426805022920575512">മറ്റൊരു അക്കൗണ്ട് തിരഞ്ഞെടുക്കൂ</translation>
 <translation id="2427025860753516072">{FILE_COUNT,plural, =1{വീഡിയോകൾ, ലിസ്റ്റിൽ ഒരു വീഡിയോ}other{വീഡിയോകൾ, ലിസ്റ്റിൽ # വീഡിയോകൾ}}</translation>
@@ -518,7 +521,6 @@
 <translation id="3166827708714933426">ടാബ്, വിൻഡോ കുറുക്കുവഴികൾ</translation>
 <translation id="3167258285411721858">നിങ്ങൾക്ക് <ph name="HOST_NAME" /> എന്നതിനുള്ള മൊബൈൽ സൈറ്റ് അഭ്യർത്ഥിക്കാം</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, മൾട്ടിസെലക്റ്റ് ചെയ്ത, പിൻ ചെയ്ത, മ്യൂട്ട് ചെയ്ത അദൃശ്യ ടാബ്</translation>
-<translation id="3183941812169784232">എല്ലാ വിൻഡോകളും പുനഃസ്ഥാപിക്കണോ?</translation>
 <translation id="3187472288455401631">ആഡ് മെഷർമെന്റ്</translation>
 <translation id="3189635831478931757"><ph name="GROUP_TITLE" /> ടാബ് ഗ്രൂപ്പ്</translation>
 <translation id="3200536777393523575">നിങ്ങളുടെ നിലവിലെ വിൻഡോ അടയ്ക്കണോ?</translation>
@@ -567,6 +569,7 @@
 <translation id="3435575784518354875">നിങ്ങളുടെ പാസ്‌വേഡുകളിലേക്കുള്ള ആക്‌സസ് നിലനിർത്താൻ, അവ ഇപ്പോൾ എക്‌സ്‌പോർട്ട് ചെയ്യുക, Google Play സേവനങ്ങൾ അപ്‌ഡേറ്റ് ചെയ്യുക, തുടർന്ന് Google Password Manager-ലേക്ക് തിരികെ ഇമ്പോർട്ട് ചെയ്യുക. <ph name="BEGIN_LINK" />പൂർണ്ണമായ നിർദ്ദേശങ്ങൾ കാണുക<ph name="END_LINK" />.</translation>
 <translation id="3435738964857648380">സുരക്ഷ</translation>
 <translation id="3435914367318771664">പുതിയ ഗ്രൂപ്പിലേക്ക് ടാബ് ചേർക്കുക</translation>
+<translation id="3436118221454753036">AI-യോട് ചോദിക്കൂ മോഡ്</translation>
 <translation id="3438681572027105609">പാസ്‌വേഡുകളും മറ്റും നിങ്ങളുടെ എല്ലാ ഉപകരണങ്ങളിലും ലഭിക്കാൻ Chrome-ലേക്ക് സൈൻ ഇൻ ചെയ്യുക</translation>
 <translation id="3439276997620616816">നിങ്ങളുടെ സമീപകാല ടാബുകൾ ഇവിടെ കാണാം</translation>
 <translation id="3443221991560634068">നിലവിലെ പേജ് റീലോഡ് ചെയ്യുക</translation>
@@ -642,6 +645,7 @@
 <translation id="3739899004075612870"><ph name="PRODUCT_NAME" /> എന്നതിൽ ബുക്ക്‌മാർക്ക് ചെയ്‌തു</translation>
 <translation id="3740290940447881599">ഈ സൈറ്റ് നിങ്ങൾക്ക് വിശ്വാസമുള്ളതാണെന്ന് ഉറപ്പാക്കുക</translation>
 <translation id="3740525748616366977">ഈ ഉപകരണത്തിൽ ശബ്ദ തിരയൽ ലഭ്യമല്ല</translation>
+<translation id="3749289110408117711">ഫയല്‍ നാമം</translation>
 <translation id="3756823472711156529">ഗ്രൂപ്പ് പുനഃസ്ഥാപിക്കുക</translation>
 <translation id="3763110477555836428">നിങ്ങളുടെ യഥാർത്ഥ വിശദാംശങ്ങൾ പരിരക്ഷിക്കുന്നതിന് ഈ കാർഡ് ഉപയോഗിച്ച് ചെക്ക് ഔട്ട് ചെയ്യുമ്പോൾ ഒരു വെർച്വൽ കാർഡ് നമ്പർ പൂരിപ്പിക്കും. Google Wallet-ൽ മാനേജ് ചെയ്യുക. <ph name="BEGIN_LINK1" />വെർച്വൽ കാർഡുകളെ കുറിച്ച് കൂടുതലറിയുക<ph name="END_LINK1" /></translation>
 <translation id="376561056759077985">ചില ഡാറ്റ ഇതുവരെ സംരക്ഷിച്ചിട്ടില്ല</translation>
@@ -673,6 +677,7 @@
 <translation id="3870538285500327859"><ph name="TAB_TITLE" />, തിരഞ്ഞെടുത്ത 'ചിത്രത്തിനുള്ളിൽ ചിത്രം' ടാബ്</translation>
 <translation id="3870908470613821006">എല്ലാവർക്കും ഉടൻ തന്നെ “<ph name="GROUP_NAME" />” ടാബ് ഗ്രൂപ്പിലേക്കുള്ള ആക്‌സസ് നഷ്‌ടമാകും, അത് എല്ലാ ഉപകരണങ്ങളിൽ നിന്നും ഇല്ലാതാക്കുകയും ചെയ്യും</translation>
 <translation id="3873174561423636563">തുടരാൻ, <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> നിങ്ങളുടെ <ph name="FIELDS_STRING" /> ഈ സൈറ്റുമായി പങ്കിടും. ഈ സൈറ്റിന്റെ <ph name="BEGIN_LINK1" />സേവന നിബന്ധനകൾ<ph name="END_LINK1" /> കാണുക.</translation>
+<translation id="3882323608730650973">പരിഷ്‌കരിച്ചു</translation>
 <translation id="3892148308691398805">ടെക്‌സ്‌റ്റ് പകർത്തുക</translation>
 <translation id="3893858854379998374">നിങ്ങളുടെ അക്കൗണ്ടിൽ ബുക്ക്‌മാർക്കുകൾ സംരക്ഷിക്കാൻ, ഉപയോഗിക്കാത്ത ബുക്ക്‌മാർക്കുകൾ ഇല്ലാതാക്കുക</translation>
 <translation id="3898498281932368596">ബ്ലോക്ക് ചെയ്ത് പുറത്ത് കടക്കുക</translation>
@@ -703,6 +708,7 @@
 <translation id="399788104667917863">ടൂൾബാറിൽ പിൻ ചെയ്യുക</translation>
 <translation id="4000212216660919741">ഓഫ്‌ലൈൻ ഹോം</translation>
 <translation id="4000670338830950598">ഹൈലൈറ്റ് ചെയ്ത ഇനം ഉപയോഗിച്ച് Google Chrome ഇഷ്ടാനുസൃതമാക്കുകയും നിയന്ത്രിക്കുകയും ചെയ്യൂ</translation>
+<translation id="4002066346123236978">ശീർഷകം</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{നിങ്ങളുടെ Google Account-ൽ അപഹരിക്കപ്പെട്ട ഒരു പാസ്‌വേഡ്}other{നിങ്ങളുടെ Google Account-ൽ അപഹരിക്കപ്പെട്ട # പാസ്‌വേഡുകൾ}}</translation>
 <translation id="4023638601467301498">ബുക്ക്‌മാർക്കുകളും മറ്റും നിങ്ങളുടെ എല്ലാ ഉപകരണങ്ങളിലും ലഭിക്കാൻ Chrome-ലേക്ക് സൈൻ ഇൻ ചെയ്യുക</translation>
 <translation id="4024768890073681126">നിങ്ങളുടെ ബ്രൗസർ മാനേജ് ചെയ്യുന്നത് നിങ്ങളുടെ രക്ഷിതാവാണ്</translation>
@@ -1333,6 +1339,7 @@
 <translation id="6556501700899673703">Lexend</translation>
 <translation id="6560414384669816528">Sogou ഉപയോഗിച്ച് തിരയുക</translation>
 <translation id="656065428026159829">കൂടുതൽ കാണുക</translation>
+<translation id="6565781844089373403">വിൻഡോകൾ പുനഃസ്ഥാപിക്കുക</translation>
 <translation id="6565959834589222080">ലഭ്യമാകുമ്പോൾ വൈഫൈ ഉപയോഗിക്കും</translation>
 <translation id="657177046675873214">നിങ്ങളുടെ എല്ലാ ഉപകരണങ്ങളിലും ബുക്ക്‌മാർക്കുകൾ ലഭിക്കാൻ, ക്രമീകരണത്തിൽ “ബുക്ക്‌മാർക്കുകൾ” ഓണാക്കുക</translation>
 <translation id="6573096386450695060">എല്ലായ്‌പ്പോഴും അനുവദിക്കുക</translation>
@@ -1411,6 +1418,7 @@
 <translation id="6846298663435243399">ലോഡുചെയ്യുന്നു...</translation>
 <translation id="6850409657436465440">നിങ്ങളുടെ ഡൗൺലോഡ് ഇപ്പോഴും പുരോഗതിയിലാണ്</translation>
 <translation id="6850830437481525139"><ph name="TAB_COUNT" /> ടാബുകൾ അടച്ചു</translation>
+<translation id="6852437757508328589">{NUM_RESULTS,plural, =1{1 ഫലം കണ്ടെത്തി}other{# ഫലങ്ങൾ കണ്ടെത്തി}}</translation>
 <translation id="685340923442249391">{FILE_COUNT,plural, =1{ഓഡിയോ ഫയലുകൾ, ലിസ്റ്റിൽ ഒരു ഓഡിയോ ഫയൽ}other{ഓഡിയോ ഫയലുകൾ, ലിസ്റ്റിൽ # ഓഡിയോ ഫയലുകൾ}}</translation>
 <translation id="685850645784703949">Google-ന്റെ Discover - ഓഫാണ്</translation>
 <translation id="6864459304226931083">ചിത്രം ഡൗൺലോഡ് ചെയ്യുക</translation>
@@ -1987,6 +1995,7 @@
 <translation id="9093915805850895575">Chrome വിൻഡോയിൽ തുറക്കുക</translation>
 <translation id="909756639352028172">വളരെ വ്യക്തിപരമാക്കിയ അനുഭവം നേടാൻ വെബ്, ആപ്പ് ആക്റ്റിവിറ്റിയിലും ലിങ്ക് ചെയ്ത Google സേവനങ്ങളിലും Chrome ഉൾപ്പെടുത്തുക</translation>
 <translation id="9099220545925418560">നിങ്ങളുടെ ബ്രൗസിംഗ് ചരിത്രം അടിസ്ഥാനമാക്കി. ഈ ക്രമീകരണം ഓഫാണ്.</translation>
+<translation id="9099674669267916096">പേജിന്റെ എണ്ണം</translation>
 <translation id="9100610230175265781">പാസ്‌ഫ്രെയ്‌സ് ആവശ്യമാണ്</translation>
 <translation id="9101137867221042551">മാനേജ്മെന്റ്</translation>
 <translation id="9102803872260866941">പ്രിവ്യു ടാബ് തുറന്നു</translation>
@@ -2032,7 +2041,6 @@
 <translation id="939598580284253335">പാസ്ഫ്രെയ്‍സ് നല്‍കുക</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" />, പിൻ ചെയ്ത 'പിക്ച്ചർ-ഇൻ-പിക്ച്ചർ' അദൃശ്യ ടാബ്</translation>
 <translation id="945522503751344254">ഫീഡ്‌ബാക്ക് അയയ്‌ക്കുക</translation>
-<translation id="949667118776341807">റൊട്ടേറ്റ് ചെയ്യുക</translation>
 <translation id="95817756606698420"><ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> ഉപയോഗിച്ച് Chrome-ന് ചൈനയിൽ തിരയാനാവും. നിങ്ങൾക്കിത്‌ <ph name="BEGIN_LINK" />ക്രമീകരണത്തിൽ<ph name="END_LINK" /> മാറ്റാനാവും.</translation>
 <translation id="961856697154696964">ബ്രൗസിംഗ് ഡാറ്റ ഇല്ലാതാക്കൂ</translation>
 <translation id="963246339335003378">ടാസ്‌ക് മാനേജർ തുറക്കുക</translation>

@@ -110,8 +110,8 @@ void RequestSender::SendInternal() {
   VLOG(2) << "url: " << url.spec();
 
   if (use_signing_) {
-    std::string request_query_string;
-    signer_.SignRequest(request_body_, &request_query_string);
+    std::string request_query_string =
+        signer_.PrepareRequestParameters(request_body_);
     url = BuildUpdateUrl(url, request_query_string);
   }
   VLOG_IF(2, !url.is_valid()) << "url is not valid.";

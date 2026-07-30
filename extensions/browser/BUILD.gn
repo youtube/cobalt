@@ -1141,6 +1141,7 @@ source_set("unit_tests") {
     "updater/safe_manifest_parser_unittest.cc",
     "updater/update_data_provider_unittest.cc",
     "updater/update_service_unittest.cc",
+    "user_script_loader_unittest.cc",
     "verified_contents_unittest.cc",
     "warning_service_unittest.cc",
   ]
@@ -1338,9 +1339,6 @@ if (enable_extensions) {
       "//third_party/abseil-cpp:absl",
       "//url",
     ]
-
-    # The fuzzed code needs more RAM that the default limit.
-    libfuzzer_options = [ "rss_limit_mb=4096" ]
   }
 }
 

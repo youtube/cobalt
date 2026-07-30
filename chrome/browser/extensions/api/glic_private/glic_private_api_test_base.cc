@@ -4,6 +4,7 @@
 
 #include "chrome/browser/extensions/api/glic_private/glic_private_api_test_base.h"
 
+#include "base/base64.h"
 #include "base/json/json_writer.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
@@ -120,6 +121,67 @@ GlicPrivateApiTestBase::CreateMockPromptResponseInterceptor(
         return false;
       },
       prompt_data));
+}
+
+// static
+std::unique_ptr<content::URLLoaderInterceptor>
+GlicPrivateApiTestBase::CreateMockPromptResponseWithMetadataInterceptor(
+    const std::string& prompt_data,
+    const std::optional<std::string>& b64_metadata) {
+  return std::make_unique<content::URLLoaderInterceptor>(base::BindRepeating(
+      [](const std::string& prompt,
+         const std::optional<std::string>& b64_metadata_opt,
+         content::URLLoaderInterceptor::RequestParams* params) {
+        if (params->url_request.url.spec().find(
+                extensions_features::kProdPromptEndpointUrlParam.Get()) !=
+            std::string::npos) {
+          std::string request_body;
+          if (params->url_request.request_body) {
+            for (const auto& element :
+                 *params->url_request.request_body->elements()) {
+              if (element.type() == network::DataElement::Tag::kBytes) {
+                const auto& bytes = element.As<network::DataElementBytes>();
+                request_body.append(
+                    reinterpret_cast<const char*>(bytes.bytes().data()),
+                    bytes.bytes().size());
+              }
+            }
+          }
+
+          if (request_body.find("http_error") != std::string::npos) {
+            content::URLLoaderInterceptor::WriteResponse(
+                "HTTP/1.1 500 Internal Server Error\nContent-type: "
+                "text/plain\n\n",
+                "Internal Error", params->client.get());
+            return true;
+          }
+
+          if (request_body.find("parse_error") != std::string::npos) {
+            content::URLLoaderInterceptor::WriteResponse(
+                "HTTP/1.1 200 OK\nContent-type: application/json\n\n",
+                "malformed response", params->client.get());
+            return true;
+          }
+
+          base::Value response_dict(base::Value::Type::DICT);
+          if (request_body.find("missing_prompt") == std::string::npos) {
+            response_dict.GetDict().Set("prompt", prompt);
+          }
+
+          std::string b64_metadata_val = b64_metadata_opt.value_or(
+              base::Base64Encode("fake_metadata_string"));
+          response_dict.GetDict().Set("metadata", b64_metadata_val);
+
+          std::string response_str;
+          base::JSONWriter::Write(response_dict, &response_str);
+          content::URLLoaderInterceptor::WriteResponse(
+              "HTTP/1.1 200 OK\nContent-type: application/json\n\n",
+              response_str, params->client.get());
+          return true;
+        }
+        return false;
+      },
+      prompt_data, b64_metadata));
 }
 
 }  // namespace extensions

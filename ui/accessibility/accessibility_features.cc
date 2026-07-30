@@ -285,7 +285,7 @@ bool IsAccessibilityFlashScreenFeatureEnabled() {
 }
 
 BASE_FEATURE(kAccessibilityInvertedMouseCursor,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 bool IsAccessibilityInvertedMouseCursorEnabled() {
   return base::FeatureList::IsEnabled(
       ::features::kAccessibilityInvertedMouseCursor);
@@ -466,6 +466,13 @@ bool IsReadAnythingReadabilitySelectTextEnabled() {
   return base::FeatureList::IsEnabled(
              ::features::kReadAnythingReadabilitySelectText) &&
          base::FeatureList::IsEnabled(::features::kReadAnythingWithReadability);
+}
+
+BASE_FEATURE(kReadAnythingDistillationQualityEvaluation,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsReadAnythingDistillationQualityEvaluationEnabled() {
+  return base::FeatureList::IsEnabled(
+      ::features::kReadAnythingDistillationQualityEvaluation);
 }
 
 // This feature is only used in tests and must not be enabled by default.

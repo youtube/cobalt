@@ -395,6 +395,12 @@ EntityInstance GetOrderEntityInstance(OrderOptions options) {
   return GetEntityInstance(std::move(attributes), ToEntityOptions(options));
 }
 
+EntityInstance GetOrderEntityInstanceWithRandomGuid(OrderOptions options) {
+  base::Uuid guid = base::Uuid::GenerateRandomV4();
+  options.guid = guid.AsLowercaseString();
+  return GetOrderEntityInstance(options);
+}
+
 EntityInstance GetShipmentEntityInstance(ShipmentOptions options) {
   using enum AttributeTypeName;
   std::vector<AttributeInstance> attributes;
@@ -424,15 +430,21 @@ EntityInstance GetShipmentEntityInstance(ShipmentOptions options) {
         UNKNOWN_TYPE, options.carrier_domain, std::string(options.app_locale),
         /*format_string=*/std::nullopt, VerificationStatus::kNoStatus);
   }
-  if (options.estimated_delivery_date) {
-    attributes.emplace_back(AttributeType(kShipmentEstimatedDeliveryDate));
+  if (options.shipped_date) {
+    attributes.emplace_back(AttributeType(kShipmentShippedDate));
     attributes.back().SetInfo(
-        UNKNOWN_TYPE, options.estimated_delivery_date,
-        std::string(options.app_locale),
+        UNKNOWN_TYPE, options.shipped_date, std::string(options.app_locale),
         AutofillFormatString(u"YYYY-MM-DD", FormatString_Type_DATE),
         VerificationStatus::kNoStatus);
   }
   return GetEntityInstance(std::move(attributes), ToEntityOptions(options));
+}
+
+EntityInstance GetShipmentEntityInstanceWithRandomGuid(
+    ShipmentOptions options) {
+  base::Uuid guid = base::Uuid::GenerateRandomV4();
+  options.guid = guid.AsLowercaseString();
+  return GetShipmentEntityInstance(options);
 }
 
 EntityInstance GetEntityInstance(std::vector<AttributeInstance> attributes,

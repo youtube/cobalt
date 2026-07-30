@@ -129,12 +129,6 @@ void HeadlessBrowserImpl::SetOptions(HeadlessBrowser::Options options) {
   options_ = std::move(options);
 }
 
-HeadlessBrowserContext::Builder
-HeadlessBrowserImpl::CreateBrowserContextBuilder() {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  return HeadlessBrowserContext::Builder(this);
-}
-
 scoped_refptr<base::SingleThreadTaskRunner>
 HeadlessBrowserImpl::BrowserMainThread() const {
   return content::GetUIThreadTaskRunner({});
@@ -177,10 +171,11 @@ HeadlessBrowserImpl::GetAllBrowserContexts() {
 }
 
 HeadlessBrowserContext* HeadlessBrowserImpl::CreateBrowserContext(
-    HeadlessBrowserContext::Builder* builder) {
+    HeadlessBrowserContext::CreateParams params) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  auto browser_context = HeadlessBrowserContextImpl::Create(builder);
+  auto browser_context =
+      HeadlessBrowserContextImpl::Create(this, std::move(params));
   HeadlessBrowserContext* result = browser_context.get();
   browser_contexts_[browser_context->Id()] = std::move(browser_context);
 

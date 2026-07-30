@@ -315,7 +315,7 @@ class MockSecurityKeyAuthHandler : public SecurityKeyAuthHandler {
       const SecurityKeyAuthHandler::SendMessageCallback& callback) override;
   const SecurityKeyAuthHandler::SendMessageCallback& GetSendMessageCallback();
 
-  base::WeakPtr<MockSecurityKeyAuthHandler> GetWeakPtr();
+  base::WeakPtr<SecurityKeyAuthHandler> GetWeakPtr() override;
 
  private:
   SecurityKeyAuthHandler::SendMessageCallback callback_;

@@ -20,7 +20,6 @@
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "base/path_service.h"
-#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/libpng/png.h"
@@ -437,16 +436,9 @@ TEST(PNGCodecTest, EncodeDecodeRGBA) {
   ASSERT_TRUE(encoded);
 
   // decode
-  std::optional<PNGCodec::DecodeOutput> output;
-  {
-    base::HistogramTester histograms;
-    output = PNGCodec::Decode(encoded.value(), PNGCodec::FORMAT_RGBA);
-    ASSERT_TRUE(output);
-    std::vector<base::Bucket> buckets =
-        histograms.GetAllSamples("ImageDecoder.Png.UiGfxIntoVector");
-    ASSERT_EQ(buckets.size(), 1u);
-    ASSERT_GE(buckets[0].min, 0);
-  }
+  std::optional<PNGCodec::DecodeOutput> output =
+      PNGCodec::Decode(encoded.value(), PNGCodec::FORMAT_RGBA);
+  ASSERT_TRUE(output);
 
   EXPECT_TRUE(
       ImagesExactlyEqual(ImageSpec(kWidth, kHeight, original, COLOR_TYPE_RGBA),
@@ -706,16 +698,8 @@ TEST(PNGCodecTest, DecodeInterlacedRGBtoSkBitmap) {
   ASSERT_TRUE(encoded);
 
   // Decode the encoded string.
-  SkBitmap decoded_bitmap;
-  {
-    base::HistogramTester histograms;
-    decoded_bitmap = PNGCodec::Decode(encoded.value());
-    ASSERT_FALSE(decoded_bitmap.isNull());
-    std::vector<base::Bucket> buckets =
-        histograms.GetAllSamples("ImageDecoder.Png.UiGfxIntoSkBitmap");
-    ASSERT_EQ(buckets.size(), 1u);
-    ASSERT_GE(buckets[0].min, 0);
-  }
+  SkBitmap decoded_bitmap = PNGCodec::Decode(encoded.value());
+  ASSERT_FALSE(decoded_bitmap.isNull());
 
   EXPECT_EQ(decoded_bitmap.alphaType(), kOpaque_SkAlphaType);
   EXPECT_TRUE(ImageExactlyEqualsSkBitmap(

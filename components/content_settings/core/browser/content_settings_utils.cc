@@ -212,7 +212,7 @@ bool IsPermissionEligibleForAutoRevocation(ContentSettingsType type) {
 }
 
 bool CanBeAutoRevokedAsUnusedPermission(ContentSettingsType type,
-                                        const base::Value& value,
+                                        const PermissionSetting& setting,
                                         bool is_one_time) {
   DCHECK(WebsiteSettingsRegistry::GetInstance()->Get(type)) << type;
 
@@ -237,15 +237,8 @@ bool CanBeAutoRevokedAsUnusedPermission(ContentSettingsType type,
   auto* permission_settings_info =
       PermissionSettingsRegistry::GetInstance()->Get(type);
   if (permission_settings_info) {
-    auto setting = permission_settings_info->delegate().FromValue(value);
-    // If the setting is already DEFAULT or the value is corrupt, no need to
-    // revoke the permission.
-    if (!setting.has_value()) {
-      return false;
-    }
-
     return permission_settings_info->delegate().IsAnyPermissionAllowed(
-               setting.value()) &&
+               setting) &&
            CanTrackLastVisit(type);
   } else {
     return false;

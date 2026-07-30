@@ -49,6 +49,7 @@ class UnboundedSurfaceWindowMac : public UnboundedSurfaceWindow,
   ~UnboundedSurfaceWindowMac() override;
 
   // UnboundedSurfaceWindow overrides:
+  base::WeakPtr<UnboundedSurfaceWindow> GetWeakPtr() override;
   bool is_valid() const override;
   gfx::NativeWindow GetNativeWindow() const override;
   void SetBounds(const gfx::Rect& bounds_in_screen) override;
@@ -114,6 +115,7 @@ class UnboundedSurfaceWindowMac : public UnboundedSurfaceWindow,
   std::unique_ptr<ui::RecyclableCompositorMac> recyclable_compositor_;
   std::unique_ptr<ui::Layer> root_layer_;
   std::unique_ptr<ui::DisplayCALayerTree> display_ca_layer_tree_;
+  base::WeakPtrFactory<UnboundedSurfaceWindow> weak_ptr_factory_{this};
 };
 
 }  // namespace content

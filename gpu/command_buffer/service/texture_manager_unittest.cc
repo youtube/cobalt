@@ -71,8 +71,8 @@ class TextureManagerTestBase : public GpuServiceTest {
     DCHECK(context_type == CONTEXT_TYPE_OPENGLES2 ||
            context_type == CONTEXT_TYPE_OPENGLES3);
     GpuDriverBugWorkarounds gpu_driver_bug_workaround;
-    feature_info_ =
-        new FeatureInfo(gpu_driver_bug_workaround, GpuFeatureInfo());
+    feature_info_ = base::MakeRefCounted<FeatureInfo>(gpu_driver_bug_workaround,
+                                                      GpuFeatureInfo());
   }
 
   ~TextureManagerTestBase() override = default;
@@ -477,7 +477,7 @@ TEST_F(TextureManagerTest, ValidForTarget) {
 TEST_F(TextureManagerTest, ValidForTargetNPOT) {
   TestHelper::SetupFeatureInfoInitExpectations(
       gl_.get(), "GL_OES_texture_npot");
-  scoped_refptr<FeatureInfo> feature_info(new FeatureInfo());
+  auto feature_info = base::MakeRefCounted<FeatureInfo>();
   feature_info->InitializeForTesting();
   TextureManager manager(nullptr, feature_info.get(), kMaxTextureSize,
                          kMaxCubeMapTextureSize, kMaxRectangleTextureSize,
@@ -508,7 +508,7 @@ class TextureTestBase : public GpuServiceTest {
   static const GLuint kService1Id = 11;
   static const bool kUseDefaultTextures = false;
 
-  TextureTestBase() : feature_info_(new FeatureInfo()) {}
+  TextureTestBase() : feature_info_(base::MakeRefCounted<FeatureInfo>()) {}
   ~TextureTestBase() override { texture_ref_ = nullptr; }
 
  protected:
@@ -659,7 +659,7 @@ TEST_F(TextureTest, ZeroSizeCanNotRenderExternalOES) {
 
 TEST_F(TextureTest, CanRenderTo) {
   TestHelper::SetupFeatureInfoInitExpectations(gl_.get(), "");
-  scoped_refptr<FeatureInfo> feature_info(new FeatureInfo());
+  auto feature_info = base::MakeRefCounted<FeatureInfo>();
   feature_info->InitializeForTesting();
   manager_->SetTarget(texture_ref_.get(), GL_TEXTURE_2D);
   manager_->SetLevelInfo(texture_ref_.get(), GL_TEXTURE_2D, 0, GL_RGB, 1, 1, 1,
@@ -672,7 +672,7 @@ TEST_F(TextureTest, CanRenderTo) {
 
 TEST_F(TextureTest, CanNotRenderTo) {
   TestHelper::SetupFeatureInfoInitExpectations(gl_.get(), "");
-  scoped_refptr<FeatureInfo> feature_info(new FeatureInfo());
+  auto feature_info = base::MakeRefCounted<FeatureInfo>();
   feature_info->InitializeForTesting();
   manager_->SetTarget(texture_ref_.get(), GL_TEXTURE_2D);
   manager_->SetLevelInfo(texture_ref_.get(), GL_TEXTURE_2D, 0, GL_LUMINANCE, 1,
@@ -898,7 +898,7 @@ TEST_F(TextureTest, NPOT2D) {
 TEST_F(TextureTest, NPOT2DNPOTOK) {
   TestHelper::SetupFeatureInfoInitExpectations(
       gl_.get(), "GL_OES_texture_npot");
-  scoped_refptr<FeatureInfo> feature_info(new FeatureInfo());
+  auto feature_info = base::MakeRefCounted<FeatureInfo>();
   feature_info->InitializeForTesting();
   TextureManager manager(nullptr, feature_info.get(), kMaxTextureSize,
                          kMaxCubeMapTextureSize, kMaxRectangleTextureSize,
@@ -1197,7 +1197,7 @@ TEST_F(TextureTest, ValidForTexture) {
 TEST_F(TextureTest, FloatNotLinear) {
   TestHelper::SetupFeatureInfoInitExpectations(
       gl_.get(), "GL_OES_texture_float");
-  scoped_refptr<FeatureInfo> feature_info(new FeatureInfo());
+  auto feature_info = base::MakeRefCounted<FeatureInfo>();
   feature_info->InitializeForTesting();
   TextureManager manager(nullptr, feature_info.get(), kMaxTextureSize,
                          kMaxCubeMapTextureSize, kMaxRectangleTextureSize,
@@ -1227,7 +1227,7 @@ TEST_F(TextureTest, FloatNotLinear) {
 TEST_F(TextureTest, FloatLinear) {
   TestHelper::SetupFeatureInfoInitExpectations(
       gl_.get(), "GL_OES_texture_float GL_OES_texture_float_linear");
-  scoped_refptr<FeatureInfo> feature_info(new FeatureInfo());
+  auto feature_info = base::MakeRefCounted<FeatureInfo>();
   feature_info->InitializeForTesting();
   TextureManager manager(nullptr, feature_info.get(), kMaxTextureSize,
                          kMaxCubeMapTextureSize, kMaxRectangleTextureSize,
@@ -1249,7 +1249,7 @@ TEST_F(TextureTest, FloatLinear) {
 TEST_F(TextureTest, HalfFloatNotLinear) {
   TestHelper::SetupFeatureInfoInitExpectations(
       gl_.get(), "GL_OES_texture_half_float");
-  scoped_refptr<FeatureInfo> feature_info(new FeatureInfo());
+  auto feature_info = base::MakeRefCounted<FeatureInfo>();
   feature_info->InitializeForTesting();
   TextureManager manager(nullptr, feature_info.get(), kMaxTextureSize,
                          kMaxCubeMapTextureSize, kMaxRectangleTextureSize,
@@ -1279,7 +1279,7 @@ TEST_F(TextureTest, HalfFloatNotLinear) {
 TEST_F(TextureTest, HalfFloatLinear) {
   TestHelper::SetupFeatureInfoInitExpectations(
       gl_.get(), "GL_OES_texture_half_float GL_OES_texture_half_float_linear");
-  scoped_refptr<FeatureInfo> feature_info(new FeatureInfo());
+  auto feature_info = base::MakeRefCounted<FeatureInfo>();
   feature_info->InitializeForTesting();
   TextureManager manager(nullptr, feature_info.get(), kMaxTextureSize,
                          kMaxCubeMapTextureSize, kMaxRectangleTextureSize,
@@ -1301,7 +1301,7 @@ TEST_F(TextureTest, HalfFloatLinear) {
 TEST_F(TextureTest, EGLImageExternal) {
   TestHelper::SetupFeatureInfoInitExpectations(
       gl_.get(), "GL_OES_EGL_image_external");
-  scoped_refptr<FeatureInfo> feature_info(new FeatureInfo());
+  auto feature_info = base::MakeRefCounted<FeatureInfo>();
   feature_info->InitializeForTesting();
   TextureManager manager(nullptr, feature_info.get(), kMaxTextureSize,
                          kMaxCubeMapTextureSize, kMaxRectangleTextureSize,
@@ -1321,7 +1321,7 @@ TEST_F(TextureTest, EGLImageExternal) {
 TEST_F(TextureTest, DepthTexture) {
   TestHelper::SetupFeatureInfoInitExpectations(
       gl_.get(), "GL_ANGLE_depth_texture");
-  scoped_refptr<FeatureInfo> feature_info(new FeatureInfo());
+  auto feature_info = base::MakeRefCounted<FeatureInfo>();
   feature_info->InitializeForTesting();
   TextureManager manager(nullptr, feature_info.get(), kMaxTextureSize,
                          kMaxCubeMapTextureSize, kMaxRectangleTextureSize,
@@ -1971,7 +1971,7 @@ class SharedTextureTest : public GpuServiceTest {
   static const bool kUseDefaultTextures = false;
 
   SharedTextureTest()
-      : feature_info_(new FeatureInfo()),
+      : feature_info_(base::MakeRefCounted<FeatureInfo>()),
         memory_tracker1_(base::MakeRefCounted<MemoryTracker>()),
         memory_tracker2_(base::MakeRefCounted<MemoryTracker>()) {}
 

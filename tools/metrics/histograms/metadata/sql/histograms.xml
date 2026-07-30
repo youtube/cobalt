@@ -50,6 +50,8 @@ chromium-metrics-reviews@google.com.
   <variant name="DataSharingMigrationStateStorage"
       summary="DataSharingMigrationStateStorage"/>
   <variant name="DBSCSessions" summary="DBSCSessions"/>
+  <variant name="DeclarativePerformanceObserver"
+      summary="DeclarativePerformanceObserver"/>
   <variant name="DIPS" summary="DIPS"/>
   <variant name="DownloadRecord" summary="DownloadRecord"/>
   <variant name="FileIndexService" summary="FileIndexService"/>

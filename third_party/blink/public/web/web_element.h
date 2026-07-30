@@ -111,6 +111,29 @@ class BLINK_EXPORT WebElement : public WebNode {
   // Simulates a click on `this` element.
   void Click();
 
+  // Returns true when actor-style interaction should treat this element as
+  // unavailable because it is disabled, inert, hidden from accessibility, or
+  // outside an active ARIA modal.
+  //
+  // This covers native disabled form controls, computed inertness, inclusive
+  // ancestor aria-disabled=true or aria-hidden=true, exact
+  // role=none/presentation on this element, and ARIA modal containment.
+  bool IsEffectivelyDisabledOrInert();
+
+  // Simulates the accessibility-style click activation sequence on this
+  // element. This uses the same event-dispatch semantics as Blink accessibility
+  // activation, but it does not require accessibility to be enabled.
+  //
+  // This updates style/layout for this element, then dispatches the simulated
+  // pointerdown/mousedown/pointerup/mouseup/click sequence. It does not create
+  // an accessibility action, grant a user gesture, or explicitly move focus;
+  // activeElement keeps its usual meaning.
+  //
+  // Returns false if the element cannot safely be activated, for example
+  // because it is disconnected, its frame went away, or disabled/inert author
+  // state blocks activation.
+  bool SimulateAccessibilityClick();
+
   // Simulates a paste of `text` event into `this` element.
   //
   // There are three different behaviors depending on `replace_all` and which

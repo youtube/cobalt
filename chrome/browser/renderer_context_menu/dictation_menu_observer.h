@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_RENDERER_CONTEXT_MENU_DICTATION_MENU_OBSERVER_H_
 #define CHROME_BROWSER_RENDERER_CONTEXT_MENU_DICTATION_MENU_OBSERVER_H_
 
+#include <string>
+
 #include "base/memory/raw_ptr.h"
 #include "components/renderer_context_menu/render_view_context_menu_observer.h"
 
@@ -34,6 +36,7 @@ class DictationMenuObserver : public RenderViewContextMenuObserver {
   // menu cannot outlive the owning window.
   raw_ptr<BrowserWindowInterface> window_;
   raw_ptr<RenderViewContextMenuProxy> proxy_;
+  std::u16string selection_text_;
 };
 
 }  // namespace dictation

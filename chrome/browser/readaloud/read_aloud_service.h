@@ -6,11 +6,16 @@
 #define CHROME_BROWSER_READALOUD_READ_ALOUD_SERVICE_H_
 
 #include <memory>
+#include <string>
+#include <string_view>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/time/time.h"
 #include "components/dom_distiller/core/task_tracker.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "url/gurl.h"
 
 namespace content {
 class WebContents;
@@ -24,12 +29,147 @@ namespace readaloud {
 class ReadAloudService : public KeyedService,
                          public dom_distiller::ViewRequestDelegate {
  public:
+  // TODO(b/522830940): Share this enum with Java using java_cpp_enum.
+  enum class PlaybackState {
+    // Unknown state.
+    kUnknown = 0,
+    // An error occurred during playback.
+    kError = 1,
+    // 2 is skipped to maintain alignment with the legacy Read Aloud on Android.
+    // Buffering (audio is loading and not playing).
+    kBuffering = 3,
+    // Playback is paused.
+    kPaused = 4,
+    // Audio is actively playing.
+    kPlaying = 5,
+    // Playback is stopped (represents the end of playback).
+    kStopped = 6,
+    // Playback session is currently being created.
+    kPlaybackCreation = 7,
+  };
+
+  enum class PlaybackMode {
+    // Unspecified playback mode.
+    kUnspecified = 0,
+    // Classic mode: reads the full text of the distilled article.
+    kClassic = 1,
+    // Overview mode: reads a summarized version of the distilled article.
+    kOverview = 2,
+  };
+
+  enum class FeedbackType {
+    // No feedback provided.
+    kNone = 0,
+    // Positive feedback (e.g. thumbs up).
+    kPositive = 1,
+    // Negative feedback (e.g. thumbs down).
+    kNegative = 2,
+  };
+
+  struct Voice {
+    std::string id;
+    std::string display_name;
+  };
+
+  // Interface for dispatching events from the native service to the UI.
+  // State changes are sent to the UI via this delegate.
+  class Delegate {
+   public:
+    virtual ~Delegate() = default;
+
+    // Called when the article's title and publisher are available.
+    virtual void OnMetadataAvailable(std::string_view title,
+                                     std::string_view publisher) = 0;
+
+    // Called periodically during playback to update progress bar and time displays.
+    virtual void OnPlaybackProgressUpdated(base::TimeDelta elapsed,
+                                           base::TimeDelta duration) = 0;
+
+    // Called when playback state changes (e.g. playing, paused, buffering).
+    virtual void OnPlaybackStateChanged(PlaybackState playback_state) = 0;
+
+    // Called when the available voices list and currently selected voice are updated.
+    virtual void OnVoicesAvailable(const std::vector<Voice>& voices,
+                                   std::string_view selected_voice_id) = 0;
+
+    // Called when a new word is reached, providing offsets for UI highlighting.
+    virtual void OnWordHighlightUpdated(int absolute_start_index,
+                                        int absolute_end_index) = 0;
+
+    // Called to notify if word highlighting is supported for the current content.
+    virtual void OnHighlightingSupported(bool supported) = 0;
+
+    // Called when playback switches to the on-device system TTS engine.
+    virtual void OnFallbackEngaged() = 0;
+
+    // Called when an unrecoverable playback error occurs.
+    virtual void OnPlaybackError(std::string_view error_message) = 0;
+
+    // Called when the playback state of a voice preview changes in settings.
+    virtual void OnVoicePreviewPlaybackStateChanged(
+        std::string_view voice_id,
+        PlaybackState playback_state) = 0;
+
+    // Called with the result of a page readability assessment.
+    virtual void OnReadabilityResult(const GURL& url, bool is_readable) = 0;
+
+    // Called immediately before the native service is destroyed.
+    virtual void OnNativeDestroyed() = 0;
+  };
+
   explicit ReadAloudService(Profile* profile);
 
   ReadAloudService(const ReadAloudService&) = delete;
   ReadAloudService& operator=(const ReadAloudService&) = delete;
 
   ~ReadAloudService() override;
+
+  void SetDelegate(std::unique_ptr<Delegate> delegate);
+  Delegate* delegate() const { return delegate_.get(); }
+
+  // Playback control commands called by the UI (via the JNI bridge).
+  // Starts or resumes audio playback.
+  void Play();
+
+  // Pauses the current audio playback.
+  void Pause();
+
+  // Stops audio playback and releases playback resources.
+  void Stop();
+
+  // Seeks to the start of the word at the specified index in the text (e.g., tap-to-seek).
+  void SeekToWordIndex(int word_index);
+
+  // Seeks to a specific absolute time offset from the beginning of the audio.
+  void Seek(base::TimeDelta absolute_time);
+
+  // Seeks forward or backward relatively (e.g., for the +10s / -10s skip buttons).
+  void SeekRelative(base::TimeDelta offset);
+
+  // Adjusts the audio playback speed (rate multiplier).
+  void SetPlaybackRate(float rate);
+
+  // Sets the voice to be used for text-to-speech synthesis.
+  void SetVoice(std::string_view voice_id);
+
+  // Plays a short audio sample of the specified voice.
+  void PreviewVoice(std::string_view voice_id);
+
+  // Stops the active voice preview playback.
+  void StopVoicePreview();
+
+  // Sets the playback mode (e.g., classic full read or summary overview).
+  void SetPlaybackMode(PlaybackMode mode);
+
+  // Enables or disables synchronized word highlighting in the UI.
+  void SetHighlightingEnabled(bool enabled);
+
+  // Submits user feedback (e.g., thumbs up/down) for logging.
+  void SendFeedback(FeedbackType feedback_type);
+
+  // Initiates an asynchronous check to determine if the URL is readable.
+  void CheckReadability(const GURL& url);
+
 
   // KeyedService:
   void Shutdown() override;
@@ -50,6 +190,8 @@ class ReadAloudService : public KeyedService,
  private:
   raw_ptr<Profile> profile_;
   std::unique_ptr<dom_distiller::ViewerHandle> viewer_handle_;
+  std::unique_ptr<Delegate> delegate_;
+  base::TimeTicks distillation_start_time_;
 
   base::WeakPtrFactory<ReadAloudService> weak_factory_{this};
 };

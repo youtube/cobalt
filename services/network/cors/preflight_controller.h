@@ -47,12 +47,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) PreflightController final {
   // `net_error` is the overall result of the operation.
   //
   // `cors_error_status` contains additional details about CORS-specific errors.
-  // Invariant: `cors_error_status` is nullopt if `net_error` is neither
-  // `net::ERR_FAILED` nor `net::OK`.
-  // If `net_error` is `net::OK`, then `cors_error_status` may be non-nullopt to
-  // indicate a warning-only error arose due to Private Network Access.
-  // TODO(crbug.com/40204695): Once PNA preflights are always enforced,
-  // stop populating `cors_error_status` when `net_error` is `net::OK`.
+  // Invariant: `cors_error_status` is nullopt if `net_error` is `net::OK`
   //
   // `has_autorization_covered_by_wildcard` is true iff the request carries an
   // "authorization" header and that header is covered by the wildcard in the
@@ -110,7 +105,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) PreflightController final {
       const net::NetworkTrafficAnnotationTag& traffic_annotation,
       mojom::URLLoaderFactory* loader_factory,
       const net::IsolationInfo& isolation_info,
-      mojom::ClientSecurityStatePtr client_security_state,
       base::WeakPtr<mojo::Remote<mojom::DevToolsObserver>> devtools_observer,
       const net::NetLogWithSource& net_log,
       bool acam_preflight_spec_conformant,

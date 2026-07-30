@@ -103,10 +103,12 @@ void ModelContextUserData::BindModelContext(
 }
 
 void ModelContextUserData::RegisterScriptTool(
-    blink::mojom::ScriptToolPtr tool) {
+    blink::mojom::ScriptToolPtr tool,
+    RegisterScriptToolCallback callback) {
   if (!IsWebMCPEnabled(render_frame_host())) {
     bad_message::ReceivedBadMessage(render_frame_host().GetProcess(),
                                     bad_message::RFHI_WEBMCP_NOT_ENABLED);
+    std::move(callback).Run();
     return;
   }
 
@@ -120,6 +122,7 @@ void ModelContextUserData::RegisterScriptTool(
     bad_message::ReceivedBadMessage(
         render_frame_host().GetProcess(),
         bad_message::RFHI_WEBMCP_REGISTER_DUPLICATE_TOOL_NAME);
+    std::move(callback).Run();
     return;
   }
 
@@ -128,6 +131,7 @@ void ModelContextUserData::RegisterScriptTool(
       bad_message::ReceivedBadMessage(
           render_frame_host().GetProcess(),
           bad_message::RFHI_WEBMCP_EXPOSED_UNTRUSTWORTHY_ORIGIN);
+      std::move(callback).Run();
       return;
     }
   }
@@ -142,12 +146,14 @@ void ModelContextUserData::RegisterScriptTool(
     bad_message::ReceivedBadMessage(
         render_frame_host().GetProcess(),
         bad_message::RFHI_WEBMCP_INVALID_TOOL_OWNER);
+    std::move(callback).Run();
     return;
   }
 
   std::vector<url::Origin> exposed_origins = tool->exposed_origins;
   script_tools_.push_back(std::move(tool));
   NotifyToolChange(exposed_origins);
+  std::move(callback).Run();
 }
 
 void ModelContextUserData::UnregisterScriptTool(const std::string& name) {

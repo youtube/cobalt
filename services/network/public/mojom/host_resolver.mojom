@@ -252,6 +252,10 @@ struct ResolveHostParameters {
   // hosts.
   bool loopback_only = false;
 
+  // Set |true| iff the host resolve request should be skipped if a proxy is
+  // configured for the requested host, instead returning ERR_DNS_DIRECT_ONLY.
+  bool direct_only = false;
+
   // Set |true| iff the host resolve request is only being made speculatively
   // to fill the cache and the result addresses will not be used. The request
   // will receive special logging/observer treatment, and

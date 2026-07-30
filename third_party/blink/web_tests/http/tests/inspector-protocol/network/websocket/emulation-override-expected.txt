@@ -1,0 +1,5 @@
+Tests that Emulation.setUserAgentOverride overrides User-Agent and Accept-Language headers in WebSocket handshake requests.
+User-Agent: Test UA 1
+User-Agent: Test UA 2
+Accept-Language: ko, en-US;q=0.9
+

@@ -646,7 +646,7 @@ bool GpuInit::InitializeAndStartSandbox(base::CommandLine* command_line,
 #if BUILDFLAG(IS_WIN)
   {
     if (gpu_preferences_.gr_context_type == GrContextType::kGraphiteDawn &&
-        features::kSkiaGraphiteDawnBackendValidation.Get()) {
+        features::SkiaGraphiteDawnBackendValidation()) {
       // Enable ANGLE debug layer for Graphite backend validation, sharing the
       // D3D11 device between ANGLE and Dawn. Requires GL reinit.
       gl::init::ShutdownGL(gl_display, true);

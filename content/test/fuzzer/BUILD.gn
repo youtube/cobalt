@@ -47,9 +47,6 @@ fuzzer_test("color_parser_fuzzer") {
   sources = [ "color_parser_fuzzer.cc" ]
   deps = [ ":fuzzer_support" ]
   seed_corpus = "//content/test/data/fuzzer_corpus/color_parser_data/"
-
-  # Increase the memory limit, since the fuzzer exceeds it in Debug builds.
-  libfuzzer_options = [ "rss_limit_mb=4096" ]
 }
 
 fuzzer_test("origin_trial_token_fuzzer") {
@@ -76,8 +73,6 @@ fuzzer_test("renderer_proto_tree_fuzzer") {
   # TODO(crbug.com/505034799): Migrate to FUZZ_TEST.
   is_fuzztest_compatible = false
 
-  # Increase the memory limit, since the fuzzer exceeds it in Debug builds.
-  libfuzzer_options = [ "rss_limit_mb=4096" ]
   if (is_android) {
     deps += [
       # Provides org.chromium.ui.base.ResourceBundle.
@@ -266,10 +261,14 @@ content_mojolpm_fuzzer_test("dom_storage_mojolpm_fuzzer") {
   proto_deps = [ "//third_party/blink/public/mojom:mojom_platform_mojolpm" ]
 
   seed_corpus_sources = [
+    "//content/test/data/fuzzer_corpus/dom_storage_mojolpm_fuzzer/delete_storage_key.textproto",
     "//content/test/data/fuzzer_corpus/dom_storage_mojolpm_fuzzer/local_storage_operations.textproto",
     "//content/test/data/fuzzer_corpus/dom_storage_mojolpm_fuzzer/multi_area_operations.textproto",
     "//content/test/data/fuzzer_corpus/dom_storage_mojolpm_fuzzer/multiple_puts_and_get_all.textproto",
     "//content/test/data/fuzzer_corpus/dom_storage_mojolpm_fuzzer/opaque_origin_operations.textproto",
+    "//content/test/data/fuzzer_corpus/dom_storage_mojolpm_fuzzer/purge_memory.textproto",
+    "//content/test/data/fuzzer_corpus/dom_storage_mojolpm_fuzzer/session_storage_clone.textproto",
+    "//content/test/data/fuzzer_corpus/dom_storage_mojolpm_fuzzer/session_storage_clone_internal.textproto",
     "//content/test/data/fuzzer_corpus/dom_storage_mojolpm_fuzzer/session_storage_operations.textproto",
     "//content/test/data/fuzzer_corpus/dom_storage_mojolpm_fuzzer/storage_area_flush.textproto",
   ]

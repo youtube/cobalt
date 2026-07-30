@@ -3213,9 +3213,13 @@ void AIPageContentAgent::ContentBuilder::AddNodeInteractionInfo(
     const LayoutObject& object,
     mojom::blink::AIPageContentAttributes& attributes,
     bool is_aria_disabled) {
-  // The node is not hit-testable which also means no interaction is supported.
   const ComputedStyle& style = *object.Style();
   if (style.UsedPointerEvents() == EPointerEvents::kNone) {
+    // Treat nodes exposed through pointer-events:none as non-actionable. This
+    // includes elements the author explicitly removed from hit testing and
+    // inert subtrees Blink maps to the same used value, such as [inert],
+    // interactivity:inert, content outside an active modal dialog or fullscreen
+    // element, and elements transitioning to display:none.
     return;
   }
 

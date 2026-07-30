@@ -248,10 +248,20 @@ void VideoSender::InsertRawVideoFrame(
     return;
   }
 
-  const int bitrate = bitrate_suggester_->GetSuggestedBitrate();
-  if (bitrate != last_bitrate_) {
-    video_encoder_->SetBitRate(bitrate);
-    last_bitrate_ = bitrate;
+  const uint32_t suggested_bitrate = bitrate_suggester_->GetSuggestedBitrate();
+
+  // To avoid thrashing the encoder, which can cause dropped frames, only update
+  // the encoder if the suggested bitrate has changed by a significant amount.
+  // We use 5% as the threshold for this "bitrate hysteresis".
+  constexpr double kBitrateThreshold = 0.05;
+  const bool should_update_bitrate =
+      last_bitrate_ == 0 || std::abs(static_cast<int64_t>(suggested_bitrate) -
+                                     static_cast<int64_t>(last_bitrate_)) >
+                                (last_bitrate_ * kBitrateThreshold);
+
+  if (should_update_bitrate) {
+    video_encoder_->SetBitRate(suggested_bitrate);
+    last_bitrate_ = suggested_bitrate;
   }
 
   // Report the bitrate every 500 frames.
@@ -259,16 +269,18 @@ void VideoSender::InsertRawVideoFrame(
   frames_since_bitrate_reported_ =
       ++frames_since_bitrate_reported_ % kSampleInterval;
   if (frames_since_bitrate_reported_ == 0) {
-    base::UmaHistogramMemoryKB(kHistogramBitrate, bitrate / 1000);
+    base::UmaHistogramMemoryKB(kHistogramBitrate, suggested_bitrate / 1000);
   }
 
-  TRACE_COUNTER_ID1("cast.stream", "Video Target Bitrate", this, bitrate);
+  TRACE_COUNTER_ID1("cast.stream", "Video Target Bitrate", this,
+                    suggested_bitrate);
 
   if (base::FeatureList::IsEnabled(media::kCastStreamingPerformanceOverlay)) {
     video_frame = RenderPerformanceMetricsOverlay(
-        frame_sender_->GetTargetPlayoutDelay(), low_latency_mode_, bitrate,
-        frames_in_encoder_ + 1, last_reported_encoder_utilization_,
-        last_reported_lossiness_, std::move(video_frame));
+        frame_sender_->GetTargetPlayoutDelay(), low_latency_mode_,
+        suggested_bitrate, frames_in_encoder_ + 1,
+        last_reported_encoder_utilization_, last_reported_lossiness_,
+        std::move(video_frame));
   }
 
   if (video_encoder_->EncodeVideoFrame(
@@ -298,7 +310,7 @@ base::TimeDelta VideoSender::GetTargetPlayoutDelay() const {
   return frame_sender_->GetTargetPlayoutDelay();
 }
 
-int VideoSender::GetEncoderBitrate() const {
+uint32_t VideoSender::GetEncoderBitrate() const {
   return last_bitrate_;
 }
 

@@ -755,6 +755,7 @@ For `type == "crx3"`: Decompress a CRX3 package produced by the previous
     depending on the updater and the operating system.
  *  `in`: A `hash` object containing the expected hash of the CRX3 to be
     installed. This field is required.
+ *  `size`: The size in bytes of the CRX3 package. This field is optional.
  *  `path`: The path to the installer executable(s), relative to the root of the
     CRX. Clients that install content without running an embedded executable
     (such as the Chrome extension updater) should ignore this value. Otherwise,

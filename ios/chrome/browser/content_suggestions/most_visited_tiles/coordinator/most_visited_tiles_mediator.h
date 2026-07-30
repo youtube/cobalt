@@ -83,9 +83,6 @@ class UrlLoadingBrowserAgent;
 // Delegate for reporting content suggestions actions to the NTP.
 @property(nonatomic, weak) id<NewTabPageActionsDelegate> NTPActionsDelegate;
 
-// Get the maximum number of sites shown.
-+ (NSUInteger)maxSitesShown;
-
 // Default initializer.
 - (instancetype)
     initWithMostVisitedSite:

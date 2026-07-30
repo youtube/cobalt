@@ -66,7 +66,7 @@ void CredentialManagerImpl::Store(const CredentialInfo& credential,
   std::move(callback).Run();
 
   if (credential.type == CredentialType::CREDENTIAL_TYPE_EMPTY ||
-      !client_->IsSavingAndFillingEnabled(origin.GetURL())) {
+      !client_->IsSavingAndFillingEnabled(origin)) {
     return;
   }
 
@@ -130,7 +130,7 @@ void CredentialManagerImpl::PreventSilentAccess(
   std::move(callback).Run();
 
   PasswordStoreInterface* store = GetProfilePasswordStore();
-  if (!store || !client_->IsSavingAndFillingEnabled(GetOrigin().GetURL())) {
+  if (!store || !client_->IsSavingAndFillingEnabled(GetOrigin())) {
     return;
   }
 
@@ -174,7 +174,7 @@ void CredentialManagerImpl::Get(CredentialMediationRequirement mediation,
 
   // Return an empty credential if the current page has TLS errors, or if the
   // page is being prerendered.
-  if (!client_->IsFillingEnabled(GetOrigin().GetURL())) {
+  if (!client_->IsFillingEnabled(GetOrigin())) {
     std::move(callback).Run(CredentialManagerError::SUCCESS, CredentialInfo());
     LogCredentialManagerGetResult(
         metrics_util::CredentialManagerGetResult::kNone, mediation);
@@ -326,7 +326,7 @@ void CredentialManagerImpl::DoneRequiringUserMediation() {
 void CredentialManagerImpl::OnProvisionalSaveComplete() {
   DCHECK(form_manager_);
   const PasswordForm& form = form_manager_->GetPendingCredentials();
-  DCHECK(client_->IsSavingAndFillingEnabled(form.url));
+  DCHECK(client_->IsSavingAndFillingEnabled(GetOrigin(), form.url));
   last_submitted_form_ = std::nullopt;
 
   if (form.federation_origin.IsValid()) {

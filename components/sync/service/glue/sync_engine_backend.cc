@@ -72,15 +72,16 @@ DataTypeSet ExtractInvalidatedDataTypes(
   return GetDataTypeSetFromSpecificsFieldNumberList(field_numbers);
 }
 
-void RecordLatencyMetric(base::Time issue_time,
+void RecordLatencyMetric(std::string_view histogram_prefix,
+                         base::Time issue_time,
                          base::Time current_time,
                          std::string_view metric_suffix,
                          const DataTypeSet& invalidated_types) {
   const base::TimeDelta latency = current_time - issue_time;
-  const std::string clock_skew_histogram = base::StrCat(
-      {"Sync.InvalidationTransitLatency.ClockSkewDetected.", metric_suffix});
+  const std::string clock_skew_histogram =
+      base::StrCat({histogram_prefix, ".ClockSkewDetected.", metric_suffix});
   const std::string transit_latency_histogram =
-      base::StrCat({"Sync.InvalidationTransitLatency.", metric_suffix});
+      base::StrCat({histogram_prefix, ".", metric_suffix});
 
   constexpr base::TimeDelta min = base::Milliseconds(1);
   constexpr base::TimeDelta max = base::Days(1);
@@ -102,10 +103,11 @@ void RecordLatencyMetric(base::Time issue_time,
   }
 }
 
-void RecordClientBasedLatency(base::Time issue_time,
+void RecordClientBasedLatency(std::string_view histogram_prefix,
+                              base::Time issue_time,
                               base::Time arrival_time,
                               const DataTypeSet& invalidated_types) {
-  RecordLatencyMetric(issue_time, arrival_time, "ClientBased",
+  RecordLatencyMetric(histogram_prefix, issue_time, arrival_time, "ClientBased",
                       invalidated_types);
 }
 
@@ -120,12 +122,13 @@ constexpr UncertaintyThreshold kUncertaintyThresholds[] = {
     {base::Seconds(15), "Uncertainty15s"},
 };
 
-void RecordServerBasedLatency(base::Time issue_time,
+void RecordServerBasedLatency(std::string_view histogram_prefix,
+                              base::Time issue_time,
                               base::Time network_time,
                               base::TimeDelta network_time_uncertainty,
                               const DataTypeSet& invalidated_types) {
   base::UmaHistogramMediumTimes(
-      "Sync.InvalidationTransitLatency.ServerBased.Uncertainty",
+      base::StrCat({histogram_prefix, ".ServerBased.Uncertainty"}),
       network_time_uncertainty);
 
   // The thresholds are recorded cumulatively (i.e., a sample is recorded in all
@@ -137,9 +140,24 @@ void RecordServerBasedLatency(base::Time issue_time,
     if (network_time_uncertainty <= threshold.max_uncertainty) {
       const std::string metric_suffix =
           base::StrCat({"ServerBased.", threshold.histogram_suffix});
-      RecordLatencyMetric(issue_time, network_time, metric_suffix,
-                          invalidated_types);
+      RecordLatencyMetric(histogram_prefix, issue_time, network_time,
+                          metric_suffix, invalidated_types);
     }
+  }
+}
+
+void RecordLatencyMetrics(
+    std::string_view histogram_prefix,
+    base::Time issue_time,
+    base::Time arrival_time,
+    std::optional<base::Time> network_time,
+    std::optional<base::TimeDelta> network_time_uncertainty,
+    const DataTypeSet& invalidated_types) {
+  RecordClientBasedLatency(histogram_prefix, issue_time, arrival_time,
+                           invalidated_types);
+  if (network_time.has_value() && network_time_uncertainty.has_value()) {
+    RecordServerBasedLatency(histogram_prefix, issue_time, *network_time,
+                             *network_time_uncertainty, invalidated_types);
   }
 }
 
@@ -149,27 +167,33 @@ void RecordTransitLatency(
     std::optional<base::Time> network_time,
     std::optional<base::TimeDelta> network_time_uncertainty,
     const DataTypeSet& invalidated_types) {
-  std::optional<base::Time> issue_time;
+  std::optional<base::Time> publish_time;
   if (payload_message.has_server_publish_time_unix_epoch_millis()) {
-    issue_time = base::Time::UnixEpoch() +
-                 base::Milliseconds(
-                     payload_message.server_publish_time_unix_epoch_millis());
+    publish_time = base::Time::UnixEpoch() +
+                   base::Milliseconds(
+                       payload_message.server_publish_time_unix_epoch_millis());
   } else if (payload_message.has_version()) {
     // TODO(b/517543167): Migrate the server-side to populate
     // `server_publish_time_unix_epoch_millis` and deprecate utilizing `version`
     // as a timestamp fallback.
-    issue_time =
+    publish_time =
         base::Time::UnixEpoch() + base::Microseconds(payload_message.version());
   }
 
-  if (!issue_time.has_value()) {
-    return;
+  if (publish_time.has_value()) {
+    RecordLatencyMetrics("Sync.InvalidationTransitLatency", *publish_time,
+                         arrival_time, network_time, network_time_uncertainty,
+                         invalidated_types);
   }
 
-  RecordClientBasedLatency(*issue_time, arrival_time, invalidated_types);
-  if (network_time.has_value() && network_time_uncertainty.has_value()) {
-    RecordServerBasedLatency(*issue_time, *network_time,
-                             *network_time_uncertainty, invalidated_types);
+  if (payload_message.has_server_dispatch_time_unix_epoch_millis()) {
+    const base::Time dispatch_time =
+        base::Time::UnixEpoch() +
+        base::Milliseconds(
+            payload_message.server_dispatch_time_unix_epoch_millis());
+    RecordLatencyMetrics("Sync.InvalidationFcmDeliveryLatency", dispatch_time,
+                         arrival_time, network_time, network_time_uncertainty,
+                         invalidated_types);
   }
 }
 

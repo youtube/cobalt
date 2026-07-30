@@ -16,6 +16,7 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "ui/webui/untrusted_web_ui_controller.h"
+#include "url/gurl.h"
 
 class DrivePickerUntrustedHostUI;
 
@@ -64,6 +65,7 @@ class DrivePickerUntrustedHostUI
       mojo::PendingRemote<drive_picker_host::mojom::DrivePickerResultHandler>
           result_handler,
       drive_picker_host_untrusted::mojom::DrivePickerKeysPtr keys) override;
+  void LoadConsentKitUrl(const GURL& consent_kit_url) override;
 
  private:
   void OnPageDisconnected();

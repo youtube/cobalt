@@ -8,9 +8,11 @@
 #include <list>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "media/mojo/mojom/speech_recognition.mojom.h"
 #include "ui/native_theme/caption_style.h"
 #include "ui/native_theme/native_theme_observer.h"
@@ -96,6 +98,10 @@ class CaptionControllerBase : public ui::NativeThemeObserver {
   // listener when it is removed.
   void AddListener(std::unique_ptr<Listener>);
 
+  // Schedules the removal of a `Listener`. It will not be removed immediately
+  // to avoid issues if called during listener iteration.
+  void RemoveSoon(Listener*);
+
   // Routes a transcription to all listeners.  Returns whether the transcription
   // was routed successfully, which currently means that at least one listener
   // considered it to be successful.  It is unclear if we should continue to
@@ -180,6 +186,8 @@ class CaptionControllerBase : public ui::NativeThemeObserver {
   // create it.  While it exists, `caption_bubble_controller_` aliases it.  This
   // alias is cleared when it's destroyed.
   raw_ptr<CaptionBubbleController> caption_bubble_controller_ = nullptr;
+
+  base::WeakPtrFactory<CaptionControllerBase> weak_ptr_factory_{this};
 };
 
 }  // namespace captions

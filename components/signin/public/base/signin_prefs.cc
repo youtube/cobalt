@@ -54,6 +54,10 @@ constexpr char kChromeSigninInterceptionRepromptCount[] =
 constexpr char kChromeSigninInterceptionDismissCount[] =
     "ChromeSigninInterceptionDismissCount";
 
+// Pref sub-dictionary key inside the main account metadata dictionary
+// to store cross-device signin promo metrics.
+constexpr char kCrossDevicePromoPrefs[] = "CrossDevicePromoPrefs";
+
 // Pref to store the number of times the password bubble signin promo
 // has been shown per account.
 constexpr char kPasswordSignInPromoShownCount[] =
@@ -603,6 +607,15 @@ base::DictValue& SigninPrefs::GetOrCreateAvatarButtonPromoCountDictionary(
   // `EnsureDict` gets or create the dictionary.
   return *scoped_update->EnsureDict(gaia_id.ToString())
               ->EnsureDict(kAvatarButtonPromoCountDictionary);
+}
+
+base::DictValue& SigninPrefs::GetOrCreateCrossDevicePromoPrefs(
+    const GaiaId& gaia_id) {
+  CHECK(!gaia_id.empty());
+  ScopedDictPrefUpdate scoped_update(&pref_service_.get(), kSigninAccountPrefs);
+  // `EnsureDict` gets or create the dictionary.
+  return *scoped_update->EnsureDict(gaia_id.ToString())
+              ->EnsureDict(kCrossDevicePromoPrefs);
 }
 
 int SigninPrefs::IncrementIntPrefForAccount(const GaiaId& gaia_id,

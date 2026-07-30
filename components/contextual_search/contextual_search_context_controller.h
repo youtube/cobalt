@@ -11,6 +11,7 @@
 #include <string>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/observer_list_types.h"
 #include "components/contextual_search/contextual_search_types.h"
 #include "components/lens/lens_bitmap_processing.h"
@@ -19,6 +20,7 @@
 #include "third_party/lens_server_proto/aim_query.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_client_context.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_cluster_info.pb.h"
+#include "third_party/lens_server_proto/lens_overlay_request_id.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_selection_type.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_server.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_service_deps.pb.h"
@@ -184,6 +186,10 @@ class ContextualSearchContextController {
     // The token corresponding to the Lens Overlay instance, if one was active
     // during the query submission.
     std::optional<base::UnguessableToken> overlay_token;
+
+    // List of request IDs of removed contexts to be sent to the server.
+    // Populated by ContextualSearchSessionHandle.
+    std::vector<lens::LensOverlayRequestId> removed_contexts;
   };
 
   virtual ~ContextualSearchContextController() = default;
@@ -233,7 +239,7 @@ class ContextualSearchContextController {
       const base::UnguessableToken& file_token) = 0;
 
   // Return the file infos for all files in the request.
-  virtual std::vector<const FileInfo*> GetFileInfoList() = 0;
+  virtual std::vector<raw_ptr<const FileInfo>> GetFileInfoList() = 0;
 
   // Returns a weak pointer to the context controller.
   virtual base::WeakPtr<ContextualSearchContextController> AsWeakPtr() = 0;

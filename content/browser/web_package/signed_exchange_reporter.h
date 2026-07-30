@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "content/browser/web_package/signed_exchange_error.h"
 #include "content/common/content_export.h"
@@ -19,6 +20,8 @@
 #include "url/gurl.h"
 
 namespace content {
+
+class StoragePartitionImpl;
 
 // SignedExchangeReporter sends a signed exchange report for distributor when
 // the distributor of signed exchange has set Network Error Logging (NEL) policy
@@ -58,7 +61,7 @@ class CONTENT_EXPORT SignedExchangeReporter {
   network::mojom::SignedExchangeReportPtr report_;
   const base::TimeTicks request_start_;
   const net::NetworkAnonymizationKey network_anonymization_key_;
-  const FrameTreeNodeId frame_tree_node_id_;
+  base::WeakPtr<StoragePartitionImpl> storage_partition_;
   net::IPAddress cert_server_ip_address_;
 };
 

@@ -9,12 +9,16 @@ import android.webkit.GeolocationPermissions;
 import android.webkit.ServiceWorkerController;
 import android.webkit.WebStorage;
 
+import androidx.annotation.AnyThread;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
 import androidx.annotation.WorkerThread;
 
+import com.android.webview.chromium.WebViewChromiumAwInit.CallSite;
+
 import org.chromium.android_webview.AwBrowserContext;
+import org.chromium.android_webview.AwBrowserContextStore;
 import org.chromium.android_webview.AwHttpCacheManager;
 import org.chromium.android_webview.AwOriginMatchedHeader;
 import org.chromium.android_webview.common.AwFeatureMap;
@@ -24,6 +28,7 @@ import org.chromium.android_webview.common.WebViewCachedFlags;
 import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
+import org.chromium.build.annotations.MonotonicNonNull;
 import org.chromium.url.GURL;
 
 import java.util.List;
@@ -34,49 +39,115 @@ import java.util.function.Consumer;
 /**
  * An abstraction of {@link AwBrowserContext}, this class reflects the state needed for the
  * multi-profile public API.
+ *
+ * <p><b>Lifecycle Note:</b> The internal state of this class is {@code null} upon construction. It
+ * remains {@code null} until a method requiring Chromium state is called on this instance, at which
+ * point Chromium startup is triggered and the state is populated by {@link #initializeProfile()}.
+ *
+ * <p>Note that this initial population may block the calling thread while synchronizing with the UI
+ * thread.
  */
 @Lifetime.Profile
 public class Profile {
     private static final String TAG = "Profile";
 
-    @NonNull private final AwBrowserContext mBrowserContext;
+    private static class State {
+        @NonNull public final AwBrowserContext browserContext;
+        @NonNull public final CookieManager cookieManager;
+        @NonNull public final WebStorage webStorage;
+        @NonNull public final GeolocationPermissions geolocationPermissions;
+        @NonNull public final ServiceWorkerController serviceWorkerController;
+
+        public State(
+                @NonNull AwBrowserContext browserContext,
+                @NonNull CookieManager cookieManager,
+                @NonNull WebStorage webStorage,
+                @NonNull GeolocationPermissions geolocationPermissions,
+                @NonNull ServiceWorkerController serviceWorkerController) {
+            this.browserContext = browserContext;
+            this.cookieManager = cookieManager;
+            this.webStorage = webStorage;
+            this.geolocationPermissions = geolocationPermissions;
+            this.serviceWorkerController = serviceWorkerController;
+        }
+    }
 
     @NonNull private final String mName;
+    @NonNull private final String mTraceArgs;
+    @NonNull private final WebViewChromiumAwInit mAwInit;
 
-    @NonNull private final CookieManager mCookieManager;
+    @MonotonicNonNull private volatile State mState;
 
-    @NonNull private final WebStorage mWebStorage;
+    @AnyThread
+    public Profile(@NonNull final String profileName, @NonNull WebViewChromiumAwInit awInit) {
+        mAwInit = awInit;
+        mName = profileName;
+        mTraceArgs = String.format("{name: \"%s\"}", mName);
 
-    @NonNull private final GeolocationPermissions mGeolocationPermissions;
+        if (ThreadUtils.runningOnUiThread() && mAwInit.isChromiumInitialized()) {
+            initializeProfile();
+        }
+    }
 
-    @NonNull private final ServiceWorkerController mServiceWorkerController;
+    /**
+     * Initializes the profile state. This runs synchronously on the main UI thread when an API
+     * requiring Chromium state is first invoked.
+     */
+    void initializeProfile() {
+        try (TraceEvent event =
+                TraceEvent.scoped("WebView.Profile.initializeProfile", mTraceArgs)) {
+            if (mState != null) return;
 
-    public Profile(@NonNull final AwBrowserContext browserContext) {
-        String traceArgs = String.format("{name: \"%s\"}", browserContext.getName());
-        try (TraceEvent event = TraceEvent.scoped("WebView.Profile.constructor", traceArgs)) {
             ThreadUtils.checkUiThread();
-            mBrowserContext = browserContext;
-            mName = browserContext.getName();
+            AwBrowserContext browserContext = AwBrowserContextStore.getNamedContext(mName, true);
+            CookieManager cookieManager;
+            WebStorage webStorage;
+            GeolocationPermissions geolocationPermissions;
+            ServiceWorkerController serviceWorkerController;
+
             WebViewChromiumFactoryProvider factory = WebViewChromiumFactoryProvider.getSingleton();
             if (browserContext.isDefaultAwBrowserContext()
                     && !WebViewCachedFlags.get()
                             .isCachedFeatureEnabled(
                                     AwFeatures.WEBVIEW_BYPASS_PROVISIONAL_COOKIE_MANAGER)) {
-                mCookieManager = CookieManager.getInstance();
+                cookieManager = CookieManager.getInstance();
             } else {
-                mCookieManager = new CookieManagerAdapter(browserContext.getCookieManager());
+                cookieManager = new CookieManagerAdapter(browserContext.getCookieManager());
             }
-            mWebStorage = new WebStorageAdapter(factory, browserContext.getQuotaManagerBridge());
-            mGeolocationPermissions =
+            webStorage = new WebStorageAdapter(factory, browserContext.getQuotaManagerBridge());
+            geolocationPermissions =
                     new GeolocationPermissionsAdapter(
                             factory, browserContext.getGeolocationPermissions());
-            mServiceWorkerController =
+            serviceWorkerController =
                     new ServiceWorkerControllerAdapter(browserContext.getServiceWorkerController());
+
+            mState =
+                    new State(
+                            browserContext,
+                            cookieManager,
+                            webStorage,
+                            geolocationPermissions,
+                            serviceWorkerController);
         }
     }
 
+    @NonNull
+    private State getInitializedState(@CallSite int callSite) {
+        if (mState != null) {
+            return mState;
+        }
+
+        mAwInit.triggerAndWaitForChromiumStarted(callSite);
+        ThreadUtils.runOnUiThreadBlocking(this::initializeProfile);
+
+        // Satisfy NullAway: initializeProfile() guarantees mState is non-null.
+        assert mState != null;
+
+        return mState;
+    }
+
     public AwBrowserContext getBrowserContext() {
-        return mBrowserContext;
+        return getInitializedState(CallSite.PROFILE_GET_BROWSER_CONTEXT).browserContext;
     }
 
     @NonNull
@@ -85,31 +156,67 @@ public class Profile {
     }
 
     public void preconnect(String url) {
-        mBrowserContext.getPreconnector().preconnect(new GURL(url));
+        getInitializedState(CallSite.PROFILE_PRECONNECT)
+                .browserContext
+                .getPreconnector()
+                .preconnect(new GURL(url));
+    }
+
+    /**
+     * Enqueues a preconnect request for the given URL.
+     *
+     * <p>Unlike {@link #preconnect(String)}, this method is non-blocking and does not trigger
+     * synchronous native Chromium initialization. The preconnect task is added to the WebView
+     * startup queue and will execute asynchronously once native library initialization completes.
+     *
+     * @param url The target URL destination to preconnect to.
+     */
+    public void enqueuePreconnect(@NonNull String url) {
+        if (url == null) {
+            throw new IllegalArgumentException("URL cannot be null for enqueuePreconnect.");
+        }
+        validatePreconnectUrl(url);
+        mAwInit.getRunQueue().addTask(() -> preconnect(url));
+    }
+
+    /**
+     * Validates the URL synchronously to ensure the exception is thrown on the calling thread,
+     * avoiding an uncatchable crash if validation were deferred to the background task.
+     */
+    private void validatePreconnectUrl(@NonNull String url) {
+        GURL gurl = new GURL(url);
+        if (!gurl.isValid()
+                || (!gurl.getOrigin().getScheme().equals("http")
+                        && !gurl.getOrigin().getScheme().equals("https"))) {
+            throw new IllegalArgumentException("Invalid URL: " + gurl.getPossiblyInvalidSpec());
+        }
     }
 
     @NonNull
     public CookieManager getCookieManager() {
-        String traceArgs = String.format("{name: \"%s\"}", mName);
+        State state = getInitializedState(CallSite.PROFILE_GET_COOKIE_MANAGER);
+
         try (TraceEvent event =
-                TraceEvent.scoped("WebView.Profile.ApiCall.GET_COOKIE_MANAGER", traceArgs)) {
-            return mCookieManager;
+                TraceEvent.scoped("WebView.Profile.ApiCall.GET_COOKIE_MANAGER", mTraceArgs)) {
+            return state.cookieManager;
         }
     }
 
     @NonNull
     public WebStorage getWebStorage() {
-        return mWebStorage;
+        return getInitializedState(CallSite.PROFILE_GET_WEB_STORAGE).webStorage;
     }
 
     @NonNull
     public GeolocationPermissions getGeolocationPermissions() {
-        return mGeolocationPermissions;
+        return getInitializedState(CallSite.PROFILE_GET_GEOLOCATION_PERMISSIONS)
+                .geolocationPermissions;
     }
 
     @NonNull
     public ServiceWorkerController getServiceWorkerController() {
-        return mServiceWorkerController;
+        return getInitializedState(CallSite.PROFILE_GET_SERVICE_WORKER_CONTROLLER)
+                .serviceWorkerController;
     }
 
     @UiThread
@@ -118,9 +225,12 @@ public class Profile {
             @Nullable PrefetchParams params,
             Executor callbackExecutor,
             PrefetchOperationCallback resultCallback) {
+        AwBrowserContext browserContext =
+                getInitializedState(CallSite.PROFILE_PREFETCH_URL).browserContext;
+
         try (TraceEvent event = TraceEvent.scoped("WebView.Profile.ApiCall.Prefetch.PRE_START")) {
             validatePrefetchArgs(url, resultCallback);
-            return mBrowserContext
+            return browserContext
                     .getPrefetchManager()
                     .startPrefetchRequest(
                             url,
@@ -138,10 +248,13 @@ public class Profile {
             Executor callbackExecutor,
             PrefetchOperationCallback resultCallback,
             Consumer<Integer> prefetchKeyListener) {
+        AwBrowserContext browserContext =
+                getInitializedState(CallSite.PROFILE_PREFETCH_URL_ASYNC).browserContext;
+
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.Profile.ApiCall.Prefetch.PRE_START_ASYNC")) {
             validatePrefetchArgs(url, resultCallback);
-            mBrowserContext
+            browserContext
                     .getPrefetchManager()
                     .startPrefetchRequestAsync(
                             prefetchApiCallTriggerTimeMs,
@@ -155,7 +268,10 @@ public class Profile {
 
     @UiThread
     public void cancelPrefetch(int prefetchKey) {
-        mBrowserContext.getPrefetchManager().cancelPrefetch(prefetchKey);
+        getInitializedState(CallSite.PROFILE_CANCEL_PREFETCH)
+                .browserContext
+                .getPrefetchManager()
+                .cancelPrefetch(prefetchKey);
     }
 
     /**
@@ -167,7 +283,9 @@ public class Profile {
         if (maxPrerenders == null) {
             clearMaxPrerenders();
         } else if (maxPrerenders >= 0) {
-            mBrowserContext.setMaxPrerenders(maxPrerenders);
+            getInitializedState(CallSite.PROFILE_SET_MAX_PRERENDERS)
+                    .browserContext
+                    .setMaxPrerenders(maxPrerenders);
         } else {
             throw new IllegalArgumentException("Maximum prerenders can not be negative.");
         }
@@ -176,7 +294,9 @@ public class Profile {
     /** Restores the default maxPrerenders */
     @UiThread
     public void clearMaxPrerenders() {
-        mBrowserContext.clearMaxPrerenders();
+        getInitializedState(CallSite.PROFILE_CLEAR_MAX_PRERENDERS)
+                .browserContext
+                .clearMaxPrerenders();
     }
 
     /**
@@ -184,7 +304,9 @@ public class Profile {
      */
     @UiThread
     public int getMaxPrerenders() {
-        return mBrowserContext.getAllowedPrerenderingCount();
+        return getInitializedState(CallSite.PROFILE_GET_MAX_PRERENDERS)
+                .browserContext
+                .getAllowedPrerenderingCount();
     }
 
     /**
@@ -195,7 +317,9 @@ public class Profile {
         if (maxPrerenders < 0) {
             throw new IllegalArgumentException("Maximum prerenders can not be negative.");
         }
-        mBrowserContext.setMaxPrerenders(maxPrerenders);
+        getInitializedState(CallSite.PROFILE_SET_MAX_PRERENDERS)
+                .browserContext
+                .setMaxPrerenders(maxPrerenders);
     }
 
     /**
@@ -206,7 +330,10 @@ public class Profile {
         if (maxPrefetches < 0) {
             throw new IllegalArgumentException("Maximum prefetches can not be negative.");
         }
-        mBrowserContext.getPrefetchManager().setMaxPrefetches(maxPrefetches);
+        getInitializedState(CallSite.PROFILE_SET_MAX_PREFETCHES)
+                .browserContext
+                .getPrefetchManager()
+                .setMaxPrefetches(maxPrefetches);
     }
 
     /**
@@ -218,7 +345,10 @@ public class Profile {
         if (maxPrefetches == null) {
             clearMaxPrefetches();
         } else if (maxPrefetches >= 0) {
-            mBrowserContext.getPrefetchManager().setMaxPrefetches(maxPrefetches);
+            getInitializedState(CallSite.PROFILE_SET_MAX_PREFETCHES)
+                    .browserContext
+                    .getPrefetchManager()
+                    .setMaxPrefetches(maxPrefetches);
         } else {
             throw new IllegalArgumentException("Maximum prefetches can not be negative.");
         }
@@ -233,7 +363,10 @@ public class Profile {
         if (prefetchTtlSeconds == null) {
             clearPrefetchTtl();
         } else if (prefetchTtlSeconds >= 0) {
-            mBrowserContext.getPrefetchManager().setPrefetchTtlSeconds(prefetchTtlSeconds);
+            getInitializedState(CallSite.PROFILE_SET_PREFETCH_TTL_SECONDS)
+                    .browserContext
+                    .getPrefetchManager()
+                    .setPrefetchTtlSeconds(prefetchTtlSeconds);
         } else {
             throw new IllegalArgumentException("Prefetch TTL seconds can not be negative.");
         }
@@ -244,22 +377,31 @@ public class Profile {
      */
     @UiThread
     public void setPrefetchTtlSeconds(int prefetchTtlSeconds) {
+        AwBrowserContext browserContext =
+                getInitializedState(CallSite.PROFILE_SET_PREFETCH_TTL_SECONDS).browserContext;
+
         if (prefetchTtlSeconds < 0) {
             throw new IllegalArgumentException("Prefetch TTL seconds can not be negative.");
         }
-        mBrowserContext.getPrefetchManager().setPrefetchTtlSeconds(prefetchTtlSeconds);
+        browserContext.getPrefetchManager().setPrefetchTtlSeconds(prefetchTtlSeconds);
     }
 
-    /** Sets the TTL seconds for prefetch to its default value. */
+    /** Restores the maximum number of prefetches to its default value. */
     @UiThread
     public void clearMaxPrefetches() {
-        mBrowserContext.getPrefetchManager().clearMaxPrefetches();
+        getInitializedState(CallSite.PROFILE_CLEAR_MAX_PREFETCHES)
+                .browserContext
+                .getPrefetchManager()
+                .clearMaxPrefetches();
     }
 
     /** Sets the TTL seconds for prefetch to its default value. */
     @UiThread
     public void clearPrefetchTtl() {
-        mBrowserContext.getPrefetchManager().clearPrefetchTtl();
+        getInitializedState(CallSite.PROFILE_CLEAR_PREFETCH_TTL)
+                .browserContext
+                .getPrefetchManager()
+                .clearPrefetchTtl();
     }
 
     /**
@@ -267,7 +409,10 @@ public class Profile {
      */
     @UiThread
     public int getMaxPrefetches() {
-        return mBrowserContext.getPrefetchManager().getMaxPrefetches();
+        return getInitializedState(CallSite.PROFILE_GET_MAX_PREFETCHES)
+                .browserContext
+                .getPrefetchManager()
+                .getMaxPrefetches();
     }
 
     /**
@@ -275,18 +420,24 @@ public class Profile {
      */
     @UiThread
     public int getPrefetchTtlSeconds() {
-        return mBrowserContext.getPrefetchManager().getPrefetchTtlSeconds();
+        return getInitializedState(CallSite.PROFILE_GET_PREFETCH_TTL_SECONDS)
+                .browserContext
+                .getPrefetchManager()
+                .getPrefetchTtlSeconds();
     }
 
     @UiThread
     public void setSpeculativeLoadingConfig(SpeculativeLoadingConfig speculativeLoadingConfig) {
-        mBrowserContext
+        AwBrowserContext browserContext =
+                getInitializedState(CallSite.PROFILE_SET_SPECULATIVE_LOADING_CONFIG).browserContext;
+
+        browserContext
                 .getPrefetchManager()
                 .updatePrefetchConfiguration(
                         speculativeLoadingConfig.prefetchTTLSeconds,
                         speculativeLoadingConfig.maxPrefetches);
         if (speculativeLoadingConfig.maxPrerenders > 0) {
-            mBrowserContext.setMaxPrerenders(speculativeLoadingConfig.maxPrerenders);
+            browserContext.setMaxPrerenders(speculativeLoadingConfig.maxPrerenders);
         }
     }
 
@@ -302,52 +453,75 @@ public class Profile {
 
     @UiThread
     public void warmUpRendererProcess() {
+        AwBrowserContext browserContext =
+                getInitializedState(CallSite.PROFILE_WARM_UP_RENDERER_PROCESS).browserContext;
+
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.Profile.ApiCall.WARM_UP_RENDERER_PROCESS")) {
-            mBrowserContext.warmUpSpareRenderer();
+            browserContext.warmUpSpareRenderer();
         }
     }
 
     @UiThread
     public void setOriginMatchedHeader(
             String headerName, String headerValue, Set<String> originRules) {
-        mBrowserContext.setOriginMatchedHeader(headerName, headerValue, originRules);
+        getInitializedState(CallSite.PROFILE_SET_ORIGIN_MATCHED_HEADER)
+                .browserContext
+                .setOriginMatchedHeader(headerName, headerValue, originRules);
     }
 
     @UiThread
     public void addOriginMatchedHeader(
             String headerName, String headerValue, Set<String> originRules) {
-        mBrowserContext.addOriginMatchedHeader(headerName, headerValue, originRules);
+        getInitializedState(CallSite.PROFILE_ADD_ORIGIN_MATCHED_HEADER)
+                .browserContext
+                .addOriginMatchedHeader(headerName, headerValue, originRules);
     }
 
     @UiThread
     public boolean hasOriginMatchedHeader(String headerName) {
-        return mBrowserContext.hasOriginMatchedHeader(headerName);
+        return getInitializedState(CallSite.PROFILE_HAS_ORIGIN_MATCHED_HEADER)
+                .browserContext
+                .hasOriginMatchedHeader(headerName);
     }
 
     @UiThread
     public List<AwOriginMatchedHeader> findOriginMatchedHeaders(
             @Nullable String headerName, @Nullable String headerValue) {
-        return mBrowserContext.findOriginMatchedHeaders(headerName, headerValue);
+        return getInitializedState(CallSite.PROFILE_FIND_ORIGIN_MATCHED_HEADERS)
+                .browserContext
+                .findOriginMatchedHeaders(headerName, headerValue);
     }
 
     @UiThread
     public void clearOriginMatchedHeader(String headerName, @Nullable String headerValue) {
-        mBrowserContext.clearOriginMatchedHeader(headerName, headerValue);
+        getInitializedState(CallSite.PROFILE_CLEAR_ORIGIN_MATCHED_HEADER)
+                .browserContext
+                .clearOriginMatchedHeader(headerName, headerValue);
     }
 
     @UiThread
     public void clearAllOriginMatchedHeaders() {
-        mBrowserContext.clearAllOriginMatchedHeaders();
+        getInitializedState(CallSite.PROFILE_CLEAR_ALL_ORIGIN_MATCHED_HEADERS)
+                .browserContext
+                .clearAllOriginMatchedHeaders();
     }
 
     @UiThread
     public void addQuicHints(Set<String> origins) {
-        if (AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_ADD_QUIC_HINTS)) {
-            mBrowserContext.addQuicHints(origins);
-        } else {
-            Log.w(TAG, "Profile.addQuicHints has been disabled.");
-        }
+        mAwInit.getRunQueue()
+                .addTask(
+                        () -> {
+                            AwBrowserContext browserContext =
+                                    getInitializedState(CallSite.PROFILE_ADD_QUIC_HINTS)
+                                            .browserContext;
+
+                            if (AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_ADD_QUIC_HINTS)) {
+                                browserContext.addQuicHints(origins);
+                            } else {
+                                Log.w(TAG, "Profile.addQuicHints has been disabled.");
+                            }
+                        });
     }
 
     /**
@@ -355,6 +529,8 @@ public class Profile {
      */
     @UiThread
     public AwHttpCacheManager getHttpCacheManager() {
-        return mBrowserContext.getHttpCacheManager();
+        return getInitializedState(CallSite.PROFILE_GET_HTTP_CACHE_MANAGER)
+                .browserContext
+                .getHttpCacheManager();
     }
 }

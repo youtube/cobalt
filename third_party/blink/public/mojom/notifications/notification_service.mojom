@@ -25,8 +25,9 @@ interface NonPersistentNotificationListener {
 // side to provide a more useful error message to developers.
 enum PersistentNotificationError {
   NONE,
-  INTERNAL_ERROR,
   PERMISSION_DENIED,
+  NOTIFICATION_SERVICE_NOT_FOUND,
+  DATABASE_ERROR,
 };
 
 // Service through which Blink can request notifications to be shown, closed or

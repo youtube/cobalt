@@ -477,6 +477,7 @@ In caso contrario l'uso sarà bloccato dalle impostazioni sulla privacy. I conte
 <translation id="173080396488393970">Questo tipo di carta non è supportato</translation>
 <translation id="1731563515262205847">ML-DSA-65</translation>
 <translation id="1732445923934584865">Chiedi di persona</translation>
+<translation id="1732796940245838248">Aggiorna il numero di rettifica in Google Wallet</translation>
 <translation id="1733064249834771892">caratteri</translation>
 <translation id="1733631169686303142">Apparecchiature audio</translation>
 <translation id="1733762317901693627">Anche i siti che in genere sono sicuri possono essere compromessi da attaccanti. Visita <ph name="BEGIN_LINK" />questo sito non sicuro<ph name="END_LINK" /> soltanto se hai davvero compreso i rischi.</translation>
@@ -581,6 +582,7 @@ In caso contrario l'uso sarà bloccato dalle impostazioni sulla privacy. I conte
 <translation id="1902576642799138955">Periodo di validità</translation>
 <translation id="1908217026282415406">Uso e movimento della videocamera</translation>
 <translation id="1908690643053136980">L'amministratore non consente <ph name="PERMISSION" /> per questo sito</translation>
+<translation id="1912750443952232242">Salva il documento d'identità in Google Wallet</translation>
 <translation id="1913037223029790376">Usa il CVC della carta virtuale</translation>
 <translation id="191374271204266022">Copia come JSON</translation>
 <translation id="1914326953223720820">Servizio di decompressione</translation>
@@ -711,6 +713,7 @@ In caso contrario l'uso sarà bloccato dalle impostazioni sulla privacy. I conte
 <translation id="2122165854541876335">Risorse per i consumatori</translation>
 <translation id="2122214041802369259">Prezzo alto</translation>
 <translation id="2122719317867821810">Questa policy funziona come previsto, ma altrove è impostato un valore in conflitto che viene sostituito da questa policy.</translation>
+<translation id="2124081665399116863">Aggiorna il veicolo in Google Wallet</translation>
 <translation id="2126374524350484896">App creazione file PDF:</translation>
 <translation id="2127090458081644412">Password salvata su questo dispositivo</translation>
 <translation id="2127747486437921899">Corsivo</translation>
@@ -993,6 +996,7 @@ In caso contrario l'uso sarà bloccato dalle impostazioni sulla privacy. I conte
 <translation id="2524962131655207565"><ph name="BEGIN_BOLD" />I contenuti della pagina di pagamento vengono condivisi con Google per offrire queste opzioni.<ph name="END_BOLD" /> I piani di pagamento sono soggetti a idoneità. Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LINK" />impostazioni di pagamento<ph name="END_LINK" />.</translation>
 <translation id="2526062290525841862">Per eseguire questa app, riattiva la modalità sviluppatore per app web isolate</translation>
 <translation id="2526280916094749336">Puoi usare gli indirizzi salvati in tutti i prodotti Google. Questo indirizzo verrà salvato nel tuo Account Google <ph name="ACCOUNT" />.</translation>
+<translation id="2526590354069164005">Desktop</translation>
 <translation id="2527451058878391043">Il CVC si trova sul lato anteriore della tua carta. È il codice di 4 cifre in alto a destra, sopra il numero della carta.</translation>
 <translation id="2529899080962247600">Questo campo non deve avere più di <ph name="MAX_ITEMS_LIMIT" /> voci. Tutte le voci in più verranno ignorate.</translation>
 <translation id="2530042584066815841">Blocco e uso del mouse</translation>
@@ -1490,6 +1494,7 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="3325568918769906282">in ordine decrescente</translation>
 <translation id="3325662270238538525">Accessi e modifiche recenti ai file, inclusi nomi dei file, impronte digitali dei contenuti dei file, origine del download e metadati</translation>
 <translation id="3329013043687509092">Saturazione</translation>
+<translation id="3330483197654063678">Quando questa opzione è attiva, Chrome condividerà le schede aperte in questa finestra per aiutarti a ottenere risposte più pertinenti.</translation>
 <translation id="3333762389743153920">Non idonea per carta virtuale</translation>
 <translation id="3338095232262050444">Sicuro</translation>
 <translation id="333839153442689579">High Intensity Interval Training</translation>
@@ -1543,6 +1548,7 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="3422472998109090673"><ph name="HOST_NAME" /> non è attualmente raggiungibile.</translation>
 <translation id="3422794267539320056">Tocca il dinosauro o premi la barra spaziatrice per giocare</translation>
 <translation id="3423742043356668186">Sistema specificato</translation>
+<translation id="3426672782316020729">Aggiorna il passaporto in Google Wallet</translation>
 <translation id="3427342743765426898">&amp;Ripeti modifica</translation>
 <translation id="342781501876943858">Chromium ti consiglia di reimpostare la password, se l'hai utilizzata su altri siti.</translation>
 <translation id="3428151540071562330">Uno o più URI del modello server DnsOverHttpsTemplates non sono validi e non verranno utilizzati.</translation>
@@ -2403,6 +2409,7 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="4766713847338118463">Doppia pinzatura in basso</translation>
 <translation id="4768816584204270288">Quando paghi a rate, viene inserito un numero di carta virtuale temporaneo. Puoi fare clic per copiare e incollare i dati della carta per questo acquisto.</translation>
 <translation id="4768864802656530630">Log di sistema dettagliati. <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
+<translation id="4770909831299304090">Aggiorna il KTN in Google Wallet</translation>
 <translation id="4771249073710170730">Modellismo e modellini radiocomandati</translation>
 <translation id="4771973620359291008">Si è verificato un errore sconosciuto.</translation>
 <translation id="4774055414220872623">Forniture per arte e artigianato</translation>
@@ -2843,6 +2850,7 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="5458150163479425638">{CONTACT,plural, =0{<ph name="CONTACT_PREVIEW" />}=1{<ph name="CONTACT_PREVIEW" /> e <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> altro}other{<ph name="CONTACT_PREVIEW" /> e altri <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" />}}</translation>
 <translation id="5463625433003343978">Ricerca di dispositivi in corso…</translation>
 <translation id="5464236009658034488">Forniture per uffici</translation>
+<translation id="5465128270485645058">Ricevi risposte personalizzate più efficaci condividendo automaticamente le schede aperte in questa finestra se sono correlate a questa conversazione.</translation>
 <translation id="5465724643247062031">Vetro (opaco)</translation>
 <translation id="5466018172325111652">Non hai ricevuto il codice? <ph name="BEGIN_LINK" />Ricevi nuovo codice<ph name="END_LINK" /></translation>
 <translation id="5466818462212249084">App per pagamenti</translation>
@@ -3125,6 +3133,7 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="5911020115933784199">Eventi e spettacoli</translation>
 <translation id="5911110632211230665">Apertura bloccata</translation>
 <translation id="5912796581727968237">Apri Google Wallet</translation>
+<translation id="5914185423510719251">Salva il KTN in Google Wallet</translation>
 <translation id="5914465277418006379"><ph name="MEMBER_FIRST_NAME" /> ha aggiunto questa scheda</translation>
 <translation id="5915189366813702112">Condizioni lavorative flessibili</translation>
 <translation id="59174027418879706">Attivato</translation>
@@ -3349,7 +3358,7 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="6246316216123107851"><ph name="NUM_DAYS" /> giorni fa</translation>
 <translation id="6246382863801034910">Veicolo</translation>
 <translation id="6246868321321344665">La tua organizzazione può vedere i dati di navigazione, ad esempio le password e la cronologia, sia nel profilo di lavoro sia in quello personale</translation>
-<translation id="6248479108671123143"><ph name="MEMBER_FIRST_NAME" /> ha modificato questa scheda <ph name="TAB_TITLE" /></translation>
+<translation id="6248479108671123143"><ph name="MEMBER_FIRST_NAME" /> ha modificato questa scheda, <ph name="TAB_TITLE" /></translation>
 <translation id="6248988683584659830">Cerca nelle impostazioni</translation>
 <translation id="6250932670816326647">Prodotti per il corpo e per il bagno</translation>
 <translation id="6251906504834538140">{0,plural, =1{Spostamento del file bloccato}other{Spostamento di <ph name="FILE_COUNT" /> file bloccato}}</translation>
@@ -3647,6 +3656,7 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="6702851555558236418">Software audio e musicali</translation>
 <translation id="6702919718839027939">Presentazione</translation>
 <translation id="6704458454638854812">La proprietà "custom_size" è impostata, il nome previsto è "custom".</translation>
+<translation id="670477556876354552">Riavvio necessario</translation>
 <translation id="6706005862292023715">Trattamenti per finestre e tendaggi</translation>
 <translation id="6706210727756204531">Ambito</translation>
 <translation id="6706678697074905703">Impossibile salvare questo IBAN nel tuo Account Google. È invece salvato su Chrome su questo dispositivo.</translation>
@@ -3706,7 +3716,7 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="6798066466127540426">L'elenco non contiene un provider di ricerca valido.</translation>
 <translation id="6798460514924505775">Busta Chou 3</translation>
 <translation id="6799145206637008376">Inserisci il CVC della carta virtuale</translation>
-<translation id="6800773453940486492"><ph name="MEMBER_FIRST_NAME" /> ha aggiunto questa scheda <ph name="TAB_TITLE" /></translation>
+<translation id="6800773453940486492"><ph name="MEMBER_FIRST_NAME" /> ha aggiunto questa scheda, <ph name="TAB_TITLE" /></translation>
 <translation id="6801920212017470190">Tieni sotto controllo tutti i cali di prezzo ovunque ti trovi</translation>
 <translation id="6805030849054648206">Busta B6/C4</translation>
 <translation id="6807791860691150411">Istruzione</translation>
@@ -3904,6 +3914,7 @@ Per nascondere le opzioni di pagamento posticipato, vai alle <ph name="BEGIN_LIN
 <translation id="7110116949943042888">Offerte di lavoro temporaneo e stagionale</translation>
 <translation id="7110368079836707726">Istituti superiori e Università</translation>
 <translation id="7111507312244504964">Valutazioni e perizie immobiliari</translation>
+<translation id="7117290130383718594">Annotazioni di testo</translation>
 <translation id="7118618213916969306">Cerca URL dagli appunti, <ph name="SHORT_URL" /></translation>
 <translation id="7118852830504022370">Questo avviso è stato visualizzato perché il sito non supporta HTTPS. <ph name="BEGIN_LEARN_MORE_LINK" />Scopri di più sull'avviso<ph name="END_LEARN_MORE_LINK" />.</translation>
 <translation id="7119063404975271297">Drammi TV</translation>
@@ -4213,6 +4224,7 @@ Ulteriori dettagli:
 <translation id="7569490014721427265">Golf</translation>
 <translation id="7569952961197462199">Rimuovere la carta di credito da Chrome?</translation>
 <translation id="7569983096843329377">Nero</translation>
+<translation id="7570524564113479209">Aggiorna il documento d'identità in Google Wallet</translation>
 <translation id="7570862164055912832">Redress Number</translation>
 <translation id="7571813784389228510">Google AI Mode</translation>
 <translation id="7574998639136359461">Attrezzature e articoli per sport invernali</translation>
@@ -4734,6 +4746,7 @@ Ulteriori dettagli:
 <translation id="8389940864052787379">Veicoli ad alte prestazioni e personalizzati</translation>
 <translation id="8390725133630534698">La possibilità di condivisione da <ph name="ORIGIN_NAME" /> a <ph name="VM_NAME" /> è stata bloccata da una policy dell'amministratore</translation>
 <translation id="8392783408127179588">Ricaricamento policy in corso...</translation>
+<translation id="8393948304336153065">Aggiorna la patente di guida in Google Wallet</translation>
 <translation id="8396522675989118466">È il codice a <ph name="NUMBER_OF_DIGITS" /> cifre indicato sul <ph name="SIDE_OF_CARD" /></translation>
 <translation id="8398335999901363925">Metodi di pagamento che è possibile compilare tramite tocco aperti a schermo intero.</translation>
 <translation id="8398446215576328011">Ripristina policy applicate</translation>
@@ -4895,7 +4908,6 @@ Ulteriori dettagli:
 <translation id="8671519637524426245">Il valore <ph name="SECURE_DNS_SALT" /> non soddisfa i requisiti di dimensione.</translation>
 <translation id="867224526087042813">Firma</translation>
 <translation id="8672535691554698269">Reti di computer</translation>
-<translation id="8673710317985154384">{NUM_TABS,plural, =1{Mostra i dettagli della condivisione della scheda. Condivisione di 1 scheda da {WEBSITE_LIST_STR}}other{Mostra i dettagli della condivisione della scheda. Condivisione di {NUM_TABS} schede da {WEBSITE_LIST_STR}}}</translation>
 <translation id="8675446170353411473">È in corso il caricamento dei tuoi file su <ph name="CLOUD_PROVIDER" /></translation>
 <translation id="8676424191133491403">Nessun ritardo</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, risposta, <ph name="ANSWER" /></translation>

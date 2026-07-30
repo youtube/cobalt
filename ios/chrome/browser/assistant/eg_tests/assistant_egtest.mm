@@ -8,6 +8,7 @@
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
+#import "ios/chrome/test/earl_grey/chrome_multitasking_test_util.h"
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "ios/third_party/earl_grey2/src/CommonLib/Matcher/GREYLayoutConstraint.h"  // nogncheck
@@ -156,6 +157,71 @@ void OpenAssistantFromOmnibox() {
   // Verify that the omnibox is still visible.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::DefocusedLocationView()]
       assertWithMatcher:grey_sufficientlyVisible()];
+}
+
+// Tests transitioning between a side panel and a sheet layout during window
+// resizing transitions on iPad multitasking (windowed mode).
+- (void)testMultitaskingTransitionBetweenSheetAndSidePanel {
+  if (![ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"Test only supported on iPad.");
+  }
+  if (!@available(iOS 26.0, *)) {
+    EARL_GREY_TEST_DISABLED(@"Test only supported on iOS 26+.");
+  }
+
+  [ChromeEarlGrey loadURL:self.testServer->GetURL("/")];
+
+  OpenAssistantFromOmnibox();
+
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:
+          grey_accessibilityID(kAssistantContainerAccessibilityIdentifier)];
+
+  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
+                                          kAppContentAccessibilityIdentifier)]
+      assertWithMatcher:grey_layout(
+                            @[ RightOf() ],
+                            grey_accessibilityID(
+                                kAssistantContainerAccessibilityIdentifier))];
+
+  // Transition to Windowed Mode (Stage Manager).
+  [ChromeMultitaskingTestUtil moveToWindowedMode];
+
+  // Resize window to compact width to trigger the sheet layout.
+  [ChromeMultitaskingTestUtil resizeWindowToCompact];
+
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityID(
+                                   kAssistantContainerAccessibilityIdentifier)]
+      assertWithMatcher:grey_sufficientlyVisible()];
+
+  // Verify that the app content and assistant container overlap.
+  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
+                                          kAppContentAccessibilityIdentifier)]
+      assertWithMatcher:grey_not(grey_layout(
+                            @[ RightOf() ],
+                            grey_accessibilityID(
+                                kAssistantContainerAccessibilityIdentifier)))];
+
+  // Resize window back to regular width to restore the side panel layout.
+  [ChromeMultitaskingTestUtil resizeWindowToRegular];
+
+  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
+                                          kAppContentAccessibilityIdentifier)]
+      assertWithMatcher:grey_layout(
+                            @[ RightOf() ],
+                            grey_accessibilityID(
+                                kAssistantContainerAccessibilityIdentifier))];
+
+  // Restore fullscreen mode.
+  [ChromeMultitaskingTestUtil moveToFullscreenMode];
+
+  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
+                                          kAppContentAccessibilityIdentifier)]
+      assertWithMatcher:grey_layout(
+                            @[ RightOf() ],
+                            grey_accessibilityID(
+                                kAssistantContainerAccessibilityIdentifier))];
 }
 
 @end

@@ -135,6 +135,7 @@
 #include "services/network/prefetch_cache.h"
 #include "services/network/prefetch_matching_url_loader_factory.h"
 #include "services/network/prefetch_url_loader_client.h"
+#include "services/network/proxy_checking_host_resolver_request.h"
 #include "services/network/proxy_config_service_mojo.h"
 #include "services/network/proxy_lookup_request.h"
 #include "services/network/proxy_resolving_socket_factory_mojo.h"
@@ -1289,6 +1290,13 @@ void NetworkContext::OnProxyLookupComplete(
   proxy_lookup_requests_.erase(it);
 }
 
+void NetworkContext::OnProxyCheckingHostResolverRequestComplete(
+    ProxyCheckingHostResolverRequest* request) {
+  auto it = proxy_checking_host_resolver_requests_.find(request);
+  CHECK(it != proxy_checking_host_resolver_requests_.end());
+  proxy_checking_host_resolver_requests_.erase(it);
+}
+
 void NetworkContext::SetTLS13EarlyDataEnabled(bool enabled) {
   url_request_context_->http_transaction_factory()
       ->GetSession()
@@ -1336,7 +1344,7 @@ bool NetworkContext::CanCreateLoader(const OriginatingProcessId& process_id) {
 }
 
 size_t NetworkContext::GetNumOutstandingResolveHostRequestsForTesting() const {
-  size_t sum = 0;
+  size_t sum = proxy_checking_host_resolver_requests_.size();
   if (internal_host_resolver_) {
     sum += internal_host_resolver_->GetNumOutstandingRequestsForTesting();
   }
@@ -2168,6 +2176,16 @@ void NetworkContext::ResolveHost(
         net::ResolveErrorInfo(net::ERR_NETWORK_ACCESS_REVOKED),
         /*resolved_addresses=*/{},
         /*alternative_endpoints=*/{});
+    return;
+  }
+
+  if (optional_parameters && optional_parameters->direct_only) {
+    auto request = std::make_unique<ProxyCheckingHostResolverRequest>(
+        this, std::move(host), network_anonymization_key,
+        std::move(optional_parameters), std::move(response_client));
+    auto* request_ptr = request.get();
+    proxy_checking_host_resolver_requests_.insert(std::move(request));
+    request_ptr->Start(url);
     return;
   }
 

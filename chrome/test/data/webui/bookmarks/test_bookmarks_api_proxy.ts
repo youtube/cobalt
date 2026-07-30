@@ -2,13 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {BookmarksApiProxy, Query} from 'chrome://bookmarks/bookmarks.js';
+import type {BookmarkNode, BookmarksApiProxy, NodeMap, Query} from 'chrome://bookmarks/bookmarks.js';
+import {normalizeNode, normalizeNodes} from 'chrome://bookmarks/bookmarks.js';
+import {FakeChromeEvent} from 'chrome://webui-test/fake_chrome_event.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
 export class TestBookmarksApiProxy extends TestBrowserProxy implements
     BookmarksApiProxy {
-  private searchResponse_: chrome.bookmarks.BookmarkTreeNode[] = [];
-  private getTreeResponse_: chrome.bookmarks.BookmarkTreeNode[] = [];
+  onCreated = new FakeChromeEvent();
+  onRemoved = new FakeChromeEvent();
+  onChanged = new FakeChromeEvent();
+  onMoved = new FakeChromeEvent();
+  onChildrenReordered = new FakeChromeEvent();
+  onImportBegan = new FakeChromeEvent();
+  onImportEnded = new FakeChromeEvent();
+
+  private searchResponse_: BookmarkNode[] = [];
+  private getTreeResponse_: NodeMap = {};
 
   constructor() {
     super([
@@ -25,7 +35,7 @@ export class TestBookmarksApiProxy extends TestBrowserProxy implements
   }
 
   setGetTree(nodes: chrome.bookmarks.BookmarkTreeNode[]) {
-    this.getTreeResponse_ = nodes;
+    this.getTreeResponse_ = normalizeNodes(nodes[0]!);
   }
 
   search(query: Query) {
@@ -34,16 +44,25 @@ export class TestBookmarksApiProxy extends TestBrowserProxy implements
   }
 
   setSearchResponse(response: chrome.bookmarks.BookmarkTreeNode[]) {
-    this.searchResponse_ = response;
+    this.searchResponse_ = response.map(normalizeNode);
   }
 
   update(id: string, changes: {title?: string, url?: string}) {
     this.methodCalled('update', [id, changes]);
-    return Promise.resolve({id: '', title: ''});
+    return Promise.resolve({
+      id: id,
+      title: changes.title || '',
+      url: changes.url,
+    });
   }
 
-  create(bookmark: chrome.bookmarks.CreateDetails) {
-    this.methodCalled('create', bookmark);
-    return Promise.resolve({id: '', title: ''});
+  create(parentId: string, index: number|null, title: string, url?: string) {
+    this.methodCalled('create', [parentId, index, title, url]);
+    return Promise.resolve({
+      id: 'new_node',
+      parentId: parentId,
+      title: title,
+      url: url,
+    });
   }
 }

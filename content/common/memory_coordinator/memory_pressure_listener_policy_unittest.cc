@@ -13,6 +13,7 @@
 #include "base/memory/memory_pressure_listener_registry.h"
 #include "base/test/task_environment.h"
 #include "content/common/memory_coordinator/memory_consumer_group_host.h"
+#include "content/common/memory_coordinator/memory_coordinator_policy.h"
 #include "content/common/memory_coordinator/memory_coordinator_policy_manager.h"
 #include "content/public/common/memory_consumer_update.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -50,7 +51,8 @@ TEST_F(MemoryPressureListenerPolicyTest, ResponseToPressure) {
   MockMemoryConsumerGroupHost host;
   const ChildProcessId kChildId;  // Current process
 
-  policy_manager().AddMemoryConsumerGroupHost(kChildId, &host);
+  policy_manager().AddMemoryConsumerGroupHost(PROCESS_TYPE_BROWSER, kChildId,
+                                              &host);
 
   const std::string kConsumerName1 = "consumer1";
   const uint32_t kConsumerId1 = base::PersistentHash(kConsumerName1);
@@ -58,13 +60,12 @@ TEST_F(MemoryPressureListenerPolicyTest, ResponseToPressure) {
   const uint32_t kConsumerId2 = base::PersistentHash(kConsumerName2);
 
   policy_manager().OnConsumerGroupAdded(kConsumerId1, kConsumerName1, {},
-                                        PROCESS_TYPE_BROWSER, kChildId);
+                                        kChildId);
   policy_manager().OnConsumerGroupAdded(kConsumerId2, kConsumerName2, {},
-                                        PROCESS_TYPE_BROWSER, kChildId);
+                                        kChildId);
 
   MemoryPressureListenerPolicy policy(policy_manager());
-  MemoryCoordinatorPolicyRegistration<MemoryPressureListenerPolicy>
-      registration(policy_manager(), policy);
+  MemoryCoordinatorPolicyRegistration registration(policy_manager(), policy);
 
   // Moderate pressure: 50% limit and release memory.
   EXPECT_CALL(host, UpdateConsumers(UnorderedElementsAre(
@@ -101,13 +102,13 @@ TEST_F(MemoryPressureListenerPolicyTest, IgnoreOtherProcesses) {
   const std::string kRemoteName = "consumer1";
   const uint32_t kRemoteId = base::PersistentHash(kRemoteName);
 
-  policy_manager().AddMemoryConsumerGroupHost(kRemoteChildId, &host);
+  policy_manager().AddMemoryConsumerGroupHost(PROCESS_TYPE_RENDERER,
+                                              kRemoteChildId, &host);
   policy_manager().OnConsumerGroupAdded(kRemoteId, kRemoteName, {},
-                                        PROCESS_TYPE_RENDERER, kRemoteChildId);
+                                        kRemoteChildId);
 
   MemoryPressureListenerPolicy policy(policy_manager());
-  MemoryCoordinatorPolicyRegistration<MemoryPressureListenerPolicy>
-      registration(policy_manager(), policy);
+  MemoryCoordinatorPolicyRegistration registration(policy_manager(), policy);
 
   // Local pressure should NOT affect remote process consumers.
   EXPECT_CALL(host, UpdateConsumers(_)).Times(0);
@@ -123,15 +124,15 @@ TEST_F(MemoryPressureListenerPolicyTest, Persistence) {
   MockMemoryConsumerGroupHost host;
   const ChildProcessId kChildId;  // Current process
 
-  policy_manager().AddMemoryConsumerGroupHost(kChildId, &host);
+  policy_manager().AddMemoryConsumerGroupHost(PROCESS_TYPE_BROWSER, kChildId,
+                                              &host);
 
   const std::string kConsumerName = "consumer1";
   const uint32_t kConsumerId = base::PersistentHash(kConsumerName);
 
   {
     MemoryPressureListenerPolicy policy(policy_manager());
-    MemoryCoordinatorPolicyRegistration<MemoryPressureListenerPolicy>
-        registration(policy_manager(), policy);
+    MemoryCoordinatorPolicyRegistration registration(policy_manager(), policy);
 
     // Moderate pressure: 50% limit and release memory.
     base::MemoryPressureListener::SimulatePressureNotification(
@@ -142,7 +143,7 @@ TEST_F(MemoryPressureListenerPolicyTest, Persistence) {
     EXPECT_CALL(host, UpdateConsumers(UnorderedElementsAre(
                           MemoryConsumerUpdate{kConsumerId, 50, true})));
     policy_manager().OnConsumerGroupAdded(kConsumerId, kConsumerName, {},
-                                          PROCESS_TYPE_BROWSER, kChildId);
+                                          kChildId);
     Mock::VerifyAndClearExpectations(&host);
 
     // Removing the policy should reset the limit to default (100%).

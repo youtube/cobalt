@@ -365,6 +365,8 @@ public class MessagesMetrics {
                 return "GlicWindowResized";
             case MessageIdentifier.EXTENSION_DEV_TOOLS:
                 return "ExtensionDevTools";
+            case MessageIdentifier.PERSONAL_CONTEXT_FETCHING_FAILURE:
+                return "PersonalContextFetchingFailure";
             default:
                 return "Unknown";
         }

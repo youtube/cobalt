@@ -78,6 +78,7 @@ Bazı yer işaretlerini silene kadar hesabınıza yeni yer işaretleri kaydedile
 <translation id="2386292341327187942">Arama widget'ları kutusuna Chromium yazın.</translation>
 <translation id="2389827884654658221">iPad'inizin ana ekranından Chromium'a daha hızlı erişin.</translation>
 <translation id="2426113998523353159">Kuruluşunuz, Chromium'u kullanmak için oturum açmanızı zorunlu tutuyor.</translation>
+<translation id="244367646885670394">Bu şifreyi kaydetmek ve Chromium verilerini tüm cihazlarınızda kullanmak için kimliğinizi doğrulayın</translation>
 <translation id="2450140762465183767">Artık mesajlardaki, dokümanlardaki ve diğer uygulamalardaki bağlantıları tıkladığınızda Chromium'u kullanabilirsiniz.</translation>
 <translation id="2459183986985456602">Chromium'daki en son sekmemi aç</translation>
 <translation id="2476409803017965813">Seçimlerinizi istediğiniz zaman Chromium ayarlarından güncelleyebilirsiniz.</translation>
@@ -108,6 +109,7 @@ Veri kullanarak Chromium deneyiminizi iyileştiren daha fazla ayar görmek için
 <translation id="3054480780637153380">iOS'te Chromium ayarlarını açtıktan sonra "Varsayılan Tarayıcı Uygulaması"na dokunup Chromium'u seçin.</translation>
 <translation id="3115956258722352278">Chromium varsayılan tarayıcı yapılsın mı?</translation>
 <translation id="3180939591219927904">"Chromium'u kapattığınızda Gizli sekmeler kilitlensin" seçeneğini etkinleştirin</translation>
+<translation id="327628223428512207">Bu şifreyi kaydetmek ve Chromium verilerini tüm cihazlarınızda kullanmak için parolayı girin</translation>
 <translation id="328933489847748230">{count,plural, =1{Şu anda 1 Chromium penceresi gösteriliyor}other{Şu anda {count} Chromium penceresi gösteriliyor}}</translation>
 <translation id="3344973607274501920">Chromium, şifrelerinizi kontrol edemedi. İnternet bağlantınızı kontrol etmeyi deneyin.</translation>
 <translation id="3366305173356742781">Hesabınızdaki Chromium verileri</translation>

@@ -205,7 +205,9 @@ gpu::SharedImageUsageSet OperandUsageToSharedImageUsageSet(
     shared_image_usage_set |= gpu::SHARED_IMAGE_USAGE_WEBNN_SHARED_TENSOR_WRITE;
   }
   if (usage.Has(webnn::MLTensorUsageFlags::kWebGpuInterop)) {
-    shared_image_usage_set |= gpu::SHARED_IMAGE_USAGE_WEBGPU_SHARED_BUFFER;
+    shared_image_usage_set |= gpu::SHARED_IMAGE_USAGE_WEBGPU_READ |
+                              gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE |
+                              gpu::SHARED_IMAGE_USAGE_WEBGPU_SHARED_BUFFER;
   }
   return shared_image_usage_set;
 }
@@ -336,17 +338,21 @@ MLContext::MLContext(
           std::move(create_context_success->read_tensor_consumer)),
       webnn_handle_(std::move(create_context_success->context_handle)),
       command_buffer_id_(gpu::CommandBufferId::FromUnsafeValue(
-          create_context_success->command_buffer_id)) {
-  context_remote_.Bind(
-      std::move(create_context_success->context_remote),
-      execution_context->GetTaskRunner(TaskType::kMachineLearning));
+          create_context_success->command_buffer_id)),
+      task_runner_(
+          execution_context->GetTaskRunner(TaskType::kMachineLearning)) {
+  context_remote_.Bind(std::move(create_context_success->context_remote),
+                       task_runner_);
   context_remote_.set_disconnect_with_reason_handler(
       BindOnce(&MLContext::OnLost, WrapWeakPersistent(this)));
 
   if (create_context_success->compiler_context_remote) {
+    // The GPU returned a Compiler remote, so this backend uses a Compiler
+    // process. Record it for reconnect; the renderer never decides this.
+    backend_uses_compiler_process_ = true;
     compiler_context_remote_.Bind(
         std::move(create_context_success->compiler_context_remote),
-        execution_context->GetTaskRunner(TaskType::kMachineLearning));
+        task_runner_);
     compiler_context_remote_.set_disconnect_handler(BindOnce(
         &MLContext::OnCompilerContextDisconnected, WrapWeakPersistent(this)));
   }
@@ -412,12 +418,28 @@ MLGraphBuilder* MLContext::CreateWebNNGraphBuilder(
     return nullptr;
   }
 
+  // The GPU/browser side decides whether a Compiler process is used; the
+  // branches below only route the receiver per that decision.
+  //
   // TODO(crbug.com/519254890): A compromised renderer could bypass the
   // Compiler process by sending CreateGraphBuilder directly to context_remote_.
   // Add GPU-side enforcement to reject this when the Compiler process is
   // enabled.
   mojo::PendingRemote<webnn::mojom::blink::WebNNGraphBuilder> pending_remote;
   if (compiler_context_remote_.is_bound()) {
+    compiler_context_remote_->CreateGraphBuilder(
+        pending_remote.InitWithNewPipeAndPassReceiver());
+  } else if (backend_uses_compiler_process_) {
+    // Compiler context is disconnected (e.g. after a Compiler process crash
+    // or idle shutdown). Reconnect by creating a new CompilerContext pipe pair:
+    // bind the remote end locally and send the receiver to the GPU process
+    // (which forwards it to the Browser → Compiler process). Mojo buffers all
+    // messages sent on the remote until the receiver is bound in the Compiler
+    // process, so we can call CreateGraphBuilder immediately below.
+    context_remote_->RequestCompilerContext(
+        compiler_context_remote_.BindNewPipeAndPassReceiver(task_runner_));
+    compiler_context_remote_.set_disconnect_handler(BindOnce(
+        &MLContext::OnCompilerContextDisconnected, WrapWeakPersistent(this)));
     compiler_context_remote_->CreateGraphBuilder(
         pending_remote.InitWithNewPipeAndPassReceiver());
   } else {
@@ -430,6 +452,15 @@ MLGraphBuilder* MLContext::CreateWebNNGraphBuilder(
   graph_builders_.insert(graph_builder);
 
   return graph_builder;
+}
+
+void MLContext::OnCompilerContextDisconnected() {
+  // Do not eagerly reconnect. The next CreateWebNNGraphBuilder() call will
+  // trigger a reconnect on demand. This is a prerequisite for future idle
+  // shutdown enhancements (crbug.com/516844138) where the Compiler process
+  // may proactively disconnect contexts with no active graph builders;
+  // eager reconnection would cause an infinite reconnect loop in that case.
+  compiler_context_remote_.reset();
 }
 
 void MLContext::OnLost(uint32_t custom_reason, const std::string& description) {
@@ -452,14 +483,6 @@ void MLContext::OnLost(uint32_t custom_reason, const std::string& description) {
                                      "Context is lost.");
   }
   pending_resolvers_.clear();
-}
-
-void MLContext::OnCompilerContextDisconnected() {
-  // TODO(crbug.com/518984879): Instead of losing the entire context,
-  // request a new compiler context via
-  // context_remote_->RequestCompilerContext() and buffer graph builder
-  // receivers until the new remote arrives.
-  OnLost(0, "Compiler context disconnected.");
 }
 
 gpu::SyncToken MLContext::GenerateVerifiedReleaseToken() {

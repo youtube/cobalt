@@ -40,6 +40,7 @@ class MockPage : public drive_picker_host_untrusted::mojom::Page {
       (mojo::PendingRemote<drive_picker_host::mojom::DrivePickerResultHandler>,
        drive_picker_host_untrusted::mojom::DrivePickerKeysPtr),
       (override));
+  MOCK_METHOD(void, LoadConsentKitUrl, (const GURL&), (override));
 
  private:
   mojo::Receiver<drive_picker_host_untrusted::mojom::Page> receiver_{this};
@@ -223,4 +224,30 @@ TEST_F(DrivePickerUntrustedHostUITest, ShowDrivePickerQueuesOnDisconnect) {
                                handler2.InitWithNewPipeAndPassReceiver());
 
   base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(DrivePickerUntrustedHostUITest, LoadConsentKitUrl_ForwardsToPage) {
+  content::TestWebUI test_web_ui;
+  test_web_ui.set_web_contents(web_contents());
+  DrivePickerUntrustedHostUI controller(&test_web_ui);
+
+  MockPage mock_page;
+  mojo::Remote<drive_picker_host_untrusted::mojom::PageHandlerFactory>
+      untrusted_factory;
+  controller.BindInterface(untrusted_factory.BindNewPipeAndPassReceiver());
+
+  mojo::Remote<drive_picker_host_untrusted::mojom::PageHandler> untrusted_host;
+  untrusted_factory->CreatePageHandler(
+      mock_page.BindAndGetRemote(),
+      untrusted_host.BindNewPipeAndPassReceiver());
+  untrusted_factory.FlushForTesting();
+
+  const GURL test_url("https://consent.google.com/primitive?hl=en");
+  base::RunLoop run_loop;
+  EXPECT_CALL(mock_page, LoadConsentKitUrl(test_url))
+      .WillOnce(testing::InvokeWithoutArgs([&run_loop]() { run_loop.Quit(); }));
+
+  controller.LoadConsentKitUrl(test_url);
+
+  run_loop.Run();
 }

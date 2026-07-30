@@ -8,6 +8,8 @@
 #ifndef GPU_CONFIG_GPU_FINCH_FEATURES_H_
 #define GPU_CONFIG_GPU_FINCH_FEATURES_H_
 
+#include <type_traits>
+
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
 #include "build/build_config.h"
@@ -62,32 +64,96 @@ GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kVulkan);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kForceEnableWebGpuInterop);
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kSkiaGraphite);
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kSkiaGraphiteWinIntel);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kSkiaGraphitePrecompilation);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kSkiaGraphiteUsePersistentCache);
 GPU_CONFIG_EXPORT bool SkiaGraphiteUsesPersistentCache();
-GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
-    kSkiaGraphiteDawnSkipValidation;
-GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
-    kSkiaGraphiteDawnBackendValidation;
-GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
-    kSkiaGraphiteDawnBackendDebugLabels;
-GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
-    kSkiaGraphiteDawnEnableAutoMap;
 
-GPU_CONFIG_EXPORT extern const base::FeatureParam<int>
-    kSkiaGraphiteMaxPendingRecordings;
-GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
-    kSkiaGraphiteEnableDeferredSubmit;
-GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
-    kSkiaGraphiteEnableMSAAOnNewerIntel;
+struct GPU_CONFIG_EXPORT SkiaGraphiteFeatureParams {
+  // Whether the Dawn "skip_validation" toggle is enabled for Skia Graphite.
+  bool dawn_skip_validation = !DCHECK_IS_ON();
+
+  // Whether Dawn backend validation is enabled for Skia Graphite.
+  bool dawn_backend_validation = false;
+
+  // Whether Dawn backend debug labels are enabled for Skia Graphite.
+  // Only enable backend labels by default on DCHECK builds since it
+  // can have non-trivial performance overhead e.g. with Metal.
+  bool dawn_backend_debug_labels = DCHECK_IS_ON();
+
+  // Enables automatic buffer mappings in Dawn's backend.
+  bool dawn_enable_auto_map = true;
+
+  // Maximum number of pending recordings before submitting to the GPU.
+  int max_pending_recordings = 100;
+
+  // Whether to enable deferred submissions optimization (if possible). If it's
+  // false, every SI's access will require a Graphite's Context::submit() call
+  // before EndAccess().
+  bool enable_deferred_submit = BUILDFLAG(IS_WIN);
+
+  // Enables MSAA on newer Intel GPUs (Gen 11+).
+  bool enable_msaa_on_newer_intel = true;
 
 #if BUILDFLAG(IS_WIN)
-GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
-    kSkiaGraphiteDawnDumpWCOnD3DError;
-GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
-    kSkiaGraphiteDawnDisableD3DShaderOptimizations;
-GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
-    kSkiaGraphiteDawnD3D11DelayFlush;
+  // Whether we should DumpWithoutCrashing when D3D related errors are detected.
+  bool dawn_dumpwc_d3d_errors = false;
+
+  // Whether to disable D3D shader optimizations.
+  bool dawn_disable_d3d_shader_optimizations = false;
+
+  // Whether the Dawn D3D11 flush should be delayed until the end of the frame.
+  bool dawn_d3d11_delay_flush = true;
+#endif
+};
+
+static_assert(std::is_trivially_destructible_v<SkiaGraphiteFeatureParams>);
+
+// Gets the initialized Skia Graphite feature parameters.
+// Either IsSkiaGraphiteEnabled() or IsSkiaGraphiteWinIntelEnabled() must be
+// called to populate the parameters before calling this function (or
+// InitSkiaGraphiteDefaultParamsForTesting() in tests).
+GPU_CONFIG_EXPORT const SkiaGraphiteFeatureParams&
+GetSkiaGraphiteFeatureParams();
+
+// Allows tests to mark the feature parameters as initialized with their default
+// values without needing to call IsSkiaGraphiteEnabled(). Note that once
+// initialized, the parameters cannot be overridden by calling
+// IsSkiaGraphiteEnabled().
+GPU_CONFIG_EXPORT void InitSkiaGraphiteDefaultParamsForTesting();
+
+inline bool SkiaGraphiteDawnSkipValidation() {
+  return GetSkiaGraphiteFeatureParams().dawn_skip_validation;
+}
+inline bool SkiaGraphiteDawnBackendValidation() {
+  return GetSkiaGraphiteFeatureParams().dawn_backend_validation;
+}
+inline bool SkiaGraphiteDawnBackendDebugLabels() {
+  return GetSkiaGraphiteFeatureParams().dawn_backend_debug_labels;
+}
+inline bool SkiaGraphiteDawnEnableAutoMap() {
+  return GetSkiaGraphiteFeatureParams().dawn_enable_auto_map;
+}
+inline int SkiaGraphiteMaxPendingRecordings() {
+  return GetSkiaGraphiteFeatureParams().max_pending_recordings;
+}
+inline bool SkiaGraphiteEnableDeferredSubmit() {
+  return GetSkiaGraphiteFeatureParams().enable_deferred_submit;
+}
+inline bool SkiaGraphiteEnableMSAAOnNewerIntel() {
+  return GetSkiaGraphiteFeatureParams().enable_msaa_on_newer_intel;
+}
+
+#if BUILDFLAG(IS_WIN)
+inline bool SkiaGraphiteDawnDumpWCOnD3DError() {
+  return GetSkiaGraphiteFeatureParams().dawn_dumpwc_d3d_errors;
+}
+inline bool SkiaGraphiteDawnDisableD3DShaderOptimizations() {
+  return GetSkiaGraphiteFeatureParams().dawn_disable_d3d_shader_optimizations;
+}
+inline bool SkiaGraphiteDawnD3D11DelayFlush() {
+  return GetSkiaGraphiteFeatureParams().dawn_d3d11_delay_flush;
+}
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kSkiaGraphiteDawnUseD3D12);
 #endif
@@ -163,6 +229,7 @@ GPU_CONFIG_EXPORT bool ShouldEnableDrDc();
 GPU_CONFIG_EXPORT bool NeedThreadSafeAndroidMedia();
 GPU_CONFIG_EXPORT bool IsSkiaGraphiteEnabled(
     const base::CommandLine* command_line);
+GPU_CONFIG_EXPORT bool IsSkiaGraphiteWinIntelEnabled();
 GPU_CONFIG_EXPORT bool IsSkiaGraphitePrecompilationEnabled(
     const base::CommandLine* command_line);
 GPU_CONFIG_EXPORT bool EnablePruneOldTransferCacheEntries();

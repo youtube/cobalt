@@ -45,7 +45,7 @@ constexpr uint8_t kHandshakeHash[32] = {
 constexpr uint8_t kDeviceId[] = "device0";
 constexpr uint8_t kSignature[] = "signature";
 constexpr uint8_t kUserId[] = "ab";
-constexpr uint8_t kEncryptedPasskey[] = {1, 2, 3, 4};
+constexpr std::array<uint8_t, 4> kEncryptedPasskey = {1, 2, 3, 4};
 constexpr char kClientDataJson[] = "client_data_json";
 constexpr uint8_t kClientDataJsonHash[] = {
     0x13, 0xb2, 0x37, 0x27, 0x97, 0xd5, 0xca, 0x8a, 0xfa, 0x37, 0xb2,
@@ -101,8 +101,13 @@ constexpr char kGetAssertionHexResponse[] =
     "616E646C654261627161757468656E74696361746F724461746158251194228DA8FDBDEEFD"
     "261BD7B6595CFD70A50D70C6407BCF013DE96D4EFB17DE010000003B";
 constexpr char kMakeCredentialHexResponse[] =
-    "81A1626F6BA3677075625F6B657944050607086776657273696F6E0169656E637279707465"
-    "644401020304";
+    "81A1626F6BA4677075625F6B6579440506070869656E637279707465644401020304726175"
+    "7468656E74696361746F725F64617461589480FC0FB9266DB7B83F85850FA0E6548B6D70EE"
+    "68C8B5B412F1DEEA6EBDEF04045900000000EA9B8D664D011D213CE4B6B48CB575D4001020"
+    "56D1BAAD6CA3BA888D8E59C98490FAA50102032620012158204893597E915737155C6DCBB2"
+    "C9F7F12ED02897E489DBDAC8EF979758D23ADC722258203760C3F69BF29AD347D3B4509343"
+    "26EB96AE7707DDF4D3D96252906E891931C8726C61726765426C6F62537570706F72746564"
+    "F5";
 
 // An example response with the top-level "ok" key, dummy large blob and PRF
 // values.
@@ -229,7 +234,6 @@ class EnclaveProtocolUtilsTest : public testing::Test {
   void SetUp() override {
     device_id_ = fido_parsing_utils::Materialize(kDeviceId);
     user_id_ = fido_parsing_utils::Materialize(kUserId);
-    encrypted_passkey_ = fido_parsing_utils::Materialize(kEncryptedPasskey);
   }
 
   // This checks the outer map values of a request, which are common to all
@@ -264,8 +268,6 @@ class EnclaveProtocolUtilsTest : public testing::Test {
 
   std::vector<uint8_t>& user_id() { return user_id_; }
 
-  std::vector<uint8_t>& encrypted_passkey() { return encrypted_passkey_; }
-
   std::vector<uint8_t> wrapped_secret() { return wrapped_secret_; }
 
   std::vector<uint8_t> secret() { return secret_; }
@@ -275,8 +277,9 @@ class EnclaveProtocolUtilsTest : public testing::Test {
   const std::vector<uint8_t> secret_ = {6, 7, 8, 9, 0};
   std::vector<uint8_t> device_id_;
   std::vector<uint8_t> user_id_;
-  std::vector<uint8_t> encrypted_passkey_;
   base::test::TaskEnvironment task_environment_;
+  base::test::ScopedFeatureList scoped_feature_list_{
+      device::kWebAuthnEnclaveUseAuthDataFromEnclave};
 };
 
 class EnclaveProtocolUtilsTestStripParameters
@@ -412,8 +415,10 @@ TEST_P(EnclaveProtocolUtilsTestStripParameters,
   auto json_request =
       base::MakeRefCounted<JSONRequest>(std::move(*parsed_json));
   BuildCommandRequestBody(
-      BuildMakeCredentialCommand(json_request, /*claimed_pin=*/nullptr,
-                                 wrapped_secret(), /*secret=*/std::nullopt),
+      BuildMakeCredentialCommand(
+          json_request, /*claimed_pin=*/nullptr, wrapped_secret(),
+          /*secret=*/std::nullopt,
+          UserPresentAndVerifiedBits::kPresentAndVerified),
       base::BindOnce(&FakeSigningCallback), handshake_hash(),
       base::BindOnce(&BuildCommandCompletionWaiter::CompletionCallback,
                      base::Unretained(&waiter)));
@@ -431,22 +436,20 @@ TEST_P(EnclaveProtocolUtilsTestStripParameters,
               command_map.end());
   EXPECT_TRUE(command_map.find(cbor::Value("wrapped_pin_data")) ==
               command_map.end());
+  EXPECT_TRUE(command_map.find(cbor::Value("up"))->second.GetBool());
   auto& request_value_map =
       command_map.find(cbor::Value("request"))->second.GetMap();
-
+  EXPECT_EQ(request_value_map.find(cbor::Value("rp"))
+                ->second.GetMap()
+                .find(cbor::Value("id"))
+                ->second.GetString(),
+            "test.example");
   if (GetParam()) {
-    EXPECT_EQ(request_value_map.find(cbor::Value("rp")),
-              request_value_map.end());
     EXPECT_EQ(request_value_map.find(cbor::Value("challenge")),
               request_value_map.end());
     EXPECT_NE(request_value_map.find(cbor::Value("pubKeyCredParams")),
               request_value_map.end());
   } else {
-    EXPECT_EQ(request_value_map.find(cbor::Value("rp"))
-                  ->second.GetMap()
-                  .find(cbor::Value("id"))
-                  ->second.GetString(),
-              "test.example");
     EXPECT_NE(request_value_map.find(cbor::Value("challenge")),
               request_value_map.end());
     EXPECT_NE(request_value_map.find(cbor::Value("pubKeyCredParams")),
@@ -465,8 +468,10 @@ TEST_F(EnclaveProtocolUtilsTest, BuildMakeCredentialRequest_WithPIN) {
   const std::vector<uint8_t> wrapped_pin = {4, 5, 6, 7};
   auto claimed_pin = std::make_unique<ClaimedPIN>(pin_claim, wrapped_pin);
   BuildCommandRequestBody(
-      BuildMakeCredentialCommand(json_request, std::move(claimed_pin),
-                                 wrapped_secret(), /*secret=*/std::nullopt),
+      BuildMakeCredentialCommand(
+          json_request, std::move(claimed_pin), wrapped_secret(),
+          /*secret=*/std::nullopt,
+          UserPresentAndVerifiedBits::kPresentAndVerified),
       base::BindOnce(&FakeSigningCallback), handshake_hash(),
       base::BindOnce(&BuildCommandCompletionWaiter::CompletionCallback,
                      base::Unretained(&waiter)));
@@ -539,7 +544,8 @@ TEST_F(EnclaveProtocolUtilsTest, ParseMakeCredentialResponse_Success) {
   EXPECT_TRUE(
       (std::holds_alternative<std::pair<AuthenticatorMakeCredentialResponse,
                                         sync_pb::WebauthnCredentialSpecifics>>(
-          parse_result)));
+          parse_result)))
+      << *std::get<ErrorResponse>(parse_result).error_string;
   const auto& entity =
       std::get<std::pair<AuthenticatorMakeCredentialResponse,
                          sync_pb::WebauthnCredentialSpecifics>>(parse_result)
@@ -547,8 +553,7 @@ TEST_F(EnclaveProtocolUtilsTest, ParseMakeCredentialResponse_Success) {
   EXPECT_EQ(entity.rp_id(), std::string(kRpId));
   EXPECT_EQ(entity.user_id(), std::string(user_id().begin(), user_id().end()));
   EXPECT_EQ(entity.key_version(), kWrappedSecretVersion);
-  EXPECT_EQ(entity.encrypted(), std::string(encrypted_passkey().begin(),
-                                            encrypted_passkey().end()));
+  EXPECT_THAT(entity.encrypted(), testing::ElementsAreArray(kEncryptedPasskey));
 
   const auto& register_response =
       std::get<std::pair<AuthenticatorMakeCredentialResponse,
@@ -566,12 +571,44 @@ TEST_F(EnclaveProtocolUtilsTest, ParseMakeCredentialResponse_Success) {
   EXPECT_TRUE(register_response.is_resident_key);
   EXPECT_TRUE(register_response.attestation_object.authenticator_data()
                   .obtained_user_presence());
-  EXPECT_TRUE(register_response.attestation_object.authenticator_data()
-                  .obtained_user_verification());
+  EXPECT_FALSE(register_response.attestation_object.authenticator_data()
+                   .obtained_user_verification());
 }
 
+// Tests that Chrome does not set the UP bit to `true` on the request for
+// conditional create.
+TEST_F(EnclaveProtocolUtilsTest, BuildMakeCredentialRequest_ConditionalCreate) {
+  BuildCommandCompletionWaiter waiter;
+  std::optional<base::Value> parsed_json = base::JSONReader::Read(
+      kMakeCredentialRequestJson, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
+  EXPECT_TRUE(parsed_json);
+  auto json_request =
+      base::MakeRefCounted<JSONRequest>(std::move(*parsed_json));
+  BuildCommandRequestBody(
+      BuildMakeCredentialCommand(json_request, /*claimed_pin=*/nullptr,
+                                 wrapped_secret(), /*secret=*/std::nullopt,
+                                 UserPresentAndVerifiedBits::kNeither),
+      base::BindOnce(&FakeSigningCallback), handshake_hash(),
+      base::BindOnce(&BuildCommandCompletionWaiter::CompletionCallback,
+                     base::Unretained(&waiter)));
+
+  waiter.Wait();
+
+  std::optional<cbor::Value> request_cbor = cbor::Reader::Read(waiter.result());
+  auto decoded_command =
+      ValidateRequestFormatAndReturnCommandList(*request_cbor);
+  auto& command_element = decoded_command->GetArray()[0];
+  auto& command_map = command_element.GetMap();
+  EXPECT_FALSE(command_map.find(cbor::Value("up"))->second.GetBool());
+}
+
+// Tests that when Chrome builds the authenticator data, the UP bit is set to
+// `false` for conditional create requests.
 TEST_F(EnclaveProtocolUtilsTest,
        ParseMakeCredentialResponse_WithoutUserPresence) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      device::kWebAuthnEnclaveUseAuthDataFromEnclave);
   std::vector<uint8_t> response_serialized;
   CHECK(
       base::HexStringToBytes(kMakeCredentialHexResponse, &response_serialized));

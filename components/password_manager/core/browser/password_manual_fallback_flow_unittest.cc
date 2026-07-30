@@ -623,7 +623,11 @@ TEST_F(PasswordManualFallbackFlowTest, SelectUsernameFieldByFieldSuggestion) {
   EXPECT_CALL(driver(),
               PreviewField(field_id, std::u16string(u"username@example.com")));
   flow().DidSelectSuggestion(autofill::test::CreateAutofillSuggestion(
-      SuggestionType::kPasswordFieldByFieldFilling, u"username@example.com"));
+      SuggestionType::kPasswordFieldByFieldFilling, u"username@example.com",
+      Suggestion::PasswordSuggestionDetails(
+          u"username@example.com", u"password", "https://cross-domain.com/",
+          u"same-domain.com",
+          /*is_cross_domain=*/false)));
 }
 
 // Test that username field-by-field suggestion is filled into the correct field
@@ -644,11 +648,15 @@ TEST_F(PasswordManualFallbackFlowTest, AcceptUsernameFieldByFieldSuggestion) {
       autofill_client(),
       HideSuggestions(SuggestionHidingReason::kAcceptSuggestion,
                       std::optional(autofill::FillingProduct::kPassword)));
-  ShowAndAcceptSuggestion(autofill::test::CreateAutofillSuggestion(
-                              SuggestionType::kPasswordFieldByFieldFilling,
-                              u"username@example.com"),
-                          AutofillSuggestionDelegate::SuggestionMetadata{
-                              .row = 0, .sub_popup_level = 1});
+  ShowAndAcceptSuggestion(
+      autofill::test::CreateAutofillSuggestion(
+          SuggestionType::kPasswordFieldByFieldFilling, u"username@example.com",
+          Suggestion::PasswordSuggestionDetails(
+              u"username@example.com", u"password", "https://cross-domain.com/",
+              u"same-domain.com",
+              /*is_cross_domain=*/false)),
+      AutofillSuggestionDelegate::SuggestionMetadata{.row = 0,
+                                                     .sub_popup_level = 1});
 }
 
 // Test that both username and password are previewed if the suggestion is
@@ -683,8 +691,8 @@ TEST_F(PasswordManualFallbackFlowTest,
   flow().DidSelectSuggestion(suggestion);
 }
 
-// Test that password manual fallback suggestion is previewed without password
-// if the suggestion is cross-domain.
+// Test that password manual fallback suggestion is not previewed if the
+// suggestion is cross-domain.
 TEST_F(PasswordManualFallbackFlowTest,
        SelectFillFullFormSuggestion_CrossDomain_TriggeredOnAPasswordForm) {
   InitializeFlow();
@@ -703,12 +711,41 @@ TEST_F(PasswordManualFallbackFlowTest,
 
   // Expect that the password is empty in the preview call. The length of the
   // label must be fixed and not depend on the password length.
-  EXPECT_CALL(driver(), PreviewSuggestionById(form.username_element_renderer_id,
-                                              form.password_element_renderer_id,
-                                              std::u16string(u"username"),
-                                              std::u16string(u"********")));
+  EXPECT_CALL(driver(), PreviewSuggestionById).Times(0);
   Suggestion suggestion = autofill::test::CreateAutofillSuggestion(
       SuggestionType::kPasswordEntry, u"google.com",
+      Suggestion::PasswordSuggestionDetails(u"username", u"this_password",
+                                            "https://cross-domain.com/",
+                                            u"cross-domain.com",
+                                            /*is_cross_domain=*/true));
+  suggestion.labels = {{Suggestion::Text(u"username")}};
+  suggestion.acceptability = Suggestion::Acceptability::kAcceptable;
+  flow().DidSelectSuggestion(suggestion);
+}
+
+// Test that password manual fallback suggestion is not previewed if the
+// suggestion is cross-domain.
+TEST_F(PasswordManualFallbackFlowTest,
+       SelectFieldByFieldSuggestion_CrossDomain_TriggeredOnAPasswordForm) {
+  InitializeFlow();
+  ProcessPasswordStoreUpdates();
+
+  PasswordForm form;
+  form.username_element_renderer_id = MakeFieldRendererId();
+  form.password_element_renderer_id = MakeFieldRendererId();
+  // Simulate that the field is/isn't classified as target filling password.
+  EXPECT_CALL(password_form_cache(),
+              GetPasswordForm(_, form.username_element_renderer_id))
+      .WillRepeatedly(Return(&form));
+
+  flow().RunFlow(form.username_element_renderer_id, gfx::RectF{},
+                 TextDirection::LEFT_TO_RIGHT);
+
+  // Expect that the password is empty in the preview call. The length of the
+  // label must be fixed and not depend on the password length.
+  EXPECT_CALL(driver(), PreviewField).Times(0);
+  Suggestion suggestion = autofill::test::CreateAutofillSuggestion(
+      SuggestionType::kPasswordFieldByFieldFilling, u"google.com",
       Suggestion::PasswordSuggestionDetails(u"username", u"this_password",
                                             "https://cross-domain.com/",
                                             u"cross-domain.com",
@@ -1566,7 +1603,11 @@ TEST_P(PasswordManualFallbackFlowFillAfterSuggestionMetricsTest,
 
   base::HistogramTester histograms;
   autofill::Suggestion suggestion = autofill::test::CreateAutofillSuggestion(
-      SuggestionType::kPasswordFieldByFieldFilling, u"password");
+      SuggestionType::kPasswordFieldByFieldFilling, u"password",
+      Suggestion::PasswordSuggestionDetails(u"username", u"password",
+                                            "https://cross-domain.com/",
+                                            u"same-domain.com",
+                                            /*is_cross_domain=*/false));
   if (SuggestionAccepted()) {
     ShowAndAcceptSuggestion(
         suggestion,

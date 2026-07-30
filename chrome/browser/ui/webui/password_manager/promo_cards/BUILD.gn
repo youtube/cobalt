@@ -1,0 +1,83 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/features.gni")
+import("//chrome/common/features.gni")
+
+source_set("promo_cards") {
+  sources = []
+  public = []
+  public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+  deps = [
+    "//base",
+    "//chrome/app:generated_resources",
+    "//chrome/browser/extensions/api/passwords_private",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/sync",
+    "//chrome/browser/ui/webui/password_manager:promo_card",
+    "//chrome/browser/user_education",
+    "//chrome/browser/web_applications",
+    "//chrome/common",
+    "//components/password_manager/core/browser",
+    "//components/password_manager/core/browser/features:password_features",
+    "//components/password_manager/core/common",
+    "//components/prefs",
+    "//components/sync/service",
+    "//ui/base",
+  ]
+
+  if (is_chrome_branded) {
+    sources += [
+      "access_on_any_device_promo.cc",
+      "password_checkup_promo.cc",
+      "password_manager_shortcut_promo.cc",
+      "web_password_manager_promo.cc",
+    ]
+    public += [
+      "access_on_any_device_promo.h",
+      "password_checkup_promo.h",
+      "password_manager_shortcut_promo.h",
+      "web_password_manager_promo.h",
+    ]
+  }
+
+  if ((enable_dice_support || is_chromeos) && is_chrome_branded) {
+    sources += [ "move_passwords_promo.cc" ]
+    public += [ "move_passwords_promo.h" ]
+  }
+
+  if (is_linux || is_mac) {
+    sources += [ "relaunch_chrome_promo.cc" ]
+    public += [ "relaunch_chrome_promo.h" ]
+    deps += [ "//components/os_crypt/async/common" ]
+  }
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = []
+  deps = [
+    ":promo_cards",
+    "//base/test:test_support",
+    "//chrome/browser/password_manager:test_support",
+    "//chrome/browser/ui/webui/password_manager:promo_card",
+    "//chrome/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  if ((enable_dice_support || is_chromeos) && is_chrome_branded) {
+    sources += [ "move_passwords_promo_unittest.cc" ]
+    deps += [
+      "//chrome/browser/extensions/api/passwords_private",
+      "//chrome/browser/sync",
+      "//chrome/browser/webauthn:test_support",
+    ]
+  }
+
+  if (is_linux || is_mac) {
+    sources += [ "relaunch_chrome_promo_unittest.cc" ]
+    deps += [ "//components/os_crypt/async/browser:test_support" ]
+  }
+}

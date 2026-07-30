@@ -20,14 +20,6 @@
 
 namespace autofill {
 
-namespace {
-constexpr char kUrlPatternKey[] = "url_pattern";
-constexpr char kBlockedTypesKey[] = "blocked_types";
-constexpr char kContactInfoValue[] = "contact_info";
-constexpr char kPaymentsValue[] = "payments";
-constexpr char kIdentityDocsValue[] = "identity_docs";
-constexpr char kTravelValue[] = "travel";
-}  // namespace
 
 AutofillEnterprisePolicyService::AutofillEnterprisePolicyService(
     PrefService* prefs)
@@ -72,9 +64,10 @@ void AutofillEnterprisePolicyService::OnAutofillPolicyChanged() {
     }
 
     const base::DictValue& entry_dict = entry.GetDict();
-    const std::string* pattern_str = entry_dict.FindString(kUrlPatternKey);
+    const std::string* pattern_str =
+        entry_dict.FindString(prefs::kAutofillBlockedTypesUrlPatternKey);
     const base::ListValue* blocked_types =
-        entry_dict.FindList(kBlockedTypesKey);
+        entry_dict.FindList(prefs::kAutofillBlockedTypesBlockedTypesKey);
 
     if (!pattern_str || !blocked_types) {
       continue;
@@ -92,18 +85,21 @@ void AutofillEnterprisePolicyService::OnAutofillPolicyChanged() {
         continue;
       }
       const std::string& type_str = blocked_type.GetString();
-      if (type_str == kContactInfoValue) {
+      if (type_str == prefs::kAutofillBlockedTypesContactInfoValue) {
         categories.push_back(
             AutofillClient::AutofillPolicyDataCategory::kContactInfo);
-      } else if (type_str == kPaymentsValue) {
+      } else if (type_str == prefs::kAutofillBlockedTypesPaymentsValue) {
         categories.push_back(
             AutofillClient::AutofillPolicyDataCategory::kPayments);
-      } else if (type_str == kIdentityDocsValue) {
+      } else if (type_str == prefs::kAutofillBlockedTypesIdentityDocsValue) {
         categories.push_back(
             AutofillClient::AutofillPolicyDataCategory::kIdentityDocs);
-      } else if (type_str == kTravelValue) {
+      } else if (type_str == prefs::kAutofillBlockedTypesTravelValue) {
         categories.push_back(
             AutofillClient::AutofillPolicyDataCategory::kTravel);
+      } else if (type_str == prefs::kAutofillBlockedTypesShoppingValue) {
+        categories.push_back(
+            AutofillClient::AutofillPolicyDataCategory::kShopping);
       }
     }
     blocked_patterns_cache_.push_back({pattern, std::move(categories)});

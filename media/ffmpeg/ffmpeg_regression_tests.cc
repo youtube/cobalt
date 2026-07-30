@@ -22,7 +22,9 @@
 #include <string>
 
 #include "base/functional/bind.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
+#include "media/base/media_switches.h"
 #include "media/test/pipeline_integration_test_base.h"
 
 namespace media {
@@ -62,11 +64,41 @@ struct FlakyRegressionTestData {
 class FFmpegRegressionTest
     : public testing::TestWithParam<RegressionTestData>,
       public PipelineIntegrationTestBase {
+ public:
+  FFmpegRegressionTest() {
+    scoped_feature_list_.InitWithFeatures({}, /*disabled_features=*/{
+                                              kDirectOpusAudioDecoding,
+#if BUILDFLAG(ENABLE_SYMPHONIA)
+                                              kSymphoniaAudioDecoding,
+                                              kSymphoniaMp3Decoding,
+                                              kSymphoniaPcmDecoding,
+                                              kSymphoniaVorbisDecoding,
+#endif
+                                          });
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 class FlakyFFmpegRegressionTest
     : public testing::TestWithParam<FlakyRegressionTestData>,
       public PipelineIntegrationTestBase {
+ public:
+  FlakyFFmpegRegressionTest() {
+    scoped_feature_list_.InitWithFeatures({}, /*disabled_features=*/{
+                                              kDirectOpusAudioDecoding,
+#if BUILDFLAG(ENABLE_SYMPHONIA)
+                                              kSymphoniaAudioDecoding,
+                                              kSymphoniaMp3Decoding,
+                                              kSymphoniaPcmDecoding,
+                                              kSymphoniaVorbisDecoding,
+#endif
+                                          });
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 #define FFMPEG_TEST_CASE_SEEKING(name, fn, init_status, end_status, seek_time) \

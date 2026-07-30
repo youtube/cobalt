@@ -248,10 +248,9 @@ void CounterStyleMap::ResolveSpeakAsReferenceFor(CounterStyle& counter_style) {
 
 void CounterStyleMap::ResolveReferences(
     HeapHashSet<Member<CounterStyleMap>>& visited_maps) {
-  if (visited_maps.Contains(this)) {
+  if (!visited_maps.insert(this).is_new_entry) {
     return;
   }
-  visited_maps.insert(this);
 
   // References in ancestor scopes must be resolved first.
   if (CounterStyleMap* ancestor_map = GetAncestorMap()) {

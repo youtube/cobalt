@@ -4,6 +4,7 @@
 
 #include "components/content_settings/browser/page_specific_content_settings.h"
 
+#include <algorithm>
 #include <list>
 #include <variant>
 #include <vector>
@@ -1698,6 +1699,37 @@ bool PageSpecificContentSettings::IsInUse(ContentSettingsType type) const {
   return in_use_.contains(type);
 }
 
+void PageSpecificContentSettings::SetRequestedSensorIsAvailable(
+    bool is_available) {
+  if (!any_requested_sensor_is_available_ && is_available) {
+    any_requested_sensor_is_available_ = true;
+    MaybeUpdateLocationBar();
+    MaybeUpdateParent(
+        &PageSpecificContentSettings::SetRequestedSensorIsAvailable, true);
+  }
+}
+
+void PageSpecificContentSettings::OnSensorStarted() {
+  active_available_sensors_++;
+  if (active_available_sensors_ == 1) {
+    MaybeUpdateLocationBar();
+  }
+  MaybeUpdateParent(&PageSpecificContentSettings::OnSensorStarted);
+}
+
+void PageSpecificContentSettings::OnSensorStopped() {
+  CHECK_GT(active_available_sensors_, 0);
+  active_available_sensors_--;
+  if (active_available_sensors_ == 0) {
+    MaybeUpdateLocationBar();
+  }
+  MaybeUpdateParent(&PageSpecificContentSettings::OnSensorStopped);
+}
+
+int PageSpecificContentSettings::active_available_sensors() const {
+  return active_available_sensors_;
+}
+
 #if BUILDFLAG(IS_CHROMEOS)
 bool PageSpecificContentSettings::ShouldShowDeviceInUseIndicator(
     ContentSettingsType type) const {
@@ -1795,6 +1827,13 @@ void PageSpecificContentSettings::OnActivityIndicatorBubbleClosed(
 bool PageSpecificContentSettings::IsIndicatorVisible(
     ContentSettingsType type) const {
   return visible_indicators_.contains(type);
+}
+
+bool PageSpecificContentSettings::IsAnyIndicatorVisible(
+    base::span<const ContentSettingsType> types) const {
+  return std::ranges::any_of(types, [this](ContentSettingsType type) {
+    return visible_indicators_.contains(type);
+  });
 }
 
 void PageSpecificContentSettings::OnPermissionIndicatorShown(

@@ -20,6 +20,7 @@ export function getHtml(this: PermissionDashboardElement) {
   ${this.dashboardState.requestChip?.isVisible ? html`
     <permission-chip
         id="request-chip"
+        ?has-divider="${this.dashboardState.isDividerVisible}"
         .chipState="${this.dashboardState.requestChip}">
     </permission-chip>
   ` : nothing}

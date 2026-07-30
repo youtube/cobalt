@@ -99,6 +99,9 @@ class ProfileMenuView : public ProfileMenuViewBase {
   void OnAutofillSettingsButtonClicked();
   void OnYourSavedInfoSettingsButtonClicked();
   void OnBatchUploadButtonClicked(ActionableItem button_type);
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  void OnCrossDeviceSigninButtonClicked();
+#endif
 
   // We normally close the bubble any time it becomes inactive but this can lead
   // to flaky tests where unexpected UI events are triggering this behavior.
@@ -121,6 +124,9 @@ class ProfileMenuView : public ProfileMenuViewBase {
   void MaybeBuildGoogleServicesSettingsButton();
   void MaybeBuildManageGoogleAccountButton();
   void MaybeBuildCloseBrowsersButton();
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  void MaybeBuildCrossDeviceSigninButton();
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
   void MaybeBuildSignoutButton();
   void BuildFeatureButtons();
   IdentitySectionParams GetIdentitySectionParams(

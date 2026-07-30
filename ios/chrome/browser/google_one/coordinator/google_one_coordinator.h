@@ -10,6 +10,7 @@
 #import "ios/chrome/browser/google_one/shared/google_one_entry_point.h"
 #import "ios/chrome/browser/shared/coordinator/chrome_coordinator/chrome_coordinator.h"
 
+class GURL;
 @protocol SystemIdentity;
 
 // A coordinator to display Google One management screen.
@@ -21,6 +22,13 @@
                                    browser:(Browser*)browser
                                 entryPoint:(GoogleOneEntryPoint)entryPoint
                                   identity:(id<SystemIdentity>)identity;
+
+// Create a Google One coordinator to present account management triggered
+// via deep link with `inputURL`.
+- (instancetype)initWithBaseViewController:(UIViewController*)viewController
+                                   browser:(Browser*)browser
+                                entryPoint:(GoogleOneEntryPoint)entryPoint
+                                  inputURL:(const GURL&)inputURL;
 
 @end
 

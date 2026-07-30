@@ -4,6 +4,7 @@
 # found in the LICENSE file.
 """Siso configuration for devtools-frontend."""
 
+load("@builtin//lib/gn.star", "gn")
 load("@builtin//path.star", "path")
 load("@builtin//struct.star", "module")
 load("./config.star", "config")
@@ -33,8 +34,9 @@ def __step_config(ctx, step_config):
     step_config["rules"].extend([
         {
             "name": "devtools-frontend/typescript/ts_library",
-            "command_prefix": "python3 ../../third_party/devtools-frontend/src/third_party/typescript/ts_library.py",
-            "remote": False,
+            "command_prefix": "python3 ../../third_party/devtools-frontend/src/scripts/build/typescript/ts_library.py",
+            # Remote execution still doesn't work when TypeScript compiler is used.
+            "remote": config.get(ctx, "default-remote") and gn.args(ctx).get("devtools_skip_typecheck") != "false",
             "output_local": True,
             "timeout": "2m",
         },

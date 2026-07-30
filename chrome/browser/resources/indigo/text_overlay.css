@@ -10,13 +10,14 @@
   /* TODO(b/515804243): Update the proportional values once UX is finalized. */
   --indigo-steps-font-size: max(12px, 3.5vw);
   --indigo-disclaimer-font-size:
-      max(10px, calc(var(--indigo-steps-font-size) * 0.8));
+      max(10px, calc(var(--indigo-steps-font-size) * 0.7));
   --indigo-entry-icon-base-size: max(15px, 7vw);
   --indigo-disclaimer-margin-top: max(10px, 10vh);
 
   --indigo-entry-icon-pulse-size:
       calc(var(--indigo-entry-icon-base-size) * 1.8);
   --indigo-icon-transition-duration: 300ms;
+  --indigo-icon-rotation-loop-duration: 2s;
   --indigo-text-transition-duration: 300ms;
   --indigo-text-transition-delay: 100ms;
   --indigo-wipe-in-start: inset(0 100% 0 0);
@@ -86,6 +87,23 @@
   }
 }
 
+@keyframes icon-rotate-loop {
+  /* The first 50% of the animation is spent in 0deg to create a gap before the
+   * next rotation. */
+  0% {
+    transform: rotate(0deg);
+  }
+
+  50% {
+    transform: rotate(0deg);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 #icon {
   background-image: url(text_layer_entry_icon.png);
   background-size: contain;
@@ -94,7 +112,9 @@
   opacity: 0;
   transition: height var(--indigo-icon-transition-duration) ease-out,
       width var(--indigo-icon-transition-duration) ease-out;
-  animation: icon-entry var(--indigo-text-entry-delay) ease-out forwards;
+  animation: icon-entry var(--indigo-text-entry-delay) ease-out forwards,
+      icon-rotate-loop var(--indigo-icon-rotation-loop-duration) linear
+          var(--indigo-text-entry-delay) infinite;
 }
 
 #steps {
@@ -103,6 +123,7 @@
   font-size: var(--indigo-steps-font-size);
   font-weight: 500;
   justify-items: center;
+  margin-top: 17px;
 }
 
 #steps > div {

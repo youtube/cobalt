@@ -82,7 +82,6 @@ const uint32_t kInputAudioEffect = 1;
 const uint32_t kOutputAudioEffect = 0;
 
 const int kStepPercentage = 4;
-const int kDefaultUnmuteVolumePercent = 4;
 
 const AudioNodeInfo kInternalSpeaker[] = {{false, kInternalSpeakerId,
                                            "Fake Speaker", "INTERNAL_SPEAKER",
@@ -930,31 +929,6 @@ TEST_P(CrasAudioHandlerTest, InitializeWithKeyboardMic) {
   EXPECT_FALSE(keyboard_mic->active);
 }
 
-TEST_P(CrasAudioHandlerTest, SetKeyboardMicActive) {
-  SetupAudioNodesAndExpectActiveNodes(
-      /*initial_nodes=*/{kInternalMic, kKeyboardMic},
-      /*expected_active_input_node=*/kInternalMic,
-      /*expected_active_output_node=*/nullptr,
-      /*expected_has_alternative_input=*/false,
-      /*expected_has_alternative_output=*/std::nullopt);
-
-  // Ensure keyboard_mic is not active.
-  const AudioDevice* keyboard_mic = GetDeviceFromId(kKeyboardMic->id);
-  EXPECT_FALSE(keyboard_mic->active);
-
-  // Make keyboard mic active.
-  cras_audio_handler_->SetKeyboardMicActive(true);
-  EXPECT_EQ(kInternalMic->id, cras_audio_handler_->GetPrimaryActiveInputNode());
-  const AudioDevice* active_keyboard_mic = GetDeviceFromId(kKeyboardMic->id);
-  EXPECT_TRUE(active_keyboard_mic->active);
-
-  // Make keyboard mic inactive.
-  cras_audio_handler_->SetKeyboardMicActive(false);
-  EXPECT_EQ(kInternalMic->id, cras_audio_handler_->GetPrimaryActiveInputNode());
-  const AudioDevice* inactive_keyboard_mic = GetDeviceFromId(kKeyboardMic->id);
-  EXPECT_FALSE(inactive_keyboard_mic->active);
-}
-
 TEST_P(CrasAudioHandlerTest, KeyboardMicNotSetAsPrimaryActive) {
   AudioNodeList audio_nodes = GenerateAudioNodeList({kKeyboardMic});
   SetUpCrasAudioHandler(audio_nodes);
@@ -963,7 +937,6 @@ TEST_P(CrasAudioHandlerTest, KeyboardMicNotSetAsPrimaryActive) {
   AudioDeviceList audio_devices;
   cras_audio_handler_->GetAudioDevices(&audio_devices);
   EXPECT_EQ(audio_nodes.size(), audio_devices.size());
-  EXPECT_TRUE(cras_audio_handler_->HasKeyboardMic());
   EXPECT_EQ(0u, cras_audio_handler_->GetPrimaryActiveInputNode());
 
   // Verify the internal mic is set as primary input.
@@ -971,7 +944,6 @@ TEST_P(CrasAudioHandlerTest, KeyboardMicNotSetAsPrimaryActive) {
   ChangeAudioNodes(audio_nodes);
   cras_audio_handler_->GetAudioDevices(&audio_devices);
   EXPECT_EQ(audio_nodes.size(), audio_devices.size());
-  EXPECT_TRUE(cras_audio_handler_->HasKeyboardMic());
   EXPECT_EQ(kInternalMic->id, cras_audio_handler_->GetPrimaryActiveInputNode());
 }
 
@@ -2715,7 +2687,7 @@ TEST_P(CrasAudioHandlerTest, IncreaseOutputVolumeByOneStepOther) {
       {kInternalSpeaker, kHeadphone, kOther, kBluetoothHeadset, kHDMIOutput});
   SetUpCrasAudioHandler(audio_nodes);
   for (const auto& audio_node : audio_nodes) {
-    cras_audio_handler_->ChangeActiveNodes({audio_node.id});
+    cras_audio_handler_->SetActiveOutputNodes({audio_node.id});
     cras_audio_handler_->SetOutputVolumePercent(50);
     cras_audio_handler_->IncreaseOutputVolumeByOneStep(kStepPercentage);
     EXPECT_EQ(50 + kStepPercentage,
@@ -2732,7 +2704,7 @@ TEST_P(CrasAudioHandlerTest, IncreaseOutputVolumeByOneStepUSB) {
   SetUpCrasAudioHandler(audio_nodes);
   // USB 1 have 25 steps, mean we increase 100/25=4 % of volume per step.
   // USB 1 start from volume 0 and increase one step expect increase to 4.
-  cras_audio_handler_->ChangeActiveNodes({kUSBHeadphone1->id});
+  cras_audio_handler_->SetActiveOutputNodes({kUSBHeadphone1->id});
   cras_audio_handler_->SetOutputVolumePercent(0);
   cras_audio_handler_->IncreaseOutputVolumeByOneStep(kStepPercentage);
   EXPECT_EQ(4, cras_audio_handler_->GetOutputVolumePercent());
@@ -2756,7 +2728,7 @@ TEST_P(CrasAudioHandlerTest, IncreaseOutputVolumeByOneStepUSB) {
   EXPECT_EQ(100, cras_audio_handler_->GetOutputVolumePercent());
   // USB 2 have 16 steps, mean we increase 100/16=6.25 % of volume per step.
   // USB 2 start from volume 0 and increase one step expect increase to 6;
-  cras_audio_handler_->ChangeActiveNodes({kUSBHeadphone2->id});
+  cras_audio_handler_->SetActiveOutputNodes({kUSBHeadphone2->id});
   cras_audio_handler_->SetOutputVolumePercent(0);
   cras_audio_handler_->IncreaseOutputVolumeByOneStep(kStepPercentage);
   EXPECT_EQ(6, cras_audio_handler_->GetOutputVolumePercent());
@@ -2788,7 +2760,7 @@ TEST_P(CrasAudioHandlerTest, IncreaseOutputVolumeByOneStepUSB) {
   // USB 3 have 0 steps, this is invalid case, so we will fallback to use 25
   // steps. USB 3 start from volume 0 and increase one step expect increase
   // to 4.
-  cras_audio_handler_->ChangeActiveNodes({kUSBHeadphone3->id});
+  cras_audio_handler_->SetActiveOutputNodes({kUSBHeadphone3->id});
   cras_audio_handler_->SetOutputVolumePercent(0);
   cras_audio_handler_->IncreaseOutputVolumeByOneStep(kStepPercentage);
   EXPECT_EQ(4, cras_audio_handler_->GetOutputVolumePercent());
@@ -2817,7 +2789,7 @@ TEST_P(CrasAudioHandlerTest, DecreaseOutputVolumeByOneStepOther) {
       {kInternalSpeaker, kHeadphone, kOther, kBluetoothHeadset, kHDMIOutput});
   SetUpCrasAudioHandler(audio_nodes);
   for (const auto& audio_node : audio_nodes) {
-    cras_audio_handler_->ChangeActiveNodes({audio_node.id});
+    cras_audio_handler_->SetActiveOutputNodes({audio_node.id});
     cras_audio_handler_->SetOutputVolumePercent(50);
     cras_audio_handler_->DecreaseOutputVolumeByOneStep(kStepPercentage);
     EXPECT_EQ(50 - kStepPercentage,
@@ -2834,7 +2806,7 @@ TEST_P(CrasAudioHandlerTest, DecreaseOutputVolumeByOneStepUSB) {
   SetUpCrasAudioHandler(audio_nodes);
   // USB 1 have 25 steps, mean we decrease 100/25=4 % of volume per step.
   // USB 1 start from volume 4 and decrease one step expect decrease to 0;
-  cras_audio_handler_->ChangeActiveNodes({kUSBHeadphone1->id});
+  cras_audio_handler_->SetActiveOutputNodes({kUSBHeadphone1->id});
   cras_audio_handler_->SetOutputVolumePercent(4);
   cras_audio_handler_->DecreaseOutputVolumeByOneStep(kStepPercentage);
   EXPECT_EQ(0, cras_audio_handler_->GetOutputVolumePercent());
@@ -2858,7 +2830,7 @@ TEST_P(CrasAudioHandlerTest, DecreaseOutputVolumeByOneStepUSB) {
   EXPECT_EQ(0, cras_audio_handler_->GetOutputVolumePercent());
   // USB 2 have 16 steps, mean we decrease 100/16=6.25 % of volume per step.
   // USB 2 start from volume 12 and decrease one step expect decrease to 6;
-  cras_audio_handler_->ChangeActiveNodes({kUSBHeadphone2->id});
+  cras_audio_handler_->SetActiveOutputNodes({kUSBHeadphone2->id});
   cras_audio_handler_->SetOutputVolumePercent(12);
   cras_audio_handler_->DecreaseOutputVolumeByOneStep(kStepPercentage);
   EXPECT_EQ(6, cras_audio_handler_->GetOutputVolumePercent());
@@ -2889,7 +2861,7 @@ TEST_P(CrasAudioHandlerTest, DecreaseOutputVolumeByOneStepUSB) {
   // USB 3 have 0 steps, this is invalid case, so we will fallback to use 25
   // steps. USB 3 start from volume 4 and decrease one step expect decrease to
   // 0;
-  cras_audio_handler_->ChangeActiveNodes({kUSBHeadphone3->id});
+  cras_audio_handler_->SetActiveOutputNodes({kUSBHeadphone3->id});
   cras_audio_handler_->SetOutputVolumePercent(4);
   cras_audio_handler_->DecreaseOutputVolumeByOneStep(kStepPercentage);
   EXPECT_EQ(0, cras_audio_handler_->GetOutputVolumePercent());
@@ -2911,51 +2883,6 @@ TEST_P(CrasAudioHandlerTest, DecreaseOutputVolumeByOneStepUSB) {
     cras_audio_handler_->DecreaseOutputVolumeByOneStep(kStepPercentage);
   }
   EXPECT_EQ(0, cras_audio_handler_->GetOutputVolumePercent());
-}
-
-TEST_P(CrasAudioHandlerTest, AdjustOutputVolumeToAudibleLevelUSB) {
-  AudioNodeList audio_nodes =
-      GenerateAudioNodeList({kUSBHeadphone1, kUSBHeadphone2});
-  SetUpCrasAudioHandler(audio_nodes);
-  cras_audio_handler_->ChangeActiveNodes({kUSBHeadphone1->id});
-  cras_audio_handler_->SetOutputVolumePercent(0);
-  cras_audio_handler_->AdjustOutputVolumeToAudibleLevel();
-  EXPECT_EQ(4, cras_audio_handler_->GetOutputVolumePercent());
-
-  cras_audio_handler_->ChangeActiveNodes({kUSBHeadphone2->id});
-  cras_audio_handler_->SetOutputVolumePercent(0);
-  cras_audio_handler_->AdjustOutputVolumeToAudibleLevel();
-  EXPECT_EQ(6, cras_audio_handler_->GetOutputVolumePercent());
-  // If volume is not under audible level, don't change the volume.
-  cras_audio_handler_->ChangeActiveNodes({kUSBHeadphone1->id});
-  cras_audio_handler_->SetOutputVolumePercent(50);
-  cras_audio_handler_->AdjustOutputVolumeToAudibleLevel();
-  EXPECT_EQ(50, cras_audio_handler_->GetOutputVolumePercent());
-
-  cras_audio_handler_->ChangeActiveNodes({kUSBHeadphone2->id});
-  cras_audio_handler_->SetOutputVolumePercent(50);
-  cras_audio_handler_->AdjustOutputVolumeToAudibleLevel();
-  EXPECT_EQ(50, cras_audio_handler_->GetOutputVolumePercent());
-}
-
-TEST_P(CrasAudioHandlerTest, AdjustOutputVolumeToAudibleLevelOther) {
-  AudioNodeList audio_nodes = GenerateAudioNodeList(
-      {kInternalSpeaker, kHeadphone, kOther, kBluetoothHeadset, kHDMIOutput});
-  SetUpCrasAudioHandler(audio_nodes);
-  for (const auto& audio_node : audio_nodes) {
-    cras_audio_handler_->ChangeActiveNodes({audio_node.id});
-    cras_audio_handler_->SetOutputVolumePercent(0);
-    cras_audio_handler_->AdjustOutputVolumeToAudibleLevel();
-    EXPECT_EQ(kDefaultUnmuteVolumePercent,
-              cras_audio_handler_->GetOutputVolumePercent());
-  }
-  // If volume is not under audible level, don't change the volume.
-  for (const auto& audio_node : audio_nodes) {
-    cras_audio_handler_->ChangeActiveNodes({audio_node.id});
-    cras_audio_handler_->SetOutputVolumePercent(50);
-    cras_audio_handler_->AdjustOutputVolumeToAudibleLevel();
-    EXPECT_EQ(50, cras_audio_handler_->GetOutputVolumePercent());
-  }
 }
 
 TEST_P(CrasAudioHandlerTest, RejectInvalidForOutputNodeVolumeChanged) {
@@ -3802,83 +3729,6 @@ TEST_P(CrasAudioHandlerTest, RemoveNonActiveDevice) {
             cras_audio_handler_->GetPrimaryActiveOutputNode());
 }
 
-TEST_P(CrasAudioHandlerTest, ChangeActiveNodesHotrodInit) {
-  // This simulates a typical hotrod audio device configuration.
-  // Verify only the 1st jabra speaker's output and input are selected as active
-  // nodes by CrasAudioHandler.
-  SetupAudioNodesAndExpectActiveNodes(
-      /*initial_nodes=*/{kHDMIOutput, kUSBJabraSpeakerOutput1,
-                         kUSBJabraSpeakerOutput2, kUSBJabraSpeakerInput1,
-                         kUSBJabraSpeakerInput2, kUSBCameraInput},
-      /*expected_active_input_node=*/kUSBJabraSpeakerInput1,
-      /*expected_active_output_node=*/kUSBJabraSpeakerOutput1,
-      /*expected_has_alternative_input=*/true,
-      /*expected_has_alternative_output=*/true);
-
-  AudioDevice active_output;
-  EXPECT_TRUE(
-      cras_audio_handler_->GetPrimaryActiveOutputDevice(&active_output));
-  EXPECT_EQ(2, GetActiveDeviceCount());
-
-  // Set both jabra speakers's input and output nodes to active, this simulate
-  // the call sent by hotrod initialization process.
-  test_observer_->reset_active_output_node_changed_count();
-  test_observer_->reset_active_input_node_changed_count();
-  cras_audio_handler_->ChangeActiveNodes(
-      {kUSBJabraSpeakerOutput1->id, kUSBJabraSpeakerOutput2->id,
-       kUSBJabraSpeakerInput1->id, kUSBJabraSpeakerInput2->id});
-
-  // Verify both jabra speakers' input/output nodes are made active.
-  // num_active_nodes = GetActiveDeviceCount();
-  EXPECT_EQ(4, GetActiveDeviceCount());
-  const AudioDevice* active_output_1 =
-      GetDeviceFromId(kUSBJabraSpeakerOutput1->id);
-  EXPECT_TRUE(active_output_1->active);
-  const AudioDevice* active_output_2 =
-      GetDeviceFromId(kUSBJabraSpeakerOutput2->id);
-  EXPECT_TRUE(active_output_2->active);
-  AudioDevice primary_active_device;
-  EXPECT_TRUE(cras_audio_handler_->GetPrimaryActiveOutputDevice(
-      &primary_active_device));
-  EXPECT_EQ(kUSBJabraSpeakerOutput1->id, primary_active_device.id);
-  const AudioDevice* active_input_1 =
-      GetDeviceFromId(kUSBJabraSpeakerInput1->id);
-  EXPECT_TRUE(active_input_1->active);
-  const AudioDevice* active_input_2 =
-      GetDeviceFromId(kUSBJabraSpeakerInput2->id);
-  EXPECT_TRUE(active_input_2->active);
-  EXPECT_EQ(kUSBJabraSpeakerInput1->id,
-            cras_audio_handler_->GetPrimaryActiveInputNode());
-
-  // Verify only 1 ActiveOutputNodeChanged notification has been sent out
-  // by calling ChangeActiveNodes.
-  EXPECT_EQ(1, test_observer_->active_output_node_changed_count());
-  EXPECT_EQ(1, test_observer_->active_input_node_changed_count());
-
-  // Verify all active devices are the not muted and their volume values are
-  // the same.
-  EXPECT_FALSE(cras_audio_handler_->IsOutputMuted());
-  EXPECT_FALSE(
-      cras_audio_handler_->IsOutputMutedForDevice(kUSBJabraSpeakerOutput1->id));
-  EXPECT_FALSE(
-      cras_audio_handler_->IsOutputMutedForDevice(kUSBJabraSpeakerOutput2->id));
-  EXPECT_EQ(cras_audio_handler_->GetOutputVolumePercent(),
-            cras_audio_handler_->GetOutputVolumePercentForDevice(
-                kUSBJabraSpeakerOutput1->id));
-  EXPECT_EQ(cras_audio_handler_->GetOutputVolumePercent(),
-            cras_audio_handler_->GetOutputVolumePercentForDevice(
-                kUSBJabraSpeakerOutput2->id));
-
-  // Adjust the volume of output devices, verify all active nodes are set to
-  // the same volume.
-  cras_audio_handler_->SetOutputVolumePercent(25);
-  EXPECT_EQ(25, cras_audio_handler_->GetOutputVolumePercent());
-  EXPECT_EQ(25, cras_audio_handler_->GetOutputVolumePercentForDevice(
-                    kUSBJabraSpeakerOutput1->id));
-  EXPECT_EQ(25, cras_audio_handler_->GetOutputVolumePercentForDevice(
-                    kUSBJabraSpeakerOutput2->id));
-}
-
 TEST_P(CrasAudioHandlerTest, SetActiveNodesHotrodInit) {
   // This simulates a typical hotrod audio device configuration.
   // Verify only the 1st jabra speaker's output and input are selected as active
@@ -3967,7 +3817,7 @@ TEST_P(CrasAudioHandlerTest, ChangeVolumeHotrodDualSpeakersWithDelayedSignals) {
   // Set both jabra speakers nodes to active, this simulate
   // the call sent by hotrod initialization process.
   test_observer_->reset_active_output_node_changed_count();
-  cras_audio_handler_->ChangeActiveNodes(
+  cras_audio_handler_->SetActiveOutputNodes(
       {kUSBJabraSpeakerOutput1->id, kUSBJabraSpeakerOutput2->id});
 
   // Verify both jabra speakers are made active.
@@ -4021,63 +3871,6 @@ TEST_P(CrasAudioHandlerTest, ChangeVolumeHotrodDualSpeakersWithDelayedSignals) {
                     kUSBJabraSpeakerOutput1->id));
   EXPECT_EQ(30, cras_audio_handler_->GetOutputVolumePercentForDevice(
                     kUSBJabraSpeakerOutput2->id));
-}
-
-TEST_P(CrasAudioHandlerTest, ChangeActiveNodesHotrodInitWithCameraInputActive) {
-  AudioNodeList audio_nodes = GenerateAudioNodeList(
-      {kHDMIOutput, kUSBJabraSpeakerOutput1, kUSBJabraSpeakerOutput2,
-       kUSBJabraSpeakerInput1, kUSBJabraSpeakerInput2});
-  // Make the camera input to be plugged in later than jabra's input.
-  AudioNode usb_camera = GenerateAudioNode(kUSBCameraInput);
-  usb_camera.plugged_time = 10000000;
-  audio_nodes.push_back(usb_camera);
-  SetUpCrasAudioHandler(audio_nodes);
-
-  // Verify the audio devices size.
-  AudioDeviceList audio_devices;
-  cras_audio_handler_->GetAudioDevices(&audio_devices);
-  EXPECT_EQ(audio_nodes.size(), audio_devices.size());
-
-  // Verify the 1st jabra speaker's output is selected as active output
-  // node and camera's input is selected active input by CrasAudioHandler.
-  EXPECT_EQ(2, GetActiveDeviceCount());
-  EXPECT_EQ(kUSBJabraSpeakerOutput1->id,
-            cras_audio_handler_->GetPrimaryActiveOutputNode());
-  EXPECT_EQ(kUSBCameraInput->id,
-            cras_audio_handler_->GetPrimaryActiveInputNode());
-
-  // Set both jabra speakers's input and output nodes to active, this simulates
-  // the call sent by hotrod initialization process.
-  test_observer_->reset_active_output_node_changed_count();
-  test_observer_->reset_active_input_node_changed_count();
-  cras_audio_handler_->ChangeActiveNodes(
-      {kUSBJabraSpeakerOutput1->id, kUSBJabraSpeakerOutput2->id,
-       kUSBJabraSpeakerInput1->id, kUSBJabraSpeakerInput2->id});
-
-  // Verify both jabra speakers' input/output nodes are made active.
-  // num_active_nodes = GetActiveDeviceCount();
-  EXPECT_EQ(4, GetActiveDeviceCount());
-  const AudioDevice* active_output_1 =
-      GetDeviceFromId(kUSBJabraSpeakerOutput1->id);
-  EXPECT_TRUE(active_output_1->active);
-  const AudioDevice* active_output_2 =
-      GetDeviceFromId(kUSBJabraSpeakerOutput2->id);
-  EXPECT_TRUE(active_output_2->active);
-  EXPECT_EQ(kUSBJabraSpeakerOutput1->id,
-            cras_audio_handler_->GetPrimaryActiveOutputNode());
-  const AudioDevice* active_input_1 =
-      GetDeviceFromId(kUSBJabraSpeakerInput1->id);
-  EXPECT_TRUE(active_input_1->active);
-  const AudioDevice* active_input_2 =
-      GetDeviceFromId(kUSBJabraSpeakerInput2->id);
-  EXPECT_TRUE(active_input_2->active);
-  EXPECT_EQ(kUSBJabraSpeakerInput1->id,
-            cras_audio_handler_->GetPrimaryActiveInputNode());
-
-  // Verify only 1 ActiveOutputNodeChanged notification has been sent out
-  // by calling ChangeActiveNodes.
-  EXPECT_EQ(1, test_observer_->active_output_node_changed_count());
-  EXPECT_EQ(1, test_observer_->active_input_node_changed_count());
 }
 
 TEST_P(CrasAudioHandlerTest, SetActiveNodesHotrodInitWithCameraInputActive) {
@@ -4135,49 +3928,9 @@ TEST_P(CrasAudioHandlerTest, SetActiveNodesHotrodInitWithCameraInputActive) {
             cras_audio_handler_->GetPrimaryActiveInputNode());
 
   // Verify only 1 ActiveOutputNodeChanged notification has been sent out
-  // by calling ChangeActiveNodes.
+  // by calling SetActiveOutputNodes and SetActiveInputNodes.
   EXPECT_EQ(1, test_observer_->active_output_node_changed_count());
   EXPECT_EQ(1, test_observer_->active_input_node_changed_count());
-}
-
-TEST_P(CrasAudioHandlerTest, ChangeActiveNodesWithFewerActives) {
-  AudioNodeList audio_nodes = GenerateAudioNodeList(
-      {kHDMIOutput, kUSBJabraSpeakerOutput1, kUSBJabraSpeakerOutput2});
-  SetUpCrasAudioHandler(audio_nodes);
-
-  // Verify the audio devices size.
-  AudioDeviceList audio_devices;
-  cras_audio_handler_->GetAudioDevices(&audio_devices);
-  EXPECT_EQ(audio_nodes.size(), audio_devices.size());
-
-  // Set all three nodes to be active.
-  cras_audio_handler_->ChangeActiveNodes({kHDMIOutput->id,
-                                          kUSBJabraSpeakerOutput1->id,
-                                          kUSBJabraSpeakerOutput2->id});
-
-  // Verify all three nodes are active.
-  EXPECT_EQ(3, GetActiveDeviceCount());
-  const AudioDevice* active_output_1 = GetDeviceFromId(kHDMIOutput->id);
-  EXPECT_TRUE(active_output_1->active);
-  const AudioDevice* active_output_2 =
-      GetDeviceFromId(kUSBJabraSpeakerOutput1->id);
-  EXPECT_TRUE(active_output_2->active);
-  const AudioDevice* active_output_3 =
-      GetDeviceFromId(kUSBJabraSpeakerOutput2->id);
-  EXPECT_TRUE(active_output_3->active);
-
-  // Now call ChangeActiveDevices with only 2 nodes.
-  cras_audio_handler_->ChangeActiveNodes(
-      {kUSBJabraSpeakerOutput1->id, kUSBJabraSpeakerOutput2->id});
-
-  // Verify only 2 nodes are active.
-  EXPECT_EQ(2, GetActiveDeviceCount());
-  const AudioDevice* output_1 = GetDeviceFromId(kHDMIOutput->id);
-  EXPECT_FALSE(output_1->active);
-  const AudioDevice* output_2 = GetDeviceFromId(kUSBJabraSpeakerOutput1->id);
-  EXPECT_TRUE(output_2->active);
-  const AudioDevice* output_3 = GetDeviceFromId(kUSBJabraSpeakerOutput2->id);
-  EXPECT_TRUE(output_3->active);
 }
 
 TEST_P(CrasAudioHandlerTest, SetActiveNodesWithFewerActives) {
@@ -4235,44 +3988,6 @@ TEST_P(CrasAudioHandlerTest, HotrodInitWithSingleJabra) {
 }
 
 TEST_P(CrasAudioHandlerTest,
-       ChangeActiveNodesHotrodInitWithSingleJabraCameraPlugInLater) {
-  AudioNodeList audio_nodes = GenerateAudioNodeList(
-      {kHDMIOutput, kUSBJabraSpeakerOutput1, kUSBJabraSpeakerInput1});
-  AudioNode usb_camera = GenerateAudioNode(kUSBCameraInput);
-  usb_camera.plugged_time = 10000000;
-  audio_nodes.push_back(usb_camera);
-  SetUpCrasAudioHandler(audio_nodes);
-
-  // Verify the audio devices size.
-  AudioDeviceList audio_devices;
-  cras_audio_handler_->GetAudioDevices(&audio_devices);
-  EXPECT_EQ(audio_nodes.size(), audio_devices.size());
-
-  // Verify the jabra speaker's output is selected as active output, and
-  // camera's input is selected as active input by CrasAudioHandler
-  EXPECT_EQ(2, GetActiveDeviceCount());
-  EXPECT_EQ(kUSBJabraSpeakerOutput1->id,
-            cras_audio_handler_->GetPrimaryActiveOutputNode());
-  EXPECT_EQ(kUSBCameraInput->id,
-            cras_audio_handler_->GetPrimaryActiveInputNode());
-
-  // Simulate hotrod app call to set jabra input as active device with only
-  // jabra input node in the active node list, which does not conform to the
-  // new SetActiveDevices protocol, but just show we can still handle it if
-  // this happens.
-  cras_audio_handler_->ChangeActiveNodes(
-      {kUSBJabraSpeakerOutput1->id, kUSBJabraSpeakerInput1->id});
-
-  // Verify the jabra speaker's output is selected as active output, and
-  // jabra's input is selected as active input.
-  EXPECT_EQ(2, GetActiveDeviceCount());
-  EXPECT_EQ(kUSBJabraSpeakerOutput1->id,
-            cras_audio_handler_->GetPrimaryActiveOutputNode());
-  EXPECT_EQ(kUSBJabraSpeakerInput1->id,
-            cras_audio_handler_->GetPrimaryActiveInputNode());
-}
-
-TEST_P(CrasAudioHandlerTest,
        SetActiveNodesHotrodInitWithSingleJabraCameraPlugInLater) {
   AudioNodeList audio_nodes = GenerateAudioNodeList(
       {kHDMIOutput, kUSBJabraSpeakerOutput1, kUSBJabraSpeakerInput1});
@@ -4309,59 +4024,6 @@ TEST_P(CrasAudioHandlerTest,
             cras_audio_handler_->GetPrimaryActiveOutputNode());
   EXPECT_EQ(kUSBJabraSpeakerInput1->id,
             cras_audio_handler_->GetPrimaryActiveInputNode());
-}
-
-TEST_P(CrasAudioHandlerTest, ChangeActiveNodesDeactivatePrimaryActiveNode) {
-  AudioNodeList audio_nodes =
-      GenerateAudioNodeList({kUSBJabraSpeakerInput1, kUSBJabraSpeakerInput2});
-  AudioNode usb_camera = GenerateAudioNode(kUSBCameraInput);
-  usb_camera.plugged_time = 10000000;
-  audio_nodes.push_back(usb_camera);
-  SetUpCrasAudioHandler(audio_nodes);
-
-  // Verify the audio devices size.
-  AudioDeviceList audio_devices;
-  cras_audio_handler_->GetAudioDevices(&audio_devices);
-  EXPECT_EQ(audio_nodes.size(), audio_devices.size());
-
-  // Verify the camera's input is selected as active input by CrasAudioHandler
-  EXPECT_EQ(1, GetActiveDeviceCount());
-  EXPECT_EQ(kUSBCameraInput->id,
-            cras_audio_handler_->GetPrimaryActiveInputNode());
-
-  // Simulate hotrod app call to set jabra input as active device with only
-  // jabra input node in the active node list, which does not conform to the
-  // new SetActiveDevices protocol, but just show we can still handle it if
-  // this happens.
-  cras_audio_handler_->ChangeActiveNodes(
-      {kUSBJabraSpeakerInput1->id, kUSBCameraInput->id});
-
-  // Verify active input devices are set as expected, with primary active input
-  // staying the same.
-  EXPECT_EQ(2, GetActiveDeviceCount());
-  EXPECT_EQ(kUSBCameraInput->id,
-            cras_audio_handler_->GetPrimaryActiveInputNode());
-
-  const AudioDevice* additional_speaker =
-      cras_audio_handler_->GetDeviceFromId(kUSBJabraSpeakerInput1->id);
-  ASSERT_TRUE(additional_speaker);
-  EXPECT_TRUE(additional_speaker->active);
-
-  // Update active device list so previously primary active device is not
-  // active anymore.
-  cras_audio_handler_->ChangeActiveNodes(
-      {kUSBJabraSpeakerInput1->id, kUSBJabraSpeakerInput2->id});
-
-  // Verify that list of active devices is correctly set, and that a new primary
-  // active input is selected.
-  EXPECT_EQ(2, GetActiveDeviceCount());
-  EXPECT_EQ(kUSBJabraSpeakerInput1->id,
-            cras_audio_handler_->GetPrimaryActiveInputNode());
-
-  additional_speaker =
-      cras_audio_handler_->GetDeviceFromId(kUSBJabraSpeakerInput2->id);
-  ASSERT_TRUE(additional_speaker);
-  EXPECT_TRUE(additional_speaker->active);
 }
 
 TEST_P(CrasAudioHandlerTest, SetActiveNodesDeactivatePrimaryActiveNode) {
@@ -4415,43 +4077,6 @@ TEST_P(CrasAudioHandlerTest, SetActiveNodesDeactivatePrimaryActiveNode) {
 }
 
 TEST_P(CrasAudioHandlerTest,
-       ChangeActiveNodesHotrodInitWithSingleJabraCameraPlugInLaterOldCall) {
-  AudioNodeList audio_nodes = GenerateAudioNodeList(
-      {kHDMIOutput, kUSBJabraSpeakerOutput1, kUSBJabraSpeakerInput1});
-  AudioNode usb_camera = GenerateAudioNode(kUSBCameraInput);
-  usb_camera.plugged_time = 10000000;
-  audio_nodes.push_back(usb_camera);
-  SetUpCrasAudioHandler(audio_nodes);
-
-  // Verify the audio devices size.
-  AudioDeviceList audio_devices;
-  cras_audio_handler_->GetAudioDevices(&audio_devices);
-  EXPECT_EQ(audio_nodes.size(), audio_devices.size());
-
-  // Verify the jabra speaker's output is selected as active output, and
-  // camera's input is selected as active input by CrasAudioHandler
-  EXPECT_EQ(2, GetActiveDeviceCount());
-  EXPECT_EQ(kUSBJabraSpeakerOutput1->id,
-            cras_audio_handler_->GetPrimaryActiveOutputNode());
-  EXPECT_EQ(kUSBCameraInput->id,
-            cras_audio_handler_->GetPrimaryActiveInputNode());
-
-  // Simulate hotrod app call to set jabra input as active device with only
-  // jabra input node in the active node list, which does not conform to the
-  // new SetActiveDevices protocol, but just show we can still handle it if
-  // this happens.
-  cras_audio_handler_->ChangeActiveNodes({kUSBJabraSpeakerInput1->id});
-
-  // Verify the jabra speaker's output is selected as active output, and
-  // jabra's input is selected as active input.
-  EXPECT_EQ(2, GetActiveDeviceCount());
-  EXPECT_EQ(kUSBJabraSpeakerOutput1->id,
-            cras_audio_handler_->GetPrimaryActiveOutputNode());
-  EXPECT_EQ(kUSBJabraSpeakerInput1->id,
-            cras_audio_handler_->GetPrimaryActiveInputNode());
-}
-
-TEST_P(CrasAudioHandlerTest,
        SetActiveNodesHotrodInitWithSingleJabraCameraPlugInLaterOldCall) {
   AudioNodeList audio_nodes = GenerateAudioNodeList(
       {kHDMIOutput, kUSBJabraSpeakerOutput1, kUSBJabraSpeakerInput1});
@@ -4489,30 +4114,6 @@ TEST_P(CrasAudioHandlerTest,
 }
 
 TEST_P(CrasAudioHandlerTest,
-       ChangeActiveNodesHotrodInitWithSingleJabraChangeOutput) {
-  SetupAudioNodesAndExpectActiveNodes(
-      /*initial_nodes=*/{kHDMIOutput, kUSBJabraSpeakerOutput1,
-                         kUSBJabraSpeakerInput1, kUSBCameraInput},
-      /*expected_active_input_node=*/kUSBJabraSpeakerInput1,
-      /*expected_active_output_node=*/kUSBJabraSpeakerOutput1,
-      /*expected_has_alternative_input=*/true,
-      /*expected_has_alternative_output=*/true);
-
-  // Simulate hotrod app call SetActiveDevices to change active output
-  // with only complete list of active nodes passed in, which is the new
-  // way of hotrod app.
-  cras_audio_handler_->ChangeActiveNodes(
-      {kHDMIOutput->id, kUSBJabraSpeakerInput1->id});
-
-  // Verify the jabra speaker's output is selected as active output, and
-  // jabra's input is selected as active input.
-  EXPECT_EQ(2, GetActiveDeviceCount());
-  EXPECT_EQ(kHDMIOutput->id, cras_audio_handler_->GetPrimaryActiveOutputNode());
-  EXPECT_EQ(kUSBJabraSpeakerInput1->id,
-            cras_audio_handler_->GetPrimaryActiveInputNode());
-}
-
-TEST_P(CrasAudioHandlerTest,
        SetActiveNodesHotrodInitWithSingleJabraChangeOutput) {
   SetupAudioNodesAndExpectActiveNodes(
       /*initial_nodes=*/{kHDMIOutput, kUSBJabraSpeakerOutput1,
@@ -4526,29 +4127,6 @@ TEST_P(CrasAudioHandlerTest,
   // and output with complete list of active nodes passed in.
   cras_audio_handler_->SetActiveOutputNodes({kHDMIOutput->id});
   cras_audio_handler_->SetActiveInputNodes({kUSBJabraSpeakerInput1->id});
-
-  // Verify the jabra speaker's output is selected as active output, and
-  // jabra's input is selected as active input.
-  EXPECT_EQ(2, GetActiveDeviceCount());
-  EXPECT_EQ(kHDMIOutput->id, cras_audio_handler_->GetPrimaryActiveOutputNode());
-  EXPECT_EQ(kUSBJabraSpeakerInput1->id,
-            cras_audio_handler_->GetPrimaryActiveInputNode());
-}
-
-TEST_P(CrasAudioHandlerTest,
-       ChangeActiveNodesHotrodInitWithSingleJabraChangeOutputOldCall) {
-  SetupAudioNodesAndExpectActiveNodes(
-      /*initial_nodes=*/{kHDMIOutput, kUSBJabraSpeakerOutput1,
-                         kUSBJabraSpeakerInput1, kUSBCameraInput},
-      /*expected_active_input_node=*/kUSBJabraSpeakerInput1,
-      /*expected_active_output_node=*/kUSBJabraSpeakerOutput1,
-      /*expected_has_alternative_input=*/true,
-      /*expected_has_alternative_output=*/true);
-
-  // Simulate hotrod app call SetActiveDevices to change active output
-  // with only a single active output nodes passed in, which is the old
-  // way of hotrod app.
-  cras_audio_handler_->ChangeActiveNodes({kHDMIOutput->id});
 
   // Verify the jabra speaker's output is selected as active output, and
   // jabra's input is selected as active input.

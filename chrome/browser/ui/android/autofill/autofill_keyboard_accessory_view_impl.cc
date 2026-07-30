@@ -140,7 +140,7 @@ void AutofillKeyboardAccessoryViewImpl::Show() {
             custom_icon_url
                 ? url::GURLAndroid::FromNativeGURL(env, **custom_icon_url)
                 : url::GURLAndroid::EmptyGURL(env),
-            suggestion.HasDeactivatedStyle(), payload));
+            suggestion.HasDeactivatedStyle(), *suggestion.is_loading, payload));
   }
   gfx::RectF bounds = controller_->element_bounds();
   Java_AutofillKeyboardAccessoryViewBridge_show(
@@ -191,6 +191,14 @@ void AutofillKeyboardAccessoryViewImpl::OnDeletionDialogClosed(JNIEnv* env,
 void AutofillKeyboardAccessoryViewImpl::ViewDismissed(JNIEnv* env) {
   if (controller_) {
     controller_->ViewDestroyed();
+  }
+}
+
+void AutofillKeyboardAccessoryViewImpl::OpenSettingsForEntityType(
+    JNIEnv* env,
+    int32_t entity_type) {
+  if (controller_) {
+    controller_->OpenSettingsForEntityType(entity_type);
   }
 }
 

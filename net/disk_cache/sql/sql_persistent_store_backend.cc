@@ -306,7 +306,6 @@ SqlPersistentStore::Backend::Backend(
 #if BUILDFLAG(IS_WIN)
               .set_exclusive_database_file_lock(true)
 #endif  // IS_WIN
-              .set_preload(net::features::kSqlDiskCachePreloadDatabase.Get())
               .set_wal_mode(net::features::kSqlDiskCacheWalMode.Get())
               .set_no_sync(net::features::kSqlDiskCacheSynchronousOff.Get())
               .set_wal_commit_callback(base::BindRepeating(

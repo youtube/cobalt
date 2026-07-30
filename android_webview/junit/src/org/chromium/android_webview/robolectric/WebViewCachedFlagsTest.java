@@ -38,7 +38,11 @@ public class WebViewCachedFlagsTest {
         Assume.assumeTrue(BuildConfig.ENABLE_ASSERTS);
         InMemorySharedPreferences sharedPrefs = new InMemorySharedPreferences();
         WebViewCachedFlags.init(sharedPrefs);
-        Assert.assertThrows(AssertionError.class, () -> WebViewCachedFlags.init(sharedPrefs));
+        try {
+            Assert.assertThrows(AssertionError.class, () -> WebViewCachedFlags.init(sharedPrefs));
+        } finally {
+            WebViewCachedFlags.resetForTesting();
+        }
     }
 
     @Test

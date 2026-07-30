@@ -44,6 +44,9 @@ class ReaderModeMetricsHelperTest : public PlatformTest {
   void TearDown() override { test_ukm_recorder_.Purge(); }
 
   ReaderModeMetricsHelper* metrics_helper() { return metrics_helper_.get(); }
+  dom_distiller::DistilledPagePrefs* distilled_page_prefs() {
+    return distilled_page_prefs_;
+  }
 
   void ResetMetricsHelper() { metrics_helper_.reset(); }
 
@@ -58,9 +61,6 @@ class ReaderModeMetricsHelperTest : public PlatformTest {
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::HistogramTester histogram_tester_;
   ukm::TestAutoSetUkmRecorder test_ukm_recorder_;
-  raw_ptr<dom_distiller::DistilledPagePrefs, DanglingUntriaged>
-      distilled_page_prefs_;
-
  private:
   // Starts and finishes a committed navigation in `web_state()`. This
   // is required to have a valid ID for UKM recording.
@@ -74,6 +74,7 @@ class ReaderModeMetricsHelperTest : public PlatformTest {
   web::FakeWebState web_state_;
   std::unique_ptr<TestProfileIOS> profile_;
   std::unique_ptr<ReaderModeMetricsHelper> metrics_helper_;
+  raw_ptr<dom_distiller::DistilledPagePrefs> distilled_page_prefs_;
 };
 
 // Tests that recording a heuristic trigger updates the recorded Reading mode
@@ -121,7 +122,7 @@ TEST_F(ReaderModeMetricsHelperTest,
 TEST_F(ReaderModeMetricsHelperTest, OnFontFamilyChanged) {
   histogram_tester_.ExpectTotalCount(kReaderModeCustomizationHistogram, 0);
 
-  distilled_page_prefs_->SetFontFamily(
+  distilled_page_prefs()->SetFontFamily(
       dom_distiller::mojom::FontFamily::kMonospace);
 
   EXPECT_THAT(
@@ -137,7 +138,7 @@ TEST_F(ReaderModeMetricsHelperTest, OnFontFamilyChanged) {
 TEST_F(ReaderModeMetricsHelperTest, OnFontScaleChanged) {
   histogram_tester_.ExpectTotalCount(kReaderModeCustomizationHistogram, 0);
 
-  distilled_page_prefs_->SetUserPrefFontScaling(2.0);
+  distilled_page_prefs()->SetUserPrefFontScaling(2.0);
 
   EXPECT_THAT(
       histogram_tester_.GetAllSamples(kReaderModeCustomizationHistogram),
@@ -152,7 +153,7 @@ TEST_F(ReaderModeMetricsHelperTest, OnFontScaleChanged) {
 TEST_F(ReaderModeMetricsHelperTest, OnThemeChanged) {
   histogram_tester_.ExpectTotalCount(kReaderModeCustomizationHistogram, 0);
 
-  distilled_page_prefs_->SetUserPrefTheme(dom_distiller::mojom::Theme::kDark);
+  distilled_page_prefs()->SetUserPrefTheme(dom_distiller::mojom::Theme::kDark);
   task_environment_.RunUntilIdle();
 
   EXPECT_THAT(
@@ -168,7 +169,7 @@ TEST_F(ReaderModeMetricsHelperTest, OnThemeChanged) {
 TEST_F(ReaderModeMetricsHelperTest, OnLinksEnabledChanged) {
   histogram_tester_.ExpectTotalCount(kReaderModeCustomizationHistogram, 0);
 
-  distilled_page_prefs_->SetLinksEnabled(true);
+  distilled_page_prefs()->SetLinksEnabled(true);
 
   EXPECT_THAT(
       histogram_tester_.GetAllSamples(kReaderModeCustomizationHistogram),
@@ -176,7 +177,7 @@ TEST_F(ReaderModeMetricsHelperTest, OnLinksEnabledChanged) {
   EXPECT_THAT(histogram_tester_.GetAllSamples(kReaderModeLinksEnabledHistogram),
               BucketsAre(Bucket(true, 1)));
 
-  distilled_page_prefs_->SetLinksEnabled(false);
+  distilled_page_prefs()->SetLinksEnabled(false);
 
   EXPECT_THAT(
       histogram_tester_.GetAllSamples(kReaderModeCustomizationHistogram),
@@ -190,9 +191,9 @@ TEST_F(ReaderModeMetricsHelperTest, OnLinksEnabledChanged) {
 TEST_F(ReaderModeMetricsHelperTest, OnDefaultThemeChangedMultipleTimes) {
   histogram_tester_.ExpectTotalCount(kReaderModeCustomizationHistogram, 0);
 
-  distilled_page_prefs_->SetDefaultTheme(dom_distiller::mojom::Theme::kLight);
-  distilled_page_prefs_->SetDefaultTheme(dom_distiller::mojom::Theme::kDark);
-  distilled_page_prefs_->SetDefaultTheme(dom_distiller::mojom::Theme::kDark);
+  distilled_page_prefs()->SetDefaultTheme(dom_distiller::mojom::Theme::kLight);
+  distilled_page_prefs()->SetDefaultTheme(dom_distiller::mojom::Theme::kDark);
+  distilled_page_prefs()->SetDefaultTheme(dom_distiller::mojom::Theme::kDark);
   task_environment_.RunUntilIdle();
 
   histogram_tester_.ExpectTotalCount(kReaderModeCustomizationHistogram, 0);
@@ -204,8 +205,8 @@ TEST_F(ReaderModeMetricsHelperTest, OnDefaultThemeChangedMultipleTimes) {
 TEST_F(ReaderModeMetricsHelperTest, OnUserPrefThemeChangedMultipleTimes) {
   histogram_tester_.ExpectTotalCount(kReaderModeCustomizationHistogram, 0);
 
-  distilled_page_prefs_->SetUserPrefTheme(dom_distiller::mojom::Theme::kDark);
-  distilled_page_prefs_->SetUserPrefTheme(dom_distiller::mojom::Theme::kDark);
+  distilled_page_prefs()->SetUserPrefTheme(dom_distiller::mojom::Theme::kDark);
+  distilled_page_prefs()->SetUserPrefTheme(dom_distiller::mojom::Theme::kDark);
   task_environment_.RunUntilIdle();
 
   EXPECT_THAT(

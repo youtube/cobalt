@@ -252,10 +252,8 @@ UIView* BadgeIconInContainer(UIImageView* icon,
     CHECK(config);
     _config = [config copy];
 
-    if (IsNTPBackgroundCustomizationEnabled()) {
-      [self registerForTraitChanges:@[ NewTabPageTrait.class ]
-                         withAction:@selector(applyBackgroundColors)];
-    }
+    [self registerForTraitChanges:@[ NewTabPageTrait.class ]
+                       withAction:@selector(applyBackgroundColors)];
     [self applyBackgroundColors];
   }
   return self;

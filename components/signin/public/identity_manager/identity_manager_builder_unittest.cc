@@ -29,6 +29,7 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/ash/components/account_manager/account_manager_factory.h"
+#include "components/account_manager_core/chromeos/account_manager.h"
 #endif
 
 #if BUILDFLAG(IS_IOS)
@@ -78,6 +79,10 @@ class IdentityManagerBuilderTest : public testing::Test {
     return &profile_metrics_service_;
   }
 
+  network::TestURLLoaderFactory* GetTestURLLoaderFactory() {
+    return &test_url_loader_factory_;
+  }
+
  public:
   IdentityManagerBuilderTest(const IdentityManagerBuilderTest&) = delete;
   IdentityManagerBuilderTest& operator=(const IdentityManagerBuilderTest&) =
@@ -124,9 +129,12 @@ TEST_F(IdentityManagerBuilderTest, BuildIdentityManagerInitParameters) {
   // `ProfileOAuth2TokenServiceDelegateChromeOS`.
   ash::AccountManagerFactory account_manager_factory;
 
+  account_manager_factory.GetAccountManager(profile_path.value())
+      ->InitializeInEphemeralMode(
+          GetTestURLLoaderFactory()->GetSafeWeakWrapper());
+
   params.account_manager_facade =
-      ash::AccountManagerFactory::Get()->GetAccountManagerFacade(
-          profile_path.value());
+      account_manager_factory.GetAccountManagerFacade(profile_path.value());
   params.is_regular_profile = true;
 #endif
 

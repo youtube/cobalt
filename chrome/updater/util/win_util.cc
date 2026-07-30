@@ -90,6 +90,7 @@
 #include "chrome/windows_services/service_program/scoped_client_impersonation.h"
 #include "components/crash/core/common/crash_key.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 // Linked from ntdll.lib.
 extern "C" LONG WINAPI RtlGetVersion(OSVERSIONINFOEX*);
@@ -571,10 +572,10 @@ std::string MemoryStatus() {
   MEMORYSTATUSEX memory_status = {};
   memory_status.dwLength = sizeof(memory_status);
   return ::GlobalMemoryStatusEx(&memory_status)
-             ? base::StringPrintf("available: %dM, total: %dM, phys: %dG",
-                                  memory_status.ullAvailPageFile / (1 << 20),
-                                  memory_status.ullTotalPageFile / (1 << 20),
-                                  1 + memory_status.ullTotalPhys / (1 << 30))
+             ? absl::StrFormat("available: %dM, total: %dM, phys: %dG",
+                               memory_status.ullAvailPageFile / (1 << 20),
+                               memory_status.ullTotalPageFile / (1 << 20),
+                               1 + memory_status.ullTotalPhys / (1 << 30))
              : std::string("n/a");
 }
 
@@ -1246,7 +1247,7 @@ std::wstring GetTextForSystemError(int error) {
   base::win::ScopedLocalAllocTyped<wchar_t> free_buffer(
       system_allocated_buffer);
   return chars_written > 0 ? system_allocated_buffer
-                           : base::UTF8ToWide(base::StringPrintf("%#x", error));
+                           : base::UTF8ToWide(absl::StrFormat("%#x", error));
 }
 
 bool MigrateLegacyUpdaters(

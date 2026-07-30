@@ -1110,19 +1110,20 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
         if (!isActionModeValid()) return true;
 
         int itemId = item.getItemId();
-        handleMenuItemClick(
-                new SelectionMenuItem.Builder(item.getTitle())
-                        .setId(item.getItemId())
-                        .setGroupId(item.getGroupId())
-                        .setIntent(item.getIntent())
-                        .setOrder(item.getOrder())
-                        .build());
+        boolean handled =
+                handleMenuItemClick(
+                        new SelectionMenuItem.Builder(item.getTitle())
+                                .setId(item.getItemId())
+                                .setGroupId(item.getGroupId())
+                                .setIntent(item.getIntent())
+                                .setOrder(item.getOrder())
+                                .build());
 
         // We don't dismiss the action menu for select all action.
         if (itemId != R.id.select_action_menu_select_all) {
             mode.finish();
         }
-        return true;
+        return handled;
     }
 
     @Override

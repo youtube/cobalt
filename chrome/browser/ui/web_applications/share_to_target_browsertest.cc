@@ -58,7 +58,7 @@ class ShareToTargetBrowserTest : public WebAppBrowserTestBase {
   ShareToTargetBrowserTest() {
     scoped_feature_list_.InitWithFeaturesAndParameters(
         apps::test::GetFeaturesToEnableLinkCapturingUX(
-            apps::test::LinkCapturingFeatureVersion::kV2DefaultOff),
+            apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
         {});
   }
 
@@ -86,9 +86,6 @@ class ShareToTargetBrowserTest : public WebAppBrowserTestBase {
   void InstallWebAppFromManifest(const GURL& app_url) {
     DCHECK(app_id_.empty());
     app_id_ = web_app::InstallWebAppFromManifest(browser(), app_url);
-    // Enabling link capturing to ensure it doesn't interfere.
-    EXPECT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id_),
-              base::ok());
   }
 
   const webapps::AppId& app_id() const { return app_id_; }

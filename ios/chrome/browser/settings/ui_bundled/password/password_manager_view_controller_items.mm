@@ -278,7 +278,6 @@
 - (NSString*)title {
   return base::SysUTF8ToNSString(
       password_manager::GetShownOrigin(self.credential));
-  ;
 }
 
 @end

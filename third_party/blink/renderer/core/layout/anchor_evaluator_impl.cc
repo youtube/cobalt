@@ -11,7 +11,6 @@
 #include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/style/anchor_specifier_value.h"
 #include "third_party/blink/renderer/core/style/position_area.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -428,23 +427,16 @@ const PhysicalAnchorReference* AnchorEvaluatorImpl::ResolveAnchorForEvaluation(
     }
   }
 
-  if (RuntimeEnabledFeatures::CSSAnchorWithTransformsEnabled()) {
-    did_resolve_anchor_with_running_transform_animation_ =
-        did_resolve_anchor_with_running_transform_animation_ ||
-        anchor_reference->HasRunningTransformAnimation();
-  }
+  did_resolve_anchor_with_running_transform_animation_ =
+      did_resolve_anchor_with_running_transform_animation_ ||
+      anchor_reference->HasRunningTransformAnimation();
 
   return anchor_reference;
 }
 
 PhysicalRect AnchorEvaluatorImpl::CalculateAnchorRectWithScrollOffset(
     const PhysicalAnchorReference& anchor_reference) {
-  PhysicalRect result;
-  if (RuntimeEnabledFeatures::CSSAnchorWithTransformsEnabled()) {
-    result = anchor_reference.TransformedBoundingRect();
-  } else {
-    result = anchor_reference.RectWithoutTransforms();
-  }
+  PhysicalRect result = anchor_reference.TransformedBoundingRect();
 
   // Update the anchor rect based on remembered (or current) scroll offsets.
   OutOfFlowData::ScrollOffsetPair scroll_offsets = [&]() {

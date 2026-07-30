@@ -112,7 +112,6 @@
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
-#include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/projects/projects_panel_state_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_dialog_manager.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/collaboration_messaging_tab_data.h"
@@ -211,7 +210,6 @@
 #include "chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_accessibility.h"
-#include "chrome/browser/ui/views/tabs/tab_search_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h"
 #include "chrome/browser/ui/views/theme_copying_widget.h"
@@ -582,7 +580,8 @@ bool ShouldShowWindowIcon(const Browser* browser,
   // For Chrome OS only, trusted windows (apps and settings) do not show a
   // window icon, crbug.com/40175496. Child windows (i.e. popups) do show an
   // icon.
-  if (browser->is_trusted_source() || app_uses_window_controls_overlay) {
+  if (WindowFeatureController::From(browser)->IsTrustedSource() ||
+      app_uses_window_controls_overlay) {
     return false;
   }
 #else
@@ -999,7 +998,7 @@ BrowserView::BrowserView(Browser* browser)
 
     vertical_tab_strip_top_corner_ =
         AddChildView(std::make_unique<CustomFloatingCorner>(
-            *this, CustomFloatingCorner::CornerOrientation::kTopLeading,
+            *this, CornerOrientation::kTopLeading,
             views::ShapeContextTokens::kContentSeparatorRadius,
             CustomFloatingCorner::FrameTheme(), kColorVerticalTabStripShadow,
             /*is_vertical_window_edge=*/true));
@@ -1008,7 +1007,7 @@ BrowserView::BrowserView(Browser* browser)
         BrowserViewLayoutViews::kVerticalTabStripTopCornerElementId);
     vertical_tab_strip_bottom_corner_ =
         AddChildView(std::make_unique<CustomFloatingCorner>(
-            *this, CustomFloatingCorner::CornerOrientation::kBottomLeading,
+            *this, CornerOrientation::kBottomLeading,
             views::ShapeContextTokens::kContentSeparatorRadius,
             CustomFloatingCorner::FrameTheme(), kColorVerticalTabStripShadow,
             /*is_vertical_window_edge=*/true));
@@ -3033,7 +3032,7 @@ ShowTranslateBubbleResult BrowserView::ShowTranslateBubble(
     bool is_user_gesture) {
   views::View* contents_view = GetActiveContentsWebView();
 
-  if (contents_view->HasFocus() && !GetLocationBarView()->IsMouseHovered() &&
+  if (contents_view->HasFocus() && !GetLocationBar()->IsMouseHovered() &&
       web_contents->IsFocusedElementEditable()) {
     return ShowTranslateBubbleResult::kEditableFieldIsActive;
   }
@@ -3390,8 +3389,7 @@ void BrowserView::OnSplitTabChanged(const SplitTabChange& change) {
           browser_->tab_strip_model()->GetActiveTab();
 
       if (active_tab->GetSplit() == change.split_id) {
-        UpdateContentsInSplitView(change.GetContentsChange()->prev_tabs(),
-                                  change.GetContentsChange()->new_tabs());
+        multi_contents_view_->SwapContentsInSplitView();
       }
       break;
     }
@@ -3833,14 +3831,6 @@ views::View* BrowserView::GetInitiallyFocusedView() {
 }
 
 bool BrowserView::ShouldShowWindowTitle() const {
-#if BUILDFLAG(IS_CHROMEOS)
-  // For Chrome OS only, trusted windows (apps and settings) do not show a
-  // title, crbug.com/40175496. Child windows (i.e. popups) do show a title.
-  if (browser_->is_trusted_source() || AppUsesWindowControlsOverlay()) {
-    return false;
-  }
-#endif
-
   return browser_->SupportsWindowFeature(
       Browser::WindowFeature::kFeatureTitleBar);
 }
@@ -4202,17 +4192,11 @@ void BrowserView::UpdateTabSearchBubbleHost() {
     tab_search_bubble_host_ = std::make_unique<TabSearchBubbleHost>(
         combo_button->end_button(), browser_.get());
     combo_button->SetTabSearchBubbleHost(tab_search_bubble_host_.get());
-  } else if (base::FeatureList::IsEnabled(
-                 tabs::kHorizontalTabStripComboButton)) {
+  } else {
     auto* combo_button = horizontal_tab_strip_region_view_->GetComboButton();
     tab_search_bubble_host_ = std::make_unique<TabSearchBubbleHost>(
         combo_button->end_button(), browser_.get());
     combo_button->SetTabSearchBubbleHost(tab_search_bubble_host_.get());
-  } else {
-    tab_search_bubble_host_ = std::make_unique<TabSearchBubbleHost>(
-        BrowserElementsViews::From(browser_.get())
-            ->GetViewAs<TabSearchButton>(kTabSearchButtonElementId),
-        browser_.get());
   }
 }
 
@@ -4278,50 +4262,6 @@ void BrowserView::UpdateActiveTabInSplitView() {
   // focus change e.g. using tab shortcuts and in these cases update focus.
   if (GetWidget()->IsActive() &&
       multi_contents_view_->GetInactiveContentsView()->HasFocus()) {
-    multi_contents_view_->GetActiveContentsView()->RequestFocus();
-  }
-}
-
-void BrowserView::UpdateContentsInSplitView(
-    const std::vector<std::pair<tabs::TabInterface*, int>>& prev_tabs,
-    const std::vector<std::pair<tabs::TabInterface*, int>>& new_tabs) {
-  CHECK(multi_contents_view_->IsInSplitView());
-
-  std::optional<split_tabs::SplitTabId> split_id =
-      browser_->GetActiveTabInterface()->GetSplit();
-  CHECK(split_id.has_value());
-
-  split_tabs::SplitTabData* split_data =
-      browser_->tab_strip_model()->GetSplitData(split_id.value());
-  const int first_split_tab_index =
-      browser_->tab_strip_model()->GetIndexOfTab(split_data->ListTabs()[0]);
-
-  const bool active_view_has_focus =
-      multi_contents_view_->GetActiveContentsView()->HasFocus();
-
-  // Clear web contents for prev_tabs in preparation to reset for new_tabs.
-  multi_contents_view_->GetInactiveContentsView()->SetWebContents(nullptr);
-  multi_contents_view_->GetActiveContentsView()->SetWebContents(nullptr);
-
-  // Clear focus to avoid reentrency when setting the web contents within
-  // MultiContentsView. See crbug.com/458189541 and crbug.com/447369458
-  if (!GetWidget()->IsActive()) {
-    GetFocusManager()->ClearFocus();
-  }
-
-  // Set web contents in multi_contents_view_ to match new_tabs and update the
-  // active multi_contents_view_ index.
-  for (std::pair<tabs::TabInterface*, int> split_tab_with_index : new_tabs) {
-    CHECK(split_id == split_tab_with_index.first->GetSplit());
-    int relative_index = split_tab_with_index.second - first_split_tab_index;
-    multi_contents_view_->SetWebContentsAtIndex(
-        split_tab_with_index.first->GetContents(), relative_index);
-    if (split_tab_with_index.first->IsActivated()) {
-      multi_contents_view_->SetActiveIndex(relative_index);
-    }
-  }
-  // Focus the active contents view if it previously had focus prior to swap.
-  if (active_view_has_focus) {
     multi_contents_view_->GetActiveContentsView()->RequestFocus();
   }
 }

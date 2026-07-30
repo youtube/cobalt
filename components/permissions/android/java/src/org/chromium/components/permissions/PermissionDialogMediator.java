@@ -104,11 +104,22 @@ public class PermissionDialogMediator
                 PermissionsAndroidFeatureMap.isEnabled(
                         PermissionsAndroidFeatureList.APPROXIMATE_GEOLOCATION_PERMISSION);
 
+        boolean supportedEmbeddedPromptVariant =
+                switch (mDialogDelegate.getEmbeddedPromptVariant()) {
+                    case EmbeddedPromptVariant.UNINITIALIZED,
+                            EmbeddedPromptVariant.ASK,
+                            EmbeddedPromptVariant.PREVIOUSLY_DENIED,
+                            EmbeddedPromptVariant.PREVIOUSLY_GRANTED ->
+                            true;
+                    default -> false;
+                };
+
         LinearLayout locationPrecisionContainer = view.findViewById(R.id.custom_view_container);
 
         if (isGeolocationContentSetting
                 && isApproximateGeolocationEnabled
                 && locationPrecisionContainer != null
+                && supportedEmbeddedPromptVariant
                 && mDialogDelegate.getGeolocationPromptType()
                         == GeolocationPromptType.APPROXIMATE_OR_PRECISE) {
 
@@ -432,11 +443,7 @@ public class PermissionDialogMediator
             mModalDialogManager.dismissDialog(mDialogModel, DialogDismissalCause.UNKNOWN);
         }
 
-        if (mLocationPrecisionChooserController != null) {
-            mLocationPrecisionChooserController.hide();
-            mLocationPrecisionChooserController = null;
-        }
-
+        mLocationPrecisionChooserController = null;
         mDialogModel = null;
         mDialogDelegate = null;
         mModalDialogManager = null;

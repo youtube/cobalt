@@ -36,6 +36,9 @@ class PasswordSaveUpdateView : public PasswordBubbleViewBase,
  public:
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kPasswordBubbleElementId);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kExtraButtonElementId);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kNotNowButtonElementId);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kCaretButtonElementId);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kNeverMenuItemElementId);
 
   enum ViewIds {
     kSplitButton = 1,

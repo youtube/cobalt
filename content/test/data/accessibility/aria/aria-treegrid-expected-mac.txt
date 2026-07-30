@@ -54,7 +54,7 @@ AXWebArea
 ++++++++AXStaticText AXValue='Cell 2, row 2, level 1'
 ++++++AXCell
 ++++++++AXStaticText AXValue='Cell 2, row 3, level 1'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++AXTable
 ++++AXRow AXIndex=0 AXTitle='Cell 1, row 1, rowgroup 1, level 1'
 ++++++AXCell
@@ -106,7 +106,7 @@ AXWebArea
 ++++AXColumn AXIndex=2
 ++++++AXCell
 ++++++++AXStaticText AXValue='Cell 3, row 1, rowgroup 2, level 2'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++AXTable
 ++++AXRow AXIndex=0 AXTitle='Cell 1, row 1, rowgroup 1, level 1'
 ++++++AXStaticText AXValue='Cell 1, row 1, rowgroup 1, level 1'
@@ -122,4 +122,4 @@ AXWebArea
 ++++++AXStaticText AXValue='Cell 1, row 1, rowgroup 2, level 1 Cell 2, row 1, rowgroup 2, level 1'
 ++++AXRow AXIndex=6 AXTitle='Cell 1, row 1, rowgroup 2, level 2 Cell 2, row 1, rowgroup 2, level 2 Cell 3, row 1, rowgroup 2, level 2'
 ++++++AXStaticText AXValue='Cell 1, row 1, rowgroup 2, level 2 Cell 2, row 1, rowgroup 2, level 2 Cell 3, row 1, rowgroup 2, level 2'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup

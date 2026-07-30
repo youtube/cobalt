@@ -1835,6 +1835,10 @@ wgpu::Buffer D3DImageBacking::BeginAccessDawnBuffer(
     const wgpu::Device& device,
     wgpu::BackendType backend_type,
     wgpu::BufferUsage usage) {
+  CHECK(this->usage().HasAll(SHARED_IMAGE_USAGE_WEBGPU_SHARED_BUFFER |
+                             SHARED_IMAGE_USAGE_WEBGPU_READ |
+                             SHARED_IMAGE_USAGE_WEBGPU_WRITE));
+
   AutoLock auto_lock(this);
 
   if (!ValidateBeginAccess(true)) {

@@ -3,7 +3,7 @@
 ### Documentation
 
 Take into account the following documentation:
-* Consult `docs/rust.md` for general usage of Rust in Chromium.
+* Consult `//docs/rust/README.md` for general usage of Rust in Chromium.
 * Consult  `third_party/rust/README-importing-new-crates.md` for information 
   on adding new Rust crates.
 

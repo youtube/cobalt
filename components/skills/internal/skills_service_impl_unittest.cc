@@ -562,12 +562,9 @@ TEST_F(SkillsServiceImplTest, FetchDiscoverySkills_FromService_Success) {
   identity_test_env_.MakePrimaryAccountAvailable("test@gmail.com",
                                                  signin::ConsentLevel::kSignin);
 
-  skills::proto::SkillsList skills_list;
-  skills::proto::Skill* skill = skills_list.add_skills();
-  skill->set_name("Service Skill");
-
-  test_url_loader_factory_.AddResponse(features::kSkillsServiceApiUrl.Get(),
-                                       skills_list.SerializeAsString());
+  test_url_loader_factory_.AddResponse(
+      features::kSkillsServiceApiUrl.Get(),
+      R"({"skills": [{"name": "Service Skill"}]})");
 
   MockSkillsServiceImpl mock_service(
       &pref_service_, &mock_optimization_guide_decider_,
@@ -690,6 +687,34 @@ TEST_F(SkillsServiceImplTest, UpdateSkillFromSyncSortsByLastUpdateTime) {
   EXPECT_THAT(service().GetSkills(),
               ElementsAre(Pointee(HasSkill("Name C", "icon", "prompt", "desc")),
                           Pointee(HasSkill("Name B", "icon", "prompt", ""))));
+}
+
+TEST_F(SkillsServiceImplTest, Handle1pSkills_OnlyAcceptsHttpsImageUrls) {
+  InitService();
+  auto first_party_skill_data = std::make_unique<FirstPartySkillData>();
+  const std::vector<std::pair<std::string, std::string>> kCases = {
+      {"invalid_https_id", "https://example.com/image.png"},
+      {"https_id", "https://gstatic.com/image.png"},
+      {"data_id", "data:image/png;base64,iVBORw0KGgo="},
+      {"empty_id", ""},
+  };
+  for (const auto& [id, image_url] : kCases) {
+    skills::proto::Skill proto_skill;
+    proto_skill.set_id(id);
+    proto_skill.set_name("name");
+    proto_skill.set_image_url(image_url);
+    first_party_skill_data->skills_list.push_back(proto_skill);
+  }
+
+  service().Handle1pSkills(std::move(first_party_skill_data));
+
+  const Skill* https_skill = service().GetSkillById("https_id");
+  EXPECT_EQ(GURL("https://gstatic.com/image.png"), https_skill->image_url);
+
+  for (const char* id : {"invalid_https_id", "data_id", "empty_id"}) {
+    const Skill* skill = service().GetSkillById(id);
+    EXPECT_TRUE(skill->image_url.is_empty());
+  }
 }
 
 }  // namespace

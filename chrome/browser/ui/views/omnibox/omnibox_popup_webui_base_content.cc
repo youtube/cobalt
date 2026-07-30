@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/location_bar/omnibox_popup_file_selector.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_context_menu.h"
@@ -160,6 +161,10 @@ void OmniboxPopupWebUIBaseContent::ShowUI() {
   }
   SetWebContents(contents_wrapper_->web_contents());
 
+#if BUILDFLAG(IS_MAC)
+  UpdateAutoFill();
+#endif
+
   // The View may have changed, so this reinstates auto-resizing to prevent
   // the omnibox from staying collapsed until a resize is observed.
   OnLocationBarBoundsChanged();
@@ -284,6 +289,18 @@ void OmniboxPopupWebUIBaseContent::LoadContent() {
     GetWebContents()->WasHidden();
   }
 }
+
+#if BUILDFLAG(IS_MAC)
+void OmniboxPopupWebUIBaseContent::UpdateAutoFill() {
+  auto* web_contents = GetWebContents();
+  if (!web_contents) {
+    return;
+  }
+  if (auto* view = web_contents->GetRenderWidgetHostView()) {
+    view->SetSupportsAutoFill(!features::IsMenuSimplificationEnabled());
+  }
+}
+#endif
 
 void OmniboxPopupWebUIBaseContent::Detach() {
   if (!popup_presenter_->ShouldDetachWebContentsOnHide()) {

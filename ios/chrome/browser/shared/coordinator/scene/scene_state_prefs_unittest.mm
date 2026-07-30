@@ -9,6 +9,9 @@
 
 #import <string_view>
 
+#import "ios/chrome/browser/shared/model/profile/test/test_profile_manager_ios.h"
+#import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
+#import "ios/web/public/test/web_task_environment.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
@@ -55,140 +58,132 @@ id CreateMockSessionWithStorage(SceneStatePrefsWrapper* wrapper) {
 }
 
 // Constants used for test.
-static NSString* const kBoolKey = @"boolValue";
-static NSString* const kTimeKey = @"timeValue";
-static constexpr char kSessionName[] = "session";
-static constexpr char kProfileName[] = "profile";
+static constexpr char kBoolKey[] = "IncognitoActive";
+static constexpr char kTimeKey[] = "StartSurfaceSceneEnterIntoBackgroundTime";
+static constexpr char kSessionName[] = "D5A906A5-A92C-4729-86B6-DB18F51D63C8";
 
 }  // namespace
 
 class SceneStatePrefsTest : public PlatformTest {
  public:
-  SceneStatePrefsTest() {
-    // Records the keys of all values stored in NSUserDefaults.
-    keys_ = [NSSet setWithArray:[[[NSUserDefaults standardUserDefaults]
-                                    dictionaryRepresentation] allKeys]];
-  }
+  SceneStatePrefsTest() = default;
 
-  ~SceneStatePrefsTest() override {
-    // Clears any keys that were added in NSUserDefaults.
-    NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-    for (NSString* key in [[defaults dictionaryRepresentation] allKeys]) {
-      if (![keys_ containsObject:key]) {
-        [defaults removeObjectForKey:key];
-      }
-    }
-  }
+  TestProfileManagerIOS* manager() { return &manager_; }
 
  private:
-  NSSet<NSString*>* keys_;
+  web::WebTaskEnvironment task_environment_;
+  IOSChromeScopedTestingLocalState scoped_testing_local_state_;
+  TestProfileManagerIOS manager_;
 };
 
-// Test that SceneStatePrefs stores the values in the NSUserDefaults if the
-// session object is nil.
-TEST_F(SceneStatePrefsTest, StorePrefsInNSUserDefaultsIfNoSession) {
+// Test that SceneStatePrefs can save/retrieve the values for key.
+TEST_F(SceneStatePrefsTest, ReadWritePrefs) {
+  const std::string profile_name = manager()->ReserveNewProfileName();
   SceneStatePrefs* prefs =
-      [[SceneStatePrefs alloc] initWithSessionIdentifier:kSessionName
-                                             profileName:kProfileName
-                                            sceneSession:nil];
+      [[SceneStatePrefs alloc] initWithProfileManager:manager()
+                                          profileName:profile_name
+                                    sessionIdentifier:kSessionName
+                                         sceneSession:nil];
 
-  // Pre-conditions: no value set in either NSUserDefaults.
-  NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-  EXPECT_NSEQ([defaults objectForKey:kBoolKey], nil);
-  EXPECT_NSEQ([defaults objectForKey:kTimeKey], nil);
-  EXPECT_EQ([prefs boolForKey:kBoolKey], std::optional<bool>(std::nullopt));
-  EXPECT_EQ([prefs timeForKey:kTimeKey],
-            std::optional<base::Time>(std::nullopt));
+  // Test that default values are returned if the prefs are not set.
+  EXPECT_EQ([prefs boolForKey:kBoolKey], false);
+  EXPECT_EQ([prefs timeForKey:kTimeKey], base::Time());
 
-  // Set bool and time preferences.
+  // Test that after setting a value, it is correctly returned.
   const base::Time time = base::Time::Now();
   [prefs setBool:true forKey:kBoolKey];
   [prefs setTime:time forKey:kTimeKey];
 
-  // Check that the prefs can be read, and that they are stored in userInfo.
-  EXPECT_EQ([prefs boolForKey:kBoolKey], std::optional<bool>(true));
-  EXPECT_EQ([prefs timeForKey:kTimeKey], std::optional<base::Time>(time));
-  EXPECT_NSEQ([defaults objectForKey:kBoolKey], @YES);
-  EXPECT_NSEQ([defaults objectForKey:kTimeKey], time.ToNSDate());
+  EXPECT_EQ([prefs boolForKey:kBoolKey], true);
+  EXPECT_EQ([prefs timeForKey:kTimeKey], time);
 }
 
-// Test that SceneStatePrefs stores the values in the UISceneSession userInfo
-// (and only there) if the session object is not nil.
-TEST_F(SceneStatePrefsTest, StorePrefsInUISceneSessionIfNotNil) {
-  SceneStatePrefsWrapper* wrapper = [[SceneStatePrefsWrapper alloc] init];
-  id session = CreateMockSessionWithStorage(wrapper);
-  SceneStatePrefs* prefs =
-      [[SceneStatePrefs alloc] initWithSessionIdentifier:kSessionName
-                                             profileName:kProfileName
-                                            sceneSession:session];
-
-  // Pre-conditions: no value set in either NSUserDefaults or userInfo.
-  NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-  EXPECT_NSEQ([defaults objectForKey:kBoolKey], nil);
-  EXPECT_NSEQ([defaults objectForKey:kTimeKey], nil);
-  EXPECT_NSEQ([wrapper.dict objectForKey:kBoolKey], nil);
-  EXPECT_NSEQ([wrapper.dict objectForKey:kTimeKey], nil);
-  EXPECT_EQ([prefs boolForKey:kBoolKey], std::optional<bool>(std::nullopt));
-  EXPECT_EQ([prefs timeForKey:kTimeKey],
-            std::optional<base::Time>(std::nullopt));
-
-  // Set bool and time preferences.
+// Test that SceneStatePrefs migrate the data from NSUserDefaults.
+TEST_F(SceneStatePrefsTest, MigrateFromNSUserDefaults) {
+  // Prepare NSUserDefaults with some saved preferences.
   const base::Time time = base::Time::Now();
-  [prefs setBool:true forKey:kBoolKey];
-  [prefs setTime:time forKey:kTimeKey];
+  NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
+  [defaults setBool:YES forKey:@(kBoolKey)];
+  [defaults setObject:time.ToNSDate() forKey:@(kTimeKey)];
 
-  // Check that the prefs can be read, and that they are stored in userInfo.
-  EXPECT_EQ([prefs boolForKey:kBoolKey], std::optional<bool>(true));
-  EXPECT_EQ([prefs timeForKey:kTimeKey], std::optional<base::Time>(time));
-  EXPECT_NSEQ([wrapper.dict objectForKey:kBoolKey], @YES);
-  EXPECT_NSEQ([wrapper.dict objectForKey:kTimeKey], time.ToNSDate());
-  EXPECT_NSEQ([defaults objectForKey:kBoolKey], nil);
-  EXPECT_NSEQ([defaults objectForKey:kTimeKey], nil);
+  const std::string profile_name = manager()->ReserveNewProfileName();
+  SceneStatePrefs* prefs =
+      [[SceneStatePrefs alloc] initWithProfileManager:manager()
+                                          profileName:profile_name
+                                    sessionIdentifier:kSessionName
+                                         sceneSession:nil];
+
+  // Test that the value stored in NSUserDefaults have been migrated.
+  EXPECT_EQ([prefs boolForKey:kBoolKey], true);
+  EXPECT_EQ([prefs timeForKey:kTimeKey], time);
+
+  // The values should have been removed from NSUserDefaults.
+  EXPECT_NSEQ([defaults objectForKey:@(kBoolKey)], nil);
+  EXPECT_NSEQ([defaults objectForKey:@(kTimeKey)], nil);
 }
 
-// Test that SceneStatePrefs migrates the values from NSUserDefaults if the
-// session object is not nil and the prefs exists in NSUserDefaults.
-TEST_F(SceneStatePrefsTest, MigratePrefsFromNSUserDefaults) {
+// Test that SceneStatePrefs migrate the data from UISceneSession.
+TEST_F(SceneStatePrefsTest, MigrateFromUISceneSession) {
   SceneStatePrefsWrapper* wrapper = [[SceneStatePrefsWrapper alloc] init];
   id session = CreateMockSessionWithStorage(wrapper);
-  SceneStatePrefs* prefs =
-      [[SceneStatePrefs alloc] initWithSessionIdentifier:kSessionName
-                                             profileName:kProfileName
-                                            sceneSession:session];
 
-  // Pre-conditions: set value in NSUserDefaults.
+  // Prepare UISceneSession with some saved preferences.
+  const base::Time time = base::Time::Now();
+  [session setUserInfo:@{
+    @(kBoolKey) : @YES,
+    @(kTimeKey) : time.ToNSDate(),
+    @("UnrelatedKey") : @"SomeValue"
+  }];
+
+  const std::string profile_name = manager()->ReserveNewProfileName();
+  SceneStatePrefs* prefs =
+      [[SceneStatePrefs alloc] initWithProfileManager:manager()
+                                          profileName:profile_name
+                                    sessionIdentifier:kSessionName
+                                         sceneSession:session];
+
+  // Test that the value stored in NSUserDefaults have been migrated.
+  EXPECT_EQ([prefs boolForKey:kBoolKey], true);
+  EXPECT_EQ([prefs timeForKey:kTimeKey], time);
+
+  // All values should have been removed from UISceneSession.
+  EXPECT_NSEQ([session userInfo], @{});
+}
+
+// Test that SceneStatePrefs migration prefers values from UISceneSession.
+TEST_F(SceneStatePrefsTest, MigrationPrefersUISceneSession) {
+  SceneStatePrefsWrapper* wrapper = [[SceneStatePrefsWrapper alloc] init];
+  id session = CreateMockSessionWithStorage(wrapper);
+
+  // Prepare UISceneSession and NSUserDefaults with some saved preferences.
   const base::Time time1 = base::Time::Now();
+  [session setUserInfo:@{@(kTimeKey) : time1.ToNSDate()}];
+
+  const base::Time time2 = time1 - base::Seconds(10);
   NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-  [defaults setObject:@YES forKey:kBoolKey];
-  [defaults setObject:time1.ToNSDate() forKey:kTimeKey];
+  [defaults setBool:YES forKey:@(kBoolKey)];
+  [defaults setObject:time2.ToNSDate() forKey:@(kTimeKey)];
 
-  // Check that the prefs can be read.
-  EXPECT_EQ([prefs boolForKey:kBoolKey], std::optional<bool>(true));
-  EXPECT_EQ([prefs timeForKey:kTimeKey], std::optional<base::Time>(time1));
+  const std::string profile_name = manager()->ReserveNewProfileName();
+  SceneStatePrefs* prefs =
+      [[SceneStatePrefs alloc] initWithProfileManager:manager()
+                                          profileName:profile_name
+                                    sessionIdentifier:kSessionName
+                                         sceneSession:session];
 
-  // Check that preferences have not yet been migrated.
-  EXPECT_NSEQ([wrapper.dict objectForKey:kBoolKey], nil);
-  EXPECT_NSEQ([wrapper.dict objectForKey:kTimeKey], nil);
-  EXPECT_NSEQ([defaults objectForKey:kBoolKey], @YES);
-  EXPECT_NSEQ([defaults objectForKey:kTimeKey], time1.ToNSDate());
+  // Check that the values stored in NSUserDefaults and UISceneSession
+  // are distinct (otherwise it would be difficult to check the source
+  // that was used for the migration).
+  ASSERT_NE(time1, time2);
 
-  // Change the preferences values.
-  const base::Time time2 = time1 + base::Minutes(1);
-  [prefs setBool:false forKey:kBoolKey];
-  [prefs setTime:time2 forKey:kTimeKey];
+  // Test that the value stored in NSUserDefaults have been migrated.
+  EXPECT_EQ([prefs boolForKey:kBoolKey], true);
+  EXPECT_EQ([prefs timeForKey:kTimeKey], time1);
 
-  // Check that preferences have not yet been migrated.
-  EXPECT_NSEQ([wrapper.dict objectForKey:kBoolKey], @NO);
-  EXPECT_NSEQ([wrapper.dict objectForKey:kTimeKey], time2.ToNSDate());
-  EXPECT_NSEQ([defaults objectForKey:kBoolKey], @YES);
-  EXPECT_NSEQ([defaults objectForKey:kTimeKey], time1.ToNSDate());
+  // All values should have been removed from UISceneSession.
+  EXPECT_NSEQ([session userInfo], @{});
 
-  // Check that the preferences are migrated when read.
-  EXPECT_EQ([prefs boolForKey:kBoolKey], std::optional<bool>(false));
-  EXPECT_EQ([prefs timeForKey:kTimeKey], std::optional<base::Time>(time2));
-
-  EXPECT_NSEQ([wrapper.dict objectForKey:kBoolKey], @NO);
-  EXPECT_NSEQ([wrapper.dict objectForKey:kTimeKey], time2.ToNSDate());
-  EXPECT_NSEQ([defaults objectForKey:kBoolKey], nil);
-  EXPECT_NSEQ([defaults objectForKey:kTimeKey], nil);
+  // The values should have been removed from NSUserDefaults.
+  EXPECT_NSEQ([defaults objectForKey:@(kBoolKey)], nil);
+  EXPECT_NSEQ([defaults objectForKey:@(kTimeKey)], nil);
 }

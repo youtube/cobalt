@@ -11,6 +11,7 @@
 #include "base/json/json_writer.h"
 #include "base/strings/escape.h"
 #include "chromeos/components/quick_answers/quick_answers_model.h"
+#include "chromeos/components/quick_answers/search_result_parsers/search_response_parser.h"
 #include "chromeos/services/assistant/public/shared/constants.h"
 #include "net/base/url_util.h"
 #include "services/network/public/cpp/resource_request.h"
@@ -109,9 +110,7 @@ void SearchResultLoader::ProcessResponse(
     const PreprocessedOutput& preprocessed_output,
     std::optional<std::string> response_body,
     ResponseParserCallback complete_callback) {
-  search_response_parser_ =
-      std::make_unique<SearchResponseParser>(std::move(complete_callback));
-  search_response_parser_->ProcessResponse(*response_body);
+  std::move(complete_callback).Run(ParseSearchResponse(*response_body));
 }
 
 }  // namespace quick_answers

@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/modules/webgpu/gpu_programmable_pass_encoder.h"
 
+#include "third_party/blink/renderer/core/dom/dom_exception.h"
+
 namespace blink {
 
 // static
@@ -42,7 +44,8 @@ bool GPUProgrammablePassEncoder::ValidateSetImmediatesAndSubSpan(
 
   // Convert element offset and element size to bytes.
   if (data_element_offset > data.size() / data_bytes_per_element) {
-    exception_state.ThrowRangeError("dataOffset is larger than data's size.");
+    exception_state.ThrowDOMException(DOMExceptionCode::kOperationError,
+                                      "dataOffset is larger than data's size.");
     return false;
   }
 
@@ -54,7 +57,8 @@ bool GPUProgrammablePassEncoder::ValidateSetImmediatesAndSubSpan(
   if (data_element_size.has_value()) {
     if (data_element_size >
         std::numeric_limits<uint64_t>::max() / data_bytes_per_element) {
-      exception_state.ThrowRangeError("size overflows.");
+      exception_state.ThrowDOMException(DOMExceptionCode::kOperationError,
+                                        "size overflows.");
       return false;
     }
 
@@ -63,7 +67,8 @@ bool GPUProgrammablePassEncoder::ValidateSetImmediatesAndSubSpan(
 
   // Data byte size must be multiples of 4.
   if (data_byte_size % 4 != 0) {
-    exception_state.ThrowRangeError(
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kOperationError,
         "size, converted to bytes, must be a multiple of 4.");
     return false;
   }
@@ -72,7 +77,8 @@ bool GPUProgrammablePassEncoder::ValidateSetImmediatesAndSubSpan(
   uint64_t max_content_byte_size = data.size() - data_byte_offset;
 
   if (data_byte_size > max_content_byte_size) {
-    exception_state.ThrowRangeError(
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kOperationError,
         "size is larger than the remaining size of data after dataOffset.");
     return false;
   }

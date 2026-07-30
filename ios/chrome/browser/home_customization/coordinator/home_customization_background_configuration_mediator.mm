@@ -302,6 +302,10 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
       BackgroundSelectionOutcome::kCanceledAfterSelected;
 }
 
+- (void)disconnect {
+  _backgroundCustomizationServiceObserverBridge.reset();
+}
+
 #pragma mark - HomeCustomizationBackgroundConfigurationMutator
 
 - (void)fetchBackgroundCustomizationThumbnailURLImage:(GURL)thumbnailURL

@@ -31,8 +31,7 @@ class TabMatcherAndroid : public TabMatcher {
       bool unused_exclude_active_tab = true) const override;
 
  private:
-  std::vector<raw_ptr<TabAndroid, VectorExperimental>> GetOpenAndroidTabs(
-      const AutocompleteInput* input) const;
+  std::vector<int64_t> GetOpenAndroidTabs(const AutocompleteInput* input) const;
   GURLToTabInfoMap GetAllHiddenAndNonCCTTabInfos(
       const AutocompleteInput* input) const;
 

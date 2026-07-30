@@ -5,6 +5,8 @@
 #ifndef CONTENT_PUBLIC_TEST_MEMORY_COORDINATOR_BROWSERTEST_UTIL_H_
 #define CONTENT_PUBLIC_TEST_MEMORY_COORDINATOR_BROWSERTEST_UTIL_H_
 
+#include <stdint.h>
+
 #include <memory>
 #include <optional>
 #include <string>
@@ -32,7 +34,7 @@ class ScopedMemoryLimitOverride {
       delete;
 
  private:
-  const std::string consumer_name_;
+  const uint32_t consumer_id_;
   std::optional<int> limit_;
 };
 

@@ -103,6 +103,7 @@
 <translation id="1335767868357998043">Choose address bar position</translation>
 <translation id="1347468774581902829">Manage activity</translation>
 <translation id="1348596747084433075">https://www.amazon.com/Wife-Gifts/s?k=for+Wife+Gifts</translation>
+<translation id="1353169676553627502">Turn off progress updates</translation>
 <translation id="1355337783640312381">To switch between accounts, tap your account icon</translation>
 <translation id="135806768612505061">All tabs</translation>
 <translation id="1358106883354237005">Managed account</translation>
@@ -609,6 +610,7 @@
 <translation id="3073633853887034268">Got it</translation>
 <translation id="3080525922482950719">You can save pages to read later or offline</translation>
 <translation id="3081338492074632642">Make sure that the password that you are saving matches your password for <ph name="WEBSITE" /></translation>
+<translation id="3084484227247071193">Turn on progress updates</translation>
 <translation id="3087734570205094154">Bottom</translation>
 <translation id="309710370695886264">You have one reused password. Fix it now to stay safe.</translation>
 <translation id="3099402981545350675">This deletes addresses saved on this device. It also removes selected info from Chrome, but it doesn't delete this info from your Google Account.</translation>
@@ -708,6 +710,7 @@
 <translation id="3449029510150690417">Create your new tab group by giving it a name and colour</translation>
 <translation id="345348365500626747">Address found</translation>
 <translation id="3459644598174926977">Go Live with Gemini to ask about a page, brainstorm out loud and talk back and forth.</translation>
+<translation id="3462768334899086950">This means that you will lose your unsaved file and current tabs</translation>
 <translation id="3464194322481586217">Couldn't track the price.</translation>
 <translation id="3469117812148449995">Options to save password</translation>
 <translation id="3472469028191701821">Opens in new tab</translation>
@@ -836,7 +839,6 @@
 <translation id="391904960191284041">Product reviews</translation>
 <translation id="3921585859122905677">Address Bar Position</translation>
 <translation id="3922185497376658606">Preload web pages</translation>
-<translation id="3922395466317605522">Customise menu</translation>
 <translation id="3926703470020109118">Download cancelled</translation>
 <translation id="3929457972718048006">Addresses</translation>
 <translation id="3931215329146376310">{count,plural, =1{New password for this site}other{New passwords for this site}}</translation>
@@ -965,6 +967,7 @@
 <translation id="4326912346867677256">Tap 'Use password' to sign in securely.</translation>
 <translation id="4328843285884395590">My Drive</translation>
 <translation id="4331177082088332784">You can manage this in BEGIN_LINK Content settings END_LINK</translation>
+<translation id="4331712008356052424">To send this link, sign in to your other device using <ph name="USER_EMAIL" /></translation>
 <translation id="4334428914252001502">One unread article.</translation>
 <translation id="4338258232580025606">Cannot sign in</translation>
 <translation id="4338650699862464074">Sends URLs of pages that you visit to Google.</translation>
@@ -1269,6 +1272,7 @@
 <translation id="5336910966955551309">Tap and hold to pin your favourite sites</translation>
 <translation id="5338512273860059533">Sign-in in progress.</translation>
 <translation id="5343472494710226394">News, sports and content based on your interests.</translation>
+<translation id="5351613737248079168">You have to be signed in to use Level Up</translation>
 <translation id="5352128922772839949">Save file</translation>
 <translation id="5355191726083956201">Enhanced protection is on</translation>
 <translation id="536067926684072644">Show bookmarks</translation>
@@ -1471,6 +1475,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="6040143037577758943">Close</translation>
 <translation id="6042308850641462728">More</translation>
 <translation id="6045460247888249350">Add title</translation>
+<translation id="6050237559175440178">Verify that it's you to use and save your info on all your devices</translation>
 <translation id="6052269326659653305">Switch profile</translation>
 <translation id="605721222689873409">YY</translation>
 <translation id="6059830886158432458">Control your stories and activity here</translation>
@@ -1690,7 +1695,6 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="6674917187596384849">You can easily switch between accounts</translation>
 <translation id="6676349090816247042">Sign-in options.</translation>
 <translation id="667999046851023355">Document</translation>
-<translation id="6680416467695217368">Customise menu</translation>
 <translation id="6681791404926413601">{count,plural, =1{{count} option for payment method available above your keyboard.}other{{count} options for payment method available above your keyboard.}}</translation>
 <translation id="6682680306647339111">Reminder removed</translation>
 <translation id="6684262542644248484">Sign in to a website</translation>
@@ -1846,6 +1850,7 @@ To continue from your computer, switch to <ph name="OTHER_EMAIL" />. You'll get 
 <translation id="722339453342442311">Check now</translation>
 <translation id="7227235818314667565">Manage sharing</translation>
 <translation id="7233006041370588369">Select a password to fill.</translation>
+<translation id="723874023660911012">Switch profiles</translation>
 <translation id="7241135764990439166">Incognito mode is unavailable</translation>
 <translation id="7248046129087111453"><ph name="BEGIN_LINK" />Search history<ph name="END_LINK" /> and <ph name="BEGIN_LINK" />other forms of activity<ph name="END_LINK" /> may be saved in your Google Account.</translation>
 <translation id="7253951228444156601">Checking passwords…</translation>
@@ -2072,6 +2077,7 @@ To continue from your computer, switch to <ph name="OTHER_EMAIL" />. You'll get 
 <translation id="7996239959906074962">Set up…</translation>
 <translation id="800361585186029508">Opens the inputted URLs in Google Chrome.</translation>
 <translation id="8005666035647241369">To Google Password Manager on this device</translation>
+<translation id="8007106936382123905">{count,plural, =1{1 completed task}other{# completed tasks}}</translation>
 <translation id="8010488806779226127">Explore features that can help you do more as you browse</translation>
 <translation id="8011489434346330032">Web Inspector</translation>
 <translation id="8014007212279733632">Verify that it's you to autofill sensitive info</translation>
@@ -2155,6 +2161,7 @@ To continue from your computer, switch to <ph name="OTHER_EMAIL" />. You'll get 
 <translation id="826614135184049678">You were signed out of your account, <ph name="USER_NAME" />, as part of your iPad reset. To sign back in, tap 'Continue' below.</translation>
 <translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">You'll fill info into <ph name="URL" /></translation>
+<translation id="8274795744553482834">You're about to switch profiles</translation>
 <translation id="8275068909952022340">More…</translation>
 <translation id="8280797717392145626">Links received</translation>
 <translation id="8281781826761538115">Default - <ph name="DEFAULT_LOCALE" /></translation>

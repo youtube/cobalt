@@ -51,10 +51,29 @@ const char kHostName[] = "host.test";
 using test::IsError;
 using test::IsOk;
 
-class TcpConnectJobTest : public TestWithTaskEnvironment {
+class TcpConnectJobTestBase {
  public:
-  TcpConnectJobTest()
-      : TestWithTaskEnvironment(
+  explicit TcpConnectJobTestBase(
+      const std::vector<base::test::FeatureRefAndParams>& enabled_features =
+          {{features::kHappyEyeballsV2, {}}},
+      const std::vector<base::test::FeatureRef>& disabled_features = {}) {
+    scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features,
+                                                       disabled_features);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+class TcpConnectJobTest : public TcpConnectJobTestBase,
+                          public TestWithTaskEnvironment {
+ public:
+  explicit TcpConnectJobTest(
+      const std::vector<base::test::FeatureRefAndParams>& enabled_features =
+          {{features::kHappyEyeballsV2, {}}},
+      const std::vector<base::test::FeatureRef>& disabled_features = {})
+      : TcpConnectJobTestBase(enabled_features, disabled_features),
+        TestWithTaskEnvironment(
             base::test::TaskEnvironment::TimeSource::MOCK_TIME),
         common_connect_job_params_(
             &client_socket_factory_,
@@ -75,9 +94,7 @@ class TcpConnectJobTest : public TestWithTaskEnvironment {
             /*alpn_protos=*/nullptr,
             /*application_settings=*/nullptr,
             /*ignore_certificate_errors=*/nullptr,
-            /*enable_early_data=*/nullptr) {
-    scoped_feature_list_.InitAndEnableFeature(features::kHappyEyeballsV2);
-  }
+            /*enable_early_data=*/nullptr) {}
 
   ~TcpConnectJobTest() override {
     EXPECT_TRUE(client_socket_factory_.AllDataProvidersUsed());
@@ -343,8 +360,6 @@ class TcpConnectJobTest : public TestWithTaskEnvironment {
                                            /*is_secure_network_error=*/true};
 
   const std::set<std::string> kDnsAliases{"bar", "foo"};
-
-  base::test::ScopedFeatureList scoped_feature_list_;
 
   // Socket data for `client_socket_factory_`. Only the connect data matters.
   std::vector<std::unique_ptr<SequencedSocketData>> socket_data_;
@@ -2189,7 +2204,7 @@ TEST_F(TcpConnectJobTest, OneConnectorSlowDns) {
       .CallOnServiceEndpointRequestFinished(OK);
   connect_completer.WaitForConnect();
 
-  EXPECT_FALSE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
   // Since there's only one Connector, the kIpV4Endpoint1 connection should
   // still be pending.
   EXPECT_FALSE(client_socket_factory_.AllDataProvidersUsed());
@@ -2221,9 +2236,9 @@ TEST_F(TcpConnectJobTest, TwoConnectorsOneIpSuccess) {
 
   EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
   connect_completer.WaitForConnect();
-  EXPECT_FALSE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
   FastForwardBy(TcpConnectJob::kIPv6FallbackTime);
-  EXPECT_TRUE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
 
   connect_completer.Complete(OK);
   WaitForSuccess(kIpV4Endpoint1, service_endpoint);
@@ -2246,9 +2261,9 @@ TEST_F(TcpConnectJobTest, TwoConnectorsOneIpFailure) {
 
   EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
   connect_completer.WaitForConnect();
-  EXPECT_FALSE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
   FastForwardBy(TcpConnectJob::kIPv6FallbackTime);
-  EXPECT_TRUE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
 
   connect_completer.Complete(ERR_FAILED);
   WaitForError(ERR_FAILED,
@@ -2277,9 +2292,9 @@ TEST_F(TcpConnectJobTest, TwoConnectorsOneUsedTwoIpsSuccess) {
   connect_completer.WaitForConnect();
   // Check time to make sure that the IPv4 Connector wasn't created.
   EXPECT_EQ(base::Time::Now() - start_time, base::TimeDelta());
-  EXPECT_FALSE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
   FastForwardBy(TcpConnectJob::kIPv6FallbackTime);
-  EXPECT_TRUE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
 
   connect_completer.Complete(OK);
   WaitForSuccess(
@@ -2310,13 +2325,13 @@ TEST_F(TcpConnectJobTest, TwoConnectorsTwoIpsOneNeverCompletes) {
 
     EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
     connect_completers[0].WaitForConnect();
-    EXPECT_FALSE(connect_job_->has_two_connectors_for_testing());
+    EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
     EXPECT_EQ(base::Time::Now() - start_time, base::TimeDelta());
 
     // Wait for the second Connector to start, which should mean the fallback
     // time has passed.
     connect_completers[1].WaitForConnect();
-    EXPECT_TRUE(connect_job_->has_two_connectors_for_testing());
+    EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
     EXPECT_EQ(base::Time::Now() - start_time, TcpConnectJob::kIPv6FallbackTime);
 
     connect_completers[successful_index].Complete(OK);
@@ -2348,13 +2363,13 @@ TEST_F(TcpConnectJobTest, TwoConnectorsTwoIpsOneFails) {
 
     EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
     connect_completers[0].WaitForConnect();
-    EXPECT_FALSE(connect_job_->has_two_connectors_for_testing());
+    EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
     EXPECT_EQ(base::Time::Now() - start_time, base::TimeDelta());
 
     // Wait for the second Connector to start, which should mean the fallback
     // time has passed.
     connect_completers[1].WaitForConnect();
-    EXPECT_TRUE(connect_job_->has_two_connectors_for_testing());
+    EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
     EXPECT_EQ(base::Time::Now() - start_time, TcpConnectJob::kIPv6FallbackTime);
 
     connect_completers[1 - successful_index].Complete(ERR_FAILED);
@@ -2389,7 +2404,7 @@ TEST_F(TcpConnectJobTest, TwoConnectorsBlockedOnCryptoReady) {
   FastForwardBy(base::Milliseconds(5));
   connect_completers[0].WaitForConnect();
   connect_completers[1].WaitForConnect();
-  EXPECT_TRUE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
 
   // Both connections complete, but have to wait for crypto ready.
   connect_completers[0].Complete(OK);
@@ -2433,7 +2448,7 @@ TEST_F(TcpConnectJobTest, TwoConnectorsOneBlockedOnCryptoReady) {
     FastForwardBy(base::Milliseconds(5));
     connect_completers[0].WaitForConnect();
     connect_completers[1].WaitForConnect();
-    EXPECT_TRUE(connect_job_->has_two_connectors_for_testing());
+    EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
 
     // One connection completes, but has to wait for crypto ready.
     connect_completers[endpoint_to_connect].Complete(OK);
@@ -2478,13 +2493,13 @@ TEST_F(TcpConnectJobTest, TwoConnectorsTwoIpsBothFail) {
 
     EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
     connect_completers[0].WaitForConnect();
-    EXPECT_FALSE(connect_job_->has_two_connectors_for_testing());
+    EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
     EXPECT_EQ(base::Time::Now() - start_time, base::TimeDelta());
 
     // Wait for the second Connector to start, which should mean the fallback
     // time has passed.
     connect_completers[1].WaitForConnect();
-    EXPECT_TRUE(connect_job_->has_two_connectors_for_testing());
+    EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
     EXPECT_EQ(base::Time::Now() - start_time, TcpConnectJob::kIPv6FallbackTime);
 
     connect_completers[first_failure].Complete(errors[first_failure]);
@@ -2525,13 +2540,13 @@ TEST_F(TcpConnectJobTest, TwoConnectorsSixIps) {
   EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
 
   connect_completers[0].WaitForConnect();
-  EXPECT_FALSE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
   EXPECT_EQ(base::Time::Now() - start_time, base::TimeDelta());
 
   // Wait for the second Connector to start, which should mean the fallback time
   // has passed.
   connect_completers[1].WaitForConnect();
-  EXPECT_TRUE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
   EXPECT_EQ(base::Time::Now() - start_time, TcpConnectJob::kIPv6FallbackTime);
 
   // kIpV4Endpoint1 fails. The IPv4 Connector should try kIpV4Endpoint2.
@@ -2595,12 +2610,12 @@ TEST_F(TcpConnectJobTest, TwoConnectorsIPv6ThenIpv4) {
       .CallOnServiceEndpointsUpdated();
 
   connect_completers[0].WaitForConnect();
-  EXPECT_FALSE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
   EXPECT_EQ(base::Time::Now() - start_time, base::TimeDelta());
 
   // Wait for the IPv4 job to start.
   FastForwardBy(TcpConnectJob::kIPv6FallbackTime);
-  EXPECT_TRUE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
   // Since only IPv6 IPs are available, it should not connect.
   EXPECT_FALSE(connect_completers[1].is_connecting());
 
@@ -2684,13 +2699,13 @@ TEST_F(TcpConnectJobTest, TwoConnectorsMultipleServiceEndpoints) {
   EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
 
   connect_completers[0].WaitForConnect();
-  EXPECT_FALSE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
   EXPECT_EQ(base::Time::Now() - start_time, base::TimeDelta());
 
   // Wait for the second Connector to start, which should mean the fallback time
   // has passed.
   connect_completers[1].WaitForConnect();
-  EXPECT_TRUE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
   EXPECT_EQ(base::Time::Now() - start_time, TcpConnectJob::kIPv6FallbackTime);
 
   // kIpV6Endpoint1 and kIpV6Endpoint2 fail. The primary Connector should sit
@@ -2801,13 +2816,13 @@ TEST_F(TcpConnectJobTest, TwoConnectorsEndpointIndexBackwards) {
   // first IPv4 IP in `service_endpoint4`.
   connect_completers[0].WaitForConnectAndComplete(ERR_FAILED);
   connect_completers[1].WaitForConnect();
-  EXPECT_FALSE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
   EXPECT_EQ(base::Time::Now() - start_time, base::TimeDelta());
 
   // Wait for the second Connector to start, which should mean the fallback time
   // has passed.
   connect_completers[2].WaitForConnect();
-  EXPECT_TRUE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
   EXPECT_EQ(base::Time::Now() - start_time, TcpConnectJob::kIPv6FallbackTime);
 
   // DNS request completes, with two more ServiceEndpoints.
@@ -2889,12 +2904,12 @@ TEST_F(TcpConnectJobTest, TwoConnectorsBlockedOnOtherConnector) {
       .CallOnServiceEndpointsUpdated();
 
   connect_completers[0].WaitForConnect();
-  EXPECT_FALSE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
   EXPECT_EQ(base::Time::Now() - start_time, base::TimeDelta());
 
   // Wait for the IPv4 job to start.
   FastForwardBy(TcpConnectJob::kIPv6FallbackTime);
-  EXPECT_TRUE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
   // Since only IPv6 IPs are available, it should not connect.
   EXPECT_FALSE(connect_completers[1].is_connecting());
 
@@ -2970,7 +2985,7 @@ TEST_F(TcpConnectJobTest, TwoConnectorsNotBlockedOnOtherConnector) {
 
   connect_completers[0].WaitForConnect();
   EXPECT_FALSE(connect_completers[1].is_connecting());
-  EXPECT_FALSE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
   EXPECT_EQ(base::Time::Now() - start_time, base::TimeDelta());
 
   // Wait for the IPv4 connector to start.
@@ -3102,7 +3117,7 @@ TEST_F(TcpConnectJobTest, TwoConnectorsGetLoadState) {
   // Waiting takes a while, so we create a second connector, and return to
   // connecting load state.
   connect_completers[1].WaitForConnect();
-  EXPECT_TRUE(connect_job_->has_two_connectors_for_testing());
+  EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
   EXPECT_EQ(connect_job_->GetLoadState(), LOAD_STATE_CONNECTING);
 
   // Second connection attempt also succeeds, and also must wait on crypto
@@ -3116,18 +3131,24 @@ TEST_F(TcpConnectJobTest, TwoConnectorsGetLoadState) {
   WaitForSuccess(kIpV6Endpoint1, service_endpoint);
 }
 
-class TcpConnectJobOptimisticDnsTest : public TcpConnectJobTest {
+class TcpConnectJobOptimisticDnsTest
+    : public TcpConnectJobTest,
+      public testing::WithParamInterface<bool> {
  public:
-  TcpConnectJobOptimisticDnsTest() {
-    feature_list_.InitWithFeatures(
-        {features::kOptimisticDnsForTcp, features::kHappyEyeballsV2}, {});
-  }
+  TcpConnectJobOptimisticDnsTest()
+      : TcpConnectJobTest(
+            {{features::kOptimisticDnsForTcp,
+              {{features::kUseStaleConnectorsForOptimisticDns.name,
+                GetParam() ? "true" : "false"}}},
+             {features::kHappyEyeballsV2, {}}},
+            {}) {}
 
- private:
-  base::test::ScopedFeatureList feature_list_;
+  bool UseStaleConnectors() const { return GetParam(); }
 };
 
-TEST_F(TcpConnectJobOptimisticDnsTest, StaleAThenFreshA) {
+INSTANTIATE_TEST_SUITE_P(All, TcpConnectJobOptimisticDnsTest, testing::Bool());
+
+TEST_P(TcpConnectJobOptimisticDnsTest, StaleAThenFreshA) {
   const auto stale_endpoint = CreateServiceEndpoint({kIpV4Endpoint1});
   const auto fresh_endpoint = CreateServiceEndpoint({kIpV4Endpoint2});
   auto request = host_resolver_.AddFakeRequest();
@@ -3144,6 +3165,7 @@ TEST_F(TcpConnectJobOptimisticDnsTest, StaleAThenFreshA) {
 
   // t=0: Stale A provided
   request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
       .set_endpoints({stale_endpoint})
       .set_aliases(kDnsAliases)
       .CallOnServiceEndpointsUpdated();
@@ -3155,46 +3177,188 @@ TEST_F(TcpConnectJobOptimisticDnsTest, StaleAThenFreshA) {
   constexpr base::TimeDelta kFreshAArrivalTime = base::Milliseconds(50);
   CHECK_LT(kFreshAArrivalTime, TcpConnectJob::kIPv6FallbackTime);
   FastForwardBy(kFreshAArrivalTime);
-  request->set_endpoints({fresh_endpoint}).CallOnServiceEndpointsUpdated();
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint})
+      .CallOnServiceEndpointsUpdated();
 
-  // primary_connector_ is occupied connecting to the Stale IPv4 endpoint, and
-  // the 300ms slow_timer_ has not yet fired. The fresh IPv4 endpoint is queued.
-  EXPECT_TRUE(connect_completers[0].is_connecting());
-  EXPECT_FALSE(connect_completers[1].is_connecting());
+  if (!UseStaleConnectors()) {
+    // The TCPConnectJob should not immediately connect to the Fresh A
+    // because it is waiting for Stale A to complete or the slow_timer_ (300ms)
+    // to fire.
+    EXPECT_TRUE(connect_completers[0].is_connecting());
+    EXPECT_FALSE(connect_completers[1].is_connecting());
 
-  // Fast forward to t=299ms. Still no new connection.
-  FastForwardBy(TcpConnectJob::kIPv6FallbackTime - kFreshAArrivalTime -
-                base::Milliseconds(1));
-  EXPECT_FALSE(connect_completers[1].is_connecting());
+    // Fast forward to t=299ms. Still no new connection.
+    FastForwardBy(TcpConnectJob::kIPv6FallbackTime - kFreshAArrivalTime -
+                  base::Milliseconds(1));
+    EXPECT_FALSE(connect_completers[1].is_connecting());
 
-  // Fast forward to t=300ms. Now the slow_timer_ fires.
-  FastForwardBy(base::Milliseconds(1));
+    // Fast forward to t=300ms. Now the slow_timer_ fires.
+    FastForwardBy(base::Milliseconds(1));
 
-  // Since DNS is NOT complete, the newly created connector is restricted to
-  // IPv6. Fresh A is IPv4, so it is queued.
-  EXPECT_FALSE(connect_completers[1].is_connecting());
+    // Since DNS is not complete, the second connector is restricted to IPv6.
+    // Fresh A is IPv4, so it is ignored.
+    EXPECT_FALSE(connect_completers[1].is_connecting());
 
-  // Now, DNS request completes.
-  request->CallOnServiceEndpointRequestFinished(OK);
+    // Now, DNS request completes.
+    request->CallOnServiceEndpointRequestFinished(OK);
 
-  // Now that DNS is complete, the second connector is no longer restricted to
-  // IPv6. It picks up the fresh IPv4 endpoint and starts connecting.
-  EXPECT_TRUE(connect_completers[1].is_connecting());
+    // Now that DNS is complete, the second connector is no longer restricted to
+    // IPv6. It should pick up Fresh A and connect.
+    EXPECT_TRUE(connect_completers[1].is_connecting());
+  } else {
+    // With dual race, fresh endpoints run in fresh_state_ concurrently.
+    // Fresh A should start immediately because fresh_state_ has no active
+    // attempts.
+    EXPECT_TRUE(connect_completers[0].is_connecting());
+    EXPECT_TRUE(connect_completers[1].is_connecting());
 
-  // Explicitly fail the Stale A connection. This frees up the connectors.
-  connect_completers[0].Complete(ERR_CONNECTION_REFUSED);
+    FastForwardBy(TcpConnectJob::kIPv6FallbackTime - kFreshAArrivalTime);
+    request->CallOnServiceEndpointRequestFinished(OK);
+    EXPECT_TRUE(connect_completers[0].is_connecting());
+    EXPECT_TRUE(connect_completers[1].is_connecting());
+  }
 
   // Complete Fresh A.
   connect_completers[1].Complete(OK);
   EXPECT_TRUE(connect_job_->HasEstablishedConnection());
-  WaitForSuccess(kIpV4Endpoint2, fresh_endpoint,
-                 {ConnectionAttempt(kIpV4Endpoint1, ERR_CONNECTION_REFUSED)});
+  WaitForSuccess(kIpV4Endpoint2, fresh_endpoint);
 }
 
-TEST_F(TcpConnectJobOptimisticDnsTest, StaleAThenFreshAAAAThenFreshA) {
+TEST_P(TcpConnectJobOptimisticDnsTest,
+       StalePrimaryPromoted_StaleIPv4ContinuesConnecting) {
+  // Connector promotion only applies when dual-race mode is enabled.
+  if (!UseStaleConnectors()) {
+    GTEST_SKIP()
+        << "Connector promotion only applies when dual-race mode is enabled.";
+  }
+
+  const auto stale_endpoint =
+      CreateServiceEndpoint({kIpV6Endpoint1, kIpV4Endpoint1});
+  const auto fresh_endpoint =
+      CreateServiceEndpoint({kIpV6Endpoint1, kIpV4Endpoint2});
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 3> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]),
+             kIpV6Endpoint1);  // Stale AAAA
+  AddConnect(MockConnect(&connect_completers[1]), kIpV4Endpoint1);  // Stale A
+  AddConnect(MockConnect(&connect_completers[2]), kIpV4Endpoint2);  // Fresh A
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // t=0: Stale endpoints provided
+  request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
+      .set_endpoints({stale_endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[0].is_connecting());   // Stale AAAA starts
+  EXPECT_FALSE(connect_completers[1].is_connecting());  // Stale A is queued
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // t=300ms: slow_timer_ fires.
+  FastForwardBy(TcpConnectJob::kIPv6FallbackTime);
+  EXPECT_TRUE(connect_completers[1].is_connecting());  // Stale A starts
+  EXPECT_EQ(2u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Now fresh DNS arrives with only Stale AAAA and Fresh A
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint})
+      .CallOnServiceEndpointsUpdated();
+
+  // Stale AAAA is promoted to fresh_state_.primary_connector.
+  // Stale A stays in stale_state_.ipv4_connector.
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Now we fail fresh_state_.primary_connector (Stale AAAA).
+  connect_completers[0].Complete(ERR_CONNECTION_REFUSED);
+
+  // Fresh A starts connecting.
+  EXPECT_TRUE(connect_completers[2].is_connecting());
+
+  // We fail Fresh A as well, meaning all fresh endpoints are exhausted.
+  connect_completers[2].Complete(ERR_CONNECTION_REFUSED);
+
+  // Complete the DNS request. The connect job should not complete because
+  // stale_state_.ipv4_connector (Stale A) is still running.
+  request->CallOnServiceEndpointRequestFinished(OK);
+  EXPECT_FALSE(connect_job_->HasEstablishedConnection());
+  EXPECT_FALSE(test_delegate_->has_result());
+
+  // Now we complete Stale A with OK.
+  connect_completers[1].Complete(OK);
+
+  // The job should now succeed.
+  WaitForSuccess(kIpV4Endpoint1, stale_endpoint,
+                 {ConnectionAttempt(kIpV6Endpoint1, ERR_CONNECTION_REFUSED),
+                  ConnectionAttempt(kIpV4Endpoint2, ERR_CONNECTION_REFUSED)});
+}
+
+TEST_P(TcpConnectJobOptimisticDnsTest,
+       StaleSlowTimerNotRestartedAfterFreshDNSArrives) {
+  // This test only makes sense when dual-race mode is enabled.
+  if (!UseStaleConnectors()) {
+    GTEST_SKIP()
+        << "Connector promotion only applies when dual-race mode is enabled.";
+  }
+
+  const auto stale_endpoint =
+      CreateServiceEndpoint({kIpV6Endpoint1, kIpV6Endpoint2, kIpV4Endpoint1});
+  const auto fresh_endpoint = CreateServiceEndpoint({kIpV4Endpoint2});
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 2> connect_completers;
+  // Order of connection attempts:
+  // 1. Stale AAAA
+  AddConnect(MockConnect(&connect_completers[0]), kIpV6Endpoint1);
+  // 2. Fresh A
+  AddConnect(MockConnect(&connect_completers[1]), kIpV4Endpoint2);
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // t=0: Stale endpoints provided
+  request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
+      .set_endpoints({stale_endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[0].is_connecting());  // Stale AAAA starts
+
+  // Now fresh DNS arrives with only Fresh A
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint})
+      .CallOnServiceEndpointsUpdated();
+
+  // Fresh A starts connecting.
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+
+  // Wait for the slow timer duration.
+  // Because the slow timer was stopped by fresh DNS and should not be
+  // restarted, Stale A should not start.
+  FastForwardBy(TcpConnectJob::kIPv6FallbackTime);
+
+  // Complete the DNS request.
+  request->CallOnServiceEndpointRequestFinished(OK);
+
+  // Succeed Fresh A.
+  connect_completers[1].Complete(OK);
+
+  // Stale AAAA is still connecting, but the job completes successfully because
+  // Fresh A succeeded.
+  WaitForSuccess(kIpV4Endpoint2, fresh_endpoint);
+}
+
+TEST_P(TcpConnectJobOptimisticDnsTest, StaleAThenFreshAAAAThenFreshA) {
   const auto stale_endpoint = CreateServiceEndpoint({kIpV4Endpoint1});
   const auto fresh_endpoint_v6 = CreateServiceEndpoint({kIpV6Endpoint1});
-  const auto fresh_endpoint_v4 = CreateServiceEndpoint({kIpV4Endpoint2});
+  const auto fresh_endpoint_merged =
+      CreateServiceEndpoint({kIpV6Endpoint1, kIpV4Endpoint2});
   auto request = host_resolver_.AddFakeRequest();
 
   std::array<MockConnectCompleter, 3> connect_completers;
@@ -3207,6 +3371,7 @@ TEST_F(TcpConnectJobOptimisticDnsTest, StaleAThenFreshAAAAThenFreshA) {
 
   // t=0: Stale A provided
   request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
       .set_endpoints({stale_endpoint})
       .set_aliases(kDnsAliases)
       .CallOnServiceEndpointsUpdated();
@@ -3214,68 +3379,99 @@ TEST_F(TcpConnectJobOptimisticDnsTest, StaleAThenFreshAAAAThenFreshA) {
   EXPECT_TRUE(connect_completers[0].is_connecting());
   EXPECT_FALSE(connect_completers[1].is_connecting());
   EXPECT_FALSE(connect_completers[2].is_connecting());
+  if (GetParam()) {
+    EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+    EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+  }
 
   // t=15ms: Fresh AAAA provided.
   constexpr base::TimeDelta kFreshAAAAArrivalTime = base::Milliseconds(15);
   CHECK_LT(kFreshAAAAArrivalTime, TcpConnectJob::kIPv6FallbackTime);
   FastForwardBy(kFreshAAAAArrivalTime);
-  request->set_endpoints({fresh_endpoint_v6}).CallOnServiceEndpointsUpdated();
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint_v6})
+      .CallOnServiceEndpointsUpdated();
 
-  // primary_connector_ is occupied connecting to the Stale
-  // IPv4 endpoint, and the 300ms slow_timer_ has not yet fired. The fresh IPv6
-  // endpoint is queued.
-  EXPECT_FALSE(connect_completers[1].is_connecting());
+  if (!UseStaleConnectors()) {
+    EXPECT_FALSE(connect_completers[1].is_connecting());
+  } else {
+    // Fresh AAAA starts immediately in fresh_state_.
+    EXPECT_TRUE(connect_completers[1].is_connecting());
+    EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+    EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+  }
 
   // t=20ms: Fresh A provided.
   constexpr base::TimeDelta kFreshAArrivalTime = base::Milliseconds(20);
   CHECK_LT(kFreshAArrivalTime, TcpConnectJob::kIPv6FallbackTime);
   FastForwardBy(kFreshAArrivalTime - kFreshAAAAArrivalTime);
-  request->set_endpoints({fresh_endpoint_v6, fresh_endpoint_v4})
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint_merged})
       .CallOnServiceEndpointsUpdated();
 
-  EXPECT_FALSE(connect_completers[1].is_connecting());
   EXPECT_FALSE(connect_completers[2].is_connecting());
 
-  // t=300ms: slow_timer_ fires.
-  FastForwardBy(TcpConnectJob::kIPv6FallbackTime - kFreshAArrivalTime);
+  if (!UseStaleConnectors()) {
+    // t=300ms: slow_timer_ fires. It should start connecting to the preferred
+    // Fresh AAAA.
+    FastForwardBy(TcpConnectJob::kIPv6FallbackTime - kFreshAArrivalTime);
+    EXPECT_TRUE(connect_completers[1].is_connecting());
 
-  // The slow_timer_ fires and a new idle connector is created.
-  // Because the original primary_connector_ is connecting to IPv4, the two
-  // connectors swap. ipv4_connector_ now holds the active Stale IPv4
-  // connection. The new primary_connector_ is idle, picks up the queued
-  // fresh_endpoint_v6, and starts connecting. The fresh IPv6 connection starts
-  // at 300ms.
-  EXPECT_TRUE(connect_completers[1].is_connecting());
+    // t=600ms: another slow_timer_ fires, but TcpConnectJob only supports 2
+    // concurrent connections.
+    FastForwardBy(TcpConnectJob::kIPv6FallbackTime);
+    EXPECT_FALSE(connect_completers[2].is_connecting());
+  } else {
+    // For dual race, fresh_state_ has Fresh AAAA (v6) running. It started at
+    // t=15ms. The slow timer for fresh_state_ will fire 300ms after t=15ms,
+    // which is t=315ms.
 
-  // t=600ms: another slow_timer_ fires. But TcpConnectJob only supports 2
-  // concurrent connections!
-  FastForwardBy(base::Milliseconds(300));
+    // First, fast forward exactly to t=300ms to ensure the fresh_state_ timer
+    // didn't start prematurely at t=0ms.
+    FastForwardBy(TcpConnectJob::kIPv6FallbackTime - kFreshAArrivalTime);
+    EXPECT_FALSE(connect_completers[2].is_connecting());
+    EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+    EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
 
-  // The fresh IPv4 endpoint remains queued because the
-  // ipv4_connector_ is still occupied with the Stale IPv4 connection.
-  EXPECT_FALSE(connect_completers[2].is_connecting());
+    // Now fast forward the remaining 15ms to t=315ms.
+    FastForwardBy(kFreshAAAAArrivalTime);
+
+    // Since the Fresh A IPv4 address is part of the same ServiceEndpoint as
+    // Fresh AAAA, the ipv4_connector is not blocked by current_endpoint_index
+    // and starts immediately.
+    EXPECT_TRUE(connect_completers[2].is_connecting());
+    EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+    EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
+  }
 
   request->CallOnServiceEndpointRequestFinished(OK);
 
-  // If Fresh AAAA fails, primary_connector_ is now free. But because
-  // ipv4_connector_ is still occupied with the Stale IPv4 endpoint, it remains
-  // queued.
-  connect_completers[1].Complete(ERR_CONNECTION_REFUSED);
-  EXPECT_FALSE(connect_completers[2].is_connecting());
+  if (!UseStaleConnectors()) {
+    // If Fresh AAAA fails, primary_connector_ will immediately start Fresh A
+    // because they are in the same ServiceEndpoint, avoiding the index
+    // advancement block.
+    connect_completers[1].Complete(ERR_CONNECTION_REFUSED);
+    EXPECT_TRUE(connect_completers[2].is_connecting());
 
-  // Now Stale A fails. Both are free. One of them should advance!
-  connect_completers[0].Complete(ERR_CONNECTION_REFUSED);
-  EXPECT_TRUE(connect_completers[2].is_connecting());
+    // Now Stale A fails.
+    connect_completers[0].Complete(ERR_CONNECTION_REFUSED);
+  } else {
+    EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+    EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
+    // For dual race, Fresh A is already running.
+    connect_completers[1].Complete(ERR_CONNECTION_REFUSED);
+    connect_completers[0].Complete(ERR_CONNECTION_REFUSED);
+  }
 
   // Complete Fresh A.
   connect_completers[2].Complete(OK);
   EXPECT_TRUE(connect_job_->HasEstablishedConnection());
-  WaitForSuccess(kIpV4Endpoint2, fresh_endpoint_v4,
+  WaitForSuccess(kIpV4Endpoint2, fresh_endpoint_merged,
                  {ConnectionAttempt(kIpV6Endpoint1, ERR_CONNECTION_REFUSED),
                   ConnectionAttempt(kIpV4Endpoint1, ERR_CONNECTION_REFUSED)});
 }
 
-TEST_F(TcpConnectJobOptimisticDnsTest, StaleAAAAThenDelayedFreshA) {
+TEST_P(TcpConnectJobOptimisticDnsTest, StaleAAAAThenDelayedFreshA) {
   const auto stale_endpoint = CreateServiceEndpoint({kIpV6Endpoint1});
   const auto fresh_endpoint = CreateServiceEndpoint({kIpV4Endpoint1});
   auto request = host_resolver_.AddFakeRequest();
@@ -3288,25 +3484,36 @@ TEST_F(TcpConnectJobOptimisticDnsTest, StaleAAAAThenDelayedFreshA) {
 
   // t=0: Stale AAAA provided
   request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
       .set_endpoints({stale_endpoint})
       .set_aliases(kDnsAliases)
       .CallOnServiceEndpointsUpdated();
 
   EXPECT_TRUE(connect_completers[0].is_connecting());
   EXPECT_FALSE(connect_completers[1].is_connecting());
+  if (GetParam()) {
+    EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+    EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+  }
 
   // t=500ms: Fresh A provided.
   constexpr base::TimeDelta kFreshAArrivalTime = base::Milliseconds(500);
   CHECK_GT(kFreshAArrivalTime, TcpConnectJob::kIPv6FallbackTime);
   FastForwardBy(kFreshAArrivalTime);
 
-  // Since 500ms > 300ms, the slow_timer_ has already fired.
-  // And it created `ipv4_connector_`!
-  // When Fresh A arrives, `ipv4_connector_` is free and handles IPv4.
-  // It should IMMEDIATELY start connecting to Fresh A.
-  request->set_endpoints({fresh_endpoint}).CallOnServiceEndpointsUpdated();
+  // Since 500ms > 300ms, the slow_timer_ has already fired and created
+  // `ipv4_connector_`. When Fresh A arrives, `ipv4_connector_` is free and
+  // handles IPv4.
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint})
+      .CallOnServiceEndpointsUpdated();
 
+  // It should immediately start connecting to Fresh A.
   EXPECT_TRUE(connect_completers[1].is_connecting());
+  if (GetParam()) {
+    EXPECT_EQ(2u, connect_job_->GetStaleConnectorCountForTesting());
+    EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+  }
 
   // Complete Fresh A.
   connect_completers[1].Complete(OK);
@@ -3316,7 +3523,7 @@ TEST_F(TcpConnectJobOptimisticDnsTest, StaleAAAAThenDelayedFreshA) {
 
 // Verify that enabling Optimistic DNS does not break standard Happy Eyeballs
 // behavior when no stale records are available.
-TEST_F(TcpConnectJobOptimisticDnsTest, NoStale_DelayedFreshAAAAThenA) {
+TEST_P(TcpConnectJobOptimisticDnsTest, NoStale_DelayedFreshAAAAThenA) {
   const auto fresh_endpoint_v6 = CreateServiceEndpoint({kIpV6Endpoint1});
   const auto fresh_endpoint_v4 = CreateServiceEndpoint({kIpV4Endpoint1});
   auto request = host_resolver_.AddFakeRequest();
@@ -3338,6 +3545,10 @@ TEST_F(TcpConnectJobOptimisticDnsTest, NoStale_DelayedFreshAAAAThenA) {
 
   EXPECT_TRUE(connect_completers[0].is_connecting());
   EXPECT_FALSE(connect_completers[1].is_connecting());
+  if (GetParam()) {
+    EXPECT_EQ(0u, connect_job_->GetStaleConnectorCountForTesting());
+    EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+  }
 
   // t=100ms: Fresh A provided.
   constexpr base::TimeDelta kFreshAArrivalTime = base::Milliseconds(100);
@@ -3349,6 +3560,10 @@ TEST_F(TcpConnectJobOptimisticDnsTest, NoStale_DelayedFreshAAAAThenA) {
   // Because it has only been 50ms since the FIRST connection (Fresh AAAA)
   // started, we do not start connecting to Fresh A yet.
   EXPECT_FALSE(connect_completers[1].is_connecting());
+  if (GetParam()) {
+    EXPECT_EQ(0u, connect_job_->GetStaleConnectorCountForTesting());
+    EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+  }
 
   // t=350ms (300ms after Fresh AAAA started):
   FastForwardBy(TcpConnectJob::kIPv6FallbackTime -
@@ -3356,6 +3571,10 @@ TEST_F(TcpConnectJobOptimisticDnsTest, NoStale_DelayedFreshAAAAThenA) {
   // ipv4_connector_ is created, but it is queued because primary_connector_ is
   // still occupied.
   EXPECT_FALSE(connect_completers[1].is_connecting());
+  if (GetParam()) {
+    EXPECT_EQ(0u, connect_job_->GetStaleConnectorCountForTesting());
+    EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
+  }
 
   request->CallOnServiceEndpointRequestFinished(OK);
 
@@ -3371,7 +3590,7 @@ TEST_F(TcpConnectJobOptimisticDnsTest, NoStale_DelayedFreshAAAAThenA) {
                  {ConnectionAttempt(kIpV6Endpoint1, ERR_CONNECTION_REFUSED)});
 }
 
-TEST_F(TcpConnectJobOptimisticDnsTest, StaleAAAA_FailsBeforeFreshArrives) {
+TEST_P(TcpConnectJobOptimisticDnsTest, StaleAAAA_FailsBeforeFreshArrives) {
   const auto stale_endpoint = CreateServiceEndpoint({kIpV6Endpoint1});
   const auto fresh_endpoint = CreateServiceEndpoint({kIpV4Endpoint1});
   auto request = host_resolver_.AddFakeRequest();
@@ -3384,6 +3603,7 @@ TEST_F(TcpConnectJobOptimisticDnsTest, StaleAAAA_FailsBeforeFreshArrives) {
 
   // t=0: Stale AAAA provided
   request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
       .set_endpoints({stale_endpoint})
       .set_aliases(kDnsAliases)
       .CallOnServiceEndpointsUpdated();
@@ -3391,15 +3611,21 @@ TEST_F(TcpConnectJobOptimisticDnsTest, StaleAAAA_FailsBeforeFreshArrives) {
   EXPECT_TRUE(connect_completers[0].is_connecting());
 
   // t=100ms: Stale AAAA connection fails.
-  FastForwardBy(base::Milliseconds(100));
+  constexpr base::TimeDelta kStaleFailureTime = base::Milliseconds(100);
+  CHECK_LT(kStaleFailureTime, TcpConnectJob::kIPv6FallbackTime);
+  FastForwardBy(kStaleFailureTime);
   connect_completers[0].Complete(ERR_CONNECTION_REFUSED);
 
   // No connection is established yet.
   EXPECT_FALSE(connect_job_->HasEstablishedConnection());
 
   // t=200ms: Fresh A arrives.
-  FastForwardBy(base::Milliseconds(100));
-  request->set_endpoints({fresh_endpoint}).CallOnServiceEndpointsUpdated();
+  constexpr base::TimeDelta kFreshAArrivalTime = base::Milliseconds(200);
+  CHECK_LT(kFreshAArrivalTime, TcpConnectJob::kIPv6FallbackTime);
+  FastForwardBy(kFreshAArrivalTime - kStaleFailureTime);
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint})
+      .CallOnServiceEndpointsUpdated();
 
   // Since there are no active connections, it should immediately start
   // connecting to Fresh A.
@@ -3409,6 +3635,720 @@ TEST_F(TcpConnectJobOptimisticDnsTest, StaleAAAA_FailsBeforeFreshArrives) {
   EXPECT_TRUE(connect_job_->HasEstablishedConnection());
   WaitForSuccess(kIpV4Endpoint1, fresh_endpoint,
                  {ConnectionAttempt(kIpV6Endpoint1, ERR_CONNECTION_REFUSED)});
+}
+
+TEST_P(TcpConnectJobOptimisticDnsTest, StalePromotedToFresh) {
+  // Only run this when we have stale connectors to promote.
+  if (!UseStaleConnectors()) {
+    GTEST_SKIP()
+        << "Connector promotion only applies when dual-race mode is enabled.";
+  }
+
+  const auto endpoint = CreateServiceEndpoint({kIpV4Endpoint1});
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 1> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV4Endpoint1);
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // t=0: Stale provided
+  request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
+      .set_endpoints({endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // t=50ms: Fresh endpoint (same IP) arrives.
+  constexpr base::TimeDelta kFreshArrivalTime = base::Milliseconds(50);
+  CHECK_LT(kFreshArrivalTime, TcpConnectJob::kIPv6FallbackTime);
+  FastForwardBy(kFreshArrivalTime);
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({endpoint})
+      .CallOnServiceEndpointsUpdated();
+
+  // The running stale attempt should have been promoted to fresh.
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_EQ(0u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Fast forward past the fallback time (e.g., 400ms) to prove there's no
+  // waiting for the 300ms stale timer or any secondary fallback if it's
+  // already promoted.
+  constexpr base::TimeDelta kFutureTime = base::Milliseconds(400);
+  CHECK_GT(kFutureTime, TcpConnectJob::kIPv6FallbackTime);
+  FastForwardBy(kFutureTime - kFreshArrivalTime);
+
+  // The connection should still be running as a fresh attempt.
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+
+  request->CallOnServiceEndpointRequestFinished(OK);
+  connect_completers[0].Complete(OK);
+
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV4Endpoint1, endpoint);
+}
+
+TEST_P(TcpConnectJobOptimisticDnsTest, StalePromotedToFresh_AfterFreshFails) {
+  // Only run this when we have stale connectors to promote.
+  if (!UseStaleConnectors()) {
+    GTEST_SKIP()
+        << "Connector promotion only applies when dual-race mode is enabled.";
+  }
+
+  const auto stale_endpoint = CreateServiceEndpoint({kIpV4Endpoint1});
+  const auto fresh_endpoint1 = CreateServiceEndpoint({kIpV4Endpoint2});
+  const auto fresh_endpoint2 =
+      CreateServiceEndpoint({kIpV4Endpoint2, kIpV4Endpoint1});
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 2> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV4Endpoint1);
+  AddConnect(MockConnect(&connect_completers[1]), kIpV4Endpoint2);
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // t=0: Stale provided with endpoint1.
+  request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
+      .set_endpoints({stale_endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // t=50ms: Fresh endpoint (endpoint2) arrives.
+  constexpr base::TimeDelta kFreshArrivalTime = base::Milliseconds(50);
+  FastForwardBy(kFreshArrivalTime);
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint1})
+      .CallOnServiceEndpointsUpdated();
+
+  // Fresh connector starts.
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Fresh connector fails.
+  connect_completers[1].Complete(ERR_CONNECTION_REFUSED);
+  // Stale connector is still running, job should not be done yet.
+  EXPECT_FALSE(test_delegate_->has_result());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // t=100ms: Fresh endpoint updates to include endpoint1 as well.
+  constexpr base::TimeDelta kFreshUpdateArrivalTime = base::Milliseconds(50);
+  FastForwardBy(kFreshUpdateArrivalTime);
+  request->set_endpoints({fresh_endpoint2}).CallOnServiceEndpointsUpdated();
+
+  // The running stale attempt should have been promoted to fresh because it
+  // matches endpoint1.
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_EQ(0u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Complete the DNS request to prove fresh state can finish normally.
+  request->CallOnServiceEndpointRequestFinished(OK);
+  connect_completers[0].Complete(OK);
+
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV4Endpoint1, fresh_endpoint2,
+                 {ConnectionAttempt(kIpV4Endpoint2, ERR_CONNECTION_REFUSED)});
+}
+
+TEST_P(TcpConnectJobOptimisticDnsTest,
+       StalePromotedToFresh_FailsAndFallsBackToNextFresh) {
+  // Only run this when we have stale connectors to promote.
+  if (!UseStaleConnectors()) {
+    GTEST_SKIP()
+        << "Connector promotion only applies when dual-race mode is enabled.";
+  }
+
+  const auto stale_endpoint = CreateServiceEndpoint({kIpV4Endpoint1});
+  const auto fresh_endpoint =
+      CreateServiceEndpoint({kIpV4Endpoint1, kIpV4Endpoint2});
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 2> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV4Endpoint1);
+  AddConnect(MockConnect(&connect_completers[1]), kIpV4Endpoint2);
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // t=0: Stale provided
+  request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
+      .set_endpoints({stale_endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // t=50ms: Fresh endpoint (same IP, plus another) arrives.
+  constexpr base::TimeDelta kFreshArrivalTime = base::Milliseconds(50);
+  CHECK_LT(kFreshArrivalTime, TcpConnectJob::kIPv6FallbackTime);
+  FastForwardBy(kFreshArrivalTime);
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint})
+      .CallOnServiceEndpointsUpdated();
+
+  // The running stale attempt should have been promoted to fresh.
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_EQ(0u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // The promoted connection fails.
+  connect_completers[0].Complete(ERR_CONNECTION_REFUSED);
+
+  // The connection should not prematurely complete, but instead start
+  // connecting to the next available fresh endpoint.
+  EXPECT_FALSE(connect_job_->HasEstablishedConnection());
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+  EXPECT_EQ(0u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  request->CallOnServiceEndpointRequestFinished(OK);
+  connect_completers[1].Complete(OK);
+
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV4Endpoint2, fresh_endpoint,
+                 {ConnectionAttempt(kIpV4Endpoint1, ERR_CONNECTION_REFUSED)});
+}
+
+TEST_P(TcpConnectJobOptimisticDnsTest,
+       StaleIpv4CompletesAfterStalePrimaryFailsAndFreshArrives) {
+  // Only run this when we have stale connectors to promote.
+  if (!UseStaleConnectors()) {
+    GTEST_SKIP()
+        << "Connector promotion only applies when dual-race mode is enabled.";
+  }
+
+  const auto stale_endpoint =
+      CreateServiceEndpoint({kIpV6Endpoint1, kIpV4Endpoint1});
+  const auto fresh_endpoint =
+      CreateServiceEndpoint({kIpV6Endpoint2, kIpV4Endpoint2});
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 3> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV6Endpoint1);
+  AddConnect(MockConnect(&connect_completers[1]), kIpV4Endpoint1);
+  AddConnect(MockConnect(&connect_completers[2]), kIpV6Endpoint2);
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // t=0: Stale provided with v6 and v4.
+  request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
+      .set_endpoints({stale_endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  // Primary stale connector starts (IPv6).
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // t=300ms: Fast-forward to trigger Happy Eyeballs for stale IPv4.
+  FastForwardBy(TcpConnectJob::kIPv6FallbackTime);
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+  EXPECT_EQ(2u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // The primary stale connector fails.
+  connect_completers[0].Complete(ERR_CONNECTION_REFUSED);
+  EXPECT_EQ(2u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Fresh endpoints arrive, but they do not match the stale endpoints,
+  // so no promotion happens.
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint})
+      .CallOnServiceEndpointsUpdated();
+
+  // Fresh primary connector starts (IPv6).
+  EXPECT_TRUE(connect_completers[2].is_connecting());
+  EXPECT_EQ(2u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // The stale IPv4 connector completes successfully.
+  // Ensure that the stale state does not hang, since the primary connector is
+  // already done.
+  connect_completers[1].Complete(OK);
+
+  // The job should complete successfully using the stale IPv4 endpoint.
+  EXPECT_TRUE(test_delegate_->has_result());
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV4Endpoint1, stale_endpoint,
+                 {ConnectionAttempt(kIpV6Endpoint1, ERR_CONNECTION_REFUSED)});
+}
+
+TEST_P(TcpConnectJobOptimisticDnsTest,
+       StalePromotedToFresh_StaggeredResults_FreshBusy) {
+  // Only run this when we have stale connectors to promote.
+  if (!UseStaleConnectors()) {
+    GTEST_SKIP()
+        << "Connector promotion only applies when dual-race mode is enabled.";
+  }
+
+  const auto stale_endpoint = CreateServiceEndpoint({kIpV6Endpoint1});
+  const auto fresh_endpoint_batch1 = CreateServiceEndpoint({kIpV6Endpoint2});
+  const auto fresh_endpoint_batch2 =
+      CreateServiceEndpoint({kIpV6Endpoint2, kIpV6Endpoint1});
+
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 2> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV6Endpoint1);
+  AddConnect(MockConnect(&connect_completers[1]), kIpV6Endpoint2);
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // t=0: Stale provided with v6.
+  request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
+      .set_endpoints({stale_endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  // Primary stale connector starts (IPv6 Endpoint 1).
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Fresh batch 1 arrives, which doesn't match with the stale endpoint.
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint_batch1})
+      .CallOnServiceEndpointsUpdated();
+
+  // Fresh primary connector starts (IPv6 Endpoint 2).
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Fresh batch 2 arrives. Matches stale endpoint, but fresh_primary is busy
+  // connecting to Endpoint 2.
+  request->set_endpoints({fresh_endpoint_batch2})
+      .CallOnServiceEndpointsUpdated();
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // If stale was incorrectly promoted, the fresh_primary (connecting to
+  // Endpoint 2) would be destroyed. We verify it's still alive by completing it
+  // successfully.
+  connect_completers[1].Complete(OK);
+
+  EXPECT_TRUE(test_delegate_->has_result());
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV6Endpoint2, fresh_endpoint_batch2, {});
+}
+
+TEST_P(TcpConnectJobOptimisticDnsTest,
+       StalePromotedToFresh_StaggeredResults_FreshIdle) {
+  // Only run this when we have stale connectors to promote.
+  if (!UseStaleConnectors()) {
+    GTEST_SKIP()
+        << "Connector promotion only applies when dual-race mode is enabled.";
+  }
+
+  const auto stale_endpoint = CreateServiceEndpoint({kIpV6Endpoint1});
+  const auto fresh_endpoint_batch1 = CreateServiceEndpoint({kIpV6Endpoint2});
+  const auto fresh_endpoint_batch2 =
+      CreateServiceEndpoint({kIpV6Endpoint1, kIpV6Endpoint3});
+
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 3> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV6Endpoint1);
+  AddConnect(MockConnect(&connect_completers[1]), kIpV6Endpoint2);
+  AddConnect(MockConnect(&connect_completers[2]), kIpV6Endpoint3);
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // t=0: Stale provided with v6.
+  request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
+      .set_endpoints({stale_endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  // Primary stale connector starts (IPv6 Endpoint 1).
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Fresh batch 1 arrives. Does NOT match.
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint_batch1})
+      .CallOnServiceEndpointsUpdated();
+
+  // Fresh primary connector starts (IPv6 Endpoint 2).
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Fresh primary fails Endpoint 2.
+  connect_completers[1].Complete(ERR_CONNECTION_REFUSED);
+  // It is now idle, waiting for endpoints.
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Fresh batch 2 arrives. Matches stale endpoint.
+  request->set_endpoints({fresh_endpoint_batch2})
+      .CallOnServiceEndpointsUpdated();
+
+  // If stale was correctly promoted, fresh_primary is now Endpoint 1.
+  // Endpoint 1 is still connecting, so fresh_primary is busy.
+  // So Endpoint 3 should not be connecting.
+  EXPECT_FALSE(connect_completers[2].is_connecting());
+  EXPECT_EQ(0u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Now fail the promoted connector (Endpoint 1).
+  connect_completers[0].Complete(ERR_CONNECTION_REFUSED);
+
+  // Now Endpoint 3 should start connecting, because the slot opened up.
+  EXPECT_TRUE(connect_completers[2].is_connecting());
+
+  // Complete Endpoint 3 successfully.
+  connect_completers[2].Complete(OK);
+
+  EXPECT_TRUE(test_delegate_->has_result());
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV6Endpoint3, fresh_endpoint_batch2,
+                 {ConnectionAttempt(kIpV6Endpoint2, ERR_CONNECTION_REFUSED),
+                  ConnectionAttempt(kIpV6Endpoint1, ERR_CONNECTION_REFUSED)});
+}
+
+TEST_P(TcpConnectJobOptimisticDnsTest,
+       StalePromotedToFresh_StaleFails_FreshProceeds) {
+  // Only run this when we have stale connectors to promote.
+  if (!UseStaleConnectors()) {
+    GTEST_SKIP()
+        << "Connector promotion only applies when dual-race mode is enabled.";
+  }
+
+  const auto stale_endpoint = CreateServiceEndpoint({kIpV6Endpoint1});
+  const auto fresh_endpoint =
+      CreateServiceEndpoint({kIpV6Endpoint1, kIpV6Endpoint2});
+
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 2> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV6Endpoint1);
+  AddConnect(MockConnect(&connect_completers[1]), kIpV6Endpoint2);
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // t=0: Stale provided with v6.
+  request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
+      .set_endpoints({stale_endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Fresh arrives, matches stale endpoint, and is promoted.
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint})
+      .CallOnServiceEndpointsUpdated();
+  EXPECT_EQ(0u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Fail the promoted connector.
+  connect_completers[0].Complete(ERR_CONNECTION_REFUSED);
+
+  // Fresh should seamlessly proceed to the next IP.
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+  EXPECT_EQ(0u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  connect_completers[1].Complete(OK);
+
+  EXPECT_TRUE(test_delegate_->has_result());
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV6Endpoint2, fresh_endpoint,
+                 {ConnectionAttempt(kIpV6Endpoint1, ERR_CONNECTION_REFUSED)});
+}
+
+TEST_P(TcpConnectJobOptimisticDnsTest,
+       StalePromotedToFresh_TimerAccountsForElapsedTime) {
+  // Only run this when we have stale connectors to promote.
+  if (!UseStaleConnectors()) {
+    GTEST_SKIP()
+        << "Connector promotion only applies when dual-race mode is enabled.";
+  }
+
+  const auto stale_endpoint =
+      CreateServiceEndpoint({kIpV6Endpoint1, kIpV4Endpoint1});
+  const auto fresh_endpoint =
+      CreateServiceEndpoint({kIpV6Endpoint1, kIpV4Endpoint1});
+
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 2> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV6Endpoint1);
+  AddConnect(MockConnect(&connect_completers[1]), kIpV4Endpoint1);
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // t=0: Stale provided.
+  request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
+      .set_endpoints({stale_endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_FALSE(connect_completers[1].is_connecting());
+
+  // Fast forward 200ms. The timer for IPv4 fallback needs 300ms, so it
+  // shouldn't fire.
+  FastForwardBy(base::Milliseconds(200));
+  EXPECT_FALSE(connect_completers[1].is_connecting());
+
+  // Fresh arrives, matches stale endpoint, and is promoted.
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint})
+      .CallOnServiceEndpointsUpdated();
+
+  // The fresh state's timer should have been started with 100ms remaining,
+  // since 200ms of the 300ms fallback time has already elapsed.
+  FastForwardBy(base::Milliseconds(99));
+  EXPECT_FALSE(connect_completers[1].is_connecting());
+
+  // 1ms later, the 300ms total elapsed time is reached, and the IPv4 fallback
+  // starts.
+  FastForwardBy(base::Milliseconds(1));
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+
+  request->CallOnServiceEndpointRequestFinished(OK);
+  connect_completers[1].Complete(OK);
+
+  EXPECT_TRUE(test_delegate_->has_result());
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV4Endpoint1, fresh_endpoint);
+}
+
+TEST_P(TcpConnectJobOptimisticDnsTest, StaleAndFreshRacingIndependently) {
+  // Only run this when we have dual race support.
+  if (!UseStaleConnectors()) {
+    GTEST_SKIP()
+        << "Connector promotion only applies when dual-race mode is enabled.";
+  }
+
+  const auto stale_endpoint = CreateServiceEndpoint({kIpV4Endpoint1});
+  const auto fresh_endpoint = CreateServiceEndpoint({kIpV4Endpoint2});
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 2> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV4Endpoint1);
+  AddConnect(MockConnect(&connect_completers[1]), kIpV4Endpoint2);
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // t=0: Stale A provided
+  request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
+      .set_endpoints({stale_endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_FALSE(connect_completers[1].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // t=50ms: Fresh B provided (different IP).
+  constexpr base::TimeDelta kFreshBArrivalTime = base::Milliseconds(50);
+  CHECK_LT(kFreshBArrivalTime, TcpConnectJob::kIPv6FallbackTime);
+  FastForwardBy(kFreshBArrivalTime);
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint})
+      .CallOnServiceEndpointsUpdated();
+
+  // Fresh B should start immediately, racing independently with Stale A.
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  request->CallOnServiceEndpointRequestFinished(OK);
+  connect_completers[1].Complete(OK);
+
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV4Endpoint2, fresh_endpoint);
+}
+
+TEST_P(TcpConnectJobOptimisticDnsTest, UnstartedStaleCleared) {
+  // Only run this when we have dual race support.
+  if (!UseStaleConnectors()) {
+    GTEST_SKIP()
+        << "Connector promotion only applies when dual-race mode is enabled.";
+  }
+
+  const auto stale_endpoint_1 = CreateServiceEndpoint({kIpV4Endpoint1});
+  const auto stale_endpoint_2 = CreateServiceEndpoint({kIpV4Endpoint2});
+  const auto fresh_endpoint = CreateServiceEndpoint({kIpV4Endpoint3});
+  auto request = host_resolver_.AddFakeRequest();
+
+  // Two connect completers, since the second stale endpoint should never start.
+  std::array<MockConnectCompleter, 2> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV4Endpoint1);
+  AddConnect(MockConnect(&connect_completers[1]), kIpV4Endpoint3);
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // t=0: Both Stale endpoints provided
+  request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
+      .set_endpoints({stale_endpoint_1, stale_endpoint_2})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  // Only the first one starts immediately.
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // t=50ms: Fresh endpoint arrives. It does not include the stale endpoints.
+  constexpr base::TimeDelta kFreshArrivalTime = base::Milliseconds(50);
+  CHECK_LT(kFreshArrivalTime, TcpConnectJob::kIPv6FallbackTime);
+  FastForwardBy(kFreshArrivalTime);
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint})
+      .CallOnServiceEndpointsUpdated();
+
+  // Fresh endpoint should start immediately alongside the running stale
+  // endpoint.
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Fast forward past the 300ms timer point (e.g. 400ms).
+  // The unstarted Stale IP 2 should not start because it was cleared.
+  constexpr base::TimeDelta kFutureTime = base::Milliseconds(400);
+  CHECK_GT(kFutureTime, TcpConnectJob::kIPv6FallbackTime);
+  FastForwardBy(kFutureTime - kFreshArrivalTime);
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(2u, connect_job_->GetFreshConnectorCountForTesting());
+
+  request->CallOnServiceEndpointRequestFinished(OK);
+  connect_completers[1].Complete(OK);
+
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV4Endpoint3, fresh_endpoint);
+}
+
+TEST_P(TcpConnectJobOptimisticDnsTest,
+       StaleWhileRefreshing_FreshStateDoesNotAdvance) {
+  // This test only applies to dual-race mode.
+  if (!UseStaleConnectors()) {
+    GTEST_SKIP()
+        << "Connector promotion only applies when dual-race mode is enabled.";
+  }
+
+  const auto stale_endpoint = CreateServiceEndpoint({kIpV4Endpoint1});
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 1> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV4Endpoint1);
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // Stale endpoint is provided.
+  request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
+      .set_endpoints({stale_endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  // The crucial check for step 2: fresh_state_ should not be advanced.
+  // It is created in the constructor, so the count is 1, but it hasn't started.
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Triggering another event (e.g. crypto ready change) should still not
+  // advance fresh_state_ while IsStaleWhileRefreshing() is true.
+  request->set_crypto_ready(false).CallOnServiceEndpointsUpdated();
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Complete the stale connection.
+  request->CallOnServiceEndpointRequestFinished(OK);
+  connect_completers[0].Complete(OK);
+
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV4Endpoint1, stale_endpoint);
+}
+
+TEST_P(TcpConnectJobOptimisticDnsTest, FreshDone_DnsCompletes_DoesNotCrash) {
+  // This test only applies to dual-race mode.
+  if (!UseStaleConnectors()) {
+    GTEST_SKIP()
+        << "Connector promotion only applies when dual-race mode is enabled.";
+  }
+
+  const auto stale_endpoint = CreateServiceEndpoint({kIpV6Endpoint1});
+  const auto fresh_endpoint = CreateServiceEndpoint({kIpV4Endpoint1});
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 2> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV6Endpoint1);  // Stale
+  AddConnect(MockConnect(&connect_completers[1]), kIpV4Endpoint1);  // Fresh
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // Stale arrives.
+  request->set_crypto_ready(true)
+      .set_is_stale_while_refreshing(true)
+      .set_endpoints({stale_endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+
+  // Fresh arrives.
+  request->set_is_stale_while_refreshing(false)
+      .set_endpoints({fresh_endpoint})
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+  EXPECT_EQ(1u, connect_job_->GetStaleConnectorCountForTesting());
+  EXPECT_EQ(1u, connect_job_->GetFreshConnectorCountForTesting());
+
+  // Fresh fails immediately, exhausting all its endpoints and becoming "done".
+  connect_completers[1].Complete(ERR_CONNECTION_REFUSED);
+  // Job is not done because stale is still running.
+  EXPECT_FALSE(test_delegate_->has_result());
+
+  // Now the DNS request finishes. This triggers
+  // DoTryAdvanceWaitingConnectors(). It shouldn't crash trying to advance the
+  // completed fresh_state_!
+  request->CallOnServiceEndpointRequestFinished(OK);
+
+  // Still not done, stale is running.
+  EXPECT_FALSE(test_delegate_->has_result());
+
+  // Stale completes successfully.
+  connect_completers[0].Complete(OK);
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV6Endpoint1, stale_endpoint,
+                 {ConnectionAttempt(kIpV4Endpoint1, ERR_CONNECTION_REFUSED)});
 }
 
 }  // namespace

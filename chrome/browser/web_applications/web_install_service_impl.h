@@ -36,6 +36,8 @@ class AppLock;
 struct WebAppInstallInfo;
 class WebAppDataRetriever;
 class WebAppProvider;
+class WebInstallManifestFetcher;
+enum class WebInstallManifestFetchError;
 
 // Result codes for Web Install API results.
 // These values are persisted to logs. Entries should not be renumbered and
@@ -78,6 +80,11 @@ using InstallCallbackWithMetrics =
                             blink::mojom::WebInstallServiceResult,
                             std::optional<webapps::ManifestId>)>;
 
+// Wraps the `InstallFromManifestCallback` so that the install-in-progress guard
+// is automatically released on every exit path.
+using InstallFromManifestCallbackWithGuard =
+    base::OnceCallback<void(blink::mojom::WebInstallServiceResult)>;
+
 // Service side implementation for the Blink Web Install API. Takes the
 // parameters from the API call in the form of `InstallOptionsPtr`, and decides
 // whether to install the current document or a background document.
@@ -118,6 +125,13 @@ class WebInstallServiceImpl
   void InstallInternal(blink::mojom::InstallOptionsPtr options,
                        InstallCallback callback,
                        bool triggered_from_element);
+
+  // Internal entry point for the manifest URL install flow. Acquires the
+  // install-in-progress guard and wraps the callback so the guard is
+  // released on every exit path.
+  void InstallFromManifestInternal(
+      blink::mojom::ManifestInstallOptionsPtr options,
+      InstallFromManifestCallback callback);
 
   WebInstallServiceImpl(
       content::RenderFrameHost& render_frame_host,
@@ -198,6 +212,18 @@ class WebInstallServiceImpl
                             std::optional<GURL> manifest_id,
                             IsInstalledCallback callback);
 
+  // Callback for when InstallFromManifest's fetch completes.
+  void OnManifestFetched(
+      InstallFromManifestCallbackWithGuard callback_with_guard,
+      blink::mojom::ManifestInstallOptionsPtr options,
+      base::expected<std::string, WebInstallManifestFetchError> result);
+
+  // Callback for when the manifest parse command completes.
+  void OnManifestParsed(
+      InstallFromManifestCallbackWithGuard callback_with_guard,
+      blink::mojom::ManifestInstallOptionsPtr options,
+      blink::mojom::ManifestPtr manifest);
+
   // Only one install can be in progress at a time.
   bool install_in_progress_ = false;
 
@@ -214,6 +240,10 @@ class WebInstallServiceImpl
   // run; it advances monotonically each time a lookup is scheduled, paced by
   // `g_min_cross_origin_query_interval`.
   base::TimeTicks next_cross_origin_query_dispatch_time_;
+
+  // Active manifest fetcher for InstallFromManifest. Destroyed when the
+  // fetch completes or this service is destroyed.
+  std::unique_ptr<WebInstallManifestFetcher> manifest_fetcher_;
 
   base::WeakPtrFactory<web_app::WebInstallServiceImpl> weak_ptr_factory_{this};
 };

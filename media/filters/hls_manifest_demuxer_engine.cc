@@ -9,6 +9,7 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/task/bind_post_task.h"
@@ -335,8 +336,9 @@ void HlsManifestDemuxerEngine::SelectAudioTrack(const MediaTrack::Id& track) {
   }
 }
 
-std::vector<DemuxerStream*> HlsManifestDemuxerEngine::FilterDemuxerStreams(
-    std::vector<DemuxerStream*>&& all_streams) {
+std::vector<raw_ptr<DemuxerStream>>
+HlsManifestDemuxerEngine::FilterDemuxerStreams(
+    std::vector<raw_ptr<DemuxerStream>>&& all_streams) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(media_sequence_checker_);
   if (rendition_manager_) {
     switch (rendition_manager_->GetSupportedStreamTypes()) {

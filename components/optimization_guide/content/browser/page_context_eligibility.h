@@ -33,6 +33,8 @@ class PageContextEligibility {
   // return null if the underlying library could not be loaded.
   static PageContextEligibility* Get();
 
+  static void SetForTesting(PageContextEligibility* api_holder);
+
   // Exposes the raw PageContextEligibilityAPI functions defined by the library.
   const PageContextEligibilityAPI& api() const { return *api_; }
 
@@ -53,6 +55,21 @@ bool IsPageContextEligible(
     const std::string& host,
     const std::string& path,
     const std::vector<optimization_guide::FrameMetadata>& frame_metadata,
+    const PageContextEligibility* api_holder);
+
+// Checks if the page is context eligible with account using the api provided in
+// `api_holder`. This function must be called instead of the function in the API
+// directly in order to have properly disabled CFI.
+bool IsPageContextEligibleWithAccount(
+    const std::string& host,
+    const std::string& path,
+    const std::string& account,
+    const std::vector<optimization_guide::FrameMetadata>& frame_metadata,
+    const PageContextEligibility* api_holder);
+
+// Checks the page eligibility based on frame URLs.
+PageEligibilityResult CheckPageEligibility(
+    const std::vector<optimization_guide::FrameUrl>& frames,
     const PageContextEligibility* api_holder);
 
 }  // namespace optimization_guide

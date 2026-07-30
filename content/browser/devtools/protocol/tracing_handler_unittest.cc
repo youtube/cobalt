@@ -9,9 +9,11 @@
 #include "base/json/json_reader.h"
 #include "base/trace_event/trace_config.h"
 #include "base/values.h"
+#include "content/browser/devtools/devtools_traceable_screenshot.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_data_source_names.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace content {
 namespace protocol {
@@ -218,6 +220,70 @@ TEST_F(TracingHandlerTest, ProcessFilterAppendsPids) {
                   std::string(tracing::kPerfettoProducerNamePrefix) + "9012"));
 }
 
+TEST_F(TracingHandlerTest, ResolveScreenshotParams) {
+  constexpr int kDefaultSize = 500;
+  constexpr int kDefaultCount =
+      DevToolsTraceableScreenshot::kDefaultMaximumNumberOfScreenshots;
+
+  // Defaults are applied when no values are supplied.
+  {
+    gfx::Size size;
+    int count = 0;
+    EXPECT_TRUE(TracingHandler::ResolveScreenshotParams(
+                    std::nullopt, std::nullopt, &size, &count)
+                    .IsSuccess());
+    EXPECT_EQ(gfx::Size(kDefaultSize, kDefaultSize), size);
+    EXPECT_EQ(kDefaultCount, count);
+  }
+
+  // Explicit equivalent of the defaults is accepted.
+  {
+    gfx::Size size;
+    int count = 0;
+    EXPECT_TRUE(TracingHandler::ResolveScreenshotParams(
+                    kDefaultSize, kDefaultCount, &size, &count)
+                    .IsSuccess());
+    EXPECT_EQ(gfx::Size(kDefaultSize, kDefaultSize), size);
+    EXPECT_EQ(kDefaultCount, count);
+  }
+
+  // Trading resolution for count within the memory budget is accepted
+  // (e.g. 250x250 / 1800 = same total budget as 500x500 / 450).
+  {
+    gfx::Size size;
+    int count = 0;
+    EXPECT_TRUE(
+        TracingHandler::ResolveScreenshotParams(250, 1800, &size, &count)
+            .IsSuccess());
+    EXPECT_EQ(gfx::Size(250, 250), size);
+    EXPECT_EQ(1800, count);
+  }
+
+  // Non-positive values are rejected.
+  {
+    gfx::Size size;
+    int count = 0;
+    EXPECT_FALSE(
+        TracingHandler::ResolveScreenshotParams(0, kDefaultCount, &size, &count)
+            .IsSuccess());
+    EXPECT_FALSE(
+        TracingHandler::ResolveScreenshotParams(kDefaultSize, 0, &size, &count)
+            .IsSuccess());
+    EXPECT_FALSE(TracingHandler::ResolveScreenshotParams(-1, kDefaultCount,
+                                                         &size, &count)
+                     .IsSuccess());
+  }
+
+  // Combinations that exceed the per-session memory budget are rejected.
+  {
+    gfx::Size size;
+    int count = 0;
+    // 500x500 * 4 * 451 exceeds the 500x500 * 4 * 450 budget by one frame.
+    EXPECT_FALSE(TracingHandler::ResolveScreenshotParams(
+                     kDefaultSize, kDefaultCount + 1, &size, &count)
+                     .IsSuccess());
+  }
+}
 
 }  // namespace protocol
 }  // namespace content

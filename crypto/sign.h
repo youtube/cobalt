@@ -14,6 +14,8 @@
 namespace crypto::sign {
 
 enum SignatureKind {
+  // Deprecated: don't use SHA-1. If you need to add new uses of this, talk to
+  // a member of //CRYPTO_OWNERS.
   RSA_PKCS1_SHA1,
   RSA_PKCS1_SHA256,
   RSA_PKCS1_SHA384,
@@ -25,6 +27,8 @@ enum SignatureKind {
   RSA_PSS_SHA384,
   RSA_PSS_SHA512,
 
+  // Deprecated: don't use SHA-1. If you need to add new uses of this, talk to
+  // a member of //CRYPTO_OWNERS.
   ECDSA_SHA1,
   ECDSA_SHA256,
   ECDSA_SHA384,

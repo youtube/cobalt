@@ -17,6 +17,7 @@ import android.os.Process;
 import android.os.RemoteException;
 
 import androidx.test.InstrumentationRegistry;
+import androidx.test.filters.MediumTest;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -26,22 +27,22 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.UseParametersRunnerFactory;
 
-import org.chromium.android_webview.AwBrowserProcess;
+import org.chromium.android_webview.AwDataDirLock;
 import org.chromium.android_webview.common.services.ServiceHelper;
-import org.chromium.base.test.util.DisabledTest;
-import org.chromium.base.test.util.DoNotRevive;
+import org.chromium.base.test.util.DoNotBatch;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Tests to ensure that it is impossible to launch two browser processes within the same
- * application. Chromium is not designed for that, and attempting to do that can cause data files
- * corruption.
+ * Tests to ensure that it is impossible to launch two browser processes using the same data
+ * directory within the same application. Chromium is not designed for that, and attempting to do
+ * that can cause data file corruption.
  */
 @RunWith(Parameterized.class)
-@OnlyRunIn(EITHER_PROCESS) // These tests don't use the renderer process
 @UseParametersRunnerFactory(AwJUnit4ClassRunnerWithParameters.Factory.class)
+@OnlyRunIn(EITHER_PROCESS) // These tests don't use the renderer process
+@DoNotBatch(reason = "Testing process-global state")
 public class AwSecondBrowserProcessTest extends AwParameterizedTest {
     @Rule public AwActivityTestRule mActivityTestRule;
 
@@ -63,28 +64,15 @@ public class AwSecondBrowserProcessTest extends AwParameterizedTest {
         stopSecondBrowserProcess(false);
     }
 
-    /*
-     * @LargeTest
-     * @Feature({"AndroidWebView"})
-     * We can't test that creating second browser
-     * process succeeds either, because in debug it will crash due to an assert
-     * in the SQL DB code.
-     */
     @Test
-    @DisabledTest(message = "crbug.com/582146")
-    @DoNotRevive(reason = "Second browser process currently allowed. See crbug.com/558377.")
+    @MediumTest
     public void testCreatingSecondBrowserProcessFails() throws Throwable {
         startSecondBrowserProcess();
         Assert.assertFalse(tryStartingBrowserProcess());
     }
 
-    /*
-     * @LargeTest
-     * @Feature({"AndroidWebView"})
-     */
     @Test
-    @DisabledTest(message = "crbug.com/582146")
-    @DoNotRevive(reason = "Second browser process currently allowed. See crbug.com/558377.")
+    @MediumTest
     public void testLockCleanupOnProcessShutdown() throws Throwable {
         startSecondBrowserProcess();
         Assert.assertFalse(tryStartingBrowserProcess());
@@ -145,15 +133,15 @@ public class AwSecondBrowserProcessTest extends AwParameterizedTest {
     private boolean tryStartingBrowserProcess() {
         final Boolean[] success = new Boolean[1];
         // The activity must be launched in order for proper webview statics to be setup.
-        mActivityTestRule.getActivity();
+        Context context = mActivityTestRule.getActivity();
         // runOnMainSync does not catch RuntimeExceptions, they just terminate the test.
         InstrumentationRegistry.getInstrumentation()
                 .runOnMainSync(
                         () -> {
                             try {
-                                AwTestContainerView.installDrawFnFunctionTable(
-                                        /* useVulkan= */ false);
-                                AwBrowserProcess.startForTesting();
+                                // For now we don't actually try to start the browser process for
+                                // real as this is too fiddly - we just poke AwDataDirLock directly.
+                                AwDataDirLock.lock(context);
                                 success[0] = true;
                             } catch (RuntimeException e) {
                                 success[0] = false;

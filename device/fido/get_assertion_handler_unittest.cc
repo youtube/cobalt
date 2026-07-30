@@ -14,6 +14,7 @@
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
@@ -135,10 +136,13 @@ class FidoGetAssertionHandlerTest : public ::testing::Test {
   }
 
   void ForgeDiscoveries() {
-    discovery_ = fake_discovery_factory_->ForgeNextHidDiscovery();
-    cable_discovery_ = fake_discovery_factory_->ForgeNextCableDiscovery();
-    nfc_discovery_ = fake_discovery_factory_->ForgeNextNfcDiscovery();
-    platform_discovery_ = fake_discovery_factory_->ForgeNextPlatformDiscovery();
+    discovery_ = fake_discovery_factory_->ForgeNextHidDiscovery()->GetWeakPtr();
+    cable_discovery_ =
+        fake_discovery_factory_->ForgeNextCableDiscovery()->GetWeakPtr();
+    nfc_discovery_ =
+        fake_discovery_factory_->ForgeNextNfcDiscovery()->GetWeakPtr();
+    platform_discovery_ =
+        fake_discovery_factory_->ForgeNextPlatformDiscovery()->GetWeakPtr();
   }
 
   std::unique_ptr<GetAssertionRequestHandler> CreateGetAssertionHandlerU2f() {
@@ -215,11 +219,15 @@ class FidoGetAssertionHandlerTest : public ::testing::Test {
         ::testing::UnorderedElementsAreArray(transports));
   }
 
-  test::FakeFidoDiscovery* discovery() const { return discovery_; }
-  test::FakeFidoDiscovery* cable_discovery() const { return cable_discovery_; }
-  test::FakeFidoDiscovery* nfc_discovery() const { return nfc_discovery_; }
+  test::FakeFidoDiscovery* discovery() const { return discovery_.get(); }
+  test::FakeFidoDiscovery* cable_discovery() const {
+    return cable_discovery_.get();
+  }
+  test::FakeFidoDiscovery* nfc_discovery() const {
+    return nfc_discovery_.get();
+  }
   test::FakeFidoDiscovery* platform_discovery() const {
-    return platform_discovery_;
+    return platform_discovery_.get();
   }
   TestGetAssertionRequestFuture& get_assertion_future() {
     return get_assertion_future_;
@@ -235,10 +243,10 @@ class FidoGetAssertionHandlerTest : public ::testing::Test {
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   std::unique_ptr<test::FakeFidoDiscoveryFactory> fake_discovery_factory_ =
       std::make_unique<test::FakeFidoDiscoveryFactory>();
-  raw_ptr<test::FakeFidoDiscovery, DanglingUntriaged> discovery_;
-  raw_ptr<test::FakeFidoDiscovery, DanglingUntriaged> cable_discovery_;
-  raw_ptr<test::FakeFidoDiscovery, DanglingUntriaged> nfc_discovery_;
-  raw_ptr<test::FakeFidoDiscovery, DanglingUntriaged> platform_discovery_;
+  base::WeakPtr<test::FakeFidoDiscovery> discovery_;
+  base::WeakPtr<test::FakeFidoDiscovery> cable_discovery_;
+  base::WeakPtr<test::FakeFidoDiscovery> nfc_discovery_;
+  base::WeakPtr<test::FakeFidoDiscovery> platform_discovery_;
   scoped_refptr<::testing::NiceMock<MockBluetoothAdapter>> mock_adapter_ =
       base::MakeRefCounted<::testing::NiceMock<MockBluetoothAdapter>>();
   TestGetAssertionRequestFuture get_assertion_future_;

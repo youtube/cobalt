@@ -100,10 +100,12 @@ class MEDIA_EXPORT HEVC {
       std::vector<uint8_t>* buffer,
       std::vector<SubsampleEntry>* subsamples);
 
-  // Analyzes the contents of |buffer| for conformance to
-  // Section 7.4.2.4.4 of ISO/IEC 23008-2, and if conformant, further inspects
-  // |buffer| to report whether or not it looks like a keyframe.
-  // |subsamples| contains the information about what parts of the buffer are
+  // Analyzes the contents of `buffer` for keyframe detection. While it also
+  // checks for conformance to Section 7.4.2.4.4 of ISO/IEC 23008-2, parsing is
+  // intentionally lax to accommodate real-world content; out-of-order NALUs do
+  // not prevent keyframe determination and are reported via `is_conformant`.
+  // This method should primarily be used for keyframe probing.
+  // `subsamples` contains the information about what parts of the buffer are
   // encrypted and which parts are clear.
   static BitstreamConverter::AnalysisResult AnalyzeAnnexB(
       base::span<const uint8_t> buffer,

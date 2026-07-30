@@ -126,7 +126,9 @@ SendTabToSelfToolbarBubbleView::SendTabToSelfToolbarBubbleView(
 void SendTabToSelfToolbarBubbleView::OpenInNewTab() {
   opened_ = true;
   send_tab_to_self::RecordNotificationOpened();
-  OpenEntryInNewForegroundTab(browser_->GetProfile(), entry_);
+  OpenEntryInNewForegroundTab(
+      browser_->GetProfile(), entry_,
+      send_tab_to_self::ShareActivatedEntryPoint::kDesktopToolbarBubble);
   GetWidget()->Close();
 }
 

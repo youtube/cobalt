@@ -21,6 +21,7 @@
 #include "base/time/time.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_proto_conversion.h"
+#include "chrome/browser/actor/actor_tab_close_skip_beforeunload_user_data.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/tools/load_and_extract_content_tool_request.h"
 #include "chrome/browser/actor/tools/tools_test_util.h"
@@ -234,6 +235,8 @@ class TabNavigationObserver : public TabStripModelObserver {
     if (change.type() == TabStripModelChange::kInserted) {
       for (const auto& contents : change.GetInsert()->contents) {
         tabs_added_count_++;
+        actor::ActorTabCloseSkipBeforeUnloadUserData::CreateForWebContents(
+            contents.contents);
         // Create a watcher for the new tab to track its navigation.
         web_contents_observers_.push_back(
             std::make_unique<SingleTabNavigationWatcher>(contents.contents,
@@ -551,6 +554,8 @@ IN_PROC_BROWSER_TEST_F(ActorLoadAndExtractContentToolBrowserTest,
   observer.WaitForAddedTabs(1);
 
   // Close the newly added tab. The initial tab is at index 0.
+  actor::ActorTabCloseSkipBeforeUnloadUserData::CreateForWebContents(
+      browser()->tab_strip_model()->GetWebContentsAt(1));
   browser()->tab_strip_model()->CloseWebContentsAt(1,
                                                    TabCloseTypes::CLOSE_NONE);
 

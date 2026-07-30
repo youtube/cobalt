@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/strings/string_util.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/values.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
@@ -13,9 +14,12 @@
 #include "components/policy/core/common/policy_map.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "extensions/browser/api/declarative_net_request/rules_monitor_service.h"
+#include "extensions/browser/api/declarative_net_request/test_utils.h"
 #include "extensions/test/test_extension_dir.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "net/test/embedded_test_server/install_default_websocket_handlers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace enterprise_custom_headers {
@@ -39,13 +43,20 @@ class HttpHeaderInjectionBrowserTest : public policy::PolicyTest {
 
     embedded_test_server()->RegisterRequestHandler(
         base::BindRepeating(&HttpHeaderInjectionBrowserTest::HandleRequest,
-                            base::Unretained(this)));
+                            base::Unretained(this), "/match"));
+
+    net::test_server::InstallDefaultWebSocketHandlers(embedded_test_server());
 
     ASSERT_TRUE(embedded_test_server()->Start());
   }
 
   std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
+      std::string_view handle_path,
       const net::test_server::HttpRequest& request) {
+    if (request.relative_url != handle_path) {
+      return nullptr;
+    }
+
     last_request_headers_ = request.headers;
 
     auto response = std::make_unique<net::test_server::BasicHttpResponse>();
@@ -97,6 +108,67 @@ class HttpHeaderInjectionBrowserTest : public policy::PolicyTest {
     EXPECT_TRUE(it == last_request_headers_.end())
         << "Header " << name << " unexpectedly found with value "
         << (it != last_request_headers_.end() ? it->second : "");
+  }
+
+  scoped_refptr<const extensions::Extension> LoadExtensionWithHeaderRules(
+      const std::string& resource_type) {
+    extensions::TestExtensionDir test_dir;
+    test_dir.WriteManifest(R"(
+      {
+        "name": "Test Extension",
+        "version": "1.0",
+        "manifest_version": 3,
+        "permissions": ["declarativeNetRequest"],
+        "host_permissions": ["<all_urls>"],
+        "declarative_net_request": {
+          "rule_resources": [{
+            "id": "ruleset_1",
+            "enabled": true,
+            "path": "rules.json"
+          }]
+        }
+      }
+    )");
+    test_dir.WriteFile(
+        FILE_PATH_LITERAL("rules.json"),
+        base::ReplaceStringPlaceholders(R"(
+      [{
+        "id": 1,
+        "priority": 1,
+        "action": {
+          "type": "modifyHeaders",
+          "requestHeaders": [{
+            "header": "X-Extension-Header",
+            "operation": "set",
+            "value": "ExtensionValue"
+          }, {
+            "header": "X-Test-Header",
+            "operation": "set",
+            "value": "ExtensionValue"
+          }]
+        },
+        "condition": {
+          "urlFilter": "*",
+          "resourceTypes": ["$1"]
+        }
+      }]
+    )",
+                                        {resource_type}, nullptr));
+
+    extensions::ChromeTestExtensionLoader loader(browser()->profile());
+
+    auto* rules_monitor_service =
+        extensions::declarative_net_request::RulesMonitorService::Get(
+            browser()->profile());
+    extensions::declarative_net_request::RulesetManagerObserver ruleset_waiter(
+        rules_monitor_service->ruleset_manager());
+
+    scoped_refptr<const extensions::Extension> extension =
+        loader.LoadExtension(test_dir.UnpackedPath());
+
+    ruleset_waiter.WaitForExtensionsWithRulesetsCount(1);
+
+    return extension;
   }
 
   base::test::ScopedFeatureList feature_list_;
@@ -176,45 +248,8 @@ IN_PROC_BROWSER_TEST_F(HttpHeaderInjectionBrowserTest, Precedence) {
 // Tests that enterprise header injection works alongside an extension that also
 // modifies headers.
 IN_PROC_BROWSER_TEST_F(HttpHeaderInjectionBrowserTest, ExtensionInteraction) {
-  extensions::TestExtensionDir test_dir;
-  test_dir.WriteManifest(R"(
-    {
-      "name": "Test Extension",
-      "version": "1.0",
-      "manifest_version": 3,
-      "permissions": ["declarativeNetRequest"],
-      "host_permissions": ["<all_urls>"],
-      "declarative_net_request": {
-        "rule_resources": [{
-          "id": "ruleset_1",
-          "enabled": true,
-          "path": "rules.json"
-        }]
-      }
-    }
-  )");
-  test_dir.WriteFile(FILE_PATH_LITERAL("rules.json"), R"(
-    [{
-      "id": 1,
-      "priority": 1,
-      "action": {
-        "type": "modifyHeaders",
-        "requestHeaders": [{
-          "header": "X-Extension-Header",
-          "operation": "set",
-          "value": "ExtensionValue"
-        }]
-      },
-      "condition": {
-        "urlFilter": "*",
-        "resourceTypes": ["main_frame"]
-      }
-    }]
-  )");
-
-  extensions::ChromeTestExtensionLoader loader(browser()->profile());
   scoped_refptr<const extensions::Extension> extension =
-      loader.LoadExtension(test_dir.UnpackedPath());
+      LoadExtensionWithHeaderRules("main_frame");
   ASSERT_TRUE(extension);
 
   SetPolicy({{.patterns = {"example.com"},
@@ -223,63 +258,85 @@ IN_PROC_BROWSER_TEST_F(HttpHeaderInjectionBrowserTest, ExtensionInteraction) {
   GURL url = embedded_test_server()->GetURL("example.com", "/match");
   ASSERT_TRUE(NavigateToUrl(url, this));
 
+  // Verify enterprise policy took precedence over the extension's modification.
   CheckHeaderValuePresent("X-Test-Header", "TestValue");
+  // Verify the extension's unrelated header was still successfully injected
+  // alongside the enterprise policy.
   CheckHeaderValuePresent("X-Extension-Header", "ExtensionValue");
 }
 
-// Tests that an extension cannot override or remove a header injected by
-// enterprise policy.
-IN_PROC_BROWSER_TEST_F(HttpHeaderInjectionBrowserTest,
-                       ExtensionCannotOverridePolicy) {
-  extensions::TestExtensionDir test_dir;
-  test_dir.WriteManifest(R"(
-    {
-      "name": "Test Extension",
-      "version": "1.0",
-      "manifest_version": 3,
-      "permissions": ["declarativeNetRequest"],
-      "host_permissions": ["<all_urls>"],
-      "declarative_net_request": {
-        "rule_resources": [{
-          "id": "ruleset_1",
-          "enabled": true,
-          "path": "rules.json"
-        }]
-      }
-    }
-  )");
-  test_dir.WriteFile(FILE_PATH_LITERAL("rules.json"), R"(
-    [{
-      "id": 1,
-      "priority": 1,
-      "action": {
-        "type": "modifyHeaders",
-        "requestHeaders": [{
-          "header": "X-Test-Header",
-          "operation": "set",
-          "value": "ExtensionValue"
-        }]
-      },
-      "condition": {
-        "urlFilter": "*",
-        "resourceTypes": ["main_frame"]
-      }
-    }]
-  )");
+// Tests that custom headers are correctly injected into WebSocket handshake
+// requests.
+IN_PROC_BROWSER_TEST_F(HttpHeaderInjectionBrowserTest, WebSocketInjection) {
+  SetPolicy({{.patterns = {"example.com"},
+              .headers = {{"X-Test-Header", "TestValue"}}}});
 
-  extensions::ChromeTestExtensionLoader loader(browser()->profile());
+  GURL url = embedded_test_server()->GetURL("example.com", "/empty.html");
+  ASSERT_TRUE(NavigateToUrl(url, this));
+
+  GURL ws_url = net::test_server::GetWebSocketURL(
+      *embedded_test_server(), "example.com", "/echo-request-headers");
+
+  std::string script = content::JsReplace(
+      "new Promise(resolve => {"
+      "  let ws = new WebSocket($1);"
+      "  ws.onmessage = e => {"
+      "    resolve(JSON.parse(e.data));"
+      "  };"
+      "  ws.onerror = () => resolve('ERROR');"
+      "});",
+      ws_url);
+
+  content::EvalJsResult eval_result =
+      content::EvalJs(chrome_test_utils::GetActiveWebContents(this), script);
+  const base::DictValue& headers = eval_result.ExtractDict();
+
+  const std::string* test_header = headers.FindString("x-test-header");
+  ASSERT_TRUE(test_header);
+  EXPECT_EQ("TestValue", *test_header);
+}
+
+// Tests that enterprise headers injected into WebSocket handshake requests take
+// precedence over modifications made by extensions.
+IN_PROC_BROWSER_TEST_F(HttpHeaderInjectionBrowserTest,
+                       WebSocketExtensionInteraction) {
   scoped_refptr<const extensions::Extension> extension =
-      loader.LoadExtension(test_dir.UnpackedPath());
+      LoadExtensionWithHeaderRules("websocket");
   ASSERT_TRUE(extension);
 
   SetPolicy({{.patterns = {"example.com"},
               .headers = {{"X-Test-Header", "TestValue"}}}});
 
-  GURL url = embedded_test_server()->GetURL("example.com", "/match");
+  GURL url = embedded_test_server()->GetURL("example.com", "/empty.html");
   ASSERT_TRUE(NavigateToUrl(url, this));
 
-  // Verify enterprise header is STILL present and has original value
-  CheckHeaderValuePresent("X-Test-Header", "TestValue");
+  GURL ws_url = net::test_server::GetWebSocketURL(
+      *embedded_test_server(), "example.com", "/echo-request-headers");
+
+  std::string script = content::JsReplace(
+      "new Promise(resolve => {"
+      "  let ws = new WebSocket($1);"
+      "  ws.onmessage = e => {"
+      "    resolve(JSON.parse(e.data));"
+      "  };"
+      "  ws.onerror = () => resolve('ERROR');"
+      "});",
+      ws_url);
+
+  content::EvalJsResult eval_result =
+      content::EvalJs(chrome_test_utils::GetActiveWebContents(this), script);
+  const base::DictValue& headers = eval_result.ExtractDict();
+
+  // Verify enterprise policy took precedence over the extension's modification.
+  const std::string* test_header = headers.FindString("x-test-header");
+  ASSERT_TRUE(test_header);
+  EXPECT_EQ("TestValue", *test_header);
+
+  // Verify the extension's unrelated header was still successfully injected
+  // alongside the enterprise policy.
+  const std::string* ext_header = headers.FindString("x-extension-header");
+  ASSERT_TRUE(ext_header);
+  EXPECT_EQ("ExtensionValue", *ext_header);
 }
 
 }  // namespace enterprise_custom_headers

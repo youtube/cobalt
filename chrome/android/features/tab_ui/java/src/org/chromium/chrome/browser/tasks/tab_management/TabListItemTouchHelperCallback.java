@@ -323,7 +323,7 @@ public abstract class TabListItemTouchHelperCallback extends ItemTouchHelper2.Si
      *
      * @param listener the handler for longpress actions.
      */
-    void setOnLongPressTabItemEventListener(
+    public void setOnLongPressTabItemEventListener(
             TabGridItemLongPressOrchestrator.@Nullable OnLongPressTabItemEventListener listener) {
         assert mTabGridItemLongPressOrchestrator == null;
         if (listener != null) {
@@ -340,6 +340,11 @@ public abstract class TabListItemTouchHelperCallback extends ItemTouchHelper2.Si
     @VisibleForTesting
     void setTabGridItemLongPressOrchestrator(TabGridItemLongPressOrchestrator orchestrator) {
         mTabGridItemLongPressOrchestrator = orchestrator;
+    }
+
+    public @Nullable TabGridItemLongPressOrchestrator
+            getTabGridItemLongPressOrchestratorForTesting() {
+        return mTabGridItemLongPressOrchestrator;
     }
 
     void setSelectedTabIndexForTesting(int index) {

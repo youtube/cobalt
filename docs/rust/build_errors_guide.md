@@ -19,7 +19,7 @@ error: implementation of an `unsafe` method
 note: requested on the command line with `-F unsafe-code`
 ```
 
-`unsafe` Rust is [disallowed by default](//docs/rust/unsafe.md) to:
+`unsafe` Rust is [disallowed by default](/docs/rust/unsafe.md) to:
 
 * Discourage using `unsafe` Rust code
 * Make code reviews easier (e.g. `//third_party/rust` crates with

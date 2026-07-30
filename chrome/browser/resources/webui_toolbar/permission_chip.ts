@@ -30,10 +30,12 @@ export class PermissionChipElement extends CrLitElement {
   static override get properties() {
     return {
       chipState: {type: Object},
+      hasDivider: {type: Boolean, attribute: 'has-divider', reflect: true},
     };
   }
 
   accessor chipState: PermissionChipState|null = null;
+  accessor hasDivider: boolean = false;
 
   private isFullyCollapsed_: boolean = true;
   private trackedElementManager_: TrackedElementManager;

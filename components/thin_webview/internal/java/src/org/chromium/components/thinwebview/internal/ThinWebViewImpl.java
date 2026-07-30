@@ -22,6 +22,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.modaldialog.AppModalPresenter;
 import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
 import org.chromium.components.embedder_support.delegate.WebContentsDelegateAndroid;
+import org.chromium.components.embedder_support.selection.DefaultSelectionDropdownMenuDelegate;
 import org.chromium.components.thinwebview.CompositorView;
 import org.chromium.components.thinwebview.ThinWebView;
 import org.chromium.components.thinwebview.ThinWebViewAttachParams;
@@ -162,6 +163,8 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
         SelectionPopupController controller = SelectionPopupController.fromWebContents(webContents);
         if (attachParams.selectionDropdownMenuDelegate != null) {
             controller.setDropdownMenuDelegate(attachParams.selectionDropdownMenuDelegate);
+        } else {
+            controller.setDropdownMenuDelegate(new DefaultSelectionDropdownMenuDelegate());
         }
         controller.setActionModeCallback(new ThinWebViewActionModeCallback(webContents));
         controller.setSelectionClient(SelectionClient.createSmartSelectionClient(webContents));

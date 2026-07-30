@@ -13,6 +13,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "chromeos/crosapi/mojom/account_manager.mojom.h"
@@ -27,21 +28,22 @@ namespace account_manager {
 
 class AccountManager;
 
-// ChromeOS-specific implementation of |AccountManagerFacade| that talks to
-// |account_manager::AccountManager| over Mojo.
+// Implementation of |AccountManagerFacade| that talks to
+// |account_manager::AccountManager|.
 class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerFacadeImpl
     : public AccountManagerFacade,
       public crosapi::mojom::AccountManagerObserver {
  public:
-  // Constructs `AccountManagerFacadeImpl`.
-  // `account_manager_remote` is a Mojo `Remote` to Account Manager in Ash -
-  // either in-process or out-of-process.
+  // `account_manager` is the local AccountManager instance. It must be non-null
+  // and outlive the constructed `AccountManagerFacadeImpl` instance.
+  // `account_manager_remote` is a Mojo `Remote` to the account manager, used
+  // for methods that have not yet been migrated to use `account_manager`.
   // `remote_version` is the Mojo API version of the remote.
   // `init_finished` is called after `this` has been fully initialized.
   AccountManagerFacadeImpl(
       mojo::Remote<crosapi::mojom::AccountManager> account_manager_remote,
       uint32_t remote_version,
-      base::WeakPtr<AccountManager> account_manager_for_tests,
+      AccountManager* account_manager,
       base::OnceClosure init_finished = base::DoNothing());
   AccountManagerFacadeImpl(const AccountManagerFacadeImpl&) = delete;
   AccountManagerFacadeImpl& operator=(const AccountManagerFacadeImpl&) = delete;
@@ -75,8 +77,6 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerFacadeImpl
 
  private:
   FRIEND_TEST_ALL_PREFIXES(AccountManagerFacadeImplTest,
-                           GetAccountsHangsWhenRemoteIsNull);
-  FRIEND_TEST_ALL_PREFIXES(AccountManagerFacadeImplTest,
                            InitializationStatusIsCorrectlySet);
   FRIEND_TEST_ALL_PREFIXES(
       AccountManagerFacadeImplTest,
@@ -92,28 +92,11 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerFacadeImpl
       AccountManagerFacadeImplTest,
       HistogramsForAccountManagerObserverReceiverDisconnections);
 
-  // Status of the mojo connection.
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-  enum class FacadeMojoStatus {
-    kOk = 0,
-    kUninitialized = 1,
-    kNoRemote = 2,
-    kVersionMismatch = 3,
-
-    kMaxValue = kVersionMismatch
-  };
-
-  static std::string GetAccountsMojoStatusHistogramNameForTesting();
-
   // A utility class to fetch access tokens over Mojo.
   class AccessTokenFetcher;
 
   void OnReceiverReceived(
       mojo::PendingReceiver<AccountManagerObserver> receiver);
-
-  void GetAccountsInternal(
-      base::OnceCallback<void(const std::vector<Account>&)> callback);
 
   void GetPersistentErrorInternal(
       const AccountKey& account,
@@ -131,9 +114,9 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerFacadeImpl
   // The initialization sequence for `AccountManagerFacadeImpl` consists of
   // adding an observer to the remote.
   //
-  // Remote-querying methods like `GetAccounts` won't actually produce a remote
-  // call until the initialization sequence is finished (instead, they will be
-  // queued in `initialization_callbacks_`).
+  // Remote-querying methods won't actually produce a remote call until the
+  // initialization sequence is finished (instead, they will be queued in
+  // `initialization_callbacks_`).
   //
   // `FinishInitSequenceIfNotAlreadyFinished` invokes callbacks from
   // `initialization_callbacks_` and marks the initialization as finished.
@@ -174,7 +157,7 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerFacadeImpl
 
   base::ObserverList<Observer> observer_list_;
 
-  const base::WeakPtr<AccountManager> account_manager_for_tests_ = nullptr;
+  const raw_ref<AccountManager> account_manager_;
 
   base::WeakPtrFactory<AccountManagerFacadeImpl> weak_factory_{this};
 };

@@ -7,6 +7,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/views/permissions/permission_prompt_bubble_base_view.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -87,12 +88,13 @@ PermissionPromptBubbleTwoOriginsView::PermissionPromptBubbleTwoOriginsView(
   CreateFaviconRow();
   MaybeAddLink();
 
-  CHECK(GetBrowser());
+  CHECK(GetNativeWindow());
 
   // Initializing favicon service.
   favicon::FaviconService* const favicon_service =
-      FaviconServiceFactory::GetForProfile(GetBrowser()->GetProfile(),
-                                           ServiceAccessType::EXPLICIT_ACCESS);
+      FaviconServiceFactory::GetForProfile(
+          Profile::FromBrowserContext(web_contents->GetBrowserContext()),
+          ServiceAccessType::EXPLICIT_ACCESS);
   favicon_tracker_ = std::make_unique<base::CancelableTaskTracker>();
 
   // Fetching requesting origin favicon.

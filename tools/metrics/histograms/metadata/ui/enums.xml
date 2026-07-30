@@ -239,7 +239,8 @@ chromium-metrics-reviews@google.com.
   <int value="57" label="IDC_CONTENT_CONTEXT_SEARCHWEBFORIMAGE"/>
   <int value="58" label="IDC_SPELLCHECK_SUGGESTION"/>
   <int value="59" label="IDC_SPELLCHECK_ADD_TO_DICTIONARY"/>
-  <int value="60" label="IDC_SPELLPANEL_TOGGLE"/>
+  <int value="60"
+      label="(Obsolete) IDC_SPELLPANEL_TOGGLE. Removed in 2026/06."/>
   <int value="61" label="IDC_CONTENT_CONTEXT_OPENORIGINALIMAGENEWTAB"/>
   <int value="62" label="IDC_WRITING_DIRECTION_MENU"/>
   <int value="63" label="IDC_WRITING_DIRECTION_DEFAULT"/>
@@ -369,6 +370,7 @@ chromium-metrics-reviews@google.com.
   <int value="165" label="IDC_CONTENT_CONTEXT_DICTATION"/>
   <int value="166" label="IDC_CONTENT_CONTEXT_ADD_LINK_TO_READING_LIST"/>
   <int value="167" label="IDC_SPELLCHECK_REMOVE_FROM_DICTIONARY"/>
+  <int value="168" label="IDC_CONTENT_CONTEXT_SAVE_TO_MEMORY_BANKS"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/renderer_context_menu/render_view_context_menu.cc:RenderViewContextMenuItem) -->
@@ -732,6 +734,7 @@ chromium-metrics-reviews@google.com.
   <int value="-1649429396" label="chrome://chrome-signin/edu-coexistence/"/>
   <int value="-1647734092" label="chrome://net-export/"/>
   <int value="-1638649228" label="chrome://webapks/"/>
+  <int value="-1637801196" label="chrome://omnibox-everywhere.top-chrome/"/>
   <int value="-1636191836"
       label="chrome://history-clusters-side-panel.top-chrome/"/>
   <int value="-1634933990" label="chrome://web-footer-experiment/"/>

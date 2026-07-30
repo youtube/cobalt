@@ -6,7 +6,7 @@ AXWebArea
 ++++AXGroup
 ++++++AXHeading AXDisclosureLevel=3 AXValue=4
 ++++++AXHeading AXDisclosureLevel=4 AXValue=5
-++++++AXGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++AXHeading AXDisclosureLevel=0 AXValue=1
 ++++++AXGroup AXSubrole=AXApplicationDialog AXDescription='container dialog'
 ++++++++AXHeading AXDisclosureLevel=3 AXValue=4
@@ -18,7 +18,7 @@ AXWebArea
 ++++AXHeading AXDisclosureLevel=8 AXValue=9
 ++++AXHeading AXDisclosureLevel=8 AXValue=9
 ++++AXHeading AXDisclosureLevel=8 AXValue=9
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXHeading AXDisclosureLevel=0 AXValue=1
 ++++AXGroup AXSubrole=AXApplicationDialog AXDescription='container dialog'
 ++++++AXHeading AXDisclosureLevel=8 AXValue=9
@@ -29,25 +29,25 @@ AXWebArea
 ++++AXHeading AXDisclosureLevel=3 AXValue=4
 ++++AXHeading AXDisclosureLevel=4 AXValue=5
 ++++AXHeading AXDisclosureLevel=5 AXValue=6
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXHeading AXDisclosureLevel=0 AXValue=1
 ++++AXGroup AXSubrole=AXApplicationDialog AXDescription='container dialog'
 ++++++AXHeading AXDisclosureLevel=0 AXValue=1
-++AXGroup
+++AXGroup AXSubrole=AXEmptyGroup
 ++++AXHeading AXDisclosureLevel=1 AXValue=2
 ++++AXHeading AXDisclosureLevel=1 AXValue=2
-++AXGroup
+++AXGroup AXSubrole=AXEmptyGroup
 ++++AXHeading AXDisclosureLevel=1 AXValue=2
 ++++AXHeading AXDisclosureLevel=2 AXValue=3
 ++++AXHeading AXDisclosureLevel=2 AXValue=3
 ++++AXHeading AXDisclosureLevel=1 AXValue=2
 ++AXGroup
 ++++AXHeading AXDisclosureLevel=1 AXValue=2
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++++++AXHeading AXDisclosureLevel=3 AXValue=4
 ++++++AXHeading AXDisclosureLevel=5 AXValue=6
 ++++++AXHeading AXDisclosureLevel=3 AXValue=4
-++AXGroup
+++AXGroup AXSubrole=AXEmptyGroup
 ++++AXHeading AXDisclosureLevel=1 AXValue=2
 ++++AXHeading AXDisclosureLevel=3 AXValue=4
 ++AXHeading AXDisclosureLevel=1 AXValue=2
@@ -62,14 +62,13 @@ AXWebArea
 ++AXHeading AXDisclosureLevel=8 AXValue=9
 ++AXHeading AXDisclosureLevel=0 AXValue=1
 ++AXHeading AXDisclosureLevel=1 AXValue=2
-++AXGroup
+++AXGroup AXSubrole=AXEmptyGroup
 ++++AXHeading AXDisclosureLevel=1 AXValue=2
 ++++AXHeading AXDisclosureLevel=2 AXValue=3
 ++++AXHeading AXDisclosureLevel=1 AXValue=2
 ++++AXHeading AXDisclosureLevel=2 AXValue=3
 ++++AXHeading AXDisclosureLevel=0 AXValue=1
 ++++AXHeading AXDisclosureLevel=1 AXValue=2
-++AXGroup
+++AXGroup AXSubrole=AXEmptyGroup
 ++++AXHeading AXDisclosureLevel=4 AXValue=5
 ++AXHeading AXDisclosureLevel=2 AXValue=3
-

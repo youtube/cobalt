@@ -297,8 +297,7 @@ static PositionWithAffinityTemplate<Strategy> LogicalStartOfLineAlgorithm(
       StartPositionForLine<Strategy, LogicalOrdering>(normalized);
 
   if (ContainerNode* editable_root = HighestEditableRoot(c.GetPosition())) {
-    if (vis_pos.IsNull() &&
-        RuntimeEnabledFeatures::LogicalStartOfLineBlockFallbackEnabled()) {
+    if (vis_pos.IsNull()) {
       // When the start-of-line position cannot be determined (e.g., because the
       // caret is in an empty inline element with no layout information), fall
       // back to the start of the enclosing block rather than the start of the

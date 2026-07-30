@@ -23,6 +23,7 @@
 #import "ios/chrome/browser/shared/model/url/url_util.h"
 #import "ios/web/public/navigation/navigation_context.h"
 #import "ios/web/public/web_state.h"
+#import "net/base/url_util.h"
 #import "url/gurl.h"
 
 namespace {
@@ -42,7 +43,8 @@ int64_t GetNavigationId(web::NavigationContext* context) {
 // Returns true if data protection checks should be skipped for the given URL.
 bool SkipUrl(const GURL& url) {
   return !url.is_valid() || UrlHasChromeScheme(url) || IsUrlNtp(url) ||
-         url.SchemeIs(content_settings::kChromeUIUntrustedScheme);
+         url.SchemeIs(content_settings::kChromeUIUntrustedScheme) ||
+         net::IsLocalhost(url);
 }
 
 // Returns the next state when a new real-time lookup is initiated.

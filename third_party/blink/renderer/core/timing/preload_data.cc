@@ -6,6 +6,7 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/v8_cross_origin_mode.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/timing/cross_origin_mode_converter.h"
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/core/timing/window_performance.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
@@ -24,14 +25,7 @@ PreloadData::PreloadData(const KURL& url,
       used_time_(used_time) {}
 
 V8CrossOriginMode PreloadData::crossorigin() const {
-  switch (crossorigin_) {
-    case kCrossOriginAttributeNotSet:
-      return V8CrossOriginMode(V8CrossOriginMode::Enum::kNone);
-    case kCrossOriginAttributeAnonymous:
-      return V8CrossOriginMode(V8CrossOriginMode::Enum::kAnonymous);
-    case kCrossOriginAttributeUseCredentials:
-      return V8CrossOriginMode(V8CrossOriginMode::Enum::kUseCredentials);
-  }
+  return ToV8CrossOriginMode(crossorigin_);
 }
 
 std::optional<double> PreloadData::used(ScriptState* script_state) const {

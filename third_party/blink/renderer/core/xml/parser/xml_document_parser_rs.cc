@@ -46,6 +46,7 @@
 #include "third_party/blink/renderer/core/html/custom/ce_reactions_scope.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element_registry.h"
 #include "third_party/blink/renderer/core/html/html_html_element.h"
+#include "third_party/blink/renderer/core/html/html_iframe_element.h"
 #include "third_party/blink/renderer/core/html/html_template_element.h"
 #include "third_party/blink/renderer/core/html/parser/html_construction_site.h"
 #include "third_party/blink/renderer/core/html_names.h"
@@ -77,9 +78,20 @@ inline bool HasNoStyleInformation(Document* document) {
     return false;
   }
 
-  if (!document->IsInMainFrame() ||
-      document->GetFrame()->IsInFencedFrameTree()) {
+  if (document->GetFrame()->IsInFencedFrameTree()) {
     return false;  // This document has style information from a parent.
+  }
+
+  if (!document->IsInMainFrame()) {
+    if (!RuntimeEnabledFeatures::XMLViewerForIframesEnabled()) {
+      return false;
+    }
+    auto* owner = document->GetFrame()->DeprecatedLocalOwner();
+    if (!owner || !IsA<HTMLIFrameElement>(*owner) ||
+        document->Url().ProtocolIs("blob") ||
+        document->contentType() == "image/svg+xml") {
+      return false;
+    }
   }
 
   if (SVGImage::IsInSVGImage(document)) {
@@ -652,7 +664,9 @@ void XMLDocumentParserRs::EndDocument() {
       !saw_error_ && !saw_css_ && HasNoStyleInformation(GetDocument());
   if (xml_viewer_mode) {
     GetDocument()->SetIsViewSource(true);
-    TransformDocumentToXMLTreeView(*GetDocument());
+    TransformDocumentToXMLTreeView(
+        *GetDocument(),
+        /*preserve_document_element=*/!GetDocument()->IsInMainFrame());
   }
   // The XML crate keeps sending EndDocument as a next event if you keep
   // querying. Change state here to break out of the ProcessEvents loop.

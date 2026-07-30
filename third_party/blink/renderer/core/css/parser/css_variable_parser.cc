@@ -158,43 +158,6 @@ static bool ConsumeCommonArgumentGrammar(CSSParserTokenStream& stream,
       /*separator_required=*/false, context);
 }
 
-// if() argument grammar:
-// <if-args> = if( [ <if-args-branch> ; ]* <if-args-branch> ;? )
-// <if-args-branch> = <declaration-value> : <declaration-value>?
-static bool ConsumeIfArgumentGrammar(CSSParserTokenStream& stream,
-                                     VariableDataFeatures& features,
-                                     const CSSParserContext& context) {
-  CSSParserTokenStream::BlockGuard guard(stream);
-  {
-    CSSParserTokenStream::Boundary boundary(stream, kSemicolonToken);
-    if (!ConsumeCommonArgumentGrammarContent(
-            stream, features, /*separator_type=*/kColonToken,
-            /*separator_required=*/true, context)) {
-      return false;
-    }
-  }
-
-  while (!stream.AtEnd()) {
-    if (stream.Peek().GetType() != kSemicolonToken) {
-      return false;
-    }
-    stream.ConsumeIncludingWhitespace();
-
-    if (stream.AtEnd()) {
-      return true;
-    }
-
-    CSSParserTokenStream::Boundary boundary(stream, kSemicolonToken);
-    if (!ConsumeCommonArgumentGrammarContent(
-            stream, features, /*separator_type=*/kColonToken,
-            /*separator_required=*/true, context)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 static bool ConsumeVariableReference(CSSParserTokenStream& stream,
                                      VariableDataFeatures& features,
                                      const CSSParserContext& context) {
@@ -589,11 +552,9 @@ static bool ConsumeUnparsedValue(CSSParserTokenStream& stream,
     // First check if this is a valid substitution function (e.g. var(),
     // then handle the next token accordingly.
     if (token.GetBlockType() == CSSParserToken::kBlockStart) {
-      CSSParserTokenStream::State state = stream.Save();
-      CSSValueID function_id = token.FunctionId();
       // A block may have both var and env references. They can also be nested
       // and used as fallbacks.
-      switch (function_id) {
+      switch (token.FunctionId()) {
         case CSSValueID::kInvalid:
           // Not a built-in function, but it might be an author-defined
           // CSS function (e.g. --foo()).
@@ -613,14 +574,6 @@ static bool ConsumeUnparsedValue(CSSParserTokenStream& stream,
           [[fallthrough]];
         case CSSValueID::kVar:
           if (!ConsumeVariableReference(stream, features, context)) {
-            if (function_id == CSSValueID::kVar) {
-              stream.EnsureLookAhead();
-              stream.Restore(state);
-              if (ConsumeCommonArgumentGrammar(stream, features, context)) {
-                context.Count(
-                    WebFeature::kCSSDiscardedVarWithValidArgumentGrammar);
-              }
-            }
             error = true;
           }
           features |= static_cast<VariableDataFeatures>(
@@ -628,12 +581,6 @@ static bool ConsumeUnparsedValue(CSSParserTokenStream& stream,
           continue;
         case CSSValueID::kEnv:
           if (!ConsumeEnvVariableReference(stream, features, context)) {
-            stream.EnsureLookAhead();
-            stream.Restore(state);
-            if (ConsumeCommonArgumentGrammar(stream, features, context)) {
-              context.Count(
-                  WebFeature::kCSSDiscardedEnvWithValidArgumentGrammar);
-            }
             error = true;
           }
           features |= static_cast<VariableDataFeatures>(
@@ -645,12 +592,6 @@ static bool ConsumeUnparsedValue(CSSParserTokenStream& stream,
               error = true;
             }
           } else if (!ConsumeAttributeReference(stream, features, context)) {
-            stream.EnsureLookAhead();
-            stream.Restore(state);
-            if (ConsumeCommonArgumentGrammar(stream, features, context)) {
-              context.Count(
-                  WebFeature::kCSSDiscardedAttrWithValidArgumentGrammar);
-            }
             error = true;
           }
           features |= static_cast<VariableDataFeatures>(
@@ -668,12 +609,6 @@ static bool ConsumeUnparsedValue(CSSParserTokenStream& stream,
           continue;
         case CSSValueID::kIf:
           if (!ConsumeIf(stream, features, context)) {
-            stream.EnsureLookAhead();
-            stream.Restore(state);
-            if (ConsumeIfArgumentGrammar(stream, features, context)) {
-              context.Count(
-                  WebFeature::kCSSDiscardedIfWithValidArgumentGrammar);
-            }
             error = true;
           }
           if (!error) {

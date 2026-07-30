@@ -21,6 +21,7 @@
 #include <utility>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
@@ -174,8 +175,8 @@ class StarboardRendererTest : public ::testing::Test {
     StarboardDrmWrapper::SetSingletonForTesting(&starboard_for_drm_);
 
     ON_CALL(media_resource_, GetAllStreams)
-        .WillByDefault(Return(
-            std::vector<DemuxerStream*>({&audio_stream_, &video_stream_})));
+        .WillByDefault(Return(std::vector<raw_ptr<DemuxerStream>>(
+            {&audio_stream_, &video_stream_})));
     ON_CALL(media_resource_, GetFirstStream(DemuxerStream::Type::AUDIO))
         .WillByDefault(Return(&audio_stream_));
     ON_CALL(media_resource_, GetFirstStream(DemuxerStream::Type::VIDEO))

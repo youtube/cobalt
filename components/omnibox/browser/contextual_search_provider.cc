@@ -149,7 +149,8 @@ struct EligibleMatchesAndActions {
     // in the Omnibox.
     bool is_aim_page_action_enabled =
         OmniboxFieldTrial::IsAimOmniboxEntrypointEnabled(
-            client->GetAimEligibilityService());
+            client->GetAimEligibilityService(),
+            client->GetAiModeButtonService(), client->GetTemplateURLService());
     toolbelt_ai_mode =
         toolbelt &&
         ToolbeltActionEligible(
@@ -327,7 +328,7 @@ void ContextualSearchProvider::Start(const AutocompleteInput& input,
   // Determine keyword (may be nullptr, a starter pack, or some other keyword).
   AutocompleteInput keyword_input = input;
   const TemplateURL* template_url =
-      input.prefer_keyword()
+      input.in_keyword_mode()
           ? AutocompleteInput::GetSubstitutingTemplateURLForInput(
                 client()->GetTemplateURLService(), &keyword_input)
           : nullptr;

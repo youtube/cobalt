@@ -16,13 +16,12 @@
 #include "base/check_op.h"
 #include "base/containers/flat_map.h"
 #include "base/i18n/language_tag.h"
-#include "base/logging.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/types/pass_key.h"
 
-namespace base::i18n_extensions {
+namespace base::i18n {
 namespace {
 
 bool IsAllAlphaNumeric(std::string_view s) {
@@ -46,55 +45,69 @@ bool VerifyTypeOrAttributeSubtags(base::span<const std::string_view> subtags) {
   });
 }
 
+std::string CanonicalizeTypeOrAttributeSubtags(
+    base::span<const std::string_view> subtags) {
+  std::vector<std::string> canonicalized;
+  std::ranges::transform(
+      subtags, std::back_inserter(canonicalized),
+      [](std::string_view s) { return base::ToLowerASCII(s); });
+  return base::JoinString(canonicalized, "-");
+}
+
 // Returns true if subtag matches the rule for a "key": exactly two alphanumeric
 // ascii chars.
 bool VerifyKeySubtag(std::string_view subtag) {
   return subtag.size() == 2 && IsAllAlphaNumeric(subtag);
 }
 
-std::optional<base::flat_set<std::string, std::less<>>>
-GetUnicodeAttributesIfValid(
-    base::span<const std::string_view> attributes_subspan) {
-  // Attributes follow the same format as type subtags.
-  if (!VerifyTypeOrAttributeSubtags(attributes_subspan)) {
-    return std::nullopt;
+// Adds `attributes_span` to `result` using `UnicodeExtension::AddAttribute`. It
+// returns whether the attributes are valid. It stops as soon as the first
+// non-valid attribute is seen. Even if it returns false, `result` might have
+// been modified.
+bool AddAttributes(base::span<const std::string_view> attributes_span,
+                   UnicodeExtension& result) {
+  for (std::string_view attribute : attributes_span) {
+    if (!result.AddAttribute(attribute)) {
+      return false;
+    }
   }
-  // This constructor will drop duplicates according to rfc6067.
-  return base::flat_set<std::string, std::less<>>(attributes_subspan.begin(),
-                                                  attributes_subspan.end());
+  return true;
 }
 
-std::optional<base::flat_map<std::string, std::string, std::less<>>>
-GetUnicodeKeywords(base::span<const std::string_view> keywords_span) {
-  base::flat_map<std::string, std::string, std::less<>> keywords;
+// Parses and adds `keywords_span` into result using
+// `UnicodeExtension::SetKeyword`. It returns whether the input was valid
+// stopping in the first non-valid entry. Even if it returns false, `result`
+// might have been modified.
+bool AddKeywords(base::span<const std::string_view> keywords_span,
+                 UnicodeExtension& result) {
+  // Keywords are a two-character key followed by zero or more types subtags.
   while (!keywords_span.empty()) {
     std::string_view key = keywords_span.take_first_elem();
-    if (!VerifyKeySubtag(key)) {
-      return std::nullopt;
-    }
     size_t next_key_index = FindNextKeyIndex(keywords_span);
     base::span<const std::string_view> types_subspan =
         keywords_span.take_first(next_key_index);
+
     if (!VerifyTypeOrAttributeSubtags(types_subspan)) {
-      return std::nullopt;
+      return false;
     }
-    auto [it, inserted] =
-        keywords.try_emplace(key, base::JoinString(types_subspan, "-"));
-    // If it was not possible to insert a new keyword, the input is not in the
-    // format defined by the spec which states that a unicode extension key MUST
-    // NOT appear more than once.
-    if (!inserted) {
-      return std::nullopt;
+
+    // According to RFC 6067, if a keyword appears more than once, only its
+    // first definition is considered; subsequent occurrences are ignored.
+    std::string canonical_key = base::ToLowerASCII(key);
+    if (result.has_keyword(canonical_key)) {
+      continue;
+    }
+    if (!result.SetKeyword(canonical_key,
+                           base::JoinString(types_subspan, "-"))) {
+      return false;
     }
   }
-
-  return keywords;
+  return true;
 }
 
 }  // namespace
 
-Extension::Extension(base::PassKey<base::LanguageTag>,
-                     std::string_view extension)
+Extension::Extension(base::PassKey<LanguageTag>, std::string_view extension)
     : extension_(extension) {
   CHECK_GE(extension_.size(), 4u);
   CHECK_EQ(extension_[1], '-');
@@ -107,18 +120,12 @@ UnicodeExtension& UnicodeExtension::operator=(const UnicodeExtension&) =
 UnicodeExtension::UnicodeExtension(UnicodeExtension&&) = default;
 UnicodeExtension& UnicodeExtension::operator=(UnicodeExtension&&) = default;
 
-UnicodeExtension::UnicodeExtension(
-    base::flat_set<std::string, std::less<>> attributes,
-    base::flat_map<std::string, std::string, std::less<>> keywords)
-    : attributes_(std::move(attributes)), keywords_(std::move(keywords)) {}
+UnicodeExtension::UnicodeExtension() = default;
 
 // static
 std::optional<UnicodeExtension> UnicodeExtension::FromString(
     std::string_view extension) {
-  if (extension.size() < 4u) {
-    return std::nullopt;
-  }
-  if (extension[0] != 'u' || extension[1] != '-') {
+  if (extension.size() < 4u || extension[0] != 'u' || extension[1] != '-') {
     return std::nullopt;
   }
 
@@ -126,26 +133,25 @@ std::optional<UnicodeExtension> UnicodeExtension::FromString(
       extension.substr(2), "-", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
   size_t keyword_start = FindNextKeyIndex(subtags);
   base::span<const std::string_view> subtags_span(subtags);
-  std::optional<base::flat_set<std::string, std::less<>>> attributes =
-      GetUnicodeAttributesIfValid(subtags_span.take_first(keyword_start));
-  if (!attributes) {
+
+  UnicodeExtension result;
+  // Attributes come before the keywords.
+  if (!AddAttributes(subtags_span.take_first(keyword_start), result)) {
+    return std::nullopt;
+  }
+  // The rest of the subtags are keywords.
+  if (!AddKeywords(subtags_span, result)) {
     return std::nullopt;
   }
 
-  std::optional<base::flat_map<std::string, std::string, std::less<>>>
-      keywords = GetUnicodeKeywords(subtags_span);
-  if (!keywords) {
-    return std::nullopt;
-  }
-
-  return UnicodeExtension(*std::move(attributes), *std::move(keywords));
+  return result;
 }
 
 bool UnicodeExtension::AddAttribute(std::string_view attribute) {
   if (!VerifyTypeOrAttributeSubtags({attribute})) {
     return false;
   }
-  attributes_.emplace(attribute);
+  attributes_.emplace(CanonicalizeTypeOrAttributeSubtags({attribute}));
   return true;
 }
 
@@ -154,12 +160,16 @@ bool UnicodeExtension::SetKeyword(std::string_view key,
   if (!VerifyKeySubtag(key)) {
     return false;
   }
-  std::vector<std::string_view> types = base::SplitStringPiece(
-      type_subtags, "-", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  std::vector<std::string_view> types;
+  if (!type_subtags.empty()) {
+    types = base::SplitStringPiece(type_subtags, "-", base::KEEP_WHITESPACE,
+                                   base::SPLIT_WANT_ALL);
+  }
   if (!VerifyTypeOrAttributeSubtags(types)) {
     return false;
   }
-  keywords_.insert_or_assign(key, type_subtags);
+  keywords_.insert_or_assign(base::ToLowerASCII(key),
+                             CanonicalizeTypeOrAttributeSubtags(types));
   return true;
 }
 
@@ -183,7 +193,7 @@ std::optional<std::string_view> UnicodeExtension::GetKeywordValue(
   if (key.size() != 2) {
     return std::nullopt;
   }
-  auto it = keywords_.find(key);
+  auto it = keywords_.find(base::ToLowerASCII(key));
   if (it == keywords_.end()) {
     return std::nullopt;
   }
@@ -206,4 +216,4 @@ PrivateUseSubtags::PrivateUseSubtags(base::PassKey<LanguageTag>,
   CHECK_EQ(private_use[1], '-');
 }
 
-}  // namespace base::i18n_extensions
+}  // namespace base::i18n

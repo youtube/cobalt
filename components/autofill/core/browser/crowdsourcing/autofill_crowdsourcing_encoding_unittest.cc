@@ -4402,10 +4402,11 @@ const ClearSmallAddressFormPredictions_TestCase
                 },
         },
         {
-            // Verifies that AutofillAI classifications are protected but
-            // address classifications of small forms are wiped. This is legacy
-            // behavior. It's unclear if it's ideal.
-            .test_name = "NoWipeOfFormsAIClassifications",
+            // Verifies that if a small form contains an AutofillAI
+            // classification, the form is recognized as a non-address form and
+            // is NOT suppressed. Therefore, standard address predictions (like
+            // EMAIL_ADDRESS) are kept.
+            .test_name = "NoWipeInCaseOfFormsAIClassifications",
             .received_predictions =
                 {
                     {CreateFieldPrediction(
@@ -4418,8 +4419,11 @@ const ClearSmallAddressFormPredictions_TestCase
             .expected_predictions =
                 {
                     {CreateFieldPrediction(
-                        NATIONAL_ID_CARD_NUMBER,
-                        FieldPrediction::SOURCE_AUTOFILL_AI)},
+                         EMAIL_ADDRESS,
+                         FieldPrediction::SOURCE_AUTOFILL_DEFAULT),
+                     CreateFieldPrediction(
+                         NATIONAL_ID_CARD_NUMBER,
+                         FieldPrediction::SOURCE_AUTOFILL_AI)},
                 },
         },
 };

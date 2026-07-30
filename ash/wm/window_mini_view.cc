@@ -193,8 +193,7 @@ void WindowMiniView::SetShowPreview(bool show) {
   }
 
   if (!show) {
-    RemoveChildViewT(preview_view_.get());
-    preview_view_ = nullptr;
+    RemoveChildViewT(std::exchange(preview_view_, nullptr));
     return;
   }
 

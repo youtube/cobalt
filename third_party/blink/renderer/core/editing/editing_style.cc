@@ -176,11 +176,11 @@ static int LegacyFontSizeFromCSSValue(Document*,
                                       bool,
                                       LegacyFontSizeMode);
 
-class HTMLElementEquivalent : public GarbageCollected<HTMLElementEquivalent> {
+class HtmlElementEquivalent : public GarbageCollected<HtmlElementEquivalent> {
  public:
-  HTMLElementEquivalent(CSSPropertyID);
-  HTMLElementEquivalent(CSSPropertyID, const HTMLQualifiedName& tag_name);
-  HTMLElementEquivalent(CSSPropertyID,
+  HtmlElementEquivalent(CSSPropertyID);
+  HtmlElementEquivalent(CSSPropertyID, const HTMLQualifiedName& tag_name);
+  HtmlElementEquivalent(CSSPropertyID,
                         CSSValueID primitive_value,
                         const HTMLQualifiedName& tag_name);
 
@@ -205,14 +205,14 @@ class HTMLElementEquivalent : public GarbageCollected<HTMLElementEquivalent> {
   const HTMLQualifiedName* tag_name_;
 };
 
-HTMLElementEquivalent::HTMLElementEquivalent(CSSPropertyID id)
+HtmlElementEquivalent::HtmlElementEquivalent(CSSPropertyID id)
     : property_id_(id), tag_name_(nullptr) {}
 
-HTMLElementEquivalent::HTMLElementEquivalent(CSSPropertyID id,
+HtmlElementEquivalent::HtmlElementEquivalent(CSSPropertyID id,
                                              const HTMLQualifiedName& tag_name)
     : property_id_(id), tag_name_(&tag_name) {}
 
-HTMLElementEquivalent::HTMLElementEquivalent(CSSPropertyID id,
+HtmlElementEquivalent::HtmlElementEquivalent(CSSPropertyID id,
                                              CSSValueID value_id,
                                              const HTMLQualifiedName& tag_name)
     : property_id_(id),
@@ -221,7 +221,7 @@ HTMLElementEquivalent::HTMLElementEquivalent(CSSPropertyID id,
   DCHECK(IsValidCSSValueID(value_id));
 }
 
-bool HTMLElementEquivalent::ValueIsPresentInStyle(
+bool HtmlElementEquivalent::ValueIsPresentInStyle(
     HTMLElement* element,
     CSSPropertyValueSet* style) const {
   const CSSValue* value = style->GetPropertyCSSValue(property_id_);
@@ -249,50 +249,50 @@ bool HTMLElementEquivalent::ValueIsPresentInStyle(
          identifier_value->GetValueID() == identifier_value_->GetValueID();
 }
 
-void HTMLElementEquivalent::AddToStyle(Element* element,
+void HtmlElementEquivalent::AddToStyle(Element* element,
                                        EditingStyle* style) const {
   style->SetProperty(property_id_, identifier_value_->CssText(),
                      /* important */ false,
                      element->GetExecutionContext()->GetSecureContextMode());
 }
 
-class HTMLTextDecorationEquivalent final : public HTMLElementEquivalent {
+class HtmlTextDecorationEquivalent final : public HtmlElementEquivalent {
  public:
-  static HTMLElementEquivalent* Create(CSSValueID primitive_value,
+  static HtmlElementEquivalent* Create(CSSValueID primitive_value,
                                        const HTMLQualifiedName& tag_name) {
-    return MakeGarbageCollected<HTMLTextDecorationEquivalent>(primitive_value,
+    return MakeGarbageCollected<HtmlTextDecorationEquivalent>(primitive_value,
                                                               tag_name);
   }
 
-  HTMLTextDecorationEquivalent(CSSValueID primitive_value,
+  HtmlTextDecorationEquivalent(CSSValueID primitive_value,
                                const HTMLQualifiedName& tag_name);
 
   bool PropertyExistsInStyle(const CSSPropertyValueSet*) const override;
   bool ValueIsPresentInStyle(HTMLElement*, CSSPropertyValueSet*) const override;
 
   void Trace(Visitor* visitor) const override {
-    HTMLElementEquivalent::Trace(visitor);
+    HtmlElementEquivalent::Trace(visitor);
   }
 };
 
-HTMLTextDecorationEquivalent::HTMLTextDecorationEquivalent(
+HtmlTextDecorationEquivalent::HtmlTextDecorationEquivalent(
     CSSValueID primitive_value,
     const HTMLQualifiedName& tag_name)
-    : HTMLElementEquivalent(CSSPropertyID::kTextDecorationLine,
+    : HtmlElementEquivalent(CSSPropertyID::kTextDecorationLine,
                             primitive_value,
                             tag_name)
 // CSSPropertyID::kTextDecorationLine is used in
 // HTMLElementEquivalent::AddToStyle
 {}
 
-bool HTMLTextDecorationEquivalent::PropertyExistsInStyle(
+bool HtmlTextDecorationEquivalent::PropertyExistsInStyle(
     const CSSPropertyValueSet* style) const {
   return style->GetPropertyCSSValue(
              CSSPropertyID::kWebkitTextDecorationsInEffect) ||
          style->GetPropertyCSSValue(CSSPropertyID::kTextDecorationLine);
 }
 
-bool HTMLTextDecorationEquivalent::ValueIsPresentInStyle(
+bool HtmlTextDecorationEquivalent::ValueIsPresentInStyle(
     HTMLElement* element,
     CSSPropertyValueSet* style) const {
   const CSSValue* style_value =
@@ -307,15 +307,15 @@ bool HTMLTextDecorationEquivalent::ValueIsPresentInStyle(
   return style_value_list && style_value_list->HasValue(*identifier_value_);
 }
 
-class HTMLAttributeEquivalent : public HTMLElementEquivalent {
+class HtmlAttributeEquivalent : public HtmlElementEquivalent {
  public:
-  HTMLAttributeEquivalent(CSSPropertyID,
+  HtmlAttributeEquivalent(CSSPropertyID,
                           const HTMLQualifiedName& tag_name,
                           const QualifiedName& attr_name);
-  HTMLAttributeEquivalent(CSSPropertyID, const QualifiedName& attr_name);
+  HtmlAttributeEquivalent(CSSPropertyID, const QualifiedName& attr_name);
 
   bool Matches(const Element* element) const override {
-    return HTMLElementEquivalent::Matches(element) &&
+    return HtmlElementEquivalent::Matches(element) &&
            element->hasAttribute(attr_name_);
   }
   bool HasAttribute() const override { return true; }
@@ -325,7 +325,7 @@ class HTMLAttributeEquivalent : public HTMLElementEquivalent {
   inline const QualifiedName& AttributeName() const { return attr_name_; }
 
   void Trace(Visitor* visitor) const override {
-    HTMLElementEquivalent::Trace(visitor);
+    HtmlElementEquivalent::Trace(visitor);
   }
 
  protected:
@@ -333,17 +333,17 @@ class HTMLAttributeEquivalent : public HTMLElementEquivalent {
   const QualifiedName& attr_name_;
 };
 
-HTMLAttributeEquivalent::HTMLAttributeEquivalent(
+HtmlAttributeEquivalent::HtmlAttributeEquivalent(
     CSSPropertyID id,
     const HTMLQualifiedName& tag_name,
     const QualifiedName& attr_name)
-    : HTMLElementEquivalent(id, tag_name), attr_name_(attr_name) {}
+    : HtmlElementEquivalent(id, tag_name), attr_name_(attr_name) {}
 
-HTMLAttributeEquivalent::HTMLAttributeEquivalent(CSSPropertyID id,
+HtmlAttributeEquivalent::HtmlAttributeEquivalent(CSSPropertyID id,
                                                  const QualifiedName& attr_name)
-    : HTMLElementEquivalent(id), attr_name_(attr_name) {}
+    : HtmlElementEquivalent(id), attr_name_(attr_name) {}
 
-bool HTMLAttributeEquivalent::ValueIsPresentInStyle(
+bool HtmlAttributeEquivalent::ValueIsPresentInStyle(
     HTMLElement* element,
     CSSPropertyValueSet* style) const {
   const CSSValue* value = AttributeValueAsCSSValue(element);
@@ -352,7 +352,7 @@ bool HTMLAttributeEquivalent::ValueIsPresentInStyle(
   return base::ValuesEquivalent(value, style_value);
 }
 
-void HTMLAttributeEquivalent::AddToStyle(Element* element,
+void HtmlAttributeEquivalent::AddToStyle(Element* element,
                                          EditingStyle* style) const {
   if (const CSSValue* value = AttributeValueAsCSSValue(element)) {
     style->SetProperty(property_id_, value->CssText(), /* important */ false,
@@ -360,7 +360,7 @@ void HTMLAttributeEquivalent::AddToStyle(Element* element,
   }
 }
 
-const CSSValue* HTMLAttributeEquivalent::AttributeValueAsCSSValue(
+const CSSValue* HtmlAttributeEquivalent::AttributeValueAsCSSValue(
     Element* element) const {
   DCHECK(element);
   const AtomicString& value = element->getAttribute(attr_name_);
@@ -375,27 +375,27 @@ const CSSValue* HTMLAttributeEquivalent::AttributeValueAsCSSValue(
   return dummy_style->GetPropertyCSSValue(property_id_);
 }
 
-class HTMLFontSizeEquivalent final : public HTMLAttributeEquivalent {
+class HtmlFontSizeEquivalent final : public HtmlAttributeEquivalent {
  public:
-  static HTMLFontSizeEquivalent* Create() {
-    return MakeGarbageCollected<HTMLFontSizeEquivalent>();
+  static HtmlFontSizeEquivalent* Create() {
+    return MakeGarbageCollected<HtmlFontSizeEquivalent>();
   }
 
-  HTMLFontSizeEquivalent();
+  HtmlFontSizeEquivalent();
 
   const CSSValue* AttributeValueAsCSSValue(Element*) const override;
 
   void Trace(Visitor* visitor) const override {
-    HTMLAttributeEquivalent::Trace(visitor);
+    HtmlAttributeEquivalent::Trace(visitor);
   }
 };
 
-HTMLFontSizeEquivalent::HTMLFontSizeEquivalent()
-    : HTMLAttributeEquivalent(CSSPropertyID::kFontSize,
+HtmlFontSizeEquivalent::HtmlFontSizeEquivalent()
+    : HtmlAttributeEquivalent(CSSPropertyID::kFontSize,
                               html_names::kFontTag,
                               html_names::kSizeAttr) {}
 
-const CSSValue* HTMLFontSizeEquivalent::AttributeValueAsCSSValue(
+const CSSValue* HtmlFontSizeEquivalent::AttributeValueAsCSSValue(
     Element* element) const {
   DCHECK(element);
   const AtomicString& value = element->getAttribute(attr_name_);
@@ -576,10 +576,11 @@ Element* ElementFromStyledNode(Node* node) {
 }  // namespace
 
 void EditingStyle::Init(Node* node, PropertiesToInclude properties_to_include) {
-  if (IsTabHTMLSpanElementTextNode(node))
+  if (IsTabSpanElementTextNode(node)) {
     node = TabSpanElement(node)->parentNode();
-  else if (IsTabHTMLSpanElement(node))
+  } else if (IsTabSpanElement(node)) {
     node = node->parentNode();
+  }
   node_ = node;
   auto* computed_style_at_position =
       MakeGarbageCollected<CSSComputedStyleDeclaration>(
@@ -1072,7 +1073,7 @@ bool EditingStyle::ConflictsWithInlineStyleOfElement(
     const bool is_whitespace_property =
         property_id == CSSPropertyID::kWhiteSpaceCollapse ||
         property_id == CSSPropertyID::kTextWrapMode;
-    if (is_whitespace_property && IsTabHTMLSpanElement(element)) {
+    if (is_whitespace_property && IsTabSpanElement(element)) {
       continue;
     }
 
@@ -1127,42 +1128,42 @@ bool EditingStyle::ConflictsWithInlineStyleOfElement(
   return conflicting_properties && !conflicting_properties->empty();
 }
 
-static const HeapVector<Member<HTMLElementEquivalent>>&
+static const HeapVector<Member<HtmlElementEquivalent>>&
 HtmlElementEquivalents() {
-  using Holder = DisallowNewWrapper<HeapVector<Member<HTMLElementEquivalent>>>;
+  using Holder = DisallowNewWrapper<HeapVector<Member<HtmlElementEquivalent>>>;
   DEFINE_STATIC_LOCAL(Persistent<Holder>, html_element_equivalents_holder,
                       (MakeGarbageCollected<Holder>()));
-  HeapVector<Member<HTMLElementEquivalent>>* html_element_equivalents =
+  HeapVector<Member<HtmlElementEquivalent>>* html_element_equivalents =
       &html_element_equivalents_holder->Value();
   if (!html_element_equivalents->size()) {
     html_element_equivalents->push_back(
-        MakeGarbageCollected<HTMLElementEquivalent>(
+        MakeGarbageCollected<HtmlElementEquivalent>(
             CSSPropertyID::kFontWeight, CSSValueID::kBold, html_names::kBTag));
     html_element_equivalents->push_back(
-        MakeGarbageCollected<HTMLElementEquivalent>(CSSPropertyID::kFontWeight,
+        MakeGarbageCollected<HtmlElementEquivalent>(CSSPropertyID::kFontWeight,
                                                     CSSValueID::kBold,
                                                     html_names::kStrongTag));
     html_element_equivalents->push_back(
-        MakeGarbageCollected<HTMLElementEquivalent>(
+        MakeGarbageCollected<HtmlElementEquivalent>(
             CSSPropertyID::kVerticalAlign, CSSValueID::kSub,
             html_names::kSubTag));
     html_element_equivalents->push_back(
-        MakeGarbageCollected<HTMLElementEquivalent>(
+        MakeGarbageCollected<HtmlElementEquivalent>(
             CSSPropertyID::kVerticalAlign, CSSValueID::kSuper,
             html_names::kSupTag));
     html_element_equivalents->push_back(
-        MakeGarbageCollected<HTMLElementEquivalent>(
+        MakeGarbageCollected<HtmlElementEquivalent>(
             CSSPropertyID::kFontStyle, CSSValueID::kItalic, html_names::kITag));
     html_element_equivalents->push_back(
-        MakeGarbageCollected<HTMLElementEquivalent>(CSSPropertyID::kFontStyle,
+        MakeGarbageCollected<HtmlElementEquivalent>(CSSPropertyID::kFontStyle,
                                                     CSSValueID::kItalic,
                                                     html_names::kEmTag));
 
-    html_element_equivalents->push_back(HTMLTextDecorationEquivalent::Create(
+    html_element_equivalents->push_back(HtmlTextDecorationEquivalent::Create(
         CSSValueID::kUnderline, html_names::kUTag));
-    html_element_equivalents->push_back(HTMLTextDecorationEquivalent::Create(
+    html_element_equivalents->push_back(HtmlTextDecorationEquivalent::Create(
         CSSValueID::kLineThrough, html_names::kSTag));
-    html_element_equivalents->push_back(HTMLTextDecorationEquivalent::Create(
+    html_element_equivalents->push_back(HtmlTextDecorationEquivalent::Create(
         CSSValueID::kLineThrough, html_names::kStrikeTag));
   }
 
@@ -1176,10 +1177,10 @@ bool EditingStyle::ConflictsWithImplicitStyleOfElement(
   if (!mutable_style_)
     return false;
 
-  const HeapVector<Member<HTMLElementEquivalent>>& html_element_equivalents =
+  const HeapVector<Member<HtmlElementEquivalent>>& html_element_equivalents =
       HtmlElementEquivalents();
   for (wtf_size_t i = 0; i < html_element_equivalents.size(); ++i) {
-    const HTMLElementEquivalent* equivalent = html_element_equivalents[i].Get();
+    const HtmlElementEquivalent* equivalent = html_element_equivalents[i].Get();
     if (equivalent->Matches(element) &&
         equivalent->PropertyExistsInStyle(mutable_style_.Get()) &&
         (should_extract_matching_style == kExtractMatchingStyle ||
@@ -1192,33 +1193,33 @@ bool EditingStyle::ConflictsWithImplicitStyleOfElement(
   return false;
 }
 
-static const HeapVector<Member<HTMLAttributeEquivalent>>&
+static const HeapVector<Member<HtmlAttributeEquivalent>>&
 HtmlAttributeEquivalents() {
   using Holder =
-      DisallowNewWrapper<HeapVector<Member<HTMLAttributeEquivalent>>>;
+      DisallowNewWrapper<HeapVector<Member<HtmlAttributeEquivalent>>>;
   DEFINE_STATIC_LOCAL(Persistent<Holder>, html_attribute_equivalents_holder,
                       (MakeGarbageCollected<Holder>()));
-  HeapVector<Member<HTMLAttributeEquivalent>>* html_attribute_equivalents =
+  HeapVector<Member<HtmlAttributeEquivalent>>* html_attribute_equivalents =
       &html_attribute_equivalents_holder->Value();
   if (!html_attribute_equivalents->size()) {
     // elementIsStyledSpanOrHTMLEquivalent depends on the fact each
     // HTMLAttriuteEquivalent matches exactly one attribute of exactly one
     // element except dirAttr.
     html_attribute_equivalents->push_back(
-        MakeGarbageCollected<HTMLAttributeEquivalent>(CSSPropertyID::kColor,
+        MakeGarbageCollected<HtmlAttributeEquivalent>(CSSPropertyID::kColor,
                                                       html_names::kFontTag,
                                                       html_names::kColorAttr));
     html_attribute_equivalents->push_back(
-        MakeGarbageCollected<HTMLAttributeEquivalent>(
+        MakeGarbageCollected<HtmlAttributeEquivalent>(
             CSSPropertyID::kFontFamily, html_names::kFontTag,
             html_names::kFaceAttr));
-    html_attribute_equivalents->push_back(HTMLFontSizeEquivalent::Create());
+    html_attribute_equivalents->push_back(HtmlFontSizeEquivalent::Create());
 
     html_attribute_equivalents->push_back(
-        MakeGarbageCollected<HTMLAttributeEquivalent>(CSSPropertyID::kDirection,
+        MakeGarbageCollected<HtmlAttributeEquivalent>(CSSPropertyID::kDirection,
                                                       html_names::kDirAttr));
     html_attribute_equivalents->push_back(
-        MakeGarbageCollected<HTMLAttributeEquivalent>(
+        MakeGarbageCollected<HtmlAttributeEquivalent>(
             CSSPropertyID::kUnicodeBidi, html_names::kDirAttr));
   }
 
@@ -1231,7 +1232,7 @@ bool EditingStyle::ConflictsWithImplicitStyleOfAttributes(
   if (!mutable_style_)
     return false;
 
-  const HeapVector<Member<HTMLAttributeEquivalent>>&
+  const HeapVector<Member<HtmlAttributeEquivalent>>&
       html_attribute_equivalents = HtmlAttributeEquivalents();
   for (const auto& equivalent : html_attribute_equivalents) {
     if (equivalent->Matches(element) &&
@@ -1257,11 +1258,11 @@ bool EditingStyle::ExtractConflictingImplicitStyleOfAttributes(
   if (!mutable_style_)
     return false;
 
-  const HeapVector<Member<HTMLAttributeEquivalent>>&
+  const HeapVector<Member<HtmlAttributeEquivalent>>&
       html_attribute_equivalents = HtmlAttributeEquivalents();
   bool removed = false;
   for (const auto& attribute : html_attribute_equivalents) {
-    const HTMLAttributeEquivalent* equivalent = attribute.Get();
+    const HtmlAttributeEquivalent* equivalent = attribute.Get();
 
     // unicode-bidi and direction are pushed down separately so don't push down
     // with other styles.
@@ -1293,14 +1294,14 @@ bool EditingStyle::StyleIsPresentInComputedStyleOfNode(Node* node) const {
              ->IsEmpty();
 }
 
-bool EditingStyle::ElementIsStyledSpanOrHTMLEquivalent(
+bool EditingStyle::ElementIsStyledSpanOrHtmlEquivalent(
     const HTMLElement* element) {
   DCHECK(element);
   bool element_is_span_or_element_equivalent = false;
   if (IsA<HTMLSpanElement>(*element)) {
     element_is_span_or_element_equivalent = true;
   } else {
-    const HeapVector<Member<HTMLElementEquivalent>>& html_element_equivalents =
+    const HeapVector<Member<HtmlElementEquivalent>>& html_element_equivalents =
         HtmlElementEquivalents();
     wtf_size_t i;
     for (i = 0; i < html_element_equivalents.size(); ++i) {
@@ -1318,7 +1319,7 @@ bool EditingStyle::ElementIsStyledSpanOrHTMLEquivalent(
   }
 
   unsigned matched_attributes = 0;
-  const HeapVector<Member<HTMLAttributeEquivalent>>&
+  const HeapVector<Member<HtmlAttributeEquivalent>>&
       html_attribute_equivalents = HtmlAttributeEquivalents();
   for (const auto& equivalent : html_attribute_equivalents) {
     if (equivalent->Matches(element) &&
@@ -1440,7 +1441,7 @@ void EditingStyle::MergeInlineStyleOfElement(
 }
 
 static inline bool ElementMatchesAndPropertyIsNotInInlineStyleDecl(
-    const HTMLElementEquivalent* equivalent,
+    const HtmlElementEquivalent* equivalent,
     const Element* element,
     EditingStyle::CSSPropertyOverrideMode mode,
     CSSPropertyValueSet* style) {
@@ -1487,7 +1488,7 @@ void EditingStyle::MergeInlineAndImplicitStyleOfElement(
       properties_to_include);
   MergeStyle(style_from_rules->mutable_style_.Get(), mode);
 
-  const HeapVector<Member<HTMLElementEquivalent>>& element_equivalents =
+  const HeapVector<Member<HtmlElementEquivalent>>& element_equivalents =
       HtmlElementEquivalents();
   for (const auto& equivalent : element_equivalents) {
     if (ElementMatchesAndPropertyIsNotInInlineStyleDecl(
@@ -1495,7 +1496,7 @@ void EditingStyle::MergeInlineAndImplicitStyleOfElement(
       equivalent->AddToStyle(element, this);
   }
 
-  const HeapVector<Member<HTMLAttributeEquivalent>>& attribute_equivalents =
+  const HeapVector<Member<HtmlAttributeEquivalent>>& attribute_equivalents =
       HtmlAttributeEquivalents();
   for (const auto& attribute : attribute_equivalents) {
     if (attribute->AttributeName() == html_names::kDirAttr)

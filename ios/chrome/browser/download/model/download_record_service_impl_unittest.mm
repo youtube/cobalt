@@ -59,11 +59,21 @@ class MockDownloadRecordObserver : public DownloadRecordObserver {
 }  // namespace
 
 class DownloadRecordServiceImplTest : public PlatformTest {
+ public:
+  // Default for standard tests.
+  DownloadRecordServiceImplTest()
+      : DownloadRecordServiceImplTest({kDownloadList}, {}) {}
+
+  // For subclasses to inject features.
+  DownloadRecordServiceImplTest(
+      const std::vector<base::test::FeatureRef>& enabled,
+      const std::vector<base::test::FeatureRef>& disabled) {
+    feature_list_.InitWithFeatures(enabled, disabled);
+  }
+
  protected:
   void SetUp() override {
     PlatformTest::SetUp();
-
-    feature_list_.InitAndEnableFeature(kDownloadList);
 
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
 
@@ -162,6 +172,16 @@ class DownloadRecordServiceImplTest : public PlatformTest {
   // Containers to maintain object lifetimes during tests
   std::vector<std::unique_ptr<TestProfileIOS>> profiles_;
   std::vector<std::unique_ptr<web::FakeWebState>> web_states_;
+};
+
+// Sub-fixture for paginated read APIs. Enables kDownloadListPagination
+// before the service is constructed.
+class DownloadRecordServiceImplPaginationTest
+    : public DownloadRecordServiceImplTest {
+ public:
+  DownloadRecordServiceImplPaginationTest()
+      : DownloadRecordServiceImplTest(
+            {kDownloadList, kDownloadListPagination}, {}) {}
 };
 
 TEST_F(DownloadRecordServiceImplTest, RecordDownload) {
@@ -556,7 +576,8 @@ TEST_F(DownloadRecordServiceImplTest, RecordDownloadTaskDestroyedBeforeReply) {
 // `GetDownloadsPageAsync` posts a non-empty vector to the calling
 // sequence asynchronously. Locks in the async contract; broader
 // coverage (cursor / filter / ordering) lands in a follow-up CL.
-TEST_F(DownloadRecordServiceImplTest, GetDownloadsPageAsync_AsyncRoundTrip) {
+TEST_F(DownloadRecordServiceImplPaginationTest,
+       GetDownloadsPageAsync_AsyncRoundTrip) {
   std::unique_ptr<web::FakeDownloadTask> task =
       CreateFakeDownloadTask("page_async_1");
   RecordDownloadAndValidate(task.get());
@@ -575,7 +596,8 @@ TEST_F(DownloadRecordServiceImplTest, GetDownloadsPageAsync_AsyncRoundTrip) {
 }
 
 // Mirrors `GetDownloadsPageAsync_AsyncRoundTrip` for the count API.
-TEST_F(DownloadRecordServiceImplTest, GetDownloadsCountAsync_AsyncRoundTrip) {
+TEST_F(DownloadRecordServiceImplPaginationTest,
+       GetDownloadsCountAsync_AsyncRoundTrip) {
   std::unique_ptr<web::FakeDownloadTask> task =
       CreateFakeDownloadTask("count_async_1");
   RecordDownloadAndValidate(task.get());
@@ -595,7 +617,7 @@ TEST_F(DownloadRecordServiceImplTest, GetDownloadsCountAsync_AsyncRoundTrip) {
 // =======================================================================
 
 // With no records in the DB, the page API returns an empty vector.
-TEST_F(DownloadRecordServiceImplTest, GetDownloadsPageAsync_EmptyDB) {
+TEST_F(DownloadRecordServiceImplPaginationTest, GetDownloadsPageAsync_EmptyDB) {
   base::test::TestFuture<std::vector<DownloadRecord>> future;
   DownloadRecordQuery query;
   service_->GetDownloadsPageAsync(query, future.GetCallback());
@@ -604,7 +626,7 @@ TEST_F(DownloadRecordServiceImplTest, GetDownloadsPageAsync_EmptyDB) {
 
 // Page results are ordered DESC by (created_time, download_id), so the
 // most recently recorded download appears first.
-TEST_F(DownloadRecordServiceImplTest,
+TEST_F(DownloadRecordServiceImplPaginationTest,
        GetDownloadsPageAsync_OrderedByCreatedTimeDesc) {
   std::unique_ptr<web::FakeDownloadTask> t1 = CreateFakeDownloadTask("id_1");
   std::unique_ptr<web::FakeDownloadTask> t2 = CreateFakeDownloadTask("id_2");
@@ -629,7 +651,7 @@ TEST_F(DownloadRecordServiceImplTest,
 
 // A cursor pointing at row N returns only rows strictly past it (cursor
 // row itself is not duplicated on the next page).
-TEST_F(DownloadRecordServiceImplTest,
+TEST_F(DownloadRecordServiceImplPaginationTest,
        GetDownloadsPageAsync_CursorReturnsNextPage) {
   std::unique_ptr<web::FakeDownloadTask> t1 = CreateFakeDownloadTask("id_1");
   std::unique_ptr<web::FakeDownloadTask> t2 = CreateFakeDownloadTask("id_2");
@@ -662,7 +684,7 @@ TEST_F(DownloadRecordServiceImplTest,
 }
 
 // A filter narrows results to matching MIME types only.
-TEST_F(DownloadRecordServiceImplTest,
+TEST_F(DownloadRecordServiceImplPaginationTest,
        GetDownloadsPageAsync_FilterTypeNarrowsResults) {
   std::unique_ptr<web::FakeDownloadTask> pdf_task =
       CreateFakeDownloadTask("pdf_doc", /*is_incognito=*/false,
@@ -684,7 +706,7 @@ TEST_F(DownloadRecordServiceImplTest,
 }
 
 // A name_query case-insensitively substring-matches the file name.
-TEST_F(DownloadRecordServiceImplTest,
+TEST_F(DownloadRecordServiceImplPaginationTest,
        GetDownloadsPageAsync_NameQueryMatchesSubstring) {
   std::unique_ptr<web::FakeDownloadTask> report = CreateFakeDownloadTask(
       "report_doc", /*is_incognito=*/false,
@@ -710,14 +732,16 @@ TEST_F(DownloadRecordServiceImplTest,
 }
 
 // With no records in the DB, the count API returns 0.
-TEST_F(DownloadRecordServiceImplTest, GetDownloadsCountAsync_EmptyDB) {
+TEST_F(DownloadRecordServiceImplPaginationTest,
+       GetDownloadsCountAsync_EmptyDB) {
   base::test::TestFuture<size_t> future;
   service_->GetDownloadsCountAsync(std::nullopt, future.GetCallback());
   EXPECT_EQ(size_t{0}, future.Get());
 }
 
 // Without a filter (or with kAll) the count returns every persisted row.
-TEST_F(DownloadRecordServiceImplTest, GetDownloadsCountAsync_AllReturnsTotal) {
+TEST_F(DownloadRecordServiceImplPaginationTest,
+       GetDownloadsCountAsync_AllReturnsTotal) {
   std::unique_ptr<web::FakeDownloadTask> t1 = CreateFakeDownloadTask("id_1");
   std::unique_ptr<web::FakeDownloadTask> t2 = CreateFakeDownloadTask("id_2");
   std::unique_ptr<web::FakeDownloadTask> t3 = CreateFakeDownloadTask("id_3");
@@ -731,7 +755,7 @@ TEST_F(DownloadRecordServiceImplTest, GetDownloadsCountAsync_AllReturnsTotal) {
 }
 
 // A filter narrows the count to matching MIME types only.
-TEST_F(DownloadRecordServiceImplTest,
+TEST_F(DownloadRecordServiceImplPaginationTest,
        GetDownloadsCountAsync_FilterNarrowsCount) {
   std::unique_ptr<web::FakeDownloadTask> pdf1 =
       CreateFakeDownloadTask("pdf_1", /*is_incognito=*/false,

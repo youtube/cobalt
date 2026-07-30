@@ -165,6 +165,21 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(/components/send_tab_to_self/metrics_util.h:ScrollPositionGenerationOutcome) -->
 
+<!-- LINT.IfChange(SendTabToSelfShareActivatedEntryPoint) -->
+
+<enum name="SendTabToSelfShareActivatedEntryPoint">
+  <int value="0" label="Auto-opened"/>
+  <int value="1" label="Desktop Toast"/>
+  <int value="2" label="Desktop Toolbar Bubble"/>
+  <int value="3" label="Mobile Notification"/>
+  <int value="4" label="Tab Strip or Switcher"/>
+  <int value="5" label="ChromeOS Birch"/>
+  <int value="6" label="Tab or Browser Closed Without Activation"/>
+  <int value="7" label="STTS Entry Expired Without Activation"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/send_tab_to_self/metrics_util.h:SendTabToSelfShareActivatedEntryPoint) -->
+
 <!-- LINT.IfChange(SendTabToSelfShareEntryPoint) -->
 
 <enum name="SendTabToSelfShareEntryPoint">

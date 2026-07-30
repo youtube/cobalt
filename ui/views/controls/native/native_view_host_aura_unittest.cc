@@ -8,7 +8,9 @@
 #include <utility>
 #include <vector>
 
+#include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
+#include "base/test/icu_test_util.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
@@ -16,14 +18,17 @@
 #include "ui/aura/window_tree_host.h"
 #include "ui/base/cursor/cursor.h"
 #include "ui/base/cursor/mojom/cursor_type.mojom-shared.h"
+#include "ui/compositor/layer.h"
 #include "ui/events/event_utils.h"
 #include "ui/events/test/event_generator.h"
 #include "ui/views/controls/native/native_view_host.h"
+#include "ui/views/controls/native/native_view_host_aura_with_clip_window.h"
 #include "ui/views/controls/native/native_view_host_test_base.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/test/views_test_utils.h"
 #include "ui/views/view.h"
 #include "ui/views/view_constants_aura.h"
+#include "ui/views/views_features.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
 
@@ -111,14 +116,23 @@ class NativeViewHostAuraTest : public test::NativeViewHostTestBase {
   NativeViewHostAuraTest(const NativeViewHostAuraTest&) = delete;
   NativeViewHostAuraTest& operator=(const NativeViewHostAuraTest&) = delete;
 
-  NativeViewHostAura* native_host() {
-    return static_cast<NativeViewHostAura*>(GetNativeWrapper());
-  }
+  NativeViewHostWrapper* native_host() { return GetNativeWrapper(); }
 
-  Widget* child() { return child_.get(); }
+  Widget* child_widget() { return child_.get(); }
 
   aura::Window* clipping_window() {
-    return native_host()->clipping_window_.get();
+    return static_cast<NativeViewHostAuraWithClipWindow*>(GetNativeWrapper())
+        ->clipping_window_.get();
+  }
+
+  aura::Window* native_view() { return host()->native_view(); }
+
+  aura::WindowObserver* GetWindowObserver() {
+    if (base::FeatureList::IsEnabled(
+            views::features::kUseNativeViewHostAuraWithClipWindow)) {
+      return static_cast<NativeViewHostAuraWithClipWindow*>(GetNativeWrapper());
+    }
+    return static_cast<NativeViewHostAura*>(GetNativeWrapper());
   }
 
   void CreateHost() {
@@ -141,8 +155,8 @@ class NativeViewHostAuraTest : public test::NativeViewHostTestBase {
 // Verifies NativeViewHostAura stops observing native view on destruction.
 TEST_F(NativeViewHostAuraTest, StopObservingNativeViewOnDestruct) {
   CreateHost();
-  aura::Window* child_win = child()->GetNativeView();
-  NativeViewHostAura* aura_host = native_host();
+  aura::Window* child_win = child_widget()->GetNativeView();
+  aura::WindowObserver* aura_host = GetWindowObserver();
 
   EXPECT_TRUE(child_win->HasObserver(aura_host));
   DestroyHost();
@@ -153,26 +167,20 @@ TEST_F(NativeViewHostAuraTest, StopObservingNativeViewOnDestruct) {
 TEST_F(NativeViewHostAuraTest, HostViewPropertyKey) {
   // Create the NativeViewHost and attach a NativeView.
   CreateHost();
-  aura::Window* child_win = child()->GetNativeView();
+  aura::Window* child_win = child_widget()->GetNativeView();
+  EXPECT_EQ(native_view(), child_win);
   EXPECT_EQ(host(), child_win->GetProperty(views::kHostViewKey));
-  EXPECT_EQ(host()->GetWidget()->GetNativeView(),
-            child_win->GetProperty(aura::client::kHostWindowKey)->get());
-  EXPECT_EQ(host(), clipping_window()->GetProperty(views::kHostViewKey));
 
   host()->Detach();
   EXPECT_FALSE(child_win->GetProperty(views::kHostViewKey));
-  EXPECT_FALSE(child_win->GetProperty(aura::client::kHostWindowKey));
-  EXPECT_TRUE(clipping_window()->GetProperty(views::kHostViewKey));
+  EXPECT_FALSE(native_view());  // detached.
 
   host()->Attach(child_win);
+  EXPECT_EQ(native_view(), child_win);
   EXPECT_EQ(host(), child_win->GetProperty(views::kHostViewKey));
-  EXPECT_EQ(host()->GetWidget()->GetNativeView(),
-            child_win->GetProperty(aura::client::kHostWindowKey)->get());
-  EXPECT_EQ(host(), clipping_window()->GetProperty(views::kHostViewKey));
 
   DestroyHost();
   EXPECT_FALSE(child_win->GetProperty(views::kHostViewKey));
-  EXPECT_FALSE(child_win->GetProperty(aura::client::kHostWindowKey));
 }
 
 // Tests that the NativeViewHost reports the cursor set on its native view.
@@ -180,7 +188,7 @@ TEST_F(NativeViewHostAuraTest, CursorForNativeView) {
   CreateHost();
 
   toplevel()->SetCursor(ui::mojom::CursorType::kHand);
-  child()->SetCursor(ui::mojom::CursorType::kWait);
+  child_widget()->SetCursor(ui::mojom::CursorType::kWait);
   ui::MouseEvent move_event(ui::EventType::kMouseMoved, gfx::Point(0, 0),
                             gfx::Point(0, 0), ui::EventTimeForNow(), 0, 0);
 
@@ -204,6 +212,10 @@ TEST_F(NativeViewHostAuraTest, DestroyWidget) {
 // Test that the fast resize path places the clipping and content windows were
 // they are supposed to be.
 TEST_F(NativeViewHostAuraTest, FastResizePath) {
+  if (base::FeatureList::IsEnabled(
+          views::features::kUseNativeViewHostAuraWithClipWindow)) {
+    GTEST_SKIP();
+  }
   CreateHost();
   toplevel()->SetBounds(gfx::Rect(20, 20, 100, 100));
 
@@ -212,27 +224,24 @@ TEST_F(NativeViewHostAuraTest, FastResizePath) {
   // the clipping window positioned where the native view was requested.
   host()->set_fast_resize(false);
   native_host()->ShowWidget(5, 10, 100, 100, 100, 100);
-  EXPECT_EQ(gfx::Rect(0, 0, 100, 100).ToString(),
-            host()->native_view()->bounds().ToString());
-  EXPECT_EQ(gfx::Rect(5, 10, 100, 100).ToString(),
-            clipping_window()->bounds().ToString());
+  EXPECT_EQ(gfx::Rect(5, 10, 100, 100), host()->native_view()->bounds());
+  EXPECT_TRUE(host()->native_view()->layer()->clip_rect().IsEmpty());
 
   // With fast resize, the native view should remain the same size but be
-  // clipped the requested size.
+  // clipped to the requested size.
   host()->set_fast_resize(true);
   native_host()->ShowWidget(10, 25, 50, 50, 50, 50);
-  EXPECT_EQ(gfx::Rect(0, 0, 100, 100).ToString(),
-            host()->native_view()->bounds().ToString());
-  EXPECT_EQ(gfx::Rect(10, 25, 50, 50).ToString(),
-            clipping_window()->bounds().ToString());
+  EXPECT_EQ(gfx::Rect(10, 25, 100, 100), host()->native_view()->bounds());
+  EXPECT_EQ(gfx::Rect(0, 0, 50, 50),
+            host()->native_view()->layer()->clip_rect());
 
   // Turning off fast resize should make the native view start resizing again.
   host()->set_fast_resize(false);
+  host()->DeprecatedLayoutImmediately();  // Emulate the relayout to remove the
+                                          // clip
   native_host()->ShowWidget(10, 25, 50, 50, 50, 50);
-  EXPECT_EQ(gfx::Rect(0, 0, 50, 50).ToString(),
-            host()->native_view()->bounds().ToString());
-  EXPECT_EQ(gfx::Rect(10, 25, 50, 50).ToString(),
-            clipping_window()->bounds().ToString());
+  EXPECT_EQ(gfx::Rect(10, 25, 50, 50), host()->native_view()->bounds());
+  EXPECT_TRUE(host()->native_view()->layer()->clip_rect().IsEmpty());
 
   DestroyHost();
 }
@@ -241,6 +250,10 @@ TEST_F(NativeViewHostAuraTest, FastResizePath) {
 // values while the native size is not equal to the View size. During fast
 // resize, the size and transform of the NativeView should not be modified.
 TEST_F(NativeViewHostAuraTest, BoundsWhileScaling) {
+  if (base::FeatureList::IsEnabled(
+          views::features::kUseNativeViewHostAuraWithClipWindow)) {
+    GTEST_SKIP();
+  }
   CreateHost();
   toplevel()->SetBounds(gfx::Rect(20, 20, 100, 100));
   EXPECT_EQ(gfx::Transform(), host()->native_view()->transform());
@@ -252,10 +265,8 @@ TEST_F(NativeViewHostAuraTest, BoundsWhileScaling) {
   // shown at half-size).
   host()->set_fast_resize(false);
   native_host()->ShowWidget(5, 10, 100, 100, 200, 200);
-  EXPECT_EQ(gfx::Rect(0, 0, 200, 200).ToString(),
-            host()->native_view()->bounds().ToString());
-  EXPECT_EQ(gfx::Rect(5, 10, 100, 100).ToString(),
-            clipping_window()->bounds().ToString());
+  EXPECT_EQ(gfx::Rect(5, 10, 200, 200), host()->native_view()->bounds());
+
   gfx::Transform expected_transform;
   expected_transform.Scale(0.5, 0.5);
   EXPECT_EQ(expected_transform, host()->native_view()->transform());
@@ -264,20 +275,15 @@ TEST_F(NativeViewHostAuraTest, BoundsWhileScaling) {
   // clipped the requested size. Also, its transform should not be changed.
   host()->set_fast_resize(true);
   native_host()->ShowWidget(10, 25, 50, 50, 200, 200);
-  EXPECT_EQ(gfx::Rect(0, 0, 200, 200).ToString(),
-            host()->native_view()->bounds().ToString());
-  EXPECT_EQ(gfx::Rect(10, 25, 50, 50).ToString(),
-            clipping_window()->bounds().ToString());
+  EXPECT_EQ(gfx::Rect(10, 25, 200, 200), host()->native_view()->bounds());
   EXPECT_EQ(expected_transform, host()->native_view()->transform());
 
   // Turning off fast resize should make the native view start resizing again,
   // and its transform modified to show at the new quarter-size.
   host()->set_fast_resize(false);
   native_host()->ShowWidget(10, 25, 50, 50, 200, 200);
-  EXPECT_EQ(gfx::Rect(0, 0, 200, 200).ToString(),
-            host()->native_view()->bounds().ToString());
-  EXPECT_EQ(gfx::Rect(10, 25, 50, 50).ToString(),
-            clipping_window()->bounds().ToString());
+  EXPECT_EQ(gfx::Rect(10, 25, 200, 200), host()->native_view()->bounds());
+
   expected_transform = gfx::Transform();
   expected_transform.Scale(0.25, 0.25);
   EXPECT_EQ(expected_transform, host()->native_view()->transform());
@@ -294,6 +300,10 @@ TEST_F(NativeViewHostAuraTest, BoundsWhileScaling) {
 
 // Test installing and uninstalling a clip.
 TEST_F(NativeViewHostAuraTest, InstallClip) {
+  if (!base::FeatureList::IsEnabled(
+          views::features::kUseNativeViewHostAuraWithClipWindow)) {
+    GTEST_SKIP();
+  }
   CreateHost();
   toplevel()->SetBounds(gfx::Rect(20, 20, 100, 100));
   gfx::Rect client_bounds = toplevel()->client_view()->bounds();
@@ -337,6 +347,250 @@ TEST_F(NativeViewHostAuraTest, InstallClip) {
   DestroyHost();
 }
 
+class NativeViewHostAuraClipTest : public NativeViewHostAuraTest,
+                                   public testing::WithParamInterface<bool> {
+ public:
+  NativeViewHostAuraClipTest() = default;
+  NativeViewHostAuraClipTest(const NativeViewHostAuraClipTest&) = delete;
+  NativeViewHostAuraClipTest& operator=(const NativeViewHostAuraClipTest&) =
+      delete;
+
+ protected:
+  const bool apply_rounded_corners = GetParam();
+};
+
+INSTANTIATE_TEST_SUITE_P(All, NativeViewHostAuraClipTest, testing::Bool());
+
+TEST_P(NativeViewHostAuraClipTest, ClipByParent) {
+  if (base::FeatureList::IsEnabled(
+          views::features::kUseNativeViewHostAuraWithClipWindow)) {
+    GTEST_SKIP();
+  }
+  CreateHost();
+  toplevel()->SetBounds(gfx::Rect(0, 0, 500, 500));
+  toplevel()->Show();
+
+  View* container = new View();
+  toplevel()->client_view()->AddChildView(container);
+
+  View* parent_view = new View();
+  parent_view->SetBounds(100, 100, 50, 50);
+  container->AddChildView(parent_view);
+  parent_view->AddChildView(host());
+
+  const gfx::RoundedCornersF kRadii(5, 10, 15, 20);
+  if (apply_rounded_corners) {
+    host()->SetCornerRadii(kRadii);
+  }
+
+  // 1) child view is fully visible (same size as parent), so it shouldn't be
+  // clipped.
+  host()->SetBoundsRect(gfx::Rect(0, 0, 50, 50));
+  test::RunScheduledLayout(toplevel());
+  EXPECT_TRUE(host()->native_view()->layer()->clip_rect().IsEmpty());
+  EXPECT_TRUE(host()->native_view()->IsVisible());
+  if (apply_rounded_corners) {
+    EXPECT_EQ(kRadii, host()->native_view()->layer()->rounded_corner_radii());
+  }
+
+  // 2) child view is fully visible (smaller than parent), so it shouldn't be
+  // clipped.
+  host()->SetBoundsRect(gfx::Rect(5, 10, 30, 30));
+  test::RunScheduledLayout(toplevel());
+  EXPECT_TRUE(host()->native_view()->layer()->clip_rect().IsEmpty());
+  EXPECT_TRUE(host()->native_view()->IsVisible());
+  if (apply_rounded_corners) {
+    EXPECT_EQ(kRadii, host()->native_view()->layer()->rounded_corner_radii());
+  }
+
+  // 3) child view is bigger than parent in both direction (width and height),
+  // so only a non-center part is visible.
+  host()->SetBoundsRect(gfx::Rect(-20, -10, 100, 100));
+  test::RunScheduledLayout(toplevel());
+  EXPECT_EQ(gfx::Rect(20, 10, 50, 50),
+            host()->native_view()->layer()->clip_rect());
+  EXPECT_TRUE(host()->native_view()->IsVisible());
+  if (apply_rounded_corners) {
+    EXPECT_EQ(gfx::RoundedCornersF(),
+              host()->native_view()->layer()->rounded_corner_radii());
+  }
+
+  // 4) child view's origin is aligned with parent's so only top left is
+  // visible.
+  host()->SetBoundsRect(gfx::Rect(0, 0, 100, 100));
+  test::RunScheduledLayout(toplevel());
+  EXPECT_EQ(gfx::Rect(0, 0, 50, 50),
+            host()->native_view()->layer()->clip_rect());
+  EXPECT_TRUE(host()->native_view()->IsVisible());
+  if (apply_rounded_corners) {
+    EXPECT_EQ(gfx::RoundedCornersF(5, 0, 0, 0),
+              host()->native_view()->layer()->rounded_corner_radii());
+  }
+
+  // 5) child view's bottom right corner is aligned with parent's bottom right,
+  // so only bottom right part is visible.
+  host()->SetBoundsRect(gfx::Rect(-50, -50, 100, 100));
+  test::RunScheduledLayout(toplevel());
+  EXPECT_EQ(gfx::Rect(50, 50, 50, 50),
+            host()->native_view()->layer()->clip_rect());
+  EXPECT_TRUE(host()->native_view()->IsVisible());
+  if (apply_rounded_corners) {
+    EXPECT_EQ(gfx::RoundedCornersF(0, 0, 15, 0),
+              host()->native_view()->layer()->rounded_corner_radii());
+  }
+
+  // 6) the child view is outside of parent, so entire window is clipped. (not
+  // visible).
+  host()->SetBoundsRect(gfx::Rect(100, 100, 50, 50));
+  test::RunScheduledLayout(toplevel());
+  EXPECT_FALSE(host()->native_view()->IsVisible());
+
+  // 7) child view is placed so that it intersects with the parent but only
+  // left bottom is visible (origin y is smaller and right x is bigger).
+  host()->SetBoundsRect(gfx::Rect(20, -20, 40, 40));
+  test::RunScheduledLayout(toplevel());
+  EXPECT_EQ(gfx::Rect(0, 20, 30, 20),
+            host()->native_view()->layer()->clip_rect());
+  EXPECT_TRUE(host()->native_view()->IsVisible());
+  if (apply_rounded_corners) {
+    EXPECT_EQ(gfx::RoundedCornersF(0, 0, 0, 20),
+              host()->native_view()->layer()->rounded_corner_radii());
+  }
+
+  // 8) child is placed so that it intersects with the parent but only
+  // top right is visible (bottom y is bigger and origin x is smaller).
+  host()->SetBoundsRect(gfx::Rect(-20, 20, 40, 40));
+  test::RunScheduledLayout(toplevel());
+  EXPECT_EQ(gfx::Rect(20, 0, 20, 30),
+            host()->native_view()->layer()->clip_rect());
+  EXPECT_TRUE(host()->native_view()->IsVisible());
+  if (apply_rounded_corners) {
+    EXPECT_EQ(gfx::RoundedCornersF(0, 10, 0, 0),
+              host()->native_view()->layer()->rounded_corner_radii());
+  }
+
+  DestroyHost();
+}
+
+TEST_P(NativeViewHostAuraClipTest, ClipByParentRTL) {
+  if (base::FeatureList::IsEnabled(
+          views::features::kUseNativeViewHostAuraWithClipWindow)) {
+    GTEST_SKIP();
+  }
+  base::test::ScopedRestoreICUDefaultLocale scoped_locale_("he");
+
+  CreateHost();
+  toplevel()->SetBounds(gfx::Rect(0, 0, 500, 500));
+  toplevel()->Show();
+
+  View* container = new View();
+  toplevel()->client_view()->AddChildView(container);
+
+  View* parent_view = new View();
+  parent_view->SetBounds(100, 100, 50, 50);
+  container->AddChildView(parent_view);
+  parent_view->AddChildView(host());
+
+  const gfx::RoundedCornersF kRadii(5, 10, 15, 20);
+  const gfx::RoundedCornersF kMirroredRadii(10, 5, 20, 15);
+  if (apply_rounded_corners) {
+    host()->SetCornerRadii(kRadii);
+  }
+
+  // 1) child view is fully visible (same size as parent), so it shouldn't be
+  // clipped.
+  host()->SetBoundsRect(gfx::Rect(0, 0, 50, 50));
+  test::RunScheduledLayout(toplevel());
+  EXPECT_TRUE(host()->native_view()->layer()->clip_rect().IsEmpty());
+  EXPECT_TRUE(host()->native_view()->IsVisible());
+  if (apply_rounded_corners) {
+    EXPECT_EQ(kMirroredRadii,
+              host()->native_view()->layer()->rounded_corner_radii());
+  }
+
+  // 2) child view is fully visible (smaller than parent), so it shouldn't be
+  // clipped.
+  host()->SetBoundsRect(gfx::Rect(5, 10, 30, 30));
+  test::RunScheduledLayout(toplevel());
+  EXPECT_TRUE(host()->native_view()->layer()->clip_rect().IsEmpty());
+  EXPECT_TRUE(host()->native_view()->IsVisible());
+  if (apply_rounded_corners) {
+    EXPECT_EQ(kMirroredRadii,
+              host()->native_view()->layer()->rounded_corner_radii());
+  }
+
+  // 3) child view is bigger than parent in both direction (width and height),
+  // so only a non-center part is visible.
+  host()->SetBoundsRect(gfx::Rect(-20, -10, 100, 100));
+  test::RunScheduledLayout(toplevel());
+  EXPECT_EQ(gfx::Rect(30, 10, 50, 50),
+            host()->native_view()->layer()->clip_rect());
+  EXPECT_TRUE(host()->native_view()->IsVisible());
+  if (apply_rounded_corners) {
+    EXPECT_EQ(gfx::RoundedCornersF(),
+              host()->native_view()->layer()->rounded_corner_radii());
+  }
+
+  // 4) child view's origin is aligned with parent's so only top right is
+  // visible in RTL. Logical (0, 0) means right side. Physical clip should be on
+  // left.
+  host()->SetBoundsRect(gfx::Rect(0, 0, 100, 100));
+  test::RunScheduledLayout(toplevel());
+  EXPECT_EQ(gfx::Rect(50, 0, 50, 50),
+            host()->native_view()->layer()->clip_rect());
+  EXPECT_TRUE(host()->native_view()->IsVisible());
+  if (apply_rounded_corners) {
+    EXPECT_EQ(gfx::RoundedCornersF(0, 5, 0, 0),
+              host()->native_view()->layer()->rounded_corner_radii());
+  }
+
+  // 5) child view's bottom right corner is aligned with parent's bottom right,
+  // so only bottom left part is visible in RTL.
+  host()->SetBoundsRect(gfx::Rect(-50, -50, 100, 100));
+  test::RunScheduledLayout(toplevel());
+  EXPECT_EQ(gfx::Rect(0, 50, 50, 50),
+            host()->native_view()->layer()->clip_rect());
+  EXPECT_TRUE(host()->native_view()->IsVisible());
+  if (apply_rounded_corners) {
+    EXPECT_EQ(gfx::RoundedCornersF(0, 0, 0, 15),
+              host()->native_view()->layer()->rounded_corner_radii());
+  }
+
+  // 6) the child view is outside of parent, so entire window is clipped. (not
+  // visible).
+  host()->SetBoundsRect(gfx::Rect(100, 100, 50, 50));
+  test::RunScheduledLayout(toplevel());
+  EXPECT_FALSE(host()->native_view()->IsVisible());
+
+  // 7) child view is placed so that it intersects with the parent but only
+  // left bottom is visible logically (origin y is smaller and right x is
+  // bigger).
+  host()->SetBoundsRect(gfx::Rect(20, -20, 40, 40));
+  test::RunScheduledLayout(toplevel());
+  EXPECT_EQ(gfx::Rect(10, 20, 30, 20),
+            host()->native_view()->layer()->clip_rect());
+  EXPECT_TRUE(host()->native_view()->IsVisible());
+  if (apply_rounded_corners) {
+    EXPECT_EQ(gfx::RoundedCornersF(0, 0, 20, 0),
+              host()->native_view()->layer()->rounded_corner_radii());
+  }
+
+  // 8) child is placed so that it intersects with the parent but only
+  // top right is visible logically (bottom y is bigger and origin x is
+  // smaller).
+  host()->SetBoundsRect(gfx::Rect(-20, 20, 40, 40));
+  test::RunScheduledLayout(toplevel());
+  EXPECT_EQ(gfx::Rect(0, 0, 20, 30),
+            host()->native_view()->layer()->clip_rect());
+  EXPECT_TRUE(host()->native_view()->IsVisible());
+  if (apply_rounded_corners) {
+    EXPECT_EQ(gfx::RoundedCornersF(10, 0, 0, 0),
+              host()->native_view()->layer()->rounded_corner_radii());
+  }
+
+  DestroyHost();
+}
+
 // Ensure native view is parented to the root window after detaching. This is
 // a regression test for http://crbug.com/389261.
 TEST_F(NativeViewHostAuraTest, ParentAfterDetach) {
@@ -345,7 +599,7 @@ TEST_F(NativeViewHostAuraTest, ParentAfterDetach) {
   // is empty).
   test::RunScheduledLayout(host());
 
-  aura::Window* child_win = child()->GetNativeView();
+  aura::Window* child_win = child_widget()->GetNativeView();
   aura::Window* root_window = child_win->GetRootWindow();
   aura::WindowTreeHost* child_win_tree_host = child_win->GetHost();
 
@@ -373,6 +627,10 @@ TEST_F(NativeViewHostAuraTest, ParentAfterDetach) {
 // Ensure the clipping window is hidden before any other operations.
 // This is a regression test for http://crbug.com/388699.
 TEST_F(NativeViewHostAuraTest, RemoveClippingWindowOrder) {
+  if (!base::FeatureList::IsEnabled(
+          views::features::kUseNativeViewHostAuraWithClipWindow)) {
+    GTEST_SKIP();
+  }
   CreateHost();
   toplevel()->SetBounds(gfx::Rect(20, 20, 100, 100));
   native_host()->ShowWidget(10, 20, 100, 100, 100, 100);
@@ -380,7 +638,7 @@ TEST_F(NativeViewHostAuraTest, RemoveClippingWindowOrder) {
   NativeViewHostWindowObserver test_observer;
   clipping_window()->AddObserver(&test_observer);
 
-  aura::Window* child_win = child()->GetNativeView();
+  aura::Window* child_win = child_widget()->GetNativeView();
   child_win->AddObserver(&test_observer);
 
   host()->Detach();
@@ -391,58 +649,53 @@ TEST_F(NativeViewHostAuraTest, RemoveClippingWindowOrder) {
   EXPECT_EQ(clipping_window()->GetId(), test_observer.events()[0].window_id);
 
   clipping_window()->RemoveObserver(&test_observer);
-  child()->GetNativeView()->RemoveObserver(&test_observer);
+  child_widget()->GetNativeView()->RemoveObserver(&test_observer);
 
   DestroyHost();
-  delete child_win;  // See comments in ParentAfterDetach.
 }
 
 // Ensure the native view receives the correct bounds notification when it is
 // attached. This is a regression test for https://crbug.com/399420.
 TEST_F(NativeViewHostAuraTest, Attach) {
+  if (base::FeatureList::IsEnabled(
+          views::features::kUseNativeViewHostAuraWithClipWindow)) {
+    GTEST_SKIP();
+  }
   CreateHost();
   host()->Detach();
 
-  child()->GetNativeView()->SetBounds(gfx::Rect(0, 0, 0, 0));
+  child_widget()->GetNativeView()->SetBounds(gfx::Rect(0, 0, 0, 0));
   toplevel()->SetBounds(gfx::Rect(0, 0, 100, 100));
   gfx::Rect client_bounds = toplevel()->client_view()->bounds();
   host()->SetBoundsRect(client_bounds);
 
   NativeViewHostWindowObserver test_observer;
-  child()->GetNativeView()->AddObserver(&test_observer);
+  child_widget()->GetNativeView()->AddObserver(&test_observer);
 
-  host()->Attach(child()->GetNativeView());
+  host()->Attach(child_widget()->GetNativeView());
 
   // Visibiliity is not updated until layout happens.
   test::RunScheduledLayout(host());
 
   auto expected_bounds = client_bounds;
 
-  ASSERT_EQ(3u, test_observer.events().size());
+  ASSERT_EQ(2u, test_observer.events().size());
   EXPECT_EQ(NativeViewHostWindowObserver::EVENT_BOUNDS_CHANGED,
             test_observer.events()[0].type);
-  EXPECT_EQ(child()->GetNativeView()->GetId(),
+  EXPECT_EQ(child_widget()->GetNativeView()->GetId(),
             test_observer.events()[0].window_id);
-  EXPECT_EQ(expected_bounds.ToString(),
-            test_observer.events()[0].bounds.ToString());
+  EXPECT_EQ(expected_bounds, test_observer.events()[0].bounds);
   EXPECT_EQ(NativeViewHostWindowObserver::EVENT_SHOWN,
             test_observer.events()[1].type);
-  EXPECT_EQ(child()->GetNativeView()->GetId(),
+  EXPECT_EQ(child_widget()->GetNativeView()->GetId(),
             test_observer.events()[1].window_id);
-  EXPECT_EQ(expected_bounds.ToString(),
-            test_observer.events()[1].bounds.ToString());
-  EXPECT_EQ(NativeViewHostWindowObserver::EVENT_SHOWN,
-            test_observer.events()[2].type);
-  EXPECT_EQ(clipping_window()->GetId(), test_observer.events()[2].window_id);
-  EXPECT_EQ(expected_bounds.ToString(),
-            test_observer.events()[2].bounds.ToString());
+  EXPECT_EQ(expected_bounds, test_observer.events()[1].bounds);
 
-  child()->GetNativeView()->RemoveObserver(&test_observer);
+  child_widget()->GetNativeView()->RemoveObserver(&test_observer);
   DestroyHost();
 }
 
-// Ensure the clipping window is hidden with the native view. This is a
-// regression test for https://crbug.com/408877.
+// Ensure the native window is hidden when the host view is hidden.
 TEST_F(NativeViewHostAuraTest, SimpleShowAndHide) {
   CreateHost();
 
@@ -450,12 +703,10 @@ TEST_F(NativeViewHostAuraTest, SimpleShowAndHide) {
   toplevel()->Show();
 
   host()->SetBounds(10, 10, 80, 80);
-  EXPECT_TRUE(clipping_window()->IsVisible());
-  EXPECT_TRUE(child()->IsVisible());
+  EXPECT_TRUE(child_widget()->IsVisible());
 
   host()->SetVisible(false);
-  EXPECT_FALSE(clipping_window()->IsVisible());
-  EXPECT_FALSE(child()->IsVisible());
+  EXPECT_FALSE(child_widget()->IsVisible());
 
   DestroyHost();
   DestroyTopLevel();
@@ -565,7 +816,7 @@ TEST_F(NativeViewHostAuraTest, TopInsets) {
   gfx::Vector2d offset = toplevel()->client_view()->bounds().OffsetFromOrigin();
 
   aura::Window* toplevel_window = toplevel()->GetNativeWindow();
-  aura::Window* child_window = child()->GetNativeWindow();
+  aura::Window* child_window = child_widget()->GetNativeWindow();
   EXPECT_EQ(child_window,
             GetTarget(toplevel_window, gfx::Point(1, 1) + offset));
   EXPECT_EQ(child_window,

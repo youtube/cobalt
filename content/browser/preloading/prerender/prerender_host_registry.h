@@ -12,6 +12,7 @@
 
 #include "base/containers/circular_deque.h"
 #include "base/containers/flat_map.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -121,9 +122,10 @@ class CONTENT_EXPORT PrerenderHostRegistry
     // registry at the time this is called.
     virtual void OnTrigger(const GURL& url) {}
 
-    // Called when CancelHosts() actually cancels each host.
-    virtual void OnCancel(PrerenderHostId host_id,
-                          const PrerenderCancellationReason& reason) {}
+    // Called when CancelHosts() actually cancels each host and allows them to
+    // be retriggered.
+    virtual void OnRetriggerable(PrerenderHostId host_id,
+                                 const PrerenderCancellationReason& reason) {}
 
     // Called from the registry's destructor. The observer
     // should drop any reference to the registry.
@@ -211,6 +213,13 @@ class CONTENT_EXPORT PrerenderHostRegistry
   // Called from the destructor of NavigationRequest that reserved the host.
   // `frame_tree_node_id` should be the id returned by ReserveHostToActivate().
   void OnActivationFinished(PrerenderHostId prerender_host_id);
+
+  // Returns how many times the initiator's process has been reused for
+  // prerendering.
+  int GetProcessReuseCount() const;
+
+  // Increments the reuse count for the initiator's process.
+  [[nodiscard]] base::ScopedClosureRunner IncrementProcessReuseCount();
 
   // Returns the non-reserved host with the given id. Returns nullptr if the id
   // does not match any non-reserved host.
@@ -321,8 +330,8 @@ class CONTENT_EXPORT PrerenderHostRegistry
   void DeleteAbandonedHosts();
 
   void NotifyTrigger(const GURL& url);
-  void NotifyCancel(PrerenderHostId host_id,
-                    const PrerenderCancellationReason& reason);
+  void NotifyRetriggerable(PrerenderHostId host_id,
+                           const PrerenderCancellationReason& reason);
 
   // Pops one PrerenderHost from the queue and starts the prerendering if
   // there's no running prerender and an invalid PrerenderHostId is passed as
@@ -443,6 +452,13 @@ class CONTENT_EXPORT PrerenderHostRegistry
       memory_pressure_listener_registration_;
 
   base::ObserverList<Observer> observers_;
+
+  // Decrements the reuse count for the initiator's process.
+  void DecrementProcessReuseCount();
+
+  // The number of prerender hosts which attempted to reuse the initiator's
+  // process.
+  int32_t process_reuse_count_ = 0;
 
   base::WeakPtrFactory<PrerenderHostRegistry> weak_factory_{this};
 };

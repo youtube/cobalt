@@ -45,6 +45,8 @@ public class HubPaneHostView extends FrameLayout {
         void onPaneSwipe(boolean isSwipeLeft);
     }
 
+    private final HubColorMixerRegistrationHelper mColorMixerHelper =
+            new HubColorMixerRegistrationHelper();
     private FrameLayout mPaneFrame;
     private ViewGroup mSnackbarContainer;
     private @Nullable View mCurrentViewRoot;
@@ -80,6 +82,13 @@ public class HubPaneHostView extends FrameLayout {
 
         mPaneFrame = findViewById(R.id.pane_frame);
         mSnackbarContainer = findViewById(R.id.pane_host_view_snackbar_container);
+
+        Context context = getContext();
+        mColorMixerHelper.registerBlend(
+                new SingleHubViewColorBlend(
+                        PANE_COLOR_BLEND_ANIMATION_DURATION_MS,
+                        colorScheme -> getBackgroundColor(context, colorScheme),
+                        mPaneFrame::setBackgroundColor));
     }
 
     public void setOnPaneSwipeListener(OnPaneSwipeListener listener) {
@@ -242,16 +251,7 @@ public class HubPaneHostView extends FrameLayout {
     }
 
     void setColorMixer(HubColorMixer mixer) {
-        registerColorBlends(mixer);
-    }
-
-    private void registerColorBlends(HubColorMixer mixer) {
-        Context context = getContext();
-        mixer.registerBlend(
-                new SingleHubViewColorBlend(
-                        PANE_COLOR_BLEND_ANIMATION_DURATION_MS,
-                        colorScheme -> getBackgroundColor(context, colorScheme),
-                        mPaneFrame::setBackgroundColor));
+        mColorMixerHelper.setColorMixer(mixer);
     }
 
     void setSnackbarContainerConsumer(Callback<ViewGroup> consumer) {
@@ -285,5 +285,12 @@ public class HubPaneHostView extends FrameLayout {
 
     void setVelocityTrackerForTesting(VelocityTracker tracker) {
         mVelocityTracker = tracker;
+    }
+
+    public void destroy() {
+        mSlideAnimatorHandler.forceFinishAnimation();
+        mColorMixerHelper.destroy();
+        mPaneFrame.removeAllViews();
+        mCurrentViewRoot = null;
     }
 }

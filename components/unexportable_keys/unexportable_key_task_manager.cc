@@ -170,13 +170,6 @@ void UnexportableKeyTaskManager::GenerateSigningKeySlowlyAsync(
     return;
   }
 
-  if (!key_provider->SelectAlgorithm(acceptable_algorithms).has_value()) {
-    std::move(callback_wrapper)
-        .Run(base::unexpected(ServiceError::kAlgorithmNotSupported),
-             /*retry_count=*/0);
-    return;
-  }
-
   auto task = std::make_unique<GenerateKeyTask>(std::move(key_provider),
                                                 acceptable_algorithms, priority,
                                                 std::move(callback_wrapper));
@@ -311,13 +304,6 @@ void UnexportableKeyTaskManager::GenerateAttestationKeySlowlyAsync(
   if (!key_provider) {
     std::move(callback_wrapper)
         .Run(base::unexpected(ServiceError::kNoKeyProvider), /*retry_count=*/0);
-    return;
-  }
-
-  if (!key_provider->SelectAlgorithm(acceptable_algorithms).has_value()) {
-    std::move(callback_wrapper)
-        .Run(base::unexpected(ServiceError::kAlgorithmNotSupported),
-             /*retry_count=*/0);
     return;
   }
 

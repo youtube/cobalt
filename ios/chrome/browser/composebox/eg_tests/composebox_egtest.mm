@@ -587,6 +587,63 @@ void RemoveAttachmentWithTitle(NSString* title) {
       assertWithMatcher:grey_nil()];
 }
 
+// Tests that an unrealized tab (e.g., after an app restart) can be successfully
+// attached without timing out. (Regression test for crbug.com/525358986).
+- (void)testAttachUnrealizedTab {
+  if ([ComposeboxAppInterface isServerSideStateEnabled]) {
+    EARL_GREY_TEST_SKIPPED(
+        @"Skipped when kComposeboxServerSideState is enabled.");
+  }
+
+  [ComposeboxAppInterface setFuseboxEligible:YES];
+  [ComposeboxAppInterface setTabUploadAutoSucceed:YES];
+
+  [ChromeEarlGrey closeAllNormalTabs];
+
+  // Open the first tab and load a page.
+  GURL firstURL = self.testServer->GetURL(base::StringPrintf(kPageURL, 1));
+  [ChromeEarlGrey loadURL:firstURL];
+  [ChromeEarlGrey
+      waitForWebStateContainingText:base::StringPrintf(kPageContent, 1)];
+
+  // Open a second tab and load a page. The first tab will be in the background.
+  GURL secondURL = self.testServer->GetURL(base::StringPrintf(kPageURL, 2));
+  [ChromeEarlGrey openNewTab];
+  [ChromeEarlGrey loadURL:secondURL];
+  [ChromeEarlGrey
+      waitForWebStateContainingText:base::StringPrintf(kPageContent, 2)];
+
+  // Restart the application to trigger session restoration.
+  // After restart, the first tab will be restored in an unrealized state.
+  [self triggerRestoreByRestartingApplication];
+
+  // Re-enable tools after restart since they are reset.
+  [ComposeboxAppInterface enableAllTools];
+  [ComposeboxAppInterface setFuseboxEligible:YES];
+  [ComposeboxAppInterface setTabUploadAutoSucceed:YES];
+
+  // Ensure the second tab is fully loaded after restart.
+  [ChromeEarlGrey
+      waitForWebStateContainingText:base::StringPrintf(kPageContent, 2)];
+
+  // Open the Tab Picker from the Composebox.
+  OpenTabPicker();
+
+  // Select the first tab (which is currently unrealized).
+  NSString* firstPageTitle =
+      base::SysUTF8ToNSString(base::StringPrintf(kPageTitle, 1));
+  SelectTabWithTitle(firstPageTitle);
+
+  // Attach the selected tab.
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::NavigationBarDoneButton()]
+      performAction:grey_tap()];
+
+  // Verify that the tab was successfully attached.
+  // If the bug is present, this will fail/timeout because the tab never loads.
+  VerifyTabIsAttachedWithTitle(firstPageTitle);
+}
+
 @end
 
 #pragma mark - ComposeboxEligiblityTestCase

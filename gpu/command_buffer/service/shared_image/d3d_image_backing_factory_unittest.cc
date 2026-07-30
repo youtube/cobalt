@@ -171,8 +171,8 @@ class D3DImageBackingFactoryTest
     scoped_refptr<gl::GLShareGroup> share_group = new gl::GLShareGroup();
 
     auto gr_context_type = GetParam();
-    if (gr_context_type == GrContextType::kGraphiteDawn)
-    {
+    if (gr_context_type == GrContextType::kGraphiteDawn) {
+      features::InitSkiaGraphiteDefaultParamsForTesting();
       dawn_context_provider_ =
           DawnContextProvider::Create(GpuPreferences(), GpuFeatureInfo());
     }

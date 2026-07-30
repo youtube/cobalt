@@ -521,6 +521,7 @@ bool WebContentsDelegate::IsImmersivePlaybackEnabled() const {
 }
 
 void WebContentsDelegate::RequestImmersivePlaybackConfirmation(
+    const ImmersiveOptions& default_options,
     base::OnceCallback<void(ImmersivePlaybackConfirmationResult)> callback) {
   ImmersivePlaybackConfirmationResult result;
   result.status = ImmersivePlaybackConfirmationStatus::kFailed;

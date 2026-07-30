@@ -20,8 +20,14 @@ class AtMemoryBottomSheetDelegate {
   // Called when the search query changes.
   virtual void OnQuerySubmitted(const std::u16string& query) = 0;
 
+  // Called when the search query text changes.
+  virtual void OnQueryTextChanged(const std::u16string& query) = 0;
+
   // Called when the user selects a suggestion in the bottom sheet.
   virtual void OnSuggestionSelected(int position) = 0;
+
+  // Returns true if a search is currently in progress.
+  virtual bool IsSearching() const = 0;
 };
 
 }  // namespace autofill

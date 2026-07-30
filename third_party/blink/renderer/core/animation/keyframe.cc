@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/animation/keyframe.h"
 
+#include "base/numerics/safe_conversions.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_object_builder.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_timeline_range_offset.h"
 #include "third_party/blink/renderer/core/animation/effect_model.h"
@@ -42,7 +43,8 @@ Interpolation* Keyframe::PropertySpecificKeyframe::CreateInterpolation(
 Vector<PropertyHandle> Keyframe::PropertiesVector() const {
   Vector<PropertyHandle> result;
   const auto& properties = Properties();
-  result.ReserveInitialCapacity(properties.size());
+  result.ReserveInitialCapacity(
+      base::checked_cast<wtf_size_t>(properties.size()));
   for (const auto& property : properties) {
     result.push_back(property);
   }

@@ -81,7 +81,7 @@ class FeatureInfoTest
     GpuServiceTest::SetUpWithGLVersion(version, extensions);
     TestHelper::SetupFeatureInfoInitExpectationsWithGLVersion(
         gl_.get(), extensions, renderer, version, GetContextType());
-    info_ = new FeatureInfo();
+    info_ = base::MakeRefCounted<FeatureInfo>();
     info_->Initialize(GetContextType(), false, DisallowedFeatures());
   }
 
@@ -93,13 +93,13 @@ class FeatureInfoTest
     GpuServiceTest::SetUpWithGLVersion(version, extensions);
     TestHelper::SetupFeatureInfoInitExpectationsWithGLVersion(
         gl_.get(), extensions, renderer, version, GetContextType());
-    info_ = new FeatureInfo();
+    info_ = base::MakeRefCounted<FeatureInfo>();
     info_->Initialize(GetContextType(), false, disallowed_features);
   }
 
   void SetupWithWorkarounds(const gpu::GpuDriverBugWorkarounds& workarounds) {
     GpuServiceTest::SetUp();
-    info_ = new FeatureInfo(workarounds, GpuFeatureInfo());
+    info_ = base::MakeRefCounted<FeatureInfo>(workarounds, GpuFeatureInfo());
   }
 
   void SetupInitExpectationsWithWorkarounds(
@@ -108,13 +108,13 @@ class FeatureInfoTest
     GpuServiceTest::SetUpWithGLVersion("OpenGL ES 3.0", extensions);
     TestHelper::SetupFeatureInfoInitExpectationsWithGLVersion(
         gl_.get(), extensions, "ANGLE", "OpenGL ES 3.0", GetContextType());
-    info_ = new FeatureInfo(workarounds, GpuFeatureInfo());
+    info_ = base::MakeRefCounted<FeatureInfo>(workarounds, GpuFeatureInfo());
     info_->Initialize(GetContextType(), false, DisallowedFeatures());
   }
 
   void SetupWithoutInit() {
     GpuServiceTest::SetUp();
-    info_ = new FeatureInfo();
+    info_ = base::MakeRefCounted<FeatureInfo>();
   }
 
  protected:

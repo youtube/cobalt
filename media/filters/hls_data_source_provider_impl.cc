@@ -72,13 +72,12 @@ HlsDataSourceProviderImpl::~HlsDataSourceProviderImpl() {
   data_source_factory_.reset();
 }
 
-void HlsDataSourceProviderImpl::ReadFromCombinedUrlQueue(SegmentQueue segments,
-                                                         ReadCb callback) {
+void HlsDataSourceProviderImpl::ReadFromUrl(UrlDataSegment segment,
+                                            ReadCb callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  CHECK(!segments.empty());
   auto stream_id = stream_id_generator_.GenerateNextId();
   auto stream = std::make_unique<HlsDataSourceStream>(
-      stream_id, std::move(segments),
+      stream_id, std::move(segment),
       base::BindPostTaskToCurrentDefault(
           base::BindOnce(&HlsDataSourceProviderImpl::OnStreamReleased,
                          weak_factory_.GetWeakPtr(), stream_id)));
@@ -93,9 +92,9 @@ void HlsDataSourceProviderImpl::ReadFromExistingStream(
   // There might be no data source attached to the stream yet, so we should
   // try to make one. Creating a new data source will re-enter this function to
   // complete `callback`.
-  if (stream->RequiresNextDataSource()) {
+  if (stream->RequiresInit()) {
     auto [new_uri, cache_mode, range_mode, encoding_mode] =
-        stream->GetNextSegmentURIAndCacheStatus();
+        stream->GetSegmentInfo();
     TRACE_EVENT_BEGIN("media", "HLS::CreateDataSource", GetTracingTrack(this),
                       "uri", new_uri);
     data_source_factory_->Create(

@@ -36,6 +36,12 @@
   return self;
 }
 
+- (void)dealloc {
+  [_proxy.scrollViewProxy removeObserver:self];
+  _model = nullptr;
+  _mediator = nullptr;
+}
+
 #pragma mark - Accessors
 
 - (void)setProxy:(id<CRWWebViewProxy>)proxy {

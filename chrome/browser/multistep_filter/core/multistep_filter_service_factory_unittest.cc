@@ -7,7 +7,9 @@
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/multistep_filter/core/features.h"
+#include "components/multistep_filter/core/prefs/multistep_filter_retention_prefs.h"
 #include "components/multistep_filter/core/suggestion/filter_suggestion_generator.h"
+#include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "content/public/test/browser_task_environment.h"
@@ -76,6 +78,24 @@ TEST_F(MultistepFilterServiceFactoryTest, ServiceNotCreatedForGuestProfile) {
   auto* service =
       MultistepFilterServiceFactory::GetForProfile(guest_profile.get());
   EXPECT_EQ(nullptr, service);
+}
+
+TEST_F(MultistepFilterServiceFactoryTest, RegisterProfilePrefs) {
+  const PrefService::Preference* impressions_pref =
+      profile_->GetPrefs()->FindPreference(kRetentionSuggestionImpressionsPref);
+  ASSERT_NE(impressions_pref, nullptr);
+  EXPECT_TRUE(impressions_pref->IsDefaultValue());
+
+  const PrefService::Preference* acceptances_pref =
+      profile_->GetPrefs()->FindPreference(kRetentionSuggestionAcceptancesPref);
+  ASSERT_NE(acceptances_pref, nullptr);
+  EXPECT_TRUE(acceptances_pref->IsDefaultValue());
+
+  const PrefService::Preference* last_accepted_pref =
+      profile_->GetPrefs()->FindPreference(
+          kRetentionIsLastSuggestionAcceptedPref);
+  ASSERT_NE(last_accepted_pref, nullptr);
+  EXPECT_TRUE(last_accepted_pref->IsDefaultValue());
 }
 
 }  // namespace multistep_filter

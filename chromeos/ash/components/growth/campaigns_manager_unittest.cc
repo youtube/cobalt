@@ -17,6 +17,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_chromeos_version_info.h"
 #include "base/test/scoped_feature_list.h"
@@ -249,15 +250,6 @@ inline constexpr char kTestPref1[] = "pref1";
 inline constexpr char kTestPref2[] = "pref2";
 inline constexpr char kTestPref3[] = "pref3";
 
-// testing::InvokeArgument<N> does not work with base::OnceCallback. Use this
-// gmock action template to invoke base::OnceCallback. `k` is the k-th argument
-// and `T` is the callback's type.
-ACTION_TEMPLATE(InvokeCallbackArgument,
-                HAS_2_TEMPLATE_PARAMS(int, k, typename, T),
-                AND_1_VALUE_PARAMS(p0)) {
-  std::move(const_cast<T&>(std::get<k>(args))).Run(p0);
-}
-
 }  // namespace
 
 class TestCampaignsManagerObserver : public CampaignsManager::Observer {
@@ -316,8 +308,7 @@ class CampaignsManagerTest : public testing::Test {
     base::WriteFile(campaigns_file, file_content);
 
     EXPECT_CALL(mock_client_, LoadCampaignsComponent(_))
-        .WillOnce(InvokeCallbackArgument<0, CampaignComponentLoadedCallback>(
-            temp_dir_.GetPath()));
+        .WillOnce(base::test::RunOnceCallback<0>(temp_dir_.GetPath()));
 
     base::test::TestFuture<void> load_completed_waiter;
     campaigns_manager_->LoadCampaigns(load_completed_waiter.GetCallback(),
@@ -1137,8 +1128,7 @@ TEST_F(CampaignsManagerTest, LoadCampaignsFailed) {
   ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
 
   EXPECT_CALL(mock_client_, LoadCampaignsComponent(_))
-      .WillOnce(InvokeCallbackArgument<0, CampaignComponentLoadedCallback>(
-          std::nullopt));
+      .WillOnce(base::test::RunOnceCallback<0>(std::nullopt));
 
   campaigns_manager_->LoadCampaigns(base::DoNothing());
   observer.Wait();
@@ -1167,8 +1157,7 @@ TEST_F(CampaignsManagerTest, LoadCampaignsFailedWithGrowthInternalsEnabled) {
   ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
 
   EXPECT_CALL(mock_client_, LoadCampaignsComponent(_))
-      .WillOnce(InvokeCallbackArgument<0, CampaignComponentLoadedCallback>(
-          std::nullopt));
+      .WillOnce(base::test::RunOnceCallback<0>(std::nullopt));
 
   EXPECT_FALSE(CampaignsLogger::Get()->HasLogForTesting());
 
@@ -1189,8 +1178,7 @@ TEST_F(CampaignsManagerTest, LoadCampaignsFailedWithoutGrowthInternalsEnabled) {
   ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
 
   EXPECT_CALL(mock_client_, LoadCampaignsComponent(_))
-      .WillOnce(InvokeCallbackArgument<0, CampaignComponentLoadedCallback>(
-          std::nullopt));
+      .WillOnce(base::test::RunOnceCallback<0>(std::nullopt));
 
   EXPECT_FALSE(CampaignsLogger::Get()->HasLogForTesting());
 
@@ -1210,8 +1198,7 @@ TEST_F(CampaignsManagerTest, LoadCampaignsNoFile) {
   ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
 
   EXPECT_CALL(mock_client_, LoadCampaignsComponent(_))
-      .WillOnce(InvokeCallbackArgument<0, CampaignComponentLoadedCallback>(
-          temp_dir_.GetPath()));
+      .WillOnce(base::test::RunOnceCallback<0>(temp_dir_.GetPath()));
 
   campaigns_manager_->LoadCampaigns(base::DoNothing());
   observer.Wait();

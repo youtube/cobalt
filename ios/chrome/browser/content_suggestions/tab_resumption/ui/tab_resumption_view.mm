@@ -108,10 +108,8 @@ bool HasPriceDropOnTab(TabResumptionConfig* config) {
 - (instancetype)initWithConfig:(TabResumptionConfig*)config {
   if ((self = [super init])) {
     _config = config;
-    if (IsNTPBackgroundCustomizationEnabled()) {
-      [self registerForTraitChanges:@[ NewTabPageTrait.class ]
-                         withAction:@selector(applyBackgroundColors)];
-    }
+    [self registerForTraitChanges:@[ NewTabPageTrait.class ]
+                       withAction:@selector(applyBackgroundColors)];
   }
   return self;
 }

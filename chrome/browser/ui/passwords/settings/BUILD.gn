@@ -73,3 +73,21 @@ source_set("unit_tests") {
     "//url",
   ]
 }
+
+source_set("test_support") {
+  testonly = true
+  sources = [
+    "fake_password_import_controller.cc",
+    "fake_password_import_controller.h",
+    "mock_password_import_controller.cc",
+    "mock_password_import_controller.h",
+  ]
+  public_deps = [
+    ":settings",
+    "//testing/gmock",
+  ]
+  deps = [
+    "//base",
+    "//content/public/browser",
+  ]
+}

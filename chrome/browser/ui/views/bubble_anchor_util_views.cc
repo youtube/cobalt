@@ -14,11 +14,14 @@
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/permissions/chip/permission_chip_view.h"
 #include "chrome/browser/ui/views/permissions/chip/permission_dashboard_view.h"
+#include "chrome/browser/ui/views/picture_in_picture/document_pip_host.h"
 #include "chrome/browser/ui/views/toolbar/app_menu_control.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+#include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "components/content_settings/core/common/features.h"
 #include "ui/base/interaction/element_highlighter.h"
 #include "ui/views/bubble/bubble_border.h"
+#include "ui/views/interaction/element_tracker_views.h"
 
 // This file contains the bubble_anchor_util implementation for a Views
 // browser window (BrowserView).
@@ -115,17 +118,38 @@ AnchorConfiguration GetPageInfoAnchorConfiguration(
 }
 
 AnchorConfiguration GetPermissionPromptBubbleAnchorConfiguration(
-    Browser* browser) {
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
-  if (browser_view && browser_view->GetLocationBar()->GetChipController() &&
-      browser_view->GetLocationBar()
-          ->GetChipController()
-          ->IsPermissionPromptChipVisible()) {
-    if (auto chip_anchor = browser_view->GetLocationBar()->GetChipAnchor()) {
-      return *chip_anchor;
+    content::WebContents* web_contents) {
+  tabs::TabInterface* tab =
+      tabs::TabInterface::MaybeGetFromContents(web_contents);
+  BrowserWindowInterface* browser =
+      tab ? tab->GetBrowserWindowInterface()
+          : webui::GetBrowserWindowInterface(web_contents);
+  if (browser) {
+    LocationBar* location_bar =
+        BrowserWindow::FromBrowser(browser)->GetLocationBar();
+    ChipController* chip_controller =
+        location_bar ? location_bar->GetChipController() : nullptr;
+    if (chip_controller && chip_controller->IsPermissionPromptChipVisible()) {
+      if (auto chip_anchor = location_bar->GetChipAnchor()) {
+        return *chip_anchor;
+      }
     }
+    return GetPageInfoAnchorConfiguration(browser);
   }
-  return GetPageInfoAnchorConfiguration(browser);
+
+  // For for non-Browser hosted PiP windows anchor to the location icon.
+  auto* pip_host = DocumentPipHost::FromChildWebContents(web_contents);
+  if (pip_host && pip_host->GetWidget()) {
+    views::View* location_icon =
+        views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
+            kLocationIconElementId,
+            views::ElementTrackerViews::GetContextForWidget(
+                pip_host->GetWidget()));
+    return {views::BubbleAnchor(location_icon), kLocationIconElementId,
+            views::BubbleBorder::TOP_LEFT};
+  }
+
+  return {};
 }
 
 AnchorConfiguration GetAppMenuAnchorConfiguration(Browser* browser) {

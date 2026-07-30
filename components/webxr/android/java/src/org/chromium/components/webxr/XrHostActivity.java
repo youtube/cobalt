@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.SurfaceView;
+import android.widget.FrameLayout;
 
 import org.chromium.base.Log;
 import org.chromium.build.annotations.NullMarked;
@@ -27,6 +28,8 @@ import org.chromium.build.annotations.Nullable;
 public class XrHostActivity extends Activity {
     private static final String TAG = "XrHostActivity";
     private static final boolean DEBUG_LOGS = false;
+
+    private @Nullable XrHostProxyInputView mProxyInputView;
 
     /**
      * Creates an Intent to start the {@link XrHostActivity}.
@@ -54,8 +57,19 @@ public class XrHostActivity extends Activity {
             return;
         }
 
+        // We create a FrameLayout to host both the default SurfaceView (which WebXR
+        // uses for stereoscopic rendering) and our invisible proxy input view.
+        FrameLayout layout = new FrameLayout(this);
         SurfaceView defaultView = new SurfaceView(this);
-        setContentView(defaultView);
+        layout.addView(defaultView);
+
+        mProxyInputView = new XrHostProxyInputView(this);
+        mProxyInputView.addToLayout(layout);
+        setContentView(layout);
+    }
+
+    public @Nullable XrHostProxyInputView getProxyInputView() {
+        return mProxyInputView;
     }
 
     @Override

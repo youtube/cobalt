@@ -104,13 +104,6 @@ class GPUQueue : public DawnObject<wgpu::Queue> {
                             bool dst_premultiplied_alpha,
                             PredefinedColorSpace dst_color_space,
                             bool flipY);
-  bool CopyFromCanvasSourceImage(StaticBitmapImage* image,
-                                 const wgpu::Origin2D& origin,
-                                 const wgpu::Extent3D& copy_size,
-                                 const wgpu::TexelCopyTextureInfo& destination,
-                                 bool dst_premultiplied_alpha,
-                                 PredefinedColorSpace dst_color_space,
-                                 bool flipY);
   void CopyElementImageToTextureInternal(
       const V8UnionElementOrElementImage* source,
       std::optional<float> sx,

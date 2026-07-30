@@ -92,6 +92,10 @@ class GeminiTabHelper : public web::WebStateObserver,
   // Whether Gemini is available for the current web state.
   bool IsGeminiAvailableForWebState();
 
+  // Whether contextual entry points are allowed to be accessed for the current
+  // web state.
+  bool IsContextualEntryPointAllowed();
+
   // Returns the current type of page or WebState.
   IOSGeminiInvocationPageType GetCurrentPageType();
 
@@ -109,12 +113,6 @@ class GeminiTabHelper : public web::WebStateObserver,
 
   // Set the location bar badge commands handler.
   void SetLocationBarBadgeCommandsHandler(id<LocationBarBadgeCommands> handler);
-
-  // Sets the state of `is_first_run`.
-  void SetIsFirstRun(bool is_first_run);
-
-  // Gets the state of `is_first_run`.
-  bool GetIsFirstRun();
 
   // Returns whether to prevent contextual panel entrypoint based on Gemini
   // in-product help criteria.
@@ -275,9 +273,6 @@ class GeminiTabHelper : public web::WebStateObserver,
   // The observation of the Web State.
   base::ScopedObservation<web::WebState, web::WebStateObserver>
       web_state_observation_{this};
-
-  // Whether this is a first run experience.
-  bool is_first_run_ = false;
 
   // The URL from the previous successful main frame navigation. This will be
   // empty if this is the first navigation for this tab or post-restart.

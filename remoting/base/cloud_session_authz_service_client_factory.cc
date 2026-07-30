@@ -210,6 +210,10 @@ void CloudSessionAuthzServiceClient::OnVerifySessionTokenResponse(
       session_policies.allow_webauthn_forwarding =
           response->session_policies().allow_web_authn_forwarding();
     }
+    if (response->session_policies().has_allow_gnubby_forwarding()) {
+      session_policies.allow_gnubby_forwarding =
+          response->session_policies().allow_gnubby_forwarding();
+    }
     if (response->session_policies().has_clipboard_size_bytes()) {
       session_policies.clipboard_size_bytes =
           response->session_policies().clipboard_size_bytes();

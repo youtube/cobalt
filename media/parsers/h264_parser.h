@@ -28,7 +28,7 @@
 #include "media/base/video_color_space.h"
 #include "media/base/video_types.h"
 #include "media/parsers/h264_bit_reader.h"
-#include "third_party/skia/include/private/SkHdrMetadata.h"
+#include "media/parsers/h26x_parser.h"
 
 namespace gfx {
 class Rect;
@@ -406,33 +406,11 @@ struct MEDIA_EXPORT H264SEIRecoveryPoint {
   int changing_slice_group_idc = 0;
 };
 
-struct MEDIA_EXPORT H264SEIMasteringDisplayInfo {
-  enum {
-    kNumDisplayPrimaries = 3,
-    kDisplayPrimaryComponents = 2,
-  };
-
-  std::array<std::array<uint16_t, kDisplayPrimaryComponents>,
-             kNumDisplayPrimaries>
-      display_primaries = {};
-  std::array<uint16_t, 2> white_points = {};
-  uint32_t max_luminance = 0;
-  uint32_t min_luminance = 0;
-
-  skhdr::MasteringDisplayColorVolume ToSkHdr() const;
-};
-
-struct MEDIA_EXPORT H264SEIContentLightLevelInfo {
-  uint16_t max_content_light_level = 0;
-  uint16_t max_picture_average_light_level = 0;
-
-  skhdr::ContentLightLevelInformation ToSkHdr() const;
-};
-
 using H264SEIMessage = std::variant<std::monostate,
                                     H264SEIRecoveryPoint,
-                                    H264SEIMasteringDisplayInfo,
-                                    H264SEIContentLightLevelInfo>;
+                                    H26xSEIMasteringDisplayInfo,
+                                    H26xSEIContentLightLevelInfo,
+                                    H26xSEIUserDataRegisteredT35>;
 
 struct MEDIA_EXPORT H264SEI {
   H264SEI();

@@ -12,20 +12,28 @@
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/companion/text_finder/text_highlighter_manager.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_cookie_synchronizer.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_panel_controller.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/lens/lens_media_link_handler.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/contextual_tasks/public/contextual_tasks_service.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
+#include "components/omnibox/browser/mock_aim_eligibility_service.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "content/public/test/mock_media_session.h"
+#include "content/public/test/test_navigation_observer.h"
+#include "net/base/url_util.h"
 #include "net/dns/mock_host_resolver.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -250,6 +258,159 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksVideoCitationsBrowserTest,
 
   // Ensure the tab count hasn't changed.
   EXPECT_EQ(browser()->tab_strip_model()->count(), 2);
+}
+
+class ContextualTasksUiServiceZeroStateTestBase : public InProcessBrowserTest {
+ public:
+  ContextualTasksUiServiceZeroStateTestBase() = default;
+
+  void SetUpInProcessBrowserTestFixture() override {
+    create_services_subscription_ =
+        BrowserContextDependencyManager::GetInstance()
+            ->RegisterCreateServicesCallbackForTesting(
+                base::BindRepeating(&ContextualTasksUiServiceZeroStateTestBase::
+                                        OnWillCreateBrowserContextServices,
+                                    base::Unretained(this)));
+  }
+
+  void OnWillCreateBrowserContextServices(content::BrowserContext* context) {
+    AimEligibilityServiceFactory::GetInstance()->SetTestingFactory(
+        context,
+        base::BindRepeating(&ContextualTasksUiServiceZeroStateTestBase::
+                                BuildMockAimEligibilityService,
+                            base::Unretained(this)));
+  }
+
+  std::unique_ptr<KeyedService> BuildMockAimEligibilityService(
+      content::BrowserContext* context) {
+    Profile* profile = Profile::FromBrowserContext(context);
+    auto aim_eligibility_service = std::make_unique<MockAimEligibilityService>(
+        *profile->GetPrefs(), /*template_url_service=*/nullptr,
+        /*url_loader_factory=*/nullptr, /*identity_manager=*/nullptr);
+
+    ON_CALL(*aim_eligibility_service, IsAimEligible())
+        .WillByDefault(testing::Return(true));
+    ON_CALL(*aim_eligibility_service, IsCobrowseEligible())
+        .WillByDefault(testing::Return(true));
+    ON_CALL(*aim_eligibility_service, HasAimUrlParams(testing::_))
+        .WillByDefault(testing::Return(true));
+    return aim_eligibility_service;
+  }
+  content::WebContents* OpenPanelAndGetContents(tabs::TabInterface* tab) {
+    ContextualTasksUiService* ui_service =
+        ContextualTasksUiServiceFactory::GetForBrowserContext(
+            browser()->profile());
+    GURL initial_url("https://example.com");
+    ui_service->StartTaskUiInSidePanel(browser(), tab, initial_url, nullptr);
+
+    auto* controller = ContextualTasksPanelController::From(browser());
+    if (!base::test::RunUntil([&]() {
+          return controller && controller->IsPanelOpenForContextualTask();
+        })) {
+      return nullptr;
+    }
+    content::WebContents* panel_contents = controller->GetActiveWebContents();
+    if (!panel_contents) {
+      return nullptr;
+    }
+    content::WaitForLoadStop(panel_contents);
+    if (!GetWebUiInterface(panel_contents)) {
+      return nullptr;
+    }
+    return panel_contents;
+  }
+
+  std::string GetTaskIdFromPanel(content::WebContents* panel_contents) {
+    GURL panel_url = panel_contents->GetVisibleURL();
+    std::string task_id_str;
+    net::GetValueForKeyInQuery(panel_url, kTaskQueryParam, &task_id_str);
+    return task_id_str;
+  }
+
+ protected:
+  base::CallbackListSubscription create_services_subscription_;
+};
+
+class ContextualTasksUiServiceZeroStateEnabledTest
+    : public ContextualTasksUiServiceZeroStateTestBase {
+ public:
+  ContextualTasksUiServiceZeroStateEnabledTest() {
+    feature_list_.InitWithFeaturesAndParameters(
+        {{contextual_tasks::kContextualTasks, {}},
+         {omnibox::kWebUIOmniboxAskGAboutThisPage,
+          {{"Omnibox_AskGCoBrowse", "true"}}}},
+        {});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceZeroStateEnabledTest,
+                       ZeroStateNavigation_ReloadsPanel) {
+  GURL url("data:text/html,<html><body></body></html>");
+  ASSERT_TRUE(AddTabAtIndex(0, url, ui::PAGE_TRANSITION_TYPED));
+  tabs::TabInterface* active_tab = browser()->tab_strip_model()->GetActiveTab();
+
+  content::WebContents* panel_contents = OpenPanelAndGetContents(active_tab);
+  ASSERT_TRUE(panel_contents);
+
+  std::string task_id_str = GetTaskIdFromPanel(panel_contents);
+  ASSERT_FALSE(task_id_str.empty());
+
+  ContextualTasksUiService* ui_service =
+      ContextualTasksUiServiceFactory::GetForBrowserContext(
+          browser()->profile());
+  GURL zero_state_url = ui_service->GetDefaultAiPageUrl();
+
+  content::TestNavigationObserver navigation_observer(panel_contents);
+  ui_service->StartTaskUiInSidePanel(browser(), active_tab, zero_state_url,
+                                     nullptr);
+  navigation_observer.Wait();
+
+  std::string new_task_id_str = GetTaskIdFromPanel(panel_contents);
+  EXPECT_NE(task_id_str, new_task_id_str);
+}
+
+class ContextualTasksUiServiceZeroStateDisabledTest
+    : public ContextualTasksUiServiceZeroStateTestBase {
+ public:
+  ContextualTasksUiServiceZeroStateDisabledTest() {
+    feature_list_.InitWithFeatures({contextual_tasks::kContextualTasks},
+                                   {omnibox::kWebUIOmniboxAskGAboutThisPage});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceZeroStateDisabledTest,
+                       ZeroStateNavigation_DoesNotReloadPanel) {
+  GURL url("data:text/html,<html><body></body></html>");
+  ASSERT_TRUE(AddTabAtIndex(0, url, ui::PAGE_TRANSITION_TYPED));
+  tabs::TabInterface* active_tab = browser()->tab_strip_model()->GetActiveTab();
+
+  content::WebContents* panel_contents = OpenPanelAndGetContents(active_tab);
+  ASSERT_TRUE(panel_contents);
+
+  std::string task_id_str = GetTaskIdFromPanel(panel_contents);
+  ASSERT_FALSE(task_id_str.empty());
+
+  ContextualTasksUiService* ui_service =
+      ContextualTasksUiServiceFactory::GetForBrowserContext(
+          browser()->profile());
+  GURL zero_state_url = ui_service->GetDefaultAiPageUrl();
+
+  content::TestNavigationObserver navigation_observer(panel_contents);
+  ui_service->StartTaskUiInSidePanel(browser(), active_tab, zero_state_url,
+                                     nullptr);
+
+  // We expect it to NOT reload because feature is disabled.
+  base::RunLoop().RunUntilIdle();
+  EXPECT_FALSE(navigation_observer.last_navigation_succeeded());
+
+  std::string new_task_id_str = GetTaskIdFromPanel(panel_contents);
+  EXPECT_EQ(task_id_str, new_task_id_str);
 }
 
 }  // namespace contextual_tasks

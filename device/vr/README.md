@@ -31,18 +31,56 @@ features to enable OpenXr on those platforms.
 | Google Cardboard SDK  | Android  | VR       | Yes                |
 | OpenXR                | Windows  | VR       | Yes*               |
 | OpenXR                | Windows  | AR       | No                 |
-| OpenXR                | Android  | VR       | No                 |
-| OpenXR                | Android  | AR       | No                 |
+| OpenXR                | Android  | VR       | No**               |
+| OpenXR                | Android  | AR       | No**               |
 
  - \* OpenXR runtimes are only enabled on Windows if they implement the
    "[XR_EXT_win32_appcontainer_compatible](https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#XR_EXT_win32_appcontainer_compatible)"
    extension.
+ - \** OpenXR is enabled by default on Android XR devices, but disabled by
+   default for general Android.
 
-Integrations with some APIs (such as AR Core) are partially locaed in
-chrome/browser/vr due to architectural and historical limitations. In the future
-those will ideally be migrated to this directory as well.
+Integrations with some APIs (such as ARCore) have largely been migrated to
+this directory and `components/webxr`. Only minimal browser-side registration
+and glue code remains in `chrome/browser/vr` (e.g.,
+`chrome_xr_integration_client.cc`).
 
 Full documentation for OpenXr may be found [here](openxr/README.md).
+
+## High-Level Architecture
+
+### Threading Model
+To ensure low-latency rendering and prevent main-thread jank, WebXR runtimes
+(such as OpenXR) utilize a dedicated thread for frame processing. The
+`OpenXrRenderLoop` class inherits from `XRThread`, which maps to a dedicated
+`base::Thread` on Windows and a `base::android::JavaHandlerThread` on Android.
+
+Mojo interfaces for retrieving frame data (`XRFrameDataProvider`) and submitting
+rendered frames (`XRPresentationProvider`) are bound directly to this dedicated
+thread. This allows the renderer process to communicate directly with the VR/AR
+device thread, bypassing the browser or utility process main thread for
+performance-critical operations.
+
+### Device Discovery & Providers
+Runtimes are dynamically discovered and managed using the `VRDeviceProvider` and
+`VRDeviceProviderClient` interfaces.
+*   Each supported backend (e.g., OpenXR, Cardboard, Orientation) implements
+`VRDeviceProvider`.
+*   During initialization, these providers discover available hardware and
+    register them as runtimes (`XRRuntime`) with the `VRDeviceProviderClient`
+    via `AddRuntime`.
+
+### Process Model
+The process hosting the device-specific code depends on the platform:
+*   **Windows**: For security and stability, the device-specific code runs in a
+sandboxed, low-integrity utility process (the `isolated_xr_device` service). The
+browser process launches this service and brokers the connection between the
+renderer and the utility process.
+*   **Android**: To minimize process startup overhead and resource consumption,
+as well as to ensure access to and manipulation of Android SurfaceViews for
+rendering, the device-specific code runs in-process within the browser process,
+though rendering still coordinates with the GPU process.
+
 
 ## Windows Build setup
 On Windows, the device code runs in a sandboxed utility process. The Chrome

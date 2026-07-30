@@ -127,14 +127,6 @@
         'cros_board': 'betty',
         'cros_dut_pool': 'vmlab',
       },
-      'chromeos-betty-chrome-tests': {
-        'test_suites': {
-          'skylab_tests': 'chromeos_vmlab_tests',
-        },
-        'os_type': 'chromeos',
-        'cros_board': 'betty',
-        'cros_dut_pool': 'vmlab',
-      },
       'chromeos-brya-chrome': {
         'additional_compile_targets': [
           'chromiumos_preflight',
@@ -1025,7 +1017,7 @@
         'mixins': [
           'chrome-swarming-pool',
           'mac_default_x64',
-          'mac_x64_wpt_child_processes',
+          'mac_x64_ai_wpt_shards',
         ],
         'test_suites': {
            'isolated_scripts': 'chrome_ai_wpt_tests_suite',

@@ -61,14 +61,13 @@ class HeadlessOriginTrialsBrowserTest : public HeadlessBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(HeadlessOriginTrialsBrowserTest,
                        TrialsDisabledByDefault) {
-  HeadlessBrowserContext* browser_context =
-      browser()->CreateBrowserContextBuilder().Build();
+  HeadlessBrowserContext* browser_context = browser()->CreateBrowserContext();
+  ASSERT_TRUE(browser_context);
 
-  HeadlessWebContents* web_contents =
-      browser_context->CreateWebContentsBuilder()
-          .SetInitialURL(GURL("https://example.test/no_origin_trial.html"))
-          .Build();
-  EXPECT_TRUE(WaitForLoad(web_contents));
+  HeadlessWebContents* web_contents = browser_context->CreateWebContents(
+      GURL("https://example.test/no_origin_trial.html"));
+  ASSERT_TRUE(web_contents);
+  ASSERT_TRUE(WaitForLoad(web_contents));
 
   // Ensures that createShadowRoot() is not defined, as no token is provided to
   // enable the WebComponents V0 origin trial.
@@ -82,10 +81,12 @@ IN_PROC_BROWSER_TEST_F(HeadlessOriginTrialsBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(HeadlessOriginTrialsBrowserTest,
                        DelegateAvailableOnContext) {
-  HeadlessBrowserContext* browser_context =
-      browser()->CreateBrowserContextBuilder().Build();
+  HeadlessBrowserContext* browser_context = browser()->CreateBrowserContext();
+  ASSERT_TRUE(browser_context);
+
   HeadlessBrowserContextImpl* context_impl =
       HeadlessBrowserContextImpl::From(browser_context);
+  ASSERT_TRUE(context_impl);
 
   EXPECT_TRUE(context_impl->GetOriginTrialsControllerDelegate())
       << "Headless browser should have an OriginTrialsControllerDelegate";

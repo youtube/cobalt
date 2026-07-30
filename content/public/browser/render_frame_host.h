@@ -28,6 +28,7 @@
 #include "net/cookies/cookie_setting_override.h"
 #include "net/storage_access_api/status.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
+#include "services/network/public/cpp/connection_allowlist.h"
 #include "services/network/public/cpp/cross_origin_embedder_policy.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-forward.h"
@@ -1180,6 +1181,20 @@ class CONTENT_EXPORT RenderFrameHost : public IPC::Listener {
   // `HasPolicyContainerHost()` can be used to check if it is non-null.
   virtual const network::CrossOriginEmbedderPolicy&
   GetCrossOriginEmbedderPolicy() const = 0;
+
+  // Returns the Connection-Allowlist committed for this document, parsed from
+  // the `Connection-Allowlist` / `Connection-Allowlist-Report-Only` response
+  // headers. The returned value is empty (neither an enforced nor a report-only
+  // allowlist is set) when the document has none. Must have a non-null
+  // PolicyContainerHost, otherwise a crash will occur;
+  // `HasPolicyContainerHost()` can be used to check if it is non-null. This is
+  // independent of the `kConnectionAllowlists` feature state, so callers that
+  // gate behavior on the feature should check it separately. Browser-process
+  // features that are not yet compatible with Connection-Allowlist enforcement
+  // (e.g. NoStatePrefetch) can use this to opt out. See
+  // https://github.com/WICG/connection-allowlists.
+  virtual const network::ConnectionAllowlists& GetConnectionAllowlists()
+      const = 0;
 
   // Returns true if this RenderFrameHost has access to cookies.
   virtual bool IsFullCookieAccessAllowed() = 0;

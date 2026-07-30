@@ -214,6 +214,17 @@ class ReadAnythingAppModel {
     requires_distillation_ = requires_distillation;
   }
 
+  bool requires_readability_distillation() const {
+    if (!features::IsReadAnythingWithReadabilityEnabled()) {
+      return false;
+    }
+    return requires_readability_distillation_;
+  }
+  void set_requires_readability_distillation(
+      bool requires_readability_distillation) {
+    requires_readability_distillation_ = requires_readability_distillation;
+  }
+
   bool requires_post_process_selection() const {
     return requires_post_process_selection_;
   }
@@ -261,6 +272,13 @@ class ReadAnythingAppModel {
   int words_distilled() const { return words_distilled_; }
   void set_words_distilled(const int words_distilled) {
     words_distilled_ = words_distilled;
+  }
+
+  std::optional<base::TimeTicks> page_start_time() const {
+    return page_start_time_;
+  }
+  void set_page_start_time(std::optional<base::TimeTicks> time) {
+    page_start_time_ = time;
   }
 
   std::optional<base::TimeTicks> line_focus_session_start_time() const {
@@ -957,6 +975,7 @@ class ReadAnythingAppModel {
   SelectionEndpoint end_;
 
   bool requires_distillation_ = false;
+  bool requires_readability_distillation_ = false;
   bool reset_draw_timer_ = false;
   bool requires_post_process_selection_ = false;
   bool has_pending_selection_ = false;
@@ -964,6 +983,10 @@ class ReadAnythingAppModel {
   int words_seen_ = 0;
   int words_heard_ = 0;
   int words_distilled_ = 0;
+
+  // The time when the page successfully distills. Used to measure the time
+  // spent on a page with Reading mode.
+  std::optional<base::TimeTicks> page_start_time_;
 
   // Line focus session information. Used for logging.
   std::optional<base::TimeTicks> line_focus_session_start_time_;

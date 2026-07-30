@@ -7,6 +7,8 @@
 #import <StoreKit/StoreKit.h>
 
 #import "base/apple/foundation_util.h"
+#import "base/test/metrics/histogram_tester.h"
+#import "base/test/scoped_feature_list.h"
 #import "components/signin/public/identity_manager/identity_test_environment.h"
 #import "components/test/ios/test_utils.h"
 #import "ios/chrome/browser/account_picker/ui_bundled/account_picker_configuration.h"
@@ -16,6 +18,8 @@
 #import "ios/chrome/browser/authentication/add_account_signin/public/add_account_signin_enums.h"
 #import "ios/chrome/browser/authentication/ui_bundled/continuation.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
+#import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
+#import "ios/chrome/browser/photos/model/photos_metrics.h"
 #import "ios/chrome/browser/photos/model/photos_service_factory.h"
 #import "ios/chrome/browser/save_to_photos/ui_bundled/save_to_photos_coordinator.h"
 #import "ios/chrome/browser/save_to_photos/ui_bundled/save_to_photos_mediator.h"
@@ -102,6 +106,7 @@ class SaveToPhotosCoordinatorTest : public PlatformTest {
     mock_save_to_photos_mediator_ = OCMClassMock([SaveToPhotosMediator class]);
     mock_account_picker_coordinator_ =
         OCMClassMock([AccountPickerCoordinator class]);
+    fake_identity_ = [FakeSystemIdentity fakeIdentity1];
   }
 
   // Set up the mediator stub to ensure the coordinator creates a fake mediator.
@@ -174,10 +179,91 @@ class SaveToPhotosCoordinatorTest : public PlatformTest {
         browser_->GetWebStateList()->GetActiveWebState());
   }
 
+  // Helper to run sign-in flow tests and verify histogram logging.
+  //
+  // Arguments:
+  // - `simulated_signin_result`: The mock sign-in result (e.g., success,
+  // canceled) that the SigninCoordinator will return when its completion
+  // callback is invoked.
+  // - `expected_histogram`: The expected histogram sample to be logged to
+  //   `kSaveToPhotosSignInResultHistogram`.
+  // - `should_continue_saving_image`: Whether the coordinator is expected to
+  // notify the mediator that the user successfully signed in.
+  void TestSignInResultHistogram(
+      SigninCoordinatorResult simulated_signin_result,
+      SaveToPhotosSignInResult expected_histogram,
+      BOOL should_continue_saving_image) {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitAndEnableFeature(kIOSSaveToPhotosSignedOut);
+
+    SetUpMediatorStub();
+
+    SaveToPhotosCoordinator* coordinator = CreateSaveToPhotosCoordinator();
+    [coordinator start];
+
+    id signin_coordinator_mock = OCMClassMock([SigninCoordinator class]);
+
+    signin_metrics::AccessPoint access_point =
+        signin_metrics::AccessPoint::kSaveToPhotosIos;
+    SigninContextStyle context_style = SigninContextStyle::kDefault;
+    ChangeProfileContinuationProvider continuation_provider =
+        DoNothingContinuationProvider();
+
+    OCMExpect(
+        [signin_coordinator_mock
+            consistencyPromoSigninCoordinatorWithBaseViewController:[OCMArg any]
+                                                            browser:browser_
+                                                                        .get()
+                                                       contextStyle:
+                                                           context_style
+                                                        accessPoint:access_point
+                                               confirmChangeProfile:[OCMArg any]
+                                               prepareChangeProfile:[OCMArg any]
+                                               continuationProvider:
+                                                   continuation_provider])
+        .ignoringNonObjectArgs()
+        .andReturn(signin_coordinator_mock);
+
+    SigninCoordinator* signin_coordinator = signin_coordinator_mock;
+
+    // Capture the completion callback to invoke it manually later.
+    __block SigninCoordinatorCompletionCallback signin_completion = nil;
+    OCMExpect([signin_coordinator
+        setSigninCompletion:AssignValueToVariable(signin_completion)]);
+    OCMExpect([signin_coordinator start]);
+
+    // Trigger the sign-in flow by simulating a delegate call from the mediator.
+    [static_cast<id<SaveToPhotosMediatorDelegate>>(coordinator) openSignIn];
+    EXPECT_OCMOCK_VERIFY(signin_coordinator_mock);
+
+    // If the sign-in is expected to succeed, expect the coordinator to notify
+    // the mediator with the signed-in identity.
+    if (should_continue_saving_image) {
+      OCMExpect([mock_save_to_photos_mediator_
+          userSignedInToSaveImageWithIdentity:fake_identity_]);
+    }
+    OCMExpect([signin_coordinator stop]);
+    base::HistogramTester histogram_tester;
+
+    ASSERT_TRUE(signin_completion);
+    signin_completion(signin_coordinator, simulated_signin_result,
+                      fake_identity_);
+
+    histogram_tester.ExpectUniqueSample(kSaveToPhotosSignInResultHistogram,
+                                        expected_histogram, 1);
+
+    EXPECT_OCMOCK_VERIFY(mock_save_to_photos_mediator_);
+    EXPECT_OCMOCK_VERIFY(signin_coordinator_mock);
+
+    [signin_coordinator_mock stopMocking];
+    [coordinator stop];
+  }
+
   web::WebTaskEnvironment task_environment_;
   std::unique_ptr<TestProfileIOS> profile_;
   std::unique_ptr<TestBrowser> browser_;
   FakeUIViewController* base_view_controller_;
+  FakeSystemIdentity* fake_identity_;
 
   id mock_save_to_photos_mediator_;
   id mock_account_picker_coordinator_;
@@ -428,4 +514,29 @@ TEST_F(SaveToPhotosCoordinatorTest, ShowsAndHidesAccountPicker) {
   EXPECT_OCMOCK_VERIFY(mock_account_picker_coordinator_);
 
   [coordinator stop];
+}
+
+// Tests that the coordinator logs a success histogram when sign-in succeeds.
+TEST_F(SaveToPhotosCoordinatorTest, LogsSignInSuccessHistogram) {
+  TestSignInResultHistogram(
+      /*simulated_signin_result=*/SigninCoordinatorResultSuccess,
+      /*expected_histogram=*/SaveToPhotosSignInResult::kSignInSuccess,
+      /*should_continue_saving_image=*/YES);
+}
+
+// Tests that the coordinator logs a canceled histogram when sign-in is canceled
+// by the user.
+TEST_F(SaveToPhotosCoordinatorTest, LogsSignInCanceledHistogram) {
+  TestSignInResultHistogram(
+      /*simulated_signin_result=*/SigninCoordinatorResultCanceledByUser,
+      /*expected_histogram=*/SaveToPhotosSignInResult::kSignInCanceled,
+      /*should_continue_saving_image=*/NO);
+}
+
+// Tests that the coordinator logs a failed histogram when sign-in fails.
+TEST_F(SaveToPhotosCoordinatorTest, LogsSignInFailedHistogram) {
+  TestSignInResultHistogram(
+      /*simulated_signin_result=*/SigninCoordinatorResultInterrupted,
+      /*expected_histogram=*/SaveToPhotosSignInResult::kSignInFailed,
+      /*should_continue_saving_image=*/NO);
 }

@@ -29,27 +29,24 @@ class MEDIA_EXPORT HlsNetworkAccessImpl final : public HlsNetworkAccess {
   void AbortPendingReads(base::OnceClosure cb) override;
 
  private:
-  void ReadKey(const hls::MediaSegment::EncryptionData& data,
-               HlsDataSourceProvider::ReadCb cb);
+  class ParallelFetchState;
+  static void ReadUntilExhaustedHelper(
+      base::WeakPtr<HlsNetworkAccessImpl> network_access,
+      HlsDataSourceProvider::ReadCb cb,
+      HlsDataSourceProvider::ReadResult result);
   void MediaSegmentSecurityChecks(HlsDataSourceProvider::ReadCb cb,
                                   url::Origin manifest_origin,
                                   HlsDataSourceProvider::ReadResult result);
   void ReadUntilExhausted(HlsDataSourceProvider::ReadCb cb,
                           HlsDataSourceProvider::ReadResult result);
-  void ReadSegmentQueueInternal(
-      HlsDataSourceProvider::SegmentQueue media_segment_url_queue,
-      HlsDataSourceProvider::ReadCb cb);
+  void ReadSegmentInternal(HlsDataSourceProvider::UrlDataSegment segment,
+                           HlsDataSourceProvider::ReadCb cb);
   void ReadAllInternal(
       const GURL& uri,
       HlsDataSourceProvider::ReadCb cb,
       DataSource::CacheMode cache_mode = DataSource::CacheMode::kHitCache,
       DataSource::EncodingMode encoding_mode =
           DataSource::EncodingMode::kIdentity);
-  void OnKeyFetch(
-      scoped_refptr<hls::MediaSegment::EncryptionData> enc_data,
-      base::OnceCallback<void(HlsDataSourceProvider::ReadCb)> next_op,
-      HlsDataSourceProvider::ReadCb cb,
-      HlsDataSourceProvider::ReadResult result);
 
   // Ensure that safe member fields are only accessed on the media sequence.
   SEQUENCE_CHECKER(media_sequence_checker_);

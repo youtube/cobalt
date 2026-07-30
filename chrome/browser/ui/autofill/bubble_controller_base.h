@@ -37,7 +37,9 @@ enum class BubbleType {
   kWalletablePassSave = 10,
   // Denotes bubble for omnibox autofill.
   kOmniboxAutofill = 11,
-  kMaxValue = kOmniboxAutofill
+  // Denotes bubble for payments churned users.
+  kPaymentsChurnedUsers = 12,
+  kMaxValue = kPaymentsChurnedUsers
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:AutofillBubbleType)
 

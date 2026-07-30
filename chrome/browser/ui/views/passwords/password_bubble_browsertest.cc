@@ -35,22 +35,94 @@
 
 using base::StartsWith;
 
+namespace {
+
+// UI variations of the password save/update bubble to test.
+enum PasswordBubbleTestFeature : uint32_t {
+  // Standard 2-button dialog (Save/Update and Cancel).
+  kNone = 0,
+  // 3-button dialog variant featuring an explicit "Never" button.
+  kThreeButtonSaveDialog = 1,
+  // Split-button variant replacing Cancel with a dropdown menu offering
+  // "Never".
+  kDropdownMenuExperiment = 2,
+};
+
+std::string GetPasswordBubbleBrowserTestName(
+    const testing::TestParamInfo<
+        std::tuple<SyncConfiguration, bool, PasswordBubbleTestFeature>>& info) {
+  const auto& [sync_config, is_rtl, experiment_feature] = info.param;
+  std::string name;
+  switch (sync_config) {
+    case SyncConfiguration::kNotSyncing:
+      name += "NotSyncing";
+      break;
+    case SyncConfiguration::kSyncing:
+      name += "Syncing";
+      break;
+    case SyncConfiguration::kAccountStorageOnly:
+      name += "AccountStorageOnly";
+      break;
+  }
+
+  name += is_rtl ? "_RTL" : "_LTR";
+
+  switch (experiment_feature) {
+    case kNone:
+      name += "_Default";
+      break;
+    case kThreeButtonSaveDialog:
+      name += "_ThreeButtonSaveDialog";
+      break;
+    case kDropdownMenuExperiment:
+      name += "_DropdownMenuExperiment";
+      break;
+  }
+  return name;
+}
+
+}  // namespace
+
 // Test params:
-//  - bool : when true, the test is setup for users that sync their passwords.
+//  - SyncConfiguration : the sync state of the profile.
 //  - bool : when true, the test is setup for RTL interfaces.
+//  - PasswordBubbleTestFeature : the UI feature variation tested (standard
+//    2-button dialog, 3-button dialog with "Never", or split-button dropdown).
 class PasswordBubbleBrowserTest
     : public SupportsTestDialog<ManagePasswordsTest>,
-      public testing::WithParamInterface<std::tuple<SyncConfiguration, bool>> {
+      public testing::WithParamInterface<
+          std::tuple<SyncConfiguration, bool, PasswordBubbleTestFeature>> {
  public:
   PasswordBubbleBrowserTest() {
-    scoped_feature_list_.InitWithFeatureState(
-        features::kThreeButtonPasswordSaveDialog, false);
+    PasswordBubbleTestFeature experiment_feature = std::get<2>(GetParam());
+    switch (experiment_feature) {
+      case kNone:
+        scoped_feature_list_.InitWithFeatures(
+            /*enabled_features=*/{},
+            /*disabled_features=*/{
+                features::kThreeButtonPasswordSaveDialog,
+                features::kPasswordSaveUpdateDropdownMenuExperiment});
+        break;
+      case kThreeButtonSaveDialog:
+        scoped_feature_list_.InitWithFeatures(
+            /*enabled_features=*/{features::kThreeButtonPasswordSaveDialog},
+            /*disabled_features=*/{
+                features::kPasswordSaveUpdateDropdownMenuExperiment});
+        break;
+      case kDropdownMenuExperiment:
+        scoped_feature_list_.InitWithFeatures(
+            /*enabled_features=*/
+            {features::kPasswordSaveUpdateDropdownMenuExperiment},
+            /*disabled_features=*/{features::kThreeButtonPasswordSaveDialog});
+        break;
+    }
   }
   ~PasswordBubbleBrowserTest() override = default;
 
   void ShowUi(const std::string& name) override {
-    ConfigurePasswordSync(std::get<0>(GetParam()));
-    base::i18n::SetRTLForTesting(std::get<1>(GetParam()));
+    const auto& [sync_config, is_rtl, experiment_feature] = GetParam();
+    ConfigurePasswordSync(sync_config);
+    base::i18n::SetRTLForTesting(is_rtl);
     if (StartsWith(name, "PendingPasswordBubble",
                    base::CompareCase::SENSITIVE)) {
       SetupPendingPassword();
@@ -110,7 +182,6 @@ class PasswordBubbleBrowserTest
 
 IN_PROC_BROWSER_TEST_P(PasswordBubbleBrowserTest,
                        InvokeUi_PendingPasswordBubble) {
-  set_baseline("7267604");
   ShowAndVerifyUi();
 }
 
@@ -143,10 +214,10 @@ IN_PROC_BROWSER_TEST_P(PasswordBubbleBrowserTest, InvokeUi_MoreToFixState) {
 IN_PROC_BROWSER_TEST_P(PasswordBubbleBrowserTest,
                        InvokeUi_MoveToAccountStoreBubble) {
   // This test is only relevant for account storage users.
-  if (std::get<0>(GetParam()) != SyncConfiguration::kAccountStorageOnly) {
+  SyncConfiguration sync_config = std::get<0>(GetParam());
+  if (sync_config != SyncConfiguration::kAccountStorageOnly) {
     return;
   }
-  set_baseline("5855019");
   ShowAndVerifyUi();
 }
 
@@ -166,32 +237,11 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Combine(testing::Values(SyncConfiguration::kNotSyncing,
                                      SyncConfiguration::kAccountStorageOnly,
                                      SyncConfiguration::kSyncing),
-                     testing::Bool()));
-
-// This subclass exists to exercise the 3-button save password dialog via its
-// feature flag. When that feature launches, remove this and update the original
-// case to be 3-button.
-class ThreeButtonPasswordBubbleBrowserTest : public PasswordBubbleBrowserTest {
- public:
-  ThreeButtonPasswordBubbleBrowserTest() {
-    scoped_feature_list_.InitWithFeatureState(
-        features::kThreeButtonPasswordSaveDialog, true);
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_P(ThreeButtonPasswordBubbleBrowserTest,
-                       InvokeUi_PendingPasswordBubble) {
-  ShowAndVerifyUi();
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    ,
-    ThreeButtonPasswordBubbleBrowserTest,
-    testing::Combine(testing::Values(SyncConfiguration::kNotSyncing),
-                     testing::Bool()));
+                     testing::Bool(),
+                     testing::Values(kNone,
+                                     kThreeButtonSaveDialog,
+                                     kDropdownMenuExperiment)),
+    GetPasswordBubbleBrowserTestName);
 
 class PasswordAutoSignInToastTest : public base::test::WithFeatureOverride,
                                     public ManagePasswordsTest {

@@ -221,7 +221,14 @@ BASE_FEATURE(kAutofillAiNoFillingIconsExperiment,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, AutofillAi supports order entities.
-BASE_FEATURE(kAutofillAiOrder, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAutofillAiOrder, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When inference through the non-PI AutofillAi online model is run (implying
+// that AutofillAiUsePrivateAi is disabled) and this flag is enabled, an
+// additional inference request through the PI stack is run to compute shadow
+// metrics between the two results.
+BASE_FEATURE(kAutofillAiPrivateAiShadowMetric,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, AutofillAi requires re-auth when filling/viewing sensitive
 // fields. As part of this feature sensitive fields are also obfuscated during
@@ -301,7 +308,7 @@ BASE_FEATURE_PARAM(bool,
                    true);
 
 // If enabled, AutofillAi supports shipment entities.
-BASE_FEATURE(kAutofillAiShipment, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAutofillAiShipment, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 // If enabled, the user is notified about a failure to upstream data to Wallet
@@ -452,7 +459,7 @@ BASE_FEATURE(kAutofillDeepLinkAutofillOptions,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
-// If enabled, `FormParsingTracker` will wait up to 1 second
+// If enabled, `FormPredictionsTracker` will wait up to 1 second
 // for Autofill to finish parsing forms pesent on a given tab before capturing
 // APC. For more context see: go/autofill-actor-mode-implementation
 // TODO(crbug.com/479794574): Convert to killswitch if no regressions are
@@ -660,12 +667,6 @@ BASE_FEATURE(kAutofillFixCivilStateMisclassificationForESPT,
 // weeks on canary.
 BASE_FEATURE(kAutofillFixFormEquality, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Removes logic that resets form submission tracking data upon receiving a
-// FORM_SUBMISSION or PROBABLE_FORM_SUBMISSION signal. Also, fixes submission
-// deduplication so that it ignores submissions that PWM doesn't act upon.
-// TODO(crbug.com/40281981): Remove when launched.
-BASE_FEATURE(kAutofillFixFormTracking, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // When enabled, the rewriter uses updated rewrite rules.
 // TODO(crbug.com/445863287): Cleanup when launched.
 BASE_FEATURE(kAutofillFixRewriterRules, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -860,12 +861,6 @@ BASE_FEATURE(kAutofillPopupZOrderSecuritySurface,
 // When enabled, we prefer a `PHONE_HOME_COUNTRY_CODE` heuristic type over a
 // `HtmlFieldType::kCountryCode`.
 BASE_FEATURE(kAutofillPreferPhoneCountryCodeTypeOverCountryHtmlType,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Replaces cached web elements in AutofillAgent and FormTracker by their
-// renderer ids.
-// TODO(crbug.com/40281981): Remove when launched.
-BASE_FEATURE(kAutofillReplaceCachedWebElementsByRendererIds,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Replaces blink::WebFormElementObserver usage in FormTracker by updated logic
@@ -1063,6 +1058,11 @@ BASE_FEATURE(kManageTravelPerceptionSurvey, base::FEATURE_DISABLED_BY_DEFAULT);
 // settings page.
 BASE_FEATURE(kManageYourSavedInfoPerceptionSurvey,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, the AuthenticatorSelectionDialogBridge will reset the native
+// pointer when the dialog is dismissed.
+BASE_FEATURE(kResetNativePointerInCreditCardAuthDialog,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, an entry point to AtMemory will be shown at the bottom of the
 // Autocomplete dialogs.

@@ -125,14 +125,16 @@ void WebUIAppMenuControl::RemoveObserver(AppMenuButtonObserver* observer) {
 
 void WebUIAppMenuControl::Focus(views::AccessiblePaneView* pane) {
   pane->SetPaneFocus(GetFocusablePaneView());
-  // TODO(crbug.com/510825650): Complete focus implementation using the
-  // ElementTracker when the WebUI version of the app menu button is added.
+  delegate_->OnFocusRequested(
+      toolbar_ui_api::mojom::FocusRequestTarget::kAppMenu);
 }
 
 bool WebUIAppMenuControl::HasFocus() const {
-  // TODO(crbug.com/510825650): Complete focus implementation using the
-  // ElementTracker when the WebUI version of the app menu button is added.
-  return false;
+  return focused_;
+}
+
+void WebUIAppMenuControl::SetFocused(bool focused) {
+  focused_ = focused;
 }
 
 void WebUIAppMenuControl::HandleContextMenu(const gfx::Rect& anchor_bounds,

@@ -28,3 +28,29 @@ source_set("image_fetcher") {
     deps += [ "//components/image_fetcher:android" ]
   }
 }
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [ "image_fetcher_impl_browsertest.cc" ]
+
+    deps = [
+      ":image_fetcher",
+      "//base",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//components/image_fetcher/core",
+      "//content/public/browser",
+      "//content/test:test_support",
+      "//net:test_support",
+      "//testing/gtest",
+      "//ui/gfx",
+      "//url",
+    ]
+  }
+}

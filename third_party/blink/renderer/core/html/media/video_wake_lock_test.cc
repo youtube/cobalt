@@ -87,6 +87,7 @@ class VideoWakeLockPictureInPictureService final
       mojo::PendingRemote<mojom::blink::PictureInPictureSessionObserver>,
       const gfx::Rect&,
       bool,
+      const media::VideoSpatialFormat&,
       StartSessionCallback callback) override {
     mojo::PendingRemote<mojom::blink::PictureInPictureSession> session_remote;
     session_ = std::make_unique<VideoWakeLockPictureInPictureSession>(

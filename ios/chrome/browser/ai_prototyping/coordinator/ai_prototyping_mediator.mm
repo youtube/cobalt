@@ -597,26 +597,15 @@ std::string GetJournalLogsAsJson(actor::AggregatedJournal* journal) {
 
   actor::ActorTaskId task_id = actorService->CreateTask(
       "AI Prototyping Test Task", /*allow_incognito_web_states=*/false);
-
-  actor::CreateActorToolRequestsResult tools_result =
-      actorService->CreateActorToolRequests(actions, task_id);
-
-  if (!tools_result.has_value()) {
-    NSString* errorMsg = base::SysUTF8ToNSString(base::StringPrintf(
-        "Failed to create tools: %s",
-        actor::GetToolExecutionResultMessage(tools_result.error()).c_str()));
-    [self.consumer updateQueryResult:errorMsg
-                          forFeature:AIPrototypingFeature::kActorTools];
-    actorService->StopTask(task_id, actor::ActorTaskStoppedReason::kModelError);
-    return;
-  }
+  actorService->AddControlledWebState(task_id,
+                                      _webStateList->GetActiveWebState());
 
   actorService->PerformActions(
-      task_id, std::move(tools_result.value()),
-      "Executing AI Prototyping actions",
+      task_id, actions, "Executing AI Prototyping actions",
       base::BindOnce(^(actor::PerformActionsResult result) {
         [weakSelf onActionsPerformed:std::move(result.action_results)
-                         withActions:actions];
+                         withActions:actions
+                              taskId:task_id];
       }));
 }
 
@@ -624,10 +613,16 @@ std::string GetJournalLogsAsJson(actor::AggregatedJournal* journal) {
 - (void)onActionsPerformed:(std::vector<actor::ActionResult>)results
                withActions:
                    (const std::vector<optimization_guide::proto::Action>&)
-                       actions {
+                       actions
+                    taskId:(actor::ActorTaskId)taskId {
   actor::ActorService* actorService =
       actor::ActorServiceFactory::GetForProfile(ProfileIOS::FromBrowserState(
           _webStateList->GetActiveWebState()->GetBrowserState()));
+
+  if (actorService) {
+    actorService->StopTask(taskId,
+                           actor::ActorTaskStoppedReason::kTaskComplete);
+  }
 
   NSString* result_text = @"";
   std::string summary_str = "Action Results:\n";

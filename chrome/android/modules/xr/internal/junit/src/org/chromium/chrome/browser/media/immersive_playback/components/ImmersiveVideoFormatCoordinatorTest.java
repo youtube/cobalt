@@ -52,6 +52,7 @@ public class ImmersiveVideoFormatCoordinatorTest {
         mActivity = Robolectric.buildActivity(Activity.class).create().get();
 
         when(mSessionManager.createPanelEntity(any(), any())).thenReturn(mHolder);
+        when(mFormatView.getRadioGroup()).thenReturn(mFormatRadioGroup);
         when(mFormatView.findViewById(R.id.format_radio_group)).thenReturn(mFormatRadioGroup);
 
         mCoordinator =

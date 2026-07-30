@@ -5,6 +5,7 @@
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/time/time.h"
@@ -13,7 +14,9 @@
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/tools/tools_test_util.h"
+#include "chrome/browser/actor/ui/actor_task_unload_handler.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
+#include "chrome/browser/ui/unload_controller.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -28,8 +31,12 @@
 #include "content/public/test/back_forward_cache_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "ui/base/models/dialog_model.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/gfx/geometry/point_conversions.h"
+#include "ui/views/widget/widget.h"
+#include "ui/views/widget/widget_delegate.h"
+#include "ui/views/window/dialog_delegate.h"
 #include "url/url_util.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -48,6 +55,17 @@ using content::WebContents;
 namespace actor {
 
 namespace {
+
+views::Widget* GetActorDialogWidget(UnloadController* controller) {
+  for (const auto& h : controller->tab_unload_handlers_for_testing()) {
+    if (auto* handler = static_cast<ActorTaskUnloadHandler*>(h.get())) {
+      if (auto* widget = handler->GetActiveDialogWidgetForTesting()) {
+        return widget;
+      }
+    }
+  }
+  return nullptr;
+}
 
 class ActorToolAgnosticBrowserTest : public ActorToolsTest {
  public:
@@ -745,7 +763,7 @@ class ActorToolAgnosticBrowserTestWithCustomDelay
     // Ensure tool doesn't finish before the tab is closed.
     feature_list_.InitAndEnableFeatureWithParameters(
         features::kGlicActor,
-        {{"glic-actor-page-stability-min-wait", "500ms"},
+        {{"glic-actor-page-stability-min-wait", "10000ms"},
          {features::kGlicActorPolicyControlExemption.name, "true"}});
   }
   ~ActorToolAgnosticBrowserTestWithCustomDelay() override = default;
@@ -757,6 +775,7 @@ class ActorToolAgnosticBrowserTestWithCustomDelay
 // Closing a tab before tool finishes should cancel callbacks and not crash.
 IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTestWithCustomDelay,
                        CloseTabBeforeToolFinishes) {
+  actor::ActorTaskTabCloseConfirmDialog::SetSuppressForTesting(false);
   // Use a new tab so closing it later won't trigger destruction of browser
   // (needed for proper test teardown).
   AddBlankTabAndShow(browser());
@@ -788,6 +807,17 @@ IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTestWithCustomDelay,
   ASSERT_FALSE(result.IsReady());
 
   web_contents()->Close();
+
+  // Wait for the confirmation dialog widget to appear.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return GetActorDialogWidget(UnloadController::From(browser())) != nullptr;
+  }));
+  views::Widget* dialog =
+      GetActorDialogWidget(UnloadController::From(browser()));
+
+  // Accept the dialog to allow the tab to close.
+  dialog->widget_delegate()->AsDialogDelegate()->AcceptDialog();
+
   // ActorTask::OnTabWillDetach will return kError before renderer tool
   // completes. The code is kTaskWentAway because removing a tab causes the task
   // to be stopped.

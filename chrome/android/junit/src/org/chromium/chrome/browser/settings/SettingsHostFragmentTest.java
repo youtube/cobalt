@@ -23,10 +23,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.ui.base.TestActivity;
 
 /** Unit tests for {@link SettingsHostFragment}. */
 @RunWith(BaseRobolectricTestRunner.class)
+@EnableFeatures({ChromeFeatureList.SETTINGS_IN_TAB, ChromeFeatureList.SETTINGS_MULTI_COLUMN})
 public class SettingsHostFragmentTest {
     @Rule
     public ActivityScenarioRule<TestActivity> mActivityScenarios =
@@ -48,7 +52,9 @@ public class SettingsHostFragmentTest {
         mActivityScenarios
                 .getScenario()
                 .onActivity(activity -> mActivity = (TestActivity) activity);
+    }
 
+    private void attachHostFragment() {
         mSettingsHostFragment = new TestSettingsHostFragment();
         mActivity
                 .getSupportFragmentManager()
@@ -57,8 +63,16 @@ public class SettingsHostFragmentTest {
                 .commitNow();
     }
 
+    @Test(expected = AssertionError.class)
+    @DisableFeatures(ChromeFeatureList.SETTINGS_IN_TAB)
+    public void testConstructor_SettingsInTabDisabled_ThrowsAssertionError() {
+        // Should throw.
+        new SettingsHostFragment();
+    }
+
     @Test
     public void testInitialFragmentAttached() {
+        attachHostFragment();
         Fragment current =
                 mSettingsHostFragment
                         .getChildFragmentManager()
@@ -71,6 +85,7 @@ public class SettingsHostFragmentTest {
 
     @Test
     public void testOnPreferenceStartFragment() {
+        attachHostFragment();
         Preference preference = mock(Preference.class);
         when(preference.getFragment()).thenReturn(SecondFakeSettingsFragment.class.getName());
         Bundle extras = new Bundle();
@@ -93,6 +108,16 @@ public class SettingsHostFragmentTest {
                 current instanceof SecondFakeSettingsFragment);
         assertEquals("test_value", current.getArguments().getString("test_key"));
         assertEquals(1, mSettingsHostFragment.getChildFragmentManager().getBackStackEntryCount());
+    }
+
+    @Test
+    public void testCreateInitialFragment() {
+        SettingsHostFragment fragment = new SettingsHostFragment();
+
+        Fragment initial = fragment.createInitialFragment();
+        assertTrue(
+                "Initial fragment should be MultiColumnSettings",
+                initial instanceof MultiColumnSettings);
     }
 
     /** Fake settings fragment for testing. */

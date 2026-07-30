@@ -247,7 +247,7 @@ TEST_F(MediaVideoEncoderWrapperTest, CanGenerateKeyFrame) {
 }
 
 TEST_F(MediaVideoEncoderWrapperTest, CanSetBitRate) {
-  constexpr int kNewBitRate = 1234567;
+  constexpr uint32_t kNewBitRate = 1234567;
   ExpectEncoderInitialized();
 
   const FrameInfo frame_info = CreateFrameInfo(FrameType::kKey);
@@ -266,9 +266,7 @@ TEST_F(MediaVideoEncoderWrapperTest, CanSetBitRate) {
       .WillOnce([&](const media::VideoEncoder::Options& options,
                     media::VideoEncoder::OutputCB output,
                     media::VideoEncoder::EncoderStatusCB done_cb) {
-        EXPECT_EQ(options.bitrate,
-                  Bitrate::ConstantBitrate(
-                      base::checked_cast<uint32_t>(kNewBitRate)));
+        EXPECT_EQ(options.bitrate, Bitrate::ConstantBitrate(kNewBitRate));
         std::move(done_cb).Run(EncoderStatus::Codes::kOk);
         std::move(quit_closure).Run();
       });
@@ -360,9 +358,9 @@ TEST_F(MediaVideoEncoderWrapperTest, ReportsErrorOnEncodeFailure) {
 // the SetBitRate method without crashing. For motivation, see
 // crbug.com/457353867.
 TEST_F(MediaVideoEncoderWrapperTest, CanHandleMultiplePendingUpdates) {
-  constexpr int kNewBitRate1 = 1234567;
-  constexpr int kNewBitRate2 = 2345678;
-  constexpr int kNewBitRate3 = 3456789;
+  constexpr uint32_t kNewBitRate1 = 1234567;
+  constexpr uint32_t kNewBitRate2 = 2345678;
+  constexpr uint32_t kNewBitRate3 = 3456789;
   ExpectEncoderInitialized();
 
   const FrameInfo frame_info = CreateFrameInfo(FrameType::kKey);
@@ -384,9 +382,7 @@ TEST_F(MediaVideoEncoderWrapperTest, CanHandleMultiplePendingUpdates) {
       .WillRepeatedly([&](const media::VideoEncoder::Options& options,
                           media::VideoEncoder::OutputCB output,
                           media::VideoEncoder::EncoderStatusCB done_cb) {
-        if (options.bitrate ==
-            Bitrate::ConstantBitrate(
-                base::checked_cast<uint32_t>(kNewBitRate3))) {
+        if (options.bitrate == Bitrate::ConstantBitrate(kNewBitRate3)) {
           std::move(quit_closure).Run();
         }
         std::move(done_cb).Run(EncoderStatus::Codes::kOk);

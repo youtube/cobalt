@@ -35,6 +35,7 @@
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_utils.h"
 #import "ios/web/public/web_state_id.h"
 #import "third_party/omnibox_proto/searchbox_config.pb.h"
+#import "ui/base/device_form_factor.h"
 
 namespace {
 
@@ -171,8 +172,7 @@ CGFloat const kSheetTopPadding = 40.0f;
   _viewController.sheetPresentationController
       .prefersEdgeAttachedInCompactHeight = YES;
 
-  if ([UIDevice currentDevice].userInterfaceIdiom ==
-      UIUserInterfaceIdiomPhone) {
+  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE) {
     _viewController.sheetPresentationController
         .widthFollowsPreferredContentSizeWhenEdgeAttached = YES;
   }

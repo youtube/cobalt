@@ -7,27 +7,11 @@
 #include "base/no_destructor.h"
 #include "chrome/browser/chromeos/extensions/vpn_provider/vpn_service.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chromeos/ash/components/login/login_state/login_state.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
+#include "components/user_manager/user_manager.h"
 #include "content/public/browser/browser_context.h"
 #include "extensions/browser/event_router_factory.h"
-#include "extensions/browser/extensions_browser_client.h"
 
-namespace {
-
-// Only main profile should be allowed to access the API.
-bool IsContextForMainProfile(content::BrowserContext* context) {
-  std::string user_hash =
-      extensions::ExtensionsBrowserClient::Get()->GetUserIdHashFromContext(
-          context);
-  if (!ash::LoginState::IsInitialized() ||
-      user_hash != ash::LoginState::Get()->primary_user_hash()) {
-    return false;
-  }
-
-  return true;
-}
-
-}  // namespace
 
 namespace chromeos {
 
@@ -70,7 +54,9 @@ bool VpnServiceFactory::ServiceIsNULLWhileTesting() const {
 std::unique_ptr<KeyedService>
 VpnServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  if (!IsContextForMainProfile(context)) {
+  // Only main profile should be allowed to access the API.
+  if (!user_manager::UserManager::Get()->IsPrimaryUser(
+          ash::BrowserContextHelper::Get()->GetUserByBrowserContext(context))) {
     return nullptr;
   }
   return std::make_unique<VpnService>(context);

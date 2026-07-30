@@ -10,6 +10,7 @@
 #import "base/test/ios/wait_util.h"
 #import "ios/chrome/browser/passwords/model/password_manager_app_interface.h"
 #import "ios/chrome/browser/passwords/password_breach/public/password_breach_constants.h"
+#import "ios/chrome/common/ui/elements/form_input_accessory_view.h"
 #import "ios/chrome/test/earl_grey/chrome_actions.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
@@ -17,6 +18,7 @@
 #import "ios/chrome/test/scoped_eg_synchronization_disabler.h"
 #import "ios/testing/earl_grey/app_launch_configuration.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
+#import "ios/web/public/test/element_selector.h"
 #import "net/test/embedded_test_server/embedded_test_server.h"
 #import "net/test/embedded_test_server/http_request.h"
 #import "net/test/embedded_test_server/http_response.h"
@@ -36,7 +38,22 @@ id<GREYMatcher> PasswordProtectionMatcher() {
 std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
     const net::test_server::HttpRequest& request) {
   auto http_response = std::make_unique<net::test_server::BasicHttpResponse>();
-  if (request.relative_url.find("preventDefault=true") != std::string::npos) {
+  if (request.relative_url.find("bypass=true") != std::string::npos) {
+    http_response->set_content(
+        "Input: <input type='text' id='input'>"
+        "<script>"
+        "  document.getElementById('input').addEventListener('keydown', "
+        "function(e) {"
+        "    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'v') {"
+        "      e.preventDefault();"
+        "      navigator.clipboard.readText().then(text => {"
+        "        document.getElementById('input').value = text;"
+        "      });"
+        "    }"
+        "  });"
+        "</script>");
+  } else if (request.relative_url.find("preventDefault=true") !=
+             std::string::npos) {
     http_response->set_content(
         "Input: <input type='text' id='input'>"
         "<script>"
@@ -84,6 +101,7 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
           isRunningTest:@selector(
                             testPasswordReuseDetectionKeydownPreventDefault)] ||
       [self isRunningTest:@selector(testPasswordReuseDetectionPaste)] ||
+      [self isRunningTest:@selector(testPasswordReuseDetectionPasteBypass)] ||
       [self
           isRunningTest:
               @selector(testPasswordReuseDetectionPasteWithKeyboardShortcut)]) {
@@ -116,28 +134,70 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
   [super tearDownHelper];
 }
 
-- (void)typePasswordIntoWebInput {
+- (void)customWaitForKeyboardToAppear {
+  ScopedSynchronizationDisabler disabler;
+
+  GREYCondition* waitForKeyboard = [GREYCondition
+      conditionWithName:@"Wait for keyboard or accessory bar to appear"
+                  block:^BOOL {
+                    if ([EarlGrey isKeyboardShownWithError:nil]) {
+                      return YES;
+                    }
+                    NSError* error = nil;
+                    [[EarlGrey selectElementWithMatcher:
+                                   grey_accessibilityID(
+                                       kFormInputAccessoryViewAccessibilityID)]
+                        assertWithMatcher:grey_sufficientlyVisible()
+                                    error:&error];
+                    return error == nil;
+                  }];
+  bool success = [waitForKeyboard
+      waitWithTimeout:base::test::ios::kWaitForActionTimeout.InSecondsF()];
+  GREYAssertTrue(success, @"Keyboard or accessory bar didn't appear");
+}
+
+- (void)tapWebInput {
+  GREYCondition* interactableCondition = [GREYCondition
+      conditionWithName:@"Wait for web view to be interactable."
+                  block:^BOOL {
+                    NSError* error = nil;
+                    [[EarlGrey selectElementWithMatcher:chrome_test_util::
+                                                            WebViewMatcher()]
+                        assertWithMatcher:grey_interactable()
+                                    error:&error];
+                    return !error;
+                  }];
+  GREYAssertTrue([interactableCondition
+                     waitWithTimeout:base::test::ios::kWaitForUIElementTimeout
+                                         .InSecondsF()],
+                 @"Web view did not become interactable.");
+
+  [ChromeEarlGrey waitForWebStateContainingElement:
+                      [ElementSelector selectorWithElementID:kInputElement]];
+
   [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
       performAction:chrome_test_util::TapWebElementWithId(kInputElement)];
-  [ChromeEarlGrey waitForKeyboardToAppear];
+}
+
+- (void)tapWebInputAndWaitForKeyboard {
+  [self tapWebInput];
+  [self customWaitForKeyboardToAppear];
+}
+
+- (void)typePasswordIntoWebInput {
+  [self tapWebInputAndWaitForKeyboard];
 
   [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"P" flags:UIKeyModifierShift];
   for (NSString* character in @[ @"a", @"s", @"s", @"w", @"o", @"r", @"d" ]) {
     [ChromeEarlGrey simulatePhysicalKeyboardEvent:character flags:0];
   }
-
-  [ChromeEarlGrey
-      waitForJavaScriptCondition:
-          [NSString stringWithFormat:
-                        @"document.getElementById('%s').value.includes('%@');",
-                        kInputElement, @"Password"]];
 }
 
 - (void)waitForPasswordProtectionWarningWithoutSync {
   // Disable synchronization to instruct EarlGrey to inspect the view
   // hierarchy immediately instead of waiting for the app to become idle,
   // which can block the test and cause a timeout during the modal's
-  // presentation animation.
+  // presentation animation on slow bots.
   ScopedSynchronizationDisabler disabler;
   [ChromeEarlGrey
       waitForUIElementToAppearWithMatcher:PasswordProtectionMatcher()
@@ -167,6 +227,25 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
   [self waitForPasswordProtectionWarningWithoutSync];
 }
 
+// Tests that password protection UI is shown even when the webpage intercepts
+// Cmd+V/Ctrl+V and cancels the keydown and paste events.
+- (void)testPasswordReuseDetectionPasteBypass {
+  [ChromeEarlGrey
+      loadURL:GURL(base::StrCat({_phishingURL.spec(), "?bypass=true"}))];
+  [ChromeEarlGrey waitForWebStateContainingText:kInputPage];
+
+  [self tapWebInput];
+
+  ScopedSynchronizationDisabler disabler;
+
+  // Copy password to clipboard and simulate Cmd+V paste.
+  [ChromeEarlGrey copyTextToPasteboard:@"Password"];
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"v"
+                                          flags:UIKeyModifierCommand];
+
+  [self waitForPasswordProtectionWarningWithoutSync];
+}
+
 // Tests that password protection UI is not shown when saved password is reused
 // on safe site.
 - (void)testPasswordProtectionNotShownForAllowListedURL {
@@ -188,16 +267,13 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
   [ChromeEarlGrey waitForWebStateContainingText:kInputPage];
 
   // Tap input once to focus it.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
-      performAction:chrome_test_util::TapWebElementWithId(kInputElement)];
-  [ChromeEarlGrey waitForKeyboardToAppear];
+  [self tapWebInputAndWaitForKeyboard];
 
   // Add password to the pasteboard.
   [ChromeEarlGrey copyTextToPasteboard:@"Password"];
 
   // Tap input a second time to bring up the iOS edit menu / callout bar.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
-      performAction:chrome_test_util::TapWebElementWithId(kInputElement)];
+  [self tapWebInput];
 
   // Tap the "Paste" button in the system callout bar.
   id<GREYMatcher> pasteButton =
@@ -215,9 +291,7 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
   [ChromeEarlGrey waitForWebStateContainingText:kInputPage];
 
   // Tap input to focus it.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
-      performAction:chrome_test_util::TapWebElementWithId(kInputElement)];
-  [ChromeEarlGrey waitForKeyboardToAppear];
+  [self tapWebInputAndWaitForKeyboard];
 
   // Copy password to clipboard and simulate Cmd+V paste.
   [ChromeEarlGrey copyTextToPasteboard:@"Password"];

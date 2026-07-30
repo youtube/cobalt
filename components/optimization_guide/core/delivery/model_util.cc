@@ -4,8 +4,6 @@
 
 #include "components/optimization_guide/core/delivery/model_util.h"
 
-#include "base/base64.h"
-#include "base/containers/flat_set.h"
 #include "base/files/file_util.h"
 #include "base/hash/legacy_hash.h"
 #include "base/logging.h"
@@ -13,13 +11,10 @@
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_split.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
 #include "components/optimization_guide/proto/models.pb.h"
-#include "net/base/url_util.h"
-#include "url/url_canon.h"
 
 namespace optimization_guide {
 
@@ -219,6 +214,34 @@ base::FilePath GetBaseFileNameForModels() {
 
 base::FilePath GetBaseFileNameForModelInfo() {
   return base::FilePath(FILE_PATH_LITERAL("model-info.pb"));
+}
+
+std::vector<base::FilePath> GetModelFilePaths(
+    const proto::ModelInfo& model_info,
+    const base::FilePath& base_model_dir) {
+  std::vector<base::FilePath> model_file_paths;
+  model_file_paths.emplace_back(
+      base_model_dir.Append(GetBaseFileNameForModels()));
+  model_file_paths.emplace_back(
+      base_model_dir.Append(GetBaseFileNameForModelInfo()));
+  for (const auto& additional_file : model_info.additional_files()) {
+    auto additional_filepath = StringToFilePath(additional_file.file_path());
+    if (!additional_filepath) {
+      continue;
+    }
+    if (!additional_filepath->IsAbsolute()) {
+      model_file_paths.emplace_back(
+          base_model_dir.Append(*additional_filepath));
+    } else {
+      // In older versions (<=127), additional files had absolute path in model
+      // info in the store. For backward compatibility, allow the absolute path
+      // to be used. This can be changed to
+      // `CHECK(!additional_filepath->IsAbsolute())` after a few of
+      // milestones.
+      model_file_paths.emplace_back(*additional_filepath);
+    }
+  }
+  return model_file_paths;
 }
 
 bool CheckAllPathsExist(

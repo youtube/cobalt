@@ -70,7 +70,7 @@ public class PersonalContextFirstRunBottomSheetUnitTest {
     public void testOnAcknowledgeClicked() {
         mMediator.onAcknowledgeClicked();
 
-        verify(mDelegate).onInfoAcknowledged();
+        verify(mDelegate).onNoticeAcknowledged();
         verify(mBottomSheetController)
                 .hideContent(mContent, true, StateChangeReason.INTERACTION_COMPLETE);
     }
@@ -85,7 +85,7 @@ public class PersonalContextFirstRunBottomSheetUnitTest {
 
         captor.getValue().onSheetClosed(StateChangeReason.SWIPE);
 
-        verify(mDelegate).onInfoDismissed();
+        verify(mDelegate).onNoticeDismissed();
         verify(mBottomSheetController).removeObserver(captor.getValue());
     }
 
@@ -99,7 +99,7 @@ public class PersonalContextFirstRunBottomSheetUnitTest {
 
         captor.getValue().onSheetClosed(StateChangeReason.INTERACTION_COMPLETE);
 
-        verify(mDelegate, never()).onInfoDismissed();
+        verify(mDelegate, never()).onNoticeDismissed();
         verify(mBottomSheetController).removeObserver(captor.getValue());
     }
 }

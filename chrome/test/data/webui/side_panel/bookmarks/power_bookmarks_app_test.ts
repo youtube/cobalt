@@ -1164,6 +1164,45 @@ suite('General', () => {
       assertFalse(isHidden(labels));
     });
 
+    test('PriceTrackingChipRemainsVisibleAfterSearch', async () => {
+      const newProduct = {
+        bookmarkId: BigInt(3),
+        info: {
+          title: 'Product Baz',
+          clusterTitle: 'Product Cluster Baz',
+          domain: 'baz.com',
+          imageUrl: 'https://baz.com/image',
+          productUrl: 'https://baz.com/product',
+          currentPrice: '$56',
+          previousPrice: '$78',
+          clusterId: BigInt(12345),
+          categoryLabels: [],
+          priceSummary: '',
+        },
+      };
+
+      callbackRouterRemote.priceTrackedForBookmark(newProduct);
+      await microtasksFinished();
+
+      const rowItem = getPowerBookmarksRowItemElement(powerBookmarksApp, '3');
+      assertTrue(!!rowItem);
+      await rowItem.updateComplete;
+      const badge = rowItem.shadowRoot.querySelector('sp-list-item-badge');
+      assertTrue(!!badge);
+      assertFalse(isHidden(badge));
+
+      await performSearch('first');
+
+      const searchedRowItem =
+          getPowerBookmarksRowItemElement(powerBookmarksApp, '3');
+      assertTrue(!!searchedRowItem);
+      await searchedRowItem.updateComplete;
+      const searchedBadge =
+          searchedRowItem.shadowRoot.querySelector('sp-list-item-badge');
+      assertTrue(!!searchedBadge);
+      assertFalse(isHidden(searchedBadge));
+    });
+
     test('PreventsClickDuringDrag', async () => {
       // Top level folder has 4 bookmarks.
       assertEquals(4, getBookmarksInList(powerBookmarksApp, 0).length);

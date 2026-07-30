@@ -59,6 +59,7 @@
 #import "ios/chrome/browser/intents/model/intents_constants.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
+#import "ios/chrome/browser/popup_menu/overflow_menu/public/features.h"
 #import "ios/chrome/browser/search_engines/model/search_engines_util.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/sessions/model/session_restoration_service.h"
@@ -794,34 +795,6 @@ UIViewController* FindBrowserViewController(UIViewController* root) {
   return nil;
 }
 
-+ (NSError*)waitForWebStateContainingElement:(ElementSelector*)selector {
-  bool success = WaitUntilConditionOrTimeout(kWaitForPageLoadTimeout, ^bool {
-    return web::test::IsWebViewContainingElement(
-        chrome_test_util::GetCurrentWebState(), selector);
-  });
-  if (!success) {
-    NSString* NSErrorDescription = [NSString
-        stringWithFormat:@"Failed waiting for web state containing element %@",
-                         selector.selectorDescription];
-    return testing::NSErrorWithLocalizedDescription(NSErrorDescription);
-  }
-  return nil;
-}
-
-+ (NSError*)waitForWebStateNotContainingElement:(ElementSelector*)selector {
-  bool success = WaitUntilConditionOrTimeout(kWaitForPageLoadTimeout, ^bool {
-    return !web::test::IsWebViewContainingElement(
-        chrome_test_util::GetCurrentWebState(), selector);
-  });
-  if (!success) {
-    NSString* NSErrorDescription = [NSString
-        stringWithFormat:@"Failed waiting for web state without element %@",
-                         selector.selectorDescription];
-    return testing::NSErrorWithLocalizedDescription(NSErrorDescription);
-  }
-  return nil;
-}
-
 + (NSError*)waitForWebStateContainingTextInIFrame:(NSString*)text {
   std::string stringText = base::SysNSStringToUTF8(text);
   bool success = WaitUntilConditionOrTimeout(kWaitForPageLoadTimeout, ^bool {
@@ -1452,6 +1425,10 @@ UIViewController* FindBrowserViewController(UIViewController* root) {
          search_engines::SupportsSearchImageWithLens(service);
 }
 
++ (BOOL)isYourSavedInfoSettingsPageIosEnabled {
+  return IsYourSavedInfoSettingsPageIosEnabled();
+}
+
 + (BOOL)isCurrentLayoutBottomOmnibox {
   return IsCurrentLayoutBottomOmnibox(chrome_test_util::GetCurrentBrowser());
 }
@@ -1462,6 +1439,10 @@ UIViewController* FindBrowserViewController(UIViewController* root) {
 
 + (BOOL)isChromeNextEnabled {
   return IsChromeNextIaEnabled();
+}
+
++ (BOOL)isOverflowMenuNTPRefactorEnabled {
+  return IsOverflowMenuNTPRefactorEnabled();
 }
 
 + (BOOL)isChromeNextShareIconVisible {

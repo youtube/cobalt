@@ -34,6 +34,7 @@ namespace syncer {
 // the returned state. By default, everything returns "enabled"/"active".
 class TestSyncService : public SyncService {
  public:
+  // By default, the service is signed in, sync everything, and have no errors.
   TestSyncService();
 
   TestSyncService(const TestSyncService&) = delete;
@@ -69,6 +70,9 @@ class TestSyncService : public SyncService {
   // START_DEFERRED. Calling with DISABLED or PAUSED will crash.
   void SetMaxTransportState(TransportState max_transport_state);
 
+  // If `local_sync_enabled` is true, enables local sync, which also sets the
+  // account info to empty to mimic the behavior of the real SyncService.
+  // Disabling local sync will set the account info to a default value.
   void SetLocalSyncEnabled(bool local_sync_enabled);
 
   // Setters to mimic common auth error scenarios. Note that these functions

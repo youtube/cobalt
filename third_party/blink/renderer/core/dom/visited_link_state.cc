@@ -44,8 +44,10 @@
 #include "third_party/blink/renderer/core/frame/policy_container.h"
 #include "third_party/blink/renderer/core/html/html_anchor_element.h"
 #include "third_party/blink/renderer/core/html_names.h"
+#include "third_party/blink/renderer/core/mathml/mathml_anchor_element.h"
 #include "third_party/blink/renderer/core/svg/svg_element.h"
 #include "third_party/blink/renderer/core/svg/svg_uri_reference.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 
 namespace blink {
 
@@ -61,8 +63,9 @@ static inline const SecurityOrigin* CalculateFrameOrigin(
 
 static inline const AtomicString& LinkAttribute(const Element& element) {
   DCHECK(element.IsLink());
-  if (element.IsHTMLElement())
+  if (element.IsHTMLElement() || IsA<MathMLAnchorElement>(element)) {
     return element.FastGetAttribute(html_names::kHrefAttr);
+  }
   DCHECK(element.IsSVGElement());
   return SVGURIReference::LegacyHrefString(To<SVGElement>(element));
 }

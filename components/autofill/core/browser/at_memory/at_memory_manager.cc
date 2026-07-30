@@ -47,6 +47,7 @@
 #include "components/personal_context/core/personal_context_features.h"
 #include "components/personal_context/core/personal_context_types.h"
 #include "components/strings/grit/components_strings.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "ui/base/l10n/l10n_util.h"
 
 namespace autofill {
@@ -228,6 +229,7 @@ Suggestion::Icon GetIconForMemoryDataType(
     case accessibility_annotator::MemoryDataType::kShipmentCarrierDomain:
     case accessibility_annotator::MemoryDataType::
         kShipmentEstimatedDeliveryDate:
+    case accessibility_annotator::MemoryDataType::kShipmentShippedDate:
     case accessibility_annotator::MemoryDataType::kUnknown:
       return Suggestion::Icon::kNoIcon;
   }
@@ -270,7 +272,9 @@ Suggestion TransformResultIntoSuggestion(
     }
     label_row.emplace_back(metadata.value);
   }
-  suggestion.labels.emplace_back(std::move(label_row));
+  if (!label_row.empty()) {
+    suggestion.labels.emplace_back(std::move(label_row));
+  }
   Suggestion::AtMemoryPayload at_memory_payload(entry.value, entry.type);
   at_memory_payload.identifier =
       GetPayloadIdentifier(entry.type, entry.identifier);
@@ -427,6 +431,7 @@ bool IsSpiiMemoryDataType(accessibility_annotator::MemoryDataType type) {
     case accessibility_annotator::MemoryDataType::kShipmentCarrierDomain:
     case accessibility_annotator::MemoryDataType::
         kShipmentEstimatedDeliveryDate:
+    case accessibility_annotator::MemoryDataType::kShipmentShippedDate:
     case accessibility_annotator::MemoryDataType::kUnknown:
       return false;
   }
@@ -584,16 +589,26 @@ void AtMemoryManager::FillOrPreviewSearchResult(
           std::move(at_memory_funnel_metrics_);
       switch (payload.memory_data_type) {
         case accessibility_annotator::MemoryDataType::kIban: {
-          CHECK(!std::holds_alternative<std::monostate>(payload.identifier));
-          FillIban(payload.identifier, form_id, field_id, suggestion,
-                   std::move(metrics));
+          std::visit(absl::Overload{
+                         [&](const Iban::Guid& guid) {
+                           FillIban(guid, form_id, field_id, suggestion,
+                                    std::move(metrics));
+                         },
+                         [&](const Iban::InstrumentId& instrument_id) {
+                           FillIban(instrument_id, form_id, field_id,
+                                    suggestion, std::move(metrics));
+                         },
+                         [](std::monostate) { NOTREACHED(); },
+                         [](const std::string&) { NOTREACHED(); },
+                         [](const EntityInstance::EntityId&) { NOTREACHED(); }},
+                     payload.identifier);
           break;
         }
         case accessibility_annotator::MemoryDataType::kCreditCardNumber:
         case accessibility_annotator::MemoryDataType::kCreditCardSecurityCode: {
           CHECK(std::holds_alternative<std::string>(payload.identifier));
-          FillCreditCard(payload.identifier, form_id, field_id, suggestion,
-                         std::move(metrics));
+          FillCreditCard(std::get<std::string>(payload.identifier), form_id,
+                         field_id, suggestion, std::move(metrics));
           break;
         }
         case accessibility_annotator::MemoryDataType::kPassportFull:
@@ -783,7 +798,7 @@ void AtMemoryManager::OnSearchResultsReceived(
       break;
     case accessibility_annotator::MemorySearchStatus::kPartialResponseSuccess:
       break;
-    case accessibility_annotator::MemorySearchStatus::kDataFetchFailure:
+    case accessibility_annotator::MemorySearchStatus::kNoConnectionFailure:
       suggestions.push_back(CreateNoConnectionSuggestion());
       break;
     case accessibility_annotator::MemorySearchStatus::kInferenceFailure:
@@ -795,7 +810,7 @@ void AtMemoryManager::OnSearchResultsReceived(
 }
 
 void AtMemoryManager::FillIban(
-    const Suggestion::AtMemoryPayload::Identifier& identifier,
+    const std::variant<Iban::Guid, Iban::InstrumentId>& identifier,
     const FormGlobalId& form_id,
     const FieldGlobalId& field_id,
     const Suggestion& suggestion,
@@ -804,7 +819,6 @@ void AtMemoryManager::FillIban(
   if (const Iban::Guid* guid = std::get_if<Iban::Guid>(&identifier)) {
     iban_payload = Suggestion::Guid(guid->value());
   } else {
-    CHECK(std::holds_alternative<Iban::InstrumentId>(identifier));
     iban_payload = Suggestion::InstrumentId(
         std::get<Iban::InstrumentId>(identifier).value());
   }
@@ -845,14 +859,11 @@ void AtMemoryManager::FillIban(
 }
 
 void AtMemoryManager::FillCreditCard(
-    const Suggestion::AtMemoryPayload::Identifier& identifier,
+    const std::string& guid,
     const FormGlobalId& form_id,
     const FieldGlobalId& field_id,
     const Suggestion& suggestion,
     std::unique_ptr<AtMemoryFunnelMetrics> metrics) {
-  CHECK(std::holds_alternative<std::string>(identifier));
-  const std::string& guid = std::get<std::string>(identifier);
-
   CreditCardAccessManager* credit_card_access_manager =
       owner_->GetCreditCardAccessManager();
   if (!credit_card_access_manager) {

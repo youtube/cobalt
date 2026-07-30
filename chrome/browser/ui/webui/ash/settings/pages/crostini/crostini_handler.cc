@@ -194,7 +194,7 @@ void CrostiniHandler::RegisterMessages() {
 
 void CrostiniHandler::OnJavascriptAllowed() {
   auto* crostini_manager = crostini::CrostiniManager::GetForProfile(profile_);
-  crostini_manager->AddCrostiniDialogStatusObserver(this);
+  crostini_manager->AddCrostiniInstallerStatusObserver(this);
   crostini_manager->AddContainerShutdownObserver(this);
   crostini::CrostiniExportImportFactory::GetForProfile(profile_)->AddObserver(
       this);
@@ -227,7 +227,7 @@ void CrostiniHandler::OnJavascriptAllowed() {
 
 void CrostiniHandler::OnJavascriptDisallowed() {
   auto* crostini_manager = crostini::CrostiniManager::GetForProfile(profile_);
-  crostini_manager->RemoveCrostiniDialogStatusObserver(this);
+  crostini_manager->RemoveCrostiniInstallerStatusObserver(this);
   crostini_manager->RemoveContainerShutdownObserver(this);
   crostini::CrostiniExportImportFactory::GetForProfile(profile_)
       ->RemoveObserver(this);
@@ -322,8 +322,8 @@ void CrostiniHandler::HandleCrostiniInstallerStatusRequest(
   AllowJavascript();
   CHECK_EQ(0U, args.size());
   bool status = crostini::CrostiniManager::GetForProfile(profile_)
-                    ->GetCrostiniDialogStatus(crostini::DialogType::INSTALLER);
-  OnCrostiniDialogStatusChanged(crostini::DialogType::INSTALLER, status);
+                    ->IsCrostiniInstallerOpen();
+  OnCrostiniInstallerStatusChanged(status);
 }
 
 void CrostiniHandler::HandleCrostiniExportImportOperationStatusRequest(
@@ -336,25 +336,12 @@ void CrostiniHandler::HandleCrostiniExportImportOperationStatusRequest(
   OnCrostiniExportImportOperationStatusChanged(in_progress);
 }
 
-void CrostiniHandler::OnCrostiniDialogStatusChanged(
-    crostini::DialogType dialog_type,
-    bool status) {
+void CrostiniHandler::OnCrostiniInstallerStatusChanged(bool status) {
   // It's technically possible for this to be called before Javascript is
   // enabled, in which case we must not call FireWebUIListener
   if (IsJavascriptAllowed()) {
     // Other side listens with cr.addWebUIListener
-    switch (dialog_type) {
-      case crostini::DialogType::INSTALLER:
-        FireWebUIListener("crostini-installer-status-changed",
-                          base::Value(status));
-        break;
-      case crostini::DialogType::REMOVER:
-        FireWebUIListener("crostini-remover-status-changed",
-                          base::Value(status));
-        break;
-      default:
-        NOTREACHED();
-    }
+    FireWebUIListener("crostini-installer-status-changed", base::Value(status));
   }
 }
 

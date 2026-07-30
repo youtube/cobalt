@@ -102,6 +102,8 @@ AimEligibilityPageHandler::QueryEligibilityState() {
   state->is_eligible = aim_eligibility_service_->IsAimEligible();
   state->is_eligible_by_policy =
       AimEligibilityService::IsAimAllowedByPolicy(pref_service_);
+  state->is_third_party_eligible_by_policy =
+      AimEligibilityService::IsAimAllowedByThirdPartyPolicy(pref_service_);
   state->is_eligible_by_dse = aim_eligibility_service_->IsAimAllowedByDse();
   state->is_server_eligibility_enabled =
       aim_eligibility_service_->IsServerEligibilityEnabled();

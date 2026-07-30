@@ -9,6 +9,8 @@ android.webkit.WebView focusable focused
 ++++++android.view.View tooltip_text='container headingreset'
 ++++++++android.widget.TextView role_description='heading 1' heading
 ++++++android.app.AlertDialog focusable interesting name='container dialog'
+++++++++android.widget.TextView role_description='heading 4' heading
+++++++++android.widget.TextView role_description='heading 1' heading
 ++android.view.View tooltip_text='container headingoffset=8'
 ++++android.widget.TextView role_description='heading' heading
 ++++android.widget.TextView role_description='heading' heading
@@ -19,6 +21,7 @@ android.webkit.WebView focusable focused
 ++++android.view.View tooltip_text='container headingreset'
 ++++++android.widget.TextView role_description='heading 1' heading
 ++++android.app.AlertDialog focusable interesting name='container dialog'
+++++++android.widget.TextView role_description='heading' heading
 ++android.view.View tooltip_text='container headingoffset=-3'
 ++++android.widget.TextView role_description='heading 1' heading
 ++++android.widget.TextView role_description='heading 2' heading
@@ -29,6 +32,7 @@ android.webkit.WebView focusable focused
 ++++android.view.View tooltip_text='container headingreset'
 ++++++android.widget.TextView role_description='heading 1' heading
 ++++android.app.AlertDialog focusable interesting name='container dialog'
+++++++android.widget.TextView role_description='heading 1' heading
 ++android.view.View tooltip_text='container shadowroot headingoffset=1'
 ++++android.widget.TextView role_description='heading 2' heading
 ++++android.widget.TextView role_description='heading 2' heading

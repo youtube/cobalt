@@ -304,6 +304,7 @@ class AccountInfo::Builder {
   Builder& SetIsChildAccount(signin::Tribool is_child_account);
 
   Builder& UpdateAccountCapabilitiesWith(const AccountCapabilities& other);
+  Builder& SetAccountCapabilities(const AccountCapabilities& capabilities);
 
  private:
   FRIEND_TEST_ALL_PREFIXES(AccountInfoTest, CreateWithPossiblyEmptyGaiaId);

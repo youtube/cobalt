@@ -170,7 +170,7 @@ constexpr char kZygoteProcess[] = "zygote";
 class LockMetricsRecorderSupport
     : public partition_alloc::internal::LockMetricsRecorderInterface {
  public:
-  LockMetricsRecorderSupport() : recorder_(base::LockMetricsRecorder::Get()) {}
+  LockMetricsRecorderSupport() = default;
 
   static LockMetricsRecorderSupport* Instance() {
     static LockMetricsRecorderSupport instance;
@@ -178,18 +178,19 @@ class LockMetricsRecorderSupport
   }
 
   bool ShouldRecordLockAcquisitionTime() const override {
-    return recorder_->ShouldRecordLockAcquisitionTime();
+    auto* recorder = base::LockMetricsRecorder::GetForCurrentThread();
+    return recorder && recorder->ShouldRecordLockAcquisitionTime();
   }
 
   void RecordLockAcquisitionTime(
       partition_alloc::internal::base::TimeDelta sample) override {
-    recorder_->RecordLockAcquisitionTime(
-        Microseconds(sample.InMicroseconds()),
-        base::LockMetricsRecorder::LockType::kPartitionAllocLock);
+    auto* recorder = base::LockMetricsRecorder::GetForCurrentThread();
+    if (recorder) {
+      recorder->RecordLockAcquisitionTime(
+          Microseconds(sample.InMicroseconds()),
+          base::LockMetricsRecorder::LockType::kPartitionAllocLock);
+    }
   }
-
- private:
-  base::LockMetricsRecorder* recorder_;
 };
 
 void RunThreadCachePeriodicPurge() {

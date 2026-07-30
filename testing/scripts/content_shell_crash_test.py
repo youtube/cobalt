@@ -6,6 +6,7 @@
 import argparse
 import json
 import os
+import subprocess
 import sys
 
 import common
@@ -34,7 +35,7 @@ def main(argv):
                       default=sys.platform,
                       required=False)
 
-  args = parser.parse_args(argv)
+  args, unrecognized = parser.parse_known_args(argv)
 
   env = os.environ.copy()
 
@@ -56,12 +57,14 @@ def main(argv):
   elif args.platform == 'android':
     exe = os.path.join('.', 'lib.unstripped',
                        'libcontent_shell_content_view.so')
+  elif args.platform == 'fuchsia':
+    exe = os.path.join('.', 'exe.unstripped', 'content_shell')
   else:
     exe = os.path.join('.', 'content_shell')
 
   with common.temporary_file() as tempfile_path:
     env['CHROME_HEADLESS'] = '1'
-    rc = xvfb.run_executable([
+    cmd = [
         sys.executable,
         os.path.join(common.SRC_DIR, 'content', 'shell', 'tools',
                      'breakpad_integration_test.py'),
@@ -74,7 +77,12 @@ def main(argv):
         tempfile_path,
         '--platform',
         args.platform,
-    ] + additional_args, env)
+    ] + additional_args + unrecognized
+
+    if args.platform == 'fuchsia':
+      rc = subprocess.call(cmd, env=env)
+    else:
+      rc = xvfb.run_executable(cmd, env)
 
     with open(tempfile_path) as f:
       failures = json.load(f)

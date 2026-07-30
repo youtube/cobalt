@@ -13,6 +13,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/scoped_mock_clock_override.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/values_test_util.h"
 #include "base/time/time.h"
@@ -1049,10 +1050,10 @@ TEST_P(ReportingCacheTest, GetClientsAsValue) {
   LoadReportingClients();
 
   // These times are bogus but we need a reproducible expiry timestamp for this
-  // test case.
-  const base::TimeTicks expires_ticks = base::TimeTicks() + base::Days(7);
-  const base::Time expires =
-      base::Time::UnixEpoch() + (expires_ticks - base::TimeTicks::UnixEpoch());
+  // test case. NetLog::TimeToString serializes a base::Time relative to the
+  // current clocks, so a ScopedMockClockOverride (installed below) makes the
+  // serialized value equal to `expires.since_origin()`.
+  const base::Time expires = base::Time() + base::Days(7);
   ASSERT_TRUE(SetEndpointInCache(kGroupKey11_, kEndpoint1_, expires,
                                  OriginSubdomains::EXCLUDE));
   ASSERT_TRUE(SetEndpointInCache(kOtherGroupKey21_, kEndpoint2_, expires,
@@ -1063,6 +1064,8 @@ TEST_P(ReportingCacheTest, GetClientsAsValue) {
   cache()->IncrementEndpointDeliveries(kOtherGroupKey21_, kEndpoint2_,
                                        /* reports */ 1, /* succeeded */ false);
 
+  // Pin the global clocks so the serialized expiry is deterministic.
+  base::ScopedMockClockOverride mock_clock;
   base::Value actual = cache()->GetClientsAsValue();
   base::Value expected = base::test::ParseJson(base::StringPrintf(
       R"json(

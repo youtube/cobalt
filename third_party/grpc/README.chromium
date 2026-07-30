@@ -1,6 +1,7 @@
 Name: grpc
 URL: https://github.com/grpc/grpc
 License: BSD-3-Clause, Apache-2.0, MPL-2.0
+License Android Compatible: yes
 License File: source/LICENSE
 Version: v1.71.0-dev
 Revision: ff8d12a129eedc58f9602c9fa9d1c01a2a270d62

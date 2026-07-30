@@ -290,9 +290,6 @@ StatusOr<DomStorageDatabase::Metadata> LocalStorageLevelDB::ReadAllMetadata() {
 }
 
 DbStatus LocalStorageLevelDB::PutMetadata(Metadata metadata) {
-  // Local storage does not record the next map id in LevelDB.
-  CHECK(!metadata.next_map_id);
-
   std::unique_ptr<DomStorageBatchOperationLevelDB> batch =
       leveldb_->CreateBatchOperation();
 

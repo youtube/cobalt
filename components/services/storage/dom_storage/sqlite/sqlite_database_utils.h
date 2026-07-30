@@ -29,7 +29,8 @@ OpenDatabase(const base::FilePath& database_path,
              sql::Database::Tag database_tag,
              int current_schema_version,
              int compatible_schema_version,
-             CreateSchemaCallback create_schema_callback);
+             CreateSchemaCallback create_schema_callback,
+             sql::Database::ErrorCallback error_callback);
 
 // Deletes the SQLite database file identified by `database_path`.
 DbStatus DestroyDatabase(const base::FilePath& database_path);

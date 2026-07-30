@@ -155,6 +155,15 @@ Profile* TwoClientWebAppsIntegrationTestBase::GetProfileClient(
   NOTREACHED();
 }
 
+// static
+void TwoClientWebAppsIntegrationTestBase::SetUpTestSuite() {
+  // TODO(crbug.com/511805630): Fix tests timing out on TSAN
+#if defined(THREAD_SANITIZER)
+  GTEST_SKIP()
+      << "Skipping all WebAppIntegration tests on TSAN due to timeouts.";
+#endif
+}
+
 void TwoClientWebAppsIntegrationTestBase::SetUp() {
   helper_.SetUp();
   WebAppsSyncTestBase::SetUp();

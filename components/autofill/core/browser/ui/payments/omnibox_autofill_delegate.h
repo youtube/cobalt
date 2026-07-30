@@ -74,6 +74,16 @@ class OmniboxAutofillDelegate : public AutofillManager::Observer,
   bool FieldIsInMainFrame(AutofillManager& manager,
                           const AutofillField& field) const;
 
+  // Resets the delegate's internal state, clearing `candidate_form_found_`
+  // `trigger_form_global_id_`, and `trigger_field_global_id_`.
+  void Reset();
+
+  // Hides the omnibox autofill chip via the payments autofill client and resets
+  // the delegate's internal state. This is called when the autofill manager
+  // state transitions away from active or when the triggering form is removed
+  // from the DOM.
+  void HideOmniboxAutofillChip();
+
   // If true, the OmniboxAutofillDelegate is likely waiting for the user to
   // scroll the candidate form into the viewport, so parsing logic to find
   // candidate forms should no longer be run.

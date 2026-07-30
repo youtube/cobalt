@@ -188,10 +188,7 @@ public class BookmarkBarCoordinator
 
         // The Bookmark Bar may first be turned on in fullscreen mode, in which case we want its
         // initial state to be hidden, which is tracked by this member variable.
-        if (currentTabSupplier.get() != null && currentTabSupplier.get().getWebContents() != null) {
-            mIsInFullscreenMode =
-                    currentTabSupplier.get().getWebContents().isFullscreenForCurrentTab();
-        }
+        mIsInFullscreenMode = fullscreenManager.getPersistentFullscreenMode();
 
         // Inflate the Bookmark Bar. The bar is a ViewStub which contains a container to hold all
         // the content of the Bookmark Bar, and a hairline footer.
@@ -323,6 +320,9 @@ public class BookmarkBarCoordinator
                 mTopControlsStacker.getHeightFromLayerToTop(TopControlType.BOOKMARK_BAR));
 
         mDefaultUnobscuredImportantForAccessibility = mView.getImportantForAccessibility();
+
+        // Initialize Android widget visibility to match the current screen state.
+        updateAndroidWidgetVisibility();
     }
 
     /** Destroys the bookmark bar coordinator. */
@@ -845,5 +845,9 @@ public class BookmarkBarCoordinator
 
     PropertyModel getBookmarkBarSceneLayerModelForTesting() {
         return mBookmarkBarSceneLayerModel;
+    }
+
+    BookmarkBarMediator getMediatorForTesting() {
+        return mMediator;
     }
 }

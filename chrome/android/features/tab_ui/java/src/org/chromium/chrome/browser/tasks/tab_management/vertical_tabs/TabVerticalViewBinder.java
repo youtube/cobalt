@@ -12,11 +12,13 @@ import android.graphics.drawable.Drawable;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.animation.LinearInterpolator;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.ColorInt;
+import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
@@ -26,6 +28,7 @@ import com.google.android.material.progressindicator.CircularProgressIndicator;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R.string;
 import org.chromium.chrome.browser.actor.ui.ActorUiTabController.UiTabState;
 import org.chromium.chrome.browser.actor.ui.TabIndicatorStatus;
 import org.chromium.chrome.browser.tab.MediaState;
@@ -79,6 +82,13 @@ class TabVerticalViewBinder {
             updateChildRowPadding(model, view);
         } else if (TabProperties.CONTENT_DESCRIPTION_TEXT_RESOLVER == propertyKey) {
             TabListViewBinderUtils.updateContentDescription(model, view);
+        } else if (TabProperties.ACCESSIBILITY_DELEGATE == propertyKey) {
+            view.setAccessibilityDelegate(model.get(TabProperties.ACCESSIBILITY_DELEGATE));
+        } else if (TabProperties.ACTION_BUTTON_DESCRIPTION_TEXT_RESOLVER == propertyKey) {
+            @Nullable View actionButton = view.findViewById(R.id.action_button);
+            if (actionButton != null) {
+                TabListViewBinderUtils.updateActionButtonContentDescription(model, actionButton);
+            }
         } else if (TabProperties.MEDIA_INDICATOR == propertyKey) {
             updateMediaIndicator(model, view);
         } else if (TabProperties.ACTOR_UI_STATE == propertyKey) {
@@ -123,13 +133,11 @@ class TabVerticalViewBinder {
             updateGroupHeaderColors(model, view);
         } else if (TabProperties.CONTENT_DESCRIPTION_TEXT_RESOLVER == propertyKey) {
             TabListViewBinderUtils.updateContentDescription(model, view);
-            // TODO(crbug.com/509226293): Override the default ACTION_CLICK action label
-            // to announce "expand" or "collapse" dynamically based on the
-            // TabProperties.IS_COLLAPSED
-            // state once child rows are implemented. Also confirm and resolve the conflicting
-            // "Expand" prefix in the main content description string for active/expanded groups.
+            updateAccessibilityDelegate(model, view);
         } else if (TabProperties.IS_COLLAPSED == propertyKey) {
             updateChevronRotation(model, view);
+            TabListViewBinderUtils.updateContentDescription(model, view);
+            updateAccessibilityDelegate(model, view);
         }
     }
 
@@ -378,6 +386,27 @@ class TabVerticalViewBinder {
                 expandChevron.setRotation(targetRotation);
             }
         }
+    }
+
+    private static void updateAccessibilityDelegate(PropertyModel model, View view) {
+        view.setAccessibilityDelegate(
+                new View.AccessibilityDelegate() {
+                    @Override
+                    public void onInitializeAccessibilityNodeInfo(
+                            @NonNull View host, @NonNull AccessibilityNodeInfo info) {
+                        super.onInitializeAccessibilityNodeInfo(host, info);
+                        boolean isCollapsed = model.get(TabProperties.IS_COLLAPSED);
+                        String actionLabel =
+                                host.getContext()
+                                        .getString(
+                                                isCollapsed
+                                                        ? string.accessibility_expand_section
+                                                        : string.accessibility_collapse_section);
+                        info.addAction(
+                                new AccessibilityNodeInfo.AccessibilityAction(
+                                        AccessibilityNodeInfo.ACTION_CLICK, actionLabel));
+                    }
+                });
     }
 
     private static void updateChildRowPadding(PropertyModel model, View view) {

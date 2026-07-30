@@ -85,6 +85,14 @@ class GlicActorPolicyChecker : public actor::EnterprisePolicyChecker,
   bool CanActOnWeb() const;
   CannotActReason CannotActOnWebReason() const;
 
+  // Whether the Glic API can act on Web. This is currently different than
+  // CanActOnWeb() in the following ways:
+  // - Dogfood is only enabled on internal accounts.
+  // - Enterprise accounts will always disable act on web.
+  // - Managed devices can disable act on web, otherwise fallback to tier check.
+  bool GlicApiCanActOnWeb() const;
+  CannotActReason GlicApiCannotActOnWebReason() const;
+
   // EnterprisePolicyChecker interface
   UrlBlockReason Evaluate(const GURL& url) const override;
   void ValidateContentSentToRenderer(
@@ -102,7 +110,9 @@ class GlicActorPolicyChecker : public actor::EnterprisePolicyChecker,
   };
   friend std::ostream& operator<<(std::ostream& os, CanActOutcome value);
 
-  std::pair<CanActOutcome, CannotActReason> ComputeActOnWebCapability();
+  // For glic_api_can_act_on_web_ disable_for_enterprise should be true.
+  std::pair<CanActOutcome, CannotActReason> ComputeActOnWebCapability(
+      bool disable_for_enterprise);
 
   // This class must be transitively owned by a Profile and cannot outlive it.
   raw_ptr<Profile> profile_;
@@ -115,6 +125,9 @@ class GlicActorPolicyChecker : public actor::EnterprisePolicyChecker,
 
   CanActOutcome can_act_on_web_ = CanActOutcome::kYes;
   CannotActReason cannot_act_on_web_reason_;
+
+  CanActOutcome glic_api_can_act_on_web_ = CanActOutcome::kYes;
+  CannotActReason glic_api_cannot_act_on_web_reason_;
 
   // Stores enterprise allowlist/blocklist policies for specific URLs.
   policy::URLBlocklistManager url_blocklist_manager_;

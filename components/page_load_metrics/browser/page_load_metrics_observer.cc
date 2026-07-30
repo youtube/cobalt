@@ -73,12 +73,6 @@ PageLoadMetricsObserver::ObservePolicy PageLoadMetricsObserver::OnStart(
   return CONTINUE_OBSERVING;
 }
 
-PageLoadMetricsObserver::ObservePolicy PageLoadMetricsObserver::OnPreviewStart(
-    content::NavigationHandle* navigation_handle,
-    const GURL& currently_committed_url) {
-  return STOP_OBSERVING;
-}
-
 PageLoadMetricsObserver::ObservePolicy
 PageLoadMetricsObserver::OnNavigationHandleTimingUpdated(
     content::NavigationHandle* navigation_handle) {

@@ -73,8 +73,10 @@ class AimEligibilityService
       const base::Feature& feature);
   // See comment for `WriteToPref()`.
   static void RegisterProfilePrefs(PrefRegistrySimple* registry);
-  // Returns true if the AIM is allowed per the policy.
+  // Returns if AIM is allowed by policy.
   static bool IsAimAllowedByPolicy(const PrefService* prefs);
+  // Returns if 3rd party AIM is allowed by policy.
+  static bool IsAimAllowedByThirdPartyPolicy(const PrefService* prefs);
 
   // Tracks the source of `most_recent_response_`.
   // These values are persisted to logs. Entries should not be renumbered and
@@ -170,6 +172,10 @@ class AimEligibilityService
   // Checks `kAimEnabled` feature and `kAIModeSettings` policy.
   // Virtual for testing purposes.
   virtual bool IsAimAllowedByFeatureAndPolicy() const;
+
+  // Checks `kThirdPartyAiChatSettings` policy.
+  // Virtual for testing purposes.
+  virtual bool IsAimAllowedByThirdPartyPolicy() const;
 
   // Checks `IsAimAllowedByDse()` & `IsAimAllowedByFeatureAndPolicy()`.
   // Virtual for testing purposes.

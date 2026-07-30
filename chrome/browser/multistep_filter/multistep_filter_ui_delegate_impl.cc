@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "chrome/browser/multistep_filter/ui/filter_ui_controller.h"
+#include "components/multistep_filter/core/data_models/suggestion_user_decision.h"
 #include "components/tabs/public/tab_interface.h"
 #include "url/gurl.h"
 
@@ -23,8 +24,7 @@ void MultistepFilterUiDelegateImpl::ClearSuggestion() {
   weak_ptr_factory_.InvalidateWeakPtrs();
   if (FilterUiController* controller = GetController()) {
     // A navigation has occurred, so the suggestion is ignored.
-    controller->ClearSuggestion(
-        FilterUiController::SuggestionUserDecision::kIgnored);
+    controller->ClearSuggestion(SuggestionUserDecision::kIgnored);
   }
 }
 

@@ -172,7 +172,7 @@ class LensSearchController {
   void MaybeLaunchSurvey();
 
   // Returns true if Lens is currently active on this tab.
-  bool IsActive();
+  virtual bool IsActive();
 
   // Returns true if either the overlay or the side panel is showing.
   bool IsShowingUI();

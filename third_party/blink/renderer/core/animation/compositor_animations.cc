@@ -1170,15 +1170,6 @@ CompositorAnimations::CheckCanStartSVGElementOnCompositor(
   if (svg_element.HasSMILAnimations()) {
     reasons |= kTargetHasIncompatibleAnimations;
   }
-  if (!svg_element.InstancesForElement().empty()) {
-    // TODO(crbug.com/785246): Currently when an SVGElement has svg:use
-    // instances, each instance gets style from the original element, using
-    // the original element's animation (thus the animation affects
-    // transform nodes). This should be removed once instances style
-    // themmselves and create their own blink::Animation objects for CSS
-    // animations and transitions.
-    reasons |= kTargetHasInvalidCompositingState;
-  }
   if (const auto* layout_object = svg_element.GetLayoutObject()) {
     if (IsPartOfSVGResource(*layout_object)) {
       // If the element is either a resource container or a descendant of one,

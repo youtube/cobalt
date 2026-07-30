@@ -185,8 +185,13 @@ IN_PROC_BROWSER_TEST_F(SpareRenderProcessHostManagerTest,
   spare_started_observer.WaitForSpareRenderProcessStarted();
 
   // There might be another spare starting, but only 1 is ready.
-  EXPECT_THAT(spare_manager.GetSpares(),
-              Contains(RenderProcessHostIsReady()).Times(1));
+  int ready_count = 0;
+  for (content::RenderProcessHost* host : spare_manager.GetSpares()) {
+    if (host->IsReady()) {
+      ready_count++;
+    }
+  }
+  EXPECT_EQ(1, ready_count);
 
   histogram_tester.ExpectTotalCount(
       "BrowserRenderProcessHost.SpareProcessStartupTime", 1);
@@ -498,8 +503,14 @@ IN_PROC_BROWSER_TEST_F(SpareRenderProcessHostManagerTest,
   }
 
   // The initial spare is gone from the list of spares.
-  EXPECT_THAT(spare_manager.GetSpares(),
-              Not(Contains(Property(&RenderProcessHost::GetID, spare_rph_id))));
+  bool spare_found = false;
+  for (content::RenderProcessHost* host : spare_manager.GetSpares()) {
+    if (host->GetID() == spare_rph_id) {
+      spare_found = true;
+      break;
+    }
+  }
+  EXPECT_FALSE(spare_found);
 }
 
 // A mock ContentBrowserClient that only considers a spare renderer to be a

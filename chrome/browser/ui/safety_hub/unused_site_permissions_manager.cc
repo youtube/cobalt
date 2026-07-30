@@ -300,14 +300,21 @@ void UnusedSitePermissionsManager::RevokeUnusedPermissions(
         unused_site_permissions.front().source.secondary_pattern;
 
     base::flat_map<ContentSettingsType, base::Value> revoked_permissions;
-    for (auto permission_itr = unused_site_permissions.begin();
-         permission_itr != unused_site_permissions.end();) {
-      const ContentSettingEntry& entry = *permission_itr;
+    std::erase_if(unused_site_permissions, [&](const ContentSettingEntry&
+                                                   entry) {
       // Check if the current permission can be auto revoked.
-      if (!content_settings::CanBeAutoRevokedAsUnusedPermission(
-              /*type=*/entry.type, /*value=*/entry.source.setting_value)) {
-        permission_itr++;
-        continue;
+      auto* info =
+          content_settings::PermissionSettingsRegistry::GetInstance()->Get(
+              entry.type);
+      if (!info) {
+        return false;
+      }
+      std::optional<PermissionSetting> setting =
+          info->delegate().FromValue(entry.source.setting_value);
+      if (!setting.has_value() ||
+          !content_settings::CanBeAutoRevokedAsUnusedPermission(
+              /*type=*/entry.type, /*setting=*/setting.value())) {
+        return false;
       }
 
       CHECK_EQ(entry.source.primary_pattern, primary_pattern);
@@ -336,11 +343,11 @@ void UnusedSitePermissionsManager::RevokeUnusedPermissions(
         hcsm()->SetPermissionSettingCustomScope(entry.source.primary_pattern,
                                                 entry.source.secondary_pattern,
                                                 entry.type, std::nullopt);
-        unused_site_permissions.erase(permission_itr++);
+        return true;
       } else {
-        permission_itr++;
+        return false;
       }
-    }
+    });
 
     // Store revoked permissions on HCSM.
     StorePermissionInUnusedSitePermissionSetting(std::move(revoked_permissions),

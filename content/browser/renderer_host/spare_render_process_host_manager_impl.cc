@@ -10,6 +10,7 @@
 #include "base/byte_size.h"
 #include "base/check.h"
 #include "base/debug/dump_without_crashing.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory_coordinator/utils.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
@@ -331,8 +332,7 @@ SpareRenderProcessHostManagerImpl::SpareRenderProcessHostManagerImpl()
           "SpareRenderProcessHostManagerImpl",
           std::nullopt,  // TODO(crbug.com/489671163): Add traits.
           this,
-          base::MemoryConsumerRegistration::CheckUnregister::kDisabled,
-          base::MemoryConsumerRegistration::CheckRegistryExists::kDisabled),
+          base::MemoryConsumerRegistration::CheckUnregister::kDisabled),
       metrics_heartbeat_timer_(
           FROM_HERE,
           base::Minutes(2),
@@ -414,7 +414,7 @@ RenderProcessHost* SpareRenderProcessHostManagerImpl::WarmupSpare(
   return WarmupSpare(browser_context, std::nullopt);
 }
 
-const std::vector<RenderProcessHost*>&
+const std::vector<raw_ptr<RenderProcessHost>>&
 SpareRenderProcessHostManagerImpl::GetSpares() {
   return spare_rphs_;
 }
@@ -811,7 +811,7 @@ void SpareRenderProcessHostManagerImpl::PrepareForFutureRequests(
 
 void SpareRenderProcessHostManagerImpl::CleanupSpares(
     std::optional<SpareRendererDispatchResult> dispatch_result) {
-  std::vector<RenderProcessHost*> spare_rphs = std::move(spare_rphs_);
+  std::vector<raw_ptr<RenderProcessHost>> spare_rphs = std::move(spare_rphs_);
 
   // Stop the destroy timer since it is no longer required.
   deferred_destroy_timer_.Stop();

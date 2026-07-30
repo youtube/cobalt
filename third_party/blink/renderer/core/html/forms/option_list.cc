@@ -26,6 +26,10 @@ void ElementListIterator<OwnerType, ItemType>::Advance(ItemType* previous) {
   while (current) {
     if (auto* element = DynamicTo<ItemType>(current)) {
       current_ = element;
+      // This can be called during InsertedInto, so we have to allow null
+      // OwnerElementForList.
+      DCHECK(!current_->OwnerElementForList() ||
+             current_->OwnerElementForList() == owner_);
       return;
     }
     if (owner_.ShouldIgnoreDescendantsForElementTraversals(current)) {
@@ -39,28 +43,59 @@ void ElementListIterator<OwnerType, ItemType>::Advance(ItemType* previous) {
 
 template <typename OwnerType, typename ItemType>
 void ElementListIterator<OwnerType, ItemType>::Retreat(ItemType* next) {
-  Element* current;
-  if (next) {
-    DCHECK_EQ(next->OwnerElementForList(), owner_);
-    current = ElementTraversal::Previous(*next, &owner_);
-  } else {
-    current = ElementTraversal::LastWithin(owner_);
-  }
+  // last_non_ignored_descendant lets us avoid using
+  // ElementTraversal::Previous, which can take many last-child steps to find
+  // a deep element.  We need to check
+  // ShouldIgnoreDescendantsForElementTraversals each time we step from parent
+  // to child.
+  auto last_non_ignored_descendant =
+      [this](const Element& container) -> Element* {
+    Element* e = ElementTraversal::LastChild(container);
+    if (!e) {
+      return nullptr;
+    }
+    while (!owner_.ShouldIgnoreDescendantsForElementTraversals(e)) {
+      Element* child = ElementTraversal::LastChild(*e);
+      if (!child) {
+        break;
+      }
+      e = child;
+    }
+    return e;
+  };
 
-  while (current) {
+  Element* current = next;
+  do {
+    if (!current) {
+      // This is the first time through the loop.
+      current = last_non_ignored_descendant(owner_);
+    } else {
+      Element* previous_sibling = ElementTraversal::PreviousSibling(*current);
+      if (previous_sibling) {
+        if (owner_.ShouldIgnoreDescendantsForElementTraversals(
+                previous_sibling)) {
+          current = previous_sibling;
+        } else {
+          current = last_non_ignored_descendant(*previous_sibling);
+          if (!current) {
+            current = previous_sibling;
+          }
+        }
+      } else {
+        current = current->parentElement();
+        if (current == owner_) {
+          current_ = nullptr;
+          return;
+        }
+      }
+    }
+
     if (auto* element = DynamicTo<ItemType>(current)) {
       current_ = element;
+      DCHECK_EQ(current_->OwnerElementForList(), owner_);
       return;
     }
-
-    if (current == owner_) {
-      current = nullptr;
-    } else if (owner_.ShouldIgnoreDescendantsForElementTraversals(current)) {
-      current = ElementTraversal::PreviousAbsoluteSibling(*current, &owner_);
-    } else {
-      current = ElementTraversal::Previous(*current, &owner_);
-    }
-  }
+  } while (current);
 
   current_ = nullptr;
 }

@@ -81,11 +81,6 @@ class ContentAnalysisSideIconSpinnerView : public ContentAnalysisBaseView,
 
  public:
   using ContentAnalysisBaseView::ContentAnalysisBaseView;
-
-  void Update();
-
- protected:
-  void OnThemeChanged() override;
 };
 
 }  // namespace enterprise_connectors

@@ -242,7 +242,8 @@ class ContextualCueingControllerBrowserTest
     scoped_feature_list_.InitWithFeaturesAndParameters(
         {{kContextualCueingV2,
           {{"ContextualCueingV2DiscardShoppingPdfs", "true"},
-           {"ContextualCueingV2TabListVisibility", "always"}}}},
+           {"ContextualCueingV2TabListVisibility", "always"},
+           {"ContextualCueingV2EnablePrivateInsightsLogging", "true"}}}},
         /*disabled_features=*/{kContextualCueingV2EnforceAgeRestriction});
   }
 };
@@ -440,8 +441,8 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerTabListOnlyIfMultipleTest,
       ukm::GetExponentialBucketMin(2, 1.5));
 
   EXPECT_TRUE(observer.expandable_content_.has_value());
-  EXPECT_EQ(observer.expandable_content_->expand_button_tooltip,
-            u"Show tab sharing details. Sharing 2 tabs from www.activetab.com, "
+  EXPECT_EQ(observer.expandable_content_->expand_button_accessible_name,
+            u"Tab sharing details. Sharing 2 tabs from www.activetab.com, "
             u"www.example.com");
 }
 
@@ -809,8 +810,8 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   EXPECT_TRUE(model_observer.content_.has_value());
   EXPECT_EQ(model_observer.content_->items.size(), 1u);
   EXPECT_FALSE(model_observer.content_->items[0].text.empty());
-  EXPECT_EQ(model_observer.content_->expand_button_tooltip,
-            u"Show tab sharing details. Sharing 1 tab from www.example.com");
+  EXPECT_EQ(model_observer.content_->expand_button_accessible_name,
+            u"Tab sharing details. Sharing 1 tab from www.example.com");
   // No favicon provided, so we should have logged it as missing.
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.MissingFaviconCount",
                                       1, 1);

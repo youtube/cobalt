@@ -762,8 +762,8 @@ void PageInfo::OnSitePermissionChanged(
           permissions::features::
               kSafetyHubUnusedPermissionRevocationForAllSurfaces) &&
       setting &&
-      content_settings::CanBeAutoRevokedAsUnusedPermission(
-          type, info->delegate().ToValue(*setting), is_one_time)) {
+      content_settings::CanBeAutoRevokedAsUnusedPermission(type, *setting,
+                                                           is_one_time)) {
     constraints.set_track_last_visit_for_autoexpiration(true);
   }
 

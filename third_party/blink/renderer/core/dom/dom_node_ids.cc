@@ -13,12 +13,26 @@
 
 namespace blink {
 
-static GCedHeapHashMap<DOMNodeId, WeakMember<Node>>& IdToNodeMap() {
+namespace {
+
+DOMNodeId g_last_id = 0;
+
+// See WeakIdentifierMap::Next().
+DOMNodeId NextId() {
+  if (g_last_id == std::numeric_limits<DOMNodeId>::max()) [[unlikely]] {
+    g_last_id = 0;
+  }
+  return ++g_last_id;
+}
+
+GCedHeapHashMap<DOMNodeId, WeakMember<Node>>& IdToNodeMap() {
   using RefType = GCedHeapHashMap<DOMNodeId, WeakMember<Node>>;
   DEFINE_STATIC_LOCAL(Persistent<RefType>, map_instance,
                       (MakeGarbageCollected<RefType>()));
   return *map_instance;
 }
+
+}  // namespace
 
 // static
 DOMNodeId DOMNodeIds::ExistingIdForNode(Node* node) {
@@ -38,15 +52,17 @@ DOMNodeId DOMNodeIds::IdForNode(Node* node) {
 
   DOMNodeId& id = node->EnsureNodeID(base::PassKey<DOMNodeIds>());
   if (id == kInvalidDOMNodeId) {
-    // See WeakIdentifierMap::Next().
-    static DOMNodeId last_id = 0;
-    if (last_id == std::numeric_limits<DOMNodeId>::max()) [[unlikely]] {
-      last_id = 0;
+    id = NextId();
+    while (!IdToNodeMap().insert(id, node).is_new_entry) [[unlikely]] {
+      id = NextId();
     }
-    id = ++last_id;
-    IdToNodeMap().Set(id, node);
   }
   return id;
+}
+
+// static
+void DOMNodeIds::SetLastIdForTesting(DOMNodeId id) {
+  g_last_id = id;
 }
 
 // static

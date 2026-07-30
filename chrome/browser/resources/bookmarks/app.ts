@@ -33,7 +33,7 @@ import {BookmarksRouter} from './router.js';
 import {Store} from './store.js';
 import {StoreClientMixinLit} from './store_client_mixin_lit.js';
 import type {BookmarksPageState, FolderOpenState} from './types.js';
-import {createEmptyState, getDefaultSelectedFolder, normalizeNodes} from './util.js';
+import {createEmptyState, getDefaultSelectedFolder} from './util.js';
 
 export const HIDE_FOCUS_RING_ATTRIBUTE = 'hide-focus-ring';
 
@@ -118,8 +118,7 @@ export class BookmarksAppElement extends BookmarksAppElementBase {
 
     this.updateFromStore();
 
-    BookmarksApiProxyImpl.getInstance().getTree().then((results) => {
-      const nodeMap = normalizeNodes(results[0]!);
+    BookmarksApiProxyImpl.getInstance().getTree().then((nodeMap) => {
       const initialState = createEmptyState();
       initialState.nodes = nodeMap;
 

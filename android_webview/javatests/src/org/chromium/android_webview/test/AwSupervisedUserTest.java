@@ -318,6 +318,71 @@ public class AwSupervisedUserTest extends AwParameterizedTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
+    public void testPrefetchDisallowedSiteIsBlocked() throws Throwable {
+        mActivityTestRule
+                .getAwSettingsOnUiThread(mAwContents)
+                .setSpeculativeLoadingAllowed(SpeculativeLoadingAllowedFlags.PRERENDER_ENABLED);
+
+        String matureUrl = setUpWebPage(MATURE_SITE_PATH, MATURE_SITE_TITLE, null);
+        String safeUrl = setUpWebPage(SAFE_SITE_PATH, SAFE_SITE_TITLE, null);
+
+        loadUrl(safeUrl);
+        assertPageTitle(SAFE_SITE_TITLE);
+
+        int callCount = mDelegate.getShouldBlockUrlHelper().getCallCount();
+        injectPrefetchSpeculationRules(matureUrl);
+
+        // Prefetch requests for disallowed URLs should be blocked before leaving the device.
+        mDelegate.getShouldBlockUrlHelper().waitForCallback(callCount);
+        Assert.assertNotNull(mDelegate.getLastCheckedUrl());
+        Assert.assertEquals(matureUrl, mDelegate.getLastCheckedUrl().getSpec());
+        Assert.assertEquals(
+                "The prefetch request should be blocked",
+                0,
+                mWebServer.getRequestCount(MATURE_SITE_PATH));
+
+        // Subsequent navigation to the prefetched URL should also be blocked.
+        loadUrl(matureUrl);
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    Criteria.checkThat(
+                            mActivityTestRule.getTitleOnUiThread(mAwContents),
+                            Matchers.is(BLOCKED_SITE_TITLE));
+                });
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView"})
+    public void testSafeSitesCanBePrefetched() throws Throwable {
+        mActivityTestRule
+                .getAwSettingsOnUiThread(mAwContents)
+                .setSpeculativeLoadingAllowed(SpeculativeLoadingAllowedFlags.PRERENDER_ENABLED);
+
+        String safePrefetchUrl = setUpWebPage("/safe_prefetch.html", "Safe Prefetch Site", null);
+        String safeUrl = setUpWebPage(SAFE_SITE_PATH, SAFE_SITE_TITLE, null);
+
+        loadUrl(safeUrl);
+        assertPageTitle(SAFE_SITE_TITLE);
+
+        injectPrefetchSpeculationRules(safePrefetchUrl);
+
+        // Verify prefetch request goes through.
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    Criteria.checkThat(
+                            mWebServer.getRequestCount("/safe_prefetch.html"),
+                            Matchers.greaterThan(0));
+                });
+
+        // Verify we can navigate to it.
+        loadUrl(safePrefetchUrl);
+        assertPageTitle("Safe Prefetch Site");
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView"})
     public void testSafeSitesCanBePrerendered() throws Throwable {
         final TestWebMessageListener prerenderStatusListener = new TestWebMessageListener();
         ThreadUtils.runOnUiThreadBlocking(
@@ -399,6 +464,21 @@ public class AwSupervisedUserTest extends AwParameterizedTest {
                 mAwContents, mContentsClient, speculationRules);
     }
 
+    private void injectPrefetchSpeculationRules(String url) throws Exception {
+        final String speculationRulesTemplate =
+                """
+                {
+                  const script = document.createElement('script');
+                  script.type = 'speculationrules';
+                  script.text = '{"prefetch": [{"source": "list", "urls": ["%s"]}]}';
+                  document.head.appendChild(script);
+                }
+                """;
+        final String speculationRules = String.format(speculationRulesTemplate, url);
+        mActivityTestRule.executeJavaScriptAndWaitForResult(
+                mAwContents, mContentsClient, speculationRules);
+    }
+
     private String setUpWebPage(String path, String title, @Nullable String iFrameUrl) {
         return mWebServer.setResponse(path, makeTestPage(title, iFrameUrl), null);
     }
@@ -406,8 +486,9 @@ public class AwSupervisedUserTest extends AwParameterizedTest {
     private void loadUrl(String requestUrl) throws Exception {
         // If the page is blocked, then it will never fire the onPageFinished callback so we can't
         // use loadUrlSync(). Instead, use loadUrlAsync and wait for onProgressChanged().
+        int count = mContentsClient.getCallCount();
         mActivityTestRule.loadUrlAsync(mAwContents, requestUrl);
-        mContentsClient.waitForFullLoad();
+        mContentsClient.waitForCallback(count);
     }
 
     private void assertPageTitle(String expectedTitle) {
@@ -432,8 +513,12 @@ public class AwSupervisedUserTest extends AwParameterizedTest {
             mLastProgress = progress;
         }
 
-        public void waitForFullLoad() throws TimeoutException {
-            mCallbackHelper.waitForNext();
+        public int getCallCount() {
+            return mCallbackHelper.getCallCount();
+        }
+
+        public void waitForCallback(int count) throws TimeoutException {
+            mCallbackHelper.waitForCallback(count);
         }
     }
 
@@ -468,12 +553,19 @@ public class AwSupervisedUserTest extends AwParameterizedTest {
         private @Nullable Boolean mNeedsRestrictionResponse;
         private static final Set RESTRICTED_CONTENT_BLOCKLIST =
                 Set.of(MATURE_SITE_PATH, MATURE_SITE_IFRAME_PATH);
+        private final CallbackHelper mShouldBlockUrlHelper = new CallbackHelper();
+        private volatile @Nullable GURL mLastCheckedUrl;
 
         @Override
         public void shouldBlockUrl(GURL requestUrl, final Callback<Boolean> callback) {
+            mLastCheckedUrl = requestUrl;
             String path = requestUrl.getPath();
             boolean isRestrictedContent = RESTRICTED_CONTENT_BLOCKLIST.contains(path);
-            mExecutor.execute(callback.bind(isRestrictedContent));
+            mExecutor.execute(
+                    () -> {
+                        callback.onResult(isRestrictedContent);
+                        mShouldBlockUrlHelper.notifyCalled();
+                    });
         }
 
         @Override
@@ -491,6 +583,14 @@ public class AwSupervisedUserTest extends AwParameterizedTest {
 
         public CallbackHelper getNeedsRestrictionHelper() {
             return mNeedsRestrictionHelper;
+        }
+
+        public CallbackHelper getShouldBlockUrlHelper() {
+            return mShouldBlockUrlHelper;
+        }
+
+        public @Nullable GURL getLastCheckedUrl() {
+            return mLastCheckedUrl;
         }
     }
 

@@ -408,4 +408,49 @@ TEST_F(URLLoaderThrottleTest, RedirectsRemoveHeaders) {
   }
 }
 
+TEST_F(URLLoaderThrottleTest, ReplaceUrlReevaluatesPolicy) {
+  mojom::UrlRequestRewriteRulesPtr rules = mojom::UrlRequestRewriteRules::New();
+
+  {
+    mojom::UrlRequestRewriteReplaceUrlPtr replace_url =
+        mojom::UrlRequestRewriteReplaceUrl::New();
+    replace_url->url_ends_with = "/partner-endpoint";
+    replace_url->new_url = GURL("http://internal.host/api");
+
+    mojom::UrlRequestRulePtr rule = mojom::UrlRequestRule::New();
+    rule->hosts_filter =
+        std::optional<std::vector<std::string>>({"allowed.com"});
+    rule->actions.push_back(
+        mojom::UrlRequestAction::NewReplaceUrl(std::move(replace_url)));
+    rules->rules.push_back(std::move(rule));
+  }
+
+  {
+    mojom::UrlRequestRulePtr rule = mojom::UrlRequestRule::New();
+    rule->hosts_filter =
+        std::optional<std::vector<std::string>>({"internal.host"});
+    rule->actions.push_back(mojom::UrlRequestAction::NewPolicy(
+        mojom::UrlRequestAccessPolicy::kDeny));
+    rules->rules.push_back(std::move(rule));
+  }
+
+  TestThrottleDelegate delegate;
+  URLLoaderThrottle throttle(
+      base::MakeRefCounted<UrlRequestRewriteRules>(std::move(rules)),
+      CreateCorsExemptHeadersCallback({}));
+  throttle.set_delegate(&delegate);
+
+  bool unused_defer = false;
+
+  // Request to allowed.com/partner-endpoint should be rewritten to
+  // internal.host, which is denied, thus the request should be canceled.
+  network::ResourceRequest request;
+  request.url = GURL("http://allowed.com/partner-endpoint?q=ATTACKER");
+  throttle.WillStartRequest(&request, &unused_defer);
+
+  EXPECT_TRUE(delegate.canceled());
+  EXPECT_EQ(delegate.cancel_reason(),
+            "Resource load blocked by embedder policy.");
+}
+
 }  // namespace url_rewrite

@@ -46,6 +46,11 @@ CC_BASE_EXPORT extern const base::FeatureParam<int> kReclaimDelayInSeconds;
 // that it doesn't wait for resource releases that will never come.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kTileOOMFreezeMitigation);
 
+// When enabled, CompositeForTest unconditionally stops deferring commits before
+// running the main frame. Disable in tests that need to observe paint holding
+// state through BeginFrame.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kStopDeferringCommitsInCompositeForTest);
+
 // When a LayerTreeHostImpl is not visible, clear its transferable resources
 // that haven't been imported into viz.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kClearCanvasResourcesInBackground);
@@ -83,8 +88,9 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSlimScheduler);
 // Modes for `kWaitForLateScrollEvents` changing event dispatch. Where the
 // default is to just always enqueue scroll events.
 //
-// The ideal goal for
-// `kScrollEventDispatchModeNameDispatchScrollEventsImmediately` is that it will
+// The ideal goal for both
+// `kScrollEventDispatchModeNameDispatchScrollEventsImmediately` and
+// `kScrollEventDispatchModeDispatchScrollEventsUntilDeadline` is that they will
 // wait for `kWaitForLateScrollEventsDeadlineRatio` of the frame interval for
 // input. During this time the first scroll event will be dispatched
 // immediately. Subsequent scroll events will be enqueued. At the deadline we
@@ -105,6 +111,11 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSlimScheduler);
 // production, we will first attempt to generate a new prediction to dispatch.
 // As in `kScrollEventDispatchModeUseScrollPredictorForEmptyQueue`. After
 // which we will resume frame production and enqueuing input.
+//
+// `kScrollEventDispatchModeDispatchScrollEventsUntilDeadline` relies on
+// `blink::InputHandlerProxy` to directly enforce the deadline. This isolates us
+// from cc scheduling bugs. Allowing us to no longer dispatch events, even if
+// frame production has yet to complete.
 CC_BASE_EXPORT extern const base::FeatureParam<std::string>
     kScrollEventDispatchMode;
 CC_BASE_EXPORT extern const char
@@ -113,6 +124,8 @@ CC_BASE_EXPORT extern const char
     kScrollEventDispatchModeUseScrollPredictorForEmptyQueue[];
 CC_BASE_EXPORT extern const char
     kScrollEventDispatchModeUseScrollPredictorForDeadline[];
+CC_BASE_EXPORT extern const char
+    kScrollEventDispatchModeDispatchScrollEventsUntilDeadline[];
 
 // Enables Viz service-side layer trees for content rendering.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kTreesInViz);
@@ -157,6 +170,22 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kInitImageDecodeLastUseTime);
 // When enabled, throttles the framerate after a certain number of no-damage
 // frames in a row.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kThrottleRepeatedNoDamageFrames);
+// Number of frames after which we start throttling.
+CC_BASE_EXPORT extern const base::FeatureParam<int>
+    kThrottleRepeatedNoDamageFramesThreshold1;
+// Number of frames beyond |Threshhold1| after which we increase throttling.
+CC_BASE_EXPORT extern const base::FeatureParam<int>
+    kThrottleRepeatedNoDamageFramesThreshold2;
+// Factor by which we throttle after |Threshold1| frames have passed. E.g. a
+// value of 2 would throttle the framerate to 1/2.
+CC_BASE_EXPORT extern const base::FeatureParam<int>
+    kThrottleRepeatedNoDamageFramesIntervalFactor1;
+// Factor by which we increase the throttling after |Threshold1 + Threshold2|
+// frames have passed. Compounds on the throttling from |Factor1|. E.g. with
+// |Factor1 = 2| and |Factor2 = 3|, we would throttle to 1/6 the original
+// (unthrottled) framerate.
+CC_BASE_EXPORT extern const base::FeatureParam<int>
+    kThrottleRepeatedNoDamageFramesIntervalFactor2;
 
 // On devices with a high refresh rate, whether to throttle main (not impl)
 // frame production to 60Hz.

@@ -125,6 +125,7 @@ source_set("impl") {
     deps += [
       "//chrome/browser/android:tabs_public",
       "//chrome/browser/flags:flags_android",
+      "//chrome/browser/lens:jni_headers",
       "//chrome/browser/ui/android/omnibox:jni_headers",
       "//chrome/browser/ui/android/tab_model",
     ]

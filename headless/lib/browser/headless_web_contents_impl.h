@@ -34,6 +34,7 @@ class Rect;
 
 namespace headless {
 class HeadlessBrowserImpl;
+class HeadlessBrowserContextImpl;
 
 // Exported for tests.
 class HEADLESS_EXPORT HeadlessWebContentsImpl : public HeadlessWebContents,
@@ -48,7 +49,7 @@ class HEADLESS_EXPORT HeadlessWebContentsImpl : public HeadlessWebContents,
   static HeadlessWebContentsImpl* From(content::WebContents* web_contents);
 
   static std::unique_ptr<HeadlessWebContentsImpl> Create(
-      HeadlessWebContents::Builder* builder);
+      const HeadlessWebContents::CreateParams& params);
 
   // Takes ownership of |child_contents|.
   static std::unique_ptr<HeadlessWebContentsImpl> CreateForChildContents(

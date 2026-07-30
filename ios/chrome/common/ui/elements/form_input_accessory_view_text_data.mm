@@ -22,7 +22,9 @@
     creditCardManualFillButtonAccessibilityLabel:
         (NSString*)creditCardManualFillButtonAccessibilityLabel
        addressManualFillButtonAccessibilityLabel:
-           (NSString*)addressManualFillButtonAccessibilityLabel {
+           (NSString*)addressManualFillButtonAccessibilityLabel
+      atMemoryManualFillButtonAccessibilityLabel:
+          (NSString*)atMemoryManualFillButtonAccessibilityLabel {
   if ((self = [super init])) {
     _closeButtonTitle = [closeButtonTitle copy];
     _closeButtonAccessibilityLabel = [closeButtonAccessibilityLabel copy];
@@ -37,6 +39,8 @@
         [creditCardManualFillButtonAccessibilityLabel copy];
     _addressManualFillButtonAccessibilityLabel =
         [addressManualFillButtonAccessibilityLabel copy];
+    _atMemoryManualFillButtonAccessibilityLabel =
+        [atMemoryManualFillButtonAccessibilityLabel copy];
   }
   return self;
 }

@@ -252,6 +252,12 @@ message OmniboxEventProto {
     // enum is used in other places too, and not only OmniboxEventProto.)
     NTP_COMPOSEBOX_PREFETCH = 37;
 
+    // Omnibox everywhere.
+    OMNIBOX_EVERYWHERE = 38;
+
+    // Composebox everywhere.
+    COMPOSEBOX_EVERYWHERE = 39;
+
     // When adding new classifications, please update the `OmniboxPageContext`
     // variants listed in chromium's
     // tools/metrics/histograms/metadata/omnibox/histograms.xml and also

@@ -12,6 +12,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
@@ -94,6 +95,20 @@ public class HubColorMixerImplUnitTest {
 
         assertFalse(mHubVisibilitySupplier.hasObservers());
         assertFalse(mFocusedPaneSupplier.hasObservers());
+    }
+
+    @Test
+    public void testUnregisterBlend() {
+        when(mColorBlend.createAnimationForTransition(anyInt(), anyInt()))
+                .thenReturn(mock(android.animation.Animator.class));
+        mAnimatorSetBuilder.setPreviousColorScheme(HubColorScheme.DEFAULT);
+        mAnimatorSetBuilder.setNewColorScheme(HubColorScheme.INCOGNITO);
+
+        mHubColorMixer.registerBlend(mColorBlend);
+        assertEquals(2, mAnimatorSetBuilder.build().getChildAnimations().size());
+
+        mHubColorMixer.unregisterBlend(mColorBlend);
+        assertEquals(1, mAnimatorSetBuilder.build().getChildAnimations().size());
     }
 
     @Test

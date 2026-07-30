@@ -24,19 +24,19 @@
 #import "ios/web/public/web_state.h"
 #import "ios/web/public/web_state_observer_bridge.h"
 
-// C++ proxy class that generates the PassKey required to mutate
+// C++ factory class that generates the PassKey required to mutate
 // the FullscreenBrowserAgent.
-class FullscreenMediatorPassKeyProvider {
+class FullscreenMediatorPassKeyFactory {
  public:
-  static base::PassKey<FullscreenMediatorPassKeyProvider> passkey() {
-    return base::PassKey<FullscreenMediatorPassKeyProvider>();
+  static base::PassKey<FullscreenMediatorPassKeyFactory> passkey() {
+    return base::PassKey<FullscreenMediatorPassKeyFactory>();
   }
 };
 
 namespace {
 // Helper function to return a passkey used to mutate the browser agent state.
-inline base::PassKey<FullscreenMediatorPassKeyProvider> PassKey() {
-  return FullscreenMediatorPassKeyProvider::passkey();
+inline base::PassKey<FullscreenMediatorPassKeyFactory> PassKey() {
+  return FullscreenMediatorPassKeyFactory::passkey();
 }
 
 // The threshold for direction-based snapping.
@@ -293,8 +293,8 @@ const CGFloat kFullscreenSnapThreshold = 10.0;
     }
   }
 
-  _browserAgent->IncrementalScroll(
-      delta, FullscreenMediatorPassKeyProvider::passkey());
+  _browserAgent->IncrementalScroll(delta,
+                                   FullscreenMediatorPassKeyFactory::passkey());
 
   _handlingScroll = NO;
 }

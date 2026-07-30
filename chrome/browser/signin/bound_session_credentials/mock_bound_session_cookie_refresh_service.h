@@ -36,6 +36,10 @@ class MockBoundSessionCookieRefreshService
               StopCookieRotation,
               (const BoundSessionKey& key),
               (override));
+  MOCK_METHOD(std::vector<BoundSessionKey>,
+              GetAllSessions,
+              (),
+              (const, override));
   MOCK_METHOD(std::vector<chrome::mojom::BoundSessionThrottlerParamsPtr>,
               GetBoundSessionThrottlerParams,
               (),

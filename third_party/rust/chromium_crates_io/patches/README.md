@@ -11,7 +11,7 @@ version 1.x of crate `foo` would be found in the
 `.../chromium_crates_io/patches/foo-v1` directory.
 
 For broader context, please see `tools/crates/gnrt/README.md` and
-`docs/rust.md`.
+`//docs/rust/README.md`.
 
 ## Prefer upstream PRs instead of patches
 

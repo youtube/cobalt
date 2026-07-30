@@ -22,6 +22,7 @@
 #include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
+#include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_activation_tracker.h"
 #include "chrome/browser/ui/toasts/api/toast_id.h"
 #include "chrome/browser/ui/toasts/toast_controller.h"
 #include "components/send_tab_to_self/features.h"
@@ -105,18 +106,41 @@ const gfx::VectorIcon& GetSharingDeviceIcon(
 
 }  // namespace
 
+void MarkEntryMatchingGuidActivated(Profile* profile,
+                                    const std::string& guid,
+                                    ShareActivatedEntryPoint entry_point) {
+  auto* sync_service = SendTabToSelfSyncServiceFactory::GetForProfile(profile);
+  SendTabToSelfModel* model =
+      sync_service ? sync_service->GetSendTabToSelfModel() : nullptr;
+  if (model) {
+    model->MarkEntryActivated(guid, entry_point);
+  }
+}
+
 base::WeakPtr<content::WebContents> OpenEntryInNewForegroundTab(
     Profile* profile,
-    const SendTabToSelfEntry& entry) {
-  return OpenEntryInNewTabWithDisposition(
-      profile, entry, WindowOpenDisposition::NEW_FOREGROUND_TAB);
+    const SendTabToSelfEntry& entry,
+    ShareActivatedEntryPoint entry_point) {
+  base::WeakPtr<content::WebContents> web_contents =
+      OpenEntryInNewTabWithDisposition(
+          profile, entry, WindowOpenDisposition::NEW_FOREGROUND_TAB);
+  if (web_contents) {
+    MarkEntryMatchingGuidActivated(profile, entry.GetGUID(), entry_point);
+  }
+  return web_contents;
 }
 
 base::WeakPtr<content::WebContents> OpenEntryInNewBackgroundTab(
     Profile* profile,
     const SendTabToSelfEntry& entry) {
-  return OpenEntryInNewTabWithDisposition(
-      profile, entry, WindowOpenDisposition::NEW_BACKGROUND_TAB);
+  base::WeakPtr<content::WebContents> web_contents =
+      OpenEntryInNewTabWithDisposition(
+          profile, entry, WindowOpenDisposition::NEW_BACKGROUND_TAB);
+  if (web_contents) {
+    SendTabToSelfActivationTracker::CreateForWebContents(web_contents.get(),
+                                                         entry.GetGUID());
+  }
+  return web_contents;
 }
 
 void ShowTabSentSuccessToast(content::WebContents* web_contents,

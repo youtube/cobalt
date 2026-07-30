@@ -7,6 +7,7 @@
 
 #import <UIKit/UIKit.h>
 
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state_passkey.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/layout_transition_coordinating.h"
 
 // The position of the app bar.
@@ -68,34 +69,54 @@ enum class ToolbarPosition {
 @interface LayoutState : NSObject
 
 // Indicates whether the contained layout is active.
-@property(nonatomic, assign) BOOL containedLayoutActive;
+@property(nonatomic, readonly) BOOL containedLayoutActive;
 
 // Indicates whether the contained layout is supported in the current
 // environment. Updated by `SceneViewController` in response to trait changes.
-@property(nonatomic, assign) BOOL containedLayoutSupported;
+@property(nonatomic, readonly) BOOL containedLayoutSupported;
 
 // Indicates whether the app is in windowed mode (multitasking).
-@property(nonatomic, assign) BOOL windowedMode;
+@property(nonatomic, readonly) BOOL windowedMode;
 
 // The position of the app bar.
-@property(nonatomic, assign) AppBarPosition appBarPosition;
+@property(nonatomic, readonly) AppBarPosition appBarPosition;
 
 // The cutout corner radius of the App Bar matching the assistant container.
-@property(nonatomic, assign) CGFloat assistantContainerCutoutRadius;
+@property(nonatomic, readonly) CGFloat assistantContainerCutoutRadius;
 
 // The position of the toolbar (omnibox).
-@property(nonatomic, assign) ToolbarPosition toolbarPosition;
+@property(nonatomic, readonly) ToolbarPosition toolbarPosition;
 
-// Sets `containedLayoutActive` with a transition coordinator to
-// synchronize animations. `coordinator` must not be nil.
+// Custom setters requiring domain-level passkeys.
 - (void)setContainedLayoutActive:(BOOL)active
-       withTransitionCoordinator:(id<LayoutTransitionCoordinating>)coordinator;
+                    scenePassKey:(LayoutStateScenePassKey)passKey;
+- (void)setContainedLayoutActive:(BOOL)active
+                assistantPassKey:(LayoutStateAssistantPassKey)passKey;
+- (void)setContainedLayoutSupported:(BOOL)supported
+                            passKey:(LayoutStateScenePassKey)passKey;
+- (void)setWindowedMode:(BOOL)windowedMode
+                passKey:(LayoutStateScenePassKey)passKey;
+- (void)setAssistantContainerCutoutRadius:(CGFloat)radius
+                                  passKey:(LayoutStateAssistantPassKey)passKey;
+- (void)setToolbarPosition:(ToolbarPosition)position
+                   passKey:(LayoutStateToolbarPassKey)passKey;
+- (void)setAppBarPosition:(AppBarPosition)position
+                  passKey:(LayoutStateScenePassKey)passKey;
+
+// Transition setters secured by domain-level passkeys.
+- (void)setContainedLayoutActive:(BOOL)active
+       withTransitionCoordinator:(id<LayoutTransitionCoordinating>)coordinator
+                    scenePassKey:(LayoutStateScenePassKey)passKey;
+- (void)setContainedLayoutActive:(BOOL)active
+       withTransitionCoordinator:(id<LayoutTransitionCoordinating>)coordinator
+                assistantPassKey:(LayoutStateAssistantPassKey)passKey;
 
 // Updates the AppBar position, based on the interfaceOrientation of the window
 // scene, and any rotation transforms applied by the transition coordinator.
 - (void)updateAppBarPositionWithView:(UIView*)view
                          coordinator:(id<UIViewControllerTransitionCoordinator>)
-                                         coordinator;
+                                         coordinator
+                             passKey:(LayoutStateScenePassKey)passKey;
 
 // Adds an observer to be notified of layout state changes.
 - (void)addObserver:(id<LayoutStateObserver>)observer;

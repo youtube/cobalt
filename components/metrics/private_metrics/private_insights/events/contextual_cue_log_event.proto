@@ -1,0 +1,58 @@
+// Proto definition for Contextual Cue Log Events.
+
+syntax = "proto3";
+
+package private_insights.events;
+
+option optimize_for = LITE_RUNTIME;
+
+message ContextualCueLogEvent {
+  message PageInfo {
+    string url = 1;
+    string title = 2;
+  }
+
+  message CueContext {
+    PageInfo active_page = 1;
+
+    // Serialized JSON array, containing objects in format:
+    //
+    //     { "page": <string>, "title": <string> }
+    //
+    // to work around Federated Compute Platform's limitation in handling
+    // repeated fields.
+    string recent_pages = 2;
+  }
+
+  message CueDetails {
+    string cuj_type = 1;
+    string suggestion_text = 2;
+    string button_text = 3;
+    string prompt = 4;
+    string promoted_feature = 5;
+  }
+
+  message SystemProfile {
+    string country = 1;
+    string language = 2;
+    string chrome_version = 3;
+    string milestone = 4;
+    string chrome_channel = 5;
+  }
+
+  enum EventType {
+    UNSPECIFIED = 0;
+    SHOWN = 1;
+    CLICKED = 2;
+    DISMISSED = 3;
+    CLICKED_SETTINGS = 4;
+    EDIT_PROMPT = 5;
+  }
+
+  string cue_id = 1;
+  CueContext cue_context = 2;
+  CueDetails cue_details = 3;
+  SystemProfile system_profile = 4;
+  EventType event_type = 5;
+  int64 event_timestamp_ms = 6;
+}

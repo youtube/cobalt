@@ -23,7 +23,7 @@
 #include "media/parsers/h264_bit_reader.h"
 #include "media/parsers/h264_parser.h"
 #include "media/parsers/h265_nalu_parser.h"
-#include "third_party/skia/include/private/SkHdrMetadata.h"
+#include "media/parsers/h26x_parser.h"
 
 namespace media {
 
@@ -465,33 +465,11 @@ struct MEDIA_EXPORT H265SEIAlphaChannelInfo {
   bool alpha_channel_clip_type_flag = false;
 };
 
-struct MEDIA_EXPORT H265SEIContentLightLevelInfo {
-  uint16_t max_content_light_level;
-  uint16_t max_picture_average_light_level;
-
-  skhdr::ContentLightLevelInformation ToSkHdr() const;
-};
-
-struct MEDIA_EXPORT H265SEIMasteringDisplayInfo {
-  enum {
-    kNumDisplayPrimaries = 3,
-    kDisplayPrimaryComponents = 2,
-  };
-
-  std::array<std::array<uint16_t, kDisplayPrimaryComponents>,
-             kNumDisplayPrimaries>
-      display_primaries;
-  std::array<uint16_t, 2> white_points;
-  uint32_t max_luminance;
-  uint32_t min_luminance;
-
-  skhdr::MasteringDisplayColorVolume ToSkHdr() const;
-};
-
 using H265SEIMessage = std::variant<std::monostate,
                                     H265SEIAlphaChannelInfo,
-                                    H265SEIContentLightLevelInfo,
-                                    H265SEIMasteringDisplayInfo>;
+                                    H26xSEIContentLightLevelInfo,
+                                    H26xSEIMasteringDisplayInfo,
+                                    H26xSEIUserDataRegisteredT35>;
 
 struct MEDIA_EXPORT H265SEI {
   H265SEI();

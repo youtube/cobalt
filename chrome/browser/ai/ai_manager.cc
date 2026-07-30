@@ -90,17 +90,17 @@ constexpr float kMinTemperature = 0.0f;
 constexpr float kMostPredictableTemperature = 0.0f;
 constexpr uint32_t kMostPredictableTopK = 1;
 
-constexpr float kPredictableTemperature = 0.2f;
-constexpr uint32_t kPredictableTopK = 2;
+constexpr float kPredictableTemperature = 0.3f;
+constexpr uint32_t kPredictableTopK = 30;
 
-constexpr float kBalancedTemperature = 1.0f;
-constexpr uint32_t kBalancedTopK = 3;
+constexpr float kBalancedTemperature = 0.7f;
+constexpr uint32_t kBalancedTopK = 64;
 
 constexpr float kCreativeTemperature = 1.1f;
-constexpr uint32_t kCreativeTopK = 10;
+constexpr uint32_t kCreativeTopK = 80;
 
 constexpr float kMostCreativeTemperature = 1.2f;
-constexpr uint32_t kMostCreativeTopK = 25;
+constexpr uint32_t kMostCreativeTopK = 100;
 
 const char kUnsupportedLanguageError[] =
     "Unsupported %s API languages were specified, and the request was aborted. "

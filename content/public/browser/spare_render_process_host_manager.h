@@ -5,6 +5,7 @@
 #ifndef CONTENT_PUBLIC_BROWSER_SPARE_RENDER_PROCESS_HOST_MANAGER_H_
 #define CONTENT_PUBLIC_BROWSER_SPARE_RENDER_PROCESS_HOST_MANAGER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/observer_list_types.h"
 #include "content/common/content_export.h"
 #include "content/public/common/child_process_id.h"
@@ -48,7 +49,7 @@ class CONTENT_EXPORT SpareRenderProcessHostManager {
   // Return all existing spare RenderProcessHosts. Can be used in tandem
   // with the Observer interface above to track the lifetime of all the spare
   // RenderProcessHosts.
-  virtual const std::vector<RenderProcessHost*>& GetSpares() = 0;
+  virtual const std::vector<raw_ptr<RenderProcessHost>>& GetSpares() = 0;
 
   // Returns the IDs of all the existing spare RenderProcessHosts. Useful when
   // you want to save the current set of spare RPHs for a later comparison (e.g.

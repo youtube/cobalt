@@ -190,7 +190,7 @@ class ASH_EXPORT WindowMiniView : public WindowMiniViewBase,
   raw_ptr<views::View> backdrop_view_ = nullptr;
 
   // Optionally shows a preview of |window_|.
-  raw_ptr<WindowPreviewView, DanglingUntriaged> preview_view_ = nullptr;
+  raw_ptr<WindowPreviewView> preview_view_;
 
   // If these optional values are set, they will be used otherwise the default
   // rounded corners will be used.

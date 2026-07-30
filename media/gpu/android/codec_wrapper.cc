@@ -22,6 +22,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "media/base/android/media_codec_util.h"
 #include "media/base/android/media_format_color_space.h"
+#include "media/base/media_switches.h"
 
 namespace media {
 
@@ -169,11 +170,18 @@ bool CodecOutputBuffer::ReleaseToSurface() {
 }
 
 bool CodecOutputBuffer::CanGuessCodedSize() const {
+  if (base::FeatureList::IsEnabled(kUseMediaFormatCodedSize)) {
+    return true;
+  }
   return coded_size_alignment_.has_value();
 }
 
 gfx::Size CodecOutputBuffer::GuessCodedSize() const {
   DCHECK(CanGuessCodedSize());
+  if (base::FeatureList::IsEnabled(kUseMediaFormatCodedSize)) {
+    return media_format_output_size_;
+  }
+
   return gfx::Size(
       base::bits::AlignUpDeprecatedDoNotUse(visible_rect_.width(),
                                             coded_size_alignment_->width()),

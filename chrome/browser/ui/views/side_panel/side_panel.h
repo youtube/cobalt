@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_SIDE_PANEL_SIDE_PANEL_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
@@ -119,9 +120,16 @@ class SidePanel : public views::AccessiblePaneView,
 
   views::View* resize_area_for_testing() { return resize_area_; }
 
- private:
-  class VisibleBoundsViewClipper;
+  // Sets or clears the visible area to clip the side panel and its children to.
+  // If null, no clipping is performed.
+  //
+  // Since things can move around in the UI, should be called every frame after
+  // layout but before rendering (typically in
+  // `BrowserLayoutImpl::DoPostLayoutVisualAdjustments()`).
+  void SetClipToVisibleArea(
+      const std::optional<gfx::Rect>& clip_to_visible_area);
 
+ private:
   // This method is the shared implementation of Open/Close.
   void UpdateVisibility(bool should_be_open, bool animated);
 
@@ -158,10 +166,6 @@ class SidePanel : public views::AccessiblePaneView,
   // Starting bounds for the side panel content if kOpenWithContentTransition
   // animation is shown.
   std::optional<gfx::Rect> content_starting_bounds_;
-
-  // Helps to clip layer backed children to their visible bounds.
-  // TODO: 344626785 - Remove this once WebView layer behavior has been fixed.
-  std::unique_ptr<VisibleBoundsViewClipper> visible_bounds_view_clipper_;
 
   gfx::RoundedCornersF background_radii_;
 

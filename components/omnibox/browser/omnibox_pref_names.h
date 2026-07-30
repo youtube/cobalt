@@ -29,6 +29,11 @@ inline constexpr char kAimHintTotalImpressions[] =
 // omnibox and NTP AIM entrypoints. Controlled by an admin policy.
 inline constexpr char kAIModeSettings[] = "omnibox.ai_mode_settings";
 
+// An integer pref stores whether 3rd party AIM features are enabled.
+// Controlled by an admin policy.
+inline constexpr char kThirdPartyAiChatSettings[] =
+    "omnibox.third_party_ai_chat_settings";
+
 // LINT.IfChange(TipsPrefNames)
 // Boolean for whether bottom omnibox was ever used.
 inline constexpr char kBottomOmniboxEverUsed[] =

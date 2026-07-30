@@ -64,6 +64,8 @@
 namespace remoting {
 
 class ActiveDisplayMonitor;
+class SecurityKeyAuthHandler;
+class SecurityKeyExtension;
 class DesktopEnvironment;
 class DesktopEnvironmentFactory;
 class InputInjector;
@@ -453,6 +455,9 @@ class ClientSession : public protocol::HostStub,
   std::unique_ptr<protocol::ConnectionToClient> connection_;
 
   std::string client_jid_;
+
+  std::unique_ptr<SecurityKeyAuthHandler> security_key_auth_handler_;
+  std::unique_ptr<SecurityKeyExtension> security_key_extension_;
 
   // Used to manage extension functionality.
   std::unique_ptr<HostExtensionSessionManager> extension_manager_;

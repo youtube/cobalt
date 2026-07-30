@@ -6,7 +6,6 @@
 
 #include "base/no_destructor.h"
 #include "base/process/process_handle.h"
-#include "chrome/browser/ui/views/accessibility/dump_accessibility_events_views_browsertest_base.h"
 #include "ui/accessibility/ax_tree.h"
 #include "ui/accessibility/platform/ax_platform_node.h"
 #include "ui/accessibility/platform/ax_platform_node_delegate.h"

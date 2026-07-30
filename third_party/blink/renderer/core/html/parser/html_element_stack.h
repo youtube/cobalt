@@ -27,6 +27,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_HTML_PARSER_HTML_ELEMENT_STACK_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_PARSER_HTML_ELEMENT_STACK_H_
 
+#include <initializer_list>
+
 #include "third_party/blink/renderer/core/html/parser/html_stack_item.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
@@ -119,6 +121,7 @@ class HTMLElementStack {
   bool InScope(html_names::HTMLTag tag) const;
   bool InListItemScope(html_names::HTMLTag tag) const;
   bool InTableScope(html_names::HTMLTag tag) const;
+  bool InTableScope(std::initializer_list<html_names::HTMLTag> tags) const;
   bool InButtonScope(html_names::HTMLTag tag) const;
 
   bool HasNumberedHeaderElementInScope() const;

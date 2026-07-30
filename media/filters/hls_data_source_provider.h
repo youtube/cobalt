@@ -59,12 +59,9 @@ class MEDIA_EXPORT HlsDataSourceProvider {
     const DataSource::EncodingMode encoding_mode =
         DataSource::EncodingMode::kIdentity;
   };
-  using SegmentQueue = base::queue<UrlDataSegment>;
-
-  // Kicks off a read to a chain of segments, and replies with a stream
+  // Kicks off a read to a single segment, and replies with a stream
   // reference which can be used to continue fetching partial data.
-  virtual void ReadFromCombinedUrlQueue(SegmentQueue segments,
-                                        ReadCb callback) = 0;
+  virtual void ReadFromUrl(UrlDataSegment segment, ReadCb callback) = 0;
 
   // Continues to read from an existing stream.
   virtual void ReadFromExistingStream(
@@ -73,10 +70,6 @@ class MEDIA_EXPORT HlsDataSourceProvider {
 
   // Aborts all pending reads and calls `callback` when finished.
   virtual void AbortPendingReads(base::OnceClosure callback) = 0;
-
-  // Helper function for reading from a single segment by creating a queue of
-  // size 1 for use with `ReadFromCombinedUrlQueue`
-  void ReadFromUrlForTesting(UrlDataSegment segment, ReadCb callback);
 };
 
 // A buffer-owning wrapper for an HlsDataSource which can be instructed to
@@ -93,7 +86,7 @@ class MEDIA_EXPORT HlsDataSourceStream {
   // except for an ownership-holding smart pointer, as the destruction cb may
   // do work across threads.
   HlsDataSourceStream(StreamId stream_id,
-                      HlsDataSourceProvider::SegmentQueue segments,
+                      HlsDataSourceProvider::UrlDataSegment segment,
                       base::OnceClosure on_destructed_cb);
   ~HlsDataSourceStream();
 
@@ -124,6 +117,10 @@ class MEDIA_EXPORT HlsDataSourceStream {
   // origin sets and merges the security flags.
   void MergeSecurityMetadata(const hls::SecurityMetadata& other);
 
+  // Prepend another stream's data and merge its security metadata.
+  // This is used for parallel fetching of init segment and media segment.
+  void PrependInitStream(std::unique_ptr<HlsDataSourceStream> init_stream);
+
   // A stream's origin is considered tainted if any backing data source involved
   // in this playback is tainted.
   void set_would_taint_origin() { security_info_.would_taint_origin = true; }
@@ -148,24 +145,16 @@ class MEDIA_EXPORT HlsDataSourceStream {
   // this supports accessing the fetched data as a string view.
   std::string_view AsString() const;
 
-  // Determines whether the current segment has finished reading, and there are
-  // more segments in the queue to read from.
-  bool RequiresNextDataSource() const;
+  // Determines whether the stream has been initialized with a data source.
+  bool RequiresInit() const;
 
-  // Gets the next segment URI from the queue of segments. It is invalid to call
-  // this method if `RequiresNextDataSource` does not return true. This
-  // method will also update the internal range if the segment has one.
-  GURL GetNextSegmentURI();
-
-  // Gets the next segment URI and its cache bypass option from the queue of
-  // segments. It is invalid to call this method if `RequiresNextDataSource`
-  // does not return true. This method will also update the internal range if
-  // the segment has one.
+  // Gets the segment info to initialize the data source. It is invalid to call
+  // this method if `RequiresInit` does not return true.
   std::tuple<GURL,
              DataSource::CacheMode,
              DataSource::RangeMode,
              DataSource::EncodingMode>
-  GetNextSegmentURIAndCacheStatus();
+  GetSegmentInfo();
 
   // Has the stream read all possible data?
   bool CanReadMore() const;
@@ -216,11 +205,11 @@ class MEDIA_EXPORT HlsDataSourceStream {
   // by UnlockStreamPostWrite.
   bool stream_locked_ = false;
 
-  // The queue of segments to read from.
-  HlsDataSourceProvider::SegmentQueue segments_;
+  // The segment to read from.
+  HlsDataSourceProvider::UrlDataSegment segment_;
 
-  // Does this stream require a reset to get the next data source.
-  bool requires_next_data_source_;
+  // Does this stream require initialization.
+  bool requires_init_ = true;
 
   base::OnceClosure on_destructed_cb_;
 

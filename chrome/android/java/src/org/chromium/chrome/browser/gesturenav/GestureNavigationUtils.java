@@ -13,6 +13,7 @@ import org.jni_zero.NativeMethods;
 
 import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.contextual_tasks.ContextualTasksBridge;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.ui.UiUtils;
 
@@ -30,6 +31,9 @@ public class GestureNavigationUtils {
      */
     public static boolean allowTransition(Tab tab, boolean forward) {
         if (!shouldAnimateBackForwardTransitions()) return false;
+        // TODO(crbug.com/527549133): Temporary fix for Android desktop when side panel is open.
+        // We still need to fix back gesture navigation on full AIM page.
+        if (ContextualTasksBridge.isPanelOpen(tab)) return false;
         // If in gesture mode, only U and above support transition.
         Window window = tab.getWindowAndroidChecked().getWindow();
         if (window == null) return false;

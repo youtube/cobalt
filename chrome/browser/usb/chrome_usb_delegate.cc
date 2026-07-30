@@ -22,11 +22,12 @@
 #include "chrome/browser/usb/web_usb_chooser.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/url_constants.h"
-#include "components/guest_view/buildflags/buildflags.h"
 #include "components/permissions/object_permission_context_base.h"
 #include "content/public/browser/isolated_context_util.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/security_principal.h"
+#include "content/public/browser/site_instance.h"
 #include "services/device/public/mojom/usb_enumeration_options.mojom.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-shared.h"
 #include "third_party/blink/public/common/features_generated.h"
@@ -38,9 +39,6 @@
 #include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
 #include "services/device/public/mojom/usb_device.mojom.h"
-#if BUILDFLAG(ENABLE_GUEST_VIEW)
-#include "extensions/browser/guest_view/web_view/web_view_guest.h"
-#endif  // BUILDFLAG(ENABLE_GUEST_VIEW)
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 namespace {
@@ -269,15 +267,13 @@ std::unique_ptr<UsbChooser> ChromeUsbDelegate::RunChooser(
 
 bool ChromeUsbDelegate::PageMayUseUsb(content::Page& page) {
   content::RenderFrameHost& main_rfh = page.GetMainDocument();
-#if BUILDFLAG(ENABLE_EXTENSIONS_CORE) && BUILDFLAG(ENABLE_GUEST_VIEW)
-  // WebViewGuests have no mechanism to show permission prompts and their
-  // embedder can't grant USB access through its permissionrequest API. Also
-  // since webviews use a separate StoragePartition, they must not gain access
-  // through permissions granted in non-webview contexts.
-  if (extensions::WebViewGuest::FromRenderFrameHost(&main_rfh)) {
+  // Because permission is scoped to the profile, guest contexts (like
+  // <webview>, <controlledframe>, and SlimWebView), despite having isolated
+  // StoragePartitions, would share USB permissions with the rest of the
+  // profile. Therefore, USB is not allowed in these contexts.
+  if (main_rfh.GetSiteInstance()->GetSecurityPrincipal().IsGuest()) {
     return false;
   }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE) && BUILDFLAG(ENABLE_GUEST_VIEW)
 
   // USB permissions are scoped to a BrowserContext instead of a
   // StoragePartition, so we need to be careful about usage across

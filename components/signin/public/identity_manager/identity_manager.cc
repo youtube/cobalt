@@ -440,6 +440,13 @@ std::vector<AccountInfo> IdentityManager::GetAccountsOnDevice() {
 }
 #endif
 
+void IdentityManager::SetCapabilityOverride(const CoreAccountId& account_id,
+                                            std::string_view capability_name,
+                                            std::optional<Tribool> override_value) {
+  account_tracker_service_->SetCapabilityOverride(account_id, capability_name,
+                                                  override_value);
+}
+
 void IdentityManager::AddDiagnosticsObserver(DiagnosticsObserver* observer) {
   diagnostics_observation_list_.AddObserver(observer);
 }

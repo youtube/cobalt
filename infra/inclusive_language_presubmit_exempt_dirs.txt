@@ -147,6 +147,7 @@ components/signin/public/identity_manager
 components/soda
 components/strictmode/android/java/src/org/chromium/components/strictmode
 components/supervised_user/core/browser/proto
+components/surface_embed
 components/sync/nigori
 components/test/data/autofill/heuristics/input
 components/test/data/browsing_topics
@@ -164,6 +165,7 @@ content/browser/device_sensors
 content/browser/fenced_frame
 content/browser/loader
 content/browser/renderer_host
+content/browser/security/cpsp
 content/browser/sms
 content/browser/tracing
 content/child
@@ -203,8 +205,6 @@ extensions/browser
 extensions/common
 extensions/common/api
 extensions/common/manifest_handlers
-fuchsia_web/runners/cast
-fuchsia_web/runners/cast/testdata
 google_apis/gaia
 gpu/config
 infra
@@ -656,7 +656,7 @@ third_party/rust/chromium_crates_io/vendor/getrandom-v0_3
 third_party/rust/chromium_crates_io/vendor/getrandom-v0_4
 third_party/rust/chromium_crates_io/vendor/gimli-v0_32
 third_party/rust/chromium_crates_io/vendor/gimli-v0_32/src/read
-third_party/rust/chromium_crates_io/vendor/harfrust-v0_9/src/hb
+third_party/rust/chromium_crates_io/vendor/harfrust-v0_10/src/hb
 third_party/rust/chromium_crates_io/vendor/hashbrown-v0_16
 third_party/rust/chromium_crates_io/vendor/hashbrown-v0_16/src
 third_party/rust/chromium_crates_io/vendor/hashbrown-v0_17
@@ -806,12 +806,10 @@ third_party/rust/chromium_crates_io/vendor/zmij-v1/src
 third_party/rust/miniz_oxide/v0_8
 third_party/screen-ai
 third_party/sentencepiece/src
-third_party/sentencepiece/src/doc
 third_party/sentencepiece/src/src
 third_party/shell-encryption
 third_party/shell-encryption/src
 third_party/simdutf
-third_party/sinonjs/src
 third_party/six/src
 third_party/six/src/documentation
 third_party/sqlite

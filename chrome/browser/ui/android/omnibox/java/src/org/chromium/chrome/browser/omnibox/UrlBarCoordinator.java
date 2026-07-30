@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.omnibox;
 
 import android.content.Context;
 import android.view.ActionMode;
+import android.view.View;
 import android.view.View.OnKeyListener;
 import android.view.View.OnLongClickListener;
 import android.view.inputmethod.EditorInfo;
@@ -37,7 +38,7 @@ public class UrlBarCoordinator
     private final UrlBarMediator mMediator;
     private final PropertyModel mModel;
     private final KeyboardVisibilityDelegate mKeyboardVisibilityDelegate;
-    private final Callback<Boolean> mFocusChangeCallback;
+    private final Callback<UrlBarFocusChangeInfo> mFocusChangeCallback;
     private final Callback<Boolean> mTextWrappedCallback;
     private final ObserverList<Callback<Boolean>> mTextWrapListeners = new ObserverList<>();
     private @Nullable Runnable mKeyboardHideTask;
@@ -72,7 +73,7 @@ public class UrlBarCoordinator
             Context context,
             UrlBar urlBar,
             ActionMode.@Nullable Callback actionModeCallback,
-            Callback<Boolean> focusChangeCallback,
+            Callback<UrlBarFocusChangeInfo> focusChangeCallback,
             UrlBarDelegate delegate,
             KeyboardVisibilityDelegate keyboardVisibilityDelegate,
             boolean isIncognitoBranded,
@@ -379,8 +380,9 @@ public class UrlBarCoordinator
         mMediator.onUrlBarSuggestionsChanged(hasSuggestions);
     }
 
-    private void onUrlFocusChangeInternal(boolean hasFocus) {
+    private void onUrlFocusChangeInternal(UrlBarFocusChangeInfo info) {
         if (mIsReparenting) return;
+        boolean hasFocus = info.hasFocus;
         InputMethodManager imm =
                 (InputMethodManager)
                         mUrlBar.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
@@ -405,7 +407,7 @@ public class UrlBarCoordinator
             mMediator.onUrlBarSuggestionsChanged(false);
         }
 
-        mFocusChangeCallback.onResult(hasFocus);
+        mFocusChangeCallback.onResult(info);
     }
 
     /** Signals that's it safe to call code that requires native to be loaded. */
@@ -459,6 +461,6 @@ public class UrlBarCoordinator
         // The above call may not actually trigger a focus change, e.g. if focus was lost during
         // reparenting and the target post-reparenting focus is false, there is no apparent change
         // from the View's point of view, but the mediator still needs to know.
-        onUrlFocusChangeInternal(postReparentingFocus);
+        onUrlFocusChangeInternal(new UrlBarFocusChangeInfo(postReparentingFocus, View.FOCUS_DOWN));
     }
 }

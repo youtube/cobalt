@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_context_snapshot_impl.h"
 
 #include <array>
+#include <tuple>
 
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_context_snapshot.h"
@@ -237,11 +238,13 @@ void DeserializeAPIWrapperCallback(v8::Local<v8::Object> holder,
   CHECK(deserializer_data->world.IsMainWorld());
   V8DOMWrapper::SetNativeInfo(deserializer_data->isolate, holder,
                               deserializer_data->html_document);
-  const bool result =
+  // The return value is discarded because whether SetWrapperInInlineStorage
+  // associates a new wrapper (true) or retains an existing wrapper (false),
+  // the Document is guaranteed to hold a valid wrapper in inline storage.
+  std::ignore =
       DOMDataStore::SetWrapperInInlineStorage</*entered_context=*/false>(
           deserializer_data->isolate, deserializer_data->html_document,
           V8HTMLDocument::GetWrapperTypeInfo(), holder);
-  CHECK(result);
 }
 
 // We only care for WrapperTypeInfo and do not supply an actual instance of

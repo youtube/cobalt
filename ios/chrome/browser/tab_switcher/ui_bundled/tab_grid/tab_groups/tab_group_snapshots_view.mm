@@ -5,7 +5,6 @@
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_group_snapshots_view.h"
 
 #import "base/check_op.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/elements/top_aligned_image_view.h"
 #import "ios/chrome/browser/shared/ui/util/color_palette/tab_group_color_palette.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -175,7 +174,7 @@ constexpr NSInteger kMaxSummaryFaviconVisible = 3;
   // Reinitialize group views attributes.
   for (GroupTabView* view in [self allGroupTabViews]) {
     [view hideAllAttributes];
-    if (IsTabGroupColorOnSurfaceEnabled() && self.tabGroupColorPalette) {
+    if (self.tabGroupColorPalette) {
       // Forward the color palette to subview.
       view.tabGroupColorPalette = self.tabGroupColorPalette;
     }

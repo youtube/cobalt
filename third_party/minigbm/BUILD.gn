@@ -60,6 +60,8 @@ if (!use_system_minigbm) {
   shared_library("minigbm") {
     sources = [
       "src/amdgpu.c",
+      "src/backend_mock.c",
+      "src/dma_heap.c",
       "src/dri.c",
       "src/drv.c",
       "src/drv_array_helpers.c",

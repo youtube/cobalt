@@ -371,8 +371,9 @@ bool PrintViewManager::PrintPreview(
 }
 
 void PrintViewManager::DidShowPrintDialog() {
-  if (GetCurrentTargetFrame() != print_preview_rfh_)
+  if (&CurrentTargetFrame() != print_preview_rfh_) {
     return;
+  }
 
   if (on_print_dialog_shown_callback_)
     std::move(on_print_dialog_shown_callback_).Run();
@@ -451,7 +452,7 @@ void PrintViewManager::GetPrintPreviewParams(
     // Without a document cookie to find a previous query, must generate a
     // fresh printer query each time, even if the paper size didn't change.
     std::unique_ptr<PrinterQuery> printer_query =
-        queue()->CreatePrinterQuery(GetCurrentTargetFrame()->GetGlobalId());
+        queue()->CreatePrinterQuery(CurrentTargetFrame().GetGlobalId());
 
     auto* printer_query_ptr = printer_query.get();
     auto* print_settings_ptr = print_settings.get();
@@ -472,13 +473,13 @@ void PrintViewManager::GetPrintPreviewParams(
 void PrintViewManager::SetupScriptedPrintPreview(
     SetupScriptedPrintPreviewCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  content::RenderFrameHost* rfh = GetCurrentTargetFrame();
+  content::RenderFrameHost& rfh = CurrentTargetFrame();
   // The Mojo receiver endpoint is owned by a RenderFrameHostReceiverSet, so
   // this DCHECK should always hold.
-  DCHECK(rfh->IsRenderFrameLive());
-  content::RenderProcessHost* rph = rfh->GetProcess();
+  DCHECK(rfh.IsRenderFrameLive());
+  content::RenderProcessHost* rph = rfh.GetProcess();
 
-  if (rfh->IsNestedWithinFencedFrame()) {
+  if (rfh.IsNestedWithinFencedFrame()) {
     // The renderer should have checked and disallowed the request for fenced
     // frames in ChromeClient. Ignore the request and mark it as bad if it
     // didn't happen for some reason.
@@ -488,7 +489,7 @@ void PrintViewManager::SetupScriptedPrintPreview(
     return;
   }
 
-  if (!rfh->IsActive()) {
+  if (!rfh.IsActive()) {
     // Only active RFHs should show UI elements.
     std::move(callback).Run();
     return;
@@ -513,9 +514,9 @@ void PrintViewManager::SetupScriptedPrintPreview(
   // Since window.print() is renderer-initiated, explicitly establish a
   // connection to the RenderFrame here. Without this, later operations that
   // expect the established connection can unexpected fail.
-  GetPrintRenderFrame(rfh);
+  GetPrintRenderFrame(&rfh);
 
-  SetPrintPreviewRenderFrameHost(rfh);
+  SetPrintPreviewRenderFrameHost(&rfh);
   print_preview_state_ = SCRIPTED_PREVIEW;
   map[rph] = base::BindOnce(&OnScriptedPrintPreviewReply, std::move(callback));
   scripted_print_preview_rph_ = rph;
@@ -532,8 +533,9 @@ void PrintViewManager::ShowScriptedPrintPreview() {
   }
 
   DCHECK(print_preview_rfh_);
-  if (GetCurrentTargetFrame() != print_preview_rfh_)
+  if (&CurrentTargetFrame() != print_preview_rfh_) {
     return;
+  }
 #if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
   set_analyzing_content(/*analyzing=*/true);
 #endif
@@ -589,13 +591,13 @@ void PrintViewManager::OnScriptedPrintPreviewCallback(
 
 void PrintViewManager::RequestPrintPreview(
     mojom::RequestPrintPreviewParamsPtr params) {
-  auto* rfh = GetCurrentTargetFrame();
-  if (rfh->IsNestedWithinFencedFrame()) {
+  content::RenderFrameHost& rfh = CurrentTargetFrame();
+  if (rfh.IsNestedWithinFencedFrame()) {
     // Either the renderer should have checked and disallowed the request for
     // fenced frames in ChromeClient, or PrintPreview() above should have
     // checked. Ignore the request and mark it as bad if those checks didn't
     // happen for some reason.
-    bad_message::ReceivedBadMessage(rfh->GetProcess(),
+    bad_message::ReceivedBadMessage(rfh.GetProcess(),
                                     bad_message::PVM_PRINT_FENCED_FRAME);
     return;
   }
@@ -604,10 +606,10 @@ void PrintViewManager::RequestPrintPreview(
   set_analyzing_content(/*analyzing=*/true);
 #endif
   RejectPrintPreviewRequestIfRestricted(
-      rfh->GetGlobalId(),
+      rfh.GetGlobalId(),
       base::BindOnce(&PrintViewManager::OnRequestPrintPreviewCallback,
                      weak_factory_.GetWeakPtr(), std::move(params),
-                     GetCurrentTargetFrame()->GetGlobalId()));
+                     CurrentTargetFrame().GetGlobalId()));
 }
 
 void PrintViewManager::OnRequestPrintPreviewCallback(

@@ -37,8 +37,10 @@ ci.defaults.set(
     health_spec = health_spec.default(),
     service_account = ci_constants.DEFAULT_SERVICE_ACCOUNT,
     shadow_service_account = ci_constants.DEFAULT_SHADOW_SERVICE_ACCOUNT,
+    siso_output_local_strategy = "greedy",
     siso_project = siso.project.DEFAULT_TRUSTED,
     siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CI,
+    siso_remote_linking = True,
 )
 
 targets.builder_defaults.set(
@@ -325,13 +327,6 @@ ci.builder(
     cq_mirrors_console_view = "mirrors",
     contact_team_email = "clank-engprod@google.com",
     execution_timeout = 7 * time.hour,
-    # prevent from bot died by OOM. https://crbug.com/425441534
-    siso_experiments = [
-        "oom-score-adj",
-    ],
-    # enable remote link to mitigate bot died https://crbug.com/418817397
-    siso_output_local_strategy = "greedy",
-    siso_remote_linking = True,
 )
 
 ci.builder(
@@ -719,6 +714,9 @@ ci.builder(
     contact_team_email = "clank-engprod@google.com",
     execution_timeout = 7 * time.hour,
     notifies = ["Deterministic Android"],
+    # crbug.com/528174631: Deterministic builder needs to download all remote
+    # outputs to compare them.
+    siso_output_local_strategy = "full",
 )
 
 ci.builder(
@@ -744,6 +742,9 @@ ci.builder(
     contact_team_email = "clank-engprod@google.com",
     execution_timeout = 6 * time.hour,
     notifies = ["Deterministic Android"],
+    # crbug.com/528174631: Deterministic builder needs to download all remote
+    # outputs to compare them.
+    siso_output_local_strategy = "full",
     siso_remote_jobs = siso.remote_jobs.DEFAULT,
 )
 
@@ -3584,11 +3585,6 @@ ci.builder(
         short_name = "14T-L",
     ),
     contact_team_email = "clank-engprod@google.com",
-    # crbug.com/372192123 - downloading with "minimum" strategy doesn't work
-    # well for Android builds because some steps have additional inputs/outputs
-    # they are not configured in the build graph.
-    siso_output_local_strategy = "greedy",
-    siso_remote_linking = True,
 )
 
 ci.builder(
@@ -4273,10 +4269,7 @@ ci.builder(
             "x86-64",
         ],
     ),
-    # TODO(crbug.com/508711260): Enable gardener rotation and tree closing once
-    # this builder is stable.
-    gardener_rotations = args.ignore_default(None),
-    tree_closing = False,
+    tree_closing = True,
     console_view_entry = consoles.console_view_entry(
         category = "emulator|x64|rel",
         short_name = "leak",

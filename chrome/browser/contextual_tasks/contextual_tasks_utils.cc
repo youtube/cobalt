@@ -310,20 +310,17 @@ void UpdatePinButtonVisibilityState(BrowserWindowInterface* browser_window,
           kActionSidePanelShowContextualTasks, scope_action);
 
   if (action_item) {
-    if (!eligible) {
       // If it's not eligible, actively pull it out of the pinned model space.
-      if (auto* model =
-              PinnedToolbarActionsModel::Get(browser_window->GetProfile())) {
-        if (model->Contains(kActionSidePanelShowContextualTasks)) {
-          model->UpdatePinnedState(kActionSidePanelShowContextualTasks,
-                                   /*should_pin=*/false);
+      // Do not pull it out if the user is currently in an incognito window, as
+      // this would unpin it for the parent profile.
+      if (!browser_window->GetProfile()->IsOffTheRecord()) {
+        if (auto* model =
+                PinnedToolbarActionsModel::Get(browser_window->GetProfile())) {
+          if (model->Contains(kActionSidePanelShowContextualTasks)) {
+            action_item->SetVisible(eligible);
+          }
         }
       }
-    }
-
-    // 2. Now it is completely safe to turn visibility off, because the toolbar
-    // engine won't try to anchor or look up a non-existent element.
-    action_item->SetVisible(eligible);
   }
 }
 #endif

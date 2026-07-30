@@ -9,6 +9,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/no_destructor.h"
+#include "chrome/browser/media/android/tab_sharing_indicator_android.h"
 #include "chrome/browser/media/webrtc/media_stream_capture_indicator.h"
 #include "content/public/browser/web_contents.h"
 
@@ -46,10 +47,8 @@ class MediaCaptureDevicesDispatcherObserverAndroid
   void OnIsCapturingTabChanged(content::WebContents* web_contents,
                                bool is_capturing_tab) override {
     JNIEnv* env = base::android::AttachCurrentThread();
-    ScopedJavaLocalRef<jobject> java_web_contents =
-        web_contents->GetJavaWebContents();
     Java_MediaCaptureDevicesDispatcherAndroid_onIsCapturingTabChanged(
-        env, java_web_contents, is_capturing_tab);
+        env, web_contents, is_capturing_tab);
   }
 };
 
@@ -57,12 +56,10 @@ void EnsureObserverCreated() {
   MediaCaptureDevicesDispatcherObserverAndroid::GetInstance();
 }
 
-bool CallIndicator(const JavaRef<jobject>& java_web_contents,
+bool CallIndicator(content::WebContents* web_contents,
                    bool (MediaStreamCaptureIndicator::*predicate)(
                        content::WebContents*) const) {
   EnsureObserverCreated();
-  content::WebContents* web_contents =
-      content::WebContents::FromJavaWebContents(java_web_contents);
   const auto& indicator = MediaCaptureDevicesDispatcher::GetInstance()
                               ->GetMediaStreamCaptureIndicator();
   return std::invoke(predicate, indicator.get(), web_contents);
@@ -71,46 +68,38 @@ bool CallIndicator(const JavaRef<jobject>& java_web_contents,
 }  // namespace
 
 static bool JNI_MediaCaptureDevicesDispatcherAndroid_IsCapturingAudio(
-    JNIEnv* env,
-    const JavaRef<jobject>& java_web_contents) {
-  return CallIndicator(java_web_contents,
+    content::WebContents* web_contents) {
+  return CallIndicator(web_contents,
                        &MediaStreamCaptureIndicator::IsCapturingAudio);
 }
 
 static bool JNI_MediaCaptureDevicesDispatcherAndroid_IsCapturingVideo(
-    JNIEnv* env,
-    const JavaRef<jobject>& java_web_contents) {
-  return CallIndicator(java_web_contents,
+    content::WebContents* web_contents) {
+  return CallIndicator(web_contents,
                        &MediaStreamCaptureIndicator::IsCapturingVideo);
 }
 
 static bool JNI_MediaCaptureDevicesDispatcherAndroid_IsCapturingTab(
-    JNIEnv* env,
-    const JavaRef<jobject>& java_web_contents) {
-  return CallIndicator(java_web_contents,
+    content::WebContents* web_contents) {
+  return CallIndicator(web_contents,
                        &MediaStreamCaptureIndicator::IsCapturingTab);
 }
 
 static bool JNI_MediaCaptureDevicesDispatcherAndroid_IsCapturingWindow(
-    JNIEnv* env,
-    const JavaRef<jobject>& java_web_contents) {
-  return CallIndicator(java_web_contents,
+    content::WebContents* web_contents) {
+  return CallIndicator(web_contents,
                        &MediaStreamCaptureIndicator::IsCapturingWindow);
 }
 
 static bool JNI_MediaCaptureDevicesDispatcherAndroid_IsCapturingScreen(
-    JNIEnv* env,
-    const JavaRef<jobject>& java_web_contents) {
-  return CallIndicator(java_web_contents,
+    content::WebContents* web_contents) {
+  return CallIndicator(web_contents,
                        &MediaStreamCaptureIndicator::IsCapturingDisplay);
 }
 
 static void JNI_MediaCaptureDevicesDispatcherAndroid_NotifyStopped(
-    JNIEnv* env,
-    const JavaRef<jobject>& java_web_contents) {
+    content::WebContents* web_contents) {
   EnsureObserverCreated();
-  content::WebContents* web_contents =
-      content::WebContents::FromJavaWebContents(java_web_contents);
   const auto& indicator = MediaCaptureDevicesDispatcher::GetInstance()
                               ->GetMediaStreamCaptureIndicator();
   indicator->StopMediaCapturing(
@@ -119,15 +108,18 @@ static void JNI_MediaCaptureDevicesDispatcherAndroid_NotifyStopped(
 }
 
 static void JNI_MediaCaptureDevicesDispatcherAndroid_NotifyDisplayMediaStopped(
-    JNIEnv* env,
-    const JavaRef<jobject>& java_web_contents) {
+    content::WebContents* web_contents) {
   EnsureObserverCreated();
-  content::WebContents* web_contents =
-      content::WebContents::FromJavaWebContents(java_web_contents);
   const auto& indicator = MediaCaptureDevicesDispatcher::GetInstance()
                               ->GetMediaStreamCaptureIndicator();
   indicator->StopMediaCapturing(
       web_contents, MediaStreamCaptureIndicator::MediaType::kDisplayMedia);
+}
+
+static void JNI_MediaCaptureDevicesDispatcherAndroid_NotifyTabCapturingStopped(
+    content::WebContents* web_contents) {
+  EnsureObserverCreated();
+  TabSharingIndicatorAndroid::StopSharing(web_contents);
 }
 
 DEFINE_JNI(MediaCaptureDevicesDispatcherAndroid)

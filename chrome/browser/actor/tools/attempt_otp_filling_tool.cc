@@ -4,21 +4,97 @@
 
 #include "chrome/browser/actor/tools/attempt_otp_filling_tool.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "base/notimplemented.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/tools/page_target_util.h"
+#include "chrome/browser/autofill/actor/one_time_tokens/actor_login_context.h"
 #include "chrome/browser/autofill/actor/one_time_tokens/actor_one_time_token_filling_service.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor/action_result.h"
 #include "components/actor/core/journal_details_builder.h"
 #include "components/actor/core/shared_types.h"
+#include "content/public/browser/render_frame_host.h"
 
 namespace actor {
+
+namespace {
+
+// We need to make sure that we don't skip user confirmation for OTPs that do
+// not belong to actor login flows. Actor login fills credentials in all iframes
+// that it considers trustworthy because it doesn't know which one contains the
+// correct login form. It also uses 2 different trust levels (based on user
+// permission type), both are based on iframe's and main frame's origins.
+// This method needs to match the same trust levels, hence the
+// `should_use_strong_matching` parameter. To avoid checking each filled
+// frame, we try to match the OTP form's origin with the origin of the main
+// frame where actor login flow started and rely on the fact that affiliations
+// are transitive.
+bool OtpFormOriginMatchesLoginMainFrameOrigin(
+    const url::Origin& login_main_frame_origin,
+    const url::Origin& otp_origin,
+    bool should_use_strong_matching) {
+  // TODO(crbug.com/504573041): Implement
+  NOTIMPLEMENTED();
+  return false;
+}
+
+// Returns the RenderFrameHost containing the OTP fields.
+content::RenderFrameHost* GetOtpFrame(
+    tabs::TabHandle tab_handle,
+    base::span<const PageTarget> trigger_fields) {
+  // TODO(crbug.com/504573041): Implement
+  NOTIMPLEMENTED();
+  return nullptr;
+}
+
+// Checks if the tool execution corresponds to an actor login's sign in flow.
+// This is used to determine if we can skip the confirmation UI. The
+// reasoning being that the user already consented to the login attempt
+// during actor login execution and this OTP filling is considered part of
+// the same flow.
+bool IsActorLoginFlow(tabs::TabHandle tab_handle,
+                      base::span<const PageTarget> trigger_fields,
+                      const autofill::ActorLoginContext& context) {
+  if (trigger_fields.empty()) {
+    return false;
+  }
+
+  content::RenderFrameHost* otp_frame = GetOtpFrame(tab_handle, trigger_fields);
+  if (!otp_frame) {
+    return false;
+  }
+
+  const url::Origin& otp_form_origin = otp_frame->GetLastCommittedOrigin();
+  content::FrameTreeNodeId otp_frame_id = otp_frame->GetFrameTreeNodeId();
+
+  if (context.navigations_per_frame.contains(otp_frame_id) &&
+      OtpFormOriginMatchesLoginMainFrameOrigin(
+          context.origin, otp_form_origin,
+          context.should_use_strong_matching)) {
+    // Actor Login filled credentials in all of these frames but we don't know
+    // which one was the actual login frame. While finding an OTP field in one
+    // of those frames is a signal that the frame was the login frame, it's not
+    // guaranteed. Therefore, require all frames to have <2 navigations to
+    // avoid accidentally skipping user confirmation for OTPs not meant for
+    // login flows.
+    return std::ranges::all_of(
+        context.navigations_per_frame,
+        [](const std::pair<const content::FrameTreeNodeId, int>& entry) {
+          return entry.second < 2;
+        });
+  }
+
+  return false;
+}
+
+}  // namespace
 
 AttemptOtpFillingTool::AttemptOtpFillingTool(
     TaskId task_id,
@@ -87,6 +163,22 @@ void AttemptOtpFillingTool::Invoke(ToolCallback callback) {
                     .Add("trigger_fields_count", trigger_field_ids_.size())
                     .Add("for_signin", for_signin_)
                     .Build());
+
+  // Consume the context. The service clears its state and stops observing.
+  std::optional<autofill::ActorLoginContext> context =
+      tool_delegate()
+          .GetActorOneTimeTokenFillingService()
+          .ConsumeLoginContext();
+
+  if (context.has_value() &&
+      IsActorLoginFlow(GetTargetTab(), trigger_fields_, *context)) {
+    // Verified sign-in journey: proceed with silent OTP filling.
+    // TODO(crbug.com/504573041): Implement
+  } else {
+    // No recent login, origin mismatch, untracked frame, or sequence broken
+    // by too many navigations: require confirmation UI (Post-MVP).
+    // TODO(crbug.com/504573041): Implement
+  }
 
   tool_delegate().GetActorOneTimeTokenFillingService().RetrieveOtp(
       GetTargetTab(), trigger_field_ids_,

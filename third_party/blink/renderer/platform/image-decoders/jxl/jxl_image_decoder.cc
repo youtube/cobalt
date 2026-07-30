@@ -582,15 +582,15 @@ base::TimeDelta JXLImageDecoder::FrameDurationAtIndex(wtf_size_t index) const {
 }
 
 int JXLImageDecoder::RepetitionCount() const {
-  CHECK(basic_info_.has_value());
-  if (!basic_info_->have_animation) {
+  if (!basic_info_.has_value() || !basic_info_->have_animation) {
     return kAnimationNone;
   }
 
   if (basic_info_->animation_loop_count == 0) {
     return kAnimationLoopInfinite;
   }
-  return basic_info_->animation_loop_count;
+  // RepetitionCount() is n + 1 plays; JXL's loop count is the actual count.
+  return basic_info_->animation_loop_count - 1;
 }
 
 wtf_size_t JXLImageDecoder::ClearCacheExceptFrame(

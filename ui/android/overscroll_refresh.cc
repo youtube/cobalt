@@ -45,7 +45,6 @@ OverscrollRefresh::OverscrollRefresh(OverscrollRefreshHandler* handler,
       top_at_scroll_start_(true),
       bottom_at_scroll_start_(false),
       overflow_y_hidden_(false),
-      scroll_consumption_state_(ScrollConsumptionState::kDisabled),
       edge_width_(edge_width),
       handler_(handler) {
   DCHECK(handler);
@@ -55,7 +54,6 @@ OverscrollRefresh::OverscrollRefresh()
     : scrolled_to_top_(true),
       scrolled_to_bottom_(false),
       overflow_y_hidden_(false),
-      scroll_consumption_state_(ScrollConsumptionState::kDisabled),
       edge_width_(kDefaultNavigationEdgeWidth * 1.f),
       handler_(nullptr) {}
 
@@ -63,9 +61,8 @@ OverscrollRefresh::~OverscrollRefresh() {
 }
 
 void OverscrollRefresh::Reset() {
-  scroll_consumption_state_ = ScrollConsumptionState::kDisabled;
+  scroll_state_.Reset();
   handler_->PullReset();
-  active_action_ = std::nullopt;
 }
 
 void OverscrollRefresh::OnScrollBegin(const gfx::PointF& pos) {
@@ -74,13 +71,12 @@ void OverscrollRefresh::OnScrollBegin(const gfx::PointF& pos) {
   top_at_scroll_start_ = scrolled_to_top_;
   bottom_at_scroll_start_ = scrolled_to_bottom_;
   ReleaseWithoutActivation();
-  scroll_consumption_state_ = ScrollConsumptionState::kAwaitingScrollUpdateAck;
+  scroll_state_.StartAwaitingAck();
 }
 
 void OverscrollRefresh::OnScrollEnd(const gfx::Vector2dF& scroll_velocity) {
   // Reached when a user scrolls but not overscrolls
-  if (scroll_consumption_state_ != ScrollConsumptionState::kEnabled) {
-    CHECK(!active_action_.has_value());
+  if (!IsActive()) {
     Release(OverscrollActivationStatus::kReset);
     return;
   }
@@ -93,8 +89,7 @@ void OverscrollRefresh::OnOverscrolled(const cc::OverscrollBehavior& behavior,
   // `accumulated_overscroll` is in the opposite direction of the scroll_deltas
   // sent to the renderer.
   MaybeDisableScrollConsumption(-accumulated_overscroll);
-  if (scroll_consumption_state_ !=
-      ScrollConsumptionState::kAwaitingScrollUpdateAck) {
+  if (!IsAwaitingScrollUpdateAck()) {
     return;
   }
   float ydelta = -accumulated_overscroll.y();
@@ -149,19 +144,22 @@ void OverscrollRefresh::OnOverscrolled(const cc::OverscrollBehavior& behavior,
            type == OverscrollAction::kHistoryNavigation);
 
   if (type != OverscrollAction::kNone) {
-    scroll_consumption_state_ = handler_->PullStart(type, overscroll_edge)
-                                    ? ScrollConsumptionState::kEnabled
-                                    : ScrollConsumptionState::kDisabled;
-    if (scroll_consumption_state_ == ScrollConsumptionState::kEnabled) {
-      // Make sure active_action_ is not set yet before set
-      CHECK(!active_action_.has_value());
-      active_action_ = ActiveAction{type, overscroll_edge, source_device};
+    if (handler_->PullStart(type, overscroll_edge)) {
+      scroll_state_.SetEnabled(
+          ActiveAction{type, overscroll_edge, source_device});
+    } else {
+      scroll_state_.Reset();
     }
   }
 }
 
 void OverscrollRefresh::MaybeDisableScrollConsumption(
     const gfx::Vector2dF& scroll_delta) {
+  if (IsActive() && scroll_state_.GetAction().action ==
+                        OverscrollAction::kHistoryNavigation) {
+    return;
+  }
+  // This check is meant for kPullToRefresh or kPullFromBottomEdge.
   if (std::abs(scroll_delta.y()) > std::abs(scroll_delta.x())) {
     // Check applies for the pull-to-refresh.
     bool is_pull_to_refresh = scroll_delta.y() > 0 && top_at_scroll_start_;
@@ -173,28 +171,26 @@ void OverscrollRefresh::MaybeDisableScrollConsumption(
     // If the activation shouldn't have happened, stop here.
     if (overflow_y_hidden_ ||
         (!is_pull_to_refresh && !is_pull_from_bottom_edge)) {
-      scroll_consumption_state_ = ScrollConsumptionState::kDisabled;
+      scroll_state_.Reset();
     }
   }
 }
 
 bool OverscrollRefresh::WillHandleScrollUpdate(
     const gfx::Vector2dF& scroll_delta) {
-  switch (scroll_consumption_state_) {
-    case ScrollConsumptionState::kDisabled:
-      return false;
-
-    case ScrollConsumptionState::kAwaitingScrollUpdateAck:
-      MaybeDisableScrollConsumption(scroll_delta);
-      return false;
-
-    case ScrollConsumptionState::kEnabled:
-      handler_->PullUpdate(scroll_delta.x(), scroll_delta.y());
-      return true;
+  if (scroll_state_.IsDisabled()) {
+    return false;
+  }
+  if (IsAwaitingScrollUpdateAck()) {
+    MaybeDisableScrollConsumption(scroll_delta);
+    return false;
+  }
+  if (IsActive()) {
+    handler_->PullUpdate(scroll_delta.x(), scroll_delta.y());
+    return true;
   }
 
-  NOTREACHED() << "Invalid overscroll state: "
-               << std::to_underlying(scroll_consumption_state_);
+  NOTREACHED() << "Invalid overscroll state";
 }
 
 void OverscrollRefresh::ReleaseWithoutActivation() {
@@ -202,11 +198,11 @@ void OverscrollRefresh::ReleaseWithoutActivation() {
 }
 
 bool OverscrollRefresh::IsActive() const {
-  return scroll_consumption_state_ == ScrollConsumptionState::kEnabled;
+  return scroll_state_.IsEnabled();
 }
 
 bool OverscrollRefresh::IsAwaitingScrollUpdateAck() const {
-  return scroll_consumption_state_ == ScrollConsumptionState::kAwaitingScrollUpdateAck;
+  return scroll_state_.IsAwaitingAck();
 }
 
 void OverscrollRefresh::OnFrameUpdated(const gfx::SizeF& viewport_size,
@@ -232,22 +228,22 @@ void OverscrollRefresh::SetIsGestureNavigationMode(
 }
 
 void OverscrollRefresh::Release(OverscrollActivationStatus activation_status) {
-  if (scroll_consumption_state_ == ScrollConsumptionState::kEnabled)
+  if (scroll_state_.IsEnabled()) {
     handler_->PullRelease(activation_status);
-  scroll_consumption_state_ = ScrollConsumptionState::kDisabled;
-  active_action_ = std::nullopt;
+  }
+  scroll_state_.Reset();
 }
 
 float OverscrollRefresh::GetVelocityInActiveActionDirection(
     const gfx::Vector2dF& velocity) {
-  CHECK(active_action_.has_value());
-  switch (active_action_->action) {
+  const ActiveAction& active_action = scroll_state_.GetAction();
+  switch (active_action.action) {
     case OverscrollAction::kPullToRefresh:
       return velocity.y();
     case OverscrollAction::kPullFromBottomEdge:
       return -velocity.y();
     case OverscrollAction::kHistoryNavigation:
-      if (active_action_->edge == BackGestureEventSwipeEdge::LEFT) {
+      if (active_action.edge == BackGestureEventSwipeEdge::LEFT) {
         return velocity.x();
       } else {
         return -velocity.x();
@@ -260,9 +256,10 @@ float OverscrollRefresh::GetVelocityInActiveActionDirection(
 OverscrollActivationStatus OverscrollRefresh::GetActivationStatus(
     const gfx::Vector2dF& velocity) {
   float velocity_in_direction = GetVelocityInActiveActionDirection(velocity);
-  switch (active_action_->action) {
+  const ActiveAction& active_action = scroll_state_.GetAction();
+  switch (active_action.action) {
     case OverscrollAction::kHistoryNavigation: {
-      if (active_action_->device == blink::WebGestureDevice::kTouchpad &&
+      if (active_action.device == blink::WebGestureDevice::kTouchpad &&
           velocity_in_direction > kMinFlingVelocityForForceActivation) {
         return OverscrollActivationStatus::kForceActivation;
       }

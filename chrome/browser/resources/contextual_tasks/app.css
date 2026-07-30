@@ -147,6 +147,9 @@
   --toolbar-menu-background-color: rgb(255, 255, 255);
   --toolbar-text-color: rgb(31, 31, 31);
 
+  /* Overflow menu colors */
+  --toolbar-menu-icon-color: rgba(71, 71, 71, 1);
+
   /* Animations */
   --composebox-zero-state-animation: zero-state-fade-in 600ms ease forwards;
   --composebox-header-wrapper-zero-state-animation: zero-state-fade-in 600ms
@@ -281,6 +284,9 @@
   --toolbar-divider-color: rgb(94,94,94);
   --toolbar-menu-background-color: rgb(31, 31, 31);
   --toolbar-text-color: rgb(227,227,227);
+
+  /* Overflow menu colors - Dark mode */
+  --toolbar-menu-icon-color: rgba(199, 199, 199, 1);
 
   /* Color of Active tool chip */
   --color-composebox-context-entrypoint-hover-background: rgba(42, 43, 54, 1);
@@ -510,8 +516,11 @@ error-page {
 }
 
 :host([is-zero-state_]:not([in-nlm_])) #composebox {
-  animation: var(--composebox-zero-state-animation);
   opacity: 0;
+}
+
+:host(.play-zero-state[is-zero-state_]:not([in-nlm_])) #composebox {
+  animation: var(--composebox-zero-state-animation);
 }
 
 :host([is-zero-state_][is-shown-in-tab_]) {
@@ -783,6 +792,13 @@ error-page {
 
 :host([is-zero-state_]) #composeboxHeaderWrapper {
   display: flex;
+  opacity: 0;
+}
+
+:host([is-initial-frame-load_]:not([is-shown-in-tab_])) #composebox,
+:host([is-initial-frame-load_]:not([is-shown-in-tab_])) #composeboxHeaderWrapper {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 @keyframes zero-state-header-text {
@@ -919,8 +935,10 @@ error-page {
   }
 }
 
-:host(:not([is-dom-content-loaded_])) #composebox,
-:host(:not([is-dom-content-loaded_])) #composeboxHeaderWrapper {
+:host([is-initial-frame-load_][is-shown-in-tab_]:not([is-dom-content-loaded_])) #composebox,
+:host([is-initial-frame-load_][is-shown-in-tab_]:not([is-dom-content-loaded_])) #composeboxHeaderWrapper,
+:host([is-zero-state_][is-shown-in-tab_]:not([is-dom-content-loaded_])) #composebox,
+:host([is-zero-state_][is-shown-in-tab_]:not([is-dom-content-loaded_])) #composeboxHeaderWrapper {
   visibility: hidden;
   pointer-events: none;
 }

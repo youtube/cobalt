@@ -4,9 +4,7 @@
 
 #include "chrome/browser/ui/views/animations/side_panel_animations.h"
 
-#include "base/time/time.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "ui/base/identifier/unique_identifier.h"
 #include "ui/base/interaction/safe_castable.h"
 #include "ui/gfx/animation/tween.h"
 

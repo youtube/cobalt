@@ -142,6 +142,8 @@ component("network_service") {
     "prefetch_url_loader_client.h",
     "proxy_auto_config_library.cc",
     "proxy_auto_config_library.h",
+    "proxy_checking_host_resolver_request.cc",
+    "proxy_checking_host_resolver_request.h",
     "proxy_config_service_mojo.cc",
     "proxy_config_service_mojo.h",
     "proxy_lookup_request.cc",

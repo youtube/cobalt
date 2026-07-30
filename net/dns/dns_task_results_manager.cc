@@ -119,7 +119,7 @@ DnsTaskResultsManager::~DnsTaskResultsManager() = default;
 
 void DnsTaskResultsManager::ProcessDnsTransactionResults(
     DnsQueryType query_type,
-    std::set<const HostResolverInternalResult*> results) {
+    HostResolverDnsTask::ResultRefs results) {
   CHECK(query_types_.Has(query_type));
 
   bool should_update_endpoints = false;

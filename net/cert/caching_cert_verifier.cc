@@ -4,11 +4,13 @@
 
 #include "net/cert/caching_cert_verifier.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/time/time.h"
+#include "net/base/features.h"
 #include "net/base/net_errors.h"
 #include "net/base/url_util.h"
 
@@ -18,9 +20,6 @@ namespace {
 
 // The maximum number of cache entries to use for the ExpiringCache.
 const unsigned kMaxCacheEntries = 256;
-
-// The number of seconds to cache entries.
-const unsigned kTTLSecs = 1800;  // 30 minutes.
 
 }  // namespace
 
@@ -205,6 +204,10 @@ void CachingCertVerifier::AddResultToCache(
     base::Time start_time,
     const CertVerifyResult& verify_result,
     int error) {
+  if (!base::FeatureList::IsEnabled(net::features::kCacheCertVerification)) {
+    return;
+  }
+
   // If the configuration has changed since this verification was started,
   // don't add it to the cache.
   if (config_id != config_id_)
@@ -236,9 +239,11 @@ void CachingCertVerifier::AddResultToCache(
   CachedResult cached_result;
   cached_result.error = error;
   cached_result.result = verify_result;
-  cache_.Put(
-      params, cached_result, CacheValidityPeriod(start_time),
-      CacheValidityPeriod(start_time, start_time + base::Seconds(kTTLSecs)));
+  base::TimeDelta ttl =
+      std::clamp(base::Seconds(features::kCacheCertVerificationTtlSecs.Get()),
+                 base::Seconds(0), base::Minutes(30));
+  cache_.Put(params, cached_result, CacheValidityPeriod(start_time),
+             CacheValidityPeriod(start_time, start_time + ttl));
 }
 
 void CachingCertVerifier::OnCertVerifierChanged() {

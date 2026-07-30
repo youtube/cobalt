@@ -875,8 +875,6 @@ void Navigator::Navigate(std::unique_ptr<NavigationRequest> request,
   base::TimeDelta nav_start_diff;
   bool is_on_target_origin =
       GetContentClient()->IsUrlInIgnoreDuplicateNavsOrigins(request->GetURL());
-  auto prefs =
-      frame_tree_node->current_frame_host()->GetOrCreateWebPreferences();
   if (ongoing_navigation_request &&
       ongoing_navigation_request->IsRendererInitiated() ==
           request->IsRendererInitiated() &&
@@ -923,7 +921,7 @@ void Navigator::Navigate(std::unique_ptr<NavigationRequest> request,
         (request->common_params().navigation_start -
          ongoing_navigation_request->common_params().navigation_start);
     start_diff_under_threshold =
-        nav_start_diff <= prefs.duplicate_nav_threshold;
+        nav_start_diff <= GetContentClient()->GetIgnoreDuplicateNavsThreshold();
     if (start_diff_under_threshold) {
       base::UmaHistogramEnumeration(
           "Navigation.BrowserInitiated.DuplicateNavCookieStatus.UnderThreshold",
@@ -995,7 +993,7 @@ void Navigator::Navigate(std::unique_ptr<NavigationRequest> request,
         }
       }
     }
-    if (prefs.ignore_duplicate_nav_enabled && start_diff_under_threshold &&
+    if (start_diff_under_threshold &&
         GetContentClient()->ShouldIgnoreDuplicateNavs(
             request->GetURL(), request->IsRendererInitiated())) {
       request->set_navigation_discard_reason(

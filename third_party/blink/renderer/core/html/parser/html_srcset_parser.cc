@@ -339,8 +339,9 @@ static void ParseImageCandidatesFromSrcsetAttribute(
                     mojom::ConsoleMessageLevel::kWarning,
                     StrCat({"Dropped srcset candidate ",
                             JSONValue::QuoteString(attribute.subview(
-                                image_url_start,
-                                image_url_end - image_url_start))})));
+                                static_cast<wtf_size_t>(image_url_start),
+                                static_cast<wtf_size_t>(image_url_end -
+                                                        image_url_start)))})));
           }
         }
         continue;

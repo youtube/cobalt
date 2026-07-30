@@ -20,7 +20,7 @@ namespace optimization_guide {
 //
 // Testing: This class is created by OptGuide code in production and isn't meant
 // to be created by external consumers except for testing. For that purpose, use
-// |TestModelInfoBuilder|.
+// `TestModelInfoBuilder`.
 class ModelInfo {
  public:
   // Validates and creates a ModelInfo if valid.
@@ -59,6 +59,20 @@ class ModelInfo {
   int64_t version_;
   std::optional<proto::Any> model_metadata_;
 };
+
+// Loads the model and verifies if the model files exist and returns the
+// model. Otherwise nullptr is returned on any failures.
+// Must be called on a background thread that allows blocking file I/O.
+std::unique_ptr<proto::PredictionModel> LoadAndVerifyModelOffThread(
+    proto::OptimizationTarget optimization_target,
+    const base::FilePath& base_model_dir);
+
+// Loads the model, verifies if the model files exist, and returns the
+// ModelInfo. Otherwise nullptr is returned on any failures.
+// Must be called on a background thread that allows blocking file I/O.
+std::unique_ptr<ModelInfo> LoadAndVerifyModelInfoOffThread(
+    proto::OptimizationTarget optimization_target,
+    const base::FilePath& base_model_dir);
 
 }  // namespace optimization_guide
 

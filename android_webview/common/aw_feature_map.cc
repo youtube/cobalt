@@ -39,6 +39,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &base::features::kShutdownPreNativeThreadPoolAfterStartup,
     &features::kStartupNonBlockingWebViewConstructor,
     &features::kWebViewAddQuicHints,
+    &features::kWebViewAwClassPreloader,
     &features::kWebViewBackForwardCache,
     &features::kWebViewBackgroundClassPreloading,
     &features::kWebViewBackgroundTracingInit,
@@ -54,10 +55,12 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kWebViewFasterGetDefaultUserAgent,
     &features::kWebViewFileSystemAccess,
     &features::kWebViewForceWebAuthn,
+    &features::kWebViewGateTextSizeAdjustOnTextAutosizing,
     &features::kWebViewHyperlinkContextMenu,
     &features::kWebViewInvokeZoomPickerOnGSU,
     &features::kWebViewMixedContentAutoupgrades,
     &features::kWebViewMoveWorkToProviderInit,
+    &features::kWebViewMoveWorkToProviderInitThreadPool,
     &features::kWebViewNavigate,
     &features::kWebViewOptInToGmsBindServiceOptimization,
     &features::kWebViewPersistHttpServerProperties,
@@ -75,7 +78,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kWebViewStaticMethodsNotTriggerStartup,
     &features::kWebViewTestFeature,
     &features::kWebViewUseMetricsUploadServiceOnlySdkRuntime,
-    &features::kWebViewUseNonembeddedLowEntropySource,
     // keep-sorted end
 };
 

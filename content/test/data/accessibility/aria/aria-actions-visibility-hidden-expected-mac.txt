@@ -1,0 +1,11 @@
+AXWebArea
+++AXGroup AXSubrole=AXApplicationGroup AXCustomActionNamesForTesting=['Save']
+++++AXStaticText AXValue='Host with visible target'
+++AXButton AXTitle='Save'
+++AXGroup AXSubrole=AXApplicationGroup
+++++AXStaticText AXValue='Host with hidden target'
+++AXGroup AXSubrole=AXApplicationGroup AXCustomActionNamesForTesting=['Open']
+++++AXStaticText AXValue='Host with mixed targets'
+++AXButton AXTitle='Open'
+++AXGroup AXSubrole=AXApplicationGroup
+++++AXStaticText AXValue='Host with ancestor-hidden target'

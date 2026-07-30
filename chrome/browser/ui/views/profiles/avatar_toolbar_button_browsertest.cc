@@ -50,6 +50,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/profiles/profile_colors_util.h"
+#include "chrome/browser/ui/profiles/profile_view_utils.h"
 #include "chrome/browser/ui/signin/dice_migration_service.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -93,6 +94,7 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
+#include "components/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/features.h"
 #include "components/sync/service/sync_service.h"
@@ -111,6 +113,7 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/mojom/themes.mojom.h"
 #include "ui/base/ui_base_features.h"
+#include "ui/base/webui/web_ui_util.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia.h"
@@ -497,7 +500,12 @@ class AvatarToolbarButtonInterfaceBaseBrowserTest {
     if (features::IsWebUIAvatarButtonEnabled()) {
       std::string actual =
           AvatarToolbarButtonTestAccessor(GetBrowser()).GetImageUrl();
-      return actual.find(expected_url) == 0;
+      int icon_size = GetLayoutConstant(LayoutConstant::kToolbarButtonIconSize);
+      gfx::Image expected_image = profiles::GetSizedAvatarIcon(
+          account_image, icon_size, icon_size, profiles::SHAPE_CIRCLE);
+      std::string expected_data_url =
+          webui::GetBitmapDataUrl(expected_image.AsBitmap());
+      return actual == expected_data_url;
     }
     gfx::Image current_avatar_icon =
         gfx::Image(AvatarToolbarButtonTestAccessor(GetBrowser())
@@ -4114,6 +4122,128 @@ IN_PROC_BROWSER_TEST_P(AvatarToolbarButtonPasskeyUnlockErrorBrowserTest,
 INSTANTIATE_TEST_SUITE_P(All,
                          AvatarToolbarButtonPasskeyUnlockErrorBrowserTest,
                          testing::Bool());
+
+class AvatarToolbarButtonAiRingBrowserTest
+    : public AvatarToolbarButtonBrowserTestBase {
+ public:
+  AvatarToolbarButtonAiRingBrowserTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kEnableAiSubscriptionAvatarRing);
+  }
+
+  void SetAiSubscriptionTierForProfile(int32_t subscription_tier) {
+    browser()->profile()->GetPrefs()->SetInteger(
+        subscription_eligibility::prefs::kAiSubscriptionTier,
+        subscription_tier);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonAiRingBrowserTest,
+                       PrefChangeTriggersLayoutAndIconUpdate) {
+  AvatarToolbarButton* avatar_button = static_cast<AvatarToolbarButton*>(
+      BrowserView::GetBrowserViewForBrowser(browser())
+          ->toolbar_button_provider()
+          ->GetAvatarToolbarButtonInterface());
+  ASSERT_TRUE(avatar_button);
+
+  // Assert that AI ring is not enabled initially.
+  ASSERT_FALSE(IsAiSubscriptionRingEnabled(browser()->profile()));
+
+  std::optional<ui::ImageModel> normal_icon =
+      avatar_button->GetImageModel(views::Button::ButtonState::STATE_NORMAL);
+  ASSERT_TRUE(normal_icon);
+  const int normal_size = normal_icon->Size().width();
+  const gfx::Insets standard_insets =
+      avatar_button->GetLayoutInsets().value_or(gfx::Insets());
+
+  // Set AI subscription.
+  SetAiSubscriptionTierForProfile(1);
+  // Trigger update.
+  avatar_button->UpdateIcon();
+  avatar_button->UpdateText();
+  avatar_button->GetWidget()->LayoutRootViewIfNecessary();
+
+  // The AI ring should be enabled now.
+  EXPECT_TRUE(IsAiSubscriptionRingEnabled(browser()->profile()));
+  std::optional<ui::ImageModel> ring_icon =
+      avatar_button->GetImageModel(views::Button::ButtonState::STATE_NORMAL);
+  EXPECT_TRUE(ring_icon);
+  // The icon image model should have changed and increased in size.
+  EXPECT_NE(normal_icon, ring_icon);
+  const int expanded_size = ring_icon->Size().width();
+  EXPECT_LT(normal_size, expanded_size);
+
+  gfx::Insets adjusted_insets =
+      avatar_button->GetLayoutInsets().value_or(gfx::Insets());
+
+  // Adjusted insets should have smaller top and bottom insets.
+  EXPECT_LT(adjusted_insets.top(), standard_insets.top());
+  EXPECT_LT(adjusted_insets.bottom(), standard_insets.bottom());
+  EXPECT_LT(adjusted_insets.left(), standard_insets.left());
+  EXPECT_LT(adjusted_insets.right(), standard_insets.right());
+
+  // Clear subscription.
+  SetAiSubscriptionTierForProfile(0);
+  avatar_button->UpdateIcon();
+  avatar_button->UpdateText();
+  avatar_button->GetWidget()->LayoutRootViewIfNecessary();
+
+  EXPECT_FALSE(IsAiSubscriptionRingEnabled(browser()->profile()));
+  std::optional<ui::ImageModel> restored_icon =
+      avatar_button->GetImageModel(views::Button::ButtonState::STATE_NORMAL);
+  ASSERT_TRUE(restored_icon);
+  EXPECT_EQ(restored_icon->Size().width(), normal_size);
+
+  gfx::Insets restored_insets =
+      avatar_button->GetLayoutInsets().value_or(gfx::Insets());
+  EXPECT_EQ(restored_insets, standard_insets);
+}
+
+IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonAiRingBrowserTest,
+                       SigninPendingSuppressesAiRing) {
+  AvatarToolbarButton* avatar_button = static_cast<AvatarToolbarButton*>(
+      GetAvatarToolbarButtonInterface(browser()));
+  ASSERT_TRUE(avatar_button);
+  AvatarToolbarButtonTestAccessor avatar_accessor(browser());
+  ASSERT_TRUE(avatar_accessor.GetText().empty());
+
+  // Sign in first to have a valid profile for AI subscription.
+  SigninWithImageAndClearGreetingAndSyncPromo(
+      browser(), avatar_button, u"test@gmail.com");
+
+  SimulateSigninPending(/*web_sign_out=*/false);
+  avatar_button->GetWidget()->LayoutRootViewIfNecessary();
+
+  // Verify we are in Signin Pending state.
+  ASSERT_EQ(avatar_accessor.GetState(), AvatarToolbarButtonState::kSigninPending);
+
+  std::optional<ui::ImageModel> normal_icon =
+      avatar_button->GetImageModel(views::Button::ButtonState::STATE_NORMAL);
+  ASSERT_TRUE(normal_icon);
+  const gfx::Insets standard_insets =
+      avatar_button->GetLayoutInsets().value_or(gfx::Insets());
+
+  // Set AI subscription. This will not trigger the AI ring because SigninPending
+  // suppresses it.
+  SetAiSubscriptionTierForProfile(1);
+  // Trigger update manually.
+  avatar_button->UpdateIcon();
+  avatar_button->UpdateText();
+
+  // Verify that the AI ring is not enabled for the button.
+  std::optional<ui::ImageModel> current_icon =
+      avatar_button->GetImageModel(views::Button::ButtonState::STATE_NORMAL);
+  ASSERT_TRUE(current_icon);
+  EXPECT_EQ(normal_icon->Size().width(), current_icon->Size().width());
+
+  gfx::Insets current_insets =
+      avatar_button->GetLayoutInsets().value_or(gfx::Insets());
+  EXPECT_EQ(standard_insets, current_insets);
+}
+
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
 INSTANTIATE_TEST_SUITE_P(All, AvatarToolbarButtonBrowserTest, testing::Bool());

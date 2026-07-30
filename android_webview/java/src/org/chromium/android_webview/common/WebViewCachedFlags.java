@@ -19,6 +19,7 @@ import org.jni_zero.NativeMethods;
 import org.chromium.base.BaseFeatures;
 import org.chromium.base.FeatureList;
 import org.chromium.base.FeatureOverrides;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -132,6 +133,15 @@ public class WebViewCachedFlags {
      */
     public static void initForTesting(SharedPreferences prefs) {
         initInternal(prefs, false);
+        ResettersForTesting.register(() -> resetForTesting());
+    }
+
+    /** Resets the singleton instance for testing. */
+    @VisibleForTesting
+    public static void resetForTesting() {
+        synchronized (sLock) {
+            sInstance = null;
+        }
     }
 
     private static void initInternal(SharedPreferences prefs, boolean forceDefaults) {
@@ -145,7 +155,14 @@ public class WebViewCachedFlags {
                                             AwFeatures.WEBVIEW_BACKGROUND_CLASS_PRELOADING,
                                             DefaultState.DISABLED),
                                     Map.entry(
+                                            AwFeatures.WEBVIEW_AW_CLASS_PRELOADER,
+                                            DefaultState.ENABLED),
+                                    Map.entry(
                                             AwFeatures.WEBVIEW_MOVE_WORK_TO_PROVIDER_INIT,
+                                            DefaultState.DISABLED),
+                                    Map.entry(
+                                            AwFeatures
+                                                    .WEBVIEW_MOVE_WORK_TO_PROVIDER_INIT_THREAD_POOL,
                                             DefaultState.DISABLED),
                                     Map.entry(
                                             AwFeatures.WEBVIEW_EARLY_TRACING_INIT,
@@ -174,9 +191,6 @@ public class WebViewCachedFlags {
                                             DefaultState.DISABLED),
                                     Map.entry(
                                             AwFeatures.WEBVIEW_ENABLE_API_CALL_USER_ACTIONS,
-                                            DefaultState.DISABLED),
-                                    Map.entry(
-                                            AwFeatures.WEBVIEW_USE_NONEMBEDDED_LOW_ENTROPY_SOURCE,
                                             DefaultState.DISABLED),
                                     Map.entry(
                                             AwFeatures.WEBVIEW_FASTER_GET_DEFAULT_USER_AGENT,

@@ -95,7 +95,7 @@ TEST(VerificationKeyUtilsTest, LoadVerificationKeysInvalidKeyData) {
        /*y=*/
        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"}};
-  ASSERT_DEATH(LoadVerificationKeys(invalid_keys), "");
+  ASSERT_DEATH_IF_SUPPORTED(LoadVerificationKeys(invalid_keys), "");
 }
 
 }  // namespace

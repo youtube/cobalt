@@ -41,53 +41,59 @@ Regardless of where you add a third party dependency, you should use the
 
 # Before you start
 
-To make sure the inclusion of a new third_party project makes sense for the
-Chromium project, you should first obtain
-[Chrome ATL](../ATL_OWNERS) approval. Please include the following information in an
-email to chrome-atls-discuss@google.com:
-* Motivation of your project
-* Design docs
-* Additional checkout size
-   * If the increase is significant (e.g., 20+ MB), can we consider limiting the
-   files to be checked in?
-* Build time increase
-   * This refers to building `chrome` or test targets in the critical
-     development path. The [compile-size](speed/binary_size/compile_size_builder.md)
-     builder in CQ is a good proxy for the whether the delta is acceptable
-     (caveat that it measures just `chrome` on Linux).
-   * If the increase is significant (e.g., 30+ seconds), can we consider making
-   this an optional build target?
-* Binary size increase on Android ([official](https://www.chromium.org/developers/gn-build-configuration) builds)
-   * Any increase of 16 KB or more on Android is flagged on the build bots and
-   justification is needed.
-* Binary size increase on Windows
-* Is this library maintained on all platforms that we will use it on?
-   * If not, will the Chrome org be expected to maintain this for some or all
-   platforms?
-* Does it have any performance / memory implications (esp. on Android)? Was the
-library designed with intended use on Android?
-* Do we really need the library? Is there any alternative such as an existing
-library already in Chromium? If introducing a library with similar functionality
-as existing, will it be easy for another developer to understand which should be
-used where? Will you commit to consolidating uses in Chromium and remove the
-alternative libraries?
-* Is the library written in a [memory safe
-  language](security/rule-of-2.md#unsafe-implementation-languages)? If not, is
-  there an alternative library available that is memory safe and meets
-  Chromium's needs?
-  * You will be responsible for [owning the library](#add-owners), which
-    includes updating it for security and stability fixes. For C/C++, this is
-    your responsibility.  For [Rust](#rust), minor version updates are regularly
-    handled by a rotation, so you are only responsible for major version updates
-    (and minor version updates which result in `gnrt` or Chromium CQ failures).
-* For desktop (Win/Mac/Linux/ChromeOS), does the dependency introduce closed
-source components (e.g., binaries, WASM binaries, obfuscated code)? If yes,
-please reach out to Chrome ATLs.
+To make sure the inclusion of a new //third_party project makes sense for the
+Chromium project, you should first obtain approval from Chrome's Technical
+Steering Council. Please include the following topics in an email to
+chromium-third-party-libraries at chromium.org:
+
+1.  Link to the upstream repository.
+
+2.  Motivation:
+
+    What does the library do, and how does that functionality support Chromium's
+    goals? Are there alternatives you considered, either dependencies we already
+    include, or other libraries we could have chosen? Linking to a design doc
+    (and ensuring it's shared appropriately!) would be ideal.
+
+3.  Security:
+
+    Is the library written in a
+    [memory-safe language](security/rule-of-2.md#unsafe-implementation-languages)?
+    Does it process untrusted input? What's the integration strategy (e.g. will
+    it run in a utility process, as part of the browser process, etc)? Will the
+    library be built from source, or distributed as a pre-built binary? In the
+    latter case, please explain why it can't be built from source, as you'll need
+    explicit approval.
 
 
-Googlers can access [go/chrome-atls](https://goto.google.com/chrome-atls) and review
-existing topics in g/chrome-atls, and can also come to office hours to ask
-questions.
+4.  Maintenance:
+
+    You will be responsible for [owning the dependency](#add-owners), keeping it
+    up to date with security and stability fixes. Ideally you'll autoroll the
+    dependency; any other strategy will require an exception, as discussed in
+    "[Update Mechanism](#update-mechanism)" and
+    "[Autoroll Exceptions](#autoroll-exceptions)" below.
+
+    Likewise, how well-maintained is the upstream on all the platforms Chromium
+    supports? What is the expected maintenance burden on the Chromium project
+    over time?
+
+5.  Weight:
+
+    What is the expected build time and binary size impact? If you have
+    an active CL, the [compile-size](speed/binary_size/compile_size_builder.md)
+    and [android-binary-size](speed/binary_size/android_binary_size_trybot.md)
+    bots are good data points to link to as good proxies for speed and size
+    implications. If the expected APK increase is greater
+    than 16kb, consider analyzing the library via tools like
+    [Chrome Supersize](../tools/binary_size/libsupersize/README.md) to trim
+    unnecessary overhead.
+
+    What's the impact on checkout size? If it's significant (e.g. >20MB),
+    consider filtering the files to be checked in.
+
+    Are there performance or memory implications to be aware of, especially on
+    Android?
 
 ## Rust
 
@@ -102,7 +108,10 @@ The process for importing a new Rust third-party dependency is documented at
 Email rust-dev@chromium.org with any questions about the Rust toolchain.
 
 Note that new Rust crates do not require security approval - the Rust
-third_party approval is sufficient.
+third_party approval is sufficient. Likewise, minor version updates for crates
+are regularly handled by a rotation; you'll only be responsible for major
+version updates (and minor version updates which result in `gnrt` or Chromium
+CQ failures).
 
 ## A note on size constraints
 
@@ -287,46 +296,46 @@ into the product and does any of the following:
 We aim to eventually autoroll as many dependencies as is feasible, and track those
 that can't with an [exception](https://issues.chromium.org/issues/new?component=1801247&template=2135097).
 
-> We are currently only enforcing exceptions for **'Static'** dependencies.
-> New dependencies pulled in via DEPS should be set to **'Manual'**.
+The `Update Mechanism:` field specifies how this dependency is kept up-to-date.
+You will use one of the following values below. The bug link should be an
+approved autoroll exception ([example](https://crbug.com/422921734)).
 
-The `Update Mechanism:` field specifies how this dependency is kept
-up-to-date. You will use one of the exact string formats listed below,
-replacing `(https://crbug.com/BUG_ID)` with the actual bug link where required.
-The format is `Primary[.SubsetSpecifier] (https://crbug.com/BUG_ID)`.
-
-**Accepted Values:**
 * `Autoroll`
-* `Manual (https://crbug.com/BUG_ID)`
-* `Static (https://crbug.com/BUG_ID)`
-* `Static.HardFork (https://crbug.com/BUG_ID)`
+* `Manual (https://crbug.com/<BUG_ID>)`
+* `Static (https://crbug.com/<BUG_ID>)`
+* `Static.HardFork (https://crbug.com/<BUG_ID>)`
 
 |||---||| 3,3,6
+
 ### Autoroll
 
-Updated automatically by a service e.g. Skia Autoroller, Copybara.
-
-No exception required.
+Updated automatically by a service.
 
 Please refer to
 [managing-third-party](https://chromium.googlesource.com/chromium/src/+/main/docs/managing-third-party/)
-for automation options and usage guide.
+for options and user guide.
 
+*** note
 ### Manual
 
-Updated manually by OWNERS e.g., using `roll_deps`.
+**An exception is required.**
 
-No exception required *yet*.
+Updated manually by OWNERS.
+
+Owners may use `roll-dep`, or custom bespoke methods.
+***
+
 *** note
 ### Static / Static.HardFork
 
-An exception is required.
+**An exception is required.**
 
-*Changes are authored by Chromium Authors.*
+*The dependency will be treated as if it's written by Chromium Authors.*
 
-* **Static**: Origin is not a typical git repo or package manager, or package is
-intentionally never updated.
-* **Static.HardFork**: Origin is a git repo or package manager, but our version
+* **Static**: Origin is not a version controlled repository or a package
+manager, or the dependency is intentionally never updated, or the upstream Git
+repo is archived.
+* **Static.HardFork**: Origin is a Git repo or package manager, but our version
 has diverged from the upstream, and is no longer updatable.
 ***
 |||---|||
@@ -335,6 +344,7 @@ has diverged from the upstream, and is no longer updatable.
 > revision/version/cpe which represents the closest point of divergence
 > from the upstream. This may return some false positives but ensures
 > coverage is optimal.
+
 ### Autoroll Exceptions
 
 You can request your dependency to be exempted from autorolling. You MUST

@@ -38,6 +38,8 @@ enum class AtMemoryAction {
   kAllowCustomizeAtMemoryShortcut,
   // Show the In-Product Help (IPH) Promo Bubble for AtMemory.
   kShowIph,
+  // Show the AtMemory button in the Autocomplete dialog.
+  kShowAutocompleteAtMemoryButton,
 };
 
 // Returns whether all permission-related requirements are met for `action`.

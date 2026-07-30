@@ -11,6 +11,7 @@
 #include "content/browser/site_info.h"
 #include "content/browser/site_instance_group.h"
 #include "content/browser/site_instance_impl.h"
+#include "content/common/features.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/site_isolation_policy.h"
@@ -63,8 +64,9 @@ scoped_refptr<SiteInstanceImpl> BrowsingInstance::GetSiteInstanceForURL(
     const UrlInfo& url_info,
     SiteInstanceGroup* creation_group,
     bool allow_default_instance) {
+  const SiteInfo site_info = ComputeSiteInfoForURL(url_info);
   scoped_refptr<SiteInstanceImpl> site_instance =
-      GetSiteInstanceForURLHelper(url_info, allow_default_instance);
+      GetSiteInstanceForURLHelper(url_info, site_info, allow_default_instance);
 
   if (site_instance) {
     return site_instance;
@@ -79,7 +81,11 @@ scoped_refptr<SiteInstanceImpl> BrowsingInstance::GetSiteInstanceForURL(
   // carries guest information contained within SiteInfo.
   if (SiteInstanceImpl::ShouldAssignSiteForUrlInfo(url_info) ||
       isolation_context_.is_guest()) {
-    instance->SetSite(url_info);
+    if (base::FeatureList::IsEnabled(features::kPrecomputeSiteInfo)) {
+      instance->SetSiteInfoAndOriginalUrl(site_info, url_info.url);
+    } else {
+      instance->SetSite(url_info);
+    }
   }
 
   // Add the new SiteInstance to `group`, if it exists.
@@ -93,14 +99,15 @@ scoped_refptr<SiteInstanceImpl> BrowsingInstance::GetSiteInstanceForURL(
 
 SiteInfo BrowsingInstance::GetSiteInfoForURL(const UrlInfo& url_info,
                                              bool allow_default_instance) {
+  const SiteInfo site_info = ComputeSiteInfoForURL(url_info);
   scoped_refptr<SiteInstanceImpl> site_instance =
-      GetSiteInstanceForURLHelper(url_info, allow_default_instance);
+      GetSiteInstanceForURLHelper(url_info, site_info, allow_default_instance);
 
   if (site_instance) {
     return site_instance->GetSiteInfo();
   }
 
-  return ComputeSiteInfoForURL(url_info);
+  return site_info;
 }
 
 scoped_refptr<SiteInstanceImpl> BrowsingInstance::GetSiteInstanceForSiteInfo(
@@ -111,7 +118,7 @@ scoped_refptr<SiteInstanceImpl> BrowsingInstance::GetSiteInstanceForSiteInfo(
   }
 
   scoped_refptr<SiteInstanceImpl> instance = new SiteInstanceImpl(this);
-  instance->SetSite(site_info);
+  instance->SetSiteInfo(site_info);
   return instance;
 }
 
@@ -127,8 +134,8 @@ BrowsingInstance::GetMaybeGroupRelatedSiteInstanceForURL(
 
 scoped_refptr<SiteInstanceImpl> BrowsingInstance::GetSiteInstanceForURLHelper(
     const UrlInfo& url_info,
+    const SiteInfo& site_info,
     bool allow_default_instance) {
-  const SiteInfo site_info = ComputeSiteInfoForURL(url_info);
   auto i = site_instance_map_.find(site_info);
   if (i != site_instance_map_.end()) {
     return i->second.get();

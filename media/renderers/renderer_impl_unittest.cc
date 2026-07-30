@@ -73,14 +73,14 @@ class RendererImplTest : public ::testing::Test {
   };
 
   RendererImplTest()
-      : demuxer_(new StrictMock<MockDemuxer>()),
-        video_renderer_(new StrictMock<MockVideoRenderer>()),
+      : video_renderer_(new StrictMock<MockVideoRenderer>()),
         audio_renderer_(new StrictMock<MockAudioRenderer>()),
         renderer_impl_(
             new RendererImpl(task_environment_.GetMainThreadTaskRunner(),
                              std::unique_ptr<AudioRenderer>(audio_renderer_),
                              std::unique_ptr<VideoRenderer>(video_renderer_))),
         cdm_context_(new StrictMock<MockCdmContext>()),
+        demuxer_(new StrictMock<MockDemuxer>()),
         video_renderer_client_(nullptr),
         audio_renderer_client_(nullptr),
         initialization_status_(PIPELINE_OK) {
@@ -356,7 +356,6 @@ class RendererImplTest : public ::testing::Test {
   StrictMock<CallbackHelper> callbacks_;
   base::SimpleTestTickClock test_tick_clock_;
 
-  std::unique_ptr<StrictMock<MockDemuxer>> demuxer_;
   raw_ptr<StrictMock<MockVideoRenderer>, DanglingUntriaged> video_renderer_;
   raw_ptr<StrictMock<MockAudioRenderer>, DanglingUntriaged> audio_renderer_;
   std::unique_ptr<RendererImpl> renderer_impl_;
@@ -365,7 +364,8 @@ class RendererImplTest : public ::testing::Test {
   StrictMock<MockTimeSource> time_source_;
   std::unique_ptr<StrictMock<MockDemuxerStream>> audio_stream_;
   std::unique_ptr<StrictMock<MockDemuxerStream>> video_stream_;
-  std::vector<DemuxerStream*> streams_;
+  std::vector<raw_ptr<DemuxerStream>> streams_;
+  std::unique_ptr<StrictMock<MockDemuxer>> demuxer_;
   raw_ptr<RendererClient, DanglingUntriaged> video_renderer_client_;
   raw_ptr<RendererClient, DanglingUntriaged> audio_renderer_client_;
   StrictMock<MockMediaClient> media_client_;
@@ -912,7 +912,7 @@ TEST_F(RendererImplTest, AudioUnderflowDuringAudioTrackChange) {
 
   EXPECT_CALL(time_source_, CurrentMediaTime()).Times(2);
   EXPECT_CALL(time_source_, SetMediaTime(_));
-  std::vector<DemuxerStream*> tracks;
+  std::vector<raw_ptr<DemuxerStream>> tracks;
   renderer_impl_->OnTracksChanged(DemuxerStream::AUDIO, {}, loop.QuitClosure());
 
   EXPECT_CALL(callbacks_,

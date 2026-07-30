@@ -375,9 +375,6 @@ class SafeBrowsingServiceImpl : public SafeBrowsingServiceInterface,
   // use.
   network::mojom::NetworkContextParamsPtr CreateNetworkContextParams();
 
-  // Logs metrics related to cookies.
-  void RecordStartupCookieMetrics(Profile* profile);
-
   // Fills out_referrer_chain with the referrer chain value.
   void FillReferrerChain(Profile* profile,
                          content::RenderFrameHost* render_frame_host,

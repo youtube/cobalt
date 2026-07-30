@@ -148,6 +148,13 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
     private boolean mDesktopWindowingModeChanged;
     private boolean mForceUpdateHeight;
     private boolean mForceFadeInStrip;
+
+    /**
+     * Tracks whether a height transition is pending. This can happen when: 1. An app header state
+     * change occurs before the first control container layout pass. 2. A layout change transition
+     * is debounced and currently pending in the queue, to ensure that the "force update height"
+     * state is not lost if the task is cancelled.
+     */
     private boolean mIsHeightTransitionPending;
 
     private @Nullable OnLayoutChangeListener mOnLayoutChangedListener;
@@ -266,8 +273,10 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
         // Force trigger the strip height transition when:
         // 1. The app is switching desktop windowing mode, to update the strip top padding.
         // 2. The app header height changes.
-        // 3. The height transition is pending, which happens when app header state change
-        //    happens before the first control container layout pass.
+        // 3. The height transition is pending, which may happen when app header state change
+        //    or layout change callbacks run prematurely without forcing a height transition
+        //    when it is expected (e.g. prior to the first control container layout pass or
+        //    due to layout change task cancellations).
         mForceUpdateHeight =
                 mDesktopWindowingModeChanged || headerHeightChanged || mIsHeightTransitionPending;
 
@@ -434,20 +443,26 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
                     mDesktopWindowingModeChanged,
                     mHeightTransitionHandler,
                     mFadeTransitionHandler);
+            resetHeightTransitionPending();
         } else {
             mLayoutTransitionTask =
                     mCallbackController.makeCancelable(
-                            () ->
-                                    initiateTransition(
-                                            width,
-                                            topPadding,
-                                            isInDesktopWindow,
-                                            mForceUpdateHeight,
-                                            mForceFadeInStrip,
-                                            mDesktopWindowingModeChanged,
-                                            mHeightTransitionHandler,
-                                            mFadeTransitionHandler));
+                            () -> {
+                                initiateTransition(
+                                        width,
+                                        topPadding,
+                                        isInDesktopWindow,
+                                        mForceUpdateHeight,
+                                        mForceFadeInStrip,
+                                        mDesktopWindowingModeChanged,
+                                        mHeightTransitionHandler,
+                                        mFadeTransitionHandler);
+                                resetHeightTransitionPending();
+                            });
             mHandler.postDelayed(mLayoutTransitionTask, TRANSITION_DELAY_MS);
+            if (ChromeFeatureList.sTabStripLayoutTransitionDebounceFix.isEnabled()) {
+                mIsHeightTransitionPending = mForceUpdateHeight;
+            }
         }
     }
 
@@ -485,6 +500,13 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
         return height == 0
                 ? 0
                 : Math.max(mTabStripReservedTopPadding, height - mTabStripHeightFromResource);
+    }
+
+    private void resetHeightTransitionPending() {
+        if (ChromeFeatureList.sTabStripHeightTransitionGlitchFix.isEnabled()
+                || ChromeFeatureList.sTabStripLayoutTransitionDebounceFix.isEnabled()) {
+            mIsHeightTransitionPending = false;
+        }
     }
 
     // Testing methods.

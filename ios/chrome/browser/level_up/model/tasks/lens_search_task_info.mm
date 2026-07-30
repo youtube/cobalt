@@ -32,6 +32,10 @@ class LensSearchTaskInfo : public TaskInfo {
     return LevelUpTaskCategory::kSearch;
   }
   std::string GetTriggerUserAction() const override { return ""; }
+  std::string GetCompletionSnackbarMessage() const override {
+    return l10n_util::GetStringUTF8(
+        IDS_IOS_LEVEL_UP_TASK_COMPLETED_LENS_SEARCH);
+  }
   TaskInfo::NavigationAction GetNavigationAction() const override {
     return base::DoNothing();
   }

@@ -446,7 +446,8 @@ std::vector<ManualFillCredentialAndPasswordForm> GetFilteredCredentials(
     if (_syncService &&
         _syncService->GetActiveDataTypes().Has(syncer::PASSWORDS) &&
         passwordManagerClient &&
-        passwordManagerClient->IsSavingAndFillingEnabled(_URL) &&
+        passwordManagerClient->IsSavingAndFillingEnabled(
+            url::Origin::Create(_URL)) &&
         _activeFieldIsObfuscated) {
       NSString* suggestPasswordTitleString = l10n_util::GetNSString(
           IDS_IOS_MANUAL_FALLBACK_SUGGEST_STRONG_PASSWORD_WITH_DOTS);

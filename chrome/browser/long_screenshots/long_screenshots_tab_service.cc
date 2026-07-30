@@ -121,7 +121,9 @@ void LongScreenshotsTabService::CaptureTab(
           : base::kModerateMemoryPressureThreshold;
 
   // If the system is under memory pressure don't try to capture.
-  if (memory_limit() <= memory_threshold) {
+  bool skip_memory_check = base::FeatureList::IsEnabled(
+      chrome::android::kLongScreenshotsNoMemoryCheck);
+  if (!skip_memory_check && memory_limit() <= memory_threshold) {
     JNIEnv* env = base::android::AttachCurrentThread();
     Java_LongScreenshotsTabService_processCaptureTabStatus(
         env, java_ref_, Status::kLowMemoryDetected);

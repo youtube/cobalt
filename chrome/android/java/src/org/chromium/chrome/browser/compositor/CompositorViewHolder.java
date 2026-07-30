@@ -2411,10 +2411,12 @@ public class CompositorViewHolder extends FrameLayout
             node.setContentDescription(getAccessibilityDescription(view));
             if (view.hasClickAction()) {
                 node.addAction(AccessibilityNodeInfoCompat.ACTION_CLICK);
+                node.setClickable(true);
             }
             node.addAction(AccessibilityNodeInfoCompat.ACTION_FOCUS);
             if (view.hasLongClickAction()) {
                 node.addAction(AccessibilityNodeInfoCompat.ACTION_LONG_CLICK);
+                node.setLongClickable(true);
             }
         }
 

@@ -402,6 +402,19 @@ bool IsImage(const ax::mojom::Role role) {
   }
 }
 
+bool IsLiveRegion(const ax::mojom::Role role) {
+  // Keep in sync with Blink's GetImplicitAriaLive(): alert is assertive; log
+  // and status (and roles mapping to them) are polite.
+  switch (role) {
+    case ax::mojom::Role::kAlert:
+    case ax::mojom::Role::kLog:
+    case ax::mojom::Role::kStatus:
+      return true;
+    default:
+      return false;
+  }
+}
+
 bool IsItemLike(const ax::mojom::Role role) {
   switch (role) {
     case ax::mojom::Role::kArticle:

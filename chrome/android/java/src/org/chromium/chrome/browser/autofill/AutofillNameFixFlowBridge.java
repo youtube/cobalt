@@ -95,7 +95,7 @@ final class AutofillNameFixFlowBridge implements AutofillNameFixFlowPromptDelega
     @CalledByNative
     private void show(WindowAndroid windowAndroid) {
         mNameFixFlowPrompt =
-                AutofillNameFixFlowPrompt.createAsInfobarFixFlowPrompt(
+                AutofillNameFixFlowPrompt.createAsMessageFixFlowPrompt(
                         assertNonNull(mActivity),
                         this,
                         mInferredName,

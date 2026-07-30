@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.logo;
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.doesDefaultSearchEngineHaveLogo;
 
+import android.content.Context;
 import android.graphics.ImageDecoder;
 import android.graphics.drawable.AnimatedImageDrawable;
 import android.graphics.drawable.Drawable;
@@ -41,6 +42,7 @@ import org.chromium.components.search_engines.TemplateUrlService.TemplateUrlServ
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.util.ColorUtils;
 
 import java.io.IOException;
 import java.lang.annotation.Retention;
@@ -85,6 +87,7 @@ public class LogoMediator implements TemplateUrlServiceObserver {
         int ANIMATED_LOGO_CLICKED = 2;
     }
 
+    private final boolean mIsNightMode;
     private final PropertyModel mLogoModel;
     private @Nullable Profile mProfile;
     private @Nullable LogoBridge mLogoBridge;
@@ -108,6 +111,7 @@ public class LogoMediator implements TemplateUrlServiceObserver {
     /**
      * Creates a LogoMediator object.
      *
+     * @param context Used to check night mode.
      * @param logoClickedCallback Supplies the StartSurface's parent tab.
      * @param logoModel The model that is required to build the logo on start surface or ntp.
      * @param onLogoAvailableCallback The callback for when logo is available.
@@ -116,11 +120,13 @@ public class LogoMediator implements TemplateUrlServiceObserver {
      *     is the default search engine.
      */
     LogoMediator(
+            Context context,
             Callback<LoadUrlParams> logoClickedCallback,
             PropertyModel logoModel,
             Callback<Logo> onLogoAvailableCallback,
             @Nullable VisibilityObserver visibilityObserver,
             @Nullable Drawable defaultGoogleLogoDrawable) {
+        mIsNightMode = ColorUtils.inNightMode(context);
         mLogoModel = logoModel;
         mLogoClickedCallback = logoClickedCallback;
         mVisibilityObserver = visibilityObserver;
@@ -265,7 +271,7 @@ public class LogoMediator implements TemplateUrlServiceObserver {
 
         if (isCacheHit) {
             mOnLogoClickUrl = assumeNonNull(cachedDoodle).onClickUrl;
-            mAnimatedLogoUrl = assumeNonNull(cachedDoodle).animatedLogoUrl;
+            mAnimatedLogoUrl = getAnimatedLogoUrl(cachedDoodle);
             updateModelWithLogo(cachedDoodle);
             int logoType =
                     mAnimatedLogoUrl == null
@@ -317,6 +323,7 @@ public class LogoMediator implements TemplateUrlServiceObserver {
      */
     private void updateModelWithLogo(@Nullable Logo logo) {
         mLogoModel.set(LogoProperties.LOGO_CLICK_HANDLER, LogoMediator.this::onLogoClicked);
+        mLogoModel.set(LogoProperties.IS_NIGHT_MODE, mIsNightMode);
         mLogoModel.set(LogoProperties.LOGO, logo);
     }
 
@@ -479,13 +486,21 @@ public class LogoMediator implements TemplateUrlServiceObserver {
                         }
 
                         mOnLogoClickUrl = logo != null ? logo.onClickUrl : null;
-                        mAnimatedLogoUrl = logo != null ? logo.animatedLogoUrl : null;
+                        mAnimatedLogoUrl = getAnimatedLogoUrl(logo);
 
                         logoObserver.onLogoAvailable(logo, fromCache);
                     }
                 };
 
         mLogoBridge.getCurrentLogo(wrapperCallback);
+    }
+
+    private @Nullable String getAnimatedLogoUrl(@Nullable Logo logo) {
+        if (logo == null) return null;
+
+        return mIsNightMode && logo.darkAnimatedLogoUrl != null
+                ? logo.darkAnimatedLogoUrl
+                : logo.animatedLogoUrl;
     }
 
     // TODO(crbug.com/40881870): Remove the following ForTesting methods if possible.
@@ -508,6 +523,10 @@ public class LogoMediator implements TemplateUrlServiceObserver {
 
     void setAnimatedLogoUrlForTesting(String animatedLogoUrl) {
         mAnimatedLogoUrl = animatedLogoUrl;
+    }
+
+    @Nullable String getAnimatedLogoUrlForTesting() {
+        return mAnimatedLogoUrl;
     }
 
     void setOnLogoClickUrlForTesting(String onLogoClickUrl) {

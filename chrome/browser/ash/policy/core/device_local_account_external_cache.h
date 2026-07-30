@@ -17,6 +17,10 @@
 #include "chrome/browser/ash/extensions/external_cache_delegate.h"
 #include "chrome/browser/extensions/external_loader.h"
 
+namespace network {
+class SharedURLLoaderFactory;
+}  // namespace network
+
 namespace chromeos {
 
 class ExternalCache;
@@ -33,9 +37,12 @@ class DeviceLocalAccountExternalCache : public ExternalCacheDelegate {
       base::RepeatingCallback<void(const std::string& user_id,
                                    base::DictValue cached_extensions)>;
 
-  DeviceLocalAccountExternalCache(ExtensionListCallback loader,
-                                  const std::string& user_id,
-                                  const base::FilePath& cache_dir);
+  // `shared_url_loader_factory` must be non-null.
+  DeviceLocalAccountExternalCache(
+      scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
+      ExtensionListCallback loader,
+      const std::string& user_id,
+      const base::FilePath& cache_dir);
   ~DeviceLocalAccountExternalCache() override;
 
   // Start the cache using the supplied |cache_task_runner|.
@@ -67,6 +74,9 @@ class DeviceLocalAccountExternalCache : public ExternalCacheDelegate {
   void OnExtensionListsUpdated(const base::DictValue& prefs) override;
   bool IsRollbackAllowed() const override;
   bool CanRollbackNow() const override;
+
+  const scoped_refptr<network::SharedURLLoaderFactory>
+      shared_url_loader_factory_;
 
   const std::string user_id_;
   const base::FilePath cache_dir_;

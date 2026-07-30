@@ -475,31 +475,6 @@ void SessionStorageImpl::SetDatabaseOpenCallbackForTesting(
   RunWhenConnected(std::move(callback));
 }
 
-scoped_refptr<DomStorageDatabase::SharedMapLocator>
-SessionStorageImpl::RegisterNewAreaMap(const std::string& namespace_id,
-                                       const blink::StorageKey& storage_key) {
-  CHECK_EQ(connection_state_, CONNECTION_FINISHED);
-
-  scoped_refptr<DomStorageDatabase::SharedMapLocator> map_entry =
-      metadata_.RegisterNewMap(namespace_id, storage_key);
-  if (database_) {
-    // Save the new map in the database.
-    DomStorageDatabase::Metadata metadata;
-    metadata.next_map_id = map_entry->map_id().value() + 1;
-    metadata.map_metadata.push_back({
-        .map_locator{
-            /*session_id=*/namespace_id,
-            map_entry->storage_key(),
-            map_entry->map_id().value(),
-        },
-    });
-    database_->PutMetadata(std::move(metadata),
-                           base::BindOnce(&SessionStorageImpl::OnCommitResult,
-                                          weak_ptr_factory_.GetWeakPtr()));
-  }
-  return map_entry;
-}
-
 void SessionStorageImpl::OnDataMapCreation(int64_t map_id,
                                            SessionStorageDataMap* map) {
   auto result = data_maps_.emplace(std::piecewise_construct,
@@ -612,8 +587,8 @@ std::unique_ptr<SessionStorageNamespaceImpl>
 SessionStorageImpl::CreateSessionStorageNamespaceImpl(
     std::string namespace_id) {
   SessionStorageAreaImpl::RegisterNewAreaMap map_id_callback =
-      base::BindRepeating(&SessionStorageImpl::RegisterNewAreaMap,
-                          base::Unretained(this));
+      base::BindRepeating(&SessionStorageMetadata::RegisterNewMap,
+                          base::Unretained(&metadata_));
 
   return std::make_unique<SessionStorageNamespaceImpl>(
       std::move(namespace_id), this, std::move(map_id_callback), this);

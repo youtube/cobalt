@@ -126,6 +126,90 @@ TEST_F(ONCValidatorTest, EmptyUnencryptedConfiguration) {
   ExpectValid();
 }
 
+// ONC configuration containing the sensitive ${PASSWORD} placeholder.
+const char kOncWithPasswordPlaceholderEAP[] =
+    "{"
+    "  \"GUID\": \"test-guid\","
+    "  \"Type\": \"WiFi\","
+    "  \"Name\": \"Test Network\","
+    "  \"WiFi\": {"
+    "    \"SSID\": \"Test\","
+    "    \"HexSSID\": \"54657374\","
+    "    \"Security\": \"WPA-EAP\","
+    "    \"EAP\": {"
+    "      \"Outer\": \"PEAP\","
+    "      \"Password\": \"${PASSWORD}\""
+    "    }"
+    "  }"
+    "}";
+
+const char kOncWithPasswordPlaceholderL2TP[] =
+    "{"
+    "  \"GUID\": \"test-guid-l2tp\","
+    "  \"Type\": \"VPN\","
+    "  \"Name\": \"Test L2TP Network\","
+    "  \"VPN\": {"
+    "    \"Type\": \"L2TP-IPsec\","
+    "    \"L2TP\": {"
+    "      \"Password\": \"${PASSWORD}\""
+    "    },"
+    "    \"IPsec\": {"
+    "      \"AuthenticationType\": \"PSK\","
+    "      \"PSK\": \"test-psk\","
+    "      \"IKEVersion\": 2"
+    "    }"
+    "  }"
+    "}";
+
+// Ensure that ${PASSWORD} is rejected for L2TP when the source is user import.
+TEST_F(ONCValidatorTest, RejectPasswordPlaceholderInL2TPUserImport) {
+  std::optional<base::DictValue> dict =
+      ReadDictionaryFromJson(kOncWithPasswordPlaceholderL2TP);
+  EXPECT_TRUE(dict.has_value());
+
+  ::onc::ONCSource source = ::onc::ONC_SOURCE_USER_IMPORT;
+  Validate(true, std::move(dict.value()), &kNetworkConfigurationSignature,
+           false, source);
+  ExpectInvalid();
+}
+
+// Ensure that ${PASSWORD} is allowed for L2TP when the source is a managed
+// policy.
+TEST_F(ONCValidatorTest, AllowPasswordPlaceholderInL2TPManagedPolicy) {
+  std::optional<base::DictValue> dict =
+      ReadDictionaryFromJson(kOncWithPasswordPlaceholderL2TP);
+  EXPECT_TRUE(dict.has_value());
+
+  ::onc::ONCSource source = ::onc::ONC_SOURCE_USER_POLICY;
+  Validate(true, std::move(dict.value()), &kNetworkConfigurationSignature,
+           false, source);
+  ExpectValid();
+}
+
+// Ensure that ${PASSWORD} is rejected when the source is user import.
+TEST_F(ONCValidatorTest, RejectPasswordPlaceholderInUserImport) {
+  std::optional<base::DictValue> dict =
+      ReadDictionaryFromJson(kOncWithPasswordPlaceholderEAP);
+  EXPECT_TRUE(dict.has_value());
+
+  ::onc::ONCSource source = ::onc::ONC_SOURCE_USER_IMPORT;
+  Validate(true, std::move(dict.value()), &kNetworkConfigurationSignature,
+           false, source);
+  ExpectInvalid();
+}
+
+// Ensure that ${PASSWORD} is allowed when the source is a managed policy.
+TEST_F(ONCValidatorTest, AllowPasswordPlaceholderInManagedPolicy) {
+  std::optional<base::DictValue> dict =
+      ReadDictionaryFromJson(kOncWithPasswordPlaceholderEAP);
+  EXPECT_TRUE(dict.has_value());
+
+  ::onc::ONCSource source = ::onc::ONC_SOURCE_USER_POLICY;
+  Validate(true, std::move(dict.value()), &kNetworkConfigurationSignature,
+           false, source);
+  ExpectValid();
+}
+
 // This test case is about validating valid ONC objects without any errors. Both
 // the strict and the liberal validator accept the object.
 class ONCValidatorValidTest : public ONCValidatorTest,

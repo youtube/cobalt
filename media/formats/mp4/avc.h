@@ -42,11 +42,11 @@ class MEDIA_EXPORT AVC {
       const AVCDecoderConfigurationRecord& avc_config,
       std::vector<uint8_t>* buffer);
 
-  // Analyzes the contents of `buffer` for conformance to Section 7.4.1.2.3 of
-  // ISO/IEC 14496-10. Also analyzes `buffer` and reports if it looks like a
-  // keyframe, if such can be determined. Determination of keyframe-ness is done
-  // only if `buffer` is conformant or if lack of conformance is detected after
-  // detecting keyframe-ness.
+  // Analyzes the contents of `buffer` for keyframe detection. While it also
+  // checks for conformance to Section 7.4.1.2.3 of ISO/IEC 14496-10, parsing is
+  // intentionally lax to accommodate real-world content; out-of-order NALUs do
+  // not prevent keyframe determination and are reported via `is_conformant`.
+  // This method should primarily be used for keyframe probing.
   // `subsamples` contains the information about what parts of the buffer are
   // encrypted and which parts are clear.
   // `allow_bare_idr` indicates whether the analyzer should treat an IDR NAL

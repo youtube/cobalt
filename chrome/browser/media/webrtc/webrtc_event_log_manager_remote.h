@@ -127,6 +127,7 @@ class WebRtcRemoteEventLogManager final
                           int output_period_ms,
                           size_t web_app_id,
                           std::optional<std::string> diagnostic_uuid,
+                          bool local_only,
                           std::string* log_id,
                           std::string* error_message);
 
@@ -160,7 +161,7 @@ class WebRtcRemoteEventLogManager final
   // Works on not-enabled BrowserContext-s, which means the logs are never made
   // eligible for upload. Useful when a BrowserContext is loaded which in
   // the past had remote-logging enabled, but no longer does.
-  void RemovePendingLogsForNotEnabledBrowserContext(
+  void RemoveLogsForNotEnabledBrowserContext(
       BrowserContextId browser_context_id,
       const base::FilePath& browser_context_dir);
 
@@ -219,12 +220,12 @@ class WebRtcRemoteEventLogManager final
   bool BrowserContextEnabled(BrowserContextId browser_context_id) const;
 
   // Closes an active log file.
-  // If |make_pending| is true, closing the file changes its state from ACTIVE
-  // to PENDING. If |make_pending| is false, or if the file couldn't be closed
+  // If |action| is kStore, closing the file changes its state from ACTIVE
+  // to PENDING. If |action| is kDelete, or if the file couldn't be closed
   // correctly, the file will be deleted.
   // Returns an iterator to the next ACTIVE file.
   LogFilesMap::iterator CloseLogFile(LogFilesMap::iterator it,
-                                     bool make_pending);
+                                     StopLoggingAction action);
 
   // Attempts to create the directory where we'll write the logs, if it does
   // not already exist. Returns true if the directory exists (either it already
@@ -238,15 +239,15 @@ class WebRtcRemoteEventLogManager final
   void LoadLogsDirectory(BrowserContextId browser_context_id,
                          const base::FilePath& remote_bound_logs_dir);
 
-  // Loads the pending log file whose path is |path|, into the BrowserContext
+  // Loads the log file whose path is |path|, into the BrowserContext
   // indicated by |browser_context_id|. Note that the contents of the file are
   // note read by this method.
   // Returns true if the file was loaded correctly, and should be kept on disk;
   // false if the file was not loaded (e.g. incomplete or expired), and needs
   // to be deleted.
-  bool LoadPendingLogInfo(BrowserContextId browser_context_id,
-                          const base::FilePath& path,
-                          base::Time last_modified);
+  bool LoadLogFileInfo(BrowserContextId browser_context_id,
+                       const base::FilePath& path,
+                       base::Time last_modified);
 
   // Loads a history file. Returns a WebRtcEventLogHistoryFileReader if the
   // file was loaded correctly, and should be kept on disk; nullptr otherwise,
@@ -297,7 +298,7 @@ class WebRtcRemoteEventLogManager final
   // against for retention, is only read from disk once per file, meaning
   // this check is not too expensive.
   // If a |browser_context_id| is provided, logs are only pruned for it.
-  void PrunePendingLogs(
+  void PruneLogFiles(
       std::optional<BrowserContextId> browser_context_id = std::nullopt);
 
   // PrunePendingLogs() and schedule the next proactive pending logs prune.
@@ -329,6 +330,12 @@ class WebRtcRemoteEventLogManager final
       const base::Time& delete_end,
       std::optional<BrowserContextId> browser_context_id,
       bool is_cache_clear);
+
+  // Removes local-only logs files which match the given filter criteria.
+  void MaybeRemoveLocalOnlyLogs(
+      const base::Time& delete_begin,
+      const base::Time& delete_end,
+      std::optional<BrowserContextId> browser_context_id);
 
   // Remove all history files associated with |browser_context_id| which were
   // either captured or uploaded between |delete_begin| and |delete_end|.
@@ -457,6 +464,9 @@ class WebRtcRemoteEventLogManager final
   // this Chrome session or during an earlier one), and which are no waiting to
   // be uploaded.
   std::set<WebRtcLogFileInfo> pending_logs_;
+
+  // Remote-bound logs which are local-only (no upload).
+  std::set<WebRtcLogFileInfo> local_only_logs_;
 
   // Null if no ongoing upload, or an uploader which owns a file, and is
   // currently busy uploading it to a remote server.

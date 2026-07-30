@@ -383,6 +383,10 @@ void PreloadHelper::PreconnectIfNeeded(
       web_prescient_networking->Preconnect(
           params.href, params.cross_origin != kCrossOriginAttributeAnonymous);
     }
+    if (document && document->Fetcher()) {
+      document->Fetcher()->RecordPreconnect(params.href, params.cross_origin,
+                                            /*early_hints=*/false);
+    }
   }
 }
 

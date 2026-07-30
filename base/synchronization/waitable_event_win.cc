@@ -69,6 +69,10 @@ bool WaitableEvent::IsSignaled() const {
   return result == WAIT_OBJECT_0;
 }
 
+bool WaitableEvent::IsDefinitelySignaled() const {
+  return IsSignaled();
+}
+
 bool WaitableEvent::TimedWaitImpl(TimeDelta wait_delta) {
   // TimeTicks takes care of overflow but we special case is_max() nonetheless
   // to avoid invoking TimeTicksNowIgnoringOverride() unnecessarily.

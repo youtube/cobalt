@@ -14,7 +14,10 @@ namespace content {
 class DevToolsTraceableScreenshot
     : public base::trace_event::ConvertableToTraceFormat {
  public:
-  static constexpr int kMaximumNumberOfScreenshots = 450;
+  // Default maximum number of screenshots captured per tracing session.
+  // Callers can override this through the `screenshotMaxCount` parameter on
+  // `Tracing.start` (subject to clamping in the tracing handler).
+  static constexpr int kDefaultMaximumNumberOfScreenshots = 450;
 
   static base::subtle::Atomic32 GetNumberOfInstances();
 

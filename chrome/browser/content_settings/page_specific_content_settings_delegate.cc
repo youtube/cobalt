@@ -133,6 +133,9 @@ void PageSpecificContentSettingsDelegate::OnCapturingStateChanged(
 }
 
 void PageSpecificContentSettingsDelegate::UpdateLocationBar() {
+  if (!web_contents()) {
+    return;
+  }
   content_settings::UpdateLocationBarUiForWebContents(web_contents());
 
   PageSpecificContentSettings* pscs = PageSpecificContentSettings::GetForFrame(

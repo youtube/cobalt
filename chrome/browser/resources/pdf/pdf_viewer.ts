@@ -448,7 +448,7 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     this.useSidePanelForInk_ = mediaQuery.matches;
     this.tracker.add(mediaQuery, 'change', () => {
       this.useSidePanelForInk_ = mediaQuery.matches;
-      // If we are in DRAW or TEXT annotation mode, record opening the
+      // If in DRAW or TEXT annotation mode, record opening the
       // UI that's opened by making the window narrower/wider.
       if (this.annotationMode_ !== AnnotationMode.OFF) {
         record(
@@ -752,7 +752,7 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     this.pluginController_.setPresentationMode(false);
 
     // Ensure that directional keys still work after exiting.
-    this.shadowRoot.querySelector('embed')!.focus();
+    this.focusPlugin_();
 
     // Set zoom back to original zoom before presentation mode.
     this.viewport.restoreZoomState();
@@ -766,6 +766,15 @@ export class PdfViewerElement extends PdfViewerBaseElement {
       this.restoreAnnotationMode_ = AnnotationMode.OFF;
     }
     // </if>
+  }
+
+  private focusPlugin_() {
+    // Focus the embed in this frame, so the browser routes keyboard events to
+    // the plugin.
+    this.shadowRoot.querySelector('embed')!.focus();
+    // Send a 'focus' message to the plugin frame, so it internally focuses its
+    // own elements.
+    this.pluginController_.focus();
   }
 
   protected async onPresentClick_() {
@@ -1662,10 +1671,10 @@ export class PdfViewerElement extends PdfViewerBaseElement {
    */
   private async save_(requestType: SaveRequestType) {
     this.recordSaveMetrics_(requestType);
-    // If we have entered annotation mode we must require the local
-    // contents to ensure annotations are saved, unless the user specifically
-    // requested the original document. Otherwise we would save the cached
-    // remote copy without annotations.
+    // Entering annotation mode requires the local contents to ensure
+    // annotations are saved, unless the original document is specifically
+    // requested. Otherwise, the cached remote copy would be saved without
+    // annotations.
     //
     // Always send requests of type ORIGINAL to the plugin controller, not the
     // ink controller. The ink controller always saves the edited document.
@@ -2013,7 +2022,9 @@ export class PdfViewerElement extends PdfViewerBaseElement {
 
   protected onTextBoxStateChanged_(e: CustomEvent<TextBoxState>) {
     this.textboxState_ = e.detail;
-    if (e.detail === TextBoxState.EDITED) {
+    if (e.detail === TextBoxState.INACTIVE) {
+      this.focusPlugin_();
+    } else if (e.detail === TextBoxState.EDITED) {
       this.setShowBeforeUnloadDialog_(true);
     }
   }

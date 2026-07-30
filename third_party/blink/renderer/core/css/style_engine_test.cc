@@ -7741,7 +7741,7 @@ TEST_F(StyleEngineTest, UpdateRootFontRelativeUnits_NoRecalcForNonInherited) {
   UpdateAllLifecyclePhasesForTest();
 
   // Verify that the document is using root font-relative units (rem).
-  ASSERT_TRUE(GetStyleEngine().UsesRootFontRelativeUnits())
+  ASSERT_TRUE(GetStyleEngine().UsesRootRelativeUnits())
       << "Document should be using root font-relative units (rem)";
   // Also verify glyph-relative units (ch) are tracked.
   ASSERT_TRUE(GetStyleEngine().UsesGlyphRelativeUnits())

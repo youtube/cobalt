@@ -13,6 +13,7 @@ component("constants") {
     "ambient_video.h",
     "ash_constants.cc",
     "ash_constants.h",
+    "ash_extension_constants.h",
     "ash_features.cc",
     "ash_features.h",
     "ash_login_pref_names.h",

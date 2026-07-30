@@ -141,7 +141,7 @@ void FrameTree::NodeIterator::AdvanceNode() {
 }
 
 FrameTree::NodeIterator::NodeIterator(
-    const std::vector<raw_ptr<FrameTreeNode, VectorExperimental>>&
+    const std::vector<raw_ptr<FrameTreeNode, DanglingUntriaged>>&
         starting_nodes,
     const FrameTreeNode* root_of_subtree_to_skip,
     bool should_descend_into_inner_trees,
@@ -179,7 +179,7 @@ FrameTree::NodeIterator FrameTree::NodeRange::end() {
 }
 
 FrameTree::NodeRange::NodeRange(
-    const std::vector<raw_ptr<FrameTreeNode, VectorExperimental>>&
+    const std::vector<raw_ptr<FrameTreeNode, DanglingUntriaged>>&
         starting_nodes,
     const FrameTreeNode* root_of_subtree_to_skip,
     bool should_descend_into_inner_trees,
@@ -338,7 +338,7 @@ std::vector<FrameTreeNode*> FrameTree::CollectNodesForIsLoading() {
 FrameTree::NodeRange FrameTree::SubtreeAndInnerTreeNodes(
     RenderFrameHostImpl* parent,
     bool include_delegate_nodes_for_inner_frame_trees) {
-  std::vector<raw_ptr<FrameTreeNode, VectorExperimental>> starting_nodes;
+  std::vector<raw_ptr<FrameTreeNode, DanglingUntriaged>> starting_nodes;
   starting_nodes.reserve(parent->child_count());
   for (size_t i = 0; i < parent->child_count(); ++i) {
     FrameTreeNode* child = parent->child_at(i);
@@ -734,26 +734,26 @@ FrameTree::RenderViewHostMapId FrameTree::GetRenderViewHostMapId(
       site_instance_group->GetId().value());
 }
 
-void FrameTree::RegisterRenderViewHost(RenderViewHostMapId id,
-                                       RenderViewHostImpl* rvh) {
-  TRACE_EVENT_INSTANT("navigation", "FrameTree::RegisterRenderViewHost",
-                      ChromeTrackEvent::kRenderViewHost, *rvh);
-  CHECK(!rvh->is_speculative());
-  bool rvh_id_already_in_map = render_view_host_map_.contains(id);
+namespace {
+void CheckForRenderViewHostMapCollisionsForDebugging(
+    FrameTree* frame_tree,
+    RenderViewHostImpl* rvh,
+    RenderViewHostImpl* existing_rvh) {
+  if (!frame_tree->is_primary()) {
+    return;
+  }
+
+  bool rvh_id_already_in_map = existing_rvh != nullptr;
+  auto& bfcache = frame_tree->controller().GetBackForwardCache();
+  SiteInstanceGroupId sig_id = rvh->site_instance_group()->GetId();
   bool rfh_in_bfcache =
-      controller()
-          .GetBackForwardCache()
-          .IsRenderFrameHostWithSIGInBackForwardCacheForDebugging(
-              rvh->site_instance_group()->GetId());
+      bfcache.IsRenderFrameHostWithSIGInBackForwardCacheForDebugging(sig_id);
   bool rfph_in_bfcache =
-      controller()
-          .GetBackForwardCache()
-          .IsRenderFrameProxyHostWithSIGInBackForwardCacheForDebugging(
-              rvh->site_instance_group()->GetId());
+      bfcache.IsRenderFrameProxyHostWithSIGInBackForwardCacheForDebugging(
+          sig_id);
   bool rvh_in_bfcache =
-      controller()
-          .GetBackForwardCache()
-          .IsRenderViewHostWithMapIdInBackForwardCacheForDebugging(*rvh);
+      bfcache.IsRenderViewHostWithMapIdInBackForwardCacheForDebugging(*rvh);
+
   // We're seeing cases where an RVH being restored from BFCache has the same
   // ID as an RVH already in the map, where the 2 RVHs are different but one
   // was in BFCache and one isn't.
@@ -780,32 +780,41 @@ void FrameTree::RegisterRenderViewHost(RenderViewHostMapId id,
                           rvh->renderer_view_created());
     SCOPED_CRASH_KEY_NUMBER("rvh-double", "passed_rvh_main_id",
                             rvh->main_frame_routing_id());
-    SCOPED_CRASH_KEY_NUMBER("rvh-double", "root_routing_id",
-                            root()->current_frame_host()->GetRoutingID());
+    SCOPED_CRASH_KEY_NUMBER(
+        "rvh-double", "root_routing_id",
+        frame_tree->root()->current_frame_host()->GetRoutingID());
     SCOPED_CRASH_KEY_NUMBER("rvh-double", "passed_rvh_ptr",
                             reinterpret_cast<size_t>(rvh));
     SCOPED_CRASH_KEY_BOOL("rvh-double", "passed_rvh_bfcache",
                           rvh->is_in_back_forward_cache());
-    SCOPED_CRASH_KEY_BOOL("rvh-double", "frame_tree_primary", is_primary());
+    SCOPED_CRASH_KEY_BOOL("rvh-double", "frame_tree_primary",
+                          frame_tree->is_primary());
 
-    if (rvh_id_already_in_map) {
-      SCOPED_CRASH_KEY_BOOL(
-          "rvh-double", "mapped_rvh_registered",
-          render_view_host_map_[id]->is_registered_with_frame_tree());
-      SCOPED_CRASH_KEY_NUMBER(
-          "rvh-double", "mapped_rvh_main_id",
-          render_view_host_map_[id]->main_frame_routing_id());
-      SCOPED_CRASH_KEY_NUMBER(
-          "rvh-double", "map_rvh_ptr",
-          reinterpret_cast<size_t>(render_view_host_map_[id]));
-      SCOPED_CRASH_KEY_BOOL(
-          "rvh-double", "map_rvh_bfcache",
-          render_view_host_map_[id]->is_in_back_forward_cache());
+    if (existing_rvh) {
+      SCOPED_CRASH_KEY_BOOL("rvh-double", "mapped_rvh_registered",
+                            existing_rvh->is_registered_with_frame_tree());
+      SCOPED_CRASH_KEY_NUMBER("rvh-double", "mapped_rvh_main_id",
+                              existing_rvh->main_frame_routing_id());
+      SCOPED_CRASH_KEY_NUMBER("rvh-double", "map_rvh_ptr",
+                              reinterpret_cast<size_t>(existing_rvh));
+      SCOPED_CRASH_KEY_BOOL("rvh-double", "map_rvh_bfcache",
+                            existing_rvh->is_in_back_forward_cache());
       SCOPED_CRASH_KEY_BOOL("rvh-double", "mapped_renderer_created",
-                            render_view_host_map_[id]->renderer_view_created());
-      CHECK_EQ(rvh, render_view_host_map_[id]);
+                            existing_rvh->renderer_view_created());
+      CHECK_EQ(rvh, existing_rvh);
     }
   }
+}
+}  // namespace
+
+void FrameTree::RegisterRenderViewHost(RenderViewHostMapId id,
+                                       RenderViewHostImpl* rvh) {
+  TRACE_EVENT_INSTANT("navigation", "FrameTree::RegisterRenderViewHost",
+                      ChromeTrackEvent::kRenderViewHost, *rvh);
+  CHECK(!rvh->is_speculative());
+  RenderViewHostImpl* existing_rvh =
+      render_view_host_map_.contains(id) ? render_view_host_map_[id] : nullptr;
+  CheckForRenderViewHostMapCollisionsForDebugging(this, rvh, existing_rvh);
   render_view_host_map_[id] = rvh;
   rvh->set_is_registered_with_frame_tree(true);
 }
@@ -1077,7 +1086,9 @@ void FrameTree::Shutdown() {
   // NavigationRequests restoring the page from bfcache have a reference to the
   // RFHs stored in the cache, so the cache should be cleared after the
   // navigation request is reset.
-  controller().GetBackForwardCache().Shutdown();
+  if (is_primary()) {
+    controller().GetBackForwardCache().Shutdown();
+  }
 
   manager_delegate_->OnFrameTreeNodeDestroyed(&root_);
   render_view_delegate_->RenderViewDeleted(
@@ -1130,7 +1141,9 @@ void FrameTree::Discard(base::OnceClosure on_discarded_cb) {
     root()->current_frame_host()->DiscardFrame(std::move(on_discarded_cb));
     NavigationControllerImpl& navigation_controller = controller();
     navigation_controller.SetNeedsReload();
-    navigation_controller.GetBackForwardCache().Flush();
+    if (is_primary()) {
+      navigation_controller.GetBackForwardCache().Flush();
+    }
     return true;
   };
   base::UmaHistogramBoolean("Discarding.DiscardFrameTree",

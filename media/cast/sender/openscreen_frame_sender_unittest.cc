@@ -54,7 +54,7 @@ static const FrameSenderConfig kVideoConfig{
     /* channels = */ 1,
     kDefaultMaxVideoBitrate,
     kDefaultMinVideoBitrate,
-    std::midpoint<int>(kDefaultMinVideoBitrate, kDefaultMaxVideoBitrate),
+    std::midpoint<uint32_t>(kDefaultMinVideoBitrate, kDefaultMaxVideoBitrate),
     kDefaultMaxFrameRate,
     VideoCodecParams(VideoCodec::kVP8),
     std::nullopt};
@@ -87,7 +87,7 @@ class OpenscreenFrameSenderTest : public TestWithCastEnvironment,
             std::move(openscreen_test_senders_.video_sender),
             *this)) {}
 
-  void set_suggested_bitrate(int bitrate) { suggested_bitrate_ = bitrate; }
+  void set_suggested_bitrate(uint32_t bitrate) { suggested_bitrate_ = bitrate; }
 
   OpenscreenFrameSender& audio_sender() { return *audio_sender_; }
 
@@ -98,7 +98,7 @@ class OpenscreenFrameSenderTest : public TestWithCastEnvironment,
   std::unique_ptr<OpenscreenFrameSender> audio_sender_;
   std::unique_ptr<OpenscreenFrameSender> video_sender_;
 
-  int suggested_bitrate_ = 0;
+  uint32_t suggested_bitrate_ = 0;
 };
 
 TEST_F(OpenscreenFrameSenderTest, RespectsTargetPlayoutDelay) {

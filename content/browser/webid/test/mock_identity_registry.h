@@ -5,6 +5,7 @@
 #ifndef CONTENT_BROWSER_WEBID_TEST_MOCK_IDENTITY_REGISTRY_H_
 #define CONTENT_BROWSER_WEBID_TEST_MOCK_IDENTITY_REGISTRY_H_
 
+#include "base/memory/weak_ptr.h"
 #include "content/browser/webid/identity_registry.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
@@ -32,6 +33,13 @@ class MockIdentityRegistry : public IdentityRegistry {
                const std::optional<std::string>&,
                blink::mojom::ResolveTokenParamsPtr),
               (override));
+
+  base::WeakPtr<MockIdentityRegistry> GetWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
+ private:
+  base::WeakPtrFactory<MockIdentityRegistry> weak_ptr_factory_{this};
 };
 
 }  // namespace content::webid

@@ -684,6 +684,9 @@ std::ostream& operator<<(std::ostream& stream, ModuleType module_type) {
     case ModuleType::kCSS:
       stream << "CSS";
       break;
+    case ModuleType::kTEXT:
+      stream << "TEXT";
+      break;
   }
   return stream;
 }

@@ -18,9 +18,11 @@
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
+#include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/embedded_worker_instance_test_harness.h"
 #include "content/public/test/test_renderer_host.h"
+#include "content/public/test/web_contents_tester.h"
 #include "services/device/public/cpp/test/fake_usb_device_info.h"
 #include "services/device/public/cpp/test/fake_usb_device_manager.h"
 #include "services/device/public/cpp/test/scoped_usb_device_manager_overrider.h"
@@ -917,6 +919,42 @@ class ChromeUsbDelegateSmartCardExtensionServiceWorkerTest
 };
 
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
+class ChromeUsbDelegateGuestTest : public ChromeRenderViewHostTestHarness {
+ public:
+  std::unique_ptr<content::WebContents> CreateGuestWebContents(
+      const GURL& url) {
+    const content::StoragePartitionConfig kGuestConfig =
+        content::StoragePartitionConfig::Create(
+            profile(), "test_partition", "guest_partition", /*in_memory=*/true);
+    scoped_refptr<content::SiteInstance> guest_instance =
+        content::SiteInstance::CreateForGuest(profile(), kGuestConfig);
+    std::unique_ptr<content::WebContents> guest_contents =
+        content::WebContentsTester::CreateTestWebContents(profile(),
+                                                          guest_instance);
+    content::WebContentsTester::For(guest_contents.get())
+        ->NavigateAndCommit(url);
+    return guest_contents;
+  }
+};
+
+TEST_F(ChromeUsbDelegateGuestTest, BlocksGuestViews) {
+  ChromeUsbDelegate usb_delegate;
+
+  // 1. Test HTTPS Guest
+  {
+    std::unique_ptr<content::WebContents> guest =
+        CreateGuestWebContents(GURL("https://example.com/"));
+    EXPECT_FALSE(usb_delegate.PageMayUseUsb(guest->GetPrimaryPage()));
+  }
+
+  // 2. Test about:blank Guest
+  {
+    std::unique_ptr<content::WebContents> guest =
+        CreateGuestWebContents(GURL("about:blank"));
+    EXPECT_FALSE(usb_delegate.PageMayUseUsb(guest->GetPrimaryPage()));
+  }
+}
 
 }  // namespace
 

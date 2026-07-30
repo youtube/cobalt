@@ -21,8 +21,9 @@ chrome.test.sendMessage('loaded', function(test) {
       }
 
       if (test === 'INVALID_VALUE') {
+        // Verify `callback` throws when passed an invalid argument type.
         chrome.test.assertThrows(
-            callback, ['XXX'],
+            callback.bind(null, /* printerInfo */ 'XXX'),
             'Error validating the callback argument: ' +
                 'Expected an object, found string.');
       } else if (test === 'EMPTY') {
@@ -42,8 +43,10 @@ chrome.test.sendMessage('loaded', function(test) {
         ]);
       }
 
+      // Verify `callback` throws when called more than once.
       chrome.test.assertThrows(
-          callback, [], 'Event callback must not be called more than once.');
+          callback.bind(null),
+          'Event callback must not be called more than once.');
 
       chrome.test.succeed();
     });

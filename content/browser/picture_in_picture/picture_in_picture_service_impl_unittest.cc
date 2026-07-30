@@ -21,6 +21,7 @@
 #include "content/test/test_render_view_host.h"
 #include "content/test/test_web_contents.h"
 #include "media/base/picture_in_picture_events_info.h"
+#include "media/base/video_spatial_format.h"
 #include "media/mojo/mojom/media_player.mojom.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
@@ -70,7 +71,8 @@ class PictureInPictureDelegate : public WebContentsDelegate {
   MOCK_METHOD(bool, IsImmersivePlaybackEnabled, (), (const, override));
   MOCK_METHOD(void,
               RequestImmersivePlaybackConfirmation,
-              (base::OnceCallback<void(ImmersivePlaybackConfirmationResult)>),
+              (const ImmersiveOptions&,
+               base::OnceCallback<void(ImmersivePlaybackConfirmationResult)>),
               (override));
 
   void EnterFullscreenModeForTab(
@@ -256,6 +258,13 @@ class PictureInPictureServiceImplTest : public RenderViewHostImplTestHarness {
 
   void ResetMediaPlayerReceiver() { media_player_receiver_.receiver().reset(); }
 
+  void SetVideoSpatialFormat(const media::VideoSpatialFormat& spatial_format) {
+    spatial_format_ = spatial_format;
+  }
+  const media::VideoSpatialFormat& spatial_format() const {
+    return spatial_format_;
+  }
+
   PictureInPictureServiceImpl::StartSessionCallback BindSession(
       mojo::Remote<blink::mojom::PictureInPictureSession>& session_remote_out,
       gfx::Size& window_size_out) {
@@ -288,6 +297,59 @@ class PictureInPictureServiceImplTest : public RenderViewHostImplTestHarness {
     return controller;
   }
 
+  void TestEnterImmersivePlaybackWithCustomSpatialFormat(
+      const media::VideoSpatialFormat& format,
+      const ImmersiveOptions& expected_options) {
+    DummyPictureInPictureSessionObserver observer;
+    mojo::Receiver<blink::mojom::PictureInPictureSessionObserver>
+        observer_receiver(&observer);
+    mojo::PendingRemote<blink::mojom::PictureInPictureSessionObserver>
+        observer_remote;
+    observer_receiver.Bind(observer_remote.InitWithNewPipeAndPassReceiver());
+
+    EnterFullscreen();
+
+    EXPECT_CALL(delegate(), IsImmersivePlaybackEnabled())
+        .WillRepeatedly(testing::Return(true));
+    EXPECT_CALL(delegate(), EnterPictureInPicture(contents()))
+        .WillRepeatedly(testing::Return(PictureInPictureResult::kSuccess));
+
+    SetVideoSpatialFormat(format);
+
+    EXPECT_CALL(
+        delegate(),
+        RequestImmersivePlaybackConfirmation(
+            testing::AllOf(testing::Field(&ImmersiveOptions::stereo_mode,
+                                          expected_options.stereo_mode),
+                           testing::Field(&ImmersiveOptions::projection_type,
+                                          expected_options.projection_type)),
+            _))
+        .WillOnce(
+            [](const ImmersiveOptions& options,
+               base::OnceCallback<void(ImmersivePlaybackConfirmationResult)>
+                   callback) {
+              ImmersivePlaybackConfirmationResult result;
+              result.status = ImmersivePlaybackConfirmationStatus::kConfirmed;
+              result.options = options;
+              std::move(callback).Run(std::move(result));
+            });
+
+    mojo::Remote<blink::mojom::PictureInPictureSession> session_remote_out;
+    gfx::Size window_size_out;
+
+    service().StartSession(player_id(), BindMediaPlayerReceiverAndPassRemote(),
+                           surface_id(), window_size(),
+                           show_play_pause_button(), std::move(observer_remote),
+                           source_bounds(),
+                           /*request_immersive=*/true, spatial_format(),
+                           BindSession(session_remote_out, window_size_out));
+
+    auto* controller = GetController();
+    EXPECT_TRUE(session_remote_out);
+    EXPECT_TRUE(controller->active_session_for_testing());
+    EXPECT_TRUE(controller->IsImmersive());
+  }
+
  private:
   PictureInPictureTestBrowserClient browser_client_;
   PictureInPictureDelegate delegate_;
@@ -296,6 +358,7 @@ class PictureInPictureServiceImplTest : public RenderViewHostImplTestHarness {
   // Required to pass a valid PendingRemote to StartSession() in the tests.
   PictureInPictureMediaPlayerReceiver media_player_receiver_;
   viz::SurfaceId surface_id_;
+  media::VideoSpatialFormat spatial_format_;
   ImmersiveOptions default_immersive_options_;
   gfx::Rect source_bounds_;
   gfx::Size window_size_;
@@ -327,7 +390,7 @@ TEST_F(PictureInPictureServiceImplTest, EnterPictureInPicture) {
   service().StartSession(player_id(), BindMediaPlayerReceiverAndPassRemote(),
                          surface_id(), window_size(), show_play_pause_button(),
                          std::move(observer_remote), source_bounds(),
-                         /*request_immersive=*/false,
+                         /*request_immersive=*/false, spatial_format(),
                          BindSession(session_remote_out, window_size_out));
 
   EXPECT_TRUE(session_remote_out);
@@ -354,7 +417,7 @@ TEST_F(PictureInPictureServiceImplTest, EnterPictureInPicture_NotSupported) {
   service().StartSession(player_id(), BindMediaPlayerReceiverAndPassRemote(),
                          surface_id(), window_size(), show_play_pause_button(),
                          std::move(observer_remote), source_bounds(),
-                         /*request_immersive=*/false,
+                         /*request_immersive=*/false, spatial_format(),
                          BindSession(session_remote_out, window_size_out));
 
   EXPECT_FALSE(GetController()->active_session_for_testing());
@@ -382,16 +445,18 @@ TEST_F(PictureInPictureServiceImplTest, EnterImmersivePlayback) {
       .WillRepeatedly(testing::Return(PictureInPictureResult::kSuccess));
 
   // Expect the delegate to confirm immersive playback with default options.
-  EXPECT_CALL(delegate(), RequestImmersivePlaybackConfirmation(_))
-      .WillOnce(
-          [options = default_immersive_options()](
-              base::OnceCallback<void(ImmersivePlaybackConfirmationResult)>
-                  callback) {
-            ImmersivePlaybackConfirmationResult result;
-            result.status = ImmersivePlaybackConfirmationStatus::kConfirmed;
-            result.options = options;
-            std::move(callback).Run(std::move(result));
-          });
+  EXPECT_CALL(delegate(), RequestImmersivePlaybackConfirmation(_, _))
+      .WillOnce([](const ImmersiveOptions& default_options,
+                   base::OnceCallback<void(ImmersivePlaybackConfirmationResult)>
+                       callback) {
+        ImmersivePlaybackConfirmationResult result;
+        result.status = ImmersivePlaybackConfirmationStatus::kConfirmed;
+        ImmersiveOptions options;
+        options.stereo_mode = ImmersiveStereoMode::kMono;
+        options.projection_type = ImmersiveProjectionType::kQuad;
+        result.options = options;
+        std::move(callback).Run(std::move(result));
+      });
 
   mojo::Remote<blink::mojom::PictureInPictureSession> session_remote_out;
   gfx::Size window_size_out;
@@ -399,13 +464,130 @@ TEST_F(PictureInPictureServiceImplTest, EnterImmersivePlayback) {
   service().StartSession(player_id(), BindMediaPlayerReceiverAndPassRemote(),
                          surface_id(), window_size(), show_play_pause_button(),
                          std::move(observer_remote), source_bounds(),
-                         /*request_immersive=*/true,
+                         /*request_immersive=*/true, spatial_format(),
                          BindSession(session_remote_out, window_size_out));
 
   auto* controller = GetController();
   EXPECT_TRUE(session_remote_out);
   EXPECT_TRUE(controller->active_session_for_testing());
   EXPECT_TRUE(controller->IsImmersive());
+}
+
+TEST_F(PictureInPictureServiceImplTest,
+       EnterImmersivePlayback_CustomSpatialFormat_HemisphereMono) {
+  TestEnterImmersivePlaybackWithCustomSpatialFormat(
+      media::VideoSpatialFormat{
+          media::VideoProjectionType::kEquirect180,
+          media::VideoStereoMode::kMono,
+      },
+      ImmersiveOptions{
+          ImmersiveStereoMode::kMono,
+          ImmersiveProjectionType::kHemisphere,
+      });
+}
+
+TEST_F(PictureInPictureServiceImplTest,
+       EnterImmersivePlayback_CustomSpatialFormat_HemisphereSideBySide) {
+  TestEnterImmersivePlaybackWithCustomSpatialFormat(
+      media::VideoSpatialFormat{
+          media::VideoProjectionType::kEquirect180,
+          media::VideoStereoMode::kSideBySideLeftFirst,
+      },
+      ImmersiveOptions{
+          ImmersiveStereoMode::kSideBySide,
+          ImmersiveProjectionType::kHemisphere,
+      });
+}
+
+TEST_F(PictureInPictureServiceImplTest,
+       EnterImmersivePlayback_CustomSpatialFormat_HemisphereTopBottom) {
+  TestEnterImmersivePlaybackWithCustomSpatialFormat(
+      media::VideoSpatialFormat{
+          media::VideoProjectionType::kEquirect180,
+          media::VideoStereoMode::kTopBottomLeftFirst,
+      },
+      ImmersiveOptions{
+          ImmersiveStereoMode::kTopBottom,
+          ImmersiveProjectionType::kHemisphere,
+      });
+}
+
+TEST_F(PictureInPictureServiceImplTest,
+       EnterImmersivePlayback_CustomSpatialFormat_QuadMono) {
+  TestEnterImmersivePlaybackWithCustomSpatialFormat(
+      media::VideoSpatialFormat{
+          media::VideoProjectionType::kNone,
+          media::VideoStereoMode::kMono,
+      },
+      ImmersiveOptions{
+          ImmersiveStereoMode::kMono,
+          ImmersiveProjectionType::kQuad,
+      });
+}
+
+TEST_F(PictureInPictureServiceImplTest,
+       EnterImmersivePlayback_CustomSpatialFormat_QuadSideBySide) {
+  TestEnterImmersivePlaybackWithCustomSpatialFormat(
+      media::VideoSpatialFormat{
+          media::VideoProjectionType::kNone,
+          media::VideoStereoMode::kSideBySideLeftFirst,
+      },
+      ImmersiveOptions{
+          ImmersiveStereoMode::kSideBySide,
+          ImmersiveProjectionType::kQuad,
+      });
+}
+
+TEST_F(PictureInPictureServiceImplTest,
+       EnterImmersivePlayback_CustomSpatialFormat_QuadTopBottom) {
+  TestEnterImmersivePlaybackWithCustomSpatialFormat(
+      media::VideoSpatialFormat{
+          media::VideoProjectionType::kNone,
+          media::VideoStereoMode::kTopBottomLeftFirst,
+      },
+      ImmersiveOptions{
+          ImmersiveStereoMode::kTopBottom,
+          ImmersiveProjectionType::kQuad,
+      });
+}
+
+TEST_F(PictureInPictureServiceImplTest,
+       EnterImmersivePlayback_CustomSpatialFormat_SphereMono) {
+  TestEnterImmersivePlaybackWithCustomSpatialFormat(
+      media::VideoSpatialFormat{
+          media::VideoProjectionType::kEquirect360,
+          media::VideoStereoMode::kMono,
+      },
+      ImmersiveOptions{
+          ImmersiveStereoMode::kMono,
+          ImmersiveProjectionType::kSphere,
+      });
+}
+
+TEST_F(PictureInPictureServiceImplTest,
+       EnterImmersivePlayback_CustomSpatialFormat_SphereSideBySide) {
+  TestEnterImmersivePlaybackWithCustomSpatialFormat(
+      media::VideoSpatialFormat{
+          media::VideoProjectionType::kEquirect360,
+          media::VideoStereoMode::kSideBySideLeftFirst,
+      },
+      ImmersiveOptions{
+          ImmersiveStereoMode::kSideBySide,
+          ImmersiveProjectionType::kSphere,
+      });
+}
+
+TEST_F(PictureInPictureServiceImplTest,
+       EnterImmersivePlayback_CustomSpatialFormat_SphereTopBottom) {
+  TestEnterImmersivePlaybackWithCustomSpatialFormat(
+      media::VideoSpatialFormat{
+          media::VideoProjectionType::kEquirect360,
+          media::VideoStereoMode::kTopBottomLeftFirst,
+      },
+      ImmersiveOptions{
+          ImmersiveStereoMode::kTopBottom,
+          ImmersiveProjectionType::kSphere,
+      });
 }
 
 TEST_F(PictureInPictureServiceImplTest, EnterImmersivePlayback_NotSupported) {
@@ -423,23 +605,25 @@ TEST_F(PictureInPictureServiceImplTest, EnterImmersivePlayback_NotSupported) {
   EXPECT_CALL(delegate(), EnterPictureInPicture(contents()))
       .WillRepeatedly(testing::Return(PictureInPictureResult::kNotSupported));
 
-  EXPECT_CALL(delegate(), RequestImmersivePlaybackConfirmation(_))
-      .WillOnce(
-          [options = default_immersive_options()](
-              base::OnceCallback<void(ImmersivePlaybackConfirmationResult)>
-                  callback) {
-            ImmersivePlaybackConfirmationResult result;
-            result.status = ImmersivePlaybackConfirmationStatus::kConfirmed;
-            result.options = options;
-            std::move(callback).Run(std::move(result));
-          });
+  EXPECT_CALL(delegate(), RequestImmersivePlaybackConfirmation(_, _))
+      .WillOnce([](const ImmersiveOptions& default_options,
+                   base::OnceCallback<void(ImmersivePlaybackConfirmationResult)>
+                       callback) {
+        ImmersivePlaybackConfirmationResult result;
+        result.status = ImmersivePlaybackConfirmationStatus::kConfirmed;
+        ImmersiveOptions options;
+        options.stereo_mode = ImmersiveStereoMode::kMono;
+        options.projection_type = ImmersiveProjectionType::kQuad;
+        result.options = options;
+        std::move(callback).Run(std::move(result));
+      });
 
   mojo::Remote<blink::mojom::PictureInPictureSession> session_remote_out;
   gfx::Size window_size_out;
   service().StartSession(player_id(), BindMediaPlayerReceiverAndPassRemote(),
                          surface_id(), window_size(), show_play_pause_button(),
                          std::move(observer_remote), source_bounds(),
-                         /*request_immersive=*/true,
+                         /*request_immersive=*/true, spatial_format(),
                          BindSession(session_remote_out, window_size_out));
 
   auto* controller = GetController();
@@ -462,7 +646,7 @@ TEST_F(PictureInPictureServiceImplTest,
   service().StartSession(player_id(), BindMediaPlayerReceiverAndPassRemote(),
                          surface_id(), window_size(), show_play_pause_button(),
                          std::move(observer_remote), source_bounds(),
-                         /*request_immersive=*/true,
+                         /*request_immersive=*/true, spatial_format(),
                          BindSession(session_remote_out, window_size_out));
 
   auto* controller = GetController();
@@ -483,8 +667,9 @@ TEST_F(PictureInPictureServiceImplTest, EnterImmersivePlayback_DeclinedFails) {
   EXPECT_CALL(delegate(), IsImmersivePlaybackEnabled())
       .WillRepeatedly(testing::Return(true));
 
-  EXPECT_CALL(delegate(), RequestImmersivePlaybackConfirmation(_))
-      .WillOnce([](base::OnceCallback<void(ImmersivePlaybackConfirmationResult)>
+  EXPECT_CALL(delegate(), RequestImmersivePlaybackConfirmation(_, _))
+      .WillOnce([](const ImmersiveOptions& default_options,
+                   base::OnceCallback<void(ImmersivePlaybackConfirmationResult)>
                        callback) {
         ImmersivePlaybackConfirmationResult result;
         result.status = ImmersivePlaybackConfirmationStatus::kDeclined;
@@ -494,7 +679,7 @@ TEST_F(PictureInPictureServiceImplTest, EnterImmersivePlayback_DeclinedFails) {
   service().StartSession(player_id(), BindMediaPlayerReceiverAndPassRemote(),
                          surface_id(), window_size(), show_play_pause_button(),
                          std::move(observer_remote), source_bounds(),
-                         /*request_immersive=*/true,
+                         /*request_immersive=*/true, spatial_format(),
                          BindSession(session_remote_out, window_size_out));
 
   auto* controller = GetController();
@@ -515,9 +700,10 @@ TEST_F(PictureInPictureServiceImplTest,
   // Capture the first confirmation callback.
   base::OnceCallback<void(ImmersivePlaybackConfirmationResult)>
       first_confirm_callback;
-  EXPECT_CALL(delegate(), RequestImmersivePlaybackConfirmation(_))
+  EXPECT_CALL(delegate(), RequestImmersivePlaybackConfirmation(_, _))
       .WillOnce(
           [&first_confirm_callback](
+              const ImmersiveOptions& options,
               base::OnceCallback<void(ImmersivePlaybackConfirmationResult)>
                   callback) { first_confirm_callback = std::move(callback); });
 
@@ -538,7 +724,7 @@ TEST_F(PictureInPictureServiceImplTest,
       player_id(), BindMediaPlayerReceiverAndPassRemote(), surface_id(),
       window_size(), show_play_pause_button(), std::move(observer_remote),
       source_bounds(),
-      /*request_immersive=*/true,
+      /*request_immersive=*/true, spatial_format(),
       base::BindLambdaForTesting(
           [&first_session_remote, &first_window_size, &first_callback_called,
            &first_callback_remote_is_valid](
@@ -579,7 +765,7 @@ TEST_F(PictureInPictureServiceImplTest,
       player_id(), BindMediaPlayerReceiverAndPassRemote(), surface_id(),
       window_size(), show_play_pause_button(), std::move(observer_remote2),
       source_bounds(),
-      /*request_immersive=*/false,
+      /*request_immersive=*/false, spatial_format(),
       BindSession(second_session_remote, second_window_size));
 
   // Second session should immediately succeed.

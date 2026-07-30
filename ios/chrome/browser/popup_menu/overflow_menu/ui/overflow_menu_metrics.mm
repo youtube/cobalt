@@ -94,6 +94,8 @@ IOSOverflowMenuAction HistogramActionFromActionType(
       return IOSOverflowMenuAction::kSignin;
     case overflow_menu::ActionType::Identity:
       return IOSOverflowMenuAction::kIdentity;
+    case overflow_menu::ActionType::CustomizeHomePage:
+      return IOSOverflowMenuAction::kCustomizeHomePage;
   }
 }
 

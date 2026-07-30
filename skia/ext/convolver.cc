@@ -12,6 +12,7 @@
 #include <algorithm>
 
 #include "base/check_op.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/notreached.h"
 #include "base/numerics/checked_math.h"
 #include "skia/ext/convolver_LSX.h"
@@ -134,7 +135,9 @@ class CircularRowBuffer {
   int next_row_coordinate_;
 
   // Buffer used by GetRowAddresses().
-  std::vector<unsigned char*> row_addresses_;
+  // RAW_PTR_EXCLUSION: Interfacing with SIMD functions which require arrays of
+  // raw pointers (unsigned char* const*).
+  RAW_PTR_EXCLUSION std::vector<unsigned char*> row_addresses_;
 };
 
 // Convolves horizontally along a single row. The row data is given in

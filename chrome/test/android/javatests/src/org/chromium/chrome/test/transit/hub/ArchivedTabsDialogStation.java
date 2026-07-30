@@ -74,6 +74,6 @@ public class ArchivedTabsDialogStation
     private String getIphDescription() {
         return String.valueOf(
                 ArchivedTabsDialogCoordinator.getIphDescription(
-                        getActivity(), mTabArchiveSettings));
+                        getActivity(), mTabArchiveSettings, (view) -> {}));
     }
 }

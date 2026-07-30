@@ -25,6 +25,10 @@ namespace metrics {
 class MemoryMetricsLogger;
 }
 
+namespace performance_manager {
+class PerformanceManagerLifetime;
+}
+
 namespace android_webview {
 
 class AwBrowserProcess;
@@ -62,6 +66,9 @@ class AwBrowserMainParts : public content::BrowserMainParts {
   std::unique_ptr<metrics::MemoryMetricsLogger> metrics_logger_;
 
   std::unique_ptr<content::SyntheticTrialSyncer> synthetic_trial_syncer_;
+
+  std::unique_ptr<performance_manager::PerformanceManagerLifetime>
+      performance_manager_lifetime_;
 
   std::unique_ptr<AwBrowserProcess> browser_process_;
   std::unique_ptr<crash_reporter::ChildExitObserver> child_exit_observer_;

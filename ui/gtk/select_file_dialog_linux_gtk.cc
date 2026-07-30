@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <memory>
 #include <set>
@@ -17,6 +18,8 @@
 #include <vector>
 
 #include "base/byte_size.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/no_destructor.h"
@@ -24,8 +27,12 @@
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/thread_pool.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_restrictions.h"
+#include "services/data_decoder/public/cpp/decode_image.h"
+#include "skia/ext/image_operations.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/aura/window_observer.h"
 #include "ui/base/glib/scoped_gobject.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -158,6 +165,34 @@ std::vector<base::FilePath> GtkFileChooserGetFilenames(GtkWidget* dialog) {
     g_slist_free(filenames);
   }
   return filenames_fp;
+}
+
+ScopedGObject<GdkPixbuf> ConvertSkBitmapToGdkPixbuf(const SkBitmap& bitmap) {
+  if (bitmap.isNull() || bitmap.empty()) {
+    return {};
+  }
+
+  int width = bitmap.width();
+  int height = bitmap.height();
+
+  // Create a new GdkPixbuf. GDK_COLORSPACE_RGB is standard and only colorspace.
+  // Use has_alpha = TRUE and bits_per_sample = 8.
+  auto pixbuf =
+      TakeGObject(gdk_pixbuf_new(GDK_COLORSPACE_RGB, TRUE, 8, width, height));
+  if (!pixbuf) {
+    return {};
+  }
+
+  guchar* gdk_pixels = gdk_pixbuf_get_pixels(pixbuf.get());
+  int gdk_rowstride = gdk_pixbuf_get_rowstride(pixbuf.get());
+
+  SkImageInfo dst_info = SkImageInfo::Make(
+      width, height, kRGBA_8888_SkColorType, kUnpremul_SkAlphaType);
+  if (!bitmap.readPixels(dst_info, gdk_pixels, gdk_rowstride, 0, 0)) {
+    return {};
+  }
+
+  return pixbuf;
 }
 
 }  // namespace
@@ -310,17 +345,20 @@ void SelectFileDialogLinuxGtk::SelectFileImpl(
 
   connect("destroy", &SelectFileDialogLinuxGtk::OnFileChooserDestroy);
 
+  GtkWidget* preview = nullptr;
   if (!GtkCheckVersion(4)) {
-    preview_ = gtk_image_new();
+    preview = gtk_image_new();
     connect("update-preview", &SelectFileDialogLinuxGtk::OnUpdatePreview);
-    gtk_file_chooser_set_preview_widget(GTK_FILE_CHOOSER(dialog), preview_);
+    gtk_file_chooser_set_preview_widget(GTK_FILE_CHOOSER(dialog), preview);
   }
 
   base::OnceClosure reenable_input_events =
       DisableHostInputHandling(dialog, owning_window);
 
-  dialogs_[dialog] = DialogState(std::move(signals), owning_window,
-                                 std::move(reenable_input_events));
+  DialogState state(std::move(signals), owning_window,
+                    std::move(reenable_input_events));
+  state.preview_widget = preview;
+  dialogs_[dialog] = std::move(state);
 
   if (!GtkCheckVersion(4))
     gtk_widget_show_all(dialog);
@@ -645,9 +683,16 @@ void SelectFileDialogLinuxGtk::OnFileChooserDestroy(GtkWidget* dialog) {
 
 void SelectFileDialogLinuxGtk::OnUpdatePreview(GtkWidget* chooser) {
   DCHECK(!GtkCheckVersion(4));
+  auto it = dialogs_.find(chooser);
+  if (it == dialogs_.end()) {
+    return;
+  }
+  auto& state = it->second;
+
   gchar* filename =
       gtk_file_chooser_get_preview_filename(GTK_FILE_CHOOSER(chooser));
   if (!filename) {
+    state.preview_file_path.clear();
     gtk_file_chooser_set_preview_widget_active(GTK_FILE_CHOOSER(chooser),
                                                FALSE);
     return;
@@ -662,20 +707,113 @@ void SelectFileDialogLinuxGtk::OnUpdatePreview(GtkWidget* chooser) {
   if (stat(filename, &stat_buf) != 0 || !S_ISREG(stat_buf.st_mode) ||
       static_cast<uint64_t>(stat_buf.st_size) > kMaxPreviewFileSize.InBytes()) {
     g_free(filename);
+    state.preview_file_path.clear();
     gtk_file_chooser_set_preview_widget_active(GTK_FILE_CHOOSER(chooser),
                                                FALSE);
     return;
   }
 
-  // This will preserve the image's aspect ratio.
-  GdkPixbuf* pixbuf = gdk_pixbuf_new_from_file_at_size(filename, kPreviewWidth,
-                                                       kPreviewHeight, nullptr);
+  base::FilePath file_path(filename);
   g_free(filename);
-  if (pixbuf) {
-    gtk_image_set_from_pixbuf(GTK_IMAGE(preview_.get()), pixbuf);
-    g_object_unref(pixbuf);
+
+  state.preview_file_path = file_path;
+
+  ScopedGObject<GtkWidget> chooser_wrap = WrapGObject(chooser);
+
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(&base::ReadFileToBytes, file_path),
+      base::BindOnce(&SelectFileDialogLinuxGtk::OnPreviewFileRead,
+                     weak_factory_.GetWeakPtr(), file_path,
+                     std::move(chooser_wrap)));
+}
+
+void SelectFileDialogLinuxGtk::OnPreviewFileRead(
+    const base::FilePath& file_path,
+    ScopedGObject<GtkWidget> chooser,
+    std::optional<std::vector<uint8_t>> bytes) {
+  auto it = dialogs_.find(chooser.get());
+  if (it == dialogs_.end() || it->second.preview_file_path != file_path) {
+    return;
   }
-  gtk_file_chooser_set_preview_widget_active(GTK_FILE_CHOOSER(chooser),
+
+  if (!bytes || bytes->empty()) {
+    gtk_file_chooser_set_preview_widget_active(GTK_FILE_CHOOSER(chooser.get()),
+                                               FALSE);
+    return;
+  }
+
+  // Use the out-of-process sandboxed image decoder. This supports WebP, GIF,
+  // PNG, JPEG, etc. and safely parses untrusted image data. By specifying a
+  // desired frame size, the sandboxed process handles both decoding and
+  // resizing, saving UI thread CPU and IPC bandwidth.
+  data_decoder::DecodeImageIsolated(
+      *bytes, data_decoder::mojom::ImageCodec::kDefault,
+      /*shrink_to_fit=*/true, data_decoder::kDefaultMaxSizeInBytes,
+      gfx::Size(kPreviewWidth, kPreviewHeight),
+      base::BindOnce(&SelectFileDialogLinuxGtk::OnPreviewImageDecoded,
+                     weak_factory_.GetWeakPtr(), file_path,
+                     std::move(chooser)));
+}
+
+void SelectFileDialogLinuxGtk::OnPreviewImageDecoded(
+    const base::FilePath& file_path,
+    ScopedGObject<GtkWidget> chooser,
+    const SkBitmap& bitmap) {
+  auto it = dialogs_.find(chooser.get());
+  if (it == dialogs_.end() || it->second.preview_file_path != file_path) {
+    return;
+  }
+
+  if (bitmap.isNull()) {
+    gtk_file_chooser_set_preview_widget_active(GTK_FILE_CHOOSER(chooser.get()),
+                                               FALSE);
+    return;
+  }
+
+  int original_width = bitmap.width();
+  int original_height = bitmap.height();
+  float width_ratio = static_cast<float>(kPreviewWidth) / original_width;
+  float height_ratio = static_cast<float>(kPreviewHeight) / original_height;
+  float ratio = std::min(width_ratio, height_ratio);
+
+  if (ratio < 1.0f) {
+    int target_width =
+        std::max(1, static_cast<int>(std::round(original_width * ratio)));
+    int target_height =
+        std::max(1, static_cast<int>(std::round(original_height * ratio)));
+    base::ThreadPool::PostTaskAndReplyWithResult(
+        FROM_HERE, {base::TaskPriority::USER_VISIBLE},
+        base::BindOnce(
+            [](const SkBitmap& bmp, int target_w, int target_h) {
+              return skia::ImageOperations::Resize(
+                  bmp, skia::ImageOperations::RESIZE_LANCZOS3, target_w,
+                  target_h);
+            },
+            bitmap, target_width, target_height),
+        base::BindOnce(&SelectFileDialogLinuxGtk::OnPreviewImageResized,
+                       weak_factory_.GetWeakPtr(), file_path,
+                       std::move(chooser)));
+  } else {
+    OnPreviewImageResized(file_path, std::move(chooser), bitmap);
+  }
+}
+
+void SelectFileDialogLinuxGtk::OnPreviewImageResized(
+    const base::FilePath& file_path,
+    ScopedGObject<GtkWidget> chooser,
+    const SkBitmap& bitmap) {
+  auto it = dialogs_.find(chooser.get());
+  if (it == dialogs_.end() || it->second.preview_file_path != file_path) {
+    return;
+  }
+
+  ScopedGObject<GdkPixbuf> pixbuf = ConvertSkBitmapToGdkPixbuf(bitmap);
+  if (pixbuf) {
+    gtk_image_set_from_pixbuf(GTK_IMAGE(it->second.preview_widget.get()),
+                              pixbuf.get());
+  }
+  gtk_file_chooser_set_preview_widget_active(GTK_FILE_CHOOSER(chooser.get()),
                                              pixbuf ? TRUE : FALSE);
 }
 

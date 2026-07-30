@@ -371,8 +371,12 @@ bool MaybeStartArcVmDataMigration(user_manager::UserManager* user_manager,
   if (user && user_manager->GetPrimaryUser() == user) {
     arc::ArcVmDataMigrationStatus data_migration_status =
         arc::GetArcVmDataMigrationStatus(profile->GetPrefs());
-    if (data_migration_status == arc::ArcVmDataMigrationStatus::kConfirmed ||
-        data_migration_status == arc::ArcVmDataMigrationStatus::kStarted) {
+    // NOTE: We are in the process of deprecating the ARCVM data migrator.
+    // kConfirmed is deliberately ignored here to prevent the migration screen
+    // from showing to users who clicked restart before we disabled the prompt,
+    // effectively stopping new migrations.
+    // TODO(b/465619720): Fully remove this function.
+    if (data_migration_status == arc::ArcVmDataMigrationStatus::kStarted) {
       ShowLoginWizard(ArcVmDataMigrationScreenView::kScreenId);
       return true;
     }

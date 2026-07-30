@@ -368,15 +368,18 @@ public class AutocompleteInput implements UserData {
         // Suppress Keyword mode when reverting back to the url.
         mAllowExactKeywordMatch &= !(oldTextUsesKeywordActivator && !newTextUsesKeywordActivator);
 
+        // Update autocomplete state to ENABLED before notifying observers via mUserText.set().
+        // Otherwise, synchronous observers (e.g. AutocompleteMediator.onInputChanged) will run
+        // while the state is still in STANDBY, causing them to ignore the first keystroke.
+        if ((mAutocompleteState == AutocompleteState.STANDBY
+                        || mAutocompleteState == AutocompleteState.STANDBY_NO_FOCUS)
+                && !TextUtils.equals(text, mInitialUserText)) {
+            mAutocompleteState = AutocompleteState.ENABLED;
+        }
+
         mUserText.set(text);
         // Place cursor at the end of text.
         mSelection = TextSelection.SELECT_END;
-
-        if ((mAutocompleteState == AutocompleteState.STANDBY
-                        || mAutocompleteState == AutocompleteState.STANDBY_NO_FOCUS)
-                && !TextUtils.equals(mUserText.get(), mInitialUserText)) {
-            mAutocompleteState = AutocompleteState.ENABLED;
-        }
 
         return this;
     }

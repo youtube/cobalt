@@ -72,6 +72,8 @@ class TestingPlatformSupport : public Platform {
   bool IsThreadedAnimationEnabled() override;
   std::unique_ptr<blink::WebV8ValueConverter> CreateWebV8ValueConverter()
       override;
+  scoped_refptr<base::SequencedTaskRunner> MediaThreadTaskRunner() override;
+  scoped_refptr<base::SingleThreadTaskRunner> GetIOTaskRunner() const override;
 
   virtual void RunUntilIdle();
   void SetThreadedAnimationEnabled(bool enabled);

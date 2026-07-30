@@ -6,6 +6,7 @@ include_rules = [
   "+components/supervised_user/core/common/features.h",
   "+components/supervised_user/core/common/buildflags.h",
   "+components/sync/base/data_type.h",
+  "+mojo/public",
 ]
 
 specific_include_rules = {

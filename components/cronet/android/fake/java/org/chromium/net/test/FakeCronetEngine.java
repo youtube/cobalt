@@ -49,6 +49,7 @@ final class FakeCronetEngine extends CronetEngineBase {
     /** Builds a {@link FakeCronetEngine}. This implements CronetEngine.Builder. */
     static class Builder extends CronetEngineBuilderImpl {
         private FakeCronetController mController;
+        private ExecutorService mExecutorService;
 
         /**
          * Builder for {@link FakeCronetEngine}.
@@ -67,10 +68,15 @@ final class FakeCronetEngine extends CronetEngineBase {
         void setController(FakeCronetController controller) {
             mController = controller;
         }
+
+        void setExecutorService(ExecutorService executorService) {
+            mExecutorService = executorService;
+        }
     }
 
     private final FakeCronetController mController;
     private final ExecutorService mExecutorService;
+    private final boolean mOwnsExecutor;
 
     private final Object mLock = new Object();
 
@@ -115,27 +121,34 @@ final class FakeCronetEngine extends CronetEngineBase {
         } else {
             mController = new FakeCronetController();
         }
-        // TODO(ErroneousThreadPoolConstructorChecker): Thread pool size will never go beyond
-        // corePoolSize if an unbounded queue is used
-        mExecutorService =
-                new ThreadPoolExecutor(
-                        /* corePoolSize= */ 1,
-                        /* maximumPoolSize= */ 5,
-                        /* keepAliveTime= */ 50,
-                        TimeUnit.SECONDS,
-                        new LinkedBlockingQueue<>(),
-                        new ThreadFactory() {
-                            @Override
-                            public Thread newThread(final Runnable r) {
-                                return Executors.defaultThreadFactory()
-                                        .newThread(
-                                                () -> {
-                                                    Thread.currentThread()
-                                                            .setName("FakeCronetEngine");
-                                                    r.run();
-                                                });
-                            }
-                        });
+
+        this.mOwnsExecutor = (builder.mExecutorService == null);
+
+        if (builder.mExecutorService != null) {
+            mExecutorService = builder.mExecutorService;
+        } else {
+            // TODO(ErroneousThreadPoolConstructorChecker): Thread pool size will never go
+            //  beyond corePoolSize if an unbounded queue is used
+            mExecutorService =
+                    new ThreadPoolExecutor(
+                            /* corePoolSize= */ 1,
+                            /* maximumPoolSize= */ 5,
+                            /* keepAliveTime= */ 50,
+                            TimeUnit.SECONDS,
+                            new LinkedBlockingQueue<>(),
+                            new ThreadFactory() {
+                                @Override
+                                public Thread newThread(final Runnable r) {
+                                    return Executors.defaultThreadFactory()
+                                            .newThread(
+                                                    () -> {
+                                                        Thread.currentThread()
+                                                                .setName("FakeCronetEngine");
+                                                        r.run();
+                                                    });
+                                }
+                            });
+        }
         FakeCronetController.addFakeCronetEngine(this);
     }
 
@@ -178,7 +191,10 @@ final class FakeCronetEngine extends CronetEngineBase {
                 mIsShutdown = true;
             }
         }
-        mExecutorService.shutdown();
+
+        if (mOwnsExecutor) {
+            mExecutorService.shutdown();
+        }
         FakeCronetController.removeFakeCronetEngine(this);
     }
 

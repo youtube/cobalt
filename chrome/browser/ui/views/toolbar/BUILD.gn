@@ -9,6 +9,7 @@ import("//ui/webui/webui_features.gni")
 
 source_set("toolbar") {
   public = [
+    "action_app_menu.h",
     "ai_overlay_toolbar_button.h",
     "app_menu.h",
     "app_menu_control.h",
@@ -108,6 +109,7 @@ source_set("toolbar") {
 
 source_set("impl") {
   sources = [
+    "action_app_menu.cc",
     "ai_overlay_toolbar_button.cc",
     "app_menu.cc",
     "back_forward_button.cc",
@@ -217,6 +219,7 @@ source_set("impl") {
     "//chrome/browser/ui/views/download",
     "//chrome/browser/ui/views/frame:toolbar_button_provider",
     "//chrome/browser/ui/views/glic",
+    "//chrome/browser/ui/views/global_media_controls",
     "//chrome/browser/ui/views/interaction",
     "//chrome/browser/ui/views/page_action",
     "//chrome/browser/ui/views/performance_controls",
@@ -324,6 +327,7 @@ if (!is_android) {
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
     sources = [
+      "action_app_menu_browsertest.cc",
       "app_menu_browsertest.cc",
       "chrome_labs/chrome_labs_browsertest.cc",
       "home_button_browsertest.cc",
@@ -365,6 +369,7 @@ if (!is_android) {
       deps += [
         "//chrome/browser/ui/views/performance_controls",
         "//chrome/browser/ui/webui:webui_util",
+        "//chrome/browser/ui/webui/webui_toolbar:test_support",
       ]
     }
   }
@@ -448,6 +453,7 @@ if (toolkit_views) {
     testonly = true
 
     sources = [
+      "action_app_menu_unittest.cc",
       "chrome_labs/chrome_labs_button_unittest.cc",
       "chrome_labs/chrome_labs_unittest.cc",
       "pinned_toolbar_actions_container_unittest.cc",
@@ -470,6 +476,7 @@ if (toolkit_views) {
       "//chrome/browser/sessions",
       "//chrome/browser/ui:browser_actions",
       "//chrome/browser/ui:layout_constants",
+      "//chrome/browser/ui:test_support",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/actions",
       "//chrome/browser/ui/actions:actions_headers",

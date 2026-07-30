@@ -1,0 +1,3 @@
+Tests that Network.setExtraHTTPHeaders adds headers to WebSocket handshake requests.
+X-DevTools-Test: Hello, world!
+

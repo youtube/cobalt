@@ -64,4 +64,9 @@ public class ImmersiveVideoFormatMediator {
         mModel.set(ImmersiveVideoFormatProperties.SELECTED_STEREO_MODE, stereoMode);
         mModel.set(ImmersiveVideoFormatProperties.SELECTED_PROJECTION_TYPE, projectionType);
     }
+
+    /** Sets the spatial height of the format panel in the model. */
+    public void setSpatialHeight(float height) {
+        mModel.set(ImmersiveVideoFormatProperties.SPATIAL_HEIGHT, height);
+    }
 }

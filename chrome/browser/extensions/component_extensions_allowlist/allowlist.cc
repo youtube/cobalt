@@ -14,6 +14,7 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/extensions/extension_constants.h"
+#include "chrome/grit/aim_eligibility_extension_resources.h"
 #include "chrome/grit/browser_resources.h"
 #include "chrome/grit/component_extension_resources.h"
 #include "extensions/buildflags/buildflags.h"
@@ -21,6 +22,7 @@
 #include "printing/buildflags/buildflags.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_extension_constants.h"
 #include "ash/keyboard/ui/grit/keyboard_resources.h"
 #include "chrome/browser/ash/input_method/component_extension_ime_manager_delegate_impl.h"
 #include "chromeos/constants/chromeos_features.h"
@@ -58,6 +60,7 @@ bool IsComponentExtensionAllowlisted(const std::string& extension_id) {
       extension_misc::kComponentUpdaterTTSEngineExtensionId,
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 #if !BUILDFLAG(IS_ANDROID)
+      extension_misc::kAimEligibilityExtensionId,
       extension_misc::kIndigoExtensionId,
 #endif  // !BUILDFLAG(IS_ANDROID)
   });
@@ -90,6 +93,7 @@ bool IsComponentExtensionAllowlisted(int manifest_resource_id) {
     case IDR_HANGOUT_SERVICES_MANIFEST_V2:
     case IDR_HANGOUT_SERVICES_MANIFEST_V3:
 #endif
+    case IDR_AIM_ELIGIBILITY_EXTENSION_MANIFEST_JSON:
     case IDR_CONTEXTUAL_TASKS_EXTENSION_MANIFEST:
     case IDR_GLIC_EXTENSION_MANIFEST:
     case IDR_NETWORK_SPEECH_SYNTHESIS_MANIFEST:

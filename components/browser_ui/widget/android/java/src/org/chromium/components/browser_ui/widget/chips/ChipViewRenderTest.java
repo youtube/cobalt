@@ -182,6 +182,23 @@ public class ChipViewRenderTest {
         renderChip(chip, "two_line_chip_with_reduced_width");
     }
 
+    @Test
+    @MediumTest
+    @Feature({"RenderTest"})
+    public void renderLoadingTwoLineChip() throws Exception {
+        ChipView chip =
+                (ChipView)
+                        mActivityTestRule
+                                .getActivity()
+                                .getLayoutInflater()
+                                .inflate(R.layout.two_line_chip_view_test_item, null);
+        chip.getPrimaryTextView().setText("Primary text");
+        chip.getSecondaryTextView().setText("Secondary text");
+        chip.showLoadingView(/* loadingViewObserver= */ null);
+
+        renderChip(chip, "loading_two_line_chip");
+    }
+
     private void renderChip(ChipView chipView, String name) throws Exception {
         runOnUiThreadBlocking(
                 () -> {

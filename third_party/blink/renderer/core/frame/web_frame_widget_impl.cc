@@ -2741,13 +2741,12 @@ void WebFrameWidgetImpl::OnCommitRequested() {
 }
 
 WebFrameWidgetImpl::UnboundedSurfaceState*
-WebFrameWidgetImpl::GetOrCreateUnboundedSurfaceState() {
+WebFrameWidgetImpl::GetOrCreateUnboundedSurfaceState(
+    ExecutionContext* execution_context) {
   CHECK(RuntimeEnabledFeatures::UnboundedElementEnabled());
-  if (!local_root_ || !local_root_->GetFrame() ||
-      !local_root_->GetFrame()->DomWindow()) {
+  if (!execution_context) {
     return nullptr;
   }
-  auto* execution_context = local_root_->GetFrame()->DomWindow();
   if (!unbounded_surface_state_ ||
       unbounded_surface_state_->GetExecutionContext() != execution_context) {
     unbounded_surface_state_ =
@@ -2787,17 +2786,25 @@ void WebFrameWidgetImpl::RegisterActiveUnboundedElement(
   // TODO(crbug.com/508672616): Add support for unbounded element when
   // TreesInViz is enabled.
   CHECK(!base::FeatureList::IsEnabled(::features::kTreesInViz));
-  if (auto* state = GetOrCreateUnboundedSurfaceState()) {
+  // Dismiss any existing active unbounded element to ensure only one is
+  // active at a time.
+  if (unbounded_surface_state_) {
+    OnDismissed();
+  }
+  auto* execution_context = element->GetDocument().GetFrame()
+                                ? element->GetDocument().GetFrame()->DomWindow()
+                                : nullptr;
+  if (auto* state = GetOrCreateUnboundedSurfaceState(execution_context)) {
     state->active_element_ = element;
 
     state->client_receiver_.reset();
     state->client_receiver_.Bind(
         std::move(client_receiver),
-        local_root_->GetTaskRunner(TaskType::kInternalDefault));
+        execution_context->GetTaskRunner(TaskType::kInternalDefault));
 
     state->host_.reset();
-    state->host_.Bind(std::move(host_remote),
-                      local_root_->GetTaskRunner(TaskType::kInternalDefault));
+    state->host_.Bind(std::move(host_remote), execution_context->GetTaskRunner(
+                                                  TaskType::kInternalDefault));
   }
 }
 
@@ -2805,7 +2812,7 @@ void WebFrameWidgetImpl::OnSurfaceAllocated(
     const viz::FrameSinkId& frame_sink_id,
     const viz::LocalSurfaceId& local_surface_id) {
   CHECK(RuntimeEnabledFeatures::UnboundedElementEnabled());
-  auto* state = GetOrCreateUnboundedSurfaceState();
+  auto* state = GetUnboundedSurfaceState();
   if (!state) {
     return;
   }
@@ -2836,12 +2843,14 @@ void WebFrameWidgetImpl::OnSurfaceAllocated(
       if (unbounded_frame_sink) {
         host->SetUnboundedFrameSink(std::move(unbounded_frame_sink),
                                     local_surface_id);
+        host->SetNeedsCommitWithForcedRedraw();
       }
     }
   } else if (state->local_surface_id_ != local_surface_id) {
     state->local_surface_id_ = local_surface_id;
     if (auto* host = LayerTreeHost()) {
       host->SetUnboundedLocalSurfaceId(local_surface_id);
+      host->SetNeedsCommitWithForcedRedraw();
     }
   }
 }

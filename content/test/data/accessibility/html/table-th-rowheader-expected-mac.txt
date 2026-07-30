@@ -20,4 +20,4 @@ AXWebArea AXTitle='Table example - th rowheader'
 ++++++++AXStaticText AXValue='Jill'
 ++++++AXCell AXColumnIndexRange={loc: 1, len: 1} AXRowHeaderUIElements=[:9] AXRowIndexRange={loc: 1, len: 1}
 ++++++++AXStaticText AXValue='Smith'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup

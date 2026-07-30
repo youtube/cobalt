@@ -72,6 +72,21 @@ void NoStatePrefetchProcessorImpl::Start(
     return;
   }
 
+  // NoStatePrefetch is not yet compatible with Connection-Allowlist: the
+  // prefetch is driven by a separate NoStatePrefetchContents that does not
+  // carry the initiating document's allowlist, so its requests would escape
+  // enforcement. Until PrerenderUntilScript
+  // (https://chromestatus.com/feature/6324676351623168) replaces
+  // NoStatePrefetch and is made allowlist-aware, do not start it when the
+  // initiating document enforces a Connection-Allowlist. A report-only
+  // allowlist does not block, matching report-only semantics. (An enforced
+  // allowlist is only ever committed when the kConnectionAllowlists feature is
+  // enabled, so no explicit feature check is needed here -- which keeps this
+  // component free of network-service deps.)
+  if (render_frame_host->GetConnectionAllowlists().enforced.has_value()) {
+    return;
+  }
+
   auto* link_manager = GetNoStatePrefetchLinkManager();
   if (!link_manager) {
     return;

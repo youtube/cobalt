@@ -17,9 +17,6 @@
 // Group's title.
 @property(nonatomic, copy) NSString* groupTitle;
 
-// Group's color.
-@property(nonatomic, copy) UIColor* groupColor;
-
 // Color palette for the tab group.
 @property(nonatomic) TabGroupColorPalette* tabGroupColorPalette;
 

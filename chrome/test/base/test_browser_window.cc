@@ -115,6 +115,10 @@ bool TestBrowserWindow::TestLocationBar::IsEditingOrEmpty() const {
   return false;
 }
 
+bool TestBrowserWindow::TestLocationBar::IsMouseHovered() const {
+  return false;
+}
+
 gfx::Rect TestBrowserWindow::TestLocationBar::Bounds() const {
   return gfx::Rect();
 }

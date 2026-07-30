@@ -205,8 +205,6 @@ TEST(MemorySafetyCheckTest, SchedulerLoopQuarantine) {
   branch.Purge();
 }
 
-namespace {
-
 class TestClass1 {
   LEAKED_SANITIZED_OBJECT();
 
@@ -216,9 +214,22 @@ class TestClass1 {
  private:
   uintptr_t value1_ = 0u;
   uintptr_t value2_ = 1u;
+
+  FRIEND_TEST_ALL_PREFIXES(MemorySafetyCheckTest, InfiniteQuarantine);
 };
 
-}  // namespace
+class TestClass2 {
+  LEAKED_SANITIZED_OBJECT();
+
+ public:
+  TestClass2() = default;
+
+ private:
+  uintptr_t value1_ = 0u;
+  uintptr_t value2_ = 1u;
+
+  FRIEND_TEST_ALL_PREFIXES(MemorySafetyCheckTest, InfiniteQuarantine);
+};
 
 TEST(MemorySafetyCheckTest, InfiniteQuarantine) {
   TestClass1* obj1 = new TestClass1;
@@ -235,6 +246,12 @@ TEST(MemorySafetyCheckTest, InfiniteQuarantine) {
   partition_alloc::internal::
       ScopedSchedulerLoopQuarantineBranchAccessorForTesting branch(root);
   EXPECT_FALSE(branch.IsQuarantined(obj1));
+  // Compare between TestClass1::kZapValue and the obj1's zap value.
+  EXPECT_EQ((*(uint64_t*)obj1 >> 8) & 0xFFFFFFFFu,
+            TestClass1::kPartitionAllocSanitizedObjectTypeId);
+  // TestClass1 and TestClass2 must have different zap values.
+  EXPECT_NE(TestClass1::kPartitionAllocSanitizedObjectTypeId,
+            TestClass2::kPartitionAllocSanitizedObjectTypeId);
 }
 
 #endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)

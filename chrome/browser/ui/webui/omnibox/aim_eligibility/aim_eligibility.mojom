@@ -39,6 +39,8 @@ struct EligibilityState {
   bool is_eligible;
   // Whether AIM is eligible by enterprise policy.
   bool is_eligible_by_policy;
+  // Whether 3rd party AI Chat is eligible by enterprise policy.
+  bool is_third_party_eligible_by_policy;
   // Whether AIM is eligible by DSE, i.e., Google is the default search engine.
   bool is_eligible_by_dse;
   // Whether AIM is eligible by server response. Only populated if server

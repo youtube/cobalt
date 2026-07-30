@@ -15,6 +15,7 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/policy/core/common/cloud/cloud_policy_client.h"
 #include "components/policy/core/common/cloud/cloud_policy_core.h"
+#include "components/enterprise/browser/reporting/browser_launch/browser_launch_event_controller.h"
 
 class Profile;
 
@@ -46,6 +47,7 @@ class CloudProfileReportingService : public KeyedService,
   std::unique_ptr<policy::CloudPolicyClient> cloud_policy_client_;
   std::unique_ptr<ReportScheduler> report_scheduler_;
   std::unique_ptr<SaasUsageReportScheduler> saas_usage_report_scheduler_;
+  std::unique_ptr<BrowserLaunchEventController> browser_launch_controller_;
   raw_ptr<Profile> profile_;
 
   base::ScopedObservation<policy::CloudPolicyCore,

@@ -73,17 +73,6 @@ AssertPageLoadMetricsObserver::OnPrerenderStart(
 }
 
 PageLoadMetricsObserver::ObservePolicy
-AssertPageLoadMetricsObserver::OnPreviewStart(
-    content::NavigationHandle* navigation_handle,
-    const GURL& currently_committed_url) {
-  CHECK(!started_);
-  started_ = true;
-  in_preview_ = true;
-
-  return CONTINUE_OBSERVING;
-}
-
-PageLoadMetricsObserver::ObservePolicy
 AssertPageLoadMetricsObserver::OnNavigationHandleTimingUpdated(
     content::NavigationHandle* navigation_handle) {
   CHECK(started_);
@@ -121,20 +110,8 @@ void AssertPageLoadMetricsObserver::DidActivatePrerenderedPage(
   CHECK(committed_);
   CHECK(!activated_);
   CHECK(in_prerendering_);
-  CHECK(!in_preview_);
   activated_ = true;
   in_prerendering_ = false;
-}
-
-void AssertPageLoadMetricsObserver::DidActivatePreviewedPage(
-    base::TimeTicks activation_time) {
-  CHECK(started_);
-  CHECK(committed_);
-  CHECK(!activated_);
-  CHECK(!in_prerendering_);
-  CHECK(in_preview_);
-  activated_ = true;
-  in_preview_ = false;
 }
 
 void AssertPageLoadMetricsObserver::OnFailedProvisionalLoad(

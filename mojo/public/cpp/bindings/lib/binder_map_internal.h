@@ -132,8 +132,9 @@ class GenericCallbackBinderWithContext {
       SequenceBinderType callback,
       scoped_refptr<base::SequencedTaskRunner> task_runner)
       : callback_(std::move(callback)), task_runner_(std::move(task_runner)) {
-    // TODO(crbug.com/485920240): This should disallow calls with a nullptr
-    // task_runner_ and BindInterface should expect task_runner_ to be set.
+    // Cross-sequence bindings should always have a task runner.
+    CHECK(task_runner_, base::NotFatalUntil::M154)
+        << "Caller should either consume the context or provide a task runner.";
   }
 
   explicit GenericCallbackBinderWithContext(GenericBinderType callback)
@@ -160,7 +161,13 @@ class GenericCallbackBinderWithContext {
         },
         [&](const SequenceBinderType& callback) {
           // Drop `context` as we do not want to forward it cross-sequence.
-          RunCallbackMaybeOnRunner(callback, std::move(receiver_pipe));
+          if (task_runner_) {
+            task_runner_->PostTask(
+                FROM_HERE, base::BindOnce(callback, std::move(receiver_pipe)));
+          } else {
+            NOTREACHED(base::NotFatalUntil::M154);
+            callback.Run(std::move(receiver_pipe));
+          }
         });
     std::visit(dispatch, callback_);
   }
@@ -168,20 +175,15 @@ class GenericCallbackBinderWithContext {
   void BindInterface(mojo::ScopedMessagePipeHandle receiver_pipe)
     requires(std::is_same_v<GenericBinderType, SequenceBinderType>)
   {
-    RunCallbackMaybeOnRunner(callback_, std::move(receiver_pipe));
-  }
-
- private:
-  void RunCallbackMaybeOnRunner(const SequenceBinderType& callback,
-                                mojo::ScopedMessagePipeHandle handle) const {
     if (task_runner_) {
-      task_runner_->PostTask(FROM_HERE,
-                             base::BindOnce(callback, std::move(handle)));
+      task_runner_->PostTask(
+          FROM_HERE, base::BindOnce(callback_, std::move(receiver_pipe)));
     } else {
-      callback.Run(std::move(handle));
+      callback_.Run(std::move(receiver_pipe));
     }
   }
 
+ private:
   using CallbackVariant =
       std::conditional_t<std::is_same_v<GenericBinderType, SequenceBinderType>,
                          GenericBinderType,

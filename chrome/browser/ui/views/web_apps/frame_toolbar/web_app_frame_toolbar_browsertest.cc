@@ -328,11 +328,8 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest, SpaceConstrained) {
 
   views::View* const window_title =
       helper()->frame_view()->GetViewByID(VIEW_ID_WINDOW_TITLE);
-#if BUILDFLAG(IS_CHROMEOS)
-  EXPECT_FALSE(window_title);
-#else
+  EXPECT_TRUE(window_title);
   EXPECT_EQ(window_title->parent(), helper()->browser_view());
-#endif
 
   WebAppToolbarButtonContainer* const toolbar_right_container =
       helper()->web_app_frame_toolbar()->get_right_container_for_testing();
@@ -525,11 +522,6 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest, TitleHover) {
 
   auto* const window_title = static_cast<views::Label*>(
       helper()->frame_view()->GetViewByID(VIEW_ID_WINDOW_TITLE));
-#if BUILDFLAG(IS_CHROMEOS)
-  // Chrome OS PWA windows do not display app titles.
-  EXPECT_EQ(nullptr, window_title);
-  return;
-#else
 
   EXPECT_EQ(window_title->parent(), helper()->browser_view());
   window_title->SetText(std::u16string(30, 't'));
@@ -565,7 +557,6 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest, TitleHover) {
   EXPECT_EQ(
       helper()->frame_view()->GetTooltipHandlerForPoint(origin_in_frame_view),
       window_title);
-#endif
 }
 
 IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest,

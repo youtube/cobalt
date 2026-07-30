@@ -137,7 +137,7 @@ interface OmniboxPageHandler {
                     int32 cursor_position,
                     bool zero_suggest,
                     bool prevent_inline_autocomplete,
-                    bool prefer_keyword,
+                    bool in_keyword_mode,
                     // TODO(crbug.com/410069237): This should be url.mojom.Url,
                     // but it is unclear exactly where this comes from, and if
                     // it's guaranteed to a valid URL if non-empty.

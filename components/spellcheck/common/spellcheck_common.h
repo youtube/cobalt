@@ -34,6 +34,11 @@ static const size_t kMaxSyncableDictionaryWords = 1300;
 // chrome/browser/resources/settings/languages_page/edit_dictionary_page.js
 static const size_t kMaxCustomDictionaryWordBytes = 99;
 
+// Maximum number of words a single frame's per-document custom dictionary
+// (populated via the SpellCheckCustomDictionary web API) may hold. Adds
+// beyond this limit are silently dropped.
+static const size_t kMaxDocumentCustomDictionaryWords = 5000;
+
 base::FilePath GetVersionedFileName(std::string_view input_language,
                                     const base::FilePath& dict_dir);
 

@@ -84,6 +84,35 @@ class AnchoredMessageBubbleViewTest
     return widget;
   }
 
+  auto CheckButtonTooltip(std::u16string expected_tooltip) {
+    return CheckView(AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId,
+                     [expected_tooltip](views::Button* button) {
+                       return button->GetTooltipText() == expected_tooltip;
+                     });
+  }
+
+  auto CheckAccessibility(std::u16string expected_accessible_name,
+                          std::string expected_description,
+                          bool expected_expanded) {
+    return CheckView(
+        AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId,
+        [expected_accessible_name, expected_description,
+         expected_expanded](views::Button* button) {
+          ui::AXNodeData node_data;
+          button->GetViewAccessibility().GetAccessibleNodeData(&node_data);
+          std::string description = node_data.GetStringAttribute(
+              ax::mojom::StringAttribute::kDescription);
+          return button->GetViewAccessibility().GetCachedName() ==
+                     expected_accessible_name &&
+                 node_data.role == ax::mojom::Role::kButton &&
+                 node_data.HasState(ax::mojom::State::kExpanded) ==
+                     expected_expanded &&
+                 node_data.HasState(ax::mojom::State::kCollapsed) ==
+                     !expected_expanded &&
+                 description == expected_description;
+        });
+  }
+
  protected:
   NiceMock<MockPageActionModel> model_;
   NiceMock<MockAnchoredMessageDelegate> delegate_;
@@ -299,41 +328,35 @@ TEST_F(AnchoredMessageBubbleViewTest, ExpandButtonTooltip) {
 
   std::unique_ptr<views::Widget> widget = CreateAnchoredMessageWidget();
 
+  const std::u16string default_expand_tooltip =
+      l10n_util::GetStringUTF16(IDS_ANCHORED_MESSAGE_EXPAND_BUTTON_TOOLTIP);
+  const std::u16string default_collapse_tooltip =
+      l10n_util::GetStringUTF16(IDS_ANCHORED_MESSAGE_COLLAPSE_BUTTON_TOOLTIP);
+  const std::u16string default_accessible_name = default_expand_tooltip;
+
   const std::u16string custom_expand_tooltip = u"Custom expand tooltip";
   const std::u16string custom_collapse_tooltip = u"Custom collapse tooltip";
+  const std::u16string custom_accessible_name = u"Custom accessible name";
 
   RunTestSequence(
       EnsurePresent(AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId),
-      CheckView(AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId,
-                [](views::Button* button) {
-                  return button->GetTooltipText() ==
-                             l10n_util::GetStringUTF16(
-                                 IDS_ANCHORED_MESSAGE_EXPAND_BUTTON_TOOLTIP) &&
-                         button->GetViewAccessibility().GetCachedName() ==
-                             l10n_util::GetStringUTF16(
-                                 IDS_ANCHORED_MESSAGE_EXPAND_BUTTON_TOOLTIP);
-                }),
+
+      // Default tooltips & stable name (initially collapsed)
+      // Name ("Show details") == Tooltip ("Show details") -> Description is
+      // empty
+      CheckButtonTooltip(default_expand_tooltip),
+      CheckAccessibility(default_accessible_name, "", /*expanded=*/false),
+
+      // Expand
+      // Name ("Hide details") == Tooltip ("Hide details") -> Description is
+      // empty
       PressButton(AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId),
-      CheckView(
-          AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId,
-          [](views::Button* button) {
-            return button->GetTooltipText() ==
-                       l10n_util::GetStringUTF16(
-                           IDS_ANCHORED_MESSAGE_COLLAPSE_BUTTON_TOOLTIP) &&
-                   button->GetViewAccessibility().GetCachedName() ==
-                       l10n_util::GetStringUTF16(
-                           IDS_ANCHORED_MESSAGE_COLLAPSE_BUTTON_TOOLTIP);
-          }),
-      PressButton(AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId),
-      CheckView(AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId,
-                [](views::Button* button) {
-                  return button->GetTooltipText() ==
-                             l10n_util::GetStringUTF16(
-                                 IDS_ANCHORED_MESSAGE_EXPAND_BUTTON_TOOLTIP) &&
-                         button->GetViewAccessibility().GetCachedName() ==
-                             l10n_util::GetStringUTF16(
-                                 IDS_ANCHORED_MESSAGE_EXPAND_BUTTON_TOOLTIP);
-                }),
+      CheckButtonTooltip(default_collapse_tooltip),
+      CheckAccessibility(default_collapse_tooltip, "", /*expanded=*/true),
+
+      // Update with custom tooltips only (while expanded).
+      // Since accessible_name is nullopt, it defaults to the new expand tooltip
+      // ("Custom expand tooltip").
       WithView(AnchoredMessageBubbleView::kAnchoredMessageBubbleId,
                [this, &expandable_content, &custom_expand_tooltip,
                 &custom_collapse_tooltip](views::View* view) {
@@ -343,28 +366,60 @@ TEST_F(AnchoredMessageBubbleViewTest, ExpandButtonTooltip) {
                      custom_expand_tooltip;
                  expandable_content->collapse_button_tooltip =
                      custom_collapse_tooltip;
+                 expandable_content->expand_button_accessible_name =
+                     std::nullopt;
                  bubble_view->UpdateContent(model_);
                }),
-      CheckView(AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId,
-                [&custom_expand_tooltip](views::Button* button) {
-                  return button->GetTooltipText() == custom_expand_tooltip &&
-                         button->GetViewAccessibility().GetCachedName() ==
-                             custom_expand_tooltip;
-                }),
+
+      // Collapse and verify custom expand tooltip
+      // Name ("Custom expand tooltip") == Tooltip ("Custom expand tooltip") ->
+      // Description is empty
       PressButton(AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId),
-      CheckView(AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId,
-                [&custom_collapse_tooltip](views::Button* button) {
-                  return button->GetTooltipText() == custom_collapse_tooltip &&
-                         button->GetViewAccessibility().GetCachedName() ==
-                             custom_collapse_tooltip;
-                }),
+      CheckButtonTooltip(custom_expand_tooltip),
+      CheckAccessibility(custom_expand_tooltip, "", /*expanded=*/false),
+
+      // Expand and verify custom collapse tooltip
+      // Name ("Custom collapse tooltip") == Tooltip ("Custom collapse tooltip")
+      // -> Description is empty
       PressButton(AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId),
-      CheckView(AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId,
-                [&custom_expand_tooltip](views::Button* button) {
-                  return button->GetTooltipText() == custom_expand_tooltip &&
-                         button->GetViewAccessibility().GetCachedName() ==
-                             custom_expand_tooltip;
-                }));
+      CheckButtonTooltip(custom_collapse_tooltip),
+      CheckAccessibility(custom_collapse_tooltip, "", /*expanded=*/true),
+
+      // Update with both custom tooltips and custom accessible name (while
+      // expanded)
+      // Name becomes "Custom accessible name"
+      WithView(AnchoredMessageBubbleView::kAnchoredMessageBubbleId,
+               [this, &expandable_content, &custom_expand_tooltip,
+                &custom_collapse_tooltip,
+                &custom_accessible_name](views::View* view) {
+                 auto* bubble_view =
+                     static_cast<AnchoredMessageBubbleView*>(view);
+                 expandable_content->expand_button_tooltip =
+                     custom_expand_tooltip;
+                 expandable_content->collapse_button_tooltip =
+                     custom_collapse_tooltip;
+                 expandable_content->expand_button_accessible_name =
+                     custom_accessible_name;
+                 bubble_view->UpdateContent(model_);
+               }),
+
+      // Collapse and verify custom expand tooltip & custom accessible name
+      // Name ("Custom accessible name") != Tooltip ("Custom expand tooltip") ->
+      // Description is "Custom expand tooltip"
+      PressButton(AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId),
+      CheckButtonTooltip(custom_expand_tooltip),
+      CheckAccessibility(custom_accessible_name,
+                         base::UTF16ToUTF8(custom_expand_tooltip),
+                         /*expanded=*/false),
+
+      // Expand and verify custom collapse tooltip & custom accessible name
+      // Name ("Custom accessible name") != Tooltip ("Custom collapse tooltip")
+      // -> Description is "Custom collapse tooltip"
+      PressButton(AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId),
+      CheckButtonTooltip(custom_collapse_tooltip),
+      CheckAccessibility(custom_accessible_name,
+                         base::UTF16ToUTF8(custom_collapse_tooltip),
+                         /*expanded=*/true));
 
   widget->CloseNow();
 }

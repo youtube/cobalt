@@ -1,0 +1,45 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module reading_mode.mojom;
+
+import "sandbox/policy/mojom/sandbox.mojom";
+import "ui/accessibility/mojom/ax_tree_update.mojom";
+
+// Status returned by the distillation quality evaluator to map skip and failure
+// states.
+enum EvaluationStatus {
+  kSuccess = 0,
+  kEmptySnapshot = 1,
+  kSnapshotReachedLimit = 2,
+  kEmptyDistilledHtml = 3,
+  kHtmlTooLarge = 4,
+  kEmptyOriginalText = 5,
+  kInvalidTreeStructure = 6,
+  kMalformedDistilledHtml = 7,
+};
+
+// Metrics returned by the distillation evaluator.
+struct DistillationMetrics {
+  float rouge_l_precision;
+  float rouge_l_recall;
+  float rouge_l_f1;
+  float rouge_l_f2;
+  float struct_score;
+  float format_score;
+  float link_density_ratio;
+};
+
+// Interface for evaluating the quality of Reading Mode distillation.
+[ServiceSandbox=sandbox.mojom.Sandbox.kUtility]
+interface DistillationEvaluator {
+  // Evaluates the quality of distillation by comparing the original AXTree
+  // with the distilled HTML.
+  // While the AXTree is considered a trusted input that can be safely parsed
+  // in C++, the distilled HTML is not, so this is implemented in a utility
+  // process (reading_mode_metrics_service) and uses Rust to safely process
+  // the distilled_html.
+  Evaluate(ax.mojom.AXTreeUpdate ax_tree_update, string distilled_html)
+      => result<DistillationMetrics, EvaluationStatus>;
+};

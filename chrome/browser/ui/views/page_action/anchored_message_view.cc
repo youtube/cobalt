@@ -33,6 +33,7 @@
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/menus/simple_menu_model.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/controls/button/button.h"
@@ -316,6 +317,11 @@ void AnchoredMessageBubbleView::UpdateContent(
     expand_button_tooltip_override_ = expandable_content->expand_button_tooltip;
     collapse_button_tooltip_override_ =
         expandable_content->collapse_button_tooltip;
+
+    if (expandable_content->expand_button_accessible_name) {
+      expand_button_->GetViewAccessibility().SetName(
+          *expandable_content->expand_button_accessible_name);
+    }
     UpdateExpandButtonTooltip();
     expand_button_->SetVisible(true);
 
@@ -370,6 +376,8 @@ void AnchoredMessageBubbleView::UpdateContent(
         item_icon->SetImage(item.icon.value());
         item_icon->SetImageSize(
             gfx::Size(kAnchoredMessageIconSize, kAnchoredMessageIconSize));
+        // Mark the favicon/icon as decorative since the text describes it.
+        item_icon->GetViewAccessibility().SetIsIgnored(true);
       }
 
       auto* item_label =
@@ -508,7 +516,13 @@ void AnchoredMessageBubbleView::UpdateExpandButtonTooltip() {
                              IDS_ANCHORED_MESSAGE_EXPAND_BUTTON_TOOLTIP);
   }
   expand_button_->SetTooltipText(tooltip_text);
-  expand_button_->SetAccessibleName(tooltip_text);
+
+  // Set the semantic expanded state.
+  if (expanded_) {
+    expand_button_->GetViewAccessibility().SetIsExpanded();
+  } else {
+    expand_button_->GetViewAccessibility().SetIsCollapsed();
+  }
 }
 
 BEGIN_METADATA(AnchoredMessageBubbleView)

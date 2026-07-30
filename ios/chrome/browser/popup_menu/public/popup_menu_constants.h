@@ -81,6 +81,8 @@ extern NSString* const kTextMenuEnterpriseInfo;
 extern NSString* const kTextMenuFamilyLinkInfo;
 // Clear Browsing Data item accessibility identifier.
 extern NSString* const kToolsMenuClearBrowsingData;
+// Customize Home Page item accessibility identifier.
+extern NSString* const kToolsMenuCustomizeHomePageId;
 // Set Tab Reminder item accessibility Identifier.
 extern NSString* const kToolsMenuSetTabReminder;
 // Share Chrome accessibility Identifier.

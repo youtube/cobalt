@@ -14,6 +14,12 @@ MetaTag::MetaTag(const MetaTag& other) = default;
 MetaTag& MetaTag::MetaTag::operator=(const MetaTag& other) = default;
 MetaTag::~MetaTag() = default;
 
+FrameUrl::FrameUrl(std::string_view host, std::string_view path)
+    : host(host), path(path) {}
+FrameUrl::FrameUrl(const FrameUrl& other) = default;
+FrameUrl& FrameUrl::operator=(const FrameUrl& other) = default;
+FrameUrl::~FrameUrl() = default;
+
 FrameMetadata::FrameMetadata(const std::string& host,
                              const std::string& path,
                              std::vector<MetaTag> meta_tags)

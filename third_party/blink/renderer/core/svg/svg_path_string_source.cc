@@ -52,52 +52,6 @@ std::optional<bool> ParseArcFlag(base::span<const CharType>& span) {
   return flag;
 }
 
-SVGPathSegType MapLetterToSegmentType(unsigned lookahead) {
-  switch (lookahead) {
-    case 'Z':
-    case 'z':
-      return kPathSegClosePath;
-    case 'M':
-      return kPathSegMoveToAbs;
-    case 'm':
-      return kPathSegMoveToRel;
-    case 'L':
-      return kPathSegLineToAbs;
-    case 'l':
-      return kPathSegLineToRel;
-    case 'C':
-      return kPathSegCurveToCubicAbs;
-    case 'c':
-      return kPathSegCurveToCubicRel;
-    case 'Q':
-      return kPathSegCurveToQuadraticAbs;
-    case 'q':
-      return kPathSegCurveToQuadraticRel;
-    case 'A':
-      return kPathSegArcAbs;
-    case 'a':
-      return kPathSegArcRel;
-    case 'H':
-      return kPathSegLineToHorizontalAbs;
-    case 'h':
-      return kPathSegLineToHorizontalRel;
-    case 'V':
-      return kPathSegLineToVerticalAbs;
-    case 'v':
-      return kPathSegLineToVerticalRel;
-    case 'S':
-      return kPathSegCurveToCubicSmoothAbs;
-    case 's':
-      return kPathSegCurveToCubicSmoothRel;
-    case 'T':
-      return kPathSegCurveToQuadraticSmoothAbs;
-    case 't':
-      return kPathSegCurveToQuadraticSmoothRel;
-    default:
-      return kPathSegUnknown;
-  }
-}
-
 bool IsNumberStart(unsigned lookahead) {
   return IsAsciiDigit(lookahead) || lookahead == '+' || lookahead == '-' ||
          lookahead == '.';

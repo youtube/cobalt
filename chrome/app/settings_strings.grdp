@@ -464,6 +464,21 @@
     <message name="IDS_TRAVEL_SUBMENU_OPTION" desc="Text label of the Travel item in the Your saved info 3-dot submenu">
       Travel
     </message>
+    <message name="IDS_SETTINGS_AUTOFILL_AT_MEMORY_TRIGGER_SETTING_LABEL" desc="Title for the enhanced autofill shortcut setting.">
+      Custom shortcut for enhanced autofill
+    </message>
+    <message name="IDS_SETTINGS_AUTOFILL_AT_MEMORY_TRIGGER_SETTING_SECONDARY_LABEL" desc="Subtitle for enhanced autofill shortcut setting.">
+      If the custom shortcut is not set, @@ is used by default
+    </message>
+    <message name="IDS_SETTINGS_AUTOFILL_AT_MEMORY_TRIGGER_SETTING_INPUT_AREA_LABEL" desc="Label of the input area of enhanced autofill shortcut setting.">
+      Enhanced autofill shortcut
+    </message>
+    <message name="IDS_SETTINGS_AUTOFILL_AT_MEMORY_TRIGGER_SETTING_EDIT_BUTTON_LABEL" desc="Label of the edit button of enhanced autofill shortcut setting.">
+      Edit enhanced autofill shortcut
+    </message>
+    <message name="IDS_SETTINGS_AUTOFILL_AT_MEMORY_TRIGGER_SETTING_CLEAR_BUTTON_LABEL" desc="Label of the clear button of enhanced autofill shortcut setting.">
+      Clear enhanced autofill shortcut
+    </message>
     <message name="IDS_SETTINGS_YOUR_SAVED_INFO_DESCRIPTION" desc="Description of the 'Your saved info' page.">
       Manage your autofill info for faster browsing &#x2014; info like passwords, payment methods, addresses, and ID cards
     </message>

@@ -33,6 +33,7 @@ class MultiIconButton : public views::Button {
 
  private:
   void UpdateBackground();
+
   raw_ptr<views::View> content_container_ = nullptr;
 };
 

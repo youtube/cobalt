@@ -865,22 +865,43 @@ void LayoutView::LayoutRoot() {
       chrome_client.GetScreenInfo(frame).device_scale_factor);
 #endif
 
-  const PhysicalSize initial_containing_block_size =
-      InitialContainingBlockSize();
+  const ComputedStyle& style = StyleRef();
+  const WritingMode writing_mode = style.GetWritingMode();
+  const WritingDirectionMode writing_direction = style.GetWritingDirection();
+  const LogicalSize original_size =
+      ToLogicalSize(InitialContainingBlockSize(), writing_mode);
+
+  // If we are being auto-sized, we want to ensure that we are at least our
+  // min-content size in the inline-axis.
+  LayoutUnit min_size;
+  if (RuntimeEnabledFeatures::AutoSizeUsesScrollWidthForOverflowEnabled() &&
+      GetFrameView()->IsBeingAutoSized()) {
+    ConstraintSpaceBuilder builder(writing_mode, writing_direction,
+                                   /* is_new_fc */ true);
+    builder.SetAvailableSize({kIndefiniteSize, original_size.block_size});
+    builder.SetIsFixedBlockSize(true);
+    min_size = BlockNode(this)
+                   .ComputeMinMaxSizes(writing_mode, SizeType::kIntrinsic,
+                                       builder.ToConstraintSpace())
+                   .sizes.min_size;
+    if (style.OverflowBlockDirection() == EOverflow::kAuto) {
+      min_size -= ComputeLogicalScrollbars().InlineSum();
+    }
+  }
+
+  const LogicalSize initial_size(std::max(original_size.inline_size, min_size),
+                                 original_size.block_size);
   const bool is_resizing_initial_containing_block =
-      StitchedSize() != initial_containing_block_size;
+      ToLogicalSize(StitchedSize(), writing_mode) != initial_size;
   DCHECK(!initial_containing_block_resize_handled_list_);
   if (is_resizing_initial_containing_block) {
     initial_containing_block_resize_handled_list_ =
         MakeGarbageCollected<GCedHeapHashSet<Member<const LayoutObject>>>();
   }
 
-  const auto& style = StyleRef();
-  ConstraintSpaceBuilder builder(style.GetWritingMode(),
-                                 style.GetWritingDirection(),
+  ConstraintSpaceBuilder builder(writing_mode, writing_direction,
                                  /* is_new_fc */ true);
-  builder.SetAvailableSize(
-      ToLogicalSize(initial_containing_block_size, style.GetWritingMode()));
+  builder.SetAvailableSize(initial_size);
   builder.SetIsFixedInlineSize(true);
   builder.SetIsFixedBlockSize(true);
 

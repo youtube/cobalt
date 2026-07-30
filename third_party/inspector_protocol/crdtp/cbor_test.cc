@@ -46,7 +46,7 @@ TEST(CheckCBORMessage, SmallestValidExample) {
   // an empty dictionary inside of an envelope.
   std::vector<uint8_t> empty_dict = {
       0xd8, 0x5a, 0, 0, 0, 2, EncodeIndefiniteLengthMapStart(), EncodeStop()};
-  Status status = CheckCBORMessage(SpanFrom(empty_dict));
+  Status status = CheckCBORMessage(SpanFrom(empty_dict)).status();
   EXPECT_THAT(status, StatusIsOk());
 }
 
@@ -66,13 +66,13 @@ TEST(CheckCBORMessage, ValidCBORButNotValidMessage) {
   EXPECT_EQ("7", json);
 
   // ... but it's not a message.
-  EXPECT_THAT(CheckCBORMessage(SpanFrom(not_a_message)),
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(not_a_message)).status(),
               StatusIs(Error::CBOR_INVALID_START_BYTE, 0));
 }
 
 TEST(CheckCBORMessage, EmptyMessage) {
   std::vector<uint8_t> empty;
-  Status status = CheckCBORMessage(SpanFrom(empty));
+  Status status = CheckCBORMessage(SpanFrom(empty)).status();
   EXPECT_THAT(status, StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 0));
 }
 
@@ -80,32 +80,41 @@ TEST(CheckCBORMessage, InvalidStartByte) {
   // Here we test that some actual json, which usually starts with {, is not
   // considered CBOR. CBOR messages must start with 0xd8, 0x5a, the envelope
   // start bytes.
-  Status status = CheckCBORMessage(SpanFrom("{\"msg\": \"Hello, world.\"}"));
+  Status status =
+      CheckCBORMessage(SpanFrom("{\"msg\": \"Hello, world.\"}")).status();
   EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_START_BYTE, 0));
 }
 
 TEST(CheckCBORMessage, InvalidEnvelopes) {
   std::vector<uint8_t> bytes = {0xd8, 0x5a};
-  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)).status(),
               StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 2));
   bytes = {0xd8, 0x5a, 0};
-  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)).status(),
               StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 3));
   bytes = {0xd8, 0x5a, 0, 0};
-  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)).status(),
               StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 4));
   bytes = {0xd8, 0x5a, 0, 0, 0};
-  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)).status(),
               StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 5));
   bytes = {0xd8, 0x5a, 0, 0, 0, 0};
-  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)).status(),
               StatusIs(Error::CBOR_MAP_OR_ARRAY_EXPECTED_IN_ENVELOPE, 6));
 }
 
 TEST(CheckCBORMessage, MapStartExpected) {
   std::vector<uint8_t> bytes = {0xd8, 0x5a, 0, 0, 0, 1};
-  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)).status(),
               StatusIs(Error::CBOR_ENVELOPE_CONTENTS_LENGTH_MISMATCH, 6));
+}
+
+TEST(CheckCBORMessage, ReturnsOuterSize) {
+  std::vector<uint8_t> empty_dict = {
+      0xd8, 0x5a, 0, 0, 0, 2, EncodeIndefiniteLengthMapStart(), EncodeStop()};
+  auto result = CheckCBORMessage(SpanFrom(empty_dict));
+  ASSERT_THAT(result.status(), StatusIsOk());
+  EXPECT_EQ(*result, empty_dict.size());
 }
 
 // =============================================================================

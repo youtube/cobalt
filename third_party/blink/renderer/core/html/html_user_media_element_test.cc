@@ -12,12 +12,16 @@
 #include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/html/html_permission_element_test_helper.h"
 #include "third_party/blink/renderer/core/html/user_media_request_provider.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/testing_platform_support.h"
+#include "third_party/blink/renderer/platform/web_test_support.h"
+#include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 
 namespace blink {
 
@@ -66,7 +70,8 @@ class MockUserMediaRequestProvider final
                const Vector<mojom::blink::PermissionDescriptorPtr>&),
               (override));
 
-  static MockUserMediaRequestProvider* CreateAndProvideTo(LocalDOMWindow& window) {
+  static MockUserMediaRequestProvider* CreateAndProvideTo(
+      LocalDOMWindow& window) {
     auto* provider = MakeGarbageCollected<MockUserMediaRequestProvider>(window);
     Supplement<LocalDOMWindow>::ProvideTo(window, provider);
     return provider;
@@ -75,7 +80,7 @@ class MockUserMediaRequestProvider final
 
 class HTMLUserMediaElementTest : public PageTestBase {
  public:
-  HTMLUserMediaElementTest() : platform_support_() {}
+  HTMLUserMediaElementTest() = default;
 
  protected:
   ScopedTestingPlatformSupport<LocalePlatformSupport> platform_support_;
@@ -100,14 +105,16 @@ TEST_F(HTMLUserMediaElementTest, BranchingLogicBasedOnTypeAttribute) {
 TEST_F(HTMLUserMediaElementTest, StartRequestOnClick) {
   ScopedBypassPepcSecurityForTestingForTest bypass_pepc(true);
   MockUserMediaRequestProvider* provider =
-      MockUserMediaRequestProvider::CreateAndProvideTo(*GetDocument().domWindow());
+      MockUserMediaRequestProvider::CreateAndProvideTo(
+          *GetDocument().domWindow());
 
   auto* element = MakeGarbageCollected<HTMLUserMediaElement>(GetDocument());
-  element->setAttribute(html_names::kTypeAttr, AtomicString("camera"));
   element->OnConstraintsSet(/*has_video=*/true, /*has_audio=*/false);
 
-  HashMap<mojom::blink::PermissionName, mojom::blink::PermissionStatus> init_map;
-  init_map.insert(mojom::blink::PermissionName::VIDEO_CAPTURE, mojom::blink::PermissionStatus::ASK);
+  HashMap<mojom::blink::PermissionName, mojom::blink::PermissionStatus>
+      init_map;
+  init_map.insert(mojom::blink::PermissionName::VIDEO_CAPTURE,
+                  mojom::blink::PermissionStatus::ASK);
   element->OnPermissionStatusInitialized(init_map);
 
   // If permission is not granted, a click should not trigger a request.
@@ -125,7 +132,8 @@ TEST_F(HTMLUserMediaElementTest, StartRequestOnClick) {
 TEST_F(HTMLUserMediaElementTest, OnConstraintsSetTriggersRequest) {
   ScopedBypassPepcSecurityForTestingForTest bypass_pepc(true);
   MockUserMediaRequestProvider* provider =
-      MockUserMediaRequestProvider::CreateAndProvideTo(*GetDocument().domWindow());
+      MockUserMediaRequestProvider::CreateAndProvideTo(
+          *GetDocument().domWindow());
 
   auto* element = MakeGarbageCollected<HTMLUserMediaElement>(GetDocument());
 
@@ -133,8 +141,10 @@ TEST_F(HTMLUserMediaElementTest, OnConstraintsSetTriggersRequest) {
   element->OnConstraintsSet(/*has_video=*/true, /*has_audio=*/false);
 
   // Initialize status to ASK
-  HashMap<mojom::blink::PermissionName, mojom::blink::PermissionStatus> init_map;
-  init_map.insert(mojom::blink::PermissionName::VIDEO_CAPTURE, mojom::blink::PermissionStatus::ASK);
+  HashMap<mojom::blink::PermissionName, mojom::blink::PermissionStatus>
+      init_map;
+  init_map.insert(mojom::blink::PermissionName::VIDEO_CAPTURE,
+                  mojom::blink::PermissionStatus::ASK);
   element->OnPermissionStatusInitialized(init_map);
 
   // Simulate a click to create a pending request
@@ -150,32 +160,46 @@ TEST_F(HTMLUserMediaElementTest, OnConstraintsSetTriggersRequest) {
 TEST_F(HTMLUserMediaElementTest, NoRequestWhenNoConstraintsSet) {
   ScopedBypassPepcSecurityForTestingForTest bypass_pepc(true);
   MockUserMediaRequestProvider* provider =
-      MockUserMediaRequestProvider::CreateAndProvideTo(*GetDocument().domWindow());
+      MockUserMediaRequestProvider::CreateAndProvideTo(
+          *GetDocument().domWindow());
 
   auto* element = MakeGarbageCollected<HTMLUserMediaElement>(GetDocument());
 
   // We grant permission, but no constraints are set.
-  HashMap<mojom::blink::PermissionName, mojom::blink::PermissionStatus> init_map;
+  HashMap<mojom::blink::PermissionName, mojom::blink::PermissionStatus>
+      init_map;
   init_map.insert(mojom::blink::PermissionName::VIDEO_CAPTURE,
                   mojom::blink::PermissionStatus::GRANTED);
   element->OnPermissionStatusInitialized(init_map);
+
+  EXPECT_EQ(element->error(), nullptr);
 
   // A click should NOT trigger a request because no constraints were set.
   EXPECT_CALL(*provider, StartRequest(element, _)).Times(0);
   element->click();
   ::testing::Mock::VerifyAndClearExpectations(provider);
+
+  // An error should be set because the element was clicked but not
+  // initialized.
+  ASSERT_NE(element->error(), nullptr);
+  EXPECT_EQ(element->error()->code(),
+            static_cast<uint16_t>(DOMExceptionCode::kInvalidStateError));
+  EXPECT_EQ(element->error()->message(),
+            "The permission element is not fully initialized.");
 }
 
 TEST_F(HTMLUserMediaElementTest, NoRequestWhenNoPermissionGranted) {
   ScopedBypassPepcSecurityForTestingForTest bypass_pepc(true);
   MockUserMediaRequestProvider* provider =
-      MockUserMediaRequestProvider::CreateAndProvideTo(*GetDocument().domWindow());
+      MockUserMediaRequestProvider::CreateAndProvideTo(
+          *GetDocument().domWindow());
 
   auto* element = MakeGarbageCollected<HTMLUserMediaElement>(GetDocument());
   element->OnConstraintsSet(/*has_video=*/true, /*has_audio=*/false);
 
   // Initialize status to ASK (not granted)
-  HashMap<mojom::blink::PermissionName, mojom::blink::PermissionStatus> init_map;
+  HashMap<mojom::blink::PermissionName, mojom::blink::PermissionStatus>
+      init_map;
   init_map.insert(mojom::blink::PermissionName::VIDEO_CAPTURE,
                   mojom::blink::PermissionStatus::ASK);
   element->OnPermissionStatusInitialized(init_map);
@@ -281,4 +305,221 @@ TEST_F(HTMLUserMediaElementTest, GrantedText) {
             kCameraMicrophoneString);
 }
 
+TEST_F(HTMLUserMediaElementTest,
+       ClickWhilePermissionRequestInProgressFiresError) {
+  ScopedBypassPepcSecurityForTestingForTest bypass_pepc(true);
+  MockUserMediaRequestProvider::CreateAndProvideTo(*GetDocument().domWindow());
+
+  auto* element = MakeGarbageCollected<HTMLUserMediaElement>(GetDocument());
+  element->OnConstraintsSet(/*has_video=*/true, /*has_audio=*/false);
+
+  // Initialize status to ASK.
+  HashMap<mojom::blink::PermissionName, mojom::blink::PermissionStatus>
+      init_map;
+  init_map.insert(mojom::blink::PermissionName::VIDEO_CAPTURE,
+                  mojom::blink::PermissionStatus::ASK);
+  element->OnPermissionStatusInitialized(init_map);
+
+  EXPECT_EQ(element->error(), nullptr);
+
+  // First click: should trigger permission request.
+  element->click();
+
+  // Second click: should fail because the first request is still in progress.
+  element->click();
+
+  // It should fire error.
+  ASSERT_NE(element->error(), nullptr);
+  EXPECT_EQ(element->error()->code(),
+            static_cast<uint16_t>(DOMExceptionCode::kInvalidStateError));
+  EXPECT_EQ(element->error()->message(),
+            "A permission request is already in progress.");
+}
+
+TEST_F(HTMLUserMediaElementTest, ClickWhenStyleIsInvalidFiresError) {
+  GetDocument().domWindow()->GetSecurityContext().SetSecurityOriginForTesting(
+      SecurityOrigin::CreateFromString("https://example.com"));
+  GetDocument()
+      .domWindow()
+      ->GetSecurityContext()
+      .SetSecureContextModeForTesting(SecureContextMode::kSecureContext);
+
+  PermissionElementTestPermissionService permission_service;
+  GetFrame().GetBrowserInterfaceBroker().SetBinderForTesting(
+      mojom::blink::PermissionService::Name_,
+      blink::BindRepeating(&PermissionElementTestPermissionService::BindHandle,
+                           base::Unretained(&permission_service)));
+
+  MockUserMediaRequestProvider::CreateAndProvideTo(*GetDocument().domWindow());
+
+  auto* element = MakeGarbageCollected<HTMLUserMediaElement>(GetDocument());
+  element->OnConstraintsSet(/*has_video=*/true, /*has_audio=*/false);
+
+  // Initialize status to ASK.
+  HashMap<mojom::blink::PermissionName, mojom::blink::PermissionStatus>
+      init_map;
+  init_map.insert(mojom::blink::PermissionName::VIDEO_CAPTURE,
+                  mojom::blink::PermissionStatus::ASK);
+  element->OnPermissionStatusInitialized(init_map);
+
+  // Set invalid style.
+  element->setAttribute(html_names::kStyleAttr,
+                        AtomicString("display: inline;"));
+  GetDocument().body()->AppendChild(element);
+
+  // Run lifecycle to trigger style recalc and DidFinishLifecycleUpdate.
+  GetDocument().View()->UpdateAllLifecyclePhasesForTest();
+
+  // Wait for registration to complete.
+  WaitForPermissionElementRegistration(element);
+
+  EXPECT_EQ(element->error(), nullptr);
+
+  LocalFrame::NotifyUserActivation(
+      &GetFrame(), mojom::blink::UserActivationNotificationType::kInteraction);
+
+  // Click should fail because style is invalid (and recently attached).
+  element->click();
+
+  // It should fire error.
+  ASSERT_NE(element->error(), nullptr);
+  EXPECT_EQ(element->error()->code(),
+            static_cast<uint16_t>(DOMExceptionCode::kInvalidStateError));
+
+  String message = element->error()->message();
+  EXPECT_TRUE(
+      message.starts_with("The permission element is disabled due to:"));
+  EXPECT_TRUE(message.contains("invalid style"));
+
+  // Clean up binder.
+  GetFrame().GetBrowserInterfaceBroker().SetBinderForTesting(
+      mojom::blink::PermissionService::Name_, {});
+}
+
+TEST_F(HTMLUserMediaElementTest, UntrustedClickFiresError) {
+  // Disable web test mode to force IsRunningWebTest() to return false,
+  // so the untrusted event check is not bypassed.
+  ScopedWebTestMode web_test_mode(false);
+
+  GetDocument().domWindow()->GetSecurityContext().SetSecurityOriginForTesting(
+      SecurityOrigin::CreateFromString("https://example.com"));
+  GetDocument()
+      .domWindow()
+      ->GetSecurityContext()
+      .SetSecureContextModeForTesting(SecureContextMode::kSecureContext);
+
+  // Do NOT bypass security.
+  auto* element = MakeGarbageCollected<HTMLUserMediaElement>(GetDocument());
+  element->OnConstraintsSet(/*has_video=*/true, /*has_audio=*/false);
+
+  EXPECT_EQ(element->error(), nullptr);
+
+  LocalFrame::NotifyUserActivation(
+      &GetFrame(), mojom::blink::UserActivationNotificationType::kInteraction);
+
+  // Click programmatically (untrusted).
+  element->click();
+
+  // It should fire error because the click was untrusted.
+  ASSERT_NE(element->error(), nullptr);
+  EXPECT_EQ(element->error()->code(),
+            static_cast<uint16_t>(DOMExceptionCode::kInvalidStateError));
+  EXPECT_EQ(element->error()->message(),
+            "The permission element activation must be triggered by a user "
+            "gesture.");
+}
+
+TEST_F(HTMLUserMediaElementTest, LegacyModeDoesNotRequestMediaStream) {
+  ScopedBypassPepcSecurityForTestingForTest bypass_pepc(true);
+  MockUserMediaRequestProvider* provider =
+      MockUserMediaRequestProvider::CreateAndProvideTo(*GetDocument().domWindow());
+
+  auto* element = MakeGarbageCollected<HTMLUserMediaElement>(GetDocument());
+  // Set type to enter legacy mode
+  element->setAttribute(html_names::kTypeAttr, AtomicString("camera"));
+  EXPECT_TRUE(element->IsLegacyMode());
+
+  // Initialize permission status
+  HashMap<mojom::blink::PermissionName, mojom::blink::PermissionStatus> init_map;
+  init_map.insert(mojom::blink::PermissionName::VIDEO_CAPTURE,
+                  mojom::blink::PermissionStatus::ASK);
+  element->OnPermissionStatusInitialized(init_map);
+
+  // Click it. It should NOT trigger StartRequest (media stream).
+  EXPECT_CALL(*provider, StartRequest(element, _)).Times(0);
+  element->click();
+  ::testing::Mock::VerifyAndClearExpectations(provider);
+
+  // Grant the permission. It should still NOT trigger StartRequest.
+  EXPECT_CALL(*provider, StartRequest(element, _)).Times(0);
+  element->OnPermissionStatusChange(mojom::blink::PermissionName::VIDEO_CAPTURE,
+                                    mojom::blink::PermissionStatus::GRANTED);
+  ::testing::Mock::VerifyAndClearExpectations(provider);
+}
+
+TEST_F(HTMLUserMediaElementTest, TypeAttributeIgnoredWhenLegacyDisabled) {
+  ScopedUserMediaElementLegacyForTest legacy_disabled(false);
+  auto* element = MakeGarbageCollected<HTMLUserMediaElement>(GetDocument());
+
+  EXPECT_FALSE(element->IsLegacyMode());
+
+  // Set type, should be ignored.
+  element->setAttribute(html_names::kTypeAttr, AtomicString("camera"));
+  EXPECT_FALSE(element->IsLegacyMode());
+  EXPECT_TRUE(element->GetPermissionDescriptors().empty());
+}
+
+TEST_F(HTMLUserMediaElementTest, NonSecureContextBlocked) {
+  ScopedBypassPepcSecurityForTestingForTest bypass_pepc(false);
+  GetDocument().domWindow()->GetSecurityContext().SetSecurityOriginForTesting(
+      SecurityOrigin::CreateFromString("http://example.com"));
+  GetDocument()
+      .domWindow()
+      ->GetSecurityContext()
+      .SetSecureContextModeForTesting(SecureContextMode::kInsecureContext);
+
+  MockUserMediaRequestProvider* provider =
+      MockUserMediaRequestProvider::CreateAndProvideTo(
+          *GetDocument().domWindow());
+
+  auto* element = MakeGarbageCollected<HTMLUserMediaElement>(GetDocument());
+  element->OnConstraintsSet(/*has_video=*/true, /*has_audio=*/false);
+
+  HashMap<mojom::blink::PermissionName, mojom::blink::PermissionStatus>
+      init_map;
+  init_map.insert(mojom::blink::PermissionName::VIDEO_CAPTURE,
+                  mojom::blink::PermissionStatus::GRANTED);
+  element->OnPermissionStatusInitialized(init_map);
+
+  EXPECT_CALL(*provider, StartRequest(element, _)).Times(0);
+  element->click();
+  ::testing::Mock::VerifyAndClearExpectations(provider);
+}
+
+TEST_F(HTMLUserMediaElementTest, MissingTransientUserActivationBlocked) {
+  ScopedBypassPepcSecurityForTestingForTest bypass_pepc(false);
+  GetDocument().domWindow()->GetSecurityContext().SetSecurityOriginForTesting(
+      SecurityOrigin::CreateFromString("https://example.com"));
+  GetDocument()
+      .domWindow()
+      ->GetSecurityContext()
+      .SetSecureContextModeForTesting(SecureContextMode::kSecureContext);
+
+  MockUserMediaRequestProvider* provider =
+      MockUserMediaRequestProvider::CreateAndProvideTo(
+          *GetDocument().domWindow());
+
+  auto* element = MakeGarbageCollected<HTMLUserMediaElement>(GetDocument());
+  element->OnConstraintsSet(/*has_video=*/true, /*has_audio=*/false);
+
+  HashMap<mojom::blink::PermissionName, mojom::blink::PermissionStatus>
+      init_map;
+  init_map.insert(mojom::blink::PermissionName::VIDEO_CAPTURE,
+                  mojom::blink::PermissionStatus::GRANTED);
+  element->OnPermissionStatusInitialized(init_map);
+
+  EXPECT_CALL(*provider, StartRequest(element, _)).Times(0);
+  element->click();
+  ::testing::Mock::VerifyAndClearExpectations(provider);
+}
 }  // namespace blink

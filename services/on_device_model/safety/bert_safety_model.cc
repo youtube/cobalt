@@ -22,29 +22,35 @@ BertSafetyModel::~BertSafetyModel() = default;
 std::unique_ptr<BertSafetyModel> BertSafetyModel::Create(
     mojom::TextSafetyModelParamsPtr params) {
   auto bs_model = base::WrapUnique(new BertSafetyModel());
-  if (params->language_assets &&
-      !bs_model->InitLanguageDetection(std::move(params->language_assets))) {
-    return nullptr;
+  bool has_model = false;
+  if (params->language_model.IsValid()) {
+    if (!bs_model->InitLanguageDetection(std::move(params->language_model))) {
+      return nullptr;
+    }
+    has_model = true;
   }
-  if (params->safety_assets && !bs_model->InitTextSafetyModel(std::move(
-                                   params->safety_assets->get_bs_assets()))) {
+  if (params->safety_model.IsValid()) {
+    if (!bs_model->InitTextSafetyModel(std::move(params->safety_model))) {
+      return nullptr;
+    }
+    has_model = true;
+  }
+  if (!has_model) {
     return nullptr;
   }
   return bs_model;
 }
 
-bool BertSafetyModel::InitTextSafetyModel(
-    mojom::BertSafetyModelAssetsPtr assets) {
+bool BertSafetyModel::InitTextSafetyModel(base::File model) {
   tflite::task::text::NLClassifierOptions options;
   auto* mutable_file_descriptor_meta = options.mutable_base_options()
                                            ->mutable_model_file()
                                            ->mutable_file_descriptor_meta();
-  base::File& model_file = assets->model;
 #if BUILDFLAG(IS_WIN)
   mutable_file_descriptor_meta->set_handle(
-      reinterpret_cast<uint64_t>(model_file.GetPlatformFile()));
+      reinterpret_cast<uint64_t>(model.GetPlatformFile()));
 #else
-  mutable_file_descriptor_meta->set_fd(model_file.GetPlatformFile());
+  mutable_file_descriptor_meta->set_fd(model.GetPlatformFile());
 #endif
 
   options.mutable_base_options()
@@ -62,11 +68,10 @@ bool BertSafetyModel::InitTextSafetyModel(
 
   return static_cast<bool>(loaded_bert_model_);
 }
-bool BertSafetyModel::InitLanguageDetection(
-    mojom::LanguageModelAssetsPtr assets) {
+bool BertSafetyModel::InitLanguageDetection(base::File model) {
   auto tflite_model =
       std::make_unique<language_detection::LanguageDetectionModel>();
-  tflite_model->UpdateWithFile(std::move(assets->model));
+  tflite_model->UpdateWithFile(std::move(model));
 
   language_detector_ = std::make_unique<translate::LanguageDetectionModel>(
       std::move(tflite_model));
@@ -100,10 +105,7 @@ mojom::SafetyInfoPtr BertSafetyModel::ClassifyTextSafety(
   }
 
   base::ElapsedTimer timer;
-  auto status_or_result =
-      static_cast<tflite::task::text::nlclassifier::NLClassifier*>(
-          loaded_bert_model_.get())
-          ->ClassifyText(text);
+  auto status_or_result = loaded_bert_model_->ClassifyText(text);
   if (absl::IsCancelled(status_or_result.status()) || !status_or_result.ok()) {
     return nullptr;
   }

@@ -9,6 +9,7 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
+#include "chrome/browser/contextual_cueing/prefs.h"
 #include "chrome/browser/multistep_filter/ui/filter_ui_controller_test_api.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/page_action/action_ids.h"
@@ -17,10 +18,12 @@
 #include "components/favicon/core/test/mock_favicon_service.h"
 #include "components/multistep_filter/content/filter_initiated_navigation_marker.h"
 #include "components/multistep_filter/core/annotation_index/mock_annotation_index_client.h"
+#include "components/multistep_filter/core/data_models/suggestion_user_decision.h"
 #include "components/multistep_filter/core/features.h"
 #include "components/multistep_filter/core/multistep_filter_service.h"
 #include "components/multistep_filter/core/multistep_filter_util.h"
 #include "components/multistep_filter/core/storage/filter_store.h"
+#include "components/optimization_guide/core/feature_registry/feature_registration.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/optimization_guide_prefs.h"
 #include "components/prefs/pref_service.h"
@@ -90,6 +93,11 @@ class MockMultistepFilterService : public MultistepFilterService {
               (std::string_view task_type,
                int64_t navigation_id,
                std::string_view host),
+              (override));
+  MOCK_METHOD(void, RecordSuggestionImpression, (), (override));
+  MOCK_METHOD(void,
+              RecordUserInteractionWithSuggestion,
+              (SuggestionUserDecision),
               (override));
 };
 
@@ -311,6 +319,21 @@ TEST_F(FilterUiControllerTest, OnSuggestionGeneratedWhenSettingEnabled) {
   EXPECT_TRUE(test_api(*controller_).suggestion_state().has_value());
 }
 
+TEST_F(FilterUiControllerTest,
+       OnSuggestionGeneratedWhenEnterprisePolicyDisabled) {
+  profile()->GetPrefs()->SetInteger(
+      optimization_guide::prefs::kChromeSuggestionsSettings,
+      std::to_underlying(
+          contextual_cueing::ChromeSuggestionsSettingsValue::kDisabled));
+
+  UrlFilterSuggestion suggestion =
+      CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
+  suggestion.suggestion_message = u"Test Message";
+
+  controller_->OnSuggestionGenerated(suggestion);
+  EXPECT_FALSE(test_api(*controller_).suggestion_state().has_value());
+}
+
 // === Group 3: Clear & Dismissal ===
 
 TEST_F(FilterUiControllerTest, ClearSuggestionResetsCachedSuggestion) {
@@ -320,8 +343,7 @@ TEST_F(FilterUiControllerTest, ClearSuggestionResetsCachedSuggestion) {
 
   controller_->OnSuggestionGenerated(suggestion);
 
-  controller_->FilterUiController::ClearSuggestion(
-      FilterUiController::SuggestionUserDecision::kIgnored);
+  controller_->ClearSuggestion(SuggestionUserDecision::kIgnored);
 
   // Verify that the current suggestion is reset.
   EXPECT_FALSE(test_api(*controller_).suggestion_state().has_value());
@@ -352,8 +374,7 @@ TEST_F(FilterUiControllerTest, ClearSuggestionHidesPageAction) {
               HideAnchoredMessage(kActionMultistepFilter))
       .Times(1);
 
-  controller_->FilterUiController::ClearSuggestion(
-      FilterUiController::SuggestionUserDecision::kIgnored);
+  controller_->ClearSuggestion(SuggestionUserDecision::kIgnored);
 }
 
 TEST_F(FilterUiControllerTest, ClearSuggestionResetsViewState) {
@@ -365,8 +386,7 @@ TEST_F(FilterUiControllerTest, ClearSuggestionResetsViewState) {
   EXPECT_EQ(test_api(*controller_).suggestion_state()->view_state,
             FilterUiController::SuggestionViewState::kShowingInitialCue);
 
-  controller_->ClearSuggestion(
-      FilterUiController::SuggestionUserDecision::kIgnored);
+  controller_->ClearSuggestion(SuggestionUserDecision::kIgnored);
   EXPECT_FALSE(test_api(*controller_).suggestion_state().has_value());
 }
 
@@ -535,8 +555,9 @@ TEST_F(FilterUiControllerTest,
   test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
 }
 
-TEST_F(FilterUiControllerTest,
-       OnPageActionAnchoredMessageHiddenFromReopenedStateCollapsesToOmnibox) {
+TEST_F(
+    FilterUiControllerTest,
+    OnPageActionAnchoredMessageHiddenFromReopenedStateCollapsesToOmniboxAfterReopen) {
   UrlFilterSuggestion suggestion =
       CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
   controller_->OnSuggestionGenerated(suggestion);
@@ -550,11 +571,57 @@ TEST_F(FilterUiControllerTest,
   EXPECT_EQ(test_api(*controller_).suggestion_state()->view_state,
             FilterUiController::SuggestionViewState::kReopenedFromOmnibox);
 
-  // Transition: ReopenedFromOmnibox -> CollapsedInOmnibox (on hidden)
+  // Transition: ReopenedFromOmnibox -> CollapsedInOmniboxAfterReopen (on
+  // hidden)
   test_api(*controller_).OnPageActionAnchoredMessageHidden(ActionState());
-  EXPECT_EQ(test_api(*controller_).suggestion_state()->view_state,
-            FilterUiController::SuggestionViewState::kCollapsedInOmnibox);
+  EXPECT_EQ(
+      test_api(*controller_).suggestion_state()->view_state,
+      FilterUiController::SuggestionViewState::kCollapsedInOmniboxAfterReopen);
   EXPECT_TRUE(test_api(*controller_).suggestion_state().has_value());
+}
+
+TEST_F(FilterUiControllerTest, RecordImpressionOnMessageShown) {
+  UrlFilterSuggestion suggestion =
+      CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
+  controller_->OnSuggestionGenerated(suggestion);
+
+  EXPECT_CALL(*mock_service_, RecordSuggestionImpression()).Times(1);
+
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+}
+
+TEST_F(FilterUiControllerTest, DoNotRecordImpressionOnReopenFromOmnibox) {
+  UrlFilterSuggestion suggestion =
+      CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
+  controller_->OnSuggestionGenerated(suggestion);
+
+  // 1. Initial display triggers exactly 1 impression call.
+  EXPECT_CALL(*mock_service_, RecordSuggestionImpression()).Times(1);
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+  testing::Mock::VerifyAndClearExpectations(mock_service_.get());
+
+  // 2. Bubble hides (collapses into Omnibox).
+  test_api(*controller_).OnPageActionAnchoredMessageHidden(ActionState());
+
+  // 3. Reopening from Omnibox does NOT trigger RecordSuggestionImpression.
+  EXPECT_CALL(*mock_service_, RecordSuggestionImpression()).Times(0);
+  controller_->OnActionInvoked();
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+  EXPECT_EQ(test_api(*controller_).suggestion_state()->view_state,
+            FilterUiController::SuggestionViewState::kReopenedFromOmnibox);
+}
+
+TEST_F(FilterUiControllerTest, RecordAcceptanceOnApplySuggestion) {
+  UrlFilterSuggestion suggestion =
+      CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
+  controller_->OnSuggestionGenerated(suggestion);
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+
+  EXPECT_CALL(*mock_service_, RecordUserInteractionWithSuggestion(
+                                  SuggestionUserDecision::kAccepted))
+      .Times(1);
+
+  controller_->OnActionInvoked();
 }
 
 }  // namespace

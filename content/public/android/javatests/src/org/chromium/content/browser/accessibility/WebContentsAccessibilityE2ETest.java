@@ -4,15 +4,23 @@
 
 package org.chromium.content.browser.accessibility;
 
+import static org.chromium.content.browser.accessibility.AccessibilityContentShellTestUtils.sClassNameMatcher;
+import static org.chromium.content.browser.accessibility.AccessibilityContentShellTestUtils.sViewIdResourceNameMatcher;
+
 import android.app.UiAutomation;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.IBinder;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityNodeInfo.Selection;
+import android.view.accessibility.AccessibilityNodeInfo.SelectionPosition;
 
+import androidx.annotation.Nullable;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -26,6 +34,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 
+import org.chromium.base.Log;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.DisabledTest;
@@ -34,8 +43,10 @@ import org.chromium.base.test.util.MinAndroidSdkLevel;
 import org.chromium.base.test.util.UrlUtils;
 import org.chromium.content.common.ContentInternalFeatures;
 import org.chromium.content_public.browser.ContentFeatureList;
+import org.chromium.ui.accessibility.testservice.EventMatcher;
 import org.chromium.ui.accessibility.testservice.IAccessibilityTestHelperService;
-import org.chromium.ui.accessibility.testservice.WaitForEventParams;
+import org.chromium.ui.accessibility.testservice.NodeMatcher;
+import org.chromium.ui.accessibility.testservice.WaitForParams;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -64,6 +75,16 @@ public class WebContentsAccessibilityE2ETest {
     private static final long BIND_TIMEOUT_MS = 5000;
     private static final long EVENT_TIMEOUT_MS = 5000;
     private static final String TAG = "WebContentsAXTest";
+
+    private static final String EXTRA_SELECTION_START_OFFSET_TYPE =
+            "androidx.view.accessibility.AccessibilityNodeInfoCompat.SELECTION_START_OFFSET_TYPE";
+    private static final String EXTRA_SELECTION_END_OFFSET_TYPE =
+            "androidx.view.accessibility.AccessibilityNodeInfoCompat.SELECTION_END_OFFSET_TYPE";
+
+    // Extended selection offset types, defined in:
+    // androidx.view.accessibility.AccessibilityNodeInfoCompat
+    private static final int OFFSET_TYPE_TEXT = 0;
+    private static final int OFFSET_TYPE_CHILD = 1;
 
     private final AtomicReference<CompletableFuture<IAccessibilityTestHelperService>>
             mServiceFuture = new AtomicReference<>(new CompletableFuture<>());
@@ -121,20 +142,50 @@ public class WebContentsAccessibilityE2ETest {
         return mServiceFuture.get().get(BIND_TIMEOUT_MS, TimeUnit.MILLISECONDS);
     }
 
-    private void waitForPageLoadAndInitialContentChange() throws Throwable {
-        mActivityTestRule.waitForActiveShellToBeDoneLoading();
+    private boolean waitForEvent(EventMatcher matcher) {
+        try {
+            return getAccessibilityHelperService()
+                    .waitFor(new WaitForParamsBuilder().setEventMatcher(matcher).build());
+        } catch (Exception e) {
+            Log.e(TAG, "Error waiting for event", e);
+            return false;
+        }
+    }
 
-        boolean initialEventReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(
-                                                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
-                                        .setClassName("android.webkit.WebView")
-                                        .build());
-        Assert.assertTrue(
-                "Service did not receive initial TYPE_WINDOW_CONTENT_CHANGED event",
-                initialEventReceived);
+    private boolean waitForNode(NodeMatcher matcher) {
+        try {
+            return getAccessibilityHelperService()
+                    .waitFor(new WaitForParamsBuilder().setNodeMatcher(matcher).build());
+        } catch (Exception e) {
+            Log.e(TAG, "Error waiting for node", e);
+            return false;
+        }
+    }
+
+    private boolean waitForNodeOnEvent(EventMatcher eventMatcher, NodeMatcher nodeMatcher) {
+        try {
+            return getAccessibilityHelperService()
+                    .waitFor(
+                            new WaitForParamsBuilder()
+                                    .setEventMatcher(eventMatcher)
+                                    .setNodeMatcher(nodeMatcher)
+                                    .build());
+        } catch (Exception e) {
+            Log.e(TAG, "Error waiting for node on event", e);
+            return false;
+        }
+    }
+
+    private void setupTest(String html, NodeMatcher matcher) throws Throwable {
+        mActivityTestRule.launchContentShellWithUrl(UrlUtils.encodeHtmlDataUri(html));
+        mActivityTestRule.mockWebContentsAccessibilityImpl();
+        mActivityTestRule.mWcax = mActivityTestRule.getWebContentsAccessibility();
+        mActivityTestRule.mWcax.setThrottleDelayForTesting(new java.util.HashMap<>());
+
+        if (matcher != null) {
+            boolean nodeFound = waitForNode(matcher);
+            Assert.assertTrue("Failed to find expected node after HTML setup.", nodeFound);
+        }
     }
 
     private void enableAccessibilityService() throws IOException {
@@ -179,20 +230,53 @@ public class WebContentsAccessibilityE2ETest {
         }
     }
 
+    private void initializeMockWebContentsAccessibility() {
+        // Initialize mWcax as a Mockito mock so that we can verify performAction interactions on
+        // it.
+        mActivityTestRule.mockWebContentsAccessibilityImpl();
+        org.chromium.base.ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mActivityTestRule.mWcax = mActivityTestRule.getWebContentsAccessibility();
+                });
+        org.chromium.base.test.util.CriteriaHelper.pollUiThread(
+                () -> mActivityTestRule.mWcax.getAccessibilityNodeProviderCompat() != null,
+                "AccessibilityNodeProvider is null");
+        mActivityTestRule.mNodeProvider =
+                mActivityTestRule.mWcax.getAccessibilityNodeProviderCompat();
+    }
+
+    private Bundle createSelectionArgs(
+            int startVvid,
+            int startOffset,
+            int startOffsetType,
+            int endVvid,
+            int endOffset,
+            int endOffsetType) {
+        SelectionPosition startPosition =
+                new SelectionPosition(mActivityTestRule.getContainerView(), startVvid, startOffset);
+        SelectionPosition endPosition =
+                new SelectionPosition(mActivityTestRule.getContainerView(), endVvid, endOffset);
+        Selection selection = new Selection(startPosition, endPosition);
+
+        Bundle args = new Bundle();
+        args.putParcelable(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_PARCELABLE, selection);
+        args.putInt(EXTRA_SELECTION_START_OFFSET_TYPE, startOffsetType);
+        args.putInt(EXTRA_SELECTION_END_OFFSET_TYPE, endOffsetType);
+        return args;
+    }
+
     @Test
     @SmallTest
     public void testAccessibilityServiceReceivesInitialEvent() throws Throwable {
         // Load a page.
-        String url = UrlUtils.encodeHtmlDataUri("<p>hello</p>");
-        mActivityTestRule.launchContentShellWithUrl(url);
+        setupTest("<p>hello</p>", new NodeMatcherBuilder().setText("hello").build());
 
         // Wait for the window to appear.
         boolean wscReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
-                                        .build());
+                waitForEvent(
+                        new EventMatcherBuilder()
+                                .setEventType(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
+                                .build());
         Assert.assertTrue("Service did not receive WINDOW_STATE_CHANGED", wscReceived);
     }
 
@@ -206,28 +290,29 @@ public class WebContentsAccessibilityE2ETest {
                 Build.VERSION.SDK_INT_FULL >= Build.VERSION_CODES_FULL.BAKLAVA_1);
 
         // Load a page.
-        String url = UrlUtils.encodeHtmlDataUri("<p>hello</p>");
-        mActivityTestRule.launchContentShellWithUrl(url);
+        String html = "<p>hello</p>";
+        setupTest(html, new NodeMatcherBuilder().setText("hello").build());
+        String url = UrlUtils.encodeHtmlDataUri(html);
 
         // Wait for the window to appear.
         boolean wscReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
-                                        .build());
+                waitForEvent(
+                        new EventMatcherBuilder()
+                                .setEventType(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
+                                .build());
         Assert.assertTrue("Service did not receive WINDOW_STATE_CHANGED", wscReceived);
 
         // Ask the service to wait for a text selection changed on the omnibox.
         boolean tscReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(
-                                                AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED)
-                                        .setClassName("android.widget.EditText")
-                                        .setText(url)
-                                        .build());
+                waitForEvent(
+                        new EventMatcherBuilder()
+                                .setEventType(AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED)
+                                .setSourceMatcher(
+                                        new NodeMatcherBuilder()
+                                                .setClassName("android.widget.EditText")
+                                                .setText(url)
+                                                .build())
+                                .build());
         Assert.assertTrue("Service did not receive TEXT_SELECTION_CHANGED", tscReceived);
     }
 
@@ -236,31 +321,32 @@ public class WebContentsAccessibilityE2ETest {
     @MinAndroidSdkLevel(Build.VERSION_CODES.BAKLAVA)
     public void testAccessibilityServiceReceivesAccessibilityFocusEvent() throws Throwable {
         // Load a page with a focusable element.
-        mActivityTestRule.launchContentShellWithUrl(
-                UrlUtils.encodeHtmlDataUri("<button>Click Me</button>"));
-
-        // Wait for the page to load and for the service to receive a content change.
-        waitForPageLoadAndInitialContentChange();
+        setupTest(
+                "<button>Click Me</button>", new NodeMatcherBuilder().setText("Click Me").build());
 
         // Find the button and perform a focus action.
         boolean actionRes =
                 getAccessibilityHelperService()
                         .performActionOnNode(
-                                "android.widget.Button",
-                                "Click Me",
-                                AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS);
+                                new NodeMatcherBuilder()
+                                        .setClassName("android.widget.Button")
+                                        .setText("Click Me")
+                                        .build(),
+                                AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
+                                /* arguments= */ null);
         Assert.assertTrue("Failed to perform accessibility focus action", actionRes);
 
         // Ask the service to wait for the event.
         boolean eventReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(
-                                                AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED)
-                                        .setClassName("android.widget.Button")
-                                        .setText("Click Me")
-                                        .build());
+                waitForEvent(
+                        new EventMatcherBuilder()
+                                .setEventType(AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED)
+                                .setSourceMatcher(
+                                        new NodeMatcherBuilder()
+                                                .setClassName("android.widget.Button")
+                                                .setText("Click Me")
+                                                .build())
+                                .build());
         Assert.assertTrue("Service did not receive accessibility focus event", eventReceived);
     }
 
@@ -276,10 +362,27 @@ public class WebContentsAccessibilityE2ETest {
                 <button>Click Me</button>
                 <div><a href="#">Link</a></div>
                 """;
-        mActivityTestRule.launchContentShellWithUrl(UrlUtils.encodeHtmlDataUri(html));
+        setupTest(html, new NodeMatcherBuilder().setText("Heading").build());
 
-        // Wait for the page to load and for the service to receive a content change.
-        waitForPageLoadAndInitialContentChange();
+        // Wait for the scroll event to be fired. There is a scroll event fired once the
+        // page loads, after which we guarantee the isInputFocusedViaFindFocus annotation
+        // will be present.
+        boolean nodeFound =
+                waitForNodeOnEvent(
+                        new EventMatcherBuilder()
+                                .setEventType(AccessibilityEvent.TYPE_VIEW_SCROLLED)
+                                .setSourceMatcher(
+                                        new NodeMatcherBuilder()
+                                                .setClassName("android.widget.FrameLayout")
+                                                .build())
+                                .build(),
+                        new NodeMatcherBuilder()
+                                .setClassName("android.webkit.WebView")
+                                .setInputFocused(true)
+                                .build());
+
+        Assert.assertTrue(
+                "Expected node with text 'Line one' and input focus was not found.", nodeFound);
 
         // Dump the accessibility tree.
         String treeDump = getAccessibilityHelperService().dumpWebContentsAccessibilityTree();
@@ -310,10 +413,7 @@ WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="ro
                 """
                 <p id="p1">Some selected text</p>
                 """;
-        mActivityTestRule.launchContentShellWithUrl(UrlUtils.encodeHtmlDataUri(html));
-
-        // Wait for the page to load and for the service to receive a content change.
-        waitForPageLoadAndInitialContentChange();
+        setupTest(html, new NodeMatcherBuilder().setText("Some selected text").build());
 
         // Inject script to set the selection.
         String script =
@@ -329,13 +429,14 @@ WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="ro
 
         // Wait for the selection event to be fired.
         boolean selectionEventReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(
-                                                AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED)
-                                        .setClassName("android.webkit.WebView")
-                                        .build());
+                waitForEvent(
+                        new EventMatcherBuilder()
+                                .setEventType(AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED)
+                                .setSourceMatcher(
+                                        new NodeMatcherBuilder()
+                                                .setClassName("android.webkit.WebView")
+                                                .build())
+                                .build());
         Assert.assertTrue(
                 "Service did not receive TYPE_VIEW_TEXT_SELECTION_CHANGED event",
                 selectionEventReceived);
@@ -346,7 +447,7 @@ WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="ro
         String expectedDump =
 """
 WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="rootWebArea"] isInputFocusedViaFindFocus
-  TextView text:"Some selected text" viewIdResName:"p1" actions:[AX_FOCUS, NEXT, PREVIOUS] bundle:[chromeRole="paragraph"] extendedSelectionStart:5 extendedSelectionEnd:13
+  TextView text:"Some selected text" viewIdResName:"p1" actions:[AX_FOCUS, NEXT, PREVIOUS] bundle:[chromeRole="paragraph"] extendedSelectionStart:5 (text) extendedSelectionEnd:13 (text)
 """;
         Assert.assertEquals("Tree dump does not match expected value", expectedDump, treeDump);
     }
@@ -378,34 +479,30 @@ WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="ro
                 <button id='b2'>Accessibility Focus</button>
                 <div style='height: 5000px;'></div>
                 """;
-        mActivityTestRule.launchContentShellWithUrl(UrlUtils.encodeHtmlDataUri(html));
-
-        // Initialize mWcax so we can make assertions on it.
-        mActivityTestRule.mockWebContentsAccessibilityImpl();
-        mActivityTestRule.mWcax = mActivityTestRule.getWebContentsAccessibility();
-        mActivityTestRule.mWcax.setThrottleDelayForTesting(new java.util.HashMap<>());
-
-        // Wait for the page to load and for the service to receive a content change.
-        waitForPageLoadAndInitialContentChange();
+        setupTest(html, new NodeMatcherBuilder().setText("Input Focus").build());
 
         // Find the second button and perform an accessibility focus action.
         boolean actionRes =
                 getAccessibilityHelperService()
                         .performActionOnNode(
-                                "android.widget.Button",
-                                "Accessibility Focus",
-                                AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS);
+                                new NodeMatcherBuilder()
+                                        .setClassName("android.widget.Button")
+                                        .setText("Accessibility Focus")
+                                        .build(),
+                                AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
+                                /* arguments= */ null);
         Assert.assertTrue("Failed to perform accessibility focus action", actionRes);
 
         boolean axEventReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(
-                                                AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED)
-                                        .setClassName("android.widget.Button")
-                                        .setText("Accessibility Focus")
-                                        .build());
+                waitForEvent(
+                        new EventMatcherBuilder()
+                                .setEventType(AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED)
+                                .setSourceMatcher(
+                                        new NodeMatcherBuilder()
+                                                .setClassName("android.widget.Button")
+                                                .setText("Accessibility Focus")
+                                                .build())
+                                .build());
         Assert.assertTrue("Service did not receive accessibility focus event", axEventReceived);
 
         // Focus the first button using JavaScript (input focus). We must do the input focus after
@@ -415,13 +512,15 @@ WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="ro
 
         // Wait for the input focus event.
         boolean inputFocusEventReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(AccessibilityEvent.TYPE_VIEW_FOCUSED)
-                                        .setClassName("android.widget.Button")
-                                        .setText("Input Focus")
-                                        .build());
+                waitForEvent(
+                        new EventMatcherBuilder()
+                                .setEventType(AccessibilityEvent.TYPE_VIEW_FOCUSED)
+                                .setSourceMatcher(
+                                        new NodeMatcherBuilder()
+                                                .setClassName("android.widget.Button")
+                                                .setText("Input Focus")
+                                                .build())
+                                .build());
         Assert.assertTrue("Service did not receive input focus event", inputFocusEventReceived);
 
         // Accessibility focus the second button since ({@link
@@ -430,20 +529,24 @@ WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="ro
         actionRes =
                 getAccessibilityHelperService()
                         .performActionOnNode(
-                                "android.widget.Button",
-                                "Accessibility Focus",
-                                AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS);
+                                new NodeMatcherBuilder()
+                                        .setClassName("android.widget.Button")
+                                        .setText("Accessibility Focus")
+                                        .build(),
+                                AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS,
+                                /* arguments= */ null);
         Assert.assertTrue("Failed to perform accessibility focus action", actionRes);
 
         axEventReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(
-                                                AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED)
-                                        .setClassName("android.widget.Button")
-                                        .setText("Accessibility Focus")
-                                        .build());
+                waitForEvent(
+                        new EventMatcherBuilder()
+                                .setEventType(AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED)
+                                .setSourceMatcher(
+                                        new NodeMatcherBuilder()
+                                                .setClassName("android.widget.Button")
+                                                .setText("Accessibility Focus")
+                                                .build())
+                                .build());
         Assert.assertTrue("Service did not receive accessibility focus event", axEventReceived);
 
         // Scroll the page down to move both buttons off screen. This should trigger a scroll event
@@ -452,12 +555,14 @@ WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="ro
 
         // Wait for scroll event
         boolean scrollEventReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(AccessibilityEvent.TYPE_VIEW_SCROLLED)
-                                        .setClassName("android.webkit.WebView")
-                                        .build());
+                waitForEvent(
+                        new EventMatcherBuilder()
+                                .setEventType(AccessibilityEvent.TYPE_VIEW_SCROLLED)
+                                .setSourceMatcher(
+                                        new NodeMatcherBuilder()
+                                                .setClassName("android.webkit.WebView")
+                                                .build())
+                                .build());
         Assert.assertTrue("Service did not receive scroll event", scrollEventReceived);
 
         // Dump the tree and verify both types of focus.
@@ -485,18 +590,21 @@ WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="ro
                                                 + " WebContentsAccessibilityImpl"))
                 .findFocus(AccessibilityNodeInfoCompat.FOCUS_INPUT);
 
-        assertNodeLineExpectation(
-                treeDump,
-                "Button text:\"Input Focus\"",
-                """
-                Button text:"Input Focus" viewIdResName:"b1" clickable focusable focused actions:[CLEAR_FOCUS, CLICK, AX_FOCUS, NEXT, PREVIOUS] bundle:[chromeRole="button", clickableScore="300"] isInputFocusedViaFindFocus
-                """);
-        assertNodeLineExpectation(
-                treeDump,
-                "Button text:\"Accessibility Focus\"",
-                """
-                Button text:"Accessibility Focus" viewIdResName:"b2" clickable focusable actions:[FOCUS, CLICK, CLEAR_AX_FOCUS, NEXT, PREVIOUS] bundle:[chromeRole="button", clickableScore="300"] isAccessibilityFocusedViaFindFocus
-                """);
+        boolean inputFocus =
+                waitForNode(
+                        new NodeMatcherBuilder()
+                                .setText("Input Focus")
+                                .setInputFocused(true)
+                                .build());
+        Assert.assertTrue("Input focus was not set on the expected button", inputFocus);
+        boolean accessibilityFocus =
+                waitForNode(
+                        new NodeMatcherBuilder()
+                                .setText("Accessibility Focus")
+                                .setAccessibilityFocused(true)
+                                .build());
+        Assert.assertTrue(
+                "Accessibility focus was not set on the expected button", accessibilityFocus);
     }
 
     @Test
@@ -519,11 +627,7 @@ WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="ro
                 <a id='link' href='#'>Link text</a> node
                 </div></body></html>
                 """;
-        String url = UrlUtils.encodeHtmlDataUri(html);
-        mActivityTestRule.launchContentShellWithUrl(url);
-
-        // Wait for the page to load and for the service to receive a content change.
-        waitForPageLoadAndInitialContentChange();
+        setupTest(html, new NodeMatcherBuilder().setText("Line one").build());
 
         // Set selection in the contenteditable via JS.
         mActivityTestRule.executeJSAndGetResult(
@@ -536,26 +640,31 @@ WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="ro
                 selection.addRange(range);
                 """);
 
-        boolean selectionReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(
-                                                AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED)
-                                        .setClassName("android.webkit.WebView")
-                                        .build());
-        Assert.assertTrue("Service did not receive selection change event", selectionReceived);
+        boolean nodeFound =
+                waitForNodeOnEvent(
+                        new EventMatcherBuilder()
+                                .setEventType(AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED)
+                                .setSourceMatcher(
+                                        new NodeMatcherBuilder()
+                                                .setClassName("android.webkit.WebView")
+                                                .build())
+                                .build(),
+                        new NodeMatcherBuilder()
+                                .setText("Line one\nLink text node")
+                                .setInputFocused(true)
+                                .build());
+        Assert.assertTrue(
+                "Expected node with text 'Line one' and input focus was not found.", nodeFound);
 
         String treeDump = getAccessibilityHelperService().dumpWebContentsAccessibilityTree();
-
         String expectedDump =
 """
 WebView focusable actions:[FOCUS, AX_FOCUS] bundle:[chromeRole="rootWebArea"]
   EditText text:"Line one\\nLink text node" clickable editable focusable focused multiLine textSelectionStart:9 textSelectionEnd:10 actions:[CLEAR_FOCUS, CLICK, AX_FOCUS, NEXT, PREVIOUS, COPY, PASTE, CUT, SET_SELECTION, SET_TEXT, IME_ENTER] bundle:[chromeRole="genericContainer", clickableScore="200"] isInputFocusedViaFindFocus extendedSelectionStart:9 extendedSelectionEnd:10
     TextView text:"Line one" editable actions:[AX_FOCUS, NEXT, PREVIOUS] bundle:[chromeRole="staticText", clickableScore="100"]
     View text:"\\n" editable actions:[AX_FOCUS, NEXT, PREVIOUS] bundle:[chromeRole="lineBreak", clickableScore="100"]
-    View text:"null" contentDescription:"Link text" viewIdResName:"link" clickable editable actions:[CLICK, AX_FOCUS, NEXT, PREVIOUS] bundle:[chromeRole="link", clickableScore="300", roleDescription="link", targetUrl="data:text/html;utf-8,%3Chtml%3E%3Cbody%3E%3Cdiv%20contenteditable%3E%0ALine%20one%3Cbr%3E%0A%3Ca%20id%3D%27link%27%20href%3D%27%23%27%3ELink%20text%3C%2Fa%3E%20node%0A%3C%2Fdiv%3E%3C%2Fbody%3E%3C%2Fhtml%3E%0A#"] extendedSelectionEnd:1
-      TextView text:"Link text" editable actions:[AX_FOCUS, NEXT, PREVIOUS] bundle:[chromeRole="staticText", clickableScore="100"] extendedSelectionStart:0
+    View text:"null" contentDescription:"Link text" viewIdResName:"link" clickable editable actions:[CLICK, AX_FOCUS, NEXT, PREVIOUS] bundle:[chromeRole="link", clickableScore="300", roleDescription="link", targetUrl="data:text/html;utf-8,%3Chtml%3E%3Cbody%3E%3Cdiv%20contenteditable%3E%0ALine%20one%3Cbr%3E%0A%3Ca%20id%3D%27link%27%20href%3D%27%23%27%3ELink%20text%3C%2Fa%3E%20node%0A%3C%2Fdiv%3E%3C%2Fbody%3E%3C%2Fhtml%3E%0A#"] extendedSelectionEnd:1 (child)
+      TextView text:"Link text" editable actions:[AX_FOCUS, NEXT, PREVIOUS] bundle:[chromeRole="staticText", clickableScore="100"] extendedSelectionStart:0 (text)
     TextView text:" node" editable actions:[AX_FOCUS, NEXT, PREVIOUS] bundle:[chromeRole="staticText", clickableScore="100"]
 """;
         Assert.assertEquals("Tree dump does not match expected value", expectedDump, treeDump);
@@ -574,10 +683,7 @@ WebView focusable actions:[FOCUS, AX_FOCUS] bundle:[chromeRole="rootWebArea"]
                 <div id="err">Invalid Name</div>
                 </body></html>
                 """;
-        mActivityTestRule.launchContentShellWithUrl(UrlUtils.encodeHtmlDataUri(html));
-
-        // Wait for the page to load and for the service to receive a content change.
-        waitForPageLoadAndInitialContentChange();
+        setupTest(html, new NodeMatcherBuilder().setText("Invalid Name").build());
 
         // Set aria-invalid="true" on the input element.
         mActivityTestRule.executeJSAndGetResult(
@@ -586,15 +692,12 @@ WebView focusable actions:[FOCUS, AX_FOCUS] bundle:[chromeRole="rootWebArea"]
         // Wait for TWCC event with ContentChangeType CONTENT_INVALID to be fired as a result of the
         // invalid status changing.
         boolean eventReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(
-                                                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
-                                        .setContentChangeTypes(
-                                                AccessibilityEvent
-                                                        .CONTENT_CHANGE_TYPE_CONTENT_INVALID)
-                                        .build());
+                waitForEvent(
+                        new EventMatcherBuilder()
+                                .setEventType(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
+                                .setContentChangeTypes(
+                                        AccessibilityEvent.CONTENT_CHANGE_TYPE_CONTENT_INVALID)
+                                .build());
         Assert.assertTrue("Service did not receive CONTENT_INVALID event", eventReceived);
 
         // Dump the accessibility tree.
@@ -620,10 +723,7 @@ WebView focusable actions:[FOCUS, AX_FOCUS] bundle:[chromeRole="rootWebArea"]
                 <div id="err">Invalid Name</div>
                 </body></html>
                 """;
-        mActivityTestRule.launchContentShellWithUrl(UrlUtils.encodeHtmlDataUri(html));
-
-        // Wait for the page to load and for the service to receive a content change.
-        waitForPageLoadAndInitialContentChange();
+        setupTest(html, new NodeMatcherBuilder().setText("Invalid Name").build());
 
         // Set aria-invalid="false" on the input element.
         mActivityTestRule.executeJSAndGetResult(
@@ -632,15 +732,12 @@ WebView focusable actions:[FOCUS, AX_FOCUS] bundle:[chromeRole="rootWebArea"]
         // Wait for TWCC event with ContentChangeType CONTENT_INVALID to be fired as a result of the
         // invalid status changing.
         boolean eventReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(
-                                                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
-                                        .setContentChangeTypes(
-                                                AccessibilityEvent
-                                                        .CONTENT_CHANGE_TYPE_CONTENT_INVALID)
-                                        .build());
+                waitForEvent(
+                        new EventMatcherBuilder()
+                                .setEventType(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
+                                .setContentChangeTypes(
+                                        AccessibilityEvent.CONTENT_CHANGE_TYPE_CONTENT_INVALID)
+                                .build());
         Assert.assertTrue("Service did not receive CONTENT_INVALID event", eventReceived);
 
         // Dump the accessibility tree.
@@ -652,57 +749,191 @@ WebView focusable actions:[FOCUS, AX_FOCUS] bundle:[chromeRole="rootWebArea"]
                 treeDump.contains("contentInvalid"));
     }
 
-    private void assertNodeLineExpectation(
-            String treeDump, String nodeSelector, String nodeLineExpectation) {
-        for (String line : treeDump.split("\\n")) {
-            if (line.contains(nodeSelector)) {
-                Assert.assertEquals(
-                        "Node line matching '" + nodeSelector + "' is incorrect.",
-                        nodeLineExpectation.trim(),
-                        line.trim());
-                return;
-            }
-        }
-        Assert.fail("Node matching '" + nodeSelector + "' not found in tree dump.");
+    @Test
+    @SmallTest
+    @MinAndroidSdkLevel(Build.VERSION_CODES.BAKLAVA)
+    @EnableFeatures({ContentFeatureList.ACCESSIBILITY_EXTENDED_SELECTION})
+    public void testExtendedSelection() throws Throwable {
+        Assume.assumeTrue(
+                "Requires Android 16 QPR2 (36.1) or higher",
+                Build.VERSION.SDK_INT_FULL >= Build.VERSION_CODES_FULL.BAKLAVA_1);
+
+        String html =
+                """
+                <p id="p1">Paragraph1</p>
+                <button>Button</button>
+                <p id="p2">Paragraph2</p>
+                """;
+        setupTest(html, new NodeMatcherBuilder().setClassName("android.webkit.WebView").build());
+
+        // Initialize the Mockito mock for WebContentsAccessibilityImpl.
+        initializeMockWebContentsAccessibility();
+
+        // Find nodes.
+        int rootVvid =
+                mActivityTestRule.waitForNodeMatching(sClassNameMatcher, "android.webkit.WebView");
+        int paragraph1Vvid =
+                mActivityTestRule.waitForNodeMatching(sViewIdResourceNameMatcher, "p1");
+        int paragraph2Vvid =
+                mActivityTestRule.waitForNodeMatching(sViewIdResourceNameMatcher, "p2");
+
+        Bundle args =
+                createSelectionArgs(
+                        paragraph1Vvid, 0, OFFSET_TYPE_TEXT, paragraph2Vvid, 5, OFFSET_TYPE_TEXT);
+
+        boolean actionRes =
+                getAccessibilityHelperService()
+                        .performActionOnNode(
+                                new NodeMatcherBuilder()
+                                        .setClassName("android.webkit.WebView")
+                                        .build(),
+                                AccessibilityNodeInfoCompat.AccessibilityActionCompat
+                                        .ACTION_SET_EXTENDED_SELECTION
+                                        .getId(),
+                                args);
+        Assert.assertTrue("Failed to perform set extended selection action", actionRes);
+
+        // Verify Mockito interaction on mWcax.
+        Mockito.verify(mActivityTestRule.mWcax)
+                .performAction(
+                        Mockito.eq(rootVvid),
+                        Mockito.eq(
+                                AccessibilityNodeInfoCompat.AccessibilityActionCompat
+                                        .ACTION_SET_EXTENDED_SELECTION
+                                        .getId()),
+                        Mockito.any());
+
+        // Verify the selection is applied correctly on the native side by retrieving it.
+        org.chromium.base.test.util.CriteriaHelper.pollUiThread(
+                () -> {
+                    org.chromium.base.test.util.Criteria.checkThat(
+                            mActivityTestRule.mWcax.getExtendedSelection(rootVvid),
+                            org.hamcrest.Matchers.notNullValue());
+                });
+
+        Object[] selectionResult =
+                org.chromium.base.ThreadUtils.runOnUiThreadBlocking(
+                        () -> mActivityTestRule.mWcax.getExtendedSelection(rootVvid));
+        Assert.assertNotNull("Extended selection should not be null", selectionResult);
+
+        AccessibilityNodeInfoCompat startNode =
+                (AccessibilityNodeInfoCompat)
+                        selectionResult[WebContentsAccessibilityImpl.EXT_SEL_START_NODE];
+        int startOffset = (int) selectionResult[WebContentsAccessibilityImpl.EXT_SEL_START_OFFSET];
+        int startOffsetType =
+                (int) selectionResult[WebContentsAccessibilityImpl.EXT_SEL_START_OFFSET_TYPE];
+        AccessibilityNodeInfoCompat endNode =
+                (AccessibilityNodeInfoCompat)
+                        selectionResult[WebContentsAccessibilityImpl.EXT_SEL_END_NODE];
+        int endOffset = (int) selectionResult[WebContentsAccessibilityImpl.EXT_SEL_END_OFFSET];
+        int endOffsetType =
+                (int) selectionResult[WebContentsAccessibilityImpl.EXT_SEL_END_OFFSET_TYPE];
+
+        Assert.assertEquals("Start offset should be 0", 0, startOffset);
+        Assert.assertEquals("End offset should be 5", 5, endOffset);
+        Assert.assertEquals("Start offset type should be text", OFFSET_TYPE_TEXT, startOffsetType);
+        Assert.assertEquals("End offset type should be text", OFFSET_TYPE_TEXT, endOffsetType);
+        Assert.assertEquals("Paragraph1", startNode.getText().toString());
+        Assert.assertEquals("Paragraph2", endNode.getText().toString());
     }
 
-    private static class WaitForEventParamsBuilder {
+    private static class WaitForParamsBuilder {
+        private static final long DEFAULT_TIMEOUT_MS = 5000;
+
+        @Nullable private EventMatcher mEventMatcher;
+        @Nullable private NodeMatcher mNodeMatcher;
+        private final long mTimeoutMs = DEFAULT_TIMEOUT_MS;
+
+        public WaitForParamsBuilder setEventMatcher(EventMatcher eventMatcher) {
+            mEventMatcher = eventMatcher;
+            return this;
+        }
+
+        public WaitForParamsBuilder setNodeMatcher(NodeMatcher nodeMatcher) {
+            mNodeMatcher = nodeMatcher;
+            return this;
+        }
+
+        public WaitForParams build() {
+            WaitForParams matcher = new WaitForParams();
+            matcher.eventMatcher = mEventMatcher;
+            matcher.nodeMatcher = mNodeMatcher;
+            matcher.timeoutMs = mTimeoutMs;
+            return matcher;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private static class EventMatcherBuilder {
         private static final long DEFAULT_TIMEOUT_MS = 5000;
 
         private int mEventType;
-        private String mClassName = "";
         private int mContentChangeTypes;
-        private String mText = "";
-        private final long mTimeoutMs = DEFAULT_TIMEOUT_MS;
+        @Nullable private NodeMatcher mSourceMatcher;
 
-        public WaitForEventParamsBuilder setEventType(int eventType) {
+        public EventMatcherBuilder setEventType(int eventType) {
             mEventType = eventType;
             return this;
         }
 
-        public WaitForEventParamsBuilder setClassName(String className) {
-            mClassName = className;
-            return this;
-        }
-
-        public WaitForEventParamsBuilder setContentChangeTypes(int contentChangeTypes) {
+        public EventMatcherBuilder setContentChangeTypes(int contentChangeTypes) {
             mContentChangeTypes = contentChangeTypes;
             return this;
         }
 
-        public WaitForEventParamsBuilder setText(String text) {
+        public EventMatcherBuilder setSourceMatcher(NodeMatcher sourceMatcher) {
+            mSourceMatcher = sourceMatcher;
+            return this;
+        }
+
+        public EventMatcher build() {
+            EventMatcher matcher = new EventMatcher();
+            matcher.eventType = mEventType;
+            matcher.contentChangeTypes = mContentChangeTypes;
+            matcher.sourceMatcher = mSourceMatcher;
+            return matcher;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private static class NodeMatcherBuilder {
+        private static final long DEFAULT_TIMEOUT_MS = 5000;
+
+        private String mClassName = "";
+        private String mText = "";
+        private Boolean mInputFocused;
+        private Boolean mAccessibilityFocused;
+
+        public NodeMatcherBuilder setClassName(String className) {
+            mClassName = className;
+            return this;
+        }
+
+        public NodeMatcherBuilder setText(String text) {
             mText = text;
             return this;
         }
 
-        public WaitForEventParams build() {
-            WaitForEventParams params = new WaitForEventParams();
-            params.eventType = mEventType;
-            params.className = mClassName;
-            params.contentChangeTypes = mContentChangeTypes;
-            params.text = mText;
-            params.timeoutMs = mTimeoutMs;
-            return params;
+        public NodeMatcherBuilder setInputFocused(boolean inputFocused) {
+            mInputFocused = inputFocused;
+            return this;
+        }
+
+        public NodeMatcherBuilder setAccessibilityFocused(boolean accessibilityFocused) {
+            mAccessibilityFocused = accessibilityFocused;
+            return this;
+        }
+
+        public NodeMatcher build() {
+            NodeMatcher matcher = new NodeMatcher();
+            matcher.className = mClassName;
+            matcher.text = mText;
+            matcher.hasInputFocused = mInputFocused != null;
+            matcher.inputFocused = mInputFocused != null ? mInputFocused : false;
+            matcher.hasAccessibilityFocused = mAccessibilityFocused != null;
+            matcher.accessibilityFocused =
+                    mAccessibilityFocused != null ? mAccessibilityFocused : false;
+            return matcher;
         }
     }
 }

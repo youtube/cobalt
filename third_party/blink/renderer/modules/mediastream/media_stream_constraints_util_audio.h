@@ -16,6 +16,7 @@
 namespace blink {
 class MediaConstraints;
 class MediaStreamAudioSource;
+class MediaStreamAudioTrack;
 class V8UnionBooleanOrString;
 }  // namespace blink
 
@@ -26,6 +27,8 @@ V8UnionBooleanOrString* EchoCancellationModeToBooleanOrString(
 Vector<EchoCancellationMode> GetSupportedEchoCancellationModes(
     int platform_effects,
     mojom::blink::MediaStreamType);
+
+MODULES_EXPORT bool IsVoiceIsolationSupported();
 
 // This class represents the capability of an audio-capture device.
 // It may represent three different things:
@@ -83,6 +86,8 @@ class MODULES_EXPORT AudioDeviceCaptureCapability {
   // capability. If DeviceID() returns an empty string, these parameters contain
   // default values that work well for content capture.
   const media::AudioParameters& Parameters() const;
+  std::optional<bool> GetVoiceIsolationExactConstraint(
+      const MediaStreamAudioTrack* current_track = nullptr) const;
 
  private:
   raw_ptr<blink::MediaStreamAudioSource> source_ = nullptr;
@@ -148,15 +153,16 @@ using AudioDeviceCaptureCapabilities = Vector<AudioDeviceCaptureCapability>;
 //    Moreover, the echo_cancellation constraint influences most other
 //    audio-processing properties for which no explicit value is provided in
 //    their corresponding constraints.
-// |is_reconfiguration_allowed| indicates whether it is possible to reconfigure
+// |is_full_reconfiguration_allowed| indicates whether it is possible to reconfigure
 // settings on an open audio track.
-// TODO(crbug.com/796964): remove |is_reconfiguration_allowed| when both
+// TODO(crbug.com/796964): remove |is_full_reconfiguration_allowed| when both
 // getUserMedia and applyConstraints code paths allow for reconfiguration.
 MODULES_EXPORT blink::AudioCaptureSettings SelectSettingsAudioCapture(
     const AudioDeviceCaptureCapabilities& capabilities,
     const MediaConstraints& constraints,
     mojom::blink::MediaStreamType stream_type,
-    bool is_reconfiguration_allowed);
+    bool is_full_reconfiguration_allowed,
+    const MediaStreamAudioTrack* current_track = nullptr);
 
 // This variant of SelectSettings takes an existing MediaStreamAudioSource
 // as input in order to determine settings that are compatible with it.
@@ -167,7 +173,8 @@ MODULES_EXPORT blink::AudioCaptureSettings SelectSettingsAudioCapture(
 // TODO(guidou): Allow reconfiguring audio tracks. https://crbug.com/796964
 MODULES_EXPORT blink::AudioCaptureSettings SelectSettingsAudioCapture(
     blink::MediaStreamAudioSource* source,
-    const MediaConstraints& constraints);
+    const MediaConstraints& constraints,
+    const MediaStreamAudioTrack* current_track = nullptr);
 
 // Selects settings for each eligible device in `capabilities` in isolation and
 // returns them as a vector. If none of the devices are eligible, then the name
@@ -177,7 +184,7 @@ SelectEligibleSettingsAudioCapture(
     const AudioDeviceCaptureCapabilities& capabilities,
     const MediaConstraints& constraints,
     mojom::blink::MediaStreamType stream_type,
-    bool is_reconfiguration_allowed);
+    bool is_full_reconfiguration_allowed);
 
 // Return a tuple with <min,max> representing the min and max buffer sizes or
 // latencies that can be provided by the given AudioParameters. The min and max

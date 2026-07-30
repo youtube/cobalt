@@ -26,15 +26,23 @@ TEST(WebFontDecoderTest, ErrorStringIsBoundedOnPathologicalFont) {
   ASSERT_TRUE(font_data);
 
   auto font_buffer = SharedBuffer::Create(std::move(*font_data));
-  WebFontDecoder decoder;
-  decoder.Decode(font_buffer.get());
+  base::expected<DecodedWebFont, String> decoded_result =
+      DecodedWebFont::Create(font_buffer.get());
 
   // Messages are accepted until the accumulated string reaches the ~4096 byte
   // budget, so the result may overshoot by at most one final message. The
   // point of the bound is that the string stays small instead of growing
   // without limit (which is what caused the fuzzer timeout), so allow generous
   // slack over the budget for that trailing message.
-  EXPECT_LT(decoder.GetErrorString().length(), 8192u);
+  ASSERT_FALSE(decoded_result.has_value());
+  EXPECT_LT(decoded_result.error().length(), 8192u);
+}
+
+TEST(WebFontDecoderTest, EmptyBufferIsError) {
+  auto font_buffer = SharedBuffer::Create();
+  base::expected<DecodedWebFont, String> decoded_result =
+      DecodedWebFont::Create(font_buffer.get());
+  ASSERT_FALSE(decoded_result.has_value());
 }
 
 }  // namespace blink

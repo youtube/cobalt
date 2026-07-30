@@ -860,8 +860,6 @@ void ClientTagBasedDataTypeProcessor::OnCommitCompleted(
       DLOG(ERROR) << "Received commit response for missing item."
                   << " type: " << DataTypeToDebugString(type_)
                   << " client_tag_hash: " << data.client_tag_hash;
-      base::UmaHistogramEnumeration("Sync.CommitResponseForUnknownEntity",
-                                    DataTypeHistogramValue(type_));
       continue;
     }
 

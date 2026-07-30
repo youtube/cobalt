@@ -582,15 +582,14 @@ CSSNumericValue* ViewTimeline::getCurrentTime(const String& rangeName) {
   if (range == 0)
     return nullptr;
 
-  std::optional<base::TimeDelta> current_time = CurrentPhaseAndTime().time;
+  std::optional<base::TimeDelta> current_time = CurrentTimeInternal();
   // If current time is null then the timeline must be inactive, which is
   // handled above.
   DCHECK(current_time);
   DCHECK(GetDuration());
 
-  double timeline_progress =
-      CurrentPhaseAndTime().time.value().InMillisecondsF() /
-      GetDuration().value().InMillisecondsF();
+  double timeline_progress = current_time.value().InMillisecondsF() /
+                             GetDuration().value().InMillisecondsF();
 
   double named_range_progress =
       (timeline_progress - relative_start_offset) / range;

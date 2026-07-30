@@ -8,6 +8,7 @@ syntax = "proto2";
 
 package content.fuzzing.dom_storage.proto;
 
+import "third_party/blink/public/mojom/dom_storage/session_storage_namespace.mojom.mojolpm.proto";
 import "third_party/blink/public/mojom/dom_storage/storage_area.mojom.mojolpm.proto";
 
 enum OriginId {
@@ -33,6 +34,36 @@ message NewSessionStorageAreaAction {
   required uint32 id = 1;
   required OriginId origin_id = 2;
   optional RendererProcessId renderer_id = 3 [default = RENDERER_A];
+}
+
+// Bind a SessionStorageNamespace remote for the primary namespace.
+message NewSessionStorageNamespaceAction {
+  required uint32 id = 1;
+}
+
+message NewPendingCloneAction {
+  required uint32 id = 1;
+}
+
+message CloneNamespaceImmediateAction {}
+
+// Bind a SessionStorageNamespace remote for a pending clone target namespace.
+message NewTargetSessionStorageNamespaceAction {
+  required uint32 id = 1;
+  required uint32 remote_id = 2;
+}
+
+// Construct a metadata-backed source namespace and clone from it.
+message OnDiskCloneAction {
+  required uint32 id = 1;
+}
+
+// Request session storage memory purge.
+message PurgeMemoryAction {}
+
+// Delete session storage data for a storage key in the primary namespace.
+message DeleteStorageKeyAction {
+  required OriginId origin_id = 1;
 }
 
 // Posts a no-op to the named thread (UI or IO) and waits for the reply,
@@ -61,6 +92,16 @@ message Action {
     NewSessionStorageAreaAction new_session_storage_area = 3;
     RunThreadAction run_thread = 4;
     FlushStorageAction flush_storage = 5;
+    NewSessionStorageNamespaceAction new_session_storage_namespace = 6;
+    mojolpm.blink.mojom.SessionStorageNamespace.RemoteAction
+        session_storage_namespace_remote_action = 7;
+    NewPendingCloneAction new_pending_clone = 8;
+    NewTargetSessionStorageNamespaceAction
+        new_target_session_storage_namespace = 9;
+    CloneNamespaceImmediateAction clone_namespace_immediate = 10;
+    OnDiskCloneAction on_disk_clone = 11;
+    PurgeMemoryAction purge_memory = 12;
+    DeleteStorageKeyAction delete_storage_key = 13;
   }
 }
 

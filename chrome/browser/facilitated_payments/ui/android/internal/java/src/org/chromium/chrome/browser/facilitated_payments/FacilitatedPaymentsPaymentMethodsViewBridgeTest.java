@@ -265,4 +265,15 @@ public class FacilitatedPaymentsPaymentMethodsViewBridgeTest {
                 .requestShowContent(
                         any(FacilitatedPaymentsPaymentMethodsView.class), /* animate= */ eq(true));
     }
+
+    @Test
+    @SmallTest
+    public void showPixAccountLinkingSuccessScreen_callsControllerRequestShowContent() {
+
+        mViewBridge.showPixAccountLinkingSuccessScreen();
+
+        verify(mBottomSheetController)
+                .requestShowContent(
+                        any(FacilitatedPaymentsPaymentMethodsView.class), /* animate= */ eq(true));
+    }
 }

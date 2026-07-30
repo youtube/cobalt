@@ -1420,9 +1420,35 @@ class CORE_EXPORT WebFrameWidgetImpl
 
   Member<UnboundedSurfaceState> unbounded_surface_state_;
 
-  UnboundedSurfaceState* GetOrCreateUnboundedSurfaceState();
+  UnboundedSurfaceState* GetOrCreateUnboundedSurfaceState(
+      ExecutionContext* execution_context);
+  UnboundedSurfaceState* GetUnboundedSurfaceState() const {
+    return unbounded_surface_state_.Get();
+  }
   void UnboundedContextDestroyed();
   HTMLElement* GetActiveUnboundedElement() const;
+
+ public:
+  // Unbounded elements shown in any local frame under this local root frame
+  // tree are tracked on the WebFrameWidgetImpl so that they can be checked
+  // globally (e.g. for clip escaping and hit testing).
+  void IncrementActiveUnboundedElementCount() {
+    active_unbounded_element_count_++;
+  }
+  void DecrementActiveUnboundedElementCount() {
+    DCHECK_GT(active_unbounded_element_count_, 0u);
+    active_unbounded_element_count_--;
+  }
+  bool HasActiveUnboundedElements() const {
+    return active_unbounded_element_count_ > 0;
+  }
+
+ private:
+  // Used during unbounded element show/hide to keep track of whether there is
+  // an active unbounded element in this widget.
+  // TODO(crbug.com/508672616): This likely can just be a bool, once checks are
+  // implemented to ensure only one unbounded element is open at a time.
+  uint32_t active_unbounded_element_count_ = 0;
 
   std::optional<float> browser_controls_top_height_override_;
 

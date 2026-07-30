@@ -13,6 +13,9 @@ namespace enterprise_connectors {
 // enabled on iOS.
 BASE_DECLARE_FEATURE(kEnableFileDownloadConnectorIOS);
 
+// Controls whether the enterprise pasted content DLP feature is enabled on iOS.
+BASE_DECLARE_FEATURE(kEnableBulkDataEntryConnectorIOS);
+
 }  // namespace enterprise_connectors
 
 #endif  // IOS_COMPONENTS_ENTERPRISE_ANALYSIS_FEATURES_H_

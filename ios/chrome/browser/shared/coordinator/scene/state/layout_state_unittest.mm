@@ -6,6 +6,7 @@
 
 #import "base/run_loop.h"
 #import "base/test/task_environment.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state_test_passkey_factory.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/layout_transition_coordinating.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
@@ -13,6 +14,20 @@
 #import "third_party/ocmock/OCMock/OCMock.h"
 
 namespace {
+
+using layout_state::LayoutStateTestPassKeyFactory;
+
+// Helper functions to return domain-level passkeys used to mutate the layout
+// state in tests.
+inline LayoutStateScenePassKey ScenePassKey() {
+  return LayoutStateTestPassKeyFactory::CreateSceneKey();
+}
+inline LayoutStateAssistantPassKey AssistantPassKey() {
+  return LayoutStateTestPassKeyFactory::CreateAssistantKey();
+}
+inline LayoutStateToolbarPassKey ToolbarPassKey() {
+  return LayoutStateTestPassKeyFactory::CreateToolbarKey();
+}
 
 // Tests for LayoutState.
 class LayoutStateTest : public PlatformTest {
@@ -35,7 +50,16 @@ TEST_F(LayoutStateTest, AddObserver) {
              willChangeContainedLayout:YES
              withTransitionCoordinator:nil]);
 
-  [layout_state_ setContainedLayoutActive:YES];
+  [layout_state_ setContainedLayoutActive:YES scenePassKey:ScenePassKey()];
+
+  [mock_observer verify];
+
+  OCMExpect([mock_observer layoutState:layout_state_
+             willChangeContainedLayout:NO
+             withTransitionCoordinator:nil]);
+
+  [layout_state_ setContainedLayoutActive:NO
+                         assistantPassKey:AssistantPassKey()];
 
   [mock_observer verify];
 }
@@ -53,7 +77,18 @@ TEST_F(LayoutStateTest, WillChangeWithCoordinator) {
              withTransitionCoordinator:mock_coordinator]);
 
   [layout_state_ setContainedLayoutActive:YES
-                withTransitionCoordinator:mock_coordinator];
+                withTransitionCoordinator:mock_coordinator
+                             scenePassKey:ScenePassKey()];
+
+  [mock_observer verify];
+
+  OCMExpect([mock_observer layoutState:layout_state_
+             willChangeContainedLayout:NO
+             withTransitionCoordinator:mock_coordinator]);
+
+  [layout_state_ setContainedLayoutActive:NO
+                withTransitionCoordinator:mock_coordinator
+                         assistantPassKey:AssistantPassKey()];
 
   [mock_observer verify];
 }
@@ -66,7 +101,7 @@ TEST_F(LayoutStateTest, ContainedLayoutSupported) {
   OCMExpect([mock_observer layoutState:layout_state_
       didChangeContainedLayoutSupported:YES]);
 
-  layout_state_.containedLayoutSupported = YES;
+  [layout_state_ setContainedLayoutSupported:YES passKey:ScenePassKey()];
 
   [mock_observer verify];
 }
@@ -79,7 +114,7 @@ TEST_F(LayoutStateTest, WindowedMode) {
   OCMExpect([mock_observer layoutState:layout_state_
                  didChangeWindowedMode:YES]);
 
-  layout_state_.windowedMode = YES;
+  [layout_state_ setWindowedMode:YES passKey:ScenePassKey()];
 
   [mock_observer verify];
 }
@@ -92,7 +127,40 @@ TEST_F(LayoutStateTest, AppBarPosition) {
   OCMExpect([mock_observer layoutState:layout_state_
                didChangeAppBarPosition:AppBarPosition::kBottom]);
 
-  layout_state_.appBarPosition = AppBarPosition::kBottom;
+  [layout_state_ setAppBarPosition:AppBarPosition::kBottom
+                           passKey:ScenePassKey()];
+
+  [mock_observer verify];
+}
+
+// Tests that toolbarPosition updates observers.
+TEST_F(LayoutStateTest, ToolbarPosition) {
+  id mock_observer = OCMProtocolMock(@protocol(LayoutStateObserver));
+  [layout_state_ addObserver:mock_observer];
+
+  OCMExpect([mock_observer layoutState:layout_state_
+              didChangeToolbarPosition:ToolbarPosition::kBottom]);
+
+  [layout_state_ setToolbarPosition:ToolbarPosition::kBottom
+                            passKey:ToolbarPassKey()];
+
+  EXPECT_EQ(layout_state_.toolbarPosition, ToolbarPosition::kBottom);
+
+  [mock_observer verify];
+}
+
+// Tests that assistantContainerCutoutRadius updates observers.
+TEST_F(LayoutStateTest, CutoutRadius) {
+  id mock_observer = OCMProtocolMock(@protocol(LayoutStateObserver));
+  [layout_state_ addObserver:mock_observer];
+
+  OCMExpect([mock_observer layoutState:layout_state_
+      didChangeAssistantContainerCutoutRadius:10.0]);
+
+  [layout_state_ setAssistantContainerCutoutRadius:10.0
+                                           passKey:AssistantPassKey()];
+
+  EXPECT_EQ(layout_state_.assistantContainerCutoutRadius, 10.0);
 
   [mock_observer verify];
 }

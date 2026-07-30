@@ -51,6 +51,7 @@ namespace blink {
 
 class Document;
 class DocumentMarkerList;
+class Element;
 class Highlight;
 class SuggestionMarkerProperties;
 
@@ -85,9 +86,20 @@ class CORE_EXPORT DocumentMarkerController final
   void AddSuggestionMarker(const EphemeralRange&,
                            const SuggestionMarkerProperties&);
   void AddTextFragmentMarker(const EphemeralRange&);
-  void AddCustomHighlightMarker(const EphemeralRange&,
-                                const String& highlight_name,
-                                const Member<Highlight> highlight);
+  // Adds custom highlight markers for the Text nodes the range covers. When
+  // `on_element_node` is non-null, the range is iterated with object
+  // replacement characters emitted, and the callback is invoked for each
+  // Element the range crosses as a non-Text node (e.g. a replaced
+  // <img>/<object>). It is up to the caller to filter to the elements it
+  // cares about (e.g. tracking replaced elements covered by the highlight in
+  // this same pass). Marker creation itself still happens only for Text
+  // nodes, so the markers produced are identical whether or not the callback
+  // is supplied.
+  void AddCustomHighlightMarker(
+      const EphemeralRange&,
+      const String& highlight_name,
+      const Member<Highlight> highlight,
+      base::FunctionRef<void(const Element&)>* on_element_node = nullptr);
   void AddGlicMarker(const EphemeralRange&);
 
   void MoveMarkers(const Text& src_node, int length, const Text& dst_node);
@@ -222,7 +234,8 @@ class CORE_EXPORT DocumentMarkerController final
   void AddMarkerInternal(
       const EphemeralRange&,
       base::FunctionRef<DocumentMarker*(int, int)> create_marker_from_offsets,
-      const TextIteratorBehavior& iterator_behavior = {});
+      const TextIteratorBehavior& iterator_behavior = {},
+      base::FunctionRef<void(const Element&)>* on_element_node = nullptr);
   void AddMarkerToNode(const Text&, DocumentMarker*);
   DocumentMarkerGroup* GetMarkerGroupForMarker(const DocumentMarker* marker);
 

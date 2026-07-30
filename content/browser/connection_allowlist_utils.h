@@ -17,6 +17,9 @@ namespace content {
 
 struct PolicyContainerPolicies;
 
+// Returns true if the connection allowlist in Early Hints feature is enabled.
+bool IsConnectionAllowlistsInEarlyHintsEnabled();
+
 // Returns true if the parsed response headers contains a valid
 // "Connection-Allowlist" or "Connection-Allowlist-Report-Only" header.
 bool ResponseContainsConnectionAllowlist(

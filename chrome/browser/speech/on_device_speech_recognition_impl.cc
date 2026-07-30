@@ -344,6 +344,12 @@ OnDeviceSpeechRecognitionImpl::OnDeviceSpeechRecognitionImpl(
 
 bool OnDeviceSpeechRecognitionImpl::
     CanRenderFrameHostUseOnDeviceSpeechRecognition() {
+  if (!render_frame_host().IsFeatureEnabled(
+          network::mojom::PermissionsPolicyFeature::
+              kOnDeviceSpeechRecognition)) {
+    return false;
+  }
+
   content::RenderFrameHost* main_frame = render_frame_host().GetMainFrame();
   if (main_frame->GetSiteInstance()->GetSecurityPrincipal().IsGuest()) {
     return false;

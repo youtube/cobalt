@@ -284,22 +284,24 @@ void PageLifecycleStateManager::OnPageLifecycleStateChanged(
     // RenderFrameHost from the BackForwardCacheImpl as a workaround, but
     // eventually we might allow getting the RenderFrameHost from a
     // RenderViewHost that's in BFCache.
-    for (auto* entry :
-         render_view_host_impl_->frame_tree()
-             ->controller()
-             .GetBackForwardCache()
-             .GetEntriesForRenderViewHostImpl(render_view_host_impl_)) {
-      if (entry->render_frame_host()->LoadedWithCacheControlNoStoreHeader()) {
-        // If the BFCached document was loaded with "Cache-control: no-store"
-        // header, we clear the fallback surface and force the browser to embed
-        // a completely new surface when this page is activated from BFCache.
-        // This avoids displaying sensitive information between it's restored
-        // and the `pageshow` handler completes.
-        RenderWidgetHostViewBase* rwhv =
-            render_view_host_impl_->GetWidget()->GetRenderWidgetHostViewBase();
-        if (rwhv) {
-          rwhv->InvalidateLocalSurfaceIdAndAllocationGroup();
-          rwhv->ClearFallbackSurfaceForCommitPending();
+    if (render_view_host_impl_->frame_tree()->is_primary()) {
+      for (auto* entry :
+           render_view_host_impl_->frame_tree()
+               ->controller()
+               .GetBackForwardCache()
+               .GetEntriesForRenderViewHostImpl(render_view_host_impl_)) {
+        if (entry->render_frame_host()->LoadedWithCacheControlNoStoreHeader()) {
+          // If the BFCached document was loaded with "Cache-control: no-store"
+          // header, we clear the fallback surface and force the browser to
+          // embed a completely new surface when this page is activated from
+          // BFCache. This avoids displaying sensitive information between it's
+          // restored and the `pageshow` handler completes.
+          RenderWidgetHostViewBase* rwhv = render_view_host_impl_->GetWidget()
+                                               ->GetRenderWidgetHostViewBase();
+          if (rwhv) {
+            rwhv->InvalidateLocalSurfaceIdAndAllocationGroup();
+            rwhv->ClearFallbackSurfaceForCommitPending();
+          }
         }
       }
     }

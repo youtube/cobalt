@@ -211,9 +211,11 @@ import org.chromium.chrome.browser.ui.actions.tabswitcher.TabSwitcherActionProvi
 import org.chromium.chrome.browser.ui.appmenu.AppMenuCoordinator;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuDelegate;
 import org.chromium.chrome.browser.ui.appmenu.MenuButtonDelegate;
+import org.chromium.chrome.browser.ui.bottombar.AiModeActionCoordinator;
 import org.chromium.chrome.browser.ui.bottombar.BottomBarConfigUtils;
 import org.chromium.chrome.browser.ui.bottombar.BottomBarHostManager;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
+import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskFeatureKey;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.edge_to_edge.TopInsetProvider;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
@@ -259,6 +261,7 @@ import org.chromium.net.NetError;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.animation.transition.ShrinkTransition;
 import org.chromium.ui.base.ActivityResultTracker;
+import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.BackGestureEventSwipeEdge;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.WindowAndroid;
@@ -441,6 +444,7 @@ public class ToolbarManager
     private final OneshotSupplier<Boolean> mPromoShownOneshotSupplier;
     private final GlicButtonDelegate mToggleGlicCallback;
     private @Nullable GlicActionCoordinator mGlicActionCoordinator;
+    private @Nullable AiModeActionCoordinator mAiModeActionCoordinator;
 
     private final TabStripTopControlLayer mTabStripTopControlLayer;
     private final @Nullable DesktopWindowStateManager mDesktopWindowStateManager;
@@ -1982,6 +1986,11 @@ public class ToolbarManager
                         mActivityTabProvider,
                         assertNonNull(mWindowAndroid.getInsetObserver())
                                 .getSupplierForKeyboardInset(),
+                        () ->
+                                mBookmarkBarHeightSupplier != null
+                                                && mBookmarkBarHeightSupplier.get() == 0
+                                        ? 0
+                                        : R.id.bookmark_bar,
                         mWindowAndroid);
 
         mMiniOriginBarController =
@@ -2457,7 +2466,8 @@ public class ToolbarManager
                         mProfileSupplier,
                         mOmniboxFocusStateSupplier,
                         mModalDialogManagerSupplier,
-                        mAppMenuCoordinatorSupplier);
+                        mAppMenuCoordinatorSupplier,
+                        mLayoutManager);
         bottomBarContainerOneshotSupplier.set(bottomBarContainerCoordinator);
 
         if (mBottomBarHostManager != null) {
@@ -2572,6 +2582,12 @@ public class ToolbarManager
                             mTabModelSelectorSupplier,
                             mSnackbarManager,
                             mUserEducationHelper);
+            mAiModeActionCoordinator =
+                    new AiModeActionCoordinator(
+                            mActivity,
+                            mActionRegistry,
+                            mActivityTabProvider.asObservable(),
+                            mUserEducationHelper);
         }
 
         Profile profile = tabModelSelector.getModel(false).getProfile();
@@ -2585,21 +2601,42 @@ public class ToolbarManager
             ChromeAndroidTask task = mChromeAndroidTaskSupplier.get();
             // ChromeAndroidTask is available only on Desktop Android.
             if (task != null) {
+                Profile tabModelProfile =
+                        assertNonNull(mTabModelSelector.getCurrentModel().getProfile());
+                // Register as an Activity-scoped feature of {@link ChromeAndroidTask}. This ensures
+                // its C++ UnownedUserData objects are destroyed prior to the host (BWI) when a
+                // Profile is destroyed on mobile Android. Explicit destruction in
+                // ToolbarManager.destroy() is also preserved for standard Activity teardown.
                 mExtensionsToolbarCoordinator =
-                        ExtensionsToolbarCoordinator.maybeCreate(
-                                mActivity,
-                                extensionsToolbarStub,
-                                mWindowAndroid,
-                                task,
-                                assertNonNull(mTabModelSelector.getCurrentModel().getProfile()),
-                                mActivityTabProvider.asObservable(),
-                                mTabCreatorManager.getTabCreator(false),
-                                getBrowsingModeThemeColorProvider(),
-                                (ToolbarTablet) mToolbarLayout,
-                                contextMenuPopulatorFactory,
-                                selectionDropdownMenuDelegate,
-                                mTabModelSelector,
-                                mModalDialogManagerSupplier.get());
+                        (ExtensionsToolbarCoordinator)
+                                task.addFeature(
+                                        new ChromeAndroidTaskFeatureKey(
+                                                ExtensionsToolbarCoordinator.class,
+                                                tabModelProfile,
+                                                (ActivityWindowAndroid) mWindowAndroid),
+                                        () ->
+                                                ExtensionsToolbarCoordinator.maybeCreate(
+                                                        mActivity,
+                                                        extensionsToolbarStub,
+                                                        mWindowAndroid,
+                                                        task,
+                                                        tabModelProfile,
+                                                        mActivityTabProvider.asObservable(),
+                                                        mTabCreatorManager.getTabCreator(false),
+                                                        getBrowsingModeThemeColorProvider(),
+                                                        (ToolbarTablet) mToolbarLayout,
+                                                        contextMenuPopulatorFactory,
+                                                        selectionDropdownMenuDelegate,
+                                                        mTabModelSelector,
+                                                        mModalDialogManagerSupplier.get(),
+                                                        () -> {
+                                                            if (mToolbar != null) {
+                                                                mToolbar
+                                                                        .setExtensionsToolbarCoordinator(
+                                                                                null);
+                                                            }
+                                                            mExtensionsToolbarCoordinator = null;
+                                                        }));
                 if (mExtensionsToolbarCoordinator != null) {
                     mToolbar.setExtensionsToolbarCoordinator(mExtensionsToolbarCoordinator);
                 }
@@ -2956,6 +2993,11 @@ public class ToolbarManager
         if (mGlicActionCoordinator != null) {
             mGlicActionCoordinator.destroy();
             mGlicActionCoordinator = null;
+        }
+
+        if (mAiModeActionCoordinator != null) {
+            mAiModeActionCoordinator.destroy();
+            mAiModeActionCoordinator = null;
         }
 
         if (mExtensionsToolbarCoordinator != null) {

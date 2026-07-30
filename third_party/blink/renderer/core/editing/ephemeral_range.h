@@ -15,23 +15,21 @@ class Document;
 class AbstractRange;
 class Range;
 
-// We should restrict access to the unwanted version of |TraversalRange::end()|
-// function.
 template <class Iterator>
-class TraversalRangeNodes : private TraversalRange<Iterator> {
+class TraversalRangeNodes {
   STACK_ALLOCATED();
 
  public:
   using StartNodeType = typename TraversalRange<Iterator>::StartNodeType;
   TraversalRangeNodes(const StartNodeType* start,
                       const StartNodeType* past_end_node)
-      : TraversalRange<Iterator>(start), past_end_node_(past_end_node) {}
+      : range_(start), past_end_node_(past_end_node) {}
 
-  using TraversalRange<Iterator>::begin;
-
+  Iterator begin() { return range_.begin(); }
   Iterator end() { return Iterator(past_end_node_); }
 
  private:
+  TraversalRange<Iterator> range_;
   const StartNodeType* const past_end_node_;
 };
 

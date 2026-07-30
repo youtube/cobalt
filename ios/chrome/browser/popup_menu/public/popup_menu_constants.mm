@@ -42,6 +42,8 @@ NSString* const kToolsMenuTextZoom = @"kToolsMenuTextZoom";
 NSString* const kTextMenuEnterpriseInfo = @"kTextMenuEnterpriseInfo";
 NSString* const kTextMenuFamilyLinkInfo = @"kTextMenuFamilyLinkInfo";
 NSString* const kToolsMenuClearBrowsingData = @"kToolsMenuClearBrowsingData";
+NSString* const kToolsMenuCustomizeHomePageId =
+    @"kToolsMenuCustomizeHomePageId";
 NSString* const kToolsMenuSetTabReminder = @"kToolsMenuSetTabReminder";
 NSString* const kToolsMenuShareChromeId = @"kToolsMenuShareChromeId";
 NSString* const kToolsMenuWhatsNewId = @"kToolsMenuWhatsNewId";

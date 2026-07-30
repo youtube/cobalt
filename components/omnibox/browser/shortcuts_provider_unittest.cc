@@ -541,12 +541,12 @@ TEST_F(ShortcutsProviderTest, SimpleSingleMatchKeyword) {
   PopulateShortcutsBackendWithTestData(client_->GetShortcutsBackend(),
                                        shortcuts);
 
-  const auto test = [&](const std::u16string text, bool prefer_keyword,
+  const auto test = [&](const std::u16string text, bool in_keyword_mode,
                         std::string expected_url, bool allowed_to_be_default,
                         std::u16string expected_autocompletion) {
     AutocompleteInput input(text, metrics::OmniboxEventProto::OTHER,
                             TestSchemeClassifier());
-    input.set_prefer_keyword(prefer_keyword);
+    input.set_in_keyword_mode(in_keyword_mode);
 
     ExpectedURLs expected_urls;
     expected_urls.push_back(

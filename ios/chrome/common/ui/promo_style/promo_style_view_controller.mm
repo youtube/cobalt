@@ -483,6 +483,11 @@ UIImage* ArrowDownImage() {
   [self scaleBannerWithCurrentImage:self.bannerImageView.image
                              toSize:[self computeBannerImageSize]];
   _calculatingImageSize = NO;
+
+  // Re-evaluate the scroll position after a layout pass to ensure the button
+  // state matches the actual layout.
+  [self updateViewsOnScrollViewUpdate];
+
   if (_shouldScrollToBottom) {
     _shouldScrollToBottom = NO;
     dispatch_async(dispatch_get_main_queue(), ^{

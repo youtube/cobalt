@@ -426,12 +426,10 @@ public class AwNavigationClientTest extends AwParameterizedTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Preferences"})
+    @CommandLineFlags.Add(
+            "enable-features=IgnoreDuplicateNavs,WebViewIgnoreDuplicateNavs:duplicate_nav_threshold/3s")
     public void testIgnoreDuplicateNavsEnabled() throws Throwable {
         final AwContents awContents = mTestContainerView.getAwContents();
-
-        // Enable the feature and set a custom threshold.
-        mActivityTestRule.getAwSettingsOnUiThread(awContents).setIgnoreDuplicateNavEnabled(true);
-        mActivityTestRule.getAwSettingsOnUiThread(awContents).setIgnoreDuplicateNavThreshold(3000L);
 
         // Load an empty page to exit the initial empty document state. Without this, the initial
         // navigation would have 'should_replace_current_entry' set to true, causing a mismatch with
@@ -478,11 +476,9 @@ public class AwNavigationClientTest extends AwParameterizedTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Preferences"})
+    @CommandLineFlags.Add("disable-features=WebViewIgnoreDuplicateNavs")
     public void testIgnoreDuplicateNavsDisabled() throws Throwable {
         final AwContents awContents = mTestContainerView.getAwContents();
-
-        // Disable the feature.
-        mActivityTestRule.getAwSettingsOnUiThread(awContents).setIgnoreDuplicateNavEnabled(false);
 
         // Load an empty page to exit the initial empty document state. Without this, the initial
         // navigation would have 'should_replace_current_entry' set to true, causing a mismatch with

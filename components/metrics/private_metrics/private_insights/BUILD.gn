@@ -14,15 +14,43 @@ component("private_insights") {
     "private_insights_service.cc",
   ]
   defines = [ "IS_PRIVATE_INSIGHTS_IMPL" ]
+  public_deps = [
+    "//components/keyed_service/core",
+    "//components/metrics",
+    "//components/metrics/private_metrics/private_insights/events:contextual_cue_log_event_proto",
+    "//components/prefs",
+  ]
   deps = [
     ":fcp_event_publisher",
     ":fcp_files",
+    ":fcp_http_client",
     ":fcp_log_manager",
     ":fcp_simple_task_environment",
+    ":fcp_utils",
     "//base",
-    "//components/keyed_service/core",
+    "//base:i18n",
+    "//components/version_info",
+    "//google_apis",
     "//third_party/federated_compute:fl_runner",
   ]
+}
+
+source_set("private_insights_logger") {
+  public = [ "contextual_cue_log_event_helpers.h" ]
+  sources = [ "contextual_cue_log_event_helpers.cc" ]
+  public_deps = [ "//components/metrics/private_metrics/private_insights/events:contextual_cue_log_event_proto" ]
+  deps = [ "//base" ]
+}
+
+source_set("fcp_utils") {
+  visibility = [ ":*" ]
+  public = [ "fcp_utils.h" ]
+  sources = [ "fcp_utils.cc" ]
+  public_deps = [
+    "//base",
+    "//third_party/federated_compute:fl_runner",
+  ]
+  deps = [ "//net" ]
 }
 
 source_set("fcp_event_publisher") {
@@ -49,6 +77,24 @@ source_set("fcp_simple_task_environment") {
     "//third_party/federated_compute:client_proto",
     "//third_party/federated_compute:fl_runner",
   ]
+  deps = [
+    ":fcp_http_client",
+    "//base",
+  ]
+}
+
+source_set("fcp_http_client") {
+  visibility = [ ":*" ]
+  public = [ "fcp_http_client.h" ]
+  sources = [ "fcp_http_client.cc" ]
+  public_deps = [ "//third_party/federated_compute:fl_runner" ]
+  deps = [
+    ":fcp_utils",
+    "//base",
+    "//net",
+    "//services/network/public/cpp",
+    "//url",
+  ]
 }
 
 source_set("fcp_files") {
@@ -62,16 +108,27 @@ source_set("fcp_files") {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "contextual_cue_log_event_helpers_unittest.cc",
     "fcp_files_unittest.cc",
+    "fcp_http_client_unittest.cc",
     "fcp_simple_task_environment_unittest.cc",
+    "fcp_utils_unittest.cc",
     "private_insights_service_unittest.cc",
   ]
   deps = [
     ":fcp_files",
+    ":fcp_http_client",
     ":fcp_simple_task_environment",
+    ":fcp_utils",
     ":private_insights",
+    ":private_insights_logger",
     "//base",
     "//base/test:test_support",
+    "//components/metrics",
+    "//components/metrics/private_metrics/private_insights/events:contextual_cue_log_event_proto",
+    "//components/prefs:test_support",
+    "//services/network:test_support",
     "//testing/gtest",
+    "//third_party/federated_compute:confidential_compute_crypto_test_util",
   ]
 }

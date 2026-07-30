@@ -61,6 +61,9 @@ action("precompile_templates") {
     "$mojom_generator_root/generators/cpp_templates/wrapper_union_class_declaration.tmpl",
     "$mojom_generator_root/generators/cpp_templates/wrapper_union_class_definition.tmpl",
     "$mojom_generator_root/generators/cpp_templates/wrapper_union_class_template_definition.tmpl",
+    "$mojom_generator_root/generators/fuzzilli_templates/fuzzilli_profile.tmpl",
+    "$mojom_generator_root/generators/fuzzilli_templates/generators.tmpl",
+    "$mojom_generator_root/generators/fuzzilli_templates/profile_definition.tmpl",
     "$mojom_generator_root/generators/java_templates/constant_definition.tmpl",
     "$mojom_generator_root/generators/java_templates/constants.java.tmpl",
     "$mojom_generator_root/generators/java_templates/data_types_definition.tmpl",
@@ -115,6 +118,7 @@ action("precompile_templates") {
   inputs = jinja2_sources
   outputs = [
     "$target_gen_dir/cpp_templates.zip",
+    "$target_gen_dir/fuzzilli_templates.zip",
     "$target_gen_dir/java_templates.zip",
     "$target_gen_dir/js_templates.zip",
     "$target_gen_dir/mojolpm_templates.zip",

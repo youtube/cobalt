@@ -79,7 +79,6 @@ GURL ContentWebFrame::GetUrl() const {
 
 BrowserState* ContentWebFrame::GetBrowserState() {
   return content_web_state_->GetBrowserState();
-  ;
 }
 
 base::WeakPtr<WebFrame> ContentWebFrame::AsWeakPtr() {

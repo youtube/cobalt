@@ -17,6 +17,7 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
+#include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/autofill/core/browser/country_type.h"
@@ -111,7 +112,7 @@ bool IsStandaloneParsingRuleAvailable(AddressCountryCode country_code,
 // `AddressComponent` nodes are owned by the `AddressComponentsStore`.
 std::unique_ptr<AddressComponent> BuildTreeNode(
     FieldType type,
-    std::vector<AddressComponent*> children) {
+    std::vector<raw_ptr<AddressComponent>> children) {
   switch (type) {
     case ADDRESS_HOME_ADDRESS:
       return std::make_unique<AddressNode>(std::move(children));
@@ -293,7 +294,7 @@ std::unique_ptr<SynthesizedAddressComponent> BuildSynthesizedNode(
     const TreeDefinition& tree_def,
     const base::flat_map<FieldType, std::unique_ptr<AddressComponent>>&
         nodes_registry) {
-  std::vector<AddressComponent*> children;
+  std::vector<raw_ptr<AddressComponent>> children;
   children.reserve(tree_def.at(type).size());
   for (FieldType child_type : tree_def.at(type)) {
     children.push_back(nodes_registry.at(child_type).get());
@@ -330,7 +331,7 @@ AddressComponent* BuildSubTree(
     return RegisterNode(BuildTreeNode(root, /*children=*/{}));
   }
 
-  std::vector<AddressComponent*> children;
+  std::vector<raw_ptr<AddressComponent>> children;
   children.reserve(tree_def.at(root).size());
   for (FieldType child_type : tree_def.at(root)) {
     if (!IsSynthesizedType(child_type, country_code)) {

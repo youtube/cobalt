@@ -44,6 +44,13 @@ struct MemoryConsumerTraits {
   uint8 is_stateful;
 };
 
+// The registration of a single MemoryConsumer. Used by RegisterMany().
+struct MemoryConsumerRegistration {
+  uint32 consumer_id;
+  string consumer_name;
+  MemoryConsumerTraits? traits;
+};
+
 // The interface for communicating with the MemoryConsumerRegistry that lives in
 // the browser process. This handles Child -> Browser communication.
 interface ChildMemoryConsumerRegistryHost {
@@ -51,9 +58,10 @@ interface ChildMemoryConsumerRegistryHost {
   // this host.
   BindCoordinator(pending_remote<ChildMemoryCoordinator> coordinator);
 
-  // Registers a MemoryConsumer with the browser-side registry.
-  Register(
-      uint32 consumer_id, string consumer_name, MemoryConsumerTraits? traits);
+  // Registers multiple MemoryConsumers with the browser-side registry in a
+  // single IPC. The child uses this to register consumers in a batched manner
+  // to avoid sending one IPC per consumer.
+  Register(array<MemoryConsumerRegistration> registrations);
 
   // Unregisters a MemoryConsumer with the browser-side registry.
   Unregister(uint32 consumer_id);

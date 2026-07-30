@@ -18,6 +18,7 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "base/auto_reset.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/banners/test_app_banner_manager_desktop.h"
 #include "chrome/browser/ui/browser.h"
@@ -31,6 +32,7 @@
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/webapps/browser/install_result_code.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
@@ -138,20 +140,31 @@ bool MLPromotionBrowserTestBase::InstallAppFromUserInitiation(
 #else
   base::test::TestFuture<const webapps::AppId&, InstallResultCode>
       install_future;
-  views::NamedWidgetShownWaiter waiter(views::test::AnyWidgetTestPasskey{},
-                                       dialog_name);
-  web_app::CreateWebAppFromManifest(
-      web_contents(),
-      webapps::WebappInstallSource::OMNIBOX_INSTALL_ICON,
-      install_future.GetCallback(), web_app::PwaInProductHelpState::kNotShown);
-  views::Widget* widget = waiter.WaitIfNeededAndGet();
-  views::test::WidgetDestroyedWaiter destroyed(widget);
-  if (accept_install) {
-    views::test::AcceptDialog(widget);
-  } else {
-    views::test::CancelDialog(widget);
+  std::optional<base::AutoReset<web_app::InstallDialogTestResponse>>
+      auto_accept;
+  if (dialog_name == "WebAppInstallFlowDialog") {
+    auto_accept.emplace(web_app::SetPwaInstallationAutoRespondForTesting(
+        accept_install ? web_app::InstallDialogTestResponse::kAcceptAndLaunch
+                       : web_app::InstallDialogTestResponse::kDeny));
   }
-  destroyed.Wait();
+
+  std::optional<views::NamedWidgetShownWaiter> waiter;
+  if (!auto_accept) {
+    waiter.emplace(views::test::AnyWidgetTestPasskey{}, dialog_name);
+  }
+  web_app::CreateWebAppFromManifest(
+      web_contents(), webapps::WebappInstallSource::OMNIBOX_INSTALL_ICON,
+      install_future.GetCallback(), web_app::PwaInProductHelpState::kNotShown);
+  if (waiter) {
+    views::Widget* widget = waiter->WaitIfNeededAndGet();
+    views::test::WidgetDestroyedWaiter destroyed(widget);
+    if (accept_install) {
+      views::test::AcceptDialog(widget);
+    } else {
+      views::test::CancelDialog(widget);
+    }
+    destroyed.Wait();
+  }
   if (!install_future.Wait()) {
     return false;
   }

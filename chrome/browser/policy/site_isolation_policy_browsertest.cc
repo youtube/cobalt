@@ -8,6 +8,7 @@
 #include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/byte_size.h"
 #include "base/test/scoped_amount_of_physical_memory_override.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
@@ -88,6 +89,18 @@ class SiteIsolationPolicyBrowserTest : public PlatformBrowserTest {
   testing::NiceMock<policy::MockConfigurationPolicyProvider> provider_;
 };
 
+class IsolateOriginsShortlistFeaturePolicyBrowserTest
+    : public SiteIsolationPolicyBrowserTest {
+ public:
+  IsolateOriginsShortlistFeaturePolicyBrowserTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        site_isolation::features::kIsolateOriginsShortlist);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
 template <bool policy_value>
 class SitePerProcessPolicyBrowserTest : public SiteIsolationPolicyBrowserTest {
  public:
@@ -158,17 +171,22 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessPolicyBrowserTestEnabled, Simple) {
   CheckExpectations(expectations);
 }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
-// The policy is not supported on Android
-class IsolateOriginsPolicyBrowserTest : public SiteIsolationPolicyBrowserTest {
+class IsolateOriginsPolicyBrowserTest
+    : public IsolateOriginsShortlistFeaturePolicyBrowserTest {
  public:
   IsolateOriginsPolicyBrowserTest(const IsolateOriginsPolicyBrowserTest&) =
       delete;
   IsolateOriginsPolicyBrowserTest& operator=(
       const IsolateOriginsPolicyBrowserTest&) = delete;
 
+  IsolateOriginsPolicyBrowserTest()
+      : memory_override_(std::make_unique<base::test::ScopedAmountOfPhysicalMemoryOverride>(base::MiBU(4000))) {}
+  ~IsolateOriginsPolicyBrowserTest() override = default;
+
+ private:
+  std::unique_ptr<base::test::ScopedAmountOfPhysicalMemoryOverride> memory_override_;
+
  protected:
-  IsolateOriginsPolicyBrowserTest() = default;
 
   void SetUpInProcessBrowserTestFixture() override {
     // We setup the policy here, because the policy must be 'live' before
@@ -225,7 +243,123 @@ IN_PROC_BROWSER_TEST_F(IsolateOriginsPolicyBrowserTest, Simple) {
   };
   CheckIsolatedOriginExpectations(expectations2);
 }
-#endif
+
+#if BUILDFLAG(IS_ANDROID)
+class IsolateOriginsShortlistPolicyBrowserTest
+    : public IsolateOriginsShortlistFeaturePolicyBrowserTest {
+ public:
+  IsolateOriginsShortlistPolicyBrowserTest(
+      const IsolateOriginsShortlistPolicyBrowserTest&) = delete;
+  IsolateOriginsShortlistPolicyBrowserTest& operator=(
+      const IsolateOriginsShortlistPolicyBrowserTest&) = delete;
+
+  IsolateOriginsShortlistPolicyBrowserTest()
+      : memory_override_(std::make_unique<base::test::ScopedAmountOfPhysicalMemoryOverride>(base::MiBU(2000))) {}  // 2GB
+  ~IsolateOriginsShortlistPolicyBrowserTest() override = default;
+
+ protected:
+  void SetUpInProcessBrowserTestFixture() override {
+    provider_.SetDefaultReturns(
+        true /* is_initialization_complete_return */,
+        true /* is_first_policy_load_complete_return */);
+    policy::BrowserPolicyConnector::SetPolicyProviderForTesting(&provider_);
+
+    policy::PolicyMap values;
+    values.Set(
+        policy::key::kIsolateOriginsShortlist, policy::POLICY_LEVEL_MANDATORY,
+        policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
+        base::Value("https://shortlist-policy.example.org/"), nullptr);
+    provider_.UpdateChromePolicy(values);
+  }
+
+ private:
+  std::unique_ptr<base::test::ScopedAmountOfPhysicalMemoryOverride> memory_override_;
+};
+
+IN_PROC_BROWSER_TEST_F(IsolateOriginsShortlistPolicyBrowserTest, Simple) {
+  Expectations expectations[] = {
+      {"https://shortlist-policy.example.org/", true},
+      {"https://foo.com/", false},
+  };
+  CheckIsolatedOriginExpectations(expectations);
+}
+
+class IsolateOriginsMultiplePolicyBrowserTest
+    : public IsolateOriginsShortlistFeaturePolicyBrowserTest {
+ public:
+  IsolateOriginsMultiplePolicyBrowserTest() = default;
+
+ protected:
+  void SetUpInProcessBrowserTestFixture() override {
+    provider_.SetDefaultReturns(
+        true /* is_initialization_complete_return */,
+        true /* is_first_policy_load_complete_return */);
+    policy::BrowserPolicyConnector::SetPolicyProviderForTesting(&provider_);
+
+    policy::PolicyMap values;
+    values.Set(
+        policy::key::kIsolateOrigins, policy::POLICY_LEVEL_MANDATORY,
+        policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
+        base::Value("https://standard-policy.example.org/"), nullptr);
+    values.Set(
+        policy::key::kIsolateOriginsShortlist, policy::POLICY_LEVEL_MANDATORY,
+        policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
+        base::Value("https://shortlist-policy.example.org/"), nullptr);
+    values.Set(
+        policy::key::kIsolateOriginsAndroid, policy::POLICY_LEVEL_MANDATORY,
+        policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
+        base::Value("https://legacy-policy.example.org/"), nullptr);
+    provider_.UpdateChromePolicy(values);
+  }
+};
+
+class IsolateOriginsMultipleHighEndPolicyBrowserTest
+    : public IsolateOriginsMultiplePolicyBrowserTest {
+ public:
+  IsolateOriginsMultipleHighEndPolicyBrowserTest()
+      : memory_override_(std::make_unique<base::test::ScopedAmountOfPhysicalMemoryOverride>(base::MiBU(4000))) {}  // 4GB
+  ~IsolateOriginsMultipleHighEndPolicyBrowserTest() override = default;
+
+ private:
+  std::unique_ptr<base::test::ScopedAmountOfPhysicalMemoryOverride> memory_override_;
+};
+
+IN_PROC_BROWSER_TEST_F(IsolateOriginsMultipleHighEndPolicyBrowserTest,
+                       HighEndPriority) {
+  // On High-End devices, IsolateOrigins (standard) should take precedence
+  // over both shortlist and legacy Android policies.
+  Expectations expectations[] = {
+      {"https://standard-policy.example.org/", true},
+      {"https://shortlist-policy.example.org/", false},
+      {"https://legacy-policy.example.org/", false},
+  };
+  CheckIsolatedOriginExpectations(expectations);
+}
+
+class IsolateOriginsMultipleLowEndPolicyBrowserTest
+    : public IsolateOriginsMultiplePolicyBrowserTest {
+ public:
+  IsolateOriginsMultipleLowEndPolicyBrowserTest()
+      : memory_override_(std::make_unique<base::test::ScopedAmountOfPhysicalMemoryOverride>(base::MiBU(2000))) {}  // 2GB
+  ~IsolateOriginsMultipleLowEndPolicyBrowserTest() override = default;
+
+ private:
+  std::unique_ptr<base::test::ScopedAmountOfPhysicalMemoryOverride> memory_override_;
+};
+
+IN_PROC_BROWSER_TEST_F(IsolateOriginsMultipleLowEndPolicyBrowserTest,
+                       LowEndPriority) {
+  // On Low-End devices, IsolateOriginsShortlist should take precedence
+  // over the deprecated IsolateOriginsAndroid policy, and IsolateOrigins (standard)
+  // should be ignored.
+  Expectations expectations[] = {
+      {"https://standard-policy.example.org/", false},
+      {"https://shortlist-policy.example.org/", true},
+      {"https://legacy-policy.example.org/", false},
+  };
+  CheckIsolatedOriginExpectations(expectations);
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 IN_PROC_BROWSER_TEST_F(NoOverrideSitePerProcessPolicyBrowserTest, Simple) {
   Expectations expectations[] = {

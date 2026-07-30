@@ -18,7 +18,6 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/synchronization/waitable_event.h"
 #include "components/embedder_support/user_agent_utils.h"
-#include "components/variations/net/omnibox_autofocus_http_headers.h"
 #include "components/variations/net/variations_http_headers.h"
 #include "content/browser/browser_context_impl.h"
 #include "content/browser/connection_allowlist_utils.h"
@@ -947,9 +946,17 @@ void PrefetchService::CheckEligibilityOfPrefetch(
   // check for service workers and existing cookies.
   StoragePartition* default_storage_partition =
       browser_context_->GetDefaultStoragePartition();
-  if (default_storage_partition !=
-      browser_context_->GetStoragePartitionForUrl(params.url,
-                                                  /*can_create=*/false)) {
+  StoragePartition* initiator_storage_partition = default_storage_partition;
+  if (auto* renderer_info = params.request().GetRendererInitiatorInfo()) {
+    if (auto* rfh = renderer_info->GetRenderFrameHost()) {
+      initiator_storage_partition = rfh->GetStoragePartition();
+    }
+  }
+
+  if (initiator_storage_partition != default_storage_partition ||
+      default_storage_partition !=
+          browser_context_->GetStoragePartitionForUrl(params.url,
+                                                      /*can_create=*/false)) {
     std::move(params).Finish(
         PreloadingEligibility::kNonDefaultStoragePartition);
     return;
@@ -1694,7 +1701,6 @@ PrefetchService::CreateIsolatedNetworkContext(
   if (base::FeatureList::IsEnabled(
           kVariationsHeaderForCrossSiteSpeculationRulesPrefetch)) {
     variations::UpdateCorsExemptHeaderForVariations(context_params.get());
-    variations::UpdateCorsExemptHeaderForOmniboxAutofocus(context_params.get());
   }
   GetContentClient()->browser()->UpdateCorsExemptHeaderForPrefetch(
       context_params.get());

@@ -12,6 +12,7 @@
 #import "ios/chrome/browser/credential_provider/model/credential_provider_util.h"
 #import "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #import "url/gurl.h"
+#import "url/origin.h"
 
 namespace {
 
@@ -30,7 +31,7 @@ password_manager::PasswordForm PasswordFormFromCredential(
   DCHECK(url.is_valid());
 
   form.url = password_manager_util::StripAuthAndParams(url);
-  form.signon_realm = form.url.DeprecatedGetOriginAsURL().spec();
+  form.signon_realm = url::Origin::Create(form.url).GetURL().spec();
   form.username_value = SysNSStringToUTF16(credential.username);
   form.password_value = SysNSStringToUTF16(credential.password);
   form.times_used_in_html_form = credential.rank;

@@ -109,6 +109,7 @@ import java.util.function.Supplier;
 
 /** Unit tests for {@link ToolbarControlContainer}. */
 @RunWith(BaseRobolectricTestRunner.class)
+@DisableFeatures({SigninFeatures.SIGNIN_LEVEL_UP_BUTTON})
 public class ToolbarControlContainerTest {
     private static final String BLOCK_NAME = "Android.TopToolbar.BlockCaptureReason";
     private static final String ALLOW_NAME = "Android.TopToolbar.AllowCaptureReason";
@@ -745,7 +746,7 @@ public class ToolbarControlContainerTest {
         // Caption controls height = 100. Top offset = 0.
         // Expected exclusion rect: Rect(10, 0, 200 - 20, 100).
         mControlContainer.onHeightChanged(0, 20, false);
-        List<Rect> expected = List.of(new Rect(10, 0, 180, 100));
+        List<Rect> expected = List.of(new Rect(0, 0, 180, 100));
         assertEquals(
                 "System gesture exclusions should be overridden when tab strip is hidden.",
                 expected,
@@ -804,6 +805,34 @@ public class ToolbarControlContainerTest {
                         /* isInDesktopWindow= */ true,
                         /* isActivityFocused= */ false),
                 stripBackgroundColorDrawable.getColor());
+    }
+
+    @Test
+    public void testTopLeftCornerOverlayPositionWithRtl() {
+        initControlContainer(R.layout.toolbar_tablet);
+
+        var appHeaderState =
+                new AppHeaderState(new Rect(0, 0, 100, 100), new Rect(10, 0, 80, 100), true);
+        when(mDesktopWindowStateManager.getAppHeaderState()).thenReturn(appHeaderState);
+        mControlContainer.onAppHeaderStateChanged(appHeaderState);
+
+        SettableNonNullObservableSupplier<Boolean> isVerticalTabsActiveSupplier =
+                ObservableSuppliers.createNonNull(true);
+        mControlContainer.setIsVerticalTabsActiveSupplier(isVerticalTabsActiveSupplier);
+
+        View overlayView = mControlContainer.getTopLeftCornerOverlayViewForTesting();
+        assertNotNull(overlayView);
+        assertEquals(View.VISIBLE, overlayView.getVisibility());
+
+        // Test in LTR mode.
+        mControlContainer.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        mControlContainer.layout(0, 0, 500, 100);
+        assertEquals("Corner overlay should be on the left in LTR mode", 0, overlayView.getLeft());
+
+        // Test in RTL mode.
+        mControlContainer.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        mControlContainer.layout(0, 0, 500, 100);
+        assertEquals("Corner overlay should be on the left in RTL mode", 0, overlayView.getLeft());
     }
 
     @Test

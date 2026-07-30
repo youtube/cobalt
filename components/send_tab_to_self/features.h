@@ -67,6 +67,10 @@ BASE_DECLARE_FEATURE(kSendTabToSelfEnhancedBottomsheet);
 
 #if BUILDFLAG(IS_IOS)
 
+// If this feature is enabled, target devices are displayed as individual
+// actions in the native iOS Share Sheet.
+BASE_DECLARE_FEATURE(kSendTabToSelfIOSShareSheetDeviceList);
+
 // If this feature is enabled, users can schedule tab reminder iOS push
 // notifications.
 BASE_DECLARE_FEATURE(kIOSTabReminders);

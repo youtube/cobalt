@@ -8,6 +8,7 @@
 
 #include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/run_until.h"
@@ -49,15 +50,6 @@ const char kTestUmaPrefix[] = "Media.EME.TestUmaPrefix.";
 
 std::vector<uint8_t> StringToVector(const std::string& str) {
   return std::vector<uint8_t>(str.begin(), str.end());
-}
-
-// testing::InvokeArgument<N> does not work with base::OnceCallback. Use this
-// gmock action template to invoke base::OnceCallback. `k` is the k-th argument
-// and `T` is the callback's type.
-ACTION_TEMPLATE(InvokeCallbackArgument,
-                HAS_2_TEMPLATE_PARAMS(int, k, typename, T),
-                AND_1_VALUE_PARAMS(p0)) {
-  std::move(const_cast<T&>(std::get<k>(args))).Run(p0);
 }
 
 }  // namespace
@@ -251,10 +243,8 @@ TEST_F(MediaFoundationCdmTest, GetStatusForPolicy_HdcpV1_0_KeyStatusUsable) {
   Initialize();
   EXPECT_CALL(is_type_supported_cb,
               Run("video/mp4;codecs=\"avc1\";features=\"hdcp=1\"", _))
-      .WillOnce(
-          InvokeCallbackArgument<1,
-                                 MediaFoundationCdm::IsTypeSupportedResultCB>(
-              /*value_or_error=*/base::ok(true)));
+      .WillOnce(base::test::RunOnceCallback<1>(
+          /*value_or_error=*/base::ok(true)));
   is_type_supported_cb_handler_.SetBehavior(is_type_supported_cb.Get());
 
   CdmKeyInformation::KeyStatus key_status;
@@ -270,10 +260,8 @@ TEST_F(MediaFoundationCdmTest, GetStatusForPolicy_HdcpV1_1_KeyStatusUsable) {
   Initialize();
   EXPECT_CALL(is_type_supported_cb,
               Run("video/mp4;codecs=\"avc1\";features=\"hdcp=2\"", _))
-      .WillOnce(
-          InvokeCallbackArgument<1,
-                                 MediaFoundationCdm::IsTypeSupportedResultCB>(
-              /*value_or_error=*/base::ok(true)));
+      .WillOnce(base::test::RunOnceCallback<1>(
+          /*value_or_error=*/base::ok(true)));
   is_type_supported_cb_handler_.SetBehavior(is_type_supported_cb.Get());
 
   CdmKeyInformation::KeyStatus key_status;
@@ -290,10 +278,8 @@ TEST_F(MediaFoundationCdmTest,
   Initialize();
   EXPECT_CALL(is_type_supported_cb,
               Run("video/mp4;codecs=\"avc1\";features=\"hdcp=2\"", _))
-      .WillOnce(
-          InvokeCallbackArgument<1,
-                                 MediaFoundationCdm::IsTypeSupportedResultCB>(
-              /*value_or_error=*/base::ok(false)));
+      .WillOnce(base::test::RunOnceCallback<1>(
+          /*value_or_error=*/base::ok(false)));
   is_type_supported_cb_handler_.SetBehavior(is_type_supported_cb.Get());
 
   CdmKeyInformation::KeyStatus key_status;

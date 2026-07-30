@@ -23,6 +23,7 @@
 #include "base/version_info/version_info.h"
 #include "components/autofill/core/browser/at_memory/at_memory_enablement_utils.h"
 #include "components/autofill/core/browser/data_quality/validation.h"
+#include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
@@ -47,6 +48,162 @@
 
 namespace autofill {
 
+namespace {
+// Returns true if the field type is eligible to be saved in the autocomplete
+// history. Some types (promo codes, IBANs, CCs, CVCs) are excluded. Loyalty
+// card IDs are also excluded if they were autofilled.
+bool IsFieldTypeSaveable(const FormStructure* form, FieldGlobalId field_id) {
+  const AutofillField* field = form ? form->GetFieldById(field_id) : nullptr;
+  if (!field) {
+    return true;
+  }
+  for (const FieldType field_type : field->Type().GetTypes()) {
+    switch (field_type) {
+      case MERCHANT_PROMO_CODE:
+      case IBAN_VALUE:
+      case CREDIT_CARD_VERIFICATION_CODE:
+      case CREDIT_CARD_STANDALONE_VERIFICATION_CODE:
+      case CREDIT_CARD_NUMBER:
+        return false;
+      case LOYALTY_MEMBERSHIP_ID:
+        if (field->last_modifier() == FieldModifier::kAutofill) {
+          return false;
+        }
+        break;
+      case NO_SERVER_DATA:
+      case UNKNOWN_TYPE:
+      case EMPTY_TYPE:
+      case NAME_FIRST:
+      case NAME_MIDDLE:
+      case NAME_LAST:
+      case NAME_MIDDLE_INITIAL:
+      case NAME_FULL:
+      case NAME_SUFFIX:
+      case EMAIL_ADDRESS:
+      case PHONE_HOME_NUMBER:
+      case PHONE_HOME_CITY_CODE:
+      case PHONE_HOME_COUNTRY_CODE:
+      case PHONE_HOME_CITY_AND_NUMBER:
+      case PHONE_HOME_WHOLE_NUMBER:
+      case ADDRESS_HOME_LINE1:
+      case ADDRESS_HOME_LINE2:
+      case ADDRESS_HOME_APT_NUM:
+      case ADDRESS_HOME_CITY:
+      case ADDRESS_HOME_STATE:
+      case ADDRESS_HOME_ZIP:
+      case ADDRESS_HOME_COUNTRY:
+      case CREDIT_CARD_NAME_FULL:
+      case CREDIT_CARD_EXP_MONTH:
+      case CREDIT_CARD_EXP_2_DIGIT_YEAR:
+      case CREDIT_CARD_EXP_4_DIGIT_YEAR:
+      case CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR:
+      case CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR:
+      case CREDIT_CARD_TYPE:
+      case COMPANY_NAME:
+      case MERCHANT_EMAIL_SIGNUP:
+      case PASSWORD:
+      case ACCOUNT_CREATION_PASSWORD:
+      case ADDRESS_HOME_STREET_ADDRESS:
+      case ADDRESS_HOME_SORTING_CODE:
+      case ADDRESS_HOME_DEPENDENT_LOCALITY:
+      case ADDRESS_HOME_LINE3:
+      case NOT_ACCOUNT_CREATION_PASSWORD:
+      case USERNAME:
+      case USERNAME_AND_EMAIL_ADDRESS:
+      case NEW_PASSWORD:
+      case PROBABLY_NEW_PASSWORD:
+      case NOT_NEW_PASSWORD:
+      case CREDIT_CARD_NAME_FIRST:
+      case CREDIT_CARD_NAME_LAST:
+      case PHONE_HOME_EXTENSION:
+      case CONFIRMATION_PASSWORD:
+      case AMBIGUOUS_TYPE:
+      case SEARCH_TERM:
+      case PRICE:
+      case NOT_PASSWORD:
+      case SINGLE_USERNAME:
+      case NOT_USERNAME:
+      case ADDRESS_HOME_STREET_NAME:
+      case ADDRESS_HOME_HOUSE_NUMBER:
+      case ADDRESS_HOME_SUBPREMISE:
+      case ADDRESS_HOME_OTHER_SUBUNIT:
+      case NAME_LAST_FIRST:
+      case NAME_LAST_CONJUNCTION:
+      case NAME_LAST_SECOND:
+      case NAME_HONORIFIC_PREFIX:
+      case ADDRESS_HOME_ADDRESS:
+      case ADDRESS_HOME_ADDRESS_WITH_NAME:
+      case ADDRESS_HOME_FLOOR:
+      case PHONE_HOME_CITY_CODE_WITH_TRUNK_PREFIX:
+      case PHONE_HOME_CITY_AND_NUMBER_WITHOUT_TRUNK_PREFIX:
+      case PHONE_HOME_NUMBER_PREFIX:
+      case PHONE_HOME_NUMBER_SUFFIX:
+      case NUMERIC_QUANTITY:
+      case ONE_TIME_CODE:
+      case DELIVERY_INSTRUCTIONS:
+      case ADDRESS_HOME_OVERFLOW:
+      case ADDRESS_HOME_LANDMARK:
+      case ADDRESS_HOME_OVERFLOW_AND_LANDMARK:
+      case ADDRESS_HOME_ADMIN_LEVEL2:
+      case ADDRESS_HOME_STREET_LOCATION:
+      case ADDRESS_HOME_BETWEEN_STREETS:
+      case ADDRESS_HOME_BETWEEN_STREETS_OR_LANDMARK:
+      case ADDRESS_HOME_STREET_LOCATION_AND_LOCALITY:
+      case ADDRESS_HOME_STREET_LOCATION_AND_LANDMARK:
+      case ADDRESS_HOME_DEPENDENT_LOCALITY_AND_LANDMARK:
+      case ADDRESS_HOME_BETWEEN_STREETS_1:
+      case ADDRESS_HOME_BETWEEN_STREETS_2:
+      case ADDRESS_HOME_HOUSE_NUMBER_AND_APT:
+      case SINGLE_USERNAME_FORGOT_PASSWORD:
+      case ADDRESS_HOME_APT:
+      case ADDRESS_HOME_APT_TYPE:
+      case SINGLE_USERNAME_WITH_INTERMEDIATE_VALUES:
+      case ALTERNATIVE_FULL_NAME:
+      case ALTERNATIVE_GIVEN_NAME:
+      case ALTERNATIVE_FAMILY_NAME:
+      case PASSPORT_NUMBER:
+      case PASSPORT_ISSUING_COUNTRY:
+      case PASSPORT_EXPIRATION_DATE:
+      case PASSPORT_ISSUE_DATE:
+      case LOYALTY_MEMBERSHIP_PROGRAM:
+      case LOYALTY_MEMBERSHIP_PROVIDER:
+      case VEHICLE_LICENSE_PLATE:
+      case VEHICLE_VIN:
+      case VEHICLE_MAKE:
+      case VEHICLE_MODEL:
+      case DRIVERS_LICENSE_REGION:
+      case DRIVERS_LICENSE_NUMBER:
+      case DRIVERS_LICENSE_EXPIRATION_DATE:
+      case DRIVERS_LICENSE_ISSUE_DATE:
+      case VEHICLE_YEAR:
+      case VEHICLE_PLATE_STATE:
+      case EMAIL_OR_LOYALTY_MEMBERSHIP_ID:
+      case NATIONAL_ID_CARD_NUMBER:
+      case NATIONAL_ID_CARD_EXPIRATION_DATE:
+      case NATIONAL_ID_CARD_ISSUE_DATE:
+      case NATIONAL_ID_CARD_ISSUING_COUNTRY:
+      case KNOWN_TRAVELER_NUMBER:
+      case KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE:
+      case REDRESS_NUMBER:
+      case ADDRESS_HOME_ZIP_PREFIX:
+      case ADDRESS_HOME_ZIP_SUFFIX:
+      case FLIGHT_RESERVATION_FLIGHT_NUMBER:
+      case FLIGHT_RESERVATION_CONFIRMATION_CODE:
+      case FLIGHT_RESERVATION_TICKET_NUMBER:
+      case FLIGHT_RESERVATION_DEPARTURE_DATE:
+      case ADDRESS_HOME_ZIP_AND_CITY:
+      case ORDER_ID:
+      case ORDER_DATE:
+      case ORDER_MERCHANT_NAME:
+      case SHIPMENT_TRACKING_NUMBER:
+      case MAX_VALID_FIELD_TYPE:
+        break;
+    }
+  }
+  return true;
+}
+}  // namespace
+
 AutocompleteHistoryManager::AutocompleteHistoryManager() = default;
 
 AutocompleteHistoryManager::~AutocompleteHistoryManager() = default;
@@ -67,7 +224,8 @@ void AutocompleteHistoryManager::OnGetSingleFieldSuggestions(
   }
   suggestion_generator_ = std::make_unique<AutocompleteSuggestionGenerator>(
       profile_database_,
-      IsAtMemoryFeatureEnabled(client.GetGoogleGroupsManager()));
+      MayPerformAtMemoryAction(AtMemoryAction::kShowAutocompleteAtMemoryButton,
+                               client));
 
   auto on_suggestions_generated = base::BindOnce(
       [](SingleFieldFillRouter::OnSuggestionsReturnedCallback callback,
@@ -85,6 +243,7 @@ void AutocompleteHistoryManager::OnGetSingleFieldSuggestions(
 
 void AutocompleteHistoryManager::OnWillSubmitFormWithFields(
     const std::vector<FormFieldData>& fields,
+    const FormStructure* form,
     bool is_autocomplete_enabled) {
   if (!is_autocomplete_enabled || is_off_the_record_) {
     return;
@@ -92,7 +251,7 @@ void AutocompleteHistoryManager::OnWillSubmitFormWithFields(
   std::vector<FormFieldData> autocomplete_saveable_fields;
   autocomplete_saveable_fields.reserve(fields.size());
   for (const FormFieldData& field : fields) {
-    if (IsFieldValueSaveable(field)) {
+    if (IsFieldValueSaveable(field, form)) {
       autocomplete_saveable_fields.push_back(field);
     }
   }
@@ -162,8 +321,12 @@ bool AutocompleteHistoryManager::IsFieldNameMeaningfulForAutocomplete(
       // Prefix and suffix matches.
       u"|^otp|otp$"
       // Infix matches.
-      u"|\\botp\\b"
-      u"|cvc|cvn|cvv|captcha|passw|pass2|passcode|pwd|senha|pincode";
+      u"|\\botp\\b|captcha|passw|pass2|passcode|pwd|senha|pincode|"
+      // Suppress flight verification fields.
+      u"flight[-_]?verification|"
+      // Suppress CVC fields.
+      u"csc|cvd|ccv|cvc|cvn|cvv|card[-_]?verification|verification[-_]?code|"
+      u"verify[-_]?(?:card|code)|security[-_]?(?:code|value|number)";
   return !MatchesRegex<kRegex>(name);
 }
 
@@ -184,25 +347,62 @@ void AutocompleteHistoryManager::OnAutofillCleanupReturned(
 //  - text field
 //  - autocomplete is not disabled
 //  - value is not a credit card number nor IBAN
+//  - field is not a credit card verification code (CVC)
+//  - field is not an autofilled loyalty card ID
 //  - field has user typed input or is focusable (this is a mild criteria but
 //    this way it is consistent for all platforms)
 //  - not a presentation field
 bool AutocompleteHistoryManager::IsFieldValueSaveable(
-    const FormFieldData& field) {
+    const FormFieldData& field,
+    const FormStructure* form) {
+  // Only save values from text-like input elements that are not password
+  // or number inputs.
+  if (!field.IsTextInputElement() || field.IsPasswordInputElement() ||
+      field.form_control_type() == FormControlType::kInputNumber) {
+    return false;
+  }
+
+  // Only save values if the page allows autocomplete for the field.
+  if (!field.should_autocomplete()) {
+    return false;
+  }
+
+  // Reject fields with empty names or names that are not meaningful for
+  // autocomplete (e.g., placeholder names generated by frameworks).
+  if (!IsFieldNameMeaningfulForAutocomplete(field.name()) ||
+      field.name().empty()) {
+    return false;
+  }
+
   // We don't want to save a trimmed string, but we want to make sure that the
   // value is neither empty nor only whitespaces.
-  bool is_value_valid = std::ranges::any_of(
-      field.value(), std::not_fn(base::IsUnicodeWhitespace<char16_t>));
-  return is_value_valid && IsFieldNameMeaningfulForAutocomplete(field.name()) &&
-         !field.name().empty() && field.IsTextInputElement() &&
-         !field.IsPasswordInputElement() &&
-         field.form_control_type() != FormControlType::kInputNumber &&
-         field.should_autocomplete() &&
-         !IsValidCreditCardNumber(field.value()) &&
-         !IsInternationalBankAccountNumber(field.value()) &&
-         !IsSSN(field.value()) &&
-         (field.properties_mask() & kUserTyped || field.is_focusable()) &&
-         field.role() != FormFieldData::RoleAttribute::kPresentation;
+  if (std::ranges::none_of(field.value(),
+                           std::not_fn(base::IsUnicodeWhitespace<char16_t>))) {
+    return false;
+  }
+
+  // Reject fields with types that are ineligible for autocomplete such as
+  // credit card numbers, CVCs, IBANs, promo codes, or autofilled loyalty cards.
+  if (!IsFieldTypeSaveable(form, field.global_id())) {
+    return false;
+  }
+
+  // Do not save sensitive values like credit card numbers, IBANs, or Social
+  // Security Numbers.
+  if (IsValidCreditCardNumber(field.value()) ||
+      IsInternationalBankAccountNumber(field.value()) || IsSSN(field.value())) {
+    return false;
+  }
+
+  // Reject fields that the user did not type into and are not currently
+  // focusable, or fields that have a presentation role (ARIA
+  // role="presentation").
+  if ((!(field.properties_mask() & kUserTyped) && !field.is_focusable()) ||
+      field.role() == FormFieldData::RoleAttribute::kPresentation) {
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace autofill

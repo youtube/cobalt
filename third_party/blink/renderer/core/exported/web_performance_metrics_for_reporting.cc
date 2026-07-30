@@ -302,6 +302,11 @@ uint32_t WebPerformanceMetricsForReporting::ShapeCacheMissCount() const {
   return private_->timingForReporting()->ShapeCacheMissCount();
 }
 
+std::vector<ScriptFontFallbackDetailsForReporting>
+WebPerformanceMetricsForReporting::GetScriptFontFallbackDetails() const {
+  return private_->timingForReporting()->GetScriptFontFallbackDetails();
+}
+
 std::optional<std::tuple<std::string, base::TimeDelta>>
 WebPerformanceMetricsForReporting::CustomUserTimingMark() const {
   auto mark = private_->timingForReporting()->CustomUserTimingMark();

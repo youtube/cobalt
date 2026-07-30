@@ -257,7 +257,7 @@ ExtensionActionRunner::RequiresUserConsentForScriptInjection(
     return PermissionsData::PageAccess::kAllowed;
   }
 
-  GURL url = web_contents()->GetVisibleURL();
+  GURL url = web_contents()->GetLastCommittedURL();
   int tab_id = sessions::SessionTabHelper::IdForTab(web_contents()).id();
   switch (type) {
     case mojom::InjectionType::kContentScript:

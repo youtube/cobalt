@@ -10,7 +10,7 @@ AXWebArea
 ++++AXTextField AXDescription='l2' AXValue='value  *'
 ++++AXGroup
 ++++++AXStaticText AXValue='Email'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++++AXTextField AXTitle='Email'
 ++++AXTextField AXTitle='Email' AXValue='value'
 ++++AXTextArea AXDescription='l5'

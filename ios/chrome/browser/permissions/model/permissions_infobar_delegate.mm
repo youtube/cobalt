@@ -5,12 +5,13 @@
 #import "ios/chrome/browser/permissions/model/permissions_infobar_delegate.h"
 
 #import "components/infobars/core/infobar_delegate.h"
+#import "ios/web/public/web_state.h"
 
 PermissionsInfobarDelegate::PermissionsInfobarDelegate(
     NSArray<NSNumber*>* recently_accessible_permissions,
     web::WebState* web_state)
     : recently_accessible_permissions_(recently_accessible_permissions),
-      web_state_(web_state) {}
+      web_state_(web_state ? web_state->GetWeakPtr() : nullptr) {}
 
 PermissionsInfobarDelegate::~PermissionsInfobarDelegate() = default;
 
@@ -26,7 +27,7 @@ std::u16string PermissionsInfobarDelegate::GetMessageText() const {
 }
 
 web::WebState* PermissionsInfobarDelegate::GetWebState() const {
-  return web_state_;
+  return web_state_.get();
 }
 
 infobars::InfoBarDelegate::InfoBarIdentifier

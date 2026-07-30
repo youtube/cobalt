@@ -249,6 +249,8 @@ blink_core_sources_svg = [
   "svg_path_query.h",
   "svg_path_segments_builder.cc",
   "svg_path_segments_builder.h",
+  "svg_path_segments_source.cc",
+  "svg_path_segments_source.h",
   "svg_path_string_builder.cc",
   "svg_path_string_builder.h",
   "svg_path_string_source.cc",
@@ -356,6 +358,7 @@ blink_core_sources_svg = [
   "svg_viewport_container_element.h",
   "svg_zoom_and_pan.cc",
   "svg_zoom_and_pan.h",
+  "svg_zoom_migration.h",
 ]
 
 blink_core_tests_svg = [

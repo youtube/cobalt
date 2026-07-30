@@ -280,6 +280,7 @@ class CONTENT_EXPORT BrowserAccessibilityStateImpl
 
   base::RepeatingClosure discover_at_callback_for_testing_;
   friend class ui::AXPlatform;
+  friend class BrowserAccessibilityStateImplTest;
 };
 
 }  // namespace content

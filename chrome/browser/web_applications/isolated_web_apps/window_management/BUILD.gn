@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/ui.gni")
+
 source_set("window_management") {
   public = [
     "isolated_web_apps_window_open_permission_service.h",
@@ -36,4 +38,58 @@ source_set("impl") {
     "//ui/base",
     "//ui/message_center/public/cpp",
   ]
+}
+
+# toolkit_views excludes Android (these IWA window-management browser tests
+# need test_support_ui and the views toolkit).
+if (toolkit_views) {
+  source_set("browser_tests") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = []
+
+    deps = [
+      ":impl",
+      ":window_management",
+      "//base",
+      "//chrome/browser/content_settings:content_settings_factory",
+      "//chrome/browser/notifications",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui",
+      "//chrome/browser/ui/web_applications",
+      "//chrome/browser/web_applications",
+      "//chrome/browser/web_applications:web_applications_test_support",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//components/content_settings/core/browser",
+      "//components/content_settings/core/common",
+      "//components/permissions",
+      "//components/webapps/common",
+      "//components/webapps/isolated_web_apps/test_support",
+      "//content/public/browser",
+      "//content/test:test_support",
+      "//ui/base",
+      "//ui/views:test_support",
+
+      # isolated_web_apps_window_open_permission_service_browsertest.cc has a
+      # size_t-vs-int comparison that only compiled in //chrome/test because it
+      # transitively depends on //third_party/fuzztest, whose public config
+      # propagates -Wno-sign-compare. Depend on it here to inherit that
+      # suppression. Remove once crbug.com/527094632 is fixed.
+      "//third_party/fuzztest",
+    ]
+
+    # Excluded on Mac: cannot reliably check window focus on this platform.
+    if (!is_mac) {
+      sources += [ "isolated_web_apps_focus_window_browsertest.cc" ]
+    }
+
+    if (use_aura) {
+      sources +=
+          [ "isolated_web_apps_window_open_permission_service_browsertest.cc" ]
+      deps += [ "//ui/aura:test_support" ]
+    }
+  }
 }

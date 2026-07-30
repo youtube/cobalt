@@ -104,7 +104,6 @@ const LayoutObject* AnchorMap::AnchorLayoutObject(const LayoutBox& query_box,
 void AnchorMap::Set(const AnchorKey& key,
                     const LayoutObject& layout_object,
                     const TransformState& transform_state,
-                    const PhysicalRect& rect_without_transforms,
                     SetOptions options,
                     Element* element_for_display_lock) {
   GCedHeapHashSet<Member<Element>>* display_locks = nullptr;
@@ -115,7 +114,7 @@ void AnchorMap::Set(const AnchorKey& key,
 
   auto* reference = MakeGarbageCollected<PhysicalAnchorReference>(
       *To<Element>(layout_object.GetNode()), transform_state,
-      rect_without_transforms, options == SetOptions::kOutOfFlow,
+      options == SetOptions::kOutOfFlow,
       HasRunningTransformAnimation(layout_object), display_locks);
   Set(key, reference);
 }
@@ -137,8 +136,6 @@ void AnchorMap::Set(const AnchorKey& key, PhysicalAnchorReference* reference) {
        existing = existing->Next()) {
     DCHECK(existing->GetLayoutObject());
     if (existing->GetLayoutObject() == reference->GetLayoutObject()) {
-      existing->UniteRectWithoutTransforms(reference->RectWithoutTransforms());
-
       gfx::RectF rect =
           existing->GetTransformState().MappedQuad().BoundingBox();
       rect.Union(reference->GetTransformState().MappedQuad().BoundingBox());
@@ -172,9 +169,6 @@ void AnchorMap::SetFromChild(const PhysicalFragment& child_fragment,
     // See also InSameAnchorScope.
     for (PhysicalAnchorReference* reference = entry.value; reference;
          reference = reference->Next()) {
-      PhysicalRect rect_without_transforms = reference->RectWithoutTransforms();
-      rect_without_transforms.offset += additional_offset;
-
       TransformState transform_state(reference->GetTransformState());
       UpdateTransformState(child_fragment, additional_offset, container_object,
                            container_size, &transform_state);
@@ -196,7 +190,7 @@ void AnchorMap::SetFromChild(const PhysicalFragment& child_fragment,
           reference->HasRunningTransformAnimation() ||
           (child_object && HasRunningTransformAnimation(*child_object));
       auto* parent_reference = MakeGarbageCollected<PhysicalAnchorReference>(
-          reference->GetElement(), transform_state, rect_without_transforms,
+          reference->GetElement(), transform_state,
           options == SetOptions::kOutOfFlow, has_running_transform_animation,
           display_locks);
       Set(entry.key, parent_reference);

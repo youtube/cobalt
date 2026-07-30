@@ -21,6 +21,7 @@
 #include "chrome/browser/extensions/api/developer_private/inspectable_views_finder.h"
 #include "chrome/browser/extensions/commands/command_service.h"
 #include "chrome/browser/extensions/error_console/error_console.h"
+#include "chrome/browser/extensions/extension_management.h"
 #include "chrome/browser/extensions/extension_safety_check_utils.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_util.h"
@@ -45,6 +46,7 @@
 #include "extensions/browser/extension_util.h"
 #include "extensions/browser/icon_util.h"
 #include "extensions/browser/image_loader.h"
+#include "extensions/browser/managed_installation_mode.h"
 #include "extensions/browser/manifest_v2_handler.h"
 #include "extensions/browser/path_util.h"
 #include "extensions/browser/permissions/site_permissions_helper.h"
@@ -589,7 +591,12 @@ void ExtensionInfoGenerator::FillExtensionInfo(const Extension& extension,
   Profile* profile = Profile::FromBrowserContext(browser_context_);
 
   // ControlledInfo.
-  bool is_policy_location = Manifest::IsPolicyLocation(extension.location());
+  ManagedInstallationMode install_mode =
+      extension_management->GetInstallationMode(&extension);
+  bool is_policy_location =
+      Manifest::IsPolicyLocation(extension.location()) ||
+      install_mode == ManagedInstallationMode::kForced ||
+      install_mode == ManagedInstallationMode::kRecommended;
   if (is_policy_location) {
     info.controlled_info.emplace();
     info.controlled_info->text =

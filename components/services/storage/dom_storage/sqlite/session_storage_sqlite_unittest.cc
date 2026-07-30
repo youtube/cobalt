@@ -8,6 +8,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/test/gmock_expected_support.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "components/services/storage/dom_storage/features.h"
@@ -132,7 +133,6 @@ void SessionStorageSqliteTest::InitializeMetadata(
     const DomStorageDatabase::Metadata& metadata) {
   // Write `metadata` to `database`.
   DomStorageDatabase::Metadata metadata_to_write;
-  metadata_to_write.next_map_id = metadata.next_map_id;
   metadata_to_write.map_metadata =
       CloneMapMetadataVector(metadata.map_metadata);
 
@@ -142,13 +142,6 @@ void SessionStorageSqliteTest::InitializeMetadata(
   // Read back the metadata from the database to verify persistence.
   ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata actual_metadata,
                        database.ReadAllMetadata());
-
-  // Verify `next_map_id`. `SessionStorageSqlite` uses 0 as the default value
-  // when `next_map_id` does not exist in the database.
-  int64_t expected_next_map_id =
-      metadata.next_map_id ? *metadata.next_map_id : 0;
-  EXPECT_EQ(actual_metadata.next_map_id, expected_next_map_id);
-
   ExpectEqualsMapMetadataSpan(actual_metadata.map_metadata,
                               metadata.map_metadata);
 }
@@ -191,44 +184,14 @@ TEST_F(SessionStorageSqliteTest, VersionTooNew) {
 }
 
 // Verifies that reading metadata from an empty database returns default values:
-// `next_map_id` should be 0 and `map_metadata` should be empty.
+// `map_metadata` should be empty.
 TEST_F(SessionStorageSqliteTest, ReadAllMetadataWithEmpty) {
   std::unique_ptr<SessionStorageSqlite> database;
   ASSERT_NO_FATAL_FAILURE(OpenInMemory(&database));
 
   ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata metadata,
                        database->ReadAllMetadata());
-
-  ASSERT_TRUE(metadata.next_map_id.has_value());
-  EXPECT_EQ(*metadata.next_map_id, 0);
   EXPECT_EQ(metadata.map_metadata.size(), 0u);
-}
-
-// Verifies that `PutMetadata()` correctly persists `next_map_id` and that
-// subsequent calls overwrite the previous value.
-TEST_F(SessionStorageSqliteTest, PutNextMapId) {
-  std::unique_ptr<SessionStorageSqlite> database;
-  ASSERT_NO_FATAL_FAILURE(OpenInMemory(&database));
-
-  // Write the first `next_map_id` value.
-  DomStorageDatabase::Metadata metadata;
-  metadata.next_map_id = 56;
-  ASSERT_NO_FATAL_FAILURE(InitializeMetadata(*database, metadata));
-
-  // Write a second `next_map_id` value to overwrite the first.
-  constexpr int64_t kSecondNextMapId = 57;
-  DomStorageDatabase::Metadata second_metadata_to_write;
-  second_metadata_to_write.next_map_id = kSecondNextMapId;
-
-  DbStatus status = database->PutMetadata(std::move(second_metadata_to_write));
-  EXPECT_TRUE(status.ok()) << status.ToString();
-
-  // Verify the second `next_map_id` replaced the first.
-  ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata read_metadata,
-                       database->ReadAllMetadata());
-  ASSERT_TRUE(read_metadata.next_map_id.has_value());
-  EXPECT_EQ(*read_metadata.next_map_id, kSecondNextMapId);
-  EXPECT_EQ(read_metadata.map_metadata.size(), 0u);
 }
 
 // Verifies that `PutMetadata()` correctly persists map metadata and that
@@ -262,8 +225,6 @@ TEST_F(SessionStorageSqliteTest, PutMapMetadata) {
 // Verifies that `PutMetadata()` correctly handles multiple sessions and storage
 // keys, including cloned maps that share the same `map_id` across sessions.
 TEST_F(SessionStorageSqliteTest, PutMapMetadataWithMultipleSessions) {
-  constexpr int64_t kNextMapId = kSecondMapId + 2;
-
   std::unique_ptr<SessionStorageSqlite> database;
   ASSERT_NO_FATAL_FAILURE(OpenInMemory(&database));
 
@@ -284,9 +245,8 @@ TEST_F(SessionStorageSqliteTest, PutMapMetadataWithMultipleSessions) {
   // `map_id`).
   expected_map_metadata[0].map_locator.AddSession(kThirdSessionId);
 
-  // Write metadata for all 3 maps along with the `next_map_id`.
+  // Write metadata for all 3 maps.
   DomStorageDatabase::Metadata metadata;
-  metadata.next_map_id = kNextMapId;
   metadata.map_metadata = CloneMapMetadataVector(expected_map_metadata);
 
   ASSERT_NO_FATAL_FAILURE(InitializeMetadata(*database, metadata));
@@ -295,8 +255,6 @@ TEST_F(SessionStorageSqliteTest, PutMapMetadataWithMultipleSessions) {
 // Verifies that metadata written to the database is persisted across opens and
 // that the in-memory representation is in sync with the database.
 TEST_F(SessionStorageSqliteTest, MetadataPersistence) {
-  constexpr int64_t kNextMapId = 100;
-
   std::vector<DomStorageDatabase::MapMetadata> expected_map_metadata;
   expected_map_metadata.push_back(
       {.map_locator{kFirstSessionId, kFirstStorageKey, kFirstMapId}});
@@ -309,7 +267,6 @@ TEST_F(SessionStorageSqliteTest, MetadataPersistence) {
     ASSERT_NO_FATAL_FAILURE(OpenOnDisk(&database));
 
     DomStorageDatabase::Metadata metadata;
-    metadata.next_map_id = kNextMapId;
     metadata.map_metadata = CloneMapMetadataVector(expected_map_metadata);
     ASSERT_NO_FATAL_FAILURE(InitializeMetadata(*database, metadata));
   }
@@ -321,9 +278,6 @@ TEST_F(SessionStorageSqliteTest, MetadataPersistence) {
 
     ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata read_metadata,
                          database->ReadAllMetadata());
-
-    ASSERT_TRUE(read_metadata.next_map_id.has_value());
-    EXPECT_EQ(*read_metadata.next_map_id, kNextMapId);
     ExpectEqualsMapMetadataSpan(read_metadata.map_metadata,
                                 expected_map_metadata);
   }
@@ -385,13 +339,23 @@ TEST_F(SessionStorageSqliteTest, UpdateMaps) {
   std::unique_ptr<SessionStorageSqlite> database;
   ASSERT_NO_FATAL_FAILURE(OpenInMemory(&database));
 
-  DomStorageDatabase::MapLocator map1_locator{kFirstSessionId, kFirstStorageKey,
-                                              kFirstMapId};
+  const DomStorageDatabase::MapMetadata kExpectedMapMetadata[] = {
+      {
+          .map_locator{kFirstSessionId, kFirstStorageKey, kFirstMapId},
+      },
+      {
+          .map_locator{kFirstSessionId, kSecondStorageKey, kSecondMapId},
+      },
+  };
+  ASSERT_NO_FATAL_FAILURE(TestUpdateMaps(*database,
+                                         kExpectedMapMetadata[0].map_locator,
+                                         kExpectedMapMetadata[1].map_locator));
 
-  DomStorageDatabase::MapLocator map2_locator{kFirstSessionId,
-                                              kSecondStorageKey, kSecondMapId};
-  ASSERT_NO_FATAL_FAILURE(
-      TestUpdateMaps(*database, map1_locator, map2_locator));
+  // `SessionStorageSqlite::UpdateMaps()` must write metadata for each map
+  // updated.
+  ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata metadata,
+                       database->ReadAllMetadata());
+  ExpectEqualsMapMetadataSpan(metadata.map_metadata, kExpectedMapMetadata);
 }
 
 // Verifies that `CloneMap()` correctly copies all key/value pairs from the
@@ -400,10 +364,18 @@ TEST_F(SessionStorageSqliteTest, CloneMap) {
   std::unique_ptr<SessionStorageSqlite> database;
   ASSERT_NO_FATAL_FAILURE(OpenInMemory(&database));
 
-  const DomStorageDatabase::MapLocator kSourceMapLocator{
-      kFirstSessionId, kFirstStorageKey, kFirstMapId};
-  const DomStorageDatabase::MapLocator kTargetMapLocator{
-      kSecondSessionId, kSecondStorageKey, kSecondMapId};
+  const DomStorageDatabase::MapMetadata kExpectedMapMetadata[] = {
+      {
+          .map_locator{kFirstSessionId, kFirstStorageKey, kFirstMapId},
+      },
+      {
+          .map_locator{kSecondSessionId, kSecondStorageKey, kSecondMapId},
+      },
+  };
+  const DomStorageDatabase::MapLocator kSourceMapLocator =
+      kExpectedMapMetadata[0].map_locator.Clone();
+  const DomStorageDatabase::MapLocator kTargetMapLocator =
+      kExpectedMapMetadata[1].map_locator.Clone();
 
   // Insert key/value pairs into the source map.
   const std::map<DomStorageDatabase::Key, DomStorageDatabase::Value>
@@ -431,6 +403,12 @@ TEST_F(SessionStorageSqliteTest, CloneMap) {
                                  DomStorageDatabase::Value> source_entries),
                        database->ReadMapKeyValues(kSourceMapLocator.Clone()));
   EXPECT_EQ(source_entries, kSourceMapEntries);
+
+  // Verify `SessionStorageSqlite::CloneMap()` updated the metadata for
+  // `kTargetMapLocator`.
+  ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata metadata,
+                       database->ReadAllMetadata());
+  ExpectEqualsMapMetadataSpan(metadata.map_metadata, kExpectedMapMetadata);
 }
 
 // Verifies deleting a session removes its metadata from the database.
@@ -1032,6 +1010,44 @@ TEST_F(SessionStorageSqliteTest, RewriteDB) {
   ASSERT_NO_FATAL_FAILURE(SearchDirectoryContent(
       temp_dir_.GetPath(), /*query=*/kSerializedFirstStorageKey,
       /*expected_is_found=*/false));
+}
+
+// Verifies that a SQLite error reported through the database's error callback
+// is recorded to the `Storage.SessionStorage.Database.Error` histogram, and
+// that the resulting corruption is surfaced to the caller.
+TEST_F(SessionStorageSqliteTest, DatabaseErrorRecordsHistogram) {
+  base::HistogramTester histograms;
+
+  // Write valid metadata so the database file exists and has tables.
+  {
+    std::unique_ptr<SessionStorageSqlite> database;
+    ASSERT_NO_FATAL_FAILURE(OpenOnDisk(&database));
+
+    DomStorageDatabase::Metadata valid_metadata;
+    valid_metadata.map_metadata.push_back({
+        .map_locator{kFirstSessionId, kFirstStorageKey, kFirstMapId},
+    });
+    DbStatus status = database->PutMetadata(std::move(valid_metadata));
+    EXPECT_TRUE(status.ok());
+  }
+
+  // Corrupt the database header on disk.
+  base::FilePath database_path;
+  ASSERT_NO_FATAL_FAILURE(GetDatabasePath(&database_path));
+  ASSERT_TRUE(sql::test::CorruptSizeInHeader(database_path));
+
+  // `Database::Open()` forces SQLite to parse the schema, so the corrupted
+  // header must be detected during open.
+  {
+    std::unique_ptr<SessionStorageSqlite> database =
+        std::make_unique<SessionStorageSqlite>(GetPassKey());
+    DbStatus open_status = database->Open(/*database_path=*/database_path,
+                                          /*memory_dump_id=*/std::nullopt);
+    EXPECT_TRUE(open_status.IsCorruption()) << open_status.ToString();
+  }
+
+  histograms.ExpectTotalCount("Storage.SessionStorage.Database.Error",
+                              /*expected_count=*/1);
 }
 
 }  // namespace storage

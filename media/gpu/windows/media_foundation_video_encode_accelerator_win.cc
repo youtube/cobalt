@@ -396,7 +396,7 @@ EncoderStatus MediaFoundationVideoEncodeAccelerator::Initialize(
   media_log_ = std::move(media_log);
 
   bool is_supported_format = false;
-  if (base::FeatureList::IsEnabled(kMediaFoundationD3DVideoProcessing)) {
+  if (IsMediaFoundationD3DVideoProcessingEnabled(workarounds_)) {
     is_supported_format =
         std::ranges::find(kSupportedPixelFormatsD3DVideoProcessing,
                           config.input_format) !=
@@ -753,7 +753,7 @@ bool MediaFoundationVideoEncodeAccelerator::InitializeMFT(
   }
   encoder_needs_input_counter_ = 0;
 
-  if (!base::FeatureList::IsEnabled(kMediaFoundationD3DVideoProcessing) ||
+  if (!IsMediaFoundationD3DVideoProcessingEnabled(workarounds_) ||
       input_format_ == PIXEL_FORMAT_NV12 ||
       input_format_ == PIXEL_FORMAT_I420) {
     return true;
@@ -2077,7 +2077,7 @@ HRESULT MediaFoundationVideoEncodeAccelerator::PopulateInputSampleBuffer(
       "timestamp", frame->timestamp());
 
   bool is_supported_format;
-  if (base::FeatureList::IsEnabled(kMediaFoundationD3DVideoProcessing)) {
+  if (IsMediaFoundationD3DVideoProcessingEnabled(workarounds_)) {
     is_supported_format =
         std::ranges::find(kSupportedPixelFormatsD3DVideoProcessing,
                           frame->format()) !=
@@ -2092,7 +2092,7 @@ HRESULT MediaFoundationVideoEncodeAccelerator::PopulateInputSampleBuffer(
     return MF_E_INVALID_STREAM_DATA;
   }
 
-  if (base::FeatureList::IsEnabled(kMediaFoundationD3DVideoProcessing) &&
+  if (IsMediaFoundationD3DVideoProcessingEnabled(workarounds_) &&
       frame->format() != input_format_) {
     input_format_ = frame->format();
     if (frame->format() == PIXEL_FORMAT_NV12 ||
@@ -3110,6 +3110,12 @@ HRESULT MediaFoundationVideoEncodeAccelerator::PerformD3DCopy(
 
     D3D11_TEXTURE2D_DESC input_desc;
     input_texture->GetDesc(&input_desc);
+
+    if (input_desc.Format != DXGI_FORMAT_NV12) {
+      LOG(ERROR) << "Format mismatch: source format " << input_desc.Format
+                 << " is not DXGI_FORMAT_NV12";
+      return E_INVALIDARG;
+    }
 
     if (visible_rect.x() < 0 || visible_rect.y() < 0 ||
         visible_rect.right() > static_cast<int>(input_desc.Width) ||

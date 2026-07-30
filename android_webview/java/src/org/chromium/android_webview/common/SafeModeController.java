@@ -219,14 +219,25 @@ public class SafeModeController {
         }
 
         Log.i(TAG, "Received SafeModeActions: %s", actions);
-        if (mRegisteredActions == null) return actions;
+        return actions;
+    }
+
+    /**
+     * Enables the SafeModeAction specified by id.
+     *
+     * @param id the SafeModeActionId of the action to enable.
+     */
+    public void enableAction(String id) {
+        if (mRegisteredActions == null) {
+            throw new IllegalStateException("Must registerActions() before calling enableAction()");
+        }
         for (SafeModeAction action : mRegisteredActions) {
-            if (actions.contains(action.getId())) {
+            if (action.getId().equals(id)) {
                 Log.i(TAG, "Enabling %s.", action.getId());
                 action.enable();
+                return;
             }
         }
-        return actions;
     }
 
     /**

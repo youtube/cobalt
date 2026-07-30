@@ -3325,10 +3325,9 @@ bool StyleEngine::StyleMaybeAffectedByLayout(const Element& element) {
          ComputedStyle::IsNullOrEnsured(element.GetComputedStyle());
 }
 
-bool StyleEngine::UpdateRootFontRelativeUnits(
-    const ComputedStyle* old_root_style,
-    const ComputedStyle* new_root_style) {
-  if (!new_root_style || !UsesRootFontRelativeUnits()) {
+bool StyleEngine::UpdateRootRelativeUnits(const ComputedStyle* old_root_style,
+                                          const ComputedStyle* new_root_style) {
+  if (!new_root_style || !UsesRootRelativeUnits()) {
     return false;
   }
   bool rem_changed = !old_root_style || old_root_style->SpecifiedFontSize() !=
@@ -3344,12 +3343,12 @@ bool StyleEngine::UpdateRootFontRelativeUnits(
       !old_root_style ||
       (UsesLineHeightUnits() &&
        old_root_style->LineHeight() != new_root_style->LineHeight());
-  bool root_font_changed =
+  bool invalidate_root_units =
       rem_changed || root_font_glyphs_changed || root_line_height_changed;
-  if (root_font_changed) {
-    // Resolved root font relative units are stored in the matched properties
-    // cache so we need to make sure to invalidate the cache if the
-    // documentElement font size changes.
+  if (invalidate_root_units) {
+    // Resolved root relative units are stored in the matched properties cache
+    // so we need to make sure to invalidate the cache if the documentElement
+    // font or line-height changes.
     GetStyleResolver().InvalidateMatchedPropertiesCache();
     return true;
   }

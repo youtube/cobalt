@@ -133,6 +133,9 @@ class Tracker;
 // The layout guide center to use to refer to the first suggestion label.
 @property(nonatomic, strong) LayoutGuideCenter* layoutGuideCenter;
 
+// Whether the location bar is currently active.
+@property(nonatomic, assign) BOOL active;
+
 // Feature engagement tracker.
 @property(nonatomic, assign) feature_engagement::Tracker* tracker;
 

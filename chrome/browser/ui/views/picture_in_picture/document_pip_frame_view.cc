@@ -12,6 +12,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_tracker.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/content_settings/content_setting_image_model.h"
 #include "chrome/browser/ui/views/location_bar/content_setting_image_view.h"
@@ -25,6 +26,7 @@
 #include "components/url_formatter/elide_url.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/hit_test.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -41,6 +43,8 @@
 #include "ui/views/border.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/image_button.h"
+#include "ui/views/controls/button/image_button_factory.h"
+#include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/event_monitor.h"
@@ -86,13 +90,30 @@ std::unique_ptr<views::ImageButton> CreatePipTitleBarButton(
                             icon, kColorPipWindowForeground, kButtonIconSize));
   button->SetTooltipText(tooltip);
   button->GetViewAccessibility().SetName(tooltip);
+  // Match PictureInPictureBrowserFrameView's OverlayWindowImageButton styling:
+  // center the icon and add the standard 4px vector-image-button border insets
+  // so the control is 24x24 (16px icon + 4px on each side), keeping the icon
+  // 4px from the window edge and the hover highlight circular.
+  button->SetImageHorizontalAlignment(views::ImageButton::ALIGN_CENTER);
+  button->SetImageVerticalAlignment(views::ImageButton::ALIGN_MIDDLE);
+  views::ConfigureVectorImageButton(button.get());
+  views::InstallCircleHighlightPathGenerator(button.get());
+  button->SetInstallFocusRingOnFocus(true);
   return button;
 }
 
-// A thin clickable container that holds the security icon and origin label and
-// opens the Page Info dialog when pressed. This intentionally adds no behavior
-// beyond views::Button; the subclass exists only because views::Button's
-// constructor is protected.
+// A thin clickable container that holds the security icon and security chip
+// text and opens the Page Info dialog when pressed. This intentionally adds no
+// behavior beyond views::Button; the subclass exists only because
+// views::Button's constructor is protected.
+//
+// TODO(crbug.com/515252142): A follow-up CL will give the chip the
+// browser-backed IconLabelBubbleView's interior padding and hover/pressed
+// highlight (a rounded-rect background). That highlight is split out of this
+// layout-focused CL because it is a distinct visual treatment whose exact
+// metrics (corner radius, highlight color/alpha, and ink-drop behavior on
+// hover and press) still need to be matched to the omnibox chip; keeping it
+// separate makes both this change and the highlight reviewable on their own.
 class OriginChipButton : public views::Button {
   METADATA_HEADER(OriginChipButton, views::Button)
 
@@ -160,14 +181,18 @@ DocumentPipFrameView::DocumentPipFrameView(DocumentPipHost* host)
       views::CreateSolidBackground(kColorPipWindowTopBarBackground));
 
   // Create the origin chip: a clickable button containing the security (lock)
-  // icon and the opener origin label. Clicking it opens the Page Info dialog.
-  // Unlike the omnibox stack, this is a thin PiP-specific control that reads
-  // directly from the opener WebContents.
+  // icon. Clicking it opens the Page Info dialog. This mirrors the
+  // browser-backed frame's LocationIconView: the chip is the security indicator
+  // only; the URL/title is a separate label outside the chip. Unlike the
+  // omnibox stack, this is a thin PiP-specific control that reads directly from
+  // the opener WebContents.
   auto origin_chip = std::make_unique<OriginChipButton>(base::BindRepeating(
       [](DocumentPipFrameView* frame_view) { frame_view->ShowPageInfo(); },
       // Safety: The widget owns the frame view and this button, so the
       // callback cannot outlive the widget.
       base::Unretained(this)));
+  origin_chip->SetProperty(views::kElementIdentifierKey,
+                           kLocationIconElementId);
   origin_chip->SetTooltipText(
       l10n_util::GetStringUTF16(IDS_TOOLTIP_LOCATION_ICON));
   origin_chip->GetViewAccessibility().SetName(
@@ -176,40 +201,37 @@ DocumentPipFrameView::DocumentPipFrameView(DocumentPipHost* host)
       origin_chip->SetLayoutManager(std::make_unique<views::FlexLayout>());
   origin_layout->SetOrientation(views::LayoutOrientation::kHorizontal)
       .SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
-  // The chip sizes to its content (lock + origin text) and shrinks (eliding the
-  // origin) when space is tight, but never grows to fill the bar, so the
-  // remaining top-bar area stays draggable.
-  origin_chip->SetProperty(
-      views::kFlexBehaviorKey,
-      views::FlexSpecification(views::LayoutOrientation::kHorizontal,
-                               views::MinimumFlexSizeRule::kScaleToZero,
-                               views::MaximumFlexSizeRule::kPreferred));
+  // The chip sizes to its content (lock + optional chip text) and is not
+  // flexible, so it always stays at its preferred size and never collapses,
+  // matching the browser-backed frame's non-flexible location icon. The
+  // external margin offsets the chip 8px from the window edge and 4px from the
+  // window title.
+  origin_chip->SetProperty(views::kMarginsKey, gfx::Insets::TLBR(5, 8, 5, 4));
 
-  // The security (lock) icon, left of the origin text.
+  // The security (lock) icon, the sole content of the chip. The left offset and
+  // vertical centering are provided by the chip's margin.
   auto security_icon = std::make_unique<views::ImageView>();
-  // The 5px vertical margin mirrors PictureInPictureBrowserFrameView's
-  // IconLabelBubbleView margin. The horizontal margins define this standalone
-  // chip's inset: 8px from the PiP window edge and 4px between the icon and
-  // origin text.
-  security_icon->SetProperty(views::kMarginsKey, gfx::Insets::TLBR(5, 8, 5, 4));
   security_icon_ = origin_chip->AddChildView(std::move(security_icon));
 
-  // The origin label, showing the opener's security-display host.
-  auto origin_label = std::make_unique<views::Label>(
+  origin_chip_ = top_bar_container_view_->AddChildView(std::move(origin_chip));
+
+  // The window title label, showing the opener's URL. This is a sibling of the
+  // origin chip (not a child), so it is excluded from the chip's Page Info
+  // click target, matching the browser-backed frame's separate window-title
+  // label. The gap from the chip is the chip's right margin.
+  auto window_title = std::make_unique<views::Label>(
       std::u16string(), views::style::CONTEXT_LABEL,
       views::style::STYLE_PRIMARY);
-  origin_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-  origin_label->SetElideBehavior(gfx::ELIDE_HEAD);
-  origin_label->SetProperty(
+  window_title->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+  window_title->SetProperty(
       views::kFlexBehaviorKey,
       views::FlexSpecification(views::LayoutOrientation::kHorizontal,
                                views::MinimumFlexSizeRule::kScaleToZero,
                                views::MaximumFlexSizeRule::kPreferred));
-  origin_label->SetBackgroundColor(kColorPipWindowTopBarBackground);
-  origin_label->SetEnabledColor(kColorPipWindowForeground);
-  origin_label_ = origin_chip->AddChildView(std::move(origin_label));
-
-  origin_chip_ = top_bar_container_view_->AddChildView(std::move(origin_chip));
+  window_title->SetBackgroundColor(kColorPipWindowTopBarBackground);
+  window_title->SetEnabledColor(kColorPipWindowForeground);
+  window_title_ =
+      top_bar_container_view_->AddChildView(std::move(window_title));
 
   // A flexible, non-interactive spacer that pushes the buttons to the right and
   // provides a draggable caption region between the origin chip and the
@@ -263,14 +285,27 @@ DocumentPipFrameView::DocumentPipFrameView(DocumentPipHost* host)
     const auto& back_icon = features::IsRoundedIconsEnabled()
                                 ? vector_icons::kBackToTabIcon
                                 : vector_icons::kBackToTabChromeRefreshOldIcon;
+    // Wrap the button in a fixed-size placeholder so its space stays reserved
+    // in the layout while it is hidden. Browser-backed PiP keeps the
+    // window-control buttons laid out (reserving their space) while inactive
+    // and only hides them; toggling the button's own visibility would instead
+    // collapse its space and let the window title grow. The wrapper always
+    // reports the button's preferred size to the layout, so UpdateTopBarView()
+    // can hide the button (cheaper than fading a compositor layer) while the
+    // wrapper holds the space.
+    auto back_to_tab_wrapper = std::make_unique<views::View>();
+    back_to_tab_wrapper->SetUseDefaultFillLayout(true);
     back_to_tab_button_ =
-        button_container_view_->AddChildView(CreatePipTitleBarButton(
+        back_to_tab_wrapper->AddChildView(CreatePipTitleBarButton(
             back_icon,
             l10n_util::GetStringUTF16(
                 IDS_PICTURE_IN_PICTURE_BACK_TO_TAB_CONTROL_TEXT),
             // Safety: The widget owns the frame view and its child buttons,
             // so the callback cannot outlive the widget.
             base::BindRepeating(back_to_tab_cb, base::Unretained(this))));
+    back_to_tab_wrapper->SetPreferredSize(
+        back_to_tab_button_->GetPreferredSize());
+    button_container_view_->AddChildView(std::move(back_to_tab_wrapper));
   }
 
   // Create the close button.
@@ -286,13 +321,20 @@ DocumentPipFrameView::DocumentPipFrameView(DocumentPipHost* host)
   const auto& close_icon = features::IsRoundedIconsEnabled()
                                ? vector_icons::kCloseIcon
                                : vector_icons::kCloseChromeRefreshOldIcon;
-  close_image_button_ =
-      button_container_view_->AddChildView(CreatePipTitleBarButton(
-          close_icon,
-          l10n_util::GetStringUTF16(IDS_PICTURE_IN_PICTURE_CLOSE_CONTROL_TEXT),
-          // Safety: The widget owns the frame view and its child buttons,
-          // so the callback cannot outlive the widget.
-          base::BindRepeating(close_cb, base::Unretained(this))));
+  // Wrap the close button in a fixed-size placeholder for the same reason as
+  // the back-to-tab button above: the wrapper reserves the button's space in
+  // the layout so hiding the button while inactive doesn't let the window
+  // title grow. See UpdateTopBarView().
+  auto close_wrapper = std::make_unique<views::View>();
+  close_wrapper->SetUseDefaultFillLayout(true);
+  close_image_button_ = close_wrapper->AddChildView(CreatePipTitleBarButton(
+      close_icon,
+      l10n_util::GetStringUTF16(IDS_PICTURE_IN_PICTURE_CLOSE_CONTROL_TEXT),
+      // Safety: The widget owns the frame view and its child buttons,
+      // so the callback cannot outlive the widget.
+      base::BindRepeating(close_cb, base::Unretained(this))));
+  close_wrapper->SetPreferredSize(close_image_button_->GetPreferredSize());
+  button_container_view_->AddChildView(std::move(close_wrapper));
 
   // TODO(crbug.com/40279642): Don't force dark mode once we support a
   // light mode window.
@@ -340,12 +382,15 @@ int DocumentPipFrameView::NonClientHitTest(const gfx::Point& point) {
 
   // Allow interacting with the buttons. Button bounds are interpreted in their
   // parent's coordinate space and converted to frame-view coordinates so the
-  // hit-test comparisons share a coordinate space.
-  if (back_to_tab_button_ &&
+  // hit-test comparisons share a coordinate space. The buttons stay laid out
+  // while inactive (their fixed-size wrappers reserve the space) and are only
+  // hidden, so gate on render_active_ to avoid hit-testing the hidden buttons.
+  if (back_to_tab_button_ && render_active_ &&
       ConvertControlBoundsToFrame(back_to_tab_button_).Contains(point)) {
     return HTCLIENT;
   }
-  if (ConvertControlBoundsToFrame(close_image_button_).Contains(point)) {
+  if (render_active_ &&
+      ConvertControlBoundsToFrame(close_image_button_).Contains(point)) {
     return HTCLIENT;
   }
 
@@ -436,6 +481,45 @@ gfx::Size DocumentPipFrameView::GetNonClientViewAreaSize() const {
                    top_height + border_thickness.bottom());
 }
 
+void DocumentPipFrameView::UpdateWindowBoundsForRequestedInnerSize() {
+  const blink::mojom::PictureInPictureWindowOptions& pip_options =
+      host_->GetPipOptions();
+  // Only a request that specifies an explicit inner width and height needs the
+  // outer bounds recomputed. Without both, the manager's aspect-ratio fallback
+  // already produced correct outer bounds at creation time.
+  if (pip_options.width <= 0 || pip_options.height <= 0) {
+    return;
+  }
+
+  views::Widget* const widget = GetWidget();
+  CHECK(widget);
+
+  // The platform (OS) border is the part of the outer window that the platform
+  // reserves and chrome cannot draw into. It is only knowable once the Widget
+  // and its native window exist, which is why the host invokes this after
+  // Widget::Init() rather than at bounds-calculation time.
+  const gfx::Size platform_border =
+      widget->GetWindowBoundsInScreen().size() -
+      widget->GetClientAreaBoundsInScreen().size();
+
+  // The excluded margin is everything between the requested inner
+  // (web-contents) size and the outer window size: our top bar + frame insets,
+  // plus the platform border. Mirrors the computation in
+  // PictureInPictureBrowserFrameView::OnBrowserViewInitialized.
+  const gfx::Insets border_insets = FrameBorderInsets();
+  const gfx::Size excluded_margin(
+      border_insets.width() + platform_border.width(),
+      GetTopAreaHeight() + border_insets.bottom() + platform_border.height());
+
+  // GetMinimumSize() already includes the non-client area, so it is the minimum
+  // *outer* window size expected by CalculateOuterWindowBounds.
+  const gfx::Rect window_bounds =
+      PictureInPictureWindowManager::GetInstance()->CalculateOuterWindowBounds(
+          pip_options, GetMinimumSize(), excluded_margin);
+
+  widget->SetBounds(window_bounds);
+}
+
 void DocumentPipFrameView::OnThemeChanged() {
   UpdateOriginAndSecurity();
   views::FrameView::OnThemeChanged();
@@ -490,9 +574,18 @@ void DocumentPipFrameView::UpdateOriginAndSecurity() {
 
   // Show the opener origin in security-display form (scheme omitted for the
   // common HTTPS case).
+  //
+  // TODO(crbug.com/515252142): A follow-up CL will add the security-sensitive
+  // title/security treatment that mirrors PictureInPictureBrowserFrameView:
+  // file-scheme-aware URL formatting (keep the path, omit file://), the
+  // scheme-dependent elision direction (elide the tail for file/extension/
+  // isolated-app URLs to resist origin spoofing), and the omnibox-style
+  // security chip text ("File"/"Not secure"/"Dangerous"). It is split out so
+  // those security-sensitive lines land in a focused, separately reviewable CL
+  // with clean blame history.
   const std::u16string origin_text = url_formatter::FormatUrlForSecurityDisplay(
       url, url_formatter::SchemeDisplay::OMIT_HTTP_AND_HTTPS);
-  origin_label_->SetText(origin_text);
+  window_title_->SetText(origin_text);
   origin_chip_->GetViewAccessibility().SetDescription(origin_text);
 
   // Derive the security level and lock/security icon directly from the opener,
@@ -520,6 +613,16 @@ void DocumentPipFrameView::UpdateTopBarView(bool render_active) {
   }
   render_active_ = render_active;
 
+  // Browser-backed PiP keeps the window-control buttons laid out while
+  // inactive (reserving their space) and only hides them. Each button lives in
+  // a fixed-size wrapper that holds its space, so toggling the button's own
+  // visibility keeps the origin/title labels from growing to fill the buttons'
+  // space.
+  if (back_to_tab_button_) {
+    back_to_tab_button_->SetVisible(render_active_);
+  }
+  close_image_button_->SetVisible(render_active_);
+
   // TODO(crbug.com/515252142): Port the top-bar animations from
   // PictureInPictureBrowserFrameView::UpdateTopBarView (top-bar color fade,
   // camera-slide, and show/hide of the window-control buttons) for visual
@@ -530,7 +633,7 @@ void DocumentPipFrameView::UpdateTopBarView(bool render_active) {
   const SkColor foreground = color_provider->GetColor(
       render_active_ ? kColorPipWindowForeground
                      : kColorPipWindowForegroundInactive);
-  origin_label_->SetEnabledColor(foreground);
+  window_title_->SetEnabledColor(foreground);
   UpdateOriginAndSecurity();
 }
 

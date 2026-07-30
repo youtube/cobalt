@@ -5,8 +5,10 @@
 #include <optional>
 
 #include "base/allocator/partition_alloc_support.h"
+#include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/debug/alias.h"
+#include "base/debug/debugger.h"
 #include "base/debug/leak_annotations.h"
 #include "base/functional/bind.h"
 #include "base/immediate_crash.h"
@@ -264,6 +266,10 @@ int UtilityMain(MainFunctionParams parameters) {
   const std::string utility_sub_type =
       parameters.command_line->GetSwitchValueASCII(switches::kUtilitySubType);
   SetUtilityThreadName(utility_sub_type);
+
+  if (parameters.command_line->HasSwitch(switches::kWaitForDebugger)) {
+    base::debug::WaitForDebugger(/*wait_seconds=*/60, /*silent=*/true);
+  }
 
   if (parameters.command_line->HasSwitch(switches::kUtilityStartupDialog)) {
     auto dialog_match = parameters.command_line->GetSwitchValueASCII(

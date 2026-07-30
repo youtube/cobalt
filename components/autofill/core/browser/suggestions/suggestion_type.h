@@ -46,6 +46,7 @@ enum class SuggestionType {
   kManageAddress = 10,
   kManageAutofillAi = 64,
   kManageAutofillAiIdentityDocs = 75,
+  kManageAutofillAiShopping = 91,
   kManageAutofillAiTravel = 76,
   kManageCreditCard = 11,
   kManageIban = 12,
@@ -217,8 +218,12 @@ enum class SuggestionType {
   // to recommend credit cards for autofill
   kMaximizeCreditCardBenefitsEntry = 89,
 
-  // Next ID: 90
-  kMaxValue = kMaximizeCreditCardBenefitsEntry
+  // Fallback suggestion to open a subpopup displaying other orders.
+  kAutofillAiOtherOrders = 90,
+
+  // Next ID: 92
+
+  kMaxValue = kManageAutofillAiShopping
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:SuggestionType)
 

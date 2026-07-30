@@ -59,7 +59,6 @@ import org.chromium.ui.test.util.DeviceRestriction;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Batch(Batch.PER_CLASS)
-@DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/479863847
 public class IncognitoNtpOmniboxAutofocusManagerTest {
     /**
      * The maximum time to wait for omnibox focus and keyboard visibility. On some devices the
@@ -98,6 +97,7 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
     @Test
     @MediumTest
     @EnableFeatures(ChromeFeatureList.OMNIBOX_AUTOFOCUS_ON_INCOGNITO_NTP)
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // Fails on Desktop, see crbug.com/527817227.
     public void whenRegularNtpOpened_autofocusFails() {
         mActivityTestRule.loadUrlInNewTab(getOriginalNativeNtpUrl(), false);
 

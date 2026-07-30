@@ -82,6 +82,13 @@ public class FacilitatedPaymentsApiClient {
          * @param purchaseActionResult The result of the purchase action.
          */
         default void onPurchaseActionResultEnum(@PurchaseActionResult int purchaseActionResult) {}
+
+        /**
+         * Notifies the delegate about the rich result of the instrument manager.
+         *
+         * @param result Rich structure containing the instrument ID and error code.
+         */
+        default void onInvokeInstrumentManagerResult(AccountLinkingResult result) {}
     }
 
     /**
@@ -160,5 +167,15 @@ public class FacilitatedPaymentsApiClient {
      */
     public void invokePurchaseAction(CoreAccountInfo primaryAccount, byte[] actionToken) {
         mDelegate.onPurchaseActionResultEnum(PurchaseActionResult.COULD_NOT_INVOKE);
+    }
+
+    /**
+     * Initiates the instrument manager UI. Will invoke a delegate callback with the result.
+     *
+     * @param primaryAccount User's signed in account.
+     * @param actionToken An opaque token used for invoking the instrument manager.
+     */
+    public void invokeInstrumentManager(CoreAccountInfo primaryAccount, byte[] actionToken) {
+        mDelegate.onInvokeInstrumentManagerResult(new AccountLinkingResult.Builder().build());
     }
 }

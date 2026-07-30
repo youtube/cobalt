@@ -95,6 +95,16 @@ class APIEventHandler {
                                 const std::string& event_name,
                                 v8::Local<v8::Function> function);
 
+  // Registers a `function` to serve as the "event dispatch handler" for the
+  // given `event_name`: it takes over the entire dispatch of the event,
+  // matching and invoking listeners itself instead of the emitter. The function
+  // is called with a single argument: the array of arguments being dispatched.
+  // Unlike an argument massager, it is not given a dispatch function and no
+  // event filter is pushed for it.
+  void RegisterEventDispatchHandler(v8::Local<v8::Context> context,
+                                    const std::string& event_name,
+                                    v8::Local<v8::Function> function);
+
   // Returns true if there is a listener for the given `event_name` in the
   // given `context`.
   bool HasListenerForEvent(const std::string& event_name,

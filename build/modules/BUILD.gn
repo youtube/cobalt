@@ -62,18 +62,15 @@ if (use_unified_system_module) {
       }
     }
     if (is_ios) {
-      ios_sdk_in_output_dir =
-          filter_exclude([ rebase_path(ios_sdk_path, root_build_dir) ],
-                         [
-                           "../*",
-                           "/*",
-                         ]) != []
-
       if (need_mac_sysroot && ios_sdk_path == mac_sdk_path) {
         group("ios_sysroot") {
           public_deps = [ ":mac_sysroot" ]
         }
-      } else if (ios_sdk_in_output_dir) {
+      } else if (filter_exclude([ rebase_path(ios_sdk_path, root_build_dir) ],
+                                [
+                                  "../*",
+                                  "/*",
+                                ]) != []) {
         action("ios_sysroot") {
           script = "//build/noop.py"
           outputs = expand_directory(ios_sdk_path + "/usr/include", true)

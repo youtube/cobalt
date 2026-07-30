@@ -36,10 +36,9 @@ IncomingPasswords& IncomingPasswords::operator=(IncomingPasswords&& other) =
     default;
 
 struct ConflictsResolutionCache {
-  ConflictsResolutionCache(
-      IncomingPasswords incoming_passwords,
-      std::vector<std::vector<password_manager::PasswordForm>> conflicts,
-      ImportResults results)
+  ConflictsResolutionCache(IncomingPasswords incoming_passwords,
+                           std::vector<std::vector<PasswordForm>> conflicts,
+                           ImportResults results)
       : incoming_passwords(std::move(incoming_passwords)),
         conflicts(std::move(conflicts)),
         results(std::move(results)) {}
@@ -50,7 +49,7 @@ struct ConflictsResolutionCache {
   // Conflicting credential that could be updated. Each nested vector
   // represents one credential, i.e. all PasswordForm's in such a vector have
   // the same signon_ream, username, password.
-  std::vector<std::vector<password_manager::PasswordForm>> conflicts;
+  std::vector<std::vector<PasswordForm>> conflicts;
   // Aggregated results of the current import.
   ImportResults results;
 };
@@ -127,9 +126,9 @@ bool IsURLMissing(const ImportEntry& entry) {
   return entry.url.empty();
 }
 
-base::expected<password_manager::CredentialUIEntry, ImportEntry>
-CSVPasswordToCredentialUIEntry(const CSVPassword& csv_password,
-                               password_manager::PasswordForm::Store store) {
+base::expected<CredentialUIEntry, ImportEntry> CSVPasswordToCredentialUIEntry(
+    const CSVPassword& csv_password,
+    PasswordForm::Store store) {
   auto with_status = [&](ImportEntry::Status status) {
     ImportEntry entry;
     entry.status = status;
@@ -173,7 +172,7 @@ CSVPasswordToCredentialUIEntry(const CSVPassword& csv_password,
     return base::unexpected(with_status(ImportEntry::Status::INVALID_URL));
   }
 
-  return password_manager::CredentialUIEntry(csv_password, store);
+  return CredentialUIEntry(csv_password, store);
 }
 
 std::optional<CredentialUIEntry> GetConflictingCredential(
@@ -348,7 +347,7 @@ void ProcessParsedCredential(
         credentials_by_username,
     PasswordForm::Store to_store,
     IncomingPasswords& incoming_passwords,
-    std::vector<std::vector<password_manager::PasswordForm>>& conflicts,
+    std::vector<std::vector<PasswordForm>>& conflicts,
     ImportResults& results,
     NotesImportMetrics& notes_metrics,
     size_t& duplicates_count) {
@@ -450,7 +449,7 @@ void PasswordImporter::ParseCSVPasswordsInSandbox(
 }
 
 void PasswordImporter::Import(std::string csv_data,
-                              password_manager::PasswordForm::Store to_store,
+                              PasswordForm::Store to_store,
                               ImportResultsCallback results_callback) {
   // Blocks concurrent import requests.
   state_ = kInProgress;
@@ -466,7 +465,7 @@ void PasswordImporter::Import(std::string csv_data,
 }
 
 void PasswordImporter::Import(const base::FilePath& path,
-                              password_manager::PasswordForm::Store to_store,
+                              PasswordForm::Store to_store,
                               ImportResultsCallback results_callback) {
   // Blocks concurrent import requests.
   state_ = kInProgress;
@@ -524,7 +523,7 @@ void PasswordImporter::ContinueImport(const std::vector<int>& selected_ids,
 void PasswordImporter::OnCSVPasswordsParsed(
     PasswordForm::Store to_store,
     ImportResultsCallback results_callback,
-    password_manager::mojom::CSVPasswordSequencePtr seq) {
+    mojom::CSVPasswordSequencePtr seq) {
   // Used to aggregate final results of the current import.
   ImportResults results;
   results.file_name = file_path_.BaseName().AsUTF8Unsafe();
@@ -532,15 +531,14 @@ void PasswordImporter::OnCSVPasswordsParsed(
 
   if (!seq) {
     // A nullptr returned by the parser means a bad format.
-    results.status = password_manager::ImportResults::Status::BAD_FORMAT;
+    results.status = ImportResults::Status::BAD_FORMAT;
     // Importer is reset to the initial state, due to the error.
     state_ = kNotStarted;
     std::move(results_callback).Run(std::move(results));
     return;
   }
   if (seq->csv_passwords.size() > constants::kMaxPasswordsPerCSVFile) {
-    results.status =
-        password_manager::ImportResults::Status::NUM_PASSWORDS_EXCEEDED;
+    results.status = ImportResults::Status::NUM_PASSWORDS_EXCEEDED;
 
     // Importer is reset to the initial state, due to the error.
     state_ = kNotStarted;
@@ -573,14 +571,14 @@ void PasswordImporter::ConsumePasswords(
   // Conflicting credential that could be updated. Each nested vector
   // represents one credential, i.e. all PasswordForm's in such a vector have
   // the same signon_ream, username, password.
-  std::vector<std::vector<password_manager::PasswordForm>> conflicts;
+  std::vector<std::vector<PasswordForm>> conflicts;
 
   // Go over all canonically parsed passwords:
   // 1) aggregate all valid ones in `incoming_passwords` to be passed over to
   // the presenter. 2) aggregate all parsing errors in the `results`.
-  for (const password_manager::CSVPassword& csv_password : csv_passwords) {
-    base::expected<password_manager::CredentialUIEntry, ImportEntry>
-        credential = CSVPasswordToCredentialUIEntry(csv_password, to_store);
+  for (const CSVPassword& csv_password : csv_passwords) {
+    base::expected<CredentialUIEntry, ImportEntry> credential =
+        CSVPasswordToCredentialUIEntry(csv_password, to_store);
 
     if (!credential.has_value()) {
       results.displayed_entries.emplace_back(std::move(credential.error()));
@@ -613,7 +611,7 @@ void PasswordImporter::ShowImportConflicts(
     ImportResultsCallback results_callback,
     ImportResults results,
     IncomingPasswords incoming_passwords,
-    std::vector<std::vector<password_manager::PasswordForm>> conflicts) {
+    std::vector<std::vector<PasswordForm>> conflicts) {
   state_ = kUserInteractionRequired;
   ImportResults conflicts_results;
   conflicts_results.number_to_import = results.number_imported;
@@ -641,7 +639,7 @@ void PasswordImporter::ExecuteImport(ImportResultsCallback results_callback,
              std::move(results_callback), std::move(results), conflicts_count));
 
   presenter_->AddCredentials(incoming_passwords.add_credentials,
-                             password_manager::PasswordForm::Type::kImported,
+                             PasswordForm::Type::kImported,
                              barrier_done_callback);
   presenter_->UpdatePasswordForms(incoming_passwords.edit_forms,
                                   barrier_done_callback);
@@ -662,7 +660,7 @@ void PasswordImporter::ImportFinished(ImportResultsCallback results_callback,
     state_ = kNotStarted;
   }
 
-  results.status = password_manager::ImportResults::Status::SUCCESS;
+  results.status = ImportResults::Status::SUCCESS;
   std::move(results_callback).Run(std::move(results));
 }
 

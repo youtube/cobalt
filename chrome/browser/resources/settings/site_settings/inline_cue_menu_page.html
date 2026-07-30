@@ -1,0 +1,21 @@
+<style include="settings-shared site-settings-shared"></style>
+<settings-subpage page-title="$i18n{siteSettingsInlineCueMenu}"
+    search-label="$i18n{siteSettingsAllSitesFilter}"
+    search-icon="settings20:filter-list"
+    search-term="{{searchTerm}}" route-path$="[[routePath]]">
+  <div class="content-settings-header secondary">
+    $i18n{siteSettingsInlineCueMenuDescription}
+  </div>
+  <settings-category-default-radio-group
+      category="[[contentSettingsTypesEnum_.INLINE_CUE_MENU]]"
+      allow-option-label="$i18n{siteSettingsInlineCueMenuAllowed}"
+      allow-option-icon="settings20:text-analysis"
+      block-option-label="$i18n{siteSettingsInlineCueMenuBlocked}"
+      block-option-icon="privacy:open-in-new-off">
+  </settings-category-default-radio-group>
+  <category-setting-exceptions
+      category="[[contentSettingsTypesEnum_.INLINE_CUE_MENU]]"
+      block-header="$i18n{siteSettingsInlineCueMenuBlockedExceptions}"
+      search-filter="[[searchTerm]]">
+  </category-setting-exceptions>
+</settings-subpage>

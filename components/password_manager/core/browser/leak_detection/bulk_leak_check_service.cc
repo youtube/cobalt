@@ -78,7 +78,7 @@ BulkLeakCheckService::~BulkLeakCheckService() = default;
 
 void BulkLeakCheckService::CheckUsernamePasswordPairs(
     LeakDetectionInitiator initiator,
-    std::vector<password_manager::LeakCheckCredential> credentials) {
+    std::vector<LeakCheckCredential> credentials) {
   DVLOG(0) << "Bulk password check, start " << credentials.size();
   if (credentials.empty()) {
     // Nothing to check. Still important to go through the running state, so the

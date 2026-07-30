@@ -70,6 +70,8 @@ NSDictionary<NSString*, NSArray<NSString*>*>* TextToButtonsOfKnownSystemAlerts(
       @"Set Up Cellular" : @[ @"Not Now" ],
       @"to add photos and videos to your photo library" :
           @[ @"Allow", @"OK", @"Add Photos Only" ],
+      @"to access your photo library" :
+          @[ @"Allow", @"OK", @"Allow Access to All Photos" ],
     };
   });
   return text_to_buttons;
