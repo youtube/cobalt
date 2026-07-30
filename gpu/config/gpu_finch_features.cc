@@ -50,6 +50,14 @@ bool IsDeviceBlocked(std::string_view field, std::string_view block_list) {
 
 }  // namespace
 
+#if BUILDFLAG(IS_COBALT)
+// Enables zero-copy, direct in-process rasterization for Cobalt by bypassing
+// PaintOp buffer serialization and transfer cache caching.
+BASE_FEATURE(kCobaltInProcessDirectRaster,
+             "CobaltInProcessDirectRaster",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
+
 // More aggressive behavior for the shader cache: increase size, and do not
 // purge as much in case of memory pressure.
 BASE_FEATURE(kAggressiveShaderCacheLimits, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -735,7 +743,21 @@ bool IsSkiaGraphitePrecompilationEnabled(
 // Set up such that service side purge depends on the client side purge feature
 // being enabled. And enabling service side purge disables client purge
 bool EnablePurgeGpuImageDecodeCache() {
+#if BUILDFLAG(IS_COBALT)
+  // Backport of https://crrev.com/c/7684855 (M150, main@{#1603481}), which
+  // deleted this function outright so that client-side purging is always on.
+  // Quoting that CL: "it's been discovered there are cases where only client
+  // side purging works (it keeps image locked otherwise, preventing service
+  // side purge)."
+  //
+  // Keeping the function (rather than deleting it as upstream did) minimises
+  // the diff against M138 and preserves a clean A/B: with
+  // kPruneOldTransferCacheEntries disabled, Cobalt behaves exactly like
+  // upstream M138 default (which also evaluates to true).
+  return true;
+#else
   return !base::FeatureList::IsEnabled(kPruneOldTransferCacheEntries);
+#endif
 }
 bool EnablePruneOldTransferCacheEntries() {
   return base::FeatureList::IsEnabled(kPruneOldTransferCacheEntries);

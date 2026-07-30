@@ -1,0 +1,15 @@
+# Format: google3/devtools/metadata/metadata.proto (go/google3metadata)
+name: "fdk-aac"
+description:
+  "A standalone library of the Fraunhofer FDK AAC code from Android."
+third_party {
+  identifier {
+    type: "Git"
+    value: "https://github.com/mstorsjo/fdk-aac"
+    closest_version: "2.0.2"
+    version: "unknown"
+  }
+  last_upgrade_date { year: 2022 month: 10 day: 17 }
+  license_note: "Software License for The Fraunhofer FDK AAC Codec Library for Android"
+  license_type: BY_EXCEPTION_ONLY
+}

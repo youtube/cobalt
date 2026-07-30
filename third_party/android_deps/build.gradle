@@ -12,6 +12,8 @@ repositories {
 dependencies {
     // Note about the configuration names: they are defined in buildSrc/ChromiumPlugin
 
+    compile 'com.google.android.gms:play-services-ads-identifier:18.1.0'
+
     // Needed by androidx and by doubledown targets.
     // Note: These have version overrides set in ChromiumDepGraph.groovy.
     compile "org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.8.1"

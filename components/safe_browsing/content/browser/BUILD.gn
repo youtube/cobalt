@@ -287,6 +287,7 @@ if (safe_browsing_mode != 0) {
       "//net",
       "//net/traffic_annotation",
       "//services/network/public/cpp",
+      "//third_party/zlib/google:compression_utils",
       "//url",
     ]
 

@@ -13,6 +13,7 @@
 
 #include "base/base_export.h"
 #include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
 
 namespace base::trace_event {
 
@@ -53,6 +54,11 @@ struct BASE_EXPORT Backtrace {
   Backtrace();
   Backtrace(const Backtrace&);
   ~Backtrace();
+
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+  // The copy constructor is for some reason deleted by the compiler.
+  Backtrace(const Backtrace& other);
+#endif
 
   // If the stack is higher than what can be stored here, the top frames
   // (the ones further from main()) are stored. Depth of 12 is enough for most

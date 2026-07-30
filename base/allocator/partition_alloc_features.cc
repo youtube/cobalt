@@ -400,4 +400,10 @@ BASE_FEATURE_PARAM(int,
                    2048);
 #endif  // BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_ARM64)
 
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kPartitionAllocReuseMainPartitionForBuffers,
+             "PartitionAllocReuseMainPartitionForBuffers",
+             FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace base::features

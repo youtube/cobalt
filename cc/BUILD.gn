@@ -979,6 +979,13 @@ cc_test("cc_unittests") {
     ]
   }
 
+  if (is_cobalt_hermetic_build) {
+    sources -= [
+      "metrics/scroll_jank_v4_processor_unittest.cc",
+      "metrics/scroll_jank_v4_tracing_recorder_unittest.cc",
+    ]
+  }
+
   deps = [
     ":cc",
     ":test_support",
@@ -1080,6 +1087,11 @@ cc_test("cc_perftests") {
     "trees/draw_property_utils_perftest.cc",
     "trees/layer_tree_host_perftest.cc",
   ]
+
+  if (is_cobalt_hermetic_build) {
+    sources += [ "test/starboard/run_all_perftests.cc" ]
+    sources -= [ "test/run_all_perftests.cc" ]
+  }
 
   deps = [
     ":cc",

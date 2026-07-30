@@ -6,9 +6,16 @@
 
 #include "base/test/bind.h"
 #include "base/time/time_override.h"
+#include "build/build_config.h"
 #include "cc/paint/raw_memory_transfer_cache_entry.h"
 #include "gpu/config/gpu_preferences.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
+#include "gpu/config/gpu_finch_features.h"
+#endif
 
 namespace gpu {
 
@@ -134,5 +141,64 @@ TEST(ServiceTransferCacheTest, PurgeEntryOnTimer) {
   EXPECT_EQ(cache.entries_count_for_testing(), 0u);
   EXPECT_TRUE(flush_called);
 }
+
+#if BUILDFLAG(IS_COBALT)
+
+// PurgeEntryOnTimer above calls PruneOldEntries() directly, so it never runs
+// through MaybePostPruneOldEntries() and never sees the feature check. The two
+// tests below go through the public CreateLocalEntry() path and let the real
+// timer fire, which is the only way the gating itself gets covered.
+
+// Control arm of the A/B: with the feature off no timer is ever started, so an
+// unlocked entry stays resident no matter how long the cache idles.
+TEST(ServiceTransferCacheTest, IdleEntryIsKeptWhenPruneFeatureDisabled) {
+  base::test::ScopedFeatureList scoped_features;
+  scoped_features.InitAndDisableFeature(
+      features::kPruneOldTransferCacheEntries);
+  base::test::TaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+
+  bool flush_called = false;
+  ServiceTransferCache cache{
+      GpuPreferences(),
+      base::BindLambdaForTesting([&]() { flush_called = true; })};
+
+  cache.CreateLocalEntry(
+      ServiceTransferCache::EntryKey(kDecoderId, kEntryType, 1u),
+      CreateEntry(1024u));
+  ASSERT_EQ(cache.entries_count_for_testing(), 1u);
+
+  // Well past kOldEntryPruneInterval (30s) and kOldEntryCutoffTimeDelta (25s).
+  task_environment.FastForwardBy(base::Minutes(1));
+
+  EXPECT_EQ(cache.entries_count_for_testing(), 1u);
+  EXPECT_FALSE(flush_called);
+}
+
+// Treatment arm: the same idle entry is reclaimed, and the cache asks its owner
+// to flush so the GPU-side memory releases.
+TEST(ServiceTransferCacheTest, IdleEntryIsReclaimedWhenPruneFeatureEnabled) {
+  base::test::ScopedFeatureList scoped_features;
+  scoped_features.InitAndEnableFeature(features::kPruneOldTransferCacheEntries);
+  base::test::TaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+
+  bool flush_called = false;
+  ServiceTransferCache cache{
+      GpuPreferences(),
+      base::BindLambdaForTesting([&]() { flush_called = true; })};
+
+  cache.CreateLocalEntry(
+      ServiceTransferCache::EntryKey(kDecoderId, kEntryType, 1u),
+      CreateEntry(1024u));
+  ASSERT_EQ(cache.entries_count_for_testing(), 1u);
+
+  task_environment.FastForwardBy(base::Minutes(1));
+
+  EXPECT_EQ(cache.entries_count_for_testing(), 0u);
+  EXPECT_TRUE(flush_called);
+}
+
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace gpu

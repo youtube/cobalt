@@ -393,6 +393,12 @@ void HttpNetworkSession::DisableQuic() {
   params_.enable_quic = false;
 }
 
+#if BUILDFLAG(IS_COBALT)
+bool HttpNetworkSession::UseQuicForUnknownOrigin() const {
+  return params_.use_quic_for_unknown_origins;
+}
+#endif
+
 bool HttpNetworkSession::ShouldForceQuic(const url::SchemeHostPort& destination,
                                          const ProxyInfo& proxy_info,
                                          bool is_websocket) {

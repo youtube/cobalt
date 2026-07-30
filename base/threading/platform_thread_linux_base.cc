@@ -5,6 +5,7 @@
 // Linux-derivatives.
 
 #include "base/threading/platform_thread.h"
+#include "base/command_line.h"
 
 namespace base {
 
