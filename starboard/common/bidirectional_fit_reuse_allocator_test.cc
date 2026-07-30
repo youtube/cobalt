@@ -94,7 +94,9 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
       FixedNoFreeAllocator::FreeWithSize(memory, size);
     }
 
-    void Decommit(void* memory, size_t size, bool conservative) override {
+    void Decommit(void* memory,
+                  size_t size,
+                  Allocator::DecommitMode mode) override {
       auto it = active_allocations_.find(memory);
       EXPECT_NE(it, active_allocations_.end())
           << "Decommitting a pointer not allocated by this fallback allocator.";
@@ -103,14 +105,14 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
             << "Decommit size does not exactly match the allocated size.";
       }
 
-      decommits.push_back({memory, size, conservative});
+      decommits.push_back({memory, size, mode});
       decommit_count++;
     }
 
     struct DecommitRecord {
       void* memory;
       size_t size;
-      bool conservative;
+      Allocator::DecommitMode mode;
     };
 
     int decommit_count;
@@ -147,7 +149,10 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
     allocator_.reset(new BidirectionalFitReuseAllocator<ReuseAllocatorBase>(
         mock_fallback_allocator_, 0, 0, 0, true,
         /*retain_blocks=*/0,
-        /*conservative_decommit_blocks=*/0));
+        /*conservative_decommit_blocks=*/0,
+        /*aggressive_decommit_on_suspend=*/false,
+        /*memset_on_reclaim=*/false,
+        /*mark_as_cold_on_reclaim=*/false));
 
     fallback_allocator_.reset(fallback_allocator.release());
   }
@@ -167,7 +172,10 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
 
     allocator_.reset(new BidirectionalFitReuseAllocator<ReuseAllocatorBase>(
         mock_fallback_allocator_, 0, 0, 0, true, retain_blocks,
-        conservative_decommit_blocks));
+        conservative_decommit_blocks,
+        /*aggressive_decommit_on_suspend=*/false,
+        /*memset_on_reclaim=*/false,
+        /*mark_as_cold_on_reclaim=*/false));
 
     fallback_allocator_.reset(fallback_allocator.release());
   }
@@ -456,7 +464,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitOnBatchedFree) {
   size_t total_decommitted_size = 0;
   for (const auto& decommit : this->mock_fallback_allocator_->decommits) {
     total_decommitted_size += decommit.size;
-    EXPECT_FALSE(decommit.conservative);
+    EXPECT_EQ(decommit.mode, Allocator::DecommitMode::kAggressive);
   }
   EXPECT_GE(total_decommitted_size, kBlockSize * kNumBlocks);
 }
@@ -511,15 +519,15 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, TieredDecommit) {
 
     if (ptr2 >= fallback_ptr && ptr2 < fallback_ptr + fallback_size) {
       found_block2 = true;
-      EXPECT_TRUE(decommit.conservative);
+      EXPECT_EQ(decommit.mode, Allocator::DecommitMode::kConservative);
     }
     if (ptr3 >= fallback_ptr && ptr3 < fallback_ptr + fallback_size) {
       found_block3 = true;
-      EXPECT_TRUE(decommit.conservative);
+      EXPECT_EQ(decommit.mode, Allocator::DecommitMode::kConservative);
     }
     if (ptr4 >= fallback_ptr && ptr4 < fallback_ptr + fallback_size) {
       found_block4 = true;
-      EXPECT_FALSE(decommit.conservative);
+      EXPECT_EQ(decommit.mode, Allocator::DecommitMode::kAggressive);
     }
   }
 

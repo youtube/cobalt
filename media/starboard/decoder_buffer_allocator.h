@@ -22,7 +22,9 @@
 
 #include "base/compiler_specific.h"
 #include "base/functional/callback.h"
+#include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
+#include "base/task/thread_pool.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
@@ -52,6 +54,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
     virtual size_t GetAllocated() const = 0;
 
     virtual void DecommitAllDecommitableBlocks() = 0;
+    virtual void TryToDecommitOneBlock(int cadence) {}
   };
 
   using StrategyCreateCB =
@@ -89,18 +92,64 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
                                                       int value);
 
  private:
+  // Thread-safe state container for periodic decommit tasks running on
+  // ThreadPool.
+  //
+  // Holds a pointer to the owner DecoderBufferAllocator. Allows background
+  // tasks to run safely on ThreadPool without dangling pointer risks during
+  // teardown.
+  class PeriodicDecommitState final
+      : public base::RefCountedThreadSafe<PeriodicDecommitState> {
+   public:
+    explicit PeriodicDecommitState(DecoderBufferAllocator* allocator)
+        : allocator_(allocator) {}
+
+    PeriodicDecommitState(const PeriodicDecommitState&) = delete;
+    PeriodicDecommitState& operator=(const PeriodicDecommitState&) = delete;
+
+    void Detach() {
+      base::AutoLock lock(lock_);
+      allocator_ = nullptr;
+    }
+
+    template <typename Task>
+    void RunIfValid(Task task) {
+      base::AutoLock lock(lock_);
+      if (allocator_) {
+        task(allocator_);
+      }
+    }
+
+   private:
+    friend class base::RefCountedThreadSafe<PeriodicDecommitState>;
+    ~PeriodicDecommitState() = default;
+
+    base::Lock lock_;
+    DecoderBufferAllocator* allocator_ GUARDED_BY(lock_) = nullptr;
+  };
+
+  static void OnPeriodicDecommitTask(
+      scoped_refptr<PeriodicDecommitState> state);
+
   // Utility functions for h5vcc settings.
   // TODO(b/460292554): To be deprecated with h5vcc settings.
   static void EnableConfigurableDecommitStrategy(
       int block_size,
       int retain_blocks,
       int conservative_decommit_blocks,
+      bool enable_decommit_on_suspend,
+      bool allocate_with_page_alignment,
       bool aggressive_decommit_on_suspend,
-      bool allocate_with_page_alignment);
+      bool memset_on_reclaim,
+      bool mark_as_cold_on_reclaim,
+      bool periodic_decommit);
   static void EnableMediaBufferPoolStrategy();
   static void EnableReleaseIdleMemory();
 
   void EnsureStrategyIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  void EnablePeriodicDecommitLoop();
+  void StopPeriodicDecommitLoop();
+  void SchedulePeriodicDecommitTask_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   void TryFlushAllocationLog_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
@@ -119,6 +168,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   bool has_pending_release_ GUARDED_BY(mutex_) = false;
   bool should_release_idle_memory_ GUARDED_BY(mutex_) = false;
   StrategyCreateCB experimental_strategy_create_cb_ GUARDED_BY(mutex_);
+  scoped_refptr<PeriodicDecommitState> periodic_decommit_state_
+      GUARDED_BY(mutex_);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // The following variables are used for comprehensive logging of allocation
