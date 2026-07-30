@@ -214,10 +214,6 @@ const base::FeatureParam<bool> kShowComposeboxImageSuggestions(
 const base::FeatureParam<bool> kShowContextMenu(&kNtpComposebox,
                                                 "NtpComposeboxShowContextMenu",
                                                 true);
-const base::FeatureParam<bool> kShowRecentTabChip(
-    &kNtpComposebox,
-    "NtpComposeboxShowRecentTabChip",
-    false);
 const base::FeatureParam<bool> kShowContextMenuTabPreviews(
     &kNtpComposebox,
     "NtpComposeboxShowContextMenuTabPreviews",
@@ -227,24 +223,10 @@ const base::FeatureParam<bool> kShowContextMenuDescription(
     &kNtpComposebox,
     "NtpComposeboxShowContextMenuDescription",
     true);
-const base::FeatureParam<bool> kEnableEphemeralContextMenuDescription(
-    &kNtpComposebox,
-    "EnableEphemeralContextMenuDescription",
-    false);
 
 const base::FeatureParam<bool> kShowContextMenuHeaders(&kNtpComposebox,
                                                        "ShowContextMenuHeaders",
                                                        true);
-
-const base::FeatureParam<bool> kShowVoiceSearchInSteadyComposebox(
-    &kNtpComposebox,
-    "ShowVoiceSearchInSteadyComposebox",
-    true);
-
-const base::FeatureParam<bool> kShowVoiceSearchInExpandedComposebox(
-    &kNtpComposebox,
-    "ShowVoiceSearchInExpandedComposebox",
-    true);
 
 const base::FeatureParam<bool>
     kShowSmartCompose(&kNtpComposebox, "NtpComposeboxShowSmartCompose", true);
@@ -259,28 +241,6 @@ const base::FeatureParam<bool> kContextMenuEnableMultiTabSelection(
     "NtpComposeboxContextMenuEnableMultiTabSelection",
     false);
 
-const base::FeatureParam<int> kMaxNumFiles(&kNtpComposebox,
-                                           "NtpComposeboxMaxNumFiles",
-                                           10);
-
-const base::FeatureParam<bool> kEnableContextDragAndDrop(
-    &kNtpComposebox,
-    "EnableContextDragAndDrop",
-    true);
-
-const base::FeatureParam<bool> kCloseComposeboxByEscape(
-    &kNtpComposebox,
-    "NtpComposeboxCloseComposeboxByEscape",
-    false);
-
-const base::FeatureParam<bool> kCloseComposeboxByClickOutside(
-    &kNtpComposebox,
-    "NtpComposeboxCloseComposeboxByClickOutside",
-    false);
-const base::FeatureParam<bool> kAddTabUploadDelayOnRecentTabChipClick(
-    &kNtpComposebox,
-    "NtpComposeboxAddTabUploadDelayOnRecentTabChipClick",
-    false);
 const base::FeatureParam<bool> kEnableThreadsRail(&kNtpComposebox,
                                                   "EnableThreadsRail",
                                                   true);
@@ -351,35 +311,8 @@ const base::FeatureParam<bool> kCyclingPlaceholders(&kNtpRealboxNext,
                                                     "CyclingPlaceholders",
                                                     false);
 
-const base::FeatureParam<RealboxLayoutMode>::Option
-    kRealboxLayoutModeOptions[] = {
-        {RealboxLayoutMode::kTallBottomContext,
-         kRealboxLayoutModeTallBottomContext},
-        {RealboxLayoutMode::kTallTopContext, kRealboxLayoutModeTallTopContext},
-        {RealboxLayoutMode::kCompact, kRealboxLayoutModeCompact}};
-
-const base::FeatureParam<RealboxLayoutMode> kRealboxLayoutMode(
-    &kNtpRealboxNext,
-    "RealboxLayoutMode",
-    RealboxLayoutMode::kCompact,
-    &kRealboxLayoutModeOptions);
-
 const base::FeatureParam<bool> kMultiLineEnabled(&kNtpRealboxNext,
                                                  "MultiLineEnabled",
                                                  true);
-
-std::string_view RealboxLayoutModeToString(
-    RealboxLayoutMode realbox_layout_mode) {
-  switch (realbox_layout_mode) {
-    case RealboxLayoutMode::kTallBottomContext:
-      return kRealboxLayoutModeTallBottomContext;
-    case RealboxLayoutMode::kTallTopContext:
-      return kRealboxLayoutModeTallTopContext;
-    case RealboxLayoutMode::kCompact:
-      return kRealboxLayoutModeCompact;
-    default:
-      NOTREACHED();
-  }
-}
 
 }  // namespace ntp_realbox

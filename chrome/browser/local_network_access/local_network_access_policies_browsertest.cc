@@ -152,9 +152,8 @@ IN_PROC_BROWSER_TEST_F(LocalNetworkAccessPoliciesBrowserTest,
     child.allow = "local-network-access";
     document.body.appendChild(child);
   )";
-  EXPECT_THAT(content::EvalJs(web_contents(),
-                              content::JsReplace(script_template, iframe_url)),
-              content::EvalJsResult::IsOk());
+  EXPECT_TRUE(content::ExecJs(web_contents(),
+                              content::JsReplace(script_template, iframe_url)));
   // Check that the child iframe was successfully fetched.
   ASSERT_TRUE(iframe_url_nav_manager.WaitForNavigationFinished());
   EXPECT_TRUE(iframe_url_nav_manager.was_successful());
@@ -211,12 +210,10 @@ IN_PROC_BROWSER_TEST_F(LocalNetworkAccessPoliciesBrowserTest,
   bubble_factory()->set_response_type(
       permissions::PermissionRequestManager::AutoResponseType::ACCEPT_ALL);
 
-  // LNA fetch should fail.
-  EXPECT_THAT(content::EvalJs(
-                  web_contents(),
-                  content::JsReplace("fetch($1).then(response => response.ok)",
-                                     https_server().GetURL("b.com", kLnaPath))),
-              content::EvalJsResult::IsError());
+  EXPECT_FALSE(content::ExecJs(
+      web_contents(),
+      content::JsReplace("fetch($1).then(response => response.ok)",
+                         https_server().GetURL("b.com", kLnaPath))));
 }
 
 class LocalNetworkAccessPoliciesIPOverrideBrowserTest
@@ -260,12 +257,10 @@ IN_PROC_BROWSER_TEST_F(LocalNetworkAccessPoliciesIPOverrideBrowserTest,
   // LNA fetch should fail; https_local_server() doesn't get overridden to
   // public because a command-line override sets it to local first before the
   // policy override applies.
-  EXPECT_THAT(
-      content::EvalJs(
-          web_contents(),
-          content::JsReplace("fetch($1).then(response => response.ok)",
-                             https_local_server().GetURL("b.com", kLnaPath))),
-      content::EvalJsResult::IsError());
+  EXPECT_FALSE(content::ExecJs(
+      web_contents(),
+      content::JsReplace("fetch($1).then(response => response.ok)",
+                         https_local_server().GetURL("b.com", kLnaPath))));
 }
 
 class LocalNetworkAccessPoliciesPermissionsPolicyBrowserTest

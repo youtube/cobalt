@@ -13,8 +13,8 @@
 #include "base/metrics/user_metrics_action.h"
 #include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/glic/browser_ui/tab_underline_controller.h"
 #include "chrome/browser/glic/browser_ui/tab_underline_view.h"
-#include "chrome/browser/glic/browser_ui/tab_underline_view_controller_impl.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/ui/browser.h"
@@ -22,7 +22,6 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
-#include "chrome/browser/ui/tabs/alert/tab_alert.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
 #include "chrome/browser/ui/tabs/tab_data.h"
 #include "chrome/browser/ui/tabs/tab_muted_utils.h"
@@ -48,6 +47,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/contextual_tasks/public/features.h"
+#include "components/tabs/public/tab_alert.h"
 #include "components/tabs/public/tab_interface.h"
 #include "third_party/skia/include/core/SkPathBuilder.h"
 #include "third_party/skia/include/core/SkRRect.h"
@@ -162,7 +162,8 @@ VerticalTabView::VerticalTabView(TabCollectionNode* collection_node)
     glic_tab_underline_view_ = AddChildView(
         views::Builder<glic::TabUnderlineView>(
             glic::TabUnderlineView::Factory::Create(
-                std::make_unique<glic::TabUnderlineViewControllerImpl>(),
+                std::make_unique<glic::TabUnderlineController>(
+                    tab->GetHandle()),
                 browser_window->GetBrowserForMigrationOnly(), tab->GetHandle()))
             .Build());
     glic_tab_underline_view_->SetOrientation(
@@ -424,7 +425,11 @@ void VerticalTabView::OnMouseMoved(const ui::MouseEvent& event) {
   if (split_) {
     return;
   }
-
+  // Windows synthesizes mouse move events if the user does a touch drag.
+  // Don't set the hover state for those events.
+  if (event.flags() & ui::EF_FROM_TOUCH) {
+    return;
+  }
   // Linux enter/leave events are sometimes flaky, so we don't want to "miss"
   // an enter event and fail to hover the tab.
   UpdateHovered(true);
@@ -436,6 +441,11 @@ void VerticalTabView::OnMouseEntered(const ui::MouseEvent& event) {
 
   // Hover state is handled by the parent if it is split.
   if (split_) {
+    return;
+  }
+  // Windows synthesizes mouse events if the user does a touch drag.
+  // Don't set the hover state for those events.
+  if (event.flags() & ui::EF_FROM_TOUCH) {
     return;
   }
 
@@ -795,9 +805,15 @@ bool VerticalTabView::GetHitTestMask(SkPath* mask) const {
 }
 
 bool VerticalTabView::ShouldEnableMuteToggle(int required_width) {
-  // TODO(crbug.com/454686636): Determine if there is enough space to activate
-  // the tab in collapsed, pinned, or split states.
-  return true;
+  if (active_) {
+    return true;
+  }
+
+  if (!alert_indicator_->GetVisible()) {
+    return false;
+  }
+
+  return alert_indicator_->x() >= required_width;
 }
 
 void VerticalTabView::ToggleTabAudioMute() {
@@ -841,11 +857,11 @@ void VerticalTabView::ShowContextMenuForViewImpl(
   }
 }
 
-bool VerticalTabView::IsActive() const {
-  return active_;
+bool VerticalTabView::NeedsToShowThumbnail() const {
+  return !IsActive();
 }
 
-bool VerticalTabView::IsValid() const {
+bool VerticalTabView::IsValidHoverCardTarget() const {
   return collection_node_ && !IsDragging();
 }
 

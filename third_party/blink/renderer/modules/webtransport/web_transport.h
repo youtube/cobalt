@@ -21,7 +21,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_web_transport_connection_stats.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_web_transport_datagram_stats.h"
-#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_state_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
@@ -47,13 +47,14 @@ class ReadableByteStreamController;
 class ScriptState;
 class WebTransportCloseInfo;
 class WebTransportOptions;
+class WebTransportSendGroup;
 class WritableStream;
 
 // https://wicg.github.io/web-transport/#web-transport
 class MODULES_EXPORT WebTransport final
     : public ScriptWrappable,
       public ActiveScriptWrappable<WebTransport>,
-      public ExecutionContextLifecycleObserver,
+      public ExecutionContextLifecycleStateObserver,
       public network::mojom::blink::WebTransportHandshakeClient,
       public network::mojom::blink::WebTransportClient {
   DEFINE_WRAPPERTYPEINFO();
@@ -87,6 +88,9 @@ class MODULES_EXPORT WebTransport final
   void setDatagramWritableQueueExpirationDuration(double ms);
   ScriptPromise<WebTransportConnectionStats> getStats(ScriptState*);
   const String& protocol();
+  WebTransportSendGroup* createSendGroup(ExceptionState&);
+
+  void SetNextSendGroupIdForTesting(uint32_t id) { next_send_group_id_ = id; }
 
   // WebTransportHandshakeClient implementation
   void OnBeforeConnect(const net::IPEndPoint& server_address) override;
@@ -110,8 +114,9 @@ class MODULES_EXPORT WebTransport final
       network::mojom::blink::WebTransportCloseInfoPtr close_info,
       network::mojom::blink::WebTransportStatsPtr final_stats) override;
 
-  // Implementation of ExecutionContextLifecycleObserver
+  // Implementation of ExecutionContextLifecycleStateObserver
   void ContextDestroyed() final;
+  void ContextLifecycleStateChanged(mojom::blink::FrameLifecycleState) final;
 
   // Implementation of WebTransport::HasPendingActivity()
   bool HasPendingActivity() const override;
@@ -280,6 +285,13 @@ class MODULES_EXPORT WebTransport final
       received_bidirectional_streams_underlying_source_;
 
   const uint64_t inspector_transport_id_;
+
+  // Tracks send groups created via createSendGroup().
+  // Uses WeakMember to allow garbage collection when the caller discards the
+  // group reference.
+  HeapHashSet<WeakMember<WebTransportSendGroup>> send_groups_;
+  // Counter for assigning unique group IDs.
+  uint32_t next_send_group_id_ = 0;
 
   FrameScheduler::SchedulingAffectingFeatureHandle
       feature_handle_for_scheduler_;

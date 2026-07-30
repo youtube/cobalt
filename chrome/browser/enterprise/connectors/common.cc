@@ -196,18 +196,6 @@ google::protobuf::RepeatedPtrField<std::string> CollectFrameUrlsImpl(
 }
 #endif  // BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
 
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
-bool ShouldAllowDeepScanOnLargeOrEncryptedFiles(
-    ScanRequestUploadResult result,
-    bool block_large_files,
-    bool block_password_protected_files) {
-  return (result == ScanRequestUploadResult::kFileTooLarge &&
-          !block_large_files) ||
-         (result == ScanRequestUploadResult::kFileEncrypted &&
-          !block_password_protected_files);
-}
-#endif  // BUILDFLAG(SAFE_BROWSING_AVAILABLE)
-
 }  // namespace
 
 policy::BrowserPolicyConnector* GetBrowserPolicyConnector() {
@@ -358,35 +346,6 @@ google::protobuf::RepeatedPtrField<std::string> CollectFrameUrls(
 }
 
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
-bool IsResumableUpload(const BinaryUploadRequest& request) {
-  if (safe_browsing::IsConsumerScanRequest(request) ||
-      !request.cloud_or_local_settings().is_cloud_analysis()) {
-    return false;
-  }
-  // Use the Resumable request protocol only for image pastes and
-  // non-paste requests.
-  return request.content_analysis_request().analysis_connector() !=
-             enterprise_connectors::AnalysisConnector::BULK_DATA_ENTRY ||
-         request.image_paste();
-}
-
-bool CloudMultipartResultIsFailure(ScanRequestUploadResult result) {
-  return result != ScanRequestUploadResult::kSuccess;
-}
-
-bool CloudResumableResultIsFailure(ScanRequestUploadResult result,
-                                   bool block_large_files,
-                                   bool block_password_protected_files) {
-  return result != ScanRequestUploadResult::kSuccess &&
-         !ShouldAllowDeepScanOnLargeOrEncryptedFiles(
-             result, block_large_files, block_password_protected_files);
-}
-
-bool LocalResultIsFailure(ScanRequestUploadResult result) {
-  return result != ScanRequestUploadResult::kSuccess &&
-         result != ScanRequestUploadResult::kFileTooLarge &&
-         result != ScanRequestUploadResult::kFileEncrypted;
-}
 
 bool ResultIsFailClosed(ScanRequestUploadResult result) {
   return result == ScanRequestUploadResult::kUploadFailure ||

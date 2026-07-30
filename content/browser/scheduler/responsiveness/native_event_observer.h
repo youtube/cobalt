@@ -5,6 +5,8 @@
 #ifndef CONTENT_BROWSER_SCHEDULER_RESPONSIVENESS_NATIVE_EVENT_OBSERVER_H_
 #define CONTENT_BROWSER_SCHEDULER_RESPONSIVENESS_NATIVE_EVENT_OBSERVER_H_
 
+#include <stdint.h>
+
 #include <vector>
 
 #include "base/functional/callback.h"
@@ -38,60 +40,57 @@ namespace responsiveness {
 // On Linux, the hook should be in ui::PlatformEventSource::DispatchEvent.
 // On Windows, the hook should be in MessagePumpForUI::ProcessMessageHelper.
 // On Android, the hook should be in <TBD>.
-class CONTENT_EXPORT NativeEventObserver
+class CONTENT_EXPORT BrowserUINativeEventObserver
 #if BUILDFLAG(IS_MAC)
     : public NativeEventProcessorObserver
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
     : public ui::PlatformEventObserver
 #elif BUILDFLAG(IS_WIN)
-    : public base::MessagePumpForUI::Observer
+    : public base::MessagePumpForUI::NativeEventObserver
 #endif
 {
  public:
   using WillRunEventCallback =
-      base::RepeatingCallback<void(const void* opaque_identifier)>;
+      base::RepeatingCallback<void(uintptr_t opaque_identifier)>;
   using DidRunEventCallback =
-      base::RepeatingCallback<void(const void* opaque_identifier)>;
+      base::RepeatingCallback<void(uintptr_t opaque_identifier)>;
 
   // The constructor will register the object as an observer of the native event
   // processor. The destructor will unregister the object.
-  NativeEventObserver(WillRunEventCallback will_run_event_callback,
-                      DidRunEventCallback did_run_event_callback);
+  BrowserUINativeEventObserver(WillRunEventCallback will_run_event_callback,
+                               DidRunEventCallback did_run_event_callback);
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
-  NativeEventObserver(const NativeEventObserver&) = delete;
-  NativeEventObserver& operator=(const NativeEventObserver&) = delete;
+  BrowserUINativeEventObserver(const BrowserUINativeEventObserver&) = delete;
+  BrowserUINativeEventObserver& operator=(const BrowserUINativeEventObserver&) =
+      delete;
 
-  ~NativeEventObserver() override;
+  ~BrowserUINativeEventObserver() override;
 #else
-  virtual ~NativeEventObserver();
+  virtual ~BrowserUINativeEventObserver();
 #endif
 
  protected:
-#if BUILDFLAG(IS_MAC)
-  // NativeEventProcessorObserver overrides:
-  // Exposed for tests.
-  void WillRunNativeEvent(const void* opaque_identifier) override;
-  void DidRunNativeEvent(const void* opaque_identifier) override;
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // ui::PlatformEventObserver overrides:
   void WillProcessEvent(const ui::PlatformEvent& event) override;
   void DidProcessEvent(const ui::PlatformEvent& event) override;
   void PlatformEventSourceDestroying() override;
-#elif BUILDFLAG(IS_WIN)
-  // base::MessagePumpForUI::Observer overrides:
-  void WillDispatchMSG(const MSG& msg) override;
-  void DidDispatchMSG(const MSG& msg) override;
+#elif BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+  // base::MessagePumpForUI::NativeEventObserver overrides (Win) or
+  // NativeEventProcessorObserver overrides (Mac):
+  void WillRunNativeEvent(uintptr_t identifier) override;
+  void DidRunNativeEvent(uintptr_t identifier) override;
 #endif
 
  private:
   void RegisterObserver();
-  void DeregisterObserver();
+  void UnregisterObserver();
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   struct EventInfo {
-    raw_ptr<const void> unique_id;
+    uintptr_t unique_id;
   };
   std::vector<EventInfo> events_being_processed_;
 #endif

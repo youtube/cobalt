@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.omnibox.suggestions;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -547,13 +548,14 @@ public class AutocompleteMediatorUnitTest {
 
         GURL url = JUnitTestGURLs.BLUE_1;
         int pageClassification = PageClassification.BLANK_VALUE;
-        mMediator.beginInput(createSession(url, url.getSpec(), pageClassification));
+        var session = createSession(url, url.getSpec(), pageClassification);
+        mMediator.beginInput(session);
 
         when(mTextStateProvider.shouldAutocomplete()).thenReturn(true);
         when(mTextStateProvider.getSelectionStart()).thenReturn(4);
         when(mTextStateProvider.getSelectionEnd()).thenReturn(4);
 
-        mMediator.onTextChanged("test", /* isOnFocusContext= */ false);
+        session.getAutocompleteInput().setUserText("test");
         RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         verifyAutocompleteStart(url, pageClassification, "test", 4, false);
     }
@@ -564,14 +566,15 @@ public class AutocompleteMediatorUnitTest {
 
         GURL url = JUnitTestGURLs.BLUE_1;
         int pageClassification = PageClassification.BLANK_VALUE;
-        mMediator.beginInput(createSession(url, url.getSpec(), pageClassification));
+        var session = createSession(url, url.getSpec(), pageClassification);
+        mMediator.beginInput(session);
 
         when(mTextStateProvider.shouldAutocomplete()).thenReturn(true);
         when(mTextStateProvider.getSelectionStart()).thenReturn(4);
         when(mTextStateProvider.getSelectionEnd()).thenReturn(4);
 
-        mMediator.onTextChanged("test", /* isOnFocusContext= */ false);
-        mMediator.onTextChanged("nottest", /* isOnFocusContext= */ false);
+        session.getAutocompleteInput().setUserText("test");
+        session.getAutocompleteInput().setUserText("nottest");
         RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         verifyAutocompleteStart(url, pageClassification, "nottest", 4, false);
     }
@@ -950,7 +953,7 @@ public class AutocompleteMediatorUnitTest {
 
         // No change on key press. No unexpected recordings.
         // Need to run looper here to flush the pending operation.
-        mMediator.onTextChanged("a", /* isOnFocusContext= */ false);
+        session.getAutocompleteInput().setUserText("a");
         RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         verifySuggestionRequestToUiModelHistograms(1, 150, 0, null);
 
@@ -1133,7 +1136,7 @@ public class AutocompleteMediatorUnitTest {
         when(mTextStateProvider.getSelectionStart()).thenReturn(4);
         when(mTextStateProvider.getSelectionEnd()).thenReturn(4);
 
-        mMediator.onTextChanged("test", /* isOnFocusContext= */ false);
+        session.getAutocompleteInput().setUserText("test");
         RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         verifyAutocompleteStart(url, pageClassification, "test", 4, false);
 
@@ -1199,7 +1202,7 @@ public class AutocompleteMediatorUnitTest {
         for (var pageClass : PageClassification.values()) {
             session.getAutocompleteInput().setPageClassification(pageClass.getNumber());
 
-            mMediator.onTextChanged("text", /* isOnFocusContext= */ false);
+            session.getAutocompleteInput().setUserText("text");
 
             // Should only be invoked if page class is eligible.
             verify(mMockCachedZeroSuggestionsManager, never()).readFromCache(anyInt());
@@ -1237,8 +1240,9 @@ public class AutocompleteMediatorUnitTest {
     public void onTextChanged_dontCacheTypedSuggestions() {
 
         for (var pageClass : PageClassification.values()) {
-            setUpLocationBarDataProvider(PAGE_URL, PAGE_TITLE, pageClass.getNumber());
-            mMediator.onTextChanged("x", /* isOnFocusContext= */ false);
+            var session = createSession(PAGE_URL, PAGE_TITLE, pageClass.getNumber());
+            mMediator.beginInput(session);
+            session.getAutocompleteInput().setUserText("x");
             verify(mMockCachedZeroSuggestionsManager, never()).saveToCache(anyInt(), any());
             clearInvocations(mMockCachedZeroSuggestionsManager);
         }
@@ -1248,8 +1252,10 @@ public class AutocompleteMediatorUnitTest {
     public void onTextChanged_dontCacheCachedSuggestions() {
 
         for (var pageClass : PageClassification.values()) {
-            setUpLocationBarDataProvider(PAGE_URL, PAGE_TITLE, pageClass.getNumber());
-            mMediator.onTextChanged("", /* isOnFocusContext= */ false);
+            var session = createSession(PAGE_URL, PAGE_TITLE, pageClass.getNumber());
+            mMediator.beginInput(session);
+            // Force an update as "" -> "" is not an observable change.
+            mMediator.onTextChanged("", /* isOnFocusContext= */ true);
             verify(mMockCachedZeroSuggestionsManager, never()).saveToCache(anyInt(), any());
             clearInvocations(mMockCachedZeroSuggestionsManager);
         }
@@ -1495,6 +1501,7 @@ public class AutocompleteMediatorUnitTest {
 
         // When not on an Incognito NTP, cached suggestions should be shown.
         doReturn(false).when(ntpDelegate).isIncognitoNewTabPageCurrentlyVisible();
+        // Force an update as "" -> "" is not an observable change.
         mMediator.onTextChanged("", /* isOnFocusContext= */ true);
         RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         verify(mMockCachedZeroSuggestionsManager, times(1)).readFromCache(anyInt());
@@ -1554,11 +1561,32 @@ public class AutocompleteMediatorUnitTest {
         verify(mOmniboxActionDelegate).setOnKeywordModeEnteredCb(callbackCaptor.capture());
 
         SiteSearchData data = new SiteSearchData("keyword", "Full Name");
+        mMediator.allowPendingItemSelection();
         callbackCaptor.getValue().accept(data);
 
         verify(mTextStateProvider).setSiteSearchChip("Full Name");
         assertEquals("", session.getAutocompleteInput().getUserText());
         assertEquals(data, session.getAutocompleteInput().getSiteSearchData());
+    }
+
+    @Test
+    @SmallTest
+    public void onKeywordModeEntered_nullDoesNotClearText() {
+        int pageClassification = PageClassification.BLANK_VALUE;
+        var session = createSession(JUnitTestGURLs.BLUE_1, "Title", pageClassification);
+        session.getAutocompleteInput().setUserText("b");
+        session.getAutocompleteInput().setSiteSearchData(new SiteSearchData("keyword", "label"));
+        mMediator.beginInput(session);
+
+        ArgumentCaptor<Consumer<SiteSearchData>> callbackCaptor =
+                ArgumentCaptor.forClass(Consumer.class);
+        verify(mOmniboxActionDelegate).setOnKeywordModeEnteredCb(callbackCaptor.capture());
+
+        mMediator.allowPendingItemSelection();
+        callbackCaptor.getValue().accept(null);
+        org.robolectric.shadows.ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        verify(mTextStateProvider).setSiteSearchChip(null);
+        assertEquals("b", session.getAutocompleteInput().getUserText());
     }
 
     @Test
@@ -1579,5 +1607,71 @@ public class AutocompleteMediatorUnitTest {
         mMediator.onRefineSuggestion(match);
 
         verify(mAutocompleteDelegate).setOmniboxEditingText("query ");
+    }
+
+    @Test
+    public void setOmniboxEditingText_syncsSourceOfTruthWithMatch() {
+        mMediator.onNativeInitialized();
+        var session = createEmptySession();
+        mMediator.beginInput(session);
+
+        mMediator.allowPendingItemSelection();
+        AutocompleteMatch match =
+                AutocompleteMatchBuilder.searchWithType(OmniboxSuggestionType.SEARCH_SUGGEST)
+                        .setDisplayText("suggestion text")
+                        .setFillIntoEdit("suggestion text")
+                        .build();
+
+        mMediator.setOmniboxEditingText("suggestion text");
+
+        // Verify the source of truth (AutocompleteInput) is updated.
+        assertEquals("suggestion text", session.getAutocompleteInput().getUserText());
+        // Verify UI is updated with the same text.
+        verify(mAutocompleteDelegate).setOmniboxEditingText("suggestion text");
+    }
+
+    @Test
+    public void setOmniboxEditingText_stripsKeywordBeforeClearingState() {
+        mMediator.onNativeInitialized();
+        var session = createEmptySession();
+        mMediator.beginInput(session);
+        session.getAutocompleteInput().setSiteSearchData(new SiteSearchData("keyword", "label"));
+
+        mMediator.allowPendingItemSelection();
+        // C++ typically provides the fill-into-edit with the keyword prefix when in keyword mode.
+        AutocompleteMatch match =
+                AutocompleteMatchBuilder.searchWithType(OmniboxSuggestionType.SEARCH_SUGGEST)
+                        .setDisplayText("keyword query")
+                        .setFillIntoEdit("keyword query")
+                        .build();
+
+        mMediator.setOmniboxEditingText("keyword query");
+
+        // Verify user text is stripped correctly based on OLD keyword state.
+        assertEquals("query", session.getAutocompleteInput().getUserText());
+        // Verify SiteSearchData is cleared AFTER stripping.
+        assertNull(session.getAutocompleteInput().getSiteSearchData());
+        // Verify UI is updated with stripped text.
+        verify(mAutocompleteDelegate).setOmniboxEditingText("query");
+    }
+
+    @Test
+    public void setOmniboxEditingText_clearsKeywordModePreview() {
+        mMediator.onNativeInitialized();
+        var session = createEmptySession();
+        mMediator.beginInput(session);
+        session.getAutocompleteInput().setUserText("");
+        session.getAutocompleteInput().setSiteSearchData(new SiteSearchData("keyword", "label"));
+
+        mMediator.allowPendingItemSelection();
+        AutocompleteMatch match =
+                AutocompleteMatchBuilder.searchWithType(OmniboxSuggestionType.SEARCH_SUGGEST)
+                        .setDisplayText("new text")
+                        .setFillIntoEdit("new text")
+                        .build();
+        mMediator.setOmniboxEditingText("new text");
+
+        assertNull(session.getAutocompleteInput().getSiteSearchData());
+        verify(mAutocompleteDelegate).setOmniboxEditingText("new text");
     }
 }

@@ -1619,8 +1619,10 @@ TEST_P(EnclaveManagerRenewPINTest, RenewPINAfterSecurityDomainReset) {
   EXPECT_EQ(security_domain_service_->num_pin_members(), 0u);
   EXPECT_FALSE(manager_.IsRegistered());
   histogram_tester.ExpectUniqueSample(
-      "WebAuthentication.PinRenewalFailureCause",
-      EnclaveManager::PinRenewalFailureCause::kSecurityDomainReset, 1);
+      "WebAuthentication.Enclave.PinRenewalActionOutcome",
+      EnclaveManager::ActionOutcome::
+          kDoSyncingWithSecurityDomainFailedSecurityDomainHasBeenReset,
+      1);
 }
 
 // Regression test for crbug.com/407171373.
@@ -1653,8 +1655,10 @@ TEST_P(EnclaveManagerRenewPINTest, RenewPINAfterSecurityDomainReportsNoPin) {
   EXPECT_FALSE(renew_future.Get());
   EXPECT_EQ(security_domain_service_->num_pin_members(), 0u);
   histogram_tester.ExpectUniqueSample(
-      "WebAuthentication.PinRenewalFailureCause",
-      EnclaveManager::PinRenewalFailureCause::kSecurityDomainReportsNoPin, 1);
+      "WebAuthentication.Enclave.PinRenewalActionOutcome",
+      EnclaveManager::ActionOutcome::
+          kDoSyncingWithSecurityDomainFailedTriedToChangePinButSdsReportsNoPin,
+      1);
 }
 
 // Tests attempting to renew a PIN that's stored in a Vault cohort that hasn't
@@ -1688,8 +1692,9 @@ TEST_P(EnclaveManagerRenewPINTest, NotYetDeprecated) {
   EXPECT_EQ(security_domain_service_->num_physical_members(), 1u);
   EXPECT_EQ(security_domain_service_->num_pin_members(), 1u);
   histogram_tester.ExpectUniqueSample(
-      "WebAuthentication.PinRenewalFailureCause",
-      EnclaveManager::PinRenewalFailureCause::kCohortNotYetDeprecated, 1);
+      "WebAuthentication.Enclave.PinRenewalActionOutcome",
+      EnclaveManager::ActionOutcome::kDoRenewingPINFailedCohortNotYetDeprecated,
+      1);
 }
 
 // Tests attempting to renew a PIN with a cert.xml version that's older than the
@@ -1726,8 +1731,9 @@ TEST_P(EnclaveManagerRenewPINTest, NoKeyStoreDowngrade) {
   EXPECT_EQ(security_domain_service_->num_physical_members(), 1u);
   EXPECT_EQ(security_domain_service_->num_pin_members(), 1u);
   histogram_tester.ExpectUniqueSample(
-      "WebAuthentication.PinRenewalFailureCause",
-      EnclaveManager::PinRenewalFailureCause::kRecoveryKeyStoreDowngrade, 1);
+      "WebAuthentication.Enclave.PinRenewalActionOutcome",
+      EnclaveManager::ActionOutcome::kDoRenewingPINFailedRecoveryStoreDowngrade,
+      1);
 }
 
 // Tests that a PIN is still usable for recovery if updating the security domain
@@ -2241,7 +2247,7 @@ TEST_F(EnclaveManagerTest, CheckGpmPinAvailabilityWhenPinIsAvailable) {
   ASSERT_TRUE(manager_.has_wrapped_pin());
 
   base::test::TestFuture<EnclaveManager::GpmPinAvailability> future;
-  manager_.CheckGpmPinAvailability(future.GetCallback());
+  auto request = manager_.CheckGpmPinAvailability(future.GetCallback());
   EXPECT_TRUE(future.Wait());
   EXPECT_EQ(future.Get(),
             EnclaveManager::GpmPinAvailability::kGpmPinSetAndUsable);
@@ -2259,7 +2265,7 @@ TEST_F(EnclaveManagerTest, CheckGpmPinAvailabilityWhenPinIsUnusable) {
   security_domain_service_->MakePinMemberUnusable();
 
   base::test::TestFuture<EnclaveManager::GpmPinAvailability> future;
-  manager_.CheckGpmPinAvailability(future.GetCallback());
+  auto request = manager_.CheckGpmPinAvailability(future.GetCallback());
   EXPECT_TRUE(future.Wait());
   EXPECT_EQ(future.Get(),
             EnclaveManager::GpmPinAvailability::kGpmPinSetButNotUsable);
@@ -2269,7 +2275,7 @@ TEST_F(EnclaveManagerTest, CheckGpmPinAvailabilityWhenPinIsNotAvailable) {
   ASSERT_TRUE(Register());
 
   base::test::TestFuture<EnclaveManager::GpmPinAvailability> future;
-  manager_.CheckGpmPinAvailability(future.GetCallback());
+  auto request = manager_.CheckGpmPinAvailability(future.GetCallback());
   EXPECT_TRUE(future.Wait());
   EXPECT_EQ(future.Get(), EnclaveManager::GpmPinAvailability::kGpmPinUnset);
 }
@@ -2394,6 +2400,9 @@ TEST_F(OpportunisticKeyRetrievalEnclaveManagerTest,
       webauthn::metrics::WebAuthenticationGPMRecoveryEvent::
           kStoreKeysFromOpportunisticFlowSucceeded,
       1);
+  histogram_tester.ExpectBucketCount(
+      "WebAuthentication.Enclave.OpportunisticStoreKeysOutcome",
+      EnclaveManager::ActionOutcome::kSuccess, 1);
 }
 #endif
 
@@ -2846,6 +2855,46 @@ TEST_F(OpportunisticKeyRetrievalEnclaveUVTest, OpportunisticStoreKeys) {
       trusted_vault::TrustedVaultUserActionTriggerForUMA::
           kPasskeyUnlockProfileMenu,
       /*expected_bucket_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "WebAuthentication.Enclave.OpportunisticStoreKeysOutcome",
+      EnclaveManager::ActionOutcome::kSuccess, 1);
+}
+
+TEST_F(OpportunisticKeyRetrievalEnclaveUVTest,
+       OpportunisticStoreKeysFailedDueToTrustedVaultRegistrationError) {
+  security_domain_service_->pretend_there_are_members();
+  security_domain_service_->fail_all_requests();
+  ASSERT_FALSE(manager_.IsRegistered());
+  EXPECT_EQ(manager_.store_keys_count(), 0u);
+
+  std::vector<uint8_t> key(kTestKey.begin(), kTestKey.end());
+  base::HistogramTester histogram_tester;
+  EnclaveKeysWaiter enclave_keys_waiter(&manager_);
+  manager_.StoreKeys(gaia_id_,
+                     {trusted_vault::TrustedVaultKeyAndVersion(std::move(key),
+                                                               kSecretVersion)},
+                     /*user_action_trigger=*/
+                     trusted_vault::TrustedVaultUserActionTriggerForUMA::
+                         kPasskeyUnlockProfileMenu);
+  EXPECT_EQ(enclave_keys_waiter.Wait(),
+            EnclaveManager::OutOfContextRecoveryOutcome::
+                kStoreKeysFromOpportunisticFlowFailed);
+
+  histogram_tester.ExpectBucketCount(
+      "WebAuthentication.GPM.RecoveryEvent",
+      webauthn::metrics::WebAuthenticationGPMRecoveryEvent::
+          kStoreKeysFromOpportunisticFlowStarted,
+      1);
+  histogram_tester.ExpectBucketCount(
+      "WebAuthentication.GPM.RecoveryEvent",
+      webauthn::metrics::WebAuthenticationGPMRecoveryEvent::
+          kStoreKeysFromOpportunisticFlowFailed,
+      1);
+  histogram_tester.ExpectBucketCount(
+      "WebAuthentication.Enclave.OpportunisticStoreKeysOutcome",
+      EnclaveManager::ActionOutcome::
+          kDoJoiningDomainFailedTrustedVaultRegistrationError,
+      1);
 }
 
 class NoOpportunisticKeyRetrievalEnclaveUVTest : public EnclaveUVTest {
@@ -2969,6 +3018,9 @@ TEST_F(OpportunisticKeyRetrievalEnclaveUVTest,
           kStoreKeysFromOpportunisticFlowSucceeded,
       1);
   EXPECT_TRUE(manager_.has_wrapped_pin());
+  histogram_tester.ExpectBucketCount(
+      "WebAuthentication.Enclave.OpportunisticStoreKeysOutcome",
+      EnclaveManager::ActionOutcome::kSuccess, 1);
 }
 
 TEST_F(OpportunisticKeyRetrievalEnclaveUVTest,
@@ -3006,6 +3058,11 @@ TEST_F(OpportunisticKeyRetrievalEnclaveUVTest,
   // called so the fake security domain service will CHECK since the version is
   // non-zero.
   EXPECT_FALSE(manager_.IsRegistered());
+  histogram_tester.ExpectBucketCount(
+      "WebAuthentication.Enclave.OpportunisticStoreKeysOutcome",
+      EnclaveManager::ActionOutcome::
+          kDoStoringOpportunisticallyRetrievedKeyFailedNoSystemUvNoGpmPin,
+      1);
 }
 #endif
 

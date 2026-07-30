@@ -9,6 +9,7 @@ include_rules = [
   "+components/language_detection/core/browser",
   "+components/services/storage/privileged",
   "+components/services/storage/public",
+  # TODO(crbug.com/493534957): move surface_embed buildflags into //content
   "+components/surface_embed/buildflags",
   "+components/tracing/common",
   "+components/viz/common",
@@ -28,6 +29,8 @@ include_rules = [
   "+services/tracing/public",
   "+services/video_capture/public/mojom",
   "+services/viz/public/mojom",
+  "+services/webnn/public/cpp",
+  "+services/webnn/public/mojom",
   "+third_party/jni_zero",
   "+third_party/perfetto/protos/perfetto/config/chrome/scenario_config.gen.h",
 ]

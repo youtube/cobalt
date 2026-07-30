@@ -100,12 +100,12 @@ class WebFrameSerializerSanitizationTest : public testing::Test {
       ShadowRootMode shadow_type,
       const char* shadow_content,
       FocusDelegation focus_delegation = FocusDelegation::kNone) {
-    Element* host_element = scope.getElementById(AtomicString::FromUTF8(host));
+    Element* host_element = scope.getElementById(AtomicString::FromUtf8(host));
     ShadowRoot* shadow_root;
     shadow_root = &host_element->AttachShadowRootInternal(
         shadow_type, focus_delegation, SlotAssignmentMode::kNamed,
         /*registry*/ nullptr, /*serializable*/ false, /*clonable*/ false,
-        /*reference_target*/ g_null_atom, /* marker */ g_null_atom);
+        /*reference_target*/ g_null_atom);
     shadow_root->SetDelegatesFocus(focus_delegation ==
                                    FocusDelegation::kDelegateFocus);
     shadow_root->SetInnerHTMLWithoutTrustedTypes(

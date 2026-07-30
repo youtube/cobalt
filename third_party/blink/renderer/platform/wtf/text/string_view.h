@@ -214,8 +214,8 @@ class WTF_EXPORT StringView {
   // This operator performs an out-of-bounds access if the specified
   // index is out of range.
   UChar operator[](size_type i) const {
-    CHECK(i < length());
-    // SAFETY: checked that i < length() on previous line.
+    SECURITY_DCHECK(i < length());
+    // SAFETY: safe when i < length().
     UNSAFE_BUFFERS({
       if (Is8Bit()) {
         return static_cast<const LChar*>(bytes_)[i];
@@ -394,7 +394,7 @@ class WTF_EXPORT StringView {
   // The odd lifetime of the returned object occurs because lowercasing may
   // require allocation. When that happens, |backing_store| is used as the
   // backing store and the returned StringView has the same lifetime.
-  StringView LowerASCIIMaybeUsingBuffer(StackBackingStore& backing_store) const;
+  StringView LowerAsciiMaybeUsingBuffer(StackBackingStore& backing_store) const;
 
   // Returns a substring removing leading and trailing white spaces.
   // This function removes spaces, \n, \t, \r, \f, \v, and unicode spaces such
@@ -440,8 +440,8 @@ inline StringView::StringView(const StringView& view,
                               size_type offset,
                               size_type length)
     : impl_(view.impl_), length_(length) {
-  CHECK(offset <= view.length());
-  CHECK(length <= view.length() - offset);
+  SECURITY_DCHECK(offset <= view.length());
+  SECURITY_DCHECK(length <= view.length() - offset);
   // SAFETY: Invariants are checked last two line.
   UNSAFE_BUFFERS({
     if (Is8Bit()) {
@@ -491,8 +491,8 @@ inline void StringView::Clear() {
 inline void StringView::Set(const StringImpl& impl,
                             size_type offset,
                             size_type length) {
-  CHECK(offset <= impl.length());
-  CHECK(length <= impl.length() - offset);
+  SECURITY_DCHECK(offset <= impl.length());
+  SECURITY_DCHECK(length <= impl.length() - offset);
   length_ = length;
   impl_ = const_cast<StringImpl*>(&impl);
   // SAFETY: Invariants are checked at beginning of this method.

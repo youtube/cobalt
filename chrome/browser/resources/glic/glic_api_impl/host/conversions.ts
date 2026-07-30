@@ -225,6 +225,8 @@ export function tabDataToClient(
     isTabContentCaptured,
     isActiveInWindow,
     isWindowActive,
+    lightweightPageFeatures:
+        tabData.lightweightPageFeatures?.map(feature => enumToClient(feature)),
   };
 }
 
@@ -295,6 +297,7 @@ export function panelOpeningDataToClient(
             conversationInfoToClient) :
         undefined,
     conversationInfo,
+    freOverride: enumToClient(panelOpeningData.freOverride),
   };
 }
 
@@ -728,6 +731,18 @@ export function additionalContextPartToClient(
       return {
         region: {
           rect: regionMojo.rect,
+        },
+      };
+    }
+  } else if (part.pendingRegion) {
+    const regionMojo = part.pendingRegion.region;
+    if (regionMojo) {
+      return {
+        pendingRegion: {
+          id: part.pendingRegion.id,
+          region: {
+            rect: regionMojo.rect,
+          },
         },
       };
     }

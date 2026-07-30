@@ -6,7 +6,10 @@
 
 #include "base/functional/callback_helpers.h"
 #include "components/multistep_filter/content/filter_initiated_navigation_marker.h"
+#include "components/multistep_filter/core/annotation_index/annotation_index_client.h"
+#include "components/multistep_filter/core/annotation_index/mock_annotation_index_client.h"
 #include "components/multistep_filter/core/multistep_filter_service.h"
+#include "components/multistep_filter/core/storage/filter_store.h"
 #include "content/public/test/mock_navigation_handle.h"
 #include "content/public/test/navigation_simulator.h"
 #include "content/public/test/test_renderer_host.h"
@@ -18,24 +21,35 @@ namespace multistep_filter {
 
 namespace {
 
+using ::testing::_;
+
 class MockMultistepFilterService : public MultistepFilterService {
  public:
-  MockMultistepFilterService()
-      : MultistepFilterService(
-            /*annotation_index_client=*/nullptr,
-            /*filter_store=*/nullptr,
-            /*filter_suggestion_generator=*/nullptr,
-            /*identity_manager=*/nullptr) {}
+  MockMultistepFilterService(
+      std::unique_ptr<AnnotationIndexClient> annotation_index_client,
+      std::unique_ptr<FilterStore> filter_store)
+      : MultistepFilterService(std::move(annotation_index_client),
+                               std::move(filter_store),
+                               /*identity_manager=*/nullptr) {
+    ON_CALL(*this, GenerateFilterSuggestions)
+        .WillByDefault(
+            [](const GURL& url,
+               base::OnceCallback<void(std::optional<UrlFilterSuggestion>)>
+                   callback) {
+              if (callback) {
+                std::move(callback).Run(std::nullopt);
+              }
+            });
+  }
   ~MockMultistepFilterService() override = default;
 
-  void GenerateFilterSuggestions(
-      const GURL& url,
-      base::OnceCallback<void(std::optional<UrlFilterSuggestion>)> callback)
-      override {
-    GenerateFilterSuggestions(url);
-  }
-
-  MOCK_METHOD(void, GenerateFilterSuggestions, (const GURL& url));
+  MOCK_METHOD(void, ExtractAnnotation, (const GURL& url), (override));
+  MOCK_METHOD(
+      void,
+      GenerateFilterSuggestions,
+      (const GURL& url,
+       base::OnceCallback<void(std::optional<UrlFilterSuggestion>)> callback),
+      (override));
 };
 
 class MockUiDelegate : public FilterNavigationObserver::UiDelegate {
@@ -52,7 +66,9 @@ class FilterNavigationObserverTest : public content::RenderViewHostTestHarness {
   void SetUp() override {
     content::RenderViewHostTestHarness::SetUp();
 
-    mock_service_ = std::make_unique<MockMultistepFilterService>();
+    mock_service_ = std::make_unique<MockMultistepFilterService>(
+        std::make_unique<MockAnnotationIndexClient>(),
+        std::make_unique<FilterStore>());
     auto delegate = std::make_unique<MockUiDelegate>();
     delegate_ = delegate.get();
 
@@ -91,7 +107,8 @@ TEST_F(FilterNavigationObserverTest, HttpsNavigation) {
   EXPECT_CALL(delegate(), ClearSuggestion());
   EXPECT_CALL(delegate(), GetSuggestionCallback())
       .WillOnce(testing::Return(base::DoNothing()));
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url));
+  EXPECT_CALL(mock_service(), ExtractAnnotation(url));
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url, _));
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              url);
 }
@@ -101,7 +118,8 @@ TEST_F(FilterNavigationObserverTest, HttpNavigation) {
   EXPECT_CALL(delegate(), ClearSuggestion());
   EXPECT_CALL(delegate(), GetSuggestionCallback())
       .WillOnce(testing::Return(base::DoNothing()));
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url));
+  EXPECT_CALL(mock_service(), ExtractAnnotation(url));
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url, _));
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              url);
 }
@@ -109,7 +127,8 @@ TEST_F(FilterNavigationObserverTest, HttpNavigation) {
 TEST_F(FilterNavigationObserverTest, NonHttpNavigation) {
   const GURL url("ftp://www.example.com");
   EXPECT_CALL(delegate(), ClearSuggestion());
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(testing::_)).Times(0);
+  EXPECT_CALL(mock_service(), ExtractAnnotation).Times(0);
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              url);
 }
@@ -119,7 +138,8 @@ TEST_F(FilterNavigationObserverTest, SameDocumentNavigation) {
   EXPECT_CALL(delegate(), ClearSuggestion());
   EXPECT_CALL(delegate(), GetSuggestionCallback())
       .WillOnce(testing::Return(base::DoNothing()));
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url));
+  EXPECT_CALL(mock_service(), ExtractAnnotation(url));
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url, _));
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              url);
   // Reset expectations to test the next navigation.
@@ -127,8 +147,9 @@ TEST_F(FilterNavigationObserverTest, SameDocumentNavigation) {
   testing::Mock::VerifyAndClearExpectations(&mock_service());
 
   const GURL same_doc_url("https://www.example.com/#test");
-  EXPECT_CALL(delegate(), ClearSuggestion()).Times(0);
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(testing::_)).Times(0);
+  EXPECT_CALL(delegate(), ClearSuggestion());
+  EXPECT_CALL(mock_service(), ExtractAnnotation(same_doc_url));
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
   auto navigation = content::NavigationSimulator::CreateRendererInitiated(
       same_doc_url, main_rfh());
   navigation->CommitSameDocument();
@@ -137,7 +158,8 @@ TEST_F(FilterNavigationObserverTest, SameDocumentNavigation) {
 TEST_F(FilterNavigationObserverTest, AbortedNavigation) {
   const GURL url("https://www.example.com");
   EXPECT_CALL(delegate(), ClearSuggestion()).Times(0);
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(testing::_)).Times(0);
+  EXPECT_CALL(mock_service(), ExtractAnnotation).Times(0);
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
   auto navigation =
       content::NavigationSimulator::CreateBrowserInitiated(url, web_contents());
   navigation->Start();
@@ -149,13 +171,15 @@ TEST_F(FilterNavigationObserverTest, SubframeNavigation) {
   EXPECT_CALL(delegate(), ClearSuggestion());
   EXPECT_CALL(delegate(), GetSuggestionCallback())
       .WillOnce(testing::Return(base::DoNothing()));
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url));
+  EXPECT_CALL(mock_service(), ExtractAnnotation(url));
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url, _));
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              url);
 
   const GURL subframe_url("https://www.example.com/subframe");
   EXPECT_CALL(delegate(), ClearSuggestion()).Times(0);
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(testing::_)).Times(0);
+  EXPECT_CALL(mock_service(), ExtractAnnotation).Times(0);
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
   content::RenderFrameHost* subframe =
       content::RenderFrameHostTester::For(main_rfh())->AppendChild("subframe");
   content::NavigationSimulator::NavigateAndCommitFromDocument(subframe_url,
@@ -165,7 +189,8 @@ TEST_F(FilterNavigationObserverTest, SubframeNavigation) {
 TEST_F(FilterNavigationObserverTest, ErrorPageNavigation) {
   const GURL url("https://www.example.com");
   EXPECT_CALL(delegate(), ClearSuggestion());
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(testing::_)).Times(0);
+  EXPECT_CALL(mock_service(), ExtractAnnotation).Times(0);
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
   content::NavigationSimulator::NavigateAndFailFromBrowser(web_contents(), url,
                                                            net::ERR_TIMED_OUT);
 }
@@ -175,7 +200,8 @@ TEST_F(FilterNavigationObserverTest, ReloadNavigation) {
   EXPECT_CALL(delegate(), ClearSuggestion());
   EXPECT_CALL(delegate(), GetSuggestionCallback())
       .WillOnce(testing::Return(base::DoNothing()));
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url));
+  EXPECT_CALL(mock_service(), ExtractAnnotation(url));
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url, _));
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              url);
 
@@ -183,7 +209,8 @@ TEST_F(FilterNavigationObserverTest, ReloadNavigation) {
   testing::Mock::VerifyAndClearExpectations(&mock_service());
 
   EXPECT_CALL(delegate(), ClearSuggestion());
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(testing::_)).Times(0);
+  EXPECT_CALL(mock_service(), ExtractAnnotation).Times(0);
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
   content::NavigationSimulator::Reload(web_contents());
 }
 
@@ -193,7 +220,8 @@ TEST_F(FilterNavigationObserverTest, NullService) {
   const GURL url("https://www.example.com");
 
   EXPECT_CALL(delegate(), ClearSuggestion());
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(testing::_)).Times(0);
+  EXPECT_CALL(mock_service(), ExtractAnnotation).Times(0);
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              url);
 }
@@ -201,7 +229,8 @@ TEST_F(FilterNavigationObserverTest, NullService) {
 TEST_F(FilterNavigationObserverTest, AboutBlankNavigation) {
   const GURL url("about:blank");
   EXPECT_CALL(delegate(), ClearSuggestion());
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(testing::_)).Times(0);
+  EXPECT_CALL(mock_service(), ExtractAnnotation).Times(0);
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              url);
 }
@@ -211,7 +240,8 @@ TEST_F(FilterNavigationObserverTest, RendererInitiatedNavigation) {
   EXPECT_CALL(delegate(), ClearSuggestion());
   EXPECT_CALL(delegate(), GetSuggestionCallback())
       .WillOnce(testing::Return(base::DoNothing()));
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url));
+  EXPECT_CALL(mock_service(), ExtractAnnotation(url));
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url, _));
   content::NavigationSimulator::NavigateAndCommitFromDocument(url, main_rfh());
 }
 
@@ -221,7 +251,8 @@ TEST_F(FilterNavigationObserverTest, ReferenceFragmentNavigation) {
   EXPECT_CALL(delegate(), ClearSuggestion());
   EXPECT_CALL(delegate(), GetSuggestionCallback())
       .WillOnce(testing::Return(base::DoNothing()));
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url));
+  EXPECT_CALL(mock_service(), ExtractAnnotation(url));
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url, _));
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              url);
 }
@@ -234,10 +265,16 @@ TEST_F(FilterNavigationObserverTest, PageActivationNavigation) {
   handle.set_is_served_from_bfcache(true);
   handle.set_reload_type(content::ReloadType::NONE);
   handle.set_is_error_page(false);
-  handle.set_url(GURL("https://example.com"));
+  const GURL url("https://example.com");
+  handle.set_url(url);
+  handle.set_previous_primary_main_frame_url(
+      GURL("https://anotherexample.com"));
 
   EXPECT_CALL(delegate(), ClearSuggestion()).Times(1);
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(testing::_)).Times(0);
+  EXPECT_CALL(mock_service(), ExtractAnnotation(url));
+  EXPECT_CALL(delegate(), GetSuggestionCallback())
+      .WillOnce(testing::Return(base::DoNothing()));
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url, _));
 
   observer()->DidFinishNavigation(&handle);
 }
@@ -248,11 +285,85 @@ TEST_F(FilterNavigationObserverTest, PrimaryMainFrameRenderProcessGone) {
       base::TERMINATION_STATUS_PROCESS_CRASHED);
 }
 
+TEST_F(FilterNavigationObserverTest, SubdomainNavigation) {
+  const GURL url1("https://sub1.example.com");
+  const GURL url2("https://sub2.example.com");
+
+  // First navigation.
+  EXPECT_CALL(delegate(), ClearSuggestion());
+  EXPECT_CALL(mock_service(), ExtractAnnotation(url1));
+  EXPECT_CALL(delegate(), GetSuggestionCallback())
+      .WillOnce(testing::Return(base::DoNothing()));
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url1, _));
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
+                                                             url1);
+  testing::Mock::VerifyAndClearExpectations(&delegate());
+  testing::Mock::VerifyAndClearExpectations(&mock_service());
+
+  // Second navigation to a different subdomain of the same domain.
+  EXPECT_CALL(delegate(), ClearSuggestion());
+  EXPECT_CALL(mock_service(), ExtractAnnotation(url2));
+  // GenerateFilterSuggestions should NOT be called because it's the same
+  // domain.
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
+                                                             url2);
+}
+
+TEST_F(FilterNavigationObserverTest, LocalhostNavigation) {
+  const GURL url1("http://localhost:8080/page1");
+  const GURL url2("http://localhost:8080/page2");
+
+  // First navigation.
+  EXPECT_CALL(delegate(), ClearSuggestion());
+  EXPECT_CALL(mock_service(), ExtractAnnotation(url1));
+  EXPECT_CALL(delegate(), GetSuggestionCallback())
+      .WillOnce(testing::Return(base::DoNothing()));
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url1, _));
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
+                                                             url1);
+  testing::Mock::VerifyAndClearExpectations(&delegate());
+  testing::Mock::VerifyAndClearExpectations(&mock_service());
+
+  // Second navigation on same localhost.
+  EXPECT_CALL(delegate(), ClearSuggestion());
+  EXPECT_CALL(mock_service(), ExtractAnnotation(url2));
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
+                                                             url2);
+}
+
+TEST_F(FilterNavigationObserverTest, CrossDomainNavigation) {
+  const GURL url1("https://www.example.com");
+  const GURL url2("https://www.anotherexample.com");
+
+  // Initial navigation.
+  EXPECT_CALL(delegate(), ClearSuggestion());
+  EXPECT_CALL(mock_service(), ExtractAnnotation(url1));
+  EXPECT_CALL(delegate(), GetSuggestionCallback())
+      .WillOnce(testing::Return(base::DoNothing()));
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url1, _));
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
+                                                             url1);
+  testing::Mock::VerifyAndClearExpectations(&delegate());
+  testing::Mock::VerifyAndClearExpectations(&mock_service());
+
+  EXPECT_CALL(delegate(), ClearSuggestion());
+  EXPECT_CALL(mock_service(), ExtractAnnotation(url2));
+  EXPECT_CALL(delegate(), GetSuggestionCallback())
+      .WillOnce(testing::Return(base::DoNothing()));
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url2, _));
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
+                                                             url2);
+}
+
 TEST_F(FilterNavigationObserverTest,
        DoesNotRequestSuggestionForFilterInitiatedNavigation) {
   const GURL url("https://www.example.com");
   EXPECT_CALL(delegate(), ClearSuggestion());
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(testing::_)).Times(0);
+  EXPECT_CALL(mock_service(), ExtractAnnotation(url));
+  EXPECT_CALL(delegate(), GetSuggestionCallback()).Times(0);
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
 
   auto navigation =
       content::NavigationSimulator::CreateBrowserInitiated(url, web_contents());

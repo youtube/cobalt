@@ -976,7 +976,7 @@ export class PdfViewerElement extends PdfViewerBaseElement {
 
   handlePluginMessage(e: CustomEvent<MessageData>) {
     const data = e.detail;
-    switch (data.type.toString()) {
+    switch (data.type) {
       case 'attachments':
         const attachmentsData =
             data as unknown as {attachmentsData: Attachment[]};
@@ -1650,6 +1650,8 @@ export class PdfViewerElement extends PdfViewerBaseElement {
       this.hasUnsavedEdits_ = false;
     }
     // </if>
+
+    this.fire('save-initiated-for-testing');
 
     if (this.pdfGetSaveDataInBlocks_) {
       this.saveInBlocks_(requestType);

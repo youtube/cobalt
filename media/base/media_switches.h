@@ -260,7 +260,6 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kLiveCaptionExperimentalLanguages);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kLiveCaptionUseGreedyTextStabilizer);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kLiveCaptionUseWaitK);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kLiveCaptionWebAudio);
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kLiveTranslate);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kLogSodaLoadFailures);
 #if BUILDFLAG(IS_WIN)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kApplicationAudioCaptureWin);
@@ -323,10 +322,13 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kRecordWebAudioEngagement);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kReduceHardwareVideoDecoderBuffers);
 #endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kResumeBackgroundVideo);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kDirectOpusAudioDecoding);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kRevokeMediaSourceObjectURLOnAttach);
 #if BUILDFLAG(ENABLE_SYMPHONIA)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kSymphoniaAudioDecoding);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kSymphoniaMp3Decoding);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kSymphoniaPcmDecoding);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kSymphoniaVorbisDecoding);
 #endif
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kSpeakerChangeDetection);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kSpecCompliantCanPlayThrough);
@@ -539,6 +541,9 @@ MEDIA_EXPORT bool IsChromeWideEchoCancellationEnabled();
 // residual echo estimator instead of the default heuristics, when applying
 // WebRTC echo cancellation.
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kWebRtcAudioNeuralResidualEchoEstimation);
+
+// Flag to enable or disable parsing of MP4 timed metadata tracks.
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kMP4TimedMetadataTrack);
 
 // Controls a global feature for sending ML model updates from the Optimization
 // Guide framework in the browser process to the audio process.

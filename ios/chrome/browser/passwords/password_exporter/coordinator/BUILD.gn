@@ -1,0 +1,48 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("coordinator") {
+  sources = [
+    "password_export_handler.h",
+    "password_exporter.h",
+    "password_exporter.mm",
+  ]
+  deps = [
+    "//base",
+    "//components/device_reauth",
+    "//components/password_manager/core/browser:metrics_util",
+    "//components/password_manager/core/browser/export",
+    "//components/password_manager/core/browser/ui",
+    "//components/password_manager/core/browser/ui:credential_ui_entry",
+    "//components/password_manager/core/common",
+    "//components/strings",
+    "//ios/chrome/app/strings",
+    "//ios/chrome/common/ui/reauthentication",
+    "//ui/base",
+  ]
+}
+
+source_set("test_support") {
+  testonly = true
+  sources = [ "password_exporter_for_testing.h" ]
+  deps = [ ":coordinator" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "password_exporter_unittest.mm" ]
+  deps = [
+    ":test_support",
+    "//base",
+    "//base/test:test_support",
+    "//components/password_manager/core/browser:metrics_util",
+    "//components/password_manager/core/browser:password_form",
+    "//components/password_manager/core/browser/ui:credential_ui_entry",
+    "//components/strings",
+    "//ios/chrome/app/strings",
+    "//ios/chrome/common/ui/reauthentication:mock_reauthentication_module",
+    "//testing/gtest",
+    "//third_party/ocmock",
+  ]
+}

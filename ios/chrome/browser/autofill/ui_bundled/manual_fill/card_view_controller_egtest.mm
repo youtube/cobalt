@@ -7,10 +7,10 @@
 #import "base/test/ios/wait_util.h"
 #import "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #import "components/strings/grit/components_strings.h"
-#import "ios/chrome/browser/autofill/form_input_accessory/test/form_input_accessory_app_interface.h"
 #import "ios/chrome/browser/autofill/ui_bundled/autofill_app_interface.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_constants.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_matchers.h"
+#import "ios/chrome/browser/device_reauth/test/reauthentication_app_interface.h"
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
 #import "ios/chrome/common/ui/elements/form_input_accessory_view.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -893,8 +893,8 @@ void DismissPaymentBottomSheet() {
 // Tests that the "Edit" action of a local card's overflow menu button displays
 // the card's details in edit mode.
 - (void)testEditLocalCardFromOverflowMenu {
-  [FormInputAccessoryAppInterface mockReauthenticationModuleExpectedResult:
-                                      ReauthenticationResult::kSuccess];
+  [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
+                                    ReauthenticationResult::kSuccess];
 
   // Save a  local card.
   [AutofillAppInterface saveLocalCreditCard];
@@ -969,8 +969,8 @@ void DismissPaymentBottomSheet() {
 // Tests the "Show Details" action of the overflow menu button displays the
 // card's details.
 - (void)testShowCardDetailsFromOverflowMenu {
-  [FormInputAccessoryAppInterface mockReauthenticationModuleExpectedResult:
-                                      ReauthenticationResult::kSuccess];
+  [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
+                                    ReauthenticationResult::kSuccess];
 
   // Save a card.
   [AutofillAppInterface saveLocalCreditCard];
@@ -1004,10 +1004,9 @@ void DismissPaymentBottomSheet() {
 // Tests that tapping the "Autofill Form" button fills the payment form with
 // the right data.
 - (void)testAutofillFormButtonFillsForm {
-  [AutofillAppInterface setUpMockReauthenticationModule];
-  [AutofillAppInterface mockReauthenticationModuleCanAttempt:YES];
-  [AutofillAppInterface mockReauthenticationModuleExpectedResult:
-                            ReauthenticationResult::kSuccess];
+  [ReauthenticationAppInterface mockReauthenticationModuleCanAttempt:YES];
+  [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
+                                    ReauthenticationResult::kSuccess];
 
   // Save a card.
   [AutofillAppInterface saveLocalCreditCard];
@@ -1030,8 +1029,6 @@ void DismissPaymentBottomSheet() {
   // Verify that the acceptance of the card suggestion at index 0 was correctly
   // recorded.
   CheckAutofillSuggestionAcceptedIndexMetricsCount(/*suggestion_index=*/0);
-
-  [AutofillAppInterface clearMockReauthenticationModule];
 }
 
 // Tests that the GPay icon is only visible when the card is a server card.

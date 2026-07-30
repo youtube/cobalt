@@ -196,7 +196,7 @@ void AppInfoDialogClosedCallback(SessionID session_id,
   // Ensure that the session id we have is still valid. It's possible
   // (though unlikely) that either the browser or session has been pulled
   // out from underneath us.
-  Browser* const browser = chrome::FindBrowserWithID(session_id);
+  BrowserWindowInterface* const browser = chrome::FindBrowserWithID(session_id);
   if (!browser) {
     return;
   }
@@ -204,7 +204,7 @@ void AppInfoDialogClosedCallback(SessionID session_id,
   // We want to focus the active web contents, which again, might not be the
   // original web contents (though it should be the vast majority of the time).
   content::WebContents* const active_contents =
-      browser->tab_strip_model()->GetActiveWebContents();
+      browser->GetTabStripModel()->GetActiveWebContents();
   if (active_contents) {
     active_contents->Focus();
   }
@@ -349,11 +349,14 @@ BrowserCommandController::BrowserCommandController(BrowserWindowInterface* bwi)
     auto* service =
         glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile());
     if (service) {
-      glic_window_activation_subscription_ =
-          service->window_controller().AddWindowActivationChangedCallback(
-              base::BindRepeating(
-                  &BrowserCommandController::GlicWindowActivationChanged,
-                  base::Unretained(this)));
+      if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+        glic_active_instance_changed_subscription_ =
+            service->window_controller()
+                .AddActiveInstanceChangedCallbackAndNotifyImmediately(
+                    base::BindRepeating(
+                        &BrowserCommandController::GlicActiveInstanceChanged,
+                        base::Unretained(this)));
+      }
       glic_fre_state_change_subscription_ =
           service->fre_controller().AddWebUiStateChangedCallback(
               base::BindRepeating(
@@ -487,7 +490,8 @@ void BrowserCommandController::LoadingStateChanged(bool is_loading,
   UpdateReloadStopState(is_loading, force);
 }
 
-void BrowserCommandController::GlicWindowActivationChanged(bool active) {
+void BrowserCommandController::GlicActiveInstanceChanged(
+    glic::GlicInstance* instance) {
   UpdateGlicState();
 }
 
@@ -874,9 +878,6 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
       break;
     case IDC_VIRTUAL_CARD_ENROLL:
       ShowVirtualCardEnrollBubble(browser_);
-      break;
-    case IDC_ORGANIZE_TABS:
-      StartTabOrganizationRequest(browser_);
       break;
     case IDC_SEND_SHARED_TAB_GROUP_FEEDBACK:
       OpenFeedbackDialog(browser_, feedback::kFeedbackSourceDesktopTabGroups,
@@ -1540,7 +1541,6 @@ void BrowserCommandController::InitCommandState() {
   UpdateTabRestoreCommandState();
   command_updater_.UpdateCommandEnabled(IDC_EXIT, true);
   command_updater_.UpdateCommandEnabled(IDC_NAME_WINDOW, true);
-  command_updater_.UpdateCommandEnabled(IDC_ORGANIZE_TABS, true);
   command_updater_.UpdateCommandEnabled(IDC_TOGGLE_VERTICAL_TABS, true);
   command_updater_.UpdateCommandEnabled(IDC_VERTICAL_TABS_SEND_FEEDBACK, true);
 #if BUILDFLAG(IS_CHROMEOS)
@@ -2253,9 +2253,14 @@ void BrowserCommandController::UpdateGlicState() {
     auto* service =
         glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile());
     if (service) {
+      bool glic_active = false;
+      auto* instance = service->GetInstanceForActiveTab(browser_);
+      if (instance) {
+        glic_active = instance->IsActive();
+      }
       command_updater_.UpdateCommandEnabled(
-          IDC_OPEN_GLIC, glic::GlicEnabling::IsEnabledForProfile(profile()) &&
-                             !service->IsWindowOrFreShowing());
+          IDC_OPEN_GLIC,
+          glic::GlicEnabling::IsEnabledForProfile(profile()) && !glic_active);
     }
   }
 }

@@ -50,23 +50,23 @@
 namespace blink {
 
 template <typename CharType>
-constexpr inline bool IsASCII(CharType c) {
+constexpr inline bool IsAscii(CharType c) {
   return !(c & ~0x7F);
 }
 
 template <typename CharType>
-inline bool IsASCIIAlpha(CharType c) {
+inline bool IsAsciiAlpha(CharType c) {
   return (c | 0x20) >= 'a' && (c | 0x20) <= 'z';
 }
 
 template <typename CharType>
-inline bool IsAsciiDigit(CharType c) {
+constexpr inline bool IsAsciiDigit(CharType c) {
   return c >= '0' && c <= '9';
 }
 
 template <typename CharType>
-inline bool IsASCIIAlphanumeric(CharType c) {
-  return IsAsciiDigit(c) || IsASCIIAlpha(c);
+inline bool IsAsciiAlphanumeric(CharType c) {
+  return IsAsciiDigit(c) || IsAsciiAlpha(c);
 }
 
 // Returns true if the character is an ASCII hex digit (0-9, a-f, or A-F).
@@ -76,17 +76,17 @@ inline bool IsAsciiHexDigit(CharType c) {
 }
 
 template <typename CharType>
-inline bool IsASCIILower(CharType c) {
+inline bool IsAsciiLower(CharType c) {
   return c >= 'a' && c <= 'z';
 }
 
 template <typename CharType>
-inline bool IsASCIIPrintable(CharType c) {
+inline bool IsAsciiPrintable(CharType c) {
   return c >= ' ' && c <= '~';
 }
 
 /*
- Statistics from a run of Apple's page load test for callers of IsASCIISpace:
+ Statistics from a run of Apple's page load test for callers of IsAsciiSpace:
 
  character          count
  ---------          -----
@@ -99,25 +99,25 @@ inline bool IsASCIIPrintable(CharType c) {
  0B  \v             0
  */
 template <typename CharType>
-inline bool IsASCIISpace(CharType c) {
+inline bool IsAsciiSpace(CharType c) {
   return c <= ' ' && (c == ' ' || (c <= 0xD && c >= 0x9));
 }
 
-// This version of IsASCIISpace adheres to WHATWG specs which don't include the
+// This version of IsAsciiSpace adheres to WHATWG specs which don't include the
 // Vertical Tab character 0xB in whitespace.
 // https://infra.spec.whatwg.org/#ascii-whitespace
 // https://github.com/whatwg/infra/issues/670
 template <typename CharType>
-inline bool IsASCIISpaceWHATWG(CharType c) {
-  return IsASCIISpace(c) && c != 0xB;
+inline bool IsAsciiSpaceWhatwg(CharType c) {
+  return IsAsciiSpace(c) && c != 0xB;
 }
 
 template <typename CharType>
-inline bool IsASCIIUpper(CharType c) {
+inline bool IsAsciiUpper(CharType c) {
   return c >= 'A' && c <= 'Z';
 }
 
-inline constexpr std::array<LChar, 256> kASCIICaseFoldTable = {
+inline constexpr std::array<LChar, 256> kAsciiCaseFoldTable = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
     0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
     0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23,
@@ -147,15 +147,15 @@ inline CharType ToAsciiLower(CharType c) {
 }
 
 inline LChar ToAsciiLower(LChar c) {
-  return kASCIICaseFoldTable[c];
+  return kAsciiCaseFoldTable[c];
 }
 
 inline char ToAsciiLower(char c) {
-  return static_cast<char>(kASCIICaseFoldTable[static_cast<LChar>(c)]);
+  return static_cast<char>(kAsciiCaseFoldTable[static_cast<LChar>(c)]);
 }
 
 template <typename CharType>
-constexpr inline CharType ToASCIIUpper(CharType c) {
+constexpr inline CharType ToAsciiUpper(CharType c) {
   return c & ~((c >= 'a' && c <= 'z') << 5);
 }
 
@@ -193,13 +193,13 @@ inline char UpperNibbleToAsciiHexDigit(char c) {
   return nibble < 10 ? '0' + nibble : 'A' + nibble - 10;
 }
 
-template <typename CharType>
-inline bool IsASCIIAlphaCaselessEqual(CharType css_character, char character) {
+template <char lower_char, typename CharType>
+inline bool EqualIgnoringAsciiCase(CharType css_character) {
   // This function compares a (preferably) constant ASCII
   // lowercase letter to any input character.
-  DCHECK_GE(character, 'a');
-  DCHECK_LE(character, 'z');
-  if ((css_character | 0x20) == character) [[likely]] {
+  static_assert(lower_char >= 'a' && lower_char <= 'z',
+                "The template argument must be a lowercase ASCII letter");
+  if ((css_character | 0x20) == lower_char) [[likely]] {
     return true;
   }
   return false;

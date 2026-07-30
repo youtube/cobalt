@@ -175,7 +175,8 @@ FocusModeTray::FocusModeTray(Shelf* shelf)
           shelf,
           ui::ImageModel::FromVectorIcon(kFocusModeLampIcon,
                                          cros_tokens::kCrosSysOnSurface),
-          std::u16string(),
+          /*tooltip=*/std::u16string(),
+          /*accessibility_name=*/std::u16string(),
           TrayBackgroundViewCatalogName::kFocusMode) {
   SetCallback(base::BindRepeating(&FocusModeTray::FocusModeIconActivated,
                                   weak_ptr_factory_.GetWeakPtr()));
@@ -700,7 +701,7 @@ void FocusModeTray::CloseBubbleAndMaybeReset(bool should_reset) {
 void FocusModeTray::UpdateAccessibleName() {
   if (!session_snapshot_) {
     GetViewAccessibility().RemoveName();
-    image_view()->SetTooltipText(std::u16string());
+    SetTooltip(std::u16string());
     return;
   }
 
@@ -722,10 +723,8 @@ void FocusModeTray::UpdateAccessibleName() {
         duration_string);
   }
 
-  GetViewAccessibility().SetName(name);
-  if (image_view()) {
-    image_view()->SetTooltipText(name);
-  }
+  SetAccessibilityName(name);
+  SetTooltip(name);
 }
 
 BEGIN_METADATA(FocusModeTray)

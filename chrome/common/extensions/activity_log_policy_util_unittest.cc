@@ -103,15 +103,15 @@ TEST(ActivityLogPolicyUtilNamespaceTest, GetTelemetrySignalType_FormHijacking) {
             GetTelemetrySignalType("blinkSetAttribute", form_action_args,
                                    DomActionType::METHOD));
 
-  // 3. Set formaction on button. [arg0=tag, arg1=attr_name, arg2=old_val,
-  // arg3=new_val]
+  // 3. Set formaction on button. [arg0=tag, arg1=type, arg2=formmethod,
+  // arg3=formaction]
   base::ListValue button_args;
   button_args.Append("button");
-  button_args.Append("formaction");
-  button_args.Append("");
+  button_args.Append("submit");
+  button_args.Append("");  // empty formmethod
   button_args.Append("https://phish.com/login");
   EXPECT_EQ(SignalType::kScriptInjection,
-            GetTelemetrySignalType("blinkSetAttribute", button_args,
+            GetTelemetrySignalType("blinkAddElement", button_args,
                                    DomActionType::METHOD));
 }
 
@@ -181,9 +181,10 @@ TEST(ActivityLogPolicyUtilNamespaceTest,
 }
 
 TEST(ActivityLogPolicyUtilNamespaceTest,
-     GetArgumentsList_GenericKeepsAllStrings) {
+     GetArgumentsList_GenericKeepsAllNonEmptyStrings) {
   base::ListValue args;
   args.Append("arg1");
+  args.Append("");   // Should be ignored (empty string)
   args.Append(123);  // Should be ignored (not a string)
   args.Append("arg2");
 
@@ -193,6 +194,57 @@ TEST(ActivityLogPolicyUtilNamespaceTest,
   ASSERT_EQ(result.size(), 2u);
   EXPECT_EQ(result[0], "arg1");
   EXPECT_EQ(result[1], "arg2");
+}
+
+TEST(ActivityLogPolicyUtilNamespaceTest,
+     GetArgumentsList_ScriptingExecuteScript) {
+  // 1. Test "files" extraction.
+  {
+    base::ListValue args;
+    base::DictValue dict;
+    base::ListValue files;
+    files.Append("script1.js");
+    files.Append("script2.js");
+    dict.Set("files", std::move(files));
+    args.Append(std::move(dict));
+
+    std::vector<std::string> result =
+        GetArgumentsList("scripting.executeScript", args);
+
+    ASSERT_EQ(result.size(), 2u);
+    EXPECT_EQ(result[0], "script1.js");
+    EXPECT_EQ(result[1], "script2.js");
+  }
+
+  // 2. Test "func" extraction.
+  {
+    base::ListValue args;
+    base::DictValue dict;
+    dict.Set("func", "function() { console.log('hello'); }");
+    args.Append(std::move(dict));
+
+    std::vector<std::string> result =
+        GetArgumentsList("scripting.executeScript", args);
+
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result[0], "function() { console.log('hello'); }");
+  }
+
+  // 3. Test "func" string capping at 1024 characters.
+  {
+    base::ListValue args;
+    base::DictValue dict;
+    std::string long_func(2000, 'A');
+    dict.Set("func", long_func);
+    args.Append(std::move(dict));
+
+    std::vector<std::string> result =
+        GetArgumentsList("scripting.executeScript", args);
+
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result[0].length(), 1024u);
+    EXPECT_EQ(result[0], std::string(1024, 'A'));
+  }
 }
 
 }  // namespace extensions::activity_log_policy_util

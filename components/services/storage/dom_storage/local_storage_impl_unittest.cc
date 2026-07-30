@@ -25,6 +25,7 @@
 #include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "components/services/storage/dom_storage/db_status.h"
+#include "components/services/storage/dom_storage/dom_storage_constants.h"
 #include "components/services/storage/dom_storage/dom_storage_histogram_helper.h"
 #include "components/services/storage/dom_storage/features.h"
 #include "components/services/storage/dom_storage/test_support/dom_storage_database_testing.h"
@@ -39,7 +40,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/dom_storage/storage_area.mojom.h"
-#include "third_party/leveldatabase/env_chromium.h"
 #include "url/gurl.h"
 
 namespace storage {
@@ -274,6 +274,14 @@ class LocalStorageImplTestBase : public testing::Test {
   // `TestFuture`.
   void RunUntilIdle() { task_environment_->RunUntilIdle(); }
 
+  // Waits for all pending tasks on the database thread to complete.
+  void WaitForDatabaseTasks() {
+    base::RunLoop loop;
+    context()->GetDatabaseForTesting()->database().PostTaskWithThisObject(
+        base::BindLambdaForTesting([&](DomStorageDatabase*) { loop.Quit(); }));
+    loop.Run();
+  }
+
   void DoTestPut(const std::vector<uint8_t>& key,
                  const std::vector<uint8_t>& value) {
     mojo::Remote<blink::mojom::StorageArea> area;
@@ -459,6 +467,13 @@ TEST_P(LocalStorageImplTest, Basic) {
   // The Put and WaitForMapEntries each trigger a ReadMapKeyValues.
   histograms.ExpectUniqueSample("Storage.LocalStorage.ReadMapKeyValues.OnDisk",
                                 0, 2);
+
+  // Verify duration histograms were recorded for the commit and read
+  // operations.
+  histograms.ExpectTotalCount(
+      "Storage.LocalStorage.Duration.InitiateCommit.OnDisk", 1);
+  // The Put and WaitForMapEntries each trigger a ReadMapKeyValues/GetAll.
+  histograms.ExpectTotalCount("Storage.LocalStorage.Duration.GetAll.OnDisk", 2);
 }
 
 TEST_P(LocalStorageImplTest, StorageKeysAreIndependent) {
@@ -749,6 +764,9 @@ TEST_P(LocalStorageImplTest, CheckAccessMetaData) {
   // ResetStorage results in a PutMetadata call to update last_accessed.
   histograms.ExpectUniqueSample("Storage.LocalStorage.PutMetadata.OnDisk",
                                 /*sample=*/0, 1);
+  // Verify the OpenDatabase duration histogram was recorded.
+  histograms.ExpectTotalCount(
+      "Storage.LocalStorage.Duration.OpenDatabase.OnDisk", 1);
 }
 
 TEST_P(LocalStorageImplTest, MetaDataClearedOnDelete) {
@@ -1276,6 +1294,10 @@ TEST_P(LocalStorageImplTest, CorruptionOnDisk) {
   histograms.ExpectUniqueSample(
       "Storage.LocalStorage.Recovery.OpenFailure",
       DomStorageDatabaseRecoveryOutcome::kRecoveredToDiskDestroySucceeded, 1);
+  // Verify DestroyDatabase histogram recorded success during recovery.
+  // Sample 0 = DbStatus::Type::kOk.
+  histograms.ExpectUniqueSample("Storage.LocalStorage.DestroyDatabase.OnDisk",
+                                /*sample=*/0, 1);
 }
 
 TEST_P(LocalStorageImplTest, RecreateOnCommitFailure) {
@@ -1421,6 +1443,15 @@ TEST_P(LocalStorageImplTest, RecreateOnCommitFailure) {
   histograms.ExpectUniqueSample(
       "Storage.LocalStorage.Recovery.CommitErrorThresholdExceeded",
       DomStorageDatabaseRecoveryOutcome::kRecoveredToDiskDestroySucceeded, 1);
+
+  // Verify DestroyDatabase histogram recorded success during recovery.
+  histograms.ExpectUniqueSample("Storage.LocalStorage.DestroyDatabase.OnDisk",
+                                /*sample=*/0, 1);
+
+  // Verify the commit error count was recorded when the counter was reset
+  // during recovery.
+  histograms.ExpectUniqueSample("Storage.LocalStorage.CommitErrorCountAtReset",
+                                kCommitErrorThreshold + 1, 1);
 }
 
 TEST_P(LocalStorageImplTest, DontRecreateOnRepeatedCommitFailure) {
@@ -1521,6 +1552,9 @@ TEST_P(LocalStorageImplTest, DontRecreateOnRepeatedCommitFailure) {
   area.FlushForTesting();
   EXPECT_TRUE(area.is_connected());
 
+  // Wait for all pending commits on the database thread to complete.
+  WaitForDatabaseTasks();
+
   // Verify recovery histogram was emitted for the first recovery.
   histograms.ExpectBucketCount(
       "Storage.LocalStorage.Recovery.CommitErrorThresholdExceeded",
@@ -1532,10 +1566,148 @@ TEST_P(LocalStorageImplTest, DontRecreateOnRepeatedCommitFailure) {
                 DomStorageDatabaseRecoveryOutcome::
                     kOngoingErrorsAfterAttemptedRecovery),
             1);
+
+  // Verify the commit error count was recorded during the first recovery.
+  histograms.ExpectBucketCount("Storage.LocalStorage.CommitErrorCountAtReset",
+                               kCommitErrorThreshold + 1, 1);
+}
+
+// Test fixture for tests that use fake database implementations. These tests
+// do not depend on the real SQLite/LevelDB backend and run only once.
+class LocalStorageImplFakeDbTest : public LocalStorageImplTestBase {
+ public:
+  LocalStorageImplFakeDbTest()
+      : LocalStorageImplTestBase(/*is_sqlite_enabled=*/false) {}
+};
+
+// After recovery, some commit errors occur but resolve via a successful commit.
+// Verifies the kTransientErrorsAfterAttemptedRecovery histogram is emitted.
+TEST_F(LocalStorageImplFakeDbTest, TransientErrorsAfterRecovery) {
+  base::HistogramTester histograms;
+  ShutDownStorage();
+
+  // Each database starts with UpdateMaps returning IOError. The test switches
+  // the second database to OK mid-flight to simulate transient errors.
+  ScopedDomStorageDatabaseFactoryForTesting scoped_factory(
+      base::BindLambdaForTesting(
+          [](StorageType, bool, scoped_refptr<base::SequencedTaskRunner> runner)
+              -> base::SequenceBound<DomStorageDatabase> {
+            auto fake = base::SequenceBound<FakeDomStorageDatabase>(
+                std::move(runner), DbStatus::OK());
+            fake.AsyncCall(&FakeDomStorageDatabase::SetUpdateMapsStatus)
+                .WithArgs(DbStatus::IOError("test"));
+            return fake;
+          }));
+
+  std::optional<base::RunLoop> open_loop;
+  size_t num_database_open_requests = 0;
+
+  InitializeStorage(storage_path());
+
+  context()->SetDatabaseOpenCallbackForTesting(base::BindLambdaForTesting([&] {
+    ++num_database_open_requests;
+    open_loop->Quit();
+  }));
+  open_loop.emplace();
+
+  // Wait for the first database to open, then bind a storage area.
+  open_loop->Run();
+  ASSERT_EQ(1u, num_database_open_requests);
+  mojo::Remote<blink::mojom::StorageArea> area;
+  context()->BindStorageArea(
+      blink::StorageKey::CreateFromStringForTesting("http://foobar.com"),
+      area.BindNewPipeAndPassReceiver());
+
+  // Setup a new RunLoop to wait for the database to be recreated as part of
+  // recovery.
+  open_loop.emplace();
+  context()->SetDatabaseOpenCallbackForTesting(base::BindLambdaForTesting([&] {
+    ++num_database_open_requests;
+    open_loop->Quit();
+  }));
+
+  // Repeatedly write data to trigger enough commit errors for recovery.
+  auto key = StdStringToUint8Vector("key");
+  auto value = StdStringToUint8Vector("value");
+  std::optional<std::vector<uint8_t>> old_value;
+  while (area.is_connected()) {
+    value[0]++;
+    area->Put(key, value, old_value, test::MakeStorageAreaSource(),
+              base::BindLambdaForTesting(
+                  [&](bool success) { EXPECT_TRUE(success); }));
+    old_value = std::vector<uint8_t>(value);
+    area.FlushForTesting();
+    context()->FlushStorageKeyForTesting(blink::StorageKey(
+        blink::StorageKey::CreateFromStringForTesting("http://foobar.com")));
+  }
+  area.reset();
+
+  // Wait for the database to be recreated. The second database's UpdateMaps
+  // also returns IOError (set at creation above).
+  open_loop->Run();
+  EXPECT_EQ(2u, num_database_open_requests);
+
+  // Reconnect and write a few times to accumulate some errors (fewer than the
+  // threshold).
+  context()->BindStorageArea(
+      blink::StorageKey::CreateFromStringForTesting("http://foobar.com"),
+      area.BindNewPipeAndPassReceiver());
+  old_value = std::nullopt;
+  for (int i = 0; i < 3; ++i) {
+    // Every write needs to be different to make sure there actually is a
+    // change to commit.
+    value[0]++;
+    base::test::TestFuture<bool> success_future;
+    area->Put(key, value, old_value, test::MakeStorageAreaSource(),
+              success_future.GetCallback());
+    EXPECT_TRUE(success_future.Take());
+    old_value = value;
+    context()->FlushStorageKeyForTesting(blink::StorageKey(
+        blink::StorageKey::CreateFromStringForTesting("http://foobar.com")));
+  }
+
+  // Stop failing commits and do one more write so the successful commit
+  // triggers the transient errors histogram.
+  context()->GetDatabaseForTesting()->database().PostTaskWithThisObject(
+      base::BindLambdaForTesting([](DomStorageDatabase* db) {
+        static_cast<FakeDomStorageDatabase*>(db)->SetUpdateMapsStatus(
+            DbStatus::OK());
+      }));
+  // Every write needs to be different to make sure there actually is a
+  // change to commit.
+  value[0]++;
+  {
+    base::test::TestFuture<bool> success_future;
+    area->Put(key, value, old_value, test::MakeStorageAreaSource(),
+              success_future.GetCallback());
+    EXPECT_TRUE(success_future.Take());
+  }
+  context()->FlushStorageKeyForTesting(blink::StorageKey(
+      blink::StorageKey::CreateFromStringForTesting("http://foobar.com")));
+
+  area.FlushForTesting();
+  EXPECT_TRUE(area.is_connected());
+
+  // Wait for all pending commits on the database thread to complete.
+  WaitForDatabaseTasks();
+
+  // Verify the transient errors histogram was emitted exactly once.
+  histograms.ExpectBucketCount(
+      "Storage.LocalStorage.Recovery.CommitErrorThresholdExceeded",
+      DomStorageDatabaseRecoveryOutcome::kTransientErrorsAfterAttemptedRecovery,
+      1);
+
+  // Verify the commit error count was recorded: once during the initial
+  // recovery (kCommitErrorThreshold + 1) and once when the successful commit
+  // reset the 3 transient errors.
+  histograms.ExpectBucketCount("Storage.LocalStorage.CommitErrorCountAtReset",
+                               kCommitErrorThreshold + 1, 1);
+  histograms.ExpectBucketCount("Storage.LocalStorage.CommitErrorCountAtReset",
+                               3, 1);
 }
 
 // Both disk opens fail, destroy succeeds, in-memory open succeeds.
-TEST_P(LocalStorageImplTest, FallbackToInMemory_DestroySucceeded) {
+TEST_F(LocalStorageImplFakeDbTest, FallbackToInMemory_DestroySucceeded) {
   base::HistogramTester histograms;
   ShutDownStorage();
 
@@ -1549,10 +1721,13 @@ TEST_P(LocalStorageImplTest, FallbackToInMemory_DestroySucceeded) {
                                 DomStorageDatabaseRecoveryOutcome::
                                     kRecoveredToInMemoryBothDestroysSucceeded,
                                 1);
+  // Two successful destroys during recovery (one per failed open attempt).
+  histograms.ExpectUniqueSample("Storage.LocalStorage.DestroyDatabase.OnDisk",
+                                /*sample=*/0, 2);
 }
 
 // Both disk opens fail, destroy also fails, in-memory open succeeds.
-TEST_P(LocalStorageImplTest, FallbackToInMemory_DestroyFailed) {
+TEST_F(LocalStorageImplFakeDbTest, FallbackToInMemory_DestroyFailed) {
   base::HistogramTester histograms;
   ShutDownStorage();
 
@@ -1566,10 +1741,13 @@ TEST_P(LocalStorageImplTest, FallbackToInMemory_DestroyFailed) {
       "Storage.LocalStorage.Recovery.OpenFailure",
       DomStorageDatabaseRecoveryOutcome::kRecoveredToInMemoryBothDestroysFailed,
       1);
+  // Sample 5 = DbStatus::Type::kIoError.
+  histograms.ExpectUniqueSample("Storage.LocalStorage.DestroyDatabase.OnDisk",
+                                /*sample=*/5, 2);
 }
 
 // All three opens fail (disk, disk retry, in-memory), destroys succeed.
-TEST_P(LocalStorageImplTest, GaveUp_DestroySucceeded) {
+TEST_F(LocalStorageImplFakeDbTest, GaveUp_DestroySucceeded) {
   base::HistogramTester histograms;
   ShutDownStorage();
 
@@ -1582,10 +1760,13 @@ TEST_P(LocalStorageImplTest, GaveUp_DestroySucceeded) {
   histograms.ExpectUniqueSample(
       "Storage.LocalStorage.Recovery.OpenFailure",
       DomStorageDatabaseRecoveryOutcome::kGaveUpBothDestroysSucceeded, 1);
+  // Two successful destroys during recovery (one per failed open attempt).
+  histograms.ExpectUniqueSample("Storage.LocalStorage.DestroyDatabase.OnDisk",
+                                /*sample=*/0, 2);
 }
 
 // All three opens fail, destroy also fails.
-TEST_P(LocalStorageImplTest, GaveUp_DestroyFailed) {
+TEST_F(LocalStorageImplFakeDbTest, GaveUp_DestroyFailed) {
   base::HistogramTester histograms;
   ShutDownStorage();
 
@@ -1601,7 +1782,7 @@ TEST_P(LocalStorageImplTest, GaveUp_DestroyFailed) {
 }
 
 // First open fails, destroy fails, second open succeeds on disk.
-TEST_P(LocalStorageImplTest, RecoveredToDisk_DestroyFailed) {
+TEST_F(LocalStorageImplFakeDbTest, RecoveredToDisk_DestroyFailed) {
   base::HistogramTester histograms;
   ShutDownStorage();
 
@@ -1615,11 +1796,13 @@ TEST_P(LocalStorageImplTest, RecoveredToDisk_DestroyFailed) {
   histograms.ExpectUniqueSample(
       "Storage.LocalStorage.Recovery.OpenFailure",
       DomStorageDatabaseRecoveryOutcome::kRecoveredToDiskDestroyFailed, 1);
+  histograms.ExpectBucketCount("Storage.LocalStorage.DestroyDatabase.OnDisk",
+                               /*sample=*/5, 1);
 }
 
 // Both disk opens fail, first destroy fails, second succeeds, in-memory open
 // succeeds.
-TEST_P(LocalStorageImplTest, FallbackToInMemory_FirstDestroyFailed) {
+TEST_F(LocalStorageImplFakeDbTest, FallbackToInMemory_FirstDestroyFailed) {
   base::HistogramTester histograms;
   ShutDownStorage();
 
@@ -1633,11 +1816,15 @@ TEST_P(LocalStorageImplTest, FallbackToInMemory_FirstDestroyFailed) {
       "Storage.LocalStorage.Recovery.OpenFailure",
       DomStorageDatabaseRecoveryOutcome::kRecoveredToInMemoryFirstDestroyFailed,
       1);
+  histograms.ExpectBucketCount("Storage.LocalStorage.DestroyDatabase.OnDisk",
+                               /*sample=*/0, 1);
+  histograms.ExpectBucketCount("Storage.LocalStorage.DestroyDatabase.OnDisk",
+                               /*sample=*/5, 1);
 }
 
 // Both disk opens fail, first destroy succeeds, second fails, in-memory open
 // succeeds.
-TEST_P(LocalStorageImplTest, FallbackToInMemory_SecondDestroyFailed) {
+TEST_F(LocalStorageImplFakeDbTest, FallbackToInMemory_SecondDestroyFailed) {
   base::HistogramTester histograms;
   ShutDownStorage();
 
@@ -1662,10 +1849,14 @@ TEST_P(LocalStorageImplTest, FallbackToInMemory_SecondDestroyFailed) {
                                 DomStorageDatabaseRecoveryOutcome::
                                     kRecoveredToInMemorySecondDestroyFailed,
                                 1);
+  histograms.ExpectBucketCount("Storage.LocalStorage.DestroyDatabase.OnDisk",
+                               /*sample=*/0, 1);
+  histograms.ExpectBucketCount("Storage.LocalStorage.DestroyDatabase.OnDisk",
+                               /*sample=*/5, 1);
 }
 
 // All three opens fail, first destroy succeeds, second fails.
-TEST_P(LocalStorageImplTest, GaveUp_SecondDestroyFailed) {
+TEST_F(LocalStorageImplFakeDbTest, GaveUp_SecondDestroyFailed) {
   base::HistogramTester histograms;
   ShutDownStorage();
 
@@ -1689,10 +1880,14 @@ TEST_P(LocalStorageImplTest, GaveUp_SecondDestroyFailed) {
   histograms.ExpectUniqueSample(
       "Storage.LocalStorage.Recovery.OpenFailure",
       DomStorageDatabaseRecoveryOutcome::kGaveUpSecondDestroyFailed, 1);
+  histograms.ExpectBucketCount("Storage.LocalStorage.DestroyDatabase.OnDisk",
+                               /*sample=*/0, 1);
+  histograms.ExpectBucketCount("Storage.LocalStorage.DestroyDatabase.OnDisk",
+                               /*sample=*/5, 1);
 }
 
 // All three opens fail, both destroys fail.
-TEST_P(LocalStorageImplTest, GaveUp_BothDestroysFailed) {
+TEST_F(LocalStorageImplFakeDbTest, GaveUp_BothDestroysFailed) {
   base::HistogramTester histograms;
   ShutDownStorage();
 
@@ -1706,11 +1901,13 @@ TEST_P(LocalStorageImplTest, GaveUp_BothDestroysFailed) {
   histograms.ExpectUniqueSample(
       "Storage.LocalStorage.Recovery.OpenFailure",
       DomStorageDatabaseRecoveryOutcome::kGaveUpBothDestroysFailed, 1);
+  histograms.ExpectUniqueSample("Storage.LocalStorage.DestroyDatabase.OnDisk",
+                                /*sample=*/5, 2);
 }
 
 // In-memory open fails, retry succeeds. No Destroy() because there is nothing
 // on disk.
-TEST_P(LocalStorageImplTest, InMemoryRecovery_Succeeded) {
+TEST_F(LocalStorageImplFakeDbTest, InMemoryRecovery_Succeeded) {
   base::HistogramTester histograms;
   ShutDownStorage();
 
@@ -1728,7 +1925,7 @@ TEST_P(LocalStorageImplTest, InMemoryRecovery_Succeeded) {
 
 // Both in-memory opens fail, gave up. No Destroy() because there is nothing on
 // disk.
-TEST_P(LocalStorageImplTest, InMemoryRecovery_GaveUp) {
+TEST_F(LocalStorageImplFakeDbTest, InMemoryRecovery_GaveUp) {
   base::HistogramTester histograms;
   ShutDownStorage();
 

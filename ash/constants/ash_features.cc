@@ -744,9 +744,6 @@ BASE_FEATURE(kFederatedService, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kFederatedLauncherQueryAnalyticsVersion2Task,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables the files transfer conflict dialog in Files app.
-BASE_FEATURE(kFilesConflictDialog, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables local image search by query in the Files app.
 BASE_FEATURE(kFilesLocalImageSearch, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -761,9 +758,6 @@ BASE_FEATURE(kFilesTrashAutoCleanup, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enable files app trash for Drive.
 BASE_FEATURE(kFilesTrashDrive, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables the v2 version of the Firmware Updates app.
-BASE_FEATURE(kFirmwareUpdateUIV2, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Fix manual ip address persistence on managed device with 2 ethernet ports.
 BASE_FEATURE(kFixStaticIpForTwoManagedEthPorts,
@@ -839,9 +833,6 @@ BASE_FEATURE(kGlanceablesTimeManagementTasksViewAssignedTasks,
 
 // Enables logging new Gaia account creation event.
 BASE_FEATURE(kGaiaRecordAccountCreation, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables Gamepad Support.
-BASE_FEATURE(kGameDashboardGamepadSupport, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the Game Dashboard Main Menu utility views.
 BASE_FEATURE(kGameDashboardUtilities, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1316,20 +1307,6 @@ BASE_FEATURE(kNotificationLimit, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables a bugfix for devices with a null custom top row property.
 BASE_FEATURE(kNullTopRowFix, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Feature Management flag for the Sys UI holdback experiment, used to avoid
-// certain devices.
-BASE_FEATURE(kFeatureManagementShouldExcludeFromSysUiHoldback,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables a holdback experiment for Drive integration.
-BASE_FEATURE(kSysUiShouldHoldbackDriveIntegration,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables a holdback experiment for Task Management
-// Glanceables.
-BASE_FEATURE(kSysUiShouldHoldbackTaskManagement,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables the Night Light feature.
 BASE_FEATURE(kNightLight, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1565,16 +1542,6 @@ BASE_FEATURE(kPerDeskShelf, base::FEATURE_DISABLED_BY_DEFAULT);
 // Provides a UI for users to view information about their Android phone
 // and perform phone-side actions within ChromeOS.
 BASE_FEATURE(kPhoneHub, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables the Camera Roll feature in Phone Hub, which allows users to access
-// recent photos and videos taken on a connected Android device
-BASE_FEATURE(kPhoneHubCameraRoll, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Maximum number of seconds to wait before users can download the same photo
-// from Camera Roll again.
-const base::FeatureParam<base::TimeDelta> kPhoneHubCameraRollThrottleInterval{
-    &kPhoneHubCameraRoll, "PhoneHubCameraRollThrottleInterval",
-    base::Seconds(2)};
 
 // Enables the incoming/ongoing call notification feature in Phone Hub.
 BASE_FEATURE(kPhoneHubCallNotification, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1821,6 +1788,9 @@ BASE_FEATURE(kDemoModeSecondaryGoogleAccountSigninAllowedFalse,
 // to the demo server in signed-in experience.
 BASE_FEATURE(kSendDeviceInfoToDemoServer, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Whether or not to show the notification based on experiment.
+BASE_FEATURE(kShowFrozenUpdateNotification, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Uses experimental component version for smart dim.
 BASE_FEATURE(kSmartDimExperimentalComponent, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -2012,9 +1982,6 @@ BASE_FEATURE(kWallpaperFastRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kWallpaperGooglePhotosSharedAlbums,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables a new Welcome Experience for first-time peripheral connections.
-BASE_FEATURE(kWelcomeExperience, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // kWelcomeExperienceTestUnsupportedDevices enables the new device Welcome
 // Experience to be tested on external devices that are not officially
 // supported. When enabled, users will be able to initiate and complete
@@ -2080,10 +2047,6 @@ BASE_FEATURE(kWindowSplitting, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables an experimental feature that lets users easily layout, resize and
 // position their windows using only mouse and touch gestures.
 BASE_FEATURE(kWmMode, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables an experimental feature that overrides the specific holdback
-// experiments on the M-129.
-BASE_FEATURE(kIgnoreM129Holdback, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables or disables PSM CheckMembership for 28 day device active pings
 // on ChromeOS.
@@ -2282,6 +2245,15 @@ BASE_FEATURE(kSmartDim, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables or disables TPM firmware update capability on Chrome OS.
 BASE_FEATURE(kTPMFirmwareUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enables infrastructure for generating Ansible playbooks for the default
+// Crostini container from software configurations in JSON schema.
+BASE_FEATURE(kCrostiniAnsibleSoftwareManagement,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables reporting Chrome app activity for supervised users.
+BASE_FEATURE(kUnicornChromeActivityReporting,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -2675,20 +2647,12 @@ bool IsFileManagerFuseBoxDebugEnabled() {
   return base::FeatureList::IsEnabled(kFuseBoxDebug);
 }
 
-bool IsFilesConflictDialogEnabled() {
-  return base::FeatureList::IsEnabled(kFilesConflictDialog);
-}
-
 bool IsFilesLocalImageSearchEnabled() {
   return base::FeatureList::IsEnabled(kFilesLocalImageSearch);
 }
 
 bool IsFingerprintAuthFactorEnabled() {
   return base::FeatureList::IsEnabled(kFingerprintAuthFactor);
-}
-
-bool IsFirmwareUpdateUIV2Enabled() {
-  return base::FeatureList::IsEnabled(kFirmwareUpdateUIV2);
 }
 
 bool IsFixStaticIpForTwoManagedEthPortsEnabled() {
@@ -2827,14 +2791,6 @@ bool IsGlanceablesTimeManagementClassroomStudentViewEnabled() {
 }
 
 bool IsGlanceablesTimeManagementTasksViewEnabled() {
-  const bool device_enrolled_in_holdback =
-      !base::FeatureList::IsEnabled(
-          kFeatureManagementShouldExcludeFromSysUiHoldback) &&
-      base::FeatureList::IsEnabled(kSysUiShouldHoldbackTaskManagement);
-  if (device_enrolled_in_holdback) {
-    return false;
-  }
-
   return base::FeatureList::IsEnabled(kGlanceablesTimeManagementTasksView);
 }
 
@@ -2895,17 +2851,6 @@ bool IsJupiterScreensaverEnabled() {
 }
 
 bool IsLauncherContinueSectionWithRecentsEnabled() {
-  // If the holdback feature flag is enabled, the feature should be disabled,
-  // but only if the device is eligible for the study. Exclusion happens
-  // via hardware overlay, so it needs to be checked separately from the finch
-  // controlled holdback feature flag.
-  const bool device_excluded_from_holdback_study = base::FeatureList::IsEnabled(
-      kFeatureManagementShouldExcludeFromSysUiHoldback);
-  if (IsSysUiShouldHoldbackDriveIntegrationEnabled() &&
-      !device_excluded_from_holdback_study) {
-    return false;
-  }
-
   return base::FeatureList::IsEnabled(kLauncherContinueSectionWithRecents) ||
          base::FeatureList::IsEnabled(
              kLauncherContinueSectionWithRecentsRollout);
@@ -2952,10 +2897,6 @@ bool IsLobsterEnabledForManagedUsers() {
 bool IsLockScreenHideSensitiveNotificationsSupported() {
   return base::FeatureList::IsEnabled(
       kLockScreenHideSensitiveNotificationsSupport);
-}
-
-bool IsGameDashboardGamepadSupportEnabled() {
-  return base::FeatureList::IsEnabled(kGameDashboardGamepadSupport);
 }
 
 bool AreGameDashboardUtilitiesEnabled() {
@@ -3129,10 +3070,6 @@ bool IsPerDeskShelfEnabled() {
 bool IsPeripheralNotificationEnabled() {
   return base::FeatureList::IsEnabled(kPeripheralNotification) &&
          IsPeripheralCustomizationEnabled();
-}
-
-bool IsPhoneHubCameraRollEnabled() {
-  return base::FeatureList::IsEnabled(kPhoneHubCameraRoll);
 }
 
 bool IsPhoneHubMonochromeNotificationIconsEnabled() {
@@ -3311,11 +3248,6 @@ bool IsSystemTrayShadowEnabled() {
   return base::FeatureList::IsEnabled(kSystemTrayShadow);
 }
 
-bool IsSysUiShouldHoldbackDriveIntegrationEnabled() {
-  return base::FeatureList::IsEnabled(kSysUiShouldHoldbackDriveIntegration) &&
-         !base::FeatureList::IsEnabled(kIgnoreM129Holdback);
-}
-
 bool IsTetheringExperimentalFunctionalityEnabled() {
   return base::FeatureList::IsEnabled(kTetheringExperimentalFunctionality);
 }
@@ -3443,13 +3375,8 @@ bool IsWallpaperGooglePhotosSharedAlbumsEnabled() {
   return base::FeatureList::IsEnabled(kWallpaperGooglePhotosSharedAlbums);
 }
 
-bool IsWelcomeExperienceEnabled() {
-  return IsPeripheralCustomizationEnabled() &&
-         base::FeatureList::IsEnabled(kWelcomeExperience);
-}
-
 bool IsWelcomeExperienceTestUnsupportedDevicesEnabled() {
-  return IsWelcomeExperienceEnabled() &&
+  return IsPeripheralCustomizationEnabled() &&
          base::FeatureList::IsEnabled(kWelcomeExperienceTestUnsupportedDevices);
 }
 

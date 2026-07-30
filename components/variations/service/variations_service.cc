@@ -67,8 +67,6 @@ namespace {
 // seed over http.
 const char kEncryptedMessageLabel[] = "chrome variations";
 
-// TODO(crbug.com/41359527): Change this key to a unique VariationsService one,
-// once the matching private key is changed server side.
 // Key is used to encrypt headers in seed retrieval requests that happen over
 // HTTP connections (when retrying after an unsuccessful HTTPS retrieval
 // attempt).
@@ -1029,6 +1027,10 @@ void VariationsService::GetStudiesAvailableToForce(
 
 SeedType VariationsService::GetSeedType() const {
   return field_trial_creator_.seed_type();
+}
+
+VariationsSource VariationsService::GetVariationsSource() const {
+  return field_trial_creator_.variations_source();
 }
 
 void VariationsService::CancelCurrentRequestForTesting() {

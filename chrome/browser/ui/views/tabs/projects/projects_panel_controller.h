@@ -16,15 +16,12 @@
 #include "components/contextual_tasks/public/contextual_tasks_service.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
 
-namespace contextual_tasks {
-class ContextualTasksUiService;
-}
-
 namespace tab_groups {
 class SavedTabGroup;
 }
 
 class BrowserWindowInterface;
+class ProjectsPanelStateController;
 
 // Controller for the projects panel view. Handles fetching, resuming, and
 // activating tab groups and recent chat threads.
@@ -49,9 +46,9 @@ class ProjectsPanelController
 
   ProjectsPanelController(
       BrowserWindowInterface* browser,
+      ProjectsPanelStateController* state_controller,
       tab_groups::TabGroupSyncService* tab_group_sync_service,
-      contextual_tasks::ContextualTasksService* contextual_tasks_service,
-      contextual_tasks::ContextualTasksUiService* contextual_tasks_ui_service);
+      contextual_tasks::ContextualTasksService* contextual_tasks_service);
   ProjectsPanelController(const ProjectsPanelController&) = delete;
   ProjectsPanelController& operator=(const ProjectsPanelController&) = delete;
   ~ProjectsPanelController() override;
@@ -66,7 +63,7 @@ class ProjectsPanelController
   void MoveTabGroup(const base::Uuid& group_guid, int new_index);
 
   // Returns all threads.
-  const std::vector<contextual_tasks::Thread>& GetThreads();
+  const std::vector<contextual_tasks::Thread> GetThreads();
 
   // Opens the thread.
   void OpenThread(const std::string& thread_server_id);
@@ -107,11 +104,10 @@ class ProjectsPanelController
   void OnGotThreadUrlForResumption(GURL thread_url);
 
   const raw_ptr<BrowserWindowInterface> browser_;
+  const raw_ptr<ProjectsPanelStateController> state_controller_;
   const raw_ptr<tab_groups::TabGroupSyncService> tab_group_sync_service_;
   const raw_ptr<contextual_tasks::ContextualTasksService>
       contextual_tasks_service_;
-  const raw_ptr<contextual_tasks::ContextualTasksUiService>
-      contextual_tasks_ui_service_;
   std::vector<tab_groups::SavedTabGroup> tab_groups_;
   std::vector<contextual_tasks::Thread> threads_;
 

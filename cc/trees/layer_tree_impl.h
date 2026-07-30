@@ -385,7 +385,8 @@ class CC_EXPORT LayerTreeImpl {
   void SetPageScaleOnActiveTree(float active_page_scale);
   void PushPageScaleFromMainThread(float page_scale_factor,
                                    float min_page_scale_factor,
-                                   float max_page_scale_factor);
+                                   float max_page_scale_factor,
+                                   bool limits_set = true);
   const LayerSelection& selection() const { return selection_; }
   float current_page_scale_factor() const {
     return page_scale_factor()->Current(IsActiveTree());
@@ -548,13 +549,9 @@ class CC_EXPORT LayerTreeImpl {
 
   void AddLayerShouldPushProperties(LayerImpl* layer);
   void ClearLayersThatShouldPushProperties();
-  const base::flat_set<LayerImpl*>& LayersThatShouldPushProperties() const {
-    return layers_that_should_push_properties_;
+  auto LayersThatShouldPushProperties() const {
+    return layer_list_.LayersThatShouldPushProperties();
   }
-
-  // These should be called by LayerImpl's ctor/dtor.
-  void RegisterLayer(LayerImpl* layer);
-  void UnregisterLayer(LayerImpl* layer);
 
   // Reserve memory for the total number of layers that will be added
   // with AddLayer(). This is only for performance reasons, and has no
@@ -611,19 +608,13 @@ class CC_EXPORT LayerTreeImpl {
 
   bool IsUIResourceOpaque(UIResourceId uid) const;
 
-  void RegisterPictureLayerImpl(PictureLayerImpl* layer);
-  void UnregisterPictureLayerImpl(PictureLayerImpl* layer);
-  const std::vector<raw_ptr<PictureLayerImpl, VectorExperimental>>&
-  picture_layers() const {
-    return picture_layers_;
+  auto picture_layers() const { return layer_list_.PictureLayers(); }
+  auto picture_layers_with_paint_worklets() const {
+    return layer_list_.PictureLayersWithWorklets();
   }
 
   void NotifyLayerHasPaintWorkletsChanged(PictureLayerImpl* layer,
                                           bool has_worklets);
-  const base::flat_set<raw_ptr<PictureLayerImpl, CtnExperimental>>&
-  picture_layers_with_paint_worklets() const {
-    return picture_layers_with_paint_worklets_;
-  }
 
   void RegisterScrollbar(ScrollbarLayerImplBase* scrollbar_layer);
   void UnregisterScrollbar(ScrollbarLayerImplBase* scrollbar_layer);
@@ -884,9 +875,11 @@ class CC_EXPORT LayerTreeImpl {
   float ClampPageScaleFactorToLimits(float page_scale_factor) const;
   void PushPageScaleFactorAndLimits(const float* page_scale_factor,
                                     float min_page_scale_factor,
-                                    float max_page_scale_factor);
+                                    float max_page_scale_factor,
+                                    bool limits_set);
   bool SetPageScaleFactorLimits(float min_page_scale_factor,
-                                float max_page_scale_factor);
+                                float max_page_scale_factor,
+                                bool limits_set);
   void DidUpdatePageScale();
   void PushBrowserControls(const float* top_controls_shown_ratio,
                            const float* bottom_controls_shown_ratio);
@@ -924,8 +917,9 @@ class CC_EXPORT LayerTreeImpl {
 
   scoped_refptr<SyncedScale> page_scale_factor_;
 
-  // The minimum and maximum page scale factor.  A value of 0 indicates that the
-  // limit is not enforced.
+  // True if the minimum and maximum page scale factors have been explicitly
+  // set.
+  bool page_scale_factor_limits_set_ = false;
   float min_page_scale_factor_;
   float max_page_scale_factor_;
   float external_page_scale_factor_;
@@ -991,12 +985,7 @@ class CC_EXPORT LayerTreeImpl {
 
   OwnedLayerImplList layer_list_;
   // Maps from layer id to layer.
-  LayerImplMap layer_id_map_;
-
-  // Set of layers that need to push properties.
-  // RAW_PTR_EXCLUSION: Performance reasons (based on analysis of MotionMark).
-  RAW_PTR_EXCLUSION base::flat_set<LayerImpl*>
-      layers_that_should_push_properties_;
+  // LayerImplMap layer_id_map_;
 
   struct ScrollbarLayerIds {
     int horizontal = Layer::INVALID_ID;
@@ -1011,14 +1000,6 @@ class CC_EXPORT LayerTreeImpl {
   // scrollbar layer and consumed by PushPropertiesTo() and
   // HandleScrollbarShowRequests().
   base::flat_set<ElementId> show_scrollbar_requests_;
-
-  std::vector<raw_ptr<PictureLayerImpl, VectorExperimental>> picture_layers_;
-
-  // After commit (or impl-side invalidation), the LayerTreeHostImpl must walk
-  // all PictureLayerImpls that have PaintWorklets to ensure they are painted.
-  // To avoid unnecessary walking, we track that set here.
-  base::flat_set<raw_ptr<PictureLayerImpl, CtnExperimental>>
-      picture_layers_with_paint_worklets_;
 
   base::flat_set<viz::SurfaceRange> surface_layer_ranges_;
 

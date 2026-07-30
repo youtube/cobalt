@@ -13,16 +13,31 @@ namespace features {
 BASE_DECLARE_FEATURE(kGlicTabRestoration);
 BASE_DECLARE_FEATURE(kGlicDaisyChainViaCoordinator);
 BASE_DECLARE_FEATURE(kGlicChromeStatusIcon);
+extern const base::FeatureParam<int> kGlicChromeStatusIconSizePx;
 
 BASE_DECLARE_FEATURE(kGlicOrphanedReattachment);
 
 BASE_DECLARE_FEATURE(kAutoOpenGlicForPdf);
+extern const base::FeatureParam<bool> kAutoOpenGlicForPdfWithOnboarding;
 
 BASE_DECLARE_FEATURE(kGlicInvoke);
 
 BASE_DECLARE_FEATURE(kGlicSelectionPrompt);
+extern const base::FeatureParam<bool> kGlicSelectionPromptUseWidget;
 
 BASE_DECLARE_FEATURE(kGlicCreateTabAdjacent);
+
+BASE_DECLARE_FEATURE(kGlicDefaultToLastActiveConversation);
+extern const base::FeatureParam<base::TimeDelta>
+    kGlicDefaultToLastActiveConversationMaxRecency;
+
+BASE_DECLARE_FEATURE(kGlicSummarizeVideoSuggestion);
+
+BASE_DECLARE_FEATURE(kGlicFixTimeToFirstQueryKillSwitch);
+
+BASE_DECLARE_FEATURE(kGlicContextMenu);
+extern const base::FeatureParam<std::string> kGlicContextMenuArm;
+extern const base::FeatureParam<bool> kGlicContextMenuWithOnboarding;
 
 }  // namespace features
 

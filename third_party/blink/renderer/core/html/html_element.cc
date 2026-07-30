@@ -32,6 +32,7 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/forms/form_control_type.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/js_event_handler_for_content_attribute.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_attach_internals_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_show_popover_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_toggle_popover_options.h"
@@ -86,6 +87,7 @@
 #include "third_party/blink/renderer/core/html/custom/custom_element.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element_registry.h"
 #include "third_party/blink/renderer/core/html/custom/element_internals.h"
+#include "third_party/blink/renderer/core/html/forms/element_behavior.h"
 #include "third_party/blink/renderer/core/html/forms/html_button_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_data_list_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
@@ -1664,40 +1666,50 @@ void HTMLElement::ShowPopoverInternal(Element* invoker,
 
   SetPopoverFocusOnShow();
 
+  // Focus/blur event handlers could have changed the popover, so we continue
+  // checking that `popoverOpen()` below before accessing popover things.
+
   // Store the element to focus when this popover closes.
-  if (should_restore_focus && IsPopover()) {
+  if (should_restore_focus && IsPopover() && popoverOpen()) {
     GetPopoverData()->setPreviouslyFocusedElement(originally_focused_element);
   }
 
   // Queue the "opening" toggle event.
   String old_state = "closed";
-  ToggleEvent* after_event;
-  if (GetPopoverData()->hasPendingToggleEventTask()) {
-    // There's already a queued 'toggle' event. Cancel it and fire a new one
-    // keeping the original value for old_state.
-    old_state =
-        GetPopoverData()->pendingToggleEventStartedClosed() ? "closed" : "open";
-    GetPopoverData()->cancelPendingToggleEventTask();
-  } else {
-    GetPopoverData()->setPendingToggleEventStartedClosed(true);
+  if (popoverOpen()) {
+    if (GetPopoverData()->hasPendingToggleEventTask()) {
+      // There's already a queued 'toggle' event. Cancel it and fire a new one
+      // keeping the original value for old_state.
+      old_state = GetPopoverData()->pendingToggleEventStartedClosed() ? "closed"
+                                                                      : "open";
+      GetPopoverData()->cancelPendingToggleEventTask();
+    } else {
+      GetPopoverData()->setPendingToggleEventStartedClosed(true);
+    }
   }
-  after_event = ToggleEvent::Create(event_type_names::kToggle,
-                                    Event::Cancelable::kNo, old_state,
-                                    /*new_state*/ "open", invoker);
+  ToggleEvent* after_event = ToggleEvent::Create(
+      event_type_names::kToggle, Event::Cancelable::kNo, old_state,
+      /*new_state*/ "open", invoker);
   CHECK_EQ(after_event->newState(), "open");
   CHECK_EQ(after_event->oldState(), old_state);
   CHECK(!after_event->bubbles());
   CHECK(!after_event->cancelable());
   after_event->SetTarget(this);
-  GetPopoverData()->setPendingToggleEventTask(PostCancellableTask(
-      *original_document.GetTaskRunner(TaskType::kDOMManipulation), FROM_HERE,
-      BindOnce(
-          [](HTMLElement* element, ToggleEvent* event) {
-            CHECK(element);
-            CHECK(event);
-            element->DispatchEvent(*event);
-          },
-          WrapPersistent(this), WrapPersistent(after_event))));
+  auto task_runner =
+      original_document.GetTaskRunner(TaskType::kDOMManipulation);
+  auto callback = BindOnce(
+      [](HTMLElement* element, ToggleEvent* event) {
+        CHECK(element);
+        CHECK(event);
+        element->DispatchEvent(*event);
+      },
+      WrapPersistent(this), WrapPersistent(after_event));
+  if (popoverOpen()) {
+    GetPopoverData()->setPendingToggleEventTask(
+        PostCancellableTask(*task_runner, FROM_HERE, std::move(callback)));
+  } else {
+    task_runner->PostTask(FROM_HERE, std::move(callback));
+  }
 }
 
 void HTMLElement::SetPopoverInvoker(Element* invoker) {
@@ -3802,6 +3814,15 @@ void HTMLElement::OnContainerTimingIgnoreAttrChanged(
 
 ElementInternals* HTMLElement::attachInternals(
     ExceptionState& exception_state) {
+  return attachInternals(nullptr, exception_state);
+}
+
+ElementInternals* HTMLElement::attachInternals(
+    const AttachInternalsOptions* options,
+    ExceptionState& exception_state) {
+  DCHECK(RuntimeEnabledFeatures::ElementInternalsBehaviorsEnabled() ||
+         !options);
+
   // 1. If this's is value is not null, then throw a "NotSupportedError"
   // DOMException.
   if (IsValue()) {
@@ -3857,9 +3878,21 @@ ElementInternals* HTMLElement::attachInternals(
 
   // 7. Set this's attached internals to true.
   SetDidAttachInternals();
+
   // 8. Return a new ElementInternals instance whose target element is this.
   UseCounter::Count(GetDocument(), WebFeature::kElementAttachInternals);
-  return &EnsureElementInternals();
+  ElementInternals& internals = EnsureElementInternals();
+
+  // Handle behaviors option if provided.
+  if (RuntimeEnabledFeatures::ElementInternalsBehaviorsEnabled()) {
+    HeapVector<Member<ElementBehavior>> behaviors;
+    if (options && options->hasBehaviors()) {
+      behaviors = options->behaviors();
+    }
+    internals.SetBehaviors(std::move(behaviors));
+  }
+
+  return &internals;
 }
 
 bool HTMLElement::IsFormAssociatedCustomElement() const {

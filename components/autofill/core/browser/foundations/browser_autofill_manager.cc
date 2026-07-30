@@ -1213,13 +1213,8 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
               FormControlType::kInputPassword &&
           !autofill_field->value().empty() &&
           autofill_field->last_modifier() != FieldModifier::kAutofill) {
-        // Hiding the dialog is put behind this feature flag since the agent is
-        // also performing a hide.
-        if (base::FeatureList::IsEnabled(
-                features::kAutofillAndPasswordsInSameSurface)) {
-          client().HideAutofillSuggestions(
-              SuggestionHidingReason::kFieldValueChanged);
-        }
+        client().HideAutofillSuggestions(
+            SuggestionHidingReason::kFieldValueChanged);
         return;
       }
 #if !BUILDFLAG(IS_ANDROID)
@@ -1329,10 +1324,9 @@ void BrowserAutofillManager::OnSuggestionDataFetched(
   std::ignore = GetCachedFormAndField(form.global_id(), field.global_id(),
                                       &form_structure, &autofill_field);
 
-  auto all_suggestion_data =
-      base::MakeFlatMap<SuggestionDataSource,
-                        std::vector<SuggestionGenerator::SuggestionData>>(
-          suggestion_data);
+  base::flat_map<SuggestionDataSource,
+                 std::vector<SuggestionGenerator::SuggestionData>>
+      all_suggestion_data(std::move(suggestion_data));
 
   // Clear some of the suggestions based on the ablation study.
   if (autofill_field &&
@@ -2529,11 +2523,11 @@ void BrowserAutofillManager::DidShowSuggestions(
 
   // Notify the BNPL manager about suggestion shown if the current shown
   // suggestion list contains a credit card entry.
-
   if (payments::BnplManager* bnpl_manager = GetPaymentsBnplManager();
       bnpl_manager &&
       shown_suggestion_types.contains(SuggestionType::kCreditCardEntry)) {
-    bnpl_manager->OnSuggestionsShown(suggestions, update_suggestions_callback);
+    bnpl_manager->OnCreditCardSuggestionsShown(suggestions,
+                                               update_suggestions_callback);
   }
 
   if (shown_suggestion_types.contains(SuggestionType::kDevtoolsTestAddresses)) {
@@ -3050,6 +3044,24 @@ void BrowserAutofillManager::OnDidFillOrPreviewForm(
                            form, trigger_field);
                      }},
       filling_payload);
+}
+
+void BrowserAutofillManager::OnDidFillOrPreviewField(
+    mojom::ActionPersistence action_persistence,
+    std::optional<FieldType> field_type_used) {
+  if (action_persistence == mojom::ActionPersistence::kPreview) {
+    return;
+  }
+  CHECK_EQ(action_persistence, mojom::ActionPersistence::kFill);
+  if (field_type_used == IBAN_VALUE) {
+    // If the fill is triggered by the IBAN flow. We log form filling
+    // specifically for IBAN field as the it is single form field filling
+    // and not handled by FormEventLogger.
+    IbanManager* iban_manager =
+        client().GetPaymentsAutofillClient()->GetIbanManager();
+    CHECK(iban_manager);
+    iban_manager->LogIbanFormFilled();
+  }
 }
 
 void BrowserAutofillManager::LogAndRecordCreditCardFill(

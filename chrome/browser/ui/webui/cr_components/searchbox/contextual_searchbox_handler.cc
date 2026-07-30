@@ -92,6 +92,12 @@ ContextualOmniboxClient::GetLensOverlaySuggestInputs() const {
 }
 
 int ContextualSearchboxHandler::GetContextMenuMaxTabSuggestions() {
+  omnibox::InputState input_state = GetInputState();
+  if (auto it = input_state.max_inputs_by_type.find(
+          omnibox::InputType::INPUT_TYPE_BROWSER_TAB);
+      it != input_state.max_inputs_by_type.end()) {
+    return it->second;
+  }
   return ntp_composebox::kContextMenuMaxTabSuggestions.Get();
 }
 
@@ -110,16 +116,22 @@ void ContextualSearchboxHandler::GetRecentTabs(GetRecentTabsCallback callback) {
     base::TimeTicks time;
   };
   std::vector<TabTime> tab_times;
+  content::WebContents* active_web_contents =
+    tab_strip_model->GetActiveWebContents();
   for (tabs::TabInterface* tab : *tab_strip_model) {
     content::WebContents* web_contents = tab->GetContents();
     const GURL& url = web_contents->GetLastCommittedURL();
-    // Skip tabs that are still loading, and skip webui (internal pages)
-    // except contextual tasks webui.
-    // Skip tabs that are still loading, and skip webui (internal pages).
-    if (url.is_valid() &&
-        ((!url.SchemeIs(content::kChromeUIScheme) &&
-          !url.SchemeIs(content::kChromeUIUntrustedScheme)) ||
-         url.spec().starts_with(chrome::kChromeUIContextualTasksURL))) {
+    if (!url.is_valid()) {
+      continue;
+    }
+    bool is_internal_page = url.SchemeIs(content::kChromeUIScheme) ||
+                            url.SchemeIs(content::kChromeUIUntrustedScheme);
+    bool is_different_contextual_task_thread =
+        url.spec().starts_with(chrome::kChromeUIContextualTasksURL) &&
+        (!active_web_contents ||
+         url != active_web_contents->GetLastCommittedURL());
+
+    if (!is_internal_page || is_different_contextual_task_thread) {
       tab_times.push_back({
           .tab = tab,
           .time = std::max(web_contents->GetLastActiveTimeTicks(),
@@ -493,20 +505,14 @@ void ContextualSearchboxHandler::SetActiveToolMode(omnibox::ToolMode tool) {
 void ContextualSearchboxHandler::RecordToolSelectionAction(
     omnibox::ToolMode tool) {
   if (auto* metrics_recorder = GetMetricsRecorder()) {
-    composebox_query::mojom::ToolMode mojom_tool_mode =
-        mojo::EnumTraits<composebox_query::mojom::ToolMode,
-                         omnibox::ToolMode>::ToMojom(tool);
-    metrics_recorder->RecordToolMode(mojom_tool_mode);
+    metrics_recorder->RecordToolMode(tool);
   }
 }
 
 void ContextualSearchboxHandler::RecordModelSelectionAction(
     omnibox::ModelMode model) {
   if (auto* metrics_recorder = GetMetricsRecorder()) {
-    composebox_query::mojom::ModelMode mojom_model_mode =
-        mojo::EnumTraits<composebox_query::mojom::ModelMode,
-                         omnibox::ModelMode>::ToMojom(model);
-    metrics_recorder->RecordModelMode(mojom_model_mode);
+    metrics_recorder->RecordModelMode(model);
   }
 }
 

@@ -98,18 +98,6 @@ bool IsThinkingModel(omnibox::ModelMode model) {
          model == omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_NO_GEN_UI;
 }
 
-searchbox::mojom::ToolMode GetSearchboxToolMode(omnibox::ToolMode tool) {
-  switch (tool) {
-    case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN:
-      return searchbox::mojom::ToolMode::kCreateImage;
-    case omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH:
-      return searchbox::mojom::ToolMode::kDeepSearch;
-    case omnibox::ToolMode::TOOL_MODE_CANVAS:
-      return searchbox::mojom::ToolMode::kCanvas;
-    default:
-      return searchbox::mojom::ToolMode::kDefault;
-  }
-}
 }  // namespace
 
 OmniboxContextMenuController::OmniboxContextMenuController(
@@ -119,9 +107,6 @@ OmniboxContextMenuController::OmniboxContextMenuController(
       web_contents_(web_contents->GetWeakPtr()) {
   menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
   next_command_id_ = kMinOmniboxContextMenuRecentTabsCommandId;
-  min_tools_and_models_command_id_ =
-      kMinOmniboxContextMenuRecentTabsCommandId +
-      omnibox::kContextMenuMaxTabSuggestions.Get();
   auto* composebox_handler =
       GetOmniboxPopupUI() ? GetOmniboxPopupUI()->composebox_handler() : nullptr;
   if (composebox_handler &&
@@ -131,6 +116,8 @@ OmniboxContextMenuController::OmniboxContextMenuController(
                        weak_ptr_factory_.GetWeakPtr()));
     InitializeMenuItemInfo();
   }
+  min_tools_and_models_command_id_ =
+      kMinOmniboxContextMenuRecentTabsCommandId + GetMaxTabSuggestions();
   BuildMenu();
 }
 
@@ -405,8 +392,7 @@ OmniboxContextMenuController::GetRecentTabs() {
 
   // Sort tabs by most recently active.
   int max_tab_suggestions =
-      std::min(static_cast<int>(tabs.size()),
-               omnibox::kContextMenuMaxTabSuggestions.Get());
+      std::min(static_cast<int>(tabs.size()), GetMaxTabSuggestions());
   std::partial_sort(tabs.begin(), tabs.begin() + max_tab_suggestions,
                     tabs.end(),
                     [](const OmniboxContextMenuController::TabInfo& a,
@@ -478,7 +464,7 @@ void OmniboxContextMenuController::AddTabContext(const TabInfo& tab_info) {
 
 void OmniboxContextMenuController::UpdateSearchboxContext(
     std::optional<TabInfo> tab_info,
-    std::optional<searchbox::mojom::ToolMode> tool_mode) {
+    std::optional<omnibox::ToolMode> tool_mode) {
   auto* browser_window_interface =
       webui::GetBrowserWindowInterface(web_contents_.get());
   if (!browser_window_interface) {
@@ -537,6 +523,15 @@ bool OmniboxContextMenuController::IsContentSharingEnabled() const {
           ? GetOmniboxPopupUI()->GetOrCreateContextualSessionHandle()
           : nullptr;
   return omnibox::IsContentSharingEnabled(profile, session_handle);
+}
+
+int OmniboxContextMenuController::GetMaxTabSuggestions() const {
+  if (auto it = input_state_.max_inputs_by_type.find(
+          omnibox::InputType::INPUT_TYPE_BROWSER_TAB);
+      it != input_state_.max_inputs_by_type.end()) {
+    return it->second;
+  }
+  return omnibox::kContextMenuMaxTabSuggestions.Get();
 }
 
 OmniboxContextMenuController::ContextType
@@ -603,7 +598,7 @@ OmniboxContextMenuController::CommandIdToEnum(int command_id) const {
       // tabs that would have the same command id.
       CHECK_GE(command_id, kMinOmniboxContextMenuRecentTabsCommandId);
       CHECK_LT(command_id, kMinOmniboxContextMenuRecentTabsCommandId +
-                               omnibox::kContextMenuMaxTabSuggestions.Get());
+                               GetMaxTabSuggestions());
       return OmniboxContextMenuController::ContextType::kTab;
   }
 }
@@ -817,8 +812,7 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
   const std::string sliced_prefix = base::StrCat({prefix, ".Clicked"});
   // Add tab context if tab is selected.
   if (id >= kMinOmniboxContextMenuRecentTabsCommandId &&
-      id < kMinOmniboxContextMenuRecentTabsCommandId +
-               omnibox::kContextMenuMaxTabSuggestions.Get()) {
+      id < kMinOmniboxContextMenuRecentTabsCommandId + GetMaxTabSuggestions()) {
     base::UmaHistogramExactLinear(
         "ContextualSearch.ContextAdded.ContextAddedMethod.Omnibox",
         /*ContextMenu*/ 0, 4);
@@ -870,7 +864,7 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
           it != tool_for_command_id_.end()) {
         UpdateSearchboxContext(
             /*tab_info=*/std::nullopt,
-            /*tool_mode=*/GetSearchboxToolMode(it->second));
+            /*tool_mode=*/it->second);
         base::UmaHistogramEnumeration(sliced_prefix,
                                       CommandIdToEnum(it->first));
         GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
@@ -914,7 +908,7 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
       case IDC_OMNIBOX_CONTEXT_CREATE_IMAGES:
         UpdateSearchboxContext(
             /*tab_info=*/std::nullopt,
-            /*tool_mode=*/searchbox::mojom::ToolMode::kCreateImage);
+            /*tool_mode=*/omnibox::TOOL_MODE_IMAGE_GEN);
         base::UmaHistogramEnumeration(sliced_prefix, CommandIdToEnum(id));
         GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
                                    /*via_context_menu=*/true);
@@ -922,7 +916,7 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
       case IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH:
         UpdateSearchboxContext(
             /*tab_info=*/std::nullopt,
-            /*tool_mode=*/searchbox::mojom::ToolMode::kDeepSearch);
+            /*tool_mode=*/omnibox::TOOL_MODE_DEEP_SEARCH);
         base::UmaHistogramEnumeration(sliced_prefix, CommandIdToEnum(id));
         GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
                                    /*via_context_menu=*/true);
@@ -930,7 +924,7 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
       case IDC_OMNIBOX_CONTEXT_CANVAS:
         UpdateSearchboxContext(
             /*tab_info=*/std::nullopt,
-            /*tool_mode=*/searchbox::mojom::ToolMode::kCanvas);
+            /*tool_mode=*/omnibox::TOOL_MODE_CANVAS);
         base::UmaHistogramEnumeration(sliced_prefix, CommandIdToEnum(id));
         GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
                                    /*via_context_menu=*/true);
@@ -962,7 +956,7 @@ bool OmniboxContextMenuController::IsCommandIdEnabled(int command_id) const {
     // Command ID corresponds to "Most recent tabs" menu item.
     if (command_id >= kMinOmniboxContextMenuRecentTabsCommandId &&
         command_id < kMinOmniboxContextMenuRecentTabsCommandId +
-                         omnibox::kContextMenuMaxTabSuggestions.Get()) {
+                         GetMaxTabSuggestions()) {
       auto it =
           input_type_info_.find(omnibox::InputType::INPUT_TYPE_BROWSER_TAB);
       return it != input_type_info_.end() && it->second.enabled;
@@ -1091,8 +1085,8 @@ bool OmniboxContextMenuController::IsCommandIdVisible(int command_id) const {
 
   // Command ID corresponds to "Most recent tabs" menu item.
   if (command_id >= kMinOmniboxContextMenuRecentTabsCommandId &&
-      command_id < kMinOmniboxContextMenuRecentTabsCommandId +
-                       omnibox::kContextMenuMaxTabSuggestions.Get()) {
+      command_id <
+          kMinOmniboxContextMenuRecentTabsCommandId + GetMaxTabSuggestions()) {
     return true;
   }
 

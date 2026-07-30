@@ -1074,8 +1074,7 @@ void FlexLayoutAlgorithm::ConstructAndAppendFlexItems(
         // being greater than the specified-size.
         //
         // We'll never shrink a flex-item under the conditions specified below.
-        if (RuntimeEnabledFeatures::LayoutFlexCacheFixEnabled() &&
-            min_length_in_main_axis.IsAuto() &&
+        if (min_length_in_main_axis.IsAuto() &&
             specified_size_suggestion <= base_border_size) {
           // If flex-shrink is zero we can't shrink.
           if (flex_shrink == 0.f) {
@@ -2927,7 +2926,10 @@ MinMaxSizesResult FlexLayoutAlgorithm::ComputeMinMaxSizes(
     return ComputeMinMaxSizeOfMultilineColumnContainer();
   }
 
-  // Calculate for non-wrappable column items.
+  // Calculate for non-wrappable column items. Although the
+  // ComputeMinMaxSizeOfMultilineColumnContainer() machinery would be fully
+  // capable of handling this scenario as well, we have a fast-path for
+  // performance reasons. See crrev.com/c/7661041
   MinMaxSizes sizes;
   bool depends_on_block_constraints = false;
 
@@ -3126,8 +3128,10 @@ const LayoutResult* FlexLayoutAlgorithm::RelayoutWithNewRowSizes() {
 
   LayoutAlgorithmParams params(Node(),
                                container_builder_.InitialFragmentGeometry(),
-                               GetConstraintSpace(), GetBreakToken(),
-                               early_break_, additional_early_breaks_);
+                               GetConstraintSpace());
+  params.break_token = GetBreakToken();
+  params.early_break = early_break_;
+  params.additional_early_breaks = additional_early_breaks_;
   FlexLayoutAlgorithm algorithm_with_row_cross_sizes(params,
                                                      &row_cross_size_updates_);
   auto& new_builder = algorithm_with_row_cross_sizes.container_builder_;

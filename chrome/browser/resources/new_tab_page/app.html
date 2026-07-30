@@ -51,11 +51,10 @@ import {nothing} from '//resources/lit/v3_0/lit.rollup.js';
         @open-voice-search="${this.onOpenVoiceSearch_}" ?shown="${this.realboxShown_}"
         ?had-secondary-side="${this.realboxHadSecondarySide}"
         @had-secondary-side-changed="${this.onRealboxHadSecondarySideChanged_}"
-        @context-menu-entrypoint-click="${this.onContextMenuEntrypointClick_}"
         ?can-show-secondary-side="${this.realboxCanShowSecondarySide}"
         ?compose-button-enabled="${this.composeButtonEnabled}"
         ?composebox-enabled="${this.composeboxEnabled}"
-        searchbox-layout-mode="${this.realboxLayoutMode_}"
+        searchbox-layout-mode="${this.ntpRealboxNextEnabled_ ? 'Compact' : ''}"
         ?ntp-realbox-next-enabled="${this.ntpRealboxNextEnabled_}"
         ?cycling-placeholders="${this.searchboxCyclingPlaceholders_}"
         context-menu-glif-animation-state="${this.contextMenuGlifAnimationState_}"
@@ -70,9 +69,8 @@ import {nothing} from '//resources/lit/v3_0/lit.rollup.js';
             ?disable-caret-color-animation="${!this.caretAnimationsEnabled_}"
             .state="${this.composeboxState_}"
             @close-composebox="${this.onCloseComposebox_}"
-            @context-menu-entrypoint-click="${this.onContextMenuEntrypointClick_}"
             @voice-search-action="${this.onComposeVoiceSearchAction_}"
-            searchbox-layout-mode="${this.realboxLayoutMode_}">
+            searchbox-layout-mode="${this.ntpRealboxNextEnabled_ ? 'Compact' : ''}">
         </cr-composebox>
         ${this.enableThreadsRail_ ? html`
           <cr-threads-rail id="threadsRail">

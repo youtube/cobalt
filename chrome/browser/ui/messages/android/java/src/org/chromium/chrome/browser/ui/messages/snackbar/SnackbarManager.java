@@ -154,42 +154,6 @@ public class SnackbarManager
      * @param snackbarParentView The ViewGroup used to display this snackbar.
      * @param windowAndroid The WindowAndroid used for starting animation. If it is null,
      *     Animator#start is called instead.
-     */
-    // TODO: Clean up this ctor.
-    @Deprecated
-    public SnackbarManager(
-            Activity activity,
-            ViewGroup snackbarParentView,
-            @Nullable WindowAndroid windowAndroid) {
-        this(activity, snackbarParentView, windowAndroid, null, null);
-    }
-
-    /**
-     * Constructs a SnackbarManager to show snackbars in the given window.
-     *
-     * @param activity The embedding activity.
-     * @param snackbarParentView The ViewGroup used to display this snackbar.
-     * @param windowAndroid The WindowAndroid used for starting animation. If it is null,
-     *     Animator#start is called instead.
-     * @param edgeToEdgeControllerSupplier The supplier publishes the changes of the edge-to-edge
-     *     state and the expected bottom paddings when edge-to-edge is on.
-     */
-    public SnackbarManager(
-            Activity activity,
-            ViewGroup snackbarParentView,
-            @Nullable WindowAndroid windowAndroid,
-            @Nullable MonotonicObservableSupplier<EdgeToEdgeController>
-                    edgeToEdgeControllerSupplier) {
-        this(activity, snackbarParentView, windowAndroid, edgeToEdgeControllerSupplier, null);
-    }
-
-    /**
-     * Constructs a SnackbarManager to show snackbars in the given window.
-     *
-     * @param activity The embedding activity.
-     * @param snackbarParentView The ViewGroup used to display this snackbar.
-     * @param windowAndroid The WindowAndroid used for starting animation. If it is null,
-     *     Animator#start is called instead.
      * @param edgeToEdgeControllerSupplier The supplier publishes the changes of the edge-to-edge
      *     state and the expected bottom paddings when edge-to-edge is on.
      * @param modalDialogManager The ModalDialogManager to observe for dialog visibility.
@@ -240,6 +204,16 @@ public class SnackbarManager
         mSnackbars.clear();
         updateView();
         mActivityInForeground = false;
+    }
+
+    /** Destroys the SnackbarManager, unregistering any observers and dismissing all snackbars. */
+    public void destroy() {
+        dismissAllSnackbars();
+        ApplicationStatus.unregisterActivityStateListener(this);
+        if (mModalDialogManager != null) {
+            mModalDialogManager.removeObserver(this);
+        }
+        mUiThreadHandler.removeCallbacks(mHideRunnable);
     }
 
     /**

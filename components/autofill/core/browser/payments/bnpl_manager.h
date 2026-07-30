@@ -16,13 +16,16 @@
 
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
+#include "components/autofill/core/browser/foundations/autofill_manager.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #include "components/autofill/core/browser/payments/amount_extraction_manager.h"
 #include "components/autofill/core/browser/payments/legal_message_line.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/payments_window_manager.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
+#include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
 
 namespace autofill::payments {
 
@@ -36,14 +39,14 @@ struct BnplFetchUrlResponseDetails;
 // Owned by BrowserAutofillManager. There is one instance of this class per
 // frame. This class manages the flow for BNPL to complete a payment
 // transaction.
-class BnplManager {
+class BnplManager : public AutofillManager::Observer {
  public:
   using OnBnplVcnFetchedCallback = base::OnceCallback<void(const CreditCard&)>;
 
   explicit BnplManager(BrowserAutofillManager* browser_autofill_manager);
   BnplManager(const BnplManager& other) = delete;
   BnplManager& operator=(const BnplManager& other) = delete;
-  virtual ~BnplManager();
+  ~BnplManager() override;
 
   // Returns if `issuer_id` is a supported BNPL issuer.
   static bool IsBnplIssuerSupported(std::string_view issuer_id);
@@ -62,10 +65,16 @@ class BnplManager {
       std::optional<int64_t> final_checkout_amount,
       OnBnplVcnFetchedCallback on_bnpl_vcn_fetched_callback);
 
+  // Runs after the user accepts a BNPL issuer. It will initiate AI amount
+  // extraction if checkout amount is missing, or redirect to plan selection or
+  // terms of services depending on the issuer if checkout amount has already
+  // been extracted.
+  virtual void OnIssuerAccepted(BnplIssuer issuer);
+
   // Notifies the BNPL manager that suggestion generation has been requested
   // with the given `trigger_source`. This must be called before
-  // `OnSuggestionsShown()` and `OnAmountExtractionReturned()`, so that the
-  // manager can update suggestions for buy-now-pay-later.
+  // `OnCreditCardSuggestionsShown()` and `OnAmountExtractionReturned()`, so
+  // that the manager can update suggestions for buy-now-pay-later.
   virtual void NotifyOfSuggestionGeneration(
       const AutofillSuggestionTriggerSource trigger_source);
 
@@ -73,7 +82,9 @@ class BnplManager {
   // shown suggestions and a callback for updating the suggestions. This must
   // be called after `NotifyOfSuggestionGeneration()`, so that the manager can
   // update suggestions for buy-now-pay-later.
-  virtual void OnSuggestionsShown(
+  // TODO(crbug.com/477689220): Refactor to reuse and override
+  // `AutofillManager::Observer::OnSuggestionsShown` instead.
+  virtual void OnCreditCardSuggestionsShown(
       base::span<const Suggestion> suggestions,
       UpdateSuggestionsCallback update_suggestions_callback);
 
@@ -91,6 +102,10 @@ class BnplManager {
   // Returns true if the issuer for the ongoing flow contains the required
   // action `PaymentInstrument::ActionRequired::kAcceptTos`.
   bool AcceptTosActionRequired() const;
+
+  // AutofillManager::Observer:
+  void OnSuggestionsHidden(AutofillManager& manager,
+                           SuggestionHidingReason reason) override;
 
  private:
   friend class BnplManagerTestApi;
@@ -165,19 +180,14 @@ class BnplManager {
   // factory.
   void Reset();
 
-  // Runs after the user selects a BNPL issuer, and will redirect to plan
-  // selection or terms of services depending on the issuer.
-  void OnIssuerSelected(BnplIssuer selected_issuer);
+  // Checks if a BNPL issuer was accepted and if the checkout amount is within
+  // the issuer's range.
+  bool IssuerAcceptedAndCheckoutAmountWithinRange();
 
-  // Runs after the user selects a BNPL issuer and the checkout amount is
-  // within the issuer's range, and will redirect to plan selection or terms of
-  // services depending on the issuer linkage.
-  bool IssuerSelectedAndCheckoutAmountWithinRange();
-
-  // Runs after users select a BNPL issuer and the checkout amount is already
-  // received, and will redirect to plan selection or terms of services
+  // Runs after the user accepts a BNPL issuer and the checkout amount is
+  // already received, and will redirect to plan selection or terms of services
   // depending on the issuer.
-  void OnIssuerSelectedAndCheckoutAmountAvailable();
+  void OnIssuerAcceptedAndCheckoutAmountAvailable();
 
   // This function makes the appropriate server call to retrieve the ToS legal
   // message for the issuer.
@@ -283,6 +293,10 @@ class BnplManager {
   void UpdateSuggestionsOnAiAmountExtractionResponse(
       const std::vector<payments::BnplIssuerContext>& issuer_contexts);
 
+  // Hides the autofill suggestions or removes the select BNPL issuer or
+  // progress UI.
+  void HideSuggestionsOrRemoveSelectBnplIssuerOrProgressUi();
+
 #if BUILDFLAG(IS_ANDROID)
   // Callback triggered when Issuer selection is cancelled during Touch To Fill
   // flow.
@@ -328,6 +342,11 @@ class BnplManager {
   // Callback for updating the currently shown payments autofill suggestions.
   // Set when suggestions are shown, and reset when a BNPL flow is finished.
   UpdateSuggestionsCallback update_suggestions_callback_;
+
+  // Observes the AutofillManager so the BnplManager will be notified when
+  // autofill suggestions are hidden.
+  base::ScopedObservation<AutofillManager, AutofillManager::Observer>
+      autofill_manager_observation_{this};
 
   base::WeakPtrFactory<BnplManager> weak_factory_{this};
 };

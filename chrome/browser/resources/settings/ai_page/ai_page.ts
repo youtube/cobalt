@@ -42,22 +42,22 @@ export class SettingsAiPageElement extends SettingsAiPageElementBase {
         value: () => loadTimeData.getBoolean('showHistorySearchControl'),
       },
 
-      showTabOrganizationControl_: {
-        type: Boolean,
-        value: () => loadTimeData.getBoolean('showTabOrganizationControl'),
-      },
-
       showPasswordChangeControl_: {
         type: Boolean,
         value: () => loadTimeData.getBoolean('showPasswordChangeControl'),
+      },
+
+      enableAiModeSearchSetting_: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('enableAiModeSearchSetting'),
       },
     };
   }
 
   declare private showComposeControl_: boolean;
   declare private showHistorySearchControl_: boolean;
-  declare private showTabOrganizationControl_: boolean;
   declare private showPasswordChangeControl_: boolean;
+  declare private enableAiModeSearchSetting_: boolean;
 
   private shouldRecordMetrics_: boolean = true;
   private metricsBrowserProxy_: MetricsBrowserProxy =
@@ -82,9 +82,6 @@ export class SettingsAiPageElement extends SettingsAiPageElementBase {
     this.metricsBrowserProxy_.recordBooleanHistogram(
         'Settings.AiPage.ElementVisibility.Compose', this.showComposeControl_);
     this.metricsBrowserProxy_.recordBooleanHistogram(
-        'Settings.AiPage.ElementVisibility.TabOrganization',
-        this.showTabOrganizationControl_);
-    this.metricsBrowserProxy_.recordBooleanHistogram(
         'Settings.AiPage.ElementVisibility.PasswordChange',
         this.showPasswordChangeControl_);
   }
@@ -98,6 +95,11 @@ export class SettingsAiPageElement extends SettingsAiPageElementBase {
     router.navigateTo(router.getRoutes().HISTORY_SEARCH);
   }
 
+  private onAiModeSearchRowClick_() {
+    const router = Router.getInstance();
+    router.navigateTo(router.getRoutes().AI_MODE_SEARCH);
+  }
+
   private onComposeRowClick_() {
     this.recordInteractionMetrics_(
         AiPageInteractions.COMPOSE_CLICK,
@@ -105,15 +107,6 @@ export class SettingsAiPageElement extends SettingsAiPageElementBase {
 
     const router = Router.getInstance();
     router.navigateTo(router.getRoutes().OFFER_WRITING_HELP);
-  }
-
-  private onTabOrganizationRowClick_() {
-    this.recordInteractionMetrics_(
-        AiPageInteractions.TAB_ORGANIZATION_CLICK,
-        'Settings.AiPage.TabOrganizationEntryPointClick');
-
-    const router = Router.getInstance();
-    router.navigateTo(router.getRoutes().AI_TAB_ORGANIZATION);
   }
 
   private onPasswordChangeRowClick_() {
@@ -157,8 +150,8 @@ export class SettingsAiPageElement extends SettingsAiPageElementBase {
       map.set(routes.OFFER_WRITING_HELP.path, '#composeRowV2');
     }
 
-    if (routes.AI_TAB_ORGANIZATION) {
-      map.set(routes.AI_TAB_ORGANIZATION.path, '#tabOrganizationRowV2');
+    if (routes.AI_MODE_SEARCH) {
+      map.set(routes.AI_MODE_SEARCH.path, '#aiModeSearchRow');
     }
 
     return map;
@@ -169,7 +162,7 @@ export class SettingsAiPageElement extends SettingsAiPageElementBase {
     const ids = [
       'compose',
       'historySearch',
-      'tabOrganization',
+      'aiModeSearch',
     ];
     assert(ids.includes(childViewId));
 
@@ -183,9 +176,9 @@ export class SettingsAiPageElement extends SettingsAiPageElementBase {
         assert(this.showHistorySearchControl_);
         triggerId = 'historySearchRowV2';
         break;
-      case 'tabOrganization':
-        assert(this.showTabOrganizationControl_);
-        triggerId = 'tabOrganizationRowV2';
+      case 'aiModeSearch':
+        assert(this.enableAiModeSearchSetting_);
+        triggerId = 'aiModeSearchRow';
         break;
       default:
         assertNotReached();

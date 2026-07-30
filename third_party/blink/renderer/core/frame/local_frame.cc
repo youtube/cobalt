@@ -127,6 +127,7 @@
 #include "third_party/blink/renderer/core/editing/serializers/create_markup_options.h"
 #include "third_party/blink/renderer/core/editing/serializers/serialization.h"
 #include "third_party/blink/renderer/core/editing/spellcheck/spell_check_requester.h"
+#include "third_party/blink/renderer/core/editing/spellcheck/spell_check_requester_helper.h"
 #include "third_party/blink/renderer/core/editing/spellcheck/spell_checker.h"
 #include "third_party/blink/renderer/core/editing/suggestion/text_suggestion_controller.h"
 #include "third_party/blink/renderer/core/editing/surrounding_text.h"
@@ -810,7 +811,6 @@ bool LocalFrame::DetachImpl(FrameDetachType type) {
   frame_visibility_observers_.clear();
 
   not_restored_reasons_.reset();
-  microtasks_pauser_.reset();
   prescient_networking_.reset();
   link_preview_triggerer_.reset();
 
@@ -961,7 +961,7 @@ bool LocalFrame::ShouldClose() {
   // events to both local and remote frames.
   base::TimeTicks before_unload_dialog_opened_time;
   base::TimeTicks before_unload_dialog_closed_time;
-  return loader_.ShouldClose(/*is_reload=*/false,
+  return loader_.ShouldClose(/*is_reload=*/false, /*force_to_proceed=*/false,
                              before_unload_dialog_opened_time,
                              before_unload_dialog_closed_time);
 }
@@ -1720,11 +1720,11 @@ void LocalFrame::SetZoomFactors(float layout_zoom_factor,
     // propagated here.
     for (Frame* child = Tree().FirstChild(); child;
          child = child->Tree().NextSibling()) {
-      if (auto* child_local_frame = DynamicTo<LocalFrame>(child)) {
+      if (auto* child_local_frame = DynamicTo<LocalFrame>(*child)) {
         child_local_frame->SetZoomFactors(layout_zoom_factor_,
                                           text_zoom_factor_, css_zoom_factor_);
       } else {
-        DynamicTo<RemoteFrame>(child)->ZoomFactorChanged(layout_zoom_factor);
+        To<RemoteFrame>(*child).ZoomFactorChanged(layout_zoom_factor);
       }
     }
   }
@@ -3117,8 +3117,8 @@ bool LocalFrame::SwapIn() {
     CHECK(previous_local_main_frame->IsLocalFrame());
     CHECK_NE(previous_local_main_frame->GetPage(), GetPage());
     CHECK(provisional_owner_frame->IsRemoteFrame());
-    CHECK(!DynamicTo<RemoteFrame>(provisional_owner_frame)
-               ->IsRemoteFrameHostRemoteBound());
+    CHECK(!To<RemoteFrame>(*provisional_owner_frame)
+               .IsRemoteFrameHostRemoteBound());
     GetPage()->SetPreviousMainFrameForLocalSwap(nullptr);
     return client->SwapIn(WebFrame::FromCoreFrame(previous_local_main_frame));
   }
@@ -4270,8 +4270,13 @@ void LocalFrame::PerformFullContentSpellCheck() {
   const EphemeralRange range(Position(container_node, 0),
                              Position::LastPositionInNode(*container_node));
 
+  // Some IMEs' functionalities (e.g. Gboard's Add to Personal Dictionary) rely
+  // on PerformFullContentSpellCheck to perform a full-content spell check. In
+  // such case, the spell check request cache could have become stale by the
+  // time this method is called. Therefore, we want to force a fresh request to
+  // spell check service.
   GetSpellChecker().GetSpellCheckRequester().RequestCheckingFor(
-      range, /*request_num=*/0, /*should_force_refresh=*/false);
+      range, /*request_num=*/0, /*should_force_refresh=*/true);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 

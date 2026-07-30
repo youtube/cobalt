@@ -12,6 +12,7 @@
 #include "base/strings/string_util.h"
 #include "build/chromeos_buildflags.h"
 #include "components/crx_file/id_util.h"
+#include "components/download/public/common/download_item.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/child_process_security_policy.h"
 #include "content/public/browser/security_principal.h"
@@ -39,6 +40,7 @@
 #include "extensions/common/mojom/manifest.mojom.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "extensions/common/switches.h"
+#include "extensions/common/user_script.h"
 #include "extensions/grit/extensions_browser_resources.h"
 #include "mojo/public/cpp/bindings/clone_traits.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -54,8 +56,7 @@
 #include "base/system/sys_info.h"
 #endif
 
-namespace extensions {
-namespace util {
+namespace extensions::util {
 
 namespace {
 
@@ -348,15 +349,16 @@ bool IsExtensionVisibleToContext(const Extension& extension,
 }
 
 void InitializeFileSchemeAccessForExtension(
-    int render_process_id,
+    content::ChildProcessId render_process_id,
     const ExtensionId& extension_id,
     content::BrowserContext* browser_context) {
   ExtensionPrefs* prefs = ExtensionPrefs::Get(browser_context);
   // TODO(karandeepb): This should probably use
   // extensions::util::AllowFileAccess.
   if (prefs->AllowFileAccess(extension_id)) {
+    // TODO(crbug.com/379869738) Remove GetUnsafeValue.
     content::ChildProcessSecurityPolicy::GetInstance()->GrantRequestScheme(
-        render_process_id, url::kFileScheme);
+        render_process_id.GetUnsafeValue(), url::kFileScheme);
   }
 }
 
@@ -551,5 +553,18 @@ bool AnyCurrentlyInstalledExtensionIsFromWebstore(
                              });
 }
 
-}  // namespace util
-}  // namespace extensions
+bool IsExtensionDownload(const download::DownloadItem& download_item) {
+  if (download_item.GetTargetDisposition() ==
+      download::DownloadItem::TARGET_DISPOSITION_PROMPT) {
+    return false;
+  }
+
+  if (download_item.GetMimeType() == Extension::kMimeType ||
+      UserScript::IsURLUserScript(download_item.GetURL(),
+                                  download_item.GetMimeType())) {
+    return true;
+  }
+  return false;
+}
+
+}  // namespace extensions::util

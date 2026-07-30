@@ -6,19 +6,18 @@ import 'chrome://new-tab-page/new_tab_page.js';
 
 import type {SearchboxElement} from 'chrome://new-tab-page/new_tab_page.js';
 import {BrowserProxyImpl, MetricsReporterImpl, SearchboxBrowserProxy} from 'chrome://new-tab-page/new_tab_page.js';
-import {createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageMetricsCallbackRouter} from 'chrome://resources/js/metrics_reporter.mojom-webui.js';
 import {InputType, ModelMode, ToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {createInputState} from 'chrome://webui-test/cr_components/searchbox/searchbox_test_utils.js';
+import {MockInputState} from 'chrome://webui-test/cr_components/searchbox/searchbox_test_utils.js';
 import {TestSearchboxBrowserProxy} from 'chrome://webui-test/cr_components/searchbox/test_searchbox_browser_proxy.js';
 import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
 import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-const SAMPLE_INPUT_STATE = createInputState({
+const SAMPLE_INPUT_STATE = new MockInputState({
   allowedTools: [ToolMode.kDeepSearch, ToolMode.kImageGen],
   toolConfigs: [
     {
@@ -38,6 +37,7 @@ const SAMPLE_INPUT_STATE = createInputState({
       aimUrlParams: [],
     },
   ],
+  toolsSectionConfig: {header: ''},
   allowedModels: [ModelMode.kGeminiRegular, ModelMode.kGeminiPro],
   modelConfigs: [
     {
@@ -53,6 +53,7 @@ const SAMPLE_INPUT_STATE = createInputState({
       aimUrlParams: [],
     },
   ],
+  modelSectionConfig: {header: ''},
   allowedInputTypes:
       [InputType.kLensImage, InputType.kLensFile, InputType.kBrowserTab],
   maxTotalInputs: 10,
@@ -73,7 +74,6 @@ suite('NewTabPageRealboxTabsTest', () => {
 
   suiteSetup(() => {
     loadTimeData.overrideValues({
-      composeboxShowRecentTabChip: true,
       contextualMenuUsePecApi: true,
       isLensSearchbox: false,
       reportMetrics: true,
@@ -116,14 +116,12 @@ suite('NewTabPageRealboxTabsTest', () => {
         tabId: 1,
         title: 'Sample Tab 1',
         url: 'https://example.com/1',
-        showInRecentTabChip: true,
         lastActive: {internalValue: BigInt(1)},
       },
       {
         tabId: 2,
         title: 'Sample Tab 2',
         url: 'https://example.com/2',
-        showInRecentTabChip: true,
         lastActive: {internalValue: BigInt(2)},
       },
     ];
@@ -145,81 +143,6 @@ suite('NewTabPageRealboxTabsTest', () => {
     testProxy.callbackRouterRemote.onTabStripChanged();
     await microtasksFinished();
     assertEquals(testProxy.handler.getCallCount('getRecentTabs'), 0);
-  });
-
-  test('recent tab chip visibility depends on allowed input types', async () => {
-    const sampleTabs = [
-      {
-        tabId: 1,
-        title: 'Sample Tab 1',
-        url: 'https://example.com/1',
-        showInCurrentTabChip: true,
-        lastActive: {internalValue: BigInt(1)},
-      },
-    ];
-    testProxy.handler.setResultFor(
-        'getRecentTabs', Promise.resolve({tabs: sampleTabs}));
-
-    // Case 1: Browser tab allowed
-    testProxy.handler.setResultFor('getInputState', {
-      state: createInputState({
-        allowedInputTypes: [InputType.kBrowserTab],
-      }),
-    });
-
-    realbox = await createAndAppendRealbox(
-        {ntpRealboxNextEnabled: true, searchboxLayoutMode: 'Compact'});
-
-    realbox.$.input.focus();
-    await microtasksFinished();
-    realbox.$.input.inputElement.dispatchEvent(
-        new MouseEvent('mousedown', {button: 0}));
-    await testProxy.handler.whenCalled('getRecentTabs');
-
-    // Show dropdown (required for chip visibility)
-    const matches = [createSearchMatchForTesting()];
-    testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResultForTesting({
-          input: '',
-          matches: matches,
-        }));
-    await testProxy.callbackRouterRemote.$.flushForTesting();
-    await microtasksFinished();
-
-    let chipContainer =
-        realbox.shadowRoot.querySelector('#recentTabChipContainer');
-    assertTrue(!!chipContainer);
-
-    // Case 2: Browser tab NOT allowed
-    testProxy.handler.reset();
-    testProxy.handler.setResultFor(
-        'getRecentTabs', Promise.resolve({tabs: sampleTabs}));
-    testProxy.handler.setResultFor('getInputState', {
-      state: createInputState({
-        allowedInputTypes: [],  // No browser tab
-      }),
-    });
-
-    realbox = await createAndAppendRealbox(
-        {ntpRealboxNextEnabled: true, searchboxLayoutMode: 'Compact'});
-
-    realbox.$.input.focus();
-    await microtasksFinished();
-    realbox.$.input.inputElement.dispatchEvent(
-        new MouseEvent('mousedown', {button: 0}));
-    await testProxy.handler.whenCalled('getRecentTabs');
-
-    testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResultForTesting({
-          input: '',
-          matches: matches,
-        }));
-    await testProxy.callbackRouterRemote.$.flushForTesting();
-    await microtasksFinished();
-
-    chipContainer =
-        realbox.shadowRoot.querySelector('#recentTabChipContainer');
-    assertFalse(!!chipContainer);
   });
 });
 
@@ -279,9 +202,9 @@ suite('NewTabPageRealboxNextTest', () => {
       composed: true,
     }));
     const event = await whenOpenComposeBox;
-    assertEquals(event.detail.contextFiles.length, 1);
-    assertEquals(event.detail.contextFiles[0].tabId, 1);
-    assertEquals(event.detail.contextFiles[0].title, 'title');
+    assertEquals(event.detail.files.length, 1);
+    assertEquals(event.detail.files[0].tabId, 1);
+    assertEquals(event.detail.files[0].title, 'title');
   });
 
   test('clicking deep search button opens composebox', async () => {
@@ -353,26 +276,6 @@ suite('NewTabPageRealboxNextTest', () => {
     assertEquals(ToolMode.kImageGen, event.detail.mode);
   });
 
-  // TODO(crbug.com/453570027): Test is flaky.
-  test.skip(
-      'Contextual component empty area click focuses search input',
-      async () => {
-        // Arrange.
-        realbox = await createAndAppendRealbox({
-          composeButtonEnabled: true,
-          composeboxEnabled: true,
-          searchboxLayoutMode: 'TallTopContext',
-          ntpRealboxNextEnabled: true,
-        });
-        const contextElement = realbox.shadowRoot.querySelector<HTMLElement>(
-            'contextual-entrypoint-and-carousel');
-        assertTrue(!!contextElement);
-        contextElement.dispatchEvent(
-            new CustomEvent('context-menu-container-click'));
-        assertEquals(1, testProxy.handler.getCallCount('onFocusChanged'));
-        assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
-      });
-
   test('pasting files opens composebox', async () => {
     loadTimeData.overrideValues({composeboxFileMaxCount: 2});
     realbox = await createAndAppendRealbox({ntpRealboxNextEnabled: true});
@@ -396,11 +299,11 @@ suite('NewTabPageRealboxNextTest', () => {
     const event = await whenOpenComposeBox;
 
     assertTrue(!!event);
-    assertEquals(event.detail.contextFiles.length, 2);
-    const file1 = event.detail.contextFiles[0];
+    assertEquals(event.detail.files.length, 2);
+    const file1 = event.detail.files[0];
     assertEquals('pasted.png', file1.file.name);
     assertEquals('image/png', file1.file.type);
-    const file2 = event.detail.contextFiles[1];
+    const file2 = event.detail.files[1];
     assertEquals('pasted.pdf', file2.file.name);
     assertEquals('application/pdf', file2.file.type);
     assertFalse((realbox.$.input as any).pastedInInput_);

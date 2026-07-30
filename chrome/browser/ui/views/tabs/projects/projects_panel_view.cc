@@ -15,7 +15,6 @@
 #include "build/build_config.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
-#include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
@@ -229,11 +228,14 @@ class STGTabsMenuModelWithCallback : public tab_groups::STGTabsMenuModel {
 };
 }  // namespace
 
-ProjectsPanelView::ProjectsPanelView(BrowserWindowInterface* browser,
-                                     actions::ActionItem* root_action_item)
+ProjectsPanelView::ProjectsPanelView(
+    BrowserWindowInterface* browser,
+    actions::ActionItem* root_action_item,
+    ProjectsPanelStateController* state_controller)
     : browser_(browser),
       root_action_item_(root_action_item),
       action_view_controller_(std::make_unique<views::ActionViewController>()),
+      state_controller_(state_controller),
       resize_animation_(this),
       focus_search_(std::make_unique<views::FocusSearch>(this,
                                                          /*cycle=*/true,
@@ -257,15 +259,13 @@ ProjectsPanelView::ProjectsPanelView(BrowserWindowInterface* browser,
 
   bool threads_enabled = tab_groups::IsThreadsInProjectsPanelEnabled();
   panel_controller_ = std::make_unique<ProjectsPanelController>(
-      browser_,
+      browser_, state_controller_,
       tab_groups::TabGroupSyncServiceFactory::GetForProfile(
           browser->GetProfile()),
       threads_enabled
           ? contextual_tasks::ContextualTasksServiceFactory::GetForProfile(
                 browser->GetProfile())
-          : nullptr,
-      contextual_tasks::ContextualTasksUiServiceFactory::
-          GetForBrowserContextIfExists(browser->GetProfile()));
+          : nullptr);
   panel_controller_observer_.Observe(panel_controller_.get());
 
   controls_view_ = content_container_->AddChildView(
@@ -384,31 +384,6 @@ ProjectsPanelView::ProjectsPanelView(BrowserWindowInterface* browser,
                                         kProjectsPanelRegionHorizontalMargins);
 
     threads_activity_menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
-    threads_activity_menu_model_->AddItemWithIcon(
-        kGeminiActivity,
-        l10n_util::GetStringUTF16(IDS_PROJECTS_PANEL_GEMINI_ACTIVITY),
-        ui::ImageModel::FromVectorIcon(
-            projects_panel::GetIconForThreadType(
-                contextual_tasks::ThreadType::kGemini),
-            ui::kColorIcon, kThreadsActivityMenuIconSize));
-    threads_activity_menu_model_->SetElementIdentifierAt(
-        threads_activity_menu_model_->GetItemCount() - 1,
-        kProjectsPanelThreadsActivityGeminiItemElementId);
-
-    threads_activity_menu_model_->AddItemWithIcon(
-        kAiModeActivity,
-        l10n_util::GetStringUTF16(IDS_PROJECTS_PANEL_AI_MODE_ACTIVITY),
-        ui::ImageModel::FromVectorIcon(
-            projects_panel::GetIconForThreadType(
-                contextual_tasks::ThreadType::kAiMode),
-            ui::kColorIcon, kThreadsActivityMenuIconSize));
-    threads_activity_menu_model_->SetElementIdentifierAt(
-        threads_activity_menu_model_->GetItemCount() - 1,
-        kProjectsPanelThreadsActivityAiModeItemElementId);
-
-    threads_activity_menu_runner_ = std::make_unique<views::MenuRunner>(
-        threads_activity_menu_model_.get(),
-        views::MenuRunner::CONTEXT_MENU | views::MenuRunner::IS_NESTED);
   }
 
   content_container_->SetLayoutManager(
@@ -464,6 +439,8 @@ void ProjectsPanelView::OnProjectsPanelStateChanged(
 
     if (!observing_focus_manager_ && GetFocusManager()) {
       GetFocusManager()->AddFocusChangeListener(this);
+      last_focused_view_before_opening_.SetView(
+          GetFocusManager()->GetFocusedView());
       observing_focus_manager_ = true;
     }
 
@@ -506,6 +483,11 @@ void ProjectsPanelView::OnProjectsPanelStateChanged(
   } else {
     if (observing_focus_manager_ && GetFocusManager()) {
       GetFocusManager()->RemoveFocusChangeListener(this);
+      if (last_focused_view_before_opening_) {
+        GetFocusManager()->SetFocusedView(
+            last_focused_view_before_opening_.view());
+        last_focused_view_before_opening_.SetView(nullptr);
+      }
       observing_focus_manager_ = false;
     }
     event_monitor_.reset();
@@ -698,7 +680,14 @@ void ProjectsPanelView::disable_animations_for_testing() {
   disable_animations_for_testing_ = true;
 }
 
-void ProjectsPanelView::ClosePanel() {
+void ProjectsPanelView::ClosePanel(bool caused_by_focus_lost) {
+  // If the panel is closing due to focus being lost (e.g., a tab group was
+  // focused or a tab was activated), the last focused view before the panel was
+  // opened should not be refocused.
+  if (caused_by_focus_lost) {
+    last_focused_view_before_opening_.SetView(nullptr);
+  }
+
   // Ignore if the panel is already animating closed.
   if (!GetVisible() || resize_animation_.IsClosing()) {
     return;
@@ -734,7 +723,8 @@ void ProjectsPanelView::OnTabGroupMoreButtonPressed(
       browser_,
       tab_groups::TabGroupMenuContext::SAVED_TAB_GROUP_BUTTON_CONTEXT_MENU,
       base::BindRepeating(&ProjectsPanelView::ClosePanel,
-                          base::Unretained(this)));
+                          base::Unretained(this),
+                          /*closed_due_to_focus_lost=*/true));
   tab_group_menu_model_->Build(saved_group.value(), base::BindRepeating([]() {
                                  static int latest_command_id = 0;
                                  return latest_command_id++;
@@ -802,6 +792,37 @@ void ProjectsPanelView::OnThreadExpandButtonPressed() {
 }
 
 void ProjectsPanelView::OnThreadsActivityMenuButtonPressed() {
+  threads_activity_menu_model_->Clear();
+
+  if (state_controller_->CanShowGeminiThreads()) {
+    threads_activity_menu_model_->AddItemWithIcon(
+        kGeminiActivity,
+        l10n_util::GetStringUTF16(IDS_PROJECTS_PANEL_GEMINI_ACTIVITY),
+        ui::ImageModel::FromVectorIcon(
+            projects_panel::GetIconForThreadType(
+                contextual_tasks::ThreadType::kGemini),
+            ui::kColorIcon, kThreadsActivityMenuIconSize));
+    threads_activity_menu_model_->SetElementIdentifierAt(
+        threads_activity_menu_model_->GetItemCount() - 1,
+        kProjectsPanelThreadsActivityGeminiItemElementId);
+  }
+
+  if (state_controller_->CanShowAimThreads()) {
+    threads_activity_menu_model_->AddItemWithIcon(
+        kAiModeActivity,
+        l10n_util::GetStringUTF16(IDS_PROJECTS_PANEL_AI_MODE_ACTIVITY),
+        ui::ImageModel::FromVectorIcon(
+            projects_panel::GetIconForThreadType(
+                contextual_tasks::ThreadType::kAiMode),
+            ui::kColorIcon, kThreadsActivityMenuIconSize));
+    threads_activity_menu_model_->SetElementIdentifierAt(
+        threads_activity_menu_model_->GetItemCount() - 1,
+        kProjectsPanelThreadsActivityAiModeItemElementId);
+  }
+
+  threads_activity_menu_runner_ = std::make_unique<views::MenuRunner>(
+      threads_activity_menu_model_.get(),
+      views::MenuRunner::CONTEXT_MENU | views::MenuRunner::IS_NESTED);
   threads_activity_menu_runner_->RunMenuAt(
       GetWidget(), threads_activity_menu_button_->button_controller(),
       threads_activity_menu_button_->GetAnchorBoundsInScreen(),

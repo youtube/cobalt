@@ -957,11 +957,14 @@ DISABLE_CFI_PERF bool ElementRuleCollector::CollectMatchingRulesInternal(
     if (const AtomicString& input_type =
             element.getAttribute(html_names::kTypeAttr);
         !input_type.IsNull()) {
+      // Do not use input_type in the loop; the reference
+      // may be dangling if CollectMatchingRulesForList()
+      // adds lazy attributes.
+      AtomicString input_type_lower = input_type.ToAsciiLower();
       for (const auto bundle : match_request.RuleSetsWithInputRules()) {
         if (CollectMatchingRulesForList<stop_at_first_match>(
-                bundle.rule_set->InputRules(input_type.ToAsciiLower()),
-                match_request, bundle.rule_set, bundle.style_sheet_index,
-                checker, context) &&
+                bundle.rule_set->InputRules(input_type_lower), match_request,
+                bundle.rule_set, bundle.style_sheet_index, checker, context) &&
             stop_at_first_match) {
           return true;
         }
@@ -1383,6 +1386,7 @@ void ElementRuleCollector::DidMatchRule(
     if ((dynamic_pseudo == kPseudoIdCheckMark ||
          dynamic_pseudo == kPseudoIdBefore ||
          dynamic_pseudo == kPseudoIdAfter ||
+         dynamic_pseudo == kPseudoIdExpandIcon ||
          dynamic_pseudo == kPseudoIdPickerIcon ||
          dynamic_pseudo == kPseudoIdInterestHint) &&
         !rule_data->Rule()->Properties().HasProperty(CSSPropertyID::kContent)) {

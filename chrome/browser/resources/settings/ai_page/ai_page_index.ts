@@ -76,9 +76,9 @@ export class SettingsAiPageIndexElement extends SettingsAiPageIndexElementBase
         value: () => loadTimeData.getBoolean('showHistorySearchControl'),
       },
 
-      showTabOrganizationControl_: {
+      enableAiModeSearchSetting_: {
         type: Boolean,
-        value: () => loadTimeData.getBoolean('showTabOrganizationControl'),
+        value: () => loadTimeData.getBoolean('enableAiModeSearchSetting'),
       },
 
       actorLoginFederatedLoginSupportEnabled_: {
@@ -95,7 +95,7 @@ export class SettingsAiPageIndexElement extends SettingsAiPageIndexElementBase
   declare private showAiPageAiFeatureSection_: boolean;
   declare private showComposeControl_: boolean;
   declare private showHistorySearchControl_: boolean;
-  declare private showTabOrganizationControl_: boolean;
+  declare private enableAiModeSearchSetting_: boolean;
   declare private actorLoginFederatedLoginSupportEnabled_: boolean;
 
   private showDefaultViews_() {
@@ -133,10 +133,10 @@ export class SettingsAiPageIndexElement extends SettingsAiPageIndexElementBase
           // results.
           this.showDefaultViews_();
           break;
-        case routes.AI_TAB_ORGANIZATION:
-          assert(this.showTabOrganizationControl_);
+        case routes.AI_MODE_SEARCH:
+          assert(this.enableAiModeSearchSetting_);
           this.$.viewManager.switchView(
-              'tabOrganization', 'no-animation', 'no-animation');
+              'aiModeSearch', 'no-animation', 'no-animation');
           break;
         case routes.HISTORY_SEARCH:
           assert(this.showHistorySearchControl_);

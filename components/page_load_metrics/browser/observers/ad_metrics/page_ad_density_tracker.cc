@@ -5,6 +5,7 @@
 #include "components/page_load_metrics/browser/observers/ad_metrics/page_ad_density_tracker.h"
 
 #include <optional>
+#include <string_view>
 
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
@@ -22,6 +23,22 @@ int CalculateIntersectedLength(int start1, int end1, int start2, int end2) {
   DCHECK_LE(start2, end2);
 
   return std::max(0, std::min(end1, end2) - std::max(start1, start2));
+}
+
+void LogAdDensityStats(std::string_view name,
+                       int last_density,
+                       TimeWeightedUnivariateStats& stats) {
+  if (VLOG_IS_ON(2)) {
+    TimeWeightedUnivariateStats::DistributionMoments moments =
+        stats.CalculateStats();
+    VLOG(2) << name << ": " << last_density
+            << " (max: " << stats.maximum_value().value_or(-1)
+            << ", mean: " << base::ClampRound(moments.mean)
+            << ", variance: " << base::ClampRound(moments.variance)
+            << ", skewness: " << base::ClampRound(moments.skewness)
+            << ", kurtosis: " << base::ClampRound(moments.excess_kurtosis)
+            << ")";
+  }
 }
 
 // Calculates the combined length of a set of line segments within boundaries.
@@ -179,29 +196,42 @@ PageAdDensityTracker::RectEventSetIterators::RectEventSetIterators(
 
 PageAdDensityTracker::PageAdDensityTracker(bool is_in_foreground,
                                            const base::TickClock* clock)
-    : is_in_foreground_(is_in_foreground),
-      clock_(clock ? clock : base::DefaultTickClock::GetInstance()) {
-  last_viewport_density_accumulate_time_ = clock_->NowTicks();
+    : clock_(clock ? clock : base::DefaultTickClock::GetInstance()),
+      page_ad_density_by_area_stats_(clock_),
+      page_ad_density_by_height_stats_(clock_),
+      viewport_ad_density_by_area_stats_(clock_),
+      viewport_ad_count_stats_(clock_),
+      is_in_foreground_(is_in_foreground) {
+  if (!is_in_foreground_) {
+    page_ad_density_by_area_stats_.Pause();
+    page_ad_density_by_height_stats_.Pause();
+    viewport_ad_density_by_area_stats_.Pause();
+    viewport_ad_count_stats_.Pause();
+  }
 }
 
 PageAdDensityTracker::~PageAdDensityTracker() = default;
 
 int PageAdDensityTracker::MaxPageAdDensityByHeight() const {
-  return max_page_ad_density_by_height_;
+  return static_cast<int>(
+      page_ad_density_by_height_stats_.maximum_value().value_or(-1));
 }
 
 int PageAdDensityTracker::MaxPageAdDensityByArea() const {
-  return max_page_ad_density_by_area_;
+  return static_cast<int>(
+      page_ad_density_by_area_stats_.maximum_value().value_or(-1));
 }
 
-UnivariateStats::DistributionMoments
-PageAdDensityTracker::GetAdDensityByAreaStats() const {
+TimeWeightedUnivariateStats::DistributionMoments
+PageAdDensityTracker::GetViewportAdDensityByAreaStats() {
   DCHECK(finalize_called_);
   return viewport_ad_density_by_area_stats_.CalculateStats();
 }
 
-int PageAdDensityTracker::ViewportAdDensityByArea() const {
-  return last_viewport_ad_density_by_area_;
+TimeWeightedUnivariateStats::DistributionMoments
+PageAdDensityTracker::GetViewportAdCountStats() {
+  DCHECK(finalize_called_);
+  return viewport_ad_count_stats_.CalculateStats();
 }
 
 void PageAdDensityTracker::AddRect(RectId rect_id, const gfx::Rect& rect) {
@@ -241,10 +271,10 @@ void PageAdDensityTracker::RemoveRect(RectId rect_id) {
 void PageAdDensityTracker::OnHidden() {
   DCHECK(is_in_foreground_);
 
-  // Accumulate the viewport ad density for the last visible period before
-  // pausing.
-  AccumulateOutstandingViewportAdDensity();
-  last_viewport_ad_density_by_area_ = 0;
+  page_ad_density_by_area_stats_.Pause();
+  page_ad_density_by_height_stats_.Pause();
+  viewport_ad_density_by_area_stats_.Pause();
+  viewport_ad_count_stats_.Pause();
 
   is_in_foreground_ = false;
 }
@@ -253,9 +283,10 @@ void PageAdDensityTracker::OnShown() {
   DCHECK(!is_in_foreground_);
   is_in_foreground_ = true;
 
-  // Time spent in the background is ignored. Reset the accumulation start time
-  // for this new interval for viewport density; no need to accumulate yet.
-  last_viewport_density_accumulate_time_ = clock_->NowTicks();
+  page_ad_density_by_area_stats_.Resume();
+  page_ad_density_by_height_stats_.Resume();
+  viewport_ad_density_by_area_stats_.Resume();
+  viewport_ad_count_stats_.Resume();
 
   // Recalculate densities now that the page is visible. This ensures that any
   // ad rectangles added or changed while the page was hidden will be accounted
@@ -282,7 +313,6 @@ void PageAdDensityTracker::UpdateMainFrameViewportRect(const gfx::Rect& rect) {
   last_main_frame_viewport_rect_ = rect;
 
   if (is_in_foreground_) {
-    AccumulateOutstandingViewportAdDensity();
     CalculateViewportAdDensity();
   }
 }
@@ -301,8 +331,6 @@ void PageAdDensityTracker::UpdateMainFrameAdRects(
 
   if (is_in_foreground_) {
     CalculatePageAdDensity();
-
-    AccumulateOutstandingViewportAdDensity();
     CalculateViewportAdDensity();
   }
 }
@@ -311,25 +339,13 @@ void PageAdDensityTracker::Finalize() {
   DCHECK(!finalize_called_);
 
   if (is_in_foreground_) {
-    AccumulateOutstandingViewportAdDensity();
+    page_ad_density_by_area_stats_.Pause();
+    page_ad_density_by_height_stats_.Pause();
+    viewport_ad_density_by_area_stats_.Pause();
+    viewport_ad_count_stats_.Pause();
   }
 
   finalize_called_ = true;
-}
-
-void PageAdDensityTracker::AccumulateOutstandingViewportAdDensity() {
-  DCHECK(is_in_foreground_);
-
-  base::TimeTicks now = clock_->NowTicks();
-  base::TimeDelta elapsed_time = now - last_viewport_density_accumulate_time_;
-
-  if (elapsed_time.is_zero())
-    return;
-
-  viewport_ad_density_by_area_stats_.Accumulate(
-      last_viewport_ad_density_by_area_, elapsed_time.InMicrosecondsF());
-
-  last_viewport_density_accumulate_time_ = now;
 }
 
 void PageAdDensityTracker::CalculatePageAdDensity() {
@@ -337,20 +353,22 @@ void PageAdDensityTracker::CalculatePageAdDensity() {
 
   AdDensityCalculationResult result =
       CalculateDensityWithin(last_main_frame_rect_);
+
   if (result.ad_density_by_area) {
-    max_page_ad_density_by_area_ = std::max(result.ad_density_by_area.value(),
-                                            max_page_ad_density_by_area_);
+    page_ad_density_by_area_stats_.AddSample(result.ad_density_by_area.value());
 
-    VLOG(2) << "page-ad-density by area: " << result.ad_density_by_area.value()
-            << " (max: " << max_page_ad_density_by_area_ << ")";
+    LogAdDensityStats("page-ad-density by area",
+                      result.ad_density_by_area.value(),
+                      page_ad_density_by_area_stats_);
   }
-  if (result.ad_density_by_height) {
-    max_page_ad_density_by_height_ = std::max(
-        result.ad_density_by_height.value(), max_page_ad_density_by_height_);
 
-    VLOG(2) << "page-ad-density by height: "
-            << result.ad_density_by_height.value()
-            << " (max: " << max_page_ad_density_by_height_ << ")";
+  if (result.ad_density_by_height) {
+    page_ad_density_by_height_stats_.AddSample(
+        result.ad_density_by_height.value());
+
+    LogAdDensityStats("page-ad-density by height",
+                      result.ad_density_by_height.value(),
+                      page_ad_density_by_height_stats_);
   }
 }
 
@@ -359,21 +377,21 @@ void PageAdDensityTracker::CalculateViewportAdDensity() {
 
   AdDensityCalculationResult result =
       CalculateDensityWithin(last_main_frame_viewport_rect_);
-  if (!result.ad_density_by_area)
-    return;
 
-  last_viewport_ad_density_by_area_ = result.ad_density_by_area.value();
+  if (result.ad_density_by_area) {
+    viewport_ad_density_by_area_stats_.AddSample(
+        result.ad_density_by_area.value());
 
-  if (VLOG_IS_ON(2)) {
-    UnivariateStats::DistributionMoments moments =
-        viewport_ad_density_by_area_stats_.CalculateStats();
-    VLOG(2) << "viewport-ad-density by area: "
-            << last_viewport_ad_density_by_area_
-            << " (mean: " << base::ClampRound(moments.mean)
-            << ", variance: " << base::ClampRound(moments.variance)
-            << ", skewness: " << base::ClampRound(moments.skewness)
-            << ", kurtosis: " << base::ClampRound(moments.excess_kurtosis)
-            << ")";
+    LogAdDensityStats("viewport-ad-density by area",
+                      result.ad_density_by_area.value(),
+                      viewport_ad_density_by_area_stats_);
+  }
+
+  if (result.ad_count) {
+    viewport_ad_count_stats_.AddSample(result.ad_count.value());
+
+    LogAdDensityStats("viewport-ad-count", result.ad_count.value(),
+                      viewport_ad_count_stats_);
   }
 }
 
@@ -384,6 +402,24 @@ PageAdDensityTracker::CalculateDensityWithin(const gfx::Rect& bounding_rect) {
   // Cannot calculate density if `bounding_rect` is empty.
   if (bounding_rect.IsEmpty())
     return {};
+
+  // O(N) pass to count how many ad rectangles intersect the bounding box.
+  int ad_count = 0;
+  for (const auto& kv : rect_events_iterators_) {
+    // top_it points to a RectEvent which contains the original gfx::Rect
+    if (bounding_rect.Intersects(kv.second.top_it->rect)) {
+      ad_count++;
+    }
+  }
+
+  AdDensityCalculationResult result;
+  result.ad_count = ad_count;
+
+  if (ad_count == 0) {
+    result.ad_density_by_height = 0;
+    result.ad_density_by_area = 0;
+    return result;
+  }
 
   BoundedSegmentLength horizontal_segment_length_tracker(
       /*bound_start=*/bounding_rect.x(),
@@ -411,7 +447,7 @@ PageAdDensityTracker::CalculateDensityWithin(const gfx::Rect& bounding_rect) {
     std::optional<int> horizontal_segment_length =
         horizontal_segment_length_tracker.Length();
     if (!horizontal_segment_length)
-      return {};
+      return result;
 
     // Check that the segment length multiplied by the height of the block
     // does not overflow an int.
@@ -422,7 +458,7 @@ PageAdDensityTracker::CalculateDensityWithin(const gfx::Rect& bounding_rect) {
     current_area *= vertical_segment_length;
 
     if (!current_area.IsValid())
-      return {};
+      return result;
 
     total_area += current_area;
 
@@ -444,9 +480,7 @@ PageAdDensityTracker::CalculateDensityWithin(const gfx::Rect& bounding_rect) {
   // If the measured height or area is invalid, skip recording this ad density
   // calculation.
   if (!total_height.IsValid() || !total_area.IsValid())
-    return {};
-
-  AdDensityCalculationResult result;
+    return result;
 
   // TODO(yaoxia): For viewport density we don't care about density by height.
   // Consider having a param which skips the height calculation.

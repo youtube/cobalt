@@ -20,6 +20,7 @@
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/integrators/password_manager/password_manager_delegate.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
+#include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/ui/autofill_suggestion_delegate.h"
 #include "components/autofill/core/common/aliases.h"
@@ -78,7 +79,7 @@ class PasswordAutofillManager : public autofill::AutofillSuggestionDelegate,
       override;
   void OnSuggestionsShown(
       base::span<const autofill::Suggestion> suggestions) override;
-  void OnSuggestionsHidden() override;
+  void OnSuggestionsHidden(autofill::SuggestionHidingReason reason) override;
   void DidSelectSuggestion(const autofill::Suggestion& suggestion) override;
   void DidAcceptSuggestion(const autofill::Suggestion& suggestion,
                            const SuggestionMetadata& metadata) override;
@@ -238,10 +239,6 @@ class PasswordAutofillManager : public autofill::AutofillSuggestionDelegate,
       ShowPasswordSuggestions show_password_suggestions,
       ShowWebAuthnCredentials show_webauthn_credentials,
       ShowIdentityCredentials show_identity_credentials);
-
-  // Returns the bounds from the provided field and transforms them if it hasn't
-  // already happened in the driver.
-  gfx::RectF GetBounds(const autofill::TriggeringField& field);
 
   std::unique_ptr<autofill::PasswordFormFillData> fill_data_;
 

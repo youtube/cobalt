@@ -20,6 +20,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/strings/safe_sprintf.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "cc/base/math_util.h"
@@ -34,8 +35,6 @@
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "chromeos/crosapi/mojom/cros_display_config.mojom-test-utils.h"
-#include "chromeos/crosapi/mojom/cros_display_config.mojom.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/permissions/permission_decision.h"
 #include "components/permissions/permission_prompt_decision.h"
@@ -941,29 +940,27 @@ IN_PROC_BROWSER_TEST_F(TopControlsSlideControllerTest, DisplayRotation) {
 
   // Try all possible rotations. Changing display rotation should *not* unhide
   // top chrome.
-  const std::vector<crosapi::mojom::DisplayRotationOptions> rotations_to_try = {
-      crosapi::mojom::DisplayRotationOptions::k90Degrees,
-      crosapi::mojom::DisplayRotationOptions::k180Degrees,
-      crosapi::mojom::DisplayRotationOptions::k270Degrees,
-      crosapi::mojom::DisplayRotationOptions::kZeroDegrees,
+  const std::vector<ash::DisplayRotationOptions> rotations_to_try = {
+      ash::DisplayRotationOptions::k90Degrees,
+      ash::DisplayRotationOptions::k180Degrees,
+      ash::DisplayRotationOptions::k270Degrees,
+      ash::DisplayRotationOptions::kZeroDegrees,
   };
 
   ash::CrosDisplayConfig* cros_display_config =
       ash::Shell::Get()->cros_display_config();
-  std::vector<crosapi::mojom::DisplayUnitInfoPtr> info_list =
+  std::vector<ash::DisplayUnitInfo> info_list =
       cros_display_config->GetDisplayUnitInfoList(/*single_unified=*/false);
   for (const auto& display_unit_info : info_list) {
-    const std::string display_id = display_unit_info->id;
     for (const auto& rotation : rotations_to_try) {
       BrowserViewLayoutWaiter browser_view_layout_waiter(browser_view());
-      auto config_properties = crosapi::mojom::DisplayConfigProperties::New();
-      config_properties->rotation =
-          crosapi::mojom::DisplayRotation::New(rotation);
-      crosapi::mojom::DisplayConfigResult result =
+      ash::DisplayConfigProperties config_properties;
+      config_properties.rotation = rotation;
+      ash::DisplayConfigResult result =
           cros_display_config->SetDisplayProperties(
-              display_id, std::move(config_properties),
-              crosapi::mojom::DisplayConfigSource::kUser);
-      EXPECT_EQ(result, crosapi::mojom::DisplayConfigResult::kSuccess);
+              display_unit_info.id, config_properties,
+              ash::DisplayConfigSource::kUser);
+      EXPECT_EQ(result, ash::DisplayConfigResult::kSuccess);
 
       // Wait for the browser view to change its bounds as a result of display
       // rotation.

@@ -1482,7 +1482,7 @@ class ExtensionWebRequestApiAuthRequiredTestVariousContext
     content::EvalJsResult result =
         EvalJs(GetActiveWebContents(),
                content::JsReplace(kAddIframeScript, frame_url));
-    ASSERT_THAT(result, content::EvalJsResult::IsOk());
+    ASSERT_TRUE(result.is_ok());
     EXPECT_TRUE(listener.WaitUntilSatisfied());
   }
 };
@@ -8693,6 +8693,49 @@ IN_PROC_BROWSER_TEST_F(SecurityInfoBrokenWebRequestApiTest,
   RunSecurityInfoTest("broken", /*use_web_socket=*/true,
                       GetWebSocketServer().GetCertificate(),
                       GetWebSocketServer().GetURL("/echo-with-no-extension"));
+}
+
+// This test verifies that various types of network requests (defined in
+// chrome/test/data/webview/request_interception_coverage_guest.js) are
+// correctly intercepted by the extensions::WebRequestAPI. The same test logic
+// is executed across four different environments:
+// 1. Normal extension with WebRequest API permissions  <<This test>>
+// 2. WebView embedded in an Extension
+// 3. WebView embedded in a WebUI
+// 4. Controlled Frame in an Isolated Web App
+class ExtensionWebRequestApiCoverageTest
+    : public ExtensionWebRequestApiWebTransportTest,
+      public testing::WithParamInterface<testing::tuple<bool, bool>> {
+ public:
+  ExtensionWebRequestApiCoverageTest() {
+    scoped_feature_list_.InitWithFeatureStates(
+        {{extensions_features::kOptimizeWebRequestProxy,
+          testing::get<0>(GetParam())},
+         {extensions_features::kForceWebRequestProxyForTest,
+          testing::get<1>(GetParam())}});
+  }
+  ~ExtensionWebRequestApiCoverageTest() override = default;
+
+  static std::string DescribeParams(
+      const testing::TestParamInfo<ParamType>& info) {
+    const auto [optimization, force] = info.param;
+    return base::StrCat({"Optimization", optimization ? "Enabled" : "Disabled",
+                         "ForceProxy", force ? "Enabled" : "Disabled"});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(/* no prefix */,
+                         ExtensionWebRequestApiCoverageTest,
+                         testing::Combine(testing::Bool(), testing::Bool()),
+                         ExtensionWebRequestApiCoverageTest::DescribeParams);
+
+IN_PROC_BROWSER_TEST_P(ExtensionWebRequestApiCoverageTest,
+                       RequestInterceptionCoverage) {
+  ASSERT_TRUE(StartWebSocketServer());
+  ASSERT_TRUE(RunTest("test_interception_coverage.html")) << message_;
 }
 
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)

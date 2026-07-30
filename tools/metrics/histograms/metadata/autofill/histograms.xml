@@ -546,9 +546,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <variant name="EMAIL_ADDRESS"/>
   <variant name="EMAIL_OR_LOYALTY_MEMBERSHIP_ID"/>
   <variant name="EMPTY_TYPE"/>
-  <variant name="FLIGHT_RESERVATION_ARRIVAL_AIRPORT"/>
   <variant name="FLIGHT_RESERVATION_CONFIRMATION_CODE"/>
-  <variant name="FLIGHT_RESERVATION_DEPARTURE_AIRPORT"/>
   <variant name="FLIGHT_RESERVATION_DEPARTURE_DATE"/>
   <variant name="FLIGHT_RESERVATION_FLIGHT_NUMBER"/>
   <variant name="FLIGHT_RESERVATION_TICKET_NUMBER"/>
@@ -584,13 +582,9 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <variant name="NOT_USERNAME"/>
   <variant name="NUMERIC_QUANTITY"/>
   <variant name="ONE_TIME_CODE"/>
-  <variant name="ORDER_ACCOUNT"/>
   <variant name="ORDER_DATE"/>
-  <variant name="ORDER_GRAND_TOTAL"/>
   <variant name="ORDER_ID"/>
-  <variant name="ORDER_MERCHANT_DOMAIN"/>
   <variant name="ORDER_MERCHANT_NAME"/>
-  <variant name="ORDER_PRODUCT_NAMES"/>
   <variant name="PASSPORT_EXPIRATION_DATE"/>
   <variant name="PASSPORT_ISSUE_DATE"/>
   <variant name="PASSPORT_ISSUING_COUNTRY"/>
@@ -1054,6 +1048,19 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     <variant name="AddressPart" summary="address"/>
     <variant name="ContactInfoPart" summary="contact info"/>
   </token>
+</histogram>
+
+<histogram name="Autofill.Actor.EditedAutofilledFieldAtSubmission.Aggregate"
+    enum="AutofilledFieldUserEditingStatus" expires_after="2026-11-30">
+  <owner>battre@chromium.org</owner>
+  <owner>sygiet@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Records at submission time for each field that was autofilled by actor
+    Autofill (not Autocomplete or Password Manager) whether the user edited the
+    autofilled field value or not. This metric is aggregated over all field
+    types.
+  </summary>
 </histogram>
 
 <histogram name="Autofill.Actor.FillSuggestions.{FillingComposition}.Latency"
@@ -2074,9 +2081,20 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </summary>
 </histogram>
 
+<histogram name="Autofill.AtMemory.Funnel.QuerySubmitted" enum="Boolean"
+    expires_after="2027-03-09">
+  <owner>rahimis@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Records whether at least one search query was submitted while the @memory
+    popup was displayed. Emitted when the popup is hidden, provided it was
+    successfully shown.
+  </summary>
+</histogram>
+
 <histogram
     name="Autofill.Autocomplete.NotOff.EditedAutofilledFieldAtSubmission2{AutofillFormType}"
-    enum="AutofilledFieldUserEditingStatus" expires_after="2026-06-21">
+    enum="AutofilledFieldUserEditingStatus" expires_after="2027-04-12">
   <owner>schwering@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -2091,7 +2109,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.Autocomplete.NotOff.FillingAcceptance.{FormType}"
-    enum="BooleanAutofillFillingAcceptance" expires_after="2026-08-16">
+    enum="BooleanAutofillFillingAcceptance" expires_after="2027-04-12">
   <owner>schwering@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -2106,7 +2124,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.Autocomplete.Off.EditedAutofilledFieldAtSubmission2{AutofillFormType}"
-    enum="AutofilledFieldUserEditingStatus" expires_after="2026-04-12">
+    enum="AutofilledFieldUserEditingStatus" expires_after="2027-04-12">
   <owner>schwering@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -2121,7 +2139,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.Autocomplete.Off.FillingAcceptance.{FormType}"
-    enum="BooleanAutofillFillingAcceptance" expires_after="2026-08-23">
+    enum="BooleanAutofillFillingAcceptance" expires_after="2027-04-12">
   <owner>schwering@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -4235,6 +4253,20 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     the benefit source is {CardBenefitSource}.
   </summary>
   <token key="CardBenefitSource" variants="Autofill.CreditCardBenefitSource"/>
+</histogram>
+
+<histogram name="Autofill.FormEvents.Iban" enum="AutofillIbanFormEvent"
+    expires_after="2026-08-02">
+  <owner>qihuizhao@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    This histogram logs form events related to IBAN suggestions being shown,
+    selected, filled, and submitted on IBAN forms. Note that logging is
+    happening to the initial occurrence per page load. Specifically, if a user
+    interacts with multiple IBAN forms or triggers multiple suggestions (e.g.,
+    switching from a local to a server-based IBAN), only the first sequence of
+    events is recorded.
+  </summary>
 </histogram>
 
 <histogram name="Autofill.FormEvents.{AddressFormType}"
@@ -7711,21 +7743,6 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </summary>
 </histogram>
 
-<histogram name="Autofill.SharedStorageServerCardDataSetResult"
-    enum="AutofillSharedStorageServerCardDataSetResult"
-    expires_after="2025-04-20">
-  <owner>npnavarro@google.com</owner>
-  <owner>payments-autofill-team@google.com</owner>
-  <summary>
-    Records the shared storage Set operation result that is returned from the
-    SharedStorageManager, each time the cached autofill server credit card
-    information is updated and inserted into the shared storage database,
-    implemented in ContentAutofillSharedStorageHandler. SharedStorageManager
-    provides the API to update the Shared Storage database, which enables
-    privacy-preserving cross-site data storage.
-  </summary>
-</histogram>
-
 <histogram name="Autofill.SkippingFormFillDueToChangedFieldCount"
     enum="Boolean" expires_after="2026-12-12">
   <owner>battre@chromium.org</owner>
@@ -8316,6 +8333,17 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     tab creation. It's not possible to determine the name of the provider when
     the Android API version is lower than 28, so the metric is only logged for
     API versions equal to or higher than 28. It's recorded only on Android.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.Timing.AddressRewriter.Rewrite" units="ms"
+    expires_after="2026-09-20">
+  <owner>picarella@google.com</owner>
+  <owner>mmaryia@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Number of milliseconds passed between the start and end of
+    AddressRewriter::Rewrite().
   </summary>
 </histogram>
 

@@ -12,8 +12,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "chromeos/ash/components/settings/cros_settings.h"
-#include "chromeos/crosapi/mojom/cros_display_config.mojom.h"
-#include "mojo/public/cpp/bindings/associated_receiver.h"
 
 namespace policy {
 
@@ -36,7 +34,7 @@ class DisplaySettingsPolicyHandler {
   // Is called on each configuration change or settings update.
   virtual void ApplyChanges(
       ash::CrosDisplayConfig& cros_display_config,
-      const std::vector<crosapi::mojom::DisplayUnitInfoPtr>& info_list) = 0;
+      const std::vector<ash::DisplayUnitInfo>& info_list) = 0;
 };
 
 // Enforces the settings controlled by device policies related to display
@@ -73,7 +71,7 @@ class DisplaySettingsHandler : public ash::CrosDisplayConfig::Observer {
   void RequestDisplaysAndApplyChanges();
 
   // Apply all default settings defined by policies to all connected displays.
-  void ApplyChanges(std::vector<crosapi::mojom::DisplayUnitInfoPtr> info_list);
+  void ApplyChanges(std::vector<ash::DisplayUnitInfo> info_list);
 
   // Called on each update of the setting provided by |handler|. Requests the
   // list of displays and applies |handler| to each display.
@@ -82,7 +80,7 @@ class DisplaySettingsHandler : public ash::CrosDisplayConfig::Observer {
   // Applies |handler| to each display from |info_list|.
   void UpdateSettingAndApplyChanges(
       DisplaySettingsPolicyHandler* handler,
-      const std::vector<crosapi::mojom::DisplayUnitInfoPtr>& info_list);
+      const std::vector<ash::DisplayUnitInfo>& info_list);
 
   const raw_ptr<ash::CrosDisplayConfig> cros_display_config_;
   std::vector<std::unique_ptr<DisplaySettingsPolicyHandler>> handlers_;

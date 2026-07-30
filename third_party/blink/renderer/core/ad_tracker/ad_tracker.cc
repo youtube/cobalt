@@ -382,6 +382,28 @@ void AdTracker::DidFinishAsyncTask(probe::AsyncTaskContext* task_context) {
   async_script_stack_.pop_back();
 }
 
+void AdTracker::RegisterAdScript(
+    v8::Local<v8::Context> v8_context,
+    V8ScriptId script_id,
+    const std::optional<AdScriptIdentifier>& parent_ad_script) {
+  DCHECK_NE(v8::Message::kNoScriptIdInfo, script_id.value());
+  String script_name = GenerateFakeUrlFromScriptId(script_id);
+
+  AdProvenance provenance;
+  if (parent_ad_script.has_value() &&
+      parent_ad_script->id != AdScriptIdentifier::kEmptyId) {
+    provenance = parent_ad_script->id;
+  } else {
+    provenance = NoProvenance{};
+  }
+
+  ad_script_data_.insert(
+      script_id,
+      AdScriptData(AdScriptIdentifier(GetDebuggerIdForContext(v8_context),
+                                      script_id, script_name),
+                   std::move(provenance)));
+}
+
 bool AdTracker::IsAdScriptInStack(StackType stack_type,
                                   MonkeyPatchableApi ignore_monkey_patch,
                                   AdScriptAncestry* out_ad_script_ancestry) {
@@ -396,7 +418,7 @@ bool AdTracker::IsAdScriptInStack(StackType stack_type,
   if (out_ad_script.has_value()) {
     CHECK(out_ad_script_ancestry);
     CHECK(is_ad_script_in_stack);
-    *out_ad_script_ancestry = GetAncestry(out_ad_script.value());
+    *out_ad_script_ancestry = GetAncestry(out_ad_script.value().id);
   }
 
   return is_ad_script_in_stack;
@@ -696,13 +718,12 @@ void AdTracker::OnScriptIdAvailableForKnownAdScript(
                    ad_provenance));
 }
 
-AdTracker::AdScriptAncestry AdTracker::GetAncestry(
-    const AdScriptIdentifier& ad_script) {
+AdTracker::AdScriptAncestry AdTracker::GetAncestry(V8ScriptId script_id) {
   AdTracker::AdScriptAncestry ancestry;
 
   // TODO(yaoxia): Determine if we should CHECK that that the script ID in each
   // step is guaranteed to be present in `ad_script_data_`.
-  auto provenance_it = ad_script_data_.find(ad_script.id);
+  auto provenance_it = ad_script_data_.find(script_id);
   if (provenance_it == ad_script_data_.end()) {
     return ancestry;
   }

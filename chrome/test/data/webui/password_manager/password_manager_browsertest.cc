@@ -73,7 +73,8 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerUITest, BackupPasswordDetailsCard) {
           "mocha.run()");
 }
 
-IN_PROC_BROWSER_TEST_F(PasswordManagerUITest, PasswordDetailsSection) {
+// TODO(crbug.com/494149175): Re-enable after fixing.
+IN_PROC_BROWSER_TEST_F(PasswordManagerUITest, DISABLED_PasswordDetailsSection) {
   RunTest("password_manager/password_details_section_test.js", "mocha.run()");
 }
 
@@ -141,6 +142,10 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerUITest, SideBar) {
 
 IN_PROC_BROWSER_TEST_F(PasswordManagerUITest, SiteFavicon) {
   RunTest("password_manager/site_favicon_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordManagerUITest, UserUtilsMixin) {
+  RunTest("password_manager/user_utils_mixin_test.js", "mocha.run()");
 }
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)

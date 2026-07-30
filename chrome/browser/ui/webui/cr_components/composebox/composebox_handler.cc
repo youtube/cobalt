@@ -201,6 +201,11 @@ void ComposeboxHandler::NavigateUrl(const GURL& url) {
                                     /*navigation_handle_callback=*/{});
 }
 
+void ComposeboxHandler::CloseLensOverlayFromWebUI(
+    composebox::mojom::LensOverlayDismissalSource dismissal_source) {
+  // Ignore, intentionally unimplemented for NTP.
+}
+
 void ComposeboxHandler::ExecuteAction(uint8_t line,
                                       uint8_t action_index,
                                       const GURL& url,
@@ -251,12 +256,8 @@ void ComposeboxHandler::SubmitQuery(
   if (auto* metrics_recorder = GetMetricsRecorder()) {
     // Record AIM tool and model mode on query submission.
     const auto& input_state = GetInputState();
-    metrics_recorder->RecordModesOnSubmission(
-        mojo::EnumTraits<composebox_query::mojom::ToolMode,
-                         omnibox::ToolMode>::ToMojom(input_state.active_tool),
-        mojo::EnumTraits<composebox_query::mojom::ModelMode,
-                         omnibox::ModelMode>::ToMojom(input_state
-                                                          .active_model));
+    metrics_recorder->RecordModesOnSubmission(input_state.active_tool,
+                                              input_state.active_model);
   }
 
   ComputeAndOpenQueryUrl(query_text, disposition, aim_entrypoint,

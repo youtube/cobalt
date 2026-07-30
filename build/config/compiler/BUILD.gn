@@ -532,7 +532,7 @@ config("compiler") {
     # linker for Rust targets as well.
     rustflags += [ "-Csplit-debuginfo=unpacked" ]
 
-    if (use_thin_lto) {
+    if (use_thin_lto && current_cpu == "x64") {
       # These passes were recently added to the mach-o lld thintlo link step,
       # but cause timeouts in certain build configs. Disable them until that's
       # fixed (crbug.com/489711936).
@@ -1159,7 +1159,8 @@ config("linker") {
 
   # TODO(crbug.com/40242425): Cleanup undefined symbol errors caught by
   # --no-undefined-version.
-  if (use_lld && !is_win && !is_mac && !is_ios && !is_wasm) {
+  if ((use_lld || experimental_linker_path != "") && !is_win && !is_mac &&
+      !is_ios && !is_wasm) {
     ldflags += [ "-Wl,--undefined-version" ]
   }
 
@@ -2364,7 +2365,7 @@ config("default_clippy_lints") {
     # `config("rustc_revision")` - a custom `--cfg` flag is used to force
     # rebuilding of all `.rs` files (which as a side-effect should also trigger
     # a Clippy check if `enable_rust_clippy = true`).
-    "--cfg=cr_clippy_revision=\"2026-03-16\"",
+    "--cfg=cr_clippy_revision=\"2026-03-17\"",
 
     # Treat all default Clippy lints as warnings.
     # See also `config("treat_warnings_as_errors")`.

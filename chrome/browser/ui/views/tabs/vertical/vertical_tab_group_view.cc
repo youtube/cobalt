@@ -275,6 +275,11 @@ bool VerticalTabGroupView::ShouldAnimateOpacityForAddAndRemove(
   return views::IsViewClass<VerticalTabView>(&child_view);
 }
 
+bool VerticalTabGroupView::ShouldSnapToTarget(
+    const views::View& child_view) const {
+  return views::IsViewClass<VerticalSplitTabView>(&child_view);
+}
+
 void VerticalTabGroupView::OnAnimationEnded() {
   // For collapsed tab groups update child visibility only once animations have
   // completed. This allows tabs to remain visible as the group animates closed.
@@ -294,6 +299,10 @@ std::u16string VerticalTabGroupView::GetGroupContentString() const {
   }
 
   return tab_groups::GetGroupContentString(group);
+}
+
+bool VerticalTabGroupView::IsValid() const {
+  return collection_node_;
 }
 
 void VerticalTabGroupView::AttachChildView(
@@ -319,6 +328,7 @@ std::unique_ptr<views::View> VerticalTabGroupView::DetachChildView(
 }
 
 void VerticalTabGroupView::ResetCollectionNode() {
+  HideHoverCard();
   attention_indicator_observation_.Reset();
   node_destroyed_subscription_ = {};
   data_changed_subscription_ = {};
@@ -512,6 +522,23 @@ bool VerticalTabGroupView::ContinueHeaderDrag(const ui::LocatedEvent& event) {
 
 void VerticalTabGroupView::CancelHeaderDrag() {
   GetDragHandler().EndDrag(EndDragReason::kCancel);
+}
+
+const TabGroup& VerticalTabGroupView::GetTabGroup() const {
+  CHECK(collection_node_);
+  return *GetTabGroupFromNode(collection_node_);
+}
+
+void VerticalTabGroupView::UpdateHoverCard() const {
+  if (!collection_node_ || !group_header_) {
+    return;
+  }
+
+  if (TabHoverCardController* hover_card_controller =
+          collection_node_->GetController()->GetHoverCardController()) {
+    hover_card_controller->UpdateHoverCard(
+        group_header_, TabSlotController::HoverCardUpdateType::kEvent);
+  }
 }
 
 void VerticalTabGroupView::HideHoverCard() const {

@@ -26,6 +26,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "ui/display/manager/display_manager.h"
 #include "ui/display/manager/display_manager_observer.h"
+#include "ui/display/types/display_constants.h"
 #include "ui/display/util/display_util.h"
 
 namespace ash::settings {
@@ -465,11 +466,11 @@ void DisplaySettingsProvider::StartNativeTouchscreenMappingExperience() {
   // task.
   content::GetUIThreadTaskRunner()->PostTask(
       FROM_HERE,
-      base::BindOnce(
-          &CrosDisplayConfig::TouchCalibration,
-          base::Unretained(Shell::Get()->cros_display_config()), "",
-          crosapi::mojom::DisplayConfigOperation::kShowNativeMappingDisplays,
-          nullptr, base::DoNothing()));
+      base::BindOnce(&CrosDisplayConfig::TouchCalibration,
+                     base::Unretained(Shell::Get()->cros_display_config()),
+                     display::kInvalidDisplayId /* ignored */,
+                     DisplayCalibrationOperation::kShowNativeMappingDisplays,
+                     std::nullopt, base::DoNothing()));
 }
 
 }  // namespace ash::settings

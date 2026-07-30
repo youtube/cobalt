@@ -117,7 +117,7 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="UserControlled"/>
   <int value="1" label="ForcedByCode"/>
   <int value="2" label="UserInitiatedFinishedByCode"/>
-  <int value="3" label="UserTapped"/>
+  <int value="3" label="ForcedByUser"/>
   <int value="4" label="BottomReached"/>
   <int value="5" label="NoChange"/>
 </enum>
@@ -712,15 +712,6 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//ios/chrome/browser/file_upload_panel/ui/constants.h:FileUploadPanelEntryPointVariant) -->
 
-<!-- LINT.IfChange(IOSFileUploadPanelSecurityScopedResourceAccessState) -->
-
-<enum name="IOSFileUploadPanelSecurityScopedResourceAccessState">
-  <int value="0" label="StartedAndStopped"/>
-  <int value="1" label="StartFailed"/>
-</enum>
-
-<!-- LINT.ThenChange(//ios/chrome/browser/file_upload_panel/ui/constants.h:FileUploadPanelSecurityScopedResourceAccessState) -->
-
 <!-- LINT.IfChange(IOSGeminiAspectRatioBucket) -->
 
 <enum name="IOSGeminiAspectRatioBucket">
@@ -783,7 +774,7 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Overflow Menu"/>
   <int value="2" label="AI Hub"/>
   <int value="3" label="Omnibox Chip (Skipped AI Hub)"/>
-  <int value="4" label="Tab Reopen"/>
+  <int value="4" label="Tab Reopen (Deprecated in M148)"/>
   <int value="5" label="App Bar"/>
   <int value="6" label="Image long-press context menu"/>
   <int value="7" label="Image Remix in-product help"/>
@@ -1286,6 +1277,8 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="Microsoft Excel OpenXML"/>
 </enum>
 
+<!-- LINT.IfChange(IOSOverflowMenuAction) -->
+
 <enum name="IOSOverflowMenuAction">
   <int value="0" label="Reload"/>
   <int value="1" label="NewTab"/>
@@ -1304,7 +1297,18 @@ chromium-metrics-reviews@google.com.
   <int value="14" label="ShareChrome"/>
   <int value="15" label="EditActions"/>
   <int value="16" label="LensOverlay"/>
+  <int value="17" label="AIPrototype"/>
+  <int value="18" label="SetTabReminder"/>
+  <int value="19" label="ReaderMode"/>
+  <int value="20" label="AskGemini"/>
+  <int value="21" label="HideToolbars"/>
+  <int value="22" label="TabGroup"/>
+  <int value="23" label="ShareThisPage"/>
 </enum>
+
+<!-- LINT.ThenChange(
+    /ios/chrome/browser/popup_menu/overflow_menu/public/overflow_menu_constants.h:actionType
+)-->
 
 <enum name="IOSOverflowMenuActionType">
   <int value="0" label="No scroll, no action"/>

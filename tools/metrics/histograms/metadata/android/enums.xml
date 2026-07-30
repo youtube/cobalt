@@ -878,20 +878,6 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Filtered weaker signals"/>
 </enum>
 
-<enum name="BiometricsAvailability">
-  <int value="0" label="Other error"/>
-  <int value="1" label="Available"/>
-  <int value="2" label="Available, but no fallback"/>
-  <int value="3" label="No hardware"/>
-  <int value="4" label="Hardware unavailable"/>
-  <int value="5" label="Not enrolled"/>
-  <int value="6" label="Security update required"/>
-  <int value="7" label="(obsolete) Android version not supported"/>
-  <int value="8" label="(obsolete) Biometric auth is mandatory"/>
-  <int value="9"
-      label="(obsolete) Biometric auth is mandatory, but has an error"/>
-</enum>
-
 <enum name="BooleanGranted">
   <int value="0" label="Not granted"/>
   <int value="1" label="Granted"/>
@@ -960,6 +946,7 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Instance retention period expiration"/>
   <int value="3" label="No tabs in window"/>
   <int value="4" label="Recent Tabs page"/>
+  <int value="5" label="Recently closed limit exceeded"/>
 </enum>
 
 <enum name="ContactsPickerDialogAction">
@@ -1037,6 +1024,16 @@ chromium-metrics-reviews@google.com.
       label="Debugging set by device being a debuggable OS / Build regardless
              of the setWebContentsDebuggingEnabled value."/>
 </enum>
+
+<!-- LINT.IfChange(DefaultBrowserPromoSourceType) -->
+
+<enum name="DefaultBrowserPromoSourceType">
+  <int value="0" label="Messages Promo"/>
+  <int value="1" label="Setting Card Promo"/>
+  <int value="2" label="Educational Tip Promo"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/ui/android/default_browser_promo/java/src/org/chromium/chrome/browser/ui/default_browser_promo/DefaultBrowserPromoMetrics.java:DefaultBrowserPromoSourceType) -->
 
 <enum name="DesktopWindowHeuristicResult">
   <int value="0" label="Invalid result."/>
@@ -1376,7 +1373,8 @@ chromium-metrics-reviews@google.com.
   <int value="58" label="CctAccountMismatchNotice"/>
   <int value="59" label="DEPRECATED: PromptHatsClearBrowsingData"/>
   <int value="60" label="OsAdvancedProtectionSettingChangedMessage"/>
-  <int value="61" label="MultiInstanceRestorationOnDowngradedLimit"/>
+  <int value="61"
+      label="DEPRECATED: MultiInstanceRestorationOnDowngradedLimit"/>
   <int value="62" label="UpdateChromeForTabGroupShare"/>
   <int value="63" label="ModeBRollbackMessage"/>
   <int value="64" label="ReloadPage"/>

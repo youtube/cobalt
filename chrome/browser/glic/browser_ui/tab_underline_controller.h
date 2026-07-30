@@ -1,0 +1,196 @@
+// Copyright 2025 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef CHROME_BROWSER_GLIC_BROWSER_UI_TAB_UNDERLINE_CONTROLLER_H_
+#define CHROME_BROWSER_GLIC_BROWSER_UI_TAB_UNDERLINE_CONTROLLER_H_
+
+#include <list>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "base/callback_list.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
+#include "chrome/browser/contextual_tasks/active_task_context_provider.h"
+#include "chrome/browser/glic/host/context/glic_tab_data.h"
+#include "chrome/browser/glic/widget/glic_window_controller.h"
+#include "components/tabs/public/tab_interface.h"
+#include "ui/views/view_observer.h"
+
+class BrowserWindowInterface;
+
+namespace content {
+class WebContents;
+}
+
+namespace glic {
+
+class TabUnderlineController
+    : public GlicWindowController::StateObserver,
+      public contextual_tasks::ActiveTaskContextProvider::Observer {
+ public:
+  class UiDelegate {
+   public:
+    virtual ~UiDelegate() = default;
+    virtual void Show() = 0;
+    virtual void StopShowing() = 0;
+    virtual void ResetAnimationCycle() = 0;
+    virtual void StartRampingDown() = 0;
+    virtual bool IsShowing() const = 0;
+  };
+
+  explicit TabUnderlineController(tabs::TabHandle tab_handle);
+  TabUnderlineController(const TabUnderlineController&) = delete;
+  TabUnderlineController& operator=(const TabUnderlineController&) = delete;
+  ~TabUnderlineController() override;
+
+  void Initialize(UiDelegate* ui_delegate,
+                  BrowserWindowInterface* browser_window_interface);
+  void OnUiReady();
+
+  // contextual_tasks::ActiveTaskContextProvider::Observer overrides:
+  // Handles updates from the contextual Tasks backend.
+  // Note: This flow is distinct from the GLIC flow.
+  void OnContextTabsChanged(
+      const std::set<tabs::TabHandle>& context_tabs) override;
+
+ private:
+  // Called when the focused tab changes with the focused tab data object.
+  void OnFocusedTabChanged(const FocusedTabData& focused_tab_data);
+
+  // Called when the client changes the context access indicator status.
+  void OnIndicatorStatusChanged(bool enabled);
+
+  // Called when the glic set of pinned tabs changes.
+  void OnPinnedTabsChanged(
+      const std::vector<content::WebContents*>& pinned_contents);
+
+  // GlicWindowController::StateObserver:
+  void PanelStateChanged(
+      const glic::mojom::PanelState& panel_state,
+      const GlicWindowController::PanelStateContext& context) override;
+
+  void OnUserInputSubmitted();
+
+  // Types of updates to the tab underline UI effect given changes in relevant
+  // triggering signals, including tab focus, glic sharing controls, pinned tabs
+  // and the floaty panel.
+  enum class UpdateUnderlineReason {
+    kContextAccessIndicatorOn = 0,
+    kContextAccessIndicatorOff,
+
+    // Tab focus change not involving this underline.
+    kFocusedTabChanged_NoFocusChange,
+    // This underline's tab gained focus.
+    kFocusedTabChanged_TabGainedFocus,
+    // This underline's tab lost focus.
+    kFocusedTabChanged_TabLostFocus,
+
+    kFocusedTabChanged_ChromeGainedFocus,
+    kFocusedTabChanged_ChromeLostFocus,
+
+    // Chanes were made to the set of pinned of tabs.
+    kPinnedTabsChanged_TabInPinnedSet,
+    kPinnedTabsChanged_TabNotInPinnedSet,
+
+    // Events related to the glic panel's state.
+    kPanelStateChanged_PanelShowing,
+    kPanelStateChanged_PanelHidden,
+
+    // Changes were made to the set of tabs for contextual task. Note that this
+    // is independent of the GLIC flow.
+    kContextualTask_TabInContext,
+    kContextualTask_TabNotInContext,
+
+    kUserInputSubmitted,
+  };
+
+  // Bitmask representing the features that are currently sourcing (requesting)
+  // the tab underline to be shown.
+  enum UnderlineSource {
+    kNone = 0,
+    kGlic = 1 << 0,
+    kContextualTasks = 1 << 1,
+  };
+
+  void AddSource(UnderlineSource source);
+  void RemoveSource(UnderlineSource source);
+
+  GlicKeyedService* GetGlicKeyedService();
+
+  // Returns the TabInterface corresponding to `underline_view_`, if it is
+  // valid.
+  tabs::TabInterface* GetTabInterface();
+
+  bool IsUnderlineTabPinned();
+
+  bool IsUnderlineTabSharedThroughActiveFollow();
+
+  // Trigger the necessary UI effect, primarily based on the given
+  // `UpdateUnderlineReason` and whether or not `underline_view_`'s tab is
+  // being shared via pinning or active following.
+  void UpdateUnderlineView(UpdateUnderlineReason reason);
+
+  // Off to On. Throw away everything we have and start the animation from
+  // the beginning.
+  void ShowAndAnimateUnderline(bool triggered_by_glic);
+
+  void HideUnderline(bool triggered_by_glic);
+
+  // Replay the animation without hiding and re-showing the view.
+  void AnimateUnderline();
+
+  void ShowOrAnimatePinnedUnderline(bool triggered_by_glic);
+
+  bool IsGlicWindowShowing() const;
+
+  std::string UpdateReasonToString(UpdateUnderlineReason reason);
+
+  void AddReasonForDebugging(UpdateUnderlineReason reason);
+
+  // Helper methods to check feature flags for Glic and contextual tasks.
+  bool ShouldUseSignalsForGlicUnderlines();
+  bool ShouldUseSignalsForContextualTasks();
+
+  std::string UpdateReasonsToString() const;
+
+  // Back pointer to the owner. Guaranteed to outlive `this`.
+  raw_ptr<UiDelegate> ui_delegate_;
+  tabs::TabHandle tab_handle_;
+
+  // The pointer to the browser in which the underline view lives. Outlives the
+  // underline view.
+  raw_ptr<BrowserWindowInterface> browser_window_interface_;
+
+  // The Glic keyed service. This is only assigned if
+  // ShouldUseSignalsForGlicUnderlines() returns true. Otherwise, it will stay
+  // null.
+  raw_ptr<GlicKeyedService> glic_service_;
+
+  // Tracked states and their subscriptions.
+  base::WeakPtr<content::WebContents> glic_current_focused_contents_;
+  base::CallbackListSubscription focus_change_subscription_;
+  bool context_access_indicator_enabled_ = false;
+  base::CallbackListSubscription indicator_change_subscription_;
+  base::CallbackListSubscription pinned_tabs_change_subscription_;
+  base::CallbackListSubscription user_input_submitted_subscription_;
+
+  // Subscription for contextual tasks backend.
+  base::ScopedObservation<contextual_tasks::ActiveTaskContextProvider,
+                          contextual_tasks::ActiveTaskContextProvider::Observer>
+      contextual_task_observation_{this};
+
+  static constexpr size_t kNumReasonsToKeep = 10u;
+  std::list<std::string> underline_update_reasons_;
+
+  // The current set of active sources for the underline. The underline is
+  // hidden only when this bitmask is UnderlineSource::kNone.
+  int active_sources_ = UnderlineSource::kNone;
+};
+
+}  // namespace glic
+
+#endif  // CHROME_BROWSER_GLIC_BROWSER_UI_TAB_UNDERLINE_CONTROLLER_H_

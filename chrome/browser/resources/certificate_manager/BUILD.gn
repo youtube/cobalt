@@ -22,11 +22,7 @@ build_webui("build") {
     "certificate_manager_dialog.html",
     "favicon.svg",
   ]
-  web_component_files = [
-    "certificate_manager.ts",
-    "certificate_subpage.ts",
-    "crs_section.ts",
-  ]
+  web_component_files = [ "certificate_manager.ts" ]
   ts_files = [
     "certificate_confirmation_dialog.html.ts",
     "certificate_confirmation_dialog.ts",
@@ -38,7 +34,11 @@ build_webui("build") {
     "certificate_list.ts",
     "certificate_password_dialog.html.ts",
     "certificate_password_dialog.ts",
+    "certificate_subpage.html.ts",
+    "certificate_subpage.ts",
     "certificates_browser_proxy.ts",
+    "crs_section.html.ts",
+    "crs_section.ts",
     "local_certs_section.html.ts",
     "local_certs_section.ts",
     "navigation.ts",
@@ -53,19 +53,27 @@ build_webui("build") {
     "certificate_list.css",
     "certificate_manager_style.css",
     "certificate_manager_style_lit.css",
+    "certificate_subpage.css",
     "local_certs_section.css",
   ]
 
   if (is_chromeos) {
-    web_component_files += [
-      "certificate_provisioning_details_dialog.ts",
-      "certificate_provisioning_entry.ts",
-      "certificate_provisioning_list.ts",
+    css_files += [
+      "certificate_provisioning_details_dialog.css",
+      "certificate_provisioning_entry.css",
+      "certificate_provisioning_list.css",
+      "certificate_shared.css",
+      "certificate_shared_lit.css",
     ]
-    css_files += [ "certificate_shared.css" ]
     ts_files += [
       "certificate_manager_types.ts",
       "certificate_provisioning_browser_proxy.ts",
+      "certificate_provisioning_details_dialog.html.ts",
+      "certificate_provisioning_details_dialog.ts",
+      "certificate_provisioning_entry.html.ts",
+      "certificate_provisioning_entry.ts",
+      "certificate_provisioning_list.html.ts",
+      "certificate_provisioning_list.ts",
     ]
   }
 

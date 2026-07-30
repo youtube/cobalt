@@ -318,7 +318,7 @@
       "http/tests/inspector-protocol/issues/connection-allowlists"
     ],
     "exclusive_tests": "ALL",
-    "args": [ "--enable-features=ConnectionAllowlists" ],
+    "args": [ "--enable-features=ConnectionAllowlists,OverrideConnectionAllowlistOriginTrial" ],
     "expires": "Jul 1, 2026"
   },
   {
@@ -530,6 +530,7 @@
       "fast/deprecated-flexbox/line-clamp-removed-dynamically.html",
       "fast/overflow/line-clamp-and-columns.html",
       "fast/overflow/line-clamp-ellipsis-in-free-space.html",
+      "fast/overflow/line-clamp-floats-dont-grow-container.html",
       "fast/overflow/line-clamp-hides-trailing-anchor.html",
       "fast/overflow/line-clamp.html",
       "paint/invalidation/text-line-clamp-truncation.html"
@@ -677,6 +678,7 @@
     "args": [
       "--enable-features=DevToolsWebMCPSupport"
     ],
+    "exclusive_tests": "ALL",
     "expires": "Sep 28, 2026",
     "owners": [
       "pfaffe@google.com"
@@ -1015,25 +1017,7 @@
     ],
     "expires": "Jul 1, 2026"
   },
-  {
-    "prefix": "expect-no-linked-resources",
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "bases": [
-      "http/tests/expect-no-linked-resources"
-    ],
-    "exclusive_tests": "ALL",
-    "args": [
-      "--enable-features=DocumentPolicyExpectNoLinkedResources"
-    ],
-    "expires": "Jan 14, 2026",
-    "owners": [
-      "alexnj@google.com"
-    ]
-  },
+
   "The fast api bindings test requires access to V8 internals, so only the",
   "virtual test should be run.",
   {
@@ -1463,8 +1447,6 @@
   "The GenericSensorExtraClasses feature is controlled by a flag, which has ",
   "an expiration date. |expires| below is set to 'never' to avoid having to ",
   "manage the expiration date in two locations.",
-  "",
-  "N.B. skip_base_tests is needed only because of https://crbug.com/1471996",
   {
     "prefix": "generic-sensor-extra-classes",
     "owners": [
@@ -1482,9 +1464,6 @@
       "wpt_internal/generic-sensor/reference-frame-tests.https.window.js"
     ],
     "exclusive_tests": "ALL",
-    "skip_base_tests": [
-      "wpt_internal/generic-sensor/reference-frame-tests.https.window.html"
-    ],
     "args": [
       "--enable-features=GenericSensorExtraClasses"
     ],
@@ -2795,7 +2774,7 @@
     "expires": "Nov 29, 2025"
   },
   {
-    "prefix": "run-snapshot-post-layout",
+    "prefix": "snapshot-scroll-timelines-post-layout",
     "owners": [
       "futhark@chromium.org",
       "flackr@chromium.org"
@@ -2804,13 +2783,11 @@
       "Linux"
     ],
     "bases": [
-      "external/wpt/css/css-anchor-position/",
-      "external/wpt/css/css-conditional/container-queries/scroll-state/",
       "external/wpt/scroll-animations/",
       "fast/animation/scroll-animations/"
     ],
     "args": [
-      "--enable-blink-features=RunSnapshotPostLayoutStateSteps"
+      "--enable-blink-features=SnapshotScrollTimelinesPostLayout"
     ],
     "expires": "Jun 1, 2026"
   },
@@ -6232,6 +6209,7 @@
       "fast/deprecated-flexbox/line-clamp-removed-dynamically.html",
       "fast/overflow/line-clamp-and-columns.html",
       "fast/overflow/line-clamp-ellipsis-in-free-space.html",
+      "fast/overflow/line-clamp-floats-dont-grow-container.html",
       "fast/overflow/line-clamp-hides-trailing-anchor.html",
       "fast/overflow/line-clamp.html",
       "paint/invalidation/text-line-clamp-truncation.html"

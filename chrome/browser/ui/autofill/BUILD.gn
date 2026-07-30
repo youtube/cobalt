@@ -92,6 +92,8 @@ source_set("autofill") {
 
   if (is_android) {
     sources += [
+      "autofill_dialog_controller.h",
+      "autofill_dialog_controller_impl.h",
       "autofill_keyboard_accessory_controller.h",
       "autofill_keyboard_accessory_controller_impl.h",
       "autofill_keyboard_accessory_view.h",
@@ -181,6 +183,7 @@ source_set("impl") {
     ":autofill_ai_ui_utils_impl",
     "//chrome/browser:browser_process",
     "//chrome/browser/accessibility_annotator",
+    "//chrome/browser/account_settings",
     "//chrome/browser/actor",
     "//chrome/browser/autofill",
     "//chrome/browser/autofill/actor",
@@ -199,6 +202,7 @@ source_set("impl") {
     "//chrome/browser/ui/passwords",
     "//chrome/browser/ui/plus_addresses",
     "//chrome/browser/webdata_services",
+    "//components/account_settings",
     "//components/autofill/content/browser",
     "//components/autofill/content/browser:risk_proto",
     "//components/compose/core/browser",
@@ -228,6 +232,7 @@ source_set("impl") {
 
   if (is_android) {
     sources += [
+      "autofill_dialog_controller_impl.cc",
       "autofill_keyboard_accessory_controller.cc",
       "autofill_keyboard_accessory_controller_impl.cc",
       "autofill_message_controller_impl.cc",
@@ -361,6 +366,7 @@ source_set("unit_tests") {
 
   if (is_android) {
     sources += [
+      "autofill_dialog_controller_impl_unittest.cc",
       "autofill_keyboard_accessory_controller_impl_unittest.cc",
       "autofill_message_controller_impl_unittest.cc",
       "autofill_message_model_unittest.cc",
@@ -410,6 +416,8 @@ source_set("test_support") {
       "autofill_keyboard_accessory_controller_impl_test_api.h",
       "autofill_message_controller_test_api.h",
       "autofill_message_model_test_api.h",
+      "mock_autofill_dialog_view.cc",
+      "mock_autofill_dialog_view.h",
       "mock_autofill_message_controller.cc",
       "mock_autofill_message_controller.h",
     ]
@@ -493,6 +501,8 @@ source_set("test_support_unit") {
   sources = [
     "autofill_suggestion_controller_test_base.cc",
     "autofill_suggestion_controller_test_base.h",
+    "mock_accessibility_query_service.cc",
+    "mock_accessibility_query_service.h",
     "mock_autofill_popup_view.cc",
     "mock_autofill_popup_view.h",
   ]

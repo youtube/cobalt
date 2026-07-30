@@ -18,6 +18,7 @@
 #include "base/memory/ref_counted_delete_on_sequence.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "components/os_crypt/async/common/encryptor.h"
 #include "components/sessions/core/command_storage_manager.h"
 #include "components/sessions/core/session_command.h"
 #include "components/sessions/core/sessions_export.h"
@@ -84,6 +85,7 @@ class SESSIONS_EXPORT CommandStorageBackend
       scoped_refptr<base::SequencedTaskRunner> owning_task_runner,
       const base::FilePath& path,
       CommandStorageManager::SessionType type,
+      std::optional<os_crypt_async::Encryptor> encryptor,
       base::Clock* clock = nullptr);
   CommandStorageBackend(const CommandStorageBackend&) = delete;
   CommandStorageBackend& operator=(const CommandStorageBackend&) = delete;
@@ -115,13 +117,6 @@ class SESSIONS_EXPORT CommandStorageBackend
 
   // Parses out the timestamp from a path pointing to a session file.
   static bool TimestampFromPath(const base::FilePath& path, base::Time& result);
-
-  // Returns the set of possible session files. The returned paths are not
-  // necessarily valid session files, rather they match the naming criteria
-  // for session files.
-  static std::set<base::FilePath> GetSessionFilePaths(
-      const base::FilePath& path,
-      CommandStorageManager::SessionType type);
 
   // Returns the commands from the last session file.
   ReadCommandsResult ReadLastSessionCommands();
@@ -164,11 +159,11 @@ class SESSIONS_EXPORT CommandStorageBackend
   // Performs initialization on the background task run, if necessary.
   void InitIfNecessary();
 
-  // Generates the path to a session file with the given timestamp.
-  static base::FilePath FilePathFromTime(
-      CommandStorageManager::SessionType type,
-      const base::FilePath& path,
-      base::Time time);
+  // Generates the path to a session file based on the provided parameters.
+  static base::FilePath GetFilePath(CommandStorageManager::SessionType type,
+                                    const base::FilePath& path,
+                                    base::Time time,
+                                    bool encrypted);
 
   // Reads the commands from the specified file.
   static ReadCommandsResult ReadCommandsFromFile(const base::FilePath& path);
@@ -208,11 +203,13 @@ class SESSIONS_EXPORT CommandStorageBackend
 
   // Gets all sessions files.
   std::vector<SessionInfo> GetSessionFilesSortedByReverseTimestamp() const {
-    return GetSessionFilesSortedByReverseTimestamp(supplied_path_, type_);
+    return GetSessionFilesSortedByReverseTimestamp(supplied_path_, type_,
+                                                   is_encrypted());
   }
   static std::vector<SessionInfo> GetSessionFilesSortedByReverseTimestamp(
       const base::FilePath& path,
-      CommandStorageManager::SessionType type);
+      CommandStorageManager::SessionType type,
+      bool encrypted);
 
   static bool CompareSessionInfoTimestamps(const SessionInfo& a,
                                            const SessionInfo& b) {
@@ -221,6 +218,8 @@ class SESSIONS_EXPORT CommandStorageBackend
 
   // Returns true if `path` can be used for the last session.
   bool CanUseFileForLastSession(const base::FilePath& path) const;
+
+  bool is_encrypted() const { return encryptor_.has_value(); }
 
   const CommandStorageManager::SessionType type_;
 
@@ -232,6 +231,7 @@ class SESSIONS_EXPORT CommandStorageBackend
   scoped_refptr<base::SequencedTaskRunner> callback_task_runner_;
 
   raw_ptr<base::Clock> clock_;
+  std::optional<os_crypt_async::Encryptor> encryptor_;
 
   // File and path commands are being written.
   std::unique_ptr<OpenFile> open_file_;

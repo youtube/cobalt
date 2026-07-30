@@ -187,6 +187,7 @@ import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.AllocatedIdI
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.InstanceAllocationType;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManagerFactory;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestratorFactory;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.native_page.NativePageAssassin;
 import org.chromium.chrome.browser.navigation_predictor.NavigationPredictorBridge;
@@ -1869,12 +1870,12 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
      * @return Whether the Intent was successfully handled.
      */
     private boolean maybeHandleUrlIntent(Intent intent) {
+        if (intent.hasExtra(IntentHandler.EXTRA_MULTI_TAB_REPARENTING_METADATA)) {
+            return maybeHandleMultipleUrlIntent(intent);
+        }
         @Nullable TabGroupMetadata tabGroupMetadata = IntentHandler.getTabGroupMetadata(intent);
         if (tabGroupMetadata != null) {
             return maybeHandleGroupUrlsIntent(intent, tabGroupMetadata);
-        }
-        if (intent.hasExtra(IntentHandler.EXTRA_MULTI_TAB_REPARENTING_METADATA)) {
-            return maybeHandleMultipleUrlIntent(intent);
         }
         return maybeHandleSingleUrlIntent(intent);
     }
@@ -2139,14 +2140,10 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
     }
 
     private void setTrackColdStartupMetrics(boolean shouldTrackColdStartupMetrics) {
-        assert getLegacyTabStartupMetricsTracker() != null;
         assert getStartupMetricsTracker() != null;
 
         if (shouldTrackColdStartupMetrics) {
-            getLegacyTabStartupMetricsTracker().setHistogramSuffix(ActivityType.TABBED);
             getStartupMetricsTracker().setHistogramSuffix(ActivityType.TABBED);
-        } else {
-            getLegacyTabStartupMetricsTracker().cancelTrackingStartupMetrics();
         }
     }
 
@@ -2971,11 +2968,12 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         }
         boolean isTabInGroup = tab.getTabGroupId() != null;
 
-        mMultiInstanceManager.moveTabsToWindowByIdChecked(
-                mWindowId,
-                Collections.singletonList(tab),
-                /* destTabIndex= */ 0,
-                /* destGroupTabId= */ TabList.INVALID_TAB_INDEX);
+        MultiInstanceOrchestratorFactory.getInstance()
+                .moveTabsToWindowByIdChecked(
+                        mWindowId,
+                        Collections.singletonList(tab),
+                        /* destTabIndex= */ 0,
+                        /* destGroupTabId= */ TabList.INVALID_TAB_INDEX);
 
         if (isTabInGroup) RecordUserAction.record("MobileToolbarReorderTab.TabRemovedFromGroup");
         RecordHistogram.recordBooleanHistogram(HISTOGRAM_DRAGGED_TAB_OPENED_NEW_WINDOW, true);
@@ -3007,11 +3005,12 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             tabs.add(tab);
         }
 
-        mMultiInstanceManager.moveTabsToWindowByIdChecked(
-                mWindowId,
-                tabs,
-                /* destTabIndex= */ 0,
-                /* destGroupTabId= */ TabList.INVALID_TAB_INDEX);
+        MultiInstanceOrchestratorFactory.getInstance()
+                .moveTabsToWindowByIdChecked(
+                        mWindowId,
+                        tabs,
+                        /* destTabIndex= */ 0,
+                        /* destGroupTabId= */ TabList.INVALID_TAB_INDEX);
 
         DragDropMetricUtils.recordDragDropType(
                 ChromeDragDropUtils.getDragDropTypeFromIntent(intent),
@@ -3236,7 +3235,6 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         TabGroupUsageTracker.initialize(
                 this.getLifecycleDispatcher(), tabModelSelector, this::isWarmOnResume);
 
-        assert getLegacyTabStartupMetricsTracker() != null;
         assert getStartupMetricsTracker() != null;
         StartupPaintPreviewHelper paintPreviewHelper =
                 new StartupPaintPreviewHelper(
@@ -3250,7 +3248,6 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                                     : getToolbarManager().getProgressBarCoordinator();
                         });
         mStartupPaintPreviewHelperSupplier.set(paintPreviewHelper);
-        getLegacyTabStartupMetricsTracker().registerPaintPreviewObserver(paintPreviewHelper);
         getStartupMetricsTracker().registerPaintPreviewObserver(paintPreviewHelper);
         maybeRegisterHomeModules();
     }
@@ -3587,11 +3584,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         if (mMultiInstanceManager != null) {
             int assignedIndex = TabWindowManagerSingleton.getInstance().getIdForWindow(this);
             int taskId = ApplicationStatus.getTaskId(this);
-            mMultiInstanceManager.initialize(
-                    assignedIndex,
-                    taskId,
-                    mSupportedProfileType,
-                    getWindowAndroid().getUnownedUserDataHost());
+            mMultiInstanceManager.initialize(assignedIndex, taskId, mSupportedProfileType);
         }
 
         mTabModelSelector = assertNonNull(mTabModelOrchestrator.getTabModelSelector());
@@ -3925,10 +3918,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         return super.isStartedUpCorrectly(intent);
     }
 
-    /**
-     * @return The allocated windowId of the activity for testing purposes.
-     */
-    public int getWindowIdForTesting() {
+    /** Returns the allocated windowId of the activity. */
+    public int getWindowId() {
         return mWindowId;
     }
 
@@ -4182,7 +4173,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         } else if (id == R.id.focus_url_bar) {
             boolean isUrlBarVisible =
                     !isInOverviewMode() && (!isTablet() || getCurrentTabModel().getCount() != 0);
-            if (isUrlBarVisible) {
+            boolean isUrlBarFocused = getToolbarManager().isUrlBarFocused();
+            if (isUrlBarVisible && !isUrlBarFocused) {
                 getToolbarManager()
                         .setUrlBarFocus(true, OmniboxFocusReason.MENU_OR_KEYBOARD_ACTION);
             }

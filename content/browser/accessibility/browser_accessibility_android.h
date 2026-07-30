@@ -40,9 +40,11 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid
   bool CanFireEvents() const override;
   void OnDataChanged() override;
   void OnLocationChanged() override;
+  BrowserAccessibility* PlatformGetLowestPlatformAncestor() const override;
   std::u16string GetLocalizedStringForImageAnnotationStatus(
       ax::mojom::ImageAnnotationStatus status) const override;
 
+  bool CanSetExtendedSelection() const;
   bool IsAndroidTextView() const;
   bool IsCheckable() const;
   bool IsChecked() const;
@@ -77,6 +79,7 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid
   bool IsSubscript() const;
   bool IsSuperscript() const;
   bool IsTableHeader() const;
+  bool IsTextSelectable() const;
   bool IsVisibleToUser() const;
   bool ShouldUsePaneTitle() const;
 
@@ -333,9 +336,6 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid
                                    const std::u16string& b);
   static size_t CommonEndLengths(const std::u16string& a,
                                  const std::u16string& b);
-
-  // BrowserAccessibility overrides.
-  BrowserAccessibility* PlatformGetLowestPlatformAncestor() const override;
 
   bool HasOnlyTextChildren() const;
   bool HasOnlyTextAndImageChildren() const;

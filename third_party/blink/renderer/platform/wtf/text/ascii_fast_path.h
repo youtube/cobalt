@@ -102,10 +102,10 @@ CharacterAttributes(base::span<const CharacterType> chars) {
   bool contains_upper_case = false;
   for (CharacterType ch : chars) {
     all_char_bits |= ch;
-    contains_upper_case |= IsASCIIUpper(ch);
+    contains_upper_case |= IsAsciiUpper(ch);
   }
 
-  return AsciiStringAttributes(IsASCII(all_char_bits), !contains_upper_case);
+  return AsciiStringAttributes(IsAscii(all_char_bits), !contains_upper_case);
 }
 
 // Fast-path specialization for LChar as it's called very frequently by
@@ -119,7 +119,7 @@ template <typename CharacterType>
 ALWAYS_INLINE bool ContainsNoAsciiUpper(base::span<const CharacterType> chars) {
   bool contains_upper_case = false;
   for (CharacterType ch : chars) {
-    contains_upper_case |= IsASCIIUpper(ch);
+    contains_upper_case |= IsAsciiUpper(ch);
   }
   return !contains_upper_case;
 }
@@ -129,7 +129,7 @@ template <typename CharacterType>
 ALWAYS_INLINE bool ContainsNoAsciiLower(base::span<const CharacterType> chars) {
   bool contains_lower_case = false;
   for (CharacterType ch : chars) {
-    contains_lower_case |= IsASCIILower(ch);
+    contains_lower_case |= IsAsciiLower(ch);
   }
   return !contains_lower_case;
 }
@@ -156,7 +156,7 @@ class UpperConverter {
 
   template <typename CharType>
   ALWAYS_INLINE static CharType Convert(CharType ch) {
-    return ToASCIIUpper(ch);
+    return ToAsciiUpper(ch);
   }
 };
 
@@ -167,10 +167,8 @@ ALWAYS_INLINE typename Allocator::ResultStringType ConvertAsciiCase(
     Allocator&& allocator) {
   CHECK_LE(string.length(), std::numeric_limits<wtf_size_t>::max());
   return VisitCharacters(string, [&](auto chars) {
-    // First scan the string for the desired case.
-    if (converter.IsCorrectCase(chars)) {
-      return allocator.CoerceOriginal(string);
-    }
+    // Callers must ensure that the string needs conversion.
+    DCHECK(!converter.IsCorrectCase(chars));
 
     base::span<typename decltype(chars)::value_type> data;
     auto new_impl = allocator.Alloc(string.length(), data);

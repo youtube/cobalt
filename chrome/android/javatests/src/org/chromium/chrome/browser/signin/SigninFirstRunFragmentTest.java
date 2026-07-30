@@ -259,17 +259,7 @@ public class SigninFirstRunFragmentTest {
     @Test
     @MediumTest
     @Restriction({DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
-    @Features.DisableFeatures(SigninFeatures.FRE_SIGN_IN_ALTERNATIVE_SECONDARY_BUTTON_TEXT)
-    public void testFragmentWithDefaultDismissButtonText() {
-        launchActivityWithFragment();
-        onView(withText(R.string.signin_fre_dismiss_button)).check(matches(isDisplayed()));
-    }
-
-    @Test
-    @MediumTest
-    @Restriction({DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
-    @Features.EnableFeatures(SigninFeatures.FRE_SIGN_IN_ALTERNATIVE_SECONDARY_BUTTON_TEXT)
-    public void testFragmentWithAlternativeDismissButtonText() {
+    public void testFragmentWithDismissButtonText() {
         launchActivityWithFragment();
         onView(withText(R.string.signin_fre_stay_signed_out_button)).check(matches(isDisplayed()));
     }
@@ -1516,7 +1506,8 @@ public class SigninFirstRunFragmentTest {
     }
 
     private void checkFragmentWhenSigninIsForcedByPolicy(String continueButtonText) {
-        waitForDisabledSelectedAccountView();
+        ViewUtils.waitForVisibleView(withId(R.id.signin_fre_selected_account));
+        onView(withId(R.id.signin_fre_selected_account_expand_icon)).check(matches(isDisplayed()));
         verify(mFirstRunPageDelegateMock)
                 .recordLoadCompletedHistograms(LoadPoint.NATIVE_INITIALIZATION);
         onView(

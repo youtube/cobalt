@@ -722,6 +722,12 @@ class GetiOSSimUtil(test_runner_test.TestCase):
 
       self.assertEqual(mock_delete_simulator_runtime.call_count, 1)
 
+  @mock.patch('subprocess.check_call')
+  def test_update_dyld_shared_cache(self, mock_check_call, _, _2):
+    iossim_util.update_dyld_shared_cache()
+    mock_check_call.assert_called_once_with(
+        ['xcrun', 'simctl', 'runtime', 'dyld_shared_cache', 'update', '--all'])
+
   @mock.patch('builtins.open', new_callable=mock.mock_open)
   @mock.patch.object(plistlib, 'dump')
   @mock.patch.object(plistlib, 'load')
@@ -772,16 +778,22 @@ class GetiOSSimUtil(test_runner_test.TestCase):
       # Check to ensure correct calls made when simulator exists
       mock_is_sim.return_value = True
 
-      udid = "UDID"
+      udid = 'E4E66320-177A-450A-9BA1-488D85B7278E'
 
       check_call_mock = mock.Mock()
       self.mock(subprocess, 'check_call', check_call_mock)
+      runtime = 'com.apple.CoreSimulator.SimRuntime.iOS-11-4'
+      dyld_cmd = [
+          'xcrun', 'simctl', 'runtime', 'dyld_shared_cache', 'update', runtime
+      ]
       check_calls = [
+          mock.call(dyld_cmd),
           mock.call([
               'xcrun', 'simctl', '--set', iossim_util.SIMULATOR_DEFAULT_PATH,
               'bootstatus', udid, '-bd'
           ],
                     timeout=120),
+          mock.call(dyld_cmd),
           mock.call(
               ['xcrun', 'simctl', '--set', '/path', 'bootstatus', udid, '-bd'],
               timeout=120),
@@ -799,9 +811,27 @@ class GetiOSSimUtil(test_runner_test.TestCase):
 
       # Ensure hitting timeout does not prohibit program flow.
       mock_is_sim.return_value = True
+
+      # Mock wipe and kill
+      mock_wipe = mock.Mock()
+      self.mock(iossim_util, 'wipe_simulator_by_udid', mock_wipe)
+      mock_kill = mock.Mock()
+      self.mock(test_runner.SimulatorTestRunner, 'kill_simulators', mock_kill)
+
       check_call_mock.side_effect = subprocess.TimeoutExpired(
           cmd=["cmd"], timeout=120)
+
       self.assertFalse(iossim_util.ensure_simulator_fully_booted(udid))
+      self.assertEqual(mock_wipe.call_count, 1)
+      self.assertEqual(mock_kill.call_count, 1)
+
+      mock_wipe.reset_mock()
+      mock_kill.reset_mock()
+
+      self.assertFalse(
+          iossim_util.ensure_simulator_fully_booted(udid, num_attempts=2))
+      self.assertEqual(mock_wipe.call_count, 2)
+      self.assertEqual(mock_kill.call_count, 2)
 
 
   def test_disable_simulator_keyboard_tutorial(self, _, _2):

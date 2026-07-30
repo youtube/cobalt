@@ -91,27 +91,6 @@ BASE_FEATURE(kLensOverlayCustomBottomSheet, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensSearchHeadersCheckEnabled, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Variations of MIA NTP entrypoint.
-const char kNTPMIAEntrypointParam[] = "kNTPMIAEntrypointParam";
-const char kNTPMIAEntrypointParamOmniboxContainedSingleButton[] =
-    "kNTPMIAEntrypointParamOmniboxContainedSingleButton";
-const char kNTPMIAEntrypointParamOmniboxContainedInline[] =
-    "kNTPMIAEntrypointParamOmniboxContainedInline";
-const char kNTPMIAEntrypointParamOmniboxContainedEnlargedFakebox[] =
-    "kNTPMIAEntrypointParamOmniboxContainedEnlargedFakebox";
-const char kNTPMIAEntrypointParamEnlargedFakeboxNoIncognito[] =
-    "kNTPMIAEntrypointParamEnlargedFakeboxNoIncognito";
-const char kNTPMIAEntrypointParamAIMInQuickActions[] =
-    "kNTPMIAEntrypointParamAIMInQuickActions";
-
-// Feature flag to change the MIA entrypoint in NTP.
-BASE_FEATURE(kNTPMIAEntrypoint,
-             "kNTPMIAEntrypoint",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kNTPMIAEntrypointAllLocales,
-             "kNTPMIAEntrypointAllLocales",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Used to gate the immersive SRP in the Composebox.
 BASE_FEATURE(kComposeboxImmersiveSRP, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -743,7 +722,7 @@ int MaxRecentlyUsedBackgrounds() {
   return kMaxRecentlyUsedBackgrounds.Get();
 }
 
-BASE_FEATURE(kNTPBackgroundColorSlider, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kNTPBackgroundColorSlider, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsNTPBackgroundColorSliderEnabled() {
   return base::FeatureList::IsEnabled(kNTPBackgroundColorSlider);
@@ -1169,9 +1148,42 @@ bool IsFullscreenRefactoringEnabled() {
   return base::FeatureList::IsEnabled(kFullscreenRefactoring);
 }
 
+BASE_FEATURE(kPageToolsFeatureUnavailability,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsPageToolsFeatureUnavailabilityEnabled() {
+  return base::FeatureList::IsEnabled(kPageToolsFeatureUnavailability);
+}
+
 BASE_FEATURE(kAskAboutThisPage, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsAskAboutThisPageEnabled() {
   return IsAimCobrowseEnabled() &&
          base::FeatureList::IsEnabled(kAskAboutThisPage);
+}
+
+BASE_FEATURE(kGridMediatorSnapshotUpdateBatchGuard,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGridMediatorSnapshotUpdateBatchGuardEnabled() {
+  return base::FeatureList::IsEnabled(kGridMediatorSnapshotUpdateBatchGuard);
+}
+
+BASE_FEATURE(kAssistantSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAssistantSidePanelEnabled() {
+  return base::FeatureList::IsEnabled(kAssistantSidePanel);
+}
+
+BASE_FEATURE(kYourSavedInfoSettingsPageIos, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsYourSavedInfoSettingsPageIosEnabled() {
+  return base::FeatureList::IsEnabled(kYourSavedInfoSettingsPageIos);
+}
+
+BASE_FEATURE(kOpenEditGroupViewByTappingTitle,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsOpenEditGroupViewByTappingTitleEnabled() {
+  return base::FeatureList::IsEnabled(kOpenEditGroupViewByTappingTitle);
 }

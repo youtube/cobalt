@@ -24,8 +24,6 @@
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/contextual_cueing/contextual_cueing_service.h"
-#include "chrome/browser/contextual_cueing/contextual_cueing_service_factory.h"
 #include "chrome/browser/glic/actor/glic_actor_policy_checker.h"
 #include "chrome/browser/glic/actor/glic_actor_task_manager.h"
 #include "chrome/browser/glic/common/application_hotkey_delegate.h"
@@ -51,6 +49,8 @@
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
+#include "chrome/browser/glic/suggestions/contextual_cueing_service.h"
+#include "chrome/browser/glic/suggestions/contextual_cueing_service_factory.h"
 #include "chrome/browser/glic/widget/browser_conditions.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/profiles/profile.h"
@@ -124,14 +124,7 @@ std::unique_ptr<GlicWindowController> CreateWindowController(
     signin::IdentityManager* identity_manager,
     GlicKeyedService* glic_service,
     GlicEnabling* glic_enabling,
-    contextual_cueing::ContextualCueingService* contextual_cueing_service) {
-  // Update the eligibility state for future runs of Chrome in case this
-  // newly loaded profile was not captured in the initial eligibility check.
-  // This will not affect the multi-instance eligibiltiy state of the current
-  // run.
-  GlicEnabling::GetAndUpdateEligibilityForGlicMultiInstanceTieredRollout(
-      profile);
-
+    ContextualCueingService* contextual_cueing_service) {
 #if !BUILDFLAG(IS_ANDROID)
   if (UseDefaultWindowController()) {
     return std::make_unique<GlicWindowControllerImpl>(
@@ -189,7 +182,7 @@ GlicKeyedService::GlicKeyedService(
     signin::IdentityManager* identity_manager,
     ProfileManager* profile_manager,
     GlicProfileManager* glic_profile_manager,
-    contextual_cueing::ContextualCueingService* contextual_cueing_service,
+    ContextualCueingService* contextual_cueing_service,
     actor::ActorKeyedService* actor_keyed_service)
     : profile_(profile),
       actor_policy_checker_(
@@ -282,6 +275,12 @@ GlicKeyedService::GlicKeyedService(
   // This is only used by automation for tests.
   glic_profile_manager->MaybeAutoOpenGlicPanel();
 
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&GlicKeyedService::InitializeAfterConstruction,
+                                GetWeakPtr()));
+}
+
+void GlicKeyedService::InitializeAfterConstruction() {
 #if !BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(media::kHeadlessCaptionEarlyStart)) {
     GlicMediaIntegration::GetFor(profile_);
@@ -414,7 +413,7 @@ void GlicKeyedService::OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
   if (glic_profile_manager) {
     glic_profile_manager->SetActiveGlic(this);
   }
-  fre_controller().OpenFreDialogInNewTab(bwi, source);
+  fre_controller().OpenFreDialogInNewTab(bwi->GetWeakPtr(), source);
 #else
   NOTIMPLEMENTED() << "OpenFreDialogInNewTab";
 #endif
@@ -800,6 +799,11 @@ void GlicKeyedService::CaptureRegion(
     mojo::PendingRemote<mojom::CaptureRegionObserver> observer) {
   region_capture_controller_->CaptureRegion(tab, std::move(observer));
 }
+
+void GlicKeyedService::DeleteCapturedRegion(tabs::TabInterface* tab,
+                                            const base::UnguessableToken& id) {
+  region_capture_controller_->DeleteRegion(tab, id);
+}
 #endif
 
 void GlicKeyedService::ShareContextImage(tabs::TabInterface* tab,
@@ -931,8 +935,14 @@ GlicInstance* GlicKeyedService::GetInstanceForTab(tabs::TabInterface* tab) {
 
 GlicInstance* GlicKeyedService::GetInstanceForActiveTab(
     BrowserWindowInterface* bwi) {
-  return window_controller().GetInstanceForTab(
-      bwi ? TabListInterface::From(bwi)->GetActiveTab() : nullptr);
+  if (!bwi) {
+    return window_controller().GetInstanceForTab(nullptr);
+  }
+  auto* tab_list = TabListInterface::From(bwi);
+  if (!tab_list) {
+    return nullptr;
+  }
+  return window_controller().GetInstanceForTab(tab_list->GetActiveTab());
 }
 
 void GlicKeyedService::SendAdditionalContext(

@@ -109,7 +109,7 @@ void PushFrontImIfNotExists(const std::string& input_method_id,
   }
 }
 
-void SetGaiaInputMethods(const PrefService& local_state,
+void SetGaiaInputMethods(PrefService& local_state,
                          const std::string& application_locale,
                          const AccountId& account_id) {
   input_method::InputMethodManager* imm =
@@ -122,7 +122,8 @@ void SetGaiaInputMethods(const PrefService& local_state,
 
   // Set Least Recently Used input method for the user.
   if (account_id.is_valid()) {
-    lock_screen_utils::SetUserInputMethod(account_id, gaia_ime_state.get(),
+    lock_screen_utils::SetUserInputMethod(local_state, account_id,
+                                          gaia_ime_state.get(),
                                           true /*honor_device_policy*/);
   } else {
     lock_screen_utils::EnforceDevicePolicyInputMethods(std::string());
@@ -134,7 +135,7 @@ void SetGaiaInputMethods(const PrefService& local_state,
     }
     const std::string owner_input_method_id =
         lock_screen_utils::GetUserLastInputMethodId(
-            user_manager::UserManager::Get()->GetOwnerAccountId());
+            local_state, user_manager::UserManager::Get()->GetOwnerAccountId());
     const std::string system_input_method_id =
         local_state.GetString(language_prefs::kPreferredKeyboardLayout);
 
@@ -229,10 +230,12 @@ CreateSecondDeviceAuthBroker() {
 LoginDisplayHostCommon::LoginDisplayHostCommon(
     PrefService* local_state,
     ApplicationLocaleStorage* application_locale_storage,
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
     policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash,
     bool update_geolocation_usage_allowed)
     : local_state_(CHECK_DEREF(local_state)),
       application_locale_storage_(CHECK_DEREF(application_locale_storage)),
+      shared_url_loader_factory_(std::move(shared_url_loader_factory)),
       browser_policy_connector_ash_(CHECK_DEREF(browser_policy_connector_ash)),
       keep_alive_(KeepAliveOrigin::LOGIN_DISPLAY_HOST_WEBUI,
                   KeepAliveRestartOption::DISABLED),
@@ -254,6 +257,8 @@ LoginDisplayHostCommon::LoginDisplayHostCommon(
               []() { return g_browser_process->local_state(); }),
           base::BindRepeating(
               []() { return g_browser_process->metrics_service(); }))) {
+  CHECK(shared_url_loader_factory_);
+
   if (features::IsOobeCrosEventsEnabled()) {
     oobe_cros_events_metrics_ = std::make_unique<OobeCrosEventsMetrics>(
         &local_state_.get(), oobe_metrics_helper_.get());
@@ -333,7 +338,7 @@ void LoginDisplayHostCommon::StartSignInScreen() {
 void LoginDisplayHostCommon::StartKiosk(const KioskAppId& kiosk_app_id,
                                         bool is_auto_launch) {
   VLOG(1) << "Login >> start kiosk of type "
-          << static_cast<int>(kiosk_app_id.type);
+          << std::to_underlying(kiosk_app_id.type);
 
   SetKioskLaunchStateCrashKey(KioskLaunchState::kAttemptToLaunch);
 
@@ -546,7 +551,7 @@ void LoginDisplayHostCommon::OnPowerwashAllowedCallback(
     // Force the TPM firmware update option to be enabled.
     local_state_->SetInteger(
         ash::prefs::kFactoryResetTPMFirmwareUpdateMode,
-        static_cast<int>(tpm_firmware_update_mode.value()));
+        std::to_underlying(tpm_firmware_update_mode.value()));
   }
   StartWizard(ResetView::kScreenId);
 }
@@ -626,7 +631,7 @@ void LoginDisplayHostCommon::StartEncryptionMigration(
 
 void LoginDisplayHostCommon::ShowSigninError(SigninError error,
                                              const std::string& details) {
-  VLOG(1) << "Show error, error_id: " << static_cast<int>(error);
+  VLOG(1) << "Show error, error_id: " << std::to_underlying(error);
 
   if (error == SigninError::kKnownUserFailedNetworkNotConnected ||
       error == SigninError::kKnownUserFailedNetworkConnected) {

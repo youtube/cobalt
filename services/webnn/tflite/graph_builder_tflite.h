@@ -335,7 +335,7 @@ class GraphBuilderTflite final {
 
   // This function is called by `SerializeConcat` to serialize WebNN
   // concat operator or used to emulate WebNN operations.
-  OperatorOffset SerializeConcatOperation(
+  base::expected<OperatorOffset, std::string> SerializeConcatOperation(
       base::span<const TensorIndex> input_tensor_indices,
       TensorIndex output_tensor_index,
       uint32_t axis);
@@ -490,13 +490,13 @@ class GraphBuilderTflite final {
                                          TensorIndex false_tensor_index,
                                          TensorIndex output_tensor_index);
 
-  // Insert a tempary pad operation if the `paddings` can't be converted to
+  // Insert a temporary pad operation if the `paddings` can't be converted to
   // tflite padding mode.
   base::expected<TensorIndex, std::string> InsertPadOperation(
       const TensorInfo& input_tensor_info,
-      base::span<const uint32_t> paddings);
+      base::span<const int16_t> paddings);
 
-  // Insert a tempary transpose operation for input operand with calling
+  // Insert a temporary transpose operation for input operand with calling
   // `SerializeTransposeOperation`.
   base::expected<TensorIndex, std::string> InsertTransposeOperation(
       const TensorInfo& input_tensor_info,
@@ -657,7 +657,7 @@ class GraphBuilderTflite final {
       base::span<const int32_t> state_dimensions);
 
   // Serialize a sub graph (reshape appending concat operation) for gru /lstm.
-  TensorIndex SerializeSubGraphReshapeConcat(
+  base::expected<TensorIndex, std::string> SerializeSubGraphReshapeConcat(
       ::tflite::TensorType input_tensor_type,
       TensorIndex input_tensor_index,
       base::span<const int32_t> new_shape,
@@ -697,6 +697,10 @@ class GraphBuilderTflite final {
       const TensorInfo& output_tensor_info);
   base::expected<OperatorOffset, std::string> SerializeExpand(
       const mojom::Expand& expand);
+  base::expected<OperatorOffset, std::string> SerializeBroadcastToOperation(
+      TensorIndex input_tensor_index,
+      base::span<const int32_t> output_dimensions,
+      TensorIndex output_tensor_index);
   base::expected<OperatorOffset, std::string> SerializeGather(
       const mojom::Gather& gather);
   base::expected<OperatorOffset, std::string> SerializeGatherElements(
@@ -923,9 +927,10 @@ class GraphBuilderTflite final {
 
   // No further methods may be called on this class after calling this method
   // because the buffer of `buffer_` is now owned by the detached buffer.
-  Result FinishAndTakeResult(base::span<const OperandId> input_operands,
-                             base::span<const OperandId> output_operands,
-                             bool has_fp32_operation);
+  base::expected<Result, std::string> FinishAndTakeResult(
+      base::span<const OperandId> input_operands,
+      base::span<const OperandId> output_operands,
+      bool graph_requires_fp32_precision);
 
   const ContextProperties context_properties_;
 

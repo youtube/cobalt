@@ -480,6 +480,7 @@
 <translation id="2691653761409724435">오프라인에서 사용할 수 없음</translation>
 <translation id="2697530870203420261">잘못된 닉네임</translation>
 <translation id="269819437389494246">방문한 페이지를 확인하거나 방문 기록에서 삭제할 수 있습니다.</translation>
+<translation id="2704295676501803339">왼쪽으로 이동</translation>
 <translation id="2704606927547763573">복사됨</translation>
 <translation id="2708051474374549906">Google로 전송되는 인터넷 사용 기록을 토대로 위험한 사이트, 다운로드 항목, 확장 프로그램에 대한 실시간 선제적 보호 조치를 적용합니다.</translation>
 <translation id="2709516037105925701">자동 완성</translation>
@@ -1662,6 +1663,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="6899890595581608884">안전 확인 알림이 사용 중지됨</translation>
 <translation id="6900532703269623216">향상된 보호 모드</translation>
 <translation id="6900702165119149418">로그아웃 상태임</translation>
+<translation id="6903282483217634857">오른쪽으로 이동</translation>
 <translation id="6903907808598579934">동기화 사용 설정</translation>
 <translation id="6906448540340261898">Google 계정의 비밀번호를 언제든지 사용할 수 있도록 설정하세요.</translation>
 <translation id="6908734251759299256">브라우저 업데이트</translation>
@@ -1724,6 +1726,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="7149893636342594995">지난 24시간</translation>
 <translation id="7154417656353909837">주소 삭제</translation>
 <translation id="7161230316646448869">모든 기기에서 북마크, 방문 기록 등을 동기화하기</translation>
+<translation id="7165323152084385463">차량 식별 번호</translation>
 <translation id="7173114856073700355">설정 열기</translation>
 <translation id="7173721738069475737">{count,plural, =1{북마크 저장됨}other{북마크 {count}개 저장됨}}</translation>
 <translation id="7176183551031110427">축소</translation>
@@ -2218,6 +2221,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="8863067612494559785"><ph name="DEVICE_NAME" />(으)로 전송 중…</translation>
 <translation id="8863431381414769983">Google 지도에서 경로 및 지역 정보 받기</translation>
 <translation id="8871974300055371298">콘텐츠 설정</translation>
+<translation id="8876661425082386199">연결 상태 확인</translation>
 <translation id="8877788021141246043">알림을 설정해 줘</translation>
 <translation id="8879604564928138696">두 번 탭하여 시도하기</translation>
 <translation id="8879952635974818770">맞춤 콘텐츠</translation>
@@ -2319,7 +2323,6 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="926455622548529175">전환 및 삭제</translation>
 <translation id="929748059769569925">강조 표시된 텍스트</translation>
 <translation id="932305336591073205">{count,plural, =1{탭 닫기}other{탭 닫기}}</translation>
-<translation id="932327136139879170">집</translation>
 <translation id="939472100615258482">현재 사이트</translation>
 <translation id="939598580284253335">암호 입력</translation>
 <translation id="939736085109172342">새 폴더</translation>

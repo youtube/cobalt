@@ -11,9 +11,9 @@ source_set("coordinator") {
   ]
   deps = [
     ":bridges",
-    ":common",
     ":ui",
     "//base",
+    "//components/account_settings",
     "//components/application_locale_storage",
     "//components/autofill/core/browser",
     "//components/autofill/core/common",
@@ -38,6 +38,8 @@ source_set("coordinator") {
     "//components/translate/core/browser",
     "//components/variations/service",
     "//google_apis",
+    "//ios/chrome/browser/autofill/autofill_ai/error_dialog/coordinator",
+    "//ios/chrome/browser/autofill/autofill_ai/error_dialog/model",
     "//ios/chrome/browser/autofill/model",
     "//ios/chrome/browser/autofill/model:model_shared",
     "//ios/chrome/browser/autofill/model/bottom_sheet",
@@ -154,17 +156,6 @@ source_set("ui_type") {
   ]
 }
 
-source_set("common") {
-  sources = [
-    "scoped_autofill_payment_reauth_module_override.h",
-    "scoped_autofill_payment_reauth_module_override.mm",
-  ]
-  deps = [
-    "//base",
-    "//ios/chrome/common/ui/reauthentication",
-  ]
-}
-
 source_set("eg2_tests") {
   configs += [ "//build/config/ios:xctest_config" ]
   testonly = true
@@ -173,7 +164,6 @@ source_set("eg2_tests") {
     "save_profile_egtest.mm",
   ]
   deps = [
-    ":common",
     ":eg_test_support+eg2",
     "//base",
     "//base/test:test_support",
@@ -218,7 +208,6 @@ source_set("eg_app_support+eg2") {
     "autofill_app_interface.mm",
   ]
   deps = [
-    ":common",
     ":coordinator",
     "//base",
     "//base/test:test_support",
@@ -276,6 +265,8 @@ source_set("unit_tests") {
     "//components/prefs:test_support",
     "//components/strings:components_strings_grit",
     "//ios/chrome/app/strings:ios_strings_grit",
+    "//ios/chrome/browser/autofill/autofill_ai/error_dialog/coordinator",
+    "//ios/chrome/browser/autofill/autofill_ai/error_dialog/model",
     "//ios/chrome/browser/autofill/model",
     "//ios/chrome/browser/autofill/model:autofill_agent_delegate",
     "//ios/chrome/browser/autofill/model/bottom_sheet",

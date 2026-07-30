@@ -448,6 +448,8 @@ source_set("extensions") {
     "system_display/display_info_provider.h",
     "tab_helper.cc",
     "tab_helper.h",
+    "updater/authenticated_network_fetcher.cc",
+    "updater/authenticated_network_fetcher.h",
     "updater/chrome_extension_downloader_factory.cc",
     "updater/chrome_extension_downloader_factory.h",
     "updater/chrome_update_client_config.cc",
@@ -468,8 +470,6 @@ source_set("extensions") {
     "webstore_data_fetcher_delegate.h",
     "webstore_install_helper.cc",
     "webstore_install_helper.h",
-    "webstore_installer.cc",
-    "webstore_installer.h",
     "webstore_reinstaller.cc",
     "webstore_reinstaller.h",
     "webstore_standalone_installer.cc",
@@ -509,7 +509,6 @@ source_set("extensions") {
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/devtools",
     "//chrome/browser/download",
-    "//chrome/browser/extensions:cws_item_service_proto",
     "//chrome/browser/extensions:external_loader",
     "//chrome/browser/extensions/api:api_registration",
     "//chrome/browser/favicon",
@@ -527,6 +526,7 @@ source_set("extensions") {
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/profiles/keep_alive",
+    "//chrome/browser/renderer_host",
     "//chrome/browser/resources:component_extension_resources",
     "//chrome/browser/safe_browsing",
     "//chrome/browser/safe_browsing:metrics_collector",
@@ -555,6 +555,7 @@ source_set("extensions") {
     "//components/bookmarks/managed",
     "//components/content_settings/core/browser",
     "//components/content_settings/core/browser:cookie_settings",
+    "//components/contextual_tasks/public",
     "//components/cookie_config",
     "//components/crx_file",
     "//components/data_sharing/public",
@@ -596,7 +597,9 @@ source_set("extensions") {
     "//content/public/browser",
     "//extensions/browser",
     "//extensions/browser:crx_installer",
+    "//extensions/browser:cws_item_service_proto",
     "//extensions/browser:keepalive",
+    "//extensions/browser:webstore_installer",
     "//extensions/browser/api/content_settings",
     "//extensions/browser/api/storage:settings_namespace",
     "//extensions/browser/api/storage:settings_observer",
@@ -691,6 +694,7 @@ source_set("extensions") {
 
   if (enable_guest_view) {
     deps += [
+      "//chrome/browser/guest_view",
       "//components/guest_view/browser",
       "//components/guest_view/common:mojom",
     ]
@@ -1573,10 +1577,6 @@ source_set("extensions") {
   }
 }
 
-proto_library("cws_item_service_proto") {
-  sources = [ "cws_item_service.proto" ]
-}
-
 static_library("test_support") {
   testonly = true
 
@@ -1718,6 +1718,7 @@ source_set("chrome_extensions_browser_client") {
     "//components/proxy_config",
     "//components/sessions",
     "//components/update_client",
+    "//extensions/browser:crx_installer",
     "//extensions/browser:keepalive",
     "//extensions/browser/api/content_settings",
     "//extensions/browser/updater",

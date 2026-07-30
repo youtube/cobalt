@@ -273,7 +273,6 @@
 <translation id="200669432486043882">ជំនួសឯកសារ</translation>
 <translation id="2006864819935886708">ការតភ្ជាប់</translation>
 <translation id="2008685064673031089">ការស្វែងរកចម្បង</translation>
-<translation id="2011174342667534258">កំណែ SDK៖</translation>
 <translation id="2016697457005847575">សាកល្បងអនុវត្តតាមជំហានដោះស្រាយបញ្ហា</translation>
 <translation id="202500043506723828">EID</translation>
 <translation id="2045814230297767491">សមស្លាបព្រា</translation>
@@ -523,7 +522,6 @@
 <translation id="3291996639387199448">ទិសដៅសោ</translation>
 <translation id="3294437725009624529">ភ្ញៀវ</translation>
 <translation id="3303855915957856445">រកមិនឃើញលទ្ធផលស្វែងរកទេ</translation>
-<translation id="3305294846493618482">ច្រើន​ទៀត</translation>
 <translation id="3310640316857623290">កម្រិតពន្យាររបស់ DNS ខ្ពស់ជាងកម្រិតអនុញ្ញាតខ្លាំង</translation>
 <translation id="3316495615885967552">ការទាញយក​គំរូ​បង្កើត​ចំណងជើង និង​សេចក្ដី​សង្ខេប​ចប់ហើយ</translation>
 <translation id="3321030238473337787">ល្បឿន​ចាក់វីដេអូ</translation>
@@ -702,7 +700,6 @@
 <translation id="4126551873361000548">ថយក្រោយ 10 វិនាទី</translation>
 <translation id="4128271910628504223">បញ្ចូល​សារតម្រុយ ដូចជា "គូរព្រៃ​ដែលមាន​ចុះអ័ព្ទ"</translation>
 <translation id="4130035430755296270">បន្តដាក់ព្រួញលើ​សម្រាប់​ជម្រើស​ប្លង់​ច្រើនទៀត</translation>
-<translation id="4130750466177569591">ខ្ញុំយល់ព្រម</translation>
 <translation id="4131410914670010031">ពណ៌ខ្មៅ និងស</translation>
 <translation id="4137700675046373159">នៅថ្ងៃសៅរ៍</translation>
 <translation id="4139326893730851150">ការដំឡើងកំណែ​កម្មវិធីបង្កប់</translation>
@@ -1051,7 +1048,6 @@
 <translation id="5606865426897221650">Tab</translation>
 <translation id="5612205513582918357">ឧបករណ៍ថ្នាក់​កំពុង​បង្ហាញ​អេក្រង់​របស់អ្នក​ទៅ <ph name="RECEIVER_NAME" /></translation>
 <translation id="5613201299517339763">អ្នកត្រូវបាននាំ​ចេញពី​គណនី</translation>
-<translation id="5620281292257375798">ផ្ទៃក្នុង​តែប៉ុណ្ណោះ</translation>
 <translation id="5628106863521633649">ភាសាដែល​អាចប្រើបាន</translation>
 <translation id="5630438231335788050">បូហូស</translation>
 <translation id="5631759159893697722">ចំណុច​សំខាន់</translation>
@@ -1415,7 +1411,6 @@
 <translation id="7184043045742675738">ចុច​លើ​គ្រាប់ចុច​ណា​មួយ ដើម្បី​ប្ដូរ​ប៊ូតុង​របស់​អ្នក​តាមបំណង។ ប្ដូរទីតាំងគ្រាប់ចុច ដោយ​ប្រើ​កណ្ដុរ ឬ​គ្រាប់ចុច​ព្រួញ។</translation>
 <translation id="7187669805838282391">នៅថ្ងៃពុធ</translation>
 <translation id="7205318498545665455">ជ្រើសរើសមីក្រូហ្វូនរបស់អ្នក</translation>
-<translation id="7206979415662233817">លក្ខខណ្ឌ​ប្រើប្រាស់</translation>
 <translation id="7210635925306941239">ស៊ីលៀប</translation>
 <translation id="7212547870105584639">គ្រប់គ្រង​ការកំណត់ APN បណ្ដាញ។ APN បង្កើត​ការតភ្ជាប់​រវាង​បណ្ដាញ​ចល័ត និង​អ៊ីនធឺណិត។ <ph name="BEGIN_LINK_LEARN_MORE" />ស្វែងយល់បន្ថែម<ph name="END_LINK_LEARN_MORE" /></translation>
 <translation id="7212734716605298123">ការដំឡើងកំណែកម្មវិធីបង្កប់សម្រាប់ឧបករណ៍ខាងក្រៅ</translation>
@@ -1446,11 +1441,6 @@
 <translation id="7319430975418800333">A3</translation>
 <translation id="7321055305895875150">បៃតង និង​កាប់ស្តាំង</translation>
 <translation id="7328475450575141167">ផ្កាបក្សីសួគ៌</translation>
-<translation id="7331297744262591636">អ្នកត្រូវតែ​មានអាយុ​យ៉ាងតិច 18 ឆ្នាំ និង​យល់ព្រមថា​ការប្រើប្រាស់​ផ្ទាំង​រូបភាព AI របស់អ្នក​គឺអនុលោមតាម<ph name="GOOGLE_TERMS_OF_SERVICE_LINK" />លក្ខខណ្ឌ​ប្រើប្រាស់ Google<ph name="END_LINK_GOOGLE_TERMS_OF_SERVICE" /> និង<ph name="BEGIN_LINK_GEN_AI_TERMS_OF_SERVICE" />លក្ខខណ្ឌ​ប្រើប្រាស់បន្ថែម​របស់ AI ដែលមានសមត្ថភាពបង្កើត<ph name="END_LINK_GEN_AI_TERMS_OF_SERVICE" />។
-          <ph name="LINE_BREAK" />
-          <ph name="LINE_BREAK" />
-          អ្នកអាច​ត្រឹមតែ​បង្កើត​ផ្ទាំង​រូបភាព​តាមរយៈ AI សម្រាប់​ការប្រើប្រាស់​លក្ខណៈ​ផ្ទាល់ខ្លួន និង​មិនមែន​ពាណិជ្ជកម្ម​ប៉ុណ្ណោះ។ នៅពេល​ដែលអ្នក​ទទួលបាន​ជំនួយ​ពាក់ព័ន្ធនឹង​ផ្ទាំងរូបភាព អក្សរ​ត្រូវបាន​បញ្ជូនទៅ​ម៉ាស៊ីនមេ Google AI ដើម្បី​បង្កើត​ការណែនាំ​ផ្ទាំងរូបភាព​ដោយ​អនុលោមតាម<ph name="BEGIN_LINK_GOOGLE_PRIVACY_POLICY" />គោលការណ៍ឯកជនភាពរបស់ Google<ph name="END_LINK_GOOGLE_PRIVACY_POLICY" />។ <ph name="BEGIN_LINK_LEARN_MORE" />ស្វែងយល់បន្ថែម<ph name="END_LINK_LEARN_MORE" /></translation>
-<translation id="7343581795491695942"><ph name="QUERY_TEXT" />; <ph name="RESULT_TEXT" />; ចុច "ស្វែងរក" រួមជាមួយ "ដកឃ្លា" ដើម្បីមើល​លទ្ធផល​នៅក្នុង​កម្មវិធីស្វែងរក​នៅលើ Google។</translation>
 <translation id="7343649194310845056">ឧបករណ៍​បណ្ដាញ</translation>
 <translation id="7344788170842919262">ដូច​ដី</translation>
 <translation id="7346768383111016081">ដាក់​ការបញ្ជា​លើសកម្មភាព​ហ្គេម ដើម្បីលេង​ដោយប្រើ​ក្ដារចុច​របស់អ្នក</translation>
@@ -1838,7 +1828,6 @@
 <translation id="9073281213608662541">PAP</translation>
 <translation id="9074739597929991885">ប៊្លូធូស</translation>
 <translation id="9082718469794970195">ប្រើវីដេអូនេះ</translation>
-<translation id="9087578468327036362">រាយការណ៍​អំពី​សំណួរ​នេះ</translation>
 <translation id="9088306295921699330">ការប្រើប្រាស់​បច្ចុប្បន្ន</translation>
 <translation id="9088994563996376283">សម្រួល</translation>
 <translation id="9095775724867566971">Pluginvm</translation>
@@ -1871,7 +1860,6 @@
 <translation id="921080052717160800">បានកំណត់​រូបភាព​ជា​ផ្ទៃខាងក្រោយ​កាមេរ៉ា</translation>
 <translation id="9211490828691860325">តុនិម្មិត​ទាំងអស់</translation>
 <translation id="9218016617214286986">បង្ហាញ APN ដែលស្គាល់</translation>
-<translation id="932327136139879170">ទំព័រដើម</translation>
 <translation id="939519157834106403">SSID</translation>
 <translation id="945522503751344254">ផ្ញើមតិ</translation>
 <translation id="950520315903467048">បាត់​គ្រាប់ចុចសម្រាប់<ph name="DIRECTION" />។ <ph name="ASSIGN_INSTRUCTION" /></translation>

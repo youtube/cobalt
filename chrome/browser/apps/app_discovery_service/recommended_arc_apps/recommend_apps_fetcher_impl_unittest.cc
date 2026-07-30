@@ -14,14 +14,12 @@
 #include "base/files/file_path.h"
 #include "base/notreached.h"
 #include "base/run_loop.h"
-#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "chrome/browser/apps/app_discovery_service/recommended_arc_apps/fake_recommend_apps_fetcher_delegate.h"
 #include "chrome/browser/apps/app_discovery_service/recommended_arc_apps/recommend_apps_fetcher.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "chromeos/ash/experiences/arc/arc_features_parser.h"
-#include "chromeos/crosapi/mojom/cros_display_config.mojom.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "content/public/test/browser_task_environment.h"
 #include "gpu/config/gpu_info.h"
@@ -88,50 +86,51 @@ class TestCrosDisplayConfig final : public ash::CrosDisplayConfig {
   ~TestCrosDisplayConfig() = default;
 
   void SetNextDisplayUnitInfoList(
-      std::vector<crosapi::mojom::DisplayUnitInfoPtr> unit_info_list) {
+      std::vector<ash::DisplayUnitInfo> unit_info_list) {
     next_display_unit_info_list_ = std::move(unit_info_list);
   }
 
   // ash::CrosDisplayConfig:
   void AddObserver(Observer* observer) override {}
   void RemoveObserver(Observer* observer) override {}
-  crosapi::mojom::DisplayLayoutInfoPtr GetDisplayLayoutInfo() override {
+  ash::DisplayLayoutInfo GetDisplayLayoutInfo() override { NOTREACHED(); }
+  ash::DisplayConfigResult SetDisplayLayoutInfo(
+      const ash::DisplayLayoutInfo& info) override {
     NOTREACHED();
   }
-  crosapi::mojom::DisplayConfigResult SetDisplayLayoutInfo(
-      crosapi::mojom::DisplayLayoutInfoPtr info) override {
-    NOTREACHED();
-  }
-  std::vector<crosapi::mojom::DisplayUnitInfoPtr> GetDisplayUnitInfoList(
+  std::vector<ash::DisplayUnitInfo> GetDisplayUnitInfoList(
       bool single_unified) override {
     auto result = std::move(next_display_unit_info_list_);
     next_display_unit_info_list_.clear();
     return result;
   }
-  crosapi::mojom::DisplayConfigResult SetDisplayProperties(
-      const std::string& id,
-      crosapi::mojom::DisplayConfigPropertiesPtr properties,
-      crosapi::mojom::DisplayConfigSource source) override {
+  ash::DisplayConfigResult SetDisplayProperties(
+      int64_t display_id,
+      const ash::DisplayConfigProperties& properties,
+      ash::DisplayConfigSource source) override {
     NOTREACHED();
   }
   void SetUnifiedDesktopEnabled(bool enabled) override {}
-  crosapi::mojom::DisplayConfigResult OverscanCalibration(
-      const std::string& display_id,
-      crosapi::mojom::DisplayConfigOperation op,
+  ash::DisplayConfigResult OverscanCalibration(
+      int64_t display_id,
+      ash::DisplayCalibrationOperation op,
       const std::optional<gfx::Insets>& delta) override {
     NOTREACHED();
   }
-  void TouchCalibration(const std::string& display_id,
-                        crosapi::mojom::DisplayConfigOperation op,
-                        crosapi::mojom::TouchCalibrationPtr calibration,
-                        TouchCalibrationCallback callback) override {}
+  void TouchCalibration(
+      int64_t display_id,
+      ash::DisplayCalibrationOperation op,
+      base::optional_ref<const display::TouchCalibrationData> calibration,
+      TouchCalibrationCallback callback) override {
+    NOTREACHED();
+  }
   void HighlightDisplay(int64_t id) override {}
   void DragDisplayDelta(int64_t display_id,
                         int32_t delta_x,
                         int32_t delta_y) override {}
 
  private:
-  std::vector<crosapi::mojom::DisplayUnitInfoPtr> next_display_unit_info_list_;
+  std::vector<ash::DisplayUnitInfo> next_display_unit_info_list_;
 };
 
 // Helper class to extract relevant information from the app list request
@@ -270,26 +269,25 @@ class RecommendAppsFetcherImplTest : public testing::Test {
     const float y;
   };
 
-  std::vector<crosapi::mojom::DisplayUnitInfoPtr> CreateDisplayUnitInfo(
+  std::vector<ash::DisplayUnitInfo> CreateDisplayUnitInfo(
       const Dpi& internal_dpi,
       std::optional<Dpi> external_dpi) {
-    std::vector<crosapi::mojom::DisplayUnitInfoPtr> info_list;
+    std::vector<ash::DisplayUnitInfo> info_list;
 
     if (external_dpi.has_value()) {
-      auto external_info = crosapi::mojom::DisplayUnitInfo::New();
-      external_info->id =
-          base::NumberToString(test_screen_.GetPrimaryDisplay().id() + 1);
-      external_info->is_internal = false;
-      external_info->dpi_x = external_dpi->x;
-      external_info->dpi_y = external_dpi->y;
+      ash::DisplayUnitInfo external_info;
+      external_info.id = test_screen_.GetPrimaryDisplay().id() + 1;
+      external_info.is_internal = false;
+      external_info.dpi_x = external_dpi->x;
+      external_info.dpi_y = external_dpi->y;
       info_list.emplace_back(std::move(external_info));
     }
 
-    auto info = crosapi::mojom::DisplayUnitInfo::New();
-    info->id = base::NumberToString(test_screen_.GetPrimaryDisplay().id());
-    info->is_internal = true;
-    info->dpi_x = internal_dpi.x;
-    info->dpi_y = internal_dpi.y;
+    ash::DisplayUnitInfo info;
+    info.id = test_screen_.GetPrimaryDisplay().id();
+    info.is_internal = true;
+    info.dpi_x = internal_dpi.x;
+    info.dpi_y = internal_dpi.y;
     info_list.emplace_back(std::move(info));
 
     return info_list;

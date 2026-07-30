@@ -42,6 +42,7 @@ export const defaultConfig = [
       '@webui-eslint/lit-element-invalid-interface': 'error',
       '@webui-eslint/lit-element-structure': 'error',
       '@webui-eslint/lit-property-accessor': 'error',
+      '@webui-eslint/no-mixed-type-and-value-imports': 'error',
       '@webui-eslint/polymer-property-declare': 'error',
       '@webui-eslint/polymer-property-class-member': 'error',
     },
@@ -104,5 +105,12 @@ export const noChromeSendConfig = {
         ],
       },
     ],
+  },
+};
+
+export const noUnnecessaryTypeConversionConfig = {
+  files: ['**/*.ts'],
+  rules: {
+    '@typescript-eslint/no-unnecessary-type-conversion': 'error',
   },
 };

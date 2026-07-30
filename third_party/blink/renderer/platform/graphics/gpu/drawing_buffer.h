@@ -284,8 +284,6 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
       gpu::raster::RasterInterface*,
       const scoped_refptr<gpu::ClientSharedImage>& dst_shared_image,
       const gpu::SyncToken& dst_sync_token,
-      const gfx::Point& dst_texture_offset,
-      const gfx::Rect& src_sub_rectangle,
       SourceDrawingBuffer src_buffer);
 
   bool CopyToVideoFrame(
@@ -309,12 +307,6 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
   // Returns true if the drawing buffer supports direct (no-copy) export for low
   // latency (e.g., to the display compositor).
   bool SupportsNoCopyExportForLowLatency();
-
-  // Keep track of low latency buffer status.
-  bool low_latency_enabled() const { return low_latency_enabled_; }
-  void set_low_latency_enabled(bool low_latency_enabled) {
-    low_latency_enabled_ = low_latency_enabled;
-  }
 
   scoped_refptr<CanvasResource> ExportCanvasResource();
 
@@ -622,10 +614,7 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
       viz::SinglePlaneFormat::kRGBA_8888;
 
   Platform::WebGLContextInfo context_info_;
-#if BUILDFLAG(IS_WIN)
-  const bool using_swap_chain_;
-#endif
-  bool low_latency_enabled_ = false;
+  bool can_use_low_latency_ = false;
   bool has_implicit_stencil_buffer_ = false;
 
   // The current state restorer, which is used to track state dirtying. It is an

@@ -31,6 +31,9 @@ class ExtensionsToolbarAndroid : public ExtensionsToolbarViewModel::Delegate,
   void TriggerPopup(const ToolbarActionsModel::ActionId& action_id,
                     std::unique_ptr<ExtensionViewHost> host);
 
+  // Shows the context menu for the given action ID.
+  void ShowContextMenu(const ToolbarActionsModel::ActionId& action_id);
+
   // ExtensionsToolbarViewModel::Delegate:
   std::unique_ptr<ExtensionActionViewModel> CreateActionViewModel(
       const ToolbarActionsModel::ActionId& action_id,
@@ -47,7 +50,8 @@ class ExtensionsToolbarAndroid : public ExtensionsToolbarViewModel::Delegate,
   void OnActionRemoved(const ToolbarActionsModel::ActionId& action_id) override;
   void OnActionUpdated(const ToolbarActionsModel::ActionId& action_id) override;
   void OnPinnedActionsChanged() override;
-  void OnActiveWebContentsChanged(bool is_same_document) override;
+  void OnActiveWebContentsChanged(bool is_same_document,
+                                  content::WebContents* web_contents) override;
   void OnToolbarControlStateUpdated() override;
   void OnRequestAccessButtonParamsChanged(
       content::WebContents* web_contents) override;
@@ -72,6 +76,8 @@ class ExtensionsToolbarAndroid : public ExtensionsToolbarViewModel::Delegate,
   std::vector<ToolbarActionsModel::ActionId> GetPinnedActionIds(JNIEnv* env);
   int GetExtensionsMenuButtonState(JNIEnv* env,
                                    content::WebContents* web_contents);
+  bool IsActionDraggable(JNIEnv* env,
+                         const ToolbarActionsModel::ActionId& action_id);
   void ExecuteUserAction(const ToolbarActionsModel::ActionId& action_id,
                          ToolbarActionViewModel::InvocationSource source);
   void MovePinnedAction(const ToolbarActionsModel::ActionId& action_id,

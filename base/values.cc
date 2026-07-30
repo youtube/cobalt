@@ -30,7 +30,6 @@
 #include "base/trace_event/memory_usage_estimator.h"  // no-presubmit-check
 #include "base/trace_event/trace_event.h"
 #include "base/tracing_buildflags.h"
-#include "base/types/pass_key.h"
 #include "base/types/to_address.h"
 
 namespace base {
@@ -356,13 +355,10 @@ DictValue::DictValue() = default;
 
 DictValue::DictValue(flat_map<std::string, std::unique_ptr<Value>> storage)
     : storage_(std::move(storage)) {
-  DCHECK(std::ranges::all_of(storage_,
-                             [](const auto& entry) { return !!entry.second; }));
+  DCHECK(std::ranges::all_of(storage_, [](const auto& entry) {
+    return !!entry.second && IsStringUTF8AllowingNoncharacters(entry.first);
+  }));
 }
-
-DictValue::DictValue(PassKey<internal::JSONParser>,
-                     flat_map<std::string, std::unique_ptr<Value>> storage)
-    : DictValue(std::move(storage)) {}
 
 DictValue::DictValue(DictValue&&) noexcept = default;
 

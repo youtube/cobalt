@@ -36,8 +36,6 @@ class StackStringViewAllocator {
     return StringView(buffer);
   }
 
-  StringView CoerceOriginal(StringView string) { return string; }
-
  private:
   StringView::StackBackingStore& backing_store_;
 };
@@ -51,7 +49,7 @@ int CodeUnitCompareIgnoringAsciiCase(base::span<const CharType1> c1,
 }  // namespace
 
 StringView::StringView(const UChar* chars)
-    // SAFETY: length of `chars` determined by walking NUL-terminated string.
+    // SAFETY: It's safe if `chars` points to a NUL-terminated string.
     : StringView(UNSAFE_BUFFERS(
           base::span(chars, chars ? LengthOfNullTerminatedString(chars) : 0))) {
 }
@@ -198,7 +196,7 @@ bool StringView::SubstringContainsOnlyWhitespaceOrEmpty(size_type from,
   DCHECK_LE(from, to);
   return VisitCharacters(StringView(*this, from, to - from), [](auto chars) {
     for (size_t i = 0; i < chars.size(); ++i) {
-      if (!IsASCIISpace(chars[i])) {
+      if (!IsAsciiSpace(chars[i])) {
         return false;
       }
     }
@@ -317,7 +315,7 @@ String StringView::EncodeForDebugging() const {
         builder.Append("\\\\");
         break;
       default:
-        if (IsASCIIPrintable(character)) {
+        if (IsAsciiPrintable(character)) {
           builder.Append(static_cast<char>(character));
         } else {
           // Print "\uXXXX" for control or non-ASCII characters.
@@ -371,8 +369,11 @@ bool EqualIgnoringAsciiCase(const StringView& a, const StringView& b) {
   });
 }
 
-StringView StringView::LowerASCIIMaybeUsingBuffer(
+StringView StringView::LowerAsciiMaybeUsingBuffer(
     StackBackingStore& buffer) const {
+  if (ContainsNoAsciiUpper()) {
+    return *this;
+  }
   return ConvertAsciiCase(*this, LowerConverter(),
                           StackStringViewAllocator(buffer));
 }
@@ -387,6 +388,7 @@ int CodeUnitCompareIgnoringAsciiCase(const StringView& a, const StringView& b) {
 }
 
 UChar32 StringView::CodePointAt(size_type i) const {
+  SECURITY_DCHECK(i < length());
   if (Is8Bit())
     return (*this)[i];
   return blink::CodePointAt(Span16(), i);

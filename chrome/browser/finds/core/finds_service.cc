@@ -4,18 +4,36 @@
 
 #include "chrome/browser/finds/core/finds_service.h"
 
+#include <algorithm>
+#include <vector>
+
 #include "base/functional/bind.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "chrome/browser/finds/core/finds_features.h"
+#include "chrome/browser/finds/core/finds_pref_names.h"
+#include "chrome/browser/finds/core/finds_utils.h"
+#include "chrome/browser/notifications/scheduler/public/notification_data.h"
+#include "chrome/browser/notifications/scheduler/public/notification_params.h"
+#include "chrome/browser/notifications/scheduler/public/notification_schedule_service.h"
+#include "chrome/browser/notifications/scheduler/public/notification_scheduler_types.h"
+#include "chrome/browser/notifications/scheduler/public/schedule_params.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_types.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
 #include "components/optimization_guide/proto/features/finds.pb.h"
 #include "components/optimization_guide/proto/string_value.pb.h"
+#include "components/prefs/pref_registry_simple.h"
+#include "components/prefs/pref_service.h"
+#include "components/prefs/scoped_user_pref_update.h"
+
+using SuggestionTheme =
+    optimization_guide::proto::FindsSuggestionResponse::SuggestionTheme;
 
 namespace finds {
 
@@ -25,6 +43,11 @@ namespace {
 // suggestions.
 // TODO(crbug.com/493283477): Align with notif cooldown.
 constexpr base::TimeDelta kHistoryLookbackInterval = base::Days(7);
+
+// If the finds::features::kNotificationStartTimeMinutes param is set to less
+// than this threshold, it is considered to be for testing and will bypass the
+// notification scheduling throttling safeguards.
+constexpr int kThresholdMinutesForTesting = 5;
 
 std::string FindsSuggestionResponseToHumanReadableString(
     const optimization_guide::proto::FindsSuggestionResponse& response) {
@@ -45,12 +68,140 @@ std::string FindsSuggestionResponseToHumanReadableString(
   return base::JoinString(lines, "\n");
 }
 
+bool IsModelExecutionCooldownPassed(const PrefService* pref_service) {
+  const int64_t last_timestamp_value =
+      pref_service->GetInt64(prefs::kFindsModelExecutionLastTimestamp);
+  if (last_timestamp_value == 0) {
+    return true;
+  }
+
+  const base::Time last_execution_time =
+      base::Time::FromMillisecondsSinceUnixEpoch(last_timestamp_value);
+  return (base::Time::Now() - last_execution_time) >=
+         base::Days(
+             finds::features::kModelExecutionCooldownDurationInDays.Get());
+}
+
+bool IsThemeCooldownPassed(const PrefService* pref_service,
+                           SuggestionTheme::ThemeType theme) {
+  const std::string theme_pref_string = ThemeTypeEnumToString(theme);
+  if (theme_pref_string.empty()) {
+    // If the theme type is unknown, we cannot determine the cooldown, so return
+    // false to avoid processing the request.
+    return false;
+  }
+
+  const base::DictValue& not_interested_themes =
+      pref_service->GetDict(prefs::kFindsNotInterestedThemesLastTimestamp);
+
+  // Dictionary prefs can only store double values at most.
+  std::optional<double> last_timestamp_value =
+      not_interested_themes.FindDouble(theme_pref_string);
+  if (!last_timestamp_value.has_value()) {
+    return true;
+  }
+
+  // Requires a cast to int64_t since base::Time's internal value is an int64_t,
+  // but the pref value is stored as a double.
+  const base::Time last_not_interested_time =
+      base::Time::FromSecondsSinceUnixEpoch(last_timestamp_value.value());
+  return (base::Time::Now() - last_not_interested_time) >=
+         base::Days(finds::features::kThemeCooldownDurationInDays.Get());
+}
+
+void SetModelExecutionCooldownTimestamp(PrefService* pref_service) {
+  pref_service->SetInt64(prefs::kFindsModelExecutionLastTimestamp,
+                         base::Time::Now().InMillisecondsSinceUnixEpoch());
+}
+
+void SetThemeCooldownTimestamp(PrefService* pref_service,
+                               SuggestionTheme::ThemeType theme) {
+  const std::string theme_pref_string = ThemeTypeEnumToString(theme);
+  if (theme_pref_string.empty()) {
+    // Do not set a pref if the theme type is unknown.
+    return;
+  }
+  // Store as a double since base::DictValue only supports storing doubles, but
+  // the value is essentially an int64_t timestamp.
+  ScopedDictPrefUpdate update(pref_service,
+                              prefs::kFindsNotInterestedThemesLastTimestamp);
+  update->Set(theme_pref_string, base::Time::Now().InSecondsFSinceUnixEpoch());
+}
+
+const SuggestionTheme* GetHighestScoredThemeIfPossible(
+    PrefService* pref_service,
+    const ::google::protobuf::RepeatedPtrField<SuggestionTheme>& suggestions) {
+  // Sort the suggestion themes by best score.
+  std::vector<const SuggestionTheme*> sorted_themes;
+  for (const auto& theme : suggestions) {
+    sorted_themes.push_back(&theme);
+  }
+  std::sort(sorted_themes.begin(), sorted_themes.end(),
+            [](const SuggestionTheme* a, const SuggestionTheme* b) {
+              return a->score() > b->score();
+            });
+
+  for (const auto* theme : sorted_themes) {
+    if (IsThemeCooldownPassed(pref_service, theme->theme_type())) {
+      return theme;
+    }
+  }
+  return nullptr;
+}
+
+notifications::ScheduleParams GetCurrentScheduleParams() {
+  // Setup the schedule params to either be for testing or for the standard base
+  // use case of 2-4 hours (accounting for a window time of 2 hours).
+  notifications::ScheduleParams schedule_params;
+  schedule_params.priority =
+      (finds::features::kNotificationStartTimeMinutes.Get() <
+       kThresholdMinutesForTesting)
+          ? notifications::ScheduleParams::Priority::kNoThrottle
+          : notifications::ScheduleParams::Priority::kLow;
+  schedule_params.deliver_time_start =
+      base::Time::Now() +
+      base::Minutes(finds::features::kNotificationStartTimeMinutes.Get());
+  schedule_params.deliver_time_end =
+      base::Time::Now() +
+      base::Minutes(finds::features::kNotificationStartTimeMinutes.Get()) +
+      base::Minutes(finds::features::kNotificationWindowTimeMinutes.Get());
+  return schedule_params;
+}
+
+notifications::NotificationData GetNotificationData(
+    const SuggestionTheme::SuggestedContent& suggestion) {
+  notifications::NotificationData data;
+  data.title = base::UTF8ToUTF16(suggestion.title());
+  data.message = base::UTF8ToUTF16(suggestion.description());
+  data.buttons.clear();
+  // TODO(crbug.com/483104552): Add buttons and click behaviours when available.
+  return data;
+}
+
 }  // namespace
 
-FindsService::FindsService(OptimizationGuideKeyedService* opt_guide_service,
-                           history::HistoryService* history_service)
+// static
+void FindsService::RegisterProfilePrefs(PrefRegistrySimple* registry) {
+  registry->RegisterInt64Pref(prefs::kFindsModelExecutionLastTimestamp, 0);
+  // TODO(crbug.com/494040435): Add logic to clean out deprecated themes.
+  registry->RegisterDictionaryPref(
+      prefs::kFindsNotInterestedThemesLastTimestamp);
+}
+
+FindsService::FindsService(
+    OptimizationGuideKeyedService* opt_guide_service,
+    history::HistoryService* history_service,
+    PrefService* pref_service,
+    notifications::NotificationScheduleService* notification_schedule_service)
     : opt_guide_service_(opt_guide_service),
-      history_service_(history_service) {}
+      history_service_(history_service),
+      pref_service_(pref_service),
+      notification_schedule_service_(notification_schedule_service) {
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&FindsService::CheckModelCooldownCriteriaAndMaybeExecute,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
 
 FindsService::~FindsService() {
   history_task_tracker_.TryCancelAll();
@@ -64,7 +215,17 @@ void FindsService::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
-void FindsService::GetModelResponse(base::OnceCallback<void(Result)> callback) {
+void FindsService::MarkNotificationShown(PrefService* pref_service) {
+  SetModelExecutionCooldownTimestamp(pref_service);
+}
+
+void FindsService::MarkThemeNotInterested(PrefService* pref_service,
+                                          SuggestionTheme::ThemeType theme) {
+  SetThemeCooldownTimestamp(pref_service, theme);
+}
+
+void FindsService::ExecuteModelAndScheduleNotification(
+    base::OnceCallback<void(Result)> callback) {
   if (!history_service_) {
     std::move(callback).Run({Result::Status::kHistoryServiceUnavailable,
                              "Error: HistoryService not available."});
@@ -86,6 +247,12 @@ void FindsService::GetModelResponse(base::OnceCallback<void(Result)> callback) {
       base::BindOnce(&FindsService::OnHistoryQueryComplete,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback)),
       &history_task_tracker_);
+}
+
+void FindsService::CheckModelCooldownCriteriaAndMaybeExecute() {
+  if (IsModelExecutionCooldownPassed(pref_service_)) {
+    ExecuteModelAndScheduleNotification(base::DoNothing());
+  }
 }
 
 void FindsService::OnHistoryQueryComplete(
@@ -136,14 +303,56 @@ void FindsService::OnModelExecutionComplete(
       optimization_guide::proto::FindsSuggestionResponse>(
       result.response.value());
   if (response) {
+    // TODO(crbug.com/494668777): Add failure case for no themes found.
+    if (response->suggestions().empty()) {
+      std::move(callback).Run({Result::Status::kSuccess, "No themes found."});
+      return;
+    }
+
+    const SuggestionTheme* best_theme =
+        GetHighestScoredThemeIfPossible(pref_service_, response->suggestions());
+    // TODO(crbug.com/494668777): Add case for no non-cooldown themes found.
+    if (!best_theme) {
+      std::move(callback).Run(
+          {Result::Status::kSuccess,
+           "No themes found that passed cooldown criteria."});
+      return;
+    }
+
+    if (best_theme->suggestions().empty()) {
+      std::move(callback).Run({Result::Status::kSuccess,
+                               "No suggestions available for this theme."});
+      return;
+    }
+
+    bool schedule_success = ScheduleNotificationWithModelResult(*best_theme);
     std::move(callback).Run(
         {Result::Status::kSuccess,
-         FindsSuggestionResponseToHumanReadableString(*response)});
+         schedule_success
+             ? FindsSuggestionResponseToHumanReadableString(*response)
+             : "Could not schedule notification."});
   } else {
     std::move(callback).Run(
         {Result::Status::kResponseParsingFailed,
          "Model execution successful, but failed to parse response."});
   }
+}
+
+bool FindsService::ScheduleNotificationWithModelResult(
+    const SuggestionTheme& theme) {
+  if (!notification_schedule_service_) {
+    return false;
+  }
+
+  // Take the first suggestion in the list per theme.
+  const auto& suggestion = theme.suggestions(0);
+  notifications::ScheduleParams scheduler_params = GetCurrentScheduleParams();
+  notifications::NotificationData data = GetNotificationData(suggestion);
+  notification_schedule_service_->Schedule(
+      std::make_unique<notifications::NotificationParams>(
+          notifications::SchedulerClientType::kChromeFinds, std::move(data),
+          std::move(scheduler_params)));
+  return true;
 }
 
 }  // namespace finds

@@ -50,10 +50,9 @@ bool DeviceInfoSyncClientImpl::GetSendTabToSelfReceivingEnabled() const {
 }
 
 // syncer::DeviceInfoSyncClient:
-sync_pb::SyncEnums_SendTabReceivingType
+syncer::DeviceInfo::SendTabReceivingType
 DeviceInfoSyncClientImpl::GetSendTabToSelfReceivingType() const {
-  return sync_pb::
-      SyncEnums_SendTabReceivingType_SEND_TAB_RECEIVING_TYPE_CHROME_OR_UNSPECIFIED;
+  return syncer::DeviceInfo::SendTabReceivingType::kChromeOrUnspecified;
 }
 
 // syncer::DeviceInfoSyncClient:
@@ -99,6 +98,12 @@ bool DeviceInfoSyncClientImpl::IsUmaEnabledOnCrOSDevice() const {
 
 bool DeviceInfoSyncClientImpl::GetDesktopToIOSPromoReceivingEnabled() const {
   return false;
+}
+
+MobilePromoOnDesktopPromoTypeSet
+DeviceInfoSyncClientImpl::GetDesktopToIOSPromoReceivingTypes() const {
+  // This is only required on iOS.
+  return {};
 }
 
 }  // namespace browser_sync

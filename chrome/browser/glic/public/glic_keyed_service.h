@@ -96,13 +96,12 @@ class GlicKeyedService : public KeyedService,
 #endif
 {
  public:
-  explicit GlicKeyedService(
-      Profile* profile,
-      signin::IdentityManager* identity_manager,
-      ProfileManager* profile_manager,
-      GlicProfileManager* glic_profile_manager,
-      contextual_cueing::ContextualCueingService* contextual_cueing_service,
-      actor::ActorKeyedService* actor_keyed_service);
+  explicit GlicKeyedService(Profile* profile,
+                            signin::IdentityManager* identity_manager,
+                            ProfileManager* profile_manager,
+                            GlicProfileManager* glic_profile_manager,
+                            ContextualCueingService* contextual_cueing_service,
+                            actor::ActorKeyedService* actor_keyed_service);
   GlicKeyedService(const GlicKeyedService&) = delete;
   GlicKeyedService& operator=(const GlicKeyedService&) = delete;
   ~GlicKeyedService() override;
@@ -288,7 +287,13 @@ class GlicKeyedService : public KeyedService,
   bool IsActive() override;
 #endif
 
-  void OnUserInputSubmitted(glic::mojom::WebClientMode mode);
+  void OnUserInputSubmitted(glic::mojom::WebClientMode mode)
+// Override is only needed for single instance
+#if !BUILDFLAG(IS_ANDROID)
+      override;
+#else
+      ;
+#endif
 
   // Registers a callback to be called any time user input is submitted in the
   // client. This is used to update UI effects on tabs that are being shared
@@ -300,6 +305,8 @@ class GlicKeyedService : public KeyedService,
   void CaptureRegion(
       tabs::TabInterface* tab,
       mojo::PendingRemote<mojom::CaptureRegionObserver> observer);
+  void DeleteCapturedRegion(tabs::TabInterface* tab,
+                            const base::UnguessableToken& id);
 #endif
 
   // Fetches the image for the context menu item (if possible, and potentially
@@ -427,6 +434,8 @@ class GlicKeyedService : public KeyedService,
                         bool auto_send,
                         std::optional<std::string> conversation_id);
 
+  void InitializeAfterConstruction();
+
   void FinishPreload(GlicPrewarmingChecksResult reason);
 
   // List of callbacks to be notified when the client requests a change to the
@@ -473,8 +482,7 @@ class GlicKeyedService : public KeyedService,
   std::unique_ptr<GlicWebContentsWarmingPool> web_contents_warming_pool_;
 
   // Unowned
-  raw_ptr<contextual_cueing::ContextualCueingService>
-      contextual_cueing_service_;
+  raw_ptr<ContextualCueingService> contextual_cueing_service_;
 
   base::WeakPtrFactory<GlicKeyedService> weak_ptr_factory_{this};
 };

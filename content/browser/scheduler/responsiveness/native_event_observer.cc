@@ -26,7 +26,7 @@
 namespace content {
 namespace responsiveness {
 
-NativeEventObserver::NativeEventObserver(
+BrowserUINativeEventObserver::BrowserUINativeEventObserver(
     WillRunEventCallback will_run_event_callback,
     DidRunEventCallback did_run_event_callback)
     : will_run_event_callback_(will_run_event_callback),
@@ -34,60 +34,66 @@ NativeEventObserver::NativeEventObserver(
   RegisterObserver();
 }
 
-NativeEventObserver::~NativeEventObserver() {
-  DeregisterObserver();
+BrowserUINativeEventObserver::~BrowserUINativeEventObserver() {
+  UnregisterObserver();
 }
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-void NativeEventObserver::RegisterObserver() {
+void BrowserUINativeEventObserver::RegisterObserver() {
   CHECK(ui::PlatformEventSource::GetInstance());
   ui::PlatformEventSource::GetInstance()->AddPlatformEventObserver(this);
 }
 
-void NativeEventObserver::DeregisterObserver() {
+void BrowserUINativeEventObserver::UnregisterObserver() {
   if (ui::PlatformEventSource::GetInstance()) {
     ui::PlatformEventSource::GetInstance()->RemovePlatformEventObserver(this);
   }
 }
 
-void NativeEventObserver::WillProcessEvent(const ui::PlatformEvent& event) {
-  EventInfo info{&event};
+void BrowserUINativeEventObserver::WillProcessEvent(
+    const ui::PlatformEvent& event) {
+  uintptr_t id = reinterpret_cast<uintptr_t>(&event);
+  EventInfo info{id};
   events_being_processed_.push_back(info);
-  will_run_event_callback_.Run(&event);
+  will_run_event_callback_.Run(id);
 }
 
-void NativeEventObserver::DidProcessEvent(const ui::PlatformEvent& event) {
+void BrowserUINativeEventObserver::DidProcessEvent(
+    const ui::PlatformEvent& event) {
   EventInfo& info = events_being_processed_.back();
-  did_run_event_callback_.Run(info.unique_id.get());
+  did_run_event_callback_.Run(info.unique_id);
   events_being_processed_.pop_back();
 }
 
-void NativeEventObserver::PlatformEventSourceDestroying() {
+void BrowserUINativeEventObserver::PlatformEventSourceDestroying() {
   CHECK(ui::PlatformEventSource::GetInstance());
-  DeregisterObserver();
+  UnregisterObserver();
 }
 
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_WIN)
-void NativeEventObserver::RegisterObserver() {
-  base::CurrentUIThread::Get()->AddMessagePumpObserver(this);
+void BrowserUINativeEventObserver::RegisterObserver() {
+  base::CurrentUIThread::Get()->RegisterNativeEventObserver(this);
 }
-void NativeEventObserver::DeregisterObserver() {
-  base::CurrentUIThread::Get()->RemoveMessagePumpObserver(this);
+
+void BrowserUINativeEventObserver::UnregisterObserver() {
+  base::CurrentUIThread::Get()->UnregisterNativeEventObserver(this);
 }
-void NativeEventObserver::WillDispatchMSG(const MSG& msg) {
-  will_run_event_callback_.Run(&msg);
+
+void BrowserUINativeEventObserver::WillRunNativeEvent(uintptr_t identifier) {
+  will_run_event_callback_.Run(identifier);
 }
-void NativeEventObserver::DidDispatchMSG(const MSG& msg) {
-  did_run_event_callback_.Run(&msg);
+
+void BrowserUINativeEventObserver::DidRunNativeEvent(uintptr_t identifier) {
+  did_run_event_callback_.Run(identifier);
 }
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_IOS)
-void NativeEventObserver::RegisterObserver() {}
-void NativeEventObserver::DeregisterObserver() {}
-#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA)
+void BrowserUINativeEventObserver::RegisterObserver() {}
+void BrowserUINativeEventObserver::UnregisterObserver() {}
+#endif
 
 }  // namespace responsiveness
 }  // namespace content

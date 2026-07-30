@@ -8,6 +8,7 @@
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/notimplemented.h"
 #include "base/types/expected.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter.h"
 #include "chrome/browser/ui/webui/webui_toolbar/adapters/navigation_controls_state_fetcher.h"
@@ -67,11 +68,10 @@ void ToolbarUIService::Bind(BindCallback callback) {
 
 void ToolbarUIService::ShowContextMenu(
     toolbar_ui_api::mojom::ContextMenuType menu_type,
-    const gfx::Point& viewport_coordinate_css_pixels,
+    const gfx::RectF& bounds_in_css_pixels,
     ui::mojom::MenuSourceType source) {
   if (delegate_) {
-    delegate_->HandleContextMenu(menu_type, viewport_coordinate_css_pixels,
-                                 source);
+    delegate_->HandleContextMenu(menu_type, bounds_in_css_pixels, source);
   }
 }
 
@@ -79,6 +79,11 @@ void ToolbarUIService::OnPageInitialized() {
   if (delegate_) {
     delegate_->OnPageInitialized();
   }
+}
+
+void ToolbarUIService::ShowContentSettingsBubble(
+    ::content_settings::mojom::ContentSettingsType content_settings_type) {
+  NOTIMPLEMENTED();
 }
 
 }  // namespace toolbar_ui_api

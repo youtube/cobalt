@@ -16,7 +16,6 @@
 #include "base/test/simple_test_tick_clock.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/layout_constants.h"
-#include "chrome/browser/ui/tabs/alert/tab_alert.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/collaboration_messaging_tab_data.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
 #include "chrome/browser/ui/tabs/tab_types.h"
@@ -39,6 +38,7 @@
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
 #include "components/tabs/public/mock_tab_interface.h"
+#include "components/tabs/public/tab_alert.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -571,19 +571,19 @@ TEST_F(TabTest, LayeredThrobber) {
   tabs::TabData data;
   data.visible_url = GURL("http://example.com");
   EXPECT_FALSE(icon->GetShowingLoadingAnimation());
-  EXPECT_EQ(TabNetworkState::kNone, tab->data().network_state);
+  EXPECT_EQ(tabs::TabNetworkState::kNone, tab->data().network_state);
 
   // Simulate a "normal" tab load: should paint to a layer.
-  data.network_state = TabNetworkState::kWaiting;
+  data.network_state = tabs::TabNetworkState::kWaiting;
   tab->SetDataForTesting(data);
   EXPECT_TRUE(tab_slot_controller->CanPaintThrobberToLayer());
   EXPECT_TRUE(icon->GetShowingLoadingAnimation());
   EXPECT_TRUE(icon->layer());
-  data.network_state = TabNetworkState::kLoading;
+  data.network_state = tabs::TabNetworkState::kLoading;
   tab->SetDataForTesting(data);
   EXPECT_TRUE(icon->GetShowingLoadingAnimation());
   EXPECT_TRUE(icon->layer());
-  data.network_state = TabNetworkState::kNone;
+  data.network_state = tabs::TabNetworkState::kNone;
   tab->SetDataForTesting(data);
   EXPECT_FALSE(icon->GetShowingLoadingAnimation());
 
@@ -591,44 +591,44 @@ TEST_F(TabTest, LayeredThrobber) {
   data.should_hide_throbber = true;
   tab->SetDataForTesting(data);
   EXPECT_FALSE(icon->GetShowingLoadingAnimation());
-  data.network_state = TabNetworkState::kWaiting;
+  data.network_state = tabs::TabNetworkState::kWaiting;
   tab->SetDataForTesting(data);
   EXPECT_FALSE(icon->GetShowingLoadingAnimation());
-  data.network_state = TabNetworkState::kLoading;
+  data.network_state = tabs::TabNetworkState::kLoading;
   tab->SetDataForTesting(data);
   EXPECT_FALSE(icon->GetShowingLoadingAnimation());
-  data.network_state = TabNetworkState::kNone;
+  data.network_state = tabs::TabNetworkState::kNone;
   tab->SetDataForTesting(data);
   EXPECT_FALSE(icon->GetShowingLoadingAnimation());
 
   // Simulate a tab that should not hide throbber.
   data.should_hide_throbber = false;
-  data.network_state = TabNetworkState::kWaiting;
+  data.network_state = tabs::TabNetworkState::kWaiting;
   tab->SetDataForTesting(data);
   EXPECT_TRUE(tab_slot_controller->CanPaintThrobberToLayer());
   EXPECT_TRUE(icon->GetShowingLoadingAnimation());
   EXPECT_TRUE(icon->layer());
-  data.network_state = TabNetworkState::kLoading;
+  data.network_state = tabs::TabNetworkState::kLoading;
   tab->SetDataForTesting(data);
   EXPECT_TRUE(icon->GetShowingLoadingAnimation());
   EXPECT_TRUE(icon->layer());
-  data.network_state = TabNetworkState::kNone;
+  data.network_state = tabs::TabNetworkState::kNone;
   tab->SetDataForTesting(data);
   EXPECT_FALSE(icon->GetShowingLoadingAnimation());
 
   // After loading is done, simulate another resource starting to load.
-  data.network_state = TabNetworkState::kWaiting;
+  data.network_state = tabs::TabNetworkState::kWaiting;
   tab->SetDataForTesting(data);
   EXPECT_TRUE(icon->GetShowingLoadingAnimation());
 
   // Reset.
-  data.network_state = TabNetworkState::kNone;
+  data.network_state = tabs::TabNetworkState::kNone;
   tab->SetDataForTesting(data);
   EXPECT_FALSE(icon->GetShowingLoadingAnimation());
 
   // Simulate a drag started and stopped during a load: layer painting stops
   // temporarily.
-  data.network_state = TabNetworkState::kWaiting;
+  data.network_state = tabs::TabNetworkState::kWaiting;
   tab->SetDataForTesting(data);
   EXPECT_TRUE(icon->GetShowingLoadingAnimation());
   EXPECT_TRUE(icon->layer());
@@ -640,18 +640,18 @@ TEST_F(TabTest, LayeredThrobber) {
   tab->StepLoadingAnimation(base::Milliseconds(100));
   EXPECT_TRUE(icon->GetShowingLoadingAnimation());
   EXPECT_TRUE(icon->layer());
-  data.network_state = TabNetworkState::kNone;
+  data.network_state = tabs::TabNetworkState::kNone;
   tab->SetDataForTesting(data);
   EXPECT_FALSE(icon->GetShowingLoadingAnimation());
 
   // Simulate a tab load starting and stopping during tab dragging:
   // no layer painting.
   tab_slot_controller->set_paint_throbber_to_layer(false);
-  data.network_state = TabNetworkState::kWaiting;
+  data.network_state = tabs::TabNetworkState::kWaiting;
   tab->SetDataForTesting(data);
   EXPECT_TRUE(icon->GetShowingLoadingAnimation());
   EXPECT_FALSE(icon->layer());
-  data.network_state = TabNetworkState::kNone;
+  data.network_state = tabs::TabNetworkState::kNone;
   tab->SetDataForTesting(data);
   EXPECT_FALSE(icon->GetShowingLoadingAnimation());
 }

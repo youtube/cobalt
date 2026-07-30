@@ -32,6 +32,7 @@ class BookmarksSidePanelCoordinator;
 class BreadcrumbManagerBrowserAgent;
 class Browser;
 class BrowserActions;
+class BrowserAnimationController;
 class BrowserContentSettingBubbleModelDelegate;
 class BrowserElements;
 class BrowserInstantController;
@@ -296,12 +297,6 @@ class BrowserWindowFeatures {
     return pinned_toolbar_actions_controller_.get();
   }
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-  default_browser::PinInfoBarController* pin_infobar_controller() {
-    return pin_infobar_controller_.get();
-  }
-#endif
-
   // TODO(crbug.com/346158959): For historical reasons, side_panel_ui is an
   // abstract base class that contains some, but not all of the public interface
   // of SidePanelCoordinator. One of the accessors side_panel_ui() or
@@ -528,6 +523,9 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<BookmarkBarController> bookmark_bar_controller_;
 
+  raw_ptr<TabStripModel> tab_strip_model_;
+  std::unique_ptr<TabListBridge> tab_list_bridge_;
+
   std::unique_ptr<BrowserInstantController> instant_controller_;
 
   std::unique_ptr<send_tab_to_self::SendTabToSelfToolbarBubbleController>
@@ -600,8 +598,6 @@ class BrowserWindowFeatures {
   std::unique_ptr<tab_groups::SessionServiceTabGroupSyncObserver>
       session_service_tab_group_sync_observer_;
 
-  raw_ptr<TabStripModel> tab_strip_model_;
-
   std::unique_ptr<AiOverlayDialogController> ai_overlay_dialog_controller_;
 
   std::unique_ptr<ToastService> toast_service_;
@@ -627,6 +623,8 @@ class BrowserWindowFeatures {
   std::unique_ptr<ActorUiWindowController> actor_ui_window_controller_;
 
   std::unique_ptr<ActorBorderViewController> actor_border_view_controller_;
+
+  std::unique_ptr<BrowserAnimationController> browser_animation_controller_;
 
   std::unique_ptr<CallToActionLock> call_to_action_lock_;
 
@@ -726,8 +724,6 @@ class BrowserWindowFeatures {
   std::unique_ptr<FindBarController> find_bar_controller_;
 
   std::unique_ptr<DataSharingBubbleController> data_sharing_bubble_controller_;
-
-  std::unique_ptr<TabListBridge> tab_list_bridge_;
 
   // Note: Depends on TabListBridge, so should come after it in the member list.
   std::unique_ptr<extensions::BrowserExtensionWindowController>

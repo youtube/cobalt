@@ -107,13 +107,20 @@ TelemetrySignalType GetTelemetrySignalType(const std::string& api_name,
           attr_val = args_unsafe[2].GetString();
         }
       }
-    } else if (base::EqualsCaseInsensitiveASCII(tag, "input") ||
-               base::EqualsCaseInsensitiveASCII(tag, "button")) {
+    } else if (base::EqualsCaseInsensitiveASCII(tag, "input")) {
       // [tag, type, formaction]
       if (args_size >= 3) {
         attr_name = "formaction";
         if (args_unsafe[2].is_string()) {
           attr_val = args_unsafe[2].GetString();
+        }
+      }
+    } else if (base::EqualsCaseInsensitiveASCII(tag, "button")) {
+      // [tag, type, formmethod, formaction]
+      if (args_size >= 4) {
+        attr_name = "formaction";
+        if (args_unsafe[3].is_string()) {
+          attr_val = args_unsafe[3].GetString();
         }
       }
     }
@@ -144,6 +151,23 @@ bool IsHighRiskEvent(TelemetrySignalType signal_type) {
   return signal_type != TelemetrySignalType::kNone;
 }
 
+bool IsActivityIncludedInTelemetry(const std::string& api_name,
+                                   ActivityType type) {
+  // DOM access is always included for deeper inspection.
+  if (type == ActivityType::kDomAccess) {
+    return true;
+  }
+
+  // For standard API calls, only include high-risk ones.
+  if (type == ActivityType::kApiCall) {
+    return api_name == "scripting.executeScript";
+  }
+
+  // Web Request activity, API events, and manifest content scripts
+  // are not currently used by telemetry.
+  return false;
+}
+
 std::vector<std::string> GetArgumentsList(const std::string& api_name,
                                           const base::ListValue& args_unsafe) {
   std::vector<std::string> arg_strings;
@@ -165,10 +189,35 @@ std::vector<std::string> GetArgumentsList(const std::string& api_name,
     return arg_strings;
   }
 
-  // Generic Extraction: Copy all string-typed arguments.
+  // Custom Extraction Rule: For scripting.executeScript, we extract file names
+  // or the actual function content.
+  if (api_name == "scripting.executeScript" && args_size >= 1 &&
+      args_unsafe[0].is_dict()) {
+    const base::DictValue& dict = args_unsafe[0].GetDict();
+    if (const base::ListValue* files = dict.FindList("files")) {
+      for (const auto& file : *files) {
+        if (file.is_string()) {
+          arg_strings.push_back(file.GetString());
+        }
+      }
+    }
+    if (const std::string* func = dict.FindString("func")) {
+      constexpr size_t kMaxFuncLength = 1024;
+      if (func->length() > kMaxFuncLength) {
+        arg_strings.push_back(func->substr(0, kMaxFuncLength));
+      } else {
+        arg_strings.push_back(*func);
+      }
+    }
+    return arg_strings;
+  }
+
+  // Generic Extraction: Copy all non-empty string-typed arguments.
   for (const auto& arg : args_unsafe) {
     if (arg.is_string()) {
-      arg_strings.push_back(arg.GetString());
+      if (const std::string& str = arg.GetString(); !str.empty()) {
+        arg_strings.push_back(str);
+      }
     }
   }
 

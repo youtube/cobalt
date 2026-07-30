@@ -39,10 +39,6 @@
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/contextual_cueing/contextual_cueing_features.h"
-#include "chrome/browser/contextual_cueing/contextual_cueing_service.h"
-#include "chrome/browser/contextual_cueing/contextual_cueing_service_factory.h"
-#include "chrome/browser/contextual_cueing/mock_contextual_cueing_service.h"
 #include "chrome/browser/enterprise/browser_management/browser_management_service.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/glic/glic_metrics.h"
@@ -53,6 +49,7 @@
 #include "chrome/browser/glic/host/glic_features.mojom.h"
 #include "chrome/browser/glic/host/glic_page_handler.h"
 #include "chrome/browser/glic/host/glic_region_capture_controller.h"
+#include "chrome/browser/glic/host/glic_skills_manager.h"
 #include "chrome/browser/glic/host/glic_web_contents_warming_pool.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/host/webui_contents_container.h"
@@ -63,6 +60,10 @@
 #include "chrome/browser/glic/service/glic_instance_impl.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_coordinator_metrics.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_helper_metrics.h"
+#include "chrome/browser/glic/suggestions/contextual_cueing_features.h"
+#include "chrome/browser/glic/suggestions/contextual_cueing_service.h"
+#include "chrome/browser/glic/suggestions/contextual_cueing_service_factory.h"
+#include "chrome/browser/glic/suggestions/mock_contextual_cueing_service.h"
 #include "chrome/browser/glic/test_support/glic_api_test.h"
 #include "chrome/browser/glic/test_support/glic_histogram_tester.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
@@ -82,8 +83,10 @@
 #include "chrome/browser/skills/skills_service_factory.h"
 #include "chrome/browser/skills/skills_ui_tab_controller.h"
 #include "chrome/browser/skills/skills_ui_tab_controller_interface.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_navigator.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/common/actor_webui.mojom.h"
@@ -91,6 +94,7 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/test/base/ui_test_utils.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/metrics/metrics_service.h"
@@ -191,7 +195,6 @@ std::vector<std::string> GetTestSuiteNames() {
       "GlicApiTestHibernateOnMemoryUsage",
       "GlicApiTestWithDaisyChain",
       "GlicApiTestWithSkills",
-      "GlicApiTestWithDragAndDrop",
   };
 }
 
@@ -258,7 +261,7 @@ class GlicApiTest : public NonInteractiveGlicApiTest, public WithTestParams {
         /*disabled_features=*/
         {
             features::kGlicWarming,
-            contextual_cueing::kGlicZeroStateSuggestions,
+            kGlicZeroStateSuggestions,
             features::kGlicDaisyChainNewTabs,
         });
     SetUseElementIdentifiers(false);
@@ -269,6 +272,7 @@ class GlicApiTest : public NonInteractiveGlicApiTest, public WithTestParams {
 
     histogram_tester = std::make_unique<GlicHistogramTester>();
     user_action_tester = std::make_unique<base::UserActionTester>();
+    browser()->GetWindow()->Activate();
   }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
@@ -512,7 +516,7 @@ class GlicApiTestWithOneTabAndContextualCueing : public GlicApiTestWithOneTab {
               {features::kGlicMinLoadingTimeMs.name, "40"},
           }},
          {features::kGlicApiActivationGating, {}},
-         {contextual_cueing::kGlicZeroStateSuggestions, {}},
+         {kGlicZeroStateSuggestions, {}},
          {mojom::features::kZeroStateSuggestionsV2, {}}},
         /*disabled_features=*/
         {
@@ -529,16 +533,16 @@ class GlicApiTestWithOneTabAndContextualCueing : public GlicApiTestWithOneTab {
       return;
     }
 #endif
-    mock_cueing_service_ = static_cast<
-        testing::NiceMock<contextual_cueing::MockContextualCueingService>*>(
-        contextual_cueing::ContextualCueingServiceFactory::GetInstance()
-            ->SetTestingFactoryAndUse(
-                browser_context,
-                base::BindRepeating([](content::BrowserContext* context)
-                                        -> std::unique_ptr<KeyedService> {
-                  return std::make_unique<testing::NiceMock<
-                      contextual_cueing::MockContextualCueingService>>();
-                })));
+    mock_cueing_service_ =
+        static_cast<testing::NiceMock<MockContextualCueingService>*>(
+            ContextualCueingServiceFactory::GetInstance()
+                ->SetTestingFactoryAndUse(
+                    browser_context,
+                    base::BindRepeating([](content::BrowserContext* context)
+                                            -> std::unique_ptr<KeyedService> {
+                      return std::make_unique<
+                          testing::NiceMock<MockContextualCueingService>>();
+                    })));
 
     GlicApiTestWithOneTab::SetUpBrowserContextKeyedServices(browser_context);
   }
@@ -548,14 +552,13 @@ class GlicApiTestWithOneTabAndContextualCueing : public GlicApiTestWithOneTab {
     GlicApiTestWithOneTab::TearDownOnMainThread();
   }
 
-  contextual_cueing::MockContextualCueingService* mock_cueing_service() {
+  MockContextualCueingService* mock_cueing_service() {
     return mock_cueing_service_.get();
   }
 
  private:
   base::CallbackListSubscription active_instance_subscription_;
-  raw_ptr<testing::NiceMock<contextual_cueing::MockContextualCueingService>>
-      mock_cueing_service_;
+  raw_ptr<testing::NiceMock<MockContextualCueingService>> mock_cueing_service_;
   base::test::ScopedFeatureList contextual_cueing_features_;
 };
 
@@ -1203,10 +1206,10 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testDialogResponseCallOrder) {
 
   base::test::TestFuture<actor::TaskId> task_created;
   base::CallbackListSubscription subscription =
-      actor_service->AddTaskStateChangedCallback(base::BindLambdaForTesting(
-          [&](actor::TaskId task_id, actor::ActorTask::State state) {
-            if (state == actor::ActorTask::State::kCreated) {
-              task_created.SetValue(task_id);
+      actor_service->AddTaskStateChangedCallback(
+          base::BindLambdaForTesting([&](actor::ActorTask& task) {
+            if (task.GetState() == actor::ActorTask::State::kCreated) {
+              task_created.SetValue(task.id());
             }
           }));
 
@@ -3565,7 +3568,9 @@ class GlicGetHostCapabilityApiTest : public GlicApiTestWithOneTab {
     }
 
     if (GetParam().auto_open_pdf) {
-      enabled_features.push_back({features::kAutoOpenGlicForPdf, {}});
+      enabled_features.push_back(
+          {features::kAutoOpenGlicForPdf,
+           {{"AutoOpenGlicForPdfWithOnboarding", "true"}}});
     }
 
     scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features,
@@ -3930,6 +3935,34 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills, testShowManageSkillsUi) {
   }));
 }
 
+IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills, testShowManageSkillsUiNoWindow) {
+  RunTestSequence(OpenGlicFloatingWindow(GlicInstrumentMode::kHostAndContents));
+
+  Browser* main_browser = browser();
+  CloseMainBrowserWithIncognitoKeepAlive();
+
+  ui_test_utils::WaitForBrowserToClose(main_browser);
+
+  // Track the floating instance so ExecuteJsTest knows where to run.
+  TrackFloatingGlicInstance();
+  ExecuteJsTest();
+
+  tabs::TabInterface* skills_tab = nullptr;
+  ASSERT_TRUE(base::test::RunUntil([&]() -> bool {
+    auto all_bwis = GetAllBrowserWindowInterfaces();
+    for (auto* bwi : all_bwis) {
+      for (auto* tab : TabListInterface::From(bwi)->GetAllTabs()) {
+        if (tab->GetContents()->GetLastCommittedURL().spec().starts_with(
+                chrome::kChromeUISkillsURL)) {
+          skills_tab = tab;
+          return true;
+        }
+      }
+    }
+    return false;
+  }));
+}
+
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills,
                        testSendingContextualSkillsToGlic) {
   SkillsService()->AddSkill(/*source_skill_id=*/"", /*name=*/"user_skill_1",
@@ -3944,81 +3977,24 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills,
   std::vector<mojom::SkillPreviewPtr> skills_batch_1;
   skills_batch_1.push_back(mojom::SkillPreview::New(
       "contextual_skill_id_1", "contextual_skill_1", "contextual_skill_icon_1",
-      mojom::SkillSource::kFirstParty, "contextual_skill_description_1"));
+      mojom::SkillSource::kFirstParty, "contextual_skill_description_1",
+      /*image_url=*/GURL("https://example.com")));
   skills_batch_1.push_back(mojom::SkillPreview::New(
       "contextual_skill_id_2", "contextual_skill_2", "contextual_skill_icon_2",
-      mojom::SkillSource::kFirstParty, "contextual_skill_description_2"));
+      mojom::SkillSource::kFirstParty, "contextual_skill_description_2",
+      /*image_url=*/GURL("https://example.com")));
   GetHost()->NotifyContextualSkillsChanged(std::move(skills_batch_1));
   ContinueJsTest();
 
   std::vector<mojom::SkillPreviewPtr> skills_batch_2;
   skills_batch_2.push_back(mojom::SkillPreview::New(
       "contextual_skill_id_3", "contextual_skill_3", "contextual_skill_icon_3",
-      mojom::SkillSource::kFirstParty, "contextual_skill_description_3"));
+      mojom::SkillSource::kFirstParty, "contextual_skill_description_3",
+      /*image_url=*/GURL("https://example.com")));
   GetHost()->NotifyContextualSkillsChanged(std::move(skills_batch_2));
   ContinueJsTest();
 }
 
-class GlicApiTestWithDragAndDrop : public GlicApiTest {
- public:
-  GlicApiTestWithDragAndDrop() {
-    feature_list_.InitAndEnableFeature(features::kGlicDragAndDropFileUpload);
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-// TODO(crbug.com/488607379): Disabled due to flakiness on multiple builders.
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithDragAndDrop, DISABLED_testDragAndDrop) {
-  RunTestSequence(OpenGlic(GlicInstrumentMode::kHostAndContents));
-
-  ExecuteJsTest();
-
-  Host* glic_host = GetHost();
-  ASSERT_TRUE(glic_host);
-  content::WebContents* guest_contents = glic_host->web_client_contents();
-  ASSERT_TRUE(guest_contents);
-
-  content::DropData drop_data;
-  GURL drop_url = page_url();
-  drop_data.url_infos.emplace_back(drop_url, std::u16string());
-  drop_data.operation = ui::mojom::DragOperation::kCopy;
-  drop_data.document_is_handling_drag = true;
-
-  content::RenderWidgetHost* rwh =
-      glic_host->GetGuestMainFrame()->GetRenderWidgetHost();
-
-  // Filter the data to authorize the renderer.
-  rwh->FilterDropData(&drop_data);
-  drop_data.view_id = rwh->GetRoutingID();
-
-  // Verify that the delegate bridge correctly authorizes the drag.
-  EXPECT_TRUE(guest_contents->GetDelegate()->CanDragEnter(
-      guest_contents, drop_data, blink::kDragOperationCopy));
-
-  guest_contents->Focus();
-
-  // Use the center of the guest view for the drop.
-  gfx::Rect view_bounds = rwh->GetView()->GetViewBounds();
-  gfx::PointF client_pt(view_bounds.width() / 2, view_bounds.height() / 2);
-  gfx::PointF screen_pt =
-      rwh->GetView()->TransformPointToRootCoordSpaceF(client_pt);
-
-  // Simulate the full sequence. Using DragOperationsMask::kDragOperationEvery
-  // matches standard browser behavior.
-  rwh->DragTargetDragEnter(drop_data, client_pt, screen_pt,
-                           blink::kDragOperationEvery, 0, base::DoNothing());
-  rwh->DragTargetDragOver(client_pt, screen_pt, blink::kDragOperationEvery, 0,
-                          base::DoNothing());
-  rwh->DragTargetDrop(drop_data, client_pt, screen_pt, 0, base::DoNothing());
-
-  ContinueJsTest();
-  // Verify that the guest received the drop event with the correct data.
-  EXPECT_EQ(step_data()->GetString(), drop_url.spec());
-
-  ContinueJsTest();
-}
 
 INSTANTIATE_TEST_SUITE_P(
     ,
@@ -4138,10 +4114,6 @@ INSTANTIATE_TEST_SUITE_P(,
                          &WithTestParams::PrintTestVariant);
 INSTANTIATE_TEST_SUITE_P(,
                          GlicApiTestWithSkills,
-                         DefaultTestParamSet(),
-                         &WithTestParams::PrintTestVariant);
-INSTANTIATE_TEST_SUITE_P(,
-                         GlicApiTestWithDragAndDrop,
                          DefaultTestParamSet(),
                          &WithTestParams::PrintTestVariant);
 }  // namespace

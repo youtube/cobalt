@@ -278,6 +278,29 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="DataPack.BusyOpenRetriesFailed" enum="BooleanHit"
+    expires_after="2027-03-19">
+  <owner>grt@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    A .pak file was prevented from being opened because it was in use, and this
+    error persisted for at least 300ms. Recorded once for each attempt to open a
+    .pak file that fails due to FILE_ERROR_IN_USE.
+  </summary>
+</histogram>
+
+<histogram name="DataPack.BusyOpenRetryCount" units="count"
+    expires_after="2027-03-19">
+  <owner>grt@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The number of retries (not counting the initial attempt) required to open a
+    .pak file that could not initially be opened because it was in use. Recorded
+    once for each successfully opened .pak file after an initial
+    FILE_ERROR_IN_USE.
+  </summary>
+</histogram>
+
 <histogram name="DefaultBrowser.InfoBar.TimesShownBeforeAccept" units="count"
     expires_after="2026-08-02">
   <owner>agale@chromium.org</owner>
@@ -415,6 +438,33 @@ chromium-metrics-reviews@google.com.
   <token key="StartPoint">
     <variant name="FromConstructor"
         summary="immediately before the Browser constructor is called"/>
+  </token>
+</histogram>
+
+<histogram
+    name="InitialWebUI.NewWindow{CreationSource}.BrowserWindow.ShowRequestedToFirstPaint"
+    units="ms" expires_after="2026-09-17">
+  <owner>mych@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    Records the duration from the initial show/activation request of a new
+    browser window to its first paint. {CreationSource}
+
+    This metric is used to measure the impact of window show deferral. It is
+    recorded only once per window lifecycle. If multiple windows are shown
+    during startup, e.g. due to session restore, the first window is measured in
+    &quot;InitialWebUI.Startup&quot; and not in this histogram.
+
+    This is only recorded for desktop platforms when the InitialWebUIMetrics is
+    enabled.
+  </summary>
+  <token key="CreationSource">
+    <variant name=".AllSources" summary="Aggregated across all sources"/>
+    <variant name=".BrowserInitiated"
+        summary="Triggered by browser action, e.g. shortcut or menu"/>
+    <variant name=".DragToNewWindow"
+        summary="Triggered by dragging a tab to a new window"/>
+    <variant name=".SessionRestore" summary="Triggered by session restore"/>
   </token>
 </histogram>
 
@@ -597,6 +647,44 @@ chromium-metrics-reviews@google.com.
     presentation of the browser window onto the screen{StartupTemperature}.
 
     This metric is mutually exclusive by scenarios.
+
+    This is only recorded for desktop platforms when the InitialWebUIMetrics
+    feature is enabled.
+  </summary>
+  <token key="Scenario">
+    <variant name="" summary="standard"/>
+    <variant name=".FirstRun" summary="first run"/>
+    <variant name=".SessionRestore"
+        summary="session restored (without showing the Profile Picker)"/>
+  </token>
+  <token key="StartupTemperature">
+    <variant name="" summary=""/>
+    <variant name=".Temperature.ColdStartup"
+        summary=", where startup was cold (mostly hard faults). Only
+                 available on Windows."/>
+    <variant name=".Temperature.Other"
+        summary=", where startup temperature was undetermined"/>
+    <variant name=".Temperature.WarmStartup"
+        summary=", where startup was warm (almost no hard faults). Only
+                 available on Windows."/>
+  </token>
+</histogram>
+
+<histogram
+    name="InitialWebUI.Startup{Scenario}.BrowserWindow.ShowRequestedToFirstPaint{StartupTemperature}"
+    units="ms" expires_after="2026-09-06">
+  <owner>mych@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    Records the duration from the initial show/activation request of the first
+    browser window during {Scenario} startup to its first
+    paint{StartupTemperature}.
+
+    This metric is used to measure the impact of window show deferral. It is
+    recorded only once per browser process. If multiple windows are shown during
+    startup, e.g. due to session restore, only the first window is measured, and
+    all the others are measured in the &quot;InitialWebUI.NewWindow&quot;
+    histogram.
 
     This is only recorded for desktop platforms when the InitialWebUIMetrics
     feature is enabled.
@@ -1048,7 +1136,7 @@ features through Chrome Labs. -->
 
 <histogram
     name="Views.{Process}.NumColorProvidersInitializedDuringOnNativeThemeUpdated"
-    units="providers" expires_after="2026-07-19">
+    units="providers" expires_after="2026-09-20">
   <owner>pkasting@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <owner>skau@chromium.org</owner>
@@ -1113,7 +1201,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.CreatedForUrl" enum="WebUIUrlHashes"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>dpapad@chromium.org</owner>
   <owner>chrome-webui@google.com</owner>
   <summary>URLs for which Chrome creates WebUIControllers.</summary>

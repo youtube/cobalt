@@ -645,23 +645,14 @@ class PathBuilderDelegateImpl : public bssl::SimplePathBuilderDelegate {
         break;
       case ct::CTRequirementsStatus::CT_REQUIREMENTS_MET:
         break;
+      case ct::CTRequirementsStatus::CT_REQUIREMENT_OVERRIDDEN:
+      case ct::CTRequirementsStatus::
+          CT_REQUIREMENT_OVERRIDDEN_APPLIES_ACROSS_NAMES:
       case ct::CTRequirementsStatus::CT_NOT_REQUIRED:
         if (flags_ & CertVerifyProc::VERIFY_SXG_CT_REQUIREMENTS) {
           // CT is not required if the certificate does not chain to a publicly
           // trusted root certificate.
           if (!is_issued_by_known_root) {
-            break;
-          }
-          // For old certificates (issued before 2018-05-01),
-          // CheckCTRequirements() may return CT_NOT_REQUIRED, so we check the
-          // compliance status here.
-          // TODO(crbug.com/40580363): Remove this condition once we require
-          // signing certificates to have CanSignHttpExchanges extension,
-          // because such certificates should be naturally after 2018-05-01.
-          if (delegate_data->ct_policy_compliance ==
-                  net::ct::CTPolicyCompliance::CT_POLICY_COMPLIES_VIA_SCTS ||
-              delegate_data->ct_policy_compliance ==
-                  net::ct::CTPolicyCompliance::CT_POLICY_BUILD_NOT_TIMELY) {
             break;
           }
           // Require CT compliance, by overriding CT_NOT_REQUIRED and treat it
@@ -1532,6 +1523,8 @@ int AssignVerifyResult(
     verify_result->scts = std::move(delegate_data->scts);
     verify_result->policy_compliance = delegate_data->ct_policy_compliance;
     verify_result->ct_requirement_status = delegate_data->ct_requirement_status;
+    base::UmaHistogramEnumeration("Net.CertVerifier.CTRequirementStatus",
+                                  verify_result->ct_requirement_status);
   }
 
   if (IsCertStatusError(verify_result->cert_status)) {

@@ -95,94 +95,6 @@ from blinkpy.web_tests.servers import wptserve
 
 _log = logging.getLogger(__name__)
 
-# Path relative to the build directory.
-CONTENT_SHELL_FONTS_DIR = "test_fonts"
-
-FONT_FILES = [
-    [[CONTENT_SHELL_FONTS_DIR], 'Ahem.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Arimo-Bold.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Arimo-BoldItalic.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Arimo-Italic.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Arimo-Regular.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Cousine-Bold.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Cousine-BoldItalic.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Cousine-Italic.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Cousine-Regular.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'DejaVuSans.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'GardinerModBug.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'GardinerModCat.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Garuda.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Gelasio-Bold.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Gelasio-BoldItalic.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Gelasio-Italic.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Gelasio-Regular.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Lohit-Devanagari.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Lohit-Gurmukhi.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Lohit-Tamil.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'MuktiNarrow.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'NotoColorEmoji.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'NotoSansCJK-VF.otf.ttc', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'NotoSansKhmer-Regular.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'NotoSansSymbols2-Regular.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'NotoSansTibetan-Regular.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Tinos-Bold.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Tinos-BoldItalic.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Tinos-Italic.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'Tinos-Regular.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-ascii.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-basic-bold.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-basic-bolditalic.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-basic-italic.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-basic-regular.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-fallback.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-familyname-bold.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-familyname-funkyA.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-familyname-funkyB.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-familyname-funkyC.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-familyname.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-verify.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-100.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-1479-w1.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-1479-w4.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-1479-w7.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-1479-w9.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-15-w1.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-15-w5.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-200.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-24-w2.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-24-w4.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-2569-w2.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-2569-w5.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-2569-w6.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-2569-w9.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-258-w2.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-258-w5.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-258-w8.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-300.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-3589-w3.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-3589-w5.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-3589-w8.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-3589-w9.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-400.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-47-w4.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-47-w7.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-500.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-600.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-700.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-800.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-900.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-full-w1.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-full-w2.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-full-w3.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-full-w4.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-full-w5.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-full-w6.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-full-w7.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-full-w8.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights-full-w9.ttf', None],
-    [[CONTENT_SHELL_FONTS_DIR], 'csstest-weights.ttf', None],
-]
-
 # This is the fingerprint of wpt's certificate found in
 # `//third_party/wpt_tools/certs/127.0.0.1.pem`. The following line is updated
 # by `//third_party/wpt_tools/update_certs.py`.
@@ -392,10 +304,6 @@ class Port(object):
         self._wpt_server = None
         self.server_process_constructor = server_process.ServerProcess  # This can be overridden for testing.
         self._dump_reader = None
-        # This is a map of the form dir->[all skipped tests in that dir]
-        # It is used to optimize looking up for a test, as it allows a quick look up of the test dir
-        # while still using the "startwith" function to match with a single entry
-        self._skip_base_test_map = defaultdict(list)
 
         # Configuration and target are always set by PortFactory so this is only
         # relevant in cases where a Port is created without it (testing mostly).
@@ -1666,13 +1574,6 @@ class Port(object):
                 return wpt_dir, test[len(f'{wpt_dir}/'):]
         return None, test
 
-    def is_wpt_file(self, path):
-        """Returns whether a path is a WPT test file."""
-
-        if self.WPT_REGEX.match(path):
-            return self._filesystem.isfile(self.abspath_for_test(path))
-        return False
-
     def get_wpt_type(self, test_name: str) -> Optional[str]:
         """Returns the test type of a web platform test."""
 
@@ -1972,8 +1873,7 @@ class Port(object):
                 or self.skipped_in_never_fix_tests(test)
                 or self.virtual_test_skipped_due_to_platform_config(test)
                 or self.virtual_test_skipped_due_to_disabled(test)
-                or self.skipped_due_to_exclusive_virtual_tests(test)
-                or self.skipped_due_to_skip_base_tests(test))
+                or self.skipped_due_to_exclusive_virtual_tests(test))
 
     @memoized
     def tests_from_file(self, filename: str) -> Set[str]:
@@ -2153,30 +2053,6 @@ class Port(object):
             wpt_dir: exclusive_tests_by_root[None, wpt_dir]
             for wpt_dir in (None, *self.wpt_dirs())
         }
-
-    @memoized
-    def skipped_due_to_skip_base_tests(self, test):
-        """Checks if the test should be skipped due to the skip_base_test rule
-        of any virtual suite.
-
-        If the test is not a virtual test, it will be skipped if it's in the
-        skip_base_test list of any virtual suite. If the test is a virtual
-        test, it will not be skipped.
-        """
-        # This check doesn't apply to virtual tests
-        if self.lookup_virtual_test_base(test):
-            return False
-
-        # Ensure that this was called at least once, to process all suites
-        # information
-        vts = self.virtual_test_suites()
-        # Our approach of using a map keyed on paths will only work if the test name is not a directory.
-        assert (not self._filesystem.isdir(test))
-        dirname, _ = self.split_test(test)
-        for skipped_base_test in self._skip_base_test_map.get(dirname, []):
-            if test.startswith(skipped_base_test):
-                return True
-        return False
 
     def name(self):
         """Returns a name that uniquely identifies this particular type of port.
@@ -3003,19 +2879,6 @@ class Port(object):
                         '{} contains entries with the same prefix: {!r}. Please combine them'
                         .format(path_to_virtual_test_suites, json_config))
                 virtual_test_suites.append(vts)
-                if self.operating_system() in vts.platforms:
-                    for entry in vts.skip_base_tests:
-                        normalized_base = self.normalize_test_name(entry)
-                        # Wpt js file can expand to multiple tests. Remove the "js"
-                        # suffix so that the startswith test can pass. This could
-                        # be inaccurate but is computationally cheap.
-                        if (self.is_wpt_test(normalized_base)
-                                and normalized_base.endswith(".js")):
-                            normalized_base = normalized_base[:-2]
-                        # Update _skip_base_test_map with tests from the current suite's list
-                        test_dir, _ = self.split_test(normalized_base)
-                        self._skip_base_test_map[test_dir].append(
-                            normalized_base)
 
         except ValueError as error:
             raise ValueError('{} is not a valid JSON file: {}'.format(
@@ -3110,32 +2973,6 @@ class Port(object):
             pass
         return True
 
-    def _get_font_files(self):
-        """Returns list of font files that should be used by the test."""
-        # TODO(sergeyu): Currently FONT_FILES is valid only on Linux. Make it
-        # usable on other platforms if necessary.
-        result = []
-        for (font_dirs, font_file, package) in FONT_FILES:
-            exists = False
-            for font_dir in font_dirs:
-                font_path = self._filesystem.join(font_dir, font_file)
-                if not self._filesystem.isabs(font_path):
-                    font_path = self.build_path(font_path)
-                if self._check_file_exists(font_path, '', more_logging=False):
-                    result.append(font_path)
-                    exists = True
-                    break
-            if not exists:
-                message = 'You are missing %s under %s.' % (font_file,
-                                                            font_dirs)
-                if package:
-                    message += ' Try installing %s. See build instructions.' % package
-
-                _log.error(message)
-                raise TestRunException(exit_codes.SYS_DEPS_EXIT_STATUS,
-                                       message)
-        return result
-
 
 class VirtualTestSuite(object):
     def __init__(self,
@@ -3143,7 +2980,6 @@ class VirtualTestSuite(object):
                  platforms=None,
                  bases=None,
                  exclusive_tests=None,
-                 skip_base_tests=None,
                  args=None,
                  owners=None,
                  expires=None,
@@ -3161,17 +2997,11 @@ class VirtualTestSuite(object):
             exclusive_tests = []
         assert isinstance(exclusive_tests, list)
 
-        if skip_base_tests == "ALL":
-            skip_base_tests = bases
-        elif skip_base_tests is None:
-            skip_base_tests = []
-        assert isinstance(skip_base_tests, list)
         self.prefix = prefix
         self.full_prefix = 'virtual/' + prefix + '/'
         self.platforms = [x.lower() for x in platforms]
         self.bases = bases
         self.exclusive_tests = exclusive_tests
-        self.skip_base_tests = skip_base_tests
         self.expires = expires
         self.disabled = disabled
         self.args = sorted(args)

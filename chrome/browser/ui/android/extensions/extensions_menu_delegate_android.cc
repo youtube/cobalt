@@ -98,7 +98,9 @@ ExtensionsMenuDelegateAndroid::GetMenuEntry(JNIEnv* env, int action_index) {
 
   return Java_MenuEntryState_Constructor(
       env, id, CreateJavaControlState(env, state.action_button),
-      CreateJavaControlState(env, state.context_menu_button));
+      CreateJavaControlState(env, state.context_menu_button),
+      CreateJavaControlState(env, state.site_access_toggle),
+      CreateJavaControlState(env, state.site_permissions_button));
 }
 
 int ExtensionsMenuDelegateAndroid::GetOptionalSection(JNIEnv* env) {
@@ -267,7 +269,11 @@ void ExtensionsMenuDelegateAndroid::OnDismissExtensionClicked(
 void ExtensionsMenuDelegateAndroid::OnExtensionToggleSelected(
     const extensions::ExtensionId& extension_id,
     bool is_on) {
-  // TODO(crbug.com/473213115)
+  if (is_on) {
+    menu_model_->GrantSiteAccess(extension_id);
+  } else {
+    menu_model_->RevokeSiteAccess(extension_id);
+  }
 }
 
 void ExtensionsMenuDelegateAndroid::OnShowRequestsTogglePressed(
@@ -291,7 +297,11 @@ void ExtensionsMenuDelegateAndroid::OnSiteSettingsToggleButtonPressed(
 }
 
 void ExtensionsMenuDelegateAndroid::OnReloadPageButtonClicked() {
-  // TODO(crbug.com/473213115)
+  menu_model_->ReloadWebContents();
+}
+
+void ExtensionsMenuDelegateAndroid::OnReloadPageButtonClicked(JNIEnv* env) {
+  OnReloadPageButtonClicked();
 }
 
 void ExtensionsMenuDelegateAndroid::OpenMainPage() {

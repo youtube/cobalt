@@ -21,6 +21,14 @@
 #define JNI_ZERO_ENABLE_COMPAT_API 0
 #endif
 
+// Forward declaration of template class that contains @CalledByNative methods.
+// Must live in a custom / unique namespace to ensure it doesn't collide with
+// namespaces used from @JniType strings.
+namespace jni_zero_internal {
+template <typename T>
+class _CalledByNatives;
+}
+
 namespace jni_zero {
 
 namespace internal {
@@ -58,18 +66,11 @@ concept IsJavaRef =
     std::is_base_of_v<jni_zero::JavaRef<jobject>, std::remove_cvref_t<T>>;
 
 namespace internal {
-// Create an instance of JavaRef<T> without DCHECK'ing that it is a local ref.
-// Should only be used by the JNI Zero code generator.
-template <typename T>
-JavaRef<T> AsJavaRef(const T& obj);
-
-// Forward declaration of template class that contains @CalledByNative methods.
-template <typename T>
-class _CalledByNatives;
 
 // Concept to check if the _CalledByNatives<T> specialization is defined.
 template <typename T>
-concept HasCalledByNatives = requires { sizeof(_CalledByNatives<T>); };
+concept HasCalledByNatives =
+    requires { sizeof(jni_zero_internal::_CalledByNatives<T>); };
 }  // namespace internal
 
 // Template specialization of JavaRef, which acts as the base class for all
@@ -134,10 +135,6 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT JavaRef<jobject> {
  protected:
 #endif
 
-  // Alternative constructor that does not DCHECK that it is a local ref.
-  // Should only be used by the JNI Zero code generator.
-  explicit JavaRef(jobject obj) : obj_(obj) {}
-
   // Used for move semantics. obj_ must have been released first if non-null.
   void steal(JavaRef&& other) {
     obj_ = other.obj_;
@@ -183,12 +180,13 @@ class JavaRef : public JavaRef<jobject> {
   T obj() const { return static_cast<T>(JavaRef<jobject>::obj()); }
 
   // Define this only when the _jni.h header has been #included.
-  const internal::_CalledByNatives<T>* operator->() const
+  const jni_zero_internal::_CalledByNatives<T>* operator->() const
     requires internal::HasCalledByNatives<T>
   {
     // CalledByNatives does the reverse reinterpret_cast<>.
     // This approach optimizes better than passing |this| as a parameter.
-    return reinterpret_cast<const internal::_CalledByNatives<T>*>(this);
+    return reinterpret_cast<const jni_zero_internal::_CalledByNatives<T>*>(
+        this);
   }
 
   // Get a JavaObjectArrayReader for the array pointed to by this reference.
@@ -212,14 +210,6 @@ class JavaRef : public JavaRef<jobject> {
  protected:
 #endif
   JavaRef(JNIEnv* env, T obj) : JavaRef<jobject>(env, obj) {}
-
- private:
-  // Alternative constructor that does not DCHECK that it is a local ref.
-  // Should only be used by the JNI Zero code generator.
-  explicit JavaRef(T obj) : JavaRef<jobject>(obj) {}
-
-  template <typename U>
-  friend JavaRef<U> jni_zero::internal::AsJavaRef(const U& obj);
 };
 
 // Holds a local reference to a Java object. The local reference is scoped

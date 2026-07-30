@@ -56,7 +56,13 @@ public class SnackbarSwipeTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mParent = mActivity.findViewById(android.R.id.content);
-                    mManager = new SnackbarManager(mActivity, mParent, null);
+                    mManager =
+                            new SnackbarManager(
+                                    mActivity,
+                                    mParent,
+                                    /* windowAndroid= */ null,
+                                    /* edgeToEdgeControllerSupplier= */ null,
+                                    /* modalDialogManager= */ null);
                     SnackbarManager.setDurationForTesting(10000);
                 });
     }
@@ -65,7 +71,7 @@ public class SnackbarSwipeTest {
     public void tearDown() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mManager.dismissAllSnackbars();
+                    mManager.destroy();
                     SnackbarManager.resetDurationForTesting();
                 });
     }

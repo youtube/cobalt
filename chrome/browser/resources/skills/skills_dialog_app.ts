@@ -14,6 +14,7 @@ import 'chrome://resources/cr_elements/cr_loading_gradient/cr_loading_gradient.j
 import 'chrome://resources/cr_elements/icons.html.js';
 import './error_page.js';
 import './icons.html.js';
+import './skills_emoji_picker.js';
 
 import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
 import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
@@ -37,6 +38,11 @@ export const MAX_NAME_CHAR_COUNT =
     loadTimeData.getInteger('MAX_NAME_CHAR_COUNT');
 export const MAX_PROMPT_CHAR_COUNT =
     loadTimeData.getInteger('MAX_PROMPT_CHAR_COUNT');
+
+// The amount of pixels the user can be from the very bottom of the skills
+// dialog before the gradient is removed.
+export const BOTTOM_SCROLL_OFFSET_PX = 5;
+
 const REFINE_SKILL_TIMEOUT_MS = 5000;
 
 let windowProxyInstance: WindowProxy|null = null;
@@ -115,6 +121,7 @@ export class SkillsDialogAppElement extends CrLitElement {
       hasSaveError_: {type: Boolean},
       hasNameCharLimitError_: {type: Boolean},
       isAddDialog_: {type: Boolean},
+      showEmojiPicker_: {type: Boolean},
     };
   }
 
@@ -123,16 +130,20 @@ export class SkillsDialogAppElement extends CrLitElement {
     id: '',
     sourceSkillId: '',
     name: '',
-    icon: DEFAULT_EMOJI,
+    icon: '',
     prompt: '',
     // Default to user created since these are added by the user via the UI.
     source: SkillSource.kUserCreated,
     description: '',
+    imageUrl: '',
     creationTime: {internalValue: 0n},
     lastUpdateTime: {internalValue: 0n},
   };
 
   protected accessor dialogTitle_: string = '';
+  protected accessor hasSaveError_: boolean = false;
+  protected accessor hasNameCharLimitError_: boolean = false;
+  protected accessor showEmojiPicker_: boolean = false;
   protected accessor canUndoRefine_: boolean = false;
   protected accessor canRedoRefine_: boolean = false;
   protected accessor shouldShowErrorPage_: boolean =
@@ -141,8 +152,6 @@ export class SkillsDialogAppElement extends CrLitElement {
   protected accessor promptError_: PromptError = PromptError.NONE;
   protected accessor isRefineLoading_: boolean = false;
   protected accessor isAutoGenerationLoading_: boolean = false;
-  protected accessor hasSaveError_: boolean = false;
-  protected accessor hasNameCharLimitError_: boolean = false;
   protected accessor isAddDialog_: boolean = true;
 
   private originalPrompt_: string = '';
@@ -222,6 +231,10 @@ export class SkillsDialogAppElement extends CrLitElement {
     }
   }
 
+  override firstUpdated() {
+    this.attachTextareaResizeObserver_();
+  }
+
   override updated(changedProperties: PropertyValues) {
     super.updated(changedProperties as PropertyValues<this>);
 
@@ -264,10 +277,17 @@ export class SkillsDialogAppElement extends CrLitElement {
   }
 
   private checkTextareaOverflow_() {
+    // During a loading state, the textarea is removed from the DOM.
+    if (this.isRefineLoading_) {
+      return;
+    }
     const textarea = this.instructionsTextarea_;
     const hasScrollbar = textarea.scrollHeight > textarea.clientHeight;
+    // Add a small offset so the user doesn't have to scroll to the absolute
+    // bottom
     const isScrolledToBottom =
-        textarea.scrollTop + textarea.clientHeight >= textarea.scrollHeight;
+        textarea.scrollTop + textarea.clientHeight + BOTTOM_SCROLL_OFFSET_PX >=
+        textarea.scrollHeight;
     textarea.classList.toggle(
         'has-overflow', hasScrollbar && !isScrolledToBottom);
   }
@@ -279,31 +299,40 @@ export class SkillsDialogAppElement extends CrLitElement {
     return el;
   }
 
-  protected onEmojiBtnClick_(e: Event) {
-    const input = e.target as HTMLInputElement;
-
-    input.focus();
-    input.select();
-
-    SkillsDialogBrowserProxy.getInstance().handler.showEmojiPicker();
+  protected onEmojiBtnClick_() {
+    this.showEmojiPicker_ = !this.showEmojiPicker_;
   }
 
-  protected onEmojiKeydown_(e: KeyboardEvent) {
-    if (e.key === 'Tab') {
-      return;
-    }
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      this.onEmojiBtnClick_(e);
-      return;
-    }
-    // Block everything else (a-z, 1-9, symbols).
-    // This stops the user from manually typing, making it feel "read-only".
-    e.preventDefault();
+  protected onEmojiSelected_(event: CustomEvent<{emoji: string}>) {
+    this.skill_ = {...this.skill_, icon: event.detail.emoji};
+    this.showEmojiPicker_ = false;
+    this.$.emojiTrigger.focus();
   }
 
-  protected onEmojiInput_(e: Event) {
-    const input = e.target as HTMLInputElement;
+  protected onEmojiPickerClose_() {
+    this.showEmojiPicker_ = false;
+    this.$.emojiTrigger.focus();
+  }
+
+  protected onEmojiKeydown_(event: KeyboardEvent) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.onEmojiBtnClick_();
+      return;
+    }
+  }
+
+  protected onKeydown_(event: KeyboardEvent) {
+    if (event.key === 'Escape' && this.showEmojiPicker_) {
+      this.onEmojiPickerClose_();
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+  }
+
+  protected onEmojiInput_(event: Event) {
+    const input = event.target as HTMLInputElement;
     const rawValue = input.value;
 
     if (!rawValue) {

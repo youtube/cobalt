@@ -40,6 +40,7 @@
 #include "extensions/browser/api/web_request/extension_web_request_event_router.h"
 #include "extensions/browser/event_router.h"
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
+#include "extensions/common/extension_features.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/install_default_websocket_handlers.h"
@@ -583,7 +584,7 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsBasic) {
   content::RenderFrameHost* app_frame = OpenApp(url_info.app_id());
   ASSERT_TRUE(SetUseMangledJs(app_frame));
 
-  ASSERT_THAT(EvalJs(app_frame, R"(
+  ASSERT_TRUE(content::ExecJs(app_frame, R"(
     new Promise((resolve, reject) => {
       const frame = document.savedCreateElement('controlledframe');
       frame.src = 'data:text/html,<body>Guest</body>';
@@ -591,8 +592,7 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsBasic) {
       frame.savedAddEventListener('loadstop', resolve);
       document.body.savedAppendChild(frame);
     });
-  )"),
-              content::EvalJsResult::IsOk());
+  )"));
 }
 
 IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsSetOnEventProperty) {
@@ -601,12 +601,11 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsSetOnEventProperty) {
   content::RenderFrameHost* app_frame = OpenApp(url_info.app_id());
   ASSERT_TRUE(SetUseMangledJs(app_frame));
 
-  ASSERT_THAT(EvalJs(app_frame, R"(
+  ASSERT_TRUE(content::ExecJs(app_frame, R"(
     const frame = document.savedCreateElement('controlledframe');
     frame.onloadstop = () => {};
     frame.onloadstop = () => {};
-  )"),
-              content::EvalJsResult::IsOk());
+  )"));
 }
 
 IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsGetSetAttributes) {
@@ -655,7 +654,7 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsBackForward) {
   content::RenderFrameHost* app_frame = OpenApp(url_info.app_id());
   ASSERT_TRUE(SetUseMangledJs(app_frame));
 
-  ASSERT_THAT(EvalJs(app_frame, R"(
+  ASSERT_TRUE(content::ExecJs(app_frame, R"(
     new Promise((resolve, reject) => {
       const frame = new HTMLControlledFrameElement();
       // The back and forward methods are implemented in terms of go. Make sure
@@ -665,8 +664,7 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsBackForward) {
       frame.forward();
       resolve();
     });
-  )"),
-              content::EvalJsResult::IsOk());
+  )"));
 }
 
 IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsFocus) {
@@ -675,7 +673,7 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsFocus) {
   content::RenderFrameHost* app_frame = OpenApp(url_info.app_id());
   ASSERT_TRUE(SetUseMangledJs(app_frame));
 
-  ASSERT_THAT(EvalJs(app_frame, R"(
+  ASSERT_TRUE(content::ExecJs(app_frame, R"(
     new Promise((resolve, reject) => {
       const frame = document.savedCreateElement('controlledframe');
       frame.src = 'data:text/html,<body>Guest</body>';
@@ -686,8 +684,7 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsFocus) {
       });
       document.body.savedAppendChild(frame);
     });
-  )"),
-              content::EvalJsResult::IsOk());
+  )"));
 }
 
 IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsWebRequest) {
@@ -697,7 +694,7 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsWebRequest) {
   ASSERT_TRUE(SetUseMangledJs(app_frame));
 
   GURL url = embedded_https_test_server().GetURL("/index.html");
-  ASSERT_THAT(EvalJs(app_frame, content::JsReplace(R"(
+  ASSERT_TRUE(content::ExecJs(app_frame, content::JsReplace(R"(
     new Promise((resolve, reject) => {
       const frame = document.savedCreateElement('controlledframe');
       frame.src = $1;
@@ -714,8 +711,7 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsWebRequest) {
       document.body.savedAppendChild(frame);
     });
   )",
-                                                   url)),
-              content::EvalJsResult::IsOk());
+                                                            url)));
 }
 
 IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, LogMessage_Partition) {
@@ -790,6 +786,109 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, Histograms) {
   histogram_tester.ExpectBucketCount(
       "Blink.UseCounter.Features",
       blink::mojom::WebFeature::kHTMLControlledFrameElement, 1);
+}
+
+// This test verifies that various types of network requests (defined in
+// chrome/test/data/webview/request_interception_coverage_guest.js) are
+// correctly intercepted by the extensions::WebRequestAPI. The same test logic
+// is executed across four different environments:
+// 1. Normal extension with WebRequest API permissions
+// 2. WebView embedded in an Extension
+// 3. WebView embedded in a WebUI
+// 4. Controlled Frame in an Isolated Web App  <<This test>>
+class ControlledFrameApiInterceptionCoverageTest
+    : public ControlledFrameApiTest,
+      public testing::WithParamInterface<testing::tuple<bool, bool>> {
+ public:
+  ControlledFrameApiInterceptionCoverageTest() {
+    scoped_feature_list_.InitWithFeatureStates(
+        {{extensions_features::kOptimizeWebRequestProxy,
+          testing::get<0>(GetParam())},
+         {extensions_features::kForceWebRequestProxyForTest,
+          testing::get<1>(GetParam())}});
+  }
+  ~ControlledFrameApiInterceptionCoverageTest() override = default;
+
+  void SetUpOnMainThread() override {
+    ControlledFrameApiTest::SetUpOnMainThread();
+    websocket_test_server_.AddDefaultHandlers(GetChromeTestDataDir());
+    net::test_server::InstallDefaultWebSocketHandlers(&websocket_test_server_);
+    ASSERT_TRUE(websocket_test_server_.Start());
+  }
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    ControlledFrameApiTest::SetUpCommandLine(command_line);
+    webtransport_server_.SetUpCommandLine(command_line);
+    webtransport_server_.Start();
+  }
+  net::EmbeddedTestServer& websocket_test_server() {
+    return websocket_test_server_;
+  }
+  content::WebTransportSimpleTestServer& webtransport_server() {
+    return webtransport_server_;
+  }
+
+  static std::string DescribeParams(
+      const testing::TestParamInfo<ParamType>& info) {
+    const auto [optimization, force] = info.param;
+    return base::StrCat({"Optimization", optimization ? "Enabled" : "Disabled",
+                         "ForceProxy", force ? "Enabled" : "Disabled"});
+  }
+
+ private:
+  net::EmbeddedTestServer websocket_test_server_{
+      net::EmbeddedTestServer::Type::TYPE_HTTP};
+  content::WebTransportSimpleTestServer webtransport_server_;
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    /* no prefix */,
+    ControlledFrameApiInterceptionCoverageTest,
+    testing::Combine(testing::Bool(), testing::Bool()),
+    ControlledFrameApiInterceptionCoverageTest::DescribeParams);
+
+IN_PROC_BROWSER_TEST_P(ControlledFrameApiInterceptionCoverageTest,
+                       RequestInterceptionCoverage) {
+  web_app::IsolatedWebAppUrlInfo url_info =
+      CreateAndInstallEmptyApp(web_app::ManifestBuilder());
+  content::RenderFrameHost* app_frame = OpenApp(url_info.app_id());
+
+  std::string test_script_contents;
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(base::ReadFileToString(
+        net::EmbeddedTestServer::GetFullPathFromSourceDirectory(
+            base::FilePath::FromASCII(
+                "chrome/test/data/webview/request_interception_coverage.js")),
+        &test_script_contents));
+  }
+
+  ASSERT_TRUE(ExecJs(app_frame, test_script_contents));
+  EXPECT_EQ(content::EvalJs(app_frame,
+                            content::JsReplace(
+                                R"(
+    (async () => {
+      const expectedFailures = [
+        {title: 'Service Worker script', event: 'onBeforeRequest'},
+        {title: 'Fetch from Shared Worker', event: 'onBeforeRequest'},
+        {title: 'Fetch from Service Worker', event: 'onBeforeRequest'},
+        {title: 'WebSocket in Shared Worker', event: 'onBeforeRequest'},
+        {title: 'WebSocket in Service Worker', event: 'onBeforeRequest'},
+        {title: 'WebTransport in Shared Worker', event: 'onBeforeRequest'},
+        {title: 'WebTransport in Service Worker', event: 'onBeforeRequest'},
+      ];
+      const result = await run_tests(
+          'controlledframe', $1, $2, $3, expectedFailures.map(f => f.title));
+      const expectedResult =
+          expectedFailures.map(f => f.title + ': not observed by ' + f.event)
+              .join('\n');
+      return result === expectedResult ? 'OK' : 'Unexpected result ' + result;
+    })()
+      )",
+                                embedded_https_test_server().base_url(),
+                                websocket_test_server().port(),
+                                webtransport_server().server_address().port())),
+            "OK");
 }
 
 class ControlledFrameWebSocketApiTest : public ControlledFrameApiTest {

@@ -338,10 +338,7 @@ bool GPUCanvasContext::PushFrame() {
   if (!canvas_resource)
     return false;
 
-  const int width = canvas_resource->Size().width();
-  const int height = canvas_resource->Size().height();
-  return Host()->PushFrame(std::move(canvas_resource),
-                           SkIRect::MakeWH(width, height));
+  return Host()->PushFrame(std::move(canvas_resource), std::nullopt);
 }
 
 ImageBitmap* GPUCanvasContext::TransferToImageBitmap(
@@ -919,7 +916,8 @@ bool GPUCanvasContext::CopyTextureToResourceProvider(
   }
 
   gpu::SyncToken sync_token;
-  auto dst_client_si = resource_provider->BeginExternalWrite(sync_token);
+  auto dst_client_si =
+      resource_provider->BeginExternalWrite(sync_token, /*is_overwrite=*/true);
   if (!dst_client_si) {
     return false;
   }

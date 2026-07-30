@@ -494,6 +494,10 @@ bool BrowserAccessibilityAndroid::IsTableHeader() const {
   return ui::IsTableHeader(GetRole());
 }
 
+bool BrowserAccessibilityAndroid::IsTextSelectable() const {
+  return IsText() || IsAndroidTextView();
+}
+
 bool BrowserAccessibilityAndroid::IsVisibleToUser() const {
   return !IsInvisibleOrIgnored();
 }
@@ -736,6 +740,12 @@ const char* BrowserAccessibilityAndroid::GetClassName() const {
   return ui::AXRoleToAndroidClassName(role, PlatformGetParent() != nullptr);
 }
 
+bool BrowserAccessibilityAndroid::CanSetExtendedSelection() const {
+  // Extended selection is currently only supported for text and editable nodes.
+  // TODO(crbug.com/488168548): Cover all node types.
+  return IsTextSelectable() || IsTextField();
+}
+
 bool BrowserAccessibilityAndroid::IsAndroidTextView() const {
   return ui::IsAndroidTextViewCandidate(GetRole()) && HasOnlyTextChildren();
 }
@@ -966,6 +976,12 @@ void BrowserAccessibilityAndroid::AppendSubtreeTextRecursive(
 
   AndroidNameTo name_to = ComputeAndroidNameTo();
   if (name_to == AndroidNameTo::kText && !is_non_atomic_text_field) {
+    // Skip this mapping for a range control with value (text). The value is not
+    // visually rendered, and should be mapped to state description instead.
+    if (GetData().IsRangeValueSupported() &&
+        HasStringAttribute(ax::mojom::StringAttribute::kValue)) {
+      return;
+    }
     text = GetNameAsString16();
   }
 
@@ -1145,6 +1161,10 @@ std::u16string BrowserAccessibilityAndroid::GetAndroidStateDescription() const {
   if (GetData().IsRangeValueSupported()) {
     std::u16string value =
         GetString16Attribute(ax::mojom::StringAttribute::kValue);
+    if (value.empty() && GetRole() == ax::mojom::Role::kProgressIndicator &&
+        !HasFloatAttribute(ax::mojom::FloatAttribute::kValueForRange)) {
+      state_descs.push_back(GetLocalizedString(IDS_AX_INDETERMINATE_VALUE));
+    }
     if (!value.empty()) {
       state_descs.push_back(value);
     }

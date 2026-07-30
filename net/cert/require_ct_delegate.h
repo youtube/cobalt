@@ -32,6 +32,11 @@ class NET_EXPORT RequireCTDelegate
     // The host is explicitly not required to supply Certificate
     // Transparency information that complies with the CT policy.
     NOT_REQUIRED,
+
+    // The cert is not required to supply Certificate Transparency information
+    // that complies with CT policy, and this applies to all Subject
+    // Alternative Names in the cert.
+    NOT_REQUIRED_APPLIES_ACROSS_NAMES,
   };
 
   // Called by the TransportSecurityState, allows the Delegate to override
@@ -55,7 +60,7 @@ class NET_EXPORT RequireCTDelegate
   // |public_key_hashes| must be in the same order as the certificate chain
   // (leaf to root).
   //
-  // If |delegate| is null, CT will not be required.
+  // If |delegate| is non-null, it can override whether CT will be required.
   static ct::CTRequirementsStatus CheckCTRequirements(
       const RequireCTDelegate* delegate,
       std::string_view host,

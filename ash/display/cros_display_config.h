@@ -7,22 +7,293 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "ash/ash_export.h"
 #include "base/observer_list_types.h"
-#include "chromeos/crosapi/mojom/cros_display_config.mojom.h"
+#include "base/types/optional_ref.h"
+#include "ui/display/display_layout.h"
+#include "ui/display/manager/managed_display_info.h"
+#include "ui/display/manager/touch_device_manager.h"
+#include "ui/gfx/geometry/insets.h"
+#include "ui/gfx/geometry/point.h"
+#include "ui/gfx/geometry/rect.h"
 
 namespace ash {
 
 class OverscanCalibrator;
 class TouchCalibratorController;
 
+// All points, bounds, and insets are in display pixels unless otherwise
+// specified.
+
+// Describes an overscan or touch calibration operation.
+enum class DisplayCalibrationOperation {
+  // Start a calibration procedure.
+  kStart,
+  // Adjusts the current overscan insets for a display.
+  kAdjust,
+  // Resets the overscan insets for a display to the last saved value.
+  kReset,
+  // Finish calibration procedure. Save current values and hide the overlay.
+  kComplete,
+  // Displays the native touch calibration.
+  kShowNative,
+  // Displays the native touch screen mapping experience which goes through each
+  // connected external display and allows you to map the touch device to the
+  // corresponding display.
+  kShowNativeMappingDisplays,
+};
+
+// Describes who initiated configuration change.
+enum class DisplayConfigSource {
+  // Display configuration change was requested by the user.
+  kUser,
+  // Display configuration change was requested by the policy.
+  // Don't show notifications to confirm/revert the change.
+  kPolicy
+};
+
+// Describes the options the DisplayConfigProperties::rotation and
+// DisplayUnitInfo::rotation_options can be set to.
+enum class DisplayRotationOptions {
+  // In physical tablet state, enables auto-rotation and clears the user
+  // rotation lock. Otherwise, it behaves the same as kZeroDegrees.
+  kAutoRotate,
+  // In physical tablet state, Sets the user rotation lock to 0 degrees.
+  // Otherwise, it sets the display rotation to 0.
+  kZeroDegrees,
+  // In physical tablet state, Sets the user rotation lock to 90 degrees.
+  // Otherwise, it sets the display rotation 90.
+  k90Degrees,
+  // In physical tablet state, Sets the user rotation lock to 180 degrees.
+  // Otherwise, it sets the display rotation 180.
+  k180Degrees,
+  // In physical tablet state, Sets the user rotation lock to 270 degrees.
+  // Otherwise, it sets the display rotation 270.
+  k270Degrees,
+};
+
+// Describes how the displays are laid out.
+enum class DisplayLayoutMode {
+  // In normal mode displays are laid out as described by
+  // DisplayLayoutInfo::layouts.
+  kNormal,
+  // In unified desktop mode, a single desktop will be stretched across all
+  // available displays.
+  kUnified,
+  // In mirrored mode, the display defined by DisplayLayoutInfo.mirrorSourceId
+  // will be mirrored in the displays defined by
+  // DisplayLayoutInfo::mirrorDestinationIds, or in all other displays if
+  // mirrorDestinationIds is empty.
+  kMirrored
+};
+
+// Defines the layout mode and details.
+struct ASH_EXPORT DisplayLayoutInfo {
+  DisplayLayoutInfo();
+  DisplayLayoutInfo(const DisplayLayoutInfo& other);
+  DisplayLayoutInfo(DisplayLayoutInfo&& other) noexcept;
+  DisplayLayoutInfo& operator=(const DisplayLayoutInfo& other);
+  DisplayLayoutInfo& operator=(DisplayLayoutInfo&& other) noexcept;
+  ~DisplayLayoutInfo();
+
+  // The layout mode to use, see DisplayLayoutMode for details.
+  DisplayLayoutMode layout_mode;
+
+  // Ignored if layout_mode is not kMirrored. Otherwise, if provided, specifies
+  // the unique identifier of the source display for mirroring. If not provided,
+  // mirror_destination_ids will be ignored and default ('normal') mirrored mode
+  // will be enabled.
+  std::optional<int64_t> mirror_source_id;
+
+  // Ignored if layout_mode is not kMirrored. Otherwise, if provided, specifies
+  // the unique identifiers of the displays to mirror the source display. If
+  // empty, all displays will mirror the source display.
+  std::optional<std::vector<int64_t>> mirror_destination_ids;
+
+  // An array of layouts describing a directed graph of displays. Required if
+  // layout_mode is kNormal or kMirrored and not all displays are mirrored
+  // ('mixed' mode). Ignored if layout_mode is kUnified.
+  std::optional<std::vector<display::DisplayPlacement>> layouts;
+};
+
+// Properties for configuring an individual display, used in
+// SetDisplayProperties.
+struct ASH_EXPORT DisplayConfigProperties {
+  DisplayConfigProperties();
+  DisplayConfigProperties(const DisplayConfigProperties& other);
+  DisplayConfigProperties(DisplayConfigProperties&& other) noexcept;
+  DisplayConfigProperties& operator=(const DisplayConfigProperties& other);
+  DisplayConfigProperties& operator=(DisplayConfigProperties&& other) noexcept;
+  ~DisplayConfigProperties();
+
+  // If true, makes the display primary. No-op if set to false.
+  bool set_primary = false;
+
+  // If provided, sets the display's overscan insets to the provided value.
+  // Note: overscan values may not be negative or larger than a half of the
+  // screen's size. Overscan cannot be changed on the internal monitor.
+  std::optional<gfx::Insets> overscan;
+
+  // If provided, updates the display's rotation, or if the auto-rotation is
+  // allowed in the device, it can be used to set or clear the user rotation
+  // lock, enabling or disabling auto-rotation.
+  std::optional<DisplayRotationOptions> rotation;
+
+  // If provided, updates the display's logical bounds origin. Note: when
+  // updating the display origin, some constraints will be applied. so the final
+  // bounds origin may be different than the one set. The actual bounds will be
+  // reflected in DisplayUnitInfo. Cannot be changed on the primary display (or
+  // if set_primary is true).
+  std::optional<gfx::Point> bounds_origin;
+
+  // If non-zero, updates the zoom associated with the display. This zoom
+  // performs relayout and repaint thus resulting in a better quality zoom than
+  // just performing a pixel by pixel stretch enlargement.
+  double display_zoom_factor = 0.0;
+
+  // Optional display mode properties to set. This should match one of the
+  // modes listed in DisplayUnitInfo.available_display_modes. Other custom
+  // modes may or may not be valid.
+  std::optional<display::ManagedDisplayMode> display_mode;
+};
+
+// SetDisplayLayoutInfo or SetDisplayProperties result.
+enum class DisplayConfigResult {
+  // Operation was successful.
+  kSuccess,
+  // Operation is not supported.
+  kInvalidOperationError,
+  // Input display ID represents an invalid display.
+  kInvalidDisplayIdError,
+  // Unified desktop mode is disabled.
+  kUnifiedNotEnabledError,
+  // Input property for operation is out of range. E.g. display zoom factor,
+  // bounds origin or overscan.
+  kPropertyValueOutOfRangeError,
+  // Operation is not supported for internal displays.
+  kNotSupportedOnInternalDisplayError,
+  // Negative values are not supported for the operation.
+  kNegativeValueError,
+  // Setting the display mode failed.
+  kSetDisplayModeError,
+  // Invalid display layout error.
+  kInvalidDisplayLayoutError,
+  // Mode requires multiple displays.
+  kSingleDisplayError,
+  // Mirror mode source ID is invalid.
+  kMirrorModeSourceIdError,
+  // Mirror mode destination ID is invalid.
+  kMirrorModeDestIdError,
+  // Calibration is not available (e.g. no external touch screen device).
+  kCalibrationNotAvailableError,
+  // Calibration was not started.
+  kCalibrationNotStartedError,
+  // Touch calibration is already active.
+  kCalibrationInProgressError,
+  // Invalid input data for calibration.
+  kCalibrationInvalidDataError,
+  // Calibration procedure failed.
+  kCalibrationFailedError,
+};
+
+// EDID extracted parameters. Field description refers to "VESA ENHANCED
+// EXTENDED DISPLAY IDENTIFICATION DATA STANDARD (Defines EDID Structure
+// Version 1, Revision 4)" Release A, Revision 2 September 25, 2006.
+// https://www.vesa.org/vesa-standards
+struct ASH_EXPORT Edid {
+  // Three character manufacturer code, Sec. 3.4.1 page 21.
+  std::string manufacturer_id;
+
+  // Two byte manufacturer-assigned code, Sec. 3.4.2 page 21.
+  std::string product_id;
+
+  // Year of manufacture. Sec. 3.4.4 page 22.
+  int32_t year_of_manufacture = 0;
+};
+
+// Defines the properties of an individual display, returned by
+// GetDisplayLayoutInfo.
+struct ASH_EXPORT DisplayUnitInfo {
+  DisplayUnitInfo();
+  DisplayUnitInfo(const DisplayUnitInfo& other);
+  DisplayUnitInfo(DisplayUnitInfo&& other) noexcept;
+  DisplayUnitInfo& operator=(const DisplayUnitInfo& other);
+  DisplayUnitInfo& operator=(DisplayUnitInfo&& other) noexcept;
+  ~DisplayUnitInfo();
+
+  // The unique identifier of the display.
+  int64_t id = 0;
+
+  // The user-friendly name (e.g. "Acme LCD monitor").
+  std::string name;
+
+  // EDID properties when available.
+  std::optional<Edid> edid;
+
+  // True if this is the primary display.
+  bool is_primary = false;
+
+  // True if this is an internal display.
+  bool is_internal = false;
+
+  // True if this display is enabled.
+  bool is_enabled = false;
+
+  // True if auto-rotation is allowed. It happens when the device is in a
+  // physical tablet state or kSupportsClamshellAutoRotation is set.
+  bool is_auto_rotation_allowed = false;
+
+  // True if this display has a touch input device associated with it.
+  bool has_touch_support = false;
+
+  // True if this display has an accelerometer associated with it.
+  bool has_accelerometer_support = false;
+
+  // The number of pixels per inch along the x-axis.
+  double dpi_x = 0.0;
+
+  // The number of pixels per inch along the y-axis.
+  double dpi_y = 0.0;
+
+  // The display rotation options.
+  DisplayRotationOptions rotation_options = DisplayRotationOptions::kAutoRotate;
+
+  // The display's logical bounds.
+  gfx::Rect bounds;
+
+  // The display's ovserscan insets within its screen's bounds.
+  gfx::Insets overscan;
+
+  // The usable work area of the display within the display bounds. Excludes
+  // areas of the display reserved for the OS, e.g. the taskbar and launcher.
+  gfx::Rect work_area;
+
+  // The index of the selected display mode.
+  int32_t selected_display_mode_index = 0;
+
+  // The list of available display modes.
+  std::vector<display::ManagedDisplayMode> available_display_modes;
+
+  // The ratio between the display's current and default zoom. i.e. 1.0 is
+  // is equivalent to 100% zoom, and value 1.5 is equivalent to 150% zoom.
+  double display_zoom_factor = 0.0;
+
+  // The list of allowed zoom factor values for the display.
+  std::vector<double> available_display_zoom_factors;
+
+  // True if the display was detected by the system.
+  bool is_detected = false;
+};
+
 // Interface for configuring displays in Chrome OS.
 class CrosDisplayConfig {
  public:
   using TouchCalibrationCallback =
-      base::OnceCallback<void(crosapi::mojom::DisplayConfigResult)>;
+      base::OnceCallback<void(DisplayConfigResult)>;
 
   class Observer : public base::CheckedObserver {
    public:
@@ -34,25 +305,25 @@ class CrosDisplayConfig {
   virtual void RemoveObserver(Observer* observer) = 0;
 
   // Returns the display layout info, including the list of layouts.
-  virtual crosapi::mojom::DisplayLayoutInfoPtr GetDisplayLayoutInfo() = 0;
+  virtual DisplayLayoutInfo GetDisplayLayoutInfo() = 0;
 
   // Sets the layout mode, mirroring, and layouts. Returns kSuccess if the
   // layout is valid or an error value otherwise.
-  virtual crosapi::mojom::DisplayConfigResult SetDisplayLayoutInfo(
-      crosapi::mojom::DisplayLayoutInfoPtr info) = 0;
+  virtual DisplayConfigResult SetDisplayLayoutInfo(
+      const DisplayLayoutInfo& info) = 0;
 
   // Returns the properties for all displays. If |single_unified| is true, a
   // single display will be returned if the display layout is in unified mode.
-  virtual std::vector<crosapi::mojom::DisplayUnitInfoPtr>
-  GetDisplayUnitInfoList(bool single_unified) = 0;
+  virtual std::vector<DisplayUnitInfo> GetDisplayUnitInfoList(
+      bool single_unified) = 0;
 
-  // Sets |properties| for individual display with identifier |id|. |source|
-  // should describe who initiated the change. Returns Success if the properties
-  // are valid or an error value otherwise.
-  virtual crosapi::mojom::DisplayConfigResult SetDisplayProperties(
-      const std::string& id,
-      crosapi::mojom::DisplayConfigPropertiesPtr properties,
-      crosapi::mojom::DisplayConfigSource source) = 0;
+  // Sets |properties| for individual display with identifier |display_id|.
+  // |source| should describe who initiated the change. Returns Success if the
+  // properties are valid or an error value otherwise.
+  virtual DisplayConfigResult SetDisplayProperties(
+      int64_t display_id,
+      const DisplayConfigProperties& properties,
+      DisplayConfigSource source) = 0;
 
   // Enables or disables unified desktop mode. If the current display mode is
   // kMirrored the mode will not be changed, if it is kNormal then the mode will
@@ -62,19 +333,20 @@ class CrosDisplayConfig {
   // Starts, updates, completes, or resets overscan calibration for the display
   // with identifier |display_id|. If |op| is kAdjust, |delta| describes the
   // amount to change the overscan value.
-  virtual crosapi::mojom::DisplayConfigResult OverscanCalibration(
-      const std::string& display_id,
-      crosapi::mojom::DisplayConfigOperation op,
+  virtual DisplayConfigResult OverscanCalibration(
+      int64_t display_id,
+      DisplayCalibrationOperation op,
       const std::optional<gfx::Insets>& delta) = 0;
 
   // Starts, completes, or resets touch calibration for the display with
   // identifier |display_id|. If |op| is kShowNative shows the native
   // calibration UI. Runs the callback after performing the operation or on
   // error.
-  virtual void TouchCalibration(const std::string& display_id,
-                                crosapi::mojom::DisplayConfigOperation op,
-                                crosapi::mojom::TouchCalibrationPtr calibration,
-                                TouchCalibrationCallback callback) = 0;
+  virtual void TouchCalibration(
+      int64_t display_id,
+      DisplayCalibrationOperation op,
+      base::optional_ref<const display::TouchCalibrationData> calibration,
+      TouchCalibrationCallback callback) = 0;
 
   // Sets |id| of display to render identification highlight on. Invalid |id|
   // turns identification highlight off.
@@ -104,24 +376,25 @@ class ASH_EXPORT CrosDisplayConfigImpl final : public CrosDisplayConfig {
   // CrosDisplayConfig:
   void AddObserver(Observer* observer) override;
   void RemoveObserver(Observer* observer) override;
-  crosapi::mojom::DisplayLayoutInfoPtr GetDisplayLayoutInfo() override;
-  crosapi::mojom::DisplayConfigResult SetDisplayLayoutInfo(
-      crosapi::mojom::DisplayLayoutInfoPtr info) override;
-  std::vector<crosapi::mojom::DisplayUnitInfoPtr> GetDisplayUnitInfoList(
+  DisplayLayoutInfo GetDisplayLayoutInfo() override;
+  DisplayConfigResult SetDisplayLayoutInfo(
+      const DisplayLayoutInfo& info) override;
+  std::vector<DisplayUnitInfo> GetDisplayUnitInfoList(
       bool single_unified) override;
-  crosapi::mojom::DisplayConfigResult SetDisplayProperties(
-      const std::string& id,
-      crosapi::mojom::DisplayConfigPropertiesPtr properties,
-      crosapi::mojom::DisplayConfigSource source) override;
+  DisplayConfigResult SetDisplayProperties(
+      int64_t display_id,
+      const DisplayConfigProperties& properties,
+      DisplayConfigSource source) override;
   void SetUnifiedDesktopEnabled(bool enabled) override;
-  crosapi::mojom::DisplayConfigResult OverscanCalibration(
-      const std::string& display_id,
-      crosapi::mojom::DisplayConfigOperation op,
+  DisplayConfigResult OverscanCalibration(
+      int64_t display_id,
+      DisplayCalibrationOperation op,
       const std::optional<gfx::Insets>& delta) override;
-  void TouchCalibration(const std::string& display_id,
-                        crosapi::mojom::DisplayConfigOperation op,
-                        crosapi::mojom::TouchCalibrationPtr calibration,
-                        TouchCalibrationCallback callback) override;
+  void TouchCalibration(
+      int64_t display_id,
+      DisplayCalibrationOperation op,
+      base::optional_ref<const display::TouchCalibrationData> calibration,
+      TouchCalibrationCallback callback) override;
   void HighlightDisplay(int64_t display_id) override;
   void DragDisplayDelta(int64_t display_id,
                         int32_t delta_x,
@@ -137,11 +410,10 @@ class ASH_EXPORT CrosDisplayConfigImpl final : public CrosDisplayConfig {
   class ObserverImpl;
   friend class OverscanCalibratorTest;
 
-  OverscanCalibrator* GetOverscanCalibrator(const std::string& id);
+  OverscanCalibrator* GetOverscanCalibrator(int64_t display_id);
 
   std::unique_ptr<ObserverImpl> observer_impl_;
-  std::map<std::string, std::unique_ptr<OverscanCalibrator>>
-      overscan_calibrators_;
+  std::map<int64_t, std::unique_ptr<OverscanCalibrator>> overscan_calibrators_;
   std::unique_ptr<TouchCalibratorController> touch_calibrator_;
 };
 

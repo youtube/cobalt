@@ -9,16 +9,36 @@ assert(is_win || is_mac || is_linux || is_chromeos)
 build_webui("build") {
   grd_prefix = "ai_overlay_dialog_untrusted"
 
-  static_files = [ "ai_overlay_dialog.html" ]
+  static_files = [
+    "ai_overlay_dialog.html",
+    "api_config.json",
+  ]
 
   css_files = [ "app.css" ]
 
   web_component_files = [ "app.ts" ]
 
+  ts_files = [
+    "api_session.ts",
+    "audio_capturer.ts",
+    "audio_player.ts",
+    "audio_processor.ts",
+    "audio_utils.ts",
+    "conversation.ts",
+    "page_context_manager.ts",
+    "persona.ts",
+  ]
+
   ts_deps = [
     "//third_party/lit/v3_0:build_ts",
     "//ui/webui/resources/js:build_ts",
+    "//ui/webui/resources/mojo:build_ts",
   ]
+
+  mojo_files_deps = [
+    "//chrome/browser/ui/webui/ai_overlay_dialog:mojo_bindings_ts__generator",
+  ]
+  mojo_files = [ "$root_gen_dir/chrome/browser/ui/webui/ai_overlay_dialog/ai_overlay_dialog.mojom-webui.ts" ]
 
   webui_context_type = "untrusted"
 }

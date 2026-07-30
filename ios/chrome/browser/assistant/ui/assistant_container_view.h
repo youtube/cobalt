@@ -19,13 +19,16 @@
 // +----------------------------------+
 @interface AssistantContainerView : UIView
 
+// The grabber button used to minimize and expand the sheet.
+@property(nonatomic, strong, readonly) UIButton* grabberButton;
+
 // The content view where subviews should be added.
 @property(nonatomic, strong, readonly) UIView* contentView;
 
 // Allows the controller to dynamically morph the container radius.
 // Used to animate the container between the minimized and expanded states.
-- (void)updateCornerRadius:(CGFloat)cornerRadius
-             maskedCorners:(CACornerMask)maskedCorners;
+- (void)updateTopCornerRadius:(CGFloat)topCornerRadius
+           bottomCornerRadius:(CGFloat)bottomCornerRadius;
 
 @end
 

@@ -525,6 +525,11 @@ bool SiteInfo::IsGuest() const {
   return is_guest_;
 }
 
+bool SiteInfo::IsWebUI() const {
+  return std::ranges::contains(URLDataManagerBackend::GetWebUISchemes(),
+                               site_url_.scheme());
+}
+
 GURL SiteInfo::GetProcessLockURL() const {
   return agent_cluster_key_.GetURL();
 }

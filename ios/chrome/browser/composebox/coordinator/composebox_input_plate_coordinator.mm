@@ -18,6 +18,7 @@
 #import "components/search_engines/template_url_service.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "ios/chrome/browser/aim/model/ios_chrome_aim_eligibility_service_factory.h"
+#import "ios/chrome/browser/cobrowse/model/cobrowse_browser_agent.h"
 #import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_cobrowse_omnibox_client.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_entrypoint.h"
@@ -81,6 +82,21 @@
 namespace {
 const size_t kMaxURLDisplayChars = 32 * 1024;
 const CGFloat kSnackbarBottomMargin = 10;
+
+// Converts ComposeboxEntrypoint to ContextualSearchSource.
+contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
+    ComposeboxEntrypoint entrypoint) {
+  switch (entrypoint) {
+    case ComposeboxEntrypoint::kNTPAIMButton:
+      return contextual_search::ContextualSearchSource::kNewTabPage;
+    case ComposeboxEntrypoint::kNTPFakebox:
+    case ComposeboxEntrypoint::kOther:
+      return contextual_search::ContextualSearchSource::kOmnibox;
+    case ComposeboxEntrypoint::kCobrowse:
+      return contextual_search::ContextualSearchSource::kContextualTasks;
+  }
+}
+
 }  // namespace
 
 @interface ComposeboxInputPlateCoordinator () <
@@ -176,7 +192,7 @@ const CGFloat kSnackbarBottomMargin = 10;
 
     contextualSearchSession = _contextualService->CreateSession(
         std::move(query_controller_config_params),
-        contextual_search::ContextualSearchSource::kOmnibox,
+        ContextualSearchSourceFromEntrypoint(_entrypoint),
         lens::LensOverlayInvocationSource::kOmniboxContextualQuery);
   }
 
@@ -200,6 +216,8 @@ const CGFloat kSnackbarBottomMargin = 10;
                    templateURLService:templateURLService
                 aimEligibilityService:_aimEligibilityService
                           prefService:self.profile->GetPrefs()
+                 cobrowseBrowserAgent:CobrowseBrowserAgent::FromBrowser(
+                                          self.browser)
             browserCoordinatorHandler:HandlerForProtocol(
                                           dispatcher,
                                           BrowserCoordinatorCommands)
@@ -266,6 +284,7 @@ const CGFloat kSnackbarBottomMargin = 10;
   _aimEligibilitySubscription = {};
   _aimEligibilityService = nullptr;
   [_snackbarPresenter dismissAllSnackbars];
+  [_snackbarPresenter stop];
   _snackbarPresenter = nil;
   if (_tabPickerCoordinator.started) {
     [_tabPickerCoordinator stop];
@@ -685,9 +704,14 @@ const CGFloat kSnackbarBottomMargin = 10;
     [_omniboxCoordinator insertTextToOmnibox:_query];
     _query = nil;
   }
+  [_mediator setOmniboxFocused:YES];
 }
 
 - (void)omniboxDidResignFirstResponder {
+  [_mediator setOmniboxFocused:NO];
+}
+
+- (void)omniboxDidEndEditing {
 }
 
 #pragma mark - Private helpers

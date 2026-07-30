@@ -47,6 +47,8 @@
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_ui_controller.h"
+#include "content/public/browser/webui_config.h"
+#include "content/public/browser/webui_config_map.h"
 #include "content/public/common/bindings_policy.h"
 #include "content/public/common/content_constants.h"
 #include "content/public/common/content_features.h"
@@ -58,10 +60,10 @@
 #include "content/public/test/navigation_simulator.h"
 #include "content/public/test/scoped_web_ui_controller_factory_registration.h"
 #include "content/public/test/test_browser_context.h"
+#include "content/public/test/test_content_browser_client.h"
+#include "content/public/test/test_content_client.h"
 #include "content/public/test/test_utils.h"
 #include "content/test/navigation_simulator_impl.h"
-#include "content/test/test_content_browser_client.h"
-#include "content/test/test_content_client.h"
 #include "content/test/test_page_broadcast.h"
 #include "content/test/test_render_frame_host.h"
 #include "content/test/test_render_view_host.h"
@@ -2184,6 +2186,60 @@ void HideOrOccludeWithCapturerTest(WebContentsImpl* contents,
 
 }  // namespace
 
+// Tests that when
+// WebUIConfig::ShouldKeepVisibleUntilFirstVisuallyNonEmptyPaint() is true, the
+// WebContents's visibility will not be OCCLUDED until the first visually
+// non-empty paint.
+class KeepVisibleWebUIConfig : public WebUIConfig {
+ public:
+  KeepVisibleWebUIConfig() : WebUIConfig("chrome", "keep-visible") {}
+  bool ShouldKeepVisibleUntilFirstVisuallyNonEmptyPaint() override {
+    return true;
+  }
+  std::unique_ptr<WebUIController> CreateWebUIController(
+      WebUI* web_ui,
+      const GURL& url) override {
+    return std::make_unique<WebUIController>(web_ui);
+  }
+};
+
+TEST_F(WebContentsImplTest, KeepVisibleUntilFirstVisuallyNonEmptyPaint) {
+  TestRenderWidgetHostView* view = static_cast<TestRenderWidgetHostView*>(
+      contents()->GetRenderWidgetHostView());
+
+  EXPECT_FALSE(view->is_showing());
+
+  WebUIConfigMap::GetInstance().AddWebUIConfig(
+      std::make_unique<KeepVisibleWebUIConfig>());
+
+  const GURL kGURL("chrome://keep-visible/");
+  NavigationSimulator::NavigateAndCommitFromBrowser(contents(), kGURL);
+
+  contents()->UpdateWebContentsVisibility(Visibility::VISIBLE);
+  EXPECT_TRUE(view->is_showing());
+  EXPECT_FALSE(view->is_occluded());
+
+  contents()->UpdateWebContentsVisibility(Visibility::OCCLUDED);
+  // Still showing and NOT occluded, because it hasn't painted yet.
+  EXPECT_TRUE(view->is_showing());
+  EXPECT_FALSE(view->is_occluded());
+  // The visibility of WebContents is OCCLUDED, but the actual one passed
+  // down and returned by GetVisibility is VISIBLE because of our check.
+  EXPECT_EQ(Visibility::VISIBLE, contents()->GetVisibility());
+
+  // Simulate first non-empty paint.
+  main_test_rfh()->GetPage().OnFirstVisuallyNonEmptyPaint();
+
+  // Now an occlusion update should actually occlude.
+  contents()->UpdateWebContentsVisibility(Visibility::OCCLUDED);
+  EXPECT_TRUE(view->is_showing());
+  EXPECT_TRUE(view->is_occluded());
+  EXPECT_EQ(Visibility::OCCLUDED, contents()->GetVisibility());
+
+  // Cleanup WebUIConfigMap.
+  WebUIConfigMap::GetInstance().RemoveConfig(kGURL);
+}
+
 TEST_F(WebContentsImplTest, HideWithCapturer) {
   HideOrOccludeWithCapturerTest(contents(), Visibility::HIDDEN);
 }
@@ -3623,28 +3679,23 @@ TEST_F(WebContentsImplTest, RequestMediaAccessPermissionNoDelegate) {
 TEST_F(WebContentsImplTest, IgnoreInputEvents) {
   // By default, input events should not be ignored.
   EXPECT_FALSE(contents()->ShouldIgnoreInputEvents());
-  EXPECT_FALSE(contents()->ShouldIgnoreA11yInputEvents());
 
   std::optional<WebContents::ScopedIgnoreInputEvents> ignore_1 =
       contents()->IgnoreInputEvents(std::nullopt);
   EXPECT_TRUE(contents()->ShouldIgnoreInputEvents());
-  EXPECT_TRUE(contents()->ShouldIgnoreA11yInputEvents());
 
   // A second request to ignore should continue to ignore events.
   WebContents::ScopedIgnoreInputEvents ignore_2 =
       contents()->IgnoreInputEvents(std::nullopt);
   EXPECT_TRUE(contents()->ShouldIgnoreInputEvents());
-  EXPECT_TRUE(contents()->ShouldIgnoreA11yInputEvents());
 
   // Releasing one of them should not change anything.
   ignore_1.reset();
   EXPECT_TRUE(contents()->ShouldIgnoreInputEvents());
-  EXPECT_TRUE(contents()->ShouldIgnoreA11yInputEvents());
 
   // Move construction should not allow input.
   WebContents::ScopedIgnoreInputEvents ignore_3(std::move(ignore_2));
   EXPECT_TRUE(contents()->ShouldIgnoreInputEvents());
-  EXPECT_TRUE(contents()->ShouldIgnoreA11yInputEvents());
 
   {
     // Cannot create an empty `ScopedIgnoreInputEvents`, so get a new one and
@@ -3653,48 +3704,11 @@ TEST_F(WebContentsImplTest, IgnoreInputEvents) {
         contents()->IgnoreInputEvents(std::nullopt);
     ignore_4 = std::move(ignore_3);
     EXPECT_TRUE(contents()->ShouldIgnoreInputEvents());
-    EXPECT_TRUE(contents()->ShouldIgnoreA11yInputEvents());
     // `ignore_4` goes out of scope.
   }
 
   // Now input should be allowed.
   EXPECT_FALSE(contents()->ShouldIgnoreInputEvents());
-  EXPECT_FALSE(contents()->ShouldIgnoreA11yInputEvents());
-}
-
-TEST_F(WebContentsImplTest, IgnoreInputEvents_IgnoreA11yInputEvents) {
-  // By default, input and a11y input events should not be ignored.
-  EXPECT_FALSE(contents()->ShouldIgnoreInputEvents());
-  EXPECT_FALSE(contents()->ShouldIgnoreA11yInputEvents());
-
-  // Create two requests with different a11y input settings.
-  // The default 1-argument call now ignores both regular input and a11y input.
-  std::optional<WebContents::ScopedIgnoreInputEvents>
-      ignore_input_and_a11y_input = contents()->IgnoreInputEvents(std::nullopt);
-
-  // To test ignoring ONLY regular input, we must explicitly pass false.
-  std::optional<WebContents::ScopedIgnoreInputEvents> ignore_input_only =
-      contents()->IgnoreInputEvents(std::nullopt,
-                                    /*should_ignore_a11y_input=*/false);
-
-  // With both requests active, both input and a11y input should be ignored.
-  EXPECT_TRUE(contents()->ShouldIgnoreInputEvents());
-  EXPECT_TRUE(contents()->ShouldIgnoreA11yInputEvents());
-
-  // Manually release the request that was ignoring a11y input events.
-  ignore_input_and_a11y_input.reset();
-
-  // Verify the state reverted: general input is still ignored by the first
-  // request, but a11y input events are now allowed.
-  EXPECT_TRUE(contents()->ShouldIgnoreInputEvents());
-  EXPECT_FALSE(contents()->ShouldIgnoreA11yInputEvents());
-
-  // Manually release the ignore input only request.
-  ignore_input_only.reset();
-
-  // Verify everything is back to the default state.
-  EXPECT_FALSE(contents()->ShouldIgnoreInputEvents());
-  EXPECT_FALSE(contents()->ShouldIgnoreA11yInputEvents());
 }
 
 TEST_F(WebContentsImplTest, OnColorProviderChangedTriggersPageBroadcast) {

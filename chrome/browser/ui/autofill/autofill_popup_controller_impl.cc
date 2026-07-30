@@ -14,6 +14,7 @@
 #include "base/check_deref.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
+#include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/i18n/case_conversion.h"
@@ -32,7 +33,9 @@
 #include "components/accessibility_annotator/core/accessibility_query_service.h"
 #include "components/accessibility_annotator/core/annotation_reducer/memory_search_result.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
+#include "components/autofill/core/browser/at_memory/at_memory_data_type.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/from_accessibility_annotator.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
@@ -396,7 +399,7 @@ void AutofillPopupControllerImpl::Hide(SuggestionHidingReason reason) {
 
   if (delegate_ && IsRootPopup()) {
     delegate_->ClearPreviewedForm();
-    delegate_->OnSuggestionsHidden();
+    delegate_->OnSuggestionsHidden(reason);
   }
   key_press_observer_.Reset();
   popup_hide_helper_.reset();
@@ -913,30 +916,82 @@ AutofillPopupControllerImpl::GetSuggestionFilterMatches() const {
 
 void AutofillPopupControllerImpl::SetFilter(
     std::optional<SuggestionFilter> filter) {
-  if (suggestions_filling_product_ == FillingProduct::kAtMemory && filter &&
-      std::holds_alternative<AutofillPopupController::StringFilter>(*filter)) {
-    if (ContentAutofillClient* client =
-            ContentAutofillClient::FromWebContents(web_contents_.get())) {
-      if (accessibility_annotator::AccessibilityQueryService* query_service =
-              client->GetAccessibilityQueryService()) {
-        std::vector<Suggestion> suggestions;
-        for (const accessibility_annotator::MemorySearchResult& result :
-             query_service->Query(
-                 *std::get<AutofillPopupController::StringFilter>(*filter))) {
-          Suggestion& s = suggestions.emplace_back(
-              result.value, SuggestionType::kAtMemorySearchResult);
-          s.labels = {{Suggestion::Text(result.description)}};
-          s.payload = Suggestion::AtMemoryPayload(result.value);
-          s.filtration_policy = Suggestion::FiltrationPolicy::kStatic;
-        }
-        SetSuggestions(std::move(suggestions));
-      }
-    }
+  filter_ = std::move(filter);
+
+  if (TryStartSearch()) {
+    return;
   }
 
-  filter_ = std::move(filter);
   UpdateFilteredSuggestions();
   OnSuggestionsChanged(/*prefer_prev_arrow_side=*/true);
+}
+
+bool AutofillPopupControllerImpl::TryStartSearch() {
+  if (suggestions_filling_product_ != FillingProduct::kAtMemory) {
+    return false;
+  }
+
+  if (!filter_) {
+    SetSuggestions({});
+    OnSuggestionsChanged(/*prefer_prev_arrow_side=*/true);
+    return true;
+  }
+
+  const auto* string_filter =
+      std::get_if<AutofillPopupController::StringFilter>(&*filter_);
+  if (!string_filter) {
+    return true;
+  }
+  ContentAutofillClient* client =
+      ContentAutofillClient::FromWebContents(GetWebContents());
+  if (!client) {
+    return true;
+  }
+  auto* query_service = client->GetAccessibilityQueryService();
+  if (!query_service) {
+    return true;
+  }
+
+  auto transform =
+      [](const accessibility_annotator::MemorySearchResult& entry) {
+        Suggestion suggestion(entry.value,
+                              SuggestionType::kAtMemorySearchResult);
+        // Label row: [type_name, metadata[0].value, ...]
+        std::vector<Suggestion::Text> label_row;
+        std::u16string type_name = entry.type_name.empty()
+                                       ? GetEntryTypeNameForI18n(entry.type)
+                                       : entry.type_name;
+        if (!type_name.empty()) {
+          label_row.emplace_back(std::move(type_name));
+        }
+        for (const accessibility_annotator::EntryMetadata& metadata :
+             entry.metadata_list) {
+          if (!label_row.empty()) {
+            label_row.emplace_back(u"\u2022");
+          }
+          label_row.emplace_back(metadata.value);
+        }
+        suggestion.labels.emplace_back(std::move(label_row));
+        suggestion.payload = Suggestion::AtMemoryPayload(entry.value);
+        suggestion.filtration_policy = Suggestion::FiltrationPolicy::kStatic;
+        return suggestion;
+      };
+
+  query_service->Query(
+      **string_filter,
+      base::BindRepeating(
+          [](base::WeakPtr<AutofillPopupControllerImpl> self,
+             Suggestion (*transform)(
+                 const accessibility_annotator::MemorySearchResult&),
+             accessibility_annotator::MemorySearchResults result) {
+            if (!self) {
+              return;
+            }
+            self->SetSuggestions(base::ToVector(result.entries, transform));
+            self->OnSuggestionsChanged(/*prefer_prev_arrow_side=*/true);
+          },
+          weak_ptr_factory_.GetWeakPtr(), transform));
+  return true;
 }
 
 bool AutofillPopupControllerImpl::HandleKeyPressEvent(

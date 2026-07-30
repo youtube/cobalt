@@ -58,6 +58,8 @@
 #include "components/sync/test/test_sync_service.h"
 #include "components/sync_device_info/device_info_util.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
+#include "components/sync_sessions/mock_open_tabs_ui_delegate.h"
+#include "components/sync_sessions/mock_session_sync_service.h"
 #include "components/sync_sessions/open_tabs_ui_delegate.h"
 #include "components/sync_sessions/session_sync_service.h"
 #include "components/sync_sessions/synced_session.h"
@@ -107,7 +109,7 @@ std::unique_ptr<sync_sessions::SyncedSession> CreateNewSession(
   auto tab = std::make_unique<sessions::SessionTab>();
 
   session->SetSessionName(session_name);
-  session->SetDeviceTypeAndFormFactor(sync_pb::SyncEnums::TYPE_UNSET,
+  session->SetDeviceTypeAndFormFactor(syncer::DeviceInfo::DeviceType::kUnset,
                                       form_factor);
 
   window->wrapped_window.tabs.push_back(std::move(tab));
@@ -116,36 +118,25 @@ std::unique_ptr<sync_sessions::SyncedSession> CreateNewSession(
   return session;
 }
 
-class MockSessionSyncService : public sync_sessions::SessionSyncService {
+class MockSessionSyncService : public sync_sessions::MockSessionSyncService {
  public:
-  MockSessionSyncService() = default;
+  MockSessionSyncService() {
+    ON_CALL(*this, SubscribeToForeignSessionsChanged)
+        .WillByDefault([this](const base::RepeatingClosure& cb) {
+          return subscriber_list_.Add(cb);
+        });
+  }
   ~MockSessionSyncService() override = default;
 
-  MOCK_METHOD(syncer::GlobalIdMapper*,
-              GetGlobalIdMapper,
-              (),
-              (const, override));
-  MOCK_METHOD(sync_sessions::OpenTabsUIDelegate*,
-              GetOpenTabsUIDelegate,
-              (),
-              (override));
-  base::CallbackListSubscription SubscribeToForeignSessionsChanged(
-      const base::RepeatingClosure& cb) override {
-    return subscriber_list_.Add(cb);
-  }
-  MOCK_METHOD(base::WeakPtr<syncer::DataTypeControllerDelegate>,
-              GetControllerDelegate,
-              ());
+  void NotifyForeignSessionsChanged() { subscriber_list_.Notify(); }
 
-  void NotifyMockForeignSessionsChanged() { subscriber_list_.Notify(); }
-
-  bool IsSubscribersEmpty() { return subscriber_list_.empty(); }
+  bool IsSubscribersEmpty() const { return subscriber_list_.empty(); }
 
  private:
   base::RepeatingClosureList subscriber_list_;
 };
 
-class MockOpenTabsUIDelegate : public sync_sessions::OpenTabsUIDelegate {
+class MockOpenTabsUIDelegate : public sync_sessions::MockOpenTabsUIDelegate {
  public:
   MockOpenTabsUIDelegate() {
     foreign_sessions_owned_.push_back(CreateNewSession(
@@ -201,20 +192,6 @@ class MockOpenTabsUIDelegate : public sync_sessions::OpenTabsUIDelegate {
     }
     return base::flat_map<std::string, base::Time>(std::move(timestamps));
   }
-
-  MOCK_METHOD1(GetLocalSession,
-               bool(const sync_sessions::SyncedSession** local_session));
-
-  MOCK_METHOD3(GetForeignTab,
-               bool(const std::string& tag,
-                    const SessionID tab_id,
-                    const sessions::SessionTab** tab));
-
-  MOCK_METHOD1(DeleteForeignSession, void(const std::string& tag));
-
-  MOCK_METHOD1(
-      GetForeignSession,
-      std::vector<const sessions::SessionWindow*>(const std::string& tag));
 
   bool GetForeignSessionTabs(
       const std::string& tag,
@@ -897,7 +874,7 @@ TEST_F(BirchKeyedServiceTest, BirchRecentTabsWaitForForeignSessionsChange) {
 
   // Notify session service of foreign session change, and check that tabs have
   // been set by the recent tabs provider.
-  session_sync_service()->NotifyMockForeignSessionsChanged();
+  session_sync_service()->NotifyForeignSessionsChanged();
   EXPECT_EQ(Shell::Get()->birch_model()->GetTabsForTest().size(), 2u);
   EXPECT_TRUE(session_sync_service()->IsSubscribersEmpty());
 }

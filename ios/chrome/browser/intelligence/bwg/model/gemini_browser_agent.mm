@@ -57,6 +57,7 @@
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
+#import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
@@ -186,15 +187,7 @@ GeminiBrowserAgent::GeminiBrowserAgent(Browser* browser)
       bwg_gateway_.cameraHandler = gemini_camera_handler_;
     }
 
-    if (IsGeminiDynamicSettingsEnabled()) {
-      GeminiStartupConfiguration* config =
-          [[GeminiStartupConfiguration alloc] init];
-      config.authService =
-          AuthenticationServiceFactory::GetForProfile(browser_->GetProfile());
-      config.gateway = bwg_gateway_;
-
-      ios::provider::ConfigureWithStartupConfiguration(config);
-    }
+    ConfigureGemini();
   }
 
   // Ensures a `FullscreenController` is created.
@@ -292,15 +285,41 @@ void GeminiBrowserAgent::BrowserDestroyed(Browser* browser) {
 
 void GeminiBrowserAgent::OnPrimaryAccountChanged(
     const signin::PrimaryAccountChangeEvent& event) {
+  signin::PrimaryAccountChangeEvent::Type event_type =
+      event.GetEventTypeFor(signin::ConsentLevel::kSignin);
+
+  if (event_type == signin::PrimaryAccountChangeEvent::Type::kSet) {
+    ConfigureGemini();
+  }
+
   CHECK(IsGeminiCopresenceEnabled());
-  if (event.GetEventTypeFor(signin::ConsentLevel::kSignin) !=
-      signin::PrimaryAccountChangeEvent::Type::kNone) {
+  if (event_type != signin::PrimaryAccountChangeEvent::Type::kNone) {
     browser_->GetProfile()->GetPrefs()->ClearPref(prefs::kGeminiConversationId);
 
     if (is_floaty_invoked_) {
       ForceDismissFloaty();
     }
   }
+}
+
+void GeminiBrowserAgent::ConfigureGemini() {
+  if (!IsGeminiDynamicSettingsEnabled()) {
+    return;
+  }
+
+  AuthenticationService* auth_service =
+      AuthenticationServiceFactory::GetForProfile(browser_->GetProfile());
+  if (!auth_service ||
+      !auth_service->HasPrimaryIdentity(signin::ConsentLevel::kSignin)) {
+    return;
+  }
+
+  GeminiStartupConfiguration* config =
+      [[GeminiStartupConfiguration alloc] init];
+  config.authService = auth_service;
+  config.gateway = bwg_gateway_;
+
+  ios::provider::ConfigureWithStartupConfiguration(config);
 }
 
 void GeminiBrowserAgent::OnIdentityManagerShutdown(
@@ -417,18 +436,12 @@ CGFloat GeminiBrowserAgent::GetFloatyOffsetFromFullscreenController(
 
 void GeminiBrowserAgent::InvokeFloaty(GeminiConfiguration* config) {
   if (!IsGeminiCopresenceEnabled()) {
-    web::WebState* web_state = browser_->GetWebStateList()->GetActiveWebState();
-    BwgTabHelper* gemini_tab_helper = GetActiveTabHelper(web_state);
     ios::provider::StartBwgOverlay(config);
-    gemini_tab_helper->SetBwgUiShowing(true);
     return;
   }
 
   PrepareFloatyToBeShown();
-  web::WebState* web_state = browser_->GetWebStateList()->GetActiveWebState();
-  BwgTabHelper* gemini_tab_helper = GetActiveTabHelper(web_state);
   ios::provider::StartBwgOverlay(config);
-  gemini_tab_helper->SetBwgUiShowing(true);
   last_shown_view_state_ = ios::provider::GetCurrentGeminiViewState();
   is_floaty_invoked_ = true;
 }
@@ -618,7 +631,6 @@ void GeminiBrowserAgent::OnGeminiViewStateExpanded() {
   BwgTabHelper* tab_helper = GetActiveTabHelper(active_web_state);
 
   if (tab_helper) {
-    tab_helper->SetBwgUiShowing(true);
     if (CanExtractPageContextForWebState(active_web_state)) {
       tab_helper->SetupPageContextGeneration(
           base::BindRepeating(&GeminiBrowserAgent::UpdateFloatyPageContext,
@@ -707,13 +719,6 @@ void GeminiBrowserAgent::DismissGeminiFromOtherWindows(
 }
 
 void GeminiBrowserAgent::DismissFloaty() {
-  web::WebState* active_web_state =
-      browser_->GetWebStateList()->GetActiveWebState();
-  BwgTabHelper* gemini_tab_helper = GetActiveTabHelper(active_web_state);
-  if (gemini_tab_helper) {
-    gemini_tab_helper->SetBwgUiShowing(false);
-  }
-
   if (IsGeminiCopresenceWithFullscreenDisablerEnabled()) {
     ResetFullscreenDisabler();
   }
@@ -1091,8 +1096,7 @@ void GeminiBrowserAgent::PresentFloatyWithState(
   std::optional<std::string> maybe_server_id = gemini_tab_helper->GetServerId();
   config.serverID =
       maybe_server_id ? base::SysUTF8ToNSString(*maybe_server_id) : nil;
-  config.shouldAnimatePresentation =
-      !gemini_tab_helper->GetIsBwgSessionActiveInBackground();
+  config.shouldAnimatePresentation = YES;
   config.lastInteractionURLDifferent =
       gemini_tab_helper->IsLastInteractionUrlDifferent();
   config.shouldShowSuggestionChips =

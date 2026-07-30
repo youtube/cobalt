@@ -72,7 +72,7 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
   std::variant<AutofillDriver*, password_manager::PasswordManagerDriver*>
   GetDriver() override;
   void OnSuggestionsShown(base::span<const Suggestion> suggestions) override;
-  void OnSuggestionsHidden() override;
+  void OnSuggestionsHidden(SuggestionHidingReason reason) override;
   void DidSelectSuggestion(const Suggestion& suggestion) override;
   void DidAcceptSuggestion(const Suggestion& suggestion,
                            const SuggestionMetadata& metadata) override;
@@ -180,6 +180,11 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
   void DidAcceptPaymentsSuggestion(const Suggestion& suggestion,
                                    const SuggestionMetadata& metadata);
 
+  // Fills the queried form with the provided credit card using the specified
+  // trigger source. Used as a callback for asynchronous card fetches.
+  void OnCreditCardFetched(AutofillTriggerSource trigger_source,
+                           const CreditCard& card);
+
   // Returns the last Autofill triggering field. Derived from the `form` and
   // `field` parameters of `OnQuery(). Returns nullptr if called before
   // `OnQuery()` or if the `form` becomes outdated, see crbug.com/1117028.
@@ -200,11 +205,6 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
                     std::optional<SuggestionMetadata> metadata,
                     bool is_preview,
                     AutofillTriggerSource trigger_source);
-
-  // Fills the queried form with the provided credit card using the specified
-  // trigger source. Used as a callback for asynchronous card fetches.
-  void FillFetchedCreditCard(AutofillTriggerSource trigger_source,
-                             const CreditCard& card);
 
   // Previews the value from `profile` specified in the `suggestion`.
   void PreviewAddressFieldByFieldFillingSuggestion(

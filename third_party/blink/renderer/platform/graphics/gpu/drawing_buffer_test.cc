@@ -381,7 +381,14 @@ TEST_F(
   // Produce a resource. The created resource should be an overlay candidate.
   EXPECT_TRUE(drawing_buffer_->PrepareTransferableResource(&resource,
                                                            &release_callback));
+#if BUILDFLAG(IS_WIN)
+  // Note: On Windows, DrawingBuffer does not query UseOverlaysForWebGL() at
+  // all but adds SCANOUT only via directly querying whether swapchain-backed
+  // SIs are supported when low-latency is enabled.
+  EXPECT_FALSE(resource.GetIsOverlayCandidate());
+#else
   EXPECT_TRUE(resource.GetIsOverlayCandidate());
+#endif
 
   drawing_buffer_->BeginDestruction();
 }
@@ -706,6 +713,17 @@ TEST_F(DrawingBufferTest,
   drawing_buffer_->BeginDestruction();
 }
 
+TEST_F(DrawingBufferTest, VerifyLowLatencyRenderingIsNotSetByDefault) {
+  viz::TransferableResource resource;
+  viz::ReleaseCallback release_callback;
+
+  EXPECT_TRUE(drawing_buffer_->PrepareTransferableResource(&resource,
+                                                           &release_callback));
+  EXPECT_FALSE(resource.is_low_latency_rendering);
+
+  drawing_buffer_->BeginDestruction();
+}
+
 TEST_F(
     DrawingBufferTest,
     VerifyLowLatencyRenderingIsSetWhenDesynchronizedIsTrueAndLowLatencyUsageIsSupportedForWebGL) {
@@ -715,7 +733,6 @@ TEST_F(
   auto gl = std::make_unique<GLES2InterfaceForTests>();
   auto provider =
       std::make_unique<WebGraphicsContext3DProviderForTests>(std::move(gl));
-
   GLES2InterfaceForTests* gl_ =
       static_cast<GLES2InterfaceForTests*>(provider->ContextGL());
 

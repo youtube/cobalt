@@ -499,7 +499,6 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                 this,
                 getIntentDataProvider(),
                 getSplashControllerSupplier(),
-                getLegacyTabStartupMetricsTracker(),
                 getStartupMetricsTracker(),
                 this::getSavedInstanceState,
                 getWebappDeferredStartupWithStorageHandler(),
@@ -1728,7 +1727,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
         switch (type) {
             case CustomTabsUiType.DEFAULT:
                 if (browserWindowInterfaceEnabled) {
-                    return BrowserWindowType.NORMAL;
+                    return BrowserWindowType.CUSTOM_TAB;
                 }
                 break;
             // Popups.

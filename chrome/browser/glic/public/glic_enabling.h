@@ -161,13 +161,11 @@ class GlicEnabling : public signin::IdentityManager::Observer {
   // Whether the Trust-First Onboarding flow should be shown.
   static bool IsTrustFirstOnboardingEnabledForProfile(Profile* profile);
 
-  // Returns true if the FRE UI (standard FRE or Trust-First Onboarding) should
-  // be bypassed for certain invocation sources for unconsented users.
-  static bool ShouldBypassFreUi(Profile* profile,
-                                content::WebContents* web_contents);
-
   // Whether the auto open for pdf flow is enabled.
   static bool IsAutoOpenForPdfEnabled(Profile* profile);
+
+  // Whether the tab web contents contextual menu item is enabled.
+  static bool IsContextualMenuItemEnabled(Profile* profile);
 
   // Whether the required feature flags for multi-instance - kGlicMultiInstance,
   // kGlicMultiTab, and kGlicMultitabUnderlines - are enabled. When calling, be
@@ -178,25 +176,10 @@ class GlicEnabling : public signin::IdentityManager::Observer {
   // and the account is non-enterprise (or for Glic dev).
   static bool IsShareImageEnabledForProfile(Profile* profile);
 
-  // Whether the required feature flags for multi-instance are enabled, or
-  // multi-instance should be enabled due to subscription tier. This serves as
-  // the default enablement check for the multi-instance feature and should be
-  // used in most cases.
+  // Whether the required feature flags for multi-instance are enabled. This
+  // serves as the default enablement check for the multi-instance feature and
+  // should be used in most cases.
   static bool IsMultiInstanceEnabled();
-
-  // Whether the result of
-  // `GetAndUpdateEligibilityForGlicMultiInstanceTieredRollout` was true the
-  // first time this function was called during the current run of Chrome.
-  static bool IsEligibleForGlicMultiInstanceTieredRolloutThisRun();
-
-  // Whether any loaded profile is, or has ever been, of a subscription tier
-  // that should enable multi-instance. `additional_profile` may be provided by
-  // the caller in case it has not been fully loaded.
-  // NOTE: new usages of this API should be extremely limited. Checking the
-  // feature enablement of multi-instance should go through
-  // IsMultiInstanceEnabled() instead. Please contact @cuianthony before using.
-  static bool GetAndUpdateEligibilityForGlicMultiInstanceTieredRollout(
-      Profile* additional_profile);
 
   struct ProfileEnablement {
     ProfileEnablement();
@@ -391,6 +374,11 @@ class GlicEnabling : public signin::IdentityManager::Observer {
 
   void UpdateEnabledStatus();
   void UpdateConsentStatus();
+
+  static bool IsTrustFirstOnboardingGatedFeatureEnabled(
+      Profile* profile,
+      const base::Feature& feature,
+      const base::FeatureParam<bool>& onboarding_param);
 
 #if BUILDFLAG(IS_CHROMEOS)
   static bool IsChromeOSProfileEligible(const Profile* profile);

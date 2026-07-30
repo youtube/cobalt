@@ -157,7 +157,6 @@ chromium-metrics-reviews@google.com.
   <variant name=".MerchantTrust"/>
   <variant name=".ModeBRollbackMessage"/>
   <variant name=".MultiInstanceCreationLimit"/>
-  <variant name=".MultiInstanceRestorationOnDowngradedLimit"/>
   <variant name=".NearOomReduction"/>
   <variant name=".NotificationBlocked"/>
   <variant name=".OfferNotification"/>
@@ -1527,6 +1526,31 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.ComposeboxQueryController.AddTabContextCachedDuration"
+    units="ms" expires_after="2026-10-01">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <summary>
+    Records the duration between requesting and starting the upload of a tab's
+    context in the ComposeboxQueryController. Recorded whenever a tab with
+    cached context is added as an attachment to a query. Only recorded when the
+    retrieval from the cache is successful.
+  </summary>
+</histogram>
+
+<histogram name="Android.ComposeboxQueryController.AddTabContextDuration"
+    units="ms" expires_after="2026-10-01">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <summary>
+    Records the duration between requesting and starting the upload of a tab's
+    context in the ComposeboxQueryController. Recorded whenever a tab without a
+    cached context is added as an attachment to a query and the context must be
+    extracted on-demand. Only recorded when the context extraction is
+    successful.
+  </summary>
+</histogram>
+
 <histogram name="Android.Compositor.IsRequestingOpaqueSurface" enum="Boolean"
     expires_after="2025-04-13">
   <owner>wenyufu@chromium.org</owner>
@@ -1670,6 +1694,21 @@ chromium-metrics-reviews@google.com.
   <summary>
     Entry that navigate the user into the Theme Settings. Recorded when the
     Theme settings is opened.
+  </summary>
+</histogram>
+
+<histogram name="Android.DefaultBrowserPromo.Click"
+    enum="DefaultBrowserPromoSourceType" expires_after="2027-03-01">
+  <owner>xinyiji@chromium.org</owner>
+  <owner>hanxi@chromium.org</owner>
+  <summary>
+    Records the total count of clicks on the default browser promo. Includes
+    clicks on message banners, the Settings page promo card, and the Magic Stack
+    (Educational Tip) module. For Message Banners, the metric triggers when the
+    user clicks the &quot;Settings&quot; button. For Settings Page Promo Card,
+    the metric triggers when the user clicks the &quot;Open Settings&quot;
+    button. For Magic Stack (Educational Tip), the metric triggers when the user
+    clicks the &quot;Show me how&quot; button. Android-only.
   </summary>
 </histogram>
 
@@ -2317,22 +2356,6 @@ chromium-metrics-reviews@google.com.
     <variant name="Extension"/>
     <variant name="Web"/>
   </token>
-</histogram>
-
-<histogram
-    name="Android.FamilyLinkUser.LocalWebApprovalParentAuthenticationError"
-    units="Status error codes raised in GMS Core" expires_after="2024-02-11">
-  <owner>anthie@google.com</owner>
-  <owner>ljjlee@google.com</owner>
-  <owner>chrome-kids-eng@google.com</owner>
-  <owner>cros-families-eng@google.com</owner>
-  <summary>
-    The different GMS error status codes that a user may encounter during the
-    parent authentication step in the local web approval flow. Recorded on
-    Android only. See go/chrome-local-web-approval-parent-auth-error-codes
-    (Googlers only) for the error code definitions. Warning: this histogram was
-    expired from 2023-06-13 to 2023-07-28; data may be missing.
-  </summary>
 </histogram>
 
 <histogram name="Android.FocusChanged.FocusOwningWebContents" enum="Boolean"
@@ -3637,7 +3660,7 @@ chromium-metrics-reviews@google.com.
       variants="ActivityIndexMismatchAssignmentState"/>
 </histogram>
 
-<histogram name="Android.MultiWindowMode.CloseWindow.AppSource2"
+<histogram name="Android.MultiWindowMode.CloseWindow.AppSource3"
     enum="CloseWindowAppSource" expires_after="2026-10-28">
   <owner>aishwaryarj@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
@@ -7026,7 +7049,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.CachedFlagMigration" enum="Boolean"
-    expires_after="2026-04-28">
+    expires_after="2027-04-28">
   <owner>alexmitra@chromium.org</owner>
   <owner>bewise@chromium.org</owner>
   <owner>colibie@google.com</owner>
@@ -7042,7 +7065,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.CachedFlagsExist" enum="BooleanExists"
-    expires_after="2026-04-28">
+    expires_after="2027-04-28">
   <owner>alexmitra@chromium.org</owner>
   <owner>colibie@google.com</owner>
   <owner>src/android_webview/OWNERS</owner>

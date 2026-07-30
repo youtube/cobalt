@@ -45,6 +45,12 @@ BASE_DECLARE_FEATURE(kGeminiKillSwitch);
 // Returns true if the page action menu is enabled.
 bool IsPageActionMenuEnabled();
 
+// Feature flag controlling the Ask Gemini auth flow in the Page Action Menu.
+BASE_DECLARE_FEATURE(kPageActionMenuAuthFlow);
+
+// Returns true if the Ask Gemini auth flow in the Page Action Menu is enabled.
+bool IsPageActionMenuAuthFlowEnabled();
+
 // Feature flag controlling the Ask Gemini chip.
 BASE_DECLARE_FEATURE(kAskGeminiChip);
 
@@ -364,5 +370,17 @@ BASE_DECLARE_FEATURE(kGeminiBinaryMigration);
 
 // Returns true if the GeminiBinaryMigration feature is enabled.
 bool IsGeminiBinaryMigrationEnabled();
+
+// Enables the PersistTabContextRichExtraction feature.
+BASE_DECLARE_FEATURE(kPersistTabContextRichExtraction);
+
+// Returns true if the PersistTabContextRichExtraction feature is enabled.
+bool IsPersistTabContextRichExtractionEnabled();
+
+// Enables the PageContextIPCOptimization feature.
+BASE_DECLARE_FEATURE(kPageContextIPCOptimization);
+
+// Returns true if the PageContextIPCOptimization feature is enabled.
+bool IsPageContextIPCOptimizationEnabled();
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

@@ -303,9 +303,6 @@
       <message name="IDS_QUICK_ANSWERS_VIEW_A11Y_INFO_ALERT_TEXT" desc="A11y alert text for the Quick Answers view.">
         Info related to your selection available. Use Up arrow key to access.
       </message>
-      <message name="IDS_QUICK_ANSWERS_VIEW_A11Y_INFO_DESC_TEMPLATE_V2" desc="A11y description template for the Quick Answers view (V2 version).">
-        <ph name="QUERY_TEXT">$1<ex>interested</ex></ph>; <ph name="RESULT_TEXT">$2<ex>showing curiosity or concern about something or someone; having a feeling of interest.</ex></ph>; Press Search plus Space to see result in Google Search.
-      </message>
       <message name="IDS_QUICK_ANSWERS_VIEW_A11Y_INFO_DESCRIPTION_WITH_INTENT_TEMPLATE" desc="A11y description template for the refreshed Quick Answers view. Note that this text is not rendered in UI but passed to a11y service.">
         <ph name="INTENT">$1<ex>Unit Conversion</ex></ph>; <ph name="QUERY_TEXT">$2<ex>10 kg</ex></ph>; <ph name="RESULT_TEXT">$3<ex>22.04 pounds</ex></ph>
       </message>
@@ -327,15 +324,6 @@
       </message>
       <message name="IDS_QUICK_ANSWERS_VIEW_A11Y_RETRY_LABEL_NAME_TEMPLATE" desc="A11y retry label name template for the Quick Answers view.">
         <ph name="DESC_TEXT">$1<ex>Cannot connect to the internet. Click to try again.</ex></ph>: Retry
-      </message>
-      <message name="IDS_QUICK_ANSWERS_VIEW_EXPANSION_INDICATOR_LABEL" desc="Description text of the expansion affordance indicator for the Quick Answers view.">
-        more
-      </message>
-      <message name="IDS_QUICK_ANSWERS_VIEW_REPORT_QUERY_INTERNAL_LABEL" desc="Description text of the report query button for the Quick Answers view.">
-        Internal only
-      </message>
-      <message name="IDS_QUICK_ANSWERS_VIEW_REPORT_QUERY_REPORT_LABEL" desc="Description text of the report query button for the Quick Answers view.">
-        Report this query
       </message>
       <message name="IDS_QUICK_ANSWERS_RESULT_HEADER_INTENT_DEFINITION" desc="Header text shown in a definition result card">
         Define
@@ -599,13 +587,6 @@
       </message>
       <message name="IDS_TABLET_MULTITASK_MENU_NUDGE_TEXT" desc="Text that is shown when the tablet multitask menu nudge is displayed.">
         Swipe down for more layout options
-      </message>
-      <!-- ARC SDK Version Labels-->
-      <message name="IDS_ARC_SDK_VERSION_LABEL" desc="Label for Android SDK Version bundled with ARC">
-        SDK Version:
-      </message>
-      <message name="IDS_ARC_SDK_VERSION_UNKNOWN" desc="Message displayed when the Android SDK Version can not be found">
-        Unknown
       </message>
       <if expr="is_chromeos">
         <part file="recorder_strings.grdp" />
@@ -2966,7 +2947,7 @@
         <message name="IDS_PERSONALIZATION_APP_AVATAR_LAST_EXTERNAL_IMAGE" desc="Title for the existing photo from camera or file option.">
           Existing photo from camera or file
         </message>
-        <message name="IDS_PERSONALIZATION_APP_ARIA_LABEL_HOME" desc="Aria label for the home page of the hub.">
+        <message name="IDS_PERSONALIZATION_APP_ARIA_LABEL_HOME" desc="Aria label for the home page of the hub." meaning="'home' as in an internet location, a 'home page'">
           Home
         </message>
         <message name="IDS_PERSONALIZATION_APP_KEYBOARD_BACKLIGHT_TITLE" desc="Title for the keyboard backlight section of personalization hub.">
@@ -3507,21 +3488,6 @@
         </message>
         <message name="IDS_SEA_PEN_FEEDBACK_PLACEHOLDER" desc="Placeholder text displayed in the feedback text box">
           Feedback for wallpaper powered by Google AI
-        </message>
-        <message name="IDS_SEA_PEN_WALLPAPER_TERMS_DIALOG_TITLE" desc="Title for the wallpaper terms of service dialog.">
-          Terms of service
-        </message>
-        <message name="IDS_SEA_PEN_WALLPAPER_TERMS_ACCEPT_BUTTON" desc="The button which accepts and agrees to the terms for wallpaper service.">
-          I agree
-        </message>
-        <message name="IDS_SEA_PEN_WALLPAPER_TERMS_REFUSE_BUTTON" desc="The button which refuses the terms for wallpaper service.">
-          No thanks
-        </message>
-        <message name="IDS_SEA_PEN_WALLPAPER_TERMS_OF_SERVICE_DESC" desc="Title for the wallpaper terms of service dialog.">
-          You must be at least 18 years old and agree your use of AI wallpapers is subject to <ph name="GOOGLE_TERMS_OF_SERVICE_LINK">&lt;a target="_blank" href="https://policies.google.com/terms"&gt;</ph>Google Terms of Service<ph name="END_LINK_GOOGLE_TERMS_OF_SERVICE">&lt;/a&gt;</ph> and <ph name="BEGIN_LINK_GEN_AI_TERMS_OF_SERVICE">&lt;a target="_blank" href="https://policies.google.com/terms/generative-ai"&gt;</ph>Generative AI Additional Terms of Service<ph name="END_LINK_GEN_AI_TERMS_OF_SERVICE">&lt;/a&gt;</ph>.
-          <ph name="LINE_BREAK">&lt;br&gt;</ph>
-          <ph name="LINE_BREAK">&lt;br&gt;</ph>
-          You can only create wallpapers with AI for personal and non-commercial use. When you get wallpaper help, text is sent to Google AI servers to generate wallpaper suggestions, subject to <ph name="BEGIN_LINK_GOOGLE_PRIVACY_POLICY">&lt;a target="_blank" href="https://policies.google.com/privacy"&gt;</ph>Google's Privacy Policy<ph name="END_LINK_GOOGLE_PRIVACY_POLICY">&lt;/a&gt;</ph>. <ph name="BEGIN_LINK_LEARN_MORE">&lt;a target="_blank" href="https://support.google.com/chromebook?p=copyeditor"&gt;</ph>Learn more<ph name="END_LINK_LEARN_MORE">&lt;/a&gt;</ph>
         </message>
         <message name="IDS_SEA_PEN_CREATING_HIGH_RES_IMAGE" desc="The message displayed when the high resolution image is being created.">
           Creating hi-res image…
@@ -6926,9 +6892,6 @@
         <!-- End of APN -->
 
         <!-- Arc Input Overlay -->
-        <message name="IDS_INPUT_OVERLAY_SETTINGS_NUDGE_ALPHAV2" desc="Label displayed next to the Settings UI's entry point so the user is aware.">
-          Open menu to customize keys. Drag menu to move.
-        </message>
         <message name="IDS_INPUT_OVERLAY_KEYMAPPING_KEY" desc="Accessibility label for key label. Spoken by screen readers when the label 'w' control gets focus but not visually rendered.">
           Keymapping key
         </message>
@@ -6938,9 +6901,6 @@
         <message name="IDS_INPUT_OVERLAY_KEYMAPPING_TOUCH_POINT_CROSS" desc="Accessibility label for touch point which is cross shape. Spoken by screen readers when the cross-shaped touch point control gets focus but not visually rendered.">
           Keymapping D-pad
         </message>
-        <message name="IDS_INPUT_OVERLAY_LAYOUT_ACCTIONS_MENU" desc="Accessibility label for save and reset button group. Spoken by screen readers when the save and reset button group gets focus but not visually rendered.">
-          Layout actions menu
-        </message>
         <message name="IDS_INPUT_OVERLAY_KEY_LABEL_BACKSPACE" desc="Name for symbol of backspace key. Spoken by screen readers when symbol backspace renders in key label and gets focus but the symbol name not visually rendered.">
           backspace
         </message>
@@ -6949,12 +6909,6 @@
         </message>
         <message name="IDS_INPUT_OVERLAY_KEY_LABEL_SPACE" desc="Name for symbol of space key. Spoken by screen readers when symbol space renders in key label and gets focus but the symbol name not visually rendered.">
           space
-        </message>
-        <message name="IDS_INPUT_OVERLAY_EDIT_MENU_FOCUS" desc="Spoken by screen readers when action layout menu (save button group) is focused. The content is not rendered.">
-          Reposition with mouse or arrow keys.
-        </message>
-        <message name="IDS_INPUT_OVERLAY_EDIT_INSTRUCTIONS_ALPHAV2" desc="Text presented via a tooltip so the user knows how to interact and edit key-bindings.">
-          Click on any key to customize your button. Reposition key with mouse or arrow keys.
         </message>
         <message name="IDS_INPUT_OVERLAY_EDIT_INSTRUCTIONS_TOUCH_POINT_FOCUS" desc="Text presented via a tooltip so the user knows how to interact when the touch point is focused.">
           Move the blue touch point to an action. Select the associated key to customize.

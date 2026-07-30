@@ -174,7 +174,8 @@ class CC_EXPORT TileDisplayLayerImpl
     is_directly_composited_image_ = is_directly_composited_image;
   }
   void SetNearestNeighbor(bool nearest_neighbor) {
-    nearest_neighbor_ = nearest_neighbor;
+    TileBasedLayerImpl<TileDisplayLayerTiling>::SetNearestNeighbor(
+        nearest_neighbor);
   }
   void SetRecordedBounds(const gfx::Rect& bounds) { recorded_bounds_ = bounds; }
   bool IsDirectlyCompositedImage() const override;
@@ -190,18 +191,15 @@ class CC_EXPORT TileDisplayLayerImpl
       const {
     return proposed_tiling_scales_for_deletion_;
   }
-  bool GetNearestNeighbor() const override;
 
   // LayerImpl overrides:
   mojom::LayerType GetLayerType() const override;
   std::unique_ptr<LayerImpl> CreateLayerImpl(
       LayerTreeImpl* tree_impl) const override;
-  void PushPropertiesTo(LayerImpl* layer) override;
+  void CopyPropertiesTo(LayerImpl* layer) const override;
   void GetContentsResourceId(viz::ResourceId* resource_id,
                              gfx::Size* resource_size,
                              gfx::SizeF* resource_uv_size) const override;
-  gfx::Rect GetDamageRect() const override;
-  void ResetChangeTracking() override;
   gfx::ContentColorUsage GetContentColorUsage() const override;
 
   void SetContentColorUsage(gfx::ContentColorUsage content_color_usage) {
@@ -242,13 +240,9 @@ class CC_EXPORT TileDisplayLayerImpl
   bool ComputeCheckerboardedNeedsRecord() override;
 
   bool is_directly_composited_image_ = false;
-  bool nearest_neighbor_ = false;
   gfx::ContentColorUsage content_color_usage_ = gfx::ContentColorUsage::kSRGB;
   gfx::Rect recorded_bounds_;
 
-  // Denotes an area that is damaged and needs redraw. This is in the layer's
-  // space.
-  gfx::Rect damage_rect_;
   std::vector<std::unique_ptr<TileDisplayLayerTiling>> tilings_;
 
   // A list of tiling scale keys that the client has nominated for deletion.

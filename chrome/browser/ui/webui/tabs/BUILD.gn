@@ -18,7 +18,7 @@ mojom("mojo_bindings") {
         },
         {
           mojom = "tabs.mojom.TabNetworkState"
-          cpp = "::TabNetworkState"
+          cpp = "::tabs::TabNetworkState"
         },
       ]
       traits_headers = [ "tabs_mojom_traits.h" ]
@@ -27,7 +27,7 @@ mojom("mojo_bindings") {
         "//base",
         "//chrome/browser/ui/tabs:tab_enums",
         "//chrome/browser/ui/tabs:tabs_public",
-        "//chrome/browser/ui/tabs/alert:tab_alert_enum",
+        "//components/tabs:enum",
       ]
     },
   ]

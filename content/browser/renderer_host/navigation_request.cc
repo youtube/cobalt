@@ -318,10 +318,9 @@ void UpdateLoadFlagsWithCacheFlags(int* load_flags,
 }
 
 // This should match blink::ResourceRequest::needsHTTPOrigin.
-bool NeedsHTTPOrigin(net::HttpRequestHeaders* headers,
-                     const std::string& method) {
+bool NeedsHTTPOrigin(const std::string& method) {
   // Blink version of this function checks if the Origin header might have
-  // already been added to |headers|.  This check is not replicated below
+  // already been added to the headers.  This check is not replicated below
   // because:
   // 1. We want to overwrite the old (renderer-provided) header value
   //    with a new, trustworthy (browser-provided) value.
@@ -372,7 +371,8 @@ void AddAdditionalRequestHeaders(
     const std::string& user_agent_override,
     const std::optional<url::Origin>& initiator_origin,
     blink::mojom::Referrer* referrer,
-    FrameTreeNode* frame_tree_node) {
+    FrameTreeNode* frame_tree_node,
+    bool is_browser_initiated) {
   if (!url.SchemeIsHTTPOrHTTPS())
     return;
 
@@ -400,12 +400,44 @@ void AddAdditionalRequestHeaders(
   }
 
   // Next, set the HTTP Origin if needed.
-  if (NeedsHTTPOrigin(headers, method)) {
+  std::optional<std::string> existing_origin =
+      headers->GetHeader(net::HttpRequestHeaders::kOrigin);
+  if (NeedsHTTPOrigin(method)) {
+    // TODO(https://crbug.com/491783215): investigate whether it is possible to
+    // set Origin headers (at least on navigation requests) exclusively in the
+    // browser process and kill any renderer that provides Origin itself.
     url::Origin origin_header_value = initiator_origin.value_or(url::Origin());
     origin_header_value = Referrer::SanitizeOriginForRequest(
         url, origin_header_value, referrer->policy);
-    headers->SetHeader(net::HttpRequestHeaders::kOrigin,
-                       origin_header_value.Serialize());
+    std::string serialized_origin = origin_header_value.Serialize();
+    if (existing_origin && existing_origin != serialized_origin &&
+        !is_browser_initiated &&
+        base::FeatureList::IsEnabled(features::kDumpOnOriginHeaderMismatch)) {
+      // TODO(https://crbug.com/487795397): this should
+      // be a `bad_message::ReceivedBadMessage` and return `false` once
+      // DumpWithoutCrashing data is evaluated.
+      SCOPED_CRASH_KEY_STRING64("Bug487795397", "invalid_header",
+                                net::HttpRequestHeaders::kOrigin);
+      SCOPED_CRASH_KEY_STRING64("Bug487795397", "existing_origin",
+                                existing_origin.value());
+      SCOPED_CRASH_KEY_STRING64("Bug487795397", "serialized_origin",
+                                serialized_origin);
+      SCOPED_CRASH_KEY_BOOL("Bug487795397", "needs_origin_header", true);
+      base::debug::DumpWithoutCrashing();
+    }
+    headers->SetHeader(net::HttpRequestHeaders::kOrigin, serialized_origin);
+  } else if (existing_origin && !is_browser_initiated &&
+             base::FeatureList::IsEnabled(
+                 features::kDumpOnUnexpectedOriginHeader)) {
+    // TODO(https://crbug.com/40093290): this should
+    // be a `bad_message::ReceivedBadMessage` and return `false` once
+    // DumpWithoutCrashing() data is evaluated.
+    SCOPED_CRASH_KEY_STRING64("Bug487795397", "invalid_header",
+                              net::HttpRequestHeaders::kOrigin);
+    SCOPED_CRASH_KEY_STRING64("Bug487795397", "existing_origin",
+                              existing_origin.value());
+    SCOPED_CRASH_KEY_BOOL("Bug487795397", "needs_origin_header", false);
+    base::debug::DumpWithoutCrashing();
   }
 
   if (base::FeatureList::IsEnabled(features::kDocumentPolicyNegotiation)) {
@@ -1187,6 +1219,18 @@ net::StorageAccessApiStatus ShouldLoadWithStorageAccess(
                  ? begin_params.storage_access_api_status
                  : net::StorageAccessApiStatus::kNone;
   }
+}
+
+// Returns true if the parsed response headers contains a valid
+// "Connection-Allowlist" or "Connection-Allowlist-Report-Only" header.
+bool ResponseContainsConnectionAllowlist(
+    const network::mojom::URLResponseHead* response_head) {
+  return response_head && response_head->headers &&
+         response_head->parsed_headers &&
+         (response_head->parsed_headers->connection_allowlists.enforced
+              .has_value() ||
+          response_head->parsed_headers->connection_allowlists.report_only
+              .has_value());
 }
 
 // The sampling rate for UKM.
@@ -2073,7 +2117,8 @@ NavigationRequest::NavigationRequest(
         ui::PageTransitionFromInt(common_params_->transition),
         controller->GetBrowserContext(), common_params_->method,
         GetUserAgentOverride(), common_params_->initiator_origin,
-        common_params_->referrer.get(), frame_tree_node);
+        common_params_->referrer.get(), frame_tree_node,
+        commit_params_->is_browser_initiated);
 
     if (begin_params_->is_form_submission) {
       // During form resubmit, `commit_params_->post_content_type` is populated
@@ -3015,11 +3060,12 @@ void NavigationRequest::BeginNavigationImpl() {
       // Enforce cross-origin-opener-policy for about:blank, about:srcdoc and
       // MHTML iframe, before selecting the RenderFrameHost.
       const url::Origin origin = GetOriginForURLLoaderFactoryUnchecked();
-      const net::SchemefulSite site = net::SchemefulSite(origin);
+      net::SchemefulSite site = net::SchemefulSite(origin);
 
       coop_status_.EnforceCOOP(
           policy_container_builder_->FinalPolicies().cross_origin_opener_policy,
-          origin, net::NetworkAnonymizationKey::CreateSameSite(site));
+          origin,
+          net::NetworkAnonymizationKey::CreateSameSite(std::move(site)));
 
       SelectFrameHostForCrossDocumentNavigationWithNoUrlLoader();
       return;
@@ -7377,42 +7423,24 @@ void NavigationRequest::UpdateSiteInfo(
 }
 
 bool NavigationRequest::IsAllowedByConnectionAllowlist(bool is_redirect) {
+  // The connection allowlist base feature is the kill switch for the feature.
+  // It is checked first. Then connection allowlist also requires origin trial
+  // enabled. In order to check the origin trial status, the initiator policy
+  // container policies need to be retrieved.
   if (!base::FeatureList::IsEnabled(network::features::kConnectionAllowlists)) {
     return true;
   }
 
-  if (is_redirect && connection_allowlists_blocks_redirect_) {
-    // TODO(crbug.com/447954811): Implement reporting.
-    return false;
-  }
-
-  // If it is renderer-initiated, initiator_frame_token_ will be set and
-  // connection allowlist should be checked unless it is a same-document
-  // navigation or a local navigation. For local navigation, the connection
-  // allowlist will be inherited as part of the PolicyContainerHost and
-  // applied in the network service in
-  // NetworkRestrictionsNavigationThrottle::WillCommitWithoutUrlLoader().
-  if (!initiator_frame_token_ || IsSameDocument() ||
-      !IsURLHandledByNetworkStack(common_params_->url)) {
-    return true;
-  }
-
-  // If it is renderer-initiated and a history navigation, it should be
-  // checked against connection allowlist unless it is served from the BFcache.
-  // https://github.com/WICG/connection-allowlists/issues/4
-  if (IsServedFromBackForwardCache()) {
+  // `initiator_frame_token_` not being set implies this is not a
+  // renderer-initiated navigation, which is out of the scope of connection
+  // allowlist anyway, even though at this point the origin trial status has not
+  // been checked yet.
+  if (!initiator_frame_token_) {
     return true;
   }
 
   RenderFrameHostImpl* initiator_rfh = RenderFrameHostImpl::FromFrameToken(
       initiator_process_id_, *initiator_frame_token_);
-
-  // The feature currently does not impact fenced frames.
-  // TODO(crbug.com/447954811): Revisit this if the feature needs to be
-  // enabled and fenced frames need to be supported.
-  if (initiator_rfh && initiator_rfh->IsNestedWithinFencedFrame()) {
-    return true;
-  }
 
   PolicyContainerHost* initiator_policy_container_host = nullptr;
   if (initiator_rfh) {
@@ -7436,18 +7464,52 @@ bool NavigationRequest::IsAllowedByConnectionAllowlist(bool is_redirect) {
     policies = &initiator_policy_container_host->policies();
   }
 
+  // The origin trial status is tied to the existence of allowlists in policy
+  // container. If the initiator doesn't have an enforced allowlist in its
+  // policies, it means either:
+  // 1. the trial was not active for that context.
+  // 2. or the parsed enforced allowlist is null. For example, the
+  // "Connection-Allowlist" header has an empty field value.
   if (!policies || !policies->connection_allowlists.enforced) {
+    return true;
+  }
+
+  // Perform functional checks (redirects, same-document, local URLs) only after
+  // confirming the feature is active for this initiator. Note:
+  // redirect_behavior defaults to kBlock if not explicitly set in the
+  // Connection-Allowlist header.
+  if (is_redirect &&
+      policies->connection_allowlists.enforced->redirect_behavior ==
+          network::ConnectionAllowlist::RedirectBehavior::kBlock) {
+    // TODO(crbug.com/447954811): Implement reporting.
+    return false;
+  }
+
+  // For same-document navigation, the connection allowlist is not checked. For
+  // local navigation, the connection allowlist will be inherited as part of the
+  // PolicyContainerHost and applied in the network service in
+  // NetworkRestrictionsNavigationThrottle::WillCommitWithoutUrlLoader().
+  if (IsSameDocument() || !IsURLHandledByNetworkStack(common_params_->url)) {
+    return true;
+  }
+
+  // If it is renderer-initiated and a history navigation, it should be
+  // checked against connection allowlist unless it is served from the BFcache.
+  // https://github.com/WICG/connection-allowlists/issues/4
+  if (IsServedFromBackForwardCache()) {
+    return true;
+  }
+
+  // The feature currently does not impact fenced frames.
+  // TODO(crbug.com/447954811): Revisit this if the feature needs to be
+  // enabled and fenced frames need to be supported.
+  if (initiator_rfh && initiator_rfh->IsNestedWithinFencedFrame()) {
     return true;
   }
 
   if (network::ConnectionAllowlistMatchesUrl(
           policies->connection_allowlists.enforced.value(),
           common_params_->url)) {
-    // Default-block any server-side redirects.
-    // TODO(crbug.com/447954811): Implement allowing server-side redirects
-    // based on an attribute. Consider not having a bool on the
-    // NavigationRequest as part of that change.
-    connection_allowlists_blocks_redirect_ = true;
     return true;
   }
 
@@ -10643,15 +10705,27 @@ void NavigationRequest::ComputePoliciesToCommit() {
         true);
   }
 
-  if (response_head_) {
-    CHECK(base::FeatureList::IsEnabled(
-              network::features::kConnectionAllowlists) ||
-          (!response_head_->parsed_headers->connection_allowlists.enforced
-                .has_value() &&
-           !response_head_->parsed_headers->connection_allowlists.report_only
-                .has_value()));
-    policy_container_builder_->SetConnectionAllowlists(
-        std::move(response_head_->parsed_headers->connection_allowlists));
+  if (ResponseContainsConnectionAllowlist(response_head_.get()) &&
+      base::FeatureList::IsEnabled(network::features::kConnectionAllowlists)) {
+    // Connection allowlist needs to be enforced once the allowlist response
+    // header is received. The origin trial token for this feature is received
+    // within the same response. The token is parsed here to query the trial
+    // status, instead of waiting for the response sent to renderer process,
+    // where the trial status is first available for most other web platform
+    // features. See https://wicg.github.io/connection-allowlists/.
+    bool connection_allowlist_origin_trial_enabled =
+        base::FeatureList::IsEnabled(
+            blink::features::kOverrideConnectionAllowlistOriginTrial) ||
+        blink::TrialTokenValidator().RequestEnablesFeature(
+            common_params_->url, response_head_->headers.get(),
+            "ConnectionAllowlist", base::Time::Now());
+
+    // The allowlist is stored in the policy container only if both origin trial
+    // and base::Feature are enabled.
+    if (connection_allowlist_origin_trial_enabled) {
+      policy_container_builder_->SetConnectionAllowlists(
+          std::move(response_head_->parsed_headers->connection_allowlists));
+    }
   }
 
   if (!devtools_instrumentation::ShouldBypassCSP(*this)) {
@@ -11510,7 +11584,6 @@ void NavigationRequest::RecordMetricsForBlockedGetFrameHostAttempt(
 }
 
 void NavigationRequest::PostResumeCommitTask() {
-  DCHECK(ShouldAvoidRedundantNavigationCancellations());
   DCHECK(!ShouldQueueDueToExistingPendingCommitRFH());
   // TODO(crbug.com/40186427): Add some metrics for how often:
   // - this is run
@@ -12321,6 +12394,71 @@ void NavigationRequest::ValidateCommitOrigin(
 
 PrerenderHostId NavigationRequest::GetPrerenderHostId() const {
   return prerender_host_id_;
+}
+
+void NavigationRequest::SetAsyncBeforeUnloadCommitResumeClosure(
+    base::OnceClosure commit_resume_closure) {
+  CHECK(!async_before_unload_pending_replies_.empty());
+  CHECK(!async_before_unload_commit_resume_closure_);
+  async_before_unload_commit_resume_closure_ = std::move(commit_resume_closure);
+}
+
+void NavigationRequest::StartAsyncBeforeUnloadTimer() {
+  CHECK(!async_before_unload_pending_replies_.empty());
+  TRACE_EVENT_BEGIN(
+      "navigation", "AsyncBeforeUnload",
+      perfetto::NamedTrack::FromPointer("AsyncBeforeUnload", this),
+      "Initial URL", common_params_->url.spec());
+  async_before_unload_timeout_.Start(
+      FROM_HERE, features::kAsyncBeforeUnloadTimeout.Get(),
+      base::BindOnce(
+          [](base::WeakPtr<NavigationRequest> self) {
+            if (!self) {
+              return;
+            }
+            // If the timeout occurs, we proceed with the navigation commit
+            // regardless of any pending replies. We pass nullopt to indicate
+            // that the timer expired.
+            self->async_before_unload_pending_replies_.clear();
+            self->MaybeResumeAsyncBeforeUnloadCommit(std::nullopt);
+          },
+          weak_factory_.GetWeakPtr()));
+}
+
+void NavigationRequest::MaybeResumeAsyncBeforeUnloadCommit(
+    std::optional<GlobalRenderFrameHostId> acked_rfh_id) {
+  if (acked_rfh_id) {
+    // Remove the frame that just replied. (If `acked_rfh_id` is nullopt, it
+    // means the timer expired).
+    async_before_unload_pending_replies_.erase(*acked_rfh_id);
+  }
+
+  // All IDs remaining in the pending replies set must correspond to live
+  // frames, because RenderFrameHostImpl::~RenderFrameHostImpl handles
+  // removing destroyed frames from the set.
+  //
+  // Using DCHECK because this validation is computationally expensive as it
+  // iterates over all pending replies.
+  DCHECK(std::ranges::all_of(async_before_unload_pending_replies_,
+                             [](const GlobalRenderFrameHostId& id) -> bool {
+                               return RenderFrameHostImpl::FromID(id);
+                             }));
+
+  if (!async_before_unload_pending_replies_.empty()) {
+    // Wait for the remaining reply for beforeunload.
+    return;
+  }
+  TRACE_EVENT_END("navigation",
+                  perfetto::NamedTrack::FromPointer("AsyncBeforeUnload", this));
+  // Proceed with navigation commit.
+  async_before_unload_timeout_.Stop();
+  if (async_before_unload_commit_resume_closure_) {
+    std::move(async_before_unload_commit_resume_closure_).Run();
+  }
+}
+
+bool NavigationRequest::IsWaitingForAsyncBeforeUnload() const {
+  return !async_before_unload_pending_replies_.empty();
 }
 
 bool NavigationRequest::IsInitialWebUISyncNavigation() {

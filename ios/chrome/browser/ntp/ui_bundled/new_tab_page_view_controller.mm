@@ -820,10 +820,10 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
     return;
   }
 
-  [self omniboxDidResignFirstResponder];
+  [self omniboxDidEndEditing];
 }
 
-- (void)omniboxDidResignFirstResponder {
+- (void)omniboxDidEndEditing {
   if (![self.headerViewController isShowing] && !self.scrolledToMinimumHeight) {
     return;
   }
@@ -831,7 +831,7 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
   // Do not trigger defocus animation if the user is already navigating away
   // from the NTP.
   if (self.NTPVisible) {
-    [self.headerViewController omniboxDidResignFirstResponder];
+    [self.headerViewController omniboxDidEndEditing];
     [self shiftTilesDownForOmniboxDefocus];
   }
 }
@@ -1161,8 +1161,7 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
 
 // Whether the quick actions button row is visible.
 - (BOOL)quickActionsVisible {
-  return _isAIMAllowed && ShouldShowQuickActionsRow() &&
-         !self.incognitoDisabled;
+  return _isAIMAllowed && IsAimEnabledInNtp();
 }
 
 // Returns YES if scroll should be skipped when focusing the omnibox.
@@ -1224,7 +1223,7 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
   if (self.omniboxFocused) {
     [self.NTPContentDelegate cancelOmniboxEdit];
   } else {
-    [self omniboxDidResignFirstResponder];
+    [self omniboxDidEndEditing];
   }
 }
 

@@ -77,7 +77,6 @@ ReverbConvolver::ReverbConvolver(AudioChannel* impulse_response,
   // processing slices.
   max_realtime_fft_size_ = kMaxRealtimeFFTSize;
 
-  const float* response = impulse_response->Data();
   uint32_t total_response_length = impulse_response->length();
 
   // The total latency is zero because the direct-convolution is used in the
@@ -105,7 +104,7 @@ ReverbConvolver::ReverbConvolver(AudioChannel* impulse_response,
 
     std::unique_ptr<ReverbConvolverStage> stage =
         std::make_unique<ReverbConvolverStage>(
-            response, total_response_length, reverb_total_latency, stage_offset,
+            impulse_response->Span(), reverb_total_latency, stage_offset,
             stage_size, fft_size, render_phase, render_slice_size,
             &accumulation_buffer_, scale, use_direct_convolver);
 
@@ -178,13 +177,8 @@ void ReverbConvolver::Process(const AudioChannel* source_channel,
   DCHECK_GE(source_channel->length(), frames_to_process);
   DCHECK_GE(destination_channel->length(), frames_to_process);
 
-  const float* source = source_channel->Data();
-  float* destination = destination_channel->MutableData();
-  DCHECK(source);
-  DCHECK(destination);
-
   // Feed input buffer (read by all threads)
-  input_buffer_.Write(source, frames_to_process);
+  input_buffer_.Write(source_channel->Span(), frames_to_process);
 
   // Accumulate contributions from each stage
   for (auto& stage : stages_) {
@@ -192,7 +186,8 @@ void ReverbConvolver::Process(const AudioChannel* source_channel,
   }
 
   // Finally read from accumulation buffer
-  accumulation_buffer_.ReadAndClear(destination, frames_to_process);
+  accumulation_buffer_.ReadAndClear(
+      destination_channel->MutableSpan().first(frames_to_process));
 
   // Now that we've buffered more input, post another task to the background
   // thread.

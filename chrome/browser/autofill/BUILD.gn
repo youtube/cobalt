@@ -4,15 +4,12 @@
 
 import("//build/buildflag_header.gni")
 import("//build/config/ui.gni")
-import("//components/optimization_guide/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 
 assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
 
 static_library("autofill") {
   sources = [
-    "account_setting_service_factory.cc",
-    "account_setting_service_factory.h",
     "address_normalizer_factory.cc",
     "address_normalizer_factory.h",
     "autocomplete_history_manager_factory.cc",
@@ -23,6 +20,8 @@ static_library("autofill") {
     "autofill_ai_model_executor_factory.h",
     "autofill_entity_data_manager_factory.cc",
     "autofill_entity_data_manager_factory.h",
+    "autofill_field_classification_model_service_factory.cc",
+    "autofill_field_classification_model_service_factory.h",
     "autofill_image_fetcher_factory.cc",
     "autofill_image_fetcher_factory.h",
     "autofill_offer_manager_factory.cc",
@@ -31,10 +30,10 @@ static_library("autofill") {
     "autofill_optimization_guide_decider_factory.h",
     "gmail_otp_backend_factory.cc",
     "gmail_otp_backend_factory.h",
-    "iban_manager_factory.cc",
-    "iban_manager_factory.h",
     "merchant_promo_code_manager_factory.cc",
     "merchant_promo_code_manager_factory.h",
+    "ml_log_router_factory.cc",
+    "ml_log_router_factory.h",
     "one_time_token_service_factory.cc",
     "one_time_token_service_factory.h",
     "personal_data_manager_factory.cc",
@@ -70,6 +69,7 @@ static_library("autofill") {
   deps = [
     "//chrome/browser:browser_process",
     "//chrome/browser/accessibility_annotator",
+    "//chrome/browser/account_settings",
     "//chrome/browser/history",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/profiles",
@@ -78,6 +78,7 @@ static_library("autofill") {
     "//chrome/browser/sync:factories",
     "//chrome/browser/webdata_services",
     "//chrome/common:constants",
+    "//components/account_settings",
     "//components/autofill/content/browser",
     "//components/image_fetcher/core",
     "//components/prefs",
@@ -162,15 +163,6 @@ static_library("autofill") {
       "//components/sync/base",
     ]
   }
-
-  if (build_with_tflite_lib) {
-    sources += [
-      "autofill_field_classification_model_service_factory.cc",
-      "autofill_field_classification_model_service_factory.h",
-      "ml_log_router_factory.cc",
-      "ml_log_router_factory.h",
-    ]
-  }
 }
 
 static_library("test_support") {
@@ -215,10 +207,7 @@ static_library("test_support") {
   }
 
   if (!is_android) {
-    deps += [
-      "//chrome/browser/autofill/actor:test_support",
-      "//components/autofill/core/browser:test_support",
-    ]
+    deps += [ "//components/autofill/core/browser:test_support" ]
   }
 }
 

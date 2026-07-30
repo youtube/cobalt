@@ -166,7 +166,7 @@ const char kOmniboxFocusResultedInNavigation[] =
 
   // The controller looks at the current pre-edit state, so the call to
   // OnKillFocus() must come after exiting pre-edit.
-  [self.focusDelegate omniboxDidResignFirstResponder];
+  [self.focusDelegate omniboxDidEndEditing];
 
   // Composebox is destroyed on endEditing, skip revert to avoid resizing on
   // revert.
@@ -573,9 +573,14 @@ const char kOmniboxFocusResultedInNavigation[] =
   // `location_bar_` is only forwarding the call to the BVC. This should only
   // happen when the omnibox is being focused and it starts showing the popup;
   // if the popup was already open, no need to call this.
-  if (!popupOpenBeforeEdit) {
+  if (!popupOpenBeforeEdit ||
+      _presentationContext == OmniboxPresentationContext::kCobrowse) {
     [self.focusDelegate omniboxDidBecomeFirstResponder];
   }
+}
+
+- (void)onDidEndEditing {
+  [self.focusDelegate omniboxDidResignFirstResponder];
 }
 
 - (BOOL)shouldChangeCharactersInRange:(NSRange)range

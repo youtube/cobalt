@@ -35,6 +35,7 @@
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/scroll_view.h"
+#include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/layout/layout_types.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
@@ -123,7 +124,8 @@ VerticalTabGroupHeaderView::VerticalTabGroupHeaderView(
     Delegate& delegate,
     tabs::VerticalTabStripStateController* state_controller,
     const tab_groups::TabGroupVisualData* tab_group_visual_data)
-    : tab_group_visual_data_(*tab_group_visual_data),
+    : HoverCardAnchorTarget(this),
+      tab_group_visual_data_(*tab_group_visual_data),
       sync_icon_(AddChildView(std::make_unique<views::ImageView>())),
       group_header_label_(
           AddChildView(std::make_unique<VerticalTabGroupHeaderLabel>())),
@@ -135,6 +137,8 @@ VerticalTabGroupHeaderView::VerticalTabGroupHeaderView(
       delegate_(delegate),
       editor_bubble_tracker_(state_controller) {
   SetProperty(views::kElementIdentifierKey, kTabGroupHeaderElementId);
+  attention_indicator_->SetProperty(views::kElementIdentifierKey,
+                                    kTabGroupHeaderAttentionIndicatorElementId);
   SetNotifyEnterExitOnChild(true);
 
   ConfigureEditorBubbleButton(editor_bubble_button_);
@@ -198,6 +202,8 @@ bool VerticalTabGroupHeaderView::OnKeyPressed(const ui::KeyEvent& event) {
       event.key_code() == ui::VKEY_RETURN) {
     delegate_->ToggleCollapsedState(
         ToggleTabGroupCollapsedStateOrigin::kKeyboard);
+    views::ElementTrackerViews::GetInstance()->NotifyViewActivated(
+        kTabGroupHeaderElementId, this);
     return true;
   }
 
@@ -234,6 +240,9 @@ bool VerticalTabGroupHeaderView::OnMousePressed(const ui::MouseEvent& event) {
     return false;
   }
 
+  // Hide the group hovercard if it is currently showing.
+  delegate_->HideHoverCard();
+
   // Potentially start the drag for the mouse press.
   // Follow-up mouse-movement events will update the drag controller and
   // eventually kick off the drag-loop.
@@ -257,10 +266,14 @@ void VerticalTabGroupHeaderView::OnMouseReleased(const ui::MouseEvent& event) {
     ShowEditorBubble();
   } else if (toggle_collapse) {
     delegate_->ToggleCollapsedState(ToggleTabGroupCollapsedStateOrigin::kMouse);
+    views::ElementTrackerViews::GetInstance()->NotifyViewActivated(
+        kTabGroupHeaderElementId, this);
   }
 }
 
 void VerticalTabGroupHeaderView::OnGestureEvent(ui::GestureEvent* event) {
+  delegate_->HideHoverCard();
+
   switch (event->type()) {
     case ui::EventType::kGestureTapDown:
       // Required to allow the touch system to know this is a gesture target
@@ -271,6 +284,8 @@ void VerticalTabGroupHeaderView::OnGestureEvent(ui::GestureEvent* event) {
     case ui::EventType::kGestureTap:
       delegate_->ToggleCollapsedState(
           ToggleTabGroupCollapsedStateOrigin::kGesture);
+      views::ElementTrackerViews::GetInstance()->NotifyViewActivated(
+          kTabGroupHeaderElementId, this);
       event->SetHandled();
       break;
 
@@ -296,7 +311,8 @@ void VerticalTabGroupHeaderView::OnMouseMoved(const ui::MouseEvent& event) {
 }
 
 void VerticalTabGroupHeaderView::OnMouseEntered(const ui::MouseEvent& event) {
-  delegate_->HideHoverCard();
+  SetHoverCardDataFrom(delegate_->GetTabGroup());
+  delegate_->UpdateHoverCard();
   UpdateEditorBubbleButtonVisibility();
 }
 
@@ -312,6 +328,8 @@ void VerticalTabGroupHeaderView::OnMouseExited(const ui::MouseEvent& event) {
 
 void VerticalTabGroupHeaderView::OnFocus() {
   UpdateEditorBubbleButtonVisibility();
+  SetHoverCardDataFrom(delegate_->GetTabGroup());
+  delegate_->UpdateHoverCard();
 }
 
 void VerticalTabGroupHeaderView::OnBlur() {
@@ -395,6 +413,19 @@ void VerticalTabGroupHeaderView::ShowContextMenuForViewImpl(
       delegate_->ShowGroupEditorBubble(kStopContextMenuPropagation));
 }
 
+bool VerticalTabGroupHeaderView::NeedsToShowThumbnail() const {
+  return false;
+}
+
+bool VerticalTabGroupHeaderView::IsValidHoverCardTarget() const {
+  return delegate_->IsValid();
+}
+
+views::BubbleBorder::Arrow VerticalTabGroupHeaderView::GetAnchorPosition()
+    const {
+  return views::BubbleBorder::LEFT_TOP;
+}
+
 void VerticalTabGroupHeaderView::OnDataChanged(
     const tab_groups::TabGroupVisualData* tab_group_visual_data,
     bool is_shared) {
@@ -444,7 +475,7 @@ void VerticalTabGroupHeaderView::OnDataChanged(
 
   UpdateIsCollapsed();
   UpdateAccessibleName();
-  UpdateTooltipText();
+  SetHoverCardDataFrom(delegate_->GetTabGroup());
 }
 
 void VerticalTabGroupHeaderView::OnAttentionStateChanged(bool needs_attention) {
@@ -463,6 +494,10 @@ void VerticalTabGroupHeaderView::OnAttentionStateChanged(bool needs_attention) {
   }
 
   UpdateAccessibleName();
+}
+
+void VerticalTabGroupHeaderView::SetHoverCardDataForTesting() {
+  SetHoverCardDataFrom(delegate_->GetTabGroup());
 }
 
 void VerticalTabGroupHeaderView::UpdateTooltipText() {

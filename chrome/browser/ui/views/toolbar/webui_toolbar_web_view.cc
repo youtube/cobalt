@@ -57,6 +57,8 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/gfx/geometry/rect_conversions.h"
+#include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/webview/unhandled_keyboard_event_handler.h"
@@ -146,9 +148,11 @@ WebUIToolbarWebView::WebUIToolbarWebView(
       controller_(controller),
       reload_control_(this),
       split_tabs_control_(this),
+      home_control_(this),
       location_bar_(std::move(location_bar)),
       back_control_(this, BackForwardButton::Direction::kBack),
       forward_control_(this, BackForwardButton::Direction::kForward),
+      pinned_toolbar_actions_(this),
       clock_(base::DefaultTickClock::GetInstance()),
       touch_ui_subscription_(ui::TouchUiController::Get()->RegisterCallback(
           base::BindRepeating(&WebUIToolbarWebView::OnTouchUiChanged,
@@ -158,6 +162,12 @@ WebUIToolbarWebView::WebUIToolbarWebView(
       toolbar_ui_api::mojom::SplitTabsControlState::New();
   last_queued_state_.reload_control_state =
       toolbar_ui_api::mojom::ReloadControlState::New();
+  last_queued_state_.home_control_state =
+      toolbar_ui_api::mojom::HomeControlState::New();
+  last_queued_state_.content_setting_state =
+      toolbar_ui_api::mojom::ContentSettingState::New();
+  last_queued_state_.omnibox_view_state =
+      toolbar_ui_api::mojom::OmniboxViewState::New();
   last_queued_state_.layout_constants_version = 0;
   last_queued_state_.back_forward_control_state = GetBackForwardState();
 
@@ -215,6 +225,10 @@ void WebUIToolbarWebView::AddedToWidget() {
     split_tabs_control_.Init();
   }
 
+  if (features::IsWebUIHomeButtonEnabled()) {
+    home_control_.Init();
+  }
+
   // Do NOT call GetWebUIToolbarUI() here as it may be null.
   // The reload_control_ will be initialized once the WebUI is ready.
 }
@@ -228,6 +242,8 @@ gfx::Size WebUIToolbarWebView::CalculatePreferredSize(
   button_count += features::IsWebUIBackForwardButtonEnabled();
   button_count += features::IsWebUIBackForwardButtonEnabled() &&
                   forward_control_.GetVisible();
+  button_count +=
+      features::IsWebUIHomeButtonEnabled() && home_control_.IsVisible();
 
   const int size = GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
   int width = button_count * size;
@@ -250,33 +266,39 @@ gfx::Size WebUIToolbarWebView::CalculatePreferredSize(
 
 void WebUIToolbarWebView::HandleContextMenu(
     toolbar_ui_api::mojom::ContextMenuType menu_type,
-    gfx::Point viewport_coordinate_css_pixels,
+    const gfx::RectF& bounds_in_css_pixels,
     ui::mojom::MenuSourceType source) {
   CHECK(web_view_);
   // The coordinates are in CSS pixels relative the viewport origin. We need
   // to multiply by the page scaling factor to convert them to DIPs before we
-  // can use them as the offset from the viewport origin to show the menu.
+  // can use them as the bounding rectangle relative to the viewport origin to
+  // show the menu.
   double page_zoom_scale = blink::ZoomLevelToZoomFactor(
       zoom::ZoomController::GetZoomLevelForWebContents(
           web_view_->web_contents()));
-  gfx::Point screen_location = GetBoundsInScreen().origin();
-  screen_location +=
-      ScaleToRoundedPoint(viewport_coordinate_css_pixels, page_zoom_scale)
-          .OffsetFromOrigin();
+  gfx::Rect screen_rect = gfx::ToEnclosingRect(
+      gfx::ScaleRect(bounds_in_css_pixels, page_zoom_scale));
+
+  // Add the offset of the WebView's top-left corner in screen coordinates to
+  // convert the relative rect to an absolute screen rect.
+  screen_rect.Offset(GetBoundsInScreen().origin().OffsetFromOrigin());
 
   switch (menu_type) {
     case toolbar_ui_api::mojom::ContextMenuType::kBack:
-      back_control_.HandleContextMenu(GetWidget(), screen_location, source);
+      back_control_.HandleContextMenu(GetWidget(), screen_rect, source);
       break;
     case toolbar_ui_api::mojom::ContextMenuType::kForward:
-      forward_control_.HandleContextMenu(GetWidget(), screen_location, source);
+      forward_control_.HandleContextMenu(GetWidget(), screen_rect, source);
       break;
     case toolbar_ui_api::mojom::ContextMenuType::kReload:
-      reload_control_.HandleContextMenu(GetWidget(), screen_location, source);
+      reload_control_.HandleContextMenu(GetWidget(), screen_rect, source);
       break;
     case toolbar_ui_api::mojom::ContextMenuType::kSplitTabsAction:
     case toolbar_ui_api::mojom::ContextMenuType::kSplitTabsContext:
-      split_tabs_control_.HandleContextMenu(menu_type, screen_location, source);
+      split_tabs_control_.HandleContextMenu(menu_type, screen_rect, source);
+      break;
+    case toolbar_ui_api::mojom::ContextMenuType::kHome:
+      home_control_.HandleContextMenu(screen_rect, source);
       break;
     case toolbar_ui_api::mojom::ContextMenuType::kUnspecified:
       NOTREACHED() << "Unexpected ClickDispositionFlag::kUnspecified.";
@@ -497,6 +519,22 @@ void WebUIToolbarWebView::OnBackForwardStateChanged() {
   auto state = GetBackForwardState();
   if (*state != *last_queued_state_.back_forward_control_state) {
     last_queued_state_.back_forward_control_state = std::move(state);
+    PostPushNavigationState();
+  }
+}
+
+void WebUIToolbarWebView::OnHomeControlStateChanged(
+    toolbar_ui_api::mojom::HomeControlStatePtr state) {
+  if (*state != *last_queued_state_.home_control_state) {
+    last_queued_state_.home_control_state = std::move(state);
+    PostPushNavigationState();
+  }
+}
+
+void WebUIToolbarWebView::OnOmniboxViewStateChanged(
+    toolbar_ui_api::mojom::OmniboxViewStatePtr state) {
+  if (*state != *last_queued_state_.omnibox_view_state) {
+    last_queued_state_.omnibox_view_state = std::move(state);
     PostPushNavigationState();
   }
 }

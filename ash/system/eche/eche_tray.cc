@@ -69,7 +69,6 @@
 #include "ui/gfx/text_constants.h"
 #include "ui/gfx/vector_icon_types.h"
 #include "ui/strings/grit/ui_strings.h"
-#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/image_button_factory.h"
@@ -211,12 +210,13 @@ void EcheTray::EventInterceptor::OnKeyEvent(ui::KeyEvent* event) {
 }
 
 EcheTray::EcheTray(Shelf* shelf)
-    : ImagedTrayIcon(shelf,
-                     ui::ImageModel::FromVectorIcon(
-                         kPhoneHubPhoneIcon,
-                         cros_tokens::kCrosSysOnSurface),
-                     GetAccessibleName(),
-                     TrayBackgroundViewCatalogName::kEche),
+    : ImagedTrayIcon(
+          shelf,
+          ui::ImageModel::FromVectorIcon(kPhoneHubPhoneIcon,
+                                         cros_tokens::kCrosSysOnSurface),
+          /*tooltip=*/GetAccessibleName(),
+          /*accessibility_name=*/GetAccessibleName(),
+          TrayBackgroundViewCatalogName::kEche),
       event_interceptor_(std::make_unique<EventInterceptor>(this)) {
   SetCallback(
       base::BindRepeating(&EcheTray::OnButtonPressed, base::Unretained(this)));
@@ -229,8 +229,6 @@ EcheTray::EcheTray(Shelf* shelf)
   shelf_observation_.Observe(shelf);
   shell_observer_.Observe(Shell::Get());
   keyboard_observation_.Observe(keyboard::KeyboardUIController::Get());
-
-  GetViewAccessibility().SetName(GetAccessibleName());
 }
 
 EcheTray::~EcheTray() {
@@ -255,10 +253,6 @@ void EcheTray::UpdateTrayItemColor(bool is_active) {
       kPhoneHubPhoneIcon, is_active
                               ? cros_tokens::kCrosSysSystemOnPrimaryContainer
                               : cros_tokens::kCrosSysOnSurface));
-}
-
-void EcheTray::HandleLocaleChange() {
-  image_view()->SetTooltipText(GetAccessibleName());
 }
 
 void EcheTray::HideBubbleWithView(const TrayBubbleView* bubble_view) {

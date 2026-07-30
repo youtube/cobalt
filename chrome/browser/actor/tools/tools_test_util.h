@@ -49,6 +49,7 @@ class MockActorLoginService : public actor_login::ActorLoginService {
   // `actor_login::ActorLoginService`:
   void GetCredentials(
       tabs::TabInterface* tab,
+      bool has_sign_in_with_google_button,
       base::WeakPtr<actor_login::ActorLoginQualityLoggerInterface> mqls_logger,
       actor_login::CredentialsOrErrorReply callback) override;
   void AttemptLogin(
@@ -57,7 +58,8 @@ class MockActorLoginService : public actor_login::ActorLoginService {
       bool should_store_permission,
       base::WeakPtr<actor_login::ActorLoginQualityLoggerInterface> mqls_logger,
       base::TimeTicks attempt_login_tool_start_time,
-      actor_login::LoginStatusResultOrErrorReply callback) override;
+      actor_login::LoginStatusResultOrErrorReply callback,
+      actor_login::LoginStatusResultCallback federated_login_callback) override;
 
   void SetCredentials(const actor_login::CredentialsOrError& credentials);
 

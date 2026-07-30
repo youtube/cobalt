@@ -104,6 +104,9 @@ blink_python_runner("runtime_feature_state_override_context") {
 
 blink_python_runner("color_data") {
   script = "../build/scripts/gperf.py"
+  if (!is_ios) {
+    sources = [ gperf_exe ]
+  }
 
   color_data_gperf = "color_data.gperf"
   inputs = [
@@ -115,7 +118,7 @@ blink_python_runner("color_data") {
   outputs = [ output_file ]
 
   args = [
-    gperf_exe,
+    rebase_path(gperf_exe, root_build_dir),
     "--key-positions=*",
     "-D",
     "-s",
@@ -2724,7 +2727,7 @@ source_set("blink_image_decoder_fuzzer_test_support") {
   ]
   deps = [ ":platform" ]
   if (enable_jxl_decoder) {
-    deps += [ "//third_party/rust/jxl/v0_3/wrapper:jxl_rs" ]
+    deps += [ "//third_party/rust/jxl/v0_4/wrapper:jxl_rs" ]
   }
 }
 
@@ -2777,6 +2780,7 @@ if (rtc_use_h265) {
     deps = [
       ":blink_fuzzer_test_support",
       ":platform",
+      "//testing/libfuzzer:libfuzzer_base_wrappers",
     ]
     libfuzzer_options = [ "rss_limit_mb=8192" ]
     additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
@@ -2789,6 +2793,7 @@ fuzzer_test("open_type_math_support_fuzzer") {
   deps = [
     ":blink_fuzzer_test_support",
     ":platform",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
   ]
   seed_corpuses = [
     "//third_party/blink/web_tests/external/wpt/fonts/math",
@@ -2803,6 +2808,7 @@ fuzzer_test("stretchy_operator_shaper_fuzzer") {
   deps = [
     ":blink_fuzzer_test_support",
     ":platform",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
   ]
   seed_corpuses = [
     "//third_party/blink/web_tests/external/wpt/fonts/math",
@@ -2817,6 +2823,7 @@ fuzzer_test("mhtml_parser_fuzzer") {
   deps = [
     ":blink_fuzzer_test_support",
     ":platform",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
   ]
   dict = "//testing/libfuzzer/fuzzers/dicts/mhtml.dict"
   seed_corpus = "//third_party/blink/web_tests/mhtml"
@@ -2866,7 +2873,7 @@ if (enable_jxl_decoder) {
       ":blink_fuzzer_test_support",
       ":blink_image_decoder_fuzzer_test_support",
       ":platform",
-      "//third_party/rust/jxl/v0_3/wrapper:jxl_rs",
+      "//third_party/rust/jxl/v0_4/wrapper:jxl_rs",
     ]
     seed_corpuses =
         [ "//third_party/blink/web_tests/external/wpt/jpegxl/resources" ]
@@ -2888,6 +2895,7 @@ fuzzer_test("blink_ico_decoder_fuzzer") {
   deps = [
     ":blink_fuzzer_test_support",
     ":platform",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
   ]
   seed_corpuses = [ "//third_party/blink/web_tests/images/resources/icofuzz" ]
   libfuzzer_options = [ "rss_limit_mb=8192" ]
@@ -2900,6 +2908,7 @@ fuzzer_test("blink_gif_decoder_fuzzer") {
   deps = [
     ":blink_fuzzer_test_support",
     ":platform",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
   ]
   seed_corpuses = [ "//third_party/blink/web_tests/images/resources/giffuzz" ]
   libfuzzer_options = [ "rss_limit_mb=8192" ]
@@ -2971,6 +2980,7 @@ fuzzer_test("blink_webp_decoder_fuzzer") {
   deps = [
     ":blink_fuzzer_test_support",
     ":platform",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
   ]
   seed_corpuses = [ "//third_party/blink/web_tests/images/resources/webpfuzz" ]
   libfuzzer_options = [ "rss_limit_mb=8192" ]
@@ -2983,6 +2993,7 @@ fuzzer_test("blink_date_time_format_fuzzer") {
   deps = [
     ":blink_fuzzer_test_support",
     ":platform",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
   ]
   dict = "//testing/libfuzzer/fuzzers/dicts/date.dict"
   seed_corpus = "text/date_time_format_fuzzer_seed_corpus"
@@ -2995,6 +3006,7 @@ fuzzer_test("blink_json_parser_fuzzer") {
   deps = [
     ":blink_fuzzer_test_support",
     ":platform",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
   ]
   dict = "//testing/libfuzzer/fuzzers/dicts/json.dict"
   additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
@@ -3027,6 +3039,7 @@ fuzzer_test("blink_http_parsers_fuzzer") {
   deps = [
     ":blink_fuzzer_test_support",
     ":platform",
+    "//testing/libfuzzer:libfuzzer_base_wrappers",
   ]
   dict = "network/HTTPParsersFuzzer.dict"
   additional_configs = [ "//third_party/blink/renderer:inside_blink" ]

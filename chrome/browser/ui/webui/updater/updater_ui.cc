@@ -18,7 +18,6 @@
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/plural_string_handler.h"
 #include "chrome/browser/ui/webui/updater/updater_page_handler.h"
 #include "chrome/browser/ui/webui/updater/updater_ui.mojom.h"
@@ -65,10 +64,6 @@ void AddKnownApp(content::WebUIDataSource& source,
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
 }  // namespace
-
-bool UpdaterUIConfig::IsWebUIEnabled(content::BrowserContext* browser_context) {
-  return base::FeatureList::IsEnabled(features::kUpdaterUI);
-}
 
 // enable_chrome_send is needed for plural_string_handler.
 UpdaterUI::UpdaterUI(content::WebUI* web_ui)
@@ -136,6 +131,8 @@ UpdaterUI::UpdaterUI(content::WebUI* web_ui)
       {"internal", IDS_UPDATER_INTERNAL},
       {"lastChecked", IDS_UPDATER_LAST_CHECKED_LABEL},
       {"lastStarted", IDS_UPDATER_LAST_STARTED_LABEL},
+      {"loadHistoryFile", IDS_UPDATER_LOAD_HISTORY_FILE},
+      {"loadHistoryFileError", IDS_UPDATER_LOAD_HISTORY_FILE_ERROR},
       {"never", IDS_UPDATER_NEVER},
       {"nextVersion", IDS_UPDATER_NEXT_VERSION},
       {"noAppsFound", IDS_UPDATER_NO_APPS_FOUND},
@@ -160,6 +157,7 @@ UpdaterUI::UpdaterUI(content::WebUI* web_ui)
       {"qualificationFailed", IDS_UPDATER_QUALIFICATION_FAILED},
       {"qualificationSucceeded", IDS_UPDATER_QUALIFICATION_SUCCEEDED},
       {"removeFilter", IDS_UPDATER_REMOVE_FILTER},
+      {"returnToLocal", IDS_UPDATER_RETURN_TO_LOCAL},
       {"scope", IDS_UPDATER_SCOPE},
       {"scopeSystem", IDS_UPDATER_SCOPE_SYSTEM},
       {"scopeUser", IDS_UPDATER_SCOPE_USER},
@@ -187,6 +185,8 @@ UpdaterUI::UpdaterUI(content::WebUI* web_ui)
                                             IDS_UPDATER_PARSE_ERROR_EVENTS);
   plural_string_handler->AddLocalizedString("undatedEvents",
                                             IDS_UPDATER_UNDATED_EVENTS);
+  plural_string_handler->AddLocalizedString("viewingHistoryFiles",
+                                            IDS_UPDATER_VIEWING_HISTORY_FILES);
   web_ui->AddMessageHandler(std::move(plural_string_handler));
 
   int32_t num_known_apps = 0;

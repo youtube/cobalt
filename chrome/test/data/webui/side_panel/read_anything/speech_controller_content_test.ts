@@ -287,6 +287,7 @@ suite('SpeechController', () => {
       });
 
   test('onPlayPauseToggle with selection reads from there', async () => {
+    chrome.readingMode.isImmersiveEnabled = true;
     const id = 35;
     const p = document.createElement('p');
     const text1 = 'And our fame. ';
@@ -295,16 +296,12 @@ suite('SpeechController', () => {
     const textNode = document.createTextNode(text1 + text2 + text3);
     p.appendChild(textNode);
     document.body.appendChild(p);
-    chrome.readingMode.startNodeId = id;
-    chrome.readingMode.startOffset = text1.length + text2.length + 3;
-    chrome.readingMode.endNodeId = id;
-    chrome.readingMode.endOffset = text1.length + text2.length + 8;
     nodeStore.setDomNode(textNode, id);
     const selection = document.getSelection();
     assertTrue(!!selection);
     const range = new Range();
-    range.setStart(textNode, chrome.readingMode.startOffset);
-    range.setEnd(textNode, chrome.readingMode.endOffset);
+    range.setStart(textNode, text1.length + text2.length + 3);
+    range.setEnd(textNode, text1.length + text2.length + 8);
     selection.addRange(range);
     selectionController.onSelectionChange(selection);
     readAloudModel.setInitialized(true);
@@ -339,6 +336,7 @@ suite('SpeechController', () => {
   });
 
   test('onPlayPauseToggle with selection resets word boundaries', async () => {
+    chrome.readingMode.isImmersiveEnabled = true;
     const id = 35;
     const p = document.createElement('p');
     const text1 = 'And the disgraces. ';
@@ -353,16 +351,12 @@ suite('SpeechController', () => {
     speechController.onPlayPauseToggle(p);
     assertTrue(wordBoundaries.hasBoundaries());
     // Now select text and play from there.
-    chrome.readingMode.startNodeId = id;
-    chrome.readingMode.startOffset = text1.length + text2.length + 3;
-    chrome.readingMode.endNodeId = id;
-    chrome.readingMode.endOffset = text1.length + text2.length + 8;
     nodeStore.setDomNode(textNode, id);
     const selection = document.getSelection();
     assertTrue(!!selection);
     const range = new Range();
-    range.setStart(textNode, chrome.readingMode.startOffset);
-    range.setEnd(textNode, chrome.readingMode.endOffset);
+    range.setStart(textNode, text1.length + text2.length + 3);
+    range.setEnd(textNode, text1.length + text2.length + 8);
     selection.addRange(range);
     selectionController.onSelectionChange(selection);
     readAloudModel.setInitialized(true);

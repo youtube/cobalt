@@ -622,33 +622,6 @@ inline constexpr char kPinUnlockFeatureNotificationShown[] =
 inline constexpr char kFingerprintUnlockFeatureNotificationShown[] =
     "fingerprint_unlock_feature_notification_shown";
 
-// Deprecated (crbug/998983) in favor of kEndOfLifeDate.
-// An integer pref. Holds one of several values:
-// 0: Supported. Device is in supported state.
-// 1: Security Only. Device is in Security-Only update (after initial 5 years).
-// 2: EOL. Device is End of Life(No more updates expected).
-// This value needs to be consistent with EndOfLifeStatus enum.
-inline constexpr char kEolStatus[] = "eol_status";
-
-// A Time pref.  Holds the last used Eol Date and is compared to the latest Eol
-// Date received to make changes to Eol notifications accordingly.
-inline constexpr char kEndOfLifeDate[] = "eol_date";
-
-// Boolean pref indicating that the first warning End Of Life month and year
-// notification was dismissed by the user.
-inline constexpr char kFirstEolWarningDismissed[] =
-    "first_eol_warning_dismissed";
-
-// Boolean pref indicating that the second warning End Of Life month and year
-// notification was dismissed by the user.
-inline constexpr char kSecondEolWarningDismissed[] =
-    "second_eol_warning_dismissed";
-
-// Boolean pref indicating that the End Of Life final update notification was
-// dismissed by the user.
-inline constexpr char kEolNotificationDismissed[] =
-    "eol_notification_dismissed";
-
 // A boolean pref that controls whether the PIN autosubmit feature is enabled.
 // This feature, when enabled, exposes the user's PIN length by showing how many
 // digits are necessary to unlock the device. Can be recommended.
@@ -919,6 +892,15 @@ inline constexpr char kShowHomeButton[] = "browser.show_home_button";
 // toolbar.
 inline constexpr char kShowForwardButton[] = "browser.show_forward_button";
 
+// An integer pref that records how many times a user hovers on a bookmark bar
+// button.
+inline constexpr char kBookmarkBarHoverCount[] = "bookmark_bar.hover_count";
+
+// An integer pref that records how many times a user navigates to a bookmark
+// bar link.
+inline constexpr char kBookmarkBarNavigationCount[] =
+    "bookmark_bar.navigation_count";
+
 // A boolean pref set to true if the Split Tab button should be pinned to the
 // toolbar.
 inline constexpr char kPinSplitTabButton[] = "browser.pin_split_tab_button";
@@ -1012,6 +994,13 @@ inline constexpr char kGrayscaleThemeEnabled[] = "browser.theme.is_grayscale2";
 // (showing developer packing tools and extensions details)
 inline constexpr char kExtensionsUIDeveloperMode[] =
     "extensions.ui.developer_mode";
+
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+// A boolean pref set to true if the extensions menu button should be pinned to
+// the toolbar.
+inline constexpr char kPinExtensionsMenuButton[] =
+    "extensions.pin_extensions_menu_button";
+#endif
 
 // Dictionary pref that tracks which command belongs to which
 // extension + named command pair.
@@ -1525,6 +1514,16 @@ inline constexpr char kVerticalTabsEnabled[] = "vertical_tabs.enabled";
 // used for metrics reporting purposes.
 inline constexpr char kVerticalTabsEnabledFirstTime[] =
     "vertical_tabs.enabled_first_time";
+
+// Boolean representing the most recently used vertical tab strip collapse
+// state. Only used during startup when session restore is not used.
+inline constexpr char kVerticalTabsCollapsedState[] =
+    "vertical_tabs.collapsed_state";
+
+// Integer representing the most recently used vertical tab strip uncollapsed
+// width. Only used during startup when session restore is not used.
+inline constexpr char kVerticalTabsUncollapsedWidth[] =
+    "vertical_tabs.uncollapsed_width";
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_COMPOSE)
@@ -1592,6 +1591,10 @@ inline constexpr char kStaticStorageQuotaEnabled[] =
 
 // *************** LOCAL STATE ***************
 // These are attached to the machine/installation
+
+// A time pref storing the last time an audio input stream was created.
+inline constexpr char kAudioInputStreamLastTimeCreated[] =
+    "media.audio_input_stream_last_time_created";
 
 // Used to store the value of the SerialAllowAllPortsForUrls policy.
 inline constexpr char kManagedSerialAllowAllPortsForUrls[] =
@@ -2520,17 +2523,6 @@ inline constexpr char kSameOriginTabCaptureAllowedByOrigins[] =
 // "xkb:us::eng".
 inline constexpr char kHardwareKeyboardLayout[] = "intl.hardware_keyboard";
 
-// An integer pref. Its valid values are defined in
-// enterprise_management::DeviceRegisterRequest::PsmExecutionResult enum which
-// indicates all possible PSM execution results in the Chrome OS enrollment
-// flow.
-inline constexpr char kEnrollmentPsmResult[] = "EnrollmentPsmResult";
-
-// An int64 pref to record the timestamp of PSM retrieving the device's
-// determination successfully in the Chrome OS enrollment flow.
-inline constexpr char kEnrollmentPsmDeterminationTime[] =
-    "EnrollmentPsmDeterminationTime";
-
 // The local state pref that stores device activity times before reporting
 // them to the policy server.
 inline constexpr char kDeviceActivityTimes[] = "device_status.activity_times";
@@ -2565,40 +2557,8 @@ inline constexpr char kDeviceRobotAnyApiRefreshTokenV2[] =
 inline constexpr char kDeviceRefreshTokenAnyApiIsV3Used[] =
     "device_refresh_token_is_v3_used.any-api";
 
-// Device requisition for enterprise enrollment.
-inline constexpr char kDeviceEnrollmentRequisition[] =
-    "enrollment.device_requisition";
-
-// Sub organization for enterprise enrollment.
-inline constexpr char kDeviceEnrollmentSubOrganization[] =
-    "enrollment.sub_organization";
-
-// Whether to automatically start the enterprise enrollment step during OOBE.
-inline constexpr char kDeviceEnrollmentAutoStart[] = "enrollment.auto_start";
-
-// Whether the user may exit enrollment.
-inline constexpr char kDeviceEnrollmentCanExit[] = "enrollment.can_exit";
-
 // A string pref with initial locale set in VPD or manifest.
 inline constexpr char kInitialLocale[] = "intl.initial_locale";
-
-// A boolean pref of the device registered flag (second part after first login).
-inline constexpr char kDeviceRegistered[] = "DeviceRegistered";
-
-// Boolean pref to signal corrupted enrollment to force the device through
-// enrollment recovery flow upon next boot.
-inline constexpr char kEnrollmentRecoveryRequired[] =
-    "EnrollmentRecoveryRequired";
-
-// String pref with the data about the OS version and browser version at the
-// time of enrollment. The format is established by release management team.
-// The Chrome OS version format is
-// [Milestone.]TIP_BUILD.BRANCH_BUILD.BRANCH_BRANCH_BUILD.
-// Example: 15711.0.0
-// For browser version the format is MAJOR.MINOR.BRANCH.BUILD.
-// Example: 122.0.6252.0
-inline constexpr char kEnrollmentVersionOS[] = "EnrollmentVersionOS";
-inline constexpr char kEnrollmentVersionBrowser[] = "EnrollmentVersionBrowser";
 
 // Pref name for whether we should show the Getting Started module in the Help
 // app.
@@ -2791,6 +2751,8 @@ inline constexpr char kToastAlertLevel[] = "settings.toast.alert_level";
 // Preference to store proxy settings.
 inline constexpr char kMaxConnectionsPerProxy[] =
     "net.max_connections_per_proxy";
+inline constexpr char kMaxConnectionsPerProxyForWebSocket[] =
+    "net.max_connections_per_proxy_for_websocket";
 
 #if BUILDFLAG(IS_MAC)
 // A boolean that tracks whether to show a notification when trying to quit
@@ -3014,15 +2976,6 @@ inline constexpr char kSecurityKeyPermitAttestation[] =
 inline constexpr char kCreatePasskeysInICloudKeychain[] =
     "webauthn.create_in_icloud_keychain";
 #endif
-
-// Records the last time the CWS Info Service downloaded information about
-// currently installed extensions from the Chrome Web Store, successfully
-// compared it with the information stored in extension_prefs and updated the
-// latter if necessary. The timestamp therefore represents the "freshness" of
-// the CWS information saved.
-inline constexpr char kCWSInfoTimestamp[] = "extensions.cws_info_timestamp";
-inline constexpr char kCWSInfoFetchErrorTimestamp[] =
-    "extensions.cws_info_fetch_error_timestamp";
 
 // A bool value for running GarbageCollectStoragePartitionCommand.
 inline constexpr char kShouldGarbageCollectStoragePartitions[] =
@@ -3706,6 +3659,10 @@ inline constexpr char kServiceWorkerToControlSrcdocIframeEnabled[] =
 inline constexpr char kSharedWorkerBlobURLFixEnabled[] =
     "worker.shared_worker_blob_url_fix_enabled";
 
+// Boolean that specifies whether the shared worker has extended lifetime.
+inline constexpr char kSharedWorkerExtendedLifetimeEnabled[] =
+    "worker.shared_worker_extended_lifetime_enabled";
+
 // Boolean indicating whether clearing window.name when the navigation is
 // top-level, cross-site and swaps BrowsingContextGroup is allowed or not.
 inline constexpr char kClearWindowNameForNewBrowsingContextGroup[] =
@@ -3773,6 +3730,9 @@ inline constexpr char kAndroidTipNotificationShownRecentTabs[] =
 // history entry that is donated to AppSearch.
 inline constexpr char kAuxiliarySearchLastDonatedHistoryEntryVisitTime[] =
     "auxiliary_search.last_donated_history_entry_visit_time";
+
+// Boolean pref indicating whether the app rating prompt has been shown.
+inline constexpr char kAppRatingPromptShown[] = "app_rating_prompt_shown";
 #endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace prefs

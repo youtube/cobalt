@@ -10,13 +10,16 @@
 #include "base/dcheck_is_on.h"
 #include "base/memory/stack_allocated.h"
 #include "cc/input/hit_test_opaqueness.h"
-#include "cc/input/layer_selection_bound.h"
 #include "third_party/blink/renderer/platform/graphics/paint/display_item.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_artifact.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_chunk.h"
 #include "third_party/blink/renderer/platform/graphics/paint/property_tree_state.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
+
+namespace gfx {
+class Rect;
+}  // namespace gfx
 
 namespace blink {
 
@@ -99,8 +102,8 @@ class PLATFORM_EXPORT PaintChunker final {
   bool AddTrackedElementDataToCurrentChunk(
       const PaintChunk::Id& id,
       const DisplayItemClient& client,
-      const TrackedElementId& tracked_element_id,
-      const gfx::Rect& bounds);
+      const gfx::Rect& element_paint_rect,
+      const TrackedElementSubRects& tracked_element_sub_rects);
 
   // The id will be used when we need to create a new current chunk.
   // Otherwise it's ignored. Returns true if a new chunk is added.

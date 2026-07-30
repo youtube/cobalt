@@ -14,30 +14,51 @@ source_set("core") {
   sources = [
     "multistep_filter_service.cc",
     "multistep_filter_service.h",
+    "multistep_filter_util.cc",
+    "multistep_filter_util.h",
   ]
   deps = [
+    ":features",
     "//base",
     "//components/keyed_service/core",
     "//components/signin/public/identity_manager",
+    "//net",
     "//url",
   ]
   public_deps = [
     "//components/multistep_filter/core/annotation_index",
     "//components/multistep_filter/core/data_models",
+    "//components/multistep_filter/core/extraction",
     "//components/multistep_filter/core/storage",
     "//components/multistep_filter/core/suggestion",
   ]
 }
 
-source_set("unit_tests") {
+source_set("test_support") {
   testonly = true
-  sources = [ "multistep_filter_service_unittest.cc" ]
+  sources = [ "multistep_filter_service_test_api.h" ]
   deps = [
     ":core",
     "//base",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "multistep_filter_service_unittest.cc",
+    "multistep_filter_util_unittest.cc",
+  ]
+  deps = [
+    ":core",
+    ":features",
+    ":test_support",
+    "//base",
     "//base/test:test_support",
     "//components/multistep_filter/core/annotation_index:test_support",
+    "//components/multistep_filter/core/annotation_index:unit_tests",
     "//components/multistep_filter/core/data_models:unit_tests",
+    "//components/multistep_filter/core/extraction",
     "//components/multistep_filter/core/extraction:unit_tests",
     "//components/multistep_filter/core/storage",
     "//components/multistep_filter/core/storage:unit_tests",

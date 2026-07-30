@@ -92,8 +92,10 @@ def main(ctx, **kwargs) -> int:
 
   target_cache: target_finder.TargetCache = target_finder.TargetCache(out_dir)
 
-  if not config.run_changed and not config.files and not config.name:
-    raise click.UsageError('Specify a file to test or use --run-changed')
+  if (not config.run_changed and not config.run_related and not config.files
+      and not config.name):
+    raise click.UsageError(
+        'Specify a file to test or use --run-changed or --run-related')
 
   # Cog is almost unusable with local search, so turn on remote_search.
   use_remote_search: bool = config.remote_search
@@ -106,9 +108,8 @@ def main(ctx, **kwargs) -> int:
   # Don't try to search if rg is not installed, and use the old behavior.
   if not use_remote_search and not shutil.which('rg'):
     if not config.quiet:
-      click.echo(
-          'rg command not found. Install ripgrep to enable running tests by name.'
-      )
+      click.echo('rg command not found. '
+                 'Install ripgrep to enable running tests by name.')
     files_to_test = list(config.files)
     test_names = []
   else:
@@ -127,8 +128,13 @@ def main(ctx, **kwargs) -> int:
     files_to_test.extend(found_files)
 
   if config.run_changed:
-    files_to_test.extend(file_finder.GetTestFilesFromChanges())
-    # Remove duplicates.
+    files_to_test.extend(file_finder.GetChangedTestFiles())
+
+  if config.run_related:
+    files_to_test.extend(file_finder.GetRelatedTestFiles(use_remote_search))
+
+  # Ensure duplicates are removed.
+  if config.run_changed or config.run_related:
     files_to_test = list(set(files_to_test))
 
   filenames: list[str] = []
@@ -140,10 +146,9 @@ def main(ctx, **kwargs) -> int:
   if not filenames:
     command.ExitWithMessage('No associated test files found.')
 
-  targets, used_cache = target_finder.FindTestTargets(target_cache, out_dir,
-                                                      filenames, config.run_all,
-                                                      config.run_changed,
-                                                      config.target_index)
+  targets, used_cache = target_finder.FindTestTargets(
+      target_cache, out_dir, filenames, config.run_all, config.run_changed
+      or config.run_related, config.target_index)
 
   if not current_gtest_filter:
     current_gtest_filter = filters.BuildTestFilter(filenames, config.line)
@@ -157,10 +162,10 @@ def main(ctx, **kwargs) -> int:
 
   assert targets
 
+  build_ok: bool = True
   if not config.no_build:
-    build_ok: bool = test_executor.BuildTestTargets(out_dir, targets,
-                                                    config.dry_run,
-                                                    config.quiet, False)
+    build_ok = test_executor.BuildTestTargets(out_dir, targets, config.dry_run,
+                                              config.quiet, False)
 
     # If we used the target cache, it's possible we chose the wrong target
     # because a gn file was changed. The build step above will check for gn
@@ -168,10 +173,9 @@ def main(ctx, **kwargs) -> int:
     # cache is still valid.
     if used_cache and not target_cache.IsStillValid():
       target_cache = target_finder.TargetCache(out_dir)
-      new_targets, _ = target_finder.FindTestTargets(target_cache, out_dir,
-                                                     filenames, config.run_all,
-                                                     config.run_changed,
-                                                     config.target_index)
+      new_targets, _ = target_finder.FindTestTargets(
+          target_cache, out_dir, filenames, config.run_all, config.run_changed
+          or config.run_related, config.target_index)
       if targets != new_targets:
         # Note that this can happen, for example, if you rename a test target.
         click.echo('gn config was changed, trying to build again', err=True)
@@ -179,11 +183,12 @@ def main(ctx, **kwargs) -> int:
         build_ok = test_executor.BuildTestTargets(out_dir, targets,
                                                   config.dry_run, config.quiet,
                                                   True)
-    telemetry.RecordMainAttributes(targets, current_gtest_filter, used_cache,
-                                   out_dir)
 
-    if not build_ok:
-      return 1
+  telemetry.RecordMainAttributes(targets, current_gtest_filter, used_cache,
+                                 out_dir)
+
+  if not build_ok:
+    return 1
 
   return test_executor.RunTestTargets(out_dir, targets, current_gtest_filter,
                                       pref_mapping_filter, config.extras,

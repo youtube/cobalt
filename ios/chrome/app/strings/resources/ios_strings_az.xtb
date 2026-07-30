@@ -480,6 +480,7 @@
 <translation id="2691653761409724435">Oflayn şəkildə əlçatan deyil</translation>
 <translation id="2697530870203420261">Yanlış ləqəb</translation>
 <translation id="269819437389494246">Tarixçədə daxil olduğunuz səhifələri görə və ya onları silə bilərsiniz</translation>
+<translation id="2704295676501803339">Sola Çəkin</translation>
 <translation id="2704606927547763573">Kopyalandı</translation>
 <translation id="2708051474374549906">Google-a göndərilən baxış datasına əsasən təhlükəli sayt, endirmə və artırmalardan real zamanda proaktiv qoruma</translation>
 <translation id="2709516037105925701">Avtomatik doldurma</translation>
@@ -1662,6 +1663,7 @@ Handoff Ayarların Ümumi bölməsindən də aktiv edilə bilər və cihazların
 <translation id="6899890595581608884">Təhlükəsizlik yoxlanışı bildirişləri deaktiv edilib</translation>
 <translation id="6900532703269623216">Təkmil qoruma</translation>
 <translation id="6900702165119149418">Hesabdan çıxdınız</translation>
+<translation id="6903282483217634857">Sağa Daşıyın</translation>
 <translation id="6903907808598579934">Sinxronizasiyanı akitv edin</translation>
 <translation id="6906448540340261898">Google Hesabında hər zaman parollardan istifadə edə biləcəyinizdən əmin olun</translation>
 <translation id="6908734251759299256">Brauzeri güncəlləyin</translation>
@@ -1724,6 +1726,7 @@ Handoff Ayarların Ümumi bölməsindən də aktiv edilə bilər və cihazların
 <translation id="7149893636342594995">Son 24 saat</translation>
 <translation id="7154417656353909837">Ünvanları silin</translation>
 <translation id="7161230316646448869">Əlfəcin, tarixçə və s. məlumatları bütün cihazlarda sinxronlaşdırın</translation>
+<translation id="7165323152084385463">Avtomobilin identifikasiya nömrəsi</translation>
 <translation id="7173114856073700355">Ayarları Açın</translation>
 <translation id="7173721738069475737">{count,plural, =1{Əlfəcin yadda saxlandı}other{{count} əlfəcin yadda saxlandı}}</translation>
 <translation id="7176183551031110427">Uzaqlaşdırın</translation>
@@ -2218,6 +2221,7 @@ Handoff Ayarların Ümumi bölməsindən də aktiv edilə bilər və cihazların
 <translation id="8863067612494559785"><ph name="DEVICE_NAME" /> cihazına göndərilir…</translation>
 <translation id="8863431381414769983">Google Xəritədən istiqamət və yerli məlumat əldə edin</translation>
 <translation id="8871974300055371298">Məzmun ayarları</translation>
+<translation id="8876661425082386199">Bağlantını yoxlayın</translation>
 <translation id="8877788021141246043">Xatırlatma ayarlayın</translation>
 <translation id="8879604564928138696">Sınamaq üçün iki dəfə toxunun</translation>
 <translation id="8879952635974818770">Fərdiləşdirilmiş kontent</translation>
@@ -2319,7 +2323,6 @@ Handoff Ayarların Ümumi bölməsindən də aktiv edilə bilər və cihazların
 <translation id="926455622548529175">Dəyişin və silin</translation>
 <translation id="929748059769569925">Vurğulanmış mətn</translation>
 <translation id="932305336591073205">{count,plural, =1{Tabı bağlayın}other{Tabları bağlayın}}</translation>
-<translation id="932327136139879170">Ev</translation>
 <translation id="939472100615258482">Cari sayt</translation>
 <translation id="939598580284253335">Parol daxil edin</translation>
 <translation id="939736085109172342">Yeni qovluq</translation>

@@ -924,7 +924,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.DataTypeCount{SyncDataType}" units="entries"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>rushans@google.com</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -936,7 +936,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.DataTypeEntityChange{SyncDataType}"
-    enum="SyncEntityChange" expires_after="2026-07-19">
+    enum="SyncEntityChange" expires_after="2026-09-20">
   <owner>treib@chromium.org</owner>
   <owner>rushans@google.com</owner>
   <summary>
@@ -1576,7 +1576,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.IdentityErrorMessage{SyncErrorReason}"
-    enum="SyncErrorUiAction" expires_after="2026-07-19">
+    enum="SyncErrorUiAction" expires_after="2026-09-20">
   <owner>ankushkush@google.com</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -1681,7 +1681,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Sync.Local.FileSizeKB" units="KB" expires_after="2026-07-19">
+<histogram name="Sync.Local.FileSizeKB" units="KB" expires_after="2026-09-20">
   <owner>igorruvinov@chromium.org</owner>
   <owner>pastarmovj@chromium.org</owner>
   <summary>
@@ -1787,7 +1787,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Sync.NonReflectionUpdateFreshnessPossiblySkewed2{SyncDataType}"
-    units="ms" expires_after="2026-07-19">
+    units="ms" expires_after="2026-09-20">
   <owner>mastiz@chromium.org</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -2554,6 +2554,22 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Sync.SyncToSigninMigration.StatsTableCleanupStep"
+    enum="SyncToSigninMigrationStatsTableCleanupStep"
+    expires_after="2027-01-28">
+  <owner>ankushkush@google.com</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Within the wider Sync-to-Signin migration, this records various steps in the
+    Stats table cleanup process from the Account Password Store. The cleanup is
+    requested by the central Sync-to-Signin migration on profile initialization,
+    and happens at most once per browser session (and typically exactly once per
+    profile). &quot;Total count&quot; and &quot;Bucket proportion&quot; are not
+    really meaningful; instead compare the absolute sizes of the various
+    buckets.
+  </summary>
+</histogram>
+
 <histogram name="Sync.SyncToSigninMigration.ThemeMigrationStep"
     enum="SyncToSigninMigrationThemeStep" expires_after="2027-01-28">
   <owner>ankushkush@google.com</owner>
@@ -2623,6 +2639,21 @@ chromium-metrics-reviews@google.com.
     location, during the Sync-to-Signin migration. Recorded only if the overall
     migration ran and decided to migrate bookmarks (see
     Sync.SyncToSigninMigrationDecision.Migration.BOOKMARK).
+  </summary>
+</histogram>
+
+<histogram name="Sync.SyncToSigninMigrationOutcome.EncryptedBookmarksFileMove"
+    enum="PlatformFileError" expires_after="2027-02-24">
+  <owner>treib@chromium.org</owner>
+  <owner>mastiz@chromium.org</owner>
+  <owner>plcoirier@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    The outcome of moving the encrypted bookmarks JSON file from the local to
+    the account location, during the Sync-to-Signin migration. Recorded only if
+    the overall migration ran and decided to migrate bookmarks (see
+    Sync.SyncToSigninMigrationDecision.Migration.BOOKMARK) and the Bookmarks
+    encryption feature is enabled.
   </summary>
 </histogram>
 

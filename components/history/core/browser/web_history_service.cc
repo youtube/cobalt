@@ -165,8 +165,7 @@ class RequestImpl : public WebHistoryService::Request {
     // TODO(crbug.com/40066882): Simplify this once
     // kReplaceSyncPromosWithSignInPromos has rolled out on all platforms.
     signin::ConsentLevel consent_level = signin::ConsentLevel::kSync;
-    if (base::FeatureList::IsEnabled(
-            syncer::kReplaceSyncPromosWithSignInPromos)) {
+    if (syncer::IsReplaceSyncPromosWithSignInPromosEnabled()) {
       consent_level = signin::ConsentLevel::kSignin;
     }
 
@@ -401,7 +400,7 @@ std::string BuildGetFacsPostData(std::string_view version_info) {
 
   request.Set("header", BuildPostDataHeader(version_info));
 
-  request.Set("setting", /*WEB_AND_APP_ACTIVITY*/ 1);
+  request.Set("setting", /*SUPPLEMENTAL_WEB_AND_APP_ACTIVITY*/ 3);
 
   return base::WriteJson(request).value_or("");
 }

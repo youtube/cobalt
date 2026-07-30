@@ -261,8 +261,7 @@ OptimizationGuideKeyedService::CreateModelBrokerClient() {
 }
 
 #if BUILDFLAG(IS_ANDROID)
-base::android::ScopedJavaLocalRef<
-    optimization_guide::android::JOptimizationGuideBridge>
+base::android::ScopedJavaLocalRef<JOptimizationGuideBridge>
 OptimizationGuideKeyedService::GetJavaObject() {
   if (!android_bridge_) {
     android_bridge_ =
@@ -479,9 +478,9 @@ OptimizationGuideKeyedService::CanApplyOptimization(
       hints_manager_->CanApplyOptimization(url, optimization_type,
                                            optimization_metadata);
   base::UmaHistogramEnumeration(
-      "OptimizationGuide.ApplyDecision." +
-          optimization_guide::GetStringNameForOptimizationType(
-              optimization_type),
+      base::StrCat({"OptimizationGuide.ApplyDecision.",
+                    optimization_guide::GetStringNameForOptimizationType(
+                        optimization_type)}),
       optimization_type_decision);
   return optimization_guide::ChromeHintsManager::
       GetOptimizationGuideDecisionFromOptimizationTypeDecision(
@@ -564,11 +563,6 @@ void OptimizationGuideKeyedService::
   GetGlobalState()
       .on_device_capability()
       .RemoveOnDeviceModelAvailabilityChangeObserver(feature, observer);
-}
-
-on_device_model::Capabilities
-OptimizationGuideKeyedService::GetOnDeviceCapabilities() {
-  return GetGlobalState().on_device_capability().GetOnDeviceCapabilities();
 }
 
 void OptimizationGuideKeyedService::OnProfileInitializationComplete(
@@ -763,17 +757,4 @@ void OptimizationGuideKeyedService::GetOnDeviceModelEligibilityAsync(
         callback) {
   GetGlobalState().on_device_capability().GetOnDeviceModelEligibilityAsync(
       feature, capabilities, std::move(callback));
-}
-
-std::optional<optimization_guide::SamplingParamsConfig>
-OptimizationGuideKeyedService::GetSamplingParamsConfig(
-    optimization_guide::mojom::OnDeviceFeature feature) {
-  return GetGlobalState().on_device_capability().GetSamplingParamsConfig(
-      feature);
-}
-
-std::optional<const optimization_guide::proto::Any>
-OptimizationGuideKeyedService::GetFeatureMetadata(
-    optimization_guide::mojom::OnDeviceFeature feature) {
-  return GetGlobalState().on_device_capability().GetFeatureMetadata(feature);
 }

@@ -136,11 +136,9 @@ void DidStartWorker(
     return;
   }
   EmbeddedWorkerInstance* instance = version->embedded_worker();
-  // TODO(crbug.com/379869738) Remove FromUnsafeValue.
   std::move(info_callback)
-      .Run(version->version_id(),
-           ChildProcessId::FromUnsafeValue(instance->process_id()),
-           instance->thread_id(), version->worker_host()->token());
+      .Run(version->version_id(), instance->process_id(), instance->thread_id(),
+           version->worker_host()->token());
 }
 
 void FoundRegistrationForStartWorker(
@@ -485,11 +483,9 @@ void ServiceWorkerContextWrapper::OnStarted(
   ServiceWorkerRunningInfo::ServiceWorkerVersionStatus version_status =
       version ? GetRunningInfoVersionStatusForStatus(version->status())
               : ServiceWorkerRunningInfo::ServiceWorkerVersionStatus::kUnknown;
-  // TODO(crbug.com/379869738) Remove GetUnsafeValue.
   auto insertion_result = running_service_workers_.insert(std::make_pair(
-      version_id, ServiceWorkerRunningInfo(script_url, scope, key,
-                                           process_id.GetUnsafeValue(), token,
-                                           version_status)));
+      version_id, ServiceWorkerRunningInfo(script_url, scope, key, process_id,
+                                           token, version_status)));
   DCHECK(insertion_result.second);
 
   const auto& running_info = insertion_result.first->second;

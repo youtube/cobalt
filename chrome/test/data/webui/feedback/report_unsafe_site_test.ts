@@ -43,7 +43,7 @@ suite('ReportUnsafeSiteTest', () => {
     document.body.appendChild(app);
 
     const cancelButton =
-        app.shadowRoot.querySelector<HTMLInputElement>('.cancel-button');
+        app.shadowRoot.querySelector<HTMLInputElement>('#cancel-button');
     assertTrue(!!cancelButton);
     cancelButton.click();
     assertEquals(1, browserProxy.getPageHandler().getCallCount('closeDialog'));
@@ -97,10 +97,11 @@ suite('ReportUnsafeSiteTest', () => {
     const app = document.createElement('report-unsafe-site-app');
     document.body.appendChild(app);
 
-    const checkbox = app.$.includeScreenshotCheckbox;
-    assertTrue(!!checkbox);
     await browserProxy.getPageHandler().whenCalled('getTriggeringPageInfo');
     await microtasksFinished();
+    const checkbox = app.$.includeScreenshotCheckbox;
+    assertTrue(!!checkbox);
+    assertFalse(checkbox.disabled);
     assertFalse(isChildVisible(app, '#screenshot-placeholder'));
     assertTrue(isChildVisible(app, '#screenshot-image'));
 
@@ -132,6 +133,7 @@ suite('ReportUnsafeSiteTest', () => {
     assertTrue(!!checkbox);
     await browserProxy.getPageHandler().whenCalled('getTriggeringPageInfo');
     await microtasksFinished();
+    assertTrue(checkbox.disabled);
     assertFalse(checkbox.checked);
     assertTrue(isChildVisible(app, '#screenshot-placeholder'));
     assertFalse(isChildVisible(app, '#screenshot-image'));

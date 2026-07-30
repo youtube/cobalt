@@ -408,10 +408,6 @@
 [submodule "third_party/libyuv"]
 	path = third_party/libyuv
 	url = https://chromium.googlesource.com/libyuv/libyuv
-[submodule "third_party/lighttpd"]
-	path = third_party/lighttpd
-	url = https://chromium.googlesource.com/chromium/deps/lighttpd
-	gclient-condition = checkout_mac or checkout_win
 [submodule "third_party/lss"]
 	path = third_party/lss
 	url = https://chromium.googlesource.com/linux-syscall-support
@@ -600,10 +596,6 @@
 [submodule "third_party/weston/src"]
 	path = third_party/weston/src
 	url = https://chromium.googlesource.com/external/anongit.freedesktop.org/git/wayland/weston
-	gclient-condition = checkout_linux
-[submodule "third_party/xdg-utils"]
-	path = third_party/xdg-utils
-	url = https://chromium.googlesource.com/chromium/deps/xdg-utils
 	gclient-condition = checkout_linux
 [submodule "third_party/xnnpack/src"]
 	path = third_party/xnnpack/src

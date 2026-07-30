@@ -34,6 +34,7 @@
 #include "base/notreached.h"
 #include "build/build_config.h"
 #include "third_party/blink/renderer/core/css/basic_shape_functions.h"
+#include "third_party/blink/renderer/core/css/css_alpha_color_value.h"
 #include "third_party/blink/renderer/core/css/css_alternate_value.h"
 #include "third_party/blink/renderer/core/css/css_axis_value.h"
 #include "third_party/blink/renderer/core/css/css_color.h"
@@ -2600,7 +2601,7 @@ GapDataList<T> ConvertGapDecorationDataList(const StyleResolverState& state,
   // 2. When the fast parse path is taken (see
   // CSSParserFastPaths::MaybeParseValue). In these cases, construct a
   // GapDataList with a single Value.
-  if (!DynamicTo<CSSValueList>(value)) {
+  if (!IsA<CSSValueList>(value)) {
     return GapDataList<T>(
         ConvertGapDecorationPropertyValue<T>(state, value, for_visited_link));
   }
@@ -2626,35 +2627,30 @@ GapDataList<T> ConvertGapDecorationDataList(const StyleResolverState& state,
     }
   }
 
-  typename GapDataList<T>::GapDataVector gap_data_list;
-  gap_data_list.ReserveInitialCapacity(values.length());
+  typename GapDataList<T>::GapDataVector gap_data_list(
+      base::span(values), [&](const CSSValue* curr_value) {
+        if (auto* gap_repeat_value =
+                DynamicTo<cssvalue::CSSRepeatValue>(curr_value)) {
+          typename ValueRepeater<T>::VectorType gap_values(
+              gap_repeat_value->Values(), [&](const CSSValue* repeat_value) {
+                return ConvertGapDecorationPropertyValue<T>(
+                    state, *repeat_value, for_visited_link);
+              });
 
-  for (const auto& curr_value : values) {
-    GapData<T> gap_data;
-    if (auto* gap_repeat_value =
-            DynamicTo<cssvalue::CSSRepeatValue>(curr_value.Get())) {
-      typename ValueRepeater<T>::VectorType gap_values;
-      gap_values.ReserveInitialCapacity(gap_repeat_value->Values().length());
-      for (const auto& repeat_value : gap_repeat_value->Values()) {
-        gap_values.push_back(ConvertGapDecorationPropertyValue<T>(
-            state, *repeat_value, for_visited_link));
-      }
-
-      std::optional<int> repeat_count = std::nullopt;
-      if (!gap_repeat_value->IsAutoRepeatValue()) {
-        repeat_count = gap_repeat_value->Repetitions()->ComputeInteger(
-            state.CssToLengthConversionData());
-      }
-      ValueRepeater<T>* value_repeater = MakeGarbageCollected<ValueRepeater<T>>(
-          std::move(gap_values), repeat_count);
-      gap_data = GapData<T>(value_repeater);
-    } else {
-      gap_data = GapData<T>(ConvertGapDecorationPropertyValue<T>(
-          state, *curr_value.Get(), for_visited_link));
-    }
-
-    gap_data_list.push_back(gap_data);
-  }
+          std::optional<int> repeat_count = std::nullopt;
+          if (!gap_repeat_value->IsAutoRepeatValue()) {
+            repeat_count = gap_repeat_value->Repetitions()->ComputeInteger(
+                state.CssToLengthConversionData());
+          }
+          ValueRepeater<T>* value_repeater =
+              MakeGarbageCollected<ValueRepeater<T>>(std::move(gap_values),
+                                                     repeat_count);
+          return GapData<T>(value_repeater);
+        } else {
+          return GapData<T>(ConvertGapDecorationPropertyValue<T>(
+              state, *curr_value, for_visited_link));
+        }
+      });
 
   return GapDataList<T>(std::move(gap_data_list));
 }
@@ -2729,12 +2725,9 @@ ShadowList* StyleBuilderConverter::ConvertShadowList(StyleResolverState& state,
   }
 
   const auto& list = To<CSSValueList>(value);
-  ShadowDataVector shadows;
-  shadows.ReserveInitialCapacity(list.length());
-  for (const auto& item : list) {
-    shadows.push_back(
-        ConvertShadow(state.CssToLengthConversionData(), &state, *item));
-  }
+  ShadowDataVector shadows(base::span(list), [&state](const CSSValue* item) {
+    return ConvertShadow(state.CssToLengthConversionData(), &state, *item);
+  });
 
   return MakeGarbageCollected<ShadowList>(std::move(shadows));
 }
@@ -2791,14 +2784,10 @@ SVGDashArray* StyleBuilderConverter::ConvertStrokeDasharray(
   }
   DCHECK(dashes->length());
 
-  SVGDashArray* array = MakeGarbageCollected<SVGDashArray>();
-  array->ReserveInitialCapacity(dashes->length());
-  for (wtf_size_t i = 0; i < dashes->length(); ++i) {
-    array->push_back(
-        ConvertLength(state, To<CSSPrimitiveValue>(dashes->Item(i))));
-  }
-
-  return array;
+  return MakeGarbageCollected<SVGDashArray>(
+      base::span(*dashes), [&state](const CSSValue* dash) {
+        return ConvertLength(state, To<CSSPrimitiveValue>(*dash));
+      });
 }
 
 StyleViewTransitionGroup StyleBuilderConverter::ConvertViewTransitionGroup(
@@ -2977,6 +2966,20 @@ StyleColor ResolveColorValueImpl(const CSSValue& value,
       return StyleColor(unresolved_contrast_color->Resolve(Color()));
     } else {
       return StyleColor(unresolved_contrast_color);
+    }
+  }
+
+  if (auto* alpha_color_value =
+          DynamicTo<cssvalue::CSSAlphaColorValue>(value)) {
+    const StyleColor origin_color =
+        ResolveColorValueImpl(alpha_color_value->OriginColor(), context);
+    const StyleColor::UnresolvedAlphaColor* unresolved_alpha_color =
+        MakeGarbageCollected<StyleColor::UnresolvedAlphaColor>(
+            origin_color, alpha_color_value->Alpha(), context.length_resolver);
+    if (origin_color.IsAbsoluteColor()) {
+      return StyleColor(unresolved_alpha_color->Resolve(Color()));
+    } else {
+      return StyleColor(unresolved_alpha_color);
     }
   }
 
@@ -3584,8 +3587,9 @@ static const CSSValue& ComputeRegisteredPropertyValue(
                                           selected_value, context);
   }
 
-  if (value.IsColorMixValue() || value.IsRelativeColorValue() ||
-      value.IsContrastColorValue() || value.IsUnresolvedColorValue()) {
+  if (value.IsAlphaColorValue() || value.IsColorMixValue() ||
+      value.IsRelativeColorValue() || value.IsContrastColorValue() ||
+      value.IsUnresolvedColorValue()) {
     return ComputeColorValue(css_to_length_conversion_data, value, document,
                              color_scheme);
   }
@@ -3714,9 +3718,8 @@ AtomicString StyleBuilderConverter::ConvertPage(StyleResolverState& state,
   if (auto* custom_ident_value = DynamicTo<CSSCustomIdentValue>(value)) {
     return AtomicString(custom_ident_value->Value());
   }
-  DCHECK(DynamicTo<CSSIdentifierValue>(value));
-  DCHECK_EQ(DynamicTo<CSSIdentifierValue>(value)->GetValueID(),
-            CSSValueID::kAuto);
+  DCHECK(IsA<CSSIdentifierValue>(value));
+  DCHECK_EQ(To<CSSIdentifierValue>(value).GetValueID(), CSSValueID::kAuto);
   return AtomicString();
 }
 

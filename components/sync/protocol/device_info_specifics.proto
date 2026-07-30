@@ -122,6 +122,12 @@ message FeatureSpecificFields {
   // Tracks whether the Desktop to iOS Promo feature is enabled on the device.
   // This is populated only for iOS devices.
   optional bool desktop_to_ios_promo_receiving_enabled = 4;
+
+  // List of Desktop to iOS Promo types enabled on the device.
+  // This is populated only for iOS devices.
+  // The values correspond to the MobilePromoOnDesktopPromoType enum.
+  repeated SyncEnums.MobilePromoOnDesktopPromoType
+      desktop_to_ios_promo_receiving_types = 5;
 }
 
 // Device specific information for Sharing feature. Used to send end-to-end
@@ -132,6 +138,7 @@ message SharingSpecificFields {
   reserved "vapid_fcm_token", "vapid_p256dh", "vapid_auth_secret";
 
   // Enum defining available Sharing features.
+  // LINT.IfChange(EnabledFeatures)
   enum EnabledFeatures {
     reserved 5;
     reserved "PEER_CONNECTION";
@@ -153,6 +160,7 @@ message SharingSpecificFields {
     // Supports receiving notifications about new OneTimeTokens in the backend.
     ONE_TIME_TOKEN_BACKEND_NOTIFICATION = 10;
   }
+  // LINT.ThenChange(/components/sync_device_info/device_info.h:SharingFeature)
 
   // A list of enabled Sharing features.
   repeated EnabledFeatures enabled_features = 4;

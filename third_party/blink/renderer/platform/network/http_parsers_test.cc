@@ -424,9 +424,9 @@ TEST(HTTPParsersTest, ExtractMIMETypeFromMediaTypeInvalidInput) {
   EXPECT_EQ(AtomicString("\r\ntext/html\r\n"),
             ExtractMIMETypeFromMediaType(AtomicString("\r\ntext/html\r\n")));
   // U+2003, EM SPACE (UTF-8: E2 80 83).
-  EXPECT_EQ(AtomicString::FromUTF8("\xE2\x80\x83text/html"),
+  EXPECT_EQ(AtomicString::FromUtf8("\xE2\x80\x83text/html"),
             ExtractMIMETypeFromMediaType(
-                AtomicString::FromUTF8("\xE2\x80\x83text/html")));
+                AtomicString::FromUtf8("\xE2\x80\x83text/html")));
 
   // Invalid type/subtype.
   EXPECT_EQ(AtomicString("a"), ExtractMIMETypeFromMediaType(AtomicString("a")));
@@ -450,9 +450,9 @@ TEST(HTTPParsersTest, ExtractMIMETypeFromMediaTypeInvalidInput) {
             ExtractMIMETypeFromMediaType(AtomicString("text\r\n/\nhtml")));
   EXPECT_EQ(AtomicString("text\n/\nhtml"),
             ExtractMIMETypeFromMediaType(AtomicString("text\n/\nhtml")));
-  EXPECT_EQ(AtomicString::FromUTF8("text\xE2\x80\x83/html"),
+  EXPECT_EQ(AtomicString::FromUtf8("text\xE2\x80\x83/html"),
             ExtractMIMETypeFromMediaType(
-                AtomicString::FromUTF8("text\xE2\x80\x83/html")));
+                AtomicString::FromUtf8("text\xE2\x80\x83/html")));
 }
 
 TEST(HTTPParsersTest, ParseHTTPRefresh) {
@@ -472,7 +472,7 @@ TEST(HTTPParsersTest, ParseHTTPRefresh) {
   EXPECT_EQ(base::Seconds(1), delay);
   EXPECT_EQ("dest", url);
   EXPECT_TRUE(
-      ParseHTTPRefresh("1 ;\nurl=dest", IsASCIISpace<UChar>, delay, url));
+      ParseHTTPRefresh("1 ;\nurl=dest", IsAsciiSpace<UChar>, delay, url));
   EXPECT_EQ(base::Seconds(1), delay);
   EXPECT_EQ("dest", url);
   EXPECT_TRUE(ParseHTTPRefresh("1 ;\nurl=dest", nullptr, delay, url));
@@ -484,20 +484,20 @@ TEST(HTTPParsersTest, ParseHTTPRefresh) {
   EXPECT_EQ("dest", url);
 
   EXPECT_TRUE(
-      ParseHTTPRefresh("10\nurl=dest", IsASCIISpace<UChar>, delay, url));
+      ParseHTTPRefresh("10\nurl=dest", IsAsciiSpace<UChar>, delay, url));
   EXPECT_EQ(base::Seconds(10), delay);
   EXPECT_EQ("dest", url);
 
   EXPECT_TRUE(
-      ParseHTTPRefresh("1.5; url=dest", IsASCIISpace<UChar>, delay, url));
+      ParseHTTPRefresh("1.5; url=dest", IsAsciiSpace<UChar>, delay, url));
   EXPECT_EQ(base::Seconds(1), delay);
   EXPECT_EQ("dest", url);
   EXPECT_TRUE(
-      ParseHTTPRefresh("1.5.9; url=dest", IsASCIISpace<UChar>, delay, url));
+      ParseHTTPRefresh("1.5.9; url=dest", IsAsciiSpace<UChar>, delay, url));
   EXPECT_EQ(base::Seconds(1), delay);
   EXPECT_EQ("dest", url);
   EXPECT_TRUE(
-      ParseHTTPRefresh("7..; url=dest", IsASCIISpace<UChar>, delay, url));
+      ParseHTTPRefresh("7..; url=dest", IsAsciiSpace<UChar>, delay, url));
   EXPECT_EQ(base::Seconds(7), delay);
   EXPECT_EQ("dest", url);
 }

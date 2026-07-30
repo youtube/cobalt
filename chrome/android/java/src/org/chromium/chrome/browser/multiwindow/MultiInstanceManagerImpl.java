@@ -23,7 +23,6 @@ import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ApplicationStatus.ActivityStateListener;
 import org.chromium.base.ResettersForTesting;
-import org.chromium.base.UnownedUserDataHost;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.build.BuildConfig;
@@ -78,6 +77,12 @@ public class MultiInstanceManagerImpl extends MultiInstanceManager
                 MenuOrKeyboardActionController.MenuOrKeyboardActionHandler,
                 TopResumedActivityChangedObserver,
                 StartStopWithNativeObserver {
+    protected final Activity mActivity;
+    protected final MonotonicObservableSupplier<TabModelOrchestrator> mTabModelOrchestratorSupplier;
+    protected final MultiWindowModeStateDispatcher mMultiWindowModeStateDispatcher;
+    protected @Nullable TabModelSelectorTabModelObserver mTabModelObserver;
+    protected MultiInstanceOrchestrator mMultiInstanceOrchestrator;
+
     private @Nullable Boolean mMergeTabsOnResume;
 
     /**
@@ -86,13 +91,8 @@ public class MultiInstanceManagerImpl extends MultiInstanceManager
      */
     private @Nullable ActivityStateListener mOtherCTAStateObserver;
 
-    protected final Activity mActivity;
-    protected final MonotonicObservableSupplier<TabModelOrchestrator> mTabModelOrchestratorSupplier;
-    protected final MultiWindowModeStateDispatcher mMultiWindowModeStateDispatcher;
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     private final MenuOrKeyboardActionController mMenuOrKeyboardActionController;
-
-    protected @Nullable TabModelSelectorTabModelObserver mTabModelObserver;
 
     private int mActivityTaskId;
     private boolean mNativeInitialized;
@@ -119,21 +119,18 @@ public class MultiInstanceManagerImpl extends MultiInstanceManager
 
         mMenuOrKeyboardActionController = menuOrKeyboardActionController;
         mMenuOrKeyboardActionController.registerMenuOrKeyboardActionHandler(this);
+
+        mMultiInstanceOrchestrator = MultiInstanceOrchestratorFactory.getInstance();
     }
 
     @Override
-    public void initialize(
-            int instanceId,
-            int taskId,
-            @SupportedProfileType int profileType,
-            UnownedUserDataHost host) {
-        MultiInstanceManagerFactory.attachToHost(host, this);
+    public void initialize(int instanceId, int taskId, @SupportedProfileType int profileType) {
+        mMultiInstanceOrchestrator.onInitialize(mActivity, this);
     }
 
     @Override
     public void onDestroy() {
         mDestroyed = true;
-        MultiInstanceManagerFactory.detachFromAllHosts(this);
         mMultiWindowModeStateDispatcher.removeObserver(this);
         mMenuOrKeyboardActionController.unregisterMenuOrKeyboardActionHandler(this);
         mActivityLifecycleDispatcher.unregister(this);
@@ -480,8 +477,7 @@ public class MultiInstanceManagerImpl extends MultiInstanceManager
     public @Nullable Intent createNewWindowIntent(
             boolean isIncognito, @NewWindowAppSource int source) {
         assert !isIncognito : "Opening an incognito window isn't supported";
-        assert mMultiWindowModeStateDispatcher.canEnterMultiWindowMode()
-                        || mMultiWindowModeStateDispatcher.isInMultiWindowMode()
+        assert mMultiWindowModeStateDispatcher.isInMultiWindowMode()
                         || mMultiWindowModeStateDispatcher.isInMultiDisplayMode()
                 : "Current windowing mode doesn't support opening a new window";
 

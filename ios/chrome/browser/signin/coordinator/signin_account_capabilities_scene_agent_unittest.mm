@@ -24,7 +24,9 @@
 #import "ios/chrome/browser/scoped_ui_blocker/ui_bundled/ui_blocker_target.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_ui_provider.h"
+#import "ios/chrome/browser/shared/coordinator/scene/test/stub_browser_provider_interface.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/authentication_service_observer_bridge.h"
@@ -64,7 +66,17 @@ class SigninAccountCapabilitiesSceneAgentTest : public PlatformTest {
     profile_ = std::move(builder).Build();
 
     app_state_ = OCMClassMock([AppState class]);
-    scene_state_ = [[SceneState alloc] initWithAppState:app_state_];
+    SceneState* scene_state = [[SceneState alloc] initWithAppState:app_state_];
+    scene_state_ = OCMPartialMock(scene_state);
+
+    browser_ = std::make_unique<TestBrowser>(profile_.get(), scene_state_);
+    stub_browser_interface_provider_ =
+        [[StubBrowserProviderInterface alloc] init];
+    stub_browser_interface_provider_.mainBrowserProvider.browser =
+        browser_.get();
+    OCMStub([scene_state_ browserProviderInterface])
+        .andReturn(stub_browser_interface_provider_);
+
     scene_ui_provider_ = OCMProtocolMock(@protocol(SceneUIProvider));
 
     profile_state_ = [[ProfileState alloc] initWithAppState:app_state_];
@@ -112,7 +124,8 @@ class SigninAccountCapabilitiesSceneAgentTest : public PlatformTest {
 
  protected:
   web::WebTaskEnvironment task_environment_{
-      web::WebTaskEnvironment::IOThreadType::REAL_THREAD};
+      web::WebTaskEnvironment::IOThreadType::REAL_THREAD,
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::test::ScopedFeatureList feature_list_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   std::unique_ptr<TestProfileIOS> profile_;
@@ -120,6 +133,8 @@ class SigninAccountCapabilitiesSceneAgentTest : public PlatformTest {
   ProfileState* profile_state_;
   AppState* app_state_;
   SceneState* scene_state_;
+  std::unique_ptr<TestBrowser> browser_;
+  StubBrowserProviderInterface* stub_browser_interface_provider_;
   SigninAccountCapabilitiesSceneAgent* agent_;
   raw_ptr<FakeSystemIdentityManager> fake_system_identity_manager_;
 };
@@ -206,6 +221,64 @@ TEST_F(SigninAccountCapabilitiesSceneAgentTest, TestIdentityRemoval) {
   AddIdentity(identity1);
   fake_system_identity_manager_->FireSystemIdentityReloaded();
 
+  EXPECT_EQ(build_context_calls, 2);
+}
+
+// Tests that capabilities are refetched every 24 hours.
+TEST_F(SigninAccountCapabilitiesSceneAgentTest, TestPeriodicFetch) {
+  FakeSystemIdentity* identity1 = [FakeSystemIdentity fakeIdentity1];
+  AddIdentity(identity1);
+
+  __block int build_context_calls = 0;
+  fake_system_identity_manager_->SetBuildExternalPrivacyContextCallback(
+      base::BindRepeating(^(
+          id<SystemIdentity> identity, UIViewController* view_controller,
+          SystemIdentityManager::BuildExternalPrivacyContextCallback callback) {
+        build_context_calls++;
+        std::move(callback).Run(nil);
+      }));
+
+  scene_state_.activationLevel = SceneActivationLevelForegroundActive;
+  EXPECT_EQ(build_context_calls, 1);
+
+  // Fast forward by 1 day.
+  task_environment_.FastForwardBy(base::Days(1));
+
+  // The timer should have fired and refetched capabilities.
+  EXPECT_EQ(build_context_calls, 2);
+
+  // Fast forward by another day.
+  task_environment_.FastForwardBy(base::Days(1));
+
+  // The timer should have fired again.
+  EXPECT_EQ(build_context_calls, 3);
+}
+
+// Tests that an identity is refetched after the staleness interval has passed.
+TEST_F(SigninAccountCapabilitiesSceneAgentTest,
+       TestExternalPrivacyContextStaleness) {
+  FakeSystemIdentity* identity1 = [FakeSystemIdentity fakeIdentity1];
+  AddIdentity(identity1);
+
+  __block int build_context_calls = 0;
+  fake_system_identity_manager_->SetBuildExternalPrivacyContextCallback(
+      base::BindRepeating(^(
+          id<SystemIdentity> identity, UIViewController* view_controller,
+          SystemIdentityManager::BuildExternalPrivacyContextCallback callback) {
+        build_context_calls++;
+        std::move(callback).Run(nil);
+      }));
+
+  scene_state_.activationLevel = SceneActivationLevelForegroundActive;
+  EXPECT_EQ(build_context_calls, 1);
+
+  // Fast forward by more than 1 day.
+  task_environment_.FastForwardBy(base::Days(1) + base::Hours(1));
+
+  // Trigger a scene event to try fetching again.
+  fake_system_identity_manager_->FireSystemIdentityReloaded();
+
+  // It should be refetched.
   EXPECT_EQ(build_context_calls, 2);
 }
 

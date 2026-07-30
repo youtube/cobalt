@@ -474,22 +474,6 @@ MockGLInterface::Mock_glCompressedTexImage2D(GLenum target,
 }
 
 void GL_BINDING_CALL
-MockGLInterface::Mock_glCompressedTexImage2DRobustANGLE(GLenum target,
-                                                        GLint level,
-                                                        GLenum internalformat,
-                                                        GLsizei width,
-                                                        GLsizei height,
-                                                        GLint border,
-                                                        GLsizei imageSize,
-                                                        GLsizei dataSize,
-                                                        const void* data) {
-  MakeGlMockFunctionUnique("glCompressedTexImage2DRobustANGLE");
-  interface_->CompressedTexImage2DRobustANGLE(target, level, internalformat,
-                                              width, height, border, imageSize,
-                                              dataSize, data);
-}
-
-void GL_BINDING_CALL
 MockGLInterface::Mock_glCompressedTexImage3D(GLenum target,
                                              GLint level,
                                              GLenum internalformat,
@@ -502,23 +486,6 @@ MockGLInterface::Mock_glCompressedTexImage3D(GLenum target,
   MakeGlMockFunctionUnique("glCompressedTexImage3D");
   interface_->CompressedTexImage3D(target, level, internalformat, width, height,
                                    depth, border, imageSize, data);
-}
-
-void GL_BINDING_CALL
-MockGLInterface::Mock_glCompressedTexImage3DRobustANGLE(GLenum target,
-                                                        GLint level,
-                                                        GLenum internalformat,
-                                                        GLsizei width,
-                                                        GLsizei height,
-                                                        GLsizei depth,
-                                                        GLint border,
-                                                        GLsizei imageSize,
-                                                        GLsizei dataSize,
-                                                        const void* data) {
-  MakeGlMockFunctionUnique("glCompressedTexImage3DRobustANGLE");
-  interface_->CompressedTexImage3DRobustANGLE(target, level, internalformat,
-                                              width, height, depth, border,
-                                              imageSize, dataSize, data);
 }
 
 void GL_BINDING_CALL
@@ -537,23 +504,6 @@ MockGLInterface::Mock_glCompressedTexSubImage2D(GLenum target,
 }
 
 void GL_BINDING_CALL
-MockGLInterface::Mock_glCompressedTexSubImage2DRobustANGLE(GLenum target,
-                                                           GLint level,
-                                                           GLint xoffset,
-                                                           GLint yoffset,
-                                                           GLsizei width,
-                                                           GLsizei height,
-                                                           GLenum format,
-                                                           GLsizei imageSize,
-                                                           GLsizei dataSize,
-                                                           const void* data) {
-  MakeGlMockFunctionUnique("glCompressedTexSubImage2DRobustANGLE");
-  interface_->CompressedTexSubImage2DRobustANGLE(target, level, xoffset,
-                                                 yoffset, width, height, format,
-                                                 imageSize, dataSize, data);
-}
-
-void GL_BINDING_CALL
 MockGLInterface::Mock_glCompressedTexSubImage3D(GLenum target,
                                                 GLint level,
                                                 GLint xoffset,
@@ -569,25 +519,6 @@ MockGLInterface::Mock_glCompressedTexSubImage3D(GLenum target,
   interface_->CompressedTexSubImage3D(target, level, xoffset, yoffset, zoffset,
                                       width, height, depth, format, imageSize,
                                       data);
-}
-
-void GL_BINDING_CALL
-MockGLInterface::Mock_glCompressedTexSubImage3DRobustANGLE(GLenum target,
-                                                           GLint level,
-                                                           GLint xoffset,
-                                                           GLint yoffset,
-                                                           GLint zoffset,
-                                                           GLsizei width,
-                                                           GLsizei height,
-                                                           GLsizei depth,
-                                                           GLenum format,
-                                                           GLsizei imageSize,
-                                                           GLsizei dataSize,
-                                                           const void* data) {
-  MakeGlMockFunctionUnique("glCompressedTexSubImage3DRobustANGLE");
-  interface_->CompressedTexSubImage3DRobustANGLE(
-      target, level, xoffset, yoffset, zoffset, width, height, depth, format,
-      imageSize, dataSize, data);
 }
 
 void GL_BINDING_CALL
@@ -861,12 +792,6 @@ void GL_BINDING_CALL MockGLInterface::Mock_glDetachShader(GLuint program,
 void GL_BINDING_CALL MockGLInterface::Mock_glDisable(GLenum cap) {
   MakeGlMockFunctionUnique("glDisable");
   interface_->Disable(cap);
-}
-
-void GL_BINDING_CALL
-MockGLInterface::Mock_glDisableExtensionANGLE(const char* name) {
-  MakeGlMockFunctionUnique("glDisableExtensionANGLE");
-  interface_->DisableExtensionANGLE(name);
 }
 
 void GL_BINDING_CALL
@@ -1557,49 +1482,42 @@ MockGLInterface::Mock_glGetFramebufferAttachmentParameterivRobustANGLE(
 }
 
 void GL_BINDING_CALL
-MockGLInterface::Mock_glGetFramebufferPixelLocalStorageParameterfvANGLE(
-    GLint plane,
-    GLenum pname,
-    GLfloat* params) {
-  MakeGlMockFunctionUnique("glGetFramebufferPixelLocalStorageParameterfvANGLE");
-  interface_->GetFramebufferPixelLocalStorageParameterfvANGLE(plane, pname,
-                                                              params);
-}
-
-void GL_BINDING_CALL
 MockGLInterface::Mock_glGetFramebufferPixelLocalStorageParameterfvRobustANGLE(
     GLint plane,
     GLenum pname,
-    GLsizei bufSize,
+    GLsizei paramCount,
     GLsizei* length,
     GLfloat* params) {
   MakeGlMockFunctionUnique(
       "glGetFramebufferPixelLocalStorageParameterfvRobustANGLE");
   interface_->GetFramebufferPixelLocalStorageParameterfvRobustANGLE(
-      plane, pname, bufSize, length, params);
-}
-
-void GL_BINDING_CALL
-MockGLInterface::Mock_glGetFramebufferPixelLocalStorageParameterivANGLE(
-    GLint plane,
-    GLenum pname,
-    GLint* params) {
-  MakeGlMockFunctionUnique("glGetFramebufferPixelLocalStorageParameterivANGLE");
-  interface_->GetFramebufferPixelLocalStorageParameterivANGLE(plane, pname,
-                                                              params);
+      plane, pname, paramCount, length, params);
 }
 
 void GL_BINDING_CALL
 MockGLInterface::Mock_glGetFramebufferPixelLocalStorageParameterivRobustANGLE(
     GLint plane,
     GLenum pname,
-    GLsizei bufSize,
+    GLsizei paramCount,
     GLsizei* length,
     GLint* params) {
   MakeGlMockFunctionUnique(
       "glGetFramebufferPixelLocalStorageParameterivRobustANGLE");
   interface_->GetFramebufferPixelLocalStorageParameterivRobustANGLE(
-      plane, pname, bufSize, length, params);
+      plane, pname, paramCount, length, params);
+}
+
+void GL_BINDING_CALL
+MockGLInterface::Mock_glGetFramebufferPixelLocalStorageParameteruivRobustANGLE(
+    GLint plane,
+    GLenum pname,
+    GLsizei paramCount,
+    GLsizei* length,
+    GLuint* params) {
+  MakeGlMockFunctionUnique(
+      "glGetFramebufferPixelLocalStorageParameteruivRobustANGLE");
+  interface_->GetFramebufferPixelLocalStorageParameteruivRobustANGLE(
+      plane, pname, paramCount, length, params);
 }
 
 GLenum GL_BINDING_CALL MockGLInterface::Mock_glGetGraphicsResetStatusEXT(void) {
@@ -3849,26 +3767,14 @@ MockGLInterface::GetGLProcAddress(const char* name) {
     return reinterpret_cast<GLFunctionPointerType>(Mock_glCompileShader);
   if (strcmp(name, "glCompressedTexImage2D") == 0)
     return reinterpret_cast<GLFunctionPointerType>(Mock_glCompressedTexImage2D);
-  if (strcmp(name, "glCompressedTexImage2DRobustANGLE") == 0)
-    return reinterpret_cast<GLFunctionPointerType>(
-        Mock_glCompressedTexImage2DRobustANGLE);
   if (strcmp(name, "glCompressedTexImage3D") == 0)
     return reinterpret_cast<GLFunctionPointerType>(Mock_glCompressedTexImage3D);
-  if (strcmp(name, "glCompressedTexImage3DRobustANGLE") == 0)
-    return reinterpret_cast<GLFunctionPointerType>(
-        Mock_glCompressedTexImage3DRobustANGLE);
   if (strcmp(name, "glCompressedTexSubImage2D") == 0)
     return reinterpret_cast<GLFunctionPointerType>(
         Mock_glCompressedTexSubImage2D);
-  if (strcmp(name, "glCompressedTexSubImage2DRobustANGLE") == 0)
-    return reinterpret_cast<GLFunctionPointerType>(
-        Mock_glCompressedTexSubImage2DRobustANGLE);
   if (strcmp(name, "glCompressedTexSubImage3D") == 0)
     return reinterpret_cast<GLFunctionPointerType>(
         Mock_glCompressedTexSubImage3D);
-  if (strcmp(name, "glCompressedTexSubImage3DRobustANGLE") == 0)
-    return reinterpret_cast<GLFunctionPointerType>(
-        Mock_glCompressedTexSubImage3DRobustANGLE);
   if (strcmp(name, "glCopyBufferSubData") == 0)
     return reinterpret_cast<GLFunctionPointerType>(Mock_glCopyBufferSubData);
   if (strcmp(name, "glCopySubTextureCHROMIUM") == 0)
@@ -3947,9 +3853,6 @@ MockGLInterface::GetGLProcAddress(const char* name) {
     return reinterpret_cast<GLFunctionPointerType>(Mock_glDetachShader);
   if (strcmp(name, "glDisable") == 0)
     return reinterpret_cast<GLFunctionPointerType>(Mock_glDisable);
-  if (strcmp(name, "glDisableExtensionANGLE") == 0)
-    return reinterpret_cast<GLFunctionPointerType>(
-        Mock_glDisableExtensionANGLE);
   if (strcmp(name, "glDisableVertexAttribArray") == 0)
     return reinterpret_cast<GLFunctionPointerType>(
         Mock_glDisableVertexAttribArray);
@@ -4161,20 +4064,19 @@ MockGLInterface::GetGLProcAddress(const char* name) {
   if (strcmp(name, "glGetFramebufferAttachmentParameterivRobustANGLE") == 0)
     return reinterpret_cast<GLFunctionPointerType>(
         Mock_glGetFramebufferAttachmentParameterivRobustANGLE);
-  if (strcmp(name, "glGetFramebufferPixelLocalStorageParameterfvANGLE") == 0)
-    return reinterpret_cast<GLFunctionPointerType>(
-        Mock_glGetFramebufferPixelLocalStorageParameterfvANGLE);
   if (strcmp(name, "glGetFramebufferPixelLocalStorageParameterfvRobustANGLE") ==
       0)
     return reinterpret_cast<GLFunctionPointerType>(
         Mock_glGetFramebufferPixelLocalStorageParameterfvRobustANGLE);
-  if (strcmp(name, "glGetFramebufferPixelLocalStorageParameterivANGLE") == 0)
-    return reinterpret_cast<GLFunctionPointerType>(
-        Mock_glGetFramebufferPixelLocalStorageParameterivANGLE);
   if (strcmp(name, "glGetFramebufferPixelLocalStorageParameterivRobustANGLE") ==
       0)
     return reinterpret_cast<GLFunctionPointerType>(
         Mock_glGetFramebufferPixelLocalStorageParameterivRobustANGLE);
+  if (strcmp(name,
+             "glGetFramebufferPixelLocalStorageParameteruivRobustANGLE") == 0) {
+    return reinterpret_cast<GLFunctionPointerType>(
+        Mock_glGetFramebufferPixelLocalStorageParameteruivRobustANGLE);
+  }
   if (strcmp(name, "glGetGraphicsResetStatusEXT") == 0)
     return reinterpret_cast<GLFunctionPointerType>(
         Mock_glGetGraphicsResetStatusEXT);

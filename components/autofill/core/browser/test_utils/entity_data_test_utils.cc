@@ -310,16 +310,15 @@ EntityInstance GetFlightReservationEntityInstance(
   }
   if (options.departure_airport) {
     attributes.emplace_back(AttributeType(kFlightReservationDepartureAirport));
-    attributes.back().SetInfo(
-        FLIGHT_RESERVATION_DEPARTURE_AIRPORT, options.departure_airport,
-        std::string(options.app_locale),
-        /*format_string=*/std::nullopt, VerificationStatus::kNoStatus);
+    attributes.back().SetInfo(UNKNOWN_TYPE, options.departure_airport,
+                              std::string(options.app_locale),
+                              /*format_string=*/std::nullopt,
+                              VerificationStatus::kNoStatus);
   }
   if (options.arrival_airport) {
     attributes.emplace_back(AttributeType(kFlightReservationArrivalAirport));
     attributes.back().SetInfo(
-        FLIGHT_RESERVATION_ARRIVAL_AIRPORT, options.arrival_airport,
-        std::string(options.app_locale),
+        UNKNOWN_TYPE, options.arrival_airport, std::string(options.app_locale),
         /*format_string=*/std::nullopt, VerificationStatus::kNoStatus);
   }
 
@@ -364,7 +363,7 @@ EntityInstance GetOrderEntityInstance(OrderOptions options) {
   if (options.account) {
     attributes.emplace_back(AttributeType(kOrderAccount));
     attributes.back().SetInfo(
-        ORDER_ACCOUNT, options.account, std::string(options.app_locale),
+        UNKNOWN_TYPE, options.account, std::string(options.app_locale),
         /*format_string=*/std::nullopt, VerificationStatus::kNoStatus);
   }
   if (options.date) {
@@ -383,22 +382,20 @@ EntityInstance GetOrderEntityInstance(OrderOptions options) {
   }
   if (options.merchant_domain) {
     attributes.emplace_back(AttributeType(kOrderMerchantDomain));
-    attributes.back().SetInfo(ORDER_MERCHANT_DOMAIN, options.merchant_domain,
-                              std::string(options.app_locale),
-                              /*format_string=*/std::nullopt,
-                              VerificationStatus::kNoStatus);
+    attributes.back().SetInfo(
+        UNKNOWN_TYPE, options.merchant_domain, std::string(options.app_locale),
+        /*format_string=*/std::nullopt, VerificationStatus::kNoStatus);
   }
   if (options.product_names) {
     attributes.emplace_back(AttributeType(kOrderProductNames));
-    attributes.back().SetInfo(ORDER_PRODUCT_NAMES, options.product_names,
-                              std::string(options.app_locale),
-                              /*format_string=*/std::nullopt,
-                              VerificationStatus::kNoStatus);
+    attributes.back().SetInfo(
+        UNKNOWN_TYPE, options.product_names, std::string(options.app_locale),
+        /*format_string=*/std::nullopt, VerificationStatus::kNoStatus);
   }
   if (options.grand_total) {
     attributes.emplace_back(AttributeType(kOrderGrandTotal));
     attributes.back().SetInfo(
-        ORDER_GRAND_TOTAL, options.grand_total, std::string(options.app_locale),
+        UNKNOWN_TYPE, options.grand_total, std::string(options.app_locale),
         /*format_string=*/std::nullopt, VerificationStatus::kNoStatus);
   }
   return GetEntityInstance(std::move(attributes), ToEntityOptions(options));
@@ -432,7 +429,7 @@ EntityInstance MaskEntityInstance(const EntityInstance& entity_instance) {
     if (!attribute.type().is_obfuscated()) {
       continue;
     }
-    const FieldType field_type = attribute.type().field_type();
+    const std::optional<FieldType> field_type = attribute.type().field_type();
     const std::u16string full_value =
         attribute.GetInfo(field_type, "en-US", /*format_string=*/std::nullopt);
     // Do some simple masking to simulate what the server might do.

@@ -1,8 +1,26 @@
 include_rules = [
+  "+chromeos/constants",
+  "+components/webapps/isolated_web_apps",
   "+content/public/browser",
   "+mojo/public/cpp/bindings",
+  "+third_party/blink/public/common/runtime_feature_state",
   "+third_party/blink/public/mojom/chromeos",
   "+ui/aura/window.h",
   "+ui/gfx/geometry",
   "+ui/views/widget/widget.h",
+  "+ui/views/widget/widget_delegate.h",
 ]
+
+specific_include_rules = {
+  ".*_unittest\\.cc": [
+    "+ash/test",
+    "+content/public/common",
+    "+content/public/test",
+    "+ui/aura/test",
+    "+ui/base",
+    "+ui/compositor",
+    "+ui/events",
+    "+ui/wm",
+    "+ui/views/test",
+  ],
+}

@@ -56,7 +56,7 @@ class OnDeviceTranslationController {
   };
 
   using CreateTranslatorCallback = base::OnceCallback<void(
-      base::expected<mojo::PendingRemote<mojom::Translator>,
+      base::expected<mojo::PendingRemote<mojom::OnDeviceTranslator>,
                      CreateTranslatorError>)>;
   using CanTranslateCallback = base::OnceCallback<void(CanTranslateResult)>;
 
@@ -144,12 +144,6 @@ class OnDeviceTranslationServiceController
   void CreateTranslatorImpl(const std::string& source_lang,
                             const std::string& target_lang,
                             CreateTranslatorCallback callback);
-
-  // Called when the TranslateKitBinaryPath pref is changed.
-  void OnTranslateKitBinaryPathChanged(const std::string& pref_name);
-
-  // Called when the language pack key pref is changed.
-  void OnLanguagePackKeyPrefChanged(const std::string& pref_name);
 
   // Tries to start the service if it is not already running. Returns true if
   // the service is running or is started successfully.

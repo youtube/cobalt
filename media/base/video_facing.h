@@ -24,11 +24,10 @@ enum VideoFacingMode {
 // and register the observers to MediaStreamManager or VideoCaptureManager.
 class VideoCaptureObserver : public base::CheckedObserver {
  public:
+  ~VideoCaptureObserver() override = default;
+
   virtual void OnVideoCaptureStarted(VideoFacingMode facing) = 0;
   virtual void OnVideoCaptureStopped(VideoFacingMode facing) = 0;
-
- protected:
-  ~VideoCaptureObserver() override = default;
 };
 
 }  // namespace media

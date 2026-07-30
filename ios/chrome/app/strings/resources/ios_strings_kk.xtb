@@ -480,6 +480,7 @@
 <translation id="2691653761409724435">Офлайн режимде қолжетімді емес</translation>
 <translation id="2697530870203420261">Лақап ат жарамсыз</translation>
 <translation id="269819437389494246">Сіз кірген беттерді көруіңізге не оларды тарихтан жоюға болады.</translation>
+<translation id="2704295676501803339">Солға жылжыту</translation>
 <translation id="2704606927547763573">Көшірілген</translation>
 <translation id="2708051474374549906">Google-ға жіберілетін браузерді пайдалану деректеріне негізделген қауіпті сайттардан, жүктеп алынғандардан және кеңейтімдерден нақты уақыттағы әрі белсенді қорғаныс.</translation>
 <translation id="2709516037105925701">Автотолтыру</translation>
@@ -1662,6 +1663,7 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="6899890595581608884">Қауіпсіздік тексерісінің хабарландырулары өшірілді.</translation>
 <translation id="6900532703269623216">Жақсартылған қорғау</translation>
 <translation id="6900702165119149418">Жүйеден шықтыңыз</translation>
+<translation id="6903282483217634857">Оңға жылжыту</translation>
 <translation id="6903907808598579934">Синхрондауды қосу</translation>
 <translation id="6906448540340261898">Google аккаунтыңызда құпия сөздерді үнемі пайдалана алатыныңызға көз жеткізу</translation>
 <translation id="6908734251759299256">Браузерді жаңартыңыз</translation>
@@ -1724,6 +1726,7 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="7149893636342594995">Соңғы 24 сағат</translation>
 <translation id="7154417656353909837">Мекенжайларды өшіру</translation>
 <translation id="7161230316646448869">Бетбелгілеріңізді, әрекеттеріңіздің тарихын және басқа деректерді барлық құрылғыда синхрондау</translation>
+<translation id="7165323152084385463">VIN</translation>
 <translation id="7173114856073700355">Параметрлерді ашу</translation>
 <translation id="7173721738069475737">{count,plural, =1{Бетбелгі сақталды.}other{{count} бетбелгі сақталды.}}</translation>
 <translation id="7176183551031110427">Кішірейту</translation>
@@ -2218,6 +2221,7 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="8863067612494559785"><ph name="DEVICE_NAME" /> деген пайдаланушыға жіберілуде…</translation>
 <translation id="8863431381414769983">Google Maps қолданбасынан бағыттар мен жергілікті ақпаратты алу</translation>
 <translation id="8871974300055371298">Контент параметрлері</translation>
+<translation id="8876661425082386199">Интернет байланысын тексеріңіз.</translation>
 <translation id="8877788021141246043">Еске салғыш орнату</translation>
 <translation id="8879604564928138696">Байқап көру үшін екі рет түртіңіз</translation>
 <translation id="8879952635974818770">Жекелендірілген контент</translation>
@@ -2319,7 +2323,6 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="926455622548529175">Ауыстыру және жою</translation>
 <translation id="929748059769569925">Ерекшеленген мәтін</translation>
 <translation id="932305336591073205">{count,plural, =1{Қойындыны жабу}other{Қойындыларды жабу}}</translation>
-<translation id="932327136139879170">Негізгі бет</translation>
 <translation id="939472100615258482">Қолданыстағы сайт</translation>
 <translation id="939598580284253335">Құпия фразаны енгізу</translation>
 <translation id="939736085109172342">Жаңа қалта</translation>

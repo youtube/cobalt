@@ -14,6 +14,7 @@
 #include "base/memory/raw_ref.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/payments/autofill_error_dialog_context.h"
+#include "components/autofill/core/browser/payments/iban_manager.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/ui/payments/autofill_error_dialog_controller_impl.h"
@@ -59,7 +60,6 @@ class ContentAutofillClient;
 class CreditCardRiskBasedAuthenticator;
 struct FilledCardInformationBubbleOptions;
 class IbanAccessManager;
-class IbanManager;
 class MerchantPromoCodeManager;
 struct OfferNotificationOptions;
 class OtpUnmaskDelegate;
@@ -251,6 +251,7 @@ class ChromePaymentsAutofillClient : public PaymentsAutofillClient,
   bool IsTabModalPopupDeprecated() const override;
   BnplStrategy* GetBnplStrategy() override;
   BnplUiDelegate* GetBnplUiDelegate() override;
+  OmniboxAutofillDelegate* GetOmniboxAutofillDelegate() override;
 
   // Begin ChromePaymentsAutofillClient-specific section.
 
@@ -363,6 +364,7 @@ class ChromePaymentsAutofillClient : public PaymentsAutofillClient,
   std::unique_ptr<CardUnmaskAuthenticationSelectionDialogControllerImpl>
       card_unmask_authentication_selection_controller_;
 
+  std::unique_ptr<IbanManager> iban_manager_;
   std::unique_ptr<IbanAccessManager> iban_access_manager_;
 
   std::unique_ptr<payments::MandatoryReauthManager>
@@ -382,6 +384,10 @@ class ChromePaymentsAutofillClient : public PaymentsAutofillClient,
   // platform.
   // Lazily initialized: access only through `GetBnplUiDelegate()`.
   std::unique_ptr<BnplUiDelegate> bnpl_ui_delegate_;
+
+  // The OmniboxAutofillDelegate used to handle the logic flow and user
+  // interactions when the user triggers Autofill from the Omnibox.
+  std::unique_ptr<OmniboxAutofillDelegate> omnibox_autofill_delegate_;
 
   // Used to cache client side risk data. The cache is invalidated when the
   // chrome browser tab is closed.

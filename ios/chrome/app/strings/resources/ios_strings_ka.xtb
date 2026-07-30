@@ -393,6 +393,7 @@
 <translation id="2359808026110333948">გაგრძელება</translation>
 <translation id="2360196772093551345">მობილური საიტის მოთხოვნა</translation>
 <translation id="2362083820973145409">შესული ხართ, როგორც <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. გახსნის პარამეტრებს.</translation>
+<translation id="2367025302166767427">თქვენი ინფორმაციის შევსებისას წარმოიქმნა პრობლემა</translation>
 <translation id="2371084566192454134">ჩანართები და ჩანართების ჯგუფები</translation>
 <translation id="2371303771137626249">ახალი</translation>
 <translation id="2381405137052800939">ძირითადი</translation>
@@ -480,6 +481,7 @@
 <translation id="2691653761409724435">მიუწვდომელია ხაზგარეშე რეჟიმში</translation>
 <translation id="2697530870203420261">მეტსახელი არასწორია</translation>
 <translation id="269819437389494246">თქვენ შეგიძლიათ ნახოთ გვერდები, რომლებსაც ესტუმრეთ, ან წაშალოთ ისინი ისტორიიდან</translation>
+<translation id="2704295676501803339">გადაადგილდით მარცხნივ</translation>
 <translation id="2704606927547763573">დაკოპირდა</translation>
 <translation id="2708051474374549906">რეალურ დროში მოქმედი, პროაქტიური დაცვა სახიფათო საიტებისგან, ჩამოტვირთვებისა და გაფართოებებისგან. აღნიშნული შესაძლებელია თქვენი დათვალიერების მონაცემების Google-ში გაგზავნის გზით.</translation>
 <translation id="2709516037105925701">ავტომატური შევსება</translation>
@@ -1662,6 +1664,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="6899890595581608884">უსაფრთხოების შემოწმების შეტყობინებები გამორთულია</translation>
 <translation id="6900532703269623216">გაძლიერებული დაცვა</translation>
 <translation id="6900702165119149418">თქვენ გამოსული ხართ</translation>
+<translation id="6903282483217634857">გადაადგილება მარჯვნივ</translation>
 <translation id="6903907808598579934">სინქრონიზაციის ჩართვა</translation>
 <translation id="6906448540340261898">იზრუნეთ, რომ ყოველთვის გამოიყენოთ პაროლები თქვენს Google ანგარიშში</translation>
 <translation id="6908734251759299256">განაახლეთ თქვენი ბრაუზერი</translation>
@@ -1724,6 +1727,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="7149893636342594995">ბოლო 24 საათი</translation>
 <translation id="7154417656353909837">მისამართების ამოშლა</translation>
 <translation id="7161230316646448869">შეასრულეთ თქვენი სანიშნეების, ისტორიისა და სხვა კონტენტის სინქრონიზაცია თქვენს ყველა მოწყობილობას შორის</translation>
+<translation id="7165323152084385463">VIN კოდი</translation>
 <translation id="7173114856073700355">პარამეტრების გახსნა</translation>
 <translation id="7173721738069475737">{count,plural, =1{სანიშნე შეინახა}other{{count} სანიშნე შეინახა}}</translation>
 <translation id="7176183551031110427">მასშტაბის შემცირება</translation>
@@ -2218,6 +2222,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="8863067612494559785">მიმდინარეობს გაგზავნა <ph name="DEVICE_NAME" />-თან…</translation>
 <translation id="8863431381414769983">მიიღეთ მიმართულებები და ადგილობრივი ინფორმაცია Google Maps-იდან</translation>
 <translation id="8871974300055371298">შინაარსის პარამეტრები</translation>
+<translation id="8876661425082386199">შეამოწმეთ კავშირი</translation>
 <translation id="8877788021141246043">შეხსენების დაყენება</translation>
 <translation id="8879604564928138696">საცდელად შეეხეთ ორმაგად</translation>
 <translation id="8879952635974818770">პერსონალიზებული კონტენტი</translation>
@@ -2319,7 +2324,6 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="926455622548529175">გადართვა და წაშლა</translation>
 <translation id="929748059769569925">გამოყოფილი ტექსტი</translation>
 <translation id="932305336591073205">{count,plural, =1{ჩანართის დახურვა}other{ჩანართების დახურვა}}</translation>
-<translation id="932327136139879170">საწყისი გვერდი</translation>
 <translation id="939472100615258482">ამჟამინდელი საიტი</translation>
 <translation id="939598580284253335">შეიყვანეთ საიდუმლო ფრაზა</translation>
 <translation id="939736085109172342">ახალი საქაღალდე</translation>

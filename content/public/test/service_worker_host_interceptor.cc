@@ -25,7 +25,7 @@ blink::ServiceWorkerStatusCode
 ServiceWorkerHostInterceptor::InterceptServiceWorkerHostWithScope(
     BrowserContext* browser_context,
     const GURL& scope,
-    int* service_worker_process_id_out) {
+    ChildProcessId* service_worker_process_id_out) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   scoped_refptr<ServiceWorkerContextWrapper> context =
       static_cast<ServiceWorkerContextWrapper*>(

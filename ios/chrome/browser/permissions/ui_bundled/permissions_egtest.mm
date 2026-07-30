@@ -724,8 +724,9 @@ void TapDoneButtonOnInfobarModal() {
     [InfobarEarlGreyUI waitUntilInfobarBannerVisibleOrTimeout:YES];
     [[EarlGrey selectElementWithMatcher:InfobarBannerCameraOnly()]
         performAction:grey_swipeFastInDirection(kGREYDirectionUp)];
-    [[EarlGrey selectElementWithMatcher:CameraBadge(/*accepted=*/YES)]
-        assertWithMatcher:grey_sufficientlyVisible()];
+    [ChromeEarlGrey
+        waitForSufficientlyVisibleElementWithMatcher:CameraBadge(
+                                                         /*accepted=*/YES)];
 
     // Inject a lot of text to make the page distillable (eligible for Reader
     // Mode).

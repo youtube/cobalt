@@ -12,6 +12,7 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/navigation_throttle_registry.h"
 #include "content/public/browser/storage_partition.h"
+#include "services/network/public/cpp/connection_allowlist_metrics.h"
 #include "services/network/public/cpp/features.h"
 
 namespace content {
@@ -54,14 +55,27 @@ NetworkRestrictionsNavigationThrottle::MaybeApplyNetworkRestrictions(
 
   const auto& policy_container_policies =
       navigation_request.GetPolicyContainerPolicies();
-  if (!policy_container_policies.connection_allowlists.enforced) {
-    return NetworkRestrictionsResult::kProceed;
+
+  if (policy_container_policies.connection_allowlists.enforced) {
+    network::LogConnectionAllowlistTypeHistogram(
+        network::ConnectionAllowlistType::kEnforced);
+  }
+  if (policy_container_policies.connection_allowlists.report_only) {
+    network::LogConnectionAllowlistTypeHistogram(
+        network::ConnectionAllowlistType::kReportOnly);
   }
 
-  std::set<std::string> allowlisted_patterns;
-  for (const auto& pattern_string :
-       policy_container_policies.connection_allowlists.enforced->allowlist) {
-    allowlisted_patterns.insert(pattern_string);
+  // The origin trial status is tied to the existence of allowlists in policy
+  // container. If there does not exist an enforced allowlist in policies, it
+  // means either:
+  // 1. the trial was not active for that context.
+  // 2. or the parsed enforced allowlist is null. For example, the
+  // "Connection-Allowlist" header has an empty field value.
+  //
+  // The network restriction id is not applied in either case.
+  if (!policy_container_policies.connection_allowlists.enforced &&
+      !policy_container_policies.connection_allowlists.report_only) {
+    return NetworkRestrictionsResult::kProceed;
   }
 
   // Defer the commit until the network restrictions have been applied.
@@ -69,7 +83,8 @@ NetworkRestrictionsNavigationThrottle::MaybeApplyNetworkRestrictions(
       ->current_frame_host()
       ->GetStoragePartition()
       ->RevokeNetworkForNoncesInNetworkContext(
-          {{*network_restrictions_id, std::move(allowlisted_patterns)}},
+          {{*network_restrictions_id,
+            policy_container_policies.connection_allowlists}},
           std::move(on_complete));
 
   return NetworkRestrictionsResult::kDefer;

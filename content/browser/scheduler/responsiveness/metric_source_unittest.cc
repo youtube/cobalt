@@ -47,8 +47,8 @@ class FakeDelegate : public MetricSource::Delegate {
     did_run_task_on_io_thread_++;
   }
 
-  void WillRunEventOnUIThread(const void* opaque_identifier) override {}
-  void DidRunEventOnUIThread(const void* opaque_identifier) override {}
+  void WillRunEventOnUIThread(uintptr_t opaque_identifier) override {}
+  void DidRunEventOnUIThread(uintptr_t opaque_identifier) override {}
 
   bool set_up_on_io_thread() { return set_up_on_io_thread_; }
   bool tear_down_on_ui_thread() { return tear_down_on_ui_thread_; }
@@ -77,7 +77,8 @@ class TestMetricSource : public MetricSource {
                    base::OnceClosure on_destroyed = base::DoNothing())
       : MetricSource(delegate), on_destroyed_(std::move(on_destroyed)) {}
 
-  std::unique_ptr<NativeEventObserver> CreateNativeEventObserver() override {
+  std::unique_ptr<BrowserUINativeEventObserver> CreateNativeEventObserver()
+      override {
     return nullptr;
   }
 

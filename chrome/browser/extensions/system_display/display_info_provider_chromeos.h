@@ -11,9 +11,9 @@
 #include "ash/shell_observer.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
-#include "chromeos/crosapi/mojom/cros_display_config.mojom.h"
+#include "base/types/optional_ref.h"
 #include "extensions/browser/display_info_provider_base.h"
-#include "mojo/public/cpp/bindings/associated_receiver.h"
+#include "ui/display/manager/touch_device_manager.h"
 
 namespace ash {
 class Shell;
@@ -70,10 +70,11 @@ class DisplayInfoProviderChromeOS : public DisplayInfoProviderBase,
   void OnDisplayConfigChanged() override;
 
  private:
-  void CallTouchCalibration(const std::string& id,
-                            crosapi::mojom::DisplayConfigOperation op,
-                            crosapi::mojom::TouchCalibrationPtr calibration,
-                            ErrorCallback callback);
+  void CallTouchCalibration(
+      const std::string& id,
+      ash::DisplayCalibrationOperation op,
+      base::optional_ref<const display::TouchCalibrationData> calibration,
+      ErrorCallback callback);
 
   raw_ptr<ash::CrosDisplayConfig> cros_display_config_;
   base::ScopedObservation<ash::Shell, ash::ShellObserver> shell_observation_{

@@ -86,6 +86,7 @@ class CORE_EXPORT CSSValue : public GarbageCollected<CSSValue> {
   bool IsBorderImageSliceValue() const {
     return class_type_ == kBorderImageSliceClass;
   }
+  bool IsAlphaColorValue() const { return class_type_ == kAlphaColorClass; }
   bool IsColorValue() const { return class_type_ == kColorClass; }
   bool IsColorMixValue() const { return class_type_ == kColorMixClass; }
   bool IsContrastColorValue() const {
@@ -283,6 +284,7 @@ class CORE_EXPORT CSSValue : public GarbageCollected<CSSValue> {
     kColorClass,
     kUnresolvedColorClass,
     kColorMixClass,
+    kAlphaColorClass,
     kContrastColorClass,
     kCounterClass,
     kCounterContentClass,
@@ -373,6 +375,8 @@ class CORE_EXPORT CSSValue : public GarbageCollected<CSSValue> {
 
     kTriggerAttachmentClass,
 
+    kRepeatClass,
+
     // List class types must appear after ValueListClass.
     kValueListClass,
     kFunctionClass,
@@ -381,7 +385,6 @@ class CORE_EXPORT CSSValue : public GarbageCollected<CSSValue> {
     kGridAutoRepeatClass,
     kGridIntegerRepeatClass,
     kAxisClass,
-    kRepeatClass,
     // Do not append non-list class types here.
   };
 

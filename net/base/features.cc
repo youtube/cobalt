@@ -26,6 +26,9 @@ namespace net::features {
 
 BASE_FEATURE(kAlpsForHttp2, base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAsyncRetryOnTooManyConnectionErrors,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kAvoidH2Reprioritization, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCapReferrerToOriginOnCrossOrigin,
@@ -408,6 +411,9 @@ BASE_FEATURE_PARAM(std::string,
                    "Value",
                    "");
 
+BASE_FEATURE(kDeviceBoundSessionsForSingleSignOn,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSpdySessionForProxyAdditionalChecks,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -434,6 +440,9 @@ BASE_FEATURE(kNoVarySearchIgnoreUnrecognizedKeys,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnforceOneRfc6962CtPolicy, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCertificateTransparencyIgnoreOcspScts,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDiskCacheBackendExperiment, base::FEATURE_DISABLED_BY_DEFAULT);
 constexpr base::FeatureParam<DiskCacheBackend>::Option
@@ -779,4 +788,24 @@ const base::FeatureParam<bool> kSQLitePersistentCookieStoreEarlyInitCheckDisk{
 
 BASE_FEATURE(kEnableErrorCodePropagationForPreconnect,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kPermitTcpSocketPoolConnectBackupJobs,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLocalNetworkPermissionCheck, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kTcpSocketPoolProxyLimit, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kTcpSocketPoolProxyLimitNormal,
+                   &kTcpSocketPoolProxyLimit,
+                   "TcpSocketPoolProxyLimitNormal",
+                   32);
+
+BASE_FEATURE_PARAM(int,
+                   kTcpSocketPoolProxyLimitWebSocket,
+                   &kTcpSocketPoolProxyLimit,
+                   "TcpSocketPoolProxyLimitWebSocket",
+                   32);
+
 }  // namespace net::features

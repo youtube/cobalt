@@ -35,6 +35,8 @@ import org.chromium.components.signin.AccountEmailDisplayHook;
 import org.chromium.components.signin.AccountManagerFacade;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
 import org.chromium.components.signin.AccountsChangeObserver;
+import org.chromium.components.signin.SigninFeatureMap;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.IdentityManager;
@@ -75,14 +77,11 @@ public class ProfileDataCache implements IdentityManager.Observer {
 
     private final Context mContext;
     private final AccountManagerFacade mAccountManagerFacade;
-    private final AccountManagerAccountsChangeObserver mAccountManagerAccountsChangeObserver;
+    private final @Nullable AccountManagerAccountsChangeObserver
+            mAccountManagerAccountsChangeObserver;
     private final IdentityManager mIdentityManager;
-
-    // TODO(crbug.com/485773785) Remove when flag usage will be added
-    @SuppressWarnings("UnusedVariable")
     private final @Nullable IdentityManagerAccountsChangeObserver
-            mIdentityManagerAccountsChangeObserver = null;
-
+            mIdentityManagerAccountsChangeObserver;
     private final int mImageSize;
     // The badge for a given account is selected as follows:
     // * If there is a config for that specific account, use that
@@ -104,8 +103,14 @@ public class ProfileDataCache implements IdentityManager.Observer {
         assert identityManager != null;
         mContext = context;
         mAccountManagerFacade = accountManagerFacade;
-        mAccountManagerAccountsChangeObserver = new AccountManagerAccountsChangeObserver();
         mIdentityManager = identityManager;
+        if (SigninFeatureMap.isEnabled(SigninFeatures.MAKE_IDENTITY_MANAGER_SOURCE_OF_ACCOUNTS)) {
+            mAccountManagerAccountsChangeObserver = null;
+            mIdentityManagerAccountsChangeObserver = new IdentityManagerAccountsChangeObserver();
+        } else {
+            mAccountManagerAccountsChangeObserver = new AccountManagerAccountsChangeObserver();
+            mIdentityManagerAccountsChangeObserver = null;
+        }
         mImageSize = imageSize;
         mDefaultBadgeConfig = badgeConfig;
         mPlaceholderImage = getScaledPlaceholderImage(context, imageSize);
@@ -264,7 +269,13 @@ public class ProfileDataCache implements IdentityManager.Observer {
     public void addObserver(Observer observer) {
         ThreadUtils.assertOnUiThread();
         if (mObservers.isEmpty()) {
-            mAccountManagerFacade.addObserver(mAccountManagerAccountsChangeObserver);
+            if (SigninFeatureMap.isEnabled(
+                    SigninFeatures.MAKE_IDENTITY_MANAGER_SOURCE_OF_ACCOUNTS)) {
+                mIdentityManager.addObserver(assumeNonNull(mIdentityManagerAccountsChangeObserver));
+            } else {
+                mAccountManagerFacade.addObserver(
+                        assumeNonNull(mAccountManagerAccountsChangeObserver));
+            }
             mIdentityManager.addObserver(this);
         }
         mObservers.addObserver(observer);
@@ -278,7 +289,14 @@ public class ProfileDataCache implements IdentityManager.Observer {
         mObservers.removeObserver(observer);
         if (mObservers.isEmpty()) {
             mIdentityManager.removeObserver(this);
-            mAccountManagerFacade.removeObserver(mAccountManagerAccountsChangeObserver);
+            if (SigninFeatureMap.isEnabled(
+                    SigninFeatures.MAKE_IDENTITY_MANAGER_SOURCE_OF_ACCOUNTS)) {
+                mIdentityManager.removeObserver(
+                        assumeNonNull(mIdentityManagerAccountsChangeObserver));
+            } else {
+                mAccountManagerFacade.removeObserver(
+                        assumeNonNull(mAccountManagerAccountsChangeObserver));
+            }
         }
     }
 
@@ -342,17 +360,22 @@ public class ProfileDataCache implements IdentityManager.Observer {
             croppedAvatar = overlayBadgeOnUserPicture(badgeConfig, croppedAvatar);
         }
 
-        // TODO(crbug.com/493091231): Hide this logic behind the feature flag.
-        final var shouldPopulateNames = accountInfo.hasDisplayableInfo() || badgeConfig != null;
-        final var fullName = shouldPopulateNames ? accountInfo.getFullName() : null;
-        final var givenName = shouldPopulateNames ? accountInfo.getGivenName() : null;
-
-        return new DisplayableProfileData(
-                accountInfo.getEmail(),
-                croppedAvatar,
-                fullName,
-                givenName,
-                accountInfo.canHaveEmailAddressDisplayed());
+        if (SigninFeatureMap.isEnabled(SigninFeatures.MAKE_IDENTITY_MANAGER_SOURCE_OF_ACCOUNTS)) {
+            return new DisplayableProfileData(
+                    accountInfo.getEmail(),
+                    croppedAvatar,
+                    accountInfo.getFullName(),
+                    accountInfo.getGivenName(),
+                    accountInfo.canHaveEmailAddressDisplayed());
+        } else {
+            final var shouldPopulateNames = accountInfo.hasDisplayableInfo() || badgeConfig != null;
+            return new DisplayableProfileData(
+                    accountInfo.getEmail(),
+                    croppedAvatar,
+                    shouldPopulateNames ? accountInfo.getFullName() : null,
+                    shouldPopulateNames ? accountInfo.getGivenName() : null,
+                    accountInfo.canHaveEmailAddressDisplayed());
+        }
     }
 
     private void fireOnAccountsUpdated(List<DisplayableProfileData> accounts) {
@@ -391,11 +414,18 @@ public class ProfileDataCache implements IdentityManager.Observer {
     }
 
     private @Nullable List<AccountInfo> getCoreAccountsIfLoaded() {
-        var accounts = mAccountManagerFacade.getAccounts();
-        if (accounts.isFulfilled()) {
-            return accounts.getResult();
+        if (SigninFeatureMap.isEnabled(SigninFeatures.MAKE_IDENTITY_MANAGER_SOURCE_OF_ACCOUNTS)) {
+            if (mIdentityManager.areRefreshTokensLoaded()) {
+                return mIdentityManager.getExtendedAccountInfoForAccountsWithRefreshToken();
+            }
+            return null;
+        } else {
+            var accounts = mAccountManagerFacade.getAccounts();
+            if (accounts.isFulfilled()) {
+                return accounts.getResult();
+            }
+            return null;
         }
-        return null;
     }
 
     // TODO(crbug.com/40944114): Consider using UiUtils.drawIconWithBadge instead.
@@ -457,6 +487,8 @@ public class ProfileDataCache implements IdentityManager.Observer {
         /** Implements {@link AccountsChangeObserver}. */
         @Override
         public void onCoreAccountInfosChanged() {
+            assert !SigninFeatureMap.isEnabled(
+                    SigninFeatures.MAKE_IDENTITY_MANAGER_SOURCE_OF_ACCOUNTS);
             updateCache(mAccountManagerFacade.getAccounts().getResult());
         }
     }
@@ -466,12 +498,16 @@ public class ProfileDataCache implements IdentityManager.Observer {
         /** Implements {@link IdentityManager.Observer}. */
         @Override
         public void onRefreshTokensLoaded() {
+            assert SigninFeatureMap.isEnabled(
+                    SigninFeatures.MAKE_IDENTITY_MANAGER_SOURCE_OF_ACCOUNTS);
             updateCache(mIdentityManager.getExtendedAccountInfoForAccountsWithRefreshToken());
         }
 
         /** Implements {@link IdentityManager.Observer}. */
         @Override
         public void onRefreshTokenUpdatedForAccount(CoreAccountInfo coreAccountInfo) {
+            assert SigninFeatureMap.isEnabled(
+                    SigninFeatures.MAKE_IDENTITY_MANAGER_SOURCE_OF_ACCOUNTS);
             if (mIdentityManager.areRefreshTokensLoaded()) {
                 updateCache(mIdentityManager.getExtendedAccountInfoForAccountsWithRefreshToken());
             }
@@ -480,6 +516,8 @@ public class ProfileDataCache implements IdentityManager.Observer {
         /** Implements {@link IdentityManager.Observer}. */
         @Override
         public void onRefreshTokenRemovedForAccount(CoreAccountId accountId) {
+            assert SigninFeatureMap.isEnabled(
+                    SigninFeatures.MAKE_IDENTITY_MANAGER_SOURCE_OF_ACCOUNTS);
             if (mIdentityManager.areRefreshTokensLoaded()) {
                 updateCache(mIdentityManager.getExtendedAccountInfoForAccountsWithRefreshToken());
             }

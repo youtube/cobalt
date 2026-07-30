@@ -56,9 +56,9 @@ class CC_EXPORT PictureLayerImpl
   mojom::LayerType GetLayerType() const override;
   std::unique_ptr<LayerImpl> CreateLayerImpl(
       LayerTreeImpl* tree_impl) const override;
-  void PushPropertiesTo(LayerImpl* layer) override;
+  void CopyPropertiesTo(LayerImpl* layer) const override;
+  void MovePropertiesToActiveLayer(LayerImpl* active_layer) override;
   void NotifyTileStateChanged(const Tile* tile, bool update_damage) override;
-  gfx::Rect GetDamageRect() const override;
   void ResetChangeTracking() override;
   void ResetRasterScale();
   void DidBeginTracing() override;
@@ -203,7 +203,6 @@ class CC_EXPORT PictureLayerImpl
 
   bool IsDirectlyCompositedImage() const override;
   gfx::Rect RecordedBounds() const override;
-  bool GetNearestNeighbor() const override;
 
   void set_should_batch_updated_tiles() { should_batch_updated_tiles_ = true; }
 
@@ -348,8 +347,6 @@ class CC_EXPORT PictureLayerImpl
 
   bool was_screen_space_transform_animating_ : 1 = false;
 
-  bool nearest_neighbor_ : 1 = false;
-
   // This is set by UpdateRasterSource() on change of raster source size. It's
   // used to recalculate raster scale for will-chagne:transform. It's reset to
   // false after raster scale update.
@@ -393,10 +390,6 @@ class CC_EXPORT PictureLayerImpl
   PaintWorkletRecordMap paint_worklet_records_;
 
   TileSizeCalculator tile_size_calculator_{this};
-
-  // Denotes an area that is damaged and needs redraw. This is in the layer's
-  // space.
-  gfx::Rect damage_rect_;
 
  private:
   class AppendQuadsCustomSharedDataImpl : public AppendQuadsCustomSharedData {

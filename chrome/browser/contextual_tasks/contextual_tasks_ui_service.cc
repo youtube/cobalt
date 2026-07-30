@@ -27,6 +27,7 @@
 #include "chrome/browser/contextual_tasks/contextual_search_session_finder.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_panel_controller.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_interface.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
 #include "chrome/browser/profiles/profile.h"
@@ -73,7 +74,6 @@
 // TODO(crbug.com/483442073): Remove TabStripModel and WebUi once we finished
 // migrating other functions off TabStripModel and find alternatives to access
 // BrowserWindowInterface in Android.
-#include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #endif
@@ -112,8 +112,7 @@ constexpr net::BackoffEntry::Policy
 };
 
 constexpr char kAiPageHost[] = "https://google.com";
-constexpr char kTaskQueryParam[] = "task";
-constexpr char kAimUrlQueryParam[] = "aim_url";
+constexpr char kTaskQueryParam[] = "chrome_task_id";
 constexpr char kDebugParam[] = "deb";
 constexpr char kDebugNoCobrowseValue[] = "nocobrowse1";
 
@@ -191,9 +190,20 @@ ContextualTasksUiService::ContextualTasksUiService(
 ContextualTasksUiService::~ContextualTasksUiService() = default;
 
 void ContextualTasksUiService::Shutdown() {
+  for (auto& observer : observers_) {
+    observer.OnContextualTasksUiServiceShutdown(this);
+  }
   weak_ptr_factory_.InvalidateWeakPtrs();
   access_token_fetcher_.reset();
   token_refresh_timer_.Stop();
+}
+
+void ContextualTasksUiService::AddObserver(Observer* observer) {
+  observers_.AddObserver(observer);
+}
+
+void ContextualTasksUiService::RemoveObserver(Observer* observer) {
+  observers_.RemoveObserver(observer);
 }
 
 void ContextualTasksUiService::OnNavigationToAiPageIntercepted(
@@ -345,14 +355,10 @@ void ContextualTasksUiService::ShowOauthErrorDialogForWebContents(
     base::WeakPtr<content::WebContents> web_contents) {
   content::WebUI* webui = web_contents->GetWebUI();
   if (webui && webui->GetController()) {
-#if !BUILDFLAG(IS_ANDROID)
-    // TODO(crbug.com/483442073): Remove the ifdef block once ContextualTasksUI
-    // is available on Android.
     auto* ui_controller = webui->GetController()->GetAs<ContextualTasksUI>();
     if (ui_controller) {
       ui_controller->ShowOauthErrorDialog();
     }
-#endif
   }
 }
 
@@ -549,7 +555,7 @@ void ContextualTasksUiService::OnThreadLinkClicked(
          "is tab, opening linked page in tab directly after";
 
   // Get the index of the web contents.
-  const int current_index = tab_list->GetIndexOfTab(tab.get()->GetHandle());
+  const int current_index = tab_list->GetIndexOfTab(tab->GetHandle());
 
   // Open the linked page in a tab directly after this one.
   // To prevent side panel to close and reopen again, add the new tab, associate
@@ -573,20 +579,15 @@ void ContextualTasksUiService::OnThreadLinkClicked(
   }
 
   // Detach the WebContents from tab.
-  content::WebContents* contextual_task_contents_ptr = nullptr;
-#if !BUILDFLAG(IS_ANDROID)
-  // TODO(crbug.com/483442073): Remove TabStripModel once we add missing
-  // APIs to TabListInterface.
   std::unique_ptr<content::WebContents> contextual_task_contents =
-      browser->GetTabStripModel()->DetachWebContentsAtForInsertion(
-          current_index, TabRemovedReason::kInsertedIntoSidePanel);
-  contextual_task_contents_ptr = contextual_task_contents.get();
+      tab_list->DetachWebContents(tab->GetHandle());
+  content::WebContents* contextual_task_contents_ptr =
+      contextual_task_contents.get();
 
   // Transfer the contextual task contents into the side panel cache.
   ContextualTasksPanelController::From(browser.get())
       ->TransferWebContentsFromTab(task_id,
                                    std::move(contextual_task_contents));
-#endif
 
   // Open the side panel.
   ContextualTasksPanelController::From(browser.get())
@@ -895,9 +896,18 @@ bool ContextualTasksUiService::HandleNavigationImpl(
       tab ? tab->GetBrowserWindowInterface()
           : webui::GetBrowserWindowInterface(source_contents);
 
+  // Whether the navigation is from forward back navigation and originally from
+  // a link click. `page_transition` can contain both the original navigation
+  // information (from link click or typed, etc) and the modified one(from
+  // forward/back).
+  ui::PageTransition page_transition = url_params.transition;
+  bool is_forward_back_link_navigation =
+      (page_transition & ui::PAGE_TRANSITION_FORWARD_BACK) &&
+      ui::PageTransitionCoreTypeIs(page_transition, ui::PAGE_TRANSITION_LINK);
+
   // Intercept any navigation where the wrapping WebContents is the WebUI host
   // unless it is the embedded page.
-  if (is_from_embedded_page &&
+  if ((is_from_embedded_page || is_forward_back_link_navigation) &&
       IsContextualTasksUrl(source_contents->GetLastCommittedURL())) {
     if (IsShareUrl(url_params.url)) {
       OMNIBOX_LOG("nav_trace")
@@ -913,8 +923,9 @@ bool ContextualTasksUiService::HandleNavigationImpl(
       return true;
     }
 
-    // Ignore navigation triggered by UI.
-    if (!url_params.is_renderer_initiated) {
+    // Ignore navigation triggered by UI except forward back link navigation.
+    if (!(url_params.is_renderer_initiated ||
+          is_forward_back_link_navigation)) {
       OMNIBOX_LOG("nav_trace")
           << "ContextualTasks navigation trace: HandleNavigationImpl "
              "returning false, not renderer initiated";
@@ -939,8 +950,12 @@ bool ContextualTasksUiService::HandleNavigationImpl(
     // if being viewed in the side panel, but only if it is intercepted without
     // the side panel-specific params. If the params have already been added, do
     // nothing, otherwise this logic causes an infinite "intercept" loop. Any
-    // "allowed domain" (e.g. Google) should not be treated as a thread link.
-    if (IsAllowedHost(url_params.url) || is_nav_to_ai) {
+    // "allowed domain" (e.g. Google) should not be treated as a thread link
+    // unless the link is expected to open in a new tab (e.g. the anchor tag was
+    // set to target="_blank").
+    bool is_allowed_host = IsAllowedHost(url_params.url) &&
+                           !(is_from_embedded_page && is_to_new_tab);
+    if (is_allowed_host || is_nav_to_ai) {
       if (tab) {
         if (!is_nav_to_ai) {
           OMNIBOX_LOG("nav_trace")
@@ -1223,12 +1238,8 @@ void ContextualTasksUiService::MoveTaskUiToNewTab(
     Navigate(&params);
 
   } else {
-    std::unique_ptr<content::WebContents> web_contents = nullptr;
-#if !BUILDFLAG(IS_ANDROID)
-    // TODO(crbug.com/483442073): Remove TabStripModel once we add missing
-    // APIs to TabListInterface.
-    web_contents = controller->DetachWebContentsForTask(task_id);
-#endif
+    std::unique_ptr<content::WebContents> web_contents =
+        controller->DetachWebContentsForTask(task_id);
     if (!web_contents) {
       return;
     }
@@ -1391,16 +1402,19 @@ bool ContextualTasksUiService::IsValidSearchResultsPage(const GURL& url) {
           !value.empty());
 }
 
-GURL ContextualTasksUiService::GetAimUrlFromContextualTasksUrl(
-    const GURL& url) {
-  std::string aim_url_str;
-  if (net::GetValueForKeyInQuery(url, kAimUrlQueryParam, &aim_url_str)) {
-    GURL aim_url = GURL(aim_url_str);
-    if (IsSearchResultsUrl(aim_url)) {
-      return aim_url;
+GURL ContextualTasksUiService::CopyParamsFromWebUIUrl(const GURL& base_url,
+                                                      const GURL& webui_url) {
+  // Get all of the params off of the original URL.
+  net::QueryIterator it(webui_url);
+  GURL aim_url(base_url);
+  while (!it.IsAtEnd()) {
+    if (it.GetKey() != kTaskQueryParam) {
+      aim_url = net::AppendQueryParameter(aim_url, it.GetKey(), it.GetValue());
     }
+    it.Advance();
   }
-  return GURL();
+
+  return aim_url;
 }
 
 void ContextualTasksUiService::OnLensOverlayStateChanged(

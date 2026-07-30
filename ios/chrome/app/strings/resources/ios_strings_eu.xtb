@@ -480,6 +480,7 @@
 <translation id="2691653761409724435">Ez dago erabilgarri konexiorik gabe</translation>
 <translation id="2697530870203420261">Goitizenak ez du balio</translation>
 <translation id="269819437389494246">Historian, bisitatu dituzun orriak ikus ditzakezu, edo haiek ezabatu</translation>
+<translation id="2704295676501803339">Ezkerretara</translation>
 <translation id="2704606927547763573">Kopiatuta</translation>
 <translation id="2708051474374549906">Webgune, deskarga eta luzapen arriskutsuen aurkako babes proaktiboa denbora errealean, Google-ri bidaltzen zaizkion zure arakatze-datuetan oinarritutakoa</translation>
 <translation id="2709516037105925701">Betetze automatikoa</translation>
@@ -1662,6 +1663,7 @@
 <translation id="6899890595581608884">Desaktibatu dira segurtasun-egiaztapenaren jakinarazpenak</translation>
 <translation id="6900532703269623216">Babes hobetua</translation>
 <translation id="6900702165119149418">Saioa amaitu duzu</translation>
+<translation id="6903282483217634857">Joan eskuinera</translation>
 <translation id="6903907808598579934">Aktibatu sinkronizazioa</translation>
 <translation id="6906448540340261898">Izan beti Google-ko kontuko pasahitzak erabiltzeko aukera</translation>
 <translation id="6908734251759299256">Eguneratu arakatzailea</translation>
@@ -1724,6 +1726,7 @@
 <translation id="7149893636342594995">Azken 24 orduetakoak</translation>
 <translation id="7154417656353909837">Kendu helbideak</translation>
 <translation id="7161230316646448869">Sinkronizatu laster-markak, historia eta beste gauza asko gailu guztietan</translation>
+<translation id="7165323152084385463">VIN</translation>
 <translation id="7173114856073700355">Ireki Ezarpenak</translation>
 <translation id="7173721738069475737">{count,plural, =1{Laster-marka gorde da}other{{count} laster-marka gorde dira}}</translation>
 <translation id="7176183551031110427">Txikitu</translation>
@@ -2218,6 +2221,7 @@
 <translation id="8863067612494559785"><ph name="DEVICE_NAME" /> gailura bidaltzen…</translation>
 <translation id="8863431381414769983">Lortu jarraibideak eta tokiko informazioa Google Maps-en bidez</translation>
 <translation id="8871974300055371298">Edukiaren ezarpenak</translation>
+<translation id="8876661425082386199">Egiaztatu konektatuta zaudela</translation>
 <translation id="8877788021141246043">Ezarri gogorarazpen bat</translation>
 <translation id="8879604564928138696">Saiatzeko, sakatu birritan</translation>
 <translation id="8879952635974818770">Pertsonalizatutako edukia</translation>
@@ -2319,7 +2323,6 @@
 <translation id="926455622548529175">Aldatu eta ezabatu</translation>
 <translation id="929748059769569925">Nabarmendutako testua</translation>
 <translation id="932305336591073205">{count,plural, =1{Itxi fitxa}other{Itxi fitxak}}</translation>
-<translation id="932327136139879170">Hasiera</translation>
 <translation id="939472100615258482">Oraingo webgunea</translation>
 <translation id="939598580284253335">Idatzi pasaesaldia</translation>
 <translation id="939736085109172342">Karpeta berria</translation>

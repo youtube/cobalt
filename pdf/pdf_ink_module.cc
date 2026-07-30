@@ -453,7 +453,7 @@ bool PdfInkModule::OnKeyDown(const blink::WebKeyboardEvent& event) {
     current_tool_state_.emplace<TextHighlightState>();
     text_highlight_state().initiated_by_keyboard = true;
     base::expected<std::optional<IdType>, std::monostate> lowest_discard =
-        undo_redo_model_.StartAdd();
+        undo_redo_model_.Start();
     CHECK(lowest_discard.has_value());
     ApplyUndoRedoDiscards(lowest_discard.value());
   }
@@ -784,7 +784,7 @@ bool PdfInkModule::StartStroke(const gfx::PointF& position,
   client_->Invalidate(GetDrawingBrush().GetInvalidateArea(position, position));
 
   base::expected<std::optional<IdType>, std::monostate> lowest_discard =
-      undo_redo_model_.StartAdd();
+      undo_redo_model_.Start();
   CHECK(lowest_discard.has_value());
   ApplyUndoRedoDiscards(lowest_discard.value());
 
@@ -901,7 +901,7 @@ bool PdfInkModule::FinishStroke(const gfx::PointF& position,
     CHECK_GE(state.page_index, 0);
     ink::Envelope invalidate_envelope;
     for (const auto& segment : in_progress_stroke_segments) {
-      InkStrokeId id = stroke_id_generator_.GetIdAndAdvance();
+      InkStrokeId id = id_generator_.GetStrokeIdAndAdvance();
       ink::Stroke stroke = segment.CopyToStroke();
       client_->StrokeAdded(state.page_index, id, stroke);
       invalidate_envelope.Add(stroke.GetShape().Bounds());
@@ -919,7 +919,7 @@ bool PdfInkModule::FinishStroke(const gfx::PointF& position,
   client_->StrokeFinished(/*modified=*/true);
   GenerateAndSendInkThumbnailInternal(state.page_index);
 
-  bool undo_redo_success = undo_redo_model_.FinishAdd();
+  bool undo_redo_success = undo_redo_model_.Finish();
   CHECK(undo_redo_success);
 
   ReportDrawStroke(state.brush_type, GetDrawingBrush().ink_brush(), tool_type);
@@ -956,7 +956,7 @@ bool PdfInkModule::StartEraseStroke(const gfx::PointF& position,
   state.erasing = true;
 
   base::expected<std::optional<IdType>, std::monostate> lowest_discard =
-      undo_redo_model_.StartRemove();
+      undo_redo_model_.Start();
   CHECK(lowest_discard.has_value());
   ApplyUndoRedoDiscards(lowest_discard.value());
 
@@ -1006,7 +1006,7 @@ bool PdfInkModule::FinishEraseStroke(const gfx::PointF& position,
     return false;
   }
 
-  bool undo_redo_success = undo_redo_model_.FinishRemove();
+  bool undo_redo_success = undo_redo_model_.Finish();
   CHECK(undo_redo_success);
 
   CHECK(is_erasing_stroke());
@@ -1142,7 +1142,7 @@ bool PdfInkModule::StartTextHighlight(const gfx::PointF& position,
   }
 
   base::expected<std::optional<IdType>, std::monostate> lowest_discard =
-      undo_redo_model_.StartAdd();
+      undo_redo_model_.Start();
   CHECK(lowest_discard.has_value());
   ApplyUndoRedoDiscards(lowest_discard.value());
 
@@ -1191,7 +1191,7 @@ bool PdfInkModule::FinishTextHighlight(const gfx::PointF& position,
     highlight_strokes = GetTextSelectionAsStrokes();
     for (const auto& [page_index, strokes] : highlight_strokes) {
       for (const auto& stroke : strokes) {
-        InkStrokeId id = stroke_id_generator_.GetIdAndAdvance();
+        InkStrokeId id = id_generator_.GetStrokeIdAndAdvance();
         client_->StrokeAdded(page_index, id, stroke);
         strokes_[page_index].push_back(
             FinishedStrokeState(std::move(stroke), id));
@@ -1213,7 +1213,7 @@ bool PdfInkModule::FinishTextHighlight(const gfx::PointF& position,
       // Invalidation is already handled by the client during text selection.
     }
 
-    bool undo_redo_success = undo_redo_model_.FinishAdd();
+    bool undo_redo_success = undo_redo_model_.Finish();
     CHECK(undo_redo_success);
 
     client_->ClearSelection();
@@ -1639,30 +1639,16 @@ bool PdfInkModule::RecordStrokePosition(
 
 void PdfInkModule::ApplyUndoRedoCommands(
     const PdfInkUndoRedoModel::Commands& commands) {
-  switch (PdfInkUndoRedoModel::GetCommandsType(commands)) {
-    case PdfInkUndoRedoModel::CommandsType::kNone: {
-      return;
-    }
-    case PdfInkUndoRedoModel::CommandsType::kAdd: {
-      ApplyUndoRedoCommandsHelper(
-          PdfInkUndoRedoModel::GetAddCommands(commands).value(),
-          /*should_draw=*/true);
-      return;
-    }
-    case PdfInkUndoRedoModel::CommandsType::kRemove: {
-      ApplyUndoRedoCommandsHelper(
-          PdfInkUndoRedoModel::GetRemoveCommands(commands).value(),
-          /*should_draw=*/false);
-      return;
-    }
-  }
-  NOTREACHED();
+  ApplyUndoRedoCommandsHelper(commands.adds, /*should_draw=*/true);
+  ApplyUndoRedoCommandsHelper(commands.removes, /*should_draw=*/false);
 }
 
 void PdfInkModule::ApplyUndoRedoCommandsHelper(
     const PdfInkUndoRedoModel::IdSet& ids,
     bool should_draw) {
-  CHECK(!ids.empty());
+  if (ids.empty()) {
+    return;
+  }
 
   std::set<InkStrokeId> stroke_ids;
   std::set<InkModeledShapeId> shape_ids;
@@ -1809,9 +1795,9 @@ void PdfInkModule::ApplyUndoRedoDiscards(std::optional<IdType> lowest_discard) {
     }
   }
 
-  // Now that some strokes have been discarded, let the StrokeIdGenerator know
+  // Now that some annotations have been discarded, Let the IdGenerator know
   // there are IDs available for reuse.
-  stroke_id_generator_.ResetIdTo(lowest_stroke_id);
+  id_generator_.ResetIdTo(GetIdTypeValue(lowest_stroke_id));
 }
 
 bool PdfInkModule::MaybeSetDrawingBrush() {
@@ -1928,20 +1914,26 @@ PdfInkModule::LoadedV2ShapeState& PdfInkModule::LoadedV2ShapeState::operator=(
 
 PdfInkModule::LoadedV2ShapeState::~LoadedV2ShapeState() = default;
 
-PdfInkModule::StrokeIdGenerator::StrokeIdGenerator() = default;
+PdfInkModule::IdGenerator::IdGenerator() = default;
 
-PdfInkModule::StrokeIdGenerator::~StrokeIdGenerator() = default;
+PdfInkModule::IdGenerator::~IdGenerator() = default;
 
-InkStrokeId PdfInkModule::StrokeIdGenerator::GetIdAndAdvance() {
-  // Die intentionally if `next_stroke_id_` is about to overflow.
-  CHECK_NE(next_stroke_id_.value(), std::numeric_limits<size_t>::max());
-  InkStrokeId stroke_id = next_stroke_id_;
-  ++next_stroke_id_.value();
-  return stroke_id;
+InkStrokeId PdfInkModule::IdGenerator::GetStrokeIdAndAdvance() {
+  return InkStrokeId(GetIdAndAdvance());
 }
 
-void PdfInkModule::StrokeIdGenerator::ResetIdTo(InkStrokeId id) {
-  next_stroke_id_ = id;
+InkTextId PdfInkModule::IdGenerator::GetTextIdAndAdvance() {
+  return InkTextId(GetIdAndAdvance());
+}
+
+size_t PdfInkModule::IdGenerator::GetIdAndAdvance() {
+  // Die intentionally if `next_id_` is about to overflow.
+  CHECK_NE(next_id_, std::numeric_limits<size_t>::max());
+  return next_id_++;
+}
+
+void PdfInkModule::IdGenerator::ResetIdTo(size_t id) {
+  next_id_ = id;
 }
 
 }  // namespace chrome_pdf

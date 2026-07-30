@@ -144,6 +144,11 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Subsequent Response"/>
 </enum>
 
+<enum name="BooleanTabIsSplit">
+  <int value="0" label="Tab not split"/>
+  <int value="1" label="Tab is split"/>
+</enum>
+
 <enum name="BooleanTransferred">
   <int value="0" label="Did not transfer"/>
   <int value="1" label="Transferred"/>
@@ -308,16 +313,6 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="INVALID_URL"/>
   <int value="5" label="NAVIGATION_EVENT_NOT_FOUND"/>
   <int value="6" label="SUCCESS_REFERRER"/>
-</enum>
-
-<enum name="SafeBrowsingAuthenticatedEndpoint">
-  <int value="0" label="Deep scanning"/>
-  <int value="1" label="Download protection"/>
-  <int value="2" label="Extension telemetry"/>
-  <int value="3" label="Client side detection"/>
-  <int value="4" label="Password protection"/>
-  <int value="5" label="Threat details"/>
-  <int value="6" label="Realtime URL lookup"/>
 </enum>
 
 <enum name="SafeBrowsingBinaryUploadResult">

@@ -5,20 +5,16 @@
       "win",
       "linux",
       "mac",
-      "fuchsia"
+      "android"
     ],
-    "policy_pref_mapping_tests": [
-      {
-        "policies": {
-          "MaxConnectionsPerProxy": 16
-        },
-        "prefs": {
-          "net.max_connections_per_proxy": {
-            "location": "local_state",
-            "value": 16
-          }
-        }
-      }
-    ]
+    "simple_policy_pref_mapping_test": {
+      "default_value": -1,
+      "pref_location":  "local_state",
+      "pref_name": "net.max_connections_per_proxy",
+      "values_to_test": [
+        16,
+        64
+      ]
+    }
   }
 ]

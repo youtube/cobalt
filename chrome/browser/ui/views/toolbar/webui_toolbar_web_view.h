@@ -9,7 +9,10 @@
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "chrome/browser/ui/browser_command_controller.h"
+#include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions.h"
 #include "chrome/browser/ui/views/toolbar/webui_back_forward_control.h"
+#include "chrome/browser/ui/views/toolbar/webui_home_control.h"
+#include "chrome/browser/ui/views/toolbar/webui_pinned_toolbar_actions.h"
 #include "chrome/browser/ui/views/toolbar/webui_reload_control.h"
 #include "chrome/browser/ui/views/toolbar/webui_split_tabs_control.h"
 #include "chrome/browser/ui/webui/webui_toolbar/adapters/navigation_controls_state_fetcher.h"
@@ -53,6 +56,9 @@ class WebUIToolbarWebView
   ~WebUIToolbarWebView() override;
 
   ReloadControl* GetReloadControl();
+  PinnedToolbarActions* GetPinnedToolbarActions() {
+    return &pinned_toolbar_actions_;
+  }
 
   void SetBackButtonLeadingMargin(int margin);
   void SetBackForwardEnabled(int command_id, bool enabled);
@@ -71,7 +77,7 @@ class WebUIToolbarWebView
 
   // ToolbarUIService::ToolbarUIServiceDelegate:
   void HandleContextMenu(toolbar_ui_api::mojom::ContextMenuType menu_type,
-                         gfx::Point viewport_coordinate_css_pixels,
+                         const gfx::RectF& bounds_in_css_pixels,
                          ui::mojom::MenuSourceType source) override;
   void OnPageInitialized() override;
 
@@ -102,13 +108,24 @@ class WebUIToolbarWebView
  private:
   FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewPixelBrowserTest,
                            CheckSplitTabsButtonColor);
+  FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewPixelBrowserTest,
+                           CheckHomeButtonColor);
   FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewSplitTabsBrowserTest,
                            CheckSplitTabsButtonSourceType);
+  FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewSplitTabsBrowserTest,
+                           RightClickSplitTabsButton);
+  FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewHomeButtonBrowserTest,
+                           RightClickHomeButton);
+  FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewHomeButtonBrowserTest,
+                           LongPressHomeButton);
   FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewPixelBrowserTest,
                            BackForwardButtonsModifierClick);
   friend WebUIReloadControl;
   friend WebUISplitTabsControl;
   friend WebUIBackForwardControl;
+  friend WebUIHomeControl;
+  friend WebUIPinnedToolbarActions;
+  friend WebUILocationBar;
 
   toolbar_ui_api::mojom::NavigationControlsStatePtr
   GetNavigationControlsState();
@@ -139,6 +156,10 @@ class WebUIToolbarWebView
   void OnSplitTabsControlStateChanged(
       toolbar_ui_api::mojom::SplitTabsControlStatePtr state);
   void OnBackForwardStateChanged();
+  void OnHomeControlStateChanged(
+      toolbar_ui_api::mojom::HomeControlStatePtr state);
+  void OnOmniboxViewStateChanged(
+      toolbar_ui_api::mojom::OmniboxViewStatePtr state);
 
   void OnTouchUiChanged();
   void PostPushNavigationState();
@@ -155,9 +176,11 @@ class WebUIToolbarWebView
   const raw_ptr<chrome::BrowserCommandController> controller_;
   WebUIReloadControl reload_control_;
   WebUISplitTabsControl split_tabs_control_;
+  WebUIHomeControl home_control_;
   std::unique_ptr<WebUILocationBar> location_bar_;
   WebUIBackForwardControl back_control_;
   WebUIBackForwardControl forward_control_;
+  WebUIPinnedToolbarActions pinned_toolbar_actions_;
   raw_ptr<const base::TickClock> clock_;
   base::OnceClosure did_first_non_empty_paint_callback_;
   bool has_finished_first_non_empty_paint_ = false;

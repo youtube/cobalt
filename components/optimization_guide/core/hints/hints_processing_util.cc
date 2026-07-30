@@ -18,7 +18,7 @@
 
 namespace optimization_guide {
 
-std::string GetStringNameForOptimizationType(
+std::string_view GetStringNameForOptimizationType(
     proto::OptimizationType optimization_type) {
   switch (optimization_type) {
     case proto::OptimizationType::TYPE_UNSPECIFIED:
@@ -233,6 +233,8 @@ std::string GetStringNameForOptimizationType(
       return "Indigo";
     case proto::OptimizationType::FINDS_PAGE_THEME:
       return "FindsPageTheme";
+    case proto::OptimizationType::OMNIBOX_AUTOFILL_IFRAME_ALLOWLIST:
+      return "OmniboxAutofillIframeAllowlist";
   }
 
   // The returned string is used to record histograms for the optimization type.

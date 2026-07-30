@@ -407,7 +407,8 @@ result.links = linksArray;
 // calls.
 - (void)populateAsyncFields:(base::TimeDelta)timeout {
   CHECK_GE(_asyncTasksToComplete, 0);
-  _pageContextMetrics = [[PageContextWrapperMetrics alloc] init];
+  _pageContextMetrics = [[PageContextWrapperMetrics alloc]
+      initWithAPCConfigVariant:_config->GetApcConfigVariant()];
 
   if (!_webState || _asyncTasksToComplete == 0) {
     [self asyncWorkCompletedForPageContext];
@@ -582,6 +583,17 @@ result.links = linksArray;
 
   if (_config->use_refactored_extractor()) {
     // Use the new way for extracting context.
+
+    // Autofill information is only needed when extracting detailed annotated
+    // page content. It is not needed when extracting inner text.
+    // TODO(crbug.com/493904351): Add kill switch by using autofill config bit.
+    if (_shouldGetAnnotatedPageContent) {
+      optimization_guide::proto::AutofillInformation* autofillInformation =
+          _rootAPCNode->mutable_profile_information()
+              ->mutable_autofill_information();
+      CHECK(_webState);
+      PopulateAutofillInformation(_webState.get(), autofillInformation);
+    }
 
     // Callback to aggregate values from the JS execution.
     auto callback = [](PageContextWrapper* weakWrapper,
@@ -1179,11 +1191,14 @@ result.links = linksArray;
   }
 
   if (_shouldGetAnnotatedPageContent) {
+    size_t sizeInBytes = _rootAPCNode->ByteSizeLong();
+
     _pageContext->set_allocated_annotated_page_content(_rootAPCNode.release());
 
     [_pageContextMetrics
         executionFinishedForTask:PageContextTask::kAnnotatedPageContent
             withCompletionStatus:PageContextCompletionStatus::kSuccess];
+    [_pageContextMetrics logAnnotatedPageContentSize:sizeInBytes];
   }
 }
 

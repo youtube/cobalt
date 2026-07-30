@@ -8,9 +8,18 @@
 #include <vector>
 
 #include "base/metrics/field_trial_params.h"
+#include "base/no_destructor.h"
 #include "base/rand_util.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+
+namespace {
+// Allow runtime override of the forced embedded page host.
+std::string& GetForcedEmbeddedPageHostOverrideString() {
+  static base::NoDestructor<std::string> override_string;
+  return *override_string;
+}
+}  // namespace
 
 namespace contextual_tasks {
 
@@ -68,6 +77,9 @@ BASE_FEATURE(kContextualTasksUseStratusDarkModeColors,
 BASE_FEATURE(kContextualTasksAnimatedCaret, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kContextualTasksEnableFileHint, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kContextualTasksComposeboxJumpFix,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kContextualTasksInsertWebContentsAt,
@@ -192,16 +204,6 @@ const base::FeatureParam<bool> kForceGscInTabMode(
 const base::FeatureParam<std::string> kContextualTasksUserAgentSuffix{
     &kContextualTasks, "contextual-tasks-user-agent-suffix", "Cobrowsing/2.0"};
 
-const base::FeatureParam<bool> kEnableSteadyComposeboxVoiceSearch(
-    &kContextualTasks,
-    "ContextualTasksEnableSteadyComposeboxVoiceSearch",
-    true);
-
-const base::FeatureParam<bool> kEnableExpandedComposeboxVoiceSearch(
-    &kContextualTasks,
-    "ContextualTasksEnableExpandedComposeboxVoiceSearch",
-    true);
-
 // TODO(b/481079194): Remove `kAutoSubmitVoiceSearchQuery` and the code that
 // respects its disabled state.
 const base::FeatureParam<bool> kAutoSubmitVoiceSearchQuery(
@@ -311,14 +313,6 @@ int ContextualTasksInactiveSidePanelKeepInCacheMinutes() {
   return kContextualTasksInactiveSidePanelKeepInCacheMinutes.Get();
 }
 
-bool GetIsExpandedComposeboxVoiceSearchEnabled() {
-  return kEnableExpandedComposeboxVoiceSearch.Get();
-}
-
-bool GetIsSteadyComposeboxVoiceSearchEnabled() {
-  return kEnableSteadyComposeboxVoiceSearch.Get();
-}
-
 bool GetAutoSubmitVoiceSearchQuery() {
   return kAutoSubmitVoiceSearchQuery.Get();
 }
@@ -368,16 +362,24 @@ bool ShouldShowExpandedSecurityChip() {
 }
 
 std::string GetForcedEmbeddedPageHost() {
-  std::string host = kContextualTasksForcedEmbeddedPageHost.Get();
+  std::string host = !GetForcedEmbeddedPageHostOverrideString().empty()
+                         ? GetForcedEmbeddedPageHostOverrideString()
+                         : kContextualTasksForcedEmbeddedPageHost.Get();
 
   // If there's a non-empty host, ensure that it is only ever going to a
   // google.com domain. If not, return the default empty string.
+  // LINT.IfChange(AllowedHosts)
   if (!host.empty() && !(base::EndsWith(host, ".google.com") ||
                          base::EndsWith(host, ".googlers.com"))) {
     return kContextualTasksForcedEmbeddedPageHost.default_value;
   }
+  // LINT.ThenChange(//depot/chromium/chrome/browser/resources/contextual_tasks/app.ts:AllowedHosts)
 
   return host;
+}
+
+void SetForcedEmbeddedPageHostOverride(const std::string& host) {
+  GetForcedEmbeddedPageHostOverrideString() = host;
 }
 
 std::vector<std::string> GetContextualTasksSignInDomains() {
@@ -402,9 +404,6 @@ const base::FeatureParam<std::string>
 const base::FeatureParam<int> kContextualTasksNextboxMaxFileSize{
     &kContextualTasksContextMenu, "ContextualTasksNextboxMaxFileSize",
     20 * 1024 * 1024};
-
-const base::FeatureParam<int> kContextualTasksNextboxMaxFileCount{
-    &kContextualTasksContextMenu, "ContextualTasksNextboxMaxFileCount", 10};
 
 bool GetIsContextualTasksSuggestionsEnabled() {
   return base::FeatureList::IsEnabled(kContextualTasksSuggestionsEnabled);
@@ -479,6 +478,10 @@ bool ShouldUseStratusDarkModeColors() {
 
 bool GetEnableFileHint() {
   return base::FeatureList::IsEnabled(kContextualTasksEnableFileHint);
+}
+
+bool GetEnableComposeboxJumpFix() {
+  return base::FeatureList::IsEnabled(kContextualTasksComposeboxJumpFix);
 }
 
 ExpandButtonOption GetExpandButtonOption() {

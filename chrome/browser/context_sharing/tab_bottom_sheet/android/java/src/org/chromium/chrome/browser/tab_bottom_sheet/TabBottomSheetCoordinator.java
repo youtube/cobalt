@@ -45,13 +45,13 @@ public class TabBottomSheetCoordinator {
 
         mModel = TabBottomSheetProperties.createDefaultModel(coBrowseViews);
 
-        mMediator = new TabBottomSheetMediator();
+        mMediator = new TabBottomSheetMediator(mModel);
 
         coBrowseViews.setWebUiTouchHandler(mMediator.getWebUiTouchHandler());
     }
 
     /** Tries to show the bottom sheet. */
-    boolean tryToShowBottomSheet(boolean startsExpanded) {
+    boolean tryToShowBottomSheet(boolean animate, boolean startsExpanded) {
         if (mIsSheetCurrentlyManagedByController) {
             return false;
         }
@@ -63,7 +63,7 @@ public class TabBottomSheetCoordinator {
                         mModel, mContentView, TabBottomSheetViewBinder::bind);
         mSheetContent = new TabBottomSheetContent(mContentView);
 
-        if (mBottomSheetController.requestShowContent(mSheetContent, true)) {
+        if (mBottomSheetController.requestShowContent(mSheetContent, animate)) {
             if (startsExpanded) {
                 mBottomSheetController.expandSheet();
             }
@@ -111,9 +111,6 @@ public class TabBottomSheetCoordinator {
     }
 
     private void cleanupSheetResources() {
-        if (mCoBrowseViews != null) {
-            mCoBrowseViews.destroy();
-        }
         if (mSheetObserver != null && mBottomSheetController != null) {
             mBottomSheetController.removeObserver(mSheetObserver);
             mSheetObserver = null;
@@ -135,6 +132,14 @@ public class TabBottomSheetCoordinator {
             @Override
             public void onSheetStateChanged(@SheetState int state, @StateChangeReason int reason) {
                 mMediator.onSheetStateChanged(state);
+                if (state == SheetState.HIDDEN) {
+                    cleanupSheetResources();
+                }
+            }
+
+            @Override
+            public void onSheetOffsetChanged(float heightFraction, float offsetPx) {
+                mMediator.setMaxSheetHeight(mBottomSheetController.getContainerHeight());
             }
         };
     }

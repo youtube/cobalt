@@ -2554,7 +2554,7 @@ are declared in tools/grit/grit_args.gni.
       </message>
       <message name="IDS_DOWNLOAD_BY_EXTENSION_URL"
                desc="Indicates which extension downloaded this file by name and URL.">
-        Downloaded by &lt;a href=&quot;<ph name="URL">$1<ex>adblock.com</ex></ph>&quot;&gt;<ph name="EXTENSION">$2<ex>The Best Chrome Extension Ever</ex></ph>&lt;/a&gt;
+        Downloaded by extension: &lt;a href=&quot;<ph name="URL">$1<ex>adblock.com</ex></ph>&quot;&gt;<ph name="EXTENSION">$2<ex>The Best Chrome Extension Ever</ex></ph>&lt;/a&gt;
       </message>
       <message name="IDS_DOWNLOADS_PAGE_INITIATOR_LINE" desc="Line that indicates the site that initiated a file download.">
         From <ph name="DISPLAY_INITIATOR_ORIGIN">$1<ex>https://example.com</ex></ph>
@@ -2890,7 +2890,7 @@ are declared in tools/grit/grit_args.gni.
           Stop/Reload
         </message>
         <message name="IDS_TOUCH_BAR_HOME_CUSTOMIZATION_LABEL"
-                   desc="Customization label for the home button in the touch bar.">
+        desc="Customization label for the home button in the touch bar." meaning="'home' as in an internet location, a 'home page'">
           Home
         </message>
         <message name="IDS_TOUCH_BAR_BOOKMARK_CUSTOMIZATION_LABEL"
@@ -3441,6 +3441,10 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_DOWNLOAD_BUBBLE_STATUS_ASYNC_SCANNING"
                desc="Status text for a download item that is being scanned.">
         Scanning...
+      </message>
+      <message name="IDS_DOWNLOAD_BUBBLE_STATUS_ASYNC_CHECKING_SAFETY"
+               desc="Status text for a download item that is being scanned.">
+        Checking for safety...
       </message>
       <message name="IDS_DOWNLOAD_BUBBLE_SUBPAGE_SUMMARY_DEEP_SCANNING_PROMPT_UPDATED"
         desc="Subpage summary of warning for a file where we recommend sending the file for deep scanning.">
@@ -4463,55 +4467,6 @@ are declared in tools/grit/grit_args.gni.
           postalCode
         </message>
 
-        <message name="IDS_CERT_OID_PKCS1_RSA_ENCRYPTION" desc="description of public key algorithm SEC_OID_PKCS1_RSA_ENCRYPTION">
-          PKCS #1 RSA Encryption
-        </message>
-        <message name="IDS_CERT_OID_PKCS1_MD2_WITH_RSA_ENCRYPTION" desc="description of public key algorithm SEC_OID_PKCS1_MD2_WITH_RSA_ENCRYPTION">
-          PKCS #1 MD2 With RSA Encryption
-        </message>
-        <message name="IDS_CERT_OID_PKCS1_MD4_WITH_RSA_ENCRYPTION" desc="description of public key algorithm SEC_OID_PKCS1_MD4_WITH_RSA_ENCRYPTION">
-          PKCS #1 MD4 With RSA Encryption
-        </message>
-        <message name="IDS_CERT_OID_PKCS1_MD5_WITH_RSA_ENCRYPTION" desc="description of public key algorithm SEC_OID_PKCS1_MD5_WITH_RSA_ENCRYPTION">
-          PKCS #1 MD5 With RSA Encryption
-        </message>
-        <message name="IDS_CERT_OID_PKCS1_SHA1_WITH_RSA_ENCRYPTION" desc="description of public key algorithm SEC_OID_PKCS1_SHA1_WITH_RSA_ENCRYPTION">
-          PKCS #1 SHA-1 With RSA Encryption
-        </message>
-        <message name="IDS_CERT_OID_PKCS1_SHA256_WITH_RSA_ENCRYPTION" desc="description of public key algorithm SEC_OID_PKCS1_SHA256_WITH_RSA_ENCRYPTION">
-          PKCS #1 SHA-256 With RSA Encryption
-        </message>
-        <message name="IDS_CERT_OID_PKCS1_SHA384_WITH_RSA_ENCRYPTION" desc="description of public key algorithm SEC_OID_PKCS1_SHA384_WITH_RSA_ENCRYPTION">
-          PKCS #1 SHA-384 With RSA Encryption
-        </message>
-        <message name="IDS_CERT_OID_PKCS1_SHA512_WITH_RSA_ENCRYPTION" desc="description of public key algorithm SEC_OID_PKCS1_SHA512_WITH_RSA_ENCRYPTION">
-          PKCS #1 SHA-512 With RSA Encryption
-        </message>
-        <message name="IDS_CERT_OID_ANSIX962_ECDSA_SHA1_SIGNATURE" desc="description of public key algorithm SEC_OID_ANSIX962_ECDSA_SHA1_SIGNATURE">
-          X9.62 ECDSA Signature with SHA-1
-        </message>
-        <message name="IDS_CERT_OID_ANSIX962_ECDSA_SHA256_SIGNATURE" desc="description of public key algorithm SEC_OID_ANSIX962_ECDSA_SHA256_SIGNATURE">
-          X9.62 ECDSA Signature with SHA-256
-        </message>
-        <message name="IDS_CERT_OID_ANSIX962_ECDSA_SHA384_SIGNATURE" desc="description of public key algorithm SEC_OID_ANSIX962_ECDSA_SHA384_SIGNATURE">
-          X9.62 ECDSA Signature with SHA-384
-        </message>
-        <message name="IDS_CERT_OID_ANSIX962_ECDSA_SHA512_SIGNATURE" desc="description of public key algorithm SEC_OID_ANSIX962_ECDSA_SHA512_SIGNATURE">
-          X9.62 ECDSA Signature with SHA-512
-        </message>
-        <message name="IDS_CERT_OID_ANSIX962_EC_PUBLIC_KEY" desc="description of public key algorithm SEC_OID_ANSIX962_EC_PUBLIC_KEY">
-          Elliptic Curve Public Key
-        </message>
-        <message name="IDS_CERT_OID_SECG_EC_SECP256R1" desc="description of public key algorithm SEC_OID_SECG_EC_SECP256R1">
-          SECG elliptic curve secp256r1 (aka ANSI X9.62 prime256v1, NIST P-256)
-        </message>
-        <message name="IDS_CERT_OID_SECG_EC_SECP384R1" desc="description of public key algorithm SEC_OID_SECG_EC_SECP384R1">
-          SECG elliptic curve secp384r1 (aka NIST P-384)
-        </message>
-        <message name="IDS_CERT_OID_SECG_EC_SECP521R1" desc="description of public key algorithm SEC_OID_SECG_EC_SECP521R1">
-          SECG elliptic curve secp521r1 (aka NIST P-521)
-        </message>
-
         <message name="IDS_CERT_EXT_NS_CERT_TYPE" desc="description of extension Netscape Certificate Type">
           Netscape Certificate Type
         </message>
@@ -4599,35 +4554,8 @@ are declared in tools/grit/grit_args.gni.
         <message name="IDS_CERT_X509_EXT_KEY_USAGE" desc="description of extension Extended Key Usage">
           Extended Key Usage
         </message>
-        <message name="IDS_CERT_X509_AUTH_INFO_ACCESS" desc="description of extension Authority Information Access">
-          Authority Information Access
-        </message>
         <message name="IDS_CERT_X509_KEY_USAGE_SIGNING" desc="description of certificate usage Signing">
           Signing
-        </message>
-        <message name="IDS_CERT_X509_KEY_USAGE_NONREP" desc="description of certificate usage Non-repudiation">
-          Non-repudiation
-        </message>
-        <message name="IDS_CERT_X509_KEY_USAGE_ENCIPHERMENT" desc="description of certificate usage Key Encipherment">
-          Key Encipherment
-        </message>
-        <message name="IDS_CERT_X509_KEY_USAGE_DATA_ENCIPHERMENT" desc="description of certificate usage Data Encipherment">
-          Data Encipherment
-        </message>
-        <message name="IDS_CERT_X509_KEY_USAGE_KEY_AGREEMENT" desc="description of certificate usage Key Agreement">
-          Key Agreement
-        </message>
-        <message name="IDS_CERT_X509_KEY_USAGE_CERT_SIGNER" desc="description of certificate usage Certificate Signer">
-          Certificate Signer
-        </message>
-        <message name="IDS_CERT_X509_KEY_USAGE_CRL_SIGNER" desc="description of certificate usage CRL Signer">
-          CRL Signer
-        </message>
-        <message name="IDS_CERT_X509_KEY_USAGE_ENCIPHER_ONLY" desc="description of certificate usage Encipher Only">
-          Encipher Only
-        </message>
-        <message name="IDS_CERT_X509_KEY_USAGE_DECIPHER_ONLY" desc="description of certificate usage Decipher Only">
-          Decipher Only
         </message>
         <message name="IDS_CERT_X509_BASIC_CONSTRAINT_IS_CA" desc="description of certificate constraint Is a Certification Authority">
           Is a Certification Authority
@@ -4640,12 +4568,6 @@ are declared in tools/grit/grit_args.gni.
         </message>
         <message name="IDS_CERT_X509_BASIC_CONSTRAINT_PATH_LEN_UNLIMITED" desc="value NUM_INTERMEDIATE_CA when there is no limit">
           unlimited
-        </message>
-        <message name="IDS_CERT_PKIX_CPS_POINTER_QUALIFIER" desc="description of pointer (URI) to Certification Practice Statement published by Certification Authority">
-          Certification Practice Statement Pointer
-        </message>
-        <message name="IDS_CERT_PKIX_USER_NOTICE_QUALIFIER" desc="description of User Notice certificate policy qualifier">
-          User Notice
         </message>
         <message name="IDS_CERT_REVOCATION_REASON_UNUSED" desc="description of certificate revocation for reason Unused">
           Unused
@@ -4725,23 +4647,11 @@ are declared in tools/grit/grit_args.gni.
         <message name="IDS_CERT_EXT_MS_NTDS_REPLICATION" desc="description of extension Microsoft Domain GUID">
           Microsoft Domain GUID
         </message>
-        <message name="IDS_CERT_EKU_ANY_EKU" desc="description of X.509 certificate extended key usage value `anyExtendedKeyUsage`. This indicates that the certificate may be used for any purpose.">
-          Any
-        </message>
         <message name="IDS_CERT_EKU_TLS_WEB_SERVER_AUTHENTICATION" desc="description of extended key usage TLS WWW Server Authentication">
           TLS WWW Server Authentication
         </message>
         <message name="IDS_CERT_EKU_TLS_WEB_CLIENT_AUTHENTICATION" desc="description of extended key usage TLS WWW Client Authentication">
           TLS WWW Client Authentication
-        </message>
-        <message name="IDS_CERT_EKU_CODE_SIGNING" desc="description of extended key usage Code Signing">
-          Code Signing
-        </message>
-        <message name="IDS_CERT_EKU_EMAIL_PROTECTION" desc="description of extended key usage E-mail Protection">
-          Email Protection
-        </message>
-        <message name="IDS_CERT_EKU_TIME_STAMPING" desc="description of extended key usage Time Stamping">
-          Time Stamping
         </message>
         <message name="IDS_CERT_EKU_OCSP_SIGNING" desc="description of extended key usage Signing OCSP Responses">
           Signing OCSP Responses
@@ -6416,11 +6326,6 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Hide Details
       </message>
 
-      <!-- Error messages for Chrome Web Store UI -->
-      <message name="IDS_WEBSTORE_DOWNLOAD_ACCESS_DENIED" desc="Text displayed in the error prompt when a CRX cannot be downloaded due to an authentication error.">
-        Access denied.
-      </message>
-
       <!-- Global error messages for extensions -->
       <message name="IDS_EXTENSION_WARNINGS_WRENCH_MENU_ITEM" desc="The wrench menu item indicating that extensions caused problems.">
         Extension error
@@ -6689,34 +6594,34 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_EXTENSIONS_MENU_MESSAGE_SECTION_ENTERPRISE_TOOLTIP_ICON_TEXT" desc="Text of the info tooltip icon in the message section when the user blocked access to this site to all extensions but extensions installed by admin still have access.">
         Extensions installed by your administrator can still read and change this site
       </message>
-      <message name="IDS_EXTENSIONS_MENU_MESSAGE_SECTION_RELOAD_CONTAINER_DESCRIPTION_TEXT" desc="Text of the message section when the user has to reload the page to apply the updated user site settings.">
+      <message name="IDS_EXTENSIONS_MENU_MESSAGE_SECTION_RELOAD_CONTAINER_DESCRIPTION_TEXT" desc="Text of the message section when the user has to reload the page to apply the updated user site settings." formatter_data="android_java">
         To apply your updated settings to this site, reload this page
       </message>
-      <message name="IDS_EXTENSIONS_MENU_MESSAGE_SECTION_RELOAD_CONTAINER_BUTTON_TEXT" desc="Text of the button in the message section to reload the page when the user has to reload the page to apply the updated user site settings.">
+      <message name="IDS_EXTENSIONS_MENU_MESSAGE_SECTION_RELOAD_CONTAINER_BUTTON_TEXT" desc="Text of the button in the message section to reload the page when the user has to reload the page to apply the updated user site settings." formatter_data="android_java">
         Reload
       </message>
-      <message name="IDS_EXTENSIONS_MENU_MESSAGE_SECTION_RELOAD_CONTAINER_BUTTON_TOOLTIP" desc="Tooltip text of the button in the message section to reload the page when the user has to reload the page to apply the updated user site settings.">
+      <message name="IDS_EXTENSIONS_MENU_MESSAGE_SECTION_RELOAD_CONTAINER_BUTTON_TOOLTIP" desc="Tooltip text of the button in the message section to reload the page when the user has to reload the page to apply the updated user site settings." formatter_data="android_java">
         Reload page
       </message>
-      <message name="IDS_EXTENSIONS_MENU_REQUESTS_ACCESS_SECTION_TITLE" desc="Title of the requests access section that lists the extensions requesting site access">
+      <message name="IDS_EXTENSIONS_MENU_REQUESTS_ACCESS_SECTION_TITLE" desc="Title of the requests access section that lists the extensions requesting site access" formatter_data="android_java">
         Requests access
       </message>
-      <message name="IDS_EXTENSIONS_MENU_REQUESTS_ACCESS_SECTION_ALLOW_BUTTON_TEXT" desc="Title on the allow button for each extension in the requests access section that grants site access to such extension.">
+      <message name="IDS_EXTENSIONS_MENU_REQUESTS_ACCESS_SECTION_ALLOW_BUTTON_TEXT" desc="Title on the allow button for each extension in the requests access section that grants site access to such extension." formatter_data="android_java">
         Allow
       </message>
-      <message name="IDS_EXTENSIONS_MENU_REQUESTS_ACCESS_SECTION_ALLOW_BUTTON_TOOLTIP" desc="Tooltip text on the allow button for each extension in the requests access section that grants site access to such extension.">
+      <message name="IDS_EXTENSIONS_MENU_REQUESTS_ACCESS_SECTION_ALLOW_BUTTON_TOOLTIP" desc="Tooltip text on the allow button for each extension in the requests access section that grants site access to such extension." formatter_data="android_java">
         Allow extension to read and change this site
       </message>
-      <message name="IDS_EXTENSIONS_MENU_REQUESTS_ACCESS_SECTION_ALLOW_BUTTON_ACCESSIBLE_NAME" desc="Accessible string on the allow button for each extension in the requests access section that grants site access to such extension.">
+      <message name="IDS_EXTENSIONS_MENU_REQUESTS_ACCESS_SECTION_ALLOW_BUTTON_ACCESSIBLE_NAME" desc="Accessible string on the allow button for each extension in the requests access section that grants site access to such extension." formatter_data="android_java">
         Allow <ph name="EXTENSION_NAME">$1<ex>AdBlock</ex></ph> to read and change this site
       </message>
-      <message name="IDS_EXTENSIONS_MENU_REQUESTS_ACCESS_SECTION_DISMISS_BUTTON_TEXT" desc="Title on the dismiss button for each extension in the requests access section that dismiss the extensions's access requests on this tab's current origin.">
+      <message name="IDS_EXTENSIONS_MENU_REQUESTS_ACCESS_SECTION_DISMISS_BUTTON_TEXT" desc="Title on the dismiss button for each extension in the requests access section that dismiss the extensions's access requests on this tab's current origin." formatter_data="android_java">
         Dismiss
       </message>
-      <message name="IDS_EXTENSIONS_MENU_REQUESTS_ACCESS_SECTION_DISMISS_BUTTON_TOOLTIP" desc="Tooltip text on the dismiss button for each extension in the requests access section that dismiss the extensions's access requests on this tab's current origin.">
+      <message name="IDS_EXTENSIONS_MENU_REQUESTS_ACCESS_SECTION_DISMISS_BUTTON_TOOLTIP" desc="Tooltip text on the dismiss button for each extension in the requests access section that dismiss the extensions's access requests on this tab's current origin." formatter_data="android_java">
         Dismiss request
       </message>
-      <message name="IDS_EXTENSIONS_MENU_REQUESTS_ACCESS_SECTION_DISMISS_BUTTON_ACCESSIBLE_NAME" desc="Accessibility string for the dismiss button for each extension in the requests access section that dismisses the extensions's access requests on this tab's current origin.">
+      <message name="IDS_EXTENSIONS_MENU_REQUESTS_ACCESS_SECTION_DISMISS_BUTTON_ACCESSIBLE_NAME" desc="Accessibility string for the dismiss button for each extension in the requests access section that dismisses the extensions's access requests on this tab's current origin." formatter_data="android_java">
         Dismiss request for <ph name="EXTENSION_NAME">$1<ex>AdBlock</ex></ph>
       </message>
       <message name="IDS_EXTENSIONS_MENU_EXTENSION_SITE_ACCESS_TOGGLE_ON_TOOLTIP" desc="Tooltip text for the site access toggle of an extensions menu item when is on.">
@@ -7701,29 +7606,11 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_WEBUI_OMNIBOX_PLACEHOLDER_TEXT" desc="The text displayed in the WebUI Omnibox when it is empty and unfocused.">
         Ask <ph name="SEARCH_ENGINE_NAME">$1<ex>Google</ex></ph> or type a URL
       </message>
-      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_ASK_ABOUT_THIS_TAB" desc="Label for a button that allows the user to ask a question about the content of their current tab.">
-        Ask Google about this tab
-      </message>
-      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_ASK_ABOUT_THIS_TAB_ARIA_LABEL" desc="The aria-label for the button that allows the user to ask a question about the content of their current tab. The $1 is a placeholder for the tab title.">
-        Ask Google about this tab: <ph name="TAB_TITLE">$1</ph>
-      </message>
       <message name="IDS_WEBUI_OMNIBOX_COMPOSE_ASK_ABOUT_THIS_PAGE" desc="Label for a button that allows the user to ask a question about the content of their current page.">
         Ask Google about this page
       </message>
       <message name="IDS_WEBUI_OMNIBOX_COMPOSE_ASK_ABOUT_THIS_PAGE_ARIA_LABEL" desc="The aria-label for the button that allows the user to ask a question about the content of their current page. The $1 is a placeholder for the page title.">
         Ask Google about this page: <ph name="PAGE_TITLE">$1</ph>
-      </message>
-      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_LENS_SEARCH_THIS_TAB" desc="Label for a button that allows the user to search the content of their current tab with Google Lens">
-        Search this tab with Google Lens
-      </message>
-      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_LENS_SEARCH_THIS_TAB_ARIA_LABEL" desc="The aria-label for the button that allows the user to search the content of their current tab with Google Lens. The $1 is a placeholder for the page title.">
-        Search this tab with Google Lens: <ph name="PAGE_TITLE">$1</ph>
-      </message>
-      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_LENS_SEARCH_THIS_PAGE" desc="Label for a button that allows the user to search the content of their current page with Google Lens">
-        Search this page with Google Lens
-      </message>
-      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_LENS_SEARCH_THIS_PAGE_ARIA_LABEL" desc="The aria-label for the button that allows the user to search the content of their current page with Google Lens. The $1 is a placeholder for the page title.">
-        Search this page with Google Lens: <ph name="PAGE_TITLE">$1</ph>
       </message>
 
       <!-- NTP -->
@@ -10845,7 +10732,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_ACCNAME_FULLSCREEN_DISABLED" desc="The accessible name of the disabled fullscreen button in the new merged menu">
         Full screen disabled
       </message>
-      <message name="IDS_ACCNAME_HOME" desc="The accessible name for the home button">
+      <message name="IDS_ACCNAME_HOME" desc="The accessible name for the home button" meaning="'home' as in an internet location, a 'home page'">
         Home
       </message>
       <message name="IDS_ACCNAME_RELOAD" desc="The accessible name for the reload/stop button.">
@@ -16030,7 +15917,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
           Task Manager
         </message>
         <!-- History menu -->
-        <message name="IDS_HISTORY_HOME_MAC" desc="The Mac menu item for home in the history menu.">
+        <message name="IDS_HISTORY_HOME_MAC" desc="The Mac menu item for home in the history menu." meaning="'home' as in an internet location, a 'home page'">
           Home
         </message>
         <message name="IDS_HISTORY_BACK_MAC" desc="The Mac menu item for back in the history menu.">
@@ -16179,7 +16066,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
         </message>
 
         <!-- History menu -->
-        <message name="IDS_HISTORY_HOME_LINUX" desc="The Linux menu item for home in the history menu.">
+        <message name="IDS_HISTORY_HOME_LINUX" desc="The Linux menu item for home in the history menu." meaning="'home' as in an internet location, a 'home page'">
           Home
         </message>
         <message name="IDS_HISTORY_BACK_LINUX" desc="The Linux menu item for back in the history menu.">
@@ -16747,8 +16634,8 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_DESKTOP_MEDIA_PICKER_ALSO_SHARE_SYSTEM_AUDIO" desc="Text for the audio toggle in the window picker dialog which is displayed when attempting to share a screen.">
         Also share system audio
       </message>
-      <message name="IDS_DESKTOP_MEDIA_PICKER_ALSO_SHARE_APPLICATION_AUDIO" desc="Text for the audio toggle in the window picker dialog which is displayed when attempting to share a window. The last part in the text: (from all its windows) emphasizes that audio will be shared from all windows belonging to the same application.">
-        Also share application audio (from all its windows)
+      <message name="IDS_DESKTOP_MEDIA_PICKER_ALSO_SHARE_APPLICATION_AUDIO" desc="Text for the audio toggle in the window picker dialog which is displayed when attempting to share a window. The parenthetical text explains that sharing audio from a single window will also capture audio from all other windows belonging to that same application. For certain applications (like web browsers), this may also include audio from related versions (e.g., Beta or Canary) or Progressive Web Apps (PWAs) installed by the browser.">
+        Also share app audio (from all its windows and related apps)
       </message>
       <message name="IDS_DESKTOP_MEDIA_PICKER_ALSO_SHARE_ALL_AUDIO_OUTPUT" desc="Text for the audio toggle in the window picker dialog which is displayed when attempting to share a screen. This string is used when we share all output audio devices, rather than just the default device">
         Also share all audio outputs
@@ -19043,10 +18930,10 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <message name="IDS_FILTERED_ACCOUNT_MESSAGE" desc="Message shown to the user when the account they are trying to sign in with has been filtered out by one of the filters passed by the RP.">
       You can't sign in using this account
     </message>
-    <message name="IDS_FEDERATION_SIGN_IN_TITLE" desc="Title of the UI shown in the omnibox to remind users that they can sign in with an identity provider." translateable="false">
+    <message name="IDS_FEDERATION_SIGN_IN_TITLE" desc="Title of the UI shown in the omnibox to remind users that they can sign in with an identity provider.">
       Sign in with <ph name="IDP_NAME">$1<ex>google.com</ex></ph>
     </message>
-    <message name="IDS_FEDERATION_SIGN_UP_TITLE" desc="Title of the UI shown in the omnibox to remind users that they can sign up with an identity provider." translateable="false">
+    <message name="IDS_FEDERATION_SIGN_UP_TITLE" desc="Title of the UI shown in the omnibox to remind users that they can sign up with an identity provider.">
       Sign up with <ph name="IDP_NAME">$1<ex>google.com</ex></ph>
     </message>
 
@@ -19368,7 +19255,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <message name="IDS_OVERFLOW_MENU_ITEM_TEXT_FORWARD" desc="Overflow menu item text of forward button">
       Forward
     </message>
-    <message name="IDS_OVERFLOW_MENU_ITEM_TEXT_HOME" desc="Text of overflow menu item of home button">
+    <message name="IDS_OVERFLOW_MENU_ITEM_TEXT_HOME" desc="Text of overflow menu item of home button" meaning="'home' as in an internet location, a 'home page'">
       Home
     </message>
     <message name="IDS_OVERFLOW_MENU_ITEM_TEXT_LABS" desc="Text of overflow menu item of labs button">
@@ -20029,6 +19916,12 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_UPDATER_LAST_STARTED_LABEL" desc="A label for a timestamp indicating the last time the Chrome Updater performed its periodic tasks.">
         Last Periodic Task Run:
       </message>
+      <message name="IDS_UPDATER_LOAD_HISTORY_FILE" desc="Label for the button that allows users to upload one or more external updater history files for display.">
+        Load History Files
+      </message>
+      <message name="IDS_UPDATER_LOAD_HISTORY_FILE_ERROR" desc="Error message displayed when one or more uploaded history files could not be parsed or processed.">
+        Failed to load history. Ensure files contain valid updater logs.
+      </message>
       <message name="IDS_UPDATER_NO_APPS_FOUND" desc="A message indicating that Chrome's updater is not managing any applications on the user's system.">
         No applications are installed.
       </message>
@@ -20107,6 +20000,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_UPDATER_REMOVE_FILTER" desc="Accessibility label for the button that removes a specific filter chip.">
         Remove filter
       </message>
+      <message name="IDS_UPDATER_RETURN_TO_LOCAL" desc="Label for the button that returns the page to displaying data from the user's updater installation after viewing the data contained in one or more history files.">
+        View Local Data
+      </message>
       <message name="IDS_UPDATER_SCOPE" desc="Label for a filter category allowing the user to filter Chrome Updater logs by the scope of the updater. Chrome Updater may be scoped per-user or per-system.">
         Updater Scope
       </message>
@@ -20143,6 +20039,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_UPDATER_VERSION_LABEL" desc="A label for the version of the updater.">
         Version:
       </message>
+      <message name="IDS_UPDATER_VIEWING_HISTORY_FILES" desc="Banner text indicating that the page is currently displaying data from an uploaded history file rather than the local machine.">
+        {NUM_EVENTS, plural, =1 {Viewing history from 1 file} other {Viewing history from # files}}
+      </message>
       <message name="IDS_UPDATER_UPDATE_ERROR" desc="Summary of an update event that failed.">
         Update operation failed
       </message>
@@ -20172,6 +20071,28 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_URL_LABEL" desc="Label which denotes URL of the unsafe-site in report-unsafe-site dialog">
       URL
     </message>
+
+    <!-- Indigo -->
+    <if expr="not is_android">
+      <message name="IDS_INDIGO_TOOLBAR_CAPTION" desc="Text indicating the content was generated by Google. Displayed in the Indigo toolbar." translateable="false">
+        Generated by Google
+      </message>
+      <message name="IDS_INDIGO_TOOLBAR_EXPAND" desc="Tooltip for expanding the Indigo toolbar." translateable="false">
+        Expand
+      </message>
+      <message name="IDS_INDIGO_TOOLBAR_COLLAPSE" desc="Tooltip for collapsing the Indigo toolbar." translateable="false">
+        Collapse
+      </message>
+      <message name="IDS_INDIGO_TOOLBAR_REGENERATE" desc="Button label to regenerate the Indigo content." translateable="false">
+        Regenerate
+      </message>
+      <message name="IDS_INDIGO_TOOLBAR_REPLACE_ORIGINAL_PHOTO" desc="Button label to replace the original photo." translateable="false">
+        Replace original photo
+      </message>
+      <message name="IDS_INDIGO_TOOLBAR_DELETE_ORIGINAL_PHOTO" desc="Button label to delete the original photo." translateable="false">
+        Delete original photo
+      </message>
+    </if>
   </messages>
 </release>
 </grit>

@@ -1,0 +1,69 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/android/rules.gni")
+import("//third_party/jni_zero/jni_zero.gni")
+
+source_set("android") {
+  visibility = [
+    ":*",
+    "//chrome/browser/ui/side_panel:side_panel_ui_provider",
+    "//chrome/browser/ui/side_panel/internal:*",
+  ]
+  sources = [
+    "side_panel_coordinator_android.cc",
+    "side_panel_coordinator_android.h",
+  ]
+
+  deps = [
+    ":jni_headers",
+    "//base",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/side_panel:side_panel_views_dependent",
+    "//third_party/jni_zero",
+    "//ui/base",
+    "//ui/base/unowned_user_data",
+  ]
+}
+
+android_library("java") {
+  visibility = [
+    ":*",
+    "//chrome/android:chrome_all_java",
+    "//chrome/browser/ui/side_panel/test/android:*",
+  ]
+  sources = [
+    "java/src/org/chromium/chrome/browser/ui/side_panel/SidePanelCoordinatorAndroidFactory.java",
+    "java/src/org/chromium/chrome/browser/ui/side_panel/SidePanelCoordinatorAndroidImpl.java",
+  ]
+
+  deps = [
+    "//build/android:build_java",
+    "//chrome/browser/flags:java",
+    "//chrome/browser/ui/side_panel/android:java",
+    "//components/cached_flags:java",
+    "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/jni_zero:jni_zero_java",
+  ]
+
+  srcjar_deps = [ ":jni_headers" ]
+}
+
+generate_jni("jni_headers") {
+  sources = [ "java/src/org/chromium/chrome/browser/ui/side_panel/SidePanelCoordinatorAndroidImpl.java" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "side_panel_coordinator_android_unittest.cc" ]
+  deps = [
+    ":android",
+    "//base",
+    "//chrome/browser/ui:test_support",
+    "//chrome/browser/ui/side_panel:side_panel_ui_provider",
+    "//chrome/browser/ui/side_panel/test/android:native_unit_test_support_jni",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

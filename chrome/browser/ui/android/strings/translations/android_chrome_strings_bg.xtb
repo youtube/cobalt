@@ -348,6 +348,7 @@
 <translation id="2496180316473517155">История на сърфирането</translation>
 <translation id="2497852260688568942">Синхронизирането е деактивирано от администратора ви</translation>
 <translation id="250020030759455918">В Chrome ще виждате дали сте влезли в профила си в <ph name="SITE_NAME" />, както и съответните данни за сърфирането и сайта</translation>
+<translation id="2501278716633472235">Назад</translation>
 <translation id="2510106555128151389"><ph name="WEBAPK_NAME" /> се инсталира...</translation>
 <translation id="2512234228327349533">Търсене на опции за купуване</translation>
 <translation id="2513403576141822879">За още настройки за поверителността, сигурността и събирането на данни вижте <ph name="BEGIN_LINK" />Синхронизиране и услуги на Google<ph name="END_LINK" /></translation>
@@ -797,6 +798,7 @@
 <translation id="4384468725000734951">За търсене ще се използва Sogou</translation>
 <translation id="4387647248986092471">Задаване на опция за заключване на потребителския профил в автомобила</translation>
 <translation id="4387817230000841154">Отваряне на страницата „Изтегляния“</translation>
+<translation id="4394049700291259645">Деактивиране</translation>
 <translation id="4395046795145457714">Включването в Chrome Finds е отворено на пълната височина</translation>
 <translation id="4398561997852463382"><ph name="TAB_TITLE" /> – избран фиксиран раздел в режим „инкогнито“, който записва</translation>
 <translation id="4402611456429872546"><ph name="LANG" /> – изтегля се…</translation>
@@ -821,7 +823,6 @@
 <translation id="4478161224666880173">Можете да използвате профила си в(ъв) <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> на този сайт. За да продължите, влезте в(ъв) <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" />.</translation>
 <translation id="4479972344484327217">Модулът „<ph name="MODULE" />“ за Chrome се инсталира…</translation>
 <translation id="4487967297491345095">Всички данни на приложението Chrome ще се изтрият за постоянно. Това включва всички файлове, настройки, профили, бази от данни и др.</translation>
-<translation id="4494315997125191493">Изберете „Управление“, за да видите всички прозорци</translation>
 <translation id="4494806687727322324">Запазването на паролите е включено от администратора ви</translation>
 <translation id="4508528996305412043">Менюто на картата за емисията е отворено</translation>
 <translation id="4509741852167209430">С цел измерване на ефективността на показваните от тях реклами между сайтовете се споделят ограничени типове данни – например дали сте направили покупка, след като сте посетили даден сайт.</translation>
@@ -869,7 +870,6 @@
 <translation id="4673702426794876519">Прозорец в режим „инкогнито“</translation>
 <translation id="4675298276894277358">Този сайт няма да бъде показан отново</translation>
 <translation id="4678082183394354975">Тъмната тема за сайтовете е включена в Chrome</translation>
-<translation id="4682306524980568490">Може да се покажат най-много <ph name="MAX_INSTANCE_COUNT" /> прозореца</translation>
 <translation id="4684427112815847243">Синхронизиране на всичко</translation>
 <translation id="4685741273709472646">Избиране от падащия списък</translation>
 <translation id="4687718960473379118">Предложени от сайтовете реклами</translation>
@@ -1492,7 +1492,6 @@
 <translation id="7057969023583258980">Отваряне на цялата история в Chrome</translation>
 <translation id="7063006564040364415">Не можа да се установи връзка със синхронизиращия сървър.</translation>
 <translation id="7063106218165698546">Персонализирайте групата раздели и изберете „Готово“</translation>
-<translation id="7071521146534760487">Управление на профила</translation>
 <translation id="707155805709242880">Изберете какво да синхронизирате по-долу</translation>
 <translation id="7072949719501323344"><ph name="TAB_TITLE" /> – фиксиран раздел „картина в картината“ в режим „инкогнито“, който е избран заедно с други</translation>
 <translation id="7077143737582773186">SD карта</translation>
@@ -1821,6 +1820,7 @@
 <translation id="8282950411412455249">Към настройките за сигурност</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{Затваряне на 1 прозорец в режим „инкогнито“}other{Затваряне на # прозореца в режим „инкогнито“}}</translation>
 <translation id="831192587911042850">Добавя текущия уебсайт към списъка с тези, които следвате.</translation>
+<translation id="8313599942510782709">Задачата ви все още се изпълнява</translation>
 <translation id="8317318757008452355">Отваряне на опциите за печат</translation>
 <translation id="8320212361750431956">Скорошна активност</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />Ново<ph name="END_NEW" /></translation>

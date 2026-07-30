@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "ash/strings/grit/ash_strings.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
@@ -13,6 +14,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/default_clock.h"
 #include "chrome/browser/ash/login/signin_partition_manager.h"
+#include "chrome/browser/ash/login/signin_partition_manager_factory.h"
 #include "chrome/browser/ash/policy/core/device_local_account_policy_broker.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/password_manager/factories/password_reuse_manager_factory.h"
@@ -21,7 +23,6 @@
 #include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/ash/login/webui_login_view.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/login/auth/public/user_context.h"
 #include "chromeos/ash/components/network/managed_network_configuration_handler.h"
 #include "chromeos/ash/components/network/network_connection_handler.h"
@@ -167,7 +168,7 @@ void NetworkStateHelper::OnCreateConfiguration(
 content::StoragePartition* GetSigninPartition() {
   Profile* signin_profile = ProfileHelper::GetSigninProfile();
   SigninPartitionManager* signin_partition_manager =
-      SigninPartitionManager::Factory::GetForBrowserContext(signin_profile);
+      SigninPartitionManagerFactory::GetForBrowserContext(signin_profile);
   if (!signin_partition_manager->IsInSigninSession())
     return nullptr;
   return signin_partition_manager->GetCurrentStoragePartition();
@@ -179,8 +180,7 @@ content::StoragePartition* GetLockScreenPartition() {
   // refactored after we clarify when and how do we clear data from the lock
   // screen profile.
   SigninPartitionManager* partition_manager =
-      SigninPartitionManager::Factory::GetForBrowserContext(
-          lock_screen_profile);
+      SigninPartitionManagerFactory::GetForBrowserContext(lock_screen_profile);
   if (!partition_manager->IsInSigninSession())
     return nullptr;
   return partition_manager->GetCurrentStoragePartition();

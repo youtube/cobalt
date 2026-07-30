@@ -194,6 +194,7 @@ chromium-metrics-reviews@google.com.
     <variant name="CreateSkill"/>
     <variant name="CreateTab"/>
     <variant name="CreateTask"/>
+    <variant name="DeleteCapturedRegion"/>
     <variant name="DetachPanel"/>
     <variant name="DropScrollToHighlight"/>
     <variant name="EnableDragResize"/>
@@ -217,6 +218,7 @@ chromium-metrics-reviews@google.com.
     <variant name="LogEndAsyncEvent"/>
     <variant name="LogInstantEvent"/>
     <variant name="MaybeRefreshUserStatus"/>
+    <variant name="OnActionSubmitted"/>
     <variant name="OnClosedCaptionsShown"/>
     <variant name="OnContextUploadCompleted"/>
     <variant name="OnContextUploadStarted"/>
@@ -431,6 +433,28 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Fre.Accept.Entrypoint" enum="GlicEntrypoint"
+    expires_after="2026-08-03">
+  <owner>erikchen@chromium.org</owner>
+  <owner>wry@chromium.org</owner>
+  <summary>
+    Records the entry point used to trigger the opening of the glic panel that
+    led to the user accepting the Trust-First Onboarding. Recorded when the user
+    accepts the Trust-First Onboarding.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Fre.Dismissed.Entrypoint" enum="GlicEntrypoint"
+    expires_after="2026-08-03">
+  <owner>erikchen@chromium.org</owner>
+  <owner>wry@chromium.org</owner>
+  <summary>
+    Records the entry point used to trigger the opening of the glic panel that
+    led to the user dismissing the Trust-First Onboarding. Recorded when the
+    user dismisses the Trust-First Onboarding.
+  </summary>
+</histogram>
+
 <histogram name="Glic.Fre.InteractionTime.Accepted" units="ms"
     expires_after="2026-08-03">
   <owner>birnie@google.com</owner>
@@ -471,6 +495,17 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the entry point used to trigger the opening of the glic FRE modal.
     Recorded when the FRE is shown to the user.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Fre.Shown.Entrypoint" enum="GlicEntrypoint"
+    expires_after="2026-08-03">
+  <owner>erikchen@chromium.org</owner>
+  <owner>wry@chromium.org</owner>
+  <summary>
+    Records the entry point used to trigger the opening of the glic panel when
+    the Trust-First Onboarding is shown. Recorded when the Trust-First
+    Onboarding is shown.
   </summary>
 </histogram>
 
@@ -2131,6 +2166,48 @@ chromium-metrics-reviews@google.com.
   <token key="Mode" variants="WebClientMode"/>
 </histogram>
 
+<histogram name="Glic.Selection.Action.{FreState}" enum="GlicSelectionAction"
+    expires_after="2026-12-31">
+  <owner>gklassen@chromium.org</owner>
+  <owner>vollick@chromium.org</owner>
+  <summary>
+    Records the actions taken on the Glic selection affordance (nudge or
+    widget). This includes when the affordance is shown and when it is clicked.
+  </summary>
+  <token key="FreState">
+    <variant name="PostFre" summary="User has accepted the FRE"/>
+    <variant name="PreFre" summary="User has not accepted the FRE"/>
+  </token>
+</histogram>
+
+<histogram name="Glic.Selection.NudgeClicked.SelectionLength.{FreState}"
+    units="characters" expires_after="2026-12-31">
+  <owner>gklassen@chromium.org</owner>
+  <owner>vollick@chromium.org</owner>
+  <summary>
+    Records the length of the selected text (in characters) when the Glic
+    selection nudge is clicked.
+  </summary>
+  <token key="FreState">
+    <variant name="PostFre" summary="User has accepted the FRE"/>
+    <variant name="PreFre" summary="User has not accepted the FRE"/>
+  </token>
+</histogram>
+
+<histogram name="Glic.Selection.WidgetClicked.SelectionLength.{FreState}"
+    units="characters" expires_after="2026-12-31">
+  <owner>gklassen@chromium.org</owner>
+  <owner>vollick@chromium.org</owner>
+  <summary>
+    Records the length of the selected text (in characters) when the Glic
+    selection widget is clicked.
+  </summary>
+  <token key="FreState">
+    <variant name="PostFre" summary="User has accepted the FRE"/>
+    <variant name="PreFre" summary="User has not accepted the FRE"/>
+  </token>
+</histogram>
+
 <histogram name="Glic.Session.AttachStateChanges" units="count"
     expires_after="2026-07-26">
   <owner>dullweber@chromium.org</owner>
@@ -2432,6 +2509,56 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Turn.Actuation.IsRetry" enum="Boolean"
+    expires_after="2026-10-16">
+  <owner>qinmin@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Records whether a browser actuation result submitted by the web client is a
+    retry of a previous actuation in the same turn. Recorded for each actuation
+    result submitted.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Turn.Actuation.ResponseStartTime" units="ms"
+    expires_after="2026-10-16">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Records the time from when the web client sends a browser actuation result
+    over the network until a response starts being presented to the user.
+    Recorded for each turn in a Glic instance where an actuation result was
+    submitted.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Turn.Actuation.ResponseStopTime" units="ms"
+    expires_after="2026-10-16">
+  <owner>qinmin@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Measures the time from when the web client sends a browser actuation result
+    until a response stops. Recorded for each turn where an actuation result was
+    submitted.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Turn.Actuation.ResponseStopTime.{Cause}" units="ms"
+    expires_after="2026-10-16">
+  <owner>qinmin@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Measures the time from when the web client sends a browser actuation result
+    until a response stops for the specific cause: {Cause}. Recorded for each
+    turn where an actuation result was submitted.
+  </summary>
+  <token key="Cause">
+    <variant name="ByUser"/>
+    <variant name="Other"/>
+    <variant name="UnknownCause"/>
+  </token>
+</histogram>
+
 <histogram name="Glic.Turn.Duration.{Model}" units="ms"
     expires_after="2026-10-16">
   <owner>birnie@google.com</owner>
@@ -2687,6 +2814,18 @@ chromium-metrics-reviews@google.com.
     Logged when the Glic WebContents warming pool reports a miss (Cold, Expired,
     or Crashed) but a creation timestamp for a previous container was available.
     Records the time elapsed since that container was initially created.
+  </summary>
+</histogram>
+
+<histogram name="Glic.YoutubeSummarizeVideoZSS.Events"
+    enum="GlicYoutubeSummarizeVideoZSSResult" expires_after="2026-09-20">
+  <owner>basiaz@google.com</owner>
+  <owner>birnie@google.com</owner>
+  <summary>
+    Logged during the detection of the YouTube 'Ask' button whose presence is
+    used to offer a summarize video suggestion in Glic. This is a diagnostic
+    metric logged on YT pages to understand if the button was found and how many
+    tries (max is 2) it took to find it.
   </summary>
 </histogram>
 

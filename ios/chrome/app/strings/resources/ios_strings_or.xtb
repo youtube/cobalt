@@ -393,6 +393,7 @@
 <translation id="2359808026110333948">ଜାରି ରଖନ୍ତୁ</translation>
 <translation id="2360196772093551345">ମୋବାଇଲ୍ ସାଇଟ୍ ପାଇଁ ଅନୁରୋଧ କରନ୍ତୁ</translation>
 <translation id="2362083820973145409"><ph name="USER_NAME" /> ଭାବେ ସାଇନ ଇନ କରିଛନ୍ତି। <ph name="USER_EMAIL" />। ସେଟିଂସ ଖୋଲେ।</translation>
+<translation id="2367025302166767427">ଆପଣଙ୍କ ସୂଚନା ପୂରଣ କରିବାରେ ସମସ୍ୟା ହେଉଛି</translation>
 <translation id="2371084566192454134">ଟାବ ଏବଂ ଟାବ ଗ୍ରୁପ</translation>
 <translation id="2371303771137626249">ନୂଆ</translation>
 <translation id="2381405137052800939">ମୌଳିକତା</translation>
@@ -1724,6 +1725,7 @@ Handoff, ନିଶ୍ଚିତ ରୂପେ ସେଟିଂସ୍‍ର ସା�
 <translation id="7149893636342594995">ଶେଷ 24 ଘଣ୍ଟା</translation>
 <translation id="7154417656353909837">ଠିକଣାଗୁଡ଼ିକୁ କାଢ଼ି ଦିଅନ୍ତୁ</translation>
 <translation id="7161230316646448869">ସମସ୍ତ ଡିଭାଇସରେ ଆପଣଙ୍କ ବୁକମାର୍କ, ଇତିହାସ ଏବଂ ଆହୁରି ଅନେକ କିଛି ସିଙ୍କ କରନ୍ତୁ</translation>
+<translation id="7165323152084385463">VIN</translation>
 <translation id="7173114856073700355">ସେଟିଂସ୍ ଖୋଲନ୍ତୁ</translation>
 <translation id="7173721738069475737">{count,plural, =1{ବୁକମାର୍କ ସେଭ କରାଯାଇଛି}other{{count} ବୁକମାର୍କ ସେଭ କରାଯାଇଛି}}</translation>
 <translation id="7176183551031110427">ଜୁମ ଆଉଟ କରନ୍ତୁ</translation>
@@ -2218,6 +2220,7 @@ Handoff, ନିଶ୍ଚିତ ରୂପେ ସେଟିଂସ୍‍ର ସା�
 <translation id="8863067612494559785"><ph name="DEVICE_NAME" />କୁ ପଠାଯାଉଛି…</translation>
 <translation id="8863431381414769983">Google Mapsରୁ ଦିଗନିର୍ଦ୍ଦେଶ ଏବଂ ସ୍ଥାନୀୟ ସୂଚନା ପାଆନ୍ତୁ</translation>
 <translation id="8871974300055371298">ବିଷୟବସ୍ତୁ ସେଟିଂସ୍</translation>
+<translation id="8876661425082386199">ଆପଣଙ୍କର ସଂଯୋଗ ଯାଞ୍ଚ କରନ୍ତୁ</translation>
 <translation id="8877788021141246043">ଗୋଟିଏ ରିମାଇଣ୍ଡର୍‌କୁ ସେଟ୍ କରନ୍ତୁ</translation>
 <translation id="8879604564928138696">ଚେଷ୍ଟା କରିବାକୁ ଦୁଇଥର ଟାପ କରନ୍ତୁ</translation>
 <translation id="8879952635974818770">ପର୍ସନାଲାଇଜ କରାଯାଇଥିବା ବିଷୟବସ୍ତୁ</translation>
@@ -2319,7 +2322,6 @@ Handoff, ନିଶ୍ଚିତ ରୂପେ ସେଟିଂସ୍‍ର ସା�
 <translation id="926455622548529175">ସୁଇଚ କରି ଡିଲିଟ କରନ୍ତୁ</translation>
 <translation id="929748059769569925">ହାଇଲାଇଟ କରାଯାଇଥିବା ଟେକ୍ସଟ</translation>
 <translation id="932305336591073205">{count,plural, =1{ଟାବକୁ ବନ୍ଦ କରନ୍ତୁ}other{ଟାବକୁ ବନ୍ଦ କରନ୍ତୁ}}</translation>
-<translation id="932327136139879170">Home</translation>
 <translation id="939472100615258482">ବର୍ତ୍ତମାନର ସାଇଟ</translation>
 <translation id="939598580284253335">ପାସ୍‌-ଫ୍ରେଜ୍ ଲେଖନ୍ତୁ</translation>
 <translation id="939736085109172342">ନୂତନ ଫୋଲ୍ଡର</translation>

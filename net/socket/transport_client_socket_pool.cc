@@ -39,10 +39,6 @@ namespace net {
 
 namespace {
 
-// Indicate whether or not we should establish a new transport layer connection
-// after a certain timeout has passed without receiving an ACK.
-bool g_connect_backup_jobs_enabled = true;
-
 base::DictValue NetLogCreateConnectJobParams(
     bool backup_job,
     const ClientSocketPool::GroupId* group_id) {
@@ -449,9 +445,21 @@ int TransportClientSocketPool::RequestSocketInternal(
       if (preconnecting && !closed)
         return ERR_PRECONNECT_MAX_SOCKET_LIMIT;
     } else {
-      // We could check if we really have a stalled group here, but it
-      // requires a scan of all groups, so just flip a flag here, and do the
-      // check later.
+      // Checking for a stalled higher layer group here could result in
+      // reentrancy issues, so instead return an error for preconnects and
+      // ERR_IO_PENDING if invoked from another callsite.
+      //
+      // If RequestSocket() sees ERR_IO_PENDING, it will check if it should
+      // trigger an async task to try and close a socket in a higher layered
+      // pool, and then posts a task to do so, to avoid reentrancy issues. All
+      // other callers (other than RequestSockets(), which is only for
+      // preconnects) are only made on already pending requests, which have
+      // already made it through this check.
+      //
+      // This isn't a perfect system, since SpdySessions don't inform this class
+      // when they become idle, to potentially be closed, but it does mean a
+      // reload, at least, will check for any idle SPDY sessions it can close if
+      // stalled.
       request.net_log().AddEvent(
           NetLogEventType::SOCKET_POOL_STALLED_MAX_SOCKETS);
       return preconnecting ? ERR_PRECONNECT_MAX_SOCKET_LIMIT : ERR_IO_PENDING;
@@ -819,8 +827,10 @@ TransportClientSocketPool::TransportClientSocketPool(
       unused_idle_socket_timeout_(unused_idle_socket_timeout),
       used_idle_socket_timeout_(used_idle_socket_timeout),
       cleanup_on_ip_address_change_(cleanup_on_ip_address_change),
-      connect_backup_jobs_enabled_(connect_backup_jobs_enabled &&
-                                   g_connect_backup_jobs_enabled),
+      connect_backup_jobs_enabled_(
+          connect_backup_jobs_enabled &&
+          base::FeatureList::IsEnabled(
+              net::features::kPermitTcpSocketPoolConnectBackupJobs)),
       ssl_client_context_(ssl_client_context) {
   DCHECK_LE(max_sockets_per_group, socket_soft_cap);
 
@@ -1003,18 +1013,6 @@ TransportClientSocketPool::GroupMap::iterator
 TransportClientSocketPool::RemoveGroup(GroupMap::iterator it) {
   delete it->second;
   return group_map_.erase(it);
-}
-
-// static
-bool TransportClientSocketPool::connect_backup_jobs_enabled() {
-  return g_connect_backup_jobs_enabled;
-}
-
-// static
-bool TransportClientSocketPool::set_connect_backup_jobs_enabled(bool enabled) {
-  bool old_value = g_connect_backup_jobs_enabled;
-  g_connect_backup_jobs_enabled = enabled;
-  return old_value;
 }
 
 void TransportClientSocketPool::IncrementIdleCount() {

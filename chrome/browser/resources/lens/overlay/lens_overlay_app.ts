@@ -449,7 +449,7 @@ export class LensOverlayAppElement extends LensOverlayAppElementBase {
 
   override ready() {
     super.ready();
-    recordTimeToWebUIReady(Number(Date.now() - this.invocationTime));
+    recordTimeToWebUIReady(Date.now() - this.invocationTime);
   }
 
   private handlePointerEnter() {
@@ -772,9 +772,8 @@ export class LensOverlayAppElement extends LensOverlayAppElementBase {
   }
 
   private focusSearchbox() {
-    this.shadowRoot!.querySelector<HTMLElement>('cr-searchbox')
-        ?.shadowRoot!.querySelector<HTMLElement>('input')
-        ?.focus();
+  this.shadowRoot!.querySelector<SearchboxElement>('cr-searchbox')
+      ?.focusInput();
     this.triggerSearchboxSuggestions();
   }
 

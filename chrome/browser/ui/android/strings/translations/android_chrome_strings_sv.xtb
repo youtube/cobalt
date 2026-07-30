@@ -348,6 +348,7 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="2496180316473517155">Webbhistorik</translation>
 <translation id="2497852260688568942">Synkronisering har inaktiverats av administratören</translation>
 <translation id="250020030759455918">Din inloggningsstatus, webbdata och webbplatsdata för <ph name="SITE_NAME" /> visas i Chrome</translation>
+<translation id="2501278716633472235">Föregående</translation>
 <translation id="2510106555128151389"><ph name="WEBAPK_NAME" /> installeras …</translation>
 <translation id="2512234228327349533">Sök efter köpalternativ</translation>
 <translation id="2513403576141822879">Fler inställningar som rör integritet, säkerhet och datainsamling finns under <ph name="BEGIN_LINK" />Synkronisering och Googles tjänster<ph name="END_LINK" /></translation>
@@ -798,6 +799,7 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="4384468725000734951">Du söker med Sogou</translation>
 <translation id="4387647248986092471">Skapa ett profillås för bilen</translation>
 <translation id="4387817230000841154">Öppna Nedladdningar</translation>
+<translation id="4394049700291259645">Inaktivera</translation>
 <translation id="4395046795145457714">Arket på nedre delen av skärmen för att välja att använda Chrome Finds har öppnats över hela skärmen</translation>
 <translation id="4398561997852463382"><ph name="TAB_TITLE" />, vald fäst inkognitoflik som spelas in</translation>
 <translation id="4402611456429872546"><ph name="LANG" /> – Laddar ned …</translation>
@@ -822,7 +824,6 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="4478161224666880173">Du kan använda ditt <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" />-konto på den här webbplatsen. Logga in på <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> om du vill fortsätta.</translation>
 <translation id="4479972344484327217"><ph name="MODULE" /> installeras i Chrome …</translation>
 <translation id="4487967297491345095">All appdata i Chrome raderas permanent. Detta omfattar alla filer, inställningar, konton, databaser osv.</translation>
-<translation id="4494315997125191493">Välj hantera för att se alla fönster</translation>
 <translation id="4494806687727322324">Funktionen för att spara lösenord har aktiverats av administratören</translation>
 <translation id="4508528996305412043">Menyn med flödeskort är öppen</translation>
 <translation id="4509741852167209430">Begränsade typer av data delas mellan webbplatser för att mäta annonsernas resultat, till exempel om du har gjort ett köp efter att ha besökt en webbplats</translation>
@@ -870,7 +871,6 @@ Det kan finnas andra former av webbhistorik i Google-kontot på <ph name="BEGIN_
 <translation id="4673702426794876519">Inkognitofönster</translation>
 <translation id="4675298276894277358">Den här webbplatsen visas inte igen</translation>
 <translation id="4678082183394354975">Mörkt tema för webbplatser har aktiverats i Chrome</translation>
-<translation id="4682306524980568490">Endast <ph name="MAX_INSTANCE_COUNT" /> fönster kan visas</translation>
 <translation id="4684427112815847243">Synkronisera allt</translation>
 <translation id="4685741273709472646">Välj i rullgardinsmenyn</translation>
 <translation id="4687718960473379118">Föreslagna annonser på webbplatser</translation>
@@ -1493,7 +1493,6 @@ Vissa webbplatser kan till exempel svara på begäran genom att visa annonser so
 <translation id="7057969023583258980">Öppna hela Chrome-historiken</translation>
 <translation id="7063006564040364415">Det gick inte att ansluta till synkroniseringsservern.</translation>
 <translation id="7063106218165698546">Anpassa flikgruppen och tryck på Klar</translation>
-<translation id="7071521146534760487">Hantera konto</translation>
 <translation id="707155805709242880">Välj vad som ska synkroniseras nedan</translation>
 <translation id="7072949719501323344"><ph name="TAB_TITLE" />, fäst inkognitoflik med bild-i-bild som har valts tillsammans med andra</translation>
 <translation id="7077143737582773186">SD-kort</translation>
@@ -1822,6 +1821,7 @@ Om du vill ändra den här inställningen <ph name="BEGIN_LINK" />raderar du Chr
 <translation id="8282950411412455249">Öppna säkerhetsinställningarna</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{Stäng 1 inkognitofönster}other{Stäng # inkognitofönster}}</translation>
 <translation id="831192587911042850">Lägger till den aktuella webbplatsen i listan med webbplatser du följer.</translation>
+<translation id="8313599942510782709">Uppgiften pågår fortfarande</translation>
 <translation id="8317318757008452355">Öppna alternativ för att skriva ut</translation>
 <translation id="8320212361750431956">Senaste aktiviteter</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />Ny<ph name="END_NEW" /></translation>

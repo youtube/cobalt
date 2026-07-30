@@ -98,19 +98,22 @@ namespace blink {
 static const unsigned kMaxXMLTreeDepth = 5000;
 
 static inline String ToString(base::span<const xmlChar> string) {
-  return String::FromUTF8(string);
+  return String::FromUtf8(string);
 }
 
 static inline String ToString(const xmlChar* string) {
-  return String::FromUTF8(reinterpret_cast<const char*>(string));
+  if (!string) {
+    return String();
+  }
+  return String::FromUtf8(reinterpret_cast<const char*>(string));
 }
 
 static inline AtomicString ToAtomicString(base::span<const xmlChar> string) {
-  return AtomicString::FromUTF8(string);
+  return AtomicString::FromUtf8(string);
 }
 
 static inline AtomicString ToAtomicString(const xmlChar* string) {
-  return AtomicString::FromUTF8(reinterpret_cast<const char*>(string));
+  return AtomicString::FromUtf8(reinterpret_cast<const char*>(string));
 }
 
 static inline bool HasNoStyleInformation(Document* document) {

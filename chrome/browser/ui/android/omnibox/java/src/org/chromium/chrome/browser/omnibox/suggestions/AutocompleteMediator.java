@@ -147,6 +147,8 @@ class AutocompleteMediator
     private final Callback<@Nullable SiteSearchData> mOnSiteSearchDataChanged =
             this::onSiteSearchDataChanged;
     private final Callback<Integer> mOnFuseboxStateChanged = this::onFuseboxStateChanged;
+    private final Callback<String> mOnUserTextChanged =
+            text -> onTextChanged(text, /* isOnFocusContext= */ false);
 
     private @Nullable AutocompleteController mAutocomplete;
     private @Nullable AutocompleteResult mAutocompleteResult;
@@ -275,7 +277,7 @@ class AutocompleteMediator
     /** Initialize the Mediator with default set of suggestion processors. */
     void initDefaultProcessors() {
         mDropdownViewInfoListBuilder.initDefaultProcessors(
-                mContext, this, mUrlBarEditingTextProvider);
+                mContext, this, mUrlBarEditingTextProvider, mOmniboxActionDelegate);
     }
 
     /**
@@ -610,6 +612,7 @@ class AutocompleteMediator
                     .removeObserver(mOnAutocompleteRequestTypeChanged);
             mAutocompleteInput.getSiteSearchDataSupplier().removeObserver(mOnSiteSearchDataChanged);
             mUrlBarEditingTextProvider.setSiteSearchChip(null);
+            mAutocompleteInput.getUserTextSupplier().removeObserver(mOnUserTextChanged);
         }
         mAutocompleteInput = input;
         if (mAutocompleteInput != null) {
@@ -619,6 +622,8 @@ class AutocompleteMediator
             mAutocompleteInput
                     .getSiteSearchDataSupplier()
                     .addSyncObserver(mOnSiteSearchDataChanged);
+            // Don't call onTextChange right away, wait for the user text supplier to be added.
+            mAutocompleteInput.getUserTextSupplier().addSyncObserver(mOnUserTextChanged);
         }
     }
 
@@ -775,6 +780,9 @@ class AutocompleteMediator
         String refineText = stripKeywordIfNecessary(suggestion.getFillIntoEdit());
         if (isSearchSuggestion) refineText = TextUtils.concat(refineText, " ").toString();
 
+        if (mAutocompleteInput != null) {
+            mAutocompleteInput.setUserText(refineText);
+        }
         mDelegate.setOmniboxEditingText(refineText);
         onTextChanged(refineText, /* isOnFocusContext= */ false);
 
@@ -951,7 +959,17 @@ class AutocompleteMediator
     public void setOmniboxEditingText(String text) {
         if (mIgnoreOmniboxItemSelection) return;
         mIgnoreOmniboxItemSelection = true;
-        mDelegate.setOmniboxEditingText(stripKeywordIfNecessary(text));
+
+        if (mAutocompleteInput != null) {
+            // Sync the source of truth (AutocompleteInput) with the focused match.
+            // This includes stripping the keyword if we were previously in keyword mode.
+            mAutocompleteInput.setUserText(stripKeywordIfNecessary(text));
+            // When moving focus between suggestions via keyboard, we should always clear
+            // the site search preview unless we explicitly target a site search chip.
+            mAutocompleteInput.setSiteSearchData(null);
+
+            mDelegate.setOmniboxEditingText(mAutocompleteInput.getUserText());
+        }
     }
 
     /**
@@ -968,8 +986,7 @@ class AutocompleteMediator
         try (TraceEvent e = TraceEvent.scoped("AutocompleteMediator.updateSuggestionUrlIfNeeded")) {
             if (mAutocomplete == null) return url;
             // TODO(crbug.com/40279214): this should exclude TILE variants when horizontal render
-            // group
-            // is ready.
+            // group is ready.
             if (suggestion.getType() == OmniboxSuggestionType.TILE_NAVSUGGEST) {
                 return url;
             }
@@ -1010,8 +1027,6 @@ class AutocompleteMediator
         // is final, which, in turn, may suppress certain functionality from getting invoked if the
         // subsequent push is immediately `final`.
         mListPropertyModel.set(SuggestionListProperties.LIST_IS_FINAL, false);
-
-        mAutocompleteInput.setUserText(textWithoutAutocomplete);
 
         boolean isInZeroPrefixContext = mAutocompleteInput.isInZeroPrefixContext();
         mIgnoreOmniboxItemSelection = true;
@@ -1058,8 +1073,6 @@ class AutocompleteMediator
                     },
                     OMNIBOX_SUGGESTION_START_DELAY_MS);
         }
-
-        mDelegate.onUrlTextChanged();
     }
 
     @Override
@@ -1121,26 +1134,35 @@ class AutocompleteMediator
     private void onKeywordModeEntered(@Nullable SiteSearchData siteSearchData) {
         if (!isInInputSession()) return;
 
-        // mIgnoreOmniboxItemSelection doesn't need to be reset since it will be cleared
-        // in onTextChanged which is triggered by setOmniboxEditingText.
+        if (mIgnoreOmniboxItemSelection) return;
         mIgnoreOmniboxItemSelection = true;
-        mDelegate.setOmniboxEditingText("");
 
-        // In keyword mode, the query string starts fresh/empty. The keyword is presented as a
-        // UI chip outside the URL bar text input field.
-        mAutocompleteInput.setUserText("");
-        mAutocompleteInput.setSiteSearchData(siteSearchData);
+        // Prevent clearing the text from triggering a new autocomplete request.
+        mAutocompleteInput.setSuppressAutomaticSuggestionsUntilUserStartsTyping(true);
 
-        onTextChanged("", /* isOnFocusContext= */ false);
+        if (siteSearchData != null) {
+            // In keyword mode, the query string starts fresh/empty. The keyword is presented as a
+            // UI chip outside the URL bar text input field.
+            // Note: The order here is critical. The internal state and UI text must be cleared
+            // *before* the keyword chip is updated. Applying the chip can trigger a text change
+            // notification, and if the state/UI text are not already perfectly aligned (empty),
+            // the suppression flag above will fail, triggering an unintended suggestion request.
+            mAutocompleteInput.setUserText("");
+            mAutocompleteInput.setSiteSearchData(siteSearchData);
+            mDelegate.setOmniboxEditingText("");
+        } else {
+            // When explicitly clearing keyword mode, we just update the data.
+            // Do not clear the text. The text belongs to the user or the suggestion.
+            mAutocompleteInput.setSiteSearchData(null);
+        }
     }
 
     private void onSiteSearchDataChanged(@Nullable SiteSearchData siteSearchData) {
         mUrlBarEditingTextProvider.setSiteSearchChip(
                 siteSearchData != null ? siteSearchData.fullName : null);
+
         if (isInInputSession()) {
-            onTextChanged(
-                    mUrlBarEditingTextProvider.getTextWithoutAutocomplete(),
-                    /* isOnFocusContext= */ false);
+            onTextChanged(mAutocompleteInput.getUserText(), /* isOnFocusContext= */ false);
         }
     }
 

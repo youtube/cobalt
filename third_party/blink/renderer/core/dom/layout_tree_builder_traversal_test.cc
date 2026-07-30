@@ -98,13 +98,9 @@ TEST_F(LayoutTreeBuilderTraversalTest, displayContentsChildren) {
 
   EXPECT_EQ(inner->GetLayoutObject(),
             LayoutTreeBuilderTraversal::NextSiblingLayoutObject(*first));
-  EXPECT_EQ(first->GetLayoutObject(),
-            LayoutTreeBuilderTraversal::PreviousSiblingLayoutObject(*inner));
 
   EXPECT_EQ(last->GetLayoutObject(),
             LayoutTreeBuilderTraversal::NextSiblingLayoutObject(*inner));
-  EXPECT_EQ(inner->GetLayoutObject(),
-            LayoutTreeBuilderTraversal::PreviousSiblingLayoutObject(*last));
 }
 
 TEST_F(LayoutTreeBuilderTraversalTest, displayContentsChildrenNested) {
@@ -132,38 +128,12 @@ TEST_F(LayoutTreeBuilderTraversalTest, displayContentsChildrenNested) {
 
   EXPECT_EQ(inner->GetLayoutObject(),
             LayoutTreeBuilderTraversal::NextSiblingLayoutObject(*first));
-  EXPECT_EQ(first->GetLayoutObject(),
-            LayoutTreeBuilderTraversal::PreviousSiblingLayoutObject(*inner));
 
   EXPECT_EQ(sibling->GetLayoutObject(),
             LayoutTreeBuilderTraversal::NextSiblingLayoutObject(*inner));
-  EXPECT_EQ(inner->GetLayoutObject(),
-            LayoutTreeBuilderTraversal::PreviousSiblingLayoutObject(*sibling));
 
   EXPECT_EQ(last->GetLayoutObject(),
             LayoutTreeBuilderTraversal::NextSiblingLayoutObject(*sibling));
-  EXPECT_EQ(sibling->GetLayoutObject(),
-            LayoutTreeBuilderTraversal::PreviousSiblingLayoutObject(*last));
-}
-
-TEST_F(LayoutTreeBuilderTraversalTest, limits) {
-  const char* const kHtml =
-      "<div></div>"
-      "<div style='display: contents'></div>"
-      "<div style='display: contents'>"
-      "<div style='display: contents'>"
-      "</div>"
-      "</div>"
-      "<div id='shouldNotBeFound'></div>";
-
-  SetupSampleHTML(kHtml);
-
-  Element* first = GetDocument().QuerySelector(AtomicString("div"));
-
-  EXPECT_TRUE(first->GetLayoutObject());
-  LayoutObject* next_sibling =
-      LayoutTreeBuilderTraversal::NextSiblingLayoutObject(*first, 2);
-  EXPECT_FALSE(next_sibling);  // Should not overrecurse
 }
 
 TEST_F(LayoutTreeBuilderTraversalTest, ColumnScrollMarkers) {

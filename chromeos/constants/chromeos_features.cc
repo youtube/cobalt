@@ -43,6 +43,9 @@ BASE_FEATURE(kBlinkExtensionKiosk, base::FEATURE_DISABLED_BY_DEFAULT);
 // cros-jellybean-team@google.com.
 BASE_FEATURE(kCrosComponents, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables the Blink extension APIs for Isolated Web Apps on ChromeOS.
+BASE_FEATURE(kCrosIsolatedWebAppSetShape, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables denying file access to dlp protected files in MyFiles.
 BASE_FEATURE(kDataControlsFileAccessDefaultDeny,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -82,9 +85,6 @@ BASE_FEATURE(kMahiPanelResizable, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether mahi sends url when making request to the server.
 BASE_FEATURE(kMahiSendingUrl, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Controls enabling / disabling the pompano feature.
-BASE_FEATURE(kPompano, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls enabling / disabling the summary of selected text feature.
 BASE_FEATURE(kMahiSummarizeSelected, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -300,6 +300,10 @@ bool IsCrosComponentsEnabled() {
   return base::FeatureList::IsEnabled(kCrosComponents);
 }
 
+bool IsCrosIsolatedWebAppSetShapeEnabled() {
+  return base::FeatureList::IsEnabled(kCrosIsolatedWebAppSetShape);
+}
+
 bool IsDataControlsFileAccessDefaultDenyEnabled() {
   return base::FeatureList::IsEnabled(kDataControlsFileAccessDefaultDeny);
 }
@@ -360,10 +364,6 @@ bool IsMahiSendingUrl() {
 
 bool IsPlatformKeysChangesWave1Enabled() {
   return base::FeatureList::IsEnabled(kPlatformKeysChangesWave1);
-}
-
-bool IsPompanoEnabled() {
-  return base::FeatureList::IsEnabled(kPompano);
 }
 
 bool IsMahiSummarizeSelectedEnabled() {

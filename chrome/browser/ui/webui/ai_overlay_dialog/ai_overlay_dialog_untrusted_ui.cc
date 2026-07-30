@@ -4,11 +4,17 @@
 
 #include "chrome/browser/ui/webui/ai_overlay_dialog/ai_overlay_dialog_untrusted_ui.h"
 
+#include <memory>
+
 #include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/webui/ai_overlay_dialog/ai_overlay_dialog_page_handler.h"
+#include "chrome/browser/ui/webui/ai_overlay_dialog/page_context_monitor.h"
+#include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
@@ -43,8 +49,35 @@ AiOverlayDialogUntrustedUI::AiOverlayDialogUntrustedUI(content::WebUI* web_ui)
   webui::SetupWebUIDataSource(
       html_source, kAiOverlayDialogUntrustedResources,
       IDR_AI_OVERLAY_DIALOG_UNTRUSTED_AI_OVERLAY_DIALOG_HTML);
+
+  html_source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::MediaSrc,
+      "media-src 'self' chrome-untrusted://resources data: blob:;");
+  html_source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ConnectSrc,
+      "connect-src 'self' wss://generativelanguage.googleapis.com;");
 }
 
 AiOverlayDialogUntrustedUI::~AiOverlayDialogUntrustedUI() = default;
 
+void AiOverlayDialogUntrustedUI::BindInterface(
+    mojo::PendingReceiver<ai_overlay_dialog::mojom::PageHandlerFactory>
+        receiver) {
+  page_handler_factory_receiver_.reset();
+  page_handler_factory_receiver_.Bind(std::move(receiver));
+}
+
 WEB_UI_CONTROLLER_TYPE_IMPL(AiOverlayDialogUntrustedUI)
+
+void AiOverlayDialogUntrustedUI::CreatePageHandler(
+    mojo::PendingReceiver<ai_overlay_dialog::mojom::PageHandler> receiver,
+    mojo::PendingRemote<ai_overlay_dialog::mojom::Page> remote) {
+  page_handler_ = std::make_unique<AiOverlayDialogPageHandler>(
+      std::move(receiver), std::move(remote));
+
+  BrowserWindowInterface* bwi =
+      webui::GetBrowserWindowInterface(web_ui()->GetWebContents());
+  CHECK(bwi);
+  page_context_monitor_ =
+      std::make_unique<PageContextMonitor>(*bwi, *page_handler_);
+}

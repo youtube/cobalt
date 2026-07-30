@@ -20,7 +20,7 @@ DigitalIdentitySafetyInterstitialBridgeAndroid::
     DigitalIdentitySafetyInterstitialBridgeAndroid()
     : weak_ptr_factory_(this) {
   JNIEnv* env = AttachCurrentThread();
-  j_bridge_ = JDigitalIdentitySafetyInterstitialBridgeClass::create(
+  j_bridge_ = DigitalIdentitySafetyInterstitialBridgeJni::create(
       env, reinterpret_cast<intptr_t>(this));
 }
 
@@ -39,9 +39,9 @@ DigitalIdentitySafetyInterstitialBridgeAndroid::ShowInterstitial(
         callback) {
   callback_ = std::move(callback);
   JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<url::JOrigin> j_origin = origin.ToJavaObject(env);
+  ScopedJavaLocalRef<JOrigin> j_origin = origin.ToJavaObject(env);
 
-  base::android::ScopedJavaLocalRef<ui::JWindowAndroid> j_window = nullptr;
+  base::android::ScopedJavaLocalRef<JWindowAndroid> j_window = nullptr;
   if (web_contents.GetTopLevelNativeWindow()) {
     j_window = web_contents.GetTopLevelNativeWindow()->GetJavaObject();
   }

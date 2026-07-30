@@ -37,6 +37,8 @@ REMOTE_ASSISTANCE_PROGNAME = $(BUILD_DIR)/remote_assistance_host
 REMOTE_ASSISTANCE_DEBUGFILE = $(REMOTE_ASSISTANCE_PROGNAME).debug
 REMOTE_OPEN_URL_PROGNAME = $(BUILD_DIR)/remote_open_url
 REMOTE_OPEN_URL_DEBUGFILE = $(REMOTE_OPEN_URL_PROGNAME).debug
+REMOTE_SESSION_INFO_PROGNAME = $(BUILD_DIR)/remote_session_info
+REMOTE_SESSION_INFO_DEBUGFILE = $(REMOTE_SESSION_INFO_PROGNAME).debug
 REMOTE_WEBAUTHN_PROGNAME = $(BUILD_DIR)/remote_webauthn
 REMOTE_WEBAUTHN_DEBUGFILE = $(REMOTE_WEBAUTHN_PROGNAME).debug
 
@@ -137,6 +139,11 @@ endif
 	eu-strip -f "$(REMOTE_OPEN_URL_DEBUGFILE)" \
 	  "$(INSTALL_DIR)/remote-open-url"
 
+	install "$(REMOTE_SESSION_INFO_PROGNAME)" \
+	  "$(INSTALL_DIR)/remote-session-info"
+	eu-strip -f "$(REMOTE_SESSION_INFO_DEBUGFILE)" \
+	  "$(INSTALL_DIR)/remote-session-info"
+
 	install "$(REMOTE_WEBAUTHN_PROGNAME)" "$(INSTALL_DIR)/remote-webauthn"
 	eu-strip -f "$(REMOTE_WEBAUTHN_DEBUGFILE)" "$(INSTALL_DIR)/remote-webauthn"
 
@@ -155,6 +162,10 @@ endif
 	install -m 0644 \
 	  "$(SRC_DIR)/remoting/host/installer/linux/chrome-remote-desktop@.service" \
 	  "$(SYSTEMD_UNIT_DIR)/chrome-remote-desktop@.service"
+
+	install -m 0644 \
+	  "$(SRC_DIR)/remoting/host/installer/linux/chrome-remote-desktop.service" \
+	  "$(SYSTEMD_UNIT_DIR)/chrome-remote-desktop.service"
 
 	install $(BUILD_DIR)/remoting/installer/cron/chrome-remote-desktop \
 	  "$(CRON_DIR)/chrome-remote-desktop"

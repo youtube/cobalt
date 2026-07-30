@@ -78,6 +78,12 @@ export function enumToClient(
   val: mojomGlic.FormFactor | null):
     glicApi.FormFactor | undefined;
 export function enumToClient(
+  val: mojomGlic.FreOverride):
+    glicApi.FreOverride;
+export function enumToClient(
+  val: mojomGlic.FreOverride | null):
+    glicApi.FreOverride | undefined;
+export function enumToClient(
   val: mojomGlic.HostCapability):
     glicApi.HostCapability;
 export function enumToClient(
@@ -89,6 +95,12 @@ export function enumToClient(
 export function enumToClient(
   val: mojomGlic.InvocationSource | null):
     glicApi.InvocationSource | undefined;
+export function enumToClient(
+  val: mojomGlic.LightweightPageFeature):
+    glicApi.LightweightPageFeature;
+export function enumToClient(
+  val: mojomGlic.LightweightPageFeature | null):
+    glicApi.LightweightPageFeature | undefined;
 export function enumToClient(
   val: mojomGlic.MetricUserInputReactionType):
     glicApi.MetricUserInputReactionType;
@@ -274,6 +286,12 @@ export function enumFromClient(
   val: glicApi.FormFactor | undefined):
     mojomGlic.FormFactor | null;
 export function enumFromClient(
+  val: glicApi.FreOverride):
+    mojomGlic.FreOverride;
+export function enumFromClient(
+  val: glicApi.FreOverride | undefined):
+    mojomGlic.FreOverride | null;
+export function enumFromClient(
   val: glicApi.HostCapability):
     mojomGlic.HostCapability;
 export function enumFromClient(
@@ -285,6 +303,12 @@ export function enumFromClient(
 export function enumFromClient(
   val: glicApi.InvocationSource | undefined):
     mojomGlic.InvocationSource | null;
+export function enumFromClient(
+  val: glicApi.LightweightPageFeature):
+    mojomGlic.LightweightPageFeature;
+export function enumFromClient(
+  val: glicApi.LightweightPageFeature | undefined):
+    mojomGlic.LightweightPageFeature | null;
 export function enumFromClient(
   val: glicApi.MetricUserInputReactionType):
     mojomGlic.MetricUserInputReactionType;

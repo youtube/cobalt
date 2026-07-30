@@ -672,6 +672,7 @@ VISIT_PROTO_FIELDS(const sync_pb::FeatureSpecificFields& proto) {
   VISIT_ENUM(send_tab_to_self_receiving_type);
   VISIT(auto_sign_out_last_signin_timestamp_windows_epoch_micros);
   VISIT(desktop_to_ios_promo_receiving_enabled);
+  VISIT_REP(desktop_to_ios_promo_receiving_types);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::SharingSpecificFields& proto) {
@@ -1301,6 +1302,7 @@ VISIT_PROTO_FIELDS(const sync_pb::SavedTabGroup& proto) {
   VISIT_ENUM(color);
   VISIT(pinned_position);
   VISIT(bookmark_node_id);
+  VISIT(projects_position);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::SavedTabGroupTab& proto) {
@@ -1375,6 +1377,8 @@ VISIT_PROTO_FIELDS(const sync_pb::SendTabToSelfSpecifics& proto) {
   VISIT(opened);
   VISIT(notification_dismissed);
   VISIT(page_context);
+  VISIT_REP(navigation);
+  VISIT(current_navigation_index);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::TextFragmentData& proto) {
@@ -2111,6 +2115,8 @@ VISIT_PROTO_FIELDS(const sync_pb::AutofillValuableSpecifics& proto) {
   VISIT(redress_number);
   VISIT(known_traveler_number);
   VISIT(serialized_chrome_valuables_metadata);
+  VISIT(event_ticket);
+  VISIT(transit_pass);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::Any& proto) {
@@ -2193,6 +2199,23 @@ VISIT_PROTO_FIELDS(const sync_pb::KnownTravelerNumber& proto) {
   VISIT(masked_number);
   VISIT(owner_name);
   VISIT(expiration_date);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::EventTicket& proto) {
+  VISIT(ticket_holder_name);
+  VISIT(event_name);
+  VISIT(event_venue_name);
+  VISIT(event_venue_address);
+  VISIT(ticket_number);
+  VISIT(issuer_name);
+  VISIT(event_start_time_windows_epoch_micros);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::TransitPass& proto) {
+  VISIT(agency_name);
+  VISIT(passenger_name);
+  VISIT(transit_pass_number);
+  VISIT(agency_logo_url);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::AutofillValuableMetadataSpecifics& proto) {
@@ -2376,10 +2399,38 @@ VISIT_PROTO_FIELDS(
 }
 
 VISIT_PROTO_FIELDS(
+    const sync_pb::AccessibilityAnnotationSpecifics::GmailSource& proto) {
+  VISIT(thread_id);
+  VISIT(message_id);
+  VISIT(thread_locator);
+  VISIT(received_time_unix_epoch_seconds);
+}
+
+VISIT_PROTO_FIELDS(
+    const sync_pb::AccessibilityAnnotationSpecifics::CalendarSource& proto) {
+  VISIT(event_id);
+  VISIT(modified_time_unix_epoch_seconds);
+}
+
+VISIT_PROTO_FIELDS(
+    const sync_pb::AccessibilityAnnotationSpecifics::PhotosSource& proto) {
+  VISIT(photo_id);
+  VISIT(creation_time_unix_epoch_seconds);
+}
+
+VISIT_PROTO_FIELDS(
     const sync_pb::AccessibilityAnnotationSpecifics::NaiveDate& proto) {
   VISIT(day);
   VISIT(month);
   VISIT(year);
+}
+
+VISIT_PROTO_FIELDS(
+    const sync_pb::AccessibilityAnnotationSpecifics::Source& proto) {
+  VISIT(deeplink);
+  VISIT(gmail_source);
+  VISIT(calendar_source);
+  VISIT(photos_source);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::AccessibilityAnnotationSpecifics& proto) {
@@ -2391,6 +2442,7 @@ VISIT_PROTO_FIELDS(const sync_pb::AccessibilityAnnotationSpecifics& proto) {
   VISIT(national_id);
   VISIT(flight_reservation);
   VISIT(vehicle);
+  VISIT_REP(sources);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::AiThreadSpecifics& proto) {

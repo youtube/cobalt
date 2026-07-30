@@ -475,6 +475,18 @@ class CrasAudioHandlerTest : public testing::TestWithParam<int> {
     // must reset it to a predictable state to prevent the tests from
     // influencing each other.
     ui::MicrophoneMuteSwitchMonitor::Get()->SetMicrophoneMuteSwitchValue(false);
+
+#if defined(LEAK_SANITIZER)
+    base::RunLoop run_loop;
+    // Since `video_capture_observer_` uses `base::OnTaskRunnerDeleter`, need
+    // to wait until the deleter task is finished. Otherwise, Lsan will report
+    // `video_capture_observer` as a direct leak.
+    // The following `QuitClosure` must be posted to the same task runner used
+    // for `cras_audio_handler_->GetVideoCaptureObserver()`.
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, run_loop.QuitClosure());
+    run_loop.Run();
+#endif
   }
 
   AudioNode GenerateAudioNode(const AudioNodeInfo* node_info) {
@@ -509,7 +521,9 @@ class CrasAudioHandlerTest : public testing::TestWithParam<int> {
     cras_audio_handler_ = CrasAudioHandler::Get();
     test_observer_ = std::make_unique<TestObserver>();
     cras_audio_handler_->AddAudioObserver(test_observer_.get());
-    video_capture_manager_->AddObserver(cras_audio_handler_);
+    video_capture_manager_->AddObserver(
+        cras_audio_handler_->GetVideoCaptureObserver(
+            base::SingleThreadTaskRunner::GetCurrentDefault()));
     base::RunLoop().RunUntilIdle();
   }
 
@@ -662,24 +676,35 @@ class CrasAudioHandlerTest : public testing::TestWithParam<int> {
     base::RunLoop().RunUntilIdle();
   }
 
+  void WaitForVideoCaptureTasks() {
+    base::RunLoop run_loop;
+    cras_audio_handler_->main_task_runner_->PostTask(FROM_HERE,
+                                                     run_loop.QuitClosure());
+    run_loop.Run();
+  }
+
   void StartFrontFacingCamera() {
     video_capture_manager_->NotifyVideoCaptureStarted(
         media::MEDIA_VIDEO_FACING_USER);
+    WaitForVideoCaptureTasks();
   }
 
   void StopFrontFacingCamera() {
     video_capture_manager_->NotifyVideoCaptureStopped(
         media::MEDIA_VIDEO_FACING_USER);
+    WaitForVideoCaptureTasks();
   }
 
   void StartRearFacingCamera() {
     video_capture_manager_->NotifyVideoCaptureStarted(
         media::MEDIA_VIDEO_FACING_ENVIRONMENT);
+    WaitForVideoCaptureTasks();
   }
 
   void StopRearFacingCamera() {
     video_capture_manager_->NotifyVideoCaptureStopped(
         media::MEDIA_VIDEO_FACING_ENVIRONMENT);
+    WaitForVideoCaptureTasks();
   }
 
   bool output_mono_enabled() const {

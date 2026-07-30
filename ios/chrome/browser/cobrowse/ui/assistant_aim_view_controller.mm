@@ -5,12 +5,18 @@
 
 #import "ios/chrome/browser/cobrowse/ui/assistant_aim_header_view.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_view_controller.h"
+#import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 
 namespace {
+
+// Pattern tile size.
+const CGSize kBarricadeTapeTileSize = {10.0, 10.0};
+// Height of the barricade tape.
+const CGFloat kBarricadeTapeHeight = 6.0;
 
 constexpr CGFloat kInputPlateMargin = 10.0f;
 constexpr CGFloat kTitleVerticalMargin = 12.0;
@@ -36,6 +42,9 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
 
 - (void)viewDidLoad {
   [super viewDidLoad];
+  if (experimental_flags::GetCobrowseGwsURL()) {
+    [self setUpBarricadeTape];
+  }
   [self setUpHeader];
   [self setUpWebStateView];
 }
@@ -105,11 +114,22 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   // used here. When the keyboard is hidden, `keyboardLayoutGuide.topAnchor`
   // currently pushes the container downwards below its intended position. We
   // manually observe keyboard frames and update constraints as a workaround.
-  [[NSNotificationCenter defaultCenter]
-      addObserver:self
-         selector:@selector(keyboardWillChangeFrame:)
-             name:UIKeyboardWillChangeFrameNotification
-           object:nil];
+  NSNotificationCenter* defaultCenter = [NSNotificationCenter defaultCenter];
+
+  [defaultCenter addObserver:self
+                    selector:@selector(keyboardWillChangeFrame:)
+                        name:UIKeyboardWillChangeFrameNotification
+                      object:nil];
+
+  [defaultCenter addObserver:self
+                    selector:@selector(keyboardWillShow:)
+                        name:UIKeyboardWillShowNotification
+                      object:nil];
+
+  [defaultCenter addObserver:self
+                    selector:@selector(keyboardDidHide:)
+                        name:UIKeyboardDidHideNotification
+                      object:nil];
 }
 
 #pragma mark - AssistantAIMConsumer
@@ -124,6 +144,23 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
 }
 
 #pragma mark - Private
+
+// Called right before the keybord is shown.
+- (void)keyboardWillShow:(NSNotification*)notification {
+  NSDictionary* userInfo = notification.userInfo;
+  NSTimeInterval duration =
+      [userInfo[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
+  UIViewAnimationCurve curve = static_cast<UIViewAnimationCurve>(
+      [userInfo[UIKeyboardAnimationCurveUserInfoKey] integerValue]);
+  [self.delegate assistantAIMViewController:self
+                didShowKeyboardWithDuration:duration
+                                      curve:curve];
+}
+
+// Called when the keyboard is hidden.
+- (void)keyboardDidHide:(NSNotification*)notification {
+  [self.delegate assistantAIMViewControllerDidHideKeyboard:self];
+}
 
 // Adjusts the input plate's bottom margin to account for the keyboard's frame.
 - (void)keyboardWillChangeFrame:(NSNotification*)notification {
@@ -210,6 +247,52 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
 - (void)assistantAIMHeaderViewDidPressClose:
     (AssistantAIMHeaderView*)headerView {
   [self.delegate assistantAIMViewControllerDidTapClose:self];
+}
+
+#pragma mark - Private
+
+// Sets up a visual indicator when there is a Cobrowse GWS URL override.
+- (void)setUpBarricadeTape {
+  UIView* tapeView = [[UIView alloc] init];
+  tapeView.translatesAutoresizingMaskIntoConstraints = NO;
+  tapeView.backgroundColor =
+      [UIColor colorWithPatternImage:[self barricadeTapeImage]];
+  [self.view addSubview:tapeView];
+
+  [NSLayoutConstraint activateConstraints:@[
+    [tapeView.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+    [tapeView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+    [tapeView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+    [tapeView.heightAnchor constraintEqualToConstant:kBarricadeTapeHeight],
+  ]];
+}
+
+// Returns a pattern image for the barricade tape.
+- (UIImage*)barricadeTapeImage {
+  UIGraphicsImageRenderer* renderer =
+      [[UIGraphicsImageRenderer alloc] initWithSize:kBarricadeTapeTileSize];
+  return [renderer imageWithActions:^(UIGraphicsImageRendererContext* context) {
+    [[UIColor colorNamed:kYellow500Color] setFill];
+    CGContextFillRect(context.CGContext,
+                      CGRectMake(0, 0, kBarricadeTapeTileSize.width,
+                                 kBarricadeTapeTileSize.height));
+
+    [[UIColor colorNamed:kSolidBlackColor] setFill];
+    UIBezierPath* diagonalStripePath = [UIBezierPath bezierPath];
+    [diagonalStripePath moveToPoint:CGPointMake(0, 5)];
+    [diagonalStripePath addLineToPoint:CGPointMake(5, 0)];
+    [diagonalStripePath addLineToPoint:CGPointMake(10, 0)];
+    [diagonalStripePath addLineToPoint:CGPointMake(0, 10)];
+    [diagonalStripePath closePath];
+    [diagonalStripePath fill];
+
+    UIBezierPath* cornerStripePath = [UIBezierPath bezierPath];
+    [cornerStripePath moveToPoint:CGPointMake(5, 10)];
+    [cornerStripePath addLineToPoint:CGPointMake(10, 5)];
+    [cornerStripePath addLineToPoint:CGPointMake(10, 10)];
+    [cornerStripePath closePath];
+    [cornerStripePath fill];
+  }];
 }
 
 @end

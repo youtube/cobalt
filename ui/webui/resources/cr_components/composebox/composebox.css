@@ -239,6 +239,11 @@ search-animated-glow {
 }
 
 #inputWrapper {
+  mask-image: linear-gradient(transparent 7px, black var(--text-input-top-spacing));
+  max-height: var(--text-input-max-height);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
   position: relative;
   width: 100%;
 }
@@ -257,7 +262,6 @@ search-animated-glow {
 
 #mirror {
   color: transparent;
-  height: 100%;
   left: 0;
   overflow: hidden;
   pointer-events: none;
@@ -274,11 +278,6 @@ search-animated-glow {
   padding-inline-start: 0;
 }
 
-#input,
-#smartCompose {
-  max-height: var(--text-input-max-height);
-  scrollbar-width: none;
-}
 
 :host(:not[searchbox-next-enabled]) #input {
   transition: padding var(--height-expand-duration) var(--standard-curve);
@@ -289,8 +288,7 @@ search-animated-glow {
   border: none;
   color: var(--color-composebox-font-light);
   field-sizing: content;
-  mask-image: linear-gradient(transparent 7px, black var(--text-input-top-spacing));
-  height: calc-size(fit-content, min(size + 4px, var(--text-input-max-height)));
+  padding-bottom: 4px;
   outline: none;
   position: relative;
   resize: none;
@@ -363,7 +361,7 @@ search-animated-glow {
 #smartCompose {
   pointer-events: none;
   position: absolute;
-  overflow: scroll;
+  overflow: hidden;
   top: 0;
   left: 0;
 }
@@ -636,7 +634,7 @@ search-animated-glow {
 #toolChipsContainer {
   padding-bottom: 4px;
   padding-inline-start: 16px;
-  padding-top: 8px;
+  padding-top: 14px;
 }
 
 :host(:not([file-uploads-complete])) .upload-button {
@@ -689,10 +687,6 @@ search-animated-glow {
   padding-top: 4px;
 }
 
-:host-context([searchbox-layout-mode='TallTopContext']) .carousel-divider {
-  margin-top: 10px;
-}
-
 :host([searchbox-layout-mode='Compact'][show-dropdown_]) .carousel-divider {
   --contextual-entrypoint-and-carousel-carousel-divider-margin-bottom: 8px;
   --contextual-entrypoint-and-carousel-carousel-divider-margin-top: 12px;
@@ -726,27 +720,6 @@ search-animated-glow {
 
 :host([submit-enabled_]:not([searchbox-next-enabled])) #voiceSearchButton {
   inset-inline-end: calc(var(--cr-icon-button-size) + 18px);
-}
-
-:host([searchbox-layout-mode='TallTopContext']) #voiceSearchButton {
-  margin-inline-end: 12px;
-  margin-inline-start: auto;
-  position: static;
-}
-
-:host([submit-enabled_][searchbox-layout-mode='TallTopContext']) #voiceSearchButton {
-  margin-inline-end: 0;
-}
-
-:host([submit-enabled_][searchbox-layout-mode='TallTopContext']) #submitContainer {
-  margin-inline-end: 10px;
-  margin-inline-start: var(--cr-composebox-submit-button-margin-inline-start, 4px);
-  position: static;
-}
-
-:host([submit-enabled_][searchbox-layout-mode='TallTopContext']) #submitIcon {
-  margin-inline-end: 12px;
-  position: relative;
 }
 
 :host([searchbox-layout-mode='Compact']) #voiceSearchButton {
@@ -809,12 +782,8 @@ search-animated-glow {
 }
 
 :host([searchbox-next-enabled]) #carousel {
-  --context-non-top-carousel-bottom-margin: 10px;
-  --context-non-top-carousel-top-margin: 6px;
-}
-
-:host([searchbox-next-enabled]:not([in-tool-mode_])) #carousel {
   --context-non-top-carousel-bottom-margin: 4px;
+  --context-non-top-carousel-top-margin: 6px;
 }
 
 :host([is-omnibox-in-compact-mode_]) #carousel {

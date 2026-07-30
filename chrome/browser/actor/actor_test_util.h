@@ -219,6 +219,10 @@ std::unique_ptr<ToolRequest> MakeAttemptLoginRequest(
     tabs::TabInterface& tab,
     std::optional<PageTarget> password_button = std::nullopt,
     std::optional<PageTarget> sign_in_with_google_button = std::nullopt);
+std::unique_ptr<ToolRequest> MakeAttemptLoginRequestByNodeIds(
+    tabs::TabInterface& tab,
+    std::optional<int> password_button_id,
+    std::optional<int> sign_in_with_google_button_id);
 std::unique_ptr<ToolRequest> MakeScriptToolRequest(
     content::RenderFrameHost& rfh,
     const std::string& name,
@@ -310,7 +314,7 @@ class ActorTaskStateWaiter {
   ~ActorTaskStateWaiter();
 
  private:
-  void StateChanged(TaskId task_id, ActorTask::State state);
+  void StateChanged(ActorTask& task);
 
   base::OnceClosure callback_;
   TaskId task_id_;

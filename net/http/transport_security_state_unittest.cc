@@ -995,27 +995,36 @@ TEST_F(TransportSecurityStateTest, RequireCTConsultsDelegate) {
                   ct::CTPolicyCompliance::CT_POLICY_NOT_ENOUGH_SCTS));
   }
 
-  // If CT is not required, then regardless of the CT state for the host,
-  // it should indicate CT is not required.
+  // If the delegate overrides the CT requirement and returns that CT is not
+  // required for the specified cert, then any CT failure should instead be
+  // allowed and indicate CT is not required. If CT was successful, then it
+  // should indicate that CT requirements were met, regardless of the delegate.
   {
     TransportSecurityState state;
     const ct::CTRequirementsStatus original_status = state.CheckCTRequirements(
         "www.example.com", true, hashes, cert.get(),
         ct::CTPolicyCompliance::CT_POLICY_NOT_ENOUGH_SCTS);
+    // If no delegate is set, this should be indicated as CT not required, and
+    // not considered as CT being overridden by the delegate.
+    EXPECT_EQ(ct::CTRequirementsStatus::CT_NOT_REQUIRED, original_status);
 
     scoped_refptr<MockRequireCTDelegate> never_require_delegate =
         base::MakeRefCounted<MockRequireCTDelegate>();
     EXPECT_CALL(*never_require_delegate, IsCTRequiredForHost(_, _, _))
         .WillRepeatedly(Return(CTRequirementLevel::NOT_REQUIRED));
     state.SetRequireCTDelegate(never_require_delegate);
-    EXPECT_EQ(ct::CTRequirementsStatus::CT_NOT_REQUIRED,
+    EXPECT_EQ(ct::CTRequirementsStatus::CT_REQUIREMENT_OVERRIDDEN,
               state.CheckCTRequirements(
                   "www.example.com", true, hashes, cert.get(),
                   ct::CTPolicyCompliance::CT_POLICY_NOT_ENOUGH_SCTS));
-    EXPECT_EQ(ct::CTRequirementsStatus::CT_NOT_REQUIRED,
+    EXPECT_EQ(ct::CTRequirementsStatus::CT_REQUIREMENT_OVERRIDDEN,
               state.CheckCTRequirements(
                   "www.example.com", true, hashes, cert.get(),
                   ct::CTPolicyCompliance::CT_POLICY_NOT_DIVERSE_SCTS));
+    EXPECT_EQ(ct::CTRequirementsStatus::CT_REQUIREMENTS_MET,
+              state.CheckCTRequirements(
+                  "www.example.com", true, hashes, cert.get(),
+                  ct::CTPolicyCompliance::CT_POLICY_COMPLIES_VIA_SCTS));
 
     state.SetRequireCTDelegate(nullptr);
     EXPECT_EQ(original_status,

@@ -257,8 +257,7 @@ bool QuicHttpStream::IsResponseBodyComplete() const {
 }
 
 bool QuicHttpStream::IsConnectionReused() const {
-  // TODO(rch): do something smarter here.
-  return stream_ && stream_->id() > 1;
+  return stream_ && !stream_->IsFirstStream();
 }
 
 base::ByteSize QuicHttpStream::GetTotalReceivedBytes() const {
@@ -746,6 +745,14 @@ void QuicHttpStream::SetRequestIdempotency(Idempotency idempotency) {
     return;
   }
   stream_->SetRequestIdempotency(idempotency);
+}
+
+void QuicHttpStream::PopulateLoadTimingInternalInfo(
+    LoadTimingInternalInfo* load_timing_internal_info) const {
+  if (stream_ && !stream_->max_stream_limit_pending_delay().is_zero()) {
+    load_timing_internal_info->max_stream_limit_pending_delay =
+        stream_->max_stream_limit_pending_delay();
+  }
 }
 
 }  // namespace net

@@ -13,7 +13,9 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/threading/sequence_bound.h"
+#include "base/values.h"
 #include "components/accessibility_annotator/core/storage/accessibility_annotation_sync_bridge.h"
+#include "components/history/core/browser/history_service_observer.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/sync/model/data_type_store.h"
 #include "url/gurl.h"
@@ -26,16 +28,29 @@ namespace version_info {
 enum class Channel;
 }  // namespace version_info
 
+namespace history {
+class DeletionInfo;
+class HistoryService;
+struct VisitedURLInfo;
+}  // namespace history
+
 namespace accessibility_annotator {
 
 class AccessibilityAnnotatorDatabase;
 
 class AccessibilityAnnotatorBackend
     : public KeyedService,
-      public AccessibilityAnnotationSyncBridge::Observer {
+      public AccessibilityAnnotationSyncBridge::Observer,
+      public history::HistoryServiceObserver {
  public:
+  struct ContentAnnotationsData {
+    std::string page_title;
+    std::string annotations;
+  };
+
   AccessibilityAnnotatorBackend(
       version_info::Channel channel,
+      history::HistoryService* history_service,
       syncer::RepeatingDataTypeStoreFactory data_type_store_factory,
       const base::FilePath& db_path);
 
@@ -44,6 +59,9 @@ class AccessibilityAnnotatorBackend
   AccessibilityAnnotatorBackend(const AccessibilityAnnotatorBackend&) = delete;
   AccessibilityAnnotatorBackend& operator=(
       const AccessibilityAnnotatorBackend&) = delete;
+
+  // KeyedService implementation.
+  void Shutdown() override;
 
   // Initializes the database at the given path. Must be called before any other
   // methods.
@@ -58,15 +76,25 @@ class AccessibilityAnnotatorBackend
   void OnAccessibilityAnnotationChanged() override;
   void OnAccessibilityAnnotationSyncBridgeLoaded() override;
 
+  // history::HistoryServiceObserver implementation.
+  void OnURLVisited(history::HistoryService* history_service,
+                    const history::VisitedURLInfo& visited_url_info) override;
+  void OnHistoryDeletions(history::HistoryService* history_service,
+                          const history::DeletionInfo& deletion_info) override;
+  void OnHistoryServiceLoaded(
+      history::HistoryService* history_service) override;
+
   // Reads from Content Annotations cache.
-  std::optional<std::string> GetContentAnnotationsCacheData(
+  std::optional<ContentAnnotationsData> GetContentAnnotationsCacheData(
       const GURL& url) const;
 
   // Writes to Content Annotations cache.
-  void SetContentAnnotationsCacheData(const GURL& url, std::string annotations);
+  void SetContentAnnotationsCacheData(const GURL& url,
+                                      std::string page_title,
+                                      std::string annotations);
 
-  // Pulls cache data into a formatted string to use in the debug UI.
-  std::string GetDebugUIFormattedCacheData() const;
+  // Pulls cache data into a base::Value for use in the debug UI.
+  base::Value GetDebugUICacheData() const;
 
   // Returns `accessibility_annotation_sync_bridge_`.
   // TODO(crbug.com/489492084): This is currently used by
@@ -83,11 +111,14 @@ class AccessibilityAnnotatorBackend
   // Stores annotations keyed by the URL they are associated with. The cache
   // size is `kContentAnnotatorMaxCacheAnnotations`. When the cache is full, the
   // least recently used entry is evicted.
-  base::LRUCache<GURL, std::string> content_annotations_cache_;
+  base::LRUCache<GURL, ContentAnnotationsData> content_annotations_cache_;
 
   base::ScopedObservation<AccessibilityAnnotationSyncBridge,
                           AccessibilityAnnotationSyncBridge::Observer>
       sync_bridge_observation_{this};
+  base::ScopedObservation<history::HistoryService,
+                          history::HistoryServiceObserver>
+      history_service_observation_{this};
 };
 
 }  // namespace accessibility_annotator

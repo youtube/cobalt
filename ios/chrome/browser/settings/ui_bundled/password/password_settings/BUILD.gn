@@ -13,7 +13,6 @@ source_set("password_settings") {
     "password_settings_metrics_utils.h",
   ]
   deps = [
-    ":common",
     ":password_settings_constants",
     ":password_settings_ui",
     "//base",
@@ -38,10 +37,10 @@ source_set("password_settings") {
     "//ios/chrome/browser/credential_exchange/coordinator:export_coordinator",
     "//ios/chrome/browser/credential_provider/model:features",
     "//ios/chrome/browser/device_reauth/model",
-    "//ios/chrome/browser/passwords/coordinator",
     "//ios/chrome/browser/passwords/model",
     "//ios/chrome/browser/passwords/model:store_factory",
     "//ios/chrome/browser/passwords/model/metrics",
+    "//ios/chrome/browser/passwords/password_exporter/coordinator",
     "//ios/chrome/browser/settings/ui_bundled:settings_root",
     "//ios/chrome/browser/settings/ui_bundled/elements:enterprise_info_popover_view_controller",
     "//ios/chrome/browser/settings/ui_bundled/password:common",
@@ -112,17 +111,6 @@ source_set("password_settings_constants") {
   deps = [ "//ios/chrome/browser/shared/ui/list_model" ]
 }
 
-source_set("common") {
-  sources = [
-    "scoped_password_settings_reauth_module_override.h",
-    "scoped_password_settings_reauth_module_override.mm",
-  ]
-  deps = [
-    "//base",
-    "//ios/chrome/common/ui/reauthentication",
-  ]
-}
-
 source_set("unit_tests") {
   testonly = true
   sources = [
@@ -131,7 +119,6 @@ source_set("unit_tests") {
     "password_settings_view_controller_unittest.mm",
   ]
   deps = [
-    ":common",
     ":password_settings",
     ":password_settings_constants",
     ":password_settings_ui",

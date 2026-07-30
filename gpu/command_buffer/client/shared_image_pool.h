@@ -38,15 +38,18 @@ struct GPU_COMMAND_BUFFER_CLIENT_EXPORT ImageInfo {
   GrSurfaceOrigin surface_origin = kTopLeft_GrSurfaceOrigin;
   SkAlphaType alpha_type = kPremul_SkAlphaType;
   std::optional<gfx::BufferUsage> buffer_usage = std::nullopt;
+  bool is_software = false;
 
   ImageInfo(gfx::Size size,
             viz::SharedImageFormat format,
             SharedImageUsageSet usage,
-            std::optional<gfx::BufferUsage> buffer_usage = std::nullopt)
+            std::optional<gfx::BufferUsage> buffer_usage = std::nullopt,
+            bool is_software = false)
       : size(size),
         format(format),
         usage(usage),
-        buffer_usage(std::move(buffer_usage)) {}
+        buffer_usage(std::move(buffer_usage)),
+        is_software(is_software) {}
 
   ImageInfo(gfx::Size size,
             viz::SharedImageFormat format,
@@ -54,20 +57,24 @@ struct GPU_COMMAND_BUFFER_CLIENT_EXPORT ImageInfo {
             gfx::ColorSpace color_space,
             GrSurfaceOrigin surface_origin,
             SkAlphaType alpha_type,
-            std::optional<gfx::BufferUsage> buffer_usage = std::nullopt)
+            std::optional<gfx::BufferUsage> buffer_usage = std::nullopt,
+            bool is_software = false)
       : size(size),
         format(format),
         usage(usage),
         color_space(color_space),
         surface_origin(surface_origin),
         alpha_type(alpha_type),
-        buffer_usage(std::move(buffer_usage)) {}
+        buffer_usage(std::move(buffer_usage)),
+        is_software(is_software) {}
 
   bool operator==(const ImageInfo& other) const {
     return size == other.size && format == other.format &&
            usage == other.usage && color_space == other.color_space &&
            surface_origin == other.surface_origin &&
-           alpha_type == other.alpha_type && buffer_usage == other.buffer_usage;
+           alpha_type == other.alpha_type &&
+           buffer_usage == other.buffer_usage &&
+           is_software == other.is_software;
   }
 };
 
@@ -96,6 +103,10 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT ClientImage
 
   // Only used for testing purposes.
   const SharedImagePoolId& GetPoolIdForTesting() const;
+
+  // Dumps memoy allocation. Caller specified `parent_path` cannot be empty.
+  virtual void OnMemoryDump(base::trace_event::ProcessMemoryDump* pmd,
+                            const std::string& parent_path) const;
 
  protected:
   friend class base::RefCountedThreadSafe<ClientImage>;
@@ -162,8 +173,8 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT SharedImagePoolBase {
   // Interface to the GPU process for creating shared images.
   const scoped_refptr<SharedImageInterface> sii_;
 
-  // Optional maximum size of the pool. It defaults to 0 which means there is no
-  // limit on the size of the pool.
+  // Optional maximum size of the pool. If unset, there is no limit on the size
+  // of the pool.
   const std::optional<uint8_t> max_pool_size_;
 
   const std::optional<base::TimeDelta> unused_resource_expiration_time_;
@@ -263,6 +274,13 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT SharedImagePool
       result += image->GetSharedImage()->EstimatedSizeInBytes();
     }
     return result;
+  }
+
+  void OnMemoryDump(base::trace_event::ProcessMemoryDump* pmd,
+                    const std::string& parent_path) const {
+    for (const auto& image : image_pool_) {
+      image->OnMemoryDump(pmd, parent_path);
+    }
   }
 
   // Returns a weak pointer to this pool, allowing for safe reference without

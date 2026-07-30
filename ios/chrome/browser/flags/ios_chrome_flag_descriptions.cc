@@ -71,6 +71,10 @@ const char kAssistantContainerName[] = "Assistant Container";
 const char kAssistantContainerDescription[] =
     "Enables the Assistant Container feature.";
 
+const char kAssistantSidePanelName[] = "AssistantSidePanel";
+const char kAssistantSidePanelDescription[] =
+    "Enables the AssistantSidePanel feature.";
+
 const char kAutofillAcrossIframesName[] = "Enables Autofill across iframes";
 const char kAutofillAcrossIframesDescription[] =
     "When enabled, Autofill will fill and save information on forms that "
@@ -177,6 +181,12 @@ const char kAutofillEnableWalletBrandingName[] =
 const char kAutofillEnableWalletBrandingDescription[] =
     "When enabled, certain strings and logos referencing Google Account, "
     "Google Payments, and Google Pay will instead reference Google Wallet.";
+
+const char kAutofillEnableWalletBrandingV2Name[] =
+    "Further update Google Pay and Google Wallet branding where applicable";
+const char kAutofillEnableWalletBrandingV2Description[] =
+    "When enabled, further brings certain strings and images referencing "
+    "Google Pay and Google Wallet into consistency with branding requirements.";
 
 const char kAutofillManualTestingDataName[] = "Autofill manual testing data";
 const char kAutofillManualTestingDataDescription[] =
@@ -297,6 +307,11 @@ const char kComposeboxCompactModeName[] = "ComposeboxCompactMode";
 const char kComposeboxCompactModeDescription[] =
     "Enables the compact composebox, adding attachment or enabling AIM will "
     "expand it to the regular size.";
+
+const char kComposeboxConditionalPlusButtonName[] =
+    "Composebox Conditional Plus Button";
+const char kComposeboxConditionalPlusButtonDescription[] =
+    "When enabled, hides the plus button when typing a URL in compact mode.";
 
 const char kComposeboxDeepSearchName[] = "Enable Composebox Deep Search";
 extern const char kComposeboxDeepSearchDescription[] =
@@ -1017,11 +1032,6 @@ const char kLensUnaryHttpTransportEnabledName[] =
 const char kLensUnaryHttpTransportEnabledDescription[] =
     "Enables the HTTP transport for unary requests.";
 
-const char kLensWebPageLoadOptimizationEnabledName[] =
-    "Lens web page load optimization";
-const char kLensWebPageLoadOptimizationEnabledDescription[] =
-    "Enables optmized loading for the Lens web page.";
-
 const char kLocationBarBadgeMigrationName[] = "LocationBarBadgeMigration";
 const char kLocationBarBadgeMigrationDescription[] =
     "Enables the LocationBarBadgeMigration feature.";
@@ -1094,10 +1104,6 @@ const char kNTPBackgroundCustomizationName[] =
     "Enable background customization menu on the NTP";
 const char kNTPBackgroundCustomizationDescription[] =
     "When enabled, the background customization menu is available on the NTP.";
-
-const char kNTPMIAEntrypointName[] = "Entrypoint for MIA in the new tab page";
-const char kNTPMIAEntrypointDescription[] =
-    "Selects which variant of the MIA entrypoint is used in the new tab page";
 
 const char kNativeFindInPageName[] = "Native Find in Page";
 const char kNativeFindInPageDescription[] =
@@ -1263,11 +1269,21 @@ const char kOmniboxZeroSuggestPrefetchingOnWebDescription[] =
     "Enables prefetching of the zero prefix suggestions for eligible users "
     "on the Web (i.e. non-NTP and non-SRP URLs).";
 
+const char kOpenEditGroupViewByTappingTitleName[] =
+    "OpenEditGroupViewByTappingTitle";
+const char kOpenEditGroupViewByTappingTitleDescription[] =
+    "Enables the OpenEditGroupViewByTappingTitle feature.";
+
 const char kOptimizationGuideDebugLogsName[] =
     "Enable optimization guide debug logs";
 const char kOptimizationGuideDebugLogsDescription[] =
     "Enables the optimization guide to log and save debug messages that can be "
     "shown in the internals page.";
+
+const char kPageActionMenuAuthFlowName[] = "Page Action Menu Auth Flow";
+const char kPageActionMenuAuthFlowDescription[] =
+    "When enabled, the Page Action Menu entry point becomes stable and "
+    "supports the Ask Gemini auth flow.";
 
 const char kPageActionMenuIconName[] = "PageActionMenuIcon";
 const char kPageActionMenuIconDescription[] =
@@ -1286,6 +1302,15 @@ const char kPageContentAnnotationsRemotePageMetadataName[] =
     "Page content annotations - Remote page metadata";
 const char kPageContentAnnotationsRemotePageMetadataDescription[] =
     "Enables fetching of page load metadata to be persisted on-device.";
+
+const char kPageContextIPCOptimizationName[] = "PageContextIPCOptimization";
+const char kPageContextIPCOptimizationDescription[] =
+    "Enables the PageContextIPCOptimization feature.";
+
+const char kPageToolsFeatureUnavailabilityName[] =
+    "PageToolsFeatureUnavailability";
+const char kPageToolsFeatureUnavailabilityDescription[] =
+    "Enables the PageToolsFeatureUnavailability feature.";
 
 const char kPasswordRemovalFromDeleteBrowsingDataName[] =
     "Removal of Passwords from Quick Delete Browsing Data";
@@ -1308,6 +1333,11 @@ const char kPersistTabContextName[] = "Persist Tab APC and Inner Text";
 const char kPersistTabContextDescription[] =
     "Enables persisting tab APC and inner text in storage for fast access to "
     "multi-tab context.";
+
+const char kPersistTabContextRichExtractionName[] =
+    "PersistTabContextRichExtraction";
+const char kPersistTabContextRichExtractionDescription[] =
+    "Enables the PersistTabContextRichExtraction feature.";
 
 const char kPersistentDefaultBrowserPromoName[] =
     "Persist default browser promo through app backgrounding";
@@ -1657,6 +1687,11 @@ const char kWalletServiceUseSandboxDescription[] =
 const char kWelcomeBackName[] = "Enable Welcome Back screen";
 const char kWelcomeBackDescription[] =
     "When enabled, returning users will see the Welcome Back screen.";
+
+const char kYourSavedInfoSettingsPageIosName[] =
+    "Enable Autofill and passwords settings redesign on iOS";
+const char kYourSavedInfoSettingsPageIosDescription[] =
+    "Enables the Autofill and passwords settings page redesign on iOS.";
 
 const char kZeroStateSuggestionsName[] = "Enable Zero-State Suggestions";
 const char kZeroStateSuggestionsDescription[] =

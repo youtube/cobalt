@@ -18,13 +18,13 @@ import org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetManager.Native
 @NullMarked
 public class TabBottomSheetNativeInterface implements NativeInterfaceDelegate {
 
-    private final long mNativePtr;
+    private final long mNativeTabBottomSheetBridge;
     private final Tab mTab;
 
     /** Constructor. */
     @CalledByNative
-    private TabBottomSheetNativeInterface(long nativePtr, Tab tab) {
-        mNativePtr = nativePtr;
+    private TabBottomSheetNativeInterface(long nativeTabBottomSheetBridge, Tab tab) {
+        mNativeTabBottomSheetBridge = nativeTabBottomSheetBridge;
         mTab = tab;
     }
 
@@ -38,10 +38,11 @@ public class TabBottomSheetNativeInterface implements NativeInterfaceDelegate {
 
     // Native calls for glic.
     @CalledByNative
-    public boolean show(CoBrowseViews coBrowseViews, boolean startsExpanded) {
+    public boolean show(CoBrowseViews coBrowseViews, boolean animate, boolean startsExpanded) {
         TabBottomSheetManager tabBottomSheetManager = getTabBottomSheetManager(mTab);
         if (tabBottomSheetManager != null && coBrowseViews != null) {
-            return tabBottomSheetManager.tryToShowBottomSheet(this, coBrowseViews, startsExpanded);
+            return tabBottomSheetManager.tryToShowBottomSheet(
+                    this, coBrowseViews, animate, startsExpanded);
         }
         return false;
     }
@@ -61,11 +62,11 @@ public class TabBottomSheetNativeInterface implements NativeInterfaceDelegate {
     // Delegate methods.
     @Override
     public void onBottomSheetClosed() {
-        TabBottomSheetNativeInterfaceJni.get().onClose(mNativePtr);
+        TabBottomSheetNativeInterfaceJni.get().onClose(mNativeTabBottomSheetBridge);
     }
 
     @NativeMethods
     interface Natives {
-        void onClose(long nativeGlicSidePanelCoordinatorAndroid);
+        void onClose(long nativeTabBottomSheetBridge);
     }
 }

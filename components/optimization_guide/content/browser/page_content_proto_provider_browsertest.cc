@@ -633,6 +633,30 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
       collapsed.content_attributes().interaction_info().clickability_reasons(),
       testing::UnorderedElementsAre(
           optimization_guide::proto::CLICKABILITY_REASON_ARIA_EXPANDED_FALSE));
+
+  const auto& toggled = ActionableContentRootNode().children_nodes()[3];
+  ASSERT_TRUE(toggled.content_attributes().has_interaction_info());
+  EXPECT_THAT(
+      toggled.content_attributes().interaction_info().clickability_reasons(),
+      testing::Contains(
+          optimization_guide::proto::CLICKABILITY_REASON_ARIA_TOGGLE));
+
+  const auto& selectable = ActionableContentRootNode().children_nodes()[4];
+  ASSERT_TRUE(selectable.content_attributes().has_interaction_info());
+  EXPECT_THAT(
+      selectable.content_attributes().interaction_info().clickability_reasons(),
+      testing::Contains(
+          optimization_guide::proto::CLICKABILITY_REASON_ARIA_SELECTABLE));
+
+  // aria-checked should also be treated as a toggle signal so we cover both
+  // toggle-related ARIA attributes.
+  const auto& aria_checked = ActionableContentRootNode().children_nodes()[5];
+  ASSERT_TRUE(aria_checked.content_attributes().has_interaction_info());
+  EXPECT_THAT(aria_checked.content_attributes()
+                  .interaction_info()
+                  .clickability_reasons(),
+              testing::Contains(
+                  optimization_guide::proto::CLICKABILITY_REASON_ARIA_TOGGLE));
 }
 
 IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
@@ -1708,8 +1732,7 @@ class PageContentProtoProviderBrowserTestMediaData
     metadata.artist = u"test artist";
     metadata.album = u"test album";
     metadata.source_title = base::ASCIIToUTF16(base::StringPrintf(
-        "%s:%u", https_server()->GetIPLiteralString().c_str(),
-        https_server()->port()));
+        "%s:%u", https_server()->GetIPLiteralString(), https_server()->port()));
     return metadata;
   }
 
