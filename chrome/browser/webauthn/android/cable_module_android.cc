@@ -35,7 +35,7 @@
 #include "device/fido/cable/v2_handshake.h"
 #include "device/fido/cable/v2_registration.h"
 #include "device/fido/cbor_extract.h"
-#include "device/fido/features.h"
+#include "device/fido/public/features.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/ec.h"
@@ -417,7 +417,7 @@ using webauthn::authenticator::SystemInterface;
 static void JNI_CableAuthenticatorModuleProvider_OnHaveLinkingInformation(
     JNIEnv* env,
     jlong system_interface_pointer,
-    const base::android::JavaParamRef<jbyteArray>& cbor_java) {
+    const base::android::JavaRef<jbyteArray>& cbor_java) {
   std::optional<std::vector<uint8_t>> optional_cbor;
 
   if (cbor_java) {

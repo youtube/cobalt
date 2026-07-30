@@ -195,11 +195,21 @@ size_t GetTotalBrowserCount();
 // the majority of other functions do not.
 size_t GetBrowserCount(Profile* profile);
 
+// Returns the number of incognito browsers excluding devtools windows.
+size_t GetIncognitoBrowserCount();
+
 // Returns the number of tabbed browsers with the Profile `profile`.
 //
 // WARNING: this function includes browsers scheduled for deletion whereas
 // the majority of other functions do not.
 size_t GetTabbedBrowserCount(Profile* profile);
+
+// Returns the number of off-the-record browser windows associated with
+// `profile`, excluding DevTools windows.
+size_t GetOffTheRecordBrowsersActiveForProfile(Profile* profile);
+
+// Returns the number of Guest browsers excluding DevTools windows.
+size_t GetGuestBrowserCount();
 
 }  // namespace chrome
 

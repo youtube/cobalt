@@ -87,6 +87,7 @@
 <translation id="1336996151357442890">Отписахте се от <ph name="SITE_NAME" />. Ще получите повторно запитване при следващото си посещение.</translation>
 <translation id="1340839264183302272">Напускане на групата</translation>
 <translation id="1342886103232377846">За да проверите за компрометирани пароли, отворете Google Мениджър на пароли</translation>
+<translation id="1343830902827845050">Вход в Chrome</translation>
 <translation id="1344653310988386453">Включване на връзка към откроения текст</translation>
 <translation id="1347468774581902829">Управление на активността</translation>
 <translation id="1355088659320425659">История и раздели</translation>
@@ -496,6 +497,7 @@
 <translation id="3114507951000454849">Прочетете днешните новини <ph name="NEWS_ICON" /></translation>
 <translation id="3122883569442693641">Още подробности</translation>
 <translation id="3123734510202723619">Съобщения</translation>
+<translation id="3134385238404760368">Няма скорошни раздели</translation>
 <translation id="314939179385989105">Началната страница на Chrome</translation>
 <translation id="3158667104057012316">Сортиране по ръчен ред</translation>
 <translation id="3159335509547415276">Научете за блокираните профили</translation>
@@ -524,7 +526,6 @@
 <translation id="3268048651973962414">Плъзнете нагоре, за да видите резултатите от търсенето</translation>
 <translation id="3269093882174072735">Зареждане на изображението</translation>
 <translation id="3280562213547448728">Гласово търсене</translation>
-<translation id="3282568296779691940">Вход в Chrome</translation>
 <translation id="3285065882678541460">{TAB_COUNT,plural, =1{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_ONE" /> раздел}other{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_MANY" /> раздела}}</translation>
 <translation id="3286508210927575634">{PASSWORDS_COUNT,plural, =1{1 парола е запазена само на това устройство. За да я използвате на другите си устройства, запазете я в профила си в Google.}other{# пароли са запазени само на това устройство. За да ги използвате на другите си устройства, запазете ги в профила си в Google.}}</translation>
 <translation id="3293181007446299124">Историята ви на сърфиране остава частна на устройството ви, а отчетите се изпращат със закъснение, за да защитим самоличността ви.</translation>
@@ -718,6 +719,7 @@
 <translation id="414128724510021958">По подразбиране се заявяват настолни сайтове</translation>
 <translation id="4162867837470729563">Списъкът с опции за споделяне е отворен върху целия екран.</translation>
 <translation id="4170011742729630528">Няма достъп до услугата. Опитайте отново по-късно.</translation>
+<translation id="4170577491341606575">Нещата ви се извличат…</translation>
 <translation id="4177222230309051052">Получете всичките си отметки</translation>
 <translation id="4177501066905053472">Рекламни теми</translation>
 <translation id="417865198503699526">Потърсете настройка</translation>
@@ -817,6 +819,7 @@
 <translation id="4577115723294378384">Сортиране от А до Я</translation>
 <translation id="4578289292431526768">Начало</translation>
 <translation id="4583164079174244168">{MINUTES,plural, =1{преди # минута}other{преди # минути}}</translation>
+<translation id="4585751637295612750">Отворете нов раздел, за да го добавите към въпроса си</translation>
 <translation id="4587589328781138893">Сайтове</translation>
 <translation id="4594952190837476234">Тази офлайн страница е от <ph name="CREATION_TIME" /> и може да се различава от онлайн версията.</translation>
 <translation id="4595237294768457124">Отворете нов раздел в браузъра.</translation>
@@ -909,6 +912,7 @@
 <translation id="4905823827770127520">Включване на връзка към страницата</translation>
 <translation id="4908869848243824489">Discover от Google</translation>
 <translation id="4910889077668685004">Приложения за плащане</translation>
+<translation id="4911042367886397055">Добре дошли отново, <ph name="USER_NAME" />!</translation>
 <translation id="4912413785358399818">Преместване на раздел</translation>
 <translation id="4913169188695071480">Спиране на опресняването</translation>
 <translation id="4921224083091001889">Влезте в Chrome с профила <ph name="EMAIL" />, за да получите паролите си и др. на всичките си устройства</translation>
@@ -1338,6 +1342,7 @@
 <translation id="670498945988402717">Проверено вчера</translation>
 <translation id="6710213216561001401">Предишно</translation>
 <translation id="671481426037969117">Таймерът ви за <ph name="FQDN" /> изтече и ще се стартира отново утре.</translation>
+<translation id="6716434912087331834">За да възстановите нов прозорец, намалете общия брой на активните прозорци до не повече от <ph name="MAX_WINDOW_COUNT_MINUS_ONE" />. Неактивните прозорци се изтриват след 6 месеца.</translation>
 <translation id="6723740634201835758">В профила ви в Google</translation>
 <translation id="6734310707649923383">Можете да видите посетените от вас страници или да ги изтриете от историята си</translation>
 <translation id="6737429434215739253"><ph name="TAB_TITLE" /> – фиксиран раздел в режим „инкогнито“, който записва</translation>
@@ -1454,6 +1459,7 @@
 <translation id="7115358764509798967">Стандартно за системата</translation>
 <translation id="7117485132243600300">Управление на съдържанието, което следвате, и на предложените теми и търсения</translation>
 <translation id="7119984597597798764">Затваряне на <ph name="INSTANCE_TITLE" /></translation>
+<translation id="7121179479711575744">Вход в Chrome</translation>
 <translation id="7136902389402789299">{NUM_SITES,plural, =1{Прегледани са разрешенията за 1 сайт}other{Прегледани са разрешенията за # сайта}}</translation>
 <translation id="7138678301420049075">Друго</translation>
 <translation id="7140829094791862589">Ръчно сортиране</translation>
@@ -1655,6 +1661,7 @@
 <translation id="7942131818088350342"><ph name="PRODUCT_NAME" /> не е актуален.</translation>
 <translation id="7944772052836377867">Синхронизирането трябва да потвърди, че това сте вие</translation>
 <translation id="7951102827450076904">Изтеглените PDF файлове да се отварят винаги</translation>
+<translation id="7952479614398473176">За да отворите нов прозорец, намалете общия брой на активните прозорци до не повече от <ph name="MAX_WINDOW_COUNT_MINUS_ONE" />.</translation>
 <translation id="7957413488482743710">Виртуалната карта скрива действителната ви, за да ви защити от потенциална измама. <ph name="BEGIN_LINK1" />Научете повече за виртуалните карти<ph name="END_LINK1" /></translation>
 <translation id="7959485987650214982">Раздели на това устройство</translation>
 <translation id="7961926449547174351">Деактивирахте достъпа до хранилището. Моля, отворете настройките, за да го активирате.</translation>
@@ -1937,6 +1944,7 @@
 <translation id="9104217018994036254">Списъкът с устройства, с които да се сподели даден раздел.</translation>
 <translation id="9106148373857059373">Потокът за запазване на отметка бе затворен</translation>
 <translation id="9108808586816295166">Сигурният DNS може да не е налице по всяко време</translation>
+<translation id="9112483451228487295">Бързо изтриване на данните за сърфирането</translation>
 <translation id="9124978074365039456">Пазарувайте, превеждайте и идентифицирайте това, което виждате във визьора на камерата и фотогалерията си</translation>
 <translation id="9130135798965366513">За да продължите, <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ще сподели с този сайт вашите <ph name="FIELDS_STRING" />. Вижте <ph name="BEGIN_LINK1" />декларацията за поверителност<ph name="END_LINK1" /> и <ph name="BEGIN_LINK2" />общите условия<ph name="END_LINK2" /> на сайта.</translation>
 <translation id="9131209053278896908">Блокираните сайтове се показват тук</translation>

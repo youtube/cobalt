@@ -302,6 +302,7 @@ bool AdTracker::CalculateIfAdSubresource(
     ResourceType resource_type,
     const FetchInitiatorInfo& initiator_info,
     bool known_ad,
+    bool scan_stack_for_ads,
     const subresource_filter::ScopedRule& rule) {
   DCHECK(!rule.IsValid() || known_ad);
 
@@ -321,10 +322,13 @@ bool AdTracker::CalculateIfAdSubresource(
 
   // Check if any executing script is an ad.
   std::optional<AdScriptIdentifier> ancestor_ad_script;
-  known_ad = known_ad || IsAdScriptInStackHelper(
-                             StackType::kBottomAndTop,
-                             /*ignore_monkey_patch=*/MonkeyPatchableApi::kNone,
-                             &ancestor_ad_script);
+  if (scan_stack_for_ads) {
+    known_ad =
+        known_ad || IsAdScriptInStackHelper(
+                        StackType::kBottomAndTop,
+                        /*ignore_monkey_patch=*/MonkeyPatchableApi::kNone,
+                        &ancestor_ad_script);
+  }
 
   // If it is a script marked as an ad and it's not in an ad context, append it
   // to the known ad script set. We don't need to keep track of ad scripts in ad
@@ -362,23 +366,22 @@ void AdTracker::DidCreateAsyncTask(probe::AsyncTaskContext* task_context) {
 
 void AdTracker::DidStartAsyncTask(probe::AsyncTaskContext* task_context) {
   DCHECK(task_context);
-  if (task_context->IsAdTask()) {
-    if (running_ad_async_tasks_ == 0) {
-      DCHECK(!bottom_most_async_ad_script_.has_value());
-      bottom_most_async_ad_script_ = task_context->ad_identifier();
-    }
-
-    running_ad_async_tasks_ += 1;
+  CHECK(task_context->IsAdTask());
+  if (running_ad_async_tasks_ == 0) {
+    DCHECK(!bottom_most_async_ad_script_.has_value());
+    bottom_most_async_ad_script_ = task_context->ad_identifier();
   }
+
+  running_ad_async_tasks_ += 1;
 }
 
 void AdTracker::DidFinishAsyncTask(probe::AsyncTaskContext* task_context) {
   DCHECK(task_context);
-  if (task_context->IsAdTask()) {
-    DCHECK_GE(running_ad_async_tasks_, 1);
-    running_ad_async_tasks_ -= 1;
-    if (running_ad_async_tasks_ == 0)
-      bottom_most_async_ad_script_.reset();
+  CHECK(task_context->IsAdTask());
+  DCHECK_GE(running_ad_async_tasks_, 1);
+  running_ad_async_tasks_ -= 1;
+  if (running_ad_async_tasks_ == 0) {
+    bottom_most_async_ad_script_.reset();
   }
 }
 

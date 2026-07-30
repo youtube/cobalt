@@ -33,6 +33,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
+import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowDialog;
 
 import org.chromium.base.Callback;
@@ -229,6 +230,7 @@ public class UiUtilsUnitTest {
     }
 
     @Test
+    @Config(qualifiers = "sw600dp")
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testItemTitleWithIncognitoWindow() {
         testItemTitle(/* shouldOpenIncognitoAsWindow= */ true);
@@ -241,6 +243,7 @@ public class UiUtilsUnitTest {
     }
 
     @Test
+    @Config(qualifiers = "sw600dp")
     @EnableFeatures({
         ChromeFeatureList.INSTANCE_SWITCHER_V2,
         ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW
@@ -622,7 +625,7 @@ public class UiUtilsUnitTest {
                 incognitoTabCount,
                 isIncognito,
                 /* lastAccessedTime= */ 0,
-                /* closedByUser= */ false);
+                /* markedForDeletion= */ false);
     }
 
     private InstanceInfo mockInstance(
@@ -642,7 +645,7 @@ public class UiUtilsUnitTest {
                 incognitoTabCount,
                 isIncognito,
                 /* lastAccessedTime= */ 0,
-                /* closedByUser= */ false);
+                /* markedForDeletion= */ false);
     }
 
     private InstanceInfo mockInstance(int type) {
@@ -657,7 +660,7 @@ public class UiUtilsUnitTest {
                 /* incognitoTabCount= */ 1,
                 /* isIncognitoSelected= */ true,
                 /* lastAccessedTime= */ 0,
-                /* closedByUser= */ false);
+                /* markedForDeletion= */ false);
     }
 
     private InstanceInfo mockInstanceBeforeLoadingTab(int type) {
@@ -672,6 +675,6 @@ public class UiUtilsUnitTest {
                 /* incognitoTabCount= */ 0,
                 /* isIncognitoSelected= */ false,
                 /* lastAccessedTime= */ 0,
-                /* closedByUser= */ false);
+                /* markedForDeletion= */ false);
     }
 }

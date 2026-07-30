@@ -65,7 +65,7 @@ bool ValidateTargetFrameCandidate(
     const PageTarget& target,
     RenderFrameHost* candidate_frame,
     WebContents& web_contents,
-    const std::optional<TargetNodeInfo> target_node_info) {
+    base::optional_ref<const TargetNodeInfo> target_node_info) {
   // Frame validation is performed only when targeting using coordinates.
   CHECK(std::holds_alternative<gfx::Point>(target));
 
@@ -105,7 +105,7 @@ bool ValidateTargetFrameCandidate(
 // Helper function to create ObservedToolTarget mojom struct from
 // TargetNodeInfo struct.
 mojom::ObservedToolTargetPtr ToMojoObservedToolTarget(
-    const std::optional<optimization_guide::TargetNodeInfo>&
+    base::optional_ref<const optimization_guide::TargetNodeInfo>
         observed_target_node_info,
     RenderFrameHost& target_frame) {
   if (!observed_target_node_info) {
@@ -340,7 +340,19 @@ void PageTool::Invoke(ToolCallback callback) {
 
   chrome_render_frame_->InvokeTool(
       std::move(invocation),
-      base::BindOnce(&PageTool::FinishInvoke, base::Unretained(this)));
+      base::BindOnce(&PageTool::FinishInvoke, weak_ptr_factory_.GetWeakPtr()));
+}
+
+void PageTool::Cancel() {
+  if (chrome_render_frame_.is_bound()) {
+    journal().Log(JournalURL(), task_id(), "PageTool::Cancel",
+                  JournalDetailsBuilder()
+                      .Add("tab_handle", request_->GetTabHandle())
+                      .Build());
+
+    chrome_render_frame_->CancelTool(task_id());
+  }
+  FinishInvoke(MakeResult(mojom::ActionResultCode::kInvokeCanceled));
 }
 
 std::string PageTool::DebugString() const {
@@ -414,6 +426,14 @@ void PageTool::OnRenderFrameGone() {
 }
 
 void PageTool::OnTimeout() {
+  if (chrome_render_frame_.is_bound()) {
+    journal().Log(JournalURL(), task_id(), "PageTool::OnTimeout",
+                  JournalDetailsBuilder()
+                      .Add("tab_handle", request_->GetTabHandle())
+                      .Build());
+
+    chrome_render_frame_->CancelTool(task_id());
+  }
   FinishInvoke(MakeResult(mojom::ActionResultCode::kToolTimeout));
 }
 

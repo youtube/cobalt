@@ -9,6 +9,7 @@
 
 #include "base/byte_count.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
@@ -32,7 +33,7 @@
 #include "chrome/browser/ui/views/frame/browser_frame_view.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout.h"
-#include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
+#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/test_with_browser_view.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
@@ -179,20 +180,21 @@ class ScopedBrowser {
  public:
   explicit ScopedBrowser(Profile* profile) {
     Browser::CreateParams params(profile, true);
-    browser_view_ =
-        BrowserView::GetBrowserViewForBrowser(Browser::Create(params));
+    browser_ = Browser::DeprecatedCreateOwnedForTesting(params);
+    browser_view_ = BrowserView::GetBrowserViewForBrowser(browser_.get());
   }
   ScopedBrowser(const ScopedBrowser&) = delete;
   ScopedBrowser& operator=(const ScopedBrowser&) = delete;
   ~ScopedBrowser() {
-    browser_view_->browser()->tab_strip_model()->CloseAllTabs();
+    browser()->tab_strip_model()->CloseAllTabs();
     browser_view_.ExtractAsDangling()->GetWidget()->CloseNow();
     content::RunAllTasksUntilIdle();
   }
 
-  Browser* browser() { return browser_view_->browser(); }
+  Browser* browser() { return browser_.get(); }
 
  private:
+  std::unique_ptr<Browser> browser_;
   raw_ptr<BrowserView> browser_view_;
 };
 }  // namespace
@@ -700,24 +702,47 @@ TEST_F(BrowserViewHostedAppTest, Layout) {
   EXPECT_FALSE(browser_view()->toolbar()->GetVisible());
   EXPECT_FALSE(browser_view()->IsBookmarkBarVisible());
 
+  const auto* const frame_view =
+      browser_view()->browser_widget()->GetFrameView();
+
   gfx::Point header_offset;
-  views::View::ConvertPointToTarget(
-      browser_view(),
-      browser_view()->browser_widget()->non_client_view()->frame_view(),
-      &header_offset);
+  views::View::ConvertPointToTarget(browser_view(), frame_view, &header_offset);
 
-  // The position of the bottom of the header (the bar with the window
-  // controls) in the coordinates of BrowserView.
-  const int top_inset =
-      browser_view()->browser_widget()->GetFrameView()->GetTopInset(false);
-  const int bottom_of_header = top_inset - header_offset.y();
+  // The calculations are different for the new layout. The old layout is
+  // actually *wrong* but it passes the old version of the test below.
+  if (base::FeatureList::IsEnabled(features::kAppBrowserUseNewLayout)) {
+    const auto params = frame_view->GetBrowserLayoutParams();
 
-  // The web contents should be flush with the bottom of the header.
-  EXPECT_EQ(bottom_of_header, contents_container_y);
+    // The position of the bottom of the header (the bar with the window
+    // controls) in the coordinates of the browser view.
+    const int bottom_of_header = base::ClampCeil(
+        std::max(params.leading_exclusion.ContentWithPadding().height(),
+                 params.trailing_exclusion.ContentWithPadding().height()));
 
-  // The find bar should butt against the 1px header/web-contents separator at
-  // the bottom of the header.
-  EXPECT_EQ(top_inset, browser_view()->GetFindBarBoundingBox().y());
+    // The top of the browser view in the coordinates of the frame.
+    const int top_inset = bottom_of_header + params.visual_client_area.y();
+
+    // The web contents should be flush with the bottom of the header.
+    EXPECT_EQ(bottom_of_header, contents_container_y);
+
+    // The find bar should be aligned with the bottom of the header in the
+    // coordinates of the frame.
+    EXPECT_EQ(top_inset, browser_view()->GetFindBarBoundingBox().y());
+
+  } else {
+    // The position of the bottom of the header (the bar with the window
+    // controls) in the coordinates of BrowserView.
+    const int top_inset =
+        browser_view()->browser_widget()->GetFrameView()->GetTopInset(false);
+    const int bottom_of_header = top_inset - header_offset.y();
+
+    // The web contents should be flush with the bottom of the header.
+    EXPECT_EQ(bottom_of_header, contents_container_y);
+
+    // The find bar should butt against the 1px header/web-contents separator at
+    // the bottom of the header.
+    EXPECT_EQ(top_inset, browser_view()->GetFindBarBoundingBox().y());
+  }
 }
 
 using BrowserViewWindowTypeTest = BrowserWithTestWindowTest;

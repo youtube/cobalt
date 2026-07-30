@@ -7,6 +7,12 @@
 
 namespace signin {
 
+namespace oauth_consumer_name {
+inline extern const char kEnterprisePlusAddressName[] =
+    "enterprise_plus_address";
+inline extern const char kGlicUserStatusName[] = "glic_user_status";
+}  // namespace oauth_consumer_name
+
 // LINT.IfChange(OAuthConsumerId)
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -63,7 +69,7 @@ enum class OAuthConsumerId {
   kEduCoexistenceLoginHandler = 48,
   kEduAccountLoginHandler = 49,
   kChromeosFamilyLinkUserMetricsProvider = 50,
-  kEnterpriseIdentityService = 51,
+  // kEnterpriseIdentityService = 51, // Removed due to deprecation.
   kPromotionEligibilityChecker = 52,
   kPasswordManagerLeakDetection = 53,
   kAndroidManagementClient = 54,
@@ -91,7 +97,13 @@ enum class OAuthConsumerId {
   kAuthServiceTasksClient = 76,
   kYouTubeMusic = 77,
   kContextualTasks = 78,
-  kMaxValue = kContextualTasks,
+  kEnterprisePlusAddress = 79,
+  kGlicUserStatus = 80,
+  kDevtoolsGdp = 81,
+  kAshDriveIntegration = 82,
+  kAshBocaClassroomPageHandler = 83,
+  kAshScannerKeyedService = 84,
+  kMaxValue = kAshScannerKeyedService,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:OAuthConsumerId)
 

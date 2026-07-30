@@ -33,6 +33,7 @@
 <translation id="1330562121671411446">ตรวจหาภาษา</translation>
 <translation id="1335640173511558774"><ph name="MANAGER" /> กำหนดว่าคุณต้องอ่านและยอมรับข้อกำหนดในการให้บริการต่อไปนี้ก่อนใช้อุปกรณ์นี้ ข้อกำหนดเหล่านี้ไม่ขยาย แก้ไข หรือจำกัดข้อกำหนดของ Google Chrome OS Flex</translation>
 <translation id="1341711321000856656">คุณสามารถสลับเพื่อดูรหัสผ่านจากโปรไฟล์ Chrome อื่นได้</translation>
+<translation id="1343830902827845050">ลงชื่อเข้าใช้ Chrome</translation>
 <translation id="1356661055722410047">ใหม่! คุณแปลได้ทั้งข้อความและรูปภาพบนหน้าจอ</translation>
 <translation id="1363996462118479832">Chrome OS ซิงค์ข้อมูลไม่ได้เนื่องจากเกิดข้อผิดพลาดในการลงชื่อเข้าใช้</translation>
 <translation id="137466361146087520">Google Chrome เบต้า</translation>
@@ -211,7 +212,6 @@
 <translation id="3226612997184048185">หากบันทึกบุ๊กมาร์กไว้ในบัญชี Google ด้วย คุณจะติดตามราคาผลิตภัณฑ์ใน Chrome และรับการแจ้งเตือนเมื่อราคาต่ำลงได้</translation>
 <translation id="3242123554343253302">เพิ่มโปรไฟล์ Chrome</translation>
 <translation id="3245429137663807393">หากคุณแชร์รายงานการใช้งาน Chrome ด้วย รายงานดังกล่าวจะรวม URL ที่คุณเข้าชม</translation>
-<translation id="3282568296779691940">ลงชื่อเข้าใช้ Chrome</translation>
 <translation id="3286538390144397061">รีสตาร์ทเดี๋ยวนี้</translation>
 <translation id="3292333338048274092">จากนั้นคุณต้องรีสตาร์ท Chrome</translation>
 <translation id="3324218984287646518">ถาม Google Lens เกี่ยวกับวิดีโอนี้</translation>
@@ -248,6 +248,7 @@
 <translation id="3716540481907974026">เวอร์ชัน Chrome OS Flex</translation>
 <translation id="3718181793972440140">การดำเนินการนี้จะลบ 1 รายการออกจากอุปกรณ์นี้ หากต้องการดึงข้อมูลภายหลัง ให้ลงชื่อเข้าใช้ Chrome ด้วย <ph name="USER_EMAIL" /></translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome ขอแนะนำให้คุณนำออก <ph name="BEGIN_LINK" />ดูข้อมูลเพิ่มเติมเกี่ยวกับส่วนขยายที่รองรับ<ph name="END_LINK" />}other{Chrome ขอแนะนําให้คุณนําออก <ph name="BEGIN_LINK" />ดูข้อมูลเพิ่มเติมเกี่ยวกับส่วนขยายที่รองรับ<ph name="END_LINK" />}}</translation>
+<translation id="3729187154190517324">เจาะลึกการค้นหาด้วยการเพิ่มแท็บ ไฟล์ และเครื่องมือหลายรายการโดยใช้ปุ่ม "เพิ่มแท็บและอื่นๆ"</translation>
 <translation id="3756724684201900923">ดูข้อมูลเพิ่มเติมเกี่ยวกับการติดตั้ง Chrome</translation>
 <translation id="3780814664026482060">Chrome - <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">Chrome OS Flex ซิงค์ข้อมูลไม่ได้เนื่องจากเกิดข้อผิดพลาดในการลงชื่อเข้าใช้</translation>
@@ -321,6 +322,7 @@
 <translation id="459622048091363950">เมื่อ Chrome มีสิทธิ์การเข้าถึงแล้ว เว็บไซต์จะขอสิทธิ์การเข้าถึงจากคุณได้</translation>
 <translation id="4598116752460667024">ค้นหากระบวนการใดๆ จากรายการ</translation>
 <translation id="4600710005438004015">Chrome อัปเดตเป็นเวอร์ชันล่าสุดไม่ได้ คุณจึงไม่ได้รับฟีเจอร์ใหม่และการแก้ไขด้านความปลอดภัย</translation>
+<translation id="4606805686144157064">รับคำเตือนหาก Chrome พบรหัสผ่านของคุณในการละเมิดข้อมูลสาธารณะ</translation>
 <translation id="4608435347866444037">ค้นหารูปภาพนี้ด้วย Google Lens</translation>
 <translation id="4624065194742029982">โหมดไม่ระบุตัวตนของ Chrome</translation>
 <translation id="4627412468266359539">ไม่บังคับ: ช่วยปรับปรุงฟีเจอร์และประสิทธิภาพของ Chrome OS Flex ด้วยการส่งข้อมูลการวินิจฉัยและการใช้งานให้ Google โดยอัตโนมัติ</translation>
@@ -380,6 +382,7 @@
 <translation id="5334309298019785904">Chrome OS ซิงค์ข้อมูลไม่ได้เนื่องจากการซิงค์ไม่พร้อมใช้งานสำหรับโดเมนของคุณ</translation>
 <translation id="5334487786912937552">Chrome ต้องการสิทธิ์เข้าถึงพื้นที่เก็บข้อมูลเพื่อดาวน์โหลดไฟล์</translation>
 <translation id="5337648990166757586">ไม่บังคับ: ช่วยปรับปรุงฟีเจอร์และประสิทธิภาพของ Chrome OS โดยการส่งข้อมูลการวินิจฉัยและการใช้งานให้ Google โดยอัตโนมัติ</translation>
+<translation id="5346389065299425353">เจาะลึกการค้นหาด้วยการเพิ่มแท็บ ไฟล์ และเครื่องมือหลายรายการ</translation>
 <translation id="5353252989841766347">ส่งออกรหัสผ่านจาก Chrome</translation>
 <translation id="5368118228313795342">รหัสเพิ่มเติม: <ph name="EXTRA_CODE" /></translation>
 <translation id="5386244825306882791">อีกทั้งยังควบคุมหน้าที่จะแสดงเมื่อคุณเปิด Chrome หรือทำการค้นหาจากแถบอเนกประสงค์ด้วย</translation>
@@ -555,6 +558,7 @@
 <translation id="7098166902387133879">Google Chrome ใช้ไมโครโฟนอยู่</translation>
 <translation id="7099479769133613710">เปิดอีกครั้งเพื่ออัปเดต &amp;Chrome OS</translation>
 <translation id="7106741999175697885">ตัวจัดการงาน - Google Chrome</translation>
+<translation id="7121179479711575744">ลงชื่อเข้าใช้ Chrome</translation>
 <translation id="7140653346177713799">{COUNT,plural, =0{อัปเดตใหม่ของ Chrome พร้อมให้ใช้งานแล้วและระบบจะใช้อัปเดตดังกล่าวเมื่อคุณเปิด Chrome ขึ้นมาใหม่}=1{อัปเดตใหม่ของ Chrome พร้อมให้ใช้งานแล้วและระบบจะใช้อัปเดตดังกล่าวเมื่อคุณเปิด Chrome ขึ้นมาใหม่ หน้าต่างที่ไม่ระบุตัวตนจะไม่เปิดให้อีก}other{อัปเดตใหม่ของ Chrome พร้อมให้ใช้งานแล้วและระบบจะใช้อัปเดตดังกล่าวเมื่อคุณเปิด Chrome ขึ้นมาใหม่ หน้าต่างที่ไม่ระบุตัวตนจำนวน # หน้าต่างจะไม่เปิดให้อีก}}</translation>
 <translation id="7155997830309522122">หากเปลี่ยนแล้ว โปรดแก้ไขรหัสผ่านที่บันทึกไว้ใน Chrome ให้ตรงกับรหัสผ่านใหม่</translation>
 <translation id="7161904924553537242">ยินดีต้อนรับสู่ Google Chrome</translation>
@@ -621,6 +625,7 @@
 <translation id="7804364787702057554">บัญชีของคุณใน Chrome</translation>
 <translation id="7808348361785373670">นำออกจาก Chrome...</translation>
 <translation id="7827099906024714326">Chrome จำเป็นต้องยืนยันว่าเป็นคุณก่อนจึงจะบันทึกข้อมูลบางอย่างในบัญชี Google และใช้ในอุปกรณ์ทุกเครื่องได้ หากคุณออกจากระบบตอนนี้ ระบบจะลบข้อมูลนี้</translation>
+<translation id="7832314606810669113">ลงชื่อเข้าใช้ Chrome เพื่อเข้าถึงบุ๊กมาร์กและข้อมูลอื่นๆ ในอุปกรณ์ทุกเครื่อง ระบบจะบันทึกบุ๊กมาร์กนี้ไว้ในบัญชี Google หลังจากที่คุณลงชื่อเข้าใช้</translation>
 <translation id="7845233973568007926">ขอขอบคุณที่ติดตั้ง คุณต้องรีสตาร์ทคอมพิวเตอร์ก่อนใช้ <ph name="BUNDLE_NAME" /></translation>
 <translation id="7849037457735762883">ดำเนินการต่อจากที่ค้างไว้: Chrome สามารถคืนค่าแท็บทุกครั้งที่คุณรีสตาร์ท หากต้องการเปิดตัวเลือกนี้ ให้ไปที่</translation>
 <translation id="7872446069773932638">กำลังดาวน์โหลด... เหลืออีก <ph name="SECONDS" /> วินาที</translation>
@@ -658,7 +663,6 @@
 <translation id="8255190535488645436">Google Chrome ใช้กล้องและไมโครโฟนของคุณอยู่</translation>
 <translation id="8267953129876836456">Chrome พบคำแนะนำด้านความปลอดภัยบางอย่างที่คุณควรตรวจสอบ</translation>
 <translation id="8286862437124483331">Google Chrome กำลังพยายามแสดงรหัสผ่าน พิมพ์รหัสผ่าน Windows ของคุณเพื่อแสดงรหัสผ่าน</translation>
-<translation id="8289399803055125418">ใช้<ph name="BEGIN_LINK" />รหัสผ่านของคุณเอง<ph name="END_LINK" />ในการเข้ารหัสข้อมูล Chrome ทั้งหมดในบัญชี Google รหัสผ่านจะไม่เข้ารหัสที่อยู่และข้อมูลใดๆ ที่บันทึกไว้ใน Google Wallet ประวัติการท่องเว็บจาก Chrome จะไม่ซิงค์</translation>
 <translation id="829923460755755423">เพิ่มทางลัดในเครื่องมือจัดการรหัสผ่านบน Google</translation>
 <translation id="8313851650939857356">ข้อผิดพลาดในการเริ่มต้น: <ph name="STARTUP_ERROR" /></translation>
 <translation id="8321888067342493336">บันทึกเป็นรูปภาพ</translation>

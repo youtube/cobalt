@@ -9,6 +9,7 @@
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
@@ -19,8 +20,9 @@ class ExceptionState;
 class LocalDOMWindow;
 class ScriptState;
 
-class MODULES_EXPORT DocumentPictureInPicture : public EventTarget,
-                                                public GarbageCollectedMixin {
+class MODULES_EXPORT DocumentPictureInPicture
+    : public EventTarget,
+      public Supplement<LocalDOMWindow> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -42,15 +44,14 @@ class MODULES_EXPORT DocumentPictureInPicture : public EventTarget,
 
   DEFINE_ATTRIBUTE_EVENT_LISTENER(enter, kEnter)
 
+  static const unsigned kSupplementIndex;
+
   void Trace(Visitor*) const override;
 
  protected:
   // EventTarget implementation.
   void AddedEventListener(const AtomicString& event_type,
                           RegisteredEventListener&) override;
-
- private:
-  Member<LocalDOMWindow> local_dom_window_;
 };
 
 }  // namespace blink

@@ -1260,17 +1260,6 @@ Als je dit beleid instelt op False, worden er geen gegevens verzameld die kunnen
 
 Dit beleid is alleen van kracht als de machine is ingeschreven met <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> voor <ph name="PRODUCT_NAME" />.
 Dit beleid is altijd van kracht voor <ph name="PRODUCT_OS_NAME" />.</translation>
-<translation id="1878535132109943599">Als je dit beleid toepast, worden er alleen waarschuwingen getoond in <ph name="CHROME_DEVTOOLS_NAME" /> voor <ph name="LOCAL_NETWORK_ACCESS" />-verzoeken omdat de <ph name="LOCAL_NETWORK_ACCESS" />-controles mislukken.
-
-Als je dit beleid niet toepast of niet instelt, wordt de standaardafhandeling van deze verzoeken gebruikt voor <ph name="LOCAL_NETWORK_ACCESS" />-verzoeken.
-
-Zie https://wicg.github.io/local-network-access/ voor beperkingen voor <ph name="LOCAL_NETWORK_ACCESS" />.
-
-Dit bedrijfsbeleid is tijdelijk en wordt verwijderd na M146.
-
-Op de lange termijn kun je het beleid <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" /> gebruiken om URL-patronen op de toelatingslijst te zetten waarvoor het recht <ph name="LOCAL_NETWORK_ACCESS" /> automatisch moet worden verleend.
-
-Als je het beleid <ph name="LOCAL_NETWORK_ACCESS_RESTRICTIONS_ENABLED_POLICY_NAME" /> aanzet, krijgt het voorrang op dit beleid.</translation>
 <translation id="187961648719201562">Bestaande lokale bestanden verwijderen (ondersteund vanaf versie 137)</translation>
 <translation id="1883274744253492031">Automatisch upgraden van gemengde content aanzetten</translation>
 <translation id="1885782360784839335">Promotiecontent op volledig tabblad tonen</translation>
@@ -1929,10 +1918,6 @@ In <ph name="MAC_OS_NAME" /> is dit beleid alleen beschikbaar voor instanties di
 
       Als je het beleid niet toepast, is deze functie niet beschikbaar.</translation>
 <translation id="2342066287156668839">Permanent quotum aanzetten.</translation>
-<translation id="2343774133209251840">Als dit beleid wordt toegepast, retourneren de API's voor opslagquotum een statische waarde die gelijk is aan gebruik + min (10 GiB, schijf afgerond naar boven naar de dichtstbijzijnde 1 GiB).
-Als het beleid niet wordt toegepast, retourneren de API's voor opslagquotum meestal een dynamische waarde die evenredig is aan de totale beschikbare ruimte op het apparaat, ongeacht het gebruik.
-Als het beleid niet is ingesteld, bepalen de lancering van de functie voor voorspelbaar gerapporteerd opslagquotum of de bijbehorende flags het gedrag.
-Deze instelling heeft geen invloed op sites met rechten voor onbeperkte opslag. Dit heeft ook geen invloed op het afgedwongen quotum.</translation>
 <translation id="2344033063256716138">Stel beleid in om te bepalen of gebruikers toegang hebben tot gedeelde gegevens en functies.</translation>
 <translation id="2345547870894930157">DNS-over-HTTPS zonder onbeveiligde fallback aanzetten</translation>
 <translation id="2347695338560092641">Printerstuurprogramma's buiten het proces toegestaan</translation>
@@ -4430,6 +4415,11 @@ Als je het beleid instelt op <ph name="ENABLE_FOR_FORCED_EXTENSIONS" /> (3), zij
 
 
 De beschikbaarheid van extensies wordt nog steeds beheerd door andere beleidsregels.</translation>
+<translation id="4112585124048467596">Als je het beleid instelt, worden alle verstrekte gegevenstypen uitgesloten van synchronisatie voor zowel <ph name="CHROME_SYNC_NAME" /> als synchronisatie van roamingprofielen. Dit kan handig zijn om het roamingprofiel te verkleinen of het type gegevens te beperken dat wordt geüpload naar de <ph name="CHROME_SYNC_NAME" />-servers.
+
+      De huidige gegevenstypen voor dit beleid zijn: "apps", "autofill", "bookmarks", "extensions", "preferences", "passwords", "payments", "productComparison", "readingList", "tabs", "themes", "typedUrls", "wifiConfigurations". Die namen zijn hoofdlettergevoelig.
+
+      Opmerkingen: Beleid dynamisch vernieuwen wordt alleen ondersteund in <ph name="PRODUCT_NAME" /> versie 123 en hoger. Als je 'autofill' uitzet, wordt 'payments' ook uitgezet. 'typedUrls' verwijst naar de hele browsegeschiedenis.</translation>
 <translation id="4115501011761259824">First-Party Sets aanzetten voor alle betrokken gebruikers</translation>
 <translation id="4120401094617902941">Snelheid waarmee runtime-tellers worden bemonsterd en verzameld. Het toegestane minimum is 1 dag.
 
@@ -6326,6 +6316,34 @@ Opmerking: Dit beleid is niet van toepassing op HSTS-upgrades.</translation>
 
 Als je dit beleid niet toepast, kunnen de browser- en downloadgeschiedenis niet worden verwijderd. Ook als je dit beleid niet toepast, kan niet worden gegarandeerd dat de browser- en downloadgeschiedenis behouden blijven. Gebruikers kunnen de databasebestanden van de geschiedenis rechtstreeks bewerken of verwijderen en de browser kan sommige of alle geschiedenisitems op elk moment laten verlopen of archiveren.</translation>
 <translation id="5322649594584715998">De batterij volledig opladen met een normale snelheid. In deze modus worden aangepast en beperkt opladen uitgezet.</translation>
+<translation id="5322726025747768984">Als je dit beleid instelt, configureer je regels die selecteren welke proxy de browser gebruikt, afhankelijk van de URL van de bestemming en andere voorwaarden. Dit beleid heeft voorrang op proxyinstellingen die zijn ingesteld via het beleid <ph name="PROXY_SETTINGS_POLICY_NAME" />, de extensie-API <ph name="PROXY_SETTINGS_EXTENSION_API" /> of handmatige gebruikersinstellingen (als die zijn ingesteld).
+
+Als je het beleid niet instelt, heeft dit geen effect op andere proxybeleidsregels of gebruikersinstellingen.
+
+Als de browser moet beslissen welke proxy moet worden gebruikt, worden de vermeldingen van het beleid <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> in volgorde geëvalueerd totdat een vermelding aan alle volgende punten voldoet:
+* Er is een overeenkomst met minstens één van de URL-patronen in <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" />.
+  * Geen van de URL-patronen in <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> komt overeen.
+  * Als <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> is aangegeven en een niet-lege lijst is, is aan alle voorwaarden voldaan die door de vermeldingen in de lijst worden vertegenwoordigd.
+De waarde in <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> wordt gebruikt als proxy voor een dergelijke overeenkomst. Als er geen overeenkomst wordt gevonden, vallen de proxyinstellingen terug op wat is ingesteld in het beleid <ph name="PROXY_SETTINGS_POLICY_NAME" />.
+
+De URL-patronen die worden ondersteund door <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> en <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" />, worden beschreven op https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns.
+
+De vermeldingen in het veld <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> komen overeen met tekenreekswaarden van PAC-bestanden, zoals:
+* DIRECT
+* PROXY host:poort
+* HTTPS host:poort
+* SOCKS4 host:poort
+* SOCKS5 host:poort
+Je kunt ook rechtstreeks proxy-aanduidingen in URL-indeling gebruiken om de proxy aan te geven, bijvoorbeeld:
+* http://host:poort
+* https://host:poort
+* socks4://host:poort
+* socks5://host:poort
+De eerste bereikbare vermelding in de lijst wordt gebruikt als proxy. Ongeldige vermeldingen in de lijst worden genegeerd.
+
+Het veld <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> bevat een lijst met voorwaarden waaraan allemaal moet worden voldaan voordat de overschrijvingsregel wordt gebruikt om te bepalen welke proxy moet worden gebruikt. Als je dit niet instelt, wordt de vermelding gebruikt zolang er minstens één host in <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> overeenkomt.
+
+De voorwaarde <ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> controleert of de verstrekte DNS-naam <ph name="PROXY_OVERRIDE_RULES_HOST" /> kan worden omgezet in een IP-adres. Als de waarde van <ph name="PROXY_OVERRIDE_RULES_RESULT" /> is ingesteld op <ph name="PROXY_OVERRIDE_RULES_RESOLVED" />, wordt de voorwaarde als voldaan beschouwd. Als de waarde in plaats daarvan is ingesteld op <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />, wordt de voorwaarde als voldaan beschouwd als de omzetting is mislukt.</translation>
 <translation id="5323200200131319468">Gesproken feedback op het inlogscherm aanzetten</translation>
 <translation id="5323271643727095577">Geen annuleringsdialoogvenster tonen als event.preventDefault() wordt aangeroepen voor beforeunload-gebeurtenis. Annuleringsdialoogvenster tonen als event.returnValue de lege tekenreeks voor de beforeunload-gebeurtenis is.</translation>
 <translation id="5324430722441910403">Instellingen voor Zoekopdrachten op site</translation>
@@ -9764,6 +9782,15 @@ Ga naar <ph name="DEFAULT_DIRECT_SOCKETS_SETTING_POLICY_NAME" />, <ph name="DIRE
 
       Als je het beleid niet instelt of instelt op False, worden RC4 cipher suites in TLS niet aangezet. Anders kun je het instellen op True om compatibiliteit met een verouderde server te behouden. Dit is een tijdelijke oplossing. De server moet opnieuw worden ingesteld.</translation>
 <translation id="751615601677744094">Uitgezet: Normaal gedrag voor mutatiegebeurtenissen. Dit betekent dat deze gebeurtenissen niet worden geactiveerd na de verwijderingsdatum.</translation>
+<translation id="7518736413346509172">Als je dit beleid toepast, worden er alleen waarschuwingen getoond in <ph name="CHROME_DEVTOOLS_NAME" /> voor <ph name="LOCAL_NETWORK_ACCESS" />-verzoeken omdat de <ph name="LOCAL_NETWORK_ACCESS" />-controles mislukken.
+
+Als je dit beleid niet toepast of niet instelt, wordt de standaardafhandeling van deze verzoeken gebruikt voor <ph name="LOCAL_NETWORK_ACCESS" />-verzoeken.
+
+Zie https://wicg.github.io/local-network-access/ voor beperkingen voor <ph name="LOCAL_NETWORK_ACCESS" />.
+
+Dit bedrijfsbeleid is tijdelijk en wordt verwijderd na M152.
+
+Op de lange termijn kun je het beleid <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" /> gebruiken om URL-patronen op de toelatingslijst te zetten waarvoor het recht <ph name="LOCAL_NETWORK_ACCESS" /> automatisch moet worden verleend.</translation>
 <translation id="7519218194072744342">De URL van de protocolhandler.</translation>
 <translation id="7519251620064708155">Het genereren van sleutels toestaan op deze sites</translation>
 <translation id="7521864460386999758">Niet toestaan dat code van derden wordt geïnjecteerd in Chrome</translation>
@@ -10236,6 +10263,11 @@ Ga naar https://chromeenterprise.google/policies/url-patterns voor gedetailleerd
 <translation id="7891884447851425349">Als <ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" /> is aangezet en je <ph name="DEFAULT_SEARCH_PROVIDER_SEARCH_URL_POLICY_NAME" /> instelt, wordt de URL gespecificeerd van de zoekmachine die tijdens een standaard zoekopdracht wordt gebruikt. De URL moet de tekenreeks <ph name="SEARCH_TERM_MARKER" /> bevatten. Deze tekenreeks wordt tijdens de zoekopdracht vervangen door de zoektermen van de gebruiker.
 
       Je kunt de zoek-URL van Google opgeven als: <ph name="GOOGLE_SEARCH_URL" />.</translation>
+<translation id="7893719068404928632">Als je dit beleid toepast, wordt het hoofdverzoek geblokkeerd als er een waarschuwing moet worden getoond in <ph name="CHROME_DEVTOOLS_NAME" /> omdat de <ph name="LOCAL_NETWORK_ACCESS" />-controles mislukken.
+
+Als je dit beleid niet toepast of niet instelt, wordt de standaardafhandeling van deze verzoeken gebruikt voor <ph name="LOCAL_NETWORK_ACCESS" />-verzoeken.
+
+Zie https://wicg.github.io/local-network-access/ voor beperkingen voor <ph name="LOCAL_NETWORK_ACCESS" />.</translation>
 <translation id="7894185046683379696">Als je het beleid instelt, wordt een periode ingesteld in milliseconden. Zodra deze periode verstrijkt zonder gebruikersinvoer, wordt het scherm vergrendeld als het systeem draait op wisselstroom of de batterij. De waarden worden zodanig vastgezet dat ze lager zijn dan de waarden voor de inactieve periode in <ph name="POWER_MANAGEMENT_IDLE_SETTINGS_POLICY_NAME" />.
 
       Als je 0 instelt, wordt het scherm niet door <ph name="PRODUCT_OS_NAME" /> vergrendeld als de gebruiker inactief is. Als je niets instelt, wordt de standaardperiode gebruikt.
@@ -11871,13 +11903,6 @@ Opmerking: Op dit moment wordt alleen rekening gehouden met de eerste vermelding
        Dit beleid is niet meer van kracht vanaf <ph name="PRODUCT_NAME" /> 84.</translation>
 <translation id="9010080992450148617">Downloads naar Google sturen voor uitgebreide scans voor gebruikers die zijn ingeschreven voor Geavanceerde beveiliging</translation>
 <translation id="9012101302849557459">Ondersteuning voor Chrome-apps op <ph name="MS_WIN_NAME" />, <ph name="MAC_OS_NAME" /> en <ph name="LINUX_OS_NAME" /> uitbreiden.</translation>
-<translation id="9012332684658600011">Als je dit beleid toepast, wordt het hoofdverzoek geblokkeerd als er een waarschuwing moet worden getoond in <ph name="CHROME_DEVTOOLS_NAME" /> omdat de <ph name="LOCAL_NETWORK_ACCESS" />-controles mislukken.
-
-Als je dit beleid niet toepast of niet instelt, wordt de standaardafhandeling van deze verzoeken gebruikt voor <ph name="LOCAL_NETWORK_ACCESS" />-verzoeken.
-
-Zie https://wicg.github.io/local-network-access/ voor beperkingen voor <ph name="LOCAL_NETWORK_ACCESS" />.
-
-Dit beleid is beëindigd omdat <ph name="LOCAL_NETWORK_ACCESS" /> standaard is gelanceerd. Het beleid wordt in een toekomstige release verwijderd.</translation>
 <translation id="9013875414788074110">Tijdens het inloggen kan <ph name="PRODUCT_OS_NAME" /> de verificatie uitvoeren met behulp van een server (online) of door gebruik te maken van een gecachet wachtwoord (offline).
 
       Wanneer voor dit beleid de waarde -1 is ingesteld, kan de gebruiker zich offline oneindig verifiëren. Wanneer er een andere waarde voor dit beleid is opgegeven, wordt hiermee aangegeven na hoeveel tijd sinds de meest recente online verificatie de gebruiker opnieuw een online verificatie moet uitvoeren.
@@ -12170,6 +12195,10 @@ De standaardinstelling is RollbackDisabled.</translation>
 <translation id="966425658642788645">Standaardgedrag toepassen</translation>
 <translation id="971677226939413180">Optie 'Afdrukken als afbeelding' niet beschikbaar voor gebruikersselectie.</translation>
 <translation id="974349541138387272">URI-template van gewenste DNS-over-HTTPS-resolver opgeven</translation>
+<translation id="975005959611437646">Als dit beleid wordt toegepast, retourneren de API's voor opslagquotum een statische waarde die gelijk is aan gebruik + min (10 GiB, schijf afgerond naar boven naar de dichtstbijzijnde 1 GiB).
+Als het beleid niet wordt toegepast, retourneren de API's voor opslagquotum meestal een dynamische waarde die evenredig is aan de totale beschikbare ruimte op het apparaat, ongeacht het gebruik.
+Als je dit beleid niet instelt, gebruiken de API's voor opslagquotum het standaardgedrag van Chrome.
+Deze instelling heeft geen invloed op sites met rechten voor onbeperkte opslag. Dit heeft ook geen invloed op het afgedwongen quotum.</translation>
 <translation id="976415389478739655">Vereisen dat de apparaten van gebruikers zich binnen een beheerd netwerk bevinden om deel uit te maken van de klas <ph name="CLASS_TOOLS_NAME" /></translation>
 <translation id="978619365985286086">Instellingen voor tools voor lesgroepbeheer</translation>
 <translation id="978658824596356870">24-uurs klok</translation>

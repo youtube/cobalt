@@ -10,6 +10,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/string_util.h"
+#include "base/strings/to_string.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -160,11 +161,13 @@ void ProfilePickerPostSignInAdapter::ShowHistorySyncOptinScreen(
         history_optin_completed_callback) {
   CHECK(history_optin_completed_callback.value());
   CHECK(on_post_signin_in_finished_callback_.value());
+  std::vector<HistorySyncOptinHelper::FlowCompletedCallback> callbacks;
+  callbacks.push_back(std::move(on_post_signin_in_finished_callback_));
+  callbacks.push_back(std::move(history_optin_completed_callback));
   on_post_signin_in_finished_callback_ =
       CombineCallbacks<HistorySyncOptinHelper::FlowCompletedCallback,
                        HistorySyncOptinHelper::ScreenChoiceResult>(
-          std::move(on_post_signin_in_finished_callback_),
-          std::move(history_optin_completed_callback));
+          std::move(callbacks));
 
   // Finishes the sign-in process by moving to the history sync optin screen.
   CHECK(IsInitialized());
@@ -204,8 +207,11 @@ void ProfilePickerPostSignInAdapter::FinishAndOpenBrowser(
   if (url_to_open_.is_valid()) {
     auto open_url_callback = PostHostClearedCallback(
         base::BindOnce(&OpenNewTabInBrowser, url_to_open_));
+    std::vector<PostHostClearedCallback> callbacks;
+    callbacks.push_back(std::move(open_url_callback));
+    callbacks.push_back(std::move(callback));
     callback = CombineCallbacks<PostHostClearedCallback, Browser*>(
-        std::move(open_url_callback), std::move(callback));
+        std::move(callbacks));
   }
 
   FinishAndOpenBrowserInternal(std::move(callback), is_continue_callback);

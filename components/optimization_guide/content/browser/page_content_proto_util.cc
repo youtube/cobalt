@@ -119,8 +119,6 @@ optimization_guide::proto::ClickabilityReason ConvertClickabilityReason(
       return optimization_guide::proto::CLICKABILITY_REASON_CLICKABLE_CONTROL;
     case blink::mojom::AIPageContentClickabilityReason::kClickEvents:
       return optimization_guide::proto::CLICKABILITY_REASON_CLICK_HANDLER;
-    case blink::mojom::AIPageContentClickabilityReason::kMouseEvents:
-      return optimization_guide::proto::CLICKABILITY_REASON_MOUSE_EVENTS;
     case blink::mojom::AIPageContentClickabilityReason::kKeyEvents:
       return optimization_guide::proto::CLICKABILITY_REASON_KEY_EVENTS;
     case blink::mojom::AIPageContentClickabilityReason::kEditable:
@@ -145,6 +143,23 @@ optimization_guide::proto::ClickabilityReason ConvertClickabilityReason(
       return optimization_guide::proto::CLICKABILITY_REASON_MOUSE_HOVER;
     case blink::mojom::AIPageContentClickabilityReason::kHoverPseudoClass:
       return optimization_guide::proto::CLICKABILITY_REASON_HOVER_PSEUDO_CLASS;
+  }
+  NOTREACHED();
+}
+
+optimization_guide::proto::InteractionDisabledReason
+ConvertInteractionDisabledReason(
+    blink::mojom::AIPageContentInteractionDisabledReason reason) {
+  switch (reason) {
+    case blink::mojom::AIPageContentInteractionDisabledReason::kDisabled:
+      return optimization_guide::proto::INTERACTION_DISABLED_REASON_DISABLED;
+    case blink::mojom::AIPageContentInteractionDisabledReason::kAriaDisabled:
+      return optimization_guide::proto::
+          INTERACTION_DISABLED_REASON_ARIA_DISABLED;
+    case blink::mojom::AIPageContentInteractionDisabledReason::
+        kCursorNotAllowed:
+      return optimization_guide::proto::
+          INTERACTION_DISABLED_REASON_CURSOR_NOT_ALLOWED;
   }
   NOTREACHED();
 }
@@ -276,8 +291,6 @@ void ConvertNodeInteractionInfo(
     ConvertScrollerInfo(*mojom_node_interaction_info.scroller_info,
                         proto_interaction_info->mutable_scroller_info());
   }
-  proto_interaction_info->set_is_clickable(
-      mojom_node_interaction_info.is_clickable);
   proto_interaction_info->set_is_focusable(
       mojom_node_interaction_info.is_focusable);
 
@@ -287,12 +300,14 @@ void ConvertNodeInteractionInfo(
   }
 
   for (const auto& reason : mojom_node_interaction_info.clickability_reasons) {
-    // TODO(khushalsagar): Remove this once consumers move to the new field.
-    proto_interaction_info->add_debug_clickability_reasons(
-        ConvertClickabilityReason(reason));
-
     proto_interaction_info->add_clickability_reasons(
         ConvertClickabilityReason(reason));
+  }
+
+  for (const auto& reason :
+       mojom_node_interaction_info.interaction_disabled_reasons) {
+    proto_interaction_info->add_interaction_disabled_reasons(
+        ConvertInteractionDisabledReason(reason));
   }
 
   proto_interaction_info->set_is_disabled(
@@ -896,6 +911,12 @@ class Converter {
       render_frame_info =
           get_render_frame_info_.Run(source_frame_token.child_id, frame_token);
       if (!render_frame_info) {
+        if (base::FeatureList::IsEnabled(
+                blink::features::kAIPageContentMissingSubframesFailSilently)) {
+          // If the frame was removed ignore its subtree but don't fail APC
+          // generation for the whole tree.
+          return base::ok();
+        }
         return base::unexpected("could not find render_frame_info for iframe");
       }
 

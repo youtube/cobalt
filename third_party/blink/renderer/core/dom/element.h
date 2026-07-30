@@ -87,6 +87,7 @@ class Attribute;
 class ColumnPseudoElement;
 class ContainerQueryData;
 class ContainerQueryEvaluator;
+class ContentData;
 class CSSPropertyName;
 class CSSPropertyValueSet;
 class CSSPseudoElement;
@@ -271,7 +272,7 @@ static constexpr double kDefaultInterestDelayEndSeconds = 0.25;
 typedef HeapVector<Member<Attr>> AttrNodeList;
 
 // https://w3c.github.io/trusted-types/dist/spec/#abstract-opdef-get-trusted-type-data-for-attribute
-typedef HashMap<AtomicString, std::pair<SpecificTrustedType, const char*>>
+typedef HashMap<AtomicString, std::pair<SpecificTrustedType, AtomicString>>
     AttrNameToTrustedType;
 
 class CORE_EXPORT Element : public ContainerNode, public Animatable {
@@ -458,7 +459,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
 
   // Returns attributes that should be checked against Trusted Types
   virtual const AttrNameToTrustedType& GetCheckedAttributeTypes() const;
-  const std::tuple<SpecificTrustedType, const char*, const AtomicString>
+  const std::tuple<SpecificTrustedType, const AtomicString, const AtomicString>
   GetTrustedTypeDataForAttribute(const QualifiedName& q_name,
                                  const char* legacy_sink_name) const;
 
@@ -1826,6 +1827,11 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   PopoverData& EnsurePopoverData();
   PopoverData* GetPopoverData() const;
 
+  // Alt content data is used by pseudo-elements to store a mutable copy
+  // of content data when it contains counter() or counters() in alt text.
+  ContentData* GetAltContentData() const;
+  void SetAltContentData(ContentData*);
+
   InvokerData& EnsureInvokerData();
   InvokerData* GetInvokerData() const;
   void ChangeInterestState(Element* target, InterestState new_state);
@@ -2247,6 +2253,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
 
   void AttachPrecedingPseudoElements(AttachContext& context) {
     AttachDocumentElementPrecedingPseudoElements(context);
+    AttachOverscrollPseudoElements(context);
     AttachPseudoElement(kPseudoIdScrollMarker, context);
     AttachPseudoElement(kPseudoIdMarker, context);
     AttachPseudoElement(kPseudoIdCheckMark, context);
@@ -2289,7 +2296,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
     AttachPseudoElement(kPseudoIdScrollMarkerGroupAfter, context);
   }
 
-  // These pseudo-elements are added as layout parents of the contents of this
+  // These pseudo-elements are added as siblings of the contents of this
   // element's layout children.
   void AttachOverscrollPseudoElements(AttachContext& context);
 
@@ -2454,6 +2461,12 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
       const String&,
       ParseDeclarativeShadowRoots parse_declarative_shadows,
       ForceHtml force_html_over_xml,
+      // When called from SetHTML or SetHTMLUnsafe, SetInnerHTMLInternal must
+      // process their options dictionary, which you can pass into |options|.
+      // When called from a method without options, like the classic innerHTML
+      // setter, you can pass std::monostate{} to designate no options.
+      std::variant<std::monostate, SetHTMLOptions*, SetHTMLUnsafeOptions*>
+          options,
       ExceptionState&);
 
   ElementRareDataVector* GetElementRareData() const;

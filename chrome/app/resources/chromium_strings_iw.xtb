@@ -43,6 +43,7 @@
 <translation id="1497802159252041924">שגיאת התקנה: <ph name="INSTALL_ERROR" /></translation>
 <translation id="1518627427551567882">הדף הזה מוגן</translation>
 <translation id="1524282610922162960">‏שיתוף כרטיסיית Chromium</translation>
+<translation id="154404805518949443">‏כניסה ל-Chromium</translation>
 <translation id="1547469039832541117">סיום המשימה המודגשת.</translation>
 <translation id="1553461853655228091">‏Chromium זקוק להרשאת גישה למצלמה כדי ליצור מפה תלת-ממדית של הסביבה שלך</translation>
 <translation id="1555494096857516577">{NUM_EXTENSIONS,plural, =1{‏התוסף הזה כבר לא נתמך. אנחנו ממליצים להסיר אותו מ-Chromium.}one{‏התוספים האלה כבר לא נתמכים. אנחנו ממליצים להסיר אותם מ-Chromium.}two{‏התוספים האלה כבר לא נתמכים. אנחנו ממליצים להסיר אותם מ-Chromium.}other{‏התוספים האלה כבר לא נתמכים. אנחנו ממליצים להסיר אותם מ-Chromium.}}</translation>
@@ -228,6 +229,7 @@
 <translation id="3530103706039034513">‏כבר בוצעה כניסה לחשבון על ידי <ph name="EXISTING_USER" />.  כדי להפריד בין פעילויות הגלישה, עליך להיכנס ל-Chromium בפרופיל שלך עם האימייל <ph name="USER_EMAIL_ADDRESS" />.</translation>
 <translation id="3561853857681580870">‏כדי לשתף את המסך, צריך לאפשר הקלטת מסך ב-Chromium בקטע "הגדרות המערכת".</translation>
 <translation id="3597003331831379823">הפעלת ההגדרה נכשלה עם הרשאות מורחבות. <ph name="METAINSTALLER_ERROR" /></translation>
+<translation id="3600428265489994557">‏כניסה ל-Chromium</translation>
 <translation id="3639635944603682591">‏נתוני הגלישה של האדם הזה יימחקו מהמכשיר. כדי לשחזר את הנתונים, יש להיכנס ל-Chromium בתור <ph name="USER_EMAIL" />.</translation>
 <translation id="364817392622123556">{COUNT,plural, =0{‏יש עדכון חדש בשביל Chromium והמערכת תחיל אותו ברגע שתבוצע הפעלה מחדש.}=1{‏יש עדכון חדש בשביל Chromium והמערכת תחיל אותו ברגע שתבוצע הפעלה מחדש. החלון האנונימי לא ייפתח מחדש.}one{‏יש עדכון חדש בשביל Chromium והמערכת תחיל אותו ברגע שתבוצע הפעלה מחדש. # החלונות האנונימיים לא ייפתחו מחדש.}two{‏יש עדכון חדש בשביל Chromium והמערכת תחיל אותו ברגע שתבוצע הפעלה מחדש. # החלונות האנונימיים לא ייפתחו מחדש.}other{‏יש עדכון חדש בשביל Chromium והמערכת תחיל אותו ברגע שתבוצע הפעלה מחדש. # החלונות האנונימיים לא ייפתחו מחדש.}}</translation>
 <translation id="3651803019964686660">‏כדי לשלוח מספר מ-<ph name="ORIGIN" /> לטלפון Android שלך, צריך להיכנס אל Chromium בשני המכשירים.</translation>
@@ -389,7 +391,6 @@
 <translation id="5605834417512968703">‏אפשר לבחור משהו לחיפוש באמצעות התכונה 'חיפוש תמונות' או ללחוץ על Escape כדי לצאת מחיפוש התמונות</translation>
 <translation id="5618818588972826921">‏אפשר לבחור טקסט או תמונה לחיפוש באמצעות התכונה "חיפוש תמונות" או ללחוץ על Escape כדי לצאת מחיפוש התמונות</translation>
 <translation id="5623402015214259806">{0,plural, =0{‏יש עדכון ל-Chromium}=1{‏יש עדכון ל-Chromium}one{‏עדכון של Chromium זמין כבר # ימים}two{‏עדכון של Chromium זמין כבר # ימים}other{‏עדכון של Chromium זמין כבר # ימים}}</translation>
-<translation id="5633450273457573375">‏שימוש ב<ph name="BEGIN_LINK" />ביטוי סיסמה משלך<ph name="END_LINK" /> כדי להצפין את כל נתוני Chromium בחשבון Google. הכתובות וכל הנתונים שנשמרו ב-Google Wallet לא יוצפנו באמצעות ביטוי הסיסמה. היסטוריית הגלישה ב-Chromium לא תסונכרן.</translation>
 <translation id="5643865575100044307">‏מחיקת נתונים מאתרים מהמכשיר בכל פעם שסוגרים את Chromium</translation>
 <translation id="5653831366781983928">‏יש להפעיל מחדש את Chromium</translation>
 <translation id="5690427481109656848">Google LLC</translation>
@@ -499,6 +500,7 @@
 ייתכן שחלק מהתכונות לא יהיו זמינות. יש לציין ספריית פרופיל אחרת או להשתמש בגרסה חדשה יותר של Chromium.</translation>
 <translation id="6729124504294600478">‏כדי להשתמש בהתאמה אישית ובתכונות אחרות, צריך לכלול את Chromium ב'פעילות באינטרנט ובאפליקציות' ובשירותי Google המקושרים</translation>
 <translation id="6734291798041940871">‏Chromium כבר מותקן במחשב ונגיש לכל המשתמשים.</translation>
+<translation id="6742093177587589736">‏כדי לקבל גישה לסימניות ולנתונים נוספים בכל המכשירים, צריך להיכנס ל-Chromium. לאחר הכניסה, הסימנייה הזו תישמר בחשבון Google.</translation>
 <translation id="6751374565094704799">‏אפשר להאיץ ביצועים של אתרים באמצעות מנוע V8 של Chromium, אבל Chromium יהיה קצת פחות עמיד בפני מתקפות. ההגדרה הזו פועלת.</translation>
 <translation id="6754665438209053659">{count,plural, =1{‏חלק מהנתונים ב-Chromium עדיין לא נשמרו בחשבון Google. כדאי לחכות כמה דקות לפני היציאה מהחשבון. אם תתבצע יציאה מהחשבון, הנתונים האלה יימחקו (פריט אחד).}one{‏חלק מהנתונים ב-Chromium עדיין לא נשמרו בחשבון Google. כדאי לחכות כמה דקות לפני היציאה מהחשבון. אם תתבצע יציאה מהחשבון, הנתונים האלה יימחקו ({count} פריטים).}two{‏חלק מהנתונים ב-Chromium עדיין לא נשמרו בחשבון Google. כדאי לחכות כמה דקות לפני היציאה מהחשבון. אם תתבצע יציאה מהחשבון, הנתונים האלה יימחקו ({count} פריטים).}other{‏חלק מהנתונים ב-Chromium עדיין לא נשמרו בחשבון Google. כדאי לחכות כמה דקות לפני היציאה מהחשבון. אם תתבצע יציאה מהחשבון, הנתונים האלה יימחקו ({count} פריטים).}}</translation>
 <translation id="67706546131546258">‏ההמלצה של Chromium היא לסרוק את הקובץ הזה כי הוא עלול להיות מסוכן.</translation>
@@ -650,6 +652,7 @@ Chromium לא יכול לשחזר את ההגדרות שלך.</translation>
 <translation id="8493179195440786826">‏Chromium אינו מעודכן</translation>
 <translation id="850264194101621529">‏תודה שבחרת ב-Chromium כדפדפן ברירת המחדל שלך!</translation>
 <translation id="8522801943730206384">‏ל-Chromium יש אפשרות לבדוק את הסיסמאות שלך רק אם שמרת אותן</translation>
+<translation id="8548787790260785208">‏אפשר לקבל אזהרה אם Chromium ימצא אחת מהסיסמאות שלך בפרצה באבטחת מידע שפורסמה לציבור</translation>
 <translation id="8555465886620020932">שגיאה בשירות: <ph name="SERVICE_ERROR" />.</translation>
 <translation id="8556420416730706394">אפשר להצמיד את התכונה 'חיפוש תמונות' כדי לאפשר גישה נוחה: פשוט לוחצים על הכפתור 'הצמדה' בחלק העליון של החלונית הצדדית</translation>
 <translation id="856656450041460113">רשימת שפות לחיפוש</translation>
@@ -682,7 +685,6 @@ Chromium לא יכול לשחזר את ההגדרות שלך.</translation>
 <translation id="897581876605952338">‏הלוגו של Chromium Enterprise</translation>
 <translation id="8988036198400390003">‏ניהול הפרופילים ב-Chromium</translation>
 <translation id="9019929317751753759">‏כדי לשפר את האבטחה של Chromium, השבתנו את התוסף הבא שאינו רשום ב-<ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> וייתכן שנוסף ללא ידיעתך.</translation>
-<translation id="9022552996538154597">‏כניסה אל Chromium</translation>
 <translation id="904366664621834601">‏‫Chromium חסם את ההורדה הזו כי קובץ הארכיון כולל קבצים אחרים שעלולים להסתיר תוכנות זדוניות</translation>
 <translation id="9062666675513499497">‏כניסה אל Chromium כשנכנסים לשירותי Google אחרים</translation>
 <translation id="9078733879136747090">‏Chromium נסגר באופן אוטומטי</translation>

@@ -105,7 +105,7 @@ class VideoFrameImageUtilTest
 
   scoped_refptr<StaticBitmapImage> DoCreateImageFromVideoFrame(
       scoped_refptr<media::VideoFrame> frame,
-      CanvasResourceProvider* resource_provider = nullptr,
+      CanvasSnapshotProvider* snapshot_provider = nullptr,
       media::PaintCanvasVideoRenderer* video_renderer = nullptr,
       bool prefer_tagged_orientation = true) {
     const auto transform =
@@ -119,22 +119,22 @@ class VideoFrameImageUtilTest
       dest_rect.Transpose();
     }
 
-    std::unique_ptr<CanvasResourceProvider> local_resource_provider;
+    std::unique_ptr<CanvasSnapshotProvider> local_snapshot_provider;
 
-    if (!resource_provider) {
+    if (!snapshot_provider) {
       auto frame_color_space = frame->CompatRGBColorSpace();
-      local_resource_provider = CreateResourceProviderForVideoFrame(
+      local_snapshot_provider = CreateSnapshotProviderForVideoFrame(
           dest_rect.size(), GetN32FormatForCanvas(), kPremul_SkAlphaType,
           frame_color_space, raster_context_provider());
-      if (!local_resource_provider) {
+      if (!local_snapshot_provider) {
         DLOG(ERROR) << "Failed to create CanvasResourceProvider.";
         return nullptr;
       }
 
-      resource_provider = local_resource_provider.get();
-      CHECK(resource_provider);
+      snapshot_provider = local_snapshot_provider.get();
+      CHECK(snapshot_provider);
     }
-    return CreateImageFromVideoFrame(std::move(frame), resource_provider,
+    return CreateImageFromVideoFrame(std::move(frame), snapshot_provider,
                                      video_renderer, prefer_tagged_orientation);
   }
 
@@ -192,44 +192,8 @@ TEST_P(VideoFrameImageUtilTest, CreateImageFromVideoFrameOrientation) {
 }
 
 TEST_P(VideoFrameImageUtilTest, WillCreateAcceleratedImagesFromVideoFrame) {
-  // I420A frame.
-  {
-    auto alpha_frame = media::VideoFrame::CreateTransparentFrame(kTestSize);
-    EXPECT_EQ(WillCreateAcceleratedImagesFromVideoFrame(alpha_frame.get()),
-              expect_accelerated_images());
-  }
-
-  // Software RGB frame.
-  {
-    auto cpu_frame = CreateTestFrame(kTestSize, gfx::Rect(kTestSize), kTestSize,
-                                     media::VideoFrame::STORAGE_OWNED_MEMORY,
-                                     media::PIXEL_FORMAT_XRGB,
-                                     base::TimeDelta(), test_sii_.get());
-    EXPECT_EQ(WillCreateAcceleratedImagesFromVideoFrame(cpu_frame.get()),
-              expect_accelerated_images());
-  }
-
-  // GpuMemoryBuffer frame.
-  {
-    auto cpu_frame = CreateTestFrame(
-        kTestSize, gfx::Rect(kTestSize), kTestSize,
-        media::VideoFrame::STORAGE_GPU_MEMORY_BUFFER, media::PIXEL_FORMAT_XRGB,
-        base::TimeDelta(), test_sii_.get());
-    EXPECT_EQ(WillCreateAcceleratedImagesFromVideoFrame(cpu_frame.get()),
-              expect_accelerated_images());
-  }
-
-  // shared images frame.
-  {
-    auto shared_image_frame = CreateTestFrame(
-        kTestSize, gfx::Rect(kTestSize), kTestSize,
-        media::VideoFrame::STORAGE_OPAQUE, media::PIXEL_FORMAT_XRGB,
-        base::TimeDelta(), test_sii_.get());
-    EXPECT_TRUE(shared_image_frame->HasSharedImage());
-    EXPECT_EQ(
-        WillCreateAcceleratedImagesFromVideoFrame(shared_image_frame.get()),
-        expect_accelerated_images());
-  }
+  EXPECT_EQ(WillCreateAcceleratedImagesFromVideoFrame(),
+            expect_accelerated_images());
 }
 
 TEST_P(VideoFrameImageUtilTest, CreateImageFromVideoFrameSoftwareFrame) {
@@ -242,10 +206,10 @@ TEST_P(VideoFrameImageUtilTest, CreateImageFromVideoFrameSoftwareFrame) {
 }
 
 TEST_P(VideoFrameImageUtilTest, CreateImageFromVideoFrameGpuMemoryBufferFrame) {
-  auto cpu_frame = CreateTestFrame(kTestSize, gfx::Rect(kTestSize), kTestSize,
-                                   media::VideoFrame::STORAGE_GPU_MEMORY_BUFFER,
-                                   media::PIXEL_FORMAT_NV12, base::TimeDelta(),
-                                   test_sii_.get());
+  auto cpu_frame = CreateTestFrame(
+      kTestSize, gfx::Rect(kTestSize), kTestSize,
+      media::VideoFrame::STORAGE_MAPPABLE_SHARED_IMAGE,
+      media::PIXEL_FORMAT_NV12, base::TimeDelta(), test_sii_.get());
   auto image = DoCreateImageFromVideoFrame(cpu_frame);
   EXPECT_EQ(image->IsTextureBacked(), expect_accelerated_images());
 }
@@ -287,7 +251,7 @@ TEST_P(VideoFrameImageUtilTest, FlushedAcceleratedImage) {
       raster_context_provider(), kTestSize, gfx::Rect(kTestSize),
       base::DoNothing());
 
-  auto provider = CreateResourceProviderForVideoFrame(
+  auto provider = CreateSnapshotProviderForVideoFrame(
       kTestSize, kTestFormat, kTestAlphaType, kTestColorSpace,
       raster_context_provider());
   ASSERT_TRUE(provider);
@@ -298,12 +262,10 @@ TEST_P(VideoFrameImageUtilTest, FlushedAcceleratedImage) {
 
   image = DoCreateImageFromVideoFrame(texture_frame, provider.get());
   EXPECT_TRUE(image->IsTextureBacked());
-
-  ASSERT_FALSE(provider->Recorder().HasRecordedDrawOps());
 }
 
-TEST_P(VideoFrameImageUtilTest, CreateResourceProviderForVideoFrame) {
-  auto provider = CreateResourceProviderForVideoFrame(
+TEST_P(VideoFrameImageUtilTest, CreateSnapshotProviderForVideoFrame) {
+  auto provider = CreateSnapshotProviderForVideoFrame(
       kTestSize, kTestFormat, kTestAlphaType, kTestColorSpace,
       raster_context_provider());
   ASSERT_TRUE(provider);

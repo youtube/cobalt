@@ -19,7 +19,6 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
-import org.chromium.chrome.browser.settings.search.BaseSearchIndexProvider;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.components.browser_ui.settings.SettingsUtils;
 import org.chromium.ui.base.DeviceFormFactor;
@@ -107,8 +106,4 @@ public class AddressBarSettingsFragment extends ChromeBaseSettingsFragment {
     public @Nullable String getMainMenuKey() {
         return "address_bar";
     }
-
-    public static final BaseSearchIndexProvider SEARCH_INDEX_DATA_PROVIDER =
-            new BaseSearchIndexProvider(
-                    AddressBarSettingsFragment.class.getName(), R.xml.address_bar_settings);
 }

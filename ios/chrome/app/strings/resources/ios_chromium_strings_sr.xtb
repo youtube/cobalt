@@ -117,6 +117,7 @@
 <translation id="3581385059720151202">Претраживање визуелног материјала у Chromium-у</translation>
 <translation id="3582640969619785896">Chromium ће вам понудити да сачува лозинку</translation>
 <translation id="3594315078412605236">Управљање начинима плаћања у Chromium-у</translation>
+<translation id="3600428265489994557">Пријавите се у Chromium</translation>
 <translation id="3617143087229977194">Отворите подешавања подразумеваних апликација у iOS-у, па додирните Browser App (Апликација прегледача) и изаберите Chromium.</translation>
 <translation id="3634039384458740619">Отвори подешавања Chromium-а</translation>
 <translation id="3639997914391704523">Chromium може да вам проверава лозинке када се пријавите помоћу Google налога.</translation>
@@ -351,7 +352,6 @@
 <translation id="900560297598578021">Пријављени сте као <ph name="EMAIL" />.
 
 Подаци су шифровани помоћу приступне фразе <ph name="TIME" />. Унесите је да бисте користили и сачували Chromium податке на Google налогу.</translation>
-<translation id="9022552996538154597">Пријављивање на Chromium</translation>
 <translation id="9031260906956926157">Неки Chromium подаци још нису сачувани на Google налогу.
 Сачекајте неколико минута пре него што се одјавите. Ако се одјавите одмах, ови подаци ће бити избрисани.</translation>
 <translation id="9050790730841755540">Користите Chromium сваки пут када додирујете линкове у другим апликацијама.</translation>

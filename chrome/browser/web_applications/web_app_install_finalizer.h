@@ -5,7 +5,6 @@
 #ifndef CHROME_BROWSER_WEB_APPLICATIONS_WEB_APP_INSTALL_FINALIZER_H_
 #define CHROME_BROWSER_WEB_APPLICATIONS_WEB_APP_INSTALL_FINALIZER_H_
 
-#include <map>
 #include <memory>
 #include <vector>
 
@@ -151,6 +150,7 @@ class WebAppInstallFinalizer {
       WebApp* web_app,
       const IsolatedWebAppStorageLocation& location,
       const IwaVersion& version,
+      const std::optional<GURL>& iwa_update_manifest_url,
       std::optional<IsolatedWebAppIntegrityBlockData> integrity_block_data);
 
   void OnOriginAssociationValidatedForUpdate(

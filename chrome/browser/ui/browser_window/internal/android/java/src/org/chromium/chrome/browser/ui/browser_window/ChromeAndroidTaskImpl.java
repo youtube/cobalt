@@ -15,6 +15,7 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.os.Build;
+import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
 import android.util.Pair;
 import android.view.WindowInsets;
@@ -104,6 +105,15 @@ final class ChromeAndroidTaskImpl
     private interface ActivityUser<T> {
         T use(Activity activity, ActivityWindowAndroid activityWindowAndroid);
     }
+
+    /**
+     * Store the maximized bounds for a pending Task.
+     *
+     * <p>A pending Task doesn't have a live Activity and is unable to get maximized bounds. We
+     * cache the maximized bounds of a live Activity for pending Tasks as the maximized bounds don't
+     * change.
+     */
+    @Nullable public static Rect sCachedMaximizeRectInDp;
 
     private final AtomicInteger mState = new AtomicInteger(State.UNKNOWN);
 
@@ -286,8 +296,12 @@ final class ChromeAndroidTaskImpl
             var activityWindowAndroid = mActivityScopedObjects.mActivityWindowAndroid;
             var activity = getActivity(activityWindowAndroid);
             mId = activity.getTaskId();
+            @Nullable Rect futureBounds = mPendingActionManager.getFutureBoundsInDp();
+            @Nullable Rect futureRestoredBounds =
+                    mPendingActionManager.getFutureRestoredBoundsInDp();
             mState.set(State.IDLE);
-            dispatchPendingActionsLocked(activity, activityWindowAndroid);
+            dispatchPendingActionsLocked(
+                    activity, activityWindowAndroid, futureBounds, futureRestoredBounds);
 
             JniOnceCallback<Long> taskCreationCallbackForNative =
                     mPendingTaskInfo.mTaskCreationCallbackForNative;
@@ -464,15 +478,9 @@ final class ChromeAndroidTaskImpl
 
     @Override
     public Rect getRestoredBoundsInDp() {
-        if (mState.get() == State.PENDING_CREATE) {
-            var initialBounds = assumeNonNull(mPendingTaskInfo).mCreateParams.getInitialBounds();
-            if (mPendingActionManager.isActionRequested(PendingAction.SET_BOUNDS)) {
-                return assertNonNull(mPendingActionManager.getPendingBoundsInDp());
-            } else if (mPendingActionManager.isActionRequested(PendingAction.RESTORE)) {
-                var pendingRestoredBounds = mPendingActionManager.getPendingRestoredBoundsInDp();
-                return pendingRestoredBounds == null ? initialBounds : pendingRestoredBounds;
-            }
-            return initialBounds;
+        Rect futureRestoredBounds = mPendingActionManager.getFutureRestoredBoundsInDp();
+        if (futureRestoredBounds != null) {
+            return futureRestoredBounds;
         }
 
         return useActivity(
@@ -507,16 +515,8 @@ final class ChromeAndroidTaskImpl
 
     @Override
     public Rect getBoundsInDp() {
-        if (mState.get() == State.PENDING_CREATE) {
-            if (mPendingActionManager.isActionRequested(PendingAction.SET_BOUNDS)) {
-                return assertNonNull(mPendingActionManager.getPendingBoundsInDp());
-            }
-            return assumeNonNull(mPendingTaskInfo).mCreateParams.getInitialBounds();
-
-        } else if (mState.get() == State.PENDING_UPDATE) {
-            var bounds = mPendingActionManager.getFutureBoundsInDp();
-            if (bounds != null) return bounds;
-        }
+        var futureBounds = mPendingActionManager.getFutureBoundsInDp();
+        if (futureBounds != null) return futureBounds;
 
         return useActivity(
                 new ActivityUser<>() {
@@ -715,8 +715,8 @@ final class ChromeAndroidTaskImpl
         if (Boolean.TRUE.equals(mPendingActionManager.isMaximizedFuture(mState.get()))) return;
 
         if (mState.get() == State.PENDING_CREATE) {
-            // TODO(crbug.com/459857984): remove empty bound and set a correct bound.
-            mPendingActionManager.requestMaximize(new Rect());
+            assertNonNull(sCachedMaximizeRectInDp);
+            mPendingActionManager.requestMaximize(sCachedMaximizeRectInDp);
             return;
         }
 
@@ -783,10 +783,13 @@ final class ChromeAndroidTaskImpl
 
     @Override
     public void setBoundsInDp(Rect boundsInDp) {
+        var futureBounds = mPendingActionManager.getFutureBoundsInDp();
+        if (futureBounds != null && futureBounds.equals(boundsInDp)) {
+            return;
+        }
+
         if (mState.get() == State.PENDING_CREATE) {
-            if (!boundsInDp.isEmpty()) {
-                mPendingActionManager.requestSetBounds(boundsInDp);
-            }
+            mPendingActionManager.requestSetBounds(boundsInDp);
             return;
         }
 
@@ -796,6 +799,10 @@ final class ChromeAndroidTaskImpl
                     @GuardedBy("mActivityScopedObjectsLock")
                     public Void use(
                             Activity activity, ActivityWindowAndroid activityWindowAndroid) {
+                        if (getCurrentBoundsInDpLocked(activity, activityWindowAndroid)
+                                .equals(boundsInDp)) {
+                            return null;
+                        }
                         mPendingActionManager.requestSetBounds(boundsInDp);
                         mState.set(State.PENDING_UPDATE);
                         setBoundsInDpInternalLocked(activity, activityWindowAndroid, boundsInDp);
@@ -880,6 +887,7 @@ final class ChromeAndroidTaskImpl
         return assumeNonNull(mState.get());
     }
 
+    @SuppressLint("StaticGuardedByInstance")
     private void setActivityScopedObjectsInternal(ActivityScopedObjects activityScopedObjects) {
         synchronized (mActivityScopedObjectsLock) {
             assert mActivityScopedObjects == null
@@ -913,18 +921,34 @@ final class ChromeAndroidTaskImpl
             activityScopedObjects.mTabModel.addObserver(this);
             activityScopedObjects.mTabModel.associateWithBrowserWindow(
                     mAndroidBrowserWindow.getOrCreateNativePtr());
+
+            // Cache the maximize bound.
+            if (VERSION.SDK_INT >= VERSION_CODES.R) {
+                var activity = getActivity(activityWindowAndroid);
+                sCachedMaximizeRectInDp =
+                        convertBoundsInPxToDp(
+                                ChromeAndroidTaskBoundsConstraints.getMaxBoundsInPx(
+                                        activity.getWindowManager()),
+                                activityWindowAndroid.getDisplay());
+            }
         }
     }
 
+    /**
+     * @param activityWindowAndroid The associated {@link ActivityWindowAndroid}.
+     * @param futureBoundsInDp The future bounds the task is supposed to be when becoming alive.
+     * @param futureRestoredBoundsInDp The restored bounds recorded before becoming alive.
+     */
     @GuardedBy("mActivityScopedObjectsLock")
     @SuppressLint("NewApi")
     private void dispatchPendingActionsLocked(
-            Activity activity, ActivityWindowAndroid activityWindowAndroid) {
+            Activity activity,
+            ActivityWindowAndroid activityWindowAndroid,
+            @Nullable Rect futureBoundsInDp,
+            @Nullable Rect futureRestoredBoundsInDp) {
         // Initiate actions on a live Task.
         assertAlive();
 
-        Rect boundsInDp = mPendingActionManager.getPendingBoundsInDp();
-        Rect restoredBoundsInDp = mPendingActionManager.getPendingRestoredBoundsInDp();
         @PendingAction int[] pendingActions = mPendingActionManager.getAndClearPendingActions();
         for (@PendingAction int action : pendingActions) {
             if (action == PendingAction.NONE) continue;
@@ -956,17 +980,17 @@ final class ChromeAndroidTaskImpl
                 case PendingAction.RESTORE:
                     // RESTORE should be ignored to fall back to default startup bounds if
                     // non-empty, non-default bounds are not requested in pending state.
-                    if (restoredBoundsInDp != null && !restoredBoundsInDp.isEmpty()) {
+                    if (futureRestoredBoundsInDp != null && !futureRestoredBoundsInDp.isEmpty()) {
                         mRestoredBoundsInPx =
                                 DisplayUtil.scaleToEnclosingRect(
-                                        restoredBoundsInDp,
+                                        futureRestoredBoundsInDp,
                                         activityWindowAndroid.getDisplay().getDipScale());
                         restoreInternalLocked(activity, activityWindowAndroid);
                     }
                     break;
                 case PendingAction.SET_BOUNDS:
-                    assert boundsInDp != null;
-                    setBoundsInDpInternalLocked(activity, activityWindowAndroid, boundsInDp);
+                    assert futureBoundsInDp != null;
+                    setBoundsInDpInternalLocked(activity, activityWindowAndroid, futureBoundsInDp);
                     break;
                 default:
                     assert false : "Unsupported pending action.";
@@ -1192,6 +1216,10 @@ final class ChromeAndroidTaskImpl
             mRestoredBoundsInPx = getCurrentBoundsInPxLocked(activity);
         }
 
+        if (isMinimizedInternalLocked(activity)) {
+            activateInternalLocked(activity);
+        }
+
         Rect maxBoundsInPx =
                 ChromeAndroidTaskBoundsConstraints.getMaxBoundsInPx(activity.getWindowManager());
         mPendingActionManager.requestMaximize(
@@ -1219,6 +1247,10 @@ final class ChromeAndroidTaskImpl
     private void restoreInternalLocked(
             Activity activity, ActivityWindowAndroid activityWindowAndroid) {
         if (mRestoredBoundsInPx == null) return;
+        var restoredBoundsInDp =
+                convertBoundsInPxToDp(mRestoredBoundsInPx, activityWindowAndroid.getDisplay());
+        var futureBounds = mPendingActionManager.getFutureBoundsInDp();
+        if (restoredBoundsInDp.equals(futureBounds)) return;
 
         if (isMinimizedInternalLocked(activity)) {
             activateInternalLocked(activity);

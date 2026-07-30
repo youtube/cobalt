@@ -149,3 +149,81 @@ struct WithManyUnions {
   int32 i3;
   int32 i4;
 };
+
+struct Arrays {
+  array<int16> ints;
+  array<uint64, 3> ints_sized;
+  array<bool> bools; // Will be packed as bitfields
+  array<bool, 13> bool_sized; // Will still be packed as bitfields
+  array<TestEnum> enums;
+  array<BaseUnion> unions;
+  array<NestedUnion> unions_nested;
+  array<FourInts> fourints;
+  array<array<uint8>> nested;
+  array<array<uint8, 2>, 3> nested_sized;
+};
+
+struct Maps {
+  map<uint8, uint8> eights;
+  map<bool, uint16> bools;
+  map<TestEnum, int32> enums;
+  map<int8, FourInts> to_struct;
+  map<int8, NestedUnion> to_union;
+  map<int8, map<int16, uint32>> to_map;
+};
+
+struct Strings {
+  string str;
+  array<string> arr;
+  map<uint8, string> to_str;
+  map<string, int16> from_str;
+};
+
+// Now that we have arrays, maps, and strings, we should
+// make sure a union can hold all of them properly.
+union HoldsComplexTypes {
+  string str;
+  array<int16> arr;
+  map<uint8, uint8> m;
+};
+
+struct ComplexUnionHolder {
+  HoldsComplexTypes u;
+};
+
+////// TESTS FOR NULLABLES //////
+
+// Packing: [b, nullable tags] n2 n1 e empty fourints
+struct NullableBasics {
+  bool? b;
+  uint16? n1;
+  int8? n2;
+  Empty? empty;
+  TestEnum? e;
+  FourInts? fourints;
+};
+
+struct ArraysOfNullables {
+  array<bool?> bools;
+  array<Empty?> empties;
+  array<TestEnum?> enums;
+  array<BaseUnion?> unions;
+};
+
+struct NullableArrays {
+  array<bool>? null_arr;
+  array<bool?>? double_null_arr;
+};
+
+union UnionWithNullables {
+  // Nullable primitives aren't allowed in unions
+  Empty? e;
+  string? str;
+  BaseUnion? u;
+};
+
+struct NullableOthers {
+  UnionWithNullables? u;
+  map<uint8, uint8>? m;
+  string? str;
+};

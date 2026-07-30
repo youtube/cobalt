@@ -17,6 +17,7 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -35,8 +36,11 @@ class ScriptState;
 // method was called.
 class MODULES_EXPORT CredentialManagerProxy
     : public GarbageCollected<CredentialManagerProxy>,
-      public GarbageCollectedMixin {
+      public Supplement<LocalDOMWindow> {
  public:
+  static constexpr auto kSupplementIndex =
+      LocalDOMWindow::Supplements::kCredentialManagerProxy;
+
   explicit CredentialManagerProxy(LocalDOMWindow&);
   virtual ~CredentialManagerProxy();
 
@@ -69,7 +73,6 @@ class MODULES_EXPORT CredentialManagerProxy
   void OnFederatedAuthRequestConnectionError();
   void OnDigitalIdentityRequestConnectionError();
 
-  Member<LocalDOMWindow> local_dom_window_;
   HeapMojoRemote<mojom::blink::Authenticator> authenticator_;
   HeapMojoRemote<mojom::blink::CredentialManager> credential_manager_;
   HeapMojoRemote<mojom::blink::WebOTPService> webotp_service_;

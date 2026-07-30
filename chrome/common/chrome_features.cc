@@ -295,23 +295,35 @@ const base::FeatureParam<base::TimeDelta> kGlicActorClickDelay{
 
 // Controls whether the Actor UI components are enabled.
 BASE_FEATURE(kGlicActorUi, base::FEATURE_ENABLED_BY_DEFAULT);
-// Controls whether the new Nudge UI is enabled. No-op if `kGlicActorUiTaskIcon`
-// is false.
-BASE_FEATURE(kGlicActorUiNudgeRedesign, base::FEATURE_ENABLED_BY_DEFAULT);
+// Controls whether the new icon UI is enabled.
+BASE_FEATURE(kGlicActorUiTaskIconV2, base::FEATURE_ENABLED_BY_DEFAULT);
 // Controls whether we ignore users preference of reduced motion enabled and
 // still show the tab indicator spinner. No-op if kGlicActorUiTabIndicator is
 // disabled.
 BASE_FEATURE(kGlicActorUiTabIndicatorSpinnerIgnoreReducedMotion,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Controls theming updates for Actor UI, including the tab indicator spinner
+// and other elements.
+BASE_FEATURE(kActorUiThemed, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, hides handoff button when the client is in control.
 BASE_FEATURE(kGlicHandoffButtonHiddenClientControl,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// If enabled, shows handoff button in immersive mode.
+BASE_FEATURE(kGlicHandoffButtonShowInImmersiveMode,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// If enabled, reset handoff button focus and hover state on button close.
+BASE_FEATURE(kGlicHandoffButtonResetFocusAndHoverStatus,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// If enabled, the magic cursor in the actor overlay is shown.
+BASE_FEATURE(kGlicActorUiOverlayMagicCursor, base::FEATURE_DISABLED_BY_DEFAULT);
+
 const char kGlicActorUiTaskIconName[] = "glic-actor-ui-task-icon";
 const char kGlicActorUiOverlayName[] = "glic-actor-ui-overlay";
-const char kGlicActorUiOverlayMagicCursorName[] =
-    "glic-actor-ui-overlay-magic-cursor";
 const char kGlicActorUiToastName[] = "glic-actor-ui-toast";
 const char kGlicActorUiHandoffButtonName[] = "glic-actor-ui-handoff-button";
 const char kGlicActorUiTabIndicatorName[] = "glic-actor-ui-tab-indicator";
@@ -326,9 +338,6 @@ const base::FeatureParam<bool> kGlicActorUiTaskIcon{
 // Controls whether the Actor Overlay in the actor ui is enabled.
 const base::FeatureParam<bool> kGlicActorUiOverlay{
     &kGlicActorUi, kGlicActorUiOverlayName, true};
-// Controls whether the Magic Cursor in the Actor Overlay is enabled.
-const base::FeatureParam<bool> kGlicActorUiOverlayMagicCursor{
-    &kGlicActorUi, kGlicActorUiOverlayMagicCursorName, false};
 // Controls whether the toast in the actor ui is enabled.
 const base::FeatureParam<bool> kGlicActorUiToast{&kGlicActorUi,
                                                  kGlicActorUiToastName, true};
@@ -463,6 +472,11 @@ BASE_FEATURE(kGlicActOnWebCapabilityForManagedTrials,
 // main app.
 BASE_FEATURE(kGlicUnifiedFreScreen, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Controls the Glic Trust First Onboarding experience.
+BASE_FEATURE(kGlicTrustFirstOnboarding, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kGlicTrustFirstOnboardingArmParam{
+    &kGlicTrustFirstOnboarding, "arm", 1 /* kStartChat */};
 #if BUILDFLAG(ENABLE_GLIC)
 // Controls whether the Glic feature is enabled.
 // IMPORTANT: this feature should never be expired! It is used as the main
@@ -475,6 +489,10 @@ BASE_FEATURE(kGlicDetached, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether the Glic feature uses multiple instances or not.
 BASE_FEATURE(kGlicMultiInstance, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Controls whether Glic warms up WebContents instead of a full instance.
+BASE_FEATURE(kGlicWebContentsWarming, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Controls desired min width for the side panel. Not guaranteed to be respected
 // if user manually resizes.
 const base::FeatureParam<int> kGlicSidePanelMinWidth{
@@ -729,9 +747,7 @@ BASE_FEATURE(kGlicScrollTo, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicCaptureRegion, base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_CHROMEOS)
 BASE_FEATURE(kGlicUseNonClient, base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
 
 // Controls whether we enforce that documentId (an optional parameter) is set
 // when trying to scroll all documents except PDFs (and fail the request if
@@ -824,6 +840,9 @@ extern const base::FeatureParam<std::string>
         "glic-record-actor-journal-feedback-category-tag",
         "gemini_in_chrome_actor_tt_df"};
 
+BASE_FEATURE(kGlicRecordMemoryFootprintMetrics,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kGlicWebClientUnresponsiveMetrics,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -852,11 +871,17 @@ BASE_FEATURE(kGlicAssetsV2, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicFaviconDataUrls, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Whether Glic should ignore the offline network status, and assume it is
+// online.
+BASE_FEATURE(kGlicIgnoreOfflineState, base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kGlicExtensions, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicMultitabUnderlines, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicWindowDragRegions, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicHandleDraggingNatively, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, the X-Glic headers will be attached to requests as specified by
 // the kGlicHeaderRequestTypes param.
@@ -888,13 +913,20 @@ const base::FeatureParam<bool> kGlicEntrypointVariationsHighlightNudge{
     &kGlicEntrypointVariations, "glic-entrypoint-variations-highlight-nudge",
     false};
 
+BASE_FEATURE(kGlicButtonAltLabel, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int> kGlicButtonAltLabelVariant{
+    &kGlicButtonAltLabel, "glic-button-alt-label-variant", 0};
+
 BASE_FEATURE(kGlicDaisyChainNewTabs, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicLiveModeOnlyGlow, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicUseToolbarHeightSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicButtonPressedState, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicShareImage, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicShareImageEnterprise, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicWebActuationSetting, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -922,6 +954,13 @@ const base::FeatureParam<base::TimeDelta> kGlicMetricsSessionStartTimeout{
     &kGlicMetricsSession, "glic-metrics-session-start-timeout",
     base::Seconds(5)};
 
+BASE_FEATURE(kGlicPrintMenuItem, base::FEATURE_ENABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kGlicCompositeViewWidth{
+    &kGlicPrintMenuItem, "glic-composite-view-width", 800};
+
+const base::FeatureParam<int> kGlicCompositeViewHeight{
+    &kGlicPrintMenuItem, "glic-composite-view-height", 480};
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
 BASE_FEATURE(kGlicActorAutofill, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1023,6 +1062,11 @@ const base::FeatureParam<base::TimeDelta>
 // Enables or disables the Happiness Tracking System for Desktop Chrome
 // NTP Modules.
 BASE_FEATURE(kHappinessTrackingSurveysForDesktopNtpModules,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables or disables the Happiness Tracking System for Desktop Chrome
+// Next Panel.
+BASE_FEATURE(kHappinessTrackingSurveysForDesktopNextPanel,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables or disables the Happiness Tracking System for History Embeddings.
@@ -1306,13 +1350,6 @@ BASE_FEATURE(kNewFilesPolicyUX, base::FEATURE_ENABLED_BY_DEFAULT);
 // referrers instead of their ordinary behavior.
 BASE_FEATURE(kNoReferrers, base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_WIN)
-// Changes behavior of requireInteraction for notifications. Instead of staying
-// on-screen until dismissed, they are instead shown for a very long time.
-BASE_FEATURE(kNotificationDurationLongForRequireInteraction,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_WIN)
-
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kOfflineAutoFetch, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -1580,12 +1617,6 @@ BASE_FEATURE(kSysInternals, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTPMFirmwareUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-#if !BUILDFLAG(IS_ANDROID)
-// Enables the Support Tool to include a screenshot in the exported support tool
-// packet.
-BASE_FEATURE(kSupportToolScreenshot, base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
-
 // Disable downloads of unsafe file types over insecure transports if initiated
 // from a secure page. As of M89, mixed downloads are blocked on all platforms.
 BASE_FEATURE(kTreatUnsafeDownloadsAsActive, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1776,13 +1807,13 @@ const base::FeatureParam<base::TimeDelta>
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kWebAppManifestIconUpdating, base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kWebAppUsePrimaryIcon, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebAppPeriodicPreinstallUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebAppMigratePreinstalledChat, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kWebAppMigrationApi, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 BASE_FEATURE(kWebAppManifestPolicyAppIdentityUpdate,

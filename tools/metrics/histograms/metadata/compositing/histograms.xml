@@ -97,6 +97,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Compositing.BeginMainFrame.MainResult"
+    enum="BeginMainFrameMainResult" expires_after="2026-06-30">
+  <owner>lizeb@chromium.org</owner>
+  <owner>jonross@chromium.org</owner>
+  <summary>
+    Records the outcome of BeginMainFrame, at a subsampled rate. This is
+    intended to understand the fraction of main frame updates that are aborted.
+  </summary>
+</histogram>
+
 <histogram name="Compositing.Browser.BeginFrame.Produced.Duration.Subsampled"
     units="microseconds" expires_after="2026-05-10">
   <owner>acondor@chromium.org</owner>
@@ -659,7 +669,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.Renderer.LayersUpdateTime" units="microseconds"
-    expires_after="2026-03-08">
+    expires_after="2026-06-07">
   <owner>pdr@chromium.org</owner>
   <owner>paint-dev@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -722,7 +732,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.Scheduler.DeadlineMode"
-    enum="BeginImplFrameDeadlineMode" expires_after="2026-03-29">
+    enum="BeginImplFrameDeadlineMode" expires_after="2026-05-31">
   <owner>lizeb@chromium.org</owner>
   <owner>jonross@chromium.org</owner>
   <summary>
@@ -1016,28 +1026,6 @@ chromium-metrics-reviews@google.com.
     invalidated area of renderers are not taken into account.
 
     Note: the metric is logged as `invalidated_area * 100,000`.
-  </summary>
-</histogram>
-
-<histogram name="Graphics.Smoothness.95pctPercentDroppedFrames_1sWindow"
-    units="%" expires_after="2025-10-26">
-  <owner>jonross@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
-  <summary>
-    The percent dropped frame is calculated for each sliding window of 1 second
-    length and added to a histogram, and then the 95 percentile of that
-    histogram is reported as 95pctPercentDroppedFrames_1sWindow.
-
-    The sliding windows cover the duration of page-load (From start of page-load
-    until user navigates away, or closes the tab/chrome, or when app goes to
-    background). Note that this means that this metric will bias toward tabs
-    that are closed more quickly, and might underreport tabs that remain open
-    for a long duration.
-
-    PercentDroppedFrames is measured by tracking the number of frames which were
-    not displayed on screen out of the total number of frames expected to be
-    produced and displayed. In other words, the lower this number is, the
-    smoother experience.
   </summary>
 </histogram>
 

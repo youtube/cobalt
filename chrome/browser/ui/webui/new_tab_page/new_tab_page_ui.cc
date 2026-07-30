@@ -38,6 +38,8 @@
 #include "chrome/browser/new_tab_page/modules/v2/most_relevant_tab_resumption/most_relevant_tab_resumption_page_handler.h"
 #include "chrome/browser/new_tab_page/modules/v2/tab_groups/tab_groups_page_handler.h"
 #include "chrome/browser/new_tab_page/new_tab_page_util.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/page_image_service/image_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/background/ntp_custom_background_service_factory.h"
@@ -56,6 +58,7 @@
 #include "chrome/browser/ui/views/side_panel/customize_chrome/customize_chrome_utils.h"
 #include "chrome/browser/ui/views/side_panel/customize_chrome/side_panel_controller_views.h"
 #include "chrome/browser/ui/webui/browser_command/browser_command_handler.h"
+#include "chrome/browser/ui/webui/cr_components/composebox/composebox_handler.h"
 #include "chrome/browser/ui/webui/cr_components/most_visited/most_visited_handler.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui/customize_buttons/customize_buttons_handler.h"
@@ -72,7 +75,6 @@
 #include "chrome/browser/ui/webui/page_not_available_for_guest/page_not_available_for_guest_ui.h"
 #include "chrome/browser/ui/webui/plural_string_handler.h"
 #include "chrome/browser/ui/webui/sanitized_image_source.h"
-#include "chrome/browser/ui/webui/searchbox/composebox_handler.h"
 #include "chrome/browser/ui/webui/searchbox/realbox_handler.h"
 #include "chrome/browser/ui/webui/theme_source.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
@@ -144,6 +146,9 @@
 
 using content::BrowserContext;
 using content::WebContents;
+
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(NewTabPageUI,
+                                      kRealboxContextualEntrypointElementId);
 
 bool NewTabPageUIConfig::IsWebUIEnabled(
     content::BrowserContext* browser_context) {
@@ -285,6 +290,7 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
       {"linkDone", IDS_NTP_CUSTOM_LINKS_DONE},
       {"linkEditedMsg", IDS_NTP_CONFIRM_MSG_SHORTCUT_EDITED},
       {"linkRemove", IDS_NTP_CUSTOM_LINKS_REMOVE},
+      {"linkRemoveA11y", IDS_NTP_MOST_VISITED_SITES_REMOVE},
       {"linkRemovedMsg", IDS_NTP_CONFIRM_MSG_SHORTCUT_REMOVED},
       {"shortcutMoreActions", IDS_NTP_CUSTOM_LINKS_MORE_ACTIONS},
       {"enterpriseShortcutSubtitle", IDS_NTP_ENTERPRISE_SHORTCUT_SUBTITLE},
@@ -297,6 +303,8 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
       {"urlField", IDS_NTP_CUSTOM_LINKS_URL},
       {"showMore", IDS_NTP_SHOW_MORE_BUTTON_LABEL},
       {"showLess", IDS_NTP_SHOW_LESS_BUTTON_LABEL},
+      {"shortcutsInactivityRemovalMsg",
+       IDS_NTP_MOST_VISITED_SHORTCUTS_INACTIVITY_REMOVAL},
 
       // Customize button and dialog.
       {"colorPickerLabel", IDS_NTP_CUSTOMIZE_COLOR_PICKER_LABEL},
@@ -605,6 +613,7 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
   source->AddBoolean("composeboxNoFlickerSuggestionsFix", false);
   source->AddBoolean("composeboxShowContextMenu",
                      ntp_composebox::kShowContextMenu.Get());
+  source->AddBoolean("composeboxShowLensSearchChip", false);
   source->AddBoolean("composeboxShowRecentTabChip",
                      ntp_composebox::kShowRecentTabChip.Get());
   source->AddLocalizedString("askAboutThisTabAriaLabel",
@@ -656,6 +665,8 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
   source->AddBoolean(
       "addTabUploadDelayOnRecentTabChipClick",
       ntp_composebox::kAddTabUploadDelayOnRecentTabChipClick.Get());
+  source->AddBoolean("enableModalComposebox",
+                     ntp_composebox::kEnableModalComposebox.Get());
 
   // Action Chips LoadTimeData
   bool show_action_chips =
@@ -866,9 +877,13 @@ void NewTabPageUI::RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(ntp_prefs::kNtpEnterpriseShortcutsVisible,
                                 false);
   registry->RegisterBooleanPref(ntp_prefs::kNtpShortcutsVisible, true);
+  registry->RegisterBooleanPref(ntp_prefs::kNtpShortcutsAutoRemovalDisabled,
+                                false);
   registry->RegisterBooleanPref(ntp_prefs::kNtpPersonalShortcutsVisible, true);
   registry->RegisterBooleanPref(ntp_prefs::kNtpShowAllMostVisitedTiles, false);
   registry->RegisterBooleanPref(prefs::kNtpPromoVisible, true);
+  registry->RegisterDictionaryPref(
+      ntp_prefs::kNtpModulesAutoRemovalDisabledDict);
 }
 
 // static
@@ -877,8 +892,11 @@ void NewTabPageUI::ResetProfilePrefs(PrefService* prefs) {
   prefs->SetBoolean(ntp_prefs::kNtpCustomLinksVisible, true);
   prefs->SetBoolean(ntp_prefs::kNtpEnterpriseShortcutsVisible, false);
   prefs->SetBoolean(ntp_prefs::kNtpShortcutsVisible, true);
+  prefs->SetBoolean(ntp_prefs::kNtpShortcutsAutoRemovalDisabled, false);
   prefs->SetBoolean(ntp_prefs::kNtpPersonalShortcutsVisible, true);
   prefs->SetBoolean(ntp_prefs::kNtpShowAllMostVisitedTiles, false);
+  prefs->SetDict(ntp_prefs::kNtpModulesAutoRemovalDisabledDict,
+                 base::Value::Dict());
 }
 
 // static
@@ -1207,7 +1225,8 @@ void NewTabPageUI::CreateHelpBubbleHandler(
   help_bubble_handler_ = std::make_unique<user_education::HelpBubbleHandler>(
       std::move(handler), std::move(client), this,
       std::vector<ui::ElementIdentifier>{
-          CustomizeButtonsHandler::kCustomizeChromeButtonElementId});
+          CustomizeButtonsHandler::kCustomizeChromeButtonElementId,
+          NewTabPageUI::kRealboxContextualEntrypointElementId});
 }
 
 void NewTabPageUI::CreateNtpPromoHandler(
@@ -1222,7 +1241,7 @@ void NewTabPageUI::CreateActionChipsHandler(
     mojo::PendingRemote<action_chips::mojom::Page> page) {
   action_chips_handler_ = std::make_unique<ActionChipsHandler>(
       std::move(handler), std::move(page), profile_, web_ui(),
-      std::make_unique<ActionChipsGeneratorImpl>(TabIdGeneratorImpl::Get()));
+      std::make_unique<ActionChipsGeneratorImpl>(profile_));
 }
 
 // OnColorProviderChanged can be called during the destruction process and

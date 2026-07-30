@@ -15,15 +15,14 @@
 #include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
-#include "device/fido/cable/cable_discovery_data.h"
 #include "device/fido/cable/v2_constants.h"
 #include "device/fido/ctap_get_assertion_request.h"
-#include "device/fido/fido_constants.h"
 #include "device/fido/fido_discovery_base.h"
 #include "device/fido/fido_request_handler_base.h"
-#include "device/fido/fido_transport_protocol.h"
 #include "device/fido/hid/fido_hid_discovery.h"
 #include "device/fido/network_context_factory.h"
+#include "device/fido/public/fido_constants.h"
+#include "device/fido/public/fido_transport_protocol.h"
 #include "services/device/public/mojom/usb_manager.mojom.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
 
@@ -33,6 +32,10 @@
 #endif  // BUILDFLAG(IS_MAC)
 
 namespace device {
+
+namespace cablev2 {
+struct Pairing;
+}
 
 namespace enclave {
 struct CredentialRequest;

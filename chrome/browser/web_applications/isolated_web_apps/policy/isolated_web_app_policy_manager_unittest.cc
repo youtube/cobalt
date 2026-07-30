@@ -39,6 +39,10 @@
 #include "chrome/browser/web_applications/isolated_web_apps/install/isolated_web_app_install_source.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
+#include "chrome/browser/web_applications/isolated_web_apps/key_distribution/features.h"
+#include "chrome/browser/web_applications/isolated_web_apps/key_distribution/iwa_key_distribution_histograms.h"
+#include "chrome/browser/web_applications/isolated_web_apps/key_distribution/iwa_key_distribution_info_provider.h"
+#include "chrome/browser/web_applications/isolated_web_apps/key_distribution/proto/key_distribution.pb.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_test.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/iwa_test_server_configurator.h"
@@ -68,10 +72,6 @@
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
 #include "components/web_package/test_support/signed_web_bundles/ed25519_key_pair.h"
 #include "components/webapps/common/web_app_id.h"
-#include "components/webapps/isolated_web_apps/features.h"
-#include "components/webapps/isolated_web_apps/iwa_key_distribution_histograms.h"
-#include "components/webapps/isolated_web_apps/iwa_key_distribution_info_provider.h"
-#include "components/webapps/isolated_web_apps/proto/key_distribution.pb.h"
 #include "components/webapps/isolated_web_apps/test_support/signing_keys.h"
 #include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "content/public/common/content_features.h"
@@ -529,10 +529,10 @@ TEST_F(IsolatedWebAppManagedAllowlistTest, AllowedAppInstalled) {
       future.GetRepeatingCallback());
 
   // Update allowlist
-  EXPECT_THAT(test::UpdateKeyDistributionInfoWithAllowlist(
-                  base::Version("1.0.1"),
-                  /*managed_allowlist=*/{web_bundle_id_1()}),
-              HasValue());
+  EXPECT_OK(test::KeyDistributionComponentBuilder(base::Version("1.0.1"))
+                .AddToManagedAllowlist(web_bundle_id_1())
+                .Build()
+                .UploadFromComponentFolder());
 
   EXPECT_TRUE(
       IwaKeyDistributionInfoProvider::GetInstance().IsManagedInstallPermitted(
@@ -571,10 +571,10 @@ TEST_F(IsolatedWebAppManagedAllowlistTest, NotAllowedAppInstallationRefused) {
       future.GetRepeatingCallback());
 
   // Ensure allowlist is empty
-  EXPECT_THAT(
-      test::UpdateKeyDistributionInfoWithAllowlist(base::Version("1.0.1"),
-                                                   /*managed_allowlist=*/{}),
-      HasValue());
+  EXPECT_OK(test::KeyDistributionComponentBuilder(base::Version("1.0.1"))
+                .WithManagedAllowlist({})  // For clarity only
+                .Build()
+                .UploadFromComponentFolder());
 
   EXPECT_FALSE(
       IwaKeyDistributionInfoProvider::GetInstance().IsManagedInstallPermitted(

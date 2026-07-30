@@ -182,7 +182,7 @@ scoped_refptr<Image> CSSGradientValue::GetImage(
       container_sizes, CSSToLengthConversionData::AnchorData(),
       style.EffectiveZoom(), ignored_flags, element);
 
-  scoped_refptr<Gradient> gradient;
+  std::unique_ptr<Gradient> gradient;
   switch (GetClassType()) {
     case kLinearGradientClass:
       gradient = To<CSSLinearGradientValue>(this)->CreateGradient(
@@ -205,7 +205,7 @@ scoped_refptr<Image> CSSGradientValue::GetImage(
   }
 
   scoped_refptr<Image> new_image =
-      GradientGeneratedImage::Create(gradient, size);
+      GradientGeneratedImage::Create(std::move(gradient), size);
   if (is_cacheable_) {
     PutImage(size, new_image);
   }
@@ -923,6 +923,16 @@ bool CSSGradientValue::KnownToBeOpaque(const Document& document,
   return true;
 }
 
+static const CSSValue* ResolveColor(const CSSValue* value,
+                                    const StyleResolverState& state) {
+  if (!value || value->IsColorValue()) {
+    return value;
+  }
+  StyleColor style_color =
+      StyleBuilderConverter::ConvertStyleColor(state, *value);
+  return style_color.ToCSSValue();
+}
+
 static bool NeedsResolution(const CSSPrimitiveValue* value) {
   if (!value) {
     return false;
@@ -1034,20 +1044,41 @@ static const CSSValue* ResolvePosition(
   return ResolveLength(result, conversion_data);
 }
 
-const CSSGradientValue* CSSGradientValue::ResolveValuesIfNeeded(
-    const CSSToLengthConversionData& conversion_data) const {
+const CSSGradientValue& CSSGradientValue::ResolveValuesIfNeeded(
+    const StyleResolverState& style_resolver_state) const {
   switch (GetClassType()) {
     case kLinearGradientClass:
       return To<CSSLinearGradientValue>(this)->ResolveValuesIfNeeded(
-          conversion_data);
+          style_resolver_state);
     case kRadialGradientClass:
       return To<CSSRadialGradientValue>(this)->ResolveValuesIfNeeded(
-          conversion_data);
+          style_resolver_state);
     case kConicGradientClass:
       return To<CSSConicGradientValue>(this)->ResolveValuesIfNeeded(
-          conversion_data);
+          style_resolver_state);
     case kConstantGradientClass:
-      return this;
+      return To<CSSConstantGradientValue>(this)->ResolveValuesIfNeeded(
+          style_resolver_state);
+    default:
+      NOTREACHED();
+  }
+}
+
+CSSGradientValue& CSSGradientValue::ResolveValuesIfNeeded(
+    const StyleResolverState& style_resolver_state) {
+  switch (GetClassType()) {
+    case kLinearGradientClass:
+      return To<CSSLinearGradientValue>(this)->ResolveValuesIfNeeded(
+          style_resolver_state);
+    case kRadialGradientClass:
+      return To<CSSRadialGradientValue>(this)->ResolveValuesIfNeeded(
+          style_resolver_state);
+    case kConicGradientClass:
+      return To<CSSConicGradientValue>(this)->ResolveValuesIfNeeded(
+          style_resolver_state);
+    case kConstantGradientClass:
+      return To<CSSConstantGradientValue>(this)->ResolveValuesIfNeeded(
+          style_resolver_state);
     default:
       NOTREACHED();
   }
@@ -1304,7 +1335,7 @@ static void CountUseOfRainbowGradientPattern(
   }
 }
 
-scoped_refptr<Gradient> CSSLinearGradientValue::CreateGradient(
+std::unique_ptr<Gradient> CSSLinearGradientValue::CreateGradient(
     const CSSToLengthConversionData& conversion_data,
     const gfx::SizeF& size,
     const Document& document,
@@ -1387,7 +1418,7 @@ scoped_refptr<Gradient> CSSLinearGradientValue::CreateGradient(
                                : Gradient::SpreadMethod::kPad);
   AddStops(desc, conversion_data, document, style);
 
-  scoped_refptr<Gradient> gradient =
+  std::unique_ptr<Gradient> gradient =
       Gradient::CreateLinear(desc.p0, desc.p1, desc.spread_method,
                              Gradient::PremultipliedAlpha::kPremultiplied);
 
@@ -1443,8 +1474,11 @@ bool CSSLinearGradientValue::Equals(const CSSLinearGradientValue& other) const {
   return equal_xand_y;
 }
 
-const CSSLinearGradientValue* CSSLinearGradientValue::ResolveValuesIfNeeded(
-    const CSSToLengthConversionData& conversion_data) const {
+CSSLinearGradientValue*
+CSSLinearGradientValue::ResolveValuesAndCreateCopyIfNeeded(
+    const StyleResolverState& style_resolver_state) const {
+  const CSSToLengthConversionData& conversion_data =
+      style_resolver_state.CssToLengthConversionData();
   const CSSValue* first_x = ResolveLength(first_x_, conversion_data);
   const CSSValue* first_y = ResolveLength(first_y_, conversion_data);
   const CSSValue* second_x = ResolveLength(second_x_, conversion_data);
@@ -1456,14 +1490,16 @@ const CSSLinearGradientValue* CSSLinearGradientValue::ResolveValuesIfNeeded(
   for (const auto& stop : stops_) {
     const auto* offset = DynamicTo<CSSPrimitiveValue>(
         ResolveLength(stop.offset_, conversion_data));
-    stops_changed = stops_changed || (offset != stop.offset_);
-    stops.push_back(CSSGradientColorStop(offset, stop.color_));
+    const CSSValue* color = ResolveColor(stop.color_, style_resolver_state);
+    stops_changed =
+        stops_changed || (offset != stop.offset_) || (color != stop.color_);
+    stops.push_back(CSSGradientColorStop(offset, color));
   }
 
   // If the values are the same as the current ones, return this.
   if (first_x == first_x_ && first_y == first_y_ && second_x == second_x_ &&
       second_y == second_y_ && angle == angle_ && !stops_changed) {
-    return this;
+    return nullptr;
   }
 
   CSSLinearGradientValue* result = MakeGarbageCollected<CSSLinearGradientValue>(
@@ -1475,6 +1511,24 @@ const CSSLinearGradientValue* CSSLinearGradientValue::ResolveValuesIfNeeded(
     result->AddStop(stop);
   }
   return result;
+}
+
+const CSSLinearGradientValue& CSSLinearGradientValue::ResolveValuesIfNeeded(
+    const StyleResolverState& style_resolver_state) const {
+  if (CSSLinearGradientValue* resolved =
+          ResolveValuesAndCreateCopyIfNeeded(style_resolver_state)) {
+    return *resolved;
+  }
+  return *this;
+}
+
+CSSLinearGradientValue& CSSLinearGradientValue::ResolveValuesIfNeeded(
+    const StyleResolverState& style_resolver_state) {
+  if (CSSLinearGradientValue* resolved =
+          ResolveValuesAndCreateCopyIfNeeded(style_resolver_state)) {
+    return *resolved;
+  }
+  return *this;
 }
 
 CSSLinearGradientValue* CSSLinearGradientValue::ComputedCSSValue(
@@ -1810,7 +1864,7 @@ gfx::SizeF RadiusToCorner(const gfx::PointF& point,
 
 }  // anonymous namespace
 
-scoped_refptr<Gradient> CSSRadialGradientValue::CreateGradient(
+std::unique_ptr<Gradient> CSSRadialGradientValue::CreateGradient(
     const CSSToLengthConversionData& conversion_data,
     const gfx::SizeF& size,
     const Document& document,
@@ -1895,7 +1949,7 @@ scoped_refptr<Gradient> CSSRadialGradientValue::CreateGradient(
                                : Gradient::SpreadMethod::kPad);
   AddStops(desc, conversion_data, document, style);
 
-  scoped_refptr<Gradient> gradient = Gradient::CreateRadial(
+  std::unique_ptr<Gradient> gradient = Gradient::CreateRadial(
       desc.p0, desc.r0, desc.p1, desc.r1,
       is_degenerate ? 1 : second_radius.AspectRatio(), desc.spread_method,
       Gradient::PremultipliedAlpha::kPremultiplied);
@@ -1970,8 +2024,11 @@ bool CSSRadialGradientValue::Equals(const CSSRadialGradientValue& other) const {
   return true;
 }
 
-const CSSRadialGradientValue* CSSRadialGradientValue::ResolveValuesIfNeeded(
-    const CSSToLengthConversionData& conversion_data) const {
+CSSRadialGradientValue*
+CSSRadialGradientValue::ResolveValuesAndCreateCopyIfNeeded(
+    const StyleResolverState& style_resolver_state) const {
+  const CSSToLengthConversionData& conversion_data =
+      style_resolver_state.CssToLengthConversionData();
   const CSSValue* first_x = ResolvePosition(first_x_, conversion_data);
   const CSSValue* first_y = ResolvePosition(first_y_, conversion_data);
   const CSSValue* second_x = ResolvePosition(second_x_, conversion_data);
@@ -2000,7 +2057,7 @@ const CSSRadialGradientValue* CSSRadialGradientValue::ResolveValuesIfNeeded(
       second_radius == second_radius_ &&
       end_horizontal_size == end_horizontal_size_ &&
       end_vertical_size == end_vertical_size_ && !stops_changed) {
-    return this;
+    return nullptr;
   }
 
   CSSRadialGradientValue* result = MakeGarbageCollected<CSSRadialGradientValue>(
@@ -2013,6 +2070,24 @@ const CSSRadialGradientValue* CSSRadialGradientValue::ResolveValuesIfNeeded(
     result->AddStop(stop);
   }
   return result;
+}
+
+const CSSRadialGradientValue& CSSRadialGradientValue::ResolveValuesIfNeeded(
+    const StyleResolverState& style_resolver_state) const {
+  if (CSSRadialGradientValue* resolved =
+          ResolveValuesAndCreateCopyIfNeeded(style_resolver_state)) {
+    return *resolved;
+  }
+  return *this;
+}
+
+CSSRadialGradientValue& CSSRadialGradientValue::ResolveValuesIfNeeded(
+    const StyleResolverState& style_resolver_state) {
+  if (CSSRadialGradientValue* resolved =
+          ResolveValuesAndCreateCopyIfNeeded(style_resolver_state)) {
+    return *resolved;
+  }
+  return *this;
 }
 
 CSSRadialGradientValue* CSSRadialGradientValue::ComputedCSSValue(
@@ -2104,7 +2179,7 @@ String CSSConicGradientValue::CustomCSSText() const {
   return result.ReleaseString();
 }
 
-scoped_refptr<Gradient> CSSConicGradientValue::CreateGradient(
+std::unique_ptr<Gradient> CSSConicGradientValue::CreateGradient(
     const CSSToLengthConversionData& conversion_data,
     const gfx::SizeF& size,
     const Document& document,
@@ -2125,7 +2200,7 @@ scoped_refptr<Gradient> CSSConicGradientValue::CreateGradient(
                                : Gradient::SpreadMethod::kPad);
   AddStops(desc, conversion_data, document, style);
 
-  scoped_refptr<Gradient> gradient = Gradient::CreateConic(
+  std::unique_ptr<Gradient> gradient = Gradient::CreateConic(
       position, angle, desc.start_angle, desc.end_angle, desc.spread_method,
       Gradient::PremultipliedAlpha::kPremultiplied);
 
@@ -2145,8 +2220,11 @@ bool CSSConicGradientValue::Equals(const CSSConicGradientValue& other) const {
          base::ValuesEquivalent(from_angle_, other.from_angle_);
 }
 
-const CSSConicGradientValue* CSSConicGradientValue::ResolveValuesIfNeeded(
-    const CSSToLengthConversionData& conversion_data) const {
+CSSConicGradientValue*
+CSSConicGradientValue::ResolveValuesAndCreateCopyIfNeeded(
+    const StyleResolverState& style_resolver_state) const {
+  const CSSToLengthConversionData& conversion_data =
+      style_resolver_state.CssToLengthConversionData();
   const CSSValue* x = ResolvePosition(x_, conversion_data);
   const CSSValue* y = ResolvePosition(y_, conversion_data);
   // TODO(crbug.com/40620723): We may need a new Length category for degrees,
@@ -2164,7 +2242,7 @@ const CSSConicGradientValue* CSSConicGradientValue::ResolveValuesIfNeeded(
 
   // If the values are the same as the current ones, return this.
   if (x == x_ && y == y_ && from_angle == from_angle_ && !stops_changed) {
-    return this;
+    return nullptr;
   }
 
   auto* result = MakeGarbageCollected<CSSConicGradientValue>(
@@ -2176,6 +2254,24 @@ const CSSConicGradientValue* CSSConicGradientValue::ResolveValuesIfNeeded(
     result->AddStop(stop);
   }
   return result;
+}
+
+const CSSConicGradientValue& CSSConicGradientValue::ResolveValuesIfNeeded(
+    const StyleResolverState& style_resolver_state) const {
+  if (CSSConicGradientValue* resolved =
+          ResolveValuesAndCreateCopyIfNeeded(style_resolver_state)) {
+    return *resolved;
+  }
+  return *this;
+}
+
+CSSConicGradientValue& CSSConicGradientValue::ResolveValuesIfNeeded(
+    const StyleResolverState& style_resolver_state) {
+  if (CSSConicGradientValue* resolved =
+          ResolveValuesAndCreateCopyIfNeeded(style_resolver_state)) {
+    return *resolved;
+  }
+  return *this;
 }
 
 CSSConicGradientValue* CSSConicGradientValue::ComputedCSSValue(
@@ -2227,7 +2323,7 @@ bool CSSConstantGradientValue::KnownToBeOpaque(
       .IsOpaque();
 }
 
-scoped_refptr<Gradient> CSSConstantGradientValue::CreateGradient(
+std::unique_ptr<Gradient> CSSConstantGradientValue::CreateGradient(
     const CSSToLengthConversionData& conversion_data,
     const gfx::SizeF& size,
     const Document& document,
@@ -2240,7 +2336,7 @@ scoped_refptr<Gradient> CSSConstantGradientValue::CreateGradient(
   desc.stops.emplace_back(0.0f, color);
   desc.stops.emplace_back(1.0f, color);
 
-  scoped_refptr<Gradient> gradient =
+  std::unique_ptr<Gradient> gradient =
       Gradient::CreateLinear(desc.p0, desc.p1, desc.spread_method,
                              Gradient::PremultipliedAlpha::kPremultiplied);
 
@@ -2257,6 +2353,24 @@ CSSConstantGradientValue* CSSConstantGradientValue::ComputedCSSValue(
     CSSValuePhase value_phase) const {
   return MakeGarbageCollected<CSSConstantGradientValue>(
       GetComputedStopColor(*color_, style, allow_visited_style, value_phase));
+}
+
+const CSSConstantGradientValue& CSSConstantGradientValue::ResolveValuesIfNeeded(
+    const StyleResolverState& style_resolver_state) const {
+  const CSSValue* color = ResolveColor(color_, style_resolver_state);
+  if (color == color_) {
+    return *this;
+  }
+  return *MakeGarbageCollected<CSSConstantGradientValue>(color);
+}
+
+CSSConstantGradientValue& CSSConstantGradientValue::ResolveValuesIfNeeded(
+    const StyleResolverState& style_resolver_state) {
+  const CSSValue* color = ResolveColor(color_, style_resolver_state);
+  if (color == color_) {
+    return *this;
+  }
+  return *MakeGarbageCollected<CSSConstantGradientValue>(color);
 }
 
 }  // namespace blink::cssvalue

@@ -805,7 +805,9 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
   }
 
   bool IsUserScrollable() const;
-  virtual void Autoscroll(const PhysicalOffset&);
+  // Scrolls this box to reveal the specified position during autoscroll
+  // (e.g., during drag selection). Returns true if any scrolling occurred.
+  virtual bool Autoscroll(const PhysicalOffset&);
   PhysicalOffset CalculateAutoscrollDirection(
       const gfx::PointF& point_in_root_frame) const;
   static LayoutBox* FindAutoscrollable(LayoutObject*,
@@ -868,6 +870,8 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
   virtual PhysicalRect OverflowClipRect(
       const PhysicalOffset& location,
       OverlayScrollbarClipBehavior = kIgnoreOverlayScrollbarSize) const;
+  virtual PhysicalRect OverflowClipRectForScrollNode(
+      const PhysicalOffset& location) const;
   PhysicalRect ClipRect(const PhysicalOffset& location) const;
 
   // Returns the combination of overflow clip, contain: paint clip and CSS clip

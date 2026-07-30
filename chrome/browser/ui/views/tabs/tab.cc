@@ -58,6 +58,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/collaboration/public/messaging/message.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/grit/components_scaled_resources.h"
 #include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_visual_data.h"
@@ -89,6 +90,7 @@
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/metadata/view_factory.h"
 #include "ui/views/rect_based_targeting_utils.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
@@ -258,10 +260,11 @@ Tab::Tab(TabSlotController* controller)
       AddChildView(std::make_unique<AlertIndicatorButton>(this));
 
 #if BUILDFLAG(ENABLE_GLIC)
-  if (base::FeatureList::IsEnabled(features::kGlicMultitabUnderlines) &&
-      controller_->GetBrowser() &&
-      glic::GlicEnabling::IsProfileEligible(
-          controller_->GetBrowser()->GetProfile())) {
+  if (controller_->GetBrowser() &&
+      ((base::FeatureList::IsEnabled(features::kGlicMultitabUnderlines) &&
+        glic::GlicEnabling::IsProfileEligible(
+            controller_->GetBrowser()->GetProfile())) ||
+       base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks))) {
     glic_tab_underline_view_ = AddChildView(
         views::Builder<glic::TabUnderlineView>(
             glic::TabUnderlineView::Factory::Create(
@@ -565,8 +568,8 @@ bool Tab::OnMousePressed(const ui::MouseEvent& event) {
   // Allow a right click from touch to drag, which corresponds to a long click.
   if (event.IsOnlyLeftMouseButton() ||
       (event.IsOnlyRightMouseButton() && event.flags() & ui::EF_FROM_TOUCH)) {
-    ui::ListSelectionModel original_selection;
-    original_selection = controller_->GetSelectionModel();
+    ui::ListSelectionModel original_selection =
+        controller_->GetSelectionModel();
     // Changing the selection may cause our bounds to change. If that happens
     // the location of the event may no longer be valid. Create a copy of the
     // event in the parents coordinate, which won't change, and recreate an
@@ -719,8 +722,8 @@ void Tab::OnGestureEvent(ui::GestureEvent* event) {
       // See comment in OnMousePressed() as to why we copy the event.
       ui::GestureEvent event_in_parent(*event, static_cast<View*>(this),
                                        parent());
-      ui::ListSelectionModel original_selection;
-      original_selection = controller_->GetSelectionModel();
+      ui::ListSelectionModel original_selection =
+          controller_->GetSelectionModel();
       if (!IsSelected()) {
         controller_->SelectTab(this, *event);
       }
@@ -916,7 +919,7 @@ void Tab::ToggleTabAudioMute() {
 }
 
 bool Tab::IsApparentlyActive() const {
-  return tab_style_views()->GetApparentActiveState() == TabActive::kActive;
+  return tab_style_views()->IsApparentlyActive();
 }
 
 void Tab::AlertStateChanged() {
@@ -1004,8 +1007,10 @@ void Tab::SetData(TabRendererData data) {
   }
   title_->SetText(title);
 
-  const auto new_alert_state = GetAlertStateToShow(data_.alert_state);
-  const auto old_alert_state = GetAlertStateToShow(old.alert_state);
+  const auto new_alert_state =
+      tabs::TabAlertController::GetAlertStateToShow(data_.alert_state);
+  const auto old_alert_state =
+      tabs::TabAlertController::GetAlertStateToShow(old.alert_state);
   if (new_alert_state != old_alert_state) {
     alert_indicator_button_->TransitionToAlertState(new_alert_state);
   }
@@ -1074,16 +1079,6 @@ std::u16string Tab::GetTooltipText(const std::u16string& title,
   return result;
 }
 
-// static
-std::optional<tabs::TabAlert> Tab::GetAlertStateToShow(
-    const std::vector<tabs::TabAlert>& alert_states) {
-  if (alert_states.empty()) {
-    return std::nullopt;
-  }
-
-  return alert_states[0];
-}
-
 void Tab::SetShouldShowDiscardIndicator(bool enabled) {
   icon_->SetShouldShowDiscardIndicator(enabled);
 }
@@ -1109,6 +1104,17 @@ void Tab::MaybeAdjustLeftForPinnedTab(gfx::Rect* bounds,
 }
 
 void Tab::UpdateIconVisibility() {
+  // When a tab is less than it's minimum inactive width its implied that its
+  // collapsed, but some favicon functionality can escape the bounds of the tab
+  // causing artifacts. Fix this by explicitly disabling the visibility of the
+  // views in the tab if the width is such that it is collapsed.
+  if (width() < tab_style()->GetMinimumInactiveWidth()) {
+    showing_icon_ = false;
+    showing_alert_indicator_ = false;
+    showing_close_button_ = false;
+    return;
+  }
+
   // TODO(pkasting): This whole function should go away, and we should simply
   // compute child visibility state in Layout().
 
@@ -1129,8 +1135,9 @@ void Tab::UpdateIconVisibility() {
 
   const bool has_favicon = data().show_icon;
   bool has_alert_icon =
-      (alert_indicator_button_ ? alert_indicator_button_->showing_alert_state()
-                               : GetAlertStateToShow(data().alert_state))
+      (alert_indicator_button_
+           ? alert_indicator_button_->showing_alert_state()
+           : tabs::TabAlertController::GetAlertStateToShow(data().alert_state))
           .has_value();
 #if BUILDFLAG(ENABLE_GLIC)
   std::optional<tabs::TabAlert> current_alert_state =
@@ -1281,7 +1288,7 @@ void Tab::UpdateForegroundColors() {
 void Tab::CloseButtonPressed(const ui::Event& event) {
   if (!alert_indicator_button_ || !alert_indicator_button_->GetVisible()) {
     base::RecordAction(UserMetricsAction("CloseTab_NoAlertIndicator"));
-  } else if (GetAlertStateToShow(data_.alert_state) ==
+  } else if (tabs::TabAlertController::GetAlertStateToShow(data_.alert_state) ==
              tabs::TabAlert::kAudioPlaying) {
     base::RecordAction(UserMetricsAction("CloseTab_AudioIndicator"));
   } else {

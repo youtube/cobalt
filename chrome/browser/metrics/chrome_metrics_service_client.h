@@ -20,6 +20,7 @@
 #include "base/scoped_observation.h"
 #include "base/sequence_checker.h"
 #include "build/build_config.h"
+#include "chrome/browser/metrics/cached_metrics_profile.h"
 #include "chrome/browser/metrics/incognito_observer.h"
 #include "chrome/browser/metrics/metrics_memory_details.h"
 #include "chrome/browser/profiles/profile_manager_observer.h"
@@ -47,6 +48,10 @@ class BrowserActivityWatcher;
 class Profile;
 class ProfileManager;
 class PrefRegistrySimple;
+
+namespace regional_capabilities {
+class CountryIdHolder;
+}
 
 namespace network_time {
 class NetworkTimeTracker;
@@ -144,6 +149,8 @@ class ChromeMetricsServiceClient
   std::optional<bool> GetCurrentUserMetricsConsent() const override;
   std::optional<std::string> GetCurrentUserId() const override;
 #endif  // BUILDFLAG(IS_CHROMEOS)
+  std::optional<regional_capabilities::CountryIdHolder>
+  GetProfileCountryIdForPrivateMetricsReporting() override;
 
   // ukm::HistoryDeleteObserver:
   void OnHistoryDeleted() override;
@@ -273,6 +280,16 @@ class ChromeMetricsServiceClient
 
   // The DwaService that |this| is a client of.
   std::unique_ptr<metrics::dwa::DwaService> dwa_service_;
+
+  // IMPORTANT: This member's declaration order is critical for shutdown
+  // stability. It must be declared *before* `puma_service_` to ensure it is
+  // destroyed *after* `puma_service_`. This is because the `PumaService`
+  // destructor triggers a callback that uses this `cached_profile_` object.
+  // Reordering these members will lead to a use-after-free crash during
+  // shutdown. See crbug.com/465698705 for details.
+  //
+  // This member variable ensures the profile lookup is cached across calls.
+  metrics::CachedMetricsProfile cached_profile_;
 
   // The PumaService that |this| is a client of.
   std::unique_ptr<metrics::private_metrics::PumaService> puma_service_;

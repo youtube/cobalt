@@ -22,11 +22,10 @@ namespace features {
 
 BASE_DECLARE_FEATURE(kAllowEyeDropperWGCScreenCapture);
 
-BASE_DECLARE_FEATURE(kCloseOmniboxPopupOnInactiveAreaClick);
-
 BASE_DECLARE_FEATURE(kCreateNewTabGroupAppMenuTopLevel);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+BASE_DECLARE_FEATURE(kDseIntegrity);
 BASE_DECLARE_FEATURE(kFewerUpdateConfirmations);
 #endif
 
@@ -141,10 +140,6 @@ BASE_DECLARE_FEATURE(kPreloadTopChromeWebUILessNavigations);
 
 BASE_DECLARE_FEATURE(kPressAndHoldEscToExitBrowserFullscreen);
 
-BASE_DECLARE_FEATURE(kReloadSelectionModel);
-
-BASE_DECLARE_FEATURE(kCloseActiveTabInSplitViewViaHotkey);
-
 BASE_DECLARE_FEATURE(kScrimForBrowserWindowModal);
 
 BASE_DECLARE_FEATURE(kSideBySide);
@@ -209,13 +204,9 @@ BASE_DECLARE_FEATURE_PARAM(int, kSideBySideSnapDistance);
 
 BASE_DECLARE_FEATURE_PARAM(int, kSideBySideIphTabSwitchCount);
 
-BASE_DECLARE_FEATURE(kSideBySideSessionRestore);
-
 bool IsRestoringSplitViewEnabled();
 
 BASE_DECLARE_FEATURE(kSideBySideLinkMenuNewBadge);
-
-BASE_DECLARE_FEATURE(kSideBySideKeyboardShortcut);
 
 bool IsSideBySideKeyboardShortcutEnabled();
 

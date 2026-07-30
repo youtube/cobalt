@@ -77,7 +77,7 @@ WebNode GetNodeFromIdIncludingPopup(const content::RenderFrame& frame,
 }  // namespace
 
 WebWidget* ResolvedTarget::GetWidget(const ToolBase& tool) const {
-  WebLocalFrame* web_frame = tool.frame()->GetWebFrame();
+  const WebLocalFrame* web_frame = tool.frame()->GetWebFrame();
   if (!web_frame || !web_frame->FrameWidget()) {
     return nullptr;
   }
@@ -118,6 +118,8 @@ ToolBase::ToolBase(content::RenderFrame& frame,
       observed_target_(std::move(observed_target)) {}
 
 ToolBase::~ToolBase() = default;
+
+void ToolBase::Cancel() {}
 
 ToolBase::ResolveResult ToolBase::ResolveTarget(
     const mojom::ToolTarget& target) const {
@@ -174,7 +176,7 @@ ToolBase::ResolveResult ToolBase::ResolveTarget(
 
   WebNode node =
       GetNodeFromIdIncludingPopup(frame_.get(), target.get_dom_node_id());
-  if (node.IsNull()) {
+  if (node.IsNull() || !node.IsConnected()) {
     return base::unexpected(
         MakeResult(mojom::ActionResultCode::kInvalidDomNodeId));
   }
@@ -238,6 +240,7 @@ bool ToolBase::EnsureTargetInView() {
   WebElement node = GetNodeFromIdIncludingPopup(frame_.get(), dom_node_id)
                         .DynamicTo<WebElement>();
   if (node && node.VisibleBoundsInWidget().IsEmpty()) {
+    node.RevealAutoExpandableAncestors();
     node.ScrollIntoViewIfNeeded();
     return true;
   }

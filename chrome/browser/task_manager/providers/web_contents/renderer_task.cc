@@ -12,6 +12,7 @@
 #include "base/i18n/rtl.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/process_resource_usage.h"
@@ -23,8 +24,15 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
+#include "content/public/common/result_codes.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "ui/base/l10n/l10n_util.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/android/tab_android.h"
+#include "chrome/browser/android/tab_favicon.h"
+#include "ui/gfx/image/image_skia.h"
+#endif
 
 namespace task_manager {
 
@@ -103,6 +111,26 @@ void RendererTask::Activate() {
   web_contents_->GetDelegate()->ActivateContents(web_contents_);
 }
 
+bool RendererTask::IsKillable() {
+  return Task::IsKillable();
+}
+
+bool RendererTask::Kill() {
+  if (!IsKillable()) {
+    return false;
+  }
+
+#if BUILDFLAG(IS_ANDROID)
+  // On Android, the renderer process is an isolated service. Sending SIGKILL
+  // (via base::Process::Terminate) fails due to permission restrictions.
+  // Shutdown() triggers unbinding the service, which is the correct way
+  // to kill a process on Android.
+  return render_process_host_->Shutdown(content::RESULT_CODE_KILLED);
+#else
+  return Task::Kill();
+#endif
+}
+
 void RendererTask::Refresh(const base::TimeDelta& update_interval,
                            int64_t refresh_flags) {
   Task::Refresh(update_interval, refresh_flags);
@@ -169,8 +197,18 @@ void RendererTask::OnFaviconUpdated(favicon::FaviconDriver* favicon_driver,
                                     const GURL& icon_url,
                                     bool icon_url_changed,
                                     const gfx::Image& image) {
-  if (notification_icon_type == NON_TOUCH_16_DIP)
+  if (notification_icon_type == NON_TOUCH_16_DIP) {
     UpdateFavicon();
+    return;
+  }
+
+#if BUILDFLAG(IS_ANDROID)
+  if (notification_icon_type == NON_TOUCH_LARGEST ||
+      notification_icon_type == TOUCH_LARGEST) {
+    const gfx::ImageSkia* icon = image.ToImageSkia();
+    set_icon(icon ? *icon : gfx::ImageSkia());
+  }
+#endif
 }
 
 base::WeakPtr<RendererTask> RendererTask::AsWeakPtr() {
@@ -203,10 +241,22 @@ std::u16string RendererTask::GetTitleFromWebContents(
 }
 
 // static
-const gfx::ImageSkia* RendererTask::GetFaviconFromWebContents(
+std::unique_ptr<gfx::ImageSkia> RendererTask::GetFaviconFromWebContents(
     content::WebContents* web_contents) {
   DCHECK(web_contents);
 
+#if BUILDFLAG(IS_ANDROID)
+  TabAndroid* tab_android = TabAndroid::FromWebContents(web_contents);
+  if (!tab_android) {
+    return nullptr;
+  }
+  const SkBitmap bitmap = TabFavicon::GetBitmapForTab(tab_android);
+  if (bitmap.empty()) {
+    return nullptr;
+  }
+  return std::make_unique<gfx::ImageSkia>(
+      gfx::ImageSkia::CreateFrom1xBitmap(bitmap));
+#else
   // Tag the web_contents with a |ContentFaviconDriver| (if needed) so that
   // we can use it to retrieve the favicon if there is one.
   favicon::CreateContentFaviconDriverForWebContents(web_contents);
@@ -216,7 +266,8 @@ const gfx::ImageSkia* RendererTask::GetFaviconFromWebContents(
   if (image.IsEmpty())
     return nullptr;
 
-  return image.ToImageSkia();
+  return std::make_unique<gfx::ImageSkia>(*image.ToImageSkia());
+#endif
 }
 
 // static
@@ -248,7 +299,8 @@ const std::u16string RendererTask::PrefixRendererTitle(
 }
 
 void RendererTask::DefaultUpdateFaviconImpl() {
-  const gfx::ImageSkia* icon = GetFaviconFromWebContents(web_contents());
+  std::unique_ptr<gfx::ImageSkia> icon =
+      GetFaviconFromWebContents(web_contents());
   set_icon(icon ? *icon : gfx::ImageSkia());
 }
 

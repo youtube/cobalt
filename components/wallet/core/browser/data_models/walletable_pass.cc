@@ -4,9 +4,28 @@
 
 #include "components/wallet/core/browser/data_models/walletable_pass.h"
 
+#include "base/notreached.h"
 #include "components/optimization_guide/proto/features/walletable_pass_extraction.pb.h"
 
 namespace wallet {
+
+// LINT.IfChange(PassCategoryToString)
+std::string PassCategoryToString(PassCategory category) {
+  switch (category) {
+    case PassCategory::kLoyaltyCard:
+      return "LoyaltyCard";
+    case PassCategory::kEventPass:
+      return "EventPass";
+    case PassCategory::kTransitTicket:
+      return "TransitTicket";
+    case PassCategory::kBoardingPass:
+      return "BoardingPass";
+    case PassCategory::kUnspecified:
+      return "Unspecified";
+  }
+  NOTREACHED();
+}
+// LINT.ThenChange(//tools/metrics/histograms/metadata/wallet/histograms.xml:Wallet.WalletablePass.PassCategory)
 
 // static
 LoyaltyCard LoyaltyCard::FromProto(
@@ -88,19 +107,6 @@ TransitTicket::TransitTicket(TransitTicket&&) = default;
 TransitTicket& TransitTicket::operator=(TransitTicket&&) = default;
 TransitTicket::~TransitTicket() = default;
 
-// static
-std::optional<BoardingPass> BoardingPass::FromBCBP(
-    const WalletBarcode& barcode) {
-  // TODO(crbug.com/463515055): Decode BCBP barcode to boarding pass.
-  return std::nullopt;
-}
-
-BoardingPass::BoardingPass() = default;
-BoardingPass::BoardingPass(const BoardingPass&) = default;
-BoardingPass& BoardingPass::operator=(const BoardingPass&) = default;
-BoardingPass::BoardingPass(BoardingPass&&) = default;
-BoardingPass& BoardingPass::operator=(BoardingPass&&) = default;
-BoardingPass::~BoardingPass() = default;
 
 // static
 std::optional<WalletablePass> WalletablePass::FromProto(
@@ -131,7 +137,8 @@ std::optional<WalletablePass> WalletablePass::FromProto(
 // static
 std::optional<WalletablePass> WalletablePass::CreateBoardingPass(
     const WalletBarcode& barcode) {
-  std::optional<BoardingPass> boarding_pass = BoardingPass::FromBCBP(barcode);
+  std::optional<BoardingPass> boarding_pass =
+      BoardingPass::FromBarcode(barcode);
   if (boarding_pass) {
     WalletablePass pass;
     pass.pass_data = std::move(*boarding_pass);

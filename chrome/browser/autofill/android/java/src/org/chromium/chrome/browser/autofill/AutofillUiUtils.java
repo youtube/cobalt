@@ -281,7 +281,7 @@ public class AutofillUiUtils {
      *
      * @param context Context required to get resources.
      * @param popup {@PopupWindow} that shows tooltip UI.
-     * @param text  Text to be shown in tool tip UI.
+     * @param text Text to be shown in tool tip UI.
      * @param offsetProvider Interface to provide the X and Y offsets.
      * @param anchorView Anchor view under which tooltip popup has to be shown
      * @param dismissAction Tooltip dismissive action.
@@ -294,6 +294,7 @@ public class AutofillUiUtils {
             View anchorView,
             final Runnable dismissAction) {
         TextView textView = new TextView(context);
+        textView.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         textView.setText(text);
         textView.setTextAppearance(R.style.TextAppearance_TextMedium_Primary_Baseline_Light);
         Resources resources = context.getResources();
@@ -342,7 +343,6 @@ public class AutofillUiUtils {
                 anchorView,
                 offsetProvider.getXOffset(textView),
                 offsetProvider.getYOffset(textView));
-        textView.announceForAccessibility(textView.getText());
     }
 
     /**
@@ -494,13 +494,11 @@ public class AutofillUiUtils {
     public static void showErrorMessage(String message, TextView errorMessageTextView) {
         assert message != null;
 
+        errorMessageTextView.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+
         // Set the message to display;
         errorMessageTextView.setText(message);
         errorMessageTextView.setVisibility(View.VISIBLE);
-
-        // A null message is passed in during card verification, which also makes an announcement.
-        // Announcing twice in a row may cancel the first announcement.
-        errorMessageTextView.announceForAccessibility(message);
     }
 
     /**

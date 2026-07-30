@@ -587,7 +587,7 @@ content::WebContents* GetAnyWebContentsForAppId(const webapps::AppId& app_id) {
       [&app_id, &result](BrowserWindowInterface* browser) {
         const TabStripModel* const tab_strip_model =
             browser->GetTabStripModel();
-        for (int i = 0; i < tab_strip_model->GetTabCount(); i++) {
+        for (int i = 0; i < tab_strip_model->count(); i++) {
           content::WebContents* const web_contents =
               tab_strip_model->GetWebContentsAt(i);
           const webapps::AppId* const web_contents_id =
@@ -2276,28 +2276,45 @@ void WebAppIntegrationTestDriver::NewAppTab(Site site) {
   AfterStateChangeAction();
 }
 
-void WebAppIntegrationTestDriver::ManifestUpdateIcon(Site site) {
+void WebAppIntegrationTestDriver::ManifestUpdateIcon(Site site,
+                                                     Color update_color) {
   if (!BeforeStateChangeAction(__FUNCTION__)) {
     return;
   }
 
   ASSERT_EQ(Site::kStandalone, site)
       << "Only site mode of 'Standalone' is supported";
-  ASSERT_NE(app_browser(), nullptr)
-      << " manifest updates require the app browser to be launched!";
+
+  std::string manifest_query_param;
+  switch (update_color) {
+    case Color::kGreen:
+      manifest_query_param = "?manifest=basic.json";
+      break;
+    case Color::kRed:
+      manifest_query_param = base::StringPrintf(
+          "?manifest=manifest_icon_red_%u.json", kLauncherIconSize);
+      break;
+    case Color::kGreenSmallDiff:
+      manifest_query_param =
+          base::StringPrintf("?manifest=manifest_icon_green_small_diff_%u.json",
+                             kLauncherIconSize);
+      break;
+  }
 
   // After launching the trusted icon architecture, the icon of largest size of
   // purpose any is going to be preferred.
-  GURL url = GetUrlForSite(
-      site, base::StringPrintf("?manifest=manifest_icon_red_%u.json",
-                               kLauncherIconSize));
+  GURL url = GetUrlForSite(site, manifest_query_param);
   webapps::AppId app_id = GetAppIdBySiteMode(site);
 
-  // Security sensitive updates to apps that are considered installed from
-  // trusted sources happen silently without UX intervention.
-  ForceUpdateManifestContents(site, url,
-                              !provider()->registrar_unsafe().AppMatches(
-                                  app_id, WebAppFilter::IsTrusted()));
+  // Waiting for the menu button UX to be updated is not required icon updates
+  // happen silently, which happens when:
+  // 1. The icon url being updated points to an icon that is <10% in pixel by
+  // pixel diff.
+  // 2. Updates are being triggered for trusted app installs.
+  bool wait_for_menu_button_update = update_color != Color::kGreenSmallDiff &&
+                                     !provider()->registrar_unsafe().AppMatches(
+                                         app_id, WebAppFilter::IsTrusted());
+  ForceUpdateManifestContents(site, url, wait_for_menu_button_update);
   AfterStateChangeAction();
 }
 
@@ -2309,8 +2326,6 @@ void WebAppIntegrationTestDriver::ManifestUpdateTitle(Site site, Title title) {
       << "Only site mode of 'Standalone' is supported";
   ASSERT_EQ(Title::kStandaloneUpdated, title)
       << "Only site mode of 'kStandaloneUpdated' is supported";
-  ASSERT_NE(app_browser(), nullptr)
-      << " manifest updates require the app browser to be launched!";
 
   auto relative_url_path = GetSiteConfiguration(site).relative_url;
   GURL url = GetUrlForSite(site, "?manifest=manifest_title.json");
@@ -2330,8 +2345,6 @@ void WebAppIntegrationTestDriver::ManifestUpdateDisplay(Site site,
     return;
   }
 
-  ASSERT_NE(app_browser(), nullptr)
-      << " manifest updates require the app browser to be launched!";
   std::string relative_url_path = GetSiteConfiguration(site).relative_url;
   std::string manifest_url_param =
       GetDisplayUpdateConfiguration(display).manifest_url_param;
@@ -2347,8 +2360,6 @@ void WebAppIntegrationTestDriver::ManifestUpdateScopeTo(Site app, Site scope) {
     return;
   }
 
-  ASSERT_NE(app_browser(), nullptr)
-      << " manifest updates require the app browser to be launched!";
   // The `scope_mode` would be changing the scope set in the manifest file. For
   // simplicity, right now only Standalone is supported, so that is just
   // hardcoded in manifest_scope_Standalone.json, which is specified in the URL.
@@ -2480,7 +2491,7 @@ void WebAppIntegrationTestDriver::SwitchIncognitoProfile() {
   }
   content::WebContentsAddedObserver nav_observer;
   CHECK(chrome::ExecuteCommand(browser(), IDC_NEW_INCOGNITO_WINDOW));
-  ASSERT_EQ(1U, BrowserList::GetIncognitoBrowserCount());
+  ASSERT_EQ(1U, chrome::GetIncognitoBrowserCount());
   nav_observer.GetWebContents();
   std::vector<Profile*> otr_profiles = profile()->GetAllOffTheRecordProfiles();
   CHECK(!otr_profiles.empty());
@@ -3150,6 +3161,9 @@ void WebAppIntegrationTestDriver::CheckAppIcon(Site site, Color color) {
     case Color::kRed:
       color_str = "red";
       break;
+    case Color::kGreenSmallDiff:
+      color_str = "green-small-diff";
+      break;
   }
   EXPECT_EQ(app_state->manifest_launcher_icon_filename,
             base::StringPrintf("%ux%u-%s.png", kLauncherIconSize,
@@ -3185,6 +3199,11 @@ void WebAppIntegrationTestDriver::CheckAppIcon(Site site, Color color) {
       break;
     case Color::kRed:
       expected_color = SK_ColorRED;
+      break;
+    // The icons referred to here are green with a white line starting from the
+    // top left.
+    case Color::kGreenSmallDiff:
+      expected_color = SK_ColorWHITE;
       break;
   }
   EXPECT_EQ(expected_color, launcher_icon_color)
@@ -3264,7 +3283,7 @@ void WebAppIntegrationTestDriver::CheckFilesLoadedInSite(
        site](BrowserWindowInterface* browser) {
         const TabStripModel* const tab_strip_model =
             browser->GetTabStripModel();
-        for (int i = 0; i < tab_strip_model->GetTabCount(); i++) {
+        for (int i = 0; i < tab_strip_model->count(); i++) {
           auto site_config = GetSiteConfiguration(site);
           content::WebContents* const web_contents =
               tab_strip_model->GetWebContentsAt(i);
@@ -3920,7 +3939,7 @@ void WebAppIntegrationTestDriver::CheckAppLoadedInTab(Site site) {
 
         const TabStripModel* const tab_strip_model =
             browser->GetTabStripModel();
-        for (int i = 0; i < tab_strip_model->GetTabCount(); i++) {
+        for (int i = 0; i < tab_strip_model->count(); i++) {
           const webapps::AppId* app_id =
               WebAppTabHelper::GetAppId(tab_strip_model->GetWebContentsAt(i));
           if (app_id && *app_id == GetAppIdBySiteMode(site)) {
@@ -3950,7 +3969,7 @@ void WebAppIntegrationTestDriver::CheckSiteLoadedInTab(Site site) {
 
         const TabStripModel* const tab_strip_model =
             browser->GetTabStripModel();
-        for (int i = 0; i < tab_strip_model->GetTabCount(); i++) {
+        for (int i = 0; i < tab_strip_model->count(); i++) {
           const GURL committed_url =
               tab_strip_model->GetWebContentsAt(i)->GetLastCommittedURL();
           found_urls.push_back(committed_url.possibly_invalid_spec());
@@ -4433,11 +4452,19 @@ void WebAppIntegrationTestDriver::ForceUpdateManifestContents(
     const GURL& app_url_with_manifest_param,
     bool wait_for_pending_updates_to_arrive) {
   active_app_id_ = GetAppIdBySiteMode(site);
-  EXPECT_TRUE(
-      ui_test_utils::NavigateToURL(app_browser(), app_url_with_manifest_param));
-  AwaitManifestUpdateStartedPostNavigation();
-  MenuButtonUpdateListener(*app_browser(), wait_for_pending_updates_to_arrive)
-      .Await();
+  if (app_browser()) {
+    EXPECT_TRUE(ui_test_utils::NavigateToURL(app_browser(),
+                                             app_url_with_manifest_param));
+    AwaitManifestUpdateStartedPostNavigation();
+    MenuButtonUpdateListener(*app_browser(), wait_for_pending_updates_to_arrive)
+        .Await();
+  } else {
+    LOG(INFO) << "Manifest update triggered from an app opening in a browser "
+                 "tab might not end up actually updating the manifest";
+    EXPECT_TRUE(
+        ui_test_utils::NavigateToURL(browser(), app_url_with_manifest_param));
+    AwaitManifestUpdateStartedPostNavigation();
+  }
   post_update_start_urls_[site] = app_url_with_manifest_param;
 }
 

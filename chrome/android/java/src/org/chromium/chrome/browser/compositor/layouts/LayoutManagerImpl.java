@@ -20,8 +20,11 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.Callback;
 import org.chromium.base.ObserverList;
 import org.chromium.base.TraceEvent;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.EnsuresNonNullIf;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
@@ -192,8 +195,8 @@ public class LayoutManagerImpl
     private final Supplier<TopUiThemeColorProvider> mTopUiThemeColorProvider;
 
     /** The supplier of whether this is going to intercept back press gesture. */
-    private final ObservableSupplierImpl<Boolean> mHandleBackPressChangedSupplier =
-            new ObservableSupplierImpl<>();
+    private final SettableNonNullObservableSupplier<Boolean> mHandleBackPressChangedSupplier =
+            ObservableSuppliers.createNonNull(false);
 
     /** When non-null, #doneShowing should call into the sequencer instead of doing normal work. */
     private @Nullable ShowingEventSequencer mShowingEventSequencer;
@@ -352,6 +355,8 @@ public class LayoutManagerImpl
                     // Place the tab strip behind the toolbar scene layer as during tab strip
                     // transition, the toolbar will move up and cover the tab strip.
                     StripLayoutHelperManager.class,
+                    // The Bookmark Bar will appear to move behind the toolbar during animation.
+                    BookmarkBarSceneLayer.class,
                     TopToolbarOverlayCoordinator.class,
                     // StripLayoutHelperManager should be updated before
                     // ScrollingBottomViewSceneLayer Since ScrollingBottomViewSceneLayer change
@@ -360,8 +365,7 @@ public class LayoutManagerImpl
                     ContextualSearchPanel.class,
                     EdgeToEdgeBottomChinSceneLayer.class,
                     StatusIndicatorCoordinator.getSceneOverlayClass(),
-                    ReadAloudMiniPlayerSceneLayer.class,
-                    BookmarkBarSceneLayer.class
+                    ReadAloudMiniPlayerSceneLayer.class
                 };
 
         for (int i = 0; i < overlayOrder.length; i++) mOverlayOrderMap.put(overlayOrder[i], i);
@@ -1331,7 +1335,7 @@ public class LayoutManagerImpl
     }
 
     @Override
-    public ObservableSupplier<Boolean> getHandleBackPressChangedSupplier() {
+    public NonNullObservableSupplier<Boolean> getHandleBackPressChangedSupplier() {
         return mHandleBackPressChangedSupplier;
     }
 

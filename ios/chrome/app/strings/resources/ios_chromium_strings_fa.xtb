@@ -117,6 +117,7 @@
 <translation id="3581385059720151202">‏جستجوی تصاویر در Chromium</translation>
 <translation id="3582640969619785896">‏‫Chromium پیشنهاد می‌دهد که گذرواژه‌تان را ذخیره کند</translation>
 <translation id="3594315078412605236">‏مدیریت کردن روش‌های پرداخت در Chromium</translation>
+<translation id="3600428265489994557">‏ورود به سیستم Chromium</translation>
 <translation id="3617143087229977194">‏تنظیمات Default Apps (برنامه‌های پیش‌فرض) را در iOS باز کنید، سپس روی «Browser App» (برنامه مرورگر) تک‌ضرب بزنید و Chromium را انتخاب کنید.</translation>
 <translation id="3634039384458740619">‏باز کردن تنظیمات Chromium</translation>
 <translation id="3639997914391704523">‏Chromium زمانی می‌تواند گذرواژه‌هایتان را بررسی کند که با «حساب Google» خود به سیستم وارد شوید.</translation>
@@ -351,7 +352,6 @@
 <translation id="900560297598578021">‏با ایمیل <ph name="EMAIL" /> به سیستم وارد شده‌اید.
 
 داده‌هایتان بااستفاده از گذرعبارت شما در تاریخ <ph name="TIME" /> رمزگذاری شد. برای استفاده از داده‌های Chromium و ذخیره کردن این داده‌ها در «حساب Google»، این گذرعبارت را وارد کنید.</translation>
-<translation id="9022552996538154597">‏ورود به سیستم Chromium</translation>
 <translation id="9031260906956926157">‏برخی‌از داده‌های Chromium هنوز در «حساب Google» شما ذخیره نشده است.
 پیش‌از خروج از سیستم، چند دقیقه صبر کنید. اگر اکنون از سیستم خارج شوید، این داده‌ها حذف خواهد شد.</translation>
 <translation id="9050790730841755540">‏برای باز کردن پیوندهای موجود در برنامه‌های دیگر، از Chromium استفاده کنید.</translation>

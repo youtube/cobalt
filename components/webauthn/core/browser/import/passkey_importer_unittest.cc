@@ -93,6 +93,22 @@ TEST_F(PasskeyImporterTest, ProcessesInvalidPasskeys) {
   EXPECT_THAT(result.conflicts, IsEmpty());
 }
 
+TEST_F(PasskeyImporterTest, ProcessesDuplicatePasskey) {
+  sync_pb::WebauthnCredentialSpecifics passkey = CreatePasskey(kRpId, kUserId);
+  passkey_model_->AddNewPasskeyForTesting(passkey);
+
+  std::ignore = StartImport({passkey});
+  int passkeys_imported = FinishImport(/*selected_passkey_ids=*/{});
+
+  // Duplicate passkey should be reported as imported, but not actually added
+  // to the model.
+  EXPECT_EQ(passkeys_imported, 1);
+  EXPECT_THAT(
+      passkey_model_->GetPasskeys(PasskeyModel::AnyRp(),
+                                  PasskeyModel::ShadowedCredentials::kInclude),
+      SizeIs(1));
+}
+
 TEST_F(PasskeyImporterTest, ProcessesConflictingPasskeys) {
   passkey_model_->AddNewPasskeyForTesting(CreatePasskey(kRpId, kUserId));
 
@@ -110,7 +126,10 @@ TEST_F(PasskeyImporterTest, ImportsValidPasskeys) {
       {CreatePasskey(kRpId, kUserId), CreatePasskey(kRpId, kUserId2)});
   int passkeys_imported = FinishImport(/*selected_passkey_ids=*/{});
   EXPECT_EQ(passkeys_imported, 2);
-  EXPECT_THAT(passkey_model_->GetAllPasskeys(), SizeIs(2));
+  EXPECT_THAT(
+      passkey_model_->GetPasskeys(PasskeyModel::AnyRp(),
+                                  PasskeyModel::ShadowedCredentials::kInclude),
+      SizeIs(2));
 }
 
 TEST_F(PasskeyImporterTest, ImportsIncomingConflictingPasskey) {
@@ -122,7 +141,10 @@ TEST_F(PasskeyImporterTest, ImportsIncomingConflictingPasskey) {
       {CreatePasskey(kRpId, kUserId), CreatePasskey(kRpId, kUserId2)});
   int passkeys_imported = FinishImport(/*selected_passkey_ids=*/{0});
   EXPECT_EQ(passkeys_imported, 2);
-  EXPECT_THAT(passkey_model_->GetAllPasskeys(), SizeIs(3));
+  EXPECT_THAT(
+      passkey_model_->GetPasskeys(PasskeyModel::AnyRp(),
+                                  PasskeyModel::ShadowedCredentials::kInclude),
+      SizeIs(3));
 }
 
 TEST_F(PasskeyImporterTest, IgnoresNotSelectedConflictingPasskey) {
@@ -134,7 +156,10 @@ TEST_F(PasskeyImporterTest, IgnoresNotSelectedConflictingPasskey) {
       {CreatePasskey(kRpId, kUserId), CreatePasskey(kRpId, kUserId2)});
   int passkeys_imported = FinishImport(/*selected_passkey_ids=*/{});
   EXPECT_EQ(passkeys_imported, 1);
-  EXPECT_THAT(passkey_model_->GetAllPasskeys(), SizeIs(2));
+  EXPECT_THAT(
+      passkey_model_->GetPasskeys(PasskeyModel::AnyRp(),
+                                  PasskeyModel::ShadowedCredentials::kInclude),
+      SizeIs(2));
 }
 
 TEST_F(PasskeyImporterTest, DoesNotImportInvalidPasskeys) {
@@ -145,7 +170,10 @@ TEST_F(PasskeyImporterTest, DoesNotImportInvalidPasskeys) {
 
   int passkeys_imported = FinishImport(/*selected_passkey_ids=*/{});
   EXPECT_EQ(passkeys_imported, 0);
-  EXPECT_THAT(passkey_model_->GetAllPasskeys(), IsEmpty());
+  EXPECT_THAT(
+      passkey_model_->GetPasskeys(PasskeyModel::AnyRp(),
+                                  PasskeyModel::ShadowedCredentials::kInclude),
+      IsEmpty());
 }
 
 }  // namespace

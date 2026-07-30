@@ -1215,7 +1215,21 @@
       // Animation properites are never incremental.
       supports_incremental_style: false,
     },
-
+    {
+      name: "trigger-scope",
+      property_methods: ["ParseSingleValue", "CSSValueFromComputedStyleInternal"],
+      include_paths: ["third_party/blink/renderer/core/style/style_trigger_scope.h"],
+      type_name: "StyleTriggerScope",
+      default_value: "StyleTriggerScope()",
+      field_group: "*",
+      field_template: "external",
+      converter: "ConvertTriggerScope",
+      keywords: ["none", "all"],
+      runtime_flag: "AnimationTrigger",
+      typedom_types: ["Keyword"],
+      invalidate: ["layout"],
+      valid_for_permission_element: true,
+    },
     // High Priority and all other font properties.
     // Other properties can depend upon high priority properties
     // (e.g. font-size / ems)
@@ -3501,7 +3515,7 @@
       keywords: ["row", "row-reverse", "column", "column-reverse"],
       default_value: "column",
       invalidate: ["layout", "paint"],
-      runtime_flag: "CSSMasonryLayout",
+      runtime_flag: "CSSGridLanesLayout",
     },
     {
       name: "grid-lanes-fill",
@@ -3512,7 +3526,7 @@
       typedom_types: ["Keyword"],
       default_value: "normal",
       invalidate: ["layout", "paint"],
-      runtime_flag: "CSSMasonryLayout",
+      runtime_flag: "CSSGridLanesLayout",
     },
     {
       name: "grid-row-end",
@@ -4103,7 +4117,7 @@
       typedom_types: ["Length", "Percentage", "Keyword"],
       keywords: ["normal", "infinite"],
       invalidate: ["layout", "paint"],
-      runtime_flag: "CSSMasonryLayout",
+      runtime_flag: "CSSGridLanesLayout",
     },
     {
       name: "math-shift",
@@ -6257,7 +6271,6 @@
       field_template: "external",
       keywords: ["normal", "contain", "nearest"],
       typedom_types: ["Keyword"],
-      runtime_flag: "NestedViewTransition",
     },
     {
       name: "view-transition-name",
@@ -6528,8 +6541,8 @@
       inherited: false,
       field_group: "*",
       field_template: "keyword",
-      keywords: ["none", "spanning-item", "intersection"],
-      default_value: "spanning-item",
+      keywords: ["none", "auto", "spanning-item", "intersection"],
+      default_value: "auto",
       type_name: "RuleBreak",
       typedom_types: ["Keyword"],
       invalidate: ["paint"],
@@ -6541,8 +6554,8 @@
       inherited: false,
       field_group: "*",
       field_template: "keyword",
-      keywords: ["none", "spanning-item", "intersection"],
-      default_value: "spanning-item",
+      keywords: ["none", "auto", "spanning-item", "intersection"],
+      default_value: "auto",
       type_name: "RuleBreak",
       typedom_types: ["Keyword"],
       invalidate: ["paint"],
@@ -8734,13 +8747,13 @@
       longhands: [ "grid-template-areas", "grid-template-columns", "grid-lanes-direction", "grid-lanes-fill"],
       property_methods: ["ParseShorthand", "CSSValueFromComputedStyleInternal"],
       layout_dependent: true,
-      runtime_flag: "CSSMasonryLayout",
+      runtime_flag: "CSSGridLanesLayout",
     },
     {
       name: "grid-lanes-flow",
       longhands: ["grid-lanes-direction", "grid-lanes-fill"],
       property_methods: ["ParseShorthand", "CSSValueFromComputedStyleInternal"],
-      runtime_flag: "CSSMasonryLayout",
+      runtime_flag: "CSSGridLanesLayout",
     },
     {
       name: "grid-row",

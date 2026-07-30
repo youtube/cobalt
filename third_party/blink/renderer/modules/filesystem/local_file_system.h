@@ -38,6 +38,7 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/platform/bindings/name_client.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
@@ -49,8 +50,8 @@ class KURL;
 class ResolveURICallbacks;
 
 class LocalFileSystem final : public GarbageCollected<LocalFileSystem>,
-                              public NameClient,
-                              public GarbageCollectedMixin {
+                              public Supplement<ExecutionContext>,
+                              public NameClient {
  public:
   enum SynchronousType { kAsynchronous, kSynchronous };
 
@@ -77,10 +78,6 @@ class LocalFileSystem final : public GarbageCollected<LocalFileSystem>,
     return "LocalFileSystem";
   }
 
-  void Trace(Visitor* visitor) const override {
-    visitor->Trace(execution_context_);
-  }
-
  private:
   void ResolveURLCallback(const KURL& file_system_url,
                           std::unique_ptr<ResolveURICallbacks> callbacks,
@@ -99,8 +96,6 @@ class LocalFileSystem final : public GarbageCollected<LocalFileSystem>,
   void ResolveURLInternal(const KURL&,
                           std::unique_ptr<ResolveURICallbacks>,
                           SynchronousType sync_type);
-
-  Member<ExecutionContext> execution_context_;
 };
 
 }  // namespace blink

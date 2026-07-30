@@ -97,7 +97,7 @@ final class PendingActionManager {
      * Tracks the size a window should have when it is fully initialized based on a RESTORE request.
      */
     @GuardedBy("mPendingActionsLock")
-    private @Nullable Rect mPendingRestoredBoundsInDp;
+    private @Nullable Rect mFutureRestoredBoundsInDp;
 
     /**
      * Tracking the future active state of the window. Null if there is no in-progress action which
@@ -160,22 +160,22 @@ final class PendingActionManager {
         }
     }
 
-    void requestMaximize(Rect futureBounds) {
+    void requestMaximize(Rect futureBoundsInDp) {
         synchronized (mPendingActionsLock) {
             mPendingActions[0] = PendingAction.MAXIMIZE;
             mPendingActions[1] = PendingAction.NONE;
 
-            mPendingBoundsInDp = futureBounds;
+            mPendingBoundsInDp = futureBoundsInDp;
             updateFutureStatesLocked();
         }
     }
 
-    void requestRestore(Rect futureBounds) {
+    void requestRestore(Rect futureBoundsInDp) {
         synchronized (mPendingActionsLock) {
             mPendingActions[0] = PendingAction.RESTORE;
             mPendingActions[1] = PendingAction.NONE;
 
-            mPendingBoundsInDp = futureBounds;
+            mPendingBoundsInDp = futureBoundsInDp;
             updateFutureStatesLocked();
         }
     }
@@ -193,7 +193,7 @@ final class PendingActionManager {
             mPendingBoundsInDp = boundsInDp;
             // Cache last requested bounds for potential subsequent restoration. Pending restored
             // bounds will be cleared after all pending actions are dispatched.
-            mPendingRestoredBoundsInDp = mPendingBoundsInDp;
+            mFutureRestoredBoundsInDp = mPendingBoundsInDp;
             mFutureBoundsInDp = boundsInDp;
         }
     }
@@ -208,6 +208,10 @@ final class PendingActionManager {
             // Future states per Android default behavior
             mIsVisibleFuture = true;
             mIsActiveFuture = true;
+
+            // A window of given bounds will be launched.
+            mFutureBoundsInDp = pendingTaskInfo.mCreateParams.getInitialBounds();
+            mFutureRestoredBoundsInDp = mFutureBoundsInDp;
 
             // Update states based on PendingTaskInfo
             @WindowShowState.EnumType
@@ -236,15 +240,9 @@ final class PendingActionManager {
         }
     }
 
-    @Nullable Rect getPendingBoundsInDp() {
+    @Nullable Rect getFutureRestoredBoundsInDp() {
         synchronized (mPendingActionsLock) {
-            return mPendingBoundsInDp;
-        }
-    }
-
-    @Nullable Rect getPendingRestoredBoundsInDp() {
-        synchronized (mPendingActionsLock) {
-            return mPendingRestoredBoundsInDp;
+            return mFutureRestoredBoundsInDp;
         }
     }
 
@@ -324,7 +322,7 @@ final class PendingActionManager {
             var actions = mPendingActions;
             mPendingActions = new int[] {PendingAction.NONE, PendingAction.NONE};
             mPendingBoundsInDp = null;
-            mPendingRestoredBoundsInDp = null;
+            mFutureRestoredBoundsInDp = null;
             mIsVisibleFuture = null;
             mIsActiveFuture = null;
             return actions;
@@ -513,6 +511,12 @@ final class PendingActionManager {
     @VisibleForTesting
     static boolean isPrimaryAction(@PendingAction int action) {
         return action != PendingAction.SHOW_INACTIVE && action != PendingAction.DEACTIVATE;
+    }
+
+    @Nullable Rect getPendingBoundsInDpForTesting() {
+        synchronized (mPendingActionsLock) {
+            return mPendingBoundsInDp;
+        }
     }
 
     @PendingAction

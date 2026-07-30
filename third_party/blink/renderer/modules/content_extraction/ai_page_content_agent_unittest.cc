@@ -57,6 +57,8 @@
 
 namespace blink {
 using ClickabilityReason = mojom::blink::AIPageContentClickabilityReason;
+using InteractionDisabledReason =
+    mojom::blink::AIPageContentInteractionDisabledReason;
 
 namespace {
 
@@ -3739,6 +3741,10 @@ TEST_F(AIPageContentAgentTest, DisabledButton) {
   const auto& button = *root.children_nodes.at(0);
   CheckHitTestableButNotInteractive(button);
   EXPECT_TRUE(button.content_attributes->node_interaction_info->is_disabled);
+  EXPECT_THAT(
+      button.content_attributes->node_interaction_info
+          ->interaction_disabled_reasons,
+      testing::UnorderedElementsAre(InteractionDisabledReason::kDisabled));
 }
 
 TEST_F(AIPageContentAgentTest, InertButton) {
@@ -3848,6 +3854,10 @@ TEST_F(AIPageContentAgentTest, AriaDisabled) {
   CheckContainerNode(section);
   CheckHitTestableButNotInteractive(section);
   EXPECT_TRUE(section.content_attributes->node_interaction_info->is_disabled);
+  EXPECT_THAT(
+      section.content_attributes->node_interaction_info
+          ->interaction_disabled_reasons,
+      testing::UnorderedElementsAre(InteractionDisabledReason::kAriaDisabled));
 
   // The child is also not actionable.
   ASSERT_EQ(section.children_nodes.size(), 1u);
@@ -3855,6 +3865,10 @@ TEST_F(AIPageContentAgentTest, AriaDisabled) {
   CheckHitTestableButNotInteractive(input);
   // Parent element `aria-disable` value overrides child element's.
   EXPECT_TRUE(input.content_attributes->node_interaction_info->is_disabled);
+  EXPECT_THAT(
+      input.content_attributes->node_interaction_info
+          ->interaction_disabled_reasons,
+      testing::UnorderedElementsAre(InteractionDisabledReason::kAriaDisabled));
 }
 
 TEST_F(AIPageContentAgentTest, DisabledInheritance) {
@@ -3883,10 +3897,18 @@ TEST_F(AIPageContentAgentTest, DisabledInheritance) {
   CheckHitTestableButNotInteractive(fieldset);
   ASSERT_EQ(fieldset.children_nodes.size(), 1u);
   EXPECT_TRUE(fieldset.content_attributes->node_interaction_info->is_disabled);
+  EXPECT_THAT(
+      fieldset.content_attributes->node_interaction_info
+          ->interaction_disabled_reasons,
+      testing::UnorderedElementsAre(InteractionDisabledReason::kDisabled));
 
   const auto& button = *fieldset.children_nodes.at(0);
   CheckHitTestableButNotInteractive(button);
   EXPECT_TRUE(button.content_attributes->node_interaction_info->is_disabled);
+  EXPECT_THAT(
+      button.content_attributes->node_interaction_info
+          ->interaction_disabled_reasons,
+      testing::UnorderedElementsAre(InteractionDisabledReason::kDisabled));
 }
 
 TEST_F(AIPageContentAgentTest, Fieldset) {
@@ -4105,10 +4127,6 @@ TEST_F(AIPageContentAgentTest, ClickabilityReasonMouseHover) {
       div_node.content_attributes->node_interaction_info->clickability_reasons,
       testing::Contains(
           mojom::blink::AIPageContentClickabilityReason::kMouseHover));
-  EXPECT_THAT(
-      div_node.content_attributes->node_interaction_info->clickability_reasons,
-      testing::Contains(
-          mojom::blink::AIPageContentClickabilityReason::kMouseEvents));
 }
 
 TEST_F(AIPageContentAgentTest, ClickabilityReasonMouseClick) {
@@ -4131,10 +4149,6 @@ TEST_F(AIPageContentAgentTest, ClickabilityReasonMouseClick) {
       div_node.content_attributes->node_interaction_info->clickability_reasons,
       testing::Contains(
           mojom::blink::AIPageContentClickabilityReason::kMouseClick));
-  EXPECT_THAT(
-      div_node.content_attributes->node_interaction_info->clickability_reasons,
-      testing::Contains(
-          mojom::blink::AIPageContentClickabilityReason::kMouseEvents));
 }
 
 TEST_F(AIPageContentAgentTest, ClickabilityReasonKeyEvents) {
@@ -4237,7 +4251,6 @@ TEST_F(AIPageContentAgentTest, ClickabilityReasonMultipleReasons) {
       testing::UnorderedElementsAre(
           mojom::blink::AIPageContentClickabilityReason::kClickableControl,
           mojom::blink::AIPageContentClickabilityReason::kClickEvents,
-          mojom::blink::AIPageContentClickabilityReason::kMouseEvents,
           mojom::blink::AIPageContentClickabilityReason::kMouseHover,
           mojom::blink::AIPageContentClickabilityReason::kMouseClick,
           mojom::blink::AIPageContentClickabilityReason::kKeyEvents,
@@ -5592,6 +5605,57 @@ TEST_F(AIPageContentAgentTest, LinkWithOverflowGeometry) {
   EXPECT_EQ(geometry.outer_bounding_box.width(), 20);
   EXPECT_EQ(geometry.visible_bounding_box.width(), 20);
   EXPECT_EQ(geometry.visible_bounding_box.height(), 20);
+}
+
+TEST_F(AIPageContentAgentTest, CursorNotAllowedButton) {
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(),
+      R"HTML(
+        <body>
+         <button style="cursor: not-allowed;">Text</button>
+        </body>
+      )HTML",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  GetAIPageContentWithActionableElements();
+
+  const auto& root = ContentRootNode();
+  ASSERT_EQ(root.children_nodes.size(), 1u);
+  const auto& button = *root.children_nodes.at(0);
+  CheckHitTestableAndInteractive(button,
+                                 {ClickabilityReason::kClickableControl});
+  EXPECT_FALSE(button.content_attributes->node_interaction_info->is_disabled);
+  EXPECT_THAT(button.content_attributes->node_interaction_info
+                  ->interaction_disabled_reasons,
+              testing::UnorderedElementsAre(
+                  InteractionDisabledReason::kCursorNotAllowed));
+}
+
+TEST_F(AIPageContentAgentTest, MultipleInteractionDisabledReasons) {
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(),
+      R"HTML(
+        <body>
+         <button disabled aria-disabled=true style="cursor: not-allowed;">
+           Text
+         </button>
+        </body>
+      )HTML",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  GetAIPageContentWithActionableElements();
+
+  const auto& root = ContentRootNode();
+  ASSERT_EQ(root.children_nodes.size(), 1u);
+  const auto& button = *root.children_nodes.at(0);
+  CheckHitTestableButNotInteractive(button);
+  EXPECT_TRUE(button.content_attributes->node_interaction_info->is_disabled);
+  EXPECT_THAT(button.content_attributes->node_interaction_info
+                  ->interaction_disabled_reasons,
+              testing::UnorderedElementsAre(
+                  InteractionDisabledReason::kDisabled,
+                  InteractionDisabledReason::kAriaDisabled,
+                  InteractionDisabledReason::kCursorNotAllowed));
 }
 
 }  // namespace

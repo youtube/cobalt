@@ -10,6 +10,7 @@
 #include <iosfwd>
 
 #include "base/base_export.h"
+#include "base/byte_count.h"
 #include "base/numerics/checked_math.h"
 #include "base/numerics/safe_conversions.h"
 
@@ -181,12 +182,23 @@ class BASE_EXPORT ByteSize : public internal::ByteSizeBase {
   static constexpr ByteSize FromByteSizeDelta(ByteSizeDelta delta);
   constexpr ByteSizeDelta AsByteSizeDelta() const;
 
+  // Converts ByteSize to and from a deprecated ByteCount. Converting from a
+  // ByteCount CHECK's that it's in range (ie. non-negative). Converting to a
+  // ByteCount always succeeds.
+  static constexpr ByteSize FromDeprecatedByteCount(ByteCount count) {
+    return ByteSize(count.InBytesUnsigned());
+  }
+  constexpr ByteCount AsDeprecatedByteCount() const {
+    return ByteCount::FromUnsigned(InBytes());
+  }
+
   // Returns a value corresponding to the "maximum" number of bytes possible.
   // Useful as a constant to mean "unlimited".
   static constexpr ByteSize Max() {
     return ByteSize(std::numeric_limits<int64_t>::max());
   }
 
+  constexpr bool is_positive() const { return InBytes() > 0; }
   constexpr bool is_zero() const { return InBytes() == 0; }
 
   constexpr bool is_max() const { return *this == Max(); }
@@ -297,6 +309,14 @@ class BASE_EXPORT ByteSizeDelta : public internal::ByteSizeBase {
   }
   constexpr ByteSize AsByteSize() const {
     return ByteSize(checked_cast<uint64_t>(InBytes()));
+  }
+
+  // Converts ByteSizeDelta to and from a deprecated ByteCount. Always succeeds.
+  static constexpr ByteSizeDelta FromDeprecatedByteCount(ByteCount count) {
+    return ByteSizeDelta(count.InBytes());
+  }
+  constexpr ByteCount AsDeprecatedByteCount() const {
+    return ByteCount(InBytes());
   }
 
   // Returns a value corresponding to the "maximum" (positive) number of bytes

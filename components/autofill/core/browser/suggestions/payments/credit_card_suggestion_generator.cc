@@ -14,6 +14,7 @@
 #include "base/containers/to_vector.h"
 #include "base/functional/callback.h"
 #include "base/functional/function_ref.h"
+#include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/autofill/core/browser/autofill_browser_util.h"
 #include "components/autofill/core/browser/autofill_field.h"
@@ -622,11 +623,8 @@ void CreditCardSuggestionGenerator::SetSuggestionLabelsForCard(
               .payments_data_manager()
               .IsCardEligibleForBenefits(credit_card)) {
         labels.push_back({*benefit_label});
-        if (base::FeatureList::IsEnabled(
-                features::kAutofillEnableCardBenefitsIph)) {
-          suggestion.iph_metadata = Suggestion::IPHMetadata(
-              &feature_engagement::kIPHAutofillCreditCardBenefitFeature);
-        }
+        suggestion.iph_metadata = Suggestion::IPHMetadata(
+            &feature_engagement::kIPHAutofillCreditCardBenefitFeature);
       }
     }
     if (!ShouldUseNewFopDisplay()) {

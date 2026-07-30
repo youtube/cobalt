@@ -43,9 +43,13 @@ namespace webauthn {
 // on the device. E.g., non-passkey credentials in the browser-provided
 // authenticators on CrOS (u2fd) and macOS (//device/fido/mac); or platform
 // credentials owned by Windows Hello or iCloud Keychain. None of these are
-// accessible though PasskeyModel.
+// accessible through PasskeyModel.
 class PasskeyModel : public KeyedService {
  public:
+  // The following types specify different criteria for fetching passkeys.
+  using AnyRp = base::StrongAlias<class AnyRp, std::monostate>;
+  enum class ShadowedCredentials { kExclude, kInclude };
+
   class Observer : public base::CheckedObserver {
    public:
     // Notifies the observer that passkeys have changed, e.g. because a new one
@@ -99,20 +103,24 @@ class PasskeyModel : public KeyedService {
 
   virtual base::flat_set<std::string> GetAllSyncIds() const = 0;
 
-  // Returns the list of all passkeys, including those that are shadowed.
-  virtual std::vector<sync_pb::WebauthnCredentialSpecifics> GetAllPasskeys()
-      const = 0;
+  // Returns the list of all passkeys matching the provided criteria:
+  // - `rp_id`: Either a specific Relying Party ID or any.
+  // - `shadowed_credentials`: Whether to include shadowed credentials.
+  // TODO(crbug.com/465377708): Remove other functions returning lists.
+  virtual std::vector<sync_pb::WebauthnCredentialSpecifics> GetPasskeys(
+      std::variant<AnyRp, std::string_view> rp_id,
+      ShadowedCredentials shadowed_credentials) const = 0;
 
-  // Returns the list of all unshadowed passkeys.
-  virtual std::vector<sync_pb::WebauthnCredentialSpecifics>
-  GetUnShadowedPasskeys() const = 0;
-
-  // Returns the passkey matching the given Relying Party and credential ID, if
-  // any. Shadowed entities, which aren't suitable for generating assertions,
-  // are ignored.
-  virtual std::optional<sync_pb::WebauthnCredentialSpecifics>
-  GetPasskeyByCredentialId(const std::string& rp_id,
-                           const std::string& credential_id) const = 0;
+  // Returns the passkey matching the provided criteria (or std::nullopt if
+  // there isn't any):
+  // - `rp_id`: Either a specific Relying Party ID or any.
+  // - `credential_id`: Credential ID of the passkey.
+  // - `shadowed_credentials`: Whether to include shadowed credentials.
+  // TODO(crbug.com/465377708): Remove redundant functions.
+  virtual std::optional<sync_pb::WebauthnCredentialSpecifics> GetPasskey(
+      std::variant<AnyRp, std::string_view> rp_id,
+      std::string_view credential_id,
+      ShadowedCredentials shadowed_credentials) const = 0;
 
   // Returns the passkey for the given Relying Party and user IDs, if any.
   // Shadowed entities, which aren't suitable for generating assertions, are
@@ -120,11 +128,6 @@ class PasskeyModel : public KeyedService {
   virtual std::optional<sync_pb::WebauthnCredentialSpecifics>
   GetPasskeyByUserId(const std::string& rp_id,
                      const std::string& user_id) const = 0;
-
-  // Returns all passkeys for the given Relying Party ID. Shadowed entities,
-  // which aren't suitable for generating assertions, are ignored.
-  virtual std::vector<sync_pb::WebauthnCredentialSpecifics>
-  GetPasskeysForRelyingPartyId(const std::string& rp_id) const = 0;
 
   // Deletes the passkey with the given `credential_id`. If the passkey is the
   // head of the shadow chain, then all passkeys for the same (user id, rp id)

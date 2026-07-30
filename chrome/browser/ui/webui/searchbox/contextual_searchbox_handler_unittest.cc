@@ -27,8 +27,8 @@
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
+#include "chrome/browser/ui/webui/cr_components/composebox/composebox_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
-#include "chrome/browser/ui/webui/searchbox/composebox_handler.h"
 #include "chrome/browser/ui/webui/searchbox/contextual_searchbox_test_utils.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_test_utils.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
@@ -265,10 +265,35 @@ TEST_F(ContextualSearchboxHandlerTest, AddFile_Image) {
 }
 
 TEST_F(ContextualSearchboxHandlerTest, ClearFiles) {
-  EXPECT_CALL(query_controller(), ClearFiles);
+  searchbox::mojom::SelectedFileInfoPtr file_info =
+      searchbox::mojom::SelectedFileInfo::New();
+  file_info->file_name = "test.png";
+  file_info->selection_time = base::Time::Now();
+  file_info->mime_type = "application/image";
+
+  std::vector<uint8_t> test_data = {1, 2, 3, 4};
+  auto test_data_span = base::span<const uint8_t>(test_data);
+  mojo_base::BigBuffer file_data(test_data_span);
+
+  std::optional<lens::ImageEncodingOptions> image_options;
+  base::UnguessableToken controller_file_info_token;
+  EXPECT_CALL(query_controller(), StartFileUploadFlow)
+      .WillOnce([&](const base::UnguessableToken& file_token, auto,
+                    std::optional<lens::ImageEncodingOptions> options_arg) {
+        controller_file_info_token = file_token;
+        image_options = std::move(options_arg);
+      });
+  base::MockCallback<ComposeboxHandler::AddFileContextCallback> callback;
+  base::UnguessableToken callback_token;
+  EXPECT_CALL(callback, Run).WillOnce(testing::SaveArg<0>(&callback_token));
+
+  handler().AddFileContext(std::move(file_info), std::move(file_data),
+                           callback.Get());
+  EXPECT_EQ(handler().GetUploadedContextTokensForTesting().size(), 1u);
+
+  EXPECT_CALL(query_controller(), ClearFiles).Times(0);
   handler().ClearFiles();
-  auto uploaded_context_tokens = handler().GetUploadedContextTokensForTesting();
-  EXPECT_EQ(uploaded_context_tokens.size(), 0u);
+  EXPECT_EQ(handler().GetUploadedContextTokensForTesting().size(), 0u);
 }
 
 TEST_F(ContextualSearchboxHandlerTest, SubmitQuery) {
@@ -427,7 +452,6 @@ class ContextualSearchboxHandlerTestTabsTest
   }
 
   void TearDown() override {
-    tab_interface_to_alert_controller_.clear();
     tab_strip_model()->CloseAllTabs();
     ContextualSearchboxHandlerTest::TearDown();
   }
@@ -459,8 +483,10 @@ class ContextualSearchboxHandlerTestTabsTest
     tabs::TabInterface* tab_interface =
         tab_strip_model()->GetTabForWebContents(content_ptr);
     tabs::TabFeatures* const tab_features = tab_interface->GetTabFeatures();
-    tab_features->SetTabUIHelperForTesting(
-        std::make_unique<TabUIHelper>(*tab_interface));
+    std::unique_ptr<TabUIHelper> tab_ui_helper =
+        tabs::TabFeatures::GetUserDataFactoryForTesting()
+            .CreateInstance<TabUIHelper>(*tab_interface, *tab_interface);
+    tab_features->SetTabUIHelperForTesting(std::move(tab_ui_helper));
     std::unique_ptr<lens::TabContextualizationController>
         tab_contextualization_controller =
             tabs::TabFeatures::GetUserDataFactoryForTesting()
@@ -472,9 +498,8 @@ class ContextualSearchboxHandlerTestTabsTest
         tabs::TabFeatures::GetUserDataFactoryForTesting()
             .CreateInstance<tabs::TabAlertController>(*tab_interface,
                                                       *tab_interface);
-    tab_interface_to_alert_controller_.insert(
-        {tab_interface, std::move(tab_alert_controller)});
-
+    tab_features->SetTabAlertControllerForTesting(
+        std::move(tab_alert_controller));
     return tab_interface;
   }
 
@@ -485,8 +510,6 @@ class ContextualSearchboxHandlerTestTabsTest
   ui::UnownedUserDataHost user_data_host_;
   MockBrowserWindowInterface browser_window_interface_;
   base::HistogramTester histogram_tester_;
-  std::map<tabs::TabInterface* const, std::unique_ptr<tabs::TabAlertController>>
-      tab_interface_to_alert_controller_;
   const tabs::TabModel::PreventFeatureInitializationForTesting prevent_;
 };
 
@@ -618,12 +641,67 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, DeleteContext_DelayUpload) {
 
   // Act
   // Delete context.
-  handler().DeleteContext(file_token);
+  handler().DeleteContext(file_token, /*from_automatic_chip=*/false);
   mock_searchbox_page_.FlushForTesting();
 
   // Assert
   ASSERT_FALSE(handler().tab_context_snapshot_.has_value());
   ASSERT_FALSE(handler().context_input_data().has_value());
+}
+
+// Tests that context input data is set when there is delayed
+// context, and cleared when in multi-context mode.
+TEST_F(ContextualSearchboxHandlerTestTabsTest,
+       ContextInputDataChangesOnMultiContext) {
+  // Add delayed context and ensure context input data is set.
+  auto url1 = GURL("https://www.google.com");
+  tabs::TabInterface* tab1 = AddTab(url1);
+  const int tab_id1 = tab1->GetHandle().raw_value();
+
+  MockTabContextualizationController* tab_contextualization_controller1 =
+      static_cast<MockTabContextualizationController*>(
+          tab1->GetTabFeatures()->tab_contextualization_controller());
+  EXPECT_CALL(*tab_contextualization_controller1, GetPageContext(testing::_))
+      .WillOnce([](lens::TabContextualizationController::GetPageContextCallback
+                       callback) {
+        std::move(callback).Run(std::make_unique<lens::ContextualInputData>());
+      });
+
+  base::MockCallback<ComposeboxHandler::AddTabContextCallback> callback;
+  handler().AddTabContext(tab_id1, /*delay_upload=*/true, callback.Get());
+  // Flush the mojo pipe to ensure the callback is run.
+  mock_searchbox_page_.FlushForTesting();
+  ASSERT_TRUE(handler().context_input_data().has_value());
+
+  // Add non-delayed context and ensure context input data has no value.
+  auto url2 = GURL("https://www.wikipedia.com");
+  tabs::TabInterface* tab2 = AddTab(url2);
+  const int tab_id2 = tab2->GetHandle().raw_value();
+  MockTabContextualizationController* tab_contextualization_controller2 =
+      static_cast<MockTabContextualizationController*>(
+          tab2->GetTabFeatures()->tab_contextualization_controller());
+  EXPECT_CALL(*tab_contextualization_controller2, GetPageContext(testing::_))
+      .WillOnce([](lens::TabContextualizationController::GetPageContextCallback
+                       callback) {
+        std::move(callback).Run(std::make_unique<lens::ContextualInputData>());
+      });
+
+  EXPECT_CALL(query_controller(),
+              StartFileUploadFlow(testing::_, testing::NotNull(), testing::_))
+      .Times(1);
+  base::test::TestFuture<const std::optional<base::UnguessableToken>&> future;
+  handler().AddTabContext(tab_id2, /*delay_upload=*/false,
+                          future.GetCallback());
+  mock_searchbox_page_.FlushForTesting();
+  ASSERT_FALSE(handler().context_input_data().has_value());
+
+  // Delete the non-delayed context and ensure context input data now has a
+  // value again because the only context left is of delayed type.
+  auto token = future.Get().value();
+  handler().DeleteContext(token, /*from_automatic_chip=*/false);
+  mock_searchbox_page_.FlushForTesting();
+  mock_searchbox_page_.FlushForTesting();
+  ASSERT_TRUE(handler().context_input_data().has_value());
 }
 
 TEST_F(ContextualSearchboxHandlerTestTabsTest, AddTabContextNotFound) {
@@ -667,15 +745,20 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest,
        TabStripModelObserverIsAddedWithValidSession) {
   EXPECT_CALL(mock_searchbox_page_, OnTabStripChanged).Times(1);
   handler().OnTabStripModelChanged(tab_strip_model(), {}, {});
+  mock_searchbox_page_.FlushForTesting();
 }
 
+// TODO(b:466469292): Figure out how to null-ify the session handle so we can
+//   test the handler behaves correctly in that case.
 TEST_F(ContextualSearchboxHandlerTestTabsTest,
-       TabStripModelObserverIsNotAddedWithNullSession) {
+       DISABLED_TabStripModelObserverIsNotAddedWithNullSession) {
   // Create a handler with a null session handle.
   auto handler_with_null_session =
       std::make_unique<FakeContextualSearchboxHandler>(
           mojo::PendingReceiver<searchbox::mojom::PageHandler>(), profile(),
-          web_contents(), nullptr);
+          web_contents(),
+          std::make_unique<OmniboxController>(
+              std::make_unique<TestOmniboxClient>()));
 
   // Use a new MockSearchboxPage for the new handler.
   testing::NiceMock<MockSearchboxPage> local_mock_searchbox_page;
@@ -686,6 +769,7 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest,
   // called.
   EXPECT_CALL(local_mock_searchbox_page, OnTabStripChanged).Times(0);
   handler_with_null_session->OnTabStripModelChanged(tab_strip_model(), {}, {});
+  local_mock_searchbox_page.FlushForTesting();
 }
 
 TEST_F(ContextualSearchboxHandlerTestTabsTest,

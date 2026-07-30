@@ -593,7 +593,8 @@ class OverlayProcessorWebView::Manager
                                          -ceil(crop_rect.y() * scale_y)));
       transaction.SetScale(surface, scale_x, scale_y);
       transaction.SetCrop(surface, crop_rect);
-      transaction.SetColorSpace(surface, resource->color_space(), std::nullopt);
+      transaction.SetColorSpace(surface, resource->color_space(),
+                                gfx::HDRMetadata());
       transaction.SetBuffer(surface, buffer, resource->TakeBeginReadFence());
 
       if (gfx::SurfaceControl::SupportsSetFrameRate()) {
@@ -1026,6 +1027,10 @@ viz::SurfaceId OverlayProcessorWebView::GetOverlaySurfaceId(
 bool OverlayProcessorWebView::IsFrameSinkOverlayed(
     viz::FrameSinkId frame_sink_id) {
   return overlays_.contains(frame_sink_id);
+}
+
+bool OverlayProcessorWebView::ShouldCreatePrimaryPlane() const {
+  return false;
 }
 
 OverlayProcessorWebView::ScopedSurfaceControlAvailable::

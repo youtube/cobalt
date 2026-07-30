@@ -775,10 +775,14 @@ device::mojom::blink::XRSessionOptionsPtr XRSystem::XRSessionOptionsFromQuery(
   return session_options;
 }
 
+const unsigned XRSystem::kSupplementIndex =
+    static_cast<unsigned>(Navigator::Supplements::kXRSystem);
+
 XRSystem* XRSystem::FromIfExists(Document& document) {
   if (!document.domWindow())
     return nullptr;
-  return document.domWindow()->navigator()->GetXRSystem();
+  return Supplement<Navigator>::From<XRSystem>(
+      document.domWindow()->navigator());
 }
 
 XRSystem* XRSystem::From(Document& document) {
@@ -795,10 +799,10 @@ XRSystem* XRSystem::xr(Navigator& navigator) {
   if (!window)
     return nullptr;
 
-  XRSystem* xr = navigator.GetXRSystem();
+  XRSystem* xr = Supplement<Navigator>::From<XRSystem>(navigator);
   if (!xr) {
     xr = MakeGarbageCollected<XRSystem>(navigator);
-    navigator.SetXRSystem(xr);
+    ProvideTo(navigator, xr);
 
     ukm::builders::XR_WebXR(window->UkmSourceID())
         .SetDidUseNavigatorXR(1)
@@ -808,7 +812,8 @@ XRSystem* XRSystem::xr(Navigator& navigator) {
 }
 
 XRSystem::XRSystem(Navigator& navigator)
-    : ExecutionContextLifecycleObserver(navigator.DomWindow()),
+    : Supplement<Navigator>(navigator),
+      ExecutionContextLifecycleObserver(navigator.DomWindow()),
       FocusChangedObserver(navigator.DomWindow()->GetFrame()->GetPage()),
       service_(navigator.DomWindow()),
       environment_provider_(navigator.DomWindow()),
@@ -1813,6 +1818,7 @@ void XRSystem::Trace(Visitor* visitor) const {
   visitor->Trace(outstanding_request_queries_);
   visitor->Trace(fullscreen_enter_observer_);
   visitor->Trace(fullscreen_exit_observer_);
+  Supplement<Navigator>::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
   EventTarget::Trace(visitor);
 }

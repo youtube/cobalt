@@ -83,7 +83,11 @@ class RealboxSearchBrowserTestPage : public searchbox::mojom::Page {
   void AddFileContext(
       const base::UnguessableToken& token,
       searchbox::mojom::SelectedFileInfoPtr file_info) override {}
+  void UpdateAutoSuggestedTabContext(
+      searchbox::mojom::TabInfoPtr tab_info) override {}
+  void OnShow() override {}
   MOCK_METHOD(void, SetKeywordSelected, (bool is_keyword_selected), (override));
+  MOCK_METHOD(void, UpdateLensSearchEligibility, (bool eligible), (override));
 
   mojo::PendingRemote<searchbox::mojom::Page> GetRemotePage() {
     return receiver_.BindNewPipeAndPassRemote();

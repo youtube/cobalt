@@ -15,7 +15,6 @@ import org.chromium.build.annotations.MonotonicNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager.TabModelStartupInfo;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.MismatchedIndicesHandler;
@@ -123,10 +122,7 @@ public class TabModelOrchestrator {
 
     public void onNativeLibraryReady(TabContentManager tabContentManager) {
         assertInitialized();
-        boolean wasTabCollectionsActive =
-                TabCollectionMigrationUtil.wasTabCollectionsActiveForMetadataFile(
-                        mTabPersistencePolicy.getMetadataFileName());
-        mTabModelSelector.onNativeLibraryReady(tabContentManager, wasTabCollectionsActive);
+        mTabModelSelector.onNativeLibraryReady(tabContentManager);
         mTabPersistencePolicy.setTabContentManager(tabContentManager);
         if (!mTabPersistentStoreDestroyedEarly) mTabPersistentStore.onNativeLibraryReady();
     }
@@ -165,10 +161,6 @@ public class TabModelOrchestrator {
      */
     public void restoreTabs(boolean setActiveTab) {
         assertInitialized();
-        if (ChromeFeatureList.sTabCollectionAndroid.isEnabled()) {
-            TabCollectionMigrationUtil.setTabCollectionsActiveForMetadataFile(
-                    mTabPersistencePolicy.getMetadataFileName());
-        }
         if (mTabModelStartupInfoSupplier != null) {
             assert mTabModelSelector != null;
             boolean createdStandardTabOnStartup = mTabModelSelector.getModel(false).getCount() > 0;
@@ -273,10 +265,6 @@ public class TabModelOrchestrator {
                 new TabPersistentStoreObserver() {
                     @Override
                     public void onStateLoaded() {
-                        if (!ChromeFeatureList.sTabCollectionAndroid.isEnabled()) {
-                            TabCollectionMigrationUtil.setTabCollectionsActiveForMetadataFile(
-                                    mTabPersistencePolicy.getMetadataFileName());
-                        }
                         mTabModelSelector.markTabStateInitialized();
                     }
 
@@ -332,6 +320,9 @@ public class TabModelOrchestrator {
             TabModelSelectorBase tabModelSelector,
             TabPersistentStore tabPersistentStore,
             TabPersistencePolicy tabPersistencePolicy) {
+        assert tabModelSelector != null;
+        assert tabPersistentStore != null;
+        assert tabPersistencePolicy != null;
         mTabModelSelector = tabModelSelector;
         mTabPersistentStore = tabPersistentStore;
         mTabPersistencePolicy = tabPersistencePolicy;

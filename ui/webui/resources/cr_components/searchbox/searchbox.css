@@ -250,7 +250,7 @@ cr-searchbox-icon {
  * Webkit mask images hide borders so container rules are created to
  * show focus borders on these icons. */
 .searchbox-icon-button-container {
-  border-radius: 4px;
+  border-radius: 50%;
   display: flex;
   height: 36px;
   position: absolute;
@@ -270,7 +270,7 @@ cr-searchbox-icon {
 }
 
 :host-context(.focus-outline-visible) .searchbox-icon-button-container:focus-within {
-  box-shadow: var(--ntp-focus-shadow);
+  box-shadow: 0 0 0 2px var(--cr-focus-outline-color);
 }
 
 :host(:not([use-webkit-search-icons_])) #voiceSearchButton {
@@ -318,6 +318,10 @@ cr-searchbox-icon {
 :host([compose-button-enabled][dropdown-is-visible])
     .searchbox-icon-button-container {
   display: none;
+}
+
+:host([searchbox-layout-mode^='Tall']) contextual-entrypoint-and-carousel {
+  z-index: 100;
 }
 
 :-webkit-any(input, cr-searchbox-icon, .searchbox-icon-button) {
@@ -409,6 +413,10 @@ search-animated-glow {
 
 :host([ntp-realbox-next-enabled][searchbox-layout-mode^='Tall']) contextual-entrypoint-and-carousel::part(context-menu-entrypoint-icon) {
   --cr-icon-button-icon-size: 20px;
+}
+
+:host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel {
+  position: relative;
 }
 
 :host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel::part(composebox-entrypoint) {

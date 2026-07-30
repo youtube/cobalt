@@ -13,20 +13,19 @@
 #include "components/sessions/core/session_id.h"
 #include "url/gurl.h"
 
+class Profile;
+
 namespace contextual_tasks {
+
 class ContextualTasksService;
 enum class ContextualTaskContextSource;
 struct ContextDecorationParams;
 
-}  // namespace contextual_tasks
-
-namespace contextual_tasks {
-
 class ContextualTasksContextControllerImpl
     : public ContextualTasksContextController {
  public:
-  explicit ContextualTasksContextControllerImpl(
-      ContextualTasksService* service);
+  ContextualTasksContextControllerImpl(Profile* profile,
+                                       ContextualTasksService* service);
   ~ContextualTasksContextControllerImpl() override;
 
   // ContextualTasksService implementation.
@@ -53,6 +52,9 @@ class ContextualTasksContextControllerImpl
       const std::string& server_id) override;
   void AttachUrlToTask(const base::Uuid& task_id, const GURL& url) override;
   void DetachUrlFromTask(const base::Uuid& task_id, const GURL& url) override;
+  void SetUrlResourcesFromServer(
+      const base::Uuid& task_id,
+      std::vector<UrlResource> url_resources) override;
   void GetContextForTask(
       const base::Uuid& task_id,
       const std::set<ContextualTaskContextSource>& sources,
@@ -74,6 +76,7 @@ class ContextualTasksContextControllerImpl
   GetAiThreadControllerDelegate() override;
 
  private:
+  raw_ptr<Profile> profile_;
   raw_ptr<ContextualTasksService> service_;
 };
 

@@ -46,10 +46,6 @@ extern const char kForceFreDefaultBrowserStep[];
 // the first run after a restore operation.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kAccountRetrievalWaitsForRestoration);
-// Feature to allowlist certain scopes for which mdm errors will be shown. All
-// other scopes will be ignored.
-COMPONENT_EXPORT(SIGNIN_SWITCHES)
-BASE_DECLARE_FEATURE(kAllowlistScopesForMdmErrors);
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -263,6 +259,13 @@ COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kFullscreenSignInPromoUseDate);
 #endif
 
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+// When enabled, GLIC will check a new CanUseGeminiInChrome account capability
+// to determine profile eligibility, instead of CanUseModelExecutionFeatures.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kGlicEligibilitySeparateAccountCapability);
+#endif
+
 // Feature to handle mdm errors on Enterprise and EDU accounts
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kHandleMdmErrorsForDasherAccounts);
@@ -353,6 +356,12 @@ extern const base::FeatureParam<ProfilePickerVariation>
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kProfilesReordering);
 
+#if !BUILDFLAG(IS_ANDROID)
+// Kill switch for Device Management Service OAuth scope.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kRestrictDeviceManagementServiceOAuthScope);
+#endif  // !BUILDFLAG(IS_ANDROID)
+
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 // When enabled, rolls back the DICe migration for implicitly signed-in users.
 // Overrides `kOfferMigrationToDiceUsers` and `kForcedDiceMigration`.
@@ -369,6 +378,14 @@ BASE_DECLARE_FEATURE(kShowProfilePickerToAllUsersExperiment);
 // promos and UNO bubble reprompt.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kSigninPromoLimitsExperiment);
+// Param that controls the threshold of the contextual sign in promo shown
+// limit for the experiment.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+extern const base::FeatureParam<int> kContextualSigninPromoShownThreshold;
+// Param that controls the threshold of the contextual sign in promos dismissed
+// limit for the experiment.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+extern const base::FeatureParam<int> kContextualSigninPromoDismissedThreshold;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 // Uses the Material Next theme for the signin promo.

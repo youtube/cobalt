@@ -11,7 +11,16 @@ namespace one_time_tokens {
 // numeric values should never be reused.
 enum class OneTimeTokenRetrievalError {
   kUnknown = 0,
-  kMaxValue = kUnknown,
+  // The following map to SmsOtpRetrievalApiErrorCode.
+  kSmsOtpBackendError = 1,
+  kSmsOtpBackendTimeout = 2,
+  kSmsOtpBackendPlatformNotSupported = 3,
+  kSmsOtpBackendApiNotAvailable = 4,
+  kSmsOtpBackendUserPermissionRequired = 5,
+  kSmsOtpGmscoreVersionNotSupported = 6,
+  // Error code for when AndroidSmsOtpBackend initialization fails
+  kSmsOtpBackendInitializationFailed = 7,
+  kMaxValue = kSmsOtpBackendInitializationFailed,
 };
 
 }  // namespace one_time_tokens

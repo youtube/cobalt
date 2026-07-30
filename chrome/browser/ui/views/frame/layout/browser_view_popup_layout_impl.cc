@@ -4,7 +4,7 @@
 
 #include "chrome/browser/ui/views/frame/layout/browser_view_popup_layout_impl.h"
 
-#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+#include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 #include "ui/views/controls/separator.h"
 
@@ -23,11 +23,6 @@ BrowserViewPopupLayoutImpl::~BrowserViewPopupLayoutImpl() = default;
 
 gfx::Size BrowserViewPopupLayoutImpl::GetMinimumSize(
     const views::View* host) const {
-  // The minimum size of a window is unrestricted for a borderless mode popup.
-  if (delegate().GetBorderlessModeEnabled()) {
-    return gfx::Size(1, 1);
-  }
-
   const auto params =
       delegate().GetBrowserLayoutParams(/*use_browser_bounds=*/false);
   const auto leading = params.leading_exclusion.ContentWithPadding();

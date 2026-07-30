@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/memory/ptr_util.h"
 #include "base/token.h"
 #include "chrome/browser/tab/payload.h"
 #include "chrome/browser/tab/protocol/children.pb.h"
@@ -43,43 +44,14 @@ StorageId GetOrCreateStorageId(
   return storage_id;
 }
 
-// Adds a save children operation to the builder.
-void SaveChildrenInternal(TabStateStorageUpdaterBuilder& builder,
-                          const TabCollection* parent,
-                          TabStateStorageService* service,
-                          TabStoragePackager* packager) {
-  builder.SaveChildren(service->GetStorageId(parent),
-                       packager->PackageChildren(parent, *service));
-}
-
-void RemoveNodeSequence(StorageId storage_id,
-                        const TabCollection* parent,
-                        TabStateStorageService* service,
-                        TabStoragePackager* packager,
-                        TabStateStorageBackend* backend) {
-  DCHECK(packager);
-
-  TabStateStorageUpdaterBuilder builder;
-  builder.RemoveNode(storage_id);
-
-  SaveChildrenInternal(builder, parent, service, packager);
-  backend->Update(builder.Build());
-}
-
-void MoveNodeSequence(const TabCollection* prev_parent,
-                      const TabCollection* curr_parent,
-                      TabStateStorageService* service,
-                      TabStoragePackager* packager,
-                      TabStateStorageBackend* backend) {
-  DCHECK(packager);
-
-  TabStateStorageUpdaterBuilder builder;
-  SaveChildrenInternal(builder, prev_parent, service, packager);
-  SaveChildrenInternal(builder, curr_parent, service, packager);
-  backend->Update(builder.Build());
-}
-
 }  // namespace
+
+TabStateStorageService::OpenBatches::OpenBatches(
+    TabStateStorageService& service,
+    TabStoragePackager* packager)
+    : builder(service, packager) {}
+
+TabStateStorageService::OpenBatches::~OpenBatches() = default;
 
 TabStateStorageService::TabStateStorageService(
     const base::FilePath& profile_path,
@@ -115,11 +87,30 @@ void TabStateStorageService::WaitForAllPendingOperations(
   tab_backend_.WaitForAllPendingOperations(std::move(on_idle));
 }
 
+TabStateStorageService::ScopedBatch
+TabStateStorageService::CreateScopedBatch() {
+  if (!open_batches_) {
+    open_batches_.emplace(*this, packager_.get());
+  }
+  open_batches_->batch_cnt++;
+
+  return base::ScopedClosureRunner(
+      base::BindOnce(&TabStateStorageService::OnScopedBatchDestroyed,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
+
+void TabStateStorageService::OnScopedBatchDestroyed() {
+  if (!open_batches_) {
+    return;
+  }
+  open_batches_->batch_cnt--;
+  if (open_batches_->batch_cnt == 0) {
+    CommitCurrentBatch();
+  }
+}
+
 void TabStateStorageService::Save(const TabInterface* tab) {
   DCHECK(packager_);
-
-  std::unique_ptr<StoragePackage> package = packager_->Package(tab);
-  DCHECK(package) << "Packager should return a package";
 
   const TabCollection* parent = tab->GetParentCollection();
   DCHECK(tab->GetParentCollection()) << "Tab must have a parent collection";
@@ -127,65 +118,79 @@ void TabStateStorageService::Save(const TabInterface* tab) {
   bool is_off_the_record = packager_->IsOffTheRecord(parent);
 
   StorageId storage_id = GetStorageId(tab);
-  TabStateStorageUpdaterBuilder builder;
-  builder.SaveNode(storage_id, std::move(window_tag), is_off_the_record,
-                   TabStorageType::kTab, std::move(package));
-  tab_backend_.Update(builder.Build());
+
+  ApplyUpdate([&](TabStateStorageUpdaterBuilder& builder) {
+    builder.SaveNode(storage_id, std::move(window_tag), is_off_the_record,
+                     TabStorageType::kTab, tab->GetHandle());
+  });
 }
 
 void TabStateStorageService::Save(const TabCollection* collection) {
   DCHECK(packager_);
-
-  std::unique_ptr<StoragePackage> package =
-      packager_->Package(collection, *this);
-  DCHECK(package) << "Packager should return a package";
 
   std::string window_tag = packager_->GetWindowTag(collection);
   bool is_off_the_record = packager_->IsOffTheRecord(collection);
 
   StorageId storage_id = GetStorageId(collection);
   TabStorageType type = TabCollectionTypeToTabStorageType(collection->type());
-  TabStateStorageUpdaterBuilder builder;
-  builder.SaveNode(storage_id, std::move(window_tag), is_off_the_record, type,
-                   std::move(package));
-  tab_backend_.Update(builder.Build());
+
+  ApplyUpdate([&](TabStateStorageUpdaterBuilder& builder) {
+    builder.SaveNode(storage_id, std::move(window_tag), is_off_the_record, type,
+                     collection->GetHandle());
+  });
 }
 
 void TabStateStorageService::SavePayload(const TabCollection* collection) {
   DCHECK(packager_);
 
-  std::unique_ptr<Payload> payload =
-      packager_->PackagePayload(collection, *this);
-  DCHECK(payload) << "Packager should return a payload";
+  StorageId storage_id = GetStorageId(collection);
+  ApplyUpdate([&](TabStateStorageUpdaterBuilder& builder) {
+    builder.SaveNodePayload(storage_id, collection->GetHandle());
+  });
+}
+
+void TabStateStorageService::SaveChildren(const TabCollection* collection) {
+  DCHECK(packager_);
 
   StorageId storage_id = GetStorageId(collection);
-  TabStateStorageUpdaterBuilder builder;
-  builder.SaveNodePayload(storage_id, std::move(payload));
-  tab_backend_.Update(builder.Build());
+  ApplyUpdate([&](TabStateStorageUpdaterBuilder& builder) {
+    builder.SaveChildren(storage_id, collection);
+  });
 }
 
-void TabStateStorageService::Remove(const TabInterface* tab,
-                                    const TabCollection* prev_parent) {
-  RemoveNodeSequence(GetStorageId(tab), prev_parent, this, packager_.get(),
-                     &tab_backend_);
+void TabStateStorageService::Remove(const TabInterface* tab) {
+  DCHECK(packager_);
+
+  ApplyUpdate([&](TabStateStorageUpdaterBuilder& builder) {
+    builder.RemoveNode(GetStorageId(tab));
+  });
 }
 
-void TabStateStorageService::Remove(const TabCollection* collection,
-                                    const TabCollection* prev_parent) {
-  RemoveNodeSequence(GetStorageId(collection), prev_parent, this,
-                     packager_.get(), &tab_backend_);
+void TabStateStorageService::Remove(const TabCollection* collection) {
+  DCHECK(packager_);
+
+  ApplyUpdate([&](TabStateStorageUpdaterBuilder& builder) {
+    builder.RemoveNode(GetStorageId(collection));
+  });
 }
 
-void TabStateStorageService::Move(const TabInterface* tab,
-                                  const TabCollection* prev_parent) {
-  MoveNodeSequence(prev_parent, tab->GetParentCollection(), this,
-                   packager_.get(), &tab_backend_);
+void TabStateStorageService::CommitCurrentBatch() {
+  if (!open_batches_) {
+    return;
+  }
+
+  tab_backend_.Update(open_batches_->builder.Build());
+  open_batches_.reset();
 }
 
-void TabStateStorageService::Move(const TabCollection* collection,
-                                  const TabCollection* prev_parent) {
-  MoveNodeSequence(prev_parent, collection->GetParentCollection(), this,
-                   packager_.get(), &tab_backend_);
+void TabStateStorageService::ApplyUpdate(UpdateOperation operation) {
+  if (open_batches_) {
+    operation(open_batches_->builder);
+  } else {
+    TabStateStorageUpdaterBuilder builder(*this, packager_.get());
+    operation(builder);
+    tab_backend_.Update(builder.Build());
+  }
 }
 
 void TabStateStorageService::LoadAllNodes(const std::string& window_tag,

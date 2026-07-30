@@ -155,8 +155,8 @@ void ShadowRoot::SetInnerHTMLWithoutTrustedTypes(
   if (DocumentFragment* fragment = CreateFragmentForInnerOuterHTML(
           html, &host(), kAllowScriptingContent,
           Element::ParseDeclarativeShadowRoots::kDontParse,
-          Element::ForceHtml::kDontForce, customElementRegistry(),
-          exception_state)) {
+          Element::ForceHtml::kDontForce, ForceInertTemplate::kDontForce,
+          customElementRegistry(), exception_state)) {
     ReplaceChildrenWithFragment(this, fragment, exception_state);
   }
 }
@@ -165,7 +165,8 @@ void ShadowRoot::setInnerHTML(
     const V8UnionStringLegacyNullToEmptyStringOrTrustedHTML* html,
     ExceptionState& exception_state) {
   String compliant_html = TrustedTypesCheckForHTML(
-      html, GetExecutionContext(), "ShadowRoot", "innerHTML", exception_state);
+      html, GetExecutionContext(), trusted_types_names::kShadowRoot,
+      trusted_types_names::kInnerHTML, exception_state);
   if (exception_state.HadException()) {
     return;
   }
@@ -175,19 +176,20 @@ void ShadowRoot::setInnerHTML(
 void ShadowRoot::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
                                ExceptionState& exception_state) {
   UseCounter::Count(GetDocument(), WebFeature::kHTMLUnsafeMethods);
-  String compliant_html =
-      TrustedTypesCheckForHTML(html, GetExecutionContext(), "ShadowRoot",
-                               "setHTMLUnsafe", exception_state);
+  String compliant_html = TrustedTypesCheckForHTML(
+      html, GetExecutionContext(), trusted_types_names::kShadowRoot,
+      trusted_types_names::kSetHTMLUnsafe, exception_state);
   if (exception_state.HadException()) {
     return;
   }
   if (DocumentFragment* fragment = CreateFragmentForInnerOuterHTML(
           compliant_html, &host(), kAllowScriptingContent,
           Element::ParseDeclarativeShadowRoots::kParse,
-          Element::ForceHtml::kDontForce, customElementRegistry(),
-          exception_state)) {
+          Element::ForceHtml::kDontForce, ForceInertTemplate::kForce,
+          customElementRegistry(), exception_state)) {
     if (RuntimeEnabledFeatures::SanitizerAPIEnabled()) {
-      SanitizerAPI::SanitizeUnsafeInternal(fragment, nullptr, exception_state);
+      SanitizerAPI::SanitizeUnsafeInternal(this, fragment, nullptr,
+                                           exception_state);
     }
     ReplaceChildrenWithFragment(this, fragment, exception_state);
   }
@@ -196,19 +198,20 @@ void ShadowRoot::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
 void ShadowRoot::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
                                SetHTMLUnsafeOptions* options,
                                ExceptionState& exception_state) {
-  String compliant_html =
-      TrustedTypesCheckForHTML(html, GetExecutionContext(), "ShadowRoot",
-                               "setHTMLUnsafe", exception_state);
+  String compliant_html = TrustedTypesCheckForHTML(
+      html, GetExecutionContext(), trusted_types_names::kShadowRoot,
+      trusted_types_names::kSetHTMLUnsafe, exception_state);
   if (exception_state.HadException()) {
     return;
   }
   if (DocumentFragment* fragment = CreateFragmentForInnerOuterHTML(
           compliant_html, &host(), kAllowScriptingContent,
           Element::ParseDeclarativeShadowRoots::kParse,
-          Element::ForceHtml::kDontForce, customElementRegistry(),
-          exception_state)) {
+          Element::ForceHtml::kDontForce, ForceInertTemplate::kForce,
+          customElementRegistry(), exception_state)) {
     if (RuntimeEnabledFeatures::SanitizerAPIEnabled()) {
-      SanitizerAPI::SanitizeUnsafeInternal(fragment, options, exception_state);
+      SanitizerAPI::SanitizeUnsafeInternal(this, fragment, options,
+                                           exception_state);
     }
     ReplaceChildrenWithFragment(this, fragment, exception_state);
   }
@@ -220,10 +223,11 @@ void ShadowRoot::setHTML(const String& html,
   if (DocumentFragment* fragment = CreateFragmentForInnerOuterHTML(
           html, &host(), kAllowScriptingContent,
           Element::ParseDeclarativeShadowRoots::kParse,
-          Element::ForceHtml::kDontForce, customElementRegistry(),
-          exception_state)) {
+          Element::ForceHtml::kDontForce, ForceInertTemplate::kForce,
+          customElementRegistry(), exception_state)) {
     if (RuntimeEnabledFeatures::SanitizerAPIEnabled()) {
-      SanitizerAPI::SanitizeSafeInternal(fragment, options, exception_state);
+      SanitizerAPI::SanitizeSafeInternal(this, fragment, options,
+                                         exception_state);
     }
     ReplaceChildrenWithFragment(this, fragment, exception_state);
   }
@@ -318,7 +322,18 @@ ShadowRoot::GetFetchedStyleSheetsFromModuleMap(
     const AtomicString& shadowrootadoptedstylesheets_attribute_value) {
   CHECK(RuntimeEnabledFeatures::DeclarativeCSSModulesEnabled());
 
+  // Early exit if `domWindow` isn't available. This won't work in contexts such
+  // as `Document.parseHTMLUnsafe`. This is probably fine, as adopted
+  // stylesheets are cleared when moving between documents (so it wouldn't be
+  // able to render the adopted styles anyways). Also,
+  // `Document.parseHTMLUnsafe` cannot execute scripts, so this isn't a
+  // limitation compared to the imperative version.
+  // TODO(448174611): confirm this behavior is correct with the WHATWG.
   LocalDOMWindow* window = GetDocument().domWindow();
+  if (!window) {
+    return {};
+  }
+
   Modulator* modulator =
       Modulator::From(ToScriptStateForMainWorld(window->GetFrame()));
   v8::Isolate* isolate = modulator->GetScriptState()->GetIsolate();
@@ -362,6 +377,7 @@ ShadowRoot::GetFetchedStyleSheetsFromModuleMap(
             isolate,
             static_cast<const ValueWrapperSyntheticModuleScript*>(module_script)
                 ->GetExport(isolate));
+        CHECK_EQ(sheet->ConstructorDocument(), GetDocument());
         sheets.push_back(*sheet);
       }
     }

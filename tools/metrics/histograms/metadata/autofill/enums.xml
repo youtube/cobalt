@@ -4222,6 +4222,7 @@ Called by update_autofill_enums.py.-->
   <int value="0" label="Form Changed"/>
   <int value="1" label="Select Options Changed"/>
   <int value="2" label="Expiration Date Formatted"/>
+  <int value="3" label="Programmatic Refill"/>
 </enum>
 
 <enum name="RendererFillSkipReason">
@@ -4241,6 +4242,15 @@ Called by update_autofill_enums.py.-->
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h:SaveAndFillDialogResult) -->
+
+<!-- LINT.IfChange(SaveAndFillDialogShown) -->
+
+<enum name="SaveAndFillDialogShown">
+  <int value="0" label="Local dialog shown"/>
+  <int value="1" label="Upload dialog shown"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h:SaveAndFillDialogShown) -->
 
 <!-- LINT.IfChange(SaveAndFillFormEvent) -->
 
@@ -4292,6 +4302,7 @@ Called by update_autofill_enums.py.-->
 <!-- LINT.IfChange(SmsOtpRetrievalApiErrorCode) -->
 
 <enum name="SmsOtpRetrievalApiErrorCode">
+  <int value="0" label="GmsCore version not supported"/>
   <int value="13" label="CommonStatusCodes.ERROR"/>
   <int value="15" label="Timeout"/>
   <int value="36500" label="Platform does not support SmsCodeAutofillClient"/>
@@ -4434,6 +4445,11 @@ Called by update_autofill_enums.py.-->
   <int value="10" label="Not shown: unsupported field type"/>
   <int value="11" label="Not shown: Fast Checkout was shown"/>
   <int value="12" label="Not shown: some inputs already contain values"/>
+</enum>
+
+<enum name="TouchToFillBnplSuggestionInteraction">
+  <int value="0" label="BNPL suggestion was shown and remained selectable"/>
+  <int value="1" label="BNPL suggestion was selected"/>
 </enum>
 
 <enum name="UploadPaymentMethodOrigin">

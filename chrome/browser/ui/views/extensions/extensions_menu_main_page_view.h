@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/views/extensions/extensions_menu_item_view.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/layout/flex_layout_view.h"
+#include "ui/views/metadata/view_factory.h"
 #include "ui/views/view.h"
 
 namespace content {
@@ -60,11 +61,8 @@ class ExtensionsMenuMainPageView : public views::View {
   std::vector<ExtensionMenuItemView*> GetMenuItems() const;
 
   // Updates the site settings views with the given parameters.
-  void UpdateSiteSettings(const std::u16string& current_site,
-                          int label_id,
-                          bool is_tooltip_visible,
-                          bool is_toggle_visible,
-                          bool is_toggle_on);
+  void UpdateSiteSettings(
+      ExtensionsMenuViewModel::SiteSettingsState site_settings_state);
 
   // Shows the reload section in the menu. Takes precedence over the requests
   // section.

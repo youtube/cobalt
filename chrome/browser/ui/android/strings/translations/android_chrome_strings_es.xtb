@@ -87,6 +87,7 @@
 <translation id="1336996151357442890">Suscripción a <ph name="SITE_NAME" /> anulada. Se te volverá a preguntar la próxima vez que visites el sitio.</translation>
 <translation id="1340839264183302272">Salir del grupo</translation>
 <translation id="1342886103232377846">Para comprobar si hay contraseñas vulneradas, ve al Gestor de contraseñas de Google</translation>
+<translation id="1343830902827845050">Iniciar sesión en Chrome</translation>
 <translation id="1344653310988386453">Incluir enlace al texto destacado</translation>
 <translation id="1347468774581902829">Gestionar actividad</translation>
 <translation id="1355088659320425659">Historial y pestañas</translation>
@@ -180,7 +181,7 @@ Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifr
 <translation id="1778457539567749232">Marcar como no leída</translation>
 <translation id="1779766957982586368">Cerrar ventana</translation>
 <translation id="1780023393214832643">Contraseñas guardadas en <ph name="USERNAME" /></translation>
-<translation id="1791662854739702043">Ubicación</translation>
+<translation id="1791662854739702043">Instaladas</translation>
 <translation id="1792959175193046959">Cambia la ubicación predeterminada de las descargas en cualquier momento</translation>
 <translation id="1796666869097395659">Minimizar la pestaña para volver a ella más tarde</translation>
 <translation id="1799920918471566157">Consejos de Chrome</translation>
@@ -525,7 +526,6 @@ Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifr
 <translation id="3268048651973962414">Desliza hacia arriba para ver los resultados de búsqueda</translation>
 <translation id="3269093882174072735">Cargar imagen</translation>
 <translation id="3280562213547448728">Búsqueda por voz</translation>
-<translation id="3282568296779691940">Iniciar sesión en Chrome</translation>
 <translation id="3285065882678541460">{TAB_COUNT,plural, =1{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_ONE" /> pestaña}other{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_MANY" /> pestañas}}</translation>
 <translation id="3286508210927575634">{PASSWORDS_COUNT,plural, =1{1 contraseña está guardada solo en este dispositivo. Para usarla en tus otros dispositivos, guárdala en tu cuenta de Google.}other{# contraseñas están guardadas solo en este dispositivo. Para usarlas en tus otros dispositivos, guárdalas en tu cuenta de Google.}}</translation>
 <translation id="3293181007446299124">Tu historial de navegación se conservará en tu dispositivo y será privado, y los informes se enviarán con retraso para proteger tu identidad.</translation>
@@ -719,6 +719,7 @@ Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifr
 <translation id="414128724510021958">Sitios para ordenadores solicitados de forma predeterminada</translation>
 <translation id="4162867837470729563">Lista de opciones para compartir abierta a altura completa.</translation>
 <translation id="4170011742729630528">El servicio no está disponible. Vuelve a intentarlo más tarde.</translation>
+<translation id="4170577491341606575">Obteniendo tus cosas\u2026</translation>
 <translation id="4177222230309051052">Accede a todos tus marcadores</translation>
 <translation id="4177501066905053472">Temas de anuncios</translation>
 <translation id="417865198503699526">Busca un ajuste</translation>
@@ -911,6 +912,7 @@ Es posible que tu cuenta de Google tenga otros tipos de historial de navegación
 <translation id="4905823827770127520">Incluir un enlace a la página</translation>
 <translation id="4908869848243824489">Discover de Google</translation>
 <translation id="4910889077668685004">Aplicaciones para pagar</translation>
+<translation id="4911042367886397055">¡Hola de nuevo, <ph name="USER_NAME" />!</translation>
 <translation id="4912413785358399818">Mover pestaña</translation>
 <translation id="4913169188695071480">Dejar de actualizar</translation>
 <translation id="4921224083091001889">Para acceder a tus contraseñas y otras opciones en todos tus dispositivos, inicia sesión en Chrome como <ph name="EMAIL" /></translation>
@@ -1340,6 +1342,7 @@ Por ejemplo, algunos sitios web pueden responder a la solicitud mostrándote anu
 <translation id="670498945988402717">Comprobado ayer</translation>
 <translation id="6710213216561001401">Anterior</translation>
 <translation id="671481426037969117">Se ha agotado el temporizador de <ph name="FQDN" />. Se reiniciará mañana.</translation>
+<translation id="6716434912087331834">Para restaurar una ventana nueva, reduce el número total de ventanas activas a <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> o menos. Las ventanas inactivas se eliminan después de 6 meses.</translation>
 <translation id="6723740634201835758">En tu cuenta de Google</translation>
 <translation id="6734310707649923383">Puedes ver las páginas que has visitado o eliminarlas de tu historial</translation>
 <translation id="6737429434215739253"><ph name="TAB_TITLE" />, pestaña de Incógnito en grabación fijada</translation>
@@ -1456,6 +1459,7 @@ Por ejemplo, algunos sitios web pueden responder a la solicitud mostrándote anu
 <translation id="7115358764509798967">Predeterminado del sistema</translation>
 <translation id="7117485132243600300">Gestiona el contenido que sigues y los temas y las búsquedas sugeridos</translation>
 <translation id="7119984597597798764">Cerrar <ph name="INSTANCE_TITLE" /></translation>
+<translation id="7121179479711575744">Iniciar sesión en Chrome</translation>
 <translation id="7136902389402789299">{NUM_SITES,plural, =1{Permisos revisados de 1 sitio}other{Permisos revisados de # sitios}}</translation>
 <translation id="7138678301420049075">Otro</translation>
 <translation id="7140829094791862589">Ordenar manualmente</translation>
@@ -1657,6 +1661,7 @@ Para cambiar este ajuste, <ph name="BEGIN_LINK" />elimina los datos de Chrome de
 <translation id="7942131818088350342"><ph name="PRODUCT_NAME" /> está obsoleto.</translation>
 <translation id="7944772052836377867">Verifica tu identidad para usar la sincronización</translation>
 <translation id="7951102827450076904">Abrir siempre los PDFs descargados</translation>
+<translation id="7952479614398473176">Para abrir una ventana nueva, reduce el número total de ventanas activas a <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> o menos.</translation>
 <translation id="7957413488482743710">Una tarjeta virtual oculta tu tarjeta real para protegerte frente a posibles fraudes. <ph name="BEGIN_LINK1" />Más información sobre tarjetas virtuales<ph name="END_LINK1" /></translation>
 <translation id="7959485987650214982">Pestañas en este dispositivo</translation>
 <translation id="7961926449547174351">Has inhabilitado el acceso al almacenamiento; ve a Ajustes para habilitarlo.</translation>
@@ -1939,6 +1944,7 @@ Para cambiar este ajuste, <ph name="BEGIN_LINK" />elimina los datos de Chrome de
 <translation id="9104217018994036254">Lista de dispositivos con los que puedes compartir una pestaña.</translation>
 <translation id="9106148373857059373">Flujo para guardar marcador cerrado</translation>
 <translation id="9108808586816295166">Es posible que no haya un DNS seguro disponible de forma ininterrumpida</translation>
+<translation id="9112483451228487295">Eliminar los datos de navegación</translation>
 <translation id="9124978074365039456">Compra, traduce e identifica lo que ves con tu cámara y tu galería de fotos</translation>
 <translation id="9130135798965366513">Para continuar, <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> compartirá tu <ph name="FIELDS_STRING" /> con este sitio. Consulta la <ph name="BEGIN_LINK1" />política de privacidad<ph name="END_LINK1" /> y los <ph name="BEGIN_LINK2" />términos del servicio<ph name="END_LINK2" /> de este sitio.</translation>
 <translation id="9131209053278896908">Los sitios bloqueados aparecen aquí</translation>

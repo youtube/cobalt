@@ -293,7 +293,7 @@ class SidePanelCoordinatorTest : public InProcessBrowserTest {
   }
 
   SidePanelCoordinator* coordinator() {
-    return browser()->GetFeatures().side_panel_coordinator();
+    return SidePanelCoordinator::From(browser());
   }
 
   SidePanelRegistry* global_registry() {
@@ -302,16 +302,6 @@ class SidePanelCoordinatorTest : public InProcessBrowserTest {
 
   std::vector<raw_ptr<SidePanelRegistry, DanglingUntriaged>>
       contextual_registries_;
-};
-
-class SidePanelCoordinatorWithSideBySideTest : public SidePanelCoordinatorTest {
- public:
-  SidePanelCoordinatorWithSideBySideTest() {
-    scoped_feature_list_.InitWithFeatures({features::kSideBySide}, {});
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, ToggleSidePanel) {
@@ -327,6 +317,29 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, ToggleSidePanel) {
                         SidePanelOpenTrigger::kPinnedEntryToolbarButton);
   EXPECT_FALSE(
       browser()->GetBrowserView().contents_height_side_panel()->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, VerifyFocusOrder) {
+  Init();
+  coordinator()->DisableAnimationsForTesting();
+  coordinator()->Show(SidePanelEntry::Key(SidePanelEntry::Id::kBookmarks));
+  SidePanel* side_panel =
+      browser()->GetBrowserView().contents_height_side_panel();
+  auto children_in_focus_order = side_panel->GetChildrenFocusList();
+  auto resize_it =
+      std::find(children_in_focus_order.begin(), children_in_focus_order.end(),
+                side_panel->resize_area_for_testing());
+  EXPECT_NE(resize_it, children_in_focus_order.end());
+  auto header_it = std::find(children_in_focus_order.begin(),
+                             children_in_focus_order.end(), GetHeader());
+  EXPECT_NE(header_it, children_in_focus_order.end());
+  auto content_it =
+      std::find(children_in_focus_order.begin(), children_in_focus_order.end(),
+                side_panel->GetContentParentView());
+  EXPECT_NE(content_it, children_in_focus_order.end());
+  // Verify the order is resize area -> header -> content.
+  EXPECT_LT(resize_it, header_it);
+  EXPECT_LT(header_it, content_it);
 }
 
 IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, OpenWhileClosing) {
@@ -630,8 +643,8 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, ChangeSidePanelWidthMaxMin) {
             web_contents_width);
 }
 
-IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorWithSideBySideTest,
-                       ChangeSidePanelWidthMaxMin) {
+IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
+                       ChangeSidePanelWidthMaxMinWithSplitView) {
   Init();
 
   // Create split view.
@@ -662,16 +675,17 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorWithSideBySideTest,
       large_increment, true);
   views::test::RunScheduledLayout(&browser()->GetBrowserView());
 
+  MultiContentsView* multi_contents_view =
+      browser()->GetBrowserView().multi_contents_view();
   if (base::FeatureList::IsEnabled(features::kTabbedBrowserUseNewLayout)) {
-    EXPECT_EQ(browser()->GetBrowserView().multi_contents_view()->width(),
+    EXPECT_EQ(multi_contents_view->width(),
               GetMinWebContentsWidth() + views::Separator::kThickness);
   } else {
-    EXPECT_EQ(browser()->GetBrowserView().multi_contents_view()->width(),
-              GetMinWebContentsWidth());
-    EXPECT_EQ(
-        browser()->GetBrowserView().multi_contents_view()->width(),
-        browser()->GetBrowserView().multi_contents_view()->GetMinViewWidth() *
-            2);
+    EXPECT_EQ(multi_contents_view->width(), GetMinWebContentsWidth());
+    EXPECT_GT(
+        multi_contents_view->width(),
+        multi_contents_view->GetActiveContentsContainerView()->width() +
+            multi_contents_view->GetInactiveContentsContainerView()->width());
   }
 }
 
@@ -2491,8 +2505,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
   ASSERT_TRUE(guest_browser->profile()->IsGuestSession());
 
   // Check that pin button does not show in guest window.
-  auto* coordinator = guest_browser->GetFeatures().side_panel_coordinator();
-
+  auto* const coordinator = SidePanelCoordinator::From(guest_browser);
   coordinator->SetNoDelaysForTesting(true);
   coordinator->DisableAnimationsForTesting();
   coordinator->Show(SidePanelEntry::Id::kBookmarks);

@@ -233,7 +233,9 @@ void PasskeyTabHelper::HandleCreateRequestedEvent(
 
 bool PasskeyTabHelper::HasCredential(const std::string& rp_id,
                                      const std::string& credential_id) const {
-  return passkey_model_->GetPasskeyByCredentialId(rp_id, credential_id)
+  return passkey_model_
+      ->GetPasskey(rp_id, credential_id,
+                   webauthn::PasskeyModel::ShadowedCredentials::kExclude)
       .has_value();
 }
 
@@ -270,7 +272,8 @@ bool PasskeyTabHelper::HasExcludedPasskey(
   }
 
   std::vector<sync_pb::WebauthnCredentialSpecifics> passkeys =
-      passkey_model_->GetPasskeysForRelyingPartyId(params.RpId());
+      passkey_model_->GetPasskeys(params.RpId(),
+                                  PasskeyModel::ShadowedCredentials::kExclude);
   for (const auto& passkey : passkeys) {
     if (exclude_credentials.contains(passkey.credential_id())) {
       return true;
@@ -283,7 +286,8 @@ std::vector<sync_pb::WebauthnCredentialSpecifics>
 PasskeyTabHelper::GetFilteredPasskeys(
     const AssertionRequestParams& params) const {
   std::vector<sync_pb::WebauthnCredentialSpecifics> passkeys =
-      passkey_model_->GetPasskeysForRelyingPartyId(params.RpId());
+      passkey_model_->GetPasskeys(params.RpId(),
+                                  PasskeyModel::ShadowedCredentials::kExclude);
   if (passkeys.empty()) {
     return passkeys;
   }

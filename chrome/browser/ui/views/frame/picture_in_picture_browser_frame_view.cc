@@ -54,6 +54,7 @@
 #include "ui/views/event_monitor.h"
 #include "ui/views/layout/animating_layout_manager.h"
 #include "ui/views/layout/flex_layout_view.h"
+#include "ui/views/metadata/view_factory.h"
 #include "ui/views/style/typography.h"
 #include "ui/views/style/typography_provider.h"
 #include "ui/views/widget/widget_delegate.h"
@@ -202,7 +203,7 @@ void DefinitelyExitPictureInPicture(
     // some reason, then just manually close the window to prevent
     // getting into a state where the back to tab button no longer
     // closes the window.
-    frame_view.browser_view()->Close();
+    frame_view.GetBrowserView()->Close();
   }
 }
 
@@ -758,7 +759,7 @@ void PictureInPictureBrowserFrameView::OnBrowserViewInitViewsComplete() {
 #endif
 
   const std::optional<blink::mojom::PictureInPictureWindowOptions> pip_options =
-      browser_view()->GetDocumentPictureInPictureOptions();
+      GetBrowserView()->GetDocumentPictureInPictureOptions();
 
   // If the request includes pip options with an inner width and height, then we
   // need to recompute the outer size now that we can compute the correct
@@ -802,7 +803,7 @@ void PictureInPictureBrowserFrameView::OnBrowserViewInitViewsComplete() {
           GetMinimumSize() + gfx::Size(insets.width(), insets.height()),
           excluded_margin);
 
-  browser_view()->browser()->set_override_bounds(window_bounds);
+  GetBrowserView()->browser()->set_override_bounds(window_bounds);
 }
 
 gfx::Rect PictureInPictureBrowserFrameView::GetBoundsForClientView() const {
@@ -918,7 +919,7 @@ void PictureInPictureBrowserFrameView::AddedToWidget() {
   widget_observation_.Observe(GetWidget());
   window_event_observer_ = std::make_unique<WindowEventObserver>(this);
   child_dialog_observer_helper_ =
-      std::make_unique<ChildDialogObserverHelper>(this, browser_view());
+      std::make_unique<ChildDialogObserverHelper>(this, GetBrowserView());
 
   // Creates an animation container to ensure all the animations update at the
   // same time.
@@ -1578,7 +1579,7 @@ bool PictureInPictureBrowserFrameView::IsOverlayViewVisible() const {
 }
 
 gfx::Size PictureInPictureBrowserFrameView::ComputeDialogPadding() const {
-  auto* host = browser_view()->GetWebContentsModalDialogHost();
+  auto* host = GetBrowserView()->GetWebContentsModalDialogHost();
   if (!host) {
     return gfx::Size();
   }

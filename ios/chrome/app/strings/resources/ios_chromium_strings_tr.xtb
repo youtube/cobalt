@@ -117,6 +117,7 @@ Hesap değiştirmeden önce birkaç dakika beklemeyi deneyin. Hesabı şimdi de�
 <translation id="3581385059720151202">Görselleri Chromium'da ara</translation>
 <translation id="3582640969619785896">Chromium, şifrenizi kaydetmeyi önerir</translation>
 <translation id="3594315078412605236">Chromium'daki ödeme yöntemlerini yönet</translation>
+<translation id="3600428265489994557">Chromium'da oturum aç</translation>
 <translation id="3617143087229977194">iOS'te Varsayılan Uygulamalar ayarlarını açtıktan sonra "Tarayıcı Uygulaması"na dokunup Chromium'u seçin.</translation>
 <translation id="3634039384458740619">Chromium Ayarları'nı aç</translation>
 <translation id="3639997914391704523">Chromium, Google Hesabınızla oturum açtığınızda şifrelerinizi kontrol edebilir.</translation>
@@ -351,7 +352,6 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="900560297598578021"><ph name="EMAIL" /> olarak oturum açtınız.
 
 Verileriniz <ph name="TIME" /> tarihinde parolanızla şifrelendi. Chromium verilerini kullanmak ve Google Hesabınıza kaydetmek için parolanızı girin.</translation>
-<translation id="9022552996538154597">Chromium'da oturum aç</translation>
 <translation id="9031260906956926157">Chromium verilerinizden bazıları henüz Google Hesabınıza kaydedilmedi.
 Oturumunuzu kapatmadan önce birkaç dakika bekleyin. Oturumu şimdi kapatırsanız bu veriler silinir.</translation>
 <translation id="9050790730841755540">Diğer uygulamalardaki bağlantılara her dokunduğunuzda Chromium'u kullanın.</translation>

@@ -121,7 +121,7 @@ CreateStandardDeviceBoundSessionParamsFromRegistrationPayload(
                        registration_payload.allowed_refresh_initiators);
 }
 
-void RecordCreateBoundSessionResult(
+void RecordCreateBoundSessionsResult(
     OAuthMultiloginHelper::DeviceBoundSessionCreateSessionsResult result) {
   base::UmaHistogramEnumeration(
       "Signin.DeviceBoundSessions.OAuthMultilogin.CreateSessionsResult",
@@ -136,6 +136,7 @@ OAuthMultiloginHelper::OAuthMultiloginHelper(
     AccountsCookieMutator::PartitionDelegate* partition_delegate,
     ProfileOAuth2TokenService* token_service,
     gaia::MultiloginMode mode,
+    bool wait_on_connectivity,
     const std::vector<AccountIdGaiaIdPair>& accounts,
     const std::string& external_cc_result,
     const gaia::GaiaSource& gaia_source,
@@ -144,6 +145,7 @@ OAuthMultiloginHelper::OAuthMultiloginHelper(
       partition_delegate_(partition_delegate),
       token_service_(token_service),
       mode_(mode),
+      wait_on_connectivity_(wait_on_connectivity),
       accounts_(accounts),
       external_cc_result_(external_cc_result),
       gaia_source_(gaia_source),
@@ -206,7 +208,8 @@ void OAuthMultiloginHelper::StartFetchingTokens() {
       base::BindOnce(&OAuthMultiloginHelper::OnMultiloginTokensSuccess,
                      base::Unretained(this)),
       base::BindOnce(&OAuthMultiloginHelper::OnMultiloginTokensFailure,
-                     base::Unretained(this)));
+                     base::Unretained(this)),
+      /*retry_waits_on_connectivity=*/wait_on_connectivity_);
 }
 
 void OAuthMultiloginHelper::OnMultiloginTokensSuccess(
@@ -215,9 +218,14 @@ void OAuthMultiloginHelper::OnMultiloginTokensSuccess(
   CHECK_EQ(tokens.size(), accounts_.size());
   tokens_ = std::move(tokens);
   token_fetcher_.reset();
-  signin_client_->DelayNetworkCall(
+  auto callback =
       base::BindOnce(&OAuthMultiloginHelper::StartFetchingMultiLogin,
-                     weak_ptr_factory_.GetWeakPtr()));
+                     weak_ptr_factory_.GetWeakPtr());
+  if (wait_on_connectivity_) {
+    signin_client_->DelayNetworkCall(std::move(callback));
+  } else {
+    std::move(callback).Run();
+  }
 }
 
 void OAuthMultiloginHelper::OnMultiloginTokensFailure(
@@ -444,7 +452,7 @@ bool OAuthMultiloginHelper::StartSettingCookiesViaDeviceBoundSessionManager(
             *device_bound_session->register_session_payload));
   }
   if (sessions_params.empty()) {
-    RecordCreateBoundSessionResult(
+    RecordCreateBoundSessionsResult(
         DeviceBoundSessionCreateSessionsResult::kFallbackNoBoundSessions);
     return false;
   }
@@ -457,7 +465,7 @@ bool OAuthMultiloginHelper::StartSettingCookiesViaDeviceBoundSessionManager(
     }
   }
   if (wrapped_key.empty()) {
-    RecordCreateBoundSessionResult(
+    RecordCreateBoundSessionsResult(
         DeviceBoundSessionCreateSessionsResult::kFallbackNoBindingKey);
     return false;
   }
@@ -473,10 +481,27 @@ bool OAuthMultiloginHelper::StartSettingCookiesViaDeviceBoundSessionManager(
   return true;
 }
 
-void OAuthMultiloginHelper::OnBoundSessionsCreated(bool session_created) {
-  RecordCreateBoundSessionResult(
-      session_created ? DeviceBoundSessionCreateSessionsResult::kSuccess
-                      : DeviceBoundSessionCreateSessionsResult::kFailure);
+void OAuthMultiloginHelper::OnBoundSessionsCreated(
+    const std::vector<net::device_bound_sessions::SessionError::ErrorType>&
+        session_results,
+    std::vector<net::CookieInclusionStatus> cookie_results) {
+  bool all_success = true;
+  for (const auto& error : session_results) {
+    base::UmaHistogramEnumeration(
+        "Signin.DeviceBoundSessions.OAuthMultilogin.SessionCreationError",
+        error);
+    all_success &=
+        (error ==
+         net::device_bound_sessions::SessionError::ErrorType::kSuccess);
+  }
+
+  RecordCreateBoundSessionsResult(
+      all_success ? DeviceBoundSessionCreateSessionsResult::kSuccess
+                  : DeviceBoundSessionCreateSessionsResult::kFailure);
+
+  for (const auto& status : cookie_results) {
+    base::UmaHistogramBoolean("Signin.SetCookieSuccess", status.IsInclude());
+  }
 
   std::move(callback_).Run(SetAccountsInCookieResult::kSuccess);
 }

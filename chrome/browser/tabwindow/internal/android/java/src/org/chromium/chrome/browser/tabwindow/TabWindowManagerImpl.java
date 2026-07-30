@@ -33,6 +33,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.multiwindow.InstanceInfo;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tab.Tab;
@@ -596,7 +597,8 @@ public class TabWindowManagerImpl implements TabWindowManager {
         mKeepAllTabModelsLoaded = true;
 
         List<TabModelSelector> tabModelSelectorList = new ArrayList<>();
-        List<InstanceInfo> instanceInfoList = multiInstanceManager.getInstanceInfo();
+        List<InstanceInfo> instanceInfoList =
+                multiInstanceManager.getInstanceInfo(PersistedInstanceType.ANY);
         if (instanceInfoList.isEmpty()) {
             tabModelSelectorList.add(selector);
         } else {
@@ -725,9 +727,8 @@ public class TabWindowManagerImpl implements TabWindowManager {
     }
 
     private boolean isPossiblyAnArchivedTab() {
-        return ChromeFeatureList.sAndroidTabDeclutterRescueKillSwitch.isEnabled()
-                && (mArchivedTabModelSelector == null
-                        || !mArchivedTabModelSelector.isTabStateInitialized());
+        return mArchivedTabModelSelector == null
+                || !mArchivedTabModelSelector.isTabStateInitialized();
     }
 
     private @Nullable Tab getTabFromTabModelSelector(

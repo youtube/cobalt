@@ -16,6 +16,7 @@
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -25,14 +26,15 @@ class ShareData;
 
 class MODULES_EXPORT NavigatorShare final
     : public GarbageCollected<NavigatorShare>,
-      public GarbageCollectedMixin {
+      public Supplement<Navigator> {
  public:
   static const unsigned kSupplementIndex;
 
-  explicit NavigatorShare(Navigator& navigator) : navigator_(navigator) {}
+  NavigatorShare(Navigator& navigator) : Supplement(navigator) {}
   ~NavigatorShare() = default;
 
   // Gets, or creates, NavigatorShare supplement on Navigator.
+  // See platform/Supplementable.h
   static NavigatorShare& From(Navigator&);
 
   // Navigator partial interface
@@ -52,8 +54,6 @@ class MODULES_EXPORT NavigatorShare final
   class ShareClientImpl;
 
   void OnConnectionError();
-
-  Member<Navigator> navigator_;
 
   // |NavigatorShare| is not ExecutionContext-associated.
   HeapMojoRemote<blink::mojom::blink::ShareService> service_remote_{nullptr};

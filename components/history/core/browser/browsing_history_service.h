@@ -192,6 +192,8 @@ class BrowsingHistoryService : public HistoryServiceObserver,
   // Used to hold and track query state between asynchronous calls.
   struct QueryHistoryState;
 
+  static bool ShouldQueryRemote(const QueryHistoryState& state);
+
   // Moves results from `state` into `results`, merging both remote and local
   // results together and maintaining reverse chronological order. Any results
   // with the same URL will be merged together for each day. Often holds back
@@ -237,7 +239,7 @@ class BrowsingHistoryService : public HistoryServiceObserver,
       scoped_refptr<QueryHistoryState> state,
       base::Time start_time,
       WebHistoryService::Request* request,
-      base::optional_ref<const base::Value::Dict> results_dict);
+      base::optional_ref<const WebHistoryService::QueryHistoryResult> results);
 
   // Callback telling us whether other forms of browsing history were found
   // on the history server.

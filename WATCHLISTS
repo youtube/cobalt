@@ -1487,14 +1487,6 @@
                   'ios/chrome/browser/widget_kit|'\
                   'ios/chrome/widget_kit_extension',
     },
-    'ip_protection': {
-      'filepath': 'chrome/browser/ip_protection/' \
-                  '|components/ip_protection/' \
-                  '|components/privacy_sandbox/masked_domain_list/' \
-                  '|services/network/ip_protection/' \
-                  '|services/network/network_service_proxy_delegate' \
-                  '|third_party/anonymous_tokens/',
-    },
     'ipcz': {
       'filepath': 'third_party/ipcz/',
     },
@@ -1963,9 +1955,6 @@
     'print_preview': {
       'filepath': 'chrome/browser/resources/print_preview/' \
                   '|chrome/browser/ui/webui/print_preview/'
-    },
-    'privacy_budget': {
-      'filepath': 'privacy_budget',
     },
     'privacy_guide_desktop': {
       'filepath': 'chrome/browser/resources/settings/privacy_page/privacy_guide/' \
@@ -2585,8 +2574,7 @@
     'android_item_chooser_dialogs': [],
     'android_lint': ['wnwen+watch@chromium.org'],
     'android_omnibox': ['ender+watch@chromium.org'],
-    'android_search_widget': ['tedchoc+watch@chromium.org',
-                              'yusufo+watch@chromium.org'],
+    'android_search_widget': ['yusufo+watch@chromium.org'],
     'android_startup_metrics': ['pasko+watch@chromium.org'],
     'android_studio': ['wnwen+watch@chromium.org',
                        'nyquist+watch@chromium.org'],
@@ -3078,11 +3066,6 @@
     'ios_web': ['ios-reviews+web@chromium.org'],
     'ios_web_view': ['ios-web-view-eng+reviews@google.com'],
     'ios_widget_kit': ['rkgibson+watch@chromium.org'],
-    'ip_protection': ['aakallam+watch@chromium.org',
-                      'awillia@chromium.org',
-                      'djmitche@chromium.org',
-      'ortuno+watch@chromium.org',
-      'rizvis+watch@google.com'],
     'ipcz': ['andreaorru+watch@chromium.org'],
     'isolated_web_apps_apis': ['greengrape@google.com',
                                'rmcelrath+watch@chromium.org',
@@ -3243,7 +3226,6 @@
     'picture_in_picture': ['beaufort.francois+pip@gmail.com'],
     'plugin_metadata': ['wfh+watch@chromium.org'],
     'plus_addresses': ['mreichhoff+watch-plus_addresses@chromium.org',
-             'kaklilu+watch-plus_addresses@chromium.org',
              'bcb+watch-plus_addresses@chromium.org',
              'marimatthew+watch-plus_addresses@google.com',
              'minap+watch-plus_addresses@google.com',
@@ -3258,7 +3240,6 @@
     'presentation': ['mfoltz+watch-media@chromium.org'],
     'preview_features': ['chrome-lite-pages+watch@google.com'],
     'print_preview': ['print-reviews+preview@chromium.org'],
-    'privacy_budget': ['antoniosartori+watch-privacy_budget@chromium.org'],
     'privacy_guide_desktop': ['rainhard+watch@chromium.org'],
     'private_aggregation': ['alexmt+watch@chromium.org'],
     'profile_keyed_service': ['rsult@google.com'],

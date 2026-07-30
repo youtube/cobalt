@@ -87,6 +87,7 @@
 <translation id="1336996151357442890">已取消訂閱 <ph name="SITE_NAME" />。系統將於你下次瀏覽時再次詢問你。</translation>
 <translation id="1340839264183302272">離開群組</translation>
 <translation id="1342886103232377846">如要檢查密碼是否被盜用，請前往「Google 密碼管理工具」</translation>
+<translation id="1343830902827845050">登入 Chrome</translation>
 <translation id="1344653310988386453">包含突顯文字的連結</translation>
 <translation id="1347468774581902829">管理活動</translation>
 <translation id="1355088659320425659">記錄和分頁</translation>
@@ -525,7 +526,6 @@
 <translation id="3268048651973962414">向上拖曳即可查看搜尋結果</translation>
 <translation id="3269093882174072735">載入圖片</translation>
 <translation id="3280562213547448728">語音搜尋</translation>
-<translation id="3282568296779691940">登入 Chrome</translation>
 <translation id="3285065882678541460">{TAB_COUNT,plural, =1{<ph name="TAB_GROUPS_PART" />、<ph name="TAB_COUNT_ONE" /> 個分頁}other{<ph name="TAB_GROUPS_PART" />、<ph name="TAB_COUNT_MANY" /> 個分頁}}</translation>
 <translation id="3286508210927575634">{PASSWORDS_COUNT,plural, =1{1 個密碼只會儲存至此裝置。如要在其他裝置上使用，請將項目儲存至 Google 帳戶。}other{# 個密碼只會儲存至此裝置。如要在其他裝置上使用，請將項目儲存至 Google 帳戶。}}</translation>
 <translation id="3293181007446299124">瀏覽記錄會保留在裝置上以保私隱。系統亦會延遲傳送報告以保護您的身分</translation>
@@ -719,6 +719,7 @@
 <translation id="414128724510021958">已根據預設要求顯示桌面版網站</translation>
 <translation id="4162867837470729563">分享選項清單宜家顯示喺成個畫面。</translation>
 <translation id="4170011742729630528">服務無法使用，請稍後再試。</translation>
+<translation id="4170577491341606575">正在擷取資料…</translation>
 <translation id="4177222230309051052">取得所有書籤</translation>
 <translation id="4177501066905053472">廣告主題</translation>
 <translation id="417865198503699526">搜尋設定</translation>
@@ -911,6 +912,7 @@
 <translation id="4905823827770127520">加入頁面的連結</translation>
 <translation id="4908869848243824489">Google 探索</translation>
 <translation id="4910889077668685004">付款應用程式</translation>
+<translation id="4911042367886397055"><ph name="USER_NAME" />，歡迎回來！</translation>
 <translation id="4912413785358399818">移動分頁</translation>
 <translation id="4913169188695071480">停止重新整理</translation>
 <translation id="4921224083091001889">如要在你的所有裝置上存取密碼及其他設定，請使用 <ph name="EMAIL" /> 登入 Chrome</translation>
@@ -1457,6 +1459,7 @@
 <translation id="7115358764509798967">系統預設</translation>
 <translation id="7117485132243600300">管理你追蹤的內容以及建議的主題和搜尋</translation>
 <translation id="7119984597597798764">閂<ph name="INSTANCE_TITLE" /></translation>
+<translation id="7121179479711575744">登入 Chrome</translation>
 <translation id="7136902389402789299">{NUM_SITES,plural, =1{已檢查 1 個網站的權限}other{已檢查 # 個網站的權限}}</translation>
 <translation id="7138678301420049075">其他</translation>
 <translation id="7140829094791862589">按手動次序排序</translation>
@@ -1941,6 +1944,7 @@
 <translation id="9104217018994036254">要共用分頁嘅裝置清單。</translation>
 <translation id="9106148373857059373">閂咗書籤儲存流程</translation>
 <translation id="9108808586816295166">可能無法隨時使用安全 DNS</translation>
+<translation id="9112483451228487295">快速刪除瀏覽資料</translation>
 <translation id="9124978074365039456">使用相機和圖片庫購物、翻譯及識別所見內容</translation>
 <translation id="9130135798965366513">如要繼續，<ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> 將會與此網站分享你的<ph name="FIELDS_STRING" />，詳情請參閱此網站的《<ph name="BEGIN_LINK1" />私隱權政策<ph name="END_LINK1" />》和《<ph name="BEGIN_LINK2" />服務條款<ph name="END_LINK2" />》。</translation>
 <translation id="9131209053278896908">已封鎖的網站會在此顯示</translation>

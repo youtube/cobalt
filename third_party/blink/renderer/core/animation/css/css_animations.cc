@@ -64,6 +64,7 @@
 #include "third_party/blink/renderer/core/animation/transition_interpolation.h"
 #include "third_party/blink/renderer/core/animation/worklet_animation_base.h"
 #include "third_party/blink/renderer/core/css/css_keyframe_rule.h"
+#include "third_party/blink/renderer/core/css/css_keyframes_rule.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
 #include "third_party/blink/renderer/core/css/css_property_equality.h"
 #include "third_party/blink/renderer/core/css/css_value_list.h"
@@ -1666,10 +1667,11 @@ TimelineTrigger* CSSAnimations::ComputeTimelineTrigger(
                               existing_trigger, new_range_start, new_range_end,
                               new_exit_range_start, new_exit_range_end);
 
-  return need_new_trigger ? MakeGarbageCollected<TimelineTrigger>(
-                                new_timeline, new_range_start, new_range_end,
-                                new_exit_range_start, new_exit_range_end)
-                          : existing_trigger;
+  return need_new_trigger
+             ? MakeGarbageCollected<TimelineTrigger>(
+                   new_timeline, new_range_start, new_range_end,
+                   new_exit_range_start, new_exit_range_end, element)
+             : existing_trigger;
 }
 
 CSSAnimations::CSSAnimations() = default;
@@ -2362,13 +2364,20 @@ void CSSAnimations::MaybeApplyPendingUpdate(Element* element) {
     animation->SetTriggerActionPlayState(
         entry.play_state_list[entry.name_index % entry.play_state_list.size()]);
 
-    if (!entry.trigger_attachments) {
+    if (entry.trigger_attachments) {
+      // Pause the trigger in anticipation of later finding the attached
+      // trigger. This allows the animation to show up in getAnimations.
+      animation->pause();
+      animation->SetPausedForTrigger(true);
+      if (RuntimeEnabledFeatures::LimitTriggerAttachmentUpdatesEnabled()) {
+        element->GetDocument()
+            .GetDocumentAnimations()
+            .AddPendingTriggerAttachmentUpdate(animation);
+      }
+    } else {
       animation->play();
-    } else if (RuntimeEnabledFeatures::LimitTriggerAttachmentUpdatesEnabled()) {
-      element->GetDocument()
-          .GetDocumentAnimations()
-          .AddPendingTriggerAttachmentUpdate(animation);
     }
+
     if (inert_animation->Paused()) {
       animation->pause();
     }
@@ -3674,6 +3683,11 @@ void CSSAnimations::Trace(Visitor* visitor) const {
   visitor->Trace(pending_update_);
   visitor->Trace(running_animations_);
   visitor->Trace(previous_active_interpolations_for_animations_);
+}
+
+void CSSAnimations::RunningAnimation::Trace(Visitor* visitor) const {
+  visitor->Trace(animation);
+  visitor->Trace(style_rule);
 }
 
 }  // namespace blink

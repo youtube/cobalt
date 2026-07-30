@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.ui.browser_window;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+
 import android.app.Activity;
 import android.app.ActivityOptions;
 import android.content.Intent;
@@ -18,6 +20,7 @@ import org.chromium.base.JniOnceCallback;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.customtabs.PopupIntentCreatorProvider;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask.PendingTaskInfo;
 import org.chromium.ui.base.ActivityWindowAndroid;
@@ -348,39 +351,18 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
                 }
                 return null;
             case BrowserWindowType.POPUP:
-                if (createParams.getProfile().isIncognitoBranded()) {
-                    return null;
-                }
-                // The following code is a copy of
-                // PopupCreator#initializePopupIntent().
-                //
-                // As of Nov 17, 2025, we couldn't use PopupCreator directly
-                // as it was at the "glue" (top) layer, but this class is in
-                // a modular target.
-                //
-                // TODO(crbug.com/461576965) Refactor away the hardcoded values.
-                try {
-                    var intent =
-                            new Intent(
-                                    ContextUtils.getApplicationContext(),
-                                    Class.forName(
-                                            "org.chromium.chrome.browser.customtabs.CustomTabActivity"));
-                    intent.setFlags(
-                            Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
-                    intent.putExtra(
-                            "org.chromium.chrome.browser.customtabs.EXTRA_UI_TYPE",
-                            9 /* CustomTabsUiType.POPUP */);
-                    // TODO: Use AndroidBrowserWindowCreateParams#getInitialBounds() create a
-                    // WindowFeatures and set this extra.
-                    // intent.putExtra(
-                    //      "chrome.browser.app.tab_activity_glue.PopupCreator.EXTRA_REQUESTED_WINDOW_FEATURES",
-                    //      new WindowFeatures().toBundle()
-                    // );
-                    IntentUtils.addTrustedIntentExtras(intent);
-                    return intent;
-                } catch (ClassNotFoundException e) {
-                    return null;
-                }
+                var popupIntentCreator = assertNonNull(PopupIntentCreatorProvider.getInstance());
+                // TODO(crbug.com/466146557): Create WindowFeatures and set this extra.
+                // Most likely it looks like this:
+                // Rect bounds = createParams.getInitialBounds();
+                // WindowFeatures features =
+                //         new WindowFeatures(
+                //                 bounds.left, bounds.top, bounds.width(), bounds.height());
+                Intent intent =
+                        popupIntentCreator.createPopupIntent(
+                                null, createParams.getProfile().isIncognitoBranded());
+                IntentUtils.addTrustedIntentExtras(intent);
+                return intent;
             default:
                 return null;
         }

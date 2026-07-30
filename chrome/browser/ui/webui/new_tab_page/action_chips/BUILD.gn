@@ -20,11 +20,16 @@ source_set("action_chips") {
   public_deps = [ ":mojo_bindings" ]
   deps = [
     "//base",
+    "//chrome/browser/autocomplete",
+    "//chrome/browser/autocomplete:aim_eligibility_service",
+    "//chrome/browser/optimization_guide",
     "//chrome/browser/profiles",
     "//chrome/browser/search_engines",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/webui:webui_util",
+    "//components/optimization_guide/content/browser",
+    "//components/optimization_guide/core",
     "//components/sessions",
     "//content/public/browser",
     "//content/public/common",
@@ -56,6 +61,7 @@ source_set("unit_tests") {
   deps = [
     ":action_chips",
     "//base/test:test_support",
+    "//chrome/browser/optimization_guide:test_support",
     "//chrome/browser/search_engines",
     "//chrome/browser/sessions",
     "//chrome/browser/ui:test_support",

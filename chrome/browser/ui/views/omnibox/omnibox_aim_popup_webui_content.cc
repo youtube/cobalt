@@ -15,6 +15,7 @@
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_context_menu.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_popup_webui_base_content.h"
 #include "chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_aim_handler.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
@@ -37,46 +38,52 @@ OmniboxAimPopupWebUIContent::OmniboxAimPopupWebUIContent(
 
 OmniboxAimPopupWebUIContent::~OmniboxAimPopupWebUIContent() = default;
 
-void OmniboxAimPopupWebUIContent::ShowUI() {
-  OmniboxPopupWebUIBaseContent::ShowUI();
+void OmniboxAimPopupWebUIContent::OnPopupHidden() {
+  OmniboxPopupWebUIBaseContent::OnPopupHidden();
+  auto* handler = popup_aim_handler();
+  if (handler) {
+    handler->OnPopupHidden();
+  }
+}
 
-  auto* web_contents = contents_wrapper()->web_contents();
-  auto* browser_window = webui::GetBrowserWindowInterface(web_contents);
-  auto* context_data = browser_window->GetFeatures().searchbox_context_data();
-
-  auto* webui_controller = contents_wrapper()->GetWebUIController();
-  if (webui_controller) {
-    auto* omnibox_popup_ui = webui_controller->GetAs<OmniboxPopupUI>();
-    if (omnibox_popup_ui && omnibox_popup_ui->popup_aim_handler()) {
-      auto context = context_data->TakePendingContext();
-      if (!context) {
-        context = std::make_unique<SearchboxContextData::Context>();
-      }
-      if (!controller()->edit_model()->CurrentTextIsURL()) {
-        context->text =
-          base::UTF16ToUTF8(location_bar_view()->GetOmniboxView()->GetText());
-      }
-      omnibox_popup_ui->popup_aim_handler()->OnShow(std::move(context));
-    }
+void OmniboxAimPopupWebUIContent::OnPageClosedWithInput(
+    const std::string& input) {
+  location_bar_view()->GetOmniboxView()->RevertAll();
+  if (!input.empty()) {
+    location_bar_view()->GetOmniboxView()->SetUserText(base::UTF8ToUTF16(input),
+                                                       /*update_popup=*/false);
   }
 }
 
 void OmniboxAimPopupWebUIContent::CloseUI() {
   OmniboxPopupWebUIBaseContent::CloseUI();
-
-  auto* webui_controller = contents_wrapper()->GetWebUIController();
-  if (webui_controller) {
-    auto* omnibox_popup_ui = webui_controller->GetAs<OmniboxPopupUI>();
-    if (omnibox_popup_ui && omnibox_popup_ui->popup_aim_handler()) {
-      omnibox_popup_ui->popup_aim_handler()->OnClose();
-    }
-  }
 }
 
-void OmniboxAimPopupWebUIContent::OnClosedWithInput(const std::string& input) {
-  location_bar_view()->GetOmniboxView()->RevertAll();
-  location_bar_view()->GetOmniboxView()->SetUserText(base::UTF8ToUTF16(input),
-                                                     /*update_popup=*/false);
+void OmniboxAimPopupWebUIContent::ShowUI() {
+  OmniboxPopupWebUIBaseContent::ShowUI();
+
+  auto* handler = popup_aim_handler();
+  if (!handler) {
+    return;
+  }
+
+  auto* web_contents = contents_wrapper()->web_contents();
+  auto* browser_window = webui::GetBrowserWindowInterface(web_contents);
+  auto* context_data = browser_window->GetFeatures().searchbox_context_data();
+  auto context = context_data->TakePendingContext();
+  if (!context) {
+    context = std::make_unique<SearchboxContextData::Context>();
+  }
+  if (!controller()->edit_model()->CurrentTextIsURL()) {
+    context->text =
+        base::UTF16ToUTF8(location_bar_view()->GetOmniboxView()->GetText());
+  }
+  handler->OnPopupShown(std::move(context));
+}
+
+OmniboxPopupAimHandler* OmniboxAimPopupWebUIContent::popup_aim_handler() {
+  auto* webui_controller = contents_wrapper()->GetWebUIController();
+  return webui_controller ? webui_controller->popup_aim_handler() : nullptr;
 }
 
 BEGIN_METADATA(OmniboxAimPopupWebUIContent)

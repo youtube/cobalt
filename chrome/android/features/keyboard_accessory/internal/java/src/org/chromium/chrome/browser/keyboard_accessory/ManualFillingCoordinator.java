@@ -5,12 +5,14 @@
 package org.chromium.chrome.browser.keyboard_accessory;
 
 import android.content.Context;
+import android.graphics.RectF;
 import android.view.View;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ObserverList;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
@@ -140,7 +142,7 @@ class ManualFillingCoordinator implements ManualFillingComponent {
     }
 
     @Override
-    public ObservableSupplier<Boolean> getHandleBackPressChangedSupplier() {
+    public NonNullObservableSupplier<Boolean> getHandleBackPressChangedSupplier() {
         return mMediator.getHandleBackPressChangedSupplier();
     }
 
@@ -177,6 +179,11 @@ class ManualFillingCoordinator implements ManualFillingComponent {
     public void registerSheetUpdateDelegate(
             WebContents webContents, UpdateAccessorySheetDelegate delegate) {
         mMediator.registerSheetUpdateDelegate(webContents, delegate);
+    }
+
+    @Override
+    public void setFieldBounds(RectF bounds) {
+        mMediator.setFieldBounds(bounds);
     }
 
     @Override

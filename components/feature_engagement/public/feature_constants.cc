@@ -62,6 +62,9 @@ BASE_FEATURE(kIPHDesktopCustomizeChromeExperimentFeature,
 BASE_FEATURE(kIPHDesktopCustomizeChromeAutoOpenFeature,
              "IPH_DesktopCustomizeChromeAutoOpen",
              base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHDesktopRealboxContextualSearchFeature,
+             "IPH_DesktopRealboxContextualSearchFeature",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHDiscardRingFeature,
              "IPH_DiscardRing",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -219,21 +222,10 @@ BASE_FEATURE(kIPHShoppingCollectionFeature,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHSideBySidePinnableFeature,
              "IPH_SideBySidePinnableFeature",
-
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHSideBySideTabSwitchFeature,
              "IPH_SideBySideTabSwitchFeature",
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHSidePanelGenericPinnableFeature,
              "IPH_SidePanelGenericPinnableFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -858,7 +850,7 @@ BASE_FEATURE(kIPHiOSAIHubNewBadge,
 
 BASE_FEATURE(kIPHiOSGeminiFullscreenPromoFeature,
              "IPH_iOSGeminiFullscreenPromoFeature",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIPHiOSGeminiContextualCueChip,
              "IPH_iOSGeminiContextualCueChip",

@@ -8,6 +8,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/task/thread_pool.h"
 #include "chromeos/ash/components/boca/boca_app_client.h"
+#include "chromeos/ash/components/boca/boca_metrics_util.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "google_apis/classroom/classroom_api_course_work_materials_response_types.h"
@@ -145,6 +146,7 @@ void ClassroomPageHandlerImpl::OnListCoursesFetched(
     base::expected<std::unique_ptr<google_apis::classroom::Courses>,
                    ApiErrorCode> result) {
   if (!result.has_value()) {
+    boca::RecordListCoursesErrorCode(result.error());
     std::move(callback).Run(std::move(*fetched_courses));
     return;
   }
@@ -183,6 +185,7 @@ void ClassroomPageHandlerImpl::OnListStudentsFetched(
     base::expected<std::unique_ptr<google_apis::classroom::Students>,
                    ApiErrorCode> result) {
   if (!result.has_value()) {
+    boca::RecordListStudentsErrorCode(result.error());
     std::move(callback).Run(std::move(*fetched_students));
     return;
   }
@@ -221,6 +224,9 @@ void ClassroomPageHandlerImpl::OnListAssignmentsFetched(
     ListAssignmentsCallback callback,
     base::expected<std::unique_ptr<google_apis::classroom::CourseWork>,
                    ApiErrorCode> result) {
+  if (!result.has_value()) {
+    boca::RecordListCourseWorksErrorCode(result.error());
+  }
   if (result.has_value()) {
     for (const auto& item : result.value()->items()) {
       if (item->type() ==
@@ -292,6 +298,7 @@ void ClassroomPageHandlerImpl::OnListCourseWorkMaterialsFetched(
     base::expected<std::unique_ptr<google_apis::classroom::CourseWorkMaterial>,
                    ApiErrorCode> result) {
   if (!result.has_value()) {
+    boca::RecordListCourseWorkMaterialsErrorCode(result.error());
     std::move(callback).Run(std::move(*fetched_assignments));
     return;
   }
@@ -323,20 +330,13 @@ void ClassroomPageHandlerImpl::OnListCourseWorkMaterialsFetched(
 // static
 std::unique_ptr<google_apis::RequestSender>
 ClassroomPageHandlerImpl::CreateRequestSender() {
-  std::vector<std::string> scopes = {
-      GaiaConstants::kClassroomReadOnlyRostersOAuth2Scope,
-      GaiaConstants::kClassroomReadOnlyCoursesOAuth2Scope,
-      GaiaConstants::kClassroomReadOnlyCourseWorkStudentsOAuth2Scope,
-      GaiaConstants::kClassroomProfileEmailOauth2Scope,
-      GaiaConstants::kClassroomProfilePhotoUrlScope,
-      GaiaConstants::kClassroomCourseWorkMaterialsOAuthScope,
-  };
   auto url_loader_factory = BocaAppClient::Get()->GetURLLoaderFactory();
   auto* identity_manager = BocaAppClient::Get()->GetIdentityManager();
   auto auth_service = std::make_unique<google_apis::AuthService>(
       identity_manager,
       identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin),
-      url_loader_factory, scopes);
+      url_loader_factory,
+      signin::OAuthConsumerId::kAshBocaClassroomPageHandler);
   return std::make_unique<google_apis::RequestSender>(
       std::move(auth_service), url_loader_factory,
       base::ThreadPool::CreateSequencedTaskRunner(

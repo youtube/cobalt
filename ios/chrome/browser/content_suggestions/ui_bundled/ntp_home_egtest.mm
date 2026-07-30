@@ -13,6 +13,7 @@
 #import "components/ntp_tiles/pref_names.h"
 #import "components/omnibox/browser/aim_eligibility_service_features.h"
 #import "components/regional_capabilities/regional_capabilities_switches.h"
+#import "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #import "components/safety_check/safety_check_pref_names.h"
 #import "components/search_engines/search_engines_switches.h"
 #import "components/segmentation_platform/public/features.h"
@@ -33,6 +34,7 @@
 #import "ios/chrome/browser/home_customization/utils/home_customization_helper.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_constants.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
+#import "ios/chrome/browser/omnibox/public/omnibox_constants.h"
 #import "ios/chrome/browser/popup_menu/ui_bundled/popup_menu_constants.h"
 #import "ios/chrome/browser/safety_check/model/ios_chrome_safety_check_manager_constants.h"
 #import "ios/chrome/browser/search_engine_choice/test/search_engine_choice_earl_grey_ui_test_util.h"
@@ -48,6 +50,7 @@
 #import "ios/chrome/browser/whats_new/public/constants.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_actions.h"
+#import "ios/chrome/test/earl_grey/chrome_coordinator_app_interface.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_ui.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
@@ -169,9 +172,23 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
   }
 }
 
-+ (void)tearDown {
-  [self closeAllTabs];
-  [super tearDown];
+- (BOOL)shouldLoadMinimalAppUI {
+  std::vector<SEL> minimalAppUITests = {
+      @selector(testOmniboxWidthRotation),
+      @selector(testMinimumHeight),
+      @selector(testInitialPositionAndOrientationChange),
+      @selector(testMagicStack),
+      @selector(testSignInSignOutScrolledToTop_AccountMenu),
+      @selector(testToggleModuleVisiblityInCustomizationMenu),
+      @selector(testNavigateInCustomizationMenu),
+  };
+
+  for (SEL test : minimalAppUITests) {
+    if ([self isRunningTest:test]) {
+      return YES;
+    }
+  }
+  return NO;
 }
 
 - (AppLaunchConfiguration)appConfigurationForTestCase {
@@ -179,6 +196,10 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
   // Make sure the search engine country is set, for `testFavicons` test.
   config.additional_args.push_back(
       std::string("--") + switches::kSearchEngineChoiceCountry + "=US");
+  if ([self shouldLoadMinimalAppUI]) {
+    config.additional_args.push_back(std::string("-load-minimal-app-ui"));
+  }
+
   if ([self isRunningTest:@selector(testPositionRestoredWithShiftingOffset)] ||
       [self
           isRunningTest:@selector(testPositionRestoredWithoutShiftingOffset)]) {
@@ -220,6 +241,10 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
             (testSignInSignOutScrolledToTop_AccountMenu)]) {
     config.features_enabled.push_back(
         switches::kEnableErrorBadgeOnIdentityDisc);
+  }
+
+  if ([self isRunningTest:@selector(testMagicStack)]) {
+    config.additional_args.push_back("--test-ios-module-ranker=safety_check");
   }
 
   return config;
@@ -431,6 +456,12 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
 
 // Tests that the fake omnibox width is correctly updated after a rotation.
 - (void)testOmniboxWidthRotation {
+  // TODO(crbug.com/468067115): Re-enable this test.
+  if ([ChromeEarlGrey isIPadIdiom] && !base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(
+        @"Disabled on iPad on pre iOS 26 for crbug.com/468067115.");
+  }
+  [ChromeCoordinatorAppInterface startNewTabPageCoordinator];
   [ChromeEarlGreyUI waitForAppToIdle];
   UICollectionView* collectionView = [NewTabPageAppInterface collectionView];
   UIEdgeInsets safeArea = collectionView.safeAreaInsets;
@@ -854,9 +885,17 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
       @"The collection is not scrolled back to its previous position");
 }
 
-// Tests that tapping the fake omnibox and then scrolling defocuses the the
-// omnibox.
+// Tests that tapping the fake omnibox and then scrolling defocuses the omnibox.
 - (void)testTapFakeOmniboxAndScrollDefocuses {
+  if ([ChromeEarlGrey isComposeboxIOSEnabled]) {
+    // TODO(crbug.com/466349961): The collection view needs to be made visible
+    // behind the Composebox view controller first for this test to be able to
+    // pass.
+    EARL_GREY_TEST_DISABLED(
+        @"Composebox not supported yet. The collection view needs to be made "
+        @"visible behind the Composebox view controller first");
+  }
+
   // Clear pasteboard so that omnibox doesn't cover the NTP on focus.
   [ChromeEarlGrey clearPasteboard];
   // Get the collection and its layout.
@@ -1017,26 +1056,20 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
                     kContentSuggestionsShortcutsAccessibilityIdentifierPrefix,
                     index])] assertWithMatcher:grey_sufficientlyVisible()];
   }
-
-  // Change the Search Engine to Google.
-  [ChromeEarlGreyUI openSettingsMenu];
-  [ChromeEarlGreyUI
-      tapSettingsMenuButton:grey_accessibilityID(kSettingsSearchEngineCellId)];
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityLabel(@"Google")]
-      performAction:grey_tap()];
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::SettingsMenuBackButton()]
-      performAction:grey_tap()];
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::SettingsDoneButton()]
-      performAction:grey_tap()];
 }
 
 - (void)testMinimumHeight {
+  // TODO(crbug.com/468067115): Re-enable this test.
+  if ([ChromeEarlGrey isIPadIdiom] && !base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(
+        @"Disabled on iPad on pre iOS 26 for crbug.com/468067115.");
+  }
+  [ChromeCoordinatorAppInterface startNewTabPageCoordinator];
   [self
       testNTPInitialPositionAndContent:[NewTabPageAppInterface collectionView]];
 
   [[EarlGrey selectElementWithMatcher:chrome_test_util::NTPCollectionView()]
-      performAction:grey_swipeFastInDirection(kGREYDirectionUp)];
+      performAction:grey_scrollToContentEdge(kGREYContentEdgeBottom)];
   GREYWaitForAppToIdle(@"App failed to idle");
 
   // Ensures that tiles are still all visible with feed turned off after
@@ -1077,6 +1110,13 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
 // Test to ensure that initial position and content are maintained when rotating
 // the device back and forth.
 - (void)testInitialPositionAndOrientationChange {
+  // TODO(crbug.com/468067115): Re-enable this test.
+  if ([ChromeEarlGrey isIPadIdiom] && !base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(
+        @"Disabled on iPad on pre iOS 26 for crbug.com/468067115.");
+  }
+  [ChromeCoordinatorAppInterface startNewTabPageCoordinator];
+
   UICollectionView* collectionView = [NewTabPageAppInterface collectionView];
 
   [self testNTPInitialPositionAndContent:collectionView];
@@ -1129,23 +1169,23 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
 
 // Tests that the Magic Stack feature swipeable when there are multiple modules.
 - (void)testMagicStack {
-  [[self class] closeAllTabs];
-  [ChromeEarlGrey openNewTab];
-
+  // TODO(crbug.com/468067115): Re-enable this test.
+  if ([ChromeEarlGrey isIPadIdiom] && !base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(
+        @"Disabled on iPad on pre iOS 26 for crbug.com/468067115.");
+  }
   // Enable relevant preferences for the test, and intentionally forces a Safety
   // Check error to ensure module visibility in the Magic Stack.
   [ChromeEarlGrey
       setBoolValue:YES
        forUserPref:safety_check::prefs::kSafetyCheckHomeModuleEnabled];
+  [ChromeEarlGrey setBoolValue:NO forUserPref:prefs::kSafeBrowsingEnabled];
   [ChromeEarlGrey
          setStringValue:NameForSafetyCheckState(
                             SafeBrowsingSafetyCheckState::kUnsafe)
       forLocalStatePref:prefs::kIosSafetyCheckManagerSafeBrowsingCheckResult];
 
-  AppLaunchConfiguration config = self.appConfigurationForTestCase;
-  config.relaunch_policy = ForceRelaunchByCleanShutdown;
-  config.additional_args.push_back("--test-ios-module-ranker=safety_check");
-  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+  [ChromeCoordinatorAppInterface startNewTabPageCoordinator];
 
   id<GREYMatcher> magicStackScrollView =
       grey_accessibilityID(kMagicStackScrollViewAccessibilityIdentifier);
@@ -1212,12 +1252,7 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
 // Test that signing in and signing out results in the NTP scrolled to the top
 // and not in some unexpected layout state.
 - (void)testSignInSignOutScrolledToTop_AccountMenu {
-// TODO(crbug.com/40903244): test failing on ipad device
-#if !TARGET_OS_SIMULATOR
-  if ([ChromeEarlGrey isIPadIdiom]) {
-    EARL_GREY_TEST_SKIPPED(@"This test doesn't pass on iPad device.");
-  }
-#endif
+  [ChromeCoordinatorAppInterface startNewTabPageCoordinator];
   [[EarlGrey selectElementWithMatcher:chrome_test_util::NTPLogo()]
       assertWithMatcher:grey_sufficientlyVisible()];
   [[EarlGrey selectElementWithMatcher:chrome_test_util::FakeOmnibox()]
@@ -1242,7 +1277,7 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
   [[EarlGrey selectElementWithMatcher:chrome_test_util::FakeOmnibox()]
       assertWithMatcher:grey_sufficientlyVisible()];
 
-  [SigninEarlGreyUI signOut];
+  [SigninEarlGrey signOut];
 
   [[EarlGrey selectElementWithMatcher:chrome_test_util::NTPLogo()]
       assertWithMatcher:grey_sufficientlyVisible()];
@@ -1353,12 +1388,14 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
 // Tests that the customization menu can be used to toggle the visibility of
 // Home surface modules.
 - (void)testToggleModuleVisiblityInCustomizationMenu {
+  // TODO(crbug.com/468067115): Re-enable this test.
+  if ([ChromeEarlGrey isIPadIdiom] && !base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(
+        @"Disabled on iPad on pre iOS 26 for crbug.com/468067115.");
+  }
   // Tests most visited tiles visibility separately.
-  AppLaunchConfiguration config = [self appConfigurationForTestCase];
-  config.relaunch_policy = ForceRelaunchByCleanShutdown;
-  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
-
   [self resetCustomizationPrefs];
+  [ChromeCoordinatorAppInterface startNewTabPageCoordinator];
 
   // Open the Home customization menu.
   [[EarlGrey
@@ -1454,12 +1491,14 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
 // Tests that the toggles in the main page of the customization menu can be used
 // to navigate to their respective submenus.
 - (void)testNavigateInCustomizationMenu {
+  // TODO(crbug.com/468067115): Re-enable this test.
+  if ([ChromeEarlGrey isIPadIdiom] && !base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(
+        @"Disabled on iPad on pre iOS 26 for crbug.com/468067115.");
+  }
   // Tests most visited tiles visibility separately.
-  AppLaunchConfiguration config = [self appConfigurationForTestCase];
-  config.relaunch_policy = ForceRelaunchByCleanShutdown;
-  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
-
   [self resetCustomizationPrefs];
+  [ChromeCoordinatorAppInterface startNewTabPageCoordinator];
 
   // Open the Home customization menu.
   [[EarlGrey
@@ -1550,7 +1589,7 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
     [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"escape" flags:0];
   } else {
     id<GREYMatcher> cancelButton =
-        grey_accessibilityID(kToolbarCancelOmniboxEditButtonIdentifier);
+        grey_accessibilityID(kOmniboxCancelButtonAccessibilityIdentifier);
     [[EarlGrey
         selectElementWithMatcher:grey_allOf(cancelButton,
                                             grey_sufficientlyVisible(), nil)]

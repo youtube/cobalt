@@ -117,6 +117,7 @@
 <translation id="3581385059720151202">Որոնել պատկերներ Chromium-ում</translation>
 <translation id="3582640969619785896">Chromium-ը կառաջարկի պահել ձեր գաղտնաբառը</translation>
 <translation id="3594315078412605236">Կառավարել վճարման եղանակները Chromium-ում</translation>
+<translation id="3600428265489994557">Մուտք գործեք Chromium</translation>
 <translation id="3617143087229977194">Բացեք կանխադրված հավելվածների կարգավորումները iOS-ում, ապա հպեք «Դիտարկիչի հավելված» և ընտրեք Chromium-ը։</translation>
 <translation id="3634039384458740619">Բացել Chromium-ի կարգավորումները</translation>
 <translation id="3639997914391704523">Chromium-ը կարող է ստուգել ձեր գաղտնաբառերը, երբ մտնեք Google հաշիվ։</translation>
@@ -351,7 +352,6 @@
 <translation id="900560297598578021">Դուք մուտք եք գործել որպես <ph name="EMAIL" />։
 
 Ձեր տվյալները գաղտնագրվել են ձեր անցաբառով <ph name="TIME" />։ Chromium-ի տվյալները ձեր Google հաշվում օգտագործելու և պահելու համար մուտքագրեք ձեր անցաբառը։</translation>
-<translation id="9022552996538154597">Մուտք գործել Chromium</translation>
 <translation id="9031260906956926157">Ձեր Chromium-ի որոշ տվյալներ դեռ չեն պահվել ձեր Google հաշվում։
 Նախքան դուրս գալը մի քանի րոպե սպասեք։ Եթե դուրս գաք հիմա, այս տվյալները կջնջվեն։</translation>
 <translation id="9050790730841755540">Օգտագործեք Chromium-ը ցանկացած ժամանակ, երբ հղումների եք հպում այլ հավելվածներում։</translation>

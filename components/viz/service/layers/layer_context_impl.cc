@@ -551,7 +551,7 @@ DeserializeAnchorPositionScrollData(
   return anchor_position_scroll_data;
 }
 
-base::expected<void, std::string> UpdateTransformTreeProperties(
+base::expected<bool, std::string> UpdateTransformTreeProperties(
     cc::PropertyTrees& trees,
     cc::TransformTree& tree,
     mojom::TransformTreeUpdate& update) {
@@ -580,7 +580,11 @@ base::expected<void, std::string> UpdateTransformTreeProperties(
   ASSIGN_OR_RETURN(
       tree.anchor_position_scroll_data(),
       DeserializeAnchorPositionScrollData(update.anchor_position_scroll_data));
-  return base::ok();
+
+  bool drawn_elastic_overscroll_changed =
+      tree.drawn_elastic_overscroll() != update.drawn_elastic_overscroll;
+  tree.drawn_elastic_overscroll() = update.drawn_elastic_overscroll;
+  return drawn_elastic_overscroll_changed;
 }
 
 base::expected<bool, std::string> UpdateScrollTreeProperties(
@@ -641,6 +645,8 @@ void UpdateTextureLayerExtra(const mojom::TextureLayerExtraPtr& extra,
     }
     layer.SetTransferableResource(extra->transferable_resource.value(),
                                   std::move(release_callback));
+  } else if (extra->update_transferable_resource) {
+    layer.ClearTransferableResource();
   }
 }
 
@@ -679,7 +685,7 @@ void UpdateNinePatchThumbScrollbarLayerExtra(
       static_cast<cc::ScrollbarLayerImplBase&>(layer));
 
   layer.SetThumbThickness(extra->thumb_thickness);
-  layer.SetThumbLength(extra->thumb_length);
+  layer.SetMinimumThumbLength(extra->minimum_thumb_length);
   layer.SetTrackStart(extra->track_start);
   layer.SetTrackLength(extra->track_length);
   layer.SetImageBounds(extra->image_bounds);
@@ -702,7 +708,7 @@ void UpdatePaintedScrollbarLayerExtra(
   layer.SetJumpOnTrackClick(extra->jump_on_track_click);
   layer.SetSupportsDragSnapBack(extra->supports_drag_snap_back);
   layer.SetThumbThickness(extra->thumb_thickness);
-  layer.SetThumbLength(extra->thumb_length);
+  layer.SetMinimumThumbLength(extra->minimum_thumb_length);
   layer.SetBackButtonRect(extra->back_button_rect);
   layer.SetForwardButtonRect(extra->forward_button_rect);
   layer.SetTrackRect(extra->track_rect);
@@ -1052,8 +1058,7 @@ DeserializeTileContents(cc::LayerTreeHostImpl* host_impl,
 base::expected<void, std::string> DeserializeTiling(
     cc::LayerTreeHostImpl* host_impl,
     cc::TileDisplayLayerImpl& layer,
-    mojom::Tiling& wire,
-    bool update_damage) {
+    mojom::Tiling& wire) {
   if (wire.is_deleted) {
     layer.RemoveTiling(wire.scale_key);
     return base::ok();
@@ -1075,7 +1080,7 @@ base::expected<void, std::string> DeserializeTiling(
     tiling.SetTileContents(
         cc::TileIndex{base::saturated_cast<int>(wire_tile->column_index),
                       base::saturated_cast<int>(wire_tile->row_index)},
-        std::move(contents), update_damage);
+        std::move(contents), wire_tile->update_damage);
   }
   if (tiling.tiles().empty()) {
     layer.RemoveTiling(tiling.contents_scale_key());
@@ -1086,6 +1091,8 @@ base::expected<void, std::string> DeserializeTiling(
 void DeserializeViewTransitionRequests(
     cc::LayerTreeImpl& layers,
     std::vector<mojom::ViewTransitionRequestPtr>& wire_data) {
+  // TODO(crbug.com/467351935): Have `delay_layer_tree_view_deletion` added to
+  //  `mojom::ViewTransitionRequestPtr`
   for (auto& wire : wire_data) {
     std::unique_ptr<cc::ViewTransitionRequest> request;
     switch (wire->type) {
@@ -1097,15 +1104,18 @@ void DeserializeViewTransitionRequests(
         request = cc::ViewTransitionRequest::CreateCapture(
             wire->transition_token, wire->maybe_cross_frame_sink,
             wire->capture_resource_ids,
-            cc::ViewTransitionRequest::ViewTransitionCaptureCallback());
+            cc::ViewTransitionRequest::ViewTransitionCaptureCallback(),
+            /*delay_layer_tree_view_deletion=*/true);
         break;
       case mojom::CompositorFrameTransitionDirectiveType::kAnimateRenderer:
         request = cc::ViewTransitionRequest::CreateAnimateRenderer(
-            wire->transition_token, wire->maybe_cross_frame_sink);
+            wire->transition_token, wire->maybe_cross_frame_sink,
+            /*delay_layer_tree_view_deletion=*/true);
         break;
       case mojom::CompositorFrameTransitionDirectiveType::kRelease:
         request = cc::ViewTransitionRequest::CreateRelease(
-            wire->transition_token, wire->maybe_cross_frame_sink);
+            wire->transition_token, wire->maybe_cross_frame_sink,
+            /*delay_layer_tree_view_deletion=*/true);
         break;
     }
     request->set_sequence_id(wire->sequence_id);
@@ -1715,6 +1725,8 @@ void LayerContextImpl::UpdateDisplayTree(mojom::LayerTreeUpdatePtr update) {
   const BeginFrameArgs begin_frame_args = update->begin_frame_args;
   auto start_update_display_tree = base::TimeTicks::Now();
   const bool frame_has_damage = update->frame_has_damage;
+  host_impl_->AddDamageDataCrashKeys(update->damage_reasons_bit_mask,
+                                     /*is_viz=*/false);
   auto result = DoUpdateDisplayTree(std::move(update));
   if (!result.has_value()) {
     HandleBadMojoMessage("UpdateDisplayTree", result.error());
@@ -1753,11 +1765,17 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
   // transform nodes, so they must be deserialized after the trees are resized
   // above.
   bool transform_properties_changed = false;
+  bool transform_layer_properties_changed = false;
   if (update->transform_tree_update) {
     transform_properties_changed = true;
-    RETURN_IF_ERROR(UpdateTransformTreeProperties(
-        property_trees, property_trees.transform_tree_mutable(),
-        *update->transform_tree_update));
+    ASSIGN_OR_RETURN(
+        transform_layer_properties_changed,
+        UpdateTransformTreeProperties(property_trees,
+                                      property_trees.transform_tree_mutable(),
+                                      *update->transform_tree_update));
+    if (transform_layer_properties_changed) {
+      layers.set_needs_update_draw_properties();
+    }
   }
 
   bool scroll_properties_changed = false;
@@ -1844,6 +1862,8 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
 
   host_impl_->set_send_frame_token_to_embedder(
       update->send_frame_token_to_embedder);
+  host_impl_->set_is_handling_interaction_from_client(
+      update->is_handling_interaction);
 
   {
     TRACE_EVENT1("viz", "DeserializeTilings", "TilingCount",
@@ -1855,7 +1875,7 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
         }
         RETURN_IF_ERROR(DeserializeTiling(
             host_impl_.get(), static_cast<cc::TileDisplayLayerImpl&>(*layer),
-            *tiling, /*update_damage=*/false));
+            *tiling));
       }
     }
   }
@@ -2018,7 +2038,8 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
   // actually changed. This avoids redundant work and prevents incorrectly
   // flagging draw properties as needing an update when no relevant properties
   // have changed.
-  if (any_tree_changed || scroll_properties_changed) {
+  if (any_tree_changed || scroll_properties_changed ||
+      transform_layer_properties_changed) {
     layers.MoveChangeTrackingToLayers();
   }
 
@@ -2102,18 +2123,16 @@ void LayerContextImpl::SendTilingsCleanupNotificationToClient() {
   }
 }
 
-void LayerContextImpl::UpdateDisplayTiling(mojom::TilingPtr tiling,
-                                           bool update_damage) {
+void LayerContextImpl::UpdateDisplayTiling(mojom::TilingPtr tiling) {
   CHECK(receiver_);
-  auto result = DoUpdateDisplayTiling(std::move(tiling), update_damage);
+  auto result = DoUpdateDisplayTiling(std::move(tiling));
   if (!result.has_value()) {
     HandleBadMojoMessage("UpdateDisplayTiling", result.error());
   }
 }
 
 base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTiling(
-    mojom::TilingPtr tiling,
-    bool update_damage) {
+    mojom::TilingPtr tiling) {
   cc::LayerTreeImpl& layers = *host_impl_->active_tree();
   if (cc::LayerImpl* layer = layers.LayerById(tiling->layer_id)) {
     if (layer->GetLayerType() != cc::mojom::LayerType::kTileDisplay) {
@@ -2122,7 +2141,7 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTiling(
 
     return DeserializeTiling(host_impl_.get(),
                              static_cast<cc::TileDisplayLayerImpl&>(*layer),
-                             *tiling, update_damage);
+                             *tiling);
   }
   return base::ok();
 }

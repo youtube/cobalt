@@ -37,7 +37,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/browsing_data_filter_builder.h"
 #include "content/public/browser/browsing_data_remover.h"
-#include "content/public/browser/btm_redirect_info.h"
+#include "content/public/browser/btm_redirect.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/btm_utils.h"
@@ -129,8 +129,8 @@ inline void UmaHistogramSiteToClearDomainLength(
       site_to_clear.length());
 }
 
-void RecordRedirectMetrics(const BtmRedirectInfo& redirect,
-                           const BtmRedirectChainInfo& chain) {
+void RecordRedirectMetrics(const BtmRedirect& redirect,
+                           const BtmRedirectChain& chain) {
   DCHECK(redirect.site_had_user_activation.has_value());
   DCHECK(redirect.site_had_webauthn_assertion.has_value());
   DCHECK(redirect.chain_id.has_value());
@@ -423,8 +423,8 @@ void BtmServiceImpl::RemoveEvents(const base::Time& delete_begin,
 }
 
 void BtmServiceImpl::HandleRedirectChain(
-    std::vector<BtmRedirectInfoPtr> redirects,
-    BtmRedirectChainInfoPtr chain,
+    std::vector<BtmRedirectPtr> redirects,
+    BtmRedirectChainPtr chain,
     StatefulBounceCallback stateful_bounce_callback) {
   DCHECK_LE(redirects.size(), chain->length);
 
@@ -471,8 +471,8 @@ void BtmServiceImpl::HandleRedirectChain(
 }
 
 void BtmServiceImpl::HandleRedirects(
-    std::vector<BtmRedirectInfoPtr> redirects,
-    BtmRedirectChainInfoPtr chain,
+    std::vector<BtmRedirectPtr> redirects,
+    BtmRedirectChainPtr chain,
     StatefulBounceCallback stateful_bounce_callback,
     std::pair<std::set<std::string>, std::set<std::string>>
         sites_with_protective_events) {
@@ -522,8 +522,8 @@ void BtmServiceImpl::HandleRedirects(
 
 void BtmServiceImpl::RecordBounce(
     StatefulBounceCallback stateful_bounce_callback,
-    const BtmRedirectInfo& redirect,
-    const BtmRedirectChainInfo& chain) {
+    const BtmRedirect& redirect,
+    const BtmRedirectChain& chain) {
   const GURL& url = redirect.redirector_url;
   bool stateful = redirect.access_type > BtmDataAccessType::kRead;
 
@@ -579,8 +579,8 @@ void BtmServiceImpl::RecordBounce(
 
 // static
 void BtmServiceImpl::RecordRedirectMetricsForTesting(
-    const BtmRedirectInfo& redirect,
-    const BtmRedirectChainInfo& chain) {
+    const BtmRedirect& redirect,
+    const BtmRedirectChain& chain) {
   RecordRedirectMetrics(redirect, chain);
 }
 

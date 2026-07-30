@@ -182,7 +182,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.BookmarkBar.Android.ShownOnStartupReason"
-    enum="BooleanShown" expires_after="2026-03-01">
+    enum="BookmarkBarShownReason" expires_after="2026-05-03">
   <owner>mschillaci@google.com</owner>
   <owner>eleanorlee@google.com</owner>
   <owner>clank-app-team@google.com</owner>
@@ -193,6 +193,9 @@ chromium-metrics-reviews@google.com.
 
     Note: This histogram is only relevant on Android, where the visibility of
     the histogram is controlled by many factors beyond the Profile preference.
+
+    Note: This histogram was reporting buckets incorrectly before 2025-12-08, so
+    do not analyze data in a range that spans this date.
   </summary>
 </histogram>
 
@@ -466,7 +469,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.MobileBookmarkManager.SortOptionUsed"
-    enum="MobileBookmarkManagerBookmarkRowSortOrder" expires_after="2026-04-05">
+    enum="MobileBookmarkManagerBookmarkRowSortOrder" expires_after="2026-06-07">
   <owner>wylieb@google.com</owner>
   <owner>chrome-collections@google.com</owner>
   <summary>
@@ -825,7 +828,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.UserFolder.OnProfileLoad.BookmarkBarTopLevelItems"
-    units="items" expires_after="2026-04-05">
+    units="items" expires_after="2026-06-07">
   <owner>yzshen@chromium.org</owner>
   <owner>mschillaci@google.com</owner>
   <owner>eleanorlee@google.com</owner>
@@ -842,7 +845,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.UserFolder.OnProfileLoad.Count" units="folders"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>yzshen@chromium.org</owner>
   <owner>chrome-collections@google.com</owner>
   <summary>
@@ -855,7 +858,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.UserFolder.OnProfileLoad.TopLevelCount"
-    units="folders" expires_after="2026-04-05">
+    units="folders" expires_after="2026-06-07">
   <owner>yzshen@chromium.org</owner>
   <owner>chrome-collections@google.com</owner>
   <summary>
@@ -868,7 +871,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.UserFolderDepth.UrlAdded" units="folders"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>yzshen@chromium.org</owner>
   <owner>chrome-collections@google.com</owner>
   <summary>
@@ -957,7 +960,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PowerBookmarks.SidePanel.BookmarksShown" units="Bookmarks"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>emshack@chromium.org</owner>
   <owner>chrome-desktop-sea@google.com</owner>
   <component>1457140</component>
@@ -969,7 +972,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PowerBookmarks.SidePanel.Search.CTR"
-    enum="BookmarksSidePanelSearchCTREvent" expires_after="2026-04-05">
+    enum="BookmarksSidePanelSearchCTREvent" expires_after="2026-06-07">
   <owner>emshack@chromium.org</owner>
   <owner>chrome-desktop-sea@google.com</owner>
   <component>1457140</component>
@@ -981,7 +984,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PowerBookmarks.SidePanel.SearchOrFilter.BookmarksShown"
-    units="Bookmarks" expires_after="2026-04-05">
+    units="Bookmarks" expires_after="2026-06-07">
   <owner>emshack@chromium.org</owner>
   <owner>chrome-desktop-sea@google.com</owner>
   <component>1457140</component>
@@ -993,7 +996,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PowerBookmarks.SidePanel.SortTypeShown"
-    enum="BookmarksSidePanelSortType" expires_after="2026-04-05">
+    enum="BookmarksSidePanelSortType" expires_after="2026-06-07">
   <owner>emshack@chromium.org</owner>
   <owner>chrome-desktop-sea@google.com</owner>
   <component>1457140</component>
@@ -1004,7 +1007,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PowerBookmarks.SidePanel.ViewTypeShown"
-    enum="BookmarksSidePanelViewType" expires_after="2026-04-05">
+    enum="BookmarksSidePanelViewType" expires_after="2026-06-07">
   <owner>emshack@chromium.org</owner>
   <owner>chrome-desktop-sea@google.com</owner>
   <component>1457140</component>

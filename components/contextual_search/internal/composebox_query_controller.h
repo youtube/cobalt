@@ -479,6 +479,19 @@ class ComposeboxQueryController
   // `enable_viewport_images_` is false.
   bool use_separate_request_ids_for_multi_context_viewport_images_;
 
+  // Whether to offer ZPS for the first document attachment, when multiple
+  // attachments are available (true), or the only attachment if exactly one
+  // attachment is available (false).
+  bool prioritize_suggestions_for_the_first_attached_document_;
+
+  // Whether or not to support the context_id migration on the server, for
+  // the multi-context input flow.
+  bool enable_context_id_migration_;
+
+  // Whether or not to attach the page title and url directly to the suggest
+  // request params.
+  bool attach_page_title_and_url_to_suggest_requests_;
+
   // The data for the interaction request in progress. Is null if no
   // interaction request has been made.
   std::unique_ptr<LensServerInteractionRequest>

@@ -117,6 +117,7 @@ Sačekajte nekoliko minuta pre nego što promenite nalog. Ako sada promenite nal
 <translation id="3581385059720151202">Pretraživanje vizuelnog materijala u Chromium-u</translation>
 <translation id="3582640969619785896">Chromium će vam ponuditi da sačuva lozinku</translation>
 <translation id="3594315078412605236">Upravljanje načinima plaćanja u Chromium-u</translation>
+<translation id="3600428265489994557">Prijavite se u Chromium</translation>
 <translation id="3617143087229977194">Otvorite podešavanja podrazumevanih aplikacija u iOS-u, pa dodirnite Browser App (Aplikacija pregledača) i izaberite Chromium.</translation>
 <translation id="3634039384458740619">Otvori podešavanja Chromium-a</translation>
 <translation id="3639997914391704523">Chromium može da vam proverava lozinke kada se prijavite pomoću Google naloga.</translation>
@@ -351,7 +352,6 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 <translation id="900560297598578021">Prijavljeni ste kao <ph name="EMAIL" />.
 
 Podaci su šifrovani pomoću pristupne fraze <ph name="TIME" />. Unesite je da biste koristili i sačuvali Chromium podatke na Google nalogu.</translation>
-<translation id="9022552996538154597">Prijavljivanje na Chromium</translation>
 <translation id="9031260906956926157">Neki Chromium podaci još nisu sačuvani na Google nalogu.
 Sačekajte nekoliko minuta pre nego što se odjavite. Ako se odjavite odmah, ovi podaci će biti izbrisani.</translation>
 <translation id="9050790730841755540">Koristite Chromium svaki put kada dodirujete linkove u drugim aplikacijama.</translation>

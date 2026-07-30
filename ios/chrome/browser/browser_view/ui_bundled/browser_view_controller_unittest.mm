@@ -17,8 +17,7 @@
 #import "components/open_from_clipboard/fake_clipboard_recent_content.h"
 #import "components/search_engines/template_url_service.h"
 #import "components/supervised_user/core/common/features.h"
-#import "ios/chrome/browser/autocomplete/model/autocomplete_service.h"
-#import "ios/chrome/browser/autocomplete/model/autocomplete_service_factory.h"
+#import "ios/chrome/browser/autocomplete/model/autocomplete_browser_agent.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
 #import "ios/chrome/browser/bookmarks/ui_bundled/home/bookmarks_coordinator.h"
 #import "ios/chrome/browser/browser_container/ui_bundled/browser_container_view_controller.h"
@@ -182,12 +181,14 @@ class BrowserViewControllerTest : public BlockCleanupTest {
     TabUsageRecorderBrowserAgent::CreateForBrowser(browser_.get());
     StartSurfaceRecentTabBrowserAgent::CreateForBrowser(browser_.get());
     OmniboxPositionBrowserAgent::CreateForBrowser(browser_.get());
+    AutocompleteBrowserAgent::CreateForBrowser(browser_.get());
     BrowserViewVisibilityNotifierBrowserAgent::CreateForBrowser(browser_.get());
     // FullscreenController depends on ToolbarsSizeBrowserAgent, so the agent
     // must be created first. Please maintain this order.
     ToolbarsSizeBrowserAgent::CreateForBrowser(browser_.get());
     FullscreenController::CreateForBrowser(browser_.get());
     DiscoverFeedVisibilityBrowserAgent::CreateForBrowser(browser_.get());
+    BrowserViewVisibilityNotifierBrowserAgent::CreateForBrowser(browser_.get());
 
     WebUsageEnablerBrowserAgent::FromBrowser(browser_.get())
         ->SetWebUsageEnabled(true);
@@ -336,6 +337,9 @@ class BrowserViewControllerTest : public BlockCleanupTest {
                            keyCommandsProvider:key_commands_provider_
                                   dependencies:dependencies];
     bvc_.webUsageEnabled = YES;
+    bvc_.browserViewVisibilityStateChangedCallback =
+        BrowserViewVisibilityNotifierBrowserAgent::FromBrowser(browser_.get())
+            ->GetNotificationCallback();
 
     id mockReauthHandler = OCMProtocolMock(@protocol(IncognitoReauthCommands));
     bvc_.reauthHandler = mockReauthHandler;
@@ -481,7 +485,8 @@ TEST_F(BrowserViewControllerTest, TestClearPresentedState) {
       clearPresentedStateWithCompletion:^{
         this->OnCompletionCalled();
       }
-                         dismissOmnibox:YES];
+                         dismissOmnibox:YES
+         dismissPresentedViewController:YES];
 }
 
 // Tests that WebState::WasShown() and WebState::WasHidden() is properly called

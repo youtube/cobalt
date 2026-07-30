@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import type {WebClientInitialState} from '../glic.mojom-webui.js';
-import type {ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AdditionalContext, AdditionalContextPart, AnnotatedPageData, AutofillSuggestion, CaptureRegionErrorReason, CaptureRegionResult, ChromeVersion, ConversationInfo, Credential, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, FormFillingRequest, GetPinCandidatesOptions, HostCapability, Journal, MetricUserInputReactionType, NavigationConfirmationRequest, NavigationConfirmationResponse, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectAutofillSuggestionsDialogResponse, SelectCredentialDialogRequest, SelectCredentialDialogResponse, TabContextOptions, TabContextResult, TabData, TaskOptions, UserConfirmationDialogRequest, UserConfirmationDialogResponse, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import type {ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AdditionalContext, AdditionalContextPart, AnnotatedPageData, AutofillSuggestion, CaptureRegionErrorReason, CaptureRegionResult, ChromeVersion, ConversationInfo, Credential, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, FormFillingRequest, GetPinCandidatesOptions, HostCapability, Journal, MetricUserInputReactionType, NavigationConfirmationRequest, NavigationConfirmationResponse, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectAutofillSuggestionsDialogResponse, SelectCredentialDialogRequest, SelectCredentialDialogResponse, TabContextOptions, TabContextResult, TabData, TaskOptions, UnpinTabsOptions, UserConfirmationDialogRequest, UserConfirmationDialogResponse, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
 
 /*
 This file defines messages sent over postMessage in-between the Glic WebUI
@@ -457,6 +457,7 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     backgroundAllowed: false,
     request: {
       tabIds: string[],
+      options?: PinTabsOptions,
     },
     response: {
       pinnedAll: boolean,
@@ -466,6 +467,7 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     backgroundAllowed: true,
     request: {
       tabIds: string[],
+      options?: UnpinTabsOptions,
     },
     response: {
       unpinnedAll: boolean,
@@ -473,6 +475,9 @@ export declare type HostRequestTypes = ValidateRequestMap<{
   },
   glicBrowserUnpinAllTabs: {
     backgroundAllowed: false,
+    request: {
+      options?: UnpinTabsOptions,
+    },
   },
   glicBrowserSubscribeToPinCandidates: {
     backgroundAllowed: false,
@@ -939,6 +944,7 @@ export type WebClientInitialStatePrivate =
       loggingEnabled: boolean,
       enableZeroStateSuggestions: boolean,
       hostCapabilities: HostCapability[],
+      rgbaToBmp: boolean,
     }>;
 
 // TabData format for postMessage transport.

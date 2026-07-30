@@ -74,7 +74,8 @@ std::unique_ptr<KeyedService> BuildMockAimServiceEligibilityServiceInstance(
   std::unique_ptr<MockAimEligibilityService> mock_aim_eligibility_service =
       std::make_unique<MockAimEligibilityService>(
           CHECK_DEREF(profile->GetPrefs()), /*template_url_service=*/nullptr,
-          /*url_loader_factory=*/nullptr, /*identity_manager=*/nullptr);
+          /*url_loader_factory=*/nullptr, /*identity_manager=*/nullptr,
+          /*is_off_the_record=*/false);
 
   ON_CALL(*mock_aim_eligibility_service, IsAimEligible())
       .WillByDefault(testing::Return(true));
@@ -158,17 +159,6 @@ class NtpRealboxUiTest
           context,
           base::BindOnce(BuildMockAimServiceEligibilityServiceInstance));
     }
-  }
-
-  // TODO(crbug.com/452000330): Pull this out into the common Web UI interaction
-  // utility helper.
-  auto WaitForAndScrollToElement(
-      const ui::ElementIdentifier& ntp_id,
-      const WebContentsInteractionTestUtil::DeepQuery& query) {
-    auto steps = Steps(WaitForElementToRender(ntp_id, query),
-                       ScrollIntoView(ntp_id, query));
-    AddDescriptionPrefix(steps, __func__);
-    return steps;
   }
 
  protected:

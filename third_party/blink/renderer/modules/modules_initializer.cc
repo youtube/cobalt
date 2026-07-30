@@ -118,13 +118,19 @@
 #endif
 
 namespace blink {
+namespace {
 
 #if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_DESKTOP_ANDROID)
 
 class SuspendCaptureObserver : public GarbageCollected<SuspendCaptureObserver>,
+                               public Supplement<Page>,
                                public PageVisibilityObserver {
  public:
-  explicit SuspendCaptureObserver(Page& page) : PageVisibilityObserver(&page) {}
+  static constexpr auto kSupplementIndex =
+      Page::Supplements::kSuspendCaptureObserver;
+
+  explicit SuspendCaptureObserver(Page& page)
+      : Supplement<Page>(page), PageVisibilityObserver(&page) {}
 
   // PageVisibilityObserver overrides:
   void PageVisibilityChanged() override {
@@ -150,11 +156,14 @@ class SuspendCaptureObserver : public GarbageCollected<SuspendCaptureObserver>,
   }
 
   void Trace(Visitor* visitor) const override {
+    Supplement<Page>::Trace(visitor);
     PageVisibilityObserver::Trace(visitor);
   }
 };
 
 #endif  // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_DESKTOP_ANDROID)
+
+}  // namespace
 
 void ModulesInitializer::Initialize() {
   // Strings must be initialized before calling CoreInitializer::init().
@@ -366,8 +375,7 @@ void ModulesInitializer::ProvideModulesToPage(
   StorageNamespace::ProvideSessionStorageNamespaceTo(page, namespace_id);
   AudioGraphTracer::ProvideAudioGraphTracerTo(page);
 #if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_DESKTOP_ANDROID)
-  page.SetSuspendCaptureObserver(
-      MakeGarbageCollected<SuspendCaptureObserver>(page));
+  page.ProvideSupplement(MakeGarbageCollected<SuspendCaptureObserver>(page));
 #endif  // BUILDFLAG(IS_ANDROID)  && !BUILDFLAG(IS_DESKTOP_ANDROID)
 }
 
@@ -407,7 +415,8 @@ void ModulesInitializer::DidUpdateScreens(
     LocalFrame& frame,
     const display::ScreenInfos& screen_infos) {
   auto* window = frame.DomWindow();
-  if (WindowScreenDetails* supplement = window->GetWindowScreenDetails()) {
+  if (auto* supplement =
+          Supplement<LocalDOMWindow>::From<WindowScreenDetails>(window)) {
     // screen_details() may be null if permission has not been granted.
     if (auto* screen_details = supplement->screen_details()) {
       screen_details->UpdateScreenInfos(window, screen_infos);

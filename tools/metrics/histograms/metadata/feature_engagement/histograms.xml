@@ -188,6 +188,8 @@ chromium-metrics-reviews@google.com.
       summary="PWA launch due to link capturing being enabled"/>
   <variant name="IPH_DesktopPWAsLinkCapturingLaunchAppInTab"
       summary="PWA launch due to link capturing being enabled"/>
+  <variant name="IPH_DesktopRealboxContextualSearchFeature"
+      summary="Desktop NTP contextual search"/>
   <variant name="IPH_DesktopSharedHighlighting"
       summary="Sharing links with highlighted text"/>
   <variant name="IPH_DiscardRing" summary="Discard ring for tabs"/>
@@ -735,7 +737,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="InProductHelp.Config.ParsingEvent" enum="ConfigParsingEvent"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>nyquist@chromium.org</owner>
   <summary>
     Records if in-product help configuration is parsed correctly, and the
@@ -791,7 +793,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InProductHelp.EventStorageMigration.Status"
-    enum="InProductHelpEventStorageMigrationStatus" expires_after="2026-04-05">
+    enum="InProductHelpEventStorageMigrationStatus" expires_after="2026-06-07">
   <owner>cheickcisse@google.com</owner>
   <owner>shaktisahu@chromium.org</owner>
   <summary>

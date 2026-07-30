@@ -72,24 +72,24 @@
 #include "device/fido/authenticator_data.h"
 #include "device/fido/authenticator_get_assertion_response.h"
 #include "device/fido/authenticator_make_credential_response.h"
-#include "device/fido/authenticator_selection_criteria.h"
-#include "device/fido/cable/cable_discovery_data.h"
 #include "device/fido/ctap_get_assertion_request.h"
 #include "device/fido/ctap_make_credential_request.h"
-#include "device/fido/features.h"
 #include "device/fido/fido_authenticator.h"
-#include "device/fido/fido_constants.h"
 #include "device/fido/fido_request_handler_base.h"
-#include "device/fido/fido_transport_protocol.h"
-#include "device/fido/fido_types.h"
 #include "device/fido/filter.h"
 #include "device/fido/get_assertion_request_handler.h"
 #include "device/fido/json_request.h"
 #include "device/fido/make_credential_request_handler.h"
 #include "device/fido/prf_input.h"
+#include "device/fido/public/authenticator_selection_criteria.h"
+#include "device/fido/public/cable_discovery_data.h"
+#include "device/fido/public/features.h"
+#include "device/fido/public/fido_constants.h"
+#include "device/fido/public/fido_transport_protocol.h"
+#include "device/fido/public/fido_types.h"
+#include "device/fido/public/public_key_credential_descriptor.h"
+#include "device/fido/public/public_key_credential_params.h"
 #include "device/fido/public_key.h"
-#include "device/fido/public_key_credential_descriptor.h"
-#include "device/fido/public_key_credential_params.h"
 #include "mojo/public/cpp/bindings/message.h"
 #include "net/cert/asn1_util.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
@@ -510,16 +510,6 @@ device::FidoTransportProtocol HintToTransport(blink::mojom::Hint hint) {
   }
 }
 
-std::vector<device::FidoTransportProtocol> HintsToTransports(
-    base::span<blink::mojom::Hint> hints) {
-  std::vector<device::FidoTransportProtocol> ret;
-  ret.reserve(hints.size());
-  for (const auto hint : hints) {
-    ret.push_back(HintToTransport(hint));
-  }
-  return ret;
-}
-
 void SetHints(AuthenticatorRequestClientDelegate* request_delegate,
               base::span<const blink::mojom::Hint> hints) {
   if (hints.empty()) {
@@ -769,6 +759,17 @@ void MaybeRecordBrowserAssistedLogin(CredentialRequestResult request_result) {
     case CredentialRequestResult::kOtherError:
           // Ignore error cases.
       break;
+    case CredentialRequestResult::kAndroidFido2HybridSuccess:
+    case CredentialRequestResult::kAndroidFido2Success:
+    case CredentialRequestResult::kAndroidCredManSuccess:
+    case CredentialRequestResult::kAndroidFido2LegacySuccess:
+    case CredentialRequestResult::kAndroidFido2Error:
+    case CredentialRequestResult::kAndroidCredManError:
+    case CredentialRequestResult::kAndroidFido2HybridError:
+    case CredentialRequestResult::kAndroidFido2LegacyError:
+    case CredentialRequestResult::kAndroidIdentityCredentialsSuccess:
+    case CredentialRequestResult::kAndroidIdentityCredentialsError:
+      NOTREACHED();
   }
   if (login_type.has_value()) {
     GetContentClient()->browser()->RecordAssistedLogin(*login_type);
@@ -1396,7 +1397,7 @@ void AuthenticatorCommonImpl::ContinueMakeCredentialAfterRpIdCheck(
   ctap_make_credential_request->app_id_exclude = std::move(appid_exclude);
   make_credential_options->is_off_the_record_context =
       GetBrowserContext()->IsOffTheRecord();
-  make_credential_options->hints = HintsToTransports(options->hints);
+  make_credential_options->hints = std::move(options->hints);
 
   // Compute the effective attestation conveyance preference.
   device::AttestationConveyancePreference attestation = options->attestation;
@@ -1845,8 +1846,7 @@ void AuthenticatorCommonImpl::ContinueGetAssertionAfterRpIdCheck(
       public_key_options->extensions->large_blob_read;
   ctap_get_assertion_options->large_blob_write =
       public_key_options->extensions->large_blob_write;
-  ctap_get_assertion_options->hints =
-      HintsToTransports(public_key_options->hints);
+  ctap_get_assertion_options->hints = std::move(public_key_options->hints);
   GetWebAuthenticationDelegate()->BrowserProvidedPasskeysAvailable(
       GetBrowserContext(),
       base::BindOnce(

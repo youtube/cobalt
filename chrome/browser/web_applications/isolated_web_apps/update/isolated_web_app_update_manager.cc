@@ -38,10 +38,12 @@
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_external_install_options.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_policy_manager.h"
+#include "chrome/browser/web_applications/isolated_web_apps/runtime_data/chrome_iwa_runtime_data_provider.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_apply_task.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_apply_waiter.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_discovery_task.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
+#include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_install_manager.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
@@ -53,7 +55,7 @@
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
 #include "components/webapps/common/web_app_id.h"
 #include "components/webapps/isolated_web_apps/error/uma_logging.h"
-#include "components/webapps/isolated_web_apps/iwa_key_distribution_info_provider.h"
+#include "components/webapps/isolated_web_apps/types/iwa_origin.h"
 #include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "components/webapps/isolated_web_apps/types/update_channel.h"
 #include "content/public/browser/browser_thread.h"
@@ -67,6 +69,12 @@
 #endif
 
 namespace web_app {
+
+IsolatedWebAppUpdateOptions::IsolatedWebAppUpdateOptions() = default;
+
+IsolatedWebAppUpdateOptions::IsolatedWebAppUpdateOptions(
+    const GURL& update_manifest_url)
+    : update_manifest_url(update_manifest_url) {}
 
 IsolatedWebAppUpdateOptions::IsolatedWebAppUpdateOptions(
     const GURL& update_manifest_url,
@@ -181,16 +189,41 @@ IwaBundleIdToUpdateOptionsMap GetKioskPolicyIsolatedWebApps() {
   std::optional<ash::KioskIwaUpdateData> kiosk_iwa_policy_data =
       ash::GetCurrentKioskIwaUpdateData();
   if (kiosk_iwa_policy_data) {
-    result.emplace(
-        kiosk_iwa_policy_data->web_bundle_id,
+    result[kiosk_iwa_policy_data->web_bundle_id] =
         IsolatedWebAppUpdateOptions(kiosk_iwa_policy_data->update_manifest_url,
                                     kiosk_iwa_policy_data->update_channel,
                                     kiosk_iwa_policy_data->allow_downgrades,
-                                    kiosk_iwa_policy_data->pinned_version));
+                                    kiosk_iwa_policy_data->pinned_version);
   }
   return result;
 }
 #endif
+
+IwaBundleIdToUpdateOptionsMap GetIsolatedWebAppsWithOnlyUserManagement(
+    Profile* profile) {
+  IwaBundleIdToUpdateOptionsMap result;
+  for (const WebApp& web_app : web_app::WebAppProvider::GetForWebApps(profile)
+                                   ->registrar_unsafe()
+                                   .GetApps()) {
+    if (!web_app.isolation_data() ||
+        web_app.GetSources().HasAny({web_app::WebAppManagement::kKiosk,
+                                     web_app::WebAppManagement::kIwaShimlessRma,
+                                     web_app::WebAppManagement::kIwaPolicy})) {
+      continue;
+    }
+
+    auto url_info = IsolatedWebAppUrlInfo::Create(web_app.start_url());
+    CHECK(url_info.has_value());
+
+    if (!web_app.isolation_data()->update_manifest_url()) {
+      continue;
+    }
+
+    result[url_info->web_bundle_id()] = IsolatedWebAppUpdateOptions(
+        web_app.isolation_data().value().update_manifest_url().value());
+  }
+  return result;
+}
 
 IwaBundleIdToUpdateOptionsMap GetBundleIdToIsolatedWebAppsUpdateOptionsMap(
     Profile* profile) {
@@ -201,7 +234,15 @@ IwaBundleIdToUpdateOptionsMap GetBundleIdToIsolatedWebAppsUpdateOptionsMap(
     return GetKioskPolicyIsolatedWebApps();
   }
 #endif
-  return GetForceInstalledPolicyIsolatedWebApps(profile);
+  IwaBundleIdToUpdateOptionsMap result =
+      GetIsolatedWebAppsWithOnlyUserManagement(profile);
+
+  // Data coming from IWA policy source takes precedence.
+  for (auto& [id, options] : GetForceInstalledPolicyIsolatedWebApps(profile)) {
+    result.insert_or_assign(id, std::move(options));
+  }
+
+  return result;
 }
 
 bool ShouldProceedWithVersionChange(
@@ -236,12 +277,10 @@ std::vector<webapps::AppId> GetIwasAffectedByKeyRotation(
     WebAppProvider& provider) {
   std::vector<webapps::AppId> iwa_ids;
 
-  base::flat_map<web_package::SignedWebBundleId,
-                 std::reference_wrapper<const WebApp>>
-      installed_iwas = GetInstalledIwas(provider.registrar_unsafe());
-
   // Queue updates for all apps affected by key rotation.
-  for (const auto& [web_bundle_id, iwa] : installed_iwas) {
+  for (const auto& iwa :
+       provider.registrar_unsafe().GetApps(WebAppFilter::IsIsolatedApp())) {
+    auto web_bundle_id = IwaOrigin::Create(iwa.scope())->web_bundle_id();
     auto result = LookupRotatedKey(web_bundle_id);
     // If the rotated key is null, there's no point in updating the
     // app (as the update won't succeed anyway).
@@ -250,14 +289,14 @@ std::vector<webapps::AppId> GetIwasAffectedByKeyRotation(
     }
 
     KeyRotationData data =
-        GetKeyRotationData(web_bundle_id, *iwa.get().isolation_data());
+        GetKeyRotationData(web_bundle_id, *iwa.isolation_data());
     // If either the bundle or the pending update already includes the rotated
     // key, there's no need to rush with updates.
     if (data.current_installation_has_rk || data.pending_update_has_rk) {
       continue;
     }
 
-    iwa_ids.push_back(iwa.get().app_id());
+    iwa_ids.push_back(iwa.app_id());
   }
 
   return iwa_ids;
@@ -291,8 +330,11 @@ void IsolatedWebAppUpdateManager::Start() {
 
   has_started_ = true;
   install_manager_observation_.Observe(&provider_->install_manager());
-  key_distribution_info_observation_.Observe(
-      &IwaKeyDistributionInfoProvider::GetInstance());
+  runtime_data_changed_subscription_ =
+      ChromeIwaRuntimeDataProvider::GetInstance().OnRuntimeDataChanged(
+          base::BindRepeating(
+              &IsolatedWebAppUpdateManager::OnRuntimeDataChanged,
+              weak_factory_.GetWeakPtr()));
 
   if (!IsAnyIwaInstalled()) {
     // If no IWA is installed, then we do not need to regularly check for
@@ -302,22 +344,13 @@ void IsolatedWebAppUpdateManager::Start() {
     return;
   }
 
-  for (const WebApp& web_app : provider_->registrar_unsafe().GetApps()) {
-    if (!web_app.isolation_data().has_value() ||
-        !web_app.isolation_data()->pending_update_info().has_value()) {
+  for (const WebApp& web_app :
+       provider_->registrar_unsafe().GetApps(WebAppFilter::IsIsolatedApp())) {
+    if (!web_app.isolation_data()->pending_update_info().has_value()) {
       continue;
     }
-    auto url_info = IsolatedWebAppUrlInfo::Create(web_app.start_url());
-    if (!url_info.has_value()) {
-      LOG(ERROR) << "Unable to calculate IsolatedWebAppUrlInfo from "
-                 << web_app.start_url();
-
-      web_app::UmaLogExpectedStatus<IsolatedWebAppUpdateError>(
-          "WebApp.Isolated.Update",
-          base::unexpected(
-              IsolatedWebAppUpdateError::kCantCalculateIsolatedWebAppUrlInfo));
-      continue;
-    }
+    auto url_info = IsolatedWebAppUrlInfo::Create(web_app.scope());
+    CHECK(url_info.has_value());
 
     // Off the record profiles cannot have `ScopedProfileKeepAlive`s.
     auto profile_keep_alive = std::make_unique<ScopedProfileKeepAlive>(
@@ -363,6 +396,7 @@ void IsolatedWebAppUpdateManager::Shutdown() {
 
   // Stop all potentially ongoing tasks and avoid scheduling new tasks.
   install_manager_observation_.Reset();
+  runtime_data_changed_subscription_ = {};
   next_update_discovery_check_.Reset();
   task_queue_.Clear();
   update_apply_waiters_.clear();
@@ -491,13 +525,9 @@ void IsolatedWebAppUpdateManager::DiscoverApplyAndPrioritizeLocalDevModeUpdate(
                      std::move(callback)));
 }
 
-void IsolatedWebAppUpdateManager::OnComponentUpdateSuccess(bool is_preloaded) {
+void IsolatedWebAppUpdateManager::OnRuntimeDataChanged() {
   // The corresponding observer is added during `Start()`.
   CHECK(has_started_);
-
-  if (is_preloaded) {
-    return;
-  }
 
   if (!automatic_updates_enabled_) {
     return;
@@ -529,12 +559,9 @@ void IsolatedWebAppUpdateManager::QueueUpdatesForIwasAffectedByKeyRotation() {
 }
 
 bool IsolatedWebAppUpdateManager::IsAnyIwaInstalled() {
-  for (const WebApp& app : provider_->registrar_unsafe().GetApps()) {
-    if (app.isolation_data().has_value()) {
-      return true;
-    }
-  }
-  return false;
+  auto apps =
+      provider_->registrar_unsafe().GetApps(WebAppFilter::IsIsolatedApp());
+  return apps.begin() != apps.end();
 }
 
 size_t IsolatedWebAppUpdateManager::QueueUpdateDiscoveryTasks() {
@@ -546,12 +573,12 @@ size_t IsolatedWebAppUpdateManager::QueueUpdateDiscoveryTasks() {
       GetBundleIdToIsolatedWebAppsUpdateOptionsMap(&*profile_);
 
   size_t num_new_tasks = 0;
-  for (const WebApp& web_app : provider_->registrar_unsafe().GetApps()) {
+  for (const WebApp& web_app :
+       provider_->registrar_unsafe().GetApps(WebAppFilter::IsIsolatedApp())) {
     if (MaybeQueueUpdateDiscoveryTask(web_app, id_to_update_manifest_map)) {
       ++num_new_tasks;
     }
   }
-
   task_queue_.MaybeStartNextTask();
 
   MaybeScheduleUpdateDiscoveryCheck();
@@ -563,12 +590,6 @@ bool IsolatedWebAppUpdateManager::MaybeQueueUpdateDiscoveryTask(
     const base::flat_map<web_package::SignedWebBundleId,
                          IsolatedWebAppUpdateOptions>&
         id_to_update_options_map) {
-  // TODO(crbug.com/40274186): In the future, we also need to automatically
-  // update IWAs not installed via policy.
-  if (!web_app.IsIwaPolicyInstalledApp() && !web_app.IsKioskInstalledApp()) {
-    return false;
-  }
-
   const std::optional<IsolationData>& isolation_data = web_app.isolation_data();
   if (!isolation_data) {
     return false;
@@ -591,7 +612,7 @@ bool IsolatedWebAppUpdateManager::MaybeQueueUpdateDiscoveryTask(
     return false;
   }
 
-  if (!IwaKeyDistributionInfoProvider::GetInstance().IsManagedUpdatePermitted(
+  if (!ChromeIwaRuntimeDataProvider::GetInstance().IsManagedUpdatePermitted(
           url_info.web_bundle_id().id())) {
     LOG(WARNING) << "The app " << url_info.app_id()
                  << " cannot be updated because it's not allowlisted.";

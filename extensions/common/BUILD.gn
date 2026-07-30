@@ -225,6 +225,11 @@ mojom("mojom") {
           move_only = true
         },
         {
+          mojom = "extensions.mojom.MessageData"
+          cpp = "::extensions::MessageData"
+          move_only = true
+        },
+        {
           mojom = "extensions.mojom.PortId"
           cpp = "::extensions::PortId"
         },
@@ -279,6 +284,8 @@ static_library("common") {
     "api/messaging/message.h",
     "api/messaging/messaging_endpoint.cc",
     "api/messaging/messaging_endpoint.h",
+    "api/messaging/messaging_util.cc",
+    "api/messaging/messaging_util.h",
     "api/messaging/port_context.cc",
     "api/messaging/port_context.h",
     "api/messaging/port_id.cc",

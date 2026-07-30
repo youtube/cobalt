@@ -5,6 +5,7 @@
 package org.chromium.components.webauthn;
 
 import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.components.webauthn.WebauthnLogger.log;
 import static org.chromium.components.webauthn.WebauthnLogger.logError;
 
@@ -52,10 +53,10 @@ public class IdentityCredentialsHelper {
             PublicKeyCredentialCreationOptions options,
             String origin,
             byte @Nullable [] clientDataJson,
-            byte @Nullable [] clientDataHash,
-            MakeCredentialResponseCallback responseCallback,
-            ErrorCallback errorCallback) {
+            byte @Nullable [] clientDataHash) {
         log(TAG, "handleConditionalCreateRequest");
+        WebauthnRequestCallback callback =
+                assertNonNull(mAuthenticationContextProvider.getRequestCallback());
         try {
             IdentityCredentialClient client =
                     IdentityCredentialManager.Companion.getClient(
@@ -65,19 +66,20 @@ public class IdentityCredentialsHelper {
                             GmsCoreUtils.wrapSuccessCallback(
                                     (handle) ->
                                             onConditionalCreateSuccess(
-                                                    clientDataJson,
-                                                    options,
-                                                    responseCallback,
-                                                    errorCallback,
-                                                    handle)))
+                                                    clientDataJson, options, handle)))
                     .addOnFailureListener(
-                            GmsCoreUtils.wrapFailureCallback(
-                                    (exception) ->
-                                            onConditionalCreateFailure(errorCallback, exception)));
+                            GmsCoreUtils.wrapFailureCallback(this::onConditionalCreateFailure));
         } catch (Exception e) {
             logError(TAG, "CreateCredential failed ", e);
-            errorCallback.onResult(
-                    AuthenticatorStatus.NOT_ALLOWED_ERROR, MakeCredentialOutcome.OTHER_FAILURE);
+            callback.onComplete(
+                    WebauthnRequestResponse.forFailedMakeCredential(
+                            AuthenticatorStatus.NOT_ALLOWED_ERROR,
+                            new RequestMetrics.Builder()
+                                    .setMakeCredentialOutcome(MakeCredentialOutcome.OTHER_FAILURE)
+                                    .setMakeCredentialResult(
+                                            CredentialRequestResult
+                                                    .ANDROID_IDENTITY_CREDENTIALS_ERROR)
+                                    .build()));
             return;
         }
     }
@@ -85,8 +87,6 @@ public class IdentityCredentialsHelper {
     private void onConditionalCreateSuccess(
             byte @Nullable [] clientDataJson,
             PublicKeyCredentialCreationOptions options,
-            MakeCredentialResponseCallback responseCallback,
-            ErrorCallback errorCallback,
             CreateCredentialHandle handle) {
         log(TAG, "onConditionalCreateSuccess");
         Bundle data = assertNonNull(handle.getCreateCredentialResponse()).getData();
@@ -94,22 +94,50 @@ public class IdentityCredentialsHelper {
                 CredManHelper.parseCreateCredentialResponseData(data);
         if (response == null) {
             log(TAG, "parseCreateCredentialResponseData() failed");
-            errorCallback.onResult(
-                    AuthenticatorStatus.NOT_ALLOWED_ERROR, MakeCredentialOutcome.OTHER_FAILURE);
+            assumeNonNull(mAuthenticationContextProvider.getRequestCallback())
+                    .onComplete(
+                            WebauthnRequestResponse.forFailedMakeCredential(
+                                    AuthenticatorStatus.NOT_ALLOWED_ERROR,
+                                    new RequestMetrics.Builder()
+                                            .setMakeCredentialOutcome(
+                                                    MakeCredentialOutcome.OTHER_FAILURE)
+                                            .setMakeCredentialResult(
+                                                    CredentialRequestResult
+                                                            .ANDROID_IDENTITY_CREDENTIALS_ERROR)
+                                            .build()));
             return;
         }
         if (clientDataJson != null) {
             response.info.clientDataJson = clientDataJson;
         }
         response.echoCredProps = options.credProps;
-        responseCallback.onRegisterResponse(AuthenticatorStatus.SUCCESS, response);
+        assumeNonNull(mAuthenticationContextProvider.getRequestCallback())
+                .onComplete(
+                        WebauthnRequestResponse.forSuccessfulMakeCredential(
+                                response,
+                                new RequestMetrics.Builder()
+                                        .setMakeCredentialOutcome(MakeCredentialOutcome.SUCCESS)
+                                        .setMakeCredentialResult(
+                                                CredentialRequestResult
+                                                        .ANDROID_IDENTITY_CREDENTIALS_SUCCESS)
+                                        .build()));
     }
 
-    private void onConditionalCreateFailure(ErrorCallback errorCallback, Exception e) {
+    private void onConditionalCreateFailure(Exception e) {
         log(TAG, "CreateCredential request failed ", e);
-        errorCallback.onResult(
-                AuthenticatorStatus.NOT_ALLOWED_ERROR,
-                MakeCredentialOutcome.CONDITIONAL_CREATE_FAILURE);
+        WebauthnRequestCallback callback = mAuthenticationContextProvider.getRequestCallback();
+        if (callback == null) {
+            return;
+        }
+        callback.onComplete(
+                WebauthnRequestResponse.forFailedMakeCredential(
+                        AuthenticatorStatus.NOT_ALLOWED_ERROR,
+                        new RequestMetrics.Builder()
+                                .setMakeCredentialOutcome(
+                                        MakeCredentialOutcome.CONDITIONAL_CREATE_FAILURE)
+                                .setMakeCredentialResult(
+                                        CredentialRequestResult.ANDROID_IDENTITY_CREDENTIALS_ERROR)
+                                .build()));
     }
 
     private Bundle requestBundle(String requestJson, byte @Nullable [] clientDataHash) {

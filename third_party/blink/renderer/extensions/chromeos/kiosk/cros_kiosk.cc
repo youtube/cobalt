@@ -8,21 +8,27 @@
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/visitor.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
 CrosKiosk& CrosKiosk::From(ExecutionContext& execution_context) {
   CHECK(!execution_context.IsContextDestroyed());
-  CrosKiosk* supplement = execution_context.GetCrosKiosk();
+  CrosKiosk* supplement =
+      Supplement<ExecutionContext>::From<CrosKiosk>(execution_context);
   if (!supplement) {
-    supplement = MakeGarbageCollected<CrosKiosk>();
-    execution_context.SetCrosKiosk(supplement);
+    supplement = MakeGarbageCollected<CrosKiosk>(execution_context);
+    ProvideTo(execution_context, supplement);
   }
   return *supplement;
 }
 
+CrosKiosk::CrosKiosk(ExecutionContext& execution_context)
+    : Supplement(execution_context) {}
+
 void CrosKiosk::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
+  Supplement<ExecutionContext>::Trace(visitor);
 }
 
 }  // namespace blink

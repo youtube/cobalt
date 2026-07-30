@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "components/webapps/isolated_web_apps/iwa_key_distribution_info_provider.h"
+#include "chrome/browser/web_applications/isolated_web_apps/key_distribution/iwa_key_distribution_info_provider.h"
 
+#include <optional>
 #include <variant>
 
 #include "base/base64.h"
@@ -23,18 +24,19 @@
 #include "base/version.h"
 #include "chrome/browser/component_updater/iwa_key_distribution_component_installer.h"
 #include "chrome/browser/web_applications/isolated_web_apps/chrome_iwa_client.h"
+#include "chrome/browser/web_applications/isolated_web_apps/key_distribution/iwa_key_distribution_histograms.h"
+#include "chrome/browser/web_applications/isolated_web_apps/key_distribution/iwa_key_distribution_info_provider.h"
+#include "chrome/browser/web_applications/isolated_web_apps/key_distribution/proto/key_distribution.pb.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/key_distribution/test_utils.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "components/component_updater/component_updater_paths.h"
 #include "components/component_updater/mock_component_updater_service.h"
+#include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_signature_verifier.h"
 #include "components/web_package/test_support/signed_web_bundles/signature_verifier_test_utils.h"
 #include "components/web_package/test_support/signed_web_bundles/web_bundle_signer.h"
 #include "components/web_package/web_bundle_builder.h"
 #include "components/webapps/isolated_web_apps/identity/iwa_identity_validator.h"
-#include "components/webapps/isolated_web_apps/iwa_key_distribution_histograms.h"
-#include "components/webapps/isolated_web_apps/iwa_key_distribution_info_provider.h"
-#include "components/webapps/isolated_web_apps/proto/key_distribution.pb.h"
 #include "content/public/common/content_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -217,14 +219,19 @@ TEST_F(SignedWebBundleSignatureVerifierWithKeyDistributionTest,
       ht.GetAllSamples(kIwaKeyRotationInfoSource),
       base::BucketsAre(base::Bucket(KeyDistributionComponentSource::kNone, 1)));
 
+  ASSERT_OK_AND_ASSIGN(auto kSignedWebBundleId,
+                       web_package::SignedWebBundleId::Create(kWebBundleId));
+
   auto expected_key = std::visit(
       [](const auto& key_pair) -> base::span<const uint8_t> {
         return key_pair.public_key.bytes();
       },
       key_pairs[0]);
-  EXPECT_THAT(test::UpdateKeyDistributionInfo(base::Version("1.0.0"),
-                                              kWebBundleId, expected_key),
-              HasValue());
+
+  EXPECT_OK(test::KeyDistributionComponentBuilder(base::Version("1.0.0"))
+                .AddToKeyRotations(kSignedWebBundleId, expected_key)
+                .Build()
+                .UploadFromComponentFolder());
 
   EXPECT_THAT(web_package::test::VerifySignatures(signature_verifier, file,
                                                   parsed_integrity_block),
@@ -237,10 +244,11 @@ TEST_F(SignedWebBundleSignatureVerifierWithKeyDistributionTest,
           base::Bucket(KeyDistributionComponentSource::kDownloaded, 1)));
 
   auto random_key = web_package::test::Ed25519KeyPair::CreateRandom();
-  EXPECT_THAT(
-      test::UpdateKeyDistributionInfo(base::Version("1.0.1"), kWebBundleId,
-                                      random_key.public_key.bytes()),
-      HasValue());
+  EXPECT_OK(
+      test::KeyDistributionComponentBuilder(base::Version("1.0.1"))
+          .AddToKeyRotations(kSignedWebBundleId, random_key.public_key.bytes())
+          .Build()
+          .UploadFromComponentFolder());
 
   EXPECT_THAT(
       web_package::test::VerifySignatures(signature_verifier, file,
@@ -256,10 +264,10 @@ TEST_F(SignedWebBundleSignatureVerifierWithKeyDistributionTest,
           base::Bucket(KeyDistributionComponentSource::kNone, 1),
           base::Bucket(KeyDistributionComponentSource::kDownloaded, 2)));
 
-  EXPECT_THAT(
-      test::UpdateKeyDistributionInfo(base::Version("1.0.2"), kWebBundleId,
-                                      /*expected_key=*/std::nullopt),
-      HasValue());
+  EXPECT_OK(test::KeyDistributionComponentBuilder(base::Version("1.0.2"))
+                .AddToKeyRotations(kSignedWebBundleId, std::nullopt)
+                .Build()
+                .UploadFromComponentFolder());
 
   EXPECT_THAT(
       web_package::test::VerifySignatures(signature_verifier, file,

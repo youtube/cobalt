@@ -6,6 +6,7 @@
 
 #include "base/check.h"
 #include "build/build_config.h"
+#include "skia/ext/codec_utils.h"
 #include "third_party/skia/include/core/SkFont.h"
 #include "third_party/skia/include/core/SkFontMgr.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
@@ -57,7 +58,8 @@ bool g_factory_called = false;
 SkFontMgr* g_fontmgr_override = nullptr;
 
 #if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kUseAndroidNDKFontAPI, base::FEATURE_ENABLED_BY_DEFAULT);
+// https://crbug.com/461659286 Failure to create any font causes crash.
+BASE_FEATURE(kUseAndroidNDKFontAPI, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 }  // namespace
@@ -139,6 +141,11 @@ sk_sp<SkTypeface> DefaultTypeface() {
 
 SkFont DefaultFont() {
   return SkFont(DefaultTypeface());
+}
+
+void InitializeFontRendering() {
+  // for Fontations and DirectWrite to process emojis
+  skia::EnsurePNGDecoderRegistered();
 }
 
 }  // namespace skia

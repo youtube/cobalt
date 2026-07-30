@@ -12,7 +12,6 @@
 #include "css_at_rule_id.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
-#include "third_party/blink/renderer/core/css/css_property_source_data.h"
 #include "third_party/blink/renderer/core/css/css_property_value.h"
 #include "third_party/blink/renderer/core/css/css_property_value_set.h"
 #include "third_party/blink/renderer/core/css/css_selector.h"
@@ -20,7 +19,6 @@
 #include "third_party/blink/renderer/core/css/parser/css_nesting_type.h"
 #include "third_party/blink/renderer/core/css/parser/css_tokenizer.h"
 #include "third_party/blink/renderer/core/css/style_rule_font_feature_values.h"
-#include "third_party/blink/renderer/core/css/style_rule_keyframe.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -46,13 +44,14 @@ class StyleRuleKeyframe;
 class StyleRuleKeyframes;
 class StyleRuleMedia;
 class StyleRuleNamespace;
+class StyleRuleNavigation;
 class StyleRulePage;
 class StyleRulePositionTry;
 class StyleRuleProperty;
-class StyleRuleRoute;
 class StyleRuleSupports;
 class StyleSheetContents;
 class Element;
+struct KeyframeOffset;
 
 enum class ParseSheetResult {
   kSucceeded,
@@ -82,7 +81,7 @@ class CORE_EXPORT CSSParserImpl {
           CSSAtRuleID::kCSSAtRulePage,
           CSSAtRuleID::kCSSAtRulePositionTry,
           CSSAtRuleID::kCSSAtRuleProperty,
-          CSSAtRuleID::kCSSAtRuleRoute,
+          CSSAtRuleID::kCSSAtRuleNavigation,
           CSSAtRuleID::kCSSAtRuleContainer,
           CSSAtRuleID::kCSSAtRuleCounterStyle,
           CSSAtRuleID::kCSSAtRuleScope,
@@ -146,7 +145,7 @@ class CORE_EXPORT CSSParserImpl {
       CSSAtRuleID::kCSSAtRuleMedia,
       CSSAtRuleID::kCSSAtRuleSupports,
       CSSAtRuleID::kCSSAtRuleContainer,
-      CSSAtRuleID::kCSSAtRuleRoute,
+      CSSAtRuleID::kCSSAtRuleNavigation,
   };
 
   // Rules that are valid when nested within a style rule.
@@ -321,9 +320,10 @@ class CORE_EXPORT CSSParserImpl {
                                            CSSParserTokenStream&);
   StyleRulePage* ConsumePageRule(CSSParserTokenStream&);
   StyleRuleProperty* ConsumePropertyRule(CSSParserTokenStream&);
-  StyleRuleRoute* ConsumeRouteRule(CSSParserTokenStream&,
-                                   CSSNestingType,
-                                   StyleRule* parent_rule_for_nesting);
+  StyleRuleNavigation* ConsumeNavigationRule(
+      CSSParserTokenStream&,
+      CSSNestingType,
+      StyleRule* parent_rule_for_nesting);
   StyleRuleCounterStyle* ConsumeCounterStyleRule(CSSParserTokenStream&);
   StyleRuleBase* ConsumeScopeRule(CSSParserTokenStream&,
                                   CSSNestingType,

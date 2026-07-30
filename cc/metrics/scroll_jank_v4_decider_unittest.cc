@@ -11,8 +11,8 @@
 
 #include "base/strings/strcat.h"
 #include "base/time/time.h"
-#include "cc/metrics/event_metrics.h"
 #include "cc/metrics/scroll_jank_v4_frame.h"
+#include "cc/metrics/scroll_jank_v4_result.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -35,7 +35,6 @@ using NonDamagingFrame = ScrollJankV4Frame::NonDamagingFrame;
 using ScrollUpdates = ScrollJankV4FrameStage::ScrollUpdates;
 using Real = ScrollUpdates::Real;
 using Synthetic = ScrollUpdates::Synthetic;
-using ScrollJankV4Result = ScrollUpdateEventMetrics::ScrollJankV4Result;
 
 /* Matches a result iff `matcher` matches `result->missed_vsyncs_per_reason`. */
 ::testing::Matcher<const ScrollJankV4Result&> HasMissedVsyncsPerReasonMatching(
@@ -152,8 +151,8 @@ class ParameterizedScrollJankV4DeciderTest : public ScrollJankV4DeciderTest {
   //
   //    ```
   //    decider.DecideJankForFrameWithRealScrollUpdates(
-  //      ScrollUpdates(/* earliest_event= */ nullptr, Real{R}, /* synthetic= */
-  //      std::nullopt), DamagingFrame{D}, BeginFrameArgsForScrollJank{A});
+  //        ScrollUpdates(Real{R}, /* synthetic= */ std::nullopt),
+  //        DamagingFrame{D}, BeginFrameArgsForScrollJank{A});
   //    ```
   //
   // 2. If combined with the following frame type:
@@ -170,9 +169,10 @@ class ParameterizedScrollJankV4DeciderTest : public ScrollJankV4DeciderTest {
   //
   //    ```
   //    decider.DecideJankForFrameWithSyntheticScrollUpdatesOnly(
-  //      ScrollUpdates(/* earliest_event= */ nullptr, /* real= */ std::nullopt,
-  //      Synthetic{S}), NonDamagingFrame{}, BeginFrameArgsForScrollJank{A},
-  //      /* future_real_frame_is_fast_scroll_or_sufficiently_fast_fling= */ F);
+  //        ScrollUpdates(/* real= */ std::nullopt, Synthetic{S}),
+  //        NonDamagingFrame{}, BeginFrameArgsForScrollJank{A},
+  //        /* future_real_frame_is_fast_scroll_or_sufficiently_fast_fling= */
+  //            F);
   //    ```
   //
   // Note: All fields are declared as `std::optional` so that callers wouldn't
@@ -213,17 +213,15 @@ class ParameterizedScrollJankV4DeciderTest : public ScrollJankV4DeciderTest {
 
     if (frame_type.has_real_inputs) {
       return decider_.DecideJankForFrameWithRealScrollUpdates(
-          ScrollUpdates(
-              /* earliest_event= */ nullptr,
-              GET_FRAME_RECIPE_PARAM_OR_FAIL(if_real),
-              frame_type.has_synthetic_inputs
-                  ? std::make_optional(
-                        GET_FRAME_RECIPE_PARAM_OR_FAIL(if_synthetic))
-                  : std::nullopt),
+          ScrollUpdates(GET_FRAME_RECIPE_PARAM_OR_FAIL(if_real),
+                        frame_type.has_synthetic_inputs
+                            ? std::make_optional(
+                                  GET_FRAME_RECIPE_PARAM_OR_FAIL(if_synthetic))
+                            : std::nullopt),
           damage, args);
     }
     return decider_.DecideJankForFrameWithSyntheticScrollUpdatesOnly(
-        ScrollUpdates(/* earliest_event= */ nullptr, /* real= */ std::nullopt,
+        ScrollUpdates(/* real= */ std::nullopt,
                       GET_FRAME_RECIPE_PARAM_OR_FAIL(if_synthetic)),
         damage, args,
         GET_FRAME_RECIPE_PARAM_OR_FAIL(
@@ -600,8 +598,7 @@ F3(b):                    |--------------------------------------BF------|
 TEST_P(DoublyParameterizedScrollJankV4DeciderTest,
        MissedVsyncWhenInputWasPresent) {
   ScrollJankV4Result result1 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(103),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(103),
                          .last_input_generation_ts = MillisSinceEpoch(111),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 2.0f,
@@ -663,8 +660,7 @@ TEST_P(DoublyParameterizedScrollJankV4DeciderTest,
 // Regression test for https://crbug.com/404637348.
 TEST_F(ScrollJankV4DeciderTest, ScrollWithZeroVsyncs) {
   ScrollJankV4Result result1 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(103),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(103),
                          .last_input_generation_ts = MillisSinceEpoch(111),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 2.0f,
@@ -677,8 +673,7 @@ TEST_F(ScrollJankV4DeciderTest, ScrollWithZeroVsyncs) {
   // A malformed frame whose presentation timestamp is less than half a vsync
   // greater than than the previous frame's presentation timestamp.
   ScrollJankV4Result result2 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(119),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(119),
                          .last_input_generation_ts = MillisSinceEpoch(127),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 2.0f,
@@ -687,6 +682,36 @@ TEST_F(ScrollJankV4DeciderTest, ScrollWithZeroVsyncs) {
       ScrollDamage{DamagingFrame{.presentation_ts = MillisSinceEpoch(149)}},
       CreateBeginFrameArgs(MillisSinceEpoch(133)));
   EXPECT_THAT(result2, kHasNoMissedVsyncs);
+}
+
+// Regression test for https://crbug.com/466003353.
+TEST_F(ScrollJankV4DeciderTest, ScrollWithHugeNumberOfMissedVsyncs) {
+  ScrollJankV4Result result1 = decider_.DecideJankForFrameWithRealScrollUpdates(
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(3),
+                         .last_input_generation_ts = MillisSinceEpoch(11),
+                         .has_inertial_input = false,
+                         .abs_total_raw_delta_pixels = 2.0f,
+                         .max_abs_inertial_raw_delta_pixels = 0.0f},
+                    /* synthetic= */ std::nullopt),
+      ScrollDamage{DamagingFrame{.presentation_ts = MillisSinceEpoch(32)}},
+      CreateBeginFrameArgs(MillisSinceEpoch(16)));
+  EXPECT_THAT(result1, kHasNoMissedVsyncs);
+
+  ScrollJankV4Result result2 = decider_.DecideJankForFrameWithRealScrollUpdates(
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(19),
+                         .last_input_generation_ts = MillisSinceEpoch(27),
+                         .has_inertial_input = false,
+                         .abs_total_raw_delta_pixels = 2.0f,
+                         .max_abs_inertial_raw_delta_pixels = 0.0f},
+                    /* synthetic= */ std::nullopt),
+      ScrollDamage{DamagingFrame{.presentation_ts = MillisSinceEpoch(16032)}},
+      {.frame_time = MillisSinceEpoch(16016),
+       .interval = base::Microseconds(1)});
+  EXPECT_THAT(
+      result2,
+      HasMissedVsyncs(
+          JankReason::kMissedVsyncDueToDeceleratingInputFrameDelivery, 999999));
+  EXPECT_EQ(result2.vsyncs_since_previous_frame, 1000000);
 }
 
 /*
@@ -714,8 +739,7 @@ different scrolls), so the decider should NOT mark F2 as janky.
 TEST_F(ScrollJankV4DeciderTest, EvaluatesEachScrollSeparately) {
   // Scroll 1: First input took only 8 ms (half a VSync) to deliver.
   ScrollJankV4Result result1 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(108),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(108),
                          .last_input_generation_ts = MillisSinceEpoch(108),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 4.0f,
@@ -730,8 +754,7 @@ TEST_F(ScrollJankV4DeciderTest, EvaluatesEachScrollSeparately) {
 
   // Scroll 2: Inputs 2 and 3 took 40 ms (2.5 VSyncs) to deliver.
   ScrollJankV4Result result2 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(124),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(124),
                          .last_input_generation_ts = MillisSinceEpoch(124),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 4.0f,
@@ -741,8 +764,7 @@ TEST_F(ScrollJankV4DeciderTest, EvaluatesEachScrollSeparately) {
       CreateBeginFrameArgs(MillisSinceEpoch(148)));
   EXPECT_THAT(result2, kHasNoMissedVsyncs);
   ScrollJankV4Result result3 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(140),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(140),
                          .last_input_generation_ts = MillisSinceEpoch(140),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 4.0f,
@@ -760,8 +782,7 @@ Same as `EvaluatesEachScrollSeparately` but without a call to
 TEST_F(ScrollJankV4DeciderTest, EvaluatesEachScrollSeparatelyScrollStartOnly) {
   // Scroll 1: First input took only 8 ms (half a VSync) to deliver.
   ScrollJankV4Result result1 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(108),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(108),
                          .last_input_generation_ts = MillisSinceEpoch(108),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 4.0f,
@@ -775,8 +796,7 @@ TEST_F(ScrollJankV4DeciderTest, EvaluatesEachScrollSeparatelyScrollStartOnly) {
 
   // Scroll 2: Inputs 2 and 3 took 40 ms (2.5 VSyncs) to deliver.
   ScrollJankV4Result result2 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(124),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(124),
                          .last_input_generation_ts = MillisSinceEpoch(124),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 4.0f,
@@ -786,8 +806,7 @@ TEST_F(ScrollJankV4DeciderTest, EvaluatesEachScrollSeparatelyScrollStartOnly) {
       CreateBeginFrameArgs(MillisSinceEpoch(148)));
   EXPECT_THAT(result2, kHasNoMissedVsyncs);
   ScrollJankV4Result result3 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(140),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(140),
                          .last_input_generation_ts = MillisSinceEpoch(140),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 4.0f,
@@ -805,8 +824,7 @@ Same as `EvaluatesEachScrollSeparately` but without a call to
 TEST_F(ScrollJankV4DeciderTest, EvaluatesEachScrollSeparatelyScrollEndOnly) {
   // Scroll 1: First input took only 8 ms (half a VSync) to deliver.
   ScrollJankV4Result result1 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(108),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(108),
                          .last_input_generation_ts = MillisSinceEpoch(108),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 4.0f,
@@ -820,8 +838,7 @@ TEST_F(ScrollJankV4DeciderTest, EvaluatesEachScrollSeparatelyScrollEndOnly) {
 
   // Scroll 2: Inputs 2 and 3 took 40 ms (2.5 VSyncs) to deliver.
   ScrollJankV4Result result2 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(124),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(124),
                          .last_input_generation_ts = MillisSinceEpoch(124),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 4.0f,
@@ -831,8 +848,7 @@ TEST_F(ScrollJankV4DeciderTest, EvaluatesEachScrollSeparatelyScrollEndOnly) {
       CreateBeginFrameArgs(MillisSinceEpoch(148)));
   EXPECT_THAT(result2, kHasNoMissedVsyncs);
   ScrollJankV4Result result3 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(140),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(140),
                          .last_input_generation_ts = MillisSinceEpoch(140),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 4.0f,
@@ -868,8 +884,7 @@ TEST_P(SinglyParameterizedScrollJankV4DeciderTest,
        MissedVsyncLongAfterQuickInputFrameDelivery) {
   // First input took only 8 ms (half a VSync) to deliver.
   ScrollJankV4Result result1 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(108),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(108),
                          .last_input_generation_ts = MillisSinceEpoch(108),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 2.0f,
@@ -912,7 +927,6 @@ TEST_P(SinglyParameterizedScrollJankV4DeciderTest,
   ScrollJankV4Result result65 =
       decider_.DecideJankForFrameWithRealScrollUpdates(
           ScrollUpdates(
-              /* earliest_event= */ nullptr,
               Real{.first_input_generation_ts = MillisSinceEpoch(1132),
                    .last_input_generation_ts = MillisSinceEpoch(1132),
                    .has_inertial_input = false,
@@ -978,7 +992,6 @@ TEST_P(SinglyParameterizedScrollJankV4DeciderTest,
   ScrollJankV4Result result64 =
       decider_.DecideJankForFrameWithRealScrollUpdates(
           ScrollUpdates(
-              /* earliest_event= */ nullptr,
               Real{.first_input_generation_ts = MillisSinceEpoch(1116),
                    .last_input_generation_ts = MillisSinceEpoch(1116),
                    .has_inertial_input = false,
@@ -998,7 +1011,6 @@ TEST_P(SinglyParameterizedScrollJankV4DeciderTest,
   ScrollJankV4Result result65 =
       decider_.DecideJankForFrameWithRealScrollUpdates(
           ScrollUpdates(
-              /* earliest_event= */ nullptr,
               Real{.first_input_generation_ts = MillisSinceEpoch(1132),
                    .last_input_generation_ts = MillisSinceEpoch(1132),
                    .has_inertial_input = false,
@@ -1742,7 +1754,6 @@ TEST_P(ScrollJankV4DeciderRunningConsistentyTests,
   // F1: 164 - 108.1 = 55.9 ms delivery cutoff.
   ScrollJankV4Result result1 = decider_.DecideJankForFrameWithRealScrollUpdates(
       ScrollUpdates(
-          /* earliest_event= */ nullptr,
           Real{.first_input_generation_ts = MillisSinceEpoch(100),
                .last_input_generation_ts = MicrosSinceEpoch(108100),
                .has_inertial_input = false,
@@ -1755,8 +1766,7 @@ TEST_P(ScrollJankV4DeciderRunningConsistentyTests,
 
   // F2: 180 - 124 = 56 ms delivery cutoff.
   ScrollJankV4Result result2 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(116),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(116),
                          .last_input_generation_ts = MillisSinceEpoch(124),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 0.0f,
@@ -1769,7 +1779,6 @@ TEST_P(ScrollJankV4DeciderRunningConsistentyTests,
   // F3: 196 - 139.8 = 56.2 ms delivery cutoff
   ScrollJankV4Result result3 = decider_.DecideJankForFrameWithRealScrollUpdates(
       ScrollUpdates(
-          /* earliest_event= */ nullptr,
           Real{.first_input_generation_ts = MillisSinceEpoch(132),
                .last_input_generation_ts = MicrosSinceEpoch(139800),
                .has_inertial_input = false,
@@ -1811,8 +1820,7 @@ TEST_P(ScrollJankV4DeciderRunningConsistentyTests,
   // then the formula above resolves to floor(2.98) = 2, which means that F4
   // should be marked as JANKY with 2 missed VSyncs.
   ScrollJankV4Result result4 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = params.input_ts,
+      ScrollUpdates(Real{.first_input_generation_ts = params.input_ts,
                          .last_input_generation_ts = params.input_ts,
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 0.0f,
@@ -1902,8 +1910,7 @@ at least 0.2 px absolute scroll delta), the decider should mark F5 as janky with
  */
 TEST_F(ScrollJankV4DeciderTest, JankyNonDamagingFrames) {
   ScrollJankV4Result result1 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(103),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(103),
                          .last_input_generation_ts = MillisSinceEpoch(111),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 5.0f,
@@ -1914,8 +1921,7 @@ TEST_F(ScrollJankV4DeciderTest, JankyNonDamagingFrames) {
   EXPECT_THAT(result1, kHasNoMissedVsyncs);
 
   ScrollJankV4Result result2 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(119),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(119),
                          .last_input_generation_ts = MillisSinceEpoch(127),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 5.0f,
@@ -1926,8 +1932,7 @@ TEST_F(ScrollJankV4DeciderTest, JankyNonDamagingFrames) {
   EXPECT_THAT(result2, kHasNoMissedVsyncs);
 
   ScrollJankV4Result result3 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(151),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(151),
                          .last_input_generation_ts = MillisSinceEpoch(159),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 5.0f,
@@ -1939,8 +1944,7 @@ TEST_F(ScrollJankV4DeciderTest, JankyNonDamagingFrames) {
               HasMissedVsyncs(JankReason::kMissedVsyncDuringFastScroll, 1));
 
   ScrollJankV4Result result4 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(196),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(196),
                          .last_input_generation_ts = MillisSinceEpoch(196),
                          .has_inertial_input = true,
                          .abs_total_raw_delta_pixels = 2.0f,
@@ -1951,8 +1955,7 @@ TEST_F(ScrollJankV4DeciderTest, JankyNonDamagingFrames) {
   EXPECT_THAT(result4, kHasNoMissedVsyncs);
 
   ScrollJankV4Result result5 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(244),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(244),
                          .last_input_generation_ts = MillisSinceEpoch(244),
                          .has_inertial_input = true,
                          .abs_total_raw_delta_pixels = 2.0f,
@@ -1963,8 +1966,7 @@ TEST_F(ScrollJankV4DeciderTest, JankyNonDamagingFrames) {
   EXPECT_THAT(result5, HasMissedVsyncs(JankReason::kMissedVsyncDuringFling, 2));
 
   ScrollJankV4Result result6 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(260),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(260),
                          .last_input_generation_ts = MillisSinceEpoch(260),
                          .has_inertial_input = true,
                          .abs_total_raw_delta_pixels = 2.0f,
@@ -1996,8 +1998,7 @@ I8 should have been included in the begin frame that started at V7.
 TEST_F(ScrollJankV4DeciderTest,
        JankyNonDamagingFramesViolatingRunningConsistency) {
   ScrollJankV4Result result1 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(103),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(103),
                          .last_input_generation_ts = MillisSinceEpoch(111),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 0.1f,
@@ -2008,8 +2009,7 @@ TEST_F(ScrollJankV4DeciderTest,
   EXPECT_THAT(result1, kHasNoMissedVsyncs);
 
   ScrollJankV4Result result2 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(119),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(119),
                          .last_input_generation_ts = MillisSinceEpoch(127),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 0.1f,
@@ -2023,8 +2023,7 @@ TEST_F(ScrollJankV4DeciderTest,
           JankReason::kMissedVsyncDueToDeceleratingInputFrameDelivery, 1));
 
   ScrollJankV4Result result3 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(151),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(151),
                          .last_input_generation_ts = MillisSinceEpoch(159),
                          .has_inertial_input = true,
                          .abs_total_raw_delta_pixels = 0.1f,
@@ -2035,8 +2034,7 @@ TEST_F(ScrollJankV4DeciderTest,
   EXPECT_THAT(result3, kHasNoMissedVsyncs);
 
   ScrollJankV4Result result4 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(167),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(167),
                          .last_input_generation_ts = MillisSinceEpoch(175),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 0.1f,
@@ -2047,8 +2045,7 @@ TEST_F(ScrollJankV4DeciderTest,
   EXPECT_THAT(result4, kHasNoMissedVsyncs);
 
   ScrollJankV4Result result5 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(183),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(183),
                          .last_input_generation_ts = MillisSinceEpoch(191),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 0.1f,
@@ -2083,8 +2080,7 @@ real inputs 1 VSync earlier.
 TEST_F(ScrollJankV4DeciderTest,
        BothRealAndSyntheticFrameJankyDueToRealScrollUpdates) {
   ScrollJankV4Result result1 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(103),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(103),
                          .last_input_generation_ts = MillisSinceEpoch(111),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 2.0f,
@@ -2096,7 +2092,6 @@ TEST_F(ScrollJankV4DeciderTest,
 
   ScrollJankV4Result result2 = decider_.DecideJankForFrameWithRealScrollUpdates(
       ScrollUpdates(
-          /* earliest_event= */ nullptr,
           Real{.first_input_generation_ts = MillisSinceEpoch(119),
                .last_input_generation_ts = MillisSinceEpoch(127),
                .has_inertial_input = false,
@@ -2136,8 +2131,7 @@ missed VSync.
 TEST_F(ScrollJankV4DeciderTest,
        BothRealAndSyntheticFrameJankyDueToRealSyntheticUpdates) {
   ScrollJankV4Result result1 = decider_.DecideJankForFrameWithRealScrollUpdates(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{.first_input_generation_ts = MillisSinceEpoch(103),
+      ScrollUpdates(Real{.first_input_generation_ts = MillisSinceEpoch(103),
                          .last_input_generation_ts = MillisSinceEpoch(111),
                          .has_inertial_input = false,
                          .abs_total_raw_delta_pixels = 2.0f,
@@ -2149,7 +2143,6 @@ TEST_F(ScrollJankV4DeciderTest,
 
   ScrollJankV4Result result2 = decider_.DecideJankForFrameWithRealScrollUpdates(
       ScrollUpdates(
-          /* earliest_event= */ nullptr,
           Real{.first_input_generation_ts = MillisSinceEpoch(135),
                .last_input_generation_ts = MillisSinceEpoch(143),
                .has_inertial_input = false,
@@ -2167,7 +2160,6 @@ TEST_F(ScrollJankV4DeciderTest,
 TEST_F(ScrollJankV4DeciderTest, IsValidFrame) {
   EXPECT_TRUE(ScrollJankV4Decider::IsValidFrame(
       ScrollUpdates(
-          /* earliest_event= */ nullptr,
           Real{
               .first_input_generation_ts = MillisSinceEpoch(80),
               .last_input_generation_ts = MillisSinceEpoch(80),
@@ -2182,7 +2174,6 @@ TEST_F(ScrollJankV4DeciderTest,
   // Violates `args.frame_time < presentation_ts`.
   EXPECT_FALSE(ScrollJankV4Decider::IsValidFrame(
       ScrollUpdates(
-          /* earliest_event= */ nullptr,
           Real{
               .first_input_generation_ts = MillisSinceEpoch(80),
               .last_input_generation_ts = MillisSinceEpoch(80),
@@ -2197,7 +2188,6 @@ TEST_F(ScrollJankV4DeciderTest,
   // Real update violates `last_input_generation_ts < presentation_ts`.
   EXPECT_FALSE(ScrollJankV4Decider::IsValidFrame(
       ScrollUpdates(
-          /* earliest_event= */ nullptr,
           Real{
               .first_input_generation_ts = MillisSinceEpoch(80),
               .last_input_generation_ts = MillisSinceEpoch(101),
@@ -2211,14 +2201,14 @@ TEST_F(ScrollJankV4DeciderTest,
        IsNotValidFrameWithInputBeginFrameAfterPresentation) {
   // Synthetic update violates `first_input_begin_frame_ts < presentation_ts`.
   EXPECT_FALSE(ScrollJankV4Decider::IsValidFrame(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{
-                        .first_input_generation_ts = MillisSinceEpoch(80),
-                        .last_input_generation_ts = MillisSinceEpoch(80),
-                    },
-                    Synthetic{
-                        .first_input_begin_frame_ts = MillisSinceEpoch(101),
-                    }),
+      ScrollUpdates(
+          Real{
+              .first_input_generation_ts = MillisSinceEpoch(80),
+              .last_input_generation_ts = MillisSinceEpoch(80),
+          },
+          Synthetic{
+              .first_input_begin_frame_ts = MillisSinceEpoch(101),
+          }),
       DamagingFrame{.presentation_ts = MillisSinceEpoch(100)},
       CreateBeginFrameArgs(MillisSinceEpoch(90))));
 }
@@ -2228,7 +2218,6 @@ TEST_F(ScrollJankV4DeciderTest, IsNotValidFrameWithFirstInputAfterLastInput) {
   // `first_input_generation_ts <= last_input_generation_ts`.
   EXPECT_FALSE(ScrollJankV4Decider::IsValidFrame(
       ScrollUpdates(
-          /* earliest_event= */ nullptr,
           Real{
               .first_input_generation_ts = MillisSinceEpoch(81),
               .last_input_generation_ts = MillisSinceEpoch(80),
@@ -2242,16 +2231,40 @@ TEST_F(ScrollJankV4DeciderTest,
        IsNotValidFrameWithFirstInputBeginFrameAfterArgsFrameTime) {
   // Synthetic update violates `first_input_begin_frame_ts <= args.frame_time`.
   EXPECT_FALSE(ScrollJankV4Decider::IsValidFrame(
-      ScrollUpdates(/* earliest_event= */ nullptr,
-                    Real{
-                        .first_input_generation_ts = MillisSinceEpoch(80),
-                        .last_input_generation_ts = MillisSinceEpoch(80),
-                    },
-                    Synthetic{
-                        .first_input_begin_frame_ts = MillisSinceEpoch(91),
-                    }),
+      ScrollUpdates(
+          Real{
+              .first_input_generation_ts = MillisSinceEpoch(80),
+              .last_input_generation_ts = MillisSinceEpoch(80),
+          },
+          Synthetic{
+              .first_input_begin_frame_ts = MillisSinceEpoch(91),
+          }),
       DamagingFrame{.presentation_ts = MillisSinceEpoch(100)},
       CreateBeginFrameArgs(MillisSinceEpoch(90))));
+}
+
+TEST_F(ScrollJankV4DeciderTest, IsNotValidFrameWithZeroInterval) {
+  EXPECT_FALSE(ScrollJankV4Decider::IsValidFrame(
+      ScrollUpdates(
+          Real{
+              .first_input_generation_ts = MillisSinceEpoch(80),
+              .last_input_generation_ts = MillisSinceEpoch(80),
+          },
+          Synthetic{.first_input_begin_frame_ts = MillisSinceEpoch(80)}),
+      DamagingFrame{.presentation_ts = MillisSinceEpoch(100)},
+      {.frame_time = MillisSinceEpoch(90), .interval = base::TimeDelta()}));
+}
+
+TEST_F(ScrollJankV4DeciderTest, IsNotValidFrameWithNegativeInterval) {
+  EXPECT_FALSE(ScrollJankV4Decider::IsValidFrame(
+      ScrollUpdates(
+          Real{
+              .first_input_generation_ts = MillisSinceEpoch(80),
+              .last_input_generation_ts = MillisSinceEpoch(80),
+          },
+          Synthetic{.first_input_begin_frame_ts = MillisSinceEpoch(80)}),
+      DamagingFrame{.presentation_ts = MillisSinceEpoch(100)},
+      {.frame_time = MillisSinceEpoch(90), .interval = -kVsyncInterval}));
 }
 
 TEST_F(ScrollJankV4DeciderTest, IsFastScroll) {

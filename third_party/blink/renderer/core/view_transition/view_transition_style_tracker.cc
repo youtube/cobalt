@@ -11,6 +11,7 @@
 #include "base/containers/contains.h"
 #include "cc/base/features.h"
 #include "components/viz/common/view_transition_element_resource_id.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/resources/grit/blink_resources.h"
 #include "third_party/blink/renderer/core/animation/element_animations.h"
 #include "third_party/blink/renderer/core/animation/property_handle.h"
@@ -1095,17 +1096,18 @@ VectorOf<Element> ViewTransitionStyleTracker::GetTransitioningElements() const {
   return result;
 }
 
-const Vector<AtomicString>&
+const Vector<AtomicString>
 ViewTransitionStyleTracker::GetViewTransitionClassList(
     const AtomicString& name) const {
-  CHECK(element_data_map_.Contains(name));
+  if (!element_data_map_.Contains(name)) {
+    return Vector<AtomicString>();
+  }
   return element_data_map_.at(name)->class_list;
 }
 
 const AtomicString& ViewTransitionStyleTracker::GetContainingGroupName(
     const AtomicString& name) const {
-  if (!RuntimeEnabledFeatures::NestedViewTransitionEnabled() ||
-      state_ != State::kStarted) {
+  if (state_ != State::kStarted) {
     return g_null_atom;
   }
 
@@ -1576,10 +1578,8 @@ bool ViewTransitionStyleTracker::RunPostPrePaintStepsForElement(
     capture_property(id, css_property_builder);
   }
 
-  if (RuntimeEnabledFeatures::NestedViewTransitionEnabled()) {
-    for (CSSPropertyID id : kPropertiesToCaptureOnGroupChildren) {
-      capture_property(id, group_children_css_property_builder);
-    }
+  for (CSSPropertyID id : kPropertiesToCaptureOnGroupChildren) {
+    capture_property(id, group_children_css_property_builder);
   }
 
   auto css_properties = std::move(css_property_builder).Finish();
@@ -1744,14 +1744,12 @@ gfx::Transform ViewTransitionStyleTracker::ComputeTransformForParticipant(
       << first_fragment.PaintOffset();
   auto paint_properties = first_fragment.LocalBorderBoxProperties();
 
-  LayoutBox* scope_box = object.GetDocument().GetLayoutView();
-  if (RuntimeEnabledFeatures::ScopedViewTransitionsEnabled()) {
-    auto* scope = OriginatingElement();
-    scope_box = scope->IsDocumentElement()
-                    ? scope->GetDocument().GetLayoutView()
-                    : DynamicTo<LayoutBox>(scope->GetLayoutObject());
-    CHECK(scope_box);
-  }
+  auto* scope = OriginatingElement();
+  LayoutBox* scope_box = scope->IsDocumentElement()
+                             ? scope->GetDocument().GetLayoutView()
+                             : DynamicTo<LayoutBox>(scope->GetLayoutObject());
+  CHECK(scope_box);
+
   auto& scope_fragment = scope_box->FirstFragment();
   const auto& scope_properties = scope_fragment.LocalBorderBoxProperties();
 
@@ -1768,13 +1766,13 @@ gfx::Transform ViewTransitionStyleTracker::ComputeTransformForParticipant(
         gfx::Vector2dF(layout_inline->PhysicalLinesBoundingBox().offset));
   }
 
-  if (RuntimeEnabledFeatures::ScopedViewTransitionsEnabled() &&
-      !scope_box->IsLayoutView()) {
+  if (!scope_box->IsLayoutView()) {
+    DCHECK(RuntimeEnabledFeatures::ScopedViewTransitionsEnabled());
+
     // TODO(crbug.com/394052227): Should we force compositing on the scope?
     // If we do, its paint offset will always be zero.
 
     // Adjust for the scope element's borders and scrollbars.
-    // TODO(crbug.com/394052227): Is this correct in RTL / all writing modes?
     transform.Translate(-scope_box->ClientLeft(), -scope_box->ClientTop());
     transform.Translate(-gfx::Vector2dF(scope_fragment.PaintOffset()));
   }
@@ -1835,8 +1833,8 @@ PaintPropertyChangeType ViewTransitionStyleTracker::UpdateCaptureClip(
       element_data->clip_node =
           ClipPaintPropertyNode::Create(*current_clip, std::move(state));
 #if DCHECK_IS_ON()
-      element_data->clip_node->SetDebugName(element.DebugName() +
-                                            "ViewTransition");
+      element_data->clip_node->SetDebugName(
+          StrCat({element.DebugName(), "ViewTransition"}));
 #endif
       return PaintPropertyChangeType::kNodeAddedOrRemoved;
     }
@@ -2102,6 +2100,10 @@ ViewTransitionState ViewTransitionStyleTracker::GetViewTransitionState() const {
 
   // TODO(khushalsagar): Need to send offsets to retain positioning of
   // ::view-transition.
+
+  transition_state.delay_layer_tree_view_deletion_ =
+      base::FeatureList::IsEnabled(
+          blink::features::kDelayLayerTreeViewDeletionOnLocalSwap);
 
   return transition_state;
 }

@@ -5,10 +5,12 @@
 package org.chromium.chrome.browser.ntp_customization.theme.theme_collections;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -30,9 +32,11 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.Callback;
+import org.chromium.base.test.BaseRobolectricTestRule;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
+import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.image_fetcher.ImageFetcher;
@@ -45,11 +49,14 @@ import java.util.List;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class NtpThemeCollectionManagerUnitTest {
+    public static final long NATIVE_NTP_THEME_COLLECTION_BRIDGE = 1L;
+
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
+
     @Mock private Profile mProfile;
     @Mock private ImageFetcher mImageFetcher;
     @Mock private NtpThemeCollectionBridge.Natives mNatives;
-    @Mock private Runnable mOnThemeImageSelectedCallback;
+    @Mock private Callback<Bitmap> mOnThemeImageSelectedCallback;
     @Mock private NtpCustomizationConfigManager mNtpCustomizationConfigManager;
 
     @Captor private ArgumentCaptor<Callback<Bitmap>> mBitmapCallbackCaptor;
@@ -62,7 +69,7 @@ public class NtpThemeCollectionManagerUnitTest {
         mContext = ApplicationProvider.getApplicationContext();
         NtpCustomizationUtils.setImageFetcherForTesting(mImageFetcher);
         NtpThemeCollectionBridgeJni.setInstanceForTesting(mNatives);
-        when(mNatives.init(any(), any())).thenReturn(1L);
+        when(mNatives.init(any(), any())).thenReturn(NATIVE_NTP_THEME_COLLECTION_BRIDGE);
         NtpCustomizationConfigManager.setInstanceForTesting(mNtpCustomizationConfigManager);
         NtpCustomizationUtils.resetSharedPreferenceForTesting();
     }
@@ -94,10 +101,64 @@ public class NtpThemeCollectionManagerUnitTest {
         verify(mImageFetcher).fetchImage(any(), mBitmapCallbackCaptor.capture());
         mBitmapCallbackCaptor.getValue().onResult(bitmap);
 
-        verify(mOnThemeImageSelectedCallback).run();
+        // This is needed for the async task inside
+        // saveBackgroundInfoForThemeCollectionOrUploadedImage
+        BaseRobolectricTestRule.runAllBackgroundAndUi();
+
+        verify(mOnThemeImageSelectedCallback).onResult(eq(bitmap));
         verify(mNtpCustomizationConfigManager)
                 .onThemeCollectionImageSelected(
                         eq(bitmap), eq(info), any(BackgroundImageInfo.class));
+        // Verifying side effects of
+        // NtpCustomizationUtils.saveBackgroundInfoForThemeCollectionOrUploadedImage
+        assertTrue(NtpCustomizationUtils.createBackgroundImageFile().exists());
+        assertEquals(
+                info.collectionId,
+                NtpCustomizationUtils.getCustomBackgroundInfoFromSharedPreference().collectionId);
+        assertNotNull(NtpCustomizationUtils.readNtpBackgroundImageInfo());
+        // Color picking is postponed.
+        assertEquals(
+                NtpThemeColorInfo.COLOR_NOT_SET,
+                NtpCustomizationUtils.getCustomizedPrimaryColorFromSharedPreference());
+    }
+
+    @Test
+    public void testOnCustomBackgroundImageUpdated_saveNextImageForDailyRefresh() {
+        mNtpThemeCollectionManager =
+                new NtpThemeCollectionManager(mContext, mProfile, mOnThemeImageSelectedCallback);
+        // Set up current state: daily refresh is on for "collectionId".
+        CustomBackgroundInfo currentInfo =
+                new CustomBackgroundInfo(
+                        JUnitTestGURLs.URL_1,
+                        /* collectionId= */ "collectionId",
+                        /* isUploadedImage= */ false,
+                        /* isDailyRefreshEnabled= */ true);
+        when(mNtpCustomizationConfigManager.getBackgroundImageType())
+                .thenReturn(NtpCustomizationUtils.NtpBackgroundImageType.THEME_COLLECTION);
+        when(mNtpCustomizationConfigManager.getCustomBackgroundInfo()).thenReturn(currentInfo);
+
+        // A new image for the same collection arrives (simulating the pre-fetched image).
+        CustomBackgroundInfo nextInfo =
+                new CustomBackgroundInfo(
+                        JUnitTestGURLs.URL_2,
+                        /* collectionId= */ "collectionId",
+                        /* isUploadedImage= */ false,
+                        /* isDailyRefreshEnabled= */ true);
+        Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+
+        mNtpThemeCollectionManager.onCustomBackgroundImageUpdated(nextInfo);
+
+        verify(mImageFetcher).fetchImage(any(), mBitmapCallbackCaptor.capture());
+        mBitmapCallbackCaptor.getValue().onResult(bitmap);
+        BaseRobolectricTestRule.runAllBackgroundAndUi();
+
+        // Verify it saves for daily refresh and does NOT apply it immediately.
+        assertTrue(NtpCustomizationUtils.createDailyRefreshBackgroundImageFile().exists());
+        assertNotNull(
+                NtpCustomizationUtils.getDailyRefreshCustomBackgroundInfoFromSharedPreference());
+        verify(mNtpCustomizationConfigManager, never())
+                .onThemeCollectionImageSelected(any(), any(), any());
+        verify(mOnThemeImageSelectedCallback, never()).onResult(any());
     }
 
     @Test
@@ -139,7 +200,7 @@ public class NtpThemeCollectionManagerUnitTest {
         mNtpThemeCollectionManager.setThemeCollectionImage(image);
         verify(mNatives)
                 .setThemeCollectionImage(
-                        1L,
+                        NATIVE_NTP_THEME_COLLECTION_BRIDGE,
                         "collectionId",
                         JUnitTestGURLs.URL_1,
                         JUnitTestGURLs.URL_2,
@@ -153,15 +214,69 @@ public class NtpThemeCollectionManagerUnitTest {
         mNtpThemeCollectionManager =
                 new NtpThemeCollectionManager(mContext, mProfile, mOnThemeImageSelectedCallback);
         mNtpThemeCollectionManager.selectLocalBackgroundImage();
-        verify(mNatives).selectLocalBackgroundImage(1L);
+        verify(mNatives).selectLocalBackgroundImage(NATIVE_NTP_THEME_COLLECTION_BRIDGE);
     }
 
     @Test
     public void testSetThemeCollectionDailyRefreshed() {
         mNtpThemeCollectionManager =
                 new NtpThemeCollectionManager(mContext, mProfile, mOnThemeImageSelectedCallback);
-        String collectionId = "test_id";
+
+        // 1. User enables daily refresh. This sets the runnable.
+        String collectionId = "collectionId";
         mNtpThemeCollectionManager.setThemeCollectionDailyRefreshed(collectionId);
-        verify(mNatives).setThemeCollectionDailyRefreshed(eq(1L), eq(collectionId));
+        verify(mNatives)
+                .setThemeCollectionDailyRefreshed(
+                        eq(NATIVE_NTP_THEME_COLLECTION_BRIDGE), eq(collectionId));
+
+        // 2. The first image for the collection arrives.
+        GURL backgroundUrl = JUnitTestGURLs.URL_1;
+        CustomBackgroundInfo info =
+                new CustomBackgroundInfo(
+                        backgroundUrl,
+                        collectionId,
+                        /* isUploadedImage= */ false,
+                        /* isDailyRefreshEnabled= */ true);
+        Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+
+        // Mock config manager so isNextThemeCollectionImage returns false. This simulates the
+        // first image for a collection arriving, not the prefetched "next day" image.
+        when(mNtpCustomizationConfigManager.getBackgroundImageType())
+                .thenReturn(NtpCustomizationUtils.NtpBackgroundImageType.DEFAULT);
+
+        mNtpThemeCollectionManager.onCustomBackgroundImageUpdated(info);
+
+        verify(mImageFetcher).fetchImage(any(), mBitmapCallbackCaptor.capture());
+        mBitmapCallbackCaptor.getValue().onResult(bitmap);
+        BaseRobolectricTestRule.runAllBackgroundAndUi();
+
+        // 3. Verify the theme was set for today.
+        verify(mOnThemeImageSelectedCallback).onResult(eq(bitmap));
+        verify(mNtpCustomizationConfigManager)
+                .onThemeCollectionImageSelected(
+                        eq(bitmap), eq(info), any(BackgroundImageInfo.class));
+        assertTrue(NtpCustomizationUtils.createBackgroundImageFile().exists());
+
+        // 4. Verify the runnable was executed to fetch the next image for tomorrow.
+        verify(mNatives).fetchNextThemeCollectionImage(eq(NATIVE_NTP_THEME_COLLECTION_BRIDGE));
+    }
+
+    @Test
+    public void testOnCustomBackgroundImageUpdated_destroyed() {
+        mNtpThemeCollectionManager =
+                new NtpThemeCollectionManager(mContext, mProfile, mOnThemeImageSelectedCallback);
+        GURL backgroundUrl = JUnitTestGURLs.URL_1;
+        CustomBackgroundInfo info =
+                new CustomBackgroundInfo(backgroundUrl, "collectionId", false, true);
+        Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+
+        mNtpThemeCollectionManager.onCustomBackgroundImageUpdated(info);
+
+        verify(mImageFetcher).fetchImage(any(), mBitmapCallbackCaptor.capture());
+        mNtpThemeCollectionManager.destroy();
+        mBitmapCallbackCaptor.getValue().onResult(bitmap);
+        verify(mOnThemeImageSelectedCallback, never()).onResult(any());
+        verify(mNtpCustomizationConfigManager, never())
+                .onThemeCollectionImageSelected(any(), any(), any());
     }
 }

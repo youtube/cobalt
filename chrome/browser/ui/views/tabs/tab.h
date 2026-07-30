@@ -190,13 +190,13 @@ class Tab : public gfx::AnimationDelegate,
       const std::u16string& title,
       std::optional<tabs::TabAlert> alert_state);
 
-  // Returns an alert state to be shown among given alert states.
-  static std::optional<tabs::TabAlert> GetAlertStateToShow(
-      const std::vector<tabs::TabAlert>& alert_states);
-
   bool showing_close_button_for_testing() const {
     return showing_close_button_;
   }
+
+  bool showing_icon() const { return showing_icon_; }
+  bool showing_alert_indicator() const { return showing_alert_indicator_; }
+  bool showing_close_button() const { return showing_close_button_; }
 
   raw_ptr<TabCloseButton> close_button() { return close_button_; }
 

@@ -117,6 +117,7 @@
 <translation id="3581385059720151202">‏البحث عن العناصر المرئية في Chromium</translation>
 <translation id="3582640969619785896">‏سيعرض Chromium خيار حفظ كلمة المرور</translation>
 <translation id="3594315078412605236">‏إدارة "طرق الدفع" في Chromium</translation>
+<translation id="3600428265489994557">‏سجِّل الدخول إلى Chromium</translation>
 <translation id="3617143087229977194">‏يُرجى فتح إعدادات "التطبيقات التلقائية" في نظام التشغيل iOS، ثم النقر على "تطبيق المتصفّح" واختيار Chromium.</translation>
 <translation id="3634039384458740619">‏فتح إعدادات Chromium</translation>
 <translation id="3639997914391704523">‏يجب تسجيل الدخول إلى حسابك على Google ليتمكّن Chromium من التحقُّق من كلمات المرور.</translation>
@@ -351,7 +352,6 @@
 <translation id="900560297598578021">‏تم تسجيل الدخول بحساب <ph name="EMAIL" />.
 
 وتم تشفير بياناتك باستخدام عبارة المرور في ‎<ph name="TIME" />. عليك إدخال عبارة المرور لاستخدام بيانات Chromium وحفظها في حسابك على Google.</translation>
-<translation id="9022552996538154597">‏تسجيل الدخول إلى Chromium</translation>
 <translation id="9031260906956926157">‏لم يتم حفظ بعض بيانات Chromium في حسابك على Google إلى الآن.
 يُرجى الانتظار بضع دقائق قبل تسجيل الخروج. إذا سجَّلت الخروج الآن، فسيتم حذف هذه البيانات.</translation>
 <translation id="9050790730841755540">‏يؤدي هذا الإعداد إلى فتح Chromium عند النقر على الروابط في التطبيقات الأخرى.</translation>

@@ -1874,6 +1874,132 @@ TEST_F(LayerContextImplUpdateDisplayTreeTileDisplayLayerPropertiesTest,
   EXPECT_FALSE(tile_display_layer_impl->nearest_neighbor());
 }
 
+TEST_F(LayerContextImplUpdateDisplayTreeTileDisplayLayerPropertiesTest,
+       UpdateContentColorUsage) {
+  constexpr int kLayerId = 2;
+
+  // Initial update: Create TileDisplayLayer with default properties.
+  auto update1 = CreateDefaultUpdate();
+  AddDefaultLayerToUpdate(update1.get(), cc::mojom::LayerType::kTileDisplay,
+                          kLayerId);
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  cc::LayerImpl* layer_impl_base = GetLayerFromActiveTree(kLayerId);
+  ASSERT_NE(nullptr, layer_impl_base);
+  ASSERT_EQ(layer_impl_base->GetLayerType(),
+            cc::mojom::LayerType::kTileDisplay);
+  auto* tile_display_layer_impl =
+      static_cast<cc::TileDisplayLayerImpl*>(layer_impl_base);
+
+  EXPECT_EQ(tile_display_layer_impl->GetContentColorUsage(),
+            gfx::ContentColorUsage::kSRGB);
+
+  // Second update: Set content_color_usage to kHDR.
+  auto update2 = CreateDefaultUpdate();
+  auto layer_props2 =
+      CreateManualLayer(kLayerId, cc::mojom::LayerType::kTileDisplay);
+  auto tile_extra2 = mojom::TileDisplayLayerExtra::New();
+  tile_extra2->content_color_usage = gfx::ContentColorUsage::kHDR;
+  layer_props2->layer_extra =
+      mojom::LayerExtra::NewTileDisplayLayerExtra(std::move(tile_extra2));
+  update2->layers.push_back(std::move(layer_props2));
+
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update2)).has_value());
+
+  EXPECT_EQ(tile_display_layer_impl->GetContentColorUsage(),
+            gfx::ContentColorUsage::kHDR);
+
+  // Third update: Set content_color_usage to kWideColorGamut.
+  auto update3 = CreateDefaultUpdate();
+  auto layer_props3 =
+      CreateManualLayer(kLayerId, cc::mojom::LayerType::kTileDisplay);
+  auto tile_extra3 = mojom::TileDisplayLayerExtra::New();
+  tile_extra3->content_color_usage = gfx::ContentColorUsage::kWideColorGamut;
+  layer_props3->layer_extra =
+      mojom::LayerExtra::NewTileDisplayLayerExtra(std::move(tile_extra3));
+  update3->layers.push_back(std::move(layer_props3));
+
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update3)).has_value());
+
+  EXPECT_EQ(tile_display_layer_impl->GetContentColorUsage(),
+            gfx::ContentColorUsage::kWideColorGamut);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTileDisplayLayerPropertiesTest,
+       UpdateRecordedBounds) {
+  constexpr int kLayerId = 2;
+  const gfx::Rect kBounds1(10, 20, 30, 40);
+
+  // Initial update: Create TileDisplayLayer with default properties.
+  auto update1 = CreateDefaultUpdate();
+  AddDefaultLayerToUpdate(update1.get(), cc::mojom::LayerType::kTileDisplay,
+                          kLayerId);
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  cc::LayerImpl* layer_impl_base = GetLayerFromActiveTree(kLayerId);
+  ASSERT_NE(nullptr, layer_impl_base);
+  ASSERT_EQ(layer_impl_base->GetLayerType(),
+            cc::mojom::LayerType::kTileDisplay);
+
+  // Second update: Set recorded_bounds to kBounds1.
+  auto update2 = CreateDefaultUpdate();
+  auto layer_props2 =
+      CreateManualLayer(kLayerId, cc::mojom::LayerType::kTileDisplay);
+  auto tile_extra2 = mojom::TileDisplayLayerExtra::New();
+  tile_extra2->recorded_bounds = kBounds1;
+  layer_props2->layer_extra =
+      mojom::LayerExtra::NewTileDisplayLayerExtra(std::move(tile_extra2));
+  update2->layers.push_back(std::move(layer_props2));
+
+  auto* tile_display_layer_impl =
+      static_cast<cc::TileDisplayLayerImpl*>(layer_impl_base);
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update2)).has_value());
+  EXPECT_EQ(tile_display_layer_impl->recorded_bounds_for_testing(), kBounds1);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTileDisplayLayerPropertiesTest,
+       UpdateProposedTilingScalesForDeletion) {
+  constexpr int kLayerId = 2;
+  const std::vector<float> kScales1 = {1.0f, 2.0f};
+
+  // Initial update: Create TileDisplayLayer with default properties.
+  auto update1 = CreateDefaultUpdate();
+  AddDefaultLayerToUpdate(update1.get(), cc::mojom::LayerType::kTileDisplay,
+                          kLayerId);
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+  cc::LayerImpl* layer_impl_base = GetLayerFromActiveTree(kLayerId);
+  ASSERT_NE(nullptr, layer_impl_base);
+  ASSERT_EQ(layer_impl_base->GetLayerType(),
+            cc::mojom::LayerType::kTileDisplay);
+  auto* tile_display_layer_impl =
+      static_cast<cc::TileDisplayLayerImpl*>(layer_impl_base);
+  EXPECT_TRUE(
+      tile_display_layer_impl->proposed_tiling_scales_for_deletion_for_testing()
+          .empty());
+
+  // Second update: Set proposed_tiling_scales_for_deletion to kScales1.
+  auto update2 = CreateDefaultUpdate();
+  auto layer_props2 =
+      CreateManualLayer(kLayerId, cc::mojom::LayerType::kTileDisplay);
+  auto tile_extra2 = mojom::TileDisplayLayerExtra::New();
+  tile_extra2->proposed_tiling_scales_for_deletion = kScales1;
+  layer_props2->layer_extra =
+      mojom::LayerExtra::NewTileDisplayLayerExtra(std::move(tile_extra2));
+  update2->layers.push_back(std::move(layer_props2));
+
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update2)).has_value());
+  EXPECT_EQ(tile_display_layer_impl
+                ->proposed_tiling_scales_for_deletion_for_testing(),
+            kScales1);
+}
+
 TEST_F(LayerContextImplUpdateDisplayTreeTilingTest, TilingAndTileLifecycle) {
   constexpr int kLayerId = 2;
   constexpr float kScaleKey1 = 1.0f;
@@ -3033,10 +3159,10 @@ TEST_F(LayerContextImplUpdateDisplayTreeNinePatchThumbScrollbarLayerTest,
   ASSERT_NE(nullptr, layer_impl);
   EXPECT_EQ(layer_impl->thumb_thickness(),
             kDefaultNinePatchThumbScrollbarThumbThickness);
-  EXPECT_EQ(layer_impl->thumb_length(),
+  EXPECT_EQ(layer_impl->minimum_thumb_length(),
             kDefaultNinePatchThumbScrollbarThumbLength);
 
-  // Second update: Update thumb_thickness and thumb_length.
+  // Second update: Update thumb_thickness and minimum_thumb_length.
   auto update2 = CreateDefaultUpdate();
   auto layer_props2 = CreateManualLayer(
       kScrollbarLayerId, cc::mojom::LayerType::kNinePatchThumbScrollbar,
@@ -3044,13 +3170,13 @@ TEST_F(LayerContextImplUpdateDisplayTreeNinePatchThumbScrollbarLayerTest,
   auto& scrollbar_extra2 =
       layer_props2->layer_extra->get_nine_patch_thumb_scrollbar_layer_extra();
   scrollbar_extra2->thumb_thickness = 5;
-  scrollbar_extra2->thumb_length = 20;
+  scrollbar_extra2->minimum_thumb_length = 20;
   update2->layers.push_back(std::move(layer_props2));
 
   EXPECT_TRUE(
       layer_context_impl_->DoUpdateDisplayTree(std::move(update2)).has_value());
   EXPECT_EQ(layer_impl->thumb_thickness(), 5);
-  EXPECT_EQ(layer_impl->thumb_length(), 20);
+  EXPECT_EQ(layer_impl->minimum_thumb_length(), 20);
 }
 
 TEST_F(LayerContextImplUpdateDisplayTreeNinePatchThumbScrollbarLayerTest,
@@ -3235,7 +3361,8 @@ TEST_F(LayerContextImplUpdateDisplayTreePaintedScrollbarLayerTest,
   ASSERT_NE(nullptr, layer_impl);
   EXPECT_EQ(layer_impl->thumb_thickness(),
             kDefaultPaintedScrollbarThumbThickness);
-  EXPECT_EQ(layer_impl->thumb_length(), kDefaultPaintedScrollbarThumbLength);
+  EXPECT_EQ(layer_impl->minimum_thumb_length(),
+            kDefaultPaintedScrollbarThumbLength);
 
   // Second update.
   auto update2 = CreateDefaultUpdate();
@@ -3245,13 +3372,13 @@ TEST_F(LayerContextImplUpdateDisplayTreePaintedScrollbarLayerTest,
   auto& scrollbar_extra2 =
       layer_props2->layer_extra->get_painted_scrollbar_layer_extra();
   scrollbar_extra2->thumb_thickness = kUpdatedThumbThickness;
-  scrollbar_extra2->thumb_length = kUpdatedThumbLength;
+  scrollbar_extra2->minimum_thumb_length = kUpdatedThumbLength;
   update2->layers.push_back(std::move(layer_props2));
 
   EXPECT_TRUE(
       layer_context_impl_->DoUpdateDisplayTree(std::move(update2)).has_value());
   EXPECT_EQ(layer_impl->thumb_thickness(), kUpdatedThumbThickness);
-  EXPECT_EQ(layer_impl->thumb_length(), kUpdatedThumbLength);
+  EXPECT_EQ(layer_impl->minimum_thumb_length(), kUpdatedThumbLength);
 }
 
 TEST_F(LayerContextImplUpdateDisplayTreePaintedScrollbarLayerTest,

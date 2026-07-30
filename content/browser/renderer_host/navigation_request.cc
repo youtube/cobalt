@@ -347,9 +347,7 @@ bool NeedsHTTPOrigin(net::HttpRequestHeaders* headers,
 // Computes the value that should be set for the User-Agent header, if
 // `user_agent_override` is non-empty, `user_agent_override` is returned as the
 // header value.
-std::string ComputeUserAgentValue(const net::HttpRequestHeaders& headers,
-                                  const std::string& user_agent_override,
-                                  content::BrowserContext* context) {
+std::string ComputeUserAgentValue(const std::string& user_agent_override) {
   if (!user_agent_override.empty()) {
     base::UmaHistogramEnumeration("Navigation.UserAgentStringType",
                                   UserAgentStringType::kOverriden);
@@ -363,7 +361,7 @@ std::string ComputeUserAgentValue(const net::HttpRequestHeaders& headers,
           ? UserAgentStringType::kReducedVersion
           : UserAgentStringType::kFullVersion);
 
-  return GetContentClient()->browser()->GetUserAgentBasedOnPolicy(context);
+  return GetContentClient()->browser()->GetUserAgent();
 }
 
 void AddAdditionalRequestHeaders(
@@ -396,7 +394,7 @@ void AddAdditionalRequestHeaders(
 
   headers->SetHeaderIfMissing(
       net::HttpRequestHeaders::kUserAgent,
-      ComputeUserAgentValue(*headers, user_agent_override, browser_context));
+      ComputeUserAgentValue(user_agent_override));
 
   if (!render_prefs.enable_referrers) {
     *referrer =
@@ -1760,6 +1758,25 @@ NavigationRequest::NavigationRequest(
          commit_params_->data_url_as_string.empty());
 #endif
   CheckSoftNavigationHeuristicsInvariants();
+
+  if (IsInitialWebUINavigation()) {
+    // Initial WebUI navigations must satisfy all these conditions
+    // - Is browser initiated
+    // - Occur on the outermost main frame
+    // - Have not navigated before
+    CHECK(!IsRendererInitiated());
+    CHECK(!frame_tree_node_->GetParentOrOuterDocumentOrEmbedder());
+    CHECK(frame_tree_node_->is_on_initial_empty_document());
+    CHECK(frame_tree_node_->navigator()
+              .controller()
+              .GetLastCommittedEntry()
+              ->IsInitialEntry());
+  }
+#if !BUILDFLAG(IS_ANDROID)
+  // It should not be possible to navigate away from the initial WebUI page.
+  CHECK(!GetContentClient()->browser()->IsInitialWebUIURL(
+      frame_tree_node_->current_url()));
+#endif
 
   ScopedCrashKeys crash_keys(*this);
 
@@ -3205,7 +3222,10 @@ void NavigationRequest::StartNavigation() {
   // at the beginning of the navigation, so we won't run them again.
   // ProcessSelectionDeferringConditions also don't need to run for prerendered
   // page activations because those have already selected a process.
-  if (!IsPrerenderedPageActivation()) {
+  // For initial WebUI navigations, CommitDeferringConditions and
+  // ProcessSelectionDeferringConditions are not run, so that the navigation can
+  // run synchronously from start to commit.
+  if (!IsPrerenderedPageActivation() && !IsInitialWebUISyncNavigation()) {
     commit_deferrer_ = CommitDeferringConditionRunner::Create(
         *this, CommitDeferringCondition::NavigationType::kOther,
         /*candidate_prerender_frame_tree_node_id=*/std::nullopt);
@@ -4799,8 +4819,9 @@ void NavigationRequest::SelectFrameHostForOnResponseStarted(
                              ->GetSafeRef();
   } else if (response_should_be_rendered_) {
     std::string* reason_output =
-        base::FeatureList::IsEnabled(
-            features::kHoldbackDebugReasonStringRemoval)
+        (base::FeatureList::IsEnabled(
+             features::kHoldbackDebugReasonStringRemoval) ||
+         IsInitialWebUINavigation())
             ? &rfh_selected_reason
             : nullptr;
 
@@ -5041,13 +5062,8 @@ void NavigationRequest::SelectFrameHostForOnResponseStarted(
   }
 
   // TODO(crbug.com/399783247): Remove
-  if (base::FeatureList::IsEnabled(
-          features::kHoldbackDebugReasonStringRemoval)) {
-    SCOPED_CRASH_KEY_STRING256("Bug1454273", "base_host_for_data_url",
-                               common_params_->base_url_for_data_url.host());
-    SCOPED_CRASH_KEY_STRING1024("Bug1454273", "rfh_selected_reason",
-                                rfh_selected_reason);
-  }
+  SCOPED_CRASH_KEY_STRING1024("Bug1454273", "rfh_selected_reason",
+                              rfh_selected_reason);
 
   if (HasRenderFrameHost() &&
       !CheckPermissionsPoliciesForFencedFrames(GetOriginToCommit().value())) {
@@ -5615,8 +5631,7 @@ void NavigationRequest::OnStartChecksComplete(
           frame_tree_node_->current_frame_host()->devtools_frame_token(),
           BuildClientSecurityStateForNavigationFetch(),
           devtools_accepted_stream_types, is_pdf_, GetInitiatorProcessId(),
-          initiator_document_token_, GetPreviousRenderFrameHostId(),
-          std::move(serving_page_metrics_container),
+          initiator_document_token_, std::move(serving_page_metrics_container),
           allow_cookies_from_browser_, navigation_id_,
           shared_storage_writable_eligible_, is_ad_tagged_,
           force_no_https_upgrade_),
@@ -5921,8 +5936,7 @@ void NavigationRequest::OnRedirectChecksComplete(
     if (!devtools_user_agent_override_) {
       modified_headers.SetHeader(
           net::HttpRequestHeaders::kUserAgent,
-          ComputeUserAgentValue(modified_headers, GetUserAgentOverride(),
-                                browser_context));
+          ComputeUserAgentValue(GetUserAgentOverride()));
     }
   }
 
@@ -6174,8 +6188,9 @@ void NavigationRequest::OnWillProcessResponseChecksComplete(
   DCHECK_EQ(result.action(), NavigationThrottle::PROCEED);
 
   // When this request is for prerender activation, `commit_deferrer_` has
-  // already been processed.
-  if (IsPrerenderedPageActivation()) {
+  // already been processed. If it's an initial WebUI navigation, commit
+  // deferring conditions are skipped.
+  if (IsPrerenderedPageActivation() || IsInitialWebUISyncNavigation()) {
     DCHECK(!commit_deferrer_);
     CommitNavigation();
     // DO NOT ADD CODE after this. The previous call to CommitNavigation
@@ -6427,6 +6442,27 @@ void NavigationRequest::CommitNavigation() {
   // If a WebUI was created for this navigation, it must have been moved to the
   // RenderFrameHost we're about to commit in already.
   CHECK(!HasWebUI());
+#if !BUILDFLAG(IS_ANDROID)
+  // Initial WebUI navigations must use an initial WebUI process.
+  if (IsInitialWebUINavigation() &&
+      !GetRenderFrameHost()->GetProcess()->IsForInitialWebUI()) {
+    SCOPED_CRASH_KEY_STRING256("Bug467811037", "nav_url", GetURL().spec());
+    SCOPED_CRASH_KEY_STRING256(
+        "Bug467811037", "cur_rfh_url",
+        frame_tree_node_->current_frame_host()->GetLastCommittedURL().spec());
+    SCOPED_CRASH_KEY_STRING256(
+        "Bug467811037", "nav_rfh_url",
+        GetRenderFrameHost()->GetLastCommittedURL().spec());
+    SCOPED_CRASH_KEY_STRING256(
+        "Bug467811037", "site_url",
+        GetRenderFrameHost()->GetSiteInstance()->GetSiteURL().spec());
+    SCOPED_CRASH_KEY_BOOL(
+        "Bug467811037", "same_si",
+        frame_tree_node_->current_frame_host()->GetSiteInstance() ==
+            GetRenderFrameHost()->GetSiteInstance());
+    base::debug::DumpWithoutCrashing();
+  }
+#endif
   CheckSoftNavigationHeuristicsInvariants();
 
   CoopCoepSanityCheck();
@@ -9671,9 +9707,8 @@ void NavigationRequest::SetIsOverridingUserAgent(bool override_ua) {
         is_overriding_user_agent(), frame_tree_node_, &headers,
         common_params_->url);
   }
-  headers.SetHeader(
-      net::HttpRequestHeaders::kUserAgent,
-      ComputeUserAgentValue(headers, GetUserAgentOverride(), browser_context));
+  headers.SetHeader(net::HttpRequestHeaders::kUserAgent,
+                    ComputeUserAgentValue(GetUserAgentOverride()));
   begin_params_->headers = headers.ToString();
   // |request_headers_| comes from |begin_params_|. Clear |request_headers_| now
   // so that if |request_headers_| are needed, they will be updated.
@@ -11974,6 +12009,19 @@ void NavigationRequest::ValidateCommitOrigin(
 
 PrerenderHostId NavigationRequest::GetPrerenderHostId() const {
   return prerender_host_id_;
+}
+
+bool NavigationRequest::IsInitialWebUINavigation() {
+#if !BUILDFLAG(IS_ANDROID)
+  return GetContentClient()->browser()->IsInitialWebUIURL(GetURL());
+#else
+  return false;
+#endif
+}
+bool NavigationRequest::IsInitialWebUISyncNavigation() {
+  return IsInitialWebUINavigation() &&
+         base::FeatureList::IsEnabled(
+             features::kInitialWebUISyncNavStartToCommit);
 }
 
 }  // namespace content

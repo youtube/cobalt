@@ -28,6 +28,7 @@ import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.base.Callback;
+import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -148,7 +149,7 @@ public class BookmarkBarCoordinator
             BookmarkOpener bookmarkOpener,
             ObservableSupplier<BookmarkManagerOpener> bookmarkManagerOpenerSupplier,
             TopControlsStacker topControlsStacker,
-            ObservableSupplier<@Nullable Tab> currentTabSupplier,
+            NullableObservableSupplier<Tab> currentTabSupplier,
             TopUiThemeColorProvider topUiThemeColorProvider) {
         mContext = activity;
         mRequestUpdate = requestUpdate;
@@ -180,9 +181,6 @@ public class BookmarkBarCoordinator
                 mContentContainer.findViewById(R.id.bookmark_bar_view_resource_frame_layout);
         mViewResourceAdapter = mViewResourceFrameLayout.getResourceAdapter();
         registerResource();
-
-        mBookmarkBarSceneLayer = new BookmarkBarSceneLayer(mResourceManager);
-        mBookmarkBarSceneLayer.setVisibility(true);
 
         mHeightChangeCallback = heightChangeCallback;
         mContentContainer.addOnLayoutChangeListener(this);
@@ -248,12 +246,14 @@ public class BookmarkBarCoordinator
         PropertyModelChangeProcessor.create(model, mView, BookmarkBarViewBinder::bind);
 
         // All dimensions and offsets require the first layout pass to complete, so don't set here.
+        // Do not set visibility to true by default in case we are in web fullscreen mode.
+        mBookmarkBarSceneLayer = new BookmarkBarSceneLayer(mResourceManager);
+        updateSceneLayerVisibility();
         mBookmarkBarSceneLayerModel =
                 new PropertyModel.Builder(BookmarkBarSceneLayerProperties.ALL_KEYS)
                         .with(
                                 BookmarkBarSceneLayerProperties.RESOURCE_ID,
                                 mViewResourceFrameLayout.getId())
-                        .with(BookmarkBarSceneLayerProperties.VISIBILITY, true)
                         .with(BookmarkBarSceneLayerProperties.HAIRLINE_HEIGHT, mHairlineHeight)
                         .build();
 
@@ -405,18 +405,20 @@ public class BookmarkBarCoordinator
     public void onBrowserControlsOffsetUpdate(int layerYOffset, boolean reachRestingPosition) {
         // When we are given yOffsets, we must handle translation of the Android widgets manually.
         // See comment in {@link TopControlLayer} for full details. The yOffset is the positive
-        // distance from the top of the window. We need to shift the Android widgets up, which is
-        // negative in the Android coordinate system. The amount to shift up is the difference
-        // between the top of the Bookmark Bar (total top controls height minus bookmark bar height)
-        // and the layerYOffset. Therefore we subtract the layerYOffset from the above and negate.
-
-        // TODO(crbug.com/417238089): This assumes that the bookmark bar is the lowest item in the
-        // top controls. We will assume this for now to reconcile one frame animation flash.
-        mView.setTranslationY(
-                -1.0f
-                        * (mBrowserControlsStateProvider.getTopControlsHeight()
-                                - getTopControlHeight()
-                                - layerYOffset));
+        // distance from the top of the window. The view will already be shifted by the top margin
+        // amount, but we do not want to continue to adjust that because it requires a layout pass
+        // and would be janky. Instead we adjust to the yOffset using translationY, and when the
+        // view has reached its resting position, we can switch back to using a top margin only.
+        if (!reachRestingPosition) {
+            // The view is positioned at TOP_MARGIN, but it is supposed to be positioned at the
+            // |layerYOffset|. If the |layerYOffset| is greater than TOP_MARGIN, this means the view
+            // is currently too high on the screen and needs to shift down, and vice versa.
+            mView.setTranslationY(layerYOffset - mModel.get(BookmarkBarProperties.TOP_MARGIN));
+        } else {
+            // Once we have reached our resting position, we only need a top margin.
+            mMediator.setTopMargin(layerYOffset);
+            mView.setTranslationY(0);
+        }
     }
 
     @Override
@@ -717,6 +719,13 @@ public class BookmarkBarCoordinator
 
         // The Android widgets should never be visible when in full screen mode.
         if (mIsInFullscreenMode) {
+            mMediator.setVisibility(false);
+            return;
+        }
+
+        // The Android widgets should not be visible if the Android controls aren't visible. This
+        // allows us to match hiding behavior of the other controls, for example with the scrim.
+        if (mBrowserControlsStateProvider.getAndroidControlsVisibility() != VISIBLE) {
             mMediator.setVisibility(false);
             return;
         }

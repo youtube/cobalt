@@ -763,7 +763,7 @@ chromium-metrics-reviews@google.com.
   <int value="48" label="Edu Coexistence Login Handler"/>
   <int value="49" label="Edu Account Login Handler"/>
   <int value="50" label="Chromeos Family Link User Metrics provider"/>
-  <int value="51" label="Enterprise Identity Service"/>
+  <int value="51" label="Enterprise Identity Service (deprecated 12/2025)"/>
   <int value="52" label="Promotion Eligibility Checker"/>
   <int value="53" label="Password Manager Leak Detection"/>
   <int value="54" label="Android Management Client"/>
@@ -791,6 +791,12 @@ chromium-metrics-reviews@google.com.
   <int value="76" label="Auth Service (Tasks Client)"/>
   <int value="77" label="YouTube Music"/>
   <int value="78" label="Contextual Tasks"/>
+  <int value="79" label="Enterprise Plus Address"/>
+  <int value="80" label="Glic User Status"/>
+  <int value="81" label="Devtools Gdp"/>
+  <int value="82" label="Ash Drive Integration"/>
+  <int value="83" label="Ash Boca Classroom Page Handler"/>
+  <int value="84" label="Ash Scanner Keyed Service"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/public/base/oauth_consumer_id.h:OAuthConsumerId) -->
@@ -850,6 +856,18 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Sign in (reauth)"/>
   <int value="1" label="Sign out"/>
 </enum>
+
+<!-- LINT.IfChange(ProfileMenuAvatarButtonPromoType) -->
+
+<enum name="ProfileMenuAvatarButtonPromoType">
+  <int value="0" label="History Sync"/>
+  <int value="1" label="Batch Upload - Regular"/>
+  <int value="2" label="Batch Upload - Bookmarks deduplication"/>
+  <int value="3" label="Batch Upload - Windows10 Depreciation"/>
+  <int value="4" label="Sync Promo"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/signin/signin_promo_util.h:ProfileMenuAvatarButtonPromoType) -->
 
 <!-- LINT.IfChange(ReauthAccessPoint) -->
 
@@ -984,6 +1002,7 @@ chromium-metrics-reviews@google.com.
   <int value="89" label="New Tab Page sign-in feature promo"/>
   <int value="90" label="Enterprise dialog after signin interception"/>
   <int value="91" label="Your saved info page in settings"/>
+  <int value="92" label="Credential Exchange import"/>
 </enum>
 
 <enum name="SigninAccountReconcilorState">
@@ -1064,6 +1083,9 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Profile customization shown"/>
   <int value="6" label="The user completed profile customization"/>
   <int value="7" label="The user skipped profile customization"/>
+  <int value="8" label="History sync optin shown"/>
+  <int value="9" label="The user turned on history syncing"/>
+  <int value="10" label="The user rejected history syncing"/>
 </enum>
 
 <enum name="SigninInterceptHeuristicOutcome">
@@ -1353,6 +1375,16 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Started"/>
   <int value="1" label="Finished"/>
 </enum>
+
+<!-- LINT.IfChange(SigninTokenTableGetAllWrappedBindingKeysResult) -->
+
+<enum name="SigninTokenTableGetAllWrappedBindingKeysResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="SQL Invalid Statement"/>
+  <int value="2" label="SQL Failure"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/signin/public/webdata/token_service_table.cc:GetAllWrappedBindingKeysResult) -->
 
 <enum name="SigninTokenTableReadTokenFromDBResult">
   <int value="0" label="Success"/>

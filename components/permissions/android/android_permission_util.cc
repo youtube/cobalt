@@ -217,7 +217,7 @@ base::AutoReset<bool> EnableSystemLocationSettingForTesting() {
 
 static void JNI_PermissionUtil_ResolvePermissionRequest(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jweb_contents,
+    const base::android::JavaRef<jobject>& jweb_contents,
     jint content_settings_type,
     jint content_setting) {
   content::WebContents* web_contents =
@@ -244,6 +244,13 @@ static void JNI_PermissionUtil_ResolvePermissionRequest(
       base::UmaHistogramBoolean("Permissions.ClapperLoud.PageInfo.Closed",
                                 true);
       permission_request_manager->Deny();
+    } else if (setting == CONTENT_SETTING_DEFAULT) {
+      base::UmaHistogramBoolean("Permissions.ClapperLoud.PageInfo.Reset", true);
+      // After the user interacts with the reset permission button in PageInfo,
+      // all previously decided permissions are reset by setting them to
+      // DEFAULT. There is no a default action or a state for permission
+      // requests, so we need to explicitly dismiss the request.
+      permission_request_manager->Dismiss();
     } else {
       // Currently, only ALLOW and BLOCK are supported. In case other actions
       // are added in the future, this should be updated.

@@ -36,7 +36,6 @@ import android.os.Build;
 import android.os.Build.VERSION_CODES;
 import android.text.format.DateUtils;
 import android.view.DragEvent;
-import android.view.View;
 import android.view.View.DragShadowBuilder;
 import android.view.ViewGroup;
 import android.view.ViewGroup.MarginLayoutParams;
@@ -289,6 +288,26 @@ public class TabStripDragHandlerTest {
                 ChromePreferenceKeys.TAB_OR_GROUP_TEARING_MAX_INSTANCES_FAILURE_START_TIME_MS);
         mSharedPreferencesManager.removeKey(
                 ChromePreferenceKeys.TAB_OR_GROUP_TEARING_MAX_INSTANCES_FAILURE_COUNT);
+    }
+
+    @Test
+    public void test_startSingleTabDragAction_withEscKeyPressCancelDrag() {
+        mSourceInstance.startTabDragAction(
+                mTabsToolbarView, mTabBeingDragged, DRAG_START_POINT, TAB_POSITION_X, VIEW_WIDTH);
+
+        assertTrue(
+                "Should be in the dragging process.",
+                mSourceInstance.getHandleBackPressChangedSupplier().get());
+
+        Boolean res = mSourceInstance.handleEscPress();
+        assertEquals(true, res);
+        mSourceInstance.onDrag(
+                mTabsToolbarView,
+                mockDragEvent(DragEvent.ACTION_DRAG_ENDED, POS_X, mPosY, DragType.SINGLE_TAB));
+        assertFalse("Global state should be cleared after cancel.", DragDropGlobalState.hasValue());
+        assertFalse(
+                "Should not be in the dragging process after an ESC key press.",
+                mSourceInstance.getHandleBackPressChangedSupplier().get());
     }
 
     @Test
@@ -583,67 +602,62 @@ public class TabStripDragHandlerTest {
     }
 
     @Test
-    public void test_onProvideShadowMetrics_WithDesiredStartPosition_ReturnsSuccess() {
+    public void testOnProvideShadowMetrics_Xr() {
         DeviceInfo.setIsXrForTesting(true);
-        // Prepare
-        final float dragStartXPosition = 480f;
-        final PointF dragStartPoint = new PointF(dragStartXPosition, 0f);
-        final Resources resources = ContextUtils.getApplicationContext().getResources();
-        // Call startDrag to set class variables.
-        mSourceInstance.startTabDragAction(
-                mTabsToolbarView, mTabBeingDragged, dragStartPoint, TAB_POSITION_X, VIEW_WIDTH);
-
-        View.DragShadowBuilder tabDragShadowBuilder =
-                mSourceInstance.createDragShadowBuilder(
-                        mTabsToolbarView, dragStartPoint, TAB_POSITION_X);
-
-        // Perform asking the TabDragShadowBuilder what is the anchor point.
-        Point dragSize = new Point(0, 0);
-        Point dragAnchor = new Point(0, 0);
-        tabDragShadowBuilder.onProvideShadowMetrics(dragSize, dragAnchor);
-
-        // Validate anchor.
-        assertEquals(
-                "Drag shadow x position is incorrect.",
-                Math.round(
-                        dragStartXPosition
-                                - TAB_POSITION_X * resources.getDisplayMetrics().density),
-                dragAnchor.x);
-        assertEquals(
-                "Drag shadow y position is incorrect.",
-                Math.round(
-                        resources.getDimension(R.dimen.tab_grid_card_header_height) / 2
-                                + resources.getDimension(R.dimen.tab_grid_card_margin)),
-                dragAnchor.y);
+        doTestOnProvideShadowMetrics();
     }
 
     @Test
-    public void test_onProvideShadowMetrics_withTabLinkDragDropFF() {
+    public void testOnProvideShadowMetrics() {
+        doTestOnProvideShadowMetrics();
+    }
+
+    private void doTestOnProvideShadowMetrics() {
         // Call startDrag to set class variables.
         mSourceInstance.startTabDragAction(
                 mTabsToolbarView, mTabBeingDragged, DRAG_START_POINT, TAB_POSITION_X, VIEW_WIDTH);
         TabDragShadowBuilder tabDragShadowBuilder =
                 (TabDragShadowBuilder) DragDropGlobalState.getDragShadowBuilder();
-        Resources resources = ContextUtils.getApplicationContext().getResources();
+        assert tabDragShadowBuilder != null;
 
         // Perform asking the TabDragShadowBuilder what is the anchor point.
-        Point dragSize = new Point(0, 0);
-        Point dragAnchor = new Point(0, 0);
-        tabDragShadowBuilder.onProvideShadowMetrics(dragSize, dragAnchor);
+        Point dragAnchor = new Point();
+        tabDragShadowBuilder.onProvideShadowMetrics(new Point(), dragAnchor);
 
         // Validate anchor.
-        assertEquals(
-                "Drag shadow x position is incorrect.",
-                Math.round(
-                        DRAG_START_POINT.x
-                                - TAB_POSITION_X * resources.getDisplayMetrics().density),
-                dragAnchor.x);
-        assertEquals(
-                "Drag shadow y position is incorrect.",
-                Math.round(
-                        resources.getDimension(R.dimen.tab_grid_card_header_height) / 2
-                                + resources.getDimension(R.dimen.tab_grid_card_margin)),
-                dragAnchor.y);
+        Resources resources = ContextUtils.getApplicationContext().getResources();
+        float headerHeight = resources.getDimension(R.dimen.tab_grid_card_header_height);
+        float cardMargin = resources.getDimension(R.dimen.tab_grid_card_margin);
+        float offsetX = DRAG_START_POINT.x - TAB_POSITION_X;
+        int expectedX = Math.round(offsetX * resources.getDisplayMetrics().density);
+        int expectedY = Math.round(headerHeight / 2 + cardMargin);
+        assertEquals("Drag shadow x position is incorrect.", expectedX, dragAnchor.x);
+        assertEquals("Drag shadow y position is incorrect.", expectedY, dragAnchor.y);
+    }
+
+    @Test
+    public void testOnProvideShadowMetrics_clampsNegativeOffset() {
+        // The touch point x is intentionally less than the tab position x, meaning the calculated
+        // offset should be negative. We want to verify that this gets clamped to 0.
+        float touchX = 0;
+        float tabPositionX = 200;
+        // Call startDrag to set class variables (with touchX < tabPositionX).
+        mSourceInstance.startTabDragAction(
+                mTabsToolbarView,
+                mTabBeingDragged,
+                new PointF(touchX, 0),
+                tabPositionX,
+                VIEW_WIDTH);
+        TabDragShadowBuilder tabDragShadowBuilder =
+                (TabDragShadowBuilder) DragDropGlobalState.getDragShadowBuilder();
+        assert tabDragShadowBuilder != null;
+
+        // Perform asking the TabDragShadowBuilder what is the anchor point.
+        Point dragAnchor = new Point();
+        tabDragShadowBuilder.onProvideShadowMetrics(new Point(), dragAnchor);
+
+        // Verify the x-position gets clamped to 0.
+        assertEquals("Drag shadow x position should clamp to 0", 0, dragAnchor.x);
     }
 
     /**

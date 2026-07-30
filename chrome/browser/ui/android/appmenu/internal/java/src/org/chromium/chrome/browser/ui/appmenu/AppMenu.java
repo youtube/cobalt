@@ -45,7 +45,6 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.RequiresNonNull;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ui.appmenu.internal.R;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.chips.ChipView;
@@ -253,6 +252,7 @@ class AppMenu implements OnKeyListener {
     private final int mChipHighlightExtension;
     private final int[] mTempLocation;
     private final AppMenuVisibilityDelegate mVisibilityDelegate;
+    private final boolean mDisableVerticalScrollbar;
 
     private @Nullable Context mContext;
     private @Nullable ListView mListView;
@@ -276,8 +276,10 @@ class AppMenu implements OnKeyListener {
     AppMenu(
             AppMenuVisibilityDelegate visibilityDelegate,
             Resources res,
-            HierarchicalMenuController hierarchicalMenuController) {
+            HierarchicalMenuController hierarchicalMenuController,
+            boolean disableVerticalScrollbar) {
         mVisibilityDelegate = visibilityDelegate;
+        mDisableVerticalScrollbar = disableVerticalScrollbar;
 
         mNegativeSoftwareVerticalOffset =
                 res.getDimensionPixelSize(R.dimen.menu_negative_software_vertical_offset);
@@ -416,6 +418,11 @@ class AppMenu implements OnKeyListener {
         }
 
         mListView = contentView.findViewById(R.id.app_menu_list);
+        if (mDisableVerticalScrollbar) {
+            // TODO(crbug.com/465107697) Move code to xml file once the feature is launched.
+            // Cleanup AppMenuDelegate too.
+            mListView.setVerticalScrollBarEnabled(false);
+        }
 
         int footerHeight = attachFooter(footer, (ViewGroup) contentView, menuWidth);
         int headerHeight = attachHeader(header, menuWidth);
@@ -484,15 +491,7 @@ class AppMenu implements OnKeyListener {
                 new AppMenuPopup(popup),
                 /* drillDownOverrideValue= */ null);
 
-        // Post the show call to handle keyboard click events.
-        if (ChromeFeatureList.sAndroidWebAppMenuButton.isEnabled()) {
-            anchorView.post(
-                    () -> {
-                        showPopup(anchorView, popupPosition);
-                    });
-        } else {
-            showPopup(anchorView, popupPosition);
-        }
+        showPopup(anchorView, popupPosition);
 
         mSelectedItemBeforeDismiss = false;
         mMenuShownTimeMs = SystemClock.elapsedRealtime();

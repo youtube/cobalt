@@ -27,7 +27,7 @@
 namespace enterprise_connectors {
 
 void ContentAnalysisInfo::InitializeRequest(
-    safe_browsing::BinaryUploadService::Request* request,
+    BinaryUploadRequest* request,
     bool include_enterprise_only_fields) {
   if (include_enterprise_only_fields) {
     if (settings().cloud_or_local_settings.is_cloud_analysis()) {
@@ -108,11 +108,12 @@ std::string ContentAnalysisInfo::GetContentAreaAccountEmail() const {
       email = GetActiveContentAreaUser(identity_manager(), referrer_url);
 
       if (!email.empty()) {
-        break;
+        return email;
       }
     }
   }
-  return email;
+
+  return GetDefaultActiveUser(identity_manager(), tab_url());
 }
 
 // static

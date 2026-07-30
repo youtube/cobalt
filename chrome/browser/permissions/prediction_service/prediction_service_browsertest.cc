@@ -12,6 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/strings/strcat.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -1867,6 +1868,7 @@ class PredictionServiceGeolocationAccuracyBrowserTest
 IN_PROC_BROWSER_TEST_P(PredictionServiceGeolocationAccuracyBrowserTest,
                        UseGeolocationAccuracyFromResponse) {
   ASSERT_TRUE(embedded_test_server()->Start());
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   GeneratePredictionsResponse prediction_service_response =
       BuildPredictionServiceResponse(kLikelihoodLikely);
@@ -1891,6 +1893,17 @@ IN_PROC_BROWSER_TEST_P(PredictionServiceGeolocationAccuracyBrowserTest,
   EXPECT_FALSE(manager->ShouldCurrentRequestUseQuietUI());
   EXPECT_EQ(GetParam().expected_accuracy,
             manager->GetInitialGeolocationAccuracySelection());
+
+  manager->Accept();
+
+  auto entries =
+      ukm_recorder.GetEntriesByName(ukm::builders::Permission::kEntryName);
+  ASSERT_FALSE(entries.empty());
+  const ukm::mojom::UkmEntry* entry = entries.back().get();
+  ukm_recorder.ExpectEntryMetric(
+      entry,
+      ukm::builders::Permission::kInitialGeolocationAccuracySelectionName,
+      static_cast<int64_t>(GetParam().expected_accuracy));
 }
 
 INSTANTIATE_TEST_SUITE_P(

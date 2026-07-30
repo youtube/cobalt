@@ -473,43 +473,36 @@ TabStripActionContainer::CreateGlicActorButtonContainer() {
 void TabStripActionContainer::UpdateGlicActorButtonContainerBorders() {
   CHECK(glic_button_);
   gfx::Insets glic_border;
-  const bool is_redesign_enabled =
-      base::FeatureList::IsEnabled(features::kGlicActorUiNudgeRedesign);
+
+  // Ensure buttons look vertically centered by making the top and bottom insets
+  // match.
+  gfx::Insets border_insets = border_insets_;
+  int min_vertical_inset =
+      std::min(border_insets.top(), border_insets.bottom());
+  border_insets.set_top_bottom(min_vertical_inset, min_vertical_inset);
+
   // GlicActorTaskIcon will only ever be shown alongside the GlicButton.
   if (glic_actor_task_icon_ && glic_actor_task_icon_->IsDrawn()) {
     gfx::Insets task_icon_border;
-    const gfx::Insets right_icon_border = gfx::Insets().set_left_right(
-        is_redesign_enabled ? 0 : kInsideBorderAroundGlicButtons,
-        kOutsideBorderAroundGlicButtons);
+    const gfx::Insets right_icon_border =
+        gfx::Insets().set_left_right(0, kOutsideBorderAroundGlicButtons);
     const gfx::Insets left_icon_border = gfx::Insets().set_left_right(
-        kOutsideBorderAroundGlicButtons,
-        is_redesign_enabled ? 0 : kInsideBorderAroundGlicButtons);
-    if (is_redesign_enabled) {
-      task_icon_border = right_icon_border + border_insets_;
-      // If the GlicActorTaskIcon is also present, adjust the border on the
-      // GlicButton to allow the two buttons to sit closer together.
-      glic_border = left_icon_border + border_insets_;
-    } else {
-      task_icon_border = left_icon_border + border_insets_;
-      glic_border = right_icon_border + border_insets_;
-    }
+        kOutsideBorderAroundGlicButtons, kInsideBorderAroundGlicButtons);
+      task_icon_border = right_icon_border + border_insets;
+      glic_border = left_icon_border + border_insets;
     glic_actor_task_icon_->SetBorder(
         views::CreateEmptyBorder(task_icon_border));
-    if (is_redesign_enabled) {
       // Force a background repaint to account for the new border insets.
       glic_actor_task_icon_->RefreshBackground();
-    }
   } else {
     // Reset GlicButton border if Task Icon is hidden.
-    glic_border = gfx::Insets().set_left_right(border_insets_.top(),
-                                               border_insets_.bottom()) +
-                  border_insets_;
+    glic_border = gfx::Insets().set_left_right(border_insets.top(),
+                                               border_insets.bottom()) +
+                  border_insets;
   }
   glic_button_->SetBorder(views::CreateEmptyBorder(glic_border));
-  if (is_redesign_enabled) {
     // Force a background repaint to account for the new border insets.
     glic_button_->RefreshBackground();
-  }
 }
 
 #endif  // BUILDFLAG(ENABLE_GLIC)
@@ -648,32 +641,11 @@ void TabStripActionContainer::OnGlicActorTaskIconClicked() {
       tabs::GlicActorTaskIconManagerFactory::GetForProfile(profile);
   CHECK(icon_manager);
 
-  if (base::FeatureList::IsEnabled(features::kGlicActorUiNudgeRedesign)) {
     ActorTaskListBubbleController* controller =
         ActorTaskListBubbleController::From(
             tab_strip_controller_->GetBrowserWindowInterface());
     controller->ShowBubble(glic_actor_task_icon_);
     actor::ui::LogTaskNudgeClick(icon_manager->GetCurrentActorTaskNudgeState());
-  } else {
-    glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile)->ToggleUI(
-        tab_strip_controller_->GetBrowserWindowInterface(),
-        /*prevent_close=*/false, glic::mojom::InvocationSource::kActorTaskIcon);
-
-    if (glic_actor_task_icon_->GetIsShowingNudge()) {
-      icon_manager->ClearStoppedTasks();
-      // If a nudge is showing, activate the last actuated tab on click of the
-      // Task Icon.
-      if (tabs::TabInterface* last_updated_tab =
-              icon_manager->GetLastUpdatedTab()) {
-        TabStripModel* tab_strip_model =
-            tab_strip_controller_->GetBrowserWindowInterface()
-                ->GetTabStripModel();
-        int tab_index = tab_strip_model->GetIndexOfTab(last_updated_tab);
-        tab_strip_model->ActivateTabAt(tab_index);
-      }
-    }
-    actor::ui::LogTaskIconClick();
-  }
 }
 
 #endif  // BUILDFLAG(ENABLE_GLIC)
@@ -734,7 +706,7 @@ void TabStripActionContainer::ShowGlicActorNudge(
   glic_button_->SuppressLabel();
   ShowGlicActorTaskIcon();
   glic_actor_task_icon_->ShowNudgeLabel(nudge_text);
-  HighlightGlicActorTaskIcon();
+  glic_actor_task_icon_->HighlightTaskIcon();
   ShowTabStripNudge(glic_actor_task_icon_);
 }
 #endif  // BUILDFLAG(ENABLE_GLIC)
@@ -751,12 +723,8 @@ void TabStripActionContainer::ShowGlicActorTaskIcon() {
   }
   glic_button_ =
       glic_actor_button_container_->AddChildView(std::move(glic_button_));
-  // When kGlicActorUiNudgeRedesign is enabled, the GlicButton should be to the
-  // left of the GlicActorTaskIcon.
-  if (base::FeatureList::IsEnabled(features::kGlicActorUiNudgeRedesign)) {
     glic_actor_task_icon_->SetVisible(true);
     glic_actor_button_container_->ReorderChildView(glic_button_, 0u);
-  }
 
   glic_actor_button_container_->SetVisible(true);
   UpdateGlicActorButtonContainerBorders();
@@ -798,30 +766,10 @@ bool TabStripActionContainer::GetIsShowingGlicActorTaskIconNudge() {
 #endif  // BUILDFLAG(ENABLE_GLIC)
 }
 
-void TabStripActionContainer::HighlightGlicActorTaskIcon() {
-#if BUILDFLAG(ENABLE_GLIC)
-  CHECK(glic_actor_task_icon_);
-
-  glic_actor_task_icon_->HighlightTaskIcon();
-#else
-  NOTREACHED();
-#endif  // BUILDFLAG(ENABLE_GLIC)
-}
-
-void TabStripActionContainer::UnhighlightGlicActorTaskIcon() {
-#if BUILDFLAG(ENABLE_GLIC)
-  CHECK(glic_actor_task_icon_);
-
-  glic_actor_task_icon_->SetDefaultColors();
-#else
-  NOTREACHED();
-#endif  // BUILDFLAG(ENABLE_GLIC)
-}
-
 DeclutterTriggerCTRBucket TabStripActionContainer::GetDeclutterTriggerBucket(
     bool clicked) {
   const auto total_tab_count =
-      tab_declutter_controller_->tab_strip_model()->GetTabCount();
+      tab_declutter_controller_->tab_strip_model()->count();
   const auto stale_tab_count = tab_declutter_controller_->GetStaleTabs().size();
 
   if (total_tab_count < 15) {

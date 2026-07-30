@@ -22,6 +22,7 @@
 #include "google_apis/gaia/gaia_auth_fetcher.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "net/cookies/cookie_access_result.h"
+#include "services/network/public/mojom/device_bound_sessions.mojom.h"
 
 class GaiaAuthFetcher;
 class GoogleServiceAuthError;
@@ -62,6 +63,7 @@ class OAuthMultiloginHelper : public GaiaAuthConsumer {
       AccountsCookieMutator::PartitionDelegate* partition_delegate,
       ProfileOAuth2TokenService* token_service,
       gaia::MultiloginMode mode,
+      bool wait_on_connectivity,
       const std::vector<AccountIdGaiaIdPair>& accounts,
       const std::string& external_cc_result,
       const gaia::GaiaSource& gaia_source,
@@ -92,7 +94,10 @@ class OAuthMultiloginHelper : public GaiaAuthConsumer {
       const OAuthMultiloginResult& result);
 
   // Callback for `DeviceBoundSessionManager::CreateBoundSessions`.
-  void OnBoundSessionsCreated(bool sessions_created);
+  void OnBoundSessionsCreated(
+      const std::vector<net::device_bound_sessions::SessionError::ErrorType>&
+          session_results,
+      std::vector<net::CookieInclusionStatus> cookie_results);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
   // Starts fetching tokens with OAuthMultiloginTokenFetcher.
@@ -126,6 +131,7 @@ class OAuthMultiloginHelper : public GaiaAuthConsumer {
   int fetcher_retries_ = 0;
 
   gaia::MultiloginMode mode_;
+  const bool wait_on_connectivity_ = true;
   // Account IDs to set in the cookie.
   const std::vector<AccountIdGaiaIdPair> accounts_;
   // See GaiaCookieManagerService::ExternalCcResultFetcher for details.

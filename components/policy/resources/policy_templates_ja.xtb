@@ -1224,17 +1224,6 @@ Manifest V2 を使用した拡張機能はサポートの終了が予定され�
 
 <ph name="PRODUCT_NAME" /> の場合、このポリシーは <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> で登録されたマシンでのみ有効です。
 <ph name="PRODUCT_OS_NAME" /> の場合、このポリシーは常に有効です。</translation>
-<translation id="1878535132109943599">このポリシーを有効に設定した場合、<ph name="LOCAL_NETWORK_ACCESS" /> リクエストでは、<ph name="LOCAL_NETWORK_ACCESS" /> チェックが失敗となり、<ph name="CHROME_DEVTOOLS_NAME" /> に警告のみが表示されます。
-
-このポリシーを無効に設定するか未設定のままにした場合、<ph name="LOCAL_NETWORK_ACCESS" /> リクエストでは、これらのリクエストのデフォルトの処理を使用します。
-
-<ph name="LOCAL_NETWORK_ACCESS" /> の制限については、https://wicg.github.io/local-network-access/ をご覧ください。
-
-このエンタープライズ ポリシーは一時的なものであり、M146 以降で削除される予定です。
-
-長期的には、ポリシー <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" /> を使用して、<ph name="LOCAL_NETWORK_ACCESS" /> 権限を自動的に付与する URL パターンの許可リストを指定するという方法があります。
-
-なお、ポリシー <ph name="LOCAL_NETWORK_ACCESS_RESTRICTIONS_ENABLED_POLICY_NAME" /> が有効になっている場合は、このポリシーより優先されます。</translation>
 <translation id="187961648719201562">既存のローカル ファイルを削除する（バージョン 137 以降でサポート）</translation>
 <translation id="1883274744253492031">混合コンテンツの自動アップグレードを有効にする</translation>
 <translation id="1885782360784839335">タブ全体にプロモーション コンテンツを表示する</translation>
@@ -3013,6 +3002,7 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName バリエーションでは、
 <translation id="3169872426103732947">デフォルトの URL を表示し、完全な URL への切り替えをユーザーに許可する</translation>
 <translation id="3171369832001535378">デバイスのネットワーク ホスト名テンプレート</translation>
 <translation id="3173844121395372156">このポリシーは非推奨で、サポートされていません。代わりに「<ph name="NATIVE_MESSAGING_ALLOWLIST_POLICY_NAME" />」ポリシーを使用してください。</translation>
+<translation id="3175063338945713984">保存容量 API で機能リリースのプロセスに基づいて値を返す。</translation>
 <translation id="3177537290334203187">ウェブサイトがネットワーク エンドポイントにリクエストできるかどうかを指定する場合にデフォルトの動作を使用する。</translation>
 <translation id="3177802893484440532">ローカルの信頼済みアンカーでオンラインの OCSP/CRL チェックを必須にする</translation>
 <translation id="3179533009079100620">プロフィール選択ツールを表示する</translation>
@@ -3146,6 +3136,7 @@ Microsoft Outlook カードには、追加の管理者設定が必要です。Ch
 
 <ph name="NTPCARDSVISIBLE" /> が無効に設定されている場合、Outlook カードは表示されません。<ph name="NTPCARDSVISIBLE" /> が有効に設定されている場合、このポリシーも有効に設定され、表示するデータがあるときは、Outlook カードが表示されます。<ph name="NTPCARDSVISIBLE" /> が未設定の場合、このポリシーが有効に設定され、表示するデータがあり、ユーザーが [Chrome をカスタマイズ] でこのカードを有効に設定しているときは、Outlook カードが表示されます。</translation>
 <translation id="3261592499545947104">更新が必要となる、証明書の有効期限が切れるまでの時間（秒）</translation>
+<translation id="326182244921429468">保存容量 API で動的な値を返す。</translation>
 <translation id="3262080895269946462">サードパーティのコンテキストでの WebSQL をデフォルトで無効にすることを許可</translation>
 <translation id="326341982850521928">色補正を有効にする</translation>
 <translation id="3263892501786842604">新しいタブページの検索ボックスに <ph name="GOOGLE_LENS_PRODUCT_NAME" /> のボタンを表示することを許可する（サポートされている場合）。</translation>
@@ -4317,6 +4308,11 @@ Manifest V2 を使用した拡張機能はサポートの終了が予定され�
 
 
 拡張機能を使用できるかどうかは、引き続き他のポリシーによって管理されます。</translation>
+<translation id="4112585124048467596">このポリシーを設定した場合、指定したすべてのデータタイプが <ph name="CHROME_SYNC_NAME" /> とローミング プロファイルの同期から除外されます。これにより、ローミング プロファイルのサイズを抑えたり、<ph name="CHROME_SYNC_NAME" /> サーバーにアップロードされるデータのタイプを制限したりできます。
+
+      現在、このポリシーで指定できるデータタイプは次のとおりです: "apps"、"autofill"、"bookmarks"、"extensions"、"preferences"、"passwords"、"payments"、"productComparison"、"readingList"、"tabs"、"themes"、"typedUrls"、"wifiConfigurations"。データタイプの名前では大文字と小文字が区別されます。
+
+      注: 動的なポリシー更新は <ph name="PRODUCT_NAME" /> バージョン 123 以降でのみサポートされます。"autofill" を無効にすると、"payments" も無効になります。"typedUrls" はすべての閲覧履歴を指します。</translation>
 <translation id="4115501011761259824">対象となるすべてのユーザーに対して First-Party Sets を有効にする</translation>
 <translation id="4120401094617902941">ランタイム カウンタのサンプリングおよび収集の間隔です。指定できる最小値は 1 日です。
 
@@ -6126,6 +6122,34 @@ Protected Audience API のサポートを終了により、このポリシーは
 
 このポリシーを無効に設定した場合、閲覧とダウンロードの履歴は削除できません。なお、このポリシーを無効にした場合も、閲覧とダウンロードの履歴が保持される保証はありません。ユーザーが履歴データベースのファイルを直接編集または削除できる可能性もあります。また、ブラウザ自体で履歴の有効期限が切れたりすべての履歴アイテムがアーカイブされたりする場合もあります。</translation>
 <translation id="5322649594584715998">標準速度でバッテリーをフル充電する。（アダプティブ充電と制限充電は無効になります）。</translation>
+<translation id="5322726025747768984">このポリシーでは、接続先の URL やその他の条件に基づいてブラウザで使用するプロキシを選択するルールを設定します。このポリシーは、<ph name="PROXY_SETTINGS_POLICY_NAME" /> ポリシー、<ph name="PROXY_SETTINGS_EXTENSION_API" /> の拡張機能 API、またはユーザーが手動で設定したプロキシ設定より優先されます（設定されている場合）。
+
+このポリシーを未設定のままにした場合、他のプロキシ ポリシーやユーザー設定には影響しません。
+
+ブラウザで使用するプロキシを決定する必要がある場合、次のすべての条件を満たすエントリが見つかるまで、<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> ポリシーのエントリが順番に照合されます。
+  * <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> の URL パターンの少なくとも 1 つに一致する。
+  * <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> の URL パターンのいずれにも一致しない。
+  * <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> で空白以外のリストが指定されている場合、そのエントリが示すすべての条件が満たされている。
+<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> の値は、一致した場合にプロキシとして使用されます。一致するエントリが見つからない場合は、<ph name="PROXY_SETTINGS_POLICY_NAME" /> ポリシーで設定されたプロキシにフォールバックされます。
+
+<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> と <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> でサポートされている URL パターンについては、https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns をご覧ください。
+
+<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> フィールドのエントリは、次のような PAC ファイルの文字列値に対応します。
+  * DIRECT
+  * PROXY host:port
+  * HTTPS host:port
+  * SOCKS4 host:port
+  * SOCKS5 host:port
+または、URL と似た形式のプロキシ指定子を使用して、次のようにプロキシを直接指定することもできます。
+  * http://host:port
+  * https://host:port
+  * socks4://host:port
+  * socks5://host:port
+リスト内の最初に到達可能なエントリがプロキシとして使用されます。リスト内の無効なエントリは無視されます。
+
+<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> フィールドには、オーバーライド ルールで使用するプロキシを決定する際に、すべて満たす必要がある条件のリストを指定します。未設定の場合、<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> の少なくとも 1 つのホストが一致すれば、エントリが使用されます。
+
+<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> 条件は、指定された DNS <ph name="PROXY_OVERRIDE_RULES_HOST" /> が IP アドレスに解決可能かどうかを判定します。<ph name="PROXY_OVERRIDE_RULES_RESULT" /> の値が「<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />」の場合は、条件が満たされたと判定されます。代わりにこの値を「<ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />」に設定した場合は、解決に失敗すると、条件が満たされたと判定されます。</translation>
 <translation id="5323200200131319468">ログイン画面で音声フィードバックを有効にする</translation>
 <translation id="5323271643727095577">beforeunload イベントで event.preventDefault() が呼び出されたときにキャンセル ダイアログを表示しない。beforeunload イベントで beforeunload event.returnValue が空の文字列のときにキャンセル ダイアログを表示する。</translation>
 <translation id="5324430722441910403">サイト内検索の設定</translation>
@@ -10302,6 +10326,7 @@ false に設定した場合、管理対象のネットワークに接続され�
       このポリシーを未設定のままにした場合、<ph name="DEFAULT_PLUGINS_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
 
       有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ただし、M85 以降では、ホストに「*」と「[*.]」のワイルドカードを使用したパターンは、このポリシーでサポートされなくなります。</translation>
+<translation id="8251975082850036657">保存容量 API で静的な値を返す。</translation>
 <translation id="82530263956734297">拒否リストから除外する拡張機能 ID</translation>
 <translation id="8254749125469750814">クラウド サービスを使用して、拡張機能をインストールできるかどうかを検証しない。</translation>
 <translation id="8256006033157034334">このポリシーは非推奨で、サポートされていません。代わりに <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME_POLICY_NAME" /> を使用してください。</translation>
@@ -11390,6 +11415,7 @@ M119 よりデフォルトで無効になります）。
       このポリシーは、ファミリー リンクのユーザーにのみ適用されます。</translation>
 <translation id="8947415621777543415">デバイスの位置をレポート</translation>
 <translation id="8948062138228904066">認証サーバーの許可リスト</translation>
+<translation id="8951145747995737852">保存容量 API で静的な値を返すかどうかを制御する</translation>
 <translation id="8951350807133946005">ディスクのキャッシュ ディレクトリの設定</translation>
 <translation id="8952611478149810182">他のブラウザとの互換性を高め、デベロッパーの開発環境を改善するため、無効化されたフォーム コントロールでのイベントのディスパッチの動作が Chromium で変更されています。
 
@@ -11483,13 +11509,6 @@ M119 よりデフォルトで無効になります）。
        このポリシーは、<ph name="PRODUCT_NAME" /> 84 以降では無効になります。</translation>
 <translation id="9010080992450148617">高度な保護機能プログラムに登録しているユーザーがダウンロードしたコンテンツを Google に送信して詳細なスキャンを行えるようにする</translation>
 <translation id="9012101302849557459">Chrome アプリのサポートを <ph name="MS_WIN_NAME" />、<ph name="MAC_OS_NAME" />、<ph name="LINUX_OS_NAME" /> に拡張する。</translation>
-<translation id="9012332684658600011">このポリシーを有効に設定した場合、<ph name="LOCAL_NETWORK_ACCESS" /> チェックの失敗により <ph name="CHROME_DEVTOOLS_NAME" /> に警告が表示されると想定されるケースでは、代わりにメイン リクエストがブロックされます。
-
-このポリシーを無効に設定するか未設定のままにした場合、<ph name="LOCAL_NETWORK_ACCESS" /> リクエストでは、これらのリクエストのデフォルトの処理を使用します。
-
-<ph name="LOCAL_NETWORK_ACCESS" /> の制限については、https://wicg.github.io/local-network-access/ をご覧ください。
-
-<ph name="LOCAL_NETWORK_ACCESS" /> がデフォルトで起動するようになったため、このポリシーは非推奨になりました。このポリシーは今後のリリースで削除される予定です。</translation>
 <translation id="9013875414788074110">ログイン時に、<ph name="PRODUCT_OS_NAME" /> は、サーバーに対して（オンライン）またはキャッシュに保存されたパスワードを使用して（オフライン）、認証を行うことができます。
 
       このポリシーが -1 の値に設定されている場合、ユーザーは時間制限なくオフラインで認証を行うことができます。このポリシーが -1 以外の値に設定されている場合、その値は、ユーザーがオンライン認証を行ってから再度オンライン認証を行うことが必要になるまでの時間を表します。
@@ -11774,6 +11793,10 @@ M119 よりデフォルトで無効になります）。
 <translation id="966425658642788645">デフォルトの動作を適用する</translation>
 <translation id="971677226939413180">ユーザーは「画像として印刷する」オプションを選択できない。</translation>
 <translation id="974349541138387272">希望の DNS-over-HTTPS リゾルバの URI テンプレートを指定する</translation>
+<translation id="975005959611437646">有効にした場合、保存容量 API は、使用量に最小値（10 GiB、ディスク容量は 1 GiB 単位で切り上げ）を加算した値に相当する静的な値を返します。
+無効にした場合、保存容量 API は通常、使用量に関係なく、デバイスで使用可能な合計容量に比例した動的な値を返します。
+未設定の場合、保存容量 API は Chrome のデフォルトの動作を使用します。
+無制限ストレージの権限を持つサイトは、この設定の影響を受けません。適用される容量も影響を受けません。</translation>
 <translation id="976415389478739655">ユーザーのデバイスが管理対象のネットワークに接続されている場合のみ <ph name="CLASS_TOOLS_NAME" /> のクラスへの参加を許可する</translation>
 <translation id="978619365985286086">クラス管理ツールの設定</translation>
 <translation id="978658824596356870">24 時間形式</translation>

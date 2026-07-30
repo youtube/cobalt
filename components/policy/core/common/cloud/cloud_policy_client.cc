@@ -18,6 +18,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/observer_list.h"
+#include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
@@ -1927,9 +1928,10 @@ void CloudPolicyClient::OnPromotionEligibilityDetermined(
     NotifyClientError();
   }
 
+  RemoveJob(result.job);
+
   std::move(callback).Run(
       result.response.get_user_eligible_promotions_response());
-  RemoveJob(result.job);
 }
 
 void CloudPolicyClient::NotifyPolicyFetched() {

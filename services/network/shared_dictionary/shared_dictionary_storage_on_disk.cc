@@ -4,6 +4,8 @@
 
 #include "services/network/shared_dictionary/shared_dictionary_storage_on_disk.h"
 
+#include <list>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
@@ -22,6 +24,7 @@
 #include "services/network/public/cpp/request_destination.h"
 #include "services/network/public/mojom/shared_dictionary_error.mojom.h"
 #include "services/network/shared_dictionary/shared_dictionary_cache.h"
+#include "services/network/shared_dictionary/shared_dictionary_document_request_metadata_result.h"
 #include "services/network/shared_dictionary/shared_dictionary_manager_on_disk.h"
 #include "services/network/shared_dictionary/shared_dictionary_on_disk.h"
 #include "services/network/shared_dictionary/shared_dictionary_writer_on_disk.h"
@@ -31,6 +34,8 @@ namespace network {
 
 constexpr char kCacheResultHistogramName[] =
     "Network.SharedDictionary.DocumentRequestCacheResult";
+constexpr char kDocumentRequestMetadataResultHistogramName[] =
+    "Network.SharedDictionary.DocumentRequestMetadataResult";
 
 namespace {
 
@@ -89,11 +94,13 @@ SharedDictionaryStorageOnDisk::SharedDictionaryStorageOnDisk(
     base::WeakPtr<SharedDictionaryManagerOnDisk> manager,
     const net::SharedDictionaryIsolationKey& isolation_key,
     base::ScopedClosureRunner on_deleted_closure_runner,
-    scoped_refptr<SharedDictionaryCache> dictionary_cache)
+    scoped_refptr<SharedDictionaryCache> dictionary_cache,
+    SharedDictionaryStorageEvictionReason previous_eviction_reason)
     : manager_(manager),
       isolation_key_(isolation_key),
       on_deleted_closure_runner_(std::move(on_deleted_closure_runner)),
-      dictionary_cache_(dictionary_cache) {
+      dictionary_cache_(dictionary_cache),
+      previous_eviction_reason_(previous_eviction_reason) {
   memory_pressure_listener_registration_ =
       std::make_unique<base::AsyncMemoryPressureListenerRegistration>(
           FROM_HERE,
@@ -121,24 +128,86 @@ scoped_refptr<net::SharedDictionary>
 SharedDictionaryStorageOnDisk::GetDictionarySync(
     const GURL& url,
     mojom::RequestDestination destination) {
+  scoped_refptr<net::SharedDictionary> dictionary =
+      GetDictionarySyncInternal(url, destination);
+  if (dictionary) {
+    if (destination == mojom::RequestDestination::kDocument) {
+      base::UmaHistogramEnumeration(
+          kDocumentRequestMetadataResultHistogramName,
+          SharedDictionaryDocumentRequestMetadataResult::kMetadataReady);
+    }
+    return dictionary;
+  }
+
+  if (!is_metadata_ready_ &&
+      destination == mojom::RequestDestination::kDocument) {
+    pending_get_dictionary_tasks_.emplace_back(base::BindOnce(
+        [](base::WeakPtr<SharedDictionaryStorageOnDisk> self, GURL url,
+           mojom::RequestDestination destination) {
+          if (!self) {
+            return;
+          }
+          if (self->GetDictionarySyncInternal(url, destination)) {
+            base::UmaHistogramEnumeration(
+                kDocumentRequestMetadataResultHistogramName,
+                SharedDictionaryDocumentRequestMetadataResult::
+                    kMetadataPending);
+          }
+        },
+        weak_factory_.GetWeakPtr(), url, destination));
+  }
+  return nullptr;
+}
+
+scoped_refptr<net::SharedDictionary>
+SharedDictionaryStorageOnDisk::GetDictionarySyncInternal(
+    const GURL& url,
+    mojom::RequestDestination destination) {
   if (!get_dictionary_called_) {
     get_dictionary_called_ = true;
     base::UmaHistogramBoolean(
         "Net.SharedDictionaryStorageOnDisk.IsMetadataReadyOnFirstUse",
         is_metadata_ready_);
+
+    if (previous_eviction_reason_ !=
+        SharedDictionaryStorageEvictionReason::kNotEvicted) {
+      base::UmaHistogramBoolean(
+          "Net.SharedDictionaryStorageOnDisk.IsMetadataReadyOnFirstUse."
+          "PreviouslyEvicted",
+          is_metadata_ready_);
+      base::UmaHistogramEnumeration(
+          "Net.SharedDictionaryStorageOnDisk.MemoryCache."
+          "PreviousEvictionReason",
+          previous_eviction_reason_);
+    }
+    if (previous_eviction_reason_ ==
+            SharedDictionaryStorageEvictionReason::kMemoryPressureModerate ||
+        previous_eviction_reason_ ==
+            SharedDictionaryStorageEvictionReason::kMemoryPressureCritical) {
+      base::UmaHistogramBoolean(
+          "Net.SharedDictionaryStorageOnDisk.IsMetadataReadyOnFirstUse."
+          "PreviouslyEvictedByMemoryPressure",
+          is_metadata_ready_);
+    }
+  }
+
+  if (!is_metadata_ready_) {
+    return nullptr;
   }
 
   if (!manager_) {
     return nullptr;
   }
+
+  std::list<WrappedDictionaryInfo*> expired_entries;
   net::SharedDictionaryInfo* info = GetMatchingDictionaryFromDictionaryInfoMap(
-      dictionary_info_map_, url, destination);
-  if (!info) {
-    return nullptr;
+      dictionary_info_map_, url, destination, expired_entries);
+
+  if (!expired_entries.empty()) {
+    manager_->MaybePostExpiredDictionaryDeletionTask();
   }
 
-  if (info->response_time() + info->expiration() <= base::Time::Now()) {
-    manager_->MaybePostExpiredDictionaryDeletionTask();
+  if (!info) {
     return nullptr;
   }
 

@@ -117,6 +117,7 @@ A fiókváltás előtt várjon néhány percet. Ha most vált fiókot, akkor eze
 <translation id="3581385059720151202">Képi elemek keresése a Chromiumban</translation>
 <translation id="3582640969619785896">A Chromium felkínálja a jelszó mentését.</translation>
 <translation id="3594315078412605236">Fizetési módok kezelése a Chromiumban</translation>
+<translation id="3600428265489994557">Bejelentkezés a Chromiumba</translation>
 <translation id="3617143087229977194">Nyissa meg az Alapértelmezett alkalmazások beállításait iOS rendszeren, majd koppintson a „Böngészőalkalmazás” elemre, és válassza ki a Chromiumot.</translation>
 <translation id="3634039384458740619">Nyissa meg a Chromium beállításait.</translation>
 <translation id="3639997914391704523">A Chromium ellenőrizni tudja a mentett jelszavakat, ha Ön bejelentkezik Google-fiókjával.</translation>
@@ -351,7 +352,6 @@ Csak az Ön összetett jelszava ismeretében tudja bárki is megtekinteni a titk
 <translation id="900560297598578021">Bejelentkezve a következőként: <ph name="EMAIL" />.
 
 Adatai az összetett jelszavával lettek titkosítva a következő időpontban: <ph name="TIME" />. Adja meg, ha Google-fiókjában Chromium-adatokat szeretne használni és menteni.</translation>
-<translation id="9022552996538154597">Bejelentkezés a Chromiumba</translation>
 <translation id="9031260906956926157">Az Ön bizonyos Chromium-adatait még nem mentette a rendszer a Google-fiókjába.
 A kijelentkezés előtt várjon néhány percet. Ha most jelentkezik ki, akkor ezek az adatok törlődnek.</translation>
 <translation id="9050790730841755540">Bármikor használhatja a Chromiumot, amikor más alkalmazásokban linkekre kattint.</translation>

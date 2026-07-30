@@ -22,7 +22,7 @@
 
 using ::optimization_guide::AnyWrapProto;
 using ::optimization_guide::MockSession;
-using ::optimization_guide::OptimizationGuideModelExecutionError;
+using ::optimization_guide::OnDeviceError;
 using ::optimization_guide::OptimizationGuideModelStreamingExecutionResult;
 using ::optimization_guide::proto::ModelExecutionInfo;
 using ::optimization_guide::proto::ScamDetectionResponse;
@@ -77,7 +77,7 @@ class ClientSideDetectionIntelligentScanDelegateDesktopTest
         optimization_guide::mojom::OnDeviceFeature::kScamDetection,
         optimization_guide::OnDeviceModelEligibilityReason::kSuccess);
 
-    ASSERT_TRUE(delegate_->IsOnDeviceModelAvailable(
+    ASSERT_TRUE(delegate_->IsIntelligentScanAvailable(
         /*log_failed_eligibility_reason=*/true));
   }
 
@@ -181,7 +181,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
 TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
        TestOnDeviceModelFetchSuccessCall) {
   CreateDelegate(/*is_enhanced_protection_enabled=*/false);
-  EXPECT_FALSE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_FALSE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/true));
 
   optimization_guide::OnDeviceModelAvailabilityObserver* availability_observer =
@@ -226,7 +226,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
   histogram_tester_.ExpectUniqueSample(
       "SBClientPhishing.OnDeviceModelDownloadSuccess", true, 0);
 
-  EXPECT_FALSE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_FALSE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/true));
 
   // And then send `kSuccess` to the observer, which will log the histogram.
@@ -239,14 +239,14 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
   histogram_tester_.ExpectTotalCount("SBClientPhishing.OnDeviceModelFetchTime",
                                      1);
 
-  EXPECT_TRUE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_TRUE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/true));
 }
 
 TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
        TestOnDeviceModelFetchSuccessImmediateSessionCreation) {
   CreateDelegate(/*is_enhanced_protection_enabled=*/false);
-  EXPECT_FALSE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_FALSE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/true));
 
   testing::NiceMock<MockSession> session;
@@ -265,14 +265,14 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
 
   histogram_tester_.ExpectUniqueSample(
       "SBClientPhishing.OnDeviceModelDownloadSuccess", true, 1);
-  EXPECT_TRUE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_TRUE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/true));
 }
 
 TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
        TestOnDeviceModelFetchFailureCall) {
   CreateDelegate(/*is_enhanced_protection_enabled=*/false);
-  EXPECT_FALSE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_FALSE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/true));
 
   optimization_guide::OnDeviceModelAvailabilityObserver* availability_observer =
@@ -301,7 +301,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
   histogram_tester_.ExpectUniqueSample(
       "SBClientPhishing.OnDeviceModelDownloadSuccess", false, 1);
 
-  EXPECT_FALSE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_FALSE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/true));
 }
 
@@ -310,7 +310,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
   CreateDelegate(/*is_enhanced_protection_enabled=*/false);
 
   // The below function is called by the delegate when calling
-  // IsOnDeviceModelAvailable but the on device model is not available yet.
+  // IsIntelligentScanAvailable but the on device model is not available yet.
   EXPECT_CALL(mock_opt_guide_, GetOnDeviceModelEligibility(_))
       .WillOnce([&](optimization_guide::mojom::OnDeviceFeature feature) {
         return optimization_guide::OnDeviceModelEligibilityReason::
@@ -347,7 +347,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
   histogram_tester_.ExpectUniqueSample(
       "SBClientPhishing.OnDeviceModelDownloadSuccess", true, 0);
 
-  EXPECT_FALSE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_FALSE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/true));
 
   // We expect the histogram value for
@@ -360,7 +360,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
       optimization_guide::OnDeviceModelEligibilityReason::kModelToBeInstalled,
       1);
 
-  EXPECT_FALSE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_FALSE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/false));
 
   // The histogram is not logged again because
@@ -374,7 +374,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
       optimization_guide::mojom::OnDeviceFeature::kScamDetection,
       optimization_guide::OnDeviceModelEligibilityReason::kSuccess);
 
-  EXPECT_TRUE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_TRUE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/true));
 
   // The histogram is not logged again because
@@ -412,7 +412,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
 
   // The delegate should not be available because we stopped listening to the
   // model update before the model was available.
-  EXPECT_FALSE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_FALSE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/true));
 }
 
@@ -439,12 +439,12 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
       optimization_guide::mojom::OnDeviceFeature::kScamDetection,
       optimization_guide::OnDeviceModelEligibilityReason::kSuccess);
 
-  EXPECT_TRUE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_TRUE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/true));
 
   SetEnhancedProtectionPrefForTests(&pref_service_, false);
 
-  EXPECT_FALSE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_FALSE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/true));
 
   // Start listening again should work.
@@ -465,7 +465,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
       optimization_guide::mojom::OnDeviceFeature::kScamDetection,
       optimization_guide::OnDeviceModelEligibilityReason::kSuccess);
 
-  EXPECT_TRUE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_TRUE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/true));
 }
 
@@ -489,14 +489,14 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
   run_loop_for_add_observer.Run();
   CHECK(availability_observer);
 
-  EXPECT_FALSE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_FALSE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/true));
 
   availability_observer->OnDeviceModelAvailabilityChanged(
       optimization_guide::mojom::OnDeviceFeature::kScamDetection,
       optimization_guide::OnDeviceModelEligibilityReason::kSuccess);
 
-  EXPECT_TRUE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_TRUE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/true));
 }
 
@@ -507,7 +507,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
   EXPECT_CALL(mock_opt_guide_, StartSession(_, _, _)).WillOnce(Return(nullptr));
 
   base::test::TestFuture<IntelligentScanResult> future;
-  delegate_->InquireOnDeviceModel("", future.GetCallback());
+  delegate_->StartIntelligentScan("", future.GetCallback());
 
   histogram_tester_.ExpectUniqueSample(
       "SBClientPhishing.OnDeviceModelSessionCreationSuccess", false, 1);
@@ -521,7 +521,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
   EnableOnDeviceModelWithSession();
 
   base::test::TestFuture<IntelligentScanResult> future;
-  delegate_->InquireOnDeviceModel("", future.GetCallback());
+  delegate_->StartIntelligentScan("", future.GetCallback());
 
   histogram_tester_.ExpectUniqueSample(
       "SBClientPhishing.OnDeviceModelSessionCreationSuccess", true, 1);
@@ -537,7 +537,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
   EnableOnDeviceModelWithSession();
 
   base::test::TestFuture<IntelligentScanResult> future;
-  delegate_->InquireOnDeviceModel("", future.GetCallback());
+  delegate_->StartIntelligentScan("", future.GetCallback());
 
   histogram_tester_.ExpectUniqueSample(
       "SBClientPhishing.OnDeviceModelSessionCreationSuccess", true, 1);
@@ -552,7 +552,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
           });
 
   base::test::TestFuture<IntelligentScanResult> future2;
-  delegate_->InquireOnDeviceModel("", future2.GetCallback());
+  delegate_->StartIntelligentScan("", future2.GetCallback());
 
   histogram_tester_.ExpectUniqueSample(
       "SBClientPhishing.OnDeviceModelSessionCreationSuccess", true, 2);
@@ -573,9 +573,9 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
           });
 
   base::test::TestFuture<IntelligentScanResult> future1;
-  std::optional<base::UnguessableToken> session_id1 =
-      delegate_->InquireOnDeviceModel("", future1.GetCallback());
-  EXPECT_FALSE(session_id1->is_empty());
+  std::optional<base::UnguessableToken> scan_id1 =
+      delegate_->StartIntelligentScan("", future1.GetCallback());
+  EXPECT_FALSE(scan_id1->is_empty());
 
   testing::NiceMock<MockSession> session2;
   EXPECT_CALL(mock_opt_guide_, StartSession(_, _, _))
@@ -587,26 +587,26 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
           });
 
   base::test::TestFuture<IntelligentScanResult> future2;
-  std::optional<base::UnguessableToken> session_id2 =
-      delegate_->InquireOnDeviceModel("", future2.GetCallback());
+  std::optional<base::UnguessableToken> scan_id2 =
+      delegate_->StartIntelligentScan("", future2.GetCallback());
 
-  // Both session IDs should still be alive.
-  EXPECT_FALSE(session_id1->is_empty());
-  EXPECT_FALSE(session_id2->is_empty());
+  // Both scan IDs should still be alive.
+  EXPECT_FALSE(scan_id1->is_empty());
+  EXPECT_FALSE(scan_id2->is_empty());
   EXPECT_EQ(delegate_->GetAliveSessionCountForTesting(), 2);
 }
 
 TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
-       TestCancelSession) {
+       TestCancelIntelligentScan) {
   EnableOnDeviceModelWithSession();
 
   base::test::TestFuture<IntelligentScanResult> future;
-  std::optional<base::UnguessableToken> session_id =
-      delegate_->InquireOnDeviceModel("", future.GetCallback());
-  EXPECT_FALSE(session_id->is_empty());
+  std::optional<base::UnguessableToken> scan_id =
+      delegate_->StartIntelligentScan("", future.GetCallback());
+  EXPECT_FALSE(scan_id->is_empty());
 
   EXPECT_EQ(delegate_->GetAliveSessionCountForTesting(), 1);
-  EXPECT_TRUE(delegate_->CancelSession(*session_id));
+  EXPECT_TRUE(delegate_->CancelIntelligentScan(*scan_id));
   EXPECT_EQ(delegate_->GetAliveSessionCountForTesting(), 0);
 
   // The callback should not be called.
@@ -614,7 +614,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
 }
 
 TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
-       TestMultipleSessionsCancellation) {
+       TestMultipleScansCancellation) {
   EnableOnDeviceModel();
 
   EXPECT_CALL(mock_opt_guide_, StartSession(_, _, _))
@@ -626,9 +626,9 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
           });
 
   base::test::TestFuture<IntelligentScanResult> future1;
-  std::optional<base::UnguessableToken> session_id1 =
-      delegate_->InquireOnDeviceModel("", future1.GetCallback());
-  EXPECT_FALSE(session_id1->is_empty());
+  std::optional<base::UnguessableToken> scan_id1 =
+      delegate_->StartIntelligentScan("", future1.GetCallback());
+  EXPECT_FALSE(scan_id1->is_empty());
 
   testing::NiceMock<MockSession> session2;
   EXPECT_CALL(mock_opt_guide_, StartSession(_, _, _))
@@ -640,17 +640,17 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
           });
 
   base::test::TestFuture<IntelligentScanResult> future2;
-  std::optional<base::UnguessableToken> session_id2 =
-      delegate_->InquireOnDeviceModel("", future2.GetCallback());
+  std::optional<base::UnguessableToken> scan_id2 =
+      delegate_->StartIntelligentScan("", future2.GetCallback());
 
-  // Both session IDs should still be alive.
-  EXPECT_FALSE(session_id1->is_empty());
-  EXPECT_FALSE(session_id2->is_empty());
+  // Both scan IDs should still be alive.
+  EXPECT_FALSE(scan_id1->is_empty());
+  EXPECT_FALSE(scan_id2->is_empty());
 
   EXPECT_EQ(delegate_->GetAliveSessionCountForTesting(), 2);
-  EXPECT_TRUE(delegate_->CancelSession(*session_id1));
+  EXPECT_TRUE(delegate_->CancelIntelligentScan(*scan_id1));
   EXPECT_EQ(delegate_->GetAliveSessionCountForTesting(), 1);
-  EXPECT_TRUE(delegate_->CancelSession(*session_id2));
+  EXPECT_TRUE(delegate_->CancelIntelligentScan(*scan_id2));
   EXPECT_EQ(delegate_->GetAliveSessionCountForTesting(), 0);
 }
 
@@ -664,17 +664,13 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
                   OptimizationGuideModelExecutionResultStreamingCallback
                       callback) {
             callback.Run(OptimizationGuideModelStreamingExecutionResult(
-                base::unexpected(
-                    OptimizationGuideModelExecutionError::
-                        FromModelExecutionError(
-                            OptimizationGuideModelExecutionError::
-                                ModelExecutionError::kGenericFailure)),
+                base::unexpected(OnDeviceError::kGenericFailure),
                 /*provided_by_on_device=*/true,
                 /*execution_info=*/CreateExecutionInfo(/*model_version=*/123)));
           }));
 
   base::test::TestFuture<IntelligentScanResult> future;
-  delegate_->InquireOnDeviceModel("", future.GetCallback());
+  delegate_->StartIntelligentScan("", future.GetCallback());
 
   histogram_tester_.ExpectUniqueSample(
       "SBClientPhishing.OnDeviceModelSessionCreationSuccess", true, 1);
@@ -706,7 +702,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
           }));
 
   base::test::TestFuture<IntelligentScanResult> future;
-  delegate_->InquireOnDeviceModel("", future.GetCallback());
+  delegate_->StartIntelligentScan("", future.GetCallback());
 
   histogram_tester_.ExpectUniqueSample(
       "SBClientPhishing.OnDeviceModelSessionCreationSuccess", true, 1);
@@ -744,7 +740,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
           }));
 
   base::test::TestFuture<IntelligentScanResult> future;
-  delegate_->InquireOnDeviceModel("", future.GetCallback());
+  delegate_->StartIntelligentScan("", future.GetCallback());
 
   histogram_tester_.ExpectUniqueSample(
       "SBClientPhishing.OnDeviceModelSessionCreationSuccess", true, 1);
@@ -778,7 +774,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
           }));
 
   base::test::TestFuture<IntelligentScanResult> future;
-  delegate_->InquireOnDeviceModel("", future.GetCallback());
+  delegate_->StartIntelligentScan("", future.GetCallback());
 
   histogram_tester_.ExpectUniqueSample(
       "SBClientPhishing.OnDeviceModelSessionCreationSuccess", true, 1);
@@ -816,9 +812,9 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
           }));
 
   // Create an empty callback.
-  ClientSideDetectionHost::IntelligentScanDelegate::
-      InquireOnDeviceModelDoneCallback host_callback;
-  delegate_->InquireOnDeviceModel("", std::move(host_callback));
+  ClientSideDetectionHost::IntelligentScanDelegate::IntelligentScanDoneCallback
+      host_callback;
+  delegate_->StartIntelligentScan("", std::move(host_callback));
 
   histogram_tester_.ExpectUniqueSample(
       "SBClientPhishing.OnDeviceModelSessionCreationSuccess", true, 1);
@@ -843,7 +839,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
   EXPECT_FALSE(did_reset);
 
   base::test::TestFuture<IntelligentScanResult> future;
-  delegate_->InquireOnDeviceModel("", future.GetCallback());
+  delegate_->StartIntelligentScan("", future.GetCallback());
 
   EXPECT_EQ(delegate_->GetAliveSessionCountForTesting(), 1);
 
@@ -856,7 +852,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTest,
             return std::make_unique<NiceMock<MockSession>>(&session_);
           });
   base::test::TestFuture<IntelligentScanResult> future2;
-  delegate_->InquireOnDeviceModel("", future2.GetCallback());
+  delegate_->StartIntelligentScan("", future2.GetCallback());
 
   EXPECT_EQ(delegate_->GetAliveSessionCountForTesting(), 2);
 
@@ -940,7 +936,7 @@ TEST_F(ClientSideDetectionIntelligentScanDelegateDesktopTestKillSwitchEnabled,
       .Times(0);
   CreateDelegate(/*is_enhanced_protection_enabled=*/true);
 
-  EXPECT_FALSE(delegate_->IsOnDeviceModelAvailable(
+  EXPECT_FALSE(delegate_->IsIntelligentScanAvailable(
       /*log_failed_eligibility_reason=*/true));
 }
 

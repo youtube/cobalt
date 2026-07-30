@@ -99,6 +99,7 @@ using blink::WebLocalFrame;
 using blink::WebNode;
 using blink::WebRange;
 using blink::WebString;
+using blink::WebDOMEvent;
 
 namespace autofill {
 
@@ -424,6 +425,12 @@ class AutofillAgent::DeferringAutofillDriver : public mojom::AutofillDriver {
                  : std::nullopt);
   }
   void HidePopup() override { DeferMsg(&mojom::AutofillDriver::HidePopup); }
+  void SuppressAutomaticRefills(const FillId& fill_id) override {
+    DeferMsg(&mojom::AutofillDriver::SuppressAutomaticRefills, fill_id);
+  }
+  void RequestRefill(const FillId& fill_id) override {
+    DeferMsg(&mojom::AutofillDriver::RequestRefill, fill_id);
+  }
   void FocusOnNonFormField() override {
     DeferMsg(&mojom::AutofillDriver::FocusOnNonFormField);
   }
@@ -510,6 +517,8 @@ void AutofillAgent::Reset() {
   form_tracker_->ResetLastInteractedElements();
   form_tracker_->OnFormNoLongerSubmittable();
   timing_ = {};
+  input_warnings_.has_warned = false;
+  input_warnings_.remove_listeners.clear();
 }
 
 void AutofillAgent::DidDispatchDOMContentLoadedEvent() {
@@ -522,6 +531,12 @@ void AutofillAgent::DidDispatchDOMContentLoadedEvent() {
                           GetCallTimerState(kDidDispatchDomContentLoadedEvent));
   password_autofill_agent_->DispatchedDOMContentLoadedEvent(
       SynchronousFormCache(form_cache_.extracted_forms()));
+
+  if (WebDocument document = GetDocument();
+      document && document.GetFrame() &&
+      document.GetFrame()->IsInspectorConnected()) {
+    OnDevToolsSessionConnectionChanged(true);
+  }
 }
 
 void AutofillAgent::DidChangeScrollOffset() {
@@ -581,6 +596,17 @@ void AutofillAgent::FocusedElementChanged(
   ObserveCaret(new_focused_element);
 
   HidePopup();
+
+  if (content::RenderFrame* render_frame = unsafe_render_frame()) {
+    if (WebLocalFrame& frame = *render_frame->GetWebFrame();
+        frame.IsInspectorConnected() && new_focused_element &&
+        (new_focused_element.DynamicTo<WebFormControlElement>() ||
+         new_focused_element.IsContentEditable())) {
+      form_issues::EmitAutofillOrManualTextIssue(
+          GetDocument(), DenseSet<form_issues::PermissionsPolicyFeature>::all(),
+          &form_issues::EmitToDevTools);
+    }
+  }
 
   // This behavior was introduced for to fix http://crbug.com/1105254. It's
   // unclear if this is still needed.
@@ -669,7 +695,7 @@ void AutofillAgent::ObserveCaret(WebElement element) {
 }
 
 void AutofillAgent::HandleCaretMovedInFormField(WebElement element,
-                                                blink::WebDOMEvent) {
+                                                WebDOMEvent) {
   auto handle_throttled_caret_change = [](AutofillAgent& self,
                                           WebElement element) {
     if (!self.unsafe_render_frame() || !element.Focused() ||
@@ -985,11 +1011,19 @@ void AutofillAgent::UserGestureObserved() {
 void AutofillAgent::ApplyFieldsAction(
     mojom::FormActionType action_type,
     mojom::ActionPersistence action_persistence,
-    const std::vector<FormFieldData::FillData>& fields) {
+    const std::vector<FormFieldData::FillData>& fields,
+    const FillId& fill_id,
+    bool supports_refill) {
   CHECK(!fields.empty());
   WebDocument document = GetDocument();
   if (!document) {
     return;
+  }
+
+  if (document.HasEventListeners(WebNode::EventType::kAutofill)) {
+    if (auto* autofill_driver = unsafe_autofill_driver()) {
+      autofill_driver->SuppressAutomaticRefills(fill_id);
+    }
   }
 
   ClearPreviewedForm();
@@ -1566,6 +1600,7 @@ void AutofillAgent::ExtractLabeledTextNodeValue(
 
 void AutofillAgent::OnDevToolsSessionConnectionChanged(bool attached) {
   if (!attached) {
+    input_warnings_.remove_listeners.clear();
     return;
   }
   if (is_dom_content_loaded_) {
@@ -1575,6 +1610,45 @@ void AutofillAgent::OnDevToolsSessionConnectionChanged(bool attached) {
     ExtractFormsUnthrottled(
         /*callback=*/{},
         GetCallTimerState(kOnDevToolsSessionConnectionChanged));
+  }
+
+  // Registers listeners for text-producing events and emits a warning after the
+  // first such event.
+  if (WebDocument document = GetDocument();
+      document && !input_warnings_.has_warned) {
+    constexpr auto kTextProducingEvents = std::to_array({
+        WebNode::EventType::kBeforeinput,
+        WebNode::EventType::kInput,
+        WebNode::EventType::kCompositionstart,
+        WebNode::EventType::kCompositionupdate,
+        WebNode::EventType::kCompositionend,
+        WebNode::EventType::kDrop,
+        WebNode::EventType::kPaste,
+        WebNode::EventType::kKeydown,
+        WebNode::EventType::kKeyup,
+        WebNode::EventType::kKeypress,
+    });
+    input_warnings_.remove_listeners = base::ToVector(
+        kTextProducingEvents, [&](WebNode::EventType event_type) {
+          base::RepeatingCallback<void(WebDOMEvent)> handler =
+              base::BindRepeating(
+                  [](AutofillAgent& self, WebNode::EventType event_type,
+                     WebDOMEvent) {
+                    WebDocument document = self.GetDocument();
+                    if (!document) {
+                      return;
+                    }
+                    form_issues::EmitAutofillOrManualTextIssue(
+                        document,
+                        {form_issues::PermissionsPolicyFeature::kManualText},
+                        &form_issues::EmitToDevTools);
+                    self.input_warnings_.has_warned = true;
+                    self.input_warnings_.remove_listeners.clear();
+                  },
+                  std::ref(*this), event_type);
+          return document.AddEventListener(event_type, handler,
+                                           /*use_capture=*/true);
+        });
   }
 }
 

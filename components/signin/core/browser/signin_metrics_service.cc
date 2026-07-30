@@ -116,6 +116,9 @@ void MaybeRecordWebSigninToChromeSigninTimes(
     case signin_metrics::AccessPoint::kAddressBubble:
       access_point_string = "AddressSigninPromo";
       break;
+    case signin_metrics::AccessPoint::kBookmarkBubble:
+      access_point_string = "BookmarkSigninPromo";
+      break;
     // All other access point should not record this metric.
     case signin_metrics::AccessPoint::kStartPage:
     case signin_metrics::AccessPoint::kNtpLink:
@@ -125,7 +128,6 @@ void MaybeRecordWebSigninToChromeSigninTimes(
     case signin_metrics::AccessPoint::kSupervisedUser:
     case signin_metrics::AccessPoint::kExtensionInstallBubble:
     case signin_metrics::AccessPoint::kExtensions:
-    case signin_metrics::AccessPoint::kBookmarkBubble:
     case signin_metrics::AccessPoint::kBookmarkManager:
     case signin_metrics::AccessPoint::kAvatarBubbleSignIn:
     case signin_metrics::AccessPoint::kUserManager:
@@ -199,6 +201,7 @@ void MaybeRecordWebSigninToChromeSigninTimes(
         kEnterpriseManagementDisclaimerAfterSignin:
     case signin_metrics::AccessPoint::kNtpFeaturePromo:
     case signin_metrics::AccessPoint::kEnterpriseDialogAfterSigninInterception:
+    case signin_metrics::AccessPoint::kCredentialExchangeImport:
       return;
   }
 
@@ -511,16 +514,12 @@ void SigninMetricsService::RecordExplicitSigninMigrationStatus() {
 void SigninMetricsService::MaybeRecordMetricsForSigninPromoLimitsExperiment(
     const CoreAccountInfo& account_info,
     signin_metrics::AccessPoint access_point) {
-  if (!base::FeatureList::IsEnabled(switches::kSigninPromoLimitsExperiment)) {
-    return;
-  }
-
   bool is_from_web_signin =
       GetTimeOfWebSignin(account_info.account_id).has_value();
   switch (access_point) {
     case signin_metrics::AccessPoint::kAddressBubble:
       base::UmaHistogramBoolean(
-          "Signin.PromoLimitsExperiment.AddressSigninPromoShownCountAtSignin",
+          "Signin.ShowCountAtSignin.AddressSigninPromo",
           is_from_web_signin
               ? SigninPrefs(pref_service_.get())
                     .GetAddressSigninPromoImpressionCount(account_info.gaia)
@@ -530,7 +529,7 @@ void SigninMetricsService::MaybeRecordMetricsForSigninPromoLimitsExperiment(
       break;
     case signin_metrics::AccessPoint::kPasswordBubble:
       base::UmaHistogramBoolean(
-          "Signin.PromoLimitsExperiment.PasswordSigninPromoShownCountAtSignin",
+          "Signin.ShowCountAtSignin.PasswordSigninPromo",
           is_from_web_signin
               ? SigninPrefs(pref_service_.get())
                     .GetPasswordSigninPromoImpressionCount(account_info.gaia)
@@ -538,19 +537,28 @@ void SigninMetricsService::MaybeRecordMetricsForSigninPromoLimitsExperiment(
                     prefs::
                         kPasswordSignInPromoShownCountPerProfileForLimitsExperiment));
       break;
+    case signin_metrics::AccessPoint::kBookmarkBubble:
+      base::UmaHistogramBoolean(
+          "Signin.ShowCountAtSignin.BookmarkSigninPromo",
+          is_from_web_signin
+              ? SigninPrefs(pref_service_.get())
+                    .GetBookmarkSigninPromoImpressionCount(account_info.gaia)
+              : pref_service_->GetInteger(
+                    prefs::
+                        kBookmarkSignInPromoShownCountPerProfileForLimitsExperiment));
+      break;
     case signin_metrics::AccessPoint::kChromeSigninInterceptBubble: {
       const int uno_bubble_reprompt_count =
           SigninPrefs(pref_service_.get())
               .GetChromeSigninBubbleRepromptCount(account_info.gaia);
       if (uno_bubble_reprompt_count > 0) {
-        base::UmaHistogramBoolean(
-            "Signin.PromoLimitsExperiment.UnoBubbleRepromptCountAtSignin",
-            uno_bubble_reprompt_count);
+        base::UmaHistogramBoolean("Signin.ShowCountAtSignin.UnoBubbleReprompt",
+                                  uno_bubble_reprompt_count);
       }
       break;
     }
     default:
-      // No other access points are relevant for this experiment.
+      // No other access points are relevant.
       return;
   }
 }

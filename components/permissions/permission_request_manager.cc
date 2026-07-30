@@ -1207,13 +1207,18 @@ void PermissionRequestManager::CurrentRequestsDecided(
 
   if (ShouldRecordUmaForCurrentPrompt()) {
     PermissionUmaUtil::PermissionPromptResolved(
-        requests_, web_contents(), permission_action, time_to_decision,
+        requests_, browser_context, permission_action, time_to_decision,
         DetermineCurrentRequestUIDisposition(),
         DetermineCurrentRequestUIDispositionReasonForUMA(),
         view_ ? std::optional(view_->GetPromptVariants()) : std::nullopt,
         prediction_grant_likelihood_, permission_request_relevance_,
         permission_ai_relevance_model_, was_decision_held_back_, ignore_reason,
-        did_show_prompt_, did_click_manage_, did_click_learn_more_);
+        did_show_prompt_, did_click_manage_, did_click_learn_more_,
+        requests_[0]->GetContentSettingsType() ==
+                ContentSettingsType::GEOLOCATION_WITH_OPTIONS
+            ? std::make_optional<GeolocationAccuracy>(
+                  GetInitialGeolocationAccuracySelection())
+            : std::nullopt);
   }
 
   std::optional<QuietUiReason> quiet_ui_reason;
@@ -1256,25 +1261,20 @@ void PermissionRequestManager::CurrentRequestsDecided(
       // request.
     }
 
-    if (permission_action == PermissionAction::GRANTED_ONCE) {
-      ContentSettingsType content_settings_type =
-          request->GetContentSettingsType();
-
-      if (request->request_type() == RequestType::kGeolocation ||
-          content_settings_type == ContentSettingsType::MEDIASTREAM_CAMERA ||
-          content_settings_type == ContentSettingsType::MEDIASTREAM_MIC) {
+    ContentSettingsType content_settings_type =
+        request->GetContentSettingsType();
+    if (content_settings_type == ContentSettingsType::GEOLOCATION ||
+        content_settings_type == ContentSettingsType::MEDIASTREAM_CAMERA ||
+        content_settings_type == ContentSettingsType::MEDIASTREAM_MIC) {
+      if (permission_action == PermissionAction::GRANTED_ONCE) {
         actions_history->RecordOneTimeGrant(request->requesting_origin(),
                                             content_settings_type);
-      }
-    } else if (permission_action == PermissionAction::GRANTED) {
-      ContentSettingsType content_settings_type =
-          request->GetContentSettingsType();
-
-      if (request->request_type() == RequestType::kGeolocation ||
-          content_settings_type == ContentSettingsType::MEDIASTREAM_CAMERA ||
-          content_settings_type == ContentSettingsType::MEDIASTREAM_MIC) {
-        actions_history->RecordOTPCountForGrant(
-            content_settings_type,
+      } else if (permission_action == PermissionAction::GRANTED ||
+                 permission_action == PermissionAction::DENIED ||
+                 permission_action == PermissionAction::DISMISSED ||
+                 permission_action == PermissionAction::IGNORED) {
+        actions_history->RecordOTPCountForAction(
+            content_settings_type, permission_action,
             actions_history->GetOneTimeGrantCount(request->requesting_origin(),
                                                   content_settings_type));
       }

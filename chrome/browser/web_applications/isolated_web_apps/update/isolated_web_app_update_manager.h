@@ -32,7 +32,6 @@
 #include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_discovery_task.h"
 #include "chrome/browser/web_applications/web_app_install_manager_observer.h"
 #include "components/webapps/common/web_app_id.h"
-#include "components/webapps/isolated_web_apps/iwa_key_distribution_info_provider.h"
 #include "components/webapps/isolated_web_apps/types/iwa_version.h"
 #include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "components/webapps/isolated_web_apps/types/update_channel.h"
@@ -80,6 +79,8 @@ enum class IsolatedWebAppUpdateError {
 };
 
 struct IsolatedWebAppUpdateOptions {
+  IsolatedWebAppUpdateOptions();
+  explicit IsolatedWebAppUpdateOptions(const GURL& update_manifest_url);
   IsolatedWebAppUpdateOptions(const GURL& update_manifest_url,
                               UpdateChannel update_channel,
                               bool allow_downgrades,
@@ -90,20 +91,14 @@ struct IsolatedWebAppUpdateOptions {
   ~IsolatedWebAppUpdateOptions();
 
   GURL update_manifest_url;
-  UpdateChannel update_channel;
-  bool allow_downgrades;
+  UpdateChannel update_channel = UpdateChannel::default_channel();
+  bool allow_downgrades = false;
   std::optional<IwaVersion> pinned_version;
 };
 
 // The `IsolatedWebAppUpdateManager` is responsible for discovery, download, and
-// installation of Isolated Web App updates. Currently, it is only updating
-// policy-installed IWAs on ChromeOS.
-//
-// TODO(crbug.com/40274186): Implement updates for unmanaged IWAs once we have
-// designed that process.
-class IsolatedWebAppUpdateManager
-    : public WebAppInstallManagerObserver,
-      public IwaKeyDistributionInfoProvider::Observer {
+// installation of Isolated Web App updates.
+class IsolatedWebAppUpdateManager : public WebAppInstallManagerObserver {
  public:
   class Observer : public base::CheckedObserver {
    public:
@@ -162,9 +157,9 @@ class IsolatedWebAppUpdateManager
       const webapps::AppId& app_id,
       webapps::WebappUninstallSource uninstall_source) override;
 
-  // Queues an update discovery task for the provided `app_id`, assuming that
-  // the corresponding app is policy-installed (prod mode). Returns a boolean
-  // indicating whether an update discovery task was queued successfully.
+  // Queues an update discovery task for the provided `app_id`. Returns a
+  // boolean indicating whether an update discovery task was queued
+  // successfully.
   bool MaybeDiscoverUpdatesForApp(const webapps::AppId& app_id);
 
   // Queues an update discovery task (and potentially an apply update task
@@ -291,8 +286,7 @@ class IsolatedWebAppUpdateManager
     base::Value::List update_apply_results_log_;
   };
 
-  // IwaKeyDistributionInfoProvider::Observer:
-  void OnComponentUpdateSuccess(bool is_preloaded) override;
+  void OnRuntimeDataChanged();
 
   void QueueUpdatesForIwasAffectedByKeyRotation();
 
@@ -395,9 +389,7 @@ class IsolatedWebAppUpdateManager
   base::ScopedObservation<WebAppInstallManager, WebAppInstallManagerObserver>
       install_manager_observation_{this};
 
-  base::ScopedObservation<IwaKeyDistributionInfoProvider,
-                          IwaKeyDistributionInfoProvider::Observer>
-      key_distribution_info_observation_{this};
+  base::CallbackListSubscription runtime_data_changed_subscription_;
 
   // Provides retry logic for updates initiated by key rotation.
   net::BackoffEntry key_rotation_backoff_retry_entry_;

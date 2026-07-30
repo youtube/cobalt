@@ -4,11 +4,14 @@
 
 #include "chrome/browser/ui/extensions/extensions_menu_view_model.h"
 
+#include <string>
+
 #include "base/i18n/case_conversion.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "chrome/browser/extensions/extension_action_runner.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
+#include "chrome/browser/extensions/extension_ui_util.h"
 #include "chrome/browser/extensions/tab_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -16,6 +19,7 @@
 #include "chrome/browser/ui/toolbar/toolbar_action_view_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_view_platform_delegate_views.h"
+#include "chrome/grit/generated_resources.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/web_contents.h"
@@ -24,11 +28,50 @@
 #include "extensions/browser/permissions/active_tab_permission_granter.h"
 #include "extensions/browser/permissions/site_permissions_helper.h"
 #include "extensions/common/permissions/permissions_data.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace {
 
 using PermissionsManager = extensions::PermissionsManager;
 using SitePermissionsHelper = extensions::SitePermissionsHelper;
+
+// The state of the main page in the menu, corresponding to the current site's
+// access restrictions.
+enum class MainPageState {
+  // Site is restricted to all extensions.
+  kRestrictedSite,
+  // Site is restricted all non-enterprise extensions by policy.
+  kPolicyBlockedSite,
+  // User blocked all extensions access to the site.
+  kUserBlockedSite,
+  // User can customize each extension's access to the site.
+  kUserCustomizedSite,
+};
+
+// Returns the state for the main page based on the current `web_contents` URL
+// and the profile's user settings.
+MainPageState GetMainPageState(Profile& profile,
+                               const ToolbarActionsModel& toolbar_model,
+                               content::WebContents& web_contents) {
+  const GURL& url = web_contents.GetLastCommittedURL();
+  if (toolbar_model.IsRestrictedUrl(url)) {
+    return MainPageState::kRestrictedSite;
+  }
+
+  if (toolbar_model.IsPolicyBlockedHost(url)) {
+    return MainPageState::kPolicyBlockedSite;
+  }
+
+  PermissionsManager::UserSiteSetting site_setting =
+      PermissionsManager::Get(&profile)->GetUserSiteSetting(
+          web_contents.GetPrimaryMainFrame()->GetLastCommittedOrigin());
+  if (site_setting ==
+      PermissionsManager::UserSiteSetting::kBlockAllExtensions) {
+    return MainPageState::kUserBlockedSite;
+  }
+
+  return MainPageState::kUserCustomizedSite;
+}
 
 // Returns the extension corresponding to `extension_id` on `profile`.
 const extensions::Extension* GetExtension(
@@ -190,6 +233,43 @@ GetSiteAccessToggleState(const extensions::Extension& extension,
              ? ExtensionsMenuViewModel::MenuItemInfo::SiteAccessToggleState::kOn
              : ExtensionsMenuViewModel::MenuItemInfo::SiteAccessToggleState::
                    kOff;
+}
+
+// Returns the radio button text for `site_access` option.
+std::u16string GetSiteAccessOptionText(
+    PermissionsManager::UserSiteAccess site_access,
+    std::u16string current_site = std::u16string()) {
+  switch (site_access) {
+    case PermissionsManager::UserSiteAccess::kOnClick:
+      return l10n_util::GetStringUTF16(
+          IDS_EXTENSIONS_MENU_SITE_PERMISSIONS_PAGE_SITE_ACCESS_ON_CLICK_TEXT);
+    case PermissionsManager::UserSiteAccess::kOnSite:
+      return l10n_util::GetStringFUTF16(
+          IDS_EXTENSIONS_MENU_SITE_PERMISSIONS_PAGE_SITE_ACCESS_ON_SITE_TEXT,
+          current_site);
+    case PermissionsManager::UserSiteAccess::kOnAllSites:
+      return l10n_util::GetStringUTF16(
+          IDS_EXTENSIONS_MENU_SITE_PERMISSIONS_PAGE_SITE_ACCESS_ON_ALL_SITES_TEXT);
+    default:
+      NOTREACHED();
+  }
+}
+
+// Returns the accessible name for the shows requests toggle given whether it is
+// on.
+std::u16string GetShowRequestsToggleAccessibleName(bool is_toggle_on) {
+  int label_id =
+      is_toggle_on
+          ? IDS_EXTENSIONS_MENU_SITE_PERMISSIONS_PAGE_SHOW_REQUESTS_TOGGLE_ON
+          : IDS_EXTENSIONS_MENU_SITE_PERMISSIONS_PAGE_SHOW_REQUESTS_TOGGLE_OFF;
+  return l10n_util::GetStringUTF16(label_id);
+}
+
+// Updates the site settings toggle text based on its state.
+std::u16string GetSiteSettingToggleText(bool is_on) {
+  int label_id = is_on ? IDS_EXTENSIONS_MENU_SITE_SETTINGS_TOGGLE_ON_TOOLTIP
+                       : IDS_EXTENSIONS_MENU_SITE_SETTINGS_TOGGLE_OFF_TOOLTIP;
+  return l10n_util::GetStringUTF16(label_id);
 }
 
 void LogShowHostAccessRequestInToolbar(bool show) {
@@ -361,6 +441,13 @@ class ScopedGrantSiteAccessCrashKeys {
 };
 
 }  // namespace debug
+
+ExtensionsMenuViewModel::ControlState::ControlState() = default;
+ExtensionsMenuViewModel::ControlState::ControlState(const ControlState&) =
+    default;
+ExtensionsMenuViewModel::ControlState&
+ExtensionsMenuViewModel::ControlState::operator=(const ControlState&) = default;
+ExtensionsMenuViewModel::ControlState::~ControlState() = default;
 
 ExtensionsMenuViewModel::ExtensionsMenuViewModel(
     BrowserWindowInterface* browser,
@@ -550,17 +637,16 @@ void ExtensionsMenuViewModel::ReloadWebContents() {
 }
 
 ExtensionsMenuViewModel::MenuItemInfo ExtensionsMenuViewModel::GetMenuItemInfo(
-    ToolbarActionViewModel* action_model) {
+    const extensions::ExtensionId& extension_id) {
   Profile* profile = browser_->GetProfile();
   // TODO(crbug.com/456285449): If there is an action controller, then the
   // extension should be enabled. We should retrieve the extension from the
-  // extension action controller, but here we are getting the toolbar action
-  // controller interface. For that we either need to (a) pass the action view
+  // extension action view model, but here we are getting the toolbar action
+  // view model interface. For that we either need to (a) pass the action view
   // controller instead or (b) add the extension getter method to toolbar action
   // view controller.
-  auto* registry = extensions::ExtensionRegistry::Get(profile);
   scoped_refptr<const extensions::Extension> extension =
-      registry->enabled_extensions().GetByID(action_model->GetId());
+      GetExtension(*profile, extension_id);
   CHECK(extension);
   content::WebContents* web_contents = GetActiveWebContents();
 
@@ -575,6 +661,171 @@ ExtensionsMenuViewModel::MenuItemInfo ExtensionsMenuViewModel::GetMenuItemInfo(
                                 ->management_policy()
                                 ->HasEnterpriseForcedAccess(*extension);
   return menu_item;
+}
+
+ExtensionsMenuViewModel::ExtensionSiteAccessOptionsState
+ExtensionsMenuViewModel::GetExtensionSiteAccessOptionsState(
+    const extensions::ExtensionId& extension_id) {
+  Profile* profile = browser_->GetProfile();
+  auto* permissions_manager = PermissionsManager::Get(profile);
+
+  // TODO(crbug.com/456285449): If there is an action controller, then the
+  // extension should be enabled. We should retrieve the extension from the
+  // extension action view model, but here we are getting the toolbar action
+  // view model interface. For that we either need to (a) pass the action view
+  // controller instead or (b) add the extension getter method to toolbar action
+  // view controller.
+  scoped_refptr<const extensions::Extension> extension =
+      GetExtension(*profile, extension_id);
+  CHECK(extension);
+  content::WebContents* web_contents = GetActiveWebContents();
+  const GURL& url = web_contents->GetLastCommittedURL();
+
+  // Extension's site permissions can only be compute when such can be modified
+  // by the user.
+  CHECK(CanUserCustomizeExtensionSiteAccess(*extension, *profile,
+                                            *toolbar_model_, *web_contents));
+  auto site_access = permissions_manager->GetUserSiteAccess(*extension, url);
+
+  ControlState on_click_option;
+  on_click_option.status = ControlState::Status::kEnabled;
+  on_click_option.text =
+      GetSiteAccessOptionText(PermissionsManager::UserSiteAccess::kOnClick);
+  on_click_option.is_on =
+      site_access == PermissionsManager::UserSiteAccess::kOnClick;
+
+  ControlState on_site_option;
+  on_site_option.status =
+      permissions_manager->CanUserSelectSiteAccess(
+          *extension, url, PermissionsManager::UserSiteAccess::kOnSite)
+          ? ControlState::Status::kEnabled
+          : ControlState::Status::kDisabled;
+  on_site_option.text =
+      GetSiteAccessOptionText(PermissionsManager::UserSiteAccess::kOnSite);
+  on_site_option.is_on =
+      site_access == PermissionsManager::UserSiteAccess::kOnSite;
+
+  ControlState on_all_sites_option;
+  on_all_sites_option.status =
+      permissions_manager->CanUserSelectSiteAccess(
+          *extension, url, PermissionsManager::UserSiteAccess::kOnAllSites)
+          ? ControlState::Status::kEnabled
+          : ControlState::Status::kDisabled;
+  on_all_sites_option.text =
+      GetSiteAccessOptionText(PermissionsManager::UserSiteAccess::kOnAllSites);
+  on_all_sites_option.is_on =
+      site_access == PermissionsManager::UserSiteAccess::kOnAllSites;
+
+  ExtensionSiteAccessOptionsState extension_site_access;
+  extension_site_access.on_click_option = on_click_option;
+  extension_site_access.on_site_option = on_site_option;
+  extension_site_access.on_all_sites_option = on_all_sites_option;
+
+  return extension_site_access;
+}
+
+ExtensionsMenuViewModel::ControlState
+ExtensionsMenuViewModel::GetExtensionShowRequestsToggleState(
+    const extensions::ExtensionId& extension_id) {
+  SitePermissionsHelper permissions_helper(browser_->GetProfile());
+  bool is_toggle_on =
+      permissions_helper.ShowAccessRequestsInToolbar(extension_id);
+
+  ControlState show_requests_toggle;
+  show_requests_toggle.status = ControlState::Status::kEnabled;
+  show_requests_toggle.accessible_name =
+      GetShowRequestsToggleAccessibleName(is_toggle_on);
+  show_requests_toggle.is_on = is_toggle_on;
+  return show_requests_toggle;
+}
+
+ExtensionsMenuViewModel::OptionalSection
+ExtensionsMenuViewModel::GetOptionalSection() {
+  content::WebContents* web_contents = GetActiveWebContents();
+  auto reload_required = [web_contents]() {
+    return extensions::TabHelper::FromWebContents(web_contents)
+        ->IsReloadRequired();
+  };
+
+  MainPageState state =
+      GetMainPageState(*browser_->GetProfile(), *toolbar_model_, *web_contents);
+
+  if (state == MainPageState::kUserBlockedSite) {
+    return reload_required()
+               ? ExtensionsMenuViewModel::OptionalSection::kReloadPage
+               : ExtensionsMenuViewModel::OptionalSection::kNone;
+  }
+
+  if (state == MainPageState::kUserCustomizedSite) {
+    return reload_required()
+               ? ExtensionsMenuViewModel::OptionalSection::kReloadPage
+               : ExtensionsMenuViewModel::OptionalSection::kHostAccessRequests;
+  }
+
+  return ExtensionsMenuViewModel::OptionalSection::kNone;
+}
+
+ExtensionsMenuViewModel::SiteSettingsState
+ExtensionsMenuViewModel::GetSiteSettingsState() {
+  content::WebContents* web_contents = GetActiveWebContents();
+  Profile* profile = browser_->GetProfile();
+  auto has_enterprise_extensions = [&]() {
+    return std::any_of(
+        toolbar_model_->action_ids().begin(),
+        toolbar_model_->action_ids().end(),
+        [profile](const ToolbarActionsModel::ActionId extension_id) {
+          auto* extension = GetExtension(*profile, extension_id);
+          return extensions::ExtensionSystem::Get(profile)
+              ->management_policy()
+              ->HasEnterpriseForcedAccess(*extension);
+        });
+  };
+
+  ExtensionsMenuViewModel::SiteSettingsState site_settings;
+  std::u16string current_site =
+      extensions::ui_util::GetFormattedHostForDisplay(*web_contents);
+
+  MainPageState state =
+      GetMainPageState(*profile, *toolbar_model_, *web_contents);
+  switch (state) {
+    case MainPageState::kRestrictedSite:
+      site_settings.label = l10n_util::GetStringFUTF16(
+          IDS_EXTENSIONS_MENU_SITE_SETTINGS_NOT_ALLOWED_LABEL, current_site);
+      site_settings.has_tooltip = false;
+      site_settings.toggle.status = ControlState::Status::kHidden;
+      site_settings.toggle.is_on = false;
+
+      break;
+    case MainPageState::kPolicyBlockedSite:
+      site_settings.label = l10n_util::GetStringFUTF16(
+          IDS_EXTENSIONS_MENU_SITE_SETTINGS_NOT_ALLOWED_LABEL, current_site);
+      site_settings.has_tooltip = has_enterprise_extensions();
+      site_settings.toggle.status = ControlState::Status::kHidden;
+      site_settings.toggle.is_on = false;
+
+      break;
+    case MainPageState::kUserBlockedSite:
+      site_settings.label = l10n_util::GetStringFUTF16(
+          IDS_EXTENSIONS_MENU_SITE_SETTINGS_LABEL, current_site);
+      site_settings.has_tooltip = has_enterprise_extensions();
+      site_settings.toggle.status = ControlState::Status::kEnabled;
+      site_settings.toggle.is_on = false;
+      site_settings.toggle.tooltip_text =
+          GetSiteSettingToggleText(/*is_on=*/false);
+
+      break;
+    case MainPageState::kUserCustomizedSite:
+      site_settings.label = l10n_util::GetStringFUTF16(
+          IDS_EXTENSIONS_MENU_SITE_SETTINGS_LABEL, current_site);
+      site_settings.has_tooltip = false;
+      site_settings.toggle.status = ControlState::Status::kEnabled;
+      site_settings.toggle.is_on = true;
+      site_settings.toggle.tooltip_text =
+          GetSiteSettingToggleText(/*is_on=*/true);
+
+      break;
+  }
+  return site_settings;
 }
 
 void ExtensionsMenuViewModel::OnHostAccessRequestAdded(
@@ -667,7 +918,7 @@ void ExtensionsMenuViewModel::OnShowAccessRequestsInToolbarChanged(
 
 void ExtensionsMenuViewModel::OnUserPermissionsSettingsChanged(
     const extensions::PermissionsManager::UserPermissionsSettings& settings) {
-  platform_delegate_->OnPermissionsSettingsChanged();
+  platform_delegate_->OnUserPermissionsSettingsChanged();
 }
 
 void ExtensionsMenuViewModel::OnToolbarActionAdded(

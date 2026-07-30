@@ -58,6 +58,9 @@ struct Credential {
   // The origin for which this credential was requested.
   url::Origin request_origin;
 
+  // The value of `request_origin` formatted for display to the user.
+  std::u16string display_origin;
+
   // The type of the credential used for the login process.
   // It may be presented to a user if mapped to a user-friendly localized
   // descriptor string.
@@ -78,7 +81,7 @@ struct Credential {
 #endif
 };
 
-enum ActorLoginError {
+enum class ActorLoginError {
   // Only one request at a time is allowed per `WebContents` (i.e per tab)
   kServiceBusy,
   // The provided `TabInterface` was invalid (e.g. no associated `WebContents`
@@ -86,8 +89,8 @@ enum ActorLoginError {
   kInvalidTabInterface,
   // Filling is disallowed (e.g. because of a policy)
   kFillingNotAllowed,
-  // There was an error of unknown type.
-  kUnknown,
+  // The feature is disabled.
+  kFeatureDisabled,
 };
 
 using CredentialsOrError =

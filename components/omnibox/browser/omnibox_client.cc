@@ -54,6 +54,10 @@ AutocompleteClassifier* OmniboxClient::GetAutocompleteClassifier() {
   return nullptr;
 }
 
+omnibox::OmniboxPopupCloser* OmniboxClient::GetOmniboxPopupCloser() {
+  return nullptr;
+}
+
 bool OmniboxClient::ShouldDefaultTypedNavigationsToHttps() const {
   return false;
 }
@@ -129,4 +133,8 @@ bool OmniboxClient::IsHistoryEmbeddingsEnabled() const {
 
 bool OmniboxClient::IsAimPopupEnabled() const {
   return false;
+}
+
+omnibox::ChromeAimToolsAndModels OmniboxClient::AimToolMode() const {
+  return omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED;
 }

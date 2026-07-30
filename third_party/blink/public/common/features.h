@@ -36,6 +36,13 @@ namespace features {
 // AIPageContent.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAIPageContentIncludePopupWindows);
 
+// Controls whether a missing subframe while generating the APC proto is
+// silently dropped. If false, the entire APC is considered failed when this
+// happens. When true, the subframe is simply skipped but the rest of APC
+// generation is unaffected.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
+    kAIPageContentMissingSubframesFailSilently);
+
 // Controls the capturing of the Ad-Auction-Signals header, and the maximum
 // allowed Ad-Auction-Signals header value.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAdAuctionSignals);
@@ -224,13 +231,12 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCanvas2DHibernationNoSmallCanvas);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCaptureJSExecutionLocation);
 
-// If enabled, the HTMLDocumentParser will only check its budget after parsing a
-// commonly slow token or for one out of 10 fast tokens.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCheckHTMLParserBudgetLessOften);
-
 // If enabled, the Clear-Site-Data header will handle "prefetchCache" and
 // "prerenderCache" to clear the Prefetch and Prerender caches respectively.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kClearSiteDataPrefetchPrerenderCache);
+
+// Fix for CSS font comparison logic.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCSSFontComparisonFix);
 
 // We do intend to deprecate these when possible, do not remove the feature
 // until they can be disabled by default.
@@ -379,10 +385,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDropInputEventsWhilePaintHolding);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kEnableDevtoolsDeepLinkViaExtensibilityApi);
-
-// Enables establishing the GPU channel asnchronously when requesting a new
-// layer tree frame sink.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kEstablishGpuChannelAsync);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kEnforceNoopenerOnBlobURLNavigation);
 
@@ -698,15 +700,6 @@ BLINK_COMMON_EXPORT extern const base::FeatureParam<int>
 // enabling resampling. It does not have any effect when the resampling flag is
 // enabled.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kInputPredictorTypeChoice);
-
-// Boosts the priority of the renderer main thread if an input scenario is
-// detected.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kInputScenarioPriorityBoost);
-
-// Other times that kInputScenarioPriorityBoost should boost the priority, to
-// compensate for the lower default main thread priority.
-BLINK_COMMON_EXPORT extern const base::FeatureParam<bool>
-    kInputScenarioPriorityBoostIncludesLoading;
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kIntensiveWakeUpThrottling);
 BLINK_COMMON_EXPORT extern const char
@@ -1626,9 +1619,26 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kRestrictSpellingAndGrammarHighlightsChangedSelection);
 
-// Whether the ResourceFetcher should store strong references too.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kResourceFetcherStoresStrongReferences);
+// Aggregated flag for the restriction on HTTP Link headers on subresource
+// responses. See crbug.com/417529151 for details.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRestrictLinkHeaderOnSubresource);
+// Disables only "rel=compression-dictionary".
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kRestrictLinkHeaderOnSubresourceCompressionDictionary);
+// Disables all types of chained-preloads from cross-origin subresource
+// responses.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kRestrictLinkHeaderOnSubresourceCrossOrigin);
+// Disables "rel=dns-prefetch" and "rel=preconnect".
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kRestrictLinkHeaderOnSubresourceNetworkHint);
+// Disables "rel=preload", "rel=modulepreload", and "rel=prefetch".
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kRestrictLinkHeaderOnSubresourceResourceLoad);
 
 // When enabled, it adds Payto URI Scheme to the safe list for
 // registerProtocolHandler. This feature is disabled by default
@@ -1743,16 +1753,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kServiceWorkerSyntheticResponseBypassSubresource);
-
-// 'Mode' parameter for blink::features::kSoftNavigationHeuristics.
-enum class SoftNavigationHeuristicsMode : uint8_t {
-  kBasic,
-  kAdvancedPaintAttribution,
-  kPrePaintBasedAttribution,
-};
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
-    SoftNavigationHeuristicsMode,
-    kSoftNavigationHeuristicsModeParam);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kBoostRenderProcessForLoading);
 

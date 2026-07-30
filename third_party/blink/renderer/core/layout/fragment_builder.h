@@ -7,7 +7,7 @@
 
 #include "third_party/blink/renderer/core/animation/animation_trigger.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/dom/named_animation_trigger_map.h"
+#include "third_party/blink/renderer/core/dom/trigger_scoped_name.h"
 #include "third_party/blink/renderer/core/layout/anchor_map.h"
 #include "third_party/blink/renderer/core/layout/block_node.h"
 #include "third_party/blink/renderer/core/layout/break_appeal.h"
@@ -21,6 +21,7 @@
 #include "third_party/blink/renderer/core/layout/style_variant.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/text/writing_direction_mode.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
@@ -237,6 +238,8 @@ class CORE_EXPORT FragmentBuilder {
   void AddOutOfFlowChildCandidate(const BlockNode&,
                                   const LogicalStaticPosition&,
                                   bool allow_top_layer_nodes = false);
+  void AddOutOfFlowChildCandidate(const BlockNode& child,
+                                  const BlockBreakToken& child_break_token);
 
   // This should only be used for inline-level OOF-positioned nodes.
   // |inline_container_writing_direction| is the current writing mode direction
@@ -340,6 +343,7 @@ class CORE_EXPORT FragmentBuilder {
 
   void SetHasOutOfFlowInFragmentainerSubtree(
       bool has_out_of_flow_in_fragmentainer_subtree) {
+    DCHECK(!RuntimeEnabledFeatures::FragmentedOofInCbEnabled());
     has_out_of_flow_in_fragmentainer_subtree_ =
         has_out_of_flow_in_fragmentainer_subtree;
   }
@@ -582,7 +586,9 @@ class CORE_EXPORT FragmentBuilder {
 
   void PropagateNamedTriggers(const PhysicalFragment& child);
   void CreateNamedTriggersForSelf();
-  GCedNamedAnimationTriggerMap& EnsureNamedTriggers();
+  TriggerScopedNameMap& EnsureNamedTriggers();
+  void SetNamedTrigger(const TriggerScopedName& trigger_scoped_name,
+                       AnimationTrigger* trigger);
 
   LayoutInputNode node_;
   const ConstraintSpace& space_;
@@ -603,7 +609,7 @@ class CORE_EXPORT FragmentBuilder {
   GCedHeapVector<Member<Element>>* snap_areas_ = nullptr;
   // Animation triggers belonging to the element to which this fragment belongs,
   // or an element in its subtree.
-  GCedNamedAnimationTriggerMap* named_triggers_ = nullptr;
+  TriggerScopedNameMap* named_triggers_ = nullptr;
   // [1] https://drafts.csswg.org/css-scroll-snap-2/#scroll-initial-target
   const LayoutObject* scroll_start_target_ = nullptr;
   AnchorMap* anchor_map_ = nullptr;

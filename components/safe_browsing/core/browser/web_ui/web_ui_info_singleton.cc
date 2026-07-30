@@ -4,10 +4,13 @@
 
 #include "components/safe_browsing/core/browser/web_ui/web_ui_info_singleton.h"
 
+#include "base/functional/callback_helpers.h"
+#include "base/strings/strcat.h"
 #include "components/safe_browsing/core/browser/web_ui/web_ui_info_singleton_event_observer.h"
 #include "components/sync/protocol/user_event_specifics.pb.h"
 
 namespace safe_browsing {
+
 WebUIInfoSingleton::WebUIInfoSingleton() = default;
 
 WebUIInfoSingleton::~WebUIInfoSingleton() = default;

@@ -362,7 +362,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.Focus.Settings.Shortcut.Customized" enum="BooleanEnabled"
-    expires_after="2026-03-22">
+    expires_after="2026-05-31">
   <owner>bryantchandler@chromium.org</owner>
   <owner>iwells@google.com</owner>
   <summary>
@@ -643,7 +643,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.Host.WebView.AutoPlay" enum="WebViewAutoPlayProgress"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>carlosk@chromium.org</owner>
   <owner>dewittj@google.com</owner>
   <summary>
@@ -662,6 +662,19 @@ chromium-metrics-reviews@google.com.
     histogram answers the question: What is the total number of times each event
     occurred across all Glic instances? An event is recorded each time it
     occurs.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Instance.FirstActionInDaisyChainPanel"
+    enum="GlicDaisyChainFirstAction" expires_after="2026-12-31">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Records the first action that occurs on a tab that was created by
+    daisy-chaining (opening a link from the side panel). Recorded when a
+    significant action occurs (tab closed, side panel closed, input submitted,
+    conversation switched, daisy chain another tab) or records &quot;No
+    Action&quot; when tab helper is destroyed before any action occurs.
   </summary>
 </histogram>
 
@@ -803,6 +816,26 @@ chromium-metrics-reviews@google.com.
     panel is shown.
   </summary>
   <token key="EmbedderType" variants="EmbedderType"/>
+</histogram>
+
+<histogram name="Glic.Instance.PrivateMemoryFootprint.CriticalPressure"
+    units="MB" expires_after="2026-12-09">
+  <owner>birnie@google.com</owner>
+  <owner>bryantchandler@google.com</owner>
+  <summary>
+    Records the private memory footprint of each Glic instance (sum of WebUI +
+    WebClient) when a critical memory pressure event is received.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Instance.PrivateMemoryFootprint.ModeratePressure"
+    units="MB" expires_after="2026-12-09">
+  <owner>birnie@google.com</owner>
+  <owner>bryantchandler@google.com</owner>
+  <summary>
+    Records the private memory footprint of each Glic instance (sum of WebUI +
+    WebClient) when a moderate memory pressure event is received.
+  </summary>
 </histogram>
 
 <histogram name="Glic.Instance.Session.CreateTabCount" units="count"
@@ -1109,6 +1142,54 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the duration of a single, uninterrupted period of time that a
     GlicInstance was visible. Recorded each time an instance becomes hidden.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Instance.WebClient.MaxPrivateMemoryFootprint" units="MB"
+    expires_after="2026-12-09">
+  <owner>birnie@google.com</owner>
+  <owner>bryantchandler@google.com</owner>
+  <summary>
+    Records the maximum observed private memory footprint of the Glic WebClient
+    renderer process. Recorded when the Glic instance is shut down. Note that
+    this is the maximum value observed during the 30-minute sampling intervals,
+    not necessarily the absolute peak memory usage.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Instance.WebClient.PrivateMemoryFootprint" units="MB"
+    expires_after="2026-12-09">
+  <owner>birnie@google.com</owner>
+  <owner>bryantchandler@google.com</owner>
+  <summary>
+    Records the private memory footprint of the Glic WebClient renderer process.
+    Recorded every 30 minutes. This metric is biased towards long-running
+    instances. Instances that end before 30 minutes will not record a value.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Instance.WebUI.MaxPrivateMemoryFootprint" units="MB"
+    expires_after="2026-12-09">
+  <owner>birnie@google.com</owner>
+  <owner>bryantchandler@google.com</owner>
+  <summary>
+    Records the maximum observed private memory footprint of the Glic WebUI
+    renderer process. Recorded when the Glic instance is shut down. Note that
+    this is the maximum value observed during the 30-minute sampling intervals,
+    not necessarily the absolute peak memory usage. WebUI memory is expected to
+    be significantly lower than WebClient memory.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Instance.WebUI.PrivateMemoryFootprint" units="MB"
+    expires_after="2026-12-09">
+  <owner>birnie@google.com</owner>
+  <owner>bryantchandler@google.com</owner>
+  <summary>
+    Records the private memory footprint of the Glic WebUI renderer process.
+    Recorded every 30 minutes. This metric is biased towards long-running
+    instances. Instances that end before 30 minutes will not record a value.
+    WebUI memory is expected to be significantly lower than WebClient memory.
   </summary>
 </histogram>
 
@@ -1670,14 +1751,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.ScrollTo.ErrorReason" enum="GlicScrollToErrorReason"
-    expires_after="2026-01-15">
+    expires_after="2027-01-15">
   <owner>liuwilliam@google.com</owner>
   <owner>adithyas@google.com</owner>
   <summary>Records the error reason when scrollTo() fails.</summary>
 </histogram>
 
 <histogram name="Glic.ScrollTo.MatchDuration.{MatchResult}" units="ms"
-    expires_after="2026-01-15">
+    expires_after="2027-01-15">
   <owner>liuwilliam@google.com</owner>
   <owner>adithyas@google.com</owner>
   <summary>Measures the time taken to match content for scrollTo().</summary>
@@ -1689,7 +1770,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.ScrollTo.ScrollDistance" units="dip"
-    expires_after="2026-01-15">
+    expires_after="2027-01-15">
   <owner>liuwilliam@google.com</owner>
   <owner>adithyas@google.com</owner>
   <summary>
@@ -1699,7 +1780,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.ScrollTo.SessionCount" units="count"
-    expires_after="2026-05-24">
+    expires_after="2027-01-15">
   <owner>liuwilliam@google.com</owner>
   <owner>adithyas@google.com</owner>
   <summary>
@@ -1709,7 +1790,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.ScrollTo.UserPromptToScrollTime.{Mode}" units="ms"
-    expires_after="2026-01-15">
+    expires_after="2027-01-15">
   <owner>liuwilliam@google.com</owner>
   <owner>adithyas@google.com</owner>
   <summary>

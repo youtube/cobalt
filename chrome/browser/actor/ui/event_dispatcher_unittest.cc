@@ -17,6 +17,7 @@
 #include "chrome/browser/actor/tools/move_mouse_tool_request.h"
 #include "chrome/browser/actor/tools/type_tool_request.h"
 #include "chrome/browser/actor/tools/wait_tool_request.h"
+#include "chrome/browser/actor/ui/actor_ui_metrics_types.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
 #include "chrome/browser/actor/ui/mocks/mock_actor_ui_state_manager.h"
 #include "chrome/browser/actor/ui/ui_event.h"
@@ -167,7 +168,8 @@ TEST_F(EventDispatcherTest, TwoUiEventsWithFirstOneFailing) {
   EXPECT_CALL(*mock_state_manager_, OnUiEvent(VariantWith<MouseMove>(_), _))
       .WillOnce(WithArgs<1>([&](UiCompleteCallback callback) {
         task_environment_.FastForwardBy(base::Microseconds(50));
-        std::move(callback).Run(MakeErrorResult());
+        std::move(callback).Run(
+            MakeResult(actor::mojom::ActionResultCode::kActorUiError));
       }));
   EXPECT_CALL(*mock_state_manager_, OnUiEvent(VariantWith<MouseClick>(_), _))
       .Times(0);
@@ -175,7 +177,8 @@ TEST_F(EventDispatcherTest, TwoUiEventsWithFirstOneFailing) {
                       MouseClickType::kLeft, MouseClickCount::kSingle);
   TestFuture<ActionResultPtr> result;
   dispatcher_->OnPreTool(tr, result.GetCallback());
-  EXPECT_EQ(result.Get()->code, ::actor::mojom::ActionResultCode::kError);
+  EXPECT_EQ(result.Get()->code,
+            ::actor::mojom::ActionResultCode::kActorUiError);
 
   // MouseMove duration shouldn't be recorded as it failed.
   histograms_.ExpectTotalCount(kMouseMoveDurationHistogram, 0);
@@ -194,13 +197,15 @@ TEST_F(EventDispatcherTest, TwoUiEventsWithSecondOneFailing) {
   EXPECT_CALL(*mock_state_manager_, OnUiEvent(VariantWith<MouseClick>(_), _))
       .WillOnce(WithArgs<1>([&](UiCompleteCallback callback) {
         task_environment_.FastForwardBy(base::Microseconds(50));
-        std::move(callback).Run(MakeErrorResult());
+        std::move(callback).Run(
+            MakeResult(actor::mojom::ActionResultCode::kActorUiError));
       }));
   ClickToolRequest tr(tabs::TabHandle(123), PageTarget(gfx::Point(10, 50)),
                       MouseClickType::kLeft, MouseClickCount::kSingle);
   TestFuture<ActionResultPtr> result;
   dispatcher_->OnPreTool(tr, result.GetCallback());
-  EXPECT_EQ(result.Get()->code, ::actor::mojom::ActionResultCode::kError);
+  EXPECT_EQ(result.Get()->code,
+            ::actor::mojom::ActionResultCode::kActorUiError);
 
   // MouseMove duration should be recorded as it was completed.
   histograms_.ExpectBucketCount(kMouseMoveDurationHistogram,

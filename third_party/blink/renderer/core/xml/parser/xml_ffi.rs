@@ -29,6 +29,7 @@ struct XmlReadState<'a> {
     last_event_position: Option<TextPosition>,
     parser_callbacks: Pin<&'a mut XmlCallbacks>,
     namespace_stack: Vec<Namespace>,
+    seen_first_event: bool,
 }
 
 fn create_reader() -> XmlEventReader<Cursor<Vec<u8>>> {
@@ -40,7 +41,8 @@ fn create_reader() -> XmlEventReader<Cursor<Vec<u8>>> {
     let parser_config = ParserConfig::new()
         .override_encoding(Some(Encoding::Utf8))
         .ignore_invalid_encoding_declarations(true)
-        .ignore_comments(false);
+        .ignore_comments(false)
+        .allow_multiple_root_elements(false);
     return XmlEventReader::new_with_config(cursor, parser_config);
 }
 
@@ -52,6 +54,7 @@ fn create_read_state<'a>(callbacks: Pin<&mut XmlCallbacks>) -> Box<XmlReadState<
         last_event_position: None,
         parser_callbacks: callbacks,
         namespace_stack: Vec::new(),
+        seen_first_event: false,
     })
 }
 
@@ -68,10 +71,15 @@ struct NamespacesIterator<'a> {
     namespaces: Box<dyn Iterator<Item = (&'a str, &'a str)> + 'a>,
 }
 
-fn new_namespaces(existing: &Namespace, new: &Namespace) -> Namespace {
+fn new_namespaces(existing: &Namespace, new: &Namespace, seen_first_event: bool) -> Namespace {
     let mut result = Namespace::empty();
     for (new_prefix, new_uri) in new.iter() {
-        if !existing.contains(new_prefix) || existing.get(new_prefix) != Some(new_uri) {
+        // Don't add the first empty default namespace, as the parser synthesizes it and
+        // it likely did not come from the input document.
+        // See: https://github.com/kornelski/xml-rs/issues/48
+        if existing.get(new_prefix).is_none_or(|uri| uri != new_uri)
+            && (seen_first_event || new_prefix != "" || new_uri != "")
+        {
             result.put(new_prefix, new_uri);
         }
     }
@@ -143,7 +151,10 @@ fn process_next_event(read_state: &mut XmlReadState) {
                     let new_namespaces = new_namespaces(
                         &read_state.namespace_stack.last().unwrap_or(&Namespace::empty()),
                         &namespace,
+                        read_state.seen_first_event,
                     );
+
+                    read_state.seen_first_event = true;
 
                     read_state.namespace_stack.push(namespace);
                     let mut attributes = AttributesIterator { attributes: attributes.iter() };
@@ -275,11 +286,13 @@ fn namespaces_next<'a>(
             // TODO(drott): Why do we see an empty namespace here for
             // fast/dom/attribute-namespaces-get-set.html and XML like:
             // <root xmlns:foo=\"http://www.example.com\" attr=\"test2\" foo:attr=\"test\" />
+            // and virtual/rust-xml/fast/xmlhttprequest/xmlhttprequest-get.xhtml
             // Filed as: https://github.com/kornelski/xml-rs/issues/50
 
+            // Letting the empty namespace and empty URL pass through here
+            // is important to reset the default namespace to none.
             if (namespace.0 == "xml" && namespace.1 == NS_XML_URI)
                 || (namespace.0 == "xmlns" && namespace.1 == NS_XMLNS_URI)
-                || (namespace.0 == "" && namespace.1 == "")
             {
                 continue;
             }

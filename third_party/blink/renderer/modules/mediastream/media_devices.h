@@ -30,6 +30,7 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cancellable_task.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -92,6 +93,7 @@ enum class EnumerateDevicesGetUserMediaInteraction {
 class MODULES_EXPORT MediaDevices final
     : public EventTarget,
       public ActiveScriptWrappable<MediaDevices>,
+      public Supplement<Navigator>,
       public ExecutionContextLifecycleObserver,
       public mojom::blink::MediaDevicesListener {
   DEFINE_WRAPPERTYPEINFO();
@@ -237,8 +239,6 @@ class MODULES_EXPORT MediaDevices final
   // the base::Token which is backing a SubCaptureTarget (either CropTarget
   // or RestrictionTarget).
   void ResolveCropTargetPromise(Element* element, const String& id);
-
-  Member<Navigator> navigator_;
 
   SEQUENCE_CHECKER(sequence_checker_);
   // True if the associated execution context is alive and valid, reset

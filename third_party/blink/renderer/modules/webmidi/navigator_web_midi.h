@@ -35,6 +35,7 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_midi_options.h"
 #include "third_party/blink/renderer/core/frame/navigator.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -43,8 +44,10 @@ class MIDIAccess;
 class Navigator;
 
 class NavigatorWebMIDI final : public GarbageCollected<NavigatorWebMIDI>,
-                               public GarbageCollectedMixin {
+                               public Supplement<Navigator> {
  public:
+  static const unsigned kSupplementIndex;
+
   static NavigatorWebMIDI& From(Navigator&);
   static ScriptPromise<MIDIAccess> requestMIDIAccess(
       ScriptState*,
@@ -55,7 +58,7 @@ class NavigatorWebMIDI final : public GarbageCollected<NavigatorWebMIDI>,
                                               const MIDIOptions*,
                                               ExceptionState& exception_state);
 
-  NavigatorWebMIDI() = default;
+  explicit NavigatorWebMIDI(Navigator&);
 
   void Trace(Visitor*) const override;
 };

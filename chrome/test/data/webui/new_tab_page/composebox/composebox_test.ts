@@ -275,6 +275,16 @@ suite('NewTabPageComposeboxTest', () => {
     assertStyle(composeboxElement.$.submitContainer, 'cursor', 'pointer');
   });
 
+  test('upload image works when config is set to wildcard image/*', async () => {
+    loadTimeData.overrideValues({
+      'composeboxImageFileTypes': 'image/*',
+    });
+    createComposeboxElement();
+    const token = {low: BigInt(1), high: BigInt(2)};
+    const file = new File(['foo'], 'foo.jpg', {type: 'image/jpeg'});
+    await uploadFileAndVerify(token, file);
+  });
+
   test('uploading/deleting pdf file queries zps', async () => {
     loadTimeData.overrideValues(
         {composeboxShowZps: true, composeboxShowSubmit: true});
@@ -577,8 +587,9 @@ suite('NewTabPageComposeboxTest', () => {
     // Assert.
     assertEquals(composeboxElement.$.context.$.carousel.files.length, 1);
     assertEquals(searchboxHandler.getCallCount('deleteContext'), 1);
-    const [idArg] = searchboxHandler.getArgs('deleteContext');
+    const [idArg, fromChip] = searchboxHandler.getArgs('deleteContext')[0];
     assertEquals(idArg, deletedId);
+    assertFalse(fromChip);
   });
 
   test('NotifySessionStarted called on composebox created', () => {
@@ -598,8 +609,10 @@ suite('NewTabPageComposeboxTest', () => {
     assertTrue(!!lensIcon);
 
     lensIcon.click();
-    await handler.whenCalled('handleLensButtonClick');
-    assertEquals(1, handler.getCallCount('handleLensButtonClick'));
+    await handler.whenCalled('handleFileUpload');
+    assertEquals(1, handler.getCallCount('handleFileUpload'));
+    const [isImage] = handler.getArgs('handleFileUpload');
+    assertTrue(isImage);
   });
 
   test('lens icon mousedown prevents default', async () => {
@@ -615,6 +628,38 @@ suite('NewTabPageComposeboxTest', () => {
     await microtasksFinished();
 
     assertTrue(event.defaultPrevented);
+  });
+
+  test('onRequestFileUpload calls handler for image', async () => {
+    createComposeboxElement();
+
+    composeboxElement.$.context.dispatchEvent(
+        new CustomEvent('open-file-dialog', {
+          detail: {isImage: true},
+          bubbles: true,
+          composed: true,
+        }));
+
+    await handler.whenCalled('handleFileUpload');
+    assertEquals(1, handler.getCallCount('handleFileUpload'));
+    const [isImage] = handler.getArgs('handleFileUpload');
+    assertTrue(isImage);
+  });
+
+  test('onRequestFileUpload calls handler for file', async () => {
+    createComposeboxElement();
+
+    composeboxElement.$.context.dispatchEvent(
+        new CustomEvent('open-file-dialog', {
+          detail: {isImage: false},
+          bubbles: true,
+          composed: true,
+        }));
+
+    await handler.whenCalled('handleFileUpload');
+    assertEquals(1, handler.getCallCount('handleFileUpload'));
+    const [isImage] = handler.getArgs('handleFileUpload');
+    assertFalse(isImage);
   });
 
   test('set and delete visual selection thumbnail', async () => {
@@ -659,8 +704,9 @@ suite('NewTabPageComposeboxTest', () => {
 
     // Assert thumbnail is removed.
     assertEquals(searchboxHandler.getCallCount('deleteContext'), 1);
-    const [idArg] = searchboxHandler.getArgs('deleteContext');
+    const [idArg, fromChip] = searchboxHandler.getArgs('deleteContext')[0];
     assertEquals(idArg, FAKE_TOKEN_STRING);
+    assertFalse(fromChip);
     // The carousel is removed from the DOM when there are no files, so
     // assert its absence.
     assertFalse(
@@ -2589,7 +2635,7 @@ suite('NewTabPageComposeboxTest', () => {
         attachments: [],
         toolMode: 0,
       };
-      composeboxElement.setSearchContext(context);
+      composeboxElement.addSearchContext(context);
       await microtasksFinished();
 
       // Check that input and lastQueriedInput are set.

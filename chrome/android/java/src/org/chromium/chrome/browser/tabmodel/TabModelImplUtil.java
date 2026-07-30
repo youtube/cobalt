@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.tabmodel;
 
 import org.chromium.base.ObserverList;
+import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -16,8 +17,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Common utility class for {@link TabModelImpl} and {@link TabCollectionTabModelImpl}. Allows
- * extracting common logic out of the two models.
+ * Utility class for {@link TabCollectionTabModelImpl}. Permits easier testing of some static
+ * helpers.
  */
 @NullMarked
 class TabModelImplUtil {
@@ -36,7 +37,7 @@ class TabModelImplUtil {
     /* package */ static @Nullable Tab getNextTabIfClosed(
             TabModel model,
             TabModelDelegate modelDelegate,
-            ObservableSupplier<@Nullable Tab> currentTabSupplier,
+            NullableObservableSupplier<Tab> currentTabSupplier,
             NextTabPolicySupplier nextTabPolicySupplier,
             List<Tab> closingTabs,
             boolean uponExit,

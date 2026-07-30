@@ -30,6 +30,7 @@
 #include "base/notreached.h"
 #include "base/process/process.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_view_util.h"
 #include "base/task/current_thread.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -40,6 +41,7 @@
 #include "base/time/time.h"
 #include "base/types/expected.h"
 #include "build/build_config.h"
+#include "chrome/browser/webauthn/enclave_keys_waiter.h"
 #include "chrome/browser/webauthn/fake_magic_arch.h"
 #include "chrome/browser/webauthn/fake_recovery_key_store.h"
 #include "chrome/browser/webauthn/fake_security_domain_service.h"
@@ -69,13 +71,13 @@
 #include "device/fido/enclave/constants.h"
 #include "device/fido/enclave/enclave_authenticator.h"
 #include "device/fido/enclave/types.h"
-#include "device/fido/features.h"
 #include "device/fido/fido_authenticator.h"
-#include "device/fido/fido_constants.h"
-#include "device/fido/fido_types.h"
 #include "device/fido/json_request.h"
-#include "device/fido/public_key_credential_descriptor.h"
-#include "device/fido/public_key_credential_params.h"
+#include "device/fido/public/features.h"
+#include "device/fido/public/fido_constants.h"
+#include "device/fido/public/fido_types.h"
+#include "device/fido/public/public_key_credential_descriptor.h"
+#include "device/fido/public/public_key_credential_params.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/http/http_status_code.h"
@@ -234,36 +236,6 @@ std::vector<uint8_t> DecryptWrappedPin(
   CHECK(pin.has_value());
   return *pin;
 }
-
-// A utility class for waiting for completion of the operation of storing the
-// passkey secret retrieved from an out-of-context flow (e.g., an opportunistic
-// retrieval). This class observes enclave manager, starts a RunLoop, and allows
-// to wait for the completion of the out-of-context recovery.
-class EnclaveKeysWaiter : public EnclaveManager::Observer {
- public:
-  explicit EnclaveKeysWaiter(EnclaveManager* enclave_manager)
-      : enclave_manager_(enclave_manager) {
-    enclave_manager->AddObserver(this);
-  }
-  ~EnclaveKeysWaiter() override { enclave_manager_->RemoveObserver(this); }
-
-  EnclaveManager::OutOfContextRecoveryOutcome Wait() {
-    run_loop_->Run();
-    return outcome_;
-  }
-
- private:
-  // EnclaveManager::Observer:
-  void OnOutOfContextRecoveryCompletion(
-      EnclaveManager::OutOfContextRecoveryOutcome outcome) override {
-    run_loop_->Quit();
-    outcome_ = outcome;
-  }
-
-  raw_ptr<EnclaveManager> enclave_manager_;
-  std::unique_ptr<base::RunLoop> run_loop_ = std::make_unique<base::RunLoop>();
-  EnclaveManager::OutOfContextRecoveryOutcome outcome_;
-};
 
 }  // namespace
 
@@ -559,8 +531,6 @@ class EnclaveManagerTest : public testing::Test, EnclaveManager::Observer {
   std::unique_ptr<FakeRecoveryKeyStore> recovery_key_store_;
   std::unique_ptr<crypto::ScopedFakeUnexportableKeyProvider> fake_hw_provider_;
   EnclaveManager manager_;
-  base::test::ScopedFeatureList scoped_feature_list_{
-      device::kWebAuthnWrapCohortData};
 };
 
 TEST_F(EnclaveManagerTest, TestInfrastructure) {
@@ -1062,23 +1032,7 @@ TEST_F(EnclaveManagerTest, AddDeviceAndPINToAccountWithPreviouslyInvalidPIN) {
   }
 }
 
-class EnclaveManagerChangePINTest : public EnclaveManagerTest,
-                                    public testing::WithParamInterface<bool> {
- public:
-  void SetUp() override {
-    scoped_feature_list_.InitWithFeatureState(device::kWebAuthnWrapCohortData,
-                                              GetParam());
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-INSTANTIATE_TEST_SUITE_P(,
-                         EnclaveManagerChangePINTest,
-                         testing::Values(false, true));
-
-TEST_P(EnclaveManagerChangePINTest, ChangePIN) {
+TEST_F(EnclaveManagerTest, ChangePIN) {
   security_domain_service_->pretend_there_are_members();
   const std::string pin = "pin";
   const std::string new_pin = "newpin";
@@ -1121,7 +1075,7 @@ TEST_P(EnclaveManagerChangePINTest, ChangePIN) {
               GetAssertionResponseExpectation());
 }
 
-TEST_P(EnclaveManagerChangePINTest, AddPINToExistingAccount) {
+TEST_F(EnclaveManagerTest, AddPINToExistingAccount) {
   security_domain_service_->pretend_there_are_members();
   const std::string new_pin = "newpin";
 
@@ -1160,8 +1114,7 @@ TEST_P(EnclaveManagerChangePINTest, AddPINToExistingAccount) {
               GetAssertionResponseExpectation());
 }
 
-TEST_P(EnclaveManagerChangePINTest,
-       AddPINToExistingAccountButTheresAlreadyOne) {
+TEST_F(EnclaveManagerTest, AddPINToExistingAccountButTheresAlreadyOne) {
   security_domain_service_->pretend_there_are_members();
   const std::string pin = "pin";
   const std::string new_pin = "newpin";
@@ -1188,7 +1141,7 @@ TEST_P(EnclaveManagerChangePINTest,
   ASSERT_FALSE(set_pin_future.Get());
 }
 
-TEST_P(EnclaveManagerChangePINTest, ChangePINWithTwoDevices) {
+TEST_F(EnclaveManagerTest, ChangePINWithTwoDevices) {
   security_domain_service_->pretend_there_are_members();
   const std::string pin = "pin";
   const std::string intermediate_pin = "intermediate_pin";

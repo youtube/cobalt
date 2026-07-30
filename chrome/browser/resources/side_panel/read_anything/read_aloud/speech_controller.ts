@@ -176,6 +176,16 @@ export class SpeechController {
     }
   }
 
+  // When the view is hidden with Immersive Reading Mode enabled, we should
+  // stop speaking.
+  onReadingModeWillClose() {
+    // TODO: crbug.com/466967616 - Ensure Read Aloud resume honors word
+    // boundaries after ReadingModeWillClose is called
+    if (this.isSpeechActive()) {
+      this.stopSpeech_(PauseActionSource.DEFAULT);
+    }
+  }
+
   onTabMuteStateChange(muted: boolean) {
     this.model_.setVolume(muted ? 0.0 : 1.0);
     this.onSpeechSettingsChange();
@@ -299,6 +309,11 @@ export class SpeechController {
           // Ensure we're updating Read Aloud state if there's no text to
           // speak.
           this.onSpeechFinished_();
+
+          // Return to avoid speech getting stuck in an indeterminate state.
+          // It is preferable to end speech immediately after a play button
+          // press than a playback state with a spinner that never terminates.
+          return;
         }
       }
     }
@@ -447,7 +462,20 @@ export class SpeechController {
       if (isInvalidHighlightForWordHighlighting(
               utteranceTextForWordBoundary.trim())) {
         this.wordBoundaries_.resetToDefaultState();
-        return this.skipCurrentPosition_(isInterrupted, isMovingBackward);
+        const skippedPosition =
+            this.skipCurrentPosition_(isInterrupted, isMovingBackward);
+        // If we paused at the end of a sentence that is the end of the
+        // available text, resume speech from the beginning. Otherwise, speech
+        // will abruptly end immediately after a play button press with nothing
+        // being spoken.
+        if (!skippedPosition &&
+            getReadAloudModel().getCurrentTextSegments().length === 0) {
+          getReadAloudModel().resetSpeechToBeginning();
+          return this.highlightAndPlayMessage_(isInterrupted, isMovingBackward);
+        }
+
+        return skippedPosition;
+
       } else {
         this.playText_(utteranceTextForWordBoundary);
       }

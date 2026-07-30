@@ -16,6 +16,7 @@
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
@@ -60,12 +61,23 @@ void SetChildLocation(const PhysicalBoxFragment& parent_node_fragment,
                       const PhysicalBoxFragment* parent_fragmentainer,
                       PhysicalOffset parent_fragmentainer_offset,
                       OutOfFlowDescendants* oof_descendants) {
+  if (child_fragment.IsLayoutObjectDestroyedOrMoved()) {
+    // Layout is incomplete somehow, which shouldn't be the case at this
+    // point. Bail, like we do everywhere else when that happens (e.g. in
+    // pre-paint and paint).
+    return;
+  }
+
   if (!child_fragment.IsFirstForNode()) {
     return;
   }
 
   auto* child_layout_box =
       To<LayoutBox>(child_fragment.GetMutableLayoutObject());
+
+  // As long as this is a CSS box, and not a fragmentainer, there should be a
+  // LayoutBox here. And we shouldn't be here if it's a fragmentainer.
+  CHECK(child_layout_box);
 
   if (parent_fragmentainer && child_fragment.IsOutOfFlowPositioned()) {
     // The containing block of an out-of-flow positioned element may be an
@@ -183,13 +195,19 @@ class TraversalListener : public PhysicalFragmentTraversalListener {
   TraversalListener(const PhysicalBoxFragment& root_fragment,
                     PhysicalOffset start_offset,
                     OutOfFlowDescendants* oof_descendants)
-      : oof_descendants_(oof_descendants), accumulated_offset_(start_offset) {
-    if (ShouldForceEntireSubtreeUpdate(root_fragment)) {
-      force_entire_subtree_update_++;
-    }
+      : oof_descendants_(oof_descendants) {
+    state_stack_.emplace_back(
+        start_offset, ShouldThisForceEntireSubtreeUpdate(root_fragment));
   }
 
-  static bool ShouldForceEntireSubtreeUpdate(
+#if DCHECK_IS_ON()
+  ~TraversalListener() {
+    // Only the entry pushed from the constructor should remain.
+    DCHECK_EQ(state_stack_.size(), 1u);
+  }
+#endif
+
+  static bool ShouldThisForceEntireSubtreeUpdate(
       const PhysicalBoxFragment& fragment) {
     auto* layout_box = DynamicTo<LayoutBox>(fragment.GetMutableLayoutObject());
     if (layout_box && layout_box->ShouldCheckForPaintInvalidation() &&
@@ -212,7 +230,7 @@ class TraversalListener : public PhysicalFragmentTraversalListener {
       return kSkipChildren;
     }
 
-    PhysicalOffset new_accumulated_offset = accumulated_offset_ + offset;
+    PhysicalOffset new_accumulated_offset = AccumulatedOffset() + offset;
     auto mutator = fragment.GetMutableForContainerLayout();
     mutator.SetOffsetFromRootFragmentationContext(new_accumulated_offset);
 
@@ -221,17 +239,19 @@ class TraversalListener : public PhysicalFragmentTraversalListener {
       return kSkipChildren;
     }
 
-    int new_force_entire_subtree_update =
-        force_entire_subtree_update_ + ShouldForceEntireSubtreeUpdate(fragment);
-    bool update_children = new_force_entire_subtree_update ||
+    bool should_force_entire_subtree_update =
+        ShouldForceEntireSubtreeUpdate() ||
+        ShouldThisForceEntireSubtreeUpdate(fragment);
+
+    bool update_children = should_force_entire_subtree_update ||
                            fragment.IsFragmentainerBox() ||
                            layout_object->ShouldCheckForPaintInvalidation();
     if (!update_children) {
       return kSkipChildren;
     }
 
-    accumulated_offset_ = new_accumulated_offset;
-    force_entire_subtree_update_ = new_force_entire_subtree_update;
+    state_stack_.emplace_back(new_accumulated_offset,
+                              should_force_entire_subtree_update);
     return kContinue;
   }
 
@@ -246,18 +266,30 @@ class TraversalListener : public PhysicalFragmentTraversalListener {
       UpdateBoxChildLocations(fragment, oof_descendants_);
     }
 
-    accumulated_offset_ -= offset;
-    if (ShouldForceEntireSubtreeUpdate(fragment)) {
-      force_entire_subtree_update_--;
-      DCHECK_GE(force_entire_subtree_update_, 0);
-    }
+    state_stack_.pop_back();
   }
 
-  OutOfFlowDescendants* oof_descendants_;
-  PhysicalOffset accumulated_offset_;
+  PhysicalOffset AccumulatedOffset() const {
+    return state_stack_.back().accumulated_offset;
+  }
 
-  // If larger than 0, the entire subtree needs to be walked.
-  int force_entire_subtree_update_ = 0;
+  bool ShouldForceEntireSubtreeUpdate() const {
+    return state_stack_.back().should_force_entire_subtree_update;
+  }
+
+  struct State {
+    State(PhysicalOffset accumulated_offset,
+          bool should_force_entire_subtree_update)
+        : accumulated_offset(accumulated_offset),
+          should_force_entire_subtree_update(
+              should_force_entire_subtree_update) {}
+
+    PhysicalOffset accumulated_offset;
+    bool should_force_entire_subtree_update;
+  };
+  Vector<State, 256> state_stack_;
+
+  OutOfFlowDescendants* oof_descendants_;
 };
 
 void UpdateOffsetsFromRootFragmentationContext(

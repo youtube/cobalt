@@ -14,6 +14,7 @@
 #include "third_party/blink/renderer/modules/battery/battery_status.h"
 #include "third_party/blink/renderer/modules/event_target_modules.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -21,11 +22,13 @@ class Navigator;
 
 class BatteryManager final : public EventTarget,
                              public ActiveScriptWrappable<BatteryManager>,
+                             public Supplement<Navigator>,
                              public ExecutionContextLifecycleStateObserver,
                              public PlatformEventController {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
+  static const unsigned kSupplementIndex;
   static ScriptPromise<BatteryManager> getBattery(ScriptState*, Navigator&);
   explicit BatteryManager(Navigator&);
   ~BatteryManager() override;

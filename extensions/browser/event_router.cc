@@ -18,6 +18,7 @@
 #include "base/containers/contains.h"
 #include "base/debug/crash_logging.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
@@ -63,14 +64,6 @@ namespace extensions {
 base::TimeDelta kEventAckMetricTimeLimit = base::Minutes(5);
 
 namespace {
-
-// A dictionary of event names to lists of filters that this extension has
-// registered from its lazy background page.
-constexpr char kFilteredEvents[] = "filtered_events";
-
-// Similar to |kFilteredEvents|, but applies to extension service worker events.
-constexpr char kFilteredServiceWorkerEvents[] =
-    "filtered_service_worker_events";
 
 // A message when mojom::EventRouter::AddListenerForMainThread() is called with
 // an invalid param.
@@ -151,10 +144,6 @@ class ScopedOOMCrashKey {
 };
 
 }  // namespace debug
-
-const char EventRouter::kRegisteredLazyEvents[] = "events";
-const char EventRouter::kRegisteredServiceWorkerEvents[] =
-    "serviceworkerevents";
 
 void EventRouter::DispatchExtensionMessage(
     content::RenderProcessHost* rph,

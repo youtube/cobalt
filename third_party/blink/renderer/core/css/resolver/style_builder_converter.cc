@@ -77,6 +77,7 @@
 #include "third_party/blink/renderer/core/css/resolver/transform_builder.h"
 #include "third_party/blink/renderer/core/css/style_color.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
+#include "third_party/blink/renderer/core/css/style_sheet_contents.h"
 #include "third_party/blink/renderer/core/css_value_keywords.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
@@ -2240,7 +2241,7 @@ ScopedCSSNameList* StyleBuilderConverter::ConvertAnchorName(
   return MakeGarbageCollected<ScopedCSSNameList>(std::move(names));
 }
 
-StyleAnchorScope StyleBuilderConverter::ConvertAnchorScope(
+StyleNameScope StyleBuilderConverter::ConvertNameScope(
     StyleResolverState& state,
     const CSSValue& value) {
   CHECK(value.IsScopedValue());
@@ -2248,22 +2249,28 @@ StyleAnchorScope StyleBuilderConverter::ConvertAnchorScope(
           DynamicTo<cssvalue::CSSScopedKeywordValue>(value)) {
     CHECK_EQ(scoped_keyword_value->GetValueID(), CSSValueID::kAll);
     state.SetHasTreeScopedReference();
-    return StyleAnchorScope(StyleAnchorScope::Type::kAll,
-                            scoped_keyword_value->GetTreeScope(),
-                            /* names */ nullptr);
+    return StyleNameScope(StyleNameScope::Type::kAll,
+                          scoped_keyword_value->GetTreeScope(),
+                          /* names */ nullptr);
   }
   if (const auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
     CHECK_EQ(identifier_value->GetValueID(), CSSValueID::kNone);
-    return StyleAnchorScope();
+    return StyleNameScope();
   }
   CHECK(value.IsBaseValueList());
   HeapVector<Member<const ScopedCSSName>> names;
   for (const Member<const CSSValue>& item : To<CSSValueList>(value)) {
     names.push_back(ConvertCustomIdent(state, *item));
   }
-  return StyleAnchorScope(
-      StyleAnchorScope::Type::kNames, /* all_tree_scope */ nullptr,
+  return StyleNameScope(
+      StyleNameScope::Type::kNames, /* all_tree_scope */ nullptr,
       /* names */ MakeGarbageCollected<ScopedCSSNameList>(std::move(names)));
+}
+
+StyleAnchorScope StyleBuilderConverter::ConvertAnchorScope(
+    StyleResolverState& state,
+    const CSSValue& value) {
+  return ConvertNameScope(state, value);
 }
 
 StyleInitialLetter StyleBuilderConverter::ConvertInitialLetter(
@@ -3688,21 +3695,17 @@ StyleIntrinsicLength StyleBuilderConverter::ConvertIntrinsicDimension(
     if (RuntimeEnabledFeatures::ResponsiveIframesEnabled()) {
       const auto& identifier = To<CSSIdentifierValue>(list->Item(0));
       if (identifier.GetValueID() == CSSValueID::kFromElement) {
-        return StyleIntrinsicLength(
-            /*has_auto=*/false, /*matches_element=*/true,
+        return StyleIntrinsicLength::CreateFromElement(
             ConvertLengthOrNone(state, list->Item(1)));
       }
     }
     DCHECK(To<CSSIdentifierValue>(list->Item(0)).GetValueID() ==
            CSSValueID::kAuto);
-    return StyleIntrinsicLength(
-        /*has_auto=*/true, /*matches_element=*/false,
-        ConvertLengthOrNone(state, list->Item(1)));
+    return StyleIntrinsicLength(ConvertLengthOrNone(state, list->Item(1)),
+                                {.has_auto = true});
   }
 
-  return StyleIntrinsicLength(
-      /*has_auto=*/false, /*matches_element=*/false,
-      ConvertLengthOrNone(state, value));
+  return StyleIntrinsicLength(ConvertLengthOrNone(state, value));
 }
 
 ColorSchemeFlags StyleBuilderConverter::ExtractColorSchemes(
@@ -4150,6 +4153,12 @@ ScopedCSSNameList* StyleBuilderConverter::ConvertTimelineTriggerName(
     StyleResolverState& state,
     const CSSValue& value) {
   return ConvertNoneOrCustomIdentList(state, value);
+}
+
+StyleTriggerScope StyleBuilderConverter::ConvertTriggerScope(
+    StyleResolverState& state,
+    const CSSValue& value) {
+  return ConvertNameScope(state, value);
 }
 
 }  // namespace blink

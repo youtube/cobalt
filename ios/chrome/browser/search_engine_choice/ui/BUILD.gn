@@ -6,6 +6,9 @@ import("//build/config/chrome_build.gni")
 
 source_set("ui") {
   sources = [
+    "constants.h",
+    "expandable_label_view.h",
+    "expandable_label_view.mm",
     "search_engine_choice_consumer.h",
     "search_engine_choice_mutator.h",
     "search_engine_choice_view_controller.h",
@@ -16,6 +19,8 @@ source_set("ui") {
     "snippet_search_engine_button.mm",
     "snippet_search_engine_element.h",
     "snippet_search_engine_element.mm",
+    "snippet_search_engine_text_view.h",
+    "snippet_search_engine_text_view.mm",
   ]
   deps = [
     ":constants",
@@ -39,6 +44,7 @@ source_set("ui") {
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/public/commands",
+    "//ios/chrome/browser/shared/ui/image",
     "//ios/chrome/browser/shared/ui/list_model",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/shared/ui/util",

@@ -45,7 +45,27 @@ BASE_DECLARE_FEATURE(kComposeboxAIMNudge);
 // Used to show the title in the + button menu of the composebox.
 BASE_DECLARE_FEATURE(kComposeboxMenuTitle);
 
+// Determines if the persistent re-enable AIM button stays visible after the
+// user exits the session.
+bool IsComposeboxAIMNudgeEnabled();
+
 // Whether the composebox + menu should show the title.
 bool IsComposeboxMenuTitleEnabled();
+
+// Used to check if we should display contextual suggestions for an image
+// attachment.
+BASE_DECLARE_FEATURE(kComposeboxFetchContextualSuggestionsForImage);
+
+// Whether or not we should display contextual suggestions for an image.
+bool IsComposeboxFetchContextualSuggestionsForImageEnabled();
+
+// Used to check if we should display contextual suggestions for multiple
+// attachments.
+BASE_DECLARE_FEATURE(
+    kComposeboxFetchContextualSuggestionsForMultipleAttachments);
+
+// Whether or not we should display contextual suggestions for multiple
+// attachments;
+bool IsComposeboxFetchContextualSuggestionsForMultiAttachmentsEnabled();
 
 #endif  // IOS_CHROME_BROWSER_COMPOSEBOX_PUBLIC_FEATURES_H_

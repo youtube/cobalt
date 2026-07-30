@@ -10,16 +10,15 @@ import android.view.ViewStub;
 
 import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.base.lifetime.Destroyable;
-import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.OneshotSupplier;
+import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
+import org.chromium.chrome.browser.ui.extensions.ExtensionUi;
 import org.chromium.ui.base.WindowAndroid;
 
 /**
@@ -42,22 +41,25 @@ public interface ExtensionToolbarCoordinator extends Destroyable {
             Context context,
             ViewStub extensionToolbarStub,
             WindowAndroid windowAndroid,
-            OneshotSupplier<ChromeAndroidTask> taskSupplier,
-            ObservableSupplier<@Nullable Profile> profileSupplier,
-            ObservableSupplier<@Nullable Tab> currentTabSupplier,
+            ChromeAndroidTask task,
+            NullableObservableSupplier<Tab> currentTabSupplier,
             TabCreator tabCreator,
             ThemeColorProvider themeColorProvider) {
+        // Check if the extension UI is enabled first.
+        if (!ExtensionUi.isEnabled(task.getProfile())) {
+            return null;
+        }
+
         ExtensionToolbarCoordinator coordinator =
                 ServiceLoaderUtil.maybeCreate(ExtensionToolbarCoordinator.class);
         if (coordinator == null) {
             return null;
         }
-        coordinator.initialize(
+        coordinator.initializeWithNative(
                 context,
                 extensionToolbarStub,
                 windowAndroid,
-                taskSupplier,
-                profileSupplier,
+                task,
                 currentTabSupplier,
                 tabCreator,
                 themeColorProvider);
@@ -68,16 +70,15 @@ public interface ExtensionToolbarCoordinator extends Destroyable {
      * Initializes the coordinator and inflates the UI.
      *
      * <p>This method must be called exactly once on initialization by {@link #maybeCreate()}. It is
-     * illegal to call it multiple times.
+     * illegal to call it multiple times. It is guaranteed to be called after native initialization.
      */
     @Initializer
-    void initialize(
+    void initializeWithNative(
             Context context,
             ViewStub extensionToolbarStub,
             WindowAndroid windowAndroid,
-            OneshotSupplier<ChromeAndroidTask> taskSupplier,
-            ObservableSupplier<@Nullable Profile> profileSupplier,
-            ObservableSupplier<@Nullable Tab> currentTabSupplier,
+            ChromeAndroidTask task,
+            NullableObservableSupplier<Tab> currentTabSupplier,
             TabCreator tabCreator,
             ThemeColorProvider themeColorProvider);
 

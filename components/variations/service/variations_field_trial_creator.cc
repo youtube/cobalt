@@ -24,10 +24,10 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/process/process.h"
+#include "base/rand_util.h"
 #include "base/sequence_checker.h"
 #include "base/strings/pattern.h"
 #include "base/strings/strcat.h"
-#include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -37,6 +37,7 @@
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "components/language/core/browser/locale_util.h"
+#include "components/metrics/field_trials_provider.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/active_field_trials.h"
@@ -248,8 +249,7 @@ VariationsFieldTrialCreator::VariationsFieldTrialCreator(
       application_locale_(
           language::GetApplicationLocale(seed_store_->local_state())),
       ui_string_overrider_(ui_string_overrider),
-      sticky_activation_manager_(seed_store_->local_state(),
-                                 client->IsStickyActivationEnabled()) {}
+      sticky_activation_manager_(seed_store_->local_state()) {}
 
 VariationsFieldTrialCreator::~VariationsFieldTrialCreator() = default;
 
@@ -355,11 +355,14 @@ bool VariationsFieldTrialCreator::SetUpFieldTrials(
 
   CreateTrialsResult create_trials_result = {.applied_seed = false};
   if (!used_testing_config && client_filterable_state) {
-    // TODO(crbug.com/410008879): Make use of the result's
-    // seed_has_active_limited_layer field.
     create_trials_result = CreateTrialsFromSeed(
         entropy_providers, feature_list.get(), safe_seed_manager,
         std::move(client_filterable_state));
+  }
+
+  if (create_trials_result.applied_seed) {
+    FieldTrialsProvider::UpdateAppliedSeedHasActiveLimitedLayer(
+        create_trials_result.seed_has_active_limited_layer.value_or(false));
   }
 
   if (add_entropy_source_to_variations_ids &&
@@ -377,9 +380,7 @@ bool VariationsFieldTrialCreator::SetUpFieldTrials(
 
   base::FeatureList::SetInstance(std::move(feature_list));
 
-  if (base::FeatureList::IsEnabled(internal::kPurgeVariationsSeedFromMemory)) {
-    GetSeedStore()->AllowToPurgeSeedsDataFromMemory();
-  }
+  GetSeedStore()->AllowToPurgeSeedsDataFromMemory();
 
   // For testing Variations Safe Mode, maybe crash here.
   if (base::FeatureList::IsEnabled(kForceFieldTrialSetupCrashForTesting)) {
@@ -439,7 +440,6 @@ VariationsFieldTrialCreator::GetClientFilterableStateForVersion(
   permanent_consistency_country_initialized_ = true;
 
   state->policy_restriction = GetVariationPolicyRestriction(local_state());
-  state->is_sticky_activation_enabled = client_->IsStickyActivationEnabled();
   return state;
 }
 

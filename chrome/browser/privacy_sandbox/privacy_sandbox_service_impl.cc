@@ -14,6 +14,7 @@
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "build/branding_buildflags.h"
@@ -101,11 +102,9 @@ bool AreAllThirdPartyCookiesBlocked(
     return true;
   }
   // Check if all 3PCs are blocked.
-  return tracking_protection_settings->AreAllThirdPartyCookiesBlocked() ||
-         (!tracking_protection_settings->IsTrackingProtection3pcdEnabled() &&
-          prefs->GetInteger(prefs::kCookieControlsMode) ==
-              static_cast<int>(
-                  content_settings::CookieControlsMode::kBlockThirdParty));
+  return prefs->GetInteger(prefs::kCookieControlsMode) ==
+         static_cast<int>(
+             content_settings::CookieControlsMode::kBlockThirdParty);
 }
 
 // Sorts |topics| alphabetically by topic display name for display.

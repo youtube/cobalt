@@ -236,10 +236,10 @@ safe_browsing::FileAnalysisRequest* FilesRequestHandler::PrepareFileRequest(
 }
 
 void FilesRequestHandler::OnGotFileInfo(
-    std::unique_ptr<safe_browsing::BinaryUploadService::Request> request,
+    std::unique_ptr<BinaryUploadRequest> request,
     size_t index,
     ScanRequestUploadResult result,
-    safe_browsing::BinaryUploadService::Request::Data data) {
+    BinaryUploadRequest::Data data) {
   DCHECK_LT(index, paths_.size());
   DCHECK_EQ(paths_.size(), file_info_.size());
 
@@ -263,7 +263,7 @@ void FilesRequestHandler::OnGotFileInfo(
 
   // Don't bother sending empty files for deep scanning.
   if (data.size == 0) {
-    FinishRequestEarly(std::move(request), ScanRequestUploadResult::SUCCESS);
+    FinishRequestEarly(std::move(request), ScanRequestUploadResult::kSuccess);
     return;
   }
 
@@ -271,7 +271,7 @@ void FilesRequestHandler::OnGotFileInfo(
   // is receiving too many requests.
   if (throttled_) {
     FinishRequestEarly(std::move(request),
-                       ScanRequestUploadResult::TOO_MANY_REQUESTS);
+                       ScanRequestUploadResult::kTooManyRequests);
     return;
   }
 
@@ -279,7 +279,7 @@ void FilesRequestHandler::OnGotFileInfo(
 }
 
 void FilesRequestHandler::FinishRequestEarly(
-    std::unique_ptr<safe_browsing::BinaryUploadService::Request> request,
+    std::unique_ptr<BinaryUploadRequest> request,
     ScanRequestUploadResult result) {
   // We add the request here in case we never actually uploaded anything, so it
   // wasn't added in OnGetRequestData
@@ -300,7 +300,7 @@ void FilesRequestHandler::FinishRequestEarly(
 void FilesRequestHandler::UploadFileForDeepScanning(
     ScanRequestUploadResult result,
     const base::FilePath& path,
-    std::unique_ptr<safe_browsing::BinaryUploadService::Request> request) {
+    std::unique_ptr<BinaryUploadRequest> request) {
   safe_browsing::BinaryUploadService* upload_service = GetBinaryUploadService();
   if (upload_service)
     upload_service->MaybeUploadForDeepScanning(std::move(request));
@@ -308,7 +308,7 @@ void FilesRequestHandler::UploadFileForDeepScanning(
 
 void FilesRequestHandler::FileRequestStartCallback(
     size_t index,
-    const safe_browsing::BinaryUploadService::Request& request) {
+    const BinaryUploadRequest& request) {
   start_times_[index] = base::TimeTicks::Now();
 }
 
@@ -320,14 +320,14 @@ void FilesRequestHandler::FileRequestCallback(
   // to be empty and have no request token.  This may happen if Chrome decides
   // to allow the file without uploading with the binary upload service.  For
   // example, zero length files.
-  if (upload_result == ScanRequestUploadResult::SUCCESS &&
+  if (upload_result == ScanRequestUploadResult::kSuccess &&
       response.has_request_token()) {
     request_tokens_to_ack_final_actions_[response.request_token()] =
         GetAckFinalAction(response);
   }
 
   DCHECK_EQ(results_.size(), paths_.size());
-  if (upload_result == ScanRequestUploadResult::TOO_MANY_REQUESTS) {
+  if (upload_result == ScanRequestUploadResult::kTooManyRequests) {
     throttled_ = true;
   }
 

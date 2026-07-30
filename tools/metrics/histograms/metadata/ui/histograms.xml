@@ -275,7 +275,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DefaultBrowser.InfoBar.TimesShownBeforeAccept" units="count"
-    expires_after="2026-01-18">
+    expires_after="2026-05-31">
   <owner>agale@chromium.org</owner>
   <owner>robliao@chromium.org</owner>
   <summary>
@@ -380,6 +380,8 @@ chromium-metrics-reviews@google.com.
   <token key="DefaultBrowserStateValidator">
     <variant name="HttpProgIdAssocValidation"
         summary="AssocQueryString to get the HTTP default client's program ID"/>
+    <variant name="HttpProgIdRegistryValidation"
+        summary="the HTTP default client's program ID from the registry"/>
   </token>
 </histogram>
 
@@ -834,7 +836,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.ColorsStylesheetServingDuration" units="ms"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>skau@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -870,7 +872,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.ShownUrl" enum="WebUIUrlHashes"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>kerenzhu@chromium.org</owner>
   <owner>dpapad@chromium.org</owner>
   <owner>chrome-webui@google.com</owner>
@@ -885,7 +887,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.TopChrome.Preload.Reason" enum="WebUIPreloadReason"
-    expires_after="2026-03-29">
+    expires_after="2026-05-31">
   <owner>kerenzhu@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <owner>robliao@chromium.org</owner>
@@ -895,7 +897,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.TopChrome.Preload.Result" enum="WebUIPreloadResult"
-    expires_after="2026-03-29">
+    expires_after="2026-05-31">
   <owner>kerenzhu@chromium.org</owner>
   <owner>dayeung@chromium.org</owner>
   <owner>elainechien@chromium.org</owner>

@@ -7,7 +7,6 @@
 
 #include <stdint.h>
 
-#include <map>
 #include <memory>
 #include <optional>
 #include <set>
@@ -22,6 +21,7 @@
 #include "content/browser/renderer_host/browsing_context_state.h"
 #include "content/browser/renderer_host/navigation_request.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
+#include "content/browser/renderer_host/scoped_view_transition_resources.h"
 #include "content/browser/renderer_host/should_swap_browsing_instance.h"
 #include "content/browser/renderer_host/stored_page.h"
 #include "content/browser/security/coop/cross_origin_opener_policy_status.h"
@@ -277,11 +277,20 @@ class CONTENT_EXPORT RenderFrameHostManager {
 
   // Information about the ViewTransition state for the navigation commit.
   //
-  // TODO(crbug.com/463643277): This struct will be extended to include an
-  // additional view_transition_token variable in a follow up CL, which is why
-  // it's a struct not just a bool.
+  // TODO(crbug.com/420648512): This struct will be extended to include an
+  // additional delay_layer_tree_view_deletion variable in a follow up CL, which
+  // is why it's a struct not just a bool.
   struct ViewTransitionCommitInfo {
-    bool has_view_transition_resources = false;
+    bool HasViewTransitionResources() const {
+      return !!view_transition_resources;
+    }
+
+    // The ScopedViewTransitionResources object is owned by the
+    // NavigationRequest. This struct is created on the stack during the
+    // navigation commit flow in Navigator::DidNavigate, ensuring the pointer
+    // remains valid for the duration of its use.
+    raw_ptr<ScopedViewTransitionResources> view_transition_resources;
+    bool delay_layer_tree_view_deletion = false;
   };
 
   // The delegate pointer must be non-null and is not owned by this class. It
@@ -392,7 +401,8 @@ class CONTENT_EXPORT RenderFrameHostManager {
       bool clear_proxies_on_commit,
       const blink::FramePolicy& frame_policy,
       bool allow_paint_holding,
-      const ViewTransitionCommitInfo& view_transition_commit_info);
+      const ViewTransitionCommitInfo& view_transition_commit_info,
+      const base::optional_ref<const GURL> navigation_request_url);
 
   // Called when this frame's opener is changed to the frame specified by
   // |opener_frame_token| in |source_site_instance_group|'s process.  This
@@ -1100,12 +1110,15 @@ class CONTENT_EXPORT RenderFrameHostManager {
   // |allow_paint_holding| Indicates whether paint holding is allowed.
   // |view_transition_commit_info| Information about the ViewTransition state
   // for the navigation commit.
+  // `navigation_request_url` is a URL for the next new page's
+  // NavigationRequest's url.
   void CommitPending(
       std::unique_ptr<RenderFrameHostImpl> pending_rfh,
       std::unique_ptr<StoredPage> pending_stored_page,
       bool clear_proxies_on_commit,
       bool allow_paint_holding,
-      const ViewTransitionCommitInfo& view_transition_commit_info);
+      const ViewTransitionCommitInfo& view_transition_commit_info,
+      const base::optional_ref<const GURL> navigation_request_url);
 
   // Helper to call CommitPending() in all necessary cases.
   void CommitPendingIfNecessary(
@@ -1114,14 +1127,16 @@ class CONTENT_EXPORT RenderFrameHostManager {
       bool is_same_document_navigation,
       bool clear_proxies_on_commit,
       bool allow_paint_holding,
-      const ViewTransitionCommitInfo& view_transition_commit_info);
+      const ViewTransitionCommitInfo& view_transition_commit_info,
+      const base::optional_ref<const GURL> navigation_request_url);
 
   // Runs the unload handler in the old RenderFrameHost, after the new
   // RenderFrameHost has committed.  |old_render_frame_host| will either be
   // deleted or put on the pending delete list during this call.
   void UnloadOldFrame(
       std::unique_ptr<RenderFrameHostImpl> old_render_frame_host,
-      const ViewTransitionCommitInfo& view_transition_commit_info);
+      const ViewTransitionCommitInfo& view_transition_commit_info,
+      const base::optional_ref<const GURL> navigation_request_url);
 
   // Discards a RenderFrameHost that was never made active (for active ones
   // UnloadOldFrame is used instead).

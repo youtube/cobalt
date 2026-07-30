@@ -8,12 +8,10 @@
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/webnn/dml/adapter.h"
-#include "services/webnn/dml/test_base.h"
 #include "services/webnn/error.h"
 #include "services/webnn/public/mojom/features.mojom-features.h"
 #include "services/webnn/public/mojom/webnn_context.mojom.h"
@@ -93,7 +91,7 @@ class FakeWebNNTensorImpl final : public WebNNTensorImpl {
   }
 
   // Interop is not required by tests.
-  bool ImportTensorImpl() override { return false; }
+  bool ImportTensorImpl(ScopedAccessPtr access) override { return false; }
   void ExportTensorImpl(ScopedAccessPtr access,
                         ExportTensorCallback callback) override {}
 };
@@ -148,14 +146,29 @@ CreateTensorSuccess CreateWebNNTensor(
 
 }  // namespace
 
-class WebNNContextDMLImplTest : public TestBase {
+class WebNNContextDMLImplTest : public testing::Test {
  public:
   void SetUp() override;
 
+  test::WebNNTestEnvironment& test_environment() {
+    return webnn_test_environment_;
+  }
+
+  bool AllContextsLost() const { return all_contexts_lost_; }
+
  protected:
   WebNNContextDMLImplTest()
-      : scoped_feature_list_(
-            webnn::mojom::features::kWebMachineLearningNeuralNetwork) {}
+      : webnn_test_environment_(
+            WebNNContextProviderImpl::WebNNStatus::kWebNNEnabled,
+            base::BindOnce(
+                [](bool* all_contexts_lost) { *all_contexts_lost = true; },
+                base::Unretained(&all_contexts_lost_))) {
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features=*/{webnn::mojom::features::
+                                  kWebMachineLearningNeuralNetwork,
+                              webnn::mojom::features::kWebNNDirectML},
+        /*disabled_features=*/{webnn::mojom::features::kWebNNOnnxRuntime});
+  }
   ~WebNNContextDMLImplTest() override = default;
 
   bool CreateWebNNContext() {
@@ -184,6 +197,8 @@ class WebNNContextDMLImplTest : public TestBase {
   mojo::Remote<mojom::WebNNContext> webnn_context_remote_;
 
  private:
+  bool all_contexts_lost_ = false;
+  test::WebNNTestEnvironment webnn_test_environment_;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
@@ -224,8 +239,7 @@ void WebNNFakeContextDMLImplTest::TearDown() {
 }
 
 TEST_F(WebNNContextDMLImplTest, CreateGraphImplTest) {
-  test::WebNNTestEnvironment webnn_test_environment;
-  webnn_test_environment.BindWebNNContextProvider(
+  test_environment().BindWebNNContextProvider(
       webnn_provider_remote_.BindNewPipeAndPassReceiver());
   SKIP_TEST_IF(!CreateWebNNContext());
 
@@ -266,12 +280,7 @@ TEST_F(WebNNContextDMLImplTest, CreateGraphImplTest) {
 }
 
 TEST_F(WebNNFakeContextDMLImplTest, DeviceRemovalFromDispatch) {
-  bool all_contexts_lost = false;
-  test::WebNNTestEnvironment webnn_test_enviroment(
-      WebNNContextProviderImpl::WebNNStatus::kWebNNEnabled,
-      base::BindOnce([](bool* all_contexts_lost) { *all_contexts_lost = true; },
-                     base::Unretained(&all_contexts_lost)));
-  webnn_test_enviroment.BindWebNNContextProvider(
+  test_environment().BindWebNNContextProvider(
       webnn_provider_remote_.BindNewPipeAndPassReceiver());
   SKIP_TEST_IF(!CreateWebNNContext());
 
@@ -316,16 +325,11 @@ TEST_F(WebNNFakeContextDMLImplTest, DeviceRemovalFromDispatch) {
   webnn_context_remote_.reset();
   // Ensure the WebNN context remains valid so scheduled callbacks can run
   // before we check for context loss.
-  EXPECT_TRUE(base::test::RunUntil([&]() { return all_contexts_lost; }));
+  EXPECT_TRUE(base::test::RunUntil([&]() { return AllContextsLost(); }));
 }
 
 TEST_F(WebNNFakeContextDMLImplTest, DeviceRemovalFromWritingTensor) {
-  bool all_contexts_lost = false;
-  test::WebNNTestEnvironment webnn_test_environment(
-      WebNNContextProviderImpl::WebNNStatus::kWebNNEnabled,
-      base::BindOnce([](bool* all_contexts_lost) { *all_contexts_lost = true; },
-                     base::Unretained(&all_contexts_lost)));
-  webnn_test_environment.BindWebNNContextProvider(
+  test_environment().BindWebNNContextProvider(
       webnn_provider_remote_.BindNewPipeAndPassReceiver());
   SKIP_TEST_IF(!CreateWebNNContext());
 
@@ -339,16 +343,11 @@ TEST_F(WebNNFakeContextDMLImplTest, DeviceRemovalFromWritingTensor) {
 
   tensor.webnn_tensor_remote.reset();
   webnn_context_remote_.reset();
-  EXPECT_TRUE(base::test::RunUntil([&]() { return all_contexts_lost; }));
+  EXPECT_TRUE(base::test::RunUntil([&]() { return AllContextsLost(); }));
 }
 
 TEST_F(WebNNFakeContextDMLImplTest, DeviceRemovalFromReadingTensor) {
-  bool all_contexts_lost = false;
-  test::WebNNTestEnvironment webnn_test_environment(
-      WebNNContextProviderImpl::WebNNStatus::kWebNNEnabled,
-      base::BindOnce([](bool* all_contexts_lost) { *all_contexts_lost = true; },
-                     base::Unretained(&all_contexts_lost)));
-  webnn_test_environment.BindWebNNContextProvider(
+  test_environment().BindWebNNContextProvider(
       webnn_provider_remote_.BindNewPipeAndPassReceiver());
   SKIP_TEST_IF(!CreateWebNNContext());
 
@@ -363,7 +362,7 @@ TEST_F(WebNNFakeContextDMLImplTest, DeviceRemovalFromReadingTensor) {
 
   tensor.webnn_tensor_remote.reset();
   webnn_context_remote_.reset();
-  EXPECT_TRUE(base::test::RunUntil([&]() { return all_contexts_lost; }));
+  EXPECT_TRUE(base::test::RunUntil([&]() { return AllContextsLost(); }));
 }
 
 }  // namespace webnn::dml

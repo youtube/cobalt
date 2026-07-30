@@ -624,13 +624,13 @@ public class SigninPromoCoordinatorTest {
         setUpSignInPromo(accessPoint);
         mRenderTestRule.render(
                 mPromoView,
-                "NoAccountThenWithAccount_noAccount_"
+                "NoAccountThenWithAccount_noAccount_twoButtons_"
                         + getParamToRenderId(accessPoint, nightModeEnabled));
 
         mSigninTestRule.addAccount(TestAccounts.ACCOUNT1);
         mRenderTestRule.render(
                 mPromoView,
-                "NoAccountThenWithAccount_withAccount_"
+                "NoAccountThenWithAccount_withAccount_twoButtons_"
                         + getParamToRenderId(accessPoint, nightModeEnabled));
     }
 
@@ -653,14 +653,257 @@ public class SigninPromoCoordinatorTest {
         setUpSignInPromo(accessPoint);
         mRenderTestRule.render(
                 mPromoView,
-                "NoAccountThenWithAccount_noAccount_"
+                "NoAccountThenWithAccount_noAccount_compact_"
                         + getParamToRenderId(accessPoint, nightModeEnabled));
 
         mSigninTestRule.addAccount(TestAccounts.ACCOUNT1);
         mRenderTestRule.render(
                 mPromoView,
-                "NoAccountThenWithAccount_withAccount_"
+                "NoAccountThenWithAccount_withAccount_compact_"
                         + getParamToRenderId(accessPoint, nightModeEnabled));
+    }
+
+    @Test
+    @MediumTest
+    @Feature("RenderTest")
+    @EnableFeatures({
+        "EnableSeamlessSignin"
+                + ":seamless-signin-promo-type/twoButtons"
+                + "/seamless-signin-string-type/signinButton"
+    })
+    @ParameterAnnotations.UseMethodParameter(RenderTestParams.class)
+    public void testRendering_seamlessSigninPromo_twoButtons_noAccount(
+            @SigninAccessPoint int accessPoint, boolean nightModeEnabled) throws Exception {
+        if (accessPoint == SigninAccessPoint.HISTORY_PAGE) {
+            // Promo hidden for the history page.
+            return;
+        }
+
+        setUpSignInPromo(accessPoint);
+
+        mRenderTestRule.render(
+                mPromoView,
+                "NoAccount_SeamlessSigninPromo_twoButtons_"
+                        + getParamToRenderId(accessPoint, nightModeEnabled));
+    }
+
+    @Test
+    @MediumTest
+    @Feature("RenderTest")
+    @EnableFeatures({
+        "EnableSeamlessSignin"
+                + ":seamless-signin-promo-type/compact"
+                + "/seamless-signin-string-type/signinButton"
+    })
+    @ParameterAnnotations.UseMethodParameter(RenderTestParams.class)
+    public void testRendering_seamlessSigninPromo_compact_noAccount(
+            @SigninAccessPoint int accessPoint, boolean nightModeEnabled) throws Exception {
+        if (accessPoint == SigninAccessPoint.HISTORY_PAGE) {
+            // Promo hidden for the history page.
+            return;
+        }
+
+        setUpSignInPromo(accessPoint);
+
+        mRenderTestRule.render(
+                mPromoView,
+                "NoAccount_SeamlessSigninPromo_compact_"
+                        + getParamToRenderId(accessPoint, nightModeEnabled));
+    }
+
+    @Test
+    @MediumTest
+    @Feature("RenderTest")
+    @EnableFeatures({
+        "EnableSeamlessSignin"
+                + ":seamless-signin-promo-type/twoButtons"
+                + "/seamless-signin-string-type/signinButton"
+    })
+    @ParameterAnnotations.UseMethodParameter(RenderTestParams.class)
+    public void testRendering_seamlessSigninPromo_twoButtons_withAccount(
+            @SigninAccessPoint int accessPoint, boolean nightModeEnabled) throws Exception {
+        if (accessPoint == SigninAccessPoint.HISTORY_PAGE) {
+            // Promo hidden for the history page.
+            return;
+        }
+        mSigninTestRule.addAccount(TestAccounts.ACCOUNT1);
+        setUpSignInPromo(accessPoint);
+
+        mRenderTestRule.render(
+                mPromoView,
+                "WithAccount_SeamlessSigninPromo_twoButtons_"
+                        + getParamToRenderId(accessPoint, nightModeEnabled));
+    }
+
+    @Test
+    @MediumTest
+    @Feature("RenderTest")
+    @EnableFeatures({
+        "EnableSeamlessSignin"
+                + ":seamless-signin-promo-type/compact"
+                + "/seamless-signin-string-type/signinButton"
+    })
+    @ParameterAnnotations.UseMethodParameter(RenderTestParams.class)
+    public void testRendering_seamlessSigninPromo_compact_withAccount(
+            @SigninAccessPoint int accessPoint, boolean nightModeEnabled) throws Exception {
+        if (accessPoint == SigninAccessPoint.HISTORY_PAGE) {
+            // Promo hidden for the history page.
+            return;
+        }
+        mSigninTestRule.addAccount(TestAccounts.ACCOUNT1);
+        setUpSignInPromo(accessPoint);
+
+        mRenderTestRule.render(
+                mPromoView,
+                "WithAccount_SeamlessSigninPromo_compact_"
+                        + getParamToRenderId(accessPoint, nightModeEnabled));
+    }
+
+    @Test
+    @MediumTest
+    @Feature("RenderTest")
+    @EnableFeatures({
+        "EnableSeamlessSignin"
+                + ":seamless-signin-promo-type/twoButtons"
+                + "/seamless-signin-string-type/signinButton"
+    })
+    @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    public void testRendering_seamlessSigninPromo_twoButtons_signedIn_bookmarks(
+            boolean nightModeEnabled) throws Exception {
+        mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
+        disableBookmarksAndReadingListDataTypes();
+        setUpSignInPromo(SigninAccessPoint.BOOKMARK_MANAGER);
+
+        mRenderTestRule.render(
+                mPromoView,
+                "WithAccount_SeamlessSigninPromo_twoButtons_SignedIn_"
+                        + getParamToRenderId(SigninAccessPoint.BOOKMARK_MANAGER, nightModeEnabled));
+    }
+
+    @Test
+    @MediumTest
+    @Feature("RenderTest")
+    @EnableFeatures({
+        "EnableSeamlessSignin"
+                + ":seamless-signin-promo-type/compact"
+                + "/seamless-signin-string-type/signinButton"
+    })
+    @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    public void testRendering_seamlessSigninPromo_compact_signedIn_bookmarks(
+            boolean nightModeEnabled) throws Exception {
+        mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
+        disableBookmarksAndReadingListDataTypes();
+        setUpSignInPromo(SigninAccessPoint.BOOKMARK_MANAGER);
+
+        mRenderTestRule.render(
+                mPromoView,
+                "WithAccount_SeamlessSigninPromo_compact_SignedIn_"
+                        + getParamToRenderId(SigninAccessPoint.BOOKMARK_MANAGER, nightModeEnabled));
+    }
+
+    @Test
+    @MediumTest
+    @Feature("RenderTest")
+    @EnableFeatures({
+        "EnableSeamlessSignin"
+                + ":seamless-signin-promo-type/compact"
+                + "/seamless-signin-string-type/signinButton"
+    })
+    @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    public void testRendering_seamlessSigninPromo_signedInThenSignedOut_bookmarks(
+            boolean nightModeEnabled) throws Exception {
+        mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
+        disableBookmarksAndReadingListDataTypes();
+        setUpSignInPromo(SigninAccessPoint.BOOKMARK_MANAGER);
+
+        mRenderTestRule.render(
+                mPromoView,
+                "SeamlessSigninPromo_SignedInThenSignedOut_SignedIn_"
+                        + (nightModeEnabled ? "NightModeEnabled" : "NightModeDisabled"));
+
+        mSigninTestRule.signOut();
+
+        mRenderTestRule.render(
+                mPromoView,
+                "SeamlessSigninPromo_SignedInThenSignedOut_SignedOut_"
+                        + (nightModeEnabled ? "NightModeEnabled" : "NightModeDisabled"));
+    }
+
+    @Test
+    @MediumTest
+    @Feature("RenderTest")
+    @EnableFeatures({
+        "EnableSeamlessSignin"
+                + ":seamless-signin-promo-type/compact"
+                + "/seamless-signin-string-type/signinButton"
+    })
+    @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    public void testRendering_seamlessSigninPromo_signedOutThenSignedIn_bookmarks(
+            boolean nightModeEnabled) throws Exception {
+        mSigninTestRule.addAccount(TestAccounts.ACCOUNT1);
+        setUpSignInPromo(SigninAccessPoint.BOOKMARK_MANAGER);
+
+        mRenderTestRule.render(
+                mPromoView,
+                "SeamlessSigninPromo_SignedOutThenSignedIn_SignedOut_"
+                        + (nightModeEnabled ? "NightModeEnabled" : "NightModeDisabled"));
+
+        mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
+
+        mRenderTestRule.render(
+                mPromoView,
+                "SeamlessSigninPromo_SignedOutThenSignedIn_SignedIn_"
+                        + (nightModeEnabled ? "NightModeEnabled" : "NightModeDisabled"));
+    }
+
+    @Test
+    @MediumTest
+    @Feature("RenderTest")
+    @EnableFeatures({
+        "EnableSeamlessSignin"
+                + ":seamless-signin-promo-type/compact"
+                + "/seamless-signin-string-type/signinButton"
+    })
+    @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    public void testRendering_loadingState_Compact(boolean nightModeEnabled) throws Exception {
+        mSigninTestRule.addAccount(TestAccounts.ACCOUNT1);
+        setUpSignInPromo(SigninAccessPoint.NTP_FEED_TOP_PROMO);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPromoCoordinator.setLoadingStateForTesting(true);
+                });
+
+        mRenderTestRule.render(
+                mPromoView,
+                "LoadingState_Compact_"
+                        + getParamToRenderId(
+                                SigninAccessPoint.NTP_FEED_TOP_PROMO, nightModeEnabled));
+    }
+
+    @Test
+    @MediumTest
+    @Feature("RenderTest")
+    @EnableFeatures({
+        "EnableSeamlessSignin"
+                + ":seamless-signin-promo-type/twoButtons"
+                + "/seamless-signin-string-type/signinButton"
+    })
+    @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    public void testRendering_loadingState_TwoButtons(boolean nightModeEnabled) throws Exception {
+        mSigninTestRule.addAccount(TestAccounts.ACCOUNT1);
+        setUpSignInPromo(SigninAccessPoint.NTP_FEED_TOP_PROMO);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPromoCoordinator.setLoadingStateForTesting(true);
+                });
+
+        mRenderTestRule.render(
+                mPromoView,
+                "LoadingState_TwoButtons_"
+                        + getParamToRenderId(
+                                SigninAccessPoint.NTP_FEED_TOP_PROMO, nightModeEnabled));
     }
 
     private void setUpSignInPromo(@SigninAccessPoint int accessPoint) {

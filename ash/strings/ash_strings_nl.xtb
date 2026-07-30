@@ -874,6 +874,7 @@ Sluit je apparaat aan op een stopcontact.</translation>
 <translation id="397105322502079400">Berekenen...</translation>
 <translation id="397726367135689299">Het opladen van de batterij kan onbetrouwbaar zijn.</translation>
 <translation id="3977512764614765090">Batterij op <ph name="PERCENTAGE" />% en wordt opgeladen.</translation>
+<translation id="3978162107953847778">Voeg links in vanuit plekken zoals je browsegeschiedenis en Google Drive. Je kunt ook bijvoorbeeld emoji's en afbeeldingsbestanden invoegen. <ph name="LINK_TO_LEARN_MORE" /></translation>
 <translation id="3982013579989864579">Audio-uitvoer wisselen?</translation>
 <translation id="3984536049089846927">Volgende pagina</translation>
 <translation id="3986082989454912832">Beantwoorden</translation>
@@ -1600,6 +1601,7 @@ Geen apparaten verbonden.</translation>
 <translation id="6260038345397266744"><ph name="TITLE" />. <ph name="DESCRIPTION" /></translation>
 <translation id="6267036997247669271"><ph name="NAME" />: activeren...</translation>
 <translation id="6274202259872570803">Screencast</translation>
+<translation id="6274422179279280249">Voeg onder andere links en emoji's in. Je kunt ook hulp krijgen bij het schrijven met AI van Google. <ph name="LINK_TO_LEARN_MORE" /></translation>
 <translation id="6276708887952587684">Paginabron bekijken</translation>
 <translation id="6285871695023807425">Toevoegen aan Agenda</translation>
 <translation id="6288235558961782912"><ph name="USER_EMAIL_ADDRESS" /> kan later opnieuw worden toegevoegd met toestemming van een ouder.</translation>
@@ -2190,6 +2192,7 @@ Als je het apparaat wilt uitzetten, houd je de aan/uit-knop op het apparaat weer
 <translation id="8237964652943995219">Volgend bureau: <ph name="DESK_NAME" />. Bureau <ph name="DESK_INDEX" /> van <ph name="DESK_COUNT" />.</translation>
 <translation id="8238817965863339552">Volg een korte rondleiding voor meer informatie over hoe je je <ph name="PRODUCT_NAME" /> gebruikt. Ga aan de slag in 5 stappen.</translation>
 <translation id="8239034820133090126">Bureau aan de rechterkant activeren</translation>
+<translation id="8241650983304689286">Tabblad toevoegen aan nieuwe gesplitste weergave</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, signaalsterkte <ph name="SIGNAL_STRENGTH" />, telefoonbatterij <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Alle Google Drive-content tonen</translation>
 <translation id="8257510091797044096">Je apparaat instellen</translation>

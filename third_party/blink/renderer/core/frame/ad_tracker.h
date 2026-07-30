@@ -99,8 +99,9 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
   // Called when a subresource request is about to be sent or is redirected.
   // Returns true if any of the following are true:
   // - the resource is loaded in an ad iframe
-  // - |known_ad| is true
+  // - `known_ad` is true
   // - ad script is in the v8 stack and the resource was not requested by CSS.
+  // This check is only done if `scan_stack_for_ads` is true.
   // Virtual for testing.
   virtual bool CalculateIfAdSubresource(
       ExecutionContext* execution_context,
@@ -108,16 +109,17 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
       ResourceType resource_type,
       const FetchInitiatorInfo& initiator_info,
       bool known_ad,
+      bool scan_stack_for_ads,
       const subresource_filter::ScopedRule& rule);
 
   // Called when an async task is created. Check at this point for ad script on
   // the stack and annotate the task if so.
   void DidCreateAsyncTask(probe::AsyncTaskContext* task_context);
 
-  // Called when an async task is eventually run.
+  // Called when an ad-related async task is eventually run.
   void DidStartAsyncTask(probe::AsyncTaskContext* task_context);
 
-  // Called when the task has finished running.
+  // Called when the ad-related task has finished running.
   void DidFinishAsyncTask(probe::AsyncTaskContext* task_context);
 
   // Returns true if any script in the pseudo call stack has previously been

@@ -6,6 +6,7 @@
 
 #include "base/byte_count.h"
 #include "base/callback_list.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/simple_test_tick_clock.h"
@@ -30,7 +31,7 @@
 #include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
+#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_controller.h"
@@ -675,7 +676,7 @@ IN_PROC_BROWSER_TEST_P(MemorySaverChipInteractiveTest,
       PressButton(MemorySaverBubbleView::kMemorySaverDialogCancelButton),
       WaitForHide(MemorySaverBubbleView::kMemorySaverDialogBodyElementId),
       Check(base::BindLambdaForTesting(
-          [&]() { return browser()->tab_strip_model()->GetTabCount() == 3; })),
+          [&]() { return browser()->tab_strip_model()->count() == 3; })),
       InstrumentTab(kPerformanceSettingsTab, 2),
       WaitForWebContentsReady(
           kPerformanceSettingsTab,
@@ -803,14 +804,14 @@ class MemorySaverImprovedFaviconTreatmentTest
     MemorySaverInteractiveTestMixin::SetUpOnMainThread();
     SetMemorySaverModeEnabled(true);
   }
-  TabStripViewInterface* GetTabStripView() {
+  TabStripRegionView* GetTabStripView() {
     return BrowserView::GetBrowserViewForBrowser(browser())->tab_strip_view();
   }
 
   TabIcon* GetTabIcon(int tab_index) {
-    return GetTabStripView()
-        ->GetTabAnchorViewAt(tab_index)
-        ->GetTabIconForTesting();
+    return views::AsViewClass<TabIcon>(
+        GetTabStripView()->GetTabAnchorViewAt(tab_index)->GetViewByElementId(
+            kTabIconElementId));
   }
 
  private:

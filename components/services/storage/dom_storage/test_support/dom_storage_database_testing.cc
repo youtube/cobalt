@@ -103,16 +103,11 @@ void OpenAsyncDomStorageDatabaseInMemorySync(
     std::unique_ptr<AsyncDomStorageDatabase>* result) {
   base::test::TestFuture<DbStatus> status_future;
 
-  scoped_refptr<base::SequencedTaskRunner> database_task_runner =
-      base::ThreadPool::CreateSequencedTaskRunner(
-          {base::MayBlock(), base::WithBaseSyncPrimitives(),
-           base::TaskShutdownBehavior::BLOCK_SHUTDOWN});
-
   std::unique_ptr<AsyncDomStorageDatabase> database =
       AsyncDomStorageDatabase::Open(
           storage_type, /*directory=*/base::FilePath(),
           "TestInMemoryDomStorageDatabase", /*memory_dump_id=*/std::nullopt,
-          std::move(database_task_runner), status_future.GetCallback());
+          status_future.GetCallback());
 
   const DbStatus& status = status_future.Get();
   ASSERT_TRUE(status.ok()) << status.ToString();
@@ -145,12 +140,24 @@ void PutMetadataSync(AsyncDomStorageDatabase& database,
 void DeleteStorageKeysFromSessionSync(
     AsyncDomStorageDatabase& database,
     std::string session_id,
-    std::vector<blink::StorageKey> storage_keys,
-    absl::flat_hash_set<int64_t> excluded_cloned_map_ids) {
+    std::vector<blink::StorageKey> metadata_to_delete,
+    std::vector<DomStorageDatabase::MapLocator> maps_to_delete) {
   base::test::TestFuture<DbStatus> status_future;
   database.DeleteStorageKeysFromSession(
-      std::move(session_id), std::move(storage_keys),
-      std::move(excluded_cloned_map_ids), status_future.GetCallback());
+      std::move(session_id), std::move(metadata_to_delete),
+      std::move(maps_to_delete), status_future.GetCallback());
+
+  const DbStatus& status = status_future.Get();
+  EXPECT_TRUE(status.ok()) << status.ToString();
+}
+
+void DeleteSessionsSync(
+    AsyncDomStorageDatabase& database,
+    std::vector<std::string> session_ids,
+    std::vector<DomStorageDatabase::MapLocator> maps_to_delete) {
+  base::test::TestFuture<DbStatus> status_future;
+  database.DeleteSessions(std::move(session_ids), std::move(maps_to_delete),
+                          status_future.GetCallback());
 
   const DbStatus& status = status_future.Get();
   EXPECT_TRUE(status.ok()) << status.ToString();

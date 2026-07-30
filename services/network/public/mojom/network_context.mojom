@@ -13,6 +13,7 @@ import "mojo/public/mojom/base/unguessable_token.mojom";
 import "mojo/public/mojom/base/values.mojom";
 import "sandbox/policy/mojom/context.mojom";
 import "services/network/public/mojom/address_list.mojom";
+import "services/network/public/mojom/cache_encryption_provider.mojom";
 import "services/network/public/mojom/cert_verifier_service.mojom";
 import "services/network/public/mojom/clear_data_filter.mojom";
 import "services/network/public/mojom/client_security_state.mojom";
@@ -373,6 +374,10 @@ struct NetworkContextParams {
   pending_remote<HttpCacheBackendFileOperationsFactory>?
       http_cache_file_operations_factory;
 
+  // An optional provider for encrypting/decrypting cache data. If this is
+  // provided, the disk cache will use it to get an encryptor instance.
+  pending_remote<CacheEncryptionProvider>? encryption_provider;
+
   // Enabled protocols. Note that these apply to all fetches, including those
   // used to fetch PAC scripts. Note that currently data URLs are always enabled
   // and file URLs are always disabled.
@@ -639,11 +644,6 @@ struct MatchedNetworkConditions {
   // requests.
   string pattern;
   NetworkConditions conditions;
-};
-
-struct NetworkDurableMessageConfig {
-  // Maximum size for the durable storage.
-  uint64 http_storage_max_size;
 };
 
 // Represents a shared dictionary.
@@ -923,17 +923,6 @@ struct URLLoaderFactoryParams {
   // `NetworkContext::network_revocation_nonces_`.
   // If no value is present, network restrictions will not be checked.
   mojo_base.mojom.UnguessableToken? network_restrictions_id;
-};
-
-// Represents a Durable Message Collector instance tied to a throttling profile.
-interface DurableMessageCollector {
-  // Configures the collector instance.
-  Configure(NetworkDurableMessageConfig config);
-
-  // Retrieve a collected Durable Message for the given DevTools request ID,
-  // if one is available.
-  Retrieve(string devtools_request_id)
-      => (mojo_base.mojom.BigBuffer? message);
 };
 
 // If allowlisted_patterns is empty then it falls back to the earlier use case
@@ -1277,11 +1266,6 @@ interface NetworkContext {
   // throttling_profile_id.
   SetNetworkConditions(mojo_base.mojom.UnguessableToken throttling_profile_id,
                        array<MatchedNetworkConditions> conditions);
-
-  // Enables network level storage of HTTP request/response bodies.
-  EnableDurableMessageCollector(
-      mojo_base.mojom.UnguessableToken throttling_profile_id,
-      pending_receiver<DurableMessageCollector> receiver);
 
   // Updates the Accept-Language header to be used for requests.
   SetAcceptLanguage(string new_accept_language);
@@ -1736,6 +1720,10 @@ interface NetworkContext {
   // Flushes a cached client certificate preference if `certificate` matches
   // the cached certificate.
   FlushMatchingCachedClientCert(X509Certificate certificate);
+
+  // Flushes all cached client certificate decisions. Used when client cert
+  // selection policy changes (e.g., AutoSelectCertificateForUrls).
+  FlushClientCertCache();
 
   // Clients should revoke network access for nonces using
   // `StoragePartitionImpl::RevokeNetworkForNoncesInNetworkContext` instead of

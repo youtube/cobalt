@@ -59,6 +59,7 @@ class WebPluginContainer;
 class BLINK_EXPORT WebNode {
  public:
   enum class EventType {
+    kAutofill,
     kSelectionchange,
     kBeforeinput,
     kInput,
@@ -144,6 +145,8 @@ class BLINK_EXPORT WebNode {
 
   bool Focused() const;
 
+  void RevealAutoExpandableAncestors() const;
+
   WebPluginContainer* PluginContainer() const;
 
   bool IsInsideFocusableElementOrARIAWidget() const;
@@ -158,6 +161,9 @@ class BLINK_EXPORT WebNode {
       EventType event_type,
       base::RepeatingCallback<void(WebDOMEvent)> handler,
       bool use_capture = false);
+
+  // Returns true there is at least one listener for `event_type` on this node.
+  bool HasEventListeners(EventType event_type) const;
 
   // Helper to downcast to `T`. Will fail with a CHECK() if converting to `T` is
   // not legal. The returned `T` will always be non-null if `this` is non-null.

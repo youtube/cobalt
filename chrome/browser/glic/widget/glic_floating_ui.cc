@@ -23,6 +23,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/common/chrome_features.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
+#include "third_party/skia/include/core/SkRegion.h"
 #include "ui/views/widget/widget_delegate.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -40,6 +41,11 @@ BASE_FEATURE(kGlicFloatingUiReattachment, base::FEATURE_ENABLED_BY_DEFAULT);
 gfx::Size GlicFloatingUi::GetDefaultSize() {
   return {features::kGlicMultiInstanceFloatyWidth.Get(),
           features::kGlicMultiInstanceFloatyHeight.Get()};
+}
+
+gfx::Size GlicFloatingUi::GetCompositeViewDefaultSize() {
+  return {features::kGlicCompositeViewWidth.Get(),
+          features::kGlicCompositeViewHeight.Get()};
 }
 // end static
 
@@ -151,6 +157,12 @@ void GlicFloatingUi::SetDraggableAreas(
     const std::vector<gfx::Rect>& draggable_areas) {
   if (auto* glic_view = GetGlicView()) {
     glic_view->SetDraggableAreas(draggable_areas);
+  }
+}
+
+void GlicFloatingUi::SetDraggableRegion(const SkRegion& draggable_region) {
+  if (auto* glic_view = GetGlicView()) {
+    glic_view->SetDraggableRegion(draggable_region);
   }
 }
 
@@ -282,8 +294,12 @@ void GlicFloatingUi::Show(const ShowOptions& options) {
   GetGlicView()->UpdateBackgroundColor();
   application_hotkey_manager_->InitializeAccelerators();
   glic_panel_hotkey_manager_->InitializeAccelerators();
+
   // TODO: Set up manual resize.
-  window_event_observer_->SetDraggingAreasAndWatchForMouseEvents();
+  if (!base::FeatureList::IsEnabled(features::kGlicHandleDraggingNatively)) {
+    window_event_observer_->SetDraggingAreasAndWatchForMouseEvents();
+  }
+
   // Add capability to show web modal dialogs (e.g. Data Controls Dialogs for
   // enterprise users) via constrained_window APIs.
   web_modal::WebContentsModalDialogManager::CreateForWebContents(
@@ -392,7 +408,14 @@ GlicFloatingUi::GetWebContentsModalDialogHost(
 }
 
 gfx::Size GlicFloatingUi::GetMaximumDialogSize() {
-  return GetGlicWidget()->GetClientAreaBoundsInScreen().size();
+  // Print preview might be the widest model dialog we support for now, use its
+  // min size if FLoaty is smaller than that.
+  gfx::Size floaty_size = GetGlicWidget()->GetClientAreaBoundsInScreen().size();
+  gfx::Size default_size = GetCompositeViewDefaultSize();
+  if (floaty_size.width() >= default_size.width()) {
+    return floaty_size;
+  }
+  return default_size;
 }
 
 gfx::NativeView GlicFloatingUi::GetHostView() const {

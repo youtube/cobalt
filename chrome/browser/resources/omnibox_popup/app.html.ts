@@ -9,7 +9,7 @@ import type {OmniboxPopupAppElement} from './app.js';
 export function getHtml(this: OmniboxPopupAppElement) {
   // clang-format off
   const searchboxDropdown = html`
-<cr-searchbox-dropdown id="matches" part="searchbox-dropdown"
+<cr-searchbox-dropdown part="searchbox-dropdown"
     exportparts="dropdown-content"
     role="listbox" .result="${this.result_}"
     ?can-show-secondary-side="${this.canShowSecondarySide}"
@@ -29,7 +29,9 @@ ${this.showContextEntrypoint_ ? html`
       exportparts="composebox-entrypoint, context-menu-entrypoint-icon"
       entrypoint-name="Omnibox"
       searchbox-layout-mode="${this.searchboxLayoutMode_}"
-      ?show-dropdown="${!this.hasVisibleMatches_}"
+      .tabSuggestions="${this.tabSuggestions_}"
+      ?show-dropdown="${this.hasVisibleMatches_}"
+      ?show-lens-search-chip="${this.isLensSearchEligible_}"
       @context-menu-entrypoint-click="${this.onContextualEntryPointClicked_}">
     ${searchboxDropdown}
   </contextual-entrypoint-and-carousel>

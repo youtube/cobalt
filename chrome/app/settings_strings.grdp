@@ -1987,6 +1987,18 @@
   <message name="IDS_SETTINGS_SECURITY_SAFE_BROWSING_STANDARD_TITLE" desc="Name of Safe Browsing standard protection">
     Standard Protection
   </message>
+  <message name="IDS_SETTINGS_SECURITY_SAFE_BROWSING_STANDARD_SUBTITLE" desc="Description of Safe Browsing standard protection">
+    Protects you from sites, downloads, and extensions that are known to be dangerous
+  </message>
+  <message name="IDS_SETTINGS_SECURITY_SAFE_BROWSING_STANDARD_WHAT_IT_DOES_HEADING" desc="Heading of the Safe Browsing standard protection column describing what it does">
+    What it does
+  </message>
+  <message name="IDS_SETTINGS_SECURITY_SAFE_BROWSING_STANDARD_WHAT_IT_DOES_CONTENT" desc="Content of the Safe Browsing standard protection column describing what it does">
+    Warns you about sites, downloads, and extensions that are known to be dangerous. You can turn off these warnings at any time. If you see a warning for legitimate content, you can <ph name="BEGIN_LINK">&lt;a target="_blank" href="https://safebrowsing.google.com/safebrowsing/report_error/"&gt;</ph>report an error<ph name="END_LINK">&lt;/a&gt;</ph>.
+  </message>
+  <message name="IDS_SETTINGS_SECURITY_SAFE_BROWSING_STANDARD_HOW_IT_WORKS_HEADING" desc="Heading of the Safe Browsing standard protection column describing how it works">
+    How it works
+  </message>
   <message name="IDS_SETTINGS_SECURITY_BUNDLE_STANDARD_BULLET_ONE" desc="First bullet point under the security settings standard bundle section">
     Uses on-device methods to detect threats
   </message>
@@ -1998,6 +2010,9 @@
   </message>
   <message name="IDS_SETTINGS_SECURITY_SAFE_BROWSING_ENHANCED_TITLE" desc="Name of Safe Browsing enhanced protection">
     Enhanced Protection
+  </message>
+  <message name="IDS_SETTINGS_SECURITY_SAFE_BROWSING_ENHANCED_SUBTITLE" desc="Description of Safe Browsing enhanced protection">
+    Real-time, proactive protection by sending more information to Google Safe Browsing
   </message>
   <message name="IDS_SETTINGS_SECURITY_BUNDLE_ENHANCED_BULLET_ONE" desc="First bullet point under the security settings enhanced bundle section">
     Sends the URL and page content to Google to detect threats faster
@@ -2066,6 +2081,26 @@
   </message>
   <message name="IDS_SETTINGS_HTTPS_FIRST_MODE_ENABLED_BALANCED_SUBLABEL" desc="Secondary, continued explanation for the less strict form of HTTPS-First Mode">
     Doesn’t warn you for private sites, such as your company’s intranet
+  </message>
+
+  <!-- Secure Connections (in bundled version of security settings page) -->
+  <message name="IDS_SETTINGS_SECURITY_HTTPS_FIRST_MODE_TOGGLE_LABEL" desc="Label for the HTTPS-First Mode toggle in the Security settings page">
+    Secure connections
+  </message>
+  <message name="IDS_SETTINGS_SECURITY_HTTPS_FIRST_MODE_TOGGLE_SUBLABEL" desc="Sublabel explaining HTTPS-First Mode in the Security settings page">
+    Upgrades connections to HTTPS when possible and warns you before making insecure connections
+  </message>
+  <message name="IDS_SETTINGS_SECURITY_HTTPS_FIRST_MODE_BALANCED_LABEL" desc="Label for radio button to enable the less-strict form of HTTPS-First Mode">
+    On open internet connections
+  </message>
+  <message name="IDS_SETTINGS_SECURITY_HTTPS_FIRST_MODE_BALANCED_SUBLABEL" desc="Sublabel explaining the less-strict form of HTTPS-First Mode">
+    Warns you about insecure connections on the open internet
+  </message>
+  <message name="IDS_SETTINGS_SECURITY_HTTPS_FIRST_MODE_STRICT_LABEL" desc="Label for radio button to enable the stricter form of HTTPS-First Mode">
+    On all connections
+  </message>
+  <message name="IDS_SETTINGS_SECURITY_HTTPS_FIRST_MODE_STRICT_SUBLABEL" desc="Sublabel explaining the stricter form of HTTPS-First Mode">
+    Warns you about all insecure connections, including private intranets
   </message>
 
   <message name="IDS_SETTINGS_MANAGE_CERTIFICATES" desc="Text for manage certificates button in Privacy options">

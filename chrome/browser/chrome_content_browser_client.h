@@ -435,12 +435,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       content::BrowserContext* browser_context,
       const url::Origin& top_frame_origin,
       const url::Origin& reporting_origin) override;
-  bool IsCookieDeprecationLabelAllowed(
-      content::BrowserContext* browser_context) override;
-  bool IsCookieDeprecationLabelAllowedForContext(
-      content::BrowserContext* browser_context,
-      const url::Origin& top_frame_origin,
-      const url::Origin& context_origin) override;
   bool IsFullCookieAccessAllowed(
       content::BrowserContext* browser_context,
       content::WebContents* web_contents,
@@ -616,7 +610,9 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   void RegisterBrowserInterfaceBindersForFrame(
       content::RenderFrameHost* render_frame_host,
       mojo::BinderMapWithContext<content::RenderFrameHost*>* map) override;
-  void RegisterWebUIInterfaceBrokers(
+  void RegisterTrustedWebUIInterfaceBrokers(
+      content::WebUIBrowserInterfaceBrokerRegistry& registry) override;
+  void RegisterUntrustedWebUIInterfaceBrokers(
       content::WebUIBrowserInterfaceBrokerRegistry& registry) override;
   void RegisterMojoBinderPoliciesForSameOriginPrerendering(
       content::MojoBinderPolicyMap& policy_map) override;
@@ -866,8 +862,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 
   std::string GetProduct() override;
   std::string GetUserAgent() override;
-  std::string GetUserAgentBasedOnPolicy(
-      content::BrowserContext* context) override;
   blink::UserAgentMetadata GetUserAgentMetadata() override;
 
   std::optional<gfx::ImageSkia> GetProductLogo() override;
@@ -1058,12 +1052,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       content::BrowserContext* browser_context,
       const url::Origin& top_level_origin) override;
 
-  bool IsUnpartitionedStorageAccessAllowedByUserPreference(
-      content::BrowserContext* browser_context,
-      const GURL& url,
-      const net::SiteForCookies& site_for_cookies,
-      const url::Origin& top_frame_origin) override;
-
   bool AreDeprecatedAutomaticBeaconCredentialsAllowed(
       content::BrowserContext* browser_context,
       const GURL& destination_url,
@@ -1215,6 +1203,8 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 
   std::optional<bool> GetOverrideValueForStaticStorageQuota(
       content::BrowserContext* browser_context) override;
+
+  std::string GetDnsTxtResolverUrlPrefix() override;
 
  protected:
   static bool HandleWebUI(GURL* url, content::BrowserContext* browser_context);

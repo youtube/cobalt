@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util_win.h"
@@ -25,11 +26,11 @@
 #include "device/fido/ctap_get_assertion_request.h"
 #include "device/fido/ctap_make_credential_request.h"
 #include "device/fido/discoverable_credential_metadata.h"
-#include "device/fido/features.h"
-#include "device/fido/fido_constants.h"
 #include "device/fido/fido_request_handler_base.h"
-#include "device/fido/fido_transport_protocol.h"
-#include "device/fido/public_key_credential_descriptor.h"
+#include "device/fido/public/features.h"
+#include "device/fido/public/fido_constants.h"
+#include "device/fido/public/fido_transport_protocol.h"
+#include "device/fido/public/public_key_credential_descriptor.h"
 #include "device/fido/win/type_conversions.h"
 #include "device/fido/win/util.h"
 #include "device/fido/win/webauthn_api.h"
@@ -380,8 +381,7 @@ void WinWebAuthnApiAuthenticator::GetPlatformCredentialInfoForRequest(
         FidoRequestHandlerBase::RecognizedCredential::kUnknown);
     return;
   }
-  if (base::FeatureList::IsEnabled(kWebAuthenticationFixWindowsHelloRdp) &&
-      credentials.empty() && fido::win::IsRemoteDesktopSession()) {
+  if (credentials.empty() && fido::win::IsRemoteDesktopSession()) {
     // Windows credential enumeration does not work under RDP yet, returning an
     // empty credential list. Since we cannot tell if there are credentials or
     // not, treat this the same as enumeration not being supported.

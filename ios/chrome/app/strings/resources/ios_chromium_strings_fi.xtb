@@ -117,6 +117,7 @@ Odota muutama minuutti ennen tilin vaihtamista. Jos vaihdat tiliä nyt, tämä d
 <translation id="3581385059720151202">Visuaalinen haku Chromiumissa</translation>
 <translation id="3582640969619785896">Chromium tarjoutuu tallentamaan salasanasi</translation>
 <translation id="3594315078412605236">Hallinnoi maksutapoja Chromiumissa</translation>
+<translation id="3600428265489994557">Chromiumiin kirjautuminen</translation>
 <translation id="3617143087229977194">Avaa Oletussovellukset-asetukset iOS:llä, napauta sitten "Selainsovellus" ja valitse Chromium.</translation>
 <translation id="3634039384458740619">Avaa Chromiumin asetukset</translation>
 <translation id="3639997914391704523">Chromium voi tarkistaa salasanasi, kun kirjaudut sisään Google-tililläsi.</translation>
@@ -351,7 +352,6 @@ Salattua dataa voi lukea vain tunnuslauseen avulla. Tunnuslausetta ei lähetetä
 <translation id="900560297598578021">Kirjautuneena käyttäjänä <ph name="EMAIL" />.
 
 Datasi salattiin tunnuslauseella <ph name="TIME" />. Lisää se, niin voit käyttää ja tallentaa Chromium-dataa Google-tililläsi.</translation>
-<translation id="9022552996538154597">Kirjaudu sisään Chromiumiin</translation>
 <translation id="9031260906956926157">Osaa Chromium-datastasi ei ole vielä tallennettu Google-tilillesi.
 Odota muutama minuutti ennen uloskirjautumista. Jos kirjaudut ulos nyt, tämä data poistetaan.</translation>
 <translation id="9050790730841755540">Käytä Chromiumia aina, kun napautat linkkejä muissa sovelluksissa.</translation>

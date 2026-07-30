@@ -19,6 +19,7 @@
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_2d_color_params.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_snapshot_provider.h"
 #include "third_party/blink/renderer/platform/graphics/flush_reason.h"
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
 #include "third_party/blink/renderer/platform/graphics/memory_managed_paint_recorder.h"
@@ -90,6 +91,7 @@ enum class RasterMode {
 class PLATFORM_EXPORT CanvasResourceProvider
     : public base::CheckedObserver,
       public CanvasMemoryDumpClient,
+      public CanvasSnapshotProvider,
       public MemoryManagedPaintRecorder::Client,
       public ScopedRasterTimer::Host {
  public:
@@ -197,11 +199,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
   virtual scoped_refptr<CanvasResource> ProduceCanvasResource(FlushReason) = 0;
   virtual scoped_refptr<StaticBitmapImage> Snapshot(
       ImageOrientation = ImageOrientationEnum::kDefault) = 0;
-  virtual scoped_refptr<StaticBitmapImage> DoExternalDrawAndSnapshot(
-      base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback,
-      ImageOrientation orientation) {
-    NOTREACHED();
-  }
 
   void SetDelegate(Delegate* delegate) { delegate_ = delegate; }
 
@@ -216,15 +213,15 @@ class PLATFORM_EXPORT CanvasResourceProvider
   // those callsites.
   const SkImageInfo& GetSkImageInfo() const { return info_; }
   SkSurfaceProps GetSkSurfaceProps() const;
-  viz::SharedImageFormat GetSharedImageFormat() const { return format_; }
-  gfx::ColorSpace GetColorSpace() const { return color_space_; }
-  SkAlphaType GetAlphaType() const { return alpha_type_; }
-  gfx::Size Size() const { return size_; }
-  virtual bool IsValid() const = 0;
+  viz::SharedImageFormat GetSharedImageFormat() const override {
+    return format_;
+  }
+  gfx::ColorSpace GetColorSpace() const override { return color_space_; }
+  SkAlphaType GetAlphaType() const override { return alpha_type_; }
+  gfx::Size Size() const override { return size_; }
   virtual base::ByteCount EstimatedSizeInBytes() const {
     return base::ByteCount(format_.EstimatedSizeInBytes(size_));
   }
-  virtual bool IsAccelerated() const = 0;
   // Returns true if the resource can be used by the display compositor.
   virtual bool SupportsDirectCompositing() const = 0;
   uint32_t ContentUniqueID() const;
@@ -238,24 +235,13 @@ class PLATFORM_EXPORT CanvasResourceProvider
   // rate.
   virtual bool IsSingleBuffered() const = 0;
 
-  SkSurface* GetSkSurface() const;
-  bool IsGpuContextLost() const;
-
-  // Returns true iff the resource provider is (a) using a GPU channel for
-  // software SharedImages and (b) that channel has been lost.
-  virtual bool IsSoftwareSharedImageGpuChannelLost() const;
-  static void NotifyGpuContextLostTask(base::WeakPtr<CanvasResourceProvider>);
+  bool IsGpuContextLost() const override;
 
   virtual bool WritePixels(const SkImageInfo& orig_info,
                            const void* pixels,
                            size_t row_bytes,
                            int x,
                            int y) = 0;
-  bool UnacceleratedWritePixels(const SkImageInfo& orig_info,
-                                const void* pixels,
-                                size_t row_bytes,
-                                int x,
-                                int y);
 
   CanvasResourceProvider(const CanvasResourceProvider&) = delete;
   CanvasResourceProvider& operator=(const CanvasResourceProvider&) = delete;
@@ -288,6 +274,18 @@ class PLATFORM_EXPORT CanvasResourceProvider
 
  protected:
   class CanvasImageProvider;
+
+  // Returns true iff the resource provider is (a) using a GPU channel for
+  // software SharedImages and (b) that channel has been lost.
+  virtual bool IsSoftwareSharedImageGpuChannelLost() const;
+  static void NotifyGpuContextLostTask(base::WeakPtr<CanvasResourceProvider>);
+
+  SkSurface* GetSkSurface() const;
+  bool UnacceleratedWritePixels(const SkImageInfo& orig_info,
+                                const void* pixels,
+                                size_t row_bytes,
+                                int x,
+                                int y);
 
   gpu::raster::RasterInterface* RasterInterface() const;
   base::WeakPtr<WebGraphicsContext3DProviderWrapper> ContextProviderWrapper()
@@ -398,6 +396,11 @@ class PLATFORM_EXPORT Canvas2DResourceProviderBitmap
   scoped_refptr<StaticBitmapImage> Snapshot(
       ImageOrientation = ImageOrientationEnum::kDefault) override;
 
+  scoped_refptr<StaticBitmapImage> DoExternalDrawAndSnapshot(
+      base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback,
+      ImageOrientation orientation) override {
+    NOTREACHED();
+  }
   void RasterRecord(cc::PaintRecord last_recording) override;
   bool WritePixels(const SkImageInfo& orig_info,
                    const void* pixels,
@@ -447,42 +450,50 @@ class PLATFORM_EXPORT Canvas2DResourceProviderBitmap
 // * Renders to a Skia RAM-backed bitmap via an external (client-supplied) draw.
 // * Mailboxing is not supported : cannot be directly composited.
 class PLATFORM_EXPORT CanvasResourceProviderExternalBitmap
-    : public CanvasResourceProvider {
+    : public CanvasSnapshotProvider {
  public:
   CanvasResourceProviderExternalBitmap(gfx::Size size,
                                        viz::SharedImageFormat format,
                                        SkAlphaType alpha_type,
                                        const gfx::ColorSpace& color_space);
 
-  ~CanvasResourceProviderExternalBitmap() override = default;
+  ~CanvasResourceProviderExternalBitmap() override;
 
-  bool IsValid() const override { return GetSkSurface(); }
+  bool IsGpuContextLost() const override;
+  bool IsValid() const override;
   bool IsAccelerated() const override { return false; }
-  bool SupportsDirectCompositing() const override { return false; }
-  bool IsSingleBuffered() const override { return false; }
-  scoped_refptr<StaticBitmapImage> Snapshot(
-      ImageOrientation = ImageOrientationEnum::kDefault) override {
-    NOTREACHED();
-  }
+  bool IsExternalBitmapProvider() const override { return true; }
 
-  void RasterRecord(cc::PaintRecord last_recording) override { NOTREACHED(); }
-  bool WritePixels(const SkImageInfo& orig_info,
-                   const void* pixels,
-                   size_t row_bytes,
-                   int x,
-                   int y) override {
-    NOTREACHED();
-  }
-
-  scoped_refptr<CanvasResource> ProduceCanvasResource(FlushReason) override {
-    // Production of CanvasResources is used with direct compositing, which is
-    // not supported by this class.
-    return nullptr;
-  }
-  sk_sp<SkSurface> CreateSkSurface() const override;
   scoped_refptr<StaticBitmapImage> DoExternalDrawAndSnapshot(
       base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback,
       ImageOrientation orientation) override;
+  viz::SharedImageFormat GetSharedImageFormat() const override {
+    return format_;
+  }
+  gfx::ColorSpace GetColorSpace() const override { return color_space_; }
+  SkAlphaType GetAlphaType() const override { return alpha_type_; }
+  gfx::Size Size() const override { return size_; }
+
+ private:
+  class SoftwareImageProvider;
+  std::unique_ptr<SoftwareImageProvider> image_provider_;
+
+  // Recording accumulating draw ops. This pointer is always valid and safe to
+  // dereference.
+  std::unique_ptr<MemoryManagedPaintRecorder> recorder_;
+
+  mutable sk_sp<SkSurface> surface_;  // mutable for lazy init
+  std::unique_ptr<cc::SkiaPaintCanvas> skia_canvas_;
+
+  gfx::Size size_;
+  viz::SharedImageFormat format_;
+  SkAlphaType alpha_type_;
+  gfx::ColorSpace color_space_;
+  const cc::PaintImage::Id snapshot_paint_image_id_;
+  cc::PaintImage::ContentId snapshot_paint_image_content_id_ =
+      cc::PaintImage::kInvalidContentId;
+  uint32_t snapshot_sk_image_id_ = 0u;
+  SkImageInfo info_;
 };
 
 // * Renders to a SharedImage, which manages memory internally.

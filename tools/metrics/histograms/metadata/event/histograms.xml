@@ -71,7 +71,35 @@ chromium-metrics-reviews@google.com.
                regular scroll (violates fling continuity rule)"/>
 </variants>
 
-<!-- LINT.ThenChange(//base/tracing/protos/chrome_track_event.proto:JankReason,//cc/metrics/event_metrics.h:JankReason) -->
+<!-- LINT.ThenChange(//base/tracing/protos/chrome_track_event.proto:JankReason,//cc/metrics/scroll_jank_v4_result.h:JankReason) -->
+
+<histogram name="Event.Android.GestureScrollEnd.TimeSpentInBinder" units="ms"
+    expires_after="2026-05-12">
+  <owner>nafisabedin@google.com</owner>
+  <owner>yfriedman@chromium.org</owner>
+  <summary>
+    Android-only. Records the time spent handling Binder IPCs between a
+    GestureScrollBegin and the corresponding GestureScrollEnd event. Recorded
+    when a GestureScrollEnd is received.
+
+    The underlying mechanism used to determine this relies on undocumented
+    Android APIs, meaning that it may break in the future.
+  </summary>
+</histogram>
+
+<histogram name="Event.Android.GestureScrollEnd.TotalBinderTransactions"
+    units="counts" expires_after="2026-05-12">
+  <owner>nafisabedin@google.com</owner>
+  <owner>yfriedman@chromium.org</owner>
+  <summary>
+    Android-only. Records the number of Binder IPCs made between a
+    GestureScrollBegin and the corresponding GestureScrollEnd event. Recorded
+    when a GestureScrollEnd is received.
+
+    The underlying mechanism used to determine this relies on undocumented
+    Android APIs, meaning that it may break in the future.
+  </summary>
+</histogram>
 
 <histogram name="Event.AndroidActionDown.ToolType" enum="MotionEventToolType"
     expires_after="never">
@@ -247,7 +275,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Event.Jank.ScrollUpdate.{ScrollSpeed}.{VsyncStatus}.FrameAboveJankyThreshold2"
-    units="ratio * 100" expires_after="2026-03-29">
+    units="ratio * 100" expires_after="2026-05-31">
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -553,7 +581,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Event.ScrollJank.DelayedFramesPercentage.PerScroll" units="%"
-    expires_after="2026-05-24">
+    expires_after="2026-06-07">
   <owner>kartarsingh@google.com</owner>
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance-team@google.com</owner>
@@ -678,7 +706,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Event.ScrollJank.EmptyGestureScrollUpdateFrame" enum="Boolean"
-    expires_after="M145">
+    expires_after="M146">
   <owner>oksamyt@google.com</owner>
   <owner>woa-performance-team@google.com</owner>
   <summary>
@@ -688,7 +716,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Event.ScrollJank.FrameStageCalculationResult"
-    enum="ScrollJankFrameStageCalculationResult" expires_after="2026-03-10">
+    enum="ScrollJankFrameStageCalculationResult" expires_after="2026-05-31">
   <owner>petrcermak@chromium.org</owner>
   <owner>kartarsingh@google.com</owner>
   <owner>jonross@chromium.org</owner>

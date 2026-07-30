@@ -11,7 +11,7 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/icon_detail_view_configuration.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/icon_view.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/multi_row_container_view.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_module_content_view_delegate.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/ui/magic_stack_module_content_view_delegate.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/safety_check/model/safety_check_utils.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/safety_check/public/safety_check_constants.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/safety_check/ui/safety_check_audience.h"
@@ -45,7 +45,8 @@ bool IsRunning(SafetyCheckState* state) {
 bool IsDefault(SafetyCheckState* state) {
   return state.runningState == RunningSafetyCheckState::kDefault &&
          state.updateChromeState == UpdateChromeSafetyCheckState::kDefault &&
-         state.passwordState == PasswordSafetyCheckState::kDefault &&
+         (state.passwordState == PasswordSafetyCheckState::kDefault ||
+          state.passwordState == PasswordSafetyCheckState::kSignedOut) &&
          state.safeBrowsingState == SafeBrowsingSafetyCheckState::kDefault;
 }
 
@@ -263,7 +264,7 @@ bool IsDefault(SafetyCheckState* state) {
                                       ? [self descriptionText:itemType]
                                       : [self
                                             compactDescriptionText:itemType])];
-  viewConfig.symbolName = symbolName;
+  viewConfig.iconName = symbolName;
   viewConfig.symbolColorPalette = _symbolColorPalette;
   viewConfig.symbolBackgroundColor = _symbolBackgroundColor;
   viewConfig.usesDefaultSymbol = [symbolName isEqualToString:kInfoCircleSymbol];

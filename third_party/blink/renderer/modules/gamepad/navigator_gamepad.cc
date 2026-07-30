@@ -42,7 +42,6 @@
 #include "third_party/blink/renderer/modules/gamepad/gamepad_event.h"
 #include "third_party/blink/renderer/modules/gamepad/gamepad_raw_input_change_event.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
-#include "third_party/blink/renderer/platform/privacy_budget/identifiability_digest_helpers.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 
@@ -70,14 +69,18 @@ bool HasInputChangedEventListeners(LocalDOMWindow* window) {
 
 }  // namespace
 
+// static
+const unsigned NavigatorGamepad::kSupplementIndex =
+    static_cast<unsigned>(Navigator::Supplements::kNavigatorGamepad);
 const char kFeaturePolicyBlocked[] =
     "Access to the feature \"gamepad\" is disallowed by permissions policy.";
 
 NavigatorGamepad& NavigatorGamepad::From(Navigator& navigator) {
-  NavigatorGamepad* supplement = navigator.GetNavigatorGamepad();
+  NavigatorGamepad* supplement =
+      Supplement<Navigator>::From<NavigatorGamepad>(navigator);
   if (!supplement) {
     supplement = MakeGarbageCollected<NavigatorGamepad>(navigator);
-    navigator.SetNavigatorGamepad(supplement);
+    ProvideTo(navigator, supplement);
   }
   return *supplement;
 }
@@ -89,7 +92,7 @@ HeapVector<Member<Gamepad>> NavigatorGamepad::getGamepads(
   if (!navigator.DomWindow()) {
     // Using an existing NavigatorGamepad if one exists, but don't create one
     // for a detached window, as its subclasses depend on a non-null window.
-    NavigatorGamepad* gamepad = navigator.GetNavigatorGamepad();
+    auto* gamepad = Supplement<Navigator>::From<NavigatorGamepad>(navigator);
     if (gamepad) {
       HeapVector<Member<Gamepad>> result = gamepad->Gamepads();
 
@@ -221,6 +224,7 @@ void NavigatorGamepad::Trace(Visitor* visitor) const {
   visitor->Trace(gamepads_back_);
   visitor->Trace(vibration_actuators_);
   visitor->Trace(gamepad_dispatcher_);
+  Supplement<Navigator>::Trace(visitor);
   ExecutionContextClient::Trace(visitor);
   PlatformEventController::Trace(visitor);
   Gamepad::Client::Trace(visitor);
@@ -249,7 +253,8 @@ void NavigatorGamepad::DidUpdateData() {
 }
 
 NavigatorGamepad::NavigatorGamepad(Navigator& navigator)
-    : ExecutionContextClient(navigator.DomWindow()),
+    : Supplement<Navigator>(navigator),
+      ExecutionContextClient(navigator.DomWindow()),
       PlatformEventController(*navigator.DomWindow()),
       gamepad_dispatcher_(
           MakeGarbageCollected<GamepadDispatcher>(*navigator.DomWindow())) {

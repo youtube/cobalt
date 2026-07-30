@@ -41,7 +41,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
+#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/dragging/drag_session_data.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_context.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
@@ -357,8 +357,8 @@ TabDragController::Liveness TabDragController::Init(
     TabDragContext* source_context,
     TabSlotView* source_view,
     const std::vector<TabSlotView*>& dragging_views,
-    const gfx::Point& mouse_offset,
-    int source_view_offset,
+    const gfx::Point& offset_from_first_dragged_view,
+    const gfx::Point& offset_from_source_view,
     ui::ListSelectionModel initial_selection_model,
     ui::mojom::DragEventSource event_source) {
   DCHECK(!dragging_views.empty());
@@ -391,8 +391,8 @@ TabDragController::Liveness TabDragController::Init(
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   ref->can_release_capture_ = false;
 #endif
-  ref->start_point_in_screen_ =
-      gfx::Point(source_view_offset, mouse_offset.y());
+  ref->start_point_in_screen_ = gfx::Point(offset_from_source_view.x(),
+                                           offset_from_first_dragged_view.y());
   views::View::ConvertPointToScreen(source_view,
                                     &(ref->start_point_in_screen_));
   ref->event_source_ = event_source;
@@ -407,6 +407,7 @@ TabDragController::Liveness TabDragController::Init(
     ref->detach_behavior_ = DetachBehavior::kNotDetachable;
   }
 #else
+#if BUILDFLAG(IS_CHROMEOS)
   // Tabs should not be detachable from the window if any of the following are
   // true:
   // 1. The app window is locked for OnTask. Not applicable for web browser
@@ -416,18 +417,13 @@ TabDragController::Liveness TabDragController::Init(
   Browser* source_browser = BrowserView::GetBrowserViewForNativeWindow(
                                 source_context->GetWidget()->GetNativeWindow())
                                 ->browser();
-#if BUILDFLAG(IS_CHROMEOS)
   if (source_browser->IsLockedForOnTask()) {
     ref->detach_behavior_ = DetachBehavior::kNotDetachable;
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)
-  if (source_browser->app_controller() &&
-      source_browser->app_controller()->has_tab_strip() &&
-      web_app::HasPinnedHomeTab(source_browser->tab_strip_model())) {
-    for (TabSlotView* dragging_view : dragging_views) {
-      if (source_context->GetIndexOf(dragging_view) == 0) {
-        ref->detach_behavior_ = DetachBehavior::kNotDetachable;
-      }
+  for (TabSlotView* dragging_view : dragging_views) {
+    if (!source_context->IsTabDetachable(dragging_view)) {
+      ref->detach_behavior_ = DetachBehavior::kNotDetachable;
     }
   }
 #endif  // BUILDFLAG(IS_MAC)
@@ -471,7 +467,7 @@ TabDragController::Liveness TabDragController::Init(
   if (source_view->width() > 0) {
     ref->offset_to_width_ratio_ =
         static_cast<float>(
-            source_view->GetMirroredXInView(source_view_offset)) /
+            source_view->GetMirroredXInView(offset_from_source_view.x())) /
         source_view->width();
   }
   ref->initial_selection_model_ = std::move(initial_selection_model);
@@ -1288,8 +1284,9 @@ void TabDragController::AttachToNewContext(
   // the new model.
   CHECK(GetViewsMatchingDraggedContents(attached_context_).empty());
 
-  selection_model_before_attach_ =
-      attached_context_->GetTabStripModel()->selection_model();
+  selection_model_before_attach_ = attached_context_->GetTabStripModel()
+                                       ->selection_model()
+                                       .ToListSelectionModel();
 
   // Insert at any valid index in the tabstrip. We'll fix up the insertion
   // index in MoveAttached() later, if we're transitioning to kDraggingTabs;
@@ -1689,12 +1686,12 @@ std::vector<TabSlotView*> TabDragController::GetViewsMatchingDraggedContents(
   std::vector<TabSlotView*> views;
   for (const TabDragData& tab_drag_datum : drag_data_.tab_drag_data_) {
     if (tab_drag_datum.view_type == TabSlotView::ViewType::kTab) {
-      const int model_index =
-          model->GetIndexOfWebContents(tab_drag_datum.contents);
-      if (model_index == TabStripModel::kNoTab) {
+      TabSlotView* tab_view =
+          context->GetTabForContents(tab_drag_datum.contents);
+      if (!tab_view) {
         return {};
       }
-      views.push_back(context->GetTabAt(model_index));
+      views.push_back(tab_view);
     } else {
       // Return empty vector if the group is not present in the model.
       if (!model->group_model()->ContainsTabGroup(
@@ -2621,7 +2618,7 @@ bool TabDragController::CanAttachTo(gfx::NativeWindow window) {
   }
 #endif  // BUILDFLAG(IS_MAC)
 
-  if (model->IsTabBlocked(active_index)) {
+  if (model->GetActiveTab()->IsBlocked()) {
     return false;
   }
 #endif  // BUILDFLAG(USE_AURA)

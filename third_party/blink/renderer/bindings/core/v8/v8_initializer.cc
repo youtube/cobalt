@@ -522,8 +522,8 @@ std::pair<bool, v8::MaybeLocal<v8::String>> TrustedTypesCodeGenerationCheck(
   }
 
   String stringified_source = TrustedTypesCheckForScript(
-      string_or_trusted_script, ToExecutionContext(context), "eval", "",
-      PassThroughException(isolate));
+      string_or_trusted_script, ToExecutionContext(context),
+      trusted_types_names::kEval, g_empty_atom, PassThroughException(isolate));
   if (try_catch.HasCaught()) {
     return {false, v8::MaybeLocal<v8::String>()};
   }
@@ -766,8 +766,8 @@ v8::MaybeLocal<v8::Promise> HostImportModuleWithPhaseDynamically(
   ModuleRequest module_request(
       specifier, TextPosition::MinimumPosition(),
       ModuleRecord::ToBlinkImportAttributes(
-          script_state->GetContext(), v8::Local<v8::Module>(),
-          v8_import_attributes, /*v8_import_attributes_has_positions=*/false),
+          v8::Local<v8::Module>(), v8_import_attributes,
+          /*v8_import_attributes_has_positions=*/false),
       import_phase);
 
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLAny>>(

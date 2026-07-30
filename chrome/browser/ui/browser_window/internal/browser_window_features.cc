@@ -84,9 +84,9 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_border_controller.h"
 #include "chrome/browser/ui/views/frame/find_bar_owner_views.h"
+#include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/scrim_view_controller.h"
-#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/fullscreen_control/fullscreen_control_host.h"
 #include "chrome/browser/ui/views/incognito_clear_browsing_data_dialog_coordinator.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
@@ -96,6 +96,7 @@
 #include "chrome/browser/ui/views/location_bar/zoom_bubble_coordinator.h"
 #include "chrome/browser/ui/views/media_router/cast_browser_controller.h"
 #include "chrome/browser/ui/views/new_tab_footer/footer_controller.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_popup_closer.h"
 #include "chrome/browser/ui/views/profiles/profile_customization_bubble_sync_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_toolbar_bubble_controller.h"
@@ -172,7 +173,6 @@
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/ui/tabs/glic_actor_nudge_controller.h"
-#include "chrome/browser/ui/tabs/glic_actor_task_icon_controller.h"
 #include "chrome/browser/ui/views/side_panel/glic/glic_legacy_side_panel_coordinator.h"
 #endif
 
@@ -294,10 +294,12 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 
     if (tabs::IsVerticalTabsFeatureEnabled()) {
       vertical_tab_strip_state_controller_ =
-          std::make_unique<tabs::VerticalTabStripStateController>(
-              profile->GetPrefs(), browser_actions_->root_action_item(),
-              SessionServiceFactory::GetForProfile(browser_->GetProfile()),
-              browser_->GetSessionID());
+          GetUserDataFactory()
+              .CreateInstance<tabs::VerticalTabStripStateController>(
+                  *browser, browser, profile->GetPrefs(),
+                  browser_actions_->root_action_item(),
+                  SessionServiceFactory::GetForProfile(browser_->GetProfile()),
+                  browser_->GetSessionID());
     }
   }
 
@@ -669,7 +671,8 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
   // making this for most browser.h types, we should also stop making the
   // contents_height_side_panel_.
   side_panel_coordinator_ =
-      std::make_unique<SidePanelCoordinator>(browser_view);
+      GetUserDataFactory().CreateInstance<SidePanelCoordinator>(*browser_,
+                                                                browser_view);
 
   if (HistorySidePanelCoordinator::IsSupported()) {
     history_side_panel_coordinator_ =
@@ -730,7 +733,6 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
 
       if (features::kGlicActorUiTaskIcon.Get() &&
           browser_->GetProfile()->IsRegularProfile()) {
-        if (base::FeatureList::IsEnabled(features::kGlicActorUiNudgeRedesign)) {
           // Will be referenced in GlicActorNudgeController and thus needs to be
           // instantiated first.
           actor_task_list_bubble_controller_ =
@@ -745,15 +747,6 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
                       BrowserElementsViews::From(browser_view->browser())
                           ->GetViewAs<TabStripActionContainer>(
                               kTabStripActionContainerElementId));
-        } else {
-          glic_actor_task_icon_controller_ =
-              GetUserDataFactory()
-                  .CreateInstance<tabs::GlicActorTaskIconController>(
-                      *browser_, browser_,
-                      BrowserElementsViews::From(browser_view->browser())
-                          ->GetViewAs<TabStripActionContainer>(
-                              kTabStripActionContainerElementId));
-        }
       }
     }
 #endif  // BUILDFLAG(ENABLE_GLIC)
@@ -825,6 +818,9 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
 
   find_bar_owner_ = std::make_unique<FindBarOwnerViews>(browser_view);
 
+  omnibox_popup_closer_ =
+      std::make_unique<omnibox::OmniboxPopupCloser>(browser_view);
+
   // Initialize post-BrowserView-dependent embedder features last.
   embedder_browser_window_features_->InitPostBrowserViewConstruction(
       browser_view);
@@ -849,7 +845,6 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
 
 #if BUILDFLAG(ENABLE_GLIC)
   glic_button_controller_.reset();
-  glic_actor_task_icon_controller_.reset();
   glic_actor_nudge_controller_.reset();
   actor_task_list_bubble_controller_.reset();
 #endif
@@ -915,6 +910,8 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   // TODO(crbug.com/423956131): Update reset order once FindBarController is
   // deterministically constructed.
   find_bar_controller_.reset();
+
+  omnibox_popup_closer_.reset();
 
   split_tab_highlight_controller_.reset();
 

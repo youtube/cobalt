@@ -36,7 +36,6 @@
 #include "cc/input/browser_controls_offset_manager_client.h"
 #include "cc/input/browser_controls_offset_tag_modifications.h"
 #include "cc/input/input_handler.h"
-#include "cc/input/progress_bar_offset_manager.h"
 #include "cc/input/scrollbar_animation_controller.h"
 #include "cc/layers/layer_collections.h"
 #include "cc/metrics/average_lag_tracking_manager.h"
@@ -657,6 +656,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   bool IsPinchGestureActive() const;
   // See comment in equivalent InputHandler method for what this means.
   ActivelyScrollingType GetActivelyScrollingType() const;
+  bool IsHandlingInteraction() const;
   bool IsCurrentScrollMainRepainted() const;
   bool ScrollAffectsScrollHandler() const;
   void SetExternalPinchGestureActive(bool active);
@@ -687,9 +687,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   }
   BrowserControlsOffsetManager* browser_controls_manager() {
     return browser_controls_offset_manager_.get();
-  }
-  ProgressBarOffsetManager* progress_bar_manager() {
-    return progress_bar_offset_manager_.get();
   }
   const GlobalStateThatImpactsTilePriority& global_tile_state() {
     return global_tile_state_;
@@ -901,6 +898,18 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   bool send_frame_token_to_embedder() const {
     return send_frame_token_to_embedder_;
   }
+  void set_is_handling_interaction_from_client(bool is_handling_interaction) {
+    DCHECK(settings().trees_in_viz_in_viz_process);
+    is_handling_interaction_from_client_ = is_handling_interaction;
+  }
+
+  // Returns a bitfield of debug information that indicates why HasDamage() is
+  // true.
+  uint32_t LastFrameHasDamageData() const {
+    return last_frame_has_damage_data_;
+  }
+
+  void AddDamageDataCrashKeys(uint32_t damage_data, bool is_viz);
 
  protected:
   LayerTreeHostImpl(
@@ -1091,6 +1100,8 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   void MaybeFlashEnteredViewportScrollbars(ElementId element_id,
                                            const gfx::Vector2dF& scroll_delta);
 
+  uint32_t GetHasDamageData() const;
+
   // Once bound, this instance owns the InputHandler. However, an InputHandler
   // need not be bound so this should be null-checked before dereferencing.
   std::unique_ptr<InputDelegateForCompositor> input_delegate_;
@@ -1184,7 +1195,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   std::unique_ptr<BrowserControlsOffsetManager>
       browser_controls_offset_manager_;
-  std::unique_ptr<ProgressBarOffsetManager> progress_bar_offset_manager_;
 
   std::unique_ptr<PageScaleAnimation> page_scale_animation_;
 
@@ -1406,11 +1416,18 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   // pass it from renderer to viz.
   bool send_frame_token_to_embedder_ = false;
 
+  // Only used in TreesInViz mode. Stores whether the client is handling an
+  // interaction (e.g. scroll or touch). This is required because the
+  // InputDelegate, which normally provides this information, is not present
+  // in the Viz process.
+  bool is_handling_interaction_from_client_ = false;
+
   // Settings whether we dump generated compositor frame during DrawLayers.
   // They are for debug purposes for TreesInViz and TreeAnimationsInViz.
   bool dump_compositor_frame_ = false;
   uint32_t dump_compositor_frame_begin_ = 0;
   uint32_t dump_compositor_frame_end_ = 0;
+  uint32_t last_frame_has_damage_data_ = 0;
 
   // Must be the last member to ensure this is destroyed first in the
   // destruction order and invalidates all weak pointers.

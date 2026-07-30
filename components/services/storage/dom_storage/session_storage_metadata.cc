@@ -21,9 +21,6 @@ namespace storage {
 
 namespace {
 
-// This is "map-" (without the quotes).
-constexpr const uint8_t kMapIdPrefixBytes[] = {'m', 'a', 'p', '-'};
-
 std::vector<uint8_t> NumberToValue(int64_t map_number) {
   auto str = base::NumberToString(map_number);
   return std::vector<uint8_t>(str.begin(), str.end());
@@ -35,7 +32,7 @@ SessionStorageMetadata::MapData::MapData(int64_t map_number,
                                          blink::StorageKey storage_key)
     : number_as_bytes_(NumberToValue(map_number)),
       map_id_(map_number),
-      key_prefix_(SessionStorageMetadata::GetMapPrefix(number_as_bytes_)),
+      key_prefix_(SessionStorageLevelDB::GetMapPrefix(map_number)),
       storage_key_(std::move(storage_key)) {}
 SessionStorageMetadata::MapData::~MapData() = default;
 
@@ -118,13 +115,15 @@ void SessionStorageMetadata::Initialize(DomStorageDatabase::Metadata source) {
 }
 
 scoped_refptr<SessionStorageMetadata::MapData>
-SessionStorageMetadata::RegisterNewMap(NamespaceEntry namespace_entry,
+SessionStorageMetadata::RegisterNewMap(const std::string& namespace_id,
                                        const blink::StorageKey& storage_key) {
   auto new_map_data = base::MakeRefCounted<MapData>(next_map_id_, storage_key);
   ++next_map_id_;
 
+  NamespaceEntry namespace_entry = GetOrCreateNamespaceEntry(namespace_id);
   std::map<blink::StorageKey, scoped_refptr<MapData>>& namespace_storage_keys =
       namespace_entry->second;
+
   auto namespace_it = namespace_storage_keys.find(storage_key);
   if (namespace_it != namespace_storage_keys.end()) {
     // Check the old map doesn't have the same number as the new map.
@@ -162,72 +161,45 @@ void SessionStorageMetadata::RegisterShallowClonedNamespace(
   }
 }
 
-void SessionStorageMetadata::DeleteNamespace(
-    const std::string& namespace_id,
-    std::vector<AsyncDomStorageDatabase::BatchDatabaseTask>* save_tasks) {
+std::map<blink::StorageKey, scoped_refptr<SessionStorageMetadata::MapData>>
+SessionStorageMetadata::TakeNamespace(const std::string& namespace_id) {
   std::vector<DomStorageDatabase::Key> prefixes_to_delete;
   auto it = namespace_storage_key_map_.find(namespace_id);
-  if (it == namespace_storage_key_map_.end())
-    return;
+  if (it == namespace_storage_key_map_.end()) {
+    return {};
+  }
 
-  prefixes_to_delete.push_back(GetNamespacePrefix(namespace_id));
+  std::map<blink::StorageKey, scoped_refptr<MapData>> storage_keys =
+      std::move(it->second);
 
-  const std::map<blink::StorageKey, scoped_refptr<MapData>>& storage_keys =
-      it->second;
   for (const auto& storage_key_map_pair : storage_keys) {
     MapData* map_data = storage_key_map_pair.second.get();
     DCHECK_GT(map_data->ReferenceCount(), 0);
     map_data->DecReferenceCount();
-    if (map_data->ReferenceCount() == 0)
-      prefixes_to_delete.push_back(map_data->KeyPrefix());
   }
-
   namespace_storage_key_map_.erase(it);
-
-  save_tasks->push_back(base::BindOnce(
-      [](std::vector<DomStorageDatabase::Key> prefixes_to_delete,
-         DomStorageBatchOperationLevelDB& batch,
-         const DomStorageDatabaseLevelDB& db) {
-        for (const auto& prefix : prefixes_to_delete)
-          std::ignore = batch.DeletePrefixed(prefix);
-      },
-      std::move(prefixes_to_delete)));
+  return storage_keys;
 }
 
-void SessionStorageMetadata::DeleteArea(
-    const std::string& namespace_id,
-    const blink::StorageKey& storage_key,
-    std::vector<AsyncDomStorageDatabase::BatchDatabaseTask>* save_tasks) {
+scoped_refptr<SessionStorageMetadata::MapData>
+SessionStorageMetadata::TakeExistingMap(const std::string& namespace_id,
+                                        const blink::StorageKey& storage_key) {
   auto ns_entry = namespace_storage_key_map_.find(namespace_id);
-  if (ns_entry == namespace_storage_key_map_.end())
-    return;
+  if (ns_entry == namespace_storage_key_map_.end()) {
+    return nullptr;
+  }
 
   auto storage_key_map_it = ns_entry->second.find(storage_key);
-  if (storage_key_map_it == ns_entry->second.end())
-    return;
+  if (storage_key_map_it == ns_entry->second.end()) {
+    return nullptr;
+  }
 
-  MapData* map_data = storage_key_map_it->second.get();
-
-  DomStorageDatabase::Key area_key =
-      SessionStorageLevelDB::CreateMapMetadataKey(namespace_id, storage_key);
-  std::vector<DomStorageDatabase::Key> prefixes_to_delete;
+  scoped_refptr<MapData> map_data = storage_key_map_it->second.get();
   DCHECK_GT(map_data->ReferenceCount(), 0);
   map_data->DecReferenceCount();
-  if (map_data->ReferenceCount() == 0)
-    prefixes_to_delete.push_back(map_data->KeyPrefix());
 
   ns_entry->second.erase(storage_key_map_it);
-
-  save_tasks->push_back(base::BindOnce(
-      [](const DomStorageDatabase::Key& area_key,
-         std::vector<DomStorageDatabase::Key> prefixes_to_delete,
-         DomStorageBatchOperationLevelDB& batch,
-         const DomStorageDatabaseLevelDB& db) {
-        batch.Delete(area_key);
-        for (const auto& prefix : prefixes_to_delete)
-          std::ignore = batch.DeletePrefixed(prefix);
-      },
-      area_key, std::move(prefixes_to_delete)));
+  return map_data;
 }
 
 SessionStorageMetadata::NamespaceEntry
@@ -239,33 +211,6 @@ SessionStorageMetadata::GetOrCreateNamespaceEntry(
       .emplace(std::piecewise_construct, std::forward_as_tuple(namespace_id),
                std::forward_as_tuple())
       .first;
-}
-
-// static
-std::vector<uint8_t> SessionStorageMetadata::GetNamespacePrefix(
-    const std::string& namespace_id) {
-  std::vector<uint8_t> namespace_prefix(kNamespacePrefix,
-                                        std::end(kNamespacePrefix));
-  namespace_prefix.insert(namespace_prefix.end(), namespace_id.begin(),
-                          namespace_id.end());
-  namespace_prefix.push_back(kNamespaceStorageKeySeparator);
-  return namespace_prefix;
-}
-
-// static
-std::vector<uint8_t> SessionStorageMetadata::GetMapPrefix(int64_t map_number) {
-  return GetMapPrefix(NumberToValue(map_number));
-}
-
-// static
-std::vector<uint8_t> SessionStorageMetadata::GetMapPrefix(
-    const std::vector<uint8_t>& map_number_as_bytes) {
-  std::vector<uint8_t> map_prefix(kMapIdPrefixBytes,
-                                  std::end(kMapIdPrefixBytes));
-  map_prefix.insert(map_prefix.end(), map_number_as_bytes.begin(),
-                    map_number_as_bytes.end());
-  map_prefix.push_back(kNamespaceStorageKeySeparator);
-  return map_prefix;
 }
 
 }  // namespace storage

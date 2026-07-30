@@ -8,8 +8,10 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
+#include "base/feature_list.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -47,6 +49,8 @@
 #include "components/signin/public/webdata/token_web_data.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "components/unexportable_keys/fake_unexportable_key_service.h"
+#include "components/unexportable_keys/features.h"
+#include "components/unexportable_keys/mock_unexportable_key_service.h"
 #include "components/webdata/common/web_data_service_base.h"
 #include "components/webdata/common/web_database_service.h"
 #include "crypto/kdf.h"
@@ -69,7 +73,9 @@
 namespace {
 
 using TokenWithBindingKey = TokenServiceTable::TokenWithBindingKey;
+using ::testing::_;
 using ::testing::ElementsAre;
+using ::testing::Eq;
 using ::testing::Key;
 using ::testing::SizeIs;
 
@@ -164,6 +170,7 @@ class MutableProfileOAuth2TokenServiceDelegateTest
   MutableProfileOAuth2TokenServiceDelegateTest()
       : task_environment_(
             base::test::TaskEnvironment::MainThreadType::UI,
+            base::test::TaskEnvironment::TimeSource::MOCK_TIME,
             base::test::TaskEnvironment::ThreadPoolExecutionMode::ASYNC),
         os_crypt_(os_crypt_async::GetTestOSCryptAsyncForTesting(
             /*is_sync_for_unittests=*/true)),
@@ -972,7 +979,7 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
   // This will be fired from UpdateCredentials.
   EXPECT_CALL(observer,
               OnAuthErrorChanged(
-                  ::testing::_, GoogleServiceAuthError::AuthErrorNone(),
+                  _, GoogleServiceAuthError::AuthErrorNone(),
                   signin_metrics::SourceForRefreshTokenOperation::kUnknown))
       .Times(2);
   oauth2_service_delegate_->UpdateCredentials(account_id1, "refresh_token1");
@@ -1378,10 +1385,9 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
     EXPECT_CALL(observer, OnRefreshTokenAvailable(account_id));
     // `OnAuthErrorChanged()` is called after `OnRefreshTokenAvailable()`
     // after adding a new account on Desktop.
-    EXPECT_CALL(
-        observer,
-        OnAuthErrorChanged(account_id, GoogleServiceAuthError::AuthErrorNone(),
-                           testing::_));
+    EXPECT_CALL(observer,
+                OnAuthErrorChanged(account_id,
+                                   GoogleServiceAuthError::AuthErrorNone(), _));
     EXPECT_CALL(observer, OnEndBatchChanges());
     oauth2_service_delegate_->UpdateCredentials(account_id, "first_token");
     testing::Mock::VerifyAndClearExpectations(&observer);
@@ -1391,10 +1397,9 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
     testing::InSequence sequence;
     EXPECT_CALL(observer, OnRefreshTokenAvailable(account_id));
     // `OnAuthErrorChanged()` is also called when a token is updated.
-    EXPECT_CALL(
-        observer,
-        OnAuthErrorChanged(account_id, GoogleServiceAuthError::AuthErrorNone(),
-                           testing::_));
+    EXPECT_CALL(observer,
+                OnAuthErrorChanged(account_id,
+                                   GoogleServiceAuthError::AuthErrorNone(), _));
     EXPECT_CALL(observer, OnEndBatchChanges());
 
     oauth2_service_delegate_->UpdateCredentials(account_id, "second_token");
@@ -1831,10 +1836,20 @@ class MutableProfileOAuth2TokenServiceDelegateBoundTokensTest
   void InitializeOAuth2ServiceDelegateWithTokenBinding() {
     oauth2_service_delegate_ = CreateOAuth2ServiceDelegate(
         signin::AccountConsistencyMethod::kDice,
-        std::make_unique<TokenBindingHelper>(fake_unexportable_key_service_));
+        std::make_unique<TokenBindingHelper>(std::visit(
+            [](auto& uks) -> unexportable_keys::UnexportableKeyService& {
+              return uks;
+            },
+            unexportable_key_service_)));
     oauth2_service_delegate_->SetOnRefreshTokenRevokedNotified(
         base::DoNothing());
     test_service_observation_.Observe(oauth2_service_delegate_.get());
+  }
+
+  unexportable_keys::MockUnexportableKeyService&
+  SwitchToMockUnexportableKeyService() {
+    return unexportable_key_service_
+        .emplace<unexportable_keys::MockUnexportableKeyService>();
   }
 
   void ShutdownOAuth2ServiceDelegate() {
@@ -1843,7 +1858,9 @@ class MutableProfileOAuth2TokenServiceDelegateBoundTokensTest
   }
 
  private:
-  unexportable_keys::FakeUnexportableKeyService fake_unexportable_key_service_;
+  std::variant<unexportable_keys::FakeUnexportableKeyService,
+               unexportable_keys::MockUnexportableKeyService>
+      unexportable_key_service_;
 };
 
 TEST_F(MutableProfileOAuth2TokenServiceDelegateBoundTokensTest,
@@ -2069,6 +2086,43 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateBoundTokensTest,
   EXPECT_TRUE(future.Wait());
 }
 
+TEST_F(MutableProfileOAuth2TokenServiceDelegateBoundTokensTest,
+       ExtractCredentialsCopiesBindingKey) {
+  // Initialize the source service.
+  InitializeOAuth2ServiceDelegateWithTokenBinding();
+  oauth2_service_delegate_->LoadCredentials(CoreAccountId());
+  WaitForRefreshTokensLoaded();
+
+  // Setup destination service.
+  unexportable_keys::MockUnexportableKeyService& dest_uks =
+      SwitchToMockUnexportableKeyService();
+  sync_preferences::TestingPrefServiceSyncable dest_prefs;
+  ProfileOAuth2TokenService::RegisterProfilePrefs(dest_prefs.registry());
+  auto dest_delegate = CreateOAuth2ServiceDelegate(
+      signin::AccountConsistencyMethod::kDice,
+      std::make_unique<TokenBindingHelper>(dest_uks));
+  ProfileOAuth2TokenService dest_token_service(&dest_prefs,
+                                               std::move(dest_delegate));
+  dest_token_service.LoadCredentials(CoreAccountId());
+
+  // Add bound token to the source service.
+  const CoreAccountId account_id =
+      CoreAccountId::FromGaiaId(GaiaId("account_id"));
+  const std::vector<uint8_t> kFakeWrappedBindingKey = {1, 2, 3};
+  oauth2_service_delegate_->UpdateCredentials(
+      account_id, "refresh_token",
+      signin_metrics::SourceForRefreshTokenOperation::kUnknown,
+      kFakeWrappedBindingKey);
+
+  // Verify that the binding key is added to the destination service.
+  EXPECT_CALL(dest_uks,
+              FromWrappedSigningKeySlowlyAsync(
+                  Eq(kFakeWrappedBindingKey),
+                  unexportable_keys::BackgroundTaskPriority::kBestEffort, _));
+
+  oauth2_service_delegate_->ExtractCredentials(&dest_token_service, account_id);
+}
+
 class MutableProfileOAuth2TokenServiceDelegateWithChallengeParamTest
     : public MutableProfileOAuth2TokenServiceDelegateBoundTokensTest,
       public testing::WithParamInterface<std::string> {};
@@ -2269,3 +2323,39 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
       oauth2_service_delegate_->GetRefreshToken(primary_account).c_str());
   EXPECT_TRUE(oauth2_service_delegate_->server_revokes_.empty());
 }
+
+class MutableProfileOAuth2TokenServiceDelegateGarbageCollectionTest
+    : public MutableProfileOAuth2TokenServiceDelegateTest,
+      public testing::WithParamInterface<bool> {};
+
+TEST_P(MutableProfileOAuth2TokenServiceDelegateGarbageCollectionTest,
+       UnexportableKeyDeletion) {
+  const bool enable_unexportable_key_deletion = GetParam();
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatureState(
+      unexportable_keys::kUnexportableKeyDeletion,
+      enable_unexportable_key_deletion);
+
+  testing::StrictMock<unexportable_keys::MockUnexportableKeyService>
+      mock_unexportable_key_service;
+  oauth2_service_delegate_ = CreateOAuth2ServiceDelegate(
+      signin::AccountConsistencyMethod::kDice,
+      std::make_unique<TokenBindingHelper>(mock_unexportable_key_service));
+  oauth2_service_delegate_->SetOnRefreshTokenRevokedNotified(base::DoNothing());
+  test_service_observation_.Observe(oauth2_service_delegate_.get());
+
+  oauth2_service_delegate_->LoadCredentials(CoreAccountId());
+  WaitForRefreshTokensLoaded();
+
+  EXPECT_CALL(mock_unexportable_key_service,
+              GetAllSigningKeysForGarbageCollectionSlowlyAsync)
+      .Times(enable_unexportable_key_deletion ? 1 : 0);
+
+  task_environment_.FastForwardUntilNoTasksRemain();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    MutableProfileOAuth2TokenServiceDelegateGarbageCollectionTest,
+    testing::Bool(),
+    [](const auto& info) { return info.param ? "Enabled" : "Disabled"; });

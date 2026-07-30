@@ -15,7 +15,7 @@
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/intelligence/bwg/coordinator/bwg_mediator.h"
 #import "ios/chrome/browser/intelligence/bwg/coordinator/bwg_mediator_delegate.h"
-#import "ios/chrome/browser/intelligence/bwg/metrics/bwg_metrics.h"
+#import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_browser_agent.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
@@ -189,7 +189,7 @@ const CGFloat kPromoMaxImpressionCount = 3;
 }
 
 - (void)dismissBWGFlow {
-  [_BWGCommandsHandler dismissBWGFlowWithCompletion:nil];
+  [_BWGCommandsHandler dismissGeminiFlowWithCompletion:nil];
 }
 
 #pragma mark - UISheetPresentationControllerDelegate
@@ -197,7 +197,7 @@ const CGFloat kPromoMaxImpressionCount = 3;
 // Handles the dismissal of the UI.
 - (void)presentationControllerDidDismiss:
     (UIPresentationController*)presentationController {
-  [_BWGCommandsHandler dismissBWGFlowWithCompletion:nil];
+  [_BWGCommandsHandler dismissGeminiFlowWithCompletion:nil];
 }
 
 #pragma mark - Private
@@ -212,7 +212,7 @@ const CGFloat kPromoMaxImpressionCount = 3;
 
   BOOL willShowFRE = [self shouldShowBWGConsent];
   // Record entry point with FRE context.
-  RecordBWGEntryPointClick(_entryPoint, willShowFRE);
+  RecordGeminiEntryPointClick(_entryPoint, willShowFRE);
 
   if (_entryPoint == bwg::EntryPoint::AIHub) {
     _tracker->NotifyEvent(
@@ -223,7 +223,6 @@ const CGFloat kPromoMaxImpressionCount = 3;
   _BWGCommandsHandler = HandlerForProtocol(dispatcher, BWGCommands);
   _helpCommandsHandler = HandlerForProtocol(dispatcher, HelpCommands);
 
-  // TODO(crbug.com/455906590): Pipe the image to the Gemini overlay.
   _mediator = [[BWGMediator alloc]
       initWithPrefService:_prefService
              webStateList:self.browser->GetWebStateList()
@@ -320,7 +319,7 @@ const CGFloat kPromoMaxImpressionCount = 3;
   for (base::WeakPtr<Browser> browser : otherBrowsers) {
     id<BWGCommands> BWGCommandsHandler =
         HandlerForProtocol(browser->GetCommandDispatcher(), BWGCommands);
-    [BWGCommandsHandler dismissBWGFlowWithCompletion:^() {
+    [BWGCommandsHandler dismissGeminiFlowWithCompletion:^() {
       barrier.Run();
     }];
   }

@@ -99,6 +99,12 @@ source_set("core") {
 
 source_set("cloud_content_scanning") {
   sources = [
+    "cloud_content_scanning/binary_upload_ack.cc",
+    "cloud_content_scanning/binary_upload_ack.h",
+    "cloud_content_scanning/binary_upload_cancel_requests.cc",
+    "cloud_content_scanning/binary_upload_cancel_requests.h",
+    "cloud_content_scanning/binary_upload_request.cc",
+    "cloud_content_scanning/binary_upload_request.h",
     "cloud_content_scanning/common.cc",
     "cloud_content_scanning/common.h",
     "cloud_content_scanning/connector_data_pipe_getter.cc",
@@ -107,11 +113,16 @@ source_set("cloud_content_scanning") {
     "cloud_content_scanning/connector_upload_request.h",
     "cloud_content_scanning/multipart_uploader_base.cc",
     "cloud_content_scanning/multipart_uploader_base.h",
+    "cloud_content_scanning/resumable_uploader_base.cc",
+    "cloud_content_scanning/resumable_uploader_base.h",
   ]
   deps = [
     "//base",
+    "//components/enterprise/common:strings",
+    "//components/enterprise/connectors/core",
     "//components/enterprise/obfuscation/core:enterprise_obfuscation",
     "//components/file_access",
+    "//components/policy/core/browser",
     "//components/safe_browsing/core/common",
     "//mojo/public/cpp/bindings",
     "//net",
@@ -208,16 +219,29 @@ source_set("unit_tests") {
 source_set("cloud_content_scanning_unittests") {
   testonly = true
 
-  sources = [ "cloud_content_scanning/connector_data_pipe_getter_unittest.cc" ]
+  sources = [
+    "cloud_content_scanning/connector_data_pipe_getter_unittest.cc",
+    "cloud_content_scanning/multipart_uploader_base_unittest.cc",
+    "cloud_content_scanning/resumable_uploader_base_unittest.cc",
+  ]
 
   public_deps = [ ":cloud_content_scanning" ]
 
   deps = [
+    ":test_support",
     "//base",
     "//base/test:test_support",
+    "//components/enterprise/common/proto:connectors_proto",
+    "//components/enterprise/connectors/core",
+    "//components/enterprise/connectors/core:test_support",
     "//components/enterprise/obfuscation/core:enterprise_obfuscation",
+    "//components/file_access:test_support",
     "//components/prefs",
     "//net",
+    "//net/traffic_annotation:test_support",
+    "//services/network:test_support",
+    "//services/network/public/cpp",
+    "//testing/gmock",
     "//testing/gtest",
   ]
 }

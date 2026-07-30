@@ -43,7 +43,7 @@
 static jlong JNI_ComposeBoxQueryControllerBridge_Init(
     JNIEnv* env,
     Profile* profile,
-    const base::android::JavaParamRef<jobject>& java_obj) {
+    const base::android::JavaRef<jobject>& java_obj) {
   auto* aim_service = AimEligibilityServiceFactory::GetForProfile(profile);
   if (!aim_service || !aim_service->IsAimEligible()) {
     return 0L;
@@ -56,7 +56,7 @@ static jlong JNI_ComposeBoxQueryControllerBridge_Init(
 
 ComposeboxQueryControllerBridge::ComposeboxQueryControllerBridge(
     Profile* profile,
-    const base::android::JavaParamRef<jobject>& java_obj)
+    const base::android::JavaRef<jobject>& java_obj)
     : profile_{profile}, java_obj_(java_obj) {
   auto query_controller_config_params = std::make_unique<
       contextual_search::ContextualSearchContextController::ConfigParams>();
@@ -64,6 +64,11 @@ ComposeboxQueryControllerBridge::ComposeboxQueryControllerBridge(
   query_controller_config_params->enable_multi_context_input_flow =
       OmniboxFieldTrial::kOmniboxMultimodalInputMultiContext.Get();
   query_controller_config_params->enable_viewport_images = true;
+  query_controller_config_params
+      ->prioritize_suggestions_for_the_first_attached_document =
+      OmniboxFieldTrial::kOmniboxMultimodalPrioritizeSuggestionsForFirstDocument
+          .Get();
+
   query_controller_ = std::make_unique<ComposeboxQueryController>(
       IdentityManagerFactory::GetForProfile(profile),
       g_browser_process->shared_url_loader_factory(), chrome::GetChannel(),
@@ -99,7 +104,7 @@ ComposeboxQueryControllerBridge::AddFile(
     JNIEnv* env,
     std::string& file_name,
     std::string& file_type,
-    const jni_zero::JavaParamRef<jobject>& file_data) {
+    const jni_zero::JavaRef<jobject>& file_data) {
   base::UnguessableToken file_token = base::UnguessableToken::Create();
 
   std::optional<lens::ImageEncodingOptions> image_options = std::nullopt;
@@ -174,12 +179,14 @@ ComposeboxQueryControllerBridge::AddTabContextFromCache(JNIEnv* env,
       page_content_annotations::PageContentExtractionServiceFactory::
           GetForProfile(profile_);
   if (!service) {
+    LOG(ERROR) << "no service";
     return {};
   }
 
   page_content_annotations::PageContentCache* cache =
       service->GetPageContentCache();
   if (!cache) {
+    LOG(ERROR) << "no cache";
     return {};
   }
 
@@ -268,13 +275,6 @@ void ComposeboxQueryControllerBridge::OnFileUploadStatusChanged(
     lens::MimeType mime_type,
     contextual_search::FileUploadStatus file_upload_status,
     const std::optional<contextual_search::FileUploadErrorType>& error_type) {
-  if (file_upload_status ==
-      contextual_search::FileUploadStatus::kProcessingSuggestSignalsReady) {
-    if (lens_signals_ready_callback_) {
-      lens_signals_ready_callback_.Run();
-    }
-  }
-
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_ComposeBoxQueryControllerBridge_onFileUploadStatusChanged(
       env, java_obj_,

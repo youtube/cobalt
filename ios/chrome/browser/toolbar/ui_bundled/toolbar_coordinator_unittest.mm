@@ -7,6 +7,7 @@
 #import "base/scoped_observation.h"
 #import "base/test/scoped_feature_list.h"
 #import "components/omnibox/browser/omnibox_pref_names.h"
+#import "ios/chrome/browser/autocomplete/model/autocomplete_browser_agent.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/infobars/model/infobar_manager_impl.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
@@ -14,6 +15,7 @@
 #import "ios/chrome/browser/reading_list/model/offline_page_tab_helper.h"
 #import "ios/chrome/browser/reading_list/model/reading_list_model_factory.h"
 #import "ios/chrome/browser/saved_tab_groups/model/tab_group_sync_service_factory.h"
+#import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/segmentation_platform/model/segmentation_platform_service_factory.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
@@ -76,6 +78,9 @@ class ToolbarCoordinatorTest : public PlatformTest {
             GetInstance(),
         segmentation_platform::SegmentationPlatformServiceFactory::
             GetDefaultFactory());
+    test_profile_builder.AddTestingFactory(
+        ios::TemplateURLServiceFactory::GetInstance(),
+        ios::TemplateURLServiceFactory::GetDefaultFactory());
     profile_ = std::move(test_profile_builder).Build();
     browser_ = std::make_unique<TestBrowser>(profile_.get());
 
@@ -166,6 +171,7 @@ class ToolbarCoordinatorTest : public PlatformTest {
                      forProtocol:@protocol(BrowserCoordinatorCommands)];
 
     OmniboxPositionBrowserAgent::CreateForBrowser(browser_.get());
+    AutocompleteBrowserAgent::CreateForBrowser(browser_.get());
     // FullscreenController depends on ToolbarsSizeBrowserAgent, so the agent
     // must be created first. Please maintain this order.
     ToolbarsSizeBrowserAgent::CreateForBrowser(browser_.get());

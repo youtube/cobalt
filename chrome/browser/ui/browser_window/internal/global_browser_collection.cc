@@ -9,14 +9,22 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/global_features.h"
 
+GlobalBrowserCollection::GlobalBrowserCollection() = default;
+
+GlobalBrowserCollection::~GlobalBrowserCollection() = default;
+
 // static
 GlobalBrowserCollection* GlobalBrowserCollection::GetInstance() {
   return g_browser_process->GetFeatures()->global_browser_collection();
 }
 
-GlobalBrowserCollection::GlobalBrowserCollection() = default;
+bool GlobalBrowserCollection::IsEmpty() const {
+  return browsers_creation_order_.empty();
+}
 
-GlobalBrowserCollection::~GlobalBrowserCollection() = default;
+size_t GlobalBrowserCollection::GetSize() const {
+  return browsers_creation_order_.size();
+}
 
 BrowserCollection::BrowserVector GlobalBrowserCollection::GetBrowsers(
     Order order) {
@@ -40,11 +48,11 @@ void GlobalBrowserCollection::OnBrowserCreated(
 }
 
 void GlobalBrowserCollection::OnBrowserClosed(BrowserWindowInterface* browser) {
+  std::erase(browsers_activation_order_, browser);
+  std::erase(browsers_creation_order_, browser);
   for (BrowserCollectionObserver& observer : observers()) {
     observer.OnBrowserClosed(browser);
   }
-  std::erase(browsers_activation_order_, browser);
-  std::erase(browsers_creation_order_, browser);
 }
 
 void GlobalBrowserCollection::OnBrowserActivated(

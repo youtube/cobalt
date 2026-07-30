@@ -25,12 +25,12 @@
 #include "device/fido/authenticator_get_assertion_response.h"
 #include "device/fido/authenticator_make_credential_response.h"
 #include "device/fido/discoverable_credential_metadata.h"
-#include "device/fido/features.h"
-#include "device/fido/fido_transport_protocol.h"
-#include "device/fido/fido_types.h"
 #include "device/fido/get_assertion_request_handler.h"
 #include "device/fido/make_credential_request_handler.h"
 #include "device/fido/opaque_attestation_statement.h"
+#include "device/fido/public/features.h"
+#include "device/fido/public/fido_transport_protocol.h"
+#include "device/fido/public/fido_types.h"
 #include "third_party/microsoft_webauthn/src/webauthn.h"
 
 namespace device {
@@ -388,27 +388,22 @@ WinCredentialDetailsListToCredentialMetadata(
 }
 
 std::vector<const wchar_t*> ToWinCredentialHints(
-    base::span<const FidoTransportProtocol> hints) {
+    base::span<const blink::mojom::Hint> hints) {
   if (!base::FeatureList::IsEnabled(kWebAuthenticationWindowsHints)) {
     return {};
   }
   std::vector<const wchar_t*> ret;
   ret.reserve(hints.size());
-  for (const FidoTransportProtocol& hint : hints) {
+  for (const blink::mojom::Hint& hint : hints) {
     switch (hint) {
-      case FidoTransportProtocol::kUsbHumanInterfaceDevice:
+      case blink::mojom::Hint::SECURITY_KEY:
         ret.emplace_back(WEBAUTHN_CREDENTIAL_HINT_SECURITY_KEY);
         break;
-      case FidoTransportProtocol::kInternal:
+      case blink::mojom::Hint::CLIENT_DEVICE:
         ret.emplace_back(WEBAUTHN_CREDENTIAL_HINT_CLIENT_DEVICE);
         break;
-      case FidoTransportProtocol::kHybrid:
+      case blink::mojom::Hint::HYBRID:
         ret.emplace_back(WEBAUTHN_CREDENTIAL_HINT_HYBRID);
-        break;
-      case FidoTransportProtocol::kBluetoothLowEnergy:
-      case FidoTransportProtocol::kDeprecatedAoa:
-      case FidoTransportProtocol::kNearFieldCommunication:
-        // There are no hints for these transports.
         break;
     }
   }

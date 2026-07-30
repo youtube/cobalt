@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/functional/callback_helpers.h"
 #include "base/no_destructor.h"
 #include "base/task/bind_post_task.h"
 #include "components/services/storage/privileged/cpp/bucket_client_info.h"
@@ -253,6 +254,11 @@ void IdbFactoryTestcase::RunAction(const ProtoAction& action,
     case ProtoAction::kIdbTransactionAssociatedRemoteAction:
       mojolpm::HandleAssociatedRemoteAction(
           action.idb_transaction_associated_remote_action());
+      break;
+
+    case ProtoAction::kIdbCursorAssociatedRemoteAction:
+      mojolpm::HandleAssociatedRemoteAction(
+          action.idb_cursor_associated_remote_action());
       break;
 
     case ProtoAction::ACTION_NOT_SET:

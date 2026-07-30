@@ -8,6 +8,7 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -20,7 +21,7 @@ class PresentationRequest;
 // See https://w3c.github.io/presentation-api/#navigatorpresentation for
 // details.
 class Presentation final : public ScriptWrappable,
-                           public GarbageCollectedMixin {
+                           public Supplement<Navigator> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -37,8 +38,6 @@ class Presentation final : public ScriptWrappable,
 
  private:
   void MaybeInitReceiver();
-
-  Member<Navigator> navigator_;
 
   // Default PresentationRequest used by the embedder.
   Member<PresentationRequest> default_request_;

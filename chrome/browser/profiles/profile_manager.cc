@@ -33,6 +33,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/observer_list.h"
 #include "base/run_loop.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -878,8 +879,9 @@ bool ProfileManager::IsValidProfile(const void* profile) {
       return true;
     std::vector<Profile*> otr_profiles =
         candidate->GetAllOffTheRecordProfiles();
-    if (base::Contains(otr_profiles, profile))
+    if (base::Contains(otr_profiles, profile)) {
       return true;
+    }
   }
   return false;
 }

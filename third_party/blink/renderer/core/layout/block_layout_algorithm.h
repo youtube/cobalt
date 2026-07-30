@@ -266,7 +266,9 @@ class CORE_EXPORT BlockLayoutAlgorithm
       PreviousInflowPosition*,
       const InlineBreakToken** inline_break_token_out);
 
-  void HandleOutOfFlowPositioned(const PreviousInflowPosition&, BlockNode);
+  void HandleOutOfFlowPositioned(const PreviousInflowPosition&,
+                                 const BlockNode&,
+                                 const BlockBreakToken*);
   void HandleFloat(const PreviousInflowPosition&,
                    BlockNode,
                    const BlockBreakToken*);
@@ -478,7 +480,7 @@ class CORE_EXPORT BlockLayoutAlgorithm
   // This is called only if |this| is a text control.
   // This function returns a new value for `PreviousInflowPosition::
   // logical_block_offset` and the status of placeholder layout.
-  PlaceholderLayoutResult HandleTextControlPlaceholder(
+  NOINLINE PlaceholderLayoutResult HandleTextControlPlaceholder(
       BlockNode placeholder,
       const PreviousInflowPosition& previous_inflow_position);
   // A helper for HandleTextControlPlaceholder().

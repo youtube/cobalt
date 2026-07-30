@@ -33,7 +33,6 @@
 #include "components/prefs/pref_service.h"
 #include "components/privacy_sandbox/tpcd_pref_names.h"
 #include "components/privacy_sandbox/tpcd_utils.h"
-#include "components/privacy_sandbox/tracking_protection_prefs.h"
 #include "components/subresource_filter/core/common/test_ruleset_utils.h"
 #include "components/tpcd/metadata/browser/parser.h"
 #include "components/user_prefs/user_prefs.h"
@@ -398,7 +397,7 @@ class AdHeuristicTPCDBrowserTestSkipHeuristicsGrant
   base::test::ScopedFeatureList feature_list_;
 };
 
-// TODO(crbug.com/41481346): Investigate flakiness on Lacros/ChromeOS flakiness.
+// TODO(crbug.com/41481346): Investigate flakiness on ChromeOS.
 #if BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_CookieBlocked DISABLED_CookieBlockedProfile
 #else

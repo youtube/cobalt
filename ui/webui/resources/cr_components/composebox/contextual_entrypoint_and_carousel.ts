@@ -4,6 +4,7 @@
 
 import './composebox_tool_chip.js';
 import './context_menu_entrypoint.js';
+import './composebox_lens_search.js';
 import './file_carousel.js';
 import './icons.html.js';
 import './recent_tab_chip.js';
@@ -11,6 +12,7 @@ import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 
 import type {CrIconButtonElement} from '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
+import {assert} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
@@ -104,6 +106,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       // Public properties
       // =========================================================================
       showDropdown: {type: Boolean},
+      showLensSearchChip: {reflect: true, type: Boolean},
       searchboxLayoutMode: {type: String},
       tabSuggestions: {type: Array},
       entrypointName: {type: String},
@@ -151,6 +154,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   }
 
   accessor showDropdown: boolean = false;
+  accessor showLensSearchChip: boolean = false;
   accessor searchboxLayoutMode: string = '';
   accessor entrypointName: string = '';
   accessor tabSuggestions: TabInfo[] = [];
@@ -186,9 +190,17 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     return this.inDeepSearchMode_ || this.inCreateImageMode_;
   }
 
+  private shouldShowContextualSearchChips_(): boolean {
+    return this.showDropdown && this.files_.size === 0 && !this.inToolMode_;
+  }
+
   protected get shouldShowRecentTabChip_(): boolean {
-    return !!this.recentTabForChip_ && this.showDropdown &&
-        this.showRecentTabChip_ && this.files_.size === 0 && !this.inToolMode_;
+    return this.shouldShowContextualSearchChips_() &&
+        !!this.recentTabForChip_ && this.showRecentTabChip_;
+  }
+
+  protected get shouldShowLensSearchChip_(): boolean {
+    return this.shouldShowContextualSearchChips_() && this.showLensSearchChip;
   }
 
   private maxFileCount_: number =
@@ -199,6 +211,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       loadTimeData.getBoolean('composeboxShowCreateImageButton');
   private composeboxSource_: string =
       loadTimeData.getString('composeboxSource');
+  private automaticActiveTabChipToken_: UnguessableToken|null = null;
 
   override willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
@@ -235,6 +248,10 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     this.processFiles_(files);
   }
 
+  blurEntrypoint() {
+    this.$.contextEntrypoint.blur();
+  }
+
   setContextFiles(files: ContextualUpload[]) {
     for (const file of files) {
       if ('tabId' in file) {
@@ -249,6 +266,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
             title: file.title,
             url: file.url,
             delayUpload: file.delayUpload,
+            replaceAutoActiveTabToken: false,
           },
         }));
       } else {
@@ -264,6 +282,8 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         break;
       case ComposeboxMode.CREATE_IMAGE:
         this.onCreateImageClick_();
+        break;
+      default:
         break;
     }
   }
@@ -298,6 +318,9 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
             break;
           default:
             break;
+        }
+        if (this.contextMenuEnabled_) {
+          this.$.contextEntrypoint.closeMenu();
         }
       } else {
         file = {...file, status: status};
@@ -362,6 +385,32 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     this.files_ = newFiles;
   }
 
+  updateAutoActiveTabContext(tab: TabInfo|null) {
+    // If there is already a suggested tab context, remove it.
+    if (this.automaticActiveTabChipToken_) {
+      this.onDeleteFile_(new CustomEvent('deleteTabContext', {
+        detail: {
+          uuid: this.automaticActiveTabChipToken_,
+        },
+      }));
+      this.automaticActiveTabChipToken_ = null;
+    }
+
+    if (!tab) {
+      return;  // No new tab to add, so we're done.
+    }
+
+    this.addTabContext_(new CustomEvent('addTabContext', {
+      detail: {
+        id: tab.tabId,
+        title: tab.title,
+        url: tab.url,
+        delayUpload: /*delay_upload=*/ true,
+        replaceAutoActiveTabToken: true,
+      },
+    }));
+  }
+
   private addFileFromAttachment_(fileAttachment: FileAttachmentStub) {
     const pendingStatus = this.pendingFiles_.get(fileAttachment.uuid);
     const composeboxFile: ComposeboxFile = {
@@ -388,11 +437,12 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         title: tabAttachment.title,
         url: tabAttachment.url,
         delayUpload: /*delay_upload=*/ false,
+        replaceAutoActiveTabToken: false,
       },
     }));
   }
 
-  setStateFromSearchContext(context: SearchContextStub) {
+  addSearchContext(context: SearchContextStub) {
     for (const attachment of context.attachments) {
       if (attachment.fileAttachment) {
         this.addFileFromAttachment_(attachment.fileAttachment);
@@ -412,7 +462,29 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     }
   }
 
-  protected onDeleteFile_(e: CustomEvent) {
+  protected preventFocus_(e: FocusEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  protected onContextMenuContainerClick_(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Ignore non-primary button clicks.
+    if (e.button !== 0) {
+      return;
+    }
+
+    if (this.shadowRoot.activeElement === null) {
+      // If focus did not move to an inner element from this click event,
+      // the user clicked on some non-focusable area.
+      this.fire('context-menu-container-click');
+    }
+  }
+
+  protected onDeleteFile_(
+      e: CustomEvent<{uuid: UnguessableToken, fromUserAction?: boolean}>) {
     if (!e.detail.uuid || !this.files_.has(e.detail.uuid)) {
       return;
     }
@@ -423,9 +495,27 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
           ([id, _]) => id !== file.tabId));
     }
 
+    const fromAutoSuggestedChip =
+        e.detail.uuid === this.automaticActiveTabChipToken_ &&
+        (e.detail.fromUserAction === true);
+    if (fromAutoSuggestedChip) {
+      // In rare cases chrome.metricsPrivate is not available. See
+      // crbug.com/40162029.
+      if (chrome.metricsPrivate) {
+        const metricName =
+            'ContextualSearch.UserAction.DeleteAutoSuggestedTab.' +
+            this.composeboxSource_;
+        chrome.metricsPrivate.recordUserAction(metricName);
+        chrome.metricsPrivate.recordBoolean(metricName, true);
+      }
+      this.automaticActiveTabChipToken_ = null;
+    }
+
     this.files_ = new Map([...this.files_.entries()].filter(
         ([uuid, _]) => uuid !== e.detail.uuid));
-    this.fire('delete-context', {uuid: e.detail.uuid});
+    this.fire(
+        'delete-context',
+        {uuid: e.detail.uuid, fromAutoSuggestedChip: fromAutoSuggestedChip});
   }
 
   private handleProcessFilesError_(error: ProcessFilesError) {
@@ -457,15 +547,23 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     }
 
     this.recordFileValidationMetric_(metric);
+    if (this.contextMenuEnabled_) {
+      this.$.contextEntrypoint.closeMenu();
+    }
     this.fire('on-file-validation-error', {
       errorMessage: this.i18n(errorMessage),
     });
   }
 
   private isFileAllowed_(file: File, acceptedFileTypes: string): boolean {
+    // TODO(crbug.com/466876679):refractor isFileAllowed_ to use pre-split string arrays
     const fileType = file.type.toLowerCase();
     const allowedTypes = acceptedFileTypes.split(',');
     return allowedTypes.some(type => {
+      if (type.endsWith('/*')) {
+        const prefix = type.slice(0, -1);
+        return fileType.startsWith(prefix);
+      }
       return fileType === type;
     });
   }
@@ -531,6 +629,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     title: string,
     url: Url,
     delayUpload: boolean,
+    replaceAutoActiveTabToken: boolean,
   }>) {
     e.stopPropagation();
 
@@ -543,16 +642,32 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         this.files_ = new Map([...this.files_.entries(), [file.uuid, file]]);
         this.addedTabsIds_ = new Map(
             [...this.addedTabsIds_.entries(), [e.detail.id, file.uuid]]);
+        if (e.detail.replaceAutoActiveTabToken) {
+          this.automaticActiveTabChipToken_ = file.uuid;
+        }
       },
     });
   }
 
   protected openImageUpload_() {
-    this.$.imageInput.click();
+    if (this.entrypointName === 'ContextualTasks') {
+      // Open file dialog using top level primary window
+      // in contextual tasks composebox.
+      this.fire('open-file-dialog', {isImage: true});
+    } else {
+      assert(this.$.imageInput);
+      this.$.imageInput.click();
+    }
   }
 
   protected openFileUpload_() {
-    this.$.fileInput.click();
+    if (this.entrypointName === 'ContextualTasks') {
+      // Open file dialog using top level primary window
+      // in contextual tasks composebox.
+      this.fire('open-file-dialog', {isImage: false});
+    } else if (this.$.fileInput) {
+      this.$.fileInput.click();
+    }
   }
 
   protected onDeepSearchClick_() {
@@ -585,6 +700,10 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
 
   private recordFileValidationMetric_(
       enumValue: ComposeboxFileValidationError) {
+    // In rare cases chrome.metricsPrivate is not available.
+    if (!chrome.metricsPrivate) {
+      return;
+    }
     chrome.metricsPrivate.recordEnumerationValue(
         'ContextualSearch.File.WebUI.UploadAttemptFailure.' +
             this.composeboxSource_,

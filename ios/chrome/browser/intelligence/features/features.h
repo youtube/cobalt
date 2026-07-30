@@ -25,8 +25,17 @@ BASE_DECLARE_FEATURE(kProactiveSuggestionsFramework);
 // Returns true if the proactive suggestions framework is enabled.
 bool IsProactiveSuggestionsFrameworkEnabled();
 
-// Feature flag controlling the page action menu.
+// Returns true if the popup blocker feature is enabled within the proactive
+// suggestions framework.
+bool IsProactiveSuggestionsFrameworkPopupBlockerEnabled();
+extern const char kProactiveSuggestionsFrameworkPopupBlocker[];
+
+// Page action menu feature flag, used to roll out and toggle in chrome://flags.
 BASE_DECLARE_FEATURE(kPageActionMenu);
+
+// Gemini killswitch, used to disable the feature in any locale, including
+// launched ones.
+BASE_DECLARE_FEATURE(kGeminiKillSwitch);
 
 // Returns true if the page action menu is enabled.
 bool IsPageActionMenuEnabled();
@@ -42,15 +51,18 @@ bool IsAskGeminiChipEnabled();
 bool IsAskGeminiChipIgnoreCriteria();
 extern const char kAskGeminiChipIgnoreCriteria[];
 
-// Returns true if a snackbar should be shown when a site is eligible for Ask
-// Gemini.
-bool IsAskGeminiSnackbarEnabled();
-extern const char kAskGeminiChipUseSnackbar[];
-
 // Returns true if the Ask Gemini chip should prepopulate the Gemini Floaty with
 // a prompt.
 bool IsAskGeminiChipPrepopulateFloatyEnabled();
 extern const char kAskGeminiChipPrepopulateFloaty[];
+
+// A variation that combines `kAskGeminiChipIgnoreCriteria` and
+// `kAskGeminiChipPrepopulateFloaty`.
+extern const char kAskGeminiChipPrepopulateAndIgnoreCriteria[];
+
+// Returns true if the Ask Gemini chip should allow non-consented users.
+bool IsAskGeminiChipAllowNonconsentedUsersEnabled();
+extern const char kAskGeminiChipAllowNonconsentedUsers[];
 
 // Feature flag controlling the cross-tab floaty chat persistence.
 BASE_DECLARE_FEATURE(kGeminiCrossTab);
@@ -128,6 +140,7 @@ bool IsGeminiAvailableForManagedAccounts();
 
 // Feature flag to show the AI Hub new badge.
 BASE_DECLARE_FEATURE(kAIHubNewBadge);
+bool IsAIHubNewBadgeEnabled();
 
 // Whether the Gemini consent pref should be deleted on account change.
 bool ShouldDeleteGeminiConsentPref();
@@ -141,8 +154,46 @@ BASE_DECLARE_FEATURE(kSmartTabGrouping);
 // Returns true if smart tab grouping is enabled.
 bool IsSmartTabGroupingEnabled();
 
+// Feature parameter determining the storage backend used for persisting tab
+// contexts.
+extern const char kPersistTabContextStorageParam[];
+
+// Feature parameter detirmining the event(s) that trigger page context
+// extraction.
+extern const char kPersistTabContextExtractionTimingParam[];
+
+// Feature parameter detirmining what page content data is persisted.
+extern const char kPersistTabContextDataParam[];
+
+// Defines the storage backend used for persisting tab contexts.
+enum class PersistTabStorageType {
+  kFileSystem = 0,
+  kSQLite = 1,
+};
+
+// Defines the event(s) that trigger page context extraction.
+enum class PersistTabExtractionTiming {
+  kOnWasHidden = 0,
+  kOnWasHiddenAndPageLoad = 1,
+};
+
+// Defines what page content data is persisted.
+enum class PersistTabDataExtracted {
+  kApcAndInnerText = 0,
+  kInnerTextOnly = 1,
+};
+
 // Returns true if tab context persisting is enabled.
 bool IsPersistTabContextEnabled();
+
+// Returns the configured persistent tab context storage type.
+PersistTabStorageType GetPersistTabContextStorageType();
+
+// Returns the configured persistent tab context extraction timing.
+PersistTabExtractionTiming GetPersistTabContextExtractionTiming();
+
+// Returns the configured persistent tab context data extracted.
+PersistTabDataExtracted GetPersistTabContextDataExtracted();
 
 // Feature flag to persist tab context.
 BASE_DECLARE_FEATURE(kPersistTabContext);
@@ -230,5 +281,9 @@ bool IsGeminiLiveEnabled();
 // Feature flag for Gemini Personalization.
 BASE_DECLARE_FEATURE(kGeminiPersonalization);
 bool IsGeminiPersonalizationEnabled();
+
+// Feature flag for Gemini Copresence.
+BASE_DECLARE_FEATURE(kGeminiCopresence);
+bool IsGeminiCopresenceEnabled();
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

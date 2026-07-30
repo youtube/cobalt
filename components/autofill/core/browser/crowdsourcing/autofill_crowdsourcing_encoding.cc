@@ -18,6 +18,7 @@
 #include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/types/optional_ref.h"
@@ -891,9 +892,8 @@ std::vector<AutofillUploadContents> EncodeUploadRequest(
         form, upload.mutable_three_bit_hashed_form_metadata());
   }
 
-  std::vector<AutofillField*> upload_fields(form.fields().size());
-  std::ranges::transform(form.fields(), upload_fields.begin(),
-                         &std::unique_ptr<AutofillField>::get);
+  std::vector<AutofillField*> upload_fields =
+      base::ToVector(form.fields(), &std::unique_ptr<AutofillField>::get);
   EncodeFormFieldsForUpload(form, options.encoder, options.fields,
                             upload_fields, &upload);
   std::vector<AutofillUploadContents> uploads = {std::move(upload)};
@@ -970,7 +970,7 @@ EncodeAutofillPageQueryRequest(
 
 void ParseServerPredictionsQueryResponse(
     std::string_view payload,
-    const std::vector<raw_ptr<FormStructure, VectorExperimental>>& forms,
+    const std::vector<raw_ref<FormStructure>>& forms,
     const std::vector<FormSignature>& queried_form_signatures,
     LogManager* log_manager) {
   AutofillMetrics::LogServerQueryMetric(
@@ -997,7 +997,7 @@ void ParseServerPredictionsQueryResponse(
 
 void ProcessServerPredictionsQueryResponse(
     const AutofillQueryResponse& response,
-    const std::vector<raw_ptr<FormStructure, VectorExperimental>>& forms,
+    const std::vector<raw_ref<FormStructure>>& forms,
     const std::vector<FormSignature>& queried_form_signatures,
     LogManager* log_manager) {
   AutofillMetrics::LogServerQueryMetric(AutofillMetrics::QUERY_RESPONSE_PARSED);
@@ -1015,7 +1015,7 @@ void ProcessServerPredictionsQueryResponse(
       GetFormsForWhichToRunAiModel(response, queried_form_signatures);
 
   // Copy the field types into the actual form.
-  for (FormStructure* form : forms) {
+  for (const raw_ref<FormStructure>& form : forms) {
     form->set_may_run_autofill_ai_model(
         forms_for_which_to_run_ai_model.contains(form->form_signature()));
 

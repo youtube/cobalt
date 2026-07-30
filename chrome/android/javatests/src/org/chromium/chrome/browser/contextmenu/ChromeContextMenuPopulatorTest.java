@@ -68,6 +68,7 @@ import org.chromium.chrome.browser.download.DownloadUtils;
 import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
 import org.chromium.chrome.browser.firstrun.FirstRunStatus;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.lens.LensEntryPoint;
 import org.chromium.chrome.browser.lens.LensIntentParams;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -98,7 +99,7 @@ import java.util.List;
 
 /** Unit tests for the context menu logic of Chrome. */
 @RunWith(BaseJUnit4ClassRunner.class)
-@Batch(Batch.PER_CLASS)
+@Batch(Batch.UNIT_TESTS)
 public class ChromeContextMenuPopulatorTest {
     private static final String DATA_URL = "data:encodedstringblahblah";
     private static final String PAGE_URL = "http://www.blah.com/page_url";
@@ -131,6 +132,7 @@ public class ChromeContextMenuPopulatorTest {
 
     @Before
     public void setUp() {
+        ChromeContextMenuPopulator.setIsDefaultBrowserForTesting(false);
         mAutomotiveRule.setIsAutomotive(false);
         DownloadUtils.setIsDownloadRestrictedByPolicyForTesting(false);
         NativeLibraryTestUtils.loadNativeLibraryNoBrowserProcess();
@@ -396,8 +398,7 @@ public class ChromeContextMenuPopulatorTest {
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.CUSTOM_TAB, params);
         int[] expected3 = {
-            R.id.contextmenu_open_in_new_chrome_tab,
-            R.id.contextmenu_open_in_chrome_incognito_tab,
+            R.id.contextmenu_open_in_browser_id,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
             R.id.contextmenu_copy_link_text,
@@ -516,8 +517,7 @@ public class ChromeContextMenuPopulatorTest {
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.CUSTOM_TAB, params);
         int[] expected3 = {
-            R.id.contextmenu_open_in_new_chrome_tab,
-            R.id.contextmenu_open_in_chrome_incognito_tab,
+            R.id.contextmenu_open_in_browser_id,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
             R.id.contextmenu_copy_link_text,
@@ -594,8 +594,7 @@ public class ChromeContextMenuPopulatorTest {
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.CUSTOM_TAB, params);
         int[] expected2 = {
-            R.id.contextmenu_open_in_new_chrome_tab,
-            R.id.contextmenu_open_in_chrome_incognito_tab,
+            R.id.contextmenu_open_in_browser_id,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
             R.id.contextmenu_copy_link_text,
@@ -928,8 +927,7 @@ public class ChromeContextMenuPopulatorTest {
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.CUSTOM_TAB, params);
         int[] expected3Tab1 = {
-            R.id.contextmenu_open_in_new_chrome_tab,
-            R.id.contextmenu_open_in_chrome_incognito_tab,
+            R.id.contextmenu_open_in_browser_id,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
             R.id.contextmenu_copy_link_text,
@@ -1029,8 +1027,7 @@ public class ChromeContextMenuPopulatorTest {
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.CUSTOM_TAB, params);
         int[] expected3Tab1 = {
-            R.id.contextmenu_open_in_new_chrome_tab,
-            R.id.contextmenu_open_in_chrome_incognito_tab,
+            R.id.contextmenu_open_in_browser_id,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
             R.id.contextmenu_copy_link_text,
@@ -1185,8 +1182,7 @@ public class ChromeContextMenuPopulatorTest {
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.CUSTOM_TAB, params);
         int[] expected3 = {
-            R.id.contextmenu_open_in_new_chrome_tab,
-            R.id.contextmenu_open_in_chrome_incognito_tab,
+            R.id.contextmenu_open_in_browser_id,
             R.id.contextmenu_open_image,
             R.id.contextmenu_open_image_in_ephemeral_tab,
             R.id.contextmenu_copy_image,
@@ -1293,8 +1289,7 @@ public class ChromeContextMenuPopulatorTest {
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.CUSTOM_TAB, params);
         int[] expected3Tab1 = {
-            R.id.contextmenu_open_in_new_chrome_tab,
-            R.id.contextmenu_open_in_chrome_incognito_tab,
+            R.id.contextmenu_open_in_browser_id,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
             R.id.contextmenu_save_link_as,
@@ -1453,8 +1448,7 @@ public class ChromeContextMenuPopulatorTest {
         // Custom tab should include read later.
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.CUSTOM_TAB, params);
         int[] expected2 = {
-            R.id.contextmenu_open_in_new_chrome_tab,
-            R.id.contextmenu_open_in_chrome_incognito_tab,
+            R.id.contextmenu_open_in_browser_id,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
             R.id.contextmenu_copy_link_text,
@@ -1631,17 +1625,37 @@ public class ChromeContextMenuPopulatorTest {
     @Test
     @SmallTest
     @UiThreadTest
-    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testOpenInNewWindow() {
-        checkOpenInNewWindowItems(/* isIncognitoWindowFeatureEnabled= */ false);
-    }
+        FirstRunStatus.setFirstRunFlowComplete(true);
+        ContextMenuParams params = getHttpLinkParams();
 
-    @Test
-    @SmallTest
-    @UiThreadTest
-    @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
-    public void testOpenInNewWindow_incognitoWindowEnabled() {
-        checkOpenInNewWindowItems(/* isIncognitoWindowFeatureEnabled= */ true);
+        when(mItemDelegate.isIncognito()).thenReturn(false);
+        when(mItemDelegate.isIncognitoSupported()).thenReturn(true);
+        when(mItemDelegate.canEnterMultiWindowMode()).thenReturn(true);
+        initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
+        doReturn(true).when(mPopulator).isTabletScreen();
+
+        List<Integer> expectedItems = new ArrayList<>();
+        expectedItems.add(R.id.contextmenu_open_in_new_tab);
+        expectedItems.add(R.id.contextmenu_open_in_new_tab_in_group);
+
+        if (IncognitoUtils.shouldOpenIncognitoAsWindow()) {
+            expectedItems.add(R.id.contextmenu_open_in_new_window);
+            expectedItems.add(R.id.contextmenu_open_in_incognito_window);
+        } else {
+            expectedItems.add(R.id.contextmenu_open_in_incognito_tab);
+            expectedItems.add(R.id.contextmenu_open_in_new_window);
+        }
+
+        expectedItems.add(R.id.contextmenu_open_in_ephemeral_tab);
+        expectedItems.add(R.id.contextmenu_copy_link_address);
+        expectedItems.add(R.id.contextmenu_copy_link_text);
+        expectedItems.add(R.id.contextmenu_save_link_as);
+        expectedItems.add(R.id.contextmenu_read_later);
+        expectedItems.add(R.id.contextmenu_share_link);
+
+        int[] expectedItemsArray = expectedItems.stream().mapToInt(Integer::intValue).toArray();
+        checkMenuOptions(expectedItemsArray);
     }
 
     @Test
@@ -1776,8 +1790,7 @@ public class ChromeContextMenuPopulatorTest {
                         /* additionalNavigationParams= */ null);
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.CUSTOM_TAB, linkParams);
         int[] linkExpected = {
-            R.id.contextmenu_open_in_new_chrome_tab,
-            R.id.contextmenu_open_in_chrome_incognito_tab,
+            R.id.contextmenu_open_in_browser_id,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
             R.id.contextmenu_copy_link_text,
@@ -1819,8 +1832,7 @@ public class ChromeContextMenuPopulatorTest {
                         /* additionalNavigationParams= */ null);
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.CUSTOM_TAB, imageParams);
         int[] imageExpected = {
-            R.id.contextmenu_open_in_new_chrome_tab,
-            R.id.contextmenu_open_in_chrome_incognito_tab,
+            R.id.contextmenu_open_in_browser_id,
             R.id.contextmenu_open_image,
             R.id.contextmenu_open_image_in_ephemeral_tab,
             R.id.contextmenu_copy_image,
@@ -2628,38 +2640,5 @@ public class ChromeContextMenuPopulatorTest {
             }
         }
         return null;
-    }
-
-    private void checkOpenInNewWindowItems(boolean isIncognitoWindowFeatureEnabled) {
-        FirstRunStatus.setFirstRunFlowComplete(true);
-        ContextMenuParams params = getHttpLinkParams();
-
-        when(mItemDelegate.isIncognito()).thenReturn(false);
-        when(mItemDelegate.isIncognitoSupported()).thenReturn(true);
-        when(mItemDelegate.canEnterMultiWindowMode()).thenReturn(true);
-        initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
-        doReturn(true).when(mPopulator).isTabletScreen();
-
-        List<Integer> expectedItems = new ArrayList<>();
-        expectedItems.add(R.id.contextmenu_open_in_new_tab);
-        expectedItems.add(R.id.contextmenu_open_in_new_tab_in_group);
-
-        if (isIncognitoWindowFeatureEnabled) {
-            expectedItems.add(R.id.contextmenu_open_in_new_window);
-            expectedItems.add(R.id.contextmenu_open_in_incognito_window);
-        } else {
-            expectedItems.add(R.id.contextmenu_open_in_incognito_tab);
-            expectedItems.add(R.id.contextmenu_open_in_new_window);
-        }
-
-        expectedItems.add(R.id.contextmenu_open_in_ephemeral_tab);
-        expectedItems.add(R.id.contextmenu_copy_link_address);
-        expectedItems.add(R.id.contextmenu_copy_link_text);
-        expectedItems.add(R.id.contextmenu_save_link_as);
-        expectedItems.add(R.id.contextmenu_read_later);
-        expectedItems.add(R.id.contextmenu_share_link);
-
-        int[] expectedItemsArray = expectedItems.stream().mapToInt(Integer::intValue).toArray();
-        checkMenuOptions(expectedItemsArray);
     }
 }

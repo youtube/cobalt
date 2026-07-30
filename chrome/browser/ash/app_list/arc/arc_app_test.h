@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chromeos/ash/experiences/arc/mojom/app.mojom-forward.h"
 #include "components/session_manager/core/session_manager.h"
 #include "components/user_manager/scoped_user_manager.h"
@@ -20,6 +21,7 @@ class AppInfo;
 }
 class ArcPlayStoreEnabledPreferenceHandler;
 class ArcServiceManager;
+class ArcDlcInstaller;
 class ArcSessionManager;
 class FakeAppInstance;
 class FakeCompatibilityModeInstance;
@@ -188,6 +190,7 @@ class ArcAppTest {
   user_manager::ScopedUserManager user_manager_;
 
   std::unique_ptr<arc::ArcServiceManager> arc_service_manager_;
+  std::unique_ptr<arc::ArcDlcInstaller> arc_dlc_installer_;
   std::unique_ptr<arc::ArcSessionManager> arc_session_manager_;
   std::unique_ptr<arc::ArcPlayStoreEnabledPreferenceHandler>
       arc_play_store_enabled_preference_handler_;
@@ -204,6 +207,8 @@ class ArcAppTest {
   std::string user_email_;
 
   bool concierge_client_initialized_ = false;
+
+  bool dlcservice_client_initialized_ = false;
 
   bool is_pre_profile_setup_called_ = false;
   bool need_pre_profile_teardown_ = false;

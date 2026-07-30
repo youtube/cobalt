@@ -87,6 +87,7 @@
 <translation id="1336996151357442890"><ph name="SITE_NAME" /> నుండి సబ్‌స్క్రిప్షన్ తీసివేయబడింది. మీరు తర్వాతిసారి సందర్శించినప్పుడు సిస్టమ్ మిమ్మల్ని మళ్లీ అడుగుతుంది.</translation>
 <translation id="1340839264183302272">గ్రూప్ నుండి నిష్క్రమించండి</translation>
 <translation id="1342886103232377846">చోరీకి గురైన పాస్‌వర్డ్‌ల కోసం చెక్ చేయడానికి, Google Password Managerకు వెళ్లండి</translation>
+<translation id="1343830902827845050">Chromeకు సైన్ ఇన్ చేయండి</translation>
 <translation id="1344653310988386453">హైలైట్ చేసిన టెక్స్ట్‌కు లింక్‌ను చేర్చండి</translation>
 <translation id="1347468774581902829">యాక్టివిటీని మేనేజ్ చేయండి</translation>
 <translation id="1355088659320425659">హిస్టరీ, ట్యాబ్‌లు</translation>
@@ -496,6 +497,7 @@
 <translation id="3114507951000454849">ఈరోజు వార్తలను చదవండి <ph name="NEWS_ICON" /></translation>
 <translation id="3122883569442693641">మరిన్ని వివరాలు</translation>
 <translation id="3123734510202723619">అనౌన్స్‌మెంట్‌లు</translation>
+<translation id="3134385238404760368">ఇటీవలి ట్యాబ్‌లు ఏవీ లేవు</translation>
 <translation id="314939179385989105">Chrome హోమ్ పేజీ</translation>
 <translation id="3158667104057012316">మాన్యువల్ ఆర్డర్ ఆధారంగా క్రమపద్ధతిలో అమర్చుతున్నారు</translation>
 <translation id="3159335509547415276">బ్లాక్ చేయబడిన ఖాతాల గురించి తెలుసుకోండి</translation>
@@ -524,7 +526,6 @@
 <translation id="3268048651973962414">సెర్చ్ ఫలితాలను చూడటానికి పైకి లాగండి</translation>
 <translation id="3269093882174072735">చిత్రాన్ని లోడ్ చేయి</translation>
 <translation id="3280562213547448728">వాయిస్ సెర్చ్</translation>
-<translation id="3282568296779691940">Chromeకు సైన్ ఇన్ చేయండి</translation>
 <translation id="3285065882678541460">{TAB_COUNT,plural, =1{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_ONE" /> ట్యాబ్}other{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_MANY" /> ట్యాబ్‌లు}}</translation>
 <translation id="3286508210927575634">{PASSWORDS_COUNT,plural, =1{1 పాస్‌వర్డ్ ఈ డివైజ్‌లో మాత్రమే సేవ్ అయింది. దాన్ని మీ ఇతర డివైజ్‌లలో ఉపయోగించడానికి, మీ Google ఖాతాలో సేవ్ చేయండి.}other{# పాస్‌వర్డ్‌లు ఈ డివైజ్‌లో మాత్రమే సేవ్ అయ్యాయి. వాటిని మీ ఇతర డివైజ్‌లలో ఉపయోగించడానికి, మీ Google ఖాతాలో సేవ్ చేయండి.}}</translation>
 <translation id="3293181007446299124">మీ బ్రౌజింగ్ హిస్టరీ మీ పరికరంలో ప్రైవేట్‌గా ఉంచబడుతుంది, అలాగే మీ గుర్తింపును సురక్షితంగా ఉంచడానికి రిపోర్ట్‌లు ఆలస్యంగా పంపబడతాయి</translation>
@@ -718,6 +719,7 @@
 <translation id="414128724510021958">డెస్క్‌టాప్ సైట్‌లు ఆటోమేటిక్‌గా రిక్వెస్ట్ చేయబడ్డాయి</translation>
 <translation id="4162867837470729563">షేరింగ్ ఆప్షన్‌ల లిస్ట్ స్క్రీన్ పూర్తిగా తెరవబడింది.</translation>
 <translation id="4170011742729630528">సేవ అందుబాటులో లేదు; తర్వాత మళ్లీ ట్రై చేయండి.</translation>
+<translation id="4170577491341606575">మీ డేటాను పొందుతోంది\u2026</translation>
 <translation id="4177222230309051052">మీ బుక్‌మార్క్‌లు అన్నిటినీ పొందండి</translation>
 <translation id="4177501066905053472">యాడ్ టాపిక్‌లు</translation>
 <translation id="417865198503699526">సెట్టింగ్ కోసం సెర్చ్ చేయండి</translation>
@@ -817,6 +819,7 @@
 <translation id="4577115723294378384">A నుండి Zకు సార్ట్ చేయి</translation>
 <translation id="4578289292431526768">ప్రారంభిద్దాం</translation>
 <translation id="4583164079174244168">{MINUTES,plural, =1{# నిమిషం క్రితం}other{# నిమిషాల క్రితం}}</translation>
+<translation id="4585751637295612750">మీ ప్రశ్నకు జోడించడానికి కొత్త ట్యాబ్‌ను తెరవండి</translation>
 <translation id="4587589328781138893">సైట్‌లు</translation>
 <translation id="4594952190837476234">ఈ ఆఫ్‌లైన్ పేజీ <ph name="CREATION_TIME" />కి చెందినది మరియు ఆన్‌లైన్ వెర్షన్ వేరుగా ఉండవచ్చు.</translation>
 <translation id="4595237294768457124">కొత్త ట్యాబ్ పేజీని తెరవండి</translation>
@@ -909,6 +912,7 @@
 <translation id="4905823827770127520">పేజీకి లింక్‌ను చేర్చండి</translation>
 <translation id="4908869848243824489">Google ద్వారా Discover</translation>
 <translation id="4910889077668685004">చెల్లింపు యాప్‌లు</translation>
+<translation id="4911042367886397055"><ph name="USER_NAME" />‌కు తిరిగి స్వాగతం!</translation>
 <translation id="4912413785358399818">ట్యాబ్‌ను తరలించండి</translation>
 <translation id="4913169188695071480">రీఫ్రెష్ చేయడం ఆపివేయి</translation>
 <translation id="4921224083091001889">మీ డివైజ్‌లన్నింటిలో మీ పాస్‌వర్డ్‌లను, ఇంకా మరిన్నింటిని పొందడానికి <ph name="EMAIL" />‌గా Chromeకు సైన్ ఇన్ చేయండి</translation>
@@ -1453,6 +1457,7 @@
 <translation id="7115358764509798967">సిస్టమ్ ఆటోమేటిక్ సెట్టింగ్</translation>
 <translation id="7117485132243600300">మీరు ఫాలో అయ్యే కంటెంట్‌ను, సూచించిన టాపిక్‌లను, సెర్చ్‌లను మేనేజ్ చేయండి</translation>
 <translation id="7119984597597798764"><ph name="INSTANCE_TITLE" />‌ను మూసివేయండి</translation>
+<translation id="7121179479711575744">Chromeకు సైన్ ఇన్ చేయండి</translation>
 <translation id="7136902389402789299">{NUM_SITES,plural, =1{1 సైట్ కోసం అనుమతులు రివ్యూ చేయబడ్డాయి}other{# సైట్‌ల కోసం అనుమతులు రివ్యూ చేయబడ్డాయి}}</translation>
 <translation id="7138678301420049075">ఇతరం</translation>
 <translation id="7140829094791862589">మాన్యువల్ ఆర్డర్‌లో క్రమపద్ధతిలో అమర్చండి</translation>
@@ -1937,6 +1942,7 @@
 <translation id="9104217018994036254">ట్యాబ్‌ను షేర్ చేయాల్సిన పరికరాల లిస్ట్‌.</translation>
 <translation id="9106148373857059373">బుక్‌మార్క్‌ను సేవ్ చేయడానికి సంబంధించిన దశల ఫోల్డర్‌ల ఫుల్-స్క్రీన్‌ మూసివేయబడింది</translation>
 <translation id="9108808586816295166">సురక్షితమైన DNS ఎల్లవేళలా అందుబాటులో ఉండకపోవచ్చు</translation>
+<translation id="9112483451228487295">బ్రౌజింగ్ డేటాను త్వరగా తొలగించు</translation>
 <translation id="9124978074365039456">మీ కెమెరా, ఫోటో గ్యాలరీని ఉపయోగించి షాపింగ్ చేయండి, అనువదించండి, మీకు కనిపించిన వాటిని గుర్తించండి</translation>
 <translation id="9130135798965366513">కొనసాగించడానికి, <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ఈ సైట్‌తో మీ <ph name="FIELDS_STRING" />‌ను షేర్ చేస్తుంది. ఈ సైట్ <ph name="BEGIN_LINK1" />గోప్యతా పాలసీ<ph name="END_LINK1" />, <ph name="BEGIN_LINK2" />సర్వీస్ నియమాలను<ph name="END_LINK2" /> చూడండి.</translation>
 <translation id="9131209053278896908">బ్లాక్ చేసిన సైట్‌లు ఇక్కడ కనిపిస్తాయి</translation>

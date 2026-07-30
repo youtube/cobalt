@@ -21,7 +21,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/containers/flat_map.h"
 #include "base/containers/queue.h"
 #include "base/functional/callback_forward.h"
 #include "base/gtest_prod_util.h"
@@ -32,6 +31,7 @@
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/optimization_guide/machine_learning_tflite_buildflags.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/safe_browsing/content/browser/client_side_phishing_model.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
@@ -172,13 +172,17 @@ class ClientSideDetectionService
   virtual bool IsModelMetadataImageEmbeddingVersionMatching();
 
   // Returns the visual TFLite model thresholds from the model class
-  virtual const base::flat_map<std::string, TfLiteModelMetadata::Threshold>&
+  virtual const std::vector<TfLiteModelMetadata::Threshold>&
   GetVisualTfLiteModelThresholds();
 
   // Compare the scores from classification to TFLite model thresholds
   virtual void ClassifyPhishingThroughThresholds(
       ClientPhishingRequest* verdict);
 
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+  // Returns the list of target image embeddings.
+  virtual const std::vector<TargetEmbedding>& GetTargetImageEmbeddings();
+#endif
   // Overrides the SharedURLLoaderFactory
   void SetURLLoaderFactoryForTesting(
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
@@ -201,6 +205,10 @@ class ClientSideDetectionService
   // For testing the model in browser test.
   void SetModelAndVisualTfLiteForTesting(const base::FilePath& model,
                                          const base::FilePath& visual_tf_lite);
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+  void SetTargetImageEmbeddingsForTesting(
+      std::vector<TargetEmbedding> target_embeddings);
+#endif
 
   bool IsSubscribedToImageEmbeddingModelUpdates();
 

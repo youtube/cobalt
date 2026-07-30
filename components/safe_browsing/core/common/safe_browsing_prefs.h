@@ -284,7 +284,7 @@ inline constexpr char kHashPrefixRealTimeChecksAllowedByPolicy[] =
 inline constexpr char kExternalAppRedirectTimestamps[] =
     "safe_browsing.external_app_redirect_timestamps";
 
-// Integer that maps to SecuritySettingsBundleLevel. Indicates what bundle
+// Integer that maps to SecuritySettingsBundleSetting. Indicates what bundle
 // the user is in.
 inline constexpr char kSecuritySettingsBundle[] = "safebrowsing.bundle";
 
@@ -298,15 +298,6 @@ inline constexpr char kJavascriptOptimizerBlockedForUnfamiliarSites[] =
 }  // namespace prefs
 
 namespace safe_browsing {
-
-// Enumerates the possible bundle options for bundled security settings found
-// chrome://settings/security.
-enum SecuritySettingsBundleLevel {
-  // Standard bundle with default settings.
-  STANDARD = 0,
-  // Enhanced bundle with most secure settings selected.
-  ENHANCED = 1,
-};
 
 // Enumerates the level of Safe Browsing Extended Reporting that is currently
 // available.
@@ -407,7 +398,17 @@ enum class SecuritySettingsBundleSetting {
 };
 // LINT.ThenChange(/chrome/browser/resources/settings/privacy_page/security/security_page_v2.ts:SecuritySettingsBundleSetting)
 
+// Returns the user's security-settings-bundle. The user may have changed the
+// settings controlled by the bundle from the bundle defaults.
+SecuritySettingsBundleSetting GetSecurityBundleSetting(
+    const PrefService& prefs);
+
 SafeBrowsingState GetSafeBrowsingState(const PrefService& prefs);
+
+// Returns the default safe-browsing setting for the passed-in security-bundle
+// type.
+SafeBrowsingState GetDefaultSafeBrowsingState(
+    SecuritySettingsBundleSetting bundle_setting);
 
 // Set the SafeBrowsing prefs.  Records whether ESB was enabled by Tailored
 // Security (through account integration).
@@ -433,13 +434,6 @@ bool IsExtendedReportingOptInAllowed(const PrefService& prefs);
 // regardless of which specific one is set.
 bool IsExtendedReportingEnabled(const PrefService& prefs);
 
-// Returns whether Safe Browsing Extended Reporting is currently enabled.
-// This function does not check the Safe Browsing Extended Reporting deprecation
-// flag, kExtendedReportingRemovePrefDependency, so that the ping manager will
-// keep sending CSBRR pings.
-// TODO(crbug.com/336547987): Remove this temporary function when the mitigation
-// is implemented and the deprecation flag is removed.
-bool IsExtendedReportingEnabledBypassDeprecationFlag(const PrefService& prefs);
 
 // Returns whether the active Extended Reporting pref is currently managed by
 // enterprise policy, meaning the user can't change it.

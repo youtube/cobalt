@@ -6,14 +6,27 @@
 
 #include "base/debug/alias.h"
 #include "base/feature_list.h"
+#include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_batch_operation_leveldb.h"
 #include "third_party/leveldatabase/env_chromium.h"
 
 namespace storage {
+
+// static
+scoped_refptr<base::SequencedTaskRunner>
+AsyncDomStorageDatabase::GetTaskRunnerForDb(const base::FilePath& directory,
+                                            const std::string& dbname) {
+  CHECK(!directory.empty());
+  return base::ThreadPool::CreateSequencedTaskRunnerForResource(
+      {base::MayBlock(), base::WithBaseSyncPrimitives(),
+       base::TaskShutdownBehavior::BLOCK_SHUTDOWN},
+      directory.AppendASCII(dbname));
+}
 
 // static
 std::unique_ptr<AsyncDomStorageDatabase> AsyncDomStorageDatabase::Open(
@@ -22,12 +35,16 @@ std::unique_ptr<AsyncDomStorageDatabase> AsyncDomStorageDatabase::Open(
     const std::string& dbname,
     const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
         memory_dump_id,
-    scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
     StatusCallback callback) {
   std::unique_ptr<AsyncDomStorageDatabase> db(new AsyncDomStorageDatabase);
   DomStorageDatabaseFactory::Open(
       storage_type, directory, dbname, memory_dump_id,
-      std::move(blocking_task_runner),
+      // For the in-memory case, blocking shutdown is only important to avoid
+      // leaking the SequenceBound on shutdown (and triggering ASAN failures).
+      directory.empty() ? base::ThreadPool::CreateSequencedTaskRunner(
+                              {base::WithBaseSyncPrimitives(),
+                               base::TaskShutdownBehavior::BLOCK_SHUTDOWN})
+                        : GetTaskRunnerForDb(directory, dbname),
       base::BindOnce(&AsyncDomStorageDatabase::OnDatabaseOpened,
                      db->weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
   return db;
@@ -60,21 +77,50 @@ void AsyncDomStorageDatabase::PutMetadata(DomStorageDatabase::Metadata metadata,
 
 void AsyncDomStorageDatabase::DeleteStorageKeysFromSession(
     std::string session_id,
-    std::vector<blink::StorageKey> storage_keys,
-    absl::flat_hash_set<int64_t> excluded_cloned_map_ids,
+    std::vector<blink::StorageKey> metadata_to_delete,
+    std::vector<DomStorageDatabase::MapLocator> maps_to_delete,
     StatusCallback callback) {
-  RunDatabaseTask(base::BindOnce(
-                      [](std::string session_id,
-                         std::vector<blink::StorageKey> storage_keys,
-                         absl::flat_hash_set<int64_t> excluded_cloned_map_ids,
-                         DomStorageDatabase& db) {
-                        return db.DeleteStorageKeysFromSession(
-                            std::move(session_id), std::move(storage_keys),
-                            std::move(excluded_cloned_map_ids));
-                      },
-                      std::move(session_id), std::move(storage_keys),
-                      std::move(excluded_cloned_map_ids)),
-                  std::move(callback));
+  RunDatabaseTask(
+      base::BindOnce(
+          [](std::string session_id,
+             std::vector<blink::StorageKey> metadata_to_delete,
+             std::vector<DomStorageDatabase::MapLocator> maps_to_delete,
+             DomStorageDatabase& db) {
+            return db.DeleteStorageKeysFromSession(
+                std::move(session_id), std::move(metadata_to_delete),
+                std::move(maps_to_delete));
+          },
+          std::move(session_id), std::move(metadata_to_delete),
+          std::move(maps_to_delete)),
+      std::move(callback));
+}
+
+void AsyncDomStorageDatabase::DeleteSessions(
+    std::vector<std::string> session_ids,
+    std::vector<DomStorageDatabase::MapLocator> maps_to_delete,
+    StatusCallback callback) {
+  RunDatabaseTask(
+      base::BindOnce(
+          [](std::vector<std::string> session_ids,
+             std::vector<DomStorageDatabase::MapLocator> maps_to_delete,
+             DomStorageDatabase& db) {
+            return db.DeleteSessions(std::move(session_ids),
+                                     std::move(maps_to_delete));
+          },
+          std::move(session_ids), std::move(maps_to_delete)),
+      std::move(callback));
+}
+
+void AsyncDomStorageDatabase::PurgeOriginsForShutdown(
+    std::set<url::Origin> origins) {
+  RunDatabaseTask(
+      base::BindOnce(
+          [](std::set<url::Origin> origins, DomStorageDatabase& db) {
+            return db.PurgeOrigins(std::move(origins));
+          },
+          std::move(origins)),
+      // Ignore errors since this is called during shutdown.
+      base::DoNothing());
 }
 
 void AsyncDomStorageDatabase::RewriteDB(StatusCallback callback) {

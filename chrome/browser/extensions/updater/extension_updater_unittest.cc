@@ -102,13 +102,13 @@
 #include "base/files/scoped_temp_dir.h"
 #include "chrome/browser/ash/login/users/user_manager_delegate_impl.h"
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
-#include "chrome/browser/extensions/load_error_reporter.h"
 #include "chrome/browser/extensions/updater/chromeos_extension_cache_delegate.h"
 #include "chrome/browser/extensions/updater/extension_cache_impl.h"
 #include "chrome/browser/extensions/updater/local_extension_cache.h"
 #include "chromeos/ash/components/settings/cros_settings.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "components/user_manager/user_manager_impl.h"
+#include "extensions/browser/load_error_reporter.h"
 #endif
 
 static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
@@ -456,8 +456,9 @@ static std::map<std::string, ParamsMap> GetPingDataFromURL(
       base::StringPairs ping_params;
       base::SplitStringIntoKeyValuePairs(ping, '=', '&', &ping_params);
       for (const auto& ping_param : ping_params) {
-        if (!base::Contains(result[id], ping_param.first))
+        if (!base::Contains(result[id], ping_param.first)) {
           result[id][ping_param.first] = std::set<std::string>();
+        }
         result[id][ping_param.first].insert(ping_param.second);
       }
     }
@@ -2231,8 +2232,9 @@ class ExtensionUpdaterTest : public testing::Test {
     std::map<std::string, ParamsMap> url1_ping_data =
         GetPingDataFromURL(url1_fetch_url);
     ParamsMap url1_params = ParamsMap();
-    if (!url1_ping_data.empty() && base::Contains(url1_ping_data, id))
+    if (!url1_ping_data.empty() && base::Contains(url1_ping_data, id)) {
       url1_params = url1_ping_data[id];
+    }
 
     // First make sure the non-google query had no ping parameter.
     EXPECT_TRUE(GetPingDataFromURL(url2_fetch_url).empty());

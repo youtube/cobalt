@@ -60,8 +60,6 @@ import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowApp
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.night_mode.NightModeStateProvider;
-import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabTestUtils;
@@ -86,6 +84,7 @@ import org.chromium.content_public.browser.ChildProcessImportance;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.PageTransition;
+import org.chromium.ui.test.util.DeviceRestriction;
 import org.chromium.url.JUnitTestGURLs;
 
 import java.lang.ref.WeakReference;
@@ -233,41 +232,6 @@ public class ChromeTabbedActivityTest {
     }
 
     @Test
-    @SmallTest
-    @MinAndroidSdkLevel(VERSION_CODES.S)
-    public void testTabModelSelectorObserverOnTabStateInitialized() {
-        // Get the original value of |mCreatedTabOnStartup|.
-        boolean createdTabOnStartup = mActivity.getCreatedTabOnStartupForTesting();
-
-        // Reset the values of |mCreatedTabOnStartup| and |MultiInstanceManager.mTabModelObserver|.
-        // This tab model selector observer should be registered in MultiInstanceManager on tab
-        // state initialization irrespective of the value of |mCreatedTabOnStartup|.
-        mActivity.setCreatedTabOnStartupForTesting(false);
-        mActivity.getMultiInstanceMangerForTesting().setTabModelObserverForTesting(null);
-
-        var tabModelSelectorObserver = mActivity.getTabModelSelectorObserverForTesting();
-        ThreadUtils.runOnUiThreadBlocking(tabModelSelectorObserver::onTabStateInitialized);
-        Assert.assertTrue(
-                "Regular tab count should be written to SharedPreferences after tab state"
-                        + " initialization.",
-                ChromeSharedPreferences.getInstance()
-                                .readIntsWithPrefix(ChromePreferenceKeys.MULTI_INSTANCE_TAB_COUNT)
-                                .size()
-                        > 0);
-        Assert.assertTrue(
-                "Incognito tab count should be written to SharedPreferences after tab state"
-                        + " initialization.",
-                ChromeSharedPreferences.getInstance()
-                                .readIntsWithPrefix(
-                                        ChromePreferenceKeys.MULTI_INSTANCE_INCOGNITO_TAB_COUNT)
-                                .size()
-                        > 0);
-
-        // Restore the original value of |mCreatedTabOnStartup|.
-        mActivity.setCreatedTabOnStartupForTesting(createdTabOnStartup);
-    }
-
-    @Test
     @MediumTest
     @DisabledTest(message = "https://crbug.com/1347506")
     public void testMultiUrlIntent() {
@@ -318,7 +282,6 @@ public class ChromeTabbedActivityTest {
     @MediumTest
     @MinAndroidSdkLevel(VERSION_CODES.S)
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
-    @EnableFeatures({ChromeFeatureList.TAB_STRIP_GROUP_DRAG_DROP_ANDROID})
     public void testTabGroupIntent_collapseGroup() {
         testTabGroupIntent(/* shouldApplyCollapse= */ true);
     }
@@ -327,7 +290,6 @@ public class ChromeTabbedActivityTest {
     @MediumTest
     @MinAndroidSdkLevel(VERSION_CODES.S)
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
-    @EnableFeatures({ChromeFeatureList.TAB_STRIP_GROUP_DRAG_DROP_ANDROID})
     public void testTabGroupIntent_skipCollapseWhenStripHidden() {
         // Hide tab strip.
         ThreadUtils.runOnUiThreadBlocking(
@@ -539,6 +501,7 @@ public class ChromeTabbedActivityTest {
     @Test
     @MediumTest
     @MinAndroidSdkLevel(VERSION_CODES.S)
+    @Restriction({DeviceFormFactor.TABLET_OR_DESKTOP, DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testNewIncognitoTab_NewWindow() {
         mActivityTestRule.getTestServer(); // Triggers the lazy initialization of the test server.
@@ -796,11 +759,6 @@ public class ChromeTabbedActivityTest {
                         Tab curTab = tabModel.getTabAt(i);
                         Assert.assertEquals(
                                 "tabGroupId is incorrect", TAB_GROUP_ID, curTab.getTabGroupId());
-                        // Tab collection no longer uses rootId.
-                        if (!ChromeFeatureList.sTabCollectionAndroid.isEnabled()) {
-                            Assert.assertEquals(
-                                    "rootId is incorrect", expectedRootId, curTab.getRootId());
-                        }
                     }
 
                     // Verify other tab group properties.
@@ -933,6 +891,7 @@ public class ChromeTabbedActivityTest {
     @Test
     @MediumTest
     @MinAndroidSdkLevel(VERSION_CODES.VANILLA_ICE_CREAM)
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testLaunchIncognitoWindowWithExtras_NightModeDefaultEnabled() {
         // This is Android V+ because overriding night mode requires the intent to be stored
@@ -1214,7 +1173,8 @@ public class ChromeTabbedActivityTest {
         final AtomicReference<InstanceInfo> instanceInfo2Ref = new AtomicReference<>();
         CriteriaHelper.pollUiThread(
                 () -> {
-                    List<InstanceInfo> instanceInfos = mim1.getInstanceInfo();
+                    List<InstanceInfo> instanceInfos =
+                            mim1.getInstanceInfo(PersistedInstanceType.ANY);
                     for (InstanceInfo info : instanceInfos) {
                         if (info.taskId == activity2.getTaskId()) {
                             instanceInfo2Ref.set(info);

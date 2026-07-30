@@ -14,7 +14,9 @@
 #include "base/memory/safe_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "chrome/browser/ui/read_anything/read_anything_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_enums.h"
+#include "chrome/browser/ui/read_anything/read_anything_lifecycle_observer.h"
 #include "chrome/browser/ui/read_anything/read_anything_side_panel_controller.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/webui/side_panel/read_anything/read_anything_screenshotter.h"
@@ -118,7 +120,7 @@ class ReadAnythingUntrustedPageHandler :
 #endif
     public ui::AXActionHandlerObserver,
     public read_anything::mojom::UntrustedPageHandler,
-    public ReadAnythingSidePanelController::Observer,
+    public ReadAnythingLifecycleObserver,
     public translate::TranslateDriver::LanguageDetectionObserver {
  public:
   ReadAnythingUntrustedPageHandler(
@@ -183,8 +185,11 @@ class ReadAnythingUntrustedPageHandler :
       const translate::LanguageDetectionDetails& details) override;
   void OnTranslateDriverDestroyed(translate::TranslateDriver* driver) override;
 
-  // ReadAnythingSidePanelController::Observer:
+  // ReadAnythingLifecycleObserver:
+  void OnDestroyed() override;
   void OnTabWillDetach() override;
+  void Activate(bool active,
+                std::optional<ReadAnythingOpenTrigger> open_trigger) override;
 
   // Logs the extension installation state. Intended to get more information
   // on system voice usage.
@@ -253,11 +258,6 @@ class ReadAnythingUntrustedPageHandler :
   void OnCollapseSelection() override;
   void OnScreenshotRequested() override;
 
-  // ReadAnythingSidePanelController::Observer:
-  void Activate(bool active,
-                std::optional<ReadAnythingOpenTrigger> open_trigger) override;
-  void OnSidePanelControllerDestroyed() override;
-
   void SetDefaultLanguageCode(const std::string& code);
 
   // Sends the language code of the new page, or the default if a language can't
@@ -270,10 +270,6 @@ class ReadAnythingUntrustedPageHandler :
 
   // Logs the current visual settings values.
   void LogTextStyle();
-
-  // Adds this as an observer of the ReadAnythingSidePanelController tied to a
-  // tab.
-  void ObserveWebContentsSidePanelController(tabs::TabInterface* tab);
 
   void PerformActionInTargetTree(const ui::AXActionData& data);
 
@@ -292,9 +288,17 @@ class ReadAnythingUntrustedPageHandler :
       GetDependencyParserModelCallback callback,
       bool is_available);
 
+  // The Reading Mode controller for both immersive and side-panel reading mode,
+  // used when the immersive reading mode flag is enabled.
+  raw_ptr<ReadAnythingController> read_anything_controller_;
+  // Legacy side-panel reading mode controller, only to be used when the
+  // immersive reading mode flag is disabled.
+  // TODO: (crbug.com/449162079) Remove this when immersive reading mode flag is
+  // fully rolled out.
   raw_ptr<ReadAnythingSidePanelController> side_panel_controller_;
   const raw_ptr<Profile> profile_;
   const raw_ptr<content::WebUI> web_ui_;
+  raw_ptr<tabs::TabInterface> tab_;
 
   std::unique_ptr<ReadAnythingWebContentsObserver> main_observer_;
 

@@ -58,11 +58,11 @@
 #include "chrome/browser/ui/ash/device_scheduled_reboot/reboot_notification_controller.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
@@ -415,7 +415,7 @@ class FullRestoreAppLaunchHandlerBrowserTest
 
 IN_PROC_BROWSER_TEST_F(FullRestoreAppLaunchHandlerBrowserTest,
                        NoBrowserOnLaunch) {
-  EXPECT_TRUE(BrowserList::GetInstance()->empty());
+  EXPECT_TRUE(GlobalBrowserCollection::GetInstance()->IsEmpty());
 }
 
 IN_PROC_BROWSER_TEST_F(FullRestoreAppLaunchHandlerBrowserTest,
@@ -2921,15 +2921,8 @@ IN_PROC_BROWSER_TEST_P(FullRestoreAppLaunchHandlerSystemWebAppsBrowserTest,
 
 // Tests that apps maintain splitview snap status after being relaunched with
 // full restore.
-// TODO(crbug.com/452086032): Re-enable on "Linux Chromium OS ASan LSan Tests".
-#if BUILDFLAG(IS_CHROMEOS) && defined(ADDRESS_SANITIZER) && \
-    defined(LEAK_SANITIZER)
-#define MAYBE_TabletSplitView DISABLED_TabletSplitView
-#else
-#define MAYBE_TabletSplitView TabletSplitView
-#endif
 IN_PROC_BROWSER_TEST_P(FullRestoreAppLaunchHandlerSystemWebAppsBrowserTest,
-                       MAYBE_TabletSplitView) {
+                       TabletSplitView) {
   TabletMode::Get()->SetEnabledForTest(true);
 
   BrowserWindowInterface* const app1_browser = LaunchHelpSystemWebApp();

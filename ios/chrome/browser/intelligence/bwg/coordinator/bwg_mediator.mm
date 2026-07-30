@@ -15,7 +15,7 @@
 #import "components/prefs/pref_service.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/coordinator/bwg_mediator_delegate.h"
-#import "ios/chrome/browser/intelligence/bwg/metrics/bwg_metrics.h"
+#import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_browser_agent.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
@@ -50,9 +50,6 @@
 
   // The browser-scoped BWG browser agent.
   raw_ptr<BwgBrowserAgent> _BWGBrowserAgent;
-
-  // The PageContext wrapper used to provide context about a page.
-  PageContextWrapper* _pageContextWrapper;
 
   // Start time for the preparation of the presentation of BWG overlay.
   base::TimeTicks _BWGOverlayPreparationStartTime;
@@ -146,11 +143,6 @@
 
 // Prepares BWG overlay.
 - (void)prepareBWGOverlay {
-  // Cancel any ongoing page context operation.
-  if (_pageContextWrapper) {
-    _pageContextWrapper = nil;
-  }
-
   if (IsZeroStateSuggestionsAskGeminiEnabled()) {
     [self executeZeroStateSuggestions];
   }
@@ -176,43 +168,18 @@
         });
   }
 
-  // Collect the PageContext and execute the callback once it's ready.
-  _pageContextWrapper = [[PageContextWrapper alloc]
-        initWithWebState:activeWebState
-      completionCallback:std::move(page_context_completion_callback)];
-  [_pageContextWrapper setShouldGetAnnotatedPageContent:YES];
-  [_pageContextWrapper setShouldGetSnapshot:YES];
-  // Attempt to populate page context fields. If the page is still loading,
-  // processing will start once the page has loaded.
-  if (IsGeminiImmediateOverlayEnabled() && activeWebState &&
-      activeWebState->IsLoading()) {
-    BwgTabHelper* BWGTabHelper = [self activeWebStateBWGTabHelper];
-    base::OnceCallback<void()> pageContextPopulateCallback =
-        base::BindOnce(^void() {
-          [weakSelf populatePageContextFieldsAsync];
-        });
-    if (BWGTabHelper) {
-      BWGTabHelper->SetPageLoadedCallback(
-          std::move(pageContextPopulateCallback));
-    }
-  } else {
-    [_pageContextWrapper populatePageContextFieldsAsync];
-  }
-}
-
-// Begins asynchronous work to populate page context fields for the current
-// page.
-- (void)populatePageContextFieldsAsync {
-  if (!_pageContextWrapper) {
+  BwgTabHelper* BWGTabHelper = [self activeWebStateBWGTabHelper];
+  if (!BWGTabHelper) {
     return;
   }
-  [_pageContextWrapper populatePageContextFieldsAsync];
+
+  BWGTabHelper->GeneratePageContext(std::move(page_context_completion_callback),
+                                    /*full_page_context=*/true);
 }
 
 // Opens the BWG overlay with a given PageContextWrapperCallbackResponse.
 - (void)openBWGOverlayForPage:
     (PageContextWrapperCallbackResponse)pageContextWrapperResponse {
-  _pageContextWrapper = nil;
 
   web::WebState* activeWebState = _webStateList->GetActiveWebState();
 
@@ -235,11 +202,15 @@
 // Opens the BWG overlay in a pending state, since full page context is not yet
 // ready.
 - (void)openPendingBWGOverlay {
-  _pageContextWrapper = nil;
 
   web::WebState* activeWebState = _webStateList->GetActiveWebState();
-  CHECK(activeWebState);
-  CHECK(_BWGService->IsBwgAvailableForWebState(activeWebState));
+
+  // The active web state may no longer be eligible for Gemini by the time this
+  // is called. If this is the case, the overlay should not be presented.
+  if (!activeWebState ||
+      !_BWGService->IsBwgAvailableForWebState(activeWebState)) {
+    return;
+  }
 
   // Set parts of PageContext (i.e. url and title) that are available before the
   // page is done loading.
@@ -261,7 +232,6 @@
 - (void)updateBWGOverlayForWebState:(web::WebState*)webState
          pageContextWrapperResponse:
              (PageContextWrapperCallbackResponse)response {
-  _pageContextWrapper = nil;
 
   // The original web state may no longer be eligible for Gemini by the time
   // this is called. If this is the case, the overlay should not update.

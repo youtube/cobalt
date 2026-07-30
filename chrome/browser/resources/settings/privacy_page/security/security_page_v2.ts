@@ -3,13 +3,16 @@
 // found in the LICENSE file.
 
 import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
+import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import 'chrome://resources/cr_elements/cr_collapse/cr_collapse.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
 import '/shared/settings/prefs/prefs.js';
 import '../../controls/controlled_radio_button.js';
 import '../../controls/settings_radio_group.js';
 import '../../icons.html.js';
 import '../../controls/settings_toggle_button.js';
+import '../../settings_page/settings_section.js';
 import '../../settings_page/settings_subpage.js';
 import './security_page_feature_row.js';
 
@@ -18,15 +21,18 @@ import {CrSettingsPrefs} from '/shared/settings/prefs/prefs_types.js';
 import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 import {EventTracker} from 'chrome://resources/js/event_tracker.js';
+import {OpenWindowProxyImpl} from 'chrome://resources/js/open_window_proxy.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import type {ControlledRadioButtonElement} from '../../controls/controlled_radio_button.js';
 import type {SettingsRadioGroupElement} from '../../controls/settings_radio_group.js';
 import type {SettingsToggleButtonElement} from '../../controls/settings_toggle_button.js';
 import {loadTimeData} from '../../i18n_setup.js';
+import type {MetricsBrowserProxy} from '../../metrics_browser_proxy.js';
+import {MetricsBrowserProxyImpl, PrivacyElementInteractions} from '../../metrics_browser_proxy.js';
 import {routes} from '../../route.js';
 import type {Route} from '../../router.js';
-import {RouteObserverMixin} from '../../router.js';
+import {RouteObserverMixin, Router} from '../../router.js';
 import {SettingsViewMixin} from '../../settings_page/settings_view_mixin.js';
 import type {HatsBrowserProxy} from '../hats_browser_proxy.js';
 import {HatsBrowserProxyImpl, SecurityPageV2Interaction} from '../hats_browser_proxy.js';
@@ -43,9 +49,23 @@ export enum SecuritySettingsBundleSetting {
 }
 // LINT.ThenChange(/components/safe_browsing/core/common/safe_browsing_prefs.h:SecuritySettingsBundleSetting)
 
+/** Enumeration of all HTTPS-First Mode setting states.*/
+// LINT.IfChange(HttpsFirstModeSetting)
+export enum HttpsFirstModeSetting {
+  DISABLED = 0,
+  // DEPRECATED: A separate Incognito setting never shipped.
+  // ENABLED_INCOGNITO = 1,
+  ENABLED_FULL = 2,
+  ENABLED_BALANCED = 3,
+}
+// LINT.ThenChange(/chrome/browser/ssl/https_first_mode_settings_tracker.h)
+
 export interface SettingsSecurityPageV2Element {
   $: {
     bundlesRadioGroup: SettingsRadioGroupElement,
+    httpsFirstModeEnabledBalanced: ControlledRadioButtonElement,
+    httpsFirstModeEnabledStrict: ControlledRadioButtonElement,
+    httpsFirstModeToggle: SettingsToggleButtonElement,
     passwordsLeakToggle: SettingsToggleButtonElement,
     resetEnhancedBundleToDefaultsButton: CrButtonElement,
     resetStandardBundleToDefaultsButton: CrButtonElement,
@@ -81,6 +101,11 @@ export class SettingsSecurityPageV2Element extends
         value: SafeBrowsingSetting,
       },
 
+      httpsFirstModeSettingEnum_: {
+        type: Object,
+        value: HttpsFirstModeSetting,
+      },
+
       isResetStandardBundleToDefaultsButtonVisible_: {
         type: Boolean,
         value: false,
@@ -97,9 +122,19 @@ export class SettingsSecurityPageV2Element extends
         value: false,
       },
 
+      isHttpsFirstModeEnabled_: {
+        type: Boolean,
+        value: true,
+      },
+
       safeBrowsingOff_: {
         type: Array,
         value: () => [SafeBrowsingSetting.DISABLED],
+      },
+
+      httpsFirstModeUncheckedValues_: {
+        type: Array,
+        value: () => [HttpsFirstModeSetting.DISABLED],
       },
 
       safeBrowsingStateTextMap_: {
@@ -113,6 +148,14 @@ export class SettingsSecurityPageV2Element extends
               loadTimeData.getString('securityFeatureRowStateOff'),
         }),
       },
+
+      enableSecurityKeysSubpage_: {
+        type: Boolean,
+        readOnly: true,
+        value() {
+          return loadTimeData.getBoolean('enableSecurityKeysSubpage');
+        },
+      },
     };
   }
 
@@ -122,14 +165,19 @@ export class SettingsSecurityPageV2Element extends
           'isResettingToDefaults_,' +
           'prefs.generated.security_settings_bundle.value,' +
           'prefs.generated.safe_browsing.*),',
+      'updateHttpsFirstModeState_(' +
+          'prefs.generated.https_first_mode_enabled.value),',
     ];
   }
 
   declare private isResettingToDefaults_: boolean;
   declare private isResetStandardBundleToDefaultsButtonVisible_: boolean;
   declare private isResetEnhancedBundleToDefaultsButtonVisible_: boolean;
+  declare private isHttpsFirstModeEnabled_: boolean;
   declare private safeBrowsingOff_: SafeBrowsingSetting[];
+  declare private httpsFirstModeUncheckedValues_: HttpsFirstModeSetting[];
   declare private safeBrowsingStateTextMap_: Object;
+  declare private enableSecurityKeysSubpage_: boolean;
 
   private lastFocusTime_: number|undefined;
   private totalTimeInFocus_: number = 0;
@@ -140,6 +188,8 @@ export class SettingsSecurityPageV2Element extends
   private eventTracker_: EventTracker = new EventTracker();
   private hatsBrowserProxy_: HatsBrowserProxy =
       HatsBrowserProxyImpl.getInstance();
+  private metricsBrowserProxy_: MetricsBrowserProxy =
+      MetricsBrowserProxyImpl.getInstance();
 
   override ready() {
     super.ready();
@@ -326,6 +376,23 @@ export class SettingsSecurityPageV2Element extends
         'generated.safe_browsing',
         this.getDefaultSafeBrowsingValue_(bundleSetting));
     this.isResettingToDefaults_ = false;
+  }
+
+  private onManageCertificatesClick_() {
+    this.metricsBrowserProxy_.recordSettingsPageHistogram(
+        PrivacyElementInteractions.MANAGE_CERTIFICATES);
+    OpenWindowProxyImpl.getInstance().openUrl(
+        loadTimeData.getString('certManagementV2URL'));
+  }
+
+  private onSecurityKeysClick_() {
+    Router.getInstance().navigateTo(routes.SECURITY_KEYS);
+  }
+
+  private updateHttpsFirstModeState_() {
+    this.isHttpsFirstModeEnabled_ =
+        this.getPref('generated.https_first_mode_enabled').value !==
+        HttpsFirstModeSetting.DISABLED;
   }
 }
 

@@ -10,7 +10,6 @@
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/webui/cr_components/history_clusters/history_clusters_util.h"
 #include "chrome/browser/ui/webui/favicon_source.h"
-#include "chrome/browser/ui/webui/history/history_sign_in_state_watcher.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/history_resources.h"
@@ -18,6 +17,7 @@
 #include "chrome/grit/locale_settings.h"
 #include "components/browsing_data/core/features.h"
 #include "components/favicon_base/favicon_url_parser.h"
+#include "components/history/core/browser/features.h"
 #include "components/history/core/common/pref_names.h"
 #include "components/history_clusters/core/history_clusters_prefs.h"
 #include "components/prefs/pref_service.h"
@@ -84,16 +84,8 @@ content::WebUIDataSource* HistoryUtil::PopulateCommonSourceForHistory(
   source->AddBoolean("isSignInAllowed",
                      prefs->GetBoolean(prefs::kSigninAllowed));
 
-  source->AddBoolean(
-      "enableBrowsingHistoryActorIntegrationM1",
-      browsing_data::features::IsBrowsingHistoryActorIntegrationM1Enabled());
-
-  signin::IdentityManager* identity_manager =
-      IdentityManagerFactory::GetForProfile(profile);
-  syncer::SyncService* sync_service =
-      SyncServiceFactory::GetForProfile(profile);
-  source->AddInteger(kSignInStateKey, static_cast<int>(GetHistorySignInState(
-                                          identity_manager, sync_service)));
+  source->AddBoolean("enableBrowsingHistoryActorIntegrationM1",
+                     history::IsBrowsingHistoryActorIntegrationM1Enabled());
 
   source->AddInteger(
       "lastSelectedTab",

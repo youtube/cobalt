@@ -41,9 +41,9 @@ class AlertIndicatorButtonBrowserTest
                   CONTENT_SETTING_ALLOW);
 
     // Assign the alert_indicator_button_.
-    TabStripViewInterface* tab_strip_view =
+    TabStripRegionView* tab_strip_view =
         browser()->window()->AsBrowserView()->tab_strip_view();
-    Tab* tab = tab_strip_view->GetTabAnchorViewAt(
+    views::View* tab = tab_strip_view->GetTabAnchorViewAt(
         browser()->tab_strip_model()->active_index());
     alert_indicator_button_ = views::AsViewClass<AlertIndicatorButton>(
         tab->GetViewByElementId(kTabAlertIndicatorButtonElementId));

@@ -74,7 +74,6 @@
 #import "ios/chrome/browser/browsing_data/model/browsing_data_remover.h"
 #import "ios/chrome/browser/browsing_data/model/browsing_data_remover_factory.h"
 #import "ios/chrome/browser/crash_report/model/breadcrumbs/breadcrumb_manager_browser_agent.h"
-#import "ios/chrome/browser/crash_report/model/crash_keys_helper.h"
 #import "ios/chrome/browser/crash_report/model/crash_loop_detection_util.h"
 #import "ios/chrome/browser/crash_report/model/crash_report_helper.h"
 #import "ios/chrome/browser/credential_provider_promo/ui_bundled/credential_provider_promo_scene_agent.h"
@@ -127,6 +126,7 @@
 #import "ios/chrome/browser/safari_data_import/coordinator/safari_data_import_main_coordinator.h"
 #import "ios/chrome/browser/safari_data_import/model/features.h"
 #import "ios/chrome/browser/safari_data_import/public/safari_data_import_entry_point.h"
+#import "ios/chrome/browser/scene/coordinator/scene_coordinator.h"
 #import "ios/chrome/browser/scoped_ui_blocker/ui_bundled/scoped_ui_blocker.h"
 #import "ios/chrome/browser/screenshot/model/screenshot_delegate.h"
 #import "ios/chrome/browser/sessions/model/session_restoration_service.h"
@@ -140,6 +140,7 @@
 #import "ios/chrome/browser/share_extension/model/share_extension_scene_agent.h"
 #import "ios/chrome/browser/shared/coordinator/default_browser_promo/non_modal_default_browser_promo_scheduler_scene_agent.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_scene_agent.h"
+#import "ios/chrome/browser/shared/coordinator/scene/scene_controller+OTRProfileDeletion.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_ui_provider.h"
 #import "ios/chrome/browser/shared/coordinator/scene/url_context.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
@@ -203,7 +204,6 @@
 #import "ios/chrome/browser/url_loading/model/scene_url_loading_service.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
-#import "ios/chrome/browser/web_state_list/model/session_metrics.h"
 #import "ios/chrome/browser/web_state_list/model/web_usage_enabler/web_usage_enabler_browser_agent.h"
 #import "ios/chrome/browser/whats_new/coordinator/promo/whats_new_scene_agent.h"
 #import "ios/chrome/browser/widget_kit/model/features.h"
@@ -222,8 +222,6 @@
 #import "ios/web/public/navigation/navigation_manager.h"
 #import "ios/web/public/navigation/navigation_util.h"
 #import "ios/web/public/session/proto/storage.pb.h"
-#import "ios/web/public/thread/web_task_traits.h"
-#import "ios/web/public/thread/web_thread.h"
 #import "ios/web/public/web_state.h"
 #import "net/base/apple/url_conversions.h"
 #import "net/base/url_util.h"
@@ -455,6 +453,7 @@ void RecordIfNeededSigninFullscreenPromoEvent(
   // Observer for auth service status changes.
   std::unique_ptr<AuthenticationServiceObserverBridge>
       _authServiceObserverBridge;
+  BOOL _handleExternalIntentsInProgress;
 }
 
 // Navigation View controller for the settings.
@@ -499,7 +498,7 @@ void RecordIfNeededSigninFullscreenPromoEvent(
 
 // The main coordinator to manage the main view controller. This property should
 // not be accessed before the browser has started up to the FOREGROUND stage.
-@property(nonatomic, strong) TabGridCoordinator* mainCoordinator;
+@property(nonatomic, strong) SceneCoordinator* mainCoordinator;
 
 // YES while activating a new browser (often leading to dismissing the tab
 // switcher.
@@ -673,6 +672,14 @@ void RecordIfNeededSigninFullscreenPromoEvent(
 }
 
 - (BOOL)handleExternalIntents {
+  // TODO(crbug.com/462018636): Remove once the startup refactore is done.
+  // Early return when a recursive call is done, while the fuction is still
+  // being executed.
+  if (_handleExternalIntentsInProgress) {
+    return NO;
+  }
+  base::AutoReset<BOOL> autoResetHandleExternalIntents(
+      &_handleExternalIntentsInProgress, YES);
   if (![self canHandleIntents]) {
     return NO;
   }
@@ -1327,54 +1334,8 @@ void RecordIfNeededSigninFullscreenPromoEvent(
 
   // Create and start the BVC.
   [self.browserViewWrangler createMainCoordinatorAndInterface];
-  Browser* mainBrowser = self.browserViewWrangler.mainInterface.browser;
 
-  PromosManager* promosManager = PromosManagerFactory::GetForProfile(profile);
-
-  DefaultBrowserPromoSceneAgent* defaultBrowserAgent =
-      [[DefaultBrowserPromoSceneAgent alloc] init];
-  defaultBrowserAgent.promosManager = promosManager;
-  [sceneState addAgent:defaultBrowserAgent];
-  [sceneState
-      addAgent:[[NonModalDefaultBrowserPromoSchedulerSceneAgent alloc] init]];
-
-  // Add scene agents that require CommandDispatcher.
-  CommandDispatcher* mainCommandDispatcher =
-      mainBrowser->GetCommandDispatcher();
-  id<ApplicationCommands> applicationCommandsHandler =
-      HandlerForProtocol(mainCommandDispatcher, ApplicationCommands);
-  id<PolicyChangeCommands> policyChangeCommandsHandler =
-      HandlerForProtocol(mainCommandDispatcher, PolicyChangeCommands);
-
-  [sceneState
-      addAgent:[[SigninPolicySceneAgent alloc]
-                       initWithSceneUIProvider:self
-                    applicationCommandsHandler:applicationCommandsHandler
-                   policyChangeCommandsHandler:policyChangeCommandsHandler]];
-
-  enterprise_idle::IdleService* idleService =
-      enterprise_idle::IdleServiceFactory::GetForProfile(profile);
-  id<SnackbarCommands> snackbarCommandsHandler =
-      static_cast<id<SnackbarCommands>>(mainCommandDispatcher);
-
-  [sceneState addAgent:[[IdleTimeoutPolicySceneAgent alloc]
-                              initWithSceneUIProvider:self
-                           applicationCommandsHandler:applicationCommandsHandler
-                              snackbarCommandsHandler:snackbarCommandsHandler
-                                          idleService:idleService
-                                          mainBrowser:mainBrowser]];
-
-  // Now that the main browser's command dispatcher is created and the newly
-  // started UI coordinators have registered with it, inject it into the
-  // PolicyWatcherBrowserAgent so it can start monitoring UI-impacting policy
-  // changes.
-  PolicyWatcherBrowserAgent* policyWatcherAgent =
-      PolicyWatcherBrowserAgent::FromBrowser(self.mainInterface.browser);
-  _policyWatcherObserver = std::make_unique<base::ScopedObservation<
-      PolicyWatcherBrowserAgent, PolicyWatcherBrowserAgentObserverBridge>>(
-      _policyWatcherObserverBridge.get());
-  _policyWatcherObserver->Observe(policyWatcherAgent);
-  policyWatcherAgent->Initialize(policyChangeCommandsHandler);
+  [self addAgents];
 
   self.screenshotDelegate = [[ScreenshotDelegate alloc]
       initWithBrowserProviderInterface:self.browserViewWrangler];
@@ -1386,44 +1347,6 @@ void RecordIfNeededSigninFullscreenPromoEvent(
 
   // Make sure the GeolocationManager is created to observe permission events.
   [GeolocationManager sharedInstance];
-
-  if (ShouldPromoManagerDisplayPromos()) {
-    [sceneState addAgent:[[PromosManagerSceneAgent alloc]
-                             initWithCommandDispatcher:mainCommandDispatcher]];
-  }
-
-  if (IsAppStoreRatingEnabled()) {
-    [sceneState addAgent:[[AppStoreRatingSceneAgent alloc]
-                             initWithPromosManager:promosManager]];
-  }
-
-  [sceneState addAgent:[[WhatsNewSceneAgent alloc]
-                           initWithPromosManager:promosManager]];
-
-  // Do not gate by feature flag so it can run for enabled -> disabled
-  // scenarios.
-  [sceneState addAgent:[[CredentialProviderPromoSceneAgent alloc]
-                           initWithPromosManager:promosManager]];
-
-  if (IsFullscreenSigninPromoManagerMigrationEnabled()) {
-    AuthenticationService* authService =
-        AuthenticationServiceFactory::GetForProfile(profile);
-    PrefService* prefService = profile->GetPrefs();
-    [sceneState
-        addAgent:
-            [[FullscreenSigninPromoSceneAgent alloc]
-                initWithPromosManager:promosManager
-                          authService:authService
-                      identityManager:IdentityManagerFactory::GetForProfile(
-                                          profile)
-                          syncService:SyncServiceFactory::GetForProfile(profile)
-                          prefService:prefService]];
-  }
-
-  if (IsPageActionMenuEnabled()) {
-    [sceneState addAgent:[[BWGPromoSceneAgent alloc]
-                             initWithPromosManager:promosManager]];
-  }
 }
 
 // Determines the mode (normal or incognito) the initial UI should be in.
@@ -1486,7 +1409,7 @@ void RecordIfNeededSigninFullscreenPromoEvent(
       _webStateListForwardingObserver.get());
   _mainWebStateObserver->Observe(self.mainInterface.browser->GetWebStateList());
 
-  _mainCoordinator = [[TabGridCoordinator alloc]
+  _mainCoordinator = [[SceneCoordinator alloc]
       initWithApplicationCommandEndpoint:self
                           regularBrowser:self.mainInterface.browser
                          inactiveBrowser:self.mainInterface.inactiveBrowser
@@ -1869,6 +1792,98 @@ void RecordIfNeededSigninFullscreenPromoEvent(
   }];
 }
 
+// Add scene agents that are not dependent on profileState.
+- (void)addAgents {
+  SceneState* sceneState = self.sceneState;
+  ProfileIOS* profile = self.profile;
+  Browser* mainBrowser = self.browserViewWrangler.mainInterface.browser;
+
+  PromosManager* promosManager = PromosManagerFactory::GetForProfile(profile);
+
+  DefaultBrowserPromoSceneAgent* defaultBrowserAgent =
+      [[DefaultBrowserPromoSceneAgent alloc] init];
+  defaultBrowserAgent.promosManager = promosManager;
+  [sceneState addAgent:defaultBrowserAgent];
+  [sceneState
+      addAgent:[[NonModalDefaultBrowserPromoSchedulerSceneAgent alloc] init]];
+
+  // Add scene agents that require CommandDispatcher.
+  CommandDispatcher* mainCommandDispatcher =
+      mainBrowser->GetCommandDispatcher();
+  id<ApplicationCommands> applicationCommandsHandler =
+      HandlerForProtocol(mainCommandDispatcher, ApplicationCommands);
+  id<PolicyChangeCommands> policyChangeCommandsHandler =
+      HandlerForProtocol(mainCommandDispatcher, PolicyChangeCommands);
+
+  [sceneState
+      addAgent:[[SigninPolicySceneAgent alloc]
+                       initWithSceneUIProvider:self
+                    applicationCommandsHandler:applicationCommandsHandler
+                   policyChangeCommandsHandler:policyChangeCommandsHandler]];
+
+  enterprise_idle::IdleService* idleService =
+      enterprise_idle::IdleServiceFactory::GetForProfile(profile);
+  id<SnackbarCommands> snackbarCommandsHandler =
+      static_cast<id<SnackbarCommands>>(mainCommandDispatcher);
+
+  [sceneState addAgent:[[IdleTimeoutPolicySceneAgent alloc]
+                              initWithSceneUIProvider:self
+                           applicationCommandsHandler:applicationCommandsHandler
+                              snackbarCommandsHandler:snackbarCommandsHandler
+                                          idleService:idleService
+                                          mainBrowser:mainBrowser]];
+
+  // Now that the main browser's command dispatcher is created and the newly
+  // started UI coordinators have registered with it, inject it into the
+  // PolicyWatcherBrowserAgent so it can start monitoring UI-impacting policy
+  // changes.
+  PolicyWatcherBrowserAgent* policyWatcherAgent =
+      PolicyWatcherBrowserAgent::FromBrowser(self.mainInterface.browser);
+  _policyWatcherObserver = std::make_unique<base::ScopedObservation<
+      PolicyWatcherBrowserAgent, PolicyWatcherBrowserAgentObserverBridge>>(
+      _policyWatcherObserverBridge.get());
+  _policyWatcherObserver->Observe(policyWatcherAgent);
+  policyWatcherAgent->Initialize(policyChangeCommandsHandler);
+
+  if (ShouldPromoManagerDisplayPromos()) {
+    [sceneState addAgent:[[PromosManagerSceneAgent alloc]
+                             initWithCommandDispatcher:mainCommandDispatcher]];
+  }
+
+  if (IsAppStoreRatingEnabled()) {
+    [sceneState addAgent:[[AppStoreRatingSceneAgent alloc]
+                             initWithPromosManager:promosManager]];
+  }
+
+  [sceneState addAgent:[[WhatsNewSceneAgent alloc]
+                           initWithPromosManager:promosManager]];
+
+  // Do not gate by feature flag so it can run for enabled -> disabled
+  // scenarios.
+  [sceneState addAgent:[[CredentialProviderPromoSceneAgent alloc]
+                           initWithPromosManager:promosManager]];
+
+  if (IsFullscreenSigninPromoManagerMigrationEnabled()) {
+    AuthenticationService* authService =
+        AuthenticationServiceFactory::GetForProfile(profile);
+    PrefService* prefService = profile->GetPrefs();
+    [sceneState
+        addAgent:
+            [[FullscreenSigninPromoSceneAgent alloc]
+                initWithPromosManager:promosManager
+                          authService:authService
+                      identityManager:IdentityManagerFactory::GetForProfile(
+                                          profile)
+                          syncService:SyncServiceFactory::GetForProfile(profile)
+                          prefService:prefService]];
+  }
+
+  if (IsPageActionMenuEnabled()) {
+    [sceneState addAgent:[[BWGPromoSceneAgent alloc]
+                             initWithPromosManager:promosManager]];
+  }
+}
+
 // Adds agents that may depend on profileState. Called after a profileState has
 // been connected to the sceneState.
 - (void)addProfileStateDependentAgents {
@@ -2192,7 +2207,7 @@ using UserFeedbackDataCallback =
           dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
           dispatch_get_main_queue(), ^{
             DiamondPrototypeStartNewTab(
-                self.mainCoordinator.tabGridActive, command.inIncognito,
+                self.mainCoordinator.isTabGridActive, command.inIncognito,
                 self.mainInterface.browser, self.incognitoInterface.browser,
                 self.mainCoordinator.activeViewController);
           });
@@ -4373,27 +4388,6 @@ using UserFeedbackDataCallback =
 
 // Called when the last incognito tab was closed.
 - (void)lastIncognitoTabClosed {
-  // If no other window has incognito tab, then destroy and rebuild the
-  // Profile. Otherwise, just do the state transition animation.
-  if ([self shouldDestroyAndRebuildIncognitoProfile]) {
-    // Incognito profile cannot be deleted before all the requests are
-    // deleted. Queue empty task on IO thread and destroy the Profile
-    // when the task has executed, again verifying that no incognito tabs are
-    // present. When an incognito tab is moved between browsers, there is
-    // a point where the tab isn't attached to any web state list. However, when
-    // this queued cleanup step executes, the moved tab will be attached, so
-    // the cleanup shouldn't proceed.
-
-    auto cleanup = ^{
-      if ([self shouldDestroyAndRebuildIncognitoProfile]) {
-        [self destroyAndRebuildIncognitoProfile];
-      }
-    };
-
-    web::GetIOThreadTaskRunner({})->PostTaskAndReply(
-        FROM_HERE, base::DoNothing(), base::BindRepeating(cleanup));
-  }
-
   // a) The first condition can happen when the last incognito tab is closed
   // from the tab switcher.
   // b) The second condition can happen if some other code (like JS) triggers
@@ -4421,22 +4415,6 @@ using UserFeedbackDataCallback =
   }
 
   [self showTabSwitcher];
-}
-
-// Clears incognito data that is specific to iOS and won't be cleared by
-// deleting the profile.
-- (void)clearIOSSpecificIncognitoData {
-  DCHECK(self.profile->HasOffTheRecordProfile());
-  ProfileIOS* otrProfile = self.profile->GetOffTheRecordProfile();
-
-  __weak SceneController* weakSelf = self;
-  BrowsingDataRemover* browsingDataRemover =
-      BrowsingDataRemoverFactory::GetForProfile(otrProfile);
-  browsingDataRemover->Remove(browsing_data::TimePeriod::ALL_TIME,
-                              BrowsingDataRemoveMask::REMOVE_ALL,
-                              base::BindOnce(^{
-                                [weakSelf activateBVCAndMakeCurrentBVCPrimary];
-                              }));
 }
 
 - (void)activateBVCAndMakeCurrentBVCPrimary {
@@ -4529,79 +4507,6 @@ using UserFeedbackDataCallback =
 }
 
 #pragma mark - Handling of destroying the incognito profile
-
-// The incognito Profile should be closed when the last incognito tab is
-// closed (i.e. if there are other incognito tabs open in another Scene, the
-// Profile must not be destroyed).
-- (BOOL)shouldDestroyAndRebuildIncognitoProfile {
-  ProfileIOS* profile = self.profile;
-  if (!profile->HasOffTheRecordProfile()) {
-    return NO;
-  }
-
-  ProfileIOS* otrProfile = profile->GetOffTheRecordProfile();
-  DCHECK(otrProfile);
-
-  BrowserList* browserList = BrowserListFactory::GetForProfile(otrProfile);
-  for (Browser* browser :
-       browserList->BrowsersOfType(BrowserList::BrowserType::kIncognito)) {
-    WebStateList* webStateList = browser->GetWebStateList();
-    if (!webStateList->empty()) {
-      return NO;
-    }
-  }
-
-  return YES;
-}
-
-// Destroys and rebuilds the incognito Profile. This will inform all the
-// other SceneController to destroy state tied to the Profile and to
-// recreate it.
-- (void)destroyAndRebuildIncognitoProfile {
-  // This seems the best place to mark the start of destroying the incognito
-  // profile.
-  crash_keys::SetDestroyingAndRebuildingIncognitoBrowserState(
-      /*in_progress=*/true);
-
-  [self clearIOSSpecificIncognitoData];
-
-  ProfileIOS* profile = self.profile;
-  DCHECK(profile->HasOffTheRecordProfile());
-  ProfileIOS* otrProfile = profile->GetOffTheRecordProfile();
-
-  NSMutableArray<SceneController*>* sceneControllers =
-      [[NSMutableArray alloc] init];
-  for (SceneState* sceneState in self.sceneState.profileState.connectedScenes) {
-    SceneController* sceneController = sceneState.controller;
-    // In some circumstances, the scene state may still exist while the
-    // corresponding scene controller has been deallocated.
-    // (see crbug.com/1142782).
-    if (sceneController) {
-      [sceneControllers addObject:sceneController];
-    }
-  }
-
-  for (SceneController* sceneController in sceneControllers) {
-    [sceneController willDestroyIncognitoProfile];
-  }
-
-  // Record off-the-record metrics before detroying the Profile.
-  SessionMetrics::FromProfile(otrProfile)
-      ->RecordAndClearSessionMetrics(MetricsToRecordFlags::kNoMetrics);
-
-  // Destroy and recreate the off-the-record Profile.
-  profile->DestroyOffTheRecordProfile();
-  profile->GetOffTheRecordProfile();
-
-  for (SceneController* sceneController in sceneControllers) {
-    [sceneController incognitoProfileCreated];
-  }
-
-  // This seems the best place to deem the destroying and rebuilding the
-  // incognito profile to be completed.
-  crash_keys::SetDestroyingAndRebuildingIncognitoBrowserState(
-      /*in_progress=*/false);
-}
 
 - (void)willDestroyIncognitoProfile {
   // Clear the Incognito Browser and notify the TabGrid that its otrBrowser

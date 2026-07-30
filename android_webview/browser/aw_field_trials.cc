@@ -17,7 +17,6 @@
 #include "components/payments/content/android/payment_feature_map.h"
 #include "components/permissions/features.h"
 #include "components/safe_browsing/core/common/features.h"
-#include "components/translate/core/common/translate_util.h"
 #include "components/variations/feature_overrides.h"
 #include "components/viz/common/features.h"
 #include "content/public/common/content_features.h"
@@ -194,12 +193,6 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   // Disable Web Serial API on WebView.
   aw_feature_overrides.DisableFeature(blink::features::kWebSerialAPI);
 
-  // Disable TFLite based language detection on webview until webview supports
-  // ML model delivery via Optimization Guide component.
-  // TODO(crbug.com/40819484): Enable the feature on Webview.
-  aw_feature_overrides.DisableFeature(
-      ::translate::kTFLiteLanguageDetectionEnabled);
-
   // Disable key pinning enforcement on webview.
   aw_feature_overrides.DisableFeature(
       net::features::kStaticKeyPinningEnforcement);
@@ -303,6 +296,11 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   // behavior crbug.com/453706851
   aw_feature_overrides.DisableFeature(
       features::kAndroidEnableBackgroundMediaLargeFormFactors);
+
+  // Disable ExtendedReportingRemovePrefDependency for WebView, because WebView
+  // doesn't support ESB
+  aw_feature_overrides.DisableFeature(
+      safe_browsing::kExtendedReportingRemovePrefDependency);
 
   // SystemTracing is enabled by default only in WebView for now.
   aw_feature_overrides.EnableFeature(features::kEnablePerfettoSystemTracing);

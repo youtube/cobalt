@@ -1692,7 +1692,7 @@ public class TabListMediatorUnitTest {
                         getTabThumbnailCallback(),
                         mTabListFaviconProvider,
                         true,
-                        null,
+                        () -> mSelectionDelegate,
                         mGridCardOnClickListenerProvider,
                         null,
                         null,
@@ -1784,6 +1784,35 @@ public class TabListMediatorUnitTest {
         // (crbug.com/347970497).
         mTabModelObserverCaptor.getValue().didRemoveTabForClosure(newTab);
         verify(model, times(0)).set(eq(TabProperties.TAB_ID), anyInt());
+    }
+
+    @Test
+    public void testTabAddition_withArchivedTabsMessagePresent() {
+        mModelList.clear();
+        PropertyModel model = mock(PropertyModel.class);
+        when(model.get(CARD_TYPE)).thenReturn(MESSAGE);
+        when(model.get(MESSAGE_TYPE)).thenReturn(ARCHIVED_TABS_MESSAGE);
+        when(model.containsKeyEqualTo(MESSAGE_TYPE, ARCHIVED_TABS_MESSAGE)).thenReturn(true);
+        mMediator.addSpecialItemToModel(0, UiType.ARCHIVED_TABS_MESSAGE, model);
+
+        assertThat(mModelList.size(), equalTo(1));
+
+        Tab newTab = prepareTab(TAB3_ID, TAB3_TITLE, TAB3_URL);
+        doReturn(newTab).when(mTabGroupModelFilter).getRepresentativeTabAt(0);
+        doReturn(1).when(mTabGroupModelFilter).getIndividualTabAndGroupCount();
+        doReturn(Arrays.asList(newTab)).when(mTabGroupModelFilter).getRelatedTabList(eq(TAB3_ID));
+
+        mTabModelObserverCaptor
+                .getValue()
+                .didAddTab(
+                        newTab,
+                        TabLaunchType.FROM_CHROME_UI,
+                        TabCreationState.LIVE_IN_FOREGROUND,
+                        false);
+
+        assertThat(mModelList.size(), equalTo(2));
+        assertThat(mModelList.get(0).model.get(MESSAGE_TYPE), equalTo(ARCHIVED_TABS_MESSAGE));
+        assertThat(mModelList.get(1).model.get(TabProperties.TAB_ID), equalTo(TAB3_ID));
     }
 
     @Test
@@ -3512,7 +3541,7 @@ public class TabListMediatorUnitTest {
                         getTabThumbnailCallback(),
                         mTabListFaviconProvider,
                         true,
-                        null,
+                        () -> mSelectionDelegate,
                         null,
                         null,
                         null,
@@ -3548,7 +3577,7 @@ public class TabListMediatorUnitTest {
                         getTabThumbnailCallback(),
                         mTabListFaviconProvider,
                         true,
-                        null,
+                        () -> mSelectionDelegate,
                         null,
                         null,
                         null,
@@ -5192,7 +5221,6 @@ public class TabListMediatorUnitTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_TAB_DECLUTTER_ARCHIVE_TAB_GROUPS)
     public void testAddSpecialItemToModelList_tabGroup() {
         mMediator.resetWithListOfTabs(null, null, false);
 
@@ -5760,7 +5788,7 @@ public class TabListMediatorUnitTest {
                         thumbnailProvider,
                         mTabListFaviconProvider,
                         actionOnRelatedTabs,
-                        null,
+                        () -> mSelectionDelegate,
                         mGridCardOnClickListenerProvider,
                         handler,
                         null,
@@ -5884,7 +5912,6 @@ public class TabListMediatorUnitTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.TAB_COLLECTION_ANDROID)
     public void tabMergeIntoGroup_Gts_UpdatesCards() {
         // Setup with two tabs, but pretend tab 1's card is already gone.
         initAndAssertAllProperties();
@@ -5909,7 +5936,6 @@ public class TabListMediatorUnitTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.TAB_COLLECTION_ANDROID)
     public void tabMoveOutOfGroup_Gts_UpdatesCards() {
         // Setup with a single group of two tabs.
         initAndAssertAllProperties();

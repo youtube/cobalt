@@ -26,7 +26,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSS_GRADIENT_VALUE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSS_GRADIENT_VALUE_H_
 
-#include "base/memory/scoped_refptr.h"
+#include <memory>
+
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_color.h"
 #include "third_party/blink/renderer/core/css/css_identifier_value.h"
@@ -40,6 +41,7 @@ namespace blink {
 class Color;
 class Gradient;
 class Document;
+class StyleResolverState;
 
 namespace cssvalue {
 
@@ -116,8 +118,9 @@ class CSSGradientValue : public CSSImageGeneratorValue {
   CSSGradientType GradientType() const { return gradient_type_; }
 
   bool KnownToBeOpaque(const Document&, const ComputedStyle&) const;
-  const CSSGradientValue* ResolveValuesIfNeeded(
-      const CSSToLengthConversionData& conversion_data) const;
+  const CSSGradientValue& ResolveValuesIfNeeded(
+      const StyleResolverState&) const;
+  CSSGradientValue& ResolveValuesIfNeeded(const StyleResolverState&);
   CSSGradientValue* ComputedCSSValue(const ComputedStyle&,
                                      bool allow_visited_style,
                                      CSSValuePhase value_phase) const;
@@ -193,15 +196,16 @@ class CSSLinearGradientValue final : public CSSGradientValue {
   String CustomCSSText() const;
 
   // Create the gradient for a given size.
-  scoped_refptr<Gradient> CreateGradient(const CSSToLengthConversionData&,
-                                         const gfx::SizeF&,
-                                         const Document&,
-                                         const ComputedStyle&) const;
+  std::unique_ptr<Gradient> CreateGradient(const CSSToLengthConversionData&,
+                                           const gfx::SizeF&,
+                                           const Document&,
+                                           const ComputedStyle&) const;
 
   bool Equals(const CSSLinearGradientValue&) const;
 
-  const CSSLinearGradientValue* ResolveValuesIfNeeded(
-      const CSSToLengthConversionData& conversion_data) const;
+  const CSSLinearGradientValue& ResolveValuesIfNeeded(
+      const StyleResolverState&) const;
+  CSSLinearGradientValue& ResolveValuesIfNeeded(const StyleResolverState&);
   CSSLinearGradientValue* ComputedCSSValue(const ComputedStyle&,
                                            bool allow_visited_style,
                                            CSSValuePhase value_phase) const;
@@ -212,6 +216,9 @@ class CSSLinearGradientValue final : public CSSGradientValue {
   void TraceAfterDispatch(blink::Visitor*) const;
 
  private:
+  CSSLinearGradientValue* ResolveValuesAndCreateCopyIfNeeded(
+      const StyleResolverState&) const;
+
   // Any of these may be null.
   Member<const CSSValue> first_x_;
   Member<const CSSValue> first_y_;
@@ -297,15 +304,16 @@ class CORE_EXPORT CSSRadialGradientValue final : public CSSGradientValue {
   void SetEndVerticalSize(CSSPrimitiveValue* val) { end_vertical_size_ = val; }
 
   // Create the gradient for a given size.
-  scoped_refptr<Gradient> CreateGradient(const CSSToLengthConversionData&,
-                                         const gfx::SizeF&,
-                                         const Document&,
-                                         const ComputedStyle&) const;
+  std::unique_ptr<Gradient> CreateGradient(const CSSToLengthConversionData&,
+                                           const gfx::SizeF&,
+                                           const Document&,
+                                           const ComputedStyle&) const;
 
   bool Equals(const CSSRadialGradientValue&) const;
 
-  const CSSRadialGradientValue* ResolveValuesIfNeeded(
-      const CSSToLengthConversionData& conversion_data) const;
+  const CSSRadialGradientValue& ResolveValuesIfNeeded(
+      const StyleResolverState&) const;
+  CSSRadialGradientValue& ResolveValuesIfNeeded(const StyleResolverState&);
   CSSRadialGradientValue* ComputedCSSValue(const ComputedStyle&,
                                            bool allow_visited_style,
                                            CSSValuePhase value_phase) const;
@@ -316,6 +324,9 @@ class CORE_EXPORT CSSRadialGradientValue final : public CSSGradientValue {
   void TraceAfterDispatch(blink::Visitor*) const;
 
  private:
+  CSSRadialGradientValue* ResolveValuesAndCreateCopyIfNeeded(
+      const StyleResolverState&) const;
+
   // Any of these may be null.
   Member<const CSSValue> first_x_;
   Member<const CSSValue> first_y_;
@@ -349,15 +360,16 @@ class CSSConicGradientValue final : public CSSGradientValue {
   String CustomCSSText() const;
 
   // Create the gradient for a given size.
-  scoped_refptr<Gradient> CreateGradient(const CSSToLengthConversionData&,
-                                         const gfx::SizeF&,
-                                         const Document&,
-                                         const ComputedStyle&) const;
+  std::unique_ptr<Gradient> CreateGradient(const CSSToLengthConversionData&,
+                                           const gfx::SizeF&,
+                                           const Document&,
+                                           const ComputedStyle&) const;
 
   bool Equals(const CSSConicGradientValue&) const;
 
-  const CSSConicGradientValue* ResolveValuesIfNeeded(
-      const CSSToLengthConversionData& conversion_data) const;
+  const CSSConicGradientValue& ResolveValuesIfNeeded(
+      const StyleResolverState&) const;
+  CSSConicGradientValue& ResolveValuesIfNeeded(const StyleResolverState&);
   CSSConicGradientValue* ComputedCSSValue(const ComputedStyle&,
                                           bool allow_visited_style,
                                           CSSValuePhase value_phase) const;
@@ -368,6 +380,9 @@ class CSSConicGradientValue final : public CSSGradientValue {
   void TraceAfterDispatch(blink::Visitor*) const;
 
  private:
+  CSSConicGradientValue* ResolveValuesAndCreateCopyIfNeeded(
+      const StyleResolverState&) const;
+
   // Any of these may be null.
   Member<const CSSValue> x_;
   Member<const CSSValue> y_;
@@ -390,16 +405,19 @@ class CSSConstantGradientValue final : public CSSGradientValue {
   String CustomCSSText() const { return color_->CssText(); }
 
   // Create the gradient for a given size.
-  scoped_refptr<Gradient> CreateGradient(const CSSToLengthConversionData&,
-                                         const gfx::SizeF&,
-                                         const Document&,
-                                         const ComputedStyle&) const;
+  std::unique_ptr<Gradient> CreateGradient(const CSSToLengthConversionData&,
+                                           const gfx::SizeF&,
+                                           const Document&,
+                                           const ComputedStyle&) const;
 
   bool KnownToBeOpaque(const Document&, const ComputedStyle&) const;
   bool Equals(const CSSConstantGradientValue&) const;
   CSSConstantGradientValue* ComputedCSSValue(const ComputedStyle&,
                                              bool allow_visited_style,
                                              CSSValuePhase value_phase) const;
+  const CSSConstantGradientValue& ResolveValuesIfNeeded(
+      const StyleResolverState&) const;
+  CSSConstantGradientValue& ResolveValuesIfNeeded(const StyleResolverState&);
 
   void TraceAfterDispatch(blink::Visitor*) const;
 

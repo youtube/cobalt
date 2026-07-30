@@ -404,9 +404,6 @@ bool ChromeAutofillClientIOS::IsPasswordManagerEnabled() const {
       password_manager::prefs::kCredentialsEnableService);
 }
 
-void ChromeAutofillClientIOS::DidFillForm(AutofillTriggerSource trigger_source,
-                                          bool is_refill) {}
-
 bool ChromeAutofillClientIOS::IsContextSecure() const {
   return consider_as_secure_for_testing_ ||
          IsContextSecureForWebState(web_state());
@@ -474,7 +471,7 @@ PasswordFormClassification ChromeAutofillClientIOS::ClassifyAsPasswordForm(
     AutofillManager& manager,
     FormGlobalId form_id,
     FieldGlobalId field_id) const {
-  FormStructure* form_structure = manager.FindCachedFormById(form_id);
+  const FormStructure* form_structure = manager.FindCachedFormById(form_id);
   if (!form_structure) {
     return {};
   }

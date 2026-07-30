@@ -23,22 +23,22 @@
 #include "base/observer_list_types.h"
 #include "crypto/keypair.h"
 #include "device/fido/ctap_get_assertion_request.h"
-#include "device/fido/fido_constants.h"
 #include "device/fido/fido_device.h"
 #include "device/fido/fido_parsing_utils.h"
 #include "device/fido/large_blob.h"
-#include "device/fido/public_key_credential_descriptor.h"
-#include "device/fido/public_key_credential_rp_entity.h"
-#include "device/fido/public_key_credential_user_entity.h"
+#include "device/fido/public/fido_constants.h"
+#include "device/fido/public/public_key_credential_descriptor.h"
+#include "device/fido/public/public_key_credential_rp_entity.h"
+#include "device/fido/public/public_key_credential_user_entity.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 
 namespace device {
 
 struct PublicKey;
 
-constexpr size_t kMaxPinRetries = 8;
+inline constexpr size_t kMaxPinRetries = 8;
 
-constexpr size_t kMaxUvRetries = 5;
+inline constexpr size_t kMaxUvRetries = 5;
 
 class COMPONENT_EXPORT(DEVICE_FIDO) VirtualFidoDevice : public FidoDevice {
  public:

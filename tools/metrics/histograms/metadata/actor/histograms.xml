@@ -193,7 +193,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.NavigationGating.AllowListSize" units="origins"
-    expires_after="2026-03-30">
+    expires_after="2026-05-31">
   <owner>dylancutler@google.com</owner>
   <owner>johannhof@google.com</owner>
   <summary>
@@ -205,7 +205,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.NavigationGating.AppliedGate" enum="Boolean"
-    expires_after="2026-03-30">
+    expires_after="2026-05-31">
   <owner>dylancutler@google.com</owner>
   <owner>johannhof@google.com</owner>
   <summary>
@@ -229,7 +229,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.NavigationGating.CrossOrigin" enum="Boolean"
-    expires_after="2026-03-30">
+    expires_after="2026-05-31">
   <owner>dylancutler@google.com</owner>
   <owner>johannhof@google.com</owner>
   <summary>
@@ -240,7 +240,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.NavigationGating.CrossSite" enum="Boolean"
-    expires_after="2026-03-30">
+    expires_after="2026-05-31">
   <owner>dylancutler@google.com</owner>
   <owner>johannhof@google.com</owner>
   <summary>
@@ -261,7 +261,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.NavigationGating.PermissionGranted" enum="Boolean"
-    expires_after="2026-03-30">
+    expires_after="2026-05-31">
   <owner>dylancutler@google.com</owner>
   <owner>johannhof@google.com</owner>
   <summary>
@@ -272,13 +272,24 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.NavigationGating.TimeElapsedForGating" units="ms"
-    expires_after="2026-03-30">
+    expires_after="2026-05-31">
   <owner>dylancutler@google.com</owner>
   <owner>johannhof@google.com</owner>
   <summary>
     Records how long origin gating processing is taking when it decides if an
     actor can navigate to a new origin. Recorded when the actor navigates the
     main frame.
+  </summary>
+</histogram>
+
+<histogram name="Actor.ObservationDelay.DidNavigate" enum="Boolean"
+    expires_after="2026-08-11">
+  <owner>dtapuska@google.com</owner>
+  <owner>bokan@google.com</owner>
+  <owner>chrome-synapse-team@google.com</owner>
+  <summary>
+    Records whether the ObservationDelayController's DidStartNaigation()
+    occurred. Recorded when the observation delay is completed.
   </summary>
 </histogram>
 
@@ -668,6 +679,17 @@ chromium-metrics-reviews@google.com.
   <owner>chrstne@google.com</owner>
   <owner>koilos@google.com</owner>
   <summary>Recorded when an error happens in the ActorUiTabController.</summary>
+</histogram>
+
+<histogram name="Actor.Ui.TaskListBubble.Rows" units="rows"
+    expires_after="2026-08-11">
+  <owner>kenok@google.com</owner>
+  <owner>mjenn@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <summary>
+    Records the number of rows in the Task List Bubble when it is shown or
+    updated.
+  </summary>
 </histogram>
 
 <histogram name="Actor.Ui.TaskNudge.Shown" enum="TaskNudgeState"

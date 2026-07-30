@@ -131,6 +131,8 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kAudioInputConfirmReadsViaShmem);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoPictureInPictureForVideoPlayback);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoplayDisableSettings);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAVDColorSpaceChanges);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(
+    kBrowserInitiatedAutomaticPictureInPictureDryRun);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_FUCHSIA)
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS) &&
@@ -273,6 +275,7 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kPauseBackgroundTimer);
 #if !BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kPictureInPictureOcclusionTracking);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kPictureInPictureShowWindowAnimation);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kVideoPipDisplaySmoothnessOptimization);
 #endif  // !BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kPlatformAudioEncoder);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kEnableRtcpReporting);
@@ -307,6 +310,7 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(
     kShareThisTabInsteadButtonGetDisplayMediaAudio);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kSpeakerChangeDetection);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kSpecCompliantCanPlayThrough);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kStandardizeVP9AndAV1Quantizer);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kSuspendMediaForFrozenFrames);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUnifiedAutoplay);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseAndroidOverlayForSecureOnly);
@@ -343,10 +347,12 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kMatchSourceAudioChannelLayout);
 
 #if BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAllowEnhancedPipTransition);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoDocPiPPermissionPromptAndroid);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoPictureInPictureAndroid);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kEnableAudioMonitoringOnAndroid);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kContextMenuPictureInPictureAndroid);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kSurfaceInputForAndroidVEA);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kAndroidZeroCopyVideoCapture);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaCodecBlockModel);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaCodecLowDelayMode);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaControlsExpandGesture);
@@ -361,14 +367,6 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseSecurityLevelWhenCheckingMediaDrmVersion);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAllowMediaCodecSoftwareDecoder);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseAudioManagerMaxChannelLayout);
 #endif  // BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(ENABLE_HLS_DEMUXER)
-// This feature enables chrome's built-in HLS parser and demuxer instead of
-// Android's MediaPlayer based implementation. When this feature is enabled,
-// the media-player based HLS player will NOT be used. This will roll out first
-// on android, but will eventually land in desktop chrome as well.
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kBuiltInHlsPlayer);
-#endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
 
 #if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kChromeOSHWVBREncoding);

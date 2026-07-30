@@ -324,8 +324,6 @@ static_library("browser") {
     "component_updater/mei_preload_component_installer.h",
     "component_updater/open_cookie_database_component_installer.cc",
     "component_updater/open_cookie_database_component_installer.h",
-    "component_updater/optimization_guide_on_device_model_installer.cc",
-    "component_updater/optimization_guide_on_device_model_installer.h",
     "component_updater/pki_metadata_component_installer.cc",
     "component_updater/pki_metadata_component_installer.h",
     "component_updater/pki_metadata_component_installer_policy.cc",
@@ -336,8 +334,6 @@ static_library("browser") {
     "component_updater/privacy_sandbox_attestations_component_installer.h",
     "component_updater/probabilistic_reveal_token_component_remover.cc",
     "component_updater/probabilistic_reveal_token_component_remover.h",
-    "component_updater/recovery_component_installer.cc",
-    "component_updater/recovery_component_installer.h",
     "component_updater/recovery_improved_component_installer.cc",
     "component_updater/recovery_improved_component_installer.h",
     "component_updater/registration.cc",
@@ -489,8 +485,6 @@ static_library("browser") {
     "enterprise/reporting/profile_report_generator_delegate_base.h",
     "enterprise/signals/profile_signals_collector.cc",
     "enterprise/signals/profile_signals_collector.h",
-    "enterprise/signin/enterprise_identity_service_factory.cc",
-    "enterprise/signin/enterprise_identity_service_factory.h",
     "enterprise/signin/interstitials/managed_profile_required_controller_client.cc",
     "enterprise/signin/interstitials/managed_profile_required_controller_client.h",
     "enterprise/signin/interstitials/managed_profile_required_page.cc",
@@ -846,9 +840,7 @@ static_library("browser") {
     "page_content_annotations/annotate_page_content_request.h",
     "page_content_annotations/multi_source_page_context_fetcher.cc",
     "page_content_annotations/page_content_annotations_service_factory.cc",
-    "page_content_annotations/page_content_annotations_service_factory.h",
     "page_content_annotations/page_content_annotations_web_contents_observer.cc",
-    "page_content_annotations/page_content_annotations_web_contents_observer.h",
     "page_content_annotations/page_content_extraction_service.cc",
     "page_content_annotations/page_content_extraction_service_factory.cc",
     "page_content_annotations/page_content_screenshot_service.cc",
@@ -1404,7 +1396,6 @@ static_library("browser") {
     "signin/signin_profile_attributes_updater_factory.cc",
     "signin/signin_profile_attributes_updater_factory.h",
     "signin/signin_promo_util.cc",
-    "signin/signin_promo_util.h",
     "signin/signin_util.cc",
     "signin/signin_util.h",
     "site_isolation/about_flags.h",
@@ -1520,10 +1511,6 @@ static_library("browser") {
     "tpcd/experiment/experiment_manager_impl.h",
     "tpcd/experiment/tpcd_experiment_features.cc",
     "tpcd/experiment/tpcd_experiment_features.h",
-    "tpcd/heuristics/opener_heuristic_service.cc",
-    "tpcd/heuristics/opener_heuristic_service.h",
-    "tpcd/heuristics/opener_heuristic_service_factory.cc",
-    "tpcd/heuristics/opener_heuristic_service_factory.h",
     "tpcd/http_error_observer/http_error_tab_helper.cc",
     "tpcd/http_error_observer/http_error_tab_helper.h",
     "tpcd/metadata/devtools_observer.cc",
@@ -1561,8 +1548,6 @@ static_library("browser") {
     "universal_web_contents_observers.h",
     "update_client/chrome_update_query_params_delegate.cc",
     "update_client/chrome_update_query_params_delegate.h",
-    "user_bypass/user_bypass_web_contents_observer.cc",
-    "user_bypass/user_bypass_web_contents_observer.h",
     "v8_compile_hints/v8_compile_hints_tab_helper.cc",
     "v8_compile_hints/v8_compile_hints_tab_helper.h",
     "visibility_timer_tab_helper.cc",
@@ -1713,10 +1698,6 @@ static_library("browser") {
     # TODO(crbug.com/430804948): Remove this circular dependency when profiles/profile_manager.h
     # gets componentized.
     "//chrome/browser/ui/profiles:impl",
-
-    # TODO(crbug.com/369883710): Remove this circular dependency when profiles/profile_manager.h
-    # gets componentized.
-    "//chrome/browser/ui/startup/default_browser_prompt:impl",
 
     # TODO(crbug.com/432061436): Remove this circular dependency when c/b/password_manager gets
     # componentized. Particularly, the following headers are included from //c/b/ui/webauthn::impl:
@@ -1923,6 +1904,7 @@ static_library("browser") {
     "//chrome/browser/omnibox",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/optimization_guide:impl",
+    "//chrome/browser/page_content_annotations",
     "//chrome/browser/page_content_annotations:extraction_service",
     "//chrome/browser/page_content_annotations:fetcher",
     "//chrome/browser/page_info",
@@ -1946,7 +1928,6 @@ static_library("browser") {
     "//chrome/browser/prefs:util_impl",
     "//chrome/browser/preloading:prefs",
     "//chrome/browser/preloading/search_preload",
-    "//chrome/browser/privacy_budget",
     "//chrome/browser/privacy_sandbox",
     "//chrome/browser/privacy_sandbox:headers",
     "//chrome/browser/profiles",
@@ -2083,7 +2064,7 @@ static_library("browser") {
     "//chrome/browser/ui/webui/bluetooth_internals:mojo_bindings",
     "//chrome/browser/ui/webui/internal_debug_pages_disabled",
     "//chrome/browser/ui/zoom",
-    "//chrome/browser/updater:scheduler",
+    "//chrome/browser/updater",
     "//chrome/browser/updates/announcement_notification",
     "//chrome/browser/updates/announcement_notification:impl",
     "//chrome/browser/vr",
@@ -2185,14 +2166,13 @@ static_library("browser") {
     "//components/enterprise",
     "//components/enterprise/browser/data_region",
     "//components/enterprise/browser/identifiers",
-    "//components/enterprise/browser/promotion:prefs",
+    "//components/enterprise/browser/promotion",
     "//components/enterprise/common/proto:connectors_proto",
     "//components/enterprise/common/proto:extensions_workflow_events_proto",
     "//components/enterprise/content",
     "//components/enterprise/device_trust",
     "//components/enterprise/encryption/cache",
     "//components/enterprise/obfuscation/core:enterprise_obfuscation",
-    "//components/enterprise/signin",
     "//components/error_page/common",
     "//components/error_page/content/browser",
     "//components/facilitated_payments/core/features",
@@ -2628,10 +2608,6 @@ static_library("browser") {
     # gets componentized.
     "//chrome/browser/ui/profiles:impl",
 
-    # TODO(crbug.com/369883710): Remove this dependency when profiles/profile_manager.h
-    # gets componentized.
-    "//chrome/browser/ui/startup/default_browser_prompt:impl",
-
     # TODO(crbug.com/432061436): Remove this dependency when c/b/password_manager gets
     # componentized.
     "//chrome/browser/ui/webauthn:impl",
@@ -2809,6 +2785,7 @@ static_library("browser") {
       "android/history/history_deletion_info.h",
       "android/httpclient/http_client_bridge.cc",
       "android/httpclient/http_client_bridge.h",
+      "android/initialize_feature_list_android.cc",
       "android/intent_handler.cc",
       "android/media/document_picture_in_picture_bridge_android.cc",
       "android/media/media_capture_devices_dispatcher_android.cc",
@@ -3900,37 +3877,6 @@ static_library("browser") {
       "media/offscreen_tab.h",
       "media/unified_autoplay_config.cc",
       "media/unified_autoplay_config.h",
-      "media_galleries/fileapi/av_scanning_file_validator.cc",
-      "media_galleries/fileapi/av_scanning_file_validator.h",
-      "media_galleries/fileapi/media_file_system_backend.cc",
-      "media_galleries/fileapi/media_file_system_backend.h",
-      "media_galleries/fileapi/media_file_validator_factory.cc",
-      "media_galleries/fileapi/media_file_validator_factory.h",
-      "media_galleries/fileapi/media_path_filter.cc",
-      "media_galleries/fileapi/media_path_filter.h",
-      "media_galleries/fileapi/native_media_file_util.cc",
-      "media_galleries/fileapi/native_media_file_util.h",
-      "media_galleries/fileapi/readahead_file_stream_reader.cc",
-      "media_galleries/fileapi/readahead_file_stream_reader.h",
-      "media_galleries/fileapi/supported_audio_video_checker.cc",
-      "media_galleries/fileapi/supported_audio_video_checker.h",
-      "media_galleries/fileapi/supported_image_type_validator.cc",
-      "media_galleries/fileapi/supported_image_type_validator.h",
-      "media_galleries/gallery_watch_manager.cc",
-      "media_galleries/gallery_watch_manager.h",
-      "media_galleries/gallery_watch_manager_observer.h",
-      "media_galleries/media_file_system_registry.cc",
-      "media_galleries/media_file_system_registry.h",
-      "media_galleries/media_galleries_dialog_controller.cc",
-      "media_galleries/media_galleries_dialog_controller.h",
-      "media_galleries/media_galleries_permission_controller.cc",
-      "media_galleries/media_galleries_permission_controller.h",
-      "media_galleries/media_galleries_preferences.cc",
-      "media_galleries/media_galleries_preferences.h",
-      "media_galleries/media_galleries_preferences_factory.cc",
-      "media_galleries/media_galleries_preferences_factory.h",
-      "media_galleries/media_gallery_context_menu.cc",
-      "media_galleries/media_gallery_context_menu.h",
       "memory/oom_memory_details.cc",
       "memory/oom_memory_details.h",
       "metrics/browser_activity_watcher.cc",
@@ -4249,8 +4195,6 @@ static_library("browser") {
       "support_tool/data_collector_utils.h",
       "support_tool/policy_data_collector.cc",
       "support_tool/policy_data_collector.h",
-      "support_tool/screenshot_data_collector.cc",
-      "support_tool/screenshot_data_collector.h",
       "support_tool/signin_data_collector.cc",
       "support_tool/signin_data_collector.h",
       "support_tool/support_packet_metadata.cc",
@@ -4811,6 +4755,10 @@ static_library("browser") {
         "//chrome/browser/shortcuts",
         "//chrome/browser/ui/download",
         "//chrome/browser/ui/download:impl",
+
+        # TODO(crbug.com/369883710): Remove this dependency when profiles/profile_manager.h
+        # gets componentized.
+        "//chrome/browser/ui/startup/default_browser_prompt:impl",
         "//chrome/browser/ui/webui/app_home",
         "//chrome/browser/ui/webui/app_home:impl",
         "//chrome/browser/ui/webui/signin:profile",
@@ -4836,6 +4784,10 @@ static_library("browser") {
         # //c/b/signin/identity_manager_factory.h.
         # Remove circular include entry when this directory gets modularized.
         "//chrome/browser/ui/download:impl",
+
+        # TODO(crbug.com/369883710): Remove this circular dependency when profiles/profile_manager.h
+        # gets componentized.
+        "//chrome/browser/ui/startup/default_browser_prompt:impl",
       ]
     }
 
@@ -4948,6 +4900,43 @@ static_library("browser") {
       "media/chromeos_login_and_lock_media_access_handler.h",
       "media/platform_verification_chromeos.cc",
       "media/platform_verification_chromeos.h",
+      "media_galleries/fileapi/device_media_async_file_util.cc",
+      "media_galleries/fileapi/device_media_async_file_util.h",
+      "media_galleries/fileapi/media_file_system_backend.cc",
+      "media_galleries/fileapi/media_file_system_backend.h",
+      "media_galleries/fileapi/media_file_validator_factory.cc",
+      "media_galleries/fileapi/media_file_validator_factory.h",
+      "media_galleries/fileapi/media_path_filter.cc",
+      "media_galleries/fileapi/media_path_filter.h",
+      "media_galleries/fileapi/mtp_device_async_delegate.cc",
+      "media_galleries/fileapi/mtp_device_async_delegate.h",
+      "media_galleries/fileapi/mtp_device_map_service.cc",
+      "media_galleries/fileapi/mtp_device_map_service.h",
+      "media_galleries/fileapi/mtp_file_stream_reader.cc",
+      "media_galleries/fileapi/mtp_file_stream_reader.h",
+      "media_galleries/fileapi/native_media_file_util.cc",
+      "media_galleries/fileapi/native_media_file_util.h",
+      "media_galleries/fileapi/readahead_file_stream_reader.cc",
+      "media_galleries/fileapi/readahead_file_stream_reader.h",
+      "media_galleries/fileapi/supported_audio_video_checker.cc",
+      "media_galleries/fileapi/supported_audio_video_checker.h",
+      "media_galleries/fileapi/supported_image_type_validator.cc",
+      "media_galleries/fileapi/supported_image_type_validator.h",
+      "media_galleries/gallery_watch_manager.cc",
+      "media_galleries/gallery_watch_manager.h",
+      "media_galleries/gallery_watch_manager_observer.h",
+      "media_galleries/media_file_system_registry.cc",
+      "media_galleries/media_file_system_registry.h",
+      "media_galleries/media_galleries_dialog_controller.cc",
+      "media_galleries/media_galleries_dialog_controller.h",
+      "media_galleries/media_galleries_permission_controller.cc",
+      "media_galleries/media_galleries_permission_controller.h",
+      "media_galleries/media_galleries_preferences.cc",
+      "media_galleries/media_galleries_preferences.h",
+      "media_galleries/media_galleries_preferences_factory.cc",
+      "media_galleries/media_galleries_preferences_factory.h",
+      "media_galleries/media_gallery_context_menu.cc",
+      "media_galleries/media_gallery_context_menu.h",
       "media_galleries/mtp_device_delegate_impl.cc",
       "media_galleries/mtp_device_delegate_impl.h",
       "media_galleries/mtp_device_object_enumerator.cc",
@@ -6321,14 +6310,6 @@ static_library("browser") {
       "enterprise/platform_auth/platform_auth_provider_manager.h",
     ]
 
-    # Sources(generally "desktop OS importers") used only on Mac & Windows.
-    sources += [
-      "recovery/recovery_install_global_error.cc",
-      "recovery/recovery_install_global_error.h",
-      "recovery/recovery_install_global_error_factory.cc",
-      "recovery/recovery_install_global_error_factory.h",
-    ]
-
     # Support for the recovery improved component.
     sources += [
       "component_updater/updater_state.cc",
@@ -6338,7 +6319,6 @@ static_library("browser") {
     deps += [
       "//chrome/browser/ui/pdf/infobar",
       "//chrome/browser/ui/startup/default_browser_prompt/pin_infobar:impl",
-      "//chrome/browser/updater:browser_updater_client",
       "//chrome/common/notifications",
       "//chrome/updater:browser_sources",
     ]
@@ -6680,7 +6660,6 @@ static_library("browser") {
       "//chrome/browser/apps/app_shim",
       "//chrome/browser/enterprise/connectors/device_trust/key_management/core/mac",
       "//chrome/browser/renderer_host:history_swiper",
-      "//chrome/browser/updater:browser_updater_client",
       "//chrome/browser/web_applications/os_integration/mac:web_app_shortcut_copier_lib",
       "//chrome/browser/webshare:storage",
       "//chrome/services/mac_notifications",
@@ -7217,19 +7196,6 @@ static_library("browser") {
       "//components/crash/content/browser",
       "//components/crash/core/app",
       "//components/version_info:generate_version_info",
-    ]
-  }
-
-  if (is_win || is_mac || (is_chromeos && use_dbus)) {
-    sources += [
-      "media_galleries/fileapi/device_media_async_file_util.cc",
-      "media_galleries/fileapi/device_media_async_file_util.h",
-      "media_galleries/fileapi/mtp_device_async_delegate.cc",
-      "media_galleries/fileapi/mtp_device_async_delegate.h",
-      "media_galleries/fileapi/mtp_device_map_service.cc",
-      "media_galleries/fileapi/mtp_device_map_service.h",
-      "media_galleries/fileapi/mtp_file_stream_reader.cc",
-      "media_galleries/fileapi/mtp_file_stream_reader.h",
     ]
   }
 
@@ -8452,6 +8418,7 @@ static_library("browser_public_dependencies") {
     # and thus their public dependencies are shared.
     "//base",
     "//chrome/app/vector_icons",
+    "//chrome/browser/optimization_guide:optimization_guide_on_device_model_installer",
     "//chrome/browser/ui:ui_public_dependencies",
     "//chrome/common",
     "//chrome/common:buildflags",
@@ -8935,8 +8902,6 @@ grit("resources") {
       "//chrome/browser/resources/chromeos/account_manager:html_wrapper_files",
       "//chrome/browser/resources/chromeos/account_manager/components:html_wrapper_files",
       "//chrome/browser/resources/chromeos/emulator:web_components",
-      "//chrome/browser/resources/chromeos/input_method:resources",
-      "//chrome/browser/resources/chromeos/password_change:html_wrapper_files",
       "//chrome/browser/resources/chromeos/smb_shares:web_components",
       "//chrome/browser/ui/webui/ash/login/mojom:mojom_ts__generator",
       "//url/mojom:url_mojom_gurl_js",
@@ -9182,6 +9147,8 @@ static_library("test_support") {
 
   if (is_chromeos) {
     sources += [
+      "media_galleries/media_galleries_test_util.cc",
+      "media_galleries/media_galleries_test_util.h",
       "sharesheet/sharesheet_test_util.cc",
       "sharesheet/sharesheet_test_util.h",
       "speech/speech_recognition_test_helper.cc",
@@ -9200,6 +9167,7 @@ static_library("test_support") {
       "//chromeos/ash/components/login/auth",
       "//chromeos/components/kiosk",
       "//components/account_manager_core:test_support",
+      "//components/crx_file",
       "//components/login",
       "//components/session_manager/core",
       "//components/soda",
@@ -9207,7 +9175,10 @@ static_library("test_support") {
       "//components/webapk:proto",
       "//crypto:test_support",
       "//extensions:test_support",
+      "//extensions/browser",
+      "//extensions/browser/api/content_settings",
       "//extensions/browser/api/messaging",
+      "//extensions/common:mojom",
       "//ui/base:test_support",
       "//ui/base/ime/ash",
     ]
@@ -9237,19 +9208,6 @@ static_library("test_support") {
       "//chrome/services/printing:lib",
       "//chrome/services/printing/public/mojom",
       "//printing:test_support",
-    ]
-  }
-
-  if (enable_extensions) {
-    sources += [
-      "media_galleries/media_galleries_test_util.cc",
-      "media_galleries/media_galleries_test_util.h",
-    ]
-    deps += [
-      "//components/crx_file",
-      "//extensions/browser",
-      "//extensions/browser/api/content_settings",
-      "//extensions/common:mojom",
     ]
   }
 

@@ -9,7 +9,6 @@
 #include "third_party/blink/renderer/core/animation/animation_trigger.h"
 #include "third_party/blink/renderer/core/display_lock/display_lock_utilities.h"
 #include "third_party/blink/renderer/core/dom/column_pseudo_element.h"
-#include "third_party/blink/renderer/core/dom/named_animation_trigger_map.h"
 #include "third_party/blink/renderer/core/layout/block_layout_algorithm_utils.h"
 #include "third_party/blink/renderer/core/layout/fragmentation_utils.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
@@ -363,8 +362,11 @@ void FragmentBuilder::PropagateFromFragment(
   // children. This may take place in several passes (if there are nested OOFs
   // that are discovered as part of laying out an outer OOF), and repropagating
   // for OOFs that were laid out previously over and over again would be wrong.
+  //
+  // TODO(crbug.com/40267498): Remove the comment above when removing the flag.
   if (child.NeedsOOFPositionedInfoPropagation() &&
-      (!IsFragmentainerBoxType() || !child.IsOutOfFlowPositioned())) {
+      (RuntimeEnabledFeatures::FragmentedOofInCbEnabled() ||
+       !IsFragmentainerBoxType() || !child.IsOutOfFlowPositioned())) {
     LayoutUnit adjustment_for_oof_propagation =
         BlockOffsetAdjustmentForFragmentainer();
 
@@ -490,7 +492,17 @@ void FragmentBuilder::AddOutOfFlowChildCandidate(
   }
 
   oof_candidates_may_have_anchors_ |= child.MayContainAnchor();
-  oof_positioned_candidates_.emplace_back(child, static_pos,
+  oof_positioned_candidates_.emplace_back(child, /*break_token=*/nullptr,
+                                          static_pos,
+                                          RequiresContentBeforeBreaking());
+}
+
+void FragmentBuilder::AddOutOfFlowChildCandidate(
+    const BlockNode& child,
+    const BlockBreakToken& child_break_token) {
+  oof_candidates_may_have_anchors_ |= child.MayContainAnchor();
+  oof_positioned_candidates_.emplace_back(child, &child_break_token,
+                                          LogicalStaticPosition(),
                                           RequiresContentBeforeBreaking());
 }
 
@@ -539,6 +551,7 @@ void FragmentBuilder::AddOutOfFlowInlineChildCandidate(
 
 void FragmentBuilder::AddOutOfFlowFragmentainerDescendant(
     const LogicalOofNodeForFragmentation& descendant) {
+  DCHECK(!RuntimeEnabledFeatures::FragmentedOofInCbEnabled());
   oof_fragmentainer_descendants_may_have_anchors_ |=
       descendant.box->MayContainAnchor();
   oof_positioned_fragmentainer_descendants_.push_back(descendant);
@@ -546,6 +559,7 @@ void FragmentBuilder::AddOutOfFlowFragmentainerDescendant(
 
 void FragmentBuilder::AddOutOfFlowFragmentainerDescendant(
     const LogicalOofPositionedNode& descendant) {
+  DCHECK(!RuntimeEnabledFeatures::FragmentedOofInCbEnabled());
   DCHECK(!descendant.is_for_fragmentation);
   LogicalOofNodeForFragmentation fragmentainer_descendant(descendant);
   AddOutOfFlowFragmentainerDescendant(fragmentainer_descendant);
@@ -593,6 +607,7 @@ void FragmentBuilder::ClearOutOfFlowPositionedCandidates() {
 void FragmentBuilder::AddMulticolWithPendingOOFs(
     const BlockNode& multicol,
     MulticolWithPendingOofs<LogicalOffset>* multicol_info) {
+  DCHECK(!RuntimeEnabledFeatures::FragmentedOofInCbEnabled());
   DCHECK(multicol.GetLayoutBox()->IsMulticolContainer());
   auto it = multicols_with_pending_oofs_.find(multicol.GetLayoutBox());
   if (it != multicols_with_pending_oofs_.end())
@@ -602,12 +617,14 @@ void FragmentBuilder::AddMulticolWithPendingOOFs(
 
 void FragmentBuilder::SwapMulticolsWithPendingOOFs(
     MulticolCollection* multicols_with_pending_oofs) {
+  DCHECK(!RuntimeEnabledFeatures::FragmentedOofInCbEnabled());
   DCHECK(multicols_with_pending_oofs->empty());
   std::swap(multicols_with_pending_oofs_, *multicols_with_pending_oofs);
 }
 
 void FragmentBuilder::SwapOutOfFlowFragmentainerDescendants(
     HeapVector<LogicalOofNodeForFragmentation>* descendants) {
+  DCHECK(!RuntimeEnabledFeatures::FragmentedOofInCbEnabled());
   DCHECK(descendants->empty());
   // If we have anchors *somewhere* in below the OOFs we need to ensure they
   // are in pre-order so we perform layout in the correct order.
@@ -627,6 +644,7 @@ void FragmentBuilder::TransferOutOfFlowCandidates(
     FragmentBuilder* destination_builder,
     LogicalOffset additional_offset,
     const MulticolWithPendingOofs<LogicalOffset>* multicol) {
+  DCHECK(!RuntimeEnabledFeatures::FragmentedOofInCbEnabled());
   for (auto& candidate : oof_positioned_candidates_) {
     BlockNode node = candidate.Node();
     candidate.static_position.offset += additional_offset;
@@ -677,6 +695,9 @@ void FragmentBuilder::MoveOutOfFlowDescendantCandidatesToDescendants() {
 
 LayoutUnit FragmentBuilder::BlockOffsetAdjustmentForFragmentainer(
     LayoutUnit fragmentainer_consumed_block_size) const {
+  if (RuntimeEnabledFeatures::FragmentedOofInCbEnabled()) {
+    return LayoutUnit();
+  }
   if (IsFragmentainerBoxType() && PreviousBreakToken()) {
     return To<BlockBreakToken>(PreviousBreakToken())->ConsumedBlockSize();
   }
@@ -703,7 +724,8 @@ void FragmentBuilder::PropagateOOFPositionedInfo(
 
   // Collect the child's out of flow descendants.
   const WritingModeConverter converter(GetWritingDirection(), fragment.Size());
-  for (const auto& descendant : fragment.OutOfFlowPositionedDescendants()) {
+  for (const PhysicalOofPositionedNode& descendant :
+       fragment.OutOfFlowPositionedDescendants()) {
     BlockNode node = descendant.Node();
     LogicalStaticPosition static_position =
         descendant.StaticPosition().ConvertToLogical(converter);
@@ -732,7 +754,8 @@ void FragmentBuilder::PropagateOOFPositionedInfo(
     // the fixedpos will be added as a fragmentainer descendant at a later time.
     // However, an |additional_fixedpos_offset| should be applied if one is
     // provided.
-    if ((fixedpos_containing_block ||
+    if (!RuntimeEnabledFeatures::FragmentedOofInCbEnabled() &&
+        (fixedpos_containing_block ||
          additional_fixedpos_offset != LogicalOffset()) &&
         node.Style().GetPosition() == EPosition::kFixed) {
       static_position.offset += additional_fixedpos_offset;
@@ -772,8 +795,8 @@ void FragmentBuilder::PropagateOOFPositionedInfo(
                            &LogicalOofPositionedNode::Node));
     oof_candidates_may_have_anchors_ |= node.MayContainAnchor();
     oof_positioned_candidates_.emplace_back(
-        node, static_position, descendant.requires_content_before_breaking,
-        new_inline_container);
+        node, descendant.break_token, static_position,
+        descendant.requires_content_before_breaking, new_inline_container);
   }
 
   const auto* oof_data = fragment.GetFragmentedOofData();
@@ -869,6 +892,7 @@ void FragmentBuilder::PropagateOOFFragmentainerDescendants(
     const OofContainingBlock<LogicalOffset>* containing_block,
     const OofContainingBlock<LogicalOffset>* fixedpos_containing_block,
     HeapVector<LogicalOofNodeForFragmentation>* out_list) {
+  DCHECK(!RuntimeEnabledFeatures::FragmentedOofInCbEnabled());
   const auto* oof_data = fragment.GetFragmentedOofData();
   if (!oof_data || oof_data->oof_positioned_fragmentainer_descendants.empty())
     return;
@@ -1130,14 +1154,48 @@ void FragmentBuilder::PropagateSizeDependentData() {
   children_with_size_dependent_propagation_.clear();
 }
 
-void FragmentBuilder::PropagateNamedTriggers(const PhysicalFragment& child) {
-  const GCedNamedAnimationTriggerMap* names_map = child.NamedTriggers();
-  if (!names_map) {
+void FragmentBuilder::SetNamedTrigger(
+    const TriggerScopedName& trigger_scoped_name,
+    AnimationTrigger* trigger) {
+  TriggerScopedNameMap& named_triggers = EnsureNamedTriggers();
+
+  auto it = named_triggers.find(&trigger_scoped_name);
+  if (it == named_triggers.end()) {
+    named_triggers.Set(&trigger_scoped_name, trigger);
     return;
   }
 
-  for (const auto& entry : *names_map) {
-    EnsureNamedTriggers().Set(entry.key, entry.value);
+  if (it->value == trigger) {
+    // If we have the same name, scope and trigger, there is nothing to update.
+    // We can get here with elements that generate multiple fragments.
+    // IsBeforeInPreOrder below doesn't like looking at the same LayoutObjects.
+    return;
+  }
+
+  DCHECK(trigger->OwningElement());
+  DCHECK(trigger->OwningElement()->GetLayoutObject());
+  DCHECK(it->value->OwningElement());
+  DCHECK(it->value->OwningElement()->GetLayoutObject());
+  const LayoutObject* existing_layout_object =
+      it->value->OwningElement()->GetLayoutObject();
+
+  if (existing_layout_object->IsBeforeInPreOrder(
+          *trigger->OwningElement()->GetLayoutObject())) {
+    named_triggers.Set(&trigger_scoped_name, trigger);
+    it = named_triggers.find(&trigger_scoped_name);
+    DCHECK_EQ(it->value->OwningElement()->GetLayoutObject(),
+              trigger->OwningElement()->GetLayoutObject());
+  }
+}
+
+void FragmentBuilder::PropagateNamedTriggers(const PhysicalFragment& child) {
+  if (!child.NamedTriggers()) {
+    return;
+  }
+
+  const TriggerScopedNameMap* trigger_scoped_name_map = child.NamedTriggers();
+  for (const auto& entry : *trigger_scoped_name_map) {
+    SetNamedTrigger(*entry.key, entry.value);
   }
 }
 
@@ -1152,20 +1210,22 @@ void FragmentBuilder::CreateNamedTriggersForSelf() {
   }
 
   if (const CSSAnimationData* data = Style().Animations()) {
-    GCedNamedAnimationTriggerMap& named_triggers = EnsureNamedTriggers();
     for (const auto& name : data->TimelineTriggerNameList()) {
       if (name) {
         AnimationTrigger* trigger = element->NamedTrigger(name);
         DCHECK(trigger);
-        named_triggers.Set(name, trigger);
+
+        TriggerScopedName* trigger_scoped_name =
+            ToTriggerScopedName(*name, *element);
+        SetNamedTrigger(*trigger_scoped_name, trigger);
       }
     }
   }
 }
 
-GCedNamedAnimationTriggerMap& FragmentBuilder::EnsureNamedTriggers() {
+TriggerScopedNameMap& FragmentBuilder::EnsureNamedTriggers() {
   if (!named_triggers_) {
-    named_triggers_ = MakeGarbageCollected<GCedNamedAnimationTriggerMap>();
+    named_triggers_ = MakeGarbageCollected<TriggerScopedNameMap>();
   }
   return *named_triggers_;
 }

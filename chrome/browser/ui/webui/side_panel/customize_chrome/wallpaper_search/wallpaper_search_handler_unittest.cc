@@ -12,6 +12,7 @@
 #include "base/base64.h"
 #include "base/containers/span.h"
 #include "base/files/file_util.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_view_util.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_move_support.h"
@@ -369,7 +370,7 @@ TEST_F(WallpaperSearchHandlerTest, GetHistory) {
   std::move(decoder_callback).Run(gfx::Image::CreateFrom1xBitmap(bitmap));
   mock_client().FlushForTesting();
 
-  ASSERT_EQ(static_cast<int>(history_images.size()), 1);
+  ASSERT_EQ(history_images.size(), 1u);
 
   // Check that resized encoded versions of the original bitmaps is what we
   // get back and that the id matches.

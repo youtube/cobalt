@@ -329,7 +329,7 @@ suite('GlicSubpage', function() {
       // Toggles should all have values from the real pref and be enabled.
       let toggles = page.shadowRoot!.querySelectorAll(
           'settings-toggle-button[checked]:not([disabled])');
-      assertEquals(6, toggles.length);
+      assertEquals(7, toggles.length);
 
       await setDisallowedByAdminAndSimulateUpdate(true);
 
@@ -343,7 +343,7 @@ suite('GlicSubpage', function() {
 
       toggles = page.shadowRoot!.querySelectorAll(
           'settings-toggle-button:not([checked])[disabled]');
-      assertEquals(6, toggles.length);
+      assertEquals(7, toggles.length);
 
       // Re-enable the policy, the page should go back to the initial state.
       await setDisallowedByAdminAndSimulateUpdate(false);
@@ -355,7 +355,7 @@ suite('GlicSubpage', function() {
 
       toggles = page.shadowRoot!.querySelectorAll(
           'settings-toggle-button[checked]:not([disabled])');
-      assertEquals(6, toggles.length);
+      assertEquals(7, toggles.length);
     });
 
     test('ManageActivityRow', async () => {
@@ -580,6 +580,54 @@ suite('GlicSubpage', function() {
       assertFalse(page.getPref(PrefName.CLOSED_CAPTIONS_ENABLED).value);
       assertFalse(closedCaptionsToggle.checked);
       await verifyUserAction('Glic.Settings.ClosedCaptions.Disabled');
+    });
+  });
+
+  suite('KeepSidepanelOpenOnNewTabsToggleEnabled', () => {
+    test('KeepSidepanelOpenOnNewTabsFeatureEnabled', () => {
+      const keepSidepanelOpenOnNewTabsToggle =
+          $<SettingsToggleButtonElement>('keepSidepanelOpenOnNewTabsToggle')!;
+      assertTrue(isVisible(keepSidepanelOpenOnNewTabsToggle));
+    });
+
+    test('KeepSidepanelOpenOnNewTabsToggleEnabled', () => {
+      page.setPrefValue(PrefName.KEEP_SIDEPANEL_OPEN_ON_NEW_TABS_ENABLED, true);
+
+      assertTrue(
+          $<SettingsToggleButtonElement>(
+              'keepSidepanelOpenOnNewTabsToggle')!.checked);
+    });
+
+    test('KeepSidepanelOpenOnNewTabsToggleDisabled', () => {
+      page.setPrefValue(
+          PrefName.KEEP_SIDEPANEL_OPEN_ON_NEW_TABS_ENABLED, false);
+
+      assertFalse(
+          $<SettingsToggleButtonElement>(
+              'keepSidepanelOpenOnNewTabsToggle')!.checked);
+    });
+
+    test('KeepSidepanelOpenOnNewTabsToggleChanged', async () => {
+      page.setPrefValue(
+          PrefName.KEEP_SIDEPANEL_OPEN_ON_NEW_TABS_ENABLED, false);
+
+      const keepSidepanelOpenOnNewTabsToggle =
+          $<SettingsToggleButtonElement>('keepSidepanelOpenOnNewTabsToggle')!;
+      assertTrue(!!keepSidepanelOpenOnNewTabsToggle);
+
+      keepSidepanelOpenOnNewTabsToggle.click();
+      assertTrue(
+          page.getPref(PrefName.KEEP_SIDEPANEL_OPEN_ON_NEW_TABS_ENABLED).value);
+      assertTrue(keepSidepanelOpenOnNewTabsToggle.checked);
+      await verifyUserAction(
+          'Glic.Settings.KeepSidepanelOpenOnNewTabs.Enabled');
+
+      keepSidepanelOpenOnNewTabsToggle.click();
+      assertFalse(
+          page.getPref(PrefName.KEEP_SIDEPANEL_OPEN_ON_NEW_TABS_ENABLED).value);
+      assertFalse(keepSidepanelOpenOnNewTabsToggle.checked);
+      await verifyUserAction(
+          'Glic.Settings.KeepSidepanelOpenOnNewTabs.Disabled');
     });
   });
 

@@ -301,11 +301,6 @@ class AddressDataManager : public AutofillWebDataServiceObserverOnUISequence {
     return auto_accept_address_imports_for_testing_;
   }
 
-  AlternativeStateNameMapUpdater*
-  get_alternative_state_name_map_updater_for_testing() {
-    return alternative_state_name_map_updater_.get();
-  }
-
   HomeAndWorkMetadataStore* home_and_work_metadata_store() {
     return home_and_work_metadata_.get();
   }
@@ -471,6 +466,8 @@ class AddressDataManager : public AutofillWebDataServiceObserverOnUISequence {
 
   // Used to populate AlternativeStateNameMap with the geographical state data
   // (including their abbreviations and localized names).
+  // For ownership discussion see:
+  // https://crrev.com/c/7233861/comments/c09f1ac4_8ac62a3c.
   std::unique_ptr<AlternativeStateNameMapUpdater>
       alternative_state_name_map_updater_;
 

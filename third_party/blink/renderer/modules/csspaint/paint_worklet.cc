@@ -29,16 +29,18 @@ const size_t kMaxPaintCountToSwitch = 30u;
 
 // static
 PaintWorklet* PaintWorklet::From(LocalDOMWindow& window) {
-  PaintWorklet* supplement = window.GetPaintWorklet();
+  PaintWorklet* supplement =
+      Supplement<LocalDOMWindow>::From<PaintWorklet>(window);
   if (!supplement && window.GetFrame()) {
     supplement = MakeGarbageCollected<PaintWorklet>(window);
-    window.SetPaintWorklet(supplement);
+    ProvideTo(window, supplement);
   }
   return supplement;
 }
 
 PaintWorklet::PaintWorklet(LocalDOMWindow& window)
     : Worklet(window),
+      Supplement<LocalDOMWindow>(window),
       pending_generator_registry_(
           MakeGarbageCollected<PaintWorkletPendingGeneratorRegistry>()),
       worklet_id_(PaintWorkletIdGenerator::NextId()),
@@ -138,10 +140,15 @@ scoped_refptr<Image> PaintWorklet::Paint(const String& name,
   return PaintGeneratedImage::Create(std::move(paint_record), container_size);
 }
 
+// static
+const unsigned PaintWorklet::kSupplementIndex =
+    static_cast<unsigned>(LocalDOMWindow::Supplements::kPaintWorklet);
+
 void PaintWorklet::Trace(Visitor* visitor) const {
   visitor->Trace(pending_generator_registry_);
   visitor->Trace(proxy_client_);
   Worklet::Trace(visitor);
+  Supplement<LocalDOMWindow>::Trace(visitor);
 }
 
 void PaintWorklet::RegisterCSSPaintDefinition(const String& name,

@@ -14,6 +14,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
+#include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/permissions/permission_actions_history_factory.h"
 #include "chrome/browser/permissions/prediction_service/prediction_model_handler_provider.h"
 #include "chrome/browser/permissions/prediction_service/prediction_model_handler_provider_factory.h"
@@ -101,6 +102,12 @@ class PermissionsAiUiSelectorTestBase : public ChromeRenderViewHostTestHarness {
   void TearDown() override {
     model_handler_provider_ = nullptr;
     ChromeRenderViewHostTestHarness::TearDown();
+  }
+
+  TestingProfile::TestingFactories GetTestingFactories() const override {
+    return {TestingProfile::TestingFactory{
+        HistoryServiceFactory::GetInstance(),
+        HistoryServiceFactory::GetDefaultFactory()}};
   }
 
   void InitFeatureList(const std::string holdback_chance_string = "0") {
@@ -569,7 +576,7 @@ TEST_F(PermissionsLikelihoodHistogramTest, NoMsbb_Likelihood_Recorded_Test) {
       permissions::PermissionRequestGestureType::GESTURE));
 
   permissions::PermissionUmaUtil::PermissionPromptResolved(
-      requests, web_contents(), permissions::PermissionAction::GRANTED,
+      requests, browser_context(), permissions::PermissionAction::GRANTED,
       base::TimeDelta(),
       permissions::PermissionPromptDisposition::ANCHORED_BUBBLE,
       /*ui_reason=*/std::nullopt,
@@ -583,7 +590,8 @@ TEST_F(PermissionsLikelihoodHistogramTest, NoMsbb_Likelihood_Recorded_Test) {
       /*ignored_reason*/ std::nullopt,
       /*did_show_prompt=*/false,
       /*did_click_manage=*/false,
-      /*did_click_learn_more=*/false);
+      /*did_click_learn_more=*/false,
+      /*initial_geolocation_accuracy_selection=*/std::nullopt);
 
   histogram_tester_.ExpectUniqueSample(
       "Permissions.PredictionService.NoMSBB.Notifications.Gesture",
@@ -602,7 +610,7 @@ TEST_F(PermissionsLikelihoodHistogramTest, Msbb_No_Likelihood_Recorded_Test) {
       permissions::PermissionRequestGestureType::GESTURE));
 
   permissions::PermissionUmaUtil::PermissionPromptResolved(
-      requests, web_contents(), permissions::PermissionAction::GRANTED,
+      requests, browser_context(), permissions::PermissionAction::GRANTED,
       base::TimeDelta(),
       permissions::PermissionPromptDisposition::ANCHORED_BUBBLE,
       /*ui_reason=*/std::nullopt,
@@ -616,7 +624,8 @@ TEST_F(PermissionsLikelihoodHistogramTest, Msbb_No_Likelihood_Recorded_Test) {
       /*ignored_reason*/ std::nullopt,
       /*did_show_prompt=*/false,
       /*did_click_manage=*/false,
-      /*did_click_learn_more=*/false);
+      /*did_click_learn_more=*/false,
+      /*initial_geolocation_accuracy_selection=*/std::nullopt);
 
   histogram_tester_.ExpectTotalCount(
       "Permissions.PredictionService.NoMSBB.Notifications.Gesture", 0);
@@ -635,7 +644,7 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       permissions::PermissionRequestGestureType::GESTURE));
 
   permissions::PermissionUmaUtil::PermissionPromptResolved(
-      requests, web_contents(), permissions::PermissionAction::GRANTED,
+      requests, browser_context(), permissions::PermissionAction::GRANTED,
       base::TimeDelta(),
       permissions::PermissionPromptDisposition::LOCATION_BAR_LEFT_QUIET_CHIP,
       /*ui_reason=*/std::nullopt,
@@ -648,7 +657,8 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       /*ignored_reason*/ std::nullopt,
       /*did_show_prompt=*/false,
       /*did_click_manage=*/false,
-      /*did_click_learn_more=*/false);
+      /*did_click_learn_more=*/false,
+      /*initial_geolocation_accuracy_selection=*/std::nullopt);
 
   histogram_tester_.ExpectTotalCount(
       "Permissions.PredictionService.Action.Notifications.VeryUnlikely.Quiet",
@@ -668,7 +678,7 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       permissions::PermissionRequestGestureType::GESTURE));
 
   permissions::PermissionUmaUtil::PermissionPromptResolved(
-      requests, web_contents(), permissions::PermissionAction::GRANTED,
+      requests, browser_context(), permissions::PermissionAction::GRANTED,
       base::TimeDelta(),
       permissions::PermissionPromptDisposition::LOCATION_BAR_LEFT_QUIET_CHIP,
       /*ui_reason=*/std::nullopt,
@@ -681,7 +691,8 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       /*ignored_reason*/ std::nullopt,
       /*did_show_prompt=*/false,
       /*did_click_manage=*/false,
-      /*did_click_learn_more=*/false);
+      /*did_click_learn_more=*/false,
+      /*initial_geolocation_accuracy_selection=*/std::nullopt);
 
   histogram_tester_.ExpectTotalCount(
       "Permissions.PredictionService.Action.Notifications.Unlikely.Quiet", 1);
@@ -700,7 +711,7 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       permissions::PermissionRequestGestureType::GESTURE));
 
   permissions::PermissionUmaUtil::PermissionPromptResolved(
-      requests, web_contents(), permissions::PermissionAction::GRANTED,
+      requests, browser_context(), permissions::PermissionAction::GRANTED,
       base::TimeDelta(),
       permissions::PermissionPromptDisposition::ANCHORED_BUBBLE,
       /*ui_reason=*/std::nullopt,
@@ -713,7 +724,8 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       /*ignored_reason*/ std::nullopt,
       /*did_show_prompt=*/false,
       /*did_click_manage=*/false,
-      /*did_click_learn_more=*/false);
+      /*did_click_learn_more=*/false,
+      /*initial_geolocation_accuracy_selection=*/std::nullopt);
 
   histogram_tester_.ExpectTotalCount(
       "Permissions.PredictionService.Action.Notifications.VeryUnlikely.Loud",
@@ -733,7 +745,7 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       permissions::PermissionRequestGestureType::GESTURE));
 
   permissions::PermissionUmaUtil::PermissionPromptResolved(
-      requests, web_contents(), permissions::PermissionAction::GRANTED,
+      requests, browser_context(), permissions::PermissionAction::GRANTED,
       base::TimeDelta(),
       permissions::PermissionPromptDisposition::ANCHORED_BUBBLE,
       /*ui_reason=*/std::nullopt,
@@ -746,7 +758,8 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       /*ignored_reason*/ std::nullopt,
       /*did_show_prompt=*/false,
       /*did_click_manage=*/false,
-      /*did_click_learn_more=*/false);
+      /*did_click_learn_more=*/false,
+      /*initial_geolocation_accuracy_selection=*/std::nullopt);
 
   histogram_tester_.ExpectTotalCount(
       "Permissions.PredictionService.Action.Notifications.Unlikely.Loud", 1);
@@ -765,7 +778,7 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       permissions::PermissionRequestGestureType::GESTURE));
 
   permissions::PermissionUmaUtil::PermissionPromptResolved(
-      requests, web_contents(), permissions::PermissionAction::GRANTED,
+      requests, browser_context(), permissions::PermissionAction::GRANTED,
       base::TimeDelta(),
       permissions::PermissionPromptDisposition::LOCATION_BAR_LEFT_QUIET_CHIP,
       /*ui_reason=*/std::nullopt,
@@ -778,7 +791,8 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       /*ignored_reason*/ std::nullopt,
       /*did_show_prompt=*/false,
       /*did_click_manage=*/false,
-      /*did_click_learn_more=*/false);
+      /*did_click_learn_more=*/false,
+      /*initial_geolocation_accuracy_selection=*/std::nullopt);
 
   histogram_tester_.ExpectTotalCount(
       "Permissions.PredictionService.Action.Geolocation.VeryUnlikely.Quiet", 1);
@@ -797,7 +811,7 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       permissions::PermissionRequestGestureType::GESTURE));
 
   permissions::PermissionUmaUtil::PermissionPromptResolved(
-      requests, web_contents(), permissions::PermissionAction::GRANTED,
+      requests, browser_context(), permissions::PermissionAction::GRANTED,
       base::TimeDelta(),
       permissions::PermissionPromptDisposition::ANCHORED_BUBBLE,
       /*ui_reason=*/std::nullopt,
@@ -810,7 +824,8 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       /*ignored_reason*/ std::nullopt,
       /*did_show_prompt=*/false,
       /*did_click_manage=*/false,
-      /*did_click_learn_more=*/false);
+      /*did_click_learn_more=*/false,
+      /*initial_geolocation_accuracy_selection=*/std::nullopt);
 
   histogram_tester_.ExpectTotalCount(
       "Permissions.PredictionService.Action.Geolocation.Likely.Loud", 0);
@@ -829,7 +844,7 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       permissions::PermissionRequestGestureType::GESTURE));
 
   permissions::PermissionUmaUtil::PermissionPromptResolved(
-      requests, web_contents(), permissions::PermissionAction::GRANTED,
+      requests, browser_context(), permissions::PermissionAction::GRANTED,
       base::TimeDelta(),
       permissions::PermissionPromptDisposition::ANCHORED_BUBBLE,
       /*ui_reason=*/std::nullopt,
@@ -843,7 +858,8 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       /*ignored_reason*/ std::nullopt,
       /*did_show_prompt=*/false,
       /*did_click_manage=*/false,
-      /*did_click_learn_more=*/false);
+      /*did_click_learn_more=*/false,
+      /*initial_geolocation_accuracy_selection=*/std::nullopt);
 
   histogram_tester_.ExpectUniqueSample(
       "Permissions.PredictionService.Notifications.Gesture",
@@ -863,7 +879,7 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       permissions::PermissionRequestGestureType::NO_GESTURE));
 
   permissions::PermissionUmaUtil::PermissionPromptResolved(
-      requests, web_contents(), permissions::PermissionAction::GRANTED,
+      requests, browser_context(), permissions::PermissionAction::GRANTED,
       base::TimeDelta(),
       permissions::PermissionPromptDisposition::ANCHORED_BUBBLE,
       /*ui_reason=*/std::nullopt,
@@ -877,7 +893,8 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       /*ignored_reason*/ std::nullopt,
       /*did_show_prompt=*/false,
       /*did_click_manage=*/false,
-      /*did_click_learn_more=*/false);
+      /*did_click_learn_more=*/false,
+      /*initial_geolocation_accuracy_selection=*/std::nullopt);
 
   histogram_tester_.ExpectUniqueSample(
       "Permissions.PredictionService.Notifications.NoGesture",
@@ -897,7 +914,7 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       permissions::PermissionRequestGestureType::NO_GESTURE));
 
   permissions::PermissionUmaUtil::PermissionPromptResolved(
-      requests, web_contents(), permissions::PermissionAction::GRANTED,
+      requests, browser_context(), permissions::PermissionAction::GRANTED,
       base::TimeDelta(),
       permissions::PermissionPromptDisposition::ANCHORED_BUBBLE,
       /*ui_reason=*/std::nullopt,
@@ -911,7 +928,8 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       /*ignored_reason*/ std::nullopt,
       /*did_show_prompt=*/false,
       /*did_click_manage=*/false,
-      /*did_click_learn_more=*/false);
+      /*did_click_learn_more=*/false,
+      /*initial_geolocation_accuracy_selection=*/std::nullopt);
 
   histogram_tester_.ExpectUniqueSample(
       "Permissions.PredictionService.Notifications.NoGesture",
@@ -931,7 +949,7 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       permissions::PermissionRequestGestureType::GESTURE));
 
   permissions::PermissionUmaUtil::PermissionPromptResolved(
-      requests, web_contents(), permissions::PermissionAction::GRANTED,
+      requests, browser_context(), permissions::PermissionAction::GRANTED,
       base::TimeDelta(),
       permissions::PermissionPromptDisposition::ANCHORED_BUBBLE,
       /*ui_reason=*/std::nullopt,
@@ -945,7 +963,8 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       /*ignored_reason*/ std::nullopt,
       /*did_show_prompt=*/false,
       /*did_click_manage=*/false,
-      /*did_click_learn_more=*/false);
+      /*did_click_learn_more=*/false,
+      /*initial_geolocation_accuracy_selection=*/std::nullopt);
 
   histogram_tester_.ExpectUniqueSample(
       "Permissions.PredictionService.Geolocation.Gesture",
@@ -965,7 +984,7 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       permissions::PermissionRequestGestureType::GESTURE));
 
   permissions::PermissionUmaUtil::PermissionPromptResolved(
-      requests, web_contents(), permissions::PermissionAction::GRANTED,
+      requests, browser_context(), permissions::PermissionAction::GRANTED,
       base::TimeDelta(),
       permissions::PermissionPromptDisposition::ANCHORED_BUBBLE,
       /*ui_reason=*/std::nullopt,
@@ -977,7 +996,8 @@ TEST_F(PermissionsLikelihoodHistogramTest,
       /*ignored_reason*/ std::nullopt,
       /*did_show_prompt=*/false,
       /*did_click_manage=*/false,
-      /*did_click_learn_more=*/false);
+      /*did_click_learn_more=*/false,
+      /*initial_geolocation_accuracy_selection=*/std::nullopt);
 
   histogram_tester_.ExpectTotalCount(
       "Permissions.PredictionService.Geolocation.Gesture", 0);

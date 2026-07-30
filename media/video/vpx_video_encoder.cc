@@ -577,7 +577,7 @@ void VpxVideoEncoder::Encode(scoped_refptr<VideoFrame> frame,
     return;
   }
 
-  if (frame->format() == PIXEL_FORMAT_NV12 && frame->HasMappableGpuBuffer()) {
+  if (frame->format() == PIXEL_FORMAT_NV12 && frame->HasMappableSharedImage()) {
     frame = ConvertToMemoryMappedFrame(frame);
     if (!frame) {
       std::move(done_cb).Run(
@@ -731,6 +731,10 @@ void VpxVideoEncoder::Encode(scoped_refptr<VideoFrame> frame,
     DCHECK_EQ(options_.bitrate->mode(), Bitrate::Mode::kExternal);
     // Convert double quantizer to an integer within codec's supported range.
     int qp = static_cast<int>(std::lround(encode_options.quantizer.value()));
+    if (base::FeatureList::IsEnabled(kStandardizeVP9AndAV1Quantizer)) {
+      // VP9 uses the same quantization range (0-63) as AV1.
+      qp = QIndexToQuantizer(VideoCodec::kVP9, qp);
+    }
     qp = std::clamp(qp, static_cast<int>(codec_config_.rc_min_quantizer),
                     static_cast<int>(codec_config_.rc_max_quantizer));
     vpx_codec_control(codec_.get(), VP9E_SET_QUANTIZER_ONE_PASS, qp);

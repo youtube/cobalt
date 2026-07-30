@@ -4,7 +4,6 @@
 
 package org.chromium.chrome.browser.compositor.overlays.strip;
 
-import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.BUTTON_TOUCH_TARGET_SIZE_DP;
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.MIN_TAB_WIDTH_DP;
@@ -33,14 +32,17 @@ import androidx.appcompat.content.res.AppCompatResources;
 
 import org.chromium.base.Callback;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.EnsuresNonNullIf;
 import org.chromium.build.annotations.MonotonicNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsOffsetTagsInfo;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsUtils;
@@ -103,6 +105,7 @@ import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager.AppHeaderObserver;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
+import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.browser_ui.widget.scrim.ScrimProperties;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.LocalizationUtils;
@@ -268,8 +271,9 @@ public class StripLayoutHelperManager
     private final ObservableSupplier<LayerTitleCache> mLayerTitleCacheSupplier;
     private final BrowserControlsStateProvider mBrowserControlsStateProvider;
     private final Callback<Integer> mStripVisibilityStateObserver;
-    private final ObservableSupplierImpl<@StripVisibilityState Integer>
-            mStripVisibilityStateSupplier;
+    private final SettableNonNullObservableSupplier<@StripVisibilityState Integer>
+            mStripVisibilityStateSupplier =
+                    ObservableSuppliers.createNonNull(StripVisibilityState.VISIBLE);
     private final @Nullable ObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
 
     // Drag-Drop
@@ -476,7 +480,8 @@ public class StripLayoutHelperManager
             DataSharingTabManager dataSharingTabManager,
             BottomSheetController bottomSheetController,
             Supplier<ShareDelegate> shareDelegateSupplier,
-            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
+            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier,
+            BackPressManager backPressManager) {
         mContext = context;
         Resources res = context.getResources();
         mManagerHost = managerHost;
@@ -505,7 +510,6 @@ public class StripLayoutHelperManager
                         : mScrollableStripHeight;
         mTopPadding = mHeight - mScrollableStripHeight;
         mDesktopWindowStateManager = desktopWindowStateManager;
-        mStripVisibilityStateSupplier = new ObservableSupplierImpl<>(StripVisibilityState.VISIBLE);
         mStripVisibilityStateObserver =
                 state -> {
                     if (mEventFilter == null) return;
@@ -546,6 +550,11 @@ public class StripLayoutHelperManager
                             () -> windowAndroid.getActivity().get(),
                             toolbarManager.getTabStripHeightSupplier(),
                             this::isAppInDesktopWindow);
+
+            if (ChromeFeatureList.sEscCancelDrag.isEnabled()) {
+                backPressManager.addHandler(
+                        mTabStripDragHandler, BackPressHandler.Type.CANCEL_TAB_STRIP_DRAG);
+            }
         }
 
         mToolbarManager = toolbarManager;
@@ -1746,15 +1755,15 @@ public class StripLayoutHelperManager
         return mIsIncognito ? mNormalHelper : mIncognitoHelper;
     }
 
-    public ObservableSupplier<@StripVisibilityState Integer> getStripVisibilityStateSupplier() {
+    public NonNullObservableSupplier<@StripVisibilityState Integer>
+            getStripVisibilityStateSupplier() {
         // TODO(crbug.com/417238089): get() returns a stale value during height transitions.
         return mStripVisibilityStateSupplier;
     }
 
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public void setStripVisibilityState(@StripVisibilityState int visibilityState, boolean clear) {
-        @StripVisibilityState
-        int curVisibility = assertNonNull(mStripVisibilityStateSupplier.get());
+        @StripVisibilityState int curVisibility = mStripVisibilityStateSupplier.get();
         mStripVisibilityStateSupplier.set(
                 clear ? (curVisibility & ~visibilityState) : (curVisibility | visibilityState));
     }

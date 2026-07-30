@@ -35,14 +35,14 @@ class PdfAccessibilityTreeBuilder {
       const chrome_pdf::AccessibilityPageObjects& page_objects,
       const chrome_pdf::AccessibilityPageInfo& page_info,
       uint32_t page_index,
+      const chrome_pdf::AccessibilityStructureElement* page_structure_tree,
       ui::AXNodeData* root_node,
       blink::WebAXObject* container_obj,
       std::vector<std::unique_ptr<ui::AXNodeData>>* nodes,
       std::map<int32_t, chrome_pdf::PageCharacterIndex>*
           node_id_to_page_char_index,
       std::map<int32_t, PdfAccessibilityTree::AnnotationInfo>*
-          node_id_to_annotation_info
-  );
+          node_id_to_annotation_info);
 
   PdfAccessibilityTreeBuilder(const PdfAccessibilityTreeBuilder&) = delete;
   PdfAccessibilityTreeBuilder& operator=(const PdfAccessibilityTreeBuilder&) =
@@ -51,13 +51,43 @@ class PdfAccessibilityTreeBuilder {
 
   void BuildPageTree();
 
- private:
-  friend class PdfAccessibilityTreeBuilderHeuristic;
+  // Accessors for tree builders.
+  bool mark_headings_using_heuristic() const {
+    return mark_headings_using_heuristic_;
+  }
+  ui::AXNodeData* page_node() const { return page_node_; }
+  const std::vector<chrome_pdf::AccessibilityTextRunInfo>& text_runs() const {
+    return *text_runs_;
+  }
+  const std::vector<uint32_t>& text_run_start_indices() const {
+    return text_run_start_indices_;
+  }
+  const std::vector<chrome_pdf::AccessibilityLinkInfo>& links() const {
+    return *links_;
+  }
+  const std::vector<chrome_pdf::AccessibilityImageInfo>& images() const {
+    return *images_;
+  }
+  const std::vector<chrome_pdf::AccessibilityHighlightInfo>& highlights()
+      const {
+    return *highlights_;
+  }
+  const std::vector<chrome_pdf::AccessibilityTextFieldInfo>& text_fields()
+      const {
+    return *text_fields_;
+  }
+  const std::vector<chrome_pdf::AccessibilityButtonInfo>& buttons() const {
+    return *buttons_;
+  }
+  const std::vector<chrome_pdf::AccessibilityChoiceFieldInfo>& choice_fields()
+      const {
+    return *choice_fields_;
+  }
+  uint32_t page_index() const { return page_index_; }
 
-  void AddWordStartsAndEnds(ui::AXNodeData* inline_text_box);
+  // Node creation methods used by tree builders.
   ui::AXNodeData* CreateAndAppendNode(ax::mojom::Role role,
                                       ax::mojom::Restriction restriction);
-  ui::AXNodeData* CreateStaticTextNode();
   ui::AXNodeData* CreateStaticTextNode(
       const chrome_pdf::PageCharacterIndex& page_char_index);
   ui::AXNodeData* CreateInlineTextBoxNode(
@@ -74,6 +104,16 @@ class PdfAccessibilityTreeBuilder {
       const chrome_pdf::AccessibilityTextFieldInfo& text_field);
   ui::AXNodeData* CreateButtonNode(
       const chrome_pdf::AccessibilityButtonInfo& button);
+  ui::AXNodeData* CreateChoiceFieldNode(
+      const chrome_pdf::AccessibilityChoiceFieldInfo& choice_field);
+#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
+  ui::AXNodeData* CreateOcrWrapperNode(const gfx::PointF& position, bool start);
+#endif
+
+ private:
+  bool IsFullyTaggedPage() const;
+  void AddWordStartsAndEnds(ui::AXNodeData* inline_text_box);
+  ui::AXNodeData* CreateStaticTextNode();
   ui::AXNodeData* CreateListboxOptionNode(
       const chrome_pdf::AccessibilityChoiceFieldOptionInfo& choice_field_option,
       ax::mojom::Restriction restriction);
@@ -85,11 +125,6 @@ class PdfAccessibilityTreeBuilder {
       ax::mojom::Restriction restriction);
   ui::AXNodeData* CreateComboboxNode(
       const chrome_pdf::AccessibilityChoiceFieldInfo& choice_field);
-  ui::AXNodeData* CreateChoiceFieldNode(
-      const chrome_pdf::AccessibilityChoiceFieldInfo& choice_field);
-#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
-  ui::AXNodeData* CreateOcrWrapperNode(const gfx::PointF& position, bool start);
-#endif
 
   const bool mark_headings_using_heuristic_;
   std::vector<uint32_t> text_run_start_indices_;
@@ -106,6 +141,8 @@ class PdfAccessibilityTreeBuilder {
       buttons_;
   const raw_ref<const std::vector<chrome_pdf::AccessibilityChoiceFieldInfo>>
       choice_fields_;
+  const raw_ptr<const chrome_pdf::AccessibilityStructureElement>
+      page_structure_tree_;
 
   uint32_t page_index_;
   raw_ptr<ui::AXNodeData> root_node_;

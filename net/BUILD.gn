@@ -485,6 +485,8 @@ component("net") {
     "disk_cache/backend_cleanup_tracker.h",
     "disk_cache/backend_experiment.cc",
     "disk_cache/backend_experiment.h",
+    "disk_cache/basic_cache_file.cc",
+    "disk_cache/basic_cache_file.h",
     "disk_cache/blockfile/addr.cc",
     "disk_cache/blockfile/addr.h",
     "disk_cache/blockfile/backend_impl.cc",
@@ -523,6 +525,7 @@ component("net") {
     "disk_cache/blockfile/storage_block.h",
     "disk_cache/blockfile/stress_support.h",
     "disk_cache/cache_encryption_delegate.h",
+    "disk_cache/cache_file.h",
     "disk_cache/cache_util.cc",
     "disk_cache/cache_util.h",
     "disk_cache/disk_cache.cc",
@@ -851,6 +854,8 @@ component("net") {
     "proxy_resolution/proxy_resolver_factory.cc",
     "proxy_resolution/proxy_resolver_factory.h",
     "proxy_resolution/proxy_retry_info.h",
+    "proxy_resolution/resolve_host_request.cc",
+    "proxy_resolution/resolve_host_request.h",
     "quic/address_utils.h",
     "quic/bidirectional_stream_quic_impl.cc",
     "quic/bidirectional_stream_quic_impl.h",
@@ -943,6 +948,7 @@ component("net") {
     "shared_dictionary/shared_dictionary_network_transaction.h",
     "shared_dictionary/shared_dictionary_network_transaction_factory.cc",
     "shared_dictionary/shared_dictionary_network_transaction_factory.h",
+    "shared_dictionary/shared_dictionary_transaction_outcome.h",
     "socket/client_socket_factory.cc",
     "socket/client_socket_factory.h",
     "socket/client_socket_handle.cc",
@@ -1254,10 +1260,13 @@ component("net") {
     sources += [
       "device_bound_sessions/cookie_craving.cc",
       "device_bound_sessions/cookie_craving.h",
+      "device_bound_sessions/dbsc_request.cc",
+      "device_bound_sessions/dbsc_request.h",
       "device_bound_sessions/host_patterns.cc",
       "device_bound_sessions/host_patterns.h",
       "device_bound_sessions/jwk_utils.cc",
       "device_bound_sessions/jwk_utils.h",
+      "device_bound_sessions/refresh_result.h",
       "device_bound_sessions/registration_fetcher.cc",
       "device_bound_sessions/registration_fetcher.h",
       "device_bound_sessions/registration_fetcher_param.cc",
@@ -1392,6 +1401,7 @@ component("net") {
       "cert/test_keychain_search_list_mac.cc",
       "cert/test_keychain_search_list_mac.h",
       "cert/test_root_certs_builtin.cc",
+      "proxy_resolution/mac/mac_proxy_resolution_status.h",
       "proxy_resolution/proxy_config_service_mac.cc",
       "proxy_resolution/proxy_config_service_mac.h",
       "ssl/client_cert_identity_mac.cc",
@@ -3748,6 +3758,7 @@ fuzzer_test("net_parse_proxy_list_pac_fuzzer") {
     ":net_fuzzer_test_support",
     "//net",
   ]
+  libfuzzer_options = [ "max_len=131072" ]
 }
 
 fuzzer_test("net_parse_proxy_host_matching_rules_fuzzer") {

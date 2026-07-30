@@ -33,7 +33,7 @@ class ComposeboxQueryControllerBridge
  public:
   explicit ComposeboxQueryControllerBridge(
       Profile* profile,
-      const base::android::JavaParamRef<jobject>& java_obj);
+      const base::android::JavaRef<jobject>& java_obj);
   ~ComposeboxQueryControllerBridge() override;
   void Destroy(JNIEnv* env);
   void NotifySessionStarted(JNIEnv* env);
@@ -42,7 +42,7 @@ class ComposeboxQueryControllerBridge
       JNIEnv* env,
       std::string& file_name,
       std::string& file_type,
-      const jni_zero::JavaParamRef<jobject>& file_data);
+      const jni_zero::JavaRef<jobject>& file_data);
   base::android::ScopedJavaLocalRef<jobject> AddTabContext(
       JNIEnv* env,
       content::WebContents* web_contents);
@@ -66,12 +66,6 @@ class ComposeboxQueryControllerBridge
       const std::optional<contextual_search::FileUploadErrorType>& error_type)
       override;
 
-  // Install/clear the callback to be notified when the Lens is done processing
-  // attachments and is ready to serve fresh suggestions.
-  void SetLensSignalsReadyObserver(base::RepeatingCallback<void()> callback) {
-    lens_signals_ready_callback_ = std::move(callback);
-  }
-
   base::WeakPtr<ComposeboxQueryControllerBridge> AsWeakPtr();
 
  private:
@@ -89,7 +83,6 @@ class ComposeboxQueryControllerBridge
 
   raw_ptr<Profile> profile_;
   std::unique_ptr<ComposeboxQueryController> query_controller_;
-  base::RepeatingCallback<void()> lens_signals_ready_callback_;
   base::android::ScopedJavaGlobalRef<jobject> java_obj_;
   base::WeakPtrFactory<ComposeboxQueryControllerBridge> weak_ptr_factory_{this};
 };

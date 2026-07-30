@@ -25,7 +25,7 @@
 #include "components/webauthn/core/browser/passkey_model.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
-#include "device/fido/features.h"
+#include "device/fido/public/features.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
@@ -252,7 +252,12 @@ IN_PROC_BROWSER_TEST_F(
                         &cred_id2_base64);
   AddPasskey(kUser2, cred_id2);
 
-  ASSERT_EQ(passkey_model().GetAllPasskeys().size(), 2u);
+  ASSERT_EQ(
+      passkey_model()
+          .GetPasskeys(webauthn::PasskeyModel::AnyRp(),
+                       webauthn::PasskeyModel::ShadowedCredentials::kInclude)
+          .size(),
+      2u);
 
   RunTestSequence(
       GetStepsUntilButtonClick(kGetImmediateButton),

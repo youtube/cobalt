@@ -26,8 +26,8 @@ static base::ReadOnlySharedMemoryRegion CreateFakePage(size_t page_size) {
 }
 
 constexpr std::pair<ScanRequestUploadResult, size_t> kTestValues[] = {
-    {ScanRequestUploadResult::SUCCESS, 1024},
-    {ScanRequestUploadResult::FILE_TOO_LARGE, 50 * 1024 * 1024}};
+    {ScanRequestUploadResult::kSuccess, 1024},
+    {ScanRequestUploadResult::kFileTooLarge, 50 * 1024 * 1024}};
 
 class PagePrintAnalysisRequestTest
     : public testing::TestWithParam<
@@ -51,9 +51,8 @@ TEST_P(PagePrintAnalysisRequestTest, CloudSizes) {
 
   base::RunLoop run_loop;
   request.GetRequestData(base::BindLambdaForTesting(
-      [&run_loop, this](
-          ScanRequestUploadResult result,
-          safe_browsing::BinaryUploadService::Request::Data data) {
+      [&run_loop, this](ScanRequestUploadResult result,
+                        BinaryUploadRequest::Data data) {
         ASSERT_TRUE(data.contents.empty());
         ASSERT_TRUE(data.hash.empty());
         ASSERT_TRUE(data.mime_type.empty());
@@ -80,15 +79,14 @@ TEST_P(PagePrintAnalysisRequestTest, LocalSizes) {
 
   base::RunLoop run_loop;
   request.GetRequestData(base::BindLambdaForTesting(
-      [&run_loop, this](
-          ScanRequestUploadResult result,
-          safe_browsing::BinaryUploadService::Request::Data data) {
+      [&run_loop, this](ScanRequestUploadResult result,
+                        BinaryUploadRequest::Data data) {
         ASSERT_TRUE(data.contents.empty());
         ASSERT_TRUE(data.hash.empty());
         ASSERT_TRUE(data.mime_type.empty());
         ASSERT_TRUE(data.path.empty());
 
-        ASSERT_EQ(result, ScanRequestUploadResult::SUCCESS);
+        ASSERT_EQ(result, ScanRequestUploadResult::kSuccess);
         ASSERT_EQ(data.size, page_size());
         ASSERT_EQ(data.page.GetSize(), page_size());
         ASSERT_TRUE(data.page.IsValid());
@@ -104,17 +102,15 @@ TEST(PagePrintAnalysisRequest, GetRequestData) {
   PagePrintAnalysisRequest request(AnalysisSettings(), CreateFakePage(1024),
                                    base::DoNothing());
 
-  safe_browsing::BinaryUploadService::Request::Data data1;
+  BinaryUploadRequest::Data data1;
   request.GetRequestData(base::BindLambdaForTesting(
-      [&data1](ScanRequestUploadResult result,
-               safe_browsing::BinaryUploadService::Request::Data data) {
+      [&data1](ScanRequestUploadResult result, BinaryUploadRequest::Data data) {
         data1 = std::move(data);
       }));
 
-  safe_browsing::BinaryUploadService::Request::Data data2;
+  BinaryUploadRequest::Data data2;
   request.GetRequestData(base::BindLambdaForTesting(
-      [&data2](ScanRequestUploadResult result,
-               safe_browsing::BinaryUploadService::Request::Data data) {
+      [&data2](ScanRequestUploadResult result, BinaryUploadRequest::Data data) {
         data2 = std::move(data);
       }));
 

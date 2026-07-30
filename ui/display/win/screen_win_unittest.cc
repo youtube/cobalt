@@ -6,7 +6,6 @@
 
 #include <windows.h>
 
-#include <inttypes.h>
 #include <stddef.h>
 
 #include <optional>
@@ -29,7 +28,6 @@
 #include "ui/display/display_features.h"
 #include "ui/display/display_switches.h"
 #include "ui/display/screen.h"
-#include "ui/display/test/display_test_util.h"
 #include "ui/display/win/display_info.h"
 #include "ui/display/win/screen_win_display.h"
 #include "ui/display/win/test/screen_util_win.h"
@@ -185,8 +183,9 @@ class TestScreenWinManager final : public TestScreenWinInitializer {
       cached_hmonitor = monitor;
     }
     display_infos_.push_back(internal::DisplayInfo(
-        std::move(cached_hmonitor), monitor_info, device_scale_factor, 1.0f,
-        Display::ROTATE_0, 60.0f, gfx::Vector2dF(), tech, std::string()));
+        std::move(cached_hmonitor), monitor_info, device_scale_factor,
+        Display::kDefaultBitsPerPixel, 1.0f, Display::ROTATE_0, 60.0f,
+        gfx::Vector2dF(), tech, std::string()));
   }
 
   HWND CreateFakeHwnd(const gfx::Rect& bounds) override {
@@ -4009,9 +4008,9 @@ class ScreenWinTestOneDisplayLongName : public ScreenWinTest {
       const ScreenWinTestOneDisplayLongName&) = delete;
 
   void SetUpScreen(TestScreenWinInitializer* initializer) override {
-    const wchar_t* device_name = L"ThisDeviceNameIs32CharactersLong";
+    const wchar_t* device_name = L"ADeviceNameWithTheMaximumLength";
     EXPECT_EQ(::wcslen(device_name),
-              static_cast<size_t>(ARRAYSIZE(MONITORINFOEX::szDevice)));
+              static_cast<size_t>(ARRAYSIZE(MONITORINFOEX::szDevice)) - 1);
     initializer->AddMonitor(gfx::Rect(0, 0, 1920, 1200),
                             gfx::Rect(0, 0, 1920, 1100), device_name, 1.0);
   }
@@ -4029,7 +4028,7 @@ TEST_P(ScreenWinTestOneDisplayLongName, CheckIdStability) {
   // coordinates across runs. As a result, the IDs must remain stable.
   Screen* screen = GetScreen();
   ASSERT_EQ(1, screen->GetNumDisplays());
-  EXPECT_EQ(1875308985, screen->GetAllDisplays()[0].id());
+  EXPECT_EQ(4007836403, screen->GetAllDisplays()[0].id());
 }
 
 namespace {

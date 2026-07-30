@@ -25,6 +25,7 @@
 
 #include <memory>
 
+#include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/time/time.h"
 #include "cc/input/event_listener_properties.h"
@@ -147,9 +148,10 @@ class CORE_EXPORT ChromeClient : public GarbageCollected<ChromeClient> {
   virtual void SetWindowRect(const gfx::Rect&, LocalFrame&) = 0;
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-  virtual void Minimize(LocalFrame&) = 0;
-  virtual void Maximize(LocalFrame&) = 0;
-  virtual void Restore(LocalFrame&) = 0;
+  using WindowShowStateChangeCallback = base::OnceCallback<void(bool)>;
+  virtual void Minimize(LocalFrame&, WindowShowStateChangeCallback) = 0;
+  virtual void Maximize(LocalFrame&, WindowShowStateChangeCallback) = 0;
+  virtual void Restore(LocalFrame&, WindowShowStateChangeCallback) = 0;
   virtual void SetResizable(bool resizable, LocalFrame&) = 0;
 #endif
 
@@ -563,7 +565,6 @@ class CORE_EXPORT ChromeClient : public GarbageCollected<ChromeClient> {
   virtual void OnMouseDown(Node&) {}
 
   virtual void DidUpdateBrowserControls() const {}
-  virtual void DidUpdateLoadProgress(float) {}
 
   virtual void DidUpdateMaxSafeAreaInsets(
       const gfx::InsetsF& max_safe_area_insets) const {}

@@ -22,6 +22,7 @@ namespace cc {
 
 namespace {
 
+using DispatchBeginFrameArgs = ScrollEventMetrics::DispatchBeginFrameArgs;
 using BeginFrameArgsForScrollJank =
     ScrollJankV4Frame::BeginFrameArgsForScrollJank;
 using ScrollDamage = ScrollJankV4Frame::ScrollDamage;
@@ -56,6 +57,16 @@ class ScrollJankV4FrameTest : public testing::Test {
         /* deadline= */ frame_time + kVsyncInterval / 3,
         /* interval= */ kVsyncInterval,
         viz::BeginFrameArgs::BeginFrameArgsType::NORMAL);
+  }
+
+  static DispatchBeginFrameArgs CreateDispatchBeginFrameArgs(
+      int sequence_id,
+      base::TimeTicks frame_time) {
+    return {
+        .frame_time = frame_time,
+        .interval = kVsyncInterval,
+        .frame_id = viz::BeginFrameId(kSourceId, sequence_id),
+    };
   }
 
   EventMetricsTestCreator metrics_creator_;
@@ -100,32 +111,33 @@ TEST_F(ScrollJankV4FrameTest, IgnoreNonScrollEvents) {
 }
 
 TEST_F(ScrollJankV4FrameTest, OneNonDamagingFrame) {
-  viz::BeginFrameArgs args = CreateBeginFrameArgs(31, MillisecondsTicks(111));
+  DispatchBeginFrameArgs dispatch_args =
+      CreateDispatchBeginFrameArgs(31, MillisecondsTicks(111));
   EventMetrics::List events_metrics;
   events_metrics.push_back(metrics_creator_.CreateInertialGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(10),
        .delta = 1.0f,
        .caused_frame_update = false,
        .did_scroll = false,
-       .begin_frame_args = args}));
+       .dispatch_args = dispatch_args}));
   events_metrics.push_back(metrics_creator_.CreateInertialGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(11),
        .delta = 2.0f,
        .caused_frame_update = true,
        .did_scroll = false,
-       .begin_frame_args = args}));
+       .dispatch_args = dispatch_args}));
   events_metrics.push_back(metrics_creator_.CreateInertialGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(12),
        .delta = 3.0f,
        .caused_frame_update = false,
        .did_scroll = true,
-       .begin_frame_args = args}));
+       .dispatch_args = dispatch_args}));
   events_metrics.push_back(metrics_creator_.CreateInertialGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(13),
        .delta = 4.0f,
        .caused_frame_update = false,
        .did_scroll = false,
-       .begin_frame_args = args}));
+       .dispatch_args = dispatch_args}));
   viz::BeginFrameArgs presented_args =
       CreateBeginFrameArgs(42, MillisecondsTicks(666));
   auto timeline = ScrollJankV4Frame::CalculateTimeline(
@@ -138,7 +150,6 @@ TEST_F(ScrollJankV4FrameTest, OneNonDamagingFrame) {
                                       .interval = kVsyncInterval},
           NonDamagingFrame{},
           {ScrollJankV4FrameStage{ScrollUpdates(
-              static_cast<ScrollUpdateEventMetrics*>(events_metrics[0].get()),
               Real{
                   .first_input_generation_ts = MillisecondsTicks(10),
                   .last_input_generation_ts = MillisecondsTicks(13),
@@ -150,9 +161,12 @@ TEST_F(ScrollJankV4FrameTest, OneNonDamagingFrame) {
 }
 
 TEST_F(ScrollJankV4FrameTest, MultipleNonDamagingFrames) {
-  viz::BeginFrameArgs args1 = CreateBeginFrameArgs(31, MillisecondsTicks(111));
-  viz::BeginFrameArgs args2 = CreateBeginFrameArgs(32, MillisecondsTicks(222));
-  viz::BeginFrameArgs args3 = CreateBeginFrameArgs(33, MillisecondsTicks(333));
+  DispatchBeginFrameArgs args1 =
+      CreateDispatchBeginFrameArgs(31, MillisecondsTicks(111));
+  DispatchBeginFrameArgs args2 =
+      CreateDispatchBeginFrameArgs(32, MillisecondsTicks(222));
+  DispatchBeginFrameArgs args3 =
+      CreateDispatchBeginFrameArgs(33, MillisecondsTicks(333));
   EventMetrics::List events_metrics;
 
   events_metrics.push_back(metrics_creator_.CreateFirstGestureScrollUpdate(
@@ -160,39 +174,39 @@ TEST_F(ScrollJankV4FrameTest, MultipleNonDamagingFrames) {
        .delta = 1.0f,
        .caused_frame_update = false,
        .did_scroll = false,
-       .begin_frame_args = args1}));
+       .dispatch_args = args1}));
   events_metrics.push_back(metrics_creator_.CreateGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(11),
        .delta = 2.0f,
        .caused_frame_update = false,
        .did_scroll = false,
-       .begin_frame_args = args1}));
+       .dispatch_args = args1}));
 
   events_metrics.push_back(metrics_creator_.CreateGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(12),
        .delta = 10.0f,
        .caused_frame_update = false,
        .did_scroll = true,
-       .begin_frame_args = args2}));
+       .dispatch_args = args2}));
   events_metrics.push_back(metrics_creator_.CreateGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(13),
        .delta = 20.0f,
        .caused_frame_update = false,
        .did_scroll = true,
-       .begin_frame_args = args2}));
+       .dispatch_args = args2}));
 
   events_metrics.push_back(metrics_creator_.CreateInertialGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(14),
        .delta = 100.0f,
        .caused_frame_update = true,
        .did_scroll = false,
-       .begin_frame_args = args3}));
+       .dispatch_args = args3}));
   events_metrics.push_back(metrics_creator_.CreateInertialGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(15),
        .delta = 200.0f,
        .caused_frame_update = true,
        .did_scroll = false,
-       .begin_frame_args = args3}));
+       .dispatch_args = args3}));
 
   viz::BeginFrameArgs presented_args =
       CreateBeginFrameArgs(42, MillisecondsTicks(666));
@@ -208,8 +222,6 @@ TEST_F(ScrollJankV4FrameTest, MultipleNonDamagingFrames) {
               NonDamagingFrame{},
               {ScrollJankV4FrameStage{ScrollStart{}},
                ScrollJankV4FrameStage{ScrollUpdates(
-                   static_cast<ScrollUpdateEventMetrics*>(
-                       events_metrics[0].get()),
                    Real{
                        .first_input_generation_ts = MillisecondsTicks(10),
                        .last_input_generation_ts = MillisecondsTicks(11),
@@ -223,8 +235,6 @@ TEST_F(ScrollJankV4FrameTest, MultipleNonDamagingFrames) {
                                           .interval = kVsyncInterval},
               NonDamagingFrame{},
               {ScrollJankV4FrameStage{ScrollUpdates(
-                  static_cast<ScrollUpdateEventMetrics*>(
-                      events_metrics[2].get()),
                   Real{
                       .first_input_generation_ts = MillisecondsTicks(12),
                       .last_input_generation_ts = MillisecondsTicks(13),
@@ -238,8 +248,6 @@ TEST_F(ScrollJankV4FrameTest, MultipleNonDamagingFrames) {
                                           .interval = kVsyncInterval},
               NonDamagingFrame{},
               {ScrollJankV4FrameStage{ScrollUpdates(
-                  static_cast<ScrollUpdateEventMetrics*>(
-                      events_metrics[4].get()),
                   Real{
                       .first_input_generation_ts = MillisecondsTicks(14),
                       .last_input_generation_ts = MillisecondsTicks(15),
@@ -251,9 +259,12 @@ TEST_F(ScrollJankV4FrameTest, MultipleNonDamagingFrames) {
 }
 
 TEST_F(ScrollJankV4FrameTest, OneDamagingFrame) {
-  viz::BeginFrameArgs args1 = CreateBeginFrameArgs(31, MillisecondsTicks(111));
-  viz::BeginFrameArgs args2 = CreateBeginFrameArgs(32, MillisecondsTicks(222));
-  viz::BeginFrameArgs args3 = CreateBeginFrameArgs(33, MillisecondsTicks(333));
+  DispatchBeginFrameArgs args1 =
+      CreateDispatchBeginFrameArgs(31, MillisecondsTicks(111));
+  DispatchBeginFrameArgs args2 =
+      CreateDispatchBeginFrameArgs(32, MillisecondsTicks(222));
+  DispatchBeginFrameArgs args3 =
+      CreateDispatchBeginFrameArgs(33, MillisecondsTicks(333));
   EventMetrics::List events_metrics;
 
   events_metrics.push_back(metrics_creator_.CreateFirstGestureScrollUpdate(
@@ -261,7 +272,7 @@ TEST_F(ScrollJankV4FrameTest, OneDamagingFrame) {
        .delta = 1.0f,
        .caused_frame_update = false,
        .did_scroll = false,
-       .begin_frame_args = args1}));
+       .dispatch_args = args1}));
   // events_metrics[1] below is the single damaging input which causes all
   // events to be associated with the presented frame.
   events_metrics.push_back(metrics_creator_.CreateGestureScrollUpdate(
@@ -269,33 +280,33 @@ TEST_F(ScrollJankV4FrameTest, OneDamagingFrame) {
        .delta = 2.0f,
        .caused_frame_update = true,
        .did_scroll = true,
-       .begin_frame_args = args1}));
+       .dispatch_args = args1}));
 
   events_metrics.push_back(metrics_creator_.CreateGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(12),
        .delta = 10.0f,
        .caused_frame_update = false,
        .did_scroll = true,
-       .begin_frame_args = args2}));
+       .dispatch_args = args2}));
   events_metrics.push_back(metrics_creator_.CreateGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(13),
        .delta = 20.0f,
        .caused_frame_update = false,
        .did_scroll = true,
-       .begin_frame_args = args2}));
+       .dispatch_args = args2}));
 
   events_metrics.push_back(metrics_creator_.CreateInertialGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(14),
        .delta = 100.0f,
        .caused_frame_update = true,
        .did_scroll = false,
-       .begin_frame_args = args3}));
+       .dispatch_args = args3}));
   events_metrics.push_back(metrics_creator_.CreateInertialGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(15),
        .delta = 200.0f,
        .caused_frame_update = true,
        .did_scroll = false,
-       .begin_frame_args = args3}));
+       .dispatch_args = args3}));
 
   viz::BeginFrameArgs presented_args =
       CreateBeginFrameArgs(42, MillisecondsTicks(666));
@@ -311,7 +322,6 @@ TEST_F(ScrollJankV4FrameTest, OneDamagingFrame) {
           DamagingFrame{.presentation_ts = MillisecondsTicks(777)},
           {ScrollJankV4FrameStage{ScrollStart{}},
            ScrollJankV4FrameStage{ScrollUpdates(
-               static_cast<ScrollUpdateEventMetrics*>(events_metrics[0].get()),
                Real{
                    .first_input_generation_ts = MillisecondsTicks(10),
                    .last_input_generation_ts = MillisecondsTicks(15),
@@ -325,11 +335,16 @@ TEST_F(ScrollJankV4FrameTest, OneDamagingFrame) {
 // Example from `ScrollJankV4Frame::Timeline CalculateTimeline()`'s
 // documentation.
 TEST_F(ScrollJankV4FrameTest, MultipleNonDamagingFramesAndOneDamagingFrame) {
-  viz::BeginFrameArgs args1 = CreateBeginFrameArgs(31, MillisecondsTicks(111));
-  viz::BeginFrameArgs args2 = CreateBeginFrameArgs(32, MillisecondsTicks(222));
-  viz::BeginFrameArgs args3 = CreateBeginFrameArgs(33, MillisecondsTicks(333));
-  viz::BeginFrameArgs args4 = CreateBeginFrameArgs(34, MillisecondsTicks(444));
-  viz::BeginFrameArgs args5 = CreateBeginFrameArgs(35, MillisecondsTicks(555));
+  DispatchBeginFrameArgs args1 =
+      CreateDispatchBeginFrameArgs(31, MillisecondsTicks(111));
+  DispatchBeginFrameArgs args2 =
+      CreateDispatchBeginFrameArgs(32, MillisecondsTicks(222));
+  DispatchBeginFrameArgs args3 =
+      CreateDispatchBeginFrameArgs(33, MillisecondsTicks(333));
+  DispatchBeginFrameArgs args4 =
+      CreateDispatchBeginFrameArgs(34, MillisecondsTicks(444));
+  DispatchBeginFrameArgs args5 =
+      CreateDispatchBeginFrameArgs(35, MillisecondsTicks(555));
   EventMetrics::List events_metrics;
 
   // 1. Non-damaging GSB for BFA1
@@ -338,25 +353,25 @@ TEST_F(ScrollJankV4FrameTest, MultipleNonDamagingFramesAndOneDamagingFrame) {
   events_metrics.push_back(metrics_creator_.CreateGestureScrollBegin(
       {.timestamp = MillisecondsTicks(10),
        .caused_frame_update = false,
-       .begin_frame_args = args1}));
+       .dispatch_args = args1}));
   events_metrics.push_back(metrics_creator_.CreateFirstGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(11),
        .delta = 1.0f,
        .caused_frame_update = false,
        .did_scroll = false,
-       .begin_frame_args = args1}));
+       .dispatch_args = args1}));
   events_metrics.push_back(metrics_creator_.CreateGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(12),
        .delta = 2.0f,
        .caused_frame_update = false,
        .did_scroll = false,
-       .begin_frame_args = args1}));
+       .dispatch_args = args1}));
 
   // 4. Non-damaging GSE for BFA2
   events_metrics.push_back(metrics_creator_.CreateGestureScrollEnd(
       {.timestamp = MillisecondsTicks(13),
        .caused_frame_update = false,
-       .begin_frame_args = args2}));
+       .dispatch_args = args2}));
 
   // 5. Non-damaging GSU for BFA3
   // 6. Damaging GSU for BFA3
@@ -365,13 +380,13 @@ TEST_F(ScrollJankV4FrameTest, MultipleNonDamagingFramesAndOneDamagingFrame) {
        .delta = 10.0f,
        .caused_frame_update = false,
        .did_scroll = false,
-       .begin_frame_args = args3}));
+       .dispatch_args = args3}));
   events_metrics.push_back(metrics_creator_.CreateGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(15),
        .delta = 20.0f,
        .caused_frame_update = true,
        .did_scroll = true,
-       .begin_frame_args = args3}));
+       .dispatch_args = args3}));
 
   // 7. Non-damaging GSU for BFA4
   // 8. Non-damaging GSU for BFA4
@@ -380,13 +395,13 @@ TEST_F(ScrollJankV4FrameTest, MultipleNonDamagingFramesAndOneDamagingFrame) {
        .delta = 100.0f,
        .caused_frame_update = false,
        .did_scroll = false,
-       .begin_frame_args = args4}));
+       .dispatch_args = args4}));
   events_metrics.push_back(metrics_creator_.CreateInertialGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(17),
        .delta = 200.0f,
        .caused_frame_update = false,
        .did_scroll = false,
-       .begin_frame_args = args4}));
+       .dispatch_args = args4}));
 
   // 9. Damaging GSU for BFA5
   // 10. Non-damaging GSU for BFA5
@@ -395,13 +410,13 @@ TEST_F(ScrollJankV4FrameTest, MultipleNonDamagingFramesAndOneDamagingFrame) {
        .delta = 1000.0f,
        .caused_frame_update = true,
        .did_scroll = true,
-       .begin_frame_args = args5}));
+       .dispatch_args = args5}));
   events_metrics.push_back(metrics_creator_.CreateInertialGestureScrollUpdate(
       {.timestamp = MillisecondsTicks(19),
        .delta = 2000.0f,
        .caused_frame_update = false,
        .did_scroll = false,
-       .begin_frame_args = args5}));
+       .dispatch_args = args5}));
 
   viz::BeginFrameArgs presented_args =
       CreateBeginFrameArgs(42, MillisecondsTicks(666));
@@ -417,8 +432,6 @@ TEST_F(ScrollJankV4FrameTest, MultipleNonDamagingFramesAndOneDamagingFrame) {
               NonDamagingFrame{},
               {ScrollJankV4FrameStage{ScrollStart{}},
                ScrollJankV4FrameStage{ScrollUpdates(
-                   static_cast<ScrollUpdateEventMetrics*>(
-                       events_metrics[1].get()),
                    Real{
                        .first_input_generation_ts = MillisecondsTicks(11),
                        .last_input_generation_ts = MillisecondsTicks(12),
@@ -437,8 +450,6 @@ TEST_F(ScrollJankV4FrameTest, MultipleNonDamagingFramesAndOneDamagingFrame) {
 
               DamagingFrame{.presentation_ts = MillisecondsTicks(777)},
               {ScrollJankV4FrameStage{ScrollUpdates(
-                  static_cast<ScrollUpdateEventMetrics*>(
-                      events_metrics[4].get()),
                   Real{
                       .first_input_generation_ts = MillisecondsTicks(14),
                       .last_input_generation_ts = MillisecondsTicks(19),

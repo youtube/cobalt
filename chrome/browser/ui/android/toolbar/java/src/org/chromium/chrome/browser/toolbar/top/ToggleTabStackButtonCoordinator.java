@@ -22,6 +22,7 @@ import androidx.core.widget.ImageViewCompat;
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
 import org.chromium.base.DeviceInfo;
+import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
@@ -101,7 +102,7 @@ public class ToggleTabStackButtonCoordinator extends ToolbarChildButton {
             UserEducationHelper userEducationHelper,
             OneshotSupplier<Boolean> promoShownOneshotSupplier,
             OneshotSupplier<LayoutStateProvider> layoutStateProviderSupplier,
-            ObservableSupplier<@Nullable Tab> activityTabSupplier,
+            NullableObservableSupplier<Tab> activityTabSupplier,
             ObservableSupplier<TabModelSelector> tabModelSelectorSupplier,
             ThemeColorProvider themeColorProvider,
             IncognitoStateProvider incognitoStateProvider) {
@@ -446,10 +447,7 @@ public class ToggleTabStackButtonCoordinator extends ToolbarChildButton {
         params.setBoundsRespectPadding(true);
         assumeNonNull(mArchivedTabsIphShownCallback);
         assumeNonNull(mArchivedTabsIphDismissedCallback);
-        int declutterIphTextRes =
-                ChromeFeatureList.sAndroidTabDeclutterArchiveTabGroups.isEnabled()
-                        ? R.string.iph_android_tab_declutter_text_with_tab_groups
-                        : R.string.iph_android_tab_declutter_text;
+        int declutterIphTextRes = R.string.iph_android_tab_declutter_text_with_tab_groups;
         mUserEducationHelper.requestShowIph(
                 new IphCommandBuilder(
                                 mContext.getResources(),

@@ -43,6 +43,7 @@
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_region_capture_controller.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
+#include "chrome/browser/glic/host/glic_web_contents_warming_pool.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/host/webui_contents_container.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
@@ -174,6 +175,8 @@ GlicKeyedService::GlicKeyedService(
       actor_task_manager_(
           std::make_unique<GlicActorTaskManager>(profile, actor_keyed_service)),
       tab_data_observer_(std::make_unique<GlicTabDataObserver>()),
+      web_contents_warming_pool_(
+          std::make_unique<GlicWebContentsWarmingPool>(profile)),
       contextual_cueing_service_(contextual_cueing_service) {
   CHECK(GlicEnabling::IsProfileEligible(Profile::FromBrowserContext(profile)));
   CHECK(actor_keyed_service);
@@ -240,6 +243,7 @@ void GlicKeyedService::Shutdown() {
   } else {
     CloseAndShutdown();
   }
+  web_contents_warming_pool_->Shutdown();
 
   GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
   if (glic_profile_manager) {
@@ -281,6 +285,12 @@ void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
 
   window_controller().Toggle(bwi ? bwi : GetActiveGlicEligibleBrowser(profile_),
                              prevent_close, source, prompt_suggestion);
+}
+
+void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
+                                bool prevent_close,
+                                mojom::InvocationSource source) {
+  ToggleUI(bwi, prevent_close, source, std::nullopt);
 }
 
 void GlicKeyedService::OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
@@ -679,7 +689,11 @@ void GlicKeyedService::FinishPreload(GlicPrewarmingChecksResult result) {
     return;
   }
 
-  window_controller().Preload();
+  if (base::FeatureList::IsEnabled(features::kGlicWebContentsWarming)) {
+    web_contents_warming_pool_->Preload();
+  } else {
+    window_controller().Preload();
+  }
 }
 
 void GlicKeyedService::FinishPreloadFre(GlicPrewarmingFreSource source,

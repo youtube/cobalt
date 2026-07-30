@@ -26,6 +26,7 @@
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
@@ -36,11 +37,13 @@ class V8UnionUnsignedLongOrUnsignedLongSequence;
 
 class MODULES_EXPORT VibrationController final
     : public GarbageCollected<VibrationController>,
+      public Supplement<Navigator>,
       public ExecutionContextLifecycleObserver,
       public PageVisibilityObserver {
  public:
   using VibrationPattern = Vector<unsigned>;
 
+  static const unsigned kSupplementIndex;
   static VibrationController& From(Navigator&);
 
   static bool vibrate(Navigator&, unsigned time);

@@ -15,6 +15,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -24,17 +25,18 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.LooperMode;
 
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNullableObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.MockTab;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.toolbar.extensions.ExtensionActionButtonProperties.ListItemType;
+import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.extensions.ExtensionAction;
 import org.chromium.chrome.browser.ui.extensions.ExtensionActionsBridge;
 import org.chromium.chrome.browser.ui.extensions.FakeExtensionActionsBridge.ActionData;
-import org.chromium.chrome.browser.ui.extensions.FakeExtensionActionsBridge.ProfileModel;
+import org.chromium.chrome.browser.ui.extensions.FakeExtensionActionsBridge.TaskModel;
 import org.chromium.chrome.browser.ui.extensions.FakeExtensionActionsBridgeRule;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
@@ -47,6 +49,7 @@ import org.chromium.ui.modelutil.PropertyModel;
 public class ExtensionActionsUpdateHelperTest {
     private static final int TAB1_ID = 111;
     private static final int TAB2_ID = 222;
+    private static final long BROWSER_WINDOW_POINTER = 1000L;
     private static final int ICON_CANVAS_WIDTH_DP = 12;
     private static final int ICON_CANVAS_HEIGHT_DP = 12;
     private static final float SCALE_FACTOR = 1.0f;
@@ -59,7 +62,7 @@ public class ExtensionActionsUpdateHelperTest {
     private static final Bitmap ICON_WHITE = createSimpleIcon(Color.WHITE);
 
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
-
+    @Mock private ChromeAndroidTask mTask;
     @Mock private Profile mProfile;
     @Mock private ExtensionActionsUpdateHelper.ActionsUpdateDelegate mDelegate;
     @Mock private WebContents mWebContents;
@@ -68,30 +71,30 @@ public class ExtensionActionsUpdateHelperTest {
     public final FakeExtensionActionsBridgeRule mFakeBridgeRule =
             new FakeExtensionActionsBridgeRule();
 
-    private ProfileModel mProfileModel;
+    private TaskModel mTaskModel;
     private MockTab mTab1;
     private MockTab mTab2;
-    private ObservableSupplierImpl<@Nullable Profile> mProfileSupplier;
-    private ObservableSupplierImpl<@Nullable Tab> mCurrentTabSupplier;
+    private final SettableNullableObservableSupplier<Tab> mCurrentTabSupplier =
+            ObservableSuppliers.createNullable();
     private ModelList mModels;
     private ExtensionActionsUpdateHelper mHelper;
 
     @Before
     public void setUp() {
-        mProfileModel = mFakeBridgeRule.getFakeBridge().getOrCreateProfileModel(mProfile);
+        when(mTask.getOrCreateNativeBrowserWindowPtr()).thenReturn(BROWSER_WINDOW_POINTER);
+
+        mTaskModel = mFakeBridgeRule.getFakeBridge().getOrCreateTaskModel(mTask);
 
         mTab1 = new MockTab(TAB1_ID, mProfile);
         mTab2 = new MockTab(TAB2_ID, mProfile);
 
-        mProfileSupplier = new ObservableSupplierImpl<>();
-        mCurrentTabSupplier = new ObservableSupplierImpl<>();
         mModels = new ModelList();
 
         // Provide good defaults for action queries via JNI.
-        mProfileModel.setInitialized(true);
-        mProfileModel.putAction(
+        mTaskModel.setInitialized(true);
+        mTaskModel.putAction(
                 "a", new ActionData.Builder().setTitle("title of a").setIcon(ICON_RED).build());
-        mProfileModel.putAction(
+        mTaskModel.putAction(
                 "b", new ActionData.Builder().setTitle("title of b").setIcon(ICON_GREEN).build());
 
         when(mDelegate.createActionModel(any(), anyInt(), any()))
@@ -123,15 +126,17 @@ public class ExtensionActionsUpdateHelperTest {
                             return new ListItem(ListItemType.EXTENSION_ACTION, model);
                         });
 
-        mHelper =
-                new ExtensionActionsUpdateHelper(
-                        mModels, mProfileSupplier, mCurrentTabSupplier, mDelegate);
+        mHelper = new ExtensionActionsUpdateHelper(mModels, mTask, mCurrentTabSupplier, mDelegate);
+    }
+
+    @After
+    public void tearDown() {
+        mHelper.destroy();
     }
 
     @Test
     public void updateActions() {
-        // Set the profile and the tab.
-        mProfileSupplier.set(mProfile);
+        // Set the current tab.
         mCurrentTabSupplier.set(mTab1);
 
         // The model should have been updated.
@@ -141,35 +146,24 @@ public class ExtensionActionsUpdateHelperTest {
     }
 
     @Test
-    public void updateActions_noProfile() {
-        // Set the tab only.
-        mCurrentTabSupplier.set(mTab1);
-
-        assertTrue(mModels.isEmpty());
-    }
-
-    @Test
     public void testUpdateModels_noTab() {
-        // Set the profile only.
-        mProfileSupplier.set(mProfile);
-
+        // The current tab is not available yet.
         assertTrue(mModels.isEmpty());
     }
 
     @Test
     public void updateActions_actionsInitializedLater() {
         // Actions are initially uninitialized.
-        mProfileModel.setInitialized(false);
+        mTaskModel.setInitialized(false);
 
-        // Set the profile and the tab.
-        mProfileSupplier.set(mProfile);
+        // Set the current tab.
         mCurrentTabSupplier.set(mTab1);
 
         // The model should have been not updated.
         assertTrue(mModels.isEmpty());
 
         // Notify that toolbar model has been initialized.
-        mProfileModel.setInitialized(true);
+        mTaskModel.setInitialized(true);
 
         // The model should have been updated.
         assertEquals(2, mModels.size());
@@ -179,8 +173,7 @@ public class ExtensionActionsUpdateHelperTest {
 
     @Test
     public void testUpdateModels_actionsAddedAndRemoved() {
-        // Set the profile and the tab.
-        mProfileSupplier.set(mProfile);
+        // Set the current tab.
         mCurrentTabSupplier.set(mTab1);
 
         // The model should have been updated.
@@ -189,9 +182,9 @@ public class ExtensionActionsUpdateHelperTest {
         assertItemAt(1, "b", "title of b", ICON_GREEN);
 
         // Update the actions.
-        mProfileModel.putAction(
+        mTaskModel.putAction(
                 "c", new ActionData.Builder().setTitle("title of c").setIcon(ICON_BLUE).build());
-        mProfileModel.removeAction("a");
+        mTaskModel.removeAction("a");
 
         // The model should have been updated.
         assertEquals(2, mModels.size());
@@ -202,7 +195,7 @@ public class ExtensionActionsUpdateHelperTest {
     @Test
     public void testUpdateModels_tabChanged() {
         // Set up per-tab variants.
-        mProfileModel.putAction(
+        mTaskModel.putAction(
                 "a",
                 (tabId) -> {
                     switch (tabId) {
@@ -220,7 +213,7 @@ public class ExtensionActionsUpdateHelperTest {
                             throw new RuntimeException();
                     }
                 });
-        mProfileModel.putAction(
+        mTaskModel.putAction(
                 "b",
                 (tabId) -> {
                     switch (tabId) {
@@ -239,8 +232,7 @@ public class ExtensionActionsUpdateHelperTest {
                     }
                 });
 
-        // Set the profile and the tab.
-        mProfileSupplier.set(mProfile);
+        // Set the current tab.
         mCurrentTabSupplier.set(mTab1);
 
         // The model should have been updated.
@@ -259,8 +251,7 @@ public class ExtensionActionsUpdateHelperTest {
 
     @Test
     public void testUpdateModels_iconUpdated() {
-        // Set the profile and the tab.
-        mProfileSupplier.set(mProfile);
+        // Set the current tab.
         mCurrentTabSupplier.set(mTab1);
 
         // The model should have been updated.
@@ -269,7 +260,7 @@ public class ExtensionActionsUpdateHelperTest {
         assertItemAt(1, "b", "title of b", ICON_GREEN);
 
         // Simulate changing the icon.
-        mProfileModel.updateActionIcon(
+        mTaskModel.updateActionIcon(
                 "a", new ActionData.Builder().setTitle("title of a").setIcon(ICON_WHITE).build());
 
         // The model should have been updated.
@@ -280,8 +271,7 @@ public class ExtensionActionsUpdateHelperTest {
 
     @Test
     public void testUpdateModels_pinnedActionUpdated() {
-        // Set the profile and the tab.
-        mProfileSupplier.set(mProfile);
+        // Set the current tab.
         mCurrentTabSupplier.set(mTab1);
 
         // The model should have been updated.
@@ -290,7 +280,7 @@ public class ExtensionActionsUpdateHelperTest {
         assertItemAt(1, "b", "title of b", ICON_GREEN);
 
         // Simulate changing the pinned actions.
-        mProfileModel.putAction(
+        mTaskModel.putAction(
                 "c", new ActionData.Builder().setTitle("title of c").setIcon(ICON_BLUE).build());
 
         // The model should have been updated.

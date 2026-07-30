@@ -10,7 +10,12 @@
 #import "ui/base/l10n/l10n_util.h"
 
 namespace {
+
 const CGFloat kSymbolSize = 10;
+
+// `SendTabPromoView` accessibility ID.
+NSString* const kSendTabPromoViewID = @"kSendTabPromoViewID";
+
 }  // namespace
 
 @implementation SendTabPromoItem
@@ -21,7 +26,7 @@ const CGFloat kSymbolSize = 10;
   return ContentSuggestionsModuleType::kSendTabPromo;
 }
 
-#pragma mark - StandaloneModuleItem
+#pragma mark - StandaloneModuleViewConfiguration
 
 - (UIImage*)fallbackSymbolImage {
   return DefaultSymbolWithPointSize(kIPhoneAndArrowForwardSymbol, kSymbolSize);
@@ -37,6 +42,10 @@ const CGFloat kSymbolSize = 10;
 
 - (NSString*)buttonText {
   return l10n_util::GetNSString(IDS_IOS_SEND_TAB_PROMO_ALLOW_BUTTON);
+}
+
+- (NSString*)accessibilityIdentifier {
+  return kSendTabPromoViewID;
 }
 
 @end

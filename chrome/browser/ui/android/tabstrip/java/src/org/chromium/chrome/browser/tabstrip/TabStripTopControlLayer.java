@@ -115,8 +115,10 @@ public class TabStripTopControlLayer extends ObservableSupplierImpl<Integer>
     }
 
     /** Destroy the instance and remove all dependencies. */
+    @Override
     public void destroy() {
         mTopControlsStacker.removeControl(this);
+        super.destroy();
     }
 
     /**
@@ -197,6 +199,7 @@ public class TabStripTopControlLayer extends ObservableSupplierImpl<Integer>
         // The offset tags needs to be set here, since the tab strip do not want to drive the
         // animation using the offset tags.
         mTabStrip.updateOffsetTagsInfo(null);
+        mTabStrip.onLayerYOffsetChanged(latestYOffset, getTopControlHeight());
     }
 
     // Implements TabStripTransitionHandler

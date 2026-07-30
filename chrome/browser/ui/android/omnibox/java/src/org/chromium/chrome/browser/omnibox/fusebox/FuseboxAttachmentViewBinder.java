@@ -4,6 +4,11 @@
 
 package org.chromium.chrome.browser.omnibox.fusebox;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.ViewGroup;
@@ -40,37 +45,44 @@ class FuseboxAttachmentViewBinder {
         ImageView imageView = view.findViewById(R.id.attachment_thumbnail);
         ViewGroup.LayoutParams layoutParams = view.getLayoutParams();
         if (attachment.isUploadComplete()) {
-            boolean isImage = attachment.type == FuseboxAttachmentType.ATTACHMENT_IMAGE;
-            // Image attachments are narrower than file attachments since they don't have a title.
-            layoutParams.width =
-                    view.getResources()
-                            .getDimensionPixelSize(
-                                    isImage
-                                            ? R.dimen.fusebox_attachment_image_width
-                                            : R.dimen.fusebox_attachment_file_width);
             progressView.setVisibility(View.GONE);
             imageView.setVisibility(View.VISIBLE);
-            imageView.setImageDrawable(
-                    attachment.thumbnail != null
-                            ? attachment.thumbnail
-                            : OmniboxResourceProvider.getDrawable(
-                                    view.getContext(), R.drawable.ic_attach_file_24dp));
+            imageView.setImageDrawable(getThumbnailDrawable(attachment, view.getContext()));
             applyTitleAndDescriptionIfPresent(attachment, view);
         } else {
-            // The "loading" version of the attachment is always 132dp so that there is space for
-            // the (x) and a centered spinner.
-            layoutParams.width =
-                    view.getResources()
-                            .getDimensionPixelSize(R.dimen.fusebox_attachment_loading_width);
-            imageView.setVisibility(View.GONE);
             progressView.setVisibility(View.VISIBLE);
+            imageView.setVisibility(View.GONE);
+            TextView titleView = view.findViewById(R.id.attachment_title);
+            if (titleView != null) {
+                titleView.setVisibility(View.GONE);
+            }
         }
         view.setLayoutParams(layoutParams);
     }
 
+    static Drawable getThumbnailDrawable(FuseboxAttachment attachment, Context context) {
+        switch (attachment.type) {
+            case FuseboxAttachmentType.ATTACHMENT_IMAGE:
+            case FuseboxAttachmentType.ATTACHMENT_FILE:
+                if (attachment.thumbnail != null) {
+                    return attachment.thumbnail;
+                }
+                break;
+            case FuseboxAttachmentType.ATTACHMENT_TAB:
+                Bitmap favicon =
+                        OmniboxResourceProvider.getFaviconBitmapForTab(
+                                assumeNonNull(attachment.tab));
+                return FuseboxTabUtils.getDrawableForTabFavicon(
+                        context,
+                        favicon,
+                        context.getResources()
+                                .getDimensionPixelSize(R.dimen.fusebox_attachment_visible_height));
+        }
+        return OmniboxResourceProvider.getDrawable(context, R.drawable.ic_attach_file_24dp);
+    }
+
     private static void applyTitleAndDescriptionIfPresent(FuseboxAttachment attachment, View view) {
         TextView titleView = view.findViewById(R.id.attachment_title);
-
         if (titleView == null) return;
 
         if (TextUtils.isEmpty(attachment.title)) {

@@ -27,8 +27,11 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.process_launcher.ScopedServiceBindingBatch;
 import org.chromium.base.supplier.LazyOneshotSupplier;
-import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.supplier.NullableObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
+import org.chromium.base.supplier.SettableNullableObservableSupplier;
 import org.chromium.build.annotations.EnsuresNonNullIf;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -63,10 +66,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 /**
- * This class is a drop-in replacement for {@link TabModelImpl} and {@link TabGroupModelFilterImpl}.
- * To minimize duplication, many common methods are implemented in {@link TabModelJniBridge}. Until
- * this class if fully launched, parity between this class and {@link TabModelImpl} & {@link
- * TabGroupModelFilterImpl} should be maintained.
+ * This class implements {@link TabModelInternal} and {@link TabGroupModelFilterInternal}.
  *
  * <p>The class uses the tab collection tree-like structure available in components/tabs/ to
  * organize tabs. The tabs in C++ tab collections are only cached with weak ptr references to the
@@ -75,8 +75,7 @@ import java.util.function.Supplier;
  * this class's public methods can only be used on the UI thread.
  *
  * <p>Ideally, more of the observers and logic should be moved to be in C++ or shared with desktop's
- * tab strip model. However, to achieve drop-in compatibility, most of the observer events and the
- * interfaces were kept as-is for now and can be migrated to C++ later.
+ * tab strip model.
  */
 @NullMarked
 @JNINamespace("tabs")
@@ -278,10 +277,10 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
     private final ObserverList<TabModelObserver> mTabModelObservers = new ObserverList<>();
     private final ObserverList<TabGroupModelFilterObserver> mTabGroupObservers =
             new ObserverList<>();
-    private final ObservableSupplierImpl<@Nullable Tab> mCurrentTabSupplier =
-            new ObservableSupplierImpl<>();
-    private final ObservableSupplierImpl<Integer> mTabCountSupplier =
-            new ObservableSupplierImpl<>(0);
+    private final SettableNullableObservableSupplier<Tab> mCurrentTabSupplier =
+            ObservableSuppliers.createNullable();
+    private final SettableNonNullObservableSupplier<Integer> mTabCountSupplier =
+            ObservableSuppliers.createNonNull(0);
     private final Set<Integer> mMultiSelectedTabs = new HashSet<>();
     private final Set<Token> mHidingTabGroups = new HashSet<>();
 
@@ -540,7 +539,7 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
     }
 
     @Override
-    public ObservableSupplier<@Nullable Tab> getCurrentTabSupplier() {
+    public NullableObservableSupplier<Tab> getCurrentTabSupplier() {
         return mCurrentTabSupplier;
     }
 
@@ -661,7 +660,7 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
     }
 
     @Override
-    public ObservableSupplier<Integer> getTabCountSupplier() {
+    public NonNullObservableSupplier<Integer> getTabCountSupplier() {
         assertOnUiThread();
         return mTabCountSupplier;
     }

@@ -352,6 +352,13 @@ BASE_FEATURE(kPictureInPictureOcclusionTracking,
 // Enables the animation of the Picture-in-Picture window creation.
 BASE_FEATURE(kPictureInPictureShowWindowAnimation,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enables video Picture-in-Picture display smoothness optimization.
+//
+// Ensures that the video PiP window title view is properly sized to only fit
+// the favicon and origin.
+BASE_FEATURE(kVideoPipDisplaySmoothnessOptimization,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Enables user control over muting tab audio from the tab strip.
@@ -677,6 +684,9 @@ BASE_FEATURE(kGlobalMediaControlsSeamlessTransfer,
 // CanPlayThrough issued according to standard.
 BASE_FEATURE(kSpecCompliantCanPlayThrough, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Standardize the quantization range for VP9 and AV1 encoders to 0-255.
+BASE_FEATURE(kStandardizeVP9AndAV1Quantizer, base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Suspends WebMediaPlayerImpl instances when the containing RenderFrame is
 // frozen. TODO(crbug.com/41161335): Remove in M143 after it goes stable.
 BASE_FEATURE(kSuspendMediaForFrozenFrames, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -967,13 +977,23 @@ BASE_FEATURE(kUsePostBodyForUrlProvisionFetcher,
 
 // Treats H.264 SEI recovery points with a `recovery_frame_cnt=0` as keyframes.
 BASE_FEATURE(kTreatSEIRecoveryPointAsKeyframe,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Whether we should show a setting to disable autoplay policy.
 BASE_FEATURE(kAutoplayDisableSettings, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Whether we should allow color space changes to flush AcceleratedVideoDecoder.
 BASE_FEATURE(kAVDColorSpaceChanges, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enables Browser Initiated Automatic Picture-in-Picture (ChAP) in dry run
+// mode.
+//
+// When enabled in dry run mode, all ChAP code paths are executed with the
+// exception of actually opening the video PiP window, or any other paths that
+// may be visible to the user experience. This flag will be used to enable
+// analyzing the feature impact and catch early any potential regressions.
+BASE_FEATURE(kBrowserInitiatedAutomaticPictureInPictureDryRun,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Allows Chrome to reconfigure the sink to match the channel count of the
 // source audio data. This ensures opening of an audio output stream to match
@@ -988,6 +1008,11 @@ BASE_FEATURE(kMatchSourceAudioChannelLayout, base::FEATURE_DISABLED_BY_DEFAULT);
 // Allows the enhanced picture-in-picture transition animation that depend on
 // the sourceRectHint PictureInPictureParam.
 BASE_FEATURE(kAllowEnhancedPipTransition, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enables automatic Picture-in-Picture permission prompt on Android for
+// document picture-in-picture.
+BASE_FEATURE(kAutoDocPiPPermissionPromptAndroid,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables automatic Picture-in-Picture on Android for supported websites.
 // This triggers for active video playback or camera/microphone usage on sites
@@ -1007,6 +1032,9 @@ BASE_FEATURE(kContextMenuPictureInPictureAndroid,
 // Enables the use of a Surface (ANativeWindow) as the input for the
 // NdkVideoEncodeAccelerator on Android.
 BASE_FEATURE(kSurfaceInputForAndroidVEA, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables zero-copy video capture on Android.
+BASE_FEATURE(kAndroidZeroCopyVideoCapture, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables block model (LinearBlock) on supported devices.
 // TODO(crbug.com/327625558): Currently block model is buggy and can't be
@@ -1079,10 +1107,6 @@ BASE_FEATURE(kUseAudioManagerMaxChannelLayout,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #endif  // BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(ENABLE_HLS_DEMUXER)
-BASE_FEATURE(kBuiltInHlsPlayer, base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
 
 // TODO(crbug.com/414430336): Consider restricting to IS_CHROMEOS.
 #if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
@@ -1517,7 +1541,7 @@ BASE_FEATURE(kRenderMutedAudio, base::FEATURE_ENABLED_BY_DEFAULT);
 // playback when the media goes to background to avoid wasting CPU power on
 // decoding audio that cannot be heard. This flag will be switched on gradually
 // via Finch.
-BASE_FEATURE(kPauseMutedBackgroundAudio, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPauseMutedBackgroundAudio, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls headless Live Caption experiment, which is likely unstable.
 BASE_FEATURE(kHeadlessLiveCaption, base::FEATURE_DISABLED_BY_DEFAULT);

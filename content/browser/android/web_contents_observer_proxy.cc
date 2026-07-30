@@ -32,7 +32,7 @@
 using base::android::AttachCurrentThread;
 using base::android::ConvertUTF16ToJavaString;
 using base::android::ConvertUTF8ToJavaString;
-using base::android::JavaParamRef;
+using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
 
 namespace content {
@@ -53,8 +53,8 @@ WebContentsObserverProxy::~WebContentsObserverProxy() {}
 
 static jlong JNI_WebContentsObserverProxy_Init(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
-    const JavaParamRef<jobject>& java_web_contents) {
+    const JavaRef<jobject>& obj,
+    const JavaRef<jobject>& java_web_contents) {
   WebContents* web_contents =
       WebContents::FromJavaWebContents(java_web_contents);
   CHECK(web_contents);
@@ -208,17 +208,6 @@ void WebContentsObserverProxy::DOMContentLoaded(
         render_frame_host->GetRoutingID(),
         static_cast<jint>(render_frame_host->GetLifecycleState()));
   }
-}
-
-void WebContentsObserverProxy::OnFirstContentfulPaintInPrimaryMainFrame() {
-  Page& primaryPage = web_contents()->GetPrimaryPage();
-  std::optional<base::TimeDelta> duration =
-      static_cast<PageImpl&>(primaryPage)
-          .GetFirstContentfulPaintInMainDocumentDuration();
-  DCHECK(duration);
-  Java_WebContentsObserverProxy_firstContentfulPaintInPrimaryMainFrame(
-      AttachCurrentThread(), java_observer_, primaryPage.GetJavaPage(),
-      duration->InMicroseconds());
 }
 
 void WebContentsObserverProxy::NavigationEntryCommitted(

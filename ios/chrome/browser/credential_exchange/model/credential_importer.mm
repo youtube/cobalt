@@ -24,6 +24,7 @@
 #import "components/webauthn/core/browser/passkey_model_utils.h"
 #import "ios/chrome/browser/credential_exchange/model/credential_exchange_passkey.h"
 #import "ios/chrome/browser/credential_exchange/model/credential_exchange_password.h"
+#import "ios/chrome/browser/data_import/public/passkey_import_item.h"
 #import "ios/chrome/browser/data_import/public/password_import_item.h"
 #import "net/base/apple/url_conversions.h"
 #import "url/gurl.h"
@@ -99,8 +100,8 @@ std::string DataToString(NSData* data) {
 
 #pragma mark - Public
 
-- (void)startImportingCredentialsWithSecurityDomainSecrets:
-    (NSArray<NSData*>*)securityDomainSecrets {
+- (void)startImportingCredentialsWithTrustedVaultKeys:
+    (NSArray<NSData*>*)trustedVaultKeys {
   __weak __typeof(self) weakSelf = self;
   _allCredentialTypesProcessedClosure =
       base::BarrierClosure(kSupportedCredentialTypesCount, base::BindOnce(^{
@@ -108,8 +109,7 @@ std::string DataToString(NSData* data) {
                            }));
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::TaskPriority::USER_VISIBLE}, base::BindOnce(^{
-        return [weakSelf
-            translateCredentialExchangePasskeys:securityDomainSecrets];
+        return [weakSelf translateCredentialExchangePasskeys:trustedVaultKeys];
       }),
       base::BindOnce(
           ^(std::vector<sync_pb::WebauthnCredentialSpecifics> passkeys) {
@@ -126,7 +126,9 @@ std::string DataToString(NSData* data) {
 }
 
 - (void)finishImportWithSelectedPasswordIds:
-    (const std::vector<int>&)selectedPasswordIds {
+            (const std::vector<int>&)selectedPasswordIds
+                         selectedPasskeyIds:
+                             (const std::vector<int>&)selectedPasskeyIds {
   __weak __typeof(_delegate) weakDelegate = _delegate;
   base::RepeatingClosure allCredentialTypesImportedClosure =
       base::BarrierClosure(_presentCredentialTypesCount, base::BindOnce(^{
@@ -141,12 +143,11 @@ std::string DataToString(NSData* data) {
         }).Then(allCredentialTypesImportedClosure));
   }
   if (_passkeys.count > 0) {
-    // TODO(crbug.com/450982128): Pass chosen ids from the conflict UI.
-    _passkeyImporter->FinishImport(
-        /*selected_conflicting_passkey_ids=*/{},
-        base::BindOnce(^(int passkeysImported) {
-          [weakDelegate onPasskeysImported:passkeysImported];
-        }).Then(allCredentialTypesImportedClosure));
+    _passkeyImporter->FinishImport(selectedPasskeyIds,
+                                   base::BindOnce(^(int passkeysImported) {
+                                     [weakDelegate
+                                         onPasskeysImported:passkeysImported];
+                                   }).Then(allCredentialTypesImportedClosure));
   }
 }
 
@@ -231,16 +232,15 @@ std::string DataToString(NSData* data) {
 
 // Converts `_passkeys` into structures used by `_passkeyImporter`.
 - (std::vector<sync_pb::WebauthnCredentialSpecifics>)
-    translateCredentialExchangePasskeys:
-        (NSArray<NSData*>*)securityDomainSecrets {
+    translateCredentialExchangePasskeys:(NSArray<NSData*>*)trustedVaultKeys {
   if (_passkeys.count == 0) {
     return {};
   }
 
-  // `hw_protected` security domain currently supports a single secret.
-  CHECK(securityDomainSecrets.count == 1);
-  base::span<const uint8_t> securityDomainSecret =
-      base::apple::NSDataToSpan(securityDomainSecrets[0]);
+  // `hw_protected` security domain currently supports a single key.
+  CHECK(trustedVaultKeys.count == 1);
+  base::span<const uint8_t> trustedVaultKey =
+      base::apple::NSDataToSpan(trustedVaultKeys[0]);
   int64_t timeNow = base::Time::Now().InMillisecondsSinceUnixEpoch();
   std::vector<sync_pb::WebauthnCredentialSpecifics> passkeys;
 
@@ -256,7 +256,7 @@ std::string DataToString(NSData* data) {
     // TODO(crbug.com/458337350): Consider passing CredentialExchangePasskey or
     // NSData instead or just log failure here.
     webauthn::passkey_model_utils::EncryptWebauthnCredentialSpecificsData(
-        securityDomainSecret, encrypted, &specifics);
+        trustedVaultKey, encrypted, &specifics);
 
     specifics.set_sync_id(
         base::RandBytesAsString(webauthn::passkey_model_utils::kSyncIdLength));
@@ -304,15 +304,17 @@ std::string DataToString(NSData* data) {
 - (void)onAllCredentialTypesProcessed {
   if (_passkeyImportResult.conflicts.empty() &&
       _passwordImportResult.displayed_entries.empty()) {
-    [self finishImportWithSelectedPasswordIds:{}];
+    [self finishImportWithSelectedPasswordIds:{} selectedPasskeyIds:{}];
     return;
   }
 
-  // TODO(crbug.com/450982128): Pass passkey conflicts.
-  [_delegate
-      showConflictResolutionScreenWithPasswords:
-          [PasswordImportItem
-              passwordImportItemsFromImportResults:_passwordImportResult]];
+  NSArray<PasswordImportItem*>* passwords = [PasswordImportItem
+      passwordImportItemsFromImportResults:_passwordImportResult];
+  NSArray<PasskeyImportItem*>* passkeys = [PasskeyImportItem
+      passkeyImportItemsFromImportedPasskeyInfos:_passkeyImportResult
+                                                     .conflicts];
+  [_delegate showConflictResolutionScreenWithPasswords:passwords
+                                              passkeys:passkeys];
 }
 
 @end

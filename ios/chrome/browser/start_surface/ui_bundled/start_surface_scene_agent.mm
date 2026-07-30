@@ -119,9 +119,6 @@ bool IsEmptyNTP(const web::WebState* web_state) {
     transitionedToActivationLevel:(SceneActivationLevel)level {
   if (level != SceneActivationLevelForegroundActive &&
       self.previousActivationLevel == SceneActivationLevelForegroundActive) {
-    // TODO(crbug.com/40167003): Consider when to clear the session object since
-    // Chrome may be closed without transiting to inactive, e.g. device power
-    // off, then the previous session object is staled.
     SetStartSurfaceSessionObjectForSceneState(sceneState);
   }
   if (level == SceneActivationLevelBackground &&
@@ -198,21 +195,21 @@ bool IsEmptyNTP(const web::WebState* web_state) {
     // Iterate through the WebStateList and activate the existing NTP tab for
     // the Start surface (if any).
     for (int i = webStateList->count() - 1; i >= 0; --i) {
-      if ([self activateNTPForWebStateList:webStateList atIndex:i]) {
+      if ([self activateUngroupedNTPForWebStateList:webStateList atIndex:i]) {
         return;
       }
     }
   } else if (startUpRemediationFeatureType ==
              StartupRemediationsType::kSaveNewNTPWebState) {
-    // If the tab at index kIOSLastKnownNTPWebStateIndex is still a valid NTP
-    // page, activate it and return early.
+    // If the tab at index kIOSLastKnownNTPWebStateIndex is still a valid
+    // ungrouped NTP page, activate it and return early.
     PrefService* prefService = browser->GetProfile()->GetPrefs();
     int knownNTPWebStateIndex =
         prefService->GetInteger(prefs::kIOSLastKnownNTPWebStateIndex);
     prefService->ClearPref(prefs::kIOSLastKnownNTPWebStateIndex);
     if (webStateList->ContainsIndex(knownNTPWebStateIndex)) {
-      if ([self activateNTPForWebStateList:webStateList
-                                   atIndex:knownNTPWebStateIndex]) {
+      if ([self activateUngroupedNTPForWebStateList:webStateList
+                                            atIndex:knownNTPWebStateIndex]) {
         return;
       }
     }
@@ -374,9 +371,12 @@ bool IsEmptyNTP(const web::WebState* web_state) {
 }
 
 // Returns YES if the WebState at the given index has been activated. Only
-// activates NTPs.
-- (BOOL)activateNTPForWebStateList:(WebStateList*)webStateList
-                           atIndex:(int)index {
+// activates NTPs that are not in a group.
+- (BOOL)activateUngroupedNTPForWebStateList:(WebStateList*)webStateList
+                                    atIndex:(int)index {
+  if (webStateList->GetGroupOfWebStateAt(index)) {
+    return NO;
+  }
   web::WebState* lastKnownWebState = webStateList->GetWebStateAt(index);
   if (IsUrlNtp(lastKnownWebState->GetVisibleURL())) {
     webStateList->ActivateWebStateAt(index);

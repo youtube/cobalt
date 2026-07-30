@@ -226,14 +226,12 @@ void CheckChipButtonsOfLocalCard() {
   autofill::CreditCard card = autofill::test::GetCreditCard();
   std::string locale = l10n_util::GetLocaleOverride();
 
-  if (base::ios::IsRunningOnIOS18OrLater()) {
-  } else {
-    // On iOS 17.5, a rendering issue in tests prevents some cells from
-    // displaying correctly. This scroll action ensures their proper visibility.
-    [[EarlGrey
-        selectElementWithMatcher:manual_fill::CreditCardTableViewMatcher()]
-        performAction:grey_scrollInDirection(kGREYDirectionDown, 10)];
-  }
+  // A rendering issue in tests prevents some cells from displaying correctly.
+  // This scroll action ensures their proper visibility.
+  [[[EarlGrey
+      selectElementWithMatcher:manual_fill::CreditCardTableViewMatcher()]
+      performAction:grey_scrollToContentEdge(kGREYContentEdgeBottom)]
+      performAction:grey_scrollToContentEdge(kGREYContentEdgeTop)];
 
   [[EarlGrey selectElementWithMatcher:LocalCardNumberChipButton()]
       assertWithMatcher:grey_sufficientlyVisible()];
@@ -346,17 +344,9 @@ void DismissPaymentBottomSheet() {
       @"Unexpected histogram error for number of visible suggestions.");
 }
 
-// TODO(crbug.com/460721951): Test is failing on ios-simulator.
-#if TARGET_OS_SIMULATOR
-#define MAYBE_testCardChipButtonsAreAllVisible \
-  DISABLED_testCardChipButtonsAreAllVisible
-#else
-#define MAYBE_testCardChipButtonsAreAllVisible testCardChipButtonsAreAllVisible
-#endif
-
 // Tests that the saved card chip buttons are all visible in the card
 // table view controller, and that they have the right accessibility label.
-- (void)MAYBE_testCardChipButtonsAreAllVisible {
+- (void)testCardChipButtonsAreAllVisible {
   [AutofillAppInterface saveLocalCreditCard];
 
   // Bring up the keyboard.
@@ -647,18 +637,19 @@ void DismissPaymentBottomSheet() {
 }
 
 // Tests that the "Add Payment Method..." action works on OTR.
-// TODO(crbug.com/462093327): Re-enable flaky test.
-- (void)FLAKY_testOTRAddPaymentMethodActionOpensAddPaymentMethodSettings {
+- (void)testOTRAddPaymentMethodActionOpensAddPaymentMethodSettings {
+  [AutofillAppInterface saveLocalCreditCard];
+
   // Open a tab in incognito.
   [ChromeEarlGrey openNewIncognitoTab];
   [self loadURL];
   [AutofillAppInterface considerCreditCardFormSecureForTesting];
 
-  [AutofillAppInterface saveLocalCreditCard];
-
   // Bring up the keyboard.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
       performAction:TapWebElementWithId(kFormElementName)];
+  DismissPaymentBottomSheet();
+  [ChromeEarlGrey waitForKeyboardToAppear];
 
   // Open the payment method manual fill view.
   OpenPaymentMethodManualFillView();

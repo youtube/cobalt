@@ -78,8 +78,8 @@ class FakeBinaryUploadService : public CloudBinaryUploadService {
 
   // Sets whether the user is authorized to upload data for Deep Scanning.
   void SetAuthorized(bool authorized) {
-    authorization_result_ = authorized ? ScanRequestUploadResult::SUCCESS
-                                       : ScanRequestUploadResult::UNAUTHORIZED;
+    authorization_result_ = authorized ? ScanRequestUploadResult::kSuccess
+                                       : ScanRequestUploadResult::kUnauthorized;
   }
 
   // Finish the authentication request. Called after CreateForWebContents to
@@ -125,7 +125,7 @@ class FakeBinaryUploadService : public CloudBinaryUploadService {
   bool blocking() { return blocking_; }
 
  private:
-  void MaybeAcknowledge(std::unique_ptr<Ack> ack) override {
+  void MaybeAcknowledge(std::unique_ptr<BinaryUploadAck> ack) override {
     EXPECT_TRUE(ack);
 
     ++ack_count_;
@@ -135,7 +135,8 @@ class FakeBinaryUploadService : public CloudBinaryUploadService {
               request_tokens_to_final_actions_.at(ack->ack().request_token()));
   }
 
-  void UploadForDeepScanning(std::unique_ptr<Request> request) override {
+  void UploadForDeepScanning(
+      std::unique_ptr<BinaryUploadRequest> request) override {
     ++requests_count_;
     // A request without tags indicates that it's used for authentication
     if (request->content_analysis_request().tags().empty()) {
@@ -145,7 +146,7 @@ class FakeBinaryUploadService : public CloudBinaryUploadService {
       }
     } else {
       blocking_ = request->blocking();
-      Request* request_raw = request.get();
+      auto* request_raw = request.get();
       std::string file = request->filename();
       switch (request->analysis_connector()) {
         case AnalysisConnector::FILE_ATTACHED:
@@ -156,10 +157,10 @@ class FakeBinaryUploadService : public CloudBinaryUploadService {
                                  prepared_file_responses_[file]);
           break;
         case AnalysisConnector::BULK_DATA_ENTRY:
-          request_raw->GetRequestData(base::BindLambdaForTesting(
-              [this, request = std::move(request)](
-                  ScanRequestUploadResult result,
-                  BinaryUploadService::Request::Data data) {
+          request_raw->GetRequestData(
+              base::BindLambdaForTesting([this, request = std::move(request)](
+                                             ScanRequestUploadResult result,
+                                             BinaryUploadRequest::Data data) {
                 if (data.size == prepared_image_data_size_) {
                   request->FinishRequest(prepared_image_result_,
                                          prepared_image_response_);
@@ -173,10 +174,10 @@ class FakeBinaryUploadService : public CloudBinaryUploadService {
           // Since this path is only used for prints that are too large, calling
           // GetRequestData should then call FinishRequest with FILE_TOO_LARGE.
           request_raw->GetRequestData(base::BindOnce(
-              [](std::unique_ptr<BinaryUploadService::Request> request,
+              [](std::unique_ptr<BinaryUploadRequest> request,
                  ScanRequestUploadResult result,
-                 BinaryUploadService::Request::Data data) {
-                ASSERT_EQ(result, ScanRequestUploadResult::FILE_TOO_LARGE);
+                 BinaryUploadRequest::Data data) {
+                ASSERT_EQ(result, ScanRequestUploadResult::kFileTooLarge);
                 request->FinishRequest(result, ContentAnalysisResponse());
               },
               std::move(request)));
@@ -190,7 +191,7 @@ class FakeBinaryUploadService : public CloudBinaryUploadService {
   }
 
   ScanRequestUploadResult authorization_result_;
-  std::unique_ptr<Request> authorization_request_;
+  std::unique_ptr<BinaryUploadRequest> authorization_request_;
 
   ScanRequestUploadResult prepared_text_result_;
   ContentAnalysisResponse prepared_text_response_;
@@ -611,12 +612,12 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateBrowserTest, Files) {
   bad_rule->set_rule_name("malware");
 
   FakeBinaryUploadServiceStorage()->SetResponseForFile(
-      created_file_paths()[0].AsUTF8Unsafe(), ScanRequestUploadResult::SUCCESS,
+      created_file_paths()[0].AsUTF8Unsafe(), ScanRequestUploadResult::kSuccess,
       ok_response);
   FakeBinaryUploadServiceStorage()->SetExpectedFinalAction(
       kScanId1, ContentAnalysisAcknowledgement::ALLOW);
   FakeBinaryUploadServiceStorage()->SetResponseForFile(
-      created_file_paths()[1].AsUTF8Unsafe(), ScanRequestUploadResult::SUCCESS,
+      created_file_paths()[1].AsUTF8Unsafe(), ScanRequestUploadResult::kSuccess,
       bad_response);
   FakeBinaryUploadServiceStorage()->SetExpectedFinalAction(
       kScanId2, ContentAnalysisAcknowledgement::BLOCK);
@@ -747,7 +748,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateBrowserTest, ForFiles) {
 
     FakeBinaryUploadServiceStorage()->SetResponseForFile(
         created_file_paths()[0].AsUTF8Unsafe(),
-        ScanRequestUploadResult::SUCCESS, ok_response);
+        ScanRequestUploadResult::kSuccess, ok_response);
     FakeBinaryUploadServiceStorage()->SetExpectedFinalAction(
         kScanId1, ContentAnalysisAcknowledgement::ALLOW);
   }
@@ -764,7 +765,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateBrowserTest, ForFiles) {
 
     FakeBinaryUploadServiceStorage()->SetResponseForFile(
         created_file_paths()[1].AsUTF8Unsafe(),
-        ScanRequestUploadResult::SUCCESS, bad_response);
+        ScanRequestUploadResult::kSuccess, bad_response);
     FakeBinaryUploadServiceStorage()->SetExpectedFinalAction(
         kScanId2, ContentAnalysisAcknowledgement::BLOCK);
   }
@@ -778,7 +779,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateBrowserTest, ForFiles) {
 
     FakeBinaryUploadServiceStorage()->SetResponseForFile(
         created_file_paths()[2].AsUTF8Unsafe(),
-        ScanRequestUploadResult::SUCCESS, ok_response);
+        ScanRequestUploadResult::kSuccess, ok_response);
     FakeBinaryUploadServiceStorage()->SetExpectedFinalAction(
         kScanId3, ContentAnalysisAcknowledgement::ALLOW);
   }
@@ -856,7 +857,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateBrowserTest, Texts) {
   rule2->set_rule_name("resource rule 2");
 
   FakeBinaryUploadServiceStorage()->SetResponseForText(
-      ScanRequestUploadResult::SUCCESS, response);
+      ScanRequestUploadResult::kSuccess, response);
   FakeBinaryUploadServiceStorage()->SetExpectedFinalAction(
       kScanId1, ContentAnalysisAcknowledgement::BLOCK);
 
@@ -999,7 +1000,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateBrowserTest,
   rule2->set_rule_name("resource rule 2");
 
   FakeBinaryUploadServiceStorage()->SetResponseForText(
-      ScanRequestUploadResult::SUCCESS, response);
+      ScanRequestUploadResult::kSuccess, response);
   FakeBinaryUploadServiceStorage()->SetExpectedFinalAction(
       kScanId1, ContentAnalysisAcknowledgement::BLOCK);
 
@@ -1127,7 +1128,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateBrowserTest, AllowTextAndImage) {
   text_result->set_tag("dlp");
 
   FakeBinaryUploadServiceStorage()->SetResponseForText(
-      ScanRequestUploadResult::SUCCESS, text_response);
+      ScanRequestUploadResult::kSuccess, text_response);
   FakeBinaryUploadServiceStorage()->SetExpectedFinalAction(
       kScanId1, ContentAnalysisAcknowledgement::ALLOW);
 
@@ -1138,7 +1139,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateBrowserTest, AllowTextAndImage) {
   image_result->set_tag("dlp");
 
   FakeBinaryUploadServiceStorage()->SetResponseForImage(
-      ScanRequestUploadResult::SUCCESS, image_response, image().size());
+      ScanRequestUploadResult::kSuccess, image_response, image().size());
   FakeBinaryUploadServiceStorage()->SetExpectedFinalAction(
       kScanId2, ContentAnalysisAcknowledgement::ALLOW);
 
@@ -1208,7 +1209,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateBrowserTest,
   rule->set_rule_id("1");
   rule->set_rule_name("resource rule 1");
   FakeBinaryUploadServiceStorage()->SetResponseForText(
-      ScanRequestUploadResult::SUCCESS, text_response);
+      ScanRequestUploadResult::kSuccess, text_response);
   FakeBinaryUploadServiceStorage()->SetExpectedFinalAction(
       kScanId1, ContentAnalysisAcknowledgement::BLOCK);
 
@@ -1219,7 +1220,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateBrowserTest,
   image_result->set_tag("dlp");
 
   FakeBinaryUploadServiceStorage()->SetResponseForImage(
-      ScanRequestUploadResult::SUCCESS, image_response, image().size());
+      ScanRequestUploadResult::kSuccess, image_response, image().size());
   // Final action for image ack should be blocked, even though we are only
   // blocking text.
   FakeBinaryUploadServiceStorage()->SetExpectedFinalAction(
@@ -1349,7 +1350,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateBrowserTest,
   rule->set_rule_id("1");
   rule->set_rule_name("resource rule 1");
   FakeBinaryUploadServiceStorage()->SetResponseForText(
-      ScanRequestUploadResult::SUCCESS, text_response);
+      ScanRequestUploadResult::kSuccess, text_response);
   FakeBinaryUploadServiceStorage()->SetExpectedFinalAction(
       kScanId1, ContentAnalysisAcknowledgement::BLOCK);
 
@@ -1360,7 +1361,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateBrowserTest,
   image_result->set_tag("dlp");
 
   FakeBinaryUploadServiceStorage()->SetResponseForImage(
-      ScanRequestUploadResult::SUCCESS, image_response, image().size());
+      ScanRequestUploadResult::kSuccess, image_response, image().size());
   // Final action for image ack should be blocked, even though we are only
   // blocking text.
   FakeBinaryUploadServiceStorage()->SetExpectedFinalAction(
@@ -1570,7 +1571,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateBrowserTest, Throttled) {
   for (size_t i = 0; i < 3; ++i) {
     FakeBinaryUploadServiceStorage()->SetResponseForFile(
         created_file_paths()[i].AsUTF8Unsafe(),
-        ScanRequestUploadResult::TOO_MANY_REQUESTS, ContentAnalysisResponse());
+        ScanRequestUploadResult::kTooManyRequests, ContentAnalysisResponse());
   }
 
   bool called = false;
@@ -2139,7 +2140,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateBlockingSettingBrowserTest,
   dlp_rule->set_rule_name("some_dlp_rule");
 
   FakeBinaryUploadServiceStorage()->SetResponseForFile(
-      created_file_paths()[0].AsUTF8Unsafe(), ScanRequestUploadResult::SUCCESS,
+      created_file_paths()[0].AsUTF8Unsafe(), ScanRequestUploadResult::kSuccess,
       response);
   FakeBinaryUploadServiceStorage()->SetExpectedFinalAction(
       kScanId1, ContentAnalysisAcknowledgement::BLOCK);
@@ -2337,7 +2338,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateBlockingSettingBrowserTest,
   dlp_rule->set_rule_name("resource rule 1");
 
   FakeBinaryUploadServiceStorage()->SetResponseForText(
-      ScanRequestUploadResult::SUCCESS, response);
+      ScanRequestUploadResult::kSuccess, response);
   FakeBinaryUploadServiceStorage()->SetExpectedFinalAction(
       kScanId1, ContentAnalysisAcknowledgement::BLOCK);
 
@@ -2470,12 +2471,12 @@ INSTANTIATE_TEST_SUITE_P(
     ,
     ContentAnalysisDelegateDefaultActionSettingBrowserTest,
     testing::Combine(
-        testing::Values(ScanRequestUploadResult::UPLOAD_FAILURE,
-                        ScanRequestUploadResult::TIMEOUT,
-                        ScanRequestUploadResult::FAILED_TO_GET_TOKEN,
-                        ScanRequestUploadResult::TOO_MANY_REQUESTS,
-                        ScanRequestUploadResult::UNKNOWN,
-                        ScanRequestUploadResult::INCOMPLETE_RESPONSE),
+        testing::Values(ScanRequestUploadResult::kUploadFailure,
+                        ScanRequestUploadResult::kTimeout,
+                        ScanRequestUploadResult::kFailedToGetToken,
+                        ScanRequestUploadResult::kTooManyRequests,
+                        ScanRequestUploadResult::kUnknown,
+                        ScanRequestUploadResult::kIncompleteResponse),
         testing::Bool()));
 
 IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateDefaultActionSettingBrowserTest,
@@ -2631,7 +2632,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateUnauthorizedBrowserTest, Paste) {
                           content_analysis_run_loop.QuitClosure()));
 
   FakeBinaryUploadServiceStorage()->SetAuthForTesting(
-      dm_token(), ScanRequestUploadResult::UNAUTHORIZED);
+      dm_token(), ScanRequestUploadResult::kUnauthorized);
   FakeBinaryUploadServiceStorage()->SetAuthorized(false);
 
   bool called = false;
@@ -2682,7 +2683,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDelegateUnauthorizedBrowserTest, Files) {
                           content_analysis_run_loop.QuitClosure()));
 
   FakeBinaryUploadServiceStorage()->SetAuthForTesting(
-      dm_token(), ScanRequestUploadResult::UNAUTHORIZED);
+      dm_token(), ScanRequestUploadResult::kUnauthorized);
   // Make sure all auth retries fail.
   FakeBinaryUploadServiceStorage()->SetAuthorized(false);
   FakeBinaryUploadServiceStorage()->SetShouldAutomaticallyAuthorize(true);

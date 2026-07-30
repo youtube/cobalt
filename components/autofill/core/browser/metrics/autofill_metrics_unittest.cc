@@ -179,13 +179,13 @@ TEST_F(AutofillMetricsTest, PerfectFilling_Addresses_CreditCards) {
   autofill_manager().AddSeenForm(address_form, {NAME_FULL, ADDRESS_HOME_LINE1});
   autofill_manager().AddSeenForm(payments_form,
                                  {CREDIT_CARD_NAME_FULL, CREDIT_CARD_NUMBER});
-  autofill_manager()
-      .GetAutofillField(address_form.global_id(),
-                        address_form.fields().front().global_id())
+  test_api(autofill_manager())
+      .FindCachedFormById(address_form.global_id())
+      ->GetFieldById(address_form.fields().front().global_id())
       ->set_filling_product(FillingProduct::kAddress);
-  autofill_manager()
-      .GetAutofillField(payments_form.global_id(),
-                        payments_form.fields().front().global_id())
+  test_api(autofill_manager())
+      .FindCachedFormById(payments_form.global_id())
+      ->GetFieldById(payments_form.fields().front().global_id())
       ->set_filling_product(FillingProduct::kCreditCard);
 
   base::HistogramTester histogram_tester;
@@ -2305,7 +2305,7 @@ class AutofillMetricsParseQueryResponseTest : public testing::Test {
     test_api(form).Append(checkable_field);
 
     owned_forms_.push_back(std::make_unique<FormStructure>(form));
-    forms_.push_back(owned_forms_.back().get());
+    forms_.emplace_back(*owned_forms_.back());
 
     field.set_label(u"email");
     field.set_name(u"email");
@@ -2317,13 +2317,13 @@ class AutofillMetricsParseQueryResponseTest : public testing::Test {
     test_api(form).Append(field);
 
     owned_forms_.push_back(std::make_unique<FormStructure>(form));
-    forms_.push_back(owned_forms_.back().get());
+    forms_.emplace_back(*owned_forms_.back());
   }
 
  protected:
   test::AutofillUnitTestEnvironment autofill_test_environment_;
   std::vector<std::unique_ptr<FormStructure>> owned_forms_;
-  std::vector<raw_ptr<FormStructure, VectorExperimental>> forms_;
+  std::vector<raw_ref<FormStructure>> forms_;
 };
 
 TEST_F(AutofillMetricsParseQueryResponseTest, ServerHasData) {

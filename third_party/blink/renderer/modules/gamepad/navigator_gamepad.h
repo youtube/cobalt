@@ -38,6 +38,7 @@
 #include "third_party/blink/renderer/modules/gamepad/gamepad.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 
@@ -56,11 +57,14 @@ class Navigator;
 
 class MODULES_EXPORT NavigatorGamepad final
     : public GarbageCollected<NavigatorGamepad>,
+      public Supplement<Navigator>,
       public ExecutionContextClient,
       public PlatformEventController,
       public LocalDOMWindow::EventListenerObserver,
       public Gamepad::Client {
  public:
+  static const unsigned kSupplementIndex;
+
   static NavigatorGamepad& From(Navigator&);
 
   explicit NavigatorGamepad(Navigator&);

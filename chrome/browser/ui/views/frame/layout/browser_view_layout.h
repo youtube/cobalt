@@ -20,7 +20,8 @@ class InfoBarContainerView;
 class MultiContentsView;
 class SidePanel;
 class TabStrip;
-class TabStripRegionView;
+class HorizontalTabStripRegionView;
+class VerticalTabStripRegionView;
 class WebAppFrameToolbarView;
 
 namespace views {
@@ -53,8 +54,8 @@ struct BrowserViewLayoutViews {
   raw_ptr<views::View> top_container = nullptr;
   raw_ptr<WebAppFrameToolbarView> web_app_frame_toolbar = nullptr;
   raw_ptr<views::Label> web_app_window_title = nullptr;
-  raw_ptr<TabStripRegionView> tab_strip_region_view = nullptr;
-  raw_ptr<views::View> vertical_tab_strip_container = nullptr;
+  raw_ptr<HorizontalTabStripRegionView> tab_strip_region_view = nullptr;
+  raw_ptr<VerticalTabStripRegionView> vertical_tab_strip_container = nullptr;
   raw_ptr<views::View> toolbar = nullptr;
   raw_ptr<InfoBarContainerView> infobar_container = nullptr;
   raw_ptr<views::View> contents_container = nullptr;
@@ -96,12 +97,6 @@ class BrowserViewLayout : public views::LayoutManager {
   // not specified). This value is used for the main browser window only, not
   // for popups.
   static constexpr int kMainBrowserContentsMinimumWidth = 500;
-
-  // The width of the vertical tab strip.
-  //
-  // TODO(https://crbug.com/439961053): This shouldn't be hard-coded and should
-  // be reported by the vertical tabstrip itself.
-  static constexpr int kMinVerticalTabStripWidth = 240;
 
   BrowserViewLayout(const BrowserViewLayout&) = delete;
   BrowserViewLayout& operator=(const BrowserViewLayout&) = delete;

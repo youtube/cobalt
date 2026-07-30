@@ -106,20 +106,11 @@ constexpr size_t kMaxChromeSigninInterceptionDismissCount = 5;
 // The user will only see the Chrome Signin bubble reprompt a maximum of 4 times
 // (not including the initial time the bubble was declined).
 static constexpr int kMaxChromeSigninBubbleRepromptCountAllowed = 4;
-// Same as for kMaxChromeSigninBubbleRepromptCountAllowed, with different value
-// to be used in SigninPromoLimitsExperiment.
-static constexpr int
-    kMaxChromeSigninBubbleRepromptCountAllowedForLimitsExperiment = 10;
 // The Chrome Signin bubble can be reprompted only if a minimum duration time
 // has passed since the last bubble was shown (either initial bubble or a
 // reprompt).
 static constexpr base::TimeDelta kMinimumDurationForChromeSigninBubbleReprompt =
     base::Days(60);
-// Same as for kMinimumDurationForChromeSigninBubbleReprompt, with different
-// value to be used in SigninPromoLimitsExperiment.
-static constexpr base::TimeDelta
-    kMinimumDurationForChromeSigninBubbleRepromptForLimitsExperiment =
-        base::Days(7);
 
 // Helper function to return the primary account info. The returned info is
 // empty if there is no primary account, and non-empty otherwise. Extended
@@ -198,11 +189,7 @@ bool ShouldAllowChromeSigninBubbleReprompt(const SigninPrefs& signin_prefs,
 
   // Maximum reprompt count check.
   int reprompt_count = signin_prefs.GetChromeSigninBubbleRepromptCount(gaia_id);
-  int max_reprompt_count =
-      base::FeatureList::IsEnabled(switches::kSigninPromoLimitsExperiment)
-          ? kMaxChromeSigninBubbleRepromptCountAllowedForLimitsExperiment
-          : kMaxChromeSigninBubbleRepromptCountAllowed;
-  if (reprompt_count >= max_reprompt_count) {
+  if (reprompt_count >= kMaxChromeSigninBubbleRepromptCountAllowed) {
     return false;
   }
 
@@ -212,11 +199,8 @@ bool ShouldAllowChromeSigninBubbleReprompt(const SigninPrefs& signin_prefs,
       GetTimeSinceLastChromeSigninDecline(signin_prefs, gaia_id);
 
   // Minimum duration since last chrome signin decline check.
-  const base::TimeDelta minimum_duration =
-      base::FeatureList::IsEnabled(switches::kSigninPromoLimitsExperiment)
-          ? kMinimumDurationForChromeSigninBubbleRepromptForLimitsExperiment
-          : kMinimumDurationForChromeSigninBubbleReprompt;
-  return time_since_last_decline >= minimum_duration;
+  return time_since_last_decline >=
+         kMinimumDurationForChromeSigninBubbleReprompt;
 }
 
 // Set showing the bubble as a reprompt if the user previously declined the
@@ -1377,8 +1361,6 @@ void DiceWebSigninInterceptor::OnNewSignedInProfileCreated(
   if (is_new_profile) {
     ProfileMetrics::LogProfileAddNewUser(
         ProfileMetrics::ADD_NEW_USER_SIGNIN_INTERCEPTION);
-    // TODO(crbug.com/40775669): Remove the condition if Guest mode
-    // option is removed.
     if (!new_profile->IsGuestSession()) {
       // Apply the new color to the profile.
       ThemeServiceFactory::GetForProfile(new_profile)
@@ -1488,8 +1470,6 @@ void DiceWebSigninInterceptor::OnNewBrowserCreated(bool is_new_profile) {
   state_->interception_bubble_handle_.reset();  // Close the bubble now.
   state_->session_startup_helper_.reset();
 
-  // TODO(crbug.com/40775669): Remove |IsGuestSession| if Guest option is
-  // no more supported.
   if (!is_new_profile || profile_->IsGuestSession()) {
     return;
   }

@@ -46,6 +46,92 @@ chromium-metrics-reviews@google.com.
   <variant name="Scroll" summary="Scroll"/>
 </variants>
 
+<variants name="MemoryDumpProviderName">
+  <variant name="android__ResourceManagerImpl"
+      summary="android::ResourceManagerImpl"/>
+  <variant name="android_meminfo"/>
+  <variant name="AndroidGraphics"/>
+  <variant name="AutocompleteController"/>
+  <variant name="AXPlatformNode"/>
+  <variant name="AXPlatformNodeWin"/>
+  <variant name="BlinkGC"/>
+  <variant name="BlinkObjectCounters"/>
+  <variant name="BlobStorageContext"/>
+  <variant name="BucketContext"/>
+  <variant name="Canvas"/>
+  <variant name="cc__GpuImageDecodeCache" summary="cc::GpuImageDecodeCache"/>
+  <variant name="cc__ResourcePool" summary="cc::ResourcePool"/>
+  <variant name="cc__ResourceProvider" summary="cc::ResourceProvider"/>
+  <variant name="cc__SoftwareImageDecodeCache"
+      summary="cc::SoftwareImageDecodeCache"/>
+  <variant name="cc__StagingBufferPool" summary="cc::StagingBufferPool"/>
+  <variant name="ClientDiscardableSharedMemoryManager"/>
+  <variant name="CommandBuffer"/>
+  <variant name="ContextProviderCommandBuffer"/>
+  <variant name="DawnCache"/>
+  <variant name="DawnSharedContext"/>
+  <variant name="DevTools"/>
+  <variant name="DiscardableSharedMemoryManager"/>
+  <variant name="DOMStorage"/>
+  <variant name="DownloadService"/>
+  <variant name="ExtensionFunctions"/>
+  <variant name="FontCaches"/>
+  <variant name="FrameBufferPool"/>
+  <variant name="FrameEvictionManager"/>
+  <variant name="gpu__BufferManager" summary="gpu::BufferManager"/>
+  <variant name="gpu__RenderbufferManager" summary="gpu::RenderbufferManager"/>
+  <variant name="gpu__ServiceTransferCache"
+      summary="gpu::ServiceTransferCache"/>
+  <variant name="gpu__TextureManager" summary="gpu::TextureManager"/>
+  <variant name="gpu__TransferBufferManager"
+      summary="gpu::TransferBufferManager"/>
+  <variant name="GpuMemoryBufferVideoFramePool"/>
+  <variant name="GpuPersistentCache"/>
+  <variant name="GraphiteVizMemoryAssistant"/>
+  <variant name="GrShaderCache"/>
+  <variant name="hibernated_canvas"/>
+  <variant name="IndexedDBBackingStore"/>
+  <variant name="InMemoryURLIndex"/>
+  <variant name="IPCChannel"/>
+  <variant name="JavaHeap"/>
+  <variant name="LevelDB"/>
+  <variant name="LeveldbValueStore"/>
+  <variant name="LocalStorage"/>
+  <variant name="MadvFreeDiscardableMemoryAllocator"/>
+  <variant name="Malloc"/>
+  <variant name="media__V4l2VideoDecodeAccelerator"
+      summary="media::V4l2VideoDecodeAccelerator"/>
+  <variant name="media__VaapiVideoEncodeAccelerator"
+      summary="media::VaapiVideoEncodeAccelerator"/>
+  <variant name="media__VideoResourceUpdater"
+      summary="media::VideoResourceUpdater"/>
+  <variant name="MemoryCache"/>
+  <variant name="MojoHandleTable"/>
+  <variant name="MojoLevelDB"/>
+  <variant name="MojoMessages"/>
+  <variant name="ParkableImages"/>
+  <variant name="ParkableStrings"/>
+  <variant name="PartitionAlloc"/>
+  <variant name="PartitionAlloc.AddressSpace"/>
+  <variant name="SessionStorage"/>
+  <variant name="SharedContextState"/>
+  <variant name="SharedImageManager"/>
+  <variant name="SharedMemoryTracker"/>
+  <variant name="Skia"/>
+  <variant name="Sql"/>
+  <variant name="sql__Database" summary="sql::Database"/>
+  <variant name="TabRestoreServiceHelper"/>
+  <variant name="TestDumpProvider"/>
+  <variant name="TestDumpProvider.Allowlisted"/>
+  <variant name="TextureOwner"/>
+  <variant name="TileManager"/>
+  <variant name="V8Isolate"/>
+  <variant name="V8SharedMemory"/>
+  <variant name="vulkan"/>
+  <variant name="WebMediaPlayer_MainThread"/>
+  <variant name="WebMediaPlayer_MediaThread"/>
+</variants>
+
 <variants name="ProcessMemoryAllocator2">
   <variant name=".AndroidOtherPrivateDirty"
       summary="Other private dirty memory, including GPU memory, as reported
@@ -895,7 +981,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="HeapProfiling.InProcess.SampledAddressCacheBucketLengths{Process}"
-    units="nodes" expires_after="2026-04-05">
+    units="nodes" expires_after="2026-06-07">
   <owner>joenotcharles@google.com</owner>
   <owner>chrome-memory@google.com</owner>
   <summary>
@@ -920,7 +1006,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HeapProfiling.InProcess.SampledAddressCacheHitRate{Process}"
-    units="1/100 %" expires_after="2026-04-05">
+    units="1/100 %" expires_after="2026-06-07">
   <owner>joenotcharles@google.com</owner>
   <owner>chrome-memory@google.com</owner>
   <summary>
@@ -961,7 +1047,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="HeapProfiling.InProcess.SampledAddressCacheUniformity{Process}"
-    units="%" expires_after="2026-04-05">
+    units="%" expires_after="2026-06-07">
   <owner>joenotcharles@google.com</owner>
   <owner>chrome-memory@google.com</owner>
   <summary>
@@ -1318,6 +1404,62 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Memory.DumpProvider.FinalStatus.{Name}"
+    enum="MemoryDumpProviderStatus" expires_after="2026-03-12">
+  <owner>joenotcharles@google.com</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The status of an instance of {Name} when it finishes running or is skipped.
+    During a memory dump, a list of MemoryDumpProvider objects is queued to run
+    in sequence. This metric is logged for each object when it's destroyed, with
+    the reason it was destroyed. Usually this when it's removed from the queue
+    to run it, or to explicitly skip it. Objects can also be destroyed if
+    they're still in the queue when the queue is destroyed.
+  </summary>
+  <token key="Name" variants="MemoryDumpProviderName"/>
+</histogram>
+
+<histogram name="Memory.DumpProvider.FollowingProviders.{Name}" units="objects"
+    expires_after="2026-03-12">
+  <owner>joenotcharles@google.com</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The number of MemoryDumpProviders that are queued to run after an instance
+    of {Name}. Logged at the same time as Memory.DumpProvider.FinalStatus.
+  </summary>
+  <token key="Name" variants="MemoryDumpProviderName"/>
+</histogram>
+
+<histogram name="Memory.DumpProvider.MemoryDumpTime.{Name}"
+    units="microseconds" expires_after="2026-03-12">
+  <owner>joenotcharles@google.com</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The length of time an instance of MemoryDumpProvider {Name} spent executing.
+    Memory.DumpProvider.TotalTime, which includes the time it spent queued, will
+    also be logged when this is logged.
+
+    Note: this metric is only recorded on clients with a high-resolution clock.
+  </summary>
+  <token key="Name" variants="MemoryDumpProviderName"/>
+</histogram>
+
+<histogram name="Memory.DumpProvider.TotalTime.{Name}" units="ms"
+    expires_after="2026-03-12">
+  <owner>joenotcharles@google.com</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The length of time between an instance of MemoryDumpProvider {Name} being
+    queued for a memory dump, and Memory.DumpProvider.FinalStatus being recorded
+    for that instance. If FinalStatus was recorded because the instance finished
+    running, Memory.DumpProvider.MemoryDumpTime will also be recorded with the
+    time that it took to run.
+
+    Note: this metric is only recorded on clients with a high-resolution clock.
+  </summary>
+  <token key="Name" variants="MemoryDumpProviderName"/>
+</histogram>
+
 <histogram name="Memory.Experimental.AvailableMemoryMB" units="MB"
     expires_after="2025-11-16">
   <owner>anthonyvd@chromium.org</owner>
@@ -1362,7 +1504,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Memory.Experimental.Browser2.Small{ProcessMemoryAllocatorSmall2}"
-    units="KB" expires_after="2026-03-29">
+    units="KB" expires_after="2026-05-31">
   <owner>erikchen@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <owner>lizeb@chromium.org</owner>
@@ -1471,7 +1613,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Memory.Experimental.Gpu2.Custom{ProcessMemoryAllocatorCustom2}"
-    units="bytes" expires_after="2026-03-29">
+    units="bytes" expires_after="2026-05-31">
   <owner>sashamcintosh@chromium.org</owner>
   <owner>chromeos-gfx@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
@@ -1488,7 +1630,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Experimental.Gpu2.Small{ProcessMemoryAllocatorSmall2}"
-    units="KB" expires_after="2026-04-05">
+    units="KB" expires_after="2026-06-07">
   <owner>erikchen@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <owner>lizeb@chromium.org</owner>
@@ -1520,7 +1662,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Experimental.Gpu2{ProcessMemoryAllocator2}" units="MB"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>erikchen@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <owner>lizeb@chromium.org</owner>
@@ -1726,7 +1868,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Memory.Experimental.Renderer2.Small{ProcessMemoryAllocatorSmall2}"
-    units="KB" expires_after="2026-03-29">
+    units="KB" expires_after="2026-05-31">
   <owner>erikchen@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <owner>lizeb@chromium.org</owner>
@@ -1741,7 +1883,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Memory.Experimental.Renderer2.Tiny{ProcessMemoryAllocatorTiny2}"
-    units="bytes" expires_after="2026-01-25">
+    units="bytes" expires_after="2026-05-31">
   <owner>sashamcintosh@chromium.org</owner>
   <owner>chromeos-gfx@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
@@ -1757,7 +1899,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Experimental.Renderer2{ProcessMemoryAllocator2}"
-    units="MB" expires_after="2026-04-05">
+    units="MB" expires_after="2026-06-07">
   <owner>erikchen@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <owner>lizeb@chromium.org</owner>
@@ -2101,7 +2243,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.NativeLibrary.MappedAndResidentMemoryFootprint3"
-    units="KB" expires_after="2026-04-05">
+    units="KB" expires_after="2026-06-07">
   <owner>lizeb@chromium.org</owner>
   <owner>pasko@chromium.org</owner>
   <summary>
@@ -2623,7 +2765,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Renderer.MappingsCount" units="count"
-    expires_after="2026-03-01">
+    expires_after="2026-05-31">
   <owner>lizeb@chromium.org</owner>
   <owner>chrome-memory@google.com</owner>
   <summary>
@@ -2774,7 +2916,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.RenderProcessHost.Count2.OriginAgentClusterOverhead"
-    units="processes" expires_after="2026-04-05">
+    units="processes" expires_after="2026-06-07">
   <owner>wjmaclean@chromium.org</owner>
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
@@ -2799,7 +2941,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.RenderProcessHost.Count2.SandboxedIframeOverhead"
-    units="processes" expires_after="2026-04-05">
+    units="processes" expires_after="2026-06-07">
   <owner>wjmaclean@chromium.org</owner>
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
@@ -2877,6 +3019,66 @@ chromium-metrics-reviews@google.com.
     System-wide estimate of memory used in ChromeOS, calculated as the
     difference between the amount of total and available memory.
   </summary>
+</histogram>
+
+<histogram
+    name="Memory.SystemMemoryLists.ExhaustedIntervalsPerThirtySeconds.{PageList}"
+    units="intervals" expires_after="2026-07-13">
+  <owner>spvm@google.com</owner>
+  <owner>etienneb@google.com</owner>
+  <summary>
+    Recorded on Windows only. Every 100ms, the size of the system memory lists
+    are queried (and if this query fails, the entire process is cancelled and
+    Memory.SystemMemoryLists.QueryFailureStatus is recorded instead). This
+    metric is the number of such calls over the course of 30s that returned that
+    {PageList} were empty. Recorded every 30s in the browser process after main
+    message loop start.
+  </summary>
+  <token key="PageList">
+    <variant name="FreeList" summary="free pages"/>
+    <variant name="ZeroList" summary="zero pages"/>
+  </token>
+</histogram>
+
+<histogram name="Memory.SystemMemoryLists.QueryFailureStatus" enum="NTSTATUS"
+    expires_after="2026-07-13">
+  <owner>spvm@google.com</owner>
+  <owner>etienneb@google.com</owner>
+  <summary>
+    Recorded on Windows only. The status if unsuccessful of querying for the
+    size of system memory lists. If Recorded at-most once per startup 100ms
+    after browser message loop starts, and only if we never record
+    Memory.SystemMemoryLists.ExhaustedIntervalsPerThirtySeconds because of the
+    failed query.
+  </summary>
+</histogram>
+
+<histogram name="Memory.SystemMemoryLists.TotalIntervalsRecorded"
+    units="intervals" expires_after="2026-07-13">
+  <owner>spvm@google.com</owner>
+  <owner>etienneb@google.com</owner>
+  <summary>
+    Recorded on Windows only. The SystemMemoryPressureEvaluator attempts to
+    query the size of the system memory lists 300 times per 30 seconds. This
+    metric records the actual number of times the lists were queried per thirty
+    seconds, in the case that due to contention, the evaluator is unable to run.
+    Recorded every 30s after browser main message loop start.
+  </summary>
+</histogram>
+
+<histogram name="Memory.SystemMemoryLists.{PageCount}Count" units="pages"
+    expires_after="2026-07-13">
+  <owner>spvm@google.com</owner>
+  <owner>etienneb@google.com</owner>
+  <summary>
+    The size of the system memory list of {PageCount}. Recorded on Windows only.
+    Recorded every 30s, after browser main message loop start.
+  </summary>
+  <token key="PageCount">
+    <variant name="FreePage" summary="free pages"/>
+    <variant name="ModifiedPage" summary="modified pages"/>
+    <variant name="ZeroPage" summary="zero pages"/>
+  </token>
 </histogram>
 
 <histogram name="Memory.Total.GpuMappedMemory" units="MB"

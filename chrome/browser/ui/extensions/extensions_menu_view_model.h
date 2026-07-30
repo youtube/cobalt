@@ -22,11 +22,8 @@ class WebContents;
 
 class BrowserWindowInterface;
 class ExtensionsMenuViewPlatformDelegate;
-class ToolbarActionViewModel;
 
-// The platform agnostic controller for the extensions menu.
-// TODO(crbug.com/449814184): Move the observers from
-// ExtensionsMenuViewController here.
+// The platform agnostic model for the extensions menu.
 class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
                                 public ToolbarActionsModel::Observer,
                                 public TabListInterfaceObserver,
@@ -70,6 +67,71 @@ class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
     bool is_enterprise;
   };
 
+  // The type of optional section to display in the menu.
+  enum class OptionalSection {
+    // A section alerting the user that a page reload is required for changes to
+    // take effect.
+    kReloadPage,
+    // A section listing extensions that have host access requests to the
+    // current
+    // site.
+    kHostAccessRequests,
+    // No optional section should be displayed.
+    kNone
+  };
+
+  // A generic structure for UI controls (buttons, toggles, radio buttons).
+  struct ControlState {
+    // Represents the availability and interactivity the control.
+    enum class Status {
+      // The control is not displayed.
+      kHidden,
+      // The control is displayed but cannot be interacted with.
+      kDisabled,
+      // The control is displayed and interactive.
+      kEnabled
+    };
+
+    ControlState();
+    ControlState(const ControlState&);
+    ControlState& operator=(const ControlState&);
+    ~ControlState();
+
+    // The interactivity status of the control.
+    Status status = Status::kHidden;
+    // The text label to display. Empty if not applicable.
+    std::u16string text;
+    // The accessible name. Empty if not applicable.
+    std::u16string accessible_name;
+    // The tooltip text label. Empty if not applicable.
+    std::u16string tooltip_text;
+    // The checked/toggled state. False for buttons with no on/off state.
+    bool is_on = false;
+  };
+
+  // Holds the information for an extension's site access in the extension's
+  // menu. This will be used by the platform delegate as needed.
+  struct ExtensionSiteAccessOptionsState {
+    // The state for the 'on click' site access option.
+    ControlState on_click_option;
+    // The state for the 'on site' site access option.
+    ControlState on_site_option;
+    // The state for the 'on all sites' site access option.
+    ControlState on_all_sites_option;
+  };
+
+  // Holds the information for the site settings in the extension's menu. This
+  // will be used by the platform delegate as needed.
+  struct SiteSettingsState {
+    // The resource ID for the text label.
+    std::u16string label;
+    // Whether to show a tooltip explaining why the setting is in its current
+    // state (e.g. if controlled by enterprise policy).
+    bool has_tooltip;
+    // The state of the site settings toggle.
+    ControlState toggle;
+  };
+
   ExtensionsMenuViewModel(
       BrowserWindowInterface* browser,
       std::unique_ptr<ExtensionsMenuViewPlatformDelegate> platform_delegate);
@@ -100,15 +162,31 @@ class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
   // Revokes the extension's site access from the current site.
   void RevokeSiteAccess(const extensions::ExtensionId& extension_id);
 
-  // Update the extension's site setting for the current site.
+  // Update the site setting's for the current site.
   void UpdateSiteSetting(
       extensions::PermissionsManager::UserSiteSetting site_setting);
 
   // Reloads the current web contents.
   void ReloadWebContents();
 
-  // Returns the menu item info for extension with `model`.
-  MenuItemInfo GetMenuItemInfo(ToolbarActionViewModel* model);
+  // Returns the menu item info for an extension.
+  MenuItemInfo GetMenuItemInfo(const extensions::ExtensionId& extension_id);
+
+  // Returns the site access options state for an extension. This will crash if
+  // called when the user cannot modify the extension site permissions, as this
+  // method would compute invalid values.
+  ExtensionSiteAccessOptionsState GetExtensionSiteAccessOptionsState(
+      const extensions::ExtensionId& extension_id);
+
+  // Returns the show requests toggle state for an extension.
+  ControlState GetExtensionShowRequestsToggleState(
+      const extensions::ExtensionId& extension_id);
+
+  // Returns the optional section to display in the menu.
+  OptionalSection GetOptionalSection();
+
+  // Returns the site settings for the current web contents.
+  SiteSettingsState GetSiteSettingsState();
 
   // PermissionsManager::Observer:
   void OnHostAccessRequestAdded(const extensions::ExtensionId& extension_id,

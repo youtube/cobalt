@@ -15,7 +15,7 @@ export function getHtml(this: ComposeboxElement) {
         tabindex="-1"
         @click="${this.submitQuery_}"
         @focusin="${this.handleSubmitFocusIn_}">
-      <div id="submitOverlay"></div>
+      <div id="submitOverlay" part="submit-overlay"></div>
       <cr-icon-button
         class="action-icon icon-arrow-upward"
         id="submitIcon"
@@ -32,7 +32,8 @@ export function getHtml(this: ComposeboxElement) {
       .entrypointName="${this.entrypointName}"
       .requiresVoice="${this.shouldShowVoiceSearch_()}"
       .transcript="${this.transcript_}"
-      .receivedSpeech="${this.receivedSpeech_}">
+      .receivedSpeech="${this.receivedSpeech_}"
+      exportparts="composebox-background">
   </search-animated-glow>
   <ntp-error-scrim id="errorScrim" part="error-scrim"
     ?compact-mode="${this.searchboxLayoutMode === 'Compact' &&
@@ -88,6 +89,8 @@ export function getHtml(this: ComposeboxElement) {
           @set-deep-search-mode="${this.setDeepSearchMode_}"
           @set-create-image-mode="${this.setCreateImageMode_}"
           @get-tab-preview="${this.getTabPreview_}"
+          @open-file-dialog="${this.onOpenFileDialog_}"
+          @context-menu-container-click="${this.searchboxLayoutMode === 'Compact' ?  nothing : this.focusInput}"
           ?show-dropdown="${this.showDropdown_}"
           ?show-context-menu-description="${this.showContextMenuDescription_}"
           searchbox-layout-mode="${this.searchboxLayoutMode}"
@@ -101,6 +104,7 @@ export function getHtml(this: ComposeboxElement) {
             role="listbox"
             .result="${this.result_}"
             .selectedMatchIndex="${this.selectedMatchIndex_}"
+            .maxSuggestions="${this.maxSuggestions}"
             @selected-match-index-changed="${this.onSelectedMatchIndexChanged_}"
             @match-focusin="${this.onMatchFocusin_}"
             @match-click="${this.onMatchClick_}"
@@ -144,7 +148,8 @@ export function getHtml(this: ComposeboxElement) {
       @voice-search-cancel="${this.onVoiceSearchClose_}"
       @voice-search-final-result="${this.onVoiceSearchFinalResult_}"
       @transcript-update="${this.onTranscriptUpdate_}"
-      @speech-received="${this.onSpeechReceived_}">
+      @speech-received="${this.onSpeechReceived_}"
+      exportparts="voice-close-button">
   </cr-composebox-voice-search>
   ${this.shouldShowSuggestionActivityLink_() ? html`
     <div id="suggestionActivity">

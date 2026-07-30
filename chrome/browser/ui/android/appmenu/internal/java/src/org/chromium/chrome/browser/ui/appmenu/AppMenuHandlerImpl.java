@@ -20,6 +20,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewStub;
 import android.widget.Adapter;
+import android.widget.PopupWindow;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.LayoutRes;
@@ -183,7 +184,10 @@ class AppMenuHandlerImpl
                                 AppMenuHandlerImpl.this,
                                 /* startIndex= */ index,
                                 /* withAssertions= */ false);
-                        mAppMenu.updateMenuHeight();
+                        PopupWindow mainPopup = mAppMenu.getPopup();
+                        if (mainPopup != null && mainPopup.isShowing()) {
+                            mAppMenu.updateMenuHeight();
+                        }
                     }
 
                     @Override
@@ -195,7 +199,10 @@ class AppMenuHandlerImpl
                                 AppMenuHandlerImpl.this,
                                 /* startIndex= */ index,
                                 /* withAssertions= */ false);
-                        mAppMenu.updateMenuHeight();
+                        PopupWindow mainPopup = mAppMenu.getPopup();
+                        if (mainPopup != null && mainPopup.isShowing()) {
+                            mAppMenu.updateMenuHeight();
+                        }
                     }
                 };
     }
@@ -252,9 +259,10 @@ class AppMenuHandlerImpl
      * @return True, if the menu is shown, false, if menu is not shown, example reasons: the menu is
      *     not yet available to be shown, or the menu is already showing.
      */
+    @Override
     // TODO(crbug.com/40479664): Fix this properly.
     @SuppressLint("ResourceType")
-    boolean showAppMenu(@Nullable View anchorView, boolean startDragging) {
+    public boolean showAppMenu(@Nullable View anchorView, boolean startDragging) {
         if (!shouldShowAppMenu() || isAppMenuShowing()) return false;
 
         TextBubble.dismissBubbles();
@@ -305,7 +313,12 @@ class AppMenuHandlerImpl
                 /* headerModelList= */ null, mModelList, () -> {});
 
         if (mAppMenu == null) {
-            mAppMenu = new AppMenu(this, mContext.getResources(), mHierarchicalMenuController);
+            mAppMenu =
+                    new AppMenu(
+                            this,
+                            mContext.getResources(),
+                            mHierarchicalMenuController,
+                            mAppMenuDelegate.shouldDisableVerticalScrollbar());
             mAppMenuDragHelper = new AppMenuDragHelper(mContext, mAppMenu, itemRowHeight);
         }
 

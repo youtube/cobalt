@@ -9,8 +9,10 @@
 #include <string_view>
 #include <vector>
 
+#include "base/containers/contains.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/types/expected_macros.h"
 #include "components/services/storage/dom_storage/dom_storage_constants.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_batch_operation_leveldb.h"
@@ -73,6 +75,25 @@ StatusOr<DomStorageDatabase::MapMetadata> ParseMapMetadata(
   };
 }
 
+// Returns "namespace-<session_id>-"
+DomStorageDatabase::Key GetSessionPrefix(const std::string& session_id) {
+  DomStorageDatabase::Key session_prefix;
+  session_prefix.reserve(std::size(kNamespacePrefix) + session_id.size() +
+                         /*kNamespaceStorageKeySeparator=*/1);
+
+  // Append "namespace-"
+  session_prefix.insert(session_prefix.end(), std::begin(kNamespacePrefix),
+                        std::end(kNamespacePrefix));
+
+  // Append `session_id`.
+  session_prefix.insert(session_prefix.end(), session_id.begin(),
+                        session_id.end());
+
+  // Append "-".
+  session_prefix.push_back(kNamespaceStorageKeySeparator);
+  return session_prefix;
+}
+
 SessionStorageLevelDB::SessionStorageLevelDB(PassKey) {}
 
 SessionStorageLevelDB::~SessionStorageLevelDB() = default;
@@ -129,10 +150,61 @@ DbStatus SessionStorageLevelDB::PutMetadata(Metadata metadata) {
 
 DbStatus SessionStorageLevelDB::DeleteStorageKeysFromSession(
     std::string session_id,
-    std::vector<blink::StorageKey> storage_keys,
-    absl::flat_hash_set<int64_t> excluded_cloned_map_ids) {
-  // TODO(crbug.com/377242771): Implement and use for session storage.
-  return DbStatus::NotSupported("");
+    std::vector<blink::StorageKey> metadata_to_delete,
+    std::vector<MapLocator> maps_to_delete) {
+  std::unique_ptr<DomStorageBatchOperationLevelDB> batch =
+      leveldb_->CreateBatchOperation();
+
+  // Delete each storage key's metadata.
+  for (const blink::StorageKey& storage_key : metadata_to_delete) {
+    batch->Delete(CreateMapMetadataKey(session_id, storage_key));
+  }
+
+  // Delete the key/value pairs in `maps_to_delete`.
+  for (const DomStorageDatabase::MapLocator& map : maps_to_delete) {
+    // A valid `map` must be in `storage_keys` and `session_id`.
+    CHECK_EQ(map.session_id(), session_id);
+    DCHECK(base::Contains(metadata_to_delete, map.storage_key()));
+
+    DbStatus status = batch->DeletePrefixed(GetMapPrefix(map.map_id().value()));
+    if (!status.ok()) {
+      return status;
+    }
+  }
+  return batch->Commit();
+}
+
+DbStatus SessionStorageLevelDB::DeleteSessions(
+    std::vector<std::string> session_ids,
+    std::vector<MapLocator> maps_to_delete) {
+  std::unique_ptr<DomStorageBatchOperationLevelDB> batch =
+      leveldb_->CreateBatchOperation();
+
+  // Delete each session's metadata.
+  for (const std::string& session_id : session_ids) {
+    DbStatus status = batch->DeletePrefixed(GetSessionPrefix(session_id));
+    if (!status.ok()) {
+      return status;
+    }
+  }
+
+  // Delete the key/value pairs in `maps_to_delete`.
+  for (const DomStorageDatabase::MapLocator& map : maps_to_delete) {
+    // A valid `map` must be in `session_ids`.
+    DCHECK(base::Contains(session_ids, map.session_id()));
+
+    DbStatus status = batch->DeletePrefixed(GetMapPrefix(map.map_id().value()));
+    if (!status.ok()) {
+      return status;
+    }
+  }
+  return batch->Commit();
+}
+
+DbStatus SessionStorageLevelDB::PurgeOrigins(std::set<url::Origin> origins) {
+  // Origins aren't explicitly purged from session storage on shutdown because
+  // all session storage (generally) is cleared on shutdown already.
+  NOTREACHED();
 }
 
 DbStatus SessionStorageLevelDB::RewriteDB() {
@@ -177,6 +249,25 @@ DomStorageDatabase::Key SessionStorageLevelDB::CreateMapMetadataKey(
   return key;
 }
 
+DomStorageDatabase::Key SessionStorageLevelDB::GetMapPrefix(int64_t map_id) {
+  std::string map_id_text = base::NumberToString(map_id);
+
+  Key map_prefix;
+  map_prefix.reserve(std::size(kMapIdPrefix) + map_id_text.size() +
+                     /*kMapIdKeySeparator=*/1);
+
+  // Append "map-".
+  map_prefix.insert(map_prefix.end(), std::begin(kMapIdPrefix),
+                    std::end(kMapIdPrefix));
+
+  // Append `map_id` as text.
+  map_prefix.insert(map_prefix.end(), map_id_text.begin(), map_id_text.end());
+
+  // Append "-".
+  map_prefix.push_back(kMapIdKeySeparator);
+  return map_prefix;
+}
+
 StatusOr<int64_t> SessionStorageLevelDB::ReadNextMapId() const {
   StatusOr<Value> map_id_bytes = leveldb_->Get(kNextMapIdKey);
   if (!map_id_bytes.has_value()) {
@@ -206,6 +297,8 @@ SessionStorageLevelDB::ReadAllMapMetadata() const {
 
   // Create a `MapMetadata` for each entry.
   std::vector<DomStorageDatabase::MapMetadata> results;
+  results.reserve(namespace_entries.size());
+
   for (const KeyValuePair& namespace_entry : namespace_entries) {
     ASSIGN_OR_RETURN(MapMetadata map_metadata,
                      ParseMapMetadata(namespace_entry));

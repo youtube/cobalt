@@ -262,9 +262,7 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
   // |text_start_offset| adjusts the character index in the ShapeResult before
   // giving it to |ShapeResultSpacing|. It can be negative if
   // |StartIndex()| is larger than the text in |ShapeResultSpacing|.
-  //
-  // The function returns spacing amount on the right of the last glyph.
-  float ApplySpacing(ShapeResultSpacing&, int text_start_offset = 0);
+  void ApplySpacing(ShapeResultSpacing&, int text_start_offset = 0);
 
   // Apply expansion (justification) as configured to |ShapeResultSpacing|.
   // |text_start_offset| adjusts the character index in the ShapeResult before
@@ -272,7 +270,9 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
   // |StartIndex()| is larger than the text in |ShapeResultSpacing|.
   //
   // The function returns spacing amount on the right of the last glyph.
-  float ApplyExpansion(ShapeResultSpacing&, int text_start_offset);
+  TextRunLayoutUnit ApplyExpansion(TextJustify method,
+                                   ShapeResultSpacing&,
+                                   int text_start_offset);
   // Add `expansion` space before the first glyph.
   void ApplyLeadingExpansion(LayoutUnit expansion);
   // Add `expansion` space after the last glyph.
@@ -424,9 +424,11 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
   void ComputePositionData() const;
   void RecalcCharacterPositions() const;
 
-  float ApplySpacingOrExpansion(ShapeResultSpacing&,
-                                bool is_expansion,
-                                int text_start_offset = 0);
+  // if `method` is std::nullopt, this handles letter-spacing/word-spacing.
+  // Otherwise, this handles expansion.
+  TextRunLayoutUnit ApplySpacingOrExpansion(ShapeResultSpacing&,
+                                            std::optional<TextJustify> method,
+                                            int text_start_offset = 0);
   template <bool is_horizontal_run>
   void ComputeGlyphPositions(ShapeResultRun*,
                              unsigned start_glyph,

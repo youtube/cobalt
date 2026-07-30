@@ -41,7 +41,6 @@
 #include "components/viz/common/features.h"
 #include "content/child/child_process.h"
 #include "content/common/features.h"
-#include "content/common/user_level_memory_pressure_signal_features.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/gpu_stream_constants.h"
@@ -100,6 +99,7 @@
 #include "third_party/blink/public/platform/modules/video_capture/web_video_capture_impl_manager.h"
 #include "third_party/blink/public/platform/scheduler/web_thread_scheduler.h"
 #include "third_party/blink/public/platform/url_conversion.h"
+#include "third_party/blink/public/platform/web_audio_bus.h"
 #include "third_party/blink/public/platform/web_audio_latency_hint.h"
 #include "third_party/blink/public/platform/web_audio_sink_descriptor.h"
 #include "third_party/blink/public/platform/web_security_origin.h"
@@ -529,10 +529,10 @@ std::unique_ptr<WebAudioDevice> RendererBlinkPlatformImpl::CreateAudioDevice(
       context_sample_rate, callback);
 }
 
-bool RendererBlinkPlatformImpl::DecodeAudioFileData(
-    blink::WebAudioBus* destination_bus,
+std::unique_ptr<blink::WebAudioBus>
+RendererBlinkPlatformImpl::DecodeAudioFileData(
     base::span<const char> audio_file_data) {
-  return content::DecodeAudioFileData(destination_bus, audio_file_data);
+  return content::DecodeAudioFileData(audio_file_data);
 }
 
 //------------------------------------------------------------------------------
@@ -771,7 +771,6 @@ RendererBlinkPlatformImpl::CreateRasterGraphicsContextProvider(
 
   constexpr bool automatic_flushes = true;
   constexpr bool support_locking = false;
-  constexpr bool enable_gpu_rasterization = true;
   constexpr bool lose_context_when_out_of_memory = false;
 
   return std::make_unique<WebGraphicsContext3DProviderImpl>(
@@ -779,8 +778,7 @@ RendererBlinkPlatformImpl::CreateRasterGraphicsContextProvider(
           std::move(gpu_channel_host), kGpuStreamIdDefault,
           kGpuStreamPriorityDefault, GURL(document_url), automatic_flushes,
           support_locking, gpu::SharedMemoryLimits(),
-          ToVizContextType(context_type), enable_gpu_rasterization,
-          lose_context_when_out_of_memory));
+          ToVizContextType(context_type), lose_context_when_out_of_memory));
 }
 
 //------------------------------------------------------------------------------
@@ -1149,33 +1147,7 @@ void RendererBlinkPlatformImpl::SetPrivateMemoryFootprint(
 }
 
 bool RendererBlinkPlatformImpl::IsUserLevelMemoryPressureSignalEnabled() {
-  return features::IsUserLevelMemoryPressureSignalEnabledOn3GbDevices() ||
-         features::IsUserLevelMemoryPressureSignalEnabledOn4GbDevices() ||
-         features::IsUserLevelMemoryPressureSignalEnabledOn6GbDevices();
-}
-
-std::pair<base::TimeDelta, base::TimeDelta> RendererBlinkPlatformImpl::
-    InertAndMinimumIntervalOfUserLevelMemoryPressureSignal() {
-  if (features::IsUserLevelMemoryPressureSignalEnabledOn3GbDevices()) {
-    return std::make_pair(
-        features::InertIntervalFor3GbDevices(),
-        features::MinUserMemoryPressureIntervalOn3GbDevices());
-  }
-  if (features::IsUserLevelMemoryPressureSignalEnabledOn4GbDevices()) {
-    return std::make_pair(
-        features::InertIntervalFor4GbDevices(),
-        features::MinUserMemoryPressureIntervalOn4GbDevices());
-  }
-  if (features::IsUserLevelMemoryPressureSignalEnabledOn6GbDevices()) {
-    return std::make_pair(
-        features::InertIntervalFor6GbDevices(),
-        features::MinUserMemoryPressureIntervalOn6GbDevices());
-  }
-
-  constexpr std::pair<base::TimeDelta, base::TimeDelta>
-      kDefaultInertAndMinInterval =
-          std::make_pair(base::TimeDelta::Min(), base::Minutes(10));
-  return kDefaultInertAndMinInterval;
+  return base::SysInfo::Is4GbDevice() || base::SysInfo::Is6GbDevice();
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)

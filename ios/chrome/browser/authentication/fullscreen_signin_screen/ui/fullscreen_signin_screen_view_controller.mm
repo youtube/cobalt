@@ -12,6 +12,7 @@
 #import "ios/chrome/browser/settings/ui_bundled/elements/enterprise_info_popover_view_controller.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/elements/activity_overlay_view.h"
+#import "ios/chrome/browser/shared/ui/image/image_names.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/string_util.h"
 #import "ios/chrome/common/ui/button_stack/button_stack_configuration.h"
@@ -34,7 +35,7 @@ constexpr CGFloat kEnterpriseIconPointSize = 13;
 // Only relevant for certain `_contextStyle` values.
 constexpr CGFloat kHeaderBottomMargin = 32;
 
-#if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
+#if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
 // The size of the logo image.
 // Only relevant for certain `_contextStyle` values.
 constexpr CGFloat kHeaderImageSize = 39.2;
@@ -91,7 +92,7 @@ NSString* const kCollaborationSigninHeaderBackground =
       l10n_util::GetNSString(IDS_IOS_FIRST_RUN_SCREEN_READ_MORE);
 
   // Set banner.
-#if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
+#if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
   self.bannerName = kChromeSigninBannerImage;
   self.headerImage = MakeSymbolMulticolor(
       CustomSymbolWithPointSize(kMulticolorChromeballSymbol, kHeaderImageSize));

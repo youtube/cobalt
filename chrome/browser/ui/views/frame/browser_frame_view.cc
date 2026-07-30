@@ -10,6 +10,7 @@
 #include "base/memory/raw_ref.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/scoped_observation.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "chrome/app/vector_icons/vector_icons.h"
@@ -22,7 +23,7 @@
 #include "chrome/browser/ui/tabs/tab_types.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
+#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/grit/theme_resources.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -155,6 +156,11 @@ BrowserLayoutParams BrowserFrameView::GetBrowserLayoutParams() const {
   return params;
 }
 
+BrowserView* BrowserFrameView::GetBrowserView() const {
+  return const_cast<BrowserView*>(
+      static_cast<const BrowserView*>(browser_view_.view()));
+}
+
 void BrowserFrameView::OnBrowserViewInitViewsComplete() {
   UpdateMinimumSize();
 }
@@ -195,7 +201,7 @@ bool BrowserFrameView::IsFrameCondensed() const {
 
 bool BrowserFrameView::HasVisibleBackgroundTabShapes(
     BrowserFrameActiveState active_state) const {
-  DCHECK(browser_view_->GetSupportsTabStrip());
+  DCHECK(GetBrowserView()->GetSupportsTabStrip());
 
   const bool active = ShouldPaintAsActiveForState(active_state);
   const std::optional<int> bg_id = GetCustomBackgroundId(active_state);
@@ -213,7 +219,7 @@ bool BrowserFrameView::HasVisibleBackgroundTabShapes(
     // Inactive tab background images are copied from the active ones, so in the
     // inactive case, check the active image as well.
     if (!active) {
-      const int active_id = browser_view_->GetIncognito()
+      const int active_id = GetBrowserView()->GetIncognito()
                                 ? IDR_THEME_TAB_BACKGROUND_INCOGNITO
                                 : IDR_THEME_TAB_BACKGROUND;
       if (tp->HasCustomImage(active_id)) {
@@ -232,7 +238,7 @@ bool BrowserFrameView::HasVisibleBackgroundTabShapes(
   return TabStyle::Get()->GetTabBackgroundColor(
              TabStyle::TabSelectionState::kInactive,
              /*hovered=*/false, ShouldPaintAsActiveForState(active_state),
-             *GetColorProvider()) != GetFrameColor(active_state);
+             GetColorProvider()) != GetFrameColor(active_state);
 }
 
 SkColor BrowserFrameView::GetCaptionColor(
@@ -252,7 +258,7 @@ SkColor BrowserFrameView::GetFrameColor(
 std::optional<int> BrowserFrameView::GetCustomBackgroundId(
     BrowserFrameActiveState active_state) const {
   const ui::ThemeProvider* tp = GetThemeProvider();
-  const bool incognito = browser_view_->GetIncognito();
+  const bool incognito = GetBrowserView()->GetIncognito();
   const bool active = ShouldPaintAsActiveForState(active_state);
   const int active_id =
       incognito ? IDR_THEME_TAB_BACKGROUND_INCOGNITO : IDR_THEME_TAB_BACKGROUND;
@@ -343,7 +349,8 @@ gfx::ImageSkia BrowserFrameView::GetFrameImage(
 
 gfx::ImageSkia BrowserFrameView::GetFrameOverlayImage(
     BrowserFrameActiveState active_state) const {
-  if (browser_view_->GetIncognito() || !browser_view_->GetIsNormalType()) {
+  if (GetBrowserView()->GetIncognito() ||
+      !GetBrowserView()->GetIsNormalType()) {
     return gfx::ImageSkia();
   }
 
@@ -397,7 +404,7 @@ void BrowserFrameView::OnGestureEvent(ui::GestureEvent* event) {
 }
 
 int BrowserFrameView::GetSystemMenuY() const {
-  if (!browser_view()->GetTabStripVisible()) {
+  if (!GetBrowserView()->GetTabStripVisible()) {
     return GetTopInset(false);
   }
 
@@ -405,7 +412,7 @@ int BrowserFrameView::GetSystemMenuY() const {
   // position when in vertical tabs mode since the top element will now be the
   // toolbar instead of the tabstrip.
   return GetBoundsForTabStripRegion(
-             browser_view()->tab_strip_view()->GetMinimumSize())
+             GetBrowserView()->tab_strip_view()->GetMinimumSize())
              .bottom() -
          GetLayoutConstant(TABSTRIP_TOOLBAR_OVERLAP);
 }

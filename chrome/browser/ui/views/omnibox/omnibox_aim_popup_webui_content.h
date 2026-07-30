@@ -11,6 +11,7 @@
 
 class LocationBarView;
 class OmniboxController;
+class OmniboxPopupAimHandler;
 class OmniboxPopupPresenterBase;
 
 // The content WebView for the popup of a WebUI Omnibox.
@@ -27,15 +28,24 @@ class OmniboxAimPopupWebUIContent : public OmniboxPopupWebUIBaseContent {
       delete;
   ~OmniboxAimPopupWebUIContent() override;
 
+  // OmniboxPopupWebUIBaseContent:
+  // Called from the browser after popup has already closed. Will notify page
+  // handler and WebUI.
+  void OnPopupHidden() override;
+
+  // Called from page handler after `OnPopupClosed()` notified it. `input` is
+  // the possibly empty input that should replace the omnibox text.
+  void OnPageClosedWithInput(const std::string& input);
+
+ private:
   // WebUIContentsWrapper::Host:
+  // Called from WebUI code to close the widget. I.e. when user presses
+  // <escape>, presses the 'x' button, or moves focus out of the popup.
   void CloseUI() override;
   void ShowUI() override;
 
-  // Called when the popup is closed with a non-empty input value that should
-  // persist in the omnibox.
-  void OnClosedWithInput(const std::string& input);
-
-  private:
+  // Returns the WebUI Handler. Can return null.
+  OmniboxPopupAimHandler* popup_aim_handler();
 };
 
 BEGIN_VIEW_BUILDER(/* no export */,

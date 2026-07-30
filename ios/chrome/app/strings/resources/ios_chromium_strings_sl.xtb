@@ -117,6 +117,7 @@ Počakajte nekaj minut, preden preklopite račun. Če zdaj preklopite med račun
 <translation id="3581385059720151202">Slikovno iskanje v Chromiumu</translation>
 <translation id="3582640969619785896">Chromium bo ponudil shranjevanje gesla</translation>
 <translation id="3594315078412605236">Upravljanje plačilnih sredstev v Chromiumu</translation>
+<translation id="3600428265489994557">Prijava v Chromium</translation>
 <translation id="3617143087229977194">V sistemu iOS odprite nastavitve privzetih aplikacij, dotaknite se »Browser App« (brskalnik) in izberite Chromium.</translation>
 <translation id="3634039384458740619">Odprite nastavitve za Chromium</translation>
 <translation id="3639997914391704523">Chromium lahko preveri vaša gesla, ko se prijavite z računom Google.</translation>
@@ -351,7 +352,6 @@ Vaše šifrirane podatke lahko bere samo oseba, ki ima vaše geslo. Geslo ni pos
 <translation id="900560297598578021">Prijavljeni ste kot <ph name="EMAIL" />.
 
 Podatki so bili šifrirani z geslom dne <ph name="TIME" />. Vnesite ga, če želite podatke iz Chromiuma uporabljati in shranjevati v računu Google.</translation>
-<translation id="9022552996538154597">Prijava v Chromium</translation>
 <translation id="9031260906956926157">Nekateri podatki v Chromiumu še niso shranjeni v računu Google.
 Počakajte nekaj minut, preden se odjavite. Če se odjavite zdaj, bodo ti podatki izbrisani.</translation>
 <translation id="9050790730841755540">Chromium lahko uporabljate, kadar koli se dotaknete povezav v drugih aplikacijah.</translation>

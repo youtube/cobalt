@@ -24,15 +24,14 @@ BASE_DECLARE_FEATURE(kEnableReaderModeTranslation);
 // settings from the infobar framework.
 BASE_DECLARE_FEATURE(kEnableReaderModeTranslationWithInfobar);
 
-// Feature to enable page eligibility heuristic to determine whether the Tools
-// menu Reader Mode entry point should be shown for the web page.
-BASE_DECLARE_FEATURE(kEnableReaderModePageEligibilityForToolsMenu);
-
 // Feature to enable Readability heuristic for page triggering eligibility.
 BASE_DECLARE_FEATURE(kEnableReadabilityHeuristic);
 
 // Feature to enable optimization guide eligibility check.
 BASE_DECLARE_FEATURE(kEnableReaderModeOptimizationGuideEligibility);
+
+// Feature to enable Reader Mode badge support in the omnibox.
+BASE_DECLARE_FEATURE(kEnableReaderModeBadgeSupport);
 
 // Name to configure the duration string for heuristic page load delay. See
 // `base::TimeDeltaFromString` for valid duration string configurations.
@@ -59,5 +58,8 @@ bool IsReaderModeTranslationAvailable();
 
 // Returns whether optimization guide eligibility check is enabled.
 bool IsReaderModeOptimizationGuideEligibilityAvailable();
+
+// Returns whether the Reader Mode badge support is enabled.
+bool IsReaderModeBadgeSupportEnabled();
 
 #endif  // IOS_CHROME_BROWSER_READER_MODE_MODEL_FEATURES_H_

@@ -28,12 +28,14 @@
 #include "components/permissions/permission_uma_util.h"
 #include "components/permissions/permission_util.h"
 #include "components/permissions/prediction_service/permission_ui_selector.h"
+#include "components/permissions/prediction_service/prediction_service_messages.pb.h"
 #include "components/permissions/request_type.h"
 #include "components/permissions/resolvers/content_setting_permission_resolver.h"
 #include "components/permissions/test/mock_permission_prompt_factory.h"
 #include "components/permissions/test/mock_permission_request.h"
 #include "components/permissions/test/test_permissions_client.h"
 #include "components/prefs/testing_pref_service.h"
+#include "components/ukm/content/source_url_recorder.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "components/unified_consent/pref_names.h"
 #include "components/user_prefs/user_prefs.h"
@@ -1119,9 +1121,13 @@ TEST_F(PermissionRequestManagerTest, UiSelectorUsedForNotifications) {
 }
 
 TEST_F(PermissionRequestManagerTest, UiSelectorUsedForGeolocation) {
-  base::test::ScopedFeatureList
-      enable_permission_predictions_geolocation_accuracy(
-          features::kPermissionPredictionsGeolocationAccuracy);
+  base::test::ScopedFeatureList enable_approximate_location;
+  enable_approximate_location
+      .InitWithFeatures(/*enabled_features=*/
+                        {features::kPermissionPredictionsGeolocationAccuracy,
+                         content_settings::features::
+                             kApproximateGeolocationPermission},
+                        /*disabled_features=*/{});
 
   const struct {
     Decision decision;
@@ -1167,6 +1173,9 @@ TEST_F(PermissionRequestManagerTest, UiSelectorUsedForGeolocation) {
   };
 
   for (const auto& test : kTests) {
+    ukm::InitializeSourceUrlRecorderForWebContents(web_contents());
+    ukm::TestAutoSetUkmRecorder ukm_recorder;
+
     manager_->clear_permission_ui_selector_for_testing();
     MockNotificationGeolocationPermissionUiSelector::CreateForManager(
         manager_, test.decision, test.async_delay);
@@ -1189,6 +1198,13 @@ TEST_F(PermissionRequestManagerTest, UiSelectorUsedForGeolocation) {
     Accept();
 
     EXPECT_TRUE(request_state.granted);
+
+    const auto entries = ukm_recorder.GetEntriesByName("Permission");
+    ASSERT_EQ(1u, entries.size());
+    const auto* entry = entries.back().get();
+    EXPECT_EQ(*ukm_recorder.GetEntryMetric(
+                  entry, "InitialGeolocationAccuracySelection"),
+              static_cast<int64_t>(test.expected_accuracy));
   }
 }
 

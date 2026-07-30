@@ -41,6 +41,7 @@
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_trust_checker.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
+#include "chrome/browser/web_applications/isolated_web_apps/key_distribution/iwa_key_distribution_info_provider.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_installer.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_policy_constants.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_policy_manager.h"
@@ -73,7 +74,6 @@
 #include "components/webapps/browser/installable/installable_metrics.h"
 #include "components/webapps/browser/uninstall_result_code.h"
 #include "components/webapps/common/web_app_id.h"
-#include "components/webapps/isolated_web_apps/iwa_key_distribution_info_provider.h"
 #include "components/webapps/isolated_web_apps/test_support/signing_keys.h"
 #include "components/webapps/isolated_web_apps/types/source.h"
 #include "components/webapps/isolated_web_apps/types/storage_location.h"
@@ -230,11 +230,16 @@ class IsolatedWebAppUpdateManagerTest : public IsolatedWebAppTest {
   }
 
   std::unique_ptr<ScopedBundledIsolatedWebApp> CreateIwa1Bundle(
-      std::string_view version) {
+      std::string_view version,
+      std::optional<std::string_view> update_manifest_url = std::nullopt) {
+    auto manifest = ManifestBuilder().SetVersion(version);
+    if (update_manifest_url) {
+      manifest.SetUpdateManifestUrl(GURL(*update_manifest_url));
+    }
+
     std::unique_ptr<ScopedBundledIsolatedWebApp> app =
-        IsolatedWebAppBuilder(ManifestBuilder().SetVersion(version))
-            .BuildBundle(GetIwa1WebBundleId(),
-                         {test::GetDefaultEd25519KeyPair()});
+        IsolatedWebAppBuilder(manifest).BuildBundle(
+            GetIwa1WebBundleId(), {test::GetDefaultEd25519KeyPair()});
     app->TrustSigningKey();
     app->FakeInstallPageState(profile());
     return app;
@@ -274,6 +279,15 @@ class IsolatedWebAppUpdateManagerTest : public IsolatedWebAppTest {
                             kUpdateFoundAndSavedInDatabase));
   }
 
+  void AssertAppDiscoveryTaskFailedWith(
+      const web_package::SignedWebBundleId& web_bundle_id,
+      IsolatedWebAppUpdateDiscoveryTask::Error error) {
+    UpdateDiscoveryTaskFuture future;
+    UpdateDiscoveryTaskResultWaiter waiter(provider(), GetAppId(web_bundle_id),
+                                           future.GetCallback());
+    EXPECT_THAT(future.Take(), ErrorIs(error));
+  }
+
   void AssertInstallationFinish(
       const web_package::SignedWebBundleId& web_bundle_id) {
     WebAppTestManifestUpdatedObserver manifest_updated_observer(
@@ -290,6 +304,18 @@ class IsolatedWebAppUpdateManagerTest : public IsolatedWebAppTest {
                   ->isolation_data()
                   ->version(),
               version);
+  }
+
+  void AssertAppIsolationDataUpdateManifestUrlIs(
+      const web_package::SignedWebBundleId& web_bundle_id,
+      const GURL& expected_update_manifest_url) {
+    ASSERT_EQ(provider()
+                  .registrar_unsafe()
+                  .GetAppById(GetAppId(web_bundle_id))
+                  ->isolation_data()
+                  ->update_manifest_url()
+                  .value(),
+              expected_update_manifest_url);
   }
 
   void AssertAppNotInstalled(
@@ -738,11 +764,12 @@ TEST_F(IsolatedWebAppUpdateManagerUpdateMockTimeTest, KeyRotationUpdateRetry) {
       capture_discovery_task_result([&] {
         // Rotate the signing key from ed25519 to ecdsaP256. This will
         // trigger an unsuccessful update.
-        ASSERT_THAT(
-            test::UpdateKeyDistributionInfo(
-                base::Version(kInitialIwaVersion), GetIwa1WebBundleId().id(),
-                test::GetDefaultEcdsaP256KeyPair().public_key.bytes()),
-            base::test::HasValue());
+        ASSERT_OK(test::KeyDistributionComponentBuilder(base::Version("1.0.1"))
+                      .AddToKeyRotations(
+                          GetIwa1WebBundleId(),
+                          test::GetDefaultEcdsaP256KeyPair().public_key.bytes())
+                      .Build()
+                      .UploadFromComponentFolder());
       }),
       ErrorIs(_));
 
@@ -797,10 +824,13 @@ TEST_F(IsolatedWebAppUpdateManagerUpdateMockTimeTest, SubsequentKeyRotations) {
     WebAppTestManifestUpdatedObserver manifest_updated_observer(
         &provider().install_manager());
     manifest_updated_observer.BeginListening({app_id});
-    ASSERT_THAT(test::UpdateKeyDistributionInfo(
-                    base::Version(base::StringPrintf("%d.0.0", comp_v)),
-                    web_bundle_id.id(), key_pair.public_key.bytes()),
-                base::test::HasValue());
+
+    ASSERT_OK(test::KeyDistributionComponentBuilder(
+                  base::Version(base::StringPrintf("%d.0.0", comp_v)))
+                  .AddToKeyRotations(web_bundle_id, key_pair.public_key.bytes())
+                  .Build()
+                  .UploadFromComponentFolder());
+
     manifest_updated_observer.Wait();
 
     ASSERT_THAT(provider().registrar_unsafe().GetAppById(app_id),
@@ -837,6 +867,157 @@ TEST_F(IsolatedWebAppUpdateManagerUpdateTest,
   AssertInstallationFinish(GetIwa1WebBundleId());
   AssertAppInstalledAtVersion(GetIwa1WebBundleId(),
                               *IwaVersion::Create(kUpdateIwaVersion));
+}
+
+TEST_F(IsolatedWebAppUpdateManagerUpdateMockTimeTest,
+       SuccessfulUnmanagedUpdate) {
+  auto update_manifest_url =
+      test_update_server().GetUpdateManifestUrlForIwa(GetIwa1WebBundleId());
+  CreateIwa1Bundle(kInitialIwaVersion, update_manifest_url.spec())
+      ->InstallChecked(profile());
+
+  test_update_server().AddBundle(
+      CreateIwa1Bundle(kUpdateIwaVersion, update_manifest_url.spec()));
+
+  AssertAppDiscoveryTaskSuccessful(GetIwa1WebBundleId());
+  AssertInstallationFinish(GetIwa1WebBundleId());
+  AssertAppInstalledAtVersion(GetIwa1WebBundleId(),
+                              *IwaVersion::Create(kUpdateIwaVersion));
+  EXPECT_THAT(
+      UpdateDiscoveryLog(),
+      UnorderedElementsAre(DictionaryHasValue(
+          "result", base::Value("Success::kUpdateFoundAndDryRunSuccessful"))));
+  EXPECT_THAT(UpdateApplyLog(), UnorderedElementsAre(DictionaryHasValue(
+                                    "result", base::Value("Success"))));
+}
+
+TEST_F(IsolatedWebAppUpdateManagerUpdateMockTimeTest,
+       ManagedUpdateTakesPrecedenceDespiteNewerVersionAvailableOnUnmanaged) {
+  // Force-install versions are deliberately set to lower ones than their
+  // unmanaged counterparts.
+  const std::string kManagedInitialVersion = "0.4.0";
+  const std::string kUnmanagedInitialVersion = "1.0.0";
+  const std::string kUnmanagedUpdateVersion = "3.0.0";
+  const std::string kManagedUpdateVersion = "2.4.0";
+
+  GURL managed_update_url =
+      test_update_server().GetUpdateManifestUrlForIwa(GetIwa1WebBundleId());
+  GURL unmanaged_update_url = GURL(managed_update_url.spec() + "-unmanaged");
+
+  CreateIwa1Bundle(kUnmanagedInitialVersion, unmanaged_update_url.spec())
+      ->InstallChecked(profile());
+
+  AssertAppInstalledAtVersion(GetIwa1WebBundleId(),
+                              *IwaVersion::Create(kUnmanagedInitialVersion));
+  AssertAppIsolationDataUpdateManifestUrlIs(GetIwa1WebBundleId(),
+                                            unmanaged_update_url);
+
+  // Make sure that app is force-installed with a correct version. Keep user
+  // installed source despite version change.
+  {
+    WebAppTestInstallObserver install_observer(profile());
+    install_observer.BeginListening({GetAppId(GetIwa1WebBundleId())});
+
+    test::AddForceInstalledIwaToPolicy(
+        profile()->GetPrefs(),
+        test_update_server().CreateForceInstallPolicyEntry(
+            GetIwa1WebBundleId()));
+    test_update_server().AddBundle(
+        CreateIwa1Bundle(kManagedInitialVersion, managed_update_url.spec()));
+
+    EXPECT_EQ(install_observer.Wait(), GetAppId(GetIwa1WebBundleId()));
+    AssertAppInstalledAtVersion(GetIwa1WebBundleId(),
+                                *IwaVersion::Create(kManagedInitialVersion));
+
+    EXPECT_THAT(
+        provider()
+            .registrar_unsafe()
+            .GetAppById(GetAppId(GetIwa1WebBundleId()))
+            ->GetSources(),
+        Eq(WebAppManagementTypes({WebAppManagement::Type::kIwaPolicy,
+                                  WebAppManagement::Type::kIwaUserInstalled})));
+  }
+
+  std::string unmanaged_manifest_json = absl::StrFormat(
+      R"json({
+        "versions": [
+          { "version": "%s", "src": "%s" }
+        ]
+      })json",
+      kUnmanagedUpdateVersion,
+      test_update_server()
+          .GetBundleUrlForIwa(
+              GetIwa1WebBundleId(),
+              IwaVersion::Create(kUnmanagedUpdateVersion).value())
+          .spec());
+
+  // Make manifest from policy empty to see that the update discovery fails
+  // despite having potential versions to install from unmanaged manifest.
+  std::string managed_manifest_json = absl::StrFormat(
+      R"json({
+        "versions": [
+        ]
+      })json");
+
+  // Server setup to control returned manifests.
+  test_update_server().SetServedUpdateManifestResponse(
+      managed_update_url, net::HTTP_OK, managed_manifest_json);
+  test_update_server().SetServedUpdateManifestResponse(
+      unmanaged_update_url, net::HTTP_OK, unmanaged_manifest_json);
+
+  update_manager().DiscoverUpdatesNow();
+
+  // Managed update manifest was empty, no update should have been picked up.
+  AssertAppDiscoveryTaskFailedWith(GetIwa1WebBundleId(),
+                                   IsolatedWebAppUpdateDiscoveryTask::Error::
+                                       kUpdateManifestNoApplicableVersion);
+
+  test_update_server().AddBundle(
+      CreateIwa1Bundle(kManagedUpdateVersion, managed_update_url.spec()));
+
+  // Add newer, managed bundle to the managed manifest.
+  {
+    auto new_managed_manifest_json = absl::StrFormat(
+        R"json({
+        "versions": [
+          { "version": "%s", "src": "%s" }
+        ]
+      })json",
+        kManagedUpdateVersion,
+        test_update_server()
+            .GetBundleUrlForIwa(
+                GetIwa1WebBundleId(),
+                IwaVersion::Create(kManagedUpdateVersion).value())
+            .spec());
+
+    test_update_server().SetServedUpdateManifestResponse(
+        managed_update_url, net::HTTP_OK, new_managed_manifest_json);
+
+    AssertAppDiscoveryTaskSuccessful(GetIwa1WebBundleId());
+    AssertInstallationFinish(GetIwa1WebBundleId());
+
+    AssertAppInstalledAtVersion(GetIwa1WebBundleId(),
+                                *IwaVersion::Create(kManagedUpdateVersion));
+  }
+}
+
+TEST_F(IsolatedWebAppUpdateManagerUpdateMockTimeTest,
+       UnmanagedUpdateFailsIfManifestIsNotFound) {
+  auto update_manifest_url =
+      test_update_server().GetUpdateManifestUrlForIwa(GetIwa1WebBundleId());
+  CreateIwa1Bundle(kInitialIwaVersion, update_manifest_url.spec())
+      ->InstallChecked(profile());
+
+  test_update_server().SetServedUpdateManifestResponse(update_manifest_url,
+                                                       net::HTTP_NOT_FOUND, "");
+
+  update_manager().DiscoverUpdatesNow();
+
+  AssertAppDiscoveryTaskFailedWith(
+      GetIwa1WebBundleId(),
+      IsolatedWebAppUpdateDiscoveryTask::Error::kUpdateManifestDownloadFailed);
+  AssertAppInstalledAtVersion(GetIwa1WebBundleId(),
+                              *IwaVersion::Create(kInitialIwaVersion));
 }
 
 TEST_F(IsolatedWebAppUpdateManagerUpdateTest,
@@ -906,20 +1087,20 @@ TEST_F(IsolatedWebAppUpdateManagerUpdateTest,
       .SkipManagedAllowlistChecksForTesting(false);
 
   // Add both app to allowlist for installing them
-  EXPECT_THAT(
-      test::UpdateKeyDistributionInfoWithAllowlist(
-          base::Version("1.0.1"),
-          /*managed_allowlist=*/{GetIwa1WebBundleId(), GetIwa2WebBundleId()}),
-      base::test::HasValue());
+  EXPECT_OK(
+      test::KeyDistributionComponentBuilder(base::Version("1.0.1"))
+          .WithManagedAllowlist({GetIwa1WebBundleId(), GetIwa2WebBundleId()})
+          .Build()
+          .UploadFromComponentFolder());
 
   InitialIwaBundleForceInstall(CreateIwa1Bundle(kUpdateIwaVersion));
   InitialIwaBundleForceInstall(CreateIwa2Bundle("3.0.0"));
 
   // Remove the first app from the allowlist
-  EXPECT_THAT(test::UpdateKeyDistributionInfoWithAllowlist(
-                  base::Version("1.0.2"),
-                  /*managed_allowlist=*/{GetIwa2WebBundleId()}),
-              base::test::HasValue());
+  EXPECT_OK(test::KeyDistributionComponentBuilder(base::Version("1.0.2"))
+                .WithManagedAllowlist({GetIwa2WebBundleId()})
+                .Build()
+                .UploadFromComponentFolder());
 
   EXPECT_FALSE(
       IwaKeyDistributionInfoProvider::GetInstance().IsManagedUpdatePermitted(

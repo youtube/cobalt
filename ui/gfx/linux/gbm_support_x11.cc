@@ -67,13 +67,22 @@ std::unique_ptr<ui::GbmDevice> CreateX11GbmDevice() {
   return ui::CreateGbmDevice(fd.release());
 }
 
-std::vector<gfx::BufferUsageAndFormat> CreateSupportedConfigList(
-    ui::GbmDevice* device) {
+}  // namespace
+
+// static
+GBMSupportX11* GBMSupportX11::GetInstance() {
+  static base::NoDestructor<GBMSupportX11> instance;
+  return instance.get();
+}
+
+// static
+std::vector<GBMSupportX11::BufferUsageAndSIFormat>
+GBMSupportX11::CreateSupportedConfigList(ui::GbmDevice* device) {
   if (!device) {
     return {};
   }
 
-  std::vector<gfx::BufferUsageAndFormat> configs;
+  std::vector<BufferUsageAndSIFormat> configs;
   for (gfx::BufferUsage usage : {
            gfx::BufferUsage::GPU_READ,
            gfx::BufferUsage::SCANOUT,
@@ -81,42 +90,34 @@ std::vector<gfx::BufferUsageAndFormat> CreateSupportedConfigList(
            gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
            gfx::BufferUsage::SCANOUT_VDA_WRITE,
        }) {
-    for (gfx::BufferFormat format : {
-             gfx::BufferFormat::R_8,
-             gfx::BufferFormat::RG_88,
-             gfx::BufferFormat::RGBA_8888,
-             gfx::BufferFormat::RGBX_8888,
-             gfx::BufferFormat::BGRA_8888,
-             gfx::BufferFormat::BGRX_8888,
-             gfx::BufferFormat::BGRA_1010102,
+    for (viz::SharedImageFormat format : {
+             viz::SinglePlaneFormat::kR_8,
+             viz::SinglePlaneFormat::kRG_88,
+             viz::SinglePlaneFormat::kRGBA_8888,
+             viz::SinglePlaneFormat::kRGBX_8888,
+             viz::SinglePlaneFormat::kBGRA_8888,
+             viz::SinglePlaneFormat::kBGRX_8888,
+             viz::SinglePlaneFormat::kBGRA_1010102,
 
              // On some Intel setups calling gbm_bo_create() with this format
              // results in a crash caused by an integer-divide-by-zero.
              // TODO(thomasanderson): Enable this format.
-             // gfx::BufferFormat::RGBA_1010102,
-             gfx::BufferFormat::BGR_565,
-             gfx::BufferFormat::YUV_420_BIPLANAR,
-             gfx::BufferFormat::YVU_420,
-             gfx::BufferFormat::P010,
+             // viz::SinglePlaneFormat::kRGBA_1010102,
+             viz::SinglePlaneFormat::kBGR_565,
+             viz::MultiPlaneFormat::kNV12,
+             viz::MultiPlaneFormat::kYV12,
+             viz::MultiPlaneFormat::kP010,
          }) {
       // At least on mesa/amdgpu, gbm_device_is_format_supported() lies.  Test
       // format support by creating a buffer directly.  Use a 2x2 buffer so that
-      // YUV420 formats get properly tested.
-      if (device->CreateBuffer(GetFourCCFormatFromBufferFormat(format),
+      // NV12 formats get properly tested.
+      if (device->CreateBuffer(GetFourCCFormatFromSharedImageFormat(format),
                                gfx::Size(2, 2), BufferUsageToGbmFlags(usage))) {
-        configs.push_back(gfx::BufferUsageAndFormat(usage, format));
+        configs.push_back(BufferUsageAndSIFormat(usage, format));
       }
     }
   }
   return configs;
-}
-
-}  // namespace
-
-// static
-GBMSupportX11* GBMSupportX11::GetInstance() {
-  static base::NoDestructor<GBMSupportX11> instance;
-  return instance.get();
 }
 
 GBMSupportX11::GBMSupportX11()
@@ -133,10 +134,8 @@ std::unique_ptr<GbmBuffer> GBMSupportX11::CreateBuffer(
     LOG(ERROR) << "Can't create buffer -- gbm  device is missing.";
     return nullptr;
   }
-  if (!base::Contains(
-          supported_configs_,
-          gfx::BufferUsageAndFormat(
-              usage, viz::SharedImageFormatToBufferFormat(format)))) {
+  if (!base::Contains(supported_configs_,
+                      BufferUsageAndSIFormat(usage, format))) {
     LOG(ERROR) << "Can't create buffer -- unsupported config: usage="
                << gfx::BufferUsageToString(usage)
                << ", format=" << format.ToString();

@@ -307,8 +307,12 @@ void AutofillExternalDelegate::OnQuery(
 }
 
 const AutofillField* AutofillExternalDelegate::GetQueriedAutofillField() const {
-  return manager_->GetAutofillField(query_form_.global_id(),
-                                    query_field_.global_id());
+  const FormStructure* form_structure =
+      manager_->FindCachedFormById(query_form_.global_id());
+  if (!form_structure) {
+    return nullptr;
+  }
+  return form_structure->GetFieldById(query_field_.global_id());
 }
 
 void AutofillExternalDelegate::OnSuggestionsReturned(
@@ -863,11 +867,14 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
       break;
     }
     case SuggestionType::kOneTimePasswordEntry: {
-      FormStructure* form_structure = nullptr;
-      AutofillField* autofill_field = nullptr;
-      if (!manager_->GetCachedFormAndField(query_form_.global_id(),
-                                           query_field_.global_id(),
-                                           &form_structure, &autofill_field)) {
+      const FormStructure* form_structure =
+          manager_->FindCachedFormById(query_form_.global_id());
+      if (!form_structure) {
+        break;
+      }
+      const AutofillField* autofill_field =
+          form_structure->GetFieldById(query_field_.global_id());
+      if (!autofill_field) {
         break;
       }
       OtpFillData otp_fill_data = CreateFillDataForOtpSuggestion(

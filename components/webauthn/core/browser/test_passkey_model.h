@@ -31,18 +31,16 @@ class TestPasskeyModel : public PasskeyModel {
   bool IsReady() const override;
   bool IsEmpty() const override;
   base::flat_set<std::string> GetAllSyncIds() const override;
-  std::vector<sync_pb::WebauthnCredentialSpecifics> GetAllPasskeys()
-      const override;
-  std::vector<sync_pb::WebauthnCredentialSpecifics> GetUnShadowedPasskeys()
-      const override;
-  std::optional<sync_pb::WebauthnCredentialSpecifics> GetPasskeyByCredentialId(
-      const std::string& rp_id,
-      const std::string& credential_id) const override;
+  std::vector<sync_pb::WebauthnCredentialSpecifics> GetPasskeys(
+      std::variant<AnyRp, std::string_view> rp_id,
+      ShadowedCredentials shadowed_credentials) const override;
+  std::optional<sync_pb::WebauthnCredentialSpecifics> GetPasskey(
+      std::variant<AnyRp, std::string_view> rp_id,
+      std::string_view credential_id,
+      ShadowedCredentials shadowed_credentials) const override;
   std::optional<sync_pb::WebauthnCredentialSpecifics> GetPasskeyByUserId(
       const std::string& rp_id,
       const std::string& user_id) const override;
-  std::vector<sync_pb::WebauthnCredentialSpecifics>
-  GetPasskeysForRelyingPartyId(const std::string& rp_id) const override;
   bool DeletePasskey(const std::string& credential_id,
                      const base::Location& location) override;
   bool HidePasskey(const std::string& credential_id,

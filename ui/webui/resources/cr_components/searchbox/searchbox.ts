@@ -20,7 +20,7 @@ import {DragAndDropHandler} from '//resources/cr_components/search/drag_drop_han
 import type {DragAndDropHost} from '//resources/cr_components/search/drag_drop_host.js';
 import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
 import {WebUiListenerMixinLit} from '//resources/cr_elements/web_ui_listener_mixin_lit.js';
-import {assert} from '//resources/js/assert.js';
+import {assert, assertNotReachedCase} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {MetricsReporterImpl} from '//resources/js/metrics_reporter/metrics_reporter.js';
 import {hasKeyModifiers} from '//resources/js/util.js';
@@ -137,6 +137,8 @@ export class PlaceholderTextCycler {
           nextAnimationState: AnimationState.FADE_IN,
         };
         break;
+      default:
+        assertNotReachedCase(state);
     }
 
     this.animation_ = this.input_.animate(
@@ -165,7 +167,7 @@ interface InputUpdate {
   moveCursorToEnd?: boolean;
 }
 
-interface ComposeClickEventDetail {
+interface ClickEventDetail {
   button: number;
   ctrlKey: boolean;
   metaKey: boolean;
@@ -697,6 +699,10 @@ export class SearchboxElement extends SearchboxElementBase implements
     this.placeholderCycler_?.stop();
   }
 
+  protected onInputFocusout_() {
+    this.inputFocused_ = false;
+  }
+
   protected onInputInput_(e: InputEvent) {
     const inputValue = this.$.input.value;
     const lastInputValue = this.lastInput_.text + this.lastInput_.inline;
@@ -787,11 +793,12 @@ export class SearchboxElement extends SearchboxElementBase implements
     }
   }
 
-  protected onInputMouseDown_(e: MouseEvent) {
+  protected onInputMouseDown_(e: MouseEvent|null) {
     // Non-main (generally left) mouse clicks are ignored.
-    if (e.button !== 0) {
+    if (e && e.button !== 0) {
       return;
     }
+    this.inputFocused_ = true;
 
     // Query autocomplete if dropdown is not visible
     if (this.dropdownIsVisible) {
@@ -834,8 +841,6 @@ export class SearchboxElement extends SearchboxElementBase implements
         newlyFocusedEl?.tagName.toLowerCase() === LENS_GHOST_LOADER_TAG_NAME) {
       return;
     }
-
-    this.inputFocused_ = false;
 
     if (this.lastQueriedInput_ === '') {
       // Clear the input as well as the matches if the input was empty when
@@ -1113,7 +1118,16 @@ export class SearchboxElement extends SearchboxElementBase implements
     e.detail.onPreviewFetched(previewDataUrl || '');
   }
 
-  protected onComposeButtonClick_(e: CustomEvent<ComposeClickEventDetail>) {
+  protected onContextMenuContainerClick_() {
+    if (this.inputFocused_ || this.searchboxLayoutMode === 'Compact') {
+      return;
+    }
+
+    this.focusInput();
+    this.onInputMouseDown_(null);
+  }
+
+  protected onComposeButtonClick_(e: CustomEvent<ClickEventDetail>) {
     // TODO(crbug.com/463667769): Call submitQuery here since RealboxHandler is
     // now a `ContextualSearchboxHandler`.
     if (!this.composeboxEnabled || this.$.input.value.trim()) {

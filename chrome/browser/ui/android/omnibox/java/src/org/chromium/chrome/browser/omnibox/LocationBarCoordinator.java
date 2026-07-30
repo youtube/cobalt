@@ -48,6 +48,7 @@ import org.chromium.chrome.browser.merchant_viewer.MerchantTrustSignalsCoordinat
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.omnibox.LocationBarMediator.OmniboxUma;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
 import org.chromium.chrome.browser.omnibox.geo.GeolocationHeader;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator.PageInfoAction;
@@ -243,10 +244,11 @@ public class LocationBarCoordinator
                 new OneshotSupplierImpl<>();
         mDeferredIMEWindowInsetApplicationCallback =
                 new DeferredIMEWindowInsetApplicationCallback(
-                        () -> {
-                            mOmniboxDropdownEmbedderImpl.recalculateOmniboxAlignment();
-                            updateBottomContainerPosition();
-                        });
+                        mCallbackController.makeCancelable(
+                                () -> {
+                                    mOmniboxDropdownEmbedderImpl.recalculateOmniboxAlignment();
+                                    updateBottomContainerPosition();
+                                }));
         mOmniboxDropdownEmbedderImpl =
                 new OmniboxSuggestionsDropdownEmbedderImpl(
                         mWindowAndroid,
@@ -280,9 +282,7 @@ public class LocationBarCoordinator
                         autocompleteRequestTypeSupplier,
                         snackbarManager);
         if (OmniboxFeatures.sOmniboxMultimodalInput.isEnabled()) {
-            mFuseboxCoordinator
-                    .getOnCompactModeChangedSupplier()
-                    .addObserver(this::onCompactModeChange);
+            mFuseboxCoordinator.getFuseboxStateSupplier().addObserver(this::onCompactModeChange);
         }
 
         mPageZoomIndicatorCoordinator =
@@ -318,7 +318,8 @@ public class LocationBarCoordinator
                         autocompleteRequestTypeSupplier,
                         mPageZoomIndicatorCoordinator,
                         mFuseboxCoordinator,
-                        multiInstanceManager);
+                        multiInstanceManager,
+                        locationBarEmbedder);
         if (backPressManager != null) {
             backPressManager.addHandler(mLocationBarMediator, BackPressHandler.Type.LOCATION_BAR);
         }
@@ -377,7 +378,6 @@ public class LocationBarCoordinator
         mLocationBarMediator.addUrlFocusChangeListener(
                 (focused) -> updateBottomContainerPosition());
 
-        mLocationBarMediator.addUrlFocusChangeListener(mAutocompleteCoordinator);
         mLocationBarMediator.addUrlFocusChangeListener(mUrlCoordinator);
 
         mDeleteButton = mLocationBarLayout.findViewById(R.id.delete_button);
@@ -519,12 +519,14 @@ public class LocationBarCoordinator
 
         mLocationBarLayout.getContext().unregisterComponentCallbacks(mLocationBarMediator);
 
-        mLocationBarMediator.removeUrlFocusChangeListener(mAutocompleteCoordinator);
         mAutocompleteCoordinator.destroy();
         mAutocompleteCoordinator = null;
 
         mStatusCoordinator.destroy();
         mStatusCoordinator = null;
+
+        mOmniboxDropdownEmbedderImpl.destroy();
+        mOmniboxDropdownEmbedderImpl = null;
 
         if (mFuseboxCoordinator != null) {
             mFuseboxCoordinator.destroy();
@@ -857,7 +859,7 @@ public class LocationBarCoordinator
         mLocationBarMediator.updateButtonVisibility();
     }
 
-    private void onCompactModeChange(boolean toCompactMode) {
+    private void onCompactModeChange(@FuseboxState int state) {
         if (!mUrlCoordinator.hasFocus()) return;
         View addButton = mLocationBarLayout.findViewById(R.id.location_bar_attachments_add);
         if (addButton == null) return;
@@ -867,7 +869,7 @@ public class LocationBarCoordinator
                 .setDuration(COMPACT_MODE_ANIMATION_DURATION_MS)
                 .addTarget(mLocationBarLayout)
                 .addTarget(addButton);
-        if (toCompactMode) {
+        if (state == FuseboxState.COMPACT) {
             mLocationBarEmbedder.setRequestFixedHeight(true);
             changeBounds.addListener(
                     new TransitionListenerAdapter() {

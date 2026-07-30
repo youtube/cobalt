@@ -36,6 +36,17 @@ BrowserViewLayoutImpl::ProposedLayout::AddChild(
   return emplace_result.first->second;
 }
 
+void BrowserViewLayoutImpl::ProposedLayout::HideViewIfNotPresent(
+    views::View* child) {
+  // See if the child view already exists in the layout.
+  if (GetLayoutFor(child)) {
+    return;
+  }
+
+  // If not, give it empty bounds and set it to invisible.
+  AddChild(child, gfx::Rect(), false);
+}
+
 const BrowserViewLayoutImpl::ProposedLayout*
 BrowserViewLayoutImpl::ProposedLayout::GetLayoutFor(
     const views::View* descendant) const {
@@ -87,6 +98,20 @@ void BrowserViewLayoutImpl::ProposedLayout::ApplyLayout(
         << "Unapplied layout remains for " << leftover->GetClassName() << " in "
         << root->GetClassName();
   }
+}
+
+std::string BrowserViewLayoutImpl::ProposedLayout::ToString(int depth) const {
+  std::ostringstream oss;
+  for (auto& [child, layout] : children) {
+    oss << std::string(2 * depth, ' ') << child->GetClassName() << " at "
+        << layout.bounds.ToString();
+    if (layout.visibility) {
+      oss << (*layout.visibility ? " VISIBLE" : " NOT VISIBLE");
+    }
+    oss << std::endl;
+    oss << layout.ToString(depth + 1);
+  }
+  return oss.str();
 }
 
 // Common layout.
@@ -206,16 +231,16 @@ void BrowserViewLayoutImpl::Layout(views::View* host) {
     const gfx::Rect top_container_local_bounds = CalculateTopContainerLayout(
         top_container_layout, params, /*needs_exclusion=*/true);
 
-    // Position the top container in its parent, whatever that is.
-    views().top_container->SetBoundsRect(
-        GetTopContainerBoundsInParent(top_container_local_bounds, params));
-
     // Apply the child layouts for the top container.
     std::move(top_container_layout)
         .ApplyLayout(views().top_container,
                      [this](views::View* view, bool visible) {
                        SetViewVisibility(view, visible);
                      });
+
+    // Position the top container in its parent, whatever that is.
+    views().top_container->SetBoundsRect(
+        GetTopContainerBoundsInParent(top_container_local_bounds, params));
   }
 
   // The normal clipping created by `View::Paint()` may not cover the bottom of

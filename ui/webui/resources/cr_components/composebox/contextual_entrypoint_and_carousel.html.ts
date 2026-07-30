@@ -17,12 +17,18 @@ export function getHtml(this: ContextualEntrypointAndCarouselElement) {
         ${
       this.shouldShowRecentTabChip_ ? html`
         <composebox-recent-tab-chip id="recentTabChip"
-            class="upload-icon"
+            class="upload-button"
             .recentTab="${this.recentTabForChip_}"
             @add-tab-context="${this.addTabContext_}">
         </composebox-recent-tab-chip>
         ` :
                                       ''}
+      ${
+      this.shouldShowLensSearchChip_ ? html`
+        <cr-composebox-lens-search id="lensSearchChip" class="upload-button">
+        </cr-composebox-lens-search>
+      ` :
+                                       ''}
         <cr-composebox-tool-chip
             icon="composebox:deepSearch"
             label="${this.i18n('deepSearch')}"
@@ -50,11 +56,13 @@ export function getHtml(this: ContextualEntrypointAndCarouselElement) {
         `;
 
   const contextMenu = html`
-      <div class="context-menu-container" part="context-menu-and-tools">
+      <div class="context-menu-container" part="context-menu-and-tools"
+          @mousedown="${this.preventFocus_}"
+          @click="${this.onContextMenuContainerClick_}">
         <cr-composebox-context-menu-entrypoint id="contextEntrypoint"
             part="composebox-entrypoint"
             exportparts="context-menu-entrypoint-icon"
-            class="upload-icon no-overlap"
+            class="upload-button no-overlap"
             .tabSuggestions="${this.tabSuggestions}"
             .entrypointName="${this.entrypointName}"
             @open-image-upload="${this.openImageUpload_}"
@@ -112,14 +120,14 @@ export function getHtml(this: ContextualEntrypointAndCarouselElement) {
   <!-- Suggestions are slotted in from the parent component. -->
   <slot id="dropdownMatches"></slot>
   ${this.searchboxLayoutMode === 'Compact' && toolChipsVisible ? html`
-    <div class="context-menu-container" id='toolChipsContainer'
+    <div class="context-menu-container" id="toolChipsContainer"
         part="tool-chips-container">${toolChips}</div>
   ` : ''}
   ${this.searchboxLayoutMode === 'TallBottomContext' || this.searchboxLayoutMode === '' ? html`
     ${this.contextMenuEnabled_ ? contextMenu : html`
       <div part="upload-container" id="uploadContainer" class="icon-fade">
           <cr-icon-button
-              class="upload-icon no-overlap"
+              class="upload-button no-overlap"
               id="imageUploadButton"
               iron-icon="composebox:imageUpload"
               title="${this.i18n('composeboxImageUploadButtonTitle')}"
@@ -128,7 +136,7 @@ export function getHtml(this: ContextualEntrypointAndCarouselElement) {
           </cr-icon-button>
           ${this.composeboxShowPdfUpload_ ? html`
           <cr-icon-button
-              class="upload-icon no-overlap"
+              class="upload-button no-overlap"
               id="fileUploadButton"
               iron-icon="composebox:fileUpload"
               title="${this.i18n('composeboxPdfUploadButtonTitle')}"

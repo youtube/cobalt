@@ -52,6 +52,7 @@ import org.chromium.chrome.browser.regional_capabilities.RegionalCapabilitiesSer
 import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.chrome.browser.settings.ChromeManagedPreferenceDelegate;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
+import org.chromium.chrome.browser.settings.search.ChromeBaseSearchIndexProvider;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.ProfileDataCache;
 import org.chromium.chrome.browser.signin.services.SigninManager;
@@ -303,6 +304,10 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
         }
         if (!mShouldReplaceSyncSettingsWithAccountSettings) {
             mSyncSetupInProgressHandle.close();
+        }
+        if (mBatchUploadCardPreference != null) {
+            mBatchUploadCardPreference.destroy();
+            mBatchUploadCardPreference = null;
         }
     }
 
@@ -723,6 +728,7 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
 
         updateDataTypeState();
         updateEncryptionState();
+        notifyPreferencesUpdated();
     }
 
     /** Gets the state from data type checkboxes and saves this state into {@link SyncService}. */
@@ -1280,4 +1286,10 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
     private FragmentTransaction beginTransaction() {
         return assumeNonNull(getFragmentManager()).beginTransaction();
     }
+
+    // TODO(crbug.com/444470792): Determine what pieces of logic are dynamic and need handling.
+    // Deal with the different XMLs used by this pref.
+    public static final ChromeBaseSearchIndexProvider SEARCH_INDEX_DATA_PROVIDER =
+            new ChromeBaseSearchIndexProvider(
+                    ManageSyncSettings.class.getName(), R.xml.manage_sync_preferences);
 }

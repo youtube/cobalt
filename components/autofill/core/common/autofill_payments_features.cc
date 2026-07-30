@@ -22,11 +22,6 @@ BASE_FEATURE(kAutofillDisableBnplCountryCheckForTesting,
 BASE_FEATURE(kAutofillEnableAiBasedAmountExtraction,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// When enabled, card category benefits offered by BMO will be shown in Autofill
-// suggestions on the allowlisted merchant websites.
-BASE_FEATURE(kAutofillEnableAllowlistForBmoCardCategoryBenefits,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // When enabled, Chrome will extract the checkout amount from the checkout page
 // of the allowlisted merchant websites.
 BASE_FEATURE(kAutofillEnableAmountExtraction,
@@ -102,13 +97,6 @@ BASE_FEATURE(kAutofillEnableCardBenefitsForBmo,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
-
-// When enabled, card benefits IPH will be shown in Payments Autofill UI.
-BASE_FEATURE(kAutofillEnableCardBenefitsIph, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// When enabled, card benefit source will be synced to Chrome clients.
-BASE_FEATURE(kAutofillEnableCardBenefitsSourceSync,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, Chrome will show metadata along with other card information
 // when the virtual card is presented to users.
@@ -196,7 +184,7 @@ BASE_FEATURE(kAutofillEnableNewFopDisplayAndroid,
 
 // When enabled, card and IBAN autofill will be shown in new FOP style.
 BASE_FEATURE(kAutofillEnableNewFopDisplayDesktop,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, offers will be displayed in the Clank keyboard accessory during
 // downstream.
@@ -247,6 +235,10 @@ BASE_FEATURE(kAutofillEnableVcn3dsAuthentication,
 // is not cached.
 BASE_FEATURE(kAutofillEnableVirtualCardJavaPaymentsDataManager,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, certain strings and logos referencing Google Account, Google
+// Payments, and Google Pay will instead reference Google Wallet.
+BASE_FEATURE(kAutofillEnableWalletBranding, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_IOS)
 // When enabled, save card bottomsheet will be shown to save the card locally

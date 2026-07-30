@@ -189,7 +189,7 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[autofill::prefs::kAutofillCreditCardEnabled] =
       settings_api::PrefType::kBoolean;
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   (*s_allowlist)[autofill::prefs::kAutofillPaymentMethodsMandatoryReauth] =
       settings_api::PrefType::kBoolean;
 #endif
@@ -1317,6 +1317,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
     (*s_allowlist)[prefs::kGeminiSettings] =
         settings_api::PrefType::kNumber;
     (*s_allowlist)[glic::prefs::kGlicUserEnabledActuationOnWeb] =
+        settings_api::PrefType::kBoolean;
+    (*s_allowlist)[glic::prefs::kGlicKeepSidepanelOpenOnNewTabsEnabled] =
         settings_api::PrefType::kBoolean;
   }
 #endif

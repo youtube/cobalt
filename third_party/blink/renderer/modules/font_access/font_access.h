@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 class FontMetadata;
@@ -21,8 +22,10 @@ class QueryOptions;
 class ScriptState;
 
 class FontAccess final : public GarbageCollected<FontAccess>,
-                         public GarbageCollectedMixin {
+                         public Supplement<LocalDOMWindow> {
  public:
+  static const unsigned kSupplementIndex;
+
   explicit FontAccess(LocalDOMWindow* window);
 
   void Trace(blink::Visitor* visitor) const override;

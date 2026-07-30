@@ -16,6 +16,7 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver_set.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -36,7 +37,8 @@ class TextFragmentSelector;
 // The container is created lazily on demand.
 class CORE_EXPORT AnnotationAgentContainerImpl final
     : public GarbageCollected<AnnotationAgentContainerImpl>,
-      public mojom::blink::AnnotationAgentContainer {
+      public mojom::blink::AnnotationAgentContainer,
+      public GarbageCollectedMixin {
  public:
   using PassKey = base::PassKey<AnnotationAgentContainerImpl>;
 
@@ -73,7 +75,7 @@ class CORE_EXPORT AnnotationAgentContainerImpl final
   void Bind(
       mojo::PendingReceiver<mojom::blink::AnnotationAgentContainer> receiver);
 
-  void Trace(Visitor* visitor) const;
+  void Trace(Visitor* visitor) const override;
 
   // Calls Attach() on any agent that needs an attachment. Must be called in a
   // clean lifecycle state.

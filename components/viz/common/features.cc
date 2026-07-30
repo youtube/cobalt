@@ -94,7 +94,7 @@ const char kMaxOverlaysParam[] = "max_overlays";
 
 BASE_FEATURE(kDelegatedCompositing, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kAvoidDuplicateDelayBeginFrame, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAvoidDuplicateDelayBeginFrame, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char kDrawQuadSplit[] = "num_of_splits";
 
@@ -184,16 +184,6 @@ const base::FeatureParam<std::string> kWebViewADPFSocManufacturerAllowlist{
 
 const base::FeatureParam<std::string> kWebViewADPFSocManufacturerBlocklist{
     &kWebViewEnableADPF, "webview_soc_manufacturer_blocklist", ""};
-
-// If enabled, Renderer Main is included in the set of threads reported to the
-// HWUI. This feature works only when WebViewEnableADPF is enabled, otherwise
-// this is a no-op.
-BASE_FEATURE(kWebViewEnableADPFRendererMain, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// If enabled, the GPU Main thread is included in the set of threads reported
-// to the HWUI. This feature works only when WebViewEnableADPF is enabled,
-// otherwise this is a no-op.
-BASE_FEATURE(kWebViewEnableADPFGpuMain, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(IS_APPLE)
@@ -223,7 +213,7 @@ BASE_FEATURE(kVSyncAlignedPresent, base::FEATURE_ENABLED_BY_DEFAULT);
 // proceed with navigation. ViewTransition Animate still waits though for
 // CopyOutputRequests to be actually fulfilled.
 BASE_FEATURE(kAckCopyOutputRequestEarlyForViewTransition,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAllowUndamagedNonrootRenderPassToSkip,
 #if BUILDFLAG(IS_MAC)
@@ -262,23 +252,9 @@ const base::FeatureParam<std::string> kADPFSocManufacturerAllowlist{
 const base::FeatureParam<std::string> kADPFSocManufacturerBlocklist{
     &kAdpf, "soc_manufacturer_blocklist", ""};
 
-// Used to enable the HintSession::Mode::BOOST mode. BOOST mode try to force
-// the ADPF(Android Dynamic Performance Framework) to give Chrome more CPU
-// resources during a scroll.
-BASE_FEATURE(kEnableADPFScrollBoost, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Specifies how long after the boost mode is set, it will expire.
-const base::FeatureParam<base::TimeDelta> kADPFBoostTimeout{
-    &kEnableADPFScrollBoost, "adpf_boost_mode_timeout",
-    base::Milliseconds(200)};
-
-// If enabled, Chrome's ADPF(Android Dynamic Performance Framework) hint
-// session includes Renderer threads only if:
-// - The Renderer is handling an interacton
-// - The Renderer is the main frame's Renderer, and there no Renderers handling
-//   an interaction.
-BASE_FEATURE(kEnableInteractiveOnlyADPFRenderer,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+// If enabled, Chrome includes the Renderer Main thread(s) into the
+// ADPF(Android Dynamic Performance Framework) hint session.
+BASE_FEATURE(kEnableADPFRendererMain, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, Chrome puts Renderer Main threads into a separate
 // ADPF(Android Dynamic Performance Framework) hint session, and does not
@@ -286,17 +262,31 @@ BASE_FEATURE(kEnableInteractiveOnlyADPFRenderer,
 BASE_FEATURE(kEnableADPFSeparateRendererMainSession,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, Chrome uses SetThreads instead of recreating an
-// ADPF(Android Dynamic Performance Framework) hint session when the set of
-// threads in the session changes.
-BASE_FEATURE(kEnableADPFSetThreads, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // If enabled, Chrome uses notifyWorkloadIncrease ADPF(Android Dynamic
 // Performance Framework) method before CrRendererMain starts running a heavy
 // workload during page load.
 // Supported only on Android >= 16.
 BASE_FEATURE(kEnableADPFWorkloadIncreaseOnPageLoad,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, Chrome uses ADPF's setPreferPowerEfficiency API to try and save
+// energy at the cost of performance. Supported only on Android >= 16.
+BASE_FEATURE(kEnableAdpfEfficiencyMode, base::FEATURE_DISABLED_BY_DEFAULT);
+constexpr base::FeatureParam<AdpfEfficiencyMode>::Option
+    kAdpfEfficiencyModeOption[] = {
+        // ADPF sessions are always configured for performance.
+        {AdpfEfficiencyMode::kNever, "never"},
+        // ADPF sessions switch between performance and efficiency mode based on
+        // context. TODO(crbug.com/464505581): implement this.
+        {AdpfEfficiencyMode::kAdaptive, "adaptive"},
+        // ADPF sessions are always configured for efficiency.
+        {AdpfEfficiencyMode::kAlwaysEfficient, "always_efficient"}};
+const base::FeatureParam<AdpfEfficiencyMode> kAdpfEfficiencyModeParam{
+    &kEnableAdpfEfficiencyMode,
+    "mode",
+    AdpfEfficiencyMode::kNever,
+    &kAdpfEfficiencyModeOption,
+};
 
 // If enabled, Chrome uses notifyWorkloadReset method on viz wakeup instead of
 // sending a timing report with a fake actual duration > target duration.
@@ -355,11 +345,6 @@ BASE_FEATURE(kBatchResourceRelease, base::FEATURE_DISABLED_BY_DEFAULT);
 // response to `AddObserver`. As these consistently miss deadlines, and increase
 // latency and jank. Instead the client will receive the next BeginFrame.
 BASE_FEATURE(kNoLateBeginFrames, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Stops BeginFrame issue to use |last_vsync_interval_| instead of the current
-// set of BeginFrameArgs.
-// TODO(b/333940735): Should be removed if the issue isn't fixed.
-BASE_FEATURE(kLastVSyncArgsKillswitch, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables IPCs to directly target Viz's compositor thread for non-root
 // CompositorFrameSink messages without hopping through the IO thread first.

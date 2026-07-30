@@ -30,22 +30,28 @@
 #include "url/origin.h"
 
 namespace blink {
+namespace {
 
 class ParsedFeaturePolicies final
     : public GarbageCollected<ParsedFeaturePolicies>,
-      public GarbageCollectedMixin {
+      public Supplement<ExecutionContext> {
  public:
+  static constexpr auto kSupplementIndex =
+      ExecutionContext::Supplements::kParsedFeaturePolicies;
+
   static ParsedFeaturePolicies& From(ExecutionContext& context) {
-    ParsedFeaturePolicies* policies = context.GetParsedFeaturePolicies();
+    ParsedFeaturePolicies* policies =
+        Supplement<ExecutionContext>::From<ParsedFeaturePolicies>(context);
     if (!policies) {
-      policies = MakeGarbageCollected<ParsedFeaturePolicies>();
-      context.SetParsedFeaturePolicies(policies);
+      policies = MakeGarbageCollected<ParsedFeaturePolicies>(context);
+      Supplement<ExecutionContext>::ProvideTo(context, policies);
     }
     return *policies;
   }
 
-  ParsedFeaturePolicies()
-      : policies_(static_cast<size_t>(
+  explicit ParsedFeaturePolicies(ExecutionContext& context)
+      : Supplement<ExecutionContext>(context),
+        policies_(static_cast<size_t>(
                       network::mojom::PermissionsPolicyFeature::kMaxValue) +
                   1) {}
 
@@ -58,15 +64,11 @@ class ParsedFeaturePolicies final
     return false;
   }
 
-  void Trace(Visitor* visitor) const override {}
-
  private:
   // Tracks which permissions policies have already been parsed, so as not to
   // count them multiple times.
   Vector<bool> policies_;
 };
-
-namespace {
 
 class FeatureObserver {
  public:
@@ -191,12 +193,12 @@ std::optional<network::mojom::PermissionsPolicyFeature>
 ParsingContext::ParseFeatureName(const String& feature_name) {
   DCHECK(!feature_name.empty());
   if (!feature_names_.Contains(feature_name)) {
-    logger_.Warn("Unrecognized feature: '" + feature_name + "'.");
+    logger_.Warn(StrCat({"Unrecognized feature: '", feature_name, "'."}));
     return std::nullopt;
   }
   if (DisabledByOriginTrial(feature_name, execution_context_)) {
-    logger_.Warn("Origin trial controlled feature not enabled: '" +
-                 feature_name + "'.");
+    logger_.Warn(StrCat({"Origin trial controlled feature not enabled: '",
+                         feature_name, "'."}));
     return std::nullopt;
   }
   network::mojom::PermissionsPolicyFeature feature =
@@ -303,7 +305,7 @@ ParsingContext::ParsedAllowlist ParsingContext::ParseAllowlist(
           origin_with_possible_wildcards =
               *maybe_origin_with_possible_wildcards;
         } else {
-          logger_.Warn("Unrecognized origin: '" + origin_string + "'.");
+          logger_.Warn(StrCat({"Unrecognized origin: '", origin_string, "'."}));
           continue;
         }
       }
@@ -396,9 +398,9 @@ PermissionsPolicyParser::Node ParsingContext::ParseFeaturePolicyToIR(
       network::OriginWithPossibleWildcards::NodeType::kAttribute};
 
   if (policy.length() > MAX_LENGTH_PARSE) {
-    logger_.Error("Feature policy declaration exceeds size limit(" +
-                  String::Number(policy.length()) + ">" +
-                  String::Number(MAX_LENGTH_PARSE) + ")");
+    logger_.Error(StrCat({"Feature policy declaration exceeds size limit(",
+                          String::Number(policy.length()), ">",
+                          String::Number(MAX_LENGTH_PARSE), ")"}));
     return {};
   }
 
@@ -459,9 +461,9 @@ PermissionsPolicyParser::Node ParsingContext::ParseFeaturePolicyToIR(
 PermissionsPolicyParser::Node ParsingContext::ParsePermissionsPolicyToIR(
     const String& policy) {
   if (policy.length() > MAX_LENGTH_PARSE) {
-    logger_.Error("Permissions policy declaration exceeds size limit(" +
-                  String::Number(policy.length()) + ">" +
-                  String::Number(MAX_LENGTH_PARSE) + ")");
+    logger_.Error(StrCat({"Permissions policy declaration exceeds size limit(",
+                          String::Number(policy.length()), ">",
+                          String::Number(MAX_LENGTH_PARSE), ")"}));
     return {};
   }
 

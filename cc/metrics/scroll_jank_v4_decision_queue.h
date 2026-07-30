@@ -11,10 +11,10 @@
 
 #include "base/time/time.h"
 #include "cc/cc_export.h"
-#include "cc/metrics/event_metrics.h"
 #include "cc/metrics/scroll_jank_v4_decider.h"
 #include "cc/metrics/scroll_jank_v4_frame.h"
 #include "cc/metrics/scroll_jank_v4_frame_stage.h"
+#include "cc/metrics/scroll_jank_v4_result.h"
 
 namespace cc {
 
@@ -47,10 +47,10 @@ class CC_EXPORT ScrollJankV4DecisionQueue {
    public:
     virtual ~ResultConsumer();
     virtual void OnFrameResult(
-        ScrollUpdateEventMetrics::ScrollJankV4Result result,
-        // TODO(crbug.com/456180776): Remove this argument once scroll jank v4
-        // metrics are recorded in dedicated trace events.
-        ScrollUpdateEventMetrics* earliest_event) = 0;
+        const ScrollJankV4FrameStage::ScrollUpdates& updates,
+        const ScrollJankV4Frame::ScrollDamage& damage,
+        const ScrollJankV4Frame::BeginFrameArgsForScrollJank& args,
+        const ScrollJankV4Result& result) = 0;
     virtual void OnScrollStarted() = 0;
     virtual void OnScrollEnded() = 0;
   };
@@ -91,7 +91,7 @@ class CC_EXPORT ScrollJankV4DecisionQueue {
   // for (`updates1`, `damage1`, `args1`) before invoking it with the jank
   // results for (`updates2`, `damage2`, `args2`).
   bool ProcessFrameWithScrollUpdates(
-      ScrollJankV4FrameStage::ScrollUpdates& updates,
+      const ScrollJankV4FrameStage::ScrollUpdates& updates,
       const ScrollJankV4Frame::ScrollDamage& damage,
       const ScrollJankV4Frame::BeginFrameArgsForScrollJank& args);
 
@@ -129,13 +129,8 @@ class CC_EXPORT ScrollJankV4DecisionQueue {
   // this vector contains any damaging frames,
   // `last_provided_valid_presentation_ts_` is equal to the presentation time of
   // the last damaging frame in this vector.
-  //
-  // None of the frames should contain real updates, i.e.
-  // `frame.updates.real().has_value()` is false for each `frame` in this
-  // vector. None of the frames should contain a pointer to event metrics, i.e.
-  // `frame.updates.earliest_event` is null for each `frame` in this vector.
   struct DeferredSyntheticFrame {
-    ScrollJankV4FrameStage::ScrollUpdates updates;
+    ScrollJankV4FrameStage::ScrollUpdates::Synthetic synthetic_updates;
     ScrollJankV4Frame::ScrollDamage damage;
     ScrollJankV4Frame::BeginFrameArgsForScrollJank args;
   };

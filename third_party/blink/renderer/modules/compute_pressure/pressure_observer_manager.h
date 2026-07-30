@@ -17,6 +17,7 @@
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -26,8 +27,11 @@ class ExecutionContext;
 // PressureManager remote.
 class MODULES_EXPORT PressureObserverManager final
     : public GarbageCollected<PressureObserverManager>,
-      public ExecutionContextLifecycleStateObserver {
+      public ExecutionContextLifecycleStateObserver,
+      public Supplement<ExecutionContext> {
  public:
+  static const unsigned kSupplementIndex;
+
   static PressureObserverManager* From(ExecutionContext*);
 
   explicit PressureObserverManager(ExecutionContext*);

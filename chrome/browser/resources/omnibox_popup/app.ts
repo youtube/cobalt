@@ -8,16 +8,16 @@ import '//resources/cr_elements/icons.html.js';
 import '/strings.m.js';
 
 import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
+import type {ContextualEntrypointAndCarouselElement} from '//resources/cr_components/composebox/contextual_entrypoint_and_carousel.js';
 import {SearchboxBrowserProxy} from '//resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import type {SearchboxDropdownElement} from '//resources/cr_components/searchbox/searchbox_dropdown.js';
 import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
-import {assert} from '//resources/js/assert.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {MetricsReporterImpl} from '//resources/js/metrics_reporter/metrics_reporter.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
-import type {AutocompleteResult, OmniboxPopupSelection, PageCallbackRouter, PageHandlerInterface} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {AutocompleteResult, OmniboxPopupSelection, PageCallbackRouter, PageHandlerInterface, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
@@ -28,7 +28,7 @@ const canShowSecondarySideMediaQueryList =
 
 export interface OmniboxPopupAppElement {
   $: {
-    matches: SearchboxDropdownElement,
+    context: ContextualEntrypointAndCarouselElement,
   };
 }
 
@@ -88,6 +88,9 @@ export class OmniboxPopupAppElement extends I18nMixinLit
       result_: {type: Object},
       searchboxLayoutMode_: {type: String},
       showContextEntrypoint_: {type: Boolean},
+      isLensSearchEnabled_: {type: Boolean},
+      isLensSearchEligible_: {type: Boolean},
+      tabSuggestions_: {type: Array},
     };
   }
 
@@ -101,12 +104,14 @@ export class OmniboxPopupAppElement extends I18nMixinLit
   protected accessor searchboxLayoutMode_: string =
       loadTimeData.getString('searchboxLayoutMode');
   protected accessor showContextEntrypoint_: boolean = false;
+  protected accessor isLensSearchEnabled_: boolean =
+      loadTimeData.getBoolean('composeboxShowLensSearchChip');
+  protected accessor isLensSearchEligible_: boolean = false;
+  protected accessor tabSuggestions_: TabInfo[] = [];
 
   private callbackRouter_: PageCallbackRouter;
-  private autocompleteResultChangedListenerId_: number|null = null;
-  private keywordSelectedListenerId_: number|null = null;
-  private selectionChangedListenerId_: number|null = null;
   private eventTracker_ = new EventTracker();
+  private listenerIds_: number[] = [];
   private pageHandler_: PageHandlerInterface;
 
   constructor() {
@@ -119,19 +124,27 @@ export class OmniboxPopupAppElement extends I18nMixinLit
 
   override connectedCallback() {
     super.connectedCallback();
-    this.autocompleteResultChangedListenerId_ =
-        this.callbackRouter_.autocompleteResultChanged.addListener(
-            this.onAutocompleteResultChanged_.bind(this));
-    this.selectionChangedListenerId_ =
-        this.callbackRouter_.updateSelection.addListener(
-            this.onUpdateSelection_.bind(this));
-    this.keywordSelectedListenerId_ =
-        this.callbackRouter_.setKeywordSelected.addListener(
-            (isKeywordSelected: boolean) => {
-              this.isInKeywordMode_ = isKeywordSelected;
-            });
+    this.listenerIds_ = [
+      this.callbackRouter_.autocompleteResultChanged.addListener(
+          this.onAutocompleteResultChanged_.bind(this)),
+      this.callbackRouter_.onShow.addListener(this.onShow_.bind(this)),
+      this.callbackRouter_.updateSelection.addListener(
+          this.onUpdateSelection_.bind(this)),
+      this.callbackRouter_.setKeywordSelected.addListener(
+          (isKeywordSelected: boolean) => {
+            this.isInKeywordMode_ = isKeywordSelected;
+          }),
+      this.callbackRouter_.updateLensSearchEligibility.addListener(
+          (eligible: boolean) => {
+            this.isLensSearchEligible_ = this.isLensSearchEnabled_ && eligible;
+          }),
+      this.callbackRouter_.onTabStripChanged.addListener(
+          this.refreshTabSuggestions_.bind(this)),
+    ];
     canShowSecondarySideMediaQueryList.addEventListener(
         'change', this.onCanShowSecondarySideChanged_.bind(this));
+
+    this.refreshTabSuggestions_();
 
     if (!this.isDebug) {
       this.eventTracker_.add(
@@ -144,13 +157,10 @@ export class OmniboxPopupAppElement extends I18nMixinLit
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.eventTracker_.removeAll();
-    assert(this.autocompleteResultChangedListenerId_);
-    this.callbackRouter_.removeListener(
-        this.autocompleteResultChangedListenerId_);
-    assert(this.selectionChangedListenerId_);
-    this.callbackRouter_.removeListener(this.selectionChangedListenerId_);
-    assert(this.keywordSelectedListenerId_);
-    this.callbackRouter_.removeListener(this.keywordSelectedListenerId_);
+    for (const listenerId of this.listenerIds_) {
+      this.callbackRouter_.removeListener(listenerId);
+    }
+    this.listenerIds_ = [];
     canShowSecondarySideMediaQueryList.removeEventListener(
         'change', this.onCanShowSecondarySideChanged_.bind(this));
   }
@@ -170,6 +180,13 @@ export class OmniboxPopupAppElement extends I18nMixinLit
         changedPrivateProperties.has('isInKeywordMode_')) {
       this.showContextEntrypoint_ = this.computeShowContextEntrypoint_();
     }
+  }
+
+  getDropdown(): SearchboxDropdownElement {
+    // Because there are 2 different cr-searchbox-dropdown instances that can be
+    // exclusively shown, should always query the DOM to get the relevant one
+    // and can't use this.$ to access it.
+    return this.shadowRoot.querySelector('cr-searchbox-dropdown')!;
   }
 
   private computeShowContextEntrypoint_(): boolean {
@@ -192,9 +209,18 @@ export class OmniboxPopupAppElement extends I18nMixinLit
     this.result_ = result;
 
     if (result.matches[0]?.allowedToBeDefaultMatch) {
-      this.$.matches.selectFirst();
-    } else if (this.$.matches.selectedMatchIndex >= result.matches.length) {
-      this.$.matches.unselect();
+      this.getDropdown().selectFirst();
+    } else if (this.getDropdown().selectedMatchIndex >= result.matches.length) {
+      this.getDropdown().unselect();
+    }
+  }
+
+  private onShow_() {
+    // When the popup is shown, blur the contextual entrypoint. This prevents a
+    // focus ring from appearing on the entrypoint, e.g. when the user clicks
+    // away and then re-focuses the Omnibox.
+    if (this.showContextEntrypoint_) {
+      this.$.context.blurEntrypoint();
     }
   }
 
@@ -211,7 +237,7 @@ export class OmniboxPopupAppElement extends I18nMixinLit
 
   private onUpdateSelection_(
       oldSelection: OmniboxPopupSelection, selection: OmniboxPopupSelection) {
-    this.$.matches.updateSelection(oldSelection, selection);
+    this.getDropdown().updateSelection(oldSelection, selection);
   }
 
   protected onHasSecondarySideChanged_(e: CustomEvent<{value: boolean}>) {
@@ -226,6 +252,11 @@ export class OmniboxPopupAppElement extends I18nMixinLit
       y: e.detail.y,
     };
     this.pageHandler_.showContextMenu(point);
+  }
+
+  protected async refreshTabSuggestions_() {
+    const {tabs} = await this.pageHandler_.getRecentTabs();
+    this.tabSuggestions_ = [...tabs];
   }
 }
 

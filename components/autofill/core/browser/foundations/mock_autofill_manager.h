@@ -32,6 +32,11 @@ class MockAutofillManager : public AutofillManager {
   MOCK_METHOD(bool, ShouldClearPreviewedForm, (), (override));
   MOCK_METHOD(void, OnFocusOnNonFormFieldImpl, (), (override));
   MOCK_METHOD(void, OnDidAutofillFormImpl, (const FormData& form), (override));
+  MOCK_METHOD(void,
+              SuppressAutomaticRefillsImpl,
+              (const FillId& fill_id),
+              (override));
+  MOCK_METHOD(void, RequestRefillImpl, (const FillId& fill_id), (override));
   MOCK_METHOD(void, OnDidEndTextFieldEditingImpl, (), (override));
   MOCK_METHOD(void, OnHidePopupImpl, (), (override));
   MOCK_METHOD(void,
@@ -46,7 +51,7 @@ class MockAutofillManager : public AutofillManager {
               (override));
   MOCK_METHOD(void,
               OnLoadedServerPredictionsImpl,
-              ((base::span<const raw_ptr<FormStructure, VectorExperimental>>)),
+              ((base::span<const raw_ref<FormStructure>>)),
               (override));
   MOCK_METHOD(void,
               OnFormSubmittedImpl,

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/android/tab_favicon.h"
 
+#include "chrome/browser/android/tab_android.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "content/public/browser/back_forward_transition_animation_manager.h"
 #include "content/public/browser/web_contents.h"
@@ -22,7 +23,7 @@
 
 namespace {
 
-using base::android::JavaParamRef;
+using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
 
 SkBitmap RescaleSkBitmap(const SkBitmap& original, int new_size_dip) {
@@ -38,8 +39,22 @@ SkBitmap RescaleSkBitmap(const SkBitmap& original, int new_size_dip) {
 
 }  // namespace
 
+// static
+SkBitmap TabFavicon::GetBitmapForTab(TabAndroid* tab_android) {
+  if (!tab_android) {
+    return SkBitmap();
+  }
+  JNIEnv* env = base::android::AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> bitmap =
+      Java_TabFavicon_getBitmap(env, tab_android->GetJavaObject());
+  if (bitmap.is_null()) {
+    return SkBitmap();
+  }
+  return gfx::CreateSkBitmapFromJavaBitmap(gfx::JavaBitmap(bitmap));
+}
+
 TabFavicon::TabFavicon(JNIEnv* env,
-                       const JavaParamRef<jobject>& obj,
+                       const JavaRef<jobject>& obj,
                        int navigation_transition_favicon_size)
     : navigation_transition_favicon_size_(navigation_transition_favicon_size),
       jobj_(env, obj) {}
@@ -47,7 +62,7 @@ TabFavicon::TabFavicon(JNIEnv* env,
 TabFavicon::~TabFavicon() = default;
 
 void TabFavicon::SetWebContents(JNIEnv* env,
-                                const JavaParamRef<jobject>& jweb_contents) {
+                                const JavaRef<jobject>& jweb_contents) {
   active_web_contents_ =
       content::WebContents::FromJavaWebContents(jweb_contents);
   favicon_driver_ =
@@ -137,7 +152,7 @@ void TabFavicon::OnFaviconUpdated(favicon::FaviconDriver* favicon_driver,
 }
 
 static jlong JNI_TabFavicon_Init(JNIEnv* env,
-                                 const JavaParamRef<jobject>& obj,
+                                 const JavaRef<jobject>& obj,
                                  int navigation_transition_favicon_size) {
   return reinterpret_cast<intptr_t>(
       new TabFavicon(env, obj, navigation_transition_favicon_size));

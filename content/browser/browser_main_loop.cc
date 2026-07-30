@@ -84,7 +84,6 @@
 #include "content/browser/gpu/gpu_process_host.h"
 #include "content/browser/media/media_internals.h"
 #include "content/browser/media/media_keys_listener_manager_impl.h"
-#include "content/browser/memory_pressure/user_level_memory_pressure_signal_generator.h"
 #include "content/browser/metrics/histogram_synchronizer.h"
 #include "content/browser/network/browser_online_state_observer.h"
 #include "content/browser/network_service_instance_impl.h"
@@ -157,6 +156,7 @@
 #include "services/tracing/public/cpp/trace_startup_config.h"
 #include "services/video_capture/public/cpp/features.h"
 #include "skia/ext/event_tracer_impl.h"
+#include "skia/ext/font_utils.h"
 #include "skia/ext/legacy_display_globals.h"
 #include "skia/ext/skia_memory_dump_provider.h"
 #include "sql/sql_memory_dump_provider.h"
@@ -176,7 +176,6 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/jni_android.h"
-#include "base/trace_event/cpufreq_monitor_android.h"
 #include "components/input/android/input_token_forwarder.h"
 #include "components/tracing/common/graphics_memory_dump_provider_android.h"
 #include "content/browser/android/browser_startup_controller.h"
@@ -184,6 +183,7 @@
 #include "content/browser/android/launcher_thread.h"
 #include "content/browser/android/tracing_controller_android.h"
 #include "content/browser/font_unique_name_lookup/font_unique_name_lookup_android.h"
+#include "content/browser/memory_pressure/user_level_memory_pressure_signal_generator.h"
 #include "content/browser/screen_orientation/screen_orientation_delegate_android.h"
 #include "media/base/android/media_drm_bridge_client.h"
 #include "ui/android/screen_android.h"
@@ -746,9 +746,6 @@ void BrowserMainLoop::PostCreateMainMessageLoop() {
     screen_orientation_delegate_ =
         std::make_unique<ScreenOrientationDelegateAndroid>();
   }
-
-  base::trace_event::TraceLog::GetInstance()->AddEnabledStateObserver(
-      base::trace_event::CPUFreqMonitor::GetInstance());
 #endif
 
   if (UsingInProcessGpu()) {
@@ -1006,6 +1003,7 @@ int BrowserMainLoop::PreMainMessageLoopRun() {
           font_render_params.subpixel_rendering),
       font_render_params.text_contrast, font_render_params.text_gamma);
   viz::GpuHostImpl::InitFontRenderParams(font_render_params);
+  skia::InitializeFontRendering();
 
 #if BUILDFLAG(IS_ANDROID)
   bool use_display_wide_color_gamut =

@@ -256,8 +256,7 @@ AggregatedRenderPassDrawQuad* CreateRenderPassDrawQuadAt(
   AggregatedRenderPassDrawQuad* quad =
       render_pass->CreateAndAppendDrawQuad<AggregatedRenderPassDrawQuad>();
   quad->SetNew(shared_quad_state, rect, rect, render_pass_id, ResourceId(2),
-               gfx::RectF(), gfx::Size(), gfx::Vector2dF(1, 1), gfx::PointF(),
-               gfx::RectF(), false, 1.f);
+               gfx::RectF(), gfx::Size(), gfx::RectF(), false);
   return quad;
 }
 
@@ -2595,8 +2594,6 @@ class OverlayProcessorWinTest : public OverlayProcessorTestBase {
     overlay_processor_->SetViewportSize(gfx::Size(256, 256));
 
     EXPECT_TRUE(overlay_processor_->IsOverlaySupported());
-
-    output_surface_plane_ = GetDefaultPrimaryPlane(gfx::Size(256, 256));
   }
 
   void TearDown() override {
@@ -2604,14 +2601,16 @@ class OverlayProcessorWinTest : public OverlayProcessorTestBase {
     OverlayProcessorTestBase::TearDown();
   }
 
-  std::optional<OverlayCandidate> GetDefaultPrimaryPlane(
+  OverlayProcessorInterface::PrimaryPlaneParams GetDefaultPrimaryPlane(
       const gfx::Size& primary_plane_size) {
-    return overlay_processor_->ProcessOutputSurfaceAsOverlay(
-        primary_plane_size, primary_plane_size, SinglePlaneFormat::kBGRA_8888,
-        gfx::ColorSpace::CreateSRGB(), false, 1.0, gpu::Mailbox());
+    return OverlayProcessorInterface::PrimaryPlaneParams{
+        .viewport_size = primary_plane_size,
+        .resource_size_in_pixels = primary_plane_size,
+        .supports_hdr = false,
+        .is_opaque = true,
+    };
   }
 
-  std::optional<OverlayCandidate> output_surface_plane_;
   std::unique_ptr<OverlayProcessorWin> overlay_processor_;
   gfx::Rect damage_rect_;
   std::vector<gfx::Rect> content_bounds_;
@@ -2712,11 +2711,8 @@ class OverlayProcessorWinSurfacePlaneTest
             /*mask_resource_id=*/kInvalidResourceId,
             /*mask_uv_rect=*/gfx::RectF(),
             /*mask_texture_size=*/gfx::Size(),
-            /*filters_scale=*/gfx::Vector2dF(1.0f, 1.0f),
-            /*filters_origin=*/gfx::PointF(),
             /*tex_coord_rect=*/gfx::RectF(pass_list_->back()->output_rect),
-            /*force_anti_aliasing_off=*/false,
-            /*backdrop_filter_quality=*/1.0f);
+            /*force_anti_aliasing_off=*/false);
 
         // Pretend that our old root pass is actually the root pass of a
         // surface.
@@ -2756,12 +2752,11 @@ class OverlayProcessorWinSurfacePlaneTest
                                                      &damage_rect_);
     }
 
-    output_surface_plane_ =
-        GetDefaultPrimaryPlane(render_passes->back()->output_rect.size());
     overlay_processor_->ProcessForOverlays(
         resource_provider_.get(), render_passes, SkM44(),
         std::move(surface_damage_rect_list_in_root_space),
-        output_surface_plane_, candidates, &damage_rect_, &content_bounds_);
+        GetDefaultPrimaryPlane(render_passes->back()->output_rect.size()),
+        candidates, &damage_rect_, &content_bounds_);
   }
 
  private:
@@ -3080,10 +3075,6 @@ TEST_P(OverlayProcessorWinSurfacePlaneFullScreenTest,
   EXPECT_THAT(overlays, testing::ElementsAreArray({
                             test::OverlayIsFullScreen(),
                         }));
-
-  // Check that the next call to `AdjustOutputSurfaceOverlay` clears the primary
-  // plane.
-  EXPECT_FALSE(output_surface_plane_.has_value());
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -3139,12 +3130,6 @@ class OverlayProcessorWinDelegatedCompositingTest
   DelegationResult TryProcessForDelegatedOverlays(
       AggregatedRenderPassList& pass_list,
       SurfaceDamageRectList surface_damage_rect_list = {}) {
-    if (!output_surface_plane_) {
-      // Reset the output surface plane in case we're calling
-      // |TryProcessForDelegatedOverlays| multiple times.
-      output_surface_plane_ = OverlayCandidate();
-    }
-
     const gfx::Rect original_root_surface_damage =
         pass_list.back()->damage_rect;
 
@@ -3165,8 +3150,9 @@ class OverlayProcessorWinDelegatedCompositingTest
     overlay_processor_->ProcessForOverlays(
         resource_provider_.get(), &pass_list, GetIdentityColorMatrix(),
         render_pass_filters, render_pass_backdrop_filters,
-        std::move(surface_damage_rect_list), output_surface_plane_, &candidates,
-        &damage_rect_, &content_bounds_);
+        std::move(surface_damage_rect_list),
+        GetDefaultPrimaryPlane(pass_list.back()->output_rect.size()),
+        &candidates, &damage_rect_, &content_bounds_);
 
     const bool delegation_succeeded = std::ranges::none_of(
         candidates,
@@ -3599,6 +3585,43 @@ TEST_F(OverlayProcessorWinFullScreenTest, VideoIsLetterboxedDueToClipping) {
               }));
 }
 
+// This tests the case where:
+//
+// - A video is full screen
+// - The video has the same aspect ratio of the screen
+// - The monitor the video is on has a non-integer device scale factor. This
+//   test simulates a 2400x1600 monitor at 1.5x scaling.
+//
+// In this case, we want the video to be "snapped" to the monitor size, instead
+// of the video quad size that is slightly larger due to rounding up when
+// calculating the root rame size in the browser.
+TEST_F(OverlayProcessorWinFullScreenTest,
+       FullScreenVideoSlightlyLargerThanScreen) {
+  AggregatedRenderPassList pass_list;
+  auto pass = CreateRenderPass();
+  pass->output_rect = gfx::Rect(2400, 1600);
+
+  const gfx::Rect slightly_larger_than_pass = gfx::Rect(2400, 1601);
+
+  auto* sqs = CreateSharedQuadStateWithLayerNamespaceId(pass.get());
+  sqs->clip_rect = slightly_larger_than_pass;
+  CreateYUVTextureQuadAt(resource_provider_.get(),
+                         child_resource_provider_.get(), child_provider_.get(),
+                         sqs, pass.get(), slightly_larger_than_pass);
+  CreateSolidColorQuadAt(CreateSharedQuadStateWithLayerNamespaceId(pass.get()),
+                         SkColors::kBlack, pass.get(), pass->output_rect);
+  pass_list.push_back(std::move(pass));
+
+  auto result = TryProcessForDelegatedOverlays(pass_list);
+  result.ExpectDelegationSuccess();
+
+  EXPECT_THAT(
+      result.candidates(),
+      CandidatesAreSortedAndElementsAre({
+          testing::AllOf(test::OverlayIsFullScreen(),
+                         test::OverlayTargetRectIs(gfx::RectF(2400, 1600))),
+      }));
+}
 class OverlayProcessorWinFullScreenWithAdjustmentTest
     : public OverlayProcessorWinDelegatedCompositingTest {
  public:
@@ -3651,7 +3674,7 @@ TEST_F(OverlayProcessorWinFullScreenWithAdjustmentTest, AdjustToLetterbox) {
   CreateYUVTextureQuadAt(resource_provider_.get(),
                          child_resource_provider_.get(), child_provider_.get(),
                          CreateSharedQuadStateWithLayerNamespaceId(pass.get()),
-                         pass.get(), gfx::Rect(0, 90, 255, 64));
+                         pass.get(), gfx::Rect(0, 90, 256, 64));
 
   CreateSolidColorQuadAt(CreateSharedQuadStateWithLayerNamespaceId(pass.get()),
                          SkColors::kBlack, pass.get(), pass->output_rect);
@@ -3664,7 +3687,7 @@ TEST_F(OverlayProcessorWinFullScreenWithAdjustmentTest, AdjustToLetterbox) {
       result.candidates(),
       CandidatesAreSortedAndElementsAre({
           testing::AllOf(test::OverlayIsFullScreen(),
-                         test::OverlayTargetRectIs(gfx::RectF(0, 96, 255, 64))),
+                         test::OverlayTargetRectIs(gfx::RectF(0, 96, 256, 64))),
       }));
 }
 

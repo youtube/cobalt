@@ -11,7 +11,7 @@
 #import "components/lens/lens_url_utils.h"
 #import "components/omnibox/common/omnibox_features.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
-#import "ios/chrome/browser/intelligence/bwg/metrics/bwg_metrics.h"
+#import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
@@ -112,9 +112,15 @@ const CGFloat kIconPointSize = 16.0;
 
 - (void)setConsumer:(id<LocationBarConsumer>)consumer {
   _consumer = consumer;
+
+  if (!_consumer) {
+    return;
+  }
+
   [consumer setSearchByImageEnabled:self.searchEngineSupportsSearchByImage];
   [consumer setLensImageEnabled:self.searchEngineSupportsLens];
   [self updatePlaceholderType];
+  [self searchEngineChanged];
 }
 
 - (void)setTemplateURLService:(TemplateURLService*)templateURLService {

@@ -725,18 +725,6 @@ bool ContentBrowserClient::IsPrivateAggregationDebugModeAllowed(
   return true;
 }
 
-bool ContentBrowserClient::IsCookieDeprecationLabelAllowed(
-    content::BrowserContext* browser_context) {
-  return false;
-}
-
-bool ContentBrowserClient::IsCookieDeprecationLabelAllowedForContext(
-    content::BrowserContext* browser_context,
-    const url::Origin& top_frame_origin,
-    const url::Origin& context_origin) {
-  return false;
-}
-
 bool ContentBrowserClient::IsFullCookieAccessAllowed(
     content::BrowserContext* browser_context,
     content::WebContents* web_contents,
@@ -1227,7 +1215,7 @@ void ContentBrowserClient::ConfigureNetworkContextParams(
     network::mojom::NetworkContextParams* network_context_params,
     cert_verifier::mojom::CertVerifierCreationParams*
         cert_verifier_creation_params) {
-  network_context_params->user_agent = GetUserAgentBasedOnPolicy(context);
+  network_context_params->user_agent = GetUserAgent();
   network_context_params->accept_language = "en-us,en";
 }
 
@@ -1449,11 +1437,6 @@ std::string ContentBrowserClient::GetProduct() {
 
 std::string ContentBrowserClient::GetUserAgent() {
   return std::string();
-}
-
-std::string ContentBrowserClient::GetUserAgentBasedOnPolicy(
-    content::BrowserContext* content) {
-  return GetUserAgent();
 }
 
 blink::UserAgentMetadata ContentBrowserClient::GetUserAgentMetadata() {
@@ -1775,14 +1758,6 @@ bool ContentBrowserClient::IsThirdPartyStoragePartitioningAllowed(
   return true;
 }
 
-bool ContentBrowserClient::IsUnpartitionedStorageAccessAllowedByUserPreference(
-    content::BrowserContext* browser_context,
-    const GURL& url,
-    const net::SiteForCookies& site_for_cookies,
-    const url::Origin& top_frame_origin) {
-  return true;
-}
-
 bool ContentBrowserClient::AreDeprecatedAutomaticBeaconCredentialsAllowed(
     content::BrowserContext* browser_context,
     const GURL& destination_url,
@@ -2040,6 +2015,9 @@ void ContentBrowserClient::RecordAssistedLogin(AssistedLoginType login_type) {}
 std::optional<bool> ContentBrowserClient::GetOverrideValueForStaticStorageQuota(
     BrowserContext* browser_context) {
   return std::nullopt;
+}
+std::string ContentBrowserClient::GetDnsTxtResolverUrlPrefix() {
+  return std::string();
 }
 
 }  // namespace content

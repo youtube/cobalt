@@ -5,7 +5,6 @@
 #ifndef COMPONENTS_AUTOFILL_CONTENT_BROWSER_CONTENT_AUTOFILL_DRIVER_H_
 #define COMPONENTS_AUTOFILL_CONTENT_BROWSER_CONTENT_AUTOFILL_DRIVER_H_
 
-#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -215,6 +214,8 @@ class ContentAutofillDriver : public AutofillDriver,
       mojom::FormActionType action_type,
       mojom::ActionPersistence action_persistence,
       base::span<const FormFieldData> data,
+      const FillId& fill_id,
+      bool supports_refill,
       const url::Origin& triggered_origin,
       const base::flat_map<FieldGlobalId, FieldType>& field_type_map,
       const Section& section_for_clear_form_on_ios) override;
@@ -264,6 +265,8 @@ class ContentAutofillDriver : public AutofillDriver,
   void DidEndTextFieldEditing() override;
   void FocusOnNonFormField() override;
   void HidePopup() override;
+  void SuppressAutomaticRefills(const FillId& fill_id) override;
+  void RequestRefill(const FillId& fill_id) override;
 
   // Group (2b): renderer -> browser events, routed (see comment above).
   // mojom::AutofillDriver:

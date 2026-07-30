@@ -99,7 +99,14 @@ source_set("impl") {
   }
 
   if (is_android) {
-    sources += [ "auto_picture_in_picture_tab_model_observer_helper.cc" ]
+    sources += [
+      "auto_picture_in_picture_permission_controller_bridge.cc",
+      "auto_picture_in_picture_tab_model_observer_helper.cc",
+    ]
+    deps += [
+      "//chrome/android:chrome_jni_headers",
+      "//components/strings:components_strings",
+    ]
   } else {
     sources += [
       "auto_picture_in_picture_tab_strip_observer_helper.cc",

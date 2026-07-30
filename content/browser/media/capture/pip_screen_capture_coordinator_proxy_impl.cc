@@ -36,29 +36,24 @@ class PipScreenCaptureCoordinatorProxyImpl::UiThreadObserver
       coordinator_->AddObserver(this);
 
       // Update the proxy with the latest state
-      OnPipWindowIdChanged(coordinator_->PipWindowId());
-      OnCapturesChanged(coordinator_->Captures());
+      OnStateChanged(coordinator_->PipWindowId(),
+                     coordinator_->GetPipOwnerRenderFrameHostId(),
+                     coordinator_->Captures());
     }
   }
 
   // PipScreenCaptureCoordinatorImpl::Observer:
-  void OnPipWindowIdChanged(
-      std::optional<NativeWindowId> new_pip_window_id) override {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(ui_thread_sequence_checker_);
-    proxy_task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&PipScreenCaptureCoordinatorProxyImpl::SetPipWindowId,
-                       proxy_, new_pip_window_id));
-  }
-
-  void OnCapturesChanged(
+  void OnStateChanged(
+      std::optional<NativeWindowId> new_pip_window_id,
+      const GlobalRenderFrameHostId& new_pip_owner_render_frame_host_id,
       const std::vector<PipScreenCaptureCoordinatorProxy::CaptureInfo>&
           captures) override {
     DCHECK_CALLED_ON_VALID_SEQUENCE(ui_thread_sequence_checker_);
     proxy_task_runner_->PostTask(
         FROM_HERE,
-        base::BindOnce(&PipScreenCaptureCoordinatorProxyImpl::SetCaptures,
-                       proxy_, captures));
+        base::BindOnce(&PipScreenCaptureCoordinatorProxyImpl::UpdateState,
+                       proxy_, new_pip_window_id,
+                       new_pip_owner_render_frame_host_id, captures));
   }
 
  private:
@@ -71,9 +66,11 @@ class PipScreenCaptureCoordinatorProxyImpl::UiThreadObserver
 PipScreenCaptureCoordinatorProxyImpl::PipScreenCaptureCoordinatorProxyImpl(
     base::WeakPtr<PipScreenCaptureCoordinatorImpl> coordinator,
     std::optional<NativeWindowId> initial_pip_window_id,
+    GlobalRenderFrameHostId initial_pip_owner_render_frame_host_id,
     const std::vector<CaptureInfo>& initial_captures)
     : coordinator_(std::move(coordinator)),
       pip_window_id_(initial_pip_window_id),
+      pip_owner_render_frame_host_id_(initial_pip_owner_render_frame_host_id),
       captures_(initial_captures),
       ui_thread_observer_(
           nullptr,
@@ -95,10 +92,37 @@ PipScreenCaptureCoordinatorProxyImpl::PipWindowId() const {
   return pip_window_id_;
 }
 
+GlobalRenderFrameHostId
+PipScreenCaptureCoordinatorProxyImpl::GetPipOwnerRenderFrameHostId() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return pip_owner_render_frame_host_id_;
+}
+
 const std::vector<PipScreenCaptureCoordinatorProxy::CaptureInfo>&
 PipScreenCaptureCoordinatorProxyImpl::Captures() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return captures_;
+}
+
+std::vector<NativeWindowId>
+PipScreenCaptureCoordinatorProxyImpl::WindowsToExclude(
+    const DesktopMediaID& media_id) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (!pip_window_id_) {
+    return {};
+  }
+
+  // The PiP window should not be excluded if there are other
+  // applications capturing the screen.
+  for (const auto& capture : captures_) {
+    if (capture.desktop_media_id == media_id &&
+        capture.render_frame_host_id != pip_owner_render_frame_host_id_) {
+      return {};
+    }
+  }
+
+  return {*pip_window_id_};
 }
 
 void PipScreenCaptureCoordinatorProxyImpl::AddObserver(Observer* observer) {
@@ -136,27 +160,22 @@ void PipScreenCaptureCoordinatorProxyImpl::RemoveObserver(Observer* observer) {
   }
 }
 
-void PipScreenCaptureCoordinatorProxyImpl::SetPipWindowId(
-    const std::optional<NativeWindowId>& new_pip_window_id) {
+void PipScreenCaptureCoordinatorProxyImpl::UpdateState(
+    const std::optional<NativeWindowId>& new_pip_window_id,
+    const GlobalRenderFrameHostId& new_pip_owner_render_frame_host_id,
+    const std::vector<CaptureInfo>& new_captures) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (pip_window_id_ == new_pip_window_id) {
+  if (pip_window_id_ == new_pip_window_id &&
+      pip_owner_render_frame_host_id_ == new_pip_owner_render_frame_host_id &&
+      captures_ == new_captures) {
     return;
   }
   pip_window_id_ = new_pip_window_id;
+  pip_owner_render_frame_host_id_ = new_pip_owner_render_frame_host_id;
+  captures_ = new_captures;
   for (Observer& obs : observers_) {
-    obs.OnPipWindowIdChanged(pip_window_id_);
-  }
-}
-
-void PipScreenCaptureCoordinatorProxyImpl::SetCaptures(
-    const std::vector<CaptureInfo>& captures) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (captures_ == captures) {
-    return;
-  }
-  captures_ = captures;
-  for (Observer& obs : observers_) {
-    obs.OnCapturesChanged(captures_);
+    obs.OnStateChanged(pip_window_id_, pip_owner_render_frame_host_id_,
+                       captures_);
   }
 }
 

@@ -14,16 +14,46 @@
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/traced_value.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "cc/base/features.h"
+#include "cc/scheduler/commit_earlyout_reason.h"
 #include "components/viz/common/features.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/device_info.h"
+#endif
 
 namespace cc {
 
 namespace {
 // Surfaces and CompositorTimingHistory don't support more than 1 pending swap.
 const int kMaxPendingSubmitFrames = 1;
+
+bool IsEligibleToThrottleMainFrameRate() {
+#if BUILDFLAG(IS_ANDROID)
+  // Still requires balancing tradeoffs for desktop Android, not enabled yet.
+  return !base::android::device_info::is_desktop();
+#else
+  return true;
+#endif
+}
+
+bool ShouldThrottleMainFrameRate(const SchedulerSettings& settings) {
+  if (!features::IsEligibleForThrottleMainFrameTo60Hz()) {
+    return false;
+  }
+#if BUILDFLAG(IS_ANDROID)
+  bool is_webview = settings.using_synchronous_renderer_compositor;
+  return is_webview
+             ? base::FeatureList::IsEnabled(
+                   features::kThrottleMainFrameTo60HzWebView)
+             : base::FeatureList::IsEnabled(features::kThrottleMainFrameTo60Hz);
+#else
+  return base::FeatureList::IsEnabled(features::kThrottleMainFrameTo60Hz);
+#endif  // BUILDFLAG(IS_ANDROID)
+}
 
 }  // namespace
 
@@ -285,7 +315,7 @@ void SchedulerStateMachine::AsProtozeroInto(
       processing_animation_worklets_for_pending_tree_);
   minor_state->set_processing_paint_worklets_for_pending_tree(
       processing_paint_worklets_for_pending_tree_);
-  minor_state->set_processing_paint_worklets_for_pending_tree(should_warm_up_);
+  minor_state->set_should_warm_up(should_warm_up_);
 }
 
 bool SchedulerStateMachine::PendingDrawsShouldBeAborted() const {
@@ -1548,22 +1578,13 @@ void SchedulerStateMachine::FrameIntervalUpdated(
   //
   // Apply some slack, so that if for some reason the interval is a bit larger
   // than 8.33333333333333ms, then we catch it still.
-  //
-  // Do not enable throttling for the synchronous compositor, as it hasn't been
-  // evaluated for this use case, as of 09/2025. The aim is to make sure that
-  // this does not get enabled on WebView when the feature is active on Android,
-  // as they share the same binary configuration. Exclude this platform, which
-  // is using the synchronous compositor.
   constexpr float kSlackFactor = .9;
   bool fast_vsync_interval =
       frame_interval < base::Hertz(120) * (1 / kSlackFactor);
-  if (fast_vsync_interval && !settings_.using_synchronous_renderer_compositor) {
+  if (fast_vsync_interval && IsEligibleToThrottleMainFrameRate()) {
     features::SetIsEligibleForThrottleMainFrameTo60Hz(true);
   }
-  // Same as above, no synchronous compositor.
-  if (fast_vsync_interval &&
-      base::FeatureList::IsEnabled(features::kThrottleMainFrameTo60Hz) &&
-      !settings_.using_synchronous_renderer_compositor) {
+  if (fast_vsync_interval && ShouldThrottleMainFrameRate(settings_)) {
     // Here as well, use a slack factor, to make sure that small timing
     // variations don't result in uneven pacing.
     //
@@ -1749,6 +1770,9 @@ void SchedulerStateMachine::BeginMainFrameAborted(CommitEarlyOutReason reason) {
       case CommitEarlyOutReason::kFinishedNoUpdates:
         WillCommit(/*commit_had_no_updates=*/true);
         break;
+      case CommitEarlyOutReason::kNoEarlyOut:
+        // Not a real case, only used for metrics.
+        NOTREACHED();
     }
   } else {
     DCHECK(settings_.main_frame_before_commit_enabled);
@@ -1764,6 +1788,9 @@ void SchedulerStateMachine::BeginMainFrameAborted(CommitEarlyOutReason reason) {
       case CommitEarlyOutReason::kFinishedNoUpdates:
         commit_count_++;
         break;
+      case CommitEarlyOutReason::kNoEarlyOut:
+        // Not a real case, only used for metrics.
+        NOTREACHED();
     }
   }
 }

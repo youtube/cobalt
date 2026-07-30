@@ -86,6 +86,7 @@
 #include "third_party/blink/renderer/core/layout/forms/layout_fieldset.h"
 #include "third_party/blink/renderer/core/layout/geometry/transform_state.h"
 #include "third_party/blink/renderer/core/layout/grid/layout_grid.h"
+#include "third_party/blink/renderer/core/layout/grid_lanes/layout_grid_lanes.h"
 #include "third_party/blink/renderer/core/layout/hit_test_result.h"
 #include "third_party/blink/renderer/core/layout/layout_block_flow.h"
 #include "third_party/blink/renderer/core/layout/layout_counter.h"
@@ -106,7 +107,6 @@
 #include "third_party/blink/renderer/core/layout/list/layout_inside_list_marker.h"
 #include "third_party/blink/renderer/core/layout/list/layout_list_item.h"
 #include "third_party/blink/renderer/core/layout/list/layout_outside_list_marker.h"
-#include "third_party/blink/renderer/core/layout/masonry/layout_grid_lanes.h"
 #include "third_party/blink/renderer/core/layout/mathml/layout_mathml_block.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/core/layout/svg/svg_layout_info.h"
@@ -1634,7 +1634,17 @@ void LayoutObject::MarkParentForSpannerOrOutOfFlowPositionedChange() {
   //
   // Note that this isn't necessary if we're dealing with a column spanner here,
   // but in order to keep things simple, we'll make no difference.
-  object->SetNeedsCollectInlines();
+  bool is_atomic_inline_level = false;
+  if (RuntimeEnabledFeatures::SkipSetNeedsCollectInlinesEnabled()) {
+    if (auto* block_flow = DynamicTo<LayoutBlockFlow>(object)) {
+      if (block_flow->IsAtomicInlineLevel()) {
+        is_atomic_inline_level = true;
+      }
+    }
+  }
+  if (!is_atomic_inline_level) {
+    object->SetNeedsCollectInlines();
+  }
 
   const LayoutBlock* containing_block = ContainingBlock();
   while (object != containing_block) {
@@ -4434,16 +4444,10 @@ Element* LayoutObject::OffsetParent(const Element* base) const {
     return nullptr;
 
   bool in_position_fixed = IsFixedPositioned();
-  if (in_position_fixed &&
-      !RuntimeEnabledFeatures::
-          OffsetParentNewSpecBehaviorForFixedPositionEnabled()) {
-    return nullptr;
-  }
-
   HeapHashSet<Member<TreeScope>> ancestor_tree_scopes;
-  if (base)
+  if (base) {
     ancestor_tree_scopes = base->GetAncestorTreeScopes();
-
+  }
   float effective_zoom = StyleRef().EffectiveZoom();
   Node* node = nullptr;
   for (LayoutObject* ancestor = Parent(); ancestor;
@@ -4458,26 +4462,17 @@ Element* LayoutObject::OffsetParent(const Element* base) const {
     // we will eventually get to a node which is not closed shadow hidden from
     // |base|. https://github.com/w3c/csswg-drafts/issues/159
     if (base && !ancestor_tree_scopes.Contains(&node->GetTreeScope())) {
-      if (RuntimeEnabledFeatures::
-              OffsetParentNewSpecBehaviorForFixedPositionEnabled()) {
-        // If a fixed position containing block is found within the shadow tree,
-        // we should treat it as exiting the fixed position mode.
-        if (ancestor->CanContainFixedPositionObjects()) {
-          in_position_fixed = false;
-        } else if (ancestor->IsFixedPositioned()) {
-          in_position_fixed = true;
-        }
-      } else {
-        if (ancestor->IsFixedPositioned()) {
-          return nullptr;
-        }
+      // If a fixed position containing block is found within the shadow tree,
+      // we should treat it as exiting the fixed position mode.
+      if (ancestor->CanContainFixedPositionObjects()) {
+        in_position_fixed = false;
+      } else if (ancestor->IsFixedPositioned()) {
+        in_position_fixed = true;
       }
       continue;
     }
 
-    if (RuntimeEnabledFeatures::
-            OffsetParentNewSpecBehaviorForFixedPositionEnabled() &&
-        in_position_fixed) {
+    if (in_position_fixed) {
       // If the computed value of the position property of ancestor is fixed,
       // and no ancestor establishes a fixed position containing block,
       // terminate this algorithm and return null.

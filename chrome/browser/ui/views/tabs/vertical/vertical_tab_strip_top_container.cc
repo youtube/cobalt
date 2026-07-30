@@ -7,6 +7,7 @@
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+#include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/actions/action_view_controller.h"
 #include "ui/views/controls/button/label_button.h"
@@ -24,7 +25,7 @@ namespace {
 class TopContainerButton : public views::LabelButton {
   METADATA_HEADER(TopContainerButton, views::LabelButton)
  public:
-  TopContainerButton() = default;
+  TopContainerButton() { ConfigureInkDropForToolbar(this); }
 
   // views::LabelButton:
   std::unique_ptr<views::ActionViewInterface> GetActionViewInterface() override;
@@ -85,12 +86,12 @@ VerticalTabStripTopContainer::~VerticalTabStripTopContainer() = default;
 views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
     const views::SizeBounds& size_bounds) const {
   views::ProposedLayout layout;
-  if (size_bounds.width().is_bounded()) {
-    layout.host_size =
-        gfx::Size(size_bounds.width().value(), kTopButtonContainerHeight);
-  } else {
-    layout.host_size = gfx::Size(parent()->width(), kTopButtonContainerHeight);
-  }
+  // TODO(crbug.com/465857622): Implement smarter reflow around caption buttons.
+  const int exclusion_height = exclusion_width_ > 0 ? toolbar_height_ : 0;
+  layout.host_size =
+      gfx::Size(size_bounds.width().is_bounded() ? size_bounds.width().value()
+                                                 : parent()->width(),
+                kTopButtonContainerHeight + exclusion_height);
 
   CHECK(tab_search_button_);
   CHECK(collapse_button_);
@@ -101,12 +102,13 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
       collapse_button_->GetPreferredSize(views::SizeBounds(layout.host_size));
 
   int current_x = layout.host_size.width();
+  int current_y = layout.host_size.height() - exclusion_height;
 
   // Calculate bounds to right-align the button horizontally and center it
   // vertically within the available space.
   gfx::Rect tab_search_button_bounds(
       current_x - tab_search_button_pref_size.width(),
-      (layout.host_size.height() - tab_search_button_pref_size.height()) / 2,
+      (current_y - tab_search_button_pref_size.height()) / 2 + exclusion_height,
       tab_search_button_pref_size.width(),
       tab_search_button_pref_size.height());
   layout.child_layouts.emplace_back(
@@ -118,7 +120,7 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
   // Re-calculate bounds based on new x value, offset by the tab search button.
   gfx::Rect collapse_button_bounds(
       current_x - collapse_button_pref_size.width(),
-      (layout.host_size.height() - collapse_button_pref_size.height()) / 2,
+      (current_y - collapse_button_pref_size.height()) / 2 + exclusion_height,
       collapse_button_pref_size.width(), collapse_button_pref_size.height());
   layout.child_layouts.emplace_back(
       collapse_button_.get(), collapse_button_->GetVisible(),
@@ -129,20 +131,21 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
 
 views::LabelButton* VerticalTabStripTopContainer::AddChildButtonFor(
     actions::ActionId action_id) {
-  std::unique_ptr<TopContainerButton> label_button =
+  std::unique_ptr<TopContainerButton> container_button =
       std::make_unique<TopContainerButton>();
   actions::ActionItem* action_item =
       actions::ActionManager::Get().FindAction(action_id, root_action_item_);
   CHECK(action_item);
 
   action_view_controller_->CreateActionViewRelationship(
-      label_button.get(), action_item->GetAsWeakPtr());
+      container_button.get(), action_item->GetAsWeakPtr());
 
-  TopContainerButton* raw_label_button = AddChildView(std::move(label_button));
+  TopContainerButton* raw_container_button =
+      AddChildView(std::move(container_button));
 
-  raw_label_button->SetHorizontalAlignment(gfx::ALIGN_RIGHT);
+  raw_container_button->SetHorizontalAlignment(gfx::ALIGN_RIGHT);
 
-  return raw_label_button;
+  return raw_container_button;
 }
 
 bool VerticalTabStripTopContainer::IsPositionInWindowCaption(
@@ -166,6 +169,15 @@ bool VerticalTabStripTopContainer::IsPositionInWindowCaption(
   }
 
   return true;
+}
+
+void VerticalTabStripTopContainer::SetToolbarHeightForLayout(
+    const int toolbar_height) {
+  toolbar_height_ = toolbar_height;
+}
+void VerticalTabStripTopContainer::SetExclusionWidthForLayout(
+    const int exclusion_width) {
+  exclusion_width_ = exclusion_width;
 }
 
 BEGIN_METADATA(VerticalTabStripTopContainer)

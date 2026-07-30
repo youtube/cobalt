@@ -10,6 +10,7 @@
 
 #include "base/files/file_path.h"
 #include "base/stl_util.h"
+#include "base/strings/strcat.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
@@ -93,7 +94,8 @@ SignedWebBundleMetadata CreateTestMetadata() {
       IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(
           web_package::SignedWebBundleId::CreateRandomForProxyMode()),
       IwaSourceBundleProdMode(base::FilePath()), u"Test Isolated Web App",
-      *IwaVersion::Create("0.0.1"), std::move(image_info));
+      *IwaVersion::Create("0.0.1"), std::move(image_info),
+      /*enterprise_name=*/"Google LLC");
 }
 
 // To be passed as 4th argument to `INSTANTIATE_TEST_SUITE_P()`, allows the test

@@ -103,16 +103,10 @@ namespace gtk {
 
 namespace {
 
-// Stores the GtkUi singleton instance
-const GtkUi* g_gtk_ui = nullptr;
-
-const double kDefaultDPI = 96;
-
-// Number of app indicators used (used as part of app-indicator id).
-int indicators_count;
+constexpr double kDefaultDPI = 96;
 
 // The unknown content type.
-const char kUnknownContentType[] = "application/octet-stream";
+constexpr char kUnknownContentType[] = "application/octet-stream";
 
 // Returns a gfx::FontRenderParams corresponding to GTK's configuration.
 gfx::FontRenderParams GetGtkFontRenderParams() {
@@ -297,21 +291,9 @@ bool IsValidSchema(ui::LinuxUiBackend backend) {
 
 }  // namespace
 
-GtkUi::GtkUi() : window_frame_actions_() {
-  DCHECK(!g_gtk_ui);
-  g_gtk_ui = this;
-}
+GtkUi::GtkUi() : window_frame_actions_() {}
 
-GtkUi::~GtkUi() {
-  DCHECK_EQ(g_gtk_ui, this);
-  g_gtk_ui = nullptr;
-}
-
-// static
-GtkUiPlatform* GtkUi::GetPlatform() {
-  DCHECK(g_gtk_ui) << "GtkUi instance is not set.";
-  return g_gtk_ui->platform_.get();
-}
+GtkUi::~GtkUi() = default;
 
 bool GtkUi::Initialize() {
   const auto* delegate = ui::LinuxUiDelegate::GetInstance();
@@ -405,8 +387,6 @@ bool GtkUi::Initialize() {
 
   // We must build this after GTK gets initialized.
   settings_provider_ = std::make_unique<SettingsProviderGtk>(this);
-
-  indicators_count = 0;
 
   platform_->OnInitialized();
 
@@ -620,7 +600,7 @@ std::unique_ptr<ui::LinuxInputMethodContext> GtkUi::CreateInputMethodContext(
           switches::kDisableGtkIme)) {
     return nullptr;
   }
-  return GetPlatform()->CreateInputMethodContext(delegate);
+  return platform_->CreateInputMethodContext(delegate);
 }
 
 gfx::FontRenderParams GtkUi::GetDefaultFontRenderParams() {
@@ -632,8 +612,8 @@ ui::SelectFileDialog* GtkUi::CreateSelectFileDialog(
     void* listener,
     std::unique_ptr<ui::SelectFilePolicy> policy) const {
   return new SelectFileDialogLinuxGtk(
-      static_cast<ui::SelectFileDialog::Listener*>(listener),
-      std::move(policy));
+      static_cast<ui::SelectFileDialog::Listener*>(listener), std::move(policy),
+      platform_.get());
 }
 
 ui::LinuxUi::WindowFrameAction GtkUi::GetWindowFrameAction(
@@ -646,6 +626,13 @@ bool GtkUi::PrimaryPasteEnabled() const {
   g_object_get(gtk_settings_get_default(), "gtk-enable-primary-paste",
                &paste_enabled, nullptr);
   return paste_enabled;
+}
+
+int GtkUi::GetWindowDragThresholdPx() const {
+  gint threshold = kDefaultWindowDragThreshold;
+  g_object_get(gtk_settings_get_default(), "gtk-dnd-drag-threshold", &threshold,
+               nullptr);
+  return threshold;
 }
 
 bool GtkUi::PreferDarkTheme() const {
@@ -822,9 +809,9 @@ ui::TextEditCommand GtkUi::GetTextEditCommandForEvent(const ui::Event& event,
 }
 
 #if BUILDFLAG(ENABLE_PRINTING)
-printing::PrintDialogLinuxInterface* GtkUi::CreatePrintDialog(
+std::unique_ptr<printing::PrintDialogLinuxInterface> GtkUi::CreatePrintDialog(
     printing::PrintingContextLinux* context) {
-  return PrintDialogGtk::CreatePrintDialog(context);
+  return std::make_unique<PrintDialogGtk>(context, platform_.get());
 }
 
 gfx::Size GtkUi::GetPdfPaperSize(printing::PrintingContextLinux* context) {

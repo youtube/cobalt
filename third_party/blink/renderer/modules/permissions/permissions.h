@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 
 namespace blink {
@@ -27,10 +28,13 @@ class ScriptValue;
 enum class PermissionType;
 
 class Permissions final : public ScriptWrappable,
+                          public Supplement<NavigatorBase>,
                           public ExecutionContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
+  static const unsigned kSupplementIndex;
+
   // Getter for navigator.permissions
   static Permissions* permissions(NavigatorBase&);
 
@@ -49,20 +53,13 @@ class Permissions final : public ScriptWrappable,
   requestAll(ScriptState*, const HeapVector<ScriptObject>&, ExceptionState&);
 
   // ExecutionContextLifecycleStateObserver:
-  void ContextDestroyed() override;
-
-  void PermissionStatusObjectCreated() { ++created_permission_status_objects_; }
+  void ContextDestroyed() override {}
 
   void Trace(Visitor*) const override;
 
  private:
   mojom::blink::PermissionService* GetService(ExecutionContext*);
   void ServiceConnectionError();
-
-  void QueryTaskComplete(ScriptPromiseResolver<PermissionStatus>* resolver,
-                         mojom::blink::PermissionDescriptorPtr descriptor,
-                         base::TimeTicks query_start_time,
-                         mojom::blink::PermissionStatus result);
 
   void TaskComplete(ScriptPromiseResolver<PermissionStatus>* resolver,
                     mojom::blink::PermissionDescriptorPtr descriptor,
@@ -97,8 +94,6 @@ class Permissions final : public ScriptWrappable,
       const mojom::blink::PermissionDescriptor& descriptor);
   mojom::blink::PermissionDescriptorPtr CreatePermissionVerificationDescriptor(
       PermissionType descriptor_type);
-
-  int created_permission_status_objects_ = 0;
 
   HeapHashMap<PermissionType, Member<PermissionStatusListener>> listeners_;
 

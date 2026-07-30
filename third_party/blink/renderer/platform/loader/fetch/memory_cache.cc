@@ -157,9 +157,6 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    "strong_reference_prune_delay",
                    kDefaultStrongReferencePruneDelay);
 
-static constexpr char kPageSavedResourceStrongReferenceSize[] =
-    "Blink.MemoryCache.PageSavedResourceStrongReferenceSize2";
-
 ScopedMemoryCacheForTesting::ScopedMemoryCacheForTesting(
     Persistent<MemoryCache> cache) {
   if (!g_memory_cache) {
@@ -210,14 +207,11 @@ MemoryCache::MemoryCache(
           base::MemoryPressureListenerTag::kMemoryCache,
           this),
       memory_consumer_registration_(
-          (base::SingleThreadTaskRunner::GetMainThreadDefault()
-               ->RunsTasksInCurrentSequence() &&
-           base::MemoryConsumerRegistry::Exists())
-              ? std::make_unique<base::MemoryConsumerRegistration>(
-                    "MemoryCache",
-                    kMemoryCacheTraits,
-                    this)
-              : nullptr),
+          "MemoryCache",
+          kMemoryCacheTraits,
+          this,
+          MemoryConsumerRegistration::CheckUnregister::kDisabled,
+          MemoryConsumerRegistration::CheckRegistryExists::kDisabled),
       strong_references_max_size_(
           features::kMemoryCacheStrongReferenceTotalSizeThresholdParam.Get()),
       strong_references_prune_duration_(
@@ -237,6 +231,7 @@ void MemoryCache::Trace(Visitor* visitor) const {
 
 void MemoryCache::Dispose() {
   memory_pressure_listener_registration_.Dispose();
+  memory_consumer_registration_.Dispose();
 }
 
 KURL MemoryCache::RemoveFragmentIdentifierIfNeeded(const KURL& original_url) {
@@ -570,7 +565,9 @@ void MemoryCache::OnMemoryPressure(base::MemoryPressureLevel level) {
 }
 
 void MemoryCache::OnReleaseMemory() {
-  PruneStrongReferences();
+  if (base::FeatureList::IsEnabled(features::kMemoryCacheStrongReference)) {
+    PruneStrongReferences();
+  }
 }
 
 void MemoryCache::OnUpdateMemoryLimit() {
@@ -582,6 +579,11 @@ void MemoryCache::OnUpdateMemoryLimit() {
       memory_limit_ratio();
 }
 
+bool MemoryCache::HasStrongReferenceForTesting(Resource* resource) const {
+  return strong_references_.Contains(resource) ||
+         tiered_strong_references_.Contains(resource);
+}
+
 void MemoryCache::SaveTieredStrongReference(Resource* resource) {
   if (tiered_strong_references_.Contains(resource)) {
     return;
@@ -591,19 +593,8 @@ void MemoryCache::SaveTieredStrongReference(Resource* resource) {
   tiered_strong_references_.push_back(resource);
 }
 
-void MemoryCache::SavePageResourceStrongReferences(
-    HeapVector<Member<Resource>> resources) {
-  DCHECK(base::FeatureList::IsEnabled(features::kMemoryCacheStrongReference));
-  base::UmaHistogramCustomCounts(kPageSavedResourceStrongReferenceSize,
-                                 resources.size(), 0, 200, 50);
-  for (Resource* resource : resources) {
-    resource->UpdateMemoryCacheLastAccessedTime();
-    strong_references_.AppendOrMoveToLast(resource);
-  }
-  PruneStrongReferences();
-}
-
 void MemoryCache::SaveStrongReference(Resource* resource) {
+  DCHECK(base::FeatureList::IsEnabled(features::kMemoryCacheStrongReference));
   resource->UpdateMemoryCacheLastAccessedTime();
   if (base::FeatureList::IsEnabled(features::kMemoryCacheIntelligentPruning)) {
     CHECK(strong_references_.empty());
@@ -612,6 +603,7 @@ void MemoryCache::SaveStrongReference(Resource* resource) {
     CHECK(tiered_strong_references_.empty());
     strong_references_.AppendOrMoveToLast(resource);
   }
+  PruneStrongReferences();
 }
 
 void MemoryCache::PruneTieredStrongReferences() {

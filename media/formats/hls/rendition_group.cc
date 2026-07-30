@@ -50,6 +50,27 @@ MediaTrack CreateTrackForRendition(const Rendition& rendition,
 
 }  // namespace
 
+RenditionGroup::View::~View() = default;
+RenditionGroup::View::View(scoped_refptr<RenditionGroup> group,
+                           Rendition rendition,
+                           MediaTrack track)
+    : group_(std::move(group)),
+      rendition_(std::move(rendition)),
+      track_(std::make_tuple(std::move(track), &rendition_)) {}
+
+void RenditionGroup::View::UpdateImplicitRenditionMediaTrackName(
+    std::string name) {
+  auto old_track = std::get<0>(track_);
+  track_ = std::make_tuple(MediaTrack::CreateVideoTrack(
+                               /*id = */ name,
+                               /*kind =*/MediaTrack::VideoKind::kMain,
+                               /*label = */ name,
+                               /*language = */ "",
+                               /*enabled = */ old_track.enabled(),
+                               /*stream_id =*/old_track.stream_id()),
+                           &rendition_);
+}
+
 RenditionGroup::RenditionGroup(base::PassKey<MultivariantPlaylist>,
                                std::optional<std::string> id)
     : id_(std::move(id)) {}
@@ -130,42 +151,43 @@ ParseStatus::Or<std::monostate> RenditionGroup::AddRendition(
   return std::monostate();
 }
 
-RenditionGroup::RenditionTrack RenditionGroup::MakeImplicitRendition(
+std::unique_ptr<RenditionGroup::View> RenditionGroup::MakeImplicitView(
     base::PassKey<MultivariantPlaylist>,
     MediaType type,
     const GURL& default_rendition_uri,
     RenditionTrackId unique_id) {
-  auto& rendition =
-      renditions_.emplace_back(base::PassKey<RenditionGroup>(),
-                               Rendition::CtorArgs{
-                                   .uri = std::move(default_rendition_uri),
-                                   .name = "",
-                                   .language = std::nullopt,
-                                   .associated_language = std::nullopt,
-                                   .stable_rendition_id = std::nullopt,
-                                   .channels = std::nullopt,
-                                   .autoselect = true,
-                               });
-  return std::make_tuple(CreateTrackForRendition(rendition, type, unique_id),
-                         &rendition);
+  Rendition rendition = Rendition{base::PassKey<RenditionGroup>(),
+                                  Rendition::CtorArgs{
+                                      .uri = std::move(default_rendition_uri),
+                                      .name = "Default",
+                                      .language = std::nullopt,
+                                      .associated_language = std::nullopt,
+                                      .stable_rendition_id = std::nullopt,
+                                      .channels = std::nullopt,
+                                      .autoselect = true,
+                                  }};
+  auto track = CreateTrackForRendition(rendition, type, unique_id);
+  return std::make_unique<View>(base::WrapRefCounted(this),
+                                std::move(rendition), std::move(track));
 }
 
-const std::optional<RenditionGroup::RenditionTrack> RenditionGroup::MostSimilar(
+const std::optional<RenditionGroup::RenditionTrack>
+RenditionGroup::View::MostSimilar(
     const std::optional<RenditionTrack>& to) const {
-#define CHECK_RENDITIONS(expr)                  \
-  do {                                          \
-    for (const auto& entry : renditions_map_) { \
-      if (expr(std::get<1>(entry.second))) {    \
-        return entry.second;                    \
-      }                                         \
-    }                                           \
+#define CHECK_RENDITIONS(expr)                          \
+  do {                                                  \
+    for (const auto& entry : group_->renditions_map_) { \
+      if (expr(std::get<1>(entry.second))) {            \
+        return entry.second;                            \
+      }                                                 \
+    }                                                   \
   } while (0)
 
   if (to.has_value()) {
     // Find an exact match for the track, and use if if it exists.
     const auto& [track, rendition] = *to;
-    auto lookup = renditions_map_.find(track.track_id());
-    if (lookup != renditions_map_.end()) {
+    auto lookup = group_->renditions_map_.find(track.track_id());
+    if (lookup != group_->renditions_map_.end()) {
       if (std::get<0>(lookup->second).stream_id() == track.stream_id()) {
         return lookup->second;
       }
@@ -183,8 +205,8 @@ const std::optional<RenditionGroup::RenditionTrack> RenditionGroup::MostSimilar(
   }
 
   // We didn't find any URI or language matches, so fall back to default.
-  if (default_rendition_.has_value()) {
-    return *default_rendition_;
+  if (group_->default_rendition_.has_value()) {
+    return *group_->default_rendition_;
   }
 
   // Find anything with AUTOSELECT=YES
@@ -192,13 +214,17 @@ const std::optional<RenditionGroup::RenditionTrack> RenditionGroup::MostSimilar(
 
 #undef CHECK_RENDITIONS
 
-  return std::nullopt;
+  return GetImplicitRenditionTrack();
 }
 
 const std::optional<RenditionGroup::RenditionTrack>
-RenditionGroup::GetRenditionById(const MediaTrack::Id& id) const {
-  auto lookup = renditions_map_.find(id);
-  if (lookup == renditions_map_.end()) {
+RenditionGroup::View::GetRenditionById(const MediaTrack::Id& id) const {
+  if (!group_->default_rendition_.has_value() &&
+      id == std::get<0>(track_).track_id()) {
+    return GetImplicitRenditionTrack();
+  }
+  auto lookup = group_->renditions_map_.find(id);
+  if (lookup == group_->renditions_map_.end()) {
     return std::nullopt;
   }
   return lookup->second;

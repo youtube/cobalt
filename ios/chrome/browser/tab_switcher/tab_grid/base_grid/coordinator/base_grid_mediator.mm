@@ -1906,6 +1906,10 @@ web::WebState* WebStateWithSnapshotID(WebStateList& web_state_list,
   _modeHolder.mode = TabGridMode::kNormal;
 }
 
+- (void)pageActionMenuEntrypointTapped:(id)sender {
+  NOTREACHED() << "Should be implemented in a subclass.";
+}
+
 - (void)closeSelectedTabs:(id)sender {
   [self.delegate dismissPopovers];
 
@@ -1959,6 +1963,14 @@ web::WebState* WebStateWithSnapshotID(WebStateList& web_state_list,
 - (void)selectTabsButtonTapped:(id)sender {
   base::RecordAction(base::UserMetricsAction("MobileTabGridSelectTabs"));
   _modeHolder.mode = TabGridMode::kSelection;
+}
+
+- (void)createNewTabGroupButtonTapped:(id)sender {
+  [self.tabGroupsHandler showTabGroupCreationWithoutTabs];
+}
+
+- (void)deleteBrowsingDataButtonTapped:(id)sender {
+  NOTREACHED() << "Should be implemented in a subclass.";
 }
 
 #pragma mark - GridViewControllerMutator
@@ -2024,10 +2036,6 @@ web::WebState* WebStateWithSnapshotID(WebStateList& web_state_list,
 
 - (BOOL)isItemSelected:(GridItemIdentifier*)itemID {
   return [_selectedEditingItems containItem:itemID];
-}
-
-- (BOOL)shouldShowSnapshotForItem:(GridItemIdentifier*)itemID {
-  return YES;
 }
 
 - (ActivityLabelData*)activityLabelDataForItem:(GridItemIdentifier*)itemID {

@@ -373,6 +373,8 @@ class NET_EXPORT ClientSocketPool : public LowerLayeredPool {
     return AdditionalCapacity();
   }
 
+  SocketPoolState StateForTest() const { return State(); }
+
  protected:
   ClientSocketPool(size_t socket_soft_cap,
                    SocketPoolAdditionalCapacity additional_capacity,
@@ -409,9 +411,21 @@ class NET_EXPORT ClientSocketPool : public LowerLayeredPool {
 
   SocketPoolState State() const { return state_; }
 
+  // This should be called exactly once before each attempted socket allocation
+  // via `RequestSocket` or `RequestSockets`. Be sure not to over-invoke to
+  // prevent early capping of the socket pool.
   void UpdateStateBeforeAllocation();
 
+  // This should be called once after each successful socket released (and not
+  // reused) via `RequestSocket`, `RequestSockets`, `CancelRequest`,
+  // `ReleaseSocket`, `OnConnectJobComplete`, `CloseIdleSockets`, or
+  // `CloseIdleSocketsInGroup`. Be sure not to over-invoke to prevent early
+  // uncapping of the socket pool.
   void UpdateStateAfterRelease();
+
+  // This is used to reset the pool to the initial uncapped state when the
+  // socket pool is fully flushed out before later reuse.
+  void ResetState() { state_ = SocketPoolState::kUncapped; }
 
   const ProxyChain& GetProxyChain() const { return proxy_chain_; }
 

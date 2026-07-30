@@ -1285,17 +1285,6 @@ Khi bạn đặt chính sách này thành False, thì những thông tin có th�
 
 Chính sách này chỉ có hiệu lực khi máy đã đăng ký bằng <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> đối với <ph name="PRODUCT_NAME" />.
 Chính sách này luôn có hiệu lực đối với <ph name="PRODUCT_OS_NAME" />.</translation>
-<translation id="1878535132109943599">Khi bạn đặt chính sách này thành Enabled (Bật), các yêu cầu <ph name="LOCAL_NETWORK_ACCESS" /> sẽ chỉ hiển thị cảnh báo trong <ph name="CHROME_DEVTOOLS_NAME" /> do không kiểm tra được <ph name="LOCAL_NETWORK_ACCESS" />.
-
-Nếu bạn đặt chính sách này thành Disabled (Tắt) hoặc không đặt chính sách này, các yêu cầu <ph name="LOCAL_NETWORK_ACCESS" /> sẽ sử dụng chế độ xử lý mặc định cho các yêu cầu này.
-
-Hãy truy cập vào https://wicg.github.io/local-network-access/ để biết các quy định hạn chế về <ph name="LOCAL_NETWORK_ACCESS" />.
-
-Chính sách doanh nghiệp này chỉ có hiệu lực tạm thời và sẽ bị xoá sau phiên bản M146.
-
-Về lâu dài, bạn có thể sử dụng chính sách <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" /> để đưa các mẫu URL vào danh sách cho phép. Các mẫu URL này sẽ tự động được cấp quyền <ph name="LOCAL_NETWORK_ACCESS" />.
-
-Xin lưu ý rằng nếu bạn bật chính sách <ph name="LOCAL_NETWORK_ACCESS_RESTRICTIONS_ENABLED_POLICY_NAME" /> thì chính sách đó sẽ được ưu tiên hơn chính sách này.</translation>
 <translation id="187961648719201562">Xoá các tệp hiện có trên thiết bị (được hỗ trợ kể từ phiên bản 137)</translation>
 <translation id="1883274744253492031">Bật tính năng tự động nâng cấp nội dung hỗn hợp</translation>
 <translation id="1885782360784839335">Cho phép hiển thị nội dung quảng cáo dưới dạng toàn bộ thẻ</translation>
@@ -1955,10 +1944,6 @@ Trên <ph name="MAC_OS_NAME" />, chính sách này chỉ có trên các phiên b
 
       Nếu bạn đặt chính sách này thành Tắt, tính năng này sẽ không sử dụng được.</translation>
 <translation id="2342066287156668839">Bật hạn mức ổn định.</translation>
-<translation id="2343774133209251840">Khi bật, các API hạn mức bộ nhớ sẽ trả về một giá trị tĩnh bằng với mức sử dụng cộng thêm mức tối thiểu (10 GiB, dung lượng ổ đĩa được làm tròn đến 1 GiB gần nhất).
-Khi tắt, các API hạn mức bộ nhớ thường sẽ trả về một giá trị động tỷ lệ với tổng dung lượng trống trên thiết bị, bất kể mức sử dụng.
-Nếu bạn không đặt chính sách này, hành vi sẽ được xác định dựa trên trạng thái cờ hoặc trạng thái ra mắt của tính năng hạn mức bộ nhớ được báo cáo có thể dự đoán.
-Chế độ cài đặt này không ảnh hưởng đến những trang web có quyền truy cập bộ nhớ không giới hạn. Hạn mức được thực thi cũng không bị ảnh hưởng.</translation>
 <translation id="2344033063256716138">Thiết lập chính sách để kiểm soát việc người dùng có thể truy cập các tính năng và dữ liệu được chia sẻ hay không.</translation>
 <translation id="2345547870894930157">Bật chế độ DNS qua HTTPS không có phương án dự phòng cho truy vấn không an toàn</translation>
 <translation id="2347695338560092641">Cho phép trình điều khiển in ngoài quy trình</translation>
@@ -4489,6 +4474,11 @@ Nếu bạn đặt chính sách này thành <ph name="ENABLE_FOR_FORCED_EXTENSIO
 
 
 Khả năng sử dụng tiện ích vẫn chịu sự kiểm soát của các chính sách khác.</translation>
+<translation id="4112585124048467596">Nếu bạn đặt chính sách này, thì hệ thống sẽ loại trừ tất cả các loại dữ liệu đã chỉ định khỏi quá trình đồng bộ hoá của <ph name="CHROME_SYNC_NAME" /> cũng như quá trình đồng bộ hoá cấu hình chuyển vùng. Cách này có thể giúp giảm kích thước của cấu hình chuyển vùng hoặc giới hạn loại dữ liệu được tải lên Máy chủ <ph name="CHROME_SYNC_NAME" />.
+
+      Chính sách này hiện áp dụng cho các loại dữ liệu sau: "apps", "autofill", "bookmarks", "extensions", "preferences", "passwords", "payments", "productComparison", "readingList", "tabs", "themes", "typedUrls", "wifiConfigurations". Tên của các loại dữ liệu đó phân biệt chữ hoa chữ thường!
+
+      Lưu ý: Tính năng Làm mới chính sách động chỉ được hỗ trợ trong <ph name="PRODUCT_NAME" /> phiên bản 123 trở lên. Việc tắt tính năng "tự động điền" cũng sẽ vô hiệu hoá tính năng "thanh toán". "typedUrls" là tất cả nhật ký duyệt web.</translation>
 <translation id="4115501011761259824">Bật First-Party Sets cho mọi người dùng trong phạm vi tác động</translation>
 <translation id="4120401094617902941">Chu kỳ lấy mẫu và thu thập từ bộ đếm thời gian chạy. Thời gian tối thiểu cho phép là 1 ngày.
 
@@ -10013,6 +10003,16 @@ Vui lòng tham khảo <ph name="DEFAULT_DIRECT_SOCKETS_SETTING_POLICY_NAME" />, 
 
       Nếu bạn đặt chính sách này thành sai hoặc không đặt, thì bộ thuật toán mật mã RC4 trong TLS (Bảo mật tầng truyền tải) sẽ không được kích hoạt. Nếu không, bạn có thể đặt chính sách này thành đúng để duy trì khả năng tương thích với máy chủ lỗi thời. Đây chỉ là giải pháp tạm thời nên bạn cần thiết lập lại máy chủ.</translation>
 <translation id="751615601677744094">Tắt: Hành vi bình thường đối với các sự kiện đột biến, có nghĩa là không kích hoạt những sự kiện này sau ngày xoá bỏ.</translation>
+<translation id="7518736413346509172">Khi bạn đặt chính sách này thành Enabled (Bật), các yêu cầu <ph name="LOCAL_NETWORK_ACCESS" /> sẽ chỉ hiển thị cảnh báo trong <ph name="CHROME_DEVTOOLS_NAME" /> do không kiểm tra được <ph name="LOCAL_NETWORK_ACCESS" />.
+
+Nếu bạn đặt chính sách này thành Disabled (Tắt) hoặc không đặt, các yêu cầu <ph name="LOCAL_NETWORK_ACCESS" /> sẽ sử dụng
+chế độ xử lý mặc định cho các yêu cầu này.
+
+Hãy truy cập vào https://wicg.github.io/local-network-access/ để biết các quy định hạn chế về <ph name="LOCAL_NETWORK_ACCESS" />.
+
+Chính sách doanh nghiệp này chỉ có hiệu lực tạm thời và sẽ bị xoá sau phiên bản M152.
+
+Về lâu dài, bạn có thể sử dụng chính sách <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" /> để đưa các mẫu URL vào danh sách cho phép. Các mẫu URL này sẽ tự động được cấp quyền <ph name="LOCAL_NETWORK_ACCESS" />.</translation>
 <translation id="7519218194072744342">URL của trình xử lý giao thức.</translation>
 <translation id="7519251620064708155">Cho phép tạo khóa trên các trang web này</translation>
 <translation id="7521864460386999758">Không cho phép đưa mã của bên thứ ba vào Chrome</translation>
@@ -10491,6 +10491,14 @@ Các nguồn gốc phải tương ứng với các ứng dụng web là Ứng d�
 <translation id="7891884447851425349">Nếu bạn bật <ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" />, thì thao tác đặt <ph name="DEFAULT_SEARCH_PROVIDER_SEARCH_URL_POLICY_NAME" /> sẽ chỉ định URL của công cụ tìm kiếm dùng để tìm kiếm mặc định. URL phải chứa chuỗi <ph name="SEARCH_TERM_MARKER" />. Chuỗi này sẽ được thay bằng cụm từ tìm kiếm của người dùng trong truy vấn.
 
       Bạn có thể chỉ định URL tìm kiếm của Google là: <ph name="GOOGLE_SEARCH_URL" />.</translation>
+<translation id="7893719068404928632">Nếu bạn đặt chính sách này thành Enabled (Bật) thì bất cứ khi nào một cảnh báo dự kiến sẽ
+xuất hiện trong <ph name="CHROME_DEVTOOLS_NAME" /> do không kiểm tra được <ph name="LOCAL_NETWORK_ACCESS" />,
+yêu cầu chính sẽ bị chặn.
+
+Nếu bạn đặt chính sách này thành Disabled (Tắt) hoặc không đặt, các yêu cầu <ph name="LOCAL_NETWORK_ACCESS" /> sẽ sử dụng
+chế độ xử lý mặc định cho các yêu cầu này.
+
+Hãy truy cập vào https://wicg.github.io/local-network-access/ để biết các quy định hạn chế về <ph name="LOCAL_NETWORK_ACCESS" />.</translation>
 <translation id="7894185046683379696">Việc đặt chính sách này sẽ chỉ định khoảng thời gian bằng mili giây kể từ khi người dùng không có thao tác cho đến thời điểm màn hình khóa khi chạy bằng nguồn điện AC hoặc pin. Các giá trị được giới hạn ở mức nhỏ hơn thời gian trì hoãn khi ở chế độ rảnh trong <ph name="POWER_MANAGEMENT_IDLE_SETTINGS_POLICY_NAME" />.
 
       Khi bạn đặt chính sách này thành 0, <ph name="PRODUCT_OS_NAME" /> sẽ không khóa màn hình khi người dùng không hoạt động. Khi bạn không đặt chính sách này, hệ thống sẽ sử dụng khoảng thời gian mặc định.
@@ -12151,16 +12159,6 @@ Lưu ý: Hiện tại, hệ thống sẽ chỉ xem xét mục nhập đầu tiê
        Chính sách này sẽ không còn hiệu lực kể từ <ph name="PRODUCT_NAME" /> phiên bản 84.</translation>
 <translation id="9010080992450148617">Cho phép người dùng đã đăng ký chương trình Bảo vệ nâng cao gửi các tệp đã tải xuống cho Google để quét sâu</translation>
 <translation id="9012101302849557459">Mở rộng phạm vi hỗ trợ cho Ứng dụng Chrome trên <ph name="MS_WIN_NAME" />, <ph name="MAC_OS_NAME" /> và <ph name="LINUX_OS_NAME" />.</translation>
-<translation id="9012332684658600011">Nếu bạn đặt chính sách này thành Enabled (Bật) thì bất cứ khi nào một cảnh báo dự kiến sẽ
-xuất hiện trong <ph name="CHROME_DEVTOOLS_NAME" /> do không kiểm tra được <ph name="LOCAL_NETWORK_ACCESS" />,
-yêu cầu chính sẽ bị chặn.
-
-Nếu bạn đặt chính sách này thành Tắt hoặc không đặt, các yêu cầu <ph name="LOCAL_NETWORK_ACCESS" /> sẽ sử dụng chế độ xử lý mặc định cho các yêu cầu này.
-
-Hãy truy cập vào https://wicg.github.io/local-network-access/ để biết các quy định hạn chế về <ph name="LOCAL_NETWORK_ACCESS" />.
-
-Chính sách này không được dùng nữa vì <ph name="LOCAL_NETWORK_ACCESS" />
-đã ra mắt theo mặc định. Chính sách này sẽ bị xoá ở bản phát hành trong tương lai.</translation>
 <translation id="9013875414788074110">Trong khi đăng nhập, <ph name="PRODUCT_OS_NAME" /> có thể xác thực với một máy chủ (trực tuyến) hoặc sử dụng mật khẩu đã lưu vào bộ nhớ đệm (ngoại tuyến).
 
       Khi bạn đặt giá trị -1 cho chính sách này, người dùng có thể xác thực ngoại tuyến một cách vô hạn định. Khi bạn đặt bất kỳ giá trị nào khác cho chính sách này, chính sách sẽ chỉ định khoảng thời gian kể từ lần xác thực trực tuyến cuối cùng, sau thời gian này người dùng phải xác thực trực tuyến lại.
@@ -12453,6 +12451,10 @@ Giá trị mặc định là RollbackDisabled.</translation>
 <translation id="966425658642788645">Áp dụng hành vi mặc định</translation>
 <translation id="971677226939413180">Lựa chọn In dưới dạng hình ảnh không có sẵn đối với người dùng.</translation>
 <translation id="974349541138387272">Chỉ định mẫu URI của trình phân giải DNS qua HTTPS mà bạn muốn</translation>
+<translation id="975005959611437646">Khi bật, các API hạn mức bộ nhớ sẽ trả về một giá trị tĩnh bằng với mức sử dụng cộng thêm mức tối thiểu (10 GiB, dung lượng ổ đĩa được làm tròn đến 1 GiB gần nhất).
+Khi tắt, các API hạn mức bộ nhớ thường sẽ trả về một giá trị động tỷ lệ với tổng dung lượng trống trên thiết bị, bất kể mức sử dụng.
+Nếu không được đặt, các API hạn mức bộ nhớ sẽ sử dụng chế độ mặc định của Chrome.
+Chế độ cài đặt này không ảnh hưởng đến những trang web có quyền truy cập bộ nhớ không giới hạn. Hạn mức được thực thi cũng không bị ảnh hưởng.</translation>
 <translation id="976415389478739655">Yêu cầu thiết bị của người dùng phải thuộc mạng được quản lý thì mới có thể tham gia lớp <ph name="CLASS_TOOLS_NAME" /></translation>
 <translation id="978619365985286086">Chế độ cài đặt của công cụ quản lý lớp học</translation>
 <translation id="978658824596356870">Định dạng đồng hồ 24 giờ</translation>

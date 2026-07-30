@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include "base/test/metrics/user_action_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/resources/grit/actor_browser_resources.h"
@@ -44,7 +45,6 @@ class ActorTaskListBubbleInteractiveUiTest
             {features::kGlicActor, {}},
             {features::kGlicActorUi,
              {{features::kGlicActorUiTaskIconName, "true"}}},
-            {features::kGlicActorUiNudgeRedesign, {}},
 #endif  // BUILDFLAG(ENABLE_GLIC)
         },
         {});
@@ -98,6 +98,7 @@ IN_PROC_BROWSER_TEST_F(ActorTaskListBubbleInteractiveUiTest,
   EXPECT_TRUE(tab_two->IsActivated());
 
   const char kFirstTaskItem[] = "FirstTaskItem";
+  base::UserActionTester user_action_tester;
   RunTestSequence(
       Do([&]() { PauseTask(); }),
       InAnyContext(WaitForShow(kActorTaskListBubbleView)),
@@ -114,5 +115,7 @@ IN_PROC_BROWSER_TEST_F(ActorTaskListBubbleInteractiveUiTest,
 
   EXPECT_TRUE(tab_one->IsActivated());
   EXPECT_FALSE(tab_two->IsActivated());
+  EXPECT_EQ(1, user_action_tester.GetActionCount(
+                   "Actor.Ui.TaskListBubble.Row.Click"));
 }
 #endif

@@ -30,6 +30,19 @@ source_set("pdf_accessibility_constants") {
   public = [ "pdf_accessibility_constants.h" ]
 }
 
+source_set("pdf_accessibility_constants_helper") {
+  sources = [
+    "pdf_accessibility_constants_helper.cc",
+    "pdf_accessibility_constants_helper.h",
+  ]
+
+  public_deps = [
+    ":pdf_accessibility_constants",
+    "//base",
+    "//ui/accessibility:ax_enums_mojo",
+  ]
+}
+
 if (enable_pdf) {
   config("strict") {
     configs = [ "//build/config/compiler:wexit_time_destructors" ]
@@ -134,6 +147,8 @@ if (enable_pdf) {
       "pdf_transform.h",
       "pdf_utils/dates.cc",
       "pdf_utils/dates.h",
+      "pdf_utils/text_util.cc",
+      "pdf_utils/text_util.h",
       "pdfium/pdfium_api_string_buffer_adapter.cc",
       "pdfium/pdfium_api_string_buffer_adapter.h",
       "pdfium/pdfium_api_wrappers.cc",
@@ -196,6 +211,7 @@ if (enable_pdf) {
       ":buildflags",
       ":content_restriction",
       ":features",
+      ":pdf_accessibility_constants_helper",
       ":structs",
       "//base",
       "//base:i18n",
@@ -350,8 +366,6 @@ if (enable_pdf) {
       "accessibility_structs.cc",
       "accessibility_structs.h",
       "pdf_accessibility_action_handler.h",
-      "pdf_accessibility_constants_helper.cc",
-      "pdf_accessibility_constants_helper.h",
       "pdf_accessibility_data_handler.h",
     ]
 
@@ -364,6 +378,7 @@ if (enable_pdf) {
     ]
 
     deps = [
+      ":pdf_accessibility_constants_helper",
       "//services/screen_ai/buildflags",
       "//skia",
       "//ui/gfx/geometry",
@@ -526,6 +541,7 @@ if (enable_pdf) {
       ":features",
       ":internal",
       ":pdf",
+      ":pdf_accessibility_constants_helper",
       ":pdf_test_utils",
       ":pdf_view_web_plugin",
       ":structs",

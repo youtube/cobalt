@@ -73,7 +73,7 @@ std::unique_ptr<UserCloudPolicyManager> BuildCloudPolicyManager() {
   EXPECT_CALL(*store, Load()).Times(AnyNumber());
 
   return std::make_unique<UserCloudPolicyManager>(
-      std::move(store), base::FilePath(),
+      std::move(store), /*extension_install_store=*/nullptr, base::FilePath(),
       /*cloud_external_data_manager=*/nullptr,
       base::SingleThreadTaskRunner::GetCurrentDefault(),
       network::TestNetworkConnectionTracker::CreateGetter());
@@ -101,12 +101,11 @@ class UserPolicySigninServiceTest : public PlatformTest {
   }
 
   // Registers the `kManagedTestUser` for user policy.
-  void RegisterPolicyClientWithCallback(UserPolicySigninService* service) {
+  void RegisterPolicyClientWithCallback(UserPolicySigninService* service,
+                                        const AccountInfo& account_info) {
     UserPolicySigninServiceBase::PolicyRegistrationCallback callback =
         base::BindOnce(&UserPolicySigninServiceTest::OnRegisterCompleted,
                        base::Unretained(this));
-    AccountInfo account_info =
-        identity_test_env()->MakeAccountAvailable(kManagedTestUser);
     service->RegisterForPolicyWithAccountId(
         kManagedTestUser, account_info.account_id,
         /*is_registration_for_management_consistency_check=*/false,
@@ -199,11 +198,11 @@ class UserPolicySigninServiceTest : public PlatformTest {
   // Simulates the flow that registrates an account for user policy.
   void RegisterForPolicyAndSignin() {
     EXPECT_CALL(*this, OnPolicyRefresh(true)).Times(0);
-    RegisterPolicyClientWithCallback(user_policy_signin_service_.get());
-
     // Sign in to Chrome.
-    identity_test_env()->SetPrimaryAccount(kManagedTestUser,
-                                           signin::ConsentLevel::kSignin);
+    AccountInfo account_info = identity_test_env()->MakePrimaryAccountAvailable(
+        kManagedTestUser, signin::ConsentLevel::kSignin);
+    RegisterPolicyClientWithCallback(user_policy_signin_service_.get(),
+                                     account_info);
 
     DoPendingRegistration(/*with_dm_token=*/true,
                           /*with_oauth_token_success=*/true);
@@ -343,48 +342,6 @@ TEST_F(UserPolicySigninServiceTest, DontRegister_BecauseUnmanagedAccount) {
   // Expect that the UserCloudPolicyManager isn't initialized because the user
   // was using an unmanaged account, hence not eligible for user policy.
   EXPECT_FALSE(manager_->core()->service());
-}
-
-// Tests that the registration for user policy and the initialization of the
-// user policy manager can be done when the user is signed in.
-TEST_F(UserPolicySigninServiceTest, RegisterAndInitializeManage_AtInit) {
-  // Set the user as signed in.
-  AccountInfo account_info =
-      identity_test_env()->MakeAccountAvailable(kManagedTestUser);
-  identity_test_env()->SetPrimaryAccount(kManagedTestUser,
-                                         signin::ConsentLevel::kSignin);
-
-  // Mark the store as loaded to allow registration during the initialization of
-  // the user policy service.
-  mock_store_->NotifyStoreLoaded();
-
-  // Initialize the UserPolicySigninService while the user is signed in and is
-  // eligible for user policy. This will kick off the asynchronous registration
-  // process.
-  InitUserPolicySigninService();
-
-  // Run the delayed task to start the registration by fast forwarding the task
-  // runner clock.
-  task_environment_.FastForwardBy(
-      GetTryRegistrationDelayFromPrefs(profile_->GetPrefs()));
-
-  // Do the pending registration that was queued in the initialization of the
-  // service.
-  DoPendingRegistration(/*with_dm_token=*/true,
-                        /*with_oauth_token_success=*/true);
-  // Verify that the client is registered after the initialization.
-  ASSERT_TRUE(manager_->core()->client()->is_registered());
-
-  // Expect the UserCloudPolicyManager to be initialized when creating the
-  // service because the user is signed in and eligible for user policy.
-  EXPECT_EQ(mock_store_->signin_account_id(), test_account_id_);
-  ASSERT_TRUE(manager_->core()->service());
-
-  // Expect sign-out to clear the policy from the store and shutdown the
-  // UserCloudPolicyManager.
-  EXPECT_CALL(*mock_store_, Clear());
-  identity_test_env()->ClearPrimaryAccount();
-  ASSERT_FALSE(manager_->core()->service());
 }
 
 // Tests that the registration for user policy and the initialization of the

@@ -117,6 +117,7 @@
 <translation id="3581385059720151202">Chromiumত ভিজুৱেল সন্ধান কৰক</translation>
 <translation id="3582640969619785896">Chromiumএ আপোনাৰ পাছৱৰ্ড ছেভ কৰিবলৈ সেৱা আগবঢ়াব</translation>
 <translation id="3594315078412605236">Chromiumত পৰিশোধ পদ্ধতি পৰিচালনা কৰক</translation>
+<translation id="3600428265489994557">Chromiumত ছাইন ইন কৰক</translation>
 <translation id="3617143087229977194">iOSত ডিফ’ল্ট এপৰ ছেটিং খোলক আৰু তাৰ পাছত "ব্ৰাউজাৰৰ এপ"ত টিপক আৰু Chromium বাছনি কৰক।</translation>
 <translation id="3634039384458740619">Chromiumৰ ছেটিং খোলক</translation>
 <translation id="3639997914391704523">আপুনি নিজৰ Google একাউণ্টটোৰ জৰিয়তে ছাইন ইন কৰিলে Chromiumএ আপোনাৰ পাছৱর্ডসমূহ পৰীক্ষা কৰিব পাৰে।</translation>
@@ -351,7 +352,6 @@
 <translation id="900560297598578021"><ph name="EMAIL" /> হিচাপে ছাইন ইন কৰিছে।
 
 আপোনাৰ ডেটাখিনি আপোনাৰ পাছফ্ৰে’জৰ জৰিয়তে <ph name="TIME" />ত এনক্ৰিপ্ট কৰা হৈছে। আপোনাৰ Google একাউণ্টত Chromiumৰ ডেটা ব্যৱহাৰ আৰু ছেভ কৰিবলৈ এইটো দিয়ক।</translation>
-<translation id="9022552996538154597">Chromiumত ছাইন ইন কৰক</translation>
 <translation id="9031260906956926157">আপোনাৰ Chromiumৰ কিছুমান ডেটা এতিয়াও আপোনাৰ Google একাউণ্টত ছেভ কৰা হোৱা নাই।
 ছাইন আউট কৰাৰ আগতে কেইমিনিটমান অপেক্ষা কৰি চাওক। যদি আপুনি এতিয়াই ছাইন আউট কৰে, এই ডেটা মচি পেলোৱা হ’ব।</translation>
 <translation id="9050790730841755540">আপুনি যিকোনো সময়তে অন্য এপত থকা কোনো লিংকত টিপিলে সেইবোৰ খুলিবলৈ Chromium ব্যৱহাৰ কৰক।</translation>

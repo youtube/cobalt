@@ -10,6 +10,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/power_monitor/cpu_frequency_utils.h"
 #include "base/process/process_metrics.h"
+#include "base/strings/strcat.h"
 #include "base/system/sys_info.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
@@ -603,7 +604,7 @@ void MetricsProviderDesktop::RecordDiskMetrics() {
   }
 
   if (pending_disk_metrics_->free_bytes.is_negative() ||
-      pending_disk_metrics_->total_bytes.is_negative()) {
+      !pending_disk_metrics_->total_bytes.is_positive()) {
     return;
   }
 
@@ -641,6 +642,11 @@ void MetricsProviderDesktop::PostDiskMetricsTask() {
                            base::Unretained(this)));
 }
 
+void MetricsProviderDesktop::SetDiskMetricsForTesting(
+    std::optional<DiskMetrics> metrics) {
+  disk_metrics_for_testing_ = metrics;
+}
+
 MetricsProviderDesktop::DiskMetrics
 MetricsProviderDesktop::DiskMetricsThreadPoolGetter::ComputeDiskMetrics(
     const base::FilePath& user_data_dir) {
@@ -653,6 +659,10 @@ MetricsProviderDesktop::DiskMetricsThreadPoolGetter::ComputeDiskMetrics(
 }
 
 void MetricsProviderDesktop::SavePendingDiskMetrics(DiskMetrics metrics) {
+  if (disk_metrics_for_testing_) {
+    pending_disk_metrics_ = *disk_metrics_for_testing_;
+    return;
+  }
   pending_disk_metrics_ = metrics;
 }
 

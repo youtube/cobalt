@@ -60,6 +60,7 @@ static const int kMaxExpressionDepth = 100;
 class CalculationExpressionNode;
 class CSSNumericLiteralValue;
 class CSSParserContext;
+class CSSParserTokenStream;
 class TryTacticTransform;
 class WritingDirectionMode;
 class CSSMathExpressionNode;
@@ -1237,7 +1238,7 @@ class CORE_EXPORT CSSMathExpressionRandomFunction final
   // [1] https://drafts.csswg.org/css-values-4/#math
   bool IsMathFunction() const final { return true; }
   bool MayHaveRelativeUnit() const final;
-  CSSPrimitiveValue::UnitType ResolvedUnitType() const final { NOTREACHED(); }
+  CSSPrimitiveValue::UnitType ResolvedUnitType() const final;
   const CSSMathExpressionNode& PopulateWithTreeScope(
       const TreeScope*) const final {
     NOTREACHED();
@@ -1252,6 +1253,12 @@ class CORE_EXPORT CSSMathExpressionRandomFunction final
     NOTREACHED();
   }
   bool HasInvalidAnchorFunctions(const CSSLengthResolver&) const final;
+  RandomValueSharing GetRandomValueSharing() const {
+    return random_value_sharing_;
+  }
+  const CSSMathExpressionNode* Min() const { return min_; }
+  const CSSMathExpressionNode* Max() const { return max_; }
+  const CSSMathExpressionNode* Step() const { return step_; }
   void Trace(Visitor* visitor) const final;
 
  protected:

@@ -96,10 +96,16 @@ GPU_CONFIG_EXPORT void RecordDevicePerfInfoHistograms();
 // Currently only record for AMD/Nvidia GPUs.
 GPU_CONFIG_EXPORT void RecordDiscreteGpuHistograms(const GPUInfo& gpu_info);
 
+// Record histograms for NPU device id.
+// Currently only record for Intel NPUs.
+GPU_CONFIG_EXPORT void RecordNpuHistograms(const GPUInfo& gpu_info);
+
 #if BUILDFLAG(IS_WIN)
 GPU_CONFIG_EXPORT std::string DirectMLFeatureLevelToString(
     uint32_t directml_feature_level);
 GPU_CONFIG_EXPORT std::string D3DFeatureLevelToString(
+    uint32_t d3d_feature_level);
+GPU_CONFIG_EXPORT std::string D3DFeatureLevelToNumberString(
     uint32_t d3d_feature_level);
 GPU_CONFIG_EXPORT std::string VulkanVersionToString(uint32_t vulkan_version);
 #endif  // BUILDFLAG(IS_WIN)

@@ -139,7 +139,7 @@ public class SigninBottomSheetCoordinator implements AccountPickerDelegate {
                         ScrimClient.SIGNIN_ACCOUNT_PICKER_COORDINATOR);
         mScrimManager.getStatusBarColorSupplier().addObserver(mDelegate::setStatusBarColor);
 
-        // TODO(crbug.com/437038737): Lazy load BottomSheetController in case of seamless sign-in
+        // TODO(crbug.com/467282600): Lazy load BottomSheetController in case of seamless sign-in
         mBottomSheetController =
                 BottomSheetControllerFactory.createBottomSheetController(
                         () -> mScrimManager,
@@ -180,6 +180,7 @@ public class SigninBottomSheetCoordinator implements AccountPickerDelegate {
                             mDeviceLockActivityLauncher,
                             mSigninAccessPoint,
                             assertNonNull(mSelectedCoreAccountId));
+            mSeamlessSigninCoordinator.launchSigninFlow();
         } else {
             mAccountPickerBottomSheetCoordinator =
                     new AccountPickerBottomSheetCoordinator(
@@ -244,13 +245,25 @@ public class SigninBottomSheetCoordinator implements AccountPickerDelegate {
     }
 
     /**
+     * TODO(crbug.com/464507068): This method name is temporary and linked to a specific
+     * implementation. The interface should be improved to use a generic `onSignInCancel()` from the
+     * delegate.
+     */
+    @Override
+    public void onSeamlessSigninAbandoned() {
+        assert mSeamlessSigninCoordinator != null;
+        assert mAccountPickerBottomSheetCoordinator == null;
+        mDelegate.onSignInCancel();
+    }
+
+    /**
      * Called by the embedder to dismiss the bottom sheet. This method is different from
      * `onAccountPickerDestroy` since the latter is called by the account picker coordinator, and
      * only after the bottom sheet's dismissal.
      */
     public void destroy() {
         if (mAccountPickerBottomSheetCoordinator != null) {
-            mAccountPickerBottomSheetCoordinator.dismiss();
+            mAccountPickerBottomSheetCoordinator.dismissBottomSheet();
             mAccountPickerBottomSheetCoordinator = null;
         }
         if (mSeamlessSigninCoordinator != null) {

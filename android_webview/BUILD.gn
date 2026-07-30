@@ -688,6 +688,7 @@ if (_is_default_toolchain) {
       "//third_party/androidx:androidx_core_core_java",
       "//third_party/blink/public:blink_headers_java",
       "//third_party/blink/public/mojom:android_mojo_bindings_java",
+      "//third_party/blink/public/mojom:authenticator_mojo_bindings_java",
       "//third_party/blink/public/mojom:mojom_platform_java",
       "//third_party/jni_zero:jni_zero_java",
       "//third_party/metrics_proto:metrics_proto_java",
@@ -1209,7 +1210,6 @@ generate_jni("common_jni") {
 generate_jni("browser_jni_headers") {
   sources = [
     "java/src/org/chromium/android_webview/AndroidProtocolHandler.java",
-    "java/src/org/chromium/android_webview/AwBackForwardCacheSettings.java",
     "java/src/org/chromium/android_webview/AwBrowserContext.java",
     "java/src/org/chromium/android_webview/AwBrowserContextStore.java",
     "java/src/org/chromium/android_webview/AwBrowserMainParts.java",
@@ -1225,6 +1225,7 @@ generate_jni("browser_jni_headers") {
     "java/src/org/chromium/android_webview/AwDevToolsServer.java",
     "java/src/org/chromium/android_webview/AwHttpAuthHandler.java",
     "java/src/org/chromium/android_webview/AwInterfaceRegistrar.java",
+    "java/src/org/chromium/android_webview/AwNavigationClient.java",
     "java/src/org/chromium/android_webview/AwNetLogsConnection.java",
     "java/src/org/chromium/android_webview/AwNoVarySearchData.java",
     "java/src/org/chromium/android_webview/AwOriginMatchedHeader.java",

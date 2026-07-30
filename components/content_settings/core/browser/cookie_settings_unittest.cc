@@ -180,8 +180,7 @@ class CookieSettingsTestBase : public testing::Test {
         false /* restore_session */, false /* should_record_metrics */);
     tracking_protection_settings_ =
         std::make_unique<privacy_sandbox::TrackingProtectionSettings>(
-            &prefs_, settings_map_.get(), /*management_service=*/nullptr,
-            /*is_incognito=*/false);
+            &prefs_, /*is_incognito=*/false);
 
     auto has_fedcm_sharing_permission =
         CookieSettings::NoFedCmSharingPermissionsCallback();
@@ -209,6 +208,22 @@ class CookieSettingsTestBase : public testing::Test {
         cookie_settings_->GetCookieSettings(), domain,
         is_https ? net::CookieSourceScheme::kSecure
                  : net::CookieSourceScheme::kNonSecure);
+  }
+
+  // Determines the current state of User Bypass for the given
+  // `first_party_url`. This method only takes into consideration the hard-coded
+  // default and the specified values of cookie setting.
+  bool IsUserBypassEnabled(const GURL& first_party_url) const {
+    SettingInfo info;
+    ContentSetting setting = settings_map_->GetContentSetting(
+        GURL(), first_party_url, ContentSettingsType::COOKIES, &info);
+    // Check for explicit 3PC exception.
+    if (CookieSettingsBase::IsAllowed(setting) &&
+        (!info.primary_pattern.MatchesAllHosts() ||
+         !info.secondary_pattern.MatchesAllHosts())) {
+      return true;
+    }
+    return false;
   }
 
  protected:
@@ -267,21 +282,27 @@ using CookieSettingsTest = CookieSettingsTestBase;
 class CookieSettingsTestP : public CookieSettingsTestBase,
                             public testing::WithParamInterface<GrantSource> {
  public:
-  CookieSettingsTestP() {
-    std::vector<base::test::FeatureRefAndParams> enabled_features;
-    std::vector<base::test::FeatureRef> disabled_features;
+  void SetUp() override {
+    feature_list_.InitWithFeaturesAndParameters(EnabledFeatures(),
+                                                DisabledFeatures());
+    CookieSettingsTestBase::SetUp();
+  }
 
+  std::vector<base::test::FeatureRefAndParams> EnabledFeatures() const {
+    std::vector<base::test::FeatureRefAndParams> enabled_features{
+        {features::kTpcdHeuristicsGrants,
+         {{"TpcdReadHeuristicsGrants", "true"}}}};
     if (Is3pcdMetadataGrantEligible()) {
       enabled_features.push_back({net::features::kTpcdMetadataGrants, {}});
-    } else {
-      disabled_features.push_back(net::features::kTpcdMetadataGrants);
     }
+    return enabled_features;
+  }
 
-    enabled_features.push_back({features::kTpcdHeuristicsGrants,
-                                {{"TpcdReadHeuristicsGrants", "true"}}});
-
-    feature_list_.InitWithFeaturesAndParameters(enabled_features,
-                                                disabled_features);
+  std::vector<base::test::FeatureRef> DisabledFeatures() const {
+    if (Is3pcdMetadataGrantEligible()) {
+      return {};
+    }
+    return {net::features::kTpcdMetadataGrants};
   }
 
   bool IsStorageAccessGrantEligibleViaAPI() const {
@@ -785,27 +806,6 @@ TEST_F(CookieSettingsTest, ThirdPartyExceptionSessionOnly) {
   EXPECT_FALSE(cookie_settings_->IsCookieSessionOnly(kBlockedSite));
 }
 
-using AreThirdPartyCookiesLimited = CookieSettingsTestP;
-
-TEST_P(AreThirdPartyCookiesLimited, TrueWhen3pcsNotBlockedInModeB) {
-  prefs_.SetBoolean(prefs::kTrackingProtection3pcdEnabled, true);
-  prefs_.SetBoolean(prefs::kBlockAll3pcToggleEnabled, false);
-  EXPECT_TRUE(cookie_settings_->AreThirdPartyCookiesLimited());
-}
-
-TEST_P(AreThirdPartyCookiesLimited, FalseWhenAll3pcsBlockedInModeB) {
-  prefs_.SetBoolean(prefs::kTrackingProtection3pcdEnabled, true);
-  prefs_.SetBoolean(prefs::kBlockAll3pcToggleEnabled, true);
-  EXPECT_FALSE(cookie_settings_->AreThirdPartyCookiesLimited());
-}
-
-TEST_P(AreThirdPartyCookiesLimited,
-       FalseWhenCookieControlsModePrefSetToBlockThirdParty) {
-  prefs_.SetInteger(prefs::kCookieControlsMode,
-                    static_cast<int>(CookieControlsMode::kBlockThirdParty));
-  EXPECT_FALSE(cookie_settings_->AreThirdPartyCookiesLimited());
-}
-
 class CookieSettingsTestUserBypass : public CookieSettingsTest {
  public:
   CookieSettingsTestUserBypass() {
@@ -823,19 +823,15 @@ class CookieSettingsTestUserBypass : public CookieSettingsTest {
 #if !BUILDFLAG(IS_IOS)
 TEST_F(CookieSettingsTestUserBypass, UserBypassTemporaryExceptions) {
   // Bypass shouldn't be enabled.
-  EXPECT_FALSE(
-      cookie_settings_->IsStoragePartitioningBypassEnabled(kFirstPartySite));
-  EXPECT_FALSE(
-      cookie_settings_->IsStoragePartitioningBypassEnabled(kBlockedSite));
+  EXPECT_FALSE(IsUserBypassEnabled(kFirstPartySite));
+  EXPECT_FALSE(IsUserBypassEnabled(kBlockedSite));
 
   cookie_settings_->SetCookieSettingForUserBypass(kFirstPartySite);
 
   // Bypass should only be enabled for |kFirstPartySite| with non-bypassed
   // site(s) unaffected.
-  EXPECT_TRUE(
-      cookie_settings_->IsStoragePartitioningBypassEnabled(kFirstPartySite));
-  EXPECT_FALSE(
-      cookie_settings_->IsStoragePartitioningBypassEnabled(kBlockedSite));
+  EXPECT_TRUE(IsUserBypassEnabled(kFirstPartySite));
+  EXPECT_FALSE(IsUserBypassEnabled(kBlockedSite));
 
   base::TimeDelta expiration =
       content_settings::features::kUserBypassUIExceptionExpiration.Get();
@@ -844,10 +840,8 @@ TEST_F(CookieSettingsTestUserBypass, UserBypassTemporaryExceptions) {
   FastForwardTime(expiration + base::Seconds(1));
   // Passing the expiry of the user bypass entries should disable user bypass
   // for |kFirstPartySite| leaving non-bypassed site(s) unaffected.
-  EXPECT_FALSE(
-      cookie_settings_->IsStoragePartitioningBypassEnabled(kFirstPartySite));
-  EXPECT_FALSE(
-      cookie_settings_->IsStoragePartitioningBypassEnabled(kBlockedSite));
+  EXPECT_FALSE(IsUserBypassEnabled(kFirstPartySite));
+  EXPECT_FALSE(IsUserBypassEnabled(kBlockedSite));
 }
 #endif
 
@@ -1525,15 +1519,25 @@ TEST_P(CookieSettingsTestP, GetCookieSettingSAAExpiredGrant) {
             CONTENT_SETTING_BLOCK);
 }
 
-TEST_P(CookieSettingsTestP, GetCookieSetting3pcdMetadataGrants) {
+class CookieSettings3pcdTestP : public CookieSettingsTestP {
+ public:
+  void SetUp() override {
+    auto enabled_features = EnabledFeatures();
+    enabled_features.push_back(
+        {content_settings::features::kTrackingProtection3pcd, {}});
+    feature_list_.InitWithFeaturesAndParameters(enabled_features,
+                                                DisabledFeatures());
+    CookieSettingsTestBase::SetUp();
+  }
+};
+
+TEST_P(CookieSettings3pcdTestP, GetCookieSetting3pcdMetadataGrants) {
   const GURL top_level_url(kFirstPartySite);
   const GURL url(kAllowedSite);
   const GURL third_url(kBlockedSite);
 
   base::HistogramTester histogram_tester;
   histogram_tester.ExpectTotalCount(kAllowedRequestsHistogram, 0);
-
-  prefs_.SetBoolean(prefs::kTrackingProtection3pcdEnabled, true);
 
   ContentSettingsForOneType tpcd_metadata_grants;
   tpcd_metadata_grants.emplace_back(
@@ -1586,20 +1590,12 @@ TEST_P(CookieSettingsTestP, GetCookieSetting3pcdMetadataGrants) {
       cookie_settings_->IsAllowedByTpcdMetadataGrant(top_level_url, third_url));
 }
 
-TEST_P(CookieSettingsTestP, GetCookieSetting3pcdHeuristicsGrants) {
+TEST_P(CookieSettings3pcdTestP, GetCookieSetting3pcdHeuristicsGrants) {
   const GURL first_party_url(kFirstPartySite);
   const GURL third_party_url(kAllowedSite);
 
   base::HistogramTester histogram_tester;
   histogram_tester.ExpectTotalCount(kAllowedRequestsHistogram, 0);
-
-  {
-    base::RunLoop run_loop;
-    prefs_.SetInteger(prefs::kCookieControlsMode,
-                      static_cast<int>(CookieControlsMode::kBlockThirdParty));
-    prefs_.SetBoolean(prefs::kTrackingProtection3pcdEnabled, true);
-    run_loop.RunUntilIdle();
-  }
 
   // Expect that cookies are blocked before setting the temporary grant.
   EXPECT_EQ(cookie_settings_->GetCookieSetting(
@@ -1641,7 +1637,13 @@ TEST_P(CookieSettingsTestP, GetCookieSetting3pcdHeuristicsGrants) {
             CONTENT_SETTING_BLOCK);
 }
 
-TEST_F(CookieSettingsTest, SetTemporaryCookieGrantForHeuristicOverrides) {
+class CookieSettings3pcdTest : public CookieSettingsTest {
+ private:
+  base::test::ScopedFeatureList feature_list_{
+      content_settings::features::kTrackingProtection3pcd};
+};
+
+TEST_F(CookieSettings3pcdTest, SetTemporaryCookieGrantForHeuristicOverrides) {
   const GURL first_party_url(kFirstPartySite);
   const GURL third_party_url(kAllowedSite);
   const base::TimeDelta expiration_short = base::Seconds(5);
@@ -1649,7 +1651,6 @@ TEST_F(CookieSettingsTest, SetTemporaryCookieGrantForHeuristicOverrides) {
 
   prefs_.SetInteger(prefs::kCookieControlsMode,
                     static_cast<int>(CookieControlsMode::kBlockThirdParty));
-  prefs_.SetBoolean(prefs::kTrackingProtection3pcdEnabled, true);
 
   // Expect that cookies are blocked before setting the temporary grant.
   EXPECT_EQ(cookie_settings_->GetCookieSetting(
@@ -1693,7 +1694,7 @@ TEST_F(CookieSettingsTest, SetTemporaryCookieGrantForHeuristicOverrides) {
             CONTENT_SETTING_BLOCK);
 }
 
-TEST_F(CookieSettingsTest, SetTemporaryCookieGrantForHeuristicSchemeless) {
+TEST_F(CookieSettings3pcdTest, SetTemporaryCookieGrantForHeuristicSchemeless) {
   const GURL first_party_http_url(kHttpSite);
   const GURL first_party_https_url(kHttpsSite);
   const GURL third_party_url(kAllowedSite);
@@ -1701,7 +1702,6 @@ TEST_F(CookieSettingsTest, SetTemporaryCookieGrantForHeuristicSchemeless) {
 
   prefs_.SetInteger(prefs::kCookieControlsMode,
                     static_cast<int>(CookieControlsMode::kBlockThirdParty));
-  prefs_.SetBoolean(prefs::kTrackingProtection3pcdEnabled, true);
 
   // Expect that cookies are blocked before setting the temporary grant.
   EXPECT_EQ(cookie_settings_->GetCookieSetting(
@@ -2141,14 +2141,12 @@ INSTANTIATE_TEST_SUITE_P(
 #endif
     CustomTestName);
 
+#if !BUILDFLAG(IS_IOS)
 INSTANTIATE_TEST_SUITE_P(
     /* no prefix */,
-    AreThirdPartyCookiesLimited,
-#if BUILDFLAG(IS_IOS)
-    testing::Values(GrantSource::kNoneGranted),
-#else
+    CookieSettings3pcdTestP,
     testing::Range(GrantSource::kNoneGranted, GrantSource::kGrantSourceCount),
-#endif
     CustomTestName);
+#endif
 
 }  // namespace content_settings

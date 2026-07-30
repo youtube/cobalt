@@ -493,10 +493,11 @@ void IdentityManager::RefreshAccountInfoIfStale(
   account_fetcher_service_->RefreshAccountInfoIfStale(account_id);
 }
 
-void IdentityManager::RefreshAccountInfoIfStale(
-    JNIEnv* env,
-    const CoreAccountId& core_account_id) {
-  RefreshAccountInfoIfStale(core_account_id);
+void IdentityManager::RefreshAccountInfoIfStale(JNIEnv* env) {
+  std::vector<CoreAccountInfo> accounts = GetAccountsWithRefreshTokens();
+  for (const CoreAccountInfo& account : accounts) {
+    RefreshAccountInfoIfStale(account.account_id);
+  }
 }
 
 base::android::ScopedJavaLocalRef<jobject>
@@ -510,9 +511,21 @@ IdentityManager::GetPrimaryAccountInfo(JNIEnv* env, jint consent_level) const {
 }
 
 base::android::ScopedJavaLocalRef<jobject>
+IdentityManager::FindExtendedAccountInfoByAccountId(
+    JNIEnv* env,
+    const base::android::JavaRef<jobject>& j_account_id) const {
+  AccountInfo account_info = FindExtendedAccountInfoByAccountId(
+      ConvertFromJavaCoreAccountId(env, j_account_id));
+  if (account_info.IsEmpty()) {
+    return nullptr;
+  }
+  return ConvertToJavaAccountInfo(env, account_info);
+}
+
+base::android::ScopedJavaLocalRef<jobject>
 IdentityManager::FindExtendedAccountInfoByEmailAddress(
     JNIEnv* env,
-    const base::android::JavaParamRef<jstring>& j_email) const {
+    const base::android::JavaRef<jstring>& j_email) const {
   AccountInfo account_info = FindExtendedAccountInfoByEmailAddress(
       base::android::ConvertJavaStringToUTF8(env, j_email));
   if (account_info.IsEmpty()) {

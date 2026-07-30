@@ -8,7 +8,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "components/content_settings/core/common/features.h"
 #include "content/browser/btm/btm_bounce_detector.h"
-#include "content/public/browser/btm_redirect_info.h"
+#include "content/public/browser/btm_redirect.h"
 #include "content/public/browser/cookie_access_details.h"
 #include "net/http/http_status_code.h"
 #include "services/network/public/cpp/features.h"
@@ -20,25 +20,24 @@ namespace {
 
 using content::Btm3PcSettingsCallback;
 using content::BtmDataAccessType;
-using content::BtmRedirectChainInfoPtr;
-using content::BtmRedirectInfo;
-using content::BtmRedirectInfoPtr;
+using content::BtmRedirect;
+using content::BtmRedirectChainPtr;
+using content::BtmRedirectPtr;
 
-using ChainPair =
-    std::pair<BtmRedirectChainInfoPtr, std::vector<BtmRedirectInfoPtr>>;
+using ChainPair = std::pair<BtmRedirectChainPtr, std::vector<BtmRedirectPtr>>;
 
 void AppendChainPair(std::vector<ChainPair>& vec,
-                     std::vector<BtmRedirectInfoPtr> redirects,
-                     BtmRedirectChainInfoPtr chain) {
+                     std::vector<BtmRedirectPtr> redirects,
+                     BtmRedirectChainPtr chain) {
   vec.emplace_back(std::move(chain), std::move(redirects));
 }
 
-std::vector<BtmRedirectInfoPtr> MakeServerRedirects(
+std::vector<BtmRedirectPtr> MakeServerRedirects(
     std::vector<std::string> urls,
     BtmDataAccessType access_type = BtmDataAccessType::kReadWrite) {
-  std::vector<BtmRedirectInfoPtr> redirects;
+  std::vector<BtmRedirectPtr> redirects;
   for (const auto& url : urls) {
-    redirects.push_back(BtmRedirectInfo::CreateForServer(
+    redirects.push_back(BtmRedirect::CreateForServer(
         /*redirector_url=*/GURL(url),
         /*redirector_source_id=*/ukm::AssignNewSourceId(),
         /*access_type=*/access_type,
@@ -50,12 +49,12 @@ std::vector<BtmRedirectInfoPtr> MakeServerRedirects(
   return redirects;
 }
 
-BtmRedirectInfoPtr MakeClientRedirect(
+BtmRedirectPtr MakeClientRedirect(
     std::string url,
     BtmDataAccessType access_type = BtmDataAccessType::kReadWrite,
     bool has_sticky_activation = false,
     bool has_web_authn_assertion = false) {
-  return BtmRedirectInfo::CreateForClient(
+  return BtmRedirect::CreateForClient(
       /*redirector_url=*/GURL(url),
       /*redirector_source_id=*/ukm::AssignNewSourceId(),
       /*access_type=*/access_type,

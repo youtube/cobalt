@@ -28,6 +28,7 @@
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/rand_util.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -946,8 +947,9 @@ void URLRequestHttpJob::SetCookieHeaderAndStart(
   device_bound_sessions::SessionService* service =
       request_->context()->device_bound_session_service();
   if (service) {
+    device_bound_sessions::DbscRequest request(request_);
     std::optional<device_bound_sessions::SessionService::DeferralParams>
-        deferral = service->ShouldDefer(request_, &request_info_.extra_headers,
+        deferral = service->ShouldDefer(request, &request_info_.extra_headers,
                                         first_party_set_metadata_);
     // If the request needs to be deferred while waiting for refresh, do not
     // start the transaction at this time. This may also kick off a refresh.
@@ -957,7 +959,7 @@ void URLRequestHttpJob::SetCookieHeaderAndStart(
         device_bound_session_first_deferral_ = base::TimeTicks::Now();
       }
       service->DeferRequestForRefresh(
-          request_, *deferral,
+          request, *deferral,
           // restart with new cookies callback
           base::BindOnce(&URLRequestHttpJob::RestartTransactionForRefresh,
                          weak_factory_.GetWeakPtr(), *deferral));
@@ -1168,37 +1170,9 @@ void URLRequestHttpJob::ProcessDeviceBoundSessionsHeader() {
     return;
   }
 
-  const auto& request_url = request_->url();
-  auto* headers = GetResponseHeaders();
-
-  // If response header Sec-Session-Registration is present and configured
-  // appropriately, trigger a registration request per header value to attempt
-  // to create a new session.
-  if (request_->allows_device_bound_session_registration() ||
-      !features::kDeviceBoundSessionsRequireOriginTrialTokens.Get()) {
-    std::vector<device_bound_sessions::RegistrationFetcherParam> params =
-        device_bound_sessions::RegistrationFetcherParam::CreateIfValid(
-            request_url, headers);
-    for (auto& param : params) {
-      service->RegisterBoundSession(
-          request_->device_bound_session_access_callback(), std::move(param),
-          request_->isolation_info(), request_->net_log(),
-          request_->initiator());
-    }
-  }
-
-  // If response header Sec-Session-Challenge is present and configured
-  // appropriately, for each header value, store the challenge in advance for
-  // the next relevant refresh request that gets triggered. This is to help
-  // avoid a round-trip for when the next refresh request is required.
-  std::vector<device_bound_sessions::SessionChallengeParam> challenge_params =
-      device_bound_sessions::SessionChallengeParam::CreateIfValid(request_url,
-                                                                  headers);
-  for (auto& param : challenge_params) {
-    service->SetChallengeForBoundSession(
-        request_->device_bound_session_access_callback(), *request_,
-        first_party_set_metadata_, std::move(param));
-  }
+  device_bound_sessions::DbscRequest request(request_);
+  service->HandleResponseHeaders(request, GetResponseHeaders(),
+                                 first_party_set_metadata_);
 }
 #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
 
@@ -1412,13 +1386,14 @@ void URLRequestHttpJob::RestartTransaction() {
 void URLRequestHttpJob::RestartTransactionForRefresh(
     const device_bound_sessions::SessionService::DeferralParams&
         deferral_params,
-    device_bound_sessions::SessionService::RefreshResult result) {
+    device_bound_sessions::RefreshResult result) {
   // Some deferrals are not associated with a particular session
   // (e.g. session service initialization).
   if (deferral_params.session_id.has_value()) {
     request_->AddDeviceBoundSessionDeferral(
-        device_bound_sessions::SessionKey{SchemefulSite(request_->url()),
-                                          *deferral_params.session_id},
+        device_bound_sessions::SessionKey{
+            SchemefulSite(device_bound_sessions::DbscRequest(request_).url()),
+            *deferral_params.session_id},
         result);
   }
 
@@ -2043,7 +2018,11 @@ void URLRequestHttpJob::RecordCompletionHistograms(CompletionCause reason) {
       }
 
       auto& proxy_chain = response_info_->proxy_chain;
-      bool direct_only = features::kIpPrivacyDirectOnly.Get();
+
+      // TODO: crbug.com/458071609 - Delete this default value placeholder for
+      // features::kIpPrivacyDirectOnly when cleaning up IPP histograms.
+      bool direct_only = false;
+
       if (proxy_chain.is_for_ip_protection()) {
         base::UmaHistogramTimes("Net.HttpJob.IpProtection.TotalTimeNotCached3",
                                 total_time);

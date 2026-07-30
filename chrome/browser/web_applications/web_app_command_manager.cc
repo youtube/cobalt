@@ -57,7 +57,7 @@ void WebAppCommandManager::SetProvider(base::PassKey<WebAppProvider>,
 
 void WebAppCommandManager::Start() {
   started_ = true;
-  log_ = std::make_unique<PersistableLog>(
+  log_ = PersistableLog::Create(
       PersistableLog::GetLogPath(profile_, "CommandManager.log"),
       PersistableLog::GetMode(), PersistableLog::GetMaxInMemoryLogEntries(),
       provider_->file_utils());
@@ -171,13 +171,6 @@ void WebAppCommandManager::Shutdown() {
 }
 
 base::Value WebAppCommandManager::ToDebugValue() {
-  base::Value::List command_log;
-  if (log_) {
-    for (const auto& command_value : log_->GetEntries()) {
-      command_log.Append(command_value.Clone());
-    }
-  }
-
   base::Value::List queued;
   for (const auto& [command, location] : commands_waiting_for_start_) {
     queued.Append(command->GetDebugValue().Clone());
@@ -187,7 +180,9 @@ base::Value WebAppCommandManager::ToDebugValue() {
   }
 
   base::Value::Dict state;
-  state.Set("command_log", std::move(command_log));
+  if (log_) {
+    state.Set("command_log", log_->CloneToList());
+  }
   state.Set("command_queue", base::Value(std::move(queued)));
   return base::Value(std::move(state));
 }
@@ -195,15 +190,6 @@ base::Value WebAppCommandManager::ToDebugValue() {
 const PersistableLog& WebAppCommandManager::log() const {
   CHECK(log_);
   return *log_;
-}
-
-void WebAppCommandManager::LogToInstallManager(base::Value log) {
-#if DCHECK_IS_ON()
-  // This is wrapped with DCHECK_IS_ON() to prevent calling DebugString() in
-  // production builds.
-  DVLOG(1) << log.DebugString();
-#endif
-  provider_->install_manager().TakeCommandErrorLog(PassKey(), std::move(log));
 }
 
 bool WebAppCommandManager::IsInstallingForWebContents(
@@ -312,13 +298,15 @@ void WebAppCommandManager::ClearSharedWebContentsIfUnused() {
 
 void WebAppCommandManager::AddCommandToLog(
     const internal::CommandBase& command) {
-  AddValueToLog(base::Value(command.GetDebugValue().Clone()));
+  if (log_) {
+    log_->Append(command.GetDebugValue().Clone());
+  }
 }
 
 void WebAppCommandManager::AddValueToLog(base::Value value) {
   DCHECK(!value.is_none());
   if (log_) {
-    log_->Append(std::move(value));
+    log_->AppendValue(std::move(value));
   }
 }
 

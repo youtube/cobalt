@@ -745,6 +745,15 @@ android_library("chrome_test_java_org.chromium.chrome.browser.dom_distiller") {
   deps = [ ":chrome_test_java_helper" ]
 }
 
+android_library(
+    "chrome_test_java_org.chromium.chrome.browser.chrome_item_picker") {
+  resources_package = "org.chromium.chrome.test"
+
+  sources = [ "src/org/chromium/chrome/browser/chrome_item_picker/ChromeItemPickerActivityTest.java" ]
+
+  deps = [ ":chrome_test_java_helper" ]
+}
+
 android_library("chrome_test_java_org.chromium.chrome.browser.download") {
   resources_package = "org.chromium.chrome.test"
 
@@ -1293,6 +1302,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.sync") {
 
   deps = [
     ":chrome_test_java_helper",
+    "//base:base_java_test_support",
     "//chrome/browser/ui/android/extensions:java",
     "//chrome/browser/user_education:java",
     "//components/sync/android:sync_java",
@@ -1311,6 +1321,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.tab") {
     "src/org/chromium/chrome/browser/tab/TabContextMenuItemDelegateTest.java",
     "src/org/chromium/chrome/browser/tab/TabImplPWATest.java",
     "src/org/chromium/chrome/browser/tab/TabImplTest.java",
+    "src/org/chromium/chrome/browser/tab/TabMediaIndicatorTest.java",
     "src/org/chromium/chrome/browser/tab/TabStateTest.java",
     "src/org/chromium/chrome/browser/tab/TabUmaTest.java",
     "src/org/chromium/chrome/browser/tab/TabViewManagerTest.java",
@@ -1327,6 +1338,11 @@ android_library("chrome_test_java_org.chromium.chrome.browser.tab") {
     "src/org/chromium/chrome/browser/tab/state/ShoppingPersistedTabDataTestUtils.java",
     "src/org/chromium/chrome/browser/tab/state/TabStateFlatBufferTest.java",
     "src/org/chromium/chrome/browser/tab/tab_restore/HistoricalTabSaverImplTest.java",
+  ]
+
+  data = [
+    "//chrome/test/data/media/tab_media_indicator.html",
+    "//chrome/test/data/media/bigbuck.webm",
   ]
 
   deps = [ ":chrome_test_java_helper" ]
@@ -1598,6 +1614,7 @@ android_library("chrome_test_java_various") {
     "src/org/chromium/chrome/browser/webauth/AuthenticatorImplTest.java",
     "src/org/chromium/chrome/browser/webauth/AuthenticatorTest.java",
     "src/org/chromium/chrome/browser/webauth/Fido2CredentialRequestTest.java",
+    "src/org/chromium/chrome/browser/webauth/GetMatchingCredentialsDelegateTest.java",
     "src/org/chromium/chrome/browser/webauth/WebauthnTestUtils.java",
     "src/org/chromium/chrome/browser/webid/DigitalCredentialProviderTest.java",
     "src/org/chromium/chrome/browser/webshare/WebShareTest.java",
@@ -1615,6 +1632,8 @@ android_library("chrome_test_java_various") {
     "//chrome/browser/ntp_customization:java",
     "//components/browser_ui/http_auth/android:java",
     "//third_party/androidx:androidx_test_ext_junit_java",
+    "//third_party/blink/public/mojom:authenticator_mojo_bindings_java",
+    "//third_party/blink/public/mojom:credentialmanagement_mojo_bindings_java",
     "//ui/android:ui_java",
     "//ui/android:ui_java_test_support",
   ]

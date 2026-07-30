@@ -17,7 +17,7 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/android/chrome_jni_headers/MediaCapturePickerManagerBridge_jni.h"
 
-using base::android::JavaParamRef;
+using base::android::JavaRef;
 
 int MediaCapturePickerManagerBridge::next_fake_id_ = 1;
 
@@ -50,7 +50,8 @@ void MediaCapturePickerManagerBridge::Show(
       static_cast<int>(params.window_audio_preference),
       static_cast<int>(params.preferred_display_surface),
       params.capture_this_tab, params.exclude_self_browser_surface,
-      params.exclude_monitor_type_surfaces);
+      params.exclude_monitor_type_surfaces,
+      static_cast<int>(params.allowed_capture_level));
 }
 
 void MediaCapturePickerManagerBridge::OnPickTab(

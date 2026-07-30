@@ -117,6 +117,7 @@ Chromium を使いやすくするためにデータを使用するその他の�
 <translation id="3581385059720151202">Chromium で画像検索する</translation>
 <translation id="3582640969619785896">Chromium でパスワードの保存を確認するメッセージが表示されます</translation>
 <translation id="3594315078412605236">Chromium でお支払い方法を管理する</translation>
+<translation id="3600428265489994557">Chromium にログイン</translation>
 <translation id="3617143087229977194">iOS で [デフォルトのアプリ] の設定を開き、[ブラウザアプリ] をタップして [Chromium] を選択します。</translation>
 <translation id="3634039384458740619">Chromium の設定を開く</translation>
 <translation id="3639997914391704523">Google アカウントでログインすると、Chromium でパスワードを確認できるようになります。</translation>
@@ -351,7 +352,6 @@ Chromium を使いやすくするためにデータを使用するその他の�
 <translation id="900560297598578021"><ph name="EMAIL" /> としてログインしています。
 
 データは <ph name="TIME" /> にパスフレーズで暗号化されました。Google アカウントで Chromium のデータを使用して保存するには、パスフレーズを入力してください。</translation>
-<translation id="9022552996538154597">Chromium にログイン</translation>
 <translation id="9031260906956926157">Chromium データの一部が Google アカウントにまだ保存されていません。
 数分待ってからログアウトしてください。今すぐログアウトすると、このデータは削除されます。</translation>
 <translation id="9050790730841755540">他のアプリのリンクをタップしたときに、常に Chromium で開くよう設定できます。</translation>

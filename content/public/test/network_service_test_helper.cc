@@ -15,6 +15,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/field_trial.h"
 #include "base/process/process.h"
@@ -712,6 +713,7 @@ class NetworkServiceTestHelper::NetworkServiceTestImpl
         base::MakeRefCounted<network::MojoBackendFileOperationsFactory>(
             std::move(factory)),
         path, 64 * 1024 * 1024, reset_mode, net::NetLog::Get(),
+        /*cache_encryption_delegate=*/nullptr,
         base::BindOnce(&NetworkServiceTestImpl::OnCacheCreated,
                        weak_factory_.GetWeakPtr(), std::move(callback)));
     DCHECK_EQ(result.net_error, net::ERR_IO_PENDING);

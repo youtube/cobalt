@@ -49,11 +49,13 @@
 #include "components/autofill/core/common/autofill_regexes.h"
 #include "components/autofill/core/common/autofill_util.h"
 #include "components/autofill/core/common/dense_set.h"
+#include "components/autofill/core/common/form_field_data.h"
 #include "components/autofill/core/common/logging/log_buffer.h"
 #include "components/autofill/core/common/logging/log_macros.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
+#include "third_party/libphonenumber/phonenumber_api.h"
 
 namespace autofill {
 
@@ -212,6 +214,23 @@ bool ShouldSkipFieldBecauseOfMeaningfulInitialValue(const AutofillField& field,
     return false;
   }
 
+  // Pre-filled country calling codes (e.g., "+1" or "+49") may be overwritten.
+  if (field.Type().GetGroups().contains(FieldTypeGroup::kPhone) &&
+      base::FeatureList::IsEnabled(
+          features::kAutofillOverwriteCountryCallingCodes)) {
+    int maybe_country_calling_code = 0;
+    if (base::StringToInt(
+            base::TrimWhitespace(field.value(), base::TrimPositions::TRIM_ALL),
+            &maybe_country_calling_code)) {
+      std::set<int> country_codes;
+      ::i18n::phonenumbers::PhoneNumberUtil::GetInstance()
+          ->GetSupportedCallingCodes(&country_codes);
+      if (country_codes.contains(maybe_country_calling_code)) {
+        return false;
+      }
+    }
+  }
+
   // If kAutofillSkipPreFilledFields is enabled:
   // Fields that are non-empty on page load are not meant to be overwritten.
   //
@@ -258,10 +277,10 @@ bool ShouldRecordFillingHistory(FillingProduct filling_product) {
   NOTREACHED();
 }
 
-// Called by `FormFiller::MaybeTriggerRefill()` and constructs a refill value in
-// case the website used JavaScript to reformat an expiration date like
-// "05/2023" into "05 / 20" (i.e. it broke the year by cutting the last two
-// digits instead of stripping the first two digits).
+// Called by `FormFiller::MaybeScheduleAutomaticRefill()` and constructs a
+// refill value in case the website used JavaScript to reformat an expiration
+// date like "05/2023" into "05 / 20" (i.e. it broke the year by cutting the
+// last two digits instead of stripping the first two digits).
 std::optional<FormFiller::ValueAndType> GetRefillValueForExpirationDate(
     const FormFieldData& field,
     const std::u16string& old_value) {
@@ -392,9 +411,11 @@ struct FormFiller::AugmentedFillingPayload {
 struct FormFiller::RefillContext {
   // |filling_payload| contains the data used to perform the initial filling
   // operation.
-  RefillContext(const AutofillField& field,
+  RefillContext(const FillId& fill_id,
+                const AutofillField& field,
                 const AugmentedFillingPayload& filling_payload)
-      : filled_field_id(field.global_id()),
+      : fill_id(fill_id),
+        filled_field_id(field.global_id()),
         filled_field_signature(field.GetFieldSignature()),
         filled_origin(field.origin()),
         original_fill_time(base::TimeTicks::Now()) {
@@ -422,6 +443,8 @@ struct FormFiller::RefillContext {
 
   ~RefillContext() = default;
 
+  // Uniquely identifies the initial fill operation.
+  const FillId fill_id;
   // Whether a refill attempt was made.
   bool attempted_refill = false;
   // The profile or credit card that was used for the initial fill. This is
@@ -440,6 +463,8 @@ struct FormFiller::RefillContext {
   // TODO(crbug.com/41490871): Remove in favor of
   // FormStructure::last_filling_timestamp_.
   const base::TimeTicks original_fill_time;
+  // Whether refills caused by DOM changes are allowed.
+  bool allows_automatic_refill = true;
   // The timer used to trigger a refill.
   base::OneShotTimer on_refill_timer;
   // The field type groups that were initially filled.
@@ -726,7 +751,7 @@ void FormFiller::UndoAutofill(mojom::ActionPersistence action_persistence,
   // dummy values for `triggered_origin` and `field_type_map`.
   manager_->driver().ApplyFormAction(
       mojom::FormActionType::kUndo, action_persistence, form.fields(),
-      url::Origin(),
+      FillId::Create(), /*supports_refill=*/false, url::Origin(),
       /*field_type_map=*/{}, /*section_for_clear_form_on_ios=*/Section());
 }
 
@@ -804,13 +829,15 @@ void FormFiller::FillOrPreviewForm(
     return;
   }
 
+  FillId fill_id = FillId::Create();
   if (action_persistence == mojom::ActionPersistence::kFill &&
       !refill_trigger_reason) {
     form_structure.set_last_filling_timestamp(base::TimeTicks::Now());
     if (augmented_filling_payload.supports_refills()) {
-      SetRefillContext(form_structure.global_id(),
-                       std::make_unique<RefillContext>(
-                           autofill_trigger_field, augmented_filling_payload));
+      SetRefillContext(
+          form_structure.global_id(),
+          std::make_unique<RefillContext>(fill_id, autofill_trigger_field,
+                                          augmented_filling_payload));
     }
   }
 
@@ -823,6 +850,9 @@ void FormFiller::FillOrPreviewForm(
       refill_trigger_reason.has_value() && refill_context
           ? RefillOptions::Refill(refill_context->type_groups_originally_filled)
           : RefillOptions::NotRefill();
+  if (refill_trigger_reason.has_value() && refill_context) {
+    fill_id = refill_context->fill_id;
+  }
 
   std::vector<FormFieldData> result_fields = form.fields();
   CHECK_EQ(result_fields.size(), form_structure.field_count());
@@ -929,6 +959,8 @@ void FormFiller::FillOrPreviewForm(
   base::flat_set<FieldGlobalId> safe_filled_field_ids =
       manager_->driver().ApplyFormAction(
           mojom::FormActionType::kFill, action_persistence, result_fields,
+          fill_id,
+          /*supports_refill=*/augmented_filling_payload.supports_refills(),
           autofill_trigger_field.origin(),
           base::flat_map<FieldGlobalId, FieldType>(
               std::move(filled_field_types)),
@@ -996,17 +1028,70 @@ void FormFiller::FillOrPreviewForm(
       filling_payload, trigger_source, refill_trigger_reason);
 }
 
-void FormFiller::MaybeTriggerRefill(
+void FormFiller::SuppressAutomaticRefills(const FillId& fill_id) {
+  RefillContext* refill_context = GetRefillContext(fill_id);
+  if (!refill_context) {
+    return;
+  }
+  refill_context->on_refill_timer.Stop();
+  refill_context->allows_automatic_refill = false;
+}
+
+void FormFiller::MaybeScheduleProgrammaticRefill(const FillId& fill_id) {
+  RefillContext* refill_context = GetRefillContext(fill_id);
+  if (!refill_context || refill_context->attempted_refill ||
+      !refill_context->filled_form) {
+    return;
+  }
+
+  if (base::TimeDelta delta =
+          base::TimeTicks::Now() - refill_context->original_fill_time;
+      delta > limit_before_programmatic_refill_) {
+    return;
+  }
+
+  // If a timer for the refill was already running, it means another
+  // RequestRefill() message arrived, perhaps from another frame. In that case,
+  // we restart the timer.
+  refill_context->on_refill_timer.Start(
+      FROM_HERE, kWaitTimeForDynamicForms,
+      base::BindRepeating(
+          [](base::WeakPtr<FormFiller> self, const FormGlobalId& form_id) {
+            if (!self) {
+              return;
+            }
+            // Taking the form from the cache is not entirely correct until the
+            // AutofillField::is_autofilled() semantics is fixed:
+            // crbug.com/393114125.
+            // TODO(crbug.com/466333215): Make sure crbug.com/467804204 is fixed
+            // before programmatic refills move beyond prototyping.
+            const FormStructure* form_structure =
+                self->manager_->FindCachedFormById(form_id);
+            if (!form_structure) {
+              return;
+            }
+            self->TriggerRefill(form_structure->ToFormData(),
+                                AutofillTriggerSource::kProgrammaticRefill,
+                                RefillTriggerReason::kProgrammaticRefill);
+          },
+          weak_ptr_factory_.GetWeakPtr(),
+          refill_context->filled_form->global_id()));
+}
+
+void FormFiller::MaybeScheduleAutomaticRefill(
     const FormData& form,
     const FormStructure& form_structure,
     RefillTriggerReason refill_trigger_reason,
     AutofillTriggerSource trigger_source,
     base::optional_ref<const AutofillField> field,
     base::optional_ref<const std::u16string> old_value) {
+  CHECK_NE(refill_trigger_reason, RefillTriggerReason::kProgrammaticRefill);
+
   // Should not refill if a form with the same FormGlobalId has not been filled
   // before or if it has been refilled before.
   RefillContext* refill_context = GetRefillContext(form_structure.global_id());
-  if (!refill_context || refill_context->attempted_refill) {
+  if (!refill_context || !refill_context->allows_automatic_refill ||
+      refill_context->attempted_refill) {
     return;
   }
 
@@ -1016,7 +1101,7 @@ void FormFiller::MaybeTriggerRefill(
   // instead of filling_context->original_fill_time.
   if (base::TimeDelta delta =
           base::TimeTicks::Now() - refill_context->original_fill_time;
-      delta > limit_before_refill_) {
+      delta > limit_before_automatic_refill_) {
     return;
   }
 
@@ -1025,13 +1110,22 @@ void FormFiller::MaybeTriggerRefill(
       // Only refill if the form actually changed since it was filled.
       // Since we won't schedule another refill, we should be cautious not to
       // prematurely schedule refills.
+      // TODO(crbug.com/459458715): Compare overall types directly and get rid
+      // of the field attributes comparison.
       if (refill_context->filled_form &&
           std::ranges::equal(
               refill_context->filled_form->fields(), form_structure.fields(),
               [](const FormFieldData& f,
                  const std::unique_ptr<AutofillField>& g) {
                 return FormFieldData::IdenticalAndEquivalentDomElements(
-                    f, *g, {FormFieldData::Exclusion::kValue});
+                    f, *g,
+                    base::FeatureList::IsEnabled(
+                        features::kAutofillFewerTrivialRefills)
+                        ? DenseSet<FormFieldData::
+                                       Exclusion>{FormFieldData::Exclusion::
+                                                      kNotRefillRelated}
+                        : DenseSet<FormFieldData::Exclusion>{
+                              FormFieldData::Exclusion::kValue});
               })) {
         return;
       }
@@ -1057,6 +1151,8 @@ void FormFiller::MaybeTriggerRefill(
         break;
       }
       return;
+    case RefillTriggerReason::kProgrammaticRefill:
+      NOTREACHED();
   }
   ScheduleRefill(form, CHECK_DEREF(refill_context), trigger_source,
                  refill_trigger_reason);
@@ -1067,11 +1163,7 @@ void FormFiller::ScheduleRefill(const FormData& form,
                                 AutofillTriggerSource trigger_source,
                                 RefillTriggerReason refill_trigger_reason) {
   // If a timer for the refill was already running, it means the form
-  // changed again. Stop the timer and start it again.
-  if (refill_context.on_refill_timer.IsRunning()) {
-    refill_context.on_refill_timer.Stop();
-  }
-  // Start a new timer to trigger refill.
+  // changed again. In that case, we restart the timer.
   refill_context.on_refill_timer.Start(
       FROM_HERE, kWaitTimeForDynamicForms,
       base::BindRepeating(&FormFiller::TriggerRefill,
@@ -1083,7 +1175,7 @@ void FormFiller::TriggerRefill(const FormData& form,
                                AutofillTriggerSource trigger_source,
                                RefillTriggerReason refill_trigger_reason) {
   FormStructure* form_structure =
-      manager_->FindCachedFormById(form.global_id());
+      manager_->FindCachedFormById(form.global_id(), /*pass_key=*/{});
   if (!form_structure) {
     return;
   }
@@ -1148,6 +1240,13 @@ void FormFiller::SetRefillContext(FormGlobalId form_id,
 
 FormFiller::RefillContext* FormFiller::GetRefillContext(FormGlobalId form_id) {
   auto it = refill_context_.find(form_id);
+  return it != refill_context_.end() ? it->second.get() : nullptr;
+}
+
+FormFiller::RefillContext* FormFiller::GetRefillContext(const FillId& fill_id) {
+  auto it = std::ranges::find_if(refill_context_, [&](const auto& p) {
+    return p.second && p.second->fill_id == fill_id;
+  });
   return it != refill_context_.end() ? it->second.get() : nullptr;
 }
 

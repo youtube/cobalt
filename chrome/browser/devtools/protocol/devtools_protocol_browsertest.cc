@@ -49,7 +49,7 @@
 #include "components/infobars/core/infobar.h"
 #include "components/infobars/core/infobar_delegate.h"
 #include "components/privacy_sandbox/privacy_sandbox_attestations/privacy_sandbox_attestations.h"
-#include "content/public/browser/btm_redirect_info.h"
+#include "content/public/browser/btm_redirect.h"
 #include "content/public/browser/btm_service.h"
 #include "content/public/browser/cookie_access_details.h"
 #include "content/public/browser/devtools_agent_host.h"
@@ -674,7 +674,7 @@ testing::AssertionResult SimulateBtmBounce(content::WebContents* web_contents,
                                        << final_observer.redirects()->size();
   }
 
-  const content::BtmRedirectInfo& redirect = *final_observer.redirects()->at(0);
+  const content::BtmRedirect& redirect = *final_observer.redirects()->at(0);
   if (redirect.redirector_url != bounce_url) {
     return testing::AssertionFailure() << "Expected redirect at " << bounce_url
                                        << "; found " << redirect.redirector_url;

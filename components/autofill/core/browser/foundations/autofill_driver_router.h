@@ -198,6 +198,14 @@ class AutofillDriverRouter {
       mojom::SubmissionSource submission_source);
   // This event is broadcast to all drivers.
   void HidePopup(RoutedCallback<> callback, AutofillDriver& source);
+  // This event is broadcast to all drivers.
+  void SuppressAutomaticRefills(RoutedCallback<const FillId&> callback,
+                                AutofillDriver& source,
+                                const FillId& fill_id);
+  // This event is broadcast to all drivers.
+  void RequestRefill(RoutedCallback<const FillId&> callback,
+                     AutofillDriver& source,
+                     const FillId& fill_id);
   void JavaScriptChangedAutofilledValue(
       RoutedCallback<const FormData&,
                      const FieldGlobalId&,
@@ -242,10 +250,14 @@ class AutofillDriverRouter {
   base::flat_set<FieldGlobalId> ApplyFormAction(
       RoutedCallback<mojom::FormActionType,
                      mojom::ActionPersistence,
-                     const std::vector<FormFieldData::FillData>&> callback,
+                     const std::vector<FormFieldData::FillData>&,
+                     const FillId&,
+                     bool> callback,
       mojom::FormActionType action_type,
       mojom::ActionPersistence action_persistence,
       base::span<const FormFieldData> data,
+      const FillId& fill_id,
+      bool supports_refill,
       const url::Origin& main_origin,
       const url::Origin& triggered_origin,
       const base::flat_map<FieldGlobalId, FieldType>& field_type_map);

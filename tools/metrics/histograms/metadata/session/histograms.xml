@@ -65,7 +65,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.ID.RestoredDifference" units="Session IDs"
-    expires_after="2026-02-28">
+    expires_after="2026-05-31">
   <owner>gambard@chromium.org</owner>
   <owner>sdefresne@chromium.org</owner>
   <summary>
@@ -1017,7 +1017,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.WebStates.LoadingTimeOnMainThread" units="ms"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>fedegermi@google.com</owner>
   <owner>sdefresne@chromium.org</owner>
   <summary>
@@ -1033,7 +1033,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.WebStates.NativeRestoreHasFetchers"
-    enum="BooleanHasFetchers" expires_after="2025-12-28">
+    enum="BooleanHasFetchers" expires_after="2026-12-31">
   <owner>justincohen@chromium.org</owner>
   <owner>michaeldo@chromium.org</owner>
   <summary>
@@ -1043,7 +1043,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.WebStates.NativeRestoreSession" enum="BooleanSuccess"
-    expires_after="2026-04-26">
+    expires_after="2026-12-31">
   <owner>justincohen@chromium.org</owner>
   <owner>michaeldo@chromium.org</owner>
   <summary>
@@ -1054,7 +1054,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.WebStates.NativeRestoreSessionFromCache"
-    enum="BooleanSuccess" expires_after="2025-12-21">
+    enum="BooleanSuccess" expires_after="2026-12-31">
   <owner>justincohen@chromium.org</owner>
   <owner>michaeldo@chromium.org</owner>
   <summary>
@@ -1065,7 +1065,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.WebStates.NativeRestoreSessionFromCacheHasData"
-    enum="BooleanHasData" expires_after="2025-12-21">
+    enum="BooleanHasData" expires_after="2026-12-31">
   <owner>justincohen@chromium.org</owner>
   <owner>michaeldo@chromium.org</owner>
   <summary>
@@ -1076,7 +1076,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.WebStates.NativeRestoreSessionHasData"
-    enum="BooleanHasData" expires_after="2025-12-28">
+    enum="BooleanHasData" expires_after="2026-12-31">
   <owner>justincohen@chromium.org</owner>
   <owner>michaeldo@chromium.org</owner>
   <summary>

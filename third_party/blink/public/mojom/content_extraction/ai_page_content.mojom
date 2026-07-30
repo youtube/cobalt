@@ -143,13 +143,6 @@ enum AIPageContentClickabilityReason {
   // The node has a click event handler.
   kClickEvents,
 
-  // The node has mouse event handlers like mouseup, mousedown, mouseover and
-  // mouseenter.
-  //
-  // TODO(linnan): Remove this once consumers move to use kMouseClick and
-  // kMouseHover.
-  kMouseEvents,
-
     // The node has mouse event handlers like mouseup and mousedown.
   kMouseClick,
 
@@ -193,6 +186,13 @@ enum AIPageContentClickabilityReason {
   kHoverPseudoClass,
 };
 
+// Provides hints to indicate that interaction with the element is disabled.
+enum AIPageContentInteractionDisabledReason {
+  kDisabled,
+  kAriaDisabled,
+  kCursorNotAllowed,
+};
+
 struct AIPageContentNodeInteractionInfo {
   // If this node supports scrolling, provides information about its current
   // state.
@@ -200,10 +200,6 @@ struct AIPageContentNodeInteractionInfo {
 
   // Whether the content node is focusable.
   bool is_focusable;
-
-  // [Deprecated] Use `clickability_reasons` instead.
-  // Indicates whether the node is actionable.
-  bool is_clickable;
 
   // The z-order of the content node relative to other nodes in the same
   // Document. A higher value means the node is in front of other nodes with
@@ -225,7 +221,12 @@ struct AIPageContentNodeInteractionInfo {
   // attribute. Disabled nodes are still valid action targets and can consume
   // events. This is false for nodes which are not hit-testable and will ignore
   // events, for example with `pointer-events: none`.
+  //
+  // TODO(b/465736813): Deprecate when consumers move to `interaction_disabled_reasons`.
   bool is_disabled;
+
+  // Provides hints on why the interaction with the element is disabled.
+  array<AIPageContentInteractionDisabledReason> interaction_disabled_reasons;
 };
 
 // The coordinate space for the dimensions here is physical coordinates (not

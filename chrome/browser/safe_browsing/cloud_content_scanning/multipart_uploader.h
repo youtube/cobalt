@@ -101,22 +101,6 @@ class MultipartUploadRequest
       const std::string& histogram_suffix,
       const net::NetworkTrafficAnnotationTag& traffic_annotation,
       MultipartUploadRequest::Callback callback);
-
- private:
-  FRIEND_TEST_ALL_PREFIXES(MultipartUploadRequestTest, GeneratesCorrectBody);
-  FRIEND_TEST_ALL_PREFIXES(MultipartUploadRequestTest, RetriesCorrectly);
-  FRIEND_TEST_ALL_PREFIXES(MultipartUploadRequestTest,
-                           EmitsNetworkRequestResponseCodeOrErrorHistogram);
-  FRIEND_TEST_ALL_PREFIXES(MultipartUploadRequestTest,
-                           EmitsUploadSuccessHistogram);
-  FRIEND_TEST_ALL_PREFIXES(MultipartUploadRequestTest,
-                           EmitsRetriesNeededHistogram);
-  FRIEND_TEST_ALL_PREFIXES(MultipartUploadDataPipeRequestTest, Retries);
-  FRIEND_TEST_ALL_PREFIXES(MultipartUploadDataPipeRequestTest, DataControls);
-  FRIEND_TEST_ALL_PREFIXES(MultipartUploadDataPipeRequestTest,
-                           EquivalentToStringRequest);
-
-  scoped_refptr<base::TaskRunner> GetTaskRunner() override;
 };
 
 }  // namespace safe_browsing

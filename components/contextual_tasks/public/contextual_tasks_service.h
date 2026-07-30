@@ -35,8 +35,12 @@ struct FeatureEligibility {
   bool contextual_tasks_enabled;
   // Whether the AIM backend is eligible for use.
   bool aim_eligible;
+  // Whether context sharing is enabled.
+  bool context_sharing_enabled;
 
-  bool IsEligible() const { return contextual_tasks_enabled && aim_eligible; }
+  bool IsEligible() const {
+    return contextual_tasks_enabled && aim_eligible && context_sharing_enabled;
+  }
 };
 
 // Service that allows clients to create and manage contextual tasks.
@@ -70,9 +74,19 @@ class ContextualTasksService : public KeyedService {
     virtual void OnTaskUpdated(const ContextualTask& group,
                                TriggerSource source) {}
 
-    // A task identifierd by `task_id` was removed.
+    // A task identified by `task_id` was removed.
     virtual void OnTaskRemoved(const base::Uuid& task_id,
                                TriggerSource source) {}
+
+    // A task identified by `task_id` is now associated to the tab corresponding
+    // to `tab_id`.
+    virtual void OnTaskAssociatedToTab(const base::Uuid& task_id,
+                                       SessionID tab_id) {}
+
+    // A task identified by `task_id` is no longer associated to the tab
+    // corresponding to `tab_id`.
+    virtual void OnTaskDisassociatedFromTab(const base::Uuid& task_id,
+                                            SessionID tab_id) {}
   };
 
   ContextualTasksService();
@@ -116,6 +130,9 @@ class ContextualTasksService : public KeyedService {
   virtual void AttachUrlToTask(const base::Uuid& task_id, const GURL& url) = 0;
   virtual void DetachUrlFromTask(const base::Uuid& task_id,
                                  const GURL& url) = 0;
+  virtual void SetUrlResourcesFromServer(
+      const base::Uuid& task_id,
+      std::vector<UrlResource> url_resources) = 0;
 
   // Gets the context for a given task. The `context_callback` will receive the
   // a contextual task. If the `sources` set is empty, all available sources

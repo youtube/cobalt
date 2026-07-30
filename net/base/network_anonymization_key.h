@@ -10,12 +10,13 @@
 #include <ostream>
 #include <string>
 #include <tuple>
+#include <utility>
 
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/types/pass_key.h"
 #include "base/unguessable_token.h"
 #include "net/base/net_export.h"
-#include "net/base/network_isolation_key.h"
 #include "net/base/network_isolation_partition.h"
 #include "net/base/schemeful_site.h"
 
@@ -24,6 +25,8 @@ class Value;
 }
 
 namespace net {
+
+class NetworkIsolationKey;
 
 // NetworkAnonymizationKey (NAK) is used to partition shared network state based
 // on the context in which requests were made. Most network state is divided
@@ -227,6 +230,12 @@ class NET_EXPORT NetworkAnonymizationKey {
                       b.network_isolation_partition_);
     }
 
+    template <typename H>
+    friend H AbslHashValue(H h, const Data& data) {
+      return H::combine(std::move(h), data.top_frame_site_, data.is_cross_site_,
+                        data.nonce_, data.network_isolation_partition_);
+    }
+
    private:
     friend class base::RefCountedThreadSafe<Data>;
     ~Data();
@@ -248,6 +257,13 @@ class NET_EXPORT NetworkAnonymizationKey {
   friend auto operator<=>(const NetworkAnonymizationKey& a,
                           const NetworkAnonymizationKey& b) {
     return *a.data_ <=> *b.data_;
+  }
+
+  template <typename H>
+  friend H AbslHashValue(
+      H h,
+      const NetworkAnonymizationKey& network_anonymization_key) {
+    return H::combine(std::move(h), *network_anonymization_key.data_);
   }
 
  private:

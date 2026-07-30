@@ -22,6 +22,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Matrix;
+import android.graphics.Point;
 import android.view.View;
 
 import androidx.core.graphics.Insets;
@@ -39,11 +40,11 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
+import org.chromium.base.supplier.SettableNullableObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRule;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
@@ -78,8 +79,8 @@ public class TopInsetCoordinatorUnitTest {
     @Captor
     private ArgumentCaptor<LayoutStateProvider.LayoutStateObserver> mLayoutStateObserverCaptor;
 
-    private final ObservableSupplierImpl<@Nullable Tab> mTabSupplier =
-            new ObservableSupplierImpl<>();
+    private final SettableNullableObservableSupplier<Tab> mTabSupplier =
+            ObservableSuppliers.createNullable();
     private final OneshotSupplierImpl<LayoutStateProvider> mLayoutStateProviderSupplier =
             new OneshotSupplierImpl<>();
 
@@ -218,7 +219,8 @@ public class TopInsetCoordinatorUnitTest {
         Matrix portraitMatrix = new Matrix();
         Matrix landscapeMatrix = new Matrix();
         landscapeMatrix.setScale(2f, 9f);
-        BackgroundImageInfo imageInfo = new BackgroundImageInfo(portraitMatrix, landscapeMatrix);
+        BackgroundImageInfo imageInfo =
+                new BackgroundImageInfo(portraitMatrix, landscapeMatrix, new Point(), new Point());
 
         mNtpCustomizationConfigManager.setBackgroundImageTypeForTesting(
                 NtpBackgroundImageType.IMAGE_FROM_DISK);
@@ -247,12 +249,12 @@ public class TopInsetCoordinatorUnitTest {
                 NtpBackgroundImageType.CHROME_COLOR);
         mNtpCustomizationConfigManager.notifyBackgroundColorChanged(
                 mContext, /* fromInitialization= */ true, NtpBackgroundImageType.DEFAULT);
-        assertEquals(colorInfo, mNtpCustomizationConfigManager.getNtpThemeColorInfoForTesting());
+        assertEquals(colorInfo, mNtpCustomizationConfigManager.getNtpThemeColorInfo());
         verify(mInsetObserver, never()).retriggerOnApplyWindowInsets();
 
         mNtpCustomizationConfigManager.notifyBackgroundColorChanged(
                 mContext, /* fromInitialization= */ false, NtpBackgroundImageType.DEFAULT);
-        assertEquals(colorInfo, mNtpCustomizationConfigManager.getNtpThemeColorInfoForTesting());
+        assertEquals(colorInfo, mNtpCustomizationConfigManager.getNtpThemeColorInfo());
         verify(mInsetObserver).retriggerOnApplyWindowInsets();
     }
 

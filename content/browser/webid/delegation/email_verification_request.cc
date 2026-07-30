@@ -10,12 +10,14 @@
 #include "base/strings/string_split.h"
 #include "base/time/time.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
+#include "content/browser/webid/delegation/email_verifier_network_request_manager.h"
 #include "content/browser/webid/delegation/jwt_signer.h"
 #include "content/browser/webid/delegation/sd_jwt.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/storage_partition.h"
 #include "crypto/keypair.h"
+#include "crypto/sha2.h"
 #include "url/origin.h"
 
 namespace content::webid {
@@ -47,10 +49,11 @@ EmailVerificationRequest::EmailVerificationRequest(
     : EmailVerificationRequest(
           EmailVerifierNetworkRequestManager::Create(&render_frame_host),
           std::make_unique<DnsRequest>(base::BindRepeating(
-              [](RenderFrameHost* rfh) -> network::mojom::NetworkContext* {
-                return rfh->GetStoragePartition()->GetNetworkContext();
+              [](EmailVerificationRequest* request)
+                  -> EmailVerifierNetworkRequestManager* {
+                return request->network_manager_.get();
               },
-              &render_frame_host)),
+              this)),
           render_frame_host.GetSafeRef()) {}
 
 EmailVerificationRequest::EmailVerificationRequest(
@@ -67,7 +70,7 @@ sdjwt::Jwt EmailVerificationRequest::CreateRequestToken(
     const std::string& email,
     const sdjwt::Jwk& public_key) {
   sdjwt::Header header;
-  header.alg = "RS256";
+  header.alg = public_key.alg;
   header.typ = "JWT";
   header.jwk = public_key;
   CHECK(header.jwk);
@@ -80,9 +83,6 @@ sdjwt::Jwt EmailVerificationRequest::CreateRequestToken(
 
   sdjwt::Payload payload;
   payload.email = email;
-  // TODO(crbug.com/380367784): figure out why/whether the
-  // nonce is needed here. Use a hardcoded value for now.
-  payload.nonce = "--a-fake-nonce--";
   // TODO(crbug.com/380367784): check if `render_frame_host_` isn't an
   // opaque origin, or any other validation that might be
   // necessary.
@@ -184,9 +184,29 @@ void EmailVerificationRequest::OnWellKnownFetched(
 
   // TODO(crbug.com/380367784): understand and document why RSA was
   // preferred over ECDSA here.
-  auto private_key = std::make_unique<crypto::keypair::PrivateKey>(
-      crypto::keypair::PrivateKey::GenerateRsa2048());
-  CHECK(private_key);
+  std::unique_ptr<crypto::keypair::PrivateKey> private_key;
+  for (const auto& supported_alg : well_known.signing_alg_values_supported) {
+    if (supported_alg == "EdDSA") {
+      private_key = std::make_unique<crypto::keypair::PrivateKey>(
+          crypto::keypair::PrivateKey::GenerateEd25519());
+      break;
+    } else if (supported_alg == "RS256") {
+      private_key = std::make_unique<crypto::keypair::PrivateKey>(
+          crypto::keypair::PrivateKey::GenerateRsa2048());
+      break;
+    } else if (supported_alg == "ES256") {
+      private_key = std::make_unique<crypto::keypair::PrivateKey>(
+          crypto::keypair::PrivateKey::GenerateEcP256());
+      break;
+    }
+    // TODO(crbug.com/380367784): figure out what to do if we get an unsupported
+    // algorithm here (should we reject? ignore?).
+  }
+
+  if (!private_key) {
+    std::move(callback).Run(std::nullopt);
+    return;
+  }
 
   std::optional<sdjwt::Jwk> public_key = sdjwt::ExportPublicKey(*private_key);
   CHECK(public_key);
@@ -257,6 +277,14 @@ void EmailVerificationRequest::OnTokenRequestComplete(
   sdjwt::Payload payload;
   payload.aud = render_frame_host_->GetLastCommittedOrigin().Serialize();
   payload.nonce = nonce;
+  payload.iat = base::Time::Now();
+
+  std::string sd_jwt_sha256 =
+      crypto::SHA256HashString(result.token->GetString());
+  std::string sd_hash;
+  base::Base64UrlEncode(sd_jwt_sha256,
+                        base::Base64UrlEncodePolicy::OMIT_PADDING, &sd_hash);
+  payload.sd_hash = sdjwt::Base64String(sd_hash);
 
   sdjwt::Jwt kb_jwt;
   kb_jwt.header = *header.ToJson();

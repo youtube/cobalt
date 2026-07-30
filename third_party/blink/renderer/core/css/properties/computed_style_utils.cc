@@ -60,9 +60,9 @@
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/layout/grid/layout_grid.h"
+#include "third_party/blink/renderer/core/layout/grid_lanes/layout_grid_lanes.h"
 #include "third_party/blink/renderer/core/layout/layout_block.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
-#include "third_party/blink/renderer/core/layout/masonry/layout_grid_lanes.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_viewport_container.h"
 #include "third_party/blink/renderer/core/layout/svg/transform_helper.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
@@ -4834,7 +4834,7 @@ CSSValue* ComputedStyleUtils::ValueForIntrinsicLength(
   CSSIdentifierValue* option = nullptr;
   if (intrinsic_length.HasAuto()) {
     option = CSSIdentifierValue::Create(CSSValueID::kAuto);
-  } else if (intrinsic_length.MatchesElement()) {
+  } else if (intrinsic_length.IsFromElement()) {
     DCHECK(RuntimeEnabledFeatures::ResponsiveIframesEnabled());
     option = CSSIdentifierValue::Create(CSSValueID::kFromElement);
   } else {
@@ -5172,6 +5172,23 @@ CSSValueList* ComputedStyleUtils::ValuesForGridLanesShorthand(
   return CSSOMUtils::ComputedValueForGridLanesShorthand(
       grid_lanes_template_tracks_values, template_area_values,
       grid_lanes_direction_values, grid_lanes_fill_values);
+}
+
+CSSValue* ComputedStyleUtils::ValueForNameScope(
+    const StyleNameScope& name_scope) {
+  if (name_scope.IsNone()) {
+    return CSSIdentifierValue::Create(CSSValueID::kNone);
+  }
+  if (name_scope.IsAll()) {
+    return CSSIdentifierValue::Create(CSSValueID::kAll);
+  }
+  CHECK(name_scope.Names());
+  CSSValueList* list = CSSValueList::CreateCommaSeparated();
+  for (const Member<const ScopedCSSName>& name :
+       name_scope.Names()->GetNames()) {
+    list->Append(*MakeGarbageCollected<CSSCustomIdentValue>(*name));
+  }
+  return list;
 }
 
 }  // namespace blink

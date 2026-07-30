@@ -261,7 +261,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.Cookies.TrackingProtectionRedirect"
-    enum="BooleanRedirected" expires_after="2026-03-29">
+    enum="BooleanRedirected" expires_after="2026-05-31">
   <owner>mjenn@google.com</owner>
   <owner>koilos@google.com</owner>
   <summary>
@@ -281,17 +281,6 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
     The source surface that requested displaying the default browser system
     settings. Logged when the user actually opens the iOS system settings (IOS
     only).
-  </summary>
-</histogram>
-
-<histogram name="Settings.FingerprintingProtection.Enabled"
-    enum="BooleanEnabled" expires_after="2026-04-05">
-  <owner>fmacintosh@google.com</owner>
-  <owner>koilos@google.com</owner>
-  <summary>
-    Records the state of the pref that represents whether the user has chosen to
-    enable Fingerprinting Protection via the Tracking Protection settings page.
-    Logged on profile startup.
   </summary>
 </histogram>
 
@@ -323,7 +312,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.GivenShowHomeButton_HomePageIsNewTabPage2"
-    enum="Boolean" expires_after="2026-03-29">
+    enum="Boolean" expires_after="2026-05-31">
   <owner>mpearson@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
@@ -384,17 +373,6 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
   <summary>
     Logged whether the hover card preview images setting is enabled or disabled
     when it is toggled in chrome://settings/appearance.
-  </summary>
-</histogram>
-
-<histogram name="Settings.IpProtection.Enabled" enum="BooleanEnabled"
-    expires_after="2026-02-01">
-  <owner>fmacintosh@google.com</owner>
-  <owner>koilos@google.com</owner>
-  <summary>
-    Records the state of the pref that represents whether the user has chosen to
-    enable IP Protection via the Tracking Protection settings page. Logged on
-    profile startup.
   </summary>
 </histogram>
 
@@ -1183,7 +1161,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.SafetyHub.EntryPointImpression"
-    enum="SafetyHubEntryPoint" expires_after="2026-04-05">
+    enum="SafetyHubEntryPoint" expires_after="2026-06-07">
   <owner>sideyilmaz@chromium.org</owner>
   <owner>tov@chromium.org</owner>
   <owner>msramek@chromium.org</owner>
@@ -1193,7 +1171,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.SafetyHub.EntryPointInteraction"
-    enum="SafetyHubEntryPoint" expires_after="2026-04-05">
+    enum="SafetyHubEntryPoint" expires_after="2026-06-07">
   <owner>sideyilmaz@chromium.org</owner>
   <owner>tov@chromium.org</owner>
   <owner>msramek@chromium.org</owner>
@@ -1236,7 +1214,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.SafetyHub.Interaction" enum="SafetyHubSurfaces"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>sideyilmaz@chromium.org</owner>
   <owner>tov@chromium.org</owner>
   <owner>msramek@chromium.org</owner>
@@ -1258,7 +1236,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.SafetyHub.MenuNotificationClicked"
-    enum="SafetyHubModuleType" expires_after="2026-04-05">
+    enum="SafetyHubModuleType" expires_after="2026-06-07">
   <owner>sideyilmaz@chromium.org</owner>
   <owner>tov@chromium.org</owner>
   <owner>msramek@chromium.org</owner>
@@ -1269,7 +1247,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.SafetyHub.MenuNotificationImpression"
-    enum="SafetyHubModuleType" expires_after="2026-04-05">
+    enum="SafetyHubModuleType" expires_after="2026-06-07">
   <owner>sideyilmaz@chromium.org</owner>
   <owner>tov@chromium.org</owner>
   <owner>msramek@chromium.org</owner>
@@ -1469,7 +1447,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 
 <histogram
     name="Settings.TrackedPreferenceChanged{TrackedPreferencesExternalValidators}"
-    enum="TrackedPreference" expires_after="2026-04-05">
+    enum="TrackedPreference" expires_after="2026-06-07">
 <!-- Note to owner: This histogram can be renewed 1 full year if it is still
 useful for Chirp alerts (go/crca-alerts). -->
 
@@ -1511,7 +1489,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram
     name="Settings.TrackedPreferenceCleared{TrackedPreferencesExternalValidators}"
-    enum="TrackedPreference" expires_after="2026-04-05">
+    enum="TrackedPreference" expires_after="2026-06-07">
   <owner>anunoy@chromium.org</owner>
   <owner>junhao.huang@microsoft.com</owner>
   <summary>
@@ -1530,7 +1508,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram
     name="Settings.TrackedPreferenceInitialized{TrackedPreferencesExternalValidators}"
-    enum="TrackedPreference" expires_after="2026-04-05">
+    enum="TrackedPreference" expires_after="2026-06-07">
   <owner>anunoy@chromium.org</owner>
   <owner>junhao.huang@microsoft.com</owner>
   <summary>
@@ -1569,7 +1547,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="Settings.TrackedPreferenceReset" enum="TrackedPreference"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>anunoy@chromium.org</owner>
   <owner>junhao.huang@microsoft.com</owner>
   <summary>The id of a tracked preference which was reset by Chrome.</summary>
@@ -1624,7 +1602,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram
     name="Settings.TrackedPreferenceTrustedInitialized{TrackedPreferencesExternalValidators}"
-    enum="TrackedPreference" expires_after="2026-04-05">
+    enum="TrackedPreference" expires_after="2026-06-07">
   <owner>anunoy@chromium.org</owner>
   <owner>junhao.huang@microsoft.com</owner>
   <summary>
@@ -1666,7 +1644,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram
     name="Settings.TrackedPreferenceUnchanged{TrackedPreferencesExternalValidators}"
-    enum="TrackedPreference" expires_after="2026-04-05">
+    enum="TrackedPreference" expires_after="2026-06-07">
   <owner>anunoy@chromium.org</owner>
   <owner>junhao.huang@microsoft.com</owner>
   <summary>
@@ -1684,7 +1662,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="Settings.TrackedPreferenceWantedReset"
-    enum="TrackedPreference" expires_after="2026-04-05">
+    enum="TrackedPreference" expires_after="2026-06-07">
   <owner>anunoy@chromium.org</owner>
   <owner>junhao.huang@microsoft.com</owner>
   <summary>

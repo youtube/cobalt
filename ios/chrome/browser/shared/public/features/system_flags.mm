@@ -13,6 +13,7 @@
 #import "base/feature_list.h"
 #import "base/metrics/field_trial.h"
 #import "base/strings/sys_string_conversions.h"
+#import "build/branding_buildflags.h"
 #import "components/autofill/core/common/autofill_switches.h"
 #import "components/password_manager/core/common/password_manager_features.h"
 #import "components/segmentation_platform/public/constants.h"
@@ -65,6 +66,12 @@ NSString* const kInactiveTabsDemoMode = @"InactiveTabsDemoMode";
 NSString* const kInactiveTabsTestMode = @"InactiveTabsTestMode";
 NSString* const kAsyncStartupOverrideResponse = @"AsyncStartupOverrideResponse";
 NSString* const kLensResultPanelGwsURL = @"LensResultPanelGwsURL";
+NSString* const kForceDisableAIMEligibility = @"ForceDisableAIMEligibility";
+NSString* const kForceDisableCreateImagesEligibility =
+    @"ForceDisableCreateImagesEligibility";
+NSString* const kForceDisablePdfUploadEligibility =
+    @"ForceDisablePdfUploadEligibility";
+NSString* const kShowCatalogItems = @"ShowCatalogItems";
 }  // namespace
 
 namespace experimental_flags {
@@ -341,6 +348,30 @@ bool EnableAIPrototypingMenu() {
 NSString* GetLensResultPanelGwsURL() {
   return [[NSUserDefaults standardUserDefaults]
       stringForKey:kLensResultPanelGwsURL];
+}
+
+bool ShouldForceDisableComposeboxAIM() {
+  return [[NSUserDefaults standardUserDefaults]
+      boolForKey:kForceDisableAIMEligibility];
+}
+
+bool ShouldForceDisableComposeboxCreateImages() {
+  return [[NSUserDefaults standardUserDefaults]
+      boolForKey:kForceDisableCreateImagesEligibility];
+}
+
+bool ShouldForceDisableComposeboxPdfUpload() {
+  return [[NSUserDefaults standardUserDefaults]
+      boolForKey:kForceDisablePdfUploadEligibility];
+}
+
+bool ShouldShowCatalogItems() {
+#if BUILDFLAG(CHROMIUM_BRANDING) && !defined(NDEBUG)
+  // Always show catalog items in debug builds.
+  return true;
+#else
+  return [[NSUserDefaults standardUserDefaults] boolForKey:kShowCatalogItems];
+#endif
 }
 
 }  // namespace experimental_flags

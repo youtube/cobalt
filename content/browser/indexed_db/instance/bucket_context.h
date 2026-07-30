@@ -17,9 +17,9 @@
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
+#include "base/functional/callback_helpers.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/trace_event/memory_dump_provider.h"
@@ -64,7 +64,7 @@ class Database;
 // `ResetBackingStore()`, which returns `this` to an uninitialized state.
 //
 // Each instance of this class is created and run on a unique thread pool
-// SequencedTaskRunner, i.e. the "bucket thread".
+// SequencedTaskRunner, i.e. the "bucket sequence".
 class CONTENT_EXPORT BucketContext
     : public blink::mojom::IDBFactory,
       public base::trace_event::MemoryDumpProvider {
@@ -90,8 +90,8 @@ class CONTENT_EXPORT BucketContext
 
   // This structure defines the interface between `BucketContext` and the
   // broader context that exists per Storage Partition (i.e. BrowserContext).
-  // TODO(crbug.com/40279485): for now these callbacks execute on the current
-  // sequence, but in the future they should be bound to the main IDB sequence.
+  // The callbacks are invoked on the bucket sequence, but almost all are bound
+  // to run on the main IDB sequence (see IndexedDBContextImpl).
   struct CONTENT_EXPORT Delegate {
     Delegate();
     Delegate(Delegate&&);
@@ -99,6 +99,8 @@ class CONTENT_EXPORT BucketContext
 
     Delegate(const Delegate&) = delete;
     Delegate& operator=(const Delegate&) = delete;
+
+    base::OnceClosure on_destroyed;
 
     // Called when the bucket context is ready to be destroyed. After this is
     // called, the bucket context will no longer accept new IDBFactory
@@ -148,6 +150,10 @@ class CONTENT_EXPORT BucketContext
   static base::AutoReset<std::optional<bool>> OverrideShouldUseSqliteForTesting(
       bool use_sqlite);
 
+  // Inserts an extra step during BackingStore teardown; used for testing
+  // crbug.com/340398745.
+  static void InsertTeardownStepForTesting(base::OnceClosure on_teardown);
+
   bool ShouldUseSqlite() const { return should_use_sqlite_; }
 
   void QueueRunTasks();
@@ -169,12 +175,10 @@ class CONTENT_EXPORT BucketContext
   int64_t GetInMemorySize();
 
   bool IsClosing() const {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     return closing_stage_ != ClosingState::kNotClosing;
   }
 
   ClosingState closing_stage() const {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     return closing_stage_;
   }
 
@@ -202,26 +206,21 @@ class CONTENT_EXPORT BucketContext
     return bucket_info_.ToBucketLocator();
   }
   BackingStore* backing_store() {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     return backing_store_.get();
   }
   const DBMap& GetDatabasesForTesting() const {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     return databases_;
   }
   PartitionedLockManager& lock_manager() {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     return *lock_manager_;
   }
   const PartitionedLockManager& lock_manager() const {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     return *lock_manager_;
   }
 
   Delegate& delegate() { return delegate_; }
 
   base::OneShotTimer* close_timer() {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     return &close_timer_;
   }
 
@@ -375,8 +374,6 @@ class CONTENT_EXPORT BucketContext
   void RecordInternalsSnapshot();
 
   std::string SanitizeErrorMessage(const std::string& message);
-
-  SEQUENCE_CHECKER(sequence_checker_);
 
   const storage::BucketInfo bucket_info_;
 

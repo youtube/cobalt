@@ -11,12 +11,12 @@
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit_state.mojom-shared.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/performance_controls/memory_saver_utils.h"
 #include "chrome/browser/ui/performance_controls/tab_resource_usage_tab_helper.h"
 #include "chrome/browser/ui/tab_ui_helper.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
-#include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/collaboration_messaging_tab_data.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -79,13 +79,14 @@ TabRendererData TabRendererData::FromTabInModel(const TabStripModel* model,
 
   TabRendererData data;
 
-  tabs::TabFeatures* const features = tab->GetTabFeatures();
-  TabUIHelper* const tab_ui_helper = features->tab_ui_helper();
+  TabUIHelper* const tab_ui_helper = TabUIHelper::From(tab);
   data.favicon = tab_ui_helper->GetFavicon();
   data.title = tab_ui_helper->GetTitle();
+  auto* const bwi = tab->GetBrowserWindowInterface();
+  Browser* browser = bwi ? bwi->GetBrowserForMigrationOnly() : nullptr;
 
   // Note that in unit tests, this may be null.
-  if (auto* const bwi = tab->GetBrowserWindowInterface()) {
+  if (bwi) {
     // Tabbed web apps should use the app icon on the home tab.
     if (auto* const app_controller =
             web_app::WebAppBrowserController::From(bwi);
@@ -131,8 +132,8 @@ TabRendererData TabRendererData::FromTabInModel(const TabStripModel* model,
   data.crashed_status = contents->GetCrashedStatus();
   data.pinned = tab->IsPinned();
   data.show_icon =
-      data.pinned || model->delegate()->ShouldDisplayFavicon(contents);
-  data.blocked = model->IsTabBlocked(index);
+      data.pinned || (browser && browser->ShouldDisplayFavicon(contents));
+  data.blocked = tab->IsBlocked();
   data.should_hide_throbber = tab_ui_helper->ShouldHideThrobber();
   data.alert_state = tabs::TabAlertController::From(tab)->GetAllActiveAlerts();
 

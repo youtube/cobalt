@@ -755,7 +755,8 @@ void D3DImageBacking::ReadbackToMemoryAsync(
 
   base::WaitableEvent copy_complete_event;
   Microsoft::WRL::ComPtr<IDXGIDevice2> dxgi_device;
-  texture_d3d11_device_.As(&dxgi_device);
+  const HRESULT hr = texture_d3d11_device_.As(&dxgi_device);
+  CHECK_EQ(hr, S_OK);
   dxgi_device->EnqueueSetEvent(copy_complete_event.handle());
 
   pending_copy_event_watcher_.emplace();
@@ -978,18 +979,19 @@ std::unique_ptr<VideoImageRepresentation> D3DImageBacking::ProduceVideo(
     SharedImageManager* manager,
     MemoryTypeTracker* tracker,
     VideoDevice device) {
+  D3D11TextureAndArrayIndex src_texture(d3d11_texture_, array_slice_);
   if (texture_d3d11_device_ != device) {
     // Readback is the only option for a caller cannot create a representation
     // for this shared image.  When the caller cannot use a shared device
     // (GL/Ganesh) create a copy since this is much more efficient than forcing
     // readback.
     return D3D11VideoImageCopyRepresentation::CreateFromD3D(
-        manager, this, tracker, device.Get(), d3d11_texture_.Get(),
-        debug_label(), texture_d3d11_device_.Get());
+        manager, this, tracker, device.Get(), src_texture, debug_label(),
+        texture_d3d11_device_.Get());
   }
 
-  return std::make_unique<D3D11VideoImageRepresentation>(
-      manager, this, tracker, device, d3d11_texture_);
+  return std::make_unique<D3D11VideoImageRepresentation>(manager, this, tracker,
+                                                         device, src_texture);
 }
 
 std::vector<scoped_refptr<gfx::D3DSharedFence>>

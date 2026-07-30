@@ -24,6 +24,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "base/test/task_environment.h"
 #include "base/uuid.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_batch_operation_leveldb.h"
@@ -54,7 +55,7 @@ class SessionStorageImplTest : public testing::Test {
   SessionStorageImplTest& operator=(const SessionStorageImplTest&) = delete;
 
   ~SessionStorageImplTest() override {
-    EXPECT_TRUE(temp_dir_.Delete());
+    EXPECT_TRUE(base::test::RunUntil([this]() { return temp_dir_.Delete(); }));
   }
 
   void SetUp() override {
@@ -79,9 +80,8 @@ class SessionStorageImplTest : public testing::Test {
     if (!session_storage_) {
       remote_session_storage_.reset();
       session_storage_ = std::make_unique<SessionStorageImpl>(
-          temp_path(), blocking_task_runner_,
-          base::SequencedTaskRunner::GetCurrentDefault(), backing_mode_,
-          kSessionStorageDirectory, base::DoNothing(),
+          temp_path(), backing_mode_, kSessionStorageDirectory,
+          base::DoNothing(),
           remote_session_storage_.BindNewPipeAndPassReceiver());
     }
     return session_storage_.get();
@@ -94,10 +94,6 @@ class SessionStorageImplTest : public testing::Test {
 
   void ShutDownSessionStorage() {
     remote_session_storage_.FlushForTesting();
-
-    base::RunLoop loop;
-    session_storage_->ShutDown(loop.QuitClosure());
-    loop.Run();
     session_storage_.reset();
   }
 
@@ -155,9 +151,6 @@ class SessionStorageImplTest : public testing::Test {
   base::ScopedTempDir temp_dir_;
   SessionStorageImpl::BackingMode backing_mode_ =
       SessionStorageImpl::BackingMode::kRestoreDiskState;
-  scoped_refptr<base::SequencedTaskRunner> blocking_task_runner_{
-      base::ThreadPool::CreateSequencedTaskRunner(
-          {base::MayBlock(), base::TaskShutdownBehavior::BLOCK_SHUTDOWN})};
   std::unique_ptr<SessionStorageImpl> session_storage_;
   mojo::Remote<mojom::SessionStorageControl> remote_session_storage_;
 };
@@ -1335,7 +1328,6 @@ TEST_F(SessionStorageImplTest, Bug1128318) {
                                   ->GetMetadataForTesting()
                                   .namespace_storage_key_map(),
                               namespace_id3));
-  EXPECT_EQ(ns->namespace_entry(), SessionStorageMetadata::NamespaceEntry());
 }
 
 }  // namespace storage

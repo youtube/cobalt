@@ -48,7 +48,6 @@ class ChromeLabsBubbleView;
 class ColorPickerViewTest;
 class ContentSettingBubbleContents;
 class CriticalNotificationBubbleView;
-class CrostiniAnsibleSoftwareConfigView;
 class CrostiniExpiredContainerWarningView;
 class CrostiniForceCloseView;
 class CrostiniPackageInstallFailureView;
@@ -634,7 +633,6 @@ class VIEWS_EXPORT BubbleDialogDelegate : public DialogDelegate {
   void OnBubbleWidgetClosing();
   void OnBubbleWidgetVisibilityChanged(bool visible);
   void OnBubbleWidgetActivationChanged(bool active);
-  void OnBubbleWidgetPaintAsActiveChanged();
 
   void OnDeactivate();
   void UpdateFrameColor();
@@ -795,7 +793,6 @@ class VIEWS_EXPORT BubbleDialogDelegateView : public View,
   friend class ::ColorPickerViewTest;
   friend class ::ContentSettingBubbleContents;
   friend class ::CriticalNotificationBubbleView;
-  friend class ::CrostiniAnsibleSoftwareConfigView;
   friend class ::CrostiniExpiredContainerWarningView;
   friend class ::CrostiniForceCloseView;
   friend class ::CrostiniPackageInstallFailureView;

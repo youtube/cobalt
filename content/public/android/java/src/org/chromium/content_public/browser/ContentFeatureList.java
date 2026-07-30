@@ -4,6 +4,8 @@
 
 package org.chromium.content_public.browser;
 
+import android.os.Build;
+
 import org.chromium.base.MutableBooleanParamWithSafeDefault;
 import org.chromium.base.MutableFlagWithSafeDefault;
 import org.chromium.base.MutableIntParamWithSafeDefault;
@@ -26,6 +28,8 @@ public class ContentFeatureList {
     // Alphabetical:
     public static final String ACCESSIBILITY_DEPRECATE_TYPE_ANNOUNCE =
             "AccessibilityDeprecateTypeAnnounce";
+
+    public static final String ACCESSIBILITY_EXTENDED_SELECTION = "AccessibilityExtendedSelection";
 
     public static final String ACCESSIBILITY_IMPROVE_LIVE_REGION_ANNOUNCE =
             "AccessibilityImproveLiveRegionAnnounce";
@@ -51,7 +55,7 @@ public class ContentFeatureList {
 
     public static final String ANDROID_MEDIA_INSERTION = "AndroidMediaInsertion";
 
-    public static final String ANDROID_OPEN_PDF_INLINE = "AndroidOpenPdfInline";
+    public static final String ANDROID_PK_AUTOCORRECT_UNDERLINE = "AndroidPkAutocorrectUnderline";
 
     public static final String HIDE_PASTE_POPUP_ON_GSB = "HidePastePopupOnGSB";
 
@@ -75,6 +79,21 @@ public class ContentFeatureList {
 
     public static final String DIPS_TTL = "DIPSTtl";
 
+    private static final MutableFlagWithSafeDefault sAccessibilityCheckJavaNodeCacheFreshness =
+            new MutableFlagWithSafeDefault(
+                    ContentFeatureMap.getInstance(),
+                    ContentFeatures.ACCESSIBILITY_CHECK_JAVA_NODE_CACHE_FRESHNESS,
+                    false);
+
+    /**
+     * Checks "AccessibilityCheckJavaNodeCacheFreshness" feature flag, including that current
+     * environment is at least required Android SDK 33 (Tiramisu).
+     */
+    public static boolean enabledAccessibilityCheckJavaNodeCacheFreshness() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && sAccessibilityCheckJavaNodeCacheFreshness.isEnabled();
+    }
+
     public static final MutableFlagWithSafeDefault sAccessibilityDeprecateJavaNodeCache =
             new MutableFlagWithSafeDefault(
                     ContentFeatureMap.getInstance(),
@@ -93,7 +112,7 @@ public class ContentFeatureList {
             new MutableFlagWithSafeDefault(
                     ContentFeatureMap.getInstance(),
                     AccessibilityFeatures.ACCESSIBILITY_MAGNIFICATION_FOLLOWS_FOCUS,
-                    false);
+                    true);
 
     public static final MutableFlagWithSafeDefault sAndroidCaretBrowsing =
             new MutableFlagWithSafeDefault(
@@ -103,6 +122,12 @@ public class ContentFeatureList {
             new MutableFlagWithSafeDefault(
                     ContentFeatureMap.getInstance(),
                     ContentInternalFeatures.STRICT_HIGH_RANK_PROCESS_LRU,
+                    false);
+
+    public static final MutableFlagWithSafeDefault sRemoveCachedProcessFromBindingManager =
+            new MutableFlagWithSafeDefault(
+                    ContentFeatureMap.getInstance(),
+                    ContentInternalFeatures.REMOVE_CACHED_PROCESS_FROM_BINDING_MANAGER,
                     false);
 
     public static final MutableFlagWithSafeDefault sSpareRendererProcessPriority =

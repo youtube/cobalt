@@ -58,6 +58,7 @@ NSTimeInterval kAnimationDuration = 0.3;
 - (instancetype)init {
   self = [super initWithFrame:CGRectZero];
   if (self) {
+    self.translatesAutoresizingMaskIntoConstraints = NO;
     _backgroundView = [[UIView alloc] init];
     self.pointerInteractionEnabled = YES;
     self.minimumDiameter = kMinimumWidth;
@@ -189,12 +190,12 @@ NSTimeInterval kAnimationDuration = 0.3;
 // Sets the entry point icon with a scale factor.
 - (void)setEntrypointIconWithScale:(CGFloat)scale {
   if (IsDirectBWGEntryPoint()) {
-#if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
-    [self setImage:CustomSymbolWithPointSize(kGeminiBrandedLogoImage,
+#if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
+    [self setImage:CustomSymbolWithPointSize(kGeminiBrandedLogoSymbol,
                                              kIconPointSize * scale)
           forState:UIControlStateNormal];
 #else
-    [self setImage:DefaultSymbolWithPointSize(kGeminiNonBrandedLogoImage,
+    [self setImage:DefaultSymbolWithPointSize(kGeminiNonBrandedLogoSymbol,
                                               kIconPointSize * scale)
           forState:UIControlStateNormal];
 #endif

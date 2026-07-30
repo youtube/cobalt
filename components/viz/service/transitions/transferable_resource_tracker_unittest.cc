@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "components/viz/common/quads/compositor_frame_transition_directive.h"
 #include "components/viz/service/surfaces/surface_saved_frame.h"
 #include "gpu/command_buffer/client/test_shared_image_interface.h"
@@ -22,9 +23,9 @@ std::unique_ptr<SurfaceSavedFrame> CreateFrameWithResult(
   CompositorFrameTransitionDirective::SharedElement element;
   auto directive = CompositorFrameTransitionDirective::CreateSave(
       blink::ViewTransitionToken(), /*maybe_cross_frame_sink=*/false, 1,
-      {element}, {});
-  auto frame = SurfaceSavedFrame::CreateForTesting(std::move(directive),
-                                                   shared_image_interface);
+      {element}, {}, false);
+  auto frame = SurfaceSavedFrame::CreateForTesting(
+      std::move(directive), shared_image_interface, base::DoNothing());
   frame->CompleteSavedFrameForTesting();
   return frame;
 }

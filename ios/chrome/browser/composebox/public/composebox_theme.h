@@ -15,6 +15,9 @@
 // The preferred position of the input plate.
 @property(nonatomic, readonly) ComposeboxInputPlatePosition inputPlatePosition;
 
+// Whether the theme is associated with an incognito session.
+@property(nonatomic, readonly) BOOL incognito;
+
 // Convenience check for input plate position top.
 @property(nonatomic, readonly) BOOL isTopInputPlate;
 
@@ -36,15 +39,28 @@
 // The background color of the AIM button when enabled.
 - (UIColor*)aimButtonBackgroundColorWithAIMEnabled:(BOOL)AIMEnabled;
 
+// The border color of the AIM button when enabled.
+- (UIColor*)aimButtonBorderColorWithAIMEnabled:(BOOL)AIMEnabled;
+
 // The color of the text in the image generation button.
 - (UIColor*)imageGenerationButtonTextColor;
 
 // The background color of the image generation button.
 - (UIColor*)imageGenerationButtonBackgroundColor;
 
+// The foreground color for the send button.
+- (UIColor*)sendButtonForegroundColorHighlighted:(BOOL)highlighted;
+
+// The background color for the send button.
+- (UIColor*)sendButtonBackgroundColorHighlighted:(BOOL)highlighted;
+
+// The color of the PDF symbol.
+- (UIColor*)pdfSymbolColor;
+
 // Creates a newc instance with the given configuration
 - (instancetype)initWithInputPlatePosition:
-    (ComposeboxInputPlatePosition)position;
+                    (ComposeboxInputPlatePosition)position
+                                 incognito:(BOOL)incognito;
 
 @end
 

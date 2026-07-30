@@ -142,8 +142,8 @@ bool GetActiveAdapterLuid(LUID* luid) {
     return false;
 
   Microsoft::WRL::ComPtr<IDXGIDevice> dxgi_device;
-  if (FAILED(d3d11_device.As(&dxgi_device)))
-    return false;
+  HRESULT hr = d3d11_device.As(&dxgi_device);
+  CHECK_EQ(hr, S_OK);
 
   Microsoft::WRL::ComPtr<IDXGIAdapter> adapter;
   if (FAILED(dxgi_device->GetAdapter(&adapter)))
@@ -884,6 +884,12 @@ bool CollectContextGraphicsInfo(GPUInfo* gpu_info) {
         "%d.%d", vertex_shader_major_version, vertex_shader_minor_version);
     gpu_info->pixel_shader_version = base::StringPrintf(
         "%d.%d", pixel_shader_major_version, pixel_shader_minor_version);
+
+    Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device =
+        gl::QueryD3D11DeviceObjectFromANGLE();
+    if (d3d11_device) {
+      gpu_info->d3d11_feature_level = d3d11_device->GetFeatureLevel();
+    }
 
     DCHECK(!gpu_info->vertex_shader_version.empty());
     // Note: do not reorder, used by UMA_HISTOGRAM below

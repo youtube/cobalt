@@ -10,5 +10,8 @@ namespace regional_capabilities {
 const char kActiveProgramNameKey[] = "activeProgramName";
 const char kActiveCountryCodeKey[] = "activeCountryCode";
 const char kPrefsCountryCodeKey[] = "prefsCountryCode";
+const char kRecordedEligibilityKey[] = "recordedEligibility";
+const char kDeviceDeterminedProgramKey[] = "deviceDeterminedProgram";
+const char kExternalChoiceKeywordKey[] = "externalChoiceKeyword";
 
 }  // namespace regional_capabilities

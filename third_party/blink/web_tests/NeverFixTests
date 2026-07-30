@@ -404,7 +404,6 @@ external/wpt/css/css-text/letter-spacing/letter-spacing-bidi-005.xht [ Skip ]
 external/wpt/css/css-text/letter-spacing/letter-spacing-nesting-003.xht [ Skip ]
 
 # CSS Text features that are not planned to implement.
-external/wpt/css/css-text/text-justify/text-justify-006.html [ Skip ]
 external/wpt/css/css-text/text-spacing-trim/text-spacing-trim-trim-all-001.html?class=chws,htb [ Skip ]
 external/wpt/css/css-text/text-spacing-trim/text-spacing-trim-trim-all-001.html?class=chws,vrl [ Skip ]
 external/wpt/css/css-text/text-spacing-trim/text-spacing-trim-trim-all-001.html?class=halt,htb [ Skip ]
@@ -1848,11 +1847,6 @@ external/wpt/speculation-rules/prefetch/cross-origin-cookies-anonymous-client-ip
 
 # EchoCancellation mode "all" is not supported on Linux
 [ Linux ] external/wpt/mediacapture-streams/GUM-echoCancellation-all.https.html [ Skip ]
-
-# Soft navigation heuristics tests that only work with pre-paint-based attribution.
-virtual/soft-navs-pre-paint-attribution-disabled/external/wpt/soft-navigation-heuristics/smoke/tentative/late-url-change.html [ Skip ]
-virtual/soft-navs-pre-paint-attribution-disabled/external/wpt/soft-navigation-heuristics/detection/tentative/overwriting-text.html [ Skip ]
-virtual/soft-navs-pre-paint-attribution-disabled/external/wpt/soft-navigation-heuristics/detection/tentative/overwriting-text-once-per-interaction.html [ Skip ]
 
 # Tests below expects SVG1.1 <use> cascade behavior, which is different from SVG2
 crbug.com/40550039 svg/css/use-replicates-changes-class.html [ Skip ]

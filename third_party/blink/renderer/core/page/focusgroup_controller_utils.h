@@ -63,7 +63,8 @@ class CORE_EXPORT FocusgroupControllerUtils {
   STATIC_ONLY(FocusgroupControllerUtils);
 
  public:
-  static FocusgroupDirection FocusgroupDirectionForEvent(KeyboardEvent* event);
+  static FocusgroupDirection FocusgroupDirectionForEvent(
+      const KeyboardEvent* event);
   static bool IsDirectionBackward(FocusgroupDirection direction);
   static bool IsDirectionForward(FocusgroupDirection direction);
   static bool IsDirectionInline(FocusgroupDirection direction);
@@ -116,23 +117,19 @@ class CORE_EXPORT FocusgroupControllerUtils {
   static Element* FirstFocusgroupItemWithin(const Element* owner);
   static Element* LastFocusgroupItemWithin(const Element* owner);
 
-  // Checks if a focusgroup contains barriers.
-  static bool DoesFocusgroupContainBarrier(const Element& focusgroup);
-
-  // Checks if an opted-out subtree contains barriers.
-  static bool DoesOptOutSubtreeContainBarrier(const Element& opted_out_root);
+  static bool DoesElementContainBarrier(const Element& element);
 
   // These helpers work on segments, not entire focusgroups. (see class comment
   // above for definition of segment).
   // If item is a focusgroup item, returns the first item in its segment.
-  static Element* FirstFocusgroupItemInSegment(const Element& item);
+  static const Element* FirstFocusgroupItemInSegment(const Element& item);
   // If item is a focusgroup item, returns the last item in its segment.
-  static Element* LastFocusgroupItemInSegment(const Element& item);
+  static const Element* LastFocusgroupItemInSegment(const Element& item);
 
   // |item| must be a focusgroup item. Returns the next item in its segment in
   // the given direction. Returns nullptr if |item| is not a focusgroup item or
   // if there is no next item in the segment in that direction.
-  static Element* NextFocusgroupItemInSegmentInDirection(
+  static const Element* NextFocusgroupItemInSegmentInDirection(
       const Element& item,
       const Element& focusgroup_owner,
       mojom::blink::FocusType direction);
@@ -156,11 +153,11 @@ class CORE_EXPORT FocusgroupControllerUtils {
   //
   // Selection priority (highest to lowest):
   // 1. Last focused item (if memory is enabled and item is in this segment).
-  // 2a. If direction is forwards, Item with lowest positive non-zero tabindex
-  // value. 2b. If direction is backwards, Item with highest positive non-zero
-  // tabindex value.
-  // 3. First/last item with tabindex=0 or implicit focusability (by direction).
-  // 4. First/last item with tabindex=-1 (by direction).
+  // 2. First item with focusgroup-entry-priority attribute.
+  // 3. First item in segment.
+  //
+  // Note: Elements with tabindex=-1 are not focusgroup items and do not
+  // participate in focusgroup navigation.
   //
   // Returns nullptr if:
   // - |item| is not a focusgroup item
@@ -169,15 +166,20 @@ class CORE_EXPORT FocusgroupControllerUtils {
   //
   // |item|: Any focusgroup item in the segment to query.
   // |owner|: The focusgroup owner of |item| (must be valid).
-  // |direction|: the direction that sequential focus navigation is moving in.
-  static bool IsEntryElementForFocusgroupSegment(
-      Element& item,
-      Element& owner,
-      mojom::blink::FocusType direction);
-  static Element* GetEntryElementForFocusgroupSegment(
-      Element& item,
-      Element& owner,
-      mojom::blink::FocusType direction);
+  static bool IsEntryElementForFocusgroupSegment(const Element& item,
+                                                 const Element& owner);
+  static const Element* GetEntryElementForFocusgroupSegment(
+      const Element& item,
+      const Element& owner);
+
+  // Optimized version of GetEntryElementForFocusgroupSegment that assumes
+  // |first_item_in_segment| is already the first item in its segment.
+  // Skips the call to FirstFocusgroupItemInSegment to avoid redundant work.
+  // |first_item_in_segment|: The first focusgroup item in the segment.
+  // |owner|: The focusgroup owner of |first_item_in_segment| (must be valid).
+  static const Element* GetEntryElementForFocusgroupSegmentFromFirst(
+      const Element& first_item_in_segment,
+      const Element& owner);
 
   // Returns true if the element is opted out or within an opted-out focusgroup
   // subtree.
@@ -187,8 +189,13 @@ class CORE_EXPORT FocusgroupControllerUtils {
   // subtree is the nearest ancestor (or self) with focusgroup="none".
   static const Element* GetOptedOutSubtreeRoot(const Element* element);
 
+  // Returns true if the element has the focusgroup-entry-priority attribute.
+  // This boolean attribute marks an element as the preferred entry point when
+  // entering a focusgroup segment via sequential focus navigation.
+  static bool HasFocusgroupEntryPriority(const Element& element);
+
   static GridFocusgroupStructureInfo*
-  CreateGridFocusgroupStructureInfoForGridRoot(Element* root);
+  CreateGridFocusgroupStructureInfoForGridRoot(const Element* root);
 };
 
 }  // namespace blink

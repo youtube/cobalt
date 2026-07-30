@@ -9,7 +9,12 @@
 #include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "components/plus_addresses/core/common/features.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "google_apis/gaia/gaia_constants.h"
+
+#if !BUILDFLAG(IS_FUCHSIA)
+#include "pdf/buildflags.h"  // nogncheck
+#endif                       // !BUILDFLAG(IS_FUCHSIA)
 
 namespace signin {
 
@@ -22,6 +27,14 @@ const char* const kExtensionsIdentityAPIOAuthConsumerName =
 // Returns true if `scope` is a Google OAuth2 API scope that do not require user
 // to be signed in to the browser.
 bool IsUnrestrictedOAuth2Scopes(const std::string& scope) {
+#if !BUILDFLAG(IS_ANDROID)
+  // Check kill switch for Device Management Service OAuth scope.
+  if (scope == GaiaConstants::kDeviceManagementServiceOAuth) {
+    return !base::FeatureList::IsEnabled(
+        switches::kRestrictDeviceManagementServiceOAuthScope);
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
+
   // clang-format off
 
   static const base::NoDestructor<base::flat_set<std::string_view>> scopes(
@@ -33,16 +46,18 @@ bool IsUnrestrictedOAuth2Scopes(const std::string& scope) {
       // sign in.
       GaiaConstants::kSecureConnectOAuth2Scope,
 
-      // TODO(crbug.com/446152335): Consider wrapping this in
-      // `ENABLE_PDF_SAVE_TO_DRIVE` build flag.
-      // Required for save to Drive.
+#if !BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
       GaiaConstants::kDriveOAuth2Scope,
+#endif  // BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
+#endif  // !BUILDFLAG(IS_FUCHSIA)
 
-      // TODO(b/321900823): Fix tests and move below scopes to require the
-      // browser to be signed in.
-
+#if BUILDFLAG(IS_ANDROID)
       // Required by cloud policy.
+      // On Android, cloud policies are fetched before sign in is completed.
       GaiaConstants::kDeviceManagementServiceOAuth,
+#endif // BUILDFLAG(IS_ANDROID)
+
   });
   // clang-format on
 
@@ -53,6 +68,14 @@ bool IsUnrestrictedOAuth2Scopes(const std::string& scope) {
 // to be signed in with ConsentLevel::kSignin. Sync or explicit consent is not
 // required.
 bool IsUnconsentedSignedInOAuth2Scopes(const std::string& scope) {
+#if !BUILDFLAG(IS_ANDROID)
+  // Check kill switch for Device Management Service OAuth scope.
+  if (scope == GaiaConstants::kDeviceManagementServiceOAuth) {
+    return base::FeatureList::IsEnabled(
+        switches::kRestrictDeviceManagementServiceOAuthScope);
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
+
   // clang-format off
   static const base::NoDestructor<base::flat_set<std::string_view>> scopes (
     {
@@ -149,6 +172,12 @@ bool IsUnconsentedSignedInOAuth2Scopes(const std::string& scope) {
 
       // Required for Contextual Tasks.
       GaiaConstants::kClearCutOAuth2Scope,
+
+#if !BUILDFLAG(IS_ANDROID)
+      // Required by cloud policy.
+      // On Android, this scope is unrestricted.
+      GaiaConstants::kDeviceManagementServiceOAuth,
+#endif // !BUILDFLAG(IS_ANDROID)
 
     // Required by ChromeOS only.
 #if BUILDFLAG(IS_CHROMEOS)

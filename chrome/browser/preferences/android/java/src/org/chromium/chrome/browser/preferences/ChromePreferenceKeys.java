@@ -212,12 +212,12 @@ public final class ChromePreferenceKeys {
             "Chrome.NtpCustomization.NtpThemeColorId";
 
     /** The transformation matrix for the NTP background image in portrait orientation. */
-    public static final String NTP_BACKGROUND_IMAGE_PORTRAIT_MATRIX =
-            "Chrome.NtpCustomization.BackgroundImagePortraitMatrix";
+    public static final String NTP_BACKGROUND_IMAGE_PORTRAIT_INFO =
+            "Chrome.NtpCustomization.BackgroundImagePortraitInfo";
 
     /** The transformation matrix for the NTP background image in landscape orientation. */
-    public static final String NTP_BACKGROUND_IMAGE_LANDSCAPE_MATRIX =
-            "Chrome.NtpCustomization.BackgroundImageLandscapeMatrix";
+    public static final String NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO =
+            "Chrome.NtpCustomization.BackgroundImageLandscapeInfo";
 
     /** The {@link CustomBackgroundInfo} used for the NTP theme collection background image. */
     public static final String NTP_CUSTOMIZATION_BACKGROUND_INFO =
@@ -226,6 +226,37 @@ public final class ChromePreferenceKeys {
     /** Whether daily refresh is enabled for Chrome Color. */
     public static final String NTP_CUSTOMIZATION_CHROME_COLOR_DAILY_REFRESH_ENABLED =
             "Chrome.NtpCustomization.ChromeColorDailyRefreshEnabled";
+
+    /**
+     * The timestamp of the last time when a daily refreshed theme color or background image is set.
+     */
+    public static final String NTP_CUSTOMIZATION_LAST_DAILY_REFRESH_TIMESTAMP =
+            "Chrome.NtpCustomization.LastDailyRefreshTimestamp";
+
+    /** The primary color prepared for the next daily refresh of a theme collection image. */
+    public static final String NTP_CUSTOMIZATION_PRIMARY_COLOR_FOR_DAILY_REFRESH =
+            "Chrome.NtpCustomization.NtpCustomizationPrimaryColorForDailyRefresh";
+
+    /**
+     * The transformation matrix for the portrait NTP background image, prepared for the next daily
+     * refresh of a theme collection.
+     */
+    public static final String NTP_BACKGROUND_IMAGE_PORTRAIT_INFO_FOR_DAILY_REFRESH =
+            "Chrome.NtpCustomization.BackgroundImagePortraitInfoForDailyRefresh";
+
+    /**
+     * The transformation matrix for the landscape NTP background image, prepared for the next daily
+     * refresh of a theme collection.
+     */
+    public static final String NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO_FOR_DAILY_REFRESH =
+            "Chrome.NtpCustomization.BackgroundImageLandscapeInfoForDailyRefresh";
+
+    /**
+     * The {@link CustomBackgroundInfo} prepared for the next daily refreshed theme collection
+     * image.
+     */
+    public static final String NTP_CUSTOMIZATION_BACKGROUND_INFO_FOR_DAILY_REFRESH =
+            "Chrome.NtpCustomization.BackgroundInfoForDailyRefresh";
 
     public static final String CRASH_UPLOAD_FAILURE_BROWSER = "browser_crash_failure_upload";
     public static final String CRASH_UPLOAD_FAILURE_GPU = "gpu_crash_failure_upload";
@@ -487,6 +518,9 @@ public final class ChromePreferenceKeys {
 
     // Start timestamp of 1-day period for measuring the max count of instances used simultaneously.
     public static final String MULTI_INSTANCE_MAX_COUNT_TIME = "Chrome.MultiInstance.MaxCountTime";
+    // Max count of active Chrome instances used in a day.
+    public static final String MULTI_INSTANCE_MAX_ACTIVE_INSTANCE_COUNT =
+            "Chrome.MultiInstance.MaxActiveInstanceCount";
     // Max count of Chrome instances used in a day.
     public static final String MULTI_INSTANCE_MAX_INSTANCE_COUNT =
             "Chrome.MultiInstance.MaxInstanceCount";
@@ -515,8 +549,8 @@ public final class ChromePreferenceKeys {
     public static final KeyPrefix MULTI_INSTANCE_LAST_ACCESSED_TIME =
             new KeyPrefix("Chrome.MultiInstance.LastAccessedTime.*");
     public static final KeyPrefix MULTI_INSTANCE_URL = new KeyPrefix("Chrome.MultiInstance.Url.*");
-    public static final KeyPrefix MULTI_INSTANCE_CLOSED_BY_USER =
-            new KeyPrefix("Chrome.MultiInstance.ClosedByUser.*");
+    public static final KeyPrefix MULTI_INSTANCE_MARKED_FOR_DELETION =
+            new KeyPrefix("Chrome.MultiInstance.MarkedForDeletion.*");
 
     // Start timestamp of 1-day period for measuring the duration of disjoint time spent in various
     // windowing modes.
@@ -1142,10 +1176,15 @@ public final class ChromePreferenceKeys {
                 NTP_CUSTOMIZATION_THEME_COLOR_ID,
                 NTP_CUSTOMIZATION_BACKGROUND_COLOR,
                 NTP_CUSTOMIZATION_PRIMARY_COLOR,
-                NTP_BACKGROUND_IMAGE_PORTRAIT_MATRIX,
-                NTP_BACKGROUND_IMAGE_LANDSCAPE_MATRIX,
+                NTP_BACKGROUND_IMAGE_PORTRAIT_INFO,
+                NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO,
                 NTP_CUSTOMIZATION_BACKGROUND_INFO,
                 NTP_CUSTOMIZATION_CHROME_COLOR_DAILY_REFRESH_ENABLED,
+                NTP_CUSTOMIZATION_LAST_DAILY_REFRESH_TIMESTAMP,
+                NTP_CUSTOMIZATION_PRIMARY_COLOR_FOR_DAILY_REFRESH,
+                NTP_BACKGROUND_IMAGE_PORTRAIT_INFO_FOR_DAILY_REFRESH,
+                NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO_FOR_DAILY_REFRESH,
+                NTP_CUSTOMIZATION_BACKGROUND_INFO_FOR_DAILY_REFRESH,
                 CUSTOM_TABS_LAST_CLIENT_PACKAGE,
                 CUSTOM_TABS_LAST_CLOSE_TAB_INTERACTION,
                 CUSTOM_TABS_LAST_CLOSE_TIMESTAMP,
@@ -1202,6 +1241,7 @@ public final class ChromePreferenceKeys {
                 MULTI_INSTANCE_IS_INCOGNITO_SELECTED.pattern(),
                 MULTI_INSTANCE_INCOGNITO_TAB_COUNT.pattern(),
                 MULTI_INSTANCE_MAX_COUNT_TIME,
+                MULTI_INSTANCE_MAX_ACTIVE_INSTANCE_COUNT,
                 MULTI_INSTANCE_MAX_INSTANCE_COUNT,
                 MULTI_INSTANCE_MAX_INSTANCE_COUNT_INCOGNITO,
                 MULTI_INSTANCE_LAST_ACCESSED_TIME.pattern(),
@@ -1212,7 +1252,7 @@ public final class ChromePreferenceKeys {
                 MULTI_INSTANCE_TITLE.pattern(),
                 MULTI_INSTANCE_CUSTOM_TITLE.pattern(),
                 MULTI_INSTANCE_URL.pattern(),
-                MULTI_INSTANCE_CLOSED_BY_USER.pattern(),
+                MULTI_INSTANCE_MARKED_FOR_DELETION.pattern(),
                 MULTI_WINDOW_MODE_ACTIVITY_COUNT.pattern(),
                 MULTI_WINDOW_MODE_CYCLE_START_TIME,
                 MULTI_WINDOW_MODE_DURATION_MS.pattern(),

@@ -116,6 +116,7 @@ Warte einige Minuten, bevor du das Konto wechselst. Wenn du jetzt das Konto wech
 <translation id="3581385059720151202">Bilder in Chromium suchen</translation>
 <translation id="3582640969619785896">Chromium bietet an, dein Passwort zu speichern</translation>
 <translation id="3594315078412605236">Zahlungsmethoden in Chromium verwalten</translation>
+<translation id="3600428265489994557">In Chromium anmelden</translation>
 <translation id="3617143087229977194">Öffne unter iOS die Einstellungen für Standard-Apps, tippe auf „Browser-App“ und wähle „Chromium“ aus.</translation>
 <translation id="3634039384458740619">Chromium-Einstellungen öffnen</translation>
 <translation id="3639997914391704523">Chromium kann deine Passwörter prüfen, wenn du dich mit deinem Google-Konto anmeldest.</translation>
@@ -350,7 +351,6 @@ Nur Personen, die deine Passphrase kennen, können deine verschlüsselten Daten 
 <translation id="900560297598578021">Angemeldet als <ph name="EMAIL" />.
 
 Deine Daten wurden am <ph name="TIME" /> mit deiner Passphrase verschlüsselt. Gib sie ein, um Chromium-Daten in deinem Google-Konto zu verwenden und zu speichern.</translation>
-<translation id="9022552996538154597">In Chromium anmelden</translation>
 <translation id="9031260906956926157">Einige deiner Chromium-Daten wurden noch nicht in deinem Google-Konto gespeichert.
 Warte einige Minuten, bevor du dich abmeldest. Wenn du dich jetzt abmeldest, werden diese Daten gelöscht.</translation>
 <translation id="9050790730841755540">Du kannst Chromium jederzeit nutzen, wenn du in anderen Apps auf Links tippst.</translation>

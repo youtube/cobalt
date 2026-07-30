@@ -142,7 +142,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.Android.KillSpareRendererAvailability.{KillType}"
-    enum="SpareRendererAvailabilityWhenKilled" expires_after="2026-04-05">
+    enum="SpareRendererAvailabilityWhenKilled" expires_after="2026-06-07">
   <owner>gjc@google.com</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -554,7 +554,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.iOS.UTE.HasPossibleExplanation"
-    enum="BooleanHasPossibleExplanation" expires_after="2025-11-30">
+    enum="BooleanHasPossibleExplanation" expires_after="2026-11-30">
   <owner>michaeldo@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>
@@ -635,7 +635,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.Media.{ProcessType}.Crash.ExitCode"
-    enum="WindowsExitCode" expires_after="2026-05-24">
+    enum="WindowsExitCode" expires_after="2026-12-09">
   <owner>sangbaekpark@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -646,7 +646,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.Media.{ProcessType}.Launch" enum="Boolean"
-    expires_after="2026-05-24">
+    expires_after="2026-12-09">
   <owner>sangbaekpark@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -656,7 +656,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.Media.{ProcessType}.Launch.LaunchErrorCode"
-    enum="LaunchErrorCodes" expires_after="2026-05-24">
+    enum="LaunchErrorCodes" expires_after="2026-12-09">
   <owner>sangbaekpark@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -667,7 +667,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.Media.{ProcessType}.Launch.WinLastError"
-    enum="WinGetLastError" expires_after="2026-05-24">
+    enum="WinGetLastError" expires_after="2026-12-09">
   <owner>sangbaekpark@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>

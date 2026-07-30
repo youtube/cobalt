@@ -38,9 +38,11 @@
 #include "chrome/browser/ui/hats/survey_config.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/channel_info.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "components/content_settings/core/browser/cookie_settings.h"
 #include "components/metrics/metrics_service.h"
+#include "components/plus_addresses/core/common/features.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/core/browser/cookie_settings_util.h"
@@ -188,11 +190,24 @@ std::string HatsSurveyTriggerForAccessPoint(
 
 class ChromeOAuthConsumerRegistry : public signin::OAuthConsumerRegistry {
  protected:
-  signin::OAuthConsumer GetOAuthConsumerFromIdInternal(
-      signin::OAuthConsumerId oauth_consumer_id) const override {
-    // TODO(crbug.com/425896213): Temporarily notreached until consumers are
-    // added.
+  signin::OAuthConsumer GetOAuthConsumerForEnterprisePlusAddress()
+      const override {
+    CHECK(base::FeatureList::IsEnabled(
+        plus_addresses::features::kPlusAddressesEnabled));
+    return signin::OAuthConsumer(
+        signin::oauth_consumer_name::kEnterprisePlusAddressName,
+        {plus_addresses::features::kEnterprisePlusAddressOAuthScope.Get()});
+  }
+
+  signin::OAuthConsumer GetOAuthConsumerForGlicUserStatus() const override {
+#if BUILDFLAG(ENABLE_GLIC)
+    CHECK(base::FeatureList::IsEnabled(features::kGlicUserStatusCheck));
+    return signin::OAuthConsumer(
+        signin::oauth_consumer_name::kGlicUserStatusName,
+        {features::kGeminiOAuth2Scope.Get()});
+#else
     NOTREACHED();
+#endif
   }
 };
 
@@ -357,8 +372,6 @@ void ChromeSigninClient::PreSignOut(
   // `signin_metrics::ProfileSignout::kRevokeSyncFromSettings` when the user
   // turns off sync from the settings, we should also keep the window open at
   // this point.
-  // TODO(crbug.com/40280466): Check for managed accounts to be modified
-  // when aligning Managed vs Consumer accounts.
   bool user_declines_sync_after_consenting_to_management =
       (signout_source_metric == signin_metrics::ProfileSignout::kAbortSignin ||
        signout_source_metric ==

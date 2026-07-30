@@ -19,10 +19,9 @@
 #import "components/omnibox/browser/omnibox_log.h"
 #import "components/omnibox/common/omnibox_features.h"
 #import "components/search_engines/template_url_service.h"
+#import "ios/chrome/browser/autocomplete/model/autocomplete_browser_agent.h"
 #import "ios/chrome/browser/autocomplete/model/autocomplete_classifier_factory.h"
 #import "ios/chrome/browser/autocomplete/model/autocomplete_provider_client_impl.h"
-#import "ios/chrome/browser/autocomplete/model/autocomplete_service.h"
-#import "ios/chrome/browser/autocomplete/model/autocomplete_service_factory.h"
 #import "ios/chrome/browser/autocomplete/model/omnibox_shortcuts_helper.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
 #import "ios/chrome/browser/bookmarks/model/bookmarks_utils.h"
@@ -178,7 +177,7 @@ void ChromeOmniboxClientIOS::ProcessExtensionMatch(
 
 void ChromeOmniboxClientIOS::OnFocusChanged(OmniboxFocusState state,
                                             OmniboxFocusChangeReason reason) {
-  // TODO(crbug.com/40534385): OnFocusChanged is not the correct place to be
+  // TODO(crbug.com/467566659): OnFocusChanged is not the correct place to be
   // canceling prerenders, but this is the closest match to the original
   // location of this code, which was in OmniboxViewIOS::OnDidEndEditing().  The
   // goal of this code is to cancel prerenders when the omnibox loses focus.
@@ -279,10 +278,10 @@ void ChromeOmniboxClientIOS::OnAutocompleteAccept(
     const std::u16string& text,
     const AutocompleteMatch& match,
     const AutocompleteMatch& alternative_nav_match) {
-  AutocompleteService* autocomplete_service =
-      AutocompleteServiceFactory::GetForProfile(profile_);
+  AutocompleteBrowserAgent* autocomplete_browser_agent =
+      AutocompleteBrowserAgent::FromBrowser(browser_);
   OmniboxShortcutsHelper* shortcuts_helper =
-      autocomplete_service->GetOmniboxShortcutsHelper(
+      autocomplete_browser_agent->GetOmniboxShortcutsHelper(
           OmniboxPresentationContext::kLocationBar);
   if (shortcuts_helper) {
     shortcuts_helper->OnAutocompleteAccept(text, match,

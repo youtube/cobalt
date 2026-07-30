@@ -6,36 +6,52 @@
 
 #import "base/functional/callback_helpers.h"
 #import "base/memory/raw_ptr.h"
+#import "components/favicon_base/favicon_types.h"
 #import "components/password_manager/core/browser/ui/affiliated_group.h"
 #import "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
 #import "components/webauthn/core/browser/passkey_model.h"
 #import "ios/chrome/browser/credential_exchange/model/credential_exporter.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_group_identifier.h"
+#import "ios/chrome/browser/favicon/model/favicon_loader.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_manager_view_controller_items.h"
+#import "ios/chrome/common/ui/favicon/favicon_attributes.h"
+
+namespace {
+// Favicon constants.
+const CGFloat kFaviconSize = 24.0;
+const CGFloat kMinFaviconSize = 16.0;
+
+}  // namespace
 
 @implementation CredentialExportMediator {
   // Used as a presentation anchor for OS views. Must not be nil.
   UIWindow* _window;
 
-  // Used to fetch the user's saved passwords for export.
-  raw_ptr<password_manager::SavedPasswordsPresenter> _savedPasswordsPresenter;
-
   // Responsible for interaction with the credential export OS libraries.
   CredentialExporter* _credentialExporter;
 
+  // All credential groups that can be exported. Only valid until `setConsumer`,
+  // at which point it is moved from and should not be accessed.
+  std::vector<password_manager::AffiliatedGroup> _affiliatedGroups;
+
   // Provides access to stored WebAuthn credentials.
   raw_ptr<webauthn::PasskeyModel> _passkeyModel;
+
+  // Service used to retrieve favicons.
+  raw_ptr<FaviconLoader> _faviconLoader;
 }
 
 - (instancetype)initWithWindow:(UIWindow*)window
-       savedPasswordsPresenter:
-           (password_manager::SavedPasswordsPresenter*)savedPasswordsPresenter
-                  passkeyModel:(webauthn::PasskeyModel*)passkeyModel {
+              affiliatedGroups:(std::vector<password_manager::AffiliatedGroup>)
+                                   affiliatedGroups
+                  passkeyModel:(webauthn::PasskeyModel*)passkeyModel
+                 faviconLoader:(FaviconLoader*)faviconLoader {
   self = [super init];
   if (self) {
     _window = window;
-    _savedPasswordsPresenter = savedPasswordsPresenter;
+    _affiliatedGroups = std::move(affiliatedGroups);
     _passkeyModel = passkeyModel;
+    _faviconLoader = faviconLoader;
   }
   return self;
 }
@@ -46,8 +62,8 @@
   }
 
   _consumer = consumer;
-  [_consumer
-      setAffiliatedGroups:_savedPasswordsPresenter->GetAffiliatedGroups()];
+  [_consumer setAffiliatedGroups:std::move(_affiliatedGroups)];
+  _affiliatedGroups = {};
 }
 
 #pragma mark - CredentialExportViewControllerPresentationDelegate
@@ -66,9 +82,10 @@
         std::string credentialId(credential.passkey_credential_id.begin(),
                                  credential.passkey_credential_id.end());
         std::string rpId = credential.rp_id;
-
         std::optional<sync_pb::WebauthnCredentialSpecifics> passkey =
-            _passkeyModel->GetPasskeyByCredentialId(rpId, credentialId);
+            _passkeyModel->GetPasskey(
+                rpId, credentialId,
+                webauthn::PasskeyModel::ShadowedCredentials::kExclude);
 
         if (passkey.has_value() && !passkey->hidden()) {
           passkeysToExport.push_back(*std::move(passkey));
@@ -78,9 +95,9 @@
   }
 
   if (passkeysToExport.empty()) {
-    [self startExportWithSecurityDomainSecrets:nil
-                                     passwords:std::move(passwordsToExport)
-                                      passkeys:std::move(passkeysToExport)];
+    [self startExportWithTrustedVaultKeys:nil
+                                passwords:std::move(passwordsToExport)
+                                 passkeys:std::move(passkeysToExport)];
   } else {
     __weak __typeof(self) weakSelf = self;
 
@@ -89,11 +106,10 @@
             [](__weak CredentialExportMediator* mediator,
                std::vector<password_manager::CredentialUIEntry> passwords,
                std::vector<sync_pb::WebauthnCredentialSpecifics> passkeys,
-               NSArray<NSData*>* secrets) {
-              [mediator
-                  startExportWithSecurityDomainSecrets:secrets
-                                             passwords:std::move(passwords)
-                                              passkeys:std::move(passkeys)];
+               NSArray<NSData*>* trustedVaultKeys) {
+              [mediator startExportWithTrustedVaultKeys:trustedVaultKeys
+                                              passwords:std::move(passwords)
+                                               passkeys:std::move(passkeys)];
             },
             weakSelf, std::move(passwordsToExport),
             std::move(passkeysToExport));
@@ -101,21 +117,18 @@
     void (^completionBlock)(NSArray<NSData*>*) =
         base::CallbackToBlock(std::move(fetchSecretsCallback));
 
-    [self.delegate fetchSecurityDomainSecretsWithCompletion:completionBlock];
+    [self.delegate fetchTrustedVaultKeysWithCompletion:completionBlock];
   }
 }
 
 #pragma mark - Private
 
 - (void)
-    startExportWithSecurityDomainSecrets:
-        (NSArray<NSData*>*)securityDomainSecrets
-                               passwords:
-                                   (std::vector<
-                                       password_manager::CredentialUIEntry>)
-                                       passwords
-                                passkeys:
-                                    (std::vector<
+    startExportWithTrustedVaultKeys:(NSArray<NSData*>*)trustedVaultKeys
+                          passwords:
+                              (std::vector<password_manager::CredentialUIEntry>)
+                                  passwords
+                           passkeys:(std::vector<
                                         sync_pb::WebauthnCredentialSpecifics>)
                                         passkeys {
   if (@available(iOS 26, *)) {
@@ -123,8 +136,25 @@
 
     [_credentialExporter startExportWithPasswords:std::move(passwords)
                                          passkeys:std::move(passkeys)
-                            securityDomainSecrets:securityDomainSecrets];
+                                 trustedVaultKeys:trustedVaultKeys];
   }
+}
+
+#pragma mark - CredentialExportFaviconProvider
+
+- (void)fetchFaviconForURL:(const GURL&)URL
+                completion:(void (^)(FaviconAttributes*, BOOL))completion {
+  if (!_faviconLoader) {
+    completion(nil, YES);
+    return;
+  }
+
+  _faviconLoader->FaviconForPageUrl(
+      URL, kFaviconSize, kMinFaviconSize,
+      /*fallback_to_google_server=*/false,
+      ^(FaviconAttributes* attributes, bool cached) {
+        completion(attributes, cached);
+      });
 }
 
 @end

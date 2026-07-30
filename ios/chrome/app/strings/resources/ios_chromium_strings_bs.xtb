@@ -117,6 +117,7 @@ Pričekajte nekoliko minuta prije nego što promijenite račun. Ako promijenite 
 <translation id="3581385059720151202">Pretraživanje vizuelnih elemenata u Chromiumu</translation>
 <translation id="3582640969619785896">Chromium će ponuditi opciju da sačuva lozinku</translation>
 <translation id="3594315078412605236">Upravljanje načinima plaćanja u Chromiumu</translation>
+<translation id="3600428265489994557">Prijavite se u Chromium</translation>
 <translation id="3617143087229977194">Otvorite postavke Zadanih aplikacija u iOS-u, a zatim dodirnite "Aplikacija preglednika" i odaberite Chromium.</translation>
 <translation id="3634039384458740619">Otvori postavke Chromiuma</translation>
 <translation id="3639997914391704523">Chromium može provjeravati vaše lozinke kada se prijavljujete pomoću Google računa.</translation>
@@ -351,7 +352,6 @@ Vaše šifrirane podatke može čitati samo osoba koja ima vaš pristupni izraz.
 <translation id="900560297598578021">Prijavljeni ste kao <ph name="EMAIL" />.
 
 Vaši podaci su šifrirani pristupnim izrazom <ph name="TIME" /> Unesite ga da koristite i sačuvate podatke Chromiuma na Google računu.</translation>
-<translation id="9022552996538154597">Prijavite se u Chromium</translation>
 <translation id="9031260906956926157">Određeni podaci Chromiuma još uvijek nisu sačuvani na Google račun.
 Pričekajte nekoliko minuta prije odjave. Ako se sada odjavite, ovi podaci će se izbrisati.</translation>
 <translation id="9050790730841755540">Koristite Chromium svaki put kada dodirnete linkove u drugim aplikacijama.</translation>

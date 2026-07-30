@@ -679,8 +679,11 @@ public class OmniboxResourceProvider {
         return IncognitoColors.getColorPrimaryContainer(context, isIncognito);
     }
 
-    /** Resolves the border color of the tool chip when used as a hint to enter AI Mode. */
-    public static @ColorInt int getAiModeIconTintColor(
+    /**
+     * Resolves the vivid color used for the border of the tool chip when used as a hint to enter AI
+     * Mode, as well as the background of the send button.
+     */
+    public static @ColorInt int getColorPrimary(
             Context context, @BrandedColorScheme int brandedColorScheme) {
         boolean isIncognito =
                 convertBrandedColorSchemeToIncognitoOrDayNightAdaptive(brandedColorScheme);
@@ -727,26 +730,34 @@ public class OmniboxResourceProvider {
         return IncognitoColors.getDividerLineBgColor(context, isIncognito);
     }
 
+    /** Resolves the icon tint for the plus button on top of the vivid send button. */
+    public static @ColorInt int getSendIconContrastColor(
+            Context context, @BrandedColorScheme int brandedColorScheme) {
+        boolean isIncognito =
+                convertBrandedColorSchemeToIncognitoOrDayNightAdaptive(brandedColorScheme);
+        return IncognitoColors.getColorOnPrimary(context, isIncognito);
+    }
+
     /** Resolves the text appearance for the image gen chip. */
     public static @StyleRes int getImageGenButtonTextRes(
             @BrandedColorScheme int brandedColorScheme) {
         boolean isIncognito =
                 convertBrandedColorSchemeToIncognitoOrDayNightAdaptive(brandedColorScheme);
-        return IncognitoColors.getTextSmallPrimary(isIncognito);
+        return IncognitoColors.getTextMediumThickPrimary(isIncognito);
     }
 
     /** Resolves the text appearance for the AI Mode chip. This includes a vivid color. */
     public static @StyleRes int getAiModeButtonTextRes(@BrandedColorScheme int brandedColorScheme) {
         boolean isIncognito =
                 convertBrandedColorSchemeToIncognitoOrDayNightAdaptive(brandedColorScheme);
-        return IncognitoColors.getTextSmallAccent1(isIncognito);
+        return IncognitoColors.getTextMediumThickAccent1(isIncognito);
     }
 
     /** Resolves the text appearance for the hint chip, somewhat faded out. */
     public static @StyleRes int getAiModeHintTextRes(@BrandedColorScheme int brandedColorScheme) {
         boolean isIncognito =
                 convertBrandedColorSchemeToIncognitoOrDayNightAdaptive(brandedColorScheme);
-        return IncognitoColors.getTextSmallSecondary(isIncognito);
+        return IncognitoColors.getTextMediumThickSecondary(isIncognito);
     }
 
     /** Resolves the text appearance for menu items in the popup. */

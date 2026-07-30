@@ -83,7 +83,7 @@
 #include "chrome/android/chrome_jni_headers/DownloadController_jni.h"
 
 using base::android::ConvertUTF8ToJavaString;
-using base::android::JavaParamRef;
+using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
 using content::BrowserContext;
 using content::BrowserThread;
@@ -209,7 +209,7 @@ static void JNI_DownloadController_CancelDownload(JNIEnv* env,
 static void JNI_DownloadController_DownloadUrl(
     JNIEnv* env,
     std::string& url,
-    const base::android::JavaParamRef<jobject>& jweb_contents) {
+    const base::android::JavaRef<jobject>& jweb_contents) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   content::WebContents* web_contents =
@@ -397,6 +397,10 @@ void DownloadController::OnDownloadUpdated(DownloadItem* item) {
     if (item->GetDangerType() ==
         download::DOWNLOAD_DANGER_TYPE_SENSITIVE_CONTENT_WARNING) {
       OnSensitiveDownload(item);
+    } else if (item->GetDangerType() ==
+               download::DOWNLOAD_DANGER_TYPE_SENSITIVE_CONTENT_BLOCK) {
+      // The download contains sensitive content and should be blocked, do
+      // nothing here so the download will fail the completion check.
     } else if (ShouldShowSafeBrowsingAndroidDownloadWarnings()) {
       ShowDangerousDownloadWarning(model);
     } else {

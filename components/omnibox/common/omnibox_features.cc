@@ -76,17 +76,10 @@ BASE_FEATURE(kHideSuggestionGroupHeaders,
 // remote zero-prefix suggestions are enabled.
 BASE_FEATURE(kLocalHistoryZeroSuggestBeyondNTP, DISABLED);
 
-// If enabled, zero prefix suggestions will be stored using an in-memory caching
-// service, instead of using the existing prefs-based cache.
-BASE_FEATURE(kZeroSuggestInMemoryCaching, DISABLED);
-
 // Enables the use of a request debouncer to throttle the number of ZPS prefetch
 // requests initiated over a given period of time (to help minimize the
 // performance impact of ZPS prefetching on the remote Suggest service).
 BASE_FEATURE(kZeroSuggestPrefetchDebouncing, DISABLED);
-
-// Enables prefetching of the zero prefix suggestions for eligible users on NTP.
-BASE_FEATURE(kZeroSuggestPrefetching, ENABLED);
 
 // Enables prefetching of the zero prefix suggestions for eligible users on SRP.
 BASE_FEATURE(kZeroSuggestPrefetchingOnSRP, enable_if(!IS_ANDROID));
@@ -162,10 +155,6 @@ BASE_FEATURE(kMostVisitedTilesHorizontalRenderGroup,
 // prefixes. Will also adjust the location bar UI and omnibox text selection to
 // accommodate the autocompletions.
 BASE_FEATURE(kRichAutocompletion, "OmniboxRichAutocompletion", ENABLED);
-
-// When enabled, use Assistant for omnibox voice query recognition instead of
-// Android's built-in voice recognition service. Only works on Android.
-BASE_FEATURE(kOmniboxAssistantVoiceSearch, DISABLED);
 
 // When enabled, the multimodal input button is shown in the Omnibox.
 BASE_FEATURE(kOmniboxMultimodalInput, DISABLED);
@@ -342,7 +331,10 @@ BASE_FEATURE(kOmniboxAimShortcutTypedState, DISABLED);
 BASE_FEATURE(kMultilineEditField, "OmniboxMultilineEditField", DISABLED);
 
 // Controls whether the composebox
-BASE_FEATURE(kComposeboxUsesChromeComposeClient, DISABLED);
+BASE_FEATURE(kComposeboxUsesChromeComposeClient, ENABLED);
+
+// Controls whether or not contextual composebox should display suggestions.
+BASE_FEATURE(kComposeboxAttachmentsTypedState, DISABLED);
 
 #if BUILDFLAG(IS_ANDROID)
 // Accelerates time from cold start to focused Omnibox on low-end devices,

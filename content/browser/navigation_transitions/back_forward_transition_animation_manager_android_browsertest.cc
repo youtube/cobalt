@@ -9,6 +9,7 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "base/numerics/ranges.h"
+#include "base/strings/strcat.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
@@ -3278,7 +3279,7 @@ IN_PROC_BROWSER_TEST_F(BackForwardTransitionAnimationManagerBrowserTest,
 
   web_contents()->GetWebContentsAndroid()->SetTopLevelNativeWindow(
       /*env=*/nullptr,
-      /*jwindow_android=*/base::android::JavaParamRef<jobject>(nullptr));
+      /*jwindow_android=*/base::android::JavaRef<jobject>(nullptr));
   ASSERT_TRUE(destroyed.Wait());
   EXPECT_STATE_EQ(kAnimationAborted, destroyed.Get());
 }

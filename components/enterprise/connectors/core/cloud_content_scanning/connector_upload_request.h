@@ -9,6 +9,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/common.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/connector_data_pipe_getter.h"
 #include "components/file_access/scoped_file_access.h"
@@ -30,6 +31,13 @@ class ConnectorUploadRequestFactory;
 // This class is neither movable nor copyable.
 class ConnectorUploadRequest {
  public:
+  enum DataSource {
+    STRING = 0,
+    FILE = 1,
+    PAGE = 2,
+    IMAGE = 3,
+  };
+
   using Callback = base::OnceCallback<
       void(bool success, int http_status, const std::string& response_data)>;
 
@@ -46,9 +54,11 @@ class ConnectorUploadRequest {
       const GURL& base_url,
       const std::string& metadata,
       const std::string& data,
+      ConnectorUploadRequest::DataSource data_source,
       const std::string& histogram_suffix,
       const net::NetworkTrafficAnnotationTag& traffic_annotation,
-      Callback callback);
+      Callback callback,
+      scoped_refptr<base::SequencedTaskRunner> ui_task_runner);
 
   // Creates a ConnectorUploadRequest, which will upload `metadata` and the file
   // corresponding to `path` to the given `base_url`.
@@ -61,7 +71,8 @@ class ConnectorUploadRequest {
       bool is_obfuscated,
       const std::string& histogram_suffix,
       const net::NetworkTrafficAnnotationTag& traffic_annotation,
-      Callback callback);
+      Callback callback,
+      scoped_refptr<base::SequencedTaskRunner> ui_task_runner);
 
   // Creates a  ConnectorUploadRequest, which will upload `metadata` and the
   // page in `page_region` to the given `base_url`.
@@ -72,7 +83,8 @@ class ConnectorUploadRequest {
       base::ReadOnlySharedMemoryRegion page_region,
       const std::string& histogram_suffix,
       const net::NetworkTrafficAnnotationTag& traffic_annotation,
-      Callback callback);
+      Callback callback,
+      scoped_refptr<base::SequencedTaskRunner> ui_task_runner);
 
   ConnectorUploadRequest(const ConnectorUploadRequest&) = delete;
   ConnectorUploadRequest& operator=(const ConnectorUploadRequest&) = delete;
@@ -97,13 +109,15 @@ class ConnectorUploadRequest {
   virtual std::string GetUploadInfo() = 0;
 
  protected:
+  void AssertCalledOnUIThread();
+
   static ConnectorUploadRequestFactory* factory_;
 
   GURL base_url_;
   std::string metadata_;
 
   // Indicates what the source of the data to upload is.
-  const enum { STRING = 0, FILE = 1, PAGE = 2 } data_source_;
+  DataSource data_source_;
 
   // String of content to upload. Only populated for STRING requests.
   std::string data_;
@@ -129,6 +143,7 @@ class ConnectorUploadRequest {
 
   Callback callback_;
 
+  scoped_refptr<base::SequencedTaskRunner> ui_task_runner_;
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
   std::unique_ptr<network::SimpleURLLoader> url_loader_;
   net::NetworkTrafficAnnotationTag traffic_annotation_;
@@ -146,6 +161,7 @@ class ConnectorUploadRequestFactory {
       const GURL& base_url,
       const std::string& metadata,
       const std::string& data,
+      ConnectorUploadRequest::DataSource data_source,
       const std::string& histogram_suffix,
       const net::NetworkTrafficAnnotationTag& traffic_annotation,
       ConnectorUploadRequest::Callback callback) = 0;

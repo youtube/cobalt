@@ -3,32 +3,26 @@
 // found in the LICENSE file.
 
 #include <optional>
-#include <utility>
 #include <vector>
 
-#include "ash/public/cpp/login_accelerators.h"
 #include "base/check_deref.h"
 #include "base/task/current_thread.h"
 #include "base/test/gmock_expected_support.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/threading/thread_restrictions.h"
 #include "base/version.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_launch_error.h"
 #include "chrome/browser/ash/app_mode/kiosk_controller.h"
 #include "chrome/browser/ash/app_mode/test/kiosk_mixin.h"
 #include "chrome/browser/ash/app_mode/test/kiosk_test_utils.h"
-#include "chrome/browser/ash/login/app_mode/kiosk_launch_controller.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/ui/ash/login/login_display_host.h"
+#include "chrome/browser/web_applications/isolated_web_apps/key_distribution/features.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_test_update_server.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/key_distribution/test_utils.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
-#include "components/webapps/isolated_web_apps/features.h"
 #include "components/webapps/isolated_web_apps/test_support/signing_keys.h"
 #include "content/public/test/browser_test.h"
-#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
@@ -58,6 +52,7 @@ KioskMixin::Config GetKioskIwaManualLaunchConfig(
 
 using ash::KioskAppLaunchError;
 using kiosk::test::LaunchAppManually;
+using kiosk::test::PressBailoutAccelerator;
 using kiosk::test::TheKioskApp;
 using kiosk::test::WaitKioskLaunched;
 
@@ -82,17 +77,13 @@ class KioskIwaAllowlistTest : public MixinBasedInProcessBrowserTest {
     }));
   }
 
-  bool PressBailoutAccelerator() {
-    return ash::LoginDisplayHost::default_host()->HandleAccelerator(
-        ash::LoginAcceleratorAction::kAppLaunchBailout);
-  }
-
   void SetIwaAllowlist(
       const std::vector<web_package::SignedWebBundleId>& managed_allowlist) {
-    base::ScopedAllowBlockingForTesting allow_blocking;
-    EXPECT_THAT(web_app::test::UpdateKeyDistributionInfoWithAllowlist(
-                    base::Version("1.0"), std::move(managed_allowlist)),
-                base::test::HasValue());
+    EXPECT_OK(
+        web_app::test::KeyDistributionComponentBuilder(base::Version("1.0"))
+            .WithManagedAllowlist(managed_allowlist)
+            .Build()
+            .UploadFromComponentFolder());
   }
 
  protected:
@@ -121,12 +112,18 @@ IN_PROC_BROWSER_TEST_F(KioskIwaAllowlistTest,
   ASSERT_TRUE(LaunchAppManually(TheKioskApp()));
   WaitForIwaNotAllowedLaunchError();
 
+  const auto& local_state = CHECK_DEREF(g_browser_process->local_state());
+  EXPECT_EQ(KioskAppLaunchError::Get(local_state),
+            KioskAppLaunchError::Error::kIsolatedAppNotAllowed);
+  EXPECT_FALSE(KioskAppLaunchError::DidUserCancelLaunch(local_state));
   EXPECT_TRUE(ash::KioskController::Get().IsSessionStarting());
-  PressBailoutAccelerator();
+
+  ASSERT_TRUE(PressBailoutAccelerator());
   RunUntilBrowserProcessQuits();
-  EXPECT_EQ(
-      KioskAppLaunchError::Get(CHECK_DEREF(g_browser_process->local_state())),
-      KioskAppLaunchError::Error::kUserCancel);
+
+  EXPECT_EQ(KioskAppLaunchError::Get(local_state),
+            KioskAppLaunchError::Error::kIsolatedAppNotAllowed);
+  EXPECT_TRUE(KioskAppLaunchError::DidUserCancelLaunch(local_state));
   EXPECT_FALSE(ash::KioskController::Get().IsSessionStarting());
 }
 

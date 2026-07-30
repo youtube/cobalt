@@ -87,6 +87,7 @@
 <translation id="1336996151357442890"><ph name="SITE_NAME" /> կայքի բաժանորդագրությունը չեղարկվեց։ Հաջորդ անգամ, երբ այցելեք կայք, ձեզ նորից այս հարցը կուղղվի։</translation>
 <translation id="1340839264183302272">Լքել խումբը</translation>
 <translation id="1342886103232377846">Կոտրված գաղտնաբառեր հայտնաբերելու համար անցեք Google գաղտնաբառերի կառավարիչ</translation>
+<translation id="1343830902827845050">Մուտք գործեք Chrome</translation>
 <translation id="1344653310988386453">Ներառել ընդգծված տեքստի հղումը</translation>
 <translation id="1347468774581902829">Կառավարել պատմությունը</translation>
 <translation id="1355088659320425659">Պատմություն և ներդիրներ</translation>
@@ -496,6 +497,7 @@
 <translation id="3114507951000454849">Կարդացեք այսօրվա նորությունները <ph name="NEWS_ICON" /></translation>
 <translation id="3122883569442693641">Այլ մանրամասներ</translation>
 <translation id="3123734510202723619">Հայտարարություններ</translation>
+<translation id="3134385238404760368">Վերջերս բացված ներդիրներ չկան</translation>
 <translation id="314939179385989105">Chrome-ի գլխավոր էջ</translation>
 <translation id="3158667104057012316">Ձեռքով տեսակավորում</translation>
 <translation id="3159335509547415276">Իմանալ ավելին արգելափակված հաշիվների մասին</translation>
@@ -524,7 +526,6 @@
 <translation id="3268048651973962414">Քաշեք վերև՝ որոնման արդյունքներ տեսնելու համար</translation>
 <translation id="3269093882174072735">Բեռնել պատկերը</translation>
 <translation id="3280562213547448728">Ձայնային որոնում</translation>
-<translation id="3282568296779691940">Մուտք գործել Chrome</translation>
 <translation id="3285065882678541460">{TAB_COUNT,plural, =1{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_ONE" /> ներդիր}one{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_MANY" /> ներդիր}other{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_MANY" /> ներդիր}}</translation>
 <translation id="3286508210927575634">{PASSWORDS_COUNT,plural, =1{1 գաղտնաբառ հասանելի է միայն այս սարքում։ Մյուս սարքերում օգտագործելու համար այն պահեք ձեր Google հաշվում։}one{# գաղտնաբառ հասանելի է միայն այս սարքում։ Մյուս սարքերում օգտագործելու համար այն պահեք ձեր Google հաշվում։}other{# գաղտնաբառ հասանելի է միայն այս սարքում։ Մյուս սարքերում օգտագործելու համար դրանք պահեք ձեր Google հաշվում։}}</translation>
 <translation id="3293181007446299124">Ձեր այցելությունների պատմությունը պահվում է ձեր սարքում և հասանելի է միայն ձեզ, իսկ անձնական տվյալները պաշտպանելու նպատակով հաշվետվություններն ուղարկվում են ոչ անմիջապես</translation>
@@ -718,6 +719,7 @@
 <translation id="414128724510021958">Կայքերի համակարգչային տարբերակները պահանջվում են ըստ կանխադրման</translation>
 <translation id="4162867837470729563">Կիսվելու տարբերակների ցանկը բացված է ամբողջությամբ։</translation>
 <translation id="4170011742729630528">Ծառայությունը մատչելի չէ: Կրկին փորձեք ավելի ուշ:</translation>
+<translation id="4170577491341606575">Տվյալները բեռնվում են\u2026</translation>
 <translation id="4177222230309051052">Ձեր բոլոր էջանիշները՝ միշտ ձեռքի տակ</translation>
 <translation id="4177501066905053472">Գովազդի թեմաներ</translation>
 <translation id="417865198503699526">Որոնեք որևէ կարգավորում</translation>
@@ -817,6 +819,7 @@
 <translation id="4577115723294378384">Դասավորել Ա-ից Ֆ</translation>
 <translation id="4578289292431526768">Սկսել</translation>
 <translation id="4583164079174244168">{MINUTES,plural, =1{# րոպե առաջ}one{# րոպե առաջ}other{# րոպե առաջ}}</translation>
+<translation id="4585751637295612750">Բացեք նոր ներդիր՝ ձեր հարցին այն ավելացնելու համար</translation>
 <translation id="4587589328781138893">Կայքեր</translation>
 <translation id="4594952190837476234">Այս էջը պահվել է <ph name="CREATION_TIME" />-ին, և կարող է տարբերվել առցանց տարբերակից։</translation>
 <translation id="4595237294768457124">Բացեք նոր ներդիրի էջը</translation>
@@ -909,6 +912,7 @@
 <translation id="4905823827770127520">Նշեք էջի հղումը</translation>
 <translation id="4908869848243824489">Discover by Google</translation>
 <translation id="4910889077668685004">Հավելվածներ վճարումների համար</translation>
+<translation id="4911042367886397055">Բարի վերադարձ, <ph name="USER_NAME" /></translation>
 <translation id="4912413785358399818">Տեղափոխել ներդիրը</translation>
 <translation id="4913169188695071480">Դադարեցնել թարմացումը</translation>
 <translation id="4921224083091001889">Գաղտնաբառերը և մյուս տվյալները ձեր բոլոր սարքերում օգտագործելու համար մուտք գործեք Chrome որպես <ph name="EMAIL" /></translation>
@@ -1338,6 +1342,7 @@
 <translation id="670498945988402717">Ստուգվել է երեկ</translation>
 <translation id="6710213216561001401">Նախորդը</translation>
 <translation id="671481426037969117"><ph name="FQDN" />-ի համար նախատեսված ժամանակը լրացել է։ Վաղը այն նորից կաշխատի:</translation>
+<translation id="6716434912087331834">Նոր պատուհան վերականգնելու համար համոզվեք, որ ունեք ոչ ավելի, քան <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> ակտիվ պատուհան։ Ոչ ակտիվ պատուհանները 6 ամիս հետո ջնջվում են։</translation>
 <translation id="6723740634201835758">Ձեր Google հաշվում</translation>
 <translation id="6734310707649923383">Դուք կարող եք դիտել ձեր այցելած էջերը կամ ջնջել դրանք պատմությունից</translation>
 <translation id="6737429434215739253"><ph name="TAB_TITLE" />, ամրացված ինկոգնիտո ներդիր, որում տեսագրում է արվում</translation>
@@ -1454,6 +1459,7 @@
 <translation id="7115358764509798967">Կանխադրված</translation>
 <translation id="7117485132243600300">Կառավարեք բովանդակության բաժանորդագրությունները, առաջարկվող թեմաները և որոնման առաջարկները</translation>
 <translation id="7119984597597798764">Փակել <ph name="INSTANCE_TITLE" />ը</translation>
+<translation id="7121179479711575744">Մուտք գործել Chrome</translation>
 <translation id="7136902389402789299">{NUM_SITES,plural, =1{1 կայքի թույլտվությունները ստուգվել են}one{# կայքի թույլտվությունները ստուգվել են}other{# կայքի թույլտվությունները ստուգվել են}}</translation>
 <translation id="7138678301420049075">Այլ</translation>
 <translation id="7140829094791862589">Տեսակավորել ձեռքով</translation>
@@ -1655,6 +1661,7 @@
 <translation id="7942131818088350342"><ph name="PRODUCT_NAME" />-ը հնացած է:</translation>
 <translation id="7944772052836377867">Համաժամացման համար անհրաժեշտ է հաստատել ձեր ինքնությունը</translation>
 <translation id="7951102827450076904">Միշտ բացել ներբեռնված PDF ֆայլերը</translation>
+<translation id="7952479614398473176">Նոր պատուհան բացելու համար համոզվեք, որ ունեք ոչ ավելի, քան <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> ակտիվ պատուհան։</translation>
 <translation id="7957413488482743710">Վիրտուալ քարտը թաքցնում է ձեր իրական քարտը՝ օգնելով պաշտպանել ձեզ հնարավոր խարդախությունից։ <ph name="BEGIN_LINK1" />Իմանալ ավելին վիրտուալ քարտերի մասին<ph name="END_LINK1" /></translation>
 <translation id="7959485987650214982">Ներդիրները այս սարքում</translation>
 <translation id="7961926449547174351">Դուք անջատել եք հիշողության հասանելիությունը։ Միացնելու համար անցեք կարգավորումներ։</translation>
@@ -1937,6 +1944,7 @@
 <translation id="9104217018994036254">Սարքերը, որոնց հետ կիսվելու եք ներդիրով:</translation>
 <translation id="9106148373857059373">Էջանիշի պահման էջը փակված է</translation>
 <translation id="9108808586816295166">Ապահով DNS-ը կարող է ամբողջ ընթացքում հասանելի չլինել</translation>
+<translation id="9112483451228487295">Այցելությունների արագ ջնջում</translation>
 <translation id="9124978074365039456">Գտեք ապրանքներ, թարգմանեք տեքստեր և ստացեք տեղեկություններ ձեզ շրջապատող օբյեկտների մասին՝ օգտագործելով տեսախցիկը և պատկերասրահը</translation>
 <translation id="9130135798965366513">Շարունակելու համար <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ընկերությունն այս կայքին կփոխանցի հետևյալ տվյալները՝ <ph name="FIELDS_STRING" />։ Ծանոթացեք այս կայքի <ph name="BEGIN_LINK1" />գաղտնիության քաղաքականությանը<ph name="END_LINK1" /> և <ph name="BEGIN_LINK2" />օգտագործման պայմաններին<ph name="END_LINK2" />։</translation>
 <translation id="9131209053278896908">Արգելափակված կայքերը կհայտնվեն այստեղ</translation>

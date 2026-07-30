@@ -27,7 +27,6 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.DeferredStartupHandler;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.crypto.CipherFactory;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
@@ -276,21 +275,13 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
     @Override
     public void onNativeLibraryReady(TabContentManager tabContentManager) {
         super.onNativeLibraryReady(tabContentManager);
-
-        if (!ChromeFeatureList.sAndroidTabDeclutterRescueKillSwitch.isEnabled()) {
-            return;
-        }
         assertCreated();
 
-        if (ChromeFeatureList.sAndroidTabDeclutterPerformanceImprovements.isEnabled()) {
-            TabModelUtils.runOnTabStateInitialized(
-                    mTabModelSelector,
-                    (selector) -> {
-                        createArchivedTabModelInDeferredTask(tabContentManager);
-                    });
-        } else {
-            createArchivedTabModelInDeferredTask(tabContentManager);
-        }
+        TabModelUtils.runOnTabStateInitialized(
+                mTabModelSelector,
+                (selector) -> {
+                    createArchivedTabModelInDeferredTask(tabContentManager);
+                });
 
         if (TabStateStorageFlagHelper.isTabStorageEnabled()) {
             mTabStateStoreIsAuthoritative = TabStateStorageFlagHelper.isStorageAuthoritative();
@@ -310,7 +301,8 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
                             TabStateStorageServiceFactory.getForProfile(profile),
                             mTabModelSelector,
                             mWindowTag,
-                            shadowTabCreatorManager);
+                            shadowTabCreatorManager,
+                            mTabPersistencePolicy);
 
             SupplierUtils.waitForAll(
                     this::onBothStateLoaded,

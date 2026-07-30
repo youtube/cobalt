@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -19,8 +20,11 @@ class ExecutionContext;
 // This class maintains a connection to the FileSystemAccessManager remote.
 class MODULES_EXPORT FileSystemAccessManager final
     : public GarbageCollected<FileSystemAccessManager>,
+      public Supplement<ExecutionContext>,
       public ExecutionContextClient {
  public:
+  static const unsigned kSupplementIndex;
+
   static FileSystemAccessManager& From(ExecutionContext*);
 
   explicit FileSystemAccessManager(ExecutionContext*);

@@ -59,6 +59,7 @@ const CGFloat kTextInputViewClearButtonTrailingOffset = 4;
 const CGFloat kClearButtonInset = 4.0f;
 /// Clear button image size.
 const CGFloat kClearButtonImageSize = 17.0f;
+const CGFloat kComposeboxClearButtonImageSize = 15.0f;
 const CGFloat kClearButtonSize = 28.0f;
 
 /// Whether the omnibox is using the text view instead of the text field.
@@ -128,20 +129,28 @@ OmniboxThumbnailButton* CreateThumbnailButton() {
 }
 
 /// Creates and configures the clear button.
-UIButton* CreateClearButton() {
+UIButton* CreateClearButton(OmniboxPresentationContext presentationContext) {
   UIButtonConfiguration* conf =
       [UIButtonConfiguration plainButtonConfiguration];
-  conf.image =
-      DefaultSymbolWithPointSize(kXMarkCircleFillSymbol, kClearButtonImageSize);
+  CGFloat imageSize =
+      presentationContext == OmniboxPresentationContext::kComposebox
+          ? kComposeboxClearButtonImageSize
+          : kClearButtonImageSize;
+  conf.image = DefaultSymbolWithPointSize(kXMarkCircleFillSymbol, imageSize);
   conf.contentInsets =
       NSDirectionalEdgeInsetsMake(kClearButtonInset, kClearButtonInset,
                                   kClearButtonInset, kClearButtonInset);
   UIButton* clear_button = [UIButton buttonWithType:UIButtonTypeSystem];
   clear_button.translatesAutoresizingMaskIntoConstraints = NO;
   clear_button.configuration = conf;
-  clear_button.tintColor = [UIColor colorNamed:kTextfieldPlaceholderColor];
+  if (presentationContext == OmniboxPresentationContext::kComposebox) {
+    clear_button.tintColor = [UIColor colorNamed:kTextTertiaryColor];
+  } else {
+    clear_button.tintColor = [UIColor colorNamed:kTextfieldPlaceholderColor];
+  }
+
   SetA11yLabelAndUiAutomationName(clear_button, IDS_IOS_ACCNAME_CLEAR_TEXT,
-                                  @"Clear Text");
+                                  kOmniboxClearButtonAccessibilityIdentifier);
   clear_button.pointerInteractionEnabled = YES;
   clear_button.pointerStyleProvider =
       CreateLiftEffectCirclePointerStyleProvider();
@@ -186,8 +195,6 @@ UIButton* CreateClearButton() {
   // The last known width of the text view, used to avoid redundant height
   // calculations.
   CGFloat _lastKnownTextViewWidth;
-  // Whether to hide the leading image.
-  BOOL _hideLeadingImage;
   // The last computed ideal height of the text view, before being constrained
   // by the container's bounds.
   CGFloat _lastComputedIdealHeight;
@@ -200,6 +207,7 @@ UIButton* CreateClearButton() {
 }
 
 @synthesize heightDelegate = _heightDelegate;
+@synthesize leadingImageHidden = _leadingImageHidden;
 
 #pragma mark - Public
 
@@ -212,7 +220,7 @@ UIButton* CreateClearButton() {
   if (self) {
     _presentationContext = presentationContext;
     _leadingImageView = CreateLeadingImageView(iconTint, presentationContext);
-    self.clearButton = CreateClearButton();
+    self.clearButton = CreateClearButton(presentationContext);
     [self createAndAddTextInputViewWithTextColor:textColor
                                    textInputTint:textInputTint];
 
@@ -247,6 +255,11 @@ UIButton* CreateClearButton() {
             constraintEqualToAnchor:self.trailingAnchor];
     textInputToContainerTrailing.priority = UILayoutPriorityRequired - 1;
 
+    CGFloat clearTrailingOffset =
+        _presentationContext == OmniboxPresentationContext::kComposebox
+            ? 0
+            : kTextInputViewClearButtonTrailingOffset;
+
     [NSLayoutConstraint activateConstraints:@[
       [_leadingImageView.leadingAnchor
           constraintEqualToAnchor:self.leadingAnchor
@@ -259,7 +272,7 @@ UIButton* CreateClearButton() {
           constraintEqualToAnchor:referenceCenterYAnchor],
       [self.clearButton.trailingAnchor
           constraintEqualToAnchor:self.trailingAnchor
-                         constant:-kTextInputViewClearButtonTrailingOffset],
+                         constant:-clearTrailingOffset],
       textInputToContainerTrailing
     ]];
 
@@ -323,9 +336,9 @@ UIButton* CreateClearButton() {
                           underName:kOmniboxTextFieldGuide];
 }
 
-- (void)hideLeadingImage:(BOOL)hideLeadingImage {
-  _hideLeadingImage = hideLeadingImage;
-  _leadingImageView.hidden = hideLeadingImage;
+- (void)setLeadingImageHidden:(BOOL)leadingImageHidden {
+  _leadingImageHidden = leadingImageHidden;
+  _leadingImageView.hidden = leadingImageHidden;
   [self updateLeadingConstraint];
 }
 
@@ -337,6 +350,10 @@ UIButton* CreateClearButton() {
   [_textInputView forceDisableReturnKey:forceDisable];
 }
 
+- (void)setAllowsReturnKeyWithEmptyText:(BOOL)allowsReturnKeyWithEmptyText {
+  _textInputView.allowsReturnKeyWithEmptyText = allowsReturnKeyWithEmptyText;
+}
+
 - (void)setCustomPlaceholderText:(NSString*)customPlaceholderText {
   [_textInputView setCustomPlaceholderText:[customPlaceholderText copy]];
 }
@@ -346,7 +363,7 @@ UIButton* CreateClearButton() {
 
   BOOL thumbnailVisible = !_thumbnailButton.hidden &&
                           base::FeatureList::IsEnabled(kEnableLensOverlay);
-  if (_hideLeadingImage) {
+  if (self.leadingImageHidden) {
     _textInputViewLeadingConstraint = [_textInputView.leadingAnchor
         constraintEqualToAnchor:self.leadingAnchor];
   } else if (thumbnailVisible) {
@@ -394,7 +411,7 @@ UIButton* CreateClearButton() {
   // Computes user text height.
   CGFloat verticalPadding =
       _textView.textContainerInset.top + _textView.textContainerInset.bottom;
-  CGFloat singleLineHeight = [self singleLineHeight];
+  CGFloat singleLineHeight = [_textView singleLineHeight];
 
   // Calculate the height of the user text.
   NSAttributedString* userText = _textView.attributedUserText;
@@ -525,6 +542,12 @@ UIButton* CreateClearButton() {
 
 #pragma mark - TextFieldViewContaining
 
+- (void)setMinimumHeight:(CGFloat)minimumHeight {
+  if (UseTextView(_presentationContext)) {
+    _textView.minimumHeight = minimumHeight;
+  }
+}
+
 - (UIView*)textFieldView {
   return _textInputView;
 }
@@ -573,29 +596,6 @@ UIButton* CreateClearButton() {
 }
 
 #pragma mark - Private
-
-/// Returns the height of a single line of text with the current font.
-- (CGFloat)singleLineHeight {
-  UIFont* font = _textView.font ?: _textView.currentFont;
-  // Create a sample attributed string for one line.
-  NSAttributedString* singleLineSampler =
-      [[NSAttributedString alloc] initWithString:@"T"
-                                      attributes:@{NSFontAttributeName : font}];
-  CGSize singleLineConstraint = CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX);
-  NSStringDrawingOptions options =
-      NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading;
-  CGRect singleLineBoundingRect =
-      [singleLineSampler boundingRectWithSize:singleLineConstraint
-                                      options:options
-                                      context:nil];
-  CGFloat measuredSingleLineHeight = ceilf(singleLineBoundingRect.size.height);
-
-  // If for some reason measurement fails, fall back to font.lineHeight.
-  if (measuredSingleLineHeight <= 0) {
-    measuredSingleLineHeight = font.lineHeight;
-  }
-  return measuredSingleLineHeight;
-}
 
 /// Computes the height needed to layout `attributedText` with `drawingWidth`.
 /// The height is computed with `lineBreakModeForUserText`.

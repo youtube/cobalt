@@ -56,17 +56,8 @@ class DiscardEligibilityPolicyBrowserTest : public InProcessBrowserTest {
   GURL GetTestingURL() { return embedded_test_server()->GetURL("/empty.html"); }
 };
 
-// Disable CannotDiscardVisibleInSplit on Chrome OS build because it's flaky
-// on linux-chromeos-chrome, bots that aren't on the CQ.
-// TODO(crbug.com/464057202): Try to enable this test on Chrome OS.
-#if BUILDFLAG(IS_CHROMEOS)
-#define MAYBE_CannotDiscardVisibleInSplit DISABLED_CannotDiscardVisibleInSplit
-#else
-#define MAYBE_CannotDiscardVisibleInSplit CannotDiscardVisibleInSplit
-#endif
-
 IN_PROC_BROWSER_TEST_F(DiscardEligibilityPolicyBrowserTest,
-                       MAYBE_CannotDiscardVisibleInSplit) {
+                       CannotDiscardVisibleInSplit) {
   // Open tabs for testing.
   const int index1 = 1, index2 = 2, index3 = 3;
   ASSERT_TRUE(

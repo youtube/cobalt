@@ -16,6 +16,7 @@
 #include "base/files/file_util.h"
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/path_service.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/test/bind.h"
@@ -98,6 +99,7 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/base32/base32.h"
 #include "components/constrained_window/constrained_window_views.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_dismissal_source.h"
@@ -1962,7 +1964,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
   const GURL first_search_url(
       "https://www.google.com/"
       "search?source=chrome.cr.menu&vsint=KgwKAggHEgIIAxgBIAI&q=&lns_fp=1"
-      "&lns_mode=un&gsc=2&hl=en-US&cs=0");
+      "&lns_mode=un&cs=0&gsc=2&hl=en-US");
   controller->IssueLensRegionRequestForTesting(kTestRegion->Clone(),
                                                /*is_click=*/false);
   EXPECT_TRUE(content::WaitForLoadStop(
@@ -3534,7 +3536,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
   const GURL first_search_url(
       "https://www.google.com/"
       "search?source=chrome.cr.menu&q=oranges&lns_fp=1&lns_mode=text"
-      "&gsc=2&hl=en-US&cs=0");
+      "&cs=0&gsc=2&hl=en-US");
   GetLensOverlaySidePanelCoordinator()->LoadURLInResultsFrameForTesting(
       first_search_url);
   EXPECT_TRUE(content::WaitForLoadStop(
@@ -3629,7 +3631,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
       "https://www.google.com/"
       "search?source=chrome.cr.menu&vsint=CAMiCSoHb3JhbmdlcyoMCgIIBxICCAMYASAC&"
       "q=oranges"
-      "&lns_fp=1&lns_mode=text&lns_surface=42&gsc=2&hl=en-US&cs=0");
+      "&lns_fp=1&lns_mode=text&lns_surface=42&cs=0&gsc=2&hl=en-US");
   controller->IssueTextSelectionRequestForTesting("oranges", 20, 200);
   EXPECT_TRUE(content::WaitForLoadStop(
       controller->GetSidePanelWebContentsForTesting()));
@@ -3655,7 +3657,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
   const GURL second_search_url(
       "https://www.google.com/"
       "search?source=chrome.cr.menu&vsint=KgwKAggHEgIIAxgBIAI&q=&lns_fp=1"
-      "&lns_mode=un&gsc=2&hl=en-US&cs=0");
+      "&lns_mode=un&cs=0&gsc=2&hl=en-US");
   // We can't use content::WaitForLoadStop here and below since the last
   // navigation was already successful.
   content::TestNavigationObserver second_search_observer(
@@ -3681,7 +3683,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
       "https://www.google.com/"
       "search?source=chrome.cr.menu&vsint=CAMiBioEa2l3aSoKCgIIBxICCAMgAg&q="
       "kiwi&lns_fp=1"
-      "&lns_mode=text&lns_surface=42&gsc=2&hl=en-US&cs=0");
+      "&lns_mode=text&lns_surface=42&cs=0&gsc=2&hl=en-US");
   content::TestNavigationObserver third_search_observer(
       controller->GetSidePanelWebContentsForTesting());
   controller->IssueTextSelectionRequestForTesting("kiwi", 1, 100);
@@ -3807,7 +3809,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
   const GURL first_search_url(
       "https://www.google.com/"
       "search?source=chrome.cr.ctxi&q=&lns_fp=1&lns_mode=un"
-      "&gsc=2&hl=en-US&cs=0");
+      "&cs=0&gsc=2&hl=en-US");
 
   // The search query history stack should be empty and the currently loaded
   // query should be set.
@@ -3831,7 +3833,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
       "https://www.google.com/"
       "search?source=chrome.cr.ctxi&vsint=CAMiBioEa2l3aSoKCgIIBxICCAMgAg&q="
       "kiwi&lns_fp="
-      "1&lns_mode=text&lns_surface=42&gsc=2&hl=en-US&cs=0");
+      "1&lns_mode=text&lns_surface=42&cs=0&gsc=2&hl=en-US");
   content::TestNavigationObserver second_observer(
       controller->GetSidePanelWebContentsForTesting());
   controller->IssueTextSelectionRequestForTesting("kiwi", 1, 100);
@@ -3926,7 +3928,7 @@ IN_PROC_BROWSER_TEST_F(
   const GURL first_search_url(
       "https://www.google.com/"
       "search?source=chrome.cr.ctxi&q=&lns_fp=1&lns_mode=un"
-      "&gsc=2&hl=en-US&cs=0");
+      "&cs=0&gsc=2&hl=en-US");
 
   // The search query history stack should be empty and the currently loaded
   // query should be set.
@@ -3949,7 +3951,7 @@ IN_PROC_BROWSER_TEST_F(
   const GURL second_search_url(
       "https://www.google.com/"
       "search?source=chrome.gsc&ie=UTF-8&oq=green&vsint=KgwKAggHEgIIEhgAIAI&"
-      "gsc=2&hl=en-US&cs=0&q=green&lns_mode=mu&lns_fp=1&udm=24");
+      "cs=0&gsc=2&hl=en-US&q=green&lns_mode=mu&lns_fp=1&udm=24");
   // We can't use content::WaitForLoadStop here since the last navigation is
   // successful.
   content::TestNavigationObserver first_searchbox_query_observer(
@@ -3979,7 +3981,7 @@ IN_PROC_BROWSER_TEST_F(
   const GURL third_search_url(
       "https://www.google.com/"
       "search?source=chrome.gsc&ie=UTF-8&oq=red&vsint=KgwKAggHEgIIEhgAIAI&"
-      "gsc=2&hl=en-US&cs=0&q=red&lns_mode=mu&lns_fp=1&udm=24");
+      "cs=0&gsc=2&hl=en-US&q=red&lns_mode=mu&lns_fp=1&udm=24");
   // We can't use content::WaitForLoadStop here since the last navigation is
   // successful.
   content::TestNavigationObserver second_searchbox_query_observer(
@@ -8872,8 +8874,7 @@ class LensOverlayControllerSideBySideBrowserTest
  protected:
   void SetupFeatureList() override {
     feature_list_.InitWithFeaturesAndParameters(
-        {{lens::features::kLensOverlay, {{"use-blur", "true"}}},
-         {features::kSideBySide, {}}},
+        {{lens::features::kLensOverlay, {{"use-blur", "true"}}}},
         {lens::features::kLensSearchZeroStateCsb});
   }
 
@@ -9819,4 +9820,57 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerReinvocationBrowserTest,
   // Verify that the navigation occurred.
   search_observer.WaitForNavigationFinished();
   EXPECT_EQ(query_controller->last_lens_selection_type(), lens::REGION_SEARCH);
+}
+
+class LensOverlayControllerContextualTasksBrowserTest
+    : public LensOverlayControllerBrowserTest {
+ protected:
+  void SetupFeatureList() override {
+    feature_list_.InitWithFeatures(
+        {lens::features::kLensOverlay,
+         lens::features::kLensOverlayContextualSearchbox,
+         lens::features::kLensSearchReinvocationAffordance,
+         contextual_tasks::kContextualTasks},
+        {lens::features::kLensSearchZeroStateCsb});
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(LensOverlayControllerContextualTasksBrowserTest,
+                       EnterprisePolicy) {
+  // The default policy is to allow the feature to be enabled.
+  EXPECT_TRUE(browser()
+                  ->GetFeatures()
+                  .lens_overlay_entry_point_controller()
+                  ->IsEnabled());
+
+  // Even if the LensOverlaySettings policy is set to disabled, the feature
+  // should still be enabled since the enterprise policy for contextual tasks is
+  // not set.
+  policy::PolicyMap policies;
+  policies.Set("LensOverlaySettings", policy::POLICY_LEVEL_MANDATORY,
+               policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
+               base::Value(1), nullptr);
+  policy_provider()->UpdateChromePolicy(policies);
+  EXPECT_TRUE(browser()
+                  ->GetFeatures()
+                  .lens_overlay_entry_point_controller()
+                  ->IsEnabled());
+
+  policies.Set("SearchContentSharingSettings", policy::POLICY_LEVEL_MANDATORY,
+               policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
+               base::Value(1), nullptr);
+  policy_provider()->UpdateChromePolicy(policies);
+  EXPECT_FALSE(browser()
+                   ->GetFeatures()
+                   .lens_overlay_entry_point_controller()
+                   ->IsEnabled());
+
+  policies.Set("SearchContentSharingSettings", policy::POLICY_LEVEL_MANDATORY,
+               policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
+               base::Value(0), nullptr);
+  policy_provider()->UpdateChromePolicy(policies);
+  EXPECT_TRUE(browser()
+                  ->GetFeatures()
+                  .lens_overlay_entry_point_controller()
+                  ->IsEnabled());
 }

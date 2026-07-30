@@ -38,6 +38,9 @@ class WebIdlDiffToolTest(unittest.TestCase):
         ('app_runtime.idl', 'app_runtime.webidl'),
         ('bluetooth_low_energy.idl', 'bluetooth_low_energy.webidl'),
         ('bluetooth_socket.idl', 'bluetooth_socket.webidl'),
+        ('clipboard.idl', 'clipboard.webidl'),
+        ('system_display.idl', 'system_display.webidl'),
+        ('usb.idl', 'usb.webidl'),
     ]
     # LoadAndReturnUnifiedDiff expects file paths relative to the repo root.
     converted_schema_path = 'tools/json_schema_compiler/test/converted_schemas/'

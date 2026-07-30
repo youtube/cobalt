@@ -20,7 +20,6 @@
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "chrome/browser/autocomplete/autocomplete_classifier_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
@@ -62,8 +61,6 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/feature_engagement/public/tracker.h"
-#include "components/omnibox/browser/autocomplete_classifier.h"
-#include "components/omnibox/browser/autocomplete_match.h"
 #include "components/performance_manager/public/user_tuning/prefs.h"
 #include "components/prefs/pref_service.h"
 #include "components/saved_tab_groups/public/features.h"
@@ -142,6 +139,20 @@ void DialogTimingToSource(
   }
 }
 
+TabStripUserGestureDetails GetGestureDetail(const ui::Event& event) {
+  TabStripUserGestureDetails gesture_detail(
+      TabStripUserGestureDetails::GestureType::kOther, event.time_stamp());
+  TabStripUserGestureDetails::GestureType type =
+      TabStripUserGestureDetails::GestureType::kOther;
+  if (event.type() == ui::EventType::kMousePressed) {
+    type = TabStripUserGestureDetails::GestureType::kMouse;
+  } else if (event.type() == ui::EventType::kGestureTapDown) {
+    type = TabStripUserGestureDetails::GestureType::kTouch;
+  }
+  gesture_detail.type = type;
+  return gesture_detail;
+}
+
 }  // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -176,8 +187,8 @@ BrowserTabStripController::~BrowserTabStripController() {
   // When we get here the TabStrip is being deleted. We need to explicitly
   // cancel the menu, otherwise it may try to invoke something on the tabstrip
   // from its destructor.
-  if (context_menu_contents_.get()) {
-    context_menu_contents_.reset();
+  if (context_menu_controller_.get()) {
+    context_menu_controller_.reset();
   }
 
   model_->RemoveObserver(this);
@@ -198,10 +209,8 @@ void BrowserTabStripController::InitFromModel(TabStrip* tabstrip) {
 bool BrowserTabStripController::IsTabPinned(const Tab* tab) const {
   return IsTabPinned(tabstrip_->GetModelIndexOf(tab).value());
 }
-
-const ui::ListSelectionModel& BrowserTabStripController::GetSelectionModel()
-    const {
-  return model_->selection_model();
+ui::ListSelectionModel BrowserTabStripController::GetSelectionModel() const {
+  return model_->selection_model().ToListSelectionModel();
 }
 
 int BrowserTabStripController::GetCount() const {
@@ -260,17 +269,7 @@ void BrowserTabStripController::SelectTab(int model_index,
       content::PeakGpuMemoryTrackerFactory::Create(
           viz::PeakGpuMemoryTracker::Usage::CHANGE_TAB);
 
-  TabStripUserGestureDetails gesture_detail(
-      TabStripUserGestureDetails::GestureType::kOther, event.time_stamp());
-  TabStripUserGestureDetails::GestureType type =
-      TabStripUserGestureDetails::GestureType::kOther;
-  if (event.type() == ui::EventType::kMousePressed) {
-    type = TabStripUserGestureDetails::GestureType::kMouse;
-  } else if (event.type() == ui::EventType::kGestureTapDown) {
-    type = TabStripUserGestureDetails::GestureType::kTouch;
-  }
-  gesture_detail.type = type;
-  model_->ActivateTabAt(model_index, gesture_detail);
+  model_->ActivateTabAt(model_index, GetGestureDetail(event));
 
   tabstrip_->GetWidget()
       ->GetCompositor()
@@ -505,36 +504,24 @@ void BrowserTabStripController::ShowContextMenuForTab(
     return;
   }
 
-  context_menu_contents_ = std::make_unique<TabContextMenuController>(
-      base::BindRepeating(
-          &BrowserTabStripController::IsContextMenuCommandChecked,
-          base::Unretained(this)),
-      base::BindRepeating(
-          &BrowserTabStripController::IsContextMenuCommandEnabled,
-          base::Unretained(this), tab_index.value()),
-      base::BindRepeating(
-          &BrowserTabStripController::IsContextMenuCommandAlerted,
-          base::Unretained(this)),
-      base::BindRepeating(&BrowserTabStripController::ExecuteContextMenuCommand,
-                          base::Unretained(this), tab_index.value()),
-      base::BindRepeating(&BrowserTabStripController::GetContextMenuAccelerator,
-                          base::Unretained(this)));
+  context_menu_controller_ =
+      std::make_unique<TabContextMenuController>(tab_index.value(), this);
 
   auto model = menu_model_factory_->Create(
-      context_menu_contents_.get(),
+      context_menu_controller_.get(),
       GetBrowserWindowInterface()->GetFeatures().tab_menu_model_delegate(),
       model_, tab_index.value());
 
-  context_menu_contents_->LoadModel(std::move(model));
+  context_menu_controller_->LoadModel(std::move(model));
 
-  context_menu_contents_->RunMenuAt(p, source_type, tabstrip_->GetWidget());
+  context_menu_controller_->RunMenuAt(p, source_type, tabstrip_->GetWidget());
   base::UmaHistogramEnumeration("TabStrip.Tab.Views.ActivationAction",
                                 TabActivationTypes::kContextMenu);
 }
 
 void BrowserTabStripController::CloseContextMenuForTesting() {
-  if (context_menu_contents_) {
-    context_menu_contents_->CloseMenu();
+  if (context_menu_controller_) {
+    context_menu_controller_->CloseMenu();
   }
 }
 
@@ -556,19 +543,6 @@ void BrowserTabStripController::OnDropIndexUpdate(
 
 void BrowserTabStripController::CreateNewTab(NewTabTypes context) {
   chrome::NewTab(GetBrowser(), context);
-}
-
-void BrowserTabStripController::CreateNewTabWithLocation(
-    const std::u16string& location) {
-  // Use autocomplete to clean up the text, going so far as to turn it into
-  // a search query if necessary.
-  AutocompleteMatch match;
-  AutocompleteClassifierFactory::GetForProfile(GetProfile())
-      ->Classify(location, false, false, metrics::OmniboxEventProto::BLANK,
-                 &match, nullptr);
-  if (match.destination_url.is_valid()) {
-    model_->delegate()->AddTabAt(match.destination_url, -1, true);
-  }
 }
 
 void BrowserTabStripController::OnStartedDragging(bool dragging_window) {
@@ -650,9 +624,8 @@ std::u16string BrowserTabStripController::GetGroupContentString(
   std::u16string format_string = l10n_util::GetPluralStringFUTF16(
       IDS_TAB_CXMENU_PLACEHOLDER_GROUP_TITLE, tab_group->tab_count() - 1);
   std::u16string short_title;
-  gfx::ElideString(
-      tab_group->GetFirstTab()->GetTabFeatures()->tab_ui_helper()->GetTitle(),
-      kContextMenuTabTitleMaxLength, &short_title);
+  gfx::ElideString(TabUIHelper::From(tab_group->GetFirstTab())->GetTitle(),
+                   kContextMenuTabTitleMaxLength, &short_title);
   return base::ReplaceStringPlaceholders(format_string, short_title, nullptr);
 }
 
@@ -823,9 +796,7 @@ void BrowserTabStripController::OnTabStripModelChanged(
     tabs::TabInterface* const new_tab_interface = selection.new_tab;
     std::optional<size_t> index = selection.new_model.active();
     if (new_contents && new_tab_interface && index.has_value()) {
-      new_tab_interface->GetTabFeatures()
-          ->tab_ui_helper()
-          ->SetWasActiveAtLeastOnce();
+      TabUIHelper::From(new_tab_interface)->SetWasActiveAtLeastOnce();
       SetTabDataAt(new_contents, index.value());
     }
   }

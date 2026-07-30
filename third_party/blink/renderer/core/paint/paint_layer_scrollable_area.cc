@@ -1723,9 +1723,9 @@ bool PaintLayerScrollableArea::NeedsScrollbarReconstruction() const {
 
 gfx::Size PaintLayerScrollableArea::ComputeScrollbarWidthsForViewportUnits(
     StyleBasedScrollbarData scrollbar_properties) const {
+  DCHECK(!GetLayoutBox()->IsFieldset()) << "root element can't be a fieldset";
+  DCHECK(!GetLayoutBox()->IsFrameSet()) << "root element can't be a frameset";
   DCHECK(GetLayoutBox()->GetFrame()->GetSettings());
-  // TODO(crbug.com/354751900): Check IsFieldset() || IsFrameSet(). They can't
-  // have scrollbars.
   if (VisualViewportSuppliesScrollbars() ||
       GetLayoutBox()->GetFrame()->GetSettings()->GetHideScrollbars() ||
       GetPageScrollbarTheme().UsesOverlayScrollbars() ||
@@ -1751,8 +1751,15 @@ gfx::Size PaintLayerScrollableArea::ComputeScrollbarWidthsForViewportUnits(
   if (v_mode == mojom::blink::ScrollbarMode::kAlwaysOn) {
     scrollbar_thicknesses.set_width(scrollbar_thickness);
   }
-  // TODO(crbug.com/354751900): Check scrollbar gutter.
-
+  if (scrollbar_properties.gutter & kScrollbarGutterBothEdges) {
+    IsVerticalWritingMode(scrollbar_properties.writing_mode)
+        ? scrollbar_thicknesses.set_height(scrollbar_thickness * 2)
+        : scrollbar_thicknesses.set_width(scrollbar_thickness * 2);
+  } else if (scrollbar_properties.gutter & kScrollbarGutterStable) {
+    IsVerticalWritingMode(scrollbar_properties.writing_mode)
+        ? scrollbar_thicknesses.set_height(scrollbar_thickness)
+        : scrollbar_thicknesses.set_width(scrollbar_thickness);
+  }
   return scrollbar_thicknesses;
 }
 
@@ -3279,8 +3286,8 @@ gfx::Rect PaintLayerScrollableArea::ScrollingBackgroundVisualRect(
 String
 PaintLayerScrollableArea::ScrollingBackgroundDisplayItemClient::DebugName()
     const {
-  return "Scrolling background of " +
-         scrollable_area_->GetLayoutBox()->DebugName();
+  return StrCat({"Scrolling background of ",
+                 scrollable_area_->GetLayoutBox()->DebugName()});
 }
 
 DOMNodeId
@@ -3292,7 +3299,8 @@ PaintLayerScrollableArea::ScrollingBackgroundDisplayItemClient::OwnerNodeId(
 
 String PaintLayerScrollableArea::ScrollCornerDisplayItemClient::DebugName()
     const {
-  return "Scroll corner of " + scrollable_area_->GetLayoutBox()->DebugName();
+  return StrCat(
+      {"Scroll corner of ", scrollable_area_->GetLayoutBox()->DebugName()});
 }
 
 DOMNodeId PaintLayerScrollableArea::ScrollCornerDisplayItemClient::OwnerNodeId(

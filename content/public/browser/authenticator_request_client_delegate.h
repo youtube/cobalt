@@ -20,13 +20,13 @@
 #include "content/common/content_export.h"
 #include "content/public/browser/web_authentication_request_proxy.h"
 #include "device/fido/authenticator_get_assertion_response.h"
-#include "device/fido/cable/cable_discovery_data.h"
 #include "device/fido/discoverable_credential_metadata.h"
 #include "device/fido/fido_discovery_base.h"
 #include "device/fido/fido_request_handler_base.h"
-#include "device/fido/fido_transport_protocol.h"
-#include "device/fido/fido_types.h"
-#include "device/fido/public_key_credential_descriptor.h"
+#include "device/fido/public/cable_discovery_data.h"
+#include "device/fido/public/fido_transport_protocol.h"
+#include "device/fido/public/fido_types.h"
+#include "device/fido/public/public_key_credential_descriptor.h"
 #include "url/gurl.h"
 
 namespace device {

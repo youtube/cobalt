@@ -55,6 +55,10 @@
 #include "ui/shell_dialogs/select_file_policy.h"
 #include "ui/views/controls/button/label_button_border.h"
 
+#if BUILDFLAG(ENABLE_PRINTING)
+#include "printing/print_dialog_linux_interface.h"  // nogncheck
+#endif
+
 namespace qt {
 
 namespace {
@@ -355,6 +359,13 @@ bool QtUi::PrimaryPasteEnabled() const {
   return true;
 }
 
+int QtUi::GetWindowDragThresholdPx() const {
+  // TODO(crbug.com/459840685): Qt supports both startDragDistance and
+  // startDragTime as thresholds:
+  // https://doc.qt.io/qt-6/qapplication.html#startDragDistance-prop.
+  return kDefaultWindowDragThreshold;
+}
+
 std::vector<std::string> QtUi::GetCmdLineFlagsForCopy() const {
   return {std::string(switches::kUiToolkitFlag) + "=qt",
           base::StrCat({switches::kQtVersionFlag, "=",
@@ -432,7 +443,7 @@ ui::TextEditCommand QtUi::GetTextEditCommandForEvent(const ui::Event& event,
 }
 
 #if BUILDFLAG(ENABLE_PRINTING)
-printing::PrintDialogLinuxInterface* QtUi::CreatePrintDialog(
+std::unique_ptr<printing::PrintDialogLinuxInterface> QtUi::CreatePrintDialog(
     printing::PrintingContextLinux* context) {
   return fallback_linux_ui_ ? fallback_linux_ui_->CreatePrintDialog(context)
                             : nullptr;

@@ -133,7 +133,7 @@ const base::FilePath::CharType kSimpleWithIconCrxName[] =
 const char kGoodCrxId[] = "ldnnhddmnhbkjipkidpdiheffobcpfmf";
 const char kSimpleWithIconCrxId[] = "dehdlahnlebladnfleagmjdapdjdcnlp";
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 const base::FilePath::CharType kHostedAppCrxName[] =
     FILE_PATH_LITERAL("hosted_app.crx");
 const char kHostedAppCrxId[] = "kbmnembihfiondgfjekmnmcbddelicoi";
@@ -210,7 +210,6 @@ void RegisterURLReplacingHandler(net::EmbeddedTestServer* test_server,
       base::Unretained(test_server), match_path, template_file));
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Sends a mouse click at the given coordinates to the current renderer.
 void PerformClick(content::WebContents* contents, int x, int y) {
   blink::WebMouseEvent click_event(
@@ -230,7 +229,6 @@ void PerformClick(content::WebContents* contents, int x, int y) {
       ->GetWidget()
       ->ForwardMouseEvent(click_event);
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 const extensions::Extension* InstallExtensionWithContext(
     const base::FilePath::StringType& name,
@@ -1938,15 +1936,15 @@ IN_PROC_BROWSER_TEST_F(ExtensionPolicyTest,
   EXPECT_FALSE(registrar->IsExtensionEnabled(kGoodCrxId));
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-// TODO(crbug.com/394876083): Support ExtensionAllowedTypes policy on desktop
-// Android.
 IN_PROC_BROWSER_TEST_F(ExtensionPolicyTest, ExtensionAllowedTypes) {
   // Verifies that extensions are blocked if policy specifies an allowed types
   // list and the extension's type is not on that list.
   extensions::ExtensionRegistry* registry = extension_registry();
   ASSERT_FALSE(registry->GetExtensionById(
       kGoodCrxId, extensions::ExtensionRegistry::EVERYTHING));
+  // Hosted apps are deprecated, but for the purposes of this test we just need
+  // a CRX of a type other than "extension" to compare with kGoodCrx. A hosted
+  // app works fine for that.
   ASSERT_FALSE(registry->GetExtensionById(
       kHostedAppCrxId, extensions::ExtensionRegistry::EVERYTHING));
 
@@ -1977,8 +1975,6 @@ IN_PROC_BROWSER_TEST_F(ExtensionPolicyTest, ExtensionAllowedTypes) {
 // Checks that a click on an extension CRX download triggers the extension
 // installation prompt without further user interaction when the source is
 // allowlisted by policy.
-// TODO(crbug.com/394876083): Support ExtensionInstallSources policy on desktop
-// Android.
 IN_PROC_BROWSER_TEST_F(ExtensionPolicyTest, ExtensionInstallSources) {
   extensions::ScopedTestDialogAutoConfirm auto_confirm(
       extensions::ScopedTestDialogAutoConfirm::ACCEPT);
@@ -2012,7 +2008,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionPolicyTest, ExtensionInstallSources) {
   UpdateProviderPolicy(policies);
 
   extensions::TestExtensionRegistryObserver observer(extension_registry());
-  PerformClick(browser()->tab_strip_model()->GetActiveWebContents(), 1, 0);
+  PerformClick(chrome_test_utils::GetActiveWebContents(this), 1, 0);
   observer.WaitForExtensionWillBeInstalled();
   // Note: Cannot check that the notification details match the expected
   // exception, since the details object has already been freed prior to
@@ -2024,7 +2020,6 @@ IN_PROC_BROWSER_TEST_F(ExtensionPolicyTest, ExtensionInstallSources) {
   EXPECT_TRUE(
       extension_registry()->enabled_extensions().GetByID(kSimpleWithIconCrxId));
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Verifies that extensions with version older than the minimum version required
 // by policy will get disabled, and will be auto-updated and/or re-enabled upon

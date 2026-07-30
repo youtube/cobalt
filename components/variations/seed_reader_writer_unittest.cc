@@ -7,6 +7,7 @@
 #include "base/base64.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/strings/strcat.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_entropy_provider.h"
@@ -158,9 +159,9 @@ class ExpectedFieldTrialGroupChannelsTest
 
 class ExpectedFieldTrialGroupAllChannelsTest
     : public ExpectedFieldTrialGroupChannelsTest {};
-class ExpectedFieldTrialGroupCanaryDevTest
+class ExpectedFieldTrialGroupPreStableTest
     : public ExpectedFieldTrialGroupChannelsTest {};
-class ExpectedFieldTrialGroupBetaStableUnknownTest
+class ExpectedFieldTrialGroupStableUnknownTest
     : public ExpectedFieldTrialGroupChannelsTest {};
 
 INSTANTIATE_TEST_SUITE_P(
@@ -197,15 +198,16 @@ TEST_P(ExpectedFieldTrialGroupAllChannelsTest, NoEntropyProvider) {
 
 INSTANTIATE_TEST_SUITE_P(
     All,
-    ExpectedFieldTrialGroupCanaryDevTest,
+    ExpectedFieldTrialGroupPreStableTest,
     ::testing::ConvertGenerator<ExpectedFieldTrialGroupTestParams::TupleT>(
         ::testing::Combine(::testing::Values(kRegularSeedFieldsPrefs,
                                              kSafeSeedFieldsPrefs),
                            ::testing::Values(version_info::Channel::CANARY,
-                                             version_info::Channel::DEV))));
+                                             version_info::Channel::DEV,
+                                             version_info::Channel::BETA))));
 
 // If channel is canary or dev, client is assigned a group.
-TEST_P(ExpectedFieldTrialGroupCanaryDevTest, AssignedGroup) {
+TEST_P(ExpectedFieldTrialGroupPreStableTest, AssignedGroup) {
   SeedReaderWriter seed_reader_writer(
       &local_state_, /*seed_file_dir=*/temp_dir_.GetPath(), kSeedFilename,
       kOldSeedFilename, GetParam().seed_fields_prefs, GetParam().channel,
@@ -217,16 +219,15 @@ TEST_P(ExpectedFieldTrialGroupCanaryDevTest, AssignedGroup) {
 
 INSTANTIATE_TEST_SUITE_P(
     All,
-    ExpectedFieldTrialGroupBetaStableUnknownTest,
+    ExpectedFieldTrialGroupStableUnknownTest,
     ::testing::ConvertGenerator<ExpectedFieldTrialGroupTestParams::TupleT>(
         ::testing::Combine(::testing::Values(kRegularSeedFieldsPrefs,
                                              kSafeSeedFieldsPrefs),
-                           ::testing::Values(version_info::Channel::BETA,
-                                             version_info::Channel::STABLE,
+                           ::testing::Values(version_info::Channel::STABLE,
                                              version_info::Channel::UNKNOWN))));
 
 // If channel is beta, stable, or unknown, client is not assigned a group.
-TEST_P(ExpectedFieldTrialGroupBetaStableUnknownTest, NotAssignedGroup) {
+TEST_P(ExpectedFieldTrialGroupStableUnknownTest, NotAssignedGroup) {
   SeedReaderWriter seed_reader_writer(
       &local_state_, /*seed_file_dir=*/temp_dir_.GetPath(), kSeedFilename,
       kOldSeedFilename, GetParam().seed_fields_prefs, GetParam().channel,
@@ -931,7 +932,8 @@ INSTANTIATE_TEST_SUITE_P(
                                              kSafeSeedFieldsPrefs),
                            ::testing::Values(kSeedFilesGroup),
                            ::testing::Values(version_info::Channel::CANARY,
-                                             version_info::Channel::DEV))));
+                                             version_info::Channel::DEV,
+                                             version_info::Channel::BETA))));
 
 // Verifies clients using local state to store seeds write seeds to Local State.
 TEST_P(SeedReaderWriterLocalStateGroupsTest, WriteSeed) {
@@ -1530,8 +1532,7 @@ INSTANTIATE_TEST_SUITE_P(
                                              kSafeSeedFieldsPrefs),
                            ::testing::Values(kNoGroup),
                            ::testing::Values(version_info::Channel::UNKNOWN,
-                                             version_info::Channel::STABLE,
-                                             version_info::Channel::BETA))));
+                                             version_info::Channel::STABLE))));
 
 INSTANTIATE_TEST_SUITE_P(
     ControlAndDefaultGroup,

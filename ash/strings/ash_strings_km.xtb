@@ -874,6 +874,7 @@
 <translation id="397105322502079400">កំពុងគណនា...</translation>
 <translation id="397726367135689299">ការសាកថ្ម​ប្រហែល​មិន​អាចទុកចិត្ត​បានទេ។</translation>
 <translation id="3977512764614765090">ថ្ម​កំពុងសាកមានកម្រិត​​ <ph name="PERCENTAGE" />%។</translation>
+<translation id="3978162107953847778">បញ្ចូល​តំណ​ពីកន្លែងនានា ដូចជា​ប្រវត្តិ​រុករក​តាមអ៊ីនធឺណិត និង Google ថាស​របស់អ្នក។ អ្នក​ក៏អាច​បញ្ចូល​រូប​អារម្មណ៍ ឯកសារ​រូបភាព និង​អ្វីៗ​ជាច្រើនទៀត​បានផងដែរ។ <ph name="LINK_TO_LEARN_MORE" /></translation>
 <translation id="3982013579989864579">ប្ដូរ​ឧបករណ៍​បញ្ចេញ​សំឡេងឬ?</translation>
 <translation id="3984536049089846927">ទំព័របន្ទាប់</translation>
 <translation id="3986082989454912832">ទទួល</translation>
@@ -1600,6 +1601,7 @@
 <translation id="6260038345397266744"><ph name="TITLE" />។ <ph name="DESCRIPTION" /></translation>
 <translation id="6267036997247669271"><ph name="NAME" />: កំពុងធ្វើសកម្មភាព...</translation>
 <translation id="6274202259872570803">ការថតអេក្រង់</translation>
+<translation id="6274422179279280249">បញ្ចូល​តំណ រូប​អារម្មណ៍ និង​អ្វីៗជា​ច្រើនទៀត។ អ្នក​ក៏អាច​ទទួលបាន​ជំនួយ​ក្នុងការ​សរសេរ​ដោយប្រើ Google AI ផងដែរ។ <ph name="LINK_TO_LEARN_MORE" /></translation>
 <translation id="6276708887952587684">មើល​ប្រភព​ទំព័រ</translation>
 <translation id="6285871695023807425">បញ្ចូល​ទៅ​ប្រតិទិន</translation>
 <translation id="6288235558961782912">អាចបញ្ចូល <ph name="USER_EMAIL_ADDRESS" /> ឡើងវិញ​នៅពេលក្រោយ​ដោយមាន​ការអនុញ្ញាតពីមាតាបិតា។</translation>
@@ -2189,6 +2191,7 @@
 <translation id="8237964652943995219">តុបន្ទាប់៖ <ph name="DESK_NAME" />។ តុទី <ph name="DESK_INDEX" /> នៃ <ph name="DESK_COUNT" />។</translation>
 <translation id="8238817965863339552">មើលការណែនាំត្រួសៗ ដើម្បីស្វែងយល់អំពីរបៀបប្រើប្រាស់ <ph name="PRODUCT_NAME" /> របស់អ្នក។ រៀបចំ និងដំណើរការក្នុង 5 ជំហាន។</translation>
 <translation id="8239034820133090126">បើកដំណើរការ​តុ​នៅ​ខាងស្ដាំ</translation>
+<translation id="8241650983304689286">បញ្ចូល​ផ្ទាំងទៅ​ទិដ្ឋភាព​បំបែកថ្មី</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, កម្លាំង​រលកសញ្ញា <ph name="SIGNAL_STRENGTH" />, ថ្មទូរសព្ទ <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">បង្ហាញ​ខ្លឹមសារ Google ថាស​ទាំងអស់</translation>
 <translation id="8257510091797044096">រៀបចំឧបករណ៍របស់អ្នក</translation>

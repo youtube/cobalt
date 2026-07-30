@@ -115,16 +115,6 @@ const base::Feature* FetchIPHFeatureFromEnum(
   }
 }
 
-// Returns yes if input views can be reloaded.
-bool CanReloadInputViews() {
-  // Do not allow reloading input views in the background when skipping that in
-  // the background is enabled.
-  return !base::FeatureList::IsEnabled(
-             kFormInputAccessorySkipInputViewReloadInBackground) ||
-         UIApplication.sharedApplication.applicationState ==
-             UIApplicationStateActive;
-}
-
 }  // namespace
 
 @interface FormInputAccessoryCoordinator () <
@@ -270,7 +260,7 @@ bool CanReloadInputViews() {
     [self.layoutGuide.owningView removeLayoutGuide:self.layoutGuide];
     [self.formInputAccessoryTapRecognizer.view
         removeGestureRecognizer:self.formInputAccessoryTapRecognizer];
-    [self maybeReloadInputViews];
+    [_formInputAccessoryMediator reloadFirstResponderInputViews];
   }
 
   _formInputAccessoryViewController = nil;
@@ -288,7 +278,7 @@ bool CanReloadInputViews() {
 - (void)reset {
   [self stopChildren];
   [self resetInputViews];
-  [self maybeReloadInputViews];
+  [_formInputAccessoryMediator reloadFirstResponderInputViews];
 }
 
 #pragma mark - Presenting Children
@@ -336,7 +326,7 @@ bool CanReloadInputViews() {
     [expandedManualFillCoordinator presentFromButton:button];
   } else {
     self.formInputViewController = expandedManualFillCoordinator.viewController;
-    [self maybeReloadInputViews];
+    [_formInputAccessoryMediator reloadFirstResponderInputViews];
   }
 
   [self.childCoordinators addObject:expandedManualFillCoordinator];
@@ -469,9 +459,6 @@ bool CanReloadInputViews() {
   }
 
   web::WebState* activeWebState = [self activeWebState];
-  if (!activeWebState) {
-    return;
-  }
 
   id<PasswordGenerationProvider> generationProvider =
       PasswordTabHelper::FromWebState(activeWebState)
@@ -578,8 +565,14 @@ bool CanReloadInputViews() {
       [applicationHandler openURLInNewTab:command];
       return;
     }
+  }
 
-    if (type == autofill::AutofillProfile::RecordType::kAccountNameEmail) {
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableSupportForNameAndEmail)) {
+    id<ApplicationCommands> applicationHandler = HandlerForProtocol(
+        self.browser->GetCommandDispatcher(), ApplicationCommands);
+    if (address.record_type() ==
+        autofill::AutofillProfile::RecordType::kAccountNameEmail) {
       OpenNewTabCommand* command = [OpenNewTabCommand
           commandWithURLFromChrome:GURL(kGoogleAccountNameEmailAddressEditURL)];
       [applicationHandler openURLInNewTab:command];
@@ -607,9 +600,6 @@ bool CanReloadInputViews() {
   [self reset];
 
   web::WebState* activeWebState = [self activeWebState];
-  if (!activeWebState) {
-    return;
-  }
 
   __weak __typeof(self) weakSelf = self;
   auto callback = base::BindOnce(^(const std::string& plusAddress) {
@@ -715,17 +705,11 @@ bool CanReloadInputViews() {
   return overrideModule ? overrideModule : _reauthenticationModule;
 }
 
-// Returns the active web state. May return nil.
+// Returns the active web state.
 - (web::WebState*)activeWebState {
   web::WebState* webState =
       self.browser->GetWebStateList()->GetActiveWebState();
-  if (!webState) {
-    // TODO: b/40940511 - The web state should not be nil, but we have seen
-    // cases of it being nil in the wild, so, for now, we handle the nil case
-    // gracefully, but still dump the information we need to find the root
-    // cause. This can be removed once the root cause has been fixed.
-    base::debug::DumpWithoutCrashing();
-  }
+  CHECK(webState);
   return webState;
 }
 
@@ -759,9 +743,6 @@ bool CanReloadInputViews() {
 // Shows confirmation dialog before opening Other passwords.
 - (void)showConfirmationDialogToUseOtherPassword {
   web::WebState* activeWebState = [self activeWebState];
-  if (!activeWebState) {
-    return;
-  }
 
   const GURL& URL = activeWebState->GetLastCommittedURL();
   std::u16string origin = base::ASCIIToUTF16(
@@ -949,12 +930,6 @@ bool CanReloadInputViews() {
   id<SettingsCommands> settingsHandler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), SettingsCommands);
   [settingsHandler showPasswordDetailsForCredential:credential inEditMode:YES];
-}
-
-- (void)maybeReloadInputViews {
-  if (CanReloadInputViews()) {
-    [GetFirstResponder() reloadInputViews];
-  }
 }
 
 @end

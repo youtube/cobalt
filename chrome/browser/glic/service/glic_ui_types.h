@@ -10,6 +10,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "chrome/browser/glic/host/glic.mojom-shared.h"
+#include "chrome/browser/glic/public/context/glic_sharing_manager.h"
 #include "chrome/browser/glic/widget/glic_widget.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "components/tabs/public/tab_interface.h"
@@ -34,6 +35,7 @@ struct SidePanelShowOptions {
       : tab(bound_tab) {}
   base::raw_ref<tabs::TabInterface> tab;
   bool suppress_opening_animation = false;
+  GlicPinTrigger pin_trigger = GlicPinTrigger::kUnknown;
 };
 
 struct FloatingShowOptions {
@@ -60,9 +62,12 @@ struct ShowOptions {
       gfx::Rect initial_bounds,
       mojom::WebClientMode initial_mode = mojom::WebClientMode::kUnknown);
   static ShowOptions ForSidePanel(tabs::TabInterface& bound_tab);
+  static ShowOptions ForSidePanel(tabs::TabInterface& bound_tab,
+                                  GlicPinTrigger pin_trigger);
 
   // Shared show options
   bool focus_on_show = false;
+  bool reinitialize_if_already_active = false;
 
   // Container for options that are different between side panel and floaty.
   EmbedderOptions embedder_options;

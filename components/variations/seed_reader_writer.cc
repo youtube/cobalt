@@ -14,6 +14,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
@@ -150,7 +151,8 @@ bool IsEligibleForSeedFileTrial(version_info::Channel channel,
     return false;
   }
   return channel == version_info::Channel::CANARY ||
-         channel == version_info::Channel::DEV;
+         channel == version_info::Channel::DEV ||
+         channel == version_info::Channel::BETA;
 }
 
 // Sets up the seed file experiment which only some clients are eligible for

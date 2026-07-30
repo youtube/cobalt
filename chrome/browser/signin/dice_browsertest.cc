@@ -19,6 +19,7 @@
 #include "base/metrics/statistics_recorder.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/bind_post_task.h"
@@ -1651,8 +1652,13 @@ IN_PROC_BROWSER_TEST_F(DiceExplicitSigninBrowserTest,
       builder.AsPrimary(signin::ConsentLevel::kSync)
           .WithAccessPoint(signin_metrics::AccessPoint::kWebSignin)
           .Build(kMainGmailEmail));
-  ASSERT_EQ(signin::GetPrimaryAccountConsentLevel(GetIdentityManager()),
-            signin::ConsentLevel::kSync);
+  syncer::SyncService* sync_service =
+      SyncServiceFactory::GetForProfile(profile);
+  // TODO(crbug.com/464457988): Mark sync setup as complete by default in the
+  // sign-in helper method.
+  sync_service->GetUserSettings()->SetInitialSyncFeatureSetupComplete(
+      syncer::SyncFirstSetupCompleteSource::BASIC_FLOW);
+  ASSERT_TRUE(sync_service->IsSyncFeatureEnabled());
 
   ASSERT_FALSE(profile->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
 
@@ -2203,7 +2209,15 @@ IN_PROC_BROWSER_TEST_F(DiceManageAccountBrowserTest,
   ASSERT_TRUE(deleted_profiles.empty());
 
   // Sign the profile in.
+  // Using `kSignin` leads to test failure for some reason but should be
+  // addressed under crbug.com/417950948.
   SetupSignedInAccounts(signin::ConsentLevel::kSync);
+  syncer::SyncService* sync_service =
+      SyncServiceFactory::GetForProfile(browser()->profile());
+  // TODO(crbug.com/464457988): Mark sync setup as complete by default in the
+  // sign-in helper method.
+  sync_service->GetUserSettings()->SetInitialSyncFeatureSetupComplete(
+      syncer::SyncFirstSetupCompleteSource::BASIC_FLOW);
   enterprise_util::SetUserAcceptedAccountManagement(browser()->profile(), true);
 
   // Prohibit sign-in on next start-up.

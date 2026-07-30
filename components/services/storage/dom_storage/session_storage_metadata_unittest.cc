@@ -57,7 +57,6 @@ class SessionStorageMetadataTest : public testing::Test {
         StorageType::kSessionStorage,
         /*directory=*/base::FilePath(), "SessionStorageMetadataTest",
         /*memory_dump_id=*/std::nullopt,
-        base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()}),
         base::BindLambdaForTesting([&](DbStatus) { loop.Quit(); }));
     loop.Run();
 
@@ -249,16 +248,23 @@ TEST_F(SessionStorageMetadataTest, ShallowCopies) {
                                             test_storage_key2_.Serialize())]);
 }
 
-TEST_F(SessionStorageMetadataTest, DeleteNamespace) {
+TEST_F(SessionStorageMetadataTest, TakeNamespace) {
   SetupTestData();
   SessionStorageMetadata metadata;
   ReadMetadataFromDatabase(&metadata);
 
-  std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> tasks;
-  metadata.DeleteNamespace(test_namespace1_id_, &tasks);
-  DbStatus status;
-  RunBatch(std::move(tasks), base::BindOnce(&ErrorCallback, &status));
-  EXPECT_TRUE(status.ok());
+  std::map<blink::StorageKey, scoped_refptr<SessionStorageMetadata::MapData>>
+      namespace_to_delete = metadata.TakeNamespace(test_namespace1_id_);
+
+  std::vector<DomStorageDatabase::MapLocator> maps_to_delete;
+  for (const auto& [storage_key, map_data] : namespace_to_delete) {
+    if (map_data->ReferenceCount() == 0) {
+      maps_to_delete.emplace_back(test_namespace1_id_, storage_key,
+                                  map_data->map_id());
+    }
+  }
+  DeleteSessionsSync(*database_, {test_namespace1_id_},
+                     std::move(maps_to_delete));
 
   EXPECT_FALSE(base::Contains(metadata.namespace_storage_key_map(),
                               test_namespace1_id_));
@@ -288,11 +294,12 @@ TEST_F(SessionStorageMetadataTest, DeleteArea) {
   ReadMetadataFromDatabase(&metadata);
 
   // First delete an area with a shared map.
-  std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> tasks;
-  metadata.DeleteArea(test_namespace1_id_, test_storage_key1_, &tasks);
-  DbStatus status;
-  RunBatch(std::move(tasks), base::BindOnce(&ErrorCallback, &status));
-  EXPECT_TRUE(status.ok());
+  scoped_refptr<SessionStorageMetadata::MapData> map_data =
+      metadata.TakeExistingMap(test_namespace1_id_, test_storage_key1_);
+  EXPECT_EQ(map_data->ReferenceCount(), 1);
+
+  DeleteStorageKeysFromSessionSync(*database_, test_namespace1_id_,
+                                   {test_storage_key1_}, /*maps_to_delete=*/{});
 
   // Verify in-memory metadata is correct.
   auto ns1_entry = metadata.GetOrCreateNamespaceEntry(test_namespace1_id_);
@@ -316,10 +323,16 @@ TEST_F(SessionStorageMetadataTest, DeleteArea) {
   EXPECT_TRUE(base::Contains(contents, StdStringToUint8Vector("map-4-key1")));
 
   // Now delete an area with a unique map.
-  tasks.clear();
-  metadata.DeleteArea(test_namespace2_id_, test_storage_key2_, &tasks);
-  RunBatch(std::move(tasks), base::BindOnce(&ErrorCallback, &status));
-  EXPECT_TRUE(status.ok());
+  map_data = metadata.TakeExistingMap(test_namespace2_id_, test_storage_key2_);
+  EXPECT_EQ(map_data->ReferenceCount(), 0);
+
+  std::vector<DomStorageDatabase::MapLocator> maps_to_delete;
+  maps_to_delete.emplace_back(test_namespace2_id_, test_storage_key2_,
+                              map_data->map_id());
+
+  DeleteStorageKeysFromSessionSync(*database_, test_namespace2_id_,
+                                   {test_storage_key2_},
+                                   std::move(maps_to_delete));
 
   // Verify in-memory metadata is correct.
   EXPECT_FALSE(base::Contains(ns1_entry->second, test_storage_key1_));

@@ -15,6 +15,7 @@
 #import "ios/chrome/browser/search_engine_choice/ui/search_engine_choice_ui_util.h"
 #import "ios/chrome/browser/search_engine_choice/ui/snippet_search_engine_button.h"
 #import "ios/chrome/browser/search_engine_choice/ui/snippet_search_engine_element.h"
+#import "ios/chrome/browser/shared/ui/image/image_names.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/button_stack/button_stack_utils.h"
@@ -166,7 +167,8 @@ CGFloat GetSubtitleMarginDistance() {
 
 }  // namespace
 
-@interface SearchEngineChoiceViewController () <UITextViewDelegate>
+@interface SearchEngineChoiceViewController () <UITextViewDelegate,
+                                                UITextDragDelegate>
 @end
 
 @implementation SearchEngineChoiceViewController {
@@ -262,7 +264,7 @@ CGFloat GetSubtitleMarginDistance() {
   // Add logo image.
   // Need to use a regular png instead of custom symbol to have a better control
   // on the size and the margin of the logo.
-#if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
+#if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
   UIImage* logoImage = [UIImage imageNamed:kChromeSearchEngineChoiceIcon];
 #else
   UIImage* logoImage = [UIImage imageNamed:kChromiumSearchEngineChoiceIcon];
@@ -329,6 +331,7 @@ CGFloat GetSubtitleMarginDistance() {
   // The text alignment needs to be set after the setting the attributed text.
   subtitle1TextView.textAlignment = NSTextAlignmentCenter;
   subtitle1TextView.delegate = self;
+  subtitle1TextView.textDragDelegate = self;
 
   NSLayoutYAxisAnchor* subtitleBottomAnchor = subtitle1TextView.bottomAnchor;
 
@@ -818,8 +821,7 @@ CGFloat GetSubtitleMarginDistance() {
   NSMutableSet<NSString*>* expandedSearchEngineKeyword = [NSMutableSet set];
   for (SnippetSearchEngineButton* oldSearchEngineButton in
            _searchEngineStackView.arrangedSubviews) {
-    if (oldSearchEngineButton.snippetButtonState ==
-        SnippetButtonState::kExpanded) {
+    if (oldSearchEngineButton.snippetExpanded) {
       [expandedSearchEngineKeyword
           addObject:oldSearchEngineButton.searchEngineKeyword];
     }
@@ -831,7 +833,7 @@ CGFloat GetSubtitleMarginDistance() {
     button = CreateSnippetSearchEngineButtonWithElement(element);
     button.animatedLayoutView = _scrollView;
     if ([expandedSearchEngineKeyword containsObject:element.keyword]) {
-      button.snippetButtonState = SnippetButtonState::kExpanded;
+      button.snippetExpanded = YES;
     }
     if ([selectedSearchEngineKeyword isEqualToString:element.keyword]) {
       button.checked = YES;
@@ -1069,31 +1071,35 @@ CGFloat GetSubtitleMarginDistance() {
 
 #pragma mark - UITextViewDelegate
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
-- (BOOL)textView:(UITextView*)textView
-    shouldInteractWithURL:(NSURL*)URL
-                  inRange:(NSRange)characterRange
-              interaction:(UITextItemInteraction)interaction {
-  [self.actionDelegate showLearnMore];
-  return NO;
-}
-
-#else
 - (UIAction*)textView:(UITextView*)textView
     primaryActionForTextItem:(UITextItem*)textItem
-               defaultAction:(UIAction*)defaultAction API_AVAILABLE(ios(17.0)) {
+               defaultAction:(UIAction*)defaultAction {
   __weak __typeof(self) weakSelf = self;
   return [UIAction actionWithHandler:^(UIAction* action) {
     [weakSelf.actionDelegate showLearnMore];
   }];
 }
-#endif
 
 - (void)textViewDidChangeSelection:(UITextView*)textView {
   // Always force the `selectedTextRange` to `nil` to prevent users from
   // selecting text. Setting the `selectable` property to `NO` doesn't help
   // since it makes links inside the text view untappable.
   textView.selectedTextRange = nil;
+}
+
+- (UITextItemMenuConfiguration*)textView:(UITextView*)textView
+            menuConfigurationForTextItem:(UITextItem*)textItem
+                             defaultMenu:(UIMenu*)defaultMenu {
+  // Disable Context menu as this is an internal link.
+  return nil;
+}
+
+#pragma mark - UITextDragDelegate
+
+- (NSArray<UIDragItem*>*)textDraggableView:
+                             (UIView<UITextDraggable>*)textDraggableView
+                              itemsForDrag:(id<UITextDragRequest>)dragRequest {
+  return @[];
 }
 
 #pragma mark - UIContentContainer

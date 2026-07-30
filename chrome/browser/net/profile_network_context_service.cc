@@ -254,6 +254,13 @@ bool IsContentSettingsTypeEnabled(ContentSettingsType type) {
   }
 }
 
+void FlushClientCertCache(Profile* profile) {
+  profile->ForEachLoadedStoragePartition(
+      [](content::StoragePartition* storage_partition) {
+        storage_partition->GetNetworkContext()->FlushClientCertCache();
+      });
+}
+
 void UpdateCookieSettings(Profile* profile, ContentSettingsType type) {
   if (!IsContentSettingsTypeEnabled(type)) {
     return;
@@ -1404,6 +1411,14 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
         ->AddCookieEncryptionManagerToNetworkContextParams(
             network_context_params);
 
+#if BUILDFLAG(ENTERPRISE_CACHE_ENCRYPTION)
+    if (enterprise_encryption::ShouldEncryptHttpCache(profile_->GetPrefs())) {
+      g_browser_process->system_network_context_manager()
+          ->AddCacheEncryptionProviderToNetworkContextParams(
+              network_context_params);
+    }
+#endif  // BUILDFLAG(ENTERPRISE_CACHE_ENCRYPTION)
+
     network_context_params->file_paths->trust_token_database_name =
         base::FilePath(chrome::kTrustTokenFilename);
 
@@ -1632,6 +1647,9 @@ void ProfileNetworkContextService::OnContentSettingChanged(
   switch (content_type) {
     case ContentSettingsType::ANTI_ABUSE:
       UpdateAntiAbuseSettings(profile_);
+      break;
+    case ContentSettingsType::AUTO_SELECT_CERTIFICATE:
+      FlushClientCertCache(profile_);
       break;
     case ContentSettingsType::DEFAULT:
       UpdateAntiAbuseSettings(profile_);

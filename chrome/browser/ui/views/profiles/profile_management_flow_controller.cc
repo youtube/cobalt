@@ -81,10 +81,11 @@ void ProfileManagementFlowController::SwitchToStep(
           base::BindOnce(&FlowTracker::FinishedStepSwitch,
                          base::Unretained(&flow_tracker_), step));
 
+  std::vector<StepSwitchFinishedCallback> callbacks;
+  callbacks.push_back(std::move(internal_step_switch_finished_callback));
+  callbacks.push_back(std::move(step_switch_finished_callback));
   StepSwitchFinishedCallback combined_step_switch_callbacks =
-      CombineCallbacks<StepSwitchFinishedCallback, bool>(
-          std::move(internal_step_switch_finished_callback),
-          std::move(step_switch_finished_callback));
+      CombineCallbacks<StepSwitchFinishedCallback, bool>(std::move(callbacks));
 
   auto* new_step_controller = initialized_steps_.at(step).get();
   DCHECK(new_step_controller);
@@ -238,12 +239,9 @@ void ProfileManagementFlowController::FlowTracker::EnteredNewStep(Step step) {
 void ProfileManagementFlowController::FlowTracker::FinishedStepSwitch(
     Step step,
     bool success) {
-  if (tracked_step_ != step) {
-    NOTREACHED(base::NotFatalUntil::M143)
-        << "Step switch callback should run while the step is still the "
-           "current step being tracked.";
-    return;
-  }
+  CHECK_EQ(tracked_step_, step)
+      << "Step switch callback should run while the step is still the "
+         "current step being tracked.";
 
   if (!success) {
     base::UmaHistogramEnumeration(

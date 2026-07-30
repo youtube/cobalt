@@ -7,17 +7,25 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/strings/strcat.h"
-#include "chrome/browser/actor/ui/states/handoff_button_state.h"
 
 namespace actor::ui {
 
 namespace {
 
 constexpr std::string_view kActorUiPrefix = "Actor.Ui.";
+constexpr std::string_view kEventDispatcherPrefix = "Actor.EventDispatcher.";
 
 template <typename... Args>
 std::string GetActorUiMetricName(Args... args) {
   return base::StrCat({kActorUiPrefix, std::string_view(args)...});
+}
+
+// NOTE: Histograms that depend on this existed in the actor/ui directory before
+// refactoring into this file so they use the "Actor.EventDispatcher" prefix
+// instead of "Actor.Ui".
+std::string GetEventDispatcherHistogramName(std::string_view name,
+                                            std::string_view suffix = "") {
+  return base::StrCat({kEventDispatcherPrefix, name, suffix});
 }
 
 }  // namespace
@@ -35,10 +43,8 @@ void LogHandoffButtonClick(HandoffButtonState::ControlOwnership ownership) {
   }
 }
 
-void LogTaskIconClick() {
-  // TODO(crbug.com/462712067): Revise to use RecordComputedAction.
-  base::RecordAction(
-      base::UserMetricsAction(GetActorUiMetricName("TaskIcon.Click").c_str()));
+void LogTaskListBubbleRowClicked() {
+  base::RecordComputedAction(GetActorUiMetricName("TaskListBubble.Row.Click"));
 }
 
 void LogTaskNudgeClick(ActorTaskNudgeState nudge_state) {
@@ -46,6 +52,11 @@ void LogTaskNudgeClick(ActorTaskNudgeState nudge_state) {
       << "Nudge is hidden in default state so it cannot be clicked.";
   base::RecordComputedAction(
       GetActorUiMetricName("TaskNudge.", ToString(nudge_state), ".Click"));
+}
+
+void RecordTaskListBubbleRows(size_t count) {
+  base::UmaHistogramCounts100(GetActorUiMetricName("TaskListBubble.Rows"),
+                              count);
 }
 
 void RecordTaskNudgeShown(ActorTaskNudgeState nudge_state) {
@@ -63,8 +74,11 @@ void RecordTabControllerError(ActorUiTabControllerError error) {
                                 error);
 }
 
-std::string GetUiEventDurationHistogramName(std::string_view ui_event_name) {
-  return base::StrCat({"Actor.EventDispatcher.", ui_event_name, ".Duration"});
+base::ScopedUmaHistogramTimer GetUiEventDurationScopedTimer(
+    std::string_view ui_event_name) {
+  return base::ScopedUmaHistogramTimer(
+      GetEventDispatcherHistogramName(ui_event_name, ".Duration"),
+      base::ScopedUmaHistogramTimer::ScopedHistogramTiming::kMicrosecondTimes);
 }
 
 void RecordUiEventDuration(std::string_view ui_event_name,
@@ -72,13 +86,27 @@ void RecordUiEventDuration(std::string_view ui_event_name,
   // Use a high-resolution timer that records in microseconds.
   // The range is set from 1 microsecond to 10 seconds with 50 buckets.
   base::UmaHistogramMicrosecondsTimes(
-      GetUiEventDurationHistogramName(ui_event_name), duration);
+      GetEventDispatcherHistogramName(ui_event_name, ".Duration"), duration);
 }
 
 void RecordUiEventFailure(std::string_view ui_event_name) {
   base::UmaHistogramBoolean(
-      base::StrCat({"Actor.EventDispatcher.", ui_event_name, ".Failure"}),
-      true);
+      GetEventDispatcherHistogramName(ui_event_name, ".Failure"), true);
+}
+
+void RecordComputedTargetResult(ComputedTargetResult target_result) {
+  base::UmaHistogramEnumeration(
+      GetEventDispatcherHistogramName("ComputedTargetResult"), target_result);
+}
+
+void RecordModelPageTargetType(ModelPageTargetType target_type) {
+  base::UmaHistogramEnumeration(
+      GetEventDispatcherHistogramName("ModelPageTargetType"), target_type);
+}
+
+void RecordGetDomNodeResult(GetDomNodeResult result) {
+  base::UmaHistogramEnumeration("Actor.DomNodeGeometry.GetDomNodeResult",
+                                result);
 }
 
 }  // namespace actor::ui

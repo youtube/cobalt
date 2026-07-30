@@ -34,8 +34,10 @@ import org.chromium.base.ApplicationStatus.ActivityStateListener;
 import org.chromium.base.ApplicationStatus.WindowFocusChangedListener;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.ObserverList;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.NullUnmarked;
 import org.chromium.build.annotations.Nullable;
@@ -82,7 +84,9 @@ public abstract class FullscreenHtmlApiHandlerBase
 
     protected final Activity mActivity;
     protected final Handler mHandler;
-    private final ObservableSupplierImpl<Boolean> mPersistentModeSupplier;
+    private final SettableNonNullObservableSupplier<Boolean> mPersistentModeSupplier =
+            ObservableSuppliers.createNonNull(false);
+
     private final ObservableSupplier<Boolean> mAreControlsHidden;
     private boolean mExitFullscreenOnStop;
     private final ObserverList<FullscreenManager.Observer> mObservers = new ObserverList<>();
@@ -278,8 +282,6 @@ public abstract class FullscreenHtmlApiHandlerBase
 
         mHandler = new FullscreenHandler(this);
 
-        mPersistentModeSupplier = new ObservableSupplierImpl<>();
-        mPersistentModeSupplier.set(false);
         mExitFullscreenOnStop = exitFullscreenOnStop;
 
         mMultiWindowModeObserver = new FullscreenMultiWindowModeObserver();
@@ -662,28 +664,30 @@ public abstract class FullscreenHtmlApiHandlerBase
 
     @SuppressWarnings("NewApi")
     private void returnFromTargetScreenIfNeeded() {
-        if (mTabInFullscreen != null) {
-            Pair<Long, Rect> homeAttrs =
-                    TabAttributes.from(mTabInFullscreen)
-                            .get(TabAttributeKeys.FULLSCREEN_START_POSITION);
-            clearFullscreenStartingPositionAndOptions(mTabInFullscreen);
+        if (mTabInFullscreen == null
+                || mTabInFullscreen.isDestroyed()
+                || !isWindowMoveAvailable()) {
+            return;
+        }
 
-            if (homeAttrs != null) {
-                if (!isWindowMoveAvailable()) return;
-                // Exiting fullscreen requires window to be focused. When exiting fullscreen as the
-                // result of action in another window, e.g. closing Presenter Notes window in
-                // Slides, window is not focused, as the last action was performed on another
-                // display. To allow fullscreen exit in that scenario, we are moving window to the
-                // front.
-                ensureTaskMovedToFront();
-                maybeExitActivityFullscreenMode(
-                        new OutcomeReceiver<@Nullable Void, Throwable>() {
-                            @Override
-                            public void onResult(@Nullable Void unused) {
-                                tryToMoveTaskTo(homeAttrs.first, homeAttrs.second);
-                            }
-                        });
-            }
+        Pair<Long, Rect> homeAttrs =
+                TabAttributes.from(mTabInFullscreen)
+                        .get(TabAttributeKeys.FULLSCREEN_START_POSITION);
+        clearFullscreenStartingPositionAndOptions(mTabInFullscreen);
+
+        if (homeAttrs != null) {
+            // Exiting fullscreen requires window to be focused. When exiting fullscreen as the
+            // result of action in another window, e.g. closing Presenter Notes window in Slides,
+            // window is not focused, as the last action was performed on another display. To allow
+            // fullscreen exit in that scenario, we are moving window to the front.
+            ensureTaskMovedToFront();
+            maybeExitActivityFullscreenMode(
+                    new OutcomeReceiver<@Nullable Void, Throwable>() {
+                        @Override
+                        public void onResult(@Nullable Void unused) {
+                            tryToMoveTaskTo(homeAttrs.first, homeAttrs.second);
+                        }
+                    });
         }
     }
 
@@ -711,7 +715,7 @@ public abstract class FullscreenHtmlApiHandlerBase
      *     mode.
      */
     @Override
-    public ObservableSupplier<Boolean> getPersistentFullscreenModeSupplier() {
+    public NonNullObservableSupplier<Boolean> getPersistentFullscreenModeSupplier() {
         return mPersistentModeSupplier;
     }
 

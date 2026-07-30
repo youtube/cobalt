@@ -42,6 +42,7 @@
 #include "build/build_config.h"
 #include "components/metrics/clean_exit_beacon.h"
 #include "components/metrics/client_info.h"
+#include "components/metrics/field_trials_provider.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_enabled_state_provider.h"
@@ -483,6 +484,10 @@ class FieldTrialCreatorTest : public ::testing::Test {
     DisableTestingConfig();
   }
 
+  void TearDown() override {
+    FieldTrialsProvider::ClearSeedHasActiveLimitedLayerForTesting();
+  }
+
   PrefService* local_state() { return &local_state_; }
 
   const base::FilePath user_data_dir_path() const {
@@ -737,8 +742,16 @@ TEST_F(FieldTrialCreatorTest, SetUpFieldTrials_FutureMilestone) {
 }
 
 // Verify that unexpired safe seeds are used.
+// TODO(crbug.com/465773235): test is flaky.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_SetUpFieldTrials_ValidSafeSeed_NewBinaryUsesSeed \
+  DISABLED_SetUpFieldTrials_ValidSafeSeed_NewBinaryUsesSeed
+#else
+#define MAYBE_SetUpFieldTrials_ValidSafeSeed_NewBinaryUsesSeed \
+  SetUpFieldTrials_ValidSafeSeed_NewBinaryUsesSeed
+#endif
 TEST_P(FieldTrialCreatorFetchAndLaunchTimeTest,
-       SetUpFieldTrials_ValidSafeSeed_NewBinaryUsesSeed) {
+       MAYBE_SetUpFieldTrials_ValidSafeSeed_NewBinaryUsesSeed) {
   const auto& test_case = GetParam();
   // Fast forward the clock to build time.
   base::ScopedMockClockOverride mock_clock;

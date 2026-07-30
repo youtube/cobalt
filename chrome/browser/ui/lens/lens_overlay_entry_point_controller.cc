@@ -38,6 +38,8 @@
 #include "chrome/browser/ui/webui/new_tab_page_third_party/new_tab_page_third_party_ui.h"
 #include "chrome/browser/ui/webui/ntp/new_tab_ui.h"
 #include "chrome/grit/branded_strings.h"
+#include "components/contextual_search/contextual_search_service.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_permission_utils.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
@@ -157,15 +159,24 @@ bool LensOverlayEntryPointController::IsEnabled() const {
     return false;
   }
 
+  // If Lens in contextual is enabled, the enterprise policy check is done
+  // in the contextual search service for the `SearchContentSharing` policy.
   const PrefService* pref_service =
       browser_window_interface_->GetProfile()->GetPrefs();
-  // Lens Overlay is disabled via the enterprise policy.
-  lens::prefs::LensOverlaySettingsPolicyValue policy_value =
-      static_cast<lens::prefs::LensOverlaySettingsPolicyValue>(
-          pref_service->GetInteger(lens::prefs::kLensOverlaySettings));
-  if (policy_value ==
-      lens::prefs::LensOverlaySettingsPolicyValue::kDisabled) {
-    return false;
+  if (contextual_tasks::GetEnableLensInContextualTasks()) {
+    if (!contextual_search::ContextualSearchService::IsContextSharingEnabled(
+            pref_service)) {
+      return false;
+    }
+  } else {
+    // Lens Overlay is disabled via the enterprise policy.
+    lens::prefs::LensOverlaySettingsPolicyValue policy_value =
+        static_cast<lens::prefs::LensOverlaySettingsPolicyValue>(
+            pref_service->GetInteger(lens::prefs::kLensOverlaySettings));
+    if (policy_value ==
+        lens::prefs::LensOverlaySettingsPolicyValue::kDisabled) {
+      return false;
+    }
   }
 
   // Lens Overlay is only enabled if the user's default search engine is Google.
@@ -317,8 +328,12 @@ void LensOverlayEntryPointController::OnDidChangeFocus(views::View* before,
     // `tab_interface` can be null early during browser startup.
     if (auto* tab_interface =
             browser_window_interface_->GetActiveTabInterface()) {
-      LensOverlayHomeworkPageActionController::From(*tab_interface)
-          ->UpdatePageActionIcon();
+      // The controller may be null during tab destruction, which triggers the
+      // focus change leading to this.
+      if (auto* controller =
+              LensOverlayHomeworkPageActionController::From(*tab_interface)) {
+        controller->UpdatePageActionIcon();
+      }
     }
   }
 }

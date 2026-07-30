@@ -317,6 +317,23 @@ void AutofillDriverRouter::HidePopup(RoutedCallback<> callback,
   ForEachFrame(form_forest_, callback);
 }
 
+void AutofillDriverRouter::SuppressAutomaticRefills(
+    RoutedCallback<const FillId&> callback,
+    AutofillDriver& source,
+    const FillId& fill_id) {
+  // We don't know which AutofillManager caused the fill with `fill_id`.
+  ForEachFrame(form_forest_,
+               [&](AutofillDriver& driver) { callback(driver, fill_id); });
+}
+
+void AutofillDriverRouter::RequestRefill(RoutedCallback<const FillId&> callback,
+                                         AutofillDriver& source,
+                                         const FillId& fill_id) {
+  // We don't know which AutofillManager caused the fill with `fill_id`.
+  ForEachFrame(form_forest_,
+               [&](AutofillDriver& driver) { callback(driver, fill_id); });
+}
+
 void AutofillDriverRouter::FocusOnNonFormField(RoutedCallback<> callback,
                                                AutofillDriver& source) {
   // Suppresses FocusOnNonFormField() if the focus has already moved to a
@@ -449,10 +466,14 @@ void AutofillDriverRouter::JavaScriptChangedAutofilledValue(
 base::flat_set<FieldGlobalId> AutofillDriverRouter::ApplyFormAction(
     RoutedCallback<mojom::FormActionType,
                    mojom::ActionPersistence,
-                   const std::vector<FormFieldData::FillData>&> callback,
+                   const std::vector<FormFieldData::FillData>&,
+                   const FillId&,
+                   bool> callback,
     mojom::FormActionType action_type,
     mojom::ActionPersistence action_persistence,
     base::span<const FormFieldData> data,
+    const FillId& fill_id,
+    bool supports_refill,
     const url::Origin& main_origin,
     const url::Origin& triggered_origin,
     const base::flat_map<FieldGlobalId, FieldType>& field_type_map) {
@@ -483,7 +504,8 @@ base::flat_set<FieldGlobalId> AutofillDriverRouter::ApplyFormAction(
   }
   for (const auto& [target, fields] : fields_of_driver) {
     CHECK(!fields.empty());
-    callback(CHECK_DEREF(target), action_type, action_persistence, fields);
+    callback(CHECK_DEREF(target), action_type, action_persistence, fields,
+             fill_id, supports_refill);
   }
   return renderer_forms.safe_fields;
 }

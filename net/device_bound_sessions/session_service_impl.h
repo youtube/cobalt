@@ -17,7 +17,10 @@
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/elapsed_timer.h"
+#include "components/unexportable_keys/service_error.h"
+#include "components/unexportable_keys/unexportable_key_id.h"
 #include "net/base/net_export.h"
+#include "net/device_bound_sessions/refresh_result.h"
 #include "net/device_bound_sessions/registration_fetcher.h"
 #include "net/device_bound_sessions/registration_fetcher_param.h"
 #include "net/device_bound_sessions/session.h"
@@ -87,17 +90,17 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
       const std::optional<url::Origin>& original_request_initiator) override;
 
   std::optional<DeferralParams> ShouldDefer(
-      URLRequest* request,
+      DbscRequest& request,
       HttpRequestHeaders* extra_headers,
       const FirstPartySetMetadata& first_party_set_metadata) override;
 
-  void DeferRequestForRefresh(URLRequest* request,
+  void DeferRequestForRefresh(DbscRequest& request,
                               DeferralParams deferral,
                               RefreshCompleteCallback callback) override;
 
   void SetChallengeForBoundSession(
       OnAccessCallback on_access_callback,
-      const URLRequest& request,
+      DbscRequest& request,
       const FirstPartySetMetadata& first_party_set_metadata,
       const SessionChallengeParam& param) override;
 
@@ -120,10 +123,11 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
       const GURL& url,
       base::RepeatingCallback<void(const SessionAccess&)> callback) override;
   const Session* GetSession(const SessionKey& session_key) const override;
-  void AddSession(const SchemefulSite& site,
-                  SessionParams params,
-                  base::span<const uint8_t> wrapped_key,
-                  base::OnceCallback<void(bool)> callback) override;
+  void AddSession(
+      const SchemefulSite& site,
+      SessionParams params,
+      base::span<const uint8_t> wrapped_key,
+      base::OnceCallback<void(SessionError::ErrorType)> callback) override;
   const SignedRefreshChallenge* GetLatestSignedRefreshChallenge(
       const SessionKey& session_key) override;
   void SetLatestSignedRefreshChallenge(
@@ -175,6 +179,7 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
 
   void OnRegistrationComplete(OnAccessCallback on_access_callback,
                               bool is_google_subdomain_for_histograms,
+                              bool is_federated_registration_for_histograms,
                               RegistrationFetcher* fetcher,
                               RegistrationResult result);
   void OnRefreshRequestCompletion(RefreshTrigger trigger,
@@ -182,6 +187,14 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
                                   SessionKey session_key,
                                   RegistrationFetcher* fetcher,
                                   RegistrationResult result);
+
+  void StartGarbageCollection();
+  void OnGetAllKeysForGarbageCollection(
+      unexportable_keys::ServiceErrorOr<
+          std::vector<unexportable_keys::UnexportableKeyId>>
+          all_key_ids_or_error);
+  void DoGarbageCollection(
+      std::vector<unexportable_keys::UnexportableKeyId> all_key_ids);
 
   void AddSession(const SchemefulSite& site, std::unique_ptr<Session> session);
   void UnblockDeferredRequests(
@@ -254,7 +267,7 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   // Helper function for starting a refresh
   void RefreshSessionInternal(
       RefreshTrigger trigger,
-      base::WeakPtr<URLRequest> request,
+      base::WeakPtr<URLRequest> maybe_request,
       const SessionKey& session_key,
       std::optional<unexportable_keys::UnexportableKeyId> key_id);
 
@@ -263,7 +276,7 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
 
   // Add a header to `request` indicating which sessions should have
   // applied, but did not due to error conditions.
-  void AddDebugHeader(URLRequest* request);
+  void AddDebugHeader(const DbscRequest& request);
 
   // Removes `fetcher` from the set of active fetchers. If `fetcher` is
   // null, does nothing.
@@ -291,7 +304,7 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   void OnAddSessionKeyRestored(
       const SchemefulSite& site,
       SessionParams params,
-      base::OnceCallback<void(bool)> callback,
+      base::OnceCallback<void(SessionError::ErrorType)> callback,
       unexportable_keys::ServiceErrorOr<unexportable_keys::UnexportableKeyId>
           key_or_error);
 
@@ -299,7 +312,7 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   // pending refreshes for `session_key`, start a proactive refresh.
   void MaybeStartProactiveRefresh(
       SessionService::OnAccessCallback per_request_callback,
-      URLRequest* request,
+      DbscRequest& request,
       const SessionKey& session_key,
       base::TimeDelta minimum_cookie_lifetime);
 

@@ -13,6 +13,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
@@ -105,7 +106,8 @@ SignedWebBundleMetadata CreateMetadata(const std::u16string& app_name,
       web_package::SignedWebBundleId::CreateRandomForProxyMode());
   return SignedWebBundleMetadata::CreateForTesting(
       url_info, IwaSourceBundleProdMode(base::FilePath()), app_name,
-      *IwaVersion::Create(version), std::move(image_info));
+      *IwaVersion::Create(version), std::move(image_info),
+      /*enterprise_name=*/"Google LLC");
 }
 
 blink::mojom::ManifestPtr CreateDefaultManifest(const GURL& iwa_url,
@@ -456,7 +458,8 @@ TEST_F(IsolatedWebAppInstallerViewControllerTest,
   IsolatedWebAppInstallerModel model{IwaSourceBundleProdMode(bundle_path)};
   auto metadata = SignedWebBundleMetadata::CreateForTesting(
       url_info, IwaSourceBundleProdMode(bundle_path), u"app name",
-      *IwaVersion::Create("1.0"), std::move(image_info));
+      *IwaVersion::Create("1.0"), std::move(image_info),
+      /*enterprise_name=*/"Google LLC");
   model.SetSignedWebBundleMetadata(metadata);
   model.SetStep(Step::kShowMetadata);
   model.SetDialog(IsolatedWebAppInstallerModel::ConfirmInstallationDialog{
@@ -492,7 +495,8 @@ TEST_F(IsolatedWebAppInstallerViewControllerTest, CanLaunchAppAfterInstall) {
   IsolatedWebAppInstallerModel model{IwaSourceBundleProdMode(bundle_path)};
   auto metadata = SignedWebBundleMetadata::CreateForTesting(
       url_info, IwaSourceBundleProdMode(bundle_path), u"app name",
-      *IwaVersion::Create("1.0"), std::move(image_info));
+      *IwaVersion::Create("1.0"), std::move(image_info),
+      /*enterprise_name=*/"Google LLC");
   model.SetSignedWebBundleMetadata(metadata);
   model.SetStep(Step::kShowMetadata);
   model.SetDialog(IsolatedWebAppInstallerModel::ConfirmInstallationDialog{
@@ -536,7 +540,8 @@ TEST_F(IsolatedWebAppInstallerViewControllerTest,
   image_info.is_maskable = true;
   auto metadata = SignedWebBundleMetadata::CreateForTesting(
       url_info, IwaSourceBundleProdMode(bundle_path), u"app name",
-      *IwaVersion::Create("2.0"), std::move(image_info));
+      *IwaVersion::Create("2.0"), std::move(image_info),
+      /*enterprise_name=*/"Google LLC");
   model.SetSignedWebBundleMetadata(metadata);
   model.SetStep(Step::kShowMetadata);
   model.SetDialog(IsolatedWebAppInstallerModel::ConfirmInstallationDialog{

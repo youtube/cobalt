@@ -53,6 +53,7 @@
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_utils.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_presenter.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_promo/coordinator/non_modal_signin_promo_coordinator.h"
+#import "ios/chrome/browser/autocomplete/model/autocomplete_browser_agent.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_tab_helper.h"
 #import "ios/chrome/browser/autofill/ui_bundled/address_editor/autofill_edit_profile_coordinator.h"
 #import "ios/chrome/browser/autofill/ui_bundled/authentication/card_unmask_authentication_coordinator.h"
@@ -71,6 +72,7 @@
 #import "ios/chrome/browser/browser_view/model/browser_view_visibility_notifier_browser_agent.h"
 #import "ios/chrome/browser/browser_view/public/browser_view_visibility_state.h"
 #import "ios/chrome/browser/browser_view/ui_bundled/browser_coordinator+Testing.h"
+#import "ios/chrome/browser/browser_view/ui_bundled/browser_omnibox_state_provider.h"
 #import "ios/chrome/browser/browser_view/ui_bundled/browser_view_controller+private.h"
 #import "ios/chrome/browser/browser_view/ui_bundled/browser_view_controller.h"
 #import "ios/chrome/browser/browser_view/ui_bundled/key_commands_provider.h"
@@ -124,6 +126,7 @@
 #import "ios/chrome/browser/infobars/model/infobar_ios.h"
 #import "ios/chrome/browser/infobars/model/infobar_manager_impl.h"
 #import "ios/chrome/browser/intelligence/bwg/coordinator/bwg_coordinator.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_browser_agent.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
@@ -171,7 +174,7 @@
 #import "ios/chrome/browser/push_notification/model/constants.h"
 #import "ios/chrome/browser/push_notification/ui_bundled/notifications_opt_in_coordinator.h"
 #import "ios/chrome/browser/push_notification/ui_bundled/notifications_opt_in_coordinator_delegate.h"
-#import "ios/chrome/browser/qr_scanner/ui_bundled/qr_scanner_legacy_coordinator.h"
+#import "ios/chrome/browser/qr_scanner/coordinator/qr_scanner_legacy_coordinator.h"
 #import "ios/chrome/browser/reader_mode/coordinator/reader_mode_blur_overlay_coordinator.h"
 #import "ios/chrome/browser/reader_mode/coordinator/reader_mode_coordinator.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
@@ -669,6 +672,7 @@ const char kChromeAppStoreUrl[] =
   LensViewFinderCoordinator* _lensViewFinderCoordinator;
   LensOverlayCoordinator* _lensOverlayCoordinator;
   ToolbarCoordinator* _toolbarCoordinator;
+  BrowserOmniboxStateProvider* _browserOmniboxStateProvider;
   TabStripCoordinator* _tabStripCoordinator;
   SideSwipeCoordinator* _sideSwipeCoordinator;
   raw_ptr<FullscreenController> _fullscreenController;
@@ -1023,8 +1027,16 @@ const char kChromeAppStoreUrl[] =
     [self hideComposeboxImmediately:NO];
   }
 
-  [self.viewController clearPresentedStateWithCompletion:completion
-                                          dismissOmnibox:dismissOmnibox];
+  BOOL dismissPresentedViewController = YES;
+  if (IsComposeboxIOSEnabled()) {
+    dismissPresentedViewController =
+        dismissOmnibox || !_composeboxCoordinator.presented;
+  }
+
+  [self.viewController
+      clearPresentedStateWithCompletion:completion
+                         dismissOmnibox:dismissOmnibox
+         dismissPresentedViewController:dismissPresentedViewController];
 }
 
 #pragma mark - Private
@@ -1179,23 +1191,24 @@ const char kChromeAppStoreUrl[] =
 - (void)createViewController {
   DCHECK(self.browserContainerCoordinator.viewController);
 
+  Browser* browser = self.browser;
   _viewController = [[BrowserViewController alloc]
       initWithBrowserContainerViewController:self.browserContainerCoordinator
                                                  .viewController
                          keyCommandsProvider:_keyCommandsProvider
                                 dependencies:_viewControllerDependencies];
 
-  id<BrowserViewVisibilityAudience> visibilityAudience =
-      BrowserViewVisibilityNotifierBrowserAgent::FromBrowser(self.browser)
-          ->GetBrowserViewVisibilityAudience();
-  _viewController.browserViewVisibilityAudience = visibilityAudience;
+  _viewController.browserViewVisibilityStateChangedCallback =
+      BrowserViewVisibilityNotifierBrowserAgent::FromBrowser(browser)
+          ->GetNotificationCallback();
+
   self.tabLifecycleMediator.baseViewController = self.viewController;
   self.tabLifecycleMediator.passwordControllerDelegate = self;
 
   _webNavigationBrowserAgent->SetDelegate(self);
 
   self.contextMenuProvider = [[ContextMenuConfigurationProvider alloc]
-         initWithBrowser:self.browser
+         initWithBrowser:browser
       baseViewController:_viewController];
 }
 
@@ -1203,7 +1216,6 @@ const char kChromeAppStoreUrl[] =
 - (void)destroyViewController {
   _viewController.active = NO;
   _viewController.webUsageEnabled = NO;
-  _viewController.browserViewVisibilityAudience = nil;
 
   [self.contextMenuProvider stop];
   self.contextMenuProvider = nil;
@@ -1323,8 +1335,17 @@ const char kChromeAppStoreUrl[] =
 
   _toolbarCoordinator = [[ToolbarCoordinator alloc] initWithBrowser:browser];
 
+  // The location bar is one of the OmniboxStateProvider because omnibox is
+  // used both in browser and lens overlay.
+  _browserOmniboxStateProvider = [[BrowserOmniboxStateProvider alloc] init];
+  _browserOmniboxStateProvider.locationBarStateProvider = _toolbarCoordinator;
   OmniboxPositionBrowserAgent* omniboxPositionBrowserAgent =
       OmniboxPositionBrowserAgent::FromBrowser(browser);
+  if (omniboxPositionBrowserAgent) {
+    omniboxPositionBrowserAgent->SetOmniboxStateProvider(
+        _browserOmniboxStateProvider);
+  }
+
   _toolbarAccessoryPresenter = [[ToolbarAccessoryPresenter alloc]
               initWithIsIncognito:profile->IsOffTheRecord()
       omniboxPositionBrowserAgent:omniboxPositionBrowserAgent];
@@ -1511,6 +1532,13 @@ const char kChromeAppStoreUrl[] =
     _lensCoordinator = nil;
   }
 
+  // This can be removed if the browser agent guarenteed to be detroyed before
+  // profile keyed objects.
+  if (AutocompleteBrowserAgent* autocompleteBrowserAgent =
+          AutocompleteBrowserAgent::FromBrowser(self.browser)) {
+    autocompleteBrowserAgent->RemoveServices();
+  }
+
   [self.downloadManagerCoordinator stop];
   self.downloadManagerCoordinator = nil;
 
@@ -1615,6 +1643,7 @@ const char kChromeAppStoreUrl[] =
   self.sadTabCoordinator =
       [[SadTabCoordinator alloc] initWithBaseViewController:self.viewController
                                                     browser:self.browser];
+  self.sadTabCoordinator.contextMenuProvider = self.contextMenuProvider;
   [self.sadTabCoordinator setOverscrollDelegate:self];
 
   /* SharingCoordinator is created and started by an ActivityServiceCommand */
@@ -1971,6 +2000,13 @@ const char kChromeAppStoreUrl[] =
   if (collaborationService) {
     collaborationService->CancelAllFlows();
   }
+}
+
+// Resets the composebox state provider and coordinator. The
+// composeboxCoordinator should have been stopped before calling this method.
+- (void)resetComposebox {
+  _browserOmniboxStateProvider.composeboxStateProvider = nil;
+  _composeboxCoordinator = nil;
 }
 
 #pragma mark - ActivityServiceCommands
@@ -2666,6 +2702,7 @@ const char kChromeAppStoreUrl[] =
                            query:query
          composeboxAnimationBase:_toolbarCoordinator];
   [_composeboxCoordinator start];
+  _browserOmniboxStateProvider.composeboxStateProvider = _composeboxCoordinator;
 }
 
 - (void)hideComposeboxImmediately:(BOOL)immediately {
@@ -2674,13 +2711,13 @@ const char kChromeAppStoreUrl[] =
   }
 
   if (immediately) {
-    [self.composeboxCoordinator stop];
-    self.composeboxCoordinator = nil;
+    [_composeboxCoordinator stop];
+    [self resetComposebox];
   } else {
     __weak __typeof(self) weakSelf = self;
     base::OnceClosure completion = base::BindOnce(^{
       [weakSelf.composeboxCoordinator stopAnimatedWithCompletion:^{
-        weakSelf.composeboxCoordinator = nil;
+        [weakSelf resetComposebox];
       }];
     });
     // Stop the prototoype on the next run loop as this might be called while
@@ -3118,21 +3155,26 @@ const char kChromeAppStoreUrl[] =
 
 #pragma mark - BWGCommands
 
-- (void)startBWGFlowWithEntryPoint:(bwg::EntryPoint)entryPoint {
-  [self startBWGFlowWithImageAttachment:nil entryPoint:entryPoint];
+- (void)startGeminiFlowWithEntryPoint:(bwg::EntryPoint)entryPoint {
+  [self startGeminiFlowWithImageAttachment:nil entryPoint:entryPoint];
 }
 
-- (void)startBWGFlowWithImageAttachment:(UIImage*)image
-                             entryPoint:(bwg::EntryPoint)entryPoint {
+- (void)startGeminiFlowWithImageAttachment:(UIImage*)image
+                                entryPoint:(bwg::EntryPoint)entryPoint {
+  if (entryPoint == bwg::EntryPoint::ImageContextMenu) {
+    BwgBrowserAgent::FromBrowser(self.browser)
+        ->StartGeminiFlow(self.viewController, image);
+    return;
+  }
+
   _BWGCoordinator =
       [[BWGCoordinator alloc] initWithBaseViewController:self.viewController
                                                  browser:self.browser
                                           fromEntryPoint:entryPoint];
-  _BWGCoordinator.imageAttachment = image;
   [_BWGCoordinator start];
 }
 
-- (void)dismissBWGFlowWithCompletion:(ProceduralBlock)completion {
+- (void)dismissGeminiFlowWithCompletion:(ProceduralBlock)completion {
   if (!_BWGCoordinator && completion) {
     completion();
     return;
@@ -3145,7 +3187,7 @@ const char kChromeAppStoreUrl[] =
 - (void)showBWGPromoIfPageIsEligible {
   BwgService* BWGService = BwgServiceFactory::GetForProfile(self.profile);
   if (BWGService->IsBwgAvailableForWebState(self.activeWebState)) {
-    [self startBWGFlowWithEntryPoint:bwg::EntryPoint::Promo];
+    [self startGeminiFlowWithEntryPoint:bwg::EntryPoint::Promo];
   }
 }
 
@@ -3256,6 +3298,8 @@ const char kChromeAppStoreUrl[] =
 #pragma mark - PageActionMenuCommands
 
 - (void)showPageActionMenu {
+  // TODO(crbug.com/465505528) Propagate page action menu entry point source to
+  // page action menu coordinator.
   _pageActionMenuCoordinator = [[PageActionMenuCoordinator alloc]
       initWithBaseViewController:self.viewController
                          browser:self.browser];
@@ -3294,9 +3338,9 @@ const char kChromeAppStoreUrl[] =
 }
 
 - (void)openPasswordSettings {
-  // TODO(crbug.com/40067451): Switch back to DCHECK if the number of reports is
-  // low.
-  DUMP_WILL_BE_CHECK(!self.passwordSettingsCoordinator);
+  // Not an invariant due to possible race conditions. DCHECKing for debugging
+  // purposes. See crbug.com/40067451.
+  DCHECK(!self.passwordSettingsCoordinator);
 
   // Use main browser to open the password settings.
   SceneState* sceneState = self.sceneState;
@@ -4537,7 +4581,6 @@ const char kChromeAppStoreUrl[] =
       [[MiniMapCoordinator alloc] initWithBaseViewController:self.viewController
                                                      browser:self.browser
                                                         text:text
-                                                         url:nil
                                                      withIPH:YES
                                                         mode:MiniMapMode::kMap];
   [self.miniMapCoordinator start];
@@ -4548,18 +4591,6 @@ const char kChromeAppStoreUrl[] =
       [[MiniMapCoordinator alloc] initWithBaseViewController:self.viewController
                                                      browser:self.browser
                                                         text:text
-                                                         url:nil
-                                                     withIPH:NO
-                                                        mode:MiniMapMode::kMap];
-  [self.miniMapCoordinator start];
-}
-
-- (void)presentMiniMapForURL:(NSURL*)URL {
-  self.miniMapCoordinator =
-      [[MiniMapCoordinator alloc] initWithBaseViewController:self.viewController
-                                                     browser:self.browser
-                                                        text:nil
-                                                         url:URL
                                                      withIPH:NO
                                                         mode:MiniMapMode::kMap];
   [self.miniMapCoordinator start];
@@ -4570,7 +4601,6 @@ const char kChromeAppStoreUrl[] =
       initWithBaseViewController:self.viewController
                          browser:self.browser
                             text:text
-                             url:nil
                          withIPH:NO
                             mode:MiniMapMode::kDirections];
   [self.miniMapCoordinator start];
@@ -4772,7 +4802,7 @@ const char kChromeAppStoreUrl[] =
 #pragma mark - NonModalSignInPromoCommands
 
 - (void)showNonModalSignInPromoWithType:(SignInPromoType)promoType {
-  if (IsNonModalSignInPromoEnabled() && !self.nonModalSignInPromoCoordinator) {
+  if (!self.nonModalSignInPromoCoordinator) {
     self.nonModalSignInPromoCoordinator =
         [[NonModalSignInPromoCoordinator alloc]
             initWithBaseViewController:self.viewController

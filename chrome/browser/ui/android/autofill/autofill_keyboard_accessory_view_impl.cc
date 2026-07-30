@@ -20,7 +20,6 @@
 #include "base/trace_event/trace_event.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "chrome/browser/android/resource_mapper.h"
-#include "chrome/browser/ui/android/autofill/autofill_accessibility_utils.h"
 #include "chrome/browser/ui/autofill/autofill_keyboard_accessory_controller.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/ui/autofill_resource_utils.h"
@@ -35,7 +34,6 @@
 
 using base::android::ConvertUTF16ToJavaString;
 using base::android::ConvertUTF8ToJavaString;
-using base::android::JavaParamRef;
 using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
 
@@ -140,12 +138,11 @@ void AutofillKeyboardAccessoryViewImpl::Show() {
                 : url::GURLAndroid::EmptyGURL(env),
             suggestion.HasDeactivatedStyle(), payload));
   }
-  Java_AutofillKeyboardAccessoryViewBridge_show(env, java_object_,
-                                                std::move(java_suggestions));
-}
-
-void AutofillKeyboardAccessoryViewImpl::AxAnnounce(const std::u16string& text) {
-  AutofillAccessibilityHelper::GetInstance()->AnnounceTextForA11y(text);
+  gfx::RectF bounds = controller_->element_bounds();
+  Java_AutofillKeyboardAccessoryViewBridge_show(
+      env, java_object_, std::move(java_suggestions),
+      Java_AutofillKeyboardAccessoryViewBridge_createFieldBounds(
+          env, bounds.x(), bounds.y(), bounds.right(), bounds.bottom()));
 }
 
 void AutofillKeyboardAccessoryViewImpl::ConfirmDeletion(

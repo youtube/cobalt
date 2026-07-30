@@ -69,9 +69,9 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   void ChromeDestroyed() override;
   void SetWindowRect(const gfx::Rect&, LocalFrame&) override;
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-  void Minimize(LocalFrame&) override;
-  void Maximize(LocalFrame&) override;
-  void Restore(LocalFrame&) override;
+  void Minimize(LocalFrame&, WindowShowStateChangeCallback) override;
+  void Maximize(LocalFrame&, WindowShowStateChangeCallback) override;
+  void Restore(LocalFrame&, WindowShowStateChangeCallback) override;
   void SetResizable(bool resizable, LocalFrame& frame) override;
 #endif
   gfx::Rect RootWindowRect(LocalFrame&) override;
@@ -297,7 +297,6 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
 
   void OnMouseDown(Node&) override;
   void DidUpdateBrowserControls() const override;
-  void DidUpdateLoadProgress(float) override;
 
   void DidUpdateMaxSafeAreaInsets(
       const gfx::InsetsF& max_safe_area_insets) const override;

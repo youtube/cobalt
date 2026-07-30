@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.ui.signin.account_picker;
 
 import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.action.ViewActions.swipeDown;
 import static androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
@@ -17,8 +18,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,7 +50,10 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.signin.services.SigninFlowTimestampsLogger.Event;
+import org.chromium.chrome.browser.signin.services.SigninFlowTimestampsLogger.FlowVariant;
 import org.chromium.chrome.browser.signin.services.SigninManager;
 import org.chromium.chrome.browser.ui.signin.R;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
@@ -57,6 +63,7 @@ import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.util.browser.signin.AccountManagerTestRule;
 import org.chromium.chrome.test.util.browser.signin.SigninTestUtil;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.signin.metrics.AccountConsistencyPromoAction;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.components.signin.metrics.SignoutReason;
 import org.chromium.components.signin.test.util.FakeIdentityManager;
@@ -70,6 +77,10 @@ import java.util.concurrent.atomic.AtomicReference;
 @Batch(Batch.PER_CLASS)
 public class SeamlessSigninTest {
     private static final String TEST_DOMAIN = "test.com";
+    private static final String TIMESTAMP_MANAGEMENT_STATUS_LOADED =
+            "Signin.SignIn.Timestamps." + FlowVariant.OTHER + "." + Event.MANAGEMENT_STATUS_LOADED;
+    private static final String TIMESTAMP_SIGNIN_ABORTED =
+            "Signin.SignIn.Timestamps." + FlowVariant.OTHER + "." + Event.SIGNIN_ABORTED;
 
     @Rule
     public final AutoResetCtaTransitTestRule mActivityTestRule =
@@ -99,6 +110,7 @@ public class SeamlessSigninTest {
     public void setUp() {
         mActivityTestRule.startOnBlankPage();
         mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
+        mIdentityManager.addOrUpdateExtendedAccountInfo(TestAccounts.ACCOUNT1);
         mAutoTestRule.setIsAutomotive(false);
 
         doCallback(
@@ -122,6 +134,14 @@ public class SeamlessSigninTest {
                 .isAccountManaged(eq(TestAccounts.ACCOUNT1), any());
         when(mSigninManagerMock.extractDomainName(TestAccounts.ACCOUNT1.getEmail()))
                 .thenReturn(TEST_DOMAIN);
+        doAnswer(
+                        (invocation) -> {
+                            mCoordinator.dismissBottomSheet();
+                            return null;
+                        })
+                .when(mAccountPickerDelegateMock)
+                .onSeamlessSigninAbandoned();
+        when(mAccountPickerDelegateMock.getSigninFlowVariant()).thenReturn(FlowVariant.OTHER);
 
         mBottomSheetController =
                 mActivityTestRule
@@ -137,41 +157,56 @@ public class SeamlessSigninTest {
         }
     }
 
-    /**
-     * TODO(crbug.com/437038737): Add coverage for histogram recording
-     *
-     * <p>|AccountConsistencyPromoAction.SIGNED_IN_WITH_DEFAULT_ACCOUNT| is recorded correctly.
-     * |AccountConsistencyPromoAction.SHOWN| is not recorded when the bottom sheet is not shown.
-     */
     @Test
     @MediumTest
     public void testDefaultAccountSuccessfulSignIn_neverOpensBottomSheet() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SIGNED_IN_WITH_DEFAULT_ACCOUNT)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectNoRecords(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
         mIsAccountManaged = false;
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
 
         // Sign-in should be triggered immediately. Initial UI state never initializes the view nor
         // shows the bottom sheet.
         verifySignInCompleted();
         assertBottomSheetNeverShown();
+        accountConsistencyHistogram.assertExpected();
     }
 
     @Test
     @MediumTest
     public void testManagedAccountSuccessfulSignIn() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SHOWN,
+                                AccountConsistencyPromoAction.CONFIRM_MANAGEMENT_SHOWN,
+                                AccountConsistencyPromoAction.CONFIRM_MANAGEMENT_ACCEPTED,
+                                AccountConsistencyPromoAction.SIGNED_IN_WITH_DEFAULT_ACCOUNT)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectNoRecords(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
         mIsAccountManaged = true;
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
 
         waitForManagementNoticeSheet();
         clickContinueButtonManagementNotice();
 
         verifySignInCompleted();
+        accountConsistencyHistogram.assertExpected();
     }
 
     @Test
     @MediumTest
     public void testManagedAccountSuccessfulSignIn_showsLoadingSpinner() {
         mIsAccountManaged = true;
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
 
         waitForManagementNoticeSheet();
         emulateLongSignin();
@@ -184,53 +219,120 @@ public class SeamlessSigninTest {
     @Test
     @MediumTest
     public void testManagedAccount_clicksBackButton_dismissesBottomSheet() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SHOWN,
+                                AccountConsistencyPromoAction.CONFIRM_MANAGEMENT_SHOWN,
+                                AccountConsistencyPromoAction.DISMISSED_BACK)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectNoRecords(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
         mIsAccountManaged = true;
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
 
         waitForManagementNoticeSheet();
         Espresso.pressBack();
 
         CriteriaHelper.pollUiThread(() -> !mBottomSheetController.isSheetOpen());
         verifySignInNeverStarted();
+        accountConsistencyHistogram.assertExpected();
     }
 
     @Test
     @MediumTest
     public void testManagedAccount_clicksCancelButton_dismissesBottomSheet() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SHOWN,
+                                AccountConsistencyPromoAction.CONFIRM_MANAGEMENT_SHOWN,
+                                AccountConsistencyPromoAction.DISMISSED_BUTTON)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectNoRecords(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
         mIsAccountManaged = true;
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
 
         waitForManagementNoticeSheet();
         clickCancelButtonManagementNotice();
 
         CriteriaHelper.pollUiThread(() -> !mBottomSheetController.isSheetOpen());
         verifySignInNeverStarted();
+        accountConsistencyHistogram.assertExpected();
+    }
+
+    @Test
+    @MediumTest
+    public void testManagedAccount_swipeDown_dismissesBottomSheet() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SHOWN,
+                                AccountConsistencyPromoAction.CONFIRM_MANAGEMENT_SHOWN,
+                                AccountConsistencyPromoAction.DISMISSED_SWIPE_DOWN)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectNoRecords(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
+        mIsAccountManaged = true;
+        createCoordinatorAndLaunchSigninFlow();
+        waitForManagementNoticeSheet();
+
+        onViewWaiting(withId(R.id.account_picker_state_confirm_management)).perform(swipeDown());
+
+        CriteriaHelper.pollUiThread(() -> !mBottomSheetController.isSheetOpen());
+        verifySignInNeverStarted();
+        accountConsistencyHistogram.assertExpected();
     }
 
     @Test
     @MediumTest
     public void testAutomativeDevice_signInDefaultAccount() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SIGNED_IN_WITH_DEFAULT_ACCOUNT)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectNoRecords(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
         mAutoTestRule.setIsAutomotive(true);
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
 
         SigninTestUtil.completeDeviceLockIfOnAutomotive(mDeviceLockActivityLauncher);
 
         verifySignInCompleted();
         assertBottomSheetNeverShown();
+        accountConsistencyHistogram.assertExpected();
     }
 
     @Test
     @MediumTest
     public void testAutomativeDevice_signInManagedAccount() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SHOWN,
+                                AccountConsistencyPromoAction.CONFIRM_MANAGEMENT_SHOWN,
+                                AccountConsistencyPromoAction.CONFIRM_MANAGEMENT_ACCEPTED,
+                                AccountConsistencyPromoAction.SIGNED_IN_WITH_DEFAULT_ACCOUNT)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectNoRecords(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
         mIsAccountManaged = true;
         mAutoTestRule.setIsAutomotive(true);
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
 
         SigninTestUtil.completeDeviceLockIfOnAutomotive(mDeviceLockActivityLauncher);
         waitForManagementNoticeSheet();
         clickContinueButtonManagementNotice();
 
         verifySignInCompleted();
+        accountConsistencyHistogram.assertExpected();
     }
 
     @Test
@@ -238,7 +340,7 @@ public class SeamlessSigninTest {
     public void testAutomativeDevice_signInManagedAccount_showsLoadingSpinner() {
         mIsAccountManaged = true;
         mAutoTestRule.setIsAutomotive(true);
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
 
         SigninTestUtil.completeDeviceLockIfOnAutomotive(mDeviceLockActivityLauncher);
         waitForManagementNoticeSheet();
@@ -251,69 +353,137 @@ public class SeamlessSigninTest {
     @Test
     @MediumTest
     public void testSignInDefaultAccount_alreadySignedIn() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SIGNED_IN_WITH_DEFAULT_ACCOUNT)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectNoRecords(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
         mIdentityManager.setPrimaryAccount(TestAccounts.ACCOUNT1);
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
 
         InOrder calledInOrder = inOrder(mAccountPickerDelegateMock, mSigninManagerMock);
         calledInOrder.verify(mAccountPickerDelegateMock).onSignoutBeforeSignin();
         calledInOrder.verify(mSigninManagerMock).signOut(SignoutReason.SIGNIN_RETRIGGERED);
         calledInOrder.verify(mSigninManagerMock).signin(eq(TestAccounts.ACCOUNT1), anyInt(), any());
+        accountConsistencyHistogram.assertExpected();
     }
 
-    /**
-     * TODO(crbug.com/435381574): Add coverage for removing account during initialization, sign-in,
-     * or when waiting for confirmation on management notice:
-
-     * testSignInDefaultAccount_removeAccountDuringInitialization
-     * testSignInManagedAccount_removeAccountDuringInitialization
-     * testSignInManagedAccount_removeAccountWhileOnManagementNoticeSheet
-     *
-     * <p>Investigate if necessary to handle account removal while loading spinner is shown
-     */
     @Test
     @MediumTest
     public void testFailedSignInDefaultAccount_errorScreenShown() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SHOWN,
+                                AccountConsistencyPromoAction.SIGNED_IN_WITH_DEFAULT_ACCOUNT)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectAnyRecord(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
         mIsNextSigninSuccessful.set(false);
 
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
 
         waitForErrorSheet();
         verifySigninAborted();
+        accountConsistencyHistogram.assertExpected();
     }
 
     @Test
     @MediumTest
     public void testFailedSignInDefaultAccount_errorScreenShown_backButtonDismissesSheet() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SHOWN,
+                                AccountConsistencyPromoAction.SIGNED_IN_WITH_DEFAULT_ACCOUNT,
+                                AccountConsistencyPromoAction.DISMISSED_BACK)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectAnyRecord(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
         mIsNextSigninSuccessful.set(false);
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
         waitForErrorSheet();
 
         Espresso.pressBack();
 
         CriteriaHelper.pollUiThread(() -> !mBottomSheetController.isSheetOpen());
         verifySigninAborted();
+        accountConsistencyHistogram.assertExpected();
+    }
+
+    @Test
+    @MediumTest
+    public void testDefaultAccountErrorScreenShown_swipingDownDismissesSheet() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SHOWN,
+                                AccountConsistencyPromoAction.SIGNED_IN_WITH_DEFAULT_ACCOUNT,
+                                AccountConsistencyPromoAction.DISMISSED_SWIPE_DOWN)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectAnyRecord(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
+        mIsNextSigninSuccessful.set(false);
+        createCoordinatorAndLaunchSigninFlow();
+        waitForErrorSheet();
+
+        onViewWaiting(withId(R.id.account_picker_state_general_error)).perform(swipeDown());
+
+        CriteriaHelper.pollUiThread(() -> !mBottomSheetController.isSheetOpen());
+        verifySigninAborted();
+        accountConsistencyHistogram.assertExpected();
     }
 
     @Test
     @MediumTest
     public void testFailedSignInManagedAccount_errorScreenShown() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SHOWN,
+                                AccountConsistencyPromoAction.CONFIRM_MANAGEMENT_SHOWN,
+                                AccountConsistencyPromoAction.CONFIRM_MANAGEMENT_ACCEPTED,
+                                AccountConsistencyPromoAction.SIGNED_IN_WITH_DEFAULT_ACCOUNT)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectAnyRecord(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
         mIsAccountManaged = true;
         mIsNextSigninSuccessful.set(false);
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
         waitForManagementNoticeSheet();
 
         clickContinueButtonManagementNotice();
 
         waitForErrorSheet();
         verifySigninAborted();
+        accountConsistencyHistogram.assertExpected();
     }
 
     @Test
     @MediumTest
     public void testFailedSignInManagedAccount_errorScreenShown_backButtonDismissesSheet() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SHOWN,
+                                AccountConsistencyPromoAction.CONFIRM_MANAGEMENT_SHOWN,
+                                AccountConsistencyPromoAction.CONFIRM_MANAGEMENT_ACCEPTED,
+                                AccountConsistencyPromoAction.SIGNED_IN_WITH_DEFAULT_ACCOUNT,
+                                AccountConsistencyPromoAction.DISMISSED_BACK)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectAnyRecord(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
         mIsAccountManaged = true;
         mIsNextSigninSuccessful.set(false);
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
         waitForManagementNoticeSheet();
         clickContinueButtonManagementNotice();
         waitForErrorSheet();
@@ -324,13 +494,108 @@ public class SeamlessSigninTest {
 
         CriteriaHelper.pollUiThread(() -> !mBottomSheetController.isSheetOpen());
         verifySigninAborted();
+        accountConsistencyHistogram.assertExpected();
+    }
+
+    @Test
+    @MediumTest
+    public void testDuringSignIn_removingAccountAbandonsSignInFlow() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SIGNED_IN_WITH_DEFAULT_ACCOUNT)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectAnyRecord(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
+        emulateLongSignin();
+        createCoordinatorAndLaunchSigninFlow();
+
+        // Remove the account while signin() is executing.
+        mAccountManagerTestRule.removeAccount(TestAccounts.ACCOUNT1.getId());
+
+        verify(mAccountPickerDelegateMock, timeout(CriteriaHelper.DEFAULT_MAX_TIME_TO_POLL))
+                .onSeamlessSigninAbandoned();
+        assertBottomSheetNeverShown();
+        accountConsistencyHistogram.assertExpected();
+    }
+
+    @Test
+    @MediumTest
+    public void testWhileOnErrorSheetForDefaultAccount_removingAccountAbandonsSignInFlow() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SHOWN,
+                                AccountConsistencyPromoAction.SIGNED_IN_WITH_DEFAULT_ACCOUNT)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectAnyRecordTimes(TIMESTAMP_SIGNIN_ABORTED, 2)
+                        .build();
+        mIsNextSigninSuccessful.set(false);
+        createCoordinatorAndLaunchSigninFlow();
+        waitForErrorSheet();
+
+        // Remove the account while the error sheet is shown.
+        mAccountManagerTestRule.removeAccount(TestAccounts.ACCOUNT1.getId());
+
+        verify(mAccountPickerDelegateMock, timeout(CriteriaHelper.DEFAULT_MAX_TIME_TO_POLL))
+                .onSeamlessSigninAbandoned();
+        CriteriaHelper.pollUiThread(() -> !mBottomSheetController.isSheetOpen());
+        accountConsistencyHistogram.assertExpected();
+    }
+
+    @Test
+    @MediumTest
+    public void testWaitingOnManagementConfirmation_removingAccountAbandonsSignInFlow() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SHOWN,
+                                AccountConsistencyPromoAction.CONFIRM_MANAGEMENT_SHOWN)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectAnyRecord(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
+        mIsAccountManaged = true;
+        createCoordinatorAndLaunchSigninFlow();
+        waitForManagementNoticeSheet();
+
+        // Remove the account while the management notice sheet is shown.
+        mAccountManagerTestRule.removeAccount(TestAccounts.ACCOUNT1.getId());
+
+        verify(mAccountPickerDelegateMock, timeout(CriteriaHelper.DEFAULT_MAX_TIME_TO_POLL))
+                .onSeamlessSigninAbandoned();
+        CriteriaHelper.pollUiThread(() -> !mBottomSheetController.isSheetOpen());
+        accountConsistencyHistogram.assertExpected();
+    }
+
+    @Test
+    @MediumTest
+    public void testOnDeviceLockActivity_removingAccountAbandonsSignInFlow() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectNoRecords("Signin.AccountConsistencyPromoAction")
+                        .expectNoRecords(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectNoRecords(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
+        mAutoTestRule.setIsAutomotive(true);
+        createCoordinatorAndLaunchSigninFlow();
+
+        // Remove the account before user completes the device lock.
+        mAccountManagerTestRule.removeAccount(TestAccounts.ACCOUNT1.getId());
+
+        verify(mAccountPickerDelegateMock, timeout(CriteriaHelper.DEFAULT_MAX_TIME_TO_POLL))
+                .onSeamlessSigninAbandoned();
+        assertBottomSheetNeverShown();
+        accountConsistencyHistogram.assertExpected();
     }
 
     @Test
     @MediumTest
     public void testTryAgainButton_withDefaultAccount_spinnerShown() {
         mIsNextSigninSuccessful.set(false);
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
         waitForErrorSheet();
 
         // Clicking on the |Try again| button should show spinner
@@ -343,8 +608,20 @@ public class SeamlessSigninTest {
     @Test
     @MediumTest
     public void testTryAgainButton_withDefaultAccount_secondSignInSuccessful() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SHOWN)
+                        .expectIntRecordTimes(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SIGNED_IN_WITH_DEFAULT_ACCOUNT,
+                                2)
+                        .expectAnyRecordTimes(TIMESTAMP_MANAGEMENT_STATUS_LOADED, 2)
+                        .expectAnyRecord(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
         mIsNextSigninSuccessful.set(false);
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
         waitForErrorSheet();
 
         // Clicking on the |Try again| button should perform the sign-in
@@ -353,6 +630,7 @@ public class SeamlessSigninTest {
 
         verify(mSigninManagerMock, times(2)).signin(eq(TestAccounts.ACCOUNT1), anyInt(), any());
         verify(mAccountPickerDelegateMock).onSignInComplete(eq(TestAccounts.ACCOUNT1), any());
+        accountConsistencyHistogram.assertExpected();
     }
 
     @Test
@@ -360,7 +638,7 @@ public class SeamlessSigninTest {
     public void testTryAgainButton_withManagedAccount_spinnerShown() {
         mIsAccountManaged = true;
         mIsNextSigninSuccessful.set(false);
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
         waitForManagementNoticeSheet();
         clickContinueButtonManagementNotice();
         waitForErrorSheet();
@@ -375,9 +653,23 @@ public class SeamlessSigninTest {
     @Test
     @MediumTest
     public void testTryAgainButton_withManagedAccount_secondSignInSuccessful() {
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SHOWN,
+                                AccountConsistencyPromoAction.CONFIRM_MANAGEMENT_SHOWN,
+                                AccountConsistencyPromoAction.CONFIRM_MANAGEMENT_ACCEPTED)
+                        .expectIntRecordTimes(
+                                "Signin.AccountConsistencyPromoAction",
+                                AccountConsistencyPromoAction.SIGNED_IN_WITH_DEFAULT_ACCOUNT,
+                                2)
+                        .expectAnyRecord(TIMESTAMP_MANAGEMENT_STATUS_LOADED)
+                        .expectAnyRecord(TIMESTAMP_SIGNIN_ABORTED)
+                        .build();
         mIsAccountManaged = true;
         mIsNextSigninSuccessful.set(false);
-        createCoordinator();
+        createCoordinatorAndLaunchSigninFlow();
         waitForManagementNoticeSheet();
         clickContinueButtonManagementNotice();
         waitForErrorSheet();
@@ -388,6 +680,40 @@ public class SeamlessSigninTest {
 
         verify(mSigninManagerMock, times(2)).signin(eq(TestAccounts.ACCOUNT1), anyInt(), any());
         verify(mAccountPickerDelegateMock).onSignInComplete(eq(TestAccounts.ACCOUNT1), any());
+        accountConsistencyHistogram.assertExpected();
+    }
+
+    @Test
+    @MediumTest
+    public void testBottomErrorSheetDismissalTriggersDestruction() {
+        mIsNextSigninSuccessful.set(false);
+        createCoordinatorAndLaunchSigninFlow();
+        waitForErrorSheet();
+
+        // No dismissal metrics should be logged for programmatic (non-user-initiated) dismissals.
+        var accountConsistencyHistogram =
+                HistogramWatcher.newBuilder()
+                        .expectNoRecords("Signin.AccountConsistencyPromoAction")
+                        .build();
+        // Dismissing the error sheet should trigger destroy() in the mediator.
+        ThreadUtils.runOnUiThreadBlocking(() -> mCoordinator.dismissBottomSheet());
+
+        CriteriaHelper.pollUiThread(() -> !mBottomSheetController.isSheetOpen());
+        verify(mAccountPickerDelegateMock).onAccountPickerDestroy();
+        accountConsistencyHistogram.assertExpected();
+    }
+
+    @Test
+    @MediumTest
+    public void testDismissalWithoutVisibleBottomSheetTriggersDestruction() {
+        createCoordinatorAndLaunchSigninFlow();
+        assertBottomSheetNeverShown();
+
+        // In the successful scenario where the bottom sheet is never shown, calling dismiss
+        // should still trigger destroy() in the mediator.
+        ThreadUtils.runOnUiThreadBlocking(() -> mCoordinator.dismissBottomSheet());
+
+        verify(mAccountPickerDelegateMock).onAccountPickerDestroy();
     }
 
     private void assertBottomSheetNeverShown() {
@@ -396,7 +722,7 @@ public class SeamlessSigninTest {
         assertFalse(mBottomSheetController.isSheetOpen());
     }
 
-    private void createCoordinator() {
+    private void createCoordinatorAndLaunchSigninFlow() {
         mDeviceLockActivityLauncher = new SigninTestUtil.CustomDeviceLockActivityLauncher();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -414,6 +740,7 @@ public class SeamlessSigninTest {
                                     mDeviceLockActivityLauncher,
                                     SigninAccessPoint.BOOKMARK_MANAGER,
                                     TestAccounts.ACCOUNT1.getId());
+                    mCoordinator.launchSigninFlow();
                 });
     }
 

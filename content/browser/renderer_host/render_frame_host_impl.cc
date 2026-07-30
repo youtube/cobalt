@@ -317,6 +317,7 @@
 #include "url/url_constants.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include "base/android/scoped_service_binding_batch.h"
 #include "content/browser/accessibility/browser_accessibility_manager_android.h"
 #include "content/browser/android/content_url_loader_factory.h"
 #include "content/browser/android/java_interfaces_impl.h"
@@ -2106,6 +2107,13 @@ RenderFrameHost* RenderFrameHost::FromID(const GlobalRenderFrameHostId& id) {
 // static
 RenderFrameHost* RenderFrameHost::FromID(int render_process_id,
                                          int render_frame_id) {
+  return RenderFrameHostImpl::FromID(GlobalRenderFrameHostId(
+      ChildProcessId::FromUnsafeValue(render_process_id), render_frame_id));
+}
+
+// static
+RenderFrameHost* RenderFrameHost::FromID(ChildProcessId render_process_id,
+                                         int render_frame_id) {
   return RenderFrameHostImpl::FromID(
       GlobalRenderFrameHostId(render_process_id, render_frame_id));
 }
@@ -2132,6 +2140,14 @@ RenderFrameHostImpl* RenderFrameHostImpl::FromID(GlobalRenderFrameHostId id) {
 // static
 RenderFrameHostImpl* RenderFrameHostImpl::FromID(int render_process_id,
                                                  int render_frame_id) {
+  return RenderFrameHostImpl::FromID(GlobalRenderFrameHostId(
+      ChildProcessId::FromUnsafeValue(render_process_id), render_frame_id));
+}
+
+// static
+RenderFrameHostImpl* RenderFrameHostImpl::FromID(
+    ChildProcessId render_process_id,
+    int render_frame_id) {
   return RenderFrameHostImpl::FromID(
       GlobalRenderFrameHostId(render_process_id, render_frame_id));
 }
@@ -2150,13 +2166,23 @@ RenderFrameHostImpl* RenderFrameHostImpl::FromFrameToken(
     int process_id,
     const blink::LocalFrameToken& frame_token,
     mojo::ReportBadMessageCallback* process_mismatch_callback) {
+  return RenderFrameHostImpl::FromFrameToken(
+      ChildProcessId::FromUnsafeValue(process_id), frame_token,
+      process_mismatch_callback);
+}
+
+// static
+RenderFrameHostImpl* RenderFrameHostImpl::FromFrameToken(
+    ChildProcessId process_id,
+    const blink::LocalFrameToken& frame_token,
+    mojo::ReportBadMessageCallback* process_mismatch_callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   auto it = GetTokenFrameMap().find(frame_token);
   if (it == GetTokenFrameMap().end()) {
     return nullptr;
   }
 
-  if (it->second->GetProcess()->GetDeprecatedID() != process_id) {
+  if (it->second->GetProcess()->GetID() != process_id) {
     if (process_mismatch_callback) {
       SYSLOG(WARNING)
           << "Denying illegal RenderFrameHost::FromFrameToken request.";
@@ -4491,9 +4517,13 @@ void RenderFrameHostImpl::DeleteRenderFrame(
 
       if (!subframe_shutdown_timeout.is_zero() ||
           !unload_handler_timeout.is_zero()) {
-        GetProcess()->DelayProcessShutdown(subframe_shutdown_timeout,
-                                           unload_handler_timeout,
-                                           site_instance_->GetSiteInfo());
+        // Release the runner to allow the delay to persist until the fallback
+        // timeout expires.
+        std::ignore = GetProcess()
+                          ->DelayProcessShutdown(subframe_shutdown_timeout,
+                                                 unload_handler_timeout,
+                                                 site_instance_->GetSiteInfo())
+                          .Release();
       }
       // If the subframe takes too long to unload, force its removal from the
       // tree. See https://crbug.com/950625.
@@ -5304,29 +5334,6 @@ bool RenderFrameHostImpl::IsThirdPartyStoragePartitioningEnabled(
   // If we're in the main frame the state of third-party storage partitioning
   // doesn't matter as the StorageKey will be first-party.
   if (main_frame_for_storage_partitioning == this) {
-    return false;
-  }
-
-  RuntimeFeatureStateDocumentData* rfs_document_data_for_storage_key =
-      RuntimeFeatureStateDocumentData::GetForCurrentDocument(
-          main_frame_for_storage_partitioning);
-
-  // `rfs_document_data_for_storage_key` should be available.
-  CHECK(rfs_document_data_for_storage_key);
-
-  bool unpartitioned_key_allowed =
-      GetContentClient()
-          ->browser()
-          ->IsUnpartitionedStorageAccessAllowedByUserPreference(
-              GetSiteInstance()->GetBrowserContext(), new_rfh_origin.GetURL(),
-              ComputeSiteForCookies(), ComputeTopFrameOrigin(new_rfh_origin));
-
-  // Ignore user bypass if only partitioned access is allowed. We'll
-  // still respect enterprise policies which take precedence over the user's 3P
-  // cookie blocking preference.
-  if (rfs_document_data_for_storage_key && unpartitioned_key_allowed &&
-      rfs_document_data_for_storage_key->runtime_feature_state_read_context()
-          .IsThirdPartyStoragePartitioningUserBypassEnabled()) {
     return false;
   }
 
@@ -6734,6 +6741,17 @@ void RenderFrameHostImpl::ProcessBeforeUnloadCompletedFromFrame(
         (renderer_before_unload_end_time - renderer_before_unload_start_time);
     base::UmaHistogramTimes("Navigation.OnBeforeUnloadOverheadTime",
                             on_before_unload_overhead_time);
+    if (for_legacy) {
+      base::UmaHistogramTimes(
+          "Navigation.OnBeforeUnloadOverheadTime."
+          "NoBeforeUnloadHandlerRegistered",
+          on_before_unload_overhead_time);
+    } else {
+      base::UmaHistogramTimes(
+          "Navigation.OnBeforeUnloadOverheadTime."
+          "BeforeUnloadHandlerRegistered",
+          on_before_unload_overhead_time);
+    }
 
     frame_tree_node_->navigator().LogBeforeUnloadTime(
         renderer_before_unload_start_time, renderer_before_unload_end_time,
@@ -14632,8 +14650,7 @@ void RenderFrameHostImpl::GetGeolocationService(
     if (!geolocation_context) {
       return;
     }
-    geolocation_service_ =
-        std::make_unique<GeolocationServiceImpl>(geolocation_context, this);
+    geolocation_service_ = std::make_unique<GeolocationServiceImpl>(this);
   }
   geolocation_service_->Bind(std::move(receiver));
 }
@@ -15910,11 +15927,20 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
   auto navigation_ukm_builder =
       navigation_request->GetNavigationTimelineUkmBuilder();
 
+  // We are only interested in the `caused_by_ad` status for same-document
+  // scenarios and for cross-document subframe scenarios.
+  //
+  // TODO(crbug.com/375523824): Plumb through the ad status for cross-document
+  // subframe navigation. It might suffice to only check the frame's
+  // pre-navigation ad status instead of the JavaScript stack.
+  bool caused_by_ad =
+      same_document_params ? same_document_params->caused_by_ad : false;
+
   // TODO(crbug.com/40150370): Do not pass |params| to DidNavigate().
   NavigationRequest* raw_navigation_request = navigation_request.get();
   raw_navigation_request->frame_tree_node()->navigator().DidNavigate(
-      this, *params, std::move(navigation_request),
-      is_same_document_navigation);
+      this, *params, std::move(navigation_request), is_same_document_navigation,
+      caused_by_ad);
 
   // Run any deferred shared storage operations from response headers now that
   // commit has occurred.
@@ -16607,6 +16633,12 @@ void RenderFrameHostImpl::DidCommitNavigation(
   TRACE_EVENT("navigation", "RenderFrameHostImpl::DidCommitNavigation",
               ChromeTrackEvent::kRenderFrameHost, this, "params", params);
 
+#if BUILDFLAG(IS_ANDROID)
+  // Batch service binding updates for renderer processes of the page going to
+  // be hidden and/or going to BFCache.
+  base::android::ScopedServiceBindingBatch scoped_service_binding_batch;
+#endif
+
   // BackForwardCacheImpl::CanStoreRenderFrameHost prevents placing the pages
   // with in-flight navigation requests in the back-forward cache and it's not
   // possible to start/commit a new one after the RenderFrameHost is in the
@@ -16844,15 +16876,18 @@ void RenderFrameHostImpl::SendBeforeUnload(
                 kDumpWithoutCrashing) &&
         frame_tree()->controller().in_navigate_to_pending_entry();
 
-    base::TimeTicks beforeunload_end_time_for_legacy = base::TimeTicks::Now();
+    base::TimeTicks renderer_before_unload_end_time_for_legacy =
+        base::TimeTicks::Now();
 
     if (is_eligible_for_avoid_unnecessary_beforeunload &&
         IsAvoidUnnecessaryBeforeUnloadCheckSyncEnabledFor(
             features::AvoidUnnecessaryBeforeUnloadCheckSyncMode::
                 kWithSendBeforeUnload)) {
       std::move(before_unload_closure)
-          .Run(/*proceed=*/true, send_before_unload_start_time_,
-               beforeunload_end_time_for_legacy);
+          .Run(/*proceed=*/true, /*renderer_before_unload_start_time=*/
+               send_before_unload_start_time_,
+               /*renderer_before_unload_end_time=*/
+               renderer_before_unload_end_time_for_legacy);
       return;
     }
 
@@ -16864,17 +16899,12 @@ void RenderFrameHostImpl::SendBeforeUnload(
             FROM_HERE,
             base::BindOnce(
                 [](blink::mojom::LocalFrame::BeforeUnloadCallback callback,
-                   base::TimeTicks start_time, base::TimeTicks end_time,
+                   base::TimeTicks renderer_before_unload_start_time,
+                   base::TimeTicks renderer_before_unload_end_time,
                    base::WeakPtr<NavigationControllerImpl>
                        navigation_controller,
                    const bool can_be_in_navigate_to_pending_entry,
                    const bool is_renderer_initiated_navigation) {
-                  // Measures the time a posted task spends in the queue before
-                  // execution. Recorded only when `for_legacy` is true.
-                  base::UmaHistogramTimes(
-                      "Navigation.OnBeforeUnloadOverheadTime."
-                      "NoBeforeUnloadHandlerRegistered",
-                      base::TimeTicks::Now() - end_time);
                   if (can_be_in_navigate_to_pending_entry &&
                       navigation_controller) {
                     navigation_controller
@@ -16882,8 +16912,9 @@ void RenderFrameHostImpl::SendBeforeUnload(
                   }
                   SCOPED_CRASH_KEY_BOOL("RFHI", "is_renderer_init_nav",
                                         is_renderer_initiated_navigation);
-                  std::move(callback).Run(/*proceed=*/true, start_time,
-                                          end_time);
+                  std::move(callback).Run(/*proceed=*/true,
+                                          renderer_before_unload_start_time,
+                                          renderer_before_unload_end_time);
                   if (can_be_in_navigate_to_pending_entry &&
                       navigation_controller) {
                     navigation_controller
@@ -16891,8 +16922,10 @@ void RenderFrameHostImpl::SendBeforeUnload(
                   }
                 },
                 std::move(before_unload_closure),
+                /*renderer_before_unload_start_time=*/
                 send_before_unload_start_time_,
-                beforeunload_end_time_for_legacy,
+                /*renderer_before_unload_end_time=*/
+                renderer_before_unload_end_time_for_legacy,
                 frame_tree()->controller().GetWeakPtr(),
                 can_be_in_navigate_to_pending_entry,
                 is_renderer_initiated_navigation));

@@ -37,17 +37,40 @@ enum ProfileReadyState {
   kDisabledByAdmin,
 };
 
+// A minimal interface for the initial handshake.
+interface PreloadPage {
+  // The one and only method needed to unblock the frontend.
+  SetProfileReadyState(ProfileReadyState ready_state);
+};
+
 // Functions provided by the WebUI page.
 interface Page {
   // Called before the page is shown.
   IntentToShow();
 
+  // TODO(crbug.com/454120908): Remove this method after WebContents warming is
+  // rolled out.
   // Called any time the ready state of the profile changes.
   // `ready_state` = `GlicEnabling::GetProfileReadyState()`.
   SetProfileReadyState(ProfileReadyState ready_state);
 
   // Called to inform the page of the UI surface it is being rendered in.
   UpdatePageState(PanelStateKind panelStateKind);
+};
+
+// Page handler for pre-loading tasks.
+interface GlicPreloadHandler {
+  // Prepare the webview for loading the client. Sync Google account sign-in
+  // cookies to the webview, if necessary, so that it can sign-in automatically.
+  // If this returns an error, the web client cannot be created.
+  PrepareForClient() => (PrepareForClientResult result);
+};
+
+// Factory for GlicPreloadHandler used in chrome://glic.
+interface GlicPreloadHandlerFactory {
+  // Creates the GlicPreloadHandler for chrome://glic.
+  CreatePreloadHandler(pending_receiver<GlicPreloadHandler> receiver,
+                       pending_remote<PreloadPage> page);
 };
 
 // Factory for PageHandler used in chrome://glic.
@@ -122,6 +145,8 @@ interface PageHandler {
   // Creates a WebClientHandler, for use by a single web client instance.
   CreateWebClient(pending_receiver<WebClientHandler> web_client_receiver);
 
+  // TODO(crbug.com/454120908): Remove this method after WebContents warming is
+  // rolled out.
   // Prepare the webview for loading the client. Sync Google account sign-in
   // cookies to the webview, if necessary, so that it can sign-in automatically.
   // If this returns an error, the web client cannot be created.
@@ -515,6 +540,48 @@ interface PinCandidatesObserver {
   OnPinCandidatesChanged(array<PinCandidate> candidates);
 };
 
+// @generate glic_api
+// Describes what triggered the pin.
+[Stable, Extensible]
+enum PinTrigger {
+  // The pin occurred for unknown reasons. Specifies 'web client' to align with
+  // `GlicPinTrigger` enum (which disambiguates from unknown triggers
+  // originating elsewhere).
+  [Default] kWebClientUnknown = 0,
+  // The pin was triggered by the toggle UI for pin candidates.
+  kCandidatesToggle = 1,
+  // The pin was triggered by the inline '@' mention feature.
+  kAtMention = 2,
+  // The pin was triggered as part of actor/actuation behavior.
+  kActuation = 3,
+};
+
+// Options for pinning tabs.
+struct PinTabsOptions {
+  PinTrigger pin_trigger;
+};
+
+// @generate glic_api
+// Describes what triggered the unpin.
+[Stable, Extensible]
+enum UnpinTrigger {
+  // The unpin occurred for unknown reasons. Specifies 'web client' to align
+  // with `GlicUnpinTrigger` enum (which disambiguates from unknown triggers
+  // originating elsewhere).
+  [Default] kWebClientUnknown = 0,
+  // The unpin was triggered by the toggle UI for pin candidates.
+  kCandidatesToggle = 1,
+  // The unpin was triggered by a chip.
+  kChip = 2,
+  // The unpin was triggered as part of actor/actuation behavior.
+  kActuation = 3,
+};
+
+// Options for unpinning tabs.
+struct UnpinTabsOptions {
+  UnpinTrigger unpin_trigger;
+};
+
 // Access to the browser from the web client by proxy through the WebUI.
 // A single WebClientHandler will provide access to the browser for only
 // a single web client. If the webview navigates or refreshes, a new
@@ -608,16 +675,17 @@ interface WebClientHandler {
   // pinned tabs exceeds the allowed limit or if the tabs are already pinned.
   // Returns true if all the given tabs were pinned.
   [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
-  PinTabs(array<int32> tab_ids) => (bool pinned_all);
+  PinTabs(array<int32> tab_ids, PinTabsOptions? options) => (bool pinned_all);
 
   // Unpins the given tabs. Can fail if the tabs cannot be found, or if some of
   // the given tabs aren't pinned.
   [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
-  UnpinTabs(array<int32> tab_ids) => (bool unpinned_all);
+  UnpinTabs(array<int32> tab_ids, UnpinTabsOptions? options)
+      => (bool unpinned_all);
 
   // Unpins all currently pinned tabs.
   [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
-  UnpinAllTabs();
+  UnpinAllTabs(UnpinTabsOptions? options);
 
   // Subscribes to receive updates on pin candidates.
   [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
@@ -1099,6 +1167,7 @@ union AdditionalContextPart {
   AnnotatedPageData annotated_page_data;
   PdfDocumentData pdf_document_data;
   TabContext tab_context;
+  CapturedRegion region;
 };
 
 // An additional context object.
@@ -1450,6 +1519,12 @@ enum HostCapability {
   kGetModelQualityClientId = 2,
   // Glic is in multi-instance mode.
   kMultiInstance = 3,
+  // Enables the experimental "Trust First" (Arm 1 - "Start Chat") onboarding
+  // UI flow, bypassing the standard FRE flow.
+  kTrustFirstOnboardingArm1 = 4,
+  // Enables the experimental "Trust First" (Arm 2 - "Welcome Screen")
+  // onboarding UI flow, bypassing the standard FRE flow.
+  kTrustFirstOnboardingArm2 = 5,
 };
 
 // A request to change the glic web client to a view suitable for tracking the

@@ -7,8 +7,9 @@
 
 #include <windows.h>
 
-#include "base/check.h"
-#include "base/functional/callback_forward.h"
+#include <memory>
+
+#include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/updater/app/app_server.h"
@@ -16,6 +17,9 @@
 #include "chrome/updater/update_service_internal.h"
 
 namespace updater {
+
+class UpdateServiceInternalStub;
+class UpdateServiceStub;
 
 // Returns S_OK if user install, or if the COM caller is admin. Error otherwise.
 HRESULT IsCOMCallerAllowed();
@@ -55,6 +59,10 @@ class AppServerWin : public AppServer {
   // Handles COM factory unregistration then triggers program shutdown. This
   // function runs on a COM RPC thread when the WRL module is destroyed.
   void Stop();
+
+  // Handles COM object registration, message loop, and unregistration. Returns
+  // when all COM objects are released.
+  HRESULT RunCOMServer(base::OnceClosure on_service_stopping);
 
  private:
   ~AppServerWin() override;
@@ -99,6 +107,10 @@ class AppServerWin : public AppServer {
   // |update_client| component.
   scoped_refptr<UpdateService> update_service_;
   scoped_refptr<UpdateServiceInternal> update_service_internal_;
+  std::unique_ptr<UpdateServiceInternalStub> active_duty_internal_stub_;
+  std::unique_ptr<UpdateServiceStub> active_duty_stub_;
+
+  base::OnceClosure on_service_stopping_;
 };
 
 // Returns the singleton AppServerWin instance.

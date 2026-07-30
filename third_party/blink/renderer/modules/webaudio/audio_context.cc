@@ -9,6 +9,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/strcat.h"
 #include "base/strings/to_string.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
@@ -38,7 +39,6 @@
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/core/timing/window_performance.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream.h"
-#include "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h"
 #include "third_party/blink/renderer/modules/permissions/permission_utils.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_listener.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_playout_stats.h"
@@ -47,7 +47,6 @@
 #include "third_party/blink/renderer/modules/webaudio/media_stream_audio_destination_node.h"
 #include "third_party/blink/renderer/modules/webaudio/media_stream_audio_source_node.h"
 #include "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_node.h"
-#include "third_party/blink/renderer/modules/webrtc/webrtc_audio_device_impl.h"
 #include "third_party/blink/renderer/platform/audio/audio_utilities.h"
 #include "third_party/blink/renderer/platform/audio/vector_math.h"
 #include "third_party/blink/renderer/platform/bindings/exception_messages.h"
@@ -424,6 +423,26 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
     sample_rate = context_options->sampleRate();
   }
 
+  std::optional<uint32_t> render_quantum_frames = 128;
+  if (RuntimeEnabledFeatures::WebAudioConfigurableRenderQuantumEnabled() &&
+      context_options->hasRenderSizeHint()) {
+    const auto* hint = context_options->renderSizeHint();
+    switch (hint->GetContentType()) {
+      case V8UnionAudioContextRenderSizeCategoryOrUnsignedLong::ContentType::
+          kUnsignedLong:
+        render_quantum_frames = hint->GetAsUnsignedLong();
+        break;
+      case V8UnionAudioContextRenderSizeCategoryOrUnsignedLong::ContentType::
+          kAudioContextRenderSizeCategory:
+        if (hint->GetAsAudioContextRenderSizeCategory() ==
+            V8AudioContextRenderSizeCategory::Enum::kHardware) {
+          // Use `nullopt` to indicate a "hardware" hint.
+          render_quantum_frames.reset();
+        }
+        break;
+    }
+  }
+
   // The empty string means the default audio device.
   auto frame_token = window.GetLocalFrameToken();
   WebAudioSinkDescriptor sink_descriptor(g_empty_string, frame_token);
@@ -459,21 +478,48 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
     return nullptr;
   }
 
-  SCOPED_UMA_HISTOGRAM_TIMER("WebAudio.AudioContext.CreateTime");
-  uint32_t render_quantum_frames = 128;
-  if (RuntimeEnabledFeatures::WebAudioConfigurableRenderQuantumEnabled() &&
-      context_options->hasRenderSizeHint()) {
-    if (context_options->renderSizeHint()->IsUnsignedLong()) {
-      render_quantum_frames = audio_utilities::GetClampedRenderQuantumFrames(
-          context_options->renderSizeHint()->GetAsUnsignedLong());
+  // Pre-validation for renderSizeHint if sampleRate is provided. This prevents
+  // allocating excessive memory for clearly invalid renderSizeHint values
+  // before the AudioContext is fully constructed.
+  bool render_quantum_frames_validated = false;
+  if (sample_rate.has_value() && render_quantum_frames.has_value()) {
+    if (!audio_utilities::IsValidRenderQuantumSize(
+            render_quantum_frames.value(), sample_rate.value())) {
+      exception_state.ThrowDOMException(
+          DOMExceptionCode::kNotSupportedError,
+          ExceptionMessages::IndexOutsideRange(
+              "renderSizeHint", render_quantum_frames.value(),
+              audio_utilities::MinRenderQuantumSize(),
+              ExceptionMessages::kInclusiveBound,
+              audio_utilities::MaxRenderQuantumSize(sample_rate.value()),
+              ExceptionMessages::kInclusiveBound));
+      return nullptr;
     }
+    render_quantum_frames_validated = true;
   }
 
+  SCOPED_UMA_HISTOGRAM_TIMER("WebAudio.AudioContext.CreateTime");
   AudioContext* audio_context = MakeGarbageCollected<AudioContext>(
       window, latency_hint, sample_rate, sink_descriptor,
       update_echo_cancellation_on_first_start, render_quantum_frames);
   ++hardware_context_count;
   audio_context->UpdateStateIfNeeded();
+
+  // If the render quantum size was not able to be validated before due to the
+  // sample rate or hardware buffer size not being known, validate it here.
+  if (!render_quantum_frames_validated &&
+      !audio_utilities::IsValidRenderQuantumSize(
+          audio_context->renderQuantumSize(), audio_context->sampleRate())) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kNotSupportedError,
+        ExceptionMessages::IndexOutsideRange(
+            "renderSizeHint", audio_context->renderQuantumSize(),
+            audio_utilities::MinRenderQuantumSize(),
+            ExceptionMessages::kInclusiveBound,
+            audio_utilities::MaxRenderQuantumSize(audio_context->sampleRate()),
+            ExceptionMessages::kInclusiveBound));
+    return nullptr;
+  }
 
   // This starts the audio thread. The destination node's
   // provideInput() method will now be called repeatedly to render
@@ -512,10 +558,10 @@ AudioContext::AudioContext(LocalDOMWindow& window,
                            std::optional<float> sample_rate,
                            WebAudioSinkDescriptor sink_descriptor,
                            bool update_echo_cancellation_on_first_start,
-                           uint32_t render_quantum_frames)
+                           std::optional<uint32_t> render_quantum_frames)
     : BaseAudioContext(&window,
                        ContextType::kRealtimeContext,
-                       render_quantum_frames),
+                       render_quantum_frames.value_or(128)),
       FrameVisibilityObserver(GetLocalFrame()),
       PageVisibilityObserver(GetPageFromFrame()),
       context_id_(context_id++),

@@ -14,10 +14,6 @@
 #include "chromeos/ash/components/dbus/dlcservice/dlcservice_client.h"
 #include "chromeos/ash/experiences/arc/dlc_installer/arc_dlc_install_notification_manager.h"
 
-namespace ash {
-class CrosSettings;
-}
-
 namespace base {
 class TimeTicks;
 }
@@ -29,7 +25,15 @@ namespace arc {
 // installation, and facilitates enabling ARC on devices.
 class ArcDlcInstaller {
  public:
-  explicit ArcDlcInstaller(ash::CrosSettings* cros_settings);
+  // Represents the installation state of the ARCVM DLC.
+  enum class DlcState {
+    kNotRequired,
+    kInstalled,
+    kNotInstalled,
+    kError,
+  };
+
+  ArcDlcInstaller();
 
   ArcDlcInstaller(const ArcDlcInstaller&) = delete;
   ArcDlcInstaller& operator=(const ArcDlcInstaller&) = delete;
@@ -40,9 +44,8 @@ class ArcDlcInstaller {
   // DLC.
   void PrepareArc(base::OnceCallback<void(bool)> callback);
 
-  // Determines if the DLC installation is necessary based on
-  // board, management, and feature flag conditions.
-  bool IsDlcRequired();
+  // Checks the current state of the ARCVM DLC.
+  void CheckInstallationState(base::OnceCallback<void(DlcState)> callback);
 
  private:
   // Callback invoked after ARC DLC preparation is complete.
@@ -73,7 +76,6 @@ class ArcDlcInstaller {
   // determine whether the DLC image was installed.
   void OnDlcProgress(bool* installation_triggered, double progress);
 
-  raw_ptr<ash::CrosSettings> cros_settings_;
   base::OnceCallback<void(bool)> prepare_arc_callback_;
   base::WeakPtrFactory<ArcDlcInstaller> weak_ptr_factory_{this};
 };

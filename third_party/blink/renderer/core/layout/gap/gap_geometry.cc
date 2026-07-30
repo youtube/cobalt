@@ -350,17 +350,7 @@ void GapGeometry::GenerateCrossIntersectionListForMulticol(
   intersections.push_back(end_offset);
   if (main_gap_running_index_ < main_gaps_.size() &&
       main_gaps_[main_gap_running_index_].IsStartSpannerMainGap()) {
-    // The intersection at an end spanner main gap must still be added to
-    // the vector, so we can paint behind spanners with `rule-break: none`.
-    wtf_size_t spanner_index = main_gap_running_index_ + 1;
-    if (spanner_index < main_gaps_.size()) {
-      CHECK(main_gaps_[spanner_index].IsEndSpannerMainGap());
-      intersections.push_back(main_gaps_[spanner_index].GetGapOffset());
-    } else {
-      // If there is no column content after a spanner, there'll be no
-      // EndSpannerMainGap.
-      intersections.push_back(content_block_end_);
-    }
+    intersections.push_back(main_gaps_[main_gap_running_index_].GetGapOffset());
   }
 }
 
@@ -564,6 +554,20 @@ BlockedStatus GapGeometry::GetIntersectionBlockedStatus(
   }
 
   return status;
+}
+
+void GapGeometry::AdjustCrossGapsRangesForFragmentation(
+    wtf_size_t last_track_in_previous_fragment,
+    wtf_size_t first_track_in_next_fragment,
+    Vector<wtf_size_t>& column_gaps_segment_ranges_start_indices) {
+  for (wtf_size_t i = 0; i < cross_gaps_.size(); ++i) {
+    CrossGap& cross_gap = cross_gaps_[i];
+    if (cross_gap.HasGapSegmentStateRanges()) {
+      cross_gap.AdjustGapSegmentStateRangesForFragmentation(
+          last_track_in_previous_fragment, first_track_in_next_fragment,
+          column_gaps_segment_ranges_start_indices[i]);
+    }
+  }
 }
 
 bool GapGeometry::MulticolCrossGapIntersectionsEndAtSpanner(

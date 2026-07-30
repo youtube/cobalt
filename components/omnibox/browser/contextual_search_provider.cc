@@ -142,7 +142,7 @@ struct EligibleMatchesAndActions {
             input, client, toolbelt_config.show_lens_action_on_non_ntp,
             toolbelt_config.show_lens_action_on_ntp, std::nullopt) &&
         (toolbelt_config.always_include_lens_action ||
-         LensEntrypointEligible(input, client));
+         ContextualSearchProvider::LensEntrypointEligible(input, client));
 
     // When the AIM page action is enabled, we need to suppress the AIM toolbelt
     // action in order to ensure that there's at most one AIM entrypoint shown
@@ -193,11 +193,14 @@ struct EligibleMatchesAndActions {
     //   inputs. `lens_entry_match`, `toolbelt_lens` is not restricted to zero
     //   inputs.
     // - Only shown if toolbelt lens not shown.
+    // - Only shown if "lens search chip" (Omnibox Next) is not enabled.
     const auto& contextual_search_config =
         omnibox_feature_configs::ContextualSearch::Get();
-    lens_entry_match = contextual_search_config.show_open_lens_action &&
-                       !toolbelt_lens && input.IsZeroSuggest() &&
-                       LensEntrypointEligible(input, client);
+    lens_entry_match =
+        contextual_search_config.show_open_lens_action && !toolbelt_lens &&
+        input.IsZeroSuggest() &&
+        ContextualSearchProvider::LensEntrypointEligible(input, client) &&
+        !client->IsOmniboxNextFeatureParamEnabled("ShowLensSearchChip");
 
     // - Check feature/params.
     // - Disabled if either `toolbelt` or `contextual_search_config` are shown.
@@ -216,19 +219,6 @@ struct EligibleMatchesAndActions {
     // - Hidden on zero input.
     page_suggestions = page_verbatim && !input.text().empty() &&
                        !input.omit_asynchronous_matches();
-  }
-
-  // Show on web & SRP, but not NTP.
-  // Http, https, & local files are allowed but not other local schemes.
-  // Do not show if Lens is already opened.
-  static bool LensEntrypointEligible(const AutocompleteInput& input,
-                                     AutocompleteProviderClient* client) {
-    return (omnibox::IsOtherWebPage(input.current_page_classification()) ||
-            omnibox::IsSearchResultsPage(
-                input.current_page_classification())) &&
-           (input.current_url().SchemeIsHTTPOrHTTPS() ||
-            input.current_url().SchemeIs(url::kFileScheme)) &&
-           client->IsLensEnabled() && client->AreLensEntrypointsVisible();
   }
 
   // - Show on non-NTP depending on finch param passed in via
@@ -391,6 +381,17 @@ bool ContextualSearchProvider::HasToolbeltLensAction() const {
     return match.IsToolbelt() &&
            match.HasAction(OmniboxActionId::CONTEXTUAL_SEARCH_OPEN_LENS);
   });
+}
+
+// static
+bool ContextualSearchProvider::LensEntrypointEligible(
+    const AutocompleteInput& input,
+    const AutocompleteProviderClient* client) {
+  return (omnibox::IsOtherWebPage(input.current_page_classification()) ||
+          omnibox::IsSearchResultsPage(input.current_page_classification())) &&
+         (input.current_url().SchemeIsHTTPOrHTTPS() ||
+          input.current_url().SchemeIs(url::kFileScheme)) &&
+         client->IsLensEnabled() && client->AreLensEntrypointsVisible();
 }
 
 ContextualSearchProvider::ContextualSearchProvider(

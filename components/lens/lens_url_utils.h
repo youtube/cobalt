@@ -88,6 +88,13 @@ std::string VitQueryParamValueForMediaType(
 std::map<std::string, std::string> GetParametersMapWithoutQuery(
     const GURL& url);
 
+// Returns a map of all the common search query parameters required to enable
+// the lens overlay results in the side panel.
+std::map<std::string, std::string> GetCommonSearchParametersMap(
+    const std::string& country_code,
+    bool use_dark_mode,
+    bool is_side_panel);
+
 // Returns |url_to_modify| with all the common search query parameters required
 // to enable the lens overlay results in the side panel.
 GURL AppendCommonSearchParametersToURL(const GURL& url_to_modify,
@@ -101,6 +108,10 @@ bool HasCommonSearchQueryParameters(const GURL& url);
 
 // Append the dark mode param to the provided |url_to_modify|.
 GURL AppendDarkModeParamToURL(const GURL& url_to_modify, bool use_dark_mode);
+
+// Remove parameters that cause the SRP to be rendered for the side panel. Used
+// when opening the SRP in a new tab.
+GURL RemoveSidePanelURLParameters(const GURL& url);
 
 }  // namespace lens
 

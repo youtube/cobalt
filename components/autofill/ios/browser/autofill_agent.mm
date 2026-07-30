@@ -161,7 +161,7 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
       _webFramesManagerObserverBridge;
 
   // The pref service for which this agent was created.
-  raw_ptr<PrefService, DanglingUntriaged> _prefService;
+  raw_ptr<PrefService> _prefService;
 
   // The unique renderer ID of the most recent autocomplete field;
   // tracks the currently-focused form element in order to force filling of
@@ -537,8 +537,7 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
 }
 
 - (void)handleParsedForms:
-            (const std::vector<
-                raw_ptr<autofill::FormStructure, VectorExperimental>>&)forms
+            (const std::vector<raw_ref<const autofill::FormStructure>>&)forms
                   inFrame:(web::WebFrame*)frame {
 }
 

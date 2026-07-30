@@ -278,7 +278,6 @@ android_resources("ui_java_resources") {
     "java/res/drawable/ic_expand_more_horizontal_black_24dp.xml",
     "java/res/drawable/ic_globe_24dp.xml",
     "java/res/drawable/ic_globe_48dp.xml",
-    "java/res/drawable/ic_incognito_24dp.xml",
     "java/res/drawable/list_menu_background.xml",
     "java/res/drawable/menu_bg_baseline.xml",
     "java/res/drawable/outline_chevron_right_24dp.xml",
@@ -938,6 +937,7 @@ android_library("ui_unit_device_javatests") {
     "javatests/src/org/chromium/ui/animation/ViewCurvedMotionAnimatorFactoryRenderTest.java",
     "javatests/src/org/chromium/ui/base/ClipboardAndroidTest.java",
     "javatests/src/org/chromium/ui/base/EventForwarderDeviceTest.java",
+    "javatests/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuTest.java",
     "javatests/src/org/chromium/ui/insets/WindowInsetsUtilsJavaUnitTest.java",
     "javatests/src/org/chromium/ui/theme/ThemeResourceWrapperJavaUnitTest.java",
     "javatests/src/org/chromium/ui/widget/OutlineOverlayHelperJavaUnitTest.java",
@@ -955,6 +955,7 @@ android_library("ui_unit_device_javatests") {
     "//base:base_java_test_support",
     "//components/browser_ui/widget/android:java_resources",
     "//content/public/test/android:content_java_test_support",
+    "//third_party/android_deps:espresso_java",
     "//third_party/androidx:androidx_activity_activity_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_appcompat_appcompat_java",
@@ -962,6 +963,7 @@ android_library("ui_unit_device_javatests") {
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_fragment_fragment_java",
     "//third_party/androidx:androidx_test_core_java",
+    "//third_party/androidx:androidx_test_monitor_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/hamcrest:hamcrest_java",
     "//third_party/hamcrest:hamcrest_library_java",
@@ -1029,7 +1031,7 @@ if (enable_new_texture_compressor) {
     rustflags = [ "-Zallow-features=portable_simd" ]
   }
 
-  rust_executable("texture_compressor_cli") {
+  rust_executable("texture_compressor_benchmark") {
     testonly = true
     crate_root = "texture_compressor/main.rs"
     sources = [ "texture_compressor/main.rs" ]

@@ -519,13 +519,12 @@ void RenderThreadImpl::Init() {
 
   // Establish the GPU channel now, so its ready when needed and we don't have
   // to wait on a sync call.
-  if (base::FeatureList::IsEnabled(features::kEarlyEstablishGpuChannel)) {
-    gpu_->EstablishGpuChannel(
-        base::BindOnce([](scoped_refptr<gpu::GpuChannelHost> host) {
-          if (host)
-            GetContentClient()->SetGpuInfo(host->gpu_info());
-        }));
-  }
+  gpu_->EstablishGpuChannel(
+      base::BindOnce([](scoped_refptr<gpu::GpuChannelHost> host) {
+        if (host) {
+          GetContentClient()->SetGpuInfo(host->gpu_info());
+        }
+      }));
 
   // NOTE: Do not add interfaces to |binders| within this method. Instead,
   // modify the definition of |ExposeRendererInterfacesToBrowser()| to ensure
@@ -1062,7 +1061,6 @@ RenderThreadImpl::GetVideoFrameCompositorContextProvider(
                "RenderCompositor"),
           /*automatic_flushes=*/false, /*support_locking=*/false, limits,
           viz::command_buffer_metrics::ContextType::RENDERER_COMPOSITOR,
-          /*enable_gpu_rasterization=*/false,
           /*lose_context_when_out_of_memory=*/true);
 
   return video_frame_compositor_context_provider_;
@@ -1121,7 +1119,6 @@ RenderThreadImpl::SharedMainThreadContextProvider() {
           /*automatic_flushes=*/true, /*support_locking=*/false,
           gpu::SharedMemoryLimits(),
           viz::command_buffer_metrics::ContextType::RENDERER_MAIN_THREAD,
-          /*enable_gpu_rasterization=*/true,
           /*lose_context_when_out_of_memory=*/true);
 
   auto result = shared_main_thread_contexts_->BindToCurrentSequence();
@@ -1597,7 +1594,7 @@ RenderThreadImpl::SharedCompositorWorkerContextProvider(
       gpu::kGpuFeatureStatusEnabled;
 
   auto shared_memory_limits =
-      support_gpu_rasterization ? gpu::SharedMemoryLimits::ForOOPRasterContext()
+      support_gpu_rasterization ? gpu::SharedMemoryLimits::ForGPURasterContext()
                                 : gpu::SharedMemoryLimits();
   shared_worker_context_provider_ =
       viz::ContextProviderCommandBuffer::CreateForRaster(
@@ -1608,7 +1605,6 @@ RenderThreadImpl::SharedCompositorWorkerContextProvider(
           /*automatic_flushes=*/false, /*support_locking=*/true,
           shared_memory_limits,
           viz::command_buffer_metrics::ContextType::RENDERER_RASTER_WORKER,
-          /*enable_gpu_rasterization=*/support_gpu_rasterization,
           /*lose_context_when_out_of_memory=*/true);
 
   auto result = shared_worker_context_provider_->BindToCurrentSequence();
@@ -1757,7 +1753,7 @@ void RenderThreadImpl::OnMemoryPressureFromBrowserReceived(
   if (!blink_platform_impl_) {
     return;
   }
-  blink::RequestUserLevelMemoryPressureSignal();
+  blink::RequestUserLevelMemoryPressureSignal(level);
 }
 
 #endif

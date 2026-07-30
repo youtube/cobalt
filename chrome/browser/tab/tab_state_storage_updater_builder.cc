@@ -4,55 +4,123 @@
 
 #include "chrome/browser/tab/tab_state_storage_updater_builder.h"
 
+#include <initializer_list>
 #include <memory>
 #include <string>
 #include <utility>
+#include <variant>
 
+#include "base/containers/contains.h"
 #include "base/logging.h"
 #include "chrome/browser/tab/payload.h"
+#include "chrome/browser/tab/storage_pending_updates.h"
 #include "chrome/browser/tab/storage_update_unit.h"
-#include "chrome/browser/tab/storage_update_units.h"
 #include "chrome/browser/tab/tab_state_storage_database.h"
-#include "chrome/browser/tab/tab_state_storage_updater.h"
 #include "chrome/browser/tab/tab_storage_package.h"
+#include "chrome/browser/tab/tab_storage_util.h"
+#include "components/tabs/public/tab_collection.h"
+#include "components/tabs/public/tab_interface.h"
 
 namespace tabs {
 
-TabStateStorageUpdaterBuilder::TabStateStorageUpdaterBuilder()
-    : updater_(std::make_unique<TabStateStorageUpdater>()) {}
+TabStateStorageUpdaterBuilder::TabStateStorageUpdaterBuilder(
+    StorageIdMapping& mapping,
+    TabStoragePackager* packager)
+    : mapping_(mapping), packager_(packager) {}
 
 TabStateStorageUpdaterBuilder::~TabStateStorageUpdaterBuilder() = default;
 
-void TabStateStorageUpdaterBuilder::SaveNode(
+TabStateStorageUpdaterBuilder::TabStateStorageUpdaterBuilder(
+    TabStateStorageUpdaterBuilder&&) = default;
+TabStateStorageUpdaterBuilder& TabStateStorageUpdaterBuilder::operator=(
+    TabStateStorageUpdaterBuilder&&) = default;
+
+bool TabStateStorageUpdaterBuilder::ContainsUpdateWithAnyType(
     StorageId id,
-    std::string window_tag,
-    bool is_off_the_record,
-    TabStorageType type,
-    std::unique_ptr<StoragePackage> package) {
-  updater_->Add(std::make_unique<SaveNodeUpdateUnit>(
-      id, std::move(window_tag), is_off_the_record, type, std::move(package)));
+    std::initializer_list<UnitType> types) {
+  auto it = update_for_id_.find(id);
+  if (it == update_for_id_.end()) {
+    return false;
+  }
+
+  const UnitType update_type = it->second->type();
+  return base::Contains(types, update_type);
+}
+
+void TabStateStorageUpdaterBuilder::SquashIntoSaveNode(
+    StorageId id,
+    const TabCollection* collection) {
+  update_for_id_[id] = std::make_unique<SaveNodePendingUpdate>(
+      id, packager_->GetWindowTag(collection),
+      packager_->IsOffTheRecord(collection),
+      TabCollectionTypeToTabStorageType(collection->type()), packager_,
+      mapping_.get(), collection->GetHandle());
+}
+
+void TabStateStorageUpdaterBuilder::SaveNode(StorageId id,
+                                             std::string window_tag,
+                                             bool is_off_the_record,
+                                             TabStorageType type,
+                                             TabCollectionNodeHandle handle) {
+  if (ContainsUpdateWithAnyType(id, {UnitType::kSaveNode})) {
+    return;
+  }
+
+  update_for_id_[id] = std::make_unique<SaveNodePendingUpdate>(
+      id, std::move(window_tag), is_off_the_record, type, packager_,
+      mapping_.get(), handle);
 }
 
 void TabStateStorageUpdaterBuilder::SaveNodePayload(
     StorageId id,
-    std::unique_ptr<Payload> payload) {
-  updater_->Add(
-      std::make_unique<SavePayloadUpdateUnit>(id, std::move(payload)));
+    TabCollectionNodeHandle handle) {
+  if (ContainsUpdateWithAnyType(
+          id, {UnitType::kSaveNode, UnitType::kSavePayload})) {
+    return;
+  }
+
+  if (ContainsUpdateWithAnyType(id, {UnitType::kSaveChildren})) {
+    DCHECK(std::holds_alternative<TabCollectionHandle>(handle))
+        << "Tabs do not have children";
+    SquashIntoSaveNode(id, std::get<TabCollectionHandle>(handle).Get());
+    return;
+  }
+
+  update_for_id_[id] = std::make_unique<SavePayloadPendingUpdate>(
+      id, packager_, mapping_.get(), handle);
 }
 
 void TabStateStorageUpdaterBuilder::SaveChildren(
     StorageId id,
-    std::unique_ptr<Payload> children) {
-  updater_->Add(
-      std::make_unique<SaveChildrenUpdateUnit>(id, std::move(children)));
+    const TabCollection* collection) {
+  if (ContainsUpdateWithAnyType(
+          id, {UnitType::kSaveNode, UnitType::kSaveChildren})) {
+    return;
+  }
+
+  if (ContainsUpdateWithAnyType(id, {UnitType::kSavePayload})) {
+    SquashIntoSaveNode(id, collection);
+    return;
+  }
+
+  update_for_id_[id] = std::make_unique<SaveChildrenPendingUpdate>(
+      id, packager_, mapping_.get(), collection->GetHandle());
 }
 
 void TabStateStorageUpdaterBuilder::RemoveNode(StorageId id) {
-  updater_->Add(std::make_unique<RemoveNodeUpdateUnit>(id));
+  if (ContainsUpdateWithAnyType(id, {UnitType::kRemoveNode})) {
+    return;
+  }
+
+  update_for_id_[id] = std::make_unique<RemoveNodePendingUpdate>(id);
 }
 
 std::unique_ptr<TabStateStorageUpdater> TabStateStorageUpdaterBuilder::Build() {
-  return std::move(updater_);
+  auto updater = std::make_unique<TabStateStorageUpdater>();
+  for (auto& [id, update] : update_for_id_) {
+    updater->Add(update->CreateUnit());
+  }
+  return updater;
 }
 
 }  // namespace tabs

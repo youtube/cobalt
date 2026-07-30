@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator.h"
 
 #include "base/functional/callback.h"
+#include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
@@ -64,6 +65,33 @@ GlicSidePanelCoordinator* GlicSidePanelCoordinator::GetForTab(
     return nullptr;
   }
   return tab->GetTabFeatures()->glic_side_panel_coordinator();
+}
+
+// static
+bool GlicSidePanelCoordinator::IsGlicSidePanelActive(tabs::TabInterface* tab) {
+  if (!tab) {
+    return false;
+  }
+  auto* tab_features = tab->GetTabFeatures();
+  if (!tab_features) {
+    return false;
+  }
+  auto* registry = tab_features->side_panel_registry();
+  if (!registry) {
+    return false;
+  }
+  auto* glic_side_panel_entry =
+      registry->GetEntryForKey(SidePanelEntryKey(SidePanelEntry::Id::kGlic));
+  if (!glic_side_panel_entry) {
+    return false;
+  }
+  const auto& active_entry =
+      registry->GetActiveEntryFor(glic_side_panel_entry->type());
+  if (!active_entry.has_value() ||
+      active_entry.value() != glic_side_panel_entry) {
+    return false;
+  }
+  return true;
 }
 
 void GlicSidePanelCoordinator::CreateAndRegisterEntry() {
@@ -126,18 +154,23 @@ void GlicSidePanelCoordinator::OnEntryWillHide(
     SidePanelEntry* entry,
     SidePanelEntryHideReason reason) {
   CHECK_EQ(entry->key().id(), SidePanelEntry::Id::kGlic);
-  if (reason == SidePanelEntryHideReason::kBackgrounded) {
+  pending_hide_reason_ = reason;
+}
+
+void GlicSidePanelCoordinator::OnEntryHideCancelled(SidePanelEntry* entry) {
+  CHECK_EQ(entry->key().id(), SidePanelEntry::Id::kGlic);
+  pending_hide_reason_.reset();
+}
+
+void GlicSidePanelCoordinator::OnEntryHidden(SidePanelEntry* entry) {
+  CHECK_EQ(entry->key().id(), SidePanelEntry::Id::kGlic);
+  CHECK(pending_hide_reason_.has_value());
+  if (pending_hide_reason_ == SidePanelEntryHideReason::kBackgrounded) {
     state_ = State::kBackgrounded;
   } else {
     state_ = State::kClosed;
   }
 
-  NotifyStateChanged();
-}
-
-void GlicSidePanelCoordinator::OnEntryHideCancelled(SidePanelEntry* entry) {
-  CHECK_EQ(entry->key().id(), SidePanelEntry::Id::kGlic);
-  state_ = State::kShown;
   NotifyStateChanged();
 }
 
@@ -206,7 +239,7 @@ int GlicSidePanelCoordinator::GetPreferredWidth() {
 SidePanelCoordinator* GlicSidePanelCoordinator::GetWindowSidePanelCoordinator()
     const {
   if (auto* window = tab_->GetBrowserWindowInterface()) {
-    return window->GetFeatures().side_panel_coordinator();
+    return SidePanelCoordinator::From(window);
   }
   return nullptr;
 }

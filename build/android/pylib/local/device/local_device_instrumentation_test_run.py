@@ -782,24 +782,59 @@ class LocalDeviceInstrumentationTestRun(
     self._env.parallel_devices.pMap(individual_device_tear_down)
 
   def _SetDefaultBrowserApp(self, dev):
+    # Safely granting the browser role requires the
+    # "set-bypassing-role-qualification" ADB command, which was introduced in
+    # Android 13 (API 33).
+    if dev.build_version_sdk < version_codes.TIRAMISU:
+      return
+
     browser_activity_names = self._test_instance.test_apk.GetActivityNamesWithCategory(
         'android.intent.category.APP_BROWSER')
     if browser_activity_names:
+      # By default, the add-role-holder command targets the system user
+      # (User 0).
+      #
+      # However, some bots (such as automotive bots) run in the Headless System
+      # User Mode, where User 0 runs in the background, while the actual
+      # "driver" user is usually User 10 (or higher).
+      #
+      # Therefore, we must specify the current user ID when running the
+      # add-role-holder command as the test APK may not be installed for
+      # User 0.
+      #
+      # Additionally, we should bypass role qualification in case the test APK
+      # doesn't meet Android requirements for the browser role (such as
+      # declaring specific Intent filters in its manifest to handle web links).
+      user_id = dev.GetCurrentUser()
+      dev.RunShellCommand(
+          ['cmd', 'role', 'set-bypassing-role-qualification', 'true'],
+          check_return=True)
       dev.RunShellCommand([
-          'cmd', 'role', 'add-role-holder', 'android.app.role.BROWSER',
+          'cmd', 'role', 'add-role-holder', '--user',
+          str(user_id), 'android.app.role.BROWSER',
           self._test_instance.test_apk.GetPackageName()
       ],
                           check_return=True)
 
   def _ClearDefaultBrowserApp(self, dev):
+    # We only set the test APK as the default browser app for Android 13+.
+    # See _SetDefaultBrowserApp().
+    if dev.build_version_sdk < version_codes.TIRAMISU:
+      return
+
     browser_activity_names = self._test_instance.test_apk.GetActivityNamesWithCategory(
         'android.intent.category.APP_BROWSER')
     if browser_activity_names:
+      user_id = dev.GetCurrentUser()
       dev.RunShellCommand([
-          'cmd', 'role', 'remove-role-holder', 'android.app.role.BROWSER',
+          'cmd', 'role', 'remove-role-holder', '--user',
+          str(user_id), 'android.app.role.BROWSER',
           self._test_instance.test_apk.GetPackageName()
       ],
                           check_return=True)
+      dev.RunShellCommand(
+          ['cmd', 'role', 'set-bypassing-role-qualification', 'false'],
+          check_return=True)
 
   def _ToggleAppLinks(self, dev, state):
     # The set-app-links command was added in Android 12 (sdk = 31). The

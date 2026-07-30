@@ -37,6 +37,10 @@ class ApiTests extends ApiTestFixtureBase {
 
   async testDoNothing() {}
 
+  async testWebClientReadyOnFullLoad() {}
+
+  async testWebClientReadyOnPreload() {}
+
   // This test should fail even if the ApiTestError is captured in a try-catch
   // block.
   async testFailureForCapturedApiTestError() {
@@ -2182,7 +2186,7 @@ class ApiTests extends ApiTestFixtureBase {
         assertTrue(context.tabId!.length > 0);
         assertDefined(context.frameUrl);
         assertTrue(context.frameUrl!.length > 0);
-        assertEquals(context.parts.length, 6);
+        assertEquals(context.parts.length, 7);
 
         const part1 = context.parts[0]!;
         assertDefined(part1.data);
@@ -2221,6 +2225,14 @@ class ApiTests extends ApiTestFixtureBase {
         assertEquals(part6.tabContext!.tabData!.tabId, '1');
         assertEquals(part6.tabContext!.tabData!.windowId, '2');
         assertEquals(part6.tabContext!.tabData!.url, 'https://google.com/');
+
+        const part7 = context.parts[6]!;
+        assertDefined(part7.region);
+        assertDefined(part7.region!.rect);
+        assertEquals(part7.region!.rect!.x, 10);
+        assertEquals(part7.region!.rect!.y, 20);
+        assertEquals(part7.region!.rect!.width, 30);
+        assertEquals(part7.region!.rect!.height, 40);
         resolve();
       });
     });
@@ -2469,6 +2481,10 @@ class ApiTests extends ApiTestFixtureBase {
         return 'GET_MODEL_QUALITY_CLIENT_ID';
       case HostCapability.MULTI_INSTANCE:
         return 'MULTI_INSTANCE';
+      case HostCapability.TRUST_FIRST_ONBOARDING_ARM1:
+        return 'TRUST_FIRST_ONBOARDING_ARM_1';
+      case HostCapability.TRUST_FIRST_ONBOARDING_ARM2:
+        return 'TRUST_FIRST_ONBOARDING_ARM_2';
       default:
         return 'NEW_ENUM_NOT_IMPLEMENTED';
     }
@@ -2680,6 +2696,35 @@ class WebClientThatOpensOnce extends WebClient {
   }
 }
 
+class DaisyChainApiTests extends ApiTestFixtureBase {
+  async clickLinkInGlicUi() {
+    const link = document.createElement('a');
+    link.setAttribute('href', location.href);
+    link.setAttribute('target', '_blank');
+    document.body.appendChild(link);
+    link.click();
+  }
+
+  // Helper to handle the daisy chain actions.
+  async handleDaisyChainStep(action: string) {
+    if (action === 'createTab') {
+      await this.clickLinkInGlicUi();
+    } else if (action === 'inputSubmitted') {
+      assertDefined(this.host.getMetrics);
+      const metrics = this.host.getMetrics();
+      assertDefined(metrics);
+      assertDefined(metrics.onUserInputSubmitted);
+      metrics.onUserInputSubmitted(WebClientMode.TEXT);
+    } else {
+      assertTrue(false, `Unexpected daisy chain action: ${action}`);
+    }
+  }
+
+  async testDaisyChainRecursiveAndInput() {
+    await this.handleDaisyChainStep(this.testParams);
+  }
+}
+
 class NotifyPanelWillOpenTest extends ApiTestFixtureBase {
   override createWebClient(): WebClient {
     return new WebClientThatOpensOnce();
@@ -2714,6 +2759,7 @@ class InitiallyNotResizableTest extends ApiTestFixtureBase {
 // Therefore all tests must have unique names.
 const TEST_FIXTURES = [
   ApiTests,
+  DaisyChainApiTests,
   NotifyPanelWillOpenTest,
   InitiallyNotResizableTest,
   ApiTestWithoutOpen,

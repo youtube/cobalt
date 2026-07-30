@@ -59,7 +59,7 @@ group("deps") {
       deps += [ ":options_sources" ]
 
       # Sanitizer malloc/free hooks depends on weak symbols.
-      if (is_asan && is_posix) {
+      if (is_asan && is_linux) {
         deps += [ ":hooks_sources" ]
       }
     }
@@ -142,7 +142,7 @@ config("sanitizer_impl") {
 # Each binary will be linked with options_sources.a and its
 # sanitizer hooks will be replaced with our own hooks via
 # sanitizer_shared_hooks.so.
-if (is_asan) {
+if (is_asan && is_linux) {
   shared_library("sanitizer_shared_hooks") {
     sources = [
       "//build/sanitizers/sanitizer_shared_hooks.cc",
@@ -170,14 +170,17 @@ if (is_asan) {
     # To avoid `libsanitizer_shared_hooks.so is not found`, need to specify
     # rpath for the shared_library. If is_component_build=true, the config
     # has been already added by //build/config/*.
-    if ((is_linux || is_chromeos) && !is_component_build) {
+    if (!is_component_build) {
       all_dependent_configs =
           [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
     }
   }
 }
 
-if (is_asan && is_posix) {
+# TODO(crbug.com/447520906): Because of `build/android/android_only_explicit_jni_exports.lst`,
+# `sanitizer_shared_hooks` shared library doesn't export any
+# functions. It will cause undefined symbols when linking binaries.
+if (is_asan && is_linux) {
   source_set("hooks_sources") {
     sources = [ "//build/sanitizers/sanitizer_hooks.cc" ]
     deps = [ ":sanitizer_shared_hooks" ]
@@ -493,14 +496,6 @@ config("coverage_flags") {
         "-mllvm",
         "-sanitizer-coverage-prune-blocks=1",
       ]
-
-      if (current_cpu == "arm") {
-        # http://crbug.com/517105
-        cflags += [
-          "-mllvm",
-          "-sanitizer-coverage-block-threshold=0",
-        ]
-      }
     }
     if (sanitizer_coverage_allowlist != "") {
       cflags += [ "-fsanitize-coverage-allowlist=" +

@@ -4,12 +4,19 @@
 
 #include "components/legion/secure_session_async_impl.h"
 
+#include <optional>
 #include <utility>
 
+#include "base/containers/span.h"
+#include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/task/sequenced_task_runner.h"
-#include "crypto/secure_session_impl.h"
+#include "base/memory/ptr_util.h"
+#include "components/legion/crypto/constants.h"
+#include "components/legion/mojom/oak_session.mojom.h"
+#include "content/public/browser/service_process_host.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/oak/chromium/proto/session/session.pb.h"
 
 namespace legion {
@@ -34,11 +41,17 @@ std::optional<HandshakeMessage> ConvertToHandshakeMessage(
 
   const auto noise_msg = response.noise_handshake_message();
 
+  if (noise_msg.ephemeral_public_key().size() != kP256X962Length) {
+    return std::nullopt;
+  }
+
+  std::array<uint8_t, kP256X962Length> ephemeral_public_key;
+  base::span(ephemeral_public_key)
+      .copy_from(base::as_byte_span(noise_msg.ephemeral_public_key()));
+
   HandshakeMessage output(
-      std::vector<uint8_t>(noise_msg.ephemeral_public_key().begin(),
-                           noise_msg.ephemeral_public_key().end()),
-      std::vector<uint8_t>(noise_msg.ciphertext().begin(),
-                           noise_msg.ciphertext().end()));
+      ephemeral_public_key,
+      base::ToVector(base::as_byte_span(noise_msg.ciphertext())));
   return output;
 }
 
@@ -62,52 +75,82 @@ std::vector<uint8_t> ConvertToBytes(
 
 }  // namespace
 
-SecureSessionAsyncImpl::SecureSessionAsyncImpl() = default;
+// static
+std::unique_ptr<SecureSessionAsyncImpl>
+SecureSessionAsyncImpl::CreateForTesting(  // IN-TEST
+    mojo::Remote<mojom::OakSession> service) {
+  return base::WrapUnique(new SecureSessionAsyncImpl(std::move(service)));
+}
+
+SecureSessionAsyncImpl::SecureSessionAsyncImpl(
+    mojo::Remote<mojom::OakSession> service)
+    : service_(std::move(service)) {}
+
+SecureSessionAsyncImpl::SecureSessionAsyncImpl()
+    : service_(content::ServiceProcessHost::Launch<mojom::OakSession>(
+          content::ServiceProcessHost::Options()
+              .WithDisplayName("Oak Session Service")
+              .Pass())) {}
 
 SecureSessionAsyncImpl::~SecureSessionAsyncImpl() = default;
 
 void SecureSessionAsyncImpl::GetHandshakeMessage(
-    SecureSession::GetHandshakeMessageOnceCallback callback) {
-  auto result = ConvertToRequestProto(sync_impl_.GetHandshakeMessage());
+    SecureSession::GetHandshakeMessageOnceCallback original_callback) {
+  auto wrapped_callback = mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+      std::move(original_callback), std::nullopt);
 
-  auto task_runner = base::SequencedTaskRunner::GetCurrentDefault();
-  task_runner->PostTask(FROM_HERE, base::BindOnce(std::move(callback), result));
+  service_->InitiateHandshake(base::BindOnce(
+      [](GetHandshakeMessageOnceCallback callback, HandshakeMessage message) {
+        std::move(callback).Run(ConvertToRequestProto(message));
+      },
+      std::move(wrapped_callback)));
 }
 
 void SecureSessionAsyncImpl::ProcessHandshakeResponse(
     const oak::session::v1::HandshakeResponse& response,
-    SecureSession::ProcessHandshakeResponseOnceCallback callback) {
+    ProcessHandshakeResponseOnceCallback original_callback) {
   auto handshake_msg = ConvertToHandshakeMessage(response);
 
-  bool result = handshake_msg.has_value() &&
-                sync_impl_.ProcessHandshakeResponse(handshake_msg.value());
+  if (!handshake_msg.has_value()) {
+    std::move(original_callback).Run(false);
+    return;
+  }
 
-  auto task_runner = base::SequencedTaskRunner::GetCurrentDefault();
-  task_runner->PostTask(FROM_HERE, base::BindOnce(std::move(callback), result));
+  auto wrapped_callback = mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+      std::move(original_callback), false);
+
+  auto callback = base::BindOnce(
+      [](ProcessHandshakeResponseOnceCallback callback,
+         bool handshake_verified) {
+        std::move(callback).Run(handshake_verified);
+      },
+      std::move(wrapped_callback));
+
+  service_->CompleteHandshake(std::move(handshake_msg.value()),
+                              std::move(callback));
 }
 
 void SecureSessionAsyncImpl::Encrypt(const Request& data,
-                                     EncryptOnceCallback callback) {
-  auto result = ConvertToEncryptedMessage(sync_impl_.Encrypt(data));
+                                     EncryptOnceCallback original_callback) {
+  auto callback = mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+      base::BindOnce(
+          [](EncryptOnceCallback callback,
+             const std::optional<std::vector<uint8_t>>& encrypted_data) {
+            std::move(callback).Run(ConvertToEncryptedMessage(encrypted_data));
+          },
+          std::move(original_callback)),
+      std::nullopt);
 
-  auto task_runner = base::SequencedTaskRunner::GetCurrentDefault();
-  task_runner->PostTask(FROM_HERE,
-                        base::BindOnce(std::move(callback), std::move(result)));
+  service_->Encrypt(data, std::move(callback));
 }
 
 void SecureSessionAsyncImpl::Decrypt(
     const oak::session::v1::EncryptedMessage& data,
-    DecryptOnceCallback callback) {
-  auto result = sync_impl_.Decrypt(ConvertToBytes(data));
+    DecryptOnceCallback original_callback) {
+  auto callback = mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+      std::move(original_callback), std::nullopt);
 
-  auto task_runner = base::SequencedTaskRunner::GetCurrentDefault();
-  task_runner->PostTask(FROM_HERE,
-                        base::BindOnce(std::move(callback), std::move(result)));
-}
-
-void SecureSessionAsyncImpl::set_crypter_for_testing(
-    std::unique_ptr<Crypter> crypter) {
-  sync_impl_.set_crypter_for_testing(std::move(crypter));
+  service_->Decrypt(ConvertToBytes(data), std::move(callback));
 }
 
 }  // namespace legion

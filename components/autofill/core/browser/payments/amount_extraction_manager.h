@@ -11,6 +11,7 @@
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
@@ -20,6 +21,11 @@
 namespace autofill {
 class AutofillDriver;
 class BrowserAutofillManager;
+
+namespace autofill_metrics {
+enum class AiAmountExtractionResult;
+}  // namespace autofill_metrics
+
 }  // namespace autofill
 
 namespace optimization_guide {
@@ -72,7 +78,7 @@ class AmountExtractionManager {
 
   // Timeout limit for the ai-based amount extraction in millisecond.
   static constexpr base::TimeDelta kAiBasedAmountExtractionWaitTime =
-      base::Seconds(10);
+      base::Seconds(5);
 
   // This function attempts to convert a string representation of a monetary
   // value in dollars into a int64_t by parsing it as a double and multiplying
@@ -153,11 +159,21 @@ class AmountExtractionManager {
   // amount is on the main frame.
   AutofillDriver* GetMainFrameDriver();
 
+  // Cancels in-progress requests and resets the state. Also invalidates
+  // `AmountExtractionManager` weak pointers from the factory.
+  void Reset();
+
+  // Logs the result of the AI-based amount extraction, but only if a result
+  // has not been logged already.
+  void LogAiAmountExtractionResultIfApplicable(
+      autofill_metrics::AiAmountExtractionResult result);
+
   // The owning BrowserAutofillManager.
   raw_ref<BrowserAutofillManager> autofill_manager_;
 
-  // If true, the metrics for the amount extraction result was already logged
-  // and should not log again.
+  // Once it is set, it can not be reset, as it should be set for the
+  // lifetime of `this`. This ensures the amount extraction result metric is
+  // logged once per page load.
   bool has_logged_amount_extraction_result_ = false;
 
   // Indicates whether there is an amount search ongoing or not. If set, do not
@@ -166,18 +182,9 @@ class AmountExtractionManager {
   // search.
   bool search_request_pending_ = false;
 
-  // Member variable to store the fetched page content temporarily. This data is
-  // generated when credit card form is clicked and BNPL feature is available
-  // for this profile. It is about 10Kb in size depending on the merchant
-  // checkout page.
-  std::unique_ptr<optimization_guide::proto::AnnotatedPageContent>
-      ai_page_content_;
-
-  // Flag to indicate if an AI page content fetch is in progress. If set, do not
-  // trigger the next request to generate the page content. This is to avoid
-  // multiple page content requests when a user quickly clicks on the payment
-  // form multiple times or by scripts.
-  bool is_fetching_ai_page_content_ = false;
+  // The timer to enforce the timeout on client-side for AI-based amount
+  // extraction.
+  base::OneShotTimer timeout_timer_;
 
   base::WeakPtrFactory<AmountExtractionManager> weak_ptr_factory_{this};
 };

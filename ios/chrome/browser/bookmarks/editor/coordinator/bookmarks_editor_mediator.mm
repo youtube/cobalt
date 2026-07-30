@@ -190,6 +190,10 @@
       [self changeFolder:_bookmarkModel->account_mobile_node()];
     }
   }
+
+  if (_originalFolder && _originalFolder->HasAncestor(node)) {
+    _originalFolder = nullptr;
+  }
 }
 
 - (void)didDeleteNode:(const bookmarks::BookmarkNode*)node
@@ -227,11 +231,22 @@
     [self.delegate bookmarkEditorWillCommitTitleOrURLChange:self];
   }
 
-  [self.snackbarCommandsHandler
-      showSnackbarMessage:bookmark_utils_ios::UpdateBookmarkWithUndoSnackbar(
-                              self.bookmark, name, url, _originalFolder,
-                              self.folder, _bookmarkModel.get(), self.profile,
-                              _authenticationService, _syncService)];
+  // Use the current folder as the fallback "original" folder if the actual
+  // original folder was deleted during the editing session. This prevents
+  // passing nullptr to the snackbar utility.
+  const bookmarks::BookmarkNode* originalFolder = _originalFolder;
+  if (!originalFolder) {
+    originalFolder = self.folder;
+  }
+
+  SnackbarMessage* message = bookmark_utils_ios::UpdateBookmarkWithUndoSnackbar(
+      self.bookmark, name, url, originalFolder, self.folder,
+      _bookmarkModel.get(), self.profile, _authenticationService, _syncService);
+  if (message) {
+    // Only show snackbar if the bookmark node changed.
+    [self.snackbarCommandsHandler showSnackbarMessage:message];
+  }
+
   if (_manuallyChangedTheFolder) {
     BookmarkStorageType type = bookmark_utils_ios::GetBookmarkStorageType(
         _folder, _bookmarkModel.get());

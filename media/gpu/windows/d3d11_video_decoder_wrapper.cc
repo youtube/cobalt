@@ -12,7 +12,6 @@
 #include <d3d9.h>
 
 #include "base/check_op.h"
-#include "base/strings/string_number_conversions.h"
 #include "media/gpu/windows/d3d11_picture_buffer.h"
 #include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 
@@ -91,6 +90,11 @@ class D3D11VideoDecoderWrapperImpl : public D3D11VideoDecoderWrapper {
       CHECK(bitstream_buffer_->Commit());
       bitstream_buffer_.reset();
     }
+  }
+
+  D3D11Status SetPictureBuffers(
+      base::span<scoped_refptr<D3D11PictureBuffer>> picture_buffers) override {
+    return D3D11StatusCode::kOk;
   }
 
   bool WaitForFrameBegins(D3D11PictureBuffer* output_picture) override {
@@ -385,7 +389,7 @@ std::unique_ptr<D3D11VideoDecoderWrapper> D3D11VideoDecoderWrapper::Create(
         std::move(video_decoder));
   }
 
-  if (supported_d3d11_version == D3D_FEATURE_LEVEL_11_1) {
+  if (supported_d3d11_version >= D3D_FEATURE_LEVEL_11_1) {
     ComD3D11VideoContext1 video_context1;
     hr = video_context.As(&video_context1);
     CHECK_EQ(hr, S_OK);

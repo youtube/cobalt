@@ -22,6 +22,13 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<variants name="CheckpointType">
+  <variant name="Auto"
+      summary="automatic checkpoint performed by the hook installed via
+               sqlite3_wal_hook"/>
+  <variant name="Manual" summary="call to sql::Database::CheckpointDatabase"/>
+</variants>
+
 <variants name="DatabaseTag">
   <variant name="Activity" summary="Activity"/>
   <variant name="Affiliation" summary="Affiliation"/>
@@ -88,7 +95,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="Sql.Database.Open.FailureReason.{DatabaseTag}"
-    enum="OpenDatabaseFailedReason" expires_after="2026-04-05">
+    enum="OpenDatabaseFailedReason" expires_after="2026-06-07">
   <owner>anthonyvd@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <summary>
@@ -99,7 +106,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sql.Database.Open.FirstAttempt.Error.{DatabaseTag}"
-    enum="SqliteResultCode" expires_after="2026-04-05">
+    enum="SqliteResultCode" expires_after="2026-06-07">
   <owner>anthonyvd@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <summary>
@@ -110,7 +117,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sql.Database.Open.SecondAttempt.Error.{DatabaseTag}"
-    enum="SqliteResultCode" expires_after="2026-04-05">
+    enum="SqliteResultCode" expires_after="2026-06-07">
   <owner>anthonyvd@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <summary>
@@ -194,8 +201,48 @@ chromium-metrics-reviews@google.com.
   <token key="DatabaseTag" variants="DatabaseTag"/>
 </histogram>
 
+<histogram
+    name="Sql.Database.{CheckpointType}Checkpoint.FrameCount.{DatabaseTag}"
+    units="frames" expires_after="2026-12-09">
+  <owner>grt@chromium.org</owner>
+  <owner>etienneb@chromium.org</owner>
+  <summary>
+    Reports the number of frames written to the database following a successful
+    call to sqlite3_wal_checkpoint_v2. Recorded once for each successful
+    {CheckpointType} for the {DatabaseTag} database.
+  </summary>
+  <token key="CheckpointType" variants="CheckpointType"/>
+  <token key="DatabaseTag" variants="DatabaseTag"/>
+</histogram>
+
+<histogram name="Sql.Database.{CheckpointType}Checkpoint.Result.{DatabaseTag}"
+    enum="SqliteErrorCode" expires_after="2026-12-09">
+  <owner>grt@chromium.org</owner>
+  <owner>etienneb@chromium.org</owner>
+  <summary>
+    Reports the SQLite result code from a call to sqlite3_wal_checkpoint_v2.
+    Recorded once for each {CheckpointType} for the {DatabaseTag} database.
+  </summary>
+  <token key="CheckpointType" variants="CheckpointType"/>
+  <token key="DatabaseTag" variants="DatabaseTag"/>
+</histogram>
+
+<histogram name="Sql.Database.{CheckpointType}Checkpoint.Time.{DatabaseTag}"
+    units="microseconds" expires_after="2026-12-09">
+  <owner>grt@chromium.org</owner>
+  <owner>etienneb@chromium.org</owner>
+  <summary>
+    Reports the time spent in a call to sqlite3_wal_checkpoint_v2. Recorded once
+    for each {CheckpointType} for the {DatabaseTag} database.
+
+    Only reported for clients with high-resolution clocks.
+  </summary>
+  <token key="CheckpointType" variants="CheckpointType"/>
+  <token key="DatabaseTag" variants="DatabaseTag"/>
+</histogram>
+
 <histogram name="Sql.Recovery.Result" enum="SqlRecoveryResult"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>etienneb@chromium.org</owner>
   <owner>chrome-catan@google.com</owner>
   <summary>
@@ -215,7 +262,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sql.Recovery.ResultCode" enum="SqliteLoggedResultCode"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>etienneb@chromium.org</owner>
   <owner>chrome-catan@google.com</owner>
   <summary>

@@ -26,8 +26,31 @@ const char* ContextualTasksNavigationThrottle::GetNameForLogging() {
 }
 
 ThrottleCheckResult ContextualTasksNavigationThrottle::WillStartRequest() {
-  // If this throttle was created, we always want to block the navigation.
-  return CANCEL;
+  return ProcessNavigation();
+}
+
+ThrottleCheckResult ContextualTasksNavigationThrottle::WillRedirectRequest() {
+  return ProcessNavigation();
+}
+
+ThrottleCheckResult ContextualTasksNavigationThrottle::ProcessNavigation() {
+  auto* web_contents = navigation_handle()->GetWebContents();
+  ContextualTasksUiService* ui_service =
+      ContextualTasksUiServiceFactory::GetForBrowserContext(
+          web_contents->GetBrowserContext());
+
+  content::OpenURLParams url_params =
+      content::OpenURLParams::FromNavigationHandle(navigation_handle());
+
+  if (ui_service &&
+      ui_service->HandleNavigation(
+          std::move(url_params), web_contents->GetResponsibleWebContents(),
+          /*is_from_embedded_page=*/web_contents !=
+              web_contents->GetResponsibleWebContents(),
+          /*is_to_new_tab=*/false)) {
+    return CANCEL;
+  }
+  return PROCEED;
 }
 
 // static
@@ -38,18 +61,8 @@ void ContextualTasksNavigationThrottle::MaybeCreateAndAdd(
     return;
   }
 
-  auto* web_contents = registry.GetNavigationHandle().GetWebContents();
-  ContextualTasksUiService* ui_service =
-      ContextualTasksUiServiceFactory::GetForBrowserContext(
-          web_contents->GetBrowserContext());
-  if (ui_service && ui_service->HandleNavigation(
-                        registry.GetNavigationHandle().GetURL(),
-                        registry.GetNavigationHandle().IsRendererInitiated(),
-                        web_contents->GetResponsibleWebContents(),
-                        /*is_to_new_tab=*/false)) {
-    registry.AddThrottle(
-        std::make_unique<ContextualTasksNavigationThrottle>(registry));
-  }
+  registry.AddThrottle(
+      std::make_unique<ContextualTasksNavigationThrottle>(registry));
 }
 
 }  // namespace contextual_tasks

@@ -87,6 +87,7 @@
 <translation id="1336996151357442890"><ph name="SITE_NAME" /> жазылымын тоқтаттыңыз. Келесі жолы кіргенде, таңдау жасау қайта сұралады.</translation>
 <translation id="1340839264183302272">Топтан шығу</translation>
 <translation id="1342886103232377846">Құпия сөздердің ұрланған-ұрланбағанын тексеру үшін Google Password Manager-ге өтіңіз.</translation>
+<translation id="1343830902827845050">Chrome аккаунтына кіріңіз</translation>
 <translation id="1344653310988386453">Ерекшеленген мәтінге сілтеме қосыңыз.</translation>
 <translation id="1347468774581902829">Әрекетті басқару</translation>
 <translation id="1355088659320425659">Тарих және қойындылар</translation>
@@ -496,6 +497,7 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="3114507951000454849">Бүгінгінің жаңалықтарын оқыңыз <ph name="NEWS_ICON" /></translation>
 <translation id="3122883569442693641">Қосымша мәліметтер</translation>
 <translation id="3123734510202723619">Хабарландырулар</translation>
+<translation id="3134385238404760368">Соңғы қойындылар жоқ</translation>
 <translation id="314939179385989105">Chrome браузерінің негізгі беті</translation>
 <translation id="3158667104057012316">Қолмен сұрыптау</translation>
 <translation id="3159335509547415276">Блокталған аккаунттар туралы ақпарат</translation>
@@ -524,7 +526,6 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="3268048651973962414">Іздеу нәтижелерін көру үшін жоғары сүйреңіз</translation>
 <translation id="3269093882174072735">Кескінді жүктеу</translation>
 <translation id="3280562213547448728">Дауыспен іздеу</translation>
-<translation id="3282568296779691940">Chrome жүйесіне кіру</translation>
 <translation id="3285065882678541460">{TAB_COUNT,plural, =1{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_ONE" /> қойынды}other{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_MANY" /> қойынды}}</translation>
 <translation id="3286508210927575634">{PASSWORDS_COUNT,plural, =1{1 құпия сөз тек осы құрылғыға сақталды. Оны басқа құрылғыларыңызда пайдалану үшін Google аккаунтына сақтаңыз.}other{# құпия сөз тек осы құрылғыға сақталды. Оларды басқа құрылғыларыңызда пайдалану үшін Google аккаунтына сақтаңыз.}}</translation>
 <translation id="3293181007446299124">Браузерді қолдану тарихыңыз құрылғыда құпия сақталады және жеке басыңызды қорғау үшін есептер кідіріспен жіберіледі.</translation>
@@ -718,6 +719,7 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="414128724510021958">Компьютерге арналған әдепкісінше сұралған сайттар</translation>
 <translation id="4162867837470729563">Бөлісу опцияларының тізімі бүкіл экранға жайылды.</translation>
 <translation id="4170011742729630528">Қызмет қолжетімді емес, әрекетті кейінірек қайталаңыз.</translation>
+<translation id="4170577491341606575">Деректеріңіз алынып жатыр\u2026</translation>
 <translation id="4177222230309051052">Барлық бетбелгіні алыңыз</translation>
 <translation id="4177501066905053472">Жарнама тақырыптары</translation>
 <translation id="417865198503699526">Параметрді іздеңіз</translation>
@@ -817,6 +819,7 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="4577115723294378384">А–Я бойынша сұрыптау</translation>
 <translation id="4578289292431526768">Бастау</translation>
 <translation id="4583164079174244168">{MINUTES,plural, =1{# минут бұрын}other{# минут бұрын}}</translation>
+<translation id="4585751637295612750">Оны сұрағыңызға қосу үшін жаңа қойынды ашыңыз</translation>
 <translation id="4587589328781138893">Сайттар</translation>
 <translation id="4594952190837476234">Бұл офлайн бет <ph name="CREATION_TIME" /> күні жасалған, сондықтан онлайн нұсқасынан өзгеше болуы мүмкін.</translation>
 <translation id="4595237294768457124">"Жаңа қойынды" бетін ашыңыз.</translation>
@@ -909,6 +912,7 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="4905823827770127520">Бетке сілтеме енгізіңіз.</translation>
 <translation id="4908869848243824489">Google ұсынатын Discover</translation>
 <translation id="4910889077668685004">Төлем қолданбалары</translation>
+<translation id="4911042367886397055"><ph name="USER_NAME" />, қайта оралғаныңызға қуаныштымыз!</translation>
 <translation id="4912413785358399818">Қойындыны жылжыту</translation>
 <translation id="4913169188695071480">Жаңартуды тоқтату</translation>
 <translation id="4921224083091001889">Құпия сөздер мен басқа ақпаратты барлық құрылғыдан алу үшін Chrome аккаунтына <ph name="EMAIL" /> ретінде кіріңіз.</translation>
@@ -1455,6 +1459,7 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="7115358764509798967">Жүйенің әдепкі параметрі</translation>
 <translation id="7117485132243600300">Өзіңіз жазылған контентті және ұсынылған тақырыптар мен іздеу нәтижелерін реттеңіз</translation>
 <translation id="7119984597597798764"><ph name="INSTANCE_TITLE" /> элементін жабу</translation>
+<translation id="7121179479711575744">Chrome аккаунтына кіру</translation>
 <translation id="7136902389402789299">{NUM_SITES,plural, =1{1 сайттың рұқсаттары тексерілді.}other{# сайттың рұқсаттары тексерілді.}}</translation>
 <translation id="7138678301420049075">Басқа</translation>
 <translation id="7140829094791862589">Қолмен сұрыптау</translation>
@@ -1939,6 +1944,7 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="9104217018994036254">Қойынды жіберілетін құрылғылар тізімі.</translation>
 <translation id="9106148373857059373">Бетбелгілерді сақтау ағыны жабық.</translation>
 <translation id="9108808586816295166">Қауіпсіз DNS барлық уақытта қолжетімді болмауы мүмкін.</translation>
+<translation id="9112483451228487295">Браузер дерегін жылдам жою</translation>
 <translation id="9124978074365039456">Камера мен фотосуреттер галереясындағы нәрселерді сатып алуға, аударуға және анықтауға болады.</translation>
 <translation id="9130135798965366513">Жалғастыру үшін <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> сіздің <ph name="FIELDS_STRING" /> деректеріңізді осы сайтпен бөліседі. Бұл сайттың <ph name="BEGIN_LINK1" />Құпиялық саясатын<ph name="END_LINK1" /> және <ph name="BEGIN_LINK2" />Қызмет көрсету шарттарын<ph name="END_LINK2" /> көріңіз.</translation>
 <translation id="9131209053278896908">Блокталған сайттар осы жерде пайда болады</translation>

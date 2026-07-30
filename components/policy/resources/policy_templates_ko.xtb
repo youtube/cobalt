@@ -1280,22 +1280,6 @@ false로 설정되면 사용자 식별을 위해 사용할 수 있는 정보가 
 
 <ph name="PRODUCT_NAME" />의 경우 이 정책은 기기가 <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" />에 등록되어 있을 때만 적용됩니다.
 <ph name="PRODUCT_OS_NAME" />의 경우 이 정책이 항상 적용됩니다.</translation>
-<translation id="1878535132109943599">정책을 사용 설정하면 <ph name="LOCAL_NETWORK_ACCESS" />
-요청은 <ph name="LOCAL_NETWORK_ACCESS" /> 검사 실패로 인해 <ph name="CHROME_DEVTOOLS_NAME" />에서만 경고를 표시합니다.
-
-정책을 사용 중지하거나 설정하지 않으면 <ph name="LOCAL_NETWORK_ACCESS" /> 요청에서 이러한 요청의
-기본 처리를 사용합니다.
-
-<ph name="LOCAL_NETWORK_ACCESS" /> 제한사항에 관한 내용은 링크(https://wicg.github.io/local-network-access/)를 참고하세요.
-
-이 기업 정책은 일시적이며, M146 이후 삭제될 예정입니다.
-
-장기적으로 <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" /> 정책을 사용하여
-<ph name="LOCAL_NETWORK_ACCESS" /> 권한이 자동으로 부여되어야 하는 URL 패턴을
-허용 목록에 추가할 수 있습니다.
-
-<ph name="LOCAL_NETWORK_ACCESS_RESTRICTIONS_ENABLED_POLICY_NAME" /> 정책이 사용 설정된 경우
-이 정책보다 우선 적용됩니다.</translation>
 <translation id="187961648719201562">기존 로컬 파일 삭제(버전 137부터 지원됨)</translation>
 <translation id="1883274744253492031">혼합 콘텐츠 자동 업그레이드 사용 설정</translation>
 <translation id="1885782360784839335">전체 탭 프로모션 콘텐츠 표시 기능을 사용합니다.</translation>
@@ -3160,6 +3144,7 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 변형은 크로스 사이트 
 <translation id="3169872426103732947">기본 URL 표시, 사용자가 전체 URL로 전환하도록 허용</translation>
 <translation id="3171369832001535378">기기 네트워크 호스트 이름 템플릿</translation>
 <translation id="3173844121395372156">이 정책은 지원 중단되었으며 지원되지 않습니다. 대신 '<ph name="NATIVE_MESSAGING_ALLOWLIST_POLICY_NAME" />' 정책을 사용하세요.</translation>
+<translation id="3175063338945713984">스토리지 한도 API가 기능 출시 프로세스를 기준으로 값을 반환합니다.</translation>
 <translation id="3177537290334203187">웹사이트에서 네트워크 엔드포인트에 요청할 수 있는지 여부를 결정할 때 기본 동작을 사용합니다.</translation>
 <translation id="3177802893484440532">로컬 트러스트 앵커에 온라인 OCSP/CRL 확인을 요구합니다.</translation>
 <translation id="3179533009079100620">프로필 선택 도구 표시</translation>
@@ -3306,6 +3291,7 @@ Microsoft Outlook 카드에는 추가 관리자 구성이 필요합니다. Chrom
 
 <ph name="NTPCARDSVISIBLE" />이 사용 중지된 경우 Outlook 카드가 표시되지 않습니다. <ph name="NTPCARDSVISIBLE" />이 사용 설정되어 있고 이 정책도 사용 설정되어 있으며 표시할 데이터가 있는 경우 Outlook 카드가 표시됩니다. <ph name="NTPCARDSVISIBLE" />을 설정하지 않으면 이 정책도 사용 설정되어 있고 사용자가 Chrome 맞춤설정에서 카드를 사용 설정했으며 표시할 데이터가 있는 경우 Outlook 카드가 표시됩니다.</translation>
 <translation id="3261592499545947104">갱신이 실행되어야 하는 인증서 만료 전까지 남은 시간(초)입니다.</translation>
+<translation id="326182244921429468">스토리지 한도 API가 동적 값을 반환합니다.</translation>
 <translation id="3262080895269946462">타사 컨텍스트에서 WebSQL이 기본적으로 사용 중지되어 있도록 허용</translation>
 <translation id="326341982850521928">색상 보정 사용 설정</translation>
 <translation id="3263892501786842604">이 정책이 지원되면 새 탭 페이지의 검색창에 <ph name="GOOGLE_LENS_PRODUCT_NAME" /> 버튼이 표시되도록 허용합니다.</translation>
@@ -4489,6 +4475,11 @@ Manifest V2 확장 프로그램 지원이 중단되며 향후 모든 확장 프�
 
 
 확장 프로그램 사용 가능 여부는 다른 정책에 의해 계속 제어됩니다.</translation>
+<translation id="4112585124048467596">정책이 설정되면 지정된 모든 데이터 유형이 <ph name="CHROME_SYNC_NAME" />와 로밍 프로필 동기화 모두에서 제외됩니다. 이렇게 하면 로밍 프로필의 크기를 줄이거나 <ph name="CHROME_SYNC_NAME" /> 서버에 업로드되는 데이터의 유형을 제한하는 데 도움이 될 수 있습니다.
+
+      정책의 현재 데이터 유형은 'apps', 'autofill', 'bookmarks', 'extensions', 'preferences', 'passwords', 'payments', 'productComparison', 'readingList', 'tabs', 'themes', 'typedUrls', 'wifiConfigurations'입니다. 이름은 대소문자를 구분합니다.
+
+      참고로, 동적 정책 새로고침은 <ph name="PRODUCT_NAME" /> 버전 123 이상에서만 지원됩니다. 'autofill'을 사용 중지하면 'payments'도 사용 중지됩니다. 'typedUrls'는 모든 방문 기록을 의미합니다.</translation>
 <translation id="4115501011761259824">영향을 받는 모든 사용자에게 First-Party Sets 사용 설정</translation>
 <translation id="4120401094617902941">런타임 카운터가 샘플링되고 수집되는 속도입니다. 허용되는 최솟값은 1일입니다.
 
@@ -6449,6 +6440,34 @@ False로 설정하면 <ph name="PRODUCT_NAME" />에서 시스템 알림을 사�
 
 정책을 사용 안함으로 설정하면 방문 기록 및 다운로드 기록이 삭제되지 않습니다. 정책을 사용 중지해도 방문 및 다운로드 기록이 반드시 보관되는 것은 아닙니다. 사용자는 기록 데이터베이스 파일을 직접 수정하거나 삭제할 수 있습니다. 또한 브라우저는 언제든지 기록 항목을 자체적으로 만료시키거나 보관처리할 수 있습니다.</translation>
 <translation id="5322649594584715998">배터리를 일반 속도로 완전히 충전합니다. 이 모드는 자동 조절 충전 및 제한 충전을 사용 중지합니다.</translation>
+<translation id="5322726025747768984">이 정책을 설정하면 대상 URL 및 기타 조건에 따라 브라우저에서 사용할 프록시를 선택하는 규칙이 구성됩니다. 이 정책은 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 정책, <ph name="PROXY_SETTINGS_EXTENSION_API" /> 확장 프로그램 API 또는 수동 사용자 설정에서 설정된 프록시 설정보다 우선 적용됩니다.
+
+정책을 설정하지 않아도 다른 프록시 정책 또는 사용자 설정에 영향을 미치지 않습니다.
+
+브라우저에서 사용할 프록시를 결정해야 하는 경우 항목이 다음 사항을 모두 충족할 때까지 <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 정책의 항목이 순서대로 평가됩니다.
+  * <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" />의 URL 패턴 중 하나 이상이 일치합니다.
+  * <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" />의 URL 패턴 중 일치하는 패턴이 없습니다.
+  * <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" />이(가) 지정되고 목록이 비어 있지 않은 경우 해당 항목으로 표현된 모든 조건이 충족됩니다.
+<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" />의 값이 이러한 일치의 프록시로 사용됩니다. 일치하는 항목이 없으면 프록시 설정이 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 정책에 설정된 항목으로 되돌아갑니다.
+
+<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 및 <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" />에서 지원되는 URL 패턴은 https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns에 설명되어 있습니다.
+
+<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> 필드 항목은 다음과 같은 PAC 파일의 문자열 값에 해당합니다.
+  * DIRECT
+  * PROXY host:port
+  * HTTPS host:port
+  * SOCKS4 host:port
+  * SOCKS5 host:port
+또는 URL과 유사한 프록시 지정자를 직접 사용하여 다음과 같이 프록시를 지정할 수 있습니다.
+  * http://host:port
+  * https://host:port
+  * socks4://host:port
+  * socks5://host:port
+목록에서 연결 가능한 첫 번째 항목이 프록시로 사용됩니다. 목록의 잘못된 항목은 무시됩니다.
+
+<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> 필드에는 사용할 프록시를 결정하기 위해 재정의 규칙을 사용하려면 모두 충족해야 하는 조건 목록이 포함됩니다. 설정하지 않으면 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" />의 호스트 중 하나 이상이 일치하는 한 항목이 사용됩니다.
+
+<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> 조건은 제공된 DNS <ph name="PROXY_OVERRIDE_RULES_HOST" />가 IP 주소로 확인할 수 있는지 확인합니다. <ph name="PROXY_OVERRIDE_RULES_RESULT" />의 값이 "<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />"인 경우 조건이 충족된 것으로 간주됩니다. 대신 값이 <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />로 설정되면 해결이 실패한 경우 조건이 충족된 것으로 간주됩니다.</translation>
 <translation id="5323200200131319468">로그인 화면에서 음성 피드백 사용 설정</translation>
 <translation id="5323271643727095577">beforeunload 이벤트에 대해 event.preventDefault()가 호출될 때 취소 대화상자를 표시하지 않습니다. beforeunload event.returnValue가 beforeunload 이벤트의 빈 문자열인 경우 취소 대화상자를 표시합니다.</translation>
 <translation id="5324430722441910403">사이트 검색 설정</translation>
@@ -10912,6 +10931,7 @@ False로 설정하면 로그인 화면이 표시될 때 개인 정보 보호 화
       정책을 설정하지 않았을 때 <ph name="DEFAULT_PLUGINS_SETTING_POLICY_NAME" />이 설정되어 있으면 모든 사이트에 적용되며, 설정되어 있지 않다면 사용자의 개인 설정이 적용됩니다.
 
       유효한 url 패턴에 관해 자세히 알아보려면 https://chromeenterprise.google/policies/url-patterns를 참고하세요. 그러나 M85부터 호스트에 '*' 및 '[*.]' 와일드 카드가 있는 패턴은 이 정책에서 지원되지 않습니다.</translation>
+<translation id="8251975082850036657">스토리지 한도 API가 정적 값을 반환합니다.</translation>
 <translation id="82530263956734297">차단 목록에서 제외할 확장 프로그램 ID</translation>
 <translation id="8254749125469750814">클라우드 서비스로 확장 프로그램을 설치할 수 있는지 확인하지 않습니다.</translation>
 <translation id="8256006033157034334">이 정책은 지원 중단되었으며 지원되지 않습니다. 대신 <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME_POLICY_NAME" /> 정책을 사용하세요.</translation>
@@ -12035,6 +12055,7 @@ https://chromeenterprise.google/policies/url-patterns 페이지를 참고하세�
       이 정책은 Family Link 사용자에게만 사용됩니다.</translation>
 <translation id="8947415621777543415">기기 위치 신고</translation>
 <translation id="8948062138228904066">인증 서버 허용 목록</translation>
+<translation id="8951145747995737852">스토리지 한도 API가 정적 값을 반환할지 여부를 제어합니다.</translation>
 <translation id="8951350807133946005">디스크 캐시 디렉터리 설정</translation>
 <translation id="8952611478149810182">다른 브라우저와의 호환성을 개선하고 개발자 환경을 개선하기 위해 Chromium의 disabled 양식 컨트롤의 이벤트 전달 동작이 변경됩니다.
 
@@ -12129,17 +12150,6 @@ https://chromeenterprise.google/policies/url-patterns 페이지를 참고하세�
        또한 <ph name="PRODUCT_NAME" /> 84부터 더 이상 효력이 없습니다.</translation>
 <translation id="9010080992450148617">고급 보호 프로그램에 등록된 사용자가 다운로드한 항목을 심층 검사를 위해 Google에 전송하도록 허용</translation>
 <translation id="9012101302849557459"><ph name="MS_WIN_NAME" />, <ph name="MAC_OS_NAME" />, <ph name="LINUX_OS_NAME" />에서 Chrome 앱 지원을 확장합니다.</translation>
-<translation id="9012332684658600011">정책을 사용 설정하면 <ph name="LOCAL_NETWORK_ACCESS" /> 검사에 실패하여
-<ph name="CHROME_DEVTOOLS_NAME" />에 경고가 표시되어야 하는 경우
-기본 요청이 대신 차단됩니다.
-
-정책을 사용 중지하거나 설정하지 않으면 <ph name="LOCAL_NETWORK_ACCESS" /> 요청에서
-이러한 요청의 기본 처리를 사용합니다.
-
-<ph name="LOCAL_NETWORK_ACCESS" /> 제한사항에 관한 내용은 링크(https://wicg.github.io/local-network-access/)를 참고하세요.
-
-<ph name="LOCAL_NETWORK_ACCESS" /> 정책이 기본으로 출시되었으므로
-이 정책은 지원 중단되었습니다. 이 정책은 향후 버전에서 삭제될 예정입니다.</translation>
 <translation id="9013875414788074110">로그인하는 동안 <ph name="PRODUCT_OS_NAME" />은(는) 서버(온라인) 또는 캐시된 비밀번호(오프라인)를 사용하여 인증할 수 있습니다.
 
       이 정책의 값을 -1로 설정하면 사용자는 언제든지 오프라인에서 인증할 수 있습니다. 이 정책을 다른 값으로 설정하면 마지막 온라인 인증 후 오프라인에서 인증할 수 있는 기간(이 기간이 지나면 다시 온라인 인증을 사용해야 함)이 지정됩니다.
@@ -12432,6 +12442,10 @@ https://chromeenterprise.google/policies/url-patterns 페이지를 참고하세�
 <translation id="966425658642788645">기본 동작 적용</translation>
 <translation id="971677226939413180">사용자가 이미지로 인쇄 옵션을 선택할 수 없음</translation>
 <translation id="974349541138387272">원하는 DNS-over-HTTPS 리졸버의 URI 템플릿 지정</translation>
+<translation id="975005959611437646">사용 설정하면 스토리지 한도 API가 사용량에 최솟값(10GiB, 디스크를 가장 가까운 1GiB로 반올림한 값)을 더한 정적 값을 반환합니다.
+사용 중지하면 스토리지 한도 API가 일반적으로 사용량과 관계없이 기기에서 사용할 수 있는 총 공간에 비례하는 동적 값을 반환합니다.
+설정하지 않으면 스토리지 한도 API가 기본 Chrome 동작을 사용합니다.
+무제한 저장용량 권한이 있는 사이트는 이 설정의 영향을 받지 않습니다. 시행된 한도도 영향받지 않습니다.</translation>
 <translation id="976415389478739655"><ph name="CLASS_TOOLS_NAME" /> 수업에 속하려면 사용자 기기가 관리 네트워크에 있어야 함</translation>
 <translation id="978619365985286086">수업 관리 도구 설정</translation>
 <translation id="978658824596356870">24시간 형식</translation>

@@ -64,7 +64,7 @@ class OriginTrialsSettingsStorage;
 namespace network {
 class NetworkQualityTracker;
 class SharedURLLoaderFactory;
-}
+}  // namespace network
 
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 namespace safe_browsing {
@@ -107,23 +107,23 @@ class NetworkTimeTracker;
 namespace os_crypt_async {
 class KeyProvider;
 class OSCryptAsync;
-}
+}  // namespace os_crypt_async
 
 namespace policy {
 class ChromeBrowserPolicyConnector;
 class PolicyService;
-}
+}  // namespace policy
 
 namespace printing {
 class BackgroundPrintingManager;
 class PrintJobManager;
 class PrintPreviewDialogController;
-}
+}  // namespace printing
 
 namespace resource_coordinator {
 class ResourceCoordinatorParts;
 class TabManager;
-}
+}  // namespace resource_coordinator
 
 namespace ui {
 class UnownedUserDataHost;
@@ -212,9 +212,9 @@ class BrowserProcess {
 
   virtual printing::PrintJobManager* print_job_manager() = 0;
   virtual printing::PrintPreviewDialogController*
-      print_preview_dialog_controller() = 0;
+  print_preview_dialog_controller() = 0;
   virtual printing::BackgroundPrintingManager*
-      background_printing_manager() = 0;
+  background_printing_manager() = 0;
 
 #if !BUILDFLAG(IS_ANDROID)
   virtual IntranetRedirectDetector* intranet_redirect_detector() = 0;
@@ -277,7 +277,9 @@ class BrowserProcess {
 
   virtual component_updater::ComponentUpdateService* component_updater() = 0;
 
+#if BUILDFLAG(IS_CHROMEOS)
   virtual MediaFileSystemRegistry* media_file_system_registry() = 0;
+#endif
 
   virtual WebRtcLogUploader* webrtc_log_uploader() = 0;
 
@@ -324,8 +326,9 @@ class BrowserProcess {
   // Returns the feature controllers scoped to this browser process.
   virtual GlobalFeatures* GetFeatures() = 0;
 
-  // Create GlobalFeatures scoped to this browser process. Should only be used
-  // in unit tests to create GlobalFeatures after modifying feature flags.
+  // Legacy method. Should not be used in new code.
+  // TODO(crbug.com/467395900): Remove this function and its remaining uses and
+  // replace them with TestingBrowserProcess::SetUpGlobalFeaturesForTesting().
   virtual void CreateGlobalFeaturesForTesting() = 0;
 
   // Do not add new members to this class. Instead use GlobalFeatures. See file

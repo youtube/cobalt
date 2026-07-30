@@ -220,9 +220,6 @@ class TabStrip : public views::View,
   // Cover method for TabStripController::GetCount.
   int GetModelCount() const;
 
-  // Returns the number of pinned tabs.
-  int GetModelPinnedTabCount() const;
-
   TabStripController* controller() const { return controller_.get(); }
 
   TabDragContext* GetDragContext();
@@ -263,7 +260,7 @@ class TabStrip : public views::View,
   std::optional<tab_groups::TabGroupId> GetFocusedGroup() const override;
 
   // TabSlotController:
-  const ui::ListSelectionModel& GetSelectionModel() const override;
+  ui::ListSelectionModel GetSelectionModel() const override;
   Tab* tab_at(int index) const override;
   void SelectTab(Tab* tab, const ui::Event& event) override;
   void ExtendSelectionTo(Tab* tab) override;
@@ -284,17 +281,16 @@ class TabStrip : public views::View,
   void ShowContextMenuForTab(Tab* tab,
                              const gfx::Point& p,
                              ui::mojom::MenuSourceType source_type) override;
-  bool IsActiveTab(const Tab* tab) const override;
-  bool IsTabSelected(const Tab* tab) const override;
-  bool IsTabPinned(const Tab* tab) const override;
-  bool IsTabFirst(const Tab* tab) const override;
+  bool IsActiveTab(const TabSlotView* tab) const override;
+  bool IsTabSelected(const TabSlotView* tab) const override;
+  bool IsTabPinned(const TabSlotView* tab) const override;
+  bool IsTabFirst(const TabSlotView* tab) const override;
   bool IsFocusInTabs() const override;
   bool ShouldCompactLeadingEdge() const override;
 
-  void MaybeStartDrag(
-      TabSlotView* source,
-      const ui::LocatedEvent& event,
-      const ui::ListSelectionModel& original_selection) override;
+  void MaybeStartDrag(TabSlotView* source,
+                      const ui::LocatedEvent& event,
+                      ui::ListSelectionModel original_selection) override;
   [[nodiscard]] Liveness ContinueDrag(views::View* view,
                                       const ui::LocatedEvent& event) override;
   bool EndDrag(EndDragReason reason) override;
@@ -311,7 +307,6 @@ class TabStrip : public views::View,
   bool CanPaintThrobberToLayer() const override;
   bool HasVisibleBackgroundTabShapes() const override;
   SkColor GetTabSeparatorColor() const override;
-  SkColor GetTabForegroundColor(TabActive active) const override;
   std::u16string GetAccessibleTabName(const Tab* tab) const override;
   std::optional<int> GetCustomBackgroundId(
       BrowserFrameActiveState active_state) const override;
@@ -363,7 +358,7 @@ class TabStrip : public views::View,
   friend class TabDragContextImpl;
   friend class TabGroupEditorBubbleViewDialogBrowserTest;
   friend class TabStripTestBase;
-  friend class TabStripRegionViewTestBase;
+  friend class HorizontalTabStripRegionViewTestBase;
 
   class TabContextMenuController : public views::ContextMenuController {
    public:

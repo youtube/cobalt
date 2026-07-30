@@ -9,6 +9,7 @@ import android.graphics.drawable.Drawable;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -107,11 +108,13 @@ final class SigninPromoViewBinder {
                             : View.VISIBLE;
             view.getDismissButton().setVisibility(dismissButtonVisibility);
         } else if (key == SigninPromoProperties.SHOULD_SHOW_HEADER_WITH_AVATAR) {
-            showHeaderWithAvatar(
-                    model.get(SigninPromoProperties.SHOULD_SHOW_HEADER_WITH_AVATAR),
-                    seamlessSigninPromoType,
-                    context,
-                    view);
+            if (seamlessSigninPromoType == SigninFeatureMap.SeamlessSigninPromoType.COMPACT) {
+                if (model.get(SigninPromoProperties.SHOULD_SHOW_HEADER_WITH_AVATAR)) {
+                    showHeaderWithAvatar(context, view);
+                } else {
+                    showHeaderWithoutAvatar(context, view);
+                }
+            }
         } else if (key == SigninPromoProperties.SHOULD_SHOW_ACCOUNT_PICKER) {
             if (seamlessSigninPromoType == SigninFeatureMap.SeamlessSigninPromoType.COMPACT) {
                 int accountPickerVisibility =
@@ -119,6 +122,14 @@ final class SigninPromoViewBinder {
                                 ? View.VISIBLE
                                 : View.GONE;
                 view.getSelectedAccountView().setVisibility(accountPickerVisibility);
+            }
+        } else if (key == SigninPromoProperties.SHOULD_SHOW_LOADING_STATE) {
+            if (seamlessSigninPromoType != SigninFeatureMap.SeamlessSigninPromoType.NON_SEAMLESS) {
+                if (model.get(SigninPromoProperties.SHOULD_SHOW_LOADING_STATE)) {
+                    showLoadingState(seamlessSigninPromoType, view);
+                } else {
+                    showRegularState(seamlessSigninPromoType, view);
+                }
             }
         } else {
             throw new IllegalArgumentException("Unknown property key: " + key);
@@ -160,44 +171,80 @@ final class SigninPromoViewBinder {
         view.setLayoutParams(lp);
     }
 
-    private static void showHeaderWithAvatar(
-            boolean showLayout,
-            @SigninFeatureMap.SeamlessSigninPromoType int promoType,
-            Context context,
-            PersonalizedSigninPromoView view) {
-        if (promoType != SigninFeatureMap.SeamlessSigninPromoType.COMPACT) {
-            return;
-        }
+    private static void showHeaderWithAvatar(Context context, PersonalizedSigninPromoView view) {
         ImageView signedInPromoImage = view.findViewById(R.id.signed_in_promo_image);
-        TextView descriptionText = view.findViewById(R.id.signin_promo_description);
+        signedInPromoImage.setVisibility(View.VISIBLE);
         LinearLayout compactLayoutImageAndDescriptionContainer =
                 view.getImageAndDescriptionContainer();
+        int imageAndDescriptionContainerMarginTop =
+                context.getResources()
+                        .getDimensionPixelSize(
+                                R.dimen.signin_promo_desc_margin_top_signed_in_compact);
+        updateViewMargins(
+                compactLayoutImageAndDescriptionContainer,
+                null,
+                imageAndDescriptionContainerMarginTop,
+                null,
+                null);
+        TextView descriptionText = view.findViewById(R.id.signin_promo_description);
+        descriptionText.setGravity(Gravity.CENTER_VERTICAL);
+        int buttonMargins =
+                context.getResources()
+                        .getDimensionPixelSize(R.dimen.signin_promo_button_margin_two_buttons);
         ButtonCompat primaryButton = view.getPrimaryButton();
-        if (showLayout) {
-            signedInPromoImage.setVisibility(View.VISIBLE);
-            int imageAndDescriptionContainerMarginTop =
-                    context.getResources()
-                            .getDimensionPixelSize(
-                                    R.dimen.signin_promo_desc_margin_top_signed_in_compact);
-            updateViewMargins(
-                    compactLayoutImageAndDescriptionContainer,
-                    null,
-                    imageAndDescriptionContainerMarginTop,
-                    null,
-                    null);
-            descriptionText.setGravity(Gravity.CENTER_VERTICAL);
-            int buttonMargins =
-                    context.getResources()
-                            .getDimensionPixelSize(R.dimen.signin_promo_button_margin_two_buttons);
-            updateViewMargins(primaryButton, buttonMargins, null, buttonMargins, null);
-        } else {
-            signedInPromoImage.setVisibility(View.GONE);
-            updateViewMargins(compactLayoutImageAndDescriptionContainer, null, 0, null, null);
-            descriptionText.setGravity(Gravity.CENTER);
-            int buttonMargins =
-                    context.getResources()
-                            .getDimensionPixelSize(R.dimen.signin_promo_button_margin_compact);
-            updateViewMargins(primaryButton, buttonMargins, null, buttonMargins, null);
+        updateViewMargins(primaryButton, buttonMargins, null, buttonMargins, null);
+    }
+
+    private static void showHeaderWithoutAvatar(Context context, PersonalizedSigninPromoView view) {
+        ImageView signedInPromoImage = view.findViewById(R.id.signed_in_promo_image);
+        signedInPromoImage.setVisibility(View.GONE);
+        LinearLayout compactLayoutImageAndDescriptionContainer =
+                view.getImageAndDescriptionContainer();
+        updateViewMargins(compactLayoutImageAndDescriptionContainer, null, 0, null, null);
+        TextView descriptionText = view.findViewById(R.id.signin_promo_description);
+        descriptionText.setGravity(Gravity.CENTER);
+        int buttonMargins =
+                context.getResources()
+                        .getDimensionPixelSize(R.dimen.signin_promo_button_margin_compact);
+        ButtonCompat primaryButton = view.getPrimaryButton();
+        updateViewMargins(primaryButton, buttonMargins, null, buttonMargins, null);
+    }
+
+    private static void showLoadingState(
+            @SigninFeatureMap.SeamlessSigninPromoType int promoType,
+            PersonalizedSigninPromoView view) {
+        assert promoType != SigninFeatureMap.SeamlessSigninPromoType.NON_SEAMLESS;
+        ButtonCompat primaryButton = view.getPrimaryButton();
+        primaryButton.setAlpha(0.9f);
+        primaryButton.setEnabled(false);
+        if (promoType == SigninFeatureMap.SeamlessSigninPromoType.COMPACT) {
+            View selectedAccountView = view.getSelectedAccountView();
+            selectedAccountView.setAlpha(0.6f);
+            selectedAccountView.setEnabled(false);
+        } else if (promoType == SigninFeatureMap.SeamlessSigninPromoType.TWO_BUTTONS) {
+            Button secondaryButton = view.getSecondaryButton();
+            secondaryButton.setAlpha(0.9f);
+            secondaryButton.setEnabled(false);
+            view.getImage().setAlpha(0.6f);
+        }
+    }
+
+    private static void showRegularState(
+            @SigninFeatureMap.SeamlessSigninPromoType int promoType,
+            PersonalizedSigninPromoView view) {
+        assert promoType != SigninFeatureMap.SeamlessSigninPromoType.NON_SEAMLESS;
+        ButtonCompat primaryButton = view.getPrimaryButton();
+        primaryButton.setAlpha(1.0f);
+        primaryButton.setEnabled(true);
+        if (promoType == SigninFeatureMap.SeamlessSigninPromoType.COMPACT) {
+            View selectedAccountView = view.getSelectedAccountView();
+            selectedAccountView.setAlpha(1.0f);
+            selectedAccountView.setEnabled(true);
+        } else if (promoType == SigninFeatureMap.SeamlessSigninPromoType.TWO_BUTTONS) {
+            Button secondaryButton = view.getSecondaryButton();
+            secondaryButton.setAlpha(1.0f);
+            secondaryButton.setEnabled(true);
+            view.getImage().setAlpha(1.0f);
         }
     }
 }

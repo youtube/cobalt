@@ -329,18 +329,9 @@ const CSSValue* AnchorName::CSSValueFromComputedStyleInternal(
 const CSSValue* AnchorScope::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&) const {
-  if (CSSValue* value =
-          css_parsing_utils::ConsumeIdent<CSSValueID::kNone>(stream)) {
-    return value;
-  }
-  if (CSSValue* value =
-          css_parsing_utils::ConsumeScopedKeywordValue<CSSValueID::kAll>(
-              stream)) {
-    return value;
-  }
-  return css_parsing_utils::ConsumeCommaSeparatedList(
-      css_parsing_utils::ConsumeDashedIdent, stream, context);
+    const CSSParserLocalContext& parser_local_context) const {
+  return css_parsing_utils::ConsumeNameScope(stream, context,
+                                             parser_local_context);
 }
 
 const CSSValue* AnchorScope::CSSValueFromComputedStyleInternal(
@@ -348,20 +339,7 @@ const CSSValue* AnchorScope::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  const StyleAnchorScope& anchor_scope = style.AnchorScope();
-  if (anchor_scope.IsNone()) {
-    return CSSIdentifierValue::Create(CSSValueID::kNone);
-  }
-  if (anchor_scope.IsAll()) {
-    return CSSIdentifierValue::Create(CSSValueID::kAll);
-  }
-  CHECK(anchor_scope.Names());
-  CSSValueList* list = CSSValueList::CreateCommaSeparated();
-  for (const Member<const ScopedCSSName>& name :
-       anchor_scope.Names()->GetNames()) {
-    list->Append(*MakeGarbageCollected<CSSCustomIdentValue>(*name));
-  }
-  return list;
+  return ComputedStyleUtils::ValueForNameScope(style.AnchorScope());
 }
 
 const CSSValue* AnimationComposition::ParseSingleValue(
@@ -3858,7 +3836,7 @@ static bool IsDisplayOutside(CSSValueID id) {
 
 static bool IsDisplayInside(CSSValueID id) {
   if (id == CSSValueID::kGridLanes) {
-    return RuntimeEnabledFeatures::CSSMasonryLayoutEnabled();
+    return RuntimeEnabledFeatures::CSSGridLanesLayoutEnabled();
   }
   return (id >= CSSValueID::kFlowRoot && id <= CSSValueID::kGridLanes) ||
          id == CSSValueID::kMath || id == CSSValueID::kRuby;
@@ -3875,7 +3853,7 @@ static bool IsDisplayInternal(CSSValueID id) {
 
 static bool IsDisplayLegacy(CSSValueID id) {
   if (id == CSSValueID::kInlineGridLanes) {
-    return RuntimeEnabledFeatures::CSSMasonryLayoutEnabled();
+    return RuntimeEnabledFeatures::CSSGridLanesLayoutEnabled();
   }
   return id >= CSSValueID::kInlineBlock && id <= CSSValueID::kWebkitInlineFlex;
 }
@@ -12227,6 +12205,22 @@ const CSSValue* TimelineScope::CSSValueFromComputedStyleInternal(
     list->Append(*MakeGarbageCollected<CSSCustomIdentValue>(name->GetName()));
   }
   return list;
+}
+
+const CSSValue* TriggerScope::ParseSingleValue(
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext& parser_local_context) const {
+  return css_parsing_utils::ConsumeNameScope(stream, context,
+                                             parser_local_context);
+}
+
+const CSSValue* TriggerScope::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValueForNameScope(style.TriggerScope());
 }
 
 const CSSValue* WebkitTransformOriginX::ParseSingleValue(

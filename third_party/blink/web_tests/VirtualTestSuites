@@ -28,27 +28,6 @@
   "content_shell.filter so that they can be run in blink_wpt_tests step.",
   "TODO(crbug.com/380755410): Find a way to do this systematically.",
 
-  {
-    "prefix": "ai_relax_user_activation",
-    "platforms": ["Linux", "Mac", "Win"],
-    "bases": [
-      "external/wpt/ai/language-model/language-model-create-sticky-user-activation.tentative.https.window.js"
-    ],
-    "args": ["--enable-features=AIRelaxUserActivationReqs"],
-    "exclusive_tests": "ALL",
-    "owners": ["msw@chromium.org", "iahouma@google.com", "chrome-chia@google.com"],
-    "expires": "never"
-  },
-  {
-    "prefix": "ai_require_transient_user_activation",
-    "platforms": ["Linux", "Mac", "Win"],
-    "bases": [
-      "external/wpt/ai/language-model/language-model-create-transient-user-activation.tentative.https.window.js"
-    ],
-    "args": ["--disable-features=AIRelaxUserActivationReqs"],
-    "owners": ["msw@chromium.org", "iahouma@google.com", "chrome-chia@google.com"],
-    "expires": "never"
-  },
   "This suite tests some android features on Linux and should never expire.",
   {
     "prefix": "android",
@@ -409,7 +388,7 @@
       "external/wpt/FileAPI/BlobURL/cross-partition.https.html",
       "external/wpt/FileAPI/BlobURL/cross-partition-worker-creation.https.html",
       "external/wpt/FileAPI/BlobURL/cross-partition-navigation.https.html",
-      "external/wpt/FileAPI/BlobURL/cross-partition-self-fetch.https.tentative.html",
+      "external/wpt/FileAPI/BlobURL/cross-partition-self-fetch.https.html",
       "external/wpt/storage-access-api/storage-access-beyond-cookies.blobStorage.sub.https.window.html",
       "external/wpt/storage-access-api/storage-access-beyond-cookies.BlobURLDedicatedWorker.sub.https.tentative.window.html",
       "external/wpt/html/cross-origin-embedder-policy/blob.https.html",
@@ -744,7 +723,7 @@
     ]
   },
   {
-    "prefix": "disable-css-masonry-layout",
+    "prefix": "disable-css-grid-lanes-layout",
     "platforms": [
       "Win"
     ],
@@ -752,7 +731,7 @@
       "external/wpt/css/css-grid/parsing"
     ],
     "args": [
-      "--disable-blink-features=CSSMasonryLayout"
+      "--disable-blink-features=CSSGridLanesLayout"
     ],
     "owners": [
       "almaher@microsoft.com"
@@ -957,7 +936,7 @@
       "--enable-features=SystemCursorSizeSupported",
       "--disable-headless-mode"
     ],
-    "expires": "Dec 1, 2025"
+    "expires": "Dec 1, 2026"
   },
   {
     "prefix": "exotic-color-space",
@@ -1337,8 +1316,7 @@
       "external/wpt/storage-access-api/storage-access-beyond-cookies.locks.sub.https.window.html",
       "external/wpt/storage-access-api/storage-access-beyond-cookies.none.sub.https.window.html",
       "external/wpt/storage-access-api/storage-access-beyond-cookies.sessionStorage.sub.https.window.html",
-      "external/wpt/storage-access-api/storage-access-beyond-cookies.thirdPartyBlobStorage.sub.https.window.html",
-      "external/wpt/storage-access-api/storage-access-beyond-cookies.unpartitioned.sub.https.window.html"
+      "external/wpt/storage-access-api/storage-access-beyond-cookies.thirdPartyBlobStorage.sub.https.window.html"
     ],
     "args": [
       "--enable-features=ForceAllowStorageAccess"
@@ -1373,7 +1351,7 @@
     ],
     "owners": [
       "dtseng@chromium.org",
-      "aleventhal@chromium.org"
+      "lucasradaelli@google.com"
     ],
     "bases": [
       "accessibility/accessibility-beforematch-marker-crash.html",
@@ -1381,6 +1359,7 @@
       "accessibility/slot-poison.html",
       "accessibility/createAttributeNS06-crash.html",
       "external/wpt/accessibility/",
+      "external/wpt/css/css-highlight-api/crashtests/highlight-overlap-with-aria-invalid-crash.html",
       "external/wpt/dom/ranges/Range-deleteContents.html",
       "external/wpt/html/semantics/embedded-content/the-iframe-element/iframe-initially-empty-is-updated.html",
       "external/wpt/html/semantics/interactive-elements/the-dialog-element/inert-svg-hittest.html",
@@ -1399,7 +1378,7 @@
     ],
     "owners": [
       "dtseng@chromium.org",
-      "aleventhal@chromium.org"
+      "lucasradaelli@google.com"
     ],
     "bases": [
       "external/wpt/accessibility/crashtests/removed-from-flat-tree.html"
@@ -1461,6 +1440,26 @@
       "--enable-blink-features=FractionalScrollOffsets"
     ],
     "expires": "Jun 1, 2025"
+  },
+  {
+    "prefix": "fragmented-oof-in-cb",
+    "owners": [ "mstensho@chromium.org" ],
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/css/css-anchor-position",
+      "external/wpt/css/css-break",
+      "external/wpt/css/css-multicol",
+      "external/wpt/css/css-page",
+      "fast/multicol",
+      "fragmentation",
+      "printing"
+    ],
+    "args": [ "--enable-blink-features=FragmentedOofInCb" ],
+    "expires": "May 17, 2026"
   },
   {
     "prefix": "fsa-incognito",
@@ -1958,7 +1957,7 @@
       "hchao@chromium.org",
       "chrome-secure-web-and-net@chromium.org"
     ],
-    "expires": "Dec 2, 2025"
+    "expires": "June 1, 2026"
   },
   {
     "prefix": "log-dns-prefetch-and-preconnect",
@@ -2789,28 +2788,11 @@
     "args": [
       "--enable-features=AllowSameSiteNoneCookiesInSandbox,ForceThirdPartyCookieBlockingEnabled"
     ],
-    "expires": "Dec 1, 2025",
+    "expires": "May 1, 2026",
     "owners": [
       "anushamuley@chromium.org",
       "dylancutler@google.com"
     ]
-  },
-  {
-    "prefix": "sanitizer-api",
-    "platforms": [
-      "Linux"
-    ],
-    "bases": [
-      "external/wpt/sanitizer-api/"
-    ],
-    "args": [
-      "--enable-features=SanitizerAPI"
-    ],
-    "expires": "Jan 18, 2026",
-    "owners": [
-      "vogelheim@google.com"
-    ],
-    "exclusive_tests": "ALL"
   },
   {
     "prefix": "scalefactor150",
@@ -2824,6 +2806,7 @@
       "fast/hidpi/static",
       "external/wpt/css/css-ui/caret-shape-block-zoom.html",
       "external/wpt/css/css-ui/caret-shape-block-color-001.html",
+      "wpt_internal/html/canvas/drawElementImage/ink-overflow.html",
       "wpt_internal/html/canvas/drawElementImage/scale.html",
       "wpt_internal/html/canvas/drawElementImage/webgl-css-transform-on-div.html",
       "wpt_internal/html/canvas/drawElementImage/webgl-scaling.html",
@@ -2869,6 +2852,7 @@
       "inspector-protocol/emulation/device-emulation-no-size.js",
       "external/wpt/css/css-ui/caret-shape-block-zoom.html",
       "external/wpt/css/css-ui/caret-shape-block-color-001.html",
+      "wpt_internal/html/canvas/drawElementImage/ink-overflow.html",
       "wpt_internal/html/canvas/drawElementImage/scale.html",
       "wpt_internal/html/canvas/drawElementImage/webgl-css-transform-on-div.html",
       "wpt_internal/html/canvas/drawElementImage/webgl-scaling.html",
@@ -4154,18 +4138,6 @@
     "expires": "Jul 1, 2026"
   },
   {
-    "prefix": "soft-navs-pre-paint-attribution-disabled",
-    "owners": ["shaseley@google.com", "mmocny@google.com"],
-    "platforms": ["Linux"],
-    "bases": [
-      "external/wpt/soft-navigation-heuristics/"
-    ],
-    "args": [
-      "--disable-features=SoftNavigationDetectionPrePaintBasedAttribution"
-    ],
-    "expires": "Dec 1, 2025"
-  },
-  {
     "prefix": "speculation-rules-prerender-cross-origin-iframes",
     "platforms": [
       "Linux",
@@ -5077,6 +5049,7 @@
       "external/wpt/webnn/conformance_tests/arg_min_max.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/averagePool2d.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/batch_normalization.https.any.html?cpu",
+      "external/wpt/webnn/conformance_tests/batch_normalization_constant.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/byob_readtensor.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/byob_readtensor.https.any.serviceworker.html?cpu",
       "external/wpt/webnn/conformance_tests/byob_readtensor.https.any.sharedworker.html?cpu",
@@ -5317,7 +5290,8 @@
     ],
     "exclusive_tests": "ALL",
     "args": [
-      "--enable-features=WebMachineLearningNeuralNetwork"
+      "--enable-features=WebMachineLearningNeuralNetwork,WebNNDirectML",
+      "--disable-features=WebNNOnnxRuntime"
     ],
     "expires": "Jun 1, 2026",
     "owners": [
@@ -5345,6 +5319,7 @@
       "external/wpt/webnn/conformance_tests/arg_min_max.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/averagePool2d.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/batch_normalization.https.any.html?npu",
+      "external/wpt/webnn/conformance_tests/batch_normalization_constant.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/byob_readtensor.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/byob_readtensor.https.any.serviceworker.html?npu",
       "external/wpt/webnn/conformance_tests/byob_readtensor.https.any.sharedworker.html?npu",
@@ -5585,7 +5560,8 @@
     ],
     "exclusive_tests": "ALL",
     "args": [
-      "--enable-features=WebMachineLearningNeuralNetwork"
+      "--enable-features=WebMachineLearningNeuralNetwork,WebNNDirectML",
+      "--disable-features=WebNNOnnxRuntime"
     ],
     "expires": "Jun 1, 2026",
     "owners": [
@@ -5614,6 +5590,7 @@
       "external/wpt/webnn/conformance_tests/arg_min_max.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/averagePool2d.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/batch_normalization.https.any.html?gpu",
+      "external/wpt/webnn/conformance_tests/batch_normalization_constant.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/byob_readtensor.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/byob_readtensor.https.any.serviceworker.html?gpu",
       "external/wpt/webnn/conformance_tests/byob_readtensor.https.any.sharedworker.html?gpu",
@@ -5855,7 +5832,8 @@
     "exclusive_tests": "ALL",
     "args": [
       "--use-gpu-in-tests",
-      "--enable-features=WebMachineLearningNeuralNetwork"
+      "--enable-features=WebMachineLearningNeuralNetwork,WebNNDirectML",
+      "--disable-features=WebNNOnnxRuntime"
     ],
     "expires": "Jun 1, 2026",
     "owners": [
@@ -5947,11 +5925,12 @@
     "expires": "Oct 24, 2026"
   },
   "Currently, XSLT is disabled on ToT for tests, via the",
-  "fieldtrial_testing_config.json file which disables the XSLTSpecialTrial",
-  "flag. The `xslt-enabled` virtual suite re-enables the XSLTSpecialTrial",
-  "flag, which should re-enable XSLT. The `xslt-disabled` virtual suite",
-  "re-enables the XSLTSpecialTrial flag and disables the main XSLT flag,",
-  "which should keep XSLT disabled.",
+  "fieldtrial_testing_config.json file which enables the XSLTSpecialTrial",
+  "flag and disables the XSLT flag. The `xslt-enabled` virtual suite just",
+  "enables the XSLT flag, via the base::Feature, which should re-enable",
+  "XSLT. The `xslt-disabled` virtual suite just disables the XSLTSpecialTrial",
+  "flag, and leaves the main XSLT flag disabled, which should just change the",
+  "console messages, keeping XSLT disabled.",
   {
     "prefix": "xslt-enabled",
     "platforms": ["Linux", "Mac", "Win"],
@@ -5982,7 +5961,7 @@
       "http/tests/loading/css-no-cache-revalidation.html",
       "http/tests/permissions-policy/permissions-policy-frame-policy-in-xsl.html"
     ],
-    "args": [ "--enable-blink-features=XSLTSpecialTrial" ],
+    "args": ["--enable-features=XSLT"],
     "owners": [
       "masonf@chromium.org"
     ],
@@ -5990,7 +5969,7 @@
   },
   "This suite just verifies that both XSLT-disabled flags work. The main ToT",
   "code verifies XSLTSpecialTrial, since it is enabled via fieldtrial testing",
-  "config. This virtual suite verifies the XSLT flag.",
+  "config. This virtual suite checks XSLTSpecialTrial=false.",
   {
     "prefix": "xslt-disabled",
     "platforms": ["Linux", "Mac", "Win"],
@@ -6006,10 +5985,7 @@
       "svg/custom/invalid-xslt-crash.svg",
       "external/wpt/fetch/metadata/xslt.https.sub.html"
     ],
-    "args": [
-      "--disable-blink-features=XSLT",
-      "--enable-blink-features=XSLTSpecialTrial"
-    ],
+    "args": ["--disable-blink-features=XSLTSpecialTrial"],
     "owners": [
       "masonf@chromium.org"
     ],
@@ -6034,6 +6010,7 @@
     "prefix": "xml-no-ext-entities",
     "platforms": ["Linux"],
     "bases": [
+      "external/wpt/html/webappapis/dynamic-markup-insertion/the-innerhtml-property/innerhtml-and-xml-namespaces.svg",
       "fast/parser/external-entities-in-xslt.xml",
       "fast/xsl/dtd-in-source-document.xml",
       "fast/xsl/xslt-second-level-import.xml",

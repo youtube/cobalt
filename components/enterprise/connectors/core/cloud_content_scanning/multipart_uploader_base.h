@@ -24,12 +24,6 @@
 
 namespace enterprise_connectors {
 
-class BrowserThreadGuard {
- public:
-  virtual void AssertCalledOnUIThread() = 0;
-  virtual ~BrowserThreadGuard() = default;
-};
-
 // This class encapsulates the upload of a file with metadata using the
 // multipart protocol. This class is neither movable nor copyable.
 class MultipartUploadRequestBase : public ConnectorUploadRequest {
@@ -44,7 +38,7 @@ class MultipartUploadRequestBase : public ConnectorUploadRequest {
       const std::string& histogram_suffix,
       const net::NetworkTrafficAnnotationTag& traffic_annotation,
       Callback callback,
-      std::unique_ptr<BrowserThreadGuard> thread_guard);
+      scoped_refptr<base::SequencedTaskRunner> ui_task_runner);
 
   // Creates a MultipartUploadRequestBase, which will upload the file
   // corresponding to `path` to the given `base_url` with `metadata` attached.
@@ -58,7 +52,7 @@ class MultipartUploadRequestBase : public ConnectorUploadRequest {
       const std::string& histogram_suffix,
       const net::NetworkTrafficAnnotationTag& traffic_annotation,
       Callback callback,
-      std::unique_ptr<BrowserThreadGuard> thread_guard);
+      scoped_refptr<base::SequencedTaskRunner> ui_task_runner);
 
   // Creates a MultipartUploadRequestBase, which will upload the page in
   // `page_region` to the given `base_url` with `metadata` attached.
@@ -70,7 +64,7 @@ class MultipartUploadRequestBase : public ConnectorUploadRequest {
       const std::string& histogram_suffix,
       const net::NetworkTrafficAnnotationTag& traffic_annotation,
       Callback callback,
-      std::unique_ptr<BrowserThreadGuard> thread_guard);
+      scoped_refptr<base::SequencedTaskRunner> ui_task_runner);
 
   MultipartUploadRequestBase(const MultipartUploadRequestBase&) = delete;
   MultipartUploadRequestBase& operator=(const MultipartUploadRequestBase&) =
@@ -111,7 +105,13 @@ class MultipartUploadRequestBase : public ConnectorUploadRequest {
   void set_boundary(const std::string& boundary) { boundary_ = boundary; }
 
  private:
-  virtual scoped_refptr<base::TaskRunner> GetTaskRunner() = 0;
+  FRIEND_TEST_ALL_PREFIXES(MultipartUploadRequestBaseTest,
+                           GeneratesCorrectBody);
+  FRIEND_TEST_ALL_PREFIXES(MultipartUploadRequestBaseTest, RetriesCorrectly);
+  FRIEND_TEST_ALL_PREFIXES(MultipartUploadDataPipeRequestTest, Retries);
+  FRIEND_TEST_ALL_PREFIXES(MultipartUploadDataPipeRequestTest, DataControls);
+  FRIEND_TEST_ALL_PREFIXES(MultipartUploadDataPipeRequestTest,
+                           EquivalentToStringRequest);
 
   // Called by SendFileRequest and SendPageRequest after `data_pipe_getter_`
   // is known to be initialized to a correct state.
@@ -131,7 +131,6 @@ class MultipartUploadRequestBase : public ConnectorUploadRequest {
   void CreateDatapipe(std::unique_ptr<network::ResourceRequest> request,
                       file_access::ScopedFileAccess file_access);
 
-  std::unique_ptr<BrowserThreadGuard> thread_guard_;
   std::unique_ptr<file_access::ScopedFileAccess> scoped_file_access_;
   std::string boundary_;
   base::Time start_time_;

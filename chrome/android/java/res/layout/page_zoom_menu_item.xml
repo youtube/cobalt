@@ -49,12 +49,12 @@ found in the LICENSE file.
         android:layout_height="wrap_content"
         android:background="@drawable/menu_button_background"
         android:contentDescription="@string/page_zoom_increase_zoom_button_text"
-        android:src="@drawable/ic_add"
+        android:src="@drawable/ic_add_24dp"
         app:tint="@color/default_icon_color_tint_list" />
 
     <View
         android:layout_width="@dimen/zoom_menu_item_divider_width"
-        android:layout_height="match_parent"
+        android:layout_height="@dimen/zoom_menu_item_divider_height"
         android:layout_marginStart="@dimen/zoom_menu_item_divider_margin"
         android:layout_marginEnd="@dimen/zoom_menu_item_divider_margin"
         android:background="@drawable/divider_line_bg" />

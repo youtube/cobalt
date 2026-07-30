@@ -1492,6 +1492,37 @@
       "features": [
         "webgpu_on_vk_via_gl_interop"
       ]
+    },
+    {
+      "id": 187,
+      "cr_bugs": [458062283],
+      "description": "Disable Graphite on very old Intel GPU generations due to crashiness",
+      "os": {
+        "type": "win"
+      },
+      "vendor_id": "0x8086",
+      "intel_gpu_generation": {
+        "op": "<=",
+        "value": "8"
+      },
+      "features": [
+        "skia_graphite"
+      ]
+    },
+    {
+      "id": 188,
+      "cr_bugs": [467009161],
+      "description": "Disable Graphite on D3D11 feature level below 12.0 due to crashiness",
+      "os": {
+        "type": "win"
+      },
+      "d3d11_feature_level": {
+        "op": "<",
+        "value": "12.0"
+      },
+      "features": [
+        "skia_graphite"
+      ]
     }
   ]
 }

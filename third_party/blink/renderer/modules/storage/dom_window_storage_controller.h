@@ -8,13 +8,18 @@
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
 class MODULES_EXPORT DOMWindowStorageController final
     : public GarbageCollected<DOMWindowStorageController>,
+      public Supplement<LocalDOMWindow>,
       public LocalDOMWindow::EventListenerObserver {
  public:
+  static constexpr auto kSupplementIndex =
+      LocalDOMWindow::Supplements::kDOMWindowStorageController;
+
   explicit DOMWindowStorageController(LocalDOMWindow&);
   static DOMWindowStorageController& From(LocalDOMWindow&);
 

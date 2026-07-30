@@ -16,7 +16,6 @@
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "mojo/public/cpp/base/big_buffer.h"
@@ -289,11 +288,15 @@ void VerifyIsEqual(base::span<const T> actual, const OperandInfo<T>& expected) {
 }  // namespace
 
 #if BUILDFLAG(IS_WIN)
-class WebNNGraphImplBackendTest : public dml::TestBase {
+class WebNNGraphImplBackendTest : public testing::Test {
  public:
-  WebNNGraphImplBackendTest()
-      : scoped_feature_list_(
-            webnn::mojom::features::kWebMachineLearningNeuralNetwork) {}
+  WebNNGraphImplBackendTest() {
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features=*/{webnn::mojom::features::
+                                  kWebMachineLearningNeuralNetwork,
+                              webnn::mojom::features::kWebNNDirectML},
+        /*disabled_features=*/{webnn::mojom::features::kWebNNOnnxRuntime});
+  }
 
   void SetUp() override;
   void SetUpBase();
@@ -313,7 +316,7 @@ class WebNNGraphImplBackendTest : public dml::TestBase {
 };
 
 void WebNNGraphImplBackendTest::SetUp() {
-  SKIP_TEST_IF(!dml::UseGPUInTests());
+  SKIP_TEST_IF(!UseGPUInTests());
 
   dml::Adapter::EnableDebugLayerForTesting();
   auto adapter_creation_result = dml::Adapter::GetGpuInstanceForTesting();
@@ -396,7 +399,6 @@ class WebNNGraphImplBackendTest : public testing::Test {
 
  protected:
   base::test::ScopedFeatureList scoped_feature_list_;
-  base::test::TaskEnvironment task_environment_;
 
   WebNNTestEnvironment webnn_test_environment_;
   mojo::Remote<mojom::WebNNContextProvider> provider_remote_;
@@ -444,7 +446,6 @@ class WebNNGraphImplBackendTest : public testing::Test {
 
  protected:
   base::test::ScopedFeatureList scoped_feature_list_;
-  base::test::TaskEnvironment task_environment_;
 
   WebNNTestEnvironment webnn_test_environment_;
   mojo::Remote<mojom::WebNNContextProvider> provider_remote_;

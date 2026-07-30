@@ -13,8 +13,7 @@ import android.os.Looper;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.material.divider.MaterialDivider;
-
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -29,7 +28,6 @@ import org.robolectric.Robolectric;
 import org.robolectric.Shadows;
 
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -39,7 +37,7 @@ import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.extensions.FakeExtensionActionsBridge;
-import org.chromium.chrome.browser.ui.extensions.FakeExtensionActionsBridge.ProfileModel;
+import org.chromium.chrome.browser.ui.extensions.FakeExtensionActionsBridge.TaskModel;
 import org.chromium.chrome.browser.ui.extensions.FakeExtensionActionsBridgeRule;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.content_public.browser.LoadUrlParams;
@@ -49,31 +47,27 @@ import org.chromium.ui.listmenu.ListMenuHost;
 /** Unit tests for ExtensionsMenuCoordinator. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class ExtensionsMenuCoordinatorTest {
+    private static final long BROWSER_WINDOW_POINTER = 1000L;
+
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
     @Captor private ArgumentCaptor<LoadUrlParams> mLoadUrlParamsCaptor;
 
     private Activity mContext;
 
-    private final OneshotSupplierImpl<ChromeAndroidTask> mTaskSupplier =
-            new OneshotSupplierImpl<>();
-    private final ObservableSupplierImpl<@Nullable Profile> mProfileSupplier =
-            new ObservableSupplierImpl<>();
     private final ObservableSupplierImpl<@Nullable Tab> mCurrentTabSupplier =
             new ObservableSupplierImpl<>();
     private ListMenuButton mExtensionsMenuButton;
-    private MaterialDivider mExtensionsMenuTabSwitcherDivider;
     @Mock private TabCreator mTabCreator;
     @Mock private ChromeAndroidTask mTask;
     @Mock private Profile mProfile;
     @Mock private Tab mTab;
-    @Mock private Tab mAnotherTab;
     @Mock private ThemeColorProvider mThemeColorProvider;
 
     @Rule
     public final FakeExtensionActionsBridgeRule mBridgeRule = new FakeExtensionActionsBridgeRule();
 
     private final FakeExtensionActionsBridge mBridge = mBridgeRule.getFakeBridge();
-    private ProfileModel mProfileModel;
+    private TaskModel mTaskModel;
 
     private ExtensionsMenuCoordinator mExtensionsMenuCoordinator;
 
@@ -85,27 +79,20 @@ public class ExtensionsMenuCoordinatorTest {
         mContext = activity;
 
         mExtensionsMenuButton = new ListMenuButton(activity, null);
-        mExtensionsMenuTabSwitcherDivider = new MaterialDivider(activity);
         activity.setContentView(mExtensionsMenuButton);
 
-        mTaskSupplier.set(mTask);
-
-        mProfileModel = mBridge.getOrCreateProfileModel(mProfile);
-        mProfileModel.setInitialized(true);
-
-        mCurrentTabSupplier.set(mTab);
+        when(mTask.getOrCreateNativeBrowserWindowPtr()).thenReturn(BROWSER_WINDOW_POINTER);
         when(mTab.getProfile()).thenReturn(mProfile);
 
-        mProfileSupplier.set(mProfile);
+        mTaskModel = mBridge.getOrCreateTaskModel(mTask);
+        mTaskModel.setInitialized(true);
 
         mExtensionsMenuCoordinator =
                 new ExtensionsMenuCoordinator(
                         mContext,
                         mExtensionsMenuButton,
-                        mExtensionsMenuTabSwitcherDivider,
                         mThemeColorProvider,
-                        mTaskSupplier,
-                        mProfileSupplier,
+                        mTask,
                         mCurrentTabSupplier,
                         mTabCreator);
 
@@ -113,24 +100,27 @@ public class ExtensionsMenuCoordinatorTest {
         Shadows.shadowOf(Looper.getMainLooper()).idle();
     }
 
+    @After
+    public void tearDown() {
+        mExtensionsMenuCoordinator.destroy();
+    }
+
+    @Test
+    public void testShowMenu_showsImmediately() {
+        // Set the current tab.
+        mCurrentTabSupplier.set(mTab);
+
+        ListMenuHost.PopupMenuShownListener shownListener =
+                Mockito.mock(ListMenuHost.PopupMenuShownListener.class);
+        mExtensionsMenuButton.addPopupListener(shownListener);
+
+        // Click on the button. The data is ready, so the menu should appear immediately.
+        mExtensionsMenuButton.performClick();
+        verify(shownListener).onPopupMenuShown();
+    }
+
     @Test
     public void testShowMenu_showsAfterDataReady() {
-        if (mExtensionsMenuCoordinator != null) mExtensionsMenuCoordinator.destroy();
-
-        mProfileSupplier.set(null);
-        mCurrentTabSupplier.set(mAnotherTab);
-
-        mExtensionsMenuCoordinator =
-                new ExtensionsMenuCoordinator(
-                        mContext,
-                        mExtensionsMenuButton,
-                        mExtensionsMenuTabSwitcherDivider,
-                        mThemeColorProvider,
-                        mTaskSupplier,
-                        mProfileSupplier,
-                        mCurrentTabSupplier,
-                        mTabCreator);
-
         ListMenuHost.PopupMenuShownListener shownListener =
                 Mockito.mock(ListMenuHost.PopupMenuShownListener.class);
         mExtensionsMenuButton.addPopupListener(shownListener);
@@ -139,11 +129,8 @@ public class ExtensionsMenuCoordinatorTest {
         mExtensionsMenuButton.performClick();
         verify(shownListener, never()).onPopupMenuShown();
 
-        // Simulate callbacks that happen after the construction of the mediator by manually setting
-        // new variables.
-        mProfileSupplier.set(mProfile);
+        // Set the current tab to trigger the data ready callback.
         mCurrentTabSupplier.set(mTab);
-        Shadows.shadowOf(Looper.getMainLooper()).idle();
 
         // The callback should have triggered the menu to finally show.
         verify(shownListener).onPopupMenuShown();
@@ -151,6 +138,8 @@ public class ExtensionsMenuCoordinatorTest {
 
     @Test
     public void testCloseMenu() {
+        mCurrentTabSupplier.set(mTab);
+
         ListMenuHost.PopupMenuShownListener shownListener =
                 Mockito.mock(ListMenuHost.PopupMenuShownListener.class);
         mExtensionsMenuButton.addPopupListener(shownListener);
@@ -167,6 +156,8 @@ public class ExtensionsMenuCoordinatorTest {
 
     @Test
     public void testManageExtensions() {
+        mCurrentTabSupplier.set(mTab);
+
         ListMenuHost.PopupMenuShownListener shownListener =
                 Mockito.mock(ListMenuHost.PopupMenuShownListener.class);
         mExtensionsMenuButton.addPopupListener(shownListener);
@@ -184,6 +175,8 @@ public class ExtensionsMenuCoordinatorTest {
 
     @Test
     public void testDiscoverExtensions() {
+        mCurrentTabSupplier.set(mTab);
+
         ListMenuHost.PopupMenuShownListener shownListener =
                 Mockito.mock(ListMenuHost.PopupMenuShownListener.class);
         mExtensionsMenuButton.addPopupListener(shownListener);

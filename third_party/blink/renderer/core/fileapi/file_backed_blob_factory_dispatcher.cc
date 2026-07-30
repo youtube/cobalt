@@ -48,7 +48,8 @@ mojom::blink::FileBackedBlobFactory* GetFileBackedBlobFactory(
 
 FileBackedBlobFactoryDispatcher::FileBackedBlobFactoryDispatcher(
     ExecutionContext& context)
-    : ExecutionContextClient(&context),
+    : Supplement<ExecutionContext>(context),
+      ExecutionContextClient(&context),
       frame_remote_(&context),
       worker_remote_(&context) {}
 
@@ -84,6 +85,7 @@ void FileBackedBlobFactoryDispatcher::FlushForTesting() {
 }
 
 void FileBackedBlobFactoryDispatcher::Trace(Visitor* visitor) const {
+  Supplement<ExecutionContext>::Trace(visitor);
   ExecutionContextClient::Trace(visitor);
   visitor->Trace(frame_remote_);
   visitor->Trace(worker_remote_);
@@ -92,11 +94,12 @@ void FileBackedBlobFactoryDispatcher::Trace(Visitor* visitor) const {
 // static
 FileBackedBlobFactoryDispatcher* FileBackedBlobFactoryDispatcher::From(
     ExecutionContext& context) {
-  FileBackedBlobFactoryDispatcher* dispatcher =
-      context.GetFileBackedBlobFactoryDispatcher();
+  auto* dispatcher =
+      Supplement<ExecutionContext>::From<FileBackedBlobFactoryDispatcher>(
+          &context);
   if (!dispatcher) {
     dispatcher = MakeGarbageCollected<FileBackedBlobFactoryDispatcher>(context);
-    context.SetFileBackedBlobFactoryDispatcher(dispatcher);
+    Supplement<ExecutionContext>::ProvideTo(context, dispatcher);
   }
   return dispatcher;
 }

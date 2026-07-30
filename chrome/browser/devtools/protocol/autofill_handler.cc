@@ -45,15 +45,12 @@ std::optional<autofill::FormData> FindFormDataWithField(
   if (!driver) {
     return std::nullopt;
   }
-  for (const auto& [key, form] :
-       driver->GetAutofillManager().form_structures()) {
-    for (const auto& field : form->fields()) {
-      if (field->global_id() == id) {
-        return form->ToFormData();
-      }
-    }
+  const autofill::FormStructure* form_structure =
+      driver->GetAutofillManager().FindCachedFormById(id);
+  if (!form_structure) {
+    return std::nullopt;
   }
-  return std::nullopt;
+  return form_structure->ToFormData();
 }
 
 std::optional<std::string> GetRenderFrameDevtoolsToken(
@@ -309,7 +306,7 @@ void AutofillHandler::OnFillOrPreviewForm(
     return;
   }
 
-  autofill::FormStructure& form =
+  const autofill::FormStructure& form =
       CHECK_DEREF(manager.FindCachedFormById(form_id));
   const autofill::AutofillProfile* profile_used_to_fill_form =
       std::get<const autofill::AutofillProfile*>(filling_payload);

@@ -36,7 +36,6 @@ import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.MinAndroidSdkLevel;
 import org.chromium.base.test.util.Restriction;
@@ -266,44 +265,6 @@ public class ChromeAndroidTaskIntegrationTest {
 
     @Test
     @MediumTest
-    @MinAndroidSdkLevel(Build.VERSION_CODES.R)
-    @Restriction(
-            // Test needs "new window" in app menu and the tablet behavior to enter split screen
-            // mode to trigger onConfigurationChanged().
-            DeviceFormFactor.ONLY_TABLET)
-    @DisableFeatures(
-            // When ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL is enabled, a new window will be full
-            // screen instead of being in the split screen mode. This test relies on the split
-            // screen mode to trigger onConfigurationChanged(), so
-            // ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL needs to be disabled.
-            ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL)
-    public void onConfigurationChanged_invokesOnTaskBoundsChangedForFeature() {
-        // Arrange:
-        // Launch ChromeTabbedActivity;
-        // Find its ChromeAndroidTask;
-        // Add a mock ChromeAndroidTaskFeature.
-        WebPageStation webPageStation = mFreshCtaTransitTestRule.startOnBlankPage();
-        int taskId = mFreshCtaTransitTestRule.getActivity().getTaskId();
-        var chromeAndroidTask = getChromeAndroidTask(taskId);
-        assertNotNull(chromeAndroidTask);
-        var testFeature = new TestChromeAndroidTaskFeature();
-        chromeAndroidTask.addFeature(testFeature);
-
-        // Act:
-        // Open a new window, which on tablet will enter split screen mode and trigger a
-        // configuration change on the first window.
-        RegularNewTabPageStation ntpStation =
-                webPageStation.openRegularTabAppMenu().openNewWindow();
-
-        // Assert.
-        assertEquals(1, testFeature.mTimesOnTaskBoundsChanged);
-
-        // Cleanup.
-        ntpStation.getActivity().finish();
-    }
-
-    @Test
-    @MediumTest
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP /* test needs "new window" in app menu */)
     public void onTopResumedActivityChangedWithNative_invokesOnTaskFocusChangedForFeature() {
         // Arrange:
@@ -436,72 +397,79 @@ public class ChromeAndroidTaskIntegrationTest {
 
     @Test
     @MediumTest
-    @DisableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL)
-    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP /* test needs "new window" in app menu */)
-    public void show_activateVisibleInactiveTask() {
+    @Restriction(DeviceFormFactor.DESKTOP_FREEFORM /* test needs freeform windows */)
+    public void show_taskIsVisibleButInActive_activateTask() {
         // Arrange
         WebPageStation webPageStation = mFreshCtaTransitTestRule.startOnBlankPage();
-        int firstTaskId = mFreshCtaTransitTestRule.getActivity().getTaskId();
-        var chromeAndroidTask = getChromeAndroidTask(firstTaskId);
+        var firstChromeTabbedActivity = webPageStation.getActivity();
+        int firstTaskId = firstChromeTabbedActivity.getTaskId();
+        var firstChromeAndroidTask = getChromeAndroidTask(firstTaskId);
+        var firstWindowAndroid = firstChromeTabbedActivity.getWindowAndroid();
+        assertNotNull(firstChromeAndroidTask);
+        assertNotNull(firstWindowAndroid);
 
         RegularNewTabPageStation ntpStation =
                 webPageStation.openRegularTabAppMenu().openNewWindow();
         int secondTaskId = ntpStation.getActivity().getTaskId();
         var secondChromeAndroidTask = getChromeAndroidTask(secondTaskId);
-        assertNotNull(chromeAndroidTask);
         assertNotNull(secondChromeAndroidTask);
-        assertTrue(chromeAndroidTask.isVisible());
-        assertFalse(chromeAndroidTask.isActive());
+
+        assertTrue(firstChromeAndroidTask.isVisible());
+        assertFalse(firstChromeAndroidTask.isActive());
         assertTrue(secondChromeAndroidTask.isActive());
 
         // Act
-        chromeAndroidTask.show();
+        firstChromeAndroidTask.show();
 
         // Assert
         Assert.assertTrue(
-                "Show should make isActive true immediately", chromeAndroidTask.isActive());
-        CriteriaHelper.pollUiThread(
-                assumeNonNull(webPageStation.getActivity().getWindowAndroid())
-                        ::isTopResumedActivity);
+                "Show() should make isActive() true immediately",
+                firstChromeAndroidTask.isActive());
+        CriteriaHelper.pollUiThread(firstWindowAndroid::isTopResumedActivity);
         Assert.assertTrue(
-                "Show should make isActive true eventually", chromeAndroidTask.isActive());
+                "Show() should make isActive() true eventually", firstChromeAndroidTask.isActive());
         assertFalse(secondChromeAndroidTask.isActive());
+
         // Cleanup
         ntpStation.getActivity().finish();
     }
 
     @Test
     @MediumTest
-    @DisableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL)
-    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP /* test needs "new window" in app menu */)
-    public void showInactive_activateVisibleInactiveTask() {
+    @Restriction(DeviceFormFactor.DESKTOP_FREEFORM /* test needs freeform windows */)
+    public void showInactive_taskIsActive_activateAnotherTask() {
         // Arrange
         WebPageStation webPageStation = mFreshCtaTransitTestRule.startOnBlankPage();
-        int firstTaskId = mFreshCtaTransitTestRule.getActivity().getTaskId();
-        var chromeAndroidTask = getChromeAndroidTask(firstTaskId);
+        var firstChromeTabbedActivity = webPageStation.getActivity();
+        int firstTaskId = firstChromeTabbedActivity.getTaskId();
+        var firstChromeAndroidTask = getChromeAndroidTask(firstTaskId);
+        var firstWindowAndroid = firstChromeTabbedActivity.getWindowAndroid();
+        assertNotNull(firstChromeAndroidTask);
+        assertNotNull(firstWindowAndroid);
 
         RegularNewTabPageStation ntpStation =
                 webPageStation.openRegularTabAppMenu().openNewWindow();
         int secondTaskId = ntpStation.getActivity().getTaskId();
         var secondChromeAndroidTask = getChromeAndroidTask(secondTaskId);
-        assertNotNull(chromeAndroidTask);
         assertNotNull(secondChromeAndroidTask);
-        assertTrue(chromeAndroidTask.isVisible());
-        assertFalse(chromeAndroidTask.isActive());
+
+        assertTrue(firstChromeAndroidTask.isVisible());
+        assertFalse(firstChromeAndroidTask.isActive());
         assertTrue(secondChromeAndroidTask.isActive());
 
         // Act
         secondChromeAndroidTask.showInactive();
 
         // Assert
-        Assert.assertTrue(
-                "showInactive should make isActive true immediately", chromeAndroidTask.isActive());
-        CriteriaHelper.pollUiThread(
-                assumeNonNull(webPageStation.getActivity().getWindowAndroid())
-                        ::isTopResumedActivity);
-        Assert.assertTrue(
-                "showInactive should make isActive true eventually", chromeAndroidTask.isActive());
-        CriteriaHelper.pollUiThread(() -> !secondChromeAndroidTask.isActive());
+        assertTrue(
+                "2nd window's showInactive() should make 1st window's isActive() true immediately",
+                firstChromeAndroidTask.isActive());
+        CriteriaHelper.pollUiThread(firstWindowAndroid::isTopResumedActivity);
+        assertTrue(
+                "2nd window's showInactive() should make 1st window's isActive() true eventually",
+                firstChromeAndroidTask.isActive());
+        assertFalse(secondChromeAndroidTask.isActive());
+
         // Cleanup
         ntpStation.getActivity().finish();
     }

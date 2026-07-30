@@ -29,7 +29,6 @@
 #include "chrome/common/extensions/extension_constants.h"
 #include "chrome/common/url_constants.h"
 #include "components/dom_distiller/core/url_constants.h"
-#include "components/download/public/common/quarantine_connection.h"
 #include "components/guest_view/buildflags/buildflags.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -79,10 +78,6 @@
 #include "extensions/browser/extension_webkit_preferences.h"
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/browser/media_galleries/fileapi/media_file_system_backend.h"
-#endif
-
 #if BUILDFLAG(ENABLE_GUEST_VIEW)
 #include "components/guest_view/common/guest_view.mojom.h"  // nogncheck
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
@@ -91,6 +86,7 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/chromeos/extensions/vpn_provider/vpn_service_factory.h"
+#include "chrome/browser/media_galleries/fileapi/media_file_system_backend.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "components/user_manager/user_manager_impl.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -889,7 +885,7 @@ void ChromeContentBrowserClientExtensionsPart::
 
 void ChromeContentBrowserClientExtensionsPart::GetURLRequestAutoMountHandlers(
     std::vector<storage::URLRequestAutoMountHandler>* handlers) {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(IS_CHROMEOS)
   handlers->push_back(base::BindRepeating(
       MediaFileSystemBackend::AttemptAutoMountForURLRequest));
 #endif
@@ -898,13 +894,14 @@ void ChromeContentBrowserClientExtensionsPart::GetURLRequestAutoMountHandlers(
 void ChromeContentBrowserClientExtensionsPart::GetAdditionalFileSystemBackends(
     content::BrowserContext* browser_context,
     const base::FilePath& storage_partition_path,
-    download::QuarantineConnectionCallback quarantine_connection_callback,
     std::vector<std::unique_ptr<storage::FileSystemBackend>>*
         additional_backends) {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-  additional_backends->push_back(std::make_unique<MediaFileSystemBackend>(
-      storage_partition_path, std::move(quarantine_connection_callback)));
+#if BUILDFLAG(IS_CHROMEOS)
+  additional_backends->push_back(
+      std::make_unique<MediaFileSystemBackend>(storage_partition_path));
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   additional_backends->push_back(
       std::make_unique<sync_file_system::SyncFileSystemBackend>(
           Profile::FromBrowserContext(browser_context)));

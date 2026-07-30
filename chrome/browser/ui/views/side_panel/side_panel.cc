@@ -10,7 +10,6 @@
 #include "base/i18n/number_formatting.h"
 #include "base/i18n/rtl.h"
 #include "base/memory/raw_ptr.h"
-#include "base/time/time.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -168,19 +167,30 @@ class SidePanelBorder : public views::Border {
       TopContainerBackground::PaintBackground(canvas, &view, browser_view_);
     }
 
-    // TODO(b/453702066): Avoid drawing a zero width rectangle.
     // Paint the inner border around SidePanel content. Since half the stroke
     // gets painted in the clipped area, make this twice as thick, and scale
     // the thickness by device scale factor since we're working in pixels.
     const float stroke_thickness =
-        outline_visible_ ? views::Separator::kThickness * 2 * dsf : 0;
+        outline_visible_
+            ? views::Separator::kThickness * 2 * dsf
+            // TODO(crbug.com/463994274): Avoid drawing a hairline stroke.
+            : 0;
 
     cc::PaintFlags flags;
     flags.setStrokeWidth(stroke_thickness);
     flags.setColor(color().ResolveToSkColor(view.GetColorProvider()));
     flags.setStyle(cc::PaintFlags::kStroke_Style);
     flags.setAntiAlias(true);
-
+    if (!outline_visible_) {
+      // TODO(crbug.com/463994274): Zero stroke width still draws a hairline. We
+      // can't remove this rectangle, or we get some visual artifacts, so
+      // instead just draw it in the background color.
+      std::optional<SkColor> bg_color =
+          TopContainerBackground::GetBackgroundColor(&view, browser_view_);
+      if (bg_color) {
+        flags.setColor(*bg_color);
+      }
+    }
     canvas->sk_canvas()->drawRRect(rect, flags);
   }
 
@@ -207,17 +217,23 @@ class SidePanelBorder : public views::Border {
 
 // ContentParentView is the parent view for views hosted in the
 // side panel.
-class ContentParentView : public views::View {
+class ContentParentView : public views::View, public views::ViewObserver {
   METADATA_HEADER(ContentParentView, views::View)
 
  public:
-  explicit ContentParentView(bool should_round_corners)
-      : should_round_corners_(should_round_corners) {
+  explicit ContentParentView(bool should_round_corners,
+                             SidePanelEntry::PanelType type)
+      : should_round_corners_(should_round_corners), type_(type) {
     SetUseDefaultFillLayout(true);
     SetProperty(
         views::kFlexBehaviorKey,
         views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
                                  views::MaximumFlexSizeRule::kUnbounded));
+    // If corners should be rounded, observe this view to round corners of
+    // children as they are added.
+    if (should_round_corners_) {
+      view_observation_.Observe(this);
+    }
   }
 
   ~ContentParentView() override = default;
@@ -228,20 +244,21 @@ class ContentParentView : public views::View {
                                                      GetRoundedCorners()));
   }
 
-  void ViewHierarchyChanged(
-      const views::ViewHierarchyChangedDetails& details) override {
-    // If a child view is added and we should round corners.
-    if (should_round_corners_ && details.is_add && details.parent == this) {
-      views::View* child = details.child;
-      // If the child is a WebView or paints to a layer, round its corners.
-      if (views::IsViewClass<views::WebView>(child)) {
-        views::AsViewClass<views::WebView>(child)->holder()->SetCornerRadii(
-            GetRoundedCorners());
-      }
-      if (child->layer()) {
-        child->layer()->SetRoundedCornerRadius(GetRoundedCorners());
-        child->layer()->SetIsFastRoundedCorner(true);
-      }
+  void OnChildViewAdded(views::View* observed_view,
+                        views::View* child) override {
+    // We must use ViewObserver::OnChildViewAdded instead of
+    // View::ViewHierarchyChanged here because setting rounded corners on a
+    // WebView's holder requires the NativeViewHost's native_wrapper_ to be set
+    // and this gets set in View::ViewHierarchyChanged which OnChildViewAdded
+    // will be called after View::ViewHierarchyChanged.
+    // If the child is a WebView or paints to a layer, round its corners.
+    if (views::IsViewClass<views::WebView>(child)) {
+      views::AsViewClass<views::WebView>(child)->holder()->SetCornerRadii(
+          GetRoundedCorners());
+    }
+    if (child->layer()) {
+      child->layer()->SetRoundedCornerRadius(GetRoundedCorners());
+      child->layer()->SetIsFastRoundedCorner(true);
     }
   }
 
@@ -249,11 +266,18 @@ class ContentParentView : public views::View {
     return should_round_corners_ && GetLayoutProvider()
                ? gfx::RoundedCornersF(
                      GetLayoutProvider()->GetCornerRadiusMetric(
-                         views::ShapeContextTokens::kSidePanelContentRadius))
+                         type_ == SidePanelEntry::PanelType::kToolbar
+                             ? views::ShapeContextTokens::
+                                   kToolbarHeightSidePanelContentRadius
+                             : views::ShapeContextTokens::
+                                   kSidePanelContentRadius))
                : gfx::RoundedCornersF();
   }
 
   bool should_round_corners_ = false;
+  SidePanelEntry::PanelType type_;
+  base::ScopedObservation<views::View, views::ViewObserver> view_observation_{
+      this};
 };
 
 BEGIN_METADATA(ContentParentView)
@@ -374,7 +398,7 @@ SidePanel::SidePanel(BrowserView* browser_view,
   // parent view. content_parent_view_ is added first so it exists behind
   // border_view_ and resize_area_.
   content_parent_view_ = AddChildView(std::make_unique<ContentParentView>(
-      /*should_round_corners=*/!has_border));
+      /*should_round_corners=*/!has_border, type));
   content_parent_view_->SetVisible(false);
 
   if (has_border) {
@@ -388,6 +412,7 @@ SidePanel::SidePanel(BrowserView* browser_view,
       std::make_unique<views::SidePanelResizeArea>(this);
   resize_area_ = resize_area.get();
   AddChildView(std::move(resize_area));
+  resize_area_->InsertBeforeInFocusList(content_parent_view_);
 
   pref_change_registrar_.Init(browser_view->GetProfile()->GetPrefs());
 
@@ -564,6 +589,7 @@ void SidePanel::AddHeaderView(std::unique_ptr<views::View> view) {
   }
   header_view_ = view.get();
   AddChildView(std::move(view));
+  header_view_->InsertAfterInFocusList(resize_area_);
   header_view_->DeprecatedLayoutImmediately();
   if (border_view_) {
     border_view_->HeaderViewChanged(header_view_);
@@ -630,14 +656,6 @@ void SidePanel::OnAnimationSequenceProgressed(
     browser_view_->GetSidePanelAnimationContent()->layer()->SetOpacity(
         gfx::Tween::DoubleValueBetween(animation_value, 0.5, 1));
   } else if (animation_id == kSidePanelBoundsAnimation) {
-    const base::TimeTicks now = base::TimeTicks::Now();
-    const base::TimeDelta elapsed = now - last_animation_step_timestamp_;
-    last_animation_step_timestamp_ = now;
-
-    if (!largest_animation_step_time_.has_value() ||
-        elapsed > largest_animation_step_time_.value()) {
-      largest_animation_step_time_ = elapsed;
-    }
     InvalidateLayout();
   } else {
     NOTREACHED() << "Observed animation id is not handled";
@@ -678,12 +696,6 @@ void SidePanel::OnAnimationTypeEnded(
     default:
       NOTREACHED() << "Observed animation type is not handled";
   }
-
-  if (largest_animation_step_time_.has_value()) {
-    SidePanelUtil::RecordSidePanelAnimationMetrics(
-        type_, largest_animation_step_time_.value());
-  }
-
   InvalidateLayout();
 }
 
@@ -827,8 +839,6 @@ void SidePanel::UpdateVisibility(bool should_be_open, bool animate_transition) {
         view->SetVisible(false);
       }
       SetVisible(should_be_open);
-      largest_animation_step_time_.reset();
-      last_animation_step_timestamp_ = base::TimeTicks::Now();
       if (content_starting_bounds_.has_value()) {
         CHECK(content_parent_view_->children().size() == 1);
         browser_view_->SetSidePanelAnimationContent(

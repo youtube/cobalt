@@ -8,8 +8,9 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
-#include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
+#include "chrome/browser/ui/webui/cr_components/searchbox/contextual_searchbox_handler.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
+#include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/omnibox_popup_selection.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -22,7 +23,7 @@ class WebUI;
 }  // namespace content
 
 // Handles bidirectional communication between NTP realbox JS and the browser.
-class WebuiOmniboxHandler : public SearchboxHandler,
+class WebuiOmniboxHandler : public ContextualSearchboxHandler,
                             OmniboxEditModel::Observer {
  public:
   WebuiOmniboxHandler(
@@ -48,6 +49,8 @@ class WebuiOmniboxHandler : public SearchboxHandler,
   void OnThumbnailRemoved() override {}
   void ShowContextMenu(const gfx::Point& point) override;
 
+  void OnShow();
+
   // SearchboxHandler:
   std::optional<searchbox::mojom::AutocompleteMatchPtr> CreateAutocompleteMatch(
       const AutocompleteMatch& match,
@@ -58,6 +61,8 @@ class WebuiOmniboxHandler : public SearchboxHandler,
       const TemplateURLService* turl_service) const override;
 
   // AutocompleteController::Observer:
+  void OnStart(AutocompleteController* controller,
+               const AutocompleteInput& input) override;
   void OnResultChanged(AutocompleteController* controller,
                        bool default_match_changed) override;
 
@@ -69,6 +74,9 @@ class WebuiOmniboxHandler : public SearchboxHandler,
   void OnKeywordStateChanged(bool is_keyword_selected) override;
 
  private:
+  // ContextualSearchboxHandler:
+  int GetContextMenuMaxTabSuggestions() override;
+
   // Observe `OmniboxEditModel` for updates that require updating the views.
   base::ScopedObservation<OmniboxEditModel, OmniboxEditModel::Observer>
       edit_model_observation_{this};

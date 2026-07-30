@@ -738,9 +738,12 @@ class CONTENT_EXPORT RenderProcessHostImpl
   // shutdown for potential reuse (see https://crbug.com/894253). The total
   // shutdown delay is the sum of the two timeouts. |site_info| should
   // correspond to the frame that triggered this shutdown delay.
-  void DelayProcessShutdown(const base::TimeDelta& subframe_shutdown_timeout,
-                            const base::TimeDelta& unload_handler_timeout,
-                            const SiteInfo& site_info) override;
+  //
+  // Returns a ScopedClosureRunner that when destroyed cancels the delay.
+  base::ScopedClosureRunner DelayProcessShutdown(
+      const base::TimeDelta& subframe_shutdown_timeout,
+      const base::TimeDelta& unload_handler_timeout,
+      const SiteInfo& site_info) override;
   bool IsProcessShutdownDelayedForTesting();
   // Remove the host from the delayed-shutdown tracker, if present. This does
   // not decrement |shutdown_delay_ref_count_|; if it was incremented by a
@@ -1274,7 +1277,11 @@ class CONTENT_EXPORT RenderProcessHostImpl
 
   // Callback to unblock process shutdown after waiting for the delay timeout to
   // complete.
-  void CancelProcessShutdownDelay(const SiteInfo& site_info);
+  //
+  // |did_run_cancel_process_shutdown_delay| is a shared flag that ensures
+  // the cancellation logic runs exactly once.
+  void CancelProcessShutdownDelay(const SiteInfo& site_info,
+                                  bool& did_run_cancel_process_shutdown_delay);
 
   // Binds a TracedProcess interface in the renderer process. This is used to
   // communicate with the Tracing service.
@@ -1375,6 +1382,8 @@ class CONTENT_EXPORT RenderProcessHostImpl
 #if BUILDFLAG(IS_ANDROID)
   // Highest importance of all clients that contribute priority.
   ChildProcessImportance effective_importance_ = ChildProcessImportance::NORMAL;
+  // This is true if at least one of the priority clients is active.
+  bool has_active_clients_ = true;
 #endif
 
   // Clients that contribute priority to this process.

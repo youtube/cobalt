@@ -41,6 +41,19 @@ enum class RequestDestination;
 
 class SharedDictionaryStorage;
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(SharedDictionaryStorageEvictionReason)
+enum class SharedDictionaryStorageEvictionReason {
+  kNotEvicted,
+  kMemoryPressureModerate,
+  kMemoryPressureCritical,
+  kCacheFull,
+  kMaxValue = kCacheFull
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/net/enums.xml:SharedDictionaryStorageEvictionReason)
+
 // This class is attached to NetworkContext and manages the dictionaries for
 // CompressionDictionaryTransport feature.
 class COMPONENT_EXPORT(NETWORK_SERVICE) SharedDictionaryManager
@@ -117,7 +130,8 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) SharedDictionaryManager
   // Called to create a SharedDictionaryStorage for the `isolation_key`. This is
   // called only when there is no matching storage in `storages_`.
   virtual scoped_refptr<SharedDictionaryStorage> CreateStorage(
-      const net::SharedDictionaryIsolationKey& isolation_key) = 0;
+      const net::SharedDictionaryIsolationKey& isolation_key,
+      SharedDictionaryStorageEvictionReason previous_eviction_reason) = 0;
 
   scoped_refptr<net::SharedDictionary> GetDictionaryImpl(
       mojom::RequestDestination request_destination,
@@ -154,6 +168,10 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) SharedDictionaryManager
       storages_;
   std::set<std::unique_ptr<PreloadedDictionaries>, base::UniquePtrComparator>
       preloaded_dictionaries_set_;
+
+  std::map<net::SharedDictionaryIsolationKey,
+           SharedDictionaryStorageEvictionReason>
+      previously_evicted_keys_;
 
   base::WeakPtrFactory<SharedDictionaryManager> weak_factory_{this};
 };

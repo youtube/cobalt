@@ -88,8 +88,27 @@ source_set("impl") {
     deps += [
       "//chrome/browser/ui/tabs:tab_strip",
       "//components/legion",
+      "//components/legion:proto",
     ]
   }
+}
+
+source_set("optimization_guide_on_device_model_installer") {
+  sources = [
+    "../component_updater/optimization_guide_on_device_model_installer.cc",
+    "../component_updater/optimization_guide_on_device_model_installer.h",
+  ]
+
+  deps = [
+    "//base",
+    "//chrome/browser:browser_process",
+    "//components/component_updater",
+    "//components/crx_file",
+    "//components/optimization_guide/core:model_execution",
+    "//components/update_client",
+    "//content/public/browser",
+    "//crypto",
+  ]
 }
 
 source_set("test_support") {
@@ -175,8 +194,11 @@ source_set("unit_tests") {
   ]
   if (!is_android) {
     sources += [
+      "legion_model_execution_fetcher_unittest.cc",
+
       # Android uses a different way of showing browser windows.
       "optimization_guide_tab_url_provider_unittest.cc",
     ]
+    deps += [ "//components/legion" ]
   }
 }

@@ -159,8 +159,6 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category("input").SetTags("input"),
     perfetto::Category("input.scrolling").SetTags("input"),
     perfetto::Category("io"),
-    perfetto::Category("ip_protection").SetDescription(
-      "Traces for //components/ip_protection."),
     perfetto::Category("ipc").SetTags("ipc"),
     perfetto::Category("Java"),
     perfetto::Category("jni"),
@@ -304,11 +302,6 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("blink.image_decoding"))
         .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("blink.invalidation"))
-        .SetTags("slow"),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("identifiability"))
-        .SetTags("slow"),
-    perfetto::Category(
-        TRACE_DISABLED_BY_DEFAULT("identifiability.high_entropy_api"))
         .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("cc"))
         .SetTags("slow"),

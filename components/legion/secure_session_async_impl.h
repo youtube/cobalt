@@ -8,14 +8,18 @@
 #include <memory>
 #include <optional>
 
-#include "components/legion/crypto/secure_session_impl.h"
+#include "components/legion/mojom/oak_session.mojom.h"
 #include "components/legion/secure_session.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/oak/chromium/proto/session/session.pb.h"
 
 namespace legion {
 
 class SecureSessionAsyncImpl : public SecureSession {
  public:
+  static std::unique_ptr<SecureSessionAsyncImpl> CreateForTesting(
+      mojo::Remote<mojom::OakSession> service);
+
   SecureSessionAsyncImpl();
   ~SecureSessionAsyncImpl() override;
 
@@ -29,10 +33,10 @@ class SecureSessionAsyncImpl : public SecureSession {
   void Decrypt(const oak::session::v1::EncryptedMessage& data,
                DecryptOnceCallback callback) override;
 
-  void set_crypter_for_testing(std::unique_ptr<Crypter> crypter);
-
  private:
-  SecureSessionImpl sync_impl_;
+  explicit SecureSessionAsyncImpl(mojo::Remote<mojom::OakSession> service);
+
+  mojo::Remote<mojom::OakSession> service_;
 };
 
 }  // namespace legion

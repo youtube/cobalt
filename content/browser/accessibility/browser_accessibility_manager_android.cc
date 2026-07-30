@@ -303,11 +303,34 @@ void BrowserAccessibilityManagerAndroid::FireGeneratedEvent(
       ui::AXNodeID focus_id =
           ax_tree()->GetUnignoredSelection().focus_object_id;
       ui::BrowserAccessibility* focus_object = GetFromID(focus_id);
-      if (focus_object) {
-        BrowserAccessibilityAndroid* android_focus_object =
-            static_cast<BrowserAccessibilityAndroid*>(focus_object);
-        wcax->HandleTextSelectionChanged(android_focus_object->GetUniqueId());
+      if (base::FeatureList::IsEnabled(
+              features::kAccessibilityExtendedSelection)) {
+        ui::AXNodeID anchor_id =
+            ax_tree()->GetUnignoredSelection().anchor_object_id;
+        // Send the event to the root of the frame if selection should be
+        // cleared, or multiple nodes are selected, or the node is not editable.
+        if (!focus_object || focus_id != anchor_id ||
+            !focus_object->IsTextField()) {
+          BrowserAccessibilityAndroid* android_root_object =
+              static_cast<BrowserAccessibilityAndroid*>(
+                  GetFromAXNode(ax_tree()->root()));
+          ClearNodeInfoCacheForGivenId(android_root_object->GetUniqueId());
+          wcax->HandleTextSelectionChanged(android_root_object->GetUniqueId());
+          break;
+        }
+      } else {
+        // If focus object does not exist and extended selection is not
+        // enabled, there is nothing more to do since previous selection node is
+        // not known here and can't be cleared.
+        if (!focus_object) {
+          break;
+        }
       }
+
+      // Send event to the focus node.
+      BrowserAccessibilityAndroid* android_focus_object =
+          static_cast<BrowserAccessibilityAndroid*>(focus_object);
+      wcax->HandleTextSelectionChanged(android_focus_object->GetUniqueId());
       break;
     }
     case ui::AXEventGenerator::Event::EXPANDED: {
@@ -384,6 +407,11 @@ void BrowserAccessibilityManagerAndroid::FireGeneratedEvent(
     case ui::AXEventGenerator::Event::SCROLL_HORIZONTAL_POSITION_CHANGED:
     case ui::AXEventGenerator::Event::SCROLL_VERTICAL_POSITION_CHANGED:
       wcax->HandleScrollPositionChanged(android_node->GetUniqueId());
+      break;
+    case ui::AXEventGenerator::Event::SORT_CHANGED:
+      // TODO(crbug.com/465804174): Verify if removing aria-sort triggers this
+      // event.
+      wcax->HandleSortDirectionChanged(android_node->GetUniqueId());
       break;
     case ui::AXEventGenerator::Event::SUBTREE_CREATED: {
       // When a dialog is shown, we will send a SUBTREE_CREATED event.
@@ -463,7 +491,6 @@ void BrowserAccessibilityManagerAndroid::FireGeneratedEvent(
     case ui::AXEventGenerator::Event::SELECTED_CHILDREN_CHANGED:
     case ui::AXEventGenerator::Event::SELECTED_VALUE_CHANGED:
     case ui::AXEventGenerator::Event::SET_SIZE_CHANGED:
-    case ui::AXEventGenerator::Event::SORT_CHANGED:
     case ui::AXEventGenerator::Event::STATE_CHANGED:
     case ui::AXEventGenerator::Event::TEXT_ATTRIBUTE_CHANGED:
     case ui::AXEventGenerator::Event::TEXT_SELECTION_CHANGED:

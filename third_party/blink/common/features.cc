@@ -35,6 +35,13 @@ namespace blink::features {
 BASE_FEATURE(kAIPageContentIncludePopupWindows,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Controls whether a missing subframe while generating the APC proto is
+// silently dropped. If false, the entire APC is considered failed when this
+// happens. When true, the subframe is simply skipped but the rest of APC
+// generation is unaffected.
+BASE_FEATURE(kAIPageContentMissingSubframesFailSilently,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Controls the capturing of the Ad-Auction-Signals header, and the maximum
 // allowed Ad-Auction-Signals header value.
 BASE_FEATURE(kAdAuctionSignals, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -55,7 +62,7 @@ BASE_FEATURE(kAndroidSpellcheckFullApiBlink, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 // Avoids copying ResourceRequest::TrustedParams when possible.
-BASE_FEATURE(kAvoidTrustedParamsCopies, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAvoidTrustedParamsCopies, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Async touchmoves after scroll.
 BASE_FEATURE(kAsyncTouchMovesImmediatelyAfterScroll,
@@ -365,11 +372,11 @@ BASE_FEATURE(kCanvas2DHibernationNoSmallCanvas,
 // of the renderer eviction reasons for Back/Forward Cache.
 BASE_FEATURE(kCaptureJSExecutionLocation, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kCheckHTMLParserBudgetLessOften,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kClearSiteDataPrefetchPrerenderCache,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Fix for CSS font comparison logic.
+BASE_FEATURE(kCSSFontComparisonFix, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enable legacy `dpr` client hint.
 BASE_FEATURE(kClientHintsDPR_DEPRECATED, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -610,8 +617,6 @@ BASE_FEATURE(kDropInputEventsWhilePaintHolding,
 // Performance Panel, which (when clicked) call into a DevTools extension.
 BASE_FEATURE(kEnableDevtoolsDeepLinkViaExtensibilityApi,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEstablishGpuChannelAsync, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether to respect loading=lazy attribute for images when they are on
 // invisible pages.
@@ -980,12 +985,6 @@ constexpr base::FeatureParam<int>
         /*default_value=*/-1};
 
 BASE_FEATURE(kInputPredictorTypeChoice, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kInputScenarioPriorityBoost, base::FEATURE_DISABLED_BY_DEFAULT);
-
-constexpr base::FeatureParam<bool> kInputScenarioPriorityBoostIncludesLoading{
-    &features::kInputScenarioPriorityBoost,
-    "input_scenario_priority_boost_includes_loading", false};
 
 // When enabled, wake ups from throttleable TaskQueues are limited to 1 per
 // minute in a page that has been backgrounded for 5 minutes.
@@ -2089,8 +2088,28 @@ BASE_FEATURE(kResamplingInputEvents, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kResamplingScrollEvents, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kResourceFetcherStoresStrongReferences,
+BASE_FEATURE(kRestrictLinkHeaderOnSubresource,
              base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(bool,
+                   kRestrictLinkHeaderOnSubresourceCompressionDictionary,
+                   &kRestrictLinkHeaderOnSubresource,
+                   "disable_compression_dictionary",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kRestrictLinkHeaderOnSubresourceCrossOrigin,
+                   &kRestrictLinkHeaderOnSubresource,
+                   "disable_cross_origin",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kRestrictLinkHeaderOnSubresourceNetworkHint,
+                   &kRestrictLinkHeaderOnSubresource,
+                   "disable_network_hint",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kRestrictLinkHeaderOnSubresourceResourceLoad,
+                   &kRestrictLinkHeaderOnSubresource,
+                   "disable_resource_load",
+                   false);
 
 BASE_FEATURE(kRestrictSpellingAndGrammarHighlights,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2253,22 +2272,7 @@ BASE_FEATURE_PARAM(bool,
                    kServiceWorkerSyntheticResponseBypassSubresource,
                    &kServiceWorkerSyntheticResponse,
                    "bypass_subresource",
-                   false);
-
-// 'Mode' parameter for blink::features::kSoftNavigationHeuristics.
-const base::FeatureParam<SoftNavigationHeuristicsMode>::Option
-    kSoftNavigationHeuristicsModes[] = {
-        {SoftNavigationHeuristicsMode::kBasic, "basic"},
-        {SoftNavigationHeuristicsMode::kAdvancedPaintAttribution,
-         "advanced_paint_attribution"},
-        {SoftNavigationHeuristicsMode::kPrePaintBasedAttribution,
-         "pre_paint_based_attribution"}};
-BASE_FEATURE_ENUM_PARAM(SoftNavigationHeuristicsMode,
-                        kSoftNavigationHeuristicsModeParam,
-                        &kSoftNavigationHeuristics,
-                        "mode",
-                        SoftNavigationHeuristicsMode::kBasic,
-                        &kSoftNavigationHeuristicsModes);
+                   true);
 
 // If enabled, force renderer process foregrounded from CommitNavigation to
 // DOMContentLoad (crbug/351953350).
@@ -2417,7 +2421,15 @@ BASE_FEATURE(kUnloadBlocklisted, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When BeginMainFrame() is throttled, whether input-related BeginMainFrame()s
 // are marked urgent, and thus unthtrottled.
-BASE_FEATURE(kUrgentMainFrameForInput, base::FEATURE_DISABLED_BY_DEFAULT);
+//
+// Enabled on Android, since a field trial showed benefits.
+BASE_FEATURE(kUrgentMainFrameForInput,
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 // If enabled, URLPattern will use standard defined dummy URL canonicalization
 // to canonicalize URL properties. See https://crbug.com/409350827

@@ -9,6 +9,8 @@
 #include <unistd.h>
 
 #include "base/android/child_process_binding_types.h"
+#include "base/byte_count.h"
+#include "base/byte_size.h"
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
 #include "base/files/file.h"
@@ -29,7 +31,6 @@
 #include "base/time/time.h"
 #include "content/browser/child_process_host_impl.h"
 #include "content/browser/renderer_host/render_process_host_impl.h"
-#include "content/common/user_level_memory_pressure_signal_features.h"
 #include "content/public/browser/browser_child_process_host_iterator.h"
 #include "content/public/browser/child_process_data.h"
 
@@ -39,87 +40,29 @@ namespace {
 constexpr base::TimeDelta kFirstMeasurementInterval = base::Minutes(1);
 constexpr base::TimeDelta kDefaultMeasurementInterval = base::Seconds(4);
 
-// Time interval between measuring total private memory footprint.
-base::TimeDelta MeasurementIntervalFor3GbDevices() {
-  static const base::FeatureParam<base::TimeDelta> kMeasurementInterval{
-      &features::kUserLevelMemoryPressureSignalOn3GbDevices,
-      "measurement_interval", kDefaultMeasurementInterval};
-  return kMeasurementInterval.Get();
-}
-
-base::TimeDelta MeasurementIntervalFor4GbDevices() {
-  return kDefaultMeasurementInterval;
-}
-
-base::TimeDelta MeasurementIntervalFor6GbDevices() {
-  return kDefaultMeasurementInterval;
-}
-
-// The memory threshold: 738 was selected at around the 99th percentile of
-// the Memory.Total.PrivateMemoryFootprint reported by Android devices whose
-// system memory were 3GB.
-constexpr base::ByteCount kMemoryThresholdOf3GbDevices = base::MiB(738);
-
-base::ByteCount MemoryThresholdParamFor3GbDevices() {
-  static const base::FeatureParam<int> kMemoryThresholdParam{
-      &features::kUserLevelMemoryPressureSignalOn3GbDevices,
-      "memory_threshold_mb", kMemoryThresholdOf3GbDevices.InMiB()};
-  return base::MiB(kMemoryThresholdParam.Get());
-}
+constexpr base::TimeDelta kDefaultMinimumInterval = base::Minutes(10);
 
 // The memory threshold: 458 was selected at around the 99th percentile of
 // the Memory.Total.PrivateMemoryFootprint reported by Android devices whose
 // system memory were 4GB.
 constexpr base::ByteCount kMemoryThresholdOf4GbDevices = base::MiB(458);
 
-base::ByteCount MemoryThresholdParamFor4GbDevices() {
-  return kMemoryThresholdOf4GbDevices;
-}
-
 // The memory threshold: 494 was selected at around the 99th percentile of
 // the Memory.Total.PrivateMemoryFootprint reported by Android devices whose
 // system memory were 6GB.
 constexpr base::ByteCount kMemoryThresholdOf6GbDevices = base::MiB(494);
 
-base::ByteCount MemoryThresholdParamFor6GbDevices() {
-  return kMemoryThresholdOf6GbDevices;
-}
-
 }  // namespace
 
 // static
 void UserLevelMemoryPressureSignalGenerator::Initialize() {
-  // The metrics only feature will override the memory pressure signal features
-  // on all devices to determine the most suitable memory heuristics. Memory
-  // pressure signals will not be sent in the experiment group.
-  if (base::FeatureList::IsEnabled(
-          features::kUserLevelMemoryPressureSignalMetricsOnly)) {
-    UserLevelMemoryPressureSignalGenerator::Get().StartMetricsCollection();
-    return;
-  }
-
-  if (features::IsUserLevelMemoryPressureSignalEnabledOn3GbDevices()) {
+  if (base::SysInfo::Is4GbDevice() || base::SysInfo::Is6GbDevice()) {
+    auto memory_threshold = base::SysInfo::Is4GbDevice()
+                                ? kMemoryThresholdOf4GbDevices
+                                : kMemoryThresholdOf6GbDevices;
     UserLevelMemoryPressureSignalGenerator::Get().Start(
-        MemoryThresholdParamFor3GbDevices(), MeasurementIntervalFor3GbDevices(),
-        features::MinUserMemoryPressureIntervalOn3GbDevices());
-    return;
+        memory_threshold, kDefaultMeasurementInterval, kDefaultMinimumInterval);
   }
-
-  if (features::IsUserLevelMemoryPressureSignalEnabledOn4GbDevices()) {
-    UserLevelMemoryPressureSignalGenerator::Get().Start(
-        MemoryThresholdParamFor4GbDevices(), MeasurementIntervalFor4GbDevices(),
-        features::MinUserMemoryPressureIntervalOn4GbDevices());
-    return;
-  }
-
-  if (features::IsUserLevelMemoryPressureSignalEnabledOn6GbDevices()) {
-    UserLevelMemoryPressureSignalGenerator::Get().Start(
-        MemoryThresholdParamFor6GbDevices(), MeasurementIntervalFor6GbDevices(),
-        features::MinUserMemoryPressureIntervalOn6GbDevices());
-    return;
-  }
-
-  // No group defined for >6 GB devices.
 }
 
 // static
@@ -185,7 +128,8 @@ void UserLevelMemoryPressureSignalGenerator::CollectMemoryMetrics() {
   latest_metrics_ = UserLevelMemoryPressureMetrics{
       .total_private_footprint =
           GetTotalPrivateFootprintVisibleOrHigherPriorityRenderers(),
-      .available_memory = meminfo.available,
+      .available_memory =
+          base::ByteCount::FromUnsigned(meminfo.available.InBytes()),
       .total_process_count = total_process_count,
       .visible_renderer_count = visible_renderer_count,
   };
@@ -196,14 +140,16 @@ void UserLevelMemoryPressureSignalGenerator::OnTimerFired() {
   base::ByteCount total_pmf =
       GetTotalPrivateFootprintVisibleOrHigherPriorityRenderers();
 
+  base::MemoryPressureLevel level = base::MEMORY_PRESSURE_LEVEL_NONE;
   if (total_pmf > memory_threshold_) {
-    NotifyMemoryPressure();
+    level = base::MEMORY_PRESSURE_LEVEL_CRITICAL;
     interval = minimum_interval_;
 
     ReportBeforeAfterMetrics(total_pmf, "Before");
     StartReportingTimer();
   }
 
+  HandleMemoryPressureLevel(level);
   StartPeriodicTimer(interval);
 }
 
@@ -302,8 +248,25 @@ base::ByteCount UserLevelMemoryPressureSignalGenerator::
   return total_pmf_visible_or_higher_priority_renderers_bytes;
 }
 
+void UserLevelMemoryPressureSignalGenerator::HandleMemoryPressureLevel(
+    base::MemoryPressureLevel level) {
+  // MODERATE level is not used.
+  CHECK_NE(level, base::MEMORY_PRESSURE_LEVEL_MODERATE);
+
+  // Don't notify duplicate NONE pressure level, but always notify for CRITICAL,
+  // as some listeners still rely on repeated signals to continually reduce
+  // memory usage.
+  if (current_level_ == level && level == base::MEMORY_PRESSURE_LEVEL_NONE) {
+    return;
+  }
+
+  current_level_ = level;
+  NotifyMemoryPressure(level);
+}
+
 // static
-void UserLevelMemoryPressureSignalGenerator::NotifyMemoryPressure() {
+void UserLevelMemoryPressureSignalGenerator::NotifyMemoryPressure(
+    base::MemoryPressureLevel level) {
   // Notifies GPU process and Utility processes.
   for (BrowserChildProcessHostIterator iter; !iter.Done(); ++iter) {
     if (!iter.GetData().GetProcess().IsValid())
@@ -311,8 +274,7 @@ void UserLevelMemoryPressureSignalGenerator::NotifyMemoryPressure() {
 
     ChildProcessHostImpl* host =
         static_cast<ChildProcessHostImpl*>(iter.GetHost());
-    host->NotifyMemoryPressureToChildProcess(
-        base::MEMORY_PRESSURE_LEVEL_CRITICAL);
+    host->NotifyMemoryPressureToChildProcess(level);
   }
 
   // Notifies renderer processes.
@@ -325,12 +287,11 @@ void UserLevelMemoryPressureSignalGenerator::NotifyMemoryPressure() {
       continue;
 
     static_cast<RenderProcessHostImpl*>(host)->NotifyMemoryPressureToRenderer(
-        base::MEMORY_PRESSURE_LEVEL_CRITICAL);
+        level);
   }
 
   // Notifies browser process.
-  base::MemoryPressureListener::NotifyMemoryPressure(
-      base::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  base::MemoryPressureListener::NotifyMemoryPressure(level);
 }
 
 // static

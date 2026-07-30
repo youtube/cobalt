@@ -10,7 +10,9 @@
 #include <string_view>
 
 #include "base/android/requires_api.h"
+#include "base/functional/callback_helpers.h"
 #include "base/strings/stringprintf.h"
+#include "base/trace_event/trace_event.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_manager.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/command_buffer/service/texture_manager.h"
@@ -168,15 +170,13 @@ EncoderStatus VideoFrameGLSurfaceRenderer::Initialize() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   gl::GLDisplayEGL* display = gl::GLSurfaceEGL::GetGLDisplayEGL();
   if (!display) {
-    return {EncoderStatus::Codes::kEncoderInitializationError,
-            "gl::GetDefaultDisplayEGL failed"};
+    return EncoderStatus::Codes::kMissingGLDisplay;
   }
 
   gl_surface_ = base::MakeRefCounted<gl::NativeViewGLSurfaceEGL>(
       display->GetAs<gl::GLDisplayEGL>(), std::move(window_), nullptr, true);
   if (!gl_surface_->Initialize(gl::GLSurfaceFormat())) {
-    return {EncoderStatus::Codes::kEncoderInitializationError,
-            "GLSurface Initialize failed"};
+    return EncoderStatus::Codes::kGLSurfaceInitializationFailed;
   }
 
   gl::GLContextAttribs attribs;
@@ -184,32 +184,28 @@ EncoderStatus VideoFrameGLSurfaceRenderer::Initialize() {
       gl::AngleContextVirtualizationGroup::kAndroidVideoEncoder;
   gl_context_ = gl::init::CreateGLContext(nullptr, gl_surface_.get(), attribs);
   if (!gl_context_) {
-    return {EncoderStatus::Codes::kEncoderInitializationError,
-            "gl::init::CreateGLContext failed"};
+    return EncoderStatus::Codes::kGLContextCreationFailed;
   }
 
   ui::ScopedMakeCurrent smc(gl_context_.get(), gl_surface_.get());
   if (!smc.IsContextCurrent()) {
-    return {EncoderStatus::Codes::kEncoderInitializationError,
-            "gl::GLContext::MakeCurrent() failed"};
+    return EncoderStatus::Codes::kGLMakeCurrentFailed;
   }
 
   auto& ext = gl_context_->GetCurrentGL()->Driver->ext;
 
   if (!ext.b_GL_EXT_texture_format_BGRA8888) {
-    return {EncoderStatus::Codes::kEncoderInitializationError,
-            "GL_EXT_texture_format_BGRA8888 is not supported"};
+    return EncoderStatus::Codes::kUnsupportedGLFeature;
   }
   if (!ext.b_GL_OES_EGL_image) {
-    return {EncoderStatus::Codes::kEncoderInitializationError,
-            "GL_OES_EGL_image is not supported"};
+    return EncoderStatus::Codes::kUnsupportedGLFeature;
   }
   InitializeGL();
 
   const GLenum error = glGetError();
   if (error != GL_NO_ERROR) {
     DLOG(ERROR) << "GL initialization error: " << error;
-    return {EncoderStatus::Codes::kEncoderInitializationError,
+    return {EncoderStatus::Codes::kGLInitializationError,
             base::StringPrintf("GL initialization error: 0x%x", error)};
   }
 
@@ -220,6 +216,7 @@ EncoderStatus VideoFrameGLSurfaceRenderer::RenderVideoFrame(
     scoped_refptr<VideoFrame> frame,
     base::TimeTicks presentation_timestamp) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  TRACE_EVENT0("media", "VideoFrameGLSurfaceRenderer::RenderVideoFrame");
   ui::ScopedMakeCurrent smc(gl_context_.get(), gl_surface_.get());
   if (!smc.IsContextCurrent()) {
     return {EncoderStatus::Codes::kSystemAPICallError,
@@ -269,10 +266,13 @@ EncoderStatus VideoFrameGLSurfaceRenderer::RenderVideoFrame(
   gl_surface_->SetPresentationTimestamp(presentation_timestamp);
 
   // SwapBuffers submits the rendered frame to the surface.
-  if (gl_surface_->SwapBuffers(base::DoNothing(), gfx::FrameData()) ==
-      gfx::SwapResult::SWAP_FAILED) {
-    return {EncoderStatus::Codes::kSystemAPICallError,
-            "GL surface SwapBuffers failed"};
+  {
+    TRACE_EVENT0("media", "VideoFrameGLSurfaceRenderer::SwapBuffers");
+    if (gl_surface_->SwapBuffers(base::DoNothing(), gfx::FrameData()) ==
+        gfx::SwapResult::SWAP_FAILED) {
+      return {EncoderStatus::Codes::kSystemAPICallError,
+              "GL surface SwapBuffers failed"};
+    }
   }
   return EncoderStatus::Codes::kOk;
 }
@@ -324,9 +324,12 @@ EncoderStatus VideoFrameGLSurfaceRenderer::RenderYUVVideoFrame(
     api->glPixelStoreiFn(GL_UNPACK_ROW_LENGTH, unpack_row_length_pixels);
     api->glPixelStoreiFn(GL_UNPACK_ALIGNMENT, 1);
 
-    api->glTexSubImage2DFn(GL_TEXTURE_2D, 0, 0, 0, plane_size.width(),
-                           plane_size.height(), gl_format, GL_UNSIGNED_BYTE,
-                           pixels);
+    {
+      TRACE_EVENT0("media", "glTexSubImage2D");
+      api->glTexSubImage2DFn(GL_TEXTURE_2D, 0, 0, 0, plane_size.width(),
+                             plane_size.height(), gl_format, GL_UNSIGNED_BYTE,
+                             pixels);
+    }
   }
 
   // Start the rendering process.
@@ -405,9 +408,12 @@ EncoderStatus VideoFrameGLSurfaceRenderer::RenderRGBVideoFrame(
   api->glPixelStoreiFn(GL_UNPACK_ROW_LENGTH, unpack_row_length_pixels);
   api->glPixelStoreiFn(GL_UNPACK_ALIGNMENT, 4);
 
-  api->glTexSubImage2DFn(GL_TEXTURE_2D, 0, 0, 0, frame_size.width(),
-                         frame_size.height(), gl_format, GL_UNSIGNED_BYTE,
-                         pixels);
+  {
+    TRACE_EVENT0("media", "glTexSubImage2D");
+    api->glTexSubImage2DFn(GL_TEXTURE_2D, 0, 0, 0, frame_size.width(),
+                           frame_size.height(), gl_format, GL_UNSIGNED_BYTE,
+                           pixels);
+  }
 
   api->glUseProgramFn(gl_program_rgb_);
   api->glUniform1iFn(gl_rgb_tex_location_, 0);
@@ -468,6 +474,7 @@ EncoderStatus VideoFrameGLSurfaceRenderer::RenderSharedImageVideoFrame(
 }
 
 void VideoFrameGLSurfaceRenderer::UpdateTextures(const VideoFrame& frame) {
+  TRACE_EVENT0("media", "VideoFrameGLSurfaceRenderer::UpdateTextures");
   if (cached_textures_for_shared_image_ == frame.HasSharedImage() &&
       cached_frame_format_ == frame.format() &&
       cached_frame_size_ == frame.visible_rect().size()) {
@@ -533,6 +540,7 @@ void VideoFrameGLSurfaceRenderer::UpdateTextures(const VideoFrame& frame) {
 }
 
 void VideoFrameGLSurfaceRenderer::DrawQuad() {
+  TRACE_EVENT0("media", "VideoFrameGLSurfaceRenderer::DrawQuad");
   gl::GLApi* api = gl::g_current_gl_context;
   // Set up the vertex buffer and attribute pointers for the quad.
   api->glBindBufferFn(GL_ARRAY_BUFFER, gl_vbo_);

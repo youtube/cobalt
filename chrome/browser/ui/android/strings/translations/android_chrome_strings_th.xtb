@@ -87,6 +87,7 @@
 <translation id="1336996151357442890">เลิกรับการแจ้งเตือนจาก <ph name="SITE_NAME" /> แล้ว ระบบจะถามคุณอีกครั้งเมื่อเข้าชมครั้งถัดไป</translation>
 <translation id="1340839264183302272">ออกจากกลุ่ม</translation>
 <translation id="1342886103232377846">หากต้องการตรวจสอบรหัสผ่านที่ถูกละเมิด ให้ไปที่เครื่องมือจัดการรหัสผ่านบน Google</translation>
+<translation id="1343830902827845050">ลงชื่อเข้าใช้ Chrome</translation>
 <translation id="1344653310988386453">รวมลิงก์ไปยังไฮไลต์</translation>
 <translation id="1347468774581902829">จัดการกิจกรรม</translation>
 <translation id="1355088659320425659">ประวัติการเข้าชมและแท็บ</translation>
@@ -525,7 +526,6 @@
 <translation id="3268048651973962414">ลากขึ้นเพื่อดูผลการค้นหา</translation>
 <translation id="3269093882174072735">โหลดภาพ</translation>
 <translation id="3280562213547448728">ค้นหาด้วยเสียง</translation>
-<translation id="3282568296779691940">ลงชื่อเข้าใช้ Chrome</translation>
 <translation id="3285065882678541460">{TAB_COUNT,plural, =1{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_ONE" /> แท็บ}other{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_MANY" /> แท็บ}}</translation>
 <translation id="3286508210927575634">{PASSWORDS_COUNT,plural, =1{ระบบบันทึกรหัสผ่าน 1 รายการไว้ในอุปกรณ์นี้เท่านั้น หากต้องการใช้งานในอุปกรณ์อื่น ให้บันทึกไว้ในบัญชี Google}other{ระบบบันทึกรหัสผ่าน # รายการไว้ในอุปกรณ์นี้เท่านั้น หากต้องการใช้งานในอุปกรณ์อื่น ให้บันทึกไว้ในบัญชี Google}}</translation>
 <translation id="3293181007446299124">ระบบจะจัดเก็บประวัติการท่องเว็บไว้เป็นส่วนตัวในอุปกรณ์ และจะส่งรายงานล่าช้าเพื่อปกป้องตัวตนของคุณ</translation>
@@ -719,6 +719,7 @@
 <translation id="414128724510021958">เว็บไซต์เวอร์ชันเดสก์ท็อปเปิดใช้งานโดยค่าเริ่มต้น</translation>
 <translation id="4162867837470729563">รายการตัวเลือกการแชร์ที่ระดับเต็มความสูงของหน้าจอ</translation>
 <translation id="4170011742729630528">บริการนี้ยังไม่สามารถใช้ได้ โปรดลองอีกครั้งในภายหลัง</translation>
+<translation id="4170577491341606575">กำลังดึงข้อมูลของคุณ\u2026</translation>
 <translation id="4177222230309051052">รับบุ๊กมาร์กทั้งหมด</translation>
 <translation id="4177501066905053472">หัวข้อโฆษณา</translation>
 <translation id="417865198503699526">ค้นหาการตั้งค่า</translation>
@@ -911,6 +912,7 @@
 <translation id="4905823827770127520">ใส่ลิงก์ลงในหน้า</translation>
 <translation id="4908869848243824489">ฟีเจอร์สำรวจโดย Google</translation>
 <translation id="4910889077668685004">แอปชำระเงิน</translation>
+<translation id="4911042367886397055">ยินดีต้อนรับกลับมา คุณ <ph name="USER_NAME" /></translation>
 <translation id="4912413785358399818">ย้ายแท็บ</translation>
 <translation id="4913169188695071480">หยุดรีเฟรช</translation>
 <translation id="4921224083091001889">ลงชื่อเข้าใช้ Chrome เพื่อรับรหัสผ่านและข้อมูลอื่นๆ ในทุกอุปกรณ์ด้วย <ph name="EMAIL" /></translation>
@@ -1457,6 +1459,7 @@
 <translation id="7115358764509798967">ค่าเริ่มต้นของระบบ</translation>
 <translation id="7117485132243600300">จัดการเนื้อหาที่คุณติดตาม รวมถึงหัวข้อและการค้นหาที่แนะนำ</translation>
 <translation id="7119984597597798764">ปิด <ph name="INSTANCE_TITLE" /></translation>
+<translation id="7121179479711575744">ลงชื่อเข้าใช้ Chrome</translation>
 <translation id="7136902389402789299">{NUM_SITES,plural, =1{ตรวจสอบสิทธิ์สำหรับ 1 เว็บไซต์แล้ว}other{ตรวจสอบสิทธิ์สำหรับ # เว็บไซต์แล้ว}}</translation>
 <translation id="7138678301420049075">อื่นๆ</translation>
 <translation id="7140829094791862589">จัดเรียงลำดับด้วยตนเอง</translation>
@@ -1941,6 +1944,7 @@
 <translation id="9104217018994036254">รายการอุปกรณ์ที่จะแชร์แท็บด้วย</translation>
 <translation id="9106148373857059373">ขั้นตอนการบันทึกบุ๊กมาร์กปิดอยู่</translation>
 <translation id="9108808586816295166">DNS ที่ปลอดภัยอาจไม่พร้อมใช้งานในบางครั้ง</translation>
+<translation id="9112483451228487295">ลบข้อมูลการท่องเว็บอย่างรวดเร็ว</translation>
 <translation id="9124978074365039456">เลือกซื้อ แปล และระบุสิ่งที่คุณเห็นโดยใช้กล้องและแกลเลอรีรูปภาพ</translation>
 <translation id="9130135798965366513">หากต้องการดำเนินการต่อ <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> จะแชร์<ph name="FIELDS_STRING" />ของคุณกับเว็บไซต์นี้ ดู<ph name="BEGIN_LINK1" />นโยบายความเป็นส่วนตัว<ph name="END_LINK1" />และ<ph name="BEGIN_LINK2" />ข้อกำหนดในการให้บริการ<ph name="END_LINK2" />ของเว็บไซต์นี้</translation>
 <translation id="9131209053278896908">เว็บไซต์ที่บล็อกจะปรากฏที่นี่</translation>

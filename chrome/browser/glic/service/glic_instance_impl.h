@@ -292,12 +292,14 @@ class GlicInstanceImpl : public GlicInstance,
   GlicUiEmbedder* GetActiveEmbedder();
   GlicUiEmbedder* GetEmbedderForKey(EmbedderKey key);
   void DeactivateCurrentEmbedder();
+  void OnAllEmbeddersInactive();
   GlicUiEmbedder* CreateActiveEmbedder(const ShowOptions& options);
-  GlicUiEmbedder* CreateActiveEmbedderForSidePanel(tabs::TabInterface* tab);
+  GlicUiEmbedder* CreateActiveEmbedderForSidePanel(
+      const SidePanelShowOptions& options);
   GlicUiEmbedder* CreateActiveEmbedderForFloaty(
       const gfx::Rect& initial_bounds,
       tabs::TabInterface::Handle source_tab);
-  void ShowInactiveSidePanelEmbedderFor(tabs::TabInterface* tab);
+  void ShowInactiveSidePanelEmbedderFor(const SidePanelShowOptions& options);
   void SetActiveEmbedderAndNotifyStateChange(
       std::optional<EmbedderKey> new_key);
   void ClearActiveEmbedderAndNotifyStateChange();
@@ -313,11 +315,13 @@ class GlicInstanceImpl : public GlicInstance,
       std::vector<std::string> returned_suggestions);
   void MaybeDeactivateEmbedder(EmbedderKey key);
 
+  bool IsActiveEmbedder(EmbedderKey key) const;
+
   bool ShouldPinOnBind() const;
 
   void MaybeActivateForegroundEmbedder();
   void MaybeRemoveBlankInstanceOnClose();
-  EmbedderEntry& BindTab(tabs::TabInterface* tab);
+  EmbedderEntry& BindTab(tabs::TabInterface* tab, GlicPinTrigger pin_trigger);
   // For any pinned tab not already bound to a conversation bind it to this one.
   void OnTabPinningStatusChanged(tabs::TabInterface* tab, bool pinned);
   void NotifyPanelWillOpen(mojom::InvocationSource invocation_source);

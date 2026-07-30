@@ -115,6 +115,22 @@ AccountInfo& AccountInfo::operator=(const AccountInfo& other) = default;
 
 AccountInfo& AccountInfo::operator=(AccountInfo&& other) noexcept = default;
 
+const CoreAccountId& AccountInfo::GetAccountId() const {
+  return account_id;
+}
+
+const GaiaId& AccountInfo::GetGaiaId() const {
+  return gaia;
+}
+
+std::string_view AccountInfo::GetEmail() const {
+  return email;
+}
+
+bool AccountInfo::IsUnderAdvancedProtection() const {
+  return is_under_advanced_protection;
+}
+
 std::optional<std::string_view> AccountInfo::GetFullName() const {
   if (full_name.empty()) {
     return std::nullopt;
@@ -283,6 +299,12 @@ AccountInfo::Builder::~Builder() = default;
 
 AccountInfo AccountInfo::Builder::Build() {
   return std::move(account_info_);
+}
+
+AccountInfo::Builder& AccountInfo::Builder::SetEmail(std::string_view email) {
+  CHECK(!email.empty());
+  account_info_.email = std::string(email);
+  return *this;
 }
 
 AccountInfo::Builder& AccountInfo::Builder::SetAccountId(

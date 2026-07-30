@@ -117,6 +117,7 @@
 <translation id="3581385059720151202">ค้นหาภาพใน Chromium</translation>
 <translation id="3582640969619785896">Chromium จะเสนอให้บันทึกรหัสผ่าน</translation>
 <translation id="3594315078412605236">จัดการวิธีการชำระเงินใน Chromium</translation>
+<translation id="3600428265489994557">ลงชื่อเข้าใช้ Chromium</translation>
 <translation id="3617143087229977194">เปิดการตั้งค่าแอปเริ่มต้นใน iOS จากนั้นแตะ "แอปเบราว์เซอร์" แล้วเลือก Chromium</translation>
 <translation id="3634039384458740619">เปิดการตั้งค่า Chromium</translation>
 <translation id="3639997914391704523">Chromium จะตรวจสอบรหัสผ่านได้เมื่อคุณลงชื่อเข้าใช้ด้วยบัญชี Google</translation>
@@ -351,7 +352,6 @@
 <translation id="900560297598578021">ลงชื่อเข้าใช้ด้วย <ph name="EMAIL" />
 
 ข้อมูลของคุณมีการเข้ารหัสด้วยรหัสผ่านเมื่อ <ph name="TIME" /> ป้อนรหัสผ่านเพื่อใช้และบันทึกข้อมูล Chromium ในบัญชี Google</translation>
-<translation id="9022552996538154597">ลงชื่อเข้าใช้ Chromium</translation>
 <translation id="9031260906956926157">ยังไม่ได้บันทึกข้อมูล Chromium บางอย่างของคุณลงในบัญชี Google
 โปรดรอสักครู่ก่อนออกจากระบบ หากคุณออกจากระบบตอนนี้ ระบบจะลบข้อมูลนี้</translation>
 <translation id="9050790730841755540">ใช้ Chromium ทุกครั้งที่คุณแตะลิงก์ในแอปอื่นๆ</translation>

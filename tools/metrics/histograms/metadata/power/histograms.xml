@@ -1345,7 +1345,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Power.ForegroundBatteryDrainPerScenario.30Seconds{Exclusive}{LoadingScenario}{InputScenario}"
-    units="uAh" expires_after="2026-03-26">
+    units="uAh" expires_after="2026-05-31">
   <owner>kraskevich@google.com</owner>
   <owner>woa-performance@google.com</owner>
   <summary>
@@ -1800,11 +1800,16 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.ShutdownReason" enum="ShutdownReason"
-    expires_after="2025-06-08">
-  <owner>tbroch@chromium.org</owner>
+    expires_after="2026-06-08">
+  <owner>mqg@chromium.org</owner>
+  <owner>sammc@chromium.org</owner>
+  <owner>chromeos-power-team@google.com</owner>
   <summary>
     The reason for the Chrome OS power manager shutting down or rebooting the
     system.
+
+    Warning: this histogram was expired from 2025-06-08 to 2025-11-26; data may
+    be missing.
   </summary>
 </histogram>
 
@@ -1816,7 +1821,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.SuspendAttempt" enum="SuspendAttempt"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>puthik@chromium.org</owner>
   <owner>chromeos-platform-power@google.com</owner>
   <summary>
@@ -1875,7 +1880,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.SuspendResult" enum="SuspendResult"
-    expires_after="2026-03-29">
+    expires_after="2026-05-31">
   <owner>puthik@chromium.org</owner>
   <owner>chromeos-platform-power@google.com</owner>
   <summary>
@@ -1926,7 +1931,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.UserBrightnessAdjustmentsPerSessionOnBattery"
-    units="units" expires_after="2026-03-29">
+    units="units" expires_after="2026-05-31">
   <owner>alanlxl@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>napper@chromium.org</owner>
@@ -2048,7 +2053,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PowerML.SmartDimModel.RequestCanceledDuration" units="ms"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>alanlxl@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>napper@chromium.org</owner>

@@ -109,6 +109,10 @@ class FakeContentAutofillDriver : public mojom::AutofillDriver {
 
   void HidePopup() override {}
 
+  void SuppressAutomaticRefills(const FillId& fill_id) override {}
+
+  void RequestRefill(const FillId& fill_id) override {}
+
   void FocusOnNonFormField() override {}
 
   void FocusOnFormField(const FormData& form,
@@ -271,9 +275,10 @@ class FormAutocompleteTest : public ChromeRenderViewTest {
     // user selection; simulates the menu actually popping up.
     SimulateElementClick(fname_element);
 
-    autofill_agent_->ApplyFieldsAction(mojom::FormActionType::kFill,
-                                       mojom::ActionPersistence::kFill,
-                                       GetFieldsForFilling({form_data}));
+    autofill_agent_->ApplyFieldsAction(
+        mojom::FormActionType::kFill, mojom::ActionPersistence::kFill,
+        GetFieldsForFilling({form_data}), FillId::Create(),
+        /*supports_refill=*/false);
   }
 
   // This triggers a layout update to apply JS changes like display = 'none'.

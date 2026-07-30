@@ -102,9 +102,9 @@ SkBitmap PrepareReadBackBitmap(SkImageInfo info) {
   return read_back_bitmap;
 }
 
-gfx::Size GetSizeFromHardwareBuffer(AHardwareBuffer* hardware_buffer) {
-  AHardwareBuffer_Desc desc;
-  AHardwareBuffer_describe(hardware_buffer, &desc);
+gfx::Size GetSizeFromHardwareBuffer(
+    const ScopedHardwareBufferHandle& hardware_buffer) {
+  AHardwareBuffer_Desc desc = hardware_buffer.Describe();
   return gfx::Size(desc.width, desc.height);
 }
 
@@ -142,10 +142,6 @@ bool NavigationEntryScreenshot::SharedImageProvider::
                      base::WrapRefCounted(this));
   return true;
 }
-
-void NavigationEntryScreenshot::SharedImageProvider::DoRelease(
-    const gpu::SyncToken& sync_token,
-    bool is_lost) {}
 
 NavigationEntryScreenshot::SharedImageProvider::SharedImageProvider() = default;
 NavigationEntryScreenshot::SharedImageProvider::~SharedImageProvider() =
@@ -271,6 +267,9 @@ void NavigationEntryScreenshot::HardwareBufferHolder::DoRelease(
     const gpu::SyncToken& sync_token,
     bool is_lost) {
   pending_transferable_resource_ = true;
+  if (cached_shared_image_) {
+    cached_shared_image_->UpdateDestructionSyncToken(sync_token);
+  }
 }
 
 void NavigationEntryScreenshot::HardwareBufferHolder::OnContextLost() {
@@ -292,8 +291,8 @@ NavigationEntryScreenshot::HardwareBufferHolder::HardwareBufferHolder(
     base::ScopedClosureRunner release_callback)
     : nav_controller_delegate_(nav_controller_delegate),
       hardware_buffer_(std::move(hardware_buffer)),
-      size_(GetSizeFromHardwareBuffer(hardware_buffer_.get())),
-      release_callback_(std::move(release_callback)) {}
+      release_callback_(std::move(release_callback)),
+      size_(GetSizeFromHardwareBuffer(hardware_buffer_)) {}
 
 // static
 const void* const NavigationEntryScreenshot::kUserDataKey =

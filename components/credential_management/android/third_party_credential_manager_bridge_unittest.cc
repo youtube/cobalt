@@ -13,6 +13,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
 #include "base/test/mock_callback.h"
+#include "base/test/test_future.h"
 #include "base/types/pass_key.h"
 #include "components/credential_management/android/password_credential_response.h"
 #include "content/public/browser/browser_thread.h"
@@ -65,7 +66,7 @@ class FakeJniDelegate : public JniDelegate {
              base::OnceCallback<void(bool)> completion_callback) override {
     content::GetUIThreadTaskRunner({})->PostTask(
         FROM_HERE,
-        base::BindOnce(std::move(completion_callback), simulate_errors_));
+        base::BindOnce(std::move(completion_callback), !simulate_errors_));
   }
 
   void set_bridge(ThirdPartyCredentialManagerBridge* bridge) {
@@ -131,6 +132,19 @@ TEST_F(ThirdPartyCredentialManagerBridgeTest, TestUnuccessfulGetCall) {
   run_loop.Run();
 }
 
+TEST_F(ThirdPartyCredentialManagerBridgeTest,
+       TestGetCallWithoutPasswordsFails) {
+  base::test::TestFuture<password_manager::CredentialManagerError,
+                         const std::optional<password_manager::CredentialInfo>&>
+      future;
+
+  bridge()->Get(/*is_auto_select_allowed=*/true, /*include_passwords=*/false,
+                /*federations=*/{}, kTestOrigin, future.GetCallback());
+  ASSERT_TRUE(future.Wait());
+  EXPECT_EQ(future.Get<0>(), password_manager::CredentialManagerError::UNKNOWN);
+  EXPECT_FALSE(future.Get<1>().has_value());
+}
+
 TEST_F(ThirdPartyCredentialManagerBridgeTest, TestSuccessfulStoreCall) {
   base::RunLoop run_loop;
   base::MockCallback<StoreCallback> mock_callback;
@@ -142,7 +156,7 @@ TEST_F(ThirdPartyCredentialManagerBridgeTest, TestSuccessfulStoreCall) {
   run_loop.Run();
 }
 
-TEST_F(ThirdPartyCredentialManagerBridgeTest, TestUnuccessfulStoreCall) {
+TEST_F(ThirdPartyCredentialManagerBridgeTest, TestUnsuccessfulStoreCall) {
   base::RunLoop run_loop;
   base::MockCallback<StoreCallback> mock_callback;
   fake_jni_delegate().set_error_simulation(true);

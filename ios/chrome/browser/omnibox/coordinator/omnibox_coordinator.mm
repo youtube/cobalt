@@ -16,8 +16,7 @@
 #import "components/open_from_clipboard/clipboard_recent_content.h"
 #import "components/search_engines/template_url_service.h"
 #import "components/strings/grit/components_strings.h"
-#import "ios/chrome/browser/autocomplete/model/autocomplete_service.h"
-#import "ios/chrome/browser/autocomplete/model/autocomplete_service_factory.h"
+#import "ios/chrome/browser/autocomplete/model/autocomplete_browser_agent.h"
 #import "ios/chrome/browser/favicon/model/ios_chrome_favicon_loader_factory.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/location_bar/ui_bundled/location_bar_constants.h"
@@ -179,10 +178,10 @@
   _omniboxTextModel = std::make_unique<OmniboxTextModel>(_client.get());
   id<OmniboxTextInput> textInput = viewController.textInput;
 
-  AutocompleteService* autocompleteService =
-      AutocompleteServiceFactory::GetForProfile(profile);
+  AutocompleteBrowserAgent* autocompleteBrowserAgent =
+      AutocompleteBrowserAgent::FromBrowser(browser);
   AutocompleteController* autocompleteController =
-      autocompleteService->GetAutocompleteController(_presentationContext);
+      autocompleteBrowserAgent->GetAutocompleteController(_presentationContext);
 
   _omniboxAutocompleteController = [[OmniboxAutocompleteController alloc]
        initWithOmniboxClient:_client.get()
@@ -282,6 +281,7 @@
     self.keyboardAccessoryView.templateURLService = nil;
   }
 
+  _keyboardMediator.delegate = nil;
   _keyboardMediator = nil;
   self.keyboardAccessoryView = nil;
   self.mediator = nil;
@@ -344,8 +344,13 @@
   return self.viewController;
 }
 
-- (void)clearSuggestionsAndRestartAutocomplete {
-  [_omniboxAutocompleteController clearAndRestartAutocomplete];
+- (void)clearSuggestionsWithRestartAutocomplete:(BOOL)restartAutocomplete {
+  [_omniboxTextController removePreEditText];
+  if (restartAutocomplete) {
+    [_omniboxAutocompleteController clearAndRestartAutocomplete];
+  } else {
+    [_omniboxAutocompleteController stopAutocompleteWithClearSuggestions:YES];
+  }
 }
 
 - (id<EditViewAnimatee>)animatee {
@@ -381,6 +386,12 @@
   [self.popupCoordinator toggleOmniboxDebuggerView];
 }
 
+- (void)presentLensKeyboardInProductHelper {
+  id<HelpCommands> helpHandler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), HelpCommands);
+  [helpHandler presentInProductHelpWithType:InProductHelpType::kLensKeyboard];
+}
+
 #pragma mark - OmniboxMediatorDelegate
 
 - (void)omniboxMediatorDidBeginEditing:(OmniboxMediator*)mediator {
@@ -400,8 +411,7 @@
         ios::TemplateURLServiceFactory::GetForProfile(self.profile);
     self.keyboardAccessoryView = ConfigureAssistiveKeyboardViews(
         self.viewController.textInput, kDotComTLD, _keyboardMediator,
-        templateURLService,
-        HandlerForProtocol(self.browser->GetCommandDispatcher(), HelpCommands));
+        templateURLService);
   }
 }
 

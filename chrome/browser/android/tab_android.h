@@ -180,24 +180,22 @@ class TabAndroid : public tabs::TabInterface,
       JNIEnv* env,
       jboolean incognito,
       jboolean is_background_tab,
-      const base::android::JavaParamRef<jobject>& jweb_contents,
-      const base::android::JavaParamRef<jobject>& jweb_contents_delegate,
-      const base::android::JavaParamRef<jobject>&
-          jcontext_menu_populator_factory);
+      const base::android::JavaRef<jobject>& jweb_contents,
+      const base::android::JavaRef<jobject>& jweb_contents_delegate,
+      const base::android::JavaRef<jobject>& jcontext_menu_populator_factory);
   void InitializeAutofillIfNecessary(JNIEnv* env);
   void UpdateDelegates(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& jweb_contents_delegate,
-      const base::android::JavaParamRef<jobject>&
-          jcontext_menu_populator_factory);
+      const base::android::JavaRef<jobject>& jweb_contents_delegate,
+      const base::android::JavaRef<jobject>& jcontext_menu_populator_factory);
   void DestroyWebContents(JNIEnv* env);
   void ReleaseWebContents(JNIEnv* env);
   bool IsPhysicalBackingSizeEmpty(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& jweb_contents);
+      const base::android::JavaRef<jobject>& jweb_contents);
   void OnPhysicalBackingSizeChanged(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& jweb_contents,
+      const base::android::JavaRef<jobject>& jweb_contents,
       jint width,
       jint height);
   void SetActiveNavigationEntryTitleForUrl(JNIEnv* env,
@@ -253,6 +251,7 @@ class TabAndroid : public tabs::TabInterface,
   tabs::TabFeatures* GetTabFeatures() override;
   const tabs::TabFeatures* GetTabFeatures() const override;
   bool IsPinned() const override;
+  bool IsBlocked() const override;
   bool IsSplit() const override;
   std::optional<tab_groups::TabGroupId> GetGroup() const override;
   std::optional<split_tabs::SplitTabId> GetSplit() const override;

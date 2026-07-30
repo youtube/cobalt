@@ -5,7 +5,6 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_FOUNDATIONS_BROWSER_AUTOFILL_MANAGER_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_FOUNDATIONS_BROWSER_AUTOFILL_MANAGER_H_
 
-#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -271,6 +270,8 @@ class BrowserAutofillManager : public AutofillManager {
   void OnFocusOnFormFieldImpl(const FormData& form,
                               const FieldGlobalId& field_id) override;
   void OnDidAutofillFormImpl(const FormData& form) override;
+  void SuppressAutomaticRefillsImpl(const FillId& fill_id) override;
+  void RequestRefillImpl(const FillId& fill_id) override;
   void OnDidEndTextFieldEditingImpl() override;
   void OnHidePopupImpl() override;
   void OnSelectFieldOptionsDidChangeImpl(
@@ -281,8 +282,7 @@ class BrowserAutofillManager : public AutofillManager {
       const FieldGlobalId& field_id,
       const std::u16string& old_value) override;
   void OnLoadedServerPredictionsImpl(
-      base::span<const raw_ptr<FormStructure, VectorExperimental>> forms)
-      override;
+      base::span<const raw_ref<FormStructure>> forms) override;
   void Reset() override;
 
   // Retrieves the four digit combinations from the DOM of the current web page
@@ -332,12 +332,6 @@ class BrowserAutofillManager : public AutofillManager {
     fast_checkout_delegate_ = std::move(fast_checkout_delegate);
   }
 
-  // Returns the field corresponding to `form_id` and `field_id` that can be
-  // autofilled. Returns NULL if the field cannot be autofilled.
-  [[nodiscard]] AutofillField* GetAutofillField(
-      const FormGlobalId& form_id,
-      const FieldGlobalId& field_id) const;
-
   // This reference is not stable over the lifetime of BrowserAutofillManager.
   virtual autofill_metrics::CreditCardFormEventLogger&
   GetCreditCardFormEventLogger();
@@ -386,6 +380,14 @@ class BrowserAutofillManager : public AutofillManager {
  private:
   friend class BrowserAutofillManagerTestApi;
 
+  // Fills `form_structure` and `autofill_field` with the cached elements
+  // corresponding to `form_id` and `field_id`.  This might have the side-effect
+  // of updating the cache.  Returns false if the form is not autofillable, or
+  // if either the form or the field cannot be found.
+  [[nodiscard]] bool GetCachedFormAndField(const FormGlobalId& form_id,
+                                           const FieldGlobalId& field_id,
+                                           FormStructure** form_structure,
+                                           AutofillField** autofill_field);
 
   // Emits all metrics that should be recorded at submission time.
   void LogSubmissionMetrics(const FormStructure* submitted_form,
@@ -640,7 +642,7 @@ class BrowserAutofillManager : public AutofillManager {
 
   // Updates Autofill Ai's model cache after server predictions were loaded.
   void HandleLoadedServerPredictionsForAutofillAi(
-      base::span<const raw_ptr<FormStructure, VectorExperimental>> forms);
+      base::span<const raw_ref<FormStructure>> forms);
 
   // Calls `OnDidIdentifyForms()` on all appropriate form event loggers,
   // depending on the form types of the `form_structure`.

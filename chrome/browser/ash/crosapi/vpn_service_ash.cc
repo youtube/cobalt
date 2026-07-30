@@ -16,6 +16,7 @@
 #include "base/uuid.h"
 #include "base/values.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
+#include "chrome/browser/chromeos/extensions/vpn_provider/vpn_service.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chromeos/ash/components/dbus/shill/shill_third_party_vpn_driver_client.h"
 #include "chromeos/ash/components/dbus/shill/shill_third_party_vpn_observer.h"
@@ -61,71 +62,10 @@ AdaptCallback(SuccessOrFailureCallback callback) {
 
 namespace crosapi {
 
-class VpnConfigurationImpl
-    : public VpnServiceForExtensionAsh::VpnConfiguration {
- public:
-  VpnConfigurationImpl(const std::string& configuration_name,
-                       const std::string& key,
-                       VpnServiceForExtensionAsh* vpn_service)
-      : configuration_name_(configuration_name),
-        key_(key),
-        object_path_(shill::kObjectPathBase + key),
-        vpn_service_(std::move(vpn_service)) {}
-
-  // VpnServiceAsh::VpnConfiguration:
-  const std::string& configuration_name() const override {
-    return configuration_name_;
-  }
-  const std::string& key() const override { return key_; }
-  const std::string& object_path() const override { return object_path_; }
-  const std::optional<std::string>& service_path() const override {
-    return service_path_;
-  }
-  void set_service_path(std::string service_path) override {
-    service_path_ = std::move(service_path);
-  }
-
-  // ash::ShillThirdPartyVpnObserver:
-  void OnPacketReceived(const std::vector<char>& data) override;
-  void OnPlatformMessage(uint32_t platform_message) override;
-
- private:
-  const std::string configuration_name_;
-  const std::string key_;
-  const std::string object_path_;
-  std::optional<std::string> service_path_;
-
-  // |this| is owned by VpnServiceForExtensionAsh.
-  raw_ptr<VpnServiceForExtensionAsh> vpn_service_ = nullptr;
-};
-
-void VpnConfigurationImpl::OnPacketReceived(const std::vector<char>& data) {
-  DCHECK(vpn_service_);
-  vpn_service_->DispatchOnPacketReceivedEvent(data);
-}
-
-void VpnConfigurationImpl::OnPlatformMessage(uint32_t platform_message) {
-  DCHECK(vpn_service_);
-  DCHECK_GE(static_cast<uint32_t>(api_vpn::PlatformMessage::kMaxValue),
-            platform_message);
-
-  if (platform_message ==
-      base::to_underlying(api_vpn::PlatformMessage::kConnected)) {
-    vpn_service_->SetActiveConfiguration(this);
-  } else if (platform_message ==
-                 base::to_underlying(api_vpn::PlatformMessage::kDisconnected) ||
-             platform_message ==
-                 base::to_underlying(api_vpn::PlatformMessage::kError)) {
-    vpn_service_->SetActiveConfiguration(nullptr);
-  }
-
-  vpn_service_->DispatchOnPlatformMessageEvent(configuration_name(),
-                                               platform_message);
-}
-
 VpnServiceForExtensionAsh::VpnServiceForExtensionAsh(
-    const std::string& extension_id)
-    : extension_id_(extension_id) {
+    const std::string& extension_id,
+    chromeos::VpnService* controller)
+    : extension_id_(extension_id), controller_(controller) {
   network_configuration_observer_.Observe(
       ash::NetworkHandler::Get()->network_configuration_handler());
 }
@@ -149,7 +89,7 @@ void VpnServiceForExtensionAsh::CreateConfiguration(
   }
 
   const std::string key = GetKey(extension_id(), configuration_name);
-  if (base::Contains(key_to_configuration_map_, key)) {
+  if (base::Contains(controller_->key_to_configuration_map_, key)) {
     RunFailureCallback(std::move(callback), /*error_name=*/{},
                        "Name not unique.");
     return;
@@ -168,8 +108,8 @@ void VpnServiceForExtensionAsh::CreateConfiguration(
     return;
   }
 
-  VpnConfiguration* configuration =
-      CreateConfigurationInternal(configuration_name);
+  VpnConfiguration* configuration = controller_->CreateConfigurationInternal(
+      extension_id(), configuration_name);
 
   auto properties =
       base::Value::Dict()
@@ -201,7 +141,7 @@ void VpnServiceForExtensionAsh::DestroyConfiguration(
   const std::string key = GetKey(extension_id(), configuration_name);
 
   VpnConfiguration* configuration =
-      base::FindPtrOrNull(key_to_configuration_map_, key);
+      base::FindPtrOrNull(controller_->key_to_configuration_map_, key);
   if (!configuration) {
     RunFailureCallback(std::move(callback), /*error_name=*/{},
                        "Unauthorized access.");
@@ -270,7 +210,8 @@ bool VpnServiceForExtensionAsh::HasConfigurationForServicePath(
 
 void VpnServiceForExtensionAsh::DestroyAllConfigurations() {
   std::vector<std::string> to_be_destroyed;
-  for (const auto& [key, configuration] : key_to_configuration_map_) {
+  for (const auto& [key, configuration] :
+       controller_->key_to_configuration_map_) {
     to_be_destroyed.push_back(configuration->configuration_name());
   }
   for (const auto& configuration_name : to_be_destroyed) {
@@ -282,8 +223,8 @@ void VpnServiceForExtensionAsh::CreateConfigurationWithServicePath(
     const std::string& configuration_name,
     const std::string& service_path) {
   DCHECK(!HasConfigurationForServicePath(service_path));
-  VpnConfiguration* configuration =
-      CreateConfigurationInternal(configuration_name);
+  VpnConfiguration* configuration = controller_->CreateConfigurationInternal(
+      extension_id(), configuration_name);
   configuration->set_service_path(service_path);
   service_path_to_configuration_map_[service_path] = configuration;
   ash::ShillThirdPartyVpnDriverClient::Get()->AddShillThirdPartyVpnObserver(
@@ -322,24 +263,13 @@ std::string VpnServiceForExtensionAsh::GetKey(
   return base::HexEncode(key);
 }
 
-VpnServiceForExtensionAsh::VpnConfiguration*
-VpnServiceForExtensionAsh::CreateConfigurationInternal(
-    const std::string& configuration_name) {
-  const std::string key = GetKey(extension_id(), configuration_name);
-  auto configuration =
-      std::make_unique<VpnConfigurationImpl>(configuration_name, key, this);
-  auto* ptr = configuration.get();
-  key_to_configuration_map_.emplace(key, std::move(configuration));
-  return ptr;
-}
-
 void VpnServiceForExtensionAsh::DestroyConfigurationInternal(
     VpnConfiguration* configuration) {
   // |owned_configuration| ensures that |configuration| stays valid until the
   // end of the scope.
   auto owned_configuration =
-      std::move(key_to_configuration_map_[configuration->key()]);
-  key_to_configuration_map_.erase(configuration->key());
+      std::move(controller_->key_to_configuration_map_[configuration->key()]);
+  controller_->key_to_configuration_map_.erase(configuration->key());
   if (active_configuration_ == configuration) {
     SetActiveConfiguration(nullptr);
   }
@@ -498,9 +428,15 @@ VpnServiceForExtensionAsh* VpnServiceAsh::GetVpnServiceForExtension(
     const std::string& extension_id) {
   auto& service = extension_id_to_service_[extension_id];
   if (!service) {
-    service = std::make_unique<VpnServiceForExtensionAsh>(extension_id);
+    service =
+        std::make_unique<VpnServiceForExtensionAsh>(extension_id, controller_);
   }
   return service.get();
+}
+
+void VpnServiceAsh::Reset() {
+  controller_ = nullptr;
+  extension_id_to_service_.clear();
 }
 
 }  // namespace crosapi

@@ -51,7 +51,7 @@ using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaByteArrayToByteVector;
 using base::android::JavaByteArrayToString;
 using base::android::JavaObjectArrayReader;
-using base::android::JavaParamRef;
+using base::android::JavaRef;
 using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
@@ -460,9 +460,6 @@ MediaDrmBridge::CdmCreationResult MediaDrmBridge::CreateInternal(
   // All paths requires the MediaDrmApis.
   DCHECK(!scheme_uuid.empty());
 
-  // TODO(crbug.com/41433110): Check that |origin_id| is specified on devices
-  // that support it.
-
   auto media_drm_bridge = base::MakeRefCounted<MediaDrmBridge>(
       base::PassKey<MediaDrmBridge>(), scheme_uuid, origin_id, security_level,
       message, requires_media_crypto, std::move(storage),
@@ -816,7 +813,7 @@ bool MediaDrmBridge::SetPropertyStringForTesting(
 
 void MediaDrmBridge::OnMediaCryptoReady(
     JNIEnv* env,
-    const JavaParamRef<jobject>& j_media_crypto) {
+    const JavaRef<jobject>& j_media_crypto) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DVLOG(1) << __func__;
 
@@ -829,8 +826,8 @@ void MediaDrmBridge::OnMediaCryptoReady(
 
 void MediaDrmBridge::OnProvisionRequest(
     JNIEnv* env,
-    const JavaParamRef<jstring>& j_default_url,
-    const JavaParamRef<jbyteArray>& j_request_data) {
+    const JavaRef<jstring>& j_default_url,
+    const JavaRef<jbyteArray>& j_request_data) {
   DVLOG(1) << __func__;
 
   std::string request_data;
@@ -863,7 +860,7 @@ void MediaDrmBridge::OnPromiseResolved(JNIEnv* env,
 void MediaDrmBridge::OnPromiseResolvedWithSession(
     JNIEnv* env,
     jint j_promise_id,
-    const JavaParamRef<jbyteArray>& j_session_id) {
+    const JavaRef<jbyteArray>& j_session_id) {
   std::string session_id;
   JavaByteArrayToString(env, j_session_id, &session_id);
   task_runner_->PostTask(
@@ -876,7 +873,7 @@ void MediaDrmBridge::OnPromiseRejected(
     JNIEnv* env,
     jint j_promise_id,
     jint j_system_code,
-    const JavaParamRef<jstring>& j_error_message) {
+    const JavaRef<jstring>& j_error_message) {
   CHECK(j_system_code >= static_cast<jint>(MediaDrmSystemCode::MIN_VALUE) &&
         j_system_code <= static_cast<jint>(MediaDrmSystemCode::MAX_VALUE));
   task_runner_->PostTask(
@@ -887,11 +884,10 @@ void MediaDrmBridge::OnPromiseRejected(
                      ConvertJavaStringToUTF8(env, j_error_message)));
 }
 
-void MediaDrmBridge::OnSessionMessage(
-    JNIEnv* env,
-    const JavaParamRef<jbyteArray>& j_session_id,
-    jint j_message_type,
-    const JavaParamRef<jbyteArray>& j_message) {
+void MediaDrmBridge::OnSessionMessage(JNIEnv* env,
+                                      const JavaRef<jbyteArray>& j_session_id,
+                                      jint j_message_type,
+                                      const JavaRef<jbyteArray>& j_message) {
   DVLOG(2) << __func__;
 
   std::vector<uint8_t> message;
@@ -906,9 +902,8 @@ void MediaDrmBridge::OnSessionMessage(
                                 message_type, message));
 }
 
-void MediaDrmBridge::OnSessionClosed(
-    JNIEnv* env,
-    const JavaParamRef<jbyteArray>& j_session_id) {
+void MediaDrmBridge::OnSessionClosed(JNIEnv* env,
+                                     const JavaRef<jbyteArray>& j_session_id) {
   DVLOG(2) << __func__;
   std::string session_id;
   JavaByteArrayToString(env, j_session_id, &session_id);
@@ -920,8 +915,8 @@ void MediaDrmBridge::OnSessionClosed(
 
 void MediaDrmBridge::OnSessionKeysChange(
     JNIEnv* env,
-    const JavaParamRef<jbyteArray>& j_session_id,
-    const JavaParamRef<jobjectArray>& j_keys_info,
+    const JavaRef<jbyteArray>& j_session_id,
+    const JavaRef<jobjectArray>& j_keys_info,
     bool has_additional_usable_key,
     bool is_key_release) {
   DVLOG(2) << __func__;
@@ -976,7 +971,7 @@ void MediaDrmBridge::OnSessionKeysChange(
 // [5] https://github.com/w3c/encrypted-media/issues/58
 void MediaDrmBridge::OnSessionExpirationUpdate(
     JNIEnv* env,
-    const JavaParamRef<jbyteArray>& j_session_id,
+    const JavaRef<jbyteArray>& j_session_id,
     jlong expiry_time_ms) {
   DVLOG(2) << __func__ << ": " << expiry_time_ms << " ms";
   std::string session_id;

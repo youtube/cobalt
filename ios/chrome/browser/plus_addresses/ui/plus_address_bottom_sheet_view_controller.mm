@@ -107,7 +107,7 @@ NSAttributedString* DescriptionMessageWithEmail(NSString* originForDisplay,
 
 // Returns the image view with the branding image.
 UIImageView* BrandingImageView() {
-#if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
+#if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
   // Branding icon inside the container with the white background.
   return [[UIImageView alloc]
       initWithImage:MakeSymbolMulticolor(CustomSymbolWithPointSize(
@@ -116,7 +116,7 @@ UIImageView* BrandingImageView() {
   return [[UIImageView alloc]
       initWithImage:DefaultSymbolTemplateWithPointSize(
                         kMailFillSymbol, kPlusAddressSheetBrandingIconSize)];
-#endif  // BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
+#endif  // BUILDFLAG(IOS_USE_BRANDED_ASSETS)
 }
 
 }  // namespace
@@ -193,8 +193,7 @@ UIImageView* BrandingImageView() {
   // content and the top of the sheet. This is especially relevant with larger
   // accessibility text sizes.
   self.topAlignedLayout = YES;
-  self.customSpacingBeforeImageIfNoNavigationBar =
-      kPlusAddressSheetBeforeImageTopMargin;
+  self.customSpacingBeforeImage = kPlusAddressSheetBeforeImageTopMargin;
   self.customSpacingAfterImage = kPlusAddressSheetAfterImageMargin;
 
   self.underTitleView = [self setUpUnderTitleView];
@@ -270,28 +269,9 @@ UIImageView* BrandingImageView() {
 
 #pragma mark - UITextViewDelegate
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
-// Handle click on URLs on the bottomsheet.
-// TODO(crbug.com/40276862) Add primaryActionForTextItem: when this method is
-// deprecated after ios 17 (detail on UITextItem.h).
-- (BOOL)textView:(UITextView*)textView
-    shouldInteractWithURL:(NSURL*)URL
-                  inRange:(NSRange)characterRange
-              interaction:(UITextItemInteraction)interaction {
-  if (textView == _noticeMessage) {
-    [_delegate openNewTab:PlusAddressURLType::kLearnMore];
-  } else {
-    [_delegate openNewTab:PlusAddressURLType::kManagement];
-  }
-  [_browserCoordinatorHandler dismissPlusAddressBottomSheet];
-  // Returns NO as the app is handling the opening of the URL.
-  return NO;
-}
-#endif
-
 - (UIAction*)textView:(UITextView*)textView
     primaryActionForTextItem:(UITextItem*)textItem
-               defaultAction:(UIAction*)defaultAction API_AVAILABLE(ios(17.0)) {
+               defaultAction:(UIAction*)defaultAction {
   PlusAddressURLType type;
   if (textView == _noticeMessage) {
     type = PlusAddressURLType::kLearnMore;

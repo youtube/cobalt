@@ -15,12 +15,14 @@
 #include "base/debug/dump_without_crashing.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/rand_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "components/lens/contextual_input.h"
 #include "components/lens/lens_features.h"
+#include "components/lens/lens_overlay_mime_type.h"
 #include "components/lens/lens_payload_construction.h"
 #include "components/lens/lens_request_construction.h"
 #include "components/lens/lens_url_utils.h"
@@ -270,6 +272,16 @@ ComposeboxQueryController::ComposeboxQueryController(
   use_separate_request_ids_for_multi_context_viewport_images_ =
       feature_params
           ->use_separate_request_ids_for_multi_context_viewport_images;
+  prioritize_suggestions_for_the_first_attached_document_ =
+      feature_params->prioritize_suggestions_for_the_first_attached_document;
+  enable_context_id_migration_ = feature_params->enable_context_id_migration;
+  // The context id migration requires that viewport images use a separate
+  // request id, so this flag should be enabled if the context id migration is
+  // enabled.
+  DCHECK(!enable_context_id_migration_ ||
+         use_separate_request_ids_for_multi_context_viewport_images_);
+  attach_page_title_and_url_to_suggest_requests_ =
+      feature_params->attach_page_title_and_url_to_suggest_requests;
   create_request_task_runner_ = base::ThreadPool::CreateTaskRunner(
       {base::TaskPriority::USER_VISIBLE,
        base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
@@ -296,9 +308,16 @@ ComposeboxQueryController::GetRequestIdForViewportImage(
   if (enable_multi_context_input_flow_ &&
       use_separate_request_ids_for_multi_context_viewport_images_) {
     // Create a new request id for the viewport image upload request.
-    file_info->viewport_request_id_ = request_id_generator_.GetNextRequestId(
-        lens::RequestIdUpdateMode::kMultiContextUploadRequest,
-        lens::LensOverlayRequestId::MEDIA_TYPE_DEFAULT_IMAGE);
+    if (enable_context_id_migration_) {
+      file_info->viewport_request_id_ =
+          request_id_generator_.GetRequestIdWithMultiContextId(
+              lens::LensOverlayRequestId::MEDIA_TYPE_DEFAULT_IMAGE,
+              file_info->GetContextId());
+    } else {
+      file_info->viewport_request_id_ = request_id_generator_.GetNextRequestId(
+          lens::RequestIdUpdateMode::kMultiContextUploadRequest,
+          lens::LensOverlayRequestId::MEDIA_TYPE_DEFAULT_IMAGE);
+    }
     return *file_info->viewport_request_id_;
   }
   return file_info->request_id;
@@ -412,10 +431,6 @@ GURL ComposeboxQueryController::CreateSearchUrl(
     }
   }
 
-  // TODO(crbug.com/445996881): Determine how to support non-AIM search for
-  // text-only queries.
-  DCHECK(search_url_request_info->search_url_type == SearchUrlType::kAim);
-
   // Treat queries in which the cluster info has expired, or without valid
   // contextual inputs, as unimodal text queries.
   // TODO(crbug.com/432125987): Handle file reupload after cluster info
@@ -504,23 +519,36 @@ void ComposeboxQueryController::StartFileUploadFlow(
       has_viewport_screenshot &&
       (!enable_multi_context_input_flow_ ||
        !use_separate_request_ids_for_multi_context_viewport_images_);
-  // Unlike image uploads, PDF / page content uploads need to increment the
-  // long context id instead of the image sequence id.
-  current_file_info.request_id =
-      *request_id_generator_
-           .GetNextRequestId(
-               enable_multi_context_input_flow_
-                   ? lens::RequestIdUpdateMode::kMultiContextUploadRequest
-                   : (current_file_info.mime_type == lens::MimeType::kImage
-                          ? lens::RequestIdUpdateMode::kFullImageRequest
-                          : (has_viewport_screenshot
-                                 ? lens::RequestIdUpdateMode::
-                                       kPageContentWithViewportRequest
-                                 : lens::RequestIdUpdateMode::
-                                       kPageContentRequest)),
-               lens::MimeTypeToMediaType(current_file_info.mime_type,
-                                         use_has_viewport_media_type))
-           .get();
+  if (enable_context_id_migration_) {
+    uint64_t context_id = contextual_input_data->context_id.has_value()
+                              ? contextual_input_data->context_id.value()
+                              : base::RandUint64();
+    current_file_info.request_id =
+        *request_id_generator_
+             .GetRequestIdWithMultiContextId(
+                 lens::MimeTypeToMediaType(current_file_info.mime_type,
+                                           use_has_viewport_media_type),
+                 context_id)
+             .get();
+  } else {
+    // Unlike image uploads, PDF / page content uploads need to increment the
+    // long context id instead of the image sequence id.
+    current_file_info.request_id =
+        *request_id_generator_
+             .GetNextRequestId(
+                 enable_multi_context_input_flow_
+                     ? lens::RequestIdUpdateMode::kMultiContextUploadRequest
+                     : (current_file_info.mime_type == lens::MimeType::kImage
+                            ? lens::RequestIdUpdateMode::kFullImageRequest
+                            : (has_viewport_screenshot
+                                   ? lens::RequestIdUpdateMode::
+                                         kPageContentWithViewportRequest
+                                   : lens::RequestIdUpdateMode::
+                                         kPageContentRequest)),
+                 lens::MimeTypeToMediaType(current_file_info.mime_type,
+                                           use_has_viewport_media_type))
+             .get();
+  }
 
   // Update the file upload status to processing.
   UpdateFileUploadStatus(file_token,
@@ -656,11 +684,40 @@ ComposeboxQueryController::CreateSuggestInputs(
   std::unique_ptr<lens::proto::LensOverlaySuggestInputs> suggest_inputs =
       std::make_unique<lens::proto::LensOverlaySuggestInputs>();
 
-  // Only a single file is supported for suggest inputs.
-  if (attached_context_tokens.size() != 1) {
-    return suggest_inputs;
+  FileInfo* file_info = nullptr;
+
+  if (prioritize_suggestions_for_the_first_attached_document_) {
+    // Serve suggestions for the first attached PDF document.
+    for (const auto& token : attached_context_tokens) {
+      FileInfo* attachment_info = GetMutableFileInfo(token);
+      // Skip past failed uploads.
+      if (!attachment_info) {
+        continue;
+      }
+
+      // Fall back to the first element ever added in case BE supports that.
+      if (!file_info) {
+        file_info = attachment_info;
+      }
+
+      // Look for the first PDF/Tab attachment and pick that in the absence over
+      // any other attachment.
+      if (attachment_info->mime_type == lens::MimeType::kPdf ||
+          attachment_info->mime_type == lens::MimeType::kHtml ||
+          attachment_info->mime_type == lens::MimeType::kPlainText ||
+          attachment_info->mime_type == lens::MimeType::kAnnotatedPageContent) {
+        file_info = attachment_info;
+        break;
+      }
+    }
+  } else {
+    // Only a single file is supported for suggest inputs.
+    if (attached_context_tokens.size() != 1) {
+      return suggest_inputs;
+    }
+    file_info = GetMutableFileInfo(attached_context_tokens.at(0));
   }
-  auto* file_info = GetMutableFileInfo(attached_context_tokens.at(0));
+
   if (!file_info) {
     return suggest_inputs;
   }
@@ -671,6 +728,14 @@ ComposeboxQueryController::CreateSuggestInputs(
   // suggest.
   suggest_inputs->set_contextual_visual_input_type(
       lens::VitQueryParamValueForMediaType(file_info->request_id.media_type()));
+
+  if (attach_page_title_and_url_to_suggest_requests_) {
+    suggest_inputs->set_send_page_title_and_url(true);
+    suggest_inputs->set_page_title(file_info->tab_title.value_or(""));
+    if (file_info->tab_url.has_value()) {
+      suggest_inputs->set_page_url(file_info->tab_url.value().spec());
+    }
+  }
 
   // If the cluster info is already available, update the suggest inputs.
   suggest_inputs->set_send_gsession_vsrid_for_contextual_suggest(true);
@@ -891,10 +956,22 @@ void ComposeboxQueryController::HandleClusterInfoResponse(
   cluster_info_ = std::make_optional<lens::LensOverlayClusterInfo>();
   cluster_info_->set_server_session_id(server_response.server_session_id());
   cluster_info_->set_search_session_id(server_response.search_session_id());
-  if (server_response.has_routing_info() &&
-      !request_id_generator_.HasRoutingInfo()) {
+  if (server_response.has_routing_info()) {
+    cluster_info_->mutable_routing_info()->CopyFrom(
+        server_response.routing_info());
     std::unique_ptr<lens::LensOverlayRequestId> request_id =
         request_id_generator_.SetRoutingInfo(server_response.routing_info());
+
+    // Update the request id in all of the active_files_ to use the new routing
+    // info.
+    for (auto& [file_token, file_info] : active_files_) {
+      file_info->request_id.mutable_routing_info()->CopyFrom(
+          server_response.routing_info());
+      if (file_info->viewport_request_id_) {
+        file_info->viewport_request_id_->mutable_routing_info()->CopyFrom(
+            server_response.routing_info());
+      }
+    }
   }
   SetQueryControllerState(QueryControllerState::kClusterInfoReceived);
 
@@ -1320,6 +1397,26 @@ void ComposeboxQueryController::PerformFetchRequest(
     UploadProgressCallback upload_progress_callback) {
   CHECK_EQ(query_controller_state_, QueryControllerState::kClusterInfoReceived);
   CHECK(cluster_info_.has_value());
+
+  // If the cluster info has routing info, update the request to use it.
+  // This ensures that the latest routing info that corresponds with the
+  // server session id is used for the request, even if the cluster info
+  // has been updated since the request was created.
+  if (cluster_info_->has_routing_info()) {
+    if (request->has_objects_request()) {
+      request->mutable_objects_request()
+          ->mutable_request_context()
+          ->mutable_request_id()
+          ->mutable_routing_info()
+          ->CopyFrom(cluster_info_->routing_info());
+    } else if (request->has_interaction_request()) {
+      request->mutable_interaction_request()
+          ->mutable_request_context()
+          ->mutable_request_id()
+          ->mutable_routing_info()
+          ->CopyFrom(cluster_info_->routing_info());
+    }
+  }
 
   // Get client experiment variations to include in the request.
   std::vector<std::string> cors_exempt_headers =

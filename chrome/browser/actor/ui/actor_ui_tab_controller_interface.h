@@ -28,18 +28,6 @@ struct UiTabState {
   bool border_glow_visible = false;
 };
 
-// LINT.IfChange(ActorUiTabControllerError)
-// These enum values are persisted to logs.  Do not renumber or reuse numeric
-// values.
-
-enum class ActorUiTabControllerError {
-  kRequestedForNonExistentTab = 0,
-  kCallbackError = 1,
-  kMaxValue = kCallbackError,
-};
-
-// LINT.ThenChange(//tools/metrics/histograms/metadata/actor/enums.xml:ActorUiTabControllerError)
-
 inline std::ostream& operator<<(std::ostream& os, UiTabState state) {
   return os << "UiTabState{\n"
             << "  actor_overlay: " << state.actor_overlay << ",\n"
@@ -49,11 +37,6 @@ inline std::ostream& operator<<(std::ostream& os, UiTabState state) {
             << "  border_glow_visible: " << state.border_glow_visible << "\n"
             << "}";
 }
-
-class ActorUiTabControllerFactoryInterface {
- public:
-  virtual ~ActorUiTabControllerFactoryInterface() = default;
-};
 
 class ActorUiTabControllerInterface {
  public:
@@ -91,6 +74,9 @@ class ActorUiTabControllerInterface {
 
   // Called when the focus status changes on the handoff button.
   virtual void OnHandoffButtonFocusStatusChanged() = 0;
+
+  // Called when the window's immersive mode state changes.
+  virtual void OnImmersiveModeChanged() = 0;
 
   [[nodiscard]] virtual base::ScopedClosureRunner
   RegisterHandoffButtonController(HandoffButtonController* controller) = 0;

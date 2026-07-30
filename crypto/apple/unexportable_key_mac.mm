@@ -28,6 +28,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/threading/scoped_blocking_call.h"
@@ -49,6 +50,22 @@ namespace {
 // claims this should be a user-visible label, but there does not exist any UI
 // that shows this value. Therefore, it is left untranslated.
 constexpr char kAttrLabel[] = "Chromium unexportable key";
+
+std::string GetApplicationTag(CFDictionaryRef key_attributes) {
+  // kSecAttrApplicationTag can be CFStringRef for legacy credentials and
+  // CFDataRef for new ones, hence querying both.
+  if (CFStringRef str = base::apple::GetValueFromDictionary<CFStringRef>(
+          key_attributes, kSecAttrApplicationTag)) {
+    return base::SysCFStringRefToUTF8(str);
+  }
+
+  if (CFDataRef data = base::apple::GetValueFromDictionary<CFDataRef>(
+          key_attributes, kSecAttrApplicationTag)) {
+    return std::string(base::as_string_view(base::apple::CFDataToSpan(data)));
+  }
+
+  return "";
+}
 
 std::optional<std::vector<uint8_t>> Convertx963ToDerSpki(
     base::span<const uint8_t> x962) {
@@ -319,9 +336,70 @@ UnexportableKeyProviderMac::AsStatefulUnexportableKeyProvider() {
 
 std::optional<std::vector<std::unique_ptr<UnexportableSigningKey>>>
 UnexportableKeyProviderMac::GetAllSigningKeysSlowly() {
-  // TODO(crbug.com/455539044): Implement this.
-  NOTIMPLEMENTED();
-  return std::nullopt;
+  base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
+                                                base::BlockingType::WILL_BLOCK);
+
+  NSDictionary* query = @{
+    CFToNSPtrCast(kSecClass) : CFToNSPtrCast(kSecClassKey),
+    CFToNSPtrCast(kSecAttrKeyType) :
+        CFToNSPtrCast(kSecAttrKeyTypeECSECPrimeRandom),
+    CFToNSPtrCast(kSecAttrAccessGroup) : objc_storage_->keychain_access_group_,
+    // Application tag is omitted from the query to allow for prefix matching.
+    CFToNSPtrCast(kSecMatchLimit) : CFToNSPtrCast(kSecMatchLimitAll),
+    CFToNSPtrCast(kSecReturnAttributes) : @YES,
+    CFToNSPtrCast(kSecReturnRef) : @YES,
+  };
+
+  base::apple::ScopedCFTypeRef<CFTypeRef> result;
+  OSStatus status = crypto::apple::KeychainV2::GetInstance().ItemCopyMatching(
+      NSToCFPtrCast(query), result.InitializeInto());
+
+  if (status == errSecItemNotFound) {
+    return std::vector<std::unique_ptr<UnexportableSigningKey>>();
+  }
+
+  if (status != errSecSuccess) {
+    LOG(ERROR) << "Error querying keychain: " << status;
+    return std::nullopt;
+  }
+
+  CFArrayRef array = base::apple::CFCast<CFArrayRef>(result.get());
+  if (!array) {
+    return std::nullopt;
+  }
+
+  std::string application_tag_prefix =
+      base::SysNSStringToUTF8(objc_storage_->application_tag_);
+  std::vector<std::unique_ptr<UnexportableSigningKey>> keys;
+  CFIndex count = CFArrayGetCount(array);
+  keys.reserve(count);
+  for (CFIndex i = 0; i < count; ++i) {
+    CFDictionaryRef dict =
+        base::apple::CFCast<CFDictionaryRef>(CFArrayGetValueAtIndex(array, i));
+    if (!dict) {
+      continue;
+    }
+
+    if (!GetApplicationTag(dict).starts_with(application_tag_prefix)) {
+      continue;
+    }
+
+    SecKeyRef key_ref =
+        base::apple::GetValueFromDictionary<SecKeyRef>(dict, kSecValueRef);
+    if (!key_ref) {
+      continue;
+    }
+
+    // ScopedCFTypeRef takes ownership, so we retain the key obtained from the
+    // array (which follows the Get Rule).
+    base::apple::ScopedCFTypeRef<SecKeyRef> scoped_key(
+        key_ref, base::scoped_policy::RETAIN);
+
+    keys.push_back(std::make_unique<UnexportableSigningKeyMac>(
+        std::move(scoped_key), dict));
+  }
+
+  return keys;
 }
 
 bool UnexportableKeyProviderMac::DeleteSigningKeySlowly(

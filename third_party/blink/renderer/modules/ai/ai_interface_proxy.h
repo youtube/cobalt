@@ -16,13 +16,17 @@
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/language_detection/language_detection_model.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
 // Provides static getters to browser interfaces for the built-in AI APIs.
 class AIInterfaceProxy final : public GarbageCollected<AIInterfaceProxy>,
-                               public GarbageCollectedMixin {
+                               public Supplement<ExecutionContext> {
  public:
+  static constexpr auto kSupplementIndex =
+      ExecutionContext::Supplements::kAIInterfaceProxy;
+
   using GetLanguageDetectionModelStatusCallback = base::OnceCallback<void(
       language_detection::mojom::blink::LanguageDetectionModelStatus)>;
 

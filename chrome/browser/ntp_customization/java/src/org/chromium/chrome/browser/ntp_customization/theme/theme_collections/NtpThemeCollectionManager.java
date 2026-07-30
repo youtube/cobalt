@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.ntp_customization.theme.theme_collections;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.THEME_COLLECTION;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 
 import androidx.annotation.VisibleForTesting;
 
@@ -15,6 +16,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
+import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.image_fetcher.ImageFetcher;
 import org.chromium.url.GURL;
@@ -33,8 +35,10 @@ public class NtpThemeCollectionManager {
     private final NtpThemeCollectionBridge mNtpThemeCollectionBridge;
     private final Context mContext;
     private final NtpCustomizationConfigManager mNtpCustomizationConfigManager;
-    private final Runnable mOnThemeImageSelectedCallback;
+    private final Callback<Bitmap> mOnThemeImageSelectedCallback;
     private final @Nullable ImageFetcher mImageFetcher;
+    private boolean mIsDestroyed;
+    private @Nullable Runnable mFetchNextImageRunnable;
 
     /**
      * Constructs a new NtpThemeCollectionManager.
@@ -44,7 +48,7 @@ public class NtpThemeCollectionManager {
      * @param onThemeImageSelectedCallback The callback to run when a theme image is selected.
      */
     public NtpThemeCollectionManager(
-            Context context, Profile profile, Runnable onThemeImageSelectedCallback) {
+            Context context, Profile profile, Callback<Bitmap> onThemeImageSelectedCallback) {
         mContext = context;
         mNtpThemeCollectionBridge =
                 new NtpThemeCollectionBridge(profile, this::onCustomBackgroundImageUpdated);
@@ -56,6 +60,7 @@ public class NtpThemeCollectionManager {
     /** Cleans up the C++ side of {@link NtpThemeCollectionBridge}. */
     public void destroy() {
         mNtpThemeCollectionBridge.destroy();
+        mIsDestroyed = true;
     }
 
     /**
@@ -111,16 +116,19 @@ public class NtpThemeCollectionManager {
      * @param image The {@link CollectionImage} selected by the user.
      */
     public void setThemeCollectionImage(CollectionImage image) {
+        mFetchNextImageRunnable = null;
         mNtpThemeCollectionBridge.setThemeCollectionImage(image);
     }
 
     /** Sets the user-uploaded background image. */
     public void selectLocalBackgroundImage() {
+        mFetchNextImageRunnable = null;
         mNtpThemeCollectionBridge.selectLocalBackgroundImage();
     }
 
     /** Resets the custom background. */
     public void resetCustomBackground() {
+        mFetchNextImageRunnable = null;
         mNtpThemeCollectionBridge.resetCustomBackground();
     }
 
@@ -143,13 +151,37 @@ public class NtpThemeCollectionManager {
                 mImageFetcher,
                 info.backgroundUrl,
                 (bitmap) -> {
-                    if (bitmap != null) {
-                        mNtpCustomizationConfigManager.onThemeCollectionImageSelected(
-                                bitmap,
-                                info,
-                                NtpCustomizationUtils.calculateInitialThemeCollectionImageMatrices(
-                                        mContext, bitmap));
-                        mOnThemeImageSelectedCallback.run();
+                    if (bitmap == null) {
+                        return;
+                    }
+
+                    BackgroundImageInfo backgroundImageInfo =
+                            NtpCustomizationUtils.calculateInitialThemeCollectionImageMatrices(
+                                    mContext, bitmap);
+
+                    if (isNextThemeCollectionImage(info)) {
+                        NtpCustomizationUtils.saveDailyRefreshBackgroundInfo(
+                                info, bitmap, backgroundImageInfo);
+                        return;
+                    }
+
+                    // We do not set the theme collection image as the background if the bottom
+                    // sheet is dismissed; this is done to ensure proper theme color handling. Note
+                    // that this does not affect the prepared daily refresh image, as we only save
+                    // the primary color for that case.
+                    if (mIsDestroyed) {
+                        return;
+                    }
+
+                    mNtpCustomizationConfigManager.onThemeCollectionImageSelected(
+                            bitmap, info, backgroundImageInfo);
+                    mOnThemeImageSelectedCallback.onResult(bitmap);
+                    NtpCustomizationUtils.saveBackgroundInfo(
+                            info, bitmap, backgroundImageInfo, /* skipSavingPrimaryColor= */ true);
+
+                    if (mFetchNextImageRunnable != null) {
+                        mFetchNextImageRunnable.run();
+                        mFetchNextImageRunnable = null;
                     }
                 });
     }
@@ -160,6 +192,35 @@ public class NtpThemeCollectionManager {
      * @param themeCollectionId The id of the theme collection
      */
     public void setThemeCollectionDailyRefreshed(String themeCollectionId) {
+        mFetchNextImageRunnable = this::fetchNextThemeCollectionImage;
         mNtpThemeCollectionBridge.setThemeCollectionDailyRefreshed(themeCollectionId);
+    }
+
+    /** Fetches the next image for a theme collection with daily refresh enabled. */
+    private void fetchNextThemeCollectionImage() {
+        mNtpThemeCollectionBridge.fetchNextThemeCollectionImage();
+    }
+
+    /**
+     * Determines if the updated background information is for the next daily refresh image.
+     *
+     * <p>This is true if the new image belongs to the same collection as the current one and daily
+     * refresh is enabled for both.
+     *
+     * @param info The incoming {@link CustomBackgroundInfo}.
+     */
+    private boolean isNextThemeCollectionImage(CustomBackgroundInfo info) {
+        if (mNtpCustomizationConfigManager.getBackgroundImageType() != THEME_COLLECTION) {
+            return false;
+        }
+
+        CustomBackgroundInfo currentInfo = mNtpCustomizationConfigManager.getCustomBackgroundInfo();
+        if (currentInfo == null) {
+            return false;
+        }
+
+        return currentInfo.isDailyRefreshEnabled
+                && info.isDailyRefreshEnabled
+                && currentInfo.collectionId.equals(info.collectionId);
     }
 }

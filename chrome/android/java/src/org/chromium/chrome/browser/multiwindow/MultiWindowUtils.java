@@ -16,7 +16,6 @@ import android.app.ActivityManager.AppTask;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
@@ -53,6 +52,7 @@ import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.homepage.HomepageManager;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.InstanceAllocationType;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.SupportedProfileType;
@@ -92,7 +92,6 @@ import java.util.function.Supplier;
 @NullMarked
 public class MultiWindowUtils implements ActivityStateListener {
     public static final int INVALID_TASK_ID = MultiInstanceManager.INVALID_TASK_ID;
-    private static final int DEFAULT_TAB_COUNT_FOR_RELAUNCH = 0;
 
     static final String HISTOGRAM_NUM_ACTIVITIES_DESKTOP_WINDOW =
             "Android.MultiInstance.NumActivities.DesktopWindow";
@@ -108,6 +107,7 @@ public class MultiWindowUtils implements ActivityStateListener {
     protected static @Nullable Supplier<Activity> sActivitySupplierForTesting;
 
     private static @Nullable Integer sMaxInstancesForTesting;
+    private static @Nullable Integer sIncognitoInstanceCountForTesting;
     private static @Nullable Integer sInstanceCountForTesting;
     private static @Nullable Boolean sMultiInstanceApi31EnabledForTesting;
     private final boolean mMultiInstanceApi31Enabled;
@@ -134,28 +134,6 @@ public class MultiWindowUtils implements ActivityStateListener {
     private @interface MultiWindowState {
         int SINGLE_WINDOW = 0;
         int MULTI_WINDOW = 1;
-    }
-
-    @IntDef({
-        InstanceAllocationType.DEFAULT,
-        InstanceAllocationType.EXISTING_INSTANCE_UNMAPPED_TASK,
-        InstanceAllocationType.EXISTING_INSTANCE_MAPPED_TASK,
-        InstanceAllocationType.PREFER_NEW_INSTANCE_NEW_TASK,
-        InstanceAllocationType.PREFER_NEW_INVALID_INSTANCE,
-        InstanceAllocationType.NEW_INSTANCE_NEW_TASK,
-        InstanceAllocationType.EXISTING_INSTANCE_NEW_TASK,
-        InstanceAllocationType.INVALID_INSTANCE
-    })
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface InstanceAllocationType {
-        int DEFAULT = 0;
-        int EXISTING_INSTANCE_UNMAPPED_TASK = 1;
-        int EXISTING_INSTANCE_MAPPED_TASK = 2;
-        int PREFER_NEW_INSTANCE_NEW_TASK = 3;
-        int PREFER_NEW_INVALID_INSTANCE = 4;
-        int NEW_INSTANCE_NEW_TASK = 5;
-        int EXISTING_INSTANCE_NEW_TASK = 6;
-        int INVALID_INSTANCE = 7;
     }
 
     protected MultiWindowUtils() {
@@ -544,6 +522,9 @@ public class MultiWindowUtils implements ActivityStateListener {
      */
     // TODO (crbug.com/461553972): Remove this method after Robust Window Management is launched.
     public static int getIncognitoInstanceCount(boolean activeOnly) {
+        if (sIncognitoInstanceCountForTesting != null) {
+            return sIncognitoInstanceCountForTesting;
+        }
         int instanceType = PersistedInstanceType.OFF_THE_RECORD;
         if (activeOnly) {
             instanceType |= PersistedInstanceType.ACTIVE;
@@ -566,8 +547,8 @@ public class MultiWindowUtils implements ActivityStateListener {
     }
 
     static boolean isRestorableInstance(int index) {
-        return MultiInstanceManagerApi31.readTabCount(index) != 0
-                || MultiInstanceManagerApi31.getTaskFromMap(index) != INVALID_TASK_ID;
+        return MultiInstancePersistentStore.readNormalTabCount(index) != 0
+                || MultiInstancePersistentStore.readTaskId(index) != INVALID_TASK_ID;
     }
 
     @Override
@@ -857,31 +838,6 @@ public class MultiWindowUtils implements ActivityStateListener {
         return ctaTasks;
     }
 
-    static String lastAccessedTimeKey(int index) {
-        return ChromePreferenceKeys.MULTI_INSTANCE_LAST_ACCESSED_TIME.createKey(
-                String.valueOf(index));
-    }
-
-    /**
-     * Read the time when an instance was last accessed.
-     * @param index Instance ID
-     * @return The time when the instance was last accessed.
-     */
-    static long readLastAccessedTime(int index) {
-        return ChromeSharedPreferences.getInstance().readLong(lastAccessedTimeKey(index));
-    }
-
-    /**
-     * Write the time this instance is accessed.
-     *
-     * @param index Instance ID
-     */
-    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
-    public static void writeLastAccessedTime(int index) {
-        ChromeSharedPreferences.getInstance()
-                .writeLong(lastAccessedTimeKey(index), TimeUtils.currentTimeMillis());
-    }
-
     @VisibleForTesting
     public @Nullable Boolean getTabbedActivity2TaskRunning() {
         return mTabbedActivity2TaskRunning;
@@ -1013,7 +969,7 @@ public class MultiWindowUtils implements ActivityStateListener {
                 if (windowIdsOfRunningTabbedActivities.indexOfValue(id) < 0) continue;
             }
 
-            long accessedTime = readLastAccessedTime(id);
+            long accessedTime = MultiInstancePersistentStore.readLastAccessedTime(id);
             if (accessedTime > maxAccessedTime) {
                 maxAccessedTime = accessedTime;
                 lastAccessedWindowId = id;
@@ -1144,39 +1100,17 @@ public class MultiWindowUtils implements ActivityStateListener {
                 }
             }
         }
-
-        SharedPreferences.Editor editor = ChromeSharedPreferences.getInstance().getEditor();
-        String tabCountForRelaunchKey = getTabCountForRelaunchKey(windowId);
-        editor.putInt(tabCountForRelaunchKey, totalCount);
-        // The ChromeSharedPreferences.getInstance().writeInt() method uses editor.apply() instead
-        // of editor.commit(). The editor.apply() method writes data to memory and returns
-        // immediately, while the actual disk write occurs asynchronously in a background thread. On
-        // the other hand, editor.commit() writes data directly to disk and waits for the operation
-        // to complete. Since apply() is asynchronous, if the program is forcibly closed right after
-        // calling it (e.g., in our case where Chrome is closed and then relaunched), the disk write
-        // may not finish in time, potentially resulting in data loss. Therefore, editor.commit() is
-        // used here to ensure data is reliably saved.
-        editor.commit();
+        MultiInstancePersistentStore.writeTabCountForRelaunchSync(windowId, totalCount);
     }
 
     /**
      * Returns the total number of tabs for relaunch across both regular and incognito browsing
-     * modes through shared preference key.
+     * modes from persisted state.
      *
      * @param windowId The id of the window.
      */
-    public static int getTabCountForRelaunchFromSharedPrefs(int windowId) {
-        String tabCountForRelaunchKey = getTabCountForRelaunchKey(windowId);
-        return ChromeSharedPreferences.getInstance()
-                .readInt(
-                        tabCountForRelaunchKey, /* defaultValue= */ DEFAULT_TAB_COUNT_FOR_RELAUNCH);
-    }
-
-    /** Returns the tab count for relaunch key. */
-    @VisibleForTesting
-    static String getTabCountForRelaunchKey(int windowId) {
-        return ChromePreferenceKeys.MULTI_INSTANCE_TAB_COUNT_FOR_RELAUNCH.createKey(
-                String.valueOf(windowId));
+    public static int getTabCountForRelaunchFromPersistentStore(int windowId) {
+        return MultiInstancePersistentStore.readTabCountForRelaunch(windowId);
     }
 
     /**
@@ -1293,6 +1227,11 @@ public class MultiWindowUtils implements ActivityStateListener {
         var oldValue = sInstance;
         sInstance = instance;
         ResettersForTesting.register(() -> sInstance = oldValue);
+    }
+
+    public static void setIncognitoInstanceCountForTesting(int instanceCount) {
+        sIncognitoInstanceCountForTesting = instanceCount;
+        ResettersForTesting.register(() -> sIncognitoInstanceCountForTesting = null);
     }
 
     public static void setInstanceCountForTesting(int instanceCount) {

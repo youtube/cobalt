@@ -24,7 +24,7 @@
 #include "chrome/browser/ui/views/frame/browser_caption_button_container_win.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/minimize_button_metrics_win.h"
-#include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
+#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/webui_tab_strip_container_view.h"
 #include "chrome/browser/ui/views/tabs/new_tab_button.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
@@ -53,6 +53,7 @@
 #include "ui/gfx/scoped_canvas.h"
 #include "ui/gfx/win/icon_util.h"
 #include "ui/strings/grit/ui_strings.h"
+#include "ui/views/metadata/view_factory.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
 #include "ui/views/win/hwnd_util.h"
@@ -230,19 +231,24 @@ BrowserLayoutParams BrowserFrameViewWin::GetBrowserLayoutParams() const {
   params.visual_client_area = client_view_bounds_;
   const int top = params.visual_client_area.y();
   const auto& caption = caption_button_container_->bounds();
-  if (CaptionButtonsOnLeadingEdge()) {
-    params.leading_exclusion.content =
-        gfx::SizeF(caption.right(), caption.bottom() - top);
-  } else {
-    params.trailing_exclusion.content =
-        gfx::SizeF(width() - caption.x(), caption.bottom() - top);
-    // In overlay mode, the icon is present but hidden.
-    if (window_icon_ && !browser_view()->IsWindowControlsOverlayEnabled()) {
-      const auto& icon = window_icon_->bounds();
+  // In some cases, the top of the client area is moved down, but slightly
+  // overlaps the bottom of the caption container. In that case, don't count
+  // the caption buttons in the exclusion area.
+  if (top < caption.bottom() - 2) {
+    if (CaptionButtonsOnLeadingEdge()) {
       params.leading_exclusion.content =
-          gfx::SizeF(icon.right(), icon.bottom() - top);
-      params.leading_exclusion.horizontal_padding = kIconTitleSpacing;
-      params.leading_exclusion.vertical_padding = icon.y() - top;
+          gfx::SizeF(caption.right(), caption.bottom() - top);
+    } else {
+      params.trailing_exclusion.content =
+          gfx::SizeF(width() - caption.x(), caption.bottom() - top);
+      // In overlay mode, the icon is present but hidden.
+      if (window_icon_ && !GetBrowserView()->IsWindowControlsOverlayEnabled()) {
+        const auto& icon = window_icon_->bounds();
+        params.leading_exclusion.content =
+            gfx::SizeF(icon.right(), icon.bottom() - top);
+        params.leading_exclusion.horizontal_padding = kIconTitleSpacing;
+        params.leading_exclusion.vertical_padding = icon.y() - top;
+      }
     }
   }
   return params;
@@ -252,7 +258,7 @@ bool BrowserFrameViewWin::CaptionButtonsOnLeadingEdge() const {
   // Because we don't set WS_EX_LAYOUTRTL (which would conflict with Chrome's
   // own RTL layout logic), Windows always draws the caption buttons on the
   // right, even when we want to be RTL. See crbug.com/560619.
-  return !ShouldBrowserCustomDrawTitlebar(browser_view()) &&
+  return !ShouldBrowserCustomDrawTitlebar(GetBrowserView()) &&
          base::i18n::IsRTL();
 }
 
@@ -273,7 +279,7 @@ gfx::Rect BrowserFrameViewWin::GetBoundsForWebAppFrameToolbar(
   if (IsMaximized()) {
     x += kMaximizedLeftMargin;
   }
-  if (browser_view()->IsWindowControlsOverlayEnabled()) {
+  if (GetBrowserView()->IsWindowControlsOverlayEnabled()) {
     x = 0;
   } else if (window_icon_) {
     // Add extra padding to the left of the toolbar to account for the window
@@ -287,10 +293,10 @@ gfx::Rect BrowserFrameViewWin::GetBoundsForWebAppFrameToolbar(
 }
 
 int BrowserFrameViewWin::GetTopInset(bool restored) const {
-  if (browser_view()->GetTabStripVisible() || IsWebUITabStrip()) {
+  if (GetBrowserView()->GetTabStripVisible() || IsWebUITabStrip()) {
     return TopAreaHeight(restored);
   }
-  return ShouldBrowserCustomDrawTitlebar(browser_view())
+  return ShouldBrowserCustomDrawTitlebar(GetBrowserView())
              ? TitlebarHeight(restored)
              : 0;
 }
@@ -319,7 +325,7 @@ void BrowserFrameViewWin::UpdateThrobber(bool running) {
 }
 
 gfx::Size BrowserFrameViewWin::GetMinimumSize() const {
-  gfx::Size min_size(browser_view()->GetMinimumSize());
+  gfx::Size min_size(GetBrowserView()->GetMinimumSize());
   min_size.Enlarge(0, GetTopInset(false));
 
   gfx::Size titlebar_min_size(
@@ -375,7 +381,7 @@ gfx::Rect BrowserFrameViewWin::GetBoundsForClientView() const {
 gfx::Rect BrowserFrameViewWin::GetWindowBoundsForClientBounds(
     const gfx::Rect& client_bounds) const {
   HWND hwnd = views::HWNDForWidget(browser_widget());
-  if (!browser_view()->GetTabStripVisible() && hwnd) {
+  if (!GetBrowserView()->GetTabStripVisible() && hwnd) {
     // If we don't have a tabstrip, we're either a popup or an app window, in
     // which case we have a standard size non-client area and can just use
     // AdjustWindowRectEx to obtain it. We check for a non-null window handle in
@@ -400,8 +406,8 @@ int BrowserFrameViewWin::NonClientHitTest(const gfx::Point& point) {
 
   // For app windows and popups without a custom titlebar we haven't customized
   // the frame at all so Windows can figure it out.
-  if (!ShouldBrowserCustomDrawTitlebar(browser_view()) &&
-      !browser_view()->GetIsNormalType()) {
+  if (!ShouldBrowserCustomDrawTitlebar(GetBrowserView()) &&
+      !GetBrowserView()->GetIsNormalType()) {
     return HTNOWHERE;
   }
 
@@ -415,7 +421,7 @@ int BrowserFrameViewWin::NonClientHitTest(const gfx::Point& point) {
   // pixels at the end of the top and bottom edges trigger diagonal resizing.
   constexpr int kResizeCornerWidth = 16;
 
-  const int top_border_thickness = browser_view()->GetIsWebAppType()
+  const int top_border_thickness = GetBrowserView()->GetIsWebAppType()
                                        ? FrameTopBorderThickness(false)
                                        : GetLayoutConstant(TAB_STRIP_PADDING);
 
@@ -521,7 +527,7 @@ void BrowserFrameViewWin::ResetWindowControls() {
 
 void BrowserFrameViewWin::OnThemeChanged() {
   BrowserFrameView::OnThemeChanged();
-  if (!ShouldBrowserCustomDrawTitlebar(browser_view())) {
+  if (!ShouldBrowserCustomDrawTitlebar(GetBrowserView())) {
     SetSystemMicaTitlebarAttributes();
   }
 }
@@ -532,11 +538,11 @@ bool BrowserFrameViewWin::ShouldTabIconViewAnimate() const {
   }
 
   // Web apps use their app icon and shouldn't show a throbber.
-  if (browser_view()->GetIsWebAppType()) {
+  if (GetBrowserView()->GetIsWebAppType()) {
     return false;
   }
 
-  content::WebContents* current_tab = browser_view()->GetActiveWebContents();
+  content::WebContents* current_tab = GetBrowserView()->GetActiveWebContents();
   return current_tab && current_tab->ShouldShowLoadingUI();
 }
 
@@ -551,7 +557,7 @@ bool BrowserFrameViewWin::IsMaximized() const {
 
 bool BrowserFrameViewWin::IsWebUITabStrip() const {
   return WebUITabStripContainerView::UseTouchableTabStrip(
-      browser_view()->browser());
+      GetBrowserView()->browser());
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -559,7 +565,7 @@ bool BrowserFrameViewWin::IsWebUITabStrip() const {
 
 void BrowserFrameViewWin::OnPaint(gfx::Canvas* canvas) {
   TRACE_EVENT0("views.frame", "BrowserFrameViewWin::OnPaint");
-  if (ShouldBrowserCustomDrawTitlebar(browser_view())) {
+  if (ShouldBrowserCustomDrawTitlebar(GetBrowserView())) {
     PaintTitlebar(canvas);
   }
 }
@@ -568,7 +574,7 @@ void BrowserFrameViewWin::Layout(PassKey) {
   TRACE_EVENT0("views.frame", "BrowserFrameViewWin::Layout");
 
   LayoutCaptionButtons();
-  if (!browser_view()->IsWindowControlsOverlayEnabled()) {
+  if (!GetBrowserView()->IsWindowControlsOverlayEnabled()) {
     LayoutTitleBar();
   }
   LayoutClientView();
@@ -601,7 +607,7 @@ int BrowserFrameViewWin::FrameTopBorderThickness(bool restored) const {
   const bool is_fullscreen =
       (browser_widget()->IsFullscreen() || IsMaximized()) && !restored;
   if (!is_fullscreen) {
-    if (browser_view()->GetTabStripVisible()) {
+    if (GetBrowserView()->GetTabStripVisible()) {
       // Restored windows have a smaller top resize handle than the system
       // default. When maximized, the OS sizes the window such that the border
       // extends beyond the screen edges. In that case, we must return the
@@ -635,7 +641,7 @@ int BrowserFrameViewWin::FrameTopBorderThicknessPx(bool restored) const {
   // inset in order to avoid overlapping the monitor above.
   // See comments in BrowserDesktopWindowTreeHostWin::GetClientAreaInsets().
   const bool needs_no_border =
-      (ShouldBrowserCustomDrawTitlebar(browser_view()) &&
+      (ShouldBrowserCustomDrawTitlebar(GetBrowserView()) &&
        browser_widget()->IsMaximized()) ||
       browser_widget()->IsFullscreen();
   if (needs_no_border && !restored) {
@@ -675,11 +681,11 @@ int BrowserFrameViewWin::TitlebarMaximizedVisualHeight() const {
   // Adding 2 dip of vertical padding puts at least 1 dip of space on the top
   // and bottom of the element.
   constexpr int kVerticalPadding = 2;
-  if (!browser_view()->GetWebAppFrameToolbarPreferredSize().IsEmpty()) {
-    maximized_height =
-        std::max(maximized_height,
-                 browser_view()->GetWebAppFrameToolbarPreferredSize().height() +
-                     kVerticalPadding);
+  if (!GetBrowserView()->GetWebAppFrameToolbarPreferredSize().IsEmpty()) {
+    maximized_height = std::max(
+        maximized_height,
+        GetBrowserView()->GetWebAppFrameToolbarPreferredSize().height() +
+            kVerticalPadding);
   }
   return maximized_height;
 }
@@ -699,10 +705,10 @@ int BrowserFrameViewWin::TitlebarHeight(bool restored) const {
 }
 
 int BrowserFrameViewWin::GetFrameHeight() const {
-  if (browser_view()->GetTabStripVisible()) {
+  if (GetBrowserView()->GetTabStripVisible()) {
     // TODO(crbug.com/437915973): Account for the vertical tab region when using
     // GetMinimumSize().
-    return browser_view()->tab_strip_view()->GetMinimumSize().height() -
+    return GetBrowserView()->tab_strip_view()->GetMinimumSize().height() -
            WindowTopY() - GetLayoutConstant(TABSTRIP_TOOLBAR_OVERLAP);
   }
   return IsMaximized() ? TitlebarMaximizedVisualHeight()
@@ -728,7 +734,7 @@ int BrowserFrameViewWin::CaptionButtonsRegionWidth() const {
   }
 
   int total_width = caption_button_container_->size().width();
-  if (!ShouldBrowserCustomDrawTitlebar(browser_view())) {
+  if (!ShouldBrowserCustomDrawTitlebar(GetBrowserView())) {
     if (!system_caption_buttons_width.has_value()) {
       system_caption_buttons_width =
           caption_button_metrics_->GetCaptionButtonWidth();
@@ -741,36 +747,36 @@ int BrowserFrameViewWin::CaptionButtonsRegionWidth() const {
 
 bool BrowserFrameViewWin::ShouldShowWindowIcon(TitlebarType type) const {
   if (type == TitlebarType::kCustom &&
-      !ShouldBrowserCustomDrawTitlebar(browser_view())) {
+      !ShouldBrowserCustomDrawTitlebar(GetBrowserView())) {
     return false;
   }
   if (type == TitlebarType::kSystem &&
-      ShouldBrowserCustomDrawTitlebar(browser_view())) {
+      ShouldBrowserCustomDrawTitlebar(GetBrowserView())) {
     return false;
   }
   if (browser_widget()->IsFullscreen()) {
     return false;
   }
-  return browser_view()->ShouldShowWindowIcon();
+  return GetBrowserView()->ShouldShowWindowIcon();
 }
 
 bool BrowserFrameViewWin::ShouldShowWindowTitle(TitlebarType type) const {
   if (type == TitlebarType::kCustom &&
-      !ShouldBrowserCustomDrawTitlebar(browser_view())) {
+      !ShouldBrowserCustomDrawTitlebar(GetBrowserView())) {
     return false;
   }
   if (type == TitlebarType::kSystem &&
-      ShouldBrowserCustomDrawTitlebar(browser_view())) {
+      ShouldBrowserCustomDrawTitlebar(GetBrowserView())) {
     return false;
   }
   if (browser_widget()->IsFullscreen()) {
     return false;
   }
-  return browser_view()->ShouldShowWindowTitle();
+  return GetBrowserView()->ShouldShowWindowTitle();
 }
 
 void BrowserFrameViewWin::TabletModeChanged() {
-  if (!ShouldBrowserCustomDrawTitlebar(browser_view())) {
+  if (!ShouldBrowserCustomDrawTitlebar(GetBrowserView())) {
     SetSystemMicaTitlebarAttributes();
   }
 }
@@ -785,8 +791,8 @@ void BrowserFrameViewWin::SetSystemMicaTitlebarAttributes() {
                         sizeof(dark_titlebar_enabled));
 
   const DWM_SYSTEMBACKDROP_TYPE dwm_backdrop_type =
-      browser_view()->GetTabStripVisible() ? DWMSBT_TABBEDWINDOW
-                                           : DWMSBT_MAINWINDOW;
+      GetBrowserView()->GetTabStripVisible() ? DWMSBT_TABBEDWINDOW
+                                             : DWMSBT_MAINWINDOW;
   DwmSetWindowAttribute(views::HWNDForWidget(browser_widget()),
                         DWMWA_SYSTEMBACKDROP_TYPE, &dwm_backdrop_type,
                         sizeof(dwm_backdrop_type));
@@ -837,9 +843,9 @@ void BrowserFrameViewWin::PaintTitlebar(gfx::Canvas* canvas) const {
   // TODO(crbug.com/437915973): Account for the vertical tab region when using
   // GetMinimumSize().
   const int titlebar_height =
-      browser_view()->GetTabStripVisible()
+      GetBrowserView()->GetTabStripVisible()
           ? GetBoundsForTabStripRegion(
-                browser_view()->tab_strip_view()->GetMinimumSize())
+                GetBrowserView()->tab_strip_view()->GetMinimumSize())
                 .bottom()
           : TitlebarHeight(false);
   const gfx::Rect titlebar_rect = gfx::ToEnclosingRect(
@@ -909,7 +915,7 @@ void BrowserFrameViewWin::LayoutTitleBar() {
   }
 
   if (show_title && window_title_) {
-    window_title_->SetText(browser_view()->GetWindowTitle());
+    window_title_->SetText(GetBrowserView()->GetWindowTitle());
     const int max_text_width = std::max(0, next_trailing_x - next_leading_x);
     LayoutWebAppWindowTitle(
         gfx::Rect(next_leading_x, window_icon_bounds.y(), max_text_width,
@@ -927,12 +933,12 @@ void BrowserFrameViewWin::LayoutCaptionButtons() {
       caption_button_container_->GetPreferredSize();
 
   const int system_caption_buttons_width =
-      ShouldBrowserCustomDrawTitlebar(browser_view())
+      ShouldBrowserCustomDrawTitlebar(GetBrowserView())
           ? 0
           : caption_button_metrics_->GetCaptionButtonWidth();
 
   const int height =
-      !browser_view()->GetWebAppFrameToolbarPreferredSize().IsEmpty()
+      !GetBrowserView()->GetWebAppFrameToolbarPreferredSize().IsEmpty()
           ? (TitlebarHeight(false) - WindowTopY())
           : GetFrameHeight();
 
@@ -946,8 +952,8 @@ void BrowserFrameViewWin::LayoutCaptionButtons() {
 void BrowserFrameViewWin::LayoutClientView() {
   client_view_bounds_ = GetLocalBounds();
   int top_inset = GetTopInset(false);
-  if (browser_view()->IsWindowControlsOverlayEnabled() ||
-      !browser_view()->GetWebAppFrameToolbarPreferredSize().IsEmpty()) {
+  if (GetBrowserView()->IsWindowControlsOverlayEnabled() ||
+      !GetBrowserView()->GetWebAppFrameToolbarPreferredSize().IsEmpty()) {
     top_inset = browser_widget()->IsFullscreen() ? 0 : WindowTopY();
   }
   client_view_bounds_.Inset(gfx::Insets::TLBR(top_inset, 0, 0, 0));
@@ -976,7 +982,7 @@ void BrowserFrameViewWin::StopThrobber() {
     HICON big_icon = nullptr;
 
     gfx::ImageSkia icon =
-        browser_view()->GetWindowIcon().Rasterize(GetColorProvider());
+        GetBrowserView()->GetWindowIcon().Rasterize(GetColorProvider());
 
     if (!icon.isNull()) {
       // Keep previous icons alive as long as they are referenced by the HWND.

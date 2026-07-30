@@ -53,6 +53,8 @@ class RendererTask : public Task,
 
   // task_manager::Task:
   void Activate() override;
+  bool IsKillable() override;
+  bool Kill() override;
   void Refresh(const base::TimeDelta& update_interval,
                int64_t refresh_flags) override;
   Type GetType() const override;
@@ -92,7 +94,7 @@ class RendererTask : public Task,
 
   // Returns the favicon of the given |web_contents| if any, and returns
   // |nullptr| otherwise.
-  static const gfx::ImageSkia* GetFaviconFromWebContents(
+  static std::unique_ptr<gfx::ImageSkia> GetFaviconFromWebContents(
       content::WebContents* web_contents);
 
   // Prefixes the given renderer |title| with the appropriate string based on

@@ -8,6 +8,7 @@
 #include <variant>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "components/device_event_log/device_event_log.h"
@@ -16,10 +17,10 @@
 #include "device/bluetooth/bluetooth_adapter.h"
 #include "device/bluetooth/bluetooth_adapter_factory.h"
 #include "device/fido/ble_adapter_manager.h"
-#include "device/fido/cable/cable_discovery_data.h"
 #include "device/fido/cable/fido_cable_discovery.h"
-#include "device/fido/fido_constants.h"
 #include "device/fido/fido_discovery_base.h"
+#include "device/fido/public/cable_discovery_data.h"
+#include "device/fido/public/fido_constants.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 
 #if BUILDFLAG(IS_MAC)

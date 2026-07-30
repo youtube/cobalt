@@ -21,7 +21,7 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "components/webapps/browser/android/webapps_jni_headers/AddToHomescreenCoordinator_jni.h"
 
-using base::android::JavaParamRef;
+using base::android::JavaRef;
 
 namespace webapps {
 
@@ -36,7 +36,7 @@ const int kDataTimeoutInMilliseconds = 8000;
 AddToHomescreenCoordinator::AddToHomescreenCoordinator(
     content::WebContents* web_contents,
     int app_menu_type,
-    const JavaParamRef<jobject>& java_coordinator) {
+    const JavaRef<jobject>& java_coordinator) {
   app_menu_type_ = app_menu_type;
   java_coordinator_ = java_coordinator;
 
@@ -48,8 +48,12 @@ void AddToHomescreenCoordinator::OnUserTitleAvailable(
     const std::u16string& user_title,
     const GURL& url,
     AddToHomescreenParams::AppType app_type) {
-  // TODO: crbug.com/449581904 - Skip the creation of mediator and view if
-  // auto-minted TWA will be installed.
+  if (app_type == AddToHomescreenParams::AppType::TWA) {
+    // When the auto-minted TWA will be installed, skip creating the mediator
+    // and the view, as the install dialog will be presented by the Android
+    // side (WebApp mainline module).
+    return;
+  }
 
   JNIEnv* env = base::android::AttachCurrentThread();
   mediator_ = reinterpret_cast<AddToHomescreenMediator*>(
@@ -66,7 +70,10 @@ void AddToHomescreenCoordinator::OnUserTitleAvailable(
     app_type = AppType::SHORTCUT;
   }
 
-  mediator_->OnAppMetadataAvailable(user_title, url, app_type);
+  mediator_->OnAppMetadataAvailable(
+      user_title, url, app_type,
+      base::BindRepeating(&AddToHomescreenCoordinator::RecordEventForAppMenu,
+                          data_fetcher_->web_contents()));
 }
 
 void AddToHomescreenCoordinator::OnDataAvailable(
@@ -74,14 +81,23 @@ void AddToHomescreenCoordinator::OnDataAvailable(
     const SkBitmap& display_icon,
     AddToHomescreenParams::AppType app_type,
     InstallableStatusCode status_code) {
-  // OnUserTitleAvailable should be called beforehand.
-  CHECK(mediator_);
-
   auto params = std::make_unique<AddToHomescreenParams>(
       app_type, std::make_unique<ShortcutInfo>(info), display_icon, status_code,
       InstallableMetrics::GetInstallSource(data_fetcher_->web_contents(),
                                            InstallTrigger::MENU));
 
+  if (app_type == AddToHomescreenParams::AppType::TWA) {
+    CHECK(!mediator_);
+
+    // TODO(crbug.com/449581904): Start TWA install flow from here.
+
+    JNIEnv* env = base::android::AttachCurrentThread();
+    Java_AddToHomescreenCoordinator_onFlowCompleted(env, java_coordinator_);
+    return;
+  }
+
+  // OnUserTitleAvailable should be called beforehand.
+  CHECK(mediator_);
   mediator_->OnFullAppDataAvailable(std::move(params));
 }
 
@@ -95,15 +111,18 @@ void AddToHomescreenCoordinator::Destroy(JNIEnv* env) {
 bool AddToHomescreenCoordinator::ShowForAppBanner(
     base::WeakPtr<AppBannerManager> weak_manager,
     std::unique_ptr<AddToHomescreenParams> params,
-    base::RepeatingCallback<void(AddToHomescreenInstaller::Event,
-                                 const AddToHomescreenParams&)>
-        event_callback) {
+    AddToHomescreenEventCallback event_callback) {
   // Don't start if app info is not available.
   if ((params->app_type == AddToHomescreenParams::AppType::NATIVE &&
        params->native_app_data.is_null()) ||
-      (params->app_type == AddToHomescreenParams::AppType::WEBAPK &&
+      (params->app_type != AddToHomescreenParams::AppType::NATIVE &&
        !params->shortcut_info)) {
     return false;
+  }
+
+  if (params->app_type == AddToHomescreenParams::AppType::TWA) {
+    // TODO(crbug.com/449581904): Start TWA install flow from here.
+    return true;
   }
 
   JNIEnv* env = base::android::AttachCurrentThread();
@@ -118,10 +137,31 @@ bool AddToHomescreenCoordinator::ShowForAppBanner(
 }
 
 // static
+void AddToHomescreenCoordinator::RecordEventForAppMenu(
+    content::WebContents* web_contents,
+    AddToHomescreenEvent event,
+    const AddToHomescreenParams& a2hs_params) {
+  if (!web_contents || a2hs_params.app_type == AppType::NATIVE) {
+    return;
+  }
+
+  if (event == AddToHomescreenEvent::INSTALL_REQUEST_FINISHED) {
+    AppBannerManager* app_banner_manager =
+        AppBannerManager::FromWebContents(web_contents);
+    // Fire the appinstalled event and do install time logging.
+    if (app_banner_manager) {
+      app_banner_manager->OnInstall(
+          a2hs_params.shortcut_info->display,
+          /*set_current_web_app_not_installable=*/false);
+    }
+  }
+}
+
+// static
 jlong JNI_AddToHomescreenCoordinator_StartForAppMenu(
     JNIEnv* env,
-    const JavaParamRef<jobject>& java_coordinator,
-    const base::android::JavaParamRef<jobject>& java_web_contents,
+    const JavaRef<jobject>& java_coordinator,
+    const base::android::JavaRef<jobject>& java_web_contents,
     int app_menu_type) {
   content::WebContents* web_contents =
       content::WebContents::FromJavaWebContents(java_web_contents);
