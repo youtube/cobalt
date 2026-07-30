@@ -36,6 +36,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/with_feature_override.h"
 #include "base/time/time.h"
@@ -6566,68 +6567,6 @@ IN_PROC_BROWSER_TEST_P(ServiceWorkerAutoPreloadWithBlockedHostsBrowserTest,
   EXPECT_EQ(0, GetRequestCount(relative_url));
 }
 
-class ServiceWorkerAutoPreloadWithEnableSubresourcePreloadBrowserTest
-    : public ServiceWorkerAutoPreloadBrowserTest {
- public:
-  ServiceWorkerAutoPreloadWithEnableSubresourcePreloadBrowserTest() {
-    feature_list_.InitWithFeaturesAndParameters(
-        {{features::kServiceWorkerAutoPreload,
-          {
-              {"enable_subresource_preload", "false"},
-          }}},
-        {});
-    RaceNetworkRequestWriteBufferManager::SetDataPipeCapacityBytesForTesting(
-        1024);
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    All,
-    ServiceWorkerAutoPreloadWithEnableSubresourcePreloadBrowserTest,
-    testing::Combine(testing::Bool(), testing::Bool()));
-
-IN_PROC_BROWSER_TEST_P(
-    ServiceWorkerAutoPreloadWithEnableSubresourcePreloadBrowserTest,
-    Disabled) {
-  SetupAndRegisterServiceWorker();
-  // Check the main resource request, ensuring the preload request is
-  // dispatched.
-  const std::string relative_url =
-      "/service_worker/mock_response?sw_slow&sw_respond";
-  const GURL test_url = embedded_test_server()->GetURL(relative_url);
-  NavigationHandleObserver observer(web_contents(), test_url);
-  WorkerRunningStatusObserver service_worker_running_status_observer(
-      public_context());
-  NavigateToURLBlockUntilNavigationsComplete(shell(), test_url, 1);
-  EXPECT_TRUE(observer.has_committed());
-  service_worker_running_status_observer.WaitUntilRunning();
-
-  // ServiceWorker will respond after the delay, so we expect the network
-  // request initiated by the RaceNetworkRequest is requested to the server
-  // although it's not actually used.
-  while (GetRequestCount(relative_url) != 1) {
-    base::RunLoop().RunUntilIdle();
-  }
-  EXPECT_EQ(1, GetRequestCount(relative_url));
-  EXPECT_EQ("[ServiceWorkerRaceNetworkRequest] Response from the fetch handler",
-            GetInnerText());
-  EXPECT_EQ("fetch-handler",
-            observer.GetNormalizedResponseHeader("X-Response-From"));
-
-  // Check the subresource request, ensuring the preload request is not
-  // dispatched. The request recorded count is not changed, because the
-  // subresource preload request is not dispatched.
-  EXPECT_EQ("[ServiceWorkerRaceNetworkRequest] Response from the fetch handler",
-            EvalJs(GetPrimaryMainFrame(),
-                   "fetch('" + relative_url +
-                       "').then(response => response.text())"));
-  base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(1, GetRequestCount(relative_url));
-}
-
 class ServiceWorkerAutoPreloadWithEnableOnlyWhenSWNotRunningBrowserTest
     : public ServiceWorkerAutoPreloadBrowserTest {
  public:
@@ -7465,6 +7404,13 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerStaticRouterBrowserTest,
   // The result should be got from the cache, and no network access is
   // expected.
   EXPECT_EQ(0, GetRequestCount(relative_url));
+
+  // Sync histograms from the renderer process.
+  FetchHistogramsFromChildProcesses();
+
+  // Check UMA (success case should record true).
+  histogram_tester().ExpectBucketCount(
+      "ServiceWorker.StaticRouter.Subresource.ValidResponse", true, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(ServiceWorkerStaticRouterBrowserTest,

@@ -470,9 +470,13 @@ bool BrowserAccessibilityManager::OnAccessibilityEvents(
   // remove this exclusion.
   base::ScopedSafetyChecksExclusion scoped_unsafe;
 
-#if DCHECK_IS_ON()
+#if BUILDFLAG(IS_WIN)
+  CHECK(!in_on_accessibility_events_)
+      << "Should not re-enter OnAccessiblityEvents()";
+#endif  // BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || DCHECK_IS_ON()
   base::AutoReset<bool> auto_reset(&in_on_accessibility_events_, true);
-#endif  // DCHECK_IS_ON()
+#endif  // BUILDFLAG(IS_WIN) || DCHECK_IS_ON()
 
   // Update the cached device scale factor.
   if (!use_custom_device_scale_factor_for_testing_)
@@ -1247,11 +1251,17 @@ void BrowserAccessibilityManager::SetSelection(
   if (!delegate_ || range.IsNull())
     return;
 
+  // TODO(crbug.com/443078007): Add position types and affinity to AXActionData
+  // and pass them to blink to avoid ambiguity.
   AXActionData action_data;
   action_data.anchor_node_id = range.anchor()->anchor_id();
-  action_data.anchor_offset = range.anchor()->text_offset();
+  action_data.anchor_offset = range.anchor()->IsTextPosition()
+                                  ? range.anchor()->text_offset()
+                                  : range.anchor()->child_index();
   action_data.focus_node_id = range.focus()->anchor_id();
-  action_data.focus_offset = range.focus()->text_offset();
+  action_data.focus_offset = range.focus()->IsTextPosition()
+                                 ? range.focus()->text_offset()
+                                 : range.focus()->child_index();
   action_data.action = ax::mojom::Action::kSetSelection;
   delegate_->AccessibilityPerformAction(action_data);
   AXPlatform::GetInstance().OnActionFromAssistiveTech();
@@ -1922,6 +1932,13 @@ BrowserAccessibility* BrowserAccessibilityManager::ApproximateHitTest(
 }
 
 void BrowserAccessibilityManager::DetachFromParentManager() {
+  // Notify the parent to invalidate its hypertext cache before disconnecting,
+  // otherwise stale hyperlink IDs can cause type confusion after reassignment.
+  if (connected_to_parent_tree_node_) {
+    if (AXNode* parent = GetParentNodeFromParentTree()) {
+      UpdateAttributesOnParent(parent);
+    }
+  }
   connected_to_parent_tree_node_ = false;
 }
 

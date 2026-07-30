@@ -7,6 +7,7 @@
 
 #import <UIKit/UIKit.h>
 
+#import "base/memory/weak_ptr.h"
 #import "base/observer_list.h"
 #import "base/types/pass_key.h"
 #import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent_observer.h"
@@ -61,7 +62,7 @@ class FullscreenBrowserAgent : public BrowserUserData<FullscreenBrowserAgent> {
 
   // Increments the disabled counter. If the counter becomes 1, it exits
   // fullscreen mode.
-  void IncrementDisabledCounter(PassKey);
+  void IncrementDisabledCounter(PassKey, bool animated);
 
   // Decrements the disabled counter.
   void DecrementDisabledCounter(PassKey);
@@ -77,6 +78,14 @@ class FullscreenBrowserAgent : public BrowserUserData<FullscreenBrowserAgent> {
   friend class BrowserUserData<FullscreenBrowserAgent>;
 
   explicit FullscreenBrowserAgent(Browser* browser);
+
+  // Updates the progress and broadcasts the change to observers.
+  void UpdateProgressAndBroadcast(CGFloat top_progress,
+                                  CGFloat bottom_progress,
+                                  bool animated);
+
+  // Notifies all observers of an updated state.
+  void NotifyObserversOfUpdatedState();
 
   base::ObserverList<FullscreenBrowserAgentObserver, true> observers_;
 
@@ -101,6 +110,8 @@ class FullscreenBrowserAgent : public BrowserUserData<FullscreenBrowserAgent> {
   // True if the agent is currently broadcasting WillUpdateState. Used to
   // ensure AddObscuredInset() is only called a the correct time.
   bool updating_insets_ = false;
+
+  base::WeakPtrFactory<FullscreenBrowserAgent> weak_ptr_factory_{this};
 };
 
 #endif  // IOS_CHROME_BROWSER_FULLSCREEN_MODEL_FULLSCREEN_BROWSER_AGENT_H_

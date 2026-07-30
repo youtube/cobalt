@@ -29,6 +29,7 @@
 #include "components/send_tab_to_self/proto/send_tab_to_self.pb.h"
 #include "components/send_tab_to_self/proto_conversions.h"
 #include "components/send_tab_to_self/target_device_info.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/base/deletion_origin.h"
 #include "components/sync/model/data_type_local_change_processor.h"
 #include "components/sync/model/entity_change.h"
@@ -103,6 +104,7 @@ base::flat_map<std::string, base::Time> GetSessionTimestamps(
 struct DeviceWithTimestamp {
   raw_ptr<const syncer::DeviceInfo> device;
   base::Time last_active;
+  bool has_high_precision = false;
 };
 
 // Returns a list of devices with the last active timestamp for each device.
@@ -116,11 +118,15 @@ std::vector<DeviceWithTimestamp> GetDevicesWithLastActiveTime(
 
   for (const syncer::DeviceInfo* device : all_devices) {
     base::Time last_active = device->last_updated_timestamp();
+    bool has_high_precision = false;
     auto it = session_timestamps.find(device->guid());
     if (it != session_timestamps.end()) {
       last_active = std::max(last_active, it->second);
+      // If the device has a session timestamp, it is highly precise.
+      has_high_precision = true;
     }
-    devices_with_timestamps.emplace_back(device, last_active);
+    devices_with_timestamps.emplace_back(device, last_active,
+                                         has_high_precision);
   }
   return devices_with_timestamps;
 }
@@ -210,13 +216,32 @@ SendTabToSelfBridge::ApplyIncrementalSyncChanges(
       } else {
         SendTabToSelfEntry* local_entry =
             GetMutableEntryByGUID(remote_entry->GetGUID());
-        SendTabToSelfLocal remote_entry_pb = remote_entry->AsLocalProto();
         if (local_entry == nullptr) {
+          bool needs_reupload = false;
+          // If this device is the target and the entry hasn't been received
+          // yet, set the received timestamp.
+          if (device_info_tracker_->IsRecentLocalCacheGuid(
+                  remote_entry->GetTargetDeviceSyncCacheGuid()) &&
+              !remote_entry->IsReceived()) {
+            remote_entry->MarkReceived(clock_->Now());
+            RecordTimeSentToReceived(remote_entry->GetReceivedTime() -
+                                     remote_entry->GetSharedTime());
+            needs_reupload = true;
+          }
           if (unknown_opened_entries_.contains(remote_entry->GetGUID())) {
+            base::Time opened_time =
+                unknown_opened_entries_[remote_entry->GetGUID()];
             unknown_opened_entries_.erase(remote_entry->GetGUID());
-            remote_entry->MarkOpened();
-            // Reupload the entry to the server. This operation is safe because
-            // it is happening at most once per entry.
+            remote_entry->MarkOpened(opened_time);
+            RecordTimeSentToOpened(remote_entry->GetOpenedTime() -
+                                   remote_entry->GetSharedTime());
+            needs_reupload = true;
+          }
+          // Reupload the entry to the server so the sending device can
+          // observe the acknowledgment. This is safe because it happens at
+          // most once per entry (the IsReceived() guard above prevents
+          // re-entry on subsequent syncs).
+          if (needs_reupload) {
             change_processor()->Put(
                 remote_entry->GetGUID(),
                 CopyToEntityData(remote_entry->AsLocalProto().specifics()),
@@ -227,17 +252,28 @@ SendTabToSelfBridge::ApplyIncrementalSyncChanges(
           if (remote_entry->IsOpened()) {
             opened.push_back(remote_entry.get());
           }
-          entries_[remote_entry->GetGUID()] = std::move(remote_entry);
+
+          // Write to the store *after* all mutations so the local store has
+          // the up-to-date fields.
+          batch->WriteData(guid,
+                           remote_entry->AsLocalProto().SerializeAsString());
+          std::string remote_guid = remote_entry->GetGUID();
+          entries_[remote_guid] = std::move(remote_entry);
         } else {
+          // Propagate timestamp fields from the remote entry.
+          if (remote_entry->IsReceived() && !local_entry->IsReceived()) {
+            local_entry->MarkReceived(remote_entry->GetReceivedTime());
+          }
           // Update existing model if entries have been opened.
           if (remote_entry->IsOpened() && !local_entry->IsOpened()) {
-            local_entry->MarkOpened();
+            local_entry->MarkOpened(remote_entry->GetOpenedTime());
             opened.push_back(local_entry);
           }
-        }
 
-        // Write to the store.
-        batch->WriteData(guid, remote_entry_pb.SerializeAsString());
+          // Write to the store.
+          batch->WriteData(guid,
+                           local_entry->AsLocalProto().SerializeAsString());
+        }
       }
     }
   }
@@ -443,13 +479,15 @@ void SendTabToSelfBridge::MarkEntryOpened(const std::string& guid) {
   SendTabToSelfEntry* entry = GetMutableEntryByGUID(guid);
   // Assure that an entry with that guid exists.
   if (!entry) {
-    unknown_opened_entries_.insert(guid);
+    unknown_opened_entries_[guid] = clock_->Now();
     return;
   }
 
   DCHECK(change_processor()->IsTrackingMetadata());
 
-  entry->MarkOpened();
+  entry->MarkOpened(clock_->Now());
+
+  RecordTimeSentToOpened(entry->GetOpenedTime() - entry->GetSharedTime());
 
   std::unique_ptr<DataTypeStore::WriteBatch> batch = store_->CreateWriteBatch();
 
@@ -537,7 +575,8 @@ SendTabToSelfBridge::GetTargetDeviceInfoSortedList() {
     auto it = std::ranges::find(devices_with_timestamps, info.device,
                                 &DeviceWithTimestamp::device);
     return TargetDeviceInfo(info.display_name, info.device->guid(),
-                            info.device->form_factor(), it->last_active);
+                            info.device->form_factor(), it->last_active,
+                            it->has_high_precision);
   });
 }
 

@@ -158,7 +158,8 @@ void BackgroundModeManager::BackgroundModeData::
   manager_->ReleaseForceInstalledExtensionsKeepAlive();
 }
 
-Browser* BackgroundModeManager::BackgroundModeData::GetBrowserWindow() {
+BrowserWindowInterface*
+BackgroundModeManager::BackgroundModeData::GetBrowserWindow() {
   return BackgroundModeManager::GetBrowserWindowForProfile(profile_);
 }
 
@@ -426,7 +427,8 @@ void BackgroundModeManager::LaunchBackgroundApplication(
 }
 
 // static
-Browser* BackgroundModeManager::GetBrowserWindowForProfile(Profile* profile) {
+BrowserWindowInterface* BackgroundModeManager::GetBrowserWindowForProfile(
+    Profile* profile) {
   Browser* browser = chrome::FindLastActiveWithProfile(profile);
   return browser ? browser : chrome::OpenEmptyWindow(profile);
 }
@@ -925,8 +927,13 @@ void BackgroundModeManager::UpdateStatusTrayIconContextMenu() {
     return;
   }
 
+  // We build a new menu and submenus into local variables first, to avoid
+  // deleting the old submenus until after the status icon's context menu has
+  // been replaced. This prevents dangling pointers in platforms that keep
+  // references to the menu model items (e.g., Linux DBus menu).
+  // TODO(crbug.com/495947678): add a regression test for this.
   command_id_handler_vector_.clear();
-  submenus.clear();
+  std::vector<std::unique_ptr<StatusIconMenuModel>> new_submenus;
 
   std::unique_ptr<StatusIconMenuModel> menu(new StatusIconMenuModel(this));
   menu->AddItem(IDC_ABOUT, l10n_util::GetStringUTF16(IDS_ABOUT));
@@ -948,8 +955,8 @@ void BackgroundModeManager::UpdateStatusTrayIconContextMenu() {
       if (bmd->HasAnyBackgroundClient()) {
         // The submenu constructor caller owns the lifetime of the submenu.
         // The containing menu does not handle the lifetime.
-        submenus.push_back(std::make_unique<StatusIconMenuModel>(bmd));
-        bmd->BuildProfileMenu(submenus.back().get(), menu.get());
+        new_submenus.push_back(std::make_unique<StatusIconMenuModel>(bmd));
+        bmd->BuildProfileMenu(new_submenus.back().get(), menu.get());
         profiles_using_background_mode++;
       }
     }
@@ -992,6 +999,7 @@ void BackgroundModeManager::UpdateStatusTrayIconContextMenu() {
 
   context_menu_ = menu.get();
   status_icon_->SetContextMenu(std::move(menu));
+  submenus = std::move(new_submenus);
 }
 
 void BackgroundModeManager::RemoveStatusTrayIcon() {

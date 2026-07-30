@@ -11,10 +11,16 @@
 #include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/extensions/extension_view_host.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/android/extensions/extension_action_delegate_android.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/extensions/extensions_toolbar_view_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "content/public/browser/web_contents.h"
+#include "extensions/browser/extension_registry.h"
+#include "extensions/browser/permissions_manager.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
+#include "ui/events/android/key_event_android.h"
 #include "ui/gfx/android/java_bitmap.h"
 #include "ui/gfx/image/image_skia_rep.h"
 
@@ -42,6 +48,9 @@ ExtensionsToolbarAndroid::ExtensionsToolbarAndroid(
           ToolbarActionsModel::Get(browser_->GetProfile()))),
       scoped_toolbar_view_model_user_data_(browser->GetUnownedUserDataHost(),
                                            *toolbar_view_model_),
+      keybinding_registry_(std::make_unique<ExtensionKeybindingRegistryAndroid>(
+          browser_->GetProfile(),
+          toolbar_view_model_.get())),
       java_object_(java_object) {
   toolbar_view_model_observation_.Observe(toolbar_view_model_.get());
 
@@ -52,6 +61,11 @@ ExtensionsToolbarAndroid::ExtensionsToolbarAndroid(
 }
 
 ExtensionsToolbarAndroid::~ExtensionsToolbarAndroid() = default;
+
+bool ExtensionsToolbarAndroid::HasActivePopup() {
+  return Java_ExtensionsToolbarBridge_hasActivePopup(AttachCurrentThread(),
+                                                     java_object_);
+}
 
 void ExtensionsToolbarAndroid::TriggerPopup(
     const ToolbarActionsModel::ActionId& action_id,
@@ -98,10 +112,9 @@ void ExtensionsToolbarAndroid::HideActivePopup() {
                                                       java_object_);
 }
 
-bool ExtensionsToolbarAndroid::CloseOverflowMenuIfOpen() {
+void ExtensionsToolbarAndroid::CloseExtensionsMenuIfOpen() {
   // TODO(crbug.com/461981075)
   NOTIMPLEMENTED();
-  return false;
 }
 
 bool ExtensionsToolbarAndroid::CanShowToolbarActionPopupForAPICall(
@@ -223,16 +236,52 @@ int ExtensionsToolbarAndroid::GetExtensionsMenuButtonState(
   return static_cast<int>(toolbar_view_model_->GetButtonState(*web_contents));
 }
 
+bool ExtensionsToolbarAndroid::HandleKeyDownEvent(
+    JNIEnv* env,
+    const ui::KeyEventAndroid& key_event) {
+  return keybinding_registry_->HandleKeyDownEvent(key_event);
+}
+
 bool ExtensionsToolbarAndroid::IsActionDraggable(
     JNIEnv* env,
     const ToolbarActionsModel::ActionId& action_id) {
   return toolbar_view_model_->IsActionDraggable(action_id);
 }
 
+void ExtensionsToolbarAndroid::OnRequestAccessButtonClicked(
+    JNIEnv* env,
+    content::WebContents* web_contents) {
+  ExtensionsToolbarViewModel::RequestAccessButtonParams params =
+      toolbar_view_model_->GetRequestAccessButtonParams(web_contents);
+
+  GrantSiteAccess(web_contents, params.extension_ids);
+}
+
 void ExtensionsToolbarAndroid::ExecuteUserAction(
     const ToolbarActionsModel::ActionId& action_id,
     ToolbarActionViewModel::InvocationSource source) {
   toolbar_view_model_->ExecuteUserAction(action_id, source);
+}
+
+// TODO(crbug.com/499007513): Move this logic to ExtensionsToolbarViewModel so
+// it can be shared and used by all delegates.
+void ExtensionsToolbarAndroid::GrantSiteAccess(
+    content::WebContents* web_contents,
+    const std::vector<std::string>& extension_ids) {
+  Profile* profile = browser_->GetProfile();
+  auto* registry = extensions::ExtensionRegistry::Get(profile);
+  std::vector<const extensions::Extension*> extensions_to_run;
+  for (const auto& id : extension_ids) {
+    const extensions::Extension* extension =
+        registry->enabled_extensions().GetByID(id);
+    if (extension) {
+      extensions_to_run.push_back(extension);
+    }
+  }
+
+  extensions::SitePermissionsHelper(profile).UpdateSiteAccess(
+      extensions_to_run, web_contents,
+      extensions::PermissionsManager::UserSiteAccess::kOnSite);
 }
 
 void ExtensionsToolbarAndroid::RegisterIconObserverForAction(

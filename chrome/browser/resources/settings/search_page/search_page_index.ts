@@ -4,6 +4,9 @@
 
 import 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
 import '/shared/settings/prefs/prefs.js';
+import './site_shortcuts_page.js';
+import './feature_shortcuts_page.js';
+import './keyboard_shortcut_page.js';
 import './search_page.js';
 import '../settings_shared.css.js';
 
@@ -60,6 +63,18 @@ export class SettingsSearchPageIndexElement extends
   declare private routes_: SettingsRoutes;
   declare private searchSettingsUpdateEnabled_: boolean;
 
+  private showDefaultViews_() {
+    const defaultViews: string[] = ['parent'];
+
+    if (this.searchSettingsUpdateEnabled_) {
+      defaultViews.push(
+          'siteShortcuts', 'featureShortcuts', 'keyboardShortcut');
+    }
+
+    this.$.viewManager.switchViews(
+        defaultViews, 'no-animation', 'no-animation');
+  }
+
   override currentRouteChanged(newRoute: Route, oldRoute?: Route) {
     super.currentRouteChanged(newRoute, oldRoute);
 
@@ -68,8 +83,7 @@ export class SettingsSearchPageIndexElement extends
     queueMicrotask(() => {
       switch (newRoute) {
         case routes.SEARCH:
-          this.$.viewManager.switchView(
-              'parent', 'no-animation', 'no-animation');
+          this.showDefaultViews_();
           break;
         case routes.SEARCH_ENGINES:
           assert(!this.searchSettingsUpdateEnabled_);
@@ -79,8 +93,7 @@ export class SettingsSearchPageIndexElement extends
         case routes.BASIC:
           // Switch back to the default views in case they are part of search
           // results.
-          this.$.viewManager.switchView(
-              'parent', 'no-animation', 'no-animation');
+          this.showDefaultViews_();
           break;
         default:
           // Nothing to do. Other parent elements are responsible for updating

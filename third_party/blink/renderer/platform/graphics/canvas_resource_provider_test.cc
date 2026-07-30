@@ -373,8 +373,9 @@ TEST_F(CanvasResourceProviderTest,
   Canvas2DColorParams color_params(PredefinedColorSpace::kSRGB,
                                    CanvasPixelFormat::kUint8,
                                    /*has_alpha=*/true);
-  auto provider = CanvasNon2DResourceProviderSharedImage::Create(
-      kSize, color_params, context_provider_wrapper_, shared_image_usage_flags);
+  auto provider = Canvas2DResourceProviderSharedImage::CreateWithClear(
+      kSize, color_params, context_provider_wrapper_, RasterMode::kGPU,
+      shared_image_usage_flags);
 
   EXPECT_EQ(provider->Size(), kSize);
   EXPECT_TRUE(provider->IsValid());
@@ -391,22 +392,22 @@ TEST_F(CanvasResourceProviderTest,
 #endif
 
   // Same resource and sync token if we query again without updating.
-  auto resource = provider->ProduceCanvasResource();
+  auto resource = provider->ProduceCanvasResource(FlushReason::kOther);
   auto sync_token = GetSyncToken(resource.get());
   ASSERT_TRUE(resource);
-  EXPECT_EQ(resource, provider->ProduceCanvasResource());
+  EXPECT_EQ(resource, provider->ProduceCanvasResource(FlushReason::kOther));
   EXPECT_EQ(sync_token, GetSyncToken(resource.get()));
 
-  provider->GetCanvasDeprecated().clear(SkColors::kWhite);
-  auto new_resource = provider->ProduceCanvasResource();
+  provider->GetCanvasForCanvas2DForTesting().clear(SkColors::kWhite);
+  auto new_resource = provider->ProduceCanvasResource(FlushReason::kOther);
   EXPECT_NE(resource, new_resource);
   EXPECT_NE(GetSyncToken(resource.get()), GetSyncToken(new_resource.get()));
   auto* resource_ptr = resource.get();
 
   EnsureResourceRecycled(provider.get(), std::move(resource));
 
-  provider->GetCanvasDeprecated().clear(SkColors::kBlack);
-  auto resource_again = provider->ProduceCanvasResource();
+  provider->GetCanvasForCanvas2DForTesting().clear(SkColors::kBlack);
+  auto resource_again = provider->ProduceCanvasResource(FlushReason::kOther);
   EXPECT_EQ(resource_ptr, resource_again);
   EXPECT_NE(sync_token, GetSyncToken(resource_again.get()));
 }
@@ -525,18 +526,18 @@ TEST_F(CanvasResourceProviderTest,
   ASSERT_TRUE(provider->IsValid());
 
   // Same resource returned until the canvas is updated.
-  auto image = provider->Snapshot();
+  auto image = provider->SnapshotForCanvas2D();
   ASSERT_TRUE(image);
-  auto new_image = provider->Snapshot();
+  auto new_image = provider->SnapshotForCanvas2D();
   EXPECT_EQ(image->GetSharedImage(), new_image->GetSharedImage());
-  EXPECT_EQ(provider->ProduceCanvasResource(FlushReason::kOther)
-                ->GetClientSharedImage(),
-            image->GetSharedImage());
+  EXPECT_EQ(
+      provider->ProduceCanvasResource(FlushReason::kOther)->GetSharedImage(),
+      image->GetSharedImage());
 
   // Resource updated after draw.
   provider->GetCanvasForCanvas2DForTesting().clear(SkColors::kWhite);
   provider->FlushCanvas2D(FlushReason::kOther);
-  new_image = provider->Snapshot();
+  new_image = provider->SnapshotForCanvas2D();
   EXPECT_NE(new_image->GetSharedImage(), image->GetSharedImage());
 
   // Resource recycled.
@@ -544,7 +545,8 @@ TEST_F(CanvasResourceProviderTest,
   image.reset();
   provider->GetCanvasForCanvas2DForTesting().clear(SkColors::kBlack);
   provider->FlushCanvas2D(FlushReason::kOther);
-  EXPECT_EQ(original_shared_image, provider->Snapshot()->GetSharedImage());
+  EXPECT_EQ(original_shared_image,
+            provider->SnapshotForCanvas2D()->GetSharedImage());
 }
 
 TEST_F(CanvasResourceProviderTest, Canvas2DResourceProviderBitmap) {
@@ -678,18 +680,19 @@ TEST_F(CanvasResourceProviderTest, FlushForImage) {
   Canvas2DColorParams color_params(PredefinedColorSpace::kSRGB,
                                    CanvasPixelFormat::kUint8,
                                    /*has_alpha=*/true);
-  auto src_provider = CanvasNon2DResourceProviderSharedImage::Create(
+  auto src_provider = Canvas2DResourceProviderSharedImage::CreateWithClear(
       gfx::Size(10, 10), color_params, context_provider_wrapper_,
-      gpu::SharedImageUsageSet());
+      RasterMode::kGPU, gpu::SharedImageUsageSet());
 
-  auto dst_provider = CanvasNon2DResourceProviderSharedImage::Create(
+  auto dst_provider = Canvas2DResourceProviderSharedImage::CreateWithClear(
       gfx::Size(10, 10), color_params, context_provider_wrapper_,
-      gpu::SharedImageUsageSet());
+      RasterMode::kGPU, gpu::SharedImageUsageSet());
 
-  MemoryManagedPaintCanvas& dst_canvas = dst_provider->GetCanvasDeprecated();
+  MemoryManagedPaintCanvas& dst_canvas =
+      dst_provider->GetCanvasForCanvas2DForTesting();
 
   PaintImage paint_image =
-      src_provider->Snapshot()->PaintImageForCurrentFrame();
+      src_provider->SnapshotForCanvas2D()->PaintImageForCurrentFrame();
   PaintImage::ContentId src_content_id = paint_image.GetContentIdForFrame(0u);
 
   EXPECT_FALSE(dst_canvas.IsCachingImage(src_content_id));
@@ -699,13 +702,13 @@ TEST_F(CanvasResourceProviderTest, FlushForImage) {
   EXPECT_TRUE(dst_canvas.IsCachingImage(src_content_id));
 
   // Modify the canvas to trigger OnFlushForImage
-  src_provider->GetCanvasDeprecated().clear(SkColors::kWhite);
+  src_provider->GetCanvasForCanvas2DForTesting().clear(SkColors::kWhite);
   // So that all the cached draws are executed
-  src_provider->ProduceCanvasResource();
+  src_provider->ProduceCanvasResource(FlushReason::kOther);
 
   // The paint canvas may have moved
   MemoryManagedPaintCanvas& new_dst_canvas =
-      dst_provider->GetCanvasDeprecated();
+      dst_provider->GetCanvasForCanvas2DForTesting();
 
   // TODO(aaronhk): The resource on the src_provider should be the same before
   // and after the draw. Something about the program flow within

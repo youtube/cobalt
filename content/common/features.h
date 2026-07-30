@@ -82,6 +82,7 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kDumpOnUnexpectedOriginHeader);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kEnableDevToolsJsErrorReporting);
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kEnforceSameDocumentOriginInvariants);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kEnforceFileSystemManagerOpenOrigin);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kEmbeddingRequiresOptIn);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kExperimentalContentSecurityPolicyFeatures);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmNonStringToken);
@@ -213,6 +214,7 @@ CONTENT_EXPORT extern const base::FeatureParam<std::string>
     kServiceWorkerBypassFetchHandlerBypassedHashStrings;
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerSrcdocSupport);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerStaticRouterRaceRequestFix2);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerStaticRouterOpaqueCheck);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kServiceWorkerStaticRouterStartServiceWorker);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(

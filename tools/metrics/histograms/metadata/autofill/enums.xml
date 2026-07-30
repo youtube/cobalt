@@ -2603,6 +2603,29 @@ Called by update_autofill_enums.py.-->
   <int value="3" label="[Deprecated] Bubble lost focus and was deactivated"/>
 </enum>
 
+<!-- LINT.IfChange(AutofillFillingProduct) -->
+
+<enum name="AutofillFillingProduct">
+  <int value="0" label="None"/>
+  <int value="1" label="Address"/>
+  <int value="2" label="CreditCard"/>
+  <int value="3" label="MerchantPromoCode"/>
+  <int value="4" label="Iban"/>
+  <int value="5" label="Autocomplete"/>
+  <int value="6" label="Password"/>
+  <int value="7" label="Compose"/>
+  <int value="8" label="PlusAddresses"/>
+  <int value="9" label="AutofillAi"/>
+  <int value="10" label="LoyaltyCard"/>
+  <int value="11" label="IdentityCredential"/>
+  <int value="12" label="DataList"/>
+  <int value="13" label="OneTimePassword"/>
+  <int value="14" label="Passkey"/>
+  <int value="15" label="AtMemory"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/autofill/core/browser/filling/filling_product.h:FillingProduct) -->
+
 <enum name="AutofillFormControlType2">
   <int value="0" label="ContentEditable"/>
   <int value="1" label="InputCheckbox"/>
@@ -5300,9 +5323,14 @@ Called by update_autofill_enums.py.-->
 <!-- LINT.IfChange(OmniboxAutofillShowChipDecisionPart1) -->
 
 <enum name="OmniboxShowChipDecisionPart1">
-  <int value="0" label="Aborted; autofill payment methods policy disabled"/>
-  <int value="1" label="Aborted; no credit cards saved"/>
-  <int value="5" label="All prior checks passed; started IntersectionObserver"/>
+  <int value="0"
+      label="Logic not run; not the relevant BrowserAutofillManager"/>
+  <int value="1" label="Aborted; autofill payment methods policy disabled"/>
+  <int value="2" label="Aborted; no credit cards saved"/>
+  <int value="3" label="Aborted; failed to fetch cached form"/>
+  <int value="4" label="Aborted; card number or expiration date field missing"/>
+  <int value="5" label="Aborted; form or client context not secure"/>
+  <int value="7" label="All prior checks passed; started IntersectionObserver"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/omnibox_autofill_metrics.h:OmniboxAutofillShowChipDecisionPart1) -->
@@ -5324,6 +5352,25 @@ Called by update_autofill_enums.py.-->
   <int value="1" label="Phishing"/>
   <int value="2" label="Not Phishing"/>
 </enum>
+
+<!-- LINT.IfChange(PayLaterTabsFormEvent) -->
+
+<enum name="PayLaterTabsFormEvent">
+  <int value="0"
+      label="Suggestions shown on a BNPL-eligible page, regardless of whether
+             a pay later tab suggestion was shown (once)"/>
+  <int value="1" label="Suggestions shown with Pay Now Pay Later tabs (once)"/>
+  <int value="8" label="Form filled with Affirm VCN (once)"/>
+  <int value="9" label="Form filled with Zip VCN (once)"/>
+  <int value="10" label="Form filled with Klarna VCN (once)"/>
+  <int value="11" label="Form filled with Afterpay VCN (once)"/>
+  <int value="12" label="Form submitted with Affirm VCN (once)"/>
+  <int value="13" label="Form submitted with Zip VCN (once)"/>
+  <int value="14" label="Form submitted with Klarna VCN (once)"/>
+  <int value="15" label="Form submitted with Afterpay VCN (once)"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/bnpl_metrics.h:PayLaterTabsFormEvent) -->
 
 <enum name="PaymentsWindowUserConsentDialogResult">
   <int value="0" label="The tab or browser was closed"/>

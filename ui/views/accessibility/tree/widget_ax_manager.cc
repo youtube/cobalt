@@ -17,8 +17,6 @@
 #include "ui/views/widget/widget.h"
 
 #if BUILDFLAG(IS_WIN)
-#include <oleacc.h>
-
 #include "ui/views/win/hwnd_util.h"
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -33,6 +31,7 @@ bool ShouldSerializeEvent(Event event_type) {
   // Events that are serialized and forwarded to BrowserAccessibilityManager.
   switch (event_type) {
     // TODO(crbug.com/40672441): Add events that must be serialized directly.
+    case Event::kAlert:
     case Event::kControlsChanged:
     case Event::kEndOfTest:
     // TODO(crbug.com/40672441): kFocus is only needed here for tests while
@@ -55,6 +54,7 @@ bool ShouldSerializeEvent(Event event_type) {
     case Event::kActiveDescendantChanged:
     case Event::kCheckedStateChanged:
     case Event::kChildrenChanged:
+    case Event::kLiveRegionChanged:
       return false;
     default:
       break;
@@ -80,11 +80,9 @@ bool ShouldSerializeEvent(Event event_type) {
   // Events fired by views on some platforms but not yet handled. These are
   // being addressed incrementally, one event at a time.
   switch (event_type) {
-    case Event::kAlert:
     case Event::kExpandedChanged:
     case Event::kFocusAfterMenuClose:
     case Event::kFocusContext:
-    case Event::kLiveRegionChanged:
     case Event::kMenuEnd:
     case Event::kMenuPopupEnd:
     case Event::kMenuPopupStart:
@@ -310,21 +308,12 @@ WidgetAXManager::AccessibilityGetNativeViewAccessible() {
           static_cast<NativeWidgetMac*>(widget_->native_widget())) {
     return native_widget->GetNativeViewAccessibleForNSView();
   }
-#elif BUILDFLAG(IS_WIN)
-  // Hold a reference to the parent in this instance to ensure that it lives
-  // long enough for the caller to take its own reference, if needed.
-  if (!parent_accessible_) {
-    HWND hwnd = HWNDForView(widget_->GetRootView());
-    if (!hwnd) {
-      return nullptr;
-    }
-    if (SUCCEEDED(::AccessibleObjectFromWindow(
-            hwnd, OBJID_WINDOW, IID_PPV_ARGS(&parent_accessible_)))) {
-      return parent_accessible_.Get();
-    }
-  }
-#endif
   return gfx::NativeViewAccessible();
+#elif BUILDFLAG(IS_WIN)
+  return HWNDNativeViewAccessibleForWidget(widget_);
+#else
+  return gfx::NativeViewAccessible();
+#endif
 }
 
 gfx::NativeViewAccessible

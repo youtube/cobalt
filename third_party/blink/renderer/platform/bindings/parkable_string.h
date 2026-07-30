@@ -8,8 +8,10 @@
 #include <cstdint>
 #include <memory>
 #include <utility>
+#include <variant>
 
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "base/dcheck_is_on.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
@@ -41,6 +43,13 @@ class DiskDataAllocator;
 class WebProcessMemoryDump;
 struct BackgroundTaskParams;
 
+// A cryptographic message digest of a string, used to identify strings in
+// security-sensitive contexts.
+// TODO(tnak): Move these definitions to a dedicated header when other
+// components than `ParkableString` come to use string digests.
+inline constexpr size_t kSha256Bytes = 32;
+using SecureStringDigest = Vector<uint8_t, kSha256Bytes>;
+
 // A parked string is parked by calling |Park()|, and unparked by calling
 // |ToString()| on a parked string.
 // |Lock()| does *not* unpark a string.
@@ -66,13 +75,11 @@ class PLATFORM_EXPORT ParkableStringImpl
 #endif
   };
 
-  constexpr static size_t kDigestSize = 32;  // SHA256.
-  using SecureDigest = Vector<uint8_t, kDigestSize>;
   // Computes a secure hash of a |string|, to be passed to |MakeParkable()|.
   //
   // TODO(lizeb): This is the "right" way of hashing a string. Move this code
   // into WTF, and make sure it's the only way that is used.
-  static std::unique_ptr<SecureDigest> HashString(StringImpl* string);
+  static std::unique_ptr<SecureStringDigest> HashString(StringImpl* string);
   // Updates a digest to include the string width. This should be called after
   // the Digestor has consumed all of the bytes of a string. Afterward, the
   // digest can be used in MakeParkable.
@@ -84,7 +91,7 @@ class PLATFORM_EXPORT ParkableStringImpl
   // |digest| is as returned by |HashString()|, hence not nullptr.
   static scoped_refptr<ParkableStringImpl> MakeParkable(
       scoped_refptr<StringImpl>&& impl,
-      std::unique_ptr<SecureDigest> digest);
+      std::unique_ptr<SecureStringDigest> digest);
 
   static CompressionAlgorithm GetCompressionAlgorithm();
 
@@ -187,7 +194,7 @@ class PLATFORM_EXPORT ParkableStringImpl
     return metadata_->background_task_in_progress_;
   }
 
-  const SecureDigest* digest() const {
+  const SecureStringDigest* digest() const {
     AssertOnValidThread();
     DCHECK(metadata_);
     return &metadata_->digest_;
@@ -220,7 +227,7 @@ class PLATFORM_EXPORT ParkableStringImpl
   // |digest| is as returned by calling HashString() on |impl|, or nullptr for
   // a non-parkable instance.
   ParkableStringImpl(scoped_refptr<StringImpl>&& impl,
-                     std::unique_ptr<SecureDigest> digest);
+                     std::unique_ptr<SecureStringDigest> digest);
 
   ~ParkableStringImpl();
 
@@ -296,7 +303,7 @@ class PLATFORM_EXPORT ParkableStringImpl
 
   // Metadata only used for parkable ParkableStrings.
   struct ParkableMetadata {
-    ParkableMetadata(String string, std::unique_ptr<SecureDigest> digest);
+    ParkableMetadata(String string, std::unique_ptr<SecureStringDigest> digest);
     ParkableMetadata(const ParkableMetadata&) = delete;
     ParkableMetadata& operator=(const ParkableMetadata&) = delete;
 
@@ -310,7 +317,7 @@ class PLATFORM_EXPORT ParkableStringImpl
     bool compression_failed_ GUARDED_BY(lock_);
     std::unique_ptr<Vector<uint8_t>> compressed_;
     std::unique_ptr<DiskDataMetadata> on_disk_metadata_;
-    const SecureDigest digest_;
+    const SecureStringDigest digest_;
     base::TimeTicks last_disk_parking_time_;
 
     // A string can be young, old or very old. It starts young, and ages with
@@ -366,8 +373,8 @@ class PLATFORM_EXPORT ParkableString final {
   ParkableString() : impl_(nullptr) {}
   explicit ParkableString(scoped_refptr<StringImpl>&& impl);
   ParkableString(scoped_refptr<StringImpl>&& impl,
-                 std::unique_ptr<ParkableStringImpl::SecureDigest> digest);
-  ParkableString(const ParkableString& rhs) : impl_(rhs.impl_) {}
+                 std::unique_ptr<SecureStringDigest> digest);
+  ParkableString(const ParkableString&) = default;
   ~ParkableString();
 
   // Locks a string. A string is unlocked when the number of Lock()/Unlock()
@@ -386,6 +393,36 @@ class PLATFORM_EXPORT ParkableString final {
   bool IsNull() const { return !impl_; }
   unsigned length() const { return impl_ ? impl_->length() : 0; }
   bool may_be_parked() const { return impl_ && impl_->may_be_parked(); }
+
+  // A reference wrapper to hold the digest of a string. `DigestHolder` and the
+  // return value of `DigestHolder::Get()` shall not outlive the original
+  // `ParableString`.
+  class DigestHolder {
+   public:
+    ~DigestHolder() = default;
+
+    explicit DigestHolder(const SecureStringDigest* digest)
+        : holder_(std::in_place_index<0>, digest) {}
+    explicit DigestHolder(std::unique_ptr<SecureStringDigest> digest)
+        : holder_(std::in_place_index<1>, std::move(digest)) {}
+
+    [[nodiscard]] const SecureStringDigest& Get() const LIFETIME_BOUND {
+      const SecureStringDigest* digest =
+          std::visit([](const auto& e) { return e.get(); }, holder_);
+      CHECK(digest);
+      CHECK_EQ(digest->size(), kSha256Bytes);
+      return *digest;
+    }
+
+   private:
+    // Must be a valid pointer.
+    const std::variant<raw_ptr<const SecureStringDigest>,
+                       std::unique_ptr<const SecureStringDigest>>
+        holder_;
+  };
+
+  // The returned `DigestHolder` shouldn't outlive `this`.
+  [[nodiscard]] DigestHolder Digest() const LIFETIME_BOUND;
 
   ParkableStringImpl* Impl() const { return impl_ ? impl_.get() : nullptr; }
   // Returns an unparked version of the string.

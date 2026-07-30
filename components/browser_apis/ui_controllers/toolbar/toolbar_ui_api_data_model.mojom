@@ -64,18 +64,48 @@ struct HomeControlState {
   bool is_context_menu_visible;
 };
 
-// The set of information about URL bar RHS content setting icons sent from
-// browser to UI.
-struct ContentSettingState {
-  // The set of content setting icon state for each visible icon.
-  array<ContentSettingImageState> image_states;
+// The type of the content setting image model.
+//
+// Unlike ContentSettingsType, which defines the underlying settings, this enum
+// defines the icon to display.  This distinction matters for things like
+// kFramebust (iframe tried to navigate the top-level frame without user
+// activation and was blocked), which has a separate icon from kPopups
+// (window.open() called without user activation and was blocked), even though
+// they share the same underlying setting to disable blocking.
+//
+// Therefore, this enum is UI-specific, unlike ContentSettingsType.
+enum ContentSettingImageType {
+  kCookies = 0,
+  kImages = 1,
+  kJavaScript = 2,
+  // kPpapiBroker = 3, // Deprecated.
+  kPopups = 5,
+  kGeolocation = 6,
+  kMixedScript = 7,
+  kProtocolHandlers = 8,
+  kMediaStream = 9,
+  kAds = 10,
+  kAutomaticDownloads = 11,
+  kMidiSysex = 12,
+  kSound = 13,
+  kFramebust = 14,
+  // kClipboardRead = 15, // Replaced by kClipboardReadWrite in M81.
+  kSensors = 16,
+  // kNotificationsQuietPrompt = 17, // Replaced by kNotifications in M124
+  kClipboardReadWrite = 18,
+  kStorageAccess = 19,
+  // kMidi = 20, // Deprecated.
+  kNotifications = 21,
+  [EnableIf=is_chromeos]
+  kSmartCard = 22,
+  [EnableIf=is_win]
+  kProtectedMediaIdentifier = 23,
 };
 
 // These fields correspond to the accessors of ContentSettingImageModel.
 struct ContentSettingImageState {
-  // This should be one of the enum values that has a corresponding LHS
-  // URL bar icon.
-  content_settings.mojom.ContentSettingsType type;
+  // The type of icon to display.
+  ContentSettingImageType type;
 
   // NOTE: this isn't actually announced unless `should_notify_accessibility` is
   // true -- it's merely the accessible name.
@@ -147,7 +177,17 @@ struct OmniboxViewState {
 
   // This is set if the omnibox view contains a URL and must therefore force
   // LTR rendering even in RTL languages.
-  bool text_is_url;
+  bool text_is_url = false;
+};
+
+struct LocationBarFlags {
+  // Whether the user has edited the text. Note that this includes them entering
+  // something and tabbing out; it's not just set when they're actively making
+  // changes.
+  bool user_input_in_progress = false;
+
+  // Whether to render as if we have focus, due to omnibox popup taking it over.
+  bool render_focused = false;
 };
 
 // Enum of all supported pinned toolbar actions.
@@ -173,6 +213,15 @@ enum PinnedToolbarAction {
  kTaskManager,
  kDevTools,
  kTabSearch,
+ kSidePanelShowContextualTasks,
+ kSidePanelShowLens,
+ kSidePanelShowAboutThisSite,
+ kSidePanelShowCustomizeChrome,
+ kSidePanelShowShoppingInsights,
+ kSidePanelShowMerchantTrust,
+ kSendSharedTabGroupFeedback,
+ kSidePanelShowComments,
+ kDivider, // A divider; not a clickable action.
 };
 
 // The state of a pinned toolbar action button that should be displayed.
@@ -185,6 +234,22 @@ struct PinnedToolbarActionState {
 
   // Should this button appear enabled?
   bool enabled;
+
+  // Tooltip text to display on hover.
+  mojo_base.mojom.String16 tooltip;
+
+  // Accessible name (aria-label) for the action.
+  mojo_base.mojom.String16 accessibility_text;
+
+  // The ElementIdentifier for this action, if any.
+  string? element_id;
+};
+
+struct LocationBarState {
+  OmniboxViewState omnibox_view_state;
+  LocationBarFlags location_bar_flags;
+  // The set of content setting icon state for each visible LHS icon.
+  array<ContentSettingImageState> content_setting_image_states;
 };
 
 struct NavigationControlsState {
@@ -192,8 +257,7 @@ struct NavigationControlsState {
   SplitTabsControlState split_tabs_control_state;
   BackForwardControlState back_forward_control_state;
   HomeControlState home_control_state;
-  ContentSettingState content_setting_state;
-  OmniboxViewState omnibox_view_state;
+  LocationBarState location_bar_state;
   // List of pinned toolbar action button states. Order corresponds to order
   // of the drawn buttons and duplicates imply duplicate buttons.
   array<PinnedToolbarActionState> pinned_toolbar_actions_state;

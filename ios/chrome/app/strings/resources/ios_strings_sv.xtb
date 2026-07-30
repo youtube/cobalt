@@ -107,6 +107,7 @@
 <translation id="1369286077209859800">Visa alla flikar i flikgruppen</translation>
 <translation id="136942498637440594">Du kan söka efter bilder och saker du ser.</translation>
 <translation id="1373120905936431262">Ladda upp en bild att remixa med Nano Banana</translation>
+<translation id="1377321085342047638">Kortnummer</translation>
 <translation id="1377508275003315939">Lösenord</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position} av {count} adress}other{{position} av {count} adresser}}</translation>
 <translation id="1383876407941801731">Sök</translation>
@@ -151,7 +152,6 @@
 <translation id="1517166097004694782">Dölj Fortsätt med den här fliken</translation>
 <translation id="1520027731907768768">Få aviseringar om prissänkningar för produkter du bevakar.</translation>
 <translation id="1521366073263497277">Öppna rutnätet med flikar</translation>
-<translation id="1521774566618522728">Aktiv idag</translation>
 <translation id="1523567067736644845">Lås upp för att visa lösenordet</translation>
 <translation id="1524563461097350801">Nej tack</translation>
 <translation id="1531038290222364269">Visa flikar</translation>
@@ -376,6 +376,7 @@
 <translation id="2299218006564889602">Dina lösenord krypteras på enheten innan de sparas i Google Lösenordshantering.</translation>
 <translation id="2306265833370324042">Visa information om <ph name="SEARCH_ENGINE_NAME" /></translation>
 <translation id="2309265394777270359">Stäng flik</translation>
+<translation id="2310789833878085574">Spara och autofyll</translation>
 <translation id="2311077293164383652">Stäng fäst flik</translation>
 <translation id="2316129865977710310">Nej tack</translation>
 <translation id="2320166752086256636">Dölj tangentbordet</translation>
@@ -1099,7 +1100,6 @@
 <translation id="4944543191714094452">Hitta på sida …</translation>
 <translation id="4945756290001680296">Åtkomst till lösenordsinställningar</translation>
 <translation id="4949302115427722371">Hantera inställningar …</translation>
-<translation id="4952050521954075618">Foton från kamerarullen synkroniseras inte på dina enheter</translation>
 <translation id="4958444002117714549">Expandera lista</translation>
 <translation id="496392417432935267">Har öppnats någon annanstans</translation>
 <translation id="4970724460420203313">Genom att använda Chrome med ditt hanterade konto kan du skilja på webbinformationen som är kopplad till organisationen, till exempel flikar, historik och lösenord, från annan webbinformation.</translation>
@@ -1148,7 +1148,6 @@
 <translation id="5119329531859909472">Tryck på Bevaka för att bevaka produkten</translation>
 <translation id="5121618895923301719">Du bevakar redan den här produkten. Den här sidan har sparats i <ph name="BEGIN_LINK" />bokmärken på telefonen<ph name="END_LINK" />.</translation>
 <translation id="512533434554095351">Du har flera problem med lösenord.</translation>
-<translation id="5127538504377457572">Aktiv för <ph name="DAYS" /> dagar sedan</translation>
 <translation id="5128788795241319992">Utforska den nya menyn</translation>
 <translation id="5132942445612118989">Synkronisera lösenord, historik med mera på alla dina enheter</translation>
 <translation id="5141363746588976328">Dölj kortet Sänkta priser på dina flikar</translation>
@@ -1266,6 +1265,7 @@ Du måste även aktivera Handoff i avsnittet Allmänt i inställningarna och sam
 <translation id="5556459405103347317">Hämta igen</translation>
 <translation id="555749644339804659">Kontrollerar lösenord …</translation>
 <translation id="5559567453458728487">Konvertera måttenheter som hittas på webben</translation>
+<translation id="5560088892362098740">Sista giltighetsdatum</translation>
 <translation id="556042886152191864">Knapp</translation>
 <translation id="5565871407246142825">Kreditkort</translation>
 <translation id="5566623128829375608">Spara på enheten.</translation>
@@ -1353,6 +1353,7 @@ Du måste även aktivera Handoff i avsnittet Allmänt i inställningarna och sam
 <translation id="5819208479324046259">Hanteras av <ph name="MANAGER" />. <ph name="BEGIN_LINK" />Läs mer<ph name="END_LINK" /></translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5829649908290113115">Synkroniserar …</translation>
+<translation id="5831217499016131155">Google Wallet</translation>
 <translation id="583281660410589416">Okänd</translation>
 <translation id="5838430324585198889">Få tillgång till fler funktioner på din iPad med Google-appar</translation>
 <translation id="583923961930319521">Använd lösenorden på alla dina enheter</translation>
@@ -1650,6 +1651,7 @@ Du måste även aktivera Handoff i avsnittet Allmänt i inställningarna och sam
 <translation id="6806550742467879742">Sidverktyg</translation>
 <translation id="6807287147325542056">Lösenord i andra appar</translation>
 <translation id="681368974849482173">Bokmärket har skapats</translation>
+<translation id="6820686453637990663">CVC</translation>
 <translation id="6825078212112407882">{count,plural, =1{Bokmärket har sparats i ditt Google-konto, {email}}other{{count} bokmärken har sparats i ditt Google-konto, {email}}}</translation>
 <translation id="6826004672264649705">Bevakar för närvarande den här produkten. Öppna för att se prishistorik</translation>
 <translation id="6830728435402077660">Inte säkert</translation>
@@ -1963,7 +1965,6 @@ Du måste även aktivera Handoff i avsnittet Allmänt i inställningarna och sam
 <translation id="7952670906562503188">Du håller på att radera {passkey_count} nycklar och listan över webbplatser och appar där du valt att aldrig spara inloggningsuppgifter. Konton som du har skapat för webbplatser och appar raderas inte.</translation>
 <translation id="7958575506592576831">Sidans säkerhetsinfo</translation>
 <translation id="7961015016161918242">Aldrig</translation>
-<translation id="7971136598759319605">Aktiv för 1 dag sedan</translation>
 <translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">Testa</translation>
 <translation id="797588153137233716">Meny → Historik → Radera webbinformation</translation>

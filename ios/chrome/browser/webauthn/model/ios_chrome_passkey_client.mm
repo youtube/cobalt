@@ -175,3 +175,7 @@ void IOSChromePasskeyClient::AllowPasskeyCreationInfobar(bool allowed) {
   }
 #endif  // BUILDFLAG(IOS_CREDENTIAL_PROVIDER_ENABLED)
 }
+
+void IOSChromePasskeyClient::CancelPasskeyRequest(RequestInfo request_info) {
+  [command_handler_ cancelPasskeyRequest:std::move(request_info)];
+}

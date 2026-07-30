@@ -38,11 +38,10 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ptr_util.h"
 #include "base/synchronization/lock.h"
-#include "media/base/audio_bus.h"
 #include "third_party/blink/renderer/platform/audio/audio_bus.h"
 #include "third_party/blink/renderer/platform/audio/hrtf_database.h"
 #include "third_party/blink/renderer/platform/audio/hrtf_panner.h"
-#include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
+#include "third_party/blink/renderer/platform/wtf/hash_map.h"
 
 namespace blink {
 
@@ -117,7 +116,7 @@ constexpr auto kMaxElevations = std::to_array<int>({
 // local hash table to ensure quick efficient future retrievals.
 scoped_refptr<AudioBus> GetConcatenatedImpulseResponsesForSubject(
     int subject_resource_id) {
-  typedef HashMap<int, scoped_refptr<AudioBus>> AudioBusMap;
+  using AudioBusMap = HashMap<int, scoped_refptr<AudioBus>>;
   DEFINE_THREAD_SAFE_STATIC_LOCAL(AudioBusMap, audio_bus_map, ());
   DEFINE_THREAD_SAFE_STATIC_LOCAL(base::Lock, lock, ());
 

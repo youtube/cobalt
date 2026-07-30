@@ -80,6 +80,7 @@
 <translation id="1285320974508926690">このサイトは翻訳しない</translation>
 <translation id="1287229685519872919">Google Workspace データ</translation>
 <translation id="1291506870746876680"><ph name="BEGIN_BOLD" />「<ph name="SITE_NAME" />」<ph name="END_BOLD" />権限は、このサイトから離れるとオフにリセットされます。</translation>
+<translation id="1293491796138057740">お客様の情報は <ph name="USER_EMAIL" /> の Google ウォレットに保存されます。Google サービス全体でこの情報を使用して、フォームにすばやく入力できます。</translation>
 <translation id="1293556467332435079">ファイル</translation>
 <translation id="129553762522093515">最近閉じたタブ</translation>
 <translation id="1296581780163690620">ファイルをダウンロードしますか（<ph name="FILE_SIZE" />）？</translation>
@@ -107,6 +108,7 @@
 <translation id="1369286077209859800">タブグループにすべてのタブを表示</translation>
 <translation id="136942498637440594">画像や見たものを検索できます。</translation>
 <translation id="1373120905936431262">画像をアップロードして Nano Banana でリミックスできます</translation>
+<translation id="1377321085342047638">カード番号</translation>
 <translation id="1377508275003315939">パスワード</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position}/{count} 件の住所}other{{position}/{count} 件の住所}}</translation>
 <translation id="1383876407941801731">検索</translation>
@@ -151,7 +153,6 @@
 <translation id="1517166097004694782">[このタブを続行] を非表示にする</translation>
 <translation id="1520027731907768768">追跡している商品の値下げアラートを受け取ります。</translation>
 <translation id="1521366073263497277">タブグリッドに移動します</translation>
-<translation id="1521774566618522728">最終同期: 今日</translation>
 <translation id="1523567067736644845">パスワードを表示するにはロックを解除してください</translation>
 <translation id="1524563461097350801">スキップ</translation>
 <translation id="1531038290222364269">タブを表示</translation>
@@ -376,6 +377,7 @@
 <translation id="2299218006564889602">Google パスワード マネージャーに保存する前にデバイス上でパスワードを暗号化します。</translation>
 <translation id="2306265833370324042"><ph name="SEARCH_ENGINE_NAME" /> の詳細を表示</translation>
 <translation id="2309265394777270359">タブを閉じる</translation>
+<translation id="2310789833878085574">保存して自動入力</translation>
 <translation id="2311077293164383652">固定タブを閉じる</translation>
 <translation id="2316129865977710310">今はしない</translation>
 <translation id="2320166752086256636">キーボードを非表示</translation>
@@ -906,6 +908,7 @@
 <translation id="4287172530684295552">既読にする</translation>
 <translation id="428768789042547925">最新情報</translation>
 <translation id="429074084062258019">{count,plural, =1{タブをグループに追加}other{タブをグループに追加}}</translation>
+<translation id="4300830875340617674">カードをスキャンして自動入力</translation>
 <translation id="4302061870579014542">位置を設定</translation>
 <translation id="4304713468139749426">パスワード マネージャー</translation>
 <translation id="4306349443295056740">OCSP 署名</translation>
@@ -1098,7 +1101,6 @@
 <translation id="4944543191714094452">ページ内を検索…</translation>
 <translation id="4945756290001680296">パスワードの設定にアクセスします</translation>
 <translation id="4949302115427722371">設定を管理…</translation>
-<translation id="4952050521954075618">デバイス間でカメラロールの写真が同期されなくなります</translation>
 <translation id="4958444002117714549">リストを展開する</translation>
 <translation id="496392417432935267">別の場所で開かれています</translation>
 <translation id="4970724460420203313">管理対象アカウントで Chrome を使用すると、組織に関連するブラウジング（タブ、履歴、パスワードなど）を他のブラウジングと分けて管理できます</translation>
@@ -1147,7 +1149,6 @@
 <translation id="5119329531859909472">商品をトラッキングするには、[トラッキング] をタップします</translation>
 <translation id="5121618895923301719">この商品はすでにトラッキングしています。このページは<ph name="BEGIN_LINK" />モバイルのブックマーク<ph name="END_LINK" />に保存されます。</translation>
 <translation id="512533434554095351">パスワードにいくつかの問題があります。</translation>
-<translation id="5127538504377457572">アクティブ: <ph name="DAYS" /> 日前</translation>
 <translation id="5128788795241319992">新しいメニューを確認する</translation>
 <translation id="5132942445612118989">すべてのデバイスでパスワード、履歴、その他の設定を同期する</translation>
 <translation id="5141363746588976328">タブの値下げ情報カードを非表示にする</translation>
@@ -1182,6 +1183,7 @@
 <translation id="5225388483876575107">A</translation>
 <translation id="5225463052809312700">カメラをオンにする</translation>
 <translation id="5229315183665181733">サイトを編集</translation>
+<translation id="5233111790346066304">Google ドライブにファイルを保存して、いつでもアクセスできます。</translation>
 <translation id="5233638681132016545">新しいタブ</translation>
 <translation id="5234094073825090254">{count,plural, =1{Google アカウント（{email}）にブックマークを保存しました。}other{Google アカウント（{email}）にブックマークを保存しました。}}</translation>
 <translation id="5234764350956374838">閉じる</translation>
@@ -1264,6 +1266,7 @@
 <translation id="5556459405103347317">再読み込み</translation>
 <translation id="555749644339804659">パスワードを確認しています…</translation>
 <translation id="5559567453458728487">ウェブで見つかった測定単位を変換する</translation>
+<translation id="5560088892362098740">有効期限</translation>
 <translation id="556042886152191864">ボタン</translation>
 <translation id="5565871407246142825">クレジットカード</translation>
 <translation id="5566623128829375608">情報はデバイスに保存されます。</translation>
@@ -1351,6 +1354,7 @@
 <translation id="5819208479324046259"><ph name="MANAGER" /> によって管理されています。<ph name="BEGIN_LINK" />詳細<ph name="END_LINK" /></translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5829649908290113115">同期しています…</translation>
+<translation id="5831217499016131155">Google ウォレット</translation>
 <translation id="583281660410589416">不明</translation>
 <translation id="5838430324585198889">Google のアプリをインストールして iPad をさらに活用しましょう</translation>
 <translation id="583923961930319521">すべてのデバイスでパスワードを使用する</translation>
@@ -1648,6 +1652,7 @@
 <translation id="6806550742467879742">ページツール</translation>
 <translation id="6807287147325542056">他のアプリのパスワード</translation>
 <translation id="681368974849482173">作成済みのアイテム</translation>
+<translation id="6820686453637990663">CVC</translation>
 <translation id="6825078212112407882">{count,plural, =1{Google アカウント（{email}）にブックマークを保存しました}other{Google アカウント（{email}）に　{count}　件のブックマークを保存しました}}</translation>
 <translation id="6826004672264649705">現在この商品を追跡しています。開くと価格の推移を確認できます。</translation>
 <translation id="6830728435402077660">保護されていません</translation>
@@ -1961,7 +1966,6 @@
 <translation id="7952670906562503188">{passkey_count} 件のパスキーと、ログイン情報を保存しない設定にしたサイトとアプリの一覧を削除しようとしています。サイトやアプリで作成したアカウントは削除されません。</translation>
 <translation id="7958575506592576831">ページのセキュリティ情報</translation>
 <translation id="7961015016161918242">使用しない</translation>
-<translation id="7971136598759319605">最終同期: 1 日前</translation>
 <translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">試す</translation>
 <translation id="797588153137233716">[メニュー] → [履歴] → [閲覧履歴データを削除]</translation>

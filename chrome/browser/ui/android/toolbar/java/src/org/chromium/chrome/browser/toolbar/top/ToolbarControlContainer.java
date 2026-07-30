@@ -59,6 +59,8 @@ import org.chromium.chrome.browser.toolbar.ToolbarFeatures;
 import org.chromium.chrome.browser.toolbar.ToolbarHairlineView;
 import org.chromium.chrome.browser.toolbar.ToolbarProgressBar;
 import org.chromium.chrome.browser.toolbar.top.CaptureReadinessResult.TopToolbarBlockCaptureReason;
+import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.SideUiSpecs;
+import org.chromium.chrome.browser.ui.side_ui.SideUiObserver;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager.AppHeaderObserver;
 import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar.DrawingInfo;
@@ -82,7 +84,7 @@ import java.util.function.Supplier;
 /** Layout for the browser controls (omnibox, menu, tab strip, etc..). */
 @NullMarked
 public class ToolbarControlContainer extends OptimizedFrameLayout
-        implements ControlContainer, AppHeaderObserver, Observer {
+        implements ControlContainer, AppHeaderObserver, Observer, SideUiObserver {
     private static final double SAMPLE_STALE_CAPTURE_PROBABILITY = 0.01;
     private static boolean sForceStaleCaptureHistogram;
 
@@ -201,6 +203,11 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
         if (newH != oldH && mHeightChangedSupplier != null) {
             mHeightChangedSupplier.set(newH);
         }
+    }
+
+    @Override
+    public void onSideUiSpecsChanged(SideUiSpecs sideUiSpecs) {
+        mToolbarContainer.onSideUiSpecsChanged(sideUiSpecs);
     }
 
     public void setOnHeightChangedListener(
@@ -557,9 +564,13 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
 
     /** The layout that handles generating the toolbar view resource. */
     // Only publicly visible due to lint warnings.
-    public static class ToolbarViewResourceCoordinatorLayout extends ViewResourceCoordinatorLayout {
+    public static class ToolbarViewResourceCoordinatorLayout extends ViewResourceCoordinatorLayout
+            implements SideUiObserver {
         private BooleanSupplier mIsMidVisibilityToggle;
         private boolean mReadyForBitmapCapture;
+
+        private int mBaseMarginStart;
+        private int mBaseMarginEnd;
 
         public ToolbarViewResourceCoordinatorLayout(Context context, AttributeSet attrs) {
             super(context, attrs);
@@ -599,6 +610,18 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
                     layoutStateProviderSupplier,
                     fullscreenManager,
                     toolbarDataProvider);
+
+            MarginLayoutParams params = (MarginLayoutParams) getLayoutParams();
+            mBaseMarginStart = params.getMarginStart();
+            mBaseMarginEnd = params.getMarginEnd();
+        }
+
+        @Override
+        public void onSideUiSpecsChanged(SideUiSpecs sideUiSpecs) {
+            MarginLayoutParams params = (MarginLayoutParams) getLayoutParams();
+            params.setMarginStart(mBaseMarginStart + sideUiSpecs.mStartContainerWidth);
+            params.setMarginEnd(mBaseMarginEnd + sideUiSpecs.mEndContainerWidth);
+            setLayoutParams(params);
         }
 
         @Override
@@ -951,6 +974,10 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
         // Don't react on touch events if the toolbar container is not fully visible.
         if (!isToolbarContainerFullyVisible()) return true;
 
+        // Don't consume the event if it should be passed to the CompositorViewHolder and handled by
+        // the tab strip.
+        if (isOnTabStrip(event)) return false;
+
         // If we have ACTION_DOWN in this context, that means either no child consumed the event or
         // this class is the top UI at the event position. Then, we don't need to feed the event to
         // mGestureDetector here because the event is already once fed in onInterceptTouchEvent().
@@ -965,8 +992,11 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent event) {
+        // If the container is not fully visible or if the event occurs on the tab strip, intercept
+        // the event here.
         if (!isToolbarContainerFullyVisible()) return true;
-        if (isOnTabStrip(event)) return false;
+        if (isOnTabStrip(event)) return true;
+
         if (mSwipeGestureListener != null && mSwipeGestureListener.onTouchEvent(event)) return true;
 
         for (TouchEventObserver o : mTouchEventObservers) {

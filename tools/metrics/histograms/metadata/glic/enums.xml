@@ -26,31 +26,6 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
-<!-- LINT.IfChange(ActiveTabSharingState) -->
-
-<enum name="ActiveTabSharingState">
-  <int value="0" label="Active tab is shared">
-    There is an active tab and it is shared with the web client. Tab context
-    permission is granted. The web client may apply additional restrictions that
-    could still block the shared tab contents from being actually used.
-  </int>
-  <int value="1" label="Cannot share the active tab">
-    There is no tab shared with the web client. There is a candidate tab that
-    cannot be shared with the web client as determined by the browser. Tab
-    context permission is granted.
-  </int>
-  <int value="2" label="No active tab can be shared">
-    There is no browser tab that could be shared with the web client. Tab
-    context permission is granted.
-  </int>
-  <int value="3" label="Tab access permission not granted">
-    The user did not grant permission for Glic to access tab contents. This
-    state precludes all other states.
-  </int>
-</enum>
-
-<!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:ActiveTabSharingState) -->
-
 <!-- LINT.IfChange(ChromeRelativePosition) -->
 
 <enum name="ChromeRelativePosition">
@@ -414,6 +389,7 @@ chromium-metrics-reviews@google.com.
   <int value="91" label="RecordSkillsWebClientEvent"/>
   <int value="92" label="DeleteCapturedRegion"/>
   <int value="93" label="OnActionSubmitted"/>
+  <int value="94" label="SubscribeToTabFavicon"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/resources/glic/glic_api_impl/request_types.ts:ApiRequestType) -->
@@ -490,6 +466,7 @@ chromium-metrics-reviews@google.com.
   <int value="46" label="Reaction Logged on Response"/>
   <int value="47" label="Shown"/>
   <int value="48" label="Open"/>
+  <int value="49" label="WebUI State Warmed"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/service/metrics/glic_instance_metrics.h:GlicInstanceEvent) -->
@@ -634,6 +611,16 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Disallowed by remote admin"/>
   <int value="6" label="Disallowed by remote other"/>
 </enum>
+
+<!-- LINT.IfChange(GlicReloadAfterExpiryStatus) -->
+
+<enum name="GlicReloadAfterExpiryStatus">
+  <int value="0" label="Reloaded"/>
+  <int value="1" label="Not reloaded: Feature disabled"/>
+  <int value="2" label="Not reloaded: Limit reached"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/host/glic_web_contents_warming_pool.h:ReloadAfterExpiryStatus) -->
 
 <!-- LINT.IfChange(GlicRequestEvent) -->
 
@@ -866,6 +853,15 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:WebClientMode) -->
 
+<!-- LINT.IfChange(GlicWebContentsContextMenuResult) -->
+
+<enum name="GlicWebContentsContextMenuResult">
+  <int value="0" label="ShownAndIgnored"/>
+  <int value="1" label="Executed"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/renderer_context_menu/render_view_context_menu.cc:GlicWebContentsContextMenuResult) -->
+
 <!-- LINT.IfChange(GlicWebUseCounter) -->
 
 <enum name="GlicWebUseCounter">
@@ -1045,6 +1041,7 @@ chromium-metrics-reviews@google.com.
   <int value="11"
       label="Web view is displayed, but it is displaying an error page"/>
   <int value="12" label="Glic is disabled by the administrator"/>
+  <int value="13" label="Web contents is warmed"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:WebUiState) -->

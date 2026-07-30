@@ -29,6 +29,8 @@
 #include "ui/views/widget/widget.h"
 #include "url/gurl.h"
 
+namespace ttc {
+
 DEFINE_USER_DATA(AiOverlayDialogController);
 
 // static
@@ -66,10 +68,6 @@ void AiOverlayDialogController::ShowOverlay() {
 
   views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
       overlay_web_view->GetWebContents(), SK_ColorTRANSPARENT);
-  if (auto* rwhv =
-          overlay_web_view->GetWebContents()->GetRenderWidgetHostView()) {
-    rwhv->SetBackgroundColor(SK_ColorTRANSPARENT);
-  }
 
   webui::SetBrowserWindowInterface(overlay_web_view->GetWebContents(),
                                    browser_);
@@ -146,3 +144,5 @@ void AiOverlayDialogController::ResizeDueToAutoResize(
     overlay_web_view->SetPreferredSize(new_size);
   }
 }
+
+}  // namespace ttc

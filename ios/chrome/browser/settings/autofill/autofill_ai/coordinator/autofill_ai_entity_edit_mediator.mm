@@ -4,12 +4,15 @@
 
 #import "ios/chrome/browser/settings/autofill/autofill_ai/coordinator/autofill_ai_entity_edit_mediator.h"
 
+#import <algorithm>
+
 #import "base/apple/foundation_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/application_locale_storage/application_locale_storage.h"
 #import "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
 #import "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #import "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_wallet_utils.h"
+#import "components/autofill/core/browser/network/autofill_ai/wallet_pass_access_manager.h"
 #import "components/autofill/core/browser/proto/server.pb.h"
 #import "ios/chrome/browser/autofill/ui_bundled/address_editor/autofill_profile_edit_mediator.h"
 #import "ios/chrome/browser/autofill/ui_bundled/address_editor/cells/country_item.h"
@@ -22,6 +25,9 @@
 #import "ios/chrome/browser/settings/autofill/autofill_ai/utils/autofill_ai_entity_instance_builder.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
+#import "ios/chrome/common/ui/reauthentication/reauthentication_protocol.h"
+#import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/l10n/l10n_util.h"
 
 using autofill::AttributeInstance;
 using autofill::AttributeType;
@@ -43,6 +49,15 @@ NSDateFormatter* CreateDateFormatterForLocale(const std::string& locale) {
   return dateFormatter;
 }
 
+// Returns true if `attribute_type` is found in `required_fields`.
+bool IsFieldRequired(const EntityInstance& entity_instance,
+                     AttributeType attribute_type) {
+  return std::ranges::any_of(entity_instance.type().required_fields(),
+                             [&](const auto& required_set) {
+                               return required_set.contains(attribute_type);
+                             });
+}
+
 }  // namespace
 
 @implementation AutofillAIEntityEditMediator {
@@ -51,6 +66,9 @@ NSDateFormatter* CreateDateFormatterForLocale(const std::string& locale) {
 
   // The entity data manager. It outlives the mediator.
   raw_ptr<EntityDataManager> _entityDataManager;
+
+  // The Wallet pass manager. It outlives the mediator.
+  raw_ptr<autofill::WalletPassAccessManager> _walletPassManager;
 
   // The locale used to get info from the entity instance.
   std::string _locale;
@@ -66,19 +84,35 @@ NSDateFormatter* CreateDateFormatterForLocale(const std::string& locale) {
 
   // The item factory.
   AutofillAIEntityEditItemFactory* _itemFactory;
+
+  // The user's primary account email.
+  NSString* _userEmail;
+
+  // The reauthentication module.
+  __weak id<ReauthenticationProtocol> _reauthModule;
 }
 
-- (instancetype)initWithEntityInstance:(EntityInstance)entityInstance
-                     entityDataManager:(EntityDataManager*)entityDataManager {
+- (instancetype)
+    initWithEntityInstance:(EntityInstance)entityInstance
+         entityDataManager:(EntityDataManager*)entityDataManager
+         walletPassManager:(autofill::WalletPassAccessManager*)walletPassManager
+              reauthModule:(id<ReauthenticationProtocol>)reauthModule
+                 userEmail:(NSString*)userEmail {
   self = [super init];
   if (self) {
+    CHECK(reauthModule);
+
     _entityInstance = std::move(entityInstance);
     _entityDataManager = entityDataManager;
+    _walletPassManager = walletPassManager;
     _locale = GetApplicationContext()->GetApplicationLocaleStorage()->Get();
     _dateFormatter = CreateDateFormatterForLocale(_locale);
     _itemFactory =
         [[AutofillAIEntityEditItemFactory alloc] initWithLocale:_locale
-                                                  dateFormatter:_dateFormatter];
+                                                  dateFormatter:_dateFormatter
+                                           userHasAuthenticated:NO];
+    _reauthModule = reauthModule;
+    _userEmail = [userEmail copy];
   }
   return self;
 }
@@ -96,14 +130,11 @@ NSDateFormatter* CreateDateFormatterForLocale(const std::string& locale) {
   [consumer setIsServerWalletItem:
                 (_entityInstance->record_type() ==
                  autofill::EntityInstance::RecordType::kServerWallet)];
+  [consumer setUserEmail:_userEmail];
 
-  _editItems = [[NSMutableArray alloc] init];
-  for (AttributeInstance attribute : _entityInstance->attributes()) {
-    [_editItems addObject:[_itemFactory createItemForAttribute:attribute]];
-  }
-
-  [consumer setEditItems:_editItems];
   _consumer = consumer;
+
+  [self updateEditItemsWithAllAttributes:NO];
 }
 
 #pragma mark - AutofillAIEntityEditMutator
@@ -143,10 +174,11 @@ NSDateFormatter* CreateDateFormatterForLocale(const std::string& locale) {
           base::apple::ObjCCastStrict<AutofillAIEntityEditDateItem>(item);
       autofill::AttributeType attrType(dateItem.attributeType);
       autofill::AttributeInstance attrInstance(attrType);
-      attrInstance.SetInfo(attrType.field_type(),
-                           AttributeValueFromNSDate(dateItem.dateValue),
-                           _locale, GetAttributeFormatString(),
-                           autofill::VerificationStatus::kNoStatus);
+      attrInstance.SetInfo(
+          attrType.field_type(),
+          AttributeValueFromNSDate(dateItem.dateValue ?: [NSDate date]),
+          _locale, GetAttributeFormatString(),
+          autofill::VerificationStatus::kNoStatus);
       attrInstance.FinalizeInfo();
       updatedAttributes.insert(std::move(attrInstance));
     }
@@ -175,13 +207,107 @@ NSDateFormatter* CreateDateFormatterForLocale(const std::string& locale) {
   }
 
   _entityInstance = builder.Build();
-  _entityDataManager->AddOrUpdateEntityInstance(*_entityInstance);
+
+  BOOL isSaveAsynchronous = autofill::IsMaskedStorageSupported(
+      _entityInstance->type(), _entityInstance->record_type());
+  if (isSaveAsynchronous && _walletPassManager) {
+    [self.consumer showLoadingState];
+
+    autofill::EntityInstance originalEntity = *_entityInstance;
+
+    // TODO(crbug.com/496450943): Set appropriate sessionId.
+    consent_auditor::ConsentAuditor::SessionId sessionId;
+    __weak __typeof(self) weakSelf = self;
+    auto callback = base::BindOnce(
+        [](__typeof(self) weakSelf,
+           autofill::EntityInstance fallbackOriginalEntity,
+           std::optional<autofill::EntityInstance> savedEntity) {
+          [weakSelf
+              onSavePrivatePassToWalletFinished:std::move(savedEntity)
+                                 originalEntity:std::move(
+                                                    fallbackOriginalEntity)];
+        },
+        weakSelf, std::move(originalEntity));
+
+    _walletPassManager->SaveWalletEntityInstance(*_entityInstance, sessionId,
+                                                 std::move(callback));
+  } else {
+    // Standard local save.
+    _entityDataManager->AddOrUpdateEntityInstance(*_entityInstance);
+    [self.consumer didFinishSavingWithLocalFallback:NO];
+  }
 }
 
 - (void)didChangeDate:(NSDate*)date
               forItem:(AutofillAIEntityEditDateItem*)item {
   item.dateValue = date;
   item.detailText = [_dateFormatter stringFromDate:date];
+}
+
+- (BOOL)isFieldRequired:(autofill::AttributeTypeName)attributeTypeName {
+  return IsFieldRequired(*_entityInstance,
+                         autofill::AttributeType(attributeTypeName));
+}
+
+- (void)requestEditingWithCompletion:
+    (void (^)(ReauthenticationResult result))completion {
+  CHECK(completion);
+
+  bool isMasked = autofill::IsMaskedStorageSupported(
+      _entityInstance->type(), _entityInstance->record_type());
+  bool hasObfuscatedFields =
+      std::ranges::any_of(_entityInstance->type().attributes(),
+                          &autofill::AttributeType::is_obfuscated);
+  if (!isMasked && !hasObfuscatedFields) {
+    [self updateEditItemsWithAllAttributes:YES];
+    completion(ReauthenticationResult::kSuccess);
+    return;
+  }
+
+  NSString* reason = l10n_util::GetNSString(IDS_IOS_AUTOFILL_REAUTH_REASON);
+  __weak AutofillAIEntityEditMediator* weakSelf = self;
+  [_reauthModule
+      attemptReauthWithLocalizedReason:reason
+                  canReusePreviousAuth:YES
+                               handler:^(ReauthenticationResult result) {
+                                 [weakSelf
+                                     onReauthenticationFinished:
+                                         result ==
+                                         ReauthenticationResult::kSuccess];
+                                 completion(result);
+                               }];
+}
+
+#pragma mark - Private
+
+- (void)onReauthenticationFinished:(BOOL)success {
+  if (success) {
+    [_itemFactory setUserHasAuthenticated:success];
+    [self updateEditItemsWithAllAttributes:YES];
+  }
+}
+
+- (void)updateEditItemsWithAllAttributes:(BOOL)showAllAttributes {
+  _editItems = [[NSMutableArray alloc] init];
+  if (showAllAttributes) {
+    for (AttributeType attributeType : _entityInstance->type().attributes()) {
+      base::optional_ref<const autofill::AttributeInstance> attribute =
+          _entityInstance->attribute(attributeType);
+      if (attribute.has_value()) {
+        [_editItems addObject:[_itemFactory createItemForAttribute:*attribute]];
+      } else {
+        autofill::AttributeInstance emptyAttribute(attributeType);
+        [_editItems
+            addObject:[_itemFactory createItemForAttribute:emptyAttribute]];
+      }
+    }
+  } else {
+    for (AttributeInstance attribute : _entityInstance->attributes()) {
+      [_editItems addObject:[_itemFactory createItemForAttribute:attribute]];
+    }
+  }
+
+  [_consumer setEditItems:_editItems];
 }
 
 #pragma mark - Public
@@ -196,12 +322,34 @@ NSDateFormatter* CreateDateFormatterForLocale(const std::string& locale) {
 - (void)didSelectCountry:(CountryItem*)countryItem
                  forItem:(AutofillAIEntityCountryItem*)item {
   item.detailText = countryItem.text;
+  item.hasValidValueStatus = YES;
   [self.consumer updateItem:item];
 }
 
 - (GURL)walletManagementURL {
   CHECK(_entityInstance.has_value());
   return GURL(autofill::GetWalletManagementURL(*_entityInstance));
+}
+
+#pragma mark - Private
+
+- (void)onSavePrivatePassToWalletFinished:
+            (std::optional<autofill::EntityInstance>)savedEntity
+                           originalEntity:
+                               (autofill::EntityInstance)originalEntity {
+  [self.consumer hideLoadingState];
+
+  if (savedEntity.has_value()) {
+    _entityDataManager->AddOrUpdateEntityInstance(std::move(*savedEntity));
+    [self.consumer didFinishSavingWithLocalFallback:NO];
+  } else {
+    // Wallet save failed, fallback to Local.
+    autofill::EntityInstance localEntity = originalEntity.CopyWithNewRecordType(
+        autofill::EntityInstance::RecordType::kLocal);
+    _entityDataManager->AddOrUpdateEntityInstance(std::move(localEntity));
+
+    [self.consumer didFinishSavingWithLocalFallback:YES];
+  }
 }
 
 @end

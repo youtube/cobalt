@@ -82,6 +82,8 @@ static_library("dbus") {
     "//ash/constants",
     "//ash/webui/shimless_rma",
     "//build/config/chromebox_for_meetings:buildflags",
+    "//build/config/cuttlefish:buildflags",
+    "//build/config/squid:buildflags",
     "//chrome/browser/ash/app_mode",
     "//chrome/browser/ash/arc/fileapi",
     "//chrome/browser/ash/arc/session",
@@ -113,6 +115,7 @@ static_library("dbus") {
     "//chromeos/ash/components/dbus/arc",
     "//chromeos/ash/components/dbus/attestation",
     "//chromeos/ash/components/dbus/audio",
+    "//chromeos/ash/components/dbus/beam",
     "//chromeos/ash/components/dbus/biod",
     "//chromeos/ash/components/dbus/cdm_factory_daemon",
     "//chromeos/ash/components/dbus/cec_service",
@@ -168,6 +171,7 @@ static_library("dbus") {
     "//chromeos/ash/services/rollback_network_config/public/mojom",
     "//chromeos/components/mojo_bootstrap",
     "//chromeos/dbus/constants",
+    "//chromeos/dbus/dissidia",
     "//chromeos/dbus/dlp",
     "//chromeos/dbus/dlp:dlp_proto",
     "//chromeos/dbus/init",
@@ -204,7 +208,7 @@ static_library("dbus") {
     ]
   }
 
-  if (is_cuttlefish) {
+  if (is_cuttlefish || is_squid) {
     deps += [
       "//chrome/browser/ash/login/fjord_oobe",
       "//chrome/browser/ash/login/fjord_oobe/proto",

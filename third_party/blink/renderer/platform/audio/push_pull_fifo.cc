@@ -5,7 +5,6 @@
 #include "third_party/blink/renderer/platform/audio/push_pull_fifo.h"
 
 #include <algorithm>
-#include <memory>
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
@@ -21,7 +20,7 @@ namespace blink {
 namespace {
 
 // Suppress the warning log if over/underflow happens more than 100 times.
-const unsigned kMaxMessagesToLog = 100;
+constexpr unsigned kMaxMessagesToLog = 100;
 }
 
 PushPullFIFO::PushPullFIFO(unsigned number_of_channels,

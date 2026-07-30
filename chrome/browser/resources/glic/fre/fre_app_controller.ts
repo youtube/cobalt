@@ -26,8 +26,6 @@ const MAX_WAIT_TIME_MS = loadTimeData.getInteger('maxLoadingTimeMs');
 const RELOAD_MAX_WAIT_TIME_RELOAD_MS =
     loadTimeData.getInteger('reloadMaxLoadingTimeMs');
 
-// If unified FRE is enabled to change formatting for sidepanel ui.
-const IS_UNIFIED_FRE = loadTimeData.getBoolean('isUnifiedFre');
 
 // Minimum height for FRE.
 const MIN_HEIGHT = 200;
@@ -63,7 +61,7 @@ export class FreAppController {
 
   // Created from constructor and never null since the destructor replaces it
   // with an empty <webview>.
-  private webview: WebViewType;
+  private webview?: WebViewType;
   private webviewEventTracker = new EventTracker();
   private glicRequestHeaderInjector?: GlicRequestHeaderInjector;
   private freHandler: FrePageHandlerRemote;
@@ -105,15 +103,6 @@ export class FreAppController {
     this.partitionString = options.partitionString ?? 'glicfrepart';
     this.shouldSizeForDialog = options.shouldSizeForDialog ?? true;
     this.onCloseCallback = options.onClose;
-
-
-    this.webview = this.createWebview();
-
-    // TODO(b/459795708): Remove when FRE is deduplicated and unified fre is
-    // launched.
-    const frePanelStateKindSection = getRequiredElement('fre-local-panels');
-    frePanelStateKindSection.classList.toggle('side-panel', IS_UNIFIED_FRE);
-    frePanelStateKindSection.classList.toggle('floating', !IS_UNIFIED_FRE);
 
     window.addEventListener('online', () => {
       this.online();
@@ -258,7 +247,7 @@ export class FreAppController {
     // to the content inside the webview. This ensures that screen readers
     // announce the new content.
     if (id === 'freGuestPanel') {
-      this.webview.focus();
+      this.webview?.focus();
     }
   }
 
@@ -351,7 +340,7 @@ export class FreAppController {
     }
 
     // Load the web client now that cookie sync is complete.
-    this.destroyWebview();
+    this.createWebview();
 
     // Signal to the fre controller that the web ui framework has completed
     // loading and the remote web content is about to start loading in the
@@ -364,6 +353,7 @@ export class FreAppController {
     if (!this.shouldSizeForDialog) {
       glicFreURL.searchParams.append('sidepanelFre', 'true');
     }
+    assert(this.webview);
     this.webview.src = glicFreURL.toString();
 
     this.loadingTimer = setTimeout(() => {
@@ -416,7 +406,8 @@ export class FreAppController {
     window.resizeTo(e.newWidth, e.newHeight);
   }
 
-  private createWebview(): WebViewType {
+  private newWebview(): WebViewType {
+    assert(!this.webview);
     const webview = document.createElement('webview');
     webview.id = 'freGuestFrame';
     // TODO(crbug.com/408475473): Update the webviewTag definition to be able to
@@ -517,16 +508,23 @@ export class FreAppController {
   // Destroy the current webview and create a new one. This is necessary because
   // webview does not support unloading content by setting src=""
   destroyWebview(): void {
+    if (!this.webview) {
+      return;
+    }
+
     this.webviewEventTracker.removeAll();
 
     if (this.glicRequestHeaderInjector !== undefined) {
       this.glicRequestHeaderInjector.destroy();
       this.glicRequestHeaderInjector = undefined;
     }
-
     this.webviewContainer.removeChild(this.webview);
+    this.webview = undefined;
+  }
 
-    this.webview = this.createWebview();
+  createWebview(): void {
+    this.destroyWebview();
+    this.webview = this.newWebview();
   }
 
   private dismissFre(state: FreWebUiState): void {

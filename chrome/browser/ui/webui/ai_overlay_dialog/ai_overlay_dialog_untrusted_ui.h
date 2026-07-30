@@ -14,8 +14,11 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 
+namespace ttc {
+
 class AiOverlayDialogUntrustedUI;
 class AiOverlayDialogPageHandler;
+class AiOverlayTools;
 class PageContextMonitor;
 
 class AiOverlayDialogUntrustedUIConfig
@@ -43,17 +46,22 @@ class AiOverlayDialogUntrustedUI
   // ai_overlay_dialog::mojom::PageHandlerFactor interface
   void CreatePageHandler(
       mojo::PendingReceiver<ai_overlay_dialog::mojom::PageHandler> receiver,
-      mojo::PendingRemote<ai_overlay_dialog::mojom::Page> remote) override;
+      mojo::PendingRemote<ai_overlay_dialog::mojom::Page> page,
+      mojo::PendingReceiver<ai_overlay_dialog::mojom::AiOverlayTools> tools)
+      override;
 
  private:
   WEB_UI_CONTROLLER_TYPE_DECL();
 
   std::unique_ptr<AiOverlayDialogPageHandler> page_handler_;
+  std::unique_ptr<AiOverlayTools> tools_;
 
   std::unique_ptr<PageContextMonitor> page_context_monitor_;
 
   mojo::Receiver<ai_overlay_dialog::mojom::PageHandlerFactory>
       page_handler_factory_receiver_{this};
 };
+
+}  // namespace ttc
 
 #endif  // CHROME_BROWSER_UI_WEBUI_AI_OVERLAY_DIALOG_AI_OVERLAY_DIALOG_UNTRUSTED_UI_H_

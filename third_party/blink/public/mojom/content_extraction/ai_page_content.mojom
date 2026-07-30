@@ -525,8 +525,6 @@ struct AIPageContentFormControlData {
   // Whether the field is read-only.
   bool is_readonly;
 
-  // Redaction decision for form fields.
-  AIPageContentRedactionDecision redaction_decision;
 };
 
 struct AIPageContentAttributes {
@@ -565,6 +563,12 @@ struct AIPageContentAttributes {
 
   // Only set if attribute_type is kFormControl.
   AIPageContentFormControlData? form_control_data;
+
+  // Redaction decision for this content node.
+  //
+  // This is the canonical redaction signal for all node types, including form
+  // controls and contenteditable controls represented as form controls.
+  AIPageContentRedactionDecision redaction_decision;
 
   // Only set if attribute_type is kTable.
   AIPageContentTableData? table_data;
@@ -679,7 +683,11 @@ struct AIPageContentOptions {
   // includes the browser UI in the window.
   gfx.mojom.Rect main_frame_view_rect_in_dips;
 
-  // Whether to include data for visible passwords.
+  // If enabled, the renderer will include the geometry for all nodes flagged
+  // for redaction so they can be obscured in screenshots by the browser.
+  // Note: While named "passwords" for consistency with browser-side
+  // variables, this also includes other sensitive content identified by the
+  // renderer (e.g. via -webkit-text-security).
   bool include_passwords_for_redaction = false;
 
   // Whether to include data for visible sensitive payment information.

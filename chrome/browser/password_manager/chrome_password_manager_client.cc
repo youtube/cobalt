@@ -28,16 +28,17 @@
 #include "chrome/browser/device_reauth/chrome_device_authenticator_factory.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/history/history_tab_helper.h"
-#include "chrome/browser/password_manager/account_password_store_factory.h"
+#include "chrome/browser/metrics/profile_metrics_service_factory.h"
 #include "chrome/browser/password_manager/android/first_cct_page_load_marker.h"
 #include "chrome/browser/password_manager/chrome_password_change_service.h"
 #include "chrome/browser/password_manager/chrome_webauthn_credentials_delegate.h"
 #include "chrome/browser/password_manager/chrome_webauthn_credentials_delegate_factory.h"
+#include "chrome/browser/password_manager/factories/account_password_store_factory.h"
 #include "chrome/browser/password_manager/factories/field_info_manager_factory.h"
+#include "chrome/browser/password_manager/factories/password_manager_settings_service_factory.h"
 #include "chrome/browser/password_manager/factories/password_reuse_manager_factory.h"
+#include "chrome/browser/password_manager/factories/profile_password_store_factory.h"
 #include "chrome/browser/password_manager/password_change_service_factory.h"
-#include "chrome/browser/password_manager/password_manager_settings_service_factory.h"
-#include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -179,9 +180,9 @@
 #include "components/tabs/public/tab_interface.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "extensions/common/constants.h"
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 #if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS) || BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/enterprise/connectors/reporting/reporting_event_router_factory.h"
@@ -1000,6 +1001,11 @@ PrefService* ChromePasswordManagerClient::GetPrefs() const {
   return GetProfile()->GetPrefs();
 }
 
+metrics::ProfileMetricsService*
+ChromePasswordManagerClient::GetProfileMetricsService() {
+  return ProfileMetricsServiceFactory::GetForProfile(GetProfile());
+}
+
 PrefService* ChromePasswordManagerClient::GetLocalStatePrefs() const {
   return g_browser_process->local_state();
 }
@@ -1349,7 +1355,8 @@ void ChromePasswordManagerClient::NavigateToManagePasswordsPage(
   if (!browser) {
     browser = chrome::FindLastActive();
   }
-  ::NavigateToManagePasswordsPage(browser, referrer);
+  ::NavigateToManagePasswordsPage(browser->GetBrowserForMigrationOnly(),
+                                  referrer);
 #endif
 }
 
@@ -1736,7 +1743,7 @@ bool ChromePasswordManagerClient::CanShowBubbleOnURL(const GURL& url) {
   std::string scheme = url.GetScheme();
   return (content::ChildProcessSecurityPolicy::GetInstance()->IsWebSafeScheme(
               scheme) &&
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
           scheme != extensions::kExtensionScheme &&
 #endif
           scheme != content::kChromeDevToolsScheme);

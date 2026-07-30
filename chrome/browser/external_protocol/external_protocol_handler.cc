@@ -13,6 +13,7 @@
 #include "base/containers/fixed_flat_set.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
@@ -48,6 +49,7 @@
 #else
 #include "chrome/browser/ui/browser.h"               // nogncheck
 #include "chrome/browser/ui/browser_finder.h"        // nogncheck
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"  // nogncheck
 #include "components/url_formatter/elide_url.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
@@ -65,6 +67,7 @@
 #else
 #include "chrome/browser/ui/browser.h"               // nogncheck
 #include "chrome/browser/ui/browser_finder.h"        // nogncheck
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"  // nogncheck
 #include "components/url_formatter/elide_url.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
@@ -217,10 +220,10 @@ void LaunchUrlWithoutSecurityCheckWithDelegate(
   // Avoid calling CloseContents if the tab is not in this browser's tab strip
   // model; this can happen if the protocol was initiated by something
   // internal to Chrome.
-  Browser* browser = chrome::FindBrowserWithTab(web_contents);
+  BrowserWindowInterface* browser = chrome::FindBrowserWithTab(web_contents);
   if (browser && web_contents->GetController().IsInitialNavigation() &&
-      browser->tab_strip_model()->count() > 1 &&
-      browser->tab_strip_model()->GetIndexOfWebContents(web_contents) !=
+      browser->GetTabStripModel()->count() > 1 &&
+      browser->GetTabStripModel()->GetIndexOfWebContents(web_contents) !=
           TabStripModel::kNoTab) {
     // Defer destruction of `WebContents` to avoid synchronously destroying
     // NavigationURLLoader(Impl) here. See https://issues.chromium.org/361600654

@@ -14,7 +14,6 @@
 #include "base/types/expected.h"
 #include "chrome/browser/web_applications/commands/fetch_manifest_and_update_result.h"
 #include "chrome/browser/web_applications/commands/internal/callback_command.h"
-#include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_apply_update_command.h"
 #include "chrome/browser/web_applications/model/migration_behavior.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_sub_manager.h"
 #include "chrome/browser/web_applications/scheduler/add_validated_origin_associations_result.h"
@@ -23,6 +22,7 @@
 #include "chrome/browser/web_applications/scheduler/fetch_install_info_from_install_url_result.h"
 #include "chrome/browser/web_applications/scheduler/fetch_installability_for_chrome_management_result.h"
 #include "chrome/browser/web_applications/scheduler/install_migrate_to_app_result.h"
+#include "chrome/browser/web_applications/scheduler/isolated_web_app_apply_update_result.h"
 #include "chrome/browser/web_applications/scheduler/manifest_silent_update_result.h"
 #include "chrome/browser/web_applications/scheduler/navigate_and_trigger_install_dialog_result.h"
 #include "chrome/browser/web_applications/scheduler/web_app_install_from_migrate_from_field_result.h"
@@ -37,10 +37,15 @@
 #include "components/webapps/browser/installable/installable_metrics.h"
 #include "components/webapps/browser/uninstall_result_code.h"
 #include "components/webapps/isolated_web_apps/types/iwa_version.h"
+#include "third_party/blink/public/mojom/manifest/manifest.mojom-forward.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_cache_client.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_MAC)
+#include "chrome/browser/web_applications/scheduler/rewrite_diy_icons_result.h"
+#endif  // BUILDFLAG(IS_MAC)
 
 class GURL;
 class Profile;
@@ -104,9 +109,6 @@ class RemoveObsoleteBundleVersionsError;
 class RemoveObsoleteBundleVersionsSuccess;
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(IS_MAC)
-enum class RewriteIconResult;
-#endif  // BUILDFLAG(IS_MAC)
 // The command scheduler is the main API to access the web app system. The
 // scheduler internally ensures:
 // * Operations occur after the WebAppProvider is ready (so you don't have to
@@ -603,7 +605,7 @@ class WebAppCommandScheduler {
   // `WebApp::diy_app_icons_masked_on_mac()` to true when
   // complete.
   void RewriteDiyIcons(const webapps::AppId& app_id,
-                       base::OnceCallback<void(RewriteIconResult)> callback,
+                       RewriteIconResultCallback callback,
                        const base::Location& location = FROM_HERE);
 #endif  // BUILDFLAG(IS_MAC)
 

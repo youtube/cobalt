@@ -43,6 +43,13 @@ class DomScenarioRunner
   virtual void ObserveModifiedDOM(
       const HeapVector<Member<Element>>& created_elements) {}
 
+  // Called after a per-element action (focus, scroll, fullscreen, dialog
+  // modal toggle, select popup).
+  virtual void ObserveElementAction(Element* element) {}
+
+  // Called after the animation clock is advanced and style/layout is updated.
+  virtual void ObserveAnimationsAdvanced() {}
+
   // Sets the text content of an element. Subclasses can override to customize
   // text handling for specific element types. Default implementation handles
   // input elements and regular text nodes.
@@ -75,6 +82,33 @@ class DomScenarioRunner
       Element* element,
       base::optional_ref<
           const std::vector<std::pair<QualifiedName, std::string>>> attributes);
+
+  // Executes per-element actions (focus, scroll, etc.) based on its NodeState.
+  // Returns true if any action was performed.
+  bool PerformElementActions(Element* element, const NodeState& state);
+
+  // Creates a Web Animations API animation on the element.
+  void CreateWebAnimation(Element* element, const WebAnimationParams& params);
+  void CancelWebAnimations(const HeapVector<Member<Element>>& created_elements);
+
+  // Enters fullscreen on an element, triggering :fullscreen pseudo-class,
+  // top-layer, and inertness changes. Includes a style/layout update.
+  void EnterFullscreen(Element* element);
+
+  void ExitFullscreen();
+
+  // Injects predefined custom element definitions via <script>. Enables
+  // JavaScript and defines fuzz-plain, fuzz-shadow, and fuzz-attrs elements.
+  void InjectCustomElementDefinitions();
+
+  // Injects predefined @keyframes into the document head for CSS animation
+  // fuzzing. Called once at the start of each test case.
+  void InjectKeyframesStylesheet();
+
+  // Advances the animation clock and updates style/layout to let CSS
+  // animations progress between phases.
+  void AdvanceAnimations();
+
   void SetParent(Element* child,
                  size_t child_index,
                  int parent_index,

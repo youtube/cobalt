@@ -4,6 +4,7 @@
 
 package org.chromium.content.browser.input;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.Context;
@@ -87,7 +88,6 @@ import org.chromium.content_public.common.ContentFeatures;
 import org.chromium.mojo.system.MessagePipeHandle;
 import org.chromium.mojo.system.MojoException;
 import org.chromium.mojo.system.impl.CoreImpl;
-import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.base.ime.TextInputAction;
@@ -163,7 +163,6 @@ public class ImeAdapterImpl
     private @Nullable ShowKeyboardResultReceiver mShowKeyboardResultReceiver;
 
     private final WebContentsImpl mWebContents;
-    private final ViewAndroidDelegate mViewDelegate;
 
     // This holds the information necessary for constructing CursorAnchorInfo, and notifies to
     // InputMethodManager on appropriate timing, depending on how IME requested the information
@@ -302,9 +301,6 @@ public class ImeAdapterImpl
     @VisibleForTesting
     ImeAdapterImpl(WebContents webContents) {
         mWebContents = (WebContentsImpl) webContents;
-        ViewAndroidDelegate viewDelegate = mWebContents.getViewAndroidDelegate();
-        assert viewDelegate != null;
-        mViewDelegate = viewDelegate;
 
         // Use application context here to avoid leaking the activity context.
         InputMethodManagerWrapper wrapper =
@@ -506,7 +502,8 @@ public class ImeAdapterImpl
     // Tells if the ImeAdapter in valid state (i.e. not in destroyed state), and is
     // connected to render process. The former check guards against the call via
     // ThreadedInputConnection from Android framework after ImeAdapter.destroy() is called.
-    private boolean isValid() {
+    @VisibleForTesting
+    public boolean isValid() {
         return mNativeImeAdapterAndroid != 0 && mIsConnected;
     }
 
@@ -518,7 +515,12 @@ public class ImeAdapterImpl
     }
 
     private View getContainerView() {
-        return assumeNonNull(mViewDelegate.getContainerView());
+        var viewDelegate = assumeNonNull(mWebContents.getViewAndroidDelegate());
+        if (viewDelegate == null) {
+            // This may be null on destruction.
+            return assumeNonNull(null);
+        }
+        return assumeNonNull(viewDelegate.getContainerView());
     }
 
     /**
@@ -944,7 +946,7 @@ public class ImeAdapterImpl
     private void hideKeyboard() {
         if (!isValid()) return;
         if (DEBUG_LOGS) Log.i(TAG, "hideKeyboard");
-        View view = mViewDelegate.getContainerView();
+        View view = getContainerView();
         if (view != null && mInputMethodManagerWrapper.isActive(view)) {
             // NOTE: we should not set ResultReceiver here. Otherwise, IMM will own
             // ImeAdapter even after input method goes away and result gets received.
@@ -1164,7 +1166,8 @@ public class ImeAdapterImpl
      * @see InputConnection#performPrivateCommand(java.lang.String, android.os.Bundle)
      */
     public void performPrivateCommand(String action, Bundle data) {
-        mViewDelegate.performPrivateImeCommand(action, data);
+        assertNonNull(mWebContents.getViewAndroidDelegate());
+        mWebContents.getViewAndroidDelegate().performPrivateImeCommand(action, data);
     }
 
     @Override
@@ -1476,7 +1479,14 @@ public class ImeAdapterImpl
      */
     boolean setEditableSelectionOffsets(int start, int end) {
         if (!isValid()) return false;
-        ImeAdapterImplJni.get().setEditableSelectionOffsets(mNativeImeAdapterAndroid, start, end);
+        // Blink code expects start <= end.
+        if (start <= end) {
+            ImeAdapterImplJni.get()
+                    .setEditableSelectionOffsets(mNativeImeAdapterAndroid, start, end);
+        } else {
+            ImeAdapterImplJni.get()
+                    .setEditableSelectionOffsets(mNativeImeAdapterAndroid, end, start);
+        }
         return true;
     }
 
@@ -1766,10 +1776,16 @@ public class ImeAdapterImpl
      */
     void updateCursorAnchorInfo(InputCursorAnchorInfo cursorAnchorInfo) {
         View containerView = getContainerView();
-        mCursorAnchorInfoController.updateCursorAnchorInfoData(cursorAnchorInfo, containerView);
+        if (containerView == null) {
+            return;
+        }
+        boolean isSelectionMove =
+                mCursorAnchorInfoController.updateCursorAnchorInfoData(
+                        cursorAnchorInfo, containerView);
 
         // Request view system keep caret on screen when moved.
-        if (cursorAnchorInfo.insertionMarker != null
+        if (isSelectionMove
+                && cursorAnchorInfo.insertionMarker != null
                 && ContentFeatureList.sAccessibilityMagnificationFollowsFocus.isEnabled()) {
             // Convert caret bounds from CSS pixels to device pixels relative to root view.
             var caretCss = cursorAnchorInfo.insertionMarker;

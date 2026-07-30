@@ -8,19 +8,15 @@
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "components/tabs/public/tab_collection.h"
+#include "components/tabs/public/tab_strip_collection.h"
 
 namespace tabs_api {
 
-class FakedAndroidTabCollection : public tabs::TabCollection {
- public:
-  FakedAndroidTabCollection()
-      : TabCollection(tabs::TabCollection::Type::TABSTRIP, {}, true) {}
-  ~FakedAndroidTabCollection() override = default;
-};
-
 AndroidTabStripModelAdapter::AndroidTabStripModelAdapter(TabModel* model)
     : model_(CHECK_DEREF(model)),
-      fake_root_(std::make_unique<FakedAndroidTabCollection>()) {}
+      root_(model_->GetTabStripCollection(GetPassKey())) {
+  CHECK(root_ != nullptr) << "root tab strip handle cannot be null";
+}
 
 AndroidTabStripModelAdapter::~AndroidTabStripModelAdapter() = default;
 
@@ -33,18 +29,28 @@ std::vector<tabs::TabHandle> AndroidTabStripModelAdapter::GetTabs() const {
 }
 
 types::TabStates AndroidTabStripModelAdapter::GetTabStates(
-    tabs::TabHandle) const {
-  NOTREACHED() << "not implemented";
+    tabs::TabHandle handle) const {
+  CHECK(handle.Get());
+  return types::TabStates{
+      .is_active = handle.Get()->IsActivated(),
+      .is_selected = handle.Get()->IsSelected(),
+  };
 }
 
 const ui::ColorProvider& AndroidTabStripModelAdapter::GetColorProvider() const {
-  NOTREACHED() << "not implemented";
+  auto& content = CHECK_DEREF(model_->GetActiveWebContents());
+  return content.GetColorProvider();
 }
 
 void AndroidTabStripModelAdapter::CloseTab(size_t tab_index) {
   auto tabs = GetTabs();
   CHECK(tab_index < tabs.size());
   model_->CloseTab(tabs.at(tab_index));
+}
+
+void AndroidTabStripModelAdapter::CloseTabGroup(
+    const tab_groups::TabGroupId& group_id) {
+  NOTREACHED() << "not implemented";
 }
 
 std::optional<int> AndroidTabStripModelAdapter::GetIndexForHandle(
@@ -83,10 +89,7 @@ mojom::ContainerPtr AndroidTabStripModelAdapter::GetTabStripTopology(
 
   auto tab_strip = tabs_api::mojom::Container::New();
   auto tab_strip_data = mojom::TabStrip::New();
-  // TODO(crbug.com/494284032): How do I access the TabCollection outside of
-  // JNI?
-  tab_strip_data->id =
-      tabs_api::NodeId(tabs_api::NodeId::Type::kCollection, "-");
+  tab_strip_data->id = NodeId::FromTabCollectionHandle(root);
   tab_strip->data = mojom::Data::NewTabStrip(std::move(tab_strip_data));
 
   for (auto* tab_interface : model_->GetAllTabs()) {
@@ -161,11 +164,16 @@ void AndroidTabStripModelAdapter::ReplaceTabInSplit(
 }
 
 const tabs::TabCollection* AndroidTabStripModelAdapter::GetRoot() const {
-  return fake_root_.get();
+  return root_;
 }
 
 std::string AndroidTabStripModelAdapter::GetWindowId() const {
   return base::NumberToString(model_->GetSessionId().id());
+}
+
+base::PassKey<AndroidTabStripModelAdapter>
+AndroidTabStripModelAdapter::GetPassKey() {
+  return base::PassKey<AndroidTabStripModelAdapter>();
 }
 
 }  // namespace tabs_api

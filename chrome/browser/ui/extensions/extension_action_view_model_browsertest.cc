@@ -1243,13 +1243,15 @@ class FakeExtensionActionDelegate : public ExtensionActionDelegate {
   void UnregisterCommand() override {}
   bool IsShowingPopup() const override { return false; }
   void HidePopup() override {}
-  gfx::NativeView GetPopupNativeView() override { return gfx::NativeView(); }
+  gfx::NativeView GetPopupNativeViewForTesting() override {
+    return gfx::NativeView();
+  }
   void TriggerPopup(std::unique_ptr<extensions::ExtensionViewHost> host,
                     PopupShowAction show_action,
                     bool by_user,
                     ShowPopupCallback callback) override {}
   void ShowContextMenuAsFallback() override {}
-  bool CloseOverflowMenuIfOpen() override { return false; }
+  void CloseExtensionsMenuIfOpen() override {}
 };
 
 // Ensures that calling methods for stale extensions does not cause crashes.
@@ -1288,7 +1290,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionActionViewModelFeatureRolloutBrowserTest,
   EXPECT_EQ(SiteInteraction::kNone, action->GetSiteInteraction(web_contents));
   EXPECT_EQ(false, action->IsEnabled(web_contents));
   EXPECT_EQ(false, action->IsShowingPopup());
-  EXPECT_EQ(gfx::NativeView(), action->GetPopupNativeView());
+  EXPECT_EQ(gfx::NativeView(), action->GetPopupNativeViewForTesting());
   EXPECT_EQ(nullptr,
             action->GetContextMenu(extensions::ExtensionContextMenuModel::
                                        ContextMenuSource::kToolbarAction));

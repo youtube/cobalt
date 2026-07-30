@@ -6,6 +6,7 @@
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "build/buildflag.h"
@@ -14,6 +15,10 @@
 #include "remoting/host/ipc_constants.h"
 #include "remoting/host/mojo_caller_security_checker.h"
 #include "remoting/host/mojom/chromoting_host_services.mojom.h"
+
+#if BUILDFLAG(IS_LINUX)
+#include <unistd.h>
+#endif
 
 #if BUILDFLAG(IS_WIN)
 #include "base/strings/strcat_win.h"
@@ -38,6 +43,10 @@ named_mojo_ipc_server::EndpointOptions CreateEndpointOptions(
   }
   options.security_descriptor =
       base::StrCat({L"O:", user_sid, L"G:", user_sid, L"D:(A;;GA;;;AU)"});
+#elif BUILDFLAG(IS_LINUX)
+  // Allow the endpoint to be connected by any users iff the server is run as
+  // root.
+  options.require_same_peer_user = (getuid() != 0);
 #endif
   return options;
 }
@@ -46,9 +55,18 @@ named_mojo_ipc_server::EndpointOptions CreateEndpointOptions(
 
 ChromotingHostServicesServer::ChromotingHostServicesServer(
     BindChromotingHostServicesCallback bind_chromoting_host_services)
-    : ChromotingHostServicesServer(GetChromotingHostServicesServerName(),
-                                   base::BindRepeating(IsTrustedMojoEndpoint),
-                                   std::move(bind_chromoting_host_services)) {}
+    : ChromotingHostServicesServer(
+#if BUILDFLAG(IS_LINUX)
+          // For the multi-process host, the server is run as root; for the
+          // legacy single-process host, the server is run as the login user.
+          (getuid() == 0) ? GetChromotingHostServicesServerName()
+                          : GetLegacyChromotingHostServicesServerName(),
+#else
+          GetChromotingHostServicesServerName(),
+#endif
+          base::BindRepeating(IsTrustedMojoEndpoint),
+          std::move(bind_chromoting_host_services)) {
+}
 
 ChromotingHostServicesServer::ChromotingHostServicesServer(
     const mojo::NamedPlatformChannel::ServerName& server_name,
@@ -87,7 +105,7 @@ void ChromotingHostServicesServer::OnMessagePipeReady(
   bind_chromoting_host_services_.Run(
       mojo::PendingReceiver<mojom::ChromotingHostServices>(
           std::move(message_pipe)),
-      connection_info->pid);
+      std::move(connection_info));
 }
 
 }  // namespace remoting

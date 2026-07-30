@@ -755,7 +755,7 @@ bool CompositeEditCommand::CanRebalance(const Position& position) const {
     return false;
 
   LayoutText* layout_text = text_node->GetLayoutObject();
-  if (layout_text && layout_text->Style()->ShouldPreserveWhiteSpaces()) {
+  if (layout_text && layout_text->StyleRef().ShouldPreserveWhiteSpaces()) {
     return false;
   }
 
@@ -814,7 +814,7 @@ void CompositeEditCommand::RebalanceWhitespaceOnTextSubstring(Text* text_node,
   VisiblePosition visible_downstream_pos =
       CreateVisiblePosition(Position(text_node, downstream));
 
-  String string = text.Substring(upstream, length);
+  StringView string = text.subview(upstream, length);
   // FIXME: Because of the problem mentioned at the top of this function, we
   // must also use nbsps at the start/end of the string because this function
   // doesn't get all surrounding whitespace, just the whitespace in the
@@ -851,7 +851,7 @@ void CompositeEditCommand::PrepareWhitespaceAtPositionForSplit(
   if (text_node->length() == 0)
     return;
   LayoutText* layout_text = text_node->GetLayoutObject();
-  if (layout_text && layout_text->Style()->ShouldPreserveWhiteSpaces()) {
+  if (layout_text && layout_text->StyleRef().ShouldPreserveWhiteSpaces()) {
     return;
   }
 

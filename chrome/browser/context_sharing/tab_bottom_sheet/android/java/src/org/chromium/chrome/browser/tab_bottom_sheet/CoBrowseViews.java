@@ -11,7 +11,10 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.annotation.VisibleForTesting;
+
 import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -67,9 +70,14 @@ public class CoBrowseViews {
         return mView;
     }
 
+    public boolean hasPeekView() {
+        return mPeekView != null;
+    }
+
     /** Destroys the co-browse view and its components. */
     @CalledByNative
-    private void destroy() {
+    @VisibleForTesting
+    void destroy() {
         ViewGroup toolbarContainer = mView.findViewById(R.id.toolbar_container);
         ViewGroup webUiContainer = mView.findViewById(R.id.web_ui_container);
         ViewGroup fuseboxContainer = mView.findViewById(R.id.fusebox_container);
@@ -101,7 +109,8 @@ public class CoBrowseViews {
 
     /** Sets the WebContents of the WebUi. */
     @CalledByNative
-    public void setWebContents(@Nullable WebContents webContents) {
+    public void setWebContents(
+            @Nullable @JniType("content::WebContents*") WebContents webContents) {
         if (mWebUi != null) {
             View oldView = mWebUi.getWebUiView();
             mWebUi.setWebContents(webContents);

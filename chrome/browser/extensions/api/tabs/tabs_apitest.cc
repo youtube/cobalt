@@ -54,7 +54,6 @@ class ExtensionApiTabTest : public extensions::ExtensionApiTest {
   }
 };
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 class ExtensionApiTabBackForwardCacheTest : public ExtensionApiTabTest {
  public:
   ExtensionApiTabBackForwardCacheTest() {
@@ -68,7 +67,6 @@ class ExtensionApiTabBackForwardCacheTest : public ExtensionApiTabTest {
  private:
   base::test::ScopedFeatureList feature_list_;
 };
-#endif
 
 class ExtensionApiNewTabTest : public ExtensionApiTabTest {
  public:
@@ -83,8 +81,7 @@ class ExtensionApiNewTabTest : public ExtensionApiTabTest {
 };
 
 // TODO(crbug.com/451682394): Disabled on Linux dbg due to flakiness.
-// TODO(crbug.com/471405507): Disabled on Android.
-#if (BUILDFLAG(IS_LINUX) && !defined(NDEBUG)) || BUILDFLAG(IS_ANDROID)
+#if (BUILDFLAG(IS_LINUX) && !defined(NDEBUG))
 #define MAYBE_Tabs DISABLED_Tabs
 #else
 #define MAYBE_Tabs Tabs
@@ -153,6 +150,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, Update) {
 // TODO(https://crbug.com/371432155): Enable these tests.
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 
+// Desktop Android does not yet support creating a tab in the pinned state.
+// See OpenTabHelper for details.
 IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, Pinned) {
   ASSERT_TRUE(RunExtensionTest("tabs/basics/pinned")) << message_;
 }
@@ -167,6 +166,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, MAYBE_Move) {
   ASSERT_TRUE(RunExtensionTest("tabs/basics/move")) << message_;
 }
 
+// On desktop Android, times out waiting for onUpdated events.
 IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, Events) {
   ASSERT_TRUE(RunExtensionTest("tabs/basics/events")) << message_;
 }
@@ -177,14 +177,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, RelativeURLs) {
   ASSERT_TRUE(RunExtensionTest("tabs/basics/relative_urls")) << message_;
 }
 
-// TODO(https://crbug.com/371432155): Enable these tests.
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-
 IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, Query) {
   ASSERT_TRUE(RunExtensionTest("tabs/basics/query")) << message_;
 }
-
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, Highlight) {
   ASSERT_TRUE(RunExtensionTest("tabs/basics/highlight")) << message_;
@@ -227,15 +222,19 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, DISABLED_Connect) {
 // TODO(https://crbug.com/371432155): Enable these tests.
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 
+// Crashes on desktop Android because it can't find a WindowController for a
+// window while querying tabs.
 IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, OnRemoved) {
   ASSERT_TRUE(RunExtensionTest("tabs/on_removed")) << message_;
 }
 
+// TODO(crbug.com/499307054): Flaky on desktop Android. Crashes during test
+// shutdown with a Java exception. See bug.
 IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, Reload) {
   ASSERT_TRUE(RunExtensionTest("tabs/reload")) << message_;
 }
 
-#endif
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Tests various behaviors of highlighting tabs using chrome.tabs.update(),
 // including that highlighting is additive, tabs can be unhighlighted, and
@@ -405,17 +404,17 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiCaptureTest, CaptureNullWindow) {
       << message_;
 }
 
-// TODO(https://crbug.com/371432155): Enable these tests.
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-
+// NOTE: Creating active tab tests are skipped in JavaScript on Android.
 IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, OnCreated) {
   ASSERT_TRUE(RunExtensionTest("tabs/on_created")) << message_;
 }
 
+// NOTE: Creating active tab tests are skipped in JavaScript on Android.
 IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, LazyBackgroundTabsOnCreated) {
   ASSERT_TRUE(RunExtensionTest("tabs/lazy_background_on_created")) << message_;
 }
 
+// NOTE: Favicon and title tests are skipped in JavaScript on Android.
 IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, OnUpdated) {
   ASSERT_TRUE(RunExtensionTest("tabs/on_updated")) << message_;
 }
@@ -423,8 +422,6 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, OnUpdated) {
 IN_PROC_BROWSER_TEST_F(ExtensionApiTabBackForwardCacheTest, OnUpdated) {
   ASSERT_TRUE(RunExtensionTest("tabs/backForwardCache/on_updated")) << message_;
 }
-
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, NoPermissions) {
   ASSERT_TRUE(RunExtensionTest("tabs/no_permissions")) << message_;

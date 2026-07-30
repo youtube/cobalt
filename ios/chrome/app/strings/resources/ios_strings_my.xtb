@@ -80,6 +80,7 @@
 <translation id="1285320974508926690">ဒီဆိုက်ကို ဘယ်တော့မှ ဘာသာမပြန်ပါနှင့်</translation>
 <translation id="1287229685519872919">Google Workspace ဒေတာ</translation>
 <translation id="1291506870746876680">ဤဝဘ်ဆိုက်မှထွက်သည့်အခါ <ph name="BEGIN_BOLD" />“<ph name="SITE_NAME" />”<ph name="END_BOLD" /> အတွက် ခွင့်ပြုချက်များပိတ်ရန် ပြင်ဆင်သတ်မှတ်ပါမည်။</translation>
+<translation id="1293491796138057740"><ph name="USER_EMAIL" /> အတွက် သင့်အချက်အလက်ကို Google Wallet တွင် သိမ်းသည်။ ဖောင်များ ပိုမိုမြန်ဆန်စွာဖြည့်ရန် Google ထုတ်ကုန်များတွင် ၎င်းကို သုံးနိုင်သည်။</translation>
 <translation id="1293556467332435079">ဖိုင်များ</translation>
 <translation id="129553762522093515">မကြာသေးခင်က ပိတ်ထားခဲ့သည်</translation>
 <translation id="1296581780163690620">ဖိုင်ဒေါင်းလုဒ်လုပ်မလား။ (<ph name="FILE_SIZE" />)</translation>
@@ -107,6 +108,7 @@
 <translation id="1369286077209859800">တဘ်အုပ်စုရှိ တဘ်အားလုံး ပြပါ</translation>
 <translation id="136942498637440594">ပုံနှင့် သင်မြင်ရသည့်အရာတို့ကို ရှာနိုင်သည်။</translation>
 <translation id="1373120905936431262">Nano Banana ဖြင့် ဆန်းသစ်ရန် ပုံအပ်လုဒ်လုပ်ပါ</translation>
+<translation id="1377321085342047638">ကဒ်နံပါတ်</translation>
 <translation id="1377508275003315939">စကားဝှက်များ</translation>
 <translation id="1381022135873211423">{count,plural, =1{လိပ်စာ {count} ခု အနက် {position}}other{လိပ်စာ {count} ခုအနက် {position}}}</translation>
 <translation id="1383876407941801731">ရှာဖွေမှု</translation>
@@ -151,7 +153,6 @@
 <translation id="1517166097004694782">"ဤတဘ်ဖြင့် ရှေ့ဆက်ရန်" ကို ဖျောက်နိုင်သည်</translation>
 <translation id="1520027731907768768">သင်ခြေရာခံနေသည့် ကုန်ပစ္စည်းများအတွက် ဈေးကျသည့် သတိပေးချက်များ ရယူရန်။</translation>
 <translation id="1521366073263497277">တဘ်ဇယားကွက်သို့ သွားပါ</translation>
-<translation id="1521774566618522728">ယနေ့ အသုံးပြုထားသည်</translation>
 <translation id="1523567067736644845">စကားဝှက်ပြရန် ဖွင့်ပါ</translation>
 <translation id="1524563461097350801">မလိုပါ</translation>
 <translation id="1531038290222364269">တဘ်များ ပြပါ</translation>
@@ -376,6 +377,7 @@
 <translation id="2299218006564889602">စကားဝှက်များကို ‘Google စကားဝှက်မန်နေဂျာ’ သို့ မသိမ်းမီ သင်၏စက်၌ အသွင်ဝှက်ပြီးပါပြီ။</translation>
 <translation id="2306265833370324042"><ph name="SEARCH_ENGINE_NAME" /> အသေးစိတ်ကို ပြပါ</translation>
 <translation id="2309265394777270359">တဘ် ပိတ်ရန်</translation>
+<translation id="2310789833878085574">သိမ်းပြီး အော်တိုဖြည့်ရန်</translation>
 <translation id="2311077293164383652">ပင်ထိုးထားသော တဘ်ကို ပိတ်ရန်</translation>
 <translation id="2316129865977710310">မလိုပါ</translation>
 <translation id="2320166752086256636">ကီးဘုတ် ဝှက်ထားရန်</translation>
@@ -906,6 +908,7 @@
 <translation id="4287172530684295552">ဖတ်ပြီးဟု မှတ်ရန်</translation>
 <translation id="428768789042547925">အသစ်ပါဝင်မှု</translation>
 <translation id="429074084062258019">{count,plural, =1{အုပ်စုသို့ တဘ်ထည့်ရန်}other{အုပ်စုသို့ တဘ်များထည့်ရန်}}</translation>
+<translation id="4300830875340617674">ကတ်ကို စကင်ဖတ်ပြီး အော်တိုဖြည့်ရန်</translation>
 <translation id="4302061870579014542">နေရာသတ်မှတ်ရန်</translation>
 <translation id="4304713468139749426">စကားဝှက်မန်နေဂျာ</translation>
 <translation id="4306349443295056740">OCSP လက်မှတ်ထိုးခြင်း</translation>
@@ -1098,7 +1101,6 @@
 <translation id="4944543191714094452">စာမျက်နှာတွင် ရှာရန်…</translation>
 <translation id="4945756290001680296">စကားဝှက် ဆက်တင်များသို့ ဝင်ခြင်း</translation>
 <translation id="4949302115427722371">ဆက်တင်များကို စီမံရန်…</translation>
-<translation id="4952050521954075618">‘ကင်မရာရိုးလ်’ မှ ဓာတ်ပုံများကို သင့်စက်များတွင် စင့်ခ်လုပ်မည်မဟုတ်ပါ</translation>
 <translation id="4958444002117714549">စာရင်းကို ချဲ့ပါ။</translation>
 <translation id="496392417432935267">အခြားတစ်နေရာတွင် ဖွင့်ထားသည်</translation>
 <translation id="4970724460420203313">စီမံခန့်ခွဲထားသည့်အကောင့်ဖြင့် Chrome သုံးခြင်းသည် သင့်အဖွဲ့အစည်းနှင့် သက်ဆိုင်သည်များ (တဘ်၊ မှတ်တမ်း၊ စကားဝှက်များအပါအဝင်) ကို ဆက်လက်ဘရောက်စ်လုပ်နိုင်စေပြီး အခြားဘရောက်စ်လုပ်ခြင်းများနှင့် ခွဲခြားပေးသည်</translation>
@@ -1147,7 +1149,6 @@
 <translation id="5119329531859909472">ကုန်ပစ္စည်း ခြေရာခံရန် ‘ခြေရာခံရန်’ ကိုတို့ပါ</translation>
 <translation id="5121618895923301719">ဤထုတ်ကုန်ကို စောင့်ကြည့်ထားပြီးပြီ။ ဤစာမျက်နှာကို <ph name="BEGIN_LINK" />မိုဘိုင်းလိပ်စာများ<ph name="END_LINK" /> တွင် သိမ်းထားသည်။</translation>
 <translation id="512533434554095351">သင့်တွင် စကားဝှက်ပြဿနာအချို့ ရှိသည်။</translation>
-<translation id="5127538504377457572">ပြီးခဲ့သော <ph name="DAYS" /> ရက်က အသုံးပြုထားသည်</translation>
 <translation id="5128788795241319992">မီနူးအသစ်ကို စူးစမ်းလေ့လာခြင်း</translation>
 <translation id="5132942445612118989">စက်ပစ္စည်းအားလုံးတွင် သင်၏ စကားဝှက်၊ မှတ်တမ်းနှင့် အခြားအရာများ စင့်ခ်လုပ်ပါ</translation>
 <translation id="5141363746588976328">သင့်တဘ်များကတ်ရှိ ဈေးကျခြင်းများကတ်ကို ဖျောက်ရန်</translation>
@@ -1182,6 +1183,7 @@
 <translation id="5225388483876575107">A</translation>
 <translation id="5225463052809312700">ကင်မရာဖွင့်ရန်</translation>
 <translation id="5229315183665181733">ဝဘ်ဆိုက်ကို တည်းဖြတ်ရန်</translation>
+<translation id="5233111790346066304">သင့် Google Drive တွင် ဖိုင်များသိမ်းပြီး အချိန်မရွေးဝင်ကြည့်နိုင်သည်။</translation>
 <translation id="5233638681132016545">တဘ် အသစ်</translation>
 <translation id="5234094073825090254">{count,plural, =1{သင်၏ Google Account {email} တွင် လိပ်စာ သိမ်းလိုက်သည်။}other{သင်၏ Google Account {email} တွင် လိပ်စာများ သိမ်းလိုက်သည်။}}</translation>
 <translation id="5234764350956374838">ပယ်ရန်</translation>
@@ -1263,6 +1265,7 @@ Handoff ကို ဆက်တင်များ၏ ယေဘူယျအပိ�
 <translation id="5556459405103347317">ပြန်တင်ရန်</translation>
 <translation id="555749644339804659">စကားဝှက်များကို စစ်နေသည်…</translation>
 <translation id="5559567453458728487">ဝဘ်ပေါ်တွင် တွေ့ရသော ရလဒ်ကောင်းတိုင်းတာမှု ယူနစ်များ</translation>
+<translation id="5560088892362098740">သက်တမ်း ကုန်ဆုံးမည့်ရက်</translation>
 <translation id="556042886152191864">ခလုတ်</translation>
 <translation id="5565871407246142825">အကြွေး ကဒ်များ</translation>
 <translation id="5566623128829375608">သင့်စက်တွင် သိမ်းသည်။</translation>
@@ -1350,6 +1353,7 @@ Handoff ကို ဆက်တင်များ၏ ယေဘူယျအပိ�
 <translation id="5819208479324046259"><ph name="MANAGER" /> က စီမံခန့်ခွဲထားသည်။ <ph name="BEGIN_LINK" />ပိုမိုလေ့လာရန်<ph name="END_LINK" /></translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5829649908290113115">စင့်ခ်လုပ်နေသည်…</translation>
+<translation id="5831217499016131155">Google ပိုက်ဆံအိတ်</translation>
 <translation id="583281660410589416">မသိရ</translation>
 <translation id="5838430324585198889">Google အက်ပ်များသုံး၍ သင့် iPad အတွက် နောက်ထပ်တူးလ်များ ရယူနိုင်သည်</translation>
 <translation id="583923961930319521">သင့်စက်အားလုံးတွင် စကားဝှက်များသုံးခြင်း</translation>
@@ -1647,6 +1651,7 @@ Handoff ကို ဆက်တင်များ၏ ယေဘူယျအပိ�
 <translation id="6806550742467879742">စာမျက်နှာ တူးလ်များ</translation>
 <translation id="6807287147325542056">အခြားအက်ပ်များရှိ စကားဝှက်များ</translation>
 <translation id="681368974849482173">အကြောင်းအရာ ဖန်တီးပြီးပါပြီ</translation>
+<translation id="6820686453637990663">CVC</translation>
 <translation id="6825078212112407882">{count,plural, =1{သင်၏ Google Account {email} တွင် သိမ်းထားသော လိပ်စာ}other{သင်၏ Google Account {email} တွင် လိပ်စာ {count} ခု သိမ်းထားသည်}}</translation>
 <translation id="6826004672264649705">လောလောဆယ် ဤကုန်ပစ္စည်းကို စောင့်ကြည့်နေသည်။ ဈေးနှုန်းမှတ်တမ်း ကြည့်ရန် ဖွင့်ပါ</translation>
 <translation id="6830728435402077660">လုံခြုံမှုမရှိပါ</translation>
@@ -1960,7 +1965,6 @@ Handoff ကို ဆက်တင်များ၏ ယေဘူယျအပိ�
 <translation id="7952670906562503188">သင်သည် လျှို့ဝှက်ကီး {passkey_count} ခုနှင့် လက်မှတ်ထိုးဝင်ရန် အချက်အလက်များကို ဘယ်တော့မှမသိမ်းရန် ရွေးထားသော ဝဘ်ဆိုက်နှင့် အက်ပ်များစာရင်းတို့ကို ဖျက်ပါတော့မည်။ ဝဘ်ဆိုက်နှင့် အက်ပ်များအတွက် သင်ဖွင့်ထားသည့် အကောင့်များကို ဖျက်မည်မဟုတ်ပါ။</translation>
 <translation id="7958575506592576831">စာမျက်နှာလုံခြုံမှု အချက်အလက်</translation>
 <translation id="7961015016161918242">ဘယ်သောအခါမှ</translation>
-<translation id="7971136598759319605">ပြီးခဲ့သော ၁ ရက်က အသုံးပြုထားသည်</translation>
 <translation id="7972837668077967426">ကင်းဗတ်စ်</translation>
 <translation id="7975036700432177008">စမ်းကြည့်ရန်</translation>
 <translation id="797588153137233716">မီနူး → မှတ်တမ်း → ဖွင့်ကြည့်ထားသည့်မှတ်တမ်းဒေတာကို ဖျက်ပါ</translation>

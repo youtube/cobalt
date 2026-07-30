@@ -282,6 +282,11 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCreateImageBitmapOrientationNone);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDeclarativeCSSModulesUseDataURI);
 
+// When enabled, dedicated workers and shared workers created from data: URLs
+// will have an opaque origin, as required by the HTML spec.
+// See https://crbug.com/40051700.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDataUrlWorkerOpaqueOrigin);
+
 // If enabled, some task queues are disabled between a discrete input event and
 // the subsequent frame. Which task types are deferrable depends on the
 // `TaskDeferralPolicy`.
@@ -678,6 +683,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceOffTextAutosizing);
 // moxcms parser. Acts as a kill-switch for the Rust ICC parser.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceSkcmsICCParsing);
 
+// When enabled, forces EXIF parsing to use the C++ SkExif parser instead of
+// the Rust parser. Acts as a kill-switch for the Rust EXIF parser.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceSkExifCppParsing);
+
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kFrameMetadataObserver);
 
 // If enabled, shared workers will be frozen when all their clients are in the
@@ -732,6 +741,20 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kIndexedDBCompressValuesWithSnappy);
 // Values less than 0 will use the minimum threshold for value blob-wrapping.
 BLINK_COMMON_EXPORT extern const base::FeatureParam<int>
     kIndexedDBCompressValuesWithSnappyCompressionThreshold;
+
+// Always use `IsInlineScriptCacheEnabled()` rather than checking this feature
+// directly.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kInlineScriptCache);
+
+// Defines the minimum byte length to be cached for inline script cache.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    size_t,
+    kInlineScriptCacheMinScriptLength);
+// Defines the timeout for the cache lookup in inline script cache. This is just
+// a safety guard for scenarios like the cache backend freeze or worker thread
+// crash.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                                               kInlineScriptCacheTimeout);
 
 // This flag is used to set field parameters to choose predictor we use when
 // kResamplingInputEvents is disabled. It's used for gathering accuracy metrics
@@ -1992,6 +2015,8 @@ BLINK_COMMON_EXPORT bool DisplayWarningDeprecateURNIframesUseFencedFrames();
 BLINK_COMMON_EXPORT bool IsFencedFramesEnabled();
 
 BLINK_COMMON_EXPORT bool IsMemoryPurgeOnBackgroundingEnabled();
+
+BLINK_COMMON_EXPORT bool IsInlineScriptCacheEnabled();
 
 BLINK_COMMON_EXPORT bool IsParkableStringsToDiskEnabled();
 

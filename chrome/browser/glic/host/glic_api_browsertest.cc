@@ -70,7 +70,6 @@
 #include "chrome/browser/glic/test_support/interactive_test_util.h"
 #include "chrome/browser/glic/test_support/non_interactive_glic_test.h"
 #include "chrome/browser/glic/widget/glic_floating_ui.h"
-#include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/media/audio_ducker.h"
 #include "chrome/browser/permissions/system/mock_platform_handle.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
@@ -114,6 +113,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "components/variations/synthetic_trial_registry.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test_utils.h"
@@ -249,6 +249,12 @@ class GlicApiTest : public NonInteractiveGlicApiTest, public WithTestParams {
         {{features::kGlicScrollTo, {}},
          {features::kGlicApiActivationGating, {}},
          {mojom::features::kGlicMultiTab, {}},
+         {features::kGlicWebContentsWarming,
+          {
+              // Effectively disable web contents warming, to make test output
+              // easier to understand.
+              {features::kGlicWebContentsWarmingDelay.name, "7d"},
+          }},
          {features::kGlicWebActuationSetting, {}},
          {features::kGlicCaptureRegion, {}},
          {features::kGlicPopupWindowsEnabled, {}},
@@ -263,6 +269,9 @@ class GlicApiTest : public NonInteractiveGlicApiTest, public WithTestParams {
             features::kGlicWarming,
             kGlicZeroStateSuggestions,
             features::kGlicDaisyChainNewTabs,
+            // Tested in
+            // chrome/browser/glic/selection/selection_overlay_interactive_uitests.cc
+            features::kGlicRegionSelectionNew,
         });
     SetUseElementIdentifiers(false);
   }
@@ -582,6 +591,13 @@ class GlicApiTestWithFastTimeout : public GlicApiTest {
         {});
   }
 
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    GlicApiTest::SetUpCommandLine(command_line);
+    // --glic-dev brings behavioral changes, and we'd rather test the default
+    // behavior.
+    command_line->RemoveSwitch(::switches::kGlicDev);
+  }
+
  private:
   base::test::ScopedFeatureList features2_;
 };
@@ -802,7 +818,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithWebContentsWarming,
       return new Promise((resolve, reject) => {
         // Poll for state change.
         const interval = setInterval(() => {
-          if (controller.state === 8 /* kReady */) {
+          if (controller.state === 13 /* kWarmed */) {
             clearInterval(interval);
             resolve(true);
           } else if (controller.state === 5 /* kError */ ||
@@ -1042,7 +1058,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithFastTimeout, testNoClientCreated) {
   listener.WaitForWebUiState(mojom::WebUiState::kError);
   // Note that the client does receive the bootstrap message, but never calls
   // back, so from the host's perspective bootstrapping is still pending.
-  // There may be warmed instances that also receive this error, so expect at
+  // There may be warmed contents that also receive this error, so expect at
   // least one count.
   EXPECT_GT(histogram_tester.GetBucketCount(
                 "Glic.Host.WebClientState.OnDestroy", 0 /*BOOTSTRAP_PENDING*/),
@@ -1061,7 +1077,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithFastTimeout, testNoBootstrap) {
   WebUIStateListener listener(GetHost());
   ExecuteJsTest();
   listener.WaitForWebUiState(mojom::WebUiState::kError);
-  // May have more than one sample because there can be a warmed instance.
+  // May have more than one sample because there can be a warmed contents.
   EXPECT_GT(histogram_tester.GetBucketCount(
                 "Glic.Host.WebClientState.OnDestroy", 0 /*BOOTSTRAP_PENDING*/),
             0);
@@ -1079,7 +1095,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithFastTimeout, testInitializeTimesOut) {
       .params = base::Value(base::DictValue().Set("failWith", "timeout")),
   });
   listener.WaitForWebUiState(mojom::WebUiState::kError);
-  // There may be warmed instances that also receive this error, so expect at
+  // There may be warmed contents that also receive this error, so expect at
   // least one count.
   EXPECT_GT(
       histogram_tester.GetBucketCount("Glic.Host.WebClientState.OnDestroy",
@@ -1607,7 +1623,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testTabSwitchDoesNotLogActivationMetric) {
   ExecuteJsTest({.params = base::Value("second")});
 
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return GetService()->window_controller().GetInstances().size() == 1u;
+    return GetService()->instance_coordinator().GetInstances().size() == 1u;
   }));
   ASSERT_EQ("A", GetGlicInstanceImpl()->conversation_id());
 
@@ -2229,15 +2245,6 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, DISABLED_testCaptureScreenshot) {
   ExecuteJsTest();
 }
 
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testPermissionAccess) {
-  // Obsolete in multi-instance.
-  SKIP_TEST_FOR_MULTI_INSTANCE();
-  ExecuteJsTest();
-  histogram_tester->ExpectUniqueSample(
-      "Glic.Sharing.ActiveTabSharingState.OnTabContextPermissionGranted",
-      ActiveTabSharingState::kActiveTabIsShared, 1);
-}
-
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testClosedCaptioning) {
   ExecuteJsTest();
 }
@@ -2325,9 +2332,6 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, DISABLED_testMetrics) {
   // Sleeping here is needed so that the calls made from the web client are
   // handled by the browser before the check below.
   sleepWithRunLoop(base::Milliseconds(100));
-  histogram_tester->ExpectUniqueSample(
-      "Glic.Sharing.ActiveTabSharingState.OnUserInputSubmitted",
-      ActiveTabSharingState::kTabContextPermissionNotGranted, 1);
 
   histogram_tester->ExpectUniqueSample("Glic.Response.ClosedCaptionsShown",
                                        true, 1);
@@ -3219,7 +3223,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestUserStatusCheckTest,
 }
 
 // Given the time-based nature of debouncing, testing with non-mocked clocks can
-// be flaky. This suite increases the applied delays to reduce the the chance of
+// be flaky. This suite increases the applied delays to reduce the chance of
 // flakiness. This suite is disabled on all slow binaries.
 #if defined(SLOW_BINARY)
 #define MAYBE_GlicApiTestWithOneTabMoreDebounceDelay \
@@ -3300,10 +3304,10 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testRemoveBlankInstanceOnClose) {
   RunTestSequence(
       InstrumentTab(kFirstTab),
       OpenGlic(GlicInstrumentMode::kNone, /*conversation_id=*/std::nullopt));
-  ASSERT_EQ(1u, GetService()->window_controller().GetInstances().size());
+  ASSERT_EQ(1u, GetService()->instance_coordinator().GetInstances().size());
   ExecuteJsTest();
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return GetService()->window_controller().GetInstances().size() == 0u;
+    return GetService()->instance_coordinator().GetInstances().size() == 0u;
   }));
 }
 
@@ -3323,7 +3327,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab,
   ExecuteJsTest({.params = base::Value("second")});
 
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return GetService()->window_controller().GetInstances().size() == 1u;
+    return GetService()->instance_coordinator().GetInstances().size() == 1u;
   }));
   ASSERT_EQ("id_hello", GetGlicInstanceImpl()->conversation_id());
 
@@ -3464,9 +3468,11 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testRegisterConversationWithEmptyId) {
   EXPECT_EQ("Empty Conversation", retrieved_info->conversation_title);
 }
 
+// TODO(b/498955581): Clean up glic hibernation experiments, and test in the
+// coordinator test.
 IN_PROC_BROWSER_TEST_P(GlicApiTestHibernateAllOnMemoryPressure,
                        testHibernateAllOnMemoryPressure) {
-  GetInstanceCoordinator().SetWarmingEnabledForTesting(true);
+  GetService()->web_contents_warming_pool().EnsurePreload();
 
   // Open 3 instances, with instance 2 being the active one.
   GlicInstanceImpl* instance1 = OpenGlicInNewTabAndGetInstance(0, kFirstTab);
@@ -3487,7 +3493,9 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestHibernateAllOnMemoryPressure,
 
   // There is a warmed contents initially. It should be non-showing and
   // non-actuating.
-  ASSERT_TRUE(GetInstanceCoordinator().HasWarmedInstanceForTesting());
+  GetService()->web_contents_warming_pool().EnsurePreload();
+  ASSERT_TRUE(
+      GetService()->web_contents_warming_pool().HasWarmedContainerForTesting());
 
   // Simulate memory pressure.
   base::MemoryPressureListener::NotifyMemoryPressure(
@@ -3498,8 +3506,9 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestHibernateAllOnMemoryPressure,
     return instance2->IsHibernated() && instance3->IsHibernated();
   }));
 
-  // Verify the warmed instance is reset.
-  ASSERT_FALSE(GetInstanceCoordinator().HasWarmedInstanceForTesting());
+  // Verify the warmed contents is reset.
+  ASSERT_FALSE(
+      GetService()->web_contents_warming_pool().HasWarmedContainerForTesting());
 
   // Active instance should not be hibernated.
   ASSERT_TRUE(instance1->IsShowing());
@@ -3508,14 +3517,16 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestHibernateAllOnMemoryPressure,
 
 IN_PROC_BROWSER_TEST_P(GlicApiTestHibernateAllAggressiveOnMemoryPressure,
                        testHibernateAllAggressiveOnMemoryPressure) {
-  GetInstanceCoordinator().SetWarmingEnabledForTesting(true);
+  GetService()->web_contents_warming_pool().EnsurePreload();
 
   // Open instance 1, making it active and showing.
   GlicInstanceImpl* instance1 = OpenGlicInNewTabAndGetInstance(0, kFirstTab);
   ASSERT_TRUE(instance1->IsShowing());
 
-  // There is a warmed instance initially.
-  ASSERT_TRUE(GetInstanceCoordinator().HasWarmedInstanceForTesting());
+  // There is a warmed contents initially.
+  GetService()->web_contents_warming_pool().EnsurePreload();
+  ASSERT_TRUE(
+      GetService()->web_contents_warming_pool().HasWarmedContainerForTesting());
 
   WebUIStateListener listener(&instance1->host());
 
@@ -3523,8 +3534,9 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestHibernateAllAggressiveOnMemoryPressure,
   base::MemoryPressureListener::NotifyMemoryPressure(
       base::MEMORY_PRESSURE_LEVEL_CRITICAL);
 
-  // Verify the warmed instance is reset.
-  ASSERT_FALSE(GetInstanceCoordinator().HasWarmedInstanceForTesting());
+  // Verify the warmed contents is reset.
+  ASSERT_FALSE(
+      GetService()->web_contents_warming_pool().HasWarmedContainerForTesting());
 
   // In aggressive mode, even the showing instance should be hibernated and
   // closed.
@@ -3635,6 +3647,10 @@ IN_PROC_BROWSER_TEST_P(GlicGetHostCapabilityApiTest, testGetHostCapabilities) {
   if (!base::FeatureList::IsEnabled(features::kGlicLiveMode)) {
     expected_capabilities.Append(
         std::to_underlying(mojom::HostCapability::kNoLiveMode));
+  }
+  if (base::FeatureList::IsEnabled(features::kFedCmEmbedderInitiatedLogin)) {
+    expected_capabilities.Append(
+        std::to_underlying(mojom::HostCapability::kAutoLoginSignInWithGoogle));
   }
   ExecuteJsTest({.params = base::Value(std::move(expected_capabilities))});
 }
@@ -4025,7 +4041,6 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills,
   GetHost()->NotifyContextualSkillsChanged(std::move(skills_batch_2));
   ContinueJsTest();
 }
-
 
 INSTANTIATE_TEST_SUITE_P(
     ,

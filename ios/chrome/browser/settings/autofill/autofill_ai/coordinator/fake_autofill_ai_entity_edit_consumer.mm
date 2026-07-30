@@ -12,4 +12,20 @@
   // Empty implementation to satisfy protocol.
 }
 
+- (void)showLoadingState {
+  self.showLoadingStateCalled = YES;
+}
+
+- (void)hideLoadingState {
+  self.hideLoadingStateCalled = YES;
+}
+
+- (void)didFinishSavingWithLocalFallback:(BOOL)isLocalFallback {
+  if (isLocalFallback) {
+    self.didFinishSavingToLocalAsFallbackCalled = YES;
+  } else {
+    self.didFinishSavingCalled = YES;
+  }
+}
+
 @end

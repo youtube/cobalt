@@ -15,7 +15,6 @@
 #include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
-#include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
@@ -26,6 +25,7 @@
 #include "chrome/browser/ui/views/tabs/tab_strip_control_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_controller.h"
 #include "chrome/common/buildflags.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
@@ -69,16 +69,7 @@ bool EntrypointVariationsEnabled() {
   return base::FeatureList::IsEnabled(features::kGlicEntrypointVariations);
 }
 
-bool ShouldShowLabel() {
-  return EntrypointVariationsEnabled() &&
-         features::kGlicEntrypointVariationsShowLabel.Get();
-}
-
 std::u16string GetLabelText() {
-  if (!ShouldShowLabel()) {
-    return std::u16string();
-  }
-
   if (base::FeatureList::IsEnabled(features::kGlicButtonAltLabel)) {
     switch (features::kGlicButtonAltLabelVariant.Get()) {
       case 0:
@@ -97,26 +88,15 @@ std::u16string GetLabelText() {
   return l10n_util::GetStringUTF16(IDS_GLIC_BUTTON_ENTRYPOINT_LABEL);
 }
 
-bool ShouldUseAltIcon() {
-  // LINT.IfChange(ShouldUseAltIcon)
-  return EntrypointVariationsEnabled() &&
-         features::kGlicEntrypointVariationsAltIcon.Get();
-  // LINT.ThenChange(//chrome/browser/ui/views/tabs/glic/glic_actor_task_icon.cc:ShouldUseGlicButtonAltIconBackgroundColor)
-}
-
 const gfx::VectorIcon& GlicVectorIcon() {
   return glic::GlicVectorIconManager::GetVectorIcon(
       IDR_GLIC_BUTTON_VECTOR_ICON);
 }
 
 ui::ImageModel GetNormalIcon() {
-  if (ShouldUseAltIcon()) {
-    return ui::ImageModel::FromImageSkia(
-        *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
-            IDR_GLIC_BUTTON_ALT_ICON));
-  }
-  return ui::ImageModel::FromVectorIcon(GlicVectorIcon(), kForeground,
-                                        kIconSize);
+  return ui::ImageModel::FromImageSkia(
+      *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
+          IDR_GLIC_BUTTON_ALT_ICON));
 }
 
 ui::ImageModel GetIconForHighlight() {
@@ -327,11 +307,6 @@ void TabStripGlicButton::Expand() {
   }
   WidthState old_width_state = width_state_;
   SetWidthState(WidthState::kNormal);
-
-  // If the label should not show, no further animation is needed.
-  if (!ShouldShowLabel()) {
-    return;
-  }
 
   start_width_ = kCollapsedWidth;
   end_width_ = normal_width_;
@@ -600,16 +575,9 @@ void TabStripGlicButton::UpdateTextAndBackgroundColors() {
     return;
   }
 
-  if (ShouldUseAltIcon()) {
-    SetBackgroundFrameActiveColorId(ui::kColorSysBase);
-
-      SetForegroundFrameActiveColorId(kForegroundOnAltBackground);
-      SetTextColor(STATE_DISABLED, kTextDisabled);
-  } else {
-    SetBackgroundFrameActiveColorId(kColorNewTabButtonCRBackgroundFrameActive);
-    SetForegroundFrameActiveColorId(kForeground);
-    SetTextColor(STATE_DISABLED, kTextDisabled);
-  }
+  SetBackgroundFrameActiveColorId(ui::kColorSysBase);
+  SetForegroundFrameActiveColorId(kForegroundOnAltBackground);
+  SetTextColor(STATE_DISABLED, kTextDisabled);
 
   if (base::FeatureList::IsEnabled(features::kGlicButtonPressedState) &&
       GetWidget()) {
@@ -668,10 +636,8 @@ void TabStripGlicButton::ShowNudge() {
   width_animation_controller_->Start(old_width_state, width_state_);
 
   const base::TimeDelta kLabelFadeOutDuration = DurationMs(17);
-  const base::TimeDelta kNudgeFadeInStart =
-      DurationMs(ShouldShowLabel() ? 267 : 150);
-  const base::TimeDelta kNudgeFadeInDuration =
-      DurationMs(ShouldShowLabel() ? 100 : 200);
+  const base::TimeDelta kNudgeFadeInStart = DurationMs(267);
+  const base::TimeDelta kNudgeFadeInDuration = DurationMs(100);
   views::AnimationBuilder()
       .OnEnded(base::BindOnce(&TabStripGlicButton::ApplyTextAndFadeIn,
                               weak_ptr_factory_.GetWeakPtr(),
@@ -707,11 +673,9 @@ void TabStripGlicButton::HideNudge() {
   end_width_ = normal_width_;
   width_animation_controller_->Start(old_width_state, width_state_);
 
-  const base::TimeDelta kNudgeFadeOutStart =
-      DurationMs(ShouldShowLabel() ? 0 : 50);
-  const base::TimeDelta kNudgeFadeOutDuration =
-      DurationMs(ShouldShowLabel() ? 133 : 267);
-  const float kNudgeFinalOpacity = ShouldShowLabel() ? 0.5 : 0;
+  const base::TimeDelta kNudgeFadeOutStart = DurationMs(0);
+  const base::TimeDelta kNudgeFadeOutDuration = DurationMs(133);
+  const float kNudgeFinalOpacity = 0.5;
   const base::TimeDelta kLabelFadeInStart = DurationMs(34);
   const base::TimeDelta kLabelFadeInDuration = DurationMs(17);
 
@@ -742,7 +706,7 @@ void TabStripGlicButton::ApplyTextAndFadeIn(std::optional<std::u16string> text,
 
   if (width_state_ == WidthState::kNudge) {
     // Start at 50% opacity if replacing default label with nudge.
-    label()->layer()->SetOpacity(ShouldShowLabel() ? 0.5 : 0);
+    label()->layer()->SetOpacity(0.5);
   }
 
   views::AnimationBuilder()
@@ -767,11 +731,6 @@ int TabStripGlicButton::CalculateExpandedWidth() {
   const int old_width = PreferredSize().width();
   // Replace old label with new.
   int new_width = old_width - label()->width() + nudge_text_width;
-  if (!ShouldShowLabel()) {
-    // If transitioning from empty label to nudge label, make sure the label
-    // margin is included.
-    new_width += kLabelRightMargin;
-  }
   if (last_width_state_ == WidthState::kCollapsed) {
     // Add extra margin if the label was previously collapsed, as the old_width
     // is smaller.
@@ -792,8 +751,7 @@ void TabStripGlicButton::RefreshBackground() {
 
 void TabStripGlicButton::OnLabelVisibilityChanged() {
   image_container_view()->SetProperty(
-      views::kMarginsKey,
-      GetIconMargins(ShouldShowLabel() && !IsAnimatingTextVisibility()));
+      views::kMarginsKey, GetIconMargins(!IsAnimatingTextVisibility()));
 }
 
 bool TabStripGlicButton::IsAnimatingTextVisibility() const {
@@ -865,7 +823,7 @@ void TabStripGlicButton::SetLabelMargins() {
   }
 
   int right = kLabelRightMargin;
-  if (!close_button()->GetVisible() && ShouldShowLabel()) {
+  if (!close_button()->GetVisible()) {
     right += 4;
   }
 

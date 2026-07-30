@@ -6,13 +6,17 @@
 #define CHROME_BROWSER_SAFE_BROWSING_CLOUD_CONTENT_SCANNING_CLOUD_BINARY_UPLOAD_SERVICE_H_
 
 #include <memory>
+#include <optional>
 #include <queue>
 
 #include "base/callback_list.h"
 #include "base/containers/circular_deque.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_service.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/connector_upload_request.h"
+#include "components/enterprise/connectors/core/cloud_content_scanning/resumable_uploader.h"
 #include "components/enterprise/connectors/core/common.h"
 #include "components/safe_browsing/core/browser/sync/safe_browsing_primary_account_token_fetcher.h"
 
@@ -101,6 +105,8 @@ class CloudBinaryUploadService
   enterprise_connectors::BinaryUploadRequest* GetRequest(
       enterprise_connectors::BinaryUploadRequest::Id request_id);
 
+  scoped_refptr<base::SequencedTaskRunner> ui_task_runner_;
+
  private:
   using TokenAndConnector =
       std::pair<std::string, enterprise_connectors::AnalysisConnector>;
@@ -131,6 +137,13 @@ class CloudBinaryUploadService
   void OnIpAddressesFetched(
       enterprise_connectors::BinaryUploadRequest::Id request_id,
       std::vector<std::string> ip_addresses);
+
+  // Convenience wrapper around the
+  // FileAnalysisRequestBase::RegisterOnGotHashCallback to ensure the request is
+  // posted as a task to the current thread.
+  void RegisterOnGotHashCallback(
+      enterprise_connectors::BinaryUploadRequest::Id request_id,
+      enterprise_connectors::OnGotHashCallback on_got_hash_callback);
 
   // Convenience callback method that calls both OnGetContentAnalysisResponse
   // and OnContentUploaded. Since the multipart uploader does not send separate
@@ -171,6 +184,13 @@ class CloudBinaryUploadService
   void MaybeUploadForDeepScanningCallback(
       std::unique_ptr<enterprise_connectors::BinaryUploadRequest> request,
       enterprise_connectors::ScanRequestUploadResult auth_check_result);
+
+  enterprise_connectors::ScanRequestUploadResult GetConsumerAuthResult(
+      const enterprise_connectors::BinaryUploadRequest& request);
+
+  std::optional<enterprise_connectors::ScanRequestUploadResult>
+  MaybeGetEnterpriseAuthResult(
+      const enterprise_connectors::BinaryUploadRequest& request);
 
   // Callback once the response from the backend is received.
   void ValidateDataUploadRequestConnectorCallback(
@@ -219,11 +239,15 @@ class CloudBinaryUploadService
       bool force_sync_upload,
       net::NetworkTrafficAnnotationTag traffic_annotation,
       enterprise_connectors::BinaryUploadRequest::Data data,
-      enterprise_connectors::ScanRequestUploadResult result);
+      enterprise_connectors::ScanRequestUploadResult result,
+      enterprise_connectors::ResumableUploadRequestBase::
+          OnceRegisterOnGotHashCallback register_on_got_hash_callback);
 
   void MaybeTrackUploadUserCancellation(const std::string& action_id);
 
   bool CheckForUserActionDone(const std::string& action_id);
+
+  void AssertCalledOnUIThread();
 
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
 

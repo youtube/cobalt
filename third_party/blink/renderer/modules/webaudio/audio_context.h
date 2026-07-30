@@ -150,7 +150,8 @@ class MODULES_EXPORT AudioContext final
   void HandlePostRenderTasks() override;
 
   // mojom::blink::PermissionObserver
-  void OnPermissionStatusChange(mojom::blink::PermissionStatus) override;
+  void OnPermissionStatusChange(
+      mojom::blink::PermissionStatusWithDetailsPtr status) override;
 
   // mojom::blink::MediaDevicesListener
   void OnDevicesChanged(mojom::blink::MediaDeviceType,
@@ -164,7 +165,7 @@ class MODULES_EXPORT AudioContext final
   void PageVisibilityChanged() override;
 
   // media::mojom::MediaPlayer  implementation.
-  void RequestPlay() override {}
+  void RequestPlay(bool triggered_by_user) override {}
   void RequestPause(bool triggered_by_user) override {}
   void RequestSeekForward(base::TimeDelta seek_time) override {}
   void RequestSeekBackward(base::TimeDelta seek_time) override {}

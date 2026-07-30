@@ -8,8 +8,12 @@ import {GlicRequestHeaderInjector} from '/shared/glic_request_headers.js';
 import {isFullWebView} from '/shared/web_view_type.js';
 import type {WebViewType} from '/shared/web_view_type.js';
 import type {ChromeEvent} from '/tools/typescript/definitions/chrome_event.js';
+// <if expr="not is_android">
+import {getInstance as getAnnouncerInstance} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
 
-import type {BrowserProxyImpl} from './browser_proxy.js';
+// </if>
+
+import type {BrowserProxy} from './browser_proxy.js';
 import {ZoomAction} from './glic.mojom-webui.js';
 import type {Subscriber} from './glic_api/glic_api.js';
 import {DetailedWebClientState, GlicApiCommunicator, GlicApiHost, WebClientState} from './glic_api_impl/host/glic_api_host.js';
@@ -130,7 +134,7 @@ export class WebviewController {
 
   constructor(
       private readonly container: HTMLElement,
-      private browserProxy: BrowserProxyImpl,
+      private browserProxy: BrowserProxy,
       private delegate: WebviewDelegate,
       private hostEmbedder: ApiHostEmbedder,
       private persistentState: WebviewPersistentState,
@@ -177,6 +181,13 @@ export class WebviewController {
     this.eventTracker.add(
         this.webview, 'unresponsive', this.onUnresponsive.bind(this));
     this.eventTracker.add(this.webview, 'exit', this.onExit.bind(this));
+    // <if expr="not is_android">
+    this.eventTracker.add(this.webview, 'zoomchange', (e: any) => {
+      const percentage = Math.round(e.newZoomFactor * 100);
+      const message = loadTimeData.getStringF('zoomLabel', percentage + '%');
+      getAnnouncerInstance().announce(message);
+    });
+    // </if>
     this.eventTracker.add(
         this.webview, 'loadstart', this.onLoadStart.bind(this));
     this.eventTracker.add(

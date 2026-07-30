@@ -159,11 +159,9 @@ ScriptPromise<PermissionStatus> Permissions::request(
   auto promise = resolver->Promise();
 
   PermissionDescriptorPtr descriptor_copy = descriptor->Clone();
-  LocalDOMWindow* window = DynamicTo<LocalDOMWindow>(context);
-  LocalFrame* frame = window ? window->GetFrame() : nullptr;
 
   GetService(context)->RequestPermission(
-      std::move(descriptor), LocalFrame::HasTransientUserActivation(frame),
+      std::move(descriptor),
       BindOnce(&Permissions::VerifyPermissionAndReturnStatus,
                WrapPersistent(this), WrapPersistent(resolver),
                std::move(descriptor_copy)));
@@ -188,8 +186,19 @@ ScriptPromise<PermissionStatus> Permissions::revoke(
   GetService(ExecutionContext::From(script_state))
       ->RevokePermission(
           std::move(descriptor),
-          BindOnce(&Permissions::TaskComplete, WrapPersistent(this),
-                   WrapPersistent(resolver), std::move(descriptor_copy)));
+          // TODO(crbug.com/494089503): Simplify this once all mojo permission
+          // methods return a PermissionStatusWithDetails and let TaskComplete
+          // take a PermissionStatusWithDetails directly.
+          blink::BindOnce(
+              [](Permissions* permissions,
+                 ScriptPromiseResolver<PermissionStatus>* resolver,
+                 mojom::blink::PermissionDescriptorPtr descriptor,
+                 mojom::blink::PermissionStatusWithDetailsPtr result) {
+                permissions->TaskComplete(resolver, std::move(descriptor),
+                                          result->status);
+              },
+              WrapPersistent(this), WrapPersistent(resolver),
+              std::move(descriptor_copy)));
   return promise;
 }
 
@@ -237,12 +246,8 @@ ScriptPromise<IDLSequence<PermissionStatus>> Permissions::requestAll(
   for (const auto& descriptor : internal_permissions)
     internal_permissions_copy.push_back(descriptor->Clone());
 
-  LocalDOMWindow* window = DynamicTo<LocalDOMWindow>(context);
-  LocalFrame* frame = window ? window->GetFrame() : nullptr;
-
   GetService(context)->RequestPermissions(
       std::move(internal_permissions),
-      LocalFrame::HasTransientUserActivation(frame),
       BindOnce(
           &Permissions::VerifyPermissionsAndReturnStatus, WrapPersistent(this),
           WrapPersistent(resolver), std::move(internal_permissions_copy),
@@ -296,8 +301,8 @@ void Permissions::VerifyPermissionAndReturnStatus(
     mojom::blink::PermissionStatusWithDetailsPtr result) {
   Vector<int> caller_index_to_internal_index;
   caller_index_to_internal_index.push_back(0);
-  Vector<mojom::blink::PermissionStatus> results;
-  results.push_back(std::move(result->status));
+  Vector<mojom::blink::PermissionStatusWithDetailsPtr> results;
+  results.push_back(std::move(result));
   Vector<mojom::blink::PermissionDescriptorPtr> descriptors;
   descriptors.push_back(std::move(descriptor));
 
@@ -314,7 +319,7 @@ void Permissions::VerifyPermissionsAndReturnStatus(
     Vector<int> caller_index_to_internal_index,
     int last_verified_permission_index,
     bool is_bulk_request,
-    const Vector<mojom::blink::PermissionStatus>& results) {
+    Vector<mojom::blink::PermissionStatusWithDetailsPtr> results) {
   DCHECK(caller_index_to_internal_index.size() == 1u || is_bulk_request);
   DCHECK_EQ(descriptors.size(), caller_index_to_internal_index.size());
 
@@ -343,11 +348,11 @@ void Permissions::VerifyPermissionsAndReturnStatus(
           // methods return a PermissionStatusWithDetails and let
           // PermissionVerificationComplete take a PermissionStatusWithDetails
           // directly.
-          BindOnce(
+          blink::BindOnce(
               [](Permissions* permissions, ScriptPromiseResolverBase* resolver,
                  Vector<mojom::blink::PermissionDescriptorPtr> descriptors,
                  Vector<int> caller_index_to_internal_index,
-                 const Vector<mojom::blink::PermissionStatus> results,
+                 Vector<mojom::blink::PermissionStatusWithDetailsPtr> results,
                  mojom::blink::PermissionDescriptorPtr verification_descriptor,
                  int internal_index_to_verify, bool is_bulk_request,
                  mojom::blink::PermissionStatusWithDetailsPtr
@@ -371,7 +376,7 @@ void Permissions::VerifyPermissionsAndReturnStatus(
       last_verified_permission_index = -1;
 
     PermissionStatusListener* listener = GetOrCreatePermissionStatusListener(
-        results[internal_index], descriptors[internal_index]->Clone());
+        results[internal_index]->status, descriptors[internal_index]->Clone());
     if (listener) {
       // If it's not a bulk request, return the first (and only) result.
       if (!is_bulk_request) {
@@ -389,12 +394,13 @@ void Permissions::PermissionVerificationComplete(
     ScriptPromiseResolverBase* resolver,
     Vector<mojom::blink::PermissionDescriptorPtr> descriptors,
     Vector<int> caller_index_to_internal_index,
-    const Vector<mojom::blink::PermissionStatus>& results,
+    Vector<mojom::blink::PermissionStatusWithDetailsPtr> results,
     mojom::blink::PermissionDescriptorPtr verification_descriptor,
     int internal_index_to_verify,
     bool is_bulk_request,
     mojom::blink::PermissionStatusWithDetailsPtr verification_result) {
-  if (verification_result->status != results[internal_index_to_verify]) {
+  if (verification_result->status !=
+      results[internal_index_to_verify]->status) {
     // The permission actually came from the verification descriptor, so use
     // that descriptor when returning the permission status.
     descriptors[internal_index_to_verify] = std::move(verification_descriptor);

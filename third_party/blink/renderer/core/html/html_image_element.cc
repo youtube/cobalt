@@ -142,7 +142,7 @@ void HTMLImageElement::Trace(Visitor* visitor) const {
 void HTMLImageElement::NotifyViewportChanged() {
   // Re-selecting the source URL in order to pick a more fitting resource
   // And update the image's intrinsic dimensions when the viewport changes.
-  // Picking of a better fitting resource is UA dependant, not spec required.
+  // Picking of a better fitting resource is UA dependent, not spec required.
   SelectSourceURL(ImageLoader::kUpdateSizeChanged);
 }
 
@@ -286,11 +286,14 @@ void HTMLImageElement::SetBestFitURLAndDPRFromImageCandidate(
   if (candidate_density >= 0)
     image_device_pixel_ratio_ = 1.0 / candidate_density;
 
-  bool intrinsic_sizing_viewport_dependant = false;
+  bool intrinsic_sizing_viewport_dependent = false;
   if (candidate.GetResourceWidth() > 0) {
-    intrinsic_sizing_viewport_dependant = true;
+    intrinsic_sizing_viewport_dependent = true;
     UseCounter::Count(GetDocument(), WebFeature::kSrcsetWDescriptor);
   } else if (!candidate.SrcOrigin()) {
+    if (RuntimeEnabledFeatures::ImageSrcsetReselectionEnabled()) {
+      intrinsic_sizing_viewport_dependent = true;
+    }
     UseCounter::Count(GetDocument(), WebFeature::kSrcsetXDescriptor);
   }
 
@@ -301,7 +304,7 @@ void HTMLImageElement::SetBestFitURLAndDPRFromImageCandidate(
       layout_image->NaturalSizeChanged();
   }
 
-  if (intrinsic_sizing_viewport_dependant) {
+  if (intrinsic_sizing_viewport_dependent) {
     if (!listener_)
       listener_ = MakeGarbageCollected<ViewportChangeListener>(this);
 
@@ -1083,6 +1086,23 @@ void HTMLImageElement::ResetLayoutDisposition() {
   } else {
     EnsureCollapsedOrFallbackContent();
   }
+}
+
+void HTMLImageElement::OnImageLoadComplete() {
+  if (DocumentImageReplacements* replacements =
+          DocumentImageReplacements::FromIfExists(GetDocument())) {
+    if (ImageReplacement* replacement =
+            replacements->GetImageReplacement(this)) {
+      if (replacement->ResumeReplacementAfterImageLoad()) {
+        // Replacement is now complete and the layout disposition is now
+        // kImageReplacement. We don't need to reset it, so we skip the call
+        // to ResetLayoutDisposition() below.
+        return;
+      }
+    }
+  }
+
+  ResetLayoutDisposition();
 }
 
 bool HTMLImageElement::IsCollapsed() const {

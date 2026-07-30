@@ -33,9 +33,10 @@ BASE_DECLARE_FEATURE(kFewerUpdateConfirmations);
 BASE_DECLARE_FEATURE(kTabStripDeclutter);
 BASE_DECLARE_FEATURE(kGlassToolbar);
 
+BASE_DECLARE_FEATURE(kImportExportFlags);
+
 BASE_DECLARE_FEATURE(kToolbarGlowUp);
 
-BASE_DECLARE_FEATURE(kDetachedTabs);
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 
@@ -306,6 +307,9 @@ BASE_DECLARE_FEATURE(kShowTabGroupsMacSystemMenu);
 
 // If enabled, the by date history will show in the side panel.
 BASE_DECLARE_FEATURE(kByDateHistoryInSidePanel);
+
+// If enabled, the "Tabs from other devices" side panel will be available.
+BASE_DECLARE_FEATURE(kTabsFromOtherDevicesSidePanel);
 
 // Controls whether to use the TabStrip browser api's controller.
 BASE_DECLARE_FEATURE(kTabStripBrowserApi);

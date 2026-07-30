@@ -12,6 +12,7 @@
 #include "base/rand_util.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "build/buildflag.h"
 
 namespace {
 // Allow runtime override of the forced embedded page host.
@@ -84,6 +85,23 @@ BASE_FEATURE(kContextualTasksComposeboxJumpFix,
 // Enables the use of a rounded clip-path for the composebox.
 BASE_FEATURE(kContextualTasksRoundedClipPath, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// On android the menu still needs to be shown in all cases. Enable the feature
+// everywhere else.
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kContextualTasksHideMenuOnAiPage,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#else
+BASE_FEATURE(kContextualTasksHideMenuOnAiPage,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+
+BASE_FEATURE(kContextualTasksUpdateModelOnNavigation,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool GetIsContextualTasksUpdateModeOnNavigationEnabled() {
+  return base::FeatureList::IsEnabled(kContextualTasksUpdateModelOnNavigation);
+}
+
 const base::FeatureParam<bool> kContextualTasksLockAndUnlockInputCapability(
     &kContextualTasks,
     "ContextualTasksLockAndUnlockInputCapability",
@@ -122,13 +140,20 @@ const base::FeatureParam<bool> kContextualTasksContextSmartTabSharing(
     "ContextualTasksContextSmartTabSharing",
     false);
 
+const base::FeatureParam<base::TimeDelta> kSmartTabSharingTabSelectionTimeout(
+    &kContextualTasksContext,
+    "ContextualTasksContextSmartTabSharingTabSelectionTimeout",
+    base::Milliseconds(300));
+
 const base::FeatureParam<double> kContextualTasksContextLoggingSampleRate{
     &kContextualTasksContextLogging, "ContextualTasksContextLoggingSampleRate",
     1.0};
 
 // Enables tab auto-chip for contextual tasks.
 const base::FeatureParam<bool> kContextualTasksTabAutoSuggestionChipEnabled(
-    &kContextualTasks, "ContextualTasksTabAutoSuggestionChipEnabled", true);
+    &kContextualTasks,
+    "ContextualTasksTabAutoSuggestionChipEnabled",
+    true);
 
 // The base URL for the AI page.
 const base::FeatureParam<std::string> kContextualTasksAiPageUrl{
@@ -146,13 +171,14 @@ const base::FeatureParam<std::string> kContextualTasksForcedEmbeddedPageHost{
 // The base domains for the sign in page.
 const base::FeatureParam<std::string> kContextualTasksSignInDomains{
     &kContextualTasks, "contextual-tasks-sign-in-domains",
-    "accounts.google.com,login.corp.google.com"};
+    "login.corp.google.com"};
 
 constexpr base::FeatureParam<EntryPointOption>::Option kEntryPointOptions[] = {
     {EntryPointOption::kNoEntryPoint, "no-entry-point"},
     {EntryPointOption::kPageActionRevisit, "page-action-revisit"},
     {EntryPointOption::kToolbarRevisit, "toolbar-revisit"},
-    {EntryPointOption::kToolbarPermanent, "toolbar-permanent"}};
+    {EntryPointOption::kToolbarPermanent, "toolbar-permanent"},
+    {EntryPointOption::kToolbarEphemeralBranded, "toolbar-ephemeral-branded"}};
 
 const base::FeatureParam<EntryPointOption> kShowEntryPoint(
     &kContextualTasks,
@@ -169,11 +195,6 @@ const base::FeatureParam<ExpandButtonOption> kExpandButtonOptions(
     "ContextualTasksExpandButtonOptions",
     ExpandButtonOption::kToolbarCloseButton,
     &kExpandButtonOption);
-
-const base::FeatureParam<bool> kTaskScopedSidePanel(
-    &kContextualTasks,
-    "ContextualTasksTaskScopedSidePanel",
-    true);
 
 const base::FeatureParam<bool> kOpenSidePanelOnLinkClicked(
     &kContextualTasks,
@@ -397,6 +418,13 @@ bool GetIsContextualTasksSuggestionsEnabled() {
 bool GetIsSmartTabSharingEnabled() {
   return base::FeatureList::IsEnabled(kContextualTasksContext) &&
          kContextualTasksContextSmartTabSharing.Get();
+}
+
+base::TimeDelta GetSmartTabSharingTabSelectionTimeout() {
+  if (kSmartTabSharingTabSelectionTimeout.Get().is_positive()) {
+    return kSmartTabSharingTabSelectionTimeout.Get();
+  }
+  return base::Milliseconds(300);
 }
 
 bool GetIsTabAutoSuggestionChipEnabled() {

@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
 
 #include "media/renderers/win/media_foundation_audio_stream.h"
 
@@ -13,6 +9,7 @@
 #include <mmreg.h>
 #include <wrl.h>
 
+#include "base/compiler_specific.h"
 #include "base/win/scoped_co_mem.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/audio_decoder_config.h"
@@ -60,11 +57,6 @@ HRESULT MediaFoundationAudioStream::Create(
   return S_OK;
 }
 
-bool MediaFoundationAudioStream::IsEncrypted() const {
-  AudioDecoderConfig audio_config = demuxer_stream_->audio_decoder_config();
-  return audio_config.is_encrypted();
-}
-
 HRESULT MediaFoundationAudioStream::GetMediaType(
     IMFMediaType** media_type_out) {
   AudioDecoderConfig decoder_config = demuxer_stream_->audio_decoder_config();
@@ -106,7 +98,8 @@ HRESULT MediaFoundationAACAudioStream::TransformSample(
   RETURN_IF_FAILED(
       mf_buffer->Lock(&mf_buffer_data, &max_length, &current_length));
   if (current_length >= kADTSHeaderSize && mf_buffer_data[0] == 0xff &&
-      mf_buffer_data[1] == 0xf1 && mf_buffer_data[6] == 0xfc) {
+      UNSAFE_TODO(mf_buffer_data[1]) == 0xf1 &&
+      UNSAFE_TODO(mf_buffer_data[6]) == 0xfc) {
     might_contain_adts_header = true;
   }
   RETURN_IF_FAILED(mf_buffer->Unlock());

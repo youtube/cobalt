@@ -51,6 +51,7 @@
 #else
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -200,9 +201,9 @@ bool IsWebContentsForemost(Profile* profile,
                            content::WebContents* web_contents,
                            GAIAServiceType service_type) {
 #if BUILDFLAG(IS_CHROMEOS)
-  Browser* browser = chrome::FindBrowserWithTab(web_contents);
+  BrowserWindowInterface* browser = chrome::FindBrowserWithTab(web_contents);
   // Do not do anything if the navigation happened in the "background".
-  if (!browser || !browser->window()->IsActive()) {
+  if (!browser || !browser->GetWindow()->IsActive()) {
     return false;
   }
 
@@ -528,26 +529,26 @@ void ProcessDiceResponseHeaderIfExists(ResponseAdapter* response,
   }
 
   if (std::optional<std::string> meta_header_value =
-          response_headers->GetNormalizedHeader(kDiceConaccMetaHeader);
+          response_headers->GetNormalizedHeader(kDiceLinkedAccountsMetaHeader);
       meta_header_value) {
-    DiceResponseParams::SigninInfo::ConnectedAccountsMetadata meta_header =
-        DiceHeaderHelper::ParseConnectedAccountsMetadata(*meta_header_value);
+    DiceResponseParams::SigninInfo::LinkedAccountsMetadata meta_header =
+        DiceHeaderHelper::ParseLinkedAccountsMetadata(*meta_header_value);
     if (!meta_header.IsValid()) {
       // TODO(crbug.com/475435113):
       // - Revisit handling gracefully malformed meta header. The code as it is
       // as of now, sign-in will fail completely if `initiator_id is empty`.
       // - Add histogram
-      DLOG(WARNING) << "Malformed X-Chrome-ID-Consistency-Conacc-Meta header: "
-                    << *meta_header_value;
+      DLOG(WARNING)
+          << "Malformed X-Chrome-ID-Consistency-LinkedAccounts-Meta header: "
+          << *meta_header_value;
     }
 
     if (DiceResponseParams::SigninInfo* signin_info = params.signin_info();
         signin_info) {
-      signin_info->set_connected_accounts_metadata(std::move(meta_header));
+      signin_info->set_linked_accounts_metadata(std::move(meta_header));
     } else {
-      DLOG(WARNING)
-          << "X-Chrome-ID-Consistency-Conacc-Meta is only supported for "
-             "Sign-in Dice action";
+      DLOG(WARNING) << "X-Chrome-ID-Consistency-LinkedAccounts-Meta is only "
+                       "supported for Sign-in Dice action";
     }
   }
 

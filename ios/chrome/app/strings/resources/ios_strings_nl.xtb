@@ -80,6 +80,7 @@
 <translation id="1285320974508926690">Deze site nooit vertalen</translation>
 <translation id="1287229685519872919">Google Workspace-gegevens</translation>
 <translation id="1291506870746876680">De rechten voor <ph name="BEGIN_BOLD" /><ph name="SITE_NAME" /><ph name="END_BOLD" /> worden weer uitgezet als je deze site verlaat.</translation>
+<translation id="1293491796138057740">Je informatie wordt opgeslagen in Google Wallet voor <ph name="USER_EMAIL" />. Je kunt deze gebruiken in Google-producten om formulieren sneller in te vullen.</translation>
 <translation id="1293556467332435079">Bestanden</translation>
 <translation id="129553762522093515">Recent gesloten</translation>
 <translation id="1296581780163690620">Bestand downloaden? (<ph name="FILE_SIZE" />)</translation>
@@ -107,6 +108,7 @@
 <translation id="1369286077209859800">Alle tabbladen in tabbladgroep tonen</translation>
 <translation id="136942498637440594">Je kunt zoeken naar afbeeldingen en wat je ziet.</translation>
 <translation id="1373120905936431262">Upload een afbeelding om te remixen met Nano Banana</translation>
+<translation id="1377321085342047638">Kaartnummer</translation>
 <translation id="1377508275003315939">Wachtwoorden</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position} van {count} adres}other{{position} van {count} adressen}}</translation>
 <translation id="1383876407941801731">Zoeken</translation>
@@ -151,7 +153,6 @@
 <translation id="1517166097004694782">Doorgaan met dit tabblad verbergen</translation>
 <translation id="1520027731907768768">Krijg meldingen over prijsdalingen voor producten die je volgt.</translation>
 <translation id="1521366073263497277">Naar het tabbladraster</translation>
-<translation id="1521774566618522728">Vandaag actief</translation>
 <translation id="1523567067736644845">Ontgrendel om het wachtwoord te tonen</translation>
 <translation id="1524563461097350801">Nee, bedankt</translation>
 <translation id="1531038290222364269">Tabbladen tonen</translation>
@@ -376,6 +377,7 @@
 <translation id="2299218006564889602">Je wachtwoorden worden versleuteld op je apparaat voordat ze worden opgeslagen in Google Wachtwoordmanager</translation>
 <translation id="2306265833370324042">Details voor <ph name="SEARCH_ENGINE_NAME" /> tonen</translation>
 <translation id="2309265394777270359">Tabblad sluiten</translation>
+<translation id="2310789833878085574">Opslaan en automatisch invullen</translation>
 <translation id="2311077293164383652">Vastgezet tabblad sluiten</translation>
 <translation id="2316129865977710310">Nee, bedankt</translation>
 <translation id="2320166752086256636">Toetsenbord verbergen</translation>
@@ -1099,7 +1101,6 @@
 <translation id="4944543191714094452">Zoeken op pagina…</translation>
 <translation id="4945756290001680296">Wachtwoordinstellingen openen</translation>
 <translation id="4949302115427722371">Instellingen beheren…</translation>
-<translation id="4952050521954075618">Foto's van de filmrol worden niet gesynchroniseerd op je apparaten</translation>
 <translation id="4958444002117714549">Lijst uitvouwen</translation>
 <translation id="496392417432935267">Ergens anders geopend</translation>
 <translation id="4970724460420203313">Als je Chrome gebruikt met je beheerde account, kun je browsen gerelateerd aan je organisatie (zoals tabbladen, geschiedenis en wachtwoorden) scheiden van je andere browse-activiteiten</translation>
@@ -1148,7 +1149,6 @@
 <translation id="5119329531859909472">Tik op Volgen om het product te volgen</translation>
 <translation id="5121618895923301719">Je volgt dit product al. Deze pagina is opgeslagen in <ph name="BEGIN_LINK" />Mobiele bookmarks<ph name="END_LINK" />.</translation>
 <translation id="512533434554095351">Je hebt verschillende wachtwoordproblemen.</translation>
-<translation id="5127538504377457572"><ph name="DAYS" /> dagen geleden actief</translation>
 <translation id="5128788795241319992">Het nieuwe menu ontdekken</translation>
 <translation id="5132942445612118989">Je wachtwoorden, geschiedenis en meer synchroniseren op al je apparaten</translation>
 <translation id="5141363746588976328">Kaart Prijsdalingen op je tabbladen verbergen</translation>
@@ -1266,6 +1266,7 @@ Handoff moet ook aanstaan in het gedeelte Algemeen van Instellingen en je appara
 <translation id="5556459405103347317">Opnieuw laden</translation>
 <translation id="555749644339804659">Wachtwoorden checken…</translation>
 <translation id="5559567453458728487">Converteer meeteenheden die op internet zijn gevonden</translation>
+<translation id="5560088892362098740">Vervaldatum</translation>
 <translation id="556042886152191864">Knop</translation>
 <translation id="5565871407246142825">Creditcards</translation>
 <translation id="5566623128829375608">Wordt opgeslagen op je apparaat.</translation>
@@ -1353,6 +1354,7 @@ Handoff moet ook aanstaan in het gedeelte Algemeen van Instellingen en je appara
 <translation id="5819208479324046259">Beheerd door <ph name="MANAGER" />. <ph name="BEGIN_LINK" />Meer informatie<ph name="END_LINK" /></translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5829649908290113115">Synchroniseren…</translation>
+<translation id="5831217499016131155">Google Wallet</translation>
 <translation id="583281660410589416">Onbekend</translation>
 <translation id="5838430324585198889">Krijg toegang tot meer functies voor je iPad met Google-apps</translation>
 <translation id="583923961930319521">Wachtwoorden gebruiken op al je apparaten</translation>
@@ -1650,6 +1652,7 @@ Handoff moet ook aanstaan in het gedeelte Algemeen van Instellingen en je appara
 <translation id="6806550742467879742">Paginahulpmiddelen</translation>
 <translation id="6807287147325542056">Wachtwoorden in andere apps</translation>
 <translation id="681368974849482173">Item gemaakt</translation>
+<translation id="6820686453637990663">CVC</translation>
 <translation id="6825078212112407882">{count,plural, =1{Bookmark opgeslagen in je Google-account {email}}other{{count} bookmarks opgeslagen in je Google-account {email}}}</translation>
 <translation id="6826004672264649705">Dit product wordt op dit moment gevolgd. Openen om de prijsgeschiedenis te bekijken</translation>
 <translation id="6830728435402077660">Niet beveiligd</translation>
@@ -1963,7 +1966,6 @@ Handoff moet ook aanstaan in het gedeelte Algemeen van Instellingen en je appara
 <translation id="7952670906562503188">Je staat op het punt om {passkey_count} toegangssleutels en de lijst met sites en apps waarvoor je hebt gekozen om nooit inloggegevens op te slaan, te verwijderen. Accounts die je voor sites en apps hebt gemaakt, worden niet verwijderd.</translation>
 <translation id="7958575506592576831">Paginabeveiligingsinfo</translation>
 <translation id="7961015016161918242">Nooit</translation>
-<translation id="7971136598759319605">1 dag geleden actief</translation>
 <translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">Proberen</translation>
 <translation id="797588153137233716">Menu → Geschiedenis → Browsegegevens verwijderen</translation>

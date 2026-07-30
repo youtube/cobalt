@@ -323,26 +323,23 @@
       <message name="IDS_IOS_ADVANCED_SIGNIN_SETTINGS_CANCEL_SYNC_ALERT_MESSAGE" desc="Alert title to ask if the user really wants to cancel sign-in and sync.">
         Cancel sync? You can turn on sync anytime in settings.
       </message>
-      <message name="IDS_IOS_AGE_MISMATCH_DISCLAIMER" translateable="false" desc="Disclaimer text with Learn more link for the Age Mismatch Prompt.">
-        To continue with Chrome, sign in with a Google Account that’s also set up for a child or sign out. <ph name="BEGIN_LINK">BEGIN_LINK</ph>Learn more<ph name="END_LINK">END_LINK</ph>
+      <message name="IDS_IOS_AGE_MISMATCH_FOLLOW_UP_HEADER" desc="Heading on a full-screen notice. The user already saw the initial info screen and tried to switch accounts, but chose another adult account. So this string emphasizes that the user can use Chrome with child restrictions by signing in to a child’s account. The tone should be informative and reassuring.">
+        Choose a different Google Account
       </message>
-      <message name="IDS_IOS_AGE_MISMATCH_HEADER_IPAD" translateable="false" desc="Title of the Age Mismatch Prompt on iPad.">
+      <message name="IDS_IOS_AGE_MISMATCH_HEADER_IPAD" desc="Heading on a full-screen notice on iPad. This string explains that age-related safety measures are active. Align ‘set up for a child’ phrasing with TC ID 8512022958027641166. The tone should be informative and reassuring.">
         This iPad is set up for a child
       </message>
-      <message name="IDS_IOS_AGE_MISMATCH_HEADER_IPHONE" translateable="false" desc="Title of the Age Mismatch Prompt on iPhone.">
+      <message name="IDS_IOS_AGE_MISMATCH_HEADER_IPHONE" desc="Heading on a full-screen notice on iPhone. This string explains that age-related safety measures are active. Align ‘set up for a child’ phrasing with TC ID 8512022958027641166. The tone should be informative and reassuring.">
         This iPhone is set up for a child
       </message>
-      <message name="IDS_IOS_AGE_MISMATCH_PRIMARY_BUTTON" translateable="false" desc="Primary button text of the Age Mismatch Prompt.">
-        Sign in to Chrome as a child
+      <message name="IDS_IOS_AGE_MISMATCH_PRIMARY_BUTTON" desc="Found on a primary button that users see on a full-screen notice. Tapping the button opens an account picker, allowing the user to sign in to Chrome with a different Google Account. ‘Use’ functions as an imperative verb. The tone is informative.">
+        Use another account
       </message>
-      <message name="IDS_IOS_AGE_MISMATCH_SECONDARY_BUTTON" translateable="false" desc="Secondary button text of the Age Mismatch Prompt.">
+      <message name="IDS_IOS_AGE_MISMATCH_SECONDARY_BUTTON" desc="Found on a secondary button that users see on a full-screen notice. Tapping the button allows the user to proceed to Chrome in a signed-out state. ‘Use’ functions as an imperative verb. The tone is informative.">
         Use without an account
       </message>
-      <message name="IDS_IOS_AGE_MISMATCH_SUBTITLE_IPAD" translateable="false" desc="Subtitle of the Age Mismatch Prompt on iPad.">
-        Your iPad uses the birthday in your Apple Account. If you're not a child, you may want to check the Apple Account on this device.
-      </message>
-      <message name="IDS_IOS_AGE_MISMATCH_SUBTITLE_IPHONE" translateable="false" desc="Subtitle of the Age Mismatch Prompt on iPhone.">
-        Your iPhone uses the birthday in your Apple Account. If you're not a child, you may want to check the Apple Account on this device.
+      <message name="IDS_IOS_AGE_MISMATCH_SUBTITLE_PART2" desc="Second part of the explanatory body copy in a full-screen notice. Suggests checking the age in the Apple Account if the user is not a child. Align ‘you may want to check the age` phrasing with TC ID 2620449093380639180.">
+        If you're not a child, you may want to check the age in the Apple Account on this device. <ph name="BEGIN_LINK">BEGIN_LINK</ph>Learn more<ph name="END_LINK">END_LINK</ph>
       </message>
       <message name="IDS_IOS_AI_HUB_ALWAYS_SHOW_POPUPS_ACCESSIBILITY_LABEL" desc="The accessibility label for the button to always show pop-ups on this site in the AI hub.">
         Always show pop-ups on this site
@@ -503,7 +500,10 @@
       <message name="IDS_IOS_APP_BAR_ALL_TABS" desc="Title of the button opening the TabGrid where all the tabs are visible. Note that if the translation is too long, the 'all' can be dropped and translate only 'Tabs'. [CHAR_LIMIT=14]" meaning="Tap this button to see all your tabs.">
           All tabs
           </message>
-      <message name="IDS_IOS_APP_BAR_ASK_GEMINI" desc="Title of the button opening a gemini prompt. [CHAR_LIMIT=14]" meaning="Tap this button to ask something to Gemini">
+      <message name="IDS_IOS_APP_BAR_ASK" desc="Title of the button opening a gemini prompt when the text is too long to fit in one line. [CHAR_LIMIT=14]" meaning="Tap this button to ask something to Gemini">
+          Ask
+          </message>
+      <message name="IDS_IOS_APP_BAR_ASK_GEMINI" desc="Title of the button opening a gemini prompt." meaning="Tap this button to ask something to Gemini">
           Ask Gemini
           </message>
       <message name="IDS_IOS_APP_BAR_CONTEXT_MENU_NEW_TAB_GROUP" desc="The text for the button opening a new tab group from the app bar's context menu in the tab groups page of the tab grid.">
@@ -526,6 +526,9 @@
       </message>
       <message name="IDS_IOS_ASK_GEMINI_CHIP_PREFILL_PROMPT" desc="Prefill prompt passed to the floaty when the Ask Gemini Chip is tapped [iOS only]">
         Give me a one-line summary and useful insights beyond this page. Use a concise, casual tone. Limit to 100 words.
+      </message>
+      <message name="IDS_IOS_AUTH_REASON" desc="A description that appears when the user needs to authenticate to use a suggestion.">
+      Chrome keeps your sensitive data secure with Face ID
       </message>
       <message name="IDS_IOS_AUTOFILL_ACCNAME_ALL_AUTOFILL_DATA" desc="Title of the the button in the keyboard accessory shown when filling out forms used to open the expanded view to see all autofill data when on iPad. [Length: unlimited] [iOS only]">
         All Autofill
@@ -577,17 +580,62 @@
       <message name="IDS_IOS_AUTOFILL_AI_OTHER_TITLE" desc="Title for the other section in Addresses and more page for entities that are not identity docs, nor travel docs. [iOS only]">
         Other
       </message>
+      <message name="IDS_IOS_AUTOFILL_AI_SAVED_LOCALLY_FOOTER" desc="The notice text displayed in the footer when the Autofill AI entity (ex. Passport, Vehicle info etc.) is saved locally. [iOS only]">
+          Your info is saved to your device
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_SAVED_TO_WALLET_FOOTER" desc="The notice text displayed in the footer when the Autofill AI entity (ex. Passport, Vehicle info etc.) are saved to Google Wallet. [iOS only]">
+          Your info is saved to Google Wallet for <ph name="USER_EMAIL">$1<ex>peter.parker@gmail.com</ex></ph>. You can use it across Google products to fill forms faster.
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_SAVE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE" desc="The title of a dialog that prompts the user to save information they just filled in on a form. For example, the user is renting a car and just filled in info about their driver’s license. When they click Submit, we offer to save the data in Chrome. Depending on the form and what Chrome recognizes, there might be just one or several pieces of data saved at this moment. This is a similar moment to saving a password or credit card with Chrome.">
+      Save driver's license
+      </message>
       <message name="IDS_IOS_AUTOFILL_AI_SAVE_FALLBACK_BODY" desc="Body text of the alert shown when saving to Wallet fails but saving to device succeeds. [iOS only]">
       You’ll have the chance to save this info to Wallet the next time you fill a relevant form.
       </message>
       <message name="IDS_IOS_AUTOFILL_AI_SAVE_FALLBACK_TITLE" desc="Title of the alert shown when saving to Wallet fails but saving to device succeeds. [iOS only]">
       Info saved only to device
       </message>
+      <message name="IDS_IOS_AUTOFILL_AI_SAVE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE" desc="The title of a dialog that prompts the user to save information they just filled in on a form. For example, the user has filled in details related to their Known Traveler Number. When they click Submit, we offer to save the data in Chrome. Depending on the form and what Chrome recognizes, there might be just one or several pieces of data saved at this moment. This is a similar moment to saving a password or credit card with Chrome. This is designed for Known Traveler Numbers issued by the United States only. For more info, see https://www.tsa.gov/travel/frequently-asked-questions/what-known-traveler-number-ktn.">
+      Save Known Traveler Number
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_SAVE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE" desc="The title of a dialog that prompts the user to save information they just filled in on a form. For example, the user is applying for a parking permit with their municipal government and fills out a form that requires their identity information. When they click Submit, we offer to save the data in Chrome. Depending on the form and what Chrome recognizes, there might be just one or several pieces of data saved at this moment. This is a similar moment to saving a password or credit card with Chrome. Important: Avoid translations that refer to a single, specific government document. Instead try to find a general term that is inclusive of all identity cards that meet the definition below, including documents issued by foreign governments. DEFINITION OF “NATIONAL IDENTITY CARD”: The definition we use for this feature is: “An identity document that meets the following criteria: 1) Issued by the government 2) Primary purpose is proving a natural person's identity (as opposed to e.g. their residence) 3) Common form of identification that most people keep with them 4) Not a passport or driver’s license.” EXAMPLES: This definition would include https://www.service-public.fr/particuliers/vosdroits/N358?lang=en. It would not include a United States Social Security Number or https://www.bzst.de/EN/Private_individuals/Tax_identification_number/tax_identification_number_node.html. ">
+      Save identity card
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_SAVE_OR_UPDATE_ENTITY_FAILED_WALLET_SAVE_DIALOG_DESCRIPTION" desc="The description text of the dialog shown when an entity (like passport, driver's license, etc) fails to be saved to Google Wallet.">
+      Chrome will offer to save it in Google Wallet next time you use it
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_SAVE_PASSPORT_ENTITY_DIALOG_TITLE" desc="The title of a dialog that prompts the user to save information they just filled in on a form. For example, the user is booking a flight and filled in their passport info in a form. When they click Submit, we offer to save the data in Chrome. Depending on the form and what Chrome recognizes, there might be just one or several pieces of data saved at this moment. This is a similar moment to saving a password or credit card with Chrome.">
+      Save passport
+      </message>
       <message name="IDS_IOS_AUTOFILL_AI_SAVE_PROMPT" desc="The prompt text asking the user to save a new entity to Autofill AI. [iOS only]">
         Save <ph name="ENTITY_TYPE">$1<ex>Passport</ex></ph>?
       </message>
+      <message name="IDS_IOS_AUTOFILL_AI_SAVE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE" desc="The title of a dialog that prompts the user to save information they just filled in on a form. For example, the user is booking a flight and is prompted to add their redress number. This field is designed for redress numbers issued by the United States only. When they click Submit, we offer to save the data in Chrome. Depending on the form and what Chrome recognizes, there might be just one or several pieces of data saved at this moment. This is a similar moment to saving a password or credit card with Chrome.  This is similar to adding a Credit card to Chrome. Now a user can also save a “Redress number”. This is designed for redress numbers issued by the United States only. For more info, see https://www.dhs.gov/dhs-trip.">
+      Save redress number
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_SAVE_VEHICLE_ENTITY_DIALOG_TITLE" desc="The title of a dialog that prompts the user to save information they just filled in on a form. For example, the user has filled in details related to their car. When they click Submit, we offer to save the data in Chrome. Depending on the form and what Chrome recognizes, there might be just one or several pieces of data saved at this moment. This is a similar moment to saving a password or credit card with Chrome.">
+      Save vehicle
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_UPDATE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE" desc="The title of a dialog that prompts the user to update information associated with something they have previously saved. For example, the user previously saved information related to their driver’s license. Now, the user is filling out a new form either with additional details associated with the driver’s license or with different values than what was previously saved. The interface shows new or modified values at the top with blue dots to indicate they’re new. Existing information associated with the driver’s license that isn’t changing appears at the bottom without blue dots. Depending on the form and what Chrome recognizes, there might be just one or several pieces of data updated at this moment. This is a similar moment to updating a password or credit card with Chrome.">
+      Update driver's license
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_UPDATE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE" desc="The title of a dialog that prompts the user to update information associated with something they have previously saved. For example, the user previously saved information related to their Known Traveler Number. Now, the user is filling out a new form either with additional details associated with the Known Traveler Number or with different values than what was previously saved. The interface shows new or modified values at the top with blue dots to indicate they’re new. Existing information associated with the vehicle that isn’t changing appears at the bottom without blue dots. Depending on the form and what Chrome recognizes, there might be just one or several pieces of data updated at this moment. This is a similar moment to updating a password or credit card with Chrome. This is designed for Known Traveler Numbers issued by the United States only. For more info, see https://www.tsa.gov/travel/frequently-asked-questions/what-known-traveler-number-ktn.">
+      Update Known Traveler Number
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_UPDATE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE" desc="The title of a dialog that prompts the user to update information associated with something they have previously saved. For example, the user previously saved information related to their national identity card. Now, the user is filling out a new form either with additional details associated with the national identity card or with different values than what was previously saved. The interface shows new or modified values at the top with blue dots to indicate they’re new. Existing information associated with the national identity card that isn’t changing appears at the bottom without blue dots. Depending on the form and what Chrome recognizes, there might be just one or several pieces of data updated at this moment. This is a similar moment to updating a password or credit card with Chrome.  Important: Avoid translations that refer to a single, specific government document. Instead try to find a general term that is inclusive of all identity cards that meet the definition below, including documents issued by foreign governments. DEFINITION OF “NATIONAL IDENTITY CARD”: The definition we use for this feature is: “An identity document that meets the following criteria: 1) Issued by the government 2) Primary purpose is proving a natural person's identity (as opposed to e.g. their residence) 3) Common form of identification that most people keep with them 4) Not a passport or driver’s license.” EXAMPLES: This definition would include https://www.service-public.fr/particuliers/vosdroits/N358?lang=en. It would not include a United States Social Security Number or https://www.bzst.de/EN/Private_individuals/Tax_identification_number/tax_identification_number_node.html">
+      Update identity card
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_UPDATE_PASSPORT_ENTITY_DIALOG_TITLE" desc="The title of a dialog that prompts the user to update information associated with something they have previously saved. For example, the user previously saved information related to their passport. Now, the user is filling out a new form either with additional details associated with the passport or with different values than what was previously saved. The interface shows new or modified values at the top with blue dots to indicate they’re new. Existing information associated with the passport that isn’t changing appears at the bottom without blue dots. Depending on the form and what Chrome recognizes, there might be just one or several pieces of data updated at this moment. This is a similar moment to updating a password or credit card with Chrome.">
+      Update passport
+      </message>
       <message name="IDS_IOS_AUTOFILL_AI_UPDATE_PROMPT" desc="The prompt text asking the user to update an existing entity in Autofill AI. [iOS only]">
         Update <ph name="ENTITY_TYPE">$1<ex>Passport</ex></ph>?
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_UPDATE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE" desc="The title of a dialog that prompts the user to update information associated with something they have previously saved. For example, the user previously saved information related to their known redress number. Now, the user is filling out a new form either with additional details associated with the redress number or with different values than what was previously saved. The interface shows new or modified values at the top with blue dots to indicate they’re new. Existing information associated with the redress number that isn’t changing appears at the bottom without blue dots. Depending on the form and what Chrome recognizes, there might be just one or several pieces of data updated at this moment. This is a similar moment to updating a password or credit card with Chrome. Now a user can also save a “Redress number”. This is designed for redress numbers issued by the United States only. For more info, see https://www.dhs.gov/dhs-trip.">
+      Update redress number
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_UPDATE_VEHICLE_ENTITY_DIALOG_TITLE" desc="The title of a dialog that prompts the user to update information associated with something they have previously saved. For example, the user previously saved information related to their car. Now, the user is filling out a new form either with additional details associated with the car or with different values than what was previously saved. The interface shows new or modified values at the top with blue dots to indicate they’re new. Existing information associated with the vehicle that isn’t changing appears at the bottom without blue dots. Depending on the form and what Chrome recognizes, there might be just one or several pieces of data updated at this moment. This is a similar moment to updating a password or credit card with Chrome.">
+      Update vehicle
       </message>
       <message name="IDS_IOS_AUTOFILL_AI_VEHICLE_VIN_NAME" desc="The display name for the vehicle identification number (VIN) in Autofill AI. [iOS only]">
         VIN
@@ -666,6 +714,9 @@
       <message name="IDS_IOS_AUTOFILL_EMAIL" desc="Title of the field of a profile address representing the email address of the addressee. [Length: 15em] [iOS only]">
         Email
       </message>
+      <message name="IDS_IOS_AUTOFILL_EXP_DATE" desc="Title of the field representing the expiration date of a credit card. [iOS only]">
+        Expiration Date
+      </message>
       <message name="IDS_IOS_AUTOFILL_EXP_MONTH" desc="Title of the field representing the expiration month of a credit card. [Length: 15em] [iOS only]">
         Expiration month
       </message>
@@ -723,6 +774,9 @@
       <message name="IDS_IOS_AUTOFILL_REAUTH_REASON" desc="Message explaining that the reason why we are requiring the user to re-authenticate is to be able to use the password. This is shown by iOS in the Touch ID reauthentication system dialogue, right under the OS string 'Touch ID for $BROWSER_NAME'. [CHAR_LIMIT=22]">
         Use password
       </message>
+      <message name="IDS_IOS_AUTOFILL_SAVE_AND_AUTOFILL" desc="Title for the button to save a credit card and autofill the form. [iOS only]">
+        Save and autofill
+      </message>
       <message name="IDS_IOS_AUTOFILL_SAVE_CARD" desc="Title for the view for saving a credit card. [Length: 15em] [iOS only]">
         Save card
       </message>
@@ -737,6 +791,15 @@
       </message>
       <message name="IDS_IOS_AUTOFILL_SAVE_ELLIPSIS" desc="Title for the button that presents the View for Saving a credit card. The ellipsis indicate that a following action (the presentation) will take place. [Length: 10em] [iOS only]">
         Save…
+      </message>
+      <message name="IDS_IOS_AUTOFILL_SCAN_CARD_CVC" desc="The placeholder text for credit card security code in the payments card unmask dialog. [iOS only]">
+        CVC
+      </message>
+      <message name="IDS_IOS_AUTOFILL_SCAN_CARD_PLACEHOLDER_CARD_NUMBER" desc="The placeholder text for credit card number in the payments card unmask dialog. [iOS only]">
+        Card Number
+      </message>
+      <message name="IDS_IOS_AUTOFILL_SCAN_CARD_PLACEHOLDER_EXPIRY_DATE" desc="The placeholder text for credit card expiration date (month and year) in the payments card unmask dialog. [iOS only]">
+        MM/YY
       </message>
       <message name="IDS_IOS_AUTOFILL_SECURITY_CODE" desc="Title of the field representing the CVC of a credit card. [Length: 4em] [iOS only]">
         Security code
@@ -754,10 +817,10 @@
         <ph name="INDEX">$1<ex>1</ex></ph> of <ph name="NUM_SUGGESTIONS">$2<ex>5</ex></ph>
       </message>
       <message name="IDS_IOS_AUTOFILL_VERIFICATION_INFO_FOOTER" desc="The footer text explaining the verify sensitive info setting. [iOS only]">
-        If you share this device, use your screen lock to verify it's you when using sensitive info like passports
+        For added protection, always use your fingerprint, face, or other screen lock when you use sensitive info like travel and identity docs
       </message>
       <message name="IDS_IOS_AUTOFILL_VERIFICATION_INFO_LABEL" desc="The label for the toggle to verify identity when filling sensitive info. [iOS only]">
-        Verify it's you when filling sensitive info
+        Verify it's you to autofill sensitive info
       </message>
       <message name="IDS_IOS_AUTOFILL_WALLET_PROMO_DETAIL_TEXT" desc="Text explaining that the user needs to enable 'Use passes across Google' in Wallet settings to use autofill. [iOS only]">
         To autofill your info, turn on “Use passes across Google” in Wallet settings
@@ -3394,7 +3457,7 @@
         Pick a theme, color, or more for your background
       </message>
       <message name="IDS_IOS_HOME_BACKGROUND_CUSTOMIZATION_USER_UPLOAD_NOT_SYNCED_SNACKBAR" desc="The snackbar displayed at the bottom of the screen informing the user that their uploaded background image will not be synced to other devices.">
-        Photos from Camera Roll won’t sync across your devices
+        Homepage photos from your photo library won't sync across your devices.
       </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_ACCESSIBILITY_LABEL" desc="Accessibility label for the Home Customization menu in the new tab page.">
         Customize your home screen
@@ -3839,10 +3902,10 @@
         More options
       </message>
       <message name="IDS_IOS_INFOBAR_MESSAGE_SAVE_TO_DEVICE" desc="A generic infobar message for saving something to device. [iOS only]">
-      Saves to your device.
+      Saves to your device
       </message>
       <message name="IDS_IOS_INFOBAR_MESSAGE_SAVE_TO_WALLET" desc="A generic infobar message for saving something to Google Wallet. [iOS only]">
-      In Google Wallet for <ph name="USER_EMAIL">$1<ex>janedoe@google.com</ex></ph>.
+      In Google Wallet for <ph name="USER_EMAIL">$1<ex>janedoe@google.com</ex></ph>
       </message>
       <message name="IDS_IOS_INFOBAR_MODAL_PASSWORD_HIDE_PASSWORD_HINT" desc="Accessibility hint that indicates to the user that then can hide/mask the password. [Length:Unlimited]">
         Hide password
@@ -4900,6 +4963,12 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_OVERFLOW_MENU_HIDE_ACTION_TRANSLATE" desc="The title for the context menu item to hide Translate. This should match the title of the Translate action in the menu." meaning="[iOS only] [Length: Unlimited]">
         Hide Translate
+      </message>
+      <message name="IDS_IOS_OVERFLOW_MENU_HIDE_ACTION_TURN_OFF_READING_MODE" desc="The title for the context menu item to hide Turn off Reading Mode. This should match the title of the Turn off Reading Mode action in the menu." meaning="[iOS only] [Length: Unlimited]">
+        Hide Turn off Reading Mode
+      </message>
+      <message name="IDS_IOS_OVERFLOW_MENU_HIDE_ACTION_TURN_ON_READING_MODE" desc="The title for the context menu item to hide Turn on Reading Mode. This should match the title of the Turn on Reading Mode action in the menu." meaning="[iOS only] [Length: Unlimited]">
+        Hide Turn on Reading Mode
       </message>
       <message name="IDS_IOS_OVERFLOW_MENU_HIDE_DESTINATION_BOOKMARKS" desc="The title for the context menu item to hide Bookmarks. This should match the title of the Bookmarks destination in the menu." meaning="[iOS only] [Length: Unlimited]">
         Hide Bookmarks
@@ -6750,10 +6819,10 @@ Handoff must also be enabled in the General section of Settings, and your device
           This deletes addresses saved on this device. It also removes selected info from Chrome, but it doesn’t delete this info from your Google Account.
       </message>
       <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_TITLE_LOCAL" desc="Title for the sheet shown to the user for confirmation to delete mixed selection of addresses and entities. Locally saved only. [iOS only]">
-          This deletes selected info saved on this device.
+          This deletes selected info saved on this device
       </message>
       <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_TITLE_LOCAL_AND_SERVER" desc="Title for the sheet shown to the user for confirmation to delete mixed selection of addresses and entities when addresses are saved in the user's Google Account. [iOS only]">
-          This deletes selected info saved on this device and in your Google Account <ph name="USER_EMAIL">$1<ex>janedoe@google.com</ex></ph>.
+          This deletes selected info saved on this device and in your Google Account <ph name="USER_EMAIL">$1<ex>janedoe@google.com</ex></ph>
       </message>
       <message name="IDS_IOS_SETTINGS_AUTOFILL_EDIT_HOME_WORK_ADDRESS_CONFIRMATION_BUTTON" desc="Edit button shown as an option in the address deletion confirmation sheet. [iOS only]">
           Edit in Google Account

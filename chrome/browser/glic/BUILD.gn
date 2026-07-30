@@ -73,7 +73,6 @@ source_set("glic") {
       "glic_tab_restore_helper.h",
       "host/context/glic_focused_tab_manager.h",
       "public/widget/glic_side_panel_coordinator_impl.h",
-      "widget/glic_window_controller.h",
     ]
 
     # Desktop-only sources
@@ -248,6 +247,8 @@ source_set("impl") {
     "host/context/glic_tab_data.cc",
     "host/context/glic_tab_data_observer.cc",
     "host/context/glic_tab_data_observer.h",
+    "host/context/glic_tab_favicon_observer.cc",
+    "host/context/glic_tab_favicon_observer.h",
     "host/glic_annotation_manager.cc",
     "host/glic_cookie_synchronizer.cc",
     "host/glic_cookie_synchronizer.h",
@@ -332,10 +333,6 @@ source_set("impl") {
       "widget/glic_window_animator.h",
       "widget/glic_window_config.cc",
       "widget/glic_window_config.h",
-      "widget/glic_window_controller_impl.cc",
-      "widget/glic_window_controller_impl.h",
-      "widget/glic_window_event_observer.cc",
-      "widget/glic_window_event_observer.h",
       "widget/glic_window_resize_animation.cc",
       "widget/glic_window_resize_animation.h",
       "widget/inactive_view_controller.cc",
@@ -495,6 +492,9 @@ source_set("impl") {
   }
   if (enable_pdf) {
     deps += [ "//components/pdf/browser" ]
+  }
+  if (enable_printing) {
+    deps += [ "//chrome/browser/printing" ]
   }
 }
 
@@ -672,6 +672,7 @@ source_set("browser_tests") {
     "//chrome/browser/tab_list",
     "//chrome/common:chrome_features",
     "//chrome/test:test_support",
+    "//components/favicon/content",
     "//components/prefs",
     "//content/test:test_support",
     "//third_party/blink/public/common:headers",
@@ -689,6 +690,7 @@ source_set("browser_tests") {
       "//chrome/browser/actor:test_support",
       "//chrome/browser/actor/ui",
       "//chrome/browser/actor/ui:test_support",
+      "//chrome/browser/enterprise/connectors/test:test_support",
       "//chrome/browser/extensions",
       "//chrome/browser/glic/common",
       "//chrome/browser/glic/common:browser_tests",
@@ -734,6 +736,9 @@ source_set("browser_tests") {
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
   }
+  if (enable_print_preview) {
+    deps += [ "//chrome/browser/printing" ]
+  }
 
   data_deps = [ "//chrome/test/data/webui/glic:generate_test_files" ]
 
@@ -772,8 +777,7 @@ if (!is_android) {
       "host/glic_api_interactive_uitest.cc",
       "host/glic_ui_interactive_uitest.cc",
       "service/metrics/glic_instance_metrics_ui_test.cc",
-      "widget/glic_window_controller_interactive_uitest.cc",
-      "widget/glic_window_resize_animation_interactive_uitest.cc",
+      "widget/glic_instance_coordinator_interactive_uitest.cc",
     ]
 
     if (!is_mac && enterprise_cloud_content_analysis) {
@@ -801,7 +805,6 @@ if (!is_android) {
       "//chrome/browser/glic:mojo_bindings",
       "//chrome/browser/glic/browser_ui:interactive_ui_tests",
       "//chrome/browser/glic/fre",
-      "//chrome/browser/glic/fre:interactive_ui_tests",
       "//chrome/browser/glic/selection:interactive_ui_tests",
       "//chrome/browser/glic/suggestions",
       "//chrome/browser/glic/suggestions:test_support",

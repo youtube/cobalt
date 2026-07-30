@@ -347,14 +347,10 @@ void RequestService::RequestToken(
     return;
   }
 
-  bool has_embedder_login_request =
-      FederatedEmbedderLoginRequest::Get(
-          WebContents::FromRenderFrameHost(&render_frame_host())) != nullptr;
-
-  can_accept_redirect_to_ =
-      force_allow_redirect_to_for_testing_ ||
-      ((IsNavigationInterceptionEnabled() || has_embedder_login_request) &&
-       navigation_handle != nullptr);
+  can_accept_redirect_to_ = force_allow_redirect_to_for_testing_ ||
+                            ((IsNavigationInterceptionEnabled() ||
+                              HasEmbedderLoginRequest(&render_frame_host())) &&
+                             navigation_handle != nullptr);
 
   had_transient_user_activation_ =
       (navigation_handle &&
@@ -362,10 +358,6 @@ void RequestService::RequestToken(
       render_frame_host().HasTransientUserActivation();
   if (navigation_handle) {
     intercepted_url_ = navigation_handle->GetURL();
-    if (navigation_handle->GetNavigationUIData()) {
-      intercepted_navigation_ui_data_ =
-          navigation_handle->GetNavigationUIData()->Clone();
-    }
   }
 
   // Store the previous `idp_order_` value from this class. Note that this is {}
@@ -936,7 +928,7 @@ bool RequestService::CanShowContinueOnPopup() const {
   if (identity_selection_type_ == kExplicit) {
     return true;
   }
-  DCHECK_EQ(identity_selection_type_, kAutoPassive);
+
   return had_transient_user_activation_;
 }
 
@@ -1848,8 +1840,8 @@ void RequestService::RedirectTo(const GURL& idp_config_url,
   // can_accept_redirect_to_ is only true for primary main frames.
   DCHECK(render_frame_host().IsInPrimaryMainFrame());
 
-  content::WebContents* web_contents =
-      content::WebContents::FromRenderFrameHost(&render_frame_host());
+  WebContentsImpl* web_contents = static_cast<WebContentsImpl*>(
+      content::WebContents::FromRenderFrameHost(&render_frame_host()));
 
   if (!web_contents) {
     CompleteRequestWithError(FederatedAuthRequestResult::kError,
@@ -1869,9 +1861,13 @@ void RequestService::RedirectTo(const GURL& idp_config_url,
       Referrer(intercepted_url_, network::mojom::ReferrerPolicy::kDefault);
   // Pretend this was renderer initiated like the load we intercepted.
   params.is_renderer_initiated = true;
-  // TODO(crbug.com/475549548): Is it correct to copy the UI data from the
-  // initial navigation?
-  params.navigation_ui_data = std::move(intercepted_navigation_ui_data_);
+  params.has_user_gesture = had_transient_user_activation_;
+  // This is used for "Request Desktop Site" on Android.
+  if (web_contents->ShouldOverrideUserAgentForRendererInitiatedNavigation()) {
+    params.override_user_agent = NavigationController::UA_OVERRIDE_TRUE;
+  } else {
+    params.override_user_agent = NavigationController::UA_OVERRIDE_FALSE;
+  }
   if (method == blink::mojom::RedirectParams::Tag::kPost) {
     params.transition_type = ui::PAGE_TRANSITION_FORM_SUBMIT;
     params.load_type = NavigationController::LOAD_TYPE_HTTP_POST;
@@ -2282,7 +2278,6 @@ void RequestService::CleanUp() {
   had_transient_user_activation_ = false;
   rp_mode_ = RpMode::kPassive;
   intercepted_url_ = GURL();
-  intercepted_navigation_ui_data_.reset();
   complete_request_delayed_ = false;
 }
 

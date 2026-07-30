@@ -623,7 +623,7 @@ PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
   // Creates the content setting models. Currently we only support camera and
   // microphone settings.
   constexpr ContentSettingImageModel::ImageType kContentSettingImageOrder[] = {
-      ContentSettingImageModel::ImageType::MEDIASTREAM};
+      ContentSettingImageModel::ImageType::kMediaStream};
   std::vector<std::unique_ptr<ContentSettingImageModel>> models;
   for (auto type : kContentSettingImageOrder) {
     models.push_back(ContentSettingImageModel::CreateForContentType(type));
@@ -1114,7 +1114,8 @@ bool PictureInPictureBrowserFrameView::ShowPageInfoDialog() {
 
   std::unique_ptr<PageInfoBubbleSpecification> specification =
       PageInfoBubbleSpecification::Builder(
-          location_icon_view_, GetWidget()->GetNativeWindow(), contents,
+          views::BubbleAnchor(location_icon_view_),
+          GetWidget()->GetNativeWindow(), contents,
           contents->GetLastCommittedURL())
           .HideExtendedSiteInfo()
           .Build();

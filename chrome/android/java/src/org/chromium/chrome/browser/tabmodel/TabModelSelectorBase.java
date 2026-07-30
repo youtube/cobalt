@@ -237,7 +237,7 @@ public abstract class TabModelSelectorBase
 
     @Override
     public TabGroupModelFilter getFilter(boolean incognito) {
-        return assumeNonNull(getTabGroupModelFilter(incognito));
+        return getModel(incognito);
     }
 
     private int getModelIndex(boolean incognito) {
@@ -276,14 +276,14 @@ public abstract class TabModelSelectorBase
     }
 
     @Override
-    public Tab openNewTab(
+    public @Nullable Tab openNewTab(
             LoadUrlParams loadUrlParams,
             @TabLaunchType int type,
             @Nullable Tab parent,
             boolean incognito) {
-        return assumeNonNull(mTabCreatorManager
+        return mTabCreatorManager
                 .getTabCreator(incognito)
-                .createNewTab(loadUrlParams, type, parent));
+                .createNewTab(loadUrlParams, type, parent);
     }
 
     @Override

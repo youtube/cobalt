@@ -34,9 +34,11 @@ BASE_FEATURE(kCreateNewTabGroupAppMenuTopLevel,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabStripDeclutter, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kImportExportFlags, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kGlassToolbar, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kToolbarGlowUp, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kDetachedTabs, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kDseIntegrity, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -191,7 +193,7 @@ BASE_FEATURE(kTearOffWebAppTabOpensWebAppWindow,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kThreeButtonPasswordSaveDialog, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kThreeButtonPasswordSaveDialog, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 BASE_FEATURE(kToolbarHeightSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -228,13 +230,7 @@ BASE_FEATURE(kManagedProfileRequiredInterstitial,
 
 // Enables a web-based tab strip. See https://crbug.com/989131. Note this
 // feature only works when the ENABLE_WEBUI_TAB_STRIP buildflag is enabled.
-BASE_FEATURE(kWebUITabStrip,
-#if BUILDFLAG(IS_CHROMEOS)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
+BASE_FEATURE(kWebUITabStrip, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // The default value of this flag is aligned with platform behavior to handle
 // context menu with touch.
@@ -362,6 +358,8 @@ BASE_FEATURE_PARAM(bool,
 BASE_FEATURE(kSavePasswordsContextualUi, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kByDateHistoryInSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kTabsFromOtherDevicesSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabStripBrowserApi, base::FEATURE_DISABLED_BY_DEFAULT);
 

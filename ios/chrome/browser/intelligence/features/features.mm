@@ -553,7 +553,7 @@ bool IsGeminiResponseViewDynamicResizingEnabled() {
   return base::FeatureList::IsEnabled(kGeminiResponseViewDynamicResizing);
 }
 
-BASE_FEATURE(kGeminiDynamicSettings, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGeminiDynamicSettings, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsGeminiDynamicSettingsEnabled() {
   if (!IsPageActionMenuEnabled()) {
@@ -573,7 +573,7 @@ bool IsToolDisabled(optimization_guide::proto::Action::ActionCase tool) {
     return true;
   }
 
-  std::optional<std::string> tool_name = ActorActionCaseToToolName(tool);
+  std::optional<std::string> tool_name = actor::ActorActionCaseToToolName(tool);
   if (!tool_name) {
     // Don't support tools that aren't in the proto.
     return true;
@@ -727,4 +727,10 @@ BASE_FEATURE(kPageContextIPCOptimization, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsPageContextIPCOptimizationEnabled() {
   return base::FeatureList::IsEnabled(kPageContextIPCOptimization);
+}
+
+BASE_FEATURE(kGeminiClientMigration, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiClientMigrationEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiClientMigration);
 }

@@ -15,20 +15,18 @@
 
 #include "base/containers/fixed_flat_map.h"
 #include "base/files/file_path.h"
+#include "base/functional/callback.h"
 #include "base/supports_user_data.h"
 #include "build/blink_buildflags.h"
+#include "components/download/public/common/download_danger_type.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
 #include "components/enterprise/common/proto/synced_from_google3/chrome_reporting_entity.pb.h"
 #include "components/enterprise/connectors/core/reporting_constants.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(USE_BLINK)
-#include "components/download/public/common/download_danger_type.h"  // nogncheck
-
 namespace download {
 class DownloadItem;
 }  // namespace download
-#endif  // BUILDFLAG(USE_BLINK)
 
 namespace gfx {
 class Range;
@@ -48,6 +46,13 @@ using SourceDestinationStringPair = std::pair<std::string, std::string>;
 
 // Alias to reduce verbosity when using Event::EventCase.
 using EventCase = ::chrome::cros::reporting::proto::Event::EventCase;
+
+// Callback which accepts a hash for use in scan upload or reporting.
+using OnGotHashCallback = base::OnceCallback<void(std::string)>;
+
+// Variant with either a hash or a way to register a callback to receive a hash.
+using HashCallbackVariant =
+    std::variant<std::string, base::RepeatingCallback<void(OnGotHashCallback)>>;
 
 // Keys used to read a connector's policy values.
 inline constexpr char kKeyServiceProvider[] = "service_provider";
@@ -275,13 +280,11 @@ ContentAnalysisResponse::Result::TriggeredRule::CustomRuleMessage
 CreateSampleCustomRuleMessage(const std::u16string& msg,
                               const std::string& url);
 
-#if BUILDFLAG(USE_BLINK)
 // Extracts the custom rule message from `download_item`. The rule for that
 // message needs to have an action (WARN, BLOCK) corresponding to `danger_type`.
 std::optional<ContentAnalysisResponse::Result::TriggeredRule::CustomRuleMessage>
 GetDownloadsCustomRuleMessage(const download::DownloadItem* download_item,
                               download::DownloadDangerType danger_type);
-#endif  // BUILDFLAG(USE_BLINK)
 
 // Checks if |response| contains a negative malware verdict.
 bool ContainsMalwareVerdict(const ContentAnalysisResponse& response);

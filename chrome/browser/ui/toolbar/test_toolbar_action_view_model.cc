@@ -76,7 +76,7 @@ void TestToolbarActionViewModel::HidePopup() {
   popup_showing_ = false;
 }
 
-gfx::NativeView TestToolbarActionViewModel::GetPopupNativeView() {
+gfx::NativeView TestToolbarActionViewModel::GetPopupNativeViewForTesting() {
   return gfx::NativeView();
 }
 
@@ -97,6 +97,14 @@ extensions::SitePermissionsHelper::SiteInteraction
 TestToolbarActionViewModel::GetSiteInteraction(
     content::WebContents* web_contents) const {
   return extensions::SitePermissionsHelper::SiteInteraction::kNone;
+}
+
+bool TestToolbarActionViewModel::CanHandleAccelerators() const {
+  return true;
+}
+
+bool TestToolbarActionViewModel::TryHandleAcceleratorPress() {
+  return true;
 }
 
 void TestToolbarActionViewModel::ShowPopup(bool by_user) {

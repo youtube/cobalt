@@ -6,11 +6,14 @@
 
 #import "base/functional/callback.h"
 #import "base/types/expected.h"
+#import "components/optimization_guide/proto/features/actions_data.pb.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/action_target_java_script_feature.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool_error.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/click_tool_java_script_feature.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/web_state.h"
+
+namespace actor {
 
 ClickTool::~ClickTool() = default;
 
@@ -52,7 +55,7 @@ base::expected<std::unique_ptr<ClickTool>, ActorToolError> ClickTool::Create(
       new ClickTool(action, resolution_result.value().web_state));
 }
 
-void ClickTool::Execute(ActorCallback callback) {
+void ClickTool::Execute(ToolExecutionCallback callback) {
   if (!web_state_) {
     std::move(callback).Run(base::unexpected(
         ActorToolError{ActorToolErrorCode::kExecutionMissingDependencies}));
@@ -75,7 +78,7 @@ void ClickTool::Execute(ActorCallback callback) {
 
 void ClickTool::OnTargetFrameResolved(
     const optimization_guide::proto::ClickAction& action,
-    ActorCallback callback,
+    ToolExecutionCallback callback,
     base::expected<ActionTargetJavaScriptFeature::TargetFrameResult,
                    ActorToolError> result) {
   if (!result.has_value()) {
@@ -97,7 +100,8 @@ void ClickTool::OnTargetFrameResolved(
   optimization_guide::proto::ClickAction new_action = action;
   *new_action.mutable_target() = target_frame.target;
 
-  js_feature_->Click(target_web_frame, new_action, std::move(callback));
+  js_feature_->Click(target_web_frame->AsWeakPtr(), new_action,
+                     std::move(callback));
 }
 
 ClickTool::ClickTool(const optimization_guide::proto::ClickAction& action,
@@ -105,3 +109,5 @@ ClickTool::ClickTool(const optimization_guide::proto::ClickAction& action,
     : action_(action),
       web_state_(web_state),
       js_feature_(ClickToolJavaScriptFeature::GetInstance()) {}
+
+}  // namespace actor

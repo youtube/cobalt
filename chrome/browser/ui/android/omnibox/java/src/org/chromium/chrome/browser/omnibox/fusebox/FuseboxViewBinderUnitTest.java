@@ -41,6 +41,7 @@ import org.robolectric.android.controller.ActivityController;
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.omnibox.R;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupButtonData;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupButtonType;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
@@ -64,15 +65,13 @@ public class FuseboxViewBinderUnitTest {
     @IntDef({
         Variant.DEFAULT,
         Variant.DEDICATED_BUTTON,
-        Variant.DEDICATED_BUTTON_WITH_HINT,
         Variant.COMPACT,
     })
     @Retention(RetentionPolicy.SOURCE)
     private @interface Variant {
         int DEFAULT = 0;
         int DEDICATED_BUTTON = 1;
-        int DEDICATED_BUTTON_WITH_HINT = 2;
-        int COMPACT = 3;
+        int COMPACT = 2;
     }
 
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
@@ -104,7 +103,8 @@ public class FuseboxViewBinderUnitTest {
         mViewHolder = new FuseboxViewHolder(parent, mPopup);
 
         // Initialize workable defaults.
-        mModel.set(FuseboxProperties.ATTACHMENTS_TOOLBAR_VISIBLE, true);
+        mModel.set(FuseboxProperties.ADD_BUTTON_VISIBLE, true);
+        mModel.set(FuseboxProperties.FUSEBOX_STATE, FuseboxState.EXPANDED);
         mModel.set(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE, AutocompleteRequestType.SEARCH);
         mModel.set(FuseboxProperties.SHOW_DEDICATED_MODE_BUTTON, false);
         mModel.set(FuseboxProperties.COLOR_SCHEME, BrandedColorScheme.APP_DEFAULT);
@@ -125,13 +125,12 @@ public class FuseboxViewBinderUnitTest {
 
     private void configureFusebox(@Variant int testCase, @AutocompleteRequestType int requestType) {
         OmniboxFeatures.sShowDedicatedModeButton.setForTesting(
-                testCase == Variant.DEDICATED_BUTTON
-                        || testCase == Variant.DEDICATED_BUTTON_WITH_HINT);
-        OmniboxFeatures.sShowTryAiModeHintInDedicatedModeButton.setForTesting(
-                testCase == Variant.DEDICATED_BUTTON_WITH_HINT);
+                testCase == Variant.DEDICATED_BUTTON);
 
         // Reflect the active state of the fusebox toolbar.
-        mModel.set(FuseboxProperties.COMPACT_UI, testCase == Variant.COMPACT);
+        mModel.set(
+                FuseboxProperties.FUSEBOX_STATE,
+                testCase == Variant.COMPACT ? FuseboxState.COMPACT : FuseboxState.EXPANDED);
         mModel.set(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE, requestType);
         mModel.set(
                 FuseboxProperties.SHOW_DEDICATED_MODE_BUTTON,
@@ -139,12 +138,12 @@ public class FuseboxViewBinderUnitTest {
     }
 
     @Test
-    public void toolbarVisible_setsVisibility() {
+    public void addButtonVisible_setsVisibility() {
         mModel.set(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE, AutocompleteRequestType.AI_MODE);
-        mModel.set(FuseboxProperties.ATTACHMENTS_TOOLBAR_VISIBLE, true);
+        mModel.set(FuseboxProperties.ADD_BUTTON_VISIBLE, true);
         assertEquals(View.VISIBLE, mViewHolder.addButton.getVisibility());
 
-        mModel.set(FuseboxProperties.ATTACHMENTS_TOOLBAR_VISIBLE, false);
+        mModel.set(FuseboxProperties.ADD_BUTTON_VISIBLE, false);
         assertEquals(View.GONE, mViewHolder.addButton.getVisibility());
     }
 
@@ -236,20 +235,6 @@ public class FuseboxViewBinderUnitTest {
         configureFusebox(Variant.DEDICATED_BUTTON, AutocompleteRequestType.CANVAS);
         assertEquals(View.VISIBLE, mViewHolder.requestType.getVisibility());
         assertEquals("Canvas", mViewHolder.requestType.getText());
-    }
-
-    @Test
-    public void updateModeSelectorVisibility_dedicatedButtonWithHint_searchModeAndStyling() {
-        configureFusebox(Variant.DEDICATED_BUTTON_WITH_HINT, AutocompleteRequestType.SEARCH);
-        assertEquals(View.VISIBLE, mViewHolder.requestType.getVisibility());
-        assertEquals("Try AI Mode", mViewHolder.requestType.getText());
-    }
-
-    @Test
-    public void updateModeSelectorVisibility_dedicatedButtonWithHint_aiModeAndStyling() {
-        configureFusebox(Variant.DEDICATED_BUTTON_WITH_HINT, AutocompleteRequestType.AI_MODE);
-        assertEquals(View.VISIBLE, mViewHolder.requestType.getVisibility());
-        assertEquals("AI Mode", mViewHolder.requestType.getText());
     }
 
     @Test

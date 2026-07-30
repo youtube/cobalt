@@ -14,6 +14,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/types/expected.h"
+#include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/glic_user_status_fetcher.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_service.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
@@ -163,9 +164,6 @@ class GlicEnabling : public signin::IdentityManager::Observer,
   // * The profile has completed the first run experience
   static bool ShouldShowSettingsPage(Profile* profile);
 
-  // Whether the FRE screen is displayed in the same window as the chat app.
-  static bool IsUnifiedFreEnabled(Profile* profile);
-
   // Whether the Trust-First Onboarding flow should be shown.
   static bool IsTrustFirstOnboardingEnabledForProfile(Profile* profile);
 
@@ -233,7 +231,6 @@ class GlicEnabling : public signin::IdentityManager::Observer,
     void RecordStartupMetrics() const { RecordMetrics("Startup"); }
     void RecordSteadyStateMetrics() const { RecordMetrics("SteadyState"); }
 
-   public:
     bool IsProfileEligible() const {
       return !feature_disabled && !not_regular_profile;
     }

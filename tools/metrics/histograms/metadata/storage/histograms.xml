@@ -91,7 +91,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="API.EffectiveStorageAccess.AllowedByStorageAccessType.Subsampled"
-    enum="AllowedByStorageAccessType" expires_after="2026-05-10">
+    enum="AllowedByStorageAccessType" expires_after="2026-10-10">
   <owner>selya@chromium.org</owner>
   <owner>cfredric@chromium.org</owner>
   <summary>
@@ -156,7 +156,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="API.StorageAccess.RequestOutcome"
-    enum="StorageAccessAPIRequestOutcome" expires_after="2026-07-26">
+    enum="StorageAccessAPIRequestOutcome" expires_after="2026-09-27">
   <owner>cfredric@chromium.org</owner>
   <owner>brandm@microsoft.com</owner>
   <summary>
@@ -430,7 +430,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.ClientKeepActiveRemotesCount" units="count"
-    expires_after="2026-04-05">
+    expires_after="2026-10-05">
   <owner>pmonette@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -1756,7 +1756,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.InterestGroup.DBSize" units="KB"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>behamilton@google.com</owner>
   <owner>pauljensen@chromium.org</owner>
   <summary>
@@ -1853,7 +1853,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.InterestGroup.PerSiteCount" units="groups"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>behamilton@google.com</owner>
   <owner>pauljensen@chromium.org</owner>
   <summary>
@@ -2560,7 +2560,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Storage.SharedStorage.PrivateAggregationConfig.HasMaxContributions"
-    enum="Boolean" expires_after="M150">
+    enum="Boolean" expires_after="2026-09-27">
   <owner>alexmt@chromium.org</owner>
   <owner>measurement-api-dev+metrics@google.com</owner>
   <summary>

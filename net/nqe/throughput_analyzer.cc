@@ -70,7 +70,14 @@ ThroughputAnalyzer::~ThroughputAnalyzer() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
-void ThroughputAnalyzer::MaybeStartThroughputObservationWindow() {
+ThroughputAnalyzer::AsyncNotifyStartTransactionInfo
+ThroughputAnalyzer::CreateAsyncNotifyStartTransactionInfo() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return {tick_clock_->NowTicks(), GetBitsReceived()};
+}
+
+void ThroughputAnalyzer::MaybeStartThroughputObservationWindow(
+    std::optional<AsyncNotifyStartTransactionInfo> info) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (disable_throughput_measurements_)
@@ -85,8 +92,9 @@ void ThroughputAnalyzer::MaybeStartThroughputObservationWindow() {
       requests_.size() < params_->throughput_min_requests_in_flight()) {
     return;
   }
-  window_start_time_ = tick_clock_->NowTicks();
-  bits_received_at_window_start_ = GetBitsReceived();
+  window_start_time_ = info ? info->time : tick_clock_->NowTicks();
+  bits_received_at_window_start_ =
+      info ? info->bits_received : GetBitsReceived();
 }
 
 void ThroughputAnalyzer::EndThroughputObservationWindow() {
@@ -139,8 +147,9 @@ void ThroughputAnalyzer::UpdateResponseContentSize(const URLRequest* request,
   response_content_sizes_[request] = response_size;
 }
 
-void ThroughputAnalyzer::NotifyStartTransaction(const URLRequest& request,
-                                                const base::TimeTicks& time) {
+void ThroughputAnalyzer::NotifyStartTransaction(
+    const URLRequest& request,
+    const AsyncNotifyStartTransactionInfo& info) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   UpdateResponseContentSize(&request, kDefaultContentSizeBytes);
@@ -166,9 +175,9 @@ void ThroughputAnalyzer::NotifyStartTransaction(const URLRequest& request,
 
   EraseHangingRequests(request);
 
-  requests_[&request] = time;
+  requests_[&request] = info.time;
   BoundRequestsSize();
-  MaybeStartThroughputObservationWindow();
+  MaybeStartThroughputObservationWindow(info);
 }
 
 void ThroughputAnalyzer::NotifyBytesRead(const URLRequest& request,
@@ -209,12 +218,11 @@ void ThroughputAnalyzer::NotifyRequestCompleted(const URLRequest& request) {
 
   EraseHangingRequests(request);
 
-  int32_t downstream_kbps = -1;
-  if (MaybeGetThroughputObservation(&downstream_kbps)) {
+  if (std::optional<int32_t> downstream_kbps = ComputeThroughput()) {
     // Notify the provided callback.
-    task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(throughput_observation_callback_, downstream_kbps));
+    task_runner_->PostTask(FROM_HERE,
+                           base::BindOnce(throughput_observation_callback_,
+                                          downstream_kbps.value()));
   }
 
   // Try to remove the request from either `accuracy_degrading_requests_` or
@@ -293,26 +301,25 @@ bool ThroughputAnalyzer::IsHangingWindow(int64_t bits_received,
   return is_hanging;
 }
 
-bool ThroughputAnalyzer::MaybeGetThroughputObservation(
-    int32_t* downstream_kbps) {
+std::optional<int32_t> ThroughputAnalyzer::ComputeThroughput() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(downstream_kbps);
 
   if (disable_throughput_measurements_)
-    return false;
+    return std::nullopt;
 
   // Return early if the window that records downstream throughput is currently
   // inactive because throughput observations can be taken only when the window
   // is active.
   if (!IsCurrentlyTrackingThroughput())
-    return false;
+    return std::nullopt;
 
   DCHECK_GE(requests_.size(), params_->throughput_min_requests_in_flight());
   DCHECK_EQ(0U, accuracy_degrading_requests_.size());
 
   base::TimeTicks now = tick_clock_->NowTicks();
 
-  int64_t bits_received = GetBitsReceived() - bits_received_at_window_start_;
+  const int64_t bits_received =
+      GetBitsReceived() - bits_received_at_window_start_;
   DCHECK_LE(window_start_time_, now);
   DCHECK_LE(0, bits_received);
   const base::TimeDelta duration = now - window_start_time_;
@@ -321,19 +328,15 @@ bool ThroughputAnalyzer::MaybeGetThroughputObservation(
   // the checks if `use_small_responses_` is true.
   if (!params_->use_small_responses() &&
       bits_received < params_->GetThroughputMinTransferSizeBits()) {
-    return false;
+    return std::nullopt;
   }
-
-  double downstream_kbps_double = bits_received * duration.ToHz() / 1000;
 
   if (IsHangingWindow(bits_received, duration)) {
     requests_.clear();
     EndThroughputObservationWindow();
-    return false;
+    return std::nullopt;
   }
 
-  // Round-up `downstream_kbps_double`.
-  *downstream_kbps = base::ClampCeil<int32_t>(downstream_kbps_double);
   DCHECK(IsCurrentlyTrackingThroughput());
 
   // Stop the observation window since a throughput measurement has been taken.
@@ -343,7 +346,10 @@ bool ThroughputAnalyzer::MaybeGetThroughputObservation(
   // Maybe start the throughput observation window again so that another
   // throughput measurement can be taken.
   MaybeStartThroughputObservationWindow();
-  return true;
+
+  const double downstream_kbps_double = bits_received * duration.ToHz() / 1000;
+  // Round-up `downstream_kbps_double`.
+  return base::ClampCeil<int32_t>(downstream_kbps_double);
 }
 
 void ThroughputAnalyzer::OnConnectionTypeChanged() {

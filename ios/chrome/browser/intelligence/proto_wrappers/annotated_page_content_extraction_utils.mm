@@ -43,6 +43,7 @@ constexpr char kTableRowDataKey[] = "tableRowData";
 constexpr char kRowTypeKey[] = "rowType";
 constexpr char kCanvasDataKey[] = "canvasData";
 constexpr char kVideoDataKey[] = "videoData";
+constexpr char kAriaRoleKey[] = "ariaRole";
 constexpr char kLayoutSizeKey[] = "layoutSize";
 constexpr char kWidthKey[] = "width";
 constexpr char kHeightKey[] = "height";
@@ -55,6 +56,7 @@ constexpr char kTitleKey[] = "title";
 constexpr char kContainsPaidContentKey[] = "containsPaidContent";
 constexpr char kChildrenNodesKey[] = "childrenNodes";
 constexpr char kDomNodeIdKey[] = "domNodeId";
+constexpr char kLabelForDomNodeIdKey[] = "labelForDomNodeId";
 constexpr char kFrameInteractionInfoKey[] = "frameInteractionInfo";
 constexpr char kSelectionKey[] = "selection";
 constexpr char kStartDomNodeIdKey[] = "startDomNodeId";
@@ -582,6 +584,12 @@ void PopulateAPCNodeFromContentTree(
         ->set_common_ancestor_dom_node_id(*dom_node_id);
   }
 
+  if (std::optional<int> label_for_id =
+          ReadJsNumber(*content_attributes, kLabelForDomNodeIdKey)) {
+    destination_node->mutable_content_attributes()->set_label_for_dom_node_id(
+        *label_for_id);
+  }
+
   // Populate the attribute type.
   std::optional<optimization_guide::proto::ContentAttributeType> type;
 
@@ -722,6 +730,15 @@ void PopulateAPCNodeFromContentTree(
         destination_node->mutable_content_attributes()->add_annotated_roles(
             static_cast<optimization_guide::proto::AnnotatedRole>(*role_value));
       }
+    }
+  }
+
+  // Handle ARIA Role.
+  if (std::optional<int> aria_role =
+          ReadJsNumber(*content_attributes, kAriaRoleKey)) {
+    if (optimization_guide::proto::AXRole_IsValid(*aria_role)) {
+      destination_node->mutable_content_attributes()->set_aria_role(
+          static_cast<optimization_guide::proto::AXRole>(*aria_role));
     }
   }
 

@@ -37,10 +37,6 @@ namespace views {
 class Label;
 }
 
-namespace tabs {
-class VerticalTabStripStateController;
-}
-
 namespace glic {
 class TabUnderlineView;
 }
@@ -83,7 +79,6 @@ class VerticalTabView : public views::View,
   bool IsActive() const { return active_; }
 
   TabCloseButton* close_button_for_testing() { return close_button_; }
-  bool collapsed_for_testing() { return collapsed_; }
 
   // HoverCardAnchorTarget:
   bool NeedsToShowThumbnail() const override;
@@ -143,7 +138,8 @@ class VerticalTabView : public views::View,
                            const bool center) const;
 
   // Calculates the visibilities of child views based on various states.
-  absl::flat_hash_map<views::View*, bool> CalculateChildVisibilities() const;
+  absl::flat_hash_map<views::View*, bool> CalculateChildVisibilities(
+      const int width) const;
 
   // views::LayoutDelegate
   views::ProposedLayout CalculateProposedLayout(
@@ -169,8 +165,7 @@ class VerticalTabView : public views::View,
   void UpdateAccessibleName();
   void OnAXNameChanged(ax::mojom::StringAttribute attribute,
                        const std::optional<std::string>& name);
-  void OnCollapsedStateChanged(
-      tabs::VerticalTabStripStateController* controller);
+  void OnCollapseStateChanged(tabs::VerticalTabStripCollapseState state);
   void OnDataChanged();
   void SetSelection(bool selected);
   void UpdateTabData(tabs::TabInterface* tab);
@@ -194,6 +189,8 @@ class VerticalTabView : public views::View,
   TabStyle::TabSelectionState GetSelectionState() const;
 
   bool IsDragging() const;
+  bool IsCollapsedWidth(int width) const;
+  bool IsInExpandOnHover(int width) const;
 
   const tabs::TabInterface* GetTabInterface() const;
 

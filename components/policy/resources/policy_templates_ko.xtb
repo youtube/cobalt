@@ -405,22 +405,6 @@ https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세
 <translation id="1317158052518324525">향상된 자동 완성을 허용하지 않습니다.</translation>
 <translation id="1317658068839330898">웹에서 <ph name="ASSISTANT_PRODUCT_NAME" />를 사용하도록 허용 안함</translation>
 <translation id="1318233005302276244">사용자가 Chrome에서 배송을 추적하도록 허용합니다.</translation>
-<translation id="1321747583289636863">정책을 설정하면 WebSocket 요청에 대한 프록시 서버의 최대 동시 연결 수가 지정됩니다.
-
-WebSocket이 아닌 요청 한도를 수정하려면 <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" /> 정책을 참고하세요.
-
-정책을 설정하지 않으면 기본값 32가 사용됩니다.
-
-일부 웹 앱은 중지 상태인 GET에 너무 많은 연결을 사용하는 것으로 알려져 있으므로 32 밑으로 낮추면 연결이 중지 상태인 웹 앱이 여러 개 열려 있을 때 브라우저 네트워크가 끊길 수 있습니다.
-일부 프록시 서버는 클라이언트당 많은 수의 동시 연결을 처리할 수 없으며 정책을 더 낮은 값으로 설정하여 해결할 수 있습니다.
-
-값은 6 이상이어야 합니다.
-이 한도 미만의 값을 설정하면 6이 사용됩니다.
-기본값(32) 밑으로 낮추는 데 따르는 위험은 사용자가 감수해야 합니다.
-
-값은 256 이하여야 합니다.
-이 한도를 초과하는 값을 설정하면 256이 사용됩니다.
-기본값(32)보다 높게 설정하는 데 따르는 위험은 사용자가 감수해야 합니다.</translation>
 <translation id="1323501563951768821">F12 설정은 Shift 수정자가 포함된 단축키를 사용합니다.</translation>
 <translation id="1325547947664414578">사용자가 <ph name="PRODUCT_OS_NAME" /> 기기 간에 전환하면 <ph name="PRODUCT_NAME" /> 서비스에서 이전 기기의 브라우저와 앱 창을 새 기기로 실행합니다.
 정책을 사용으로 설정하면 로그인 시 현재 사용자가 마지막으로 사용한 <ph name="PRODUCT_OS_NAME" /> 기기에서 브라우저 및 앱 창이 자동으로 실행됩니다.
@@ -4957,7 +4941,6 @@ Chrome Root Store를 공개 신뢰의 소스로 사용하는 내장된
 이 정책을 사용 중지하면 사용자의 비밀번호 관리자 데이터는 그대로 유지되지만, 비밀번호 관리자 기능이 손상됩니다.
 
 정책을 설정하면 사용자가 <ph name="PRODUCT_NAME" />에서 이를 변경할 수 없습니다.</translation>
-<translation id="4321788213579606602">WebSocket이 아닌 요청을 위해 프록시 서버에 동시 연결할 수 있는 최대 수</translation>
 <translation id="4322842393287974810">지연 없이 자동 실행된 키오스크 앱에서 <ph name="PRODUCT_OS_NAME" /> 버전을 제어하도록 허용합니다.</translation>
 <translation id="4323412353642577604">콘텐츠 보호를 위한 원격 증명 사용 설정</translation>
 <translation id="4325690621216251241">작업 표시줄에 로그아웃 버튼 추가</translation>
@@ -6462,6 +6445,7 @@ False로 설정하면 <ph name="PRODUCT_NAME" />에서 시스템 알림을 사�
 정책은 일시적인 조치로, 향후 <ph name="PRODUCT_NAME" /> 버전에서는 삭제될 예정입니다.</translation>
 <translation id="5212810195096589189">VM CLI 권한 지정</translation>
 <translation id="5213038356678567351">브라우저 전환을 실행해서는 안 되는 웹사이트입니다.</translation>
+<translation id="5216710229085956333">Krisp 주변 소음 제거 사용 설정</translation>
 <translation id="5216815237712190041">아무도 기기에 로그인한 적이 없는 경우 로그인 화면에 표시할 기기 수준의 배경화면 이미지를 설정합니다. ChromeOS 기기에서 배경화면 이미지 및 다운로드의 무결성을 확인하는 데 사용되는 암호화 해시를 다운로드할 수 있는 URL을 지정하면 정책이 설정됩니다. 이미지는 JPEG 형식이어야 하며 파일 크기는 16MB를 초과하지 않아야 합니다. URL은 인증 없이 액세스할 수 있어야 합니다. 배경화면 이미지는 다운로드 및 캐시됩니다. 배경화면 이미지는 URL이나 해시가 변경될 때마다 다시 다운로드됩니다.
 
       기기 배경화면 정책이 설정된 경우 아무도 기기에 로그인한 적이 없으면 ChromeOS 기기에서 배경화면 이미지를 다운로드하여 로그인 화면에 사용합니다. 사용자가 로그인하면 사용자의 배경화면 정책이 적용됩니다.
@@ -6877,6 +6861,7 @@ false로 설정되면 기능에 액세스할 수 없습니다.</translation>
 <translation id="5479841110985196412">접근성 가상 키보드 사용 설정</translation>
 <translation id="5480380613778757009">정책을 사용 안함으로 설정하거나 설정하지 않으면 관리 게스트 세션에서 설정된 모든 화면 설정이 세션이 끝나는 즉시 재설정됩니다. 정책을 True로 설정하면 관리 게스트 세션을 종료한 후에도 화면 속성이 유지됩니다.</translation>
 <translation id="548137908954174608">실시간 자막 사용 설정</translation>
+<translation id="5481873128882951841">Krisp 주변 소음 제거 사용 중지</translation>
 <translation id="5483012943408894695">안전하지 않은 출처에 대한 보안 제한을 적용하지 않을 출처 또는 호스트 이름 패턴</translation>
 <translation id="5483065054530244863">로컬 트러스트 앵커에서 발행된 SHA-1 서명 인증서를 허용합니다.</translation>
 <translation id="5485491014653571963">이 설정은 Gemini 앱 통합을 허용합니다.
@@ -7789,7 +7774,6 @@ false로 설정되면 기능에 액세스할 수 없습니다.</translation>
 <translation id="6075316301208933536"><ph name="DEVICE_BATTERY_CHARGE_MODE_POLICY_NAME" />를 <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_MODE_NAME" />으로 설정하고 <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" />을 설정하면 배터리 충전 백분율을 기준으로 배터리 충전 중단 시기가 맞춤설정됩니다. <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_START_CHARGING_POLICY_NAME" />은 <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" />보다 최소 5퍼센트 포인트 낮아야 합니다.
 
       정책을 설정하지 않으면 <ph name="DEVICE_BATTERY_CHARGE_STANDARD_MODE_NAME" /> 배터리 충전 모드가 적용됩니다.</translation>
-<translation id="6080808146443476891">WebSocket 요청을 위해 프록시 서버에 동시 연결할 수 있는 최대 수</translation>
 <translation id="6082161804984853051">정책을 설정하면 <ph name="PRODUCT_NAME" />에서 사용자가 --disk-cache-dir 플래그를 지정한 여부와 관계없이 디스크에 캐시된 파일을 저장하는 데 제공된 디렉터리를 사용합니다.
 
       설정되지 않으면 <ph name="PRODUCT_NAME" />에서 기본 캐시 디렉터리를 사용하지만 사용자는 --disk-cache-dir 명령줄 플래그를 사용하여 해당 설정을 변경할 수 있습니다.
@@ -10759,6 +10743,12 @@ https://chromeenterprise.google/policies/url-patterns를 참고하세요.
 
       기본적으로 확장 프로그램 또는 Android 애플리케이션은 회사용으로 지정된 키를 사용할 수 없으며, 이는 확장 프로그램 또는 Android 애플리케이션의 allowCorporateKeyUsage를 False로 설정하는 것과 동일합니다. 확장 프로그램의 allowCorporateKeyUsage를 True로 설정하는 경우에만 확장 프로그램 또는 Android 애플리케이션에서 회사용으로 표시된 플랫폼 키를 사용하여 임의의 데이터에 서명할 수 있습니다. 확장 프로그램 또는 Android 애플리케이션이 공격자로부터 키에 대한 액세스 권한을 보호한다고 신뢰할 수 있는 경우에만 이 권한을 허용하세요.</translation>
 <translation id="7928412788382651939">생성형 AI 개요 창 그룹화를 허용하고 AI 모델을 개선합니다.</translation>
+<translation id="7929417323335013269">이 정책은 기기의 Krisp AI 주변 소음 제거 기술을 제어합니다.
+이 기술은 <ph name="PRODUCT_OS_NAME" />에 별도의 로컬 서드 파티 라이브러리에 통합되어 있으며 관리 사용자만 사용할 수 있습니다.
+
+정책을 사용 설정하면 Krisp AI 주변 소음 제거 오디오 처리가 사용 설정되며 사용자가 이를 사용 중지할 수 없습니다.
+
+정책을 사용 중지하거나 설정하지 않으면 Krisp AI 주변 소음 제거 오디오 처리가 사용 중지됩니다.</translation>
 <translation id="7930383470029339167">ThrottleDisplayNoneAndVisibilityHiddenCrossOriginIframes는 크로스 프로세스 및 동일 프로세스 간 교차 출처 iframe의 렌더링 동작을 일관되게 유지하도록 설계된 Chrome 기능입니다. 크로스 프로세스 및 동일 프로세스 제한에 관한 자세한 내용은 https://chromestatus.com/feature/5175574929080320 페이지를 참고하세요.
 
 이 엔터프라이즈 정책은 관리자가 사용자의 추가 제한 사용 설정 가능 여부를 제어할 수 있도록 하기 위해 존재합니다. 정책을 사용 안함으로 설정하면 제한이 사용 설정되지 않습니다. 정책을 사용으로 설정하거나 설정하지 않으면 사용자가 제한을 사용하거나 Chrome 변형을 통해 사용 설정할 수 있습니다.</translation>
@@ -11245,22 +11235,6 @@ Windows에서는 GPO를 통해 정책을 설정하는 것이 좋습니다. 하�
 
 정책을 사용 설정하거나 설정하지 않으면 페이지에 액세스할 수 있습니다.
 정책을 사용 중지하면 페이지가 차단됩니다.</translation>
-<translation id="8264002158987842436">정책을 설정하면 WebSocket이 아닌 요청에 대해 프록시 서버에 동시 연결할 수 있는 최대 대수가 지정됩니다.
-
-WebSocket 요청 한도를 수정하려면 <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" /> 정책을 참고하세요.
-
-정책을 설정하지 않으면 기본값 32가 사용됩니다.
-
-일부 웹 앱은 중지 상태인 GET에 너무 많은 연결을 사용하는 것으로 알려져 있으므로 32 밑으로 낮추면 연결이 중지 상태인 웹 앱이 여러 개 열려 있을 때 브라우저 네트워크가 끊길 수 있습니다.
-일부 프록시 서버는 클라이언트당 많은 수의 동시 연결을 처리할 수 없으며 정책을 더 낮은 값으로 설정하여 해결할 수 있습니다.
-
-값은 6 이상이어야 합니다.
-이 한도 미만의 값을 설정하면 6이 사용됩니다.
-기본값(32) 밑으로 낮추는 데 따르는 위험은 사용자가 감수해야 합니다.
-
-값은 256(<ph name="PRODUCT_NAME" /> 147 이전 버전에서는 99) 이하여야 합니다.
-이 한도를 초과하는 값을 설정하면 256(<ph name="PRODUCT_NAME" /> 147 이전 버전에서는 99)이 사용됩니다.
-기본값(32)보다 높게 설정하는 데 따르는 위험은 사용자가 감수해야 합니다.</translation>
 <translation id="8266778278542911985">이 정책을 3으로 설정하면 웹사이트에서 직렬 포트 액세스를 요청할 수 있습니다. 정책을 2로 설정하면 직렬 포트 액세스를 거부합니다.
 
       정책을 설정하지 않으면 웹사이트에서 액세스를 요청할 수 있지만, 사용자가 이 설정을 변경할 수 있습니다.</translation>

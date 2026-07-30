@@ -371,13 +371,7 @@
   BOOL isOffTheRecord = self.isOffTheRecord;
   BOOL canShowTabStrip = CanShowTabStrip(self.traitEnvironment);
 
-  if (IsChromeNextIaEnabled()) {
-    // Hide the toolbar when on regular NTP on iPhone landscape.
-    BOOL hideToolbar = isNTP && !isOffTheRecord && !canShowTabStrip &&
-                       IsSplitToolbarMode(self.traitEnvironment);
-
-    self.primaryToolbarViewController.view.hidden = hideToolbar;
-  } else {
+  if (!IsChromeNextIaEnabled()) {
     // Hide the toolbar when displaying content suggestions without the tab
     // strip, without the focused omnibox, only when in split toolbar mode.
     BOOL hideToolbar = isNTP && !isOffTheRecord && ![self inEditState] &&
@@ -513,10 +507,13 @@
 
 - (CGFloat)collapsedSecondaryToolbarHeight {
   if (IsChromeNextIaEnabled()) {
+    if (self.secondaryToolbarViewController.view.hidden) {
+      return 0.0;
+    }
     if ([self isOmniboxInBottomPosition]) {
       return kToolbarHeightFullscreen;
     }
-    return 0;
+    return 0.0;
   }
   if (_omniboxPosition == ToolbarType::kSecondary) {
     return ToolbarCollapsedHeight(
@@ -527,10 +524,13 @@
 
 - (CGFloat)expandedSecondaryToolbarHeight {
   if (IsChromeNextIaEnabled()) {
+    if (self.secondaryToolbarViewController.view.hidden) {
+      return 0.0;
+    }
     if ([self isOmniboxInBottomPosition]) {
       return kToolbarHeight;
     }
-    return 0;
+    return 0.0;
   }
   if (!IsSplitToolbarMode(self.traitEnvironment)) {
     return 0.0;
@@ -601,7 +601,8 @@
 
 - (void)updateUIForOverflowMenuIPHDisplayed {
   if (IsChromeNextIaEnabled()) {
-    // TODO(crbug.com/483995532): implement this.
+    [_topToolbarViewController updateUIForOverflowMenuIPHDisplayed];
+    [_bottomToolbarViewController updateUIForOverflowMenuIPHDisplayed];
   }
   for (id<ToolbarCoordinatee> coordinator in self.coordinators) {
     [coordinator.popupMenuUIUpdater updateUIForOverflowMenuIPHDisplayed];
@@ -610,7 +611,8 @@
 
 - (void)updateUIForIPHDismissed {
   if (IsChromeNextIaEnabled()) {
-    // TODO(crbug.com/483995532): implement this.
+    [_topToolbarViewController updateUIForIPHDismissed];
+    [_bottomToolbarViewController updateUIForIPHDismissed];
   }
   for (id<ToolbarCoordinatee> coordinator in self.coordinators) {
     [coordinator.popupMenuUIUpdater updateUIForIPHDismissed];
@@ -619,7 +621,8 @@
 
 - (void)setOverflowMenuBlueDot:(BOOL)hasBlueDot {
   if (IsChromeNextIaEnabled()) {
-    // TODO(crbug.com/483995532): implement this.
+    [_topToolbarViewController setOverflowMenuBlueDot:hasBlueDot];
+    [_bottomToolbarViewController setOverflowMenuBlueDot:hasBlueDot];
   }
   for (id<ToolbarCoordinatee> coordinator in self.coordinators) {
     [coordinator.popupMenuUIUpdater setOverflowMenuBlueDot:hasBlueDot];

@@ -243,25 +243,21 @@ void AttemptLoginTool::OnGetCredentials(
     return;
   }
 
-  std::erase_if(credentials_, [](const actor_login::Credential& cred) {
-    return !cred.immediatelyAvailableToLogin;
-  });
+  // When federated credentials are supported, allow selection of passwords on
+  // non-login pages. If the user selects a password in this case, it will be up
+  // to the server to find the password form.
+  if (!base::FeatureList::IsEnabled(features::kFedCmEmbedderInitiatedLogin)) {
+    std::erase_if(credentials_, [](const actor_login::Credential& cred) {
+      return !cred.immediatelyAvailableToLogin;
+    });
 
-  if (credentials_.empty()) {
-    if (base::FeatureList::IsEnabled(
-            password_manager::features::kActorLoginGetCredentialsNoLoginForm)) {
+    if (credentials_.empty()) {
       // Saved credentials exist, but none are available for login, which
       // means that this is not a signin page.
       PostResponseTask(std::move(invoke_callback_),
                        MakeResult(mojom::ActionResultCode::kLoginNotLoginPage));
-    } else {
-      // Don't differentiate between no saved credentials and no login form if
-      // the flag isn't enabled.
-      PostResponseTask(
-          std::move(invoke_callback_),
-          MakeResult(mojom::ActionResultCode::kLoginNoCredentialsAvailable));
+      return;
     }
-    return;
   }
 
   tabs::TabInterface* tab = tab_handle_.Get();
@@ -474,7 +470,29 @@ void AttemptLoginTool::OnAttemptLogin(
     tool_delegate().EnqueueFollowupAction(std::make_unique<ClickToolRequest>(
         tab_handle_, *sign_in_with_google_button_, mojom::ClickType::kLeft,
         mojom::ClickCount::kSingle, requires_opening_web_contents_));
-    PostResponseTask(std::move(invoke_callback_), MakeOkResult());
+    PostResponseTask(std::move(invoke_callback_),
+                     MakeOkResult(/*requires_page_stabilization=*/false));
+    return;
+  }
+
+  // The availability of the password submit target is bundled with federated
+  // support.
+  if (base::FeatureList::IsEnabled(features::kFedCmEmbedderInitiatedLogin) &&
+      base::FeatureList::IsEnabled(
+          password_manager::features::kActorLoginFederatedClickFromActor) &&
+      (login_status.value() ==
+           actor_login::LoginStatusResult::kSuccessUsernameAndPasswordFilled ||
+       login_status.value() ==
+           actor_login::LoginStatusResult::kSuccessUsernameFilled ||
+       login_status.value() ==
+           actor_login::LoginStatusResult::kSuccessPasswordFilled) &&
+      password_button_.has_value()) {
+    CHECK_EQ(selected_credential.type, actor_login::CredentialType::kPassword);
+    tool_delegate().EnqueueFollowupAction(std::make_unique<ClickToolRequest>(
+        tab_handle_, *password_button_, mojom::ClickType::kLeft,
+        mojom::ClickCount::kSingle, requires_opening_web_contents_));
+    PostResponseTask(std::move(invoke_callback_),
+                     MakeOkResult(/*requires_page_stabilization=*/false));
     return;
   }
 

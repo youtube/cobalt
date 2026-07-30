@@ -49,6 +49,14 @@ constexpr char kInputToReloadMouseReleaseHistogram[] =
 constexpr char kInputToStopMouseReleaseHistogram[] =
     "InitialWebUI.ReloadButton.InputToStop.MouseRelease";
 
+#if BUILDFLAG(IS_MAC)
+constexpr mojom::ClickDispositionFlag control_or_meta_disposition =
+    browser_controls_api::mojom::ClickDispositionFlag::kMetaKeyDown;
+#else
+constexpr mojom::ClickDispositionFlag control_or_meta_disposition =
+    browser_controls_api::mojom::ClickDispositionFlag::kControlKeyDown;
+#endif  // BUILDFLAG(IS_MAC)
+
 class MockBrowserControlsServiceDelegate
     : public BrowserControlsService::BrowserControlsServiceDelegate {
  public:
@@ -107,7 +115,8 @@ TEST_F(BrowserControlsServiceReloadTest, ReloadByMouseRelease) {
   const base::TimeDelta duration = base::Milliseconds(10);
   ExpectMeasureAndClearMark(kInputMouseReleaseStartMark, duration);
 
-  service().ReloadFromClick(/*bypass_cache=*/false, /*click_flags=*/{});
+  std::ignore =
+      service().ReloadFromClick(/*bypass_cache=*/false, /*click_flags=*/{});
 
   EXPECT_EQ(IDC_RELOAD, toy_browser().received_commands().back().command_id);
 
@@ -121,7 +130,7 @@ TEST_F(BrowserControlsServiceReloadTest, ReloadWithMiddleMouseButton) {
   const base::TimeDelta duration = base::Milliseconds(10);
   ExpectMeasureAndClearMark(kInputMouseReleaseStartMark, duration);
 
-  service().ReloadFromClick(
+  std::ignore = service().ReloadFromClick(
       /*bypass_cache=*/false,
       /*click_flags=*/{mojom::ClickDispositionFlag::kMiddleMouseButton});
 
@@ -134,7 +143,8 @@ TEST_F(BrowserControlsServiceReloadTest, ReloadWithMiddleMouseButton) {
 }
 
 TEST_F(BrowserControlsServiceReloadTest, ReloadBypassingCache) {
-  service().ReloadFromClick(/*bypass_cache=*/true, /*click_flags=*/{});
+  std::ignore =
+      service().ReloadFromClick(/*bypass_cache=*/true, /*click_flags=*/{});
 
   EXPECT_EQ(1ul, toy_browser().received_commands().size());
   EXPECT_EQ(IDC_RELOAD_BYPASSING_CACHE,
@@ -152,7 +162,7 @@ TEST_F(BrowserControlsServiceStopLoadTest, StopLoad) {
   const base::TimeDelta duration = base::Milliseconds(20);
   ExpectMeasureAndClearMark(kInputMouseReleaseStartMark, duration);
 
-  service().StopLoad();
+  std::ignore = service().StopLoad();
 
   EXPECT_EQ(IDC_STOP, toy_browser().received_commands().back().command_id);
   EXPECT_EQ(WindowOpenDisposition::CURRENT_TAB,
@@ -165,7 +175,7 @@ TEST_F(BrowserControlsServiceStopLoadTest, StopLoad) {
 // Tests that calling Back() with CURRENT_TAB executes the IDC_BACK command
 // with CURRENT_TAB.
 TEST_F(BrowserControlsServiceTest, Back_CurrentTab) {
-  service().Back({});
+  std::ignore = service().Back({});
   EXPECT_EQ(IDC_BACK, toy_browser().received_commands().back().command_id);
   EXPECT_EQ(WindowOpenDisposition::CURRENT_TAB,
             toy_browser().received_commands().back().disposition);
@@ -174,7 +184,7 @@ TEST_F(BrowserControlsServiceTest, Back_CurrentTab) {
 // Tests that calling Back() with kMiddleMouseButton executes the IDC_BACK
 // command with NEW_BACKGROUND_TAB.
 TEST_F(BrowserControlsServiceTest, Back_MiddleClick) {
-  service().Back(
+  std::ignore = service().Back(
       {browser_controls_api::mojom::ClickDispositionFlag::kMiddleMouseButton});
   EXPECT_EQ(IDC_BACK, toy_browser().received_commands().back().command_id);
   EXPECT_EQ(WindowOpenDisposition::NEW_BACKGROUND_TAB,
@@ -185,12 +195,7 @@ TEST_F(BrowserControlsServiceTest, Back_MiddleClick) {
 // executes the IDC_BACK command with NEW_BACKGROUND_TAB. On macOS, Ctrl+Click
 // opens a context menu, so we test Meta+Click instead.
 TEST_F(BrowserControlsServiceTest, Back_MetaOrCtrlClick) {
-  service().Back(
-#if BUILDFLAG(IS_MAC)
-      {browser_controls_api::mojom::ClickDispositionFlag::kMetaKeyDown});
-#else
-      {browser_controls_api::mojom::ClickDispositionFlag::kControlKeyDown});
-#endif  // BUILDFLAG(IS_MAC)
+  std::ignore = service().Back({control_or_meta_disposition});
   EXPECT_EQ(IDC_BACK, toy_browser().received_commands().back().command_id);
   EXPECT_EQ(WindowOpenDisposition::NEW_BACKGROUND_TAB,
             toy_browser().received_commands().back().disposition);
@@ -199,7 +204,7 @@ TEST_F(BrowserControlsServiceTest, Back_MetaOrCtrlClick) {
 // Tests that calling Back() with kShiftKeyDown executes the IDC_BACK command
 // with NEW_WINDOW.
 TEST_F(BrowserControlsServiceTest, Back_ShiftClick) {
-  service().Back(
+  std::ignore = service().Back(
       {browser_controls_api::mojom::ClickDispositionFlag::kShiftKeyDown});
   EXPECT_EQ(IDC_BACK, toy_browser().received_commands().back().command_id);
   EXPECT_EQ(WindowOpenDisposition::NEW_WINDOW,
@@ -209,7 +214,7 @@ TEST_F(BrowserControlsServiceTest, Back_ShiftClick) {
 // Tests that calling Forward() by default executes the IDC_FORWARD
 // command with CURRENT_TAB.
 TEST_F(BrowserControlsServiceTest, Forward_CurrentTab) {
-  service().Forward({});
+  std::ignore = service().Forward({});
   EXPECT_EQ(IDC_FORWARD, toy_browser().received_commands().back().command_id);
   EXPECT_EQ(WindowOpenDisposition::CURRENT_TAB,
             toy_browser().received_commands().back().disposition);
@@ -218,7 +223,7 @@ TEST_F(BrowserControlsServiceTest, Forward_CurrentTab) {
 // Tests that calling Forward() with kMiddleMouseButton executes the IDC_FORWARD
 // command with NEW_BACKGROUND_TAB.
 TEST_F(BrowserControlsServiceTest, Forward_MiddleClick) {
-  service().Forward(
+  std::ignore = service().Forward(
       {browser_controls_api::mojom::ClickDispositionFlag::kMiddleMouseButton});
   EXPECT_EQ(IDC_FORWARD, toy_browser().received_commands().back().command_id);
   EXPECT_EQ(WindowOpenDisposition::NEW_BACKGROUND_TAB,
@@ -229,12 +234,7 @@ TEST_F(BrowserControlsServiceTest, Forward_MiddleClick) {
 // executes the IDC_FORWARD command with NEW_BACKGROUND_TAB. On macOS,
 // Ctrl+Click opens a context menu, so we test Meta+Click instead.
 TEST_F(BrowserControlsServiceTest, Forward_MetaOrCtrlClick) {
-  service().Forward(
-#if BUILDFLAG(IS_MAC)
-      {browser_controls_api::mojom::ClickDispositionFlag::kMetaKeyDown});
-#else
-      {browser_controls_api::mojom::ClickDispositionFlag::kControlKeyDown});
-#endif  // BUILDFLAG(IS_MAC)
+  std::ignore = service().Forward({control_or_meta_disposition});
   EXPECT_EQ(IDC_FORWARD, toy_browser().received_commands().back().command_id);
   EXPECT_EQ(WindowOpenDisposition::NEW_BACKGROUND_TAB,
             toy_browser().received_commands().back().disposition);
@@ -243,7 +243,7 @@ TEST_F(BrowserControlsServiceTest, Forward_MetaOrCtrlClick) {
 // Tests that calling Forward() with kShiftKeyDown executes the IDC_FORWARD
 // command with NEW_WINDOW.
 TEST_F(BrowserControlsServiceTest, Forward_ShiftClick) {
-  service().Forward(
+  std::ignore = service().Forward(
       {browser_controls_api::mojom::ClickDispositionFlag::kShiftKeyDown});
   EXPECT_EQ(IDC_FORWARD, toy_browser().received_commands().back().command_id);
   EXPECT_EQ(WindowOpenDisposition::NEW_WINDOW,
@@ -253,14 +253,14 @@ TEST_F(BrowserControlsServiceTest, Forward_ShiftClick) {
 // Tests that calling BackButtonHovered()
 TEST_F(BrowserControlsServiceTest, BackButtonHovered) {
   EXPECT_FALSE(toy_browser().is_back_button_hovered());
-  service().BackButtonHovered();
+  std::ignore = service().BackButtonHovered();
   EXPECT_TRUE(toy_browser().is_back_button_hovered());
 }
 
 // Tests that calling NavigateHome() by default executes the IDC_HOME
 // command with CURRENT_TAB.
 TEST_F(BrowserControlsServiceTest, NavigateHome_CurrentTab) {
-  service().NavigateHome({});
+  std::ignore = service().NavigateHome({});
   EXPECT_EQ(IDC_HOME, toy_browser().received_commands().back().command_id);
   EXPECT_EQ(WindowOpenDisposition::CURRENT_TAB,
             toy_browser().received_commands().back().disposition);
@@ -269,7 +269,7 @@ TEST_F(BrowserControlsServiceTest, NavigateHome_CurrentTab) {
 // Tests that calling NavigateHome() with kMiddleMouseButton executes the
 // IDC_HOME command with NEW_BACKGROUND_TAB.
 TEST_F(BrowserControlsServiceTest, NavigateHome_MiddleClick) {
-  service().NavigateHome(
+  std::ignore = service().NavigateHome(
       {browser_controls_api::mojom::ClickDispositionFlag::kMiddleMouseButton});
   EXPECT_EQ(IDC_HOME, toy_browser().received_commands().back().command_id);
   EXPECT_EQ(WindowOpenDisposition::NEW_BACKGROUND_TAB,
@@ -280,12 +280,7 @@ TEST_F(BrowserControlsServiceTest, NavigateHome_MiddleClick) {
 // executes the IDC_HOME command with NEW_BACKGROUND_TAB. On macOS,
 // Ctrl+Click opens a context menu, so we test Meta+Click instead.
 TEST_F(BrowserControlsServiceTest, NavigateHome_MetaOrCtrlClick) {
-  service().NavigateHome(
-#if BUILDFLAG(IS_MAC)
-      {browser_controls_api::mojom::ClickDispositionFlag::kMetaKeyDown});
-#else
-      {browser_controls_api::mojom::ClickDispositionFlag::kControlKeyDown});
-#endif  // BUILDFLAG(IS_MAC)
+  std::ignore = service().NavigateHome({control_or_meta_disposition});
   EXPECT_EQ(IDC_HOME, toy_browser().received_commands().back().command_id);
   EXPECT_EQ(WindowOpenDisposition::NEW_BACKGROUND_TAB,
             toy_browser().received_commands().back().disposition);
@@ -294,14 +289,10 @@ TEST_F(BrowserControlsServiceTest, NavigateHome_MetaOrCtrlClick) {
 // Tests that calling NavigateHome() with the platform's background tab modifier
 // and the Shift key executes the IDC_HOME command with NEW_FOREGROUND_TAB.
 TEST_F(BrowserControlsServiceTest, NavigateHome_MetaOrCtrlShiftClick) {
-  service().NavigateHome(
-#if BUILDFLAG(IS_MAC)
-      {browser_controls_api::mojom::ClickDispositionFlag::kMetaKeyDown,
-       browser_controls_api::mojom::ClickDispositionFlag::kShiftKeyDown});
-#else
-      {browser_controls_api::mojom::ClickDispositionFlag::kControlKeyDown,
-       browser_controls_api::mojom::ClickDispositionFlag::kShiftKeyDown});
-#endif  // BUILDFLAG(IS_MAC)
+  std::ignore = service().NavigateHome({
+      browser_controls_api::mojom::ClickDispositionFlag::kShiftKeyDown,
+      control_or_meta_disposition,
+  });
   EXPECT_EQ(IDC_HOME, toy_browser().received_commands().back().command_id);
   EXPECT_EQ(WindowOpenDisposition::NEW_FOREGROUND_TAB,
             toy_browser().received_commands().back().disposition);
@@ -310,7 +301,7 @@ TEST_F(BrowserControlsServiceTest, NavigateHome_MetaOrCtrlShiftClick) {
 // Tests that calling NavigateHome() with kShiftKeyDown executes the IDC_HOME
 // command with NEW_WINDOW.
 TEST_F(BrowserControlsServiceTest, NavigateHome_ShiftClick) {
-  service().NavigateHome(
+  std::ignore = service().NavigateHome(
       {browser_controls_api::mojom::ClickDispositionFlag::kShiftKeyDown});
   EXPECT_EQ(IDC_HOME, toy_browser().received_commands().back().command_id);
   EXPECT_EQ(WindowOpenDisposition::NEW_WINDOW,

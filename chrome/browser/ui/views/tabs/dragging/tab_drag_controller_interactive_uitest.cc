@@ -39,6 +39,8 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_list_observer.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -283,6 +285,26 @@ void WaitForBrowserActivation(BrowserWindowInterface* browser) {
 
 bool IsDragSessionActive(TabStrip* tab_strip) {
   return tab_strip->GetDragContext()->GetDragController() != nullptr;
+}
+
+// `task` usually executes OS events (like `ReleaseInput()`) to
+// end the drag. Because dragging on some platforms blocks in a nested
+// RunLoop (`X11WholeScreenMoveLoop`), it must only execute after that
+// loop has actively started.
+// However, TabDragController may synchronously spin an internal
+// `VisibilityWaiter` RunLoop before `RunMoveLoop()` begins. The first
+// `PostTask` ensures we push a task into that `VisibilityWaiter`
+// loop. The second nested `PostTask` ensures that *after* the
+// visibility loop finishes, we queue the callback into the actual
+// drag loop `RunMoveLoop` so it can successfully terminate the drag.
+void PostTaskToRunMoveLoop(base::OnceClosure task) {
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(
+                     [](base::OnceClosure task) {
+                       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+                           FROM_HERE, std::move(task));
+                     },
+                     std::move(task)));
 }
 
 }  // namespace
@@ -974,7 +996,10 @@ class DetachToBrowserTabDragControllerTest
         tab, base::BindLambdaForTesting([&]() {
           // Once the drag is complete, wait for the detached browser.
           detached_browser = browser_created_observer.Wait();
-          std::move(did_drag_cb).Run(source_browser, detached_browser);
+
+          test::PostTaskToRunMoveLoop(base::BindLambdaForTesting([&]() {
+            std::move(did_drag_cb).Run(source_browser, detached_browser);
+          }));
         }),
         gfx::Vector2d(drag_x_offset, GetDetachY(source_tab_strip))));
     observer.Wait();
@@ -991,7 +1016,9 @@ class DetachToBrowserTabDragControllerTest
     Tab* tab = tab_strip->tab_at(tab_index);
     ASSERT_TRUE(PressInputAtCenter(tab));
     ASSERT_TRUE(DragInputToCenterNotifyWhenDone(
-        tab, std::move(task),
+        tab, base::BindLambdaForTesting([task = std::move(task)]() mutable {
+          test::PostTaskToRunMoveLoop(std::move(task));
+        }),
         gfx::Vector2d(drag_x_offset, GetDetachY(tab_strip))));
     observer.Wait();
   }
@@ -1005,10 +1032,42 @@ class DetachToBrowserTabDragControllerTest
     views::View* group_header = tab_strip->group_header(group);
     ASSERT_TRUE(PressInputAtCenter(group_header));
     ASSERT_TRUE(DragInputToCenterNotifyWhenDone(
-        group_header, std::move(task),
+        group_header,
+        base::BindLambdaForTesting([task = std::move(task)]() mutable {
+          test::PostTaskToRunMoveLoop(std::move(task));
+        }),
         gfx::Vector2d(drag_x_offset, GetDetachY(tab_strip))));
     observer.Wait();
   }
+
+  // Executes |task| once the |new_browser| exists in the
+  // BrowserList and its widget is visible. Effectively guarantees execution
+  // safely after TabDragController's VisibilityWaiter has exited.
+  // A generic asynchronous browser waiter that intercepts OnBrowserAdded
+  // and queues a double-PostTask before RunMoveLoop() spins up.
+  class AsyncBrowserWaiter : public BrowserListObserver {
+   public:
+    explicit AsyncBrowserWaiter(base::OnceCallback<void(Browser*)> callback)
+        : callback_(std::move(callback)) {
+      BrowserList::AddObserver(this);
+    }
+    ~AsyncBrowserWaiter() override { BrowserList::RemoveObserver(this); }
+
+    void OnBrowserAdded(Browser* browser) override {
+      BrowserList::RemoveObserver(this);
+      test::PostTaskToRunMoveLoop(base::BindOnce(
+          [](base::WeakPtr<AsyncBrowserWaiter> w, Browser* b) {
+            if (w && w->callback_) {
+              std::move(w->callback_).Run(b);
+            }
+          },
+          weak_ptr_factory_.GetWeakPtr(), browser));
+    }
+
+   private:
+    base::OnceCallback<void(Browser*)> callback_;
+    base::WeakPtrFactory<AsyncBrowserWaiter> weak_ptr_factory_{this};
+  };
 
   // Helper method to click the first tab. Used to ensure no additional widgets
   // are in focus. For example, the tab editor bubble  is automatically opened
@@ -2696,6 +2755,12 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 // Drags from browser to a separate window and releases mouse.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        DetachToOwnWindowFromMaximizedWindow) {
+  // InitialWebUI defers window visibility. If we Maximize() before the window
+  // is visible, the OS may silently cache or drop the request, causing tests to
+  // hang on Wayland. Wait for visibility.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return browser()->window()->GetNativeWindow()->IsVisible(); }));
+
   // Maximize the initial browser window.
   {
     auto waiter = ui_test_utils::CreateAsyncWidgetRequestWaiter(*browser());
@@ -3149,6 +3214,132 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest, DragAll) {
   }
 }
 
+#if BUILDFLAG(IS_MAC)
+// Regression test for https://crbug.com/496402864.
+// When in macOS fullscreen with a single tab, dragging the tab should not
+// move the fullscreen window. The tab drag controller should fall through to
+// normal tab dragging instead of entering RunMoveLoop().
+IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
+                       DragSingleTabInFullscreenDoesNotMoveWindow) {
+  // Enter fullscreen and wait for the transition to complete.
+  ui_test_utils::ToggleFullscreenModeAndWait(browser());
+  ASSERT_TRUE(browser()->window()->IsFullscreen());
+
+  TabStrip* tab_strip = GetTabStripForBrowser(browser());
+  ASSERT_EQ(1, browser()->tab_strip_model()->count());
+
+  const gfx::Rect initial_bounds = browser()->window()->GetBounds();
+
+  // Drag the only tab with a small horizontal offset that stays within the
+  // tab strip. We must NOT use GetDetachY() here because in fullscreen our
+  // fix skips RunMoveLoop, so a large vertical drag would cause the tab to
+  // detach into a new browser window instead of moving the window.
+  Tab* tab = tab_strip->tab_at(0);
+  ASSERT_TRUE(PressInputAtCenter(tab));
+  // Drag 20px to the right — enough to start the drag (> kMinimumDragDistance
+  // of 10px) but stays within the tab strip.
+  ASSERT_TRUE(DragInputToCenterNotifyWhenDone(
+      tab, base::BindOnce(&DragAllStep2, this), gfx::Vector2d(20, 0)));
+  // QuitDraggingObserver doesn't work here because the fullscreen fix
+  // skips RunMoveLoop(), so poll until the drag ends instead.
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !TabDragController::IsActive(); }));
+
+  // No new window should have been created.
+  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+
+  // The window should still be in fullscreen.
+  EXPECT_TRUE(browser()->window()->IsFullscreen());
+
+  // The window bounds should not have changed.
+  EXPECT_EQ(initial_bounds, browser()->window()->GetBounds());
+}
+
+// Same as above but with vertical tab strip enabled. Unlike horizontal tabs,
+// vertical tab strips are never hosted in the overlay widget, so
+// CanRestoreFullscreenWindowDuringDrag() returns true for VT. Dragging the
+// only tab in VT fullscreen exits fullscreen and enters the move loop,
+// allowing the user to drag the restored window normally.
+class VerticalTabsFullscreenDragTest
+    : public DetachToBrowserTabDragControllerTest {
+ public:
+  VerticalTabsFullscreenDragTest() {
+    vertical_tabs_feature_.InitAndEnableFeature(tabs::kVerticalTabs);
+  }
+
+  void SetUpOnMainThread() override {
+    DetachToBrowserTabDragControllerTest::SetUpOnMainThread();
+    browser()->profile()->GetPrefs()->SetBoolean(prefs::kVerticalTabsEnabled,
+                                                 true);
+  }
+
+ private:
+  base::test::ScopedFeatureList vertical_tabs_feature_;
+};
+
+// Verify that dragging the single tab in VT fullscreen exits fullscreen.
+// When CanRestoreFullscreenWindowDuringDrag() returns true (VT case),
+// RestoreAttachedWindowForDrag() exits fullscreen before RunMoveLoop().
+// We wait for the fullscreen exit animation to complete before releasing
+// the mouse, so AppKit doesn't swallow the mouse-up event.
+IN_PROC_BROWSER_TEST_P(VerticalTabsFullscreenDragTest,
+                       DragSingleTabExitsFullscreen) {
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  ASSERT_TRUE(browser_view->ShouldDrawVerticalTabStrip());
+
+  // Enter fullscreen and wait for the transition to complete.
+  ui_test_utils::ToggleFullscreenModeAndWait(browser());
+  ASSERT_TRUE(browser()->window()->IsFullscreen());
+
+  ASSERT_EQ(1, browser()->tab_strip_model()->count());
+
+  TabDragContext* drag_context =
+      browser_view->tab_strip_view()->GetDragContext();
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetWebContentsAt(0);
+  TabSlotView* tab_view = drag_context->GetTabForContents(contents);
+  ASSERT_TRUE(tab_view);
+
+  // FullscreenWaiter uses kNestableTasksAllowed so it works inside
+  // RunMoveLoop's nested NSApplication event loop.
+  ui_test_utils::FullscreenWaiter fullscreen_waiter(
+      browser(), ui_test_utils::FullscreenWaiter::kNoFullscreen);
+
+  // Drag the only tab. Since VT allows fullscreen restore, this will:
+  // 1. Call RestoreAttachedWindowForDrag() → exits fullscreen
+  // 2. Enter RunMoveLoop() → nested run loop
+  ASSERT_TRUE(PressInputAtCenter(tab_view));
+  ASSERT_TRUE(DragInputToCenterNotifyWhenDone(
+      tab_view, base::BindLambdaForTesting([&]() {
+        // Inside RunMoveLoop. Wait for the fullscreen exit animation to
+        // fully complete before releasing the mouse. Without this wait,
+        // AppKit may swallow the mouse-up during the transition, causing
+        // RunMoveLoop to never exit (flaky timeout).
+        fullscreen_waiter.Wait();
+
+        // Now release the mouse. This cleanly ends RunMoveLoop.
+        ASSERT_TRUE(ReleaseInput(0, /*async=*/true));
+      }),
+      gfx::Vector2d(0, 20)));
+
+  // Wait for the drag to fully end.
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !TabDragController::IsActive(); }));
+
+  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_FALSE(browser()->window()->IsFullscreen());
+  EXPECT_EQ(1, browser()->tab_strip_model()->count());
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    TabDragging,
+    VerticalTabsFullscreenDragTest,
+    ::testing::Combine(
+        /*kTearOffWebAppTabOpensWebAppWindow=*/::testing::Values(false),
+        /*input_source=*/::testing::Values("mouse")));
+
+#endif  // BUILDFLAG(IS_MAC)
+
 namespace {
 
 // Invoked from the nested run loop.
@@ -3342,33 +3533,34 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   ASSERT_TRUE(TabDragController::IsActive());
   ASSERT_EQ(1u, chrome::GetTotalBrowserCount());
 
+  // A new browser should open to hold the dragged tabs. We use a custom
+  // AsyncBrowserWaiter because waiting synchronously via BrowserCreatedObserver
+  // here would hijack the thread before TabDragController::RunMoveLoop() can
+  // spin up its own nested loop, causing deadlocks on Wayland and X11.
+  Browser* new_browser = nullptr;
+  TabStrip* new_tab_strip = nullptr;
+
+  AsyncBrowserWaiter waiter(base::BindLambdaForTesting([&](Browser* browser) {
+    new_browser = browser;
+    new_tab_strip = GetTabStripForBrowser(browser);
+
+    ASSERT_FALSE(IsDragSessionActive(tab_strip2));
+    ASSERT_TRUE(IsDragSessionActive(new_tab_strip));
+    ASSERT_TRUE(TabDragController::IsActive());
+
+#if BUILDFLAG(IS_WIN)
+    ReleaseInput(0, /*async=*/true);
+#else
+    ReleaseInput();
+#endif
+  }));
+
   // Drag out of tab_strip2 again.
   EXPECT_TRUE(DragInputToCenterAsync(tab_strip2,
                                      /*offset=*/{0, GetDetachY(tab_strip2)}));
 
-  // A new browser should open to hold the dragged tabs.
-  Browser* new_browser;
-  TabStrip* new_tab_strip;
-  test::BrowserChangeWaiter(test::BrowserChangeWaiter::ChangeType::kAdded)
-      .Wait(
-          base::BindLambdaForTesting([=, &new_browser, &new_tab_strip, this]() {
-            new_browser = ui_test_utils::GetBrowserNotInSet({browser2});
-            new_tab_strip = GetTabStripForBrowser(new_browser);
-            ASSERT_FALSE(IsDragSessionActive(tab_strip2));
-            ASSERT_TRUE(IsDragSessionActive(new_tab_strip));
-            ASSERT_TRUE(TabDragController::IsActive());
-
-            // Release the mouse, stopping the drag session.
-#if BUILDFLAG(IS_WIN)
-            // Windows needs async release in order not to hang the test.
-            ASSERT_TRUE(ReleaseInput(0, /*async=*/true));
-#else
-            ASSERT_TRUE(ReleaseInput());
-#endif  // BUILDFLAG(IS_WIN)
-          }));
-
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return !IsDragSessionActive(new_tab_strip) &&
+    return new_tab_strip && !IsDragSessionActive(new_tab_strip) &&
            !TabDragController::IsActive();
   }));
   EXPECT_EQ("100", IDString(browser2->tab_strip_model()));
@@ -3647,12 +3839,57 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 
 namespace {
 
+class AsyncEscapePresser : public views::WidgetObserver {
+ public:
+  explicit AsyncEscapePresser(views::Widget* widget) : widget_(widget) {
+    if (widget_->IsVisible()) {
+      PressEscape();
+    } else {
+      widget_->AddObserver(this);
+    }
+  }
+
+  AsyncEscapePresser(const AsyncEscapePresser&) = delete;
+  AsyncEscapePresser& operator=(const AsyncEscapePresser&) = delete;
+
+  ~AsyncEscapePresser() override = default;
+
+  void OnWidgetVisibilityChanged(views::Widget* widget, bool visible) override {
+    if (visible && widget_ == widget) {
+      widget_->RemoveObserver(this);
+      PressEscape();
+    }
+  }
+
+  void OnWidgetDestroying(views::Widget* widget) override {
+    if (widget_ == widget) {
+      widget_->RemoveObserver(this);
+      widget_ = nullptr;
+      base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(FROM_HERE,
+                                                                 this);
+    }
+  }
+
+ private:
+  void PressEscape() {
+    ui_controls::SendKeyPress(widget_->GetNativeWindow(), ui::VKEY_ESCAPE,
+                              false, false, false, false);
+    widget_ = nullptr;
+    base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(FROM_HERE, this);
+  }
+
+  raw_ptr<views::Widget> widget_;
+};
+
 void PressEscapeWhileDetachedHeaderStep2(
-    DetachToBrowserTabDragControllerTest* test) {
+    DetachToBrowserTabDragControllerTest* test,
+    Browser* new_browser) {
+  if (!new_browser) {
+    new_browser = ui_test_utils::GetBrowserNotInSet({test->browser()});
+  }
+  CHECK(new_browser);
   // At this moment there should be a new browser window for the dragged tabs.
   EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
-  BrowserWindowInterface* const new_browser =
-      ui_test_utils::GetBrowserNotInSet({test->browser()});
   std::vector<tab_groups::TabGroupId> new_browser_groups =
       new_browser->GetTabStripModel()->group_model()->ListTabGroups();
   EXPECT_EQ(1u, new_browser_groups.size());
@@ -3666,9 +3903,11 @@ void PressEscapeWhileDetachedHeaderStep2(
       GetTabStripForBrowser(new_browser)->group_header(new_browser_groups[0]);
   EXPECT_TRUE(new_group_header->dragging());
 
-  EXPECT_TRUE(ui_test_utils::SendKeyPressToWindowSync(
-      new_browser->GetWindow()->GetNativeWindow(), ui::VKEY_ESCAPE, false,
-      false, false, false));
+  // Wait asynchronously for the new browser window to be visible before
+  // pressing ESC, ensuring we don't dispatch it blindly into the void while the
+  // window is still waiting for WebUI to initialize and defers `RunMoveLoop()`.
+  new AsyncEscapePresser(
+      BrowserView::GetBrowserViewForBrowser(new_browser)->GetWidget());
 }
 
 }  // namespace
@@ -3687,9 +3926,11 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   EnsureFocusToTabStrip(tab_strip);
 
   ui_test_utils::BrowserDestroyedObserver browser_removed_observer;
-  DragToDetachGroupAndNotify(
-      tab_strip, base::BindOnce(&PressEscapeWhileDetachedHeaderStep2, this),
-      group);
+  AsyncBrowserWaiter waiter(
+      base::BindLambdaForTesting([this](Browser* new_browser) {
+        PressEscapeWhileDetachedHeaderStep2(this, new_browser);
+      }));
+  DragToDetachGroupAndNotify(tab_strip, base::DoNothing(), group);
   // Ensure completion of asynchronous browser closure.
   browser_removed_observer.Wait();
 
@@ -3801,9 +4042,11 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   EXPECT_TRUE(model->IsGroupCollapsed(group));
 
   ui_test_utils::BrowserDestroyedObserver browser_destroyed_observer;
-  DragToDetachGroupAndNotify(
-      tab_strip, base::BindOnce(&PressEscapeWhileDetachedHeaderStep2, this),
-      group);
+  AsyncBrowserWaiter waiter(
+      base::BindLambdaForTesting([this](Browser* new_browser) {
+        PressEscapeWhileDetachedHeaderStep2(this, new_browser);
+      }));
+  DragToDetachGroupAndNotify(tab_strip, base::DoNothing(), group);
   // Ensure completion of asynchronous browser closure.
   browser_destroyed_observer.Wait();
 
@@ -4394,16 +4637,18 @@ namespace {
 
 // Invoked from the nested run loop.
 void CancelOnNewTabWhenDraggingStep2(DetachToBrowserTabDragControllerTest* test,
-                                     Browser* default_browser,
+                                     Browser* new_browser,
                                      base::OnceClosure quit_closure,
-                                     WebContents** contents_out) {
+                                     content::WebContents** contents_out) {
+  if (!new_browser) {
+    new_browser = ui_test_utils::GetBrowserNotInSet({test->browser()});
+  }
+  CHECK(new_browser);
   EXPECT_TRUE(TabDragController::IsActive());
   EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
 
   // Finds the new browser opened by the test, and waits until it becomes
   // the last active one.
-  BrowserWindowInterface* const new_browser =
-      ui_test_utils::GetBrowserNotInSet({default_browser});
   CHECK(new_browser);
   ui_test_utils::WaitForBrowserSetLastActive(new_browser);
 
@@ -4441,11 +4686,15 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   // Add another tab. This should trigger exiting the nested loop. Add at the
   // beginning to exercise past crash when model/tabstrip got out of sync.
   // crbug.com/474082
-  ASSERT_TRUE(DragInputToCenterNotifyWhenDone(
-      tab,
-      base::BindOnce(&CancelOnNewTabWhenDraggingStep2, this, browser(),
-                     std::move(quit_closure), base::Unretained(&web_contents)),
-      gfx::Vector2d(0, GetDetachY(tab_strip))));
+  AsyncBrowserWaiter waiter(
+      base::BindLambdaForTesting([&](Browser* new_browser) {
+        CancelOnNewTabWhenDraggingStep2(this, new_browser,
+                                        std::move(quit_closure), &web_contents);
+      }));
+
+  ASSERT_TRUE(
+      DragInputToCenterAsync(tab, gfx::Vector2d(0, GetDetachY(tab_strip))));
+
   run_loop.Run();
   ASSERT_TRUE(!!web_contents);
   content::WaitForLoadStop(web_contents);

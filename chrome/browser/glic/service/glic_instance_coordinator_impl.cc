@@ -400,22 +400,6 @@ void GlicInstanceCoordinatorImpl::CloseFloaty(const CloseOptions& options) {
   }
 }
 
-void GlicInstanceCoordinatorImpl::AddGlobalStateObserver(
-    StateObserver* observer) {
-  // TODO(b:448604727): The StateObserver needs to be split into two: one for if
-  // the floating window is showing and one for the state of an individual
-  // panel.
-  NOTIMPLEMENTED();
-}
-
-void GlicInstanceCoordinatorImpl::RemoveGlobalStateObserver(
-    StateObserver* observer) {
-  // TODO(b:448604727): The StateObserver needs to be split into two: one for if
-  // the floating window is showing and one for the state of an individual
-  // panel.
-  NOTIMPLEMENTED();
-}
-
 bool GlicInstanceCoordinatorImpl::IsDetached() const {
   return GetInstanceWithFloaty() != nullptr;
 }
@@ -428,13 +412,6 @@ bool GlicInstanceCoordinatorImpl::IsPanelShowingForBrowser(
     return instance->IsShowing();
   }
   return false;
-}
-
-base::CallbackListSubscription
-GlicInstanceCoordinatorImpl::AddWindowActivationChangedCallback(
-    WindowActivationChangedCallback callback) {
-  // TODO: Notification of this callback list is not yet implemented.
-  return window_activation_callback_list_.Add(std::move(callback));
 }
 
 base::CallbackListSubscription
@@ -468,24 +445,27 @@ GlicInstanceCoordinatorImpl::GetWeakPtr() {
 }
 
 GlicWidget* GlicInstanceCoordinatorImpl::GetGlicWidget() const {
-  // TODO(crbug.com/454112198) - Remove as part of GlicWindowController cleanup.
-  // Method should only be called on individual panels not the coordinator.
+  // TODO(crbug.com/454112198) - Remove as part of GlicInstanceCoordinator
+  // cleanup. Method should only be called on individual panels not the
+  // coordinator.
   NOTIMPLEMENTED();
   return nullptr;
 }
 
 Browser* GlicInstanceCoordinatorImpl::attached_browser() {
-  // TODO(crbug.com/454112198) - Remove as part of GlicWindowController cleanup.
-  // Method should only be called on individual panels not the coordinator.
+  // TODO(crbug.com/454112198) - Remove as part of GlicInstanceCoordinator
+  // cleanup. Method should only be called on individual panels not the
+  // coordinator.
   NOTIMPLEMENTED();
   return nullptr;
 }
 
-GlicWindowController::State GlicInstanceCoordinatorImpl::state() const {
-  // TODO(crbug.com/454112198) - Remove as part of GlicWindowController cleanup.
-  // Method should only be called on individual panels not the coordinator.
+GlicInstanceCoordinator::State GlicInstanceCoordinatorImpl::state() const {
+  // TODO(crbug.com/454112198) - Remove as part of GlicInstanceCoordinator
+  // cleanup. Method should only be called on individual panels not the
+  // coordinator.
   NOTIMPLEMENTED();
-  return GlicWindowController::State::kClosed;
+  return GlicInstanceCoordinator::State::kClosed;
 }
 
 Profile* GlicInstanceCoordinatorImpl::profile() {
@@ -493,22 +473,25 @@ Profile* GlicInstanceCoordinatorImpl::profile() {
 }
 
 gfx::Rect GlicInstanceCoordinatorImpl::GetInitialBounds(Browser* browser) {
-  // TODO(crbug.com/454112198) - Remove as part of GlicWindowController cleanup.
-  // Method should only be called on individual panels not the coordinator.
+  // TODO(crbug.com/454112198) - Remove as part of GlicInstanceCoordinator
+  // cleanup. Method should only be called on individual panels not the
+  // coordinator.
   NOTIMPLEMENTED();
   return gfx::Rect();
 }
 
 void GlicInstanceCoordinatorImpl::ShowDetachedForTesting() {
-  // TODO(crbug.com/454112198) - Remove as part of GlicWindowController cleanup.
-  // Method should only be called on individual panels not the coordinator.
+  // TODO(crbug.com/454112198) - Remove as part of GlicInstanceCoordinator
+  // cleanup. Method should only be called on individual panels not the
+  // coordinator.
   NOTIMPLEMENTED();
 }
 
 void GlicInstanceCoordinatorImpl::SetPreviousPositionForTesting(
     gfx::Point position) {
-  // TODO(crbug.com/454112198) - Remove as part of GlicWindowController cleanup.
-  // Method should only be called on individual panels not the coordinator.
+  // TODO(crbug.com/454112198) - Remove as part of GlicInstanceCoordinator
+  // cleanup. Method should only be called on individual panels not the
+  // coordinator.
   NOTIMPLEMENTED();
 }
 
@@ -610,11 +593,11 @@ void GlicInstanceCoordinatorImpl::ApplyMaxAwakeInstancesLimit() {
       }
     }
 
-    // Sort candidates by last activation time (ascending = oldest first).
+    // Sort candidates by time since last active (descending = oldest first).
     std::sort(hibernatable_instances.begin(), hibernatable_instances.end(),
               [](const GlicInstanceImpl* a, const GlicInstanceImpl* b) {
-                return a->GetLastActivationTimestamp() <
-                       b->GetLastActivationTimestamp();
+                return a->GetTimeSinceLastActive() >
+                       b->GetTimeSinceLastActive();
               });
 
     // Hibernate until we reach `limit - 1`.
@@ -796,6 +779,11 @@ void GlicInstanceCoordinatorImpl::SwitchConversation(
   ShowOptions mutable_options = options;
   mutable_options.focus_on_show = source_instance.HasFocus();
   mutable_options.reinitialize_if_already_active = true;
+  if (auto* side_panel_options = std::get_if<SidePanelShowOptions>(
+          &mutable_options.embedder_options)) {
+    // TODO(b/499283891): Remove this after the animation bug is fixed.
+    side_panel_options->suppress_opening_animation = true;
+  }
 
   GlicInstanceImpl* target_instance = nullptr;
   if (!info->conversation_id.empty()) {

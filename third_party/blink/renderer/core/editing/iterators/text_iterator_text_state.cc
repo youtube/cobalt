@@ -39,7 +39,7 @@ namespace {
 
 bool IsTextSecurityNode(const Node& node) {
   return node.GetLayoutObject() &&
-         node.GetLayoutObject()->Style()->TextSecurity() !=
+         node.GetLayoutObject()->StyleRef().TextSecurity() !=
              ETextSecurity::kNone;
 }
 
@@ -76,7 +76,7 @@ UChar TextIteratorTextState::CharacterAt(unsigned index) const {
 String TextIteratorTextState::GetTextForTesting() const {
   if (single_character_buffer_)
     return String(base::span_from_ref(single_character_buffer_));
-  return text_.Substring(text_start_offset_, length());
+  return text_.substr(text_start_offset_, length());
 }
 
 void TextIteratorTextState::AppendTextToStringBuilder(

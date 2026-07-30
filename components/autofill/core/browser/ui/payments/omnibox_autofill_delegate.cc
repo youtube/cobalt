@@ -5,7 +5,9 @@
 #include "components/autofill/core/browser/ui/payments/omnibox_autofill_delegate.h"
 
 #include "base/check_deref.h"
+#include "components/autofill/core/browser/autofill_browser_util.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
+#include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
 #include "components/autofill/core/browser/foundations/scoped_autofill_managers_observation.h"
@@ -37,9 +39,8 @@ void OmniboxAutofillDelegate::OnFieldTypesDetermined(
   // Only run checks using the the outermost AutofillManager to avoid having
   // multiple managers triggering the logic flow at once.
   if (!IsOutermostMainFrameActiveAutofillManager(manager)) {
-    // Don't log an `OmniboxAutofillShowChipDecisionPart1` entry here, because
-    // learning how many non-outermost-active-main-frame BAMs exist on the page
-    // is not useful information.
+    LogOmniboxAutofillShowChipDecisionPart1(
+        OmniboxAutofillShowChipDecisionPart1::kNotActiveOutermostMainFrameBam);
     return;
   }
 
@@ -62,6 +63,28 @@ void OmniboxAutofillDelegate::OnFieldTypesDetermined(
           .empty()) {
     LogOmniboxAutofillShowChipDecisionPart1(
         OmniboxAutofillShowChipDecisionPart1::kNoCreditCardsSaved);
+    return;
+  }
+
+  // The parsed form must have credit card number and expiration date fields.
+  const FormStructure* form_structure = manager.FindCachedFormById(form_id);
+  if (!form_structure) {
+    LogOmniboxAutofillShowChipDecisionPart1(
+        OmniboxAutofillShowChipDecisionPart1::kCouldNotFindCachedForm);
+    return;
+  }
+  if (!form_structure->IsCompleteCreditCardForm(
+          autofill::FormStructure::CreditCardFormCompleteness::
+              kCompleteCreditCardForm)) {
+    LogOmniboxAutofillShowChipDecisionPart1(
+        OmniboxAutofillShowChipDecisionPart1::kNotCompleteCreditCardForm);
+    return;
+  }
+
+  // The client context and credit card form must be secure (not HTTP).
+  if (IsFormOrClientNonSecure(*client_, *form_structure)) {
+    LogOmniboxAutofillShowChipDecisionPart1(
+        OmniboxAutofillShowChipDecisionPart1::kFormOrClientContextNotSecure);
     return;
   }
 

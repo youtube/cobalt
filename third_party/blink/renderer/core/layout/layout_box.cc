@@ -102,10 +102,7 @@
 #include "third_party/blink/renderer/core/page/autoscroll_controller.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/page.h"
-#include "third_party/blink/renderer/core/paint/border_shape_painter.h"
-#include "third_party/blink/renderer/core/paint/border_shape_utils.h"
 #include "third_party/blink/renderer/core/paint/box_paint_invalidator.h"
-#include "third_party/blink/renderer/core/paint/contoured_border_geometry.h"
 #include "third_party/blink/renderer/core/paint/object_paint_invalidator.h"
 #include "third_party/blink/renderer/core/paint/outline_painter.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
@@ -116,7 +113,6 @@
 #include "third_party/blink/renderer/core/style/computed_style_base_constants.h"
 #include "third_party/blink/renderer/core/style/shadow_list.h"
 #include "third_party/blink/renderer/core/style/style_overflow_clip_margin.h"
-#include "third_party/blink/renderer/platform/geometry/contoured_rect.h"
 #include "third_party/blink/renderer/platform/geometry/float_rounded_rect.h"
 #include "third_party/blink/renderer/platform/geometry/length_functions.h"
 #include "third_party/blink/renderer/platform/geometry/physical_offset.h"
@@ -495,8 +491,6 @@ void LayoutBoxRareData::Trace(Visitor* visitor) const {
 }
 
 LayoutBox::LayoutBox(ContainerNode* node) : LayoutBoxModelObject(node) {
-  if (blink::IsA<HTMLLegendElement>(node))
-    SetIsHTMLLegendElement();
 }
 
 void LayoutBox::Trace(Visitor* visitor) const {
@@ -764,19 +758,6 @@ void LayoutBox::StyleDidChange(StyleDifference diff,
       SetNeedsPaintPropertyUpdate();
     }
 
-    if (old_style->OverscrollBehaviorX() != new_style.OverscrollBehaviorX() ||
-        old_style->OverscrollBehaviorY() != new_style.OverscrollBehaviorY()) {
-      SetNeedsPaintPropertyUpdate();
-    }
-
-    if (old_style->OverflowX() != new_style.OverflowX() ||
-        old_style->OverflowY() != new_style.OverflowY()) {
-      SetNeedsPaintPropertyUpdate();
-    }
-
-    if (old_style->OverflowClipMargin() != new_style.OverflowClipMargin())
-      SetNeedsPaintPropertyUpdate();
-
     if (IsInLayoutNGInlineFormattingContext() && IsInline() &&
         old_style->Direction() != new_style.Direction()) {
       SetNeedsCollectInlines();
@@ -799,6 +780,10 @@ void LayoutBox::StyleDidChange(StyleDifference diff,
   if (diff.transform_changed && TransformsChangeMayRequireLayout()) {
     SetNeedsLayoutAndFullPaintInvalidation(
         layout_invalidation_reason::kStyleChange);
+  }
+
+  if (diff.needs_box_paint_property_update) {
+    SetNeedsPaintPropertyUpdate();
   }
 
   // Update the script style map, from the new computed style.
@@ -1181,7 +1166,7 @@ PhysicalBoxStrut LayoutBox::MarginBoxOutsets() const {
 
 LayoutBlock* LayoutBox::GetScrollMarkerGroup() {
   NOT_DESTROYED();
-  if (Style()->ScrollMarkerGroupNone()) {
+  if (StyleRef().ScrollMarkerGroupNone()) {
     return nullptr;
   }
   LayoutBox* content_box = ContentLayoutBox();
@@ -2058,40 +2043,6 @@ bool LayoutBox::HitTestOverflowControl(
              NodeForHitTest(), hit_test_location) == kStopHitTesting;
 }
 
-namespace {
-
-bool HitTestClippedOutByBorderShape(const LayoutBox& box,
-                                    const HitTestLocation& hit_test_location,
-                                    const PhysicalOffset& border_box_location) {
-  PhysicalRect border_rect = box.PhysicalBorderBoxRect();
-  border_rect.Move(border_box_location);
-  if (box.ShouldApplyOverflowClipMargin()) {
-    border_rect.Expand(box.BorderOutsetsForClipping());
-  }
-  Path hit_shape =
-      ComputeBorderShapeOuterPath(box.StyleRef(), border_rect, &box);
-  return !hit_test_location.Intersects(hit_shape);
-}
-
-}  // namespace
-
-bool LayoutBox::HitTestClippedOutByBorder(
-    const HitTestLocation& hit_test_location,
-    const PhysicalOffset& border_box_location) const {
-  NOT_DESTROYED();
-
-  if (StyleRef().HasBorderShape()) {
-    return HitTestClippedOutByBorderShape(*this, hit_test_location,
-                                          border_box_location);
-  }
-
-  PhysicalRect border_rect = PhysicalBorderBoxRect();
-  border_rect.Move(border_box_location);
-  return !hit_test_location.Intersects(
-      ContouredBorderGeometry::PixelSnappedContouredBorder(StyleRef(),
-                                                           border_rect));
-}
-
 void LayoutBox::Paint(const PaintInfo& paint_info) const {
   NOT_DESTROYED();
   NOTREACHED();
@@ -2178,7 +2129,7 @@ bool LayoutBox::ForegroundIsKnownToBeOpaqueInRect(
       continue;
     }
     if (RuntimeEnabledFeatures::CompositeBGColorAnimationEnabled() &&
-        child->Style()->HasCurrentBackgroundColorAnimation()) {
+        child->StyleRef().HasCurrentBackgroundColorAnimation()) {
       return false;
     }
     if (child_box->BackgroundIsKnownToBeOpaqueInRect(child_local_rect))
@@ -3221,7 +3172,7 @@ PhysicalRect LayoutBox::LocalCaretRect(int caret_offset,
       GetNode() &&
       !(EditingIgnoresContent(*GetNode()) || IsDisplayInsideTable(GetNode()));
 
-  WritingDirectionMode writing_direction = Style()->GetWritingDirection();
+  WritingDirectionMode writing_direction = StyleRef().GetWritingDirection();
   LogicalOffset offset;
   LayoutUnit content_inline_size = LogicalWidth();
   if (apply_border_padding) {
@@ -3293,78 +3244,6 @@ bool LayoutBox::IsCustomItem() const {
   NOT_DESTROYED();
   auto* parent_layout_box = DynamicTo<LayoutCustom>(Parent());
   return parent_layout_box && parent_layout_box->IsLoaded();
-}
-
-PhysicalBoxStrut LayoutBox::ComputeVisualEffectOverflowOutsets() {
-  NOT_DESTROYED();
-  const ComputedStyle& style = StyleRef();
-  DCHECK(style.HasVisualOverflowingEffect());
-
-  PhysicalBoxStrut outsets = style.BoxDecorationOutsets();
-
-  PhysicalRect border_rect(PhysicalOffset(), StitchedSize());
-  std::optional<BorderShapeReferenceRects> border_shape_rects;
-
-  if (style.HasBorderShape()) {
-    border_shape_rects =
-        ComputeBorderShapeReferenceRects(border_rect, style, *this);
-    const PhysicalRect outer_reference_rect =
-        border_shape_rects ? border_shape_rects->outer : border_rect;
-    const PhysicalRect inner_reference_rect =
-        border_shape_rects ? border_shape_rects->inner : border_rect;
-    // VisualOutsets() returns the complete border-shape overflow: both the
-    // border path's visual extent and the precise box-shadow extent.
-    outsets.Unite(BorderShapePainter::VisualOutsets(
-        style, border_rect, outer_reference_rect, inner_reference_rect));
-  }
-
-  if (style.HasOutline()) {
-    OutlineInfo info;
-    Vector<PhysicalRect> outline_rects =
-        OutlineRects(&info, PhysicalOffset(),
-                     style.OutlineRectsShouldIncludeBlockInkOverflow());
-    PhysicalRect rect = UnionRect(outline_rects);
-    PhysicalSize size = StitchedSize();
-    bool outline_affected = rect.size != size;
-    SetOutlineMayBeAffectedByDescendants(outline_affected);
-
-    // For border-shape, compute the outline bounds from the offset path.
-    if (style.HasBorderShape()) {
-      const PhysicalRect outer_reference_rect =
-          border_shape_rects ? border_shape_rects->outer : border_rect;
-      // When border-shape uses a single shape, the border is stroked centered
-      // on the path, so the outer edge is at border_width/2 from the path.
-      float border_stroke_offset = 0;
-      const StyleBorderShape* border_shape = style.BorderShape();
-      if (border_shape && !border_shape->HasSeparateInnerShape()) {
-        DerivedStroke derived_stroke = RelevantSideForBorderShape(style);
-        border_stroke_offset = derived_stroke.thickness / 2.0f;
-      }
-      const float outline_offset = border_stroke_offset +
-                                   static_cast<float>(info.offset) +
-                                   static_cast<float>(info.width);
-      Path outline_path = BorderShapePainter::OuterPathWithOffset(
-          style, outer_reference_rect, outline_offset);
-      gfx::RectF outline_bounds = outline_path.BoundingRect();
-      const float top_outset =
-          std::max(0.0f, border_rect.Y() - outline_bounds.y());
-      const float left_outset =
-          std::max(0.0f, border_rect.X() - outline_bounds.x());
-      const float right_outset =
-          std::max(0.0f, outline_bounds.right() - border_rect.Right());
-      const float bottom_outset =
-          std::max(0.0f, outline_bounds.bottom() - border_rect.Bottom());
-      outsets.Unite(PhysicalBoxStrut::Enclosing(gfx::OutsetsF::TLBR(
-          top_outset, left_outset, bottom_outset, right_outset)));
-    } else {
-      rect.Inflate(
-          LayoutUnit(OutlinePainter::OutlineOutsetExtent(style, info)));
-      outsets.Unite(PhysicalBoxStrut(-rect.Y(), rect.Right() - size.width,
-                                     rect.Bottom() - size.height, -rect.X()));
-    }
-  }
-
-  return outsets;
 }
 
 bool LayoutBox::HasTopOverflow() const {
@@ -3903,16 +3782,6 @@ void LayoutBox::CheckIsVisualOverflowComputed() const {
 PhysicalOffset LayoutBox::OffsetPoint(const Element* parent) const {
   NOT_DESTROYED();
   return AdjustedPositionRelativeTo(PhysicalLocation(), parent);
-}
-
-LayoutUnit LayoutBox::OffsetLeft(const Element* parent) const {
-  NOT_DESTROYED();
-  return OffsetPoint(parent).left;
-}
-
-LayoutUnit LayoutBox::OffsetTop(const Element* parent) const {
-  NOT_DESTROYED();
-  return OffsetPoint(parent).top;
 }
 
 PhysicalSize LayoutBox::StitchedSize() const {
@@ -4604,8 +4473,8 @@ bool LayoutBox::NeedsAnchorPositionScrollAdjustmentInY() const {
 
 WritingModeConverter LayoutBox::CreateWritingModeConverter() const {
   NOT_DESTROYED();
-  return WritingModeConverter({Style()->GetWritingMode(), TextDirection::kLtr},
-                              StitchedSize());
+  return WritingModeConverter(
+      {StyleRef().GetWritingMode(), TextDirection::kLtr}, StitchedSize());
 }
 
 PhysicalOffset LayoutBox::PhysicalLocation() const {

@@ -61,10 +61,11 @@ public class NQETest {
         mNativeTestServer =
                 NativeTestServer.createNativeTestServer(mTestRule.getTestFramework().getContext());
         mNativeTestServer.start();
-        // Use a large file (~20KB) to guarantee the response not to be contained
-        // within a single packet. This is necessary to guarantee a throughput
-        // observation even with a deferred observation window.
-        mUrl = mNativeTestServer.getFileURL("/laptop.png");
+        // Use a large file (300KB+) to guarantee the response not to be contained
+        // within a single packet and to exceed the socket read buffer size.
+        // This is necessary to guarantee a throughput observation even with a
+        // deferred observation window.
+        mUrl = mNativeTestServer.getFileURL("/large_image.png");
     }
 
     @After

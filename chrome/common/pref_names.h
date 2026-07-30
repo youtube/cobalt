@@ -526,38 +526,6 @@ inline constexpr char kNoteTakingAppId[] = "settings.note_taking_app_id";
 inline constexpr char kLockScreenAutoStartOnlineReauth[] =
     "lock_screen_auto_start_online_reauth";
 
-// A boolean pref indicating whether user activity has been observed in the
-// current session already. The pref is used to restore information about user
-// activity after browser crashes.
-inline constexpr char kSessionUserActivitySeen[] = "session.user_activity_seen";
-
-// A preference to keep track of the session start time. If the session length
-// limit is configured to start running after initial user activity has been
-// observed, the pref is set after the first user activity in a session.
-// Otherwise, it is set immediately after session start. The pref is used to
-// restore the session start time after browser crashes. The time is expressed
-// as the serialization obtained from base::Time::ToInternalValue().
-inline constexpr char kSessionStartTime[] = "session.start_time";
-
-// Holds the maximum session time in milliseconds. If this pref is set, the
-// user is logged out when the maximum session time is reached. The user is
-// informed about the remaining time by a countdown timer shown in the ash
-// system tray.
-inline constexpr char kSessionLengthLimit[] = "session.length_limit";
-
-// Whether the session length limit should start running only after the first
-// user activity has been observed in a session.
-inline constexpr char kSessionWaitForInitialUserActivity[] =
-    "session.wait_for_initial_user_activity";
-
-// A preference of the last user session type. It is used with the
-// kLastSessionLength pref below to store the last user session info
-// on shutdown so that it could be reported on the next run.
-inline constexpr char kLastSessionType[] = "session.last_session_type";
-
-// A preference of the last user session length.
-inline constexpr char kLastSessionLength[] = "session.last_session_length";
-
 // The URL from which the Terms of Service can be downloaded. The value is only
 // honored for public accounts.
 inline constexpr char kTermsOfServiceURL[] = "terms_of_service.url";
@@ -737,38 +705,6 @@ inline constexpr char kNetworkFileSharesSavedShares[] =
 // A string pref storing the path of device wallpaper image file.
 inline constexpr char kDeviceWallpaperImageFilePath[] =
     "policy.device_wallpaper_image_file_path";
-
-// Boolean whether Kerberos daemon supports remembering passwords.
-// Tied to KerberosRememberPasswordEnabled policy.
-inline constexpr char kKerberosRememberPasswordEnabled[] =
-    "kerberos.remember_password_enabled";
-// Boolean whether users may add new Kerberos accounts.
-// Tied to KerberosAddAccountsAllowed policy.
-inline constexpr char kKerberosAddAccountsAllowed[] =
-    "kerberos.add_accounts_allowed";
-// Dictionary specifying a pre-set list of Kerberos accounts.
-// Tied to KerberosAccounts policy.
-inline constexpr char kKerberosAccounts[] = "kerberos.accounts";
-// Used by KerberosCredentialsManager to remember which account is currently
-// active (empty if none) and to determine whether to wake up the Kerberos
-// daemon on session startup.
-inline constexpr char kKerberosActivePrincipalName[] =
-    "kerberos.active_principal_name";
-// Used by KerberosAccountsHandler to prefill kerberos domain in
-// username field of "Add a ticket" UI window.
-// Tied to KerberosDomainAutocomplete policy.
-inline constexpr char kKerberosDomainAutocomplete[] =
-    "kerberos.domain_autocomplete";
-// Used by KerberosAccountsHandler to decide if the custom default configuration
-// should be prefilled.
-// Tied to KerberosUseCustomPrefilledConfig policy.
-inline constexpr char kKerberosUseCustomPrefilledConfig[] =
-    "kerberos.use_custom_prefilled_config";
-// Used by KerberosAccountsHandler to prefill kerberos krb5 config for
-// manually creating new tickets.
-// Tied to KerberosCustomPrefilledConfig policy.
-inline constexpr char kKerberosCustomPrefilledConfig[] =
-    "kerberos.custom_prefilled_config";
 
 // A boolean pref for enabling/disabling App reinstall recommendations in Zero
 // State Launcher by policy.
@@ -2335,8 +2271,6 @@ inline constexpr char kNtlmV2Enabled[] = "auth.ntlm_v2_enabled";
 #endif  // BUILDFLAG(IS_POSIX)
 
 #if BUILDFLAG(IS_CHROMEOS)
-// Boolean whether Kerberos functionality is enabled.
-inline constexpr char kKerberosEnabled[] = "kerberos.enabled";
 
 // Holds URL patterns that specify origins that will be allowed to call
 // `subApps.{add|remove|list}())` without prior user gesture and that will skip

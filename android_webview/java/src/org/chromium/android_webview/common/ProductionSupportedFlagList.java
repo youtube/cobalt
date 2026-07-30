@@ -701,7 +701,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature("V8PreconfigureOldGen"),
         Flag.baseFeature("V8ScavengerHigherCapacity"),
         Flag.baseFeature("V8IncrementalMarkingStartUserVisible"),
-        Flag.baseFeature("V8ExternalMemoryAccountedInGlobalLimit"),
         Flag.baseFeature(
                 "PMProcessPriorityPolicy",
                 "Controls whether the priority of renderers is controlled by the performance "
@@ -784,6 +783,10 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 MediaFeatures.PAUSE_MUTED_BACKGROUND_AUDIO,
                 "Prevents inaudble audio from decoding in background tabs (experimental)."),
+        Flag.baseFeature(
+                MediaFeatures.SKIP_MEDIA_CODEC_REALLOCATION,
+                "Enables skipping MediaCodec reallocation if input buffer requirements "
+                        + "are already met."),
         Flag.baseFeature(
                 BlinkFeatures.BACK_FORWARD_CACHE_SEND_NOT_RESTORED_REASONS,
                 "Expose NotRestoredReasons via PerformanceNavigationTiming API."),
@@ -1134,9 +1137,6 @@ public final class ProductionSupportedFlagList {
                 "Use madvise MADV_WILLNEED to prefetch the native library. This replaces the "
                         + "default mechanism of pre-reading the memory from a forked process."),
         Flag.baseFeature(
-                CcFeatures.OVERSCROLL_BEHAVIOR_RESPECTED_ON_ALL_SCROLL_CONTAINERS,
-                "Enables overscroll-behavior to be respected on all scroll containers."),
-        Flag.baseFeature(
                 CcFeatures.OVERSCROLL_EFFECT_ON_NON_ROOT_SCROLLERS,
                 "Enables elastic overscroll effect on scrollers other than the root "
                         + "document (e.g. iframes and overflow areas)."),
@@ -1150,9 +1150,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 "ProbeStylusWritingInBackground",
                 "Offload probing of stylus writing support to a background thread."),
-        Flag.baseFeature(
-                AwFeatures.WEBVIEW_CACHE_BOUNDARY_INTERFACE_METHODS,
-                "Use a cache for reflective method instances in the AndroidX boundary interface"),
         Flag.baseFeature(
                 AwSwitches.WEBVIEW_OPT_IN_TO_GMS_BIND_SERVICE_OPTIMIZATION,
                 "Opt-in WebView to GMSCore's bindService optimizations"),
@@ -1279,7 +1276,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature("GCOnArrayBufferAllocationFailure"),
         Flag.baseFeature("RemoveCancelledScriptedIdleTasks"),
         Flag.baseFeature("SlimDirectReceiverIpc"),
-        Flag.baseFeature("FastPathNoRaster"),
         Flag.baseFeature("MemoryCacheChangeStrongReferencePruneDelay"),
         Flag.baseFeature("MemoryCacheStrongReference"),
         Flag.baseFeature("ReleaseResourceStrongReferencesOnMemoryPressure"),
@@ -1299,7 +1295,6 @@ public final class ProductionSupportedFlagList {
                 CcFeatures.THROTTLE_MAIN_FRAME_TO60_HZ_WEBVIEW,
                 "When enabled, requestAnimationFrame() and related main-thread effects are capped"
                         + " at 60Hz on 120Hz devices."),
-        Flag.baseFeature("JobPriorityBoosting"),
         Flag.baseFeature("IsolatesPriorityUseProcessPriority"),
         Flag.baseFeature(
                 "UseLockFreeX509Verification",
@@ -1382,6 +1377,9 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 GpuFeatures.AAPM_BLOCKS_WEB_GPU,
                 "Android Advanced Protection Mode (AAPM) blocks WebGPU for At-Risk Users."),
+        Flag.baseFeature(
+                "IdbInhibitCompactRange",
+                "Inhibits CompactRange() calls within IndexedDB cleanup tasks."),
 
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.

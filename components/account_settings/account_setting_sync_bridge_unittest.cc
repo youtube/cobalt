@@ -60,7 +60,7 @@ class MockObserver : public AccountSettingSyncBridge::Observer {
   }
 
   MOCK_METHOD(void, OnDataLoadedFromDisk, (), (override));
-  MOCK_METHOD(void, OnDataUpdated, (), (override));
+  MOCK_METHOD(void, OnDataUpdated, (const std::string&), (override));
 
  private:
   base::ScopedObservation<AccountSettingSyncBridge,
@@ -123,6 +123,14 @@ class AccountSettingSyncBridgeTest : public testing::Test {
   testing::NiceMock<syncer::MockDataTypeLocalChangeProcessor> mock_processor_;
   std::unique_ptr<AccountSettingSyncBridge> bridge_;
 };
+
+TEST_F(AccountSettingSyncBridgeTest, GetSetting) {
+  EXPECT_TRUE(bridge().GetSetting("name").is_none());
+  ASSERT_TRUE(
+      StartSyncingWithServerData({CreateSettingSpecifics("name", "value")}));
+  EXPECT_TRUE(bridge().GetSetting("name").is_string());
+  EXPECT_EQ(bridge().GetSetting("name").GetString(), "value");
+}
 
 TEST_F(AccountSettingSyncBridgeTest, GetStorageKey) {
   syncer::EntityData entity;
@@ -187,7 +195,8 @@ TEST_F(AccountSettingSyncBridgeTest, ApplyIncrementalSyncChanges_AddUpdate) {
     change_list.push_back(syncer::EntityChange::CreateUpdate(
         "name1",
         EntityFromSpecifics(CreateSettingSpecifics("name1", "new-string"))));
-    EXPECT_CALL(o, OnDataUpdated);
+    EXPECT_CALL(o, OnDataUpdated("name2"));
+    EXPECT_CALL(o, OnDataUpdated("name1"));
     EXPECT_FALSE(bridge().ApplyIncrementalSyncChanges(
         bridge().CreateMetadataChangeList(), std::move(change_list)));
     // Expect that the setting is available immediately.
@@ -204,23 +213,23 @@ TEST_F(AccountSettingSyncBridgeTest, ApplyIncrementalSyncChanges_Remove) {
   ASSERT_TRUE(
       StartSyncingWithServerData({CreateSettingSpecifics("name1", true),
                                   CreateSettingSpecifics("name2", "string")}));
-  ASSERT_THAT(bridge().GetBoolSetting("name1"), true);
+  ASSERT_THAT(bridge().GetBooleanSetting("name1"), true);
   ASSERT_THAT(bridge().GetStringSetting("name2"), "string");
   {
     MockObserver o(&bridge());
     syncer::EntityChangeList change_list;
     change_list.push_back(
         syncer::EntityChange::CreateDelete("name1", syncer::EntityData()));
-    EXPECT_CALL(o, OnDataUpdated);
+    EXPECT_CALL(o, OnDataUpdated("name1"));
     EXPECT_FALSE(bridge().ApplyIncrementalSyncChanges(
         bridge().CreateMetadataChangeList(), std::move(change_list)));
     // Expect that the change was applied immediately.
-    EXPECT_FALSE(bridge().GetBoolSetting("name1").has_value());
+    EXPECT_FALSE(bridge().GetBooleanSetting("name1").has_value());
     EXPECT_THAT(bridge().GetStringSetting("name2"), "string");
   }
   // Recreate the bridge, reloading from the `store()`.
   RecreateBridgeAndWaitForModelToSync();
-  EXPECT_FALSE(bridge().GetBoolSetting("name1").has_value());
+  EXPECT_FALSE(bridge().GetBooleanSetting("name1").has_value());
   EXPECT_THAT(bridge().GetStringSetting("name2"), "string");
 }
 

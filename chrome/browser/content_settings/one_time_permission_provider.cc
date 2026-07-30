@@ -172,11 +172,11 @@ bool OneTimePermissionProvider::UpdateLastUsedTime(
   return false;
 }
 
-bool OneTimePermissionProvider::ResetLastVisitTime(
+bool OneTimePermissionProvider::SetAutorevocationBypassedByUser(
     const ContentSettingsPattern& primary_pattern,
     const ContentSettingsPattern& secondary_pattern,
     ContentSettingsType content_type) {
-  // LastVisit time is not currently tracked for one-time permissions.
+  // Autorevocation does not include one-time permissions.
   return false;
 }
 

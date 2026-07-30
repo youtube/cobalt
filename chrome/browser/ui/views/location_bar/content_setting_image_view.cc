@@ -58,37 +58,34 @@ std::optional<ViewID> GetViewID(
     ContentSettingImageModel::ImageType image_type) {
   using ImageType = ContentSettingImageModel::ImageType;
   switch (image_type) {
-    case ImageType::JAVASCRIPT:
+    case ImageType::kJavaScript:
       return ViewID::VIEW_ID_CONTENT_SETTING_JAVASCRIPT;
 
-    case ImageType::POPUPS:
+    case ImageType::kPopups:
       return ViewID::VIEW_ID_CONTENT_SETTING_POPUP;
 
-    case ImageType::COOKIES:
-    case ImageType::IMAGES:
-    case ImageType::GEOLOCATION:
-    case ImageType::MIXEDSCRIPT:
-    case ImageType::PROTOCOL_HANDLERS:
-    case ImageType::MEDIASTREAM:
-    case ImageType::ADS:
-    case ImageType::AUTOMATIC_DOWNLOADS:
-    case ImageType::MIDI_SYSEX:
-    case ImageType::SOUND:
-    case ImageType::FRAMEBUST:
-    case ImageType::CLIPBOARD_READ_WRITE:
-    case ImageType::SENSORS:
-    case ImageType::NOTIFICATIONS:
-    case ImageType::STORAGE_ACCESS:
+    case ImageType::kCookies:
+    case ImageType::kImages:
+    case ImageType::kGeolocation:
+    case ImageType::kMixedScript:
+    case ImageType::kProtocolHandlers:
+    case ImageType::kMediaStream:
+    case ImageType::kAds:
+    case ImageType::kAutomaticDownloads:
+    case ImageType::kMidiSysex:
+    case ImageType::kSound:
+    case ImageType::kFramebust:
+    case ImageType::kClipboardReadWrite:
+    case ImageType::kSensors:
+    case ImageType::kNotifications:
+    case ImageType::kStorageAccess:
 #if BUILDFLAG(IS_CHROMEOS)
-    case ImageType::SMART_CARD:
+    case ImageType::kSmartCard:
 #endif
 #if BUILDFLAG(IS_WIN)
-    case ImageType::PROTECTED_MEDIA_IDENTIFIER:
+    case ImageType::kProtectedMediaIdentifier:
 #endif
       return std::nullopt;
-
-    case ImageType::NUM_IMAGE_TYPES:
-      break;
   }
   NOTREACHED();
 }
@@ -262,7 +259,8 @@ bool ContentSettingImageView::ShowBubbleImpl() {
     bubble_view_ = new ContentSettingBubbleContents(
         content_setting_image_model_->CreateBubbleModel(
             delegate_->GetContentSettingBubbleModelDelegate(), web_contents),
-        web_contents, anchor, views::BubbleBorder::TOP_RIGHT);
+        web_contents, views::BubbleAnchor(anchor),
+        views::BubbleBorder::TOP_RIGHT);
     bubble_view_->SetHighlightedElement(
         content_setting_image_model_->GetElementIdentifier());
     views::Widget* bubble_widget =
@@ -309,7 +307,7 @@ void ContentSettingImageView::OnWidgetDestroying(views::Widget* widget) {
 
 #if BUILDFLAG(IS_MAC)
   if (content_setting_image_model_->image_type() ==
-          ContentSettingImageModel::ImageType::GEOLOCATION &&
+          ContentSettingImageModel::ImageType::kGeolocation &&
       content_setting_image_model_->explanatory_string_id() ==
           IDS_GEOLOCATION_TURNED_OFF) {
     base::RecordAction(

@@ -41,6 +41,7 @@
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
 #include "third_party/blink/renderer/core/events/mouse_event.h"
 #include "third_party/blink/renderer/core/html/forms/html_data_list_element.h"
+#include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_opt_group_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_select_element.h"
 #include "third_party/blink/renderer/core/html/html_hr_element.h"
@@ -147,7 +148,6 @@ FocusableState HTMLOptionElement::SupportsFocus(
     bool base_with_picker =
         select->UsesMenuList() && popover && popover->popoverOpen();
     bool base_in_page =
-        RuntimeEnabledFeatures::CustomizableSelectListboxEnabled() &&
         !select->UsesMenuList() && select->IsAppearanceBase();
     if (base_with_picker || base_in_page) {
       // If this option is being rendered as regular web content inside a
@@ -169,8 +169,7 @@ bool HTMLOptionElement::IsKeyboardFocusableSlow(
   if (!HTMLElement::IsKeyboardFocusableSlow(update_behavior)) {
     return false;
   }
-  if (!RuntimeEnabledFeatures::CustomizableSelectListboxEnabled() ||
-      !OwnerSelectElement() || OwnerSelectElement()->UsesMenuList()) {
+  if (!OwnerSelectElement() || OwnerSelectElement()->UsesMenuList()) {
     return true;
   }
 
@@ -648,13 +647,22 @@ bool HTMLOptionElement::IsVisibleInViewport() {
                                           listbox_top + listbox_rect.Height();
 }
 void HTMLOptionElement::DefaultEventHandlerInternal(Event& event) {
+  if (nearest_ancestor_datalist_ && event.type() == event_type_names::kClick &&
+      RuntimeEnabledFeatures::CustomizableComboboxEnabled()) {
+    if (HTMLInputElement* combobox_input =
+            nearest_ancestor_datalist_->ComboboxInput()) {
+      ChooseOptionForCombobox(*combobox_input, *nearest_ancestor_datalist_);
+      event.SetDefaultHandled();
+      return;
+    }
+  }
+
   auto* select = OwnerSelectElement();
   if (!select) {
     return;
   }
 
   const bool appearance_base_in_page =
-      RuntimeEnabledFeatures::CustomizableSelectListboxEnabled() &&
       !select->UsesMenuList() && select->IsAppearanceBase();
 
   if (!appearance_base_in_page && !select->PickerIsPopover()) {
@@ -874,6 +882,30 @@ void HTMLOptionElement::ChooseOption(Event& event) {
   CHECK(!select->UsesMenuList() || select->PickerIsPopover());
   select->SelectOptionFromPopoverPickerOrListbox(this);
   event.SetDefaultHandled();
+}
+
+void HTMLOptionElement::ChooseOptionForCombobox(HTMLInputElement& input,
+                                                HTMLDataListElement& datalist) {
+  CHECK(RuntimeEnabledFeatures::CustomizableComboboxEnabled());
+  CHECK_EQ(input.DataList(), &datalist);
+
+  // TODO(crbug.com/453705243): This code which decides which attributes have
+  // precedence over others should probably be shared with the appearance:auto
+  // code. The appearance:auto logic is in GetDataListOptions in form_autofill_util.cc.
+  String value_to_commit = FastHasAttribute(html_names::kValueAttr)
+                               ? FastGetAttribute(html_names::kValueAttr)
+                               : CollectOptionInnerText()
+                                     .StripWhiteSpace(IsHTMLSpace<UChar>)
+                                     .SimplifyWhiteSpace(IsHTMLSpace<UChar>);
+
+  input.SetValue(value_to_commit,
+                 TextFieldEventBehavior::kDispatchInputAndChangeEvent,
+                 TextControlSetValueSelection::kSetSelectionToEnd,
+                 WebAutofillState::kNotFilled);
+  datalist.HidePopoverInternal(
+      /*invoker=*/&input, HidePopoverFocusBehavior::kNone,
+      HidePopoverTransitionBehavior::kFireEventsAndWaitForTransitions,
+      /*exception_state=*/nullptr);
 }
 
 void HTMLOptionElement::FinishParsingChildren() {

@@ -120,7 +120,8 @@ WebUIBrowserUI::WebUIBrowserUI(content::WebUI* web_ui)
   };
   source->AddLocalizedStrings(kStrings);
 
-  SearchboxHandler::SetupWebUIDataSource(source, profile);
+  source->AddLocalizedStrings(
+      SearchboxHandler::GetWebUIDataSourceDict(profile));
 
 #if BUILDFLAG(ENABLE_SURFACE_EMBED)
   source->AddBoolean(
@@ -253,7 +254,8 @@ WebUIBrowserUI::GetKnownElementIdentifiers() const {
   static const std::vector<ui::ElementIdentifier> kKnownElementIdentifiers{
       kContentsContainerViewElementId, kExtensionsMenuButtonElementId,
       kLocationBarElementId,           kLocationIconElementId,
-      kToolbarAppMenuButtonElementId,  kToolbarAvatarButtonElementId};
+      kToolbarAppMenuButtonElementId,  kToolbarAvatarButtonElementId,
+      kToolbarBackButtonElementId,     kToolbarForwardButtonElementId};
   return kKnownElementIdentifiers;
 }
 

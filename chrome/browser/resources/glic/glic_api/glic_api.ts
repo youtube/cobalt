@@ -417,8 +417,11 @@ export declare interface GlicBrowserHost {
    * Interrupting is different than pausing. Interrupting changes the state
    * indicating the task is waiting for user input but does not pause the
    * task.
+   *
+   * @param interruptReason The reason for why the interrupt was initiated.
    */
-  interruptActorTask?(taskId: number): void;
+  interruptActorTask?
+      (taskId: number, interruptReason?: ActorTaskInterruptReason): void;
 
   /**
    * Indicates a task is no longer interrupted with the given ID in the browser
@@ -2561,6 +2564,27 @@ export enum ActorTaskStopReason {
 
 ///////////////////////////////////////////////
 // WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+// The reason/source of why an actor task was interrupted.
+export enum ActorTaskInterruptReason {
+  // Actor task is interrupted for an unknown reason.
+  UNKNOWN_REASON = 0,
+  // Actor task is complete.
+  TASK_COMPLETE = 1,
+  // Actor task was waiting for user input.
+  WAITING_USER_INPUT = 2,
+  // Actor task was waiting for user to provide clarifications on the current
+  // task.
+  WAITING_USER_CLARIFICATION = 3,
+  // Actor task was waiting for user to confirm an action.
+  WAITING_USER_CONFIRMATION = 4,
+  // Actor task was waiting for user to take over.
+  WAITING_USER_TAKE_OVER = 5,
+  // Actor task was waiting for irrelevant user input.
+  WAITING_IRRELEVANT_USER_INPUT = 6,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
 // Reason why capturing desktop screenshot failed. NOTE: This may be extended in
 // the future so avoid using complete switches on the currently used enum
 // values.
@@ -2960,6 +2984,9 @@ export enum HostCapability {
   INVOKE = 8,
   // Indicates that the host does not support Live Mode.
   NO_LIVE_MODE = 9,
+  // Indicates that the host supports auto browse attempting login using Sign in
+  // with Google.
+  AUTO_LOGIN_SIGN_IN_WITH_GOOGLE = 10,
 }
 
 ///////////////////////////////////////////////

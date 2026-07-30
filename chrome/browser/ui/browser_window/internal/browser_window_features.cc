@@ -58,6 +58,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/browser_window/public/embedder_browser_window_features.h"
+#include "chrome/browser/ui/browser_window_theme_observer.h"
 #include "chrome/browser/ui/call_to_action/call_to_action_lock.h"
 #include "chrome/browser/ui/context_highlight/context_highlight_window_feature.h"
 #include "chrome/browser/ui/contextual_search/searchbox_context_data.h"
@@ -110,6 +111,7 @@
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller_stub.h"
+#include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/frame/scrim_view_controller.h"
 #include "chrome/browser/ui/views/fullscreen_control/fullscreen_control_host.h"
 #include "chrome/browser/ui/views/incognito_clear_browsing_data_dialog_coordinator.h"
@@ -131,6 +133,7 @@
 #include "chrome/browser/ui/views/side_panel/history_clusters/history_clusters_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/reading_list/reading_list_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
+#include "chrome/browser/ui/views/side_panel/tabs_from_other_devices/tabs_from_other_devices_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/tabs/groups/recent_activity_bubble_dialog_view.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_utils.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_action_container.h"
@@ -358,7 +361,7 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 
     if (base::FeatureList::IsEnabled(features::kAiOverlayDialog)) {
       ai_overlay_dialog_controller_ =
-          GetUserDataFactory().CreateInstance<AiOverlayDialogController>(
+          GetUserDataFactory().CreateInstance<ttc::AiOverlayDialogController>(
               *browser, browser);
     }
 
@@ -417,8 +420,15 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       GetUserDataFactory().CreateInstance<ReadingListSidePanelCoordinator>(
           *browser, browser, profile, browser->GetTabStripModel());
 
+  if (TabsFromOtherDevicesSidePanelCoordinator::IsSupported()) {
+    tabs_from_other_devices_side_panel_coordinator_ =
+        std::make_unique<TabsFromOtherDevicesSidePanelCoordinator>(browser,
+                                                                   profile);
+  }
+
   bookmarks_side_panel_coordinator_ =
-      std::make_unique<BookmarksSidePanelCoordinator>();
+      GetUserDataFactory().CreateInstance<BookmarksSidePanelCoordinator>(
+          *browser, *browser);
 
   signin_view_controller_ = std::make_unique<SigninViewController>(
       browser, profile, tab_strip_model_);
@@ -480,6 +490,10 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 
   context_highlight_window_feature_ =
       std::make_unique<ContextHighlightWindowFeature>(*browser);
+
+  browser_window_theme_observer_ =
+      GetUserDataFactory().CreateInstance<BrowserWindowThemeObserver>(*browser,
+                                                                      browser);
 
   call_to_action_lock_ =
       GetUserDataFactory().CreateInstance<CallToActionLock>(*browser, browser);
@@ -627,7 +641,7 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
     if (browser_view) {
       split_tab_highlight_controller_ =
           std::make_unique<split_tabs::SplitTabHighlightController>(
-              browser_view);
+              browser_view->browser(), browser_view->multi_contents_view());
     }
 
     if (base::FeatureList::IsEnabled(
@@ -764,8 +778,8 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
                                                                 browser_view);
 
   if (HistorySidePanelCoordinator::IsSupported()) {
-    history_side_panel_coordinator_ =
-        std::make_unique<HistorySidePanelCoordinator>(browser_view->browser());
+    GetUserDataFactory().CreateInstance<HistorySidePanelCoordinator>(
+        *browser_view->browser(), browser_view->browser());
   }
 
   history_clusters_side_panel_coordinator_ =
@@ -774,7 +788,8 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
 
   if (CommentsSidePanelCoordinator::IsSupported()) {
     comments_side_panel_coordinator_ =
-        std::make_unique<CommentsSidePanelCoordinator>(browser_view->browser());
+        GetUserDataFactory().CreateInstance<CommentsSidePanelCoordinator>(
+            *browser_view->browser(), browser_view->browser());
   }
 
   if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
@@ -796,7 +811,9 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
                 contextual_tasks_entry_point_eligibility_manager_.get());
 
     if (contextual_tasks::kShowEntryPoint.Get() ==
-        contextual_tasks::EntryPointOption::kToolbarRevisit) {
+            contextual_tasks::EntryPointOption::kToolbarRevisit ||
+        contextual_tasks::kShowEntryPoint.Get() ==
+            contextual_tasks::EntryPointOption::kToolbarEphemeralBranded) {
       contextual_tasks_ephemeral_button_controller_ =
           GetUserDataFactory()
               .CreateInstance<ContextualTasksEphemeralButtonController>(

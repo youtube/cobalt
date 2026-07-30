@@ -95,7 +95,7 @@ struct PermissionDescriptor {
 
 // Interface a client can implement to observe permission changes.
 interface PermissionObserver {
-  OnPermissionStatusChange(PermissionStatus status);
+  OnPermissionStatusChange(PermissionStatusWithDetails status);
 };
 
 // Interface that is implemented in the renderer and receives change events
@@ -193,12 +193,12 @@ interface PermissionService {
       => (EmbeddedPermissionControlResult status);
   // Request permission for the given `PermissionDescriptor`, and returns
   // permission status result.
-  RequestPermission(PermissionDescriptor permission, bool user_gesture)
+  RequestPermission(PermissionDescriptor permission)
       => (PermissionStatusWithDetails status);
-  RequestPermissions(array<PermissionDescriptor> permission, bool user_gesture)
-      => (array<PermissionStatus> statuses);
+  RequestPermissions(array<PermissionDescriptor> permission)
+      => (array<PermissionStatusWithDetails> statuses);
   RevokePermission(PermissionDescriptor permission)
-      => (PermissionStatus status);
+      => (PermissionStatusWithDetails status);
   // Subscribes |observer| to updates about changes to the current origin's
   // access to |permission|. Closing the pipe will cancel the subscription.
   AddPermissionObserver(PermissionDescriptor permission,

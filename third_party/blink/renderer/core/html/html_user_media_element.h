@@ -25,8 +25,8 @@ class CORE_EXPORT HTMLUserMediaElement
   DEFINE_ATTRIBUTE_EVENT_LISTENER(stream, kStream)
 
   // HTML Element
-  HTMLElementType GetHTMLElementType() const final {
-    return HTMLElementType::kHTMLUserMediaElement;
+  ElementType GetElementType() const final {
+    return ElementType::kHTMLUserMediaElement;
   }
   bool IsHTMLUserMediaElement() const final { return true; }
 
@@ -49,8 +49,16 @@ class CORE_EXPORT HTMLUserMediaElement
   // <usermedia> element is stable.
   bool IsLegacyMode() const;
 
+  void OnConstraintsSet(bool has_video, bool has_audio);
+
+  const Vector<mojom::blink::PermissionDescriptorPtr>&
+  GetPermissionDescriptors() const {
+    return permission_descriptors_;
+  }
+
  private:
   void StartMediaStreamRequest();
+  bool has_constraints_ = false;
 };
 
 // The custom type casting is required for the UserMediaElement OT because the
@@ -58,6 +66,8 @@ class CORE_EXPORT HTMLUserMediaElement
 // HTMLUserMediaElement appearing in a document that does not have the
 // UserMediaElement origin trial enabled (this would result in the creation of
 // an HTMLUnknownElement with the "usermedia" tag name).
+// See third_party/blink/renderer/core/html/Custom_element_type_helpers.md
+// for more details.
 template <>
 struct DowncastTraits<HTMLUserMediaElement> {
   static bool AllowFrom(const HTMLElement& element) {

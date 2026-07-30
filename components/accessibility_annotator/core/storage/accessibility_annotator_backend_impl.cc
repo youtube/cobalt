@@ -31,7 +31,8 @@ AccessibilityAnnotatorBackendImpl::AccessibilityAnnotatorBackendImpl(
           {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
            base::TaskShutdownBehavior::BLOCK_SHUTDOWN},
           db_path_)),
-      content_annotations_cache_(kContentAnnotatorMaxCacheAnnotations.Get()) {
+      content_annotations_cache_(
+          features::kContentAnnotatorMaxCacheAnnotations.Get()) {
   auto processor = std::make_unique<syncer::ClientTagBasedDataTypeProcessor>(
       syncer::ACCESSIBILITY_ANNOTATION,
       /*dump_stack=*/base::DoNothing());
@@ -110,13 +111,23 @@ AccessibilityAnnotatorBackendImpl::GetContentAnnotationsCacheData(
 
 void AccessibilityAnnotatorBackendImpl::SetContentAnnotationsCacheData(
     const GURL& url,
-    std::string page_title,
-    base::DictValue annotations) {
+    ContentAnnotationsData data) {
   // This automatically handles eviction of the oldest entries if full.
-  ContentAnnotationsData data;
-  data.page_title = std::move(page_title);
-  data.annotations = std::move(annotations);
   content_annotations_cache_.Put(url, std::move(data));
+}
+
+void AccessibilityAnnotatorBackendImpl::RemoveContentAnnotationsCacheData(
+    base::span<const GURL> urls) {
+  for (const GURL& url : urls) {
+    auto it = content_annotations_cache_.Peek(url);
+    if (it != content_annotations_cache_.end()) {
+      content_annotations_cache_.Erase(it);
+    }
+  }
+}
+
+void AccessibilityAnnotatorBackendImpl::ClearContentAnnotationsCache() {
+  content_annotations_cache_.Clear();
 }
 
 base::Value AccessibilityAnnotatorBackendImpl::GetDebugUICacheData() const {
@@ -126,7 +137,14 @@ base::Value AccessibilityAnnotatorBackendImpl::GetDebugUICacheData() const {
     base::DictValue entry;
     entry.Set("url", item.first.spec());
     entry.Set("title", item.second.page_title);
-    entry.Set("annotations", item.second.annotations.Clone());
+    entry.Set("classifier_results", item.second.classifier_results.Clone());
+    if (item.second.tab_id) {
+      entry.Set("tab_id", *item.second.tab_id);
+    }
+    if (item.second.annotations) {
+      entry.Set("annotations", item.second.annotations->Clone());
+    }
+    // TODO(crbug.com/497903571): Add content annotation to entry.
     result.Append(std::move(entry));
   }
   return base::Value(std::move(result));

@@ -107,6 +107,7 @@
 <translation id="1369286077209859800">Pokaż wszystkie karty w grupie kart</translation>
 <translation id="136942498637440594">Możesz wyszukiwać obrazy i sprawdzać, co widzisz.</translation>
 <translation id="1373120905936431262">Prześlij obraz, aby go zremiksować za pomocą Nano Banana</translation>
+<translation id="1377321085342047638">Numer karty</translation>
 <translation id="1377508275003315939">Hasła</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position} z {count} adresu}few{{position} z {count} adresów}many{{position} z {count} adresów}other{{position} z {count} adresu}}</translation>
 <translation id="1383876407941801731">Szukaj</translation>
@@ -151,7 +152,6 @@
 <translation id="1517166097004694782">Ukryj opcję „Kontynuuj na tej karcie”</translation>
 <translation id="1520027731907768768">Otrzymuj alerty o obniżkach cen produktów, które śledzisz.</translation>
 <translation id="1521366073263497277">Otwórz siatkę kart</translation>
-<translation id="1521774566618522728">Aktywność: dzisiaj</translation>
 <translation id="1523567067736644845">Odblokuj, aby pokazać hasło</translation>
 <translation id="1524563461097350801">Nie, dziękuję</translation>
 <translation id="1531038290222364269">Pokaż karty</translation>
@@ -376,6 +376,7 @@
 <translation id="2299218006564889602">Przed zapisaniem w menedżerze haseł Google hasła są szyfrowane na urządzeniu.</translation>
 <translation id="2306265833370324042">Pokaż szczegóły <ph name="SEARCH_ENGINE_NAME" /></translation>
 <translation id="2309265394777270359">Zamknij kartę</translation>
+<translation id="2310789833878085574">Zapisz i automatycznie uzupełniaj</translation>
 <translation id="2311077293164383652">Zamknij przypiętą kartę</translation>
 <translation id="2316129865977710310">Nie, dziękuję</translation>
 <translation id="2320166752086256636">Ukryj klawiaturę</translation>
@@ -1099,7 +1100,6 @@
 <translation id="4944543191714094452">Znajdź na stronie…</translation>
 <translation id="4945756290001680296">Otwórz ustawienia haseł</translation>
 <translation id="4949302115427722371">Zarządzaj ustawieniami…</translation>
-<translation id="4952050521954075618">Zdjęcia z rolki z aparatu nie będą synchronizowane między urządzeniami</translation>
 <translation id="4958444002117714549">Rozwiń listę</translation>
 <translation id="496392417432935267">Otwarto w innym oknie</translation>
 <translation id="4970724460420203313">Korzystanie z konta zarządzanego w Chrome pozwala oddzielić dane przeglądania związane z organizacją (w tym karty, historię i hasła) od pozostałych danych przeglądania.</translation>
@@ -1148,7 +1148,6 @@
 <translation id="5119329531859909472">Aby śledzić produkt, kliknij Śledź</translation>
 <translation id="5121618895923301719">Śledzisz już ten produkt. Ta strona jest zapisana w <ph name="BEGIN_LINK" />Zakładkach na komórce<ph name="END_LINK" />.</translation>
 <translation id="512533434554095351">Występuje kilka problemów z hasłami.</translation>
-<translation id="5127538504377457572">Aktywność: <ph name="DAYS" /> dni temu</translation>
 <translation id="5128788795241319992">Poznaj nowe menu</translation>
 <translation id="5132942445612118989">Synchronizuj swoje hasła, historię i inne dane na wszystkich swoich urządzeniach</translation>
 <translation id="5141363746588976328">Ukryj kartę Obniżki cen na kartach</translation>
@@ -1266,6 +1265,7 @@ Funkcja Handoff musi być też włączona w sekcji Ogólne w Ustawieniach, a urz
 <translation id="5556459405103347317">Odśwież</translation>
 <translation id="555749644339804659">Sprawdzam hasła…</translation>
 <translation id="5559567453458728487">Przelicz jednostki miary znalezione w internecie</translation>
+<translation id="5560088892362098740">Data ważności</translation>
 <translation id="556042886152191864">Przycisk</translation>
 <translation id="5565871407246142825">Karty kredytowe</translation>
 <translation id="5566623128829375608">Zapisuje informacje na urządzeniu.</translation>
@@ -1353,6 +1353,7 @@ Funkcja Handoff musi być też włączona w sekcji Ogólne w Ustawieniach, a urz
 <translation id="5819208479324046259">Przeglądarką zarządza <ph name="MANAGER" />. <ph name="BEGIN_LINK" />Więcej informacji<ph name="END_LINK" /></translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5829649908290113115">Synchronizuję…</translation>
+<translation id="5831217499016131155">Portfel Google</translation>
 <translation id="583281660410589416">Nieznany</translation>
 <translation id="5838430324585198889">Odkryj nowe funkcje swojego iPada dzięki aplikacjom Google</translation>
 <translation id="583923961930319521">Używaj haseł na wszystkich swoich urządzeniach</translation>
@@ -1650,6 +1651,7 @@ Funkcja Handoff musi być też włączona w sekcji Ogólne w Ustawieniach, a urz
 <translation id="6806550742467879742">Narzędzia strony</translation>
 <translation id="6807287147325542056">Hasła w innych aplikacjach</translation>
 <translation id="681368974849482173">Utworzono element</translation>
+<translation id="6820686453637990663">Kod CVC</translation>
 <translation id="6825078212112407882">{count,plural, =1{Zakładka została zapisana na Twoim koncie Google {email}}few{{count} zakładki zostały zapisane na Twoim koncie Google {email}}many{{count} zakładek zostało zapisanych na Twoim koncie Google {email}}other{{count} zakładki zostało zapisane na Twoim koncie Google {email}}}</translation>
 <translation id="6826004672264649705">Obecnie śledzisz ten produkt. Otwórz, aby zobaczyć historię cen</translation>
 <translation id="6830728435402077660">Niezabezpieczona</translation>
@@ -1963,7 +1965,6 @@ Funkcja Handoff musi być też włączona w sekcji Ogólne w Ustawieniach, a urz
 <translation id="7952670906562503188">Nastąpi usunięcie {passkey_count} kluczy dostępu oraz listy witryn i aplikacji, w przypadku których nie chcesz zapisywać danych logowania. Konta utworzone przez Ciebie w witrynach i aplikacjach nie zostaną usunięte.</translation>
 <translation id="7958575506592576831">Informacje o bezpieczeństwie strony</translation>
 <translation id="7961015016161918242">Nigdy</translation>
-<translation id="7971136598759319605">Aktywność 1 dzień temu</translation>
 <translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">Wypróbuj</translation>
 <translation id="797588153137233716">Menu → Historia → Usuń dane przeglądania</translation>

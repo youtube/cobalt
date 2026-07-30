@@ -40,8 +40,8 @@
 #import "ios/chrome/browser/default_browser/model/default_browser_interest_signals.h"
 #import "ios/chrome/browser/find_in_page/model/find_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
-#import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intents/model/intents_donation_helper.h"
@@ -774,6 +774,10 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   BOOL isReaderModeActive = [self isReaderModeActive];
   int nameID = isReaderModeActive ? IDS_IOS_TOOLS_MENU_HIDE_READER_MODE
                                   : IDS_IOS_TOOLS_MENU_READER_MODE;
+  int hideID = isReaderModeActive
+                   ? IDS_IOS_OVERFLOW_MENU_HIDE_ACTION_TURN_OFF_READING_MODE
+                   : IDS_IOS_OVERFLOW_MENU_HIDE_ACTION_TURN_ON_READING_MODE;
+  NSString* hideString = l10n_util::GetNSString(hideID);
   __weak __typeof(self) weakSelf = self;
   OverflowMenuAction* action = [self
       createOverflowMenuActionWithNameID:nameID
@@ -782,7 +786,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
                             systemSymbol:YES
                         monochromeSymbol:NO
                          accessibilityID:kToolsMenuReaderMode
-                            hideItemText:nil
+                            hideItemText:hideString
                                  handler:^{
                                    base::RecordAction(UserMetricsAction(
                                        "MobileMenuReaderMode"));
@@ -1927,7 +1931,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(_webState->GetBrowserState());
-  BwgService* geminiService = BwgServiceFactory::GetForProfile(profile);
+  BwgService* geminiService = GeminiServiceFactory::GetForProfile(profile);
   BwgTabHelper* tabHelper = BwgTabHelper::FromWebState(_webState);
   return tabHelper && tabHelper->IsGeminiAvailableForWebState() &&
          geminiService && geminiService->IsProfileEligibleForGemini();

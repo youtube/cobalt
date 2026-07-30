@@ -10,7 +10,6 @@
 #include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "chrome/browser/data_sharing/data_sharing_service_factory.h"
-#include "chrome/browser/profiles/incognito_helpers.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/tab_group_sync/feature_utils.h"
@@ -25,10 +24,9 @@
 #include "components/collaboration/internal/messaging/tab_group_change_notifier_impl.h"
 #include "components/collaboration/public/features.h"
 #include "components/collaboration/public/messaging/empty_messaging_backend_service.h"
+#include "components/collaboration/public/messaging/messaging_backend_service.h"
 #include "components/data_sharing/public/features.h"
-#include "components/saved_tab_groups/public/features.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
-#include "components/sync/model/data_type_store_service.h"
 
 namespace collaboration::messaging {
 

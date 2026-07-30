@@ -49,11 +49,6 @@ BASE_DECLARE_FEATURE(kNtpModulesDragAndDrop);
 BASE_DECLARE_FEATURE(kNtpModulesLoad);
 BASE_DECLARE_FEATURE(kNtpModuleSignInRequirement);
 BASE_DECLARE_FEATURE(kNtpOutlookCalendarModule);
-BASE_DECLARE_FEATURE(kNtpPhotosModule);
-BASE_DECLARE_FEATURE(kNtpPhotosModuleSoftOptOut);
-BASE_DECLARE_FEATURE(kNtpPhotosModuleCustomizedOptInTitle);
-BASE_DECLARE_FEATURE(kNtpPhotosModuleCustomizedOptInArtWork);
-BASE_DECLARE_FEATURE(kNtpPhotosModuleSplitSvgOptInArtWork);
 BASE_DECLARE_FEATURE(kNtpFeedModule);
 BASE_DECLARE_FEATURE(kNtpOneGoogleBar);
 BASE_DECLARE_FEATURE(kNtpSharepointModule);
@@ -85,6 +80,7 @@ BASE_DECLARE_FEATURE(kNtpFeatureOptimizationShortcutsRemoval);
 BASE_DECLARE_FEATURE(kNtpFeatureOptimizationDismissModulesRemoval);
 BASE_DECLARE_FEATURE(kNtpAnimatedDoodles);
 BASE_DECLARE_FEATURE(kNtpDoodleMurals);
+BASE_DECLARE_FEATURE(kLightningTakeoverEdition);
 
 // Parameter for controlling the luminosity difference for NTP elements on light
 // backgrounds.
@@ -136,12 +132,7 @@ extern const char kNtpModulesEligibleForHappinessTrackingSurveyParam[];
 // Parameter determining module trigger ids for HaTS for eligible module ids for
 // a given module interaction type.
 extern const char kNtpModulesInteractionBasedSurveyEligibleIdsParam[];
-// Parameter determining the type of Photos data to render.
-extern const char kNtpPhotosModuleDataParam[];
-// Parameter determining the art work in opt-in card.
-extern const char kNtpPhotosModuleOptInArtWorkParam[];
-// Parameter determining the title for the opt-in card.
-extern const char kNtpPhotosModuleOptInTitleParam[];
+
 // Parameter determining the variation of the omnibox theme matching.
 extern const char kRealboxMatchOmniboxThemeVariantParam[];
 extern const char kNtpMostRelevantTabResumptionModuleDataParam[];
@@ -244,10 +235,6 @@ extern const base::FeatureParam<int> kNtpNextMaxMVTilesBeforeShowMoreParam;
 // text instead of real suggestions.
 extern const base::FeatureParam<bool> kNtpNextShowStaticTextParam;
 
-// Parameter determining if the Action Chips on the NTP should display deep
-// dive suggestions.
-extern const base::FeatureParam<bool> kNtpNextShowDeepDiveSuggestionsParam;
-
 // Parameter determining if the recent tab should be run through client-side
 // sensitivity check.
 extern const base::FeatureParam<bool> kNtpNextClientSensitivityCheckParam;
@@ -259,10 +246,6 @@ extern const base::FeatureParam<bool> kNtpNextEnableCanvasChipParam;
 // steady state in NTP. If false, one is NOT generated in the steady state,
 // while one is still generated in the deep-dive state.
 extern const base::FeatureParam<bool> kNtpNextShowStaticRecentTabChipParam;
-
-// Parameter determining if the Action Chips on the NTP should display the
-// NTP Simplification UI.
-extern const base::FeatureParam<bool> kNtpNextShowSimplificationUIParam;
 
 // Parameter determining if the Action Chips on the NTP should display the
 // dismissal UI.

@@ -111,6 +111,7 @@ void AXVirtualView::AddChildViewAt(std::unique_ptr<AXVirtualView> view,
       has_focusable_ancestor());
 
   AXUpdateNotifier::Get()->NotifyChildAdded(added_view, this);
+  FireLiveRegionChangedIfNeeded(LiveRegionEventTrigger::kAdditions);
 
   if (owner_view) {
     owner_view->NotifyAccessibilityEventDeprecated(
@@ -179,6 +180,9 @@ std::unique_ptr<AXVirtualView> AXVirtualView::RemoveChildView(
       std::move(virtual_children_[cur_index.value()]);
   virtual_children_.erase(virtual_children_.begin() +
                           static_cast<ptrdiff_t>(cur_index.value()));
+
+  FireLiveRegionChangedIfNeeded(LiveRegionEventTrigger::kRemovals);
+
   child->virtual_parent_view_ = nullptr;
 
   if (GetOwnerView()) {
@@ -269,7 +273,6 @@ void AXVirtualView::NotifyEvent(ax::mojom::Event event_type,
     return;
   }
 
-  DCHECK(ax_platform_node_);
   if (event_type == ax::mojom::Event::kAlert) {
     CHECK(ui::IsAlert(GetRole()))
         << "On some platforms, the alert event does not work correctly unless "
@@ -284,8 +287,10 @@ void AXVirtualView::NotifyEvent(ax::mojom::Event event_type,
     }
   }
 
-  // This is used on platforms that have a native accessibility API.
-  ax_platform_node_->NotifyAccessibilityEvent(event_type);
+  if (!ViewAccessibility::IsViewsAccessibilityTreeEnabled()) {
+    DCHECK(ax_platform_node_);
+    ax_platform_node_->NotifyAccessibilityEvent(event_type);
+  }
 
   // This is used on platforms that don't have a native accessibility API.
   AXUpdateNotifier::Get()->NotifyVirtualViewEvent(this, event_type);
@@ -650,6 +655,7 @@ void AXVirtualView::OnViewHasNewAncestor(bool ancestor_focusable) {
   parent_view_is_drawn_ = !parent_invisible;
 
   UpdateInvisibleState();
+  UpdateContainerLiveStatus();
 
   // We only want to propagate the `ancestor_focusable` value if it's true. This
   // is because if this view is unfocusable, and it gets added to a tree with a

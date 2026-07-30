@@ -126,6 +126,7 @@ import org.chromium.ui.accessibility.AccessibilityState;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.WindowAndroid;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -288,6 +289,17 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
     // Fake android framework's cache for testing.
     private @Nullable FakeAndroidCache mFakeAndroidCache;
 
+    // A map of native helper objects to their Java counterparts allows unlimited scaling in number
+    // of tabs.
+    private static final Map<Long, WeakReference<WebContentsAccessibilityImpl>> sNativeHelperMap =
+            new HashMap<>();
+
+    @CalledByNative
+    private static @Nullable WebContentsAccessibilityImpl get(long nativeObj) {
+        WeakReference<WebContentsAccessibilityImpl> managerRef = sNativeHelperMap.get(nativeObj);
+        return managerRef != null ? managerRef.get() : null;
+    }
+
     /** Create a WebContentsAccessibilityImpl object. */
     private static class Factory implements UserDataFactory<WebContentsAccessibilityImpl> {
         @Override
@@ -328,7 +340,8 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         mHistogramRecorder = new AccessibilityHistogramRecorder();
 
         if (ContentFeatureMap.isEnabled(
-                ContentFeatures.ACCESSIBILITY_REQUEST_SCOPED_CONTENT_CHANGED_EVENTS)) {
+                        ContentFeatures.ACCESSIBILITY_REQUEST_SCOPED_CONTENT_CHANGED_EVENTS)
+                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             mFakeAndroidCache = new FakeAndroidCache(this, mHistogramRecorder);
         }
 
@@ -565,6 +578,10 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
 
     @CalledByNative
     protected void onNativeObjectDestroyed() {
+        if (mNativeObj == 0) return;
+        WeakReference<WebContentsAccessibilityImpl> oldValue = sNativeHelperMap.remove(mNativeObj);
+        assert oldValue != null;
+        assert oldValue.get() == this;
         mNativeObj = 0;
     }
 
@@ -1052,9 +1069,8 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                     : "WebContentsAccessibility with no webContents should not be initialized, or"
                             + " it should be initialized during constructor with an AXTreeUpdate.";
 
-            mNativeObj =
-                    WebContentsAccessibilityImplJni.get()
-                            .init(this, mDelegate.getWebContents(), mAccessibilityNodeInfoBuilder);
+            mNativeObj = WebContentsAccessibilityImplJni.get().init(mDelegate.getWebContents());
+            sNativeHelperMap.put(mNativeObj, new WeakReference<>(this));
             onNativeInit();
         }
 
@@ -1069,10 +1085,19 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
     protected void initializeNativeWithAXTreeUpdate(long nativeAxTree) {
         assert !isNativeInitialized();
 
-        mNativeObj =
-                WebContentsAccessibilityImplJni.get()
-                        .initWithAXTree(this, nativeAxTree, mAccessibilityNodeInfoBuilder);
+        mNativeObj = WebContentsAccessibilityImplJni.get().initWithAXTree(nativeAxTree);
+        sNativeHelperMap.put(mNativeObj, new WeakReference<>(this));
         onNativeInit();
+    }
+
+    @CalledByNative
+    private AccessibilityNodeInfoBuilder getAccessibilityNodeInfoBuilder() {
+        return mAccessibilityNodeInfoBuilder;
+    }
+
+    @CalledByNative
+    private @Nullable FakeAndroidCache getFakeAndroidCache() {
+        return mFakeAndroidCache;
     }
 
     @CalledByNative
@@ -1383,7 +1408,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         if (ContentFeatureMap.isEnabled(ContentFeatureList.ACCESSIBILITY_UNIFIED_SNAPSHOTS)) {
             mNativeAssistDataObj =
                     WebContentsAccessibilityImplJni.get()
-                            .initForAssistData(this, webContents, new AssistDataBuilder());
+                            .initForAssistData(webContents, new AssistDataBuilder());
 
             WebContentsAccessibilityImplJni.get()
                     .requestAccessibilityTreeSnapshot(
@@ -2128,11 +2153,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         }
 
         if (mFakeAndroidCache != null) {
-            if (setSubtreeChanged) {
-                mFakeAndroidCache.clearNode(virtualViewId, /* recursive= */ true);
-            } else {
-                mFakeAndroidCache.clearNode(virtualViewId, /* recursive= */ false);
-            }
+            mFakeAndroidCache.clearNode(virtualViewId, /* recursive= */ setSubtreeChanged);
         }
 
         mHistogramRecorder.incrementEnqueuedEvents();
@@ -2718,19 +2739,12 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
 
     @NativeMethods
     interface Natives {
-        long init(
-                WebContentsAccessibilityImpl self,
-                WebContents webContents,
-                AccessibilityNodeInfoBuilder builder);
+        long init(WebContents webContents);
 
-        long initWithAXTree(
-                WebContentsAccessibilityImpl self,
-                long axTreePtr,
-                AccessibilityNodeInfoBuilder builder);
+        long initWithAXTree(long axTreePtr);
 
         // These two methods are only used for one-off accessibility tree snapshots.
         long initForAssistData(
-                WebContentsAccessibilityImpl self,
                 @Nullable WebContents webContents,
                 AssistDataBuilder builder);
 
@@ -2911,6 +2925,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                 boolean hasSentPreviousRequest);
 
         int getPaintOrder(long nativeWebContentsAccessibilityAndroid, int id);
+
         void requestLayoutBasedActions(
                 long nativeWebContentsAccessibilityAndroid,
                 int id,

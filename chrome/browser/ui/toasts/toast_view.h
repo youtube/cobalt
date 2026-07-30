@@ -33,6 +33,7 @@ namespace toasts {
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+// LINT.IfChange(ToastCloseReason)
 enum class ToastCloseReason {
   kAutoDismissed = 0,
   kActionButton = 1,
@@ -43,6 +44,7 @@ enum class ToastCloseReason {
   kAbort = 6,
   kMaxValue = kAbort
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/toasts/enums.xml:ToastCloseReason)
 
 // The view for toasts.
 class ToastView : public views::BubbleDialogDelegateView,
@@ -58,7 +60,7 @@ class ToastView : public views::BubbleDialogDelegateView,
       views::View* anchor_view,
       const std::u16string& toast_text,
       const gfx::VectorIcon& icon,
-      const ui::ImageModel* image_override,
+      std::optional<ui::ImageModel> image_override,
       bool should_hide_ui_for_fullscreen,
       base::RepeatingCallback<void(ToastCloseReason)> on_toast_close_callback);
   ~ToastView() override;
@@ -122,7 +124,7 @@ class ToastView : public views::BubbleDialogDelegateView,
 
   const std::u16string toast_text_;
   const raw_ref<const gfx::VectorIcon> icon_;
-  const raw_ptr<const ui::ImageModel> image_override_;
+  const std::optional<ui::ImageModel> image_override_;
   bool render_toast_over_web_contents_;
   bool has_close_button_ = false;
   bool has_action_button_ = false;

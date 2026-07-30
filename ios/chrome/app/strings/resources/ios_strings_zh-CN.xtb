@@ -107,6 +107,7 @@
 <translation id="1369286077209859800">显示标签页分组中的所有标签页</translation>
 <translation id="136942498637440594">您可以搜索图片和您看到的内容。</translation>
 <translation id="1373120905936431262">上传图片，使用 Nano Banana 改换风格</translation>
+<translation id="1377321085342047638">卡号</translation>
 <translation id="1377508275003315939">密码</translation>
 <translation id="1381022135873211423">{count,plural, =1{第 {position} 个地址，共 {count} 个}other{第 {position} 个地址，共 {count} 个}}</translation>
 <translation id="1383876407941801731">搜索</translation>
@@ -151,7 +152,6 @@
 <translation id="1517166097004694782">隐藏“继续使用此标签页”</translation>
 <translation id="1520027731907768768">接收所跟踪商品的降价提醒。</translation>
 <translation id="1521366073263497277">前往标签页网格</translation>
-<translation id="1521774566618522728">今天曾有活动</translation>
 <translation id="1523567067736644845">解锁即可显示密码</translation>
 <translation id="1524563461097350801">不用了</translation>
 <translation id="1531038290222364269">显示标签页</translation>
@@ -376,6 +376,7 @@
 <translation id="2299218006564889602">系统会先在设备上对您的密码进行加密，然后再将其保存到 Google 密码管理工具中。</translation>
 <translation id="2306265833370324042">显示<ph name="SEARCH_ENGINE_NAME" />详细信息</translation>
 <translation id="2309265394777270359">关闭标签页</translation>
+<translation id="2310789833878085574">保存并自动填充</translation>
 <translation id="2311077293164383652">关闭固定标签页</translation>
 <translation id="2316129865977710310">不用了</translation>
 <translation id="2320166752086256636">隐藏键盘</translation>
@@ -493,7 +494,7 @@
 <translation id="2721190673959776287">上下文面板的产品内帮助详细说明示例，每天会显示多次。</translation>
 <translation id="2739887572830526131">您可以保留此分组，以便日后添加标签页；如果不再需要，也可以将其删除。</translation>
 <translation id="2747003861858887689">上一个字段</translation>
-<translation id="2750583038402718064">已将 <ph name="WEBSITE_TITLE" /> 移至位置 <ph name="POSITION" /></translation>
+<translation id="2750583038402718064">已将<ph name="WEBSITE_TITLE" />移至位置 <ph name="POSITION" /></translation>
 <translation id="2755485474385016903">分组中的所有人都会看到所做的更改</translation>
 <translation id="2755595981383829244">现在您将收到内容通知</translation>
 <translation id="2761788987260570878">拍摄要搜索的内容</translation>
@@ -641,7 +642,7 @@
 <translation id="3324193307694657476">地址第2行</translation>
 <translation id="3328801116991980348">网站信息</translation>
 <translation id="333229797575847124">如何启用此功能</translation>
-<translation id="334004756946755423">给我解释一下：</translation>
+<translation id="334004756946755423">请解释：</translation>
 <translation id="3344233834747405775">无效持卡人姓名</translation>
 <translation id="3344485292736684439">{count,plural, =1{已将书签保存到账号 {email} 中的“{title}”}other{已将书签保存到账号 {email} 中的“{title}”}}</translation>
 <translation id="334690320928261823">最近打开的标签页</translation>
@@ -906,6 +907,7 @@
 <translation id="4287172530684295552">标为已读</translation>
 <translation id="428768789042547925">新变化</translation>
 <translation id="429074084062258019">{count,plural, =1{向分组中添加标签页}other{向分组中添加标签页}}</translation>
+<translation id="4300830875340617674">扫描卡片并自动填充</translation>
 <translation id="4302061870579014542">设置位置</translation>
 <translation id="4304713468139749426">密码管理工具</translation>
 <translation id="4306349443295056740">OCSP 签名</translation>
@@ -1098,7 +1100,6 @@
 <translation id="4944543191714094452">在网页中查找…</translation>
 <translation id="4945756290001680296">访问密码设置</translation>
 <translation id="4949302115427722371">管理设置…</translation>
-<translation id="4952050521954075618">相机胶卷中的照片不会在您的不同设备之间同步</translation>
 <translation id="4958444002117714549">展开列表</translation>
 <translation id="496392417432935267">已在别处打开</translation>
 <translation id="4970724460420203313">使用受管理的账号登录 Chrome 有助于您将与组织相关的浏览数据（包括标签页、历史记录和密码）与其他浏览数据分开</translation>
@@ -1147,7 +1148,6 @@
 <translation id="5119329531859909472">如需跟踪此商品，请点按“跟踪”</translation>
 <translation id="5121618895923301719">您已在跟踪此商品。该网页已保存在<ph name="BEGIN_LINK" />移动设备书签<ph name="END_LINK" />中。</translation>
 <translation id="512533434554095351">发现多个密码问题。</translation>
-<translation id="5127538504377457572"><ph name="DAYS" /> 天前曾有活动</translation>
 <translation id="5128788795241319992">探索新菜单</translation>
 <translation id="5132942445612118989">将您的密码、历史记录等信息同步到所有设备上</translation>
 <translation id="5141363746588976328">隐藏“您打开的标签页中有降价”卡片</translation>
@@ -1182,6 +1182,7 @@
 <translation id="5225388483876575107">A</translation>
 <translation id="5225463052809312700">开启摄像头</translation>
 <translation id="5229315183665181733">修改网站</translation>
+<translation id="5233111790346066304">在 Google 云端硬盘中保存文件，即可随时随地访问。</translation>
 <translation id="5233638681132016545">打开新的标签页</translation>
 <translation id="5234094073825090254">{count,plural, =1{书签已保存到您的 Google 账号 {email}。}other{书签已保存到您的 Google 账号 {email}。}}</translation>
 <translation id="5234764350956374838">关闭</translation>
@@ -1264,6 +1265,7 @@
 <translation id="5556459405103347317">重新加载</translation>
 <translation id="555749644339804659">正在检查密码…</translation>
 <translation id="5559567453458728487">转换在网上找到的计量单位</translation>
+<translation id="5560088892362098740">到期日期</translation>
 <translation id="556042886152191864">按钮</translation>
 <translation id="5565871407246142825">信用卡</translation>
 <translation id="5566623128829375608">这些信息会保存在您的设备上。</translation>
@@ -1351,6 +1353,7 @@
 <translation id="5819208479324046259">由 <ph name="MANAGER" /> 管理。<ph name="BEGIN_LINK" />了解详情<ph name="END_LINK" /></translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5829649908290113115">正在同步…</translation>
+<translation id="5831217499016131155">Google 电子钱包</translation>
 <translation id="583281660410589416">未知</translation>
 <translation id="5838430324585198889">在 iPad 上使用 Google 应用，解锁更多精彩功能</translation>
 <translation id="583923961930319521">在您的所有设备上使用密码</translation>
@@ -1648,6 +1651,7 @@
 <translation id="6806550742467879742">网页工具</translation>
 <translation id="6807287147325542056">其他应用中的密码</translation>
 <translation id="681368974849482173">书签已创建</translation>
+<translation id="6820686453637990663">CVC</translation>
 <translation id="6825078212112407882">{count,plural, =1{书签已保存到您的 Google 账号 {email}}other{{count} 个书签已保存到您的 Google 账号 {email}}}</translation>
 <translation id="6826004672264649705">正在跟踪此商品。打开即可查看价格历史记录</translation>
 <translation id="6830728435402077660">不安全</translation>
@@ -1961,7 +1965,6 @@
 <translation id="7952670906562503188">您即将删除 {passkey_count} 个通行密钥以及您选择一律不保存登录信息的网站和应用列表。您为网站和应用创建的任何账号都不会被删除。</translation>
 <translation id="7958575506592576831">网页安全信息</translation>
 <translation id="7961015016161918242">一律不</translation>
-<translation id="7971136598759319605">1 天前曾有活动</translation>
 <translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">试用</translation>
 <translation id="797588153137233716">菜单 → 历史记录 → 删除浏览数据</translation>

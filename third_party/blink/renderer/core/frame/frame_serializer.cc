@@ -499,7 +499,7 @@ class SerializerMarkupAccumulator : public MarkupAccumulator {
     }
 
     // The z-index should be greater than the threshold.
-    if (box->Style()->EffectiveZIndex() < kPopupOverlayZIndexThreshold) {
+    if (box->StyleRef().EffectiveZIndex() < kPopupOverlayZIndexThreshold) {
       return false;
     }
 
@@ -666,10 +666,7 @@ class SerializerMarkupAccumulator : public MarkupAccumulator {
   }
 
   EmitElementChoice WillProcessElement(const Element& element) override {
-    if (IsA<HTMLScriptElement>(element)) {
-      return EmitElementChoice::kIgnore;
-    }
-    if (IsA<HTMLNoScriptElement>(element)) {
+    if (element.IsScriptElement() || IsA<HTMLNoScriptElement>(element)) {
       return EmitElementChoice::kIgnore;
     }
     auto* meta = DynamicTo<HTMLMetaElement>(element);
@@ -892,8 +889,7 @@ function main(metadata) {
 
     KURL pseudo_sheet_url = MakePseudoCSSUrl();
     AppendLinkElement(markup_, pseudo_sheet_url);
-    SerializeCSSStyleSheet(static_cast<CSSStyleSheet&>(sheet),
-                           pseudo_sheet_url);
+    SerializeCSSStyleSheet(To<CSSStyleSheet>(sheet), pseudo_sheet_url);
   }
 
   void AppendStylesheets(StyleSheetList& sheets, bool style_element_only) {
@@ -922,8 +918,7 @@ function main(metadata) {
         pseudo_sheet_url = iter->value;
       } else {
         pseudo_sheet_url = MakePseudoCSSUrl();
-        SerializeCSSStyleSheet(static_cast<CSSStyleSheet&>(*sheet),
-                               pseudo_sheet_url);
+        SerializeCSSStyleSheet(*sheet, pseudo_sheet_url);
         stylesheet_pseudo_urls_.insert(sheet, pseudo_sheet_url);
       }
 
@@ -944,8 +939,7 @@ function main(metadata) {
 
       KURL pseudo_sheet_url = MakePseudoCSSUrl();
       AppendLinkElement(markup_, pseudo_sheet_url);
-      SerializeCSSStyleSheet(static_cast<CSSStyleSheet&>(*sheet),
-                             pseudo_sheet_url);
+      SerializeCSSStyleSheet(To<CSSStyleSheet>(*sheet), pseudo_sheet_url);
     }
   }
 

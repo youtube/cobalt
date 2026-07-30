@@ -268,7 +268,7 @@ bool ShowPredictions(const WebDocument& document,
       });
     }
 
-    WebString kAutocomplete = WebString::FromASCII("autocomplete");
+    WebString kAutocomplete = WebString::FromAscii("autocomplete");
     if (element.HasAttribute(kAutocomplete)) {
       autofill_info +=
           "\nautocomplete: " +
@@ -342,10 +342,14 @@ AutofillAgent::Config CreateConfig(bool uses_platform_autofill) {
   };
 }
 
-// @memory should be triggered if no text is selected and the cursor is located
-// behind two '@' symbols.
+// @memory should be triggered if the field is not a password field, no text is
+// selected and the cursor is located behind two '@' symbols.
 bool ShouldTriggerAtMemorySearch(const blink::WebFormControlElement& element) {
   if (!base::FeatureList::IsEnabled(features::kAutofillAtMemory)) {
+    return false;
+  }
+  if (element.FormControlTypeForAutofill() ==
+      blink::mojom::FormControlType::kInputPassword) {
     return false;
   }
   const unsigned int sel_start = element.SelectionStart();
@@ -1286,7 +1290,7 @@ void AutofillAgent::ApplyFieldAction(
             }
             previewed_elements_.emplace_back(field_id,
                                              form_control.GetAutofillState());
-            form_control.SetSuggestedValue(WebString::FromUTF16(preview_value));
+            form_control.SetSuggestedValue(WebString::FromUtf16(preview_value));
             break;
           }
           case mojom::FieldActionType::kReplaceSelection:
@@ -1296,7 +1300,7 @@ void AutofillAgent::ApplyFieldAction(
           case mojom::FieldActionType::kReplaceAll:
             previewed_elements_.emplace_back(field_id,
                                              form_control.GetAutofillState());
-            form_control.SetSuggestedValue(WebString::FromUTF16(value));
+            form_control.SetSuggestedValue(WebString::FromUtf16(value));
             break;
           case mojom::FieldActionType::kSelectAll:
             NOTIMPLEMENTED() << "Previewing select all is not implemented";
@@ -1319,12 +1323,12 @@ void AutofillAgent::ApplyFieldAction(
                     .Equals("@@")) {
               form_control.SetSelectionRange(sel_start - 2, sel_start);
             }
-            form_control.PasteText(WebString::FromUTF16(value),
+            form_control.PasteText(WebString::FromUtf16(value),
                                    /*replace_all=*/false);
             break;
           }
           case mojom::FieldActionType::kReplaceSelection: {
-            form_control.PasteText(WebString::FromUTF16(value),
+            form_control.PasteText(WebString::FromUtf16(value),
                                    /*replace_all=*/false);
             break;
           }
@@ -1376,7 +1380,7 @@ void AutofillAgent::ApplyFieldAction(
             [[fallthrough]];
           case mojom::FieldActionType::kReplaceSelection:
             content_editable.PasteText(
-                WebString::FromUTF16(value),
+                WebString::FromUtf16(value),
                 /*replace_all=*/
                 (action_type == mojom::FieldActionType::kReplaceAll));
             break;
@@ -1389,8 +1393,8 @@ void AutofillAgent::ApplyFieldAction(
               frame->SetEditableSelectionOffsets(selection.StartOffset() - 2,
                                                  selection.StartOffset());
             }
-            frame->ExecuteCommand(WebString::FromASCII("InsertText"),
-                                  WebString::FromUTF16(value));
+            frame->ExecuteCommand(WebString::FromAscii("InsertText"),
+                                  WebString::FromUtf16(value));
             break;
         }
     }
@@ -1636,7 +1640,7 @@ void AutofillAgent::DoFillFieldWithValue(std::u16string_view value,
                                          WebFormControlElement& element,
                                          WebAutofillState autofill_state) {
   DCHECK(form_util::MaybeWasOwnedByFrame(element, unsafe_render_frame()));
-  element.SetAutofillValue(WebString::FromUTF16(value), autofill_state);
+  element.SetAutofillValue(WebString::FromUtf16(value), autofill_state);
   UpdateStateForTextChange(element,
                            autofill_state == WebAutofillState::kAutofilled
                                ? FieldPropertiesFlags::kAutofilledOnUserTrigger

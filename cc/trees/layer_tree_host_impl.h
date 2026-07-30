@@ -578,6 +578,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   ImageAnimationController* image_animation_controller() {
     return image_animation_controller_.get();
   }
+  base::flat_map<PaintImage::Id, bool> GatherImageAnimationState() const;
 
   ImageDecodeCache* GetImageDecodeCache() const;
 
@@ -750,7 +751,8 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   void ScheduleMicroBenchmark(std::unique_ptr<MicroBenchmarkImpl> benchmark);
 
   viz::RegionCaptureBounds CollectRegionCaptureBounds();
-  viz::TrackedElementRects CollectTrackedElementRects();
+  viz::TrackedElementRects CollectTrackedElementRects(
+      bool is_for_compositor_frame_metadata);
 
   viz::CompositorFrameMetadata MakeCompositorFrameMetadata();
   RenderFrameMetadata MakeRenderFrameMetadata(FrameData* frame);

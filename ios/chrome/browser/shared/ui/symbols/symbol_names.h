@@ -28,7 +28,9 @@ extern NSString* const kGoogleShieldSymbol;
 extern NSString* const kGoogleMapsSymbol;
 extern NSString* const kGooglePaySymbol;
 extern NSString* const kGooglePhotosSymbol;
+extern NSString* const kGoogleWalletIconSymbol;
 extern NSString* const kGoogleWalletSymbol;
+extern NSString* const kGPayPillIconSymbol;
 extern NSString* const kMulticolorChromeballSymbol;
 extern NSString* const kPageInsightsSymbol;
 #else
@@ -105,6 +107,7 @@ extern NSString* const kChartLineDowntrendXYAxisSymbol;
 extern NSString* const kCircleSymbol;
 extern NSString* const kCircleFillSymbol;
 extern NSString* const kPhotoSymbol;
+extern NSString* const kPaperclipSymbol;
 extern NSString* const kPhotoBadgeArrowDownSymbol;
 extern NSString* const kTabGroupsSymbol;
 extern NSString* const kCropSymbol;

@@ -24,7 +24,6 @@
 <translation id="1089606299949659462">Kontrola dokončena.</translation>
 <translation id="1094555143448724771">Pokud chcete zobrazit karty ze svých ostatních zařízení, synchronizujte karty a historii</translation>
 <translation id="1095761715416917775">Zajistěte, abyste k synchronizovaným datům měli vždy přístup</translation>
-<translation id="1096091316906284742">Spodní panel přihlášení k funkci Chrome Finds</translation>
 <translation id="1100066534610197918">Otevřít na nové kartě ve skup.</translation>
 <translation id="1103142993930332957">Pomoci Chrome zlepšit?</translation>
 <translation id="1105960400813249514">Snímky obrazovky</translation>
@@ -104,7 +103,6 @@
 <translation id="1381838868249179644">Kvůli ochraně vaší bezpečnosti byla některým webům odebrána oprávnění</translation>
 <translation id="1383876407941801731">Vyhledávání</translation>
 <translation id="1384704387250346179">Přeložit obrázek pomocí Google Lens <ph name="BEGIN_NEW" />Nové<ph name="END_NEW" /></translation>
-<translation id="1386674309198842382">Aktivní před tímto počtem dní: <ph name="LAST_UPDATED" /></translation>
 <translation id="1390418506739274310">Můžete vidět historii z jiných aplikací, které otevírají odkazy v Chromu. Na stránce <ph name="BEGIN_LINK" />myactivity.google.com<ph name="END_LINK" /> mohou být k dispozici další druhy historie prohlížení zaznamenané ve vašem účtu Google.</translation>
 <translation id="139752016751285248">Spodní panel s informacemi o ceně otevřený přes celou výšku obrazovky</translation>
 <translation id="1397811292916898096">Hledat pomocí vyhledávače <ph name="PRODUCT_NAME" /></translation>
@@ -136,7 +134,6 @@ Další nastavení využití dat ke zlepšení prostředí v prohlížeči Chro
 <translation id="1513352483775369820">Záložky a webová historie</translation>
 <translation id="1515901671075971249">Zkratky k přecházení mezi kartami</translation>
 <translation id="1516966594427080024">Otevřít nové okno v anonymním režimu</translation>
-<translation id="1521774566618522728">Aktivní dnes</translation>
 <translation id="153446405401665083">K dispozici je nová verze Chromu</translation>
 <translation id="1540012742443808215">Adresní řádek je aktuálně nahoře</translation>
 <translation id="1544084554881119930">Platební metody a adresy nebudou šifrovány. Historie prohlížení v Chromu se nebude synchronizovat.
@@ -222,6 +219,7 @@ Vaše šifrovaná data mohou číst pouze uživatelé, kteří mají vaši heslo
 <translation id="1925021887439448749">Zadejte vlastní webovou adresu</translation>
 <translation id="1928618076168182477">Je zobrazeno vizuální zobrazení</translation>
 <translation id="1928696683969751773">Aktualizace</translation>
+<translation id="1934545916152269346">Naposledy použité</translation>
 <translation id="1943398124995840148">Otevřené karty teď mají v rozšířené realitě nový vzhled</translation>
 <translation id="1944535645109964458">Nejsou k dispozici žádné přístupové klíče</translation>
 <translation id="1957557050935255529">Načítání PDF…</translation>
@@ -618,7 +616,6 @@ Vaše šifrovaná data mohou číst pouze uživatelé, kteří mají vaši heslo
 <translation id="3635073343384702370">Chrome může hesla zkontrolovat, pouze když si je uložíte</translation>
 <translation id="3636940436873918441">Preferované jazyky</translation>
 <translation id="3637744895182738742">Pokud heslovou frázi zapomenete nebo toto nastavení budete chtít změnit, <ph name="BEGIN_LINK" />vymažte data prohlížeče Chrome ve svém účtu<ph name="END_LINK" />.</translation>
-<translation id="3641581193271938629">Přihlášení k funkci Chrome Finds bylo zavřeno</translation>
 <translation id="3647019414263135904">Otevřít nebo zavřít kontextové vyskakovací okno</translation>
 <translation id="3653111872753786013"><ph name="WEBSITE_TITLE" />: <ph name="WEBSITE_URL" /></translation>
 <translation id="3674208116086565128">Přejít na domovskou kartu aplikace Google</translation>
@@ -801,7 +798,6 @@ Vaše šifrovaná data mohou číst pouze uživatelé, kteří mají vaši heslo
 <translation id="4387647248986092471">Vytvořit zámek profilu auta</translation>
 <translation id="4387817230000841154">Otevřít stažené položky</translation>
 <translation id="4394049700291259645">Deaktivovat</translation>
-<translation id="4395046795145457714">Přihlášení k funkci Chrome Finds otevřené na celou výšku</translation>
 <translation id="4398561997852463382"><ph name="TAB_TITLE" />, vybraná připnutá nahrávající anonymní karta</translation>
 <translation id="4402611456429872546"><ph name="LANG" /> – Stahování…</translation>
 <translation id="4404568932422911380">Žádné záložky</translation>
@@ -1259,6 +1255,7 @@ Některé weby mohou například na tento požadavek reagovat tak, že vám zobr
 <translation id="6251449557817521191">Zde si můžete prohlédnout svou historii Chromu</translation>
 <translation id="6254139308321626268">Prohlížíte si soubor PDF</translation>
 <translation id="6255809143828972562">S nástroji v prohlížeči Chrome budete při procházení v bezpečí a budete mít vše pod kontrolou</translation>
+<translation id="6260260490042862943">Ovládací prvky webu</translation>
 <translation id="6264376385120300461">Přesto stáhnout</translation>
 <translation id="6264485186158353794">Zpět na bezpečnější stránku</translation>
 <translation id="6267106249090587268">Oznámení <ph name="SEPARATOR" /> Tato oprávnění Chrome kvůli spamu nebo klamavému obsahu odebral</translation>
@@ -1370,7 +1367,6 @@ Některé weby mohou například na tento požadavek reagovat tak, že vám zobr
 <translation id="6648977384226967773">{CONTACT,plural, =1{<ph name="CONTACT_PREVIEW" /> a <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> další}few{<ph name="CONTACT_PREVIEW" /> a <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> další}many{<ph name="CONTACT_PREVIEW" /> a <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> dalšího}other{<ph name="CONTACT_PREVIEW" /> a <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> dalších}}</translation>
 <translation id="6649642165559792194">Zobrazit náhled obrázku <ph name="BEGIN_NEW" />Nové<ph name="END_NEW" /></translation>
 <translation id="6659594942844771486">Tabulátor</translation>
-<translation id="6661521899577697780">Přihlášení k funkci Chrome Finds je otevřené na polovinu výšky</translation>
 <translation id="666731172850799929">Otevřít v aplikaci <ph name="APP_NAME" /></translation>
 <translation id="6669390930482049506">Chci dostávat oznámení</translation>
 <translation id="6670767097276846646">Některá rozšíření mohou do Chromu přidat vyhledávače</translation>
@@ -1727,7 +1723,6 @@ Pokud toto nastavení chcete změnit, <ph name="BEGIN_LINK" />vymažte data proh
 <translation id="7968014550143838305">Přidáno do seznamu četby</translation>
 <translation id="7968982339740310781">Zobrazit podrobnosti</translation>
 <translation id="7969391000881506217">Datum konce platnosti*</translation>
-<translation id="7971136598759319605">Aktivní včera</translation>
 <translation id="7975379999046275268">Zobrazit náhled stránky <ph name="BEGIN_NEW" />Nové<ph name="END_NEW" /></translation>
 <translation id="7977451675950311423">Upozorní vás, pokud používáte heslo, které bylo prozrazeno při porušení zabezpečení dat.</translation>
 <translation id="7987499071758862048"><ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" /> <ph name="SEPARATOR" /> Chrome tato oprávnění odebral, protože jste tento web v poslední době nenavštívili</translation>

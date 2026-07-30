@@ -71,7 +71,9 @@ CanvasResource::CanvasResource(
     : gpu::ClientImage(std::move(shared_image)),
       owning_thread_ref_(base::PlatformThread::CurrentRef()),
       owning_thread_task_runner_(
-          ThreadScheduler::Current()->CleanupTaskRunner()) {}
+          ThreadScheduler::Current()->CleanupTaskRunner()) {
+  subclass_manages_destruction_sync_token_ = true;
+}
 
 gpu::InterfaceBase* CanvasResource::InterfaceBase() const {
   if (!ContextProviderWrapper())
@@ -152,7 +154,7 @@ bool CanvasResource::PrepareTransferableResource(
   if (!out_resource)
     return true;
 
-  auto client_shared_image = GetClientSharedImage();
+  auto client_shared_image = GetSharedImage();
   if (!client_shared_image) {
     return false;
   }
@@ -218,7 +220,7 @@ void CanvasResourceSharedImage::InitializeSoftware(
   DCHECK(shared_image_interface);
   gpu::SyncToken sync_token = shared_image_interface->GenVerifiedSyncToken();
   SetReleaseSyncToken(sync_token);
-  GetClientSharedImage()->UpdateDestructionSyncToken(sync_token);
+  GetSharedImage()->UpdateDestructionSyncToken(sync_token);
 
   is_initialized_ = true;
 }
@@ -299,9 +301,9 @@ bool CanvasResourceSharedImage::IsValid() const {
 }
 
 SkImageInfo CanvasResourceSharedImage::CreateSkImageInfo() const {
-  auto size = GetClientSharedImage()->size();
-  auto format = GetClientSharedImage()->format();
-  auto color_space = GetClientSharedImage()->color_space();
+  auto size = GetSharedImage()->size();
+  auto format = GetSharedImage()->format();
+  auto color_space = GetSharedImage()->color_space();
   return SkImageInfo::Make(SkISize::Make(size.width(), size.height()),
                            viz::ToClosestSkColorType(format), alpha_type_,
                            color_space.ToSkColorSpace());
@@ -369,7 +371,7 @@ scoped_refptr<StaticBitmapImage> CanvasResourceSharedImage::Bitmap() {
       &ReleaseFrameResources, scoped_refptr<CanvasResourceSharedImage>(this));
 
   scoped_refptr<StaticBitmapImage> image;
-  const auto& client_shared_image = GetClientSharedImage();
+  const auto& client_shared_image = GetSharedImage();
 
   // If its cross thread, then the sync token was already verified.
   image = AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
@@ -401,7 +403,7 @@ void CanvasResourceSharedImage::UploadSoftwareRenderingResults(
     SkSurface* sk_surface) {
   // Copy the rendering results from `sk_surface` to the SharedImage backing
   // this resource.
-  auto scoped_mapping = GetClientSharedImage()->Map();
+  auto scoped_mapping = GetSharedImage()->Map();
   if (!scoped_mapping) {
     LOG(ERROR) << "MapSharedImage failed.";
     return;
@@ -420,12 +422,12 @@ void CanvasResourceSharedImage::UploadSoftwareRenderingResults(
   // backing happen via shared memory.  It's also not currently trivial to add
   // in this case as setting the sync token here would require it to later be
   // verified before it is sent to the display compositor.
-  if (!GetClientSharedImage()->is_software()) {
+  if (!GetSharedImage()->is_software()) {
     DCHECK(!is_cross_thread());
     auto sync_token =
-        GetClientSharedImage()->BackingWasExternallyUpdated(gpu::SyncToken());
+        GetSharedImage()->BackingWasExternallyUpdated(gpu::SyncToken());
     SetReleaseSyncToken(sync_token);
-    GetClientSharedImage()->UpdateDestructionSyncToken(sync_token);
+    GetSharedImage()->UpdateDestructionSyncToken(sync_token);
   }
 }
 
@@ -434,7 +436,7 @@ void CanvasResourceSharedImage::WaitSyncToken(
   DCHECK(!is_cross_thread());
   if (sync_token.HasData()) {
     acquire_sync_token_ = sync_token;
-    GetClientSharedImage()->UpdateDestructionSyncToken(acquire_sync_token_);
+    GetSharedImage()->UpdateDestructionSyncToken(acquire_sync_token_);
     if (!base::FeatureList::IsEnabled(kCanvasResourceDefersWaitSyncToken)) {
       if (auto* interface_base = InterfaceBase()) {
         interface_base->WaitSyncTokenCHROMIUM(
@@ -446,18 +448,18 @@ void CanvasResourceSharedImage::WaitSyncToken(
 
 std::unique_ptr<gpu::RasterScopedAccess> CanvasResourceSharedImage::BeginAccess(
     bool readonly) {
-  return GetClientSharedImage()->BeginRasterAccess(
-      RasterInterface(), acquire_sync_token_, readonly);
+  return GetSharedImage()->BeginRasterAccess(RasterInterface(),
+                                             acquire_sync_token_, readonly);
 }
 
 void CanvasResourceSharedImage::EndAccess(
     std::unique_ptr<gpu::RasterScopedAccess> access) {
-  CHECK(!GetClientSharedImage()->is_software());
+  CHECK(!GetSharedImage()->is_software());
   DCHECK(!is_cross_thread());
 
   auto sync_token = gpu::RasterScopedAccess::EndAccess(std::move(access));
   SetReleaseSyncToken(sync_token);
-  GetClientSharedImage()->UpdateDestructionSyncToken(sync_token);
+  GetSharedImage()->UpdateDestructionSyncToken(sync_token);
 }
 
 void CanvasResourceSharedImage::VerifySyncToken() {
@@ -490,7 +492,7 @@ void CanvasResourceSharedImage::OnMemoryDump(
   if (!IsValid())
     return;
 
-  scoped_refptr<gpu::ClientSharedImage> client_si = GetClientSharedImage();
+  scoped_refptr<gpu::ClientSharedImage> client_si = GetSharedImage();
 
   std::string dump_name =
       base::StringPrintf("%s/CanvasResource_0x%" PRIXPTR, parent_path.c_str(),

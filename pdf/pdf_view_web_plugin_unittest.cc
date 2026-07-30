@@ -1621,13 +1621,13 @@ class PdfViewWebPluginImeTest : public PdfViewWebPluginTest {
 };
 
 TEST_F(PdfViewWebPluginImeTest, ImeSetCompositionAndFinishAscii) {
-  const blink::WebString text = blink::WebString::FromASCII("input");
+  const blink::WebString text = blink::WebString::FromAscii("input");
   TestImeSetCompositionForPlugin(text);
   TestImeFinishComposingTextForPlugin(text);
 }
 
 TEST_F(PdfViewWebPluginImeTest, ImeSetCompositionAndFinishUnicode) {
-  const blink::WebString text = blink::WebString::FromUTF16(u"你好");
+  const blink::WebString text = blink::WebString::FromUtf16(u"你好");
   TestImeSetCompositionForPlugin(text);
   TestImeFinishComposingTextForPlugin(text);
   // Calling ImeFinishComposingTextForPlugin() again is a no-op.
@@ -1641,12 +1641,12 @@ TEST_F(PdfViewWebPluginImeTest, ImeSetCompositionAndFinishEmpty) {
 }
 
 TEST_F(PdfViewWebPluginImeTest, ImeCommitTextForPluginAscii) {
-  const blink::WebString text = blink::WebString::FromASCII("a b");
+  const blink::WebString text = blink::WebString::FromAscii("a b");
   TestImeCommitTextForPlugin(text);
 }
 
 TEST_F(PdfViewWebPluginImeTest, ImeCommitTextForPluginUnicode) {
-  const blink::WebString text = blink::WebString::FromUTF16(u"さようなら");
+  const blink::WebString text = blink::WebString::FromUtf16(u"さようなら");
   TestImeCommitTextForPlugin(text);
 }
 
@@ -1735,7 +1735,7 @@ TEST_F(PdfViewWebPluginTest, SelectAll) {
   EXPECT_CALL(*engine_ptr_, SelectAll);
 
   EXPECT_TRUE(plugin_->ExecuteEditCommand(
-      /*name=*/blink::WebString::FromASCII("SelectAll"),
+      /*name=*/blink::WebString::FromAscii("SelectAll"),
       /*value=*/blink::WebString()));
 }
 

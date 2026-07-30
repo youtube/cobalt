@@ -72,10 +72,16 @@ gn_args.config(
 # Representative GN args for Android developer builds.
 gn_args.config(
     name = "android_developer",
+    args = {
+        # Developer uses build_server, but that needs autoninja. So disable static analysis on bots.
+        "android_static_analysis": "off",
+    },
     configs = [
         "android",
-        "arm64",
-        "developer",
+        "debug",
+        "minimal_symbols",
+        "shared",
+        "x64",
     ],
 )
 
@@ -823,7 +829,18 @@ gn_args.config(
 
 gn_args.config(
     name = "ios_developer",
-    configs = ["ios_simulator", "debug"],
+    # Settings from ios/build/tools/setup-gn.py, which is used by 90% of iOS developer builds now.
+    args = {
+        "bundle_pool_depth": 64,
+        "enable_dsyms": False,
+        "enable_remoting": False,
+        "enable_stripping": False,
+        "is_chrome_branded": False,
+        "is_official_build": False,
+        "target_platform": "iphoneos",
+        "use_official_google_api_keys": False,
+    },
+    configs = ["ios_simulator"],
 )
 
 gn_args.config(
@@ -931,6 +948,21 @@ gn_args.config(
     args = {
         "target_os": "mac",
     },
+)
+
+gn_args.config(
+    name = "mac_developer",
+    # This configuration is commonly used, but there are other frequently used
+    # configurations as well.
+    args = {
+        "is_debug": False,
+    },
+    configs = [
+        "no_symbols",
+        "static",
+        "mac",
+        "arm64",
+    ],
 )
 
 gn_args.config(
@@ -1519,6 +1551,24 @@ gn_args.config(
     args = {
         "system_webview_package_name": "com.google.android.webview.debug",
     },
+)
+
+gn_args.config(
+    name = "windows_developer",
+    # Currently, 70% of Windows developers use this configuration.
+    # See: https://chromium.googlesource.com/chromium/src/+/HEAD/docs/windows_build_instructions.md#faster-builds
+    args = {
+        "is_component_build": False,
+        "is_debug": False,
+        "v8_symbol_level": 0,
+        "blink_symbol_level": 0,
+    },
+    configs = [
+        "chrome_with_codecs",
+        "full_symbols",
+        "win",
+        "x64",
+    ],
 )
 
 gn_args.config(

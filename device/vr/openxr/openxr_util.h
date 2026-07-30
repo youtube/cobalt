@@ -5,12 +5,16 @@
 #ifndef DEVICE_VR_OPENXR_OPENXR_UTIL_H_
 #define DEVICE_VR_OPENXR_OPENXR_UTIL_H_
 
+#include <cstdint>
+#include <vector>
+
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "device/vr/public/mojom/pose.h"
 #include "device/vr/public/mojom/vr_service.mojom-forward.h"
 #include "device/vr/public/mojom/xr_session.mojom-forward.h"
 #include "third_party/openxr/src/include/openxr/openxr.h"
+#include "third_party/openxr/dev/xr_android.h"
 #include "ui/gfx/geometry/transform.h"
 #include "ui/gfx/geometry/transform_util.h"
 
@@ -69,6 +73,18 @@ bool IsPoseValid(XrSpaceLocationFlags locationFlags);
 
 bool IsFeatureSupportedForMode(device::mojom::XRSessionFeature feature,
                                device::mojom::XRSessionMode mode);
+
+mojom::XRSemanticLabel ToMojomSemanticLabel(
+    XrSpatialPlaneSemanticLabelEXT label);
+mojom::XRSemanticLabel ToMojomSemanticLabel(
+    XrSceneMeshSemanticLabelANDROID label);
+
+bool IsConvexPolygon(
+    const std::vector<mojom::XRPlanePointDataPtr>& polygon);
+
+// Ear-clipping triangulation for simple (non-self-intersecting) 2D polygons.
+std::vector<uint32_t> EarClipTriangulate(
+    const std::vector<mojom::XRPlanePointDataPtr>& polygon);
 
 // Define a concept for a struct to help validate that it can be safely cast to
 // an XrBaseOutStructure.

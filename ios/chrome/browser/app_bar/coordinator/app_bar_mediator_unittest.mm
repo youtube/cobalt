@@ -19,8 +19,8 @@
 #import "ios/chrome/browser/app_bar/ui/app_bar_consumer.h"
 #import "ios/chrome/browser/browsing_data/model/browsing_data_remover_factory.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/test/test_fullscreen_controller.h"
-#import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
-#import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service_impl.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_prefs.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
@@ -100,8 +100,8 @@ class AppBarMediatorTest : public PlatformTest {
             std::make_unique<FakeAuthenticationServiceDelegate>()));
     builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
                               base::BindRepeating(&CreateMockSyncService));
-    builder.AddTestingFactory(BwgServiceFactory::GetInstance(),
-                              BwgServiceFactory::GetDefaultFactory());
+    builder.AddTestingFactory(GeminiServiceFactory::GetInstance(),
+                              GeminiServiceFactory::GetDefaultFactory());
     builder.AddTestingFactory(
         OptimizationGuideServiceFactory::GetInstance(),
         OptimizationGuideServiceFactory::GetDefaultFactory());
@@ -119,7 +119,7 @@ class AppBarMediatorTest : public PlatformTest {
 
     auth_service_ =
         AuthenticationServiceFactory::GetForProfile(regular_profile_.get());
-    gemini_service_ptr_ = std::make_unique<BwgService>(
+    gemini_service_ptr_ = std::make_unique<BwgServiceImpl>(
         regular_profile_.get(), auth_service_,
         IdentityManagerFactory::GetForProfile(regular_profile_.get()),
         regular_profile_->GetTestingPrefService(),

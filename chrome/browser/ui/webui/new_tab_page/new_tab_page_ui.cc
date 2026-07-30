@@ -201,6 +201,12 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
   source->AddString("undoDescription", l10n_util::GetStringFUTF16(
                                            IDS_UNDO_DESCRIPTION,
                                            undo_accelerator.GetShortcutText()));
+  source->AddString("ntpPromoDismiss",
+                    l10n_util::GetStringUTF16(IDS_NTP_PROMO_DISMISS));
+  source->AddString("ntpPromoMenu",
+                    l10n_util::GetStringUTF16(IDS_NTP_PROMO_MENU_TOOLTIP));
+  source->AddString("ntpPromoMenuA11yLabel",
+                    l10n_util::GetStringUTF16(IDS_NTP_PROMO_MENU_A11Y_LABEL));
 
   GURL google_base_url = GURL(TemplateURLServiceFactory::GetForProfile(profile)
                                   ->search_terms_data()
@@ -240,8 +246,6 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
       "ntpNextFeaturesEnabled",
       ntp_realbox::IsNtpRealboxNextEnabled(profile) &&
           base::FeatureList::IsEnabled(ntp_features::kNtpNextFeatures));
-  source->AddBoolean("ntpNextShowSimplificationUIEnabled",
-                     ntp_features::kNtpNextShowSimplificationUIParam.Get());
   source->AddBoolean("ntpNextShowDismissalUIEnabled",
                      ntp_features::kNtpNextShowDismissalUIParam.Get());
   source->AddBoolean("ntpNextDisablementContextMenuEnabled",
@@ -730,12 +734,12 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
   source->AddInteger("browserPromoCompletedLimit",
                      browser_completed_promo_limit);
 
-  SearchboxHandler::SetupWebUIDataSource(
-      source, profile,
+  source->AddLocalizedStrings(SearchboxHandler::GetWebUIDataSourceDict(
+      profile,
       /*enable_voice_search=*/true,
       /*enable_lens_search=*/
       profile->GetPrefs()->GetBoolean(prefs::kLensDesktopNTPSearchEnabled),
-      session_allows_drag_and_drop);
+      session_allows_drag_and_drop));
 
   webui::SetupWebUIDataSource(source, kNewTabPageResources,
                               IDR_NEW_TAB_PAGE_NEW_TAB_PAGE_HTML);

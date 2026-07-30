@@ -105,6 +105,7 @@ import org.chromium.components.sync.SyncService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.components.user_prefs.UserPrefsJni;
 import org.chromium.ui.base.ActivityResultTracker;
+import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.DeviceInput;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.base.TestActivity;
@@ -262,7 +263,12 @@ public class HistoryUiTest {
         layoutRecyclerView();
 
         // App-specific history always enables the privacy disclaimer header item.
-        int expectedItemCount = 4 + (isAppSpecificHistoryEnabled ? 1 : 0);
+        // Large form factor device enables an inline search box header item.
+        int screenSize = mActivity.getResources().getConfiguration().smallestScreenWidthDp;
+        boolean isLargeFormFactorDevice =
+                DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity);
+        int expectedItemCount =
+                4 + (isAppSpecificHistoryEnabled ? 1 : 0) + (isLargeFormFactorDevice ? 1 : 0);
 
         Assert.assertEquals(expectedItemCount, mAdapter.getItemCount());
 
@@ -574,6 +580,23 @@ public class HistoryUiTest {
         toolbar.onSearchNavigationBack();
         Assert.assertEquals(View.GONE, toolbarShadow.getVisibility());
         Assert.assertEquals(View.GONE, toolbarSearchView.getVisibility());
+    }
+
+    @Test
+    @SmallTest
+    public void testSetQuery() {
+        HistoryManagerToolbar toolbar = mHistoryManager.getToolbarForTests();
+        View toolbarSearchView = toolbar.getSearchViewForTests();
+
+        Assert.assertEquals(View.GONE, toolbarSearchView.getVisibility());
+
+        String query = "programmatic query";
+        mHistoryManager.setQuery(query);
+
+        Assert.assertEquals(View.VISIBLE, toolbarSearchView.getVisibility());
+
+        EditText searchEditText = toolbarSearchView.findViewById(R.id.search_text);
+        Assert.assertEquals(query, searchEditText.getText().toString());
     }
 
     @EnableFeatures(ChromeFeatureList.APP_SPECIFIC_HISTORY)

@@ -15,6 +15,7 @@
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/lazy_instance.h"
+#include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
@@ -337,8 +338,8 @@ TranslateLanguageList::TranslateLanguageList()
   if (update_is_disabled)
     return;
 
-  language_list_fetcher_ = std::make_unique<TranslateURLFetcher>();
-  language_list_fetcher_->set_max_retry_on_5xx(kMaxRetryOn5xx);
+  language_list_fetcher_ =
+      std::make_unique<TranslateURLFetcherImpl>(kMaxRetryOn5xx);
 }
 
 TranslateLanguageList::~TranslateLanguageList() = default;
@@ -402,8 +403,8 @@ void TranslateLanguageList::RequestLanguageList() {
   request_pending_ = false;
 
   if (language_list_fetcher_.get() &&
-      (language_list_fetcher_->state() == TranslateURLFetcher::IDLE ||
-       language_list_fetcher_->state() == TranslateURLFetcher::FAILED)) {
+      (language_list_fetcher_->state() == TranslateUrlFetcher::IDLE ||
+       language_list_fetcher_->state() == TranslateUrlFetcher::FAILED)) {
     GURL url = TranslateLanguageUrl();
     url = AddHostLocaleToUrl(url);
     url = AddApiKeyToUrl(url);
@@ -438,7 +439,7 @@ base::CallbackListSubscription TranslateLanguageList::RegisterEventCallback(
 }
 
 bool TranslateLanguageList::HasOngoingLanguageListLoadingForTesting() {
-  return language_list_fetcher_->state() == TranslateURLFetcher::REQUESTING;
+  return language_list_fetcher_->state() == TranslateUrlFetcher::REQUESTING;
 }
 
 GURL TranslateLanguageList::LanguageFetchURLForTesting() {

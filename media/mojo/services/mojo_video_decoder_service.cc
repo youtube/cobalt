@@ -159,7 +159,7 @@ MojoVideoDecoderService::~MojoVideoDecoderService() {
 
   // Destruct the VideoDecoder here so its destruction duration is included by
   // the histogram timer below.
-  weak_factory_.InvalidateWeakPtrs();
+  weak_factory_.InvalidateWeakPtrsAndDoom();
   decoder_.reset();
 
   mojo_media_client_ = nullptr;
@@ -461,6 +461,12 @@ void MojoVideoDecoderService::OnReaderRead(
       !std::holds_alternative<VideoDecoderConfig>(*buffer->next_config())) {
     std::move(bad_message_callback)
         .Run("Invalid DecoderBuffer::next_config() for video.");
+    return;
+  }
+
+  if (!DecoderBuffer::DoSubsamplesMatch(*buffer)) {
+    std::move(bad_message_callback)
+        .Run("Invalid DecoderBuffer::subsamples for video.");
     return;
   }
 

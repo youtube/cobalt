@@ -374,8 +374,6 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
   void AddContentsVisualOverflow(const PhysicalRect& r);
   void UpdateHasSubpixelVisualEffectOutsets(const PhysicalBoxStrut&);
 
-  PhysicalBoxStrut ComputeVisualEffectOverflowOutsets();
-
   void ClearVisualOverflow();
 
   bool CanUseFragmentsForVisualOverflow() const;
@@ -910,9 +908,7 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
     return Parent() && Parent()->IsMathML();
   }
 
-  PhysicalOffset OffsetPoint(const Element* parent) const;
-  LayoutUnit OffsetLeft(const Element*) const final;
-  LayoutUnit OffsetTop(const Element*) const final;
+  PhysicalOffset OffsetPoint(const Element* parent) const final;
 
   // Create a new WritingModeConverter to handle offsets and rectangles inside
   // this container. This ignores TextDirection.
@@ -1019,10 +1015,6 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
   CustomLayoutChild* GetCustomLayoutChild() const;
   void AddCustomLayoutChildIfNeeded();
   void ClearCustomLayoutChild();
-
-  bool HitTestClippedOutByBorder(
-      const HitTestLocation&,
-      const PhysicalOffset& border_box_location) const;
 
   bool HitTestOverflowControl(HitTestResult&,
                               const HitTestLocation&,

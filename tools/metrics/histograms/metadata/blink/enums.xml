@@ -4847,7 +4847,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4376" label="EligibleForImageLoadingPrioritizationFix"/>
   <int value="4377" label="ExecutedNonTrivialJavaScriptURL"/>
   <int value="4378" label="StorageBucketsOpen"/>
-  <int value="4379" label="PerformanceEntryBufferSwaps"/>
+  <int value="4379" label="OBSOLETE_PerformanceEntryBufferSwaps"/>
   <int value="4380" label="ClearPerformanceEntries"/>
   <int value="4381"
       label="ViewportDependentLazyLoadedImageWithoutSizesAttribute"/>
@@ -5992,7 +5992,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5377" label="DOMWindowOpenPopup"/>
   <int value="5378" label="FencedFrameDisableUntrustedNetwork"/>
   <int value="5379" label="FencedFrameNotifyEvent"/>
-  <int value="5380" label="SharedStorageGetInFencedFrame"/>
+  <int value="5380" label="OBSOLETE_SharedStorageGetInFencedFrame"/>
   <int value="5381" label="OBSOLETE_Translator_MeasureInputUsage_Method"/>
   <int value="5382" label="OBSOLETE_Translator_InputQuota_AttributeGetter"/>
   <int value="5383" label="AriaNotify"/>
@@ -6358,7 +6358,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5727" label="V8Origin_FromURL_Method"/>
   <int value="5728" label="V8Origin_Parse_Method"/>
   <int value="5729" label="ExtendedTextMetrics"/>
-  <int value="5730" label="UseCssSizingProperties"/>
+  <int value="5730" label="OBSOLETE_UseCssSizingProperties"/>
   <int value="5731" label="SharedStorageAPIAll"/>
   <int value="5732" label="GamepadRawInputChangeEventListener"/>
   <int value="5733" label="LetterSpacingWithMargin"/>
@@ -6502,6 +6502,9 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5861"
       label="NoscriptMarkupWithScriptingDisabledNoBrowsingContext"/>
   <int value="5862" label="SingleAxisScroller"/>
+  <int value="5863" label="V8HoleyArrayReadthrough"/>
+  <int value="5864" label="LanguageModel_Create_Temperature"/>
+  <int value="5865" label="LanguageModel_Create_TopK"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -6698,6 +6701,32 @@ Called by update_permissions_policy_enum.py.-->
 </enum>
 
 <!-- LINT.ThenChange(//content/browser/webid/idp_network_request_manager.h:AccountsResponseInvalidReason) -->
+
+<!-- LINT.IfChange(FedCmAmbientClick) -->
+
+<enum name="FedCmAmbientClick">
+  <int value="0" label="SignIn Chip"/>
+  <int value="1" label="SignUp Chip"/>
+  <int value="2" label="SignIn Anchored message"/>
+  <int value="3" label="SignUp Anchored message"/>
+  <int value="4" label="SignIn Icon"/>
+  <int value="5" label="SignUp Icon"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/ui/webid/identity_ui_utils.h:AmbientClick) -->
+
+<!-- LINT.IfChange(FedCmAmbientImpression) -->
+
+<enum name="FedCmAmbientImpression">
+  <int value="0" label="SignIn Chip"/>
+  <int value="1" label="SignUp Chip"/>
+  <int value="2" label="SignIn Anchored message"/>
+  <int value="3" label="SignUp Anchored message"/>
+  <int value="4" label="SignIn Icon"/>
+  <int value="5" label="SignUp Icon"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/ui/webid/identity_ui_utils.h:AmbientImpression) -->
 
 <!-- LINT.IfChange(FedCmCancelReason) -->
 
@@ -7325,6 +7354,17 @@ Called by update_permissions_policy_enum.py.-->
       label="Specified frame was different from the cached node so the image
              was not retrieved."/>
 </enum>
+
+<!-- LINT.IfChange(InlineScriptCacheFetchResult) -->
+
+<enum name="InlineScriptCacheFetchResult">
+  <int value="0" label="Fetch succeeded with non-empty cache"/>
+  <int value="1" label="Fetch succeeded with empty cache"/>
+  <int value="2" label="Fetch timed out"/>
+  <int value="3" label="Fetch skipped because script is too small"/>
+</enum>
+
+<!-- LINT.ThenChange(//third_party/blink/renderer/platform/loader/fetch/code_cache_host.cc:InlineScriptCacheFetchResult) -->
 
 <enum name="InnerHTMLFastPathParserParseResult">
   <int value="0" label="Content was successfully parsed"/>
@@ -8451,21 +8491,6 @@ Called by update_use_counter_css.py.-->
 
 <!-- LINT.ThenChange(//third_party/blink/renderer/core/loader/shared_dictionary_hint_type.h:SharedDictionaryHintType) -->
 
-<!-- LINT.IfChange(SharedStorageGetInFencedFrameOutcome) -->
-
-<enum name="SharedStorageGetInFencedFrameOutcome">
-  <int value="0" label="Success"/>
-  <int value="1" label="Called from an insecure context"/>
-  <int value="2" label="Fenced storage read is disabled"/>
-  <int value="3" label="Untrusted network not disabled"/>
-  <int value="4" label="Shared Storage key not found"/>
-  <int value="5" label="Error calling get()"/>
-  <int value="6" label="Unpartitioned data access feature disabled"/>
-  <int value="7" label="Unpartitioned data access permission disabled"/>
-</enum>
-
-<!-- LINT.ThenChange(//third_party/blink/public/common/fenced_frame/fenced_frame_utils.h:SharedStorageGetInFencedFrameOutcome) -->
-
 <enum name="SmsParsingStatus">
   <int value="0" label="Parsed"/>
   <int value="1" label="OTP format regex not match"/>
@@ -8912,7 +8937,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="417" label="MetaTextScale"/>
   <int value="418" label="Jpegxl"/>
   <int value="419" label="PartitionedCookies"/>
-  <int value="420" label="Prompt"/>
+  <int value="420" label="LanguageModel"/>
   <int value="421" label="Proofreader"/>
   <int value="422" label="Rewriter"/>
   <int value="423" label="Writer"/>

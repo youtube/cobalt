@@ -12,7 +12,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
-#include "components/accessibility_annotator/core/accessibility_annotation_service.h"
+#include "components/accessibility_annotator/core/accessibility_annotator_service.h"
 #include "components/autofill/core/browser/data_manager/autofill_ai/entity_instance_cleaner.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/from_accessibility_annotator.h"
@@ -20,6 +20,7 @@
 #include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_metrics.h"
 #include "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h"
 #include "components/autofill/core/browser/strike_databases/autofill_ai/autofill_ai_save_strike_database_by_host.h"
+#include "components/autofill/core/common/autofill_debug_features.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/autofill/core/common/dense_set.h"
@@ -38,7 +39,7 @@ EntityDataManager::EntityDataManager(
     scoped_refptr<AutofillWebDataService> webdata_service,
     history::HistoryService* history_service,
     strike_database::StrikeDatabaseBase* strike_database,
-    accessibility_annotator::AccessibilityAnnotationService*
+    accessibility_annotator::AccessibilityAnnotatorService*
         accessibility_annotator_service,
     GeoIpCountryCode variation_country_code)
     : webdata_service_(std::move(webdata_service)),
@@ -130,10 +131,14 @@ void EntityDataManager::LoadEntitiesFromDatabase() {
           base::EraseIf(self->entities_, is_stored_by_autofill_ai);
           self->entities_.insert(std::make_move_iterator(entities.begin()),
                                  std::make_move_iterator(entities.end()));
+          self->EnforceEntityReauthRequirements();
           self->NotifyEntityInstancesChanged();
 
           if (!self->database_loaded_) {
             self->database_loaded_ = true;
+            // TODO(crbug.com/495779639): `EnforceEntityReauthRequirements()`
+            // might asynchronously remove some of the entities, causing
+            // `LogStoredEntitiesCount()` to over count.
             LogStoredEntitiesCount(self->entities_);
           }
         }
@@ -294,6 +299,34 @@ void EntityDataManager::RecordEntityUsed(const EntityInstance::EntityId& guid,
 void EntityDataManager::NotifyEntityInstancesChanged() {
   for (Observer& observer : observers_) {
     observer.OnEntityInstancesChanged();
+  }
+}
+
+void EntityDataManager::SetReauthAvailability(bool reauth_available) {
+  if (reauth_availability_ == reauth_available) {
+    return;
+  }
+  reauth_availability_ = reauth_available;
+  EnforceEntityReauthRequirements();
+}
+
+void EntityDataManager::EnforceEntityReauthRequirements() {
+  // If the re-auth state is unknown, assume that re-auth is supported. This
+  // prevents removing data during transient inavailability on start-up.
+  if (!reauth_availability_ || reauth_availability_.value() ||
+      base::FeatureList::IsEnabled(
+          features::debug::kAutofillAiDisableReauthRequirement)) {
+    return;
+  }
+  // The device doesn't support re-auth. Remove all Wallet private passes.
+  std::vector<EntityInstance::EntityId> entities_to_remove;
+  for (const EntityInstance& entity : GetEntityInstances()) {
+    if (IsMaskedStorageSupported(entity.type(), entity.record_type())) {
+      entities_to_remove.push_back(entity.guid());
+    }
+  }
+  for (const EntityInstance::EntityId& id : entities_to_remove) {
+    RemoveEntityInstance(id);
   }
 }
 

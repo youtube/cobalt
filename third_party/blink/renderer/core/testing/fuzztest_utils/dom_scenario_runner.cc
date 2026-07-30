@@ -10,12 +10,25 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "base/time/time.h"
 #include "base/types/optional_ref.h"
+#include "third_party/blink/renderer/core/animation/animation.h"
+#include "third_party/blink/renderer/core/animation/animation_clock.h"
+#include "third_party/blink/renderer/core/animation/document_timeline.h"
+#include "third_party/blink/renderer/core/animation/keyframe_effect.h"
+#include "third_party/blink/renderer/core/animation/keyframe_effect_model.h"
+#include "third_party/blink/renderer/core/animation/string_keyframe.h"
+#include "third_party/blink/renderer/core/animation/timing.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/dom/text.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/frame/settings.h"
+#include "third_party/blink/renderer/core/fullscreen/fullscreen.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
+#include "third_party/blink/renderer/core/html/forms/html_select_element.h"
+#include "third_party/blink/renderer/core/html/html_dialog_element.h"
 #include "third_party/blink/renderer/core/html/html_head_element.h"
 #include "third_party/blink/renderer/core/html/html_slot_element.h"
 #include "third_party/blink/renderer/core/html_names.h"
@@ -59,8 +72,15 @@ void DomScenarioRunner::RunTest(const DomScenario& input) {
   HeapVector<Member<Element>> created_elements;
   shadow_host_counter_ = 0;
   LogIfEnabled(base::StrCat({"\n\n", input.ToString()}));
+  InjectKeyframesStylesheet();
+  InjectCustomElementDefinitions();
   CreateInitialDOM(input, root, created_elements);
+  AdvanceAnimations();
+  CancelWebAnimations(created_elements);
   ApplyModifications(root, input.node_specs, created_elements);
+  AdvanceAnimations();
+  CancelWebAnimations(created_elements);
+  ExitFullscreen();
   GetDocument().body()->RemoveChildren();
   GetDocument().head()->RemoveChildren();
 }
@@ -91,7 +111,14 @@ void DomScenarioRunner::CreateInitialDOM(
 
   for (size_t i = 0; i < input.node_specs.size(); ++i) {
     const auto& node_spec = input.node_specs[i];
-    Element* element = document.CreateRawElement(node_spec.tag);
+    const AtomicString& local_name = node_spec.tag.LocalName();
+    Element* element;
+    if (local_name.contains('-')) {
+      DummyExceptionStateForTesting exception_state;
+      element = document.CreateElementForBinding(local_name, exception_state);
+    } else {
+      element = document.CreateRawElement(node_spec.tag);
+    }
     element->setAttribute(html_names::kIdAttr,
                           AtomicString(StrCat({"id_", String::Number(i)})));
     // Set attributes first because there's a chance that one of the fuzzed
@@ -115,6 +142,15 @@ void DomScenarioRunner::CreateInitialDOM(
   LogIfEnabled(base::StrCat({"\n\nINITIAL DOM\n", GetDOMTreeAsString()}));
 
   ObserveInitialDOM(created_elements);
+
+  bool needs_update = false;
+  for (size_t i = 0; i < input.node_specs.size(); ++i) {
+    needs_update |= PerformElementActions(created_elements[i],
+                                          input.node_specs[i].initial_state);
+  }
+  if (needs_update) {
+    document.UpdateStyleAndLayoutTree();
+  }
 }
 
 void DomScenarioRunner::ApplyModifications(
@@ -141,6 +177,15 @@ void DomScenarioRunner::ApplyModifications(
   LogIfEnabled(base::StrCat({"\n\nMODIFIED DOM\n", GetDOMTreeAsString()}));
 
   ObserveModifiedDOM(created_elements);
+
+  bool needs_update = false;
+  for (size_t i = 0; i < node_specs.size(); ++i) {
+    needs_update |= PerformElementActions(created_elements[i],
+                                          node_specs[i].modified_state);
+  }
+  if (needs_update) {
+    GetDocument().UpdateStyleAndLayoutTree();
+  }
 }
 
 void DomScenarioRunner::SetElementText(Element* element,
@@ -262,6 +307,209 @@ void DomScenarioRunner::SetParent(
   }
 }
 
+bool DomScenarioRunner::PerformElementActions(Element* element,
+                                              const NodeState& state) {
+  bool acted = false;
+  if (state.should_focus) {
+    const bool added_tabindex =
+        !element->FastHasAttribute(html_names::kTabindexAttr);
+    if (added_tabindex) {
+      element->setAttribute(html_names::kTabindexAttr, AtomicString("-1"));
+    }
+    element->Focus();
+    if (added_tabindex) {
+      element->removeAttribute(html_names::kTabindexAttr);
+    }
+    acted = true;
+  }
+  if (state.should_scroll_into_view) {
+    element->scrollIntoViewForTesting();
+    acted = true;
+  }
+  if (state.should_enter_fullscreen) {
+    ExitFullscreen();
+    EnterFullscreen(element);
+    acted = true;
+  }
+  if (state.web_animation.has_value()) {
+    CreateWebAnimation(element, *state.web_animation);
+    acted = true;
+  }
+  if (auto* select = DynamicTo<HTMLSelectElement>(element)) {
+    if (select->UsesMenuList()) {
+      select->ShowPopup();
+      acted = true;
+    }
+  }
+  if (auto* dialog = DynamicTo<HTMLDialogElement>(element)) {
+    if (dialog->IsModal() || dialog->IsOpen()) {
+      dialog->close();
+    } else {
+      DummyExceptionStateForTesting exception_state;
+      dialog->showModal(exception_state);
+    }
+    acted = true;
+  }
+  if (acted) {
+    ObserveElementAction(element);
+  }
+  return acted;
+}
+
+void DomScenarioRunner::CreateWebAnimation(Element* element,
+                                           const WebAnimationParams& params) {
+  auto* start_keyframe = MakeGarbageCollected<StringKeyframe>();
+  start_keyframe->SetCSSPropertyValue(
+      params.property, String(params.from_value),
+      SecureContextMode::kInsecureContext, nullptr);
+  auto* end_keyframe = MakeGarbageCollected<StringKeyframe>();
+  end_keyframe->SetCSSPropertyValue(params.property, String(params.to_value),
+                                    SecureContextMode::kInsecureContext,
+                                    nullptr);
+
+  StringKeyframeVector keyframes;
+  keyframes.push_back(start_keyframe);
+  keyframes.push_back(end_keyframe);
+
+  Timing timing;
+  timing.iteration_duration = ANIMATION_TIME_DELTA_FROM_SECONDS(1);
+
+  auto* model = MakeGarbageCollected<StringKeyframeEffectModel>(keyframes);
+  auto* effect = MakeGarbageCollected<KeyframeEffect>(element, model, timing);
+  Animation* animation =
+      Animation::Create(effect, &GetDocument().Timeline(), ASSERT_NO_EXCEPTION);
+  animation->play();
+}
+
+void DomScenarioRunner::CancelWebAnimations(
+    const HeapVector<Member<Element>>& created_elements) {
+  for (Element* element : created_elements) {
+    for (Animation* animation : element->getAnimations()) {
+      animation->cancel();
+    }
+  }
+}
+
+void DomScenarioRunner::EnterFullscreen(Element* element) {
+  Document& document = GetDocument();
+  LocalFrame::NotifyUserActivation(
+      document.GetFrame(), mojom::blink::UserActivationNotificationType::kTest);
+  Fullscreen::RequestFullscreen(*element);
+  Fullscreen::DidResolveEnterFullscreenRequest(document, /*granted=*/true);
+  UpdateAllLifecyclePhasesForTest();
+}
+
+void DomScenarioRunner::ExitFullscreen() {
+  Document& document = GetDocument();
+  Fullscreen::FullyExitFullscreen(document);
+  Fullscreen::DidExitFullscreen(document);
+  UpdateAllLifecyclePhasesForTest();
+}
+
+void DomScenarioRunner::InjectCustomElementDefinitions() {
+  GetDocument().GetSettings()->SetScriptEnabled(true);
+  static const char kCustomElementsJS[] =
+      R"js(customElements.define('fuzz-plain', class extends HTMLElement {});
+
+    customElements.define('fuzz-shadow', class extends HTMLElement {
+      connectedCallback() {
+        if (!this.shadowRoot) {
+          const shadow = this.attachShadow({mode: 'open'});
+          shadow.innerHTML = '<span></span><slot></slot>';
+        }
+      }
+    });
+
+    customElements.define('fuzz-attrs', class extends HTMLElement {
+      constructor() {
+        super();
+        this.attachShadow({mode: 'open'});
+        this.shadowRoot.innerHTML = '<span id="label"></span><slot></slot>';
+      }
+      static get observedAttributes() {
+        return ['title', 'data-label', 'data-state', 'hidden'];
+      }
+      attributeChangedCallback(name, oldValue, newValue) {
+        const label = this.shadowRoot.querySelector('#label');
+        if (label) {
+          label.textContent = newValue || '';
+        }
+      }
+    });)js";
+  Document& document = GetDocument();
+  Element* script = document.CreateRawElement(
+      html_names::TagToQualifiedName(html_names::HTMLTag::kScript));
+  script->setTextContent(AtomicString(kCustomElementsJS));
+  document.head()->appendChild(script);
+  document.UpdateStyleAndLayoutTree();
+}
+
+void DomScenarioRunner::InjectKeyframesStylesheet() {
+  static const char kKeyframesCSS[] = R"css(
+    @keyframes fuzz-fade {
+      from { opacity: 1 }
+      to { opacity: 0 }
+    }
+    @keyframes fuzz-hide {
+      from { visibility: visible }
+      to { visibility: hidden }
+    }
+    @keyframes fuzz-reveal {
+      from { content-visibility: hidden }
+      to { content-visibility: visible }
+    }
+    @keyframes fuzz-shrink-to-zero {
+      from { width: 100px; height: 100px }
+      to { width: 0; height: 0 }
+    }
+    @keyframes fuzz-shrink {
+      from { width: 100px; height: 100px }
+      to { width: 50px; height: 50px }
+    }
+    @keyframes fuzz-move {
+      from { transform: none }
+      to { transform: translateX(100px) }
+    }
+    @keyframes fuzz-move-offscreen {
+      from { transform: none }
+      to { transform: translateX(5000px) }
+    }
+    @keyframes fuzz-spin {
+      to { transform: rotate(360deg) }
+    }
+    @keyframes fuzz-tilt {
+      to { transform: rotate(45deg) }
+    }
+    @keyframes fuzz-pulse {
+      0%, 100% { transform: scale(1); opacity: 1 }
+      50% { transform: scale(1.15); opacity: 0.7 }
+    }
+    @keyframes fuzz-recolor {
+      0% { color: red }
+      25% { color: green }
+      50% { color: blue }
+      75% { color: yellow }
+      100% { color: red }
+    }
+    @keyframes fuzz-toggle-display {
+      from { display: block }
+      to { display: none }
+    }
+  )css";
+  Document& document = GetDocument();
+  Element* style = document.CreateRawElement(
+      html_names::TagToQualifiedName(html_names::HTMLTag::kStyle));
+  style->setTextContent(AtomicString(kKeyframesCSS));
+  document.head()->appendChild(style);
+}
+
+void DomScenarioRunner::AdvanceAnimations() {
+  auto& clock = GetAnimationClock();
+  clock.UpdateTime(clock.CurrentTime() + base::Milliseconds(500));
+  UpdateAllLifecyclePhasesForTest();
+  ObserveAnimationsAdvanced();
+}
+
 void DomScenarioRunner::LogIfEnabled(const std::string& message) {
   if (logging_enabled_) {
     LOG(INFO) << message;
@@ -311,18 +559,19 @@ void DomScenarioRunner::SerializeNode(Node* node,
 
     // Children.
     bool has_children = false;
-    bool is_style_element = element->tagName() == "STYLE";
+    bool is_style_element = element->HasTagName(html_names::kStyleTag);
+    bool is_script_element = element->HasTagName(html_names::kScriptTag);
     for (Node* child = element->firstChild(); child;
          child = child->nextSibling()) {
       if (!has_children) {
         base::StrAppend(&result, {"\n"});
         has_children = true;
       }
-      if (is_style_element && IsA<Text>(child)) {
-        String css_text = To<Text>(*child).data();
-        css_text = StrCat({"    ", css_text});
-        css_text.Replace("} ", "}\n    ");
-        base::StrAppend(&result, {css_text.Utf8()});
+      if ((is_style_element || is_script_element) && IsA<Text>(child)) {
+        String text = To<Text>(*child).data();
+        text = StrCat({"    ", text});
+        text.Replace("} ", "}\n    ");
+        base::StrAppend(&result, {text.Utf8()});
       } else {
         SerializeNode(child, result, indent + 1);
       }

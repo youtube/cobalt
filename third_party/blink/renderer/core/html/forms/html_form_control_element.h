@@ -117,6 +117,7 @@ class CORE_EXPORT HTMLFormControlElement : public HTMLElement,
   bool willValidate() const override;
 
   bool IsReadOnly() const;
+  virtual bool SupportsReadOnly() const { return false; }
   bool IsDisabledOrReadOnly() const;
 
   bool MayTriggerVirtualKeyboard() const override;

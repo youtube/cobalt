@@ -56,6 +56,7 @@
 #include "third_party/blink/renderer/platform/blob/blob_data.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
+#include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
@@ -134,10 +135,12 @@ void LogCreateOptionMetrics(
       base::StrCat({AIMetrics::GetAIAPIUsageMetricName(
                         AIMetrics::AISessionType::kLanguageModel),
                     ".", function_name});
+  // TODO(crbug.com/496663356): Only log when params are supported, not ignored?
   if (create_options.hasTopK()) {
     base::UmaHistogramCounts1000(base::StrCat({prefix, ".TopK"}),
                                  static_cast<int>(create_options.topK()));
   }
+  // TODO(crbug.com/496663356): Only log when params are supported, not ignored?
   if (create_options.hasTemperature()) {
     // Temperature is generally in the range of [0.0,2.0].
     base::UmaHistogramCustomCounts(
@@ -469,17 +472,15 @@ ScriptPromise<LanguageModel> LanguageModel::create(
     return promise;
   }
 
-  if (options->hasTopK()) {
-    Deprecation::CountDeprecation(
-        execution_context, mojom::blink::WebFeature::kLanguageModel_TopK);
-  }
-  if (options->hasTemperature()) {
-    Deprecation::CountDeprecation(
-        execution_context,
-        mojom::blink::WebFeature::kLanguageModel_Temperature);
-  }
-
   LogCreateOptionMetrics(*options, "create");
+  if (options->hasTemperature()) {
+    UseCounter::Count(execution_context,
+                      WebFeature::kLanguageModel_Create_Temperature);
+  }
+  if (options->hasTopK()) {
+    UseCounter::Count(execution_context,
+                      WebFeature::kLanguageModel_Create_TopK);
+  }
   HeapMojoRemote<mojom::blink::AIManager>& ai_manager_remote =
       AIInterfaceProxy::GetAIManagerRemote(execution_context);
   if (!ai_manager_remote.is_connected()) {
@@ -494,7 +495,8 @@ ScriptPromise<LanguageModel> LanguageModel::create(
     return promise;
   }
 
-  auto sampling_params_or_exception = ResolveSamplingParamsOption(options);
+  auto sampling_params_or_exception =
+      ResolveSamplingParamsOption(options, execution_context);
   if (!sampling_params_or_exception.has_value()) {
     switch (sampling_params_or_exception.error()) {
       case SamplingParamsOptionError::kOnlyOneOfTopKAndTemperatureIsProvided:
@@ -528,16 +530,6 @@ ScriptPromise<V8Availability> LanguageModel::availability(
   }
 
   ExecutionContext* execution_context = ExecutionContext::From(script_state);
-  if (options->hasTopK()) {
-    Deprecation::CountDeprecation(
-        execution_context, mojom::blink::WebFeature::kLanguageModel_TopK);
-  }
-  if (options->hasTemperature()) {
-    Deprecation::CountDeprecation(
-        execution_context,
-        mojom::blink::WebFeature::kLanguageModel_Temperature);
-  }
-
   if (!ValidateAndCanonicalizeExpectedInputLanguages(script_state->GetIsolate(),
                                                      options)) {
     return EmptyPromise();
@@ -555,7 +547,8 @@ ScriptPromise<V8Availability> LanguageModel::availability(
   }
 
   LogCreateOptionMetrics(*options, "availability");
-  auto sampling_params_or_exception = ResolveSamplingParamsOption(options);
+  auto sampling_params_or_exception =
+      ResolveSamplingParamsOption(options, execution_context);
   if (!sampling_params_or_exception.has_value()) {
     resolver->Resolve(AvailabilityToV8(Availability::kUnavailable));
     return promise;
@@ -610,9 +603,16 @@ ScriptPromise<IDLNullable<LanguageModelParams>> LanguageModel::params(
     return EmptyPromise();
   }
 
+  // Count deprecation if only legacy params are enabled, i.e. for extensions.
   ExecutionContext* execution_context = ExecutionContext::From(script_state);
-  Deprecation::CountDeprecation(
-      execution_context, mojom::blink::WebFeature::kLanguageModel_Params);
+  const bool count_deprecation =
+      RuntimeEnabledFeatures::AIPromptAPILegacyParamsEnabled(
+          execution_context) &&
+      !RuntimeEnabledFeatures::AIPromptAPIParamsEnabled(execution_context);
+  if (count_deprecation) {
+    Deprecation::CountDeprecation(
+        execution_context, mojom::blink::WebFeature::kLanguageModel_Params);
+  }
 
   auto* resolver = MakeGarbageCollected<
       ScriptPromiseResolver<IDLNullable<LanguageModelParams>>>(script_state);
@@ -1029,7 +1029,7 @@ void LanguageModel::OnContextOverflow() {
   ExecutionContext* execution_context = GetExecutionContext();
 
   if (execution_context &&
-      RuntimeEnabledFeatures::LanguageModelLegacyParamsAndAttributesEnabled(
+      RuntimeEnabledFeatures::AIPromptAPILegacyIdentifiersEnabled(
           execution_context)) {
     DispatchEvent(*Event::Create(event_type_names::kQuotaoverflow));
   }

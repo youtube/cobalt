@@ -12,6 +12,7 @@
 #import "components/contextual_search/contextual_search_service.h"
 #import "components/contextual_search/contextual_search_session_handle.h"
 #import "components/contextual_search/internal/ios/composebox_query_controller_ios.h"
+#import "components/lens/lens_features.h"
 #import "components/lens/lens_overlay_invocation_source.h"
 #import "components/omnibox/browser/aim_eligibility_service.h"
 #import "components/omnibox/browser/location_bar_model_impl.h"
@@ -242,7 +243,7 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
   _locationBarModel = std::make_unique<LocationBarModelImpl>(
       _locationBarModelDelegate.get(), kMaxURLDisplayChars);
 
-  std::unique_ptr<OmniboxClient> omniboxClient;
+  std::unique_ptr<OmniboxClientIOS> omniboxClient;
   if (_entrypoint == ComposeboxEntrypoint::kCobrowse) {
     omniboxClient = std::make_unique<ComposeboxCobrowseOmniboxClient>(
         self.browser,
@@ -439,9 +440,15 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
     [self showMaxAttachmentSnackbarError];
     return;
   }
-  UIDocumentPickerViewController* picker =
-      [[UIDocumentPickerViewController alloc]
-          initForOpeningContentTypes:@[ UTTypePDF ]];
+  UIDocumentPickerViewController* picker;
+  if (lens::features::IsLensSendRawFileMediaTypesEnabled()) {
+    picker = [[UIDocumentPickerViewController alloc]
+        initForOpeningContentTypes:@[ UTTypeData ]];
+  } else {
+    picker = [[UIDocumentPickerViewController alloc]
+        initForOpeningContentTypes:@[ UTTypePDF ]];
+  }
+
   picker.allowsMultipleSelection = NO;
   picker.delegate = self;
   [_viewController presentViewController:picker animated:YES completion:nil];
@@ -564,6 +571,8 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
     return;
   }
 
+  [_metricsRecorder recordImagesAttached:results.count];
+
   for (PHPickerResult* result in results) {
     [_mediator processImageItemProvider:result.itemProvider
                                 assetID:result.assetIdentifier];
@@ -577,7 +586,52 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
   if (urls.count == 0) {
     return;
   }
-  [_mediator processPDFFileURL:net::GURLWithNSURL(urls.firstObject)];
+
+  [_metricsRecorder recordFilesAttached:urls.count];
+
+  NSURL* selectedURL = urls.firstObject;
+  if (!lens::features::IsLensSendRawFileMediaTypesEnabled()) {
+    [_mediator processFileURL:net::GURLWithNSURL(selectedURL) isPDF:YES];
+    return;
+  }
+
+  NSError* error = nil;
+  UTType* contentType = nil;
+
+  // Accessing the resource should be requested before using and relinquished
+  // when no longer needed.
+  // Revoking the access should be done once the resource is no longer needed,
+  // as requesting access again on a relinquished resource might fail.
+  BOOL accessing = [selectedURL startAccessingSecurityScopedResource];
+  [selectedURL getResourceValue:&contentType
+                         forKey:NSURLContentTypeKey
+                          error:&error];
+
+  auto stopAccessScopedResourcesIfNeeded = ^{
+    if (accessing) {
+      [selectedURL stopAccessingSecurityScopedResource];
+    }
+  };
+
+  if (contentType && !error) {
+    if ([contentType conformsToType:UTTypeImage]) {
+      NSItemProvider* provider =
+          [[NSItemProvider alloc] initWithContentsOfURL:selectedURL];
+      [_mediator processImageItemProvider:provider
+                                  assetID:selectedURL.absoluteString
+                               completion:stopAccessScopedResourcesIfNeeded];
+      return;
+    } else if ([contentType conformsToType:UTTypePDF]) {
+      [_mediator processFileURL:net::GURLWithNSURL(selectedURL)
+                          isPDF:YES
+                     completion:stopAccessScopedResourcesIfNeeded];
+      return;
+    }
+  }
+
+  [_mediator processFileURL:net::GURLWithNSURL(selectedURL)
+                      isPDF:NO
+                 completion:stopAccessScopedResourcesIfNeeded];
 }
 
 #pragma mark - UIImagePickerControllerDelegate

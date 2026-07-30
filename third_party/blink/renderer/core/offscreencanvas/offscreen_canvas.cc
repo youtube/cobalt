@@ -12,6 +12,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_element_elementimage.h"
 #include "third_party/blink/renderer/core/css/css_font_selector.h"
 #include "third_party/blink/renderer/core/css/offscreen_font_selector.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
@@ -20,11 +21,13 @@
 #include "third_party/blink/renderer/core/fileapi/blob.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/geometry/dom_matrix.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_context_creation_attributes_core.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context_factory.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_resource_tracker.h"
+#include "third_party/blink/renderer/core/html/canvas/element_image.h"
 #include "third_party/blink/renderer/core/html/canvas/image_data.h"
 #include "third_party/blink/renderer/core/html/canvas/ukm_parameters.h"
 #include "third_party/blink/renderer/core/html/canvas/unique_font_selector.h"
@@ -43,11 +46,13 @@
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image_transform.h"
 #include "third_party/blink/renderer/platform/graphics/unaccelerated_static_bitmap_image.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/thread_state.h"
 #include "third_party/blink/renderer/platform/image-encoders/image_encoder_utils.h"
 #include "third_party/blink/renderer/platform/instrumentation/histogram.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "third_party/skia/include/core/SkSurface.h"
 
@@ -120,8 +125,58 @@ void OffscreenCanvas::DeregisterFromAnimationFrameProvider() {
   }
 }
 
+namespace {
+class OffscreenCanvasRegistry
+    : public GarbageCollected<OffscreenCanvasRegistry>,
+      public Supplement<ExecutionContext> {
+ public:
+  static const char kSupplementName[];
+  static OffscreenCanvasRegistry& From(ExecutionContext* context) {
+    auto* supplement =
+        Supplement<ExecutionContext>::From<OffscreenCanvasRegistry>(context);
+    if (!supplement) {
+      supplement = MakeGarbageCollected<OffscreenCanvasRegistry>(context);
+      Supplement<ExecutionContext>::ProvideTo(*context, supplement);
+    }
+    return *supplement;
+  }
+  explicit OffscreenCanvasRegistry(ExecutionContext* context)
+      : Supplement<ExecutionContext>(*context) {}
+  void Register(DOMNodeId id, OffscreenCanvas* canvas) {
+    if (id != kInvalidDOMNodeId) {
+      map_.Set(id, canvas);
+    }
+  }
+  OffscreenCanvas* Get(DOMNodeId id) {
+    auto it = map_.find(id);
+    return it != map_.end() ? it->value.Get() : nullptr;
+  }
+  void Trace(Visitor* visitor) const override {
+    visitor->Trace(map_);
+    Supplement<ExecutionContext>::Trace(visitor);
+  }
+
+ private:
+  HeapHashMap<DOMNodeId, WeakMember<OffscreenCanvas>> map_;
+};
+const char OffscreenCanvasRegistry::kSupplementName[] =
+    "OffscreenCanvasRegistry";
+}  // namespace
+
+OffscreenCanvas* OffscreenCanvas::FromPlaceholderId(ExecutionContext* context,
+                                                    DOMNodeId canvas_id) {
+  if (!context || canvas_id == kInvalidDOMNodeId) {
+    return nullptr;
+  }
+  return OffscreenCanvasRegistry::From(context).Get(canvas_id);
+}
+
 void OffscreenCanvas::SetPlaceholderCanvasId(DOMNodeId canvas_id) {
   placeholder_canvas_id_ = canvas_id;
+  if (GetExecutionContext()) {
+    OffscreenCanvasRegistry::From(GetExecutionContext())
+        .Register(canvas_id, this);
+  }
   if (GetTopExecutionContext() &&
       GetTopExecutionContext()->IsDedicatedWorkerGlobalScope()) {
     WorkerAnimationFrameProvider* animation_frame_provider =
@@ -176,7 +231,9 @@ void OffscreenCanvas::SetSize(gfx::Size size) {
     } else if (context_->IsRenderingContext2D() ||
                context_->IsImageBitmapRenderingContext()) {
       context_->Reset();
-      origin_clean_ = true;
+      if (context_->IsRenderingContext2D()) {
+        origin_clean_ = true;
+      }
     }
     dirty_rect_for_commit_ = SkIRect::MakeWH(Size().width(), Size().height());
     context_->DidDraw(CanvasPerformanceMonitor::DrawType::kOther);
@@ -287,6 +344,32 @@ ScriptPromise<ImageBitmap> OffscreenCanvas::CreateImageBitmap(
           ? MakeGarbageCollected<ImageBitmap>(this, crop_rect, options)
           : nullptr,
       options, exception_state);
+}
+
+DOMMatrix* OffscreenCanvas::getElementTransform(
+    const V8UnionElementOrElementImage* element_or_image,
+    DOMMatrix* draw_transform,
+    ExceptionState& exception_state) {
+  if (element_or_image->IsElement()) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kInvalidStateError,
+        "Elements cannot be drawn into an OffscreenCanvas.");
+    return nullptr;
+  }
+
+  if (element_or_image->IsElementImage()) {
+    const auto& paint_record =
+        element_or_image->GetAsElementImage()->PaintRecord();
+    if (!paint_record) {
+      exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                        "The ElementImage has been closed.");
+      return nullptr;
+    }
+    return MakeGarbageCollected<DOMMatrix>(GetElementTransform(
+        paint_record->paint_state, Size(), draw_transform->Matrix()));
+  }
+
+  return DOMMatrix::Create();
 }
 
 ScriptPromise<Blob> OffscreenCanvas::convertToBlob(

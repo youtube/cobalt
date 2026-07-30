@@ -66,6 +66,7 @@ config("skia_config") {
 
     # Staging
     "SK_ENABLE_LEGACY_SHADERCONTEXT",
+    "SK_ENABLE_AVX512_OPTS",
 
     # Let Skia and Skia clients know whether to use `libpng`-based or
     # Rust-based PNG decoder and encoder.  This mimics what is done in
@@ -77,6 +78,8 @@ config("skia_config") {
     "SK_CODEC_ENCODES_PNG_WITH_RUST",
 
     "SK_CODEC_DECODES_BMP_WITH_RUST",
+    "SK_CODEC_COLOR_PROFILE_PARSE_WITH_RUST",
+    "SK_EXIF_PARSE_WITH_RUST",
   ]
 
   include_dirs = [
@@ -492,6 +495,7 @@ component("skia") {
   public_deps = [
     ":buildflags",
     ":rust_bmp_ffi",
+    ":rust_exif_ffi",
     ":rust_icc_ffi",
     ":skia_core_and_effects",
     ":skia_core_public_headers",
@@ -751,8 +755,8 @@ rust_static_library("rust_icc_ffi") {
 
 source_set("rust_icc_ffi_cpp") {
   visibility = [ ":*" ]
-  public = skia_rust_icc_ffi_cpp_hdrs
-  sources = skia_rust_icc_ffi_cpp_srcs
+  public = skia_rust_icc_ffi_cpp_hdrs + skia_codec_rust_icc_codec_hdrs
+  sources = skia_rust_icc_ffi_cpp_srcs + skia_codec_rust_icc_codec_srcs
   public_deps = [
     ":rust_common_ffi_cpp",
     ":skia_core_public_headers",
@@ -762,6 +766,42 @@ source_set("rust_icc_ffi_cpp") {
     ":rust_icc_ffi_cxx_generated_gen",
     ":skcms",
   ]
+  check_includes =
+      false  # Logically part of skia, but split out for build reasons
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [
+    ":skia_config",
+    ":skia_library_config",
+    "//build/config/compiler:no_chromium_code",
+  ]
+}
+
+rust_static_library("rust_exif_ffi") {
+  visibility = [ ":*" ]
+  allow_unsafe = true  # For FFI
+  crate_root = skia_rust_exif_ffi_crate_root
+  sources = skia_rust_exif_ffi_rs_srcs
+  cxx_bindings = skia_rust_exif_ffi_cxx_bridge_srcs
+  public_deps = [ ":rust_exif_ffi_cpp" ]
+  deps = [ ":rust_common_ffi" ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [
+    ":skia_config",
+    "//build/config/compiler:no_chromium_code",
+  ]
+  no_clippy = true  # TODO(https://crbug.com/472355480)
+}
+
+source_set("rust_exif_ffi_cpp") {
+  visibility = [ ":*" ]
+  public = skia_rust_exif_ffi_cpp_hdrs
+  sources = skia_rust_exif_ffi_cpp_srcs
+  public_deps = [
+    ":rust_common_ffi_cpp",
+    ":skia_core_public_headers",
+    "//build/rust:cxx_cppdeps",
+  ]
+  deps = [ ":rust_exif_ffi_cxx_generated_gen" ]
   check_includes =
       false  # Logically part of skia, but split out for build reasons
   configs -= [ "//build/config/compiler:chromium_code" ]
@@ -887,9 +927,10 @@ skia_source_set("skia_core_and_effects") {
 }
 
 # Bits that involve special vector-y hardware.
+# https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels
 if (current_cpu == "x86" || current_cpu == "x64") {
-  skia_source_set("skia_opts_hsw") {
-    sources = skia_opts.hsw_sources
+  skia_source_set("skia_opts_ml3") {
+    sources = skia_opts.ml3_sources
     if (!is_win) {
       cflags = [
         "-mavx2",
@@ -903,8 +944,8 @@ if (current_cpu == "x86" || current_cpu == "x64") {
     }
     visibility = [ ":skia_opts" ]
   }
-  skia_source_set("skia_opts_skx") {
-    sources = skia_opts.skx_sources
+  skia_source_set("skia_opts_ml4") {
+    sources = skia_opts.ml4_sources
     configs += [ ":skia_avx512_flags" ]
     visibility = [ ":skia_opts" ]
   }
@@ -928,9 +969,9 @@ skia_source_set("skia_opts") {
   deps = [ "//base" ]
 
   if (current_cpu == "x86" || current_cpu == "x64") {
-    deps += [ ":skia_opts_hsw" ]
+    deps += [ ":skia_opts_ml3" ]
     if (allow_avx512) {
-      deps += [ ":skia_opts_skx" ]
+      deps += [ ":skia_opts_ml4" ]
     }
   } else if (current_cpu == "arm") {
     # The assembly uses the frame pointer register (r7 in Thumb/r11 in

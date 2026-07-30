@@ -17,7 +17,6 @@
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
-#include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/new_tab_page/promos/promo_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/search.h"
@@ -29,6 +28,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/customize_chrome/side_panel_controller.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_metrics.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/browser/user_education/tutorial_identifiers.h"
 #include "chrome/browser/user_education/user_education_service.h"
@@ -402,6 +402,9 @@ void BrowserCommandHandler::OpenGlicSettings() {
 
 void BrowserCommandHandler::EnableVerticalTabs() {
   profile_->GetPrefs()->SetBoolean(prefs::kVerticalTabsEnabled, true);
+
+  tabs::RecordVerticalTabStripModeChanged(
+      true, tabs::VerticalTabStripEntryPoint::kWhatsNew);
 }
 
 void BrowserCommandHandler::OpenFeedbackForm() {

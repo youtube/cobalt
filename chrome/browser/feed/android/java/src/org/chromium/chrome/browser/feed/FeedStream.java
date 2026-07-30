@@ -332,8 +332,7 @@ public class FeedStream implements Stream {
                                 inGroup,
                                 pageId,
                                 /* pageLoadObserver= */ this,
-                                visitResult ->
-                                        mBridge.reportOpenVisitComplete(visitResult.visitTimeMs));
+                                mBridge.surfaceId());
                     });
         }
 
@@ -391,6 +390,10 @@ public class FeedStream implements Stream {
                 ObservableSuppliers.createNonNull(false);
 
         InProgressWorkTracker() {}
+
+        void destroy() {
+            mActiveWork.clear();
+        }
 
         /**
          * Record that background work has begun, returns a runnable to be called when work is
@@ -809,13 +812,28 @@ public class FeedStream implements Stream {
 
     @Override
     public void destroy() {
+        // Cleans up observers first.
         if (mUnreadContentObserver != null) {
             mUnreadContentObserver.destroy();
+            mUnreadContentObserver = null;
         }
-        if (isBound()) {
-            unbind(false, false);
-        }
+        mContentChangedListeners.clear();
+
+        // Performs unbinding (UI cleanup).
+        unbind(false, false);
+
+        // Final teardown of infrastructure.
         mBridge.destroy();
+        mReliabilityLoggingBridge.destroy();
+        mInProgressWorkTracker.destroy();
+
+        // Nulls remaining references.
+        mReliabilityLogger = null;
+        mRenderer = null;
+        mFeedContentFirstLoadWatcher = null;
+        mScrollStateToRestore = null;
+        mSpacerViewContent = null;
+        mHandlersMap.clear();
     }
 
     @Override

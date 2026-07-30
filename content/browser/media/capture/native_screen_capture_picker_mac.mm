@@ -9,8 +9,11 @@
 #include <unordered_map>
 #include <utility>
 
+#include "base/check.h"
 #include "base/features.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "base/task/bind_post_task.h"
 #include "base/timer/timer.h"
 #include "content/browser/media/capture/native_screen_capture_picker.h"
@@ -414,7 +417,7 @@ NativeScreenCapturePickerMac::CreateDevice(const DesktopMediaID& source) {
   VLOG(1) << "NSCPM::CreateDevice: source.id = " << source.id
           << ", sessions_.count = " << sessions_.size();
   return CreateScreenCaptureKitDeviceMac(
-      source, session.filter,
+      source, /*is_native_picker=*/true, session.filter,
       base::BindPostTask(
           device_task_runner_,
           base::BindOnce(&NativeScreenCapturePickerMac::UpdateStreamMap,

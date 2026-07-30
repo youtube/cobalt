@@ -13,6 +13,7 @@
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "build/build_config.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -30,6 +31,7 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -231,9 +233,15 @@ class ScreenshotTimeoutMultiSourcePageContextFetcherBrowserTest
   base::test::ScopedFeatureList features_;
 };
 
+// TODO(https://crbug.com/478727457): flaky timeouts
+#if BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER)
+#define MAYBE_TakesScreenshot DISABLED_TakesScreenshot
+#else
+#define MAYBE_TakesScreenshot TakesScreenshot
+#endif
 IN_PROC_BROWSER_TEST_F(
     ScreenshotTimeoutMultiSourcePageContextFetcherBrowserTest,
-    TakesScreenshot) {
+    MAYBE_TakesScreenshot) {
   GURL url = embedded_https_test_server().GetURL("/empty.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
@@ -261,6 +269,7 @@ IN_PROC_BROWSER_TEST_F(
     break;
   }
 }
+#undef MAYBE_TakesScreenshot
 
 class RedactingMultiSourcePageContextFetcherBrowserTest
     : public MultiSourcePageContextFetcherBrowserTest {
@@ -914,6 +923,70 @@ IN_PROC_BROWSER_TEST_F(MultiSourcePageContextFetcherBrowserTest,
   SkBitmap bitmap = gfx::PNGCodec::Decode(screenshot.screenshot_data);
   EXPECT_FALSE(bitmap.isNull());
   EXPECT_FALSE(bitmap.empty());
+}
+
+class ElementCSSRedactionMultiSourcePageContextFetcherBrowserTest
+    : public MultiSourcePageContextFetcherBrowserTest {
+ public:
+  ElementCSSRedactionMultiSourcePageContextFetcherBrowserTest() {
+    std::vector<base::test::FeatureRefAndParams> enabled_features{
+        {kGlicScreenshotPasswordRedaction, {}},
+        // Effectively disables timeouts.
+        {kGlicTabScreenshotExperiment,
+         {
+             {"screenshot_timeout_ms", "30s"},
+         }},
+        {optimization_guide::features::kGetAIPageContentMainFrameTimeoutEnabled,
+         {{"timeout", "30s"}}},
+        {blink::features::kAIPageContentElementCSSRedaction, {}}};
+    features_.InitWithFeaturesAndParameters(enabled_features,
+                                            /*disabled_features=*/{});
+  }
+
+  ~ElementCSSRedactionMultiSourcePageContextFetcherBrowserTest() override =
+      default;
+
+  void SetUp() override {
+    EnablePixelOutput();
+    MultiSourcePageContextFetcherBrowserTest::SetUp();
+  }
+
+ private:
+  base::test::ScopedFeatureList features_;
+};
+
+IN_PROC_BROWSER_TEST_F(
+    ElementCSSRedactionMultiSourcePageContextFetcherBrowserTest,
+    BasicRedaction) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(),
+      GetURL(kHostA,
+             "/optimization_guide/div_with_webkit_text_security.html")));
+
+  base::test::TestFuture<FetchPageContextResultCallbackArg> future;
+
+  FetchPageContextOptions options;
+  options.annotated_page_content_options =
+      optimization_guide::DefaultAIPageContentOptions(true);
+  options.screenshot_options = ScreenshotOptions::ViewportOnly(
+      /*paint_preview_options=*/std::nullopt,
+      /*screenshot_collection_options=*/std::nullopt);
+  options.screenshot_options->set_redaction_color_for_testing(SkColors::kRed);
+  FetchPageContext(*web_contents(), options, nullptr, future.GetCallback());
+
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FetchPageContextResult> result,
+                       future.Take());
+
+  ASSERT_TRUE(result);
+  ASSERT_TRUE(result->screenshot_result.has_value());
+
+  ScreenshotResult& screenshot = result->screenshot_result.value();
+  SkBitmap bitmap = gfx::JPEGCodec::Decode(screenshot.screenshot_data);
+
+  EXPECT_FALSE(bitmap.isNull());
+  EXPECT_FALSE(bitmap.empty());
+  EXPECT_THAT(bitmap.getColor(10, 10),
+              IsColorWithinTolerance(SK_ColorRED, 0x20));
 }
 
 }  // namespace page_content_annotations

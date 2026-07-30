@@ -5,6 +5,7 @@
 #include "android_webview/lib/aw_main_delegate.h"
 
 #include <memory>
+#include <optional>
 #include <variant>
 
 #include "android_webview/browser/aw_browser_process.h"
@@ -67,6 +68,7 @@
 #include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "media/media_buildflags.h"
+#include "mojo/core/embedder/features.h"
 #include "net/base/features.h"
 #include "services/tracing/public/cpp/perfetto/track_name_recorder.h"
 #include "third_party/blink/public/common/features.h"
@@ -145,6 +147,10 @@ std::optional<int> AwMainDelegate::BasicStartupComplete() {
   // Keep data: URL support in SVGUseElement for webview until deprecation is
   // completed in the Web Platform.
   cl->AppendSwitch(blink::switches::kDataUrlInSvgUseEnabled);
+
+  // Opt out WebView from kMojoUseEventFd feature. TODO(crbug.com/498421592):
+  // Add support for WebView and remove this override.
+  cl->AppendSwitch(mojo::core::kSuppressEventfdUpgradeForWebview);
 
   if (cl->GetSwitchValueASCII(switches::kProcessType).empty()) {
     // Browser process (no type specified).
@@ -281,6 +287,16 @@ void AwMainDelegate::ProcessExiting(const std::string& process_type) {
   logging::CloseLogFile();
 }
 
+std::optional<int> AwMainDelegate::PreBrowserMain() {
+  // This may optionally wait if tracing init was started on a Java thread pool
+  // during factory init.
+  // We need to wait during PreBrowserMain to ensure the task has completed
+  // before we initialize the native task runners, which will move scheduled
+  // tasks to the native task pool.
+  AwBrowserProcess::WaitForBackgroundTracingInit();
+  return std::nullopt;
+}
+
 bool AwMainDelegate::ShouldCreateFeatureList(InvokedIn invoked_in) {
   // In the browser process the FeatureList is created in
   // AwMainDelegate::PostEarlyInitialization().
@@ -396,7 +412,6 @@ bool AwMainDelegate::ShouldInitializePerfetto(InvokedIn invoked_in) {
   if (!is_browser_process) {
     return true;
   }
-  AwBrowserProcess::WaitForBackgroundTracingInit();
   return AwBrowserProcess::ShouldInitTracingDuringBrowserMain();
 }
 

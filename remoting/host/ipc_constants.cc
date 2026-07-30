@@ -4,33 +4,31 @@
 
 #include "remoting/host/ipc_constants.h"
 
+#include "base/environment.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
-#include "components/named_mojo_ipc_server/named_mojo_ipc_util.h"
 #include "mojo/public/cpp/platform/named_platform_channel.h"
 #include "remoting/base/username.h"
+
+#if BUILDFLAG(IS_LINUX)
+#include "base/nix/xdg_util.h"
+#include "remoting/base/file_path_util_linux.h"
+#endif
 
 namespace remoting {
 
 namespace {
 
-#if BUILDFLAG(IS_LINUX)
-
 #if !defined(NDEBUG)
 // Use a different IPC name for debug builds so that we can run the host
 // directly from out/Debug without interfering with the production host that
 // might also be running.
-constexpr char kChromotingHostServicesIpcNamePattern[] =
-    "chromoting.%s.host_services_debug_mojo_ipc";
-#else
-constexpr char kChromotingHostServicesIpcNamePattern[] =
-    "chromoting.%s.host_services_mojo_ipc";
-#endif
-
-#else
+constexpr char kChromotingHostServicesIpcName[] =
+    "chromoting.host_services_debug_mojo_ipc";
+#else  // defined(NDEBUG)
 constexpr char kChromotingHostServicesIpcName[] =
     "chromoting.host_services_mojo_ipc";
 #endif
@@ -64,6 +62,14 @@ constexpr char kLoginSessionServerIpcName[] =
 
 #endif
 
+mojo::NamedPlatformChannel::ServerName GetServerName(std::string_view name) {
+#if BUILDFLAG(IS_LINUX)
+  return GetVarLibDir().Append(name).value();
+#else
+  return mojo::NamedPlatformChannel::ServerNameFromUTF8(name);
+#endif
+}
+
 }  // namespace
 
 const base::FilePath::CharType kHostBinaryName[] =
@@ -95,25 +101,28 @@ bool GetInstalledBinaryPath(const base::FilePath::StringType& binary,
 const mojo::NamedPlatformChannel::ServerName&
 GetChromotingHostServicesServerName() {
   static const base::NoDestructor<mojo::NamedPlatformChannel::ServerName>
-      server_name(
-          named_mojo_ipc_server::WorkingDirectoryIndependentServerNameFromUTF8(
-#if BUILDFLAG(IS_LINUX)
-              // Linux host creates the socket file in /tmp, and it won't be
-              // deleted until reboot, so we put username in the path in case
-              // the user switches the host owner.
-              base::StringPrintf(kChromotingHostServicesIpcNamePattern,
-                                 GetUsername().c_str())
-#else
-              // None of the core Windows processes runs as the host owner so we
-              // can't just put username in the path. This is fine since the
-              // named pipe is accessible by all authenticated users.
-              // On Mac, the channel is managed by the AgentProcessBroker, which
-              // runs as root, so we can't put the username in the path either.
-              kChromotingHostServicesIpcName
-#endif
-                  ));
+      server_name(GetServerName(kChromotingHostServicesIpcName));
   return *server_name;
 }
+
+#if BUILDFLAG(IS_LINUX)
+const mojo::NamedPlatformChannel::ServerName&
+GetLegacyChromotingHostServicesServerName() {
+  static const base::NoDestructor<mojo::NamedPlatformChannel::ServerName>
+      server_name([]() {
+        // The legacy Linux single-process host is run as the login user, so we
+        // put it in the user's XDG_RUNTIME_DIR instead.
+        auto env = base::Environment::Create();
+        return mojo::NamedPlatformChannel::ServerNameFromUTF8(
+            base::nix::GetXDGDirectory(
+                env.get(), "XDG_RUNTIME_DIR",
+                GetPerUserConfigRelativeDir().value().c_str())
+                .Append(kChromotingHostServicesIpcName)
+                .value());
+      }());
+  return *server_name;
+}
+#endif
 
 #if BUILDFLAG(IS_MAC)
 
@@ -122,9 +131,7 @@ const char kAgentProcessBrokerMessagePipeId[] = "agent-process-broker";
 const mojo::NamedPlatformChannel::ServerName&
 GetAgentProcessBrokerServerName() {
   static const base::NoDestructor<mojo::NamedPlatformChannel::ServerName>
-      server_name(
-          named_mojo_ipc_server::WorkingDirectoryIndependentServerNameFromUTF8(
-              kAgentProcessBrokerIpcName));
+      server_name(GetServerName(kAgentProcessBrokerIpcName));
   return *server_name;
 }
 
@@ -137,9 +144,7 @@ const char kLoginSessionReporterMessagePipeId[] = "login-session-reporter";
 const mojo::NamedPlatformChannel::ServerName&
 GetLoginSessionReporterServerName() {
   static const base::NoDestructor<mojo::NamedPlatformChannel::ServerName>
-      server_name(
-          named_mojo_ipc_server::WorkingDirectoryIndependentServerNameFromUTF8(
-              kLoginSessionReporterIpcName));
+      server_name(GetServerName(kLoginSessionReporterIpcName));
   return *server_name;
 }
 
@@ -147,9 +152,7 @@ const char kLoginSessionServerMessagePipeId[] = "login-session-server";
 
 const mojo::NamedPlatformChannel::ServerName& GetLoginSessionServerName() {
   static const base::NoDestructor<mojo::NamedPlatformChannel::ServerName>
-      server_name(
-          named_mojo_ipc_server::WorkingDirectoryIndependentServerNameFromUTF8(
-              kLoginSessionServerIpcName));
+      server_name(GetServerName(kLoginSessionServerIpcName));
   return *server_name;
 }
 

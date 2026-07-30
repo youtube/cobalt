@@ -258,8 +258,9 @@ GlicInstanceImpl::GlicInstanceImpl(
               contextual_cueing_service)),
       last_activation_timestamp_(base::Time::Now()),
       last_deactivation_timestamp_(base::TimeTicks::Now()) {
+  VLOG(1) << "Glic [InstanceImpl] Constructor, id=" << id_.value();
   base::trace_event::EmitNamedTrigger("glic-instance-created");
-  TRACE_EVENT_INSTANT("browser", "GlicInstanceImpl::GlicInstanceImpl",
+  TRACE_EVENT_INSTANT("glic", "GlicInstanceImpl::GlicInstanceImpl",
                       perfetto::Flow::FromPointer(this));
   if (auto* actor_keyed_service =
           actor::ActorKeyedServiceFactory::GetActorKeyedService(profile_)) {
@@ -284,7 +285,8 @@ GlicInstanceImpl::GlicInstanceImpl(
 }
 
 GlicInstanceImpl::~GlicInstanceImpl() {
-  TRACE_EVENT_INSTANT("browser", "GlicInstanceImpl::~GlicInstanceImpl",
+  VLOG(1) << "Glic [InstanceImpl] Destructor, id=" << id_.value();
+  TRACE_EVENT_INSTANT("glic", "GlicInstanceImpl::~GlicInstanceImpl",
                       perfetto::TerminatingFlow::FromPointer(this));
   // Destroying the web contents may result in calls back here, so do it first.
   host_.Shutdown();
@@ -344,7 +346,9 @@ bool GlicInstanceImpl::IsLiveMode() {
 }
 
 void GlicInstanceImpl::Show(const ShowOptions& options) {
-  TRACE_EVENT_INSTANT("browser", "GlicInstanceImpl::Show",
+  VLOG(1) << "Glic [InstanceImpl] Show, id=" << id_.value();
+
+  TRACE_EVENT_INSTANT("glic", "GlicInstanceImpl::Show",
                       perfetto::Flow::FromPointer(this));
   if (const auto* side_panel_options =
           std::get_if<SidePanelShowOptions>(&options.embedder_options);
@@ -354,6 +358,11 @@ void GlicInstanceImpl::Show(const ShowOptions& options) {
   }
 
   EmbedderKey new_key = GetEmbedderKey(options);
+
+  // Look up the current embedder for that tab/key.
+  EmbedderEntry* entry = GetEmbedderEntry(new_key);
+  bool should_log_open =
+      !entry || !entry->embedder || !entry->embedder->IsShowing();
 
   GlicUiEmbedder* embedder_to_show = nullptr;
 
@@ -377,6 +386,9 @@ void GlicInstanceImpl::Show(const ShowOptions& options) {
   MaybeShowHostUi(embedder_to_show, options.invocation_source,
                   options.prompt_suggestion, options.auto_send,
                   options.fre_override);
+  if (should_log_open) {
+    instance_metrics()->OnOpen(options.invocation_source, options);
+  }
   embedder_to_show->Show(options);
   if (options.focus_on_show) {
     embedder_to_show->Focus();
@@ -421,6 +433,7 @@ void GlicInstanceImpl::Attach(tabs::TabHandle tab) {
 }
 
 void GlicInstanceImpl::Close(EmbedderKey key, const CloseOptions& options) {
+  VLOG(1) << "Glic [InstanceImpl] Close, id=" << id_.value();
   auto* entry = GetEmbedderEntry(key);
   if (!entry || !entry->embedder) {
     return;
@@ -450,6 +463,7 @@ bool GlicInstanceImpl::Toggle(ShowOptions&& options,
                               glic::mojom::InvocationSource source,
                               std::optional<std::string> prompt_suggestion,
                               bool auto_send) {
+  VLOG(1) << "Glic [InstanceImpl] Toggle, id=" << id_.value();
   instance_metrics_.OnToggle(source, options, IsShowing());
   EmbedderKey key = GetEmbedderKey(options);
   // Close instance on toggle when it has an active embedder.
@@ -500,6 +514,7 @@ GlicSharingManager& GlicInstanceImpl::sharing_manager() {
 }
 
 void GlicInstanceImpl::CloseInstanceAndShutdown() {
+  VLOG(1) << "Glic [InstanceImpl] CloseInstanceAndShutdown, id=" << id_.value();
   if (actor_task_manager_) {
     // We have to do this here before the ActorKeyedService is shutdown.
     actor_task_manager_->CancelTask();
@@ -648,7 +663,9 @@ void GlicInstanceImpl::ResumeActorTask(
                                        std::move(callback));
 }
 
-void GlicInstanceImpl::InterruptActorTask(actor::TaskId task_id) {
+void GlicInstanceImpl::InterruptActorTask(
+    actor::TaskId task_id,
+    std::optional<mojom::ActorTaskInterruptReason> interrupt_reason) {
   CHECK(actor_task_manager_);
   instance_metrics_.InterruptActorTask();
   actor_task_manager_->InterruptActorTask(task_id);
@@ -706,6 +723,10 @@ void GlicInstanceImpl::OnUserInputSubmitted(mojom::WebClientMode mode) {
   for (auto& [key, entry] : embedders_) {
     entry.user_input_submitted_while_bound = true;
   }
+  // TODO(harringtond): The only subscriber to this event is the tab underline
+  // controller and I think it makes more sense for it to get that signal from
+  // sharing manager instead of going through the keyed service.
+  service_->OnUserInputSubmitted(mode);
 }
 
 void GlicInstanceImpl::OnInteractionModeChange(mojom::WebClientMode new_mode) {
@@ -1177,7 +1198,7 @@ void GlicInstanceImpl::ClientReadyToShow(
 }
 
 void GlicInstanceImpl::WebUiStateChanged(mojom::WebUiState state) {
-  TRACE_EVENT_INSTANT("browser", "GlicInstanceImpl::WebUiStateChanged",
+  TRACE_EVENT_INSTANT("glic", "GlicInstanceImpl::WebUiStateChanged",
                       perfetto::Flow::FromPointer(this), "state", state);
   instance_metrics_.OnWebUiStateChanged(state);
   if (state == mojom::WebUiState::kReady &&
@@ -1333,6 +1354,7 @@ bool GlicInstanceImpl::IsHibernated() const {
 }
 
 void GlicInstanceImpl::Hibernate() {
+  VLOG(1) << "Glic [InstanceImpl] Hibernate, id=" << id_.value();
   DeactivateCurrentEmbedder();
   host_.Shutdown();
 }

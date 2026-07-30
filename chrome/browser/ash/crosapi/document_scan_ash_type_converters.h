@@ -35,13 +35,6 @@ struct TypeConverter<crosapi::mojom::OpenScannerResponsePtr,
 };
 
 template <>
-struct TypeConverter<crosapi::mojom::CloseScannerResponsePtr,
-                     lorgnette::CloseScannerResponse> {
-  static crosapi::mojom::CloseScannerResponsePtr Convert(
-      const lorgnette::CloseScannerResponse& input);
-};
-
-template <>
 struct TypeConverter<crosapi::mojom::StartPreparedScanResponsePtr,
                      lorgnette::StartPreparedScanResponse> {
   static crosapi::mojom::StartPreparedScanResponsePtr Convert(
@@ -67,13 +60,6 @@ struct TypeConverter<crosapi::mojom::SetOptionsResponsePtr,
                      lorgnette::SetOptionsResponse> {
   static crosapi::mojom::SetOptionsResponsePtr Convert(
       const lorgnette::SetOptionsResponse& input);
-};
-
-template <>
-struct TypeConverter<crosapi::mojom::GetOptionGroupsResponsePtr,
-                     lorgnette::GetCurrentConfigResponse> {
-  static crosapi::mojom::GetOptionGroupsResponsePtr Convert(
-      const lorgnette::GetCurrentConfigResponse& input);
 };
 
 // Types that don't need to be converted directly, but are easier to test in

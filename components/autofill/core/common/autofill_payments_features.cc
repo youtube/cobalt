@@ -26,7 +26,13 @@ BASE_FEATURE(kAutofillDisableBnplCountryCheckForTesting,
 // When enabled, Chrome will extract the checkout amount from the checkout
 // page using server-side AI.
 BASE_FEATURE(kAutofillEnableAiBasedAmountExtraction,
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
              base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
 
 // When enabled, Chrome will extract the checkout amount from the checkout page
 // of the allowlisted merchant websites.
@@ -134,16 +140,6 @@ BASE_FEATURE(kAutofillEnableCardBenefitsSync,
 // When enabled, runtime retrieval of CVC along with card number and expiry
 // from issuer for enrolled cards will be enabled during form fill.
 BASE_FEATURE(kAutofillEnableCardInfoRuntimeRetrieval,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// When enabled, we will store CVC for both local and server credit cards. This
-// will also allow the users to autofill their CVCs on checkout pages.
-BASE_FEATURE(kAutofillEnableCvcStorageAndFilling,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// When enabled, will enhance CVV storage project. Provide better suggestion,
-// resolve conflict with COF project and add logging.
-BASE_FEATURE(kAutofillEnableCvcStorageAndFillingEnhancement,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, this will enhance the CVV storage project. The enhancement will

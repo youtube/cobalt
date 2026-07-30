@@ -45,6 +45,7 @@ static_library("safe_browsing") {
     "//chrome/browser/site_protection:utils",
     "//chrome/browser/sync",
     "//chrome/browser/ui/autofill",
+    "//chrome/browser/ui/browser_window",
     "//chrome/common",
     "//chrome/common:constants",
     "//components/browser_sync",
@@ -130,8 +131,6 @@ static_library("safe_browsing") {
     # "Safe Browsing Basic" files used for safe browsing in full mode
     # (safe_browsing=1) and mobile (=2)
     sources += [
-      "../download/download_completion_blocker.cc",
-      "../download/download_completion_blocker.h",
       "chrome_client_side_detection_host_delegate.cc",
       "chrome_client_side_detection_host_delegate.h",
       "chrome_client_side_detection_service_delegate.cc",

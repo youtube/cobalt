@@ -21,11 +21,12 @@ bool ShouldSkipInvisibleTextAt(const Text& text,
   const LayoutObject* layout_object = AssociatedLayoutObjectOf(text, offset);
   if (!layout_object)
     return true;
-  if (layout_object->Style()->Display() == EDisplay::kNone)
+  if (layout_object->StyleRef().Display() == EDisplay::kNone) {
     return true;
+  }
   if (ignores_visibility)
     return false;
-  return layout_object->Style()->Visibility() != EVisibility::kVisible;
+  return layout_object->StyleRef().Visibility() != EVisibility::kVisible;
 }
 
 String TextIgnoringCSSTextTransforms(const LayoutText& layout_text,
@@ -37,7 +38,7 @@ String TextIgnoringCSSTextTransforms(const LayoutText& layout_text,
   String text = layout_text.IsTextFragment()
                     ? To<LayoutTextFragment>(layout_text).CompleteText()
                     : layout_text.OriginalText();
-  text = text.Substring(unit.DOMStart(), unit.DOMEnd() - unit.DOMStart());
+  text = text.substr(unit.DOMStart(), unit.DOMEnd() - unit.DOMStart());
   // Per the white space processing spec
   // https://drafts.csswg.org/css-text-3/#white-space-processing,
   // collapsed spaces should be ignored completely and this is assured since
@@ -81,7 +82,7 @@ StringAndOffsetRange ComputeTextAndOffsetsForEmission(
   }
 
   if (behavior.EmitsOriginalText()) {
-    result.string = layout_text.OriginalText().Substring(
+    result.string = layout_text.OriginalText().substr(
         unit.DOMStart(), unit.DOMEnd() - unit.DOMStart());
     result.start = 0;
     result.end = result.string.length();
@@ -89,7 +90,7 @@ StringAndOffsetRange ComputeTextAndOffsetsForEmission(
 
   if (behavior.EmitsSpaceForNbsp()) {
     result.string =
-        result.string.Substring(result.start, result.end - result.start);
+        result.string.substr(result.start, result.end - result.start);
     result.string.Replace(uchar::kNoBreakSpace, uchar::kSpace);
     result.start = 0;
     result.end = result.string.length();

@@ -39,7 +39,6 @@ import org.chromium.chrome.browser.multiwindow.InstanceInfo;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestrator;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestratorFactory;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -138,7 +137,6 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
     private final TabGroupCreationCallback mTabGroupCreationCallback;
     private final WindowAndroid mWindowAndroid;
     private final Activity mActivity;
-    private final MultiInstanceOrchestrator mMultiInstanceOrchestrator;
 
     private TabContextMenuCoordinator(
             Supplier<TabModel> tabModelSupplier,
@@ -173,7 +171,6 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
         mTabGroupCreationCallback = tabGroupCreationCallback;
         mWindowAndroid = windowAndroid;
         mActivity = activity;
-        mMultiInstanceOrchestrator = MultiInstanceOrchestratorFactory.getInstance();
     }
 
     /**
@@ -258,8 +255,8 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                 moveAndCleanupSource(
                         multiInstanceManager,
                         () ->
-                                multiInstanceManager.moveTabsToOtherWindow(
-                                        tabs, NewWindowAppSource.MENU));
+                                MultiInstanceOrchestratorFactory.getInstance()
+                                        .moveTabsToOtherWindow(tabs, NewWindowAppSource.MENU));
             } else if (menuId == R.id.share_tab) {
                 assert tabs.size() == 1 : "Share is only available for single tab selection.";
                 ShareDelegate shareDelegate = shareDelegateSupplier.get();
@@ -652,8 +649,7 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
 
         List<ListItem> result = new ArrayList<>();
 
-        Set<Integer> activeInstanceIds = mMultiInstanceOrchestrator.getUsableWindowIds(ACTIVE);
-
+        Set<Integer> activeInstanceIds = MultiWindowUtils.getUsableInstanceIds(ACTIVE);
         for (SavedTabGroup tabGroup : sortedTabGroups) {
             if (tabGroup.localId == null) continue;
             if (Objects.equals(groupToNotBeIncluded, tabGroup.localId.tabGroupId)) {

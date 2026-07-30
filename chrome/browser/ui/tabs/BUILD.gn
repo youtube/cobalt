@@ -390,7 +390,6 @@ if (!is_android) {
       "pinned_tab_service.h",
       "pinned_tab_service_factory.h",
       "split_tab_highlight_controller.h",
-      "split_tab_highlight_delegate.h",
       "split_tab_metrics.h",
       "split_tab_util.h",
       "split_view_iph_controller.h",
@@ -401,6 +400,7 @@ if (!is_android) {
       "tab_types.h",
       "tab_utils.h",
       "vertical_tab_iph_controller.h",
+      "vertical_tab_strip_metrics.h",
       "vertical_tab_strip_state.h",
       "vertical_tab_strip_state_controller.h",
     ]
@@ -457,7 +457,6 @@ if (!is_android) {
       "pinned_tab_service_factory.cc",
       "recent_tabs_sub_menu_model.cc",
       "split_tab_highlight_controller.cc",
-      "split_tab_highlight_delegate.cc",
       "split_tab_metrics.cc",
       "split_tab_util.cc",
       "split_view_iph_controller.cc",
@@ -469,6 +468,7 @@ if (!is_android) {
       "tab_style.cc",
       "tab_utils.cc",
       "vertical_tab_iph_controller.cc",
+      "vertical_tab_strip_metrics.cc",
       "vertical_tab_strip_state_controller.cc",
     ]
 
@@ -644,6 +644,8 @@ if (!is_android) {
       "tab_ukm_test_helper.h",
       "test_tab_strip_model_delegate.cc",
       "test_tab_strip_model_delegate.h",
+      "test_vertical_tab_strip_state_controller_delegate.cc",
+      "test_vertical_tab_strip_state_controller_delegate.h",
     ]
 
     public_deps = [

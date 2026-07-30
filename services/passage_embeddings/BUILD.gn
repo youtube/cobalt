@@ -10,6 +10,8 @@ source_set("passage_embeddings") {
     "passage_embedder.h",
     "passage_embedder_execution_task.cc",
     "passage_embedder_execution_task.h",
+    "passage_embedder_impl.cc",
+    "passage_embedder_impl.h",
     "passage_embeddings_op_resolver.cc",
     "passage_embeddings_op_resolver.h",
     "passage_embeddings_service.cc",
@@ -17,6 +19,7 @@ source_set("passage_embeddings") {
   ]
   public_deps = [
     "//mojo/public/cpp/bindings",
+    "//services/passage_embeddings/public/mojom",
     "//third_party/sentencepiece",
     "//third_party/sentencepiece:sentencepiece_proto",
     "//third_party/tflite",
@@ -27,7 +30,6 @@ source_set("passage_embeddings") {
   deps = [
     "//components/optimization_guide/core/inference:op_resolver",
     "//services/on_device_model:ml_internal_buildflags",
-    "//services/passage_embeddings/public/mojom",
   ]
 
   if (enable_ml_internal) {
@@ -37,7 +39,10 @@ source_set("passage_embeddings") {
 
 source_set("tests") {
   testonly = true
-  sources = [ "passage_embeddings_service_unittest.cc" ]
+  sources = [
+    "passage_embedder_impl_unittest.cc",
+    "passage_embeddings_service_unittest.cc",
+  ]
   deps = [
     ":passage_embeddings",
     "//base/test:test_support",

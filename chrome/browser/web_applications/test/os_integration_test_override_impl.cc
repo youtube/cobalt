@@ -14,7 +14,9 @@
 #include <vector>
 
 #include "base/base_paths.h"
+#include "base/check.h"
 #include "base/check_is_test.h"
+#include "base/check_op.h"
 #include "base/containers/span.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
@@ -22,9 +24,11 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/callback_helpers.h"
 #include "base/i18n/file_util_icu.h"
+#include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/no_destructor.h"
+#include "base/notreached.h"
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
 #include "base/synchronization/lock.h"
@@ -35,6 +39,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_test_override.h"
 #include "chrome/browser/web_applications/os_integration/web_app_file_handler_registration.h"
+#include "chrome/browser/web_applications/os_integration/web_app_shortcut.h"
 #include "chrome/browser/web_applications/test/fake_environment.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_icon_generator.h"
@@ -45,7 +50,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
-
 #if BUILDFLAG(IS_LINUX)
 #include "base/nix/xdg_util.h"
 #endif
@@ -577,6 +581,13 @@ bool OsIntegrationTestOverrideImpl::IsShortcutCreated(
 #endif
 }
 
+bool OsIntegrationTestOverrideImpl::HasOsIntegrationResourcesDirectory(
+    Profile* profile,
+    const webapps::AppId& app_id) {
+  return base::PathExists(GetOsIntegrationResourcesDirectoryForApp(
+      profile->GetPath(), app_id, GURL()));
+}
+
 bool OsIntegrationTestOverrideImpl::AreShortcutsMenuRegistered() {
   return !shortcut_menu_apps_registered_.empty();
 }
@@ -905,7 +916,6 @@ OsIntegrationTestOverrideImpl::~OsIntegrationTestOverrideImpl() {
   SetUpdateMimeInfoDatabaseOnLinuxCallbackForTesting(base::NullCallback());
 #endif
 }
-
 
 #if BUILDFLAG(IS_WIN)
 SkColor OsIntegrationTestOverrideImpl::ReadColorFromShortcutMenuIcoFile(

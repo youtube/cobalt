@@ -11,9 +11,11 @@
 
 #include "base/auto_reset.h"
 #include "base/base64.h"
+#include "base/check.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/observer_list.h"
 #include "base/one_shot_event.h"
@@ -783,6 +785,18 @@ ThemeSyncableService::GetThemeSpecificsFromCurrentThemeForTesting() const {
   return GetThemeSpecificsFromCurrentTheme();
 }
 
+std::string ThemeSyncableService::GetSavedLocalThemeExtensionID() const {
+  if (!base::FeatureList::IsEnabled(syncer::kSeparateLocalAndAccountThemes)) {
+    return std::string();
+  }
+
+  std::optional<sync_pb::ThemeSpecifics> specifics = GetSavedLocalTheme();
+  if (specifics && specifics->use_custom_theme()) {
+    return specifics->custom_theme_id();
+  }
+  return std::string();
+}
+
 /* static */
 bool ThemeSyncableService::AreThemeSpecificsEquivalent(
     const sync_pb::ThemeSpecifics& a,
@@ -930,9 +944,9 @@ bool ThemeSyncableService::ApplySavedLocalThemeIfExistsAndClear() {
   std::optional<sync_pb::ThemeSpecifics> local_theme_specifics =
       GetSavedLocalTheme();
   if (local_theme_specifics) {
-    // This does not trigger a notification to OnThemeChanged() and thus does
-    // not commit the theme change to sync. That is done below.
-    MaybeSetTheme(GetThemeSpecificsFromCurrentTheme(), *local_theme_specifics);
+    // Remove any pending theme extension being installed. This is done before
+    // applying the local theme to avoid removing the local theme extension if
+    // it's being installed.
     if (remote_extension_theme_pending_install_) {
       extensions::PendingExtensionManager* pending_extension_manager =
           extensions::PendingExtensionManager::Get(profile_);
@@ -945,10 +959,18 @@ bool ThemeSyncableService::ApplySavedLocalThemeIfExistsAndClear() {
         pending_extension_manager->Remove(
             *remote_extension_theme_pending_install_);
       }
-      // Remove any unused theme extension. This should remove
-      // `remote_extension_theme_pending_install_` if it was installed.
-      theme_service_->RemoveUnusedThemes();
+      remote_extension_theme_pending_install_.reset();
     }
+    // Apply the local theme. This does not trigger a notification to
+    // OnThemeChanged() and thus does not commit the theme change to sync (which
+    // is desired in case of batch upload), but will be done so when
+    // `OnThemeChanged()` is called below.
+    MaybeSetTheme(GetThemeSpecificsFromCurrentTheme(), *local_theme_specifics);
+
+    // Remove any unused theme extension. This will specifically remove the
+    // account theme extension (if any) if it's no longer used.
+    theme_service_->RemoveUnusedThemes();
+
     // Commit the theme change to sync. Note that this does not trigger a commit
     // when called while StopSyncing().
     OnThemeChanged();

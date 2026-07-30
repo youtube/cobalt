@@ -4,16 +4,19 @@
 
 #include "base/strings/string_number_conversions.h"
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
-#include "chrome/browser/ui/android/tab_model/tab_model_list.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/android_tab_model_impl/android_tab_strip_api_injector.h"
+#include "chrome/browser/ui/tabs/tab_strip_api/android_tab_model_impl/android_tab_strip_model_adapter.h"
+#include "chrome/browser/ui/tabs/tab_strip_api/android_tab_model_impl/testing/utils.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_impl.h"
 #include "chrome/test/base/android/android_browser_test.h"
+#include "components/tabs/public/tab_strip_collection.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
-namespace {
+// Can't use anonymous namespace due to friendship to get PassKey.
+namespace tabs_api {
 
 class AndroidTabStripApiBrowserTest : public AndroidBrowserTest {
  public:
@@ -23,28 +26,26 @@ class AndroidTabStripApiBrowserTest : public AndroidBrowserTest {
   void SetUpOnMainThread() override {
     AndroidBrowserTest::SetUpOnMainThread();
 
-    TabModel* target;
-    for (TabModel* model : TabModelList::models()) {
-      if (model->GetProfile() == GetProfile()) {
-        target = model;
-        break;
-      }
-    }
-    CHECK(target) << "could not find a tab model to construct the api with";
-
-    model_ = target;
+    model_ = &testing::GetTabModel(GetProfile());
     auto android_injector =
-        std::make_unique<tabs_api::AndroidTabStripApiInjector>(target);
+        std::make_unique<tabs_api::AndroidTabStripApiInjector>(model_);
     service_ = std::make_unique<tabs_api::TabStripServiceImpl>(
         std::move(android_injector));
   }
 
  protected:
+  static base::PassKey<tabs_api::AndroidTabStripModelAdapter> GetPassKey() {
+    return tabs_api::AndroidTabStripModelAdapter::GetPassKey();
+  }
+
   raw_ptr<TabModel> model_;
   std::unique_ptr<tabs_api::TabStripService> service_;
 };
 
 IN_PROC_BROWSER_TEST_F(AndroidTabStripApiBrowserTest, Get) {
+  auto tab_strip_id = base::NumberToString(
+      model_->GetTabStripCollection(GetPassKey())->GetHandle().raw_value());
+
   // Initial state test, there should be one tab.
   ASSERT_EQ(1, model_->GetTabCount());
   {
@@ -57,9 +58,9 @@ IN_PROC_BROWSER_TEST_F(AndroidTabStripApiBrowserTest, Get) {
     ASSERT_EQ(1u, window_container->children.size());
 
     auto& tab_strip_container = window_container->children.at(0);
-    ASSERT_EQ("-", tab_strip_container->data->get_tab_strip()->id.Id());
+    ASSERT_EQ(tab_strip_id,
+              tab_strip_container->data->get_tab_strip()->id.Id());
     ASSERT_EQ(1u, tab_strip_container->children.size());
-
     ASSERT_EQ(base::NumberToString(
                   model_->GetAllTabs().at(0)->GetHandle().raw_value()),
               tab_strip_container->children.at(0)->data->get_tab()->id.Id());
@@ -80,7 +81,8 @@ IN_PROC_BROWSER_TEST_F(AndroidTabStripApiBrowserTest, Get) {
     ASSERT_EQ(1u, window_container->children.size());
 
     auto& tab_strip_container = window_container->children.at(0);
-    ASSERT_EQ("-", tab_strip_container->data->get_tab_strip()->id.Id());
+    ASSERT_EQ(tab_strip_id,
+              tab_strip_container->data->get_tab_strip()->id.Id());
     ASSERT_EQ(2u, tab_strip_container->children.size());
 
     // Ordering is actually material, we need to ensure that the tab
@@ -137,4 +139,4 @@ IN_PROC_BROWSER_TEST_F(AndroidTabStripApiBrowserTest, Close) {
   ASSERT_EQ(tab0, model_->GetTab(0));
 }
 
-}  // namespace
+}  // namespace tabs_api

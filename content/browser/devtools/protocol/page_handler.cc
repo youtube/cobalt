@@ -875,7 +875,19 @@ void PageHandler::Navigate(const std::string& url,
         Response::ServerError("Cannot navigate to invalid URL"));
     return;
   }
-  if (gurl.SchemeIsFile() && !may_read_local_files_) {
+
+  GURL inner_url = gurl;
+  if (gurl.SchemeIs(content::kViewSourceScheme)) {
+    inner_url = GURL(gurl.GetContent());
+  }
+
+  bool is_file = inner_url.SchemeIsFile();
+#if BUILDFLAG(IS_CHROMEOS)
+  // The "externalfile" scheme is ChromeOS-specific.
+  is_file |= inner_url.SchemeIs(content::kExternalFileScheme);
+#endif
+
+  if (is_file && !may_read_local_files_) {
     callback->sendFailure(
         Response::ServerError("Navigating to local URL is not allowed"));
     return;
@@ -888,8 +900,8 @@ void PageHandler::Navigate(const std::string& url,
 
   // chrome-untrusted:// WebUIs might perform high-priviledged actions on
   // navigation, disallow navigation to them unless the client is trusted.
-  if ((gurl.SchemeIs(kChromeUIUntrustedScheme) ||
-       gurl.SchemeIs(kChromeDevToolsScheme)) &&
+  if ((inner_url.SchemeIs(kChromeUIUntrustedScheme) ||
+       inner_url.SchemeIs(kChromeDevToolsScheme)) &&
       !is_trusted_) {
     callback->sendFailure(Response::ServerError(
         "Navigating to a URL with a privileged scheme is not allowed"));

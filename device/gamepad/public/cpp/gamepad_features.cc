@@ -14,14 +14,6 @@
 
 namespace features {
 
-// Enables the Windows.Gaming.Input data fetcher.
-//
-// Note: This feature is used by the "never expire" flag
-// chrome://flags/#enable-windows-gaming-input-data-fetcher and should not be
-// removed. See crbug.com/40287784.
-BASE_FEATURE(kEnableWindowsGamingInputDataFetcher,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables gamepad multitouch
 BASE_FEATURE(kEnableGamepadMultitouch, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -52,11 +44,11 @@ BASE_FEATURE(kAllowlistHidrawGamepads, base::FEATURE_ENABLED_BY_DEFAULT);
 #if BUILDFLAG(IS_APPLE)
 // Enable Xbox gamepad support in GameControllerDataFetcherMac
 BASE_FEATURE(kXboxUseGameControllerDataFetcherMac,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 // Enable PlayStation gamepad support in
 // GameControllerDataFetcherMac
 BASE_FEATURE(kPlayStationUseGameControllerDataFetcherMac,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_APPLE)
 
 bool IsGamepadMultitouchEnabled() {

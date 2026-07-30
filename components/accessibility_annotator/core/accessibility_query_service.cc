@@ -21,9 +21,11 @@
 namespace accessibility_annotator {
 
 AccessibilityQueryService::AccessibilityQueryService(
+    std::unique_ptr<AccessibilityQueryServiceDelegate> delegate,
     std::vector<std::unique_ptr<MemoryDataProvider>> data_providers,
     optimization_guide::RemoteModelExecutor* remote_model_executor)
-    : data_providers_(std::move(data_providers)),
+    : delegate_(std::move(delegate)),
+      data_providers_(std::move(data_providers)),
       classifier_(CreateQueryClassifier(remote_model_executor)) {}
 
 AccessibilityQueryService::~AccessibilityQueryService() = default;
@@ -34,6 +36,7 @@ void AccessibilityQueryService::Shutdown() {
 
 void AccessibilityQueryService::Query(
     std::u16string_view query,
+    bool full_search,
     base::RepeatingCallback<void(MemorySearchResults)> update_callback) {
   if (data_providers_.empty()) {
     update_callback.Run(

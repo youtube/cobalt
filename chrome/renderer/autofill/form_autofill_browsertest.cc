@@ -362,7 +362,7 @@ class FormAutofillTest : public test::AutofillRendererTest {
     // Autofill uses the system font to render suggestion previews. On Windows
     // an extra step is required to ensure that the system font is configured.
     blink::WebFontRendering::SetMenuFontMetrics(
-        blink::WebString::FromASCII("Arial"), 12);
+        blink::WebString::FromAscii("Arial"), 12);
 #endif
   }
 
@@ -1104,7 +1104,7 @@ class FormAutofillTest : public test::AutofillRendererTest {
     WebInputElement input_element = GetInputElementById("firstname");
 
     // Simulate typing by modifying the field value.
-    input_element.SetValue(WebString::FromASCII("Wy"));
+    input_element.SetValue(WebString::FromAscii("Wy"));
 
     // Find the form that contains the input element.
     FormData form = FindForm(input_element);
@@ -1270,24 +1270,24 @@ class FormAutofillTest : public test::AutofillRendererTest {
     ASSERT_EQ(6U, control_elements.size());
     // We now modify the values.
     // This will be ignored, the string will be sanitized into an empty string.
-    control_elements[0].SetValue(WebString::FromUTF16(
+    control_elements[0].SetValue(WebString::FromUtf16(
         std::u16string(1, base::i18n::kLeftToRightMark) + u"     "));
 
     // This will be considered as a value entered by the user.
-    control_elements[1].SetValue(WebString::FromUTF16(u"Earp"));
+    control_elements[1].SetValue(WebString::FromUtf16(u"Earp"));
     control_elements[1].SetUserHasEditedTheField(true);
 
     // This will be ignored, the string will be sanitized into an empty string.
-    control_elements[2].SetValue(WebString::FromUTF16(u"(___)-___-____"));
+    control_elements[2].SetValue(WebString::FromUtf16(u"(___)-___-____"));
 
     // This will be ignored, the string will be sanitized into an empty string.
-    control_elements[3].SetValue(WebString::FromUTF16(u"____-____-____-____"));
+    control_elements[3].SetValue(WebString::FromUtf16(u"____-____-____-____"));
 
     // This will be ignored, because it's injected by the website and not the
     // user.
-    control_elements[4].SetValue(WebString::FromUTF16(u"Enter your city.."));
+    control_elements[4].SetValue(WebString::FromUtf16(u"Enter your city.."));
 
-    control_elements[5].SetValue(WebString::FromUTF16(u"AK"));
+    control_elements[5].SetValue(WebString::FromUtf16(u"AK"));
 
     // Find the form that contains the input element.
     FormData form = FindForm(input_element);
@@ -1435,10 +1435,10 @@ class FormAutofillTest : public test::AutofillRendererTest {
     ASSERT_EQ(3U, control_elements.size());
     // We now modify the values.
     // This will be ignored.
-    control_elements[0].SetValue(WebString::FromUTF16(u"____-____-____-____"));
+    control_elements[0].SetValue(WebString::FromUtf16(u"____-____-____-____"));
     // This will be ignored.
-    control_elements[1].SetValue(WebString::FromUTF16(u"____/__"));
-    control_elements[2].SetValue(WebString::FromUTF16(u"John Smith"));
+    control_elements[1].SetValue(WebString::FromUtf16(u"____/__"));
+    control_elements[2].SetValue(WebString::FromUtf16(u"John Smith"));
     control_elements[2].SetUserHasEditedTheField(true);
 
     // Find the form that contains the input element.
@@ -1545,10 +1545,10 @@ class FormAutofillTest : public test::AutofillRendererTest {
     ASSERT_EQ(3U, control_elements.size());
     // We now modify the values.
     // This will be ignored.
-    control_elements[0].SetValue(WebString::FromUTF16(u"____-____-____-____"));
+    control_elements[0].SetValue(WebString::FromUtf16(u"____-____-____-____"));
     // This will be ignored.
-    control_elements[1].SetValue(WebString::FromUTF16(u"____/__"));
-    control_elements[2].SetValue(WebString::FromUTF16(u"john smith"));
+    control_elements[1].SetValue(WebString::FromUtf16(u"____/__"));
+    control_elements[2].SetValue(WebString::FromUtf16(u"john smith"));
     control_elements[2].SetUserHasEditedTheField(true);
 
     // Sometimes the JS modifies the value entered by the user.
@@ -1663,11 +1663,11 @@ class FormAutofillTest : public test::AutofillRendererTest {
     }
 
     // Set the suggested values on two of the elements.
-    firstname.SetSuggestedValue(WebString::FromASCII("Wyatt"));
-    lastname.SetSuggestedValue(WebString::FromASCII("Earp"));
-    elements[2].first.SetSuggestedValue(WebString::FromASCII("wyatt@earp.com"));
-    elements[3].first.SetSuggestedValue(WebString::FromASCII("wyatt@earp.com"));
-    elements[4].first.SetSuggestedValue(WebString::FromASCII("650-777-9999"));
+    firstname.SetSuggestedValue(WebString::FromAscii("Wyatt"));
+    lastname.SetSuggestedValue(WebString::FromAscii("Earp"));
+    elements[2].first.SetSuggestedValue(WebString::FromAscii("wyatt@earp.com"));
+    elements[3].first.SetSuggestedValue(WebString::FromAscii("wyatt@earp.com"));
+    elements[4].first.SetSuggestedValue(WebString::FromAscii("650-777-9999"));
 
     std::vector<bool> is_value_empty(elements.size());
     for (size_t i = 0; i < elements.size(); ++i) {
@@ -1713,11 +1713,11 @@ class FormAutofillTest : public test::AutofillRendererTest {
     }
 
     // Set the suggested values on all of the elements.
-    firstname.SetSuggestedValue(WebString::FromASCII("Wyatt"));
-    lastname.SetSuggestedValue(WebString::FromASCII("Earp"));
-    elements[2].first.SetSuggestedValue(WebString::FromASCII("wyatt@earp.com"));
-    elements[3].first.SetSuggestedValue(WebString::FromASCII("wyatt@earp.com"));
-    elements[4].first.SetSuggestedValue(WebString::FromASCII("650-777-9999"));
+    firstname.SetSuggestedValue(WebString::FromAscii("Wyatt"));
+    lastname.SetSuggestedValue(WebString::FromAscii("Earp"));
+    elements[2].first.SetSuggestedValue(WebString::FromAscii("wyatt@earp.com"));
+    elements[3].first.SetSuggestedValue(WebString::FromAscii("wyatt@earp.com"));
+    elements[4].first.SetSuggestedValue(WebString::FromAscii("650-777-9999"));
 
     // Clear the previewed fields.
     ClearPreviewedElements(elements);
@@ -1763,11 +1763,11 @@ class FormAutofillTest : public test::AutofillRendererTest {
     }
 
     // Set the suggested values on all of the elements.
-    firstname.SetSuggestedValue(WebString::FromASCII("Wyatt"));
-    lastname.SetSuggestedValue(WebString::FromASCII("Earp"));
-    elements[2].first.SetSuggestedValue(WebString::FromASCII("wyatt@earp.com"));
-    elements[3].first.SetSuggestedValue(WebString::FromASCII("wyatt@earp.com"));
-    elements[4].first.SetSuggestedValue(WebString::FromASCII("650-777-9999"));
+    firstname.SetSuggestedValue(WebString::FromAscii("Wyatt"));
+    lastname.SetSuggestedValue(WebString::FromAscii("Earp"));
+    elements[2].first.SetSuggestedValue(WebString::FromAscii("wyatt@earp.com"));
+    elements[3].first.SetSuggestedValue(WebString::FromAscii("wyatt@earp.com"));
+    elements[4].first.SetSuggestedValue(WebString::FromAscii("650-777-9999"));
 
     // Clear the previewed fields.
     ClearPreviewedElements(elements);

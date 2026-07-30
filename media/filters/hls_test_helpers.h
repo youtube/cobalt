@@ -37,10 +37,10 @@ class MockDataSource : public CrossOriginDataSource {
   MOCK_METHOD(void, Stop, (), (override));
   MOCK_METHOD(void, Abort, (), (override));
   MOCK_METHOD(bool, GetSize, (int64_t * size_out), (override));
-  MOCK_METHOD(bool, IsStreaming, (), (override));
+  MOCK_METHOD(bool, IsStreaming, (), (const, override));
   MOCK_METHOD(void, SetBitrate, (int bitrate), (override));
   MOCK_METHOD(bool, PassedTimingAllowOriginCheck, (), (override));
-  MOCK_METHOD(bool, WouldTaintOrigin, (), (override));
+  MOCK_METHOD(bool, WouldTaintOrigin, (), (const, override));
   MOCK_METHOD(bool, AssumeFullyBuffered, (), (const, override));
   MOCK_METHOD(int64_t, GetMemoryUsage, (), (override));
   MOCK_METHOD(void, SetPreload, (DataSource::Preload preload), (override));
@@ -209,12 +209,13 @@ class FileHlsDataSourceStreamFactory {
       bool taint_origin = false);
 };
 
-class MockDataSourceFactory
-    : public HlsDataSourceProviderImpl::DataSourceFactory {
+class MockDataSourceFactory : public DataSource::Factory {
  public:
   ~MockDataSourceFactory() override;
   MockDataSourceFactory();
-  void CreateDataSource(GURL uri, bool ignore_cache, DataSourceCb cb) override;
+  void Create(const GURL& uri,
+              bool ignore_cache,
+              DataSource::DataSourceCb cb) override;
   void AddReadExpectation(size_t from, size_t to, int response);
   testing::NiceMock<MockDataSource>* PregenerateNextMock();
 

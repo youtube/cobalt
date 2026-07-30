@@ -59,6 +59,7 @@ Kai kurios funkcijos gali būti nepasiekiamos ir nuostatų pakeitimai nebus išs
 <translation id="1639380494700489405">Jei norite paklausti DI režimo apie skirtuką neišeidami iš puslapio, prisijunkite prie „Chromium“. Be to, slaptažodžius ir kitas funkcijas pasieksite visuose įrenginiuose.</translation>
 <translation id="1640672724030957280">Atsisiunčiama...</translation>
 <translation id="1680687534629375545">Klausti vaizdų paieškos apie šį puslapį</translation>
+<translation id="1708414395296835197">Galite naudoti „Chromium“ bet kada spustelėję nuorodas pranešimuose, dokumentuose ir kitose programose. Ji taip pat bus prisegta prie užduočių juostos.</translation>
 <translation id="1709772298389099340">Suteikia „<ph name="BROWSER_NAME" />“ aukštesnio lygio privilegijas.</translation>
 <translation id="1715127912119967311">Kad padėtų tobulinti šias funkcijas, „Chromium“ siunčia jūsų sąveikas su jomis sistemai „Google“. Šiuos duomenis gali skaityti, apdoroti ir komentuoti tikrinantys žmonės.</translation>
 <translation id="1722488837206509557">Galėsite pasirinkti iš pasiekiamų įrenginių ir pateikti turinį juose.</translation>
@@ -229,7 +230,6 @@ Kai kurios funkcijos gali būti nepasiekiamos ir nuostatų pakeitimai nebus išs
 <translation id="3313189106987092621">„Chromium“ perspės jus prieš įkeliant bet kokią svetainę, kurioje naudojamas nesaugus ryšys</translation>
 <translation id="3316771292331273802">Būsite atjungti nuo daugelio svetainių, kai uždarysite visus „Chromium“ langus, išskyrus „Google“ paskyrą, jei esate prisijungę prie „Chromium“. Jei norite, kad svetainės jus prisimintų, <ph name="SETTINGS_LINK" />.</translation>
 <translation id="3322413454779348750">Numatytasis paieškos variklis buvo pakeistas ne naršyklėje „Chromium“. Kad apsaugotų jus, „Chromium“ jį nustatė iš naujo.</translation>
-<translation id="3331557257666250900">Prisijunkite prie „Chromium“, kad galėtumėte pasiekti slaptažodžius, žymes ir kitas funkcijas visuose įrenginiuose</translation>
 <translation id="3352986031709923790">viršutinis dešinysis paieškos srities kampas: dešinė – <ph name="RIGHT" /> %, viršus – <ph name="TOP" /> %</translation>
 <translation id="3366305173356742781">„Chromium“ duomenys jūsų paskyroje</translation>
 <translation id="3369405342922656244">Ieškoti šiame puslapyje naudojant vaizdų paiešką</translation>
@@ -440,6 +440,7 @@ Kai kurios funkcijos gali būti nepasiekiamos ir nuostatų pakeitimai nebus išs
 <translation id="5895138241574237353">Paleisti iš naujo</translation>
 <translation id="5903106910045431592">„<ph name="PAGE_TITLE" />“ – prisijungimas prie tinklo</translation>
 <translation id="5924017743176219022">Prisijungiama prie interneto...</translation>
+<translation id="5939553720811388432">Paruoškime „Chromium“</translation>
 <translation id="5941711191222866238">Sumažinti</translation>
 <translation id="5949225980829865667">Jei norite pasiekti šią žymę ir kt. visuose įrenginiuose, prisijunkite prie „Chromium“</translation>
 <translation id="5953657885167112863">„Chromium“ suasmeninimas</translation>

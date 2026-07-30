@@ -484,9 +484,6 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
     // If true, force the window not to be shown in the taskbar, even for
     // window types that do appear in the taskbar by default.
     bool dont_show_in_taskbar = false;
-
-    // If true, adds the WS_SYSMENU style to TYPE_WINDOW_FRAMELESS windows.
-    bool force_system_menu_for_frameless = false;
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_LINUX)
@@ -1057,16 +1054,6 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   View* GetRootView();
   const View* GetRootView() const;
 
-  // A secondary widget is one that is automatically closed (via Close()) when
-  // all non-secondary widgets are closed.
-  // Default is true.
-  // TODO(beng): This is an ugly API, should be handled implicitly via
-  //             transience.
-  void set_is_secondary_widget(bool is_secondary_widget) {
-    is_secondary_widget_ = is_secondary_widget;
-  }
-  bool is_secondary_widget() const { return is_secondary_widget_; }
-
   // Returns whether the Widget is mapped by the window server. It doesn't
   // necessarily mean the window's pixels are currently visible on a physical
   // display to the user.
@@ -1110,25 +1097,26 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // Returns the SublevelManager for this widget.
   SublevelManager* GetSublevelManager();
 
-  // Starts a drag operation for the specified view. This blocks until the drag
-  // operation completes or is cancelled by calling `CancelShellDrag()`.
-  // |view| can be NULL.
+  // Starts a drag-drop operation for the specified view. This blocks until the
+  // drag-drop operation completes or is cancelled by calling
+  // `CancelDragDropLoop()`. |view| can be NULL.
+  //
   // If the view is non-NULL it can be accessed during the drag by calling
   // dragged_view(). If the view has not been deleted during the drag,
   // OnDragDone() is called on it. |location| is in the widget's coordinate
   // system. |view| must be hosted by this widget.
-  void RunShellDrag(View* view,
-                    std::unique_ptr<ui::OSExchangeData> data,
-                    const gfx::Point& location,
-                    int operation,
-                    ui::mojom::DragEventSource source);
+  void RunDragDropLoop(View* view,
+                       std::unique_ptr<ui::OSExchangeData> data,
+                       const gfx::Point& location,
+                       int operation,
+                       ui::mojom::DragEventSource source);
 
   // Cancels a currently running drag operation for the specified view. |view|
   // can be NULL.
-  void CancelShellDrag(View* view);
+  void CancelDragDropLoop(View* view);
 
   // Returns the view that requested the current drag operation via
-  // RunShellDrag(), or NULL if there is no such view or drag operation.
+  // RunDragDropLoop(), or NULL if there is no such view or drag operation.
   View* dragged_view() {
     return const_cast<View*>(const_cast<const Widget*>(this)->dragged_view());
   }
@@ -1497,11 +1485,13 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // TODO(beng): remove once we fold those objects onto this one.
   void DestroyRootView();
 
-  // Notification that a drag will start. Default implementation does nothing.
-  virtual void OnDragWillStart();
+  // Notification that a drag-and-drop session will start. Default
+  // implementation does nothing.
+  virtual void OnDragDropWillStart();
 
-  // Notification that the drag performed by RunShellDrag() has completed.
-  virtual void OnDragComplete();
+  // Notification that the drag-and-drop session has completed, whether
+  // successfully or because it was cancelled by calling `CancelDragDropLoop()`.
+  virtual void OnDragDropCompleted();
 
   // Set the native theme from which this widget gets color from.
   void SetNativeTheme(ui::NativeTheme* native_theme);
@@ -1666,15 +1656,12 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // order specified by their InitParams::sublevel.
   std::unique_ptr<SublevelManager> sublevel_manager_;
 
-  // Valid for the lifetime of RunShellDrag(), indicates the view the drag
+  // Valid for the lifetime of RunDragDropLoop(), indicates the view the drag
   // started from.
   raw_ptr<View> dragged_view_ = nullptr;
 
   // See class documentation for Widget above for a note about ownership.
   InitParams::Ownership ownership_ = InitParams::NATIVE_WIDGET_OWNS_WIDGET;
-
-  // See set_is_secondary_widget().
-  bool is_secondary_widget_ = true;
 
   // If set, overrides this value is used instead of the one from NativeTheme
   // when constructing a ColorProvider.

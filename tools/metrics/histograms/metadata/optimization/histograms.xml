@@ -1149,7 +1149,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecution.OnDeviceDestroyedWhileWaitingForResponseTime.{ModelExecutionFeature}"
-    units="ms" expires_after="2026-07-26">
+    units="ms" expires_after="2026-09-27">
   <owner>holte@chromium.org</owner>
   <owner>wittman@chromium.org</owner>
   <summary>
@@ -2040,6 +2040,64 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the total size of the page content cache on disk. Recorded after a
     delay post-startup.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.PageContentExtraction.OnDemand.IsPDF"
+    enum="Boolean" expires_after="2026-09-16">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records whether an on-demand page content extraction request was requested
+    on a PDF page. Content extraction is not performed for PDFs. Recorded once
+    per on-demand request.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.PageContentExtraction.OnDemand.Latency"
+    units="ms" expires_after="2026-09-16">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the duration from when an on-demand page content extraction is
+    requested until the callback is executed with the result. Recorded once per
+    on-demand request.
+  </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentExtraction.OnDemand.PendingCallbacksBatched"
+    units="callbacks" expires_after="2026-09-16">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the number of pending on-demand callbacks that are resolved together
+    when a page content extraction completes. Recorded once per completed
+    extraction that had at least one pending on-demand callback. This excludes
+    PDFs.
+  </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentExtraction.OnDemand.StateAtRequest"
+    enum="OptimizationGuideOnDemandExtractionState" expires_after="2026-09-16">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the state of the AnnotatedPageContentRequest at the moment an
+    on-demand extraction is requested. Recorded once per on-demand page content
+    extraction request, excluding PDFs.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.PageContentExtraction.OnDemand.Success"
+    enum="BooleanSuccess" expires_after="2026-09-16">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records whether an on-demand page content extraction request successfully
+    returned a valid ExtractedPageContentResult. Recorded once per on-demand
+    request, excluding PDFs.
   </summary>
 </histogram>
 

@@ -97,6 +97,23 @@ class BnplManagerTestApi {
     return bnpl_manager_->HasSeenAmountExtractionAiTerms();
   }
 
+  void ReplaceLoadingThrobberWithIssuerSuggestions(
+      const std::vector<BnplIssuerContext>& issuer_contexts) {
+    bnpl_manager_->ReplaceLoadingThrobberWithIssuerSuggestions(issuer_contexts);
+  }
+
+  void ReplaceIssuerSuggestionsWithLoadingThrobber() {
+    bnpl_manager_->ReplaceIssuerSuggestionsWithLoadingThrobber();
+  }
+
+  void SetIsCardNumberFieldEmpty(bool is_card_number_field_empty) {
+    bnpl_manager_->is_card_number_field_empty_ = is_card_number_field_empty;
+  }
+
+  void SetCachedSuggestions(std::vector<Suggestion> suggestions) {
+    bnpl_manager_->cached_suggestions_ = std::move(suggestions);
+  }
+
  private:
   const raw_ref<BnplManager> bnpl_manager_;
 };

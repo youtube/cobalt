@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "media/midi/midi_manager_winrt.h"
 #include "base/memory/raw_ptr.h"
 
@@ -31,9 +26,11 @@
 #include <iomanip>
 #include <memory>
 
+#include "base/check.h"
 #include "base/containers/heap_array.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/scoped_generic.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"

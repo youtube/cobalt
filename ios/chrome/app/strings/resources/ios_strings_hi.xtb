@@ -107,6 +107,7 @@
 <translation id="1369286077209859800">टैब ग्रुप में मौजूद सभी टैब दिखाएं</translation>
 <translation id="136942498637440594">इमेज खोजने के साथ-साथ, आस-पास दिख रही चीज़ों की जानकारी खोजी जा सकती है.</translation>
 <translation id="1373120905936431262">Nano Banana की मदद से रीमिक्स करने के लिए, कोई इमेज अपलोड करें</translation>
+<translation id="1377321085342047638">कार्ड नंबर</translation>
 <translation id="1377508275003315939">पासवर्ड</translation>
 <translation id="1381022135873211423">{count,plural, =1{{count} पते में से {position}}one{{count} पते में से {position}}other{{count} पतों में से {position}}}</translation>
 <translation id="1383876407941801731">खोजें</translation>
@@ -151,7 +152,6 @@
 <translation id="1517166097004694782">"इस टैब का इस्तेमाल करके जारी रखें" को छिपाएं</translation>
 <translation id="1520027731907768768">ट्रैक किए जा रहे प्रॉडक्ट की कीमत में कमी आने पर सूचनाएं पाएं.</translation>
 <translation id="1521366073263497277">टैब ग्रिड पर जाएं</translation>
-<translation id="1521774566618522728">आज सक्रिय है</translation>
 <translation id="1523567067736644845">पासवर्ड देखने के लिए अनलॉक करें</translation>
 <translation id="1524563461097350801">नहीं, रहने दें</translation>
 <translation id="1531038290222364269">टैब दिखाएं</translation>
@@ -376,6 +376,7 @@
 <translation id="2299218006564889602">Google पासवर्ड मैनेजर में सेव होने से पहले, आपके डिवाइस पर पासवर्ड एन्क्रिप्ट (सुरक्षित) कर लिए जाते हैं.</translation>
 <translation id="2306265833370324042"><ph name="SEARCH_ENGINE_NAME" /> की जानकारी दिखाएं</translation>
 <translation id="2309265394777270359">टैब बंद करें</translation>
+<translation id="2310789833878085574">सेव करें और ऑटोमैटिक भरने की सुविधा चालू करें</translation>
 <translation id="2311077293164383652">पिन किया गया टैब बंद करें</translation>
 <translation id="2316129865977710310">नहीं, रहने दें</translation>
 <translation id="2320166752086256636">कीबोर्ड छिपाएं</translation>
@@ -1099,7 +1100,6 @@
 <translation id="4944543191714094452">पेज में ढूंढें…</translation>
 <translation id="4945756290001680296">पासवर्ड की सेटिंग ऐक्सेस करें</translation>
 <translation id="4949302115427722371">सेटिंग मैनेज करें…</translation>
-<translation id="4952050521954075618">कैमरा रोल में मौजूद फ़ोटो, आपके सभी डिवाइसों पर सिंक नहीं होंगी</translation>
 <translation id="4958444002117714549">पूरी सूची दिखाएं</translation>
 <translation id="496392417432935267">यह सेटिंग दूसरी विंडो में खुली है</translation>
 <translation id="4970724460420203313">मैनेज किए जा रहे खाते से Chrome का इस्तेमाल करने पर, आपको अपने संगठन से जुड़े ब्राउज़िंग डेटा को अपने अन्य ब्राउज़िंग डेटा से अलग करने में मदद मिलती है. इस डेटा में टैब, इतिहास, और पासवर्ड शामिल हैं</translation>
@@ -1148,7 +1148,6 @@
 <translation id="5119329531859909472">प्रॉडक्ट को ट्रैक करने के लिए, 'ट्रैक करें' पर टैप करें</translation>
 <translation id="5121618895923301719">इस प्रॉडक्ट को पहले से ही ट्रैक किया जा रहा है. यह पेज <ph name="BEGIN_LINK" />मोबाइल बुकमार्क<ph name="END_LINK" /> में सेव किया गया है.</translation>
 <translation id="512533434554095351">पासवर्ड से जुड़ी कई समस्याएं हैं.</translation>
-<translation id="5127538504377457572"><ph name="DAYS" /> दिन पहले चालू था</translation>
 <translation id="5128788795241319992">नए मेन्यू के बारे में जानें</translation>
 <translation id="5132942445612118989">सभी डिवाइस पर अपने पासवर्ड, इतिहास और दूसरी कई चीज़ें सिंक करें</translation>
 <translation id="5141363746588976328">'आपके टैब पर कीमत में गिरावट' कार्ड को छिपाएं</translation>
@@ -1266,6 +1265,7 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="5556459405103347317">फिर लोड करें</translation>
 <translation id="555749644339804659">पासवर्ड जांची जा रही है...</translation>
 <translation id="5559567453458728487">वेब पर मिले मेज़रमेंट की इकाइयों को बदलना</translation>
+<translation id="5560088892362098740">समयसीमा समाप्ति तारीख</translation>
 <translation id="556042886152191864">बटन</translation>
 <translation id="5565871407246142825">क्रेडिट कार्ड</translation>
 <translation id="5566623128829375608">यह जानकारी आपके डिवाइस में सेव होती है.</translation>
@@ -1353,6 +1353,7 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="5819208479324046259"><ph name="MANAGER" /> मैनेज करता है. <ph name="BEGIN_LINK" />ज़्यादा जानें<ph name="END_LINK" /></translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5829649908290113115">सिंक हो रहा है…</translation>
+<translation id="5831217499016131155">Google वॉलेट</translation>
 <translation id="583281660410589416">अज्ञात</translation>
 <translation id="5838430324585198889">Google के ऐप्लिकेशन इस्तेमाल करें और अपने iPad पर ज़्यादा सुविधाएं पाएं</translation>
 <translation id="583923961930319521">अपने सभी डिवाइसों पर पासवर्ड इस्तेमाल करें</translation>
@@ -1650,6 +1651,7 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="6806550742467879742">पेज टूल</translation>
 <translation id="6807287147325542056">दूसरे ऐप्लिकेशन में सेव किए गए पासवर्ड</translation>
 <translation id="681368974849482173">आइटम बनाया गया</translation>
+<translation id="6820686453637990663">CVC</translation>
 <translation id="6825078212112407882">{count,plural, =1{आपके Google खाते, {email} में बुकमार्क सेव किया गया}one{आपके Google खाते, {email} में {count} बुकमार्क सेव किया गया}other{आपके Google खाते, {email} में {count} बुकमार्क सेव किए गए}}</translation>
 <translation id="6826004672264649705">फ़िलहाल, इस प्रॉडक्ट को ट्रैक किया जा रहा है. कीमत का इतिहास देखने के लिए खोलें</translation>
 <translation id="6830728435402077660">सुरक्षित नहीं है</translation>
@@ -1963,7 +1965,6 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="7952670906562503188">{passkey_count} पासकी और उन साइटों और ऐप्लिकेशन की सूची को मिटाया जाएगा जिनके लिए, आपने साइन-इन करने के क्रेडेंशियल कभी भी सेव न करने का विकल्प चुना है. साइटों और ऐप्लिकेशन के लिए बनाए गए किसी भी खाते को नहीं मिटाया जाएगा.</translation>
 <translation id="7958575506592576831">पेज की सुरक्षा से जुड़ी जानकारी</translation>
 <translation id="7961015016161918242">कभी नहीं</translation>
-<translation id="7971136598759319605">एक दिन पहले सिंक किया गया</translation>
 <translation id="7972837668077967426">कैनवस</translation>
 <translation id="7975036700432177008">आज़माएं</translation>
 <translation id="797588153137233716">मेन्यू → इतिहास → ब्राउज़िंग डेटा मिटाएं</translation>

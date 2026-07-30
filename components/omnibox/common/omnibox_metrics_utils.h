@@ -1,0 +1,41 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef COMPONENTS_OMNIBOX_COMMON_OMNIBOX_METRICS_UTILS_H_
+#define COMPONENTS_OMNIBOX_COMMON_OMNIBOX_METRICS_UTILS_H_
+
+#include <string>
+
+#include "third_party/omnibox_proto/model_mode.pb.h"
+#include "third_party/omnibox_proto/tool_mode.pb.h"
+
+namespace omnibox {
+
+// Tracks the context type.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(ContextType)
+enum class ContextType {
+  kTab = 0,
+  kFile = 1,
+  kImage = 2,
+  kImageGen = 3,
+  kDeepResearch = 4,
+  kCanvas = 5,
+  kAutoModel = 6,
+  kThinkingModel = 7,
+  kRegularModel = 8,
+  kProNoGenUiModel = 9,
+  kUnknown = 10,
+  kMaxValue = kUnknown,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:ContextType,//tools/metrics/histograms/metadata/omnibox/histograms.xml:ContextType)
+
+std::string GetToolModeString(omnibox::ToolMode mode);
+
+std::string GetModelModeString(omnibox::ModelMode mode);
+
+}  // namespace omnibox
+
+#endif  // COMPONENTS_OMNIBOX_COMMON_OMNIBOX_METRICS_UTILS_H_

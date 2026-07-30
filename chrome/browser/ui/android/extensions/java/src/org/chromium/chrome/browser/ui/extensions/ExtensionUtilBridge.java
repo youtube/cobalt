@@ -9,6 +9,7 @@ import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -16,11 +17,14 @@ import android.provider.MediaStore;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
 
 import org.chromium.base.ContentUriUtils;
 import org.chromium.base.ContextUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.content_public.browser.WebContents;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -141,5 +145,34 @@ public class ExtensionUtilBridge {
         }
 
         return null;
+    }
+
+    /**
+     * Fetches the omnibox icon for a given extension ID.
+     *
+     * @param profile The current Profile.
+     * @param extensionId The extension ID.
+     * @return The extension's icon as a Bitmap, or null if not found.
+     */
+    public static @Nullable Bitmap getExtensionOmniboxIcon(Profile profile, String extensionId) {
+        return ExtensionUtilBridgeJni.get().getExtensionOmniboxIcon(profile, extensionId);
+    }
+
+    public static void onOmniboxExtensionInputEntered(
+            WebContents webContents, String url, boolean openInNewTab, boolean openInNewWindow) {
+        ExtensionUtilBridgeJni.get()
+                .onOmniboxExtensionInputEntered(webContents, url, openInNewTab, openInNewWindow);
+    }
+
+    @NativeMethods
+    interface Natives {
+        @Nullable Bitmap getExtensionOmniboxIcon(
+                @JniType("Profile*") Profile profile, @JniType("std::string") String extensionId);
+
+        void onOmniboxExtensionInputEntered(
+                @JniType("content::WebContents*") WebContents webContents,
+                @JniType("std::string") String url,
+                boolean openInNewTab,
+                boolean openInNewWindow);
     }
 }

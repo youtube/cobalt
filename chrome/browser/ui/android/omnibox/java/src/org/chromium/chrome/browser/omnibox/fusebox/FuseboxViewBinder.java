@@ -31,12 +31,13 @@ import androidx.recyclerview.widget.RecyclerView.LayoutManager;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.R;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupButtonData;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.IconResourceIdsProto.IconResourceIds;
-import org.chromium.components.omnibox.OmniboxFeatures;
+import org.chromium.components.omnibox.ToolModeUtils;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModel.ReadableBooleanPropertyKey;
@@ -54,10 +55,8 @@ class FuseboxViewBinder {
     public static void bind(PropertyModel model, FuseboxViewHolder view, PropertyKey propertyKey) {
         if (propertyKey == FuseboxProperties.ADAPTER) {
             view.attachmentsView.setAdapter(model.get(FuseboxProperties.ADAPTER));
-        } else if (propertyKey == FuseboxProperties.ATTACHMENTS_TOOLBAR_VISIBLE) {
+        } else if (propertyKey == FuseboxProperties.ADD_BUTTON_VISIBLE) {
             updateAddButton(model, view);
-            updateRequestTypeButton(model, view);
-            reanchorViewsForCompactFusebox(model, view);
         } else if (propertyKey == FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE) {
             updateRequestTypeButton(model, view);
             updateButtonsA11yAnnouncements(model, view);
@@ -93,7 +92,8 @@ class FuseboxViewBinder {
                     v -> model.get(FuseboxProperties.BUTTON_ADD_CLICKED).run());
         } else if (propertyKey == FuseboxProperties.COLOR_SCHEME) {
             updateButtonsVisibilityAndStyling(model, view);
-        } else if (propertyKey == FuseboxProperties.COMPACT_UI) {
+        } else if (propertyKey == FuseboxProperties.FUSEBOX_STATE) {
+            updateRequestTypeButton(model, view);
             reanchorViewsForCompactFusebox(model, view);
         } else if (propertyKey == FuseboxProperties.POPUP_ATTACH_CAMERA_CLICKED) {
             view.popup.mCameraButton.setOnClickListener(
@@ -458,16 +458,18 @@ class FuseboxViewBinder {
     }
 
     private static void updateAddButton(PropertyModel model, FuseboxViewHolder view) {
-        boolean showFuseboxToolbar = model.get(FuseboxProperties.ATTACHMENTS_TOOLBAR_VISIBLE);
-        @BrandedColorScheme int brandedColorScheme = model.get(FuseboxProperties.COLOR_SCHEME);
-        Context context = view.parentView.getContext();
-
+        boolean showAddButton = model.get(FuseboxProperties.ADD_BUTTON_VISIBLE);
         ChromeImageView addButton = view.addButton;
-        addButton.setVisibility(showFuseboxToolbar ? View.VISIBLE : View.GONE);
-        addButton.setBackground(
-                OmniboxResourceProvider.getSearchBoxIconBackground(context, brandedColorScheme));
-        addButton.setImageTintList(
-                OmniboxResourceProvider.getPrimaryIconTintList(context, brandedColorScheme));
+        addButton.setVisibility(showAddButton ? View.VISIBLE : View.GONE);
+        if (showAddButton) {
+            @BrandedColorScheme int brandedColorScheme = model.get(FuseboxProperties.COLOR_SCHEME);
+            Context context = view.parentView.getContext();
+            addButton.setBackground(
+                    OmniboxResourceProvider.getSearchBoxIconBackground(
+                            context, brandedColorScheme));
+            addButton.setImageTintList(
+                    OmniboxResourceProvider.getPrimaryIconTintList(context, brandedColorScheme));
+        }
     }
 
     private static void updateNavigateButton(PropertyModel model, FuseboxViewHolder view) {
@@ -484,23 +486,18 @@ class FuseboxViewBinder {
     }
 
     private static void updateRequestTypeButton(PropertyModel model, FuseboxViewHolder view) {
-        boolean showFuseboxToolbar = model.get(FuseboxProperties.ATTACHMENTS_TOOLBAR_VISIBLE);
+        boolean fuseboxDisabled =
+                model.get(FuseboxProperties.FUSEBOX_STATE) == FuseboxState.DISABLED;
         boolean showDedicatedModeButton = model.get(FuseboxProperties.SHOW_DEDICATED_MODE_BUTTON);
         @AutocompleteRequestType
         int requestType = model.get(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE);
-        boolean aiToolSelected =
-                requestType == AutocompleteRequestType.AI_MODE
-                        || requestType == AutocompleteRequestType.IMAGE_GENERATION
-                        || requestType == AutocompleteRequestType.DEEP_SEARCH
-                        || requestType == AutocompleteRequestType.CANVAS;
+        boolean aiToolSelected = ToolModeUtils.isAimRequest(requestType);
 
-        if (!showFuseboxToolbar || !(aiToolSelected || showDedicatedModeButton)) {
+        if (fuseboxDisabled || !(aiToolSelected || showDedicatedModeButton)) {
             view.requestType.setVisibility(View.GONE);
             return;
         }
 
-        boolean showTryAiModeHintInDedicatedModeButton =
-                OmniboxFeatures.sShowTryAiModeHintInDedicatedModeButton.getValue();
         @BrandedColorScheme int brandedColorScheme = model.get(FuseboxProperties.COLOR_SCHEME);
         Context context = view.parentView.getContext();
         Resources res = context.getResources();
@@ -539,19 +536,6 @@ class FuseboxViewBinder {
                 assumeNonNull(startDrawable).mutate().setTint(colorPrimary);
                 endDrawable.setTint(colorPrimary);
             }
-        } else if (showTryAiModeHintInDedicatedModeButton) {
-            text = res.getString(R.string.ai_mode_entrypoint_hint);
-            description = text;
-            buttonColor = Color.TRANSPARENT;
-            borderColor =
-                    OmniboxResourceProvider.getAiModeHintBorderColor(context, brandedColorScheme);
-            textAppearanceRes = OmniboxResourceProvider.getAiModeHintTextRes(brandedColorScheme);
-            startDrawable =
-                    assumeNonNull(context.getDrawable(R.drawable.search_spark_black_24dp)).mutate();
-            startDrawable.setTint(
-                    OmniboxResourceProvider.getAiModeHintIconTintColor(
-                            context, brandedColorScheme));
-            endDrawable = null;
         } else /* dedicated button with aimode off, no hint text changes. */ {
             text = res.getString(R.string.ai_mode_entrypoint_label);
             description = res.getString(R.string.accessibility_omnibox_enable_ai_mode);
@@ -638,13 +622,10 @@ class FuseboxViewBinder {
 
     private static void reanchorViewsForCompactFusebox(
             PropertyModel model, FuseboxViewHolder view) {
-        boolean shouldShowCompactUi =
-                model.get(FuseboxProperties.COMPACT_UI)
-                        || !model.get(FuseboxProperties.ATTACHMENTS_TOOLBAR_VISIBLE);
-
-        int topToTop = shouldShowCompactUi ? R.id.url_bar : ConstraintSet.UNSET;
-        int topToBottom = shouldShowCompactUi ? ConstraintSet.UNSET : R.id.url_bar;
-        int bottomToBottom = shouldShowCompactUi ? ConstraintSet.UNSET : ConstraintSet.PARENT_ID;
+        boolean singleLine = model.get(FuseboxProperties.FUSEBOX_STATE) != FuseboxState.EXPANDED;
+        int topToTop = singleLine ? R.id.url_bar : ConstraintSet.UNSET;
+        int topToBottom = singleLine ? ConstraintSet.UNSET : R.id.url_bar;
+        int bottomToBottom = singleLine ? ConstraintSet.UNSET : ConstraintSet.PARENT_ID;
 
         var cs = new ConstraintSet();
         cs.clone(view.parentView);
@@ -667,7 +648,7 @@ class FuseboxViewBinder {
         cs.connect(
                 R.id.url_bar,
                 ConstraintSet.END,
-                shouldShowCompactUi ? R.id.action_buttons_segment : R.id.delete_button,
+                singleLine ? R.id.action_buttons_segment : R.id.delete_button,
                 ConstraintSet.START);
 
         cs.applyTo(view.parentView);

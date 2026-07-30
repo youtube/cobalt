@@ -424,9 +424,13 @@ OpenXrApiWrapper::PickEnvironmentBlendModeForSession(
 
 OpenXrPlaneManager* OpenXrApiWrapper::GetPlaneManager() {
   return scene_understanding_manager_ &&
-                 IsFeatureEnabled(mojom::XRSessionFeature::PLANE_DETECTION)
+                 (IsFeatureEnabled(mojom::XRSessionFeature::PLANE_DETECTION))
              ? scene_understanding_manager_->GetPlaneManager()
              : nullptr;
+}
+
+OpenXrMeshManager* OpenXrApiWrapper::GetMeshManager() {
+  return mesh_manager_.get();
 }
 
 OpenXrAnchorManager* OpenXrApiWrapper::GetAnchorManager() {
@@ -601,6 +605,11 @@ XrResult OpenXrApiWrapper::EnableSupportedFeatures(
         break;
 
       case mojom::XRSessionFeature::MESH_DETECTION:
+        if (!mesh_manager_) {
+          mesh_manager_ = extension_helper.CreateMeshManager(
+              session_, local_space_);
+        }
+        is_enabled = mesh_manager_ != nullptr;
         break;
 
       case mojom::XRSessionFeature::FRONT_FACING:
@@ -857,6 +866,10 @@ OpenXrApiWrapper::GetXrLocationFromNativeOriginInformation(
     case mojom::XRNativeOriginInformation::Tag::kImageIndex:
       NOTREACHED();
     case mojom::XRNativeOriginInformation::Tag::kMeshId:
+      if (auto* mesh_manager = GetMeshManager(); mesh_manager) {
+        return mesh_manager->GetXrLocationFromMesh(native_origin.get_mesh_id(),
+                                                   native_origin_from_object);
+      }
       return std::nullopt;
   }
 }
@@ -1585,6 +1598,10 @@ XrResult OpenXrApiWrapper::ProcessEvents() {
                      unbounded_space_provider_->GetType()) {
         // TODO(crbug.com/40653515): Properly handle unbounded reference
         // space change events.
+      }
+
+      if (mesh_manager_) {
+        mesh_manager_->OnReferenceSpaceChanged();
       }
     } else if (event_data.type ==
                XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED) {

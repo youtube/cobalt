@@ -492,9 +492,8 @@ String LayoutText::PlainText() const {
     }
     last_end_offset = end_offset;
 
-    String text =
-        text_.Substring(text_box.dom_start_offset, text_box.dom_length)
-            .SimplifyWhiteSpace(kDoNotStripWhiteSpace);
+    String text = text_.substr(text_box.dom_start_offset, text_box.dom_length)
+                      .SimplifyWhiteSpace(kDoNotStripWhiteSpace);
     plain_text_builder.Append(text);
   }
   return plain_text_builder.ToString();
@@ -941,6 +940,17 @@ std::pair<String, TextOffsetMap> LayoutText::SecureText(const String& plain,
   NOT_DESTROYED();
   if (!plain.length()) {
     return std::make_pair(plain, TextOffsetMap());
+  }
+
+  if (Node* node = GetNode()) {
+    auto ancestors = FlatTreeTraversal::InclusiveAncestorsOf(*node);
+    auto it = std::ranges::find_if(ancestors, [](Node& n) {
+      return n.IsElementNode() && !n.IsInUserAgentShadowRoot();
+    });
+
+    if (it != ancestors.end()) {
+      To<Element>(*it).SetHasBeenHeuristicCustomPasswordCSS();
+    }
   }
 
   int last_typed_character_offset_to_reveal = -1;

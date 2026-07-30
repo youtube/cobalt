@@ -63,12 +63,22 @@ BASE_DECLARE_FEATURE(kContextualTasksComposeboxJumpFix);
 // Enables the use of a rounded clip-path for the composebox.
 BASE_DECLARE_FEATURE(kContextualTasksRoundedClipPath);
 
+// Hides the the 3-dot (overflow) menu when viewing an ai page in the side
+// panel. The menu is still shown for lens flows.
+BASE_DECLARE_FEATURE(kContextualTasksHideMenuOnAiPage);
+
+// Enables updating the model from URL parameters on every inner navigation.
+BASE_DECLARE_FEATURE(kContextualTasksUpdateModelOnNavigation);
+
+bool GetIsContextualTasksUpdateModeOnNavigationEnabled();
+
 // Enum denoting which entry point can show when enabled.
 enum class EntryPointOption {
   kNoEntryPoint,
   kPageActionRevisit,
   kToolbarRevisit,
-  kToolbarPermanent
+  kToolbarPermanent,
+  kToolbarEphemeralBranded,
 };
 
 // Enum of expand button UI option
@@ -93,13 +103,6 @@ extern const base::FeatureParam<EntryPointOption, true> kShowEntryPoint;
 
 // UI Options to expand the contextual tasks side panel to tab.
 extern const base::FeatureParam<ExpandButtonOption, true> kExpandButtonOptions;
-
-// If true, the side panel is task scoped. Meaning that for all tabs associated
-// with the same task, they will share the same side panel. If the side panel
-// changed to another task for one tab, all tabs associated with the former task
-// will become associated with the new task. When set to false, task change in
-// the side panel only affects the current tab.
-extern const base::FeatureParam<bool> kTaskScopedSidePanel;
 
 // Whether to open side panel when an external link is clicked on the contextual
 // task page.
@@ -198,6 +201,9 @@ extern bool GetIsContextualTasksSuggestionsEnabled();
 // Whether Smart Tab Sharing is enabled for the ContextualTasksContext feature.
 extern bool GetIsSmartTabSharingEnabled();
 
+// Returns the timeout for smart tab sharing tab selection.
+extern base::TimeDelta GetSmartTabSharingTabSelectionTimeout();
+
 // Enables tab auto-chip for contextual tasks. When disabled, no suggested
 // chips will be shown in the composebox automatically.
 extern bool GetIsTabAutoSuggestionChipEnabled();
@@ -240,7 +246,8 @@ extern bool ShouldUseSearchResultsScope();
 // Returns whether basic mode should be enabled.
 extern bool GetIsBasicModeEnabled();
 
-// Returns whether the z-order of the composebox should be changed in basic mode.
+// Returns whether the z-order of the composebox should be changed in basic
+// mode.
 extern bool ShouldEnableBasicModeZOrder();
 
 // Returns whether the cookie sync should be enabled.

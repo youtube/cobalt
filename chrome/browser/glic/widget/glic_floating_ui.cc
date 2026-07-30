@@ -86,7 +86,11 @@ GlicFloatingUi::~GlicFloatingUi() {
     modal_dialog_host_observers_.Notify(
         &web_modal::ModalDialogHostObserver::OnHostDestroying);
   }
-  GlicProfileManager::GetInstance()->SetCurrentDetachedGlic(nullptr);
+  // Null during teardown.
+  if (auto* profile_manager = GlicProfileManager::GetInstance()) {
+    profile_manager->SetCurrentDetachedGlic(nullptr);
+  }
+
   ClearWebContentsDelegate();
   PictureInPictureOcclusionTracker* tracker =
       PictureInPictureWindowManager::GetInstance()->GetOcclusionTracker();
@@ -147,8 +151,6 @@ void GlicFloatingUi::CreateAndSetupWidget(gfx::Rect initial_bounds) {
       glic_widget_->GetWeakPtr(),
       base::BindRepeating(&GlicFloatingUi::MaybeSetWidgetCanResize,
                           weak_ptr_factory_.GetWeakPtr()));
-  window_event_observer_ = std::make_unique<GlicWindowEventObserver>(
-      glic_widget_->GetWeakPtr(), this);
   glic_widget_observation_.Observe(GetGlicWidget());
 }
 
@@ -163,14 +165,6 @@ void GlicFloatingUi::Resize(const gfx::Size& size,
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, std::move(callback));
   }
-}
-
-GlicWindowAnimator* GlicFloatingUi::window_animator() {
-  return glic_window_animator_.get();
-}
-
-void GlicFloatingUi::OnDragComplete() {
-  NOTIMPLEMENTED();
 }
 
 void GlicFloatingUi::FocusIfOpen() {
@@ -330,12 +324,6 @@ void GlicFloatingUi::Show(const ShowOptions& options) {
   GetGlicView()->UpdateBackgroundColor();
   application_hotkey_manager_->InitializeAccelerators();
   glic_panel_hotkey_manager_->InitializeAccelerators();
-
-  // TODO: Set up manual resize.
-  if (!base::FeatureList::IsEnabled(features::kGlicHandleDraggingNatively)) {
-    window_event_observer_->SetDraggingAreasAndWatchForMouseEvents();
-  }
-
   ConfigureWebContentsModalDialogs();
 }
 
@@ -350,7 +338,6 @@ void GlicFloatingUi::Close(const CloseOptions& options) {
     screenshot_capturer_->CloseScreenPicker();
   }
   FloatingPanelCanAttachChanged(false);
-  window_event_observer_.reset();
   glic_window_animator_.reset();
   glic_widget_observation_.Reset();
   glic_widget_.reset();
@@ -424,16 +411,12 @@ void GlicFloatingUi::OnWidgetBoundsChanged(views::Widget* widget,
 void GlicFloatingUi::OnWidgetUserResizeStarted(views::Widget* widget) {
   user_resizing_ = true;
   instance_metrics_->OnUserResizeStarted(GetPanelSize());
-  if (GlicWebClientAccess* client = delegate_->host().GetPrimaryWebClient()) {
-    client->ManualResizeChanged(true);
-  }
+  delegate_->host().ManualResizeChanged(true);
 }
 
 void GlicFloatingUi::OnWidgetUserResizeEnded(views::Widget* widget) {
   instance_metrics_->OnUserResizeEnded(GetPanelSize());
-  if (GlicWebClientAccess* client = delegate_->host().GetPrimaryWebClient()) {
-    client->ManualResizeChanged(false);
-  }
+  delegate_->host().ManualResizeChanged(false);
 
   glic_window_animator_->ResetLastTargetSize();
   user_resizing_ = false;

@@ -676,6 +676,51 @@ class FakeCreditCardServer : public CreditCardSaveManager::ObserverForTest {
       enabled);
 }
 
++ (NSString*)saveRedressNumberEntityWithName:(NSString*)name
+                                      number:(NSString*)number {
+  if (!name || !number) {
+    return nil;
+  }
+
+  autofill::EntityDataManager* entityDataManager = [self entityDataManager];
+  if (!entityDataManager) {
+    return nil;
+  }
+
+  autofill::test::RedressNumberOptions options = {};
+  std::u16string name_u16;
+  std::u16string number_u16;
+  base::Uuid uuid = base::Uuid::GenerateRandomV4();
+  name_u16 = base::SysNSStringToUTF16(name);
+  options.name = name_u16.c_str();
+  number_u16 = base::SysNSStringToUTF16(number);
+  options.number = number_u16.c_str();
+  std::string guid_str = uuid.AsLowercaseString();
+  options.guid = guid_str;
+  autofill::EntityInstance entity =
+      autofill::test::GetRedressNumberEntityInstance(options);
+  entityDataManager->AddOrUpdateEntityInstance(entity);
+  return base::SysUTF8ToNSString(guid_str);
+}
+
++ (void)removeEntityWithUUID:(NSString*)uuid {
+  autofill::EntityDataManager* entityDataManager = [self entityDataManager];
+  if (!entityDataManager) {
+    return;
+  }
+  entityDataManager->RemoveEntityInstance(
+      autofill::EntityInstance::EntityId(base::SysNSStringToUTF8(uuid)));
+}
+
++ (void)removeEntityModifiedSince:(NSDate*)time {
+  autofill::EntityDataManager* entityDataManager = [self entityDataManager];
+  if (!entityDataManager) {
+    return;
+  }
+  entityDataManager->RemoveEntityInstancesModifiedBetween(
+      base::Time::FromNSDate(time), base::Time::Now());
+}
+
 #pragma mark - Private
 
 // The PersonalDataManager instance for the current profile.
@@ -700,12 +745,12 @@ class FakeCreditCardServer : public CreditCardSaveManager::ObserverForTest {
   }
 }
 
-+ (BOOL)saveRedressNumberEntityWithName:(NSString*)name
-                                 number:(NSString*)number {
-  if (!name || !number) {
-    return NO;
-  }
++ (autofill::EntityDataManager*)entityDataManager {
+  return autofill::FakeCreditCardServer::GetAutofillClient()
+      .GetEntityDataManager();
+}
 
++ (BOOL)savePassportEntity {
   autofill::AutofillClient& client =
       autofill::FakeCreditCardServer::GetAutofillClient();
 
@@ -716,15 +761,7 @@ class FakeCreditCardServer : public CreditCardSaveManager::ObserverForTest {
     return NO;
   }
 
-  autofill::test::RedressNumberOptions options = {};
-  std::u16string name_u16;
-  std::u16string number_u16;
-  name_u16 = base::SysNSStringToUTF16(name);
-  options.name = name_u16.c_str();
-  number_u16 = base::SysNSStringToUTF16(number);
-  options.number = number_u16.c_str();
-  autofill::EntityInstance entity =
-      autofill::test::GetRedressNumberEntityInstance(options);
+  autofill::EntityInstance entity = autofill::test::GetPassportEntityInstance();
   entityDataManager->AddOrUpdateEntityInstance(entity);
   return YES;
 }

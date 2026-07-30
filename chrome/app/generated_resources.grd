@@ -6060,9 +6060,6 @@ are declared in tools/grit/grit_args.gni.
         </if>
       </if>
       <if expr="enable_extensions">
-        <message name="IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON_DISMISSED_TEXT" desc="The text of the button that appears on the toolbar after the user grants access to an extension that requested access to the current site.">
-          Allowed
-        </message>
         <message name="IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON_TOOLTIP_SINGLE_EXTENSION" desc="The tooltip text of the request access button that appears on the toolbar when an extension requests access to the site">
           Click to allow "<ph name="EXTENSIONS_REQUESTING_ACCESS">$1<ex>Extension A</ex></ph>" on <ph name="ORIGIN">$2<ex>google.com</ex></ph>
         </message>
@@ -6535,6 +6532,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <if expr="enable_extensions_core">
         <message name="IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON" desc="The text of the request acces button that appears on the toolbar when an extension requests access to the site" formatter_data="android_java">
           Allow <ph name="EXTENSIONS_REQUESTING_ACCESS_COUNT">$1<ex>3</ex></ph>?
+        </message>
+        <message name="IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON_DISMISSED_TEXT" desc="The text of the button that appears on the toolbar after the user grants access to an extension that requested access to the current site." formatter_data="android_java">
+          Allowed
         </message>
         <message name="IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON_TOOLTIP_MULTIPLE_EXTENSIONS" desc="The tooltip text of the request access button that appears on the toolbar when an extension requests access to the site">
           Click to allow on <ph name="ORIGIN">$1<ex>google.com</ex></ph>:
@@ -7619,6 +7619,19 @@ Keep your key file in a safe place. You will need it to create new versions of y
 
 
       <!-- NTP -->
+      <!-- Google Drive integration disclaimer for New Tab Page -->
+      <message name="IDS_NTP_DRIVE_CONNECT_TITLE" desc="Title of the dialog asking to connect Google Drive to AIM.">
+        Allow Search to Access Drive Content?
+      </message>
+      <message name="IDS_NTP_DRIVE_DISCLAIMER_BODY" desc="Body text explaining how Drive data is handled in AIM.">
+        Your Google Drive content is accessed only to provide this file search feature. It is not used to improve Google Search. Google will not access your Google Drive content unless you explicitly upload a file.
+      </message>
+      <message name="IDS_NTP_DRIVE_DISCLAIMER_CANCEL" desc="Label on the button to cancel the Google Drive connection to AIM.">
+        Cancel
+      </message>
+      <message name="IDS_NTP_DRIVE_DISCLAIMER_CONNECT" desc="Label on the button to proceed with connecting Google Drive.">
+        Connect
+      </message>
       <message name="IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_MD" desc="The text displayed in the fakebox (on the New Tab page) when it is empty, Google is the default search engine, and the Material Design UI is enabled.">
         Search Google or type a URL
       </message>
@@ -8690,7 +8703,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Add tabs and more
       </message>
       <message name="IDS_NTP_COMPOSE_ADD_CONTEXT_TITLE" desc="The a11y title for a button that allows users to add context to their search e.g. pdf or image.">
-        Add a tab or file to your search, and also use a tool
+        Enhance your search with tabs, files, or an AI tool
       </message>
       <message name="IDS_NTP_COMPOSE_SUGGESTIONS_INFO" desc="The text underneath the composebox that explains to users how suggestions are generated.">
         Suggestions based on your <ph name="BEGIN_LINK_GOOGLE_ACTIVITY">&lt;a target="_blank" href="$1"&gt;</ph>Google activity<ph name="END_LINK_GOOGLE_ACTIVITY">&lt;/a&gt;</ph>
@@ -9391,6 +9404,16 @@ Keep your key file in a safe place. You will need it to create new versions of y
           Customize toolbar
         </message>
       </if>
+      <if expr="use_titlecase">
+        <message name="IDS_SIDE_PANEL_TABS_FROM_OTHER_DEVICES_TITLE" desc="Title of the 'Tabs from other devices' side panel entry.">
+          Tabs From Other Devices
+        </message>
+      </if>
+      <if expr="not use_titlecase">
+        <message name="IDS_SIDE_PANEL_TABS_FROM_OTHER_DEVICES_TITLE" desc="Title of the 'Tabs from other devices' side panel entry.">
+          Tabs from other devices
+        </message>
+      </if>
       <message name="IDS_SIDE_PANEL_TOOLBAR_BUTTON_CXMENU_UNPIN" desc="The label of the context menu item for unpinning a side panel toolbar button.">
         Unpin
       </message>
@@ -9655,6 +9678,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
           Reading mode
         </message>
       </if>
+      <message name="IDS_IMMERSIVE_READING_MODE_OPENED_ANNOUNCEMENT" desc="Accessibility announcement read by screen readers when reading mode is opened." is_accessibility_with_no_ui="true">
+        Reading mode opened, full page view
+      </message>
       <message name="IDS_READING_MODE_NOT_SELECTABLE_HEADER" desc="Header for reading mode when the current webpage cannot be opened in reading mode, even when selecting text.">
         Reading mode isn’t available on this page
       </message>
@@ -10280,11 +10306,14 @@ Keep your key file in a safe place. You will need it to create new versions of y
           <message name="IDS_VERTICAL_TABS_TUTORIAL_STEP_END" desc="The body for the celebratory end step of the vertical tabs IPH tutorial. The string in quotation marks should match the translation for IDS_SWITCH_TO_HORIZONTAL_TAB.">
             You can move your tabs back to the top by right-clicking any tab and selecting “Show Tabs Horizontally”
           </message>
-          <message name="IDS_VERTICAL_TABS_ENABLE_EXPAND_ON_HOVER" desc="In Title Case: The button in context menu that enables expand on hover behavior." translateable="false">
+          <message name="IDS_VERTICAL_TABS_ENABLE_EXPAND_ON_HOVER" desc="In Title Case: The button in context menu that enables expand on hover behavior.">
             Turn on Auto Expanding Tabs
           </message>
-          <message name="IDS_VERTICAL_TABS_DISABLE_EXPAND_ON_HOVER" desc="In Title Case: The button in context menu that disables expand on hover behavior." translateable="false">
+          <message name="IDS_VERTICAL_TABS_DISABLE_EXPAND_ON_HOVER" desc="In Title Case: The button in context menu that disables expand on hover behavior.">
             Turn off Auto Expanding Tabs
+          </message>
+          <message name="IDS_VERTICAL_TABS_COLLAPSE_BUTTON_TOGGLE_EXPAND_ON_HOVER" desc="In Title Case: The right click context menu opened by the collapse button that toggles expand on hover behavior.">
+            Expand Collapsed Tabs by Hovering
           </message>
         </then>
         <else>
@@ -10312,11 +10341,14 @@ Keep your key file in a safe place. You will need it to create new versions of y
           <message name="IDS_VERTICAL_TABS_TUTORIAL_STEP_END" desc="The body for the celebratory end step of the vertical tabs IPH tutorial. The string in quotation marks should match the translation for IDS_SWITCH_TO_HORIZONTAL_TAB.">
             You can move your tabs back to the top by right-clicking any tab and selecting “Show tabs horizontally”
           </message>
-          <message name="IDS_VERTICAL_TABS_ENABLE_EXPAND_ON_HOVER" desc="The button in context menu that enables expand on hover behavior." translateable="false">
+          <message name="IDS_VERTICAL_TABS_ENABLE_EXPAND_ON_HOVER" desc="The button in context menu that enables expand on hover behavior.">
             Turn on auto expanding tabs
           </message>
-          <message name="IDS_VERTICAL_TABS_DISABLE_EXPAND_ON_HOVER" desc="The button in context menu that disables expand on hover behavior." translateable="false">
+          <message name="IDS_VERTICAL_TABS_DISABLE_EXPAND_ON_HOVER" desc="The button in context menu that disables expand on hover behavior.">
             Turn off auto expanding tabs
+          </message>
+          <message name="IDS_VERTICAL_TABS_COLLAPSE_BUTTON_TOGGLE_EXPAND_ON_HOVER" desc="The right click context menu opened by the collapse button that toggles expand on hover behavior.">
+            Expand collapsed tabs by hovering
           </message>
         </else>
       </if>
@@ -11830,6 +11862,12 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
       </message>
       <message name="IDS_PICTURE_IN_PICTURE_UNMUTE_MICROPHONE_TEXT" desc="Text label of the unmute microphone control button. The button appears when the user hovers over the Picture-in-Picture window.">
         Unmute microphone
+      </message>
+      <message name="IDS_PICTURE_IN_PICTURE_MUTE_TEXT" desc="Text label of the mute audio control button. The button appears when the user hovers over the Picture-in-Picture window.">
+        Mute
+      </message>
+      <message name="IDS_PICTURE_IN_PICTURE_UNMUTE_TEXT" desc="Text label of the unmute audio control button. The button appears when the user hovers over the Picture-in-Picture window.">
+        Unmute
       </message>
       <message name="IDS_PICTURE_IN_PICTURE_TURN_ON_CAMERA_TEXT" desc="Text label of the turn on camera control button. The button appears when the user hovers over the Picture-in-Picture window.">
         Turn on camera
@@ -19191,6 +19229,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_GLIC_SELECTION_OVERLAY_RENDERER_LABEL" desc="The label for the renderer process housing the Gemini's selection overlay.">
         Gemini Selection Overlay
       </message>
+      <message name="IDS_GLIC_SELECTION_OVERLAY_PRESELECTION_BUBBLE_TEXT" desc="Text that is shown in the Glic selection overlay preselection bubble. Informs the user to select text or image to ask Gemini.">
+        Select any text or image to ask Gemini
+      </message>
       <message name="IDS_COPIED_TO_CLIPBOARD_TOAST_BODY" desc="Text on a toast notification that is shown when an item has been copied to clipboard.">
         Copied to clipboard
       </message>
@@ -19335,11 +19376,14 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <message name="IDS_IWA_INSTALLER_INSTALL_FAILED_SUBTITLE" desc="Subtitle of the error dialog that is shown when an Isolated Web App failed to install">
       The installation could not be completed. Please try again or close this window
     </message>
-    <message name="IDS_IWA_INSTALLER_INSTALL_FAILED_BUNDLE_NOT_ON_USER_INSTALL_ALLOWLIST_SUBTITLE" desc="Subtitle of the error dialog that is shown when an Isolated Web App failed to install because it's not on the user install allowlist">
-      This application can't be installed by the user. Please contact the developer
+    <message name="IDS_IWA_INSTALLER_INSTALL_FAILED_BUNDLE_BLOCKED_USER_INSTALL_ALLOWLIST_BLOCKLIST_TITLE" desc="Title of the error dialog that is shown when an Isolated Web App failed to install because it's not on the user install allowlist or because it's on the blocklist">
+      Can't install app
     </message>
-    <message name="IDS_IWA_INSTALLER_INSTALL_FAILED_BUNDLE_BLOCKLISTED" desc="Subtitle of the error dialog that is shown when an Isolated Web App failed to install because it's on the blocklist">
-      This application has been blocked. Please contact the developer
+    <message name="IDS_IWA_INSTALLER_INSTALL_FAILED_BUNDLE_NOT_ON_USER_INSTALL_ALLOWLIST_MESSAGE" desc="Message of the error dialog that is shown when an Isolated Web App failed to install because it's not on the user install allowlist">
+      To learn why, contact the app developer
+    </message>
+    <message name="IDS_IWA_INSTALLER_INSTALL_FAILED_BUNDLE_BLOCKLISTED_MESSAGE" desc="Message of the error dialog that is shown when an Isolated Web App failed to install because it's on the blocklist">
+      This app is potentially dangerous and was blocked by Google
     </message>
     <message name="IDS_IWA_INSTALLER_INSTALL_FAILED_RETRY" desc="Label of the retry button in the error dialog that is shown when an Isolated Web App failed to install">
       Retry
@@ -19624,6 +19668,15 @@ Please help our engineers fix this problem. Tell us what happened right before y
 
     <!-- New Tab Page browser feature promotions. -->
     <if expr="not is_android">
+      <message name="IDS_NTP_PROMO_DISMISS" desc="Text shown on the menu option to dismiss a New Tab Page promo.">
+        Don't show this promo
+      </message>
+      <message name="IDS_NTP_PROMO_MENU_TOOLTIP" desc="Tooltip for the button that opens the New Tab Page promo menu.">
+        More actions
+      </message>
+      <message name="IDS_NTP_PROMO_MENU_A11Y_LABEL" desc="Aria label for the button that opens the New Tab Page promo menu.">
+        More actions for promo
+      </message>
       <message name="IDS_NTP_EXTENSIONS_PROMO" desc="The text shown in the body of the New Tab Page extensions promotion">
         Add extensions to stay organized, simplify tasks, and enhance your browsing
       </message>
@@ -19859,6 +19912,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
       <message name="IDS_UPDATER_EXPAND_ALL" desc="Label for a button that expands all collapsed items in a list.">
         Expand All
+      </message>
+      <message name="IDS_UPDATER_EXPORT_HISTORY_FILE" desc="Label for the button that redirects users to Chrome's support tool, allowing them to export Chrome Updater's history files.">
+        Export History Files
       </message>
       <message name="IDS_UPDATER_FILTER_CHIP_APP" desc="Text displayed in a filter chip showing the selected application's names or identifier strings.">
         App: <ph name="APPS">$1<ex>Google Chrome, Google Chrome Beta, Google Chrome Canary, {6BBAE539-2232-434A-A4E5-9A33560C6284}</ex></ph>

@@ -186,6 +186,12 @@ BASE_FEATURE(kBackForwardCacheMemoryControls,
 #endif
 );
 
+// WHen this flag is enabled, the cookies modification without cookie value
+// change will not cause eviction of the back/forward cache entries with
+// Cache-control: no-store header.
+BASE_FEATURE(kBackForwardCacheCCNSIgnoreUnchangedCookies,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_ANDROID)
 // Enables getting screenshots as shared images for back forward transitions
 // in cross-document navigations.
@@ -682,6 +688,10 @@ BASE_FEATURE(kOverscrollHistoryNavigation, base::FEATURE_ENABLED_BY_DEFAULT);
 // Whether web apps can run periodic tasks upon network connectivity.
 BASE_FEATURE(kPeriodicBackgroundSync, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Allow starting prefetch request from off the main thread. Please see
+// crbug.com/452389538 for more details.
+BASE_FEATURE(kPrefetchOffTheMainThread, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Use code paths for prefetch/prerender integration.
 // See also `kPrerender2FallbackPrefetchSpecRules`.
 BASE_FEATURE(kPrefetchPrerenderIntegration, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -879,7 +889,7 @@ constexpr base::FeatureParam<double> kProcessPerSiteMainFrameTotalMemoryLimit{
 // it doesn't require a developer opt-in.
 //
 // crbug.com/1472634 for more details.
-BASE_FEATURE(kServiceWorkerAutoPreload, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kServiceWorkerAutoPreload, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // crbug.com/374606637: When this is enabled, race-network-and-fetch-hander will
 // prioritize the response processing for the network request over the
@@ -945,10 +955,6 @@ BASE_FEATURE(
 // If enabled, GetUserMedia API will only work when the concerned tab is in
 // focus
 BASE_FEATURE(kUserMediaCaptureOnFocus, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// A feature to enabled updating installed PWAs more predictably by considering
-// changes in icon urls.
-BASE_FEATURE(kWebAppPredictableAppUpdating, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // This is intended as a kill switch for the WebOTP Service feature. To enable
 // this feature, the experimental web platform features flag should be set.

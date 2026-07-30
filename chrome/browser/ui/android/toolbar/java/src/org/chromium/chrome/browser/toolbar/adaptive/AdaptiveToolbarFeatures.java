@@ -13,8 +13,10 @@ import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.readaloud.ReadAloudFeatures;
+import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.base.DeviceFormFactor;
 
 import java.util.HashMap;
@@ -102,6 +104,8 @@ public class AdaptiveToolbarFeatures {
      *     <li>If false, we'll show the button's IPH bubble specified on its ButtonData.
      */
     public static boolean shouldShowActionChip(@AdaptiveToolbarButtonVariant int buttonVariant) {
+        // TODO(crbug.com/485624827): Decouple action chip from dynamic action type.
+        if (buttonVariant == AdaptiveToolbarButtonVariant.GLIC) return true;
         if (!isDynamicAction(buttonVariant)) return false;
         if (sActionChipOverridesForTesting != null
                 && sActionChipOverridesForTesting.containsKey(buttonVariant)) {
@@ -110,6 +114,7 @@ public class AdaptiveToolbarFeatures {
 
         // Price tracking, price insights and reader mode launched with the action chip variant.
         switch (buttonVariant) {
+            case AdaptiveToolbarButtonVariant.GLIC:
             case AdaptiveToolbarButtonVariant.PRICE_TRACKING:
             case AdaptiveToolbarButtonVariant.READER_MODE:
             case AdaptiveToolbarButtonVariant.PRICE_INSIGHTS:
@@ -117,8 +122,6 @@ public class AdaptiveToolbarFeatures {
             case AdaptiveToolbarButtonVariant.TAB_GROUPING:
             case AdaptiveToolbarButtonVariant.TEST_BUTTON:
                 return true;
-            case AdaptiveToolbarButtonVariant.GLIC:
-                return false;
             default:
                 assert false : "Unknown button variant " + buttonVariant;
                 return false;
@@ -189,6 +192,13 @@ public class AdaptiveToolbarFeatures {
 
     public static boolean isAdaptiveToolbarReadAloudEnabled(Profile profile) {
         return ReadAloudFeatures.isAllowed(profile);
+    }
+
+    /**
+     * @return Whether the translate button is enabled by policy/preference.
+     */
+    public static boolean isTranslateEnabled(Profile profile) {
+        return UserPrefs.get(profile).getBoolean(Pref.OFFER_TRANSLATE_ENABLED);
     }
 
     public static boolean isTabGroupingPageActionEnabled() {

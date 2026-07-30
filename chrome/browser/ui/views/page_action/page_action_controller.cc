@@ -22,6 +22,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "ui/actions/action_id.h"
 #include "ui/actions/actions.h"
+#include "ui/menus/simple_menu_model.h"
 
 namespace page_actions {
 
@@ -194,11 +195,12 @@ void PageActionControllerImpl::DoHideSuggestionChip(
 
 void PageActionControllerImpl::ShowAnchoredMessage(
     actions::ActionId action_id) {
-  chip_selector_->RequestAnchoredMessageShow(action_id);
+  chip_selector_->RequestAnchoredMessageShow(action_id, {});
 }
 
 void PageActionControllerImpl::DoShowAnchoredMessage(
-    actions::ActionId action_id) {
+    actions::ActionId action_id,
+    const AnchoredMessageConfig& config) {
   FindPageActionModel(action_id).SetShouldShowAnchoredMessage(PassKey(),
                                                               /*show=*/true);
   active_anchored_message_ = action_id;
@@ -345,10 +347,18 @@ void PageActionControllerImpl::ClearAnchoredMessageIcon(
                                                         std::nullopt);
 }
 
-void PageActionControllerImpl::ShouldShowAnchoredMessageCloseIcon(
+void PageActionControllerImpl::SetAnchoredMessageAction(
     actions::ActionId action_id,
-    bool show) {
-  FindPageActionModel(action_id).SetAnchoredMessageCloseIcon(PassKey(), show);
+    AnchoredMessageActionIconType action_icon_type,
+    std::unique_ptr<ui::SimpleMenuModel> model) {
+  if (action_icon_type == AnchoredMessageActionIconType::kMenu) {
+    CHECK(model);
+  } else {
+    CHECK(!model);
+  }
+
+  FindPageActionModel(action_id).SetAnchoredMessageAction(
+      PassKey(), action_icon_type, std::move(model));
 }
 
 void PageActionControllerImpl::AddObserver(

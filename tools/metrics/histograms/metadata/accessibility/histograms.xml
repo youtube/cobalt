@@ -247,8 +247,8 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.IfChange(KeyboardShortcutsSemanticMeaning) -->
 
-<histogram name="Accessibility.Android.KeyboardShortcut.{ScreenReaderState}5"
-    enum="KeyboardShortcutsSemanticMeaning" expires_after="2026-06-01">
+<histogram name="Accessibility.Android.KeyboardShortcut.{ScreenReaderState}6"
+    enum="KeyboardShortcutsSemanticMeaning" expires_after="2026-09-27">
   <owner>mschillaci@google.com</owner>
   <owner>katie@chromium.org</owner>
   <owner>jhimawan@google.com</owner>
@@ -777,26 +777,6 @@ chromium-metrics-reviews@google.com.
     <variant name="LoadComplete"/>
     <variant name="UserInput"/>
   </token>
-</histogram>
-
-<histogram name="Accessibility.AutoDisabled.DisabledTime" units="ms"
-    expires_after="2025-05-04">
-  <owner>abigailbklein@google.com</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    The total amount of time accessibility was disabled due to being
-    auto-disabled, before being enabled again.
-  </summary>
-</histogram>
-
-<histogram name="Accessibility.AutoDisabled.EnabledTime" units="ms"
-    expires_after="2025-05-04">
-  <owner>abigailbklein@google.com</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    The total amount of time accessibility was enabled before being
-    auto-disabled.
-  </summary>
 </histogram>
 
 <histogram name="Accessibility.AutoDisabled.EventCount" units="count"
@@ -3363,6 +3343,26 @@ even if they fit the naming pattern. -->
     <variant name="Pause" summary="pause speech"/>
     <variant name="Play" summary="play speech"/>
     <variant name="PreviousButton" summary="previous granularity"/>
+  </token>
+</histogram>
+
+<histogram
+    name="Accessibility.ReadAnything.RendererRequestFor{Action}.IsFromObservedTree"
+    enum="Boolean" expires_after="2026-12-01">
+  <owner>kristislee@google.com</owner>
+  <owner>komo-eng@google.com</owner>
+  <summary>
+    Records whether action requests received by the
+    ReadAnythingUntrustedPageHandler (e.g. link click or image download
+    requests) are from the currently observed tree. If not, this may be a
+    malicious request.
+  </summary>
+  <token key="Action">
+    <variant name="ImageDataDownload" summary="requested to download an image"/>
+    <variant name="LinkClick" summary="requested to click a link"/>
+    <variant name="ScrollToTargetNode"
+        summary="requested to scroll to a particular node"/>
+    <variant name="Selection" summary="requested text selection"/>
   </token>
 </histogram>
 

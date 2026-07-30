@@ -9,21 +9,36 @@ import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {PageCallbackRouter, PageHandlerFactory, PageHandlerRemote} from './ai_overlay_dialog.mojom-webui.js';
-import type {ApiConfig} from './api_session.js';
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import type {AudioCapturer} from './audio_capturer.js';
 import {BlobAudioCapturer, MicrophoneAudioCapturer} from './audio_capturer.js';
 import {AudioPlayer} from './audio_player.js';
 import {Conversation, State} from './conversation.js';
-import type {ConversationConfig, Persona} from './conversation.js';
+import type {ApiConfig, ConversationConfig, Persona} from './conversation.js';
+import {errorLog, log} from './logging.js';
 import type {PageContext} from './page_context_manager.js';
+import {AiOverlayToolsRemote} from './tools.mojom-webui.js';
 
-enum UiState {
-  INERT = 'inert',
+const FILE = 'App';
+
+/**
+ * Used to describe the phase of the app during startup.
+ */
+enum InitializationState {
+  UNINITIALIZED = 'uninitialized',
   CONNECTING = 'connecting',
+  ERROR = 'error',
+  INITIALIZED = 'initialized',
+}
+
+/**
+ * Used to describe the state of the app after InitializationState reaches
+ * INITIALIZED.
+ */
+enum UiState {
+  LISTENING = 'listening',
   SPEAKING = 'speaking',
-  IDLE = 'idle',
 }
 
 interface MockAudioButton {
@@ -38,28 +53,9 @@ interface PersonaConfig {
 interface ResourceBundle {
   persona: Persona;
   apiConfig: ApiConfig;
-  talkingBlob: Blob;
+  speakingBlob: Blob;
   listeningBlob: Blob;
   instruction: string;
-}
-
-// TODO(bokan): Allow providing this via a switch so we can remove it.
-const DEFAULT_API_CONFIG = {
-  endpointUrl:
-      'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent',
-  model: 'models/gemini-3.1-flash-live-preview',
-};
-
-const DEFAULT_PERSONA: Persona = {
-  id: 'chromium',
-  name: 'TheButton',
-  persona: 'You are a friendly assistant that lives in a button in Chrome\'s ' +
-      'overlay dialog',
-  voice: 'Puck',
-};
-
-function log(msg: string, ...args: any[]) {
-  console.info(`[${performance.now().toFixed(2)}] [App] ${msg}`, ...args);
 }
 
 export class AppElement extends CrLitElement {
@@ -82,35 +78,33 @@ export class AppElement extends CrLitElement {
       mockButtons: {
         type: Array,
       },
-      isSpeaking: {
-        type: Boolean,
-      },
-      isListening: {
-        type: Boolean,
-      },
-      isConnecting: {
-        type: Boolean,
-      },
       transcription: {
         type: String,
       },
-      talkingBlobUrl: {
+      speakingBlobUrl: {
         type: String,
       },
       listeningBlobUrl: {
         type: String,
       },
+      initializationState: {
+        type: String,
+      },
+      uiState: {
+        type: String,
+      },
     };
   }
 
+  protected accessor initializationState = InitializationState.UNINITIALIZED;
+  protected accessor uiState = UiState.LISTENING;
   protected accessor mockButtons: MockAudioButton[] = [];
-  protected accessor isSpeaking: boolean = false;
-  protected accessor isConnecting: boolean = false;
   protected accessor transcription: string = '';
-  protected accessor talkingBlobUrl: string = '';
+  protected accessor speakingBlobUrl: string = '';
   protected accessor listeningBlobUrl: string = '';
 
   private pageHandler: PageHandlerRemote;
+  private toolsRemote: AiOverlayToolsRemote;
   private pageCallbackRouter: PageCallbackRouter;
   private conversation: Conversation|null = null;
   private blobCapturer: BlobAudioCapturer|null = null;
@@ -120,73 +114,24 @@ export class AppElement extends CrLitElement {
   // initialize so keep track of any page context that arrives before those are
   // setup so that it can be provided when these objects initialize.
   private initialPageContext?: PageContext;
-  private configPromise: Promise<ConversationConfig>;
   private unregisterPageContextListeners: (() => void)|null;
   private transcriptionTimeout: number = 0;
-
-  protected get uiState(): UiState {
-    if (this.isConnecting) {
-      return UiState.CONNECTING;
-    }
-
-    if (!this.conversation?.connected) {
-      return UiState.INERT;
-    }
-
-    if (this.isSpeaking) {
-      return UiState.SPEAKING;
-    }
-
-    return UiState.IDLE;
-  }
-
-  protected get hasResourceBundle(): boolean {
-    return !!this.talkingBlobUrl && !!this.listeningBlobUrl;
-  }
-
-  protected get useStateButton(): boolean {
-    if (!this.hasResourceBundle) {
-      return true;
-    }
-
-    return this.uiState === UiState.CONNECTING ||
-        this.uiState === UiState.INERT;
-  }
+  private energyAnimationId: number|null = null;
 
   constructor() {
     super();
 
-    const ttcBundleUrl = loadTimeData.getString('ttcBundleUrl');
-    const initializedPromise = this.initializeResourceBundle(ttcBundleUrl);
-    initializedPromise.then((bundle: ResourceBundle) => {
-      console.info('Blobs initialized');
-      this.talkingBlobUrl = URL.createObjectURL(bundle.talkingBlob);
-      this.listeningBlobUrl = URL.createObjectURL(bundle.listeningBlob);
-    });
-    this.configPromise = initializedPromise.then((bundle: ResourceBundle) => {
-      // Locally specified key overrides the fetched one.
-      const apiKey =
-          loadTimeData.getString('apiKey') || bundle.apiConfig.apiKey;
-      return {
-        persona: bundle.persona,
-        system_instruction: bundle.instruction,
-        api_config: {
-          ...bundle.apiConfig,
-          apiKey,
-        },
-      };
-    });
-    initializedPromise.catch(e => console.error('Failed to fetch bundle: ', e));
-
     // Setup Mojo connection
     this.pageCallbackRouter = new PageCallbackRouter();
     this.pageHandler = new PageHandlerRemote();
+    this.toolsRemote = new AiOverlayToolsRemote();
 
     // Start listening for page context updates immediately to ensure we catch
     // any initial updates before the Conversation is initialized.
     const didChangePageId = this.pageCallbackRouter.didChangePage.addListener(
-        (url: string, title: string|null, content: string|null) =>
-            this.initialPageContext = {url, title, content});
+        (url: string, title: string|null,
+         content: string|null) => this.initialPageContext =
+            {url, title, content, hasHadContent: (content?.length ?? 0) > 0});
     const updateContextId =
         this.pageCallbackRouter.updateCurrentPageContext.addListener(
             (title: string, content: string) => {
@@ -207,7 +152,8 @@ export class AppElement extends CrLitElement {
     const factory = PageHandlerFactory.getRemote();
     factory.createPageHandler(
         this.pageHandler.$.bindNewPipeAndPassReceiver(),
-        this.pageCallbackRouter.$.bindNewPipeAndPassRemote());
+        this.pageCallbackRouter.$.bindNewPipeAndPassRemote(),
+        this.toolsRemote.$.bindNewPipeAndPassReceiver());
   }
 
   override connectedCallback() {
@@ -221,8 +167,8 @@ export class AppElement extends CrLitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
     document.removeEventListener('visibilitychange', this.onVisibilityChange);
-    if (this.talkingBlobUrl) {
-      URL.revokeObjectURL(this.talkingBlobUrl);
+    if (this.speakingBlobUrl) {
+      URL.revokeObjectURL(this.speakingBlobUrl);
     }
     if (this.listeningBlobUrl) {
       URL.revokeObjectURL(this.listeningBlobUrl);
@@ -236,6 +182,37 @@ export class AppElement extends CrLitElement {
       this.stopConversation();
     }
   };
+
+  private energyAnimationLoop = () => {
+    if (this.energyAnimationId === null) {
+      return;
+    }
+
+    let energy = 0;
+    if (this.uiState === UiState.SPEAKING && this.audioPlayer) {
+      energy = this.audioPlayer.getEnergy();
+    } else if (this.uiState === UiState.LISTENING && this.audioCapturer) {
+      energy = this.audioCapturer.getEnergy();
+    }
+
+    this.pageHandler.updateAudioEnergy(energy);
+
+    this.energyAnimationId = requestAnimationFrame(this.energyAnimationLoop);
+  };
+
+  private startEnergyAnimation() {
+    if (this.energyAnimationId === null) {
+      this.energyAnimationId = requestAnimationFrame(this.energyAnimationLoop);
+    }
+  }
+
+  private stopEnergyAnimation() {
+    if (this.energyAnimationId !== null) {
+      cancelAnimationFrame(this.energyAnimationId);
+      this.energyAnimationId = null;
+      this.pageHandler.updateAudioEnergy(0.0);
+    }
+  }
 
   private onAudioInput(sampleRate: number, data: string) {
     this.conversation?.sendAudio(sampleRate, data);
@@ -259,30 +236,27 @@ export class AppElement extends CrLitElement {
       return;
     }
 
-    log(`Injecting audio: ${button.name}, length: ${button.wavdata.length}`);
-    try {
-      const binaryString = atob(button.wavdata);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], {type: 'audio/wav'});
-      this.blobCapturer.send(blob).then(() => {
-        this.conversation?.markMockAudioEndTime(performance.now());
-      });
-    } catch (e) {
-      log('Failed to inject audio:', e);
+    log(FILE,
+        `Injecting audio: ${button.name}, length: ${button.wavdata.length}`);
+    const binaryString = atob(button.wavdata);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
     }
+    const blob = new Blob([bytes], {type: 'audio/wav'});
+    this.blobCapturer.send(blob).then(() => {
+      this.conversation?.markMockAudioEndTime(performance.now());
+    });
   }
 
   private createAudioPlayer(): AudioPlayer {
     return new AudioPlayer(/*onStart=*/
                            () => {
-                             this.isSpeaking = true;
+                             this.uiState = UiState.SPEAKING;
                            },
                            /*onDone=*/
                            () => {
-                             this.isSpeaking = false;
+                             this.uiState = UiState.LISTENING;
                            });
   }
 
@@ -291,22 +265,23 @@ export class AppElement extends CrLitElement {
       const stream = await navigator.mediaDevices.getUserMedia({audio: true});
       return new MicrophoneAudioCapturer(stream);
     } catch (e) {
-      log('No Microphone Found', e);
+      log(FILE, 'No Microphone Found', e);
 
       try {
         const {jsonData} = await this.pageHandler.getMockAudioData();
         if (jsonData) {
-          log('Received mock audio data:', jsonData.substring(0, 100) + '...');
+          log(FILE,
+              'Received mock audio data:', jsonData.substring(0, 100) + '...');
           const config = JSON.parse(jsonData);
           this.mockButtons = config.buttons || [];
-          log(`Loaded ${this.mockButtons.length} mock buttons`);
+          log(FILE, `Loaded ${this.mockButtons.length} mock buttons`);
           this.blobCapturer = new BlobAudioCapturer();
           return this.blobCapturer;
         } else {
-          log('No mock audio data provided or found');
+          log(FILE, 'No mock audio data provided or found');
         }
       } catch (mojoError) {
-        log('Failed to get mock audio data', mojoError);
+        log(FILE, 'Failed to get mock audio data', mojoError);
       }
     }
 
@@ -314,64 +289,75 @@ export class AppElement extends CrLitElement {
   }
 
   private async startConversation() {
-    if (this.isConnecting || this.conversation?.connected) {
+    if (this.initializationState === InitializationState.CONNECTING ||
+        this.initializationState === InitializationState.INITIALIZED) {
       return;
     }
 
-    if (!this.conversation) {
-      this.isConnecting = true;
-      let config: ConversationConfig|undefined;
-      try {
-        config = await this.configPromise;
-      } catch (e) {
-        console.warn('Using DEFAULT ApiConfig');
-        config = {
-          persona: DEFAULT_PERSONA,
-          system_instruction: '${persona}',
-          api_config: {
-            ...DEFAULT_API_CONFIG,
-            apiKey: loadTimeData.getString('apiKey'),
-          },
-        };
+    this.initializationState = InitializationState.CONNECTING;
+
+    try {
+      const ttcBundleUrl = loadTimeData.getString('ttcBundleUrl');
+      const bundle = await this.initializeResourceBundle(ttcBundleUrl);
+
+      log(FILE, 'Bundle initialized');
+      this.speakingBlobUrl = URL.createObjectURL(bundle.speakingBlob);
+      this.listeningBlobUrl = URL.createObjectURL(bundle.listeningBlob);
+
+      // Locally specified key overrides the fetched one.
+      const apiKey =
+          loadTimeData.getString('apiKey') || bundle.apiConfig.apiKey;
+      const config: ConversationConfig = {
+        persona: bundle.persona,
+        system_instruction: bundle.instruction,
+        api_config: {
+          ...bundle.apiConfig,
+          apiKey,
+        },
+      };
+
+      if (!this.conversation) {
+        this.conversation = this.createConversation(config);
       }
-      this.conversation = this.createConversation(config);
-    }
 
-    log('Attempting to connect. conversation state is not connected.');
-    this.isConnecting = true;
-    this.conversation.start().catch(e => {
-      console.error('[App] Failed to start conversation:', e);
-    });
-  }
+      log(FILE, 'Attempting to connect. conversation state is not connected.');
+      await this.conversation.start();
 
-  private stopConversation() {
-    if (this.conversation?.connected) {
-      log('Conversation connected, stopping it.');
-      this.conversation.stop();
-    }
-  }
-
-  private async onConversationStateChanged(state: State, oldState: State) {
-    log(`onConversationStateChanged: from ${oldState} to ${state}`);
-
-    if (oldState === State.STOPPED && state !== State.STOPPED) {
-      this.isConnecting = false;
       this.audioPlayer = this.createAudioPlayer();
       this.audioCapturer = await this.createAudioCapturer();
       if (this.audioCapturer) {
         this.audioCapturer.start(
             this.onAudioInput.bind(this, this.audioCapturer.getSampleRate()));
       }
+      this.startEnergyAnimation();
+
+      this.initializationState = InitializationState.INITIALIZED;
+    } catch (e) {
+      this.initializationState = InitializationState.ERROR;
+      errorLog(FILE, 'startConversation failed: ', e);
     }
+  }
+
+  private stopConversation() {
+    if (this.conversation?.connected) {
+      log(FILE, 'Conversation connected, stopping it.');
+      this.conversation.stop();
+    }
+  }
+
+  private onConversationStateChanged(state: State, oldState: State) {
+    log(FILE, `onConversationStateChanged: from ${oldState} to ${state}`);
 
     if (state === State.STOPPED) {
-      this.isConnecting = false;
+      this.stopEnergyAnimation();
       this.mockButtons = [];
       this.blobCapturer = null;
       this.audioCapturer?.stop();
       this.audioPlayer?.stop();
       this.audioCapturer = null;
       this.audioPlayer = null;
+
+      this.initializationState = InitializationState.UNINITIALIZED;
     } else if (state === State.LISTENING) {
       this.audioPlayer?.stop();
     }
@@ -396,7 +382,7 @@ export class AppElement extends CrLitElement {
       throw new Error('No resource bundle URL provided');
     }
 
-    console.info('Loading resource bundle: ', baseUrl);
+    log(FILE, 'Loading resource bundle: ', baseUrl);
 
     const base = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
 
@@ -416,20 +402,19 @@ export class AppElement extends CrLitElement {
 
     const personaConfig: PersonaConfig = await personaResponse.json();
     const apiConfig: ApiConfig = await apiConfigResponse.json();
-    const talkingBlob = await talkingResponse.blob();
+    const speakingBlob = await talkingResponse.blob();
     const listeningBlob = await listeningResponse.blob();
     const instruction = await instructionResponse.text();
 
     if (!Array.isArray(personaConfig.personas) ||
         personaConfig.personas[0] === undefined) {
-      console.warn('Invalid persona config', personaConfig);
       throw new Error('Invalid persona config');
     }
 
     return {
       persona: personaConfig.personas[0],
       apiConfig,
-      talkingBlob,
+      speakingBlob,
       listeningBlob,
       instruction,
     };
@@ -443,7 +428,7 @@ export class AppElement extends CrLitElement {
               this.onConversationStateChanged(state, oldState),
           onResponse: (audioData) => this.onAudioOutput(audioData),
         },
-        this.pageHandler, this.pageCallbackRouter, this.initialPageContext);
+        this.toolsRemote, this.pageCallbackRouter, this.initialPageContext);
 
     // The conversation should only ever be created once.
     assert(this.unregisterPageContextListeners);

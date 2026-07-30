@@ -115,13 +115,13 @@ BASE_FEATURE(kIPHGlicPromoFeature,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHGlicTrustFirstOnboardingShortcutSnoozePromoFeature,
              "IPH_GlicTrustFirstOnboardingShortcutSnoozePromo",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHGlicTrustFirstOnboardingShortcutToastPromoFeature,
              "IPH_GlicTrustFirstOnboardingShortcutToastPromo",
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHGlicTryItFeature,
              "IPH_GlicTryIt",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHGMCCastStartStopFeature,
              "IPH_GMCCastStartStop",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -165,10 +165,10 @@ BASE_FEATURE(kIPHTabAudioMutingFeature,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHPasswordsSavePrimingPromoFeature,
              "IPH_PasswordsSavePrimingPromo",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHPasswordsSaveRecoveryPromoFeature,
              "IPH_PasswordsSaveRecoveryPromo",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHPasswordsManagementBubbleAfterSaveFeature,
              "IPH_PasswordsManagementBubbleAfterSave",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -336,6 +336,9 @@ BASE_FEATURE(kIPHPageSummaryWebMenuFeature,
 BASE_FEATURE(kIPHPageSummaryPdfMenuFeature,
              "IPH_PageSummaryPdfMenu",
              base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHAppRatingPromptFeature,
+             "IPH_AppRatingPrompt",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHAppSpecificHistory,
              "IPH_AppSpecificHistory",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -408,6 +411,9 @@ BASE_FEATURE(kIPHDownloadInfoBarDownloadContinuingFeature,
 BASE_FEATURE(kIPHDownloadInfoBarDownloadsAreFasterFeature,
              "IPH_DownloadInfoBarDownloadsAreFaster",
              base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHExtensionsManageFeature,
+             "IPH_ExtensionsManage",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHReadAloudAppMenuFeature,
              "IPH_ReadAloudAppMenuFeature",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -916,12 +922,7 @@ BASE_FEATURE(kIPHAutofillHomeWorkProfileSuggestionFeature,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHAutofillAccountNameEmailSuggestionFeature,
              "IPH_AutofillAccountNameEmailSuggestion",
-#if BUILDFLAG(IS_IOS)
-             base::FEATURE_DISABLED_BY_DEFAULT
-#else  // Desktop and Android
-             base::FEATURE_ENABLED_BY_DEFAULT
-#endif
-);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHAutofillAiOptInFeature,
              "IPH_AutofillAiOptIn",
              base::FEATURE_ENABLED_BY_DEFAULT);

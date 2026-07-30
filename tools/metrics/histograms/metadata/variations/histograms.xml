@@ -22,6 +22,11 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<variants name="SeedFile">
+  <variant name="Latest" summary="latest seed file"/>
+  <variant name="Safe" summary="safe seed file"/>
+</variants>
+
 <histogram name="Variations.AppliedSeed.Size" units="bytes"
     expires_after="2026-09-10">
   <owner>caitlinfischer@google.com</owner>
@@ -408,7 +413,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.SafeMode.LoadSafeSeed.Result"
-    enum="VariationsSeedLoadResult" expires_after="2026-07-26">
+    enum="VariationsSeedLoadResult" expires_after="2026-09-27">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -531,7 +536,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.SeedDateChange" enum="VariationsSeedDateChange"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>jwd@chromium.org</owner>
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
@@ -545,7 +550,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.SeedFetchResponseOrErrorCode{ConnectionType}"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-07-26">
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-09-27">
   <owner>asvitkine@chromium.org</owner>
   <owner>rkaplow@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
@@ -575,6 +580,26 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Variations.SeedFile.CompressionTime.{SeedFile}" units="ms"
+    expires_after="2027-04-01">
+  <owner>rcanoaparicio@google.com</owner>
+  <owner>src/base/metrics/OWNERS</owner>
+  <summary>
+    The time it takes to compress the {SeedFile} info before writing it to disk.
+    Recorded on a background thread every time a seed is written to disk.
+  </summary>
+</histogram>
+
+<histogram name="Variations.SeedFile.DecompressionTime.{SeedFile}" units="ms"
+    expires_after="2027-04-01">
+  <owner>rcanoaparicio@google.com</owner>
+  <owner>src/base/metrics/OWNERS</owner>
+  <summary>
+    The time it takes to decompress the {SeedFile} info after reading it from
+    disk. Recorded on a background thread every time a seed is read from disk.
+  </summary>
+</histogram>
+
 <histogram name="Variations.SeedFileRead.{SeedFile}" enum="BooleanSuccess"
     expires_after="2026-09-20">
   <owner>caitlinfischer@google.com</owner>
@@ -586,10 +611,6 @@ chromium-metrics-reviews@google.com.
 
     {SeedFile}
   </summary>
-  <token key="SeedFile">
-    <variant name="Latest" summary="Read outcome for latest seed file."/>
-    <variant name="Safe" summary="Read outcome for safe seed file."/>
-  </token>
 </histogram>
 
 <histogram name="Variations.SeedFileReadResult.{SeedFile}"
@@ -600,10 +621,6 @@ chromium-metrics-reviews@google.com.
     Records the result of reading the seed file. This metric is emitted only by
     clients in the seed file treatment group.
   </summary>
-  <token key="SeedFile">
-    <variant name="Latest" summary="Read result for latest seed file."/>
-    <variant name="Safe" summary="Read result for safe seed file."/>
-  </token>
 </histogram>
 
 <histogram name="Variations.SeedFileWriteEmptySeed.{SeedFile}"
@@ -616,10 +633,6 @@ chromium-metrics-reviews@google.com.
     {SeedFile}'s SeedReaderWriter if the file (a) does not exist or (b) exists
     but cannot be read.
   </summary>
-  <token key="SeedFile">
-    <variant name="Latest" summary="latest seed file"/>
-    <variant name="Safe" summary="safe seed file"/>
-  </token>
 </histogram>
 
 <histogram name="Variations.SeedFreshness" units="minutes"
@@ -684,7 +697,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.SeedLoadResult" enum="VariationsSeedLoadResult"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>asvitkine@chromium.org</owner>
   <owner>rkaplow@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
@@ -696,7 +709,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.SeedProcessingTime" units="ms"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -714,14 +727,10 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the source where the seed was read from successfully.
   </summary>
-  <token key="SeedFile">
-    <variant name="Latest" summary="Read result for latest seed file."/>
-    <variant name="Safe" summary="Read result for safe seed file."/>
-  </token>
 </histogram>
 
 <histogram name="Variations.SeedStoreResult" enum="VariationsSeedStoreResult"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>asvitkine@chromium.org</owner>
   <owner>rkaplow@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
@@ -814,7 +823,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.UserChannel" enum="UserChannels"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>asvitkine@chromium.org</owner>
   <owner>rkaplow@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
@@ -855,7 +864,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.{Mode}CreateTrials.SeedExpiry"
-    enum="VariationsSeedExpiry" expires_after="2026-07-26">
+    enum="VariationsSeedExpiry" expires_after="2026-09-27">
   <owner>asvitkine@chromium.org</owner>
   <owner>rkaplow@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>

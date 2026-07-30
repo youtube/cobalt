@@ -43,6 +43,67 @@
     ],
     "expires": "Mar 1, 2027"
   },
+  {
+    "prefix": "ai-prompt-api-legacy-params-disabled",
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win",
+      "ChromeOS"
+    ],
+    "bases": [
+      "http/tests/inspector-protocol/issues/language-model-params.js"
+    ],
+    "args": [
+      "--disable-blink-features=AIPromptAPILegacyParams,AIPromptAPIParams"
+    ],
+    "owners": [
+      "msw@chromium.org",
+      "iahouma@google.com"
+    ],
+    "expires": "Jan 1, 2027"
+  },
+  {
+    "prefix": "ai-prompt-api-legacy-params",
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win",
+      "ChromeOS"
+    ],
+    "bases": [
+      "http/tests/inspector-protocol/issues/language-model-params.js"
+    ],
+    "args": [
+      "--disable-blink-features=AIPromptAPIParams",
+      "--enable-blink-features=AIPromptAPILegacyParams"
+    ],
+    "owners": [
+      "msw@chromium.org",
+      "iahouma@google.com"
+    ],
+    "expires": "Jan 1, 2027"
+  },
+  {
+    "prefix": "ai-prompt-api-legacy-identifiers",
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win",
+      "ChromeOS"
+    ],
+    "bases": [
+      "http/tests/inspector-protocol/issues/language-model-legacy-identifiers.js"
+    ],
+    "args": [
+      "--enable-blink-features=AIPromptAPILegacyIdentifiers"
+    ],
+    "owners": [
+      "msw@chromium.org",
+      "iahouma@google.com"
+    ],
+    "expires": "Jan 1, 2027"
+  },
   "This suite tests some android features on Linux and should never expire.",
   {
     "prefix": "android",
@@ -311,7 +372,10 @@
   },
   {
     "prefix": "connection-allowlist",
-    "owners": [ "mkwst@chromium.org" ],
+    "owners": [
+      "mkwst@chromium.org",
+      "shivanisha@chromium.org"
+    ],
     "platforms": [ "Linux" ],
     "bases": [
       "external/wpt/connection-allowlist",
@@ -319,7 +383,21 @@
     ],
     "exclusive_tests": "ALL",
     "args": [ "--enable-features=ConnectionAllowlists,OverrideConnectionAllowlistOriginTrial" ],
-    "expires": "Jul 1, 2026"
+    "expires": "Dec 1, 2026"
+  },
+  {
+    "prefix": "connection-allowlist-origin-trial",
+    "owners": [
+      "mkwst@chromium.org",
+      "shivanisha@chromium.org"
+    ],
+    "platforms": [ "Linux" ],
+    "bases": [
+      "wpt_internal/connection-allowlist"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [ "--enable-features=ConnectionAllowlists" ],
+    "expires": "Dec 1, 2026"
   },
   {
     "prefix": "controls-refresh-hc",
@@ -540,24 +618,6 @@
     ],
     "owners": [
       "abotella@igalia.com"
-    ]
-  },
-  {
-    "prefix": "customizable-select-listbox-disabled",
-    "platforms": [
-      "Linux"
-    ],
-    "bases": [
-      "external/wpt/html/semantics/forms/the-select-element",
-      "wpt_internal/html/semantics/forms/the-select-element"
-    ],
-    "args": [
-      "--disable-features=CustomizableSelectListbox"
-    ],
-    "expires": "Aug 1, 2026",
-    "owners": [
-      "jarhar@chromium.org",
-      "dom-dev@google.com"
     ]
   },
   "This never expires because it tests rendering of form controls when the",
@@ -2476,7 +2536,7 @@
       "external/wpt/html/semantics/permission-element"
     ],
     "args": [
-      "--enable-blink-features=UserMediaElement"
+      "--enable-blink-features=UserMediaElement,InstallElement"
     ],
     "owners": [
       "permissions-core@google.com"
@@ -4237,7 +4297,7 @@
       "nhiroki@chromium.org",
       "yoichio@chromium.org"
     ],
-    "expires": "Apr 1, 2026"
+    "expires": "Apr 1, 2027"
   },
   {
     "prefix": "prerender-cross-origin-iframe-scroll",
@@ -4428,6 +4488,24 @@
       "--enable-features=FreezeSharedWorker"
     ],
     "expires": "Sep 10, 2026"
+  },
+  {
+    "prefix": "disconnect-websocket-on-bfcache-disabled",
+    "owners": ["annasato@chromium.org"],
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win",
+      "Fuchsia"
+    ],
+    "bases": [
+      "external/wpt/websockets/back-forward-cache-with-open-websocket-connection.window.js",
+      "wpt_internal/websockets/back-forward-cache/disconnect-websocket-on-bfcache.window.js"
+    ],
+    "args": [
+      "--disable-blink-features=DisconnectWebSocketOnBFCache"
+    ],
+    "expires": "Oct 17, 2026"
   },
   {
     "prefix": "target-device-scale-factor-2",
@@ -4732,6 +4810,7 @@
       "transitions",
       "view-transition",
       "wpt_internal/html/canvas/drawElementImage/invalidation-during-onpaint.html",
+      "wpt_internal/html/canvas/drawElementImage/onpaint-invalidation-crash.html",
       "wpt_internal/html/script-execution",
       "wpt_internal/scheduler/integration_tests",
       "wpt_internal/view-transition",

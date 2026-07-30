@@ -153,10 +153,17 @@ int QuicSessionPool::DirectJob::DoResolveHostComplete(int rv) {
     return rv;
   }
 
-  DCHECK(!pool_->HasActiveSession(key_.session_key()));
+  // If another request pooled to an existing session and activated the key
+  // while we were waiting for async DNS resolution, this job will be redundant.
+  // The active session is already in the pool.
+  if (pool_->HasActiveSession(key_.session_key())) {
+    return OK;
+  }
 
-  // Inform the pool of this resolution, which will set up
-  // a session alias, if possible.
+  // Even if the exact session key is not active, the fresh DNS resolution
+  // provides new IP endpoints. Iterate through them to check if we
+  // can perform cross-origin IP pooling with an existing session, which will
+  // set up a session alias, if found.
   const bool svcb_optional =
       IsSvcbOptional(resolve_host_request_->GetEndpointResults());
   for (const auto& endpoint : resolve_host_request_->GetEndpointResults()) {
@@ -209,6 +216,7 @@ int QuicSessionPool::DirectJob::DoAttemptSession() {
       this, endpoint_result.ip_endpoints.front(), endpoint_result.metadata,
       std::move(quic_version_used), cert_verify_flags_,
       dns_resolution_start_time_, dns_resolution_end_time_,
+      resolve_host_request_->GetResolutionDetails(),
       retry_on_alternate_network_before_handshake_, use_dns_aliases_,
       std::move(dns_aliases), /*crypto_client_config_handle=*/nullptr,
       session_creation_initiator_, connection_management_config_);

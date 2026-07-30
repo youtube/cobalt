@@ -630,17 +630,14 @@ StickyConstraintsData LayoutBoxModelObject::ComputeStickyPositionConstraints(
         -scroll_container_border_offset);
   }
 
-  // To correctly compute the offsets, the constraints need to know about any
-  // nested sticky elements between themselves and their sticky-container,
-  // and between the sticky-container and their scroll-container.
+  // To correctly compute the offsets, the constraints need to be able to
+  // find any nested sticky elements between themselves and their
+  // sticky-container, and between the sticky-container and their
+  // scroll-container.
   //
   // The respective search ranges are [location_container, sticky_container)
-  // and [sticky_container, scroll_container).
-  const LayoutBoxModelObject* nearest_sticky_layer_shifting_sticky_box =
-      location_container->FindFirstStickyContainer(sticky_container);
-  const LayoutBoxModelObject* nearest_sticky_layer_shifting_containing_block =
-      sticky_container->FindFirstStickyContainer(scroll_container);
-
+  // and [sticky_container, scroll_container). Store the range endpoints so the
+  // nearest sticky ancestors can be recomputed on demand.
   const PhysicalRect constraining_rect =
       scroll_container->ComputeStickyConstrainingRect();
 
@@ -656,12 +653,16 @@ StickyConstraintsData LayoutBoxModelObject::ComputeStickyPositionConstraints(
     }
     std::optional<LayoutUnit> min_inset;
     std::optional<LayoutUnit> max_inset;
+    std::optional<LayoutUnit> min_inset_for_get_computed_style;
+    std::optional<LayoutUnit> max_inset_for_get_computed_style;
 
     if (!min_length.IsAuto()) {
-      min_inset = MinimumValueForLength(min_length, available_size);
+      min_inset = min_inset_for_get_computed_style =
+          MinimumValueForLength(min_length, available_size);
     }
     if (!max_length.IsAuto()) {
-      max_inset = MinimumValueForLength(max_length, available_size);
+      max_inset = max_inset_for_get_computed_style =
+          MinimumValueForLength(max_length, available_size);
     }
 
     // Reduce the end inset if there is not enough space to honor both insets.
@@ -681,9 +682,9 @@ StickyConstraintsData LayoutBoxModelObject::ComputeStickyPositionConstraints(
         StickyPositionScrollingConstraints::PerAxisData>(
         axis, scroll_container_relative_containing_block_rect,
         scroll_container_relative_sticky_box_rect, constraining_rect,
-        nearest_sticky_layer_shifting_sticky_box,
-        nearest_sticky_layer_shifting_containing_block, &scroll_container_layer,
-        is_fixed_to_view, min_inset, max_inset);
+        location_container, sticky_container, &scroll_container_layer,
+        is_fixed_to_view, min_inset, max_inset,
+        min_inset_for_get_computed_style, max_inset_for_get_computed_style);
   };
 
   const auto& style = StyleRef();

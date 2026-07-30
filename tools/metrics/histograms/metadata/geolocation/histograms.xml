@@ -329,7 +329,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Geolocation.NetworkLocationRequest.ResponseCode"
-    enum="HttpResponseCode" expires_after="2026-07-26">
+    enum="HttpResponseCode" expires_after="2026-09-27">
   <owner>mattreynolds@chromium.org</owner>
   <owner>device-dev@chromium.org</owner>
   <summary>
@@ -374,6 +374,16 @@ chromium-metrics-reviews@google.com.
     Records an enumeration value when a PublicIpAddressGeolocator requests the
     next location estimate. The recorded value identifies the client that
     created the PublicIpAddressGeolocator.
+  </summary>
+</histogram>
+
+<histogram name="Geolocation.SystemGeolocationSourceWin.AddAccessChangedError"
+    enum="Hresult" expires_after="2026-09-28">
+  <owner>mattreynolds@chromium.org</owner>
+  <owner>device-dev@chromium.org</owner>
+  <summary>
+    Records the HRESULT error code encountered while adding a location access
+    changed listener on Windows.
   </summary>
 </histogram>
 

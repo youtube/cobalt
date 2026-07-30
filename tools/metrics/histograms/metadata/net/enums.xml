@@ -447,9 +447,12 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Fallback preferred: canary domain check pending"/>
   <int value="3" label="Fallback preferred: canary domain check negative"/>
   <int value="4" label="Fallback preferred: no available Doh servers"/>
+  <int value="5"
+      label="Fallback preferred: DoH to the fallback provider not allowed"/>
+  <int value="6" label="Fallback preferred: DoH fallback experiment disabled"/>
 </enum>
 
-<!-- LINT.ThenChange(//net/dns/dns_client.cc:FallbackFromSecureTransactionPreferredReason) -->
+<!-- LINT.ThenChange(//net/dns/dns_client.h:FallbackFromSecureTransactionPreferredReason) -->
 
 <enum name="HSTSRedirectUpgradeReason">
   <int value="0" label="URL not HTTP"/>
@@ -708,6 +711,21 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//net/dns/host_cache.h:LookupOutcome) -->
+
+<!-- LINT.IfChange(MacProxyResolutionStatus) -->
+
+<enum name="MacProxyResolutionStatus">
+  <int value="0" label="Ok"/>
+  <int value="1" label="SystemConfigurationError"/>
+  <int value="2" label="CFNetworkExecutePacScriptFailed"/>
+  <int value="3" label="PacScriptFetchFailed"/>
+  <int value="4" label="PacScriptExecutionFailed"/>
+  <int value="5" label="EmptyProxyList"/>
+  <int value="6" label="CFNetworkResolutionError"/>
+  <int value="7" label="Aborted"/>
+</enum>
+
+<!-- LINT.ThenChange(//net/proxy_resolution/mac/mac_proxy_resolution_status.h:MacProxyResolutionStatus) -->
 
 <!-- LINT.IfChange(MTCResult) -->
 
@@ -2891,6 +2909,8 @@ Called by update_net_trust_anchors.py.-->
   <int value="5" label="SCT_STATUS_INVALID_TIMESTAMP"/>
 </enum>
 
+<!-- LINT.IfChange(SecureDnsModeDetails) -->
+
 <enum name="SecureDnsModeDetails">
   <int value="0" label="Off, by user choice"/>
   <int value="1" label="Off, by enterprise policy"/>
@@ -2901,8 +2921,12 @@ Called by update_net_trust_anchors.py.-->
   <int value="6" label="Secure, by user choice"/>
   <int value="7" label="Secure, by enterprise policy"/>
   <int value="8" label="Automatic with DoH fallback, by user choice"/>
-  <int value="9" label="Automatic with DoH fallback, by enterprise policy"/>
+  <int value="9"
+      label="Deprecated: Automatic with DoH fallback, by enterprise policy"/>
+  <int value="10" label="Automatic with DoH fallback, for experimentation"/>
 </enum>
+
+<!-- LINT.ThenChange(//chrome/browser/net/stub_resolver_config_reader.h:SecureDnsModeDetailsForHistogram) -->
 
 <!-- LINT.IfChange(SharedDictionaryStorageEvictionReason) -->
 

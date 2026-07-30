@@ -10,6 +10,7 @@
 
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/to_string.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
@@ -27,12 +28,19 @@
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/chrome_features.h"
+#include "components/enterprise/buildflags/buildflags.h"
+#include "components/enterprise/connectors/core/features.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/primary_account_change_event.h"
 #include "components/signin/public/identity_manager/tribool.h"
 #include "components/variations/service/variations_service.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
+
+#if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
+#include "chrome/browser/enterprise/connectors/analysis/content_analysis_delegate.h"
+#endif
 
 // Traits for base::ToString(). They need to be in the corresponding namespace
 // of the enums.
@@ -76,25 +84,24 @@ std::ostream& operator<<(std::ostream& os,
   }
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         GlicActorPolicyChecker::CannotActReason value) {
+std::ostream& operator<<(std::ostream& os, CannotActReason value) {
   switch (value) {
-    case GlicActorPolicyChecker::CannotActReason::kNone:
+    case CannotActReason::kNone:
       return os << "kNone";
-    case GlicActorPolicyChecker::CannotActReason::kAccountCapabilityIneligible:
+    case CannotActReason::kAccountCapabilityIneligible:
       return os << "kAccountCapabilityIneligible";
-    case GlicActorPolicyChecker::CannotActReason::kAccountMissingChromeBenefits:
+    case CannotActReason::kAccountMissingChromeBenefits:
       return os << "kAccountMissingChromeBenefits";
-    case GlicActorPolicyChecker::CannotActReason::kDisabledByPolicy:
+    case CannotActReason::kDisabledByPolicy:
       return os << "kDisabledByPolicy";
-    case GlicActorPolicyChecker::CannotActReason::kEnterpriseWithoutManagement:
+    case CannotActReason::kEnterpriseWithoutManagement:
       return os << "kEnterpriseWithoutManagement";
   }
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         std::variant<GlicActorPolicyChecker::CannotActReason,
-                                      std::string_view> value) {
+std::ostream& operator<<(
+    std::ostream& os,
+    std::variant<CannotActReason, std::string_view> value) {
   std::visit([&os](auto&& arg) { os << arg; }, value);
   return os;
 }
@@ -121,20 +128,33 @@ bool ActuationEnabledForManagedUser(Profile& profile,
       features::kGlicActorEnterprisePrefDefault.Get();
   auto* pref_service = profile.GetPrefs();
   CHECK(pref_service);
+
   auto capability_pref =
       static_cast<glic::prefs::GlicActuationOnWebPolicyState>(
           pref_service->GetInteger(glic::prefs::kGlicActuationOnWeb));
+
+  bool is_enabled = false;
+  if (default_pref ==
+      features::GlicActorEnterprisePrefDefault::kForcedDisabled) {
+    is_enabled = false;
+  } else {
+    is_enabled =
+        capability_pref == glic::prefs::GlicActuationOnWebPolicyState::kEnabled;
+  }
+
+  // Log the behavior
   journal.Log(GURL(), actor::TaskId(), "ActuationEnabledForManagedUser",
               actor::JournalDetailsBuilder()
                   .Add("default_pref", base::ToString(default_pref))
                   .Add("capability_pref", base::ToString(capability_pref))
+                  .Add("is_enabled", is_enabled)
                   .Build());
-  if (default_pref ==
-      features::GlicActorEnterprisePrefDefault::kForcedDisabled) {
-    return false;
-  }
-  return capability_pref ==
-         glic::prefs::GlicActuationOnWebPolicyState::kEnabled;
+
+  // Emit the UMA histogram metric
+  base::UmaHistogramBoolean("Glic.Actor.ManagedUserActuationEnabled",
+                            is_enabled);
+
+  return is_enabled;
 }
 
 bool HasUrlAllowlist(Profile& profile) {
@@ -324,8 +344,7 @@ bool GlicActorPolicyChecker::CanActOnWeb() const {
   return can_act_on_web_ != CanActOutcome::kNo;
 }
 
-GlicActorPolicyChecker::CannotActReason
-GlicActorPolicyChecker::CannotActOnWebReason() const {
+CannotActReason GlicActorPolicyChecker::CannotActOnWebReason() const {
   return cannot_act_on_web_reason_;
 }
 
@@ -338,8 +357,7 @@ void GlicActorPolicyChecker::OnPrefOrAccountChanged() {
   }
 }
 
-std::pair<GlicActorPolicyChecker::CanActOutcome,
-          GlicActorPolicyChecker::CannotActReason>
+std::pair<GlicActorPolicyChecker::CanActOutcome, CannotActReason>
 GlicActorPolicyChecker::ComputeActOnWebCapability() {
   auto log_and_return =
       [&](CanActOutcome outcome,
@@ -381,9 +399,8 @@ GlicActorPolicyChecker::ComputeActOnWebCapability() {
                   .account_id)
           .capabilities.can_use_model_execution_features();
   if (can_use_model_execution_features != signin::Tribool::kTrue) {
-    return log_and_return(
-        CanActOutcome::kNo,
-        GlicActorPolicyChecker::CannotActReason::kAccountCapabilityIneligible);
+    return log_and_return(CanActOutcome::kNo,
+                          CannotActReason::kAccountCapabilityIneligible);
   }
 
   bool is_likely_dogfood_client = IsLikelyDogfoodClient();
@@ -474,6 +491,51 @@ base::CallbackListSubscription
 GlicActorPolicyChecker::AddUrlListsUpdateObserverForTesting(
     base::RepeatingClosure callback) {
   return url_blocklist_manager_.AddObserver(std::move(callback));
+}
+
+void GlicActorPolicyChecker::ValidateContentSentToRenderer(
+    content::RenderFrameHost* frame,
+    const std::string& content,
+    actor::EnterprisePolicyContentChecker::ValidationCallback callback) {
+  content::WebContents* web_contents =
+      frame ? content::WebContents::FromRenderFrameHost(frame) : nullptr;
+  if (!web_contents || !profile_) {
+    std::move(callback).Run(ValidationReason::kAllowed);
+    return;
+  }
+
+#if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
+  if (base::FeatureList::IsEnabled(
+          enterprise_connectors::kGlicBulkDataEntrySupport)) {
+    enterprise_connectors::ContentAnalysisDelegate::Data data;
+    // TODO(crbug.com/473047343): Add support when glic is targeting an element
+    // inside a cross-origin iframe.
+    if (enterprise_connectors::ContentAnalysisDelegate::IsEnabled(
+            profile_, frame->GetLastCommittedURL(), &data,
+            enterprise_connectors::AnalysisConnector::BULK_DATA_ENTRY)) {
+      data.text.push_back(content);
+      enterprise_connectors::ContentAnalysisDelegate::CreateForWebContents(
+          web_contents, std::move(data),
+          base::BindOnce(
+              [](actor::EnterprisePolicyContentChecker::ValidationCallback cb,
+                 const enterprise_connectors::ContentAnalysisDelegate::Data&,
+                 enterprise_connectors::ContentAnalysisDelegate::Result&
+                     result) {
+                // TODO(crbug.com/473047343): Not exposed currently, but we
+                // would want to return `kWarned` verdicts at some point.
+                bool allowed =
+                    result.text_results.empty() || result.text_results[0];
+                std::move(cb).Run(allowed ? ValidationReason::kAllowed
+                                          : ValidationReason::kBlocked);
+              },
+              std::move(callback)),
+          enterprise_connectors::DeepScanAccessPoint::PASTE);
+      return;
+    }
+  }
+#endif
+
+  std::move(callback).Run(ValidationReason::kAllowed);
 }
 
 }  // namespace glic

@@ -24,8 +24,22 @@
 // Sets whether the entity being viewed is a server wallet item.
 - (void)setIsServerWalletItem:(BOOL)isServerWalletItem;
 
+// Sets the user email.
+- (void)setUserEmail:(NSString*)userEmail;
+
 // Updates the given item.
 - (void)updateItem:(TableViewItem*)item;
+
+// Displays a loading state while the entity is being saved to the server.
+- (void)showLoadingState;
+
+// Hides the loading state.
+- (void)hideLoadingState;
+
+// Instructs the consumer that saving is complete and it can now dismiss.
+// `isLocalFallback` is YES if a server save failed and the item was saved
+// locally.
+- (void)didFinishSavingWithLocalFallback:(BOOL)isLocalFallback;
 
 @end
 

@@ -17,7 +17,17 @@
 #include "components/one_time_tokens/core/browser/util/expiring_subscription.h"
 #include "components/one_time_tokens/core/browser/util/expiring_subscription_manager.h"
 
+namespace network {
+class SharedURLLoaderFactory;
+}  // namespace network
+
+namespace signin {
+class IdentityManager;
+}  // namespace signin
+
 namespace one_time_tokens {
+
+class EmailOneTimeTokenFetcher;
 
 // Abstract interface for fetching OTPs from Gmail.
 class GmailOtpBackend : public KeyedService {
@@ -32,7 +42,9 @@ class GmailOtpBackend : public KeyedService {
   ~GmailOtpBackend() override;
 
   // Creates a new instance of the backend.
-  static std::unique_ptr<GmailOtpBackend> Create();
+  static std::unique_ptr<GmailOtpBackend> Create(
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+      signin::IdentityManager& identity_manager);
 
   // Creates a subscription for new incoming OTPs.
   [[nodiscard]] virtual ExpiringSubscription Subscribe(base::Time expiration,
@@ -48,10 +60,11 @@ class GmailOtpBackend : public KeyedService {
 // where a real backend is not available.
 class GmailOtpBackendImpl : public GmailOtpBackend {
  public:
-  GmailOtpBackendImpl();
+  GmailOtpBackendImpl(
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+      signin::IdentityManager& identity_manager);
   ~GmailOtpBackendImpl() override;
 
-  // GmailOtpBackend:
   ExpiringSubscription Subscribe(base::Time expiration,
                                  Callback callback) override;
 
@@ -60,10 +73,16 @@ class GmailOtpBackendImpl : public GmailOtpBackend {
           encrypted_message_reference) override;
 
  private:
-  // Queries the backend for recently received OTPs.
-  void RetrieveGmailOtpIfNeeded();
+  void RetrieveGmailOtp(const GmailOtpBackendImpl::EncryptedMessageReference&
+                            encrypted_message_reference);
+
   void OnResponseFromGmailOtpBackend(
+      std::unique_ptr<EmailOneTimeTokenFetcher> request,
       base::expected<OneTimeToken, OneTimeTokenRetrievalError> reply);
+
+  scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
+
+  raw_ref<signin::IdentityManager> identity_manager_;
 
   // Handles subscriptions to the `GmailOtpBackend`.
   ExpiringSubscriptionManager<CallbackSignature> subscription_manager_;

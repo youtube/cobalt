@@ -166,6 +166,7 @@
 #include "third_party/skia/include/core/SkFontMgr.h"
 #include "third_party/skia/include/core/SkGraphics.h"
 #include "third_party/skia/include/private/chromium/SkCodecsICCProfileChromium.h"
+#include "third_party/skia/include/private/chromium/SkExifChromium.h"
 #include "ui/base/ui_base_switches.h"
 #include "ui/base/ui_base_switches_util.h"
 #include "ui/display/display_switches.h"
@@ -807,6 +808,14 @@ void RenderThreadImpl::InitializeWebKit(mojo::BinderMap* binders) {
   SkCodecs::ICCProfileChromium::ForceSkcms(
       base::FeatureList::IsEnabled(blink::features::kForceSkcmsICCParsing));
 
+  // Configure the EXIF parser kill-switch early, before any image decoding
+  // occurs. When the feature is enabled, this forces the C++ SkExif parser to
+  // be used instead of the Rust-based EXIF parser.
+  // TODO(crbug.com/463653726): Remove this once the feature is validated in
+  // Stable.
+  SkExif::ForceSkExif(
+      base::FeatureList::IsEnabled(blink::features::kForceSkExifCppParsing));
+
   // Hook up blink's codecs so skia can call them. Since only the renderer
   // processes should be doing image decoding, this is not done in the common
   // skia initialization code for the GPU.
@@ -847,15 +856,14 @@ void RenderThreadImpl::InitializeRenderer(
 
 void RenderThreadImpl::RegisterSchemes() {
   // chrome:
-  WebString chrome_scheme(WebString::FromASCII(kChromeUIScheme));
+  WebString chrome_scheme(WebString::FromAscii(kChromeUIScheme));
   WebSecurityPolicy::RegisterURLSchemeAsDisplayIsolated(chrome_scheme);
   WebSecurityPolicy::RegisterURLSchemeAsNotAllowingJavascriptURLs(
       chrome_scheme);
   WebSecurityPolicy::RegisterURLSchemeAsWebUI(chrome_scheme);
 
-
   WebString chrome_untrusted_scheme(
-      WebString::FromASCII(kChromeUIUntrustedScheme));
+      WebString::FromAscii(kChromeUIUntrustedScheme));
 
   // chrome-untrusted:
   WebSecurityPolicy::RegisterURLSchemeAsNotAllowingJavascriptURLs(
@@ -878,24 +886,24 @@ void RenderThreadImpl::RegisterSchemes() {
   }
 
   // devtools:
-  WebString devtools_scheme(WebString::FromASCII(kChromeDevToolsScheme));
+  WebString devtools_scheme(WebString::FromAscii(kChromeDevToolsScheme));
   WebSecurityPolicy::RegisterURLSchemeAsDisplayIsolated(devtools_scheme);
   WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(devtools_scheme);
   WebSecurityPolicy::RegisterURLSchemeAsNotAllowingJavascriptURLs(
       devtools_scheme);
 
   // view-source:
-  WebString view_source_scheme(WebString::FromASCII(kViewSourceScheme));
+  WebString view_source_scheme(WebString::FromAscii(kViewSourceScheme));
   WebSecurityPolicy::RegisterURLSchemeAsDisplayIsolated(view_source_scheme);
 
   // chrome-error:
-  WebString error_scheme(WebString::FromASCII(kChromeErrorScheme));
+  WebString error_scheme(WebString::FromAscii(kChromeErrorScheme));
   WebSecurityPolicy::RegisterURLSchemeAsDisplayIsolated(error_scheme);
   WebSecurityPolicy::RegisterURLSchemeAsNotAllowingJavascriptURLs(error_scheme);
   WebSecurityPolicy::RegisterURLSchemeAsError(error_scheme);
 
   // googlechrome:
-  WebString google_chrome_scheme(WebString::FromASCII(kGoogleChromeScheme));
+  WebString google_chrome_scheme(WebString::FromAscii(kGoogleChromeScheme));
   WebSecurityPolicy::RegisterURLSchemeAsDisplayIsolated(google_chrome_scheme);
 }
 

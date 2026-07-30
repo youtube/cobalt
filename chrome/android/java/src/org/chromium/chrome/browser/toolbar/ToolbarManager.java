@@ -160,7 +160,7 @@ import org.chromium.chrome.browser.toolbar.back_button.BackButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.bottom.BottomControlsContentDelegate;
 import org.chromium.chrome.browser.toolbar.bottom.BottomControlsCoordinator;
 import org.chromium.chrome.browser.toolbar.bottom.ScrollingBottomViewResourceFrameLayout;
-import org.chromium.chrome.browser.toolbar.extensions.ExtensionToolbarCoordinator;
+import org.chromium.chrome.browser.toolbar.extensions.ExtensionsToolbarCoordinator;
 import org.chromium.chrome.browser.toolbar.forward_button.ForwardButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.home_button.HomeButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.load_progress.LoadProgressCoordinator;
@@ -198,6 +198,8 @@ import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.edge_to_edge.TopInsetProvider;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
+import org.chromium.chrome.browser.ui.side_ui.SideUiObserver;
+import org.chromium.chrome.browser.ui.side_ui.SideUiStateProvider;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarThrottle;
@@ -377,7 +379,7 @@ public class ToolbarManager
     private @MonotonicNonNull ToggleTabStackButtonCoordinator mTabSwitcherButtonCoordinator;
     private @MonotonicNonNull BackButtonCoordinator mBackButtonCoordinator;
     private @MonotonicNonNull ForwardButtonCoordinator mForwardButtonCoordinator;
-    private @Nullable ExtensionToolbarCoordinator mExtensionToolbarCoordinator;
+    private @Nullable ExtensionsToolbarCoordinator mExtensionsToolbarCoordinator;
 
     private final BrowserStateBrowserControlsVisibilityDelegate mControlsVisibilityDelegate;
     private int mFullscreenFocusToken = TokenHolder.INVALID_TOKEN;
@@ -405,6 +407,9 @@ public class ToolbarManager
             mTabStripTransitionDelegateSupplier = new OneshotSupplierImpl<>();
 
     private @Nullable TabGroupUiOneshotSupplier mTabGroupUiOneshotSupplier;
+
+    private @Nullable SideUiStateProvider mSideUiStateProvider;
+    private @Nullable SideUiObserver mSideUiObserver;
 
     private final MonotonicObservableSupplier<TabBookmarker> mTabBookmarkerSupplier;
     private final SettableNonNullObservableSupplier<Boolean> mBackPressStateSupplier =
@@ -1823,6 +1828,34 @@ public class ToolbarManager
         TraceEvent.end("ToolbarManager.ToolbarManager");
     }
 
+    /**
+     * Sets the supplier for the {@link SideUiStateProvider}. Will only be called if the
+     * EnableAndroidSidePanel feature flag is enabled.
+     *
+     * <p>TODO(crbug.com/493289413): Update JavaDoc after feature is launched.
+     *
+     * @param sideUiStateProviderSupplier The {@link OneshotSupplier} for {@link
+     *     SideUiStateProvider}.
+     */
+    public void setSideUiStateProviderSupplier(
+            OneshotSupplier<SideUiStateProvider> sideUiStateProviderSupplier) {
+        sideUiStateProviderSupplier.onAvailable(this::setSideUiStateProvider);
+    }
+
+    private void setSideUiStateProvider(SideUiStateProvider sideUiStateProvider) {
+        if (mSideUiStateProvider != null && mSideUiObserver != null) {
+            mSideUiStateProvider.removeObserver(mSideUiObserver);
+        }
+
+        mSideUiStateProvider = sideUiStateProvider;
+
+        mSideUiObserver =
+                (sideUiSpecs) -> {
+                    mControlContainer.onSideUiSpecsChanged(sideUiSpecs);
+                };
+        mSideUiStateProvider.addObserver(mSideUiObserver);
+    }
+
     private boolean shouldSuppressToolbarLongPress() {
         return mOmniboxFocusStateSupplier.get()
                 || (mToolbarPositionController != null
@@ -2445,16 +2478,16 @@ public class ToolbarManager
 
         mOverrideUrlLoadingDelegate.setOpenGridTabSwitcherCallback(openGridTabSwitcherHandler);
 
-        ViewStub extensionToolbarStub =
-                mControlContainer.findViewById(R.id.extension_toolbar_container_stub);
-        if (extensionToolbarStub != null) {
+        ViewStub extensionsToolbarStub =
+                mControlContainer.findViewById(R.id.extensions_toolbar_container_stub);
+        if (extensionsToolbarStub != null) {
             ChromeAndroidTask task = mChromeAndroidTaskSupplier.get();
             // ChromeAndroidTask is available only on Desktop Android.
             if (task != null) {
-                mExtensionToolbarCoordinator =
-                        ExtensionToolbarCoordinator.maybeCreate(
+                mExtensionsToolbarCoordinator =
+                        ExtensionsToolbarCoordinator.maybeCreate(
                                 mActivity,
-                                extensionToolbarStub,
+                                extensionsToolbarStub,
                                 mWindowAndroid,
                                 task,
                                 assertNonNull(mTabModelSelector.getCurrentModel().getProfile()),
@@ -2464,8 +2497,8 @@ public class ToolbarManager
                                 (ToolbarTablet) mToolbarLayout,
                                 contextMenuPopulatorFactory,
                                 selectionDropdownMenuDelegate);
-                if (mExtensionToolbarCoordinator != null) {
-                    mToolbar.setExtensionToolbarCoordinator(mExtensionToolbarCoordinator);
+                if (mExtensionsToolbarCoordinator != null) {
+                    mToolbar.setExtensionsToolbarCoordinator(mExtensionsToolbarCoordinator);
                 }
             }
         }
@@ -2802,9 +2835,9 @@ public class ToolbarManager
             mTabSwitcherButtonCoordinator = null;
         }
 
-        if (mExtensionToolbarCoordinator != null) {
-            mExtensionToolbarCoordinator.destroy();
-            mExtensionToolbarCoordinator = null;
+        if (mExtensionsToolbarCoordinator != null) {
+            mExtensionsToolbarCoordinator.destroy();
+            mExtensionsToolbarCoordinator = null;
         }
 
         if (mCallbackController != null) {
@@ -2835,6 +2868,10 @@ public class ToolbarManager
         if (mCustomTabCount != null) {
             mCustomTabCount.destroy();
             mCustomTabCount = null;
+        }
+
+        if (mSideUiStateProvider != null && mSideUiObserver != null) {
+            mSideUiStateProvider.removeObserver(mSideUiObserver);
         }
 
         mTabObscuringHandler.removeObserver(this);
@@ -3594,11 +3631,11 @@ public class ToolbarManager
     }
 
     /**
-     * @return The {@link ExtensionToolbarCoordinator} that manages the extension toolbar UI. null
+     * @return The {@link ExtensionsToolbarCoordinator} that manages the extension toolbar UI. null
      *     if extensions are not supported on this build.
      */
-    public @Nullable ExtensionToolbarCoordinator getExtensionToolbarCoordinator() {
-        return mExtensionToolbarCoordinator;
+    public @Nullable ExtensionsToolbarCoordinator getExtensionsToolbarCoordinator() {
+        return mExtensionsToolbarCoordinator;
     }
 
     /**

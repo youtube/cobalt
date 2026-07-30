@@ -6,8 +6,10 @@ import("//build/config/chromeos/ui_mode.gni")
 import("//chrome/common/features.gni")
 import("//components/captive_portal/core/features.gni")
 import("//components/enterprise/buildflags/buildflags.gni")
+import("//components/offline_pages/buildflags/features.gni")
 import("//components/on_device_translation/buildflags/features.gni")
 import("//components/signin/features.gni")
+import("//components/spellcheck/spellcheck_build_features.gni")
 import("//extensions/buildflags/buildflags.gni")
 
 # This target should be the default place for adding public interface things
@@ -386,6 +388,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/consent_auditor",
     "//chrome/browser/content_index",
     "//chrome/browser/content_settings:content_settings_factory",
+    "//chrome/browser/contextual_cueing",
     "//chrome/browser/contextual_search",
     "//chrome/browser/contextual_tasks",
     "//chrome/browser/contextual_tasks:ui",
@@ -425,7 +428,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/page_image_service",
     "//chrome/browser/page_info",
     "//chrome/browser/passage_embeddings",
-    "//chrome/browser/password_manager/actor_login:actor_login_permission_service_factory",
+    "//chrome/browser/password_manager/actor_login:factories",
     "//chrome/browser/password_manager/factories",
     "//chrome/browser/payments",
     "//chrome/browser/payments/browser_binding:browser_bound_key_deleter",
@@ -457,6 +460,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/serial",
     "//chrome/browser/sharing",
     "//chrome/browser/signin",
+    "//chrome/browser/speech",
     "//chrome/browser/storage",
     "//chrome/browser/storage_access_api",
     "//chrome/browser/subscription_eligibility",
@@ -520,6 +524,7 @@ source_set("profiles_extra_parts_impl") {
     ]
   } else {
     deps += [
+      "//chrome/browser/accessibility/phrase_segmentation",
       "//chrome/browser/accessibility/tree_fixing:service",
       "//chrome/browser/accessibility_annotator/content_annotator",
       "//chrome/browser/apps/app_service",
@@ -597,6 +602,10 @@ source_set("profiles_extra_parts_impl") {
     ]
   }
 
+  if (enable_spellcheck) {
+    deps += [ "//chrome/browser/spellchecker" ]
+  }
+
   if (enable_extensions_core) {
     deps += [
       "//chrome/browser/extensions/keyed_services:keyed_service_factories",
@@ -636,11 +645,22 @@ source_set("profiles_extra_parts_impl") {
     deps += [ "//chrome/browser/captive_portal" ]
   }
 
+  if (is_linux) {
+    deps += [
+      "//chrome/browser/gapis",
+      "//components/gapis",
+    ]
+  }
+
   if (!is_android) {
     deps += [
-      "//chrome/browser/password_manager:startup_import",
+      "//chrome/browser/password_manager/factories:startup_import_factory",
       "//chrome/browser/ui/tabs:glic",
     ]
+  }
+
+  if (enable_offline_pages) {
+    deps += [ "//chrome/browser/offline_pages" ]
   }
 }
 

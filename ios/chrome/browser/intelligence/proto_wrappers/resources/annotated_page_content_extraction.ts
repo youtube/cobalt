@@ -5,7 +5,7 @@
 import {HAS_BEEN_PASSWORD_SYMBOL} from '//components/autofill/ios/form_util/resources/fill_constants.js';
 import {APC_NODE_DEPTH_COST, getRemoteFrameRemoteToken, NONCE_ATTR} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/common.js';
 import {getNodeId, getOrCreateNodeId} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/dom_node_ids.js';
-import {FormControlType, PageContentAnchorRel, PageContentAnnotatedRole, PageContentAttributeType, PageContentClickabilityReason, PageContentInteractionDisabledReason, PageContentMediaType, PageContentRedactionDecision, PageContentTableRowType, PageContentTextSize} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/page_content_types.js';
+import {AxRole, FormControlType, PageContentAnchorRel, PageContentAnnotatedRole, PageContentAttributeType, PageContentClickabilityReason, PageContentInteractionDisabledReason, PageContentMediaType, PageContentRedactionDecision, PageContentTableRowType, PageContentTextSize} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/page_content_types.js';
 import type {PageContent, PageContentAttributes, PageContentFormControlData, PageContentFormData, PageContentFrameData, PageContentFrameInteractionInfo, PageContentMediaData, PageContentNode, PageContentNodeInteractionInfo, PageContentPageInteractionInfo, PageContentScrollerInfo, PageContentTableData} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/page_content_types.js';
 
 // Set of DOM Node IDs that are considered interactive (focused, selection
@@ -66,6 +66,7 @@ const TAG_LI = 'LI';
 const TAG_DT = 'DT';
 const TAG_DD = 'DD';
 const TAG_FIGURE = 'FIGURE';
+const TAG_LABEL = 'LABEL';
 
 // Tags with annotated role.
 const TAG_HEADER = 'HEADER';
@@ -199,6 +200,15 @@ const ATTR_VALUE_ROLE_OPTION = 'option';
 const ATTR_VALUE_ROLE_RADIO = 'radio';
 const ATTR_VALUE_ROLE_SWITCH = 'switch';
 const ATTR_VALUE_ROLE_TAB = 'tab';
+const ATTR_VALUE_ROLE_BANNER = 'banner';
+const ATTR_VALUE_ROLE_NAVIGATION = 'navigation';
+const ATTR_VALUE_ROLE_SEARCH = 'search';
+const ATTR_VALUE_ROLE_MAIN = 'main';
+const ATTR_VALUE_ROLE_ARTICLE = 'article';
+const ATTR_VALUE_ROLE_REGION = 'region';
+const ATTR_VALUE_ROLE_COMPLEMENTARY = 'complementary';
+const ATTR_VALUE_ROLE_CONTENT_INFO = 'contentinfo';
+const ATTR_VALUE_ROLE_NONE = 'none';
 
 // Style values.
 const ATTR_POSITION_FIXED = 'fixed';
@@ -215,6 +225,20 @@ const ATTR_MASKING_SQUARE = 'square';
 const ATTR_WHITESPACE_NORMAL = 'normal';
 const ATTR_WHITESPACE_NOWRAP = 'nowrap';
 
+// Set of AxRoles that imply interactivity.
+const INTERACTIVE_AX_ROLES = new Set([
+  AxRole.AX_ROLE_BUTTON,
+  AxRole.AX_ROLE_LINK,
+  AxRole.AX_ROLE_CHECK_BOX,
+  AxRole.AX_ROLE_MENU_ITEM,
+  AxRole.AX_ROLE_MENU_ITEM_CHECK_BOX,
+  AxRole.AX_ROLE_MENU_ITEM_RADIO,
+  AxRole.AX_ROLE_LIST_BOX_OPTION,
+  AxRole.AX_ROLE_RADIO_BUTTON,
+  AxRole.AX_ROLE_SWITCH,
+  AxRole.AX_ROLE_TAB,
+]);
+
 const BASIC_CONTENT_ATTRIBUTES: PageContentAttributes = {
   attributeType: PageContentAttributeType.UNKNOWN,
   annotatedRoles: [],
@@ -224,6 +248,7 @@ const BASIC_CONTENT_ATTRIBUTES: PageContentAttributes = {
 // Style values.
 const STYLE_VALUE_OVERFLOW_AUTO = 'auto';
 const STYLE_VALUE_OVERFLOW_SCROLL = 'scroll';
+const STYLE_VALUE_CONTENT_VISIBILITY_HIDDEN = 'hidden';
 
 
 // Type alias for accessing webkit-specific fullscreen document properties that
@@ -236,8 +261,15 @@ const SECOND_TO_MS_RATIO = 1000;
 // ARIA Constants.
 const ARIA_LABELLEDBY = 'aria-labelledby';
 const ARIA_LABEL = 'aria-label';
-// Regex used to split aria-labelledby values.
-const ARIA_LABEL_SEPARATOR = /\s+/;
+// Regex used to split aria strings.
+const SPACE_SEPARATOR = /\s+/;
+
+/**
+ * Returns true if page context IPC optimization is enabled.
+ */
+function isPageContextIPCOptimizationEnabled() {
+  return (window as any).gCrWebPlaceholderPageContextIPCOptimization ?? false;
+}
 
 /**
  * Maps a tag name to its corresponding PageContentAnnotatedRole.
@@ -271,6 +303,103 @@ function getAnnotatedRoleForTag(tagName: string): PageContentAnnotatedRole|
       return null;
   }
 }
+
+/**
+ * Maps an ARIA role attribute value to its corresponding
+ * PageContentAnnotatedRole.
+ *
+ * @param ariaRoleAttr The ARIA role attribute value to map.
+ * @return The corresponding PageContentAnnotatedRole, or undefined if no
+ *     mapping exists.
+ */
+function getAnnotatedRoleForAriaRole(ariaRoleAttr: string):
+    PageContentAnnotatedRole|undefined {
+  // Split the role string by one or more whitespace characters.
+  const roles = ariaRoleAttr.trim().split(SPACE_SEPARATOR);
+
+  // Since multiple space-separated fallback roles are allowed, return the
+  // first valid match.
+  for (const role of roles) {
+    switch (role.toLowerCase()) {
+      case ATTR_VALUE_ROLE_BANNER:
+        return PageContentAnnotatedRole.HEADER;
+      case ATTR_VALUE_ROLE_NAVIGATION:
+        return PageContentAnnotatedRole.NAV;
+      case ATTR_VALUE_ROLE_SEARCH:
+        return PageContentAnnotatedRole.SEARCH;
+      case ATTR_VALUE_ROLE_MAIN:
+        return PageContentAnnotatedRole.MAIN;
+      case ATTR_VALUE_ROLE_ARTICLE:
+        return PageContentAnnotatedRole.ARTICLE;
+      case ATTR_VALUE_ROLE_REGION:
+        return PageContentAnnotatedRole.SECTION;
+      case ATTR_VALUE_ROLE_COMPLEMENTARY:
+        return PageContentAnnotatedRole.ASIDE;
+      case ATTR_VALUE_ROLE_CONTENT_INFO:
+        return PageContentAnnotatedRole.FOOTER;
+      default:
+        continue;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Maps an ARIA role attribute value to its corresponding AxRole enum.
+ *
+ * @param roleString The raw ARIA role string to map.
+ * @return The corresponding AxRole, or AX_ROLE_UNKNOWN if no mapping exists.
+ */
+function getAXRoleForAriaRole(roleString: string): AxRole {
+  const roles = roleString.trim().split(SPACE_SEPARATOR);
+
+  for (const role of roles) {
+    switch (role.toLowerCase()) {
+      case ATTR_VALUE_ROLE_BANNER:
+        return AxRole.AX_ROLE_BANNER;
+      case ATTR_VALUE_ROLE_BUTTON:
+        return AxRole.AX_ROLE_BUTTON;
+      case ATTR_VALUE_ROLE_CHECKBOX:
+        return AxRole.AX_ROLE_CHECK_BOX;
+      case ATTR_VALUE_ROLE_LINK:
+        return AxRole.AX_ROLE_LINK;
+      case ATTR_VALUE_ROLE_MENUITEM:
+        return AxRole.AX_ROLE_MENU_ITEM;
+      case ATTR_VALUE_ROLE_MENUITEMCHECKBOX:
+        return AxRole.AX_ROLE_MENU_ITEM_CHECK_BOX;
+      case ATTR_VALUE_ROLE_MENUITEMRADIO:
+        return AxRole.AX_ROLE_MENU_ITEM_RADIO;
+      case ATTR_VALUE_ROLE_OPTION:
+        return AxRole.AX_ROLE_LIST_BOX_OPTION;
+      case ATTR_VALUE_ROLE_RADIO:
+        return AxRole.AX_ROLE_RADIO_BUTTON;
+      case ATTR_VALUE_ROLE_SWITCH:
+        return AxRole.AX_ROLE_SWITCH;
+      case ATTR_VALUE_ROLE_TAB:
+        return AxRole.AX_ROLE_TAB;
+      case ATTR_VALUE_ROLE_NAVIGATION:
+        return AxRole.AX_ROLE_NAVIGATION;
+      case ATTR_VALUE_ROLE_SEARCH:
+        return AxRole.AX_ROLE_SEARCH;
+      case ATTR_VALUE_ROLE_MAIN:
+        return AxRole.AX_ROLE_MAIN;
+      case ATTR_VALUE_ROLE_ARTICLE:
+        return AxRole.AX_ROLE_ARTICLE;
+      case ATTR_VALUE_ROLE_REGION:
+        return AxRole.AX_ROLE_REGION;
+      case ATTR_VALUE_ROLE_COMPLEMENTARY:
+        return AxRole.AX_ROLE_COMPLEMENTARY;
+      case ATTR_VALUE_ROLE_CONTENT_INFO:
+        return AxRole.AX_ROLE_CONTENT_INFO;
+      case ATTR_VALUE_ROLE_NONE:
+        return AxRole.AX_ROLE_NONE;
+      default:
+        continue;
+    }
+  }
+  return AxRole.AX_ROLE_UNKNOWN;
+}
+
 
 // Constants for text size categorization, mirroring Blink's
 // third_party/blink/renderer/modules/content_extraction/ai_page_content_agent.cc.
@@ -516,11 +645,20 @@ function getFormData(form: HTMLFormElement): PageContentFormData {
  * @param element The element to check.
  * @param interactiveNodeIds The set of interactive node IDs.
  * @param interactionInfo The pre-calculated interaction info for the element.
+ * @param annotatedRoles The annotated roles for the element.
  * @return True if the element is a generic container, false otherwise.
  */
 function isGenericContainer(
     element: HTMLElement, interactiveNodeIds: InteractiveNodeIds,
-    interactionInfo: PageContentNodeInteractionInfo|undefined): boolean {
+    interactionInfo: PageContentNodeInteractionInfo|undefined,
+    annotatedRoles: PageContentAnnotatedRole[],
+    labelForDOMNodeID?: number): boolean {
+  // If the element is a label with a valid associated node ID, it is
+  // considered a generic container.
+  if (labelForDOMNodeID !== undefined) {
+    return true;
+  }
+
   // Check if the element is an interactive node.
   const nodeId = getNodeId(element);
   const tagName = getStandardTagName(element);
@@ -529,7 +667,7 @@ function isGenericContainer(
   }
 
   // Elements with annotated roles are considered generic containers.
-  if (getAnnotatedRoleForTag(tagName) !== null) {
+  if (annotatedRoles.length > 0) {
     return true;
   }
 
@@ -557,14 +695,9 @@ function isGenericContainer(
     return true;
   }
 
-  // TODO(crbug.com/480945289): Add searches for Labels (when enabled).
-
   if (isRenderedInTopLayer(element)) {
     return true;
   }
-
-  // TODO(crbug.com/480945289): Add searches for InteractionInfo (when enabled),
-  // and Labels (when enabled).
 
   // Scrollable elements act as containers because they create a new
   // visual context for their content, handling overflow.
@@ -602,32 +735,66 @@ function getScrollerInfo(element: HTMLElement, style: CSSStyleDeclaration):
     return undefined;
   }
 
-  // Populate bounds.
-  // Scrolling bounds = whole content size.
-  const scrollingBounds = {
-    width: element.scrollWidth,
-    height: element.scrollHeight,
-  };
+  // TODO(crbug.com/480945289): Remove this when page context IPC optimization
+  // is enabled.
+  if (isPageContextIPCOptimizationEnabled()) {
+    // Make sure to call element.clientWidth before element.scrollWidth.
+    // This will guide the layout engine to perform the shallow layout first
+    // and then the deep layout calculation.
+    const visibleArea = {
+      x: element.scrollLeft,
+      y: element.scrollTop,
+      width: element.clientWidth,
+      height: element.clientHeight,
+      top: element.scrollTop,
+      right: element.scrollLeft + element.clientWidth,
+      bottom: element.scrollTop + element.clientHeight,
+      left: element.scrollLeft,
+    };
 
-  const visibleArea = {
-    x: element.scrollLeft,
-    y: element.scrollTop,
-    width: element.clientWidth,
-    height: element.clientHeight,
-    top: element.scrollTop,
-    right: element.scrollLeft + element.clientWidth,
-    bottom: element.scrollTop + element.clientHeight,
-    left: element.scrollLeft,
-  };
+    // Populate bounds.
+    // Scrolling bounds = whole content size.
+    const scrollingBounds = {
+      width: element.scrollWidth,
+      height: element.scrollHeight,
+    };
 
-  return {
-    scrollingBounds,
-    visibleArea,
-    userScrollableHorizontal:
-        isScrollableX && (element.scrollWidth > element.clientWidth),
-    userScrollableVertical:
-        isScrollableY && (element.scrollHeight > element.clientHeight),
-  };
+    return {
+      scrollingBounds,
+      visibleArea,
+      userScrollableHorizontal:
+          isScrollableX && (element.scrollWidth > element.clientWidth),
+      userScrollableVertical:
+          isScrollableY && (element.scrollHeight > element.clientHeight),
+    };
+  } else {
+    // Populate bounds.
+    // Scrolling bounds = whole content size.
+    const scrollingBounds = {
+      width: element.scrollWidth,
+      height: element.scrollHeight,
+    };
+
+    const visibleArea = {
+      x: element.scrollLeft,
+      y: element.scrollTop,
+      width: element.clientWidth,
+      height: element.clientHeight,
+      top: element.scrollTop,
+      right: element.scrollLeft + element.clientWidth,
+      bottom: element.scrollTop + element.clientHeight,
+      left: element.scrollLeft,
+    };
+
+    return {
+      scrollingBounds,
+      visibleArea,
+      userScrollableHorizontal:
+          isScrollableX && (element.scrollWidth > element.clientWidth),
+      userScrollableVertical:
+          isScrollableY && (element.scrollHeight > element.clientHeight),
+    };
+  }
 }
 
 /**
@@ -735,13 +902,11 @@ function getNodeInteractionInfo(element: HTMLElement, actionableMode: boolean):
 
   // Aria Role that imply interactivity.
   const role = element.getAttribute(ATTR_KEY_ROLE);
-  if (role === ATTR_VALUE_ROLE_BUTTON || role === ATTR_VALUE_ROLE_LINK ||
-      role === ATTR_VALUE_ROLE_CHECKBOX || role === ATTR_VALUE_ROLE_MENUITEM ||
-      role === ATTR_VALUE_ROLE_MENUITEMCHECKBOX ||
-      role === ATTR_VALUE_ROLE_MENUITEMRADIO ||
-      role === ATTR_VALUE_ROLE_OPTION || role === ATTR_VALUE_ROLE_RADIO ||
-      role === ATTR_VALUE_ROLE_SWITCH || role === ATTR_VALUE_ROLE_TAB) {
-    clickabilityReasons.push(PageContentClickabilityReason.ARIA_ROLE);
+  if (role) {
+    const axRole = getAXRoleForAriaRole(role);
+    if (INTERACTIVE_AX_ROLES.has(axRole)) {
+      clickabilityReasons.push(PageContentClickabilityReason.ARIA_ROLE);
+    }
   }
 
   // Aria Properties.
@@ -1341,7 +1506,7 @@ function getAriaLabel(element: HTMLElement): string | undefined {
   // Process aria-labelledby.
   const labelledBy = element.getAttribute(ARIA_LABELLEDBY)?.trim();
   if (labelledBy) {
-    const ids = labelledBy.split(ARIA_LABEL_SEPARATOR);
+    const ids = labelledBy.split(SPACE_SEPARATOR);
     // This will only work if the labelElement and the element share the same
     // root. It won't work if the two elements are in different shadow DOMs.
     // This follows the web standard.
@@ -1879,6 +2044,13 @@ function getContentForElementNode(
     interactionInfo: PageContentNodeInteractionInfo|undefined,
     actionableMode: boolean, interactiveNodeIds: InteractiveNodeIds,
     paidContentContext: PaidContentExtractionContext): PageContentNode|null {
+
+  let labelForDOMNodeID: number | undefined = undefined;
+  if (actionableMode && getStandardTagName(domNode) === TAG_LABEL) {
+    labelForDOMNodeID = getAssociatedControlDOMNodeID(
+        domNode as HTMLLabelElement, interactiveNodeIds);
+  }
+
   let contentNode: PageContentNode|null = null;
 
   // 1. Try to get basic content for non-generic elements.
@@ -1887,16 +2059,18 @@ function getContentForElementNode(
 
   // 2. Fallback: Generic Container.
   if (!contentNode &&
-      isGenericContainer(domNode, interactiveNodeIds, interactionInfo)) {
+      isGenericContainer(domNode, interactiveNodeIds, interactionInfo,
+                         annotatedRoles, labelForDOMNodeID)) {
     contentNode = {
       childrenNodes: [],
       contentAttributes: {
         attributeType: PageContentAttributeType.CONTAINER,
-        annotatedRoles: [],
         isAdRelated: false,
       },
     };
   }
+
+  // TODO(crbug.com/495959941): Support ARIA custom form control semantics.
 
   // TODO(crbug.com/468852704): Populate the rest of the attributes on top of
   // `basicAttributes`.
@@ -1909,6 +2083,10 @@ function getContentForElementNode(
       contentNode.contentAttributes.nodeInteractionInfo = interactionInfo;
     }
 
+    if (labelForDOMNodeID !== undefined) {
+      contentNode.contentAttributes.labelForDomNodeId = labelForDOMNodeID;
+    }
+
     const ariaLabel = getAriaLabel(domNode);
     if (ariaLabel) {
       contentNode.contentAttributes.label = ariaLabel;
@@ -1919,27 +2097,41 @@ function getContentForElementNode(
 }
 
 /**
- * Appends the annotated roles for the tag, including paid content roles.
+ * Appends the annotated roles for the element, including tag-based roles,
+ * ARIA roles, content-visibility states, and paid content roles to
+ * the provided array.
  *
- * @param element The element to check.
- * @param attributesToPopulate The attributes object to populate.
- * @param paidNodesSet The set of DOM nodes verified as paid content.
+ * @param domNode The element to check.
+ * @param annotatedRoles The array to populate with roles.
+ * @param paidContentContext Context regarding paid content.
  */
 function addAnnotatedRoles(
-    domNode: HTMLElement, attributesToPopulate: PageContentAttributes,
-    paidContentContext: PaidContentExtractionContext) {
-  const role = getAnnotatedRoleForTag(getStandardTagName(domNode));
-  const roles: PageContentAnnotatedRole[] = [];
-  if (role !== null) {
-    roles.push(role);
+    domNode: HTMLElement,
+    annotatedRoles: PageContentAnnotatedRole[],
+    paidContentContext: PaidContentExtractionContext): void {
+  const windowObj = domNode.ownerDocument?.defaultView;
+  if (windowObj) {
+    const style = windowObj.getComputedStyle(domNode);
+    if (style.contentVisibility === STYLE_VALUE_CONTENT_VISIBILITY_HIDDEN) {
+      annotatedRoles.push(PageContentAnnotatedRole.CONTENT_HIDDEN);
+    }
+  }
+
+  const roleFromTag = getAnnotatedRoleForTag(getStandardTagName(domNode));
+  if (roleFromTag !== null) {
+    annotatedRoles.push(roleFromTag);
+  }
+
+  const ariaRoleAttr = domNode.getAttribute(ATTR_KEY_ROLE);
+  if (ariaRoleAttr) {
+    const roleFromAria = getAnnotatedRoleForAriaRole(ariaRoleAttr);
+    if (roleFromAria !== undefined && !annotatedRoles.includes(roleFromAria)) {
+      annotatedRoles.push(roleFromAria);
+    }
   }
 
   if (paidContentContext.paidNodes.has(domNode)) {
-    roles.push(PageContentAnnotatedRole.PAID_CONTENT);
-  }
-
-  if (roles.length > 0) {
-    attributesToPopulate.annotatedRoles = roles;
+    annotatedRoles.push(PageContentAnnotatedRole.PAID_CONTENT);
   }
 }
 
@@ -1978,8 +2170,8 @@ function maybeGenerateContentNode(
     }
   } else if (domNode.nodeType === Node.ELEMENT_NODE) {
     const element = domNode as HTMLElement;
-    const role = getAnnotatedRoleForTag(getStandardTagName(element));
-    const annotatedRoles = (role == null) ? [] : [role];
+    const annotatedRoles: PageContentAnnotatedRole[] = [];
+    addAnnotatedRoles(element, annotatedRoles, paidContentContext);
     const interactionInfo = getNodeInteractionInfo(element, actionableMode);
 
     const contentNode = getContentForElementNode(
@@ -1990,8 +2182,13 @@ function maybeGenerateContentNode(
       if (domNodeId !== null) {
         contentNode.contentAttributes.domNodeId = domNodeId;
       }
-      addAnnotatedRoles(
-          element, contentNode.contentAttributes, paidContentContext);
+
+      if (actionableMode) {
+        const roleStr = element.getAttribute(ATTR_KEY_ROLE);
+        contentNode.contentAttributes.ariaRole =
+            roleStr ? getAXRoleForAriaRole(roleStr) : AxRole.AX_ROLE_UNKNOWN;
+      }
+
       return contentNode;
     }
   }
@@ -2183,6 +2380,32 @@ function getStandardTagName(element: Element): string {
   return element.tagName.toUpperCase();
 }
 
+/**
+ * Returns the DOM node ID of the control element associated with a
+ * given <label>.
+ * Note: The returned node ID is the ID of the node that the
+ * label is 'for', not the ID of the label element itself.
+ *
+ * @param labelElement The <label> element to inspect.
+ * @param interactiveNodeIds The set of interactive node IDs to update.
+ * @return The DOM node ID of the associated control, or undefined if
+ *         none exists.
+ */
+function getAssociatedControlDOMNodeID(
+    labelElement: HTMLLabelElement,
+    interactiveNodeIds: InteractiveNodeIds,
+): number | undefined {
+  const associatedControl = labelElement.control;
+  if (associatedControl) {
+    const controlId = getOrCreateNodeId(associatedControl);
+    if (controlId !== null) {
+      interactiveNodeIds.add(controlId);
+      return controlId;
+    }
+  }
+  return undefined;
+}
+
 // TODO(crbug.com/485796293): Wrap this in a class.
 /**
  * Extracts the annotated page content of the document starting from the body
@@ -2245,7 +2468,6 @@ export function extractAnnotatedPageContent(
     },
     childrenNodes: [],
   };
-
 
 
   // Stack to track the current ancestry chain. At this point it is known that

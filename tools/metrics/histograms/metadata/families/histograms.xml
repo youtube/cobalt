@@ -423,7 +423,7 @@ Current expiration date for histograms owned by cros-families-eng@google.com:
 </histogram>
 
 <histogram name="FamilyLinkUser.LocalWebApprovalCompleteRequestTotalDuration"
-    units="ms" expires_after="2026-07-26">
+    units="ms" expires_after="2026-09-27">
   <owner>anthie@google.com</owner>
   <owner>ljjlee@google.com</owner>
   <owner>chrome-kids-eng@google.com</owner>
@@ -437,7 +437,7 @@ Current expiration date for histograms owned by cros-families-eng@google.com:
 </histogram>
 
 <histogram name="FamilyLinkUser.LocalWebApprovalErrorType"
-    enum="LocalWebApprovalErrorType" expires_after="2026-07-26">
+    enum="LocalWebApprovalErrorType" expires_after="2026-09-27">
   <owner>anthie@google.com</owner>
   <owner>ddac@google.com</owner>
   <owner>chrome-kids-eng@google.com</owner>
@@ -448,7 +448,7 @@ Current expiration date for histograms owned by cros-families-eng@google.com:
 </histogram>
 
 <histogram name="FamilyLinkUser.LocalWebApprovalResult"
-    enum="FamilyLinkUserLocalApprovalResult" expires_after="2026-07-26">
+    enum="FamilyLinkUserLocalApprovalResult" expires_after="2026-09-27">
   <owner>agawronska@chromium.org</owner>
   <owner>cros-families-eng@google.com</owner>
   <owner>chrome-kids-eng@google.com</owner>
@@ -818,6 +818,19 @@ Current expiration date for histograms owned by cros-families-eng@google.com:
   </token>
 </histogram>
 
+<histogram name="SupervisedUsers.AskParentDialog"
+    enum="SupervisedUserAskParentDialog" expires_after="2026-11-01">
+  <owner>richui@google.com</owner>
+  <owner>agawronska@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The supervised user extensions installation flow on android desktop is
+    comprised of three different steps: ask parent dialog, parent auth dialog,
+    and extension installation dialog. This histogram records the actions on the
+    Ask Parent Dialog.
+  </summary>
+</histogram>
+
 <histogram
     name="SupervisedUsers.ClassifyUrlThrottle.EarlierThanContentResponse"
     units="ms" expires_after="2026-08-02">
@@ -1010,7 +1023,7 @@ Current expiration date for histograms owned by cros-families-eng@google.com:
 
 <histogram
     name="SupervisedUsers.SkipParentApprovalToInstallExtensions.PerRecord"
-    enum="SupervisedUserToggleState" expires_after="2026-07-26">
+    enum="SupervisedUserToggleState" expires_after="2026-09-27">
   <owner>anthie@google.com</owner>
   <owner>chrome-kids-eng@google.com</owner>
   <owner>cros-families-eng@google.com</owner>
@@ -1144,7 +1157,7 @@ Current expiration date for histograms owned by cros-families-eng@google.com:
 </histogram>
 
 <histogram name="Supervision.StatusReport.Event"
-    enum="SupervisionStatusReportEvent" expires_after="2026-05-10">
+    enum="SupervisionStatusReportEvent" expires_after="2026-11-10">
   <owner>zhangwenyu@google.com</owner>
   <owner>longbowei@google.com</owner>
   <owner>cros-families-eng@google.com</owner>

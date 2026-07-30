@@ -60,7 +60,7 @@ constexpr char kTestApiAccessToken[] = "api_token";
 void VerifyId(const base::DictValue& response, int expected_value) {
   std::optional<int> value = response.FindInt(kMessageId);
   ASSERT_TRUE(value);
-  EXPECT_EQ(expected_value, *value);
+  EXPECT_EQ(*value, expected_value);
 }
 
 void VerifyStringProperty(const base::DictValue& response,
@@ -68,7 +68,7 @@ void VerifyStringProperty(const base::DictValue& response,
                           const std::string& expected_value) {
   const std::string* value = response.FindString(name);
   ASSERT_TRUE(value);
-  EXPECT_EQ(expected_value, *value);
+  EXPECT_EQ(*value, expected_value);
 }
 
 // Verity the values of the "type" and "id" properties
@@ -77,11 +77,11 @@ void VerifyCommonProperties(const base::DictValue& response,
                             int id) {
   const std::string* string_value = response.FindString(kMessageType);
   ASSERT_TRUE(string_value);
-  EXPECT_EQ(type, *string_value);
+  EXPECT_EQ(*string_value, type);
 
   std::optional<int> int_value = response.FindInt(kMessageId);
   ASSERT_TRUE(int_value);
-  EXPECT_EQ(id, *int_value);
+  EXPECT_EQ(*int_value, id);
 }
 
 base::DictValue CreateConnectMessage(int id) {
@@ -293,6 +293,9 @@ class It2MeNativeMessagingHostTest : public testing::Test {
   raw_ptr<MockIt2MeHostFactory, AcrossTasksDanglingUntriaged> factory_raw_ptr_ =
       nullptr;
 
+  raw_ptr<It2MeNativeMessagingHost, AcrossTasksDanglingUntriaged>
+      it2me_host_raw_ptr_ = nullptr;
+
  private:
   void StartHost();
   void ExitTest();
@@ -357,6 +360,9 @@ void It2MeNativeMessagingHostTest::SetUp() {
 }
 
 void It2MeNativeMessagingHostTest::TearDown() {
+  // Clear the RawPtr so it is not detected as a leak.
+  it2me_host_raw_ptr_ = nullptr;
+
   // Release reference to AutoThreadTaskRunner, so the host thread can be shut
   // down.
   host_task_runner_ = nullptr;
@@ -497,12 +503,12 @@ void It2MeNativeMessagingHostTest::VerifyConnectResponses(int request_id) {
 
         const std::string* value = response->FindString(kAccessCode);
         ASSERT_TRUE(value);
-        EXPECT_EQ(kTestAccessCode, *value);
+        EXPECT_EQ(*value, kTestAccessCode);
 
         std::optional<int> access_code_lifetime =
             response->FindInt(kAccessCodeLifetime);
         ASSERT_TRUE(access_code_lifetime);
-        EXPECT_EQ(kTestAccessCodeLifetime.InSeconds(), *access_code_lifetime);
+        EXPECT_EQ(*access_code_lifetime, kTestAccessCodeLifetime.InSeconds());
       } else if (*state ==
                  It2MeHostStateToString(It2MeHostState::kConnecting)) {
         EXPECT_FALSE(connecting_received);
@@ -513,7 +519,7 @@ void It2MeNativeMessagingHostTest::VerifyConnectResponses(int request_id) {
 
         const std::string* value = response->FindString(kClient);
         ASSERT_TRUE(value);
-        EXPECT_EQ(kTestClientUsername, *value);
+        EXPECT_EQ(*value, kTestClientUsername);
       } else {
         ADD_FAILURE() << "Unexpected host state: " << state;
       }
@@ -547,7 +553,7 @@ void It2MeNativeMessagingHostTest::VerifyDisconnectResponses(int request_id) {
         disconnected_received = true;
         const std::string* error_code = response->FindString(kDisconnectReason);
         ASSERT_TRUE(error_code);
-        EXPECT_EQ(ErrorCodeToString(protocol::ErrorCode::OK), *error_code);
+        EXPECT_EQ(*error_code, ErrorCodeToString(protocol::ErrorCode::OK));
       } else {
         ADD_FAILURE() << "Unexpected host state: " << state;
       }
@@ -562,7 +568,7 @@ void It2MeNativeMessagingHostTest::VerifyPolicyErrorResponse() {
   ASSERT_TRUE(response);
   const std::string* type = response->FindString(kMessageType);
   ASSERT_TRUE(type);
-  ASSERT_EQ(kPolicyErrorMessage, *type);
+  ASSERT_EQ(*type, kPolicyErrorMessage);
 }
 
 void It2MeNativeMessagingHostTest::TestBadRequest(
@@ -617,6 +623,7 @@ void It2MeNativeMessagingHostTest::StartHost() {
       new It2MeNativeMessagingHost(
           /*needs_elevation=*/false, std::move(policy_watcher),
           std::move(context), std::move(factory)));
+  it2me_host_raw_ptr_ = it2me_host.get();
   it2me_host->SetPolicyErrorClosureForTesting(base::BindOnce(
       base::IgnoreResult(&base::TaskRunner::PostTask),
       task_environment_->GetMainThreadTaskRunner(), FROM_HERE,
@@ -686,7 +693,7 @@ TEST_F(It2MeNativeMessagingHostTest, Id) {
   ASSERT_TRUE(response);
   value = response->FindString(kMessageId);
   ASSERT_TRUE(value);
-  EXPECT_EQ("42", *value);
+  EXPECT_EQ(*value, "42");
 }
 
 TEST_F(It2MeNativeMessagingHostTest, ConnectMultiple) {
@@ -702,7 +709,6 @@ TEST_F(It2MeNativeMessagingHostTest,
        ConnectRespectsEnterpriseOptionsParameterOnChromeOsOnly) {
   int next_id = 1;
   base::DictValue connect_message = CreateConnectMessage(next_id);
-  connect_message.Set(kIsEnterpriseAdminUser, true);
   ChromeOsEnterpriseParams params;
   params.suppress_user_dialogs = true;
   params.suppress_notifications = true;
@@ -713,7 +719,9 @@ TEST_F(It2MeNativeMessagingHostTest,
   params.connection_auto_accept_timeout = base::Hours(8);
   params.request_origin = ChromeOsEnterpriseRequestOrigin::kEnterpriseAdmin;
   params.audio_playback = ChromeOsEnterpriseAudioPlayback::kLocalOnly;
-  connect_message.Merge(params.ToDict());
+#if BUILDFLAG(IS_CHROMEOS) || !defined(NDEBUG)
+  it2me_host_raw_ptr_->set_chrome_os_enterprise_params(params);
+#endif
   WriteMessageToInputPipe(connect_message);
   VerifyConnectResponses(next_id);
 #if BUILDFLAG(IS_CHROMEOS) || !defined(NDEBUG)
@@ -742,7 +750,12 @@ TEST_F(It2MeNativeMessagingHostTest,
        ConnectRespectsIsEnterpriseAdminUserParameterOnChromeOsOnly) {
   int next_id = 1;
   base::DictValue connect_message = CreateConnectMessage(next_id);
-  connect_message.Set(kIsEnterpriseAdminUser, true);
+#if BUILDFLAG(IS_CHROMEOS) || !defined(NDEBUG)
+  ChromeOsEnterpriseParams params;
+  params.request_origin = ChromeOsEnterpriseRequestOrigin::kEnterpriseAdmin;
+  params.audio_playback = ChromeOsEnterpriseAudioPlayback::kLocalOnly;
+  it2me_host_raw_ptr_->set_chrome_os_enterprise_params(params);
+#endif
   WriteMessageToInputPipe(connect_message);
   VerifyConnectResponses(next_id);
 #if BUILDFLAG(IS_CHROMEOS) || !defined(NDEBUG)
@@ -750,6 +763,33 @@ TEST_F(It2MeNativeMessagingHostTest,
 #else
   EXPECT_FALSE(factory_raw_ptr_->host->is_enterprise_session());
 #endif
+  ++next_id;
+  WriteMessageToInputPipe(CreateDisconnectMessage(next_id));
+  VerifyDisconnectResponses(next_id);
+}
+
+TEST_F(It2MeNativeMessagingHostTest,
+       ConnectIgnoresEnterpriseOptionsParameterInJson) {
+  int next_id = 1;
+  base::DictValue connect_message = CreateConnectMessage(next_id);
+  connect_message.Set(kIsEnterpriseAdminUser, true);
+  ChromeOsEnterpriseParams params;
+  params.suppress_user_dialogs = true;
+  params.suppress_notifications = true;
+  params.terminate_upon_input = true;
+  params.curtain_local_user_session = true;
+  params.allow_remote_input = false;
+  params.allow_clipboard_sync = false;
+  params.connection_auto_accept_timeout = base::Hours(8);
+  params.request_origin = ChromeOsEnterpriseRequestOrigin::kEnterpriseAdmin;
+  params.audio_playback = ChromeOsEnterpriseAudioPlayback::kLocalOnly;
+  connect_message.Merge(params.ToDict());
+  WriteMessageToInputPipe(connect_message);
+  VerifyConnectResponses(next_id);
+
+  EXPECT_FALSE(factory_raw_ptr_->host->is_enterprise_session());
+  ASSERT_FALSE(get_chrome_os_enterprise_params().has_value());
+
   ++next_id;
   WriteMessageToInputPipe(CreateDisconnectMessage(next_id));
   VerifyDisconnectResponses(next_id);

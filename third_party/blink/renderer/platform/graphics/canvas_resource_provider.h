@@ -136,7 +136,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
 
   // The ImageOrientationEnum conveys the desired orientation of the image, and
   // should be derived from the source of the bitmap data.
-  virtual scoped_refptr<StaticBitmapImage> Snapshot(
+  virtual scoped_refptr<StaticBitmapImage> SnapshotForCanvas2D(
       ImageOrientation = ImageOrientationEnum::kDefault) = 0;
 
   void SetDelegate(Delegate* delegate) { delegate_ = delegate; }
@@ -309,8 +309,8 @@ class PLATFORM_EXPORT CanvasResourceProvider
   bool always_enable_raster_timers_for_testing_ = false;
 
   // Parameters for the auto-flushing heuristic.
-  size_t max_recorded_op_bytes_;
-  size_t max_pinned_image_bytes_;
+  size_t max_recorded_op_bytes_for_canvas_2d_;
+  size_t max_pinned_image_bytes_for_canvas_2d_;
 
   bool clear_frame_for_canvas2d_ = true;
   std::optional<cc::PaintRecord> last_recording_for_canvas2d_;
@@ -328,7 +328,7 @@ class PLATFORM_EXPORT Canvas2DResourceProviderBitmap
   bool IsValid() const override { return GetSkSurface(); }
   bool IsAccelerated() const override { return false; }
   bool IsGpuContextLost() const override { return true; }
-  scoped_refptr<StaticBitmapImage> Snapshot(
+  scoped_refptr<StaticBitmapImage> SnapshotForCanvas2D(
       ImageOrientation = ImageOrientationEnum::kDefault) override;
 
   void RasterRecordForCanvas2D(cc::PaintRecord last_recording) override;
@@ -419,8 +419,6 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
   bool IsGpuContextLost() const override;
   base::ByteSize EstimatedSizeInBytes() const override;
 
-  bool IsValid() const override;
-
   sk_sp<SkSurface> CreateSkSurface() const override;
   virtual void OnFlushForImage(cc::PaintImage::ContentId content_id) = 0;
   void OnMemoryDump(base::trace_event::ProcessMemoryDump* pmd) final;
@@ -473,13 +471,13 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
   bool is_software_ = false;
   bool is_cleared_ = false;
 
- private:
-  scoped_refptr<CanvasResourceSharedImage> CreateResource();
-  void DisableLineDrawingAsPathsIfNecessaryForCanvas2D() override;
-
   // Returns true iff the resource provider is (a) using a GPU channel for
   // software SharedImages and (b) that channel has been lost.
   bool IsSoftwareSharedImageGpuChannelLost() const;
+
+ private:
+  scoped_refptr<CanvasResourceSharedImage> CreateResource();
+  void DisableLineDrawingAsPathsIfNecessaryForCanvas2D() override;
 
   static void NotifyGpuContextLostTask(
       base::WeakPtr<CanvasResourceProviderSharedImage>);
@@ -575,10 +573,11 @@ class PLATFORM_EXPORT Canvas2DResourceProviderSharedImage
   void OnFlushForImage(cc::PaintImage::ContentId content_id) override;
   void RasterRecordForCanvas2D(cc::PaintRecord last_recording) override;
   bool IsCanvas2D() const override { return true; }
+  bool IsValid() const override;
   Canvas2DResourceProviderSharedImage* As2DSharedImageProvider() final {
     return this;
   }
-  scoped_refptr<StaticBitmapImage> Snapshot(
+  scoped_refptr<StaticBitmapImage> SnapshotForCanvas2D(
       ImageOrientation = ImageOrientationEnum::kDefault) override;
   bool WritePixelsForCanvas2D(const SkImageInfo& orig_info,
                               const void* pixels,
@@ -628,8 +627,6 @@ class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
       base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
       gpu::SharedImageUsageSet shared_image_usage_flags,
       Delegate* delegate = nullptr);
-
-  MemoryManagedPaintCanvas& GetCanvasDeprecated();
 
   static std::unique_ptr<CanvasNon2DResourceProviderSharedImage> Create(
       gfx::Size size,
@@ -682,7 +679,10 @@ class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
 
   // CanvasResourceProvider:
   void OnFlushForImage(cc::PaintImage::ContentId content_id) override;
+  bool IsValid() const override;
   scoped_refptr<StaticBitmapImage> Snapshot(
+      ImageOrientation = ImageOrientationEnum::kDefault);
+  scoped_refptr<StaticBitmapImage> SnapshotForCanvas2D(
       ImageOrientation = ImageOrientationEnum::kDefault) override;
   void RasterRecordForCanvas2D(cc::PaintRecord last_recording) override {
     NOTREACHED();
@@ -701,9 +701,7 @@ class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
                                   uint32_t src_x,
                                   uint32_t src_y);
 
-  // Drops the cached snapshot (if any) and invokes `draw_callback` on this
-  // instance's canvas.
-  void ExternalCanvasDrawHelper(
+  scoped_refptr<CanvasResource> DoExternalDrawAndProduceResource(
       base::FunctionRef<void(cc::PaintCanvas&)> draw_callback);
 
   scoped_refptr<StaticBitmapImage> DoExternalDrawAndSnapshot(

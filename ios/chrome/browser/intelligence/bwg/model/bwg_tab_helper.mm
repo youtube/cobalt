@@ -29,8 +29,8 @@
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
-#import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_page_context.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_ui_utils.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_prefs.h"
@@ -333,7 +333,7 @@ bool BwgTabHelper::IsGeminiAvailableForWebState() {
 
   if (IsGeminiCopresenceEnabled() || IsGeminiFloatyAllPagesEnabled()) {
     const GURL& url = web_state_->GetVisibleURL();
-    if (!url.SchemeIsHTTPOrHTTPS() || IsAimRelatedUrl(url)) {
+    if (!IsUrlEligibleForGemini(url)) {
       return false;
     }
   }
@@ -342,10 +342,21 @@ bool BwgTabHelper::IsGeminiAvailableForWebState() {
          IsGeminiFloatyAllPagesEnabled();
 }
 
-bool BwgTabHelper::IsAimRelatedUrl(const GURL& url) {
-  return (google_util::IsGoogleSearchUrl(url) ||
-          google_util::IsGoogleHomePageUrl(url) || IsAimZeroStateURL(url)) &&
-         IsGeminiCopresenceSRPCheckEnabled();
+bool BwgTabHelper::IsUrlEligibleForGemini(const GURL& url) {
+  if (!url.SchemeIsHTTPOrHTTPS()) {
+    return false;
+  }
+
+  if (IsAimZeroStateURL(url) || IsAimURL(url) ||
+      google_util::IsGoogleHomePageUrl(url)) {
+    return false;
+  }
+
+  if (google_util::IsGoogleSearchUrl(url)) {
+    return !IsGeminiCopresenceSRPCheckEnabled();
+  }
+
+  return true;
 }
 
 #pragma mark - WebStateObserver
@@ -397,7 +408,7 @@ void BwgTabHelper::DidStartNavigation(
 
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(web_state_->GetBrowserState());
-  BwgService* gemini_service = BwgServiceFactory::GetForProfile(profile);
+  BwgService* gemini_service = GeminiServiceFactory::GetForProfile(profile);
   const bool gemini_available = IsGeminiAvailableForWebState() &&
                                 gemini_service &&
                                 gemini_service->IsProfileEligibleForGemini();

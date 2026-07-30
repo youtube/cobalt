@@ -9,6 +9,7 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.base.ObserverList;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -23,6 +24,7 @@ import org.chromium.components.feature_engagement.Tracker;
 @NullMarked
 public class GlicKeyedServiceImpl implements GlicKeyedService {
     private long mNativePtr;
+    private final ObserverList<GlobalShowHideObserver> mObservers = new ObserverList<>();
 
     @CalledByNative
     private static GlicKeyedServiceImpl create(long nativePtr) {
@@ -34,14 +36,21 @@ public class GlicKeyedServiceImpl implements GlicKeyedService {
     }
 
     @Override
-    public void toggleUI(long browserWindowPtr, Profile profile, int invocationSource) {
+    public void toggleUI(
+            long browserWindowPtr, boolean preventClose, Profile profile, int invocationSource) {
         if (mNativePtr == 0) return;
 
         Tracker tracker = TrackerFactory.getTrackerForProfile(profile);
         tracker.notifyEvent(EventConstants.GLIC_ANDROID_USED);
 
         GlicKeyedServiceImplJni.get()
-                .toggleUI(mNativePtr, browserWindowPtr, profile, invocationSource);
+                .toggleUI(mNativePtr, browserWindowPtr, preventClose, profile, invocationSource);
+    }
+
+    @Override
+    public boolean isPanelShowingForBrowser(long browserWindowPtr) {
+        if (mNativePtr == 0) return false;
+        return GlicKeyedServiceImplJni.get().isPanelShowingForBrowser(mNativePtr, browserWindowPtr);
     }
 
     @CalledByNative
@@ -49,12 +58,32 @@ public class GlicKeyedServiceImpl implements GlicKeyedService {
         mNativePtr = 0;
     }
 
+    @Override
+    public void addGlobalShowHideObserver(GlobalShowHideObserver observer) {
+        mObservers.addObserver(observer);
+    }
+
+    @Override
+    public void removeGlobalShowHideObserver(GlobalShowHideObserver observer) {
+        mObservers.removeObserver(observer);
+    }
+
+    @CalledByNative
+    private void onGlobalShowHide(boolean isOpened) {
+        for (GlobalShowHideObserver observer : mObservers) {
+            observer.onGlobalShowHide(isOpened);
+        }
+    }
+
     @NativeMethods
     interface Natives {
         void toggleUI(
                 long nativeGlicKeyedServiceAndroid,
                 long browserWindowPtr,
+                boolean preventClose,
                 @JniType("Profile*") Profile profile,
                 int source);
+
+        boolean isPanelShowingForBrowser(long nativeGlicKeyedServiceAndroid, long browserWindowPtr);
     }
 }

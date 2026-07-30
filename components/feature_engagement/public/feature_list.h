@@ -82,6 +82,7 @@ DEFINE_VARIATION_PARAM(kIPHAutoDarkUserEducationMessageFeature,
                        "IPH_AutoDarkUserEducationMessage");
 DEFINE_VARIATION_PARAM(kIPHAutoDarkUserEducationMessageOptInFeature,
                        "IPH_AutoDarkUserEducationMessageOptIn");
+DEFINE_VARIATION_PARAM(kIPHAppRatingPromptFeature, "IPH_AppRatingPrompt");
 DEFINE_VARIATION_PARAM(kIPHAppSpecificHistory, "IPH_AppSpecificHistory");
 DEFINE_VARIATION_PARAM(kIPHBookmarksBarFeature, "IPH_BookmarksBar");
 DEFINE_VARIATION_PARAM(kIPHCCTHistory, "IPH_CCTHistory");
@@ -120,6 +121,7 @@ DEFINE_VARIATION_PARAM(kIPHDownloadInfoBarDownloadContinuingFeature,
 DEFINE_VARIATION_PARAM(kIPHDownloadInfoBarDownloadsAreFasterFeature,
                        "IPH_DownloadInfoBarDownloadsAreFaster");
 DEFINE_VARIATION_PARAM(kIPHEphemeralTabFeature, "IPH_EphemeralTab");
+DEFINE_VARIATION_PARAM(kIPHExtensionsManageFeature, "IPH_ExtensionsManage");
 DEFINE_VARIATION_PARAM(kIPHFeedCardMenuFeature, "IPH_FeedCardMenu");
 DEFINE_VARIATION_PARAM(kIPHFuseboxAttachmentFeature, "IPH_FuseboxAttachment");
 DEFINE_VARIATION_PARAM(kIPHGenericAlwaysTriggerHelpUiFeature,
@@ -600,6 +602,7 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHAdaptiveButtonInTopToolbarCustomizationTranslateFeature),
         VARIATION_ENTRY(kIPHAdaptiveButtonInTopToolbarCustomizationVoiceSearchFeature),
         VARIATION_ENTRY(kIPHAndroidTabDeclutter),
+        VARIATION_ENTRY(kIPHAppRatingPromptFeature),
         VARIATION_ENTRY(kIPHAppSpecificHistory),
         VARIATION_ENTRY(kIPHAutoDarkOptOutFeature),
         VARIATION_ENTRY(kIPHAutoDarkUserEducationMessageFeature),
@@ -632,6 +635,7 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHFeedCardMenuFeature),
         VARIATION_ENTRY(kIPHFeedHeaderMenuFeature),
         VARIATION_ENTRY(kIPHFeedSwipeRefresh),
+        VARIATION_ENTRY(kIPHGestureUserEducation),
         VARIATION_ENTRY(kIPHIdentityDiscFeature),
         VARIATION_ENTRY(kIPHInstanceSwitcherFeature),
         VARIATION_ENTRY(kIPHKeyboardAccessoryAddressFillingFeature),
@@ -681,6 +685,7 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHTabSwitcherButtonSwitchIncognitoFeature),
         VARIATION_ENTRY(kIPHTabSwitcherXR),
         VARIATION_ENTRY(kIPHTabTearingXR),
+        VARIATION_ENTRY(kIPHThreeDotMenuBackButton),
         VARIATION_ENTRY(kIPHTouchToSearchCalloutFeature),
         VARIATION_ENTRY(kIPHTranslateMenuButtonFeature),
         VARIATION_ENTRY(kIPHVideoTutorialNTPChromeIntroFeature),

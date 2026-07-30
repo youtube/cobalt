@@ -58,7 +58,7 @@ import org.chromium.chrome.browser.toolbar.ToolbarProgressBar;
 import org.chromium.chrome.browser.toolbar.ToolbarTabController;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.chrome.browser.toolbar.back_button.BackButtonCoordinator;
-import org.chromium.chrome.browser.toolbar.extensions.ExtensionToolbarCoordinator;
+import org.chromium.chrome.browser.toolbar.extensions.ExtensionsToolbarCoordinator;
 import org.chromium.chrome.browser.toolbar.forward_button.ForwardButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.home_button.HomeButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButton;
@@ -482,16 +482,16 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
     }
 
     /**
-     * Sets the {@link ExtensionToolbarCoordinator}.
+     * Sets the {@link ExtensionsToolbarCoordinator}.
      *
      * <p>This method is not called if the extension toolbar is unavailable. If it is called, it is
      * after native initialization.
      *
-     * @param extensionToolbarCoordinator The {@link ExtensionToolbarCoordinator} to be set.
+     * @param extensionsToolbarCoordinator The {@link ExtensionsToolbarCoordinator} to be set.
      */
-    public void setExtensionToolbarCoordinator(
-            ExtensionToolbarCoordinator extensionToolbarCoordinator) {
-        mToolbarLayout.setExtensionToolbarCoordinator(extensionToolbarCoordinator);
+    public void setExtensionsToolbarCoordinator(
+            ExtensionsToolbarCoordinator extensionsToolbarCoordinator) {
+        mToolbarLayout.setExtensionsToolbarCoordinator(extensionsToolbarCoordinator);
     }
 
     /** Returns the color of the hairline drawn underneath the toolbar. */
@@ -1053,11 +1053,15 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
         // Toolbar show at the correct spot. The current math here is to reduce the capture size
         // with toolbar height and hairline height.
         int diff = 0;
-        if (captureHeight > 0) {
-            diff =
-                    captureHeight
-                            - mControlContainer.getToolbarHeight()
-                            - mControlContainer.getToolbarHairlineHeight();
+        // When switching omnibox from bottom to top, the toolbar capture size may not have been
+        // updated yet (e.g. captureHeight=1 while toolbarHeight=137). Using a stale capture
+        // height produces a large negative diff that pushes the cc layer below the toolbar,
+        // creating a "ghost view". Only compute diff when capture height is at least as large
+        // as the toolbar, indicating the capture is up-to-date.
+        int toolbarHeight = mControlContainer.getToolbarHeight();
+        int hairlineHeight = mControlContainer.getToolbarHairlineHeight();
+        if (captureHeight >= toolbarHeight) {
+            diff = captureHeight - toolbarHeight - hairlineHeight;
         }
 
         // As toolbar hairline is part of the capture, there are times we need to hide the hairline

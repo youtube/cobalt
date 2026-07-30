@@ -202,6 +202,10 @@ public class ChipView extends LinearLayout {
                         R.styleable.ChipView_primaryTextStartPadding,
                         getResources()
                                 .getDimensionPixelSize(R.dimen.chip_primary_text_start_padding));
+        int loadingViewSize =
+                a.getDimensionPixelSize(
+                        R.styleable.ChipView_loadingViewSize,
+                        getResources().getDimensionPixelSize(R.dimen.chip_loading_view_size));
         a.recycle();
 
         mStartIcon = new ChromeImageView(getContext());
@@ -214,7 +218,6 @@ public class ChipView extends LinearLayout {
             chipStartPadding = (chipHeight - iconHeight) / 2;
         }
 
-        int loadingViewSize = getResources().getDimensionPixelSize(R.dimen.chip_loading_view_size);
         int loadingViewHeightPadding = (iconHeight - loadingViewSize) / 2;
         int loadingViewWidthPadding = (iconWidth - loadingViewSize) / 2;
         mLoadingView = new LoadingView(getContext());
@@ -387,9 +390,10 @@ public class ChipView extends LinearLayout {
     /**
      * Shows a {@link LoadingView} at the start of the chip view. This replaces the start icon.
      *
-     * @param loadingViewObserver A {@link LoadingView.Observer} to add to the LoadingView.
+     * @param loadingViewObserver An optional {@link LoadingView.Observer} to add to the
+     *     LoadingView.
      */
-    public void showLoadingView(LoadingView.Observer loadingViewObserver) {
+    public void showLoadingView(LoadingView.@Nullable Observer loadingViewObserver) {
         mLoadingView.addObserver(
                 new LoadingView.Observer() {
                     @Override
@@ -402,18 +406,35 @@ public class ChipView extends LinearLayout {
                         mStartIcon.setVisibility(VISIBLE);
                     }
                 });
-        mLoadingView.addObserver(loadingViewObserver);
+        if (loadingViewObserver != null) {
+            mLoadingView.addObserver(loadingViewObserver);
+        }
         mLoadingView.showLoadingUi();
     }
 
     /**
      * Hides the {@link LoadingView} at the start of the chip view.
      *
-     * @param loadingViewObserver A {@link LoadingView.Observer} to add to the LoadingView.
+     * @param loadingViewObserver An optional {@link LoadingView.Observer} to add to the
+     *     LoadingView.
      */
-    public void hideLoadingView(LoadingView.Observer loadingViewObserver) {
-        mLoadingView.addObserver(loadingViewObserver);
-        mLoadingView.hideLoadingUi();
+    public void hideLoadingView(LoadingView.@Nullable Observer loadingViewObserver) {
+        hideLoadingView(loadingViewObserver, /* skipDelay= */ false);
+    }
+
+    /**
+     * Hides the {@link LoadingView} at the start of the chip view.
+     *
+     * @param loadingViewObserver An optional {@link LoadingView.Observer} to add to the
+     *     LoadingView.
+     * @param skipDelay If true, the loading UI hides immediately without fading out.
+     */
+    public void hideLoadingView(
+            LoadingView.@Nullable Observer loadingViewObserver, boolean skipDelay) {
+        if (loadingViewObserver != null) {
+            mLoadingView.addObserver(loadingViewObserver);
+        }
+        mLoadingView.hideLoadingUi(skipDelay);
     }
 
     /** Adds a remove icon (X button) at the trailing end of the chip next to the primary text. */

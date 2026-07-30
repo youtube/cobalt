@@ -39,6 +39,7 @@
 #include "net/dns/public/host_resolver_results.h"
 #include "net/dns/public/host_resolver_source.h"
 #include "net/dns/public/mdns_listener_update_type.h"
+#include "net/dns/public/resolution_details.h"
 #include "net/dns/public/secure_dns_policy.h"
 #include "net/log/net_log_with_source.h"
 #include "url/scheme_host_port.h"
@@ -300,6 +301,7 @@ class MockHostResolverBase : public HostResolver {
       const HostPortPair& host,
       DnsQueryType query_type) override;
   HostCache* GetHostCache() override;
+  void SetDohFallbackUpgradeAllowed(bool allowed) override;
   void SetRequestContext(URLRequestContext* request_context) override {}
   bool IsHappyEyeballsV3Enabled() const override;
   std::unique_ptr<CanaryDomainService> CreateCanaryDomainService() override;
@@ -424,6 +426,11 @@ class MockHostResolverBase : public HostResolver {
     resolve_context_ = resolve_context;
   }
 
+  void set_default_resolution_details(
+      std::optional<ResolutionDetails> details) {
+    default_resolution_details_ = std::move(details);
+  }
+
  private:
   friend class MockHostResolver;
   friend class MockCachingHostResolver;
@@ -484,6 +491,8 @@ class MockHostResolverBase : public HostResolver {
   raw_ptr<ResolveContext> resolve_context_;
 
   scoped_refptr<State> state_;
+
+  std::optional<ResolutionDetails> default_resolution_details_;
 
   THREAD_CHECKER(thread_checker_);
 
@@ -744,6 +753,8 @@ class HangingHostResolver : public HostResolver {
   std::unique_ptr<ProbeRequest> CreateDohProbeRequest() override;
 
   void SetRequestContext(URLRequestContext* url_request_context) override;
+
+  void SetDohFallbackUpgradeAllowed(bool allowed) override;
 
   bool IsHappyEyeballsV3Enabled() const override;
 

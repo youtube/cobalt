@@ -107,6 +107,7 @@
 <translation id="1369286077209859800">Afficher tous les onglets du groupe d'onglets</translation>
 <translation id="136942498637440594">Vous pouvez rechercher des images et ce que vous voyez.</translation>
 <translation id="1373120905936431262">Importer une image à remixer avec Nano Banana</translation>
+<translation id="1377321085342047638">Numéro de carte</translation>
 <translation id="1377508275003315939">Mots de passe</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position} adresse sur {count}}one{{position} adresse sur {count}}other{{position} adresses sur {count}}}</translation>
 <translation id="1383876407941801731">Rechercher</translation>
@@ -151,7 +152,6 @@
 <translation id="1517166097004694782">Masquer "Continuer avec cet onglet"</translation>
 <translation id="1520027731907768768">Recevez des alertes en cas de baisse de prix des produits que vous suivez.</translation>
 <translation id="1521366073263497277">Accédez à la grille d'onglets</translation>
-<translation id="1521774566618522728">Actif aujourd'hui</translation>
 <translation id="1523567067736644845">Déverrouillez pour afficher le mot de passe</translation>
 <translation id="1524563461097350801">Non, merci</translation>
 <translation id="1531038290222364269">Afficher les onglets</translation>
@@ -376,6 +376,7 @@
 <translation id="2299218006564889602">Vos mots de passe sont chiffrés sur votre appareil avant d'être enregistrés dans le Gestionnaire de mots de passe Google.</translation>
 <translation id="2306265833370324042">Afficher les détails de <ph name="SEARCH_ENGINE_NAME" /></translation>
 <translation id="2309265394777270359">Fermer l'onglet</translation>
+<translation id="2310789833878085574">Enregistrer pour la saisie automatique</translation>
 <translation id="2311077293164383652">Fermer l'onglet épinglé</translation>
 <translation id="2316129865977710310">Non merci</translation>
 <translation id="2320166752086256636">Masquer le clavier</translation>
@@ -906,6 +907,7 @@
 <translation id="4287172530684295552">Marquer comme lu</translation>
 <translation id="428768789042547925">Nouveautés</translation>
 <translation id="429074084062258019">{count,plural, =1{Ajouter l'onglet à un groupe}one{Ajouter l'onglet à un groupe}other{Ajouter les onglets à un groupe}}</translation>
+<translation id="4300830875340617674">Scanner la carte et compléter automatiquement</translation>
 <translation id="4302061870579014542">Définir la position</translation>
 <translation id="4304713468139749426">Gestionnaire de mots de passe</translation>
 <translation id="4306349443295056740">Signature OCSP</translation>
@@ -1098,7 +1100,6 @@
 <translation id="4944543191714094452">Rechercher sur la page…</translation>
 <translation id="4945756290001680296">Accéder aux paramètres des mots de passe</translation>
 <translation id="4949302115427722371">Gérer les réglages…</translation>
-<translation id="4952050521954075618">Les photos de la pellicule ne seront pas synchronisées sur vos appareils</translation>
 <translation id="4958444002117714549">Développer la liste</translation>
 <translation id="496392417432935267">Ouvert ailleurs</translation>
 <translation id="4970724460420203313">En utilisant Chrome avec votre compte géré, vous pouvez séparer la navigation liée à votre organisation (onglets, historique et mots de passe, par exemple) de votre autre navigation</translation>
@@ -1147,7 +1148,6 @@
 <translation id="5119329531859909472">Pour suivre le produit, appuyez sur "Suivre"</translation>
 <translation id="5121618895923301719">Vous suivez déjà ce produit. Cette page est enregistrée dans <ph name="BEGIN_LINK" />Favoris d'appareils mobiles<ph name="END_LINK" />.</translation>
 <translation id="512533434554095351">Vos mots de passe présentent plusieurs problèmes.</translation>
-<translation id="5127538504377457572">Actif il y a <ph name="DAYS" /> jours</translation>
 <translation id="5128788795241319992">Découvrez le nouveau menu</translation>
 <translation id="5132942445612118989">Synchronisez vos mots de passe, votre historique et plus encore sur tous les appareils</translation>
 <translation id="5141363746588976328">Masquer la carte de baisses de prix dans vos onglets</translation>
@@ -1182,6 +1182,7 @@
 <translation id="5225388483876575107">A</translation>
 <translation id="5225463052809312700">Activer la caméra</translation>
 <translation id="5229315183665181733">Modifier le site</translation>
+<translation id="5233111790346066304">Enregistrez des fichiers dans votre Google Drive et accédez-y à tout moment.</translation>
 <translation id="5233638681132016545">Nouvel onglet</translation>
 <translation id="5234094073825090254">{count,plural, =1{Favori enregistré dans votre compte Google ({email}).}one{Favori enregistré dans votre compte Google ({email}).}other{Favoris enregistrés dans votre compte Google ({email}).}}</translation>
 <translation id="5234764350956374838">Ignorer</translation>
@@ -1264,6 +1265,7 @@ Handoff doit également être activé dans la section "Général" des paramètre
 <translation id="5556459405103347317">Actualiser</translation>
 <translation id="555749644339804659">Vérif. des mots de passe…</translation>
 <translation id="5559567453458728487">Convertir les unités de mesure trouvées sur le Web</translation>
+<translation id="5560088892362098740">Date d'expiration</translation>
 <translation id="556042886152191864">Bouton</translation>
 <translation id="5565871407246142825">Cartes de crédit</translation>
 <translation id="5566623128829375608">Enregistre sur votre appareil.</translation>
@@ -1351,6 +1353,7 @@ Handoff doit également être activé dans la section "Général" des paramètre
 <translation id="5819208479324046259">Géré par <ph name="MANAGER" />. <ph name="BEGIN_LINK" />En savoir plus<ph name="END_LINK" /></translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5829649908290113115">Synchronisation…</translation>
+<translation id="5831217499016131155">Google Wallet</translation>
 <translation id="583281660410589416">Inconnu</translation>
 <translation id="5838430324585198889">Profitez de plus de fonctionnalités sur votre iPad avec les applis Google</translation>
 <translation id="583923961930319521">Utiliser des mots de passe sur tous vos appareils</translation>
@@ -1648,6 +1651,7 @@ Handoff doit également être activé dans la section "Général" des paramètre
 <translation id="6806550742467879742">Outils de page</translation>
 <translation id="6807287147325542056">Mots de passe dans d'autres applis</translation>
 <translation id="681368974849482173">Élément créé</translation>
+<translation id="6820686453637990663">CVC</translation>
 <translation id="6825078212112407882">{count,plural, =1{Favori enregistré dans votre compte Google {email}}one{{count} favori enregistré dans votre compte Google {email}}other{{count} favoris enregistrés dans votre compte Google {email}}}</translation>
 <translation id="6826004672264649705">Vous suivez actuellement ce produit. Ouvrir pour voir l'historique des prix.</translation>
 <translation id="6830728435402077660">Non sécurisé</translation>
@@ -1961,7 +1965,6 @@ Handoff doit également être activé dans la section "Général" des paramètre
 <translation id="7952670906562503188">Vous êtes sur le point de supprimer {passkey_count} clés d'accès et la liste des sites et applis pour lesquels vous avez choisi de ne jamais enregistrer d'informations de connexion. Les comptes que vous avez créés pour des sites et des applis ne seront pas supprimés.</translation>
 <translation id="7958575506592576831">Informations sur la sécurité de cette page</translation>
 <translation id="7961015016161918242">Jamais</translation>
-<translation id="7971136598759319605">Actif il y a 1 jour</translation>
 <translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">OK</translation>
 <translation id="797588153137233716">Menu → Historique → Supprimer les données de navigation</translation>

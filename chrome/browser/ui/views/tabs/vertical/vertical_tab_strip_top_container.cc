@@ -5,8 +5,10 @@
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h"
 
 #include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -15,11 +17,14 @@
 #include "chrome/browser/ui/views/tabs/shared/tab_strip_combo_button.h"
 #include "chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h"
 #include "chrome/browser/ui/views/tabs/vertical/top_container_button.h"
+#include "chrome/grit/generated_resources.h"
 #include "components/saved_tab_groups/public/features.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/actions/action_view_controller.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/button/menu_button_controller.h"
+#include "ui/views/controls/menu/menu_runner.h"
 #include "ui/views/layout/delegating_layout_manager.h"
 #include "ui/views/layout/layout_types.h"
 #include "ui/views/layout/proposed_layout.h"
@@ -27,6 +32,7 @@
 
 namespace {
 constexpr int kRegionVerticalPadding = 5;
+constexpr int kComboButtonCollapsedPadding = 2;
 }
 
 VerticalTabStripTopContainer::VerticalTabStripTopContainer(
@@ -42,6 +48,7 @@ VerticalTabStripTopContainer::VerticalTabStripTopContainer(
   SetLayoutManager(std::make_unique<views::DelegatingLayoutManager>(this));
 
   collapse_button_ = AddChildButtonFor(kActionToggleCollapseVertical);
+  collapse_button_->set_context_menu_controller(this);
   collapse_button_->SetProperty(views::kElementIdentifierKey,
                                 kVerticalTabStripCollapseButtonElementId);
 
@@ -82,11 +89,16 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
           ? host_size.width()
           : parent()->GetAvailableSize(this).width().value_or(0);
 
+  const bool is_collapsed = state_controller_->IsCollapsed();
+
+  // Once the available width is below the collapse snap width, we update the
+  // orientation in order to have smooth transition during animation.
   if (combo_button_
               ->GetPreferredSizeForOrientation(
                   views::LayoutOrientation::kHorizontal)
               .width() >= available_width ||
-      available_width <= VerticalTabStripRegionView::kCollapsedWidth) {
+      available_width < VerticalTabStripRegionView::kCollapseSnapWidth ||
+      is_collapsed) {
     combo_button_orientation_ = views::LayoutOrientation::kVertical;
     int current_y = 0;
 
@@ -106,8 +118,10 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
 
     if (unfocus_button_ && unfocus_button_->GetVisible()) {
       const gfx::Size pref_size = unfocus_button_->GetPreferredSize();
-      gfx::Rect bounds(std::max(0, (host_size.width() - pref_size.width()) / 2),
-                       current_y, pref_size.width(), pref_size.height());
+      int x = is_collapsed
+                  ? 0
+                  : std::max(0, (host_size.width() - pref_size.width()) / 2);
+      gfx::Rect bounds(x, current_y, pref_size.width(), pref_size.height());
       layout.child_layouts.emplace_back(unfocus_button_.get(),
                                         unfocus_button_->GetVisible(), bounds);
       host_size.SetToMax(gfx::Size(bounds.right(), 0));
@@ -117,8 +131,10 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
 
     if (collapse_button_ && collapse_button_->GetVisible()) {
       const gfx::Size pref_size = collapse_button_->GetPreferredSize();
-      gfx::Rect bounds(std::max(0, (host_size.width() - pref_size.width()) / 2),
-                       current_y, pref_size.width(), pref_size.height());
+      int x = is_collapsed
+                  ? 0
+                  : std::max(0, (host_size.width() - pref_size.width()) / 2);
+      gfx::Rect bounds(x, current_y, pref_size.width(), pref_size.height());
       layout.child_layouts.emplace_back(collapse_button_.get(),
                                         collapse_button_->GetVisible(), bounds);
       host_size.SetToMax(gfx::Size(bounds.right(), 0));
@@ -135,14 +151,22 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
                                 combo_button_->end_button()->GetVisible();
       if (start_button_visible || end_button_visible) {
         current_y += GetLayoutConstant(
-            LayoutConstant::kVerticalTabStripCollapsedPadding);
+            LayoutConstant::kVerticalTabStripCollapsedVerticalPadding);
 
         const gfx::Size pref_size =
             combo_button_->GetPreferredSizeForOrientation(
                 combo_button_orientation_);
-        gfx::Rect bounds(
-            std::max(0, (host_size.width() - pref_size.width()) / 2), current_y,
-            pref_size.width(), pref_size.height());
+        // When collapsed the combo button should fill the width (excluding
+        // padding), this is especially relevant when in the expand-on-hover
+        // state.
+        int width =
+            is_collapsed
+                ? (host_size.width() - (2 * kComboButtonCollapsedPadding))
+                : pref_size.width();
+        int padding = is_collapsed
+                          ? kComboButtonCollapsedPadding
+                          : std::max(0, (host_size.width() - width) / 2);
+        gfx::Rect bounds(padding, current_y, width, pref_size.height());
         layout.child_layouts.emplace_back(combo_button_.get(),
                                           combo_button_->GetVisible(), bounds);
         host_size.SetToMax(gfx::Size(bounds.right(), 0));
@@ -195,7 +219,8 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
                                         unfocus_button_->GetVisible(), bounds);
       current_y =
           bounds.bottom() +
-          GetLayoutConstant(LayoutConstant::kVerticalTabStripCollapsedPadding);
+          GetLayoutConstant(
+              LayoutConstant::kVerticalTabStripCollapsedVerticalPadding);
     }
 
     if (collapse_button_ && collapse_button_->GetVisible()) {
@@ -209,7 +234,8 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
                                         collapse_button_->GetVisible(), bounds);
       current_y =
           bounds.bottom() +
-          GetLayoutConstant(LayoutConstant::kVerticalTabStripCollapsedPadding);
+          GetLayoutConstant(
+              LayoutConstant::kVerticalTabStripCollapsedVerticalPadding);
     }
 
     int right_alignment = host_size.width();
@@ -276,6 +302,55 @@ bool VerticalTabStripTopContainer::IsPositionInWindowCaption(
   }
 
   return true;
+}
+
+void VerticalTabStripTopContainer::ShowContextMenuForViewImpl(
+    views::View* source,
+    const gfx::Point& point,
+    ui::mojom::MenuSourceType source_type) {
+  if (tabs::IsVerticalTabsExpandOnHoverFeatureEnabled() &&
+      source == collapse_button_) {
+    // Reset the menu runner to avoid issues when the collapse button is
+    // clicked multiple times.
+    context_menu_runner_.reset();
+
+    context_menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
+    context_menu_model_->AddCheckItem(
+        IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER,
+        l10n_util::GetStringUTF16(
+            IDS_VERTICAL_TABS_COLLAPSE_BUTTON_TOGGLE_EXPAND_ON_HOVER));
+
+    int32_t menu_runner_flags =
+        views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU;
+
+    context_menu_runner_ = std::make_unique<views::MenuRunner>(
+        context_menu_model_.get(), menu_runner_flags);
+
+    context_menu_runner_->RunMenuAt(
+        source->GetWidget(), nullptr, gfx::Rect(point, gfx::Size()),
+        views::MenuAnchorPosition::kTopLeft, source_type);
+  }
+}
+
+bool VerticalTabStripTopContainer::IsCommandIdChecked(int command_id) const {
+  if (command_id == IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER) {
+    return state_controller_->IsExpandOnHoverEnabled();
+  }
+  return false;
+}
+
+bool VerticalTabStripTopContainer::IsCommandIdEnabled(int command_id) const {
+  if (command_id == IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER) {
+    return true;
+  }
+  return false;
+}
+
+void VerticalTabStripTopContainer::ExecuteCommand(int command_id,
+                                                  int event_flags) {
+  if (command_id == IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER) {
+    chrome::ExecuteCommand(browser_, command_id);
+  }
 }
 
 void VerticalTabStripTopContainer::SetToolbarHeightForLayout(

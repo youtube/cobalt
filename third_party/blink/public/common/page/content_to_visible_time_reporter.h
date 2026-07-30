@@ -51,26 +51,14 @@ class BLINK_COMMON_EXPORT ContentToVisibleTimeReporter {
       bool has_saved_frames,
       RecordContentToVisibleTimeRequest start_state);
 
-  // Called when the device is unfolded and the activity is recreated. Returns
-  // a callback to invoke the next time a frame is presented.
-  SuccessfulPresentationTimeCallback GetCallbackForNextFrameAfterUnfold(
-      base::TimeTicks begin_timestamp);
-
   // Indicates that the tab associated with this recorder was hidden. If no
   // frame was presented since the last tab switch, failure is reported to UMA.
   void TabWasHidden();
 
  private:
   // Records histograms and trace events for the current tab switch.
-  void RecordHistogramsAndTraceEvents(TabSwitchResult tab_switch_result,
-                                      bool show_reason_tab_switching,
-                                      bool show_reason_bfcache_restore,
-                                      base::TimeTicks presentation_timestamp);
-
-  void RecordHistogramsAndTraceEventsWithFrameTimingDetails(
+  void RecordHistogramsAndTraceEvents(
       TabSwitchResult tab_switch_result,
-      bool show_reason_tab_switching,
-      bool show_reason_bfcache_restore,
       const viz::FrameTimingDetails& frame_timing_details);
 
   // Saves the given `state` and `has_saved_frames`, and invalidates all

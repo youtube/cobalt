@@ -208,6 +208,13 @@ BASE_FEATURE(kEnableDevToolsJsErrorReporting,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
+// Enforces the use of the browser-authoritative origin from the Mojo receiver
+// context instead of the renderer-supplied origin in FileSystemManager::Open.
+// TODO(crbug.com/497254383): Remove this flag and the origin parameter from
+// the Mojo interface.
+BASE_FEATURE(kEnforceFileSystemManagerOpenOrigin,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // When enabled, enforces that same-document navigations must not change
 // the committed origin, insecure request policy, or insecure navigations set.
 // Any mismatch will result in a renderer kill via bad_message handling.
@@ -676,6 +683,12 @@ BASE_FEATURE(kServiceWorkerSrcdocSupport, base::FEATURE_ENABLED_BY_DEFAULT);
 // crbug.com/340949948 for more details.
 BASE_FEATURE(kServiceWorkerStaticRouterRaceRequestFix2,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// crbug.com/495999481: When this is enabled, the navigation request should be
+// blocked when it receives an opaque response from the service worker static
+// router.
+BASE_FEATURE(kServiceWorkerStaticRouterOpaqueCheck,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // (crbug.com/1371756): When enabled, the static routing API starts
 // ServiceWorker when the routing result of a main resource request was network

@@ -405,22 +405,6 @@ Việc lập danh sách URL trong chính sách này có tác dụng tương tự
 <translation id="1317158052518324525">Không cho phép tính năng tự động điền nâng cao.</translation>
 <translation id="1317658068839330898">Không cho phép dùng <ph name="ASSISTANT_PRODUCT_NAME" /> trên web</translation>
 <translation id="1318233005302276244">Cho phép người dùng theo dõi gói hàng của họ trên Chrome.</translation>
-<translation id="1321747583289636863">Nếu bạn đặt chính sách này, hệ thống sẽ chỉ định số lượng tối đa kết nối đồng thời tới máy chủ proxy áp dụng cho yêu cầu sử dụng giao thức WebSocket.
-
-Để sửa đổi giới hạn yêu cầu không sử dụng giao thức WebSocket, vui lòng xem <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" />.
-
-Nếu bạn không đặt chính sách này, giá trị mặc định được dùng sẽ là 32.
-
-Một số ứng dụng web tiêu hao lượng lớn lượt kết nối khi có các lệnh GET bị treo. Vì vậy, việc đặt giá trị dưới 32 có thể khiến mạng của trình duyệt bị treo nếu có quá nhiều ứng dụng web (với các lượt kết nối bị treo) đang mở.
-Một số máy chủ proxy không thể xử lý lượng lớn lượt kết nối đồng thời trên mỗi máy khách. Tuy nhiên, bạn có thể giải quyết vấn đề đó bằng cách đặt chính sách này về giá trị thấp hơn.
-
-Giá trị phải bằng hoặc cao hơn 6.
-Nếu bạn đặt giá trị thấp hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 6.
-Bạn phải tự chịu rủi ro khi đặt giá trị thấp hơn giá trị mặc định (32).
-
-Giá trị phải bằng hoặc thấp hơn 256.
-Nếu bạn đặt giá trị cao hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 256.
-Bạn phải tự chịu rủi ro khi đặt giá trị cao hơn giá trị mặc định (32).</translation>
 <translation id="1323501563951768821">Chế độ cài đặt phím F12 sử dụng phím tắt chứa phím bổ trợ shift</translation>
 <translation id="1325547947664414578">Khi người dùng chuyển đổi giữa các thiết bị <ph name="PRODUCT_OS_NAME" />, dịch vụ <ph name="PRODUCT_NAME" /> sẽ mở các cửa sổ trình duyệt và ứng dụng từ thiết bị trước đó trên thiết bị mới.
 Nếu bạn đặt chính sách này thành Bật thì sau khi người dùng hiện tại đăng nhập, hệ thống sẽ tự động mở các cửa sổ trình duyệt và ứng dụng có trên thiết bị <ph name="PRODUCT_OS_NAME" /> mà họ đã dùng gần đây nhất.
@@ -4949,7 +4933,6 @@ Nếu bạn đặt thành Enabled (Bật) hoặc không đặt chính sách này
 Nếu bạn đặt chính sách này thành Disabled (Tắt), thì dữ liệu trong trình quản lý mật khẩu của người dùng sẽ không bị ảnh hưởng nhưng chức năng của trình quản lý đó sẽ bị hỏng.
 
 Nếu bạn đặt chính sách này, người dùng sẽ không thể thay đổi chính sách trong <ph name="PRODUCT_NAME" />.</translation>
-<translation id="4321788213579606602">Số lượng tối đa kết nối đồng thời tới máy chủ proxy áp dụng cho yêu cầu không sử dụng giao thức WebSocket</translation>
 <translation id="4322842393287974810">Cho phép ứng dụng kiosk tự động khởi chạy với độ trễ bằng không kiểm soát phiên bản <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="4323412353642577604">Bật chính sách chứng thực từ xa để bảo vệ nội dung</translation>
 <translation id="4325690621216251241">Thêm một nút đăng xuất vào khay hệ thống</translation>
@@ -6453,6 +6436,7 @@ Chính sách này hỗ trợ tính năng làm mới động.
 Chính sách này chỉ là biện pháp tạm thời và sẽ bị xoá trong phiên bản <ph name="PRODUCT_NAME" /> trong tương lai.</translation>
 <translation id="5212810195096589189">Chỉ định quyền của CLI máy ảo</translation>
 <translation id="5213038356678567351">Các trang web sẽ không bao giờ kích hoạt quá trình chuyển trình duyệt.</translation>
+<translation id="5216710229085956333">Bật tính năng khử tiếng ồn của Krisp</translation>
 <translation id="5216815237712190041">Định cấu hình hình nền cấp thiết bị hiện trên màn hình đăng nhập nếu chưa có người dùng nào đăng nhập vào thiết bị này. Bạn có thể thiết lập chính sách này bằng cách chỉ định URL nơi thiết bị ChromeOS có thể tải hình nền xuống và chỉ định một hàm băm mật mã dùng để xác minh tính toàn vẹn của tệp tải xuống. Định dạng của hình ảnh phải là JPEG, kích thước tệp không được vượt quá 16 MB. URL phải truy cập được mà không có hình thức xác thực nào. Hình nền sẽ được tải xuống và lưu vào bộ nhớ đệm. Tệp này sẽ được tải xuống mỗi khi URL hoặc hàm băm thay đổi.
 
       Nếu bạn thiết lập chính sách hình nền thiết bị, thì thiết bị ChromeOS sẽ tải và sử dụng hình nền trên màn hình đăng nhập nếu chưa có người dùng nào đăng nhập vào thiết bị. Sau khi người dùng đăng nhập, chính sách hình nền của người dùng sẽ được kích hoạt.
@@ -6578,6 +6562,22 @@ Nếu bạn không đặt chính sách này, thì giá trị mặc định là 0
 <translation id="5293285950307241933">Xoá tất cả dữ liệu người dùng cục bộ</translation>
 <translation id="5293619885162445352">Cho phép <ph name="PEPPER_NAME" /> sử dụng bộ giải mã video mới.</translation>
 <translation id="529457411593078576">Bật Điều khoản dịch vụ trong lần chạy đầu tiên của CCT</translation>
+<translation id="529718811410033393">Việc đặt chính sách này sẽ chỉ định số lượng tối đa kết nối đồng thời trên mỗi máy chủ proxy áp dụng cho yêu cầu không sử dụng giao thức WebSocket.
+
+Để sửa đổi giới hạn yêu cầu sử dụng giao thức WebSocket, vui lòng xem <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />.
+
+Nếu bạn không đặt chính sách này, giá trị mặc định được dùng sẽ là 32.
+
+Một số ứng dụng web tiêu hao lượng lớn lượt kết nối khi có các lệnh GET bị treo. Vì vậy, việc đặt giá trị dưới 32 có thể khiến mạng của trình duyệt bị treo nếu có quá nhiều ứng dụng web (với các lượt kết nối bị treo) đang mở.
+Một số máy chủ proxy không thể xử lý lượng lớn lượt kết nối đồng thời trên mỗi máy khách. Tuy nhiên, bạn có thể giải quyết vấn đề đó bằng cách đặt chính sách này về giá trị thấp hơn.
+
+Giá trị phải bằng hoặc cao hơn 6.
+Nếu bạn đặt giá trị thấp hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 6.
+Bạn phải tự chịu rủi ro khi đặt giá trị thấp hơn giá trị mặc định (32).
+
+Giá trị phải bằng hoặc thấp hơn 256 (99 trong <ph name="PRODUCT_NAME" /> 147 trở xuống).
+Nếu bạn đặt một giá trị cao hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 256 (99 trong <ph name="PRODUCT_NAME" /> 147 trở xuống).
+Bạn phải tự chịu rủi ro khi đặt giá trị cao hơn giá trị mặc định (32).</translation>
 <translation id="5297873769621042075">Khi bạn đặt chính sách này, hệ thống sẽ chỉ định một danh sách tên máy chủ hoặc mẫu tên máy chủ (chẳng hạn như
 "[*.]vidu.com") sẽ không được nâng cấp lên HTTPS và sẽ không hiển thị
 khoảng xen kẽ lỗi nếu chế độ Ưu tiên HTTPS được bật. Các tổ chức có thể sử dụng
@@ -6873,6 +6873,7 @@ Có nhiều chính sách liệt kê những nguồn gốc ảnh hưởng đến 
 <translation id="5479841110985196412">Bật bàn phím ảo hỗ trợ tiếp cận</translation>
 <translation id="5480380613778757009">Nếu bạn tắt hoặc không đặt chính sách này, thì tất cả những chế độ cài đặt hiển thị đã đặt trong Phiên khách được quản lý sẽ được đặt lại ngay khi phiên này kết thúc. Nếu bạn đặt chính sách này thành Bật, thì các thuộc tính hiển thị sẽ vẫn giữ nguyên sau khi bạn thoát khỏi phiên khách được quản lý.</translation>
 <translation id="548137908954174608">Bật Phụ đề trực tiếp</translation>
+<translation id="5481873128882951841">Tắt tính năng khử tiếng ồn của Krisp</translation>
 <translation id="5483012943408894695">Nguồn gốc hoặc mẫu tên máy chủ mà các hạn chế đối với nguồn gốc không an toàn không được áp dụng</translation>
 <translation id="5483065054530244863">Cho phép các chứng chỉ SHA-1 có chữ ký do neo tin cậy cục bộ phát hành</translation>
 <translation id="5485491014653571963">Chế độ cài đặt này cho phép tích hợp ứng dụng Gemini.
@@ -7336,6 +7337,7 @@ Khi bạn tắt hoặc không đặt chính sách này, Tiện ích xem nhanh s�
       Dữ liệu sản phẩm quan trọng (VPD) là một tập hợp dữ liệu cấu hình và thông tin (chẳng hạn như bộ phận và số sê-ri) liên quan đến thiết bị đó.</translation>
 <translation id="5760861224093391268">Tắt tính năng xác thực bên thứ nhất khi báo cáo tín hiệu an toàn của người dùng</translation>
 <translation id="5762969307102447459">Tắt tính năng Tự động điền đối với địa chỉ</translation>
+<translation id="5763723496957591166">Số lượng tối đa kết nối đồng thời trên mỗi máy chủ proxy áp dụng cho yêu cầu sử dụng giao thức WebSocket</translation>
 <translation id="5765780083710877561">Mô tả:</translation>
 <translation id="5766438888216077649">Không đặt <ph name="WINDOW_OPENER_PROPERTY" /> cho các đường liên kết nhắm đến <ph name="BLANK_PAGE_NAME" /></translation>
 <translation id="5767776869128458023">Tắt các trang lỗi thay thế</translation>
@@ -7776,7 +7778,6 @@ Nếu bạn đặt chính sách này thành false (sai), thì người dùng s�
 <translation id="6075316301208933536">Nếu bạn đặt <ph name="DEVICE_BATTERY_CHARGE_MODE_POLICY_NAME" /> thành <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_MODE_NAME" />, tùy chọn cài đặt <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" /> sẽ tùy chỉnh thời điểm pin ngừng sạc, dựa vào phần trăm pin đã sạc. <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_START_CHARGING_POLICY_NAME" /> phải thấp hơn <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" /> tối thiểu là 5 điểm phần trăm.
 
       Nếu bạn không đặt chính sách này, chế độ sạc pin <ph name="DEVICE_BATTERY_CHARGE_STANDARD_MODE_NAME" /> sẽ được áp dụng.</translation>
-<translation id="6080808146443476891">Số lượng tối đa kết nối đồng thời tới máy chủ proxy áp dụng cho yêu cầu sử dụng giao thức WebSocket</translation>
 <translation id="6082161804984853051">Nếu bạn đặt chính sách này, thì <ph name="PRODUCT_NAME" /> sẽ sử dụng thư mục bạn cung cấp để lưu trữ các tệp đã lưu vào bộ nhớ đệm trên ổ đĩa, cho dù người dùng có chỉ định cờ --disk-cache-dir hay không.
 
       Nếu bạn không đặt chính sách này, thì <ph name="PRODUCT_NAME" /> sẽ sử dụng thư mục bộ nhớ đệm mặc định. Tuy nhiên, người dùng có thể thay đổi tùy chọn cài đặt đó bằng cờ dòng lệnh --disk-cache-dir.
@@ -9760,6 +9761,7 @@ Chúng tôi sẽ ngừng hỗ trợ chế độ cài đặt chính sách này k�
 
       Nếu bạn để trống hoặc không đặt chính sách này, thì người dùng có thể đặt một Tài khoản Google bất kỳ làm tài khoản chính của trình duyệt trong <ph name="PRODUCT_NAME" />.</translation>
 <translation id="723103540848640830">Đặt độ dài tối thiểu của mã PIN màn hình khóa</translation>
+<translation id="7231449913899026849">Số lượng tối đa kết nối đồng thời trên mỗi máy chủ proxy áp dụng cho yêu cầu không sử dụng giao thức WebSocket</translation>
 <translation id="7234280155140786597">Tên của các máy chủ nhắn tin gốc bị cấm (hoặc * cho tất cả)</translation>
 <translation id="723621412149834592">Khi bạn đặt chính sách này thành <ph name="BLOCK_WINDOW_PLACEMENT_POLICY_NAME" /> (giá trị 2), theo mặc định, hệ thống sẽ tự động từ chối cấp quyền kiểm soát vị trí cửa sổ cho các trang web. Việc này sẽ hạn chế khả năng các trang web xem được thông tin về màn hình của thiết bị và dùng thông tin đó để mở/đặt cửa sổ hoặc yêu cầu chế độ toàn màn hình trên một số màn hình cụ thể.
 
@@ -10226,6 +10228,22 @@ Nếu bạn để trống chính sách này, <ph name="FLOATING_SSO_DOMAIN_BLOCK
 
       Nếu người dùng sử dụng thiết bị không được quản lý, thì khả năng đặt chính sách này sẽ còn phụ thuộc vào việc người dùng có phải là chủ sở hữu thiết bị hay không.</translation>
 <translation id="7570291542739287032">Chỉ trên đám mây</translation>
+<translation id="7571158727244273239">Việc đặt chính sách này sẽ chỉ định số lượng tối đa kết nối đồng thời trên mỗi máy chủ proxy áp dụng cho yêu cầu sử dụng giao thức WebSocket.
+
+Để sửa đổi giới hạn yêu cầu không sử dụng giao thức WebSocket, vui lòng xem <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" />.
+
+Nếu bạn không đặt chính sách này, giá trị mặc định được dùng sẽ là 32.
+
+Một số ứng dụng web tiêu hao lượng lớn lượt kết nối khi có các lệnh GET bị treo. Vì vậy, việc đặt giá trị dưới 32 có thể khiến mạng của trình duyệt bị treo nếu có quá nhiều ứng dụng web (với các lượt kết nối bị treo) đang mở.
+Một số máy chủ proxy không thể xử lý lượng lớn lượt kết nối đồng thời trên mỗi máy khách. Tuy nhiên, bạn có thể giải quyết vấn đề đó bằng cách đặt chính sách này về giá trị thấp hơn.
+
+Giá trị phải bằng hoặc cao hơn 6.
+Nếu bạn đặt giá trị thấp hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 6.
+Bạn phải tự chịu rủi ro khi đặt giá trị thấp hơn giá trị mặc định (32).
+
+Giá trị phải bằng hoặc thấp hơn 256.
+Nếu bạn đặt giá trị cao hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 256.
+Bạn phải tự chịu rủi ro khi đặt giá trị cao hơn giá trị mặc định (32).</translation>
 <translation id="7572641760104970905">Không phức tạp</translation>
 <translation id="757395965347379751">Khi bạn bật cài đặt này, <ph name="PRODUCT_NAME" /> sẽ cho phép các chứng chỉ có chữ ký SHA-1 miễn là các chứng chỉ xác thực thành công và cung cấp đến chứng chỉ CA được cài đặt cục bộ.
 
@@ -10756,6 +10774,12 @@ Chính sách này sẽ không có hiệu lực khi bạn đặt chính sách <ph
 
       Theo mặc định, một tiện ích hoặc ứng dụng Android không thể dùng khóa được chỉ định để sử dụng trong công ty, điều này tương đương với việc đặt allowCorporateKeyUsage thành Tắt cho tiện ích/ứng dụng đó. Chỉ khi bạn đặt allowCorporateKeyUsage thành Bật cho một tiện ích hoặc ứng dụng Android, thì tiện ích/ứng dụng đó mới có thể dùng khóa nền tảng được đánh dấu để sử dụng trong công ty nhằm ký dữ liệu tùy ý. Chỉ cấp quyền này nếu bạn tin tưởng rằng tiện ích hoặc ứng dụng Android sẽ ngăn những kẻ tấn công truy cập vào khóa.</translation>
 <translation id="7928412788382651939">Cho phép tạo nhóm cửa sổ tổng quan bằng AI tạo sinh và tham gia cải tiến các mô hình AI.</translation>
+<translation id="7929417323335013269">Chính sách này kiểm soát công nghệ khử tiếng ồn bằng AI của Krisp trên thiết bị.
+Tính năng này được tích hợp vào <ph name="PRODUCT_OS_NAME" /> dưới dạng một thư viện bên thứ ba cục bộ riêng biệt và chỉ người dùng được quản lý mới có thể sử dụng tính năng này.
+
+Nếu bạn đặt chính sách này thành Enabled (Bật), quy trình xử lý âm thanh khử tiếng ồn bằng AI của Krisp sẽ được kích hoạt và người dùng không thể tắt quy trình này.
+
+Nếu bạn đặt chính sách này thành Disabled (Tắt) hoặc không đặt, quy trình xử lý âm thanh khử tiếng ồn bằng AI của Krisp sẽ tắt.</translation>
 <translation id="7930383470029339167">ThrottleDisplayNoneAndVisibilityHiddenCrossOriginIframes là một tính năng của Chrome được thiết kế để giúp các iframe quy trình chéo và iframe có nguồn gốc khác trong cùng quy trình luôn có hành vi hiển thị nhất quán. Để biết thêm thông tin chi tiết về cách điều tiết trên cả quy trình chéo và trong cùng quy trình, hãy tham khảo https://chromestatus.com/feature/5175574929080320.
 
 Chính sách doanh nghiệp này được đưa ra để cho phép quản trị viên kiểm soát việc người dùng của họ có thể bật tính năng điều tiết bổ sung hay không. Khi bạn đặt chính sách này thành tắt, người dùng sẽ không thể bật tính năng điều tiết. Khi bạn đặt chính sách này thành bật hoặc không đặt, người dùng có thể chọn sử dụng tính năng điều tiết hoặc có thể bật tính năng này thông qua các biến thể của Chrome.</translation>
@@ -11247,22 +11271,6 @@ Tính năng này sẽ chỉ có trên kênh Canary.
 
 Nếu bạn bật hoặc không đặt chính sách, thì người dùng có thể truy cập vào trang.
 Nếu bạn tắt chính sách, thì trang sẽ bị chặn.</translation>
-<translation id="8264002158987842436">Nếu bạn đặt chính sách này, hệ thống sẽ chỉ định số lượng tối đa kết nối đồng thời tới máy chủ proxy áp dụng cho yêu cầu không sử dụng giao thức WebSocket.
-
-Để sửa đổi giới hạn yêu cầu sử dụng giao thức WebSocket, vui lòng xem <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />.
-
-Nếu bạn không đặt chính sách này, giá trị mặc định được dùng sẽ là 32.
-
-Một số ứng dụng web tiêu hao lượng lớn lượt kết nối khi có các lệnh GET bị treo. Vì vậy, việc đặt giá trị dưới 32 có thể khiến mạng của trình duyệt bị treo nếu có quá nhiều ứng dụng web (với các lượt kết nối bị treo) đang mở.
-Một số máy chủ proxy không thể xử lý lượng lớn lượt kết nối đồng thời trên mỗi máy khách. Tuy nhiên, bạn có thể giải quyết vấn đề đó bằng cách đặt chính sách này về giá trị thấp hơn.
-
-Giá trị phải bằng hoặc cao hơn 6.
-Nếu bạn đặt giá trị thấp hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 6.
-Bạn phải tự chịu rủi ro khi đặt giá trị thấp hơn giá trị mặc định (32).
-
-Giá trị phải bằng hoặc thấp hơn 256 (99 trong <ph name="PRODUCT_NAME" /> 147 trở xuống).
-Nếu bạn đặt một giá trị cao hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 256 (99 trong <ph name="PRODUCT_NAME" /> 147 trở xuống).
-Bạn phải tự chịu rủi ro khi đặt giá trị cao hơn giá trị mặc định (32).</translation>
 <translation id="8266778278542911985">Nếu bạn đặt chính sách này thành 3, thì các trang web có thể yêu cầu quyền truy cập vào cổng nối tiếp. Nếu bạn đặt chính sách này thành 2, quyền truy cập vào cổng nối tiếp sẽ bị từ chối.
 
       Nếu bạn không đặt chính sách này, thì các trang web có thể yêu cầu quyền truy cập nhưng người dùng được quyền thay đổi tùy chọn cài đặt này.</translation>

@@ -27,6 +27,7 @@
 #import "ios/chrome/browser/intents/model/intents_constants.h"
 #import "ios/chrome/browser/intents/model/user_activity_compatibility_util.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
+#import "ios/chrome/browser/reading_list/model/reading_list_browser_agent.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_controller.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
@@ -39,6 +40,7 @@
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/chrome/common/intents/AddBookmarkToChromeIntent.h"
+#import "ios/chrome/common/intents/AddReadingListItemToChromeIntent.h"
 #import "ios/chrome/common/intents/OpenInChromeIncognitoIntent.h"
 #import "ios/chrome/common/intents/OpenInChromeIntent.h"
 #import "net/base/apple/url_conversions.h"
@@ -247,6 +249,15 @@ UserActivityType UserActivityTypeOf(NSUserActivity* user_activity) {
   return UserActivityType::kInvalid;
 }
 
+// Returns a completion block that opens the reading list.
+void OpenReadingListWithBrowser(base::WeakPtr<Browser> weak_browser) {
+  if (Browser* browser = weak_browser.get()) {
+    id<BrowserCoordinatorCommands> handler = HandlerForProtocol(
+        browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
+    [handler showReadingList];
+  }
+}
+
 // Navigates to the bookmark manager UI.
 void OpenBookmarksWithBrowser(base::WeakPtr<Browser> weak_browser) {
   if (Browser* browser = weak_browser.get()) {
@@ -267,6 +278,21 @@ void AddBookmarkToChromeWithIntent(INIntent* intent,
       id<BookmarksCommands> handler = HandlerForProtocol(
           browser->GetCommandDispatcher(), BookmarksCommands);
       [handler addBookmarks:bookmark_intent.url];
+    }
+  }
+}
+
+// Adds url to reading list.
+void AddReadingListToChromeWithIntent(INIntent* intent,
+                                      base::WeakPtr<Browser> weak_browser) {
+  if (Browser* browser = weak_browser.get()) {
+    AddReadingListItemToChromeIntent* typed_intent =
+        base::apple::ObjCCastStrict<AddReadingListItemToChromeIntent>(intent);
+    if (typed_intent && typed_intent.url && typed_intent.url.count > 0) {
+      ReadingListBrowserAgent* readingListBrowserAgent =
+          ReadingListBrowserAgent::FromBrowser(browser);
+      readingListBrowserAgent->BulkAddURLsToReadingListWithViewSnackbar(
+          typed_intent.url);
     }
   }
 }
@@ -319,6 +345,10 @@ std::vector<GURL> GetURLsFromOpenInChromeIntent(INIntent* intent) {
 }
 
 - (void)execute {
+  // Ignore invalid user activities.
+  if (_userActivityType == UserActivityType::kInvalid) {
+    return;
+  }
   SceneState* sceneState = [self sceneStateFromSessionID];
   CHECK(sceneState);
   Browser* browser =
@@ -372,13 +402,18 @@ std::vector<GURL> GetURLsFromOpenInChromeIntent(INIntent* intent) {
       webpageGURLs.push_back(GURL(kChromeUINewTabURL));
       break;
     case UserActivityType::kAddReadingListItemToChrome:
-      // TODO(crbug.com/492115056): Add implementation.
+      completion = base::CallbackToBlock(base::BindRepeating(
+          &AddReadingListToChromeWithIntent, _userActivity.interaction.intent,
+          browser->AsWeakPtr()));
+      webpageGURLs.push_back(GURL(kChromeUINewTabURL));
       break;
     case UserActivityType::kOpenLatestTab:
       // TODO(crbug.com/492115056): Add implementation.
       break;
     case UserActivityType::kOpenReadingList:
-      // TODO(crbug.com/492115056): Add implementation.
+      completion = base::CallbackToBlock(base::BindRepeating(
+          &OpenReadingListWithBrowser, browser->AsWeakPtr()));
+      webpageGURLs.push_back(GURL(kChromeUINewTabURL));
       break;
     case UserActivityType::kOpenBookmarks:
       completion = base::CallbackToBlock(
@@ -431,7 +466,7 @@ std::vector<GURL> GetURLsFromOpenInChromeIntent(INIntent* intent) {
       // TODO(crbug.com/492115056): Add implementation.
       break;
     case UserActivityType::kInvalid:
-      return;
+      NOTREACHED();
   }
 
   // Handle the case where multiple URLS need to be opened.

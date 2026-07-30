@@ -80,6 +80,7 @@
 <translation id="1285320974508926690">Không bao giờ dịch trang web này</translation>
 <translation id="1287229685519872919">Dữ liệu trong Google Workspace</translation>
 <translation id="1291506870746876680">Các quyền của <ph name="BEGIN_BOLD" />"<ph name="SITE_NAME" />"<ph name="END_BOLD" /> sẽ được đặt lại thành tắt khi bạn rời khỏi trang web này.</translation>
+<translation id="1293491796138057740">Thông tin của bạn sẽ được lưu vào <ph name="USER_EMAIL" /> của tài khoản Google Wallet. Bạn có thể dùng thông tin này để điền vào biểu mẫu nhanh hơn trên các sản phẩm của Google.</translation>
 <translation id="1293556467332435079">Tệp</translation>
 <translation id="129553762522093515">Các thẻ đã đóng gần đây</translation>
 <translation id="1296581780163690620">Tải tệp xuống? (<ph name="FILE_SIZE" />)</translation>
@@ -107,6 +108,7 @@
 <translation id="1369286077209859800">Hiển thị tất cả các thẻ trong nhóm thẻ</translation>
 <translation id="136942498637440594">Bạn có thể tìm kiếm dựa trên hình ảnh và những gì bạn thấy.</translation>
 <translation id="1373120905936431262">Tải một hình ảnh lên để biến tấu bằng Nano Banana</translation>
+<translation id="1377321085342047638">Số thẻ</translation>
 <translation id="1377508275003315939">Mật khẩu</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position}/{count} địa chỉ}other{{position}/{count} địa chỉ}}</translation>
 <translation id="1383876407941801731">Tìm kiếm</translation>
@@ -151,7 +153,6 @@
 <translation id="1517166097004694782">Ẩn tuỳ chọn "Tiếp tục trên thẻ này"</translation>
 <translation id="1520027731907768768">Nhận thông báo khi sản phẩm bạn theo dõi giảm giá.</translation>
 <translation id="1521366073263497277">Chuyển đến lưới thẻ</translation>
-<translation id="1521774566618522728">Hoạt động hôm nay</translation>
 <translation id="1523567067736644845">Mở khoá để hiển thị mật khẩu</translation>
 <translation id="1524563461097350801">Không, cảm ơn</translation>
 <translation id="1531038290222364269">Hiển thị thẻ</translation>
@@ -376,6 +377,7 @@
 <translation id="2299218006564889602">Mật khẩu của bạn được mã hoá trên thiết bị trước khi lưu vào Trình quản lý mật khẩu của Google.</translation>
 <translation id="2306265833370324042">Hiện thông tin chi tiết về <ph name="SEARCH_ENGINE_NAME" /></translation>
 <translation id="2309265394777270359">Đóng thẻ</translation>
+<translation id="2310789833878085574">Lưu và tự động điền</translation>
 <translation id="2311077293164383652">Đóng thẻ được ghim</translation>
 <translation id="2316129865977710310">Không, cảm ơn</translation>
 <translation id="2320166752086256636">Ẩn bàn phím</translation>
@@ -1099,7 +1101,6 @@
 <translation id="4944543191714094452">Tìm trong trang…</translation>
 <translation id="4945756290001680296">Truy cập vào phần cài đặt mật khẩu</translation>
 <translation id="4949302115427722371">Quản lý chế độ cài đặt…</translation>
-<translation id="4952050521954075618">Ảnh từ Thư viện ảnh sẽ không được đồng bộ hoá giữa các thiết bị của bạn</translation>
 <translation id="4958444002117714549">Mở rộng danh sách</translation>
 <translation id="496392417432935267">Đã mở bằng cửa sổ khác</translation>
 <translation id="4970724460420203313">Khi sử dụng Chrome bằng tài khoản được quản lý, bạn có thể tách biệt hoạt động duyệt web liên quan đến tổ chức (trong đó có các thẻ, nhật ký và mật khẩu) với hoạt động duyệt web khác của bạn</translation>
@@ -1148,7 +1149,6 @@
 <translation id="5119329531859909472">Để theo dõi sản phẩm, hãy nhấn vào Theo dõi</translation>
 <translation id="5121618895923301719">Bạn đã theo dõi sản phẩm này rồi. Trang này được lưu trong phần <ph name="BEGIN_LINK" />Dấu trang trên thiết bị di động<ph name="END_LINK" />.</translation>
 <translation id="512533434554095351">Mật khẩu của bạn có một số vấn đề.</translation>
-<translation id="5127538504377457572">Hoạt động <ph name="DAYS" /> ngày trước</translation>
 <translation id="5128788795241319992">Khám phá trình đơn mới</translation>
 <translation id="5132942445612118989">Đồng bộ hóa mật khẩu, nhật ký hoạt động và các thông tin khác của bạn trên tất cả các thiết bị</translation>
 <translation id="5141363746588976328">Ẩn thẻ thông báo giảm giá trên thẻ</translation>
@@ -1266,6 +1266,7 @@
 <translation id="5556459405103347317">Tải lại</translation>
 <translation id="555749644339804659">Đang kiểm tra mật khẩu…</translation>
 <translation id="5559567453458728487">Chuyển đổi đơn vị đo lường có trên web</translation>
+<translation id="5560088892362098740">Ngày hết hạn</translation>
 <translation id="556042886152191864">Nút</translation>
 <translation id="5565871407246142825">Thẻ tín dụng</translation>
 <translation id="5566623128829375608">Lưu vào thiết bị của bạn.</translation>
@@ -1353,6 +1354,7 @@
 <translation id="5819208479324046259">Do <ph name="MANAGER" /> quản lý. <ph name="BEGIN_LINK" />Tìm hiểu thêm<ph name="END_LINK" /></translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5829649908290113115">Đang đồng bộ hoá…</translation>
+<translation id="5831217499016131155">Google Wallet</translation>
 <translation id="583281660410589416">Không xác định</translation>
 <translation id="5838430324585198889">Trải nghiệm thêm nhiều tính năng trên iPad khi có các ứng dụng của Google</translation>
 <translation id="583923961930319521">Sử dụng mật khẩu trên tất cả thiết bị của bạn</translation>
@@ -1650,6 +1652,7 @@
 <translation id="6806550742467879742">Công cụ trang</translation>
 <translation id="6807287147325542056">Mật khẩu trong các ứng dụng khác</translation>
 <translation id="681368974849482173">Đã tạo mục</translation>
+<translation id="6820686453637990663">CVC</translation>
 <translation id="6825078212112407882">{count,plural, =1{Đã lưu dấu trang vào Tài khoản Google {email} của bạn}other{Đã lưu {count} dấu trang vào Tài khoản Google {email} của bạn}}</translation>
 <translation id="6826004672264649705">Đang theo dõi sản phẩm này. Mở để xem nhật ký giá</translation>
 <translation id="6830728435402077660">Không bảo mật</translation>
@@ -1963,7 +1966,6 @@
 <translation id="7952670906562503188">Bạn sắp xoá {passkey_count} khoá truy cập cũng như danh sách trang web và ứng dụng mà bạn chọn không bao giờ lưu thông tin đăng nhập. Mọi tài khoản bạn tạo cho các trang web và ứng dụng sẽ không bị xoá.</translation>
 <translation id="7958575506592576831">Thông tin bảo mật trang</translation>
 <translation id="7961015016161918242">Không bao giờ</translation>
-<translation id="7971136598759319605">Hoạt động 1 ngày trước</translation>
 <translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">Thử</translation>
 <translation id="797588153137233716">Trình đơn → Nhật ký → Xoá dữ liệu duyệt web</translation>

@@ -1,0 +1,167 @@
+// Copyright 2024 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef CHROME_BROWSER_GLIC_PUBLIC_SERVICE_GLIC_INSTANCE_COORDINATOR_H_
+#define CHROME_BROWSER_GLIC_PUBLIC_SERVICE_GLIC_INSTANCE_COORDINATOR_H_
+
+#include <optional>
+#include <vector>
+
+#include "base/callback_list.h"
+#include "base/functional/callback_forward.h"
+#include "base/memory/weak_ptr.h"
+#include "base/observer_list.h"
+#include "base/observer_list_types.h"
+#include "base/scoped_observation.h"
+#include "base/scoped_observation_traits.h"
+#include "build/build_config.h"
+#include "chrome/browser/glic/host/glic_web_client_access.h"
+#include "chrome/browser/glic/host/host.h"
+#include "chrome/browser/glic/public/glic_close_options.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_instance.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/common/chrome_features.h"
+#include "content/public/browser/web_contents.h"
+#include "ui/base/interaction/element_tracker.h"
+#include "ui/gfx/native_ui_types.h"
+
+class Browser;
+
+namespace content {
+class RenderFrameHost;
+}
+namespace gfx {
+class Point;
+}  // namespace gfx
+
+namespace tabs {
+class TabInterface;
+}
+
+namespace glic {
+DECLARE_CUSTOM_ELEMENT_EVENT_TYPE(kGlicWidgetAttached);
+
+class GlicWidget;
+
+// GlicInstanceCoordinator is the interface for managing Glic instances.
+class GlicInstanceCoordinator {
+ public:
+  using StateObserver = PanelStateObserver;
+  using PanelStateContext = ::glic::PanelStateContext;
+  GlicInstanceCoordinator(const GlicInstanceCoordinator&) = delete;
+  GlicInstanceCoordinator& operator=(const GlicInstanceCoordinator&) = delete;
+  GlicInstanceCoordinator() = default;
+  virtual ~GlicInstanceCoordinator() = default;
+
+  virtual HostManager& host_manager() = 0;
+  virtual std::vector<GlicInstance*> GetInstances() = 0;
+  virtual GlicInstance* GetInstanceForTab(
+      const tabs::TabInterface* tab) const = 0;
+  virtual void CreateNewConversationForTabs(
+      const std::vector<tabs::TabInterface*>& tabs) = 0;
+  virtual void ShowInstanceForTabs(const std::vector<tabs::TabInterface*>& tabs,
+                                   const InstanceId& instance_id) = 0;
+  virtual std::vector<ConversationInfo> GetRecentlyActiveInstances(
+      size_t limit) = 0;
+
+  // Show, summon, or activate the panel if needed, or close it if it's already
+  // active and prevent_close is false.
+  virtual void Toggle(
+      BrowserWindowInterface* bwi,
+      bool prevent_close,
+      mojom::InvocationSource source,
+      std::optional<std::string> deprecated_prompt_suggestion,
+      bool deprecated_auto_send,
+      std::optional<std::string> deprecated_conversation_id) = 0;
+
+  // If the panel is opened, but sign-in is required, we provide a sign-in
+  // button which closes the panel. This is called after the user signs in to
+  // open the panel again.
+  virtual void ShowAfterSignIn(base::WeakPtr<Browser> browser) = 0;
+
+  // Destroy the glic panel and its web contents.
+  virtual void Shutdown() = 0;
+
+  // Close the panel but keep the glic WebContents alive in the background.
+  virtual void Close(const CloseOptions& options) = 0;
+  // Closes the active embedder of an instance with matching render_frame_host
+  // without resetting webcontents.
+  virtual void CloseInstanceWithFrame(
+      content::RenderFrameHost* render_frame_host) = 0;
+  // Closes the active embedder of an instance with matching render_frame_host
+  // with resetting webcontents.
+  virtual void CloseAndShutdownInstanceWithFrame(
+      content::RenderFrameHost* render_frame_host) = 0;
+  virtual void ArchiveInstanceWithFrame(
+      content::RenderFrameHost* render_frame_host) = 0;
+  // Returns wehether or not the glic window is currently showing detached.
+  // When True |GetGlicWidget| will return a valid ptr.
+  virtual bool IsDetached() const = 0;
+
+  // Returns whether the given browser is showing a glic panel for its active
+  // tab.
+  virtual bool IsPanelShowingForBrowser(
+      const BrowserWindowInterface& bwi) const = 0;
+
+  // Registers a callback to be run when any instance opens or closes.
+  virtual base::CallbackListSubscription AddGlobalShowHideCallback(
+      base::RepeatingClosure callback) = 0;
+
+  // Warms the glic web contents.
+  virtual void Preload() = 0;
+
+  // Reloads the glic web contents or the FRE's web contents (depending on
+  // which is currently visible).
+  virtual void Reload(content::RenderFrameHost* render_frame_host) = 0;
+
+  // Returns the widget that backs the glic window.
+  virtual GlicWidget* GetGlicWidget() const = 0;
+
+  // Return the Browser to which the panel is attached, or null if detached.
+  virtual Browser* attached_browser() = 0;
+
+  // Possible states for the glic window. Public for testing.
+  //   * Closed (aka hidden, invisible)
+  //   * Waiting for glic to load (the open animation has finished, but the
+  //     glic window contents is not yet ready)
+  //   * Open (aka showing, visible)
+  //   * Detaching - the panel should not be considered open since the view
+  //     might not exist.
+  //   * Waiting for side panel - in the process of setting up side panel to
+  //   show.
+  enum class State {
+    kClosed,
+    kWaitingForGlicToLoad,
+    kOpen,
+    kDetaching,
+    kWaitingForSidePanelToShow,
+  };
+  virtual State state() const = 0;
+
+  virtual Profile* profile() = 0;
+
+  virtual gfx::Rect GetInitialBounds(Browser* browser) = 0;
+
+  virtual void ShowDetachedForTesting() = 0;
+  virtual void SetPreviousPositionForTesting(gfx::Point position) = 0;
+
+  using ActiveInstanceChangedCallback =
+      base::RepeatingCallback<void(GlicInstance* new_instance)>;
+  virtual base::CallbackListSubscription
+  AddActiveInstanceChangedCallbackAndNotifyImmediately(
+      ActiveInstanceChangedCallback callback) = 0;
+  virtual GlicInstance* GetActiveInstance() = 0;
+
+  // Helper function to return whether the kGlicDetached feature is enabled
+  // while multi-instance is not.
+  static bool AlwaysDetached() {
+    return base::FeatureList::IsEnabled(features::kGlicDetached) &&
+           !GlicEnabling::IsMultiInstanceEnabled();
+  }
+};
+
+}  // namespace glic
+
+#endif  // CHROME_BROWSER_GLIC_PUBLIC_SERVICE_GLIC_INSTANCE_COORDINATOR_H_

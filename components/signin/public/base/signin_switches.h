@@ -253,6 +253,11 @@ BASE_DECLARE_FEATURE(kEnableFakeCapabilityForTesting);
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kEnableMtlsTokenBinding);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kEnableOAuthMultiloginCookiesBinding);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
@@ -297,6 +302,9 @@ extern const base::FeatureParam<SeamlessSigninPromoType>
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kEnableSearchAIModeSigninPromo);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+extern const base::FeatureParam<base::TimeDelta>
+    kSearchAIModePromoPageLoadDelay;
 #endif
 
 #if BUILDFLAG(IS_IOS)
@@ -417,6 +425,12 @@ BASE_DECLARE_FEATURE(kHandleMdmErrorsForDasherAccounts);
 // Follow-ups to EnableIdentityInAuthError.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kIdentityInAuthErrorFollowUps);
+#endif
+
+#if BUILDFLAG(IS_IOS)
+// Feature flag to ignore invalid grant errors in AuthenticationService.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kIgnoreInvalidGrantError);
 #endif
 
 #if BUILDFLAG(IS_ANDROID)

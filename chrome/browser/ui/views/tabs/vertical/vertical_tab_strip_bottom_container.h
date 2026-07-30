@@ -14,6 +14,7 @@ class TabStripFlatEdgeButton;
 
 namespace tabs {
 class VerticalTabStripStateController;
+enum class VerticalTabStripCollapseState;
 }  // namespace tabs
 
 namespace views {
@@ -37,8 +38,7 @@ class VerticalTabStripBottomContainer : public views::FlexLayoutView,
 
   bool IsPositionInWindowCaption(const gfx::Point& point);
 
-  void OnCollapsedStateChanged(
-      tabs::VerticalTabStripStateController* state_controller);
+  void OnCollapseStateChanged(tabs::VerticalTabStripCollapseState state);
 
   // views::ContextMenuController:
   void ShowContextMenuForViewImpl(
@@ -47,13 +47,12 @@ class VerticalTabStripBottomContainer : public views::FlexLayoutView,
       ui::mojom::MenuSourceType source_type) override;
 
  private:
-  void UpdateButtonStyles(
-      tabs::VerticalTabStripStateController* state_controller);
+  void UpdateButtonStyles(bool collapsed);
 
   raw_ptr<BrowserWindowInterface> browser_ = nullptr;
   raw_ptr<actions::ActionItem> root_action_item_ = nullptr;
   raw_ptr<TabStripFlatEdgeButton> new_tab_button_ = nullptr;
-  base::CallbackListSubscription collapsed_state_changed_subscription_;
+  base::CallbackListSubscription collapsed_state_change_subscription_;
   base::CallbackListSubscription new_tab_button_pressed_subscription_;
 
   std::unique_ptr<NewTabButtonMenuModel> context_menu_model_;

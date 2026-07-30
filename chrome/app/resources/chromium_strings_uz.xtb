@@ -56,6 +56,7 @@
 <translation id="1639380494700489405">Sahifani tark etmasdan AI rejimida varaq haqida savol berish uchun Chromium hisobiga kiring. Shuningdek, parollar va boshqa maʼlumotlardan barcha qurilmalarda foydalana olasiz.</translation>
 <translation id="1640672724030957280">Yuklab olinmoqda...</translation>
 <translation id="1680687534629375545">Rasmli qidiruv orqali bu sahifa haqida savol berish</translation>
+<translation id="1708414395296835197">Xabarlar, hujjatlar va boshqa ilovalardagi havolalarni har doim Chromium orqali ochishingiz mumkin. Uni vazifalar paneliga qadash ham mumkin.</translation>
 <translation id="1709772298389099340"><ph name="BROWSER_NAME" /> brauzeriga imtiyozli ruxsatlar beradi.</translation>
 <translation id="1715127912119967311">Funksiyalarni yaxshilash maqsadida Chromium ulardan foydalanish axborotingizni Googlega yuboradi. Bu axborot xodimlar tomonidan oʻqilishi, qayta ishlanishi va izohlanishi mumkin.</translation>
 <translation id="1722488837206509557">Bu mavjud qurilmalardan birini tanlash va undagi kontentni chiqarish imkonini beradi.</translation>
@@ -224,7 +225,6 @@
 <translation id="3313189106987092621">Xavfsiz ulanishli har qanday saytga kirganingizda Chromium sizni ogohlantiradi</translation>
 <translation id="3316771292331273802">Barcha Chromium oynalari yopilganda aksariyat saytlardan chiqib ketasiz, ammo Chromium hisobingizga kirganingizda Google hisobingizdan chiqmaysiz. Saytlarga sizni eslab qolishga ruxsat berish uchun <ph name="SETTINGS_LINK" />.</translation>
 <translation id="3322413454779348750">Birlamchi qidiruv vositasi Chromiumdan tashqarida oʻzgartirildi. Sizni himoya qilish uchun Chromium uni tikladi.</translation>
-<translation id="3331557257666250900">Barcha qurilmalarda parollar, bukmarklar va boshqalarni olish uchun Chromium hisobidan kiring</translation>
 <translation id="3352986031709923790">qidiruv hududining yuqori oʻng burchagi: oʻng <ph name="RIGHT" />%, yuqori <ph name="TOP" />%</translation>
 <translation id="3366305173356742781">Hisobingizdagi Chromium maʼlumotlari</translation>
 <translation id="3369405342922656244">Rasmli qidiruv orqali bu sahifani topish</translation>
@@ -435,6 +435,7 @@
 <translation id="5895138241574237353">Qayta ishga tushirish</translation>
 <translation id="5903106910045431592"><ph name="PAGE_TITLE" /> - Tarmoqqa kirish</translation>
 <translation id="5924017743176219022">Internetga ulanmoqda…</translation>
+<translation id="5939553720811388432">Chromiumni moslab olaylik</translation>
 <translation id="5941711191222866238">Yig‘ish</translation>
 <translation id="5949225980829865667">Bu bukmark va boshqalardan barcha qurilmalarda foydalanish uchun Chromium hisobiga kiring</translation>
 <translation id="5953657885167112863">Chromiumni oʻzingizga moslang</translation>

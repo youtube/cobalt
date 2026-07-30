@@ -163,8 +163,6 @@ BASE_FEATURE(kRenderThrottleFrameRate, base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<int> kRenderThrottledFrameIntervalHz{
     &kRenderThrottleFrameRate, "render-throttled-frame-interval-hz", 30};
 
-BASE_FEATURE(kFastPathNoRaster, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kInternalBeginFrameSourceOnManyDidNotProduceFrame,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -208,9 +206,6 @@ PROGRAMMATIC_SCROLL_ANIMATION_CURVE(0.4, 0.0, 0.0, 1.0, 1500);
 #undef PROGRAMMATIC_SCROLL_ANIMATION_CURVE
 
 BASE_FEATURE(kSlimDirectReceiverIpc, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kOverscrollBehaviorRespectedOnAllScrollContainers,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOverscrollEffectOnNonRootScrollers,
              base::FEATURE_ENABLED_BY_DEFAULT);

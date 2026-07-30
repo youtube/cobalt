@@ -24,7 +24,6 @@
 <translation id="1089606299949659462">اكتملت المراجعة</translation>
 <translation id="1094555143448724771">للاطّلاع على علامات التبويب من أجهزتك الأخرى، يُرجى مزامنة علامات التبويب والسجلّ </translation>
 <translation id="1095761715416917775">ضمان إمكانية الوصول إلى بيانات المزامنة دائمًا</translation>
-<translation id="1096091316906284742">‏البطاقة السفلية لتفعيل ميزة "البحث على Chrome"</translation>
 <translation id="1100066534610197918">الفتح في علامة تبويب جديدة في مجموعة</translation>
 <translation id="1103142993930332957">‏هل تريد المساهمة في تحسين أداء Chrome؟</translation>
 <translation id="1105960400813249514">التقاط الشاشة</translation>
@@ -104,7 +103,6 @@
 <translation id="1381838868249179644">للحفاظ على أمان جهازك، تمت إزالة أذونات من بعض المواقع الإلكترونية</translation>
 <translation id="1383876407941801731">البحث</translation>
 <translation id="1384704387250346179">‏ترجمة الصور مع "عدسة Google‏" <ph name="BEGIN_NEW" />جديد<ph name="END_NEW" /></translation>
-<translation id="1386674309198842382">نشط قبل <ph name="LAST_UPDATED" /> يوم</translation>
 <translation id="1390418506739274310">‏قد يظهر لك السجلّ من خلال التطبيقات الأخرى التي تفتح الروابط في Chrome. قد يتضمّن حسابك على Google نماذج أخرى من سجلّ التصفّح في <ph name="BEGIN_LINK" />myactivity.google.com<ph name="END_LINK" />.</translation>
 <translation id="139752016751285248">البطاقة السفلية للمعلومات المفصّلة عن الأسعار مفتوحة بطول الشاشة</translation>
 <translation id="1397811292916898096">البحث باستخدام <ph name="PRODUCT_NAME" /></translation>
@@ -136,7 +134,6 @@
 <translation id="1513352483775369820">الإشارات المرجعية وسجلّ الويب</translation>
 <translation id="1515901671075971249">اختصارات التنقّل بين علامات التبويب</translation>
 <translation id="1516966594427080024">لفتح نافذة جديدة في وضع التصفُّح المتخفي</translation>
-<translation id="1521774566618522728">نشط اليوم</translation>
 <translation id="153446405401665083">‏يتوفّر إصدار جديد من متصفّح Chrome</translation>
 <translation id="1540012742443808215">شريط العناوين حاليًا في أعلى الشاشة</translation>
 <translation id="1544084554881119930">‏لن يتم تشفير طُرق الدفع والعناوين. ولن تتم مزامنة سجلّ التصفّح من Chrome.
@@ -222,6 +219,7 @@
 <translation id="1925021887439448749">إدخال عنوان الويب المُخصص</translation>
 <translation id="1928618076168182477">يتمّ إظهار العرض الموسَّع</translation>
 <translation id="1928696683969751773">التحديثات</translation>
+<translation id="1934545916152269346">عمليات البحث الأخيرة</translation>
 <translation id="1943398124995840148">‏علامات التبويب المفتوحة في متصفّحك الآن تم تعديل مظهرها في XR</translation>
 <translation id="1944535645109964458">ما مِن مفاتيح مرور متوفّرة</translation>
 <translation id="1957557050935255529">‏جارٍ تحميل ملف PDF…</translation>
@@ -619,7 +617,6 @@
 <translation id="3635073343384702370">‏يستطيع Chrome التحقّق من كلمات المرور التي حفظتها فقط</translation>
 <translation id="3636940436873918441">اللغات المفضّلة</translation>
 <translation id="3637744895182738742">‏إذا نسيت عبارة المرور أو أردت تغيير هذه الإعدادات، يمكنك <ph name="BEGIN_LINK" />حذف بيانات Chrome في حسابك<ph name="END_LINK" />.</translation>
-<translation id="3641581193271938629">‏تم إغلاق البطاقة السفلية لتفعيل ميزة "البحث على Chrome"</translation>
 <translation id="3647019414263135904">فتح النافذة المنبثقة للسياق أو إغلاقها</translation>
 <translation id="3653111872753786013"><ph name="WEBSITE_TITLE" />: <ph name="WEBSITE_URL" /></translation>
 <translation id="3674208116086565128">‏الانتقال إلى "الصفحة الرئيسية" في تطبيق Google</translation>
@@ -802,7 +799,6 @@
 <translation id="4387647248986092471">إنشاء قفل للملف الشخصي للسيارة</translation>
 <translation id="4387817230000841154">فتح صفحة "عمليات التنزيل"</translation>
 <translation id="4394049700291259645">إيقاف</translation>
-<translation id="4395046795145457714">‏تم فتح البطاقة السفلية لتفعيل ميزة "البحث على Chrome" بطول الشاشة</translation>
 <translation id="4398561997852463382">‫"<ph name="TAB_TITLE" />"، علامة تبويب مثبّتة تسجّل وسائط وتم اختيارها في "وضع التصفّح المتخفي"</translation>
 <translation id="4402611456429872546">جارٍ تنزيل حزمة اللغة <ph name="LANG" />…</translation>
 <translation id="4404568932422911380">ليست هناك إشارات مرجعية.</translation>
@@ -1168,7 +1164,7 @@
 <translation id="5899667542927581604">تمّ إغلاق صفحة "ما من مفاتيح مرور"</translation>
 <translation id="5907542076239273525">تم حفظ الإشارة المرجعية في "<ph name="FOLDER_NAME" />"</translation>
 <translation id="5911301511366365629">‫"<ph name="TAB_TITLE" />"، علامة تبويب تشغِّل صوتًا وتم اختيارها في "وضع التصفّح المتخفي"</translation>
-<translation id="5916664084637901428">مفعّل</translation>
+<translation id="5916664084637901428">الإعداد مفعّل</translation>
 <translation id="5919204609460789179">تحديث <ph name="PRODUCT_NAME" /> لبدء المزامنة</translation>
 <translation id="5932881020239635062">الرقم التسلسلي</translation>
 <translation id="5938820472109305350">إضافة <ph name="INTEREST" /></translation>
@@ -1260,6 +1256,7 @@
 <translation id="6251449557817521191">‏عرض سجلّ Chrome هنا</translation>
 <translation id="6254139308321626268">‏يتم الآن عرض ملف PDF</translation>
 <translation id="6255809143828972562">‏باستخدام أدوات من Chrome، يمكنك التصفّح بأمان والتحكّم في بياناتك بشكل كامل</translation>
+<translation id="6260260490042862943">عناصر التحكّم في الموقع</translation>
 <translation id="6264376385120300461">التنزيل على أيّ حال</translation>
 <translation id="6264485186158353794">الرجوع</translation>
 <translation id="6267106249090587268">‏الإشعارات <ph name="SEPARATOR" /> أزال Chrome هذه الأذونات لأنّ محتوى الموقع غير مرغوب فيه أو مخادع</translation>
@@ -1371,7 +1368,6 @@
 <translation id="6648977384226967773">{CONTACT,plural, =1{‏<ph name="CONTACT_PREVIEW" />\u2026 وجهة اتصال إضافية واحدة <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" />}zero{‏<ph name="CONTACT_PREVIEW" />\u2026 و<ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> جهة اتصال إضافية}two{‏<ph name="CONTACT_PREVIEW" />\u2026 وجهتا اتصال إضافيتان (<ph name="NUMBER_OF_ADDITIONAL_CONTACTS" />)}few{‏<ph name="CONTACT_PREVIEW" />\u2026 و<ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> جهات اتصال إضافية}many{‏<ph name="CONTACT_PREVIEW" />\u2026 و<ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> جهة اتصال إضافية}other{‏<ph name="CONTACT_PREVIEW" />\u2026 و<ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> جهة اتصال إضافية}}</translation>
 <translation id="6649642165559792194">معاينة صورة <ph name="BEGIN_NEW" />ميزة جديدة<ph name="END_NEW" /></translation>
 <translation id="6659594942844771486">‏مفتاح Tab</translation>
-<translation id="6661521899577697780">‏تم فتح البطاقة السفلية لتفعيل ميزة "البحث على Chrome" في نصف الشاشة</translation>
 <translation id="666731172850799929">الفتح في <ph name="APP_NAME" /></translation>
 <translation id="6669390930482049506">تفعيل الإشعارات</translation>
 <translation id="6670767097276846646">‏بعض الإضافات يمكنها إضافة محركات بحث إلى متصفّح Chrome.</translation>
@@ -1730,7 +1726,6 @@
 <translation id="7968014550143838305">تمت الإضافة إلى قائمة القراءة.</translation>
 <translation id="7968982339740310781">عرض التفاصيل</translation>
 <translation id="7969391000881506217">تاريخ انتهاء الصلاحية*</translation>
-<translation id="7971136598759319605">نشط قبل يوم واحد</translation>
 <translation id="7975379999046275268">معاينة صفحة <ph name="BEGIN_NEW" />ميزة جديدة<ph name="END_NEW" /></translation>
 <translation id="7977451675950311423">ستتلقّى تحذيرًا إذا كنت تستخدم كلمة مرور تم اختراقها في عملية اختراق للبيانات.</translation>
 <translation id="7987499071758862048">‏<ph name="PERMISSION_1" /> و<ph name="PERMISSION_2" /> و<ph name="PERMISSION_3" /> <ph name="SEPARATOR" /> أزال Chrome هذه الأذونات لأنك لم تزُر هذا الموقع الإلكتروني مؤخرًا</translation>

@@ -23,6 +23,7 @@
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_export.h"
 #include "net/base/request_priority.h"
+#include "net/dns/dns_transaction.h"
 #include "net/dns/host_resolver.h"
 #include "net/dns/httpssvc_metrics.h"
 #include "net/dns/public/secure_dns_mode.h"
@@ -32,7 +33,6 @@
 namespace net {
 
 class DnsClient;
-class DnsTransaction;
 class DnsResponse;
 class HostResolverInternalResult;
 class HostResolverInternalErrorResult;
@@ -64,10 +64,11 @@ class NET_EXPORT_PRIVATE HostResolverDnsTask final {
 
   class Delegate {
    public:
-    virtual void OnDnsTaskComplete(base::TimeTicks start_time,
-                                   bool allow_fallback,
-                                   Results results,
-                                   bool secure) = 0;
+    virtual void OnDnsTaskComplete(
+        base::TimeTicks start_time,
+        bool allow_fallback,
+        Results results,
+        DnsTransactionFactory::AttemptMode attempt_mode) = 0;
 
     // Called when one transaction completes successfully, or one more
     // transactions get cancelled, but only if more transactions are
@@ -93,7 +94,7 @@ class NET_EXPORT_PRIVATE HostResolverDnsTask final {
                       NetworkAnonymizationKey anonymization_key,
                       DnsQueryTypeSet query_types,
                       ResolveContext* resolve_context,
-                      bool secure,
+                      DnsTransactionFactory::AttemptMode attempt_mode,
                       SecureDnsMode secure_dns_mode,
                       Delegate* delegate,
                       const NetLogWithSource& job_net_log,
@@ -113,7 +114,15 @@ class NET_EXPORT_PRIVATE HostResolverDnsTask final {
     return base::checked_cast<int>(transactions_in_progress_.size());
   }
 
-  bool secure() const { return secure_; }
+  bool secure() const {
+    switch (attempt_mode_) {
+      case DnsTransactionFactory::AttemptMode::kHttp:
+        return true;
+      case DnsTransactionFactory::AttemptMode::kClassic:
+      case DnsTransactionFactory::AttemptMode::kPlatform:
+        return false;
+    }
+  }
 
   bool https_disabled() const { return https_disabled_; }
 
@@ -229,8 +238,7 @@ class NET_EXPORT_PRIVATE HostResolverDnsTask final {
 
   base::SafeRef<ResolveContext> resolve_context_;
 
-  // Whether lookups in this DnsTask should occur using DoH or plaintext.
-  const bool secure_;
+  const DnsTransactionFactory::AttemptMode attempt_mode_;
   const SecureDnsMode secure_dns_mode_;
 
   // The listener to the results of this DnsTask.

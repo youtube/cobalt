@@ -1101,14 +1101,11 @@ WizardController::CreateScreens() {
                               weak_factory_.GetWeakPtr())));
     }
   }
-
-  if (features::IsManagedLocalPinAndPasswordEnabled()) {
-    append(std::make_unique<RemoveLocalAuthFactorsScreen>(
-        oobe_ui->GetView<RemoveLocalAuthFactorsScreenHandler>()->AsWeakPtr(),
-        base::BindRepeating(
-            &WizardController::OnRemoveLocalAuthFactorsScreenExit,
-            weak_factory_.GetWeakPtr())));
-  }
+  append(std::make_unique<RemoveLocalAuthFactorsScreen>(
+      &local_state_.get(),
+      oobe_ui->GetView<RemoveLocalAuthFactorsScreenHandler>()->AsWeakPtr(),
+      base::BindRepeating(&WizardController::OnRemoveLocalAuthFactorsScreenExit,
+                          weak_factory_.GetWeakPtr())));
 
   return result;
 }
@@ -2842,8 +2839,10 @@ void WizardController::OnRemoveLocalAuthFactorsScreenExit(
 
   switch (result) {
     case RemoveLocalAuthFactorsScreen::Result::kSuccess:
+      ObtainContextAndFinalizeAuth();
+      break;
     case RemoveLocalAuthFactorsScreen::Result::kError:
-      // TODO: b/445628245 - Implement screen exit logic.
+      ShowOSAuthErrorScreen();
       return;
   }
 }

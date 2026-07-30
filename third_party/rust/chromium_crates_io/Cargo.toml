@@ -16,9 +16,14 @@ version = "0.1.0"
 [workspace]
 
 [dependencies]
+ahash = "0.8.12" #TODO(crbug.com/496920769): Remove once libafl is added as a dependency.
+aho-corasick = "1.1.4" #TODO(crbug.com/496920769): Remove once libafl is added as a dependency.
 antlr4rust = "0.5.2"
 anyhow = "1.0.98"
+arbitrary-int = "2.1.1" #TODO(crbug.com/496920769): Remove once libafl is added as a dependency.
+backtrace = "0.3.76" #TODO(crbug.com/496920769): Remove once libafl is added as a dependency.
 base64 = "0.22"
+bincode = "2.0.1" #TODO(crbug.com/496920769): Remove once libafl is added as a dependency.
 bitflags = "2"
 bytes = "1"
 chrono = "0.4.43"
@@ -65,31 +70,31 @@ version = "1"
 artifact = "bin"
 
 [dependencies.icu_casemap]
-version = "2.1.1"
+version = "2.2.0"
 default-features = false
 features = ["compiled_data"]
 
 [dependencies.icu_experimental]
-version = "0.4.0"
+version = "0.5.0"
 default-features = false
 features = ["compiled_data"]
 
 [dependencies.icu_locale_core]
-version = "2.1.1"
+version = "2.2.0"
 default-features = false
 
 [dependencies.icu_normalizer]
-version = "2.1.1"
+version = "2.2.0"
 default-features = false
 features = ["compiled_data"]
 
 [dependencies.icu_properties]
-version = "2.1.1"
+version = "2.2.0"
 default-features = false
 features = ["compiled_data"]
 
 [dependencies.icu_provider]
-version = "2.1.1"
+version = "2.2.0"
 default-features = false
 
 [dependencies.image]
@@ -98,7 +103,7 @@ default-features = false
 features = ["bmp"]
 
 [dependencies.jxl]
-version = "0.4.0"
+version = "0.4.2"
 features = ["all-simd"]
 
 [dependencies.llguidance]
@@ -152,11 +157,11 @@ version = "2"
 features = ["full"]
 
 [dependencies.temporal_capi]
-version = "0.2"
+version = "0.2.3"
 features = ["zoneinfo64"]
 
 [dependencies.temporal_rs]
-version = "0.2"
+version = "0.2.3"
 default-features = false
 # This is necessary to enable a spec-compliance quirk
 features = ["float64_representable_durations"]

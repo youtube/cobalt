@@ -32,6 +32,7 @@ import android.view.animation.Interpolator;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.DrawableRes;
+import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 
@@ -60,6 +61,7 @@ import org.chromium.chrome.browser.compositor.layouts.LayoutUpdateHost;
 import org.chromium.chrome.browser.compositor.layouts.components.CompositorButton;
 import org.chromium.chrome.browser.compositor.layouts.components.CompositorButton.ButtonType;
 import org.chromium.chrome.browser.compositor.layouts.components.TintedCompositorButton;
+import org.chromium.chrome.browser.compositor.layouts.components.TintedCompositorTextButton;
 import org.chromium.chrome.browser.compositor.layouts.eventfilter.AreaMotionEventFilter;
 import org.chromium.chrome.browser.compositor.layouts.eventfilter.AreaMotionEventHandler;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView.StripLayoutViewOnClickHandler;
@@ -258,7 +260,7 @@ public class StripLayoutHelperManager
     private final float mDensity;
     private int mOrientation;
     private final Runnable mGlicClickHandler;
-    private @Nullable TintedCompositorButton mGlicButton;
+    private @Nullable TintedCompositorTextButton mGlicButton;
     private @Nullable TintedCompositorButton mModelSelectorButton;
     private final Context mContext;
     private float mStripTransitionScrimOpacity;
@@ -307,6 +309,8 @@ public class StripLayoutHelperManager
     private final SettableNonNullObservableSupplier<@StripVisibilityState Integer>
             mStripVisibilityStateSupplier =
                     ObservableSuppliers.createNonNull(StripVisibilityState.VISIBLE);
+    private final SettableNonNullObservableSupplier<Integer> mStripBottomPxSupplier =
+            ObservableSuppliers.createNonNull(0);
     private final @Nullable NonNullObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
 
     // Drag-Drop
@@ -760,7 +764,7 @@ public class StripLayoutHelperManager
             StripLayoutViewOnClickHandler selectorClickHandler,
             StripLayoutViewOnKeyboardFocusHandler keyboardFocusHandler) {
         mGlicButton =
-                new TintedCompositorButton(
+                new TintedCompositorTextButton(
                         context,
                         ButtonType.GLIC,
                         /* parentView= */ null,
@@ -772,7 +776,9 @@ public class StripLayoutHelperManager
                         selectorClickHandler,
                         keyboardFocusHandler,
                         R.drawable.ic_spark_16dp,
-                        GLIC_BUTTON_CLICK_SLOP_DP);
+                        GLIC_BUTTON_CLICK_SLOP_DP,
+                        /* hasLongClickAction= */ false,
+                        /* dismissButton= */ null);
 
         // y-offset for folio = lowered tab container + (tab container size - bg size)/2 -
         // folio tab title y-offset = 2 + (38 - 28)/2 - 2 = 5dp
@@ -1057,6 +1063,7 @@ public class StripLayoutHelperManager
                     mBrowserControlsStateProvider.getTopControlOffset() / mDensity;
             mSceneLayerVisibleHeight = getVisibleHeightDp(topControlOffsetDp);
             mSceneLayerYOffset = getAdjustedYOffset(topControlOffsetDp);
+            updateStripBottomPx();
         }
 
         pushAndUpdateStrip(mSceneLayerYOffset, mSceneLayerVisibleHeight);
@@ -1265,6 +1272,7 @@ public class StripLayoutHelperManager
             mSceneLayerYOffset = yOffsetDp;
             mSceneLayerVisibleHeight = visibleHeightDp;
             pushAndUpdateStrip(mSceneLayerYOffset, mSceneLayerVisibleHeight);
+            updateStripBottomPx();
         }
     }
 
@@ -1496,7 +1504,7 @@ public class StripLayoutHelperManager
         return getActiveStripLayoutHelper().getNewTabButtonVisualOffset();
     }
 
-    public @Nullable TintedCompositorButton getGlicButton() {
+    public @Nullable TintedCompositorTextButton getGlicButton() {
         return mGlicButton;
     }
 
@@ -1734,10 +1742,8 @@ public class StripLayoutHelperManager
                 mTabModelSelector.getModel(true),
                 tabCreatorManager.getTabCreator(true),
                 tabStateInitialized);
-        mNormalHelper.setTabGroupModelFilter(
-                assumeNonNull(mTabModelSelector.getTabGroupModelFilter(false)));
-        mIncognitoHelper.setTabGroupModelFilter(
-                assumeNonNull(mTabModelSelector.getTabGroupModelFilter(true)));
+        mNormalHelper.setTabGroupModelFilter(mTabModelSelector.getModel(false));
+        mIncognitoHelper.setTabGroupModelFilter(mTabModelSelector.getModel(true));
         tabModelSwitched(mTabModelSelector.isIncognitoSelected());
         // Manually called on initialization, since the logic in #tabModelSwitched only runs if the
         // Incognito state actually changes. Since mIncognito defaults to false, it may not actually
@@ -2114,6 +2120,18 @@ public class StripLayoutHelperManager
         @StripVisibilityState int curVisibility = mStripVisibilityStateSupplier.get();
         mStripVisibilityStateSupplier.set(
                 clear ? (curVisibility & ~visibilityState) : (curVisibility | visibilityState));
+    }
+
+    /** Returns a {@link NonNullObservableSupplier} for the bottom of the tab strip in px. */
+    public NonNullObservableSupplier<Integer> getStripBottomPxSupplier() {
+        return mStripBottomPxSupplier;
+    }
+
+    private void updateStripBottomPx() {
+        @Px
+        int tabStripBottomPx =
+                Math.round(mDensity * (mSceneLayerYOffset + mSceneLayerVisibleHeight));
+        mStripBottomPxSupplier.set(tabStripBottomPx);
     }
 
     void simulateHoverEventForTesting(int event, float x, float y) {

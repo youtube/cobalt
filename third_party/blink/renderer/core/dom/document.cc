@@ -203,9 +203,7 @@
 #include "third_party/blink/renderer/core/events/event_factory.h"
 #include "third_party/blink/renderer/core/events/event_util.h"
 #include "third_party/blink/renderer/core/events/hash_change_event.h"
-#include "third_party/blink/renderer/core/events/page_hide_event.h"
 #include "third_party/blink/renderer/core/events/page_transition_event.h"
-#include "third_party/blink/renderer/core/events/speculation_data.h"
 #include "third_party/blink/renderer/core/events/visual_viewport_resize_event.h"
 #include "third_party/blink/renderer/core/events/visual_viewport_scroll_event.h"
 #include "third_party/blink/renderer/core/events/visual_viewport_scrollend_event.h"
@@ -4633,17 +4631,8 @@ void Document::DispatchUnloadEvents(UnloadEventTimingInfo* unload_timing_info) {
   // |dispatched_pagehide_persisted| above, if we enable same-site
   // ProactivelySwapBrowsingInstance but not BackForwardCache.
   if (window && !GetPage()->DispatchedPagehideAndStillHidden()) {
-    if (RuntimeEnabledFeatures::PageHideSpeculationsEnabled()) {
-      window->DispatchEvent(
-          *PageHideEvent::Create(kPageTransitionEventNotPersisted,
-                                 window->CreateSpeculationData()),
-          this);
-    } else {
-      window->DispatchEvent(
-          *PageTransitionEvent::Create(event_type_names::kPagehide,
-                                       kPageTransitionEventNotPersisted),
-          this);
-    }
+    window->DispatchEvent(
+        *PageTransitionEvent::Create(event_type_names::kPagehide, false), this);
   }
   if (!dom_window_)
     return;
@@ -8657,9 +8646,9 @@ void Document::ScheduleForTopLayerRemoval(Element* element,
   ScheduleLayoutTreeUpdateIfNeeded();
 }
 
-void Document::RemoveFinishedTopLayerElements() {
+bool Document::RemoveFinishedTopLayerElements() {
   if (top_layer_elements_pending_removal_.empty()) {
-    return;
+    return false;
   }
   HeapVector<Member<Element>> to_remove;
   for (const auto& pending_removal : top_layer_elements_pending_removal_) {
@@ -8673,9 +8662,12 @@ void Document::RemoveFinishedTopLayerElements() {
       to_remove.push_back(element);
     }
   }
+  bool removed = false;
   for (Element* remove_element : to_remove) {
     RemoveFromTopLayerImmediately(remove_element);
+    removed = true;
   }
+  return removed;
 }
 
 void Document::RemoveFromTopLayerImmediately(Element* element) {
@@ -10186,6 +10178,9 @@ Document* Document::parseHTMLUnsafe(ExecutionContext* context,
                                  /*context_element*/ doc, /*root_element*/ doc,
                                  FragmentParserOptions(options),
                                  exception_state);
+  if (exception_state.HadException()) {
+    return nullptr;
+  }
   return doc;
 }
 
@@ -10200,6 +10195,9 @@ Document* Document::parseHTML(ExecutionContext* context,
                                  /*context_element*/ doc, /*root_element*/ doc,
                                  FragmentParserOptions(options),
                                  exception_state);
+  if (exception_state.HadException()) {
+    return nullptr;
+  }
   return doc;
 }
 

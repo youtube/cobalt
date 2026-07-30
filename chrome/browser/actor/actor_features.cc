@@ -66,6 +66,11 @@ BASE_FEATURE_PARAM(bool,
                    "prompt_user_for_navigation_to_new_origins",
                    false);
 BASE_FEATURE_PARAM(bool,
+                   kGlicConfirmNavigationToNewOriginsDarkLaunch,
+                   &kGlicCrossOriginNavigationGating,
+                   "confirm_navigation_to_new_origins_dark_launch",
+                   false);
+BASE_FEATURE_PARAM(bool,
                    kGlicNavigationGatingUseSiteNotOrigin,
                    &kGlicCrossOriginNavigationGating,
                    "gate_on_site_not_origin",
@@ -158,5 +163,11 @@ const base::FeatureParam<base::TimeDelta>
         &kGlicActorLoadAndExtractContentTool, "timeout", base::Seconds(30)};
 
 BASE_FEATURE(kGlicActorEnableScriptTools, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kActorScriptToolDelayObservation,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kActorScriptToolDelayObservationMillis{
+    &kActorScriptToolDelayObservation, "script_tool_delay_observation_ms", 0};
 
 }  // namespace actor

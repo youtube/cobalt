@@ -91,8 +91,6 @@ std::string_view LayoutConstantToCssVarName(LayoutConstant layout_constant) {
       return "--tab-height";
     case kTabStripHeight:
       return "--tab-strip-height";
-    case kDetachedTabGroupUnderlineBottomSpacing:
-      return "--detached-tab-group-underline-bottom-spacing";
     case kTabStripPadding:
       return "--tab-strip-padding";
     case kTabSeparatorHeight:
@@ -137,6 +135,8 @@ std::string_view LayoutConstantToCssVarName(LayoutConstant layout_constant) {
       return "--vertical-tab-strip-uncollapsed-padding";
     case kVerticalTabStripCollapsedPadding:
       return "--vertical-tab-strip-collapsed-padding";
+    case kVerticalTabStripCollapsedVerticalPadding:
+      return "--vertical-tab-strip-collapsed-vertical-padding";
     case kVerticalTabStripCollapsedSeparatorPadding:
       return "--vertical-tab-strip-collapsed-separator-padding";
     case kVerticalTabStripButtonIconSize:

@@ -11,6 +11,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "content/public/browser/network_service_instance.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/test_browser_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -38,22 +39,33 @@ class AwPrefetchManagerTest : public AwMetricsTestBase {
   std::unique_ptr<content::TestBrowserContext> browser_context_;
 };
 
-// Tests that setting the CacheConfig on the PrefetchManager applies it
-// correctly.
+// Tests Max Prefetches and TTL Seconds setter APIs
 TEST_F(AwPrefetchManagerTest, UpdateCacheConfig) {
   AwPrefetchManager prefetch_manager(browser_context_.get());
+
+  int actual_ttl_in_sec = 30 * 10;
+  size_t actual_max_prefetches = 5;
+
+  int default_ttl_in_sec = kDefaultTtlInSec;
+  size_t default_max_prefetches = kDefaultMaxPrefetches;
+
   prefetch_manager.SetTtlInSec(base::android::AttachCurrentThread(),
-                               /*ttl_in_sec=*/60 * 10);
-
+                               actual_ttl_in_sec);
   prefetch_manager.SetMaxPrefetches(base::android::AttachCurrentThread(),
-                                    /* max_prefetches=*/5);
+                                    actual_max_prefetches);
 
-  EXPECT_EQ(prefetch_manager.GetTtlInSecForTesting(
-                base::android::AttachCurrentThread()),
-            60 * 10);
-  EXPECT_EQ(prefetch_manager.GetMaxPrefetchesForTesting(
-                base::android::AttachCurrentThread()),
-            5u);
+  EXPECT_EQ(actual_ttl_in_sec,
+            prefetch_manager.GetTtlInSec(base::android::AttachCurrentThread()));
+  EXPECT_EQ(actual_max_prefetches, prefetch_manager.GetMaxPrefetches(
+                                       base::android::AttachCurrentThread()));
+
+  prefetch_manager.ClearTtl(base::android::AttachCurrentThread());
+  prefetch_manager.ClearMaxPrefetches(base::android::AttachCurrentThread());
+
+  EXPECT_EQ(default_ttl_in_sec,
+            prefetch_manager.GetTtlInSec(base::android::AttachCurrentThread()));
+  EXPECT_EQ(default_max_prefetches, prefetch_manager.GetMaxPrefetches(
+                                        base::android::AttachCurrentThread()));
 }
 
 TEST_F(AwPrefetchManagerTest, MaxPrefetchReachesLimit) {
@@ -260,7 +272,9 @@ TEST_F(AwPrefetchManagerNoNetworkServiceDedicatedThreadTest,
 TEST_F(AwPrefetchManagerNoNetworkServiceDedicatedThreadTest,
        DeduplicationWebViewPrefetchOffTheMainThreadEnabled) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(features::kWebViewPrefetchOffTheMainThread);
+  feature_list.InitWithFeatures({features::kWebViewPrefetchOffTheMainThread,
+                                 ::features::kPrefetchOffTheMainThread},
+                                {});
 
   const std::string prefetch_url = "https://example.com";
   const int ttl_in_sec = 10;

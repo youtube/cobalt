@@ -17,6 +17,7 @@ import java.lang.annotation.RetentionPolicy;
  */
 @StringDef({
     // keep-sorted start
+    // FEATURE_CONSTANTS_JAVA_STRING_DEF_START
     FeatureConstants.ACCOUNT_SETTINGS_HISTORY_SYNC,
     FeatureConstants.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_ADD_TO_BOOKMARKS_FEATURE,
     FeatureConstants.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_GLIC_FEATURE,
@@ -29,6 +30,7 @@ import java.lang.annotation.RetentionPolicy;
     FeatureConstants.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_TRANSLATE_FEATURE,
     FeatureConstants.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_VOICE_SEARCH_FEATURE,
     FeatureConstants.ANDROID_TAB_DECLUTTER_FEATURE,
+    FeatureConstants.APP_RATING_PROMPT_FEATURE,
     FeatureConstants.APP_SPECIFIC_HISTORY_FEATURE,
     FeatureConstants.AUTO_DARK_OPT_OUT_FEATURE,
     FeatureConstants.AUTO_DARK_USER_EDUCATION_MESSAGE_FEATURE,
@@ -68,6 +70,7 @@ import java.lang.annotation.RetentionPolicy;
     FeatureConstants.GLIC_PROMO_ANDROID_FEATURE,
     FeatureConstants.IDENTITY_DISC_FEATURE,
     FeatureConstants.INSTANCE_SWITCHER,
+    FeatureConstants.IPH_EXTENSIONS_MANAGE_FEATURE,
     FeatureConstants.IPH_MIC_TOOLBAR_FEATURE,
     FeatureConstants.IPH_PDF_PAGE_DOWNLOAD,
     FeatureConstants.IPH_SHARE_SCREENSHOT_FEATURE,
@@ -141,11 +144,13 @@ import java.lang.annotation.RetentionPolicy;
     FeatureConstants.VIDEO_TUTORIAL_NTP_VOICE_SEARCH_FEATURE,
     FeatureConstants.VIDEO_TUTORIAL_TRY_NOW_FEATURE,
     FeatureConstants.WEB_FEED_AWARENESS_FEATURE,
+    // FEATURE_CONSTANTS_JAVA_STRING_DEF_END
     // keep-sorted end
 })
 @Retention(RetentionPolicy.SOURCE)
 @NullMarked
 public @interface FeatureConstants {
+    // FEATURE_CONSTANTS_JAVA_INTERFACE_START
     String ACCOUNT_SETTINGS_HISTORY_SYNC = "IPH_AccountSettingsHistorySync";
 
     String ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_ADD_TO_BOOKMARKS_FEATURE =
@@ -180,6 +185,7 @@ public @interface FeatureConstants {
 
     String ANDROID_TAB_DECLUTTER_FEATURE = "IPH_AndroidTabDeclutter";
 
+    String APP_RATING_PROMPT_FEATURE = "IPH_AppRatingPrompt";
     String APP_SPECIFIC_HISTORY_FEATURE = "IPH_AppSpecificHistory";
 
     String AUTO_DARK_OPT_OUT_FEATURE = "IPH_AutoDarkOptOut";
@@ -284,6 +290,12 @@ public @interface FeatureConstants {
     String IDENTITY_DISC_FEATURE = "IPH_IdentityDisc";
 
     String INSTANCE_SWITCHER = "IPH_InstanceSwitcher";
+
+    /**
+     * An IPH feature that shows after the first extension is installed to inform users to manage
+     * their extensions in the toolbar.
+     */
+    String IPH_EXTENSIONS_MANAGE_FEATURE = "IPH_ExtensionsManage";
 
     /** An IPH feature attached to the mic button in the toolbar prompring user to try voice. */
     String IPH_MIC_TOOLBAR_FEATURE = "IPH_MicToolbar";
@@ -526,4 +538,5 @@ public @interface FeatureConstants {
 
     /** An IPH used for web feed awareness to be shown on the NTP for the Web Feed tab. */
     String WEB_FEED_AWARENESS_FEATURE = "IPH_WebFeedAwareness";
+    // FEATURE_CONSTANTS_JAVA_INTERFACE_END
 }

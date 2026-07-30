@@ -31,8 +31,13 @@ BASE_FEATURE(kApiUserScriptsMultipleWorlds, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kApiOdfsConfigPrivate, base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kApiGlicPrivate, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kApiEnterpriseReportingPrivateOnDataMaskingRulesTriggered,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kApiGlicAccessFromGoogleWebpage,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kApiProxyOverrideRulesPrivate, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -181,7 +186,7 @@ BASE_FEATURE(kDisableExtensionsOnChromeUrlsSwitch,
 );
 
 BASE_FEATURE(kEnterpriseExtensionDOMActivityTelemetry,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDebuggerAPIRestrictedToDevMode,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -193,7 +198,7 @@ BASE_FEATURE(kAvoidCloneArgsOnExtensionFunctionDispatch,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionContentVerificationUsesExtensionRoot,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableShouldShowPromotion, base::FEATURE_DISABLED_BY_DEFAULT);
 

@@ -34,12 +34,22 @@ class WebStateID;
 /// Requests a refresh of UI.
 - (void)requestUIRefresh;
 
-/// Processes the given `PDFFileURL` for a file.
-- (void)processPDFFileURL:(GURL)PDFFileURL;
+/// Processes the given `fileURL` for a file.
+- (void)processFileURL:(GURL)fileURL
+                 isPDF:(BOOL)isPDF
+            completion:(void (^)(void))completion;
+
+/// Processes the given `fileURL` for a file.
+- (void)processFileURL:(GURL)fileURL isPDF:(BOOL)isPDF;
 
 /// Processes the given `itemProvider` for an image.
 - (void)processImageItemProvider:(NSItemProvider*)itemProvider
                          assetID:(NSString*)assetID;
+
+/// Processes the given `itemProvider` for an image.
+- (void)processImageItemProvider:(NSItemProvider*)itemProvider
+                         assetID:(NSString*)assetID
+                      completion:(void (^)(void))completion;
 
 /// Processes a tab with the given `webState` and `webStateID`.
 - (void)processTab:(web::WebState*)webState

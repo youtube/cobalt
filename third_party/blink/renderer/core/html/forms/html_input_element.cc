@@ -30,6 +30,7 @@
 
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 
+#include "base/compiler_specific.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/choosers/date_time_chooser.mojom-blink.h"
 #include "third_party/blink/public/mojom/input/focus_type.mojom-blink.h"
@@ -407,7 +408,7 @@ void HTMLInputElement::InitializeTypeInParsing() {
 
   UpdateHasBeenPasswordField(new_type_name);
 
-  MaybeUpdateCustomPasswordHeuristicSource();
+  MaybeSetHasBeenHeuristicCustomPasswordJS();
 
   UpdateWillValidateCache();
 
@@ -631,13 +632,14 @@ void HTMLInputElement::UpdateType(const AtomicString& type_attribute_value) {
     SetSelectionRange(0, 0, kSelectionHasNoDirection);
 
   // Disconnect all OpaqueRanges on any type change.
-  if (previously_selectable && RuntimeEnabledFeatures::OpaqueRangeEnabled()) {
+  if (previously_selectable &&
+      RuntimeEnabledFeatures::OpaqueRangeEnabled(GetExecutionContext())) {
     DisconnectAllOpaqueRanges();
   }
 
   UpdateHasBeenPasswordField(new_type_name);
 
-  MaybeUpdateCustomPasswordHeuristicSource();
+  MaybeSetHasBeenHeuristicCustomPasswordJS();
 
   SetNeedsValidityCheck();
   if ((could_be_successful_submit_button || CanBeSuccessfulSubmitButton()) &&
@@ -658,6 +660,10 @@ void HTMLInputElement::SubtreeHasChanged() {
 
 FormControlType HTMLInputElement::FormControlType() const {
   return input_type_->FormControlType();
+}
+
+bool HTMLInputElement::SupportsReadOnly() const {
+  return input_type_->SupportsReadOnly();
 }
 
 const AtomicString& HTMLInputElement::FormControlTypeAsString() const {
@@ -1662,8 +1668,11 @@ static bool IsValidMIMEType(const StringView& type) {
       slash_position == type.length() - 1)
     return false;
   for (wtf_size_t i = 0; i < type.length(); ++i) {
-    if (!IsRFC2616TokenCharacter(type[i]) && i != slash_position)
+    // SAFETY: `i` checked against length in for-statement.
+    if (!IsRFC2616TokenCharacter(UNSAFE_BUFFERS(type[i])) &&
+        i != slash_position) {
       return false;
+    }
   }
   return true;
 }
@@ -1671,7 +1680,8 @@ static bool IsValidMIMEType(const StringView& type) {
 static bool IsValidFileExtension(const StringView& type) {
   if (type.length() < 2)
     return false;
-  return type[0] == '.';
+  // SAFETY: length check above ensures first element valid.
+  return UNSAFE_BUFFERS(type[0]) == '.';
 }
 
 static Vector<String> ParseAcceptAttribute(
@@ -1978,8 +1988,9 @@ HTMLInputElement::FilteredDataListOptions() const {
       StringView value(editor_value, word_start, word_end - word_start);
       word_start = word_end;
 
-      if (!IsWordBreak(value[0]))
+      if (!IsWordBreak(UNSAFE_TODO(value[0]))) {
         continue;
+      }
 
       for (unsigned i = 0; i < options->length(); ++i) {
         if (!filtering_flag[i])
@@ -2254,7 +2265,7 @@ OpaqueRange* HTMLInputElement::createValueRange(
     unsigned start_offset,
     unsigned end_offset,
     ExceptionState& exception_state) {
-  CHECK(RuntimeEnabledFeatures::OpaqueRangeEnabled());
+  CHECK(RuntimeEnabledFeatures::OpaqueRangeEnabled(GetExecutionContext()));
   if (!InputSupportsSelectionAPI()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kNotSupportedError,
@@ -2423,6 +2434,8 @@ bool HTMLInputElement::IsDraggedSlider() const {
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fe-mutable
 bool HTMLInputElement::isMutable() {
+  // TODO(crbug.com/498262671): Remove `SupportsReadOnly()` check when
+  // the FixHTMLFormControlElementIsReadOnly flag is removed.
   return !IsDisabledFormControl() &&
          !(input_type_->SupportsReadOnly() && IsReadOnly());
 }

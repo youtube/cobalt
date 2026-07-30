@@ -83,7 +83,6 @@ public class AutofillSaveCardBottomSheetRenderTest {
                     mBottomSheetController =
                             BottomSheetControllerFactory.createFullWidthBottomSheetController(
                                     () -> scrimManager,
-                                    (unused) -> {},
                                     mActivity.getWindow(),
                                     KeyboardVisibilityDelegate.getInstance(),
                                     () -> activityContentView);
@@ -128,6 +127,7 @@ public class AutofillSaveCardBottomSheetRenderTest {
                         .withIsChromeBrandingEnabled(true)
                         .withCardDescription("")
                         .withLoadingDescription("")
+                        .withGooglePayPillLogo(R.drawable.googlepay_pill)
                         .build());
         runOnUiThreadBlocking(
                 () -> {
@@ -215,6 +215,11 @@ public class AutofillSaveCardBottomSheetRenderTest {
                                 AutofillSaveCardBottomSheetProperties.LOADING_DESCRIPTION,
                                 uiInfo.getLoadingDescription())
                         .with(AutofillSaveCardBottomSheetProperties.SHOW_LOADING_STATE, false)
+                        .with(
+                                AutofillSaveCardBottomSheetProperties.GOOGLE_PAY_PILL_LOGO,
+                                uiInfo.isForUpload() && uiInfo.isChromeBrandingEnabled()
+                                        ? uiInfo.getGooglePayPillLogoId()
+                                        : 0)
                         .build();
         PropertyModelChangeProcessor.create(
                 model, view, AutofillSaveCardBottomSheetViewBinder::bind);

@@ -3651,7 +3651,7 @@ enum WebFeature {
   kEligibleForImageLoadingPrioritizationFix = 4376,
   kExecutedNonTrivialJavaScriptURL = 4377,
   kStorageBucketsOpen = 4378,
-  kPerformanceEntryBufferSwaps = 4379,
+  kOBSOLETE_PerformanceEntryBufferSwaps = 4379,
   kClearPerformanceEntries = 4380,
   kViewportDependentLazyLoadedImageWithoutSizesAttribute = 4381,
   kV8MediaStreamTrack_ApplyConstraints_Method = 4382,
@@ -4686,7 +4686,7 @@ enum WebFeature {
   kDOMWindowOpenPopup = 5377,
   kFencedFrameDisableUntrustedNetwork = 5378,
   kFencedFrameNotifyEvent = 5379,
-  kSharedStorageGetInFencedFrame = 5380,
+  kOBSOLETE_SharedStorageGetInFencedFrame = 5380,
   kOBSOLETE_Translator_MeasureInputUsage_Method = 5381,
   kOBSOLETE_Translator_InputQuota_AttributeGetter = 5382,
   kAriaNotify = 5383,
@@ -5043,7 +5043,7 @@ enum WebFeature {
   kV8Origin_FromURL_Method = 5727,
   kV8Origin_Parse_Method = 5728,
   kExtendedTextMetrics = 5729,
-  kUseCssSizingProperties = 5730,
+  kOBSOLETE_UseCssSizingProperties = 5730,
   kSharedStorageAPIAll = 5731,
   kGamepadRawInputChangeEventListener = 5732,
   kLetterSpacingWithMargin = 5733,
@@ -5177,6 +5177,9 @@ enum WebFeature {
   kNoscriptMarkupWithScriptingDisabledDOMParser = 5860,
   kNoscriptMarkupWithScriptingDisabledNoBrowsingContext = 5861,
   kSingleAxisScroller = 5862,
+  kV8HoleyArrayReadthrough = 5863,
+  kLanguageModel_Create_Temperature = 5864,
+  kLanguageModel_Create_TopK = 5865,
 
   // Add new features immediately above this line. Don't change the existing
   // numbers of any item, and don't reuse removed slots. Also don't add extra

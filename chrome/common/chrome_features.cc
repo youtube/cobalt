@@ -430,10 +430,6 @@ BASE_FEATURE(kGlicUseSessionCountryForFiltering,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicLocaleFiltering, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Controls whether the Glic FRE dialog is displayed in the same window as the
-// main app.
-BASE_FEATURE(kGlicUnifiedFreScreen, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Controls the bugfix where the unified FRE synchronizes cookies to the wrong
 // storage partition.
 BASE_FEATURE(kGlicUseMainPartitionForUnifiedFre,
@@ -465,13 +461,7 @@ BASE_FEATURE(kGlicDetached, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicMultiInstance, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether Glic warms up WebContents instead of a full instance.
-BASE_FEATURE(kGlicWebContentsWarming,
-#if !BUILDFLAG(IS_ANDROID)
-             base::FEATURE_DISABLED_BY_DEFAULT
-#else  // Android does not support instance warming, only web contents warming.
-             base::FEATURE_ENABLED_BY_DEFAULT
-#endif
-);
+BASE_FEATURE(kGlicWebContentsWarming, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls the delay before the WebContents is warmed. A large delay will
 // effectively turn off warming.
@@ -735,7 +725,6 @@ BASE_FEATURE(kGlicScrollTo, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicCaptureRegion, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicUseNonClient, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether we enforce that documentId (an optional parameter) is set
 // when trying to scroll all documents except PDFs (and fail the request if
@@ -870,8 +859,6 @@ BASE_FEATURE(kGlicExtensions, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicMultitabUnderlines, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicHandleDraggingNatively, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // When enabled, the X-Glic headers will be attached to requests as specified by
 // the kGlicHeaderRequestTypes param.
 BASE_FEATURE(kGlicHeader, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -947,8 +934,7 @@ const base::FeatureParam<std::string> kGlicWebActuationAllowedTiers{
 
 // If enabled, show web actuation settings toggle if
 // kGlicWebActuationAllowedTiers is populated.
-BASE_FEATURE(kGlicWebActuationSettingsToggle,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicWebActuationSettingsToggle, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicMetricsSession, base::FEATURE_ENABLED_BY_DEFAULT);
 // The duration of inactivity after which a session is considered ended.
@@ -1248,6 +1234,8 @@ BASE_FEATURE(kNativeNotifications, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables installation of the content script for chrome/browser/indigo/ via
 // component update.
 BASE_FEATURE(kIndigoComponent, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<std::string> kIndigoComponentAttribute{
+    &kIndigoComponent, "indigo_component_attribute", ""};
 
 BASE_FEATURE(kSystemNotifications, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1700,7 +1688,7 @@ const base::FeatureParam<base::TimeDelta>
 #if !BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kWebAppPeriodicPreinstallUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kWebAppMigratePreinstalledChat, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebAppMigratePreinstalledChat, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebAppInstallDialog, base::FEATURE_DISABLED_BY_DEFAULT);
 

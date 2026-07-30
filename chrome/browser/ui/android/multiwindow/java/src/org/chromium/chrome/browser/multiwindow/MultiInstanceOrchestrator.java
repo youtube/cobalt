@@ -5,16 +5,16 @@
 package org.chromium.chrome.browser.multiwindow;
 
 import android.app.Activity;
+import android.content.Intent;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
 import org.chromium.content_public.browser.LoadUrlParams;
 
 import java.util.List;
-import java.util.Set;
 
 /**
  * Class that orchestrates and provides for common tasks applicable to all windows in a multi-window
@@ -31,6 +31,18 @@ public interface MultiInstanceOrchestrator {
      * @param multiInstanceManager The {@link MultiInstanceManager} created for {@code activity}.
      */
     void onInitialize(Activity activity, MultiInstanceManager multiInstanceManager);
+
+    /**
+     * Creates an {@link Intent} for a new ChromeTabbedActivity instance.
+     *
+     * @param sourceActivity The activity used to launch the intent.
+     * @param isIncognito Whether the new window should be in incognito mode.
+     * @param source The new window creation source used for metrics.
+     * @return The new {@link Intent} as described above, or {@code null} if the new window cannot
+     *     be created.
+     */
+    @Nullable Intent createNewWindowIntent(
+            Activity sourceActivity, boolean isIncognito, @NewWindowAppSource int source);
 
     /**
      * Moves the specified tabs to a new ChromeTabbedActivity instance.
@@ -68,27 +80,65 @@ public interface MultiInstanceOrchestrator {
             boolean bringToFront);
 
     /**
-     * @param type A bit-int representing one or more {@link PersistedInstanceType}s.
-     * @return A set of instance ids of the specified {@code type} that are not marked for deletion.
+     * Moves the specified tabs to a selected ChromeTabbedActivity instance. If there is no other
+     * eligible window currently, tabs will be moved to a new window. Otherwise, the user will be
+     * presented with a UI to select a window to move the tabs to.
+     *
+     * @param tabs The list of tabs to move.
+     * @param source The new window creation source used for metrics.
      */
-    Set<Integer> getUsableWindowIds(@PersistedInstanceType int type);
+    void moveTabsToOtherWindow(List<Tab> tabs, @NewWindowAppSource int source);
 
     /**
-     * Opens a URL in an existing window or a new window of the same profile type as {@code
-     * sourceTab}.
+     * Moves the specified tab group to a new ChromeTabbedActivity instance.
      *
-     * @param sourceTab The tab containing the URL.
-     * @param loadUrlParams The url to open.
+     * @param tabGroupMetadata The {@link TabGroupMetadata} describing the tab group being moved.
+     * @param source The new window creation source used for metrics.
+     */
+    void moveTabGroupToNewWindow(TabGroupMetadata tabGroupMetadata, @NewWindowAppSource int source);
+
+    /**
+     * Moves a tab group to the specified position in the specified ChromeTabbedActivity instance.
+     * The operation will fail if the instance is not found.
+     *
+     * @param destWindowId The id of the destination window.
+     * @param tabGroupMetadata The {@link TabGroupMetadata} describing the tab group being moved.
+     * @param destTabIndex The tab index in the destination window where the tab group will be
+     *     positioned. To use the default tab index, set this to {@code TabList.INVALID_TAB_INDEX}.
+     * @param bringToFront Whether the destination window should be brought to the front.
+     */
+    void moveTabGroupToWindowByIdChecked(
+            int destWindowId,
+            TabGroupMetadata tabGroupMetadata,
+            int destTabIndex,
+            boolean bringToFront);
+
+    /**
+     * Moves the specified tab group to a selected ChromeTabbedActivity instance. If there are no
+     * other eligible windows currently, the tab group will be moved to a new window. Otherwise, the
+     * user will be presented with a UI to select a window to move the tab group to.
+     *
+     * @param tabGroupMetadata The {@link TabGroupMetadata} describing the tab group being moved.
+     * @param source The new window creation source used for metrics.
+     */
+    void moveTabGroupToOtherWindow(
+            TabGroupMetadata tabGroupMetadata, @NewWindowAppSource int source);
+
+    /**
+     * Opens a URL in an existing window or a new window with profile type determined by {@code
+     * isIncognito}.
+     *
+     * @param sourceActivity The activity initiating the url launch request.
+     * @param loadUrlParams The {@link LoadUrlParams} describing the url to open.
+     * @param parentTabId The ID of the parent tab, or {@link Tab#INVALID_TAB_ID}.
      * @param preferNew Whether we should prioritize launching the tab in a new window.
+     * @param isIncognito Whether the target window should be an incognito window when supported.
      * @return {@code true} if the url launch request was successful, {@code false} otherwise.
      */
-    boolean openUrlInOtherWindow(Tab sourceTab, LoadUrlParams loadUrlParams, boolean preferNew);
-
-    /**
-     * Opens a URL in an incognito window.
-     *
-     * @param sourceTab The tab containing the URL.
-     * @param loadUrlParams The url to open.
-     */
-    void openUrlInIncognitoWindow(Tab sourceTab, LoadUrlParams loadUrlParams);
+    boolean openUrlInOtherWindow(
+            Activity sourceActivity,
+            LoadUrlParams loadUrlParams,
+            int parentTabId,
+            boolean preferNew,
+            boolean isIncognito);
 }

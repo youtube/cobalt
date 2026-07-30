@@ -4,34 +4,26 @@
 
 import("//build/config/chrome_build.gni")
 
-# This is header-only because the sources have too many deependencies in
-# chrome/browser.
-source_set("password_factory_headers") {
-  sources = [
-    "//chrome/browser/password_manager/account_password_store_factory.h",
-    "//chrome/browser/password_manager/password_manager_settings_service_factory.h",
-    "//chrome/browser/password_manager/profile_password_store_factory.h",
-  ]
-  deps = [
-    "//base",
-    "//chrome/browser/profiles:profile",
-    "//components/keyed_service/core",
-    "//components/password_manager/core/browser",
-    "//components/password_manager/core/browser/password_store:password_store_interface",
-    "//content/public/browser",
-  ]
-}
-
 source_set("factories") {
   sources = [
+    "account_password_store_factory.cc",
+    "account_password_store_factory.h",
     "credentials_cleaner_runner_factory.cc",
     "credentials_cleaner_runner_factory.h",
     "field_info_manager_factory.cc",
     "field_info_manager_factory.h",
+    "password_manager_settings_service_factory.cc",
+    "password_manager_settings_service_factory.h",
+    "password_receiver_service_factory.cc",
+    "password_receiver_service_factory.h",
     "password_reuse_manager_factory.cc",
     "password_reuse_manager_factory.h",
     "password_sender_service_factory.cc",
     "password_sender_service_factory.h",
+    "password_store_utils.cc",
+    "password_store_utils.h",
+    "profile_password_store_factory.cc",
+    "profile_password_store_factory.h",
   ]
   if (!is_android) {
     sources += [
@@ -42,9 +34,8 @@ source_set("factories") {
     ]
   }
 
-  public_deps = [ ":password_factory_headers" ]
-
   deps = [
+    ":backend_factory",
     "//base",
     "//chrome/browser:browser_process",
     "//chrome/browser/affiliations",
@@ -59,6 +50,9 @@ source_set("factories") {
     "//components/keyed_service/content",
     "//components/keyed_service/core",
     "//components/password_manager/core/browser",
+    "//components/password_manager/core/browser:password_manager_buildflags",
+    "//components/password_manager/core/browser/affiliation:affiliation_fetching",
+    "//components/password_manager/core/browser/affiliation:affiliation_match_helper",
     "//components/password_manager/core/browser/features:password_features",
     "//components/password_manager/core/browser/leak_detection",
     "//components/password_manager/core/browser/sharing",
@@ -72,13 +66,15 @@ source_set("factories") {
   ]
   if (is_android) {
     deps += [
+      "//chrome/browser/password_manager/android:backend_public",
       "//chrome/browser/password_manager/android:shared_preferences_delegate",
+      "//chrome/browser/password_manager/android:utils",
     ]
   }
 }
 
 source_set("backend_factory") {
-  visibility = [ "//chrome/browser/password_manager" ]
+  visibility = [ "//chrome/browser/password_manager/factories" ]
   sources = [
     "password_store_backend_factory.cc",
     "password_store_backend_factory.h",
@@ -101,5 +97,27 @@ source_set("backend_factory") {
   }
   if (is_win || is_mac) {
     deps += [ "//chrome/browser/policy:path_parser" ]
+  }
+}
+
+if (!is_android) {
+  source_set("startup_import_factory") {
+    sources = [
+      "startup_passwords_import_service_factory.cc",
+      "startup_passwords_import_service_factory.h",
+    ]
+
+    deps = [
+      ":factories",
+      "//base",
+      "//chrome/browser/affiliations",
+      "//chrome/browser/password_manager:startup_import",
+      "//chrome/browser/profiles:profile",
+      "//chrome/common:channel_info",
+      "//chrome/common:non_code_constants",
+      "//components/keyed_service/core",
+      "//components/version_info:channel",
+      "//content/public/browser",
+    ]
   }
 }

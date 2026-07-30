@@ -394,7 +394,7 @@ BASE_FEATURE_PARAM(bool,
                    kSkiaGraphiteEnableDeferredSubmit,
                    &kSkiaGraphite,
                    "enable_deferred_submit",
-                   true);
+                   BUILDFLAG(IS_WIN));
 
 const base::FeatureParam<bool> kSkiaGraphiteEnableMSAAOnNewerIntel{
     &kSkiaGraphite, "enable_msaa_on_newer_intel", true};
@@ -419,11 +419,6 @@ BASE_FEATURE(kSkiaGraphiteDawnUseD3D12, base::FEATURE_DISABLED_BY_DEFAULT);
 // Usage for Graphite is controlled independently with
 // kSkiaGraphiteDawnUsePersistentCache.
 BASE_FEATURE(kGpuPersistentCache, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enabling this will make the GPU decode path use a mock implementation of
-// discardable memory.
-BASE_FEATURE(kNoDiscardableMemoryForGpuDecodePath,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Use a 100-command limit before forcing context switch per command buffer
 // instead of 20.

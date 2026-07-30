@@ -499,11 +499,6 @@ bool ContentBrowserClient::ShouldTryToUpdateServiceWorkerRegistration(
   return true;
 }
 
-void ContentBrowserClient::UpdateEnabledBlinkRuntimeFeaturesInIsolatedWorker(
-    BrowserContext* context,
-    const GURL& script_url,
-    std::vector<std::string>& out_forced_enabled_runtime_features) {}
-
 bool ContentBrowserClient::AllowSharedWorker(
     const GURL& worker_url,
     const net::SiteForCookies& site_for_cookies,
@@ -695,14 +690,6 @@ bool ContentBrowserClient::IsSharedStorageSelectURLAllowed(
     const url::Origin& accessing_origin,
     std::string* out_debug_message,
     bool* out_block_is_site_setting_specific) {
-  return false;
-}
-
-bool ContentBrowserClient::IsFencedStorageReadAllowed(
-    content::BrowserContext* browser_context,
-    content::RenderFrameHost* rfh,
-    const url::Origin& top_frame_origin,
-    const url::Origin& accessing_origin) {
   return false;
 }
 

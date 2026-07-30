@@ -4,8 +4,12 @@
 
 package org.chromium.chrome.browser.ui.extensions;
 
+import android.graphics.Bitmap;
+
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.content_public.browser.WebContents;
 
 /**
  * A fake implementation of {@link ExtensionUiBackend}.
@@ -37,4 +41,13 @@ public class FakeExtensionUiBackend implements ExtensionUiBackend {
     public boolean isEnabled(Profile profile) {
         return mEnabled;
     }
+
+    @Override
+    public @Nullable Bitmap getExtensionOmniboxIcon(Profile profile, String extensionId) {
+        return null;
+    }
+
+    @Override
+    public void onOmniboxExtensionInputEntered(
+            WebContents webContents, String url, boolean openInNewTab, boolean openInNewWindow) {}
 }

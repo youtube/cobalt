@@ -528,16 +528,6 @@ bool ServiceWorkerMainResourceLoader::MaybeStartAutoPreload(
     SetCommitResponsibility(FetchResponseFrom::kServiceWorker);
   }
 
-  // If |enable_subresource_preload| feature param is true, preload requests
-  // are dispatched on any subresources, otherwise preload requests won't be
-  // dispatched for subresources.
-  service_worker_client_->set_fetch_handler_bypass_option(
-      base::GetFieldTrialParamByFeatureAsBool(
-          features::kServiceWorkerAutoPreload, "enable_subresource_preload",
-          /*default_value=*/false)
-          ? blink::mojom::ServiceWorkerFetchHandlerBypassOption::kAutoPreload
-          : blink::mojom::ServiceWorkerFetchHandlerBypassOption::kDefault);
-
   return result;
 }
 
@@ -573,7 +563,8 @@ bool ServiceWorkerMainResourceLoader::StartRaceNetworkRequest(
       service_worker_client_->CreateNetworkURLLoaderFactory(
           ServiceWorkerClient::CreateNetworkURLLoaderFactoryType::
               kRaceNetworkRequest,
-          context->storage_partition(), resource_request_));
+          context->storage_partition(), resource_request_),
+      /*is_main_resource=*/true);
   CHECK(!race_network_request_url_loader_client_);
   race_network_request_url_loader_client_.emplace(
       resource_request_.url, AsWeakPtr(), std::move(forwarding_client),
@@ -917,6 +908,17 @@ void ServiceWorkerMainResourceLoader::DidDispatchFetchEvent(
         cache_matcher_->cache_lookup_start();
     response_head_->service_worker_router_info->cache_lookup_time =
         cache_matcher_->cache_lookup_duration();
+
+    // Block invalid responses from the static router.
+    if (response_head_->service_worker_router_info->matched_source_type ==
+        network::mojom::ServiceWorkerRouterSourceType::kCache) {
+      if (!IsValidStaticRouterResponse(resource_request_, response) &&
+          base::FeatureList::IsEnabled(
+              features::kServiceWorkerStaticRouterOpaqueCheck)) {
+        CommitCompleted(net::ERR_FAILED, "Invalid response from static router");
+        return;
+      }
+    }
   }
 
   // Record the timing of when the fetch event is dispatched on the worker

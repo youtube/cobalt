@@ -24,6 +24,7 @@ import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.MenuBuilderHelper;
+import org.chromium.chrome.browser.toolbar.extensions.ExtensionsToolbarCoordinatorImpl.MenuButtonPinningDelegate;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsToolbarBridge;
 import org.chromium.chrome.browser.ui.extensions.R;
@@ -57,12 +58,14 @@ public class ExtensionsMenuCoordinator implements Destroyable, ExtensionsToolbar
     private final TabCreator mTabCreator;
     private final View mContentView;
     private final Profile mProfile;
-    private final PropertyModel mPropertyModel;
-    private final PropertyModelChangeProcessor mChangeProcessor;
+    private final PropertyModel mMainPageModel;
+    private final PropertyModel mSitePermissionsPageModel;
+    private final PropertyModelChangeProcessor mMainPageChangeProcessor;
+    private final PropertyModelChangeProcessor mSitePermissionsPageChangeProcessor;
     private final ModelList mExtensionModels;
     private final ChromeAndroidTask mTask;
     private final ExtensionsToolbarBridge mExtensionsToolbarBridge;
-
+    private final MenuButtonPinningDelegate mMenuButtonPinningDelegate;
     private final ThemeColorProvider.TintObserver mTintObserver = this::onTintChanged;
 
     @Nullable @VisibleForTesting ExtensionsMenuMediator mMediator;
@@ -73,9 +76,13 @@ public class ExtensionsMenuCoordinator implements Destroyable, ExtensionsToolbar
      * @param context The context for this component.
      * @param extensionsMenuButton The puzzle icon in the toolbar.
      * @param themeColorProvider The provider for theme colors.
-     * @param taskSupplier Supplies the {@link ChromeAndroidTask}.
+     * @param task Supplies the {@link ChromeAndroidTask}.
+     * @param profile The current profile.
      * @param currentTabSupplier Supplies the current {@link Tab}.
      * @param tabCreator {@link TabCreator} to handle a new tab creation.
+     * @param extensionsToolbarBridge {@link ExtensionsToolbarBridge} to use.
+     * @param MenuButtonPinningDelegate The {@link MenuButtonPinningDelegate} to handle pinning the
+     *     icon.
      */
     public ExtensionsMenuCoordinator(
             Context context,
@@ -86,13 +93,14 @@ public class ExtensionsMenuCoordinator implements Destroyable, ExtensionsToolbar
             NullableObservableSupplier<Tab> currentTabSupplier,
             TabCreator tabCreator,
             ExtensionsToolbarBridge extensionsToolbarBridge,
-            PropertyModel model) {
+            MenuButtonPinningDelegate menuButtonPinningDelegate) {
         mContext = context;
         mCurrentTabSupplier = currentTabSupplier;
         mProfile = profile;
         mTabCreator = tabCreator;
         mTask = task;
         mExtensionsToolbarBridge = extensionsToolbarBridge;
+        mMenuButtonPinningDelegate = menuButtonPinningDelegate;
 
         mContentView = LayoutInflater.from(mContext).inflate(R.layout.extensions_menu, null, false);
 
@@ -142,6 +150,7 @@ public class ExtensionsMenuCoordinator implements Destroyable, ExtensionsToolbar
 
                     @Override
                     public void onPopupMenuDismissed() {
+                        mMenuButtonPinningDelegate.requestLayoutWithViewUtils();
                         destroyMediator();
                     }
                 });
@@ -150,12 +159,23 @@ public class ExtensionsMenuCoordinator implements Destroyable, ExtensionsToolbar
         mThemeColorProvider.addTintObserver(mTintObserver);
         mExtensionsToolbarBridge.addObserver(this);
 
-        mPropertyModel = model;
-        setupMenuPropertyModel();
-
-        mChangeProcessor =
+        // Create the main page property model and bind it to its view.
+        mMainPageModel = new PropertyModel.Builder(ExtensionsMenuProperties.ALL_KEYS).build();
+        setupMainPageModel();
+        mMainPageChangeProcessor =
                 PropertyModelChangeProcessor.create(
-                        mPropertyModel, mContentView, ExtensionsMenuViewBinder::bind);
+                        mMainPageModel, mContentView, ExtensionsMenuViewBinder::bind);
+
+        // Create the site permissions page property model and bind it to its view.
+        mSitePermissionsPageModel =
+                new PropertyModel.Builder(SitePermissionsPageProperties.ALL_KEYS).build();
+        View sitePermissionsView =
+                mContentView.findViewById(R.id.extensions_menu_site_permissions_page);
+        mSitePermissionsPageChangeProcessor =
+                PropertyModelChangeProcessor.create(
+                        mSitePermissionsPageModel,
+                        sitePermissionsView,
+                        SitePermissionsPageViewBinder::bind);
 
         mExtensionModels = new ModelList();
         setUpExtensionsRecyclerView(mContentView, mContext, mExtensionModels);
@@ -176,6 +196,10 @@ public class ExtensionsMenuCoordinator implements Destroyable, ExtensionsToolbar
         // Clear old data before repopulating.
         mExtensionModels.clear();
 
+        // Ensure we start on the main page.
+        mMainPageModel.set(
+                ExtensionsMenuProperties.CURRENT_PAGE, ExtensionsMenuProperties.Page.MAIN);
+
         // Instantiate the mediator, which will initialize the JNI bridge to the native code.
         mMediator =
                 new ExtensionsMenuMediator(
@@ -184,7 +208,8 @@ public class ExtensionsMenuCoordinator implements Destroyable, ExtensionsToolbar
                         mProfile,
                         mCurrentTabSupplier,
                         mExtensionModels,
-                        mPropertyModel,
+                        mMainPageModel,
+                        mSitePermissionsPageModel,
                         /* onReady= */ () -> {
                             mExtensionsMenuButton.showMenu();
                         });
@@ -217,44 +242,63 @@ public class ExtensionsMenuCoordinator implements Destroyable, ExtensionsToolbar
         ImageViewCompat.setImageTintList(mExtensionsMenuButton, activityFocusTintList);
     }
 
-    public void updateButtonBackground(int backgroundResource) {
-        mExtensionsMenuButton.setBackgroundResource(backgroundResource);
+    /**
+     * Updates the pinning state of the menu button in the main page model.
+     *
+     * @param pinned Whether the menu button is pinned.
+     */
+    public void setMenuButtonPinned(boolean pinned) {
+        mMainPageModel.set(ExtensionsMenuProperties.MENU_BUTTON_PINNED, pinned);
     }
 
-    private void setupMenuPropertyModel() {
-        mPropertyModel.set(
+    /** Returns whether the extensions menu is open. */
+    public boolean isExtensionsMenuOpen() {
+        return mExtensionsMenuButton.getHost().isMenuShowing();
+    }
+
+    private void setupMainPageModel() {
+        mMainPageModel.set(
                 ExtensionsMenuProperties.CLOSE_CLICK_LISTENER,
                 (view) -> mExtensionsMenuButton.dismiss());
-        mPropertyModel.set(
+        mMainPageModel.set(
                 ExtensionsMenuProperties.DISCOVER_EXTENSIONS_CLICK_LISTENER,
                 (view) -> openUrlFromMenu(UrlConstants.CHROME_WEBSTORE_URL));
-        mPropertyModel.set(
+        mMainPageModel.set(
                 ExtensionsMenuProperties.MANAGE_EXTENSIONS_CLICK_LISTENER,
                 (view) -> openUrlFromMenu(UrlConstants.CHROME_EXTENSIONS_URL));
-        mPropertyModel.set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_VISIBLE, true);
-        mPropertyModel.set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_CHECKED, true);
-        mPropertyModel.set(ExtensionsMenuProperties.SITE_SETTINGS_LABEL, "");
-        mPropertyModel.set(
+        mMainPageModel.set(
+                ExtensionsMenuProperties.MENU_BUTTON_PINNING_CLICK_LISTENER,
+                (view) -> {
+                    mMenuButtonPinningDelegate.setMenuButtonPinned(
+                            !mMenuButtonPinningDelegate.isMenuButtonPinned());
+                });
+        mMainPageModel.set(
+                ExtensionsMenuProperties.MENU_BUTTON_PINNED,
+                mMenuButtonPinningDelegate.isMenuButtonPinned());
+        mMainPageModel.set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_VISIBLE, true);
+        mMainPageModel.set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_CHECKED, true);
+        mMainPageModel.set(ExtensionsMenuProperties.SITE_SETTINGS_LABEL, "");
+        mMainPageModel.set(
                 ExtensionsMenuProperties.OPTIONAL_SECTION_TYPE,
                 org.chromium.chrome.browser.ui.extensions.ExtensionsMenuTypes.OptionalSectionType
                         .NONE);
-        mPropertyModel.set(
+        mMainPageModel.set(
                 ExtensionsMenuProperties.HOST_ACCESS_REQUESTS, new java.util.ArrayList<>());
-        mPropertyModel.set(
+        mMainPageModel.set(
                 ExtensionsMenuProperties.ALLOW_EXTENSION_CLICK_LISTENER,
                 (extensionId) -> {
                     if (mMediator != null) {
                         mMediator.onAllowExtensionClicked(extensionId);
                     }
                 });
-        mPropertyModel.set(
+        mMainPageModel.set(
                 ExtensionsMenuProperties.DISMISS_EXTENSION_CLICK_LISTENER,
                 (extensionId) -> {
                     if (mMediator != null) {
                         mMediator.onDismissExtensionClicked(extensionId);
                     }
                 });
-        mPropertyModel.set(
+        mMainPageModel.set(
                 ExtensionsMenuProperties.RELOAD_CLICK_LISTENER,
                 (view) -> {
                     if (mMediator != null) {
@@ -349,7 +393,8 @@ public class ExtensionsMenuCoordinator implements Destroyable, ExtensionsToolbar
         destroyMediator();
         mExtensionsMenuButton.setOnClickListener(null);
         mThemeColorProvider.removeTintObserver(mTintObserver);
-        mChangeProcessor.destroy();
+        mMainPageChangeProcessor.destroy();
+        mSitePermissionsPageChangeProcessor.destroy();
     }
 
     @VisibleForTesting

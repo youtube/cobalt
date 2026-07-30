@@ -495,7 +495,7 @@ void FillNavigationParamsRequest(
   navigation_params->url = !commit_params.original_url.is_empty()
                                ? commit_params.original_url
                                : common_params.url;
-  navigation_params->http_method = WebString::FromASCII(
+  navigation_params->http_method = WebString::FromAscii(
       !commit_params.original_method.empty() ? commit_params.original_method
                                              : common_params.method);
 
@@ -516,7 +516,7 @@ void FillNavigationParamsRequest(
         blink::GetWebHTTPBodyForRequestBody(*common_params.post_data);
     if (!commit_params.post_content_type.empty()) {
       navigation_params->http_content_type =
-          WebString::FromASCII(commit_params.post_content_type);
+          WebString::FromAscii(commit_params.post_content_type);
     }
   }
 
@@ -557,7 +557,7 @@ void FillNavigationParamsRequest(
       common_params.has_possibly_filtered_user_gesture;
 
   navigation_params->force_enabled_origin_trials = base::ToVector(
-      commit_params.force_enabled_origin_trials, &WebString::FromASCII);
+      commit_params.force_enabled_origin_trials, &WebString::FromAscii);
 
   navigation_params->early_hints_preloaded_resources = base::ToVector(
       commit_params.early_hints_preloaded_resources, blink::ToWebURL);
@@ -941,9 +941,9 @@ blink::WebNavigationTimings BuildNavigationTimings(
 WebHistoryItem NavigationApiHistoryEntryPtrToWebHistoryItem(
     const blink::mojom::NavigationApiHistoryEntry& entry) {
   return WebHistoryItem(
-      WebString::FromUTF16(entry.url), WebString::FromUTF16(entry.key),
-      WebString::FromUTF16(entry.id), entry.item_sequence_number,
-      entry.document_sequence_number, WebString::FromUTF16(entry.state));
+      WebString::FromUtf16(entry.url), WebString::FromUtf16(entry.key),
+      WebString::FromUtf16(entry.id), entry.item_sequence_number,
+      entry.document_sequence_number, WebString::FromUtf16(entry.state));
 }
 
 // Fills navigation data sent by the browser to a blink understandable
@@ -1031,7 +1031,7 @@ void FillMiscNavigationParams(
   }
 
   navigation_params->reduced_accept_language =
-      WebString::FromASCII(commit_params.reduced_accept_language);
+      WebString::FromAscii(commit_params.reduced_accept_language);
   navigation_params->enabled_client_hints.reserve(
       commit_params.enabled_client_hints.size());
   for (auto enabled_hint : commit_params.enabled_client_hints)
@@ -1218,6 +1218,8 @@ WindowOpenDisposition NavigationPolicyToDisposition(
       return WindowOpenDisposition::NEW_POPUP;
     case blink::kWebNavigationPolicyPictureInPicture:
       return WindowOpenDisposition::NEW_PICTURE_IN_PICTURE;
+    case blink::kWebNavigationPolicySplitView:
+      return WindowOpenDisposition::NEW_SPLIT_VIEW;
   }
   NOTREACHED() << "Unexpected WebNavigationPolicy";
 }
@@ -2325,7 +2327,7 @@ void RenderFrameImpl::ShowVirtualKeyboard() {
 
 void RenderFrameImpl::ExecuteJavaScript(const std::u16string& javascript) {
   v8::HandleScope handle_scope(GetAgentGroupScheduler().Isolate());
-  frame_->ExecuteScript(WebScriptSource(WebString::FromUTF16(javascript)));
+  frame_->ExecuteScript(WebScriptSource(WebString::FromUtf16(javascript)));
 }
 
 void RenderFrameImpl::BindLocalInterface(
@@ -2354,7 +2356,7 @@ RenderFrameImpl::GetRemoteAssociatedInterfaces() {
 void RenderFrameImpl::SetSelectedText(const std::u16string& selection_text,
                                       size_t offset,
                                       const gfx::Range& range) {
-  GetWebFrame()->TextSelectionChanged(WebString::FromUTF16(selection_text),
+  GetWebFrame()->TextSelectionChanged(WebString::FromUtf16(selection_text),
                                       static_cast<uint32_t>(offset), range);
 }
 
@@ -3078,7 +3080,7 @@ void RenderFrameImpl::CommitFailedNavigation(
   // later replayed to update the method. However, in the case of an error page
   // load, the redirects are neither populated nor replayed. Hence |http_method|
   // needs to be manually set to the final method.
-  navigation_params->http_method = WebString::FromASCII(common_params->method);
+  navigation_params->http_method = WebString::FromAscii(common_params->method);
   navigation_params->error_code = error_code;
 
   // This is already checked in `NavigationRequest::OnRequestFailedInternal` and
@@ -5888,7 +5890,8 @@ void RenderFrameImpl::OpenURL(std::unique_ptr<blink::WebNavigationInfo> info) {
        policy == blink::kWebNavigationPolicyNewForegroundTab ||
        policy == blink::kWebNavigationPolicyNewWindow ||
        policy == blink::kWebNavigationPolicyNewPopup ||
-       policy == blink::kWebNavigationPolicyPictureInPicture)) {
+       policy == blink::kWebNavigationPolicyPictureInPicture ||
+       policy == blink::kWebNavigationPolicySplitView)) {
     frame_->ConsumeTransientUserActivation();
   }
 

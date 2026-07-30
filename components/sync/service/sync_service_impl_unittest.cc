@@ -17,9 +17,9 @@
 #include "base/test/gtest_util.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
-#include "base/test/run_until.h"
 #include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "base/values.h"
@@ -502,8 +502,7 @@ TEST_F(SyncServiceImplTest, DisabledByPolicyBeforeInitThenPolicyRemoved) {
   // manually.
   ASSERT_FALSE(
       service()->GetUserSettings()->IsInitialSyncFeatureSetupComplete());
-  service()->GetUserSettings()->SetInitialSyncFeatureSetupComplete(
-      syncer::SyncFirstSetupCompleteSource::BASIC_FLOW);
+  service()->GetUserSettings()->SetInitialSyncFeatureSetupComplete();
   base::RunLoop().RunUntilIdle();
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -657,7 +656,9 @@ TEST_F(SyncServiceImplTest, SignInWhilePausedClearsCachedPersistentAuthError) {
   identity_test_env()->SetAutomaticIssueOfAccessTokens(false);
   identity_test_env()->SetRefreshTokenForPrimaryAccount();
   identity_test_env()->WaitForAccessTokenRequestIfNecessaryAndRespondWithError(
-      GoogleServiceAuthError(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS));
+      GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
+          GoogleServiceAuthError::InvalidGaiaCredentialsReason::
+              CREDENTIALS_REJECTED_BY_CLIENT));
   ASSERT_EQ(SyncService::TransportState::PAUSED,
             service()->GetTransportState());
   EXPECT_TRUE(service()->HasCachedPersistentAuthErrorForMetrics());
@@ -691,7 +692,9 @@ TEST_F(SyncServiceImplTest, SignOutWhilePausedClearsCachedPersistentAuthError) {
   identity_test_env()->SetAutomaticIssueOfAccessTokens(false);
   identity_test_env()->SetRefreshTokenForPrimaryAccount();
   identity_test_env()->WaitForAccessTokenRequestIfNecessaryAndRespondWithError(
-      GoogleServiceAuthError(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS));
+      GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
+          GoogleServiceAuthError::InvalidGaiaCredentialsReason::
+              CREDENTIALS_REJECTED_BY_CLIENT));
   ASSERT_EQ(SyncService::TransportState::PAUSED,
             service()->GetTransportState());
   EXPECT_TRUE(service()->HasCachedPersistentAuthErrorForMetrics());
@@ -1251,7 +1254,9 @@ TEST_F(SyncServiceImplTest, CredentialErrorReturned) {
   // signs out of the content area.
   identity_test_env()->SetRefreshTokenForPrimaryAccount();
   identity_test_env()->WaitForAccessTokenRequestIfNecessaryAndRespondWithError(
-      GoogleServiceAuthError(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS));
+      GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
+          GoogleServiceAuthError::InvalidGaiaCredentialsReason::
+              CREDENTIALS_REJECTED_BY_CLIENT));
 
   // Check that the invalid token is returned from sync.
   EXPECT_EQ(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS,
@@ -1336,7 +1341,9 @@ TEST_F(SyncServiceImplTest, CredentialErrorClearsOnNewToken) {
   // Wait for SyncServiceImpl to be notified of the changed credentials and
   // send a new access token request.
   identity_test_env()->WaitForAccessTokenRequestIfNecessaryAndRespondWithError(
-      GoogleServiceAuthError(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS));
+      GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
+          GoogleServiceAuthError::InvalidGaiaCredentialsReason::
+              CREDENTIALS_REJECTED_BY_CLIENT));
 
   // Check that the invalid token is returned from sync.
   ASSERT_EQ(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS,
@@ -2260,8 +2267,7 @@ TEST_F(SyncServiceImplTest,
   base::RunLoop().RunUntilIdle();
   SignInWithSyncConsent();
 
-  service()->GetUserSettings()->SetInitialSyncFeatureSetupComplete(
-      syncer::SyncFirstSetupCompleteSource::BASIC_FLOW);
+  service()->GetUserSettings()->SetInitialSyncFeatureSetupComplete();
 
   ASSERT_EQ(SyncService::TransportState::INITIALIZING,
             service()->GetTransportState());
@@ -2774,8 +2780,7 @@ TEST_F(SyncServiceImplTest, ShouldCacheTrustedVaultAutoUpgradeDebugInfo) {
   ASSERT_TRUE(
       service()->GetUserSettings()->IsInitialSyncFeatureSetupComplete());
 #else   // BUILDFLAG(IS_CHROMEOS)
-  service()->GetUserSettings()->SetInitialSyncFeatureSetupComplete(
-      syncer::SyncFirstSetupCompleteSource::BASIC_FLOW);
+  service()->GetUserSettings()->SetInitialSyncFeatureSetupComplete();
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   base::RunLoop().RunUntilIdle();

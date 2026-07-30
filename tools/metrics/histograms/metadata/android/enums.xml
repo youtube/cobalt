@@ -95,6 +95,16 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Site settings exception list"/>
 </enum>
 
+<!-- LINT.IfChange(AndroidBookmarkAllTabsResult) -->
+
+<enum name="AndroidBookmarkAllTabsResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Failure: Tab model was null"/>
+  <int value="2" label="Failure: Tab list was empty"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/bookmarks/BookmarkAllTabsHandler.java:BookmarkAllTabsResult) -->
+
 <enum name="AndroidChildProcessConnectionEvents">
   <int value="0" label="SCHEDULE_TIMEOUT_SANDBOXED"/>
   <int value="1" label="SCHEDULE_TIMEOUT_UNSANDBOXED"/>
@@ -286,16 +296,6 @@ chromium-metrics-reviews@google.com.
     Failed to determine storage type by falling through all checks.
   </int>
 </enum>
-
-<!-- LINT.IfChange(AndroidTabStripBookmarkAllTabsResult) -->
-
-<enum name="AndroidTabStripBookmarkAllTabsResult">
-  <int value="0" label="Success"/>
-  <int value="1" label="Failure: Tab model was null"/>
-  <int value="2" label="Failure: Tab list was empty"/>
-</enum>
-
-<!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/compositor/overlays/strip/StripLayoutHelper.java:BookmarkAllTabsResult) -->
 
 <enum name="AndroidThemeSettingsEntry">
   <summary>See Android.DarkTheme.ThemeSettingsEntry.</summary>
@@ -751,6 +751,10 @@ chromium-metrics-reviews@google.com.
   <int value="186" label="WebSettingsCompat.setIgnoreDuplicateNavThreshold"/>
   <int value="187" label="WebSettingsCompat.getIgnoreDuplicateNavThreshold"/>
   <int value="188" label="WebSettingsCompat.getMaxPrerenders"/>
+  <int value="189" label="WebSettingsCompat.getMaxPrefetches"/>
+  <int value="190" label="WebSettingsCompat.getPrefetchTtlSeconds"/>
+  <int value="191" label="WebSettingsCompat.clearMaxPrefetches"/>
+  <int value="192" label="WebSettingsCompat.clearPrefetchTtl"/>
 <!-- LINT.ThenChange(/android_webview/support_library/java/src/org/chromium/support_lib_glue/SupportLibWebViewChromiumFactory.java:ApiCall) -->
 
 </enum>
@@ -1473,12 +1477,11 @@ chromium-metrics-reviews@google.com.
       label="URL launch that may be triggered from a menu (eg. link context
              menu) or keyboard shortcut (eg. load omnibox search result via
              Shift + Enter)"/>
-  <int value="8" label="New tab launch for different profile type"/>
-  <int value="9" label="External navigation"/>
-  <int value="10" label="Dev tools"/>
-  <int value="11"
+  <int value="8" label="External navigation"/>
+  <int value="9" label="Dev tools"/>
+  <int value="10"
       label="Browser window creation from native feature (eg. extensions)"/>
-  <int value="12" label="Upgrade to Android S multi-instance support"/>
+  <int value="11" label="Upgrade to Android S multi-instance support"/>
 </enum>
 
 <enum name="NightMode">

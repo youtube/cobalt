@@ -117,6 +117,9 @@ BASE_FEATURE(kWebViewReduceUAAndroidVersionDeviceModel,
 // This enables WebView crashes.
 BASE_FEATURE(kWebViewEnableCrash, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kWebViewPrefetchAheadOfPrerender,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Prefetches the native WebView code to memory during startup.
 BASE_FEATURE(kWebViewPrefetchNativeLibrary, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -239,11 +242,6 @@ BASE_FEATURE(kWebViewEarlyTracingInit, base::FEATURE_DISABLED_BY_DEFAULT);
 // `kWebViewEarlyTracingInit`. If both flags are enabled,
 // `kWebViewEarlyTracingInit` will take precedent.
 BASE_FEATURE(kWebViewBackgroundTracingInit, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Caches reflective methods in AndroidX instead of looking them up every time.
-// This should make calling AndroidX methods faster.
-BASE_FEATURE(kWebViewCacheBoundaryInterfaceMethods,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, opts in WebView to GMSCore's bindService optimizations.
 BASE_FEATURE(kWebViewOptInToGmsBindServiceOptimization,

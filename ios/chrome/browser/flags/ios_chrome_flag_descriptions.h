@@ -71,6 +71,9 @@ extern const char kAutofillAcrossIframesDescription[];
 extern const char kAutofillAiCreateEntityDataManagerName[];
 extern const char kAutofillAiCreateEntityDataManagerDescription[];
 
+extern const char kAutofillAiDedupeEntitiesName[];
+extern const char kAutofillAiDedupeEntitiesDescription[];
+
 extern const char kAutofillAiReauthRequiredName[];
 extern const char kAutofillAiReauthRequiredDescription[];
 
@@ -148,6 +151,9 @@ extern const char kAutofillPaymentsSheetV2Description[];
 
 extern const char kAutofillPruneSuggestionsName[];
 extern const char kAutofillPruneSuggestionsDescription[];
+
+extern const char kAutofillSupportDateInputName[];
+extern const char kAutofillSupportDateInputDescription[];
 
 extern const char kAutofillThrottleDocumentFormScanName[];
 extern const char kAutofillThrottleDocumentFormScanDescription[];
@@ -418,6 +424,9 @@ extern const char kGeminiBinaryMigrationDescription[];
 extern const char kGeminiChatPersistenceName[];
 extern const char kGeminiChatPersistenceDescription[];
 
+extern const char kGeminiClientMigrationName[];
+extern const char kGeminiClientMigrationDescription[];
+
 extern const char kGeminiCopresenceName[];
 extern const char kGeminiCopresenceDescription[];
 
@@ -483,6 +492,9 @@ extern const char kIOSChooseFromDriveDescription[];
 
 extern const char kIOSChooseFromDriveSignedOutName[];
 extern const char kIOSChooseFromDriveSignedOutDescription[];
+
+extern const char kIOSCobaltDeveloperModeName[];
+extern const char kIOSCobaltDeveloperModeDescription[];
 
 extern const char kIOSCobaltName[];
 extern const char kIOSCobaltDescription[];
@@ -594,6 +606,9 @@ extern const char kLensCameraUnbinnedCaptureFormatsPreferredDescription[];
 
 extern const char kLensContinuousZoomEnabledName[];
 extern const char kLensContinuousZoomEnabledDescription[];
+
+extern const char kLensEnableSendRawFileMediaTypesName[];
+extern const char kLensEnableSendRawFileMediaTypesDescription[];
 
 extern const char kLensEnableSendUrlsInComposeboxesName[];
 extern const char kLensEnableSendUrlsInComposeboxesDescription[];
@@ -975,6 +990,9 @@ extern const char kSyncAccountSettingsDescription[];
 
 extern const char kSyncAutofillValuableMetadataName[];
 extern const char kSyncAutofillValuableMetadataDescription[];
+
+extern const char kSyncAutofillValuableName[];
+extern const char kSyncAutofillValuableDescription[];
 
 extern const char kSyncSandboxName[];
 extern const char kSyncSandboxDescription[];

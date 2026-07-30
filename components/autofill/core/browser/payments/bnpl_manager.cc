@@ -193,8 +193,18 @@ void BnplManager::OnUserDecisionToUseBnpl(
     if (HasSeenAmountExtractionAiTerms()) {
       // On user decision to use BNPL, if the user has seen the AI terms,
       // server-side amount extraction call should be made directly.
-      browser_autofill_manager_->GetAmountExtractionManager()
-          .TriggerCheckoutAmountExtractionWithAi();
+      if (base::FeatureList::IsEnabled(
+              features::kAutofillEnablePayNowPayLaterTabs)) {
+        // Do not trigger amount extraction if the card number field is not
+        // empty. Instead, continue to show disabled issuers.
+        if (is_card_number_field_empty_) {
+          browser_autofill_manager_->GetAmountExtractionManager()
+              .TriggerCheckoutAmountExtractionWithAi();
+        }
+      } else {
+        browser_autofill_manager_->GetAmountExtractionManager()
+            .TriggerCheckoutAmountExtractionWithAi();
+      }
     } else {
       // On user decision to use BNPL, if the user has not seen the AI
       // terms, record the user has seen the AI terms after the dialog has
@@ -214,7 +224,7 @@ void BnplManager::OnIssuerAccepted(BnplIssuer issuer) {
 
   if (base::FeatureList::IsEnabled(
           features::kAutofillEnablePayNowPayLaterTabs)) {
-    ShowProgressUiForPayLaterTab();
+    ReplaceIssuerSuggestionsWithLoadingThrobber();
   }
 
   // When an issuer is accepted but no checkout amount is present, call
@@ -253,6 +263,12 @@ void BnplManager::NotifyOfSuggestionGeneration(
 void BnplManager::OnCreditCardSuggestionsShown(
     base::span<const Suggestion> suggestions,
     UpdateSuggestionsCallback update_suggestions_callback) {
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillEnablePayNowPayLaterTabs)) {
+    cached_suggestions_ =
+        std::vector<Suggestion>(std::begin(suggestions), std::end(suggestions));
+  }
+
   if (std::ranges::contains(suggestions, SuggestionType::kBnplEntry,
                             &Suggestion::type) &&
       base::FeatureList::IsEnabled(
@@ -298,6 +314,40 @@ void BnplManager::OnCreditCardSuggestionsShown(
     case kSkipNotifyingUpdateCallbackOfSuggestionsShownResponse:
       break;
   }
+}
+
+void BnplManager::OnUserDecisionToUseSavedCards() {
+  CancelOngoingRequests();
+  CHECK(ongoing_flow_state_);
+
+  // Always go to issuer suggestions if there is a checkout amount present.
+  // Early return in this case to keep the checkout amount cached.
+  if (ongoing_flow_state_->final_checkout_amount) {
+    ongoing_flow_state_->issuer.reset();
+    ReplaceLoadingThrobberWithIssuerSuggestions(
+        GetSortedBnplIssuerContext(browser_autofill_manager_->client(),
+                                   ongoing_flow_state_->final_checkout_amount));
+    return;
+  }
+
+  if (HasSeenAmountExtractionAiTerms() && is_card_number_field_empty_) {
+    // Make sure the loading throbber is showing when all below conditions are
+    // met:
+    // 1. The user has seen the AI terms before.
+    // 2. There is no checkout amount retrieved.
+    // 3. The card number field is empty.
+    ReplaceIssuerSuggestionsWithLoadingThrobber();
+  } else {
+    // For first time users, if there is no checkout amount, make sure the
+    // Pay Later tab is updated to show issuer suggestions.
+    ReplaceLoadingThrobberWithIssuerSuggestions(
+        GetSortedBnplIssuerContext(browser_autofill_manager_->client(),
+                                   ongoing_flow_state_->final_checkout_amount));
+  }
+
+  // Reset flow cache to restart the flow if the user select the Pay Later tab
+  // again.
+  ongoing_flow_state_.reset();
 }
 
 void BnplManager::OnAmountExtractionReturned(
@@ -386,7 +436,7 @@ void BnplManager::OnAmountExtractionReturnedFromAi(
           GetSortedBnplIssuerContext(browser_autofill_manager_->client(),
                                      /*checkout_amount=*/std::nullopt,
                                      result.error());
-      UpdateSuggestionsOnAiAmountExtractionResponse(issuer_contexts);
+      ReplaceLoadingThrobberWithIssuerSuggestions(issuer_contexts);
     } else {
       using enum BnplStrategy::BeforeSwitchingViewAction;
       switch (payments_autofill_client()
@@ -437,7 +487,7 @@ void BnplManager::OnAmountExtractionReturnedFromAi(
                                    ongoing_flow_state_->final_checkout_amount);
     if (base::FeatureList::IsEnabled(
             features::kAutofillEnablePayNowPayLaterTabs)) {
-      UpdateSuggestionsOnAiAmountExtractionResponse(issuer_contexts);
+      ReplaceLoadingThrobberWithIssuerSuggestions(issuer_contexts);
     } else {
       bool is_amount_supported_by_any_issuer =
           IsExtractedAmountSupportedByAnyBnplIssuer(
@@ -465,10 +515,79 @@ bool BnplManager::AcceptTosActionRequired() const {
              .contains(PaymentInstrument::ActionRequired::kAcceptTos);
 }
 
+const std::vector<Suggestion>& BnplManager::GetCachedSuggestions() const {
+  return cached_suggestions_;
+}
+
+std::vector<Suggestion> BnplManager::GetBnplSuggestions(
+    bool is_card_number_field_empty) {
+  is_card_number_field_empty_ = is_card_number_field_empty;
+
+  // Both `cached_bnpl_suggestions` and `enforced_order` will always be
+  // populated if `cached_suggestions_` is non-empty (i.e. if the autofill popup
+  // is already open). `cached_bnpl_suggestions` will be used if
+  // `is_card_number_field_empty` is true, otherwise `enforced_order` will be
+  // used to generate new disabled BNPL suggestions while keeping the same
+  // issuer order.
+  std::vector<Suggestion> cached_bnpl_suggestions;
+  std::vector<BnplIssuer> enforced_order;
+  cached_bnpl_suggestions.reserve(GetCachedSuggestions().size());
+  enforced_order.reserve(GetCachedSuggestions().size());
+  for (const Suggestion& s : GetCachedSuggestions()) {
+    if (s.type == SuggestionType::kBnplEntry) {
+      if (const auto* payload =
+              std::get_if<Suggestion::BnplIssuer>(&s.payload)) {
+        enforced_order.push_back(payload->value());
+        cached_bnpl_suggestions.push_back(s);
+      }
+    } else if (s.type == SuggestionType::kLoadingThrobber) {
+      cached_bnpl_suggestions.push_back(s);
+    }
+  }
+
+  if (!is_card_number_field_empty) {
+    // Cancel any ongoing requests, such as amount extraction, in case the
+    // user started a flow and then populated the card number field during
+    // the flow.
+    CancelOngoingRequests();
+  }
+
+  std::vector<Suggestion> suggestions;
+  if (is_card_number_field_empty && !cached_bnpl_suggestions.empty()) {
+    // Prefer cached suggestions if available. This should occur only if the
+    // field was interacted with again while the autofill suggestions popup
+    // is already open.
+    suggestions.append_range(cached_bnpl_suggestions);
+  } else {
+    // Generate fresh BNPL suggestions. If we are already showing issuer
+    // suggestions, i.e. `enforced_order` is non-empty, ensure we keep the same
+    // order to avoid reshuffling the issuers.
+    const PaymentsDataManager& payments_data_manager =
+        browser_autofill_manager_->client()
+            .GetPersonalDataManager()
+            .payments_data_manager();
+    if (is_card_number_field_empty &&
+        payments::ShouldStartPayLaterWithLoadingSpinner(
+            payments_data_manager)) {
+      suggestions.push_back(autofill::GetLoadingSuggestionForPayLaterTab(
+          payments_data_manager.GetBnplIssuers().size()));
+    } else {
+      suggestions.append_range(autofill::GetSuggestionsForBnpl(
+          payments::GetSortedBnplIssuerContext(
+              browser_autofill_manager_->client(),
+              /*checkout_amount=*/std::nullopt,
+              /*amount_extraction_error=*/std::nullopt,
+              std::move(enforced_order)),
+          browser_autofill_manager_->client().GetAppLocale(),
+          is_card_number_field_empty));
+    }
+  }
+  return suggestions;
+}
+
 void BnplManager::OnSuggestionsHidden(AutofillManager& manager,
                                       SuggestionHidingReason reason) {
   if (reason != SuggestionHidingReason::kHiddenByCaller &&
-      ongoing_flow_state_ &&
       base::FeatureList::IsEnabled(
           features::kAutofillEnablePayNowPayLaterTabs)) {
     Reset();
@@ -531,6 +650,8 @@ void BnplManager::Reset() {
   update_suggestions_callback_.Reset();
   user_has_seen_bnpl_ai_terms_before_.reset();
   ongoing_flow_state_.reset();
+  cached_suggestions_.clear();
+  is_card_number_field_empty_ = false;
 }
 
 void BnplManager::OnVcnDetailsFetched(
@@ -1024,40 +1145,41 @@ void BnplManager::OnBnplPaymentInstrumentUpdated(
   }
 }
 
-void BnplManager::UpdateSuggestionsOnAiAmountExtractionResponse(
+void BnplManager::ReplaceLoadingThrobberWithIssuerSuggestions(
     const std::vector<payments::BnplIssuerContext>& issuer_contexts) {
-  std::vector<Suggestion> suggestions = base::ToVector(
-      browser_autofill_manager_->client().GetAutofillSuggestions());
+  CHECK(!cached_suggestions_.empty());
+  std::vector<Suggestion> new_suggestions = cached_suggestions_;
+
+  // If there is no loading suggestion, then no need to update the current
+  // suggestion list.
+  auto throbber_it =
+      std::find_if(new_suggestions.begin(), new_suggestions.end(),
+                   [](const Suggestion& suggestion) {
+                     return suggestion.type == SuggestionType::kLoadingThrobber;
+                   });
+  if (throbber_it == new_suggestions.end()) {
+    return;
+  }
+
   std::vector<Suggestion> bnpl_suggestions = GetSuggestionsForBnpl(
       issuer_contexts, browser_autofill_manager_->client().GetAppLocale(),
       /*is_card_number_field_empty=*/true);
 
-  // Replace the loading throbber suggestion with the BNPL suggestions from
-  // `bnpl_suggestions`. This ensures that suggestions such as footers are kept
-  // after the newly added suggestions.
-  auto throbber_it = std::find_if(
-      suggestions.begin(), suggestions.end(), [](const Suggestion& suggestion) {
-        return suggestion.type == SuggestionType::kLoadingThrobber;
-      });
-  CHECK(throbber_it != suggestions.end());
-  throbber_it = suggestions.erase(throbber_it);
-  suggestions.insert(throbber_it,
-                     std::make_move_iterator(bnpl_suggestions.begin()),
-                     std::make_move_iterator(bnpl_suggestions.end()));
+  // Replace the loading throbber suggestion with the BNPL suggestions. This
+  // ensures that suggestions such as footers are kept after the newly added
+  // suggestions.
+  throbber_it = new_suggestions.erase(throbber_it);
+  new_suggestions.insert(throbber_it,
+                         std::make_move_iterator(bnpl_suggestions.begin()),
+                         std::make_move_iterator(bnpl_suggestions.end()));
 
-  CHECK(autofill_suggestion_trigger_source_.has_value());
-  update_suggestions_callback_.Run(std::move(suggestions),
-                                   autofill_suggestion_trigger_source_.value());
+  UpdateAndCacheSuggestions(std::move(new_suggestions));
 }
 
-void BnplManager::ShowProgressUiForPayLaterTab() {
-  const base::span<const Suggestion> current_suggestions =
-      browser_autofill_manager_->client().GetAutofillSuggestions();
-
-  // This function is only called to update the Pay Later tab suggestions after
-  // the user accepted an BNPL issuer. At this moment, there has to be
-  // suggestions showing.
-  CHECK(!current_suggestions.empty());
+void BnplManager::ReplaceIssuerSuggestionsWithLoadingThrobber() {
+  // This function is only called after the Pay Later tab has been shown. At
+  // this moment, there has to be suggestions showing.
+  CHECK(!cached_suggestions_.empty());
 
   auto type_is_bnpl_entry = [](const Suggestion& s) {
     return s.type == SuggestionType::kBnplEntry;
@@ -1068,46 +1190,53 @@ void BnplManager::ShowProgressUiForPayLaterTab() {
 
   // Find the start position of BNPL suggestions.
   auto bnpl_suggestions_start =
-      std::find_if(current_suggestions.begin(), current_suggestions.end(),
+      std::find_if(cached_suggestions_.begin(), cached_suggestions_.end(),
                    type_is_bnpl_entry);
-  // This function is only called to update the Pay Later tab suggestions after
-  // the user accepted an issuer. At this moment, there has to be at least one
-  // BNPL suggestions showing.
-  CHECK(bnpl_suggestions_start != current_suggestions.end());
+
+  // If there is no BNPL suggestions in the suggestion list, there has to be a
+  // loading throbber suggestion. Therefore, no need to update the suggestion
+  // list.
+  if (bnpl_suggestions_start == cached_suggestions_.end()) {
+    CHECK(std::find_if(cached_suggestions_.begin(), cached_suggestions_.end(),
+                       [](const Suggestion& suggestion) {
+                         return suggestion.type ==
+                                SuggestionType::kLoadingThrobber;
+                       }) != cached_suggestions_.end());
+    return;
+  }
+
   // Find the end position of BNPL suggestions.
   auto bnpl_suggestions_end =
-      std::find_if(bnpl_suggestions_start, current_suggestions.end(),
+      std::find_if(bnpl_suggestions_start, cached_suggestions_.end(),
                    type_is_not_bnpl_entry);
 
   // When there are pay later BNPL suggestions, there must be footer
   // suggestions with different suggestion type after the BNPL entries.
-  CHECK(bnpl_suggestions_end != current_suggestions.end());
+  CHECK(bnpl_suggestions_end != cached_suggestions_.end());
   // BNPL suggestions are inserted together into the suggestion list and there
   // should be no other BNPL suggestions after `bnpl_suggestions_end`.
-  CHECK(std::ranges::none_of(bnpl_suggestions_end, current_suggestions.end(),
+  CHECK(std::ranges::none_of(bnpl_suggestions_end, cached_suggestions_.end(),
                              type_is_bnpl_entry));
 
   int bnpl_suggestion_count =
       std::distance(bnpl_suggestions_start, bnpl_suggestions_end);
   std::vector<Suggestion> updated_suggestions;
   // All BNPL suggestions will be replaced by a single loading suggestion.
-  updated_suggestions.reserve(current_suggestions.size() -
+  updated_suggestions.reserve(cached_suggestions_.size() -
                               bnpl_suggestion_count + 1);
 
   // Copy suggestions before BNPL entries.
   updated_suggestions.insert(updated_suggestions.end(),
-                             current_suggestions.begin(),
+                             cached_suggestions_.begin(),
                              bnpl_suggestions_start);
   // Insert the loading suggestion based on number of BNPL suggestions.
   updated_suggestions.push_back(
       GetLoadingSuggestionForPayLaterTab(bnpl_suggestion_count));
   // Copy the remaining suggestions.
   updated_suggestions.insert(updated_suggestions.end(), bnpl_suggestions_end,
-                             current_suggestions.end());
+                             cached_suggestions_.end());
 
-  CHECK(autofill_suggestion_trigger_source_.has_value());
-  update_suggestions_callback_.Run(std::move(updated_suggestions),
-                                   autofill_suggestion_trigger_source_.value());
+  UpdateAndCacheSuggestions(std::move(updated_suggestions));
 }
 
 void BnplManager::HideSuggestionsOrRemoveSelectBnplIssuerOrProgressUi() {
@@ -1120,6 +1249,14 @@ void BnplManager::HideSuggestionsOrRemoveSelectBnplIssuerOrProgressUi() {
         .GetBnplUiDelegate()
         ->RemoveSelectBnplIssuerOrProgressUi();
   }
+}
+
+void BnplManager::UpdateAndCacheSuggestions(
+    std::vector<Suggestion> updated_suggestions) {
+  cached_suggestions_ = updated_suggestions;
+  CHECK(autofill_suggestion_trigger_source_.has_value());
+  update_suggestions_callback_.Run(std::move(updated_suggestions),
+                                   autofill_suggestion_trigger_source_.value());
 }
 
 }  // namespace autofill::payments

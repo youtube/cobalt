@@ -143,7 +143,7 @@ class ToolbarActionViewModel {
   virtual void HidePopup() = 0;
 
   // Returns the native view for the popup, if one is active.
-  virtual gfx::NativeView GetPopupNativeView() = 0;
+  virtual gfx::NativeView GetPopupNativeViewForTesting() = 0;
 
   // Returns the context menu model, or null if no context menu should be shown.
   virtual ui::MenuModel* GetContextMenu(
@@ -164,6 +164,15 @@ class ToolbarActionViewModel {
 
   // Unregisters an accelerator. Called when the view is removed from a widget.
   virtual void UnregisterCommand() {}
+
+  // Returns true if this controller can handle accelerators (i.e., keyboard
+  // commands) on the currently-active WebContents.
+  // This must only be called if the extension has an associated command.
+  virtual bool CanHandleAccelerators() const = 0;
+
+  // Tries to handle the accelerator press, and returns whether the event was
+  // handled.
+  virtual bool TryHandleAcceleratorPress() = 0;
 
   // Returns the PageInteractionStatus for the current page.
   virtual extensions::SitePermissionsHelper::SiteInteraction GetSiteInteraction(

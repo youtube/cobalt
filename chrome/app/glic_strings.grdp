@@ -288,6 +288,9 @@
   <message name="IDS_SETTINGS_GLIC_INSTRUCTIONS_BUTTON_SUBLABEL" desc="Description for the Gemini instructions linkout.">
     Customize how Gemini responds to you
   </message>
+  <message name="IDS_SETTINGS_GLIC_EXPERIMENTAL_TRIGGERING_TOGGLE" desc="Label for the Gemini experimental triggering setting" translateable="false">
+    Allow experimental triggering
+  </message>
   <message name="IDS_SETTINGS_GLIC_PERMISSIONS_CHROME_WEB_ACTUATION_TOGGLE" desc="Title for the Gemini feature introduction screen" formatter_data="android_java">
     Let Chrome browse for you
   </message>
@@ -332,6 +335,9 @@
   </message>
   <message name="IDS_SETTINGS_GLIC_REMOVE_ACTOR_LOGIN_DIALOG_DESCRIPTION" desc="Description for the dialog to remove a login permission.">
     Gemini will no longer be able to sign you in to <ph name="URL">$1<ex>google.com</ex></ph>
+  </message>
+  <message name="IDS_SETTINGS_GLIC_LOGIN_PERMISSIONS_REMOVE_ERROR" desc="Toast message to show when a login permission was unable to be removed.">
+    Couldn't remove permission. Try again later.
   </message>
 
   <!-- Glic button and tab strip context menu -->

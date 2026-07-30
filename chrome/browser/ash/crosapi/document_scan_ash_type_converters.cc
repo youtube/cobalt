@@ -516,17 +516,6 @@ TypeConverter<crosapi::mojom::OpenScannerResponsePtr,
   return output;
 }
 
-crosapi::mojom::CloseScannerResponsePtr
-TypeConverter<crosapi::mojom::CloseScannerResponsePtr,
-              lorgnette::CloseScannerResponse>::
-    Convert(const lorgnette::CloseScannerResponse& input) {
-  auto output = crosapi::mojom::CloseScannerResponse::New();
-  output->scanner_handle = input.scanner().token();
-  output->result =
-      ConvertTo<crosapi::mojom::ScannerOperationResult>(input.result());
-  return output;
-}
-
 crosapi::mojom::StartPreparedScanResponsePtr
 TypeConverter<crosapi::mojom::StartPreparedScanResponsePtr,
               lorgnette::StartPreparedScanResponse>::
@@ -579,31 +568,6 @@ crosapi::mojom::SetOptionsResponsePtr TypeConverter<
   for (const auto& [name, option] : config.options()) {
     output->options->try_emplace(name,
                                  crosapi::mojom::ScannerOption::From(option));
-  }
-
-  return output;
-}
-
-crosapi::mojom::GetOptionGroupsResponsePtr
-TypeConverter<crosapi::mojom::GetOptionGroupsResponsePtr,
-              lorgnette::GetCurrentConfigResponse>::
-    Convert(const lorgnette::GetCurrentConfigResponse& input) {
-  auto output = crosapi::mojom::GetOptionGroupsResponse::New();
-  output->scanner_handle = input.scanner().token();
-  output->result =
-      ConvertTo<crosapi::mojom::ScannerOperationResult>(input.result());
-
-  if (output->result == crosapi::mojom::ScannerOperationResult::kSuccess) {
-    output->groups.emplace();
-    output->groups->reserve(input.config().option_groups_size());
-    // Grab the OptionGroup from the ScannerConfig.
-    for (const lorgnette::OptionGroup& group : input.config().option_groups()) {
-      auto output_group = crosapi::mojom::OptionGroup::New();
-      output_group->title = group.title();
-      output_group->members = std::vector<std::string>(group.members().begin(),
-                                                       group.members().end());
-      output->groups->emplace_back(std::move(output_group));
-    }
   }
 
   return output;

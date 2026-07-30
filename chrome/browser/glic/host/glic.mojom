@@ -211,6 +211,8 @@ enum WebUiState {
   kGuestError = 11,
   // Similar to kUnavailable, but the admin has explicitly disabled Glic.
   kDisabledByAdmin = 12,
+  // Created for background warming, not yet displayed or fully initialized.
+  kWarmed = 13,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:WebUiState)
@@ -419,6 +421,27 @@ enum ActorTaskStopReason {
 };
 
 // @generate glic_api
+// The reason/source of why an actor task was interrupted.
+[Stable, Extensible]
+enum ActorTaskInterruptReason {
+  // Actor task is interrupted for an unknown reason.
+  [Default] kUnknownReason = 0,
+  // Actor task is complete.
+  kTaskComplete = 1,
+  // Actor task was waiting for user input.
+  kWaitingUserInput = 2,
+  // Actor task was waiting for user to provide clarifications on the current
+  // task.
+  kWaitingUserClarification = 3,
+  // Actor task was waiting for user to confirm an action.
+  kWaitingUserConfirmation = 4,
+  // Actor task was waiting for user to take over.
+  kWaitingUserTakeOver = 5,
+  // Actor task was waiting for irrelevant user input.
+  kWaitingIrrelevantUserInput = 6,
+};
+
+// @generate glic_api
 // Reason why capturing desktop screenshot failed. NOTE: This may be extended in
 // the future so avoid using complete switches on the currently used enum
 // values.
@@ -558,6 +581,8 @@ struct WebClientInitialState {
   bool onboarding_completed;
   // Whether the skills feature is enabled.
   bool enable_skills;
+  // Whether glic API getTabFaviconById is enabled.
+  bool enable_get_tab_favicon_by_id;
 };
 
 // @generate glic_api
@@ -1145,10 +1170,12 @@ interface WebClientHandler {
 
   // Interrupts the task associated with the given id. This is
   // different than pausing a task since this still prevents user
-  // interaction.
+  // interaction. The interrupt_reason indicates the reason for why the
+  // interrupt was initiated.
   // No-op if a task with the given id does not exist.
   // No-op if the state of the task not in the reflecting state.
-  InterruptActorTask(int32 task_id);
+  InterruptActorTask(
+      int32 task_id, ActorTaskInterruptReason? interrupt_reason);
 
   // Indicates the task associated with the given id is no longer waiting
   // on user input.
@@ -1400,12 +1427,23 @@ interface WebClientHandler {
   // Request updates from a tab. The receiver is closed when the tab is closed,
   // or if the tab is not found.
   SubscribeToTabData(int32 tab_id, pending_remote<TabDataHandler> receiver);
+
+  // Request favicon updates from a tab. The receiver is closed when the tab is
+  // closed, or if the tab is not found.
+  SubscribeToTabFavicon(
+      int32 tab_id, pending_remote<TabFaviconHandler> receiver);
 };
 
 // Receives updates for a specific tab.
 interface TabDataHandler {
   // Tab data has changed for this tab.
   OnTabDataChanged(TabData tab_data);
+};
+
+// Receives favicon updates for a specific tab.
+interface TabFaviconHandler {
+  // Tab favicon has changed for this tab.
+  OnTabFaviconChanged(skia.mojom.BitmapN32? favicon);
 };
 
 // Information about a conversation.
@@ -2106,6 +2144,9 @@ enum HostCapability {
   kInvoke = 8,
   // Indicates that the host does not support Live Mode.
   kNoLiveMode = 9,
+  // Indicates that the host supports auto browse attempting login using Sign in
+  // with Google.
+  kAutoLoginSignInWithGoogle = 10,
 };
 
 // @generate glic_api

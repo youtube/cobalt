@@ -1,0 +1,152 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef COMPONENTS_ENTERPRISE_CONNECTORS_CORE_CLOUD_CONTENT_SCANNING_FILES_REQUEST_HANDLER_BASE_H_
+#define COMPONENTS_ENTERPRISE_CONNECTORS_CORE_CLOUD_CONTENT_SCANNING_FILES_REQUEST_HANDLER_BASE_H_
+
+#include "base/gtest_prod_util.h"
+#include "components/enterprise/connectors/core/cloud_content_scanning/common.h"
+#include "components/enterprise/connectors/core/cloud_content_scanning/file_analysis_request_base.h"
+#include "components/enterprise/connectors/core/cloud_content_scanning/request_handler_base.h"
+
+namespace enterprise_connectors {
+
+class BinaryUploadService;
+class ReportingEventRouter;
+
+// A base class for handling scanning and reporting of deep scanning requests
+// for files.
+class FilesRequestHandlerBase : public RequestHandlerBase {
+ public:
+  // Delegate interface to be implemented by child classes to handle the
+  // specifics of different types of file requests. Methods with an `index`
+  // parameter are intended to support multiple files on other platforms
+  // (e.g. desktop). Since iOS only supports single-file operations, the `index`
+  // will always be 0 for iOS.
+  class Delegate {
+   public:
+    Delegate() = default;
+    Delegate(const Delegate&) = delete;
+    Delegate& operator=(const Delegate&) = delete;
+    virtual ~Delegate() = default;
+
+    // Prepares an upload request for the file at `index`. If the file
+    // cannot be uploaded, a failure verdict is added to the scanning
+    // result.
+    virtual enterprise_connectors::FileAnalysisRequestBase* PrepareFileRequest(
+        size_t index) = 0;
+
+    // Called when a user bypasses a scanning warning. The delegate is
+    // responsible for sending any necessary reports related to this bypass.
+    virtual void ReportWarningBypass(
+        std::optional<std::u16string> user_justification) = 0;
+
+    // Implements the actual data upload. Returns true if the upload is
+    // happening asynchronously in the background, or false if there is no data
+    // to upload.
+    virtual bool UploadDataImpl() = 0;
+
+    // Updates the file_info for a given `index`.
+    virtual void UpdateFileInfo(size_t index,
+                                BinaryUploadRequest::Data data) = 0;
+
+    // Updates the `RequestHandlerResult` in `result_` for a scanning request
+    // corresponding to the given `index`, and update the file_warnings_
+    // accordingly based on the `result.final_result`.
+    virtual void UpdateRequestHandlerResult(
+        size_t index,
+        RequestHandlerResult result,
+        ContentAnalysisResponse response) = 0;
+
+    // Returns the file path for the given index.
+    virtual const base::FilePath& GetPath(size_t index) const = 0;
+
+    // Returns the file_info for the given index.
+    virtual const FileInfo& GetFileInfo(size_t index) = 0;
+
+    // Returns the reporting event router.
+    virtual ReportingEventRouter* GetReportingEventRouter() = 0;
+
+    virtual void MaybeCompleteScanRequest() = 0;
+
+    // The source and destination string are only for chromeOS, for other
+    // platforms it should return "",
+    virtual std::string GetSource() = 0;
+    virtual std::string GetDestination() = 0;
+  };
+
+  // `content_analysis_info` and `upload_service` are used to manage the deep
+  // scanning request.
+  // `url` is the target URL of the file transfer.
+  // `access_point` indicates where the deep scanning request was triggered.
+  // `delegate` is used to handle specific file request logic.
+  explicit FilesRequestHandlerBase(
+      ContentAnalysisInfoBase* content_analysis_info,
+      BinaryUploadService* upload_service,
+      GURL url,
+      const std::string& content_transfer_method,
+      DeepScanAccessPoint access_point,
+      std::unique_ptr<FilesRequestHandlerBase::Delegate> delegate);
+
+  FilesRequestHandlerBase(const FilesRequestHandlerBase&) = delete;
+  FilesRequestHandlerBase& operator=(const FilesRequestHandlerBase&) = delete;
+
+  ~FilesRequestHandlerBase() override;
+
+  // This should only call the delegate_->ReportWarningBypass.
+  void ReportWarningBypass(
+      std::optional<std::u16string> user_justification) override;
+
+ protected:
+  // This should only call the delegate_->UploadDataImpl().
+  bool UploadDataImpl() override;
+
+ private:
+  FRIEND_TEST_ALL_PREFIXES(FilesRequestHandlerBaseTest, OnGotFileInfo_Success);
+  FRIEND_TEST_ALL_PREFIXES(FilesRequestHandlerBaseTest,
+                           OnGotFileInfo_EmptyFile);
+  FRIEND_TEST_ALL_PREFIXES(FilesRequestHandlerBaseTest, OnGotFileInfo_Failure);
+  FRIEND_TEST_ALL_PREFIXES(FilesRequestHandlerBaseTest, FileRequestCallback);
+
+  // Called when the file info for `path` has been fetched. Also begins the
+  // upload process.
+  void OnGotFileInfo(std::unique_ptr<BinaryUploadRequest> request,
+                     size_t index,
+                     ScanRequestUploadResult result,
+                     BinaryUploadRequest::Data data);
+
+  // Called when a request is finished early without uploading it.
+  // This is, e.g., called for encrypted files and responsible for posting the
+  // required data to safe-browsing ui.
+  void FinishRequestEarly(std::unique_ptr<BinaryUploadRequest> request,
+                          ScanRequestUploadResult result);
+
+  // Upload the request for deep scanning using the binary upload service.
+  // These methods exist so they can be overridden in tests as needed.
+  // The `result` argument exists as an optimization to finish the request early
+  // when the result is known in advance to avoid using the upload service.
+  void UploadFileForDeepScanning(ScanRequestUploadResult result,
+                                 std::unique_ptr<BinaryUploadRequest> request);
+
+  void FileRequestCallback(
+      size_t index,
+      ScanRequestUploadResult upload_result,
+      enterprise_connectors::ContentAnalysisResponse response);
+
+  // This is set to true as soon as a TOO_MANY_REQUESTS response is obtained. No
+  // more data should be upload for `this` at that point.
+  bool throttled_ = false;
+
+  // The number of file scans that have completed. If more than one file is
+  // requested for scanning in `data_`, each is scanned in parallel with
+  // separate requests.
+  size_t file_result_count_ = 0;
+
+  std::string content_transfer_method_;
+  std::unique_ptr<Delegate> delegate_;
+};
+
+}  // namespace enterprise_connectors
+
+#endif  // COMPONENTS_ENTERPRISE_CONNECTORS_CORE_CLOUD_CONTENT_SCANNING_FILES_REQUEST_HANDLER_BASE_H_

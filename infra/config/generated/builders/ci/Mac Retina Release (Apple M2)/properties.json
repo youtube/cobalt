@@ -57,8 +57,7 @@
                 "bucket": "ci",
                 "builder": "GPU Mac arm64 Builder",
                 "project": "chromium"
-              },
-              "run_tests_serially": true
+              }
             }
           }
         ]
@@ -68,6 +67,12 @@
           "bucket": "ci",
           "builder": "Mac Retina Release (Apple M2)",
           "project": "chromium"
+        }
+      ],
+      "mirroring_builder_group_and_names": [
+        {
+          "builder": "mac-rel",
+          "group": "tryserver.chromium.mac"
         }
       ],
       "targets_spec_directory": "infra/config/generated/builders/ci/Mac Retina Release (Apple M2)/targets"
@@ -81,5 +86,11 @@
     ]
   },
   "builder_group": "chromium.gpu",
-  "recipe": "chromium"
+  "gardener_rotations": [
+    "chromium.gpu"
+  ],
+  "recipe": "chromium",
+  "sheriff_rotations": [
+    "chromium.gpu"
+  ]
 }

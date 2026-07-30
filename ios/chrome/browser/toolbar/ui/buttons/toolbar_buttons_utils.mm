@@ -37,14 +37,15 @@ void ConfigureShadowForToolbarButton(UIView* button) {
   button.layer.shadowRadius = 0;
 }
 
-void ConfigureCornerRadiusForToolbarButtonContainer(UIView* container) {
+void ConfigureCornerRadiusForToolbarButtonContainer(
+    UIView* container,
+    UITraitCollection* trait_collection) {
   // Whether the window has a regular height x compact width size class,
   // corresponding to iPhone portrait mode or a skinny iPad window.
   BOOL isRegularXCompactSizeClass =
-      container.traitCollection.verticalSizeClass ==
-          UIUserInterfaceSizeClassRegular &&
-      container.traitCollection.horizontalSizeClass ==
-          UIUserInterfaceSizeClassCompact;
-  container.layer.cornerRadius =
-      isRegularXCompactSizeClass ? kSquareCornerRadius : kSize / 2;
+      trait_collection.verticalSizeClass == UIUserInterfaceSizeClassRegular &&
+      trait_collection.horizontalSizeClass == UIUserInterfaceSizeClassCompact;
+  container.layer.cornerRadius = isRegularXCompactSizeClass
+                                     ? kToolbarButtonSquareCornerRadius
+                                     : kToolbarButtonSize / 2;
 }

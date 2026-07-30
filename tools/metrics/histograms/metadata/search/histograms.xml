@@ -535,7 +535,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
   <token key="Profile" variants="ProfileIndex"/>
 </histogram>
 
-<histogram name="Search.ChoiceScreenNavigationConditions{Context}"
+<histogram name="Search.ChoiceScreenNavigationConditions{Context}{Profile}"
     enum="SearchEngineChoiceScreenConditions" expires_after="2026-08-19">
   <owner>dgn@chromium.org</owner>
   <owner>ljjlee@chromium.org</owner>
@@ -548,11 +548,14 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
     enum members might appear in only one histogram.
 
     {Context}
+
+    {Profile}
   </summary>
   <token key="Context" variants="ChoiceScreenContext"/>
+  <token key="Profile" variants="ProfileIndex"/>
 </histogram>
 
-<histogram name="Search.ChoiceScreenProfileInitConditions{Context}"
+<histogram name="Search.ChoiceScreenProfileInitConditions{Context}{Profile}"
     enum="SearchEngineChoiceScreenConditions" expires_after="2026-08-19">
   <owner>dgn@chromium.org</owner>
   <owner>ljjlee@chromium.org</owner>
@@ -564,8 +567,11 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
     in only one histogram.
 
     {Context}
+
+    {Profile}
   </summary>
   <token key="Context" variants="ChoiceScreenContext"/>
+  <token key="Profile" variants="ProfileIndex"/>
 </histogram>
 
 <histogram name="Search.ChoiceScreenSelectedEngineIndex" units="index"
@@ -1094,7 +1100,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.Image.Camera.Open" enum="CameraOpenEntryPoint"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>juanmojica@google.com</owner>
   <owner>schechter@google.com</owner>
   <owner>stanfield@google.com</owner>
@@ -1515,7 +1521,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.RegionSearch.Lens.Result"
-    enum="LensRegionSearchCaptureResult" expires_after="2026-07-26">
+    enum="LensRegionSearchCaptureResult" expires_after="2026-09-27">
   <owner>juanmojica@google.com</owner>
   <owner>benwgold@google.com</owner>
   <owner>stanfield@google.com</owner>

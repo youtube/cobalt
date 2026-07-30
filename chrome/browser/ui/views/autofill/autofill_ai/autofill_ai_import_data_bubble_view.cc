@@ -22,7 +22,6 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/strings/grit/components_strings.h"
-#include "components/vector_icons/vector_icons.h"
 #include "ui/accessibility/ax_enums.mojom-shared.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -238,9 +237,11 @@ AutofillAiImportDataBubbleView::GetWalletableEntitySubtitle() const {
 
     formatted_text = l10n_util::GetStringFUTF16(
         IDS_AUTOFILL_AI_SAVE_ENTITY_TO_WALLET_DIALOG_SUBTITLE_NEW,
-        {manage_info_text, google_wallet_text, account_email}, &offsets);
+        {google_wallet_text, manage_info_text, google_wallet_text,
+         account_email},
+        &offsets);
 
-    link_range = gfx::Range(offsets[0], offsets[0] + manage_info_text.size());
+    link_range = gfx::Range(offsets[1], offsets[1] + manage_info_text.size());
 
   } else {
     formatted_text = l10n_util::GetStringFUTF16(

@@ -4,10 +4,92 @@
 
 #include "components/accessibility_annotator/core/accessibility_annotator_enablement_service_impl.h"
 
+#include <string>
+
+#include "base/feature_list.h"
+#include "base/strings/strcat.h"
+#include "components/accessibility_annotator/core/accessibility_annotator_features.h"
+#include "components/account_settings/account_setting_service.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
+
 namespace accessibility_annotator {
+namespace {
+// Helper function for debugging why a permissions check failed.
+void MaybeOutputReason(std::string* out, std::string_view message) {
+  if (out) {
+    *out = std::string(message);
+  }
+}
+
+// Checks whether all requirements for `base::Feature` state are satisfied.
+[[nodiscard]] bool SatisfiesFeatureRequirements(
+    std::string* debug_message = nullptr) {
+  const base::Feature* const kRequiredFeatures[] = {
+      &features::kAccessibilityAnnotator,
+      &features::kAccessibilityAnnotatorFirstRun,
+      &features::kAccessibilityAnnotatorDatabaseStorage,
+  };
+
+  for (const base::Feature* feature : kRequiredFeatures) {
+    if (!base::FeatureList::IsEnabled(*feature)) {
+      MaybeOutputReason(debug_message,
+                        base::StrCat({feature->name, " is not enabled."}));
+      return false;
+    }
+  }
+
+  return true;
+}
+
+// Checks whether all requirements for `IdentityManager` state are met.
+[[nodiscard]] bool SatisfiesAccountRequirements(
+    const signin::IdentityManager* identity_manager,
+    std::string* debug_message = nullptr) {
+  // The user is signed out.
+  if (!identity_manager ||
+      !identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
+    MaybeOutputReason(debug_message, "User not signed into Chrome.");
+    return false;
+  }
+
+  if (identity_manager->HasAccountWithRefreshTokenInPersistentErrorState(
+          identity_manager->GetPrimaryAccountId(
+              signin::ConsentLevel::kSignin))) {
+    MaybeOutputReason(debug_message,
+                      "User's sign-in is in a persistent error state.");
+    return false;
+  }
+
+  // TODO(crbug.com/494149753): This `can_use_model_execution_features()`
+  // check is a very hacky way to check whether the user is underaged.
+  // Consider defining a separate capability or syncing a separate setting
+  // through ACCOUNT_SETTING instead.
+  if (identity_manager
+          ->FindExtendedAccountInfo(identity_manager->GetPrimaryAccountInfo(
+              signin::ConsentLevel::kSignin))
+          .capabilities.can_use_model_execution_features() !=
+      signin::Tribool::kTrue) {
+    MaybeOutputReason(debug_message, "User is underaged.");
+    return false;
+  }
+
+  return true;
+}
+
+// Checks whether all opt-in for `AccountSettingService` state are met.
+[[nodiscard]] bool SatisfiesOptInRequirements(
+    account_settings::AccountSettingService* account_settings) {
+  // TODO(crbug.com/494149753) Implement
+  return true;
+}
+}  // namespace
 
 AccessibilityAnnotatorEnablementServiceImpl::
-    AccessibilityAnnotatorEnablementServiceImpl() = default;
+    AccessibilityAnnotatorEnablementServiceImpl(
+        account_settings::AccountSettingService* account_settings_service,
+        signin::IdentityManager* identity_manager)
+    : account_settings_service_(account_settings_service),
+      identity_manager_(identity_manager) {}
 
 AccessibilityAnnotatorEnablementServiceImpl::
     ~AccessibilityAnnotatorEnablementServiceImpl() = default;
@@ -24,8 +106,20 @@ void AccessibilityAnnotatorEnablementServiceImpl::RemoveObserver(
 
 RemoteAnnotatorEnablementState
 AccessibilityAnnotatorEnablementServiceImpl::GetEnablementState() {
-  // TODO(b/497763332): Implement the real enablement state logic.
-  return RemoteAnnotatorEnablementState::kDisabledPendingInfo;
+  using enum RemoteAnnotatorEnablementState;
+  if (!SatisfiesFeatureRequirements()) {
+    return kDisabledNotEligible;
+  }
+
+  if (!SatisfiesAccountRequirements(identity_manager_.get())) {
+    return kDisabledNotEligible;
+  }
+
+  if (!SatisfiesOptInRequirements(account_settings_service_.get())) {
+    return kDisabledNotEligible;
+  }
+
+  return kEnabled;
 }
 
 }  // namespace accessibility_annotator

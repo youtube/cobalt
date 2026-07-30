@@ -2384,13 +2384,14 @@ UserSessionManager::GetDefaultIMEState(Profile* profile) {
 void UserSessionManager::CheckEolInfo(Profile* profile) {
   if (!EolNotification::ShouldShowEolNotification())
     return;
+  user_manager::User* user = ProfileHelper::Get()->GetUserByProfile(profile);
 
   std::map<Profile*, std::unique_ptr<EolNotification>, ProfileCompare>::iterator
       iter = eol_notification_handler_.find(profile);
   if (iter == eol_notification_handler_.end()) {
     auto eol_notification =
         eol_notification_handler_test_factory_.is_null()
-            ? std::make_unique<EolNotification>(profile)
+            ? std::make_unique<EolNotification>(user)
             : eol_notification_handler_test_factory_.Run(profile);
 
     iter = eol_notification_handler_
@@ -2410,7 +2411,9 @@ void UserSessionManager::CheckFrozenUpdateInfo(user_manager::User* user) {
   auto iter = frozen_update_notification_handler_.find(user->GetAccountId());
   if (iter == frozen_update_notification_handler_.end()) {
     auto frozen_update_notification =
-        std::make_unique<FrozenUpdateNotification>(*prefs);
+        frozen_update_notification_handler_test_factory_.is_null()
+            ? std::make_unique<FrozenUpdateNotification>(*prefs)
+            : frozen_update_notification_handler_test_factory_.Run(*prefs);
 
     iter = frozen_update_notification_handler_
                .insert(std::make_pair(user->GetAccountId(),
@@ -2661,6 +2664,9 @@ void UserSessionManager::Shutdown() {
   // NOTE: Make sure that the current session length is accumulated on the prefs
   // before the primary Profile is destroyed.
   onboarding_user_activity_counter_.reset();
+
+  // NOTE: This may report UMA metric of the hats notification status.
+  hats_notification_controller_.reset();
 }
 
 void UserSessionManager::SetSwitchesForUser(
@@ -2703,6 +2709,13 @@ void UserSessionManager::SetEolNotificationHandlerFactoryForTesting(
     const EolNotificationHandlerFactoryCallback&
         eol_notification_handler_factory) {
   eol_notification_handler_test_factory_ = eol_notification_handler_factory;
+}
+
+void UserSessionManager::SetFrozenUpdateNotificationHandlerFactoryForTesting(
+    const FrozenUpdateNotificationHandlerFactoryCallback&
+        frozen_update_notification_handler_factory) {
+  frozen_update_notification_handler_test_factory_ =
+      frozen_update_notification_handler_factory;
 }
 
 void UserSessionManager::SetOnPendingUserSessionRestoreFinishedForTesting(

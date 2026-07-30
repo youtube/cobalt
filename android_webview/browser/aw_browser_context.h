@@ -58,6 +58,7 @@ class VisitedLinkWriter;
 namespace android_webview {
 
 class AwBrowserContextIoThreadHandle;
+class AwContentRestrictionManagerClient;
 class AwQuotaManagerBridge;
 class CookieManager;
 
@@ -106,6 +107,8 @@ class AwBrowserContext : public content::BrowserContext,
 
   AwQuotaManagerBridge* GetQuotaManagerBridge();
   int64_t GetQuotaManagerBridge(JNIEnv* env);
+
+  AwContentRestrictionManagerClient* GetContentRestrictionManagerClient();
 
   CookieManager* GetCookieManager();
 
@@ -248,6 +251,8 @@ class AwBrowserContext : public content::BrowserContext,
   // Adds a QUIC hints for the given origins.
   void AddQuicHints(JNIEnv* env, const std::vector<GURL>& origins);
 
+  AwPrefetchManager& GetPrefetchManager() { return *prefetch_manager_.get(); }
+
  private:
   friend class AwBrowserContextIoThreadHandle;
   void CreateUserPrefService();
@@ -299,6 +304,8 @@ class AwBrowserContext : public content::BrowserContext,
 
   std::unique_ptr<AwPrefetchManager> prefetch_manager_;
   std::unique_ptr<AwPreconnector> preconnector_;
+  std::unique_ptr<AwContentRestrictionManagerClient>
+      content_restriction_manager_client_;
 
   // The IO thread client that should be used by service workers.
   base::android::ScopedJavaGlobalRef<jobject> sw_io_thread_client_;

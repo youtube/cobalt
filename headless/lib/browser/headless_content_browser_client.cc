@@ -113,6 +113,7 @@ class HeadlessVideoOverlayWindow : public content::VideoOverlayWindow {
   void SetHidePictureInPictureButtonVisibility(bool is_visible) override {}
   void SetMicrophoneMuted(bool muted) override {}
   void SetCameraState(bool turned_on) override {}
+  void SetMediaMuted(bool muted) override {}
   void SetToggleMicrophoneButtonVisibility(bool is_visible) override {}
   void SetToggleCameraButtonVisibility(bool is_visible) override {}
   void SetHangUpButtonVisibility(bool is_visible) override {}
@@ -409,14 +410,6 @@ bool HeadlessContentBrowserClient::IsSharedStorageSelectURLAllowed(
     const url::Origin& accessing_origin,
     std::string* out_debug_message,
     bool* out_block_is_site_setting_specific) {
-  return true;
-}
-
-bool HeadlessContentBrowserClient::IsFencedStorageReadAllowed(
-    content::BrowserContext* browser_context,
-    content::RenderFrameHost* rfh,
-    const url::Origin& top_frame_origin,
-    const url::Origin& accessing_origin) {
   return true;
 }
 

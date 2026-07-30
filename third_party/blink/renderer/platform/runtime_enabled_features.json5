@@ -347,6 +347,11 @@
       name: "AIPageContentConvertNodeTextToUtf8",
       status: "stable"
     },
+    // When enabled, redact elements with --webkit-text-security.
+    {
+      name: "AIPageContentElementCSSRedaction",
+      status: "stable",
+    },
     {
       name: "AIPageContentIncludeSVGSubtree",
       status: "stable"
@@ -399,6 +404,22 @@
       public: true,
     },
     {
+      // Gates access to legacy aliases of renamed "AIPromptAPI" identifiers.
+      // TODO(crbug.com/498228550): Remove after extension context usage drops.
+      name: "AIPromptAPILegacyIdentifiers",
+      public: true,
+    },
+    {
+      // Gates access to legacy sampling parameter surfaces for "AIPromptAPI".
+      // Enabled in extension contexts, and for API enhancement experiments.
+      name: "AIPromptAPILegacyParams",
+      public: true,
+      origin_trial_feature_name: "AIPromptAPIParams",
+      origin_trial_os: ["win", "mac", "linux", "chromeos"],
+      origin_trial_allows_third_party: true,
+      implied_by: ["AIPromptAPIParams"],
+    },
+    {
       name: "AIPromptAPIMultimodalInput",
       status: {
         "Win": "experimental",
@@ -412,6 +433,21 @@
       origin_trial_allows_third_party: true,
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
+    },
+    {
+      // Gates access to inference parameter enhancements for "AIPromptAPI".
+      // This feature alone does not expose any "AIPromptAPI" feature access.
+      name: "AIPromptAPIParams",
+      status: {
+        "Win": "experimental",
+        "Mac": "experimental",
+        "Linux": "experimental",
+        "ChromeOS": "experimental",
+        "default": "",
+      },
+      origin_trial_feature_name: "AIPromptAPIParams",
+      origin_trial_os: ["win", "mac", "linux", "chromeos"],
+      origin_trial_allows_third_party: true,
     },
     {
       // Gates access to the responseConstraint enhancement for "AIPromptAPI".
@@ -1140,10 +1176,6 @@
       status: "stable",
     },
     {
-      name: "CollectWidthAndHeightAsPresentationAttributesForUse",
-      status: "stable",
-    },
-    {
       name: "CollectWidthAndHeightAsStylesForNestedSvg",
       status: "stable",
     },
@@ -1309,7 +1341,7 @@
     },
     {
       name: "ContainerNameOnly",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "ContainerTiming",
@@ -1348,6 +1380,12 @@
       // Cookie Store API.
       name: "CookieStoreAPIMaxAge",
       public: true,
+      status: "stable",
+    },
+    {
+      // Feature flag for stripping \t and space from Cookie names and values.
+      // https://crbug.com/437345480
+      name: "CookieStoreAPIWhitespaceStripping",
       status: "stable",
     },
     {
@@ -1726,7 +1764,7 @@
     },
     {
       name: "CSSPseudoElementInterface",
-      status: "stable",
+      status: "experimental",
     },
     {
       name: "CSSPseudoElementViewTransitions",
@@ -1860,6 +1898,13 @@
       base_feature: "CssSelectorFragmentAnchor",
     },
     {
+      // rect() and xywh() basic shapes for shape-outside.
+      // https://drafts.csswg.org/css-shapes-1/#basic-shape-functions
+      // https://drafts.csswg.org/css-shapes/#shape-outside-property
+      name: "CSSShapeOutsideRectAndXywhSupport",
+      status: "experimental",
+    },
+    {
       // https://drafts.csswg.org/cssom-1/#dom-cssstylesheetinit-baseurl
       name: "CSSStyleSheetInitBaseURL",
       status: "experimental",
@@ -1971,6 +2016,11 @@
       status: "experimental",
     },
     {
+      // Shipping in M148 (or backported earlier), can be removed in M150.
+      name: "CustomElementsDisableFormattingFixups",
+      status: "stable",
+    },
+    {
       // appearance:base for the <datalist> element when it is invoked as a
       // picker from an <input type=text>.
       // https://issues.chromium.org/issues/453705243
@@ -1980,16 +2030,9 @@
       depends_on: ["AppearanceBase"],
     },
     {
-      // appearance:base-select for <select multiple> and <select size=n>
-      // https://issues.chromium.org/issues/357649033
-      name: "CustomizableSelectListbox",
-      status: "stable",
-    },
-    {
       // appearance:base-select for <select multiple size=1> with a picker.
       name: "CustomizableSelectMultiplePopup",
       status: "experimental",
-      depends_on: ["CustomizableSelectListbox"],
     },
     // see crbug.com/341313078
     {
@@ -2110,22 +2153,19 @@
     },
     {
       name: "DirectSockets",
-      public: true,
-      status: "stable",
+      base_feature_status: "enabled",
+      copied_from_base_feature_if: "overridden",
+      browser_process_read_write_access: true,
     },
     {
       // Experimental support for the Direct Sockets API in Service Workers.
       // https://github.com/WICG/direct-sockets
       name: "DirectSocketsInServiceWorkers",
-      status: "test",
-      depends_on: ["DirectSockets"],
     },
     {
       // Experimental support for the Direct Sockets API in Shared Workers.
       // https://github.com/WICG/direct-sockets
       name: "DirectSocketsInSharedWorkers",
-      status: "test",
-      depends_on: ["DirectSockets"],
     },
     {
       name: "DisableDifferentOriginSubframeDialogSuppression",
@@ -2164,6 +2204,10 @@
       // This landed in M146 and can be removed in M148.
       name: "DisallowPickerForReadonlyInputs",
       status: "stable",
+    },
+    {
+      name: "DisconnectWebSocketOnBFCache",
+      status: "test",
     },
     {
       // `kHidden` and `kHiddenButPainting` visibility states are treated as
@@ -2405,7 +2449,7 @@
     {
       // `event.pseudoTarget` property to represent pseudo-elements in events. Returns `CSSPseudoElement` or null.
       name: "EventPseudoTargetProperty",
-      status: "stable",
+      status: "experimental",
       depends_on: ["CSSPseudoElementInterface"],
     },
     {
@@ -2712,7 +2756,6 @@
       // listbox select element to perform filtering.
       name: "FilterableSelect",
       status: "experimental",
-      depends_on: ["CustomizableSelectListbox"],
     },
     {
       // Fix for https://crbug.com/41153707
@@ -2729,6 +2772,12 @@
     },
     {
       name: "FirstLineTextMetrics",
+      status: "stable",
+    },
+    // When enabled, HTMLFormControlElement::IsReadOnly() returns false for
+    // types that don't support readonly.
+    {
+      name: "FixHTMLFormControlElementIsReadOnly",
       status: "stable",
     },
     {
@@ -3238,6 +3287,14 @@
       status: "stable",
     },
     {
+      // Srcset images respond to viewport/zoom changes by
+      // re-selecting the best candidate, including for
+      // x-descriptors.
+      // https://crbug.com/41385706
+      name: "ImageSrcsetReselection",
+      status: "stable",
+    },
+    {
       name: "ImplicitRootScroller",
       public: true,
       settable_from_internals: true,
@@ -3390,6 +3447,13 @@
       status: "stable",
     },
     {
+      // Adds `encryptionScheme` field based on
+      // https://www.w3.org/TR/media-capabilities/#keysystemtrackconfiguration.
+      // See https://crbug.com/498284510 for more details.
+      name: "KeySystemTrackConfigurationEncryptionScheme",
+      status: "experimental",
+    },
+    {
       // Checks interactive content using EventPath captured at
       // dispatch start instead of current DOM state. This was
       // added in M145 and can be removed after M147.
@@ -3416,10 +3480,6 @@
     },
     {
       name: "LanguageDetectionAPIForWorkers",
-      public: true,
-    },
-    {
-      name: "LanguageModelLegacyParamsAndAttributes",
       public: true,
     },
     {
@@ -3451,7 +3511,7 @@
       // allowing lazy loading similar to images.
       // https://crbug.com/469111735
       name: "LazyLoadVideoAndAudio",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Allow triggering the word suggestion from left click.
@@ -3967,6 +4027,7 @@
       // for encapsulated content within <textarea> and <input> elements.
       // crbug.com/421421332
       name: "OpaqueRange",
+      origin_trial_feature_name: "OpaqueRange",
       status: "experimental",
     },
     {
@@ -4136,12 +4197,6 @@
     {
       // https://chromestatus.com/feature/5261280285949952
       name: "OverscrollGestures",
-      status: "experimental",
-    },
-    {
-      // Exposes unused speculation data (preloads, prefetches, prerenders)
-      // on the pagehide event.
-      name: "PageHideSpeculations",
       status: "experimental",
     },
     {
@@ -4484,7 +4539,7 @@
       // Support hit-testing for ::after, ::before, ::marker
       // (e.g. for CSSPseudoElement).
       name: "PseudoElementsHitTestable",
-      status: "stable",
+      status: "experimental",
     },
     {
       // Support :hover on ::after, ::before, ::marker.
@@ -4705,7 +4760,7 @@
     },
     {
       name: "ResourceTimingContentType",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "ResourceTimingInitiator",
@@ -4997,18 +5052,6 @@
       base_feature: "none",
     },
     {
-      // Implements new UX for SPC including new output states, payment
-      // instrument details and payment entities logos.
-      name: "SecurePaymentConfirmationUxRefresh",
-      status: {
-        "Android": "stable",
-        "Mac": "stable",
-        "Win": "stable",
-        "iOS": "",
-        "default": "test",
-      },
-    },
-    {
       // SelectAudioOutput API
       // https://chromestatus.com/feature/5164535504437248
       name: "SelectAudioOutput",
@@ -5048,6 +5091,15 @@
     },
     {
       name: "SelectionCollapsedDirectionNone",
+      status: "stable",
+    },
+    {
+      // Fixes selection focus affinity at soft wrap boundaries. When the focus
+      // of a range selection is at a soft wrap boundary (a DOM offset shared by
+      // two visual lines), this ensures the correct affinity is used based on
+      // the selection direction.
+      // See https://crbug.com/40980028
+      name: "SelectionFocusAffinity",
       status: "stable",
     },
     {
@@ -5226,13 +5278,7 @@
     {
       name: "SharedWorker",
       public: true,
-      // Android does not yet support SharedWorker. crbug.com/154571
-      status: {"Android": "", "default": "stable"},
-
-      // Allow Android to run the origin trial.
-      origin_trial_feature_name: "SharedWorkerOnAndroid",
-      origin_trial_os: ["android"],
-      origin_trial_allows_third_party: true,
+      status: "stable",
     },
     {
       // If enabled, SharedWorker supports extendedLifetime
@@ -5391,7 +5437,7 @@
       // API for accessing the Custom Dictionary for spell checking purpose.
       // https://chromestatus.com/feature/6185007701557248
       name: "SpellCheckCustomDictionaryAPI",
-      status: "test",
+      status: "experimental",
       public: true,
     },
     {
@@ -6664,10 +6710,6 @@
     {
       name: "WidthAndHeightAsPresentationAttributesOnNestedSvg",
       // Disabled due to web compat issues, see https://crbug.com/449170647.
-      status: "experimental",
-    },
-    {
-      name: "WidthAndHeightStylePropertiesOnUseAndSymbol",
       status: "experimental",
     },
     {

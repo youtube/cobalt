@@ -134,6 +134,10 @@ ConnectionAllowlists ParseConnectionAllowlistsFromHeaders(
     result.report_only = ParseHeader(*report_only_header, response_url);
   }
 
+  if (enforced_header || report_only_header) {
+    result.response_url = response_url;
+  }
+
   return result;
 }
 

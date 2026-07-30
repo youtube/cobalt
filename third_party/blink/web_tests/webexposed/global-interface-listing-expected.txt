@@ -1312,7 +1312,6 @@ interface CanvasRenderingContext2D
     method createMesh2DVertexBuffer
     method createPattern
     method createRadialGradient
-    method drawElement
     method drawElementImage
     method drawFocusIfNeeded
     method drawImage
@@ -2752,6 +2751,12 @@ interface Element : Node
 interface ElementBehavior
     attribute @@toStringTag
     method constructor
+interface ElementImage
+    attribute @@toStringTag
+    getter height
+    getter width
+    method close
+    method constructor
 interface ElementInternals
     attribute @@toStringTag
     getter ariaActiveDescendantElement
@@ -3871,6 +3876,7 @@ interface HTMLCanvasElement : HTMLElement
     getter layoutSubtree
     getter onpaint
     getter width
+    method captureElementImage
     method captureStream
     method configureHighDynamicRange
     method constructor
@@ -5214,6 +5220,27 @@ interface HTMLStyleElement : HTMLElement
     setter disabled
     setter media
     setter type
+interface HTMLSubmitButtonBehavior : ElementBehavior
+    attribute @@toStringTag
+    getter disabled
+    getter form
+    getter formAction
+    getter formEnctype
+    getter formMethod
+    getter formNoValidate
+    getter formTarget
+    getter labels
+    getter name
+    getter value
+    method constructor
+    setter disabled
+    setter formAction
+    setter formEnctype
+    setter formMethod
+    setter formNoValidate
+    setter formTarget
+    setter name
+    setter value
 interface HTMLTableCaptionElement : HTMLElement
     attribute @@toStringTag
     getter align
@@ -5445,6 +5472,7 @@ interface HTMLUnknownElement : HTMLElement
 interface HTMLUserMediaElement : HTMLElement
     static method isTypeSupported
     attribute @@toStringTag
+    getter error
     getter initialPermissionStatus
     getter invalidReason
     getter isValid
@@ -5981,10 +6009,13 @@ interface LanguageDetector
 interface LanguageModel : EventTarget
     static method availability
     static method create
+    static method params
     attribute @@toStringTag
     getter contextUsage
     getter contextWindow
     getter oncontextoverflow
+    getter temperature
+    getter topK
     method append
     method clone
     method constructor
@@ -5993,6 +6024,13 @@ interface LanguageModel : EventTarget
     method prompt
     method promptStreaming
     setter oncontextoverflow
+interface LanguageModelParams
+    attribute @@toStringTag
+    getter defaultTemperature
+    getter defaultTopK
+    getter maxTemperature
+    getter maxTopK
+    method constructor
 interface LanguageModelToolCall
     attribute @@toStringTag
     getter arguments
@@ -7236,6 +7274,7 @@ interface OffscreenCanvas : EventTarget
     method constructor
     method convertToBlob
     method getContext
+    method getElementTransform
     method transferToImageBitmap
     setter height
     setter oncontextlost
@@ -7289,6 +7328,7 @@ interface OffscreenCanvasRenderingContext2D
     method createMesh2DVertexBuffer
     method createPattern
     method createRadialGradient
+    method drawElementImage
     method drawImage
     method drawMesh
     method ellipse
@@ -7407,10 +7447,6 @@ interface OverscrollEvent : Event
     attribute @@toStringTag
     getter overscrollTarget
     getter overscrolling
-    method constructor
-interface PageHideEvent : PageTransitionEvent
-    attribute @@toStringTag
-    getter speculations
     method constructor
 interface PageRevealEvent : Event
     attribute @@toStringTag
@@ -7861,13 +7897,6 @@ interface PreferenceObject : EventTarget
     method constructor
     method requestOverride
     setter onchange
-interface Preload
-    attribute @@toStringTag
-    getter as
-    getter crossorigin
-    getter url
-    getter used
-    method constructor
 interface Presentation
     attribute @@toStringTag
     getter defaultRequest
@@ -10045,7 +10074,6 @@ interface SharedStorage
     method constructor
     method createWorklet
     method delete
-    method get
     method run
     method selectURL
     method set
@@ -10130,10 +10158,6 @@ interface SourceBufferList : EventTarget
     method constructor
     setter onaddsourcebuffer
     setter onremovesourcebuffer
-interface SpeculationData
-    attribute @@toStringTag
-    getter preloads
-    method constructor
 interface SpeechGrammar
     attribute @@toStringTag
     getter src
@@ -11924,7 +11948,6 @@ interface WebGL2RenderingContext
     method stencilMaskSeparate
     method stencilOp
     method stencilOpSeparate
-    method texElement2D
     method texElementImage2D
     method texImage2D
     method texImage3D
@@ -12428,7 +12451,6 @@ interface WebGLRenderingContext
     method stencilMaskSeparate
     method stencilOp
     method stencilOpSeparate
-    method texElement2D
     method texElementImage2D
     method texImage2D
     method texParameterf

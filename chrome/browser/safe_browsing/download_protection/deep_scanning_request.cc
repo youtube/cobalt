@@ -488,8 +488,10 @@ void DeepScanningRequest::Start() {
 void DeepScanningRequest::StartSingleFileScan() {
   DCHECK(!scanning_started_);
   scanning_started_ = true;
-  IncrementCrashKey(ScanningCrashKey::PENDING_FILE_DOWNLOADS);
-  IncrementCrashKey(ScanningCrashKey::TOTAL_FILE_DOWNLOADS);
+  enterprise_connectors::IncrementCrashKey(
+      enterprise_connectors::ScanningCrashKey::PENDING_FILE_DOWNLOADS);
+  enterprise_connectors::IncrementCrashKey(
+      enterprise_connectors::ScanningCrashKey::TOTAL_FILE_DOWNLOADS);
 
   auto request = std::make_unique<FileAnalysisRequest>(
       analysis_settings_, metadata_->GetFullPath(),
@@ -531,10 +533,12 @@ void DeepScanningRequest::StartSingleFileScan() {
 void DeepScanningRequest::StartSavePackageScan() {
   DCHECK(!scanning_started_);
   scanning_started_ = true;
-  IncrementCrashKey(ScanningCrashKey::PENDING_FILE_DOWNLOADS,
-                    pending_scan_requests_);
-  IncrementCrashKey(ScanningCrashKey::TOTAL_FILE_DOWNLOADS,
-                    pending_scan_requests_);
+  enterprise_connectors::IncrementCrashKey(
+      enterprise_connectors::ScanningCrashKey::PENDING_FILE_DOWNLOADS,
+      pending_scan_requests_);
+  enterprise_connectors::IncrementCrashKey(
+      enterprise_connectors::ScanningCrashKey::TOTAL_FILE_DOWNLOADS,
+      pending_scan_requests_);
 
   Profile* profile =
       Profile::FromBrowserContext(metadata_->GetBrowserContext());
@@ -662,7 +666,7 @@ void DeepScanningRequest::OnScanComplete(
     const base::FilePath& current_path,
     enterprise_connectors::ScanRequestUploadResult result,
     enterprise_connectors::ContentAnalysisResponse response) {
-  RecordDeepScanMetrics(
+  enterprise_connectors::RecordDeepScanMetrics(
       analysis_settings_.cloud_or_local_settings.is_cloud_analysis(),
       /*access_point=*/enterprise_connectors::DeepScanAccessPoint::DOWNLOAD,
       /*duration=*/base::TimeTicks::Now() - upload_start_times_[current_path],
@@ -909,7 +913,8 @@ content::WebContents* DeepScanningRequest::web_contents() const {
 void DeepScanningRequest::MaybeFinishRequest(DownloadCheckResult result) {
   download_check_result_ =
       GetHighestPrecedenceResult(download_check_result_, result);
-  DecrementCrashKey(ScanningCrashKey::PENDING_FILE_DOWNLOADS);
+  enterprise_connectors::DecrementCrashKey(
+      enterprise_connectors::ScanningCrashKey::PENDING_FILE_DOWNLOADS);
 
   if ((--pending_scan_requests_) == 0) {
     if (!save_package_files_.empty()) {

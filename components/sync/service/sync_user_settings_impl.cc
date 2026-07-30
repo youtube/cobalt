@@ -9,7 +9,6 @@
 #include "base/check.h"
 #include "base/feature_list.h"
 #include "base/logging.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/version.h"
 #include "components/signin/public/base/gaia_id_hash.h"
 #include "components/signin/public/base/signin_switches.h"
@@ -77,12 +76,10 @@ bool SyncUserSettingsImpl::IsInitialSyncFeatureSetupComplete() const {
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)
-void SyncUserSettingsImpl::SetInitialSyncFeatureSetupComplete(
-    SyncFirstSetupCompleteSource source) {
+void SyncUserSettingsImpl::SetInitialSyncFeatureSetupComplete() {
   if (IsInitialSyncFeatureSetupComplete()) {
     return;
   }
-  UMA_HISTOGRAM_ENUMERATION("Signin.SyncFirstSetupCompleteSource", source);
   prefs_->SetInitialSyncFeatureSetupComplete();
   delegate_->OnInitialSyncFeatureSetupCompleted();
 }

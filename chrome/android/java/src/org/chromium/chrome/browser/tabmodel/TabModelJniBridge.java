@@ -34,6 +34,7 @@ import org.chromium.components.content_settings.ContentSetting;
 import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.tab_groups.TabGroupColorId;
+import org.chromium.components.tabs.TabStripCollection;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.common.ResourceRequestBody;
@@ -409,9 +410,8 @@ public abstract class TabModelJniBridge implements TabModelInternal {
         if (!newWindow
                 || MultiWindowUtils.getInstanceCount(PersistedInstanceType.ACTIVE)
                         >= MultiWindowUtils.getMaxInstances()) {
-            return assumeNonNull(
-                    getTabCreator(/* isIncognito= */ false)
-                            .createNewTab(loadParams, launchType, null));
+            return getTabCreator(/* isIncognito= */ false)
+                    .createNewTab(loadParams, launchType, null);
         }
 
         // Creating a new window is asynchronous on Android, so create a background tab that we can
@@ -492,6 +492,11 @@ public abstract class TabModelJniBridge implements TabModelInternal {
         }
         TabCreatorUtil.launchNtp(getTabCreator(/* isIncognito= */ false));
     }
+
+    @CalledByNative
+    @Override
+    public abstract @Nullable @JniType("tabs::TabStripCollection*") TabStripCollection
+            getTabStripCollection();
 
     /** Returns whether or not a sync session is currently being restored. */
     @CalledByNative

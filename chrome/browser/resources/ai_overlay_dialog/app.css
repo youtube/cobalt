@@ -15,13 +15,14 @@
 }
 
 #mock-buttons-column {
+  width: 100%;
+  max-height: 100px;
+  overflow-y: auto;
+  scrollbar-width: none;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  max-height: 100px;
-  margin-inline-end: 20px;
-  pointer-events: auto;
-  scrollbar-width: none;
+  align-items: end;
+  gap: 4px;
 }
 
 #mock-buttons-column[hidden] {
@@ -34,14 +35,20 @@
   align-items: flex-end;
 }
 
-#persona-container {
-  /* Allow clicks on the character UI only */
-  pointer-events: auto;
-  width: 100px;
-  height: 100px;
+video {
+  /* The resources are 4:3 aspect ratio but include extra space on the sides.
+   * Use a square and object-fit: cover to clip the empty space. */
+  width: 240px;
+  height: 240px;
+  object-fit: cover;
 }
 
-#stateButton {
+video[hidden],
+#initializerState[hidden] {
+  display: none;
+}
+
+#initializerState {
   width: 100px;
   height: 100px;
   border-radius: 50%;
@@ -52,37 +59,19 @@
   background-color: var(--color-ref-neutral50);
 }
 
-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-video[hidden],
-#stateButton[hidden] {
-  display: none;
-}
-
-#stateButton.inert {
+#initializerState.uninitialized {
   background-color: var(--color-ref-neutral50);
   transform: scale(0.7);
 }
 
-#stateButton.connecting {
+#initializerState.connecting {
   background-color: var(--color-ref-primary90);
   transform: scale(0.80);
   animation: connecting-pulse 1.5s infinite ease-in-out;
 }
 
-#stateButton.idle {
-  background-color: var(--color-ref-primary70);
-  animation: pulse 2s infinite ease-in-out;
-}
-
-#stateButton.speaking {
-  background-color: var(--color-sys-tertiary);
-  border-color: var(--color-sys-positive-container);
-  animation: talking-pulse 0.85s infinite linear;
+#initializerState.error {
+  background-color: var(--color-ref-error50);
 }
 
 @keyframes connecting-pulse {
@@ -97,37 +86,20 @@ video[hidden],
   }
 }
 
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-@keyframes talking-pulse {
-  0% { transform: scale(1); }
-  5% { transform: scale(1.05); }
-  10% { transform: scale(1); }
-  15% { transform: scale(1.07); }
-  25% { transform: scale(1); }
-  60% { transform: scale(1.05); }
-  65% { transform: scale(1.1); }
-  70% { transform: scale(1); }
-  80% { transform: scale(1.1); }
-  88% { transform: scale(1.02); }
-  100% { transform: scale(1); }
-}
-
 #transcription {
+  /* Because the flexbox resides in an auto-resized container, the sizing
+   * algorithm makes this box as small as possible. To prevent the captions from
+   * giving-way to the shrinking by wrapping, we use 'width: max-content' to set
+   * the width of this container to the maximum width without wrapping (i.e. the
+   * width if the text was all on one line), then set 'max-width' to impose a
+   * limit beyond which wrapping occurs. */
+  width: max-content;
+  max-width: 500px;
+
   margin-bottom: 20px;
-  max-width: 300px;
-  text-align: right;
-  pointer-events: none;
+
+  /* hidden to avoid captions' box-decorations escaping the cell */
+  overflow: hidden;
 }
 
 #transcription[hidden] {
@@ -135,7 +107,6 @@ video[hidden],
 }
 
 #transcription-text {
-  display: inline;
   background-color: rgba(0, 0, 0, 0.85);
   color: white;
   padding: 4px 8px;
@@ -146,22 +117,14 @@ video[hidden],
 }
 
 .inject-audio {
-  margin: 0;
   cursor: pointer;
-  pointer-events: auto;
-  width: 150px;
-  box-sizing: border-box;
+  max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: bold;
-  font-size: 13px;
-  text-align: right;
   color: white;
   -webkit-text-stroke: 0.5px black;
   text-shadow: 1px 1px 1px black;
-  line-height: 1.2;
-  flex-shrink: 0;
 }
 
 .inject-audio:hover {

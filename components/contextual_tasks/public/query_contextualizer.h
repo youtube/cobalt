@@ -11,6 +11,7 @@
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/uuid.h"
 #include "components/lens/contextual_input.h"
@@ -22,6 +23,7 @@ namespace contextual_tasks {
 class ContextualTasksService;
 struct ContextualTaskContext;
 struct UrlAttachment;
+class UploadTracker;
 }  // namespace contextual_tasks
 
 namespace contextual_search {
@@ -80,6 +82,11 @@ class QueryContextualizer {
     // Called when contextualization for a tab has been processed (either
     // uploaded or skipped), to allow state cleanup.
     virtual void OnTabProcessedForQueryContextualization(TabId id) = 0;
+
+    // Returns the session handle for context upload, creating it if necessary.
+    // If it cannot create one, returning nullptr is fine.
+    virtual contextual_search::ContextualSearchSessionHandle*
+    GetOrCreateSessionHandleForQueryContextualizer() = 0;
   };
 
   QueryContextualizer(ContextualTasksService* service, Delegate* delegate);
@@ -87,6 +94,9 @@ class QueryContextualizer {
 
   QueryContextualizer(const QueryContextualizer&) = delete;
   QueryContextualizer& operator=(const QueryContextualizer&) = delete;
+
+  using ContextualizedCallback = base::OnceCallback<void(
+      base::WeakPtr<contextual_search::ContextualSearchSessionHandle>)>;
 
   // Starts the contextualization flow for the given task and tabs.
   // `task_id` is the ID of the active contextual task to contextualize for,
@@ -99,14 +109,12 @@ class QueryContextualizer {
   // unconditionally (added to the context if missing), and will also run change
   // checks before re-uploading if they are already present (e.g.,
   // auto-suggested chips). `callback` is invoked when processing for all tabs
-  // is complete.
-  void Contextualize(
-      const std::optional<base::Uuid>& task_id,
-      const std::string& query_text,
-      const std::vector<TabId>& tabs_to_recontextualize,
-      const std::vector<TabId>& tabs_to_force_contextualize,
-      contextual_search::ContextualSearchSessionHandle* session_handle,
-      base::OnceClosure callback);
+  // is complete and yields the session handle.
+  void Contextualize(const std::optional<base::Uuid>& task_id,
+                     const std::string& query_text,
+                     const std::vector<TabId>& tabs_to_recontextualize,
+                     const std::vector<TabId>& tabs_to_force_contextualize,
+                     ContextualizedCallback callback);
 
  private:
   void OnContextRetrieved(
@@ -116,7 +124,7 @@ class QueryContextualizer {
       const std::vector<TabId>& tabs_to_force_contextualize,
       base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
           session_handle,
-      base::OnceClosure callback,
+      ContextualizedCallback callback,
       std::unique_ptr<ContextualTaskContext> context);
 
   void OnTabContextualizationFetched(
@@ -127,6 +135,7 @@ class QueryContextualizer {
       bool is_recontextualization,
       base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
           session_handle,
+      scoped_refptr<UploadTracker> upload_tracker,
       std::unique_ptr<lens::ContextualInputData> page_content_data);
 
   std::vector<TabUpdate> GetTabsToUpdate(

@@ -17,7 +17,9 @@
 
 namespace blink {
 
+class LayoutBox;
 class LayoutBoxModelObject;
+class LayoutObject;
 class PaintLayer;
 
 // Encapsulates the constraint information for a position: sticky element and
@@ -90,18 +92,18 @@ struct CORE_EXPORT StickyPositionScrollingConstraints final {
   //
   // Constraint data for a specific physical axis (horizontal or vertical).
   struct CORE_EXPORT PerAxisData : public GarbageCollected<PerAxisData> {
-    PerAxisData(
-        PhysicalAxis axis,
-        const PhysicalRect& containing_block,
-        const PhysicalRect& sticky_box,
-        const PhysicalRect& constraining,
-        const LayoutBoxModelObject* nearest_sticky_layer_shifting_sticky_box,
-        const LayoutBoxModelObject*
-            nearest_sticky_layer_shifting_containing_block,
-        const PaintLayer* containing_scroll_container_layer,
-        bool is_fixed_to_view,
-        std::optional<LayoutUnit> min_inset,
-        std::optional<LayoutUnit> max_inset);
+    PerAxisData(PhysicalAxis axis,
+                const PhysicalRect& containing_block,
+                const PhysicalRect& sticky_box,
+                const PhysicalRect& constraining,
+                const LayoutObject* location_container,
+                const LayoutBox* sticky_container,
+                const PaintLayer* containing_scroll_container_layer,
+                bool is_fixed_to_view,
+                std::optional<LayoutUnit> min_inset,
+                std::optional<LayoutUnit> max_inset,
+                std::optional<LayoutUnit> min_inset_for_get_computed_style,
+                std::optional<LayoutUnit> max_inset_for_get_computed_style);
 
     // The axis this data represents.
     const PhysicalAxis axis;
@@ -110,6 +112,11 @@ struct CORE_EXPORT StickyPositionScrollingConstraints final {
     // constrained to stay within.
     const std::optional<LayoutUnit> min_inset;
     const std::optional<LayoutUnit> max_inset;
+
+    // Used to return the "used value" for getComputedStyle(). The same as
+    // above but without correcting for the over-constrained cases.
+    const std::optional<LayoutUnit> min_inset_for_get_computed_style;
+    const std::optional<LayoutUnit> max_inset_for_get_computed_style;
 
     // The layout position of the containing block relative to the scroll
     // container. When calculating the sticky offset it is used to ensure the
@@ -128,16 +135,15 @@ struct CORE_EXPORT StickyPositionScrollingConstraints final {
     // In the case of nested sticky elements the layout position of the sticky
     // element and its containing block are not accurate (as they are affected
     // by ancestor sticky offsets). To ensure a correct sticky offset
-    // calculation in that case we must track any sticky ancestors between the
+    // calculation in that case we must find any sticky ancestors between the
     // sticky element and its containing block, and between its containing block
     // and the overflow clip ancestor.
     //
-    // See the implementation of |ComputeOffset| for documentation on how
-    // these ancestors are used to correct the offset calculation.
-    const Member<const LayoutBoxModelObject>
-        nearest_sticky_layer_shifting_sticky_box;
-    const Member<const LayoutBoxModelObject>
-        nearest_sticky_layer_shifting_containing_block;
+    // These members store the search range endpoints so the nearest sticky
+    // ancestors can be recomputed on demand. The scroll-container endpoint is
+    // retrieved from |containing_scroll_container_layer|.
+    const Member<const LayoutObject> location_container;
+    const Member<const LayoutBox> sticky_container;
 
     // These fields cache the result of
     // PaintLayer::ContainingScrollContainerLayer() for this axis.
@@ -250,6 +256,19 @@ struct CORE_EXPORT StickyPositionScrollingConstraints final {
     return y_data_ ? y_data_->max_inset : std::nullopt;
   }
 
+  std::optional<LayoutUnit> LeftInsetForGetComputedStyle() const {
+    return x_data_ ? x_data_->min_inset_for_get_computed_style : std::nullopt;
+  }
+  std::optional<LayoutUnit> RightInsetForGetComputedStyle() const {
+    return x_data_ ? x_data_->max_inset_for_get_computed_style : std::nullopt;
+  }
+  std::optional<LayoutUnit> TopInsetForGetComputedStyle() const {
+    return y_data_ ? y_data_->min_inset_for_get_computed_style : std::nullopt;
+  }
+  std::optional<LayoutUnit> BottomInsetForGetComputedStyle() const {
+    return y_data_ ? y_data_->max_inset_for_get_computed_style : std::nullopt;
+  }
+
   const PaintLayer* ContainingScrollContainerLayer() const {
     if (const auto* data = PreferredAxisData()) {
       return data->containing_scroll_container_layer.Get();
@@ -257,20 +276,8 @@ struct CORE_EXPORT StickyPositionScrollingConstraints final {
     return nullptr;
   }
 
-  const LayoutBoxModelObject* NearestStickyLayerShiftingStickyBox() const {
-    if (const auto* data = PreferredAxisData()) {
-      return data->nearest_sticky_layer_shifting_sticky_box.Get();
-    }
-    return nullptr;
-  }
-
-  const LayoutBoxModelObject* NearestStickyLayerShiftingContainingBlock()
-      const {
-    if (const auto* data = PreferredAxisData()) {
-      return data->nearest_sticky_layer_shifting_containing_block.Get();
-    }
-    return nullptr;
-  }
+  const LayoutBoxModelObject* NearestStickyLayerShiftingStickyBox() const;
+  const LayoutBoxModelObject* NearestStickyLayerShiftingContainingBlock() const;
 
  private:
   const PerAxisData* PreferredAxisData() const;

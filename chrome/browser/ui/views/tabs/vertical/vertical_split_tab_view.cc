@@ -44,6 +44,16 @@ VerticalSplitTabView::VerticalSplitTabView(TabCollectionNode* collection_node)
       collection_node_->RegisterWillDestroyCallback(base::BindOnce(
           &VerticalSplitTabView::ResetCollectionNode, base::Unretained(this)));
 
+  CHECK(collection_node_->GetController());
+  auto* state_controller =
+      collection_node_->GetController()->GetStateController();
+  CHECK(state_controller);
+  OnCollapseStateChanged(state_controller->GetCollapseState());
+  collapsed_state_changed_subscription_ =
+      state_controller->RegisterOnCollapseChanged(
+          base::BindRepeating(&VerticalSplitTabView::OnCollapseStateChanged,
+                              base::Unretained(this)));
+
   // Ensures this view gets mouse events as well its children.
   SetNotifyEnterExitOnChild(true);
 }
@@ -125,13 +135,14 @@ views::ProposedLayout VerticalSplitTabView::CalculateProposedLayout(
           : 0;
 
   // Layout children in order. Children will have their preferred height and
-  // fill available width. If unbounded or both children fit on one row they
-  // will share it, otherwise they will be stacked vertically.
+  // fill available width. If unbounded or uncollapsed and both children fit on
+  // one row they will share it, otherwise they will be stacked vertically.
   if (!size_bounds.width().is_bounded() ||
-      size_bounds.width().value() >=
-          static_cast<int>(
-              GetLayoutConstant(LayoutConstant::kVerticalTabMinWidth) *
-              children.size())) {
+      (!collapsed_ &&
+       size_bounds.width().value() >=
+           static_cast<int>(
+               GetLayoutConstant(LayoutConstant::kVerticalTabMinWidth) *
+               children.size()))) {
     int x = 0;
     for (auto* child : children) {
       gfx::Rect bounds = gfx::Rect(child->GetPreferredSize());
@@ -212,6 +223,8 @@ void VerticalSplitTabView::ResetCollectionNode() {
         nullptr, TabSlotController::HoverCardUpdateType::kTabRemoved);
   }
 
+  node_destroyed_subscription_ = {};
+  collapsed_state_changed_subscription_ = {};
   collection_node_ = nullptr;
 }
 
@@ -264,6 +277,11 @@ void VerticalSplitTabView::UpdateHovered(bool hovered) {
   }
 
   SchedulePaint();
+}
+
+void VerticalSplitTabView::OnCollapseStateChanged(
+    tabs::VerticalTabStripCollapseState state) {
+  collapsed_ = state == tabs::VerticalTabStripCollapseState::kCollapsed;
 }
 
 std::unique_ptr<views::View>

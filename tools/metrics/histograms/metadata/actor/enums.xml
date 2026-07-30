@@ -133,6 +133,9 @@ chromium-metrics-reviews@google.com.
   <int value="1204" label="ScriptToolCrossOriginNavigation"/>
   <int value="1205" label="ScriptToolMissingRequiredSubmitButton"/>
   <int value="1206" label="ScriptToolCancelled"/>
+  <int value="1207" label="ScriptToolNavigationDidNotCommit"/>
+  <int value="1208" label="ScriptToolNavigationCommittedErrorPage"/>
+  <int value="1209" label="ScriptToolNavigationFailedLoad"/>
   <int value="1300" label="ActorUiError"/>
 </enum>
 
@@ -176,6 +179,7 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="FrameNotActive"/>
   <int value="9" label="ExpectedAccountNotPresent"/>
   <int value="10" label="Timeout"/>
+  <int value="11" label="TimeoutByEmbedder"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/password_manager/core/browser/actor_login/internal/actor_login_metrics.h:ActorLoginFederatedLoginResult) -->
@@ -200,6 +204,17 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/actor/actor_metrics.cc:ActorObservationOutcome) -->
+
+<enum name="ActorPipStatus">
+  <int value="0" label="Entered"/>
+  <int value="1" label="Exited"/>
+</enum>
+
+<enum name="ActorPipUserInteraction">
+  <int value="0" label="Pause"/>
+  <int value="1" label="Resume"/>
+  <int value="2" label="Expand"/>
+</enum>
 
 <!-- LINT.IfChange(ActorServerConfirmationResult) -->
 
@@ -228,6 +243,27 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/actor/actor_metrics.cc:ActorTabObservationResult) -->
+
+<!-- LINT.IfChange(ActorTaskCreateFailedReason) -->
+
+<enum name="ActorTaskCreateFailedReason">
+  <int value="0" label="None">Browser can actuate.</int>
+  <int value="1" label="DisabledByPolicy">
+    The enterprise policy disables the actuation feature.
+  </int>
+  <int value="2" label="AccountCapabilityIneligible">
+    The account is not eligible for the actuation.
+  </int>
+  <int value="3" label="AccountMissingChromeBenefits">
+    The account is not subscribed to one of the required AI subscription tiers.
+  </int>
+  <int value="4" label="EnterpriseWithoutManagement">
+    An enterprise account is logged in but there is no management to deliver the
+    policy.
+  </int>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/actor/glic_actor_policy_checker.h:CannotActReason) -->
 
 <!-- LINT.IfChange(ActorUiTabControllerError) -->
 

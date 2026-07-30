@@ -35,11 +35,11 @@
 #include "chrome/browser/profiles/profile_observer.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/passwords/passwords_client_ui_delegate.h"
 #include "chrome/browser/ui/webauthn/user_actions.h"
 #include "chrome/browser/webauthn/authenticator_request_dialog_controller.h"
@@ -892,10 +892,11 @@ bool ChromeAuthenticatorRequestDelegate::MaybeHandleImmediateMediation(
 
   if (auto* rate_limiter =
           ImmediateRequestRateLimiterFactory::GetForProfile(profile())) {
-    const url::Origin origin = GetRenderFrameHost()->GetLastCommittedOrigin();
-    if (!rate_limiter->IsRequestAllowed(origin)) {
-      FIDO_LOG(ERROR)
-          << "Immediate request rate limit exceeded for the origin.";
+    const url::Origin top_frame_origin =
+        GetRenderFrameHost()->GetMainFrame()->GetLastCommittedOrigin();
+    if (!rate_limiter->IsRequestAllowed(top_frame_origin)) {
+      FIDO_LOG(ERROR) << "Immediate request rate limit exceeded for the main "
+                         "frame's origin.";
       base::UmaHistogramEnumeration(
           "WebAuthentication.GetAssertion.Immediate.RejectionReason",
           content::ImmediateMediationRejectionReason::kRateLimited);
@@ -1214,8 +1215,8 @@ void ChromeAuthenticatorRequestDelegate::ConfigureNSWindow(
     device::FidoDiscoveryFactory* discovery_factory) {
   content::WebContents* web_contents =
       content::WebContents::FromRenderFrameHost(GetRenderFrameHost());
-  Browser* browser = chrome::FindBrowserWithTab(web_contents);
-  if (browser && browser->is_type_app()) {
+  BrowserWindowInterface* browser = chrome::FindBrowserWithTab(web_contents);
+  if (browser && browser->GetType() == BrowserWindowInterface::TYPE_APP) {
     // PWAs render the UI in an out-of-process window, thus there is no valid
     // NSWindow* available in the browser process.
     // TODO: crbug.com/364926914 - potentially do iCloud Keychain operations out

@@ -111,11 +111,14 @@ views::ProposedLayout VerticalUnpinnedTabContainerView::CalculateProposedLayout(
   int width = 0;
   int height = 0;
   int dragged_view_bottom = 0;
-  bool is_collapsed = IsTabStripCollapsed();
+  auto collapse_state = GetTabStripCollapseState();
 
+  // Apply horizontal padding immediately at start of collapse animation by
+  // including collapsing state.
   const int horizontal_padding = GetLayoutConstant(
-      is_collapsed ? LayoutConstant::kVerticalTabStripCollapsedPadding
-                   : LayoutConstant::kVerticalTabStripUncollapsedPadding);
+      collapse_state != tabs::VerticalTabStripCollapseState::kExpanded
+          ? LayoutConstant::kVerticalTabStripCollapsedPadding
+          : LayoutConstant::kVerticalTabStripUncollapsedPadding);
   const std::vector<views::View*> children =
       collection_node_ ? collection_node_->GetDirectChildren()
                        : std::vector<views::View*>();
@@ -125,9 +128,11 @@ views::ProposedLayout VerticalUnpinnedTabContainerView::CalculateProposedLayout(
   for (auto* child : children) {
     // The leading inset should not be applied for tab groups when the tab strip
     // is collapsed since the group color line is drawn in that space.
-    int x = views::AsViewClass<VerticalTabGroupView>(child) && is_collapsed
-                ? 0
-                : horizontal_padding;
+    int x =
+        views::AsViewClass<VerticalTabGroupView>(child) &&
+                collapse_state != tabs::VerticalTabStripCollapseState::kExpanded
+            ? 0
+            : horizontal_padding;
     views::SizeBounds child_size_bounds =
         views::SizeBounds(size_bounds.width().is_bounded()
                               ? (size_bounds.width() - (x + horizontal_padding))
@@ -276,12 +281,6 @@ void VerticalUnpinnedTabContainerView::ResetCollectionNode() {
   collection_node_ = nullptr;
 }
 
-bool VerticalUnpinnedTabContainerView::IsTabStripCollapsed() const {
-  const auto* controller =
-      collection_node_ ? collection_node_->GetController() : nullptr;
-  return controller && controller->IsCollapsed();
-}
-
 views::ScrollView* VerticalUnpinnedTabContainerView::GetScrollViewForContainer()
     const {
   return views::ScrollView::GetScrollViewForContents(
@@ -295,52 +294,6 @@ void VerticalUnpinnedTabContainerView::UpdateTargetLayoutForDrag(
 const views::ProposedLayout&
 VerticalUnpinnedTabContainerView::GetLayoutForDrag() const {
   return layout_manager_->target_layout();
-}
-
-void VerticalUnpinnedTabContainerView::HandleTabDragInContainer(
-    const gfx::Rect& dragged_tab_bounds) {
-  const views::ProposedLayout& target_layout = layout_manager_->target_layout();
-  views::View* view_at_point =
-      GetViewForDragBounds(target_layout, dragged_tab_bounds);
-  const TabCollectionNode* node = nullptr;
-  VerticalTabDragHandler& drag_handler = GetDragHandler();
-  if (auto* tab_view = views::AsViewClass<VerticalTabView>(view_at_point)) {
-    node = tab_view->collection_node();
-  } else if (auto* group_view =
-                 views::AsViewClass<VerticalTabGroupView>(view_at_point)) {
-    // Groups themselves are a drag target except when they are collapsed or
-    // if we are dragging groups, which are the only cases we handle here.
-    if (group_view->IsCollapsed()) {
-      node = group_view->collection_node();
-    } else if (drag_handler.IsDraggingGroups()) {
-      node = group_view->collection_node();
-    }
-  } else if (auto* split_tab_view =
-                 views::AsViewClass<VerticalSplitTabView>(view_at_point)) {
-    node = split_tab_view->collection_node();
-  }
-  if (node) {
-    drag_handler.HandleDraggedTabsOverNode(*node, std::nullopt);
-    // Synchronously force a layout here to update the target layout. Since all
-    // the calculations are based off on target layout, we need to ensure it is
-    // updated where there are model change.
-    DeprecatedLayoutImmediately();
-  } else {
-    // Check if dragging past the end of the unpinned container to append to the
-    // end if it is in the incorrect index. This can happen if a tab is dragged
-    // into the tabstrip below the bottommost tab since tabs are inserted at the
-    // top by default.
-    if (dragged_tab_bounds.bottom() > target_layout.host_size.height()) {
-      drag_handler.HandleDraggedTabsAtEndOfTabStrip();
-    }
-    // If dragging at the end of the tab strip, but the dragged view is not at
-    // the bottom of the container, need to invalidate the layout so the
-    // unpinned container's size gets updated.
-    if (dragged_tab_bounds.bottom() != target_layout.host_size.height() &&
-        drag_handler.IsDraggingAtEndOfTabStrip()) {
-      InvalidateLayout();
-    }
-  }
 }
 
 VerticalDraggedTabsContainer&
@@ -420,6 +373,21 @@ bool VerticalUnpinnedTabContainerView::ShouldDragRemainInGroup(
   return HasMinimumOverlap(dragging_view_bounds_from_group,
                            proposed_group_bounds, std::nullopt,
                            required_overlap_amount);
+}
+
+const TabCollectionNode*
+VerticalUnpinnedTabContainerView::GetCollectionNodeFromView(
+    const views::View& view) const {
+  if (auto* tab_view = views::AsViewClass<VerticalTabView>(&view)) {
+    return tab_view->collection_node();
+  } else if (auto* group_view =
+                 views::AsViewClass<VerticalTabGroupView>(&view)) {
+    return group_view->collection_node();
+  } else if (auto* split_tab_view =
+                 views::AsViewClass<VerticalSplitTabView>(&view)) {
+    return split_tab_view->collection_node();
+  }
+  return nullptr;
 }
 
 BEGIN_METADATA(VerticalUnpinnedTabContainerView)

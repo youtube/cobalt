@@ -1389,12 +1389,12 @@ void MenuController::OnDragExitedScrollButton(SubmenuView* source) {
   StopScrollingViaButton();
 }
 
-void MenuController::OnDragWillStart() {
+void MenuController::OnDragDropWillStart() {
   DCHECK(!drag_in_progress_);
   drag_in_progress_ = true;
 }
 
-void MenuController::OnDragComplete(bool should_close) {
+void MenuController::OnDragDropCompleted(bool should_close) {
   DCHECK(drag_in_progress_);
   drag_in_progress_ = false;
   // During a drag, mouse events are processed directly by the widget, and not
@@ -1826,8 +1826,13 @@ void MenuController::SetSelectionOnPointerDown(SubmenuView* source,
   SetSelection(part.menu, selection_types);
 }
 
-void MenuController::StartDrag(SubmenuView* source,
+void MenuController::StartDrag(SubmenuView* source_raw,
                                const gfx::Point& location) {
+  // TODO(crbug.com/497736679): Intended to keep `source_raw` quarantined inside
+  // StartDrag(). Since `source_raw` might be destroyed while RunDrawDropLoop(),
+  // `source` will be sometimes dangling pointer. So detecting
+  // `source` is dangling is expected.
+  raw_ptr<SubmenuView, DisableDanglingPtrDetection> source(source_raw);
   MenuItemView* item = state_.item;
   DCHECK(item);
   // Points are in the coordinates of the submenu, need to map to that of
@@ -1853,8 +1858,9 @@ void MenuController::StartDrag(SubmenuView* source,
   bool had_capture = source->host()->HasCapture();
   base::WeakPtr<MenuController> this_ref = AsWeakPtr();
   // TODO(varunjain): Properly determine and send DragEventSource below.
-  item->GetWidget()->RunShellDrag(nullptr, std::move(data), widget_loc,
-                                  drag_ops, ui::mojom::DragEventSource::kMouse);
+  item->GetWidget()->RunDragDropLoop(nullptr, std::move(data), widget_loc,
+                                     drag_ops,
+                                     ui::mojom::DragEventSource::kMouse);
   if (!this_ref) {
     return;
   }

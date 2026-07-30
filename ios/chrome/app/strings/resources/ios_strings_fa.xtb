@@ -80,6 +80,7 @@
 <translation id="1285320974508926690">این سایت هرگز ترجمه نشود</translation>
 <translation id="1287229685519872919">‏داده‌های Google Workspace</translation>
 <translation id="1291506870746876680">هرگاه این سایت را ترک کنید، اجازه‌های <ph name="BEGIN_BOLD" />«<ph name="SITE_NAME" />»<ph name="END_BOLD" /> به حالت خاموش برمی‌گردد.</translation>
+<translation id="1293491796138057740">‏اطلاعاتتان در «کیف پول Google» مربوط به <ph name="USER_EMAIL" /> ذخیره می‌شود. می‌توانید از آن در محصولات Google برای تکمیل سریع‌تر فرم‌ها استفاده کنید.</translation>
 <translation id="1293556467332435079">Files</translation>
 <translation id="129553762522093515">اخیراً بسته‌شده</translation>
 <translation id="1296581780163690620">فایل بارگیری شود؟ (<ph name="FILE_SIZE" />)</translation>
@@ -107,6 +108,7 @@
 <translation id="1369286077209859800">نمایش همه زبانه‌ها در گروه زبانه</translation>
 <translation id="136942498637440594">می‌توانید تصاویر و آنچه را که می‌بینید جستجو کنید.</translation>
 <translation id="1373120905936431262">‏تصویری را برای بازآمیزی با Nano Banana بارگذاری کنید</translation>
+<translation id="1377321085342047638">شماره کارت</translation>
 <translation id="1377508275003315939">گذرواژه‌ها</translation>
 <translation id="1381022135873211423">{count,plural, =1{‫{position} از {count} نشانی}one{‫{position} از {count} نشانی}other{‫{position} از {count} نشانی}}</translation>
 <translation id="1383876407941801731">جستجو</translation>
@@ -151,7 +153,6 @@
 <translation id="1517166097004694782">پنهان کردن «ادامه دادن با این زبانه»</translation>
 <translation id="1520027731907768768">دریافت اعلان‌های کاهش قیمت برای محصولاتی که پیگیری می‌کنید.</translation>
 <translation id="1521366073263497277">به جدول زبانه‌ها بروید</translation>
-<translation id="1521774566618522728">امروز فعال بود</translation>
 <translation id="1523567067736644845">برای نمایش گذرواژه، قفل را باز کنید</translation>
 <translation id="1524563461097350801">نه، متشکرم</translation>
 <translation id="1531038290222364269">نشان دادن زبانه‌ها</translation>
@@ -295,7 +296,7 @@
 <translation id="1993126639825654370">کپی کردن نشانی وب پیوند</translation>
 <translation id="199425419756152024">مشاهده گذرواژه</translation>
 <translation id="1996318269856535896">همچنان می‌توانید از داده‌های مرور موجود خود در این دستگاه استفاده کنید. برای استفاده از آن، از سیستم حساب مدیریت‌شده خود خارج شوید.</translation>
-<translation id="2010008505735295285">بار کردن مجدد</translation>
+<translation id="2010008505735295285">مجدد بار کردن</translation>
 <translation id="2012723204723845092">بازگشتتان را خوشامد می‌گوییم!</translation>
 <translation id="2015722694326466240">برای دیدن گذرنویسه‌ها، اول باید گذرنویسه‌ای برای دستگاه تنظیم کنید.</translation>
 <translation id="201759455285471444">ازهم باز کردن گروه زبانه.</translation>
@@ -376,6 +377,7 @@
 <translation id="2299218006564889602">‏گذرواژه‌هایتان قبل‌از ذخیره شدن در «مدیر گذرواژه Google» در دستگاهتان رمزگذاری می‌شود.</translation>
 <translation id="2306265833370324042">نشان دادن جزئیات <ph name="SEARCH_ENGINE_NAME" /></translation>
 <translation id="2309265394777270359">بستن زبانه</translation>
+<translation id="2310789833878085574">ذخیره و تکمیل خودکار</translation>
 <translation id="2311077293164383652">بستن زبانه سنجاق‌شده</translation>
 <translation id="2316129865977710310">نه متشکرم</translation>
 <translation id="2320166752086256636">پنهان کردن صفحه‌کلید</translation>
@@ -906,6 +908,7 @@
 <translation id="4287172530684295552">علامت‌گذاری به‌عنوان خوانده‌شده</translation>
 <translation id="428768789042547925">ویژگی‌های جدید</translation>
 <translation id="429074084062258019">{count,plural, =1{افزودن زبانه به گروه}one{افزودن زبانه به گروه}other{افزودن زبانه‌ها به گروه}}</translation>
+<translation id="4300830875340617674">اسکن کردن کارت و تکمیل خودکار</translation>
 <translation id="4302061870579014542">تنظیم کردن موقعیت</translation>
 <translation id="4304713468139749426">مدیر گذرواژه</translation>
 <translation id="4306349443295056740">‏امضای OCSP</translation>
@@ -1098,7 +1101,6 @@
 <translation id="4944543191714094452">یافتن در صفحه…</translation>
 <translation id="4945756290001680296">دسترسی به تنظیمات گذرواژه</translation>
 <translation id="4949302115427722371">مدیریت کردن تنظیمات…</translation>
-<translation id="4952050521954075618">عکس‌های «حلقه فیلم دوربین» در دستگاه‌هایتان همگام‌سازی نخواهد شد</translation>
 <translation id="4958444002117714549">بزرگ کردن فهرست</translation>
 <translation id="496392417432935267">در جای دیگری باز شده است</translation>
 <translation id="4970724460420203313">‏استفاده از Chrome با حساب مدیریت‌شده‌تان به شما کمک می‌کند داده‌های مرور مربوط به سازمانتان (مانند زبانه‌ها، سابقه، و گذرواژه‌ها) را از دیگر داده‌های مرور جدا نگه دارید</translation>
@@ -1147,7 +1149,6 @@
 <translation id="5119329531859909472">برای پیگیری محصول، روی «پیگیری» تک‌ضرب بزنید</translation>
 <translation id="5121618895923301719">ازقبل این محصول را پیگیری می‌کنید. این صفحه در <ph name="BEGIN_LINK" />نشانک‌های دستگاه همراه<ph name="END_LINK" /> ذخیره شده است.</translation>
 <translation id="512533434554095351">چندین مشکل گذرواژه دارید.</translation>
-<translation id="5127538504377457572">‫<ph name="DAYS" /> روز قبل فعال بوده است</translation>
 <translation id="5128788795241319992">کاوش کردن منو جدید</translation>
 <translation id="5132942445612118989">همگام‌سازی گذرواژه‌ها، سابقه و موارد دیگر در همه دستگاه‌ها</translation>
 <translation id="5141363746588976328">پنهان کردن کارت «کاهش قیمت در زبانه‌ها»</translation>
@@ -1182,6 +1183,7 @@
 <translation id="5225388483876575107">A</translation>
 <translation id="5225463052809312700">روشن کردن دوربین</translation>
 <translation id="5229315183665181733">ویرایش کردن سایت</translation>
+<translation id="5233111790346066304">‏فایل‌ها را در Google Drive ذخیره کنید و هر زمان خواستید به آن‌ها دسترسی داشته باشید.</translation>
 <translation id="5233638681132016545">زبانه جدید</translation>
 <translation id="5234094073825090254">{count,plural, =1{‏نشانک در «حساب Google» شما ({email}) ذخیره شد.}one{‏نشانک‌ها در «حساب Google» شما ({email}) ذخیره شد.}other{‏نشانک‌ها در «حساب Google» شما ({email}) ذخیره شد.}}</translation>
 <translation id="5234764350956374838">بستن</translation>
@@ -1261,9 +1263,10 @@
 
 Handoff باید در بخش عمومی تنظیمات نیز فعال شود و دستگاه‌های شما باید از یک حساب iCloud استفاده کنند.</translation>
 <translation id="5555008247722361784">‏با حساب <ph name="USER_EMAIL" /> به سیستم وارد شده‌اید. خطای «حساب Google». منوِ حساب را باز کنید.</translation>
-<translation id="5556459405103347317">بار کردن مجدد</translation>
+<translation id="5556459405103347317">مجدد بار کردن</translation>
 <translation id="555749644339804659">درحال بررسی گذرواژه‌ها…</translation>
 <translation id="5559567453458728487">تبدیل واحدهای اندازه‌گیری پیداشده در وب</translation>
+<translation id="5560088892362098740">تاریخ انقضا</translation>
 <translation id="556042886152191864">دکمه</translation>
 <translation id="5565871407246142825">کارت‌های اعتباری</translation>
 <translation id="5566623128829375608">در دستگاهتان ذخیره می‌کند.</translation>
@@ -1351,6 +1354,7 @@ Handoff باید در بخش عمومی تنظیمات نیز فعال شود و
 <translation id="5819208479324046259">توسط <ph name="MANAGER" /> مدیریت می‌شود. <ph name="BEGIN_LINK" />بیشتر بدانید<ph name="END_LINK" /></translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5829649908290113115">درحال همگام‌سازی…</translation>
+<translation id="5831217499016131155">Google Wallet</translation>
 <translation id="583281660410589416">ناشناس</translation>
 <translation id="5838430324585198889">‏با برنامه‌های Google، به ویژگی‌های بیشتری برای iPad دسترسی پیدا کنید</translation>
 <translation id="583923961930319521">استفاده از گذرواژه‌ها در همه دستگاه‌هایتان</translation>
@@ -1648,6 +1652,7 @@ Handoff باید در بخش عمومی تنظیمات نیز فعال شود و
 <translation id="6806550742467879742">ابزارهای صفحه</translation>
 <translation id="6807287147325542056">گذرواژه‌ها در برنامه‌های دیگر</translation>
 <translation id="681368974849482173">مورد ایجاد شد</translation>
+<translation id="6820686453637990663">CVC</translation>
 <translation id="6825078212112407882">{count,plural, =1{‏نشانک در «حساب Google» شما ({email}) ذخیره شد}one{‏‫{count} نشانک در «حساب Google» شما ({email}) ذخیره شد}other{‏‫{count} نشانک در «حساب Google» شما ({email}) ذخیره شد}}</translation>
 <translation id="6826004672264649705">درحال‌حاضر این محصول را پیگیری می‌کنید. برای دیدن سابقه قیمت باز کنید</translation>
 <translation id="6830728435402077660">امن نیست</translation>
@@ -1916,7 +1921,7 @@ Handoff باید در بخش عمومی تنظیمات نیز فعال شود و
 <translation id="7807060072011926525">‏ارائه از Google</translation>
 <translation id="7812377703891978671">با انتخاب <ph name="HISTORY_BUTTON_ACCESSIBILITY_LABEL" /> می‌توانید به کل سابقه مرورتان دسترسی داشته باشید.</translation>
 <translation id="78146569776629510">بارگیری‌ها</translation>
-<translation id="7815852444315004084">فعلاً پنهان شود</translation>
+<translation id="7815852444315004084">فعلاً پنهان کردن</translation>
 <translation id="7825973332242257878">گروه زبانه</translation>
 <translation id="7839994177130598711">‏اعضای خانواده‌تان اکنون می‌توانند هنگام ورود به سیستم <ph name="BEGIN_BOLD" /><ph name="WEBSITE" /><ph name="END_BOLD" /> بااستفاده از «مدیر گذرواژه Google»، نام کاربری و گذرواژه شما را به‌کار ببرند.</translation>
 <translation id="7841180087127694526">جستجوی نوشتار کپی‌شده</translation>
@@ -1961,7 +1966,6 @@ Handoff باید در بخش عمومی تنظیمات نیز فعال شود و
 <translation id="7952670906562503188">‏شما درآستانه حذف {passkey_count} گذرکلید و فهرست سایت‌ها و برنامه‌هایی هستید که انتخاب کرده‌اید هرگز اطلاعات ورود به سیستم را ذخیره نکنند. هیچ‌کدام از حساب‌هایی که برای سایت‌ها یا برنامه‌ها ایجاد کرده‌اید حذف نخواهد شد.</translation>
 <translation id="7958575506592576831">اطلاعات امنیتی صفحه</translation>
 <translation id="7961015016161918242">هرگز</translation>
-<translation id="7971136598759319605">آخرین فعالیت: ۱ روز قبل</translation>
 <translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">امتحان کنید</translation>
 <translation id="797588153137233716">منو ← سابقه ← حذف داده‌های مرور</translation>

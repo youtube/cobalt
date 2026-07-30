@@ -588,7 +588,8 @@ void AutofillExternalDelegate::DidSelectSuggestion(
               GetEntityInstance(suggestion)) {
         manager_->FillOrPreviewForm(mojom::ActionPersistence::kPreview,
                                     query_form_, query_field_.global_id(),
-                                    entity.as_ptr(), GetTriggerSource());
+                                    entity.as_ptr(), GetTriggerSource(),
+                                    /*blocked_fields=*/{});
       }
       break;
     case SuggestionType::kAddressEntryOnTyping:
@@ -603,7 +604,8 @@ void AutofillExternalDelegate::DidSelectSuggestion(
           suggestion.GetPayload<Suggestion::IdentityCredentialPayload>().fields;
       manager_->FillOrPreviewForm(mojom::ActionPersistence::kPreview,
                                   query_form_, query_field_.global_id(),
-                                  &profile, GetTriggerSource());
+                                  &profile, GetTriggerSource(),
+                                  /*blocked_fields=*/{});
       break;
     }
     case SuggestionType::kLoyaltyCardEntry:
@@ -815,7 +817,8 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
                       mojom::ActionPersistence::kFill, delegate->query_form_,
                       delegate->query_field_.global_id(), &profile,
                       TriggerSourceFromSuggestionTriggerSource(
-                          delegate->trigger_source_));
+                          delegate->trigger_source_),
+                      /*blocked_fields=*/{});
                 },
                 GetWeakPtr(), suggestion));
       }
@@ -851,7 +854,7 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
           *form_structure, *autofill_field, suggestion.main_text.value);
       manager_->FillOrPreviewForm(mojom::ActionPersistence::kFill, query_form_,
                                   query_field_.global_id(), &otp_fill_data,
-                                  GetTriggerSource());
+                                  GetTriggerSource(), /*blocked_fields=*/{});
       break;
     }
     case SuggestionType::kAtMemorySearchResult:
@@ -1010,22 +1013,27 @@ void AutofillExternalDelegate::DidEndTextFieldEditing() {
 }
 
 void AutofillExternalDelegate::OnTabSelected(TabbedPaneTabType tab_type) {
-  if (tab_type != TabbedPaneTabType::kPayLater) {
-    return;
+  switch (tab_type) {
+    case TabbedPaneTabType::kPayLater:
+      manager_->GetPaymentsBnplManager()->OnUserDecisionToUseBnpl(
+          std::nullopt, base::BindOnce(
+                            [](base::WeakPtr<AutofillExternalDelegate> delegate,
+                               const CreditCard& card) {
+                              if (delegate) {
+                                delegate->manager_->FillOrPreviewForm(
+                                    mojom::ActionPersistence::kFill,
+                                    delegate->query_form_,
+                                    delegate->query_field_.global_id(), &card,
+                                    AutofillTriggerSource::kPopup,
+                                    /*blocked_fields=*/{});
+                              }
+                            },
+                            GetWeakPtr()));
+      break;
+    case TabbedPaneTabType::kPayNow:
+      manager_->GetPaymentsBnplManager()->OnUserDecisionToUseSavedCards();
+      break;
   }
-  manager_->GetPaymentsBnplManager()->OnUserDecisionToUseBnpl(
-      std::nullopt, base::BindOnce(
-                        [](base::WeakPtr<AutofillExternalDelegate> delegate,
-                           const CreditCard& card) {
-                          if (delegate) {
-                            delegate->manager_->FillOrPreviewForm(
-                                mojom::ActionPersistence::kFill,
-                                delegate->query_form_,
-                                delegate->query_field_.global_id(), &card,
-                                AutofillTriggerSource::kPopup);
-                          }
-                        },
-                        GetWeakPtr()));
 }
 
 void AutofillExternalDelegate::ClearPreviewedForm() {
@@ -1060,7 +1068,8 @@ void AutofillExternalDelegate::OnCreditCardFetched(
     AutofillTriggerSource trigger_source,
     const CreditCard& card) {
   manager_->FillOrPreviewForm(mojom::ActionPersistence::kFill, query_form_,
-                              query_field_.global_id(), &card, trigger_source);
+                              query_field_.global_id(), &card, trigger_source,
+                              /*blocked_fields=*/{});
 }
 
 void AutofillExternalDelegate::PreviewAddressFieldByFieldFillingSuggestion(
@@ -1131,7 +1140,7 @@ void AutofillExternalDelegate::AutofillForm(
     if (profile) {
       manager_->FillOrPreviewForm(action_persistence, query_form_,
                                   query_field_.global_id(), &*profile,
-                                  trigger_source);
+                                  trigger_source, /*blocked_fields=*/{});
     }
     return;
   }
@@ -1144,7 +1153,7 @@ void AutofillExternalDelegate::AutofillForm(
             : *credit_card;
     manager_->FillOrPreviewForm(action_persistence, query_form_,
                                 query_field_.global_id(), &card_to_fill,
-                                trigger_source);
+                                trigger_source, /*blocked_fields=*/{});
   }
 }
 
@@ -1427,7 +1436,8 @@ void AutofillExternalDelegate::FillAutofillAiFormAndHidePopup(
              std::optional<EntityInstance> entity) {
             if (manager && entity) {
               manager->FillOrPreviewForm(mojom::ActionPersistence::kFill, form,
-                                         field_id, &*entity, trigger_source);
+                                         field_id, &*entity, trigger_source,
+                                         /*blocked_fields=*/{});
             }
           },
           manager_->GetBrowserAutofillManagerWeakPtr(), query_form_,
@@ -1436,12 +1446,9 @@ void AutofillExternalDelegate::FillAutofillAiFormAndHidePopup(
                                client.GetWeakPtr(),
                                SuggestionHidingReason::kAcceptSuggestion));
 
-  const bool is_sensitive = WillFillSensitiveAttributes(
-      *entity, *form_structure, autofill_field->section(),
-      client.GetAppLocale());
   const bool should_fetch_from_server =
-      is_sensitive && entity->IsMaskedServerEntity() &&
-      base::FeatureList::IsEnabled(features::kAutofillAiWalletPrivatePasses);
+      suggestion.GetPayload<Suggestion::AutofillAiPayload>()
+          .requires_server_fetch;
   // Add logic on top of `fill_and_hide` to incorporate the fetching of server
   // entities.
   if (should_fetch_from_server) {
@@ -1478,6 +1485,9 @@ void AutofillExternalDelegate::FillAutofillAiFormAndHidePopup(
   }
 
   // Before running `hide_and_fill`, potentially ask for a re-auth.
+  const bool is_sensitive = WillFillSensitiveAttributes(
+      *entity, *form_structure, autofill_field->section(),
+      client.GetAppLocale());
   const bool should_reauth =
       is_sensitive &&
       prefs::IsAutofillAiReauthBeforeFillingEnabled(client.GetPrefs());

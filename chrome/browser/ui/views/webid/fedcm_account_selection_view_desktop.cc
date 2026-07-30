@@ -122,26 +122,28 @@ void FedCmAccountSelectionView::OnPageActionClicked() {
     // If the user doesn't interact with the chip, it gets collapsed after a
     // timeout into an icon in the omnibox.
     // If the user clicks on the icon, we open the anchored message.
-    if (!GetCurrentPageActionState().chip_showing &&
-        !GetCurrentPageActionState().anchored_message_showing) {
-      controller->ShowAnchoredMessage(kActionFederation);
-      return;
-    }
+    base::UmaHistogramEnumeration(
+        "Blink.FedCm.Ambient.ClickSource",
+        GetCurrentPageActionState().anchored_message_showing
+            ? AmbientClick::kSignInAnchoredMessage
+            : (GetCurrentPageActionState().chip_showing
+                   ? AmbientClick::kSignInChip
+                   : AmbientClick::kSignInIcon));
 
-    // After clicking on the chip or the anchored message, we hide both of them
-    // to collapse the page action back into an icon and sign the user in.
-    controller->HideAnchoredMessage(kActionFederation);
+    // After clicking on the chip or the icon, we sign the user in and show the
+    // "Signing in ..." text.
     controller->OverrideText(
         kActionFederation,
         l10n_util::GetStringUTF16(IDS_FEDERATION_SIGNING_IN_TITLE));
     controller->ShowSuggestionChip(kActionFederation);
     controller->Show(kActionFederation);
-
     state_ = State::VERIFYING;
     NotifyDelegateOfAccountSelection(*accounts_[0], *idp_list_[0]);
   } else {
     // For sign-up users, we show a full modal dialog that gathers the necessary
     // permission from the user (e.g. privacy policies and terms of services).
+    base::UmaHistogramEnumeration("Blink.FedCm.Ambient.ClickSource",
+                                  AmbientClick::kSignUpChip);
     Show(*rp_data_, idp_list_, accounts_, blink::mojom::RpMode::kActive,
          new_accounts_);
   }
@@ -1442,7 +1444,9 @@ bool FedCmAccountSelectionView::ShowPageAction(
   if (is_returning) {
     controller->SetAnchoredMessageText(kActionFederation,
                                        base::UTF8ToUTF16(accounts[0]->email));
-    controller->ShouldShowAnchoredMessageCloseIcon(kActionFederation, true);
+    controller->SetAnchoredMessageAction(
+        kActionFederation, page_actions::AnchoredMessageActionIconType::kClose,
+        /*model=*/nullptr);
     controller->OverrideText(
         kActionFederation,
         l10n_util::GetStringFUTF16(IDS_FEDERATION_SIGN_IN_TITLE, idp_name));
@@ -1464,6 +1468,36 @@ bool FedCmAccountSelectionView::ShowPageAction(
   controller->Show(kActionFederation);
   controller->ShowSuggestionChip(kActionFederation);
   return true;
+}
+
+void FedCmAccountSelectionView::RecordPageActionImpression(
+    const page_actions::PageActionState& page_action,
+    AmbientImpression signin,
+    AmbientImpression signup) {
+  bool is_returning = accounts_.size() == 1u &&
+                      accounts_[0]->idp_claimed_login_state.value_or(
+                          accounts_[0]->browser_trusted_login_state) ==
+                          content::IdentityRequestAccount::LoginState::kSignIn;
+  base::UmaHistogramEnumeration("Blink.FedCm.Ambient.Impression",
+                                is_returning ? signin : signup);
+}
+
+void FedCmAccountSelectionView::OnPageActionIconShown(
+    const page_actions::PageActionState& next) {
+  RecordPageActionImpression(next, AmbientImpression::kSignInIcon,
+                             AmbientImpression::kSignUpIcon);
+}
+
+void FedCmAccountSelectionView::OnPageActionChipShown(
+    const page_actions::PageActionState& next) {
+  RecordPageActionImpression(next, AmbientImpression::kSignInChip,
+                             AmbientImpression::kSignUpChip);
+}
+
+void FedCmAccountSelectionView::OnPageActionAnchoredMessageShown(
+    const page_actions::PageActionState& next) {
+  RecordPageActionImpression(next, AmbientImpression::kSignInAnchoredMessage,
+                             AmbientImpression::kSignUpAnchoredMessage);
 }
 
 }  // namespace webid

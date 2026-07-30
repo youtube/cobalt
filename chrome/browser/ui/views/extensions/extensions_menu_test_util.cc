@@ -105,7 +105,8 @@ void ExtensionsMenuTestUtil::Press(const extensions::ExtensionId& id) {
 gfx::NativeView ExtensionsMenuTestUtil::GetPopupNativeView() {
   ToolbarActionViewModel* popup_owner =
       extensions_toolbar_->popup_owner_for_testing();
-  return popup_owner ? popup_owner->GetPopupNativeView() : gfx::NativeView();
+  return popup_owner ? popup_owner->GetPopupNativeViewForTesting()
+                     : gfx::NativeView();
 }
 
 bool ExtensionsMenuTestUtil::HasPopup() {
@@ -160,7 +161,7 @@ void ExtensionsMenuTestUtil::OpenExtensionsMenu() {
     bubble_dialog =
         extensions_toolbar_->GetExtensionsMenuCoordinatorForTesting()
             ->CreateExtensionsMenuBubbleDialogDelegateForTesting(
-                extensions_toolbar_->GetExtensionsButton(),
+                views::BubbleAnchor(extensions_toolbar_->GetExtensionsButton()),
                 extensions_toolbar_);
   } else {
     bubble_dialog = std::make_unique<ExtensionsMenuView>(

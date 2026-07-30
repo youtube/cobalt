@@ -6,6 +6,7 @@
 
 #include <signal.h>
 #include <stdint.h>
+#include <unistd.h>
 
 #include <cstdlib>
 #include <memory>
@@ -23,6 +24,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/path_service.h"
+#include "base/posix/safe_strerror.h"
 #include "base/process/process.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
@@ -40,6 +42,7 @@
 #include "remoting/base/branding.h"
 #include "remoting/base/crash/crash_reporting_breakpad.h"
 #include "remoting/base/logging.h"
+#include "remoting/base/passwd_utils.h"
 #include "remoting/base/username.h"
 #include "remoting/host/base/host_exit_codes.h"
 #include "remoting/host/base/screen_resolution.h"
@@ -50,16 +53,17 @@
 #include "remoting/host/ipc_constants.h"
 #include "remoting/host/linux/desktop_session_factory_linux.h"
 #include "remoting/host/linux/linux_process_launcher_delegate.h"
-#include "remoting/host/linux/passwd_utils.h"
 #include "remoting/host/mojom/chromoting_host_services.mojom.h"
 #include "remoting/host/mojom/remoting_host.mojom.h"
+#include "remoting/host/pairing_registry_delegate_linux.h"
 #include "remoting/host/posix/signal_handler.h"
 #include "remoting/host/usage_stats_consent.h"
 #include "remoting/host/worker_process_launcher.h"
 
 namespace remoting {
 
-class DaemonProcessLinux : public DaemonProcess {
+class DaemonProcessLinux : public DaemonProcess,
+                           public mojom::ChromotingHostServices {
  public:
   DaemonProcessLinux(scoped_refptr<AutoThreadTaskRunner> caller_task_runner,
                      scoped_refptr<AutoThreadTaskRunner> io_task_runner,
@@ -81,6 +85,7 @@ class DaemonProcessLinux : public DaemonProcess {
       mojo::ScopedMessagePipeHandle desktop_pipe) override;
 
   void StartDesktopSessionFactory();
+  bool SetupPairingRegistry();
 
  private:
   // DaemonProcess implementation.
@@ -94,6 +99,11 @@ class DaemonProcessLinux : public DaemonProcess {
   void SendTerminalDisconnected(int terminal_id) override;
   void StartChromotingHostServices() override;
 
+  // mojom::ChromotingHostServices implementation.
+  void BindSessionServices(
+      mojo::PendingReceiver<mojom::ChromotingSessionServices> receiver)
+      override;
+
   void OnStartDesktopSessionFactoryResult(
       base::expected<void, Loggable> result);
 
@@ -101,7 +111,7 @@ class DaemonProcessLinux : public DaemonProcess {
 
   void BindChromotingHostServices(
       mojo::PendingReceiver<mojom::ChromotingHostServices> receiver,
-      base::ProcessId peer_pid);
+      std::unique_ptr<named_mojo_ipc_server::ConnectionInfo> connection_info);
 
   // Mojo keeps the task runner passed to it alive forever, so an
   // AutoThreadTaskRunner should not be passed to it. Otherwise, the process may
@@ -117,6 +127,10 @@ class DaemonProcessLinux : public DaemonProcess {
   mojo::AssociatedRemote<mojom::DesktopSessionConnectionEvents>
       desktop_session_connection_events_;
   mojo::AssociatedRemote<mojom::RemotingHostControl> remoting_host_control_;
+
+  mojo::ReceiverSet<mojom::ChromotingHostServices,
+                    std::unique_ptr<named_mojo_ipc_server::ConnectionInfo>>
+      receivers_;
 
   base::WeakPtrFactory<DaemonProcessLinux> weak_ptr_factory_{this};
 };
@@ -183,6 +197,45 @@ void DaemonProcessLinux::StartDesktopSessionFactory() {
   desktop_session_factory_.Start(
       base::BindOnce(&DaemonProcessLinux::OnStartDesktopSessionFactoryResult,
                      base::Unretained(this)));
+}
+
+bool DaemonProcessLinux::SetupPairingRegistry() {
+  // The pairing directory is under the config directory, which is owned by
+  // root, so we need to create the pairing directory and change its owner to
+  // the network process user.
+  base::FilePath pairing_dir =
+      PairingRegistryDelegateLinux::GetDefaultRegistryPath();
+
+  // Create the directory if it doesn't exist.
+  base::File::Error error;
+  if (!base::CreateDirectoryAndGetError(pairing_dir, &error)) {
+    LOG(ERROR) << "Failed to create pairing registry directory: "
+               << base::File::ErrorToString(error);
+    return false;
+  }
+
+  // Set the owner to the network process user.
+  auto user_info = GetPasswdUserInfo(GetNetworkProcessUsername());
+  if (!user_info.has_value()) {
+    LOG(ERROR) << "Failed to get network process user info: "
+               << user_info.error();
+    return false;
+  }
+
+  if (HANDLE_EINTR(chown(pairing_dir.value().c_str(), user_info->uid,
+                         user_info->gid)) != 0) {
+    PLOG(ERROR) << "Failed to chown pairing registry directory to "
+                << GetNetworkProcessUsername();
+    return false;
+  }
+
+  // Set permissions to 700.
+  if (!base::SetPosixFilePermissions(pairing_dir,
+                                     base::FILE_PERMISSION_USER_MASK)) {
+    LOG(ERROR) << "Failed to set permissions on pairing registry directory";
+    return false;
+  }
+  return true;
 }
 
 std::unique_ptr<DesktopSession> DaemonProcessLinux::DoCreateDesktopSession(
@@ -318,8 +371,9 @@ std::unique_ptr<DaemonProcess> DaemonProcess::Create(
   auto daemon_process = std::make_unique<DaemonProcessLinux>(
       caller_task_runner, io_task_runner, std::move(stopped_callback));
 
-  // TODO: crbug.com/475611769 - set ACL on the pairing registry directory for
-  // the network user.
+  if (!daemon_process->SetupPairingRegistry()) {
+    return nullptr;
+  }
 
   daemon_process->StartDesktopSessionFactory();
 
@@ -331,13 +385,38 @@ std::unique_ptr<DaemonProcess> DaemonProcess::Create(
 
 void DaemonProcessLinux::BindChromotingHostServices(
     mojo::PendingReceiver<mojom::ChromotingHostServices> receiver,
-    base::ProcessId peer_pid) {
-  if (!remoting_host_control_.is_bound()) {
+    std::unique_ptr<named_mojo_ipc_server::ConnectionInfo> connection_info) {
+  DCHECK(caller_task_runner()->BelongsToCurrentThread());
+  if (!connection_info) {
+    LOG(WARNING) << "Binding rejected because no connection info was provided.";
+    return;
+  }
+
+  // We cannot validate `connection_info` here, since the user may not have an
+  // active graphical session when ChromotingHostServices is bound. It will be
+  // validated in BindSessionServices().
+  // IsTrustedMojoEndpoint() has done some rudimental security checks when the
+  // client connected in, but it is PID-based which means it is susceptible of
+  // PID reuse attacks.
+  receivers_.Add(this, std::move(receiver), std::move(connection_info));
+}
+
+void DaemonProcessLinux::BindSessionServices(
+    mojo::PendingReceiver<mojom::ChromotingSessionServices> receiver) {
+  DCHECK(caller_task_runner()->BelongsToCurrentThread());
+  if (!desktop_session_connection_events_.is_bound()) {
     LOG(ERROR) << "Binding rejected. Network process is not ready.";
     return;
   }
-  remoting_host_control_->BindChromotingHostServices(std::move(receiver),
-                                                     peer_pid);
+
+  uid_t uid = receivers_.current_context()->credentials.uid;
+  DesktopSession* session = desktop_session_factory_.GetSessionByUid(uid);
+  if (session) {
+    desktop_session_connection_events_->OnSessionServicesClientConnected(
+        session->id(), std::move(receiver));
+  } else {
+    LOG(WARNING) << "No desktop session found for UID " << uid;
+  }
 }
 
 }  // namespace remoting

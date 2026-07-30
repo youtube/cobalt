@@ -1,0 +1,62 @@
+// Copyright 2016 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef SERVICES_VIZ_PRIVILEGED_CPP_CONTEXT_LOST_REASON_MOJOM_TRAITS_H_
+#define SERVICES_VIZ_PRIVILEGED_CPP_CONTEXT_LOST_REASON_MOJOM_TRAITS_H_
+
+#include "base/notreached.h"
+#include "gpu/command_buffer/common/constants.h"
+#include "services/viz/privileged/mojom/gl/context_lost_reason.mojom-shared.h"
+
+namespace mojo {
+
+template <>
+struct EnumTraits<viz::mojom::ContextLostReason,
+                  gpu::error::ContextLostReason> {
+  static viz::mojom::ContextLostReason ToMojom(
+      gpu::error::ContextLostReason reason) {
+    switch (reason) {
+      case gpu::error::kGuilty:
+        return viz::mojom::ContextLostReason::GUILTY;
+      case gpu::error::kInnocent:
+        return viz::mojom::ContextLostReason::INNOCENT;
+      case gpu::error::kUnknown:
+        return viz::mojom::ContextLostReason::UNKNOWN;
+      case gpu::error::kOutOfMemory:
+        return viz::mojom::ContextLostReason::OUT_OF_MEMORY;
+      case gpu::error::kMakeCurrentFailed:
+        return viz::mojom::ContextLostReason::MAKE_CURRENT_FAILED;
+      case gpu::error::kGpuChannelLost:
+        return viz::mojom::ContextLostReason::GPU_CHANNEL_LOST;
+      case gpu::error::kInvalidGpuMessage:
+        return viz::mojom::ContextLostReason::INVALID_GPU_MESSAGE;
+    }
+    NOTREACHED();
+  }
+
+  static gpu::error::ContextLostReason FromMojom(
+      viz::mojom::ContextLostReason reason) {
+    switch (reason) {
+      case viz::mojom::ContextLostReason::GUILTY:
+        return gpu::error::kGuilty;
+      case viz::mojom::ContextLostReason::INNOCENT:
+        return gpu::error::kInnocent;
+      case viz::mojom::ContextLostReason::UNKNOWN:
+        return gpu::error::kUnknown;
+      case viz::mojom::ContextLostReason::OUT_OF_MEMORY:
+        return gpu::error::kOutOfMemory;
+      case viz::mojom::ContextLostReason::MAKE_CURRENT_FAILED:
+        return gpu::error::kMakeCurrentFailed;
+      case viz::mojom::ContextLostReason::GPU_CHANNEL_LOST:
+        return gpu::error::kGpuChannelLost;
+      case viz::mojom::ContextLostReason::INVALID_GPU_MESSAGE:
+        return gpu::error::kInvalidGpuMessage;
+    }
+    NOTREACHED();
+  }
+};
+
+}  // namespace mojo
+
+#endif  // SERVICES_VIZ_PRIVILEGED_CPP_CONTEXT_LOST_REASON_MOJOM_TRAITS_H_

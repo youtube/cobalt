@@ -11,7 +11,9 @@
 #include "chrome/browser/ui/read_anything/read_anything_immersive_web_view.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
+#include "chrome/grit/generated_resources.h"
 #include "components/tabs/public/tab_interface.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/layout/fill_layout.h"
@@ -127,12 +129,11 @@ void ReadAnythingImmersiveOverlayView::OnShowUI() {
 
   // We set the underlying web contents to be not accessible while IRM is open,
   // so that it won't receive screen reader focus or be navigable by keyboard.
-  // We achieve this by marking it as ignored, and also as a leaf, because the
-  // children of an ignored view still may be accessible if the parent is not
-  // marked as a leaf.
-  contents_web_view_->GetViewAccessibility().SetIsIgnored(true);
-  contents_web_view_->GetViewAccessibility().SetIsLeaf(true);
-  contents_web_view_->SetFocusBehavior(views::View::FocusBehavior::NEVER);
+  scoped_accessibility_disconnecter_ =
+      contents_web_view_->DisconnectWebContentsAccessibility();
+
+  GetViewAccessibility().AnnouncePolitely(l10n_util::GetStringUTF16(
+      IDS_IMMERSIVE_READING_MODE_OPENED_ANNOUNCEMENT));
 
   DUMP_WILL_BE_CHECK(immersive_web_view_);
   if (immersive_web_view_) {
@@ -147,9 +148,7 @@ ReadAnythingImmersiveOverlayView::CloseUI() {
 
   // We want the main web contents to be accessible again if IRM is closed and
   // the main webpage is now visible.
-  contents_web_view_->GetViewAccessibility().SetIsIgnored(false);
-  contents_web_view_->GetViewAccessibility().SetIsLeaf(false);
-  contents_web_view_->SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
+  scoped_accessibility_disconnecter_.reset();
 
   CHECK(immersive_web_view_);
   std::unique_ptr<ReadAnythingImmersiveWebView> web_view =

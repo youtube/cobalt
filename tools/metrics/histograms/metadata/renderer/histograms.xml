@@ -51,26 +51,12 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="Renderer.BrowserLaunchToRunLoopStart" units="ms"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>sky@chromium.org</owner>
   <owner>jam@chromium.org</owner>
   <summary>
     Time (in milliseconds) between when browser launches renderer and renderer
     message loop starts.
-  </summary>
-</histogram>
-
-<histogram
-    name="Renderer.Core.Timing.Performance.SwapsPerPerformanceEntryInsertion"
-    units="swaps" expires_after="2026-05-10">
-  <owner>iclelland@chromium.org</owner>
-  <owner>speed-metrics-dev@chromium.org</owner>
-  <summary>
-    Records the number of 'swaps' performed when inserting a single new
-    Performance Entry into its respective buffer. Recorded each time a new
-    performance entry is inserted into a sorted PerformanceEntryVector. Note
-    that this does not include singleton entries such as NavigationTiming or
-    PaintTiming.
   </summary>
 </histogram>
 
@@ -226,7 +212,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.Font.PrimaryFont.DomContentLoaded" units="ms"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>kojii@chromium.org</owner>
   <owner>tkent@chromium.org</owner>
   <owner>layout-dev@chromium.org</owner>
@@ -250,7 +236,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.Font.PrimaryFont.FCP" units="ms"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>kojii@chromium.org</owner>
   <owner>tkent@chromium.org</owner>
   <owner>layout-dev@chromium.org</owner>
@@ -274,7 +260,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.Font.SystemFallback.DomContentLoaded" units="ms"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>kojii@chromium.org</owner>
   <owner>tkent@chromium.org</owner>
   <owner>layout-dev@chromium.org</owner>
@@ -289,7 +275,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.Font.SystemFallback.FCP" units="ms"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>kojii@chromium.org</owner>
   <owner>tkent@chromium.org</owner>
   <owner>layout-dev@chromium.org</owner>
@@ -602,7 +588,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RendererScheduler.QueueingDuration.{Priority}Priority"
-    units="microseconds" expires_after="2026-07-26">
+    units="microseconds" expires_after="2026-09-27">
   <owner>szager@chromium.org</owner>
   <owner>paint-dev@chromium.org</owner>
   <summary>

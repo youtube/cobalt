@@ -324,6 +324,12 @@ inline constexpr char16_t kMemorySaverModeTabDiscardingHelpUrl[] =
 inline constexpr char16_t kIncognitoHelpCenterURL[] =
     u"https://support.google.com/chrome?p=incognito";
 
+// TODO(crbug.com/498632327): Replace this URL with P-link.
+// "Learn more" URL for the web app installation flow, linked from installation
+// dialog and options view.
+inline constexpr char kInstallDialogFlowLearnMoreURL[] =
+    "https://support.google.com/chrome/answer/9658361";
+
 // The URL for the "Learn more" page for the usage/crash reporting option in the
 // first run dialog.
 inline constexpr char kLearnMoreReportingURL[] =
@@ -358,7 +364,7 @@ inline constexpr char16_t kMyActivityUrlInHistory[] =
 
 // The URL for the Gemini Personal Context page.
 inline constexpr char16_t kGeminiPersonalContextUrl[] =
-    u"https://gemini.google.com/personal_intelligence";
+    u"https://gemini.google.com/personalization-settings";
 
 // The URL for "Your Gemini Apps Activity" page.
 inline constexpr char16_t kMyActivityGeminiAppsUrl[] =
@@ -610,6 +616,10 @@ inline constexpr char kWallpaperSearchLearnMorePageURL[] =
 // The URL for the passed in Google Wallet.
 inline constexpr char kWalletPassesPageURL[] =
     "https://wallet.google.com/wallet/passes";
+
+// The help center article URL on using Wallet private passes across Google.
+inline constexpr char kWalletPrivatePassHelpCenterURL[] =
+    "https://support.google.com/wallet?p=private_use_across_google";
 
 // The URL for the "Learn more" link in the enterprise disclaimer for managed
 // profile in the Signin Intercept bubble.

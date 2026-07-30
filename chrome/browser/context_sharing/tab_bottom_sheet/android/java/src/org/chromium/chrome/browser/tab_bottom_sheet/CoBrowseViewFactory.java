@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.tab_bottom_sheet;
 import android.app.Activity;
 
 import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
 
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.supplier.NonNullObservableSupplier;
@@ -74,11 +75,10 @@ public class CoBrowseViewFactory {
      * @param webContents The {@link WebContents} to be displayed in the thin web view.
      * @param showToolbar Whether to show the toolbar.
      * @param showFusebox Whether to show the fusebox.
-     * @param peekView The peek view to be displayed in the bottom sheet.
      * @return The {@link CoBrowseViews} instance.
      */
     CoBrowseViews buildCoBrowseViews(
-            WebContents webContents, boolean showToolbar, boolean showFusebox) {
+            @Nullable WebContents webContents, boolean showToolbar, boolean showFusebox) {
         TabBottomSheetToolbar toolbar =
                 showToolbar ? new TabBottomSheetSimpleToolbar(mActivity) : null;
         TabBottomSheetWebUi webUi =
@@ -102,7 +102,8 @@ public class CoBrowseViewFactory {
 
     @CalledByNative
     public static @Nullable CoBrowseViews getCoBrowseViews(
-            WindowAndroid windowAndroid, WebContents webContents) {
+            @JniType("ui::WindowAndroid*") WindowAndroid windowAndroid,
+            @Nullable @JniType("content::WebContents*") WebContents webContents) {
         CoBrowseViewFactory factory = TabBottomSheetUtils.getFactoryFromWindow(windowAndroid);
         if (factory == null) {
             return null;
