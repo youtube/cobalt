@@ -33,9 +33,9 @@
 #include "getrandom_fillin.h"
 
 
-#if defined(USE_NR_getrandom)
-
 using namespace bssl;
+
+#if defined(USE_NR_getrandom)
 
 #if defined(OPENSSL_MSAN)
 extern "C" {

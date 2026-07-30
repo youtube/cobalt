@@ -1,0 +1,72 @@
+# Copyright (c) 2013 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# A helper for forwarding testonly and visibility.
+# Forwarding "*" does not include variables from outer scopes (to avoid copying
+# all globals into each template invocation), so it will not pick up
+# file-scoped or outer-template-scoped variables. Normally this behavior is
+# desired, but "visibility" and "testonly" are commonly defined in outer scopes.
+# Explicitly forwarding them in forward_variables_from() works around this
+# nuance. See //build/docs/writing_gn_templates.md#using-forward_variables_from
+TESTONLY_AND_VISIBILITY = [
+  "testonly",
+  "visibility",
+]
+
+# ==============================================================================
+# COMPONENT SETUP
+# ==============================================================================
+
+# Defines a component, which equates to a shared_library when
+# is_component_build == true and a static_library otherwise.
+#
+# Use static libraries for the static build rather than source sets because
+# many of of our test binaries link many large dependencies but often don't
+# use large portions of them. The static libraries are much more efficient to
+# link in this situation since only the necessary object files are linked.
+#
+# The invoker can override the type of the target in the non-component-build
+# case by setting static_component_type to either "source_set" or
+# "static_library". If unset, the default will be used.
+template("component") {
+  if (is_component_build) {
+    _component_mode = "shared_library"
+  } else if (defined(invoker.static_component_type)) {
+    assert(invoker.static_component_type == "static_library" ||
+           invoker.static_component_type == "source_set")
+    _component_mode = invoker.static_component_type
+  } else if (!defined(invoker.sources) || invoker.sources == []) {
+    # When there are no sources defined, use a source set to avoid creating
+    # an empty static library (which generally don't work).
+    _component_mode = "source_set"
+  } else {
+    _component_mode = "static_library"
+  }
+  target(_component_mode, target_name) {
+    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+    forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
+
+    if (is_starboard) {
+      if (_component_mode == "source_set") {
+        configs += source_set_configs
+      } else if (_component_mode == "static_library") {
+        configs += static_library_configs
+      } else if (_component_mode == "shared_library") {
+        configs += shared_library_configs
+      }
+    }
+  }
+}
+
+# Component defaults
+set_defaults("component") {
+  if (is_component_build) {
+    configs = default_shared_library_configs
+    if (is_android) {
+      configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
+    }
+  } else {
+    configs = default_compiler_configs
+  }
+}

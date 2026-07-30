@@ -1,0 +1,15 @@
+{
+  "comment": "AOSP nplb exclusions.",
+  "failing_tests": [
+    "*MaximumPlayerConfigurationExplorer*",
+    "*MultiplePlayer*",
+    "*SbMediaSetAudioWriteDuration*",
+    "*SbPlayer*",
+    "*VerticalVideoTest*",
+    "PosixAuxvGetauxvalRequiredTests/PosixAuxvGetauxvalRequiredTest.RequiredValuesAreValid/1",
+    "SbAudioSinkTest.ContinuousAppend",
+    "SbDrmSessionTest.*",
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbTimeZoneGetNameTest.IsIANAFormat"
+  ]
+}
