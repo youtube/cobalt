@@ -298,6 +298,14 @@ void ConvertNodeInteractionInfo(
   }
   proto_interaction_info->set_is_focusable(
       mojom_node_interaction_info.is_focusable);
+  proto_interaction_info->set_is_tabbable(
+      mojom_node_interaction_info.is_tabbable);
+  proto_interaction_info->set_has_aria_activedescendant(
+      mojom_node_interaction_info.has_aria_activedescendant);
+  for (int32_t dom_node_id :
+       mojom_node_interaction_info.aria_action_target_node_ids) {
+    proto_interaction_info->add_aria_action_target_node_ids(dom_node_id);
+  }
 
   if (mojom_node_interaction_info.document_scoped_z_order) {
     proto_interaction_info->set_document_scoped_z_order(

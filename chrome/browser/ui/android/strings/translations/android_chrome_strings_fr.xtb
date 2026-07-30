@@ -273,7 +273,7 @@ Seule une personne connaissant votre phrase secrète peut lire vos données chif
 <translation id="2172905120685242547">Fermer la fenêtre ?</translation>
 <translation id="2173302385160625112">Vérifiez votre connexion Internet</translation>
 <translation id="2175927920773552910">QR code</translation>
-<translation id="2184272387334793084">Connectez-vous pour accéder à vos mots de passe et bien plus sur tous vos appareils</translation>
+<translation id="2184272387334793084">Connectez-vous pour accéder à vos mots de passe et plus encore sur tous vos appareils</translation>
 <translation id="218608176142494674">Partage</translation>
 <translation id="2186779861549045980">Vous pouvez choisir les données à enregistrer dans votre compte Google.\nVous pouvez aussi afficher et gérer ces éléments dans vos favoris, votre liste de lecture ou le Gestionnaire de mots de passe.</translation>
 <translation id="219283042927675668">Onglets dans le groupe</translation>
@@ -462,6 +462,7 @@ Seule une personne connaissant votre phrase secrète peut lire vos données chif
 <translation id="2932150158123903946">Stockage Google <ph name="APP_NAME" /></translation>
 <translation id="2932222164150889403">Votre clavier ne sera pas modifié</translation>
 <translation id="2936980480904111527">Les notifications de Chrome vous simplifient la vie</translation>
+<translation id="2939908794993783865">Autres sites inactifs</translation>
 <translation id="2940075786175545812">Option permettant d'approuver ou non un site Web</translation>
 <translation id="2942036813789421260">L'onglet "Aperçu" est fermé</translation>
 <translation id="2951071800649516099">Ajoutez des pages à votre liste de lecture pour plus tard</translation>
@@ -566,7 +567,7 @@ Seule une personne connaissant votre phrase secrète peut lire vos données chif
 <translation id="3435465986463792564">Vous pouvez gérer toutes vos fenêtres depuis ce menu</translation>
 <translation id="3435575784518354875">Pour conserver l'accès à vos mots de passe, exportez-les maintenant, mettez à jour les services Google Play, puis importez les mots de passe à nouveau dans le Gestionnaire de mots de passe de Google. <ph name="BEGIN_LINK" />Voir les instructions détaillées<ph name="END_LINK" /></translation>
 <translation id="3435738964857648380">Sécurité</translation>
-<translation id="3435914367318771664">Ajouter l'onglet à nouveau groupe</translation>
+<translation id="3435914367318771664">Ajouter onglet à nouv. groupe</translation>
 <translation id="3438681572027105609">Pour accéder à vos mots de passe et plus encore sur tous vos appareils, connectez-vous à Chrome</translation>
 <translation id="3439276997620616816">Vos onglets récents s'afficheront ici</translation>
 <translation id="3443221991560634068">Actualiser la page active</translation>
@@ -699,6 +700,7 @@ Seule une personne connaissant votre phrase secrète peut lire vos données chif
 <translation id="3985215325736559418">Voulez-vous télécharger <ph name="FILE_NAME" /> de nouveau ?</translation>
 <translation id="3987993985790029246">Copier lien</translation>
 <translation id="3994236846568425219">Activer le thème sombre lorsque le thème sombre de votre appareil est activé</translation>
+<translation id="399788104667917863">Épingler à la barre d'outils</translation>
 <translation id="4000212216660919741">Mode hors connexion</translation>
 <translation id="4000670338830950598">Personnaliser et contrôler Google Chrome avec un élément mis en surbrillance</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{1 mot de passe compromis dans votre compte Google}one{# mot de passe compromis dans votre compte Google}other{# mots de passe compromis dans votre compte Google}}</translation>
@@ -1392,9 +1394,8 @@ Par exemple, certains sites Web peuvent répondre à cette demande en diffusant 
 <translation id="6738867403308150051">Téléchargement en cours…</translation>
 <translation id="6745063744988317486">Mono</translation>
 <translation id="6746338529702829275">Examinez les données de votre compte</translation>
-<translation id="6746834324024491643">Pour accéder à vos mots de passe et plus sur tous vos appareils, connectez-vous en tant que <ph name="EMAIL" /></translation>
+<translation id="6746834324024491643">Pour accéder à vos mots de passe et plus encore sur tous vos appareils, connectez-vous en tant que <ph name="EMAIL" /></translation>
 <translation id="6751521182688001123">Ouvre rapidement un nouvel onglet. Pour modifier ce raccourci, appuyez dessus de manière prolongée.</translation>
-<translation id="6752130751133944215">Pour restaurer une nouvelle fenêtre, réduisez le nombre total de fenêtres actives et inactives à <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> ou moins. Les fenêtres inactives sont supprimées au bout de six mois.</translation>
 <translation id="6754359471209693699">Lancer une nouvelle recherche</translation>
 <translation id="6756507620369789050">Envoyer des commentaires</translation>
 <translation id="6762511428368667596"><ph name="NAME" />, <ph name="EMAIL" />.</translation>
@@ -1584,7 +1585,6 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="7388615499319468910">Les sites et les annonceurs peuvent analyser les performances des annonces. Ce paramètre est désactivé.</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{Autres, un fichier dans la liste}one{Autres, # fichier dans la liste}other{Autres, # fichiers dans la liste}}</translation>
 <translation id="7400418766976504921">URL</translation>
-<translation id="7400424692675800399">Pour ouvrir une nouvelle fenêtre, réduisez le nombre total de fenêtres actives et inactives à <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> ou moins.</translation>
 <translation id="7403691278183511381">Expérience de première utilisation de Chrome</translation>
 <translation id="7411224099004328643">Utilisateur du compte Google</translation>
 <translation id="7419565702166471774">Toujours utiliser une connexion sécurisée</translation>
@@ -2042,7 +2042,7 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="9212845824145208577">Impossible d'aller plus bas. Essayez de commencer plus bas sur la page.</translation>
 <translation id="9218430445555521422">Définir par défaut</translation>
 <translation id="9219103736887031265">Images</translation>
-<translation id="9222198206152536936">Pour accéder à vos onglets et plus sur tous vos appareils, connectez-vous en tant que <ph name="EMAIL" /></translation>
+<translation id="9222198206152536936">Pour accéder à vos onglets et plus encore sur tous vos appareils, connectez-vous en tant que <ph name="EMAIL" /></translation>
 <translation id="924447568950697217">Faites de Chrome votre navigateur par défaut</translation>
 <translation id="926205370408745186">Supprimer votre activité Chrome de Bien-être numérique</translation>
 <translation id="927968626442779827">Utilisez le mode simplifié dans Google Chrome</translation>

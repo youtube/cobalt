@@ -28,21 +28,25 @@
 
 namespace blink {
 class WidgetInputHandlerImpl;
-}
+}  // namespace blink
 
 namespace cc::mojo_embedder {
 class AsyncLayerTreeFrameSink;
-}
+}  // namespace cc::mojo_embedder
 
 namespace cc::slim {
 class FrameSinkImpl;
-}
+}  // namespace cc::slim
 
 namespace viz {
 class CompositorFrameSinkImpl;
 class FrameSinkManagerImpl;
 class ExternalBeginFrameSourceMojoMac;
 }  // namespace viz
+
+namespace network {
+class NetworkContext;
+}  // namespace network
 
 namespace mojo {
 
@@ -140,6 +144,7 @@ class DirectReceiverKey {
   friend class viz::CompositorFrameSinkImpl;
   friend class viz::FrameSinkManagerImpl;
   friend class viz::ExternalBeginFrameSourceMojoMac;
+  friend class network::NetworkContext;
 };
 
 // DirectReceiver is a wrapper around the standard Receiver<T> type that always
@@ -173,10 +178,6 @@ class DirectReceiverKey {
 // DirectReceiver, passing pipes to your DirectReceiver is likely a BAD IDEA.
 template <typename T>
 class DirectReceiver {
-  static_assert(
-      T::kSupportsDirectReceiver,
-      "This interface must be marked with the [DirectReceiver] attribute.");
-
  public:
   // Creates a DirectReceiver bound to the current thread.
   DirectReceiver(DirectReceiverKey, T* impl) : receiver_(impl) {}

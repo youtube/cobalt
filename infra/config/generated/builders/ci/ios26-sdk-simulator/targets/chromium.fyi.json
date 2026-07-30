@@ -13,7 +13,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -36,7 +36,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -45,7 +45,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -64,7 +64,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -87,7 +87,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -96,7 +96,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -115,7 +115,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -138,7 +138,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -147,7 +147,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -166,7 +166,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -189,7 +189,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -198,7 +198,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -217,7 +217,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -240,7 +240,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -249,7 +249,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -268,7 +268,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -291,7 +291,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -300,7 +300,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -319,7 +319,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -342,7 +342,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -351,7 +351,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -370,7 +370,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -393,7 +393,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -402,7 +402,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -421,7 +421,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -444,7 +444,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -453,7 +453,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -472,7 +472,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -495,7 +495,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -504,7 +504,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -523,7 +523,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -546,7 +546,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -555,7 +555,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -574,7 +574,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -597,7 +597,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -606,7 +606,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -625,7 +625,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -648,7 +648,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -657,7 +657,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -676,7 +676,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -699,7 +699,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -708,7 +708,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -727,7 +727,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -750,7 +750,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -759,7 +759,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -778,7 +778,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -801,7 +801,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -810,7 +810,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -829,7 +829,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -852,7 +852,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -861,7 +861,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -880,7 +880,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -903,7 +903,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -912,7 +912,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -931,7 +931,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -954,7 +954,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -963,7 +963,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -982,7 +982,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1005,7 +1005,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1014,7 +1014,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1033,7 +1033,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1056,7 +1056,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1065,7 +1065,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1085,7 +1085,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1108,7 +1108,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1117,7 +1117,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1138,7 +1138,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1161,7 +1161,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1170,7 +1170,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1193,7 +1193,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1216,7 +1216,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1225,7 +1225,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1248,7 +1248,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1271,7 +1271,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1280,7 +1280,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1303,7 +1303,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1326,7 +1326,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1335,7 +1335,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1358,7 +1358,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1381,7 +1381,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1390,7 +1390,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1411,7 +1411,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1434,7 +1434,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1443,7 +1443,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1464,7 +1464,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1487,7 +1487,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1496,7 +1496,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1517,7 +1517,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1540,7 +1540,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1549,7 +1549,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1569,7 +1569,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1592,7 +1592,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1601,7 +1601,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1623,7 +1623,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1646,7 +1646,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1655,7 +1655,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1678,7 +1678,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1701,7 +1701,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1710,7 +1710,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1730,7 +1730,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1753,7 +1753,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1762,7 +1762,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1781,7 +1781,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1804,7 +1804,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1813,7 +1813,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1832,7 +1832,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1855,7 +1855,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1864,7 +1864,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1884,7 +1884,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1907,7 +1907,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1916,7 +1916,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1937,7 +1937,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -1960,7 +1960,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -1969,7 +1969,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -1989,7 +1989,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2012,7 +2012,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2021,7 +2021,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2040,7 +2040,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2063,7 +2063,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2072,7 +2072,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2091,7 +2091,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2114,7 +2114,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2123,7 +2123,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2142,7 +2142,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2165,7 +2165,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2174,7 +2174,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2193,7 +2193,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2216,7 +2216,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2225,7 +2225,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2244,7 +2244,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2267,7 +2267,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2276,7 +2276,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2296,7 +2296,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2319,7 +2319,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2328,7 +2328,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2349,7 +2349,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2372,7 +2372,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2381,7 +2381,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2401,7 +2401,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2424,7 +2424,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2433,7 +2433,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2452,7 +2452,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2475,7 +2475,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2484,7 +2484,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2503,7 +2503,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2526,7 +2526,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2535,7 +2535,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2554,7 +2554,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2577,7 +2577,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2586,7 +2586,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2605,7 +2605,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2628,7 +2628,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2637,7 +2637,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2656,7 +2656,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2679,7 +2679,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2688,7 +2688,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2708,7 +2708,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2731,7 +2731,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2740,7 +2740,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2760,7 +2760,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2783,7 +2783,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2792,7 +2792,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2811,7 +2811,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2834,7 +2834,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2843,7 +2843,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2862,7 +2862,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2885,7 +2885,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2894,7 +2894,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2913,7 +2913,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2936,7 +2936,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2945,7 +2945,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -2964,7 +2964,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -2987,7 +2987,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -2996,7 +2996,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3015,7 +3015,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3038,7 +3038,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3047,7 +3047,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3066,7 +3066,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3089,7 +3089,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3098,7 +3098,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3117,7 +3117,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3140,7 +3140,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3149,7 +3149,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3168,7 +3168,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3191,7 +3191,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3200,7 +3200,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3219,7 +3219,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3242,7 +3242,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3251,7 +3251,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3270,7 +3270,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3293,7 +3293,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3302,7 +3302,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3321,7 +3321,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3344,7 +3344,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3353,7 +3353,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3372,7 +3372,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3395,7 +3395,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3404,7 +3404,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3423,7 +3423,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3446,7 +3446,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3455,7 +3455,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3474,7 +3474,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3497,7 +3497,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3506,7 +3506,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3525,7 +3525,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3548,7 +3548,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3557,7 +3557,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3576,7 +3576,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3599,7 +3599,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3608,7 +3608,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3627,7 +3627,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3650,7 +3650,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3659,7 +3659,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3678,7 +3678,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3701,7 +3701,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3710,7 +3710,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3729,7 +3729,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3752,7 +3752,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3761,7 +3761,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3780,7 +3780,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3803,7 +3803,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3812,7 +3812,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3831,7 +3831,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3854,7 +3854,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3863,7 +3863,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3882,7 +3882,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3905,7 +3905,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3914,7 +3914,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],
@@ -3933,7 +3933,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17e5179g",
+          "17e192",
           "--xctest"
         ],
         "merge": {
@@ -3956,7 +3956,7 @@
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-15",
+            "os": "Mac-15|Mac-26",
             "pool": "chromium.tests.iosbeta"
           },
           "named_caches": [
@@ -3965,7 +3965,7 @@
               "path": "Runtime-ios-26.4"
             },
             {
-              "name": "xcode_ios_17e5179g",
+              "name": "xcode_ios_17e192",
               "path": "Xcode.app"
             }
           ],

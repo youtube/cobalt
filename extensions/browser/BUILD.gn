@@ -636,6 +636,7 @@ source_set("browser_sources") {
     "//extensions/browser/api/storage:settings_observer",
     "//extensions/browser/api/system_display:display_info_provider",
     "//extensions/browser/api/virtual_keyboard_private:virtual_keyboard_delegate",
+    "//extensions/browser/mime_handler:stream_container",
     "//extensions/buildflags",
     "//extensions/common",
     "//extensions/common/api",
@@ -871,12 +872,17 @@ source_set("crx_installer") {
 }
 source_set("webstore_installer") {
   sources = [
+    "webstore_data_fetcher.cc",
+    "webstore_data_fetcher.h",
+    "webstore_data_fetcher_delegate.cc",
+    "webstore_data_fetcher_delegate.h",
     "webstore_installer.cc",
     "webstore_installer.h",
   ]
   deps = [
     ":browser_sources",
     ":crx_installer",
+    ":cws_item_service_proto",
     "//base",
     "//components/download/public/common:public",
     "//components/update_client",
@@ -884,6 +890,7 @@ source_set("webstore_installer") {
     "//extensions/buildflags",
     "//extensions/common",
     "//extensions/strings",
+    "//google_apis/common:request_util",
     "//net/traffic_annotation",
     "//ui/base",
     "//url",
@@ -1132,6 +1139,7 @@ source_set("unit_tests") {
     "//extensions/browser/api/storage:settings_namespace",
     "//extensions/browser/api/system_display:display_info_provider",
     "//extensions/browser/api/virtual_keyboard_private:virtual_keyboard_delegate",
+    "//extensions/browser/mime_handler:stream_container",
     "//extensions/browser/updater",
     "//extensions/buildflags",
     "//extensions/common",

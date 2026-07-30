@@ -8,8 +8,10 @@
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
+#include "base/functional/bind.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/trace_event/trace_event.h"
 #include "base/version_info/version_info.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/glic/fre/fre_util.h"
@@ -45,6 +47,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/webui/webui_allowlist.h"
@@ -55,10 +58,6 @@
 #endif  // !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 namespace glic {
-
-// Enables sending bitmaps across glic for favicons instead of converting to
-// PNG.
-BASE_FEATURE(kGlicBitmapsEnabled, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Sets the maximum number of in-flight requests to the guest.
 BASE_FEATURE(kGlicMaxInFlightRequests, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -92,10 +91,26 @@ class GlicPreloadHandler : public glic::mojom::GlicPreloadHandler {
   ~GlicPreloadHandler() override = default;
 
   void PrepareForClient(
-      glic::mojom::GlicPreloadHandler::PrepareForClientCallback callback)
-      override {
+      mojom::GlicPreloadHandler::PrepareForClientCallback callback) override {
+    TRACE_EVENT_INSTANT("browser",
+                        "GlicPreloadHandler::PrepareForClient - Request",
+                        perfetto::Flow::FromPointer(this));
+
+    auto wrapped_callback = base::BindOnce(
+        [](base::WeakPtr<GlicPreloadHandler> origin_this,
+           mojom::GlicPreloadHandler::PrepareForClientCallback callback,
+           mojom::PrepareForClientResult result) {
+          if (origin_this) {
+            TRACE_EVENT_INSTANT(
+                "browser", "GlicPreloadHandler::PrepareForClient - Response",
+                perfetto::TerminatingFlow::FromPointer(origin_this.get()));
+          }
+          std::move(callback).Run(std::move(result));
+        },
+        this->weak_ptr_factory_.GetWeakPtr(), std::move(callback));
+
     GetGlicService()->GetAuthController().CheckAuthBeforeLoad(
-        std::move(callback));
+        std::move(wrapped_callback));
   }
 
  private:
@@ -112,6 +127,8 @@ class GlicPreloadHandler : public glic::mojom::GlicPreloadHandler {
   mojo::Receiver<glic::mojom::GlicPreloadHandler> receiver_;
   mojo::Remote<glic::mojom::PreloadPage> preload_page_;
   std::vector<base::CallbackListSubscription> subscriptions_;
+
+  base::WeakPtrFactory<GlicPreloadHandler> weak_ptr_factory_{this};
 };
 
 // static
@@ -121,8 +138,16 @@ GlicUIConfig::GlicUIConfig()
     : DefaultWebUIConfig(content::kChromeUIScheme, chrome::kChromeUIGlicHost) {}
 
 bool GlicUIConfig::IsWebUIEnabled(content::BrowserContext* browser_context) {
-  return GlicEnabling::IsProfileEligible(
-      Profile::FromBrowserContext(browser_context));
+  Profile* profile = Profile::FromBrowserContext(browser_context);
+  return GlicEnabling::IsEnabledForProfile(profile) ||
+         GlicEnabling::IsInternalsWebUIEnabled(profile);
+}
+
+std::unique_ptr<content::WebUIController> GlicUIConfig::CreateWebUIController(
+    content::WebUI* web_ui,
+    const GURL& url) {
+  return content::DefaultWebUIConfig<GlicUI>::CreateWebUIController(web_ui,
+                                                                    url);
 }
 
 GlicUI::GlicUI(content::WebUI* web_ui)
@@ -298,8 +323,6 @@ GlicUI::GlicUI(content::WebUI* web_ui)
   source->AddBoolean(
       "glicWebContentsWarming",
       base::FeatureList::IsEnabled(features::kGlicWebContentsWarming));
-  source->AddBoolean("glicBitmapsEnabled",
-                     base::FeatureList::IsEnabled(kGlicBitmapsEnabled));
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(GlicUI)
@@ -362,28 +385,38 @@ void GlicUI::AttachToHost(Host* host) {
     page_handler_ = std::make_unique<GlicPageHandler>(
         web_ui()->GetWebContents(), host, std::move(pending_receiver_),
         std::move(pending_page_));
+    std::move(pending_callback_).Run(host->GetInstanceId().value());
   }
 }
 
 void GlicUI::CreatePageHandler(
     mojo::PendingReceiver<glic::mojom::PageHandler> receiver,
-    mojo::PendingRemote<glic::mojom::Page> page) {
+    mojo::PendingRemote<glic::mojom::Page> page,
+    CreatePageHandlerCallback callback) {
+  if (!IsProfileEligible()) {
+    return;
+  }
   if (!host_) {
     // Create a Host for tabs navigated to chrome://glic
-    host_ = GlicKeyedServiceFactory::GetGlicKeyedService(
-                web_ui()->GetWebContents()->GetBrowserContext())
-                ->host_manager()
-                .GetOrCreateHostForTab(web_ui()->GetWebContents());
+    GlicKeyedService* service = GlicKeyedServiceFactory::GetGlicKeyedService(
+        web_ui()->GetWebContents()->GetBrowserContext());
+    if (service) {
+      host_ = service->host_manager().GetOrCreateHostForTab(
+          web_ui()->GetWebContents());
+    }
   }
   if (!host_) {
     // If there is no host yet, wait for a glic host to be associated with this
     // WebUI.
     pending_receiver_ = std::move(receiver);
     pending_page_ = std::move(page);
+    pending_callback_ = mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+        std::move(callback), std::string());
     return;
   }
   page_handler_ = std::make_unique<GlicPageHandler>(
       web_ui()->GetWebContents(), host_, std::move(receiver), std::move(page));
+  std::move(callback).Run(host_->GetInstanceId().value());
 }
 
 void GlicUI::CreateInternalsPageHandler(
@@ -394,6 +427,9 @@ void GlicUI::CreateInternalsPageHandler(
 
 void GlicUI::CreatePageHandler(
     mojo::PendingReceiver<glic::mojom::FrePageHandler> fre_receiver) {
+  if (!IsProfileEligible()) {
+    return;
+  }
   fre_page_handler_ = std::make_unique<GlicFrePageHandler>(
       /*is_unified_fre=*/true, web_ui()->GetWebContents(),
       std::move(fre_receiver));
@@ -402,9 +438,23 @@ void GlicUI::CreatePageHandler(
 void GlicUI::CreatePreloadHandler(
     mojo::PendingReceiver<glic::mojom::GlicPreloadHandler> receiver,
     mojo::PendingRemote<glic::mojom::PreloadPage> page) {
+  if (!IsProfileEligible()) {
+    return;
+  }
+  content::BrowserContext* browser_context =
+      web_ui()->GetWebContents()->GetBrowserContext();
+  GlicKeyedService* service =
+      GlicKeyedServiceFactory::GetGlicKeyedService(browser_context);
+  if (!service) {
+    return;
+  }
   preload_handler_ = std::make_unique<GlicPreloadHandler>(
-      web_ui()->GetWebContents()->GetBrowserContext(), std::move(receiver),
-      std::move(page));
+      browser_context, std::move(receiver), std::move(page));
+}
+
+bool GlicUI::IsProfileEligible() {
+  return GlicEnabling::IsProfileEligible(Profile::FromBrowserContext(
+      web_ui()->GetWebContents()->GetBrowserContext()));
 }
 
 }  // namespace glic

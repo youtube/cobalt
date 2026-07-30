@@ -12,9 +12,10 @@ from __future__ import print_function
 import os
 import sys
 
-import setup_modules
+import setup_modules  # pylint: disable=unused-import
 
 from chromium_src.tools.metrics.histograms.update_histogram_enum import UpdateHistogramEnum
+
 
 if __name__ == '__main__':
   if len(sys.argv) > 1:

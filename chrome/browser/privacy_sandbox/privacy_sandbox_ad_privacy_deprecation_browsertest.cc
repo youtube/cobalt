@@ -6,12 +6,24 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/ui_test_utils.h"
 #include "components/prefs/pref_service.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/privacy_sandbox/privacy_sandbox_prefs.h"
 #include "content/public/test/browser_test.h"
 
 namespace privacy_sandbox {
+namespace {
+
+constexpr const char* kAdPrivacyUrls[] = {
+    "chrome://settings/adPrivacy",
+    "chrome://settings/adPrivacy/interests",
+    "chrome://settings/adPrivacy/interests/manage",
+    "chrome://settings/adPrivacy/sites",
+    "chrome://settings/adPrivacy/measurement",
+};
+
+}  // namespace
 
 class PrivacySandboxAdPrivacyDeprecationTest : public InProcessBrowserTest {
  public:
@@ -43,6 +55,39 @@ IN_PROC_BROWSER_TEST_F(PrivacySandboxAdPrivacyDeprecationTest,
       prefs::kPrivacySandboxM1AdMeasurementEnabled));
 }
 
+IN_PROC_BROWSER_TEST_F(PrivacySandboxAdPrivacyDeprecationTest,
+                       AttributionInternalsWebUINull) {
+  GURL kUrl("chrome://attribution-internals");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), kUrl));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+  EXPECT_TRUE(web_contents->GetPrimaryMainFrame()->IsErrorDocument());
+  EXPECT_EQ(web_contents->GetWebUI(), nullptr);
+}
+
+IN_PROC_BROWSER_TEST_F(PrivacySandboxAdPrivacyDeprecationTest,
+                       SettingsRoutesRedirect) {
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  GURL base_settings_url("chrome://settings/");
+  for (const char* url_string : kAdPrivacyUrls) {
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(url_string)));
+    EXPECT_EQ(web_contents->GetLastCommittedURL(), base_settings_url);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(PrivacySandboxAdPrivacyDeprecationTest,
+                       TopicsInternalsWebUINull) {
+  GURL kUrl("chrome://topics-internals");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), kUrl));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+  EXPECT_TRUE(web_contents->GetPrimaryMainFrame()->IsErrorDocument());
+  EXPECT_EQ(web_contents->GetWebUI(), nullptr);
+}
+
 class PrivacySandboxAdPrivacyDeprecationDisabledTest
     : public InProcessBrowserTest {
  public:
@@ -72,6 +117,39 @@ IN_PROC_BROWSER_TEST_F(PrivacySandboxAdPrivacyDeprecationDisabledTest,
       prefs::kPrivacySandboxM1FledgeEnabled));
   EXPECT_TRUE(browser()->profile()->GetPrefs()->GetBoolean(
       prefs::kPrivacySandboxM1AdMeasurementEnabled));
+}
+
+IN_PROC_BROWSER_TEST_F(PrivacySandboxAdPrivacyDeprecationDisabledTest,
+                       AttributionInternalsWebUINotNull) {
+  GURL kUrl("chrome://attribution-internals");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), kUrl));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+  EXPECT_FALSE(web_contents->GetPrimaryMainFrame()->IsErrorDocument());
+  EXPECT_NE(web_contents->GetWebUI(), nullptr);
+}
+
+IN_PROC_BROWSER_TEST_F(PrivacySandboxAdPrivacyDeprecationDisabledTest,
+                       SettingsRoutesDoNotRedirect) {
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  for (const char* url_string : kAdPrivacyUrls) {
+    GURL url(url_string);
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+    EXPECT_EQ(web_contents->GetLastCommittedURL(), url);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(PrivacySandboxAdPrivacyDeprecationDisabledTest,
+                       TopicsInternalsWebUINotNull) {
+  GURL kUrl("chrome://topics-internals");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), kUrl));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+  EXPECT_FALSE(web_contents->GetPrimaryMainFrame()->IsErrorDocument());
+  EXPECT_NE(web_contents->GetWebUI(), nullptr);
 }
 
 }  // namespace privacy_sandbox

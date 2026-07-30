@@ -41,7 +41,6 @@
 #import "components/infobars/core/infobar_manager.h"
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/optimization_guide/core/model_execution/remote_model_executor.h"
-#import "components/optimization_guide/machine_learning_tflite_buildflags.h"
 #import "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #import "components/password_manager/core/browser/form_parsing/form_data_parser.h"
 #import "components/password_manager/core/browser/password_form.h"
@@ -62,9 +61,11 @@
 #import "ios/chrome/browser/autofill/model/ios_autofill_ai_model_cache_factory.h"
 #import "ios/chrome/browser/autofill/model/ios_autofill_ai_model_executor_factory.h"
 #import "ios/chrome/browser/autofill/model/ios_autofill_entity_data_manager_factory.h"
+#import "ios/chrome/browser/autofill/model/ios_autofill_field_classification_model_handler_factory.h"
 #import "ios/chrome/browser/autofill/model/ios_wallet_pass_access_manager_factory.h"
 #import "ios/chrome/browser/autofill/model/personal_data_manager_factory.h"
 #import "ios/chrome/browser/autofill/model/strike_database_factory.h"
+#import "ios/chrome/browser/consent_auditor/model/consent_auditor_factory.h"
 #import "ios/chrome/browser/device_reauth/model/ios_device_authenticator.h"
 #import "ios/chrome/browser/device_reauth/model/ios_device_authenticator_factory.h"
 #import "ios/chrome/browser/device_reauth/model/reauthentication_service.h"
@@ -75,6 +76,7 @@
 #import "ios/chrome/browser/metrics/model/google_groups_manager_factory.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service_factory.h"
+#import "ios/chrome/browser/passwords/model/ios_password_field_classification_model_handler_factory.h"
 #import "ios/chrome/browser/passwords/model/password_tab_helper.h"
 #import "ios/chrome/browser/plus_addresses/model/plus_address_service_factory.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
@@ -90,11 +92,6 @@
 #import "ios/web/public/web_state.h"
 #import "services/network/public/cpp/shared_url_loader_factory.h"
 #import "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
-
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-#import "ios/chrome/browser/autofill/model/ios_autofill_field_classification_model_handler_factory.h"
-#import "ios/chrome/browser/passwords/model/ios_password_field_classification_model_handler_factory.h"
-#endif
 
 namespace autofill {
 
@@ -207,25 +204,23 @@ WalletPassAccessManager* ChromeAutofillClientIOS::GetWalletPassAccessManager() {
   return IOSWalletPassAccessManagerFactory::GetForProfile(profile_);
 }
 
+consent_auditor::ConsentAuditor* ChromeAutofillClientIOS::GetConsentAuditor() {
+  return ConsentAuditorFactory::GetForProfile(profile_);
+}
+
 FieldClassificationModelHandler*
 ChromeAutofillClientIOS::GetAutofillFieldClassificationModelHandler() {
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   if (base::FeatureList::IsEnabled(features::kAutofillModelPredictions)) {
     return IOSAutofillFieldClassificationModelHandlerFactory::GetForProfile(
         profile_);
   }
-#endif
   return nullptr;
 }
 
 FieldClassificationModelHandler*
 ChromeAutofillClientIOS::GetPasswordManagerFieldClassificationModelHandler() {
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   return IOSPasswordFieldClassificationModelHandlerFactory::GetForProfile(
       profile_);
-#else
-  return nullptr;
-#endif
 }
 
 SingleFieldFillRouter& ChromeAutofillClientIOS::GetSingleFieldFillRouter() {
@@ -448,6 +443,7 @@ void ChromeAutofillClientIOS::UpdateAutofillDataListValues(
 void ChromeAutofillClientIOS::HideAutofillSuggestions(
     SuggestionHidingReason reason) {
   [bridge_ hideAutofillPopup];
+  [commands_handler_ resetAutofillSuggestionsLoadingStates];
 }
 
 bool ChromeAutofillClientIOS::IsAutofillEnabled() const {
@@ -611,7 +607,7 @@ void ChromeAutofillClientIOS::ShowEntityImportBubble(
   // Enhanced Autofill is only available to signed-in users.
   std::optional<std::u16string> user_email = GetUserEmail();
   if (!user_email.has_value()) {
-    std::move(prompt_result_callback).Run(AutofillAiBubbleResult::kUnknown);
+    std::move(prompt_result_callback).Run(AutofillAiBubbleResult::kUnknown, {});
     return;
   }
 

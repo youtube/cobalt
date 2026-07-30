@@ -200,7 +200,6 @@ static_library("browser") {
     "data_model/addresses/autofill_structured_address_component.h",
     "data_model/addresses/autofill_structured_address_component_store.cc",
     "data_model/addresses/autofill_structured_address_component_store.h",
-    "data_model/addresses/autofill_structured_address_constants.cc",
     "data_model/addresses/autofill_structured_address_constants.h",
     "data_model/addresses/autofill_structured_address_format_provider.cc",
     "data_model/addresses/autofill_structured_address_format_provider.h",
@@ -812,8 +811,6 @@ static_library("browser") {
     "ui/payments/card_unmask_prompt_options.cc",
     "ui/payments/card_unmask_prompt_options.h",
     "ui/payments/card_unmask_prompt_view.h",
-    "ui/payments/omnibox_autofill_delegate.cc",
-    "ui/payments/omnibox_autofill_delegate.h",
     "ui/payments/payments_ui_closed_reasons.h",
     "ui/payments/payments_window_user_consent_dialog.h",
     "ui/payments/payments_window_user_consent_dialog_controller.h",
@@ -837,6 +834,7 @@ static_library("browser") {
     "ui/region_combobox_model.cc",
     "ui/region_combobox_model.h",
     "ui/suggestion_button_action.h",
+    "ui/tabbed_pane_enums.h",
     "webdata/addresses/address_autofill_table.cc",
     "webdata/addresses/address_autofill_table.h",
     "webdata/addresses/autofill_profile_sync_bridge.cc",
@@ -916,8 +914,12 @@ static_library("browser") {
     sources += [
       "metrics/payments/credit_card_save_metrics_desktop.cc",
       "metrics/payments/credit_card_save_metrics_desktop.h",
+      "metrics/payments/omnibox_autofill_metrics.cc",
+      "metrics/payments/omnibox_autofill_metrics.h",
       "payments/desktop_bnpl_strategy.cc",
       "payments/desktop_bnpl_strategy.h",
+      "ui/payments/omnibox_autofill_delegate.cc",
+      "ui/payments/omnibox_autofill_delegate.h",
     ]
   }
 
@@ -1068,6 +1070,7 @@ static_library("browser") {
     "//components/variations/net",
     "//components/version_info",
     "//components/wallet/core/browser",
+    "//components/wallet/core/common:features",
     "//components/webdata/common",
     "//crypto",
     "//google_apis",
@@ -1109,11 +1112,14 @@ static_library("browser") {
     deps += [ "//components/strings" ]
   }
 
-  if (!is_android && !is_ios) {
+  if (!is_android) {
     sources += [
       "crowdsourcing/server_prediction_overrides.cc",
       "crowdsourcing/server_prediction_overrides.h",
     ]
+  }
+
+  if (!is_android && !is_ios) {
     deps += [ "//ui/native_theme" ]
   }
 
@@ -1407,6 +1413,7 @@ static_library("test_support") {
     "//components/autofill/core/browser",
     "//components/autofill/core/common",
     "//components/autofill/core/common:credit_card_number_validation",
+    "//components/consent_auditor:test_support",
     "//components/device_reauth:test_support",
     "//components/feature_engagement",
     "//components/leveldb_proto",
@@ -1643,6 +1650,7 @@ source_set("unit_tests") {
     "logging/log_router_unittest.cc",
     "logging/text_log_receiver_unittest.cc",
     "manual_testing_import_unittest.cc",
+    "metrics/address_data_cleaner_metrics_unittest.cc",
     "metrics/autofill_metrics_unittest.cc",
     "metrics/autofill_metrics_utils_unittest.cc",
     "metrics/autofill_settings_metrics_unittest.cc",
@@ -1807,6 +1815,7 @@ source_set("unit_tests") {
 
   if (!is_android) {
     sources += [
+      "crowdsourcing/server_prediction_overrides_unittest.cc",
       "ui/autofill_image_fetcher_unittest.cc",
       "ui/payments/bnpl_tos_controller_impl_unittest.cc",
     ]
@@ -1828,8 +1837,8 @@ source_set("unit_tests") {
 
   if (!is_ios && !is_android) {
     sources += [
-      "crowdsourcing/server_prediction_overrides_unittest.cc",
       "payments/desktop_bnpl_strategy_unittest.cc",
+      "ui/payments/omnibox_autofill_delegate_unittest.cc",
     ]
   }
 
@@ -1862,6 +1871,7 @@ source_set("unit_tests") {
     "//components/autofill/core/common:autofill_regex",
     "//components/autofill/core/common:credit_card_number_validation",
     "//components/consent_auditor",
+    "//components/consent_auditor:test_support",
     "//components/device_reauth",
     "//components/device_reauth:test_support",
     "//components/feature_engagement",
@@ -1900,6 +1910,7 @@ source_set("unit_tests") {
     "//components/variations/net",
     "//components/version_info",
     "//components/wallet/core/browser",
+    "//components/wallet/core/common:features",
     "//components/webdata/common",
     "//google_apis",
     "//google_apis:test_support",

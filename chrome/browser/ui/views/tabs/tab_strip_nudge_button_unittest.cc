@@ -28,9 +28,9 @@ class TabStripNudgeButtonTest : public ChromeViewsTestBase {
                             base::Unretained(this)),
         base::BindRepeating(&TabStripNudgeButtonTest::MockButtonCallback,
                             base::Unretained(this)),
-        l10n_util::GetStringUTF16(IDS_TAB_ORGANIZE),
-        kAutoTabGroupButtonElementId, Edge::kRight,
-        gfx::VectorIcon::EmptyIcon(), /*show_close_button=*/true);
+        l10n_util::GetStringUTF16(IDS_GLIC_BUTTON_ENTRYPOINT_ASK_GEMINI_LABEL),
+        kGlicNudgeButtonElementId, Edge::kRight, gfx::VectorIcon::EmptyIcon(),
+        /*show_close_button=*/true);
   }
 
   void MockButtonCallback() { button_callback_count_++; }

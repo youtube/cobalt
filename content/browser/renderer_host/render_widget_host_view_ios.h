@@ -5,6 +5,7 @@
 #ifndef CONTENT_BROWSER_RENDERER_HOST_RENDER_WIDGET_HOST_VIEW_IOS_H_
 #define CONTENT_BROWSER_RENDERER_HOST_RENDER_WIDGET_HOST_VIEW_IOS_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -15,6 +16,8 @@
 #include "content/browser/renderer_host/render_widget_host_view_base.h"
 #include "content/browser/renderer_host/text_input_manager.h"
 #include "content/common/content_export.h"
+#include "third_party/blink/public/common/page/content_to_visible_time_request.h"
+#include "third_party/blink/public/mojom/input/focus_type.mojom-forward.h"
 #include "third_party/blink/public/mojom/input/input_handler.mojom.h"
 #include "ui/accelerated_widget_mac/ca_layer_frame_sink.h"
 #include "ui/events/gesture_detection/filtered_gesture_provider.h"
@@ -105,11 +108,10 @@ class CONTENT_EXPORT RenderWidgetHostViewIOS
   void UpdateBackgroundColor() override;
   bool HasFallbackSurface() const override;
   void NotifyHostAndDelegateOnWasShown(
-      blink::mojom::RecordContentToVisibleTimeRequestPtr visible_time_request)
-      override;
+      std::optional<blink::RecordContentToVisibleTimeRequest>
+          visible_time_request) override;
   void RequestSuccessfulPresentationTimeFromHostOrDelegate(
-      blink::mojom::RecordContentToVisibleTimeRequestPtr visible_time_request)
-      override;
+      blink::RecordContentToVisibleTimeRequest visible_time_request) override;
   void CancelSuccessfulPresentationTimeRequestForHostAndDelegate() override;
   viz::ScopedSurfaceIdAllocator DidUpdateVisualProperties(
       const cc::RenderFrameMetadata& metadata) override;
@@ -222,6 +224,7 @@ class CONTENT_EXPORT RenderWidgetHostViewIOS
                                  uint32_t after,
                                  const std::u16string& replacement_text);
   void ExecuteEditCommand(const std::string& command);
+  void AdvanceFocusForIME(blink::mojom::FocusType focus_type);
   void SendKeyEvent(const input::NativeWebKeyboardEvent& event);
   void ForwardKeyboardEventWithCommands(
       const input::NativeWebKeyboardEvent& key_event,

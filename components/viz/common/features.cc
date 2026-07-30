@@ -48,8 +48,6 @@ BASE_FEATURE(kAndroidDumpForBadCompositedUiState,
 BASE_FEATURE(kBackForwardTransitionsSameDocSharedImage,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kBackdropFilterMirrorEdgeMode, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kUseDrmBlackFullscreenOptimization,
 #if BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_ENABLED_BY_DEFAULT

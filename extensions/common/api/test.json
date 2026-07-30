@@ -196,10 +196,7 @@
         "parameters": [
           {
             "name": "test",
-            "choices": [
-              {"type": "string"},
-              {"type": "boolean"}
-            ]
+            "type": "boolean"
           },
           {"type": "string", "name": "message", "optional": true}
         ]
@@ -211,10 +208,7 @@
         "parameters": [
           {
             "name": "test",
-            "choices": [
-              {"type": "string"},
-              {"type": "boolean"}
-            ]
+            "type": "boolean"
           },
           {"type": "string", "name": "message", "optional": true}
         ]
@@ -384,6 +378,23 @@
             "type": "array",
             "name": "tests",
             "items": {"type": "function"}
+          }
+        ],
+        "returns": {
+          "type": "object",
+          "isInstanceOf": "Promise",
+          "description": "A promise that resolves when all tests complete successfully or rejects if any test failed."
+        }
+      },
+      {
+        "name": "setUseStandardizedApiBehaviorForTesting",
+        "type": "function",
+        "nocompile": true,
+        "description": "Sets whether to diverge behavior to support the browser.test proposal (true) from (https://github.com/w3c/webextensions/blob/main/proposals/browser_test_api.md) or maintain existing behavior (false). For testing purposes only.",
+        "parameters": [
+          {
+            "type": "boolean",
+            "name": "enabled"
           }
         ]
       },

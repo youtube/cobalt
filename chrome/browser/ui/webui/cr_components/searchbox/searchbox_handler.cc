@@ -9,7 +9,6 @@
 #include "base/containers/fixed_flat_map.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
@@ -302,6 +301,25 @@ BASE_FEATURE(kDropMismatchedSelections, base::FEATURE_ENABLED_BY_DEFAULT);
 }  // namespace
 
 // static
+// Enables a unified voice search system and metric tracking system in new tab
+// page, co-browsing, and omnibox composebox.
+BASE_FEATURE(SearchboxHandler::kVoiceSearchCoherence,
+             "VoiceSearchCoherence",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables a new recording animation that matches across all surfaces.
+const base::FeatureParam<bool> SearchboxHandler::kVoiceSearchRecordingAnimation{
+    &SearchboxHandler::kVoiceSearchCoherence, "VoiceSearchRecordingAnimation",
+    false};
+
+// Transitions the voice permission dialogue popup to PEPC (Page-Embedded
+// Permission Controls) to have a dynamically placed permission dialogue pop up
+// for every time it is needed.
+BASE_FEATURE(SearchboxHandler::kVoiceSearchPermissions,
+             "VoiceSearchPermissions",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// static
 void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
                                             Profile* profile,
                                             bool enable_voice_search,
@@ -338,9 +356,7 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       {"addImage", IDS_NTP_COMPOSE_ADD_IMAGE},
       {"addTab", IDS_NTP_COMPOSEBOX_TAB_PICKER_ADD_TABS_TITLE},
       {"dismissButton", IDS_NTP_DISMISS},
-      // TODO(b/467036804): Update the value of `lensSearchAriaLabel`.
-      {"lensSearchAriaLabel", IDS_CONTENT_CONTEXT_LENS_OVERLAY},
-      {"lensSearchLabel", IDS_CONTENT_CONTEXT_LENS_OVERLAY},
+      {"lensSearchLabel", IDS_WEBUI_OMNIBOX_COMPOSE_LENS_OVERLAY},
       {"searchboxComposeButtonText", IDS_NTP_COMPOSE_ENTRYPOINT},
       {"searchboxComposeButtonTitle", IDS_NTP_COMPOSE_ENTRYPOINT_A11Y_LABEL},
       {"composeboxCancelButtonTitle", IDS_NTP_COMPOSE_CANCEL_BUTTON_A11Y_LABEL},
@@ -419,15 +435,7 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
                                  u"aim&utm_campaign=aim_str"));
 
   DefineChromeRefreshRealboxIcons();
-  source->AddString(
-      "searchboxDefaultIcon",
-      base::FeatureList::IsEnabled(ntp_features::kRealboxUseGoogleGIcon)
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-          ? kGoogleGIconResourceName
-#else
-          ? kSearchIconResourceName
-#endif
-          : kSearchIconResourceName);
+  source->AddString("searchboxDefaultIcon", kSearchIconResourceName);
 
   source->AddBoolean("searchboxVoiceSearch", enable_voice_search);
   source->AddBoolean("searchboxLensSearch", enable_lens_search);
@@ -471,10 +479,7 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
 
   source->AddBoolean("composeboxContextDragAndDropEnabled",
                      session_allows_drag_and_drop);
-
-  // TODO(b/477969358): Consolidate voice search booleans.
-  source->AddBoolean("steadyComposeboxShowVoiceSearch", enable_voice_search);
-  source->AddBoolean("expandedComposeboxShowVoiceSearch", enable_voice_search);
+  source->AddBoolean("composeboxShowVoiceSearch", enable_voice_search);
 
   // TODO(b/481663895): Remove "ConfigParam" from Next studies.
   auto composebox_config = ntp_composebox::FeatureConfig::Get().config;

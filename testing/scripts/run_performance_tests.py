@@ -846,7 +846,15 @@ class CrossbenchTest(object):
       return ['--env={screen_refresh_rate:60}']
     if self.is_android:
       # Set Android CPU governor due to crbug.com/487175106.
-      return ['--env={"cpu_power_mode":"performance"}']
+      # In most cases, use "performance" to be consistent with Telemetry.
+      # But for CBB (indicated by using official build of Chrome),
+      # use "sched_pixel", which is the default mode for Pixel Tablets
+      # (see crbug.com/495679726).
+      if self.cb_options.official_browser:
+        power_mode = 'sched_pixel'
+      else:
+        power_mode = 'performance'
+      return [f'--env={{"cpu_power_mode":"{power_mode}"}}']
     return []
 
   def _create_fileserver_network(self, arg):
@@ -962,6 +970,8 @@ class CrossbenchTest(object):
     return default_args
 
   def _generate_command_list(self, benchmark, benchmark_args, working_dir):
+    if self._is_alum():
+      return ['vpython3', '-Xutf8'] + [ALUM_RUNNER]
     extra_browser_args = []
     if self.cb_options.extra_browser_args:
       extra_browser_args = ['--']
@@ -976,6 +986,13 @@ class CrossbenchTest(object):
           f'--variations-test-seed-path={resolved_path}',
           '--accept-empty-variations-seed-signature',
       ]
+    if (self.is_chrome and self.cb_options.official_browser
+        and sys.platform == 'darwin'):
+      # CBB running Chrome on MacOS, add a flag to disable updater process
+      # (see crbug.com/492924102).
+      if not extra_browser_args:
+        extra_browser_args = ['--']
+      extra_browser_args += ['--disable-updater-scheduler']
     return (['vpython3', '-Xutf8'] + [self.options.executable] + [benchmark] +
             ['--env-validation=throw'] + [self.OUTDIR % working_dir] +
             [self.browser] + self.driver_path_arg + self.network + self.env +
@@ -1012,10 +1029,14 @@ class CrossbenchTest(object):
                                                               env=env)
 
       if return_code == 0 or self.options.ignore_benchmark_exit_code:
-        crossbench_result_converter.convert(
-            pathlib.Path(output_paths.benchmark_path) / 'output',
-            pathlib.Path(output_paths.perf_results), display_name,
-            self.STORY_LABEL, self.options.results_label)
+        if self._is_alum():
+          # TODO(crbug.com/435031130): Convert results after experimenting.
+          pass
+        else:
+          crossbench_result_converter.convert(
+              pathlib.Path(output_paths.benchmark_path) / 'output',
+              pathlib.Path(output_paths.perf_results), display_name,
+              self.STORY_LABEL, self.options.results_label)
       if return_code and os.path.exists(output_paths.logs):
         # To avoid printing too large log file, we print the last 100 lines.
         bottom_of_log = deque(maxlen=100)
@@ -1051,7 +1072,7 @@ class CrossbenchTest(object):
       return 1
 
     if return_code and self.options.ignore_benchmark_exit_code:
-      print(f'crossbench returned exit code {return_code}'
+      print(f'Returned exit code {return_code}'
             ' which indicates there were test failures in the run.')
       return 0
     return return_code
@@ -1059,39 +1080,11 @@ class CrossbenchTest(object):
   def _is_alum(self):
     return self.cb_options.web_tests_cuj
 
-  # TODO(crbug.com/435031130): Experimenting.
-  def execute_alum(self, display_name='SP3.1'):
-    env = os.environ.copy()
-    env['CHROME_HEADLESS'] = '1'
-    env['PATH'] = f"{GSUTIL_DIR}:{env['PATH']}"
-    output_paths = OutputFilePaths(self.isolated_out_dir, display_name).SetUp()
-    return_code = 1
-
-    command = ['vpython3', '-Xutf8'] + [ALUM_RUNNER]
-    try:
-      with open(output_paths.logs, 'w') as handle:
-        return_code = test_env.run_command_output_to_handle(command,
-                                                            handle,
-                                                            env=env)
-    except Exception:  # pylint: disable=broad-except
-      print('There was an infrastructure error encountered during the run. '
-            'Please check the logs above for details')
-      print(traceback.format_exc())
-      return 1
-
-    if return_code and self.options.ignore_benchmark_exit_code:
-      print(f'{ALUM_RUNNER} runner returned exit code {return_code}'
-            ' which indicates there were test failures in the run.')
-      return 0
-    return return_code
-
   def execute(self):
     if not self.options.benchmarks:
       raise Exception('Please use the --benchmarks to specify the benchmark.')
     if ',' in self.options.benchmarks:
       raise Exception('No support to run multiple benchmarks at this time.')
-    if self._is_alum():
-      return self.execute_alum()
     return self.execute_benchmark(
         self.options.benchmarks,
         (self.options.benchmark_display_name or self.options.benchmarks),

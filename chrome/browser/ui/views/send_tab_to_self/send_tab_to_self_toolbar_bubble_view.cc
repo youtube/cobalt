@@ -14,14 +14,12 @@
 #include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_navigator.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_toolbar_icon_controller.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_controller.h"
+#include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/send_tab_to_self/features.h"
@@ -36,7 +34,6 @@
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_types.h"
-#include "url/origin.h"
 
 namespace send_tab_to_self {
 
@@ -170,6 +167,10 @@ void SendTabToSelfToolbarBubbleView::OpenInNewTab() {
                     entry_.GetPageContext());
   }
 
+  SendTabToSelfSyncServiceFactory::GetForProfile(browser_->GetProfile())
+      ->GetSendTabToSelfModel()
+      ->MarkEntryOpened(entry_.GetGUID());
+
   GetWidget()->Close();
   send_tab_to_self::RecordNotificationOpened();
 }
@@ -187,7 +188,7 @@ void SendTabToSelfToolbarBubbleView::Hide() {
       ->GetReceivingUiHandler()
       ->DismissEntries(std::vector<std::string>({entry_.GetGUID()}));
   browser_->GetFeatures()
-      .pinned_toolbar_actions_controller()
+      .pinned_toolbar_actions()
       ->ShowActionEphemerallyInToolbar(kActionSendTabToSelf, false);
 }
 

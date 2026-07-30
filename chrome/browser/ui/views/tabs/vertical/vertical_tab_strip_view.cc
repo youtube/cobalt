@@ -13,7 +13,8 @@
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/views/tabs/tab_hover_card_controller.h"
+#include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
+#include "chrome/browser/ui/views/tabs/hovercard/tab_hover_card_controller.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_pinned_tab_container_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_group_view.h"
@@ -205,15 +206,13 @@ views::ProposedLayout VerticalTabStripView::CalculateProposedLayout(
 
   // Place the tabs separator if visible.
   if (should_show_separator) {
-    int separator_width =
-        size_bounds.width().value() - 2 * region_horizontal_padding;
-    int separator_x = region_horizontal_padding;
-    if (is_collapsed_) {
-      const int collapsed_separator_width = GetLayoutConstant(
-          LayoutConstant::kVerticalTabStripCollapsedSeparatorWidth);
-      separator_width = collapsed_separator_width;
-      separator_x = (size_bounds.width().value() - separator_width) / 2;
-    }
+    const int separator_padding =
+        is_collapsed_
+            ? GetLayoutConstant(
+                  LayoutConstant::kVerticalTabStripCollapsedSeparatorPadding)
+            : region_horizontal_padding;
+    int separator_width = size_bounds.width().value() - 2 * separator_padding;
+    int separator_x = separator_padding;
     gfx::Rect tabs_separator_bounds(
         separator_x, y, separator_width,
         tabs_separator_->GetPreferredSize().height());
@@ -254,6 +253,10 @@ void VerticalTabStripView::AddedToWidget() {
   widget_observation_.Observe(widget);
 }
 
+void VerticalTabStripView::RemovedFromWidget() {
+  widget_observation_.Reset();
+}
+
 void VerticalTabStripView::OnMouseEntered(const ui::MouseEvent& event) {
   mouse_entered_tabstrip_time_ = base::TimeTicks::Now();
   has_reported_time_mouse_entered_to_switch_ = false;
@@ -265,18 +268,27 @@ void VerticalTabStripView::OnMouseExited(const ui::MouseEvent& event) {
   }
 
   if (TabHoverCardController* hover_card_controller =
-          collection_node_->GetController()->GetHoverCardController();
-      hover_card_controller) {
+          collection_node_->GetController()->GetHoverCardController()) {
     hover_card_controller->UpdateHoverCard(
         nullptr, TabSlotController::HoverCardUpdateType::kHover);
   }
 }
 
+void VerticalTabStripView::OnWidgetActivationChanged(views::Widget* widget,
+                                                     bool active) {
+  if (TabHoverCardController* hover_card_controller =
+          collection_node_->GetController()->GetHoverCardController();
+      hover_card_controller) {
+    hover_card_controller->UpdateHoverCard(
+        nullptr, TabSlotController::HoverCardUpdateType::kEvent);
+  }
+}
+
 void VerticalTabStripView::OnWidgetVisibilityChanged(views::Widget* widget,
                                                      bool visible) {
-  if (collection_node_ && visible) {
+  if (collection_node_ && visible && is_first_window_presentation_) {
     // Only scroll-in the active tab for the first window presentation.
-    widget_observation_.Reset();
+    is_first_window_presentation_ = false;
     OnActiveTabChanged(collection_node_->GetController()->GetActiveTab());
   }
 }
@@ -336,6 +348,10 @@ void VerticalTabStripView::RecordMousePressedInTab() {
         base::TimeTicks::Now() - mouse_entered_tabstrip_time_.value());
     has_reported_time_mouse_entered_to_switch_ = true;
   }
+}
+
+bool VerticalTabStripView::IsFocusInTabStrip() {
+  return GetFocusManager() && Contains(GetFocusManager()->GetFocusedView());
 }
 
 VerticalPinnedTabContainerView* VerticalTabStripView::GetPinnedTabsContainer() {

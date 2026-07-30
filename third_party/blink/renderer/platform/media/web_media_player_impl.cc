@@ -3063,21 +3063,12 @@ void WebMediaPlayerImpl::StartPipeline() {
           CrossThreadBindOnce(base::BindPostTaskToCurrentDefault(
               ConvertToBaseOnceCallback(CrossThreadBindOnce(
                   &WebMediaPlayerImpl::OnFirstFrame, weak_this_))))));
-  base::flat_map<std::string, std::string> headers;
-  // Referer is the right spelling of the HTTP header, not Referrer.
-  headers[net::HttpRequestHeaders::kReferer] =
-      net::URLRequestJob::ComputeReferrerForPolicy(
-          frame_->GetDocument().GetReferrerPolicy(),
-          GURL(frame_->GetDocument().OutgoingReferrer().Utf8()),
-          demuxer_manager_->LoadedUrl())
-          .spec();
 
   // Unretained(this) is safe here, since `CreateDemuxer` calls the bound
   // method directly and immediately.
   auto create_demuxer_error = demuxer_manager_->CreateDemuxer(
       load_type_ == kLoadTypeMediaSource, preload_, needs_first_frame_,
-      BindOnce(&WebMediaPlayerImpl::OnDemuxerCreated, Unretained(this)),
-      std::move(headers));
+      BindOnce(&WebMediaPlayerImpl::OnDemuxerCreated, Unretained(this)));
 
   if (!create_demuxer_error.is_ok()) {
     return OnError(std::move(create_demuxer_error));
@@ -4145,6 +4136,13 @@ void WebMediaPlayerImpl::RegisterFrameSinkHierarchy() {
 void WebMediaPlayerImpl::UnregisterFrameSinkHierarchy() {
   if (bridge_)
     bridge_->UnregisterFrameSinkHierarchy();
+}
+
+void WebMediaPlayerImpl::ReparentFrameSinkHierarchy(
+    const viz::FrameSinkId& new_parent_frame_sink_id) {
+  if (bridge_) {
+    bridge_->ReparentFrameSinkHierarchy(new_parent_frame_sink_id);
+  }
 }
 
 void WebMediaPlayerImpl::RecordVideoOcclusionState(

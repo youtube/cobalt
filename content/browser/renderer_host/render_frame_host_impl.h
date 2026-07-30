@@ -337,6 +337,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
       public BucketContext,
       public base::MemoryPressureListener {
  public:
+  using BeforeUnloadExecutionMode = NavigationHandle::BeforeUnloadExecutionMode;
   using JavaScriptDialogCallback =
       content::JavaScriptDialogManager::DialogClosedCallback;
 
@@ -1544,11 +1545,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
       int64_t cookie_modification_count = 0;
       int64_t http_only_cookie_modification_count = 0;
       int64_t non_http_only_cookie_modification_count = 0;
-      // The number of observed cookie modifications that should be removed
-      // since we want to adjust the count by subtracting the number of cookie
-      // modification from the navigation itself.
-      int64_t cookie_modification_removing_count = 0;
-      int64_t http_only_cookie_modification_removing_count = 0;
     };
 
     CookieChangeListener(StoragePartition* storage_partition, GURL& url);
@@ -1560,19 +1556,13 @@ class CONTENT_EXPORT RenderFrameHostImpl
     CookieChangeInfo cookie_change_info() { return cookie_change_info_; }
 
     // We don't want to count the cookie modification made by the
-    // `NavigationRequest` itself, so provide this function to allow the count
-    // adjustment.
+    // `NavigationRequest` itself, so provide this function to allow adding
+    // certain cookie to the ignore list.
     // Passing the `base::PassKey` to restrict the caller of this method to
     // `NavigationRequest` only.
-    void RemoveNavigationCookieModificationCount(
+    void AddNavigationCookieToIgnore(
         base::PassKey<content::NavigationRequest> navigation_request,
-        uint64_t cookie_modification_count_delta,
-        uint64_t http_only_cookie_modification_count_delta) {
-      cookie_change_info_.cookie_modification_removing_count +=
-          cookie_modification_count_delta;
-      cookie_change_info_.http_only_cookie_modification_removing_count +=
-          http_only_cookie_modification_count_delta;
-    }
+        const net::CanonicalCookie& cookie);
 
    private:
     // network::mojom::CookieChangeListener
@@ -1581,7 +1571,16 @@ class CONTENT_EXPORT RenderFrameHostImpl
     mojo::Receiver<network::mojom::CookieChangeListener>
         cookie_change_listener_receiver_{this};
 
+    // The information about the cookie change observed during the lifetime of
+    // this RFHI, excluding the cookies set by the navigation.
     CookieChangeInfo cookie_change_info_;
+
+    using CookieKey = std::tuple<net::UniqueCookieKey, bool>;
+    // Stores the navigation cookies and the count.
+    base::flat_map<CookieKey, int> navigation_cookies_to_ignore_;
+    // Stores the cookie changes received before they are added to the ignore
+    // list.
+    base::flat_map<CookieKey, int> unmatched_cookie_changes_;
   };
 
   class DeviceBoundSessionObserver
@@ -2481,9 +2480,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void SetNeedsOcclusionTracking(bool needs_tracking) override;
   void SetVirtualKeyboardMode(ui::mojom::VirtualKeyboardMode mode) override;
   void VisibilityChanged(blink::mojom::FrameVisibility) override;
-  void DidChangeThemeColor(std::optional<SkColor> theme_color) override;
-  void DidChangeBackgroundColor(const SkColor4f& background_color,
-                                bool color_adjust) override;
   void DidFailLoadWithError(const GURL& url, int32_t error_code) override;
   void DidFocusFrame() override;
   void DidCallFocus() override;
@@ -2682,6 +2678,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
                      SetWindowRectCallback callback) override;
   void DidFirstVisuallyNonEmptyPaint() override;
   void DidAccessInitialMainDocument() override;
+  void DidChangeThemeColor(std::optional<SkColor> theme_color) override;
+  void DidChangeBackgroundColor(const SkColor4f& background_color,
+                                bool color_adjust) override;
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   void Minimize() override;
   void Maximize() override;
@@ -3887,34 +3886,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
       bool is_same_document_history_api_navigation,
       base::TimeTicks actual_navigation_start);
 
-  // Execution mode for the beforeunload handling.
-  enum class BeforeUnloadExecutionMode {
-    // Normal beforeunload check. The browser process waits for the renderer's
-    // response before proceeding with the navigation. This mode is used when
-    // there are beforeunload handlers that have sticky user activation,
-    // potentially allowing them to show a confirmation dialog or cancel the
-    // navigation.
-    kDefault,
-    // Used for navigations when beforeunload handler is not actually present.
-    // In this case, the renderer is not notified, but potentially PostTask() is
-    // used. PostTask() is used because synchronously proceeding with navigation
-    // could lead to reentrancy problems. In particular, some tests and Android
-    // WebView assume they can synchronously navigate from WillStartRequest().
-    // If PostTask() is not used, then CHECKs would trigger in a
-    // NavigationController. See https://crbug.com/365039 for more details. This
-    // was previously managed as a `for_legacy` boolean, which is still used in
-    // some parts of the codebase.
-    kForLegacy,
-    // Asynchronous beforeunload optimization (AsyncBeforeUnload). The browser
-    // process runs beforeunload handlers in the background without blocking the
-    // navigation. This is only used when no handlers in the affected subtree
-    // have sticky user activation, meaning they are guaranteed not to show a
-    // dialog or cancel the navigation. The navigation commit will still be
-    // deferred by AsyncBeforeUnloadCommitDeferringCondition until these
-    // handlers complete or timeout.
-    kAsync,
-  };
-
   // Continue navigation without waiting for the renderer's beforeunload
   // response.
   void ContinueNavigationAfterBeforeUnloadCheck(
@@ -4191,10 +4162,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // children. This is useful for pruning frames with no unload handlers from
   // this frame's subtree.
   void PendingDeletionCheckCompletedOnSubtree();
-
-  // Call PendingDeletionCheckCompletedOnSubtree now or later, depending on
-  // the feature gate DelayRfhDestructionsOnUnloadAndDetach.
-  void PendingDeletionCheckCompletedOnSubtreeNowOrLater();
 
   // In this RenderFramehost, cancels every:
   // - Non-pending commit NavigationRequest owned by the FrameTreeNode that

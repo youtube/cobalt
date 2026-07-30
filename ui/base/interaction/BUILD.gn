@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/ui.gni")
 import("//testing/test.gni")
 
 component("interaction") {
@@ -59,6 +60,8 @@ static_library("test_support") {
     "interactive_test_definitions.h",
     "interactive_test_internal.cc",
     "interactive_test_internal.h",
+    "interactive_test_temporary.cc",
+    "interactive_test_temporary.h",
     "polling_state_observer.h",
     "state_observer.h",
   ]
@@ -83,6 +86,18 @@ static_library("test_support") {
     "//ui/base",
     "//ui/menus",
   ]
+
+  if (use_aura) {
+    deps += [ "//ui/aura" ]
+  }
+
+  if (is_android) {
+    deps += [ "//ui/android" ]
+  }
+
+  if (!is_ios) {
+    deps += [ "//ui/native_window_tracker" ]
+  }
 }
 
 source_set("unit_tests") {

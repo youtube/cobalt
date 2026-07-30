@@ -2665,11 +2665,23 @@ void StyleResolver::ApplyAnchorData(StyleResolverState& state) {
 StyleResolver::FindKeyframesRuleResult StyleResolver::FindKeyframesRule(
     const Element* element,
     const Element* animating_element,
-    const AtomicString& animation_name) {
+    const AtomicString& animation_name,
+    const TreeScope* name_tree_scope) {
   HeapVector<Member<ScopedStyleResolver>, 8> resolvers;
-  CollectScopedResolversForHostedShadowTrees(*element, resolvers);
-  if (ScopedStyleResolver* scoped_resolver = ScopedResolverFor(*element)) {
-    resolvers.push_back(scoped_resolver);
+
+  if (name_tree_scope) {
+    // When a specific tree scope is provided (e.g. from a ::part() rule),
+    // look up @keyframes in that scope rather than the element's.
+    if (ScopedStyleResolver* resolver =
+            name_tree_scope->GetScopedStyleResolver()) {
+      resolvers.push_back(resolver);
+    }
+  }
+  if (resolvers.empty()) {
+    CollectScopedResolversForHostedShadowTrees(*element, resolvers);
+    if (ScopedStyleResolver* scoped_resolver = ScopedResolverFor(*element)) {
+      resolvers.push_back(scoped_resolver);
+    }
   }
 
   for (auto& resolver : resolvers) {
@@ -3254,6 +3266,7 @@ ComputedStyleBuilder StyleResolver::CreateAnonymousStyleBuilderWithDisplay(
     EDisplay display) {
   ComputedStyleBuilder builder(*initial_style_, parent_style);
   builder.SetUnicodeBidi(parent_style.GetUnicodeBidi());
+  builder.SetBaseTextDecorationData(parent_style.AppliedTextDecorationData());
   builder.SetDisplay(display);
   return builder;
 }
@@ -3641,6 +3654,8 @@ const ComputedStyle* StyleResolver::StyleForInitialLetterText(
       ComputeInitialLetterFont(initial_letter_box_style, paragraph_style));
   builder.SetLineHeight(Length::Fixed(builder.FontHeight()));
   builder.SetVerticalAlign(EVerticalAlign::kBaseline);
+  builder.SetBaseTextDecorationData(
+      initial_letter_box_style.AppliedTextDecorationData());
   return builder.TakeStyle();
 }
 

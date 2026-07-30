@@ -176,6 +176,9 @@ chromium-metrics-reviews@google.com.
     DeviceInfoTracker available, but both LocalDeviceInfo is missing and Sync is
     not configured.
   </int>
+  <int value="5" label="Waiting for initial sync">
+    Sync is configured but initial preferences have not been downloaded.
+  </int>
 </enum>
 
 <!-- LINT.ThenChange(/components/sync_preferences/cross_device_pref_tracker/cross_device_pref_tracker.h:ServiceStatus) -->
@@ -870,6 +873,7 @@ chromium-metrics-reviews@google.com.
   <int value="200009" label="TrackPricesOnTabsEnabled"/>
   <int value="200010" label="VoiceSearchLocale"/>
   <int value="200011" label="IOSBwgConsent"/>
+  <int value="200012" label="IOSGeminiLiveConsent"/>
 <!-- LINT.ThenChange(/ios/chrome/browser/sync/model/prefs/ios_chrome_syncable_prefs_database.cc:IosSyncablePref)-->
 
 </enum>
@@ -1927,25 +1931,6 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/components/sync/service/sync_service.h:TriggerRefreshSource) -->
-
-<!-- LINT.IfChange(TrustedVaultDegradedRecoverabilityValue) -->
-
-<enum name="TrustedVaultDegradedRecoverabilityValue">
-  <int value="0" label="Unknown"/>
-  <int value="1" label="Not degraded"/>
-  <int value="2" label="Degraded"/>
-</enum>
-
-<!-- LINT.ThenChange(/components/trusted_vault/proto/local_trusted_vault.proto:TrustedVaultDegradedRecoverabilityValue) -->
-
-<!-- LINT.IfChange(TrustedVaultHintDegradedRecoverabilityChangedReason) -->
-
-<enum name="TrustedVaultHintDegradedRecoverabilityChangedReason">
-  <int value="0" label="Recovery method added"/>
-  <int value="1" label="Persistent auth error resolved"/>
-</enum>
-
-<!-- LINT.ThenChange(/components/trusted_vault/trusted_vault_histograms.h:TrustedVaultHintDegradedRecoverabilityChangedReason) -->
 
 <!-- LINT.IfChange(TrustedVaultUserActionTrigger) -->
 

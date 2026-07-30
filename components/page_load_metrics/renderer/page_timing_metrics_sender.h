@@ -93,6 +93,7 @@ class PageTimingMetricsSender {
 
   void DidObserveUserInteraction(base::TimeTicks max_event_start,
                                  base::TimeTicks max_event_queued_main_thread,
+                                 base::TimeTicks max_event_processing_start,
                                  base::TimeTicks max_event_commit_finish,
                                  base::TimeTicks max_event_end,
                                  uint64_t interaction_offset);
@@ -111,9 +112,6 @@ class PageTimingMetricsSender {
   void UpdateResourceMetadata(int resource_id, bool is_main_frame_resource);
 
   void UpdateCustomUserTimings(mojom::CustomUserTimingMarkPtr);
-
-  void SetUpDroppedFramesReporting(
-      base::ReadOnlySharedMemoryRegion shared_memory_dropped_frames);
 
   void DidObserveSoftLargestContentfulPaint(
       mojom::LargestContentfulPaintTimingPtr lcp);

@@ -169,13 +169,8 @@ static constexpr auto kPreferredHeuristicTypesOverHtmlTypes =
                                         ADDRESS_HOME_HOUSE_NUMBER}},
          {.losing_html_type = HtmlFieldType::kOrganization,
           .winning_type = ADDRESS_HOME_BETWEEN_STREETS_OR_LANDMARK},
-         {.losing_html_type = HtmlFieldType::kAdditionalName,
-          .winning_type = NAME_LAST_PREFIX},
-         {.losing_html_type = HtmlFieldType::kAdditionalNameInitial,
-          .winning_type = NAME_LAST_PREFIX},
          {.losing_html_type = HtmlFieldType::kFamilyName,
-          .winning_types =
-              FieldTypeSet{NAME_LAST_CORE, ALTERNATIVE_FAMILY_NAME}},
+          .winning_type = ALTERNATIVE_FAMILY_NAME},
          {.losing_html_type = HtmlFieldType::kGivenName,
           .winning_type = ALTERNATIVE_GIVEN_NAME},
          {.losing_html_type = HtmlFieldType::kName,
@@ -226,11 +221,8 @@ static constexpr auto kPreferredHeuristicTypesOverServerTypes = std::to_array<
      // the feature is rolled out.
      {.losing_type = NAME_FULL, .winning_type = ALTERNATIVE_FULL_NAME},
      {.losing_type = NAME_FIRST, .winning_type = ALTERNATIVE_GIVEN_NAME},
-     {.losing_type = NAME_MIDDLE, .winning_type = NAME_LAST_PREFIX},
-     {.losing_type = NAME_LAST,
-      .winning_types = FieldTypeSet{ALTERNATIVE_FAMILY_NAME, NAME_LAST_CORE}},
+     {.losing_type = NAME_LAST, .winning_type = ALTERNATIVE_FAMILY_NAME},
      {.losing_type = NAME_LAST_SECOND, .winning_type = ALTERNATIVE_FAMILY_NAME},
-     {.losing_type = NAME_LAST_CORE, .winning_type = ALTERNATIVE_FAMILY_NAME},
 
      // Sometimes the server and heuristics disagree on whether a name field
      // should be associated with an address or a credit card. There was a
@@ -488,7 +480,7 @@ FieldType AutofillField::heuristic_type(HeuristicSource s) const {
 
   FieldType type = local_type_predictions_[static_cast<size_t>(s)];
   // Guaranteed by construction of `local_type_predictions_`.
-  DCHECK(ToSafeFieldType(type, MAX_VALID_FIELD_TYPE) != MAX_VALID_FIELD_TYPE);
+  DCHECK(ToSafeFieldType(type).has_value());
   // `NO_SERVER_DATA` would mean that there is no heuristic type. Client code
   // presumes there is a prediction, therefore we coalesce to `UNKNOWN_TYPE`.
   // Shadow predictions however are not used and we care whether the type is
@@ -501,7 +493,8 @@ FieldType AutofillField::heuristic_type(HeuristicSource s) const {
 FieldType AutofillField::server_type() const {
   return server_predictions_.empty()
              ? NO_SERVER_DATA
-             : ToSafeFieldType(server_predictions_[0].type(), NO_SERVER_DATA);
+             : ToSafeFieldType(server_predictions_[0].type())
+                   .value_or(NO_SERVER_DATA);
 }
 
 bool AutofillField::server_type_prediction_is_override() const {
@@ -510,8 +503,7 @@ bool AutofillField::server_type_prediction_is_override() const {
 }
 
 void AutofillField::set_heuristic_type(HeuristicSource s, FieldType type) {
-  type = ToSafeFieldType(type, MAX_VALID_FIELD_TYPE);
-  CHECK_NE(type, MAX_VALID_FIELD_TYPE, base::NotFatalUntil::M142) << type;
+  CHECK(ToSafeFieldType(type).has_value(), base::NotFatalUntil::M142);
   local_type_predictions_[static_cast<size_t>(s)] = type;
   if (s == GetActiveHeuristicSource()) {
     overall_type_ = std::nullopt;
@@ -543,7 +535,7 @@ void AutofillField::MaybeAddServerPrediction(FieldPrediction prediction) {
   }
 
   const FieldType field_type =
-      ToSafeFieldType(prediction.type(), NO_SERVER_DATA);
+      ToSafeFieldType(prediction.type()).value_or(NO_SERVER_DATA);
   prediction.set_type(field_type);
 
   if (!prediction.has_source()) {
@@ -613,9 +605,9 @@ AutofillType AutofillField::MakeAutofillType(FieldType primary_field_type,
   auto get_filtered_types = [&](base::span<const FieldPrediction> predictions) {
     FieldTypeSet field_types = {primary_field_type};
     for (const auto& prediction : predictions) {
-      const FieldType ft = ToSafeFieldType(prediction.type(), NO_SERVER_DATA);
-      if (is_union_type_candidate(ft)) {
-        field_types.insert(ft);
+      const std::optional<FieldType> ft = ToSafeFieldType(prediction.type());
+      if (ft && is_union_type_candidate(*ft)) {
+        field_types.insert(*ft);
       }
     }
     return field_types;

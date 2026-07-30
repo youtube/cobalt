@@ -161,7 +161,9 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
   // Methods to get information about a specific node.
   bool IsEditableText(JNIEnv* env, int32_t id);
   bool IsFocused(JNIEnv* env, int32_t id);
+  // Returns ui::kAXAndroidUndefinedSelectionIndex if no selection.
   int32_t GetEditableTextSelectionStart(JNIEnv* env, int32_t id);
+  // Returns ui::kAXAndroidUndefinedSelectionIndex if no selection.
   int32_t GetEditableTextSelectionEnd(JNIEnv* env, int32_t id);
   base::android::ScopedJavaLocalRef<jintArray> GetAbsolutePositionForNode(
       JNIEnv* env,
@@ -225,18 +227,13 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
   // of our own selection in BrowserAccessibilityManager.java for static
   // text, but if this is an editable text node, updates the selected text
   // in Blink, too, and either way calls
-  // Java_BrowserAccessibilityManager_finishGranularityMove[NEXT/PREVIOUS]
-  // with the result.
-  bool NextAtGranularity(JNIEnv* env,
+  // Java_BrowserAccessibilityManager_finishGranularityMove with the result.
+  bool MoveAtGranularity(JNIEnv* env,
                          int32_t granularity,
                          bool extend_selection,
                          int32_t id,
-                         int32_t cursor_index);
-  bool PreviousAtGranularity(JNIEnv* env,
-                             int32_t granularity,
-                             bool extend_selection,
-                             int32_t id,
-                             int32_t cursor_index);
+                         int32_t cursor_index,
+                         bool forwards);
 
   // Move accessibility focus. This sends a message to the renderer to
   // clear accessibility focus on the previous node and set accessibility
@@ -426,6 +423,9 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
   void AnnounceLiveRegionText(const std::u16string& text);
   void HandleActiveDescendantChanged(int32_t unique_id);
   void HandleTextSelectionChanged(int32_t unique_id);
+  void HandleExtendedSelectionChanged(int32_t unique_id,
+                                      int32_t focus_unique_id,
+                                      int32_t focus_offset);
   void HandleEditableTextChanged(int32_t unique_id, int32_t subType);
   void HandleSliderChanged(int32_t unique_id);
   void SendDelayedWindowContentChangedEvent();

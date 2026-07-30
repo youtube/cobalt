@@ -303,11 +303,12 @@ TEST_F(DnsClientTest, FallbackFromSecureTransactionPreferred_Failures) {
 TEST_F(DnsClientTest,
        FallbackFromSecureTransactionPreferred_CanaryDomainCheck) {
   base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures(
-      {net::features::kProbeSecureDnsCanaryDomain,
-       net::features::kAddAutomaticWithDohFallbackMode},
-      {});
-
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      net::features::kProbeSecureDnsCanaryDomain,
+      {{net::features::kSecureDnsCanaryDomainHost.name, "canary.com"}});
+  base::test::ScopedFeatureList scoped_feature_list2;
+  scoped_feature_list2.InitAndEnableFeature(
+      net::features::kAddAutomaticWithDohFallbackMode);
   // 1. Set a config that has DoH fallback servers.
   DnsConfig config = BasicValidConfig();
   config.secure_dns_mode = SecureDnsMode::kAutomatic;
@@ -318,8 +319,12 @@ TEST_F(DnsClientTest,
   resolve_context_->InvalidateCachesAndPerSessionData(
       client_->GetCurrentSession(), /*network_change=*/false);
 
-  // Canary domain check status is kNotStarted by default.
-  // Should prefer fallback since it's not kPositive.
+  // Manually set status to kNotStarted, as it defaults to kInactive.
+  resolve_context_->set_doh_fallback_canary_domain_check_status(
+      CanaryDomainCheckStatus::kNotStarted);
+
+  // Canary domain check status is kNotStarted.
+  // Should prefer fallback since it's not kPositive or kInactive.
   EXPECT_TRUE(
       client_->FallbackFromSecureTransactionPreferred(resolve_context_.get()));
 
@@ -429,6 +434,38 @@ TEST_F(DnsClientTest,
 
 TEST_F(
     DnsClientTest,
+    SetSystemConfig_AutomaticModeWithDohFallback_AddsFallback_FeatureDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kAddAutomaticWithDohFallbackMode);
+  base::HistogramTester histogram_tester;
+
+  DnsConfig initial_config = BasicValidConfig();
+  initial_config.secure_dns_mode = SecureDnsMode::kAutomatic;
+  initial_config.allow_dns_over_https_upgrade = true;
+  // Use well-known nameserver that is supported for DoH upgrade.
+  std::vector<net::IPEndPoint> fallback_doh_nameservers = {net::IPEndPoint(
+      net::IPAddress(8, 8, 8, 8), net::dns_protocol::kDefaultPort)};
+  std::vector<DnsOverHttpsServerConfig> fallback_doh_configs =
+      net::GetDohUpgradeServersFromNameservers(fallback_doh_nameservers);
+  ASSERT_GT(fallback_doh_configs.size(), 0u);
+  initial_config.fallback_doh_nameservers = fallback_doh_nameservers;
+  client_->SetSystemConfig(initial_config);
+
+  // Fallback nameservers provided, but should NOT be used because the feature
+  // is disabled.
+  EXPECT_EQ(client_->GetEffectiveConfig()->doh_config, DnsOverHttpsConfig());
+  EXPECT_THAT(client_->GetEffectiveConfig()->fallback_doh_nameservers,
+              fallback_doh_nameservers);
+  EXPECT_FALSE(client_->CanUseSecureDnsTransactions());
+  histogram_tester.ExpectBucketCount(
+      "Net.DNS.UpgradeConfig.InsecureUpgradeWithFallbackSucceeded", false, 1);
+  histogram_tester.ExpectBucketCount(
+      "Net.DNS.UpgradeConfig.InsecureUpgradeSucceeded", false, 1);
+}
+
+TEST_F(
+    DnsClientTest,
     SetSystemConfig_AutomaticModeWithDohFallback_WithIpv4Loopback_DoesntAddFallback) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
@@ -534,8 +571,8 @@ TEST_F(
     SetSystemConfig_AutomaticModeWithDohFallback_WithLocalAddress_AddsFallbackIfFeatureEnabled) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
-      {net::features::kAddAutomaticWithDohFallbackMode,
-       features::kDohFallbackAllowedWithLocalNameservers},
+      {net::features::kDohFallbackAllowedWithLocalNameservers,
+       features::kAddAutomaticWithDohFallbackMode},
       {});
   base::HistogramTester histogram_tester;
 

@@ -73,6 +73,7 @@
 #include "third_party/blink/renderer/core/html/html_frame_element_base.h"
 #include "third_party/blink/renderer/core/html/html_frame_set_element.h"
 #include "third_party/blink/renderer/core/html/html_plugin_element.h"
+#include "third_party/blink/renderer/core/html/menu_safe_triangle.h"
 #include "third_party/blink/renderer/core/input/event_handling_util.h"
 #include "third_party/blink/renderer/core/input/input_device_capabilities.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
@@ -1069,6 +1070,11 @@ WebInputEventResult EventHandler::HandleMouseMoveOrLeaveEvent(
     if (tracker) {
       tracker->OnMouseMoveEvent(mouse_event);
     }
+
+    if (MenuSafeTriangle* safe_triangle =
+            frame_->GetDocument()->GetMenuSafeTriangle()) {
+      safe_triangle->Recheck();
+    }
   }
 
   // Mouse states need to be reset when mouse move with no button down.
@@ -1330,11 +1336,9 @@ static LocalFrame* LocalFrameFromTargetNode(Node* target) {
     return DynamicTo<LocalFrame>(html_frame_base_element->ContentFrame());
   }
 
-  if (RuntimeEnabledFeatures::DragAndDropPluginElementSupportEnabled()) {
-    auto* html_plugin_element = DynamicTo<HTMLPlugInElement>(target);
-    if (html_plugin_element) {
-      return DynamicTo<LocalFrame>(html_plugin_element->ContentFrame());
-    }
+  auto* html_plugin_element = DynamicTo<HTMLPlugInElement>(target);
+  if (html_plugin_element) {
+    return DynamicTo<LocalFrame>(html_plugin_element->ContentFrame());
   }
 
   return nullptr;

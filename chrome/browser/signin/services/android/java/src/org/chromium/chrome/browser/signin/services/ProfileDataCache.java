@@ -39,6 +39,7 @@ import org.chromium.components.signin.SigninFeatureMap;
 import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.base.CoreAccountInfo;
+import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.google_apis.gaia.CoreAccountId;
 
@@ -182,7 +183,11 @@ public class ProfileDataCache implements IdentityManager.Observer {
      * @return The {@link DisplayableProfileData} containing the profile data corresponding to the
      *     given account or a {@link DisplayableProfileData} with a placeholder image and null full
      *     and given name.
+     * @deprecated Use {@link #getById} instead.
+     *     <p>TODO(crbug.com/494147426) Remove this method when all usages are migrated to {@link
+     *     #getById}.
      */
+    @Deprecated
     public DisplayableProfileData getProfileDataOrDefault(@Nullable String accountEmail) {
         DisplayableProfileData profileData =
                 accountEmail != null ? mAccountsCache.getByEmail(accountEmail) : null;
@@ -205,6 +210,10 @@ public class ProfileDataCache implements IdentityManager.Observer {
      * @return The {@link DisplayableProfileData} for the given account ID.
      */
     public DisplayableProfileData getById(CoreAccountId accountId) {
+        if (!mAccountsCache.isLoaded()) {
+            updateCache();
+        }
+
         var profileData = mAccountsCache.getByAccountId(accountId);
         if (profileData != null) {
             return profileData;
@@ -309,21 +318,37 @@ public class ProfileDataCache implements IdentityManager.Observer {
         fireOnProfileDataUpdated(displayableProfileData);
     }
 
+    /** Checks if the cache contains profile data for the given account ID. */
+    public boolean hasProfileDataForTesting(CoreAccountId accountId) {
+        return mAccountsCache.getByAccountId(accountId) != null;
+    }
+
     /**
      * @return Whether the cache contains non-default profile data for the given account.
+     * @deprecated Use {@link #hasProfileDataForTesting(CoreAccountId)} instead.
+     *     <p>TODO(crbug.com/494147426) Remove this method when all usages are migrated to {@link
+     *     #hasProfileDataForTesting(CoreAccountId)}.
      */
+    @Deprecated
     public boolean hasProfileDataForTesting(String accountEmail) {
         return mAccountsCache.getByEmail(accountEmail) != null;
     }
 
     private void updateCache() {
         var accounts = getCoreAccountsIfLoaded();
-        if (accounts == null) {
-            // Accounts are not loaded yet, cache will be updated by the observer once they are
-            // available.
+        if (accounts != null) {
+            updateCache(accounts);
             return;
         }
-        updateCache(accounts);
+        // Accounts are not loaded yet, cache will be updated by the observer once they are
+        // available. Right now we can only try to update the cache with the primary account info,
+        // if there is any. Primary account info is available even if the accounts credentials are
+        // not fully loaded yet.
+        final @Nullable CoreAccountInfo primaryAccountInfo =
+                mIdentityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN);
+        if (primaryAccountInfo != null) {
+            updateCache(List.of(new AccountInfo.Builder(primaryAccountInfo).build()));
+        }
     }
 
     private void updateCache(List<AccountInfo> accounts) {
@@ -581,6 +606,10 @@ public class ProfileDataCache implements IdentityManager.Observer {
                 return mAccounts.getResult().get(accountId);
             }
             return null;
+        }
+
+        private boolean isLoaded() {
+            return mAccounts.isFulfilled();
         }
 
         private static final class AccountEntry {

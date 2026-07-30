@@ -96,12 +96,13 @@ constexpr char kKeyedNtpPromosPath[] = "in_product_help.ntp_promos.promos";
 // NTP keyed promo data elements.
 constexpr char kKeyedNtpPromoLastClicked[] = "last_clicked";
 constexpr char kKeyedNtpPromoCompleted[] = "completed";
-constexpr char kKeyedNtpPromoLastTopSpotSession[] = "last_top_spot_session";
-constexpr char kKeyedNtpPromoTopSpotSessionCount[] = "top_spot_session_count";
+constexpr char kKeyedNtpPromoLastTopSpotSession[] = "last_session";
+constexpr char kKeyedNtpPromoTopSpotSessionCount[] = "session_count_in_term";
+constexpr char kKeyedNtpPromoTermCount[] = "term_count";
+constexpr char kKeyedNtpPromoTermStartTime[] = "term_start_time";
+constexpr char kKeyedNtpPromoDismissed[] = "dismissed";
 
 // NTP promo general preferences.
-constexpr char kNtpPromoPrefLastSnoozed[] =
-    "in_product_help.ntp_promos.last_snoozed";
 constexpr char kNtpPromoPrefDisabled[] = "in_product_help.ntp_promos.disabled";
 
 // Tries to read keyed promo data from a `base::Value`. Returns null on failure;
@@ -192,7 +193,6 @@ void BrowserUserEducationStorageService::RegisterProfilePrefs(
   registry->RegisterListPref(kRecentSessionStartTimesPath);
   registry->RegisterTimePref(kRecentSessionEnabledTimePath, base::Time());
   registry->RegisterDictionaryPref(kKeyedNtpPromosPath);
-  registry->RegisterTimePref(kNtpPromoPrefLastSnoozed, base::Time());
   registry->RegisterBooleanPref(kNtpPromoPrefDisabled, false);
 }
 
@@ -472,10 +472,19 @@ BrowserUserEducationStorageService::ReadNtpPromoData(
   maybe_time = time_value ? base::ValueToTime(*time_value) : std::nullopt;
   data.completed = maybe_time.value_or(base::Time());
 
-  data.last_top_spot_session =
+  data.last_session =
       promo_prefs->FindInt(kKeyedNtpPromoLastTopSpotSession).value_or(0);
-  data.top_spot_session_count =
+  data.session_count_in_term =
       promo_prefs->FindInt(kKeyedNtpPromoTopSpotSessionCount).value_or(0);
+  data.term_count = promo_prefs->FindInt(kKeyedNtpPromoTermCount).value_or(0);
+
+  time_value = promo_prefs->Find(kKeyedNtpPromoTermStartTime);
+  maybe_time = time_value ? base::ValueToTime(*time_value) : std::nullopt;
+  data.term_start_time = maybe_time.value_or(base::Time());
+
+  time_value = promo_prefs->Find(kKeyedNtpPromoDismissed);
+  maybe_time = time_value ? base::ValueToTime(*time_value) : std::nullopt;
+  data.dismissed_time = maybe_time.value_or(base::Time());
 
   return data;
 }
@@ -490,9 +499,13 @@ void BrowserUserEducationStorageService::SaveNtpPromoData(
   promo_pref.Set(kKeyedNtpPromoLastClicked,
                  base::TimeToValue(data.last_clicked));
   promo_pref.Set(kKeyedNtpPromoCompleted, base::TimeToValue(data.completed));
-  promo_pref.Set(kKeyedNtpPromoLastTopSpotSession, data.last_top_spot_session);
-  promo_pref.Set(kKeyedNtpPromoTopSpotSessionCount,
-                 data.top_spot_session_count);
+  promo_pref.Set(kKeyedNtpPromoLastTopSpotSession, data.last_session);
+  promo_pref.Set(kKeyedNtpPromoTopSpotSessionCount, data.session_count_in_term);
+  promo_pref.Set(kKeyedNtpPromoTermCount, data.term_count);
+  promo_pref.Set(kKeyedNtpPromoTermStartTime,
+                 base::TimeToValue(data.term_start_time));
+  promo_pref.Set(kKeyedNtpPromoDismissed,
+                 base::TimeToValue(data.dismissed_time));
   pref_data.Set(id, std::move(promo_pref));
 }
 
@@ -505,19 +518,16 @@ void BrowserUserEducationStorageService::ResetNtpPromoData(
 user_education::NtpPromoPreferences
 BrowserUserEducationStorageService::ReadNtpPromoPreferences() {
   user_education::NtpPromoPreferences data;
-  data.last_snoozed = profile_->GetPrefs()->GetTime(kNtpPromoPrefLastSnoozed);
   data.disabled = profile_->GetPrefs()->GetBoolean(kNtpPromoPrefDisabled);
   return data;
 }
 
 void BrowserUserEducationStorageService::SaveNtpPromoPreferences(
     const user_education::NtpPromoPreferences& data) {
-  profile_->GetPrefs()->SetTime(kNtpPromoPrefLastSnoozed, data.last_snoozed);
   profile_->GetPrefs()->SetBoolean(kNtpPromoPrefDisabled, data.disabled);
 }
 
 void BrowserUserEducationStorageService::ResetNtpPromoPreferences() {
-  profile_->GetPrefs()->ClearPref(kNtpPromoPrefLastSnoozed);
   profile_->GetPrefs()->ClearPref(kNtpPromoPrefDisabled);
 }
 

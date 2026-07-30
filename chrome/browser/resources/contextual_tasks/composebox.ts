@@ -17,16 +17,19 @@ import {assert} from '//resources/js/assert.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
-import type {InputState} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
+import type {InputState, ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import {InputType} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
+import {WindowOpenDisposition} from 'chrome://resources/mojo/ui/base/mojom/window_open_disposition.mojom-webui.js';
 
 import {getCss} from './composebox.css.js';
 import {getHtml} from './composebox.html.js';
 import {VoiceSearchState} from './constants.js';
 import {IconType} from './contextual_tasks.mojom-webui.js';
+import type {PageHandlerInterface} from './contextual_tasks.mojom-webui.js';
+import {BrowserProxyImpl} from './contextual_tasks_browser_proxy.js';
 
 const ICON_TYPE_TO_NAME: {[id: number]: string} = {
   [IconType.kUnspecified]: 'unspecified',
@@ -131,6 +134,7 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
       selectedMatchIndex_: {type: Number},
       enableFileHint_: {type: Boolean},
       lensButtonDisabled_: {type: Boolean},
+      isCanvasQuerySubmitted: {type: Boolean},
     };
   }
 
@@ -140,6 +144,7 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   accessor isLensOverlayShowing: boolean = false;
   accessor isOverlayOpenForAimVisualSearch: boolean = false;
   accessor inputEnabled: boolean = true;
+  accessor isCanvasQuerySubmitted: boolean = false;
 
   protected accessor zeroStateSuggestions_: AutocompleteResult = {
     input: '',
@@ -167,6 +172,7 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   protected searchboxHandler_: SearchboxPageHandlerRemote;
   private eventTracker_: EventTracker = new EventTracker();
   private pageHandler_: PageHandlerRemote;
+  private contextualTasksHandler_: PageHandlerInterface;
   private searchboxCallbackRouter_: SearchboxPageCallbackRouter;
   private searchboxListenerIds_: number[] = [];
   // Tracks the resize of the composebox to provide height updates.
@@ -177,6 +183,7 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   constructor() {
     super();
     this.pageHandler_ = ComposeboxProxyImpl.getInstance().handler;
+    this.contextualTasksHandler_ = BrowserProxyImpl.getInstance().handler;
     this.searchboxCallbackRouter_ =
         ComposeboxProxyImpl.getInstance().searchboxCallbackRouter;
     this.searchboxHandler_ = ComposeboxProxyImpl.getInstance().searchboxHandler;
@@ -283,6 +290,9 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   override updated(changedProperties: PropertyValues<this>) {
     super.updated(changedProperties);
     if (changedProperties.has('isZeroState')) {
+      if (this.isZeroState) {
+        this.isCanvasQuerySubmitted = false;
+      }
       if (this.isZeroState && !this.isSidePanel) {
         // Get zero state autocomplete matches. In the side panel, we wait for
         // an update about whether an auto-chip will be added before querying
@@ -312,6 +322,10 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
     return this.isSidePanel;
   }
 
+  get inputState() {
+    return this.inputState_;
+  }
+
   protected getInputPlaceholder_() {
     return this.isOverlayOpenForAimVisualSearch &&
             !this.$.composebox.hasFiles() ?
@@ -324,6 +338,15 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   // `showDropdown_`.
   protected onShowSuggestionActivityLink_(e: CustomEvent<boolean>) {
     this.showSuggestionsActivityLink_ = e.detail;
+  }
+
+  protected onSuggestionActivityLinkClicked_(e: CustomEvent<{event: Event}>) {
+    e.detail.event.preventDefault();
+    const anchor = e.detail.event.target as HTMLAnchorElement;
+    if (anchor && anchor.href) {
+      this.contextualTasksHandler_.openUrl(
+          anchor.href, WindowOpenDisposition.NEW_FOREGROUND_TAB);
+    }
   }
 
   protected onInputStateChanged_(e: CustomEvent<{inputState: InputState}>) {
@@ -381,11 +404,29 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   }
 
   clearInputAndFocus(querySubmitted: boolean = false): void {
+    const hadContent = this.$.composebox.input.trim().length > 0 ||
+        this.$.composebox.hasFiles();
+
     // Clear text from composebox and focus.
     this.$.composebox.clearAllInputs(
         querySubmitted, /* shouldBlockAutoSuggestedTabs= */ false);
     this.$.composebox.focusInput();
-    this.$.composebox.clearAutocompleteMatches();
+
+    // Unconditionally clearing matches wipes out the zero state suggestions
+    // when transitioning into or updating the zero state. Therefore, only clear
+    // matches if the query was submitted or if the composebox is not in zero
+    // state.
+    if (querySubmitted || !this.isZeroState) {
+      this.$.composebox.clearAutocompleteMatches();
+      return;
+    }
+
+    // Since the composebox is being rendered in zero state, fetch new zero
+    // state suggestions IFF there weren't already suggestions to prevent a
+    // flicker.
+    if (hadContent) {
+      this.$.composebox.queryAutocomplete(/*clearMatches=*/ true);
+    }
   }
 
   setIsLoadingForTesting(isLoading: boolean) {
@@ -432,12 +473,47 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
     return this.$.composebox;
   }
 
+  setActiveTool(toolMode: ToolMode) {
+    this.searchboxHandler_.setActiveToolMode(toolMode);
+  }
+  setToolFromUrl(urlString: string) {
+    const urlObj = new URL(urlString);
+    const inputState = this.inputState;
+    if (inputState && inputState.toolConfigs) {
+      for (const config of inputState.toolConfigs) {
+        if (config.aimUrlParams && config.aimUrlParams.length > 0) {
+          const hasParam = config.aimUrlParams.some(p => {
+            const value = urlObj.searchParams.get(p.paramKey);
+            return value === p.paramValue;
+          });
+          if (hasParam) {
+            if (config.tool === 2 /* ToolMode.kCanvas */) {
+              this.isCanvasQuerySubmitted = true;
+            }
+            if (inputState.activeTool !== config.tool) {
+              this.setActiveTool(config.tool);
+            }
+            break;
+          }
+        }
+      }
+    }
+  }
+
   get isComposeboxFocusedForTesting() {
     return this.isComposeboxFocused_;
   }
 
   get composeboxHeightForTesting() {
     return this.composeboxHeight_;
+  }
+
+  get selectedMatchIndexForTesting() {
+    return this.selectedMatchIndex_;
+  }
+
+  set zeroStateSuggestionsForTesting(val: AutocompleteResult) {
+    this.zeroStateSuggestions_ = val;
   }
 
   get resizeObserverForTesting() {

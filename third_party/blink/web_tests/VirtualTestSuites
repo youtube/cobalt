@@ -1420,7 +1420,8 @@
       "external/wpt/css/css-page",
       "fast/multicol",
       "fragmentation",
-      "printing"
+      "printing",
+      "wpt_internal/printing"
     ],
     "args": [ "--enable-blink-features=FragmentedOofInCb" ],
     "expires": "May 17, 2026"
@@ -1781,6 +1782,27 @@
       "--enable-features=JavaScriptSourcePhaseImports"
     ],
     "expires": "Apr 4, 2026"
+  },
+  {
+    "prefix": "javascript-defer-phase-imports",
+    "owners": [
+      "caiolima@igalia.com"
+    ],
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/html/semantics/scripting-1/the-script-element/module/dynamic-import/basic-deferred-evaluation.tentative.html",
+      "external/wpt/html/semantics/scripting-1/the-script-element/module/dynamic-import/cyclic-tla-defer-eval.tentative.html",
+      "external/wpt/html/semantics/scripting-1/the-script-element/module/dynamic-import/cyclic-tla-fn-defer-eval.tentative.html",
+      "external/wpt/html/semantics/scripting-1/the-script-element/module/dynamic-import/tla-deferred-evaluation.tentative.html"
+    ],
+    "args": [
+      "--enable-features=V8Flag_js_defer_import_eval"
+    ],
+    "expires": "Apr 4, 2027"
   },
   {
     "prefix": "js-shared-memory",
@@ -4218,6 +4240,26 @@
     "expires": "Apr 1, 2026"
   },
   {
+    "prefix": "prerender-cross-origin-iframe-scroll",
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/speculation-rules/prerender/scroll-into-view-cross-origin-iframe.https.html"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--enable-features=Prerender2CrossOriginIframes",
+      "--site-per-process"
+    ],
+    "owners": [
+      "stevenwei@microsoft.com"
+    ],
+    "expires": "Apr 1, 2027"
+  },
+  {
     "prefix": "speech-with-unified-autoplay",
     "owners": [
       "media-dev@chromium.org",
@@ -4835,7 +4877,7 @@
     "args": [
       "--enable-features=PrivateStateTokens",
       "--enable-blink-features=PrivateStateTokens,PrivateStateTokensAlwaysAllowIssuance",
-      "--additional-private-state-token-key-commitments={\"https://web-platform.test:8444\":{\"PrivateStateTokenV3VOPRF\":{\"protocol_version\":\"PrivateStateTokenV3VOPRF\",\"id\":1,\"batchsize\":1,\"keys\":{\"0\":{\"Y\":\"AAAAAASqh8oivosFN46xxx7zIK10bh07Younm5hZ90HgglQqOFUC8l2/VSlsOlReOHJ2CrfJ6CG1adnTkKJhZ0BtbSPWBwviQtdl64MWJc7sSg9HPvWfTjDigX5ihbzihG8V8aA=\",\"expiry\":\"253402300799000000\"}}}}}"
+      "--additional-private-state-token-key-commitments={\"https://web-platform.test:8444\":{\"PrivateStateTokenV1VOPRF\":{\"protocol_version\":\"PrivateStateTokenV1VOPRF\",\"id\":1,\"batchsize\":1,\"keys\":{\"0\":{\"Y\":\"AAAAAASqh8oivosFN46xxx7zIK10bh07Younm5hZ90HgglQqOFUC8l2/VSlsOlReOHJ2CrfJ6CG1adnTkKJhZ0BtbSPWBwviQtdl64MWJc7sSg9HPvWfTjDigX5ihbzihG8V8aA=\",\"expiry\":\"253402300799000000\"}}}}}"
     ],
     "expires": "Jan 1, 2025"
   },
@@ -4868,6 +4910,23 @@
     "bases": [],
     "args": [
       "--disable-features=UserMediaElement"
+    ],
+    "owners": [
+      "permissions-core@google.com"
+    ],
+    "expires": "never"
+  },
+  {
+    "prefix": "install-element-disabled",
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win",
+      "ChromeOS"
+    ],
+    "bases": [],
+    "args": [
+      "--disable-features=InstallElement"
     ],
     "owners": [
       "permissions-core@google.com"

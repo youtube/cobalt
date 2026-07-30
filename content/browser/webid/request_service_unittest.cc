@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -39,13 +40,17 @@
 #include "content/public/common/content_features.h"
 #include "content/public/test/back_forward_cache_util.h"
 #include "content/public/test/fake_local_frame.h"
+#include "content/public/test/navigation_simulator.h"
 #include "content/test/test_render_frame_host.h"
 #include "content/test/test_render_view_host.h"
 #include "content/test/test_web_contents.h"
 #include "metrics.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "mojo/public/cpp/test_support/test_utils.h"
 #include "net/http/http_status_code.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/webid/login_status_account.h"
 #include "third_party/blink/public/common/webid/login_status_options.h"
@@ -207,6 +212,7 @@ struct MockConfig {
   std::string metrics_endpoint;
   std::string idp_login_url;
   std::string disconnect_endpoint;
+  std::string vc_issuance_endpoint;
   std::optional<SkColor> brand_background_color;
   std::optional<SkColor> brand_text_color;
   std::string requested_label;
@@ -371,6 +377,7 @@ class TestIdpNetworkRequestManager : public MockIdpNetworkRequestManager {
     endpoints.client_metadata = GURL(config.client_metadata_endpoint);
     endpoints.metrics = GURL(config.metrics_endpoint);
     endpoints.disconnect = GURL(config.disconnect_endpoint);
+    endpoints.issuance = GURL(config.vc_issuance_endpoint);
 
     IdentityProviderMetadata idp_metadata;
     idp_metadata.config_url = provider;
@@ -988,6 +995,7 @@ class RequestServiceTest : public RenderViewHostImplTestHarness {
          kMetricsEndpoint,
          kIdpLoginUrl,
          kIdpDisconnectUrl,
+         /*vc_issuance_endpoint=*/"",
          /*brand_background_color=*/std::nullopt,
          /*brand_text_color=*/std::nullopt},
         kDefaultClientMetadata,
@@ -1165,6 +1173,7 @@ class RequestServiceTest : public RenderViewHostImplTestHarness {
                          "https://idp2.example/metrics",
                          "https://idp2.example/login_url",
                          "https://idp2.example/disconnect",
+                         /*vc_issuance_endpoint=*/"",
                          /*brand_background_color=*/std::nullopt,
                          /*brand_text_color=*/std::nullopt},
                         kDefaultClientMetadata,
@@ -1188,6 +1197,31 @@ class RequestServiceTest : public RenderViewHostImplTestHarness {
         IdpSigninStatusMismatchDialogAction::kNone,
         ErrorDialogAction::kClose,
         LoadingDialogAction::kNone};
+  }
+
+  // Navigate with identity-credentials-get PP denied and bind a new
+  // Mojo remote to the resulting RFH.
+  mojo::Remote<blink::mojom::FederatedAuthRequest>
+  NavigateAndBindWithDeniedIdentityCredentialsGetPolicy() {
+    // Setting `feature` with no `allowed_origins` means disabled for all.
+    network::ParsedPermissionsPolicy policy(1);
+    policy[0].feature =
+        network::mojom::PermissionsPolicyFeature::kIdentityCredentialsGet;
+
+    auto simulator = NavigationSimulator::CreateRendererInitiated(
+        GURL(rp_url_), web_contents()->GetPrimaryMainFrame());
+    simulator->SetPermissionsPolicyHeader(std::move(policy));
+    simulator->Commit();
+
+    mojo::Remote<blink::mojom::FederatedAuthRequest> remote;
+    RequestService::CreateForTesting(
+        *static_cast<TestRenderFrameHost*>(
+            simulator->GetFinalRenderFrameHost()),
+        test_api_permission_delegate_.get(),
+        test_auto_reauthn_permission_delegate_.get(),
+        test_permission_delegate_.get(), test_identity_registry_.get(),
+        remote.BindNewPipeAndPassReceiver());
+    return remote;
   }
 
   void SetUp() override {
@@ -2102,6 +2136,57 @@ TEST_F(RequestServiceTest, MissingTokenEndpoint) {
       "\"id_assertion_endpoint\"\n",
       messages[0]);
   EXPECT_EQ("Provider's FedCM config file is invalid.", messages[1]);
+}
+
+// Test that request fails if config has a cross-origin vc_issuance_endpoint.
+TEST_F(RequestServiceTest, InvalidVcIssuanceEndpoint) {
+  base::test::ScopedFeatureList list;
+  list.InitAndEnableFeature(features::kFedCmDelegation);
+
+  MockConfiguration configuration = kConfigurationValid;
+  configuration.idp_info[kProviderUrlFull].config.vc_issuance_endpoint =
+      "https://cross-origin.idp.example/issuance";
+  RequestExpectations expectations = {
+      RequestTokenStatus::kError,
+      FederatedAuthRequestResult::kConfigInvalidResponse,
+      /*standalone_console_message=*/std::nullopt,
+      /*selected_idp_config_url=*/std::nullopt};
+  RunAuthTest(kDefaultRequestParameters, expectations, configuration);
+  EXPECT_TRUE(DidFetchWellKnownAndConfig());
+  EXPECT_FALSE(DidFetch(FetchedEndpoint::ACCOUNTS));
+
+  std::vector<std::string> messages =
+      RenderFrameHostTester::For(main_rfh())->GetConsoleMessages();
+  ASSERT_EQ(2U, messages.size());
+  EXPECT_EQ(
+      "Config file is missing or has an invalid URL for the following:\n"
+      "\"vc_issuance_endpoint\"\n",
+      messages[0]);
+  EXPECT_EQ("Provider's FedCM config file is invalid.", messages[1]);
+}
+
+// Test that request succeeds if config has a same-origin vc_issuance_endpoint.
+TEST_F(RequestServiceTest, ValidVcIssuanceEndpoint) {
+  base::test::ScopedFeatureList list;
+  list.InitAndEnableFeature(features::kFedCmDelegation);
+
+  MockConfiguration configuration = kConfigurationValid;
+  configuration.idp_info[kProviderUrlFull].config.vc_issuance_endpoint =
+      "https://idp.example/issuance";
+  RunAuthTest(kDefaultRequestParameters, kExpectationSuccess, configuration);
+  EXPECT_TRUE(DidFetchWellKnownAndConfig());
+  EXPECT_TRUE(DidFetch(FetchedEndpoint::ACCOUNTS));
+}
+
+// Test that request succeeds if config has a cross-origin vc_issuance_endpoint,
+// but delegation is disabled.
+TEST_F(RequestServiceTest, CrossOriginVcIssuanceEndpointDisabledDelegation) {
+  MockConfiguration configuration = kConfigurationValid;
+  configuration.idp_info[kProviderUrlFull].config.vc_issuance_endpoint =
+      "https://cross-origin.idp.example/issuance";
+  RunAuthTest(kDefaultRequestParameters, kExpectationSuccess, configuration);
+  EXPECT_TRUE(DidFetchWellKnownAndConfig());
+  EXPECT_TRUE(DidFetch(FetchedEndpoint::ACCOUNTS));
 }
 
 // Test that request fails if config is missing accounts endpoint.
@@ -7879,6 +7964,7 @@ TEST_F(FederatedAuthRequestExampleOrgTest, WellKnownSameSite) {
   idp_info.config.metrics_endpoint = "";
   idp_info.config.idp_login_url = "https://idp.example.org/login";
   idp_info.config.disconnect_endpoint = "";
+  idp_info.config.vc_issuance_endpoint = "";
 
   // We make the request from rp.example to idp.example, so it should
   // only succeed despite the well-known failure if the flag is on.
@@ -8798,6 +8884,93 @@ TEST_F(RequestServiceTest, IdentityCredentialSourceFailsOnInvalidOrigin) {
               kInvalidOrigin));
 
   RunAuthTest(kDefaultRequestParameters, expectations, configuration);
+}
+
+TEST_F(RequestServiceTest, RequestTokenDeniedByPermissionsPolicy) {
+  auto remote = NavigateAndBindWithDeniedIdentityCredentialsGetPolicy();
+  mojo::test::BadMessageObserver bad_message_observer;
+
+  auto get_params = blink::mojom::IdentityProviderGetParameters::New();
+  get_params->providers.push_back(
+      blink::mojom::IdentityProviderRequestOptions::New());
+  get_params->providers[0]->config =
+      blink::mojom::IdentityProviderConfig::New();
+  get_params->providers[0]->config->config_url = GURL(kProviderUrlFull);
+  get_params->providers[0]->config->client_id = kClientId;
+
+  std::vector<blink::mojom::IdentityProviderGetParametersPtr> params;
+  params.push_back(std::move(get_params));
+
+  remote->RequestToken(
+      std::move(params),
+      password_manager::CredentialMediationRequirement::kOptional,
+      base::DoNothing());
+
+  EXPECT_EQ("identity-credentials-get permissions policy not enabled",
+            bad_message_observer.WaitForBadMessage());
+}
+
+TEST_F(RequestServiceTest, RequestUserInfoDeniedByPermissionsPolicy) {
+  auto remote = NavigateAndBindWithDeniedIdentityCredentialsGetPolicy();
+  mojo::test::BadMessageObserver bad_message_observer;
+
+  auto config = blink::mojom::IdentityProviderConfig::New();
+  config->config_url = GURL(kProviderUrlFull);
+  config->client_id = kClientId;
+
+  remote->RequestUserInfo(std::move(config), base::DoNothing());
+
+  EXPECT_EQ("identity-credentials-get permissions policy not enabled",
+            bad_message_observer.WaitForBadMessage());
+}
+
+TEST_F(RequestServiceTest, DisconnectDeniedByPermissionsPolicy) {
+  auto remote = NavigateAndBindWithDeniedIdentityCredentialsGetPolicy();
+  mojo::test::BadMessageObserver bad_message_observer;
+
+  auto options = blink::mojom::IdentityCredentialDisconnectOptions::New();
+  options->config = blink::mojom::IdentityProviderConfig::New();
+  options->config->config_url = GURL(kProviderUrlFull);
+  options->config->client_id = kClientId;
+  options->account_hint = "hint";
+
+  remote->Disconnect(std::move(options), base::DoNothing());
+
+  EXPECT_EQ("identity-credentials-get permissions policy not enabled",
+            bad_message_observer.WaitForBadMessage());
+}
+
+TEST_F(RequestServiceTest, NotifyAutofillSuggestionAcceptedWithUnknownIdp) {
+  auto dialog_controller =
+      std::make_unique<TestDialogController>(kConfigurationValid);
+
+  dialog_controller->SetState(&dialog_controller_state_);
+  federated_auth_request_impl_->SetDialogControllerForTests(
+      std::move(dialog_controller));
+
+  // Call NotifyAutofillSuggestionAccepted with an IDP that is not in
+  // token_request_get_infos_.
+  GURL unknown_idp("https://unknownidp.example/");
+  std::optional<bool> callback_result;
+  base::RunLoop run_loop;
+  RequestService::OnFederatedTokenReceivedCallback callback = base::BindOnce(
+      [](std::optional<bool>* callback_result, base::OnceClosure quit_closure,
+         bool accepted) {
+        *callback_result = accepted;
+        std::move(quit_closure).Run();
+      },
+      &callback_result, run_loop.QuitClosure());
+
+  // This should return early and not crash.
+  federated_auth_request_impl_->NotifyAutofillSuggestionAccepted(
+      unknown_idp, "account_id", /*show_modal=*/true, std::move(callback));
+
+  run_loop.Run();
+
+  // Verify that the loading dialog was not shown.
+  EXPECT_FALSE(dialog_controller_state_.did_show_loading_dialog);
+  // Verify that the callback was called with false.
+  EXPECT_EQ(callback_result, false);
 }
 
 }  // namespace content::webid

@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/webui/intro/intro_ui.h"
 
 #include "base/check_deref.h"
+#include "base/check_is_test.h"
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/notreached.h"
@@ -26,8 +27,21 @@
 #include "components/strings/grit/components_branded_strings.h"
 #include "components/sync/base/features.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/webui/webui_util.h"
+
+namespace {
+int GetBackupCardDescriptionId(bool is_first_run_desktop_refresh_enabled) {
+  if (!syncer::IsReplaceSyncPromosWithSignInPromosEnabled()) {
+    return IDS_UNO_FRE_BACKUP_CARD_DESCRIPTION;
+  }
+
+  return is_first_run_desktop_refresh_enabled
+             ? IDS_UNO_FRE_REFRESH_BACKUP_CARD_DESCRIPTION_WITH_PASSWORDS
+             : IDS_UNO_FRE_BACKUP_CARD_DESCRIPTION_WITH_PASSWORDS;
+}
+}  // namespace
 
 IntroUI::IntroUI(content::WebUI* web_ui) : content::WebUIController(web_ui) {
   auto* profile = Profile::FromWebUI(web_ui);
@@ -93,9 +107,7 @@ IntroUI::IntroUI(content::WebUI* web_ui) : content::WebUIController(web_ui) {
   source->AddLocalizedString("pageTitle", title_id);
   source->AddLocalizedString(
       "backupCardDescription",
-      syncer::IsReplaceSyncPromosWithSignInPromosEnabled()
-          ? IDS_UNO_FRE_BACKUP_CARD_DESCRIPTION_WITH_PASSWORDS
-          : IDS_UNO_FRE_BACKUP_CARD_DESCRIPTION);
+      GetBackupCardDescriptionId(is_first_run_desktop_refresh_enabled));
   source->AddLocalizedString(
       "declineSignInButtonTitle",
       base::FeatureList::IsEnabled(
@@ -127,6 +139,13 @@ IntroUI::IntroUI(content::WebUI* web_ui) : content::WebUIController(web_ui) {
   source->AddBoolean("usePrimaryAndTonalButtonsForPromos",
                      base::FeatureList::IsEnabled(
                          switches::kUsePrimaryAndTonalButtonsForPromos));
+  if (base::FeatureList::IsEnabled(
+          switches::kDisableFirstRunAnimationsForTesting)) {
+    CHECK_IS_TEST();
+    source->AddBoolean("disableAnimations", true);
+  } else {
+    source->AddBoolean("disableAnimations", false);
+  }
 
   if (is_first_run_desktop_refresh_enabled) {
     source->AddInteger(
@@ -140,21 +159,6 @@ IntroUI::IntroUI(content::WebUI* web_ui) : content::WebUIController(web_ui) {
       is_first_run_desktop_refresh_enabled
           ? IDR_INTRO_DEFAULT_BROWSER_DEFAULT_BROWSER_REFRESH_HTML
           : IDR_INTRO_DEFAULT_BROWSER_DEFAULT_BROWSER_HTML);
-
-  if (is_first_run_desktop_refresh_enabled) {
-    source->AddResourcePath(
-        "images/default_browser_bg_right_dark.png",
-        IDR_INTRO_IMAGES_DEFAULT_BROWSER_BG_RIGHT_DARK_PNG);
-    source->AddResourcePath(
-        "images/default_browser_bg_right_light.png",
-        IDR_INTRO_IMAGES_DEFAULT_BROWSER_BG_RIGHT_LIGHT_PNG);
-    source->AddResourcePath(
-      "images/default_browser_bg_bottom_dark.png",
-      IDR_INTRO_IMAGES_DEFAULT_BROWSER_BG_BOTTOM_DARK_PNG);
-    source->AddResourcePath(
-      "images/default_browser_bg_bottom_light.png",
-      IDR_INTRO_IMAGES_DEFAULT_BROWSER_BG_BOTTOM_LIGHT_PNG);
-  }
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   source->AddResourcePath("images/refresh_showcase_illustration.png",
@@ -171,6 +175,12 @@ IntroUI::IntroUI(content::WebUI* web_ui) : content::WebUIController(web_ui) {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   source->AddResourcePath("images/gshield.svg", IDR_GSHIELD_ICON_SVG);
 #endif
+
+  if (is_first_run_desktop_refresh_enabled) {
+    source->OverrideContentSecurityPolicy(
+        network::mojom::CSPDirectiveName::WorkerSrc,
+        "worker-src blob: chrome://resources 'self';");
+  }
 
   // Unretained ok: `this` owns the handler.
   auto intro_handler = std::make_unique<IntroHandler>(

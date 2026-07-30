@@ -12,6 +12,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
+#include "chrome/browser/password_manager/password_change/annotated_page_content_capturer.h"
 #include "chrome/browser/password_manager/password_change/button_click_helper.h"
 #include "chrome/browser/password_manager/password_change/change_password_form_waiter.h"
 #include "chrome/browser/password_manager/password_change/form_filling_helper.h"
@@ -110,11 +111,7 @@ ChangePasswordFormFillingSubmissionHelper::
     : creation_time_(base::Time::Now()),
       web_contents_(web_contents),
       client_(client),
-      callback_(base::BindOnce(&LogError).Then(std::move(callback))) {
-  capture_annotated_page_content_ =
-      base::BindOnce(&optimization_guide::GetAIPageContent, web_contents,
-                     GetAIPageContentOptions());
-}
+      callback_(base::BindOnce(&LogError).Then(std::move(callback))) {}
 
 ChangePasswordFormFillingSubmissionHelper::
     ChangePasswordFormFillingSubmissionHelper(
@@ -127,22 +124,6 @@ ChangePasswordFormFillingSubmissionHelper::
                                                 std::move(callback)) {
   CHECK(logs_uploader);
   logs_uploader_ = logs_uploader;
-}
-
-ChangePasswordFormFillingSubmissionHelper::
-    ChangePasswordFormFillingSubmissionHelper(
-        base::PassKey<class ChangePasswordFormFillingSubmissionHelperTest>,
-        content::WebContents* web_contents,
-        password_manager::PasswordManagerClient* client,
-        ModelQualityLogsUploader* logs_uploader,
-        base::OnceCallback<void(optimization_guide::OnAIPageContentDone)>
-            capture_annotated_page_content,
-        base::OnceCallback<void(SubmissionResult)> result_callback)
-    : ChangePasswordFormFillingSubmissionHelper(web_contents,
-                                                client,
-                                                logs_uploader,
-                                                std::move(result_callback)) {
-  capture_annotated_page_content_ = std::move(capture_annotated_page_content);
 }
 
 ChangePasswordFormFillingSubmissionHelper::
@@ -191,32 +172,7 @@ void ChangePasswordFormFillingSubmissionHelper::FillChangePasswordForm(
   timeout_timer_.Start(
       FROM_HERE,
       ChangePasswordFormFillingSubmissionHelper::kSubmissionWaitingTimeout,
-      this,
-      &ChangePasswordFormFillingSubmissionHelper::
-          OnSubmissionDetectedOrTimeout);
-}
-
-void ChangePasswordFormFillingSubmissionHelper::OnPasswordFormSubmission(
-    content::WebContents* web_contents) {
-  // Ignore any submission before the button was clicked.
-  if (!click_helper_) {
-    return;
-  }
-  if (web_contents != web_contents_) {
-    return;
-  }
-  if (std::exchange(submission_detected_, true)) {
-    return;
-  }
-  if (auto logger = GetLoggerIfAvailable(client_)) {
-    logger->LogMessage(
-        Logger::STRING_AUTOMATED_PASSWORD_CHANGE_FORM_SUBMISSION);
-  }
-  if (!timeout_timer_.IsRunning()) {
-    return;
-  }
-  timeout_timer_.Stop();
-  OnSubmissionDetectedOrTimeout();
+      this, &ChangePasswordFormFillingSubmissionHelper::OnTimeout);
 }
 
 void ChangePasswordFormFillingSubmissionHelper::SavePassword(
@@ -349,9 +305,9 @@ void ChangePasswordFormFillingSubmissionHelper::ChangePasswordFormFilled(
            generated_password_);
   form_manager_->UpdateBackupPassword(stored_password_);
 
-  CHECK(capture_annotated_page_content_);
-  std::move(capture_annotated_page_content_)
-      .Run(base::BindOnce(
+  capturer_ = std::make_unique<AnnotatedPageContentCapturer>(
+      web_contents_, GetAIPageContentOptions(),
+      base::BindOnce(
           &ChangePasswordFormFillingSubmissionHelper::OnPageContentReceived,
           weak_ptr_factory_.GetWeakPtr()));
 }
@@ -440,57 +396,22 @@ void ChangePasswordFormFillingSubmissionHelper::OnButtonClicked(
     actor::mojom::ActionResultCode result) {
   CHECK(web_contents_);
 
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::kPasswordChangeImmediateSubmission)) {
-    if (result == actor::mojom::ActionResultCode::kOk) {
-      std::move(callback_).Run(std::move(form_manager_));
-    } else {
-      if (logs_uploader_) {
-        logs_uploader_->RecordButtonClickFailure(kSubmitFormFlowStep, result);
-      }
-      std::move(callback_).Run(
-        base::unexpected(SubmissionError::kFailedToClickSubmit));
-    }
+  if (result == actor::mojom::ActionResultCode::kOk) {
+    std::move(callback_).Run(std::move(form_manager_));
     return;
   }
 
-  if (result != actor::mojom::ActionResultCode::kOk && !submission_detected_) {
-    // Fail immediately as click failed and no form submission was detected.
-    if (logs_uploader_) {
-      logs_uploader_->RecordButtonClickFailure(kSubmitFormFlowStep, result);
-    }
-    std::move(callback_).Run(
-        base::unexpected(SubmissionError::kFailedToClickSubmit));
-    return;
-  }
+  logs_uploader_->RecordButtonClickFailure(kSubmitFormFlowStep, result);
+  std::move(callback_).Run(
+      base::unexpected(SubmissionError::kFailedToClickSubmit));
 }
 
-void ChangePasswordFormFillingSubmissionHelper::
-    OnSubmissionDetectedOrTimeout() {
+void ChangePasswordFormFillingSubmissionHelper::OnTimeout() {
   if (auto logger = GetLoggerIfAvailable(client_)) {
-    logger->LogMessage(
-        Logger::
-            STRING_AUTOMATED_PASSWORD_CHANGE_SUBMISSION_DETECTED_OR_TIMEOUT);
+    logger->LogMessage(Logger::STRING_AUTOMATED_PASSWORD_CHANGE_TIMEOUT);
   }
 
-  // Submission before button clicks are ignored, thus this is a timeout.
-  if (!click_helper_) {
-    CHECK(callback_);
-    std::move(callback_).Run(base::unexpected(SubmissionError::kTimeout));
-    return;
-  }
-
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::kPasswordChangeImmediateSubmission)) {
-    return;
-  }
-
-  base::UmaHistogramBoolean(
-      "PasswordManager.PasswordChangeVerificationTriggeredAutomatically",
-      submission_detected_);
-
-  // Button has been already clicked, it's safe to proceeded to the next step.
-  std::move(callback_).Run(std::move(form_manager_));
+  std::move(callback_).Run(base::unexpected(SubmissionError::kTimeout));
 }
 
 void ChangePasswordFormFillingSubmissionHelper::OnChangePasswordFormFound(

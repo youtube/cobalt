@@ -50,7 +50,6 @@ BASE_DECLARE_FEATURE(kExtensionsCollapseMainMenu);
 BASE_DECLARE_FEATURE(kInfobarRefresh);
 
 #if BUILDFLAG(IS_WIN)
-BASE_DECLARE_FEATURE(kOfferPinToTaskbarWhenSettingToDefault);
 BASE_DECLARE_FEATURE(kOfferPinToTaskbarInFirstRunExperience);
 BASE_DECLARE_FEATURE(kOfferPinToTaskbarInSettings);
 #endif
@@ -156,9 +155,6 @@ BASE_DECLARE_FEATURE(kPressAndHoldEscToExitBrowserFullscreen);
 BASE_DECLARE_FEATURE(kProcessIsolationSettings);
 #endif  // BUILDFLAG(IS_WIN)
 
-BASE_DECLARE_FEATURE(kScrimForBrowserWindowModal);
-
-BASE_DECLARE_FEATURE(kSplitViewTabDraggingUpdates);
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kShowDropTargetForTabDelay);
 
 // Overrides the `kSplitViewTabDraggingUpdates` feature flag if set.
@@ -174,14 +170,15 @@ BASE_DECLARE_FEATURE_PARAM(int, kSplitViewDragAndDropMaxDistanceThreshold);
 BASE_DECLARE_FEATURE(kTabDuplicateMetrics);
 
 BASE_DECLARE_FEATURE(kTabGroupsCollapseFreezing);
-BASE_DECLARE_FEATURE(kTabGroupHoverCards);
 
 #if !BUILDFLAG(IS_ANDROID)
 // General improvements to tab group menus
-BASE_DECLARE_FEATURE(kTabGroupMenuImprovements);
-bool IsTabGroupMenuImprovementsEnabled();
+
 BASE_DECLARE_FEATURE(kTabGroupMenuMoreEntryPoints);
 bool IsTabGroupMenuMoreEntryPointsEnabled();
+
+BASE_DECLARE_FEATURE(kTabGroupHoverCards);
+bool IsTabGroupHoverCardsEnabled();
 
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -218,13 +215,6 @@ inline constexpr char kTabHoverCardAdditionalMaxWidthDelay[] =
 
 // If enabled, use desktop widget to show tab modal dialogs.
 BASE_DECLARE_FEATURE(kTabModalUsesDesktopWidget);
-
-BASE_DECLARE_FEATURE(kTabOrganization);
-bool IsTabOrganization();
-
-BASE_DECLARE_FEATURE(kTabOrganizationModelStrategy);
-
-BASE_DECLARE_FEATURE(kTabOrganizationUserInstruction);
 
 BASE_DECLARE_FEATURE(kTearOffWebAppTabOpensWebAppWindow);
 
@@ -337,6 +327,10 @@ bool IsWebUIPinnedToolbarActionsEnabled();
 
 bool IsWebUISplitTabsButtonEnabled();
 
+// Controls whether the WebUI version of the Avatar Button is used.
+BASE_DECLARE_FEATURE(kWebUIAvatarButton);
+bool IsWebUIAvatarButtonEnabled();
+
 bool IsWebUILocationBarEnabled();
 
 bool IsWebUIToolbarEnabled();
@@ -355,9 +349,6 @@ BASE_DECLARE_FEATURE(kAndroidAnimatedProgressBarInBrowser);
 
 bool IsAndroidAnimatedProgressBarInBrowserEnabled();
 #endif  // BUILDFLAG(IS_ANDROID)
-
-// Controls whether the updated What's New page is enabled.
-BASE_DECLARE_FEATURE(kWhatsNewDesktopRefresh);
 
 BASE_DECLARE_FEATURE(kAiOverlayDialog);
 BASE_DECLARE_FEATURE_PARAM(std::string, kAiOverlayDialogApiKey);

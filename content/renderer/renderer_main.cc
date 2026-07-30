@@ -17,7 +17,6 @@
 #include "base/message_loop/message_pump.h"
 #include "base/message_loop/message_pump_type.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/pending_task.h"
 #include "base/process/current_process.h"
 #include "base/run_loop.h"
@@ -42,7 +41,7 @@
 #include "content/public/common/main_function_params.h"
 #include "content/public/renderer/content_renderer_client.h"
 #include "content/public/renderer/render_thread.h"
-#include "content/renderer/memory_coordinator/renderer_memory_coordinator_policy.h"
+#include "content/renderer/memory_coordinator/last_resort_gc_policy.h"
 #include "content/renderer/render_process_impl.h"
 #include "content/renderer/render_thread_impl.h"
 #include "content/renderer/renderer_main_platform_delegate.h"
@@ -223,8 +222,10 @@ int RendererMain(MainFunctionParams parameters) {
   // is OK.
   InitializeWebRtcModuleBeforeSandbox();
 
-  RendererMemoryCoordinatorPolicy render_memory_coordinator_policy(
-      ChildMemoryCoordinator::Get());
+  std::optional<LastResortGCPolicy> last_resort_gc_policy;
+  if (base::FeatureList::IsEnabled(kMemoryCoordinatorLastResortGC)) {
+    last_resort_gc_policy.emplace(ChildMemoryCoordinator::Get());
+  }
 
   {
     content::ContentRendererClient* client = GetContentClient()->renderer();

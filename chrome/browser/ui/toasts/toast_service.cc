@@ -328,6 +328,7 @@ void ToastService::RegisterToasts(
                   },
                   base::Unretained(browser_window_interface)))
           .AddCloseButton()
+          .AddGlobalScoped()
           .Build());
 
   toast_registry_->RegisterToast(
@@ -341,7 +342,11 @@ void ToastService::RegisterToasts(
                                      ->InvokeLastSavedSkill();
                                },
                                base::Unretained(browser_window_interface)))
-          .AddGlobalScoped()
+          .Build());
+
+  toast_registry_->RegisterToast(
+      ToastId::kSkillSavedWithoutInvokeButton,
+      ToastSpecification::Builder(kCheckIcon, IDS_SKILL_SAVED_TOAST_BODY)
           .Build());
 
   toast_registry_->RegisterToast(
@@ -426,6 +431,31 @@ void ToastService::RegisterToasts(
             IDS_MULTISTEP_FILTER_SUGGESTION_TITLE)
             .AddActionButton(
                 IDS_MULTISTEP_FILTER_SUGGESTION_APPLY_BUTTON,
+                base::BindRepeating(
+                    [](BrowserWindowInterface* window) {
+                      if (tabs::TabInterface* tab =
+                              window->GetActiveTabInterface()) {
+                        if (multistep_filter::FilterUiController* controller =
+                                multistep_filter::FilterUiController::From(
+                                    tab)) {
+                          controller->ApplySuggestion();
+                        }
+                      }
+                    },
+                    base::Unretained(browser_window_interface)))
+            .AddCloseButton()
+            .Build());
+    toast_registry_->RegisterToast(
+        ToastId::kMultistepFilterSuggestionRecent,
+        ToastSpecification::Builder(
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+            vector_icons::kPlayCircleSparkIcon,
+#else
+            vector_icons::kPlayArrowChromeRefreshIcon,
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+            IDS_MULTISTEP_FILTER_SUGGESTION_RECENT_TITLE)
+            .AddActionButton(
+                IDS_MULTISTEP_FILTER_SUGGESTION_RECENT_APPLY_BUTTON,
                 base::BindRepeating(
                     [](BrowserWindowInterface* window) {
                       if (tabs::TabInterface* tab =

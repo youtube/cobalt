@@ -277,7 +277,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CastStreaming.Sender.Audio.NegotiatedCodec" enum="AudioCodec"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>jophba@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -296,7 +296,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CastStreaming.Sender.Video.EncoderType"
-    enum="CastStreamingVideoEncoderType" expires_after="2026-07-19">
+    enum="CastStreamingVideoEncoderType" expires_after="2026-09-20">
   <owner>jophba@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -308,7 +308,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CastStreaming.Sender.Video.NegotiatedCodec" enum="VideoCodec"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>jophba@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -1613,7 +1613,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Output.Win.{AudioOutputMethod}Error"
-    enum="Hresult" expires_after="2026-07-19">
+    enum="Hresult" expires_after="2026-09-20">
   <owner>dalecurtis@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -1827,7 +1827,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Render.OutputDeviceAuthorizationTime" units="ms"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>olka@chromium.org</owner>
   <owner>henrika@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -2352,6 +2352,29 @@ chromium-metrics-reviews@google.com.
   <summary>
     Whether playback started successfully after stream startup was requested.
   </summary>
+</histogram>
+
+<histogram name="Media.AudioOutputController{MediaAudioOutputControllerTime}"
+    units="ms" expires_after="2027-03-30">
+  <owner>olka@chromium.org</owner>
+  <owner>henrika@chromium.org</owner>
+  <owner>guidou@chromium.org</owner>
+  <owner>webrtc-audio-uma@google.com</owner>
+  <summary>
+    Measures the execution time of
+    AudioOutputController{MediaAudioOutputControllerTime}. Recorded when the
+    corresponding AudioOutputController method finishes execution.
+  </summary>
+  <token key="MediaAudioOutputControllerTime">
+    <variant name=".CloseTime"/>
+    <variant name=".CreateTime"/>
+    <variant name=".PauseTime"/>
+    <variant name=".PlayTime"/>
+    <variant name=".ProcessDeviceChangeTime"/>
+    <variant name=".StartStreamTime"/>
+    <variant name=".StopStreamTime"/>
+    <variant name=".ToggleLocalOutputTime"/>
+  </token>
 </histogram>
 
 <histogram name="Media.AudioOutputDevice.AudioServiceDelay{LatencyTag}"
@@ -4325,7 +4348,7 @@ chromium-metrics-reviews@google.com.
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
     HRESULT code if MediaFoundationCdmModule::GetCdmFactory call fails when
-    querying Widevine CDM capability.
+    querying {KeySystem} CDM capability.
   </summary>
   <token key="KeySystem" variants="KeySystemForHardwareSecureOnly"/>
 </histogram>
@@ -4421,10 +4444,10 @@ chromium-metrics-reviews@google.com.
   <owner>xhwang@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
-    When hardware secure decryption is enabled, whether Widevine hardware secure
-    decryption is actually supported by the platform (device). Reported at most
-    once per browser session when EME query is triggered by a website, and when
-    Widevine hardware secure CDM was registered.
+    When hardware secure decryption is enabled, whether {KeySystem} hardware
+    secure decryption is actually supported by the platform (device). Reported
+    at most once per browser session when EME query is triggered by a website,
+    and when {KeySystem} hardware secure CDM was registered.
   </summary>
   <token key="KeySystem" variants="KeySystemForHardwareSecureOnly"/>
 </histogram>
@@ -4434,10 +4457,10 @@ chromium-metrics-reviews@google.com.
   <owner>xhwang@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
-    When hardware secure decryption is enabled and supported by Widevine,
+    When hardware secure decryption is enabled and supported by {KeySystem},
     whether {VideoCodec} video codec is supported by the platform (device).
     Reported at most once per browser session when EME query is triggered by a
-    website, and when Widevine hardware secure CDM was registered.
+    website, and when {KeySystem} hardware secure CDM was registered.
   </summary>
   <token key="KeySystem" variants="KeySystemForHardwareSecureOnly"/>
   <token key="VideoCodec" variants="VideoCodec"/>
@@ -5799,25 +5822,25 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Media.MediaStreamManager.DesktopVideoDeviceUpdate2"
+<histogram name="Media.MediaStreamManager.DesktopVideoDeviceUpdate3"
     enum="MediaStreamRequestResult" expires_after="2026-10-16">
   <owner>agpalak@chromium.org</owner>
   <owner>tovep@chromium.org</owner>
   <summary>
     Records media stream request responses for desktop-video capture
-    media-device-update requests. The suffix 2 to the histogram name was added
-    when the new enum MediaStreamRequestResult was added.
+    media-device-update requests. The suffix 3 to the histogram name was added
+    when the enum MediaStreamRequestResult was updated with new values.
   </summary>
 </histogram>
 
-<histogram name="Media.MediaStreamManager.DisplayVideoDeviceUpdate2"
+<histogram name="Media.MediaStreamManager.DisplayVideoDeviceUpdate3"
     enum="MediaStreamRequestResult" expires_after="2026-10-16">
   <owner>agpalak@chromium.org</owner>
   <owner>tovep@chromium.org</owner>
   <summary>
     Records media stream request responses for display-video capture
-    media-device-update requests. The suffix 2 to the histogram name was added
-    when the new enum MediaStreamRequestResult was added.
+    media-device-update requests. The suffix 3 to the histogram name was added
+    when the enum MediaStreamRequestResult was updated with new values.
   </summary>
 </histogram>
 
@@ -8114,7 +8137,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.VideoCapture.Win.Device.CapturePixelFormat"
-    enum="VideoPixelFormatUnion" expires_after="2026-07-19">
+    enum="VideoPixelFormatUnion" expires_after="2026-09-20">
   <owner>ilnik@google.com</owner>
   <owner>video-cmi-mpp@google.com</owner>
   <summary>
@@ -8145,7 +8168,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.VideoCapture.Win.Device.RequestedPixelFormat"
-    enum="VideoPixelFormatUnion" expires_after="2026-07-19">
+    enum="VideoPixelFormatUnion" expires_after="2026-09-20">
   <owner>ilnik@google.com</owner>
   <owner>video-cmi-mpp@google.com</owner>
   <summary>
@@ -9170,8 +9193,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Cast.LaunchSessionResponse.AppType"
-    enum="MediaRouterResponseReceiverAppType" expires_after="2026-05-01">
+    enum="MediaRouterResponseReceiverAppType" expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
+  <owner>jophba@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
     The type of app that the receiver device choose to launch. Recorded when
@@ -9366,8 +9390,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Discovery.LocalNetworkAccessPermissionGranted"
-    enum="Boolean" expires_after="2026-05-03">
+    enum="Boolean" expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
+  <owner>jophba@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
     Whether the local network access permission is granted when the local
@@ -9407,8 +9432,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.MirroringService.SessionError"
-    enum="MirroringServiceErrorType" expires_after="2026-05-01">
+    enum="MirroringServiceErrorType" expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
+  <owner>jophba@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
     Records errors encountered by the Mirroring Service. If an error occurs
@@ -9568,8 +9594,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Ui.Device.Count" units="units"
-    expires_after="2026-05-01">
+    expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
+  <owner>jophba@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
     Counts the number of devices known and populated to the Media Router dialog
@@ -9591,8 +9618,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Ui.Dialog.IconStateAtOpen"
-    enum="MediaRouterIconState" expires_after="2026-05-01">
+    enum="MediaRouterIconState" expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
+  <owner>jophba@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
     Whether the Cast toolbar icon is in its ephemeral state (shown only when the

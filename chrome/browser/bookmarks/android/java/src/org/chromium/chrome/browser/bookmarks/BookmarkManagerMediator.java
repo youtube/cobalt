@@ -118,7 +118,15 @@ class BookmarkManagerMediator
             boolean enabled =
                     !AccessibilityState.isPerformGesturesEnabled()
                             && mBookmarkDelegate.getCurrentUiMode() == BookmarkUiMode.FOLDER;
+            // On tablets, search is an in-place filter that stays in FOLDER mode,
+            // but drag-reorder must still be disabled during search because the
+            // model list only contains filtered results, not the full folder
+            // contents needed by setOrder() / reorderBookmarks().
+            boolean isTabletSearch =
+                    DeviceFormFactor.isNonMultiDisplayContextOnTablet(mContext)
+                            && !TextUtils.isEmpty(getCurrentSearchText());
             return enabled
+                    && !isTabletSearch
                     && mBookmarkUiPrefs.getBookmarkRowSortOrder() == BookmarkRowSortOrder.MANUAL
                     && mCurrentPowerFilter.isEmpty();
         }
@@ -1792,7 +1800,7 @@ class BookmarkManagerMediator
     /** The search box only focused on LFF device with a hardware keyboard attached. */
     private void maybeAutoFocusSearchBox() {
         if (DeviceFormFactor.isNonMultiDisplayContextOnTablet(mContext)
-                && DeviceInput.supportsKeyboard()) {
+                && DeviceInput.supportsKeyboard(mContext)) {
             mRecyclerView.post(
                     () -> {
                         // The search box might not be in the model list yet, so guard this call.

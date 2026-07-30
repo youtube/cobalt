@@ -9,6 +9,7 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
+import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.annotation.SuppressLint;
 import android.content.ComponentCallbacks;
@@ -64,8 +65,7 @@ import org.chromium.chrome.browser.lens.LensMetrics;
 import org.chromium.chrome.browser.lens.LensQueryParams;
 import org.chromium.chrome.browser.lifecycle.PauseResumeWithNativeObserver;
 import org.chromium.chrome.browser.locale.LocaleManager;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestratorFactory;
 import org.chromium.chrome.browser.omnibox.UrlBar.UrlBarDelegate;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentModelList;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentModelList.FuseboxAttachmentChangeListener;
@@ -145,6 +145,7 @@ class LocationBarMediator
     private static final long NTP_KEYBOARD_FOCUS_DURATION_MS = 200;
     private static final int WIDTH_CHANGE_ANIMATION_DURATION_MS = 225;
     private static final int WIDTH_CHANGE_ANIMATION_DELAY_MS = 75;
+    public static final int POPOVER_FADE_DURATION_MS = 150;
     private @Nullable Boolean mIsLensOnOmniboxEnabled;
 
     /** Uma methods for omnibox. */
@@ -257,7 +258,6 @@ class LocationBarMediator
     private final ButtonToolbarWidthConsumer mMicButtonToolbarWidthConsumer;
     private final ButtonToolbarWidthConsumer mLensButtonToolbarWidthConsumer;
     private final ButtonToolbarWidthConsumer mZoomButtonToolbarWidthConsumer;
-    private final @Nullable MultiInstanceManager mMultiInstanceManager;
     private final @Nullable OmniboxChipManager mOmniboxChipManager;
 
     /*package */ LocationBarMediator(
@@ -281,7 +281,6 @@ class LocationBarMediator
             Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
             @Nullable PageZoomIndicatorCoordinator pageZoomIndicatorCoordinator,
             FuseboxCoordinator fuseboxCoordinator,
-            @Nullable MultiInstanceManager multiInstanceManager,
             LocationBarEmbedder locationBarEmbedder,
             @Nullable OmniboxChipManager omniboxChipManager) {
         mContext = context;
@@ -345,8 +344,6 @@ class LocationBarMediator
                         mIsTablet,
                         this::shouldShowZoomButton,
                         this::setZoomButtonVisibility);
-
-        mMultiInstanceManager = multiInstanceManager;
 
         mFuseboxCoordinator
                 .getFuseboxStateSupplier()
@@ -640,9 +637,11 @@ class LocationBarMediator
 
     /* package */ void onUrlTextChanged(String text) {
         updateButtonVisibility();
-        if (mCurrentInput != null) {
-            mCurrentInput.setUserText(text);
-        }
+        if (mCurrentInput == null) return;
+
+        mCurrentInput
+                .setUserText(text)
+                .setAllowUserTextAutocompletion(mUrlCoordinator.shouldAutocomplete());
     }
 
     /* package */ void onSuggestionsChanged(
@@ -792,19 +791,21 @@ class LocationBarMediator
                 }
 
                 TabModelSelector tabModelSelector = mTabModelSelectorSupplier.get();
-                if (omniboxLoadUrlParams.openInNewWindow && mMultiInstanceManager != null) {
-                    mMultiInstanceManager.openUrlInOtherWindow(
-                            loadUrlParams,
-                            currentTab.getParentId(),
-                            /* preferNew= */ true,
-                            PersistedInstanceType.ACTIVE);
+                boolean processed = false;
+                if (omniboxLoadUrlParams.openInNewWindow) {
+                    processed =
+                            MultiInstanceOrchestratorFactory.getInstance()
+                                    .openUrlInOtherWindow(
+                                            currentTab, loadUrlParams, /* preferNew= */ true);
                 } else if (omniboxLoadUrlParams.openInNewTab && tabModelSelector != null) {
                     tabModelSelector.openNewTab(
                             loadUrlParams,
                             TabLaunchType.FROM_OMNIBOX,
                             currentTab,
                             currentTab.isIncognito());
-                } else {
+                    processed = true;
+                }
+                if (!processed) {
                     currentTab.loadUrl(loadUrlParams);
                 }
                 RecordUserAction.record("MobileOmniboxUse");
@@ -1033,6 +1034,8 @@ class LocationBarMediator
                     if (mAutocompleteCoordinator == null) return;
                     mAutocompleteCoordinator.beginInput(session);
                     mFuseboxCoordinator.beginInput(session);
+                    // Trigger animation now that we have an up-to-date value for the fusebox state.
+                    setupSuggestionsListShowAnimation();
                     setAttachmentModelList(session.getFuseboxAttachmentModelList());
                 });
 
@@ -1049,6 +1052,29 @@ class LocationBarMediator
         if (mCurrentInput.isInCacheableContext() && mAutocompleteCoordinator != null) {
             mAutocompleteCoordinator.serveCachedZeroSuggest(mCurrentInput);
         }
+    }
+
+    private void setupSuggestionsListShowAnimation() {
+        if (mAutocompleteCoordinator == null) return;
+        @Nullable Animator autocompleteAnimator =
+                mAutocompleteCoordinator.setupSuggestionsListShowAnimation();
+        if (autocompleteAnimator == null) return;
+        mLocationBarLayout.setAlpha(0.0f);
+        ObjectAnimator alphaAnimator =
+                ObjectAnimator.ofFloat(mLocationBarLayout, View.ALPHA, 0.0f, 1.0f);
+        alphaAnimator.addListener(
+                new AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationCancel(Animator animation) {
+                        mLocationBarLayout.setAlpha(1.0f);
+                    }
+                });
+
+        AnimatorSet animatorSet = new AnimatorSet();
+        animatorSet.playTogether(alphaAnimator, autocompleteAnimator);
+        animatorSet.setDuration(POPOVER_FADE_DURATION_MS);
+        animatorSet.setInterpolator(Interpolators.LINEAR_INTERPOLATOR);
+        animatorSet.start();
     }
 
     /** Ends the current Omnibox input session. */
@@ -1402,6 +1428,7 @@ class LocationBarMediator
         // and need not be assigned in updateButtonTints().
         mLocationBarLayout.setDeleteButtonTint(
                 ThemeUtils.getThemedToolbarIconTint(mContext, mBrandedColorScheme));
+        mLocationBarLayout.updateVisualsForState(mBrandedColorScheme);
         mUrlCoordinator.setBrandedColorScheme(mBrandedColorScheme);
         // This sets spans inside the data object that override the color.
         updateUrl();
@@ -2212,6 +2239,7 @@ class LocationBarMediator
         // Edge case / SearchActivity could be triggering focus before Profile (and by proxy -
         // SearchEngineUtils) is available.
         if (mSearchEngineUtils == null) return;
+        if (mEmbedderUiOverrides.isEmbedderControlledHint()) return;
 
         @AutocompleteRequestType
         int requestType =

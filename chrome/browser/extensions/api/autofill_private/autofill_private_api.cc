@@ -46,6 +46,7 @@
 #include "components/autofill/core/browser/data_model/payments/iban.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_wallet_utils.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/management_utils.h"
 #include "components/autofill/core/browser/metrics/address_save_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/mandatory_reauth_metrics.h"
@@ -70,6 +71,7 @@
 #include "components/strings/grit/components_branded_strings.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/wallet/core/browser/walletable_permission_utils.h"
+#include "components/wallet/core/common/wallet_features.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_function.h"
 #include "extensions/browser/extension_function_registry.h"
@@ -1155,11 +1157,15 @@ AutofillPrivateAddOrUpdateEntityInstanceFunction::Run() {
         {"Add or update entity instance - ", kErrorAutofillAiUnavailable})));
   }
 
+  // Wallet passes are strictly read-only from the client's perspective in
+  // settings. Therefore, we only ever "Save" them. Any downstream "Update"
+  // attempts are inapplicable.
   if (IsMaskedStorageSupported(entity_instance->type(),
                                entity_instance->record_type())) {
     // If the request is successfully started, the callback will handle the
     // response.
-    if (TrySavePrivatePassWithWalletAPI(*entity_instance)) {
+    if (TrySavePrivatePassWithWalletAPI(*entity_instance,
+                                        parameters->ui_context)) {
       return RespondLater();
     }
 
@@ -1169,7 +1175,7 @@ AutofillPrivateAddOrUpdateEntityInstanceFunction::Run() {
   }
 
   // Handles the following scenarios:
-  // 1. Save entity locally.
+  // 1. Save/Update entity locally.
   // 2. Save entity to Wallet via Chrome sync.
   entity_data_manager->AddOrUpdateEntityInstance(entity_instance.value());
   if (private_api_entity_instance.stored_in_wallet.value_or(false) &&
@@ -1180,7 +1186,9 @@ AutofillPrivateAddOrUpdateEntityInstanceFunction::Run() {
 }
 
 bool AutofillPrivateAddOrUpdateEntityInstanceFunction::
-    TrySavePrivatePassWithWalletAPI(const EntityInstance& entity_instance) {
+    TrySavePrivatePassWithWalletAPI(
+        const EntityInstance& entity_instance,
+        const api::autofill_private::EntityUiContext& ui_context) {
   if (!base::FeatureList::IsEnabled(
           autofill::features::kAutofillAiWalletPrivatePasses)) {
     return false;
@@ -1192,10 +1200,17 @@ bool AutofillPrivateAddOrUpdateEntityInstanceFunction::
 
   if (autofill::WalletPassAccessManager* pass_manager =
           autofill_client()->GetWalletPassAccessManager()) {
-    // TODO(crbug.com/489354073): Log consent and replace with the correct
-    // session ID.
+    consent_auditor::ConsentAuditor::SessionId session_id;
+    // When the feature flag is disabled, `SaveWalletEntityInstance()`
+    // doesn't require a valid `session_id`.
+    if (base::FeatureList::IsEnabled(
+            wallet::features::kWalletApiPrivatePassesConsent)) {
+      session_id = RecordWalletPrivatePassConsent(
+          ui_context.ui_string_ids, ui_context.clicked_button_string_id,
+          *autofill_client());
+    }
     pass_manager->SaveWalletEntityInstance(
-        entity_instance, consent_auditor::ConsentAuditor::GenerateSessionId(),
+        entity_instance, session_id,
         base::BindOnce(&AutofillPrivateAddOrUpdateEntityInstanceFunction::
                            OnSavePrivatePassToWalletFinished,
                        base::RetainedRef(this), entity_instance));

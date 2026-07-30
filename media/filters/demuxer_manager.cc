@@ -9,7 +9,6 @@
 #include "base/feature_list.h"
 #include "base/functional/callback.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/strings/string_util.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
@@ -23,6 +22,7 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
+#include "base/time/time.h"
 #include "media/filters/hls_manifest_demuxer_engine.h"
 #include "media/filters/manifest_demuxer.h"
 #endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
@@ -228,8 +228,7 @@ PipelineStatus DemuxerManager::CreateDemuxer(
     bool load_media_source,
     DataSource::Preload preload,
     bool needs_first_frame,
-    DemuxerManager::DemuxerCreatedCB on_demuxer_created,
-    base::flat_map<std::string, std::string> headers) {
+    DemuxerManager::DemuxerCreatedCB on_demuxer_created) {
   // TODO(crbug.com/40243452) return a better error
   if (!client_) {
     return DEMUXER_ERROR_COULD_NOT_OPEN;

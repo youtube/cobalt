@@ -75,24 +75,21 @@ skia::mojom::AlphaType EnumTraits<skia::mojom::AlphaType, SkAlphaType>::ToMojom(
 }
 
 // static
-bool EnumTraits<skia::mojom::AlphaType, SkAlphaType>::FromMojom(
-    skia::mojom::AlphaType in,
-    SkAlphaType* out) {
+std::optional<SkAlphaType>
+EnumTraits<skia::mojom::AlphaType, SkAlphaType>::FromMojom(
+    skia::mojom::AlphaType in) {
   switch (in) {
     case skia::mojom::AlphaType::ALPHA_TYPE_OPAQUE:
-      *out = kOpaque_SkAlphaType;
-      return true;
+      return kOpaque_SkAlphaType;
     case skia::mojom::AlphaType::PREMUL:
-      *out = kPremul_SkAlphaType;
-      return true;
+      return kPremul_SkAlphaType;
     case skia::mojom::AlphaType::UNPREMUL:
-      *out = kUnpremul_SkAlphaType;
-      return true;
+      return kUnpremul_SkAlphaType;
     case skia::mojom::AlphaType::UNKNOWN:
       // Unknown types should not be sent over mojo.
-      return false;
+      break;
   }
-  return false;
+  return std::nullopt;
 }
 
 // static
@@ -121,34 +118,28 @@ skia::mojom::ColorType EnumTraits<skia::mojom::ColorType, SkColorType>::ToMojom(
 }
 
 // static
-bool EnumTraits<skia::mojom::ColorType, SkColorType>::FromMojom(
-    skia::mojom::ColorType in,
-    SkColorType* out) {
+std::optional<SkColorType>
+EnumTraits<skia::mojom::ColorType, SkColorType>::FromMojom(
+    skia::mojom::ColorType in) {
   switch (in) {
     case skia::mojom::ColorType::ALPHA_8:
-      *out = kAlpha_8_SkColorType;
-      return true;
+      return kAlpha_8_SkColorType;
     case skia::mojom::ColorType::RGB_565:
-      *out = kRGB_565_SkColorType;
-      return true;
+      return kRGB_565_SkColorType;
     case skia::mojom::ColorType::ARGB_4444:
-      *out = kARGB_4444_SkColorType;
-      return true;
+      return kARGB_4444_SkColorType;
     case skia::mojom::ColorType::RGBA_8888:
-      *out = kRGBA_8888_SkColorType;
-      return true;
+      return kRGBA_8888_SkColorType;
     case skia::mojom::ColorType::BGRA_8888:
-      *out = kBGRA_8888_SkColorType;
-      return true;
+      return kBGRA_8888_SkColorType;
     case skia::mojom::ColorType::GRAY_8:
-      *out = kGray_8_SkColorType;
-      return true;
+      return kGray_8_SkColorType;
     case skia::mojom::ColorType::DEPRECATED_INDEX_8:
     case skia::mojom::ColorType::UNKNOWN:
       // UNKNOWN or unsupported values should not be sent over mojo.
       break;
   }
-  return false;
+  return std::nullopt;
 }
 
 // static

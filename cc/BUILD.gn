@@ -319,6 +319,8 @@ cc_component("cc") {
     "scheduler/scheduler_settings.h",
     "scheduler/scheduler_state_machine.cc",
     "scheduler/scheduler_state_machine.h",
+    "scheduler/slim_scheduler_state_machine.cc",
+    "scheduler/slim_scheduler_state_machine.h",
     "scheduler/video_frame_controller.h",
     "scheduler/webview_scheduler_state_machine.cc",
     "scheduler/webview_scheduler_state_machine.h",
@@ -775,6 +777,8 @@ if (is_ios) {
 cc_test("cc_unittests") {
   use_xvfb = use_xvfb_in_this_config
 
+  fuzztests = [ "RTreeTest.BuildDoesNotCrash" ]
+
   sources = [
     "base/delayed_unique_notifier_unittest.cc",
     "base/histograms_unittest.cc",
@@ -885,6 +889,7 @@ cc_test("cc_unittests") {
     "scheduler/headless_scheduler_state_machine_unittest.cc",
     "scheduler/scheduler_state_machine_unittest.cc",
     "scheduler/scheduler_unittest.cc",
+    "scheduler/slim_scheduler_state_machine_unittest.cc",
     "slim/delayer_scheduler_unittest.cc",
     "slim/slim_layer_tree_compositor_frame_unittest.cc",
     "slim/slim_layer_tree_unittest.cc",

@@ -110,6 +110,7 @@
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_dispatcher.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/compositing/paint_artifact_compositor.h"
+#include "third_party/blink/renderer/platform/graphics/gpu/canvas_utils.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_context_rate_limiter.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
@@ -1510,8 +1511,7 @@ CanvasResourceDispatcher* HTMLCanvasElement::GetOrCreateResourceDispatcher() {
   return frame_dispatcher_.get();
 }
 
-bool HTMLCanvasElement::PushFrame(scoped_refptr<CanvasResource>&& image,
-                                  std::optional<SkIRect> damage_rect) {
+bool HTMLCanvasElement::PushFrame(scoped_refptr<CanvasResource>&& image) {
   NOTIMPLEMENTED();
   return false;
 }
@@ -1556,13 +1556,8 @@ bool HTMLCanvasElement::ShouldAccelerate() const {
 
   // Avoid creating |contextProvider| until we're sure we want to try use it,
   // since it costs us GPU memory.
-  base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper =
-      SharedGpuContext::ContextProviderWrapper();
-  if (!context_provider_wrapper) {
-    return false;
-  }
-
-  return context_provider_wrapper->Utils()->Accelerated2DCanvasFeatureEnabled();
+  return Accelerated2DCanvasFeatureEnabled(
+      SharedGpuContext::ContextProviderWrapper().get());
 }
 
 bool HTMLCanvasElement::CanStartSelection() const {
@@ -1732,13 +1727,16 @@ bool HTMLCanvasElement::StyleChangeNeedsDidDraw(
   return old_style &&
          old_style->ImageRendering() != new_style.ImageRendering() &&
          (old_style->ImageRendering() == EImageRendering::kPixelated ||
-          new_style.ImageRendering() == EImageRendering::kPixelated);
+          old_style->ImageRendering() == EImageRendering::kCrispEdges ||
+          new_style.ImageRendering() == EImageRendering::kPixelated ||
+          new_style.ImageRendering() == EImageRendering::kCrispEdges);
 }
 
 void HTMLCanvasElement::StyleDidChange(const ComputedStyle* old_style,
                                        const ComputedStyle& new_style) {
   const auto new_filter_quality =
-      (new_style.ImageRendering() == EImageRendering::kPixelated)
+      (new_style.ImageRendering() == EImageRendering::kPixelated ||
+       new_style.ImageRendering() == EImageRendering::kCrispEdges)
           ? cc::PaintFlags::FilterQuality::kNone
           : cc::PaintFlags::FilterQuality::kLow;
   const auto new_dynamic_range_limit = new_style.GetDynamicRangeLimit();

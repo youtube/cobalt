@@ -46,6 +46,8 @@
 #import "ios/chrome/browser/device_reauth/model/reauthentication_service.h"
 #import "ios/chrome/browser/device_reauth/model/reauthentication_service_factory.h"
 #import "ios/chrome/browser/net/model/crurl.h"
+#import "ios/chrome/browser/settings/autofill/autofill_ai/coordinator/autofill_ai_entity_edit_coordinator.h"
+#import "ios/chrome/browser/settings/autofill/autofill_ai/coordinator/autofill_ai_entity_edit_coordinator_delegate.h"
 #import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_add_entities_menu_builder.h"
 #import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_entity_item.h"
 #import "ios/chrome/browser/settings/autofill/utils/autofill_settings_ui_util.h"
@@ -120,7 +122,8 @@ typedef NS_ENUM(NSInteger, SectionIdentifier) {
   SectionIdentifierVerificationSwitch,
   SectionIdentifierWalletPromo,
   SectionIdentifierIdentityDocs,
-  SectionIdentifierTravel
+  SectionIdentifierTravel,
+  SectionIdentifierOther
 };
 
 typedef NS_ENUM(NSInteger, ItemType) {
@@ -139,7 +142,9 @@ typedef NS_ENUM(NSInteger, ItemType) {
   ItemTypeIdentityDoc,
   ItemTypeIdentityDocHeader,
   ItemTypeTravel,
-  ItemTypeTravelHeader
+  ItemTypeTravelHeader,
+  ItemTypeOther,
+  ItemTypeOtherHeader
 };
 
 // Returns the fallback detail text for a local profile when its detail text is
@@ -169,12 +174,49 @@ bool CanDeleteItemType(NSInteger itemType) {
          itemType == ItemTypeTravel;
 }
 
+ItemType ItemTypeForEntitySection(SectionIdentifier section_identifier) {
+  switch (section_identifier) {
+    case SectionIdentifierIdentityDocs:
+      return ItemTypeIdentityDoc;
+    case SectionIdentifierTravel:
+      return ItemTypeTravel;
+    case SectionIdentifierOther:
+    default:
+      return ItemTypeOther;
+  }
+}
+
+NSString* HeaderTextForEntitySection(SectionIdentifier section_identifier) {
+  switch (section_identifier) {
+    case SectionIdentifierIdentityDocs:
+      return l10n_util::GetNSString(IDS_AUTOFILL_IDENTITY_DOCS_TITLE);
+    case SectionIdentifierTravel:
+      return l10n_util::GetNSString(IDS_AUTOFILL_TRAVEL_TITLE);
+    case SectionIdentifierOther:
+    default:
+      return l10n_util::GetNSString(IDS_IOS_AUTOFILL_AI_OTHER_TITLE);
+  }
+}
+
+ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
+  switch (section_identifier) {
+    case SectionIdentifierIdentityDocs:
+      return ItemTypeIdentityDocHeader;
+    case SectionIdentifierTravel:
+      return ItemTypeTravelHeader;
+    case SectionIdentifierOther:
+    default:
+      return ItemTypeOtherHeader;
+  }
+}
+
 }  // namespace
 
 #pragma mark - AutofillProfileTableViewController
 
 @interface AutofillProfileTableViewController () <
     AutofillAIAddEntitiesMenuDelegate,
+    AutofillAIEntityEditCoordinatorDelegate,
     AutofillProfileEditCoordinatorDelegate,
     PersonalDataManagerObserver,
     PrefObserverDelegate,
@@ -235,6 +277,9 @@ bool CanDeleteItemType(NSInteger itemType) {
 
   // Reauthentication module.
   ReauthenticationModule* _reauthenticationModule;
+
+  // Coordinator to view/edit entity details.
+  AutofillAIEntityEditCoordinator* _autofillAiEntityEditCoordinator;
 }
 
 @property(nonatomic, getter=isAutofillProfileEnabled)
@@ -353,53 +398,21 @@ bool CanDeleteItemType(NSInteger itemType) {
 
   std::vector<const autofill::EntityInstance*> identityDocs;
   std::vector<const autofill::EntityInstance*> travelDocs;
+  std::vector<const autofill::EntityInstance*> other;
 
   for (const auto& instance : instances) {
     if (kIdentityDocs.contains(instance.type().name())) {
       identityDocs.push_back(&instance);
     } else if (kTravel.contains(instance.type().name())) {
       travelDocs.push_back(&instance);
+    } else {
+      other.push_back(&instance);
     }
   }
 
-  TableViewModel* model = self.tableViewModel;
-  const std::string& locale =
-      GetApplicationContext()->GetApplicationLocaleStorage()->Get();
-  if (!identityDocs.empty()) {
-    [model addSectionWithIdentifier:SectionIdentifierIdentityDocs];
-    [model setHeader:[self identityDocsSectionHeader]
-        forSectionWithIdentifier:SectionIdentifierIdentityDocs];
-
-    std::vector<autofill::EntityLabel> labels = autofill::GetLabelsForEntities(
-        identityDocs, /*attribute_types_to_ignore=*/{},
-        /*only_disambiguating_types=*/true, /*obfuscate_sensitive_types=*/true,
-        locale);
-
-    for (size_t i = 0; i < identityDocs.size(); ++i) {
-      [model addItem:[self itemForEntityInstance:*identityDocs[i]
-                                       withLabel:labels[i]
-                                            type:ItemTypeIdentityDoc]
-          toSectionWithIdentifier:SectionIdentifierIdentityDocs];
-    }
-  }
-
-  if (!travelDocs.empty()) {
-    [model addSectionWithIdentifier:SectionIdentifierTravel];
-    [model setHeader:[self travelSectionHeader]
-        forSectionWithIdentifier:SectionIdentifierTravel];
-
-    std::vector<autofill::EntityLabel> labels = autofill::GetLabelsForEntities(
-        travelDocs, /*attribute_types_to_ignore=*/{},
-        /*only_disambiguating_types=*/true, /*obfuscate_sensitive_types=*/true,
-        locale);
-
-    for (size_t i = 0; i < travelDocs.size(); ++i) {
-      [model addItem:[self itemForEntityInstance:*travelDocs[i]
-                                       withLabel:labels[i]
-                                            type:ItemTypeTravel]
-          toSectionWithIdentifier:SectionIdentifierTravel];
-    }
-  }
+  [self addEntities:identityDocs toSection:SectionIdentifierIdentityDocs];
+  [self addEntities:travelDocs toSection:SectionIdentifierTravel];
+  [self addEntities:other toSection:SectionIdentifierOther];
 }
 
 - (TableViewItem*)itemForEntityInstance:
@@ -416,26 +429,12 @@ bool CanDeleteItemType(NSInteger itemType) {
   if (instance.record_type() ==
       autofill::EntityInstance::RecordType::kServerWallet) {
     item.isServerWalletItem = YES;
-    // TODO(crbug.com/480934103): handled in upcoming CLs
+    item.trailingText = l10n_util::GetNSString(IDS_IOS_AUTOFILL_WALLET_TEXT);
   }
 
   item.icon = DefaultSymbolTemplateWithPointSize(kPersonCropCircleSymbol,
                                                  kEntityIconPointSize);
   return item;
-}
-
-- (TableViewHeaderFooterItem*)identityDocsSectionHeader {
-  TableViewTextHeaderFooterItem* header = [[TableViewTextHeaderFooterItem alloc]
-      initWithType:ItemTypeIdentityDocHeader];
-  header.text = l10n_util::GetNSString(IDS_IOS_AUTOFILL_AI_IDENTITY_DOCS_TITLE);
-  return header;
-}
-
-- (TableViewHeaderFooterItem*)travelSectionHeader {
-  TableViewTextHeaderFooterItem* header =
-      [[TableViewTextHeaderFooterItem alloc] initWithType:ItemTypeTravelHeader];
-  header.text = l10n_util::GetNSString(IDS_IOS_AUTOFILL_AI_TRAVEL_TITLE);
-  return header;
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -728,6 +727,7 @@ bool CanDeleteItemType(NSInteger itemType) {
   [self stopAutofillAddProfileCoordinator];
 
   [self stopAutofillProfileEditCoordinator];
+  [self stopAutofillAIEntityEditCoordinator];
   [self dismissDeletionSheet];
 
   // Remove pref changes registrations.
@@ -913,23 +913,23 @@ bool CanDeleteItemType(NSInteger itemType) {
       [self.navigationController pushViewController:controller animated:YES];
       return;
     }
+    case ItemTypeWalletPromoButton: {
+      [self.tableView deselectRowAtIndexPath:indexPath animated:YES];
+      [self openGoogleWallet];
+      return;
+    }
+    case ItemTypeIdentityDoc:
+    case ItemTypeTravel:
+    case ItemTypeOther: {
+      AutofillAIEntityItem* item =
+          base::apple::ObjCCastStrict<AutofillAIEntityItem>(
+              [self.tableViewModel itemAtIndexPath:indexPath]);
+      [self startAutofillAIEntityEditCoordinatorWithEntityID:item.guid];
+      [self.tableView deselectRowAtIndexPath:indexPath animated:YES];
+      return;
+    }
     default:
       break;
-  }
-
-  if ([self.tableViewModel itemTypeForIndexPath:indexPath] ==
-      ItemTypeWalletPromoButton) {
-    [self.tableView deselectRowAtIndexPath:indexPath animated:YES];
-    [self openGoogleWallet];
-    return;
-  }
-
-  if ([self.tableViewModel itemTypeForIndexPath:indexPath] ==
-          ItemTypeIdentityDoc ||
-      [self.tableViewModel itemTypeForIndexPath:indexPath] == ItemTypeTravel) {
-    // TODO(crbug.com/480934103): handled in upcoming CLs
-    [self.tableView deselectRowAtIndexPath:indexPath animated:YES];
-    return;
   }
 
   if (![self isItemTypeForIndexPathAddress:indexPath]) {
@@ -1255,6 +1255,13 @@ bool CanDeleteItemType(NSInteger itemType) {
   [self stopAutofillProfileEditCoordinator];
 }
 
+#pragma mark - AutofillAIEntityEditCoordinatorDelegate
+
+- (void)autofillAIEntityEditCoordinatorDidFinish:
+    (AutofillAIEntityEditCoordinator*)coordinator {
+  [self stopAutofillAIEntityEditCoordinator];
+}
+
 #pragma mark - AutofillAIAddEntitiesMenuDelegate
 
 - (void)didSelectAddAutofillProfile {
@@ -1263,8 +1270,7 @@ bool CanDeleteItemType(NSInteger itemType) {
 
 // Called when an entity type is selected to be added.
 - (void)didSelectAddEntityWithType:(autofill::EntityType)type {
-  // TODO(crbug.com/480933727): create a new entity and start the edit
-  // coordinator.
+  [self startAutofillAIEntityEditCoordinatorWithEntityType:type];
 }
 
 #pragma mark - Private
@@ -1272,6 +1278,36 @@ bool CanDeleteItemType(NSInteger itemType) {
 - (void)dismissDeletionSheet {
   [_deletionSheetCoordinator stop];
   _deletionSheetCoordinator = nil;
+}
+
+- (void)startAutofillAIEntityEditCoordinatorWithEntityID:
+    (autofill::EntityInstance::EntityId)entityID {
+  [self stopAutofillAIEntityEditCoordinator];
+  _autofillAiEntityEditCoordinator = [[AutofillAIEntityEditCoordinator alloc]
+      initWithBaseNavigationController:self.navigationController
+                               browser:_browser
+                              entityID:entityID];
+  _autofillAiEntityEditCoordinator.delegate = self;
+
+  [_autofillAiEntityEditCoordinator start];
+}
+
+- (void)startAutofillAIEntityEditCoordinatorWithEntityType:
+    (autofill::EntityType)entityType {
+  [self stopAutofillAIEntityEditCoordinator];
+  _autofillAiEntityEditCoordinator = [[AutofillAIEntityEditCoordinator alloc]
+      initWithBaseNavigationController:self.navigationController
+                               browser:_browser
+                            entityType:entityType];
+  _autofillAiEntityEditCoordinator.delegate = self;
+
+  [_autofillAiEntityEditCoordinator start];
+}
+
+- (void)stopAutofillAIEntityEditCoordinator {
+  [_autofillAiEntityEditCoordinator stop];
+  _autofillAiEntityEditCoordinator.delegate = nil;
+  _autofillAiEntityEditCoordinator = nil;
 }
 
 - (void)stopAutofillProfileEditCoordinator {
@@ -1619,6 +1655,40 @@ bool CanDeleteItemType(NSInteger itemType) {
           profileEnabled:profileEnabled
          entitiesEnabled:[self canAddEntities]
                 delegate:self];
+}
+
+// Adds the given `instances` to the table view model under the given
+// `sectionIdentifier`.
+- (void)addEntities:
+            (const std::vector<const autofill::EntityInstance*>&)instances
+          toSection:(SectionIdentifier)sectionIdentifier {
+  if (instances.empty()) {
+    return;
+  }
+
+  TableViewModel* model = self.tableViewModel;
+  [model addSectionWithIdentifier:sectionIdentifier];
+
+  TableViewTextHeaderFooterItem* header = [[TableViewTextHeaderFooterItem alloc]
+      initWithType:ItemTypeForEntitySectionHeader(sectionIdentifier)];
+  header.text = HeaderTextForEntitySection(sectionIdentifier);
+  [model setHeader:header forSectionWithIdentifier:sectionIdentifier];
+
+  const std::string& locale =
+      GetApplicationContext()->GetApplicationLocaleStorage()->Get();
+
+  std::vector<autofill::EntityLabel> labels = autofill::GetLabelsForEntities(
+      instances, /*attribute_types_to_ignore=*/{},
+      /*only_disambiguating_types=*/true, /*obfuscate_sensitive_types=*/true,
+      locale);
+
+  ItemType itemType = ItemTypeForEntitySection(sectionIdentifier);
+  for (size_t i = 0; i < instances.size(); ++i) {
+    [model addItem:[self itemForEntityInstance:*instances[i]
+                                     withLabel:labels[i]
+                                          type:itemType]
+        toSectionWithIdentifier:sectionIdentifier];
+  }
 }
 
 @end

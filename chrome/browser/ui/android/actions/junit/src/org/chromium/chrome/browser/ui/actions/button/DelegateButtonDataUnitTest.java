@@ -1,0 +1,185 @@
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.chrome.browser.ui.actions.button;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
+
+import android.content.Context;
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+
+import androidx.test.core.app.ApplicationProvider;
+import androidx.test.filters.SmallTest;
+
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
+
+import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.chrome.browser.ui.actions.R;
+
+/** Unit tests for {@link DelegateButtonData}. */
+@RunWith(BaseRobolectricTestRunner.class)
+public class DelegateButtonDataUnitTest {
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
+
+    @Mock private DisplayButtonData mDisplayButtonData;
+    @Mock private Runnable mRunnable;
+    @Mock private Runnable mOnLongPressRunnable;
+    @Mock private Drawable mExpectedDrawable;
+
+    @Test
+    @SmallTest
+    public void testDelegateButtonData() {
+        Context context = ApplicationProvider.getApplicationContext();
+        String expectedText = "foo";
+        String expectedContentDescription = "bar";
+        when(mDisplayButtonData.resolveText(context)).thenReturn(expectedText);
+        when(mDisplayButtonData.resolveContentDescription(context))
+                .thenReturn(expectedContentDescription);
+        when(mDisplayButtonData.resolveIcon(context)).thenReturn(mExpectedDrawable);
+        FullButtonData buttonData =
+                new DelegateButtonData(mDisplayButtonData, mRunnable, mOnLongPressRunnable);
+
+        assertEquals(expectedText, buttonData.resolveText(context));
+        assertEquals(expectedContentDescription, buttonData.resolveContentDescription(context));
+        assertEquals(mExpectedDrawable, buttonData.resolveIcon(context));
+        assertEquals(mRunnable, buttonData.getOnPressRunnable());
+        assertEquals(mOnLongPressRunnable, buttonData.getOnLongPressRunnable());
+    }
+
+    @Test
+    @SmallTest
+    public void testDelegateButtonData_noLongPressRunnable() {
+        FullButtonData buttonData = new DelegateButtonData(mDisplayButtonData, mRunnable);
+
+        assertEquals(mRunnable, buttonData.getOnPressRunnable());
+        assertNull(buttonData.getOnLongPressRunnable());
+    }
+
+    @Test
+    @SmallTest
+    public void testButtonDataEquals() {
+        Drawable drawable = createBitmapDrawable();
+        DisplayButtonData displayButtonData1 =
+                new DrawableButtonData(
+                        R.string.button_new_tab, R.string.button_new_incognito_tab, drawable);
+        DisplayButtonData displayButtonData2 =
+                new DrawableButtonData(
+                        R.string.button_new_tab, R.string.button_new_incognito_tab, drawable);
+        DisplayButtonData differentDisplayButtonData =
+                new DrawableButtonData(
+                        R.string.button_new_incognito_tab, R.string.button_new_tab, drawable);
+
+        Runnable runnable1 = () -> {};
+        Runnable runnable2 = () -> {};
+        Runnable longRunnable1 = () -> {};
+        Runnable longRunnable2 = () -> {};
+
+        DelegateButtonData buttonData =
+                new DelegateButtonData(displayButtonData1, runnable1, longRunnable1);
+
+        // Test button data equality with same DisplayButtonData (different Runnable should not
+        // affect equality)
+        assertTrue(
+                buttonData.buttonDataEquals(
+                        new DelegateButtonData(displayButtonData2, runnable2, longRunnable2)));
+        assertTrue(
+                buttonData.buttonDataEquals(
+                        new DelegateButtonData(displayButtonData2, runnable2, longRunnable1)));
+        assertTrue(
+                buttonData.buttonDataEquals(
+                        new DelegateButtonData(displayButtonData2, runnable1, longRunnable2)));
+        assertTrue(
+                buttonData.buttonDataEquals(
+                        new DelegateButtonData(displayButtonData1, null, null)));
+
+        // Additional checks to ensure object inequality is correctly identified
+        assertNotEquals(
+                buttonData, new DelegateButtonData(displayButtonData1, runnable2, longRunnable2));
+        assertNotEquals(
+                buttonData, new DelegateButtonData(displayButtonData1, runnable2, longRunnable1));
+        assertNotEquals(
+                buttonData, new DelegateButtonData(displayButtonData1, runnable1, longRunnable2));
+        assertNotEquals(buttonData, new DelegateButtonData(displayButtonData1, null, null));
+
+        // Test inequality with different DisplayButtonData
+        assertFalse(
+                buttonData.buttonDataEquals(
+                        new DelegateButtonData(
+                                differentDisplayButtonData, runnable1, longRunnable1)));
+
+        // Test inequality with different transparent state
+        DelegateButtonData transparentButtonData =
+                new DelegateButtonData(displayButtonData2, runnable2, longRunnable2);
+        transparentButtonData.setIsTransparent(true);
+        assertFalse(buttonData.buttonDataEquals(transparentButtonData));
+
+        // Test inequality with different toggled state
+        DelegateButtonData toggledButtonData =
+                new DelegateButtonData(displayButtonData2, runnable2, longRunnable2);
+        toggledButtonData.setIsToggled(true);
+        assertFalse(buttonData.buttonDataEquals(toggledButtonData));
+
+        // Test inequality with null
+        assertFalse(buttonData.buttonDataEquals(null));
+
+        // Test inequality with different object type
+        assertFalse(buttonData.buttonDataEquals(new Object()));
+
+        // Test equality with the same object
+        assertTrue(buttonData.buttonDataEquals(buttonData));
+    }
+
+    @Test
+    @SmallTest
+    public void testTransparency() {
+        DelegateButtonData buttonData = new DelegateButtonData(mDisplayButtonData, mRunnable);
+
+        // Default state.
+        assertFalse(buttonData.isTransparent());
+
+        // Make it transparent.
+        buttonData.setIsTransparent(true);
+        assertTrue(buttonData.isTransparent());
+
+        // Make it opaque again.
+        buttonData.setIsTransparent(false);
+        assertFalse(buttonData.isTransparent());
+    }
+
+    @Test
+    @SmallTest
+    public void testToggledState() {
+        DelegateButtonData buttonData = new DelegateButtonData(mDisplayButtonData, mRunnable);
+
+        // Default state.
+        assertFalse(buttonData.isToggled());
+
+        // Toggle the button.
+        buttonData.setIsToggled(true);
+        assertTrue(buttonData.isToggled());
+
+        // Untoggle the button.
+        buttonData.setIsToggled(false);
+        assertFalse(buttonData.isToggled());
+    }
+
+    private Drawable createBitmapDrawable() {
+        Bitmap image = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+        Resources resources = ApplicationProvider.getApplicationContext().getResources();
+        return new BitmapDrawable(resources, image);
+    }
+}

@@ -34,6 +34,8 @@ class DnsServerIterator;
 class DohDnsServerIterator;
 class HostCache;
 class HostResolverCache;
+class HttpResponseInfo;
+struct LoadTimingInternalInfo;
 class URLRequestContext;
 
 // Represents various states of the DoH auto-upgrade process.
@@ -52,8 +54,8 @@ enum class DohServerAutoupgradeStatus {
 // Status of a canary domain check being used to check for whether a
 // particular behavior is allowed.
 enum class CanaryDomainCheckStatus {
-  // Unknown status, also when canary domain check is not enabled.
-  kUnknown,
+  // The canary domain check is disabled by feature flag or empty host.
+  kInactive,
   // The canary domain check has not yet started.
   kNotStarted,
   // The canary domain check has started but not yet completed.
@@ -165,11 +167,13 @@ class NET_EXPORT_PRIVATE ResolveContext : public base::CheckedObserver {
 
   // Record the session source and connection info for a DoH attempt. Noop if
   // `session` is not the current session.
-  void RecordDohSessionStatus(size_t server_index,
-                              const DnsHTTPAttempt::DnsHttpAttemptInfo& info,
-                              base::TimeDelta rtt,
-                              int rv,
-                              const DnsSession* session);
+  void RecordDohSessionStatus(
+      size_t server_index,
+      const HttpResponseInfo& response_info,
+      const LoadTimingInternalInfo& internal_load_timing,
+      base::TimeDelta rtt,
+      int rv,
+      const DnsSession* session);
 
   // Return the period the next query should run before fallback to next
   // attempt. (Not actually a "timeout" because queries are not typically
@@ -373,7 +377,7 @@ class NET_EXPORT_PRIVATE ResolveContext : public base::CheckedObserver {
 
   // Status of a canary domain check to allow DoH fallback for Secure DNS.
   CanaryDomainCheckStatus doh_fallback_canary_domain_check_status_ =
-      CanaryDomainCheckStatus::kNotStarted;
+      CanaryDomainCheckStatus::kInactive;
 
   base::WeakPtrFactory<ResolveContext> weak_ptr_factory_{this};
 };

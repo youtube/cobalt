@@ -11,6 +11,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/notimplemented.h"
 #include "base/notreached.h"
+#include "base/trace_event/trace_event.h"
 #include "base/types/expected.h"
 #include "components/guest_view/browser/guest_view_event.h"
 #include "components/guest_view/browser/guest_view_histogram_value.h"
@@ -24,6 +25,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "net/base/net_errors.h"
+#include "net/http/http_util.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
 #include "url/gurl.h"
 #include "url/url_constants.h"
@@ -112,6 +114,15 @@ ParseBeforeSendHeadersParams(const base::DictValue& create_params) {
         return base::unexpected(
             "addHeaders dictionary must contain a 'value' string.");
       }
+      if (!net::HttpUtil::IsValidHeaderName(*name)) {
+        return base::unexpected("Invalid header name provided.");
+      }
+      if (!net::HttpUtil::IsValidHeaderValue(*value)) {
+        return base::unexpected("Invalid header value provided.");
+      }
+      if (!net::HttpUtil::IsSafeHeader(*name, *value)) {
+        return base::unexpected("Unsafe header provided.");
+      }
       params->add_headers.SetHeader(*name, *value);
     }
   }
@@ -198,6 +209,8 @@ base::WeakPtr<SlimWebViewGuest> SlimWebViewGuest::GetWeakPtr() {
 }
 
 void SlimWebViewGuest::Navigate(const GURL& url) {
+  TRACE_EVENT_INSTANT("content", "SlimWebViewGuest::Navigate",
+                      perfetto::Flow::FromPointer(this));
   // TODO(acondor): Implement other security and navigation params, such as
   // header overrides.
   content::NavigationController::LoadURLParams load_url_params(url);
@@ -286,10 +299,14 @@ void SlimWebViewGuest::DidStartNavigation(
   if (navigation_handle->IsSameDocument()) {
     return;
   }
+  bool is_top_level =
+      IsObservedNavigationWithinGuestMainFrame(navigation_handle);
+  TRACE_EVENT_INSTANT(
+      "content", "SlimWebViewGuest::DidStartNavigation - CrossDocument",
+      perfetto::Flow::FromPointer(this), "isTopLevel", is_top_level);
   base::DictValue args;
   args.Set(guest_view::kUrl, navigation_handle->GetURL().spec());
-  args.Set(guest_view::kIsTopLevel,
-           IsObservedNavigationWithinGuestMainFrame(navigation_handle));
+  args.Set(guest_view::kIsTopLevel, is_top_level);
   DispatchEventToView(std::make_unique<GuestViewEvent>(
       slim_web_view::kEventLoadStart, std::move(args)));
 }
@@ -322,10 +339,16 @@ void SlimWebViewGuest::DidFinishNavigation(
     }
   }
 
+  bool is_top_level =
+      IsObservedNavigationWithinGuestMainFrame(navigation_handle);
+  if (!navigation_handle->IsSameDocument()) {
+    TRACE_EVENT_INSTANT(
+        "content", "SlimWebViewGuest::DidFinishNavigation - CrossDocument",
+        perfetto::Flow::FromPointer(this), "isTopLevel", is_top_level);
+  }
   base::DictValue args;
   args.Set(guest_view::kUrl, navigation_handle->GetURL().spec());
-  args.Set(guest_view::kIsTopLevel,
-           IsObservedNavigationWithinGuestMainFrame(navigation_handle));
+  args.Set(guest_view::kIsTopLevel, is_top_level);
   DispatchEventToView(std::make_unique<GuestViewEvent>(
       slim_web_view::kEventLoadCommit, std::move(args)));
 }
@@ -339,6 +362,9 @@ int SlimWebViewGuest::GetTaskPrefix() const {
 }
 
 void SlimWebViewGuest::GuestViewDocumentOnLoadCompleted() {
+  TRACE_EVENT_INSTANT("content",
+                      "SlimWebViewGuest::GuestViewDocumentOnLoadCompleted",
+                      perfetto::Flow::FromPointer(this));
   DispatchEventToView(std::make_unique<GuestViewEvent>(
       slim_web_view::kEventContentLoad, base::DictValue()));
 }
@@ -386,6 +412,8 @@ void SlimWebViewGuest::CreateInnerPage(
     scoped_refptr<content::SiteInstance> site_instance,
     const base::DictValue& create_params,
     GuestPageCreatedCallback callback) {
+  TRACE_EVENT_INSTANT("content", "SlimWebViewGuest::CreateInnerPage",
+                      perfetto::Flow::FromPointer(this));
   if (base::FeatureList::IsEnabled(features::kGuestViewMPArch)) {
     // TODO(crbug.com/460804848): Complete the implementation for MPArch.
     NOTIMPLEMENTED();
@@ -428,6 +456,8 @@ void SlimWebViewGuest::CreateInnerPage(
 }
 
 void SlimWebViewGuest::GuestViewDidStopLoading() {
+  TRACE_EVENT_INSTANT("content", "SlimWebViewGuest::GuestViewDidStopLoading",
+                      perfetto::TerminatingFlow::FromPointer(this));
   DispatchEventToView(std::make_unique<GuestViewEvent>(
       slim_web_view::kEventLoadStop, base::DictValue()));
 }

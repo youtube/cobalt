@@ -371,7 +371,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.NavigationGating.ConfirmedListSize2" units="origins"
-    expires_after="2026-03-30">
+    expires_after="2026-08-02">
   <owner>dylancutler@google.com</owner>
   <owner>johannhof@google.com</owner>
   <summary>
@@ -380,7 +380,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Actor.NavigationGating.GatingDecision" enum="GatingDecision"
+<histogram name="Actor.NavigationGating.GatingDecision2" enum="GatingDecision"
     expires_after="2026-08-23">
   <owner>tquintanilla@google.com</owner>
   <owner>dylancutler@google.com</owner>

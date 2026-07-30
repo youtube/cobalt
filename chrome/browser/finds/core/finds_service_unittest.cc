@@ -7,13 +7,16 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "chrome/browser/finds/core/finds_features.h"
 #include "chrome/browser/finds/core/finds_pref_names.h"
+#include "chrome/browser/finds/core/finds_utils.h"
+#include "chrome/browser/notifications/scheduler/public/notification_entry.h"
 #include "chrome/browser/notifications/scheduler/public/notification_params.h"
+#include "chrome/browser/notifications/scheduler/public/notification_scheduler_constant.h"
 #include "chrome/browser/notifications/scheduler/test/mock_notification_schedule_service.h"
 #include "chrome/browser/optimization_guide/mock_optimization_guide_keyed_service.h"
-#include "chrome/test/base/testing_profile.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/optimization_guide/proto/features/finds.pb.h"
 #include "components/prefs/testing_pref_service.h"
@@ -43,6 +46,11 @@ class MockHistoryService : public HistoryService {
 
 namespace finds {
 
+class MockFindsServiceObserver : public FindsService::Observer {
+ public:
+  MOCK_METHOD(void, OnOptInCriteriaFulfilled, (), (override));
+};
+
 class FindsServiceTest : public testing::Test {
  public:
   FindsServiceTest() = default;
@@ -70,11 +78,18 @@ class FindsServiceTest : public testing::Test {
   std::unique_ptr<notifications::test::MockNotificationScheduleService>
       notification_schedule_service_;
   std::unique_ptr<FindsService> service_;
+  base::HistogramTester histogram_tester_;
+
+  const base::flat_map<optimization_guide::proto::FindsMetadata::ThemeType,
+                       int>&
+  theme_url_visit_count() const {
+    return service_->theme_url_visit_count_;
+  }
 };
 
 TEST_F(FindsServiceTest, VerifyNotificationCooldownPref) {
   EXPECT_EQ(0, prefs_.GetInt64(prefs::kFindsModelExecutionLastTimestamp));
-  service_->MarkNotificationShown(&prefs_);
+  finds::MarkNotificationShown(&prefs_);
   EXPECT_NE(0, prefs_.GetInt64(prefs::kFindsModelExecutionLastTimestamp));
 }
 
@@ -83,7 +98,7 @@ TEST_F(FindsServiceTest, VerifyThemeNotInterestedCooldownPref) {
       SuggestionTheme::SHOPPING;
   EXPECT_TRUE(
       prefs_.GetDict(prefs::kFindsNotInterestedThemesLastTimestamp).empty());
-  service_->MarkThemeNotInterested(&prefs_, shopping_theme);
+  finds::MarkThemeAsNotInterested(&prefs_, shopping_theme);
   EXPECT_TRUE(prefs_.GetDict(prefs::kFindsNotInterestedThemesLastTimestamp)
                   .Find("Shopping"));
 }
@@ -101,6 +116,9 @@ TEST_F(FindsServiceTest, HistoryServiceUnavailable) {
         callback_called = true;
       }));
   EXPECT_TRUE(callback_called);
+  histogram_tester_.ExpectUniqueSample(
+      "Finds.Result", FindsService::Result::Status::kHistoryServiceUnavailable,
+      1);
 }
 
 TEST_F(FindsServiceTest, OptimizationGuideUnavailable) {
@@ -116,6 +134,9 @@ TEST_F(FindsServiceTest, OptimizationGuideUnavailable) {
         callback_called = true;
       }));
   EXPECT_TRUE(callback_called);
+  histogram_tester_.ExpectUniqueSample(
+      "Finds.Result",
+      FindsService::Result::Status::kOptimizationGuideUnavailable, 1);
 }
 
 TEST_F(FindsServiceTest, EmptyHistory) {
@@ -135,6 +156,8 @@ TEST_F(FindsServiceTest, EmptyHistory) {
         callback_called = true;
       }));
   EXPECT_TRUE(callback_called);
+  histogram_tester_.ExpectUniqueSample(
+      "Finds.Result", FindsService::Result::Status::kEmptyHistory, 1);
 }
 
 TEST_F(FindsServiceTest, ModelExecutionFailed) {
@@ -175,6 +198,8 @@ TEST_F(FindsServiceTest, ModelExecutionFailed) {
         callback_called = true;
       }));
   EXPECT_TRUE(callback_called);
+  histogram_tester_.ExpectUniqueSample(
+      "Finds.Result", FindsService::Result::Status::kModelExecutionFailed, 1);
 }
 
 TEST_F(FindsServiceTest, ParsingFailed) {
@@ -213,6 +238,8 @@ TEST_F(FindsServiceTest, ParsingFailed) {
         callback_called = true;
       }));
   EXPECT_TRUE(callback_called);
+  histogram_tester_.ExpectUniqueSample(
+      "Finds.Result", FindsService::Result::Status::kResponseParsingFailed, 1);
 }
 
 TEST_F(FindsServiceTest, Success) {
@@ -238,10 +265,10 @@ TEST_F(FindsServiceTest, Success) {
                  callback) {
             optimization_guide::OptimizationGuideModelExecutionResult result;
             optimization_guide::proto::FindsSuggestionResponse response;
-            auto* suggestion_theme = response.add_suggestions();
+            auto* suggestion_theme = response.add_suggested_themes();
             suggestion_theme->set_theme_title("Shopping");
             suggestion_theme->set_theme_type(SuggestionTheme::SHOPPING);
-            suggestion_theme->add_suggestions();
+            suggestion_theme->add_theme_suggested_contents();
             optimization_guide::proto::Any any;
             any.set_type_url(
                 "type.googleapis.com/"
@@ -260,11 +287,13 @@ TEST_F(FindsServiceTest, Success) {
         callback_called = true;
       }));
   EXPECT_TRUE(callback_called);
+  histogram_tester_.ExpectUniqueSample(
+      "Finds.Result", FindsService::Result::Status::kSuccess, 1);
 }
 
 TEST_F(FindsServiceTest, ExecutionCooldownNotPassed) {
   // Set the last execution timestamp to now.
-  service_->MarkNotificationShown(&prefs_);
+  finds::MarkNotificationShown(&prefs_);
 
   // Fast forward time just before the cooldown is set to expire.
   task_environment_.FastForwardBy(base::Days(
@@ -273,18 +302,18 @@ TEST_F(FindsServiceTest, ExecutionCooldownNotPassed) {
   // Check that the history service is not called as the model is on cooldown.
   EXPECT_CALL(*history_service_, QueryHistory(_, _, _, _)).Times(0);
 
-  // Run through the constructor workflow to ensure it does not work.
-  auto service = std::make_unique<FindsService>(
-      opt_guide_service_.get(), history_service_.get(), &prefs_,
-      notification_schedule_service_.get());
+  base::HistogramTester histogram_tester_local;
 
-  // Run the posted task.
-  task_environment_.RunUntilIdle();
+  service_->ExecuteModelAndScheduleNotification(base::DoNothing());
+
+  histogram_tester_local.ExpectUniqueSample(
+      "Finds.Result", FindsService::Result::Status::kModelExecutionOnCooldown,
+      1);
 }
 
 TEST_F(FindsServiceTest, ExecutionCooldownPassed) {
   // Set the last execution timestamp to now.
-  service_->MarkNotificationShown(&prefs_);
+  finds::MarkNotificationShown(&prefs_);
 
   // Fast forward enough to pass the cooldown.
   task_environment_.FastForwardBy(
@@ -312,10 +341,10 @@ TEST_F(FindsServiceTest, ExecutionCooldownPassed) {
                  callback) {
             optimization_guide::OptimizationGuideModelExecutionResult result;
             optimization_guide::proto::FindsSuggestionResponse response;
-            auto* suggestion_theme = response.add_suggestions();
+            auto* suggestion_theme = response.add_suggested_themes();
             suggestion_theme->set_theme_title("Shopping");
             suggestion_theme->set_theme_type(SuggestionTheme::SHOPPING);
-            suggestion_theme->add_suggestions();
+            suggestion_theme->add_theme_suggested_contents();
             optimization_guide::proto::Any any;
             any.set_type_url(
                 "type.googleapis.com/"
@@ -325,13 +354,12 @@ TEST_F(FindsServiceTest, ExecutionCooldownPassed) {
             std::move(callback).Run(std::move(result), nullptr);
           });
 
-  // Run through the constructor workflow to ensure it works.
-  auto service = std::make_unique<FindsService>(
-      opt_guide_service_.get(), history_service_.get(), &prefs_,
-      notification_schedule_service_.get());
+  base::HistogramTester histogram_tester_local;
 
-  // Run the posted task.
-  task_environment_.RunUntilIdle();
+  service_->ExecuteModelAndScheduleNotification(base::DoNothing());
+
+  histogram_tester_local.ExpectUniqueSample(
+      "Finds.Result", FindsService::Result::Status::kSuccess, 1);
 }
 
 TEST_F(FindsServiceTest, EmptyNotificationService) {
@@ -360,10 +388,10 @@ TEST_F(FindsServiceTest, EmptyNotificationService) {
                  callback) {
             optimization_guide::OptimizationGuideModelExecutionResult result;
             optimization_guide::proto::FindsSuggestionResponse response;
-            auto* suggestion_theme = response.add_suggestions();
+            auto* suggestion_theme = response.add_suggested_themes();
             suggestion_theme->set_theme_title("Shopping");
             suggestion_theme->set_theme_type(SuggestionTheme::SHOPPING);
-            suggestion_theme->add_suggestions();
+            suggestion_theme->add_theme_suggested_contents();
             optimization_guide::proto::Any any;
             any.set_type_url(
                 "type.googleapis.com/"
@@ -376,11 +404,16 @@ TEST_F(FindsServiceTest, EmptyNotificationService) {
   bool callback_called = false;
   service->ExecuteModelAndScheduleNotification(
       base::BindLambdaForTesting([&](FindsService::Result result) {
-        EXPECT_EQ(FindsService::Result::Status::kSuccess, result.status);
+        EXPECT_EQ(FindsService::Result::Status::kFailedToScheduleNotification,
+                  result.status);
         EXPECT_EQ("Could not schedule notification.", result.message);
         callback_called = true;
       }));
   EXPECT_TRUE(callback_called);
+  EXPECT_THAT(
+      histogram_tester_.GetAllSamples("Finds.Result"),
+      testing::ElementsAre(base::Bucket(
+          FindsService::Result::Status::kFailedToScheduleNotification, 1)));
 }
 
 TEST_F(FindsServiceTest, NoThemesFound) {
@@ -418,7 +451,7 @@ TEST_F(FindsServiceTest, NoThemesFound) {
   bool callback_called = false;
   service_->ExecuteModelAndScheduleNotification(
       base::BindLambdaForTesting([&](FindsService::Result result) {
-        EXPECT_EQ(FindsService::Result::Status::kSuccess, result.status);
+        EXPECT_EQ(FindsService::Result::Status::kNoThemesFound, result.status);
         EXPECT_EQ("No themes found.", result.message);
         callback_called = true;
       }));
@@ -448,7 +481,7 @@ TEST_F(FindsServiceTest, NoSuggestionsForTheme) {
                  callback) {
             optimization_guide::OptimizationGuideModelExecutionResult result;
             optimization_guide::proto::FindsSuggestionResponse response;
-            auto* suggestion_theme = response.add_suggestions();
+            auto* suggestion_theme = response.add_suggested_themes();
             suggestion_theme->set_theme_title("Shopping");
             suggestion_theme->set_theme_type(SuggestionTheme::SHOPPING);
             optimization_guide::proto::Any any;
@@ -463,11 +496,15 @@ TEST_F(FindsServiceTest, NoSuggestionsForTheme) {
   bool callback_called = false;
   service_->ExecuteModelAndScheduleNotification(
       base::BindLambdaForTesting([&](FindsService::Result result) {
-        EXPECT_EQ(FindsService::Result::Status::kSuccess, result.status);
+        EXPECT_EQ(FindsService::Result::Status::kNoSuggestionsForTheme,
+                  result.status);
         EXPECT_EQ("No suggestions available for this theme.", result.message);
         callback_called = true;
       }));
   EXPECT_TRUE(callback_called);
+  EXPECT_THAT(histogram_tester_.GetAllSamples("Finds.Result"),
+              testing::ElementsAre(base::Bucket(
+                  FindsService::Result::Status::kNoSuggestionsForTheme, 1)));
 }
 
 TEST_F(FindsServiceTest, ReturnsHighestScore) {
@@ -493,22 +530,24 @@ TEST_F(FindsServiceTest, ReturnsHighestScore) {
                  callback) {
             optimization_guide::OptimizationGuideModelExecutionResult result;
             optimization_guide::proto::FindsSuggestionResponse response;
-            auto* entertainment_theme = response.add_suggestions();
+            auto* entertainment_theme = response.add_suggested_themes();
             entertainment_theme->set_theme_title("Entertainment");
             entertainment_theme->set_theme_type(SuggestionTheme::ENTERTAINMENT);
-            entertainment_theme->set_score(7);
-            entertainment_theme->add_suggestions()->set_title(
-                "Trending Movies");
-            auto* shopping_theme = response.add_suggestions();
+            entertainment_theme->set_theme_score(7);
+            entertainment_theme->add_theme_suggested_contents()
+                ->set_content_title("Trending Movies");
+            auto* shopping_theme = response.add_suggested_themes();
             shopping_theme->set_theme_title("Shopping");
             shopping_theme->set_theme_type(SuggestionTheme::SHOPPING);
-            shopping_theme->set_score(9);
-            shopping_theme->add_suggestions()->set_title("Latest Deals");
-            auto* travel_theme = response.add_suggestions();
+            shopping_theme->set_theme_score(9);
+            shopping_theme->add_theme_suggested_contents()->set_content_title(
+                "Latest Deals");
+            auto* travel_theme = response.add_suggested_themes();
             travel_theme->set_theme_title("Travel");
             travel_theme->set_theme_type(SuggestionTheme::TRAVEL);
-            travel_theme->set_score(8);
-            travel_theme->add_suggestions()->set_title("Top Destinations");
+            travel_theme->set_theme_score(8);
+            travel_theme->add_theme_suggested_contents()->set_content_title(
+                "Top Destinations");
             optimization_guide::proto::Any any;
             any.set_type_url(
                 "type.googleapis.com/"
@@ -564,22 +603,24 @@ TEST_F(FindsServiceTest, SkipsThemeOnCooldown) {
                  callback) {
             optimization_guide::OptimizationGuideModelExecutionResult result;
             optimization_guide::proto::FindsSuggestionResponse response;
-            auto* entertainment_theme = response.add_suggestions();
+            auto* entertainment_theme = response.add_suggested_themes();
             entertainment_theme->set_theme_title("Entertainment");
             entertainment_theme->set_theme_type(SuggestionTheme::ENTERTAINMENT);
-            entertainment_theme->set_score(7);
-            entertainment_theme->add_suggestions()->set_title(
-                "Trending Movies");
-            auto* shopping_theme = response.add_suggestions();
+            entertainment_theme->set_theme_score(7);
+            entertainment_theme->add_theme_suggested_contents()
+                ->set_content_title("Trending Movies");
+            auto* shopping_theme = response.add_suggested_themes();
             shopping_theme->set_theme_title("Shopping");
             shopping_theme->set_theme_type(SuggestionTheme::SHOPPING);
-            shopping_theme->set_score(9);
-            shopping_theme->add_suggestions()->set_title("Latest Deals");
-            auto* travel_theme = response.add_suggestions();
+            shopping_theme->set_theme_score(9);
+            shopping_theme->add_theme_suggested_contents()->set_content_title(
+                "Latest Deals");
+            auto* travel_theme = response.add_suggested_themes();
             travel_theme->set_theme_title("Travel");
             travel_theme->set_theme_type(SuggestionTheme::TRAVEL);
-            travel_theme->set_score(8);
-            travel_theme->add_suggestions()->set_title("Top Destinations");
+            travel_theme->set_theme_score(8);
+            travel_theme->add_theme_suggested_contents()->set_content_title(
+                "Top Destinations");
             optimization_guide::proto::Any any;
             any.set_type_url(
                 "type.googleapis.com/"
@@ -589,7 +630,7 @@ TEST_F(FindsServiceTest, SkipsThemeOnCooldown) {
             std::move(callback).Run(std::move(result), nullptr);
           });
 
-  service_->MarkThemeNotInterested(&prefs_, SuggestionTheme::SHOPPING);
+  finds::MarkThemeAsNotInterested(&prefs_, SuggestionTheme::SHOPPING);
 
   std::unique_ptr<notifications::NotificationParams> scheduled_params;
   EXPECT_CALL(*notification_schedule_service_, Schedule(_))
@@ -637,22 +678,24 @@ TEST_F(FindsServiceTest, NoNotificationIfAllOnCooldown) {
                  callback) {
             optimization_guide::OptimizationGuideModelExecutionResult result;
             optimization_guide::proto::FindsSuggestionResponse response;
-            auto* entertainment_theme = response.add_suggestions();
+            auto* entertainment_theme = response.add_suggested_themes();
             entertainment_theme->set_theme_title("Entertainment");
             entertainment_theme->set_theme_type(SuggestionTheme::ENTERTAINMENT);
-            entertainment_theme->set_score(7);
-            entertainment_theme->add_suggestions()->set_title(
-                "Trending Movies");
-            auto* shopping_theme = response.add_suggestions();
+            entertainment_theme->set_theme_score(7);
+            entertainment_theme->add_theme_suggested_contents()
+                ->set_content_title("Trending Movies");
+            auto* shopping_theme = response.add_suggested_themes();
             shopping_theme->set_theme_title("Shopping");
             shopping_theme->set_theme_type(SuggestionTheme::SHOPPING);
-            shopping_theme->set_score(9);
-            shopping_theme->add_suggestions()->set_title("Latest Deals");
-            auto* travel_theme = response.add_suggestions();
+            shopping_theme->set_theme_score(9);
+            shopping_theme->add_theme_suggested_contents()->set_content_title(
+                "Latest Deals");
+            auto* travel_theme = response.add_suggested_themes();
             travel_theme->set_theme_title("Travel");
             travel_theme->set_theme_type(SuggestionTheme::TRAVEL);
-            travel_theme->set_score(8);
-            travel_theme->add_suggestions()->set_title("Top Destinations");
+            travel_theme->set_theme_score(8);
+            travel_theme->add_theme_suggested_contents()->set_content_title(
+                "Top Destinations");
             optimization_guide::proto::Any any;
             any.set_type_url(
                 "type.googleapis.com/"
@@ -662,21 +705,110 @@ TEST_F(FindsServiceTest, NoNotificationIfAllOnCooldown) {
             std::move(callback).Run(std::move(result), nullptr);
           });
 
-  service_->MarkThemeNotInterested(&prefs_, SuggestionTheme::SHOPPING);
-  service_->MarkThemeNotInterested(&prefs_, SuggestionTheme::ENTERTAINMENT);
-  service_->MarkThemeNotInterested(&prefs_, SuggestionTheme::TRAVEL);
+  finds::MarkThemeAsNotInterested(&prefs_, SuggestionTheme::SHOPPING);
+  finds::MarkThemeAsNotInterested(&prefs_, SuggestionTheme::ENTERTAINMENT);
+  finds::MarkThemeAsNotInterested(&prefs_, SuggestionTheme::TRAVEL);
 
   EXPECT_CALL(*notification_schedule_service_, Schedule(_)).Times(0);
 
   bool callback_called = false;
   service_->ExecuteModelAndScheduleNotification(
       base::BindLambdaForTesting([&](FindsService::Result result) {
-        EXPECT_EQ(FindsService::Result::Status::kSuccess, result.status);
+        EXPECT_EQ(FindsService::Result::Status::kNoNonCooldownThemesFound,
+                  result.status);
         EXPECT_EQ("No themes found that passed cooldown criteria.",
                   result.message);
         callback_called = true;
       }));
   EXPECT_TRUE(callback_called);
+}
+
+TEST_F(FindsServiceTest, RecordThemeURLVisitedIncrementsCount) {
+  EXPECT_TRUE(theme_url_visit_count().empty());
+
+  service_->RecordThemeURLVisited(
+      optimization_guide::proto::FindsMetadata::SHOPPING);
+
+  auto it = theme_url_visit_count().find(
+      optimization_guide::proto::FindsMetadata::SHOPPING);
+  EXPECT_NE(it, theme_url_visit_count().end());
+  EXPECT_EQ(it->second, 1);
+}
+
+TEST_F(FindsServiceTest, RecordThemeURLVisitedThresholdTriggersOptIn) {
+  testing::NiceMock<MockFindsServiceObserver> observer;
+  service_->AddObserver(&observer);
+
+  EXPECT_CALL(observer, OnOptInCriteriaFulfilled()).Times(1);
+
+  service_->RecordThemeURLVisited(
+      optimization_guide::proto::FindsMetadata::SHOPPING);
+  auto it = theme_url_visit_count().find(
+      optimization_guide::proto::FindsMetadata::SHOPPING);
+  EXPECT_NE(it, theme_url_visit_count().end());
+  EXPECT_EQ(it->second, 1);
+
+  service_->RecordThemeURLVisited(
+      optimization_guide::proto::FindsMetadata::SHOPPING);
+  it = theme_url_visit_count().find(
+      optimization_guide::proto::FindsMetadata::SHOPPING);
+  EXPECT_NE(it, theme_url_visit_count().end());
+  EXPECT_EQ(it->second, 2);
+
+  service_->RecordThemeURLVisited(
+      optimization_guide::proto::FindsMetadata::SHOPPING);
+
+  service_->RemoveObserver(&observer);
+}
+
+TEST_F(FindsServiceTest, ScheduleNotificationForInternalsPage) {
+  std::unique_ptr<notifications::NotificationParams> scheduled_params;
+  EXPECT_CALL(*notification_schedule_service_, Schedule(_))
+      .WillOnce([&](std::unique_ptr<notifications::NotificationParams> params) {
+        scheduled_params = std::move(params);
+      });
+
+  bool success = service_->ScheduleNotificationForInternalsPage();
+  EXPECT_TRUE(success);
+
+  ASSERT_NE(nullptr, scheduled_params);
+  EXPECT_EQ(u"Test Notification", scheduled_params->notification_data.title);
+  EXPECT_EQ(u"This is a test notification from the internals page.",
+            scheduled_params->notification_data.message);
+  EXPECT_EQ("https://www.google.com",
+            scheduled_params->notification_data
+                .custom_data[notifications::kChromeFindsNotificationsUrl]);
+}
+
+TEST_F(FindsServiceTest, MaybeRescheduleNotifications_Empty_NoOp) {
+  EXPECT_CALL(*notification_schedule_service_, GetClientOverview(_, _))
+      .WillOnce(
+          [](notifications::SchedulerClientType client_type,
+             base::OnceCallback<void(notifications::ClientOverview)> callback) {
+            std::move(callback).Run(notifications::ClientOverview());
+          });
+
+  EXPECT_CALL(*notification_schedule_service_, DeleteNotifications(_)).Times(0);
+  EXPECT_CALL(*notification_schedule_service_, Schedule(_)).Times(0);
+
+  service_->MaybeRescheduleNotifications();
+}
+
+TEST_F(FindsServiceTest, MaybeRescheduleNotifications_Reschedules) {
+  notifications::NotificationEntry entry;
+  notifications::ClientOverview overview;
+  overview.scheduled_notifications.push_back(&entry);
+
+  EXPECT_CALL(*notification_schedule_service_, GetClientOverview(_, _))
+      .WillOnce(
+          [&](notifications::SchedulerClientType client_type,
+              base::OnceCallback<void(notifications::ClientOverview)>
+                  callback) { std::move(callback).Run(std::move(overview)); });
+
+  EXPECT_CALL(*notification_schedule_service_, DeleteNotifications(_)).Times(1);
+  EXPECT_CALL(*notification_schedule_service_, Schedule(_)).Times(1);
+
+  service_->MaybeRescheduleNotifications();
 }
 
 }  // namespace finds

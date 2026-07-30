@@ -372,6 +372,9 @@ BASE_FEATURE(kEncryptedMediaOcclusionTracking,
 BASE_FEATURE(kExtendedVideoBitstreamValidation,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Enables support for >8 audio channel layouts (i.e., 5.1.4 and 7.1.4).
+BASE_FEATURE(kEnableHighChannelLayouts, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables user control over muting tab audio from the tab strip.
 BASE_FEATURE(kEnableTabMuting, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -653,6 +656,16 @@ BASE_FEATURE(kDocumentPictureInPictureAnimateResize,
 // Allows document picture-in-picture pages to request capture.
 BASE_FEATURE(kDocumentPictureInPictureCapture,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enables reparenting the VideoFrameSubmitter's frame sink when moving to
+// or from a Document Picture-in-Picture window.
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kDocumentPictureInPictureReparenting,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
+BASE_FEATURE(kDocumentPictureInPictureReparenting,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 // Falls back to other decoders after audio/video decode error happens. The
 // implementation may choose different strategies on when to fallback. See
@@ -995,6 +1008,12 @@ BASE_FEATURE(kAutoPictureInPicturePageInfoDetails,
 // Causes the AVC parser to additionally parse and indicate when an SEI
 // recovery point with `recovery_frame_cnt=0` has been found.
 BASE_FEATURE(kParseSEIRecoveryPoints, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, H.264 keyframe detection becomes stricter for samples whose avc
+// config does not provide SPS/PPS. In that case, an IDR alone is not
+// sufficient, SPS+PPS must appear in-band to mark it as a keyframe.
+BASE_FEATURE(kH264IDRKeyframeRequiresParameterSets,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Allows media to autoplay without a user gesture if the site has been
 // granted microphone or camera permissions.

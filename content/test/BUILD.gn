@@ -2148,6 +2148,7 @@ test("content_browsertests") {
         "../browser/media/capture/fake_video_capture_stack.h",
         "../browser/media/capture/frame_test_util.cc",
         "../browser/media/capture/frame_test_util.h",
+        "../browser/media/capture/mouse_cursor_overlay_controller_browsertest.cc",
         "../browser/media/capture/web_contents_video_capture_device_browsertest.cc",
       ]
 
@@ -2155,8 +2156,6 @@ test("content_browsertests") {
     }
 
     if (is_linux || is_chromeos || is_mac || is_win) {
-      sources += [ "../browser/media/capture/mouse_cursor_overlay_controller_browsertest.cc" ]
-
       # For chromecast, content_browsertests does not provide a shell window.
       if (use_aura && !is_castos) {
         sources += [ "../browser/media/capture/aura_window_video_capture_device_browsertest.cc" ]
@@ -2335,8 +2334,15 @@ test("content_browsertests") {
   }
 
   if (is_chromeos) {
-    sources += [ "../browser/smart_card/smart_card_browsertest.cc" ]
-    deps += [ "//chromeos/components/firewall_hole" ]
+    sources += [
+      "../browser/direct_sockets/firewall_hole_browsertest.cc",
+      "../browser/smart_card/smart_card_browsertest.cc",
+    ]
+
+    deps += [
+      "//chromeos/components/firewall_hole",
+      "//chromeos/dbus/permission_broker",
+    ]
 
     if (is_component_build) {
       sources += [
@@ -2654,7 +2660,9 @@ test("content_unittests") {
     "../browser/devtools/protocol_unittest.cc",
     "../browser/devtools/request_body_collector_unittest.cc",
     "../browser/devtools/shared_storage_worklet_devtools_agent_host_unittest.cc",
+    "../browser/digital_credentials/digital_credential_environment_unittest.cc",
     "../browser/digital_credentials/digital_identity_request_impl_unittest.cc",
+    "../browser/digital_credentials/virtual_wallet_unittest.cc",
     "../browser/dom_storage/dom_storage_context_wrapper_unittest.cc",
     "../browser/download/download_manager_impl_unittest.cc",
     "../browser/download/save_package_unittest.cc",
@@ -2792,6 +2800,7 @@ test("content_unittests") {
     "../browser/permissions/permission_controller_impl_unittest.cc",
     "../browser/permissions/permission_overrides_unittest.cc",
     "../browser/permissions/permission_service_context_unittest.cc",
+    "../browser/permissions/permission_service_impl_unittest.cc",
     "../browser/permissions/permission_util_unittest.cc",
     "../browser/picture_in_picture/picture_in_picture_service_impl_unittest.cc",
     "../browser/preloading/anchor_element_interaction_host_impl_unittest.cc",
@@ -3111,7 +3120,7 @@ test("content_unittests") {
     "../renderer/media/batching_media_log_unittest.cc",
     "../renderer/media/inspector_media_event_handler_unittest.cc",
     "../renderer/media/renderer_webaudiodevice_impl_unittest.cc",
-    "../renderer/memory_coordinator/renderer_memory_coordinator_policy_unittest.cc",
+    "../renderer/memory_coordinator/last_resort_gc_policy_unittest.cc",
     "../renderer/render_thread_impl_unittest.cc",
     "../renderer/service_worker/service_worker_provider_context_unittest.cc",
     "../renderer/service_worker/service_worker_subresource_loader_unittest.cc",
@@ -3127,6 +3136,7 @@ test("content_unittests") {
   fuzztests = [
     "ActionsParserFuzzTest.ParsesJSONCorrectly",
     "FirstPartySetFuzzer.ParsesSetsCorrectly",
+    "IndexedDbLevelDbCodingFuzzTest.CompareHandlesAnyInput",
   ]
 
   if (is_mac) {
@@ -3134,6 +3144,7 @@ test("content_unittests") {
       "../browser/child_process_task_port_provider_mac_unittest.cc",
       "../browser/cocoa/system_hotkey_map_unittest.mm",
       "../browser/file_system_access/file_path_watcher/file_path_watcher_fsevents_change_tracker_unittest.cc",
+      "../browser/media/capture/capture_util_mac_unittest.mm",
       "../browser/media/capture/native_screen_capture_picker_mac_unittest.mm",
       "../browser/media/capture/screen_capture_kit_device_mac_unittest.mm",
       "../browser/media/capture/screen_capture_kit_fullscreen_module_unittest.mm",
@@ -3317,7 +3328,6 @@ test("content_unittests") {
     "//content/browser/interest_group:interest_group_proto",
     "//content/browser/notifications:notification_proto",
     "//content/browser/private_aggregation:for_content_tests",
-    "//content/browser/tpcd_heuristics:unit_tests",
     "//content/browser/tracing/traces_internals:mojo_bindings",
     "//content/child:for_content_tests",
     "//content/common:for_content_tests",

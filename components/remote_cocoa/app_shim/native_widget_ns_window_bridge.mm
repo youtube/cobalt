@@ -1386,6 +1386,14 @@ void NativeWidgetNSWindowBridge::OnPositionChanged() {
   UpdateWindowGeometry();
 }
 
+void NativeWidgetNSWindowBridge::OnWindowWillMove() {
+  host_->OnWindowWillMove();
+}
+
+void NativeWidgetNSWindowBridge::OnWindowDidEndMove() {
+  host_->OnWindowDidEndMove();
+}
+
 void NativeWidgetNSWindowBridge::OnWindowWillStartLiveResize() {
   host_->OnWindowWillStartLiveResize();
 }
@@ -1705,6 +1713,10 @@ bool NativeWidgetNSWindowBridge::ShouldWaitInPreCommit() {
 
 base::TimeDelta NativeWidgetNSWindowBridge::PreCommitTimeout() {
   return kUIPaintTimeout;
+}
+
+bool NativeWidgetNSWindowBridge::IsWindowInLiveResize() {
+  return [window_ inLiveResize];
 }
 
 ////////////////////////////////////////////////////////////////////////////////

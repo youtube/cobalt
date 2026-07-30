@@ -148,6 +148,10 @@ class ChromeMetricsServiceAccessor : public metrics::MetricsServiceAccessor {
       bool,
       OnMetricsReportingCallbackType,
       ChangeMetricsReportingStateCalledFrom);
+  friend void ChangeMetricsReportingLevelWithReply(
+      metrics::MetricsReportingLevel,
+      OnMetricsReportingLevelCallbackType,
+      ChangeMetricsReportingLevelCalledFrom);
   friend void ApplyMetricsReportingPolicy();
   friend class ash::settings::PerSessionSettingsUserActionTracker;
   friend class settings::MetricsReportingHandler;
@@ -201,6 +205,12 @@ class ChromeMetricsServiceAccessor : public metrics::MetricsServiceAccessor {
   friend class metrics::CrOSPreConsentMetricsManagerTest;
   FRIEND_TEST_ALL_PREFIXES(ChromeMetricsServiceAccessorTest,
                            MetricsReportingEnabled);
+  FRIEND_TEST_ALL_PREFIXES(
+      ChromeMetricsServiceAccessorTest,
+      MetricsReportingEnabled_RestructureMetricsConsentSettings_FeatureOff);
+  FRIEND_TEST_ALL_PREFIXES(
+      ChromeMetricsServiceAccessorTest,
+      MetricsReportingEnabled_RestructureMetricsConsentSettings);
   FRIEND_TEST_ALL_PREFIXES(ChromeMetricsServicesManagerClientTest,
                            ForceTrialsDisablesReporting);
 

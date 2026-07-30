@@ -54,6 +54,7 @@
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/network/public/cpp/client_hints.h"
 #include "services/network/public/cpp/header_util.h"
+#include "services/network/public/cpp/no_vary_search_header_parser.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "services/network/public/cpp/web_sandbox_flags.h"
 #include "services/network/public/mojom/url_response_head.mojom-shared.h"
@@ -3284,9 +3285,14 @@ void DocumentLoader::CreateParserPostCommit() {
 
   // Links with media values need more information (like viewport information).
   // This happens after the first chunk is parsed in HTMLDocumentParser.
-  DispatchLinkHeaderPreloads(nullptr /* viewport */,
-                             PreloadHelper::LoadLinksFromHeaderMode::
-                                 kDocumentAfterCommitWithoutViewport);
+  // Skip for MediaDocument: StopLoading() is called immediately after, which
+  // cancels and removes these preloads. Dispatching them serves no purpose.
+  // See https://crbug.com/482088906 for the discussion behind this change.
+  if (!frame_->GetDocument()->IsMediaDocument()) {
+    DispatchLinkHeaderPreloads(nullptr /* viewport */,
+                               PreloadHelper::LoadLinksFromHeaderMode::
+                                   kDocumentAfterCommitWithoutViewport);
+  }
 
   // Initializing origin trials might force window proxy initialization,
   // which later triggers CHECK when swapping in via WebFrame::Swap().
@@ -3535,8 +3541,17 @@ void DocumentLoader::RecordUseCountersForCommit() {
     CountUse(WebFeature::kRequireDocumentPolicyHeader);
   }
 
-  if (!response_.HttpHeaderField(http_names::kNoVarySearch).IsNull()) {
+  if (const AtomicString& value =
+          response_.HttpHeaderField(http_names::kNoVarySearch);
+      !value.IsNull()) {
     CountUse(WebFeature::kNoVarySearch);
+    // Structured headers are actually required to be ASCII, but converting a
+    // String to Latin1() is cheaper and the structured headers parser will do
+    // the ASCII check for us.
+    if (value.contains("params") &&
+        network::NoVarySearchHasBooleanParamsMember(value.Latin1())) {
+      CountUse(WebFeature::kNoVarySearchWithBooleanParams);
+    }
   }
 
   if (frame_->IsOutermostMainFrame() &&

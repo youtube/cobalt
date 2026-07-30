@@ -137,6 +137,7 @@ import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.feed.FeedSurfaceTracker;
 import org.chromium.chrome.browser.feed.FeedUma;
 import org.chromium.chrome.browser.feedback.OmniboxFeedbackSource;
+import org.chromium.chrome.browser.finds.FindsService;
 import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
@@ -173,7 +174,6 @@ import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.NativeInitObserver;
 import org.chromium.chrome.browser.locale.LocaleManager;
 import org.chromium.chrome.browser.magic_stack.HomeModulesConfigManager;
-import org.chromium.chrome.browser.magic_stack.HomeModulesMetricsUtils;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType;
 import org.chromium.chrome.browser.magic_stack.ModuleRegistry;
 import org.chromium.chrome.browser.metrics.AndroidSessionDurationsServiceState;
@@ -193,6 +193,7 @@ import org.chromium.chrome.browser.native_page.NativePageAssassin;
 import org.chromium.chrome.browser.navigation_predictor.NavigationPredictorBridge;
 import org.chromium.chrome.browser.new_tab_url.DseNewTabUrlManager;
 import org.chromium.chrome.browser.night_mode.NightModeStateProvider;
+import org.chromium.chrome.browser.notifications.finds.FindsManager;
 import org.chromium.chrome.browser.notifications.scheduler.TipsNotificationsFeatureType;
 import org.chromium.chrome.browser.notifications.tips.TipsPromoCoordinator;
 import org.chromium.chrome.browser.notifications.tips.TipsUtils;
@@ -323,7 +324,6 @@ import org.chromium.chrome.browser.ui.bottombar.BottomBarConfigUtils;
 import org.chromium.chrome.browser.ui.bottombar.BottomBarHostManager;
 import org.chromium.chrome.browser.ui.browser_window.BrowserWindowType;
 import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoUtils;
-import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.TransitiveTopInsetProvider;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient;
@@ -689,6 +689,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
 
     private TipsPromoCoordinator mTipsPromoCoordinator;
     private RecentlyClosedEntriesManager mRecentlyClosedEntriesManager;
+    private FindsManager mFindsManager;
 
     /** Constructs a ChromeTabbedActivity. */
     public ChromeTabbedActivity() {
@@ -1554,6 +1555,20 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             if (ChromeFeatureList.sAndroidTipsNotifications.isEnabled()) {
                 TipsUtils.registerTipsNotificationsModuleEnabledSettingsPref();
             }
+
+            if (ChromeFeatureList.isEnabled(ChromeFeatureList.CHROME_FINDS)) {
+                Profile profile = getProfileProviderSupplier().get().getOriginalProfile();
+                FindsService findsService = FindsService.getForProfile(profile);
+                if (findsService != null) {
+                    mFindsManager =
+                            new FindsManager(
+                                    this,
+                                    profile,
+                                    mRootUiCoordinator.getBottomSheetController(),
+                                    getSnackbarManager(),
+                                    findsService);
+                }
+            }
         }
     }
 
@@ -2126,7 +2141,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
 
     @Override
     public boolean shouldPersistAcrossReboots() {
-        return ChromeFeatureList.sPersistAcrossReboots.isEnabled();
+        return DeviceInfo.isDesktop() && ChromeFeatureList.sPersistAcrossReboots.isEnabled();
     }
 
     private void handleDebugIntent(Intent intent) {
@@ -2973,14 +2988,13 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                         mWindowId,
                         Collections.singletonList(tab),
                         /* destTabIndex= */ 0,
-                        /* destGroupTabId= */ TabList.INVALID_TAB_INDEX);
+                        /* destGroupTabId= */ TabList.INVALID_TAB_INDEX,
+                        /* bringToFront= */ true);
 
         if (isTabInGroup) RecordUserAction.record("MobileToolbarReorderTab.TabRemovedFromGroup");
         RecordHistogram.recordBooleanHistogram(HISTOGRAM_DRAGGED_TAB_OPENED_NEW_WINDOW, true);
         DragDropMetricUtils.recordDragDropType(
                 ChromeDragDropUtils.getDragDropTypeFromIntent(intent),
-                AppHeaderUtils.isAppInDesktopWindow(
-                        mRootUiCoordinator.getDesktopWindowStateManager()),
                 /* isTabGroup= */ false,
                 /* isMultiTab= */ false);
         return true;
@@ -3010,12 +3024,11 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                         mWindowId,
                         tabs,
                         /* destTabIndex= */ 0,
-                        /* destGroupTabId= */ TabList.INVALID_TAB_INDEX);
+                        /* destGroupTabId= */ TabList.INVALID_TAB_INDEX,
+                        /* bringToFront= */ true);
 
         DragDropMetricUtils.recordDragDropType(
                 ChromeDragDropUtils.getDragDropTypeFromIntent(intent),
-                AppHeaderUtils.isAppInDesktopWindow(
-                        mRootUiCoordinator.getDesktopWindowStateManager()),
                 /* isTabGroup= */ false,
                 /* isMultiTab= */ true);
         return true;
@@ -3033,11 +3046,9 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         // The metadata was attached as part of a drag and drop operation, so detach the target
         // group and reparent them to this instance now.
         mMultiInstanceManager.moveTabGroupToWindowByIdChecked(
-                mWindowId, tabGroupMetadata, /* destTabIndex= */ 0);
+                mWindowId, tabGroupMetadata, /* destTabIndex= */ 0, /* bringToFront= */ true);
         DragDropMetricUtils.recordDragDropType(
                 ChromeDragDropUtils.getDragDropTypeFromIntent(intent),
-                AppHeaderUtils.isAppInDesktopWindow(
-                        mRootUiCoordinator.getDesktopWindowStateManager()),
                 /* isTabGroup= */ true,
                 /* isMultiTab= */ false);
         return true;
@@ -3253,8 +3264,6 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
     }
 
     private void maybeRegisterHomeModules() {
-        if (!HomeModulesMetricsUtils.useMagicStack()) return;
-
         ModuleRegistry moduleRegistry =
                 new ModuleRegistry(
                         HomeModulesConfigManager.getInstance(), getLifecycleDispatcher());
@@ -3705,7 +3714,6 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             getWindowAndroid(),
                             getToolbarManager()::getToolbar,
                             mHomeSurfaceTracker,
-                            getTabContentManagerSupplier(),
                             getToolbarManager().getTabStripHeightSupplier(),
                             mModuleRegistrySupplier,
                             mEdgeToEdgeControllerSupplier,
@@ -3713,7 +3721,6 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             getStartupMetricsTracker(),
                             mRootUiCoordinator.getExclusiveAccessManager(),
                             mBackPressManager,
-                            mMultiInstanceManager,
                             mRecentlyClosedEntriesManager);
         }
         return mTabDelegateFactory;
@@ -4808,6 +4815,11 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
 
         if (mAcceleratorManager != null) {
             mAcceleratorManager.destroy();
+        }
+
+        if (mFindsManager != null) {
+            mFindsManager.destroy();
+            mFindsManager = null;
         }
 
         super.onDestroyInternal();

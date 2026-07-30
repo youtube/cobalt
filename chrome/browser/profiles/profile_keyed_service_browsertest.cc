@@ -28,7 +28,6 @@
 #include "components/keyed_service/core/dependency_graph.h"
 #include "components/keyed_service/core/keyed_service_base_factory.h"
 #include "components/omnibox/common/omnibox_features.h"
-#include "components/optimization_guide/machine_learning_tflite_buildflags.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/supervised_user/core/common/features.h"
 #include "content/public/common/content_features.h"
@@ -205,10 +204,8 @@ class ProfileKeyedServiceBrowserTest : public InProcessBrowserTest {
           extensions_features::kForceWebRequestProxyForTest,
           network::features::kReduceAcceptLanguage,
           features::kMainNodeAnnotations,
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
           omnibox::kOnDeviceTailModel,
           omnibox::kOnDeviceHeadProviderNonIncognito,
-#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
           switches::kSyncEnableBookmarksInTransportMode,
           contextual_tasks::kContextualTasks,
           supervised_user::kSupervisedUserUseUrlFilteringService,
@@ -454,10 +451,9 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
     "MediaRouter",
     "MediaRouterUIService",
     "NotificationDisplayService",
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
     "OnDeviceTailModelService",
-#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
     "OneTimePermissionsTrackerKeyedService",
+    "OptimizationGuideGlobalStateHolderKeyedService",
     "OptimizationGuideKeyedService",
     "PermissionDecisionAutoBlocker",
     "PinnedToolbarActionsModel",
@@ -615,9 +611,7 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
     "AppWindowRegistry",
     "AudioAPI",
     "AutocompleteActionPredictor",
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
     "AutocompleteScoringModelService",
-#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
     "AutofillClientProvider",
     "AutofillImageFetcher",
     "AutofillPrivateEventRouter",
@@ -773,11 +767,10 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
 #endif // BUILDFLAG(IS_CHROMEOS)
     "OmniboxAPI",
     "OmniboxSuggestionsWatcher",
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
     "OnDeviceTailModelService",
-#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
     "OneTimePermissionsTrackerKeyedService",
     "OperationManager",
+    "OptimizationGuideGlobalStateHolderKeyedService",
     "OptimizationGuideKeyedService",
 #if !BUILDFLAG(IS_CHROMEOS)
     // TODO(crbug.com/374351946): Investigate if this is necessary on CrOS.

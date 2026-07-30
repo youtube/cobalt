@@ -9,7 +9,6 @@
 
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
-#include "base/scoped_observation.h"
 #include "base/strings/strcat.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -22,12 +21,14 @@
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/service/metrics/metrics_types.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
+#include "chrome/browser/metrics/profile_metrics_service_factory.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/chrome_features.h"
+#include "components/metrics/profile_metrics_service.h"
 #include "components/prefs/pref_service.h"
 #include "components/startup_metric_utils/browser/startup_metric_utils.h"
 #include "content/public/browser/render_frame_host.h"
@@ -156,39 +157,6 @@ constexpr char kHistogramGlicPanelPresentationTimePrefix[] =
     "Glic.PanelPresentationTime2.";
 
 constexpr static base::TimeDelta kLogSizeMetricsDelay = base::Minutes(3);
-
-enum class ModeOffset : int {
-  kTextAttached = 1,
-  kAudioAttached = 2,
-  kTextDetached = 3,
-  kAudioDetached = 4,
-  kMaxValue = kAudioDetached,
-};
-
-ResponseSegmentation GetResponseSegmentation(bool attached,
-                                             mojom::WebClientMode mode,
-                                             mojom::InvocationSource source) {
-  if (mode == mojom::WebClientMode::kUnknown) {
-    return ResponseSegmentation::kUnknown;
-  }
-
-  ModeOffset modeOffset;
-  if (mode == mojom::WebClientMode::kText && attached) {
-    modeOffset = ModeOffset::kTextAttached;
-  } else if (mode == mojom::WebClientMode::kAudio && attached) {
-    modeOffset = ModeOffset::kAudioAttached;
-  } else if (mode == mojom::WebClientMode::kText && !attached) {
-    modeOffset = ModeOffset::kTextDetached;
-  } else {
-    modeOffset = ModeOffset::kAudioDetached;
-  }
-
-  int baseIndex =
-      static_cast<int>(source) * (static_cast<int>(ModeOffset::kMaxValue));
-  int offset = static_cast<int>(modeOffset);
-
-  return static_cast<ResponseSegmentation>(baseIndex + offset);
-}
 
 std::string_view GetInputModeString(mojom::WebClientMode input_mode) {
   switch (input_mode) {
@@ -420,6 +388,7 @@ void GlicMetrics::OnInstanceClosed() {
 void GlicMetrics::OnFreAccepted() {
   // Store the current time in a instance variable.
   fre_accepted_time_ = base::TimeTicks::Now();
+  onboarding_invocation_source_ = invocation_source_;
 }
 
 void GlicMetrics::OnUserInputSubmitted(mojom::WebClientMode mode) {
@@ -428,6 +397,9 @@ void GlicMetrics::OnUserInputSubmitted(mojom::WebClientMode mode) {
     base::UmaHistogramLongTimes("Glic.FreToFirstQueryTime", delta);
     base::UmaHistogramCustomTimes("Glic.FreToFirstQueryTimeMax24H", delta,
                                   base::Milliseconds(1), base::Hours(24), 50);
+    base::UmaHistogramEnumeration(
+        "Glic.Fre.UserInput.Entrypoint",
+        glic::GetEntrypointFromInvocationSource(onboarding_invocation_source_));
     fre_accepted_time_ = base::TimeTicks();
   }
 
@@ -552,9 +524,6 @@ void GlicMetrics::OnResponseStarted() {
   base::UmaHistogramEnumeration("Glic.Response.InvocationSource",
                                 invocation_source_);
   base::UmaHistogramEnumeration("Glic.Response.InputMode", input_mode_);
-  base::UmaHistogramEnumeration(
-      "Glic.Response.Segmentation",
-      GetResponseSegmentation(attached, input_mode_, invocation_source_));
 
   base::UmaHistogramCounts100("Glic.Response.TabsPinnedForSharingCount",
                               delegate_->GetNumPinnedTabs());
@@ -766,8 +735,11 @@ void GlicMetrics::OnGlicWindowClose(Browser* last_active_browser,
       "Glic.PercentOverlapWithBrowser.OnClose",
       GetPercentOverlapWithBrowser(last_active_browser, glic_bounds));
 #endif
-  base::UmaHistogramCounts1000("Glic.Session.ResponseCount",
-                               session_responses_);
+  metrics::ProfileMetricsService* profile_metrics_service =
+      ProfileMetricsServiceFactory::GetForProfile(profile_);
+  CHECK(profile_metrics_service);
+  profile_metrics_service->UmaHistogramCounts1000("Glic.Session.ResponseCount",
+                                                  session_responses_);
   if (session_start_time_.is_null()) {
     base::UmaHistogramEnumeration("Glic.Metrics.Error",
                                   Error::kWindowCloseWithoutWindowOpen);

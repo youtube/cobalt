@@ -29,8 +29,11 @@ kill_processes() {
   # won't kill it. SIGKILL is used because the wrapper script will restart the
   # host immediately (so any cleanup that might otherwise happen is not useful),
   # and this ensures that hosts restart even if they are deadlocked.
-  # TODO: yuweih - see if it's possible to restart the service script process
-  # without resetting the session.
+  # For the multi-process host, this kills the daemon process and all its
+  # children with SIGKILL, then the systemd service will relaunch the daemon
+  # process, which will recover GDM remote displays created by the previous
+  # incarnation.
+  # TODO: crbug.com/496325766 - Improve the upgrade experience.
   echo "Killing Chrome Remote Desktop processes so that they can be reloaded (sessions will be unaffected)..."
   pkill -KILL -f "^$INSTALL_DIR" || true
 }
@@ -39,7 +42,17 @@ case "$1" in
   "configure")
     echo "Adding user $CRD_NETWORK_USER to allow the Chrome Remote Desktop network "
     echo 'process to be run in a sandboxed environment.'
-    adduser --system "$CRD_NETWORK_USER"
+    # On Debian 11 or older, usernames with a leading underscore are not allowed
+    # unless --allow-bad-names or --force-badname is set. --allow-bad-names is
+    # only available in newer versions (>= 3.134) of adduser.
+    ADDUSER_OPTS="--system"
+    ADDUSER_VERSION=$(dpkg-query -W -f='${Version}' adduser)
+    if dpkg --compare-versions "$ADDUSER_VERSION" ge "3.134"; then
+      ADDUSER_OPTS="$ADDUSER_OPTS --allow-bad-names"
+    else
+      ADDUSER_OPTS="$ADDUSER_OPTS --force-badname"
+    fi
+    adduser $ADDUSER_OPTS "$CRD_NETWORK_USER"
 
     kill_processes
 

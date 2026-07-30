@@ -462,6 +462,7 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="2932150158123903946">Google <ph name="APP_NAME" /> geymslurými</translation>
 <translation id="2932222164150889403">Lyklaborðið þitt breytist ekki</translation>
 <translation id="2936980480904111527">Chrome tilkynningar auðvelda málin</translation>
+<translation id="2939908794993783865">Önnur óvirk vefsvæði</translation>
 <translation id="2940075786175545812">Valkostur til að samþykkja eða samþykkja ekki vefsvæði</translation>
 <translation id="2942036813789421260">Forskoðunarflipi er lokaður</translation>
 <translation id="2951071800649516099">Bæta síðum á leslistann þinn til síðari nota</translation>
@@ -699,6 +700,7 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="3985215325736559418">Viltu sækja <ph name="FILE_NAME" /> aftur?</translation>
 <translation id="3987993985790029246">Afrita tengil</translation>
 <translation id="3994236846568425219">Kveikja á dökku þema þegar kveikt er á dökku þema í tækinu</translation>
+<translation id="399788104667917863">Festa á tækjastiku</translation>
 <translation id="4000212216660919741">Ónettengt</translation>
 <translation id="4000670338830950598">Sérstilltu og stjórnaðu Google Chrome með auðkenndu atriði</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{1 aðgangsorð í hættu á Google-reikningnum þínum}one{# aðgangsorð í hættu á Google-reikningnum þínum}other{# aðgangsorð í hættu á Google-reikningnum þínum}}</translation>
@@ -1394,7 +1396,6 @@ Sum vefsvæði kunna til dæmis að bregðast við beiðninni með því að bir
 <translation id="6746338529702829275">Farðu yfir gögn reikningsins</translation>
 <translation id="6746834324024491643">Skráðu þig inn sem „<ph name="EMAIL" />“ til að fá aðgang að aðgangsorðum og fleiru úr öllum tækjunum þínum</translation>
 <translation id="6751521182688001123">Opna nýjan flipa hratt. Haltu fingri á þessari flýtileið til að breyta henni.</translation>
-<translation id="6752130751133944215">Til að endurheimta nýjan glugga skaltu fækka virkum og óvirkum gluggum í <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> eða færri. Óvirkum gluggum er eytt eftir 6 mánuði.</translation>
 <translation id="6754359471209693699">Hefja nýja leit</translation>
 <translation id="6756507620369789050">Deila ábendingu</translation>
 <translation id="6762511428368667596"><ph name="NAME" />, <ph name="EMAIL" />.</translation>
@@ -1584,7 +1585,6 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="7388615499319468910">Vefsvæði og auglýsendur geta greint árangur auglýsinga. Slökkt er á þessari stillingu.</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{Önnur 1 skrá á lista}one{Önnur # skrá á lista}other{Aðrar # skrár á lista}}</translation>
 <translation id="7400418766976504921">Vefslóð</translation>
-<translation id="7400424692675800399">Til að opna nýjan glugga skaltu fækka virkum og óvirkum gluggum í <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> eða færri.</translation>
 <translation id="7403691278183511381">Fyrsta notkun Chrome</translation>
 <translation id="7411224099004328643">Notandi Google-reiknings</translation>
 <translation id="7419565702166471774">Nota ávallt öruggar tengingar</translation>

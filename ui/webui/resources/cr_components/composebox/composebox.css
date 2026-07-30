@@ -113,11 +113,6 @@
   --text-input-inline-start-spacing: var(--cr-composebox-text-input-inline-start, 18px);
 }
 
-:host([searchbox-next-enabled]) #input::placeholder {
-  font-size: var(--cr-composebox-input-placeholder-font-size, 16px);
-  font-weight: 400;
-}
-
 :host([expanding_]) {
   border-radius: var(--expanded-border-radius);
 }
@@ -184,7 +179,7 @@ search-animated-glow {
   max-height: 254px;
 }
 
-:host([is-collapsible][expanding_][show-file-carousel_][carousel-on-top_]) #composebox {
+:host([is-collapsible][expanding_][show-file-carousel][carousel-on-top_]) #composebox {
   min-height: calc(136px + 52px);
 }
 
@@ -201,212 +196,20 @@ search-animated-glow {
   --input-bottom-spacing: 0;
 }
 
-#textContainer {
-  display: flex;
-  flex-direction: row;
-  padding-block-start: var(--cr-composebox-text-container-padding-block-start, 8px);
-  padding-block-end: 0;
-  padding-inline: var(--text-input-inline-start-spacing) 0;
+/* Controls the opacity of the icons when the composebox is expanded/collapsed. */
+.icon-fade {
+  opacity: 0;
+  transition: var(--icon-exit-transition);
 }
 
-:host([show-model-picker_]:not([has-allowed-inputs_])) #textContainer {
-  padding-inline-start: 10px;
+:host([expanding_]) .icon-fade {
+  opacity: 1;
+  transition: var(--icon-entry-transition);
 }
 
-#iconContainer {
-  --text-input-top-spacing: 8px;
-  align-items: center;
-  display: flex;
-  height: 48px;
-  justify-content: center;
-}
-
-#aimIcon {
-  -webkit-mask-image: url(//resources/cr_components/searchbox/icons/search_spark.svg);
-  -webkit-mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size: cover;
-  background-color: var(--color-composebox-input-icon);
-  height: 20px;
-  width: 20px;
-}
-
-@media (forced-colors: active) {
-  #aimIcon {
-    background-color: Highlight;
-    border-radius: 4px;
-  }
-}
-
-#inputWrapper {
-  mask-image: linear-gradient(transparent 7px, black var(--text-input-top-spacing));
-  max-height: var(--text-input-max-height);
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-width: none;
-  position: relative;
-  width: 100%;
-}
-
-#input,
-#mirror,
-#smartCompose {
-  box-sizing: border-box;
-  font-family: inherit;
-  font-size: var(--cr-composebox-font-size, inherit);
-  line-height: 24px;
-  padding-block: var(--text-input-top-spacing) 0;
-  padding-inline: 12px var(--text-input-inline-end-spacing);
-  width: 100%;
-}
-
-#mirror {
-  color: transparent;
-  left: 0;
-  overflow: hidden;
-  pointer-events: none;
-  position: absolute;
-  top: 0;
-  user-select: none;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-:host([entrypoint-name='ContextualTasks']) #mirror {
-  padding-block: 12px;
-  padding-inline-end: var(--text-input-inline-end-spacing);
-  padding-inline-start: 0;
-}
-
-
-:host(:not[searchbox-next-enabled]) #input {
-  transition: padding var(--height-expand-duration) var(--standard-curve);
-}
-
-#input {
-  background-color: inherit;
-  border: none;
-  color: var(--color-composebox-font-light);
-  field-sizing: content;
-  padding-bottom: 4px;
-  outline: none;
-  position: relative;
-  resize: none;
-}
-
-:host(:not([disable-caret-color-animation])) #input {
-  caret-color: transparent;
-}
-
-#caret.caret-visible {
-  display: block;
-}
-
-#caret {
-  background-color: var(--google-blue-500);
-  display: none;
-  height: 24px;
-  pointer-events: none;
-  position: absolute;
-  top: -2px;
-  width: 2px;
-}
-
-:host([entrypoint-name='Omnibox']) #caret {
-  height: 18px;
-  top: 0;
-}
-
-#caret.animating {
-  animation: blink 1s step-end infinite, cycleColor step-end 4s infinite;
-}
-
-@keyframes blink {
-  0% {
-    opacity: 1;
-  }
-  49.9% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-@keyframes cycleColor {
-  0% {
-    background-color: var(--google-blue-500);
-  }
-  25% {
-    background-color: var(--google-red-500);
-  }
-  50% {
-    background-color: var(--google-yellow-500);
-  }
-  75% {
-    background-color: var(--google-green-500);
-  }
-  100% {
-    background-color: var(--google-blue-500);
-  }
-}
-
-#input::placeholder {
-  color: var(--cr-composebox-input-placeholder-color, var(--color-composebox-type-ahead));
-}
-
-#smartCompose {
-  pointer-events: none;
-  position: absolute;
-  overflow: hidden;
-  top: 0;
-  left: 0;
-}
-
-:host(:not([smart-compose-enabled_])) #smartCompose {
-  display: none;
-}
-
-#invisibleText {
-  color: transparent;
-  white-space: pre-wrap;
-}
-
-#ghostText {
-  color: var(--color-composebox-type-ahead);
-  white-space: pre-wrap;
-}
-
-#tabChip {
-  align-items: center;
-  border: 1px solid var(--color-composebox-type-ahead-chip);
-  border-radius: 8px;
-  box-sizing: border-box;
-  color: var(--color-composebox-type-ahead-chip);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 24px;
-  margin-left: 4px;
-  padding: 6px 8px;
-}
-
-:host([expanding_]) #input,
-:host([expanding_]) #smartCompose {
-  --text-input-top-spacing: 12px;
-}
-
-:host([expanding_][is-collapsible]) #input {
-  --text-input-top-spacing: 24px;
-}
-
-#input::-webkit-search-decoration,
-#input::-webkit-search-results-button,
-#input::-webkit-search-results-decoration,
-#input::-webkit-search-cancel-button{
-  display: none;
+:host([in-voice-search-mode]) .icon-fade {
+  opacity: 0;
+  transition: var(--icon-exit-transition);
 }
 
 .action-icon {
@@ -423,39 +226,6 @@ search-animated-glow {
 :host-context([dir='rtl']) .action-icon {
   left: 16px;
   right: unset;
-}
-
-#cancelIcon {
-  --cr-icon-button-fill-color:
-      var(--color-composebox-cancel-button-light);
-  /* SVG is size 20 with 5px of padding so actual size is 10px */
-  /* TODO(crbug.com/460532414) Rename CSS variables to be more
-      distinguishable */
-  --cr-icon-button-icon-size: 20px;
-  position: absolute;
-  top: var(--composebox-cancel-button-top);
-  inset-inline-end: 12px;
-  /* Uses the same transitions as the submit button so they are in sync. */
-  transition: var(--submit-enabled-transition);
-}
-
-:host([searchbox-layout-mode='Compact']) {
-  /* Used in search-animated-glow-element. */
-  --search-animated-glow-drag-drop-placeholder-top: 16px;
-  /* Changes both composebox and voice-search's: */
-  --composebox-cancel-button-top: 10px;
-  /* Changes voicebox text top padding. */
-  --composebox-voice-search-top-padding: 9px;
-}
-
-:host([expanding_][is-collapsible]) #cancelIcon {
-  top: 16px;
-}
-
-/* Hide the cancel icon when the composebox is expanded and no text is present. */
-:host([is-collapsible]:not([submit-enabled_])) #cancelIcon {
-  opacity: 0;
-  pointer-events: none;
 }
 
 @keyframes fade-out-in {
@@ -495,7 +265,7 @@ search-animated-glow {
   opacity: 0.3;
 }
 
-:host(:not([submit-enabled_])) #submitContainer{
+:host(:not([submit-enabled])) #submitContainer{
   display: none;
 }
 
@@ -509,7 +279,7 @@ search-animated-glow {
   width: var(--cr-composebox-submit-container-size, var(--cr-icon-button-size));
 }
 
-:host([submit-enabled_]) #submitContainer {
+:host([submit-enabled]) #submitContainer {
   cursor: pointer;
 }
 
@@ -524,7 +294,7 @@ search-animated-glow {
   z-index: 2;
 }
 
-:host([submit-enabled_]) #submitContainer:hover #submitOverlay {
+:host([submit-enabled]) #submitContainer:hover #submitOverlay {
   background-color: var(--cr-composebox-submit-button-hover-color, var(--color-composebox-submit-button-hover));
 }
 
@@ -562,20 +332,18 @@ search-animated-glow {
   outline-offset: 2px;
 }
 
-:host([submit-enabled_]) #submitIcon {
+:host([submit-enabled]) #submitIcon {
   display: block;
   opacity: 100%; /* For Lens side panel. */
 }
 
-/* Controls the opacity of the icons when the composebox is expanded/collapsed. */
-.icon-fade {
-  opacity: 0;
-  transition: var(--icon-exit-transition);
-}
-
-:host([expanding_]) .icon-fade {
-  opacity: 1;
-  transition: var(--icon-entry-transition);
+:host([searchbox-layout-mode='Compact']) {
+  /* Used in search-animated-glow-element. */
+  --search-animated-glow-drag-drop-placeholder-top: 16px;
+  /* Changes both composebox and voice-search's: */
+  --composebox-cancel-button-top: 10px;
+  /* Changes voicebox text top padding. */
+  --composebox-voice-search-top-padding: 9px;
 }
 
 @media (forced-colors: active) {
@@ -597,7 +365,7 @@ search-animated-glow {
   position: relative;
 }
 
-:host([expanding_][show-file-carousel_][carousel-on-top_]) #inputContainer {
+:host([expanding_][show-file-carousel][carousel-on-top_]) #inputContainer {
   padding-top: 60px;
   --text-input-max-height: 130px;
 }
@@ -641,7 +409,7 @@ search-animated-glow {
   cursor: not-allowed;
 }
 
-:host([upload-button-disabled_]) .upload-button {
+:host([upload-button-disabled]) .upload-button {
   color: var(--color-composebox-upload-button-disabled);
 }
 
@@ -651,7 +419,7 @@ search-animated-glow {
   top: 10px;
 }
 
-:host([searchbox-next-enabled][searchbox-layout-mode^='Tall'][show-dropdown_]) {
+:host([searchbox-next-enabled][searchbox-layout-mode^='Tall'][show-dropdown]) {
   --expanded-border-radius: var(--cr-composebox-expanded-border-radius, 24px);
 }
 
@@ -660,34 +428,16 @@ search-animated-glow {
   --input-bottom-spacing: 12px;
 }
 
-:host([searchbox-next-enabled][searchbox-layout-mode='Compact']) #iconContainer {
-  display: none;
-}
-
-:host([searchbox-next-enabled][searchbox-layout-mode='Compact']) #textContainer {
-  --text-input-inline-start-spacing: 40px;
-  padding-block: 6px 2px;
-}
-
-:host([searchbox-next-enabled]) #input,
-:host([searchbox-next-enabled]) #smartCompose {
-  --text-input-top-spacing: 10px;
-}
-
-:host([searchbox-next-enabled]) #iconContainer {
-  height: 44px;
-}
-
 :host([searchbox-next-enabled]) #submitIcon {
   --cr-icon-button-icon-size: 12px;
 }
 
-:host([expanding_][show-dropdown_][searchbox-next-enabled][searchbox-layout-mode='Compact']) cr-composebox-dropdown {
+:host([expanding_][show-dropdown][searchbox-next-enabled][searchbox-layout-mode='Compact']) cr-composebox-dropdown {
   padding-bottom: 0;
   padding-top: 4px;
 }
 
-:host([searchbox-layout-mode='Compact'][show-dropdown_]) .carousel-divider {
+:host([searchbox-layout-mode='Compact'][show-dropdown]) .carousel-divider {
   --contextual-entrypoint-and-carousel-carousel-divider-margin-bottom: 8px;
   --contextual-entrypoint-and-carousel-carousel-divider-margin-top: 12px;
 }
@@ -718,7 +468,7 @@ search-animated-glow {
   position: absolute;
 }
 
-:host([submit-enabled_]:not([searchbox-next-enabled])) #voiceSearchButton {
+:host([submit-enabled]:not([searchbox-next-enabled])) #voiceSearchButton {
   inset-inline-end: calc(var(--cr-icon-button-size) + 18px);
 }
 
@@ -735,38 +485,38 @@ search-animated-glow {
   flex-direction: row;
 }
 
-:host([submit-enabled_][searchbox-layout-mode='Compact']) #submitContainer {
+:host([submit-enabled][searchbox-layout-mode='Compact']) #submitContainer {
   inset-inline-end: 0;
   margin-block: 12px 2px;
   margin-inline: auto 10px;
   position: relative;
 }
 
-:host([submit-enabled_][searchbox-layout-mode='TallBottomContext']) #submitContainer {
+:host([submit-enabled][searchbox-layout-mode='TallBottomContext']) #submitContainer {
   position: absolute;
 }
 
-:host([submit-enabled_][searchbox-layout-mode='TallBottomContext']:not([show-dropdown_])) #submitContainer {
+:host([submit-enabled][searchbox-layout-mode='TallBottomContext']:not([show-dropdown])) #submitContainer {
   bottom: 10px;
 }
 
-:host([submit-enabled_][searchbox-layout-mode='TallBottomContext'][show-dropdown_]) #submitContainer {
+:host([submit-enabled][searchbox-layout-mode='TallBottomContext'][show-dropdown]) #submitContainer {
   top: var(--cr-composebox-submit-container-top, 58px);
 }
 
-:host([submit-enabled_][searchbox-layout-mode='TallBottomContext'][show-dropdown_]:not([show-file-carousel_])) .carousel-divider {
+:host([submit-enabled][searchbox-layout-mode='TallBottomContext'][show-dropdown]:not([show-file-carousel])) .carousel-divider {
   --contextual-entrypoint-and-carousel-carousel-divider-margin-top: 50px;
 }
 
-:host([submit-enabled_][searchbox-layout-mode='TallBottomContext'][show-dropdown_][show-file-carousel_]) .carousel-divider {
+:host([submit-enabled][searchbox-layout-mode='TallBottomContext'][show-dropdown][show-file-carousel]) .carousel-divider {
   --contextual-entrypoint-and-carousel-carousel-divider-margin-top: 8px;
 }
 
-:host([submit-enabled_][searchbox-layout-mode='TallBottomContext']) #voiceSearchButton {
+:host([submit-enabled][searchbox-layout-mode='TallBottomContext']) #voiceSearchButton {
   inset-inline-end: calc(var(--cr-composebox-submit-container-size) + 18px);
 }
 
-:host([submit-enabled_][searchbox-layout-mode='TallBottomContext'][show-dropdown_]) #voiceSearchButton {
+:host([submit-enabled][searchbox-layout-mode='TallBottomContext'][show-dropdown]) #voiceSearchButton {
   bottom: unset;
   top: var(--cr-composebox-voice-icon-top, 60px);
 }
@@ -790,20 +540,15 @@ search-animated-glow {
   margin-top: 12px !important;
 }
 
-:host([in-voice-search-mode_]) {
+:host([in-voice-search-mode]) {
   box-shadow: 2px 10px 18px -5px rgb(0, 0, 0, 0.1);
 }
 
-:host([in-voice-search-mode_]) #suggestionActivity {
+:host([in-voice-search-mode]) #suggestionActivity {
   display: none;
 }
 
-:host([in-voice-search-mode_]) .icon-fade {
-  opacity: 0;
-  transition: var(--icon-exit-transition);
-}
-
-:host([in-voice-search-mode_]) #composebox {
+:host([in-voice-search-mode]) #composebox {
   opacity: 0;
   /* CANNOT be display: None since :host depends on its height. */
   visibility: hidden;
@@ -813,7 +558,7 @@ cr-composebox-voice-search {
   z-index: 2;
 }
 
-:host(:not([in-voice-search-mode_])) cr-composebox-voice-search {
+:host(:not([in-voice-search-mode])) cr-composebox-voice-search {
   display: none;
 }
 

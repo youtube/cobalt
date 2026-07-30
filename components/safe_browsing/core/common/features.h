@@ -130,6 +130,9 @@ extern const base::FeatureParam<double> kCsdClassificationDelay;
 BASE_DECLARE_FEATURE(kClientSideDetectionOnDeviceModelLazyDownloadAndroid);
 #endif
 
+// Deprecation of page load triggers for SSB users.
+BASE_DECLARE_FEATURE(kClientSideDetectionOnlyESBClassification);
+
 // Killswitch for force request redirect chain check.
 BASE_DECLARE_FEATURE(kClientSideDetectionRedirectChainKillswitch);
 
@@ -239,6 +242,10 @@ BASE_DECLARE_FEATURE(kExtendedReportingRemovePrefDependency);
 // sent by the server.
 BASE_DECLARE_FEATURE(kExtensionTelemetryConfiguration);
 
+// Reduces the extension telemetry service's enterprise telemetry reporting
+// interval to 30 seconds.
+BASE_DECLARE_FEATURE(kExtensionTelemetryEnterpriseShortReportingInterval);
+
 // Enables the search hijacking signal in extension telemetry.
 BASE_DECLARE_FEATURE(kExtensionTelemetrySearchHijackingSignal);
 // The default interval between heuristic checks.
@@ -251,12 +258,6 @@ extern const base::FeatureParam<int>
 
 // Enables reporting of external app redirects
 BASE_DECLARE_FEATURE(kExternalAppRedirectTelemetry);
-
-// When this flag is enabled, and when the configured secure_dns_mode is
-// AUTOMATIC, the DoH fallback setting
-// (dns_over_https.automatic_mode_fallback_to_doh) should be forced to be
-// interpreted as true.
-BASE_DECLARE_FEATURE(kForceSecureDnsDohFallback);
 
 // Enables querying server-side Gemini model for scam detection.
 BASE_DECLARE_FEATURE(kGeminiAntiscamProtectionForMetricsCollection);
@@ -292,6 +293,12 @@ extern const base::FeatureParam<std::string> kHashPrefixRealTimeLookupsRelayUrl;
 // key that will be used to encrypt the lookup requests.
 extern const base::FeatureParam<std::string>
     kHashPrefixRealTimeLookupsKeyFetchUrl;
+// This parameter controls the header used to request a given HPKE key type.
+extern const base::FeatureParam<std::string>
+    kHashPrefixRealTimeLookupsKeyFetchKeyTypeHeader;
+// This parameter allows adding a custom header to the HPKE key fetch request.
+extern const base::FeatureParam<std::string>
+    kHashPrefixRealTimeLookupsKeyFetchCustomHeader;
 
 // Send sample hash-prefix real-time lookups for real-time lookups to catch
 // "false positives" where real-time lookup says safe but hash-prefix lookup

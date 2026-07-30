@@ -244,6 +244,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[::prefs::kVerticalTabsEnabled] =
       settings_api::PrefType::kBoolean;
+  (*s_allowlist)[::prefs::kVerticalTabsExpandOnHoverEnabled] =
+      settings_api::PrefType::kBoolean;
   (*s_allowlist)[::prefs::kTabSearchRightAligned] =
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[::prefs::kTabSearchPinnedToTabstrip] =
@@ -1313,6 +1315,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::kNumber;
   (*s_allowlist)[contextual_tasks::kContextualTasksShareOpenTabsEveryThread] =
       settings_api::PrefType::kBoolean;
+  (*s_allowlist)[contextual_tasks::kContextualTasksSiteExclusions] =
+      settings_api::PrefType::kDictionary;
 
   // AI enterprise prefs
   (*s_allowlist)

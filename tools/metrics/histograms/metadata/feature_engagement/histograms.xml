@@ -311,8 +311,6 @@ chromium-metrics-reviews@google.com.
                browser video promo have been met."/>
   <variant name="IPH_iOSDockingPromo"
       summary="Showing the Docking Promo on iOS"/>
-  <variant name="IPH_iOSDockingPromoRemindMeLater"
-      summary="Showing the Docking Promo (Remind Me Later version) on iOS"/>
   <variant name="IPH_iOSDownloadAutoDeletion"
       summary="Showing the Auto Deletion IPH on iOS."/>
   <variant name="IPH_iOSEnhancedBrowsingDesktop"
@@ -626,6 +624,9 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_SignInBenefits"
       summary="IPH informing signed-in users of benefits after the
                sync-to-signin migration."/>
+  <variant name="IPH_SignInBenefitsNewSignin"
+      summary="IPH informing signed-in users of benefits after the
+               sync-to-signin migration."/>
   <variant name="IPH_SupervisedUserProfileSignin"
       summary="informing supervised users about parental controls"/>
   <variant name="IPH_TabAudioMuting" summary="muting tab audio"/>
@@ -656,7 +657,7 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_TabGroupsYourTabsTogether"
       summary="tab switcher cards with multiple tab thumbnails"/>
   <variant name="IPH_TabOrganizationSuccess"
-      summary="tab organization success"/>
+      summary="(obsolete) tab organization success"/>
   <variant name="IPH_TabSearch" summary="tab search discovery"/>
   <variant name="IPH_TabSearchComboButton"
       summary="IPH for the first time a user opens Chrome with tab search

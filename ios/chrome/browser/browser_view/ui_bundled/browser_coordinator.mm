@@ -9,12 +9,14 @@
 #import <memory>
 #import <optional>
 
+#import "base/check.h"
 #import "base/check_deref.h"
 #import "base/check_op.h"
 #import "base/functional/callback_helpers.h"
 #import "base/memory/raw_ptr.h"
 #import "base/memory/weak_ptr.h"
 #import "base/metrics/histogram_functions.h"
+#import "base/not_fatal_until.h"
 #import "base/scoped_observation.h"
 #import "base/strings/sys_string_conversions.h"
 #import "build/config/ios/swift_buildflags.h"
@@ -130,6 +132,7 @@
 #import "ios/chrome/browser/find_in_page/model/find_tab_helper.h"
 #import "ios/chrome/browser/first_run/omnibox_position/coordinator/omnibox_position_choice_coordinator.h"
 #import "ios/chrome/browser/fullscreen/coordinator/fullscreen_coordinator.h"
+#import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_metrics.h"
 #import "ios/chrome/browser/google_one/coordinator/google_one_coordinator.h"
@@ -458,6 +461,7 @@ const char kChromeAppStoreUrl[] =
     ReadingListCoordinatorDelegate,
     RecentTabsCoordinatorDelegate,
     ReminderNotificationsCommands,
+    ReminderNotificationsCoordinatorDelegate,
     RepostFormCoordinatorDelegate,
     RepostFormTabHelperDelegate,
     ReSigninPresenter,
@@ -1111,6 +1115,7 @@ const char kChromeAppStoreUrl[] =
 // Stops the reminder notifications coordinator.
 - (void)stopReminderNotificationsCoordinator {
   [_reminderNotificationsCoordinator stop];
+  _reminderNotificationsCoordinator.delegate = nil;
   _reminderNotificationsCoordinator = nil;
 }
 
@@ -1385,6 +1390,10 @@ const char kChromeAppStoreUrl[] =
   _viewControllerDependencies.toolbarCoordinator = _toolbarCoordinator;
   _viewControllerDependencies.sideSwipeCoordinator = _sideSwipeCoordinator;
   _viewControllerDependencies.bookmarksCoordinator = _bookmarksCoordinator;
+  if (IsFullscreenRefactoringEnabled()) {
+    _viewControllerDependencies.fullscreenBrowserAgent =
+        FullscreenBrowserAgent::FromBrowser(browser);
+  }
   _viewControllerDependencies.fullscreenController = _fullscreenController;
   _viewControllerDependencies.browserCoordinatorHandler =
       HandlerForProtocol(_dispatcher, BrowserCoordinatorCommands);
@@ -1619,8 +1628,8 @@ const char kChromeAppStoreUrl[] =
 
   /* RecentTabsCoordinator is created and started by a BrowserCommand */
 
-  /* `ReminderNotificationsCoordinator` is created and started by a
-   * `ReminderNotificationsCommands` */
+  /* `ReminderNotificationsCoordinator` is created and started by
+   * `showSetTabReminderUI:` and stopped via delegate */
 
   /* RepostFormCoordinator is created and started by a delegate method */
 
@@ -2301,6 +2310,10 @@ const char kChromeAppStoreUrl[] =
   self.editProfileBottomSheetHandler = nil;
 }
 
+- (void)resetAutofillSuggestionsLoadingStates {
+  [self.formInputAccessoryCoordinator resetLoadingStates];
+}
+
 - (void)showAutofillErrorDialog:
     (autofill::AutofillErrorDialogContext)errorContext {
   if (self.autofillErrorDialogCoordinator) {
@@ -2362,7 +2375,7 @@ const char kChromeAppStoreUrl[] =
 - (void)showSaveEntityDialog:(autofill::SaveEntityParams)params {
   if (_autofillAISaveEntityCoordinator) {
     std::move(params.callback)
-        .Run(autofill::AutofillClient::AutofillAiBubbleResult::kUnknown);
+        .Run(autofill::AutofillClient::AutofillAiBubbleResult::kUnknown, {});
     return;
   }
 
@@ -2380,12 +2393,13 @@ const char kChromeAppStoreUrl[] =
 
 #pragma mark - IOSPasskeyClientCommands
 
-- (void)showPasskeyCreationBottomSheet:(const std::string&)requestID {
+- (void)showPasskeyCreationBottomSheet:
+    (webauthn::IOSPasskeyClient::RequestInfo)requestInfo {
   _passkeyCreationBottomSheetCoordinator =
       [[PasskeyCreationBottomSheetCoordinator alloc]
           initWithBaseViewController:self.viewController
                              browser:self.browser
-                           requestID:requestID];
+                         requestInfo:std::move(requestInfo)];
   _passkeyCreationBottomSheetCoordinator.browserCoordinatorCommandsHandler =
       HandlerForProtocol(self.dispatcher, BrowserCoordinatorCommands);
   [_passkeyCreationBottomSheetCoordinator start];
@@ -3503,10 +3517,16 @@ const char kChromeAppStoreUrl[] =
 #pragma mark - BWGCommands
 
 - (void)startGeminiFlowWithStartupState:(GeminiStartupState*)startupState {
+  GeminiBrowserAgent* geminiBrowserAgent =
+      GeminiBrowserAgent::FromBrowser(self.browser);
+  if (!geminiBrowserAgent) {
+    CHECK(geminiBrowserAgent, base::NotFatalUntil::M152);
+    return;
+  }
+
   if (IsGeminiRefactoredFREEnabled() ||
       startupState.entryPoint == gemini::EntryPoint::ImageContextMenu) {
-    GeminiBrowserAgent::FromBrowser(self.browser)
-        ->StartGeminiFlow(self.viewController, startupState);
+    geminiBrowserAgent->StartGeminiFlow(self.viewController, startupState);
     return;
   }
 
@@ -3526,7 +3546,13 @@ const char kChromeAppStoreUrl[] =
       return;
     }
 
-    GeminiBrowserAgent::FromBrowser(self.browser)->DismissFloaty();
+    GeminiBrowserAgent* geminiBrowserAgent =
+        GeminiBrowserAgent::FromBrowser(self.browser);
+    if (geminiBrowserAgent) {
+      geminiBrowserAgent->DismissFloaty();
+    } else {
+      CHECK(geminiBrowserAgent, base::NotFatalUntil::M152);
+    }
     if (completion) {
       completion();
     }
@@ -3590,6 +3616,7 @@ const char kChromeAppStoreUrl[] =
       initWithBaseViewController:self.viewController
                          browser:self.browser
                   fromEntryPoint:entryPoint
+                         FREType:GeminiFREType::kNewUser
                completionHandler:completion];
   [_geminiFirstRunCoordinator start];
 }
@@ -3625,15 +3652,27 @@ const char kChromeAppStoreUrl[] =
   // Don't show the floaty if the page is ineligible or the active WebState
   // isn't visible.
   // TODO(crbug.com/476145805): Move WebState related checks to tab helper.
-  bool eligibleSite = geminiTabHelper->IsGeminiAvailableForWebState() &&
-                      geminiService->IsProfileEligibleForGemini();
   bool isWebStateVisible = self.activeWebState->IsVisible();
-  if (!eligibleSite || !isWebStateVisible) {
-    // Reset presented sources before hiding the floaty due to an ineligible
-    // site.
+  if (!isWebStateVisible) {
     geminiTabHelper->UpdatePresentedSource(source, /*is_presented=*/false);
     geminiBrowserAgent->HideFloatyIfInvoked(
         animated, gemini::FloatyUpdateSource::IneligibleSite);
+    return;
+  }
+
+  bool eligibleSite = geminiTabHelper->IsGeminiAvailableForWebState() &&
+                      geminiService->IsProfileEligibleForGemini();
+  if (!eligibleSite) {
+    // Reset presented sources before hiding the floaty due to an ineligible
+    // site.
+    geminiTabHelper->UpdatePresentedSource(source, /*is_presented=*/false);
+    gemini::FloatyUpdateSource hideSource =
+        gemini::FloatyUpdateSource::IneligibleSite;
+    if (geminiTabHelper->IsAimRelatedUrl(
+            self.activeWebState->GetVisibleURL())) {
+      hideSource = gemini::FloatyUpdateSource::SearchRelatedPage;
+    }
+    geminiBrowserAgent->HideFloatyIfInvoked(animated, hideSource);
     return;
   }
 
@@ -4280,7 +4319,7 @@ const char kChromeAppStoreUrl[] =
                           viewController:viewController];
   };
   if (command.actionType == TabGroupActionType::kCloseLastTabUnknownRole) {
-    // If the user's member role is unkown (i.e. sync not complete yet),
+    // If the user's member role is unknown (i.e. sync not complete yet),
     // cannot show option to leave/keep group when attempting to close last
     // tab. Instead, close last tab and replace with new tab after an error
     // alert is shown.
@@ -5159,16 +5198,19 @@ const char kChromeAppStoreUrl[] =
 - (void)showSetTabReminderUI:(SetTabReminderEntryPoint)entryPoint {
   CHECK(send_tab_to_self::AreIOSTabRemindersEnabled());
 
+  CHECK(!_reminderNotificationsCoordinator);
   _reminderNotificationsCoordinator = [[ReminderNotificationsCoordinator alloc]
       initWithBaseViewController:self.viewController
                          browser:self.browser];
-
+  _reminderNotificationsCoordinator.delegate = self;
   [_reminderNotificationsCoordinator start];
 }
 
-- (void)dismissSetTabReminderUI {
-  CHECK(send_tab_to_self::AreIOSTabRemindersEnabled());
+#pragma mark - ReminderNotificationsCoordinatorDelegate
 
+- (void)reminderNotificationsCoordinatorWantsToBeDismissed:
+    (ReminderNotificationsCoordinator*)coordinator {
+  CHECK_EQ(coordinator, _reminderNotificationsCoordinator);
   [self stopReminderNotificationsCoordinator];
 }
 

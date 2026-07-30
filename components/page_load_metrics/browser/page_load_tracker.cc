@@ -14,10 +14,10 @@
 #include "base/feature_list.h"
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/strings/stringprintf.h"
 #include "base/time/default_tick_clock.h"
+#include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "components/page_load_metrics/browser/features.h"
 #include "components/page_load_metrics/browser/observers/assert_page_load_metrics_observer.h"
@@ -1142,14 +1142,6 @@ void PageLoadTracker::UpdateFeaturesUsage(
     const std::vector<blink::UseCounterFeature>& new_features) {
   for (const auto& observer : observers_) {
     observer->OnFeaturesUsageObserved(rfh, new_features);
-  }
-}
-
-void PageLoadTracker::SetUpSharedMemoryForDroppedFrames(
-    base::ReadOnlySharedMemoryRegion dropped_frames_memory) {
-  DCHECK(dropped_frames_memory.IsValid());
-  for (auto& observer : observers_) {
-    observer->SetUpSharedMemoryForDroppedFrames(dropped_frames_memory);
   }
 }
 

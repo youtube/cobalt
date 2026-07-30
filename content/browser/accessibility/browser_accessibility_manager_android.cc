@@ -9,7 +9,6 @@
 
 #include "base/check.h"
 #include "base/i18n/char_iterator.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/strings/utf_string_conversions.h"
 #include "content/browser/accessibility/browser_accessibility_android.h"
 #include "content/browser/accessibility/web_contents_accessibility_android.h"
@@ -20,6 +19,7 @@
 #include "ui/accessibility/ax_position.h"
 #include "ui/accessibility/ax_role_properties.h"
 #include "ui/accessibility/ax_selection.h"
+#include "ui/accessibility/platform/ax_android_constants.h"
 #include "ui/accessibility/platform/ax_platform_tree_manager_delegate.h"
 #include "ui/accessibility/platform/browser_accessibility.h"
 #include "ui/accessibility/platform/one_shot_accessibility_tree_search.h"
@@ -305,7 +305,15 @@ void BrowserAccessibilityManagerAndroid::FireDocumentSelectionChangedEvent(
           static_cast<BrowserAccessibilityAndroid*>(
               GetFromAXNode(ax_tree()->root()));
       ClearNodeInfoCacheForGivenId(android_root_object->GetUniqueId());
-      wcax->HandleTextSelectionChanged(android_root_object->GetUniqueId());
+      if (selection.has_value()) {
+        wcax->HandleExtendedSelectionChanged(
+            android_root_object->GetUniqueId(),
+            selection->focus_object->GetUniqueId(), selection->focus_offset);
+      } else {
+        wcax->HandleExtendedSelectionChanged(
+            android_root_object->GetUniqueId(), ui::kAXAndroidInvalidViewId,
+            ui::kAXAndroidUndefinedSelectionIndex);
+      }
       return;
     }
   } else if (!selection.has_value()) {
@@ -758,11 +766,10 @@ void BrowserAccessibilityManagerAndroid::ClearNodeInfoCacheForGivenId(
   }
 
   // We do not need to clear a node more than once per atomic update.
-  if (nodes_already_cleared_.contains(unique_id)) {
+  if (!nodes_already_cleared_.emplace(unique_id).second) {
     return;
   }
 
-  nodes_already_cleared_.emplace(unique_id);
   wcax->ClearNodeInfoCacheForGivenId(unique_id);
 }
 
@@ -995,7 +1002,9 @@ BrowserAccessibilityManagerAndroid::GetSelectionRange() const {
       GetFromAXNode(focus_position->GetAnchor()));
   selection_range.focus_offset = focus_position->text_offset();
 
-  return selection_range;
+  return (selection_range.focus_object && selection_range.anchor_object)
+             ? std::make_optional(selection_range)
+             : std::nullopt;
 }
 
 void BrowserAccessibilityManagerAndroid::MaybeUpdateTextPositionForSelection(

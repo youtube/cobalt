@@ -237,6 +237,12 @@ CHAR_LIMIT guidelines:
       <message name="IDS_SEARCH_IN_SETTINGS_HELP_CENTER" desc='Message suggesting user search help center when there is no match in search. [CHAR_LIMIT=32]'>
         Try searching the help center
       </message>
+      <message name="IDS_SEARCH_IN_SETTINGS_RECENT_TITLE" desc='Title of the search in settings fragment displaying the recent searches. [CHAR_LIMIT=32]'>
+        Recently Used
+      </message>
+      <message name="IDS_SEARCH_IN_SETTINGS_RECENT_DELETE" desc='Label of the button deleting all the recent search entries. [CHAR_LIMIT=32]'>
+        Delete
+      </message>
 
       <!-- Notification channels -->
       <message name="IDS_NOTIFICATION_CATEGORY_GROUP_GENERAL" desc='Subheading for "General" section of a list of notification categories. [CHAR_LIMIT=32]'>
@@ -540,18 +546,23 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
       <message name="IDS_SITE_SEARCH_INACTIVE_SHORTCUTS_HEADER" desc="Header for 'Inactive Shortcuts' section">
         Inactive shortcuts
       </message>
+      <message name="IDS_SITE_SEARCH_ADDITIONAL_INACTIVE_SHORTCUTS_BUTTON_LABEL" desc="Label for the 'Additional inactive shortcuts' button.">
+        Additional inactive sites
+      </message>
       <message name="IDS_SITE_SEARCH_EXTENSIONS_HEADER" desc="Header for 'Extensions' section">
         Extensions
       </message>
       <message name="IDS_SITE_SEARCH_EXTENSIONS_DESCRIPTION" desc="Explanation for 'Extensions' section">
         Some extensions can add search engines to Chrome
       </message>
-      <message name="IDS_SITE_SEARCH_EXTENSIONS_MENU_MANAGE" desc="Menu item to manage extensions">
-        Manage
-      </message>
-      <message name="IDS_SITE_SEARCH_EXTENSIONS_MENU_DISABLE" desc="Menu item to disable the extension">
-        Disable
-      </message>
+      <if expr="enable_extensions_core">
+        <message name="IDS_SITE_SEARCH_EXTENSIONS_MENU_MANAGE" desc="Menu item to manage extensions">
+          Manage
+        </message>
+        <message name="IDS_SITE_SEARCH_EXTENSIONS_MENU_DISABLE" desc="Menu item to disable the extension">
+          Disable
+        </message>
+      </if>
       <message name="IDS_SITE_SEARCH_DIALOG_TITLE_ADD" desc="Title for the Add Site Search dialog.">
         Add site search
       </message>
@@ -4388,6 +4399,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_MENU_QUICK_DELETE" desc="Menu item for quick delete functionality that allows users to delete their browsing data. [CHAR_LIMIT=27]">
         Delete browsing data
       </message>
+      <message name="IDS_MENU_SITE_CONTROLS" desc="Menu item on Android to view and manage controls for the current website. [CHAR_LIMIT=27]">
+        Site controls
+      </message>
       <message name="IDS_MENU_DOWNLOADS" desc="Menu item for opening the downloads page. [CHAR_LIMIT=27]">
         Downloads
       </message>
@@ -5561,12 +5575,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_MAX_NUMBER_OF_WINDOWS_INSTANCE_SWITCHER_INACTIVE_TAB" desc="Message to notify the user thata window cannot be restored because the total number of persisted instances exceeds the window limit.">
         To restore a new window, reduce the total number of active windows to <ph name="MAX_WINDOW_COUNT_MINUS_ONE">%1$d</ph> or fewer. Inactive windows are deleted after 6 months.
       </message>
-      <message name="IDS_MAX_NUMBER_OF_WINDOWS_INSTANCE_SWITCHER_V2_ACTIVE_TAB" desc="Message to notify the user that a new window cannot be created because the total number of persisted instances exceeds the window limit.">
-        To open a new window, reduce the total number of windows across active and inactive to <ph name="MAX_WINDOW_COUNT_MINUS_ONE">%1$d</ph> or fewer.
-      </message>
-      <message name="IDS_MAX_NUMBER_OF_WINDOWS_INSTANCE_SWITCHER_V2_INACTIVE_TAB" desc="Message to notify the user thata window cannot be restored because the total number of persisted instances exceeds the window limit.">
-        To restore a new window, reduce the total number of windows across active and inactive to <ph name="MAX_WINDOW_COUNT_MINUS_ONE">%1$d</ph> or fewer. Inactive windows are deleted after 6 months.
-      </message>
       <message name="IDS_TAB_DROPPED_DIFFERENT_MODEL" desc="Toast that appears when a tab is dropped into tab strip with a different profile (regular v.s. incognito).">
         You can find all open tabs in the tab switcher
       </message>
@@ -6266,15 +6274,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_SEND_TAB_TO_SELF_SHEET_TOOLBAR" desc="Header for device picker sheet where users can pick a device to send a tab to.">
         Send to
-      </message>
-      <message name="IDS_SEND_TAB_TO_SELF_DEVICE_LAST_ACTIVE_MORE_THAN_ONE_DAY" desc="String displayed in the device picker indicating the last time the device was synced to the user's account.">
-        Active <ph name="last_updated">%1$d<ex>5</ex></ph> days ago
-      </message>
-      <message name="IDS_SEND_TAB_TO_SELF_DEVICE_LAST_ACTIVE_ONE_DAY_AGO" desc="String displayed in the device picker indicating the last time the device was synced to the user's account one day ago.">
-        Active 1 day ago
-      </message>
-      <message name="IDS_SEND_TAB_TO_SELF_DEVICE_LAST_ACTIVE_TODAY" desc="String displayed in the device picker indicating the last time the device was synced to the user's account today.">
-        Active today
       </message>
       <message name="IDS_SEND_TAB_TO_SELF_MANAGE_DEVICES_LINK" desc="Text with a link to a page where the user can manage the devices they can share a tab to.">
         <ph name="BEGIN_LINK">&lt;link&gt;</ph>Your devices<ph name="END_LINK">&lt;/link&gt;</ph> · <ph name="EMAIL">%1$s<ex>foo@gmail.com</ex></ph>

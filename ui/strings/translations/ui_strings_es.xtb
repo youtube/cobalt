@@ -1,7 +1,6 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="es">
-<translation id="1028699632127661925">Enviando a <ph name="DEVICE_NAME" />...</translation>
 <translation id="111910763555783249">Ajustes de notificaciones</translation>
 <translation id="1127811143501539442">{DAYS,plural, =1{Hace 1 día}other{Hace # días}}</translation>
 <translation id="1156623771253174079">{SECONDS,plural, =1{Hace 1 minuto}other{Hace # minutos}}</translation>
@@ -70,7 +69,6 @@
 <translation id="2586657967955657006">Portapapeles</translation>
 <translation id="2653844658857826081">NUEVO</translation>
 <translation id="2666092431469916601">Arriba</translation>
-<translation id="2701330563083355633">Compartido desde <ph name="DEVICE_NAME" /></translation>
 <translation id="2824719307700604149">{YEARS,plural, =1{Hace 1 año}other{Hace # años}}</translation>
 <translation id="2878511608894704031">Eliminar todo</translation>
 <translation id="2907671656515444832">{DAYS,plural, =1{en 1 día}other{en # días}}</translation>
@@ -110,6 +108,7 @@
 <translation id="4031910098617850788">F5</translation>
 <translation id="40579289237549812">{UNREAD_NOTIFICATIONS,plural, =1{1 notificación no leída}other{# notificaciones no leídas}}</translation>
 <translation id="41501027364808384">{COUNT,plural, =1{Activa la siguiente extensión en modo Incógnito:}other{Activa las siguientes extensiones en modo Incógnito:}}</translation>
+<translation id="4230098358142093034">Inicio</translation>
 <translation id="4266252015790371705">{MONTHS,plural, =1{Hace 1 mes}other{Hace # meses}}</translation>
 <translation id="4277033906326892359">Columna <ph name="COLUMN_NAME" /> ordenada en sentido ascendente</translation>
 <translation id="4289300219472526559">Empezar a hablar</translation>

@@ -5,7 +5,7 @@
 import unittest
 import xml.dom.minidom
 
-import setup_modules
+import setup_modules  # pylint: disable=unused-import
 
 import chromium_src.tools.metrics.histograms.expand_owners as expand_owners
 import chromium_src.tools.metrics.histograms.histogram_paths as histogram_paths
@@ -206,7 +206,6 @@ class MergeXmlTest(unittest.TestCase):
 </histogram-configuration>
 """
     self.assertMultiLineEqual(expected_merged_xml.strip(), merged.strip())
-
 
   def testMergeFiles_InvalidPrimaryOwner(self):
     histograms_without_valid_first_owner = xml.dom.minidom.parseString("""

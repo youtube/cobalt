@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.tab_bottom_sheet;
 
+import android.content.Context;
 import android.view.View;
 
 import org.chromium.base.CallbackController;
@@ -82,6 +83,7 @@ public class TabBottomSheetManager implements Destroyable {
                 }
             };
 
+    private final Context mContext;
     private final WindowAndroid mWindowAndroid;
     private final BottomSheetController mBottomSheetController;
     private final BottomSheetObserver mBottomSheetObserver;
@@ -103,9 +105,11 @@ public class TabBottomSheetManager implements Destroyable {
      *     state.
      */
     public TabBottomSheetManager(
+            Context context,
             WindowAndroid windowAndroid,
             BottomSheetController bottomSheetController,
             OneshotSupplier<LayoutStateProvider> layoutStateProviderOneShotSupplier) {
+        mContext = context;
         mWindowAndroid = windowAndroid;
         mBottomSheetController = bottomSheetController;
         mLayoutStateProviderOneShotSupplier = layoutStateProviderOneShotSupplier;
@@ -138,7 +142,7 @@ public class TabBottomSheetManager implements Destroyable {
         // Close any existing bottom sheet before showing a new one.
         tryToCloseBottomSheet();
         mTabBottomSheetCoordinator =
-                new TabBottomSheetCoordinator(mBottomSheetController, coBrowseViews);
+                new TabBottomSheetCoordinator(mContext, mBottomSheetController, coBrowseViews);
 
         if (mTabBottomSheetCoordinator.tryToShowBottomSheet(animate, startsExpanded)) {
             // Successfully showed bottom sheet.

@@ -141,7 +141,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.Api.RequestCounts.Error" enum="GlicHostApiRequestType"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>carlosk@chromium.org</owner>
   <owner>harringtond@chromium.org</owner>
   <owner>birnie@google.com</owner>
@@ -149,7 +149,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.Api.RequestCounts.Hidden" enum="GlicHostApiRequestType"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>carlosk@chromium.org</owner>
   <owner>harringtond@chromium.org</owner>
   <owner>birnie@google.com</owner>
@@ -160,7 +160,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.Api.RequestCounts.Received" enum="GlicHostApiRequestType"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>carlosk@chromium.org</owner>
   <owner>harringtond@chromium.org</owner>
   <owner>birnie@google.com</owner>
@@ -560,6 +560,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Fre.UserInput.Entrypoint" enum="GlicEntrypoint"
+    expires_after="2026-09-13">
+  <owner>erikchen@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <summary>
+    Recorded when user input is first submitted after completing the onboarding
+    steps. Records the last entrypoint used befor user input is submitted.
+  </summary>
+</histogram>
+
 <histogram name="Glic.Fre.WebClientLoadTime" units="ms"
     expires_after="2026-09-13">
   <owner>birnie@google.com</owner>
@@ -708,7 +718,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.Host.LoadingStageDuration.{LoadingStage}" units="ms"
-    expires_after="2026-07-21">
+    expires_after="2026-09-20">
   <owner>iwells@chromium.org</owner>
   <owner>harringtond@chromium.org</owner>
   <summary>
@@ -1833,7 +1843,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.Preferences.{Preference}" enum="BooleanEnabled"
-    expires_after="2026-06-03">
+    expires_after="2026-09-20">
   <owner>birnie@google.com</owner>
   <owner>perrier@google.com</owner>
   <summary>
@@ -2277,7 +2287,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Glic.Session.ResponseCount" units="count"
+<histogram name="Glic.Session.ResponseCount{Profile}" units="count"
     expires_after="2026-07-26">
   <owner>carlosk@chromium.org</owner>
   <owner>harringtond@chromium.org</owner>
@@ -2285,7 +2295,10 @@ chromium-metrics-reviews@google.com.
   <summary>
     The number of responses during the session. Recorded when the panel is
     closed.
+
+    {Profile}
   </summary>
+  <token key="Profile" variants="ProfileIndex"/>
 </histogram>
 
 <histogram name="Glic.Session.ResponseStart.BrowserActiveState"
@@ -2634,24 +2647,25 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="Glic.Turn.ResponseStartTime.WithContext" units="ms"
+<histogram name="Glic.Turn.ResponseStartTime.{TabContext}" units="ms"
     expires_after="2026-10-16">
   <owner>birnie@google.com</owner>
   <owner>perrier@google.com</owner>
   <summary>
     Records the time from when the user submitted input until a response starts
-    being presented to the user, for turns where context was requested.
-  </summary>
-</histogram>
+    being presented to the user, for turns where {TabContext} (*). This is
+    reported for all web client modes (text or audio).
 
-<histogram name="Glic.Turn.ResponseStartTime.WithoutContext" units="ms"
-    expires_after="2026-10-16">
-  <owner>birnie@google.com</owner>
-  <owner>perrier@google.com</owner>
-  <summary>
-    Records the time from when the user submitted input until a response starts
-    being presented to the user, for turns where context was not requested.
+    (*) Chrome knows if tab context was requested by the web client and the
+    internal state of tabs' sharing status, but it cannot know for certain if
+    tab context was or was not actually attached to requests by the web client.
   </summary>
+  <token key="TabContext">
+    <variant name="WithContext"
+        summary="tab context was likely used in the request"/>
+    <variant name="WithoutContext"
+        summary="tab context was likely NOT used in the request"/>
+  </token>
 </histogram>
 
 <histogram name="Glic.Turn.ResponseStopTime.{Cause}" units="ms"
@@ -2814,6 +2828,16 @@ chromium-metrics-reviews@google.com.
     Logged when the Glic WebContents warming pool reports a miss (Cold, Expired,
     or Crashed) but a creation timestamp for a previous container was available.
     Records the time elapsed since that container was initially created.
+  </summary>
+</histogram>
+
+<histogram name="Glic.WebContentContextMenu.Enabled" enum="Boolean"
+    expires_after="2026-09-01">
+  <owner>basiaz@google.com</owner>
+  <owner>birnie@chromium.org</owner>
+  <summary>
+    Recorded when the Glic WebContent context menu item is evaluated for
+    display. Records true if menu item will be shown, false otherwise.
   </summary>
 </histogram>
 

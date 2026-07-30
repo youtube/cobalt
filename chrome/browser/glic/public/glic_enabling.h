@@ -15,6 +15,7 @@
 #include "base/scoped_observation.h"
 #include "base/types/expected.h"
 #include "chrome/browser/glic/glic_user_status_fetcher.h"
+#include "chrome/browser/subscription_eligibility/subscription_eligibility_service.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
@@ -77,6 +78,8 @@ class GlicGlobalEnabling {
   explicit GlicGlobalEnabling(Delegate& delegate);
   ~GlicGlobalEnabling();
   bool IsEnabledByFlags();
+  bool IsLocaleEnabled() const { return locale_enablement_.value_or(true); }
+  bool IsCountryEnabled() const { return country_enablement_.value_or(true); }
 
  private:
   std::optional<bool> locale_enablement_;
@@ -103,7 +106,9 @@ class GlicGlobalEnabling {
 // Finally, an eligible profile may be Glic-Enabled. In this state, Glic UI is
 // visible and usable by the user. This state can change at runtime so Glic
 // entry points should depend on this state.
-class GlicEnabling : public signin::IdentityManager::Observer {
+class GlicEnabling : public signin::IdentityManager::Observer,
+                     public subscription_eligibility::
+                         SubscriptionEligibilityService::Observer {
  public:
   // Returns whether the global Glic feature is enabled for Chrome. This status
   // will not change at runtime.
@@ -148,6 +153,9 @@ class GlicEnabling : public signin::IdentityManager::Observer {
   // Whether the profile is in the Glic tiered rollout population.
   static bool IsEligibleForGlicTieredRollout(Profile* profile);
 
+  // Whether the glic internals page is enabled.
+  static bool IsInternalsWebUIEnabled(Profile* profile);
+
   // The settings page is shown when:
   // * Flags are enabled
   // * The profile is eligible (regular, non-incognito, non-guest, etc.)
@@ -167,9 +175,7 @@ class GlicEnabling : public signin::IdentityManager::Observer {
   // Whether the tab web contents contextual menu item is enabled.
   static bool IsContextualMenuItemEnabled(Profile* profile);
 
-  // Whether the required feature flags for multi-instance - kGlicMultiInstance,
-  // kGlicMultiTab, and kGlicMultitabUnderlines - are enabled. When calling, be
-  // sure that IsMultiInstanceEnabled() should not be used instead.
+  // Deprecated, Multi-instance is always enabled.
   static bool IsMultiInstanceEnabledByFlags();
 
   // Returns true if Glic is enabled for the profile, the feature is enabled,
@@ -200,6 +206,12 @@ class GlicEnabling : public signin::IdentityManager::Observer {
     bool disallowed_by_remote_other : 1 = false;
     bool not_consented : 1 = false;
 
+    // Whether disallowed by country filtering.
+    bool disallowed_by_country_filter : 1 = false;
+
+    // Whether disallowed by locale filtering.
+    bool disallowed_by_locale_filter : 1 = false;
+
     // Whether live (audio) functionality is disallowed for this account type.
     bool live_disallowed : 1 = false;
 
@@ -229,7 +241,8 @@ class GlicEnabling : public signin::IdentityManager::Observer {
     bool IsEnabled() const {
       return IsProfileEligible() && !not_rolled_out &&
              !primary_account_not_capable && !DisallowedByAdmin() &&
-             !disallowed_by_remote_other;
+             !disallowed_by_remote_other && !disallowed_by_country_filter &&
+             !disallowed_by_locale_filter;
     }
 
     bool IsEnabledAndConsented() const { return IsEnabled() && !not_consented; }
@@ -355,6 +368,9 @@ class GlicEnabling : public signin::IdentityManager::Observer {
   void OnPrimaryAccountChanged(
       const signin::PrimaryAccountChangeEvent& event_details) override;
 
+  // subscription_eligibility::SubscriptionEligibilityService::Observer:
+  void OnAiSubscriptionTierUpdated(int32_t new_subscription_tier) override;
+
   // Detects changes to capabilities.
   void OnExtendedAccountInfoUpdated(const AccountInfo& info) override;
   void OnExtendedAccountInfoRemoved(const AccountInfo& info) override;
@@ -405,6 +421,10 @@ class GlicEnabling : public signin::IdentityManager::Observer {
   base::ScopedObservation<signin::IdentityManager,
                           signin::IdentityManager::Observer>
       identity_manager_observation_{this};
+  base::ScopedObservation<
+      subscription_eligibility::SubscriptionEligibilityService,
+      subscription_eligibility::SubscriptionEligibilityService::Observer>
+      subscription_eligibility_service_observation_{this};
 };
 
 }  // namespace glic

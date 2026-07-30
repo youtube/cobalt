@@ -59,6 +59,10 @@ BASE_DECLARE_FEATURE(kAutoApproveSharedPasswordUpdatesFromSameSender);
 // across quarters.
 BASE_DECLARE_FEATURE(kAutofillPasswordUserPerceptionSurvey);
 
+// Waits for the page to reach stability before triggering any password change
+// actions.
+BASE_DECLARE_FEATURE(kAwaitPageStabilityForPasswordChange);
+
 // Undoes the effect of WebAuthnUsePasskeyFromAnotherDeviceInContextMenu by
 // adding the hybrid item back into the dropdown. It also adds the entry point
 // to autofill dropdowns.
@@ -148,10 +152,6 @@ BASE_DECLARE_FEATURE(kOtpPhishGuard);
 
 // Populate the `date_last_filled` timestamp for passwords.
 BASE_DECLARE_FEATURE(kPasswordDateLastFilled);
-
-// When enabled, the callback in `OnButtonClicked` will be invoked immediately
-// with the result.
-BASE_DECLARE_FEATURE(kPasswordChangeImmediateSubmission);
 
 // Enables running the clientside form classifier to parse password forms.
 BASE_DECLARE_FEATURE(kPasswordFormClientsideClassifier);

@@ -45,11 +45,6 @@ BASE_FEATURE(kWebViewDeferStartupGmsCalls, base::FEATURE_DISABLED_BY_DEFAULT);
 // longer supported.
 BASE_FEATURE(kWebViewFileSystemAccess, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enable ignoring duplicate navigations in WebView. Note that this will only
-// take effect if both this feature flag and the content/public
-// kIgnoreDuplicateNavs flag is enabled.
-BASE_FEATURE(kWebViewIgnoreDuplicateNavs, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Fetch Hand Writing icon lazily.
 BASE_FEATURE(kWebViewLazyFetchHandWritingIcon,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -317,5 +312,15 @@ BASE_FEATURE(kWebViewFasterGetDefaultUserAgent,
 // When enabled, navigation headers will be saved and restored as part
 // of saved state for WebView.
 BASE_FEATURE(kWebViewSaveStateIncludeHeaders,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, the downloaded favicon in native will not be passed through
+// the jni unless needed / when onReceivedIcon is overridden.
+BASE_FEATURE(kWebViewSkipFaviconJavaCopyUntilNeeded,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, a null will always be passed as the favicon in the
+// onPageStarted method.
+BASE_FEATURE(kWebViewPassNullFaviconToOnPageStarted,
              base::FEATURE_DISABLED_BY_DEFAULT);
 }  // namespace android_webview::features

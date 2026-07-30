@@ -8,6 +8,8 @@
 #include <string>
 
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/scoped_feature_list.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/tab_groups/tab_group_visual_data.h"
 #include "components/tab_groups/token_id.h"
@@ -36,8 +38,9 @@ class MockDelegate : public VerticalTabGroupHeaderView::Delegate {
   MOCK_METHOD(bool, ContinueHeaderDrag, (const ui::LocatedEvent&), (override));
   MOCK_METHOD(void, CancelHeaderDrag, (), (override));
   MOCK_METHOD(const TabGroup&, GetTabGroup, (), (const, override));
-  MOCK_METHOD(void, UpdateHoverCard, (), (const, override));
-  MOCK_METHOD(void, HideHoverCard, (), (const, override));
+  MOCK_METHOD(void, UpdateHoverCard, (int), (const, override));
+  MOCK_METHOD(void, HideHoverCard, (int), (const, override));
+  MOCK_METHOD(bool, IsFocusInTabStrip, (), (override));
   MOCK_METHOD(void, ShiftGroupUp, (), (override));
   MOCK_METHOD(void, ShiftGroupDown, (), (override));
 };
@@ -52,13 +55,27 @@ int GetPlatformDependentAccelerator() {
 
 }  // namespace
 
-class VerticalTabGroupHeaderViewTest : public views::ViewsTestBase {
+class VerticalTabGroupHeaderViewTest
+    : public views::ViewsTestBase,
+      public testing::WithParamInterface<bool> {
  public:
-  VerticalTabGroupHeaderViewTest() = default;
+  VerticalTabGroupHeaderViewTest() {
+    if (UseGroupHeaderHoverCards()) {
+      feature_list_.InitWithFeatures({features::kTabGroupHoverCards}, {});
+    } else {
+      feature_list_.InitWithFeatures({}, {features::kTabGroupHoverCards});
+    }
+  }
+
+  bool UseGroupHeaderHoverCards() { return GetParam(); }
+
   ~VerticalTabGroupHeaderViewTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
-TEST_F(VerticalTabGroupHeaderViewTest, TooltipText) {
+TEST_P(VerticalTabGroupHeaderViewTest, TooltipText) {
   MockDelegate delegate;
   tab_groups::TabGroupVisualData visual_data(
       u"Group Title", tab_groups::TabGroupColorId::kBlue, false);
@@ -78,8 +95,12 @@ TEST_F(VerticalTabGroupHeaderViewTest, TooltipText) {
   // Initialize with data
   header->OnDataChanged(&visual_data, false);
 
-  // Empty tooltip because we show hover cards for tab group headers.
-  std::u16string expected_tooltip = u"";
+  // Empty tool tip if hover cards are enabled.
+  std::u16string expected_tooltip =
+      UseGroupHeaderHoverCards()
+          ? u""
+          : l10n_util::GetStringFUTF16(IDS_TAB_GROUPS_NAMED_GROUP_TOOLTIP,
+                                       u"Group Title", u"3 tabs");
 
   EXPECT_EQ(header->GetTooltipText(), expected_tooltip);
 
@@ -88,10 +109,16 @@ TEST_F(VerticalTabGroupHeaderViewTest, TooltipText) {
       u"", tab_groups::TabGroupColorId::kRed, false);
   header->OnDataChanged(&unnamed_visual_data, false);
 
+  // Empty tool tip if hover cards are enabled.
+  expected_tooltip = UseGroupHeaderHoverCards()
+                         ? u""
+                         : l10n_util::GetStringFUTF16(
+                               IDS_TAB_GROUPS_UNNAMED_GROUP_TOOLTIP, u"3 tabs");
+
   EXPECT_EQ(header->GetTooltipText(), expected_tooltip);
 }
 
-TEST_F(VerticalTabGroupHeaderViewTest, ShowHoverCardOnMouseEnter) {
+TEST_P(VerticalTabGroupHeaderViewTest, ShowHoverCardOnMouseEnter) {
   MockDelegate delegate;
   tab_groups::TabGroupVisualData visual_data(
       u"Group Title", tab_groups::TabGroupColorId::kBlue, false);
@@ -106,15 +133,19 @@ TEST_F(VerticalTabGroupHeaderViewTest, ShowHoverCardOnMouseEnter) {
   tab_groups::TabGroupId group_id = tab_groups::TabGroupId::GenerateNew();
   tabs::MockTabGroup mock_tab_group(nullptr, group_id, visual_data);
 
-  EXPECT_CALL(delegate, GetTabGroup())
-      .WillOnce(testing::ReturnRef(mock_tab_group));
-  EXPECT_CALL(delegate, UpdateHoverCard());
+  if (UseGroupHeaderHoverCards()) {
+    EXPECT_CALL(delegate, GetTabGroup())
+        .WillOnce(testing::ReturnRef(mock_tab_group));
+    EXPECT_CALL(delegate, UpdateHoverCard(testing::_));
+  } else {
+    EXPECT_CALL(delegate, UpdateHoverCard(testing::_)).Times(0);
+  }
 
   ui::test::EventGenerator generator(GetContext(), widget->GetNativeWindow());
   generator.MoveMouseTo(header->GetBoundsInScreen().CenterPoint());
 }
 
-TEST_F(VerticalTabGroupHeaderViewTest, EditorBubbleButtonVisibilityOnHover) {
+TEST_P(VerticalTabGroupHeaderViewTest, EditorBubbleButtonVisibilityOnHover) {
   MockDelegate delegate;
   tab_groups::TabGroupVisualData visual_data(
       u"Group Title", tab_groups::TabGroupColorId::kBlue, false);
@@ -130,8 +161,10 @@ TEST_F(VerticalTabGroupHeaderViewTest, EditorBubbleButtonVisibilityOnHover) {
   tab_groups::TabGroupId group_id = tab_groups::TabGroupId::GenerateNew();
   tabs::MockTabGroup mock_tab_group(nullptr, group_id, visual_data);
 
-  EXPECT_CALL(delegate, GetTabGroup())
-      .WillOnce(testing::ReturnRef(mock_tab_group));
+  if (UseGroupHeaderHoverCards()) {
+    EXPECT_CALL(delegate, GetTabGroup())
+        .WillOnce(testing::ReturnRef(mock_tab_group));
+  }
 
   auto move_mouse_to = [&](bool inside_view) {
     if (inside_view) {
@@ -160,7 +193,7 @@ TEST_F(VerticalTabGroupHeaderViewTest, EditorBubbleButtonVisibilityOnHover) {
   check_editor_bubble_button_visible(false);
 }
 
-TEST_F(VerticalTabGroupHeaderViewTest, OnKeyPress_ShiftUp) {
+TEST_P(VerticalTabGroupHeaderViewTest, OnKeyPress_ShiftUp) {
   MockDelegate delegate;
   tab_groups::TabGroupVisualData visual_data(
       u"Group Title", tab_groups::TabGroupColorId::kBlue, false);
@@ -176,7 +209,7 @@ TEST_F(VerticalTabGroupHeaderViewTest, OnKeyPress_ShiftUp) {
   EXPECT_TRUE(header->OnKeyPressed(event));
 }
 
-TEST_F(VerticalTabGroupHeaderViewTest, OnKeyPress_ShiftDown) {
+TEST_P(VerticalTabGroupHeaderViewTest, OnKeyPress_ShiftDown) {
   MockDelegate delegate;
   tab_groups::TabGroupVisualData visual_data(
       u"Group Title", tab_groups::TabGroupColorId::kBlue, false);
@@ -191,3 +224,11 @@ TEST_F(VerticalTabGroupHeaderViewTest, OnKeyPress_ShiftDown) {
 
   EXPECT_TRUE(header->OnKeyPressed(event));
 }
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         VerticalTabGroupHeaderViewTest,
+                         testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                           return info.param ? "HoverCardEnabled"
+                                             : "HoverCardDisabled";
+                         });

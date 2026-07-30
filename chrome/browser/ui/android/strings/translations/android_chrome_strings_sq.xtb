@@ -462,6 +462,7 @@ Vetëm dikush me frazën tënde të kalimit mund të lexojë të dhënat e tua t
 <translation id="2932150158123903946">Hapësira ruajtëse e Google <ph name="APP_NAME" /></translation>
 <translation id="2932222164150889403">Tastiera jote nuk do të ndryshojë</translation>
 <translation id="2936980480904111527">Njoftimet e Chrome i bëjnë gjërat më të lehta</translation>
+<translation id="2939908794993783865">Sajte të tjera joaktive</translation>
 <translation id="2940075786175545812">Opsioni për të miratuar ose jo një uebsajt</translation>
 <translation id="2942036813789421260">Skeda e shikimit paraprak është e mbyllur</translation>
 <translation id="2951071800649516099">Shto faqe në listën tënde të leximit për më vonë</translation>
@@ -699,6 +700,7 @@ Vetëm dikush me frazën tënde të kalimit mund të lexojë të dhënat e tua t
 <translation id="3985215325736559418">Dëshiron që ta shkarkosh përsëri <ph name="FILE_NAME" />?</translation>
 <translation id="3987993985790029246">Kopjo lidhjen</translation>
 <translation id="3994236846568425219">Aktivizo temën e errët kur tema e errët e pajisjes është aktive</translation>
+<translation id="399788104667917863">Gozhdo te shiriti i veglave</translation>
 <translation id="4000212216660919741">Shtëpia offline</translation>
 <translation id="4000670338830950598">Personalizo dhe kontrollo Google Chrome me një artikull të theksuar</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{1 fjalëkalim i komprometuar në "Llogarinë tënde të Google"}other{# fjalëkalime të komprometuara në "Llogarinë tënde të Google"}}</translation>
@@ -1394,7 +1396,6 @@ Për shembull, disa uebsajte mund t'i përgjigjen kësaj kërkese duke të tregu
 <translation id="6746338529702829275">Rishiko të dhënat e llogarisë sate</translation>
 <translation id="6746834324024491643">Për t'i marrë fjalëkalimet etj. në të gjitha pajisjet e tua, identifikohu si <ph name="EMAIL" /></translation>
 <translation id="6751521182688001123">Hap me shpejtësi një skedë të re. Për ta modifikuar këtë shkurtore, preke dhe mbaje të prekur.</translation>
-<translation id="6752130751133944215">Për të restauruar një dritare të re, zvogëlo numrin total të dritareve aktive dhe joaktive në <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> ose më pak. Dritaret joaktive fshihen pas 6 muajsh.</translation>
 <translation id="6754359471209693699">Fillo një kërkim të ri</translation>
 <translation id="6756507620369789050">Ndaj komente</translation>
 <translation id="6762511428368667596"><ph name="NAME" />, <ph name="EMAIL" />.</translation>
@@ -1584,7 +1585,6 @@ Për ta ndryshuar këtë cilësim, <ph name="BEGIN_LINK" />fshi të dhënat e Ch
 <translation id="7388615499319468910">Sajtet dhe reklamuesit mund të kuptojnë se si funksionojnë reklamat. Ky cilësim është joaktiv.</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{Tjetër, 1 skedar në listë}other{Tjetër, # skedarë në listë}}</translation>
 <translation id="7400418766976504921">URL-ja</translation>
-<translation id="7400424692675800399">Për të hapur një dritare të re, zvogëlo numrin total të dritareve aktive dhe joaktive në <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> ose më pak.</translation>
 <translation id="7403691278183511381">Përvoja e ekzekutimit të parë të Chrome</translation>
 <translation id="7411224099004328643">Përdorues i "Llogarisë së Google"</translation>
 <translation id="7419565702166471774">Përdor gjithmonë lidhje të sigurta</translation>

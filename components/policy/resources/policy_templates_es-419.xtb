@@ -417,6 +417,22 @@ Para obtener más información sobre contextos seguros, consulta Secure Contexts
 <translation id="1317158052518324525">No permitir el autocompletado mejorado.</translation>
 <translation id="1317658068839330898">No permitir el uso de <ph name="ASSISTANT_PRODUCT_NAME" /> en la Web</translation>
 <translation id="1318233005302276244">Permite a los usuarios realizar un seguimiento de sus paquetes en Chrome.</translation>
+<translation id="1321747583289636863">Si estableces la política, se especificará la cantidad máxima de conexiones en simultáneo al servidor proxy para las solicitudes de WebSocket.
+
+Para modificar los límites de solicitudes que no son de WebSocket, consulta <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" />.
+
+Si no estableces la política, se usará el valor predeterminado de 32.
+
+Algunas apps web son conocidas por utilizar muchas conexiones con solicitudes GET pendientes. Por lo tanto, si estableces un valor menor a 32 es posible que la red del navegador quede pendiente si hay demasiadas apps web con conexiones pendientes abiertas.
+Algunos servidores proxy no pueden soportar una gran cantidad de conexiones en simultáneo por cliente. Para solucionar este problema, establece un valor más bajo para esta política.
+
+El valor debe ser igual o superior a 6.
+Si estableces un valor por debajo de ese límite, se usará 6.
+Usa un valor menor al valor predeterminado (32) bajo tu responsabilidad.
+
+El valor debe ser igual o inferior a 256.
+Si estableces un valor superior a ese límite, se usará 256.
+Usa un valor mayor al valor predeterminado (32) bajo tu responsabilidad.</translation>
 <translation id="1323501563951768821">La configuración de F12 usa la combinación de teclas que contiene la tecla modificadora mayúsculas</translation>
 <translation id="1325547947664414578">Cuando un usuario alterna entre dispositivos con <ph name="PRODUCT_OS_NAME" />, el servicio de <ph name="PRODUCT_NAME" /> abrirá las ventanas del navegador y de las apps del dispositivo anterior en el nuevo dispositivo.
 Si habilitas la política, se abrirán automáticamente las ventanas del navegador y de las apps del último dispositivo con <ph name="PRODUCT_OS_NAME" /> que utilizó el usuario actual al acceder.
@@ -2942,7 +2958,6 @@ Esta política solo se puede establecer como política del usuario basada en la 
 <translation id="2901969573658712576">Preferir los algoritmos de cifrado que satisfagan los requisitos de CNSA 1.0 y 2.0</translation>
 <translation id="2905984450136807296">Duración de los datos de autenticación almacenados en caché</translation>
 <translation id="2906874737073861391">Lista de extensiones AppPack</translation>
-<translation id="2908277604670530363">Cantidad máxima de conexiones simultáneas con el servidor proxy</translation>
 <translation id="2912366658685903301">Configurar el color del tema del navegador</translation>
 <translation id="2914283793640833265">No permitir que se habilite la continuación de tareas en Phone Hub</translation>
 <translation id="2915787312243722351">Esta política controla el parámetro de configuración "Usar el Selector o la tecla de búsqueda para cambiar el comportamiento de las teclas de función" Esta configuración permite que los usuarios mantengan presionada la tecla del Selector
@@ -3082,6 +3097,13 @@ Si se establece como falsa, no podrán acceder a la función.</translation>
 <translation id="2969568582351417848">Inhabilitar las advertencias basadas en las extensiones de la descarga del tipo de archivo en los dominios</translation>
 <translation id="2971096666394658693">El menú contextual tendrá un elemento de menú para compartir imágenes con <ph name="GOOGLE_PHOTOS_PRODUCT_NAME" />.</translation>
 <translation id="2973972555495515337">Si habilitas la política, las aplicaciones web de terceros podrán usar <ph name="DESK_API_NAME" /> para guardar y compartir escritorios de <ph name="PRODUCT_OS_NAME" />. Si la inhabilitas, el usuario no podrá guardar ni compartir datos del escritorio mediante la <ph name="DESK_API_NAME" />. Si no la estableces, el comportamiento será el mismo que cuando la inhabilitas. La política solo tendrá efecto en los dispositivos inscritos.</translation>
+<translation id="2974326457745806202">Los SharedWorkers pueden tener una vida útil extendida si la opción "extendedLifetime" se establece en verdadero en el constructor de SharedWorker.
+
+Si habilitas esta política o no la estableces, los SharedWorkers pueden tener una vida útil extendida.
+
+Si inhabilitas esta política, los SharedWorkers no podrán tener una vida útil extendida, incluso si estableces la opción como verdadera.
+
+Esta política es temporal y se quitará en el futuro.</translation>
 <translation id="2976033779241323433">Habilitar el teclado virtual táctil según la heurística predeterminada del sistema</translation>
 <translation id="2976429807269247880">Configuración del comportamiento de las cookies <ph name="ATTRIBUTE_SAMESITE_NAME" /> heredadas</translation>
 <translation id="2979696534869541158">Forzar la implementación anterior</translation>
@@ -5049,6 +5071,7 @@ Si habilitas la política o no la estableces, los usuarios que hayan guardado co
 Si inhabilitas la política, los datos del administrador de contraseñas de los usuarios no se verán afectados, pero la funcionalidad del administrador de contraseñas estará dañada.
 
 Si estableces esta política, los usuarios no podrán cambiarla en <ph name="PRODUCT_NAME" />.</translation>
+<translation id="4321788213579606602">Cantidad máxima de conexiones simultáneas al servidor proxy para solicitudes que no son de WebSocket</translation>
 <translation id="4322842393287974810">Permitir que la aplicación de kiosko con lanzamiento automático sin tiempo de espera controle la versión de <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="4323412353642577604">Habilitar la certificación remota para la protección del contenido</translation>
 <translation id="4325690621216251241">Agregar un botón para cerrar sesión en la bandeja del sistema</translation>
@@ -7916,6 +7939,7 @@ Si se establece como falsa, no podrán acceder a la función.</translation>
 <translation id="6075316301208933536">Si estableces <ph name="DEVICE_BATTERY_CHARGE_MODE_POLICY_NAME" /> como <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_MODE_NAME" />, la configuración <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" /> personalizará cuándo la batería deja de cargarse, en función del porcentaje de carga de la batería. <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_START_CHARGING_POLICY_NAME" /> debe estar al menos 5 puntos porcentuales por debajo de <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" />.
 
       Si no estableces la política, se aplicará el modo de carga de la batería <ph name="DEVICE_BATTERY_CHARGE_STANDARD_MODE_NAME" />.</translation>
+<translation id="6080808146443476891">Cantidad máxima de conexiones simultáneas al servidor proxy para solicitudes de WebSocket</translation>
 <translation id="6082161804984853051">Si estableces la política, <ph name="PRODUCT_NAME" /> utilizará el directorio que proporciones para guardar los archivos almacenados en caché que se encuentren en el disco, independientemente de si los usuarios especifican la función experimental --disk-cache-dir.
 
       Si no la estableces, <ph name="PRODUCT_NAME" /> utilizará el directorio predeterminado para el almacenamiento en caché, pero los usuarios podrán cambiar esa configuración con la función experimental de la línea de comandos --disk-cache-dir.
@@ -9986,6 +10010,7 @@ La compatibilidad con este parámetro de configuración de política finalizará
 <translation id="7216442368414164495">Permitir que los usuarios acepten informes extendidos de navegación segura</translation>
 <translation id="7218238054592349618">Permitir la optimización de JavaScript en estos sitios</translation>
 <translation id="721970071627370558">Inhabilitar los informes de estado de energía del dispositivo</translation>
+<translation id="7220960206733388609">Los SharedWorkers pueden tener una vida útil prolongada.</translation>
 <translation id="7221574724100909818">Usar el ícono de bloqueo para conexiones seguras</translation>
 <translation id="7227348936232766462">Permitir que los usuarios incluyan los datos de depuración de bajo nivel de todos los tipos de dispositivos disponibles a continuación en los comentarios de los usuarios</translation>
 <translation id="7229365071755865554">Habilitar el guardado de contraseñas en el administrador de contraseñas</translation>
@@ -10645,6 +10670,7 @@ Si habilitas esta política, el lector de PDF utilizará el renderizador Skia.
 Si la inhabilitas, el lector de PDF usará el renderizador AGG actual.
 
 Si no estableces esta política, el navegador elegirá el renderizador de PDF.</translation>
+<translation id="7704244074621846004">Habilitar la vida útil extendida para SharedWorkers</translation>
 <translation id="7707869387893611318">Habilita la función de sonidos de carga.
 
           Esta función se encarga de reproducir los sonidos de carga.
@@ -10662,6 +10688,7 @@ Si no estableces esta política, el navegador elegirá el renderizador de PDF.</
 
       Se recomienda que los servidores migren a los conjuntos de algoritmos de cifrado ECDHE. Si no están disponibles, asegúrate de habilitar un conjunto de algoritmos de cifrado que use un intercambio de clave RSA.</translation>
 <translation id="7709470712369261710">No permite que los servicios de Google proporcionen descripciones automáticas de imágenes</translation>
+<translation id="7711003696883532277">Los SharedWorkers no pueden tener una vida útil extendida.</translation>
 <translation id="7712109699186360774">Preguntar siempre que un sitio quiera acceder a la cámara o al micrófono</translation>
 <translation id="7712245244073542805">Imprimir desde la plataforma a partir del proceso del navegador</translation>
 <translation id="7713608076604149344">Restricciones de descarga</translation>
@@ -11512,6 +11539,22 @@ La función solo estará disponible en el canal de Canary.
 
 Si se habilita la política o no se establece, se podrá acceder a la página.
 Si se inhabilita, se bloqueará la página.</translation>
+<translation id="8264002158987842436">Si estableces la política, se especificará la cantidad máxima de conexiones en simultáneo al servidor proxy para solicitudes que no sean de WebSocket.
+
+Para modificar los límites de solicitudes de WebSocket, consulta <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />.
+
+Si no estableces la política, se usará el valor predeterminado de 32.
+
+Algunas apps web son conocidas por utilizar muchas conexiones con solicitudes GET pendientes. Por lo tanto, si estableces un valor menor a 32 es posible que la red del navegador quede pendiente si hay demasiadas apps web con conexiones pendientes abiertas.
+Algunos servidores proxy no pueden soportar una gran cantidad de conexiones en simultáneo por cliente. Para solucionar este problema, establece un valor más bajo para esta política.
+
+El valor debe ser igual o superior a 6.
+Si estableces un valor por debajo de ese límite, se usará 6.
+Usa un valor menor al valor predeterminado (32) bajo tu responsabilidad.
+
+El valor debe ser igual o inferior a 256 (99 en <ph name="PRODUCT_NAME" /> 147 y versiones anteriores).
+Si estableces un valor superior a ese límite, se usará 256 (99 en <ph name="PRODUCT_NAME" /> 147 y versiones anteriores).
+Usa un valor mayor al valor predeterminado (32) bajo tu responsabilidad.</translation>
 <translation id="8266778278542911985">Si estableces la política en 3, los sitios web podrán solicitar acceso a los puertos en serie. Si la estableces en 2, se rechaza el acceso a los puertos en serie.
 
       Si no la estableces, los sitios web podrán solicitar acceso, pero los usuarios podrán cambiar esta configuración.</translation>

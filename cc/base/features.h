@@ -71,6 +71,10 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCCSlimming);
 // Check if the above feature is enabled. For performance purpose.
 CC_BASE_EXPORT bool IsCCSlimmingEnabled();
 
+// When enabled, the scheduler will use SlimSchedulerStateMachine which ensures
+// that each action is returned only once per begin frame.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSlimScheduler);
+
 // Modes for `kWaitForLateScrollEvents` changing event dispatch. Where the
 // default is to just always enqueue scroll events.
 //
@@ -265,13 +269,6 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kManualBeginFrame);
 // transfer cache entry serialization and upload steps, as well as during
 // raster dark mode filter generation.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kUnlockDuringGpuImageOperations);
-
-// Controls whether ProxyMain will post a state change to the cc/scheduler when
-// idle time is requested.
-// When enabled, ProxyMain will try to determine if it's safe to idle using it's
-// own state. When disabled, ProxyMain will rely on state change callbacks from
-// the scheduler.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kMainIdleBypassScheduler);
 
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kBrowserControlsSmoothScroll);
 

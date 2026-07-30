@@ -7,6 +7,7 @@ import './reload_button.js';
 import './location_bar.js';
 import './split_tabs_button.js';
 import './home_button.js';
+import './pinned_toolbar_actions.js';
 
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {TrackedElementManager} from '//resources/js/tracked_element/tracked_element_manager.js';
@@ -20,6 +21,24 @@ import {BrowserProxyImpl, INVALID_NAVIGATION_CONTROLS_STATE_LISTENER_HANDLE} fro
 import type {BrowserProxy, NavigationControlsState, NavigationControlsStateListenerHandle} from './browser_proxy.js';
 import {MetricsRecorder} from './metrics_recorder.js';
 import {SplitTabActiveLocation} from './toolbar_ui_api_data_model.mojom-webui.js';
+// clang-format off
+// Helper so tests can find what they needed when optimization is on.
+// This should probably be a separate file, but rollup support only
+// handles 2 at most now.
+import {OmniboxTextColor} from './toolbar_ui_api_data_model.mojom-webui.js';
+import {ReadonlyOmniboxElement} from './readonly_omnibox.js';
+
+export {OmniboxTextColor, ReadonlyOmniboxElement};
+// clang-format on
+
+const TRACKED_ELEMENTS: Array<{selector: string, id: string}> = [
+  {selector: '#back', id: 'kToolbarBackButtonElementId'},
+  {selector: '#forward', id: 'kToolbarForwardButtonElementId'},
+  {selector: '#reload', id: 'kReloadButtonElementId'},
+  {selector: '#split-tabs', id: 'kToolbarSplitTabsToolbarButtonElementId'},
+  {selector: '#location-bar', id: 'kLocationBarElementId'},
+  {selector: '#home', id: 'kToolbarHomeButtonElementId'},
+];
 
 export class ToolbarAppElement extends CrLitElement {
   static get is() {
@@ -42,6 +61,7 @@ export class ToolbarAppElement extends CrLitElement {
       isLocationBarEnabled_: {type: Boolean},
       navigationControlsState_: {type: Object},
       isBackForwardButtonEnabled_: {type: Boolean},
+      isPinnedToolbarActionsEnabled_: {type: Boolean},
     };
   }
 
@@ -55,6 +75,8 @@ export class ToolbarAppElement extends CrLitElement {
       loadTimeData.getBoolean('enableLocationBar');
   protected accessor isBackForwardButtonEnabled_: boolean =
       loadTimeData.getBoolean('enableBackForwardButtons');
+  protected accessor isPinnedToolbarActionsEnabled_: boolean =
+      loadTimeData.getBoolean('enablePinnedToolbarActions');
   protected accessor navigationControlsState_: NavigationControlsState = {
     reloadControlState: {
       canShowMenu: false,
@@ -68,8 +90,10 @@ export class ToolbarAppElement extends CrLitElement {
       isContextMenuVisible: false,
     },
     backForwardControlState: {
-      backButtonState: {enabled: false, visible: true},
-      forwardButtonState: {enabled: false, visible: true},
+      backButtonState:
+          {enabled: false, visible: true, isContextMenuVisible: false},
+      forwardButtonState:
+          {enabled: false, visible: true, isContextMenuVisible: false},
       backButtonLeadingMargin: 0,
     },
     homeControlState: {
@@ -77,13 +101,15 @@ export class ToolbarAppElement extends CrLitElement {
       isContextMenuVisible: false,
     },
     omniboxViewState: {
-      text: '',
+      textPieces: [],
       selection: null,
+      textIsUrl: false,
     },
     layoutConstantsVersion: 0,
     contentSettingState: {
       imageStates: [],
     },
+    pinnedToolbarActionsState: [],
   };
 
   private browserProxy_: BrowserProxy;
@@ -126,26 +152,11 @@ export class ToolbarAppElement extends CrLitElement {
             });
 
     this.metricsRecorder_.startObserving();
-    const reload = this.shadowRoot.querySelector<CrLitElement>('#reload');
-    if (reload) {
-      this.trackedElementManager_.startTracking(
-          reload, 'kReloadButtonElementId');
-    }
-    const home = this.shadowRoot.querySelector<CrLitElement>('#home');
-    if (home) {
-      this.trackedElementManager_.startTracking(home, 'kToolbarHomeButtonElementId');
-    }
-    const splitTabs =
-        this.shadowRoot.querySelector<CrLitElement>('#split-tabs');
-    if (splitTabs) {
-      this.trackedElementManager_.startTracking(
-          splitTabs, 'kToolbarSplitTabsToolbarButtonElementId');
-    }
-    const locationBar =
-        this.shadowRoot.querySelector<HTMLElement>('#location-bar');
-    if (locationBar) {
-      this.trackedElementManager_.startTracking(
-          locationBar, 'kLocationBarElementId');
+    for (const {selector, id} of TRACKED_ELEMENTS) {
+      const el = this.shadowRoot.querySelector<HTMLElement>(selector);
+      if (el) {
+        this.trackedElementManager_.startTracking(el, id);
+      }
     }
   }
 
@@ -160,19 +171,11 @@ export class ToolbarAppElement extends CrLitElement {
         this.navigationStateListenerHandle_);
 
     this.metricsRecorder_.stopObserving();
-    const reload = this.shadowRoot.querySelector<HTMLElement>('#reload');
-    if (reload) {
-      this.trackedElementManager_.stopTracking(reload);
-    }
-
-    const splitTabs = this.shadowRoot.querySelector<HTMLElement>('#split-tabs');
-    if (splitTabs) {
-      this.trackedElementManager_.stopTracking(splitTabs);
-    }
-
-    const home = this.shadowRoot.querySelector<HTMLElement>('#home');
-    if (home) {
-      this.trackedElementManager_.stopTracking(home);
+    for (const {selector} of TRACKED_ELEMENTS) {
+      const el = this.shadowRoot.querySelector<HTMLElement>(selector);
+      if (el) {
+        this.trackedElementManager_.stopTracking(el);
+      }
     }
   }
 

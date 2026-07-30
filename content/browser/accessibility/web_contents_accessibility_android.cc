@@ -1076,6 +1076,20 @@ void WebContentsAccessibilityAndroid::HandleTextSelectionChanged(
                                                                unique_id);
 }
 
+void WebContentsAccessibilityAndroid::HandleExtendedSelectionChanged(
+    int32_t unique_id,
+    int32_t focus_unique_id,
+    int32_t focus_offset) {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
+  if (obj.is_null()) {
+    return;
+  }
+
+  Java_WebContentsAccessibilityImpl_handleExtendedSelectionChange(
+      env, obj, unique_id, focus_unique_id, focus_offset);
+}
+
 void WebContentsAccessibilityAndroid::HandleEditableTextChanged(
     int32_t unique_id,
     int32_t subType) {
@@ -1366,7 +1380,7 @@ int32_t WebContentsAccessibilityAndroid::GetEditableTextSelectionStart(
     int32_t unique_id) {
   BrowserAccessibilityAndroid* node = GetAXFromUniqueID(unique_id);
   if (!node) {
-    return false;
+    return ui::kAXAndroidUndefinedSelectionIndex;
   }
 
   return node->GetSelectionStart();
@@ -1377,7 +1391,7 @@ int32_t WebContentsAccessibilityAndroid::GetEditableTextSelectionEnd(
     int32_t unique_id) {
   BrowserAccessibilityAndroid* node = GetAXFromUniqueID(unique_id);
   if (!node) {
-    return false;
+    return ui::kAXAndroidUndefinedSelectionIndex;
   }
 
   return node->GetSelectionEnd();
@@ -1525,12 +1539,12 @@ void WebContentsAccessibilityAndroid::
 
   int32_t unique_id = node->GetUniqueId();
   Java_AccessibilityNodeInfoBuilder_addAccessibilityNodeInfoActions(
-      env, obj, info, unique_id, node->CanSetExtendedSelection(),
-      node->CanScrollForward(), node->CanScrollBackward(), node->CanScrollUp(),
-      node->CanScrollDown(), node->CanScrollLeft(), node->CanScrollRight(),
-      node->IsClickable(), node->IsTextField(), node->IsEnabled(),
-      node->IsEditable(), node->IsFocusable(), node->IsFocused(),
-      node->IsCollapsed(), node->IsExpanded(), node->HasNonEmptyValue(),
+      env, obj, info, unique_id, node->CanScrollForward(),
+      node->CanScrollBackward(), node->CanScrollUp(), node->CanScrollDown(),
+      node->CanScrollLeft(), node->CanScrollRight(), node->IsClickable(),
+      node->IsTextField(), node->IsEnabled(), node->IsEditable(),
+      node->IsFocusable(), node->IsFocused(), node->IsCollapsed(),
+      node->IsExpanded(), node->HasNonEmptyValue(),
       !node->GetTextContentUTF16().empty(), node->IsSeekControl(),
       node->IsFormDescendant());
 }
@@ -1814,7 +1828,6 @@ void WebContentsAccessibilityAndroid::PopulateAccessibilityNodeInfoPaneTitle(
   }
 }
 
-
 void WebContentsAccessibilityAndroid::PopulateAccessibilityNodeInfoSelection(
     JNIEnv* env,
     const JavaRef<jobject>& info,
@@ -1977,8 +1990,14 @@ bool WebContentsAccessibilityAndroid::PopulateAccessibilityEvent(
               features::kAccessibilityExtendedSelection) ||
           node->IsTextField()) {
         std::u16string text = node->GetTextContentUTF16();
+        int selection_start = node->GetSelectionStart();
+        int selection_end = node->GetSelectionEnd();
+        if (selection_start == ui::kAXAndroidUndefinedSelectionIndex ||
+            selection_end == ui::kAXAndroidUndefinedSelectionIndex) {
+          return false;
+        }
         Java_WebContentsAccessibilityImpl_setAccessibilityEventSelectionAttrs(
-            env, obj, event, node->GetSelectionStart(), node->GetSelectionEnd(),
+            env, obj, event, selection_start, selection_end,
             node->GetEditableTextLength(),
             base::android::ConvertUTF16ToJavaString(env, text));
       }
@@ -2312,11 +2331,12 @@ int32_t WebContentsAccessibilityAndroid::FindElementType(
   return element_id;
 }
 
-bool WebContentsAccessibilityAndroid::NextAtGranularity(JNIEnv* env,
+bool WebContentsAccessibilityAndroid::MoveAtGranularity(JNIEnv* env,
                                                         int32_t granularity,
                                                         bool extend_selection,
                                                         int32_t unique_id,
-                                                        int32_t cursor_index) {
+                                                        int32_t cursor_index,
+                                                        bool forwards) {
   BrowserAccessibilityManagerAndroid* root_manager =
       GetRootBrowserAccessibilityManager();
   if (!root_manager) {
@@ -2330,16 +2350,22 @@ bool WebContentsAccessibilityAndroid::NextAtGranularity(JNIEnv* env,
 
   int32_t start_index = -1;
   int end_index = -1;
-  if (root_manager->NextAtGranularity(granularity, cursor_index, node,
-                                      &start_index, &end_index)) {
+  bool success =
+      forwards ? root_manager->NextAtGranularity(granularity, cursor_index,
+                                                 node, &start_index, &end_index)
+               : root_manager->PreviousAtGranularity(
+                     granularity, cursor_index, node, &start_index, &end_index);
+
+  if (success) {
     ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
     if (obj.is_null()) {
       return false;
     }
-    std::u16string text = node->GetTextContentUTF16();
-    Java_WebContentsAccessibilityImpl_finishGranularityMoveNext(
-        env, obj, base::android::ConvertUTF16ToJavaString(env, text),
-        extend_selection, start_index, end_index);
+    Java_WebContentsAccessibilityImpl_finishGranularityMove(
+        env, obj,
+        base::android::ConvertUTF16ToJavaString(env,
+                                                node->GetTextContentUTF16()),
+        extend_selection, start_index, end_index, forwards);
     return true;
   }
   return false;
@@ -2382,41 +2408,6 @@ void WebContentsAccessibilityAndroid::AddSpellingErrorForTesting(
       ax::mojom::IntListAttribute::kMarkerTypes,
       {static_cast<int>(ax::mojom::MarkerType::kSuggestion)});
   node->node()->SetData(data);
-}
-
-bool WebContentsAccessibilityAndroid::PreviousAtGranularity(
-    JNIEnv* env,
-    int32_t granularity,
-    bool extend_selection,
-    int32_t unique_id,
-    int32_t cursor_index) {
-  BrowserAccessibilityManagerAndroid* root_manager =
-      GetRootBrowserAccessibilityManager();
-  if (!root_manager) {
-    return false;
-  }
-
-  BrowserAccessibilityAndroid* node = GetAXFromUniqueID(unique_id);
-  if (!node) {
-    return false;
-  }
-
-  int32_t start_index = -1;
-  int end_index = -1;
-  if (root_manager->PreviousAtGranularity(granularity, cursor_index, node,
-                                          &start_index, &end_index)) {
-    ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
-    if (obj.is_null()) {
-      return false;
-    }
-    Java_WebContentsAccessibilityImpl_finishGranularityMovePrevious(
-        env, obj,
-        base::android::ConvertUTF16ToJavaString(env,
-                                                node->GetTextContentUTF16()),
-        extend_selection, start_index, end_index);
-    return true;
-  }
-  return false;
 }
 
 void WebContentsAccessibilityAndroid::RecordInlineTextBoxMetrics(

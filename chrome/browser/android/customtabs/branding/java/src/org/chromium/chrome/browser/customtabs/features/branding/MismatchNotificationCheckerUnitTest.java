@@ -13,6 +13,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.Activity;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -23,15 +25,28 @@ import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.customtabs.features.branding.proto.AccountMismatchData.CloseType;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.chrome.browser.ui.signin.SigninAndHistorySyncActivityLauncher;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.device_lock.DeviceLockActivityLauncher;
 import org.chromium.components.feature_engagement.Tracker;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.test.util.TestAccounts;
+import org.chromium.ui.base.ActivityResultTracker;
+import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.modaldialog.ModalDialogManager;
 
 /** Unit test for {@link MismatchNotificationChecker} */
 @RunWith(BaseRobolectricTestRunner.class)
+@EnableFeatures({
+    SigninFeatures.ENABLE_SEAMLESS_SIGNIN,
+    SigninFeatures.ENABLE_ACTIVITYLESS_SIGNIN_ALL_ENTRY_POINT
+})
 public class MismatchNotificationCheckerUnitTest {
     private static final int INIT_SHOW_COUNT = 2;
     private static final int INIT_USER_ACT_COUNT = 1;
@@ -110,10 +125,10 @@ public class MismatchNotificationCheckerUnitTest {
         private MismatchNotificationChecker mChecker;
         private Tracker mTracker;
         private Tracker.DisplayLockHandle mIphDisplayLock;
-        private Profile mProfileMock;
         private Callback<Integer> mCallback;
         private IdentityManager mIdentityManager;
         private Callback<MismatchNotificationData> mOnClose;
+        private SigninAndHistorySyncActivityLauncher mSigninLauncher;
 
         private final MismatchNotificationData.AppUiData mAppData =
                 new MismatchNotificationData.AppUiData();
@@ -132,23 +147,36 @@ public class MismatchNotificationCheckerUnitTest {
                     .thenReturn(TestAccounts.ACCOUNT1);
 
             mAppData.showCount = INIT_SHOW_COUNT;
-            mAppData.closeType = CloseType.UNKNOWN.getNumber();
             mAppData.userActCount = INIT_USER_ACT_COUNT;
+            mAppData.closeType = CloseType.UNKNOWN.getNumber();
 
             mOnClose = mock(Callback.class);
+            mSigninLauncher = mock(SigninAndHistorySyncActivityLauncher.class);
 
-            mChecker = new MismatchNotificationChecker(mProfileMock, mIdentityManager, mDelegate);
+            mChecker =
+                    new MismatchNotificationChecker(
+                            mock(Activity.class),
+                            mock(WindowAndroid.class),
+                            mock(ActivityResultTracker.class),
+                            mock(DeviceLockActivityLauncher.class),
+                            mock(Profile.class),
+                            mIdentityManager,
+                            mSigninLauncher,
+                            () -> mock(BottomSheetController.class),
+                            mock(ModalDialogManager.class),
+                            mock(SnackbarManager.class),
+                            mDelegate);
             return this;
         }
 
         public MismatchNotificationCheckerTester callMaybeShowUi(
                 boolean shown, MismatchNotificationData mimData) {
-            when(mDelegate.maybeShow(any(), anyLong(), any(), any())).thenReturn(shown);
+            when(mDelegate.maybeShow(any(), any(), anyLong(), any(), any())).thenReturn(shown);
 
             ArgumentCaptor<Callback> captor = ArgumentCaptor.forClass(Callback.class);
             if (mimData != null) mimData.setAppData(mChecker.getAccountId(), "app-id", mAppData);
             mChecker.maybeShow("app-id", /* lastShowTime= */ 12345, mimData, mOnClose);
-            verify(mDelegate).maybeShow(any(), anyLong(), any(), captor.capture());
+            verify(mDelegate).maybeShow(any(), any(), anyLong(), any(), captor.capture());
             mCallback = captor.getValue();
             return this;
         }

@@ -462,6 +462,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2932150158123903946">Google <ph name="APP_NAME" /> ストレージ</translation>
 <translation id="2932222164150889403">キーボードは変更されません</translation>
 <translation id="2936980480904111527">Chrome の通知で状況を簡単に把握</translation>
+<translation id="2939908794993783865">追加の無効なサイト</translation>
 <translation id="2940075786175545812">ウェブサイトを承認するかどうかを決定するオプション</translation>
 <translation id="2942036813789421260">[プレビュー] タブは閉じられています</translation>
 <translation id="2951071800649516099">後で読めるようにページをリーディング リストに追加します</translation>
@@ -699,6 +700,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="3985215325736559418"><ph name="FILE_NAME" /> をもう一度ダウンロードしますか？</translation>
 <translation id="3987993985790029246">リンクのコピー</translation>
 <translation id="3994236846568425219">デバイスのダークモードがオンのときにダークモードをオンにする</translation>
+<translation id="399788104667917863">ツールバーに固定する</translation>
 <translation id="4000212216660919741">オフライン ホーム</translation>
 <translation id="4000670338830950598">Google Chrome をカスタマイズ、制御します（ハイライト表示された項目あり）</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{Google アカウントに 1 件の不正使用されたパスワードがあります}other{Google アカウントに # 件の不正使用されたパスワードがあります}}</translation>
@@ -766,7 +768,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="4270730597186910506">商品のトラッキングをオンまたはオフにします。</translation>
 <translation id="4277529130885813215">別のデバイスを使用</translation>
 <translation id="427987768447457592">新しいタブグループ</translation>
-<translation id="4282440837784183472">組織（<ph name="MANAGED_DOMAIN" />）が、ログインしているアカウントと Chrome の使用方法を管理しています。管理者は特定の機能を設定または制限できます。</translation>
+<translation id="4282440837784183472">ログインしようとしているアカウントおよび Chrome の使用方法は、組織（<ph name="MANAGED_DOMAIN" />）によって管理されています。管理者は特定の機能を設定または制限できます。</translation>
 <translation id="4283234489712362947"><ph name="TAB_TITLE" />、ピクチャー イン ピクチャーのシークレット タブ</translation>
 <translation id="4285498937028063278">固定を解除</translation>
 <translation id="4285846616383034558">Cookie、キャッシュ、その他のサイトデータ</translation>
@@ -1394,7 +1396,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="6746338529702829275">アカウントのデータを確認します</translation>
 <translation id="6746834324024491643">すべてのデバイスでパスワードやその他の設定を使用するには、<ph name="EMAIL" /> としてログインしてください</translation>
 <translation id="6751521182688001123">新しいタブをすばやく開きます。このショートカットを編集するには、長押ししてください。</translation>
-<translation id="6752130751133944215">新しいウィンドウを復元するには、アクティブなウィンドウとアクティブでないウィンドウの合計数を <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> 個以下に減らしてください。アクティブでないウィンドウは 6 か月後に削除されます。</translation>
 <translation id="6754359471209693699">新しい検索を開始</translation>
 <translation id="6756507620369789050">フィードバックを共有</translation>
 <translation id="6762511428368667596"><ph name="NAME" />、<ph name="EMAIL" />。</translation>
@@ -1584,7 +1585,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="7388615499319468910">ウェブサイトと広告主は表示された広告の効果を確認できます。この設定は無効になっています。</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{リストのその他の 1 件のファイル}other{リストのその他の # 件のファイル}}</translation>
 <translation id="7400418766976504921">URL</translation>
-<translation id="7400424692675800399">新しいウィンドウを開くには、アクティブなウィンドウとアクティブでないウィンドウの合計数を <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> 個以下に減らしてください。</translation>
 <translation id="7403691278183511381">Chrome 初回起動時の操作</translation>
 <translation id="7411224099004328643">Google アカウント ユーザー</translation>
 <translation id="7419565702166471774">常に安全な接続を使用する</translation>

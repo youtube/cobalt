@@ -462,6 +462,7 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
 <translation id="2932150158123903946">Google <ph name="APP_NAME" /> storage</translation>
 <translation id="2932222164150889403">Your keyboard won’t change</translation>
 <translation id="2936980480904111527">Chrome notifications make things easier</translation>
+<translation id="2939908794993783865">Additional inactive sites</translation>
 <translation id="2940075786175545812">Option to approve or not approve a website</translation>
 <translation id="2942036813789421260">Preview tab is closed</translation>
 <translation id="2951071800649516099">Add pages to your reading list for later</translation>
@@ -699,6 +700,7 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
 <translation id="3985215325736559418">Do you want to download <ph name="FILE_NAME" /> again?</translation>
 <translation id="3987993985790029246">Copy link</translation>
 <translation id="3994236846568425219">Turn on dark theme when your device's dark theme is on</translation>
+<translation id="399788104667917863">Pin to toolbar</translation>
 <translation id="4000212216660919741">Offline Home</translation>
 <translation id="4000670338830950598">Customise and control Google Chrome with a highlighted item</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{1 compromised password in your Google Account}other{# compromised passwords in your Google Account}}</translation>
@@ -1394,7 +1396,6 @@ For example, some websites may respond to this request by showing you ads that a
 <translation id="6746338529702829275">Review your account data</translation>
 <translation id="6746834324024491643">To get your passwords and more on all your devices, sign in as <ph name="EMAIL" /></translation>
 <translation id="6751521182688001123">Quickly open a new tab. To edit this shortcut, touch and hold.</translation>
-<translation id="6752130751133944215">To restore a new window, reduce the total number of windows across active and inactive to <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> or fewer. Inactive windows are deleted after 6 months.</translation>
 <translation id="6754359471209693699">Start new search</translation>
 <translation id="6756507620369789050">Share feedback</translation>
 <translation id="6762511428368667596"><ph name="NAME" />, <ph name="EMAIL" />.</translation>
@@ -1584,7 +1585,6 @@ To change this setting, <ph name="BEGIN_LINK" />delete the Chrome data in your a
 <translation id="7388615499319468910">Sites and advertisers can understand how ads perform. This setting is off.</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{Other 1 file in list}other{Other # files in list}}</translation>
 <translation id="7400418766976504921">URL</translation>
-<translation id="7400424692675800399">To open a new window, reduce the total number of windows across active and inactive to <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> or fewer.</translation>
 <translation id="7403691278183511381">Chrome First Run Experience</translation>
 <translation id="7411224099004328643">Google Account user</translation>
 <translation id="7419565702166471774">Always use secure connections</translation>

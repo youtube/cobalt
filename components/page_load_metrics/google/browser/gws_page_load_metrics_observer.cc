@@ -14,7 +14,7 @@
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
@@ -137,6 +137,9 @@ const char kHistogramGWSNavigationSourceTypeDNSReuse[] =
     HISTOGRAM_PREFIX "NavigationSourceType.DNSReuse";
 const char kHistogramGWSNavigationSourceTypeNonReuse[] =
     HISTOGRAM_PREFIX "NavigationSourceType.NonConnectionReuse";
+
+const char kHistogramGWSBeforeUnloadExecutionMode[] =
+    HISTOGRAM_PREFIX "Navigation.BeforeUnloadExecutionMode";
 
 const char kHistogramGWSIsFirstNavigationForGWS[] =
     HISTOGRAM_PREFIX "IsFirstNavigationForGWS";
@@ -495,6 +498,14 @@ GWSPageLoadMetricsObserver::OnCommit(
   base::UmaHistogramEnumeration(
       base::StrCat({internal::kHistogramSiteInstanceProcessAssignment, suffix}),
       render_process_assignment);
+
+  if (!navigation_handle->IsSameDocument() &&
+      navigation_handle->IsInOutermostMainFrame() &&
+      navigation_handle->GetURL().SchemeIsHTTPOrHTTPS()) {
+    base::UmaHistogramEnumeration(
+        internal::kHistogramGWSBeforeUnloadExecutionMode,
+        navigation_handle->GetBeforeUnloadExecutionMode());
+  }
 
   return CONTINUE_OBSERVING;
 }

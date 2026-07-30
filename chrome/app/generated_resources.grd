@@ -2409,7 +2409,7 @@ are declared in tools/grit/grit_args.gni.
       </message>
 
       <message name="IDS_EMAIL_VERIFIED" desc="Toast message to notify the user when their email is automatically verified by the browser.">
-        Email automaticaly verified
+        Email automatically verified
       </message>
 
       <if expr="is_chromeos">
@@ -6060,9 +6060,6 @@ are declared in tools/grit/grit_args.gni.
         </if>
       </if>
       <if expr="enable_extensions">
-        <message name="IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON" desc="The text of the request acces button that appears on the toolbar when an extension requests access to the site">
-          Allow <ph name="EXTENSIONS_REQUESTING_ACCESS_COUNT">$1<ex>3</ex></ph>?
-        </message>
         <message name="IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON_DISMISSED_TEXT" desc="The text of the button that appears on the toolbar after the user grants access to an extension that requested access to the current site.">
           Allowed
         </message>
@@ -6536,6 +6533,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
 
       <!-- Extensions Menu bubble -->
       <if expr="enable_extensions_core">
+        <message name="IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON" desc="The text of the request acces button that appears on the toolbar when an extension requests access to the site" formatter_data="android_java">
+          Allow <ph name="EXTENSIONS_REQUESTING_ACCESS_COUNT">$1<ex>3</ex></ph>?
+        </message>
         <message name="IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON_TOOLTIP_MULTIPLE_EXTENSIONS" desc="The tooltip text of the request access button that appears on the toolbar when an extension requests access to the site">
           Click to allow on <ph name="ORIGIN">$1<ex>google.com</ex></ph>:
         </message>
@@ -7612,6 +7612,11 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_WEBUI_OMNIBOX_COMPOSE_ASK_ABOUT_THIS_PAGE_ARIA_LABEL" desc="The aria-label for the button that allows the user to ask a question about the content of their current page. The $1 is a placeholder for the page title.">
         Ask Google about this page: <ph name="PAGE_TITLE">$1</ph>
       </message>
+      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_LENS_OVERLAY"
+        desc="The name of the Lens overlay command in the content area context menu">
+        Search with Google Lens
+      </message>
+
 
       <!-- NTP -->
       <message name="IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_MD" desc="The text displayed in the fakebox (on the New Tab page) when it is empty, Google is the default search engine, and the Material Design UI is enabled.">
@@ -7800,7 +7805,10 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_NTP_CUSTOM_BG_CUSTOMIZE_NTP_WALLPAPER_SEARCH_LABEL" desc="Accessibility label for the wallpaper search gear icon. (On the New Tab Page)">
         Customize this page with AI
       </message>
-       <message name="IDS_NTP_DISMISS" desc="Used for Dismiss buttons">
+      <message name="IDS_NTP_CLOSE" desc="General purpose text label for close buttons on banners, dialogs, panels, promos, etc.">
+        Close
+      </message>
+      <message name="IDS_NTP_DISMISS" desc="Used for Dismiss buttons">
         Dismiss
       </message>
       <message name="IDS_NTP_DISMISS_PROMO" desc="The tooltip title and accessibility label for the (X) button to dismiss promotional messages on the middle / bottom of the New Tab page.">
@@ -10180,36 +10188,6 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Search tabs
       </message>
 
-      <!-- Strings for tab organization -->
-      <message name="IDS_TOOLTIP_TAB_ORGANIZE" desc="The tooltip for the Tab Organization button.">
-        Organize tabs?
-      </message>
-      <message name="IDS_TAB_ORGANIZE" desc="The text label of the Tab Organization button.">
-        Organize tabs?
-      </message>
-      <message name="IDS_TOOLTIP_TAB_ORGANIZE_CLOSE" desc="The tooltip for the close button within the Tab Organization button.">
-        Dismiss suggestion
-      </message>
-      <message name="IDS_TAB_ORGANIZATION_FEEDBACK_PLACEHOLDER" desc="Placeholder text for the Tab Organization feedback dialog.">
-        Send feedback for Suggested Groups
-      </message>
-      <if expr="use_titlecase">
-        <message name="IDS_TAB_ORGANIZE_MENU" desc="In Title Case: The text label for the tab organization app menu item.">
-          Group Tabs With AI
-        </message>
-      </if>
-      <if expr="not use_titlecase">
-        <message name="IDS_TAB_ORGANIZE_MENU" desc="The text label for the tab organization app menu item.">
-          Group tabs with AI
-        </message>
-      </if>
-      <message name="IDS_TAB_ORGANIZATION_SUCCESS_IPH" desc="The body text of the IPH describing how to interact with a tab group resulting from tab organization.">
-        Right-click on the tab group name to edit this group or click to collapse
-      </message>
-      <message name="IDS_TAB_ORGANIZATION_SUCCESS_IPH_SCREENREADER" desc="The screen reader text of the IPH describing how to interact with a tab group resulting from tab organization." is_accessibility_with_no_ui="true">
-        Select the tab group and activate the context menu to edit
-      </message>
-
       <!-- Strings for split view -->
       <message name="IDS_SPLIT_VIEW_NTP_EMPTY_TITLE" desc="The title of the split view new tab page in its empty state.">
         Complete your split view
@@ -10302,6 +10280,12 @@ Keep your key file in a safe place. You will need it to create new versions of y
           <message name="IDS_VERTICAL_TABS_TUTORIAL_STEP_END" desc="The body for the celebratory end step of the vertical tabs IPH tutorial. The string in quotation marks should match the translation for IDS_SWITCH_TO_HORIZONTAL_TAB.">
             You can move your tabs back to the top by right-clicking any tab and selecting “Show Tabs Horizontally”
           </message>
+          <message name="IDS_VERTICAL_TABS_ENABLE_EXPAND_ON_HOVER" desc="In Title Case: The button in context menu that enables expand on hover behavior." translateable="false">
+            Turn on Auto Expanding Tabs
+          </message>
+          <message name="IDS_VERTICAL_TABS_DISABLE_EXPAND_ON_HOVER" desc="In Title Case: The button in context menu that disables expand on hover behavior." translateable="false">
+            Turn off Auto Expanding Tabs
+          </message>
         </then>
         <else>
           <message name="IDS_SWITCH_TO_VERTICAL_TAB" desc="The button in context menu that switches to vertical tab view.">
@@ -10327,6 +10311,12 @@ Keep your key file in a safe place. You will need it to create new versions of y
           </message>
           <message name="IDS_VERTICAL_TABS_TUTORIAL_STEP_END" desc="The body for the celebratory end step of the vertical tabs IPH tutorial. The string in quotation marks should match the translation for IDS_SWITCH_TO_HORIZONTAL_TAB.">
             You can move your tabs back to the top by right-clicking any tab and selecting “Show tabs horizontally”
+          </message>
+          <message name="IDS_VERTICAL_TABS_ENABLE_EXPAND_ON_HOVER" desc="The button in context menu that enables expand on hover behavior." translateable="false">
+            Turn on auto expanding tabs
+          </message>
+          <message name="IDS_VERTICAL_TABS_DISABLE_EXPAND_ON_HOVER" desc="The button in context menu that disables expand on hover behavior." translateable="false">
+            Turn off auto expanding tabs
           </message>
         </else>
       </if>
@@ -10831,9 +10821,6 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_ACCNAME_TAB_SEARCH" desc="The accessible name for the Tab Search bubble.">
         Search tabs
       </message>
-      <message name="IDS_ACCNAME_TAB_ORGANIZE" desc="The accessible name for the Tab Organization button." is_accessibility_with_no_ui="true">
-        Group related tabs
-      </message>
       <message name="IDS_ACCNAME_TAB_SCROLL_LEADING" desc="The accessible name for the TabStrip leading scroll button.">
         Scroll towards the first tab
       </message>
@@ -11018,7 +11005,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
             {NUM_TABS, plural, =1 {1 Tab} other {# Tabs}}
         </message>
         <message name="IDS_TAB_GROUPS_HOVER_CARD_FOOTER" desc="In Title Case: The number of tabs in the tab group that are not shown on the hover card, when hovering over the tab group header.">
-            +<ph name="NUM">$1<ex>2</ex></ph> More
+            + <ph name="NUM">$1<ex>2</ex></ph> More
         </message>
       </if>
       <if expr="not use_titlecase">
@@ -11032,7 +11019,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
             {NUM_TABS, plural, =1 {1 tab} other {# tabs}}
         </message>
         <message name="IDS_TAB_GROUPS_HOVER_CARD_FOOTER" desc="The number of tabs in the tab group that are not shown on the hover card, when hovering over the tab group header.">
-            +<ph name="NUM">$1<ex>2</ex></ph> more
+            + <ph name="NUM">$1<ex>2</ex></ph> more
         </message>
       </if>
       <message name="IDS_DISCARD_RING_PROMO_TITLE" desc="The title for the discard ring in-product promo bubble.">
@@ -12033,9 +12020,6 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         <message name="IDS_TAB_CXMENU_MOVETOANOTHERNEWWINDOW" desc="The label for the Tab context item to move items to a new window from the 'Move tabs to another window' submenu.">
           New window
         </message>
-        <message name="IDS_TAB_CXMENU_ORGANIZE_TABS" desc="The label of the 'Organize tabs' Tab context menu item.">
-          Organize similar tabs
-        </message>
         <message name="IDS_TAB_CXMENU_COMMERCE_PRODUCT_SPEC" desc="The text for the context menu item to compare selected tabs." translateable="false">
           Compare tabs
         </message>
@@ -12151,9 +12135,6 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         </message>
         <message name="IDS_TAB_CXMENU_MOVETOANOTHERNEWWINDOW" desc="In Title Case: The label for the Tab context item to move items to a new window from the 'Move tabs to another window' submenu.">
           New Window
-        </message>
-        <message name="IDS_TAB_CXMENU_ORGANIZE_TABS" desc="In Title Case: The label of the 'Organize tabs' Tab context menu item.">
-          Organize Similar Tabs
         </message>
         <message name="IDS_TAB_CXMENU_COMMERCE_PRODUCT_SPEC" desc="In Title Case: The text for the context menu item to compare selected tabs." translateable="false">
           Compare Tabs
@@ -13787,15 +13768,6 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
       </message>
       <message name="IDS_OMNIBOX_TOOLTIP_SEND_TAB_TO_SELF" desc="The label of item for share this tab to other devices in different context menus.">
         Send this page
-      </message>
-      <message name="IDS_OMNIBOX_BUBBLE_ITEM_SUBTITLE_TODAY_SEND_TAB_TO_SELF" desc="The label of valid device button inside omnibox bubble, which shows the last activated time of a valid device.">
-        Active today
-      </message>
-      <message name="IDS_OMNIBOX_BUBBLE_ITEM_SUBTITLE_DAY_SEND_TAB_TO_SELF" desc="The label of valid device button inside omnibox bubble, which shows the last activated time of a valid device.">
-        Active <ph name="DEVICE_LAST_ACTIVATED_TIME">$1<ex>- 1 day ago</ex></ph> day ago
-      </message>
-      <message name="IDS_OMNIBOX_BUBBLE_ITEM_SUBTITLE_DAYS_SEND_TAB_TO_SELF" desc="The label of valid device button inside omnibox bubble, which shows the last activated time of a valid device.">
-        Active <ph name="DEVICE_LAST_ACTIVATED_TIME">$1<ex>- 3 days ago</ex></ph> days ago
       </message>
       <message name="IDS_TOOLBAR_BUTTON_SEND_TAB_TO_SELF_FROM_DEVICE" desc="The label for the device a received tab was sent from. Shown in the toolbar bubble.">
         Shared from <ph name="DEVICE_NAME">$1<ex>Ted's Pixel2</ex></ph>
@@ -18933,6 +18905,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <message name="IDS_FEDERATION_SIGN_IN_TITLE" desc="Title of the UI shown in the omnibox to remind users that they can sign in with an identity provider.">
       Sign in with <ph name="IDP_NAME">$1<ex>google.com</ex></ph>
     </message>
+    <message name="IDS_FEDERATION_SIGNING_IN_TITLE" desc="Title of the UI shown in the omnibox while they are signing-in to the website with an identity provider.">
+      Signing in ...
+    </message>
     <message name="IDS_FEDERATION_SIGN_UP_TITLE" desc="Title of the UI shown in the omnibox to remind users that they can sign up with an identity provider.">
       Sign up with <ph name="IDP_NAME">$1<ex>google.com</ex></ph>
     </message>
@@ -19171,12 +19146,17 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_TRANSLATE_TOAST_UNDO_BUTTON" desc="Button on a toast notification that allows users to undo the translation.">
         Undo
       </message>
-      <!-- TODO(crbug.com/491207553): Finalize UX strings for Multistep Filter and make them translateable. -->
       <message name="IDS_MULTISTEP_FILTER_SUGGESTION_TITLE" desc="Title to show on the toast for Multistep Filter suggestions." translateable="false">
-        Recall info from previous tabs?
+        Apply <ph name="FILTER_COUNT">$1</ph> filters from <ph name="TIME_PERIOD">$2</ph> ago? <ph name="DETAILS">$3</ph>
       </message>
       <message name="IDS_MULTISTEP_FILTER_SUGGESTION_APPLY_BUTTON" desc="Text for the apply button on the Multistep Filter suggestion toast." translateable="false">
-        Apply Info
+        Apply
+      </message>
+      <message name="IDS_MULTISTEP_FILTER_SUGGESTION_RECENT_TITLE" desc="Title to show on the toast for Multistep Filter suggestions recent toast." translateable="false">
+        Recall <ph name="FILTER_COUNT">$1</ph> filters from <ph name="SOURCE_DOMAIN">$2</ph>? <ph name="DETAILS">$3</ph>
+      </message>
+      <message name="IDS_MULTISTEP_FILTER_SUGGESTION_RECENT_APPLY_BUTTON" desc="Text for the apply button on the Multistep Filter suggestion recent toast." translateable="false">
+        Apply
       </message>
       <message name="IDS_LINK_COPIED_TOAST_BODY" desc="Text on a toast notification that is shown when a link is successfully copied.">
         Link copied
@@ -20093,6 +20073,14 @@ Please help our engineers fix this problem. Tell us what happened right before y
         Delete original photo
       </message>
     </if>
+
+    <!-- Chrome finds Notifications -->
+    <message name="IDS_CHROME_FINDS_NOTIFICATIONS_HELPFUL_BUTTON_TEXT" desc="Text for the helpful button found on Chrome finds notifications.">
+      Open in Chrome
+    </message>
+    <message name="IDS_CHROME_FINDS_NOTIFICATIONS_UNHELPFUL_BUTTON_TEXT" desc="Text for the unhelpful button found on Chrome finds notifications.">
+      Not interested
+    </message>
   </messages>
 </release>
 </grit>

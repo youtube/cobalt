@@ -54,15 +54,14 @@ BASE_DECLARE_FEATURE(kContextualTasksUrlRedirectToAimUrl);
 // Enables the use of Stratus dark mode colors.
 BASE_DECLARE_FEATURE(kContextualTasksUseStratusDarkModeColors);
 
-// Enables use of TabListInterface::InsertWebContentsAt in
-// ContextualTasksUiService.
-BASE_DECLARE_FEATURE(kContextualTasksInsertWebContentsAt);
-
 // If enabled, animates the caret.
 BASE_DECLARE_FEATURE(kContextualTasksAnimatedCaret);
 
 // Fixes the composebox jump.
 BASE_DECLARE_FEATURE(kContextualTasksComposeboxJumpFix);
+
+// Enables the use of a rounded clip-path for the composebox.
+BASE_DECLARE_FEATURE(kContextualTasksRoundedClipPath);
 
 // Enum denoting which entry point can show when enabled.
 enum class EntryPointOption {
@@ -150,8 +149,6 @@ extern int GetContextualTasksOnboardingTooltipImpressionDelay();
 // Expired side panel WebContents will be destroyed.
 extern int ContextualTasksInactiveSidePanelKeepInCacheMinutes();
 
-// Returns if voice search queries should be auto submitted.
-extern bool GetAutoSubmitVoiceSearchQuery();
 
 // Returns if the protected page error is enabled.
 extern bool GetIsProtectedPageErrorEnabled();
@@ -264,6 +261,9 @@ extern bool GetEnableComposeboxJumpFix();
 
 // Returns the UI option to expand contextual tasks side panel to tab.
 extern ExpandButtonOption GetExpandButtonOption();
+
+// Returns whether the rounded clip-path is enabled.
+extern bool IsRoundedClipPathEnabled();
 
 namespace flag_descriptions {
 

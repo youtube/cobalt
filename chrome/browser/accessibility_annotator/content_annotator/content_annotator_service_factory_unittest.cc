@@ -14,12 +14,12 @@
 #include "chrome/browser/page_content_annotations/page_embeddings_service_factory.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/accessibility_annotator/core/accessibility_annotator_features.h"
-#include "components/accessibility_annotator/core/storage/accessibility_annotator_backend.h"
+#include "components/accessibility_annotator/core/storage/test_accessibility_annotator_backend.h"
 #include "components/page_content_annotations/content/page_content_extraction_service.h"
 #include "components/page_content_annotations/content/page_embeddings_service.h"
 #include "components/page_content_annotations/core/test_page_content_annotations_service.h"
 #include "components/sync/test/data_type_store_test_util.h"
-#include "components/version_info/channel.h"
+#include "components/sync/test/mock_data_type_local_change_processor.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -96,13 +96,8 @@ class ContentAnnotatorServiceFactoryTest : public testing::Test {
             base::BindRepeating(
                 [](base::FilePath path, content::BrowserContext* context)
                     -> std::unique_ptr<KeyedService> {
-                  return std::make_unique<AccessibilityAnnotatorBackend>(
-                      version_info::Channel::UNKNOWN,
-                      /*history_service=*/nullptr,
-                      syncer::DataTypeStoreTestUtil::
-                          FactoryForInMemoryStoreForTest(),
-                      path.Append(
-                          FILE_PATH_LITERAL("AccessibilityAnnotatorDatabase")));
+                  return std::make_unique<
+                      testing::NiceMock<TestAccessibilityAnnotatorBackend>>();
                 },
                 temp_dir_.GetPath()));
   }

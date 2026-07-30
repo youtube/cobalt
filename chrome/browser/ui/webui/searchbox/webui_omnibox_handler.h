@@ -90,11 +90,9 @@ class WebuiOmniboxHandler : public ContextualSearchboxHandler,
   void OnMatchIconUpdated(size_t index) override {}
   void OnContentsChanged() override {}
 
-  // TabStripModelObserver:
-  void OnTabStripModelChanged(
-      TabStripModel* tab_strip_model,
-      const TabStripModelChange& change,
-      const TabStripSelectionChange& selection) override;
+  // TabListInterfaceObserver:
+  void OnActiveTabChanged(TabListInterface& tab_list,
+                          tabs::TabInterface* tab) override;
 
  private:
   // Delegate to observe WebContents.
@@ -116,9 +114,8 @@ class WebuiOmniboxHandler : public ContextualSearchboxHandler,
   // ContextualSearchboxHandler:
   int GetContextMenuMaxTabSuggestions() override;
 
-  void OnShowAiModeButtonPrefChanged();
   void OnContentSharingPolicyChanged();
-  void OnAimEligibilityChanged();
+  void OnAimPopupEligibilityChanged();
   void OnNavigationFinished(content::NavigationHandle* navigation_handle);
 
   WebContentsObserver web_contents_observer_;

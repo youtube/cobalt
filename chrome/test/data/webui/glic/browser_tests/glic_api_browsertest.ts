@@ -2678,6 +2678,36 @@ class ApiTests extends ApiTestFixtureBase {
     assertEquals('Prompt Suggestion', openData.promptSuggestion);
   }
 
+
+  async testGetTabByIdWithDiscard() {
+    assertDefined(this.host.getTabById);
+
+    // Observe a valid tab id.
+    const tabId = this.testParams as string;
+    const obs = this.host.getTabById(tabId);
+    assertUndefined(obs.getCurrentValue());
+    const sequence = observeSequence(obs);
+    const tabData = await sequence.next();
+    assertEquals(tabId, tabData.tabId);
+    assertTrue(
+        tabData.url.endsWith('test.html'), `unexpected url: ${tabData.url}`);
+
+    // Discard the tab in C++.
+    await this.advanceToNextStep();
+
+    // Navigate the new discarded tab in C++.
+    await sequence.waitFor(tabData => tabData.url.endsWith('test.html?q=hi'));
+
+    // Close the tab in C++.
+    await this.advanceToNextStep();
+    await sequence.waitForComplete();
+
+    // A new subscription should complete without receiving anything.
+    const newSeq = observeSequence(this.host.getTabById(tabId));
+    await newSeq.waitForComplete();
+    assertTrue(newSeq.isEmpty());
+  }
+
   async testGetTabById() {
     assertDefined(this.host.getTabById);
 
@@ -2732,28 +2762,11 @@ class ApiTests extends ApiTestFixtureBase {
   }
 
   private capabilityToString(capability: HostCapability): string {
-    switch (capability) {
-      case HostCapability.SCROLL_TO_PDF:
-        return 'SCROLL_TO_PDF';
-      case HostCapability.RESET_SIZE_AND_LOCATION_ON_OPEN:
-        return 'RESET_SIZE_AND_LOCATION_ON_OPEN';
-      case HostCapability.GET_MODEL_QUALITY_CLIENT_ID:
-        return 'GET_MODEL_QUALITY_CLIENT_ID';
-      case HostCapability.MULTI_INSTANCE:
-        return 'MULTI_INSTANCE';
-      case HostCapability.TRUST_FIRST_ONBOARDING_ARM1:
-        return 'TRUST_FIRST_ONBOARDING_ARM_1';
-      case HostCapability.TRUST_FIRST_ONBOARDING_ARM2:
-        return 'TRUST_FIRST_ONBOARDING_ARM_2';
-      case HostCapability.SHARE_ADDITIONAL_IMAGE_CONTEXT:
-        return 'SHARE_ADDITIONAL_IMAGE_CONTEXT';
-      case HostCapability.PDF_ZERO_STATE:
-        return 'PDF_ZERO_STATE';
-      case HostCapability.INVOKE:
-        return 'INVOKE';
-      default:
-        throw new Error(`Unhandled capability: ${capability}`);
+    const capabilityName = HostCapability[capability];
+    if (capabilityName) {
+      return capabilityName;
     }
+    throw new Error(`Unknown capability: ${capability}`);
   }
 }
 

@@ -8,6 +8,7 @@
 #include <string>
 
 #include "components/optimization_guide/proto/features/finds.pb.h"
+#include "components/prefs/pref_service.h"
 
 namespace finds {
 
@@ -15,6 +16,17 @@ namespace finds {
 // its corresponding string representation used in preference names. Returns
 // an empty string if the theme type is unknown.
 std::string ThemeTypeEnumToString(
+    optimization_guide::proto::FindsSuggestionResponse::SuggestionTheme::
+        ThemeType theme_type);
+
+// Record metric that notification has been shown, also save in the pref service
+// the timestamp to mark the last model execution time for cooldown tracking.
+void MarkNotificationShown(PrefService* pref_service);
+
+// Mark theme as not interested in the PrefService. This is called when the user
+// clicks the finds notification unhelpful button.
+void MarkThemeAsNotInterested(
+    PrefService* pref_service,
     optimization_guide::proto::FindsSuggestionResponse::SuggestionTheme::
         ThemeType theme_type);
 

@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 #include "ui/gfx/hdr_metadata_mac.h"
-#include "ui/gfx/hdr_metadata.h"
 
 #include <simd/simd.h>
+
+#include "base/apple/scoped_cftyperef.h"
+#include "ui/gfx/hdr_metadata.h"
 
 namespace gfx {
 
 base::apple::ScopedCFTypeRef<CFDataRef> GenerateContentLightLevelInfo(
     const gfx::HDRMetadata& hdr_metadata) {
-  if (!hdr_metadata.cta_861_3 ||
-      hdr_metadata.cta_861_3->max_content_light_level == 0.f ||
-      hdr_metadata.cta_861_3->max_frame_average_light_level == 0.f) {
+  if (!hdr_metadata.HasCLLI() || hdr_metadata.GetCLLI().fMaxCLL == 0.f ||
+      hdr_metadata.GetCLLI().fMaxFALL == 0.f) {
     return base::apple::ScopedCFTypeRef<CFDataRef>();
   }
 
@@ -28,12 +28,12 @@ base::apple::ScopedCFTypeRef<CFDataRef> GenerateContentLightLevelInfo(
   // Values are stored in big-endian...
   ContentLightLevelInfoSEI sei;
   sei.max_content_light_level =
-      __builtin_bswap16(hdr_metadata.cta_861_3->max_content_light_level);
+      __builtin_bswap16(hdr_metadata.GetCLLI().getUint16MaxCLL());
   sei.max_frame_average_light_level =
-      __builtin_bswap16(hdr_metadata.cta_861_3->max_frame_average_light_level);
+      __builtin_bswap16(hdr_metadata.GetCLLI().getUint16MaxFALL());
 
   return base::apple::ScopedCFTypeRef<CFDataRef>(
-      CFDataCreate(nullptr, reinterpret_cast<const UInt8*>(&sei), 4));
+      CFDataCreate(nullptr, reinterpret_cast<const UInt8*>(&sei), sizeof(sei)));
 }
 
 base::apple::ScopedCFTypeRef<CFDataRef> GenerateMasteringDisplayColorVolume(
@@ -50,16 +50,16 @@ base::apple::ScopedCFTypeRef<CFDataRef> GenerateMasteringDisplayColorVolume(
 
   // Make a copy with all values populated, and which we can manipulate.
   auto md =
-      HDRMetadata::PopulateUnspecifiedWithDefaults(hdr_metadata).smpte_st_2086;
+      HDRMetadata::PopulateUnspecifiedWithDefaults(hdr_metadata).GetMDCV();
 
   constexpr float kColorCoordinateUpperBound = 50000.0f;
   constexpr float kUnitOfMasteringLuminance = 10000.0f;
-  md->luminance_max *= kUnitOfMasteringLuminance;
-  md->luminance_min *= kUnitOfMasteringLuminance;
+  md.fMaximumDisplayMasteringLuminance *= kUnitOfMasteringLuminance;
+  md.fMinimumDisplayMasteringLuminance *= kUnitOfMasteringLuminance;
 
   // Values are stored in big-endian...
   MasteringDisplayColorVolumeSEI sei;
-  const auto& primaries = md->primaries;
+  const auto& primaries = md.fDisplayPrimaries;
   sei.primaries[0].x =
       __builtin_bswap16(primaries.fGX * kColorCoordinateUpperBound + 0.5f);
   sei.primaries[0].y =
@@ -76,11 +76,13 @@ base::apple::ScopedCFTypeRef<CFDataRef> GenerateMasteringDisplayColorVolume(
       __builtin_bswap16(primaries.fWX * kColorCoordinateUpperBound + 0.5f);
   sei.white_point.y =
       __builtin_bswap16(primaries.fWY * kColorCoordinateUpperBound + 0.5f);
-  sei.luminance_max = __builtin_bswap32(md->luminance_max + 0.5f);
-  sei.luminance_min = __builtin_bswap32(md->luminance_min + 0.5f);
+  sei.luminance_max =
+      __builtin_bswap32(md.fMaximumDisplayMasteringLuminance + 0.5f);
+  sei.luminance_min =
+      __builtin_bswap32(md.fMinimumDisplayMasteringLuminance + 0.5f);
 
   return base::apple::ScopedCFTypeRef<CFDataRef>(
-      CFDataCreate(nullptr, reinterpret_cast<const UInt8*>(&sei), 24));
+      CFDataCreate(nullptr, reinterpret_cast<const UInt8*>(&sei), sizeof(sei)));
 }
 
 base::apple::ScopedCFTypeRef<CFDataRef> GenerateAmbientViewingEnvironment() {
@@ -103,7 +105,7 @@ base::apple::ScopedCFTypeRef<CFDataRef> GenerateAmbientViewingEnvironment() {
   sei.ambient_light_y = __builtin_bswap16(0x4042);        // 0.329
 
   return base::apple::ScopedCFTypeRef<CFDataRef>(
-      CFDataCreate(nullptr, reinterpret_cast<const UInt8*>(&sei), 24));
+      CFDataCreate(nullptr, reinterpret_cast<const UInt8*>(&sei), sizeof(sei)));
 }
 
 }  // namespace gfx

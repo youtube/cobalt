@@ -18,14 +18,14 @@ template <>
 struct COMPONENT_EXPORT(SKIA_SHARED_TRAITS)
     EnumTraits<skia::mojom::AlphaType, SkAlphaType> {
   static skia::mojom::AlphaType ToMojom(SkAlphaType type);
-  static bool FromMojom(skia::mojom::AlphaType in, SkAlphaType* out);
+  static std::optional<SkAlphaType> FromMojom(skia::mojom::AlphaType in);
 };
 
 template <>
 struct COMPONENT_EXPORT(SKIA_SHARED_TRAITS)
     EnumTraits<skia::mojom::ColorType, SkColorType> {
   static skia::mojom::ColorType ToMojom(SkColorType type);
-  static bool FromMojom(skia::mojom::ColorType in, SkColorType* out);
+  static std::optional<SkColorType> FromMojom(skia::mojom::ColorType in);
 };
 
 template <>

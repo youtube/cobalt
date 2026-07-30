@@ -90,7 +90,7 @@ FieldPrediction::Source ToSafeFieldPredictionSource(
   return result;
 }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID)
 // Merges manual and server type predictions.
 //
 // The logic to merge manual and server overrides (which may differ in length),
@@ -151,7 +151,7 @@ void InsertParsedOverrides(
                                       /*server_overrides=*/field_types[key]));
   }
 }
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 // Helper for `EncodeUploadRequest()` that creates a bit field corresponding to
 // `available_field_types` and returns the hex representation as a string.
@@ -598,8 +598,8 @@ void EncodeFormForQuery(const FormData& form,
 bool HasPasswordManagerPrediction(const FieldSuggestion& field_suggestion) {
   return std::ranges::any_of(
       field_suggestion.predictions(), [](const auto& prediction) {
-        auto group_type = GroupTypeOfFieldType(
-            ToSafeFieldType(prediction.type(), NO_SERVER_DATA));
+        std::optional<FieldTypeGroup> group_type =
+            ToSafeFieldType(prediction.type()).transform(&GroupTypeOfFieldType);
         return group_type == FieldTypeGroup::kPasswordField ||
                group_type == FieldTypeGroup::kUsernameField;
       });
@@ -612,8 +612,8 @@ void MergePasswordManagerPredictions(
     FieldSuggestion& merge_to_predictions) {
   CHECK_NE(&merge_to_predictions, &merge_from_predictions);
   for (const auto& prediction : merge_from_predictions.predictions()) {
-    FieldTypeGroup group_type = GroupTypeOfFieldType(
-        ToSafeFieldType(prediction.type(), NO_SERVER_DATA));
+    std::optional<FieldTypeGroup> group_type =
+        ToSafeFieldType(prediction.type()).transform(&GroupTypeOfFieldType);
     // Only add predictions relevant for PasswordManager.
     if (group_type == FieldTypeGroup::kPasswordField ||
         group_type == FieldTypeGroup::kUsernameField) {
@@ -753,7 +753,7 @@ GetSuggestionsMapFromResponse(
       fields_suggestions[{form_signature, field_signature}].push_back(field);
     }
   }
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(
           features::debug::kAutofillOverridePredictions)) {
     if (std::string param =
@@ -797,7 +797,7 @@ void MaybeMergeServerPredictions(
     std::vector<FieldPrediction>& server_predictions) {
   const auto server_types =
       FieldTypeSet(server_predictions, [](const FieldPrediction& pred) {
-        return ToSafeFieldType(pred.type(), UNKNOWN_TYPE);
+        return ToSafeFieldType(pred.type()).value_or(UNKNOWN_TYPE);
       });
 
   if (server_types.contains_all({EMAIL_ADDRESS, LOYALTY_MEMBERSHIP_ID})) {
@@ -823,12 +823,12 @@ void ClearSmallAddressFormPredictions(
     AutofillQueryResponse::FormSuggestion& form_suggestion) {
   // If predictions are overridden for debugging via the command line, skip the
   // clearing of small address form predictions.
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(
           features::debug::kAutofillOverridePredictions)) {
     return;
   }
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   // Only forms with up to 2 fields are considered small forms.
   static constexpr int kSmallFormThreshold = 3;
@@ -839,7 +839,8 @@ void ClearSmallAddressFormPredictions(
   // A small form must contain only address fields (or undetermined field types)
   // to be a small address form.
   auto is_address_or_undetermined_type = [](const FieldPrediction& prediction) {
-    FieldType type = ToSafeFieldType(prediction.type(), NO_SERVER_DATA);
+    FieldType type =
+        ToSafeFieldType(prediction.type()).value_or(NO_SERVER_DATA);
     // For historic reasons, AutofillAI types are treated as "unknown type".
     // They don't influence the small form handling.
     if (GroupTypeOfFieldType(type) == FieldTypeGroup::kAutofillAi) {
@@ -882,8 +883,8 @@ void ClearSmallAddressFormPredictions(
         return false;
     }
     // Only address types should be wiped.
-    FieldType type = ToSafeFieldType(prediction.type(), NO_SERVER_DATA);
-    return IsAddressType(type);
+    std::optional<FieldType> type = ToSafeFieldType(prediction.type());
+    return type && IsAddressType(*type);
   };
 
   for (AutofillQueryResponse::FormSuggestion::FieldSuggestion& field :
@@ -1153,8 +1154,7 @@ void ServerPredictions::ApplyTo(FormStructure& form) const {
                                   : FieldPrediction::SOURCE_UNSPECIFIED,
         .server_type2 =
             field->server_predictions().size() >= 2
-                ? std::optional<FieldType>(ToSafeFieldType(
-                      field->server_predictions()[1].type(), NO_SERVER_DATA))
+                ? ToSafeFieldType(field->server_predictions()[1].type())
                 : std::nullopt,
         .prediction_source2 = field->server_predictions().size() >= 2
                                   ? field->server_predictions()[1].source()

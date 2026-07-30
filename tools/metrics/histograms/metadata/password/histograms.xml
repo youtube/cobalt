@@ -497,7 +497,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PasswordManager.AccessPasswordInSettings"
-    enum="AccessPasswordInSettingsEvent" expires_after="2026-07-19">
+    enum="AccessPasswordInSettingsEvent" expires_after="2026-09-20">
   <owner>kazinova@google.com</owner>
   <owner>vasilii@chromium.org</owner>
   <summary>
@@ -507,7 +507,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PasswordManager.AccountStorage.MoveToAccountStoreFlowAccepted2"
-    enum="PasswordManager.MoveToAccountStoreTrigger" expires_after="2026-07-18">
+    enum="PasswordManager.MoveToAccountStoreTrigger" expires_after="2026-09-20">
   <owner>treib@chromium.org</owner>
   <owner>mamir@chromium.org</owner>
   <summary>
@@ -520,7 +520,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PasswordManager.AccountStorage.MoveToAccountStoreFlowOffered"
-    enum="PasswordManager.MoveToAccountStoreTrigger" expires_after="2026-07-18">
+    enum="PasswordManager.MoveToAccountStoreTrigger" expires_after="2026-09-20">
   <owner>treib@chromium.org</owner>
   <owner>mamir@chromium.org</owner>
   <summary>
@@ -532,7 +532,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PasswordManager.AccountStorageUserStateDuration{UserSyncingType}"
-    units="ms" expires_after="2026-07-18">
+    units="ms" expires_after="2026-09-20">
   <owner>mamir@chromium.org</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -568,7 +568,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PasswordManager.AccountStoreVsProfileStore4.{DifferenceType}"
-    units="accounts" expires_after="2026-07-18">
+    units="accounts" expires_after="2026-09-20">
   <owner>mamir@chromium.org</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -708,7 +708,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PasswordManager.AffiliationBackend.SubsequentFetchDelay"
-    units="ms" expires_after="M151">
+    units="ms" expires_after="2026-09-20">
   <owner>vsemeniuk@google.com</owner>
   <owner>vasilii@chromium.org</owner>
   <summary>
@@ -788,7 +788,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PasswordManager.AffiliationFetcher.FetchTime.{Status}"
-    units="ms" expires_after="2026-07-19">
+    units="ms" expires_after="2026-09-20">
   <owner>vsemeniuk@google.com</owner>
   <owner>vasilii@chromium.org</owner>
   <summary>
@@ -803,7 +803,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PasswordManager.AffiliationFetcher.ResponseSize.{Status}"
-    units="bytes" expires_after="2026-07-19">
+    units="bytes" expires_after="2026-09-20">
   <owner>vsemeniuk@google.com</owner>
   <owner>vasilii@chromium.org</owner>
   <summary>
@@ -837,7 +837,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PasswordManager.ApplySyncChanges.UpdateLoginSyncError"
-    enum="PasswordUpdateLoginSyncError" expires_after="2026-07-19">
+    enum="PasswordUpdateLoginSyncError" expires_after="2026-09-20">
   <owner>mamir@chromium.org</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -1441,7 +1441,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PasswordManager.CredentialsWithDuplicates3" units="units"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>kazinova@google.com</owner>
   <owner>vasilii@chromium.org</owner>
   <summary>
@@ -2152,7 +2152,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="PasswordManager.LeakDetection.NotifyIsLeakedTime" units="ms"
-    expires_after="M151">
+    expires_after="2026-09-20">
   <owner>vsemeniuk@google.com</owner>
   <owner>vasilii@chromium.org</owner>
   <summary>
@@ -2787,19 +2787,6 @@ useful for Chirp alerts (go/crca-alerts). -->
     The time in milliseconds it takes to get a response from the server whether
     the change password form submission was successful. The metric is reported
     immediately after receiving the server response.
-  </summary>
-</histogram>
-
-<histogram
-    name="PasswordManager.PasswordChangeVerificationTriggeredAutomatically"
-    enum="Boolean" expires_after="2026-07-26">
-  <owner>atsvirchkova@google.com</owner>
-  <owner>vsemeniuk@google.com</owner>
-  <summary>
-    Records whether the password change form submission was detected in the
-    password change flow. The metric is recorded when verifying whether the
-    submission was successful (when the submission is not detected
-    automatically, the verification is triggered on timeout).
   </summary>
 </histogram>
 
@@ -3615,7 +3602,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="PasswordManager.PasswordViewPage.UserActions"
-    enum="PasswordViewPageInteractions" expires_after="2026-07-19">
+    enum="PasswordViewPageInteractions" expires_after="2026-09-20">
   <owner>derinel@google.com</owner>
   <owner>mamir@chromium.org</owner>
   <summary>
@@ -4444,7 +4431,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="PasswordManager.{Store}PasswordLossPotentialReasonBitmask"
-    units="bitmask" expires_after="2026-07-19">
+    units="bitmask" expires_after="2026-09-20">
   <owner>izuzic@google.com</owner>
   <owner>vasilii@chromium.org</owner>
   <owner>battre@chromium.org</owner>
@@ -4580,17 +4567,6 @@ useful for Chirp alerts (go/crca-alerts). -->
   </summary>
 </histogram>
 
-<histogram name="PasswordProtection.CSDCacheContainsImages"
-    enum="BooleanPresent" expires_after="2026-08-02">
-  <owner>andysjlim@chromium.org</owner>
-  <owner>chrome-counter-abuse-alerts@google.com</owner>
-  <summary>
-    Records whether the CSD Features cache had images present for a given URL
-    when using the cache from PhishGuard side. This histogram is used to
-    evaluate the effectiveness of the cache.
-  </summary>
-</histogram>
-
 <histogram name="PasswordProtection.CSDCacheDebuggingMetadataSizeAtHit"
     units="bytes" expires_after="2027-03-02">
   <owner>andysjlim@chromium.org</owner>
@@ -4599,17 +4575,6 @@ useful for Chirp alerts (go/crca-alerts). -->
     Records the CSD Features debugging metadata cache size at the time when
     using the cache from PhishGuard side. This histogram is used to evaluate the
     memory usage of the cache.
-  </summary>
-</histogram>
-
-<histogram name="PasswordProtection.CSDCacheSizeAtHit2" units="bytes"
-    expires_after="2026-08-02">
-  <owner>andysjlim@chromium.org</owner>
-  <owner>chrome-counter-abuse-alerts@google.com</owner>
-  <summary>
-    Records the CSD Features verdict cache size at the time when using the cache
-    from PhishGuard side. This histogram is used to evaluate the memory usage of
-    the cache.
   </summary>
 </histogram>
 
@@ -4638,7 +4603,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="PasswordProtection.ModalWarningDialogAction"
-    enum="PasswordProtectionWarningAction" expires_after="2026-04-12">
+    enum="PasswordProtectionWarningAction" expires_after="2027-04-12">
   <owner>nwokedi@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -4760,7 +4725,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="PasswordProtection.ReusedPasswordAccountType"
-    enum="AccountTypeWithSyncState" expires_after="2026-03-29">
+    enum="AccountTypeWithSyncState" expires_after="2027-03-29">
   <owner>nwokedi@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -4797,17 +4762,6 @@ useful for Chirp alerts (go/crca-alerts). -->
   <summary>
     The decision of whether to skip trying to save a password hash happens when
     the profile picker runs.
-  </summary>
-</histogram>
-
-<histogram name="PasswordProtection.SuccessfulPhishingDetectionWithinTimeout"
-    enum="BooleanSuccess" expires_after="2027-02-10">
-  <owner>andysjlim@chromium.org</owner>
-  <owner>chrome-counter-abuse-alerts@google.com</owner>
-  <summary>
-    Logs when a renderer process' phishing detection finishes or not within a
-    timeout when fetching client side detection images for password protection
-    pings.
   </summary>
 </histogram>
 

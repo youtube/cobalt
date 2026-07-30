@@ -12,7 +12,7 @@ import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
 import {HANDSHAKE_REQUEST_MESSAGE_BASE64, HANDSHAKE_RESPONSE_BYTES} from './test_utils.js';
 
-const HANDSHAKE_INTERVAL_MS = 50;
+const HANDSHAKE_INTERVAL_MS = 10;
 const TARGET_ORIGIN = 'https://local.test';
 
 // Shared helper functions
@@ -343,10 +343,18 @@ suite('PostMessageHandlerTestWithMockTimer', () => {
       throw new Error('Test postMessage error');
     };
 
-    mockTimer.tick(HANDSHAKE_INTERVAL_MS);
-    // No assertion on error, just ensure the test doesn't crash and the timer
-    // stops.
-    assertTrue(true, 'Test should not crash due to postMessage error');
+    // Suppress console.error to avoid crashing the test when JS error checking is enabled.
+    const originalConsoleError = console.error;
+    console.error = () => {};
+
+    try {
+      mockTimer.tick(HANDSHAKE_INTERVAL_MS);
+      // No assertion on error, just ensure the test doesn't crash and the timer
+      // stops.
+      assertTrue(true, 'Test should not crash due to postMessage error');
+    } finally {
+      console.error = originalConsoleError;
+    }
   });
 
   test('stops handshake after max attempts', () => {

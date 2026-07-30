@@ -884,6 +884,8 @@ if (is_android) {
       "src/org/chromium/chrome/browser/notifications/finds/ChromeFindsMetricsUnitTest.java",
       "src/org/chromium/chrome/browser/notifications/finds/ChromeFindsOptInCoordinatorUnitTest.java",
       "src/org/chromium/chrome/browser/notifications/finds/ChromeFindsUtilsUnitTest.java",
+      "src/org/chromium/chrome/browser/notifications/finds/FindsManagerUnitTest.java",
+      "src/org/chromium/chrome/browser/notifications/scheduler/DisplayAgentUnitTest.java",
       "src/org/chromium/chrome/browser/notifications/tips/TipsOptInCoordinatorUnitTest.java",
       "src/org/chromium/chrome/browser/notifications/tips/TipsPromoCoordinatorUnitTest.java",
       "src/org/chromium/chrome/browser/notifications/tips/TipsPromoViewBinderUnitTest.java",
@@ -892,6 +894,7 @@ if (is_android) {
 
     deps = [
       ":chrome_junit_tests_helper",
+      "//chrome/browser/finds/android:java",
       "//third_party/android_deps:com_airbnb_android_lottie_java",
     ]
   }
@@ -903,6 +906,8 @@ if (is_android) {
       "src/org/chromium/chrome/browser/ntp/IncognitoNtpMetricsUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/IncognitoNtpOmniboxAutofocusManagerUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/IncognitoNtpOmniboxAutofocusTrackerUnitTest.java",
+      "src/org/chromium/chrome/browser/ntp/NewTabPageCoordinatorUnitTest.java",
+      "src/org/chromium/chrome/browser/ntp/NewTabPageLayoutViewBinderUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/NewTabPageLocationPolicyManagerUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/NewTabPageUtilUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/RecentTabsPageUnitTest.java",
@@ -913,6 +918,7 @@ if (is_android) {
     deps = [
       ":chrome_junit_tests_helper",
       "//chrome/browser/composeplate/android:java",
+      "//chrome/browser/segmentation_platform:client_util_java",
       "//third_party/android_deps:com_airbnb_android_lottie_java",
     ]
   }
@@ -1178,6 +1184,8 @@ if (is_android) {
 
     deps = [
       ":chrome_junit_tests_helper",
+      "//chrome/browser/ui/android/extensions:buildflags_java",
+      "//chrome/browser/ui/android/extensions:java",
       "//components/browser_ui/accessibility/android:page_zoom_utils_java",
       "//components/supervised_user/android:content_filters_observer_bridge_java",
     ]
@@ -1358,6 +1366,7 @@ if (is_android) {
   robolectric_library("chrome_junit_tests_org.chromium.chrome.browser.ui") {
     sources = [
       "src/org/chromium/chrome/browser/ui/AppLaunchDrawBlockerUnitTest.java",
+      "src/org/chromium/chrome/browser/ui/ChromeActivitySnackbarHelperUnitTest.java",
       "src/org/chromium/chrome/browser/ui/ExpandedSheetHelperImplUnitTest.java",
       "src/org/chromium/chrome/browser/ui/IncognitoRestoreAppLaunchDrawBlockerUnitTest.java",
       "src/org/chromium/chrome/browser/ui/activity_recreation/ActivityRecreationControllerUnitTest.java",
@@ -1496,6 +1505,8 @@ if (is_android) {
     deps = [
       ":chrome_junit_tests_helper",
       "//base:holder_java",
+      "//chrome/browser/actor/android:java",
+      "//chrome/browser/notifications:java",
       "//chrome/browser/privacy:privacy_preference_manager_java",
       "//components/dom_distiller/content/browser/android:dom_distiller_content_java",
       "//components/dom_distiller/core/android:dom_distiller_core_java",

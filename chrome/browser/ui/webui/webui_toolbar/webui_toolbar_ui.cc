@@ -11,11 +11,8 @@
 #include "base/check.h"
 #include "base/strings/strcat.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
@@ -90,6 +87,8 @@ WebUIToolbarUI::WebUIToolbarUI(content::WebUI* web_ui)
                      features::IsWebUILocationBarEnabled());
   source->AddBoolean("enableBackForwardButtons",
                      features::IsWebUIBackForwardButtonEnabled());
+  source->AddBoolean("enablePinnedToolbarActions",
+                     features::IsWebUIPinnedToolbarActionsEnabled());
 
   BrowserWindowInterface* browser =
       webui::GetBrowserWindowInterface(web_ui->GetWebContents());
@@ -167,9 +166,6 @@ void WebUIToolbarUI::InitBrowserControlsService(
       << "Out of order initialization, the browser control service has already "
          "been instantiated.";
 
-  auto* command_updater = GetCommandUpdater();
-  CHECK(command_updater);
-
   auto* web_contents = web_ui()->GetWebContents();
   MetricsReporterService* metrics_service =
       MetricsReporterService::GetFromWebContents(web_contents);
@@ -179,7 +175,8 @@ void WebUIToolbarUI::InitBrowserControlsService(
       std::make_unique<browser_controls_api::BrowserControlsService>(
           std::move(browser_controls_channel_service_end_),
           std::make_unique<browser_controls_api::BrowserControlsAdapterImpl>(
-              webui::GetBrowserWindowInterface(web_contents), command_updater),
+              webui::GetBrowserWindowInterface(web_contents),
+              dependency_provider.GetCommandUpdater()),
           metrics_service->metrics_reporter(),
           dependency_provider.GetBrowserControlsDelegate());
 }
@@ -203,15 +200,6 @@ void WebUIToolbarUI::InitToolbarUIService(
       dependency_provider.GetNavigationControlsStateFetcher(),
       metrics_service->metrics_reporter(),
       dependency_provider.GetToolbarUIServiceDelegate());
-}
-
-CommandUpdater* WebUIToolbarUI::GetCommandUpdater() const {
-  BrowserWindowInterface* browser_interface =
-      webui::GetBrowserWindowInterface(web_ui()->GetWebContents());
-  if (!browser_interface) {
-    return nullptr;
-  }
-  return browser_interface->GetFeatures().browser_command_controller();
 }
 
 void WebUIToolbarUI::WebUIRenderFrameCreated(
@@ -240,6 +228,10 @@ void WebUIToolbarUI::PopulateLocalResourceLoaderConfig(
 
 const std::vector<ui::ElementIdentifier>
 WebUIToolbarUI::GetKnownElementIdentifiers() const {
-  return {kLocationBarElementId, kReloadButtonElementId,
-          kToolbarSplitTabsToolbarButtonElementId, kToolbarHomeButtonElementId};
+  return {kLocationBarElementId,
+          kReloadButtonElementId,
+          kToolbarSplitTabsToolbarButtonElementId,
+          kToolbarHomeButtonElementId,
+          kToolbarBackButtonElementId,
+          kToolbarForwardButtonElementId};
 }

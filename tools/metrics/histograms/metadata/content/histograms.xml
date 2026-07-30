@@ -80,6 +80,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Content.SharedWorker.CreationContextTypeMismatch"
+    enum="SharedWorkerCreationContextTypeMismatch" expires_after="2026-08-09">
+  <owner>yyanagisawa@chromium.org</owner>
+  <owner>content-owners@chromium.org</owner>
+  <summary>
+    Records whether the renderer-supplied creation context type matches the
+    browser-derived secure context state for a SharedWorker connection. Recorded
+    on each SharedWorker connection request.
+  </summary>
+</histogram>
+
 <histogram name="Content.SharedWorker.Host.DestructionSource"
     enum="SharedWorkerHostDestructionSource" expires_after="2026-08-09">
   <owner>yyanagisawa@chromium.org</owner>
@@ -401,7 +412,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ContentSettings.RegularProfile.DefaultAutoVerifySetting"
-    enum="ContentSetting" expires_after="2026-07-19">
+    enum="ContentSetting" expires_after="2026-09-20">
   <owner>ryankalla@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -422,8 +433,8 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ContentSettings.RegularProfile.DefaultJavascriptOptimizationBlockedByOs"
-    enum="Boolean" expires_after="2026-04-01">
-  <owner>pkotwicz@google.com</owner>
+    enum="Boolean" expires_after="2026-10-01">
+  <owner>jacastro@chromium.org</owner>
   <owner>src/chrome/browser/site_protection/OWNERS</owner>
   <summary>
     Whether an operating system permission disables the javascript-optimizer.
@@ -435,8 +446,8 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ContentSettings.RegularProfile.DefaultJavaScriptOptimizationSetting"
-    enum="ContentSetting" expires_after="2026-04-20">
-  <owner>pkotwicz@chromium.org</owner>
+    enum="ContentSetting" expires_after="2026-10-01">
+  <owner>jacastro@chromium.org</owner>
   <owner>src/chrome/browser/site_protection/OWNERS</owner>
   <summary>
     The default JavaScript optimization setting at profile open. Records the
@@ -1960,7 +1971,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ContentSuggestions.{FeedType}.LoadStreamStatus.BackgroundRefresh"
-    enum="FeedLoadStreamStatus" expires_after="2026-06-07">
+    enum="FeedLoadStreamStatus" expires_after="2026-09-20">
   <owner>jianli@chromium.org</owner>
   <owner>feed@chromium.org</owner>
   <summary>

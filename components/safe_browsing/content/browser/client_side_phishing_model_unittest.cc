@@ -161,7 +161,6 @@ class ClientSidePhishingModelTest : public content::RenderViewHostTestHarness {
     task_environment()->RunUntilIdle();
   }
 
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   void ValidateTargetEmbeddings(
       const std::vector<TargetEmbedding>& target_embeddings) {
     ASSERT_EQ(target_embeddings.size(), static_cast<size_t>(3));
@@ -181,7 +180,6 @@ class ClientSidePhishingModelTest : public content::RenderViewHostTestHarness {
                 testing::AllOf(testing::SizeIs(EXPECTED_SIZE),
                                testing::Each(testing::FloatEq(.3))));
   }
-#endif
 
   ClientSidePhishingModel* service() {
     return client_side_phishing_model_.get();
@@ -297,14 +295,12 @@ TEST_F(ClientSidePhishingModelTest, ValidModel) {
   // Loading the model again, should increment the counter.
   histogram_tester().ExpectUniqueSample(
       "SBClientPhishing.ModelDynamicUpdateSuccess.ImageEmbedding", true, 3);
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   // Verify the loaded image embeddings.
   ValidateTargetEmbeddings(service()->GetTargetImageEmbeddings());
   histogram_tester().ExpectBucketCount(
       "SBClientPhishing.ImageEmbeddingList.Version", 25112401, 1);
   histogram_tester().ExpectBucketCount(
       "SBClientPhishing.ImageEmbeddingList.Size", 3, 1);
-#endif
   // Now we're going to get rid of the image embedding model in file by sending
   // an empty model info.
   SendEmptyModelInfoUpdate(
@@ -759,5 +755,54 @@ TEST_F(ClientSidePhishingModelTest, FlatbufferOnFollowingUpdate) {
   UNSAFE_TODO(BASE_EXPECT_DEATH(memset(memory_addr, 'G', 1), ""));
 #endif
 }
+
+class ClientSidePhishingModelFeatureTest
+    : public content::RenderViewHostTestHarness,
+      public testing::WithParamInterface<bool> {
+ public:
+  bool is_feature_enabled() const { return GetParam(); }
+
+  void SetUp() override {
+    if (is_feature_enabled()) {
+      feature_list_.InitAndEnableFeature(
+          kClientSideDetectionOnlyESBClassification);
+    } else {
+      feature_list_.InitAndDisableFeature(
+          kClientSideDetectionOnlyESBClassification);
+    }
+    content::RenderViewHostTestHarness::SetUp();
+    model_observer_tracker_ =
+        std::make_unique<ClientSidePhishingModelObserverTracker>();
+  }
+
+  void TearDown() override {
+    client_side_phishing_model_.reset();
+    model_observer_tracker_.reset();
+    content::RenderViewHostTestHarness::TearDown();
+  }
+
+ protected:
+  base::test::ScopedFeatureList feature_list_;
+  std::unique_ptr<ClientSidePhishingModelObserverTracker>
+      model_observer_tracker_;
+  std::unique_ptr<ClientSidePhishingModel> client_side_phishing_model_;
+};
+
+TEST_P(ClientSidePhishingModelFeatureTest, SubscriptionOnCreation) {
+  client_side_phishing_model_ =
+      std::make_unique<ClientSidePhishingModel>(model_observer_tracker_.get());
+
+  if (is_feature_enabled()) {
+    EXPECT_FALSE(client_side_phishing_model_
+                     ->IsSubscribedToImageClassifierModelUpdates());
+  } else {
+    EXPECT_TRUE(client_side_phishing_model_
+                    ->IsSubscribedToImageClassifierModelUpdates());
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         ClientSidePhishingModelFeatureTest,
+                         testing::Bool());
 
 }  // namespace safe_browsing

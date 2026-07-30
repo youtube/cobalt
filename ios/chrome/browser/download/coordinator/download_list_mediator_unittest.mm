@@ -8,7 +8,6 @@
 
 #import <algorithm>
 #import <memory>
-#import <set>
 #import <string>
 #import <vector>
 
@@ -16,6 +15,7 @@
 #import "base/files/file_util.h"
 #import "base/files/scoped_temp_dir.h"
 #import "base/functional/bind.h"
+#import "base/observer_list.h"
 #import "base/run_loop.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/scoped_feature_list.h"
@@ -92,6 +92,7 @@ class MockDownloadRecordService : public DownloadRecordService {
     DownloadRecord pdf_record;
     pdf_record.download_id = "1";
     pdf_record.original_url = "https://testsite.org/document.pdf";
+    pdf_record.originating_host = "testsite.org";
     pdf_record.mime_type = kAdobePortableDocumentFormatMimeType;
     pdf_record.file_name = "document.pdf";
     pdf_record.file_path = base::FilePath("document.pdf");
@@ -100,6 +101,7 @@ class MockDownloadRecordService : public DownloadRecordService {
     DownloadRecord image_record;
     image_record.download_id = "2";
     image_record.original_url = "https://testsite.org/image.jpg";
+    image_record.originating_host = "testsite.org";
     image_record.mime_type = kJPEGImageMimeType;
     image_record.file_name = "image.jpg";
     image_record.file_path = base::FilePath("image.jpg");
@@ -108,6 +110,7 @@ class MockDownloadRecordService : public DownloadRecordService {
     DownloadRecord video_record;
     video_record.download_id = "3";
     video_record.original_url = "https://testsite.org/video.mp4";
+    video_record.originating_host = "testsite.org";
     video_record.mime_type = kMP4VideoMimeType;
     video_record.file_name = "video.mp4";
     video_record.file_path = base::FilePath("video.mp4");
@@ -116,6 +119,7 @@ class MockDownloadRecordService : public DownloadRecordService {
     DownloadRecord audio_record;
     audio_record.download_id = "4";
     audio_record.original_url = "https://testsite.org/audio.mp3";
+    audio_record.originating_host = "testsite.org";
     audio_record.mime_type = kMP3AudioMimeType;
     audio_record.file_name = "audio.mp3";
     audio_record.file_path = base::FilePath("audio.mp3");
@@ -124,6 +128,7 @@ class MockDownloadRecordService : public DownloadRecordService {
     DownloadRecord text_record;
     text_record.download_id = "5";
     text_record.original_url = "https://testsite.org/document.txt";
+    text_record.originating_host = "testsite.org";
     text_record.mime_type = kTextMimeType;
     text_record.file_name = "document.txt";
     text_record.file_path = base::FilePath("document.txt");
@@ -131,7 +136,8 @@ class MockDownloadRecordService : public DownloadRecordService {
 
     DownloadRecord zip_record;
     zip_record.download_id = "6";
-    zip_record.original_url = "https://testsite.org/archive.zip";
+    zip_record.original_url = "https://anothersite.com/archive.zip";
+    zip_record.originating_host = "anothersite.com";
     zip_record.mime_type = kZipArchiveMimeType;
     zip_record.file_name = "archive.zip";
     zip_record.file_path = base::FilePath("archive.zip");
@@ -142,6 +148,7 @@ class MockDownloadRecordService : public DownloadRecordService {
     incognito_pdf_record.download_id = "7";
     incognito_pdf_record.original_url =
         "https://testsite.org/incognito_document.pdf";
+    incognito_pdf_record.originating_host = "testsite.org";
     incognito_pdf_record.mime_type = kAdobePortableDocumentFormatMimeType;
     incognito_pdf_record.file_name = "incognito_document.pdf";
     incognito_pdf_record.file_path = base::FilePath("incognito_document.pdf");
@@ -152,6 +159,7 @@ class MockDownloadRecordService : public DownloadRecordService {
     incognito_image_record.download_id = "8";
     incognito_image_record.original_url =
         "https://testsite.org/incognito_image.jpg";
+    incognito_image_record.originating_host = "testsite.org";
     incognito_image_record.mime_type = kJPEGImageMimeType;
     incognito_image_record.file_name = "incognito_image.jpg";
     incognito_image_record.file_path = base::FilePath("incognito_image.jpg");
@@ -193,11 +201,11 @@ class MockDownloadRecordService : public DownloadRecordService {
   }
 
   void AddObserver(DownloadRecordObserver* observer) override {
-    observers_.insert(observer);
+    observers_.AddObserver(observer);
   }
 
   void RemoveObserver(DownloadRecordObserver* observer) override {
-    observers_.erase(observer);
+    observers_.RemoveObserver(observer);
   }
 
   size_t GetRecordCount() const { return stored_records_.size(); }
@@ -214,8 +222,11 @@ class MockDownloadRecordService : public DownloadRecordService {
   // Provides public methods for testing access to internal state.
   void AddRecordForTesting(const DownloadRecord& record) {
     stored_records_.push_back(record);
-    for (auto* observer : observers_) {
-      observer->OnDownloadAdded(record);
+    // Use the real ObserverList iteration so that CheckedObserverAdapter
+    // deferred-removal mechanics are exercised. This means the regression test
+    // for crbug.com/61549711 actually hits the CHECK() path that was crashing.
+    for (auto& observer : observers_) {
+      observer.OnDownloadAdded(record);
     }
   }
 
@@ -230,8 +241,8 @@ class MockDownloadRecordService : public DownloadRecordService {
       *it = record;
     }
 
-    for (auto* observer : observers_) {
-      observer->OnDownloadUpdated(record);
+    for (auto& observer : observers_) {
+      observer.OnDownloadUpdated(record);
     }
   }
 
@@ -244,8 +255,8 @@ class MockDownloadRecordService : public DownloadRecordService {
     if (it != stored_records_.end()) {
       stored_records_.erase(it);
       std::vector<std::string_view> removed_ids = {download_id};
-      for (auto* observer : observers_) {
-        observer->OnDownloadsRemoved(removed_ids);
+      for (auto& observer : observers_) {
+        observer.OnDownloadsRemoved(removed_ids);
       }
     }
   }
@@ -259,7 +270,7 @@ class MockDownloadRecordService : public DownloadRecordService {
 
  private:
   std::vector<DownloadRecord> stored_records_;
-  std::set<DownloadRecordObserver*> observers_;
+  base::ObserverList<DownloadRecordObserver> observers_;
   base::ScopedTempDir temp_dir_;
   base::FilePath downloads_path_;
   std::map<std::string, std::unique_ptr<web::FakeDownloadTask>>
@@ -504,6 +515,50 @@ TEST_F(DownloadListMediatorTest, TestSearchRecordsWithKeywordValidation) {
   [mock_consumer_ verify];
 
   EXPECT_EQ(capturedItems.count, 6U);
+}
+
+// Tests search by originating host.
+TEST_F(DownloadListMediatorTest, TestSearchRecordsWithOriginatingHost) {
+  __block NSArray<DownloadListItem*>* capturedItems = nil;
+
+  // Search for "anothersite" - should match only the zip record (ID=6) whose
+  // originating_host is "anothersite.com".
+  [[mock_consumer_ expect]
+      setDownloadListItems:[OCMArg checkWithBlock:^BOOL(
+                                       NSArray<DownloadListItem*>* items) {
+        capturedItems = items;
+        return YES;
+      }]];
+
+  [mediator_ filterRecordsWithKeyword:@"anothersite"];
+  [mock_consumer_ verify];
+
+  EXPECT_EQ(capturedItems.count, 1U);
+  EXPECT_TRUE([capturedItems[0].downloadID isEqualToString:@"6"]);
+}
+
+// Tests that URL path segments do not cause false positives in search.
+TEST_F(DownloadListMediatorTest, TestSearchDoesNotMatchUrlPathSegments) {
+  __block NSArray<DownloadListItem*>* capturedItems = nil;
+
+  // Records have original_url containing path segments like "/image/" -
+  // searching "image" should only match via file_name or originating_host,
+  // not the URL path. This verifies the fix where searching "g" incorrectly
+  // matched items because their URL contained "/image/" in the path.
+  [[mock_consumer_ expect]
+      setDownloadListItems:[OCMArg checkWithBlock:^BOOL(
+                                       NSArray<DownloadListItem*>* items) {
+        capturedItems = items;
+        return YES;
+      }]];
+
+  // Search for "image" - should only match file_name="image.jpg" (ID=2),
+  // not any record whose URL path happens to contain "/image/".
+  [mediator_ filterRecordsWithKeyword:@"image"];
+  [mock_consumer_ verify];
+
+  EXPECT_EQ(capturedItems.count, 1U);
+  EXPECT_TRUE([capturedItems[0].downloadID isEqualToString:@"2"]);
 }
 
 // Tests combined filtering and search functionality.
@@ -1077,5 +1132,68 @@ TEST_F(DownloadListMediatorIncognitoTest,
   // Add non-incognito record through mock service.
   mock_service_->AddRecordForTesting(nonIncognitoRecord);
 
+  [mock_consumer_ verify];
+}
+
+// Tests that calling disconnect() from within an OnDownloadAdded observer
+// callback does not crash.
+//
+// Regression test for crbug.com/61549711.
+//
+// Root cause: when disconnect() is called from inside an OnDownloadAdded
+// callback, subsequent observer callbacks could reach the mediator's ObjC
+// consumer after it has already been torn down.
+//
+// The fix calls ClearDelegate() on the bridge before reset(), making any
+// remaining in-flight callback a harmless no-op. Synchronous reset() is safe
+// because RemoveObserver() either erases the adapter immediately (no active
+// iteration) or calls MarkForRemoval(), which sets the adapter's WeakPtr ptr_
+// to null. Since WasInvalidated() is defined as `ptr_ && !ref_.IsValid()`, a
+// null ptr_ always evaluates to false — so the iterator's IsMarkedForRemoval()
+// never hits CHECK(!weak_ptr_.WasInvalidated()) after a synchronous reset().
+TEST_F(DownloadListMediatorTest, DisconnectDuringOnDownloadAddedDoesNotCrash) {
+  // Allow any consumer calls during this test — the focus is on crash safety,
+  // not consumer interaction.
+  OCMStub([mock_consumer_ setDownloadListItems:[OCMArg any]]);
+
+  [mediator_ connect];
+
+  class DisconnectingObserver : public DownloadRecordObserver {
+   public:
+    explicit DisconnectingObserver(DownloadListMediator* mediator)
+        : mediator_(mediator) {}
+
+    void OnDownloadAdded(const DownloadRecord& record) override {
+      // Calling disconnect() here mirrors the production crash path: the
+      // mediator receives an observer callback and tears itself down mid-
+      // iteration. Without ClearDelegate() the ObjC consumer could still be
+      // called after disconnect() returns.
+      [mediator_ disconnect];
+    }
+
+   private:
+    __weak DownloadListMediator* mediator_;
+  };
+
+  DisconnectingObserver disconnecting_observer(mediator_);
+  mock_service_->AddObserver(&disconnecting_observer);
+
+  DownloadRecord record;
+  record.download_id = "crash_test";
+  record.original_url = "https://example.com/file.pdf";
+  record.mime_type = kAdobePortableDocumentFormatMimeType;
+  record.file_name = "file.pdf";
+  record.file_path = base::FilePath("file.pdf");
+  record.created_time = base::Time::Now();
+
+  // Must not crash. Before the fix, calling disconnect() inside a callback
+  // could result in the ObjC consumer being called on a torn-down mediator.
+  EXPECT_NO_FATAL_FAILURE(mock_service_->AddRecordForTesting(record));
+
+  mock_service_->RemoveObserver(&disconnecting_observer);
+
+  // Verify the mock consumer to satisfy OCMock strict mock requirements.
+  // disconnect() was already called inside OnDownloadAdded, so TearDown's
+  // second disconnect() is a no-op.
   [mock_consumer_ verify];
 }

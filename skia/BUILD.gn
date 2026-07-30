@@ -45,8 +45,8 @@ rust_static_library("bridge_rust_side") {
   deps = [
     ":path_bridge",
     "//third_party/rust/font_types/v0_11:lib",
-    "//third_party/rust/read_fonts/v0_37:lib",
-    "//third_party/rust/skrifa/v0_40:lib",
+    "//third_party/rust/read_fonts/v0_38:lib",
+    "//third_party/rust/skrifa/v0_41:lib",
   ]
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [
@@ -492,6 +492,7 @@ component("skia") {
   public_deps = [
     ":buildflags",
     ":rust_bmp_ffi",
+    ":rust_icc_ffi",
     ":skia_core_and_effects",
     ":skia_core_public_headers",
   ]
@@ -579,7 +580,7 @@ component("skia") {
     assert(use_blink)
     deps += [
       # Needed for HarfBuzz hb_subet subsetting.
-      "//third_party/harfbuzz-ng",
+      "//third_party/harfbuzz",
       "//third_party/zlib",
     ]
     public += skia_pdf_public
@@ -703,6 +704,7 @@ rust_static_library("rust_bmp_ffi") {
     ":skia_config",
     "//build/config/compiler:no_chromium_code",
   ]
+  no_clippy = true  # TODO(https://crbug.com/472355480)
 }
 
 source_set("rust_bmp_ffi_cpp") {
@@ -718,6 +720,48 @@ source_set("rust_bmp_ffi_cpp") {
     "//build/rust:cxx_cppdeps",
   ]
   deps = [ ":rust_bmp_ffi_cxx_generated_gen" ]
+  check_includes =
+      false  # Logically part of skia, but split out for build reasons
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [
+    ":skia_config",
+    ":skia_library_config",
+    "//build/config/compiler:no_chromium_code",
+  ]
+}
+
+rust_static_library("rust_icc_ffi") {
+  visibility = [ ":*" ]
+  allow_unsafe = true  # For FFI
+  crate_root = skia_rust_icc_ffi_crate_root
+  sources = skia_rust_icc_ffi_rs_srcs
+  cxx_bindings = skia_rust_icc_ffi_cxx_bridge_srcs
+  public_deps = [ ":rust_icc_ffi_cpp" ]
+  deps = [
+    ":rust_common_ffi",
+    "//third_party/rust/moxcms/v0_8:lib",
+  ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [
+    ":skia_config",
+    "//build/config/compiler:no_chromium_code",
+  ]
+  no_clippy = true  # TODO(https://crbug.com/472355480)
+}
+
+source_set("rust_icc_ffi_cpp") {
+  visibility = [ ":*" ]
+  public = skia_rust_icc_ffi_cpp_hdrs
+  sources = skia_rust_icc_ffi_cpp_srcs
+  public_deps = [
+    ":rust_common_ffi_cpp",
+    ":skia_core_public_headers",
+    "//build/rust:cxx_cppdeps",
+  ]
+  deps = [
+    ":rust_icc_ffi_cxx_generated_gen",
+    ":skcms",
+  ]
   check_includes =
       false  # Logically part of skia, but split out for build reasons
   configs -= [ "//build/config/compiler:chromium_code" ]
@@ -788,6 +832,20 @@ set_defaults("skia_source_set") {
   configs = default_compiler_configs
 }
 
+config("skia_avx512_flags") {
+  if (is_win) {
+    cflags = [ "/arch:AVX512" ]
+  } else {
+    cflags = [
+      "-mavx512f",
+      "-mavx512dq",
+      "-mavx512cd",
+      "-mavx512bw",
+      "-mavx512vl",
+    ]
+  }
+}
+
 # Split out for targeted removal of the afdo_optimize_size config on Android.
 skia_source_set("skia_core_and_effects") {
   defines = []
@@ -845,6 +903,11 @@ if (current_cpu == "x86" || current_cpu == "x64") {
     }
     visibility = [ ":skia_opts" ]
   }
+  skia_source_set("skia_opts_skx") {
+    sources = skia_opts.skx_sources
+    configs += [ ":skia_avx512_flags" ]
+    visibility = [ ":skia_opts" ]
+  }
 }
 
 if (current_cpu == "loong64") {
@@ -866,6 +929,9 @@ skia_source_set("skia_opts") {
 
   if (current_cpu == "x86" || current_cpu == "x64") {
     deps += [ ":skia_opts_hsw" ]
+    if (allow_avx512) {
+      deps += [ ":skia_opts_skx" ]
+    }
   } else if (current_cpu == "arm") {
     # The assembly uses the frame pointer register (r7 in Thumb/r11 in
     # ARM), the compiler doesn't like that.
@@ -951,18 +1017,10 @@ if (current_cpu == "x64") {
   }
   skia_source_set("skcms_TransformSkx") {
     sources = skcms_TransformSkx
-    configs += [ ":skcms_library_config" ]
-    if (!is_win) {
-      cflags = [
-        "-mavx512f",
-        "-mavx512dq",
-        "-mavx512cd",
-        "-mavx512bw",
-        "-mavx512vl",
-      ]
-    } else {
-      cflags = [ "/arch:AVX512" ]
-    }
+    configs += [
+      ":skcms_library_config",
+      ":skia_avx512_flags",
+    ]
     visibility = [ ":skcms" ]
   }
 } else {

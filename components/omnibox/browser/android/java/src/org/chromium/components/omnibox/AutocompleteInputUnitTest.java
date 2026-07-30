@@ -8,17 +8,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.verify;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
-import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -35,10 +28,6 @@ import java.util.Set;
 /** Tests for {@link AutocompleteInput}. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class AutocompleteInputUnitTest {
-    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
-
-    @Mock private Callback<Integer> mToolModeCallback;
-
     private final AutocompleteInput mInput = new AutocompleteInput();
 
     private void verifyCacheablePageClasses(Set<Integer> allowedPageClasses) {
@@ -247,10 +236,13 @@ public class AutocompleteInputUnitTest {
                         PageClassification.OTHER_VALUE, //
                         PageClassification.OTHER_OMNIBOX_COMPOSEBOX_VALUE);
 
-        for (var requestType :
+        for (@AutocompleteRequestType
+        int requestType :
                 List.of(
                         AutocompleteRequestType.AI_MODE,
-                        AutocompleteRequestType.IMAGE_GENERATION)) {
+                        AutocompleteRequestType.IMAGE_GENERATION,
+                        AutocompleteRequestType.DEEP_SEARCH,
+                        AutocompleteRequestType.CANVAS)) {
             mInput.setRequestType(requestType);
             for (var givePageClass : PageClassification.values()) {
                 Integer wantPageClass = testCases.getOrDefault(givePageClass.getNumber(), null);
@@ -342,31 +334,58 @@ public class AutocompleteInputUnitTest {
 
     @Test
     public void testGetToolMode() {
-        assertEquals(
-                ToolMode.TOOL_MODE_UNSPECIFIED_VALUE,
-                mInput.getToolModeSupplier().get().intValue());
+        assertEquals(ToolMode.TOOL_MODE_UNSPECIFIED_VALUE, mInput.getToolMode());
         mInput.setRequestType(AutocompleteRequestType.IMAGE_GENERATION);
-        assertEquals(
-                ToolMode.TOOL_MODE_IMAGE_GEN_VALUE, mInput.getToolModeSupplier().get().intValue());
+        assertEquals(ToolMode.TOOL_MODE_IMAGE_GEN_VALUE, mInput.getToolMode());
         mInput.setHasAttachments(true);
-        assertEquals(
-                ToolMode.TOOL_MODE_IMAGE_GEN_UPLOAD_VALUE,
-                mInput.getToolModeSupplier().get().intValue());
+        assertEquals(ToolMode.TOOL_MODE_IMAGE_GEN_UPLOAD_VALUE, mInput.getToolMode());
     }
 
     @Test
-    public void testToolModeObservations() {
-        mInput.getToolModeSupplier().addSyncObserverAndCallIfNonNull(mToolModeCallback);
-        verify(mToolModeCallback).onResult(ToolMode.TOOL_MODE_UNSPECIFIED_VALUE);
+    public void testToolModeConsistentDuringRequestTypeChange() {
+        boolean[] called = new boolean[1];
+        mInput.getRequestTypeSupplier()
+                .addSyncObserver(
+                        requestType -> {
+                            if (requestType == AutocompleteRequestType.IMAGE_GENERATION) {
+                                assertEquals(
+                                        ToolMode.TOOL_MODE_IMAGE_GEN_VALUE, mInput.getToolMode());
+                                called[0] = true;
+                            }
+                        });
 
         mInput.setRequestType(AutocompleteRequestType.IMAGE_GENERATION);
-        verify(mToolModeCallback).onResult(ToolMode.TOOL_MODE_IMAGE_GEN_VALUE);
+        assertTrue(called[0]);
+    }
 
-        mInput.setHasAttachments(true);
-        verify(mToolModeCallback).onResult(ToolMode.TOOL_MODE_IMAGE_GEN_UPLOAD_VALUE);
+    @Test
+    public void getSetInitialUserText() {
+        mInput.setInitialUserText("initial");
+        assertEquals("initial", mInput.getInitialUserText());
 
-        mInput.reset();
-        verify(mToolModeCallback, atLeastOnce()).onResult(ToolMode.TOOL_MODE_UNSPECIFIED_VALUE);
+        mInput.setInitialUserText("");
+        assertEquals("", mInput.getInitialUserText());
+
+        mInput.setInitialUserText(null);
+        assertEquals(null, mInput.getInitialUserText());
+    }
+
+    @Test
+    public void shouldSuppressAutomaticSuggestionsUntilUserStartsTyping_updatesOwnState() {
+        mInput.setInitialUserText("initial");
+        mInput.setUserText("initial");
+        mInput.setSuppressAutomaticSuggestionsUntilUserStartsTyping(true);
+
+        // Still matches initial text.
+        assertTrue(mInput.shouldSuppressAutomaticSuggestionsUntilUserStartsTyping());
+
+        // Diverges from initial text.
+        mInput.setUserText("initial typing");
+        assertFalse(mInput.shouldSuppressAutomaticSuggestionsUntilUserStartsTyping());
+
+        // Reverts to initial text - should still be false.
+        mInput.setUserText("initial");
+        assertFalse(mInput.shouldSuppressAutomaticSuggestionsUntilUserStartsTyping());
     }
 
     @Test
@@ -375,7 +394,8 @@ public class AutocompleteInputUnitTest {
         GURL pageUrl = GURL.emptyGURL();
         int pageClassification = PageClassification.OTHER_VALUE;
         String pageTitle = "pageTitle";
-        String userText = "userText";
+        String userText = "initialUserText";
+        String initialUserText = "initialUserText";
         boolean hasAttachments = true;
         boolean suppressAutomaticSuggestionsUntilUserStartsTyping = true;
         int selectionStart = 1;
@@ -392,6 +412,7 @@ public class AutocompleteInputUnitTest {
         input1.setPageClassification(pageClassification);
         input1.setPageTitle(pageTitle);
         input1.setUserText(userText);
+        input1.setInitialUserText(initialUserText);
         input1.setHasAttachments(hasAttachments);
         input1.setSuppressAutomaticSuggestionsUntilUserStartsTyping(
                 suppressAutomaticSuggestionsUntilUserStartsTyping);
@@ -411,6 +432,7 @@ public class AutocompleteInputUnitTest {
         assertEquals(pageClassification, input2.getRawPageClassification());
         assertEquals(pageTitle, input2.getPageTitle());
         assertEquals(userText, input2.getUserText());
+        assertEquals(initialUserText, input2.getInitialUserText());
         assertEquals(input1.allowExactKeywordMatch(), input2.allowExactKeywordMatch());
         assertEquals(
                 suppressAutomaticSuggestionsUntilUserStartsTyping,
@@ -422,9 +444,7 @@ public class AutocompleteInputUnitTest {
         assertEquals(focusReason, input2.getFocusReason());
         assertEquals(modelMode, input2.getModelMode());
         assertEquals(requestType, input2.getRequestType());
-        assertEquals(
-                ToolMode.TOOL_MODE_IMAGE_GEN_UPLOAD_VALUE,
-                input2.getToolModeSupplier().get().intValue());
+        assertEquals(ToolMode.TOOL_MODE_IMAGE_GEN_UPLOAD_VALUE, input2.getToolMode());
         assertEquals(siteSearchData, input2.getSiteSearchData());
     }
 

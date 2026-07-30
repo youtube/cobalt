@@ -79,6 +79,8 @@ import org.chromium.chrome.browser.collaboration.messaging.MessagingBackendServi
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager;
+import org.chromium.chrome.browser.contextmenu.ChromeContextMenuPopulator;
+import org.chromium.chrome.browser.contextmenu.ChromeContextMenuPopulatorFactory;
 import org.chromium.chrome.browser.contextual_tasks.ContextualTasksBridge;
 import org.chromium.chrome.browser.crash.ChromePureJavaExceptionReporter;
 import org.chromium.chrome.browser.customtabs.CustomTabActivity;
@@ -210,8 +212,11 @@ import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.TopInsetProvider;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.chrome.browser.ui.side_panel.AndroidSidePanelEnabledFn;
 import org.chromium.chrome.browser.ui.side_panel.SidePanelCoordinatorAndroid;
 import org.chromium.chrome.browser.ui.side_panel.SidePanelCoordinatorAndroidFactory;
+import org.chromium.chrome.browser.ui.side_panel.SidePanelRegistryBridgeFactory;
+import org.chromium.chrome.browser.ui.side_panel.WindowScopedSidePanelRegistryBridge;
 import org.chromium.chrome.browser.ui.side_panel_container.SidePanelContainerCoordinator;
 import org.chromium.chrome.browser.ui.side_panel_container.SidePanelContainerCoordinatorFactory;
 import org.chromium.chrome.browser.ui.side_panel_container.dev.SidePanelDevFeature;
@@ -231,6 +236,7 @@ import org.chromium.components.browser_ui.widget.loading.LoadingFullscreenCoordi
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient;
 import org.chromium.components.collaboration.CollaborationService;
+import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
 import org.chromium.components.signin.base.CoreAccountInfo;
@@ -259,6 +265,7 @@ import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.url.GURL;
 
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
@@ -981,8 +988,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                     new TabbedOpenInAppEntryPoint(
                             mActivityTabProvider.asObservable(),
                             assumeNonNull(mOmniboxChipManager),
-                            mActivity,
-                            mTabModelSelectorSupplier);
+                            mActivity);
         }
 
         if (ChromeFeatureList.sGlic.isEnabled()) {
@@ -997,7 +1003,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             mLayoutManagerSupplier);
         }
 
-        if (ChromeFeatureList.sEnableAndroidSidePanel.isEnabled()) {
+        if (AndroidSidePanelEnabledFn.isEnabled()) {
             mCompositorViewHolderSupplier
                     .get()
                     .setSideUiStateProviderSupplier(mSideUiStateProviderSupplier);
@@ -1081,8 +1087,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             mMultiInstanceManager,
                             mTabModelSelectorSupplier.get(),
                             mActivity,
-                            mLayoutStateProviderOneShotSupplier,
-                            getDesktopWindowStateManager());
+                            mLayoutStateProviderOneShotSupplier);
 
             mCompositorViewHolderSupplier.get().setOnDragListener(chromeTabbedOnDragListener);
 
@@ -1197,8 +1202,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             TabGroupSyncServiceFactory.getForProfile(originalProfile),
                             UserPrefs.get(originalProfile),
                             () -> {
-                                return MultiWindowUtils.getInstanceCountWithFallback(
-                                                        PersistedInstanceType.ANY)
+                                return MultiWindowUtils.getInstanceCount(PersistedInstanceType.ANY)
                                                 <= 1
                                         || ApplicationStatus.getLastTrackedFocusedActivity()
                                                 == mActivity;
@@ -1697,6 +1701,12 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             contentView.findViewById(R.id.control_container),
                             contentView.findViewById(R.id.bottom_container),
                             omniboxActionDelegate);
+            ContextMenuPopulatorFactory contextMenuPopulatorFactory =
+                    new ChromeContextMenuPopulatorFactory(
+                            /* itemDelegate= */ null,
+                            mShareDelegateSupplier,
+                            ChromeContextMenuPopulator.ContextMenuMode.THIN_WEB_VIEW,
+                            /* customContentActions= */ Collections.emptyList());
             mCoBrowseViewFactory =
                     new CoBrowseViewFactory(
                             mActivity,
@@ -1704,9 +1714,11 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             mProfileSupplier.asNonNull(),
                             mWindowAndroid,
                             mActivityLifecycleDispatcher,
-                            mSnackbarManagerSupplier.get());
+                            mSnackbarManagerSupplier.get(),
+                            contextMenuPopulatorFactory);
             mTabBottomSheetManager =
                     new TabBottomSheetManager(
+                            mActivity,
                             mWindowAndroid,
                             getBottomSheetController(),
                             mLayoutStateProviderOneShotSupplier);
@@ -1774,7 +1786,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                                     dataSharingNotificationManager,
                                     mDataSharingTabManager,
                                     () -> {
-                                        return MultiWindowUtils.getInstanceCountWithFallback(
+                                        return MultiWindowUtils.getInstanceCount(
                                                                 PersistedInstanceType.ANY)
                                                         <= 1
                                                 || ApplicationStatus.getLastTrackedFocusedActivity()
@@ -1890,13 +1902,21 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         if (mSidePanelContainerCoordinator != null) {
             mSidePanelContainerCoordinator.init();
 
-            // Initialize SidePanelCoordinatorAndroid and associate it with a ChromeAndroidTask.
-            // This will allow SidePanelCoordinatorAndroid to access the native
-            // BrowserWindowInterface and ensure the lifecycle and destruction order for both are
-            // correct.
+            // Initialize SidePanelCoordinatorAndroid and a window-scoped SidePanelRegistry, and
+            // associate them with a ChromeAndroidTask.
+            // This will allow SidePanelCoordinatorAndroid and SidePanelRegistry to access the
+            // native BrowserWindowInterface and ensure the lifecycle and destruction order for both
+            // are correct.
             //
-            // Note that ChromeAndroidTask should be non-null here as ChromeAndroidTask is
-            // initialized immediately after native initialization, along with TabModel.
+            // Note:
+            //
+            // (1) ChromeAndroidTask should be non-null here as ChromeAndroidTask is initialized
+            // immediately after native initialization, along with TabModel;
+            //
+            // (2) The lifecycles of SidePanelCoordinatorAndroid and the window-scoped
+            // SidePanelRegistry are in sync with a native BrowserWindowInterface, but
+            // SidePanelCoordinatorAndroid doesn't own the SidePanelRegistry, or vice versa. This
+            // matches the WML implementation.
             var chromeAndroidTask = mChromeAndroidTaskSupplier.get();
             assert chromeAndroidTask != null
                     : "ChromeAndroidTask shouldn't be null when side panel is enabled";
@@ -1905,9 +1925,15 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             SidePanelCoordinatorAndroid.class,
                             mProfileSupplier.get(),
                             mWindowAndroid),
-                    // TODO(crbug.com/491597112): pass mSidePanelContainerCoordinator
-                    //  to SidePanelCoordinatorAndroidBridge.
-                    SidePanelCoordinatorAndroidFactory::create);
+                    () ->
+                            SidePanelCoordinatorAndroidFactory.create(
+                                    mSidePanelContainerCoordinator));
+            chromeAndroidTask.addFeature(
+                    new ChromeAndroidTaskFeatureKey(
+                            WindowScopedSidePanelRegistryBridge.class,
+                            mProfileSupplier.get(),
+                            mWindowAndroid),
+                    SidePanelRegistryBridgeFactory::createWindowScopedBridge);
 
             // TODO(crbug.com/489548570): Remove SidePanelDevFeature when it's not needed.
             mSidePanelDevFeature =
@@ -1956,11 +1982,6 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     /** Returns the {@link TabGroupSyncControllerImpl} if it has been created yet. */
     public TabGroupSyncController getTabGroupSyncController() {
         return mTabGroupSyncController;
-    }
-
-    @Override
-    public @Nullable MultiInstanceManager getMultiInstanceManager() {
-        return mMultiInstanceManager;
     }
 
     @Override

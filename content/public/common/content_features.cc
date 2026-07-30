@@ -255,16 +255,6 @@ const base::FeatureParam<bool> kCreateSpeculativeRFHFilterRestore{
 const base::FeatureParam<int> kCreateSpeculativeRFHDelayMs{
     &kDeferSpeculativeRFHCreation, "create_speculative_rfh_delay_ms", 0};
 
-// Delay the destructions of RenderFrameHostImpls during a navigation (on
-// Unload) or frame Detach, by delaying the call to
-// PendingDeletionCheckCompletedOnSubTree.
-BASE_FEATURE(kDelayRfhDestructionsOnUnloadAndDetach,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-const base::FeatureParam<base::TimeDelta>
-    kRfhDestructionsOnUnloadAndDetachTaskDelay{
-        &kDelayRfhDestructionsOnUnloadAndDetach, "task_delay",
-        base::TimeDelta()};
-
 // When a device bound session
 // (https://github.com/w3c/webappsec-dbsc/blob/main/README.md) is
 // terminated, evict pages with cache-control:no-store from the
@@ -525,6 +515,13 @@ BASE_FEATURE_PARAM(bool,
                    &features::kInitialWebUI,
                    "use_separate_process",
                    false);
+
+// If enabled, the initial WebUI GPU stream is set to UI priority.
+BASE_FEATURE_PARAM(bool,
+                   kInitialWebUIHighStreamPriority,
+                   &features::kInitialWebUI,
+                   "high_stream_priority",
+                   true);
 
 // Whether initial WebUI navigations should synchronously go from navigation
 // start to commit, by doing e.g. in-renderer body loading.
@@ -810,7 +807,16 @@ BASE_FEATURE_PARAM(size_t,
 // feature is disabled, those messages are instead queued because the IPC
 // channel is paused, and only flushed at OnProcessLaunched.
 BASE_FEATURE(kSkipIPCChannelPausingForNonGuests,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_CHROMEOS)
+             // Disabled by default on ChromeOS because of ChromeOS-only
+             // regressions at crbug.com/458372810.
+             // TODO(crbug.com/458372810): Resolve the regression and enable by
+             // default on all platforms.
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif  // BUILDFLAG(IS_CHROMEOS)
+);
 
 const base::FeatureParam<bool>
     kSkipIPCChannelPausingForNonGuestsInternalWebUiOnly{
@@ -1269,7 +1275,7 @@ BASE_FEATURE(kAccessibilityMeterEventsOnAndroid,
 // particular this will be used to determine whether or not a node is clickable
 // or not.
 BASE_FEATURE(kAccessibilityRequestLayoutBasedActions,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When this feature is enabled, the accessibility tree will be requested to
 // signal content changed events next to a boolean value that will determine if

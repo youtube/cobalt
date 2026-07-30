@@ -11,59 +11,65 @@
 
 namespace signin {
 
-TEST(DiceResponseParamsTest, IsValid) {
+TEST(DiceResponseParamsTest, IsValidSignin) {
   DiceResponseParams params;
-  EXPECT_FALSE(params.IsValid());  // NONE is not valid.
+  EXPECT_FALSE(params.IsValid());  // std::monostate is not valid.
 
   // SIGNIN
-  params.user_intention = DiceAction::SIGNIN;
-  EXPECT_FALSE(params.IsValid());  // Missing signin_info.
-
-  params.signin_info = std::make_unique<DiceResponseParams::SigninInfo>();
+  DiceResponseParams::SigninInfo* signin_info =
+      &params.data.emplace<DiceResponseParams::SigninInfo>();
   EXPECT_FALSE(params.IsValid());  // Empty accounts.
 
-  params.signin_info->AddAccount(
+  signin_info->AddAccount(
+      {{GaiaId("id"), "email", 0}, "code", false, "binding", false});
+  // One account: IsValid is true even with invalid metadata because it falls
+  // back to the only account.
+  EXPECT_TRUE(params.IsValid());
+
+  signin_info->set_connected_accounts_metadata(
+      DiceResponseParams::SigninInfo::ConnectedAccountsMetadata{
+          .primary_is_connected = Tribool::kTrue,
+          .initiator_id = GaiaId("unknown")});
+  // One account: IsValid is still true because it falls back to the only
+  // account even if the initiator_id in metadata doesn't match.
+  EXPECT_TRUE(params.IsValid());
+
+  // Add a second account: IsValid becomes false because initiator is "unknown"
+  // and cannot be resolved among multiple accounts.
+  signin_info->AddAccount(
+      {{GaiaId("id2"), "email2", 0}, "code2", false, "binding2", false});
+  EXPECT_FALSE(params.IsValid());
+
+  signin_info->set_connected_accounts_metadata(
+      DiceResponseParams::SigninInfo::ConnectedAccountsMetadata{
+          .primary_is_connected = Tribool::kTrue,
+          .initiator_id = GaiaId("id2")});
+  EXPECT_TRUE(params.IsValid());
+}
+
+TEST(DiceResponseParamsTest, IsValidSigninMultipleAccountsInitiatorNotSet) {
+  DiceResponseParams params;
+  DiceResponseParams::SigninInfo* signin_info =
+      &params.data.emplace<DiceResponseParams::SigninInfo>();
+
+  signin_info->AddAccount(
       {{GaiaId("id"), "email", 0}, "code", false, "binding", false});
   EXPECT_TRUE(params.IsValid());
-
-  params.signin_info->SetInitiator(GaiaId("unknown"));
-  EXPECT_FALSE(params.IsValid());  // Initiator not in accounts.
-
-  params.signin_info->SetInitiator(GaiaId("id"));
-  EXPECT_TRUE(params.IsValid());
-
-  params.signin_info->SetInitiator(GaiaId());
-  params.signin_info->AddAccount(
+  signin_info->AddAccount(
       {{GaiaId("id2"), "email2", 0}, "code2", false, "binding2", false});
-  EXPECT_FALSE(params.IsValid());  // Multiple accounts, no initiator.
+  EXPECT_EQ(signin_info->GetInitiator(), nullptr);
+  EXPECT_FALSE(params.IsValid());
 
-  params.signin_info->SetInitiator(GaiaId("id2"));
-  EXPECT_TRUE(params.IsValid());
+  // Empty Gaia id.
+  signin_info->set_connected_accounts_metadata(
+      DiceResponseParams::SigninInfo::ConnectedAccountsMetadata{
+          .primary_is_connected = Tribool::kTrue, .initiator_id = GaiaId()});
+  EXPECT_FALSE(params.IsValid());
 
-  // SIGNOUT
-  params = DiceResponseParams();
-  params.user_intention = DiceAction::SIGNOUT;
-  EXPECT_FALSE(params.IsValid());  // Missing signout_info.
-
-  params.signout_info = std::make_unique<DiceResponseParams::SignoutInfo>();
-  EXPECT_FALSE(params.IsValid());  // Empty account_infos.
-
-  DiceResponseParams::AccountInfo info;
-  params.signout_info->account_infos.push_back(info);
-  EXPECT_TRUE(params.IsValid());  // Individual fields not checked for SIGNOUT.
-
-  // ENABLE_SYNC
-  params = DiceResponseParams();
-  params.user_intention = DiceAction::ENABLE_SYNC;
-  EXPECT_FALSE(params.IsValid());  // Missing enable_sync_info.
-
-  params.enable_sync_info =
-      std::make_unique<DiceResponseParams::EnableSyncInfo>();
-  EXPECT_FALSE(params.IsValid());  // Invalid account info.
-
-  params.enable_sync_info->account_info.gaia_id = GaiaId("id");
-  params.enable_sync_info->account_info.email = "email";
-  params.enable_sync_info->account_info.session_index = 0;
+  signin_info->set_connected_accounts_metadata(
+      DiceResponseParams::SigninInfo::ConnectedAccountsMetadata{
+          .primary_is_connected = Tribool::kTrue,
+          .initiator_id = GaiaId("id")});
   EXPECT_TRUE(params.IsValid());
 }
 
@@ -88,16 +94,48 @@ TEST(SigninInfoTest, SigninInfoGetInitiator) {
   EXPECT_EQ(nullptr, signin_info.GetInitiator());
 
   // Set initiator to account 2.
-  signin_info.SetInitiator(GaiaId("id2"));
+  signin_info.set_connected_accounts_metadata(
+      DiceResponseParams::SigninInfo::ConnectedAccountsMetadata{
+          .primary_is_connected = Tribool::kTrue,
+          .initiator_id = GaiaId("id2")});
   EXPECT_EQ(&signin_info.accounts()[1], signin_info.GetInitiator());
 
   // Set initiator to account 1.
-  signin_info.SetInitiator(GaiaId("id1"));
+  signin_info.set_connected_accounts_metadata(
+      DiceResponseParams::SigninInfo::ConnectedAccountsMetadata{
+          .primary_is_connected = Tribool::kTrue,
+          .initiator_id = GaiaId("id1")});
   EXPECT_EQ(&signin_info.accounts()[0], signin_info.GetInitiator());
 
   // Set initiator to unknown account: returns nullptr.
-  signin_info.SetInitiator(GaiaId("unknown"));
+  signin_info.set_connected_accounts_metadata(
+      DiceResponseParams::SigninInfo::ConnectedAccountsMetadata{
+          .primary_is_connected = Tribool::kTrue,
+          .initiator_id = GaiaId("unknown")});
   EXPECT_EQ(nullptr, signin_info.GetInitiator());
+}
+
+TEST(DiceResponseParamsTest, IsValidSignout) {
+  DiceResponseParams params;
+  DiceResponseParams::SignoutInfo* signout_info =
+      &params.data.emplace<DiceResponseParams::SignoutInfo>();
+  EXPECT_FALSE(params.IsValid());  // Empty account_infos.
+
+  DiceResponseParams::AccountInfo info;
+  signout_info->account_infos.push_back(info);
+  EXPECT_TRUE(params.IsValid());
+}
+
+TEST(DiceResponseParamsTest, IsValidEnableSync) {
+  DiceResponseParams params;
+  DiceResponseParams::EnableSyncInfo* enable_sync_info =
+      &params.data.emplace<DiceResponseParams::EnableSyncInfo>();
+  EXPECT_FALSE(params.IsValid());  // Invalid account info.
+
+  enable_sync_info->account_info.gaia_id = GaiaId("id");
+  enable_sync_info->account_info.email = "email";
+  enable_sync_info->account_info.session_index = 0;
+  EXPECT_TRUE(params.IsValid());
 }
 
 }  // namespace signin

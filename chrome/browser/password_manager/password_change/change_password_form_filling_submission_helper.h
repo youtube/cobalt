@@ -31,6 +31,7 @@ class PasswordManagerClient;
 class ModelQualityLogsUploader;
 class ChangePasswordFormWaiter;
 class FormFillingHelper;
+class AnnotatedPageContentCapturer;
 
 // Helper class which fills a form, submits it and verifies submission result.
 // Upon completion invokes `result_callback` to notify the result of submission.
@@ -70,15 +71,6 @@ class ChangePasswordFormFillingSubmissionHelper {
       ModelQualityLogsUploader* logs_uploader,
       base::OnceCallback<void(SubmissionResult)> result_callback);
 
-  // Test constructor (allows to mock `capture_annotated_page_content`).
-  ChangePasswordFormFillingSubmissionHelper(
-      base::PassKey<class ChangePasswordFormFillingSubmissionHelperTest>,
-      content::WebContents* web_contents,
-      password_manager::PasswordManagerClient* client,
-      ModelQualityLogsUploader* logs_uploader,
-      base::OnceCallback<void(optimization_guide::OnAIPageContentDone)>
-          capture_annotated_page_content,
-      base::OnceCallback<void(SubmissionResult)> result_callback);
   ~ChangePasswordFormFillingSubmissionHelper();
 
   // Starts chain of actions:
@@ -91,8 +83,6 @@ class ChangePasswordFormFillingSubmissionHelper {
       const std::u16string& login_password,
       const std::u16string& generated_password);
 
-  // Triggers verification if `web_contents` is the same as initial WebContents.
-  void OnPasswordFormSubmission(content::WebContents* web_contents);
 
   // Saves a password with a given `username`. Must be called only after
   // `callback_` was invoked.
@@ -111,6 +101,8 @@ class ChangePasswordFormFillingSubmissionHelper {
   }
 
   FormFillingHelper* form_filler() { return form_filler_.get(); }
+
+  AnnotatedPageContentCapturer* capturer() { return capturer_.get(); }
 #endif
   // Whether helper has submitted change password form or not.
   bool IsPasswordFormSubmitted() const { return click_helper_ != nullptr; }
@@ -137,7 +129,7 @@ class ChangePasswordFormFillingSubmissionHelper {
 
   void OnButtonClicked(actor::mojom::ActionResultCode result);
 
-  void OnSubmissionDetectedOrTimeout();
+  void OnTimeout();
 
   void OnChangePasswordFormFound(
       password_manager::PasswordFormManager* form_manager);
@@ -162,14 +154,12 @@ class ChangePasswordFormFillingSubmissionHelper {
   std::u16string stored_password_;
   std::u16string generated_password_;
 
-  // Callback for receiving Annotated Page Content.
-  base::OnceCallback<void(optimization_guide::OnAIPageContentDone)>
-      capture_annotated_page_content_;
+  // Helper to capture annotated page content.
+  std::unique_ptr<AnnotatedPageContentCapturer> capturer_;
 
   // Timeout for verifying submission detection.
   base::OneShotTimer timeout_timer_;
 
-  bool submission_detected_ = false;
 
   std::unique_ptr<FormFillingHelper> form_filler_;
 

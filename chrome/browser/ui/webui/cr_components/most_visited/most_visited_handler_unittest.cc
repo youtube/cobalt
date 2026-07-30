@@ -167,6 +167,9 @@ TEST_P(MostVisitedAutoRemovalTest, SetMostVisitedExpandedState) {
   handler_->SetMostVisitedExpandedState(true);
   EXPECT_TRUE(profile_.GetPrefs()->GetBoolean(
       ntp_prefs::kNtpShortcutsAutoRemovalDisabled));
+  histogram_tester_.ExpectUniqueSample(
+      "NewTabPage.MostVisited.ShowActionsToggleClicked",
+      MostVisitedShowActions::kShowMore, 1);
 }
 
 TEST_P(MostVisitedAutoRemovalTest, OnMostVisitedTileNavigation) {
@@ -177,8 +180,9 @@ TEST_P(MostVisitedAutoRemovalTest, OnMostVisitedTileNavigation) {
 
   content::WebContentsTester::For(web_contents_.get())
       ->NavigateAndCommit(GURL("https://bar.com"));
-  handler_->OnMostVisitedTileNavigation(std::move(tile), 0, 0, false, false,
-                                        false, false);
+  handler_->OnMostVisitedTileNavigation(
+      std::move(tile), /*index=*/0, /*mouse_button=*/0, /*alt_key=*/false,
+      /*ctrl_key=*/false, /*meta_key=*/false, /*shift_key=*/false);
 
   EXPECT_TRUE(profile_.GetPrefs()->GetBoolean(
       ntp_prefs::kNtpShortcutsAutoRemovalDisabled));
@@ -230,6 +234,8 @@ TEST_P(MostVisitedAutoRemovalTest, OnMostVisitedTilesRendered) {
   EXPECT_EQ(
       profile_.GetPrefs()->GetInteger(ntp_prefs::kNtpShortcutsStalenessCount),
       1);
+  histogram_tester_.ExpectBucketCount("NewTabPage.MostVisited.IsExpandedOnLoad",
+                                      false, 1);
 }
 
 TEST_P(MostVisitedAutoRemovalTest, DoNotRemoveStaleShortcutsIfFeatureDisabled) {

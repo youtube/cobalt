@@ -100,7 +100,7 @@ class StructTraitsTest : public testing::Test, public mojom::TraitsTestService {
   mojo::ReceiverSet<TraitsTestService> traits_test_receivers_;
 };
 
-sk_sp<SkData> GetTestAgtm() {
+skhdr::AdaptiveGlobalToneMap GetTestAgtm() {
   skhdr::AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap hatm;
   hatm.fBaselineHdrHeadroom = 0.1f,
   hatm.fGainApplicationSpacePrimaries = SkNamedPrimaries::kRec2020;
@@ -132,9 +132,7 @@ sk_sp<SkData> GetTestAgtm() {
       .fHdrReferenceWhite = 100.0f,
       .fHeadroomAdaptiveToneMap = {hatm},
   };
-  auto result = agtm.serialize();
-  EXPECT_TRUE(result);
-  return result;
+  return agtm;
 }
 
 }  // namespace
@@ -424,19 +422,22 @@ TEST_F(StructTraitsTest, HDRMetadata) {
   EXPECT_EQ(input, output);
 
   // Include CTA 861.3.
-  input.cta_861_3.emplace(123, 456);
+  input.SetCLLI(skhdr::ContentLightLevelInformation{123, 456});
   EXPECT_NE(input, output);
   mojo::test::SerializeAndDeserialize<gfx::mojom::HDRMetadata>(input, output);
   EXPECT_EQ(input, output);
 
   // Include SMPTE ST 2086.
-  input.smpte_st_2086.emplace(SkNamedPrimaries::kRec2020, 789, 123);
+  input.SetMDCV(skhdr::MasteringDisplayColorVolume{
+      .fDisplayPrimaries = SkNamedPrimaries::kRec2020,
+      .fMaximumDisplayMasteringLuminance = 789,
+      .fMinimumDisplayMasteringLuminance = 123});
   EXPECT_NE(input, output);
   mojo::test::SerializeAndDeserialize<gfx::mojom::HDRMetadata>(input, output);
   EXPECT_EQ(input, output);
 
   // Include SDR white level.
-  input.ndwl.emplace(123.f);
+  input.SetNDWL(123.f);
   EXPECT_NE(input, output);
   mojo::test::SerializeAndDeserialize<gfx::mojom::HDRMetadata>(input, output);
   EXPECT_EQ(input, output);
@@ -448,7 +449,7 @@ TEST_F(StructTraitsTest, HDRMetadata) {
   EXPECT_EQ(input, output);
 
   // Include agtm.
-  input.setSerializedAgtm(GetTestAgtm());
+  input.SetAgtm(GetTestAgtm());
   EXPECT_NE(input, output);
   mojo::test::SerializeAndDeserialize<gfx::mojom::HDRMetadata>(input, output);
   EXPECT_EQ(input, output);

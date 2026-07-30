@@ -41,16 +41,23 @@ void MultistepFilterService::ExtractAnnotation(const GURL& url) {
 
 void MultistepFilterService::GenerateFilterSuggestions(
     const GURL& url,
-    base::OnceCallback<void(std::optional<UrlFilterSuggestion>)> callback) {
-  if (!callback) {
+    base::WeakPtr<MultistepFilterUiDelegate> delegate) {
+  if (!delegate) {
+    return;
+  }
+
+  if (delegate->ShouldSuppressSuggestions(url)) {
+    delegate->OnSuggestionGenerated(std::nullopt);
     return;
   }
 
   // Generate filter suggestions for signed-in users only.
   if (IsUserSignedIn() && IsUrlAllowed(url)) {
-    filter_suggestion_generator_->GenerateSuggestion(url, std::move(callback));
+    filter_suggestion_generator_->GenerateSuggestion(
+        url, base::BindOnce(&MultistepFilterUiDelegate::OnSuggestionGenerated,
+                            delegate));
   } else {
-    std::move(callback).Run(std::nullopt);
+    delegate->OnSuggestionGenerated(std::nullopt);
   }
 }
 

@@ -177,6 +177,7 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
       'getUrlForTask',
       'isAiPage',
       'isPendingErrorPage',
+      'isEmbeddedPageErrorDocument',
       'isShownInTab',
       'isZeroState',
       'moveTaskUiToNewTab',
@@ -268,6 +269,11 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
     return Promise.resolve({isPendingErrorPage: isPendingErrorPage});
   }
 
+  isEmbeddedPageErrorDocument() {
+    this.methodCalled('isEmbeddedPageErrorDocument');
+    return Promise.resolve({isErrorDocument: false});
+  }
+
   openMyActivityUi() {
     this.methodCalled('openMyActivityUi');
   }
@@ -280,8 +286,8 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
     this.methodCalled('openOnboardingHelpUi');
   }
 
-  openUrl() {
-    this.methodCalled('openUrl');
+  openUrl(url: Url|string, disposition: number) {
+    this.methodCalled('openUrl', url, disposition);
   }
 
   onboardingTooltipDismissed() {

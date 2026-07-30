@@ -133,16 +133,12 @@ source_set("impl") {
       "//chrome/browser/ui/color:color_headers",
       "//chrome/browser/ui/hats",
       "//components/strings:components_strings",
+      "//components/unified_consent",
       "//components/url_formatter",
       "//net",
       "//third_party/blink/public/common:headers",
       "//ui/views",
     ]
-
-    # TODO(crbug.com/495379535): Fix the exit-time destructors in
-    # hats/auto_picture_in_picture_hats_service.cc
-    # and then remove this config.
-    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
@@ -188,6 +184,7 @@ source_set("unit_tests") {
       "//chrome/browser",
       "//chrome/browser/ui/hats:test_support",
       "//chrome/browser/ui/safety_hub:test_support",
+      "//components/unified_consent",
       "//ui/events:test_support",
     ]
   } else {

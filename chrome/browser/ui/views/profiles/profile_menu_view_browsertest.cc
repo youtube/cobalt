@@ -620,7 +620,6 @@ class ProfileMenuViewSignoutTest : public ProfileMenuViewTestBase,
 
  private:
   CoreAccountId account_id_;
-  raw_ptr<Profile, DanglingUntriaged> profile_ = nullptr;
 };
 
 // Checks that signout opens a new logout tab.
@@ -1104,9 +1103,7 @@ class ProfileMenuClickTest : public SyncTest,
     SetTargetBrowser(browser());
   }
 
-  Profile* GetProfile() {
-    return profile_ ? profile_.get() : browser()->profile();
-  }
+  Profile* GetProfile() { return browser()->profile(); }
 
   virtual ProfileMenuViewBase::ActionableItem GetExpectedActionableItemAtIndex(
       size_t index) = 0;
@@ -1184,7 +1181,6 @@ class ProfileMenuClickTest : public SyncTest,
   base::CallbackListSubscription test_signin_client_subscription_;
   base::HistogramTester histogram_tester_;
   std::unique_ptr<SyncServiceImplHarness> sync_harness_;
-  raw_ptr<Profile, DanglingUntriaged> profile_ = nullptr;
 };
 
 #define PROFILE_MENU_CLICK_TEST_WITH_FEATURE_STATES_F(                    \
@@ -1492,7 +1488,9 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
     kActionableItems_WebOnly_ReplaceSyncPromosDisabled,
     ProfileMenuClickTest_WebOnly_ReplaceSyncPromosDisabled,
     /*enabled_features=*/{},
-    {syncer::kReplaceSyncPromosWithSignInPromos}) {
+    (std::vector<base::test::FeatureRef>{
+        syncer::kReplaceSyncPromosWithSignInPromos,
+        syncer::kReplaceSyncPromosWithSigninPromosNewSignin})) {
   // Add an account, not signed in.
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(browser()->profile());
@@ -1645,7 +1643,9 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
     kActionableItems_SigninDisallowed_ReplaceSyncPromosDisabled,
     ProfileMenuClickTest_SigninDisallowed_ReplaceSyncPromosDisabled,
     /*enabled_features=*/{},
-    {syncer::kReplaceSyncPromosWithSignInPromos}) {
+    (std::vector<base::test::FeatureRef>{
+        syncer::kReplaceSyncPromosWithSignInPromos,
+        syncer::kReplaceSyncPromosWithSigninPromosNewSignin})) {
   // Check that the setup was successful.
   ASSERT_FALSE(
       browser()->profile()->GetPrefs()->GetBoolean(prefs::kSigninAllowed));
@@ -1746,7 +1746,9 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
     kActionableItems_SigninPatternDisallowed_ReplaceSyncPromosDisabled,
     ProfileMenuClickTest_SigninPatternDisallowed_ReplaceSyncPromosDisabled,
     /*enabled_features=*/{},
-    {syncer::kReplaceSyncPromosWithSignInPromos}) {
+    (std::vector<base::test::FeatureRef>{
+        syncer::kReplaceSyncPromosWithSignInPromos,
+        syncer::kReplaceSyncPromosWithSigninPromosNewSignin})) {
   // Check that the setup was successful.
   PrefService* local_state = g_browser_process->local_state();
   constexpr char kAccountNotAllowed[] = "foo@notallowed.com";
@@ -1876,7 +1878,10 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
     kActionableItems_SigninPatternDisallowedSecondaryAllowed_ReplaceSyncPromosDisabled,
     ProfileMenuClickTest_SigninPatternDisallowedSecondaryAllowed_ReplaceSyncPromosDisabled,
     /*enabled_features=*/{},
-    /*disabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos}) {
+    /*disabled_features=*/
+    (std::vector<base::test::FeatureRef>{
+        syncer::kReplaceSyncPromosWithSignInPromos,
+        syncer::kReplaceSyncPromosWithSigninPromosNewSignin})) {
   // Check that the setup was successful.
   PrefService* local_state = g_browser_process->local_state();
   constexpr char kAccountNotAllowed[] = "foo@notallowed.com";
@@ -1976,7 +1981,10 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
     kActionableItems_WithUnconsentedPrimaryAccount_ReplaceSyncPromosDisabled,
     ProfileMenuClickTest_WithUnconsentedPrimaryAccount_ReplaceSyncPromosDisabled,
     /*enabled_features=*/{},
-    /*disabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos}) {
+    /*disabled_features=*/
+    (std::vector<base::test::FeatureRef>{
+        syncer::kReplaceSyncPromosWithSignInPromos,
+        syncer::kReplaceSyncPromosWithSigninPromosNewSignin})) {
   secondary_account_helper::SignInUnconsentedAccount(
       GetProfile(), &test_url_loader_factory_, "user@example.com");
   PrimaryAccountChecker(identity_manager()).Wait();
@@ -2223,7 +2231,9 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
     kActionableItems_WithPendingAccount_ReplaceSyncPromosDisabled,
     ProfileMenuClickTest_WithPendingAccount_ReplaceSyncPromosDisabled,
     {},
-    {syncer::kReplaceSyncPromosWithSignInPromos}) {
+    (std::vector<base::test::FeatureRef>{
+        syncer::kReplaceSyncPromosWithSignInPromos,
+        syncer::kReplaceSyncPromosWithSigninPromosNewSignin})) {
   AccountInfo account_info = signin::MakePrimaryAccountAvailable(
       identity_manager(), "user@example.com", signin::ConsentLevel::kSignin);
   signin::UpdatePersistentErrorOfRefreshTokenForAccount(
@@ -2308,7 +2318,10 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
     /*enabled_features=*/
     std::vector<base::test::FeatureRef>(
         {features::kEnterpriseProfileBadgingForMenu}),
-    /*disabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos}) {
+    /*disabled_features=*/
+    (std::vector<base::test::FeatureRef>{
+        syncer::kReplaceSyncPromosWithSignInPromos,
+        syncer::kReplaceSyncPromosWithSigninPromosNewSignin})) {
   AccountInfo account_info = signin::MakePrimaryAccountAvailable(
       identity_manager(), "child@gmail.com", signin::ConsentLevel::kSignin);
   supervised_user::UpdateSupervisionStatusForAccount(

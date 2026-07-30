@@ -31,6 +31,8 @@
 #import "ios/chrome/browser/default_browser/promo/non_modal/coordinator/default_promo_non_modal_presentation_delegate.h"
 #import "ios/chrome/browser/discover_feed/model/feed_constants.h"
 #import "ios/chrome/browser/first_run/public/first_run_util.h"
+#import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent.h"
+#import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent_observer_bridge.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_animator.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_metrics.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_element.h"
@@ -169,6 +171,7 @@ const CGFloat kTopDynamicIslandInset = 24;
 
 // Note other delegates defined in the Delegates category header.
 @interface BrowserViewController () <CardSwipeViewDelegate,
+                                     FullscreenBrowserAgentObserving,
                                      FullscreenUIElement,
                                      LogoAnimationControllerOwnerOwner,
                                      MainContentUI,
@@ -225,6 +228,10 @@ const CGFloat kTopDynamicIslandInset = 24;
 
   // The updater that adjusts the toolbar's layout for fullscreen events.
   std::unique_ptr<FullscreenUIUpdater> _fullscreenUIUpdater;
+
+  // Bridge to observe the FullscreenBrowserAgent.
+  std::unique_ptr<FullscreenBrowserAgentObserverBridge>
+      _fullscreenBrowserAgentObserverBridge;
 
   // The service used to load url parameters in current or new tab.
   raw_ptr<UrlLoadingBrowserAgent> _urlLoadingBrowserAgent;
@@ -392,6 +399,12 @@ const CGFloat kTopDynamicIslandInset = 24;
     self.inNewTabAnimation = NO;
     self.fullscreenController = dependencies.fullscreenController;
     _footerFullscreenProgress = 1.0;
+
+    if (IsFullscreenRefactoringEnabled()) {
+      _fullscreenBrowserAgentObserverBridge =
+          std::make_unique<FullscreenBrowserAgentObserverBridge>(
+              self, dependencies.fullscreenBrowserAgent);
+    }
 
     // When starting the browser with an open tab, it is necessary to reset the
     // clipsToBounds property of the WKWebView so the page can bleed behind the
@@ -592,6 +605,7 @@ const CGFloat kTopDynamicIslandInset = 24;
     return;
   }
   _topToolbarInset = inset;
+  self.primaryToolbarOffsetConstraint.constant = inset;
   [self updateToolbarState];
   [self.view setNeedsLayout];
 }
@@ -784,6 +798,7 @@ const CGFloat kTopDynamicIslandInset = 24;
   _urlLoadingBrowserAgent = nullptr;
   _tabUsageRecorderBrowserAgent = nullptr;
   _snapshotBrowserAgent = nullptr;
+  _fullscreenBrowserAgentObserverBridge = nullptr;
 }
 
 #pragma mark - UIAccessibilityAction
@@ -1652,6 +1667,22 @@ const CGFloat kTopDynamicIslandInset = 24;
   return 0;
 }
 
+// The top inset.
+- (CGFloat)topInset {
+  CGFloat topInset = self.rootSafeAreaInsets.top;
+
+  // On iOS 26, the safe area layout guide doesn't automatically adjust for the
+  // control setting island's dimensions.
+  // If the app is windowed, the dynamic island is not included in the
+  // status bar. In that case, `topInset` should be updated.
+  CGFloat topInsetWithCornerAdaptation = [self topInsetWithCornerAdaptation];
+  if (topInsetWithCornerAdaptation - topInset > 0) {
+    topInset =
+        fmax(topInset, topInsetWithCornerAdaptation - kTopDynamicIslandInset);
+  }
+  return topInset;
+}
+
 // Helper method for dismissing view controller with `completion` block.
 - (void)viewControllerDismissedWithCompletion:(void (^)())completion {
   self.dismissingModal = NO;
@@ -1850,24 +1881,32 @@ const CGFloat kTopDynamicIslandInset = 24;
   }];
 }
 
+#pragma mark - FullscreenBrowserAgentObserving
+
+- (void)fullscreenWillUpdateObscuredInsetRange:(FullscreenBrowserAgent*)agent {
+  CHECK(IsFullscreenRefactoringEnabled());
+
+  // Top obscured range: safe area top (with dynamic island adaptation) and
+  // primary toolbar, but excluding the tab strip.
+  CGFloat topInset = [self topInset];
+  CGFloat min =
+      topInset + self.toolbarCoordinator.collapsedPrimaryToolbarHeight;
+  CGFloat max = topInset + self.toolbarCoordinator.expandedPrimaryToolbarHeight;
+  agent->AddObscuredInsetRange(UIRectEdgeTop, min, max);
+
+  CGFloat secondaryToolbarHeight = [self secondaryToolbarHeightWithInset];
+  agent->AddObscuredInsetRange(UIRectEdgeBottom,
+                               [self collapsedBottomToolbarHeight],
+                               secondaryToolbarHeight);
+}
+
 #pragma mark - FullscreenUIElement helpers
 
 // The minimum amount by which the top toolbar overlaps the browser content
 // area.
 - (CGFloat)collapsedTopToolbarHeight {
-  CGFloat topInset = self.rootSafeAreaInsets.top;
-
-  // On iOS 26, the safe area layout guide doesn't automatically adjust for the
-  // control setting island's dimensions.
-  // If the app is windowed, the dynamic island is not included in the
-  // status bar. In that case, `topInset` should be updated.
-  CGFloat topInsetWithCornerAdaptation = [self topInsetWithCornerAdaptation];
-  if (topInsetWithCornerAdaptation - topInset > 0) {
-    topInset =
-        fmax(topInset, topInsetWithCornerAdaptation - kTopDynamicIslandInset);
-  }
-
-  return topInset + self.toolbarCoordinator.collapsedPrimaryToolbarHeight;
+  return
+      [self topInset] + self.toolbarCoordinator.collapsedPrimaryToolbarHeight;
 }
 
 // The minimum amount by which the bottom toolbar overlaps the browser content

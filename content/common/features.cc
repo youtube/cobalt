@@ -30,6 +30,9 @@ BASE_FEATURE(kAccessibilityExposeNonAtomicTextFieldChildren,
 BASE_FEATURE(kAllowContentInitiatedDataUrlNavigations,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables desktop-style scrollbars.
+BASE_FEATURE(kAndroidDesktopStyleScrollbars, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Allows Blink to request fonts from the Android Downloadable Fonts API through
 // the service implemented on the Java side.
 BASE_FEATURE(kAndroidDownloadableFontsMatching,
@@ -41,7 +44,7 @@ BASE_FEATURE(kAndroidDragDropOopif, base::FEATURE_ENABLED_BY_DEFAULT);
 #if BUILDFLAG(IS_WIN)
 // Flag guard for Windows Arabic Indic digit input solution.
 // crbug.com/440381284
-BASE_FEATURE(kArabicIndicDigitInput, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kArabicIndicDigitInput, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN)
 
 // If enabled, runs beforeunload handlers asynchronously when the user
@@ -93,7 +96,6 @@ BASE_FEATURE_ENUM_PARAM(
     AvoidUnnecessaryBeforeUnloadCheckSyncMode,
     kAvoidUnnecessaryBeforeUnloadCheckSyncMode,
     &kAvoidUnnecessaryBeforeUnloadCheckSync,
-    "AvoidUnnecessaryBeforeUnloadCheckSyncMode",
     AvoidUnnecessaryBeforeUnloadCheckSyncMode::kWithSendBeforeUnload,
     &kAvoidUnnecessaryBeforeUnloadCheckSyncModeOption);
 
@@ -478,7 +480,7 @@ BASE_FEATURE(kLocalNetworkAccessForFencedFrameNavigationsWarningOnly,
 // This includes checking local/loopback network policies and prompting
 // in unmanaged Isolated Web Apps (IWAs).
 BASE_FEATURE(kLocalNetworkAccessPromptDirectSockets,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, allows the ReusePrerenderingProcessForMainFrames feature
 // and the ProcessPerSiteUpToMainFrameThreshold feature to reuse processes
@@ -697,6 +699,18 @@ BASE_FEATURE(kServiceWorkerClientUrlIsCreationUrl,
 BASE_FEATURE(kServiceWorkerWindowClientInitiator,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// (crbug.com/486495094): When enabled, triggers a soft update check after
+// functional events complete (spec step 8) and on worker start failure
+// (spec step 5), per the "Fire Functional Event" spec algorithm.
+BASE_FEATURE(kServiceWorkerSoftUpdateOnFunctionalEvent,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, the browser process will derive the secure context state of a
+// SharedWorker connection from its own authoritative ground truth
+// (PolicyContainerHost) instead of trusting the renderer-supplied parameter.
+BASE_FEATURE(kSharedWorkerSecureContextDerivationFromBrowser,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables skipping the early call to CommitPending when navigating away from a
 // crashed frame.
 BASE_FEATURE(kSkipEarlyCommitPendingForCrashedFrame,
@@ -731,10 +745,12 @@ BASE_FEATURE_PARAM(bool,
                    true);
 #endif
 
-// Allows swipe left/right from touchpad change browser navigation. Currently
-// only enabled by default on CrOS and Windows.
+// Allows swipe left/right from touchpad change browser navigation.
+// On platforms that don't have this enabled by default, the overscroll gesture
+// is handled at a different level and not through the interpretation of scroll
+// events.
 BASE_FEATURE(kTouchpadOverscrollHistoryNavigation,
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
              base::FEATURE_DISABLED_BY_DEFAULT

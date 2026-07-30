@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
 
 #include "media/gpu/mac/vt_config_util.h"
 
@@ -14,6 +10,7 @@
 
 #include "base/apple/bridging.h"
 #include "base/apple/foundation_util.h"
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/mac/mac_util.h"
 #include "base/numerics/safe_conversions.h"
@@ -127,7 +124,8 @@ void AssertHasDefaultHDRMetadata(CFDictionaryRef fmt) {
       fmt, kCMFormatDescriptionExtension_MasteringDisplayColorVolume);
   ASSERT_EQ(24u, mdcv.size());
   ASSERT_EQ(24u, CFDataGetLength(mdcv_expected.get()));
-  EXPECT_EQ(0, memcmp(mdcv.data(), CFDataGetBytePtr(mdcv_expected.get()), 24u));
+  EXPECT_EQ(0, UNSAFE_TODO(memcmp(mdcv.data(),
+                                  CFDataGetBytePtr(mdcv_expected.get()), 24u)));
 
   auto clli =
       GetDataValue(fmt, kCMFormatDescriptionExtension_ContentLightLevelInfo);
@@ -233,12 +231,12 @@ TEST(VTConfigUtil, CreateFormatExtensions_H264_BT2020_HLG) {
 TEST(VTConfigUtil, CreateFormatExtensions_HDRMetadata) {
   // Values from real YouTube HDR content.
   gfx::HDRMetadata hdr_meta;
-  hdr_meta.cta_861_3 = gfx::HdrMetadataCta861_3(1000, 600);
-  hdr_meta.smpte_st_2086 = gfx::HdrMetadataSmpteSt2086(
+  hdr_meta.SetCLLI(skhdr::ContentLightLevelInformation{1000, 600});
+  hdr_meta.SetMDCV(skhdr::MasteringDisplayColorVolume{
       {0.6800f, 0.3200f, 0.2649f, 0.6900f, 0.1500f, 0.0600f, 0.3127f, 0.3290f},
-      /*luminance_max=*/1000,
-      /*luminance_min=*/0);
-  const auto& cv_metadata = hdr_meta.smpte_st_2086.value();
+      1000.f,
+      0.f});
+  const auto& cv_metadata = hdr_meta.GetMDCV();
 
   base::apple::ScopedCFTypeRef<CFDictionaryRef> fmt = CreateFormatExtensions(
       kCMVideoCodecType_H264, H264PROFILE_MAIN, 8,
@@ -257,18 +255,18 @@ TEST(VTConfigUtil, CreateFormatExtensions_HDRMetadata) {
                                                nullptr));
     mp4::MasteringDisplayColorVolume mdcv_box;
     ASSERT_TRUE(mdcv_box.Parse(box_reader.get()));
-    EXPECT_EQ(mdcv_box.display_primaries_gx, cv_metadata.primaries.fGX);
-    EXPECT_EQ(mdcv_box.display_primaries_gy, cv_metadata.primaries.fGY);
-    EXPECT_EQ(mdcv_box.display_primaries_bx, cv_metadata.primaries.fBX);
-    EXPECT_EQ(mdcv_box.display_primaries_by, cv_metadata.primaries.fBY);
-    EXPECT_EQ(mdcv_box.display_primaries_rx, cv_metadata.primaries.fRX);
-    EXPECT_EQ(mdcv_box.display_primaries_ry, cv_metadata.primaries.fRY);
-    EXPECT_EQ(mdcv_box.white_point_x, cv_metadata.primaries.fWX);
-    EXPECT_EQ(mdcv_box.white_point_y, cv_metadata.primaries.fWY);
+    EXPECT_EQ(mdcv_box.display_primaries_gx, cv_metadata.fDisplayPrimaries.fGX);
+    EXPECT_EQ(mdcv_box.display_primaries_gy, cv_metadata.fDisplayPrimaries.fGY);
+    EXPECT_EQ(mdcv_box.display_primaries_bx, cv_metadata.fDisplayPrimaries.fBX);
+    EXPECT_EQ(mdcv_box.display_primaries_by, cv_metadata.fDisplayPrimaries.fBY);
+    EXPECT_EQ(mdcv_box.display_primaries_rx, cv_metadata.fDisplayPrimaries.fRX);
+    EXPECT_EQ(mdcv_box.display_primaries_ry, cv_metadata.fDisplayPrimaries.fRY);
+    EXPECT_EQ(mdcv_box.white_point_x, cv_metadata.fDisplayPrimaries.fWX);
+    EXPECT_EQ(mdcv_box.white_point_y, cv_metadata.fDisplayPrimaries.fWY);
     EXPECT_EQ(mdcv_box.max_display_mastering_luminance,
-              cv_metadata.luminance_max);
+              cv_metadata.fMaximumDisplayMasteringLuminance);
     EXPECT_EQ(mdcv_box.min_display_mastering_luminance,
-              cv_metadata.luminance_min);
+              cv_metadata.fMinimumDisplayMasteringLuminance);
   }
 
   {
@@ -280,10 +278,9 @@ TEST(VTConfigUtil, CreateFormatExtensions_HDRMetadata) {
                                                nullptr));
     mp4::ContentLightLevelInformation clli_box;
     ASSERT_TRUE(clli_box.Parse(box_reader.get()));
-    EXPECT_EQ(clli_box.max_content_light_level,
-              hdr_meta.cta_861_3->max_content_light_level);
+    EXPECT_EQ(clli_box.max_content_light_level, hdr_meta.GetCLLI().fMaxCLL);
     EXPECT_EQ(clli_box.max_pic_average_light_level,
-              hdr_meta.cta_861_3->max_frame_average_light_level);
+              hdr_meta.GetCLLI().fMaxFALL);
   }
 }
 
@@ -347,7 +344,7 @@ TEST(VTConfigUtil, CreateFormatExtensions_AV1) {
   base::apple::ScopedCFTypeRef<CFDictionaryRef> fmt = CreateFormatExtensions(
       kCMVideoCodecType_AV1, kTestProfile, 10, kTestColorSpace,
       gfx::HDRMetadata(),
-      base::span<const uint8_t>(kAvc1Box, sizeof(kAvc1Box)));
+      UNSAFE_TODO(base::span<const uint8_t>(kAvc1Box, sizeof(kAvc1Box))));
   EXPECT_EQ(10, GetIntValue(fmt.get(),
                             base::SysUTF8ToCFStringRef(kBitDepthKey).get()));
 

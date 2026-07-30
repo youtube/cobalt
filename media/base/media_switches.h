@@ -213,6 +213,8 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kDeferAudioFocusUntilAudible);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kDocumentPictureInPictureNavigation);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kDocumentPictureInPictureAnimateResize);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kDocumentPictureInPictureCapture);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kDocumentPictureInPictureReparenting);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kEnableHighChannelLayouts);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kEnableTabMuting);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kExternalClearKeyForTesting);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kFailUrlProvisionFetcherForTesting);
@@ -526,6 +528,11 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoPictureInPicturePageInfoDetails);
 // Causes the AVC parser to output Treats H.264 SEI recovery points with a
 // `recovery_frame_cnt=0` as keyframes.
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kParseSEIRecoveryPoints);
+
+// When enabled, H.264 keyframe detection becomes stricter for samples whose avc
+// config does not provide SPS/PPS. In that case, an IDR alone is not
+// sufficient, SPS+PPS must appear in-band to mark it as a keyframe.
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kH264IDRKeyframeRequiresParameterSets);
 
 // Based on a |command_line| and the current platform, returns the effective
 // autoplay policy. In other words, it will take into account the default policy

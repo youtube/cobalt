@@ -8,8 +8,11 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "base/uuid.h"
+#include "chrome/browser/notifications/notification_display_service.h"
+#include "chrome/browser/notifications/notification_display_service_factory.h"
+#include "chrome/browser/notifications/notification_handler.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/send_tab_to_self/desktop_notification_handler.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_page_handler.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
 #include "chrome/browser/sharing_hub/sharing_hub_features.h"
@@ -31,21 +34,21 @@
 #include "components/prefs/pref_service.h"
 #include "components/send_tab_to_self/features.h"
 #include "components/send_tab_to_self/metrics_util.h"
-#include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/pref_names.h"
 #include "components/send_tab_to_self/send_tab_to_self_model.h"
 #include "components/send_tab_to_self/send_tab_to_self_sync_service.h"
 #include "components/send_tab_to_self/target_device_info.h"
-#include "components/shared_highlighting/core/common/text_fragment.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
-#include "services/service_manager/public/cpp/interface_provider.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/base/window_open_disposition_utils.h"
 #include "ui/events/event.h"
+#include "ui/message_center/public/cpp/notification.h"
+#include "ui/strings/grit/ui_strings.h"
 
 namespace send_tab_to_self {
 
@@ -145,35 +148,12 @@ void SendTabToSelfBubbleController::OnDeviceSelected(
   SendTabToSelfPageHandler* handler =
       SendTabToSelfPageHandler::GetOrCreateForWebContents(&GetWebContents());
 
-  PageContext page_context;
-  if (base::FeatureList::IsEnabled(kSendTabToSelfPropagateFormFields)) {
-    page_context = ExtractFormFieldsFromWebContents(&GetWebContents());
-  }
-
+  const GURL url = GetWebContents().GetLastCommittedURL();
   handler->SendTabToDevice(
-      target_device_guid, GetWebContents().GetLastCommittedURL(),
-      base::UTF16ToUTF8(GetWebContents().GetTitle()), std::move(page_context),
+      target_device_guid, url, base::UTF16ToUTF8(GetWebContents().GetTitle()),
       base::BindOnce(
-          [](base::WeakPtr<SendTabToSelfBubbleController> controller) {
-            if (controller) {
-              // Show confirmation message.
-              controller->SetShowConfirmationMessage(true);
-            }
-          },
-          weak_ptr_factory_.GetWeakPtr()),
-      base::BindOnce(
-          [](base::WeakPtr<SendTabToSelfBubbleController> controller,
-             const GURL& url) {
-            if (controller) {
-              // TODO(crbug.com/40811626): Is this legit? In STTSv2, there may
-              // not *be* a DesktopNotificationHandler for profile, and we're
-              // violating the lifetime rules of DesktopNotificationHandler here
-              // I think.
-              DesktopNotificationHandler(controller->GetProfile())
-                  .DisplayFailureMessage(url);
-            }
-          },
-          weak_ptr_factory_.GetWeakPtr()));
+          &SendTabToSelfBubbleController::HandleSendTabToDeviceResult,
+          weak_ptr_factory_.GetWeakPtr(), url));
 }
 
 void SendTabToSelfBubbleController::OnManageDevicesClicked(
@@ -204,6 +184,38 @@ void SendTabToSelfBubbleController::OnBackButtonPressed() {
       sharing_hub::SharingHubBubbleController::CreateOrGetFromWebContents(
           &GetWebContents());
   controller->ShowBubble(share::ShareAttempt(&GetWebContents()));
+}
+
+void SendTabToSelfBubbleController::HandleSendTabToDeviceResult(
+    const GURL& url,
+    SendTabToSelfResult result) {
+  switch (result) {
+    case SendTabToSelfResult::kSuccess:
+      SetShowConfirmationMessage(true);
+      break;
+    case SendTabToSelfResult::kFailure:
+      OnSendFailed(url);
+      break;
+  }
+}
+
+void SendTabToSelfBubbleController::OnSendFailed(const GURL& url) {
+  // TODO(crbug.com/40811626): Decide how to handle failures in STTSv2. For now,
+  // keep the STTSv1-style notification.
+  message_center::Notification notification(
+      message_center::NOTIFICATION_TYPE_SIMPLE,
+      "shared" + base::Uuid::GenerateRandomV4().AsLowercaseString(),
+      l10n_util::GetStringUTF16(
+          IDS_MESSAGE_NOTIFICATION_SEND_TAB_TO_SELF_CONFIRMATION_FAILURE_TITLE),
+      l10n_util::GetStringUTF16(
+          IDS_MESSAGE_NOTIFICATION_SEND_TAB_TO_SELF_CONFIRMATION_FAILURE_MESSAGE),
+      ui::ImageModel(), base::UTF8ToUTF16(url.host()), url,
+      message_center::NotifierId(url), message_center::RichNotificationData(),
+      /*delegate=*/nullptr);
+
+  NotificationDisplayServiceFactory::GetForProfile(GetProfile())
+      ->Display(NotificationHandler::Type::SHARING, notification,
+                /*metadata=*/nullptr);
 }
 
 bool SendTabToSelfBubbleController::InitialSendAnimationShown() {

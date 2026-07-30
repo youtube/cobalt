@@ -65,6 +65,7 @@
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
+#include "components/search_engines/search_engines_switches.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/site_isolation/features.h"
 #include "components/variations/variations_associated_data.h"
@@ -173,6 +174,15 @@
 #include "third_party/blink/public/common/features.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "extensions/browser/extension_registry.h"
+#include "extensions/browser/process_map.h"
+#include "extensions/browser/script_injection_tracker.h"
+#include "extensions/common/extension_builder.h"
+#include "extensions/common/mojom/context_type.mojom.h"
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
 #if BUILDFLAG(ENABLE_PDF)
 #include "content/public/test/mock_navigation_handle.h"
 #include "content/public/test/test_renderer_host.h"
@@ -221,6 +231,78 @@ class ChromeContentBrowserClientTest : public testing::Test {
   content::BrowserTaskEnvironment task_environment_;
   TestingProfile profile_;
 };
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+using ChromeContentBrowserClientIsPopupBypassAllowedTest =
+    ChromeRenderViewHostTestHarness;
+
+// Tests that an extension process is allowed to bypass the popup blocker.
+TEST_F(ChromeContentBrowserClientIsPopupBypassAllowedTest, ExtensionProcess) {
+  ChromeContentBrowserClient client;
+  NavigateAndCommit(GURL("https://example.com"));
+  EXPECT_FALSE(client.IsPopupBypassAllowed(main_rfh()));
+
+  auto* process_map = extensions::ProcessMap::Get(profile());
+  ASSERT_TRUE(process_map);
+
+  scoped_refptr<const extensions::Extension> extension =
+      extensions::ExtensionBuilder("Test").Build();
+  process_map->Insert(extension->id(),
+                      main_rfh()->GetProcess()->GetID().value());
+  extensions::ExtensionRegistry::Get(profile())->AddEnabled(extension);
+
+  EXPECT_TRUE(client.IsPopupBypassAllowed(main_rfh()));
+}
+
+// Tests that a privileged hosted app is allowed to bypass the popup blocker.
+TEST_F(ChromeContentBrowserClientIsPopupBypassAllowedTest, PrivilegedWebPage) {
+  ChromeContentBrowserClient client;
+  NavigateAndCommit(GURL("https://example.com"));
+  EXPECT_FALSE(client.IsPopupBypassAllowed(main_rfh()));
+
+  scoped_refptr<const extensions::Extension> hosted_app =
+      extensions::ExtensionBuilder("Hosted App")
+          .SetManifestKey(
+              "app", base::DictValue().Set("urls", base::ListValue().Append(
+                                                       "http://example.com/")))
+          .Build();
+
+  extensions::ExtensionRegistry::Get(profile())->AddEnabled(hosted_app);
+  auto* process_map = extensions::ProcessMap::Get(profile());
+  process_map->Insert(hosted_app->id(),
+                      main_rfh()->GetProcess()->GetID().value());
+
+  EXPECT_TRUE(client.IsPopupBypassAllowed(main_rfh()));
+}
+
+// Tests that a process where an extension ran a content script is allowed to
+// bypass the popup blocker.
+TEST_F(ChromeContentBrowserClientIsPopupBypassAllowedTest, ContentScript) {
+  ChromeContentBrowserClient client;
+  NavigateAndCommit(GURL("https://example.com"));
+  EXPECT_FALSE(client.IsPopupBypassAllowed(main_rfh()));
+
+  auto* process_map = extensions::ProcessMap::Get(profile());
+  ASSERT_TRUE(process_map);
+
+  scoped_refptr<const extensions::Extension> extension =
+      extensions::ExtensionBuilder("Test").Build();
+
+  extensions::ScriptInjectionTracker::
+      AddExtensionThatRanContentScriptsInProcessForTesting(
+          *main_rfh()->GetProcess(), extension->id());
+
+  EXPECT_TRUE(client.IsPopupBypassAllowed(main_rfh()));
+}
+
+// Tests that a normal web page is not allowed to bypass the popup blocker.
+TEST_F(ChromeContentBrowserClientIsPopupBypassAllowedTest, NormalWebPage) {
+  ChromeContentBrowserClient client;
+  NavigateAndCommit(GURL("https://example.com"));
+  EXPECT_FALSE(client.IsPopupBypassAllowed(main_rfh()));
+}
+
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 // Check that chrome-native: URLs do not assign a site for their
 // SiteInstances. This works because `kChromeNativeScheme` is registered as an
@@ -1183,6 +1265,17 @@ TEST_F(ChromeContentSettingsRedirectTest, RedirectAddressesURL) {
   EXPECT_EQ(GURL("chrome://settings/contactInfo"), dest_url);
 }
 
+TEST_F(ChromeContentSettingsRedirectTest, RedirectSearchSettingsURL) {
+  base::test::ScopedFeatureList scoped_feature_list{
+      switches::kSearchSettingsUpdate};
+
+  TestChromeContentBrowserClient test_content_browser_client;
+  const GURL search_engines_url("chrome://settings/searchEngines");
+  GURL dest_url = search_engines_url;
+  test_content_browser_client.HandleWebUI(&dest_url, &profile_);
+  EXPECT_EQ(GURL("chrome://settings/search"), dest_url);
+}
+
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)
 
@@ -1833,140 +1926,6 @@ TEST_F(WillComputeSiteForNavigationTest,
   EXPECT_FALSE(IsOriginIsolatedByUser(url));
 }
 
-class GrantCookieAccessDueToHeuristicTest
-    : public testing::Test,
-      public testing::WithParamInterface<bool> {
- public:
-  void SetUp() override {
-    scoped_refptr<content::SiteInstance> site_instance =
-        content::SiteInstance::Create(&profile_);
-    web_contents_ = content::WebContentsTester::CreateTestWebContents(
-        &profile_, site_instance);
-  }
-
-  bool IgnoreSchemes() { return GetParam(); }
-
-  Profile* profile() { return &profile_; }
-  content::WebContents* web_contents() { return web_contents_.get(); }
-
- private:
-  content::BrowserTaskEnvironment task_environment_;
-  base::test::ScopedFeatureList feature_list_{
-      content_settings::features::kTrackingProtection3pcd};
-  TestingProfile profile_;
-  content::RenderViewHostTestEnabler rvh_test_enabler_;
-  std::unique_ptr<content::WebContents> web_contents_;
-};
-
-namespace {
-
-// Helper to easily create a StorageKey from a GURL.
-blink::StorageKey FirstPartyStorageKey(const GURL& url) {
-  return blink::StorageKey::CreateFirstParty(url::Origin::Create(url));
-}
-
-// Helper to easily create a SchemefulSite from a GURL.
-net::SchemefulSite SchemefulSite(const GURL& url) {
-  return net::SchemefulSite(url::Origin::Create(url));
-}
-
-// Return a copy of `url` with the scheme set to "http".
-GURL WithHttp(const GURL& url) {
-  GURL::Replacements replacements;
-  replacements.SetSchemeStr("http");
-  return url.ReplaceComponents(replacements);
-}
-
-// Return a copy of `url` with the port set to "999".
-GURL WithPort999(const GURL& url) {
-  GURL::Replacements replacements;
-  replacements.SetPortStr("999");
-  return url.ReplaceComponents(replacements);
-}
-
-}  // namespace
-
-TEST_P(GrantCookieAccessDueToHeuristicTest,
-       SchemefulSiteMatches_AccessAlwaysGranted) {
-  TestChromeContentBrowserClient client;
-
-  GURL top_level_url("https://www.toplevel.test/index.html");
-  GURL url("https://www.subresource.test/favicon.ico");
-
-  ASSERT_FALSE(client.IsFullCookieAccessAllowed(
-      profile(), web_contents(), url, FirstPartyStorageKey(top_level_url),
-      /*overrides=*/{}));
-  client.GrantCookieAccessDueToHeuristic(
-      profile(), SchemefulSite(top_level_url), SchemefulSite(url),
-      base::Hours(1), IgnoreSchemes());
-  ASSERT_TRUE(client.IsFullCookieAccessAllowed(
-      profile(), web_contents(), url, FirstPartyStorageKey(top_level_url),
-      /*overrides=*/{}));
-}
-
-TEST_P(GrantCookieAccessDueToHeuristicTest, SchemeMismatch_AccessMayBeGranted) {
-  TestChromeContentBrowserClient client;
-
-  GURL top_level_url("https://www.toplevel.test/index.html");
-  GURL url("https://www.subresource.test/favicon.ico");
-
-  client.GrantCookieAccessDueToHeuristic(
-      profile(), SchemefulSite(top_level_url), SchemefulSite(url),
-      base::Hours(1), IgnoreSchemes());
-  // Cookie access granted iff ignore_schemes=true:
-  ASSERT_EQ(
-      client.IsFullCookieAccessAllowed(
-          profile(), web_contents(), WithHttp(url),
-          FirstPartyStorageKey(WithHttp(top_level_url)), /*overrides=*/{}),
-      IgnoreSchemes());
-}
-
-TEST_P(GrantCookieAccessDueToHeuristicTest, PortMismatch_AccessAlwaysGranted) {
-  TestChromeContentBrowserClient client;
-
-  GURL top_level_url("https://www.toplevel.test/index.html");
-  GURL url("https://www.subresource.test/favicon.ico");
-
-  client.GrantCookieAccessDueToHeuristic(
-      profile(), SchemefulSite(top_level_url), SchemefulSite(url),
-      base::Hours(1), IgnoreSchemes());
-  ASSERT_TRUE(client.IsFullCookieAccessAllowed(
-      profile(), web_contents(), WithPort999(url),
-      FirstPartyStorageKey(WithPort999(top_level_url)), /*overrides=*/{}));
-}
-
-TEST_P(GrantCookieAccessDueToHeuristicTest,
-       HostnameMismatch_AccessNeverGranted) {
-  TestChromeContentBrowserClient client;
-
-  GURL top_level_url("https://www.toplevel.test/index.html");
-  GURL url1("https://www.subresource.test/favicon.ico");
-  GURL url2("https://www.subresource.example/favicon.ico");
-
-  client.GrantCookieAccessDueToHeuristic(
-      profile(), SchemefulSite(top_level_url), SchemefulSite(url1),
-      base::Hours(1), IgnoreSchemes());
-  ASSERT_FALSE(client.IsFullCookieAccessAllowed(
-      profile(), web_contents(), url2, FirstPartyStorageKey(top_level_url),
-      /*overrides=*/{}));
-}
-
-TEST_P(GrantCookieAccessDueToHeuristicTest,
-       TopLevelHostnameMismatch_AccessNeverGranted) {
-  TestChromeContentBrowserClient client;
-
-  GURL top_level_url1("https://www.toplevel.test/index.html");
-  GURL top_level_url2("https://www.toplevel.example/index.html");
-  GURL url("https://www.subresource.test/favicon.ico");
-
-  client.GrantCookieAccessDueToHeuristic(
-      profile(), SchemefulSite(top_level_url1), SchemefulSite(url),
-      base::Hours(1), IgnoreSchemes());
-  ASSERT_FALSE(client.IsFullCookieAccessAllowed(
-      profile(), web_contents(), url, FirstPartyStorageKey(top_level_url2),
-      /*overrides=*/{}));
-}
-
 #if BUILDFLAG(IS_ANDROID)
 
 class MockTabWebContentsDelegateAndroid
@@ -2157,10 +2116,6 @@ TEST_F(ChromeContentBrowserClientAIPrefsTest, NonDevToolsScheme) {
 
   EXPECT_FALSE(web_preferences.ai_ot_apis_enabled);
 }
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         GrantCookieAccessDueToHeuristicTest,
-                         testing::Bool());
 
 #if BUILDFLAG(ENABLE_PDF)
 class ChromeContentBrowserClientOopifPdfTest

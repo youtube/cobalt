@@ -169,6 +169,9 @@ public final class ProductionSupportedFlagList {
                 GpuFeatures.PRUNE_OLD_TRANSFER_CACHE_ENTRIES,
                 "Prune old transfer cache entries and disable pruning from client"),
         Flag.baseFeature(
+                GpuFeatures.USE_STRONG_REF_TO_SHARED_IMAGE_INTERFACE,
+                "Allows ClientSharedImage to store a strong reference to SharedImageInterface."),
+        Flag.baseFeature(
                 VizFeatures.WEBVIEW_NEW_INVALIDATE_HEURISTIC,
                 "More robust heuristic for calling Invalidate. Isn't supported for TV, see"
                         + " WebViewNewInvalidateHeuristicForTV."),
@@ -861,9 +864,6 @@ public final class ProductionSupportedFlagList {
                 ContentFeatures.DEFER_SPECULATIVE_RFH_CREATION,
                 "Enables deferring the speculative render frame host creation when the"
                         + " navigation starts"),
-        Flag.baseFeature(
-                ContentFeatures.DELAY_RFH_DESTRUCTIONS_ON_UNLOAD_AND_DETACH,
-                "Delays RenderFrameHost destructions on unload and detach events."),
         Flag.baseFeature(ContentFeatures.PWA_NAVIGATION_CAPTURING),
         Flag.baseFeature("TransportSecurityFileWriterSchedule"),
         Flag.baseFeature(
@@ -1262,16 +1262,16 @@ public final class ProductionSupportedFlagList {
                 AwFeatures.WEBVIEW_CONTENT_RESTRICTION_SUPPORT,
                 "Enables content restriction support in WebView."),
         Flag.baseFeature(
-                "CancelPendingCallbacksBeforeFetchRestart",
-                "The flag for ServiceWorkerSubresourceLoader. If enabled, the loader cancels"
-                        + " pending callbacks before restarting a fetch."),
-        Flag.baseFeature(
                 BaseFeatures.REBINDING_CHILD_SERVICE_CONNECTION_CONTROLLER,
                 "Use a single connection and rebindService() to manage the binding to a child"
                         + " process service."),
         Flag.baseFeature(
                 BaseFeatures.REBIND_SERVICE_BATCH_API,
                 "Use a batch API to rebind service connections."),
+        Flag.baseFeature(
+                NetworkServiceFeatures.NETWORK_CONTEXT_DIRECT_RECEIVER,
+                "Bind NetworkContext as a DirectReceiver, allowing NetworkContext and all mojoms"
+                        + " passed through it to receive IPCs directly."),
 
         // Features for PerfCombined2025_WebView study
         Flag.baseFeature("AsyncSetCookie"),
@@ -1367,6 +1367,22 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 "DataUrlMimeTypeParameterPreservation",
                 "Preserve parameters in the MIME type of data: URLs."),
+        Flag.baseFeature(
+                "AsyncBeforeUnload",
+                "If enabled, runs beforeunload handlers asynchronously when the user"
+                        + " hasn't interacted with the frame."),
+        Flag.baseFeature(
+                "WebViewSkipFaviconJavaCopyUntilNeeded",
+                "Skips copying the favicon to Java if not needed by onReceivedIcon"
+                        + " being overriden."),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_PASS_NULL_FAVICON_TO_ON_PAGE_STARTED,
+                "Passes a null favicon to the onPageStarted method."),
+        Flag.baseFeature("PrefetchPrerenderIntegration"),
+        Flag.baseFeature(
+                GpuFeatures.AAPM_BLOCKS_WEB_GPU,
+                "Android Advanced Protection Mode (AAPM) blocks WebGPU for At-Risk Users."),
+
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
     };

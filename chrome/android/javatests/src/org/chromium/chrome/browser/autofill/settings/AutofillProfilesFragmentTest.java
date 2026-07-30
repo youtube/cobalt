@@ -1006,6 +1006,7 @@ public class AutofillProfilesFragmentTest {
 
     @Test
     @MediumTest
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
     public void testDisabledSettingsText_linksToAutofillOptionsPage() throws Exception {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -1047,6 +1048,48 @@ public class AutofillProfilesFragmentTest {
     @Test
     @MediumTest
     @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
+    public void testDisabledSettingsText_linksToAutofillOptionsPage_defaultAvailabilityEnabled()
+            throws Exception {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    AutofillClientProviderUtils.setAutofillAvailabilityToUseForTesting(
+                            AndroidAutofillAvailabilityStatus.AVAILABLE);
+                });
+        AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
+        Context context = autofillProfileFragment.getContext();
+
+        // Trigger address profile list rebuild.
+        mHelper.setProfile(sAccountProfile);
+
+        CardWithButtonPreference disabledSettingsInfoPref =
+                autofillProfileFragment.findPreference(
+                        AutofillProfilesFragment.DISABLED_SETTINGS_INFO);
+        assertNotNull(disabledSettingsInfoPref);
+        onView(allOf(withId(R.id.icon), isDescendantOfA(withId(R.id.card_layout))))
+                .check(matches(isDisplayed()));
+        String title = disabledSettingsInfoPref.getTitle().toString();
+        assertThat(title)
+                .isEqualTo(context.getString(R.string.autofill_disable_settings_explanation_title));
+        String summary = disabledSettingsInfoPref.getSummary().toString();
+        assertThat(summary)
+                .isEqualTo(context.getString(R.string.autofill_disable_settings_explanation_v2));
+
+        onView(withId(R.id.card_button))
+                .check(matches(withText(R.string.autofill_disable_settings_button_label)))
+                .perform(scrollTo(), click());
+
+        // Verify that the Autofill options fragment is opened.
+        assertTrue(rule.getLastestShownFragment() instanceof AutofillOptionsFragment);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    sSettingsActivityTestRule.getActivity().onBackPressed();
+                });
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_SHOW_WALLET_DISABLED_BANNER)
     public void testDisabledWalletDataSharingDataCard_shownWhenDisabled() throws Exception {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -1110,7 +1153,7 @@ public class AutofillProfilesFragmentTest {
 
     @Test
     @MediumTest
-    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_SHOW_WALLET_DISABLED_BANNER)
     public void testDisabledWalletDataSharingDataCard_notShownWhenFeatureDisabled()
             throws Exception {
         ThreadUtils.runOnUiThreadBlocking(
@@ -1776,6 +1819,41 @@ public class AutofillProfilesFragmentTest {
 
         // Editor should NOT be displayed.
         onView(withText("Edit Vehicle")).check(doesNotExist());
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_AVAILABLE_BY_DEFAULT)
+    public void testAddEntityButton_disabledInThirdPartyMode() throws Exception {
+        EntityType vehicleType = TestUtils.getVehicleEntityType();
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(vehicleType, Collections.emptyList());
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(sEntityDataManager.canEnableOrDisableAutofillAi()).thenReturn(true);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        // Set third party mode.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    AutofillClientProviderUtils.setAutofillAvailabilityToUseForTesting(
+                            AndroidAutofillAvailabilityStatus.AVAILABLE);
+                });
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    AutofillProfilesFragment fragment = sSettingsActivityTestRule.getFragment();
+                    PreferenceCategory category = fragment.findPreference("Vehicle");
+                    Criteria.checkThat(category, Matchers.notNullValue());
+                    Preference addVehicle = category.findPreference("Vehicle" + " Add");
+                    Criteria.checkThat(addVehicle, Matchers.notNullValue());
+                    Criteria.checkThat(addVehicle.isEnabled(), Matchers.is(false));
+                });
     }
 
     private void checkPreferenceCount(int expectedPreferenceCount) {

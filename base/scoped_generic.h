@@ -134,6 +134,13 @@ class ScopedGeneric {
     return *this;
   }
 
+  void swap(ScopedGeneric& other) {
+    CHECK(!receiving_);
+    CHECK(!other.receiving_);
+    using std::swap;
+    swap(data_.generic, other.data_.generic);
+  }
+
   // Frees the currently owned object, if any. Then takes ownership of a new
   // object, if given. Self-resets are not allowed as on unique_ptr. See
   // http://crbug.com/162971
@@ -213,16 +220,14 @@ class ScopedGeneric {
     Receiver& operator=(Receiver&& move) {
       CHECK(!used_);       // Moving into already-used Receiver.
       CHECK(!move.used_);  // Moving from already-used Receiver.
-      scoped_generic_ = move.scoped_generic_;
-      move.scoped_generic_ = nullptr;
-    }
-    ~Receiver() {
-      if (scoped_generic_) {
-        CHECK(scoped_generic_->receiving_);
-        scoped_generic_->reset(value_);
-        scoped_generic_->receiving_ = false;
+      if (this != &move) {
+        Reset();
+        scoped_generic_ = move.scoped_generic_;
+        move.scoped_generic_ = nullptr;
       }
+      return *this;
     }
+    ~Receiver() { Reset(); }
     // We hand out a pointer to a field in Receiver instead of directly to
     // ScopedGeneric's internal storage in order to make it so that users can't
     // accidentally silently break ScopedGeneric's invariants. This way, an
@@ -235,6 +240,13 @@ class ScopedGeneric {
     }
 
    private:
+    void Reset() {
+      if (scoped_generic_) {
+        CHECK(scoped_generic_->receiving_);
+        scoped_generic_->reset(value_);
+        scoped_generic_->receiving_ = false;
+      }
+    }
     T value_ = Traits::InvalidValue();
     raw_ptr<ScopedGeneric<T, Traits>> scoped_generic_;
     bool used_ = false;
@@ -291,8 +303,8 @@ class ScopedGeneric {
 };
 
 template <class T, class Traits>
-void swap(const ScopedGeneric<T, Traits>& a,
-          const ScopedGeneric<T, Traits>& b) {
+void swap(ScopedGeneric<T, Traits>& a,
+          ScopedGeneric<T, Traits>& b) {
   a.swap(b);
 }
 

@@ -8,43 +8,77 @@
 #include <iterator>
 #include <memory>
 #include <utility>
+#include <vector>
 
+#include "base/barrier_callback.h"
+#include "base/containers/extend.h"
+#include "base/functional/bind.h"
 #include "base/strings/string_util.h"
-#include "components/accessibility_annotator/core/annotation_reducer/autofill_data_provider.h"
+#include "components/accessibility_annotator/core/annotation_reducer/memory_data_provider.h"
 #include "components/accessibility_annotator/core/annotation_reducer/query_classifier.h"
 #include "components/accessibility_annotator/core/annotation_reducer/query_intent_type.h"
 
 namespace accessibility_annotator {
 
 AccessibilityQueryService::AccessibilityQueryService(
-    std::unique_ptr<AutofillDataProvider> data_provider)
-    : data_provider_(std::move(data_provider)),
-      classifier_(CreateQueryClassifier()) {}
+    std::vector<std::unique_ptr<MemoryDataProvider>> data_providers,
+    optimization_guide::RemoteModelExecutor* remote_model_executor)
+    : data_providers_(std::move(data_providers)),
+      classifier_(CreateQueryClassifier(remote_model_executor)) {}
 
 AccessibilityQueryService::~AccessibilityQueryService() = default;
 
 void AccessibilityQueryService::Shutdown() {
-  data_provider_.reset();
+  data_providers_.clear();
 }
 
 void AccessibilityQueryService::Query(
     std::u16string_view query,
     base::RepeatingCallback<void(MemorySearchResults)> update_callback) {
-  if (!data_provider_) {
+  if (data_providers_.empty()) {
     update_callback.Run(
         MemorySearchResults(MemorySearchStatus::kInternalFailure));
     return;
   }
 
-  ClassifiedQuery classified_query = classifier_.Run(query);
+  classifier_.Run(
+      std::u16string(query),
+      base::BindOnce(&AccessibilityQueryService::OnClassificationComplete,
+                     weak_ptr_factory_.GetWeakPtr(),
+                     std::move(update_callback)));
+}
+
+void AccessibilityQueryService::OnClassificationComplete(
+    base::RepeatingCallback<void(MemorySearchResults)> update_callback,
+    ClassifiedQuery classified_query) {
   if (classified_query.intent == QueryIntentType::kUnknown) {
     update_callback.Run(
         MemorySearchResults(MemorySearchStatus::kUnsupportedQuery));
     return;
   }
 
-  std::vector<MemorySearchResult> entries =
-      data_provider_->RetrieveAll(classified_query.intent);
+  // Use a barrier callback to wait for all data providers to return their
+  // results.
+  base::RepeatingCallback<void(std::vector<MemorySearchResult>)>
+      barrier_callback = base::BarrierCallback<std::vector<MemorySearchResult>>(
+          data_providers_.size(),
+          base::BindOnce(&AccessibilityQueryService::OnDataRetrieved,
+                         weak_ptr_factory_.GetWeakPtr(), classified_query,
+                         update_callback));
+
+  for (const std::unique_ptr<MemoryDataProvider>& provider : data_providers_) {
+    provider->RetrieveAll(classified_query.intent, barrier_callback);
+  }
+}
+
+void AccessibilityQueryService::OnDataRetrieved(
+    ClassifiedQuery classified_query,
+    base::RepeatingCallback<void(MemorySearchResults)> update_callback,
+    std::vector<std::vector<MemorySearchResult>> entries_list) {
+  std::vector<MemorySearchResult> entries;
+  for (std::vector<MemorySearchResult>& list : entries_list) {
+    base::Extend(entries, std::move(list));
+  }
 
   if (classified_query.filter_words.empty()) {
     update_callback.Run(MemorySearchResults(

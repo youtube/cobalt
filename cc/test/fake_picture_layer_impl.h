@@ -58,7 +58,6 @@ class FakePictureLayerImpl : public PictureLayerImpl {
   using PictureLayerImpl::IsDirectlyCompositedImage;
   using PictureLayerImpl::MinimumContentsScale;
   using PictureLayerImpl::UpdateDirectlyCompositedImageFromRasterSource;
-  using PictureLayerImpl::UpdateRasterSource;
 
   using PictureLayerImpl::MaximumTilingContentsScale;
   using PictureLayerImpl::UpdateIdealScales;
@@ -110,6 +109,8 @@ class FakePictureLayerImpl : public PictureLayerImpl {
   void SetAllTilesReady();
   void SetAllTilesReadyInTiling(PictureLayerTiling* tiling);
   void SetTileReady(Tile* tile);
+  void InitializeTileWithResourceSize(Tile* tile,
+                                      const gfx::Size& resource_size);
   PictureLayerTilingSet* GetTilings() { return tilings_.get(); }
 
   // Add the given tiling as a "used" tiling during AppendQuads. This ensures

@@ -1276,9 +1276,8 @@ mojo::ScopedDataPipeConsumerHandle FillResponseForInitialWebUI(
     mojo::PendingRemote<network::mojom::URLLoaderClient> client_remote) {
   // Read the response body locally within the renderer, and make the
   // `response_body` pipe point to the result.
-  CHECK(local_resource_loader_config->sources.contains(origin));
   const blink::mojom::LocalResourceSourcePtr& source =
-      local_resource_loader_config->sources[origin];
+      local_resource_loader_config->sources.at(origin);
   const std::map<std::string, std::string> replacement_strings(
       source->replacement_strings.begin(), source->replacement_strings.end());
 
@@ -2069,20 +2068,6 @@ void RenderFrameImpl::OnAssociatedInterfaceRequest(
                                                         &handle)) {
         return;
       }
-    }
-  }
-}
-
-void RenderFrameImpl::SetUpSharedMemoryForDroppedFrames(
-    base::ReadOnlySharedMemoryRegion dropped_frames_memory) {
-  TRACE_EVENT("navigation",
-              "RenderFrameImpl::SetUpSharedMemoryForDroppedFrames",
-              perfetto::Flow::FromPointer(this));
-  DCHECK(dropped_frames_memory.IsValid());
-  for (auto& observer : observers_) {
-    DCHECK(dropped_frames_memory.IsValid());
-    if (observer.SetUpDroppedFramesReporting(dropped_frames_memory)) {
-      break;
     }
   }
 }
@@ -4610,13 +4595,15 @@ void RenderFrameImpl::DidChangePerformanceTiming() {
 void RenderFrameImpl::DidObserveUserInteraction(
     base::TimeTicks max_event_start,
     base::TimeTicks max_event_queued_main_thread,
+    base::TimeTicks max_event_processing_start,
     base::TimeTicks max_event_commit_finish,
     base::TimeTicks max_event_end,
     uint64_t interaction_offset) {
   for (auto& observer : observers_) {
     observer.DidObserveUserInteraction(
-        max_event_start, max_event_queued_main_thread, max_event_commit_finish,
-        max_event_end, interaction_offset);
+        max_event_start, max_event_queued_main_thread,
+        max_event_processing_start, max_event_commit_finish, max_event_end,
+        interaction_offset);
   }
 }
 
@@ -6299,7 +6286,7 @@ void RenderFrameImpl::BeginNavigationInternal(
     // close enough to the start of the previous navigation, in which case we
     // can just ignore the new navigation and keep the previous navigation.
     bool start_diff_under_threshold =
-        (nav_start_diff <= features::kDuplicateNavThreshold.Get());
+        nav_start_diff <= GetBlinkPreferences().duplicate_nav_threshold;
     base::UmaHistogramBoolean(
         "Navigation.RendererInitiated.DuplicateNavIsUnderThreshold2",
         start_diff_under_threshold);
@@ -6344,7 +6331,8 @@ void RenderFrameImpl::BeginNavigationInternal(
             input_diff);
       }
     }
-    if (start_diff_under_threshold &&
+    if (GetBlinkPreferences().ignore_duplicate_nav_enabled &&
+        start_diff_under_threshold &&
         GetContentClient()->ShouldIgnoreDuplicateNavs(
             common_params->url, /*is_renderer_initiated=*/true)) {
       if (!base::FeatureList::IsEnabled(

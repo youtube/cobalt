@@ -1,7 +1,6 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="et">
-<translation id="1028699632127661925">Saatmine seadmesse <ph name="DEVICE_NAME" /> …</translation>
 <translation id="111910763555783249">Märguandeseaded</translation>
 <translation id="1127811143501539442">{DAYS,plural, =1{1 päev tagasi}other{# päeva tagasi}}</translation>
 <translation id="1156623771253174079">{SECONDS,plural, =1{1 minut tagasi}other{# minutit tagasi}}</translation>
@@ -70,7 +69,6 @@
 <translation id="2586657967955657006">Lõikelaud</translation>
 <translation id="2653844658857826081">UUS</translation>
 <translation id="2666092431469916601">Üles</translation>
-<translation id="2701330563083355633">Jagas <ph name="DEVICE_NAME" /></translation>
 <translation id="2824719307700604149">{YEARS,plural, =1{1 aasta tagasi}other{# aastat tagasi}}</translation>
 <translation id="2878511608894704031">Kustuta kõik</translation>
 <translation id="2907671656515444832">{DAYS,plural, =1{1 p pärast}other{# p pärast}}</translation>
@@ -110,6 +108,7 @@
 <translation id="4031910098617850788">F5</translation>
 <translation id="40579289237549812">{UNREAD_NOTIFICATIONS,plural, =1{1 lugemata märguanne}other{# lugemata märguannet}}</translation>
 <translation id="41501027364808384">{COUNT,plural, =1{Lülitage inkognito režiimis sisse järgmine laiendus:}other{Lülitage inkognito režiimis sisse järgmised laiendused:}}</translation>
+<translation id="4230098358142093034">Avaekraan</translation>
 <translation id="4266252015790371705">{MONTHS,plural, =1{1 kuu tagasi}other{# kuud tagasi}}</translation>
 <translation id="4277033906326892359">Veerg <ph name="COLUMN_NAME" /> on sorditud kasvavas järjestuses</translation>
 <translation id="4289300219472526559">Alusta rääkimist</translation>

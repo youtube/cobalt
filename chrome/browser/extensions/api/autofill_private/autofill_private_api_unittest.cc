@@ -231,6 +231,7 @@ class AutofillPrivateApiBrowserTest : public extensions::ExtensionApiTest {
             {autofill::features::kAutofillAiWalletFlightReservation, {}},
             {autofill::features::kAutofillAiWalletVehicleRegistration, {}},
             {autofill::features::kAutofillEnableSaveToWalletFromSettings, {}},
+            {autofill::features::kAutofillAiWalletPrivatePasses, {}},
             {wallet::features::kWalletablePassDetection,
              {{wallet::features::kWalletablePassDetectionCountryAllowlist.name,
                "US"}}},
@@ -520,6 +521,7 @@ IN_PROC_BROWSER_TEST_F(AutofillPrivateApiBrowserTest,
 
   base::ListValue args;
   args.Append(api_entity.ToValue());
+  args.Append(extensions::api::autofill_private::EntityUiContext().ToValue());
   std::string json_args;
   base::JSONWriter::Write(args, &json_args);
 
@@ -569,6 +571,7 @@ IN_PROC_BROWSER_TEST_F(
 
   base::ListValue args;
   args.Append(api_entity.ToValue());
+  args.Append(extensions::api::autofill_private::EntityUiContext().ToValue());
   std::string json_args;
   base::JSONWriter::Write(args, &json_args);
 
@@ -638,6 +641,7 @@ IN_PROC_BROWSER_TEST_F(AutofillPrivateApiSavePrivatePassToWalletTest,
 
   base::ListValue args;
   args.Append(api_entity.ToValue());
+  args.Append(extensions::api::autofill_private::EntityUiContext().ToValue());
   std::string json_args;
   base::JSONWriter::Write(args, &json_args);
 
@@ -675,6 +679,7 @@ IN_PROC_BROWSER_TEST_F(AutofillPrivateApiSavePrivatePassToWalletTest,
 
   base::ListValue args;
   args.Append(api_entity.ToValue());
+  args.Append(extensions::api::autofill_private::EntityUiContext().ToValue());
   std::string json_args;
   base::JSONWriter::Write(args, &json_args);
 

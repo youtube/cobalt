@@ -10,6 +10,7 @@
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
+#include "chrome/browser/ui/views/tabs/hovercard/tab_hover_card_controller.h"
 #include "chrome/browser/ui/views/tabs/tab/glow_hover_controller.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_animating_layout_manager.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
@@ -203,6 +204,14 @@ double VerticalSplitTabView::GetHoverAnimationValue() const {
 }
 
 void VerticalSplitTabView::ResetCollectionNode() {
+  CHECK(collection_node_);
+  TabHoverCardController* hover_card_controller =
+      collection_node_->GetController()->GetHoverCardController();
+  if (hover_card_controller) {
+    hover_card_controller->UpdateHoverCard(
+        nullptr, TabSlotController::HoverCardUpdateType::kTabRemoved);
+  }
+
   collection_node_ = nullptr;
 }
 

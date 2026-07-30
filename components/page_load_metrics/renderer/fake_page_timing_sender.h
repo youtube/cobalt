@@ -87,7 +87,8 @@ class FakePageTimingSender : public PageTimingSender {
     void UpdateExpectedInteractionTiming(
         const base::TimeDelta interaction_duration,
         uint64_t interaction_offset,
-        const base::TimeTicks interaction_time);
+        const base::TimeTicks interaction_time,
+        const base::TimeTicks processing_start);
 
     void UpdateExpectedSubresourceLoadMetrics(
         const blink::SubresourceLoadMetrics& subresource_load_metrics);
@@ -181,9 +182,6 @@ class FakePageTimingSender : public PageTimingSender {
       std::vector<mojom::LargestContentfulPaintTimingPtr>
           soft_largest_contentful_paint,
       std::vector<mojom::CustomUserTimingMarkPtr> user_timings) override;
-
-  void SetUpDroppedFramesReporting(
-      base::ReadOnlySharedMemoryRegion dropped_frames_memory) override;
 
   void SendCustomUserTiming(mojom::CustomUserTimingMarkPtr timing) override;
 

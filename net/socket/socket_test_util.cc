@@ -1258,7 +1258,7 @@ void MockTCPClientSocket::Disconnect() {
 bool MockTCPClientSocket::IsConnected() const {
   if (!data_)
     return false;
-  return connected_ && !peer_closed_connection_;
+  return connected_ && !peer_closed_connection_ && !data_->silently_closed();
 }
 
 bool MockTCPClientSocket::IsConnectedAndIdle() const {
@@ -1427,8 +1427,6 @@ void MockSSLClientSocket::ConnectCallback(
     MockSSLClientSocket* ssl_client_socket,
     CompletionOnceCallback callback,
     int rv) {
-  if (rv == OK)
-    ssl_client_socket->connected_ = true;
   std::move(callback).Run(rv);
 }
 
@@ -1482,8 +1480,6 @@ int MockSSLClientSocket::Connect(CompletionOnceCallback callback) {
     data_->connect.completer->SetCallback(std::move(callback));
     return ERR_IO_PENDING;
   }
-  if (data_->connect.result == OK)
-    connected_ = true;
   RunClosureIfNonNull(std::move(data_->connect_callback));
   if (data_->connect.mode == ASYNC) {
     RunCallbackAsync(std::move(callback), data_->connect.result);

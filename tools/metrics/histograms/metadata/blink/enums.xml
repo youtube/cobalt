@@ -6484,6 +6484,24 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5843" label="CSSTimelineScopeAttachedMultiple"/>
   <int value="5844" label="SVGForeignObjectInImage"/>
   <int value="5845" label="SVGForeignObjectDrawnIntoCanvas"/>
+  <int value="5846" label="HTMLPatching"/>
+  <int value="5847" label="HTMLStreaming"/>
+  <int value="5848" label="HTMLPositionalSetters"/>
+  <int value="5849" label="LazyLoadVideoLoadingAttributeLazy"/>
+  <int value="5850" label="LazyLoadVideoLoadingAttributeEager"/>
+  <int value="5851" label="LazyLoadAudioLoadingAttributeLazy"/>
+  <int value="5852" label="LazyLoadAudioLoadingAttributeEager"/>
+  <int value="5853" label="ResourceTimingWorkerMatchedSourceType"/>
+  <int value="5854" label="ResourceTimingWorkerFinalSourceType"/>
+  <int value="5855" label="NoVarySearchWithBooleanParams"/>
+  <int value="5856" label="DataUrlWorkerBroadcastChannel"/>
+  <int value="5857" label="NoscriptMarkupWithScriptingDisabledTemplate"/>
+  <int value="5858" label="NoscriptMarkupWithScriptingDisabledIframeSandbox"/>
+  <int value="5859" label="NoscriptMarkupWithScriptingDisabledXHR"/>
+  <int value="5860" label="NoscriptMarkupWithScriptingDisabledDOMParser"/>
+  <int value="5861"
+      label="NoscriptMarkupWithScriptingDisabledNoBrowsingContext"/>
+  <int value="5862" label="SingleAxisScroller"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -8902,11 +8920,13 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="425" label="LanguageDetector"/>
   <int value="426" label="Translator"/>
   <int value="427" label="NavigatorModelcontext"/>
-  <int value="428" label="DRAFT_LoadingLazyMedia"/>
+  <int value="428" label="LoadingLazyMedia"/>
   <int value="429" label="ManifestLocalization"/>
   <int value="430" label="ContrastColor"/>
   <int value="431" label="DRAFT_WebAppMigration"/>
   <int value="432" label="DeclarativeWebmcp"/>
+  <int value="433" label="Webgl"/>
+  <int value="434" label="Webgl2"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

@@ -27,6 +27,11 @@ class WebContents;
 
 namespace send_tab_to_self {
 
+enum class SendTabToSelfResult {
+  kSuccess,
+  kFailure,
+};
+
 // Handles the logic for Send Tab to Self on a specific page, including
 // capturing page context (e.g. scroll position) and sending the tab to
 // the selected device.
@@ -47,10 +52,8 @@ class SendTabToSelfPageHandler
   void SendTabToDevice(const std::string& target_device_guid,
                        const GURL& url,
                        const std::string& title,
-                       PageContext page_context,
-                       base::OnceClosure on_entry_added = base::NullCallback(),
-                       base::OnceCallback<void(const GURL&)> on_send_failed =
-                           base::NullCallback());
+                       base::OnceCallback<void(SendTabToSelfResult)>
+                           result_callback = base::NullCallback());
 
   void SetSelectorGenerationTimeoutForTesting(base::TimeDelta timeout);
 
@@ -75,16 +78,29 @@ class SendTabToSelfPageHandler
     base::TimeTicks start_time;
     PageContext page_context;
     content::GlobalRenderFrameHostId main_frame_id;
-    base::OnceClosure on_entry_added;
-    base::OnceCallback<void(const GURL&)> on_send_failed;
+    base::OnceCallback<void(SendTabToSelfResult)> result_callback;
   };
 
   void SelectorGeneratedForRequest(
       base::Token request_token,
-      bool is_browser_timeout,
       const std::string& selector,
       shared_highlighting::LinkGenerationError error,
-      shared_highlighting::LinkGenerationReadyStatus /*ready_status*/);
+      shared_highlighting::LinkGenerationReadyStatus ready_status);
+
+  void SelectorGenerationTimedOutForRequest(base::Token request_token);
+
+  void CancelPendingRequest(base::Token request_token);
+
+  void RequestScrollPositionSelectorAndSendRequest(base::Token request_token,
+                                                   PendingRequest request);
+
+  std::pair<ScrollPositionGenerationOutcome, ScrollPosition>
+  ProcessSelectorGenerationResult(
+      const PendingRequest& request,
+      const std::string& selector,
+      shared_highlighting::LinkGenerationError error);
+
+  void MaybeExtractFormFields(PendingRequest& request);
 
   void SendFinalizedRequest(
       PendingRequest request,

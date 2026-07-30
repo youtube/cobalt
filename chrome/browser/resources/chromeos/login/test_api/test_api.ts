@@ -1163,7 +1163,7 @@ class ChoobeScreenTester extends ScreenElementApi {
   }
 
   requestShouldSkip(): void {
-    sendWithPromise('OobeTestApi.getShouldSkipChoobe')
+    sendWithPromise<boolean>('OobeTestApi.getShouldSkipChoobe')
         .then(shouldBeSkipped => this.setShouldBeSkipped(shouldBeSkipped));
   }
 
@@ -1260,7 +1260,7 @@ class ChoobeDrivePinningScreenTester extends ScreenElementApi {
   isFileSyncEnabled(): boolean {
     const drivePinningToggle = this.drivePinningToggle.element();
     assert(drivePinningToggle instanceof CrToggleElement);
-    return !!drivePinningToggle.checked;
+    return drivePinningToggle.checked;
   }
 
   getSpaceInformationString(): string {
@@ -1283,7 +1283,7 @@ class ChoobeTouchpadScrollScreenTester extends ScreenElementApi {
   }
 
   requestShouldSkip(): void {
-    sendWithPromise('OobeTestApi.getShouldSkipTouchpadScroll')
+    sendWithPromise<boolean>('OobeTestApi.getShouldSkipTouchpadScroll')
         .then(shouldBeSkipped => this.setShouldBeSkipped(shouldBeSkipped));
   }
 
@@ -1391,7 +1391,7 @@ class SplitModifierKeyboardInfoScreenTester extends ScreenElementApi {
   }
 
   requestShouldSkip(): void {
-    sendWithPromise('OobeTestApi.getShouldSkipSplitModifierScreen')
+    sendWithPromise<boolean>('OobeTestApi.getShouldSkipSplitModifierScreen')
         .then(shouldBeSkipped => this.setShouldBeSkipped(shouldBeSkipped));
   }
 
@@ -1653,7 +1653,7 @@ export class OobeApiProvider {
     };
 
     this.requestMetricsClientID = function(): void {
-      sendWithPromise('OobeTestApi.getMetricsClientID')
+      sendWithPromise<string>('OobeTestApi.getMetricsClientID')
           .then(clientID => this.onMetricsClientIdReceived(clientID));
     };
 

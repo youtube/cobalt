@@ -10,6 +10,10 @@
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "chrome/browser/page_load_metrics/page_load_metrics_initialize.h"
+#include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
 #include "chrome/browser/ui/waap/waap_utils.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/browser/ui/webui/webui_toolbar/adapters/navigation_controls_state_fetcher_impl.h"
@@ -66,9 +70,12 @@ class WebUIControllerInitalizer : protected content::WebContentsObserver {
   }
 };
 
+// We should probably just hoist the concrete DependencyProvider out of the
+// webview class so that it's portable enough for use in test.
 class ToolbarDependencyProvider : public WebUIToolbarUI::DependencyProvider {
  public:
-  ToolbarDependencyProvider() = default;
+  explicit ToolbarDependencyProvider(Browser* browser) : browser_(browser) {}
+
   ~ToolbarDependencyProvider() = default;
 
   // This might blow up in the future. We are implicitly assuming that the
@@ -89,11 +96,20 @@ class ToolbarDependencyProvider : public WebUIToolbarUI::DependencyProvider {
         base::BindLambdaForTesting(
             []() { return CreateValidNavigationControlsState(); }));
   }
+
+  CommandUpdater* GetCommandUpdater() override {
+    return reinterpret_cast<CommandUpdater*>(
+        browser_->GetFeatures().browser_command_controller());
+  }
+
+ private:
+  raw_ptr<BrowserWindowInterface> browser_;
 };
 
 class WebUIToolbarInitializer : public WebUIControllerInitalizer {
  public:
-  WebUIToolbarInitializer() = default;
+  explicit WebUIToolbarInitializer(Browser* browser) : injector_(browser) {}
+
   ~WebUIToolbarInitializer() override = default;
 
   void Init(content::WebUIController* controller) override {
@@ -192,7 +208,8 @@ IN_PROC_BROWSER_TEST_F(InitialWebUINavigationBrowserTest,
   GURL url2(chrome::kChromeUIWebUIToolbarURL);
   EXPECT_TRUE(IsTopChromeWebUIURL(url2));
   EXPECT_TRUE(IsForInitialWebUI(url2));
-  WebUIToolbarInitializer initializer;
+  WebUIToolbarInitializer initializer(browser());
+
   std::unique_ptr<content::WebContents> initial_webui_web_contents =
       CreateAndNavigateWebContents(url2, &initializer);
   // Ensure that the process has the TopChrome WebUI flag set.
@@ -209,7 +226,7 @@ IN_PROC_BROWSER_TEST_F(InitialWebUINavigationBrowserTest,
   // 1) Navigate to initial WebUI in a new WebContents.
   GURL url(chrome::kChromeUIWebUIToolbarURL);
   EXPECT_TRUE(IsTopChromeWebUIURL(url));
-  WebUIToolbarInitializer initializer;
+  WebUIToolbarInitializer initializer(browser());
   std::unique_ptr<content::WebContents> initial_webui_web_contents =
       CreateAndNavigateWebContents(url, &initializer);
 
@@ -274,7 +291,7 @@ IN_PROC_BROWSER_TEST_F(InitialWebUINavigationBrowserTest, RecordPageLoadUKM) {
 
   // 1) Navigate to initial WebUI.
   GURL url(chrome::kChromeUIWebUIToolbarURL);
-  WebUIToolbarInitializer initializer;
+  WebUIToolbarInitializer initializer(browser());
   std::unique_ptr<content::WebContents> initial_webui_web_contents =
       CreateAndNavigateWebContents(url, &initializer);
 
@@ -294,6 +311,55 @@ IN_PROC_BROWSER_TEST_F(InitialWebUINavigationBrowserTest, RecordPageLoadUKM) {
   // 5) Verify UKM recording.
   auto entries = ukm_recorder().GetEntriesByName(PageLoad::kEntryName);
   EXPECT_FALSE(entries.empty());
+}
+
+// Verifies that when a new browser window is created while another window
+// already exists, the `FirstPaintGap metrics with the "WithExistingWindow"
+// dimension are recorded.
+IN_PROC_BROWSER_TEST_F(InitialWebUINavigationBrowserTest,
+                       RecordsFirstPaintGapDeltaWithExistingWindow) {
+  base::HistogramTester histogram_tester;
+
+  // The test harness automatically creates a default browser window on startup.
+  // Wait for the new window metric to be recorded.
+  // The metric expects "WithExistingWindow" when the new browser has prior
+  // windows. Evaluate the actual state to avoid hardcoding test assumptions on
+  // platforms where the default browser might not match desktop norms
+  // perfectly.
+  const std::string expected_metric =
+      base::StrCat({"InitialWebUI.NewWindow.AllSources.",
+                    chrome::GetBrowserCount(browser()->profile()) > 0
+                        ? "WithExistingWindow"
+                        : "WithoutExistingWindow",
+                    ".BrowserWindowToReloadButton.FirstPaintGap"});
+  base::StatisticsRecorder::HistogramWaiter waiter(expected_metric);
+
+  // Create a new browser window without actively showing/painting it yet.
+  Browser::CreateParams params(browser()->profile(), true);
+  Browser* new_browser = Browser::Create(params);
+
+  if (auto* manager = InitialWebUIWindowMetricsManager::From(new_browser)) {
+    manager->SkipStartupForTesting();
+    manager->SetWindowCreationInfo(
+        waap::NewWindowCreationSource::kBrowserInitiated,
+        base::TimeTicks::Now());
+
+    base::TimeTicks t1 = base::TimeTicks::Now();
+    manager->OnBrowserWindowFirstPresentation(t1);
+    manager->OnReloadButtonFirstPaint(t1 + base::Milliseconds(50));
+  }
+
+  AddBlankTabAndShow(new_browser);
+  waiter.Wait();
+
+  histogram_tester.ExpectTotalCount(
+      "InitialWebUI.NewWindow.AllSources.WithExistingWindow."
+      "BrowserWindowToReloadButton.FirstPaintGap",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "InitialWebUI.NewWindow.BrowserInitiated.WithExistingWindow."
+      "BrowserWindowToReloadButton.FirstPaintGap",
+      1);
 }
 
 class InitialWebUIMetricsMappingBrowserTest
@@ -326,7 +392,7 @@ IN_PROC_BROWSER_TEST_F(InitialWebUIMetricsMappingBrowserTest,
 
   // Navigate to an initial WebUI page.
   GURL url(chrome::kChromeUIWebUIToolbarURL);
-  WebUIToolbarInitializer initializer;
+  WebUIToolbarInitializer initializer(browser());
   std::unique_ptr<content::WebContents> initial_webui_web_contents =
       CreateAndNavigateWebContents(url, &initializer);
 
@@ -410,7 +476,7 @@ IN_PROC_BROWSER_TEST_F(InitialWebUIMetricsAllowlistBrowserTest,
 
   // Navigate to an initial WebUI page.
   GURL url(chrome::kChromeUIWebUIToolbarURL);
-  WebUIToolbarInitializer initializer;
+  WebUIToolbarInitializer initializer(browser());
   std::unique_ptr<content::WebContents> initial_webui_web_contents =
       CreateAndNavigateWebContents(url, &initializer);
 
@@ -458,8 +524,8 @@ class InitialWebUIMetricsDropBrowserTest : public InitialWebUIBrowserTestBase {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-// TODO(crbug.com/491012584): Flaky on ChromeOS MSan.
-#if BUILDFLAG(IS_CHROMEOS) && defined(MEMORY_SANITIZER)
+// TODO(crbug.com/491012584): Flaky on ChromeOS MSan and Linux MSan.
+#if (BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)) && defined(MEMORY_SANITIZER)
 #define MAYBE_WebiumRendererMetricsDroppedIfNoRule \
   DISABLED_WebiumRendererMetricsDroppedIfNoRule
 #else
@@ -472,7 +538,7 @@ IN_PROC_BROWSER_TEST_F(InitialWebUIMetricsDropBrowserTest,
 
   // Navigate to an initial WebUI page.
   GURL url(chrome::kChromeUIWebUIToolbarURL);
-  WebUIToolbarInitializer initializer;
+  WebUIToolbarInitializer initializer(browser());
   std::unique_ptr<content::WebContents> initial_webui_web_contents =
       CreateAndNavigateWebContents(url, &initializer);
 

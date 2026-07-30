@@ -129,6 +129,7 @@
 #include "third_party/blink/renderer/platform/graphics/canvas_non2d_snapshot_provider_bitmap.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/gpu/canvas_utils.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/image_extractor.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
@@ -1618,9 +1619,7 @@ bool WebGLRenderingContextBase::PushFrameNoCopy() {
   auto canvas_resource = GetDrawingBuffer()->ExportCanvasResource();
   if (!canvas_resource)
     return false;
-  const bool submitted_frame =
-      Host()->PushFrame(std::move(canvas_resource), std::nullopt);
-
+  const bool submitted_frame = Host()->PushFrame(std::move(canvas_resource));
   MarkLayerComposited();
   return submitted_frame;
 }
@@ -1639,9 +1638,8 @@ bool WebGLRenderingContextBase::PushFrameWithCopy() {
   auto* resource_provider =
       PaintRenderingResultsToResourceProvider(kBackBuffer);
   if (resource_provider && resource_provider_has_content_for_frame_push_) {
-    submitted_frame = Host()->PushFrame(
-        resource_provider->ProduceCanvasResource(FlushReason::kOther),
-        std::nullopt);
+    submitted_frame =
+        Host()->PushFrame(resource_provider->ProduceCanvasResource());
     resource_provider_has_content_for_frame_push_ = false;
   }
   MarkLayerComposited();
@@ -1934,7 +1932,7 @@ WebGLRenderingContextBase::PaintRenderingResultsToResource(
 
   auto* resource_provider =
       PaintRenderingResultsToResourceProvider(source_buffer);
-  return resource_provider ? resource_provider->ProduceCanvasResource(reason)
+  return resource_provider ? resource_provider->ProduceCanvasResource()
                            : nullptr;
 }
 
@@ -1973,7 +1971,7 @@ WebGLRenderingContextBase::GetSharedImageResourceProvider() {
     gpu::SharedImageUsageSet shared_image_usage_flags =
         gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
 
-    if (SharedGpuContext::UseOverlaysForWebGL()) {
+    if (UseOverlaysForWebGL()) {
       shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
     }
     resource_provider_ = CanvasNon2DResourceProviderSharedImage::Create(
@@ -2125,8 +2123,8 @@ bool WebGLRenderingContextBase::CopyRenderingResultsFromDrawingBuffer(
   // ImageOrientation of the UnacceleratedStaticBitmapImage.
   ImageDrawOptions draw_options;
   draw_options.clamping_mode = Image::kDoNotClampImageToSourceRect;
-  image->Draw(&resource_provider->Canvas(), flags, gfx::RectF(dest_rect),
-              gfx::RectF(src_rect), draw_options);
+  image->Draw(&resource_provider->GetCanvasDeprecated(), flags,
+              gfx::RectF(dest_rect), gfx::RectF(src_rect), draw_options);
   return true;
 }
 
@@ -4369,10 +4367,10 @@ ScriptValue WebGLRenderingContextBase::getUniform(
         reinterpret_cast<GLchar*>(name_buffer.data()));
     if (size < 0)
       return ScriptValue::CreateNull(script_state->GetIsolate());
-    String name(name_impl->Substring(0, name_length));
+    StringView name(name_impl.get(), 0, name_length);
     // Strip "[0]" from the name if it's an array.
     if (size > 1 && name.ends_with("[0]")) {
-      name = name.Left(name.length() - 3);
+      name.remove_suffix(3);
     }
     // If it's an array, we need to iterate through each element, appending
     // "[index]" to the name.
@@ -5886,17 +5884,28 @@ void WebGLRenderingContextBase::TexImageHelperHTMLImageElement(
     if (have_svg_image && canvas()) {
       UseCounter::Count(canvas()->GetDocument(), WebFeature::kSVGInWebGL);
     }
-    // If the SVG image doesn't have natural width/height, we need to resolve
-    // against a default object size. This is 300x150 for legacy reasons.
-    // Maybe it should be the resolved destination size?.
     if (have_svg_image) {
+      // When the <img> has no explicit width/height attributes and the SVG
+      // has no intrinsic size, resolve against 0x0 instead of the legacy
+      // 300x150 default so that WebGL treats the source as zero-sized.
+      gfx::SizeF default_object_size =
+          (!image->FastHasAttribute(html_names::kWidthAttr) &&
+           !image->FastHasAttribute(html_names::kHeightAttr))
+              ? gfx::SizeF()
+              : gfx::SizeF(image->width(), image->height());
       SourceImageStatus status;
       image_for_render =
-          image->GetSourceImageForCanvas(&status, gfx::SizeF(300, 150));
-      // Since the size of the source has not been previously validated,
-      // GetSourceImageForCanvas() can return nullptr.
+          image->GetSourceImageForCanvas(&status, default_object_size);
       if (!image_for_render) {
-        image_for_render = Image::NullImage();
+        // Zero-size SVG source.  (Re)define the texture level as 0x0 so
+        // follow-up texSubImage2D validation sees the correct dimensions.
+        ScopedUnpackParametersResetRestore temporary_reset_unpack(this);
+        ContextGL()->TexImage2D(
+            params.target, params.level,
+            ConvertTexInternalFormat(params.format, params.type), 0, 0, 0,
+            params.format, params.type, nullptr);
+        SynthesizeGLError(GL_INVALID_VALUE, func_name, "bad image data");
+        return;
       }
     }
     // DrawImageIntoBuffer always respects orientation
@@ -6801,7 +6810,7 @@ void WebGLRenderingContextBase::TexElementImage2DInternal(
     return;
   }
 
-  scoped_refptr<Image> image =
+  scoped_refptr<StaticBitmapImage> image =
       GetElementImage(element, sx, sy, swidth, sheight, width, height,
                       "texElementImage2D()", exception_state);
   if (!image) {
@@ -6828,18 +6837,8 @@ void WebGLRenderingContextBase::TexElementImage2DInternal(
     exception_state.ThrowTypeError("ValidateTexFunc failure");
     return;
   }
-  ImageExtractor image_extractor(
-      image.get(), params.GetDestinationAlphaType(),
-      params.unpack_colorspace_conversion
-          ? PredefinedColorSpaceToSkColorSpace(unpack_color_space_)
-          : nullptr);
-  auto sk_image = image_extractor.GetSkImage();
-  if (!sk_image) {
-    exception_state.ThrowTypeError("GetSkImage failure");
-    return;
-  }
 
-  TexImageSkImage(params, std::move(sk_image));
+  TexImageStaticBitmapImage(params, image.get(), /*allow_copy_via_gpu=*/true);
 }
 
 void WebGLRenderingContextBase::texSubImage2D(
@@ -9147,14 +9146,15 @@ void WebGLRenderingContextBase::RestoreUnpackParameters() {
     ContextGL()->PixelStorei(GL_UNPACK_ALIGNMENT, unpack_alignment_);
 }
 
-V8UnionHTMLCanvasElementOrOffscreenCanvas*
-WebGLRenderingContextBase::getHTMLOrOffscreenCanvas() const {
+V8UnionHTMLCanvasElementOrOffscreenCanvas::Ret
+WebGLRenderingContextBase::getHTMLOrOffscreenCanvas(
+    ScriptState* script_state) const {
   if (canvas()) {
-    return MakeGarbageCollected<V8UnionHTMLCanvasElementOrOffscreenCanvas>(
-        static_cast<HTMLCanvasElement*>(Host()));
+    return V8UnionHTMLCanvasElementOrOffscreenCanvas::Ret(
+        script_state, static_cast<HTMLCanvasElement*>(Host()));
   }
-  return MakeGarbageCollected<V8UnionHTMLCanvasElementOrOffscreenCanvas>(
-      static_cast<OffscreenCanvas*>(Host()));
+  return V8UnionHTMLCanvasElementOrOffscreenCanvas::Ret(
+      script_state, static_cast<OffscreenCanvas*>(Host()));
 }
 
 void WebGLRenderingContextBase::addProgramCompletionQuery(WebGLProgram* program,

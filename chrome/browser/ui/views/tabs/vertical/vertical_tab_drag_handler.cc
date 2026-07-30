@@ -261,8 +261,14 @@ bool VerticalTabDragHandlerImpl::ContinueDrag(views::View& event_source_view,
   }
   gfx::Point screen_location(event.location());
   ConvertPointToScreen(&event_source_view, &screen_location);
-  if (drag_controller_->Drag(screen_location) ==
-      TabDragController::Liveness::kDeleted) {
+
+  // Dragging may start a blocking loop, which may allow this to be destroyed.
+  auto ref = weak_factory_.GetWeakPtr();
+  auto liveness = drag_controller_->Drag(screen_location);
+  if (!ref) {
+    return false;
+  }
+  if (liveness == TabDragController::Liveness::kDeleted) {
     ResetDragState();
     return false;
   }
@@ -614,8 +620,6 @@ void VerticalTabDragHandlerImpl::OnGestureEvent(ui::GestureEvent* event) {
     return;
   }
 
-  bool handler_alive = true;
-
   switch (event->type()) {
     case ui::EventType::kGestureScrollEnd:
     case ui::EventType::kScrollFlingStart:
@@ -650,7 +654,7 @@ void VerticalTabDragHandlerImpl::OnGestureEvent(ui::GestureEvent* event) {
       break;
 
     case ui::EventType::kGestureScrollUpdate:
-      handler_alive = ContinueDrag(*this, *event);
+      ContinueDrag(*this, *event);
       break;
 
     default:
@@ -658,10 +662,6 @@ void VerticalTabDragHandlerImpl::OnGestureEvent(ui::GestureEvent* event) {
   }
 
   event->SetHandled();
-
-  if (!handler_alive) {
-    return;
-  }
 }
 
 bool VerticalTabDragHandlerImpl::OnMouseDragged(const ui::MouseEvent& event) {

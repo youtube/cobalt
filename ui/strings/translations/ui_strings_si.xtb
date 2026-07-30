@@ -1,7 +1,6 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="si">
-<translation id="1028699632127661925"><ph name="DEVICE_NAME" /> වෙත යවනු ලැබේ...</translation>
 <translation id="111910763555783249">දැනුම්දීම් සැකසීම්</translation>
 <translation id="1127811143501539442">{DAYS,plural, =1{දින 1 කට පෙර}one{දින # කට පෙර}other{දින # කට පෙර}}</translation>
 <translation id="1156623771253174079">{SECONDS,plural, =1{මිනිත්තු 1කට පෙර}one{මිනිත්තු #කට පෙර}other{මිනිත්තු #කට පෙර}}</translation>
@@ -70,7 +69,6 @@
 <translation id="2586657967955657006">පසුරු පුවරුව</translation>
 <translation id="2653844658857826081">නව</translation>
 <translation id="2666092431469916601">ඉහල</translation>
-<translation id="2701330563083355633"><ph name="DEVICE_NAME" /> වෙතින් බෙදා ගන්නා ලදි</translation>
 <translation id="2824719307700604149">{YEARS,plural, =1{වසර 1කට පෙර}one{වසර #කට පෙර}other{වසර #කට පෙර}}</translation>
 <translation id="2878511608894704031">සියල්ල මකන්න</translation>
 <translation id="2907671656515444832">{DAYS,plural, =1{1 දිනකින්}one{දින #කින්}other{දින #කින්}}</translation>
@@ -110,6 +108,7 @@
 <translation id="4031910098617850788">F5</translation>
 <translation id="40579289237549812">{UNREAD_NOTIFICATIONS,plural, =1{1 නොකියවූ දැනුම්දීමක්}one{නොකියවූ දැනුම්දීම් # ක්}other{නොකියවූ දැනුම්දීම් # ක්}}</translation>
 <translation id="41501027364808384">{COUNT,plural, =1{අප්‍රසිද්ධ තුළ පහත දිගුව ක්‍රියාත්මක කරන්න:}one{අප්‍රසිද්ධ තුළ පහත දිගු ක්‍රියාත්මක කරන්න:}other{අප්‍රසිද්ධ තුළ පහත දිගු ක්‍රියාත්මක කරන්න:}}</translation>
+<translation id="4230098358142093034">නිවස</translation>
 <translation id="4266252015790371705">{MONTHS,plural, =1{මාස 1කට පෙර}one{මාස #කට පෙර}other{මාස #කට පෙර}}</translation>
 <translation id="4277033906326892359"><ph name="COLUMN_NAME" /> තීරුව වැඩි වන අනුපිළිවෙළට සකසන ලදි</translation>
 <translation id="4289300219472526559">කතා කිරීම අරඹන්න</translation>

@@ -181,8 +181,6 @@ public class FeedSurfaceCoordinator
          */
         RootView(Context context) {
             super(context);
-            setClipChildren(false);
-            setClipToPadding(false);
         }
 
         @Override
@@ -960,7 +958,6 @@ public class FeedSurfaceCoordinator
         assumeNonNull(view);
         view.setId(R.id.feed_stream_recycler_view);
         view.setClipToPadding(false);
-        view.setClipChildren(false);
 
         RecyclerView.ItemAnimator animator = view.getItemAnimator();
         if (animator != null) {
@@ -1111,17 +1108,15 @@ public class FeedSurfaceCoordinator
                                         ? R.drawable.home_surface_background_rounded
                                         : R.drawable.home_surface_ui_background);
 
-                if (ChromeFeatureList.isEnabled(ChromeFeatureList.FEED_HEADER_REMOVAL)) {
-                    int topPadding =
-                            mActivity
-                                    .getResources()
-                                    .getDimensionPixelSize(R.dimen.feed_header_top_margin);
-                    mSigninPromoView.setPadding(
-                            mSigninPromoView.getPaddingLeft(),
-                            topPadding,
-                            mSigninPromoView.getPaddingRight(),
-                            mSigninPromoView.getPaddingBottom());
-                }
+                int topPadding =
+                        mActivity
+                                .getResources()
+                                .getDimensionPixelSize(R.dimen.feed_header_top_margin);
+                mSigninPromoView.setPadding(
+                        mSigninPromoView.getPaddingLeft(),
+                        topPadding,
+                        mSigninPromoView.getPaddingRight(),
+                        mSigninPromoView.getPaddingBottom());
             }
 
             FeedListContentManager.NativeViewContent content =

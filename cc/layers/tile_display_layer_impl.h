@@ -104,6 +104,13 @@ class CC_EXPORT TileDisplayLayerTile {
     return std::nullopt;
   }
 
+  std::optional<gfx::Size> GetResourceSize() const {
+    if (auto res = resource()) {
+      return res->resource_size;
+    }
+    return std::nullopt;
+  }
+
  private:
   const raw_ref<TileDisplayLayerImpl> layer_;
   TileDisplayLayerTileContents contents_;
@@ -197,9 +204,6 @@ class CC_EXPORT TileDisplayLayerImpl
   std::unique_ptr<LayerImpl> CreateLayerImpl(
       LayerTreeImpl* tree_impl) const override;
   void CopyPropertiesTo(LayerImpl* layer) const override;
-  void GetContentsResourceId(viz::ResourceId* resource_id,
-                             gfx::Size* resource_size,
-                             gfx::SizeF* resource_uv_size) const override;
   gfx::ContentColorUsage GetContentColorUsage() const override;
 
   void SetContentColorUsage(gfx::ContentColorUsage content_color_usage) {
@@ -225,6 +229,7 @@ class CC_EXPORT TileDisplayLayerImpl
   // TileBasedLayerImpl:
   float GetMaximumContentsScaleForUseInAppendQuads() const override;
   float GetIdealContentsScaleKey() const override;
+  bool ValidateTilingSetForContentsResourceId() const override;
   void AppendQuadsForResourcelessSoftwareDraw(
       const AppendQuadsContext& context,
       viz::CompositorRenderPass* render_pass,
@@ -234,7 +239,7 @@ class CC_EXPORT TileDisplayLayerImpl
   TilingSetCoverageIterator<TileDisplayLayerTiling> Cover(
       const gfx::Rect& coverage_rect,
       float coverage_scale,
-      float ideal_contents_scale) override;
+      float ideal_contents_scale) const override;
   TilingResolution GetTilingResolutionForDebugBorders(
       const TileDisplayLayerTiling* tiling) const override;
   bool ComputeCheckerboardedNeedsRecord() override;

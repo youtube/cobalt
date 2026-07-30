@@ -8,6 +8,7 @@
 #include "base/feature_list.h"
 #include "base/strings/string_split.h"
 #include "base/time/time.h"
+#include "build/android_buildflags.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/common/chrome_switches.h"
@@ -205,6 +206,8 @@ BASE_FEATURE(kGlicActor, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicActor, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
+BASE_FEATURE(kGlicExperimentalTriggering, base::FEATURE_DISABLED_BY_DEFAULT);
+
 const base::FeatureParam<base::TimeDelta> kGlicActorPageToolTimeout{
     &kGlicActor, "glic-actor-page-tool-timeout", base::Seconds(30)};
 
@@ -270,8 +273,6 @@ const char kGlicActorUiToastName[] = "glic-actor-ui-toast";
 const char kGlicActorUiHandoffButtonName[] = "glic-actor-ui-handoff-button";
 const char kGlicActorUiTabIndicatorName[] = "glic-actor-ui-tab-indicator";
 const char kGlicActorUiBorderGlowName[] = "glic-actor-ui-border-glow";
-const char kGlicActorUiStandaloneBorderGlowName[] =
-    "glic-actor-ui-standalone-border-glow";
 const char kGlicActorUiDebounceTimerName[] = "glic-actor-ui-debounce-timer";
 
 // Controls whether the task icon in the actor ui is enabled.
@@ -292,10 +293,6 @@ const base::FeatureParam<bool> kGlicActorUiTabIndicator{
 // Controls whether the actor border glow in the actor ui is enabled.
 const base::FeatureParam<bool> kGlicActorUiBorderGlow{
     &kGlicActorUi, kGlicActorUiBorderGlowName, true};
-// Controls whether the actor border glow uses a standalone implementation or a
-// shared implementation with context sharing glow.
-const base::FeatureParam<bool> kGlicActorUiStandaloneBorderGlow{
-    &kGlicActorUi, kGlicActorUiStandaloneBorderGlowName, true};
 // Controls the debounce timer for the Glic Actor UI Tab Controller, in
 // milliseconds. This is used to debounce hover events on the actor overlay and
 // handoff button.
@@ -440,13 +437,15 @@ BASE_FEATURE(kGlicUnifiedFreScreen, base::FEATURE_ENABLED_BY_DEFAULT);
 // Controls the bugfix where the unified FRE synchronizes cookies to the wrong
 // storage partition.
 BASE_FEATURE(kGlicUseMainPartitionForUnifiedFre,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls the Glic Trust First Onboarding experience.
-BASE_FEATURE(kGlicTrustFirstOnboarding, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicTrustFirstOnboarding, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicMessageFirstFre, base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<int> kGlicTrustFirstOnboardingArmParam{
-    &kGlicTrustFirstOnboarding, "arm", 1 /* kStartChat */};
+    &kGlicTrustFirstOnboarding, "arm", 2 /* kWelcomeScreen */};
 // Controls whether the Glic feature is enabled.
 // IMPORTANT: this feature should never be expired! It is used as the main
 // kill-switch for Glic and can be used in the future to handle unsupported
@@ -724,7 +723,7 @@ BASE_FEATURE(kGlicEnableCachedGetUserProfileInfo,
 
 BASE_FEATURE(kGlicUseShaderCache, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicDragAndDropFileUpload, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicDragAndDropFileUpload, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicKeyboardShortcutNewBadge, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -736,7 +735,7 @@ BASE_FEATURE(kGlicScrollTo, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicCaptureRegion, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicUseNonClient, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicUseNonClient, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether we enforce that documentId (an optional parameter) is set
 // when trying to scroll all documents except PDFs (and fail the request if
@@ -771,8 +770,6 @@ const base::FeatureParam<int> kGlicWarmingDelayMs{
 // random positive number of milliseconds between 0 and kGlicWarmingJitterMs.
 const base::FeatureParam<int> kGlicWarmingJitterMs{
     &kGlicWarming, "glic-warming-jitter-ms", 10 * 1000};
-
-BASE_FEATURE(kGlicWarmMultiple, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicTieredRollout, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -873,7 +870,7 @@ BASE_FEATURE(kGlicExtensions, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicMultitabUnderlines, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicHandleDraggingNatively, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicHandleDraggingNatively, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, the X-Glic headers will be attached to requests as specified by
 // the kGlicHeaderRequestTypes param.
@@ -909,7 +906,11 @@ BASE_FEATURE(kGlicButtonAltLabel, base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<int> kGlicButtonAltLabelVariant{
     &kGlicButtonAltLabel, "glic-button-alt-label-variant", 0};
 
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_DESKTOP_ANDROID)
+BASE_FEATURE(kGlicDaisyChainNewTabs, base::FEATURE_DISABLED_BY_DEFAULT);
+#else
 BASE_FEATURE(kGlicDaisyChainNewTabs, base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
 
 BASE_FEATURE(kGlicLiveModeOnlyGlow, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1023,6 +1024,8 @@ BASE_FEATURE(kPrivacyGuideForceAvailable, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(ENABLE_PDF)
 BASE_FEATURE(kPdfGlicSummarize, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int> kPdfGlicSummarizeArm{&kPdfGlicSummarize, "arm",
+                                                   1};
 BASE_FEATURE(kPdfGlicSummarizeFre, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
@@ -1196,6 +1199,8 @@ const base::FeatureParam<std::string> kIndigoAlphaGenerateUrl{
     &kIndigo, "indigo_alpha_generate_url", ""};
 const base::FeatureParam<std::string> kIndigoAlphaStatusUrl{
     &kIndigo, "indigo_alpha_status_url", ""};
+const base::FeatureParam<base::TimeDelta> kIndigoAnchoredMessageResetDuration{
+    &kIndigo, "indigo_anchored_message_reset_duration", base::Hours(24)};
 
 #if !BUILDFLAG(IS_ANDROID)
 // A feature that controls whether Instant uses a spare renderer.
@@ -1239,6 +1244,10 @@ BASE_FEATURE(kListWebAppsSwitch, base::FEATURE_DISABLED_BY_DEFAULT);
 // Center for displaying the toasts. The feature is hardcoded to enabled for
 // Chrome OS.
 BASE_FEATURE(kNativeNotifications, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enables installation of the content script for chrome/browser/indigo/ via
+// component update.
+BASE_FEATURE(kIndigoComponent, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSystemNotifications, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1322,32 +1331,23 @@ BASE_FEATURE(kSafetyHubExtensionsOffStoreTrigger,
 BASE_FEATURE(kSafetyHubThreeDotDetails, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSafetyHubDisruptiveNotificationRevocation,
-#if BUILDFLAG(IS_ANDROID)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
-
-constexpr base::FeatureParam<int>
-    kSafetyHubDisruptiveNotificationRevocationExperimentVersion{
-        &kSafetyHubDisruptiveNotificationRevocation,
-        /*name=*/"experiment_version", /*default_value=*/1};
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 constexpr base::FeatureParam<bool>
     kSafetyHubDisruptiveNotificationRevocationShadowRun{
         &kSafetyHubDisruptiveNotificationRevocation,
         /*name=*/"shadow_run", /*default_value=*/false};
 
+#if BUILDFLAG(IS_ANDROID)
+constexpr base::FeatureParam<int>
+    kSafetyHubDisruptiveNotificationRevocationExperimentVersion{
+        &kSafetyHubDisruptiveNotificationRevocation,
+        /*name=*/"experiment_version", /*default_value=*/1};
+
 constexpr base::FeatureParam<int>
     kSafetyHubDisruptiveNotificationRevocationMinNotificationCount{
         &kSafetyHubDisruptiveNotificationRevocation,
         /*name=*/"min_notification_count", /*default_value=*/4};
-
-constexpr base::FeatureParam<double>
-    kSafetyHubDisruptiveNotificationRevocationMaxEngagementScore{
-        &kSafetyHubDisruptiveNotificationRevocation,
-        /*name=*/"max_engagement_score", /*default_value=*/0.0};
 
 constexpr base::FeatureParam<base::TimeDelta>
     kSafetyHubDisruptiveNotificationRevocationWaitingTimeAsProposed{
@@ -1359,6 +1359,27 @@ constexpr base::FeatureParam<int>
         &kSafetyHubDisruptiveNotificationRevocation,
         /*name=*/"notification_timeout_seconds",
         /*default_value=*/7 * 24 * 3600};
+#else
+constexpr base::FeatureParam<int>
+    kSafetyHubDisruptiveNotificationRevocationExperimentVersion{
+        &kSafetyHubDisruptiveNotificationRevocation,
+        /*name=*/"experiment_version", /*default_value=*/2};
+
+constexpr base::FeatureParam<int>
+    kSafetyHubDisruptiveNotificationRevocationMinNotificationCount{
+        &kSafetyHubDisruptiveNotificationRevocation,
+        /*name=*/"min_notification_count", /*default_value=*/6};
+
+constexpr base::FeatureParam<base::TimeDelta>
+    kSafetyHubDisruptiveNotificationRevocationWaitingTimeAsProposed{
+        &kSafetyHubDisruptiveNotificationRevocation,
+        /*name=*/"waiting_time_as_proposed", /*default_value=*/base::Days(14)};
+#endif
+
+constexpr base::FeatureParam<double>
+    kSafetyHubDisruptiveNotificationRevocationMaxEngagementScore{
+        &kSafetyHubDisruptiveNotificationRevocation,
+        /*name=*/"max_engagement_score", /*default_value=*/0.0};
 
 constexpr base::FeatureParam<int>
     kSafetyHubDisruptiveNotificationRevocationMinFalsePositiveCooldown{
@@ -1484,7 +1505,6 @@ BASE_FEATURE(kCameraCloudStorage, base::FEATURE_ENABLED_BY_DEFAULT);
 // by policies: removing local storage, saving downloads and screen captures to
 // the cloud, and related UX changes, primarily in the Files App.
 BASE_FEATURE(kSkyVault, base::FEATURE_ENABLED_BY_DEFAULT);
-
 
 #endif  // BUILDFLAG(IS_CHROMEOS)
 

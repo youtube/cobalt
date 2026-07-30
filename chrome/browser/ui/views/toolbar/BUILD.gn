@@ -24,7 +24,6 @@ source_set("toolbar") {
     "pinned_toolbar_actions.h",
     "pinned_toolbar_actions_container.h",
     "pinned_toolbar_actions_container_layout.h",
-    "pinned_toolbar_actions_controller.h",
     "pinned_toolbar_button_status_indicator.h",
     "reload_button.h",
     "reload_control.h",
@@ -120,7 +119,6 @@ source_set("impl") {
     "pinned_action_toolbar_button_menu_model.cc",
     "pinned_toolbar_actions_container.cc",
     "pinned_toolbar_actions_container_layout.cc",
-    "pinned_toolbar_actions_controller.cc",
     "pinned_toolbar_button_status_indicator.cc",
     "reload_button.cc",
     "split_tabs_button.cc",
@@ -177,6 +175,7 @@ source_set("impl") {
     "//chrome/browser/preloading",
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/profiles:profile_manager",
     "//chrome/browser/profiles:profile_util",
     "//chrome/browser/search",
     "//chrome/browser/sharing_hub",
@@ -317,17 +316,6 @@ if (!is_android) {
       "pinned_toolbar_actions_container_browsertest.cc",
     ]
 
-    if (toolkit_views) {
-      sources += [
-        "toolbar_view_browsertest.cc",
-        "webui_toolbar_web_view_browsertest.cc",
-      ]
-    }
-
-    if (enable_webui_tab_strip) {
-      sources += [ "webui_tab_counter_button_browsertest.cc" ]
-    }
-
     deps = [
       ":test_support",
       ":toolbar",
@@ -351,6 +339,19 @@ if (!is_android) {
       "//ui/base",
       "//ui/views",
     ]
+
+    if (toolkit_views) {
+      sources += [
+        "toolbar_view_browsertest.cc",
+        "webui_toolbar_web_view_browsertest.cc",
+      ]
+
+      deps += [ "//chrome/browser/ui/webui:webui_util" ]
+    }
+
+    if (enable_webui_tab_strip) {
+      sources += [ "webui_tab_counter_button_browsertest.cc" ]
+    }
   }
 }
 
@@ -362,7 +363,10 @@ if (!is_android && !is_chromeos_device) {
     if (toolkit_views) {
       sources = [
         "app_menu_interactive_uitest.cc",
+        "back_button_accessibility_interactive_uitest.cc",
         "browser_app_menu_button_interactive_uitest.cc",
+        "forward_button_accessibility_interactive_uitest.cc",
+        "home_button_accessibility_interactive_uitest.cc",
         "reload_button_accessibility_interactive_uitest.cc",
         "reload_button_browsertest.cc",
         "split_tabs_button_interactive_ui_test.cc",
@@ -389,6 +393,7 @@ if (!is_android && !is_chromeos_device) {
       "//chrome/browser/ui:tab_search_feature",
       "//chrome/browser/ui:test_support",
       "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/tabs:tab_menu",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/views/frame",
@@ -401,6 +406,8 @@ if (!is_android && !is_chromeos_device) {
       "//components/feature_engagement/test:test_support",
       "//components/policy/core/browser",
       "//components/prefs",
+      "//components/strings:components_strings",
+      "//components/strings:components_strings_grit",
       "//components/user_education/views",
       "//content/test:test_support",
       "//testing/gtest",

@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "media/gpu/v4l2/legacy/v4l2_video_decode_accelerator.h"
 
 #include <dlfcn.h>
@@ -22,6 +17,7 @@
 #include <algorithm>
 
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/numerics/safe_conversions.h"
@@ -267,8 +263,7 @@ void V4L2VideoDecodeAccelerator::InitializeTask(const Config& config,
       this, "media::V4l2VideoDecodeAccelerator", decoder_thread_.task_runner());
 
   // Subscribe to the resolution change event.
-  struct v4l2_event_subscription sub;
-  memset(&sub, 0, sizeof(sub));
+  struct v4l2_event_subscription sub = {};
   sub.type = V4L2_EVENT_SOURCE_CHANGE;
   IOCTL_OR_ERROR_RETURN(VIDIOC_SUBSCRIBE_EVENT, &sub);
 
@@ -991,7 +986,8 @@ bool V4L2VideoDecodeAccelerator::AppendToInputFrame(const void* data,
     return false;
   }
   void* mapping = current_input_buffer_->GetPlaneMapping(0);
-  memcpy(reinterpret_cast<uint8_t*>(mapping) + bytes_used, data, size);
+  UNSAFE_TODO(
+      memcpy(reinterpret_cast<uint8_t*>(mapping) + bytes_used, data, size));
   current_input_buffer_->SetPlaneBytesUsed(0, bytes_used + size);
 
   return true;
@@ -1337,8 +1333,7 @@ bool V4L2VideoDecodeAccelerator::DequeueOutputBuffer() {
               << flush_awaiting_last_output_buffer_;
     if (flush_awaiting_last_output_buffer_) {
       flush_awaiting_last_output_buffer_ = false;
-      struct v4l2_decoder_cmd cmd;
-      memset(&cmd, 0, sizeof(cmd));
+      struct v4l2_decoder_cmd cmd = {};
       cmd.cmd = V4L2_DEC_CMD_START;
       IOCTL_OR_ERROR_RETURN_FALSE(VIDIOC_DECODER_CMD, &cmd);
     }
@@ -1530,8 +1525,7 @@ bool V4L2VideoDecodeAccelerator::IsDecoderCmdSupported() {
   // CMD_STOP should always succeed. If the decoder is started, the command can
   // flush it. If the decoder is stopped, the command does nothing. We use this
   // to know if a driver supports V4L2_DEC_CMD_STOP to flush.
-  struct v4l2_decoder_cmd cmd;
-  memset(&cmd, 0, sizeof(cmd));
+  struct v4l2_decoder_cmd cmd = {};
   cmd.cmd = V4L2_DEC_CMD_STOP;
   if (device_->Ioctl(VIDIOC_TRY_DECODER_CMD, &cmd) != 0) {
     VLOGF(2) "V4L2_DEC_CMD_STOP is not supported.";
@@ -1546,8 +1540,7 @@ bool V4L2VideoDecodeAccelerator::SendDecoderCmdStop() {
   DCHECK(decoder_thread_.task_runner()->BelongsToCurrentThread());
   DCHECK(!flush_awaiting_last_output_buffer_);
 
-  struct v4l2_decoder_cmd cmd;
-  memset(&cmd, 0, sizeof(cmd));
+  struct v4l2_decoder_cmd cmd = {};
   cmd.cmd = V4L2_DEC_CMD_STOP;
   IOCTL_OR_ERROR_RETURN_FALSE(VIDIOC_DECODER_CMD, &cmd);
   flush_awaiting_last_output_buffer_ = true;
@@ -2065,8 +2058,7 @@ bool V4L2VideoDecodeAccelerator::SetupFormats() {
   else
     input_size = kInputBufferMaxSizeFor1080p;
 
-  struct v4l2_fmtdesc fmtdesc;
-  memset(&fmtdesc, 0, sizeof(fmtdesc));
+  struct v4l2_fmtdesc fmtdesc = {};
   fmtdesc.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
   bool is_format_supported = false;
   while (device_->Ioctl(VIDIOC_ENUM_FMT, &fmtdesc) == 0) {
@@ -2083,8 +2075,7 @@ bool V4L2VideoDecodeAccelerator::SetupFormats() {
     return false;
   }
 
-  struct v4l2_format format;
-  memset(&format, 0, sizeof(format));
+  struct v4l2_format format = {};
   format.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
   format.fmt.pix_mp.pixelformat = input_format_fourcc_;
   format.fmt.pix_mp.plane_fmt[0].sizeimage = input_size;
@@ -2095,7 +2086,7 @@ bool V4L2VideoDecodeAccelerator::SetupFormats() {
   // We have to set up the format for output, because the driver may not allow
   // changing it once we start streaming; whether it can support our chosen
   // output format or not may depend on the input format.
-  memset(&fmtdesc, 0, sizeof(fmtdesc));
+  fmtdesc = {};
   fmtdesc.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
   while (device_->Ioctl(VIDIOC_ENUM_FMT, &fmtdesc) == 0) {
     auto fourcc = Fourcc::FromV4L2PixFmt(fmtdesc.pixelformat);
@@ -2142,7 +2133,7 @@ bool V4L2VideoDecodeAccelerator::SetupFormats() {
 
   // Just set the fourcc for output; resolution, etc., will come from the
   // driver once it extracts it from the stream.
-  memset(&format, 0, sizeof(format));
+  format = {};
   format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
   format.fmt.pix_mp.pixelformat = output_format_fourcc_->ToV4L2PixFmt();
   IOCTL_OR_ERROR_RETURN_FALSE(VIDIOC_S_FMT, &format);

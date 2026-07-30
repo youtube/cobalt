@@ -11,7 +11,6 @@
 #import "ios/chrome/app/application_delegate/app_state.h"
 #import "ios/chrome/app/profile/profile_init_stage.h"
 #import "ios/chrome/app/profile/profile_state.h"
-#import "ios/chrome/browser/authentication/ui_bundled/enterprise/managed_profile_creation/managed_profile_creation_coordinator.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
@@ -20,19 +19,15 @@
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/features.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/system_identity_manager.h"
 
-@interface MultiProfileForcedMigrationProfileAgent () <
-    ManagedProfileCreationCoordinatorDelegate>
-@end
-
-@implementation MultiProfileForcedMigrationProfileAgent {
-  // Dialog for the managed confirmation screen.
-  ManagedProfileCreationCoordinator* _managedConfirmationScreenCoordinator;
-}
+@implementation MultiProfileForcedMigrationProfileAgent
 
 #pragma mark - SceneObservingProfileAgent
 
@@ -74,20 +69,6 @@
   [self maybeShowMultiProfileForceMigrationScreen];
 }
 
-#pragma mark - ManagedProfileCreationCoordinatorDelegate
-
-- (void)managedProfileCreationCoordinator:
-            (ManagedProfileCreationCoordinator*)coordinator
-                                didAccept:(BOOL)accepted
-                     browsingDataSeparate:(BOOL)browsingDataSeparate {
-  CHECK_EQ(_managedConfirmationScreenCoordinator, coordinator);
-  base::RecordAction(base::UserMetricsAction(
-      "Signin_MultiProfileForcedMigration_DialogAcknowleged"));
-  _managedConfirmationScreenCoordinator.delegate = nil;
-  [_managedConfirmationScreenCoordinator stop];
-  _managedConfirmationScreenCoordinator = nil;
-}
-
 #pragma mark - Private
 
 // Checks if multi-profile force migration screen should be presented to the
@@ -105,7 +86,9 @@
       AuthenticationServiceFactory::GetForProfile(profile);
 
   PrefService* localState = GetApplicationContext()->GetLocalState();
-  if (!localState->GetBoolean(prefs::kMultiProfileForcedMigrationDone)) {
+  BOOL force = experimental_flags::ShouldForceMultiProfileForcedMigrationDone();
+  if (!localState->GetBoolean(prefs::kMultiProfileForcedMigrationDone) &&
+      !force) {
     return;
   }
 
@@ -121,23 +104,9 @@
     return;
   }
 
-  SystemIdentityManager* systemIdentityManager =
-      GetApplicationContext()->GetSystemIdentityManager();
-  _managedConfirmationScreenCoordinator = [[ManagedProfileCreationCoordinator
-      alloc] initWithBaseViewController:presentingInterface.viewController
-                                   identity:systemIdentity
-                               hostedDomain:
-                                   systemIdentityManager
-                                       ->GetCachedHostedDomainForIdentity(
-                                           systemIdentity)
-                                    browser:browser
-                  skipBrowsingDataMigration:YES
-                 mergeBrowsingDataByDefault:NO
-      browsingDataMigrationDisabledByPolicy:NO
-                 multiProfileForceMigration:YES];
-  _managedConfirmationScreenCoordinator.delegate = self;
-
-  [_managedConfirmationScreenCoordinator start];
+  id<SceneCommands> sceneCommandHandler =
+      HandlerForProtocol(browser->GetCommandDispatcher(), SceneCommands);
+  [sceneCommandHandler showManagedProfileCreation];
   localState->SetBoolean(prefs::kMultiProfileForcedMigrationDone, false);
   base::RecordAction(base::UserMetricsAction(
       "Signin_MultiProfileForcedMigration_DialogShown"));

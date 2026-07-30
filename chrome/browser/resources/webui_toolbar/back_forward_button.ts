@@ -12,7 +12,7 @@ import type {MenuSourceType} from '//resources/mojo/ui/base/mojom/menu_source_ty
 import {getCss} from './back_forward_button.css.js';
 import {getHtml} from './back_forward_button.html.js';
 import {BrowserProxyImpl, ContextMenuType} from './browser_proxy.js';
-import type {BrowserProxy, ButtonState} from './browser_proxy.js';
+import type {BackForwardButtonState, BrowserProxy} from './browser_proxy.js';
 import {getClickDispositionFlags, getContextMenuPosition, PressHandler} from './toolbar_button.js';
 
 export class BackForwardButtonElement extends CrLitElement {
@@ -37,7 +37,11 @@ export class BackForwardButtonElement extends CrLitElement {
   }
 
   accessor direction: 'back'|'forward' = 'back';
-  accessor state: ButtonState = {enabled: false, visible: true};
+  accessor state: BackForwardButtonState = {
+    enabled: false,
+    visible: true,
+    isContextMenuVisible: false,
+  };
   accessor leadingMargin: number = 0;
 
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
@@ -54,9 +58,8 @@ export class BackForwardButtonElement extends CrLitElement {
         this.contextMenuType_, getContextMenuPosition(this), source);
   }
 
-  private onShortPress_(e: PointerEvent) {
+  private onShortPress_(e: MouseEvent) {
     const flags = getClickDispositionFlags(e);
-
     if (this.direction === 'back') {
       this.browserProxy_.browserControlsHandler.back(flags);
     } else {
@@ -79,6 +82,14 @@ export class BackForwardButtonElement extends CrLitElement {
   protected onPointerenter_() {
     if (this.direction === 'back') {
       this.browserProxy_.browserControlsHandler.backButtonHovered();
+    }
+  }
+
+  protected onClick_(e: MouseEvent) {
+    // Only handle keyboard 'click', which triggers a left-click equivalent.
+    // Other events like mouse 'click' are handled in onShortPress_.
+    if (e.detail === 0) {
+      this.onShortPress_(e);
     }
   }
 }

@@ -33,16 +33,25 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.DoNotBatch;
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.customtabs.features.branding.MismatchNotificationChecker;
 import org.chromium.chrome.browser.customtabs.features.branding.proto.AccountMismatchData.CloseType;
+import org.chromium.chrome.browser.device_lock.DeviceLockActivityLauncherImpl;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
+import org.chromium.chrome.browser.signin.SigninAndHistorySyncActivityLauncherImpl;
+import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.util.browser.signin.SigninTestRule;
 import org.chromium.chrome.test.util.browser.signin.SigninTestUtil;
 import org.chromium.components.messages.MessageBannerProperties;
 import org.chromium.components.messages.MessageDispatcher;
 import org.chromium.components.messages.MessageDispatcherProvider;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -52,7 +61,13 @@ import java.util.concurrent.TimeoutException;
 /** Tests for the {@link MismatchNotificationController} */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add(ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE)
+// TODO(http://crbug.com/495529795): Enable side panel and fix this test.
+@DisableFeatures({ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL})
 @DoNotBatch(reason = "This test relies on native initialization")
+@EnableFeatures({
+    SigninFeatures.ENABLE_SEAMLESS_SIGNIN,
+    SigninFeatures.ENABLE_ACTIVITYLESS_SIGNIN_ALL_ENTRY_POINT
+})
 public class MismatchNotificationControllerTest {
     private static final String TEST_URL = "https://www.google.com";
 
@@ -62,6 +77,7 @@ public class MismatchNotificationControllerTest {
     @Rule public final SigninTestRule mSigninTestRule = new SigninTestRule();
 
     private MismatchNotificationController mMismatchNotificationController;
+    private MismatchNotificationChecker mMismatchNotificationChecker;
 
     private int mCloseType;
 
@@ -74,12 +90,32 @@ public class MismatchNotificationControllerTest {
                 CustomTabsIntentTestUtils.createMinimalCustomTabIntent(context, TEST_URL));
         mSigninTestRule.addAccount(TestAccounts.ACCOUNT1);
         ThreadUtils.runOnUiThreadBlocking(
-                () ->
-                        mMismatchNotificationController =
-                                MismatchNotificationController.get(
-                                        mActivityTestRule.getActivity().getWindowAndroid(),
-                                        ProfileManager.getLastUsedRegularProfile(),
-                                        TestAccounts.ACCOUNT1.getEmail()));
+                () -> {
+                    CustomTabActivity activity = mActivityTestRule.getActivity();
+                    Profile profile = ProfileManager.getLastUsedRegularProfile();
+                    mMismatchNotificationChecker =
+                            new MismatchNotificationChecker(
+                                    activity,
+                                    activity.getWindowAndroid(),
+                                    activity.getActivityResultTracker(),
+                                    DeviceLockActivityLauncherImpl.get(),
+                                    profile,
+                                    IdentityServicesProvider.get().getIdentityManager(profile),
+                                    SigninAndHistorySyncActivityLauncherImpl.get(),
+                                    () ->
+                                            activity.getRootUiCoordinatorForTesting()
+                                                    .getBottomSheetController(),
+                                    activity.getModalDialogManager(),
+                                    activity.getSnackbarManager(),
+                                    (delegate, accountId, lastShownTime, mimData, onClose) ->
+                                            false);
+                    mMismatchNotificationController =
+                            MismatchNotificationController.get(
+                                    activity.getWindowAndroid(),
+                                    profile,
+                                    TestAccounts.ACCOUNT1.getEmail(),
+                                    mMismatchNotificationChecker);
+                });
     }
 
     @Test
@@ -101,12 +137,29 @@ public class MismatchNotificationControllerTest {
 
     @Test
     @MediumTest
+    @DisableFeatures({
+        SigninFeatures.ENABLE_SEAMLESS_SIGNIN,
+        SigninFeatures.ENABLE_ACTIVITYLESS_SIGNIN_ALL_ENTRY_POINT
+    })
+    public void testSignedOutMessagePrimaryButton_legacy() {
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        mMismatchNotificationController.showSignedOutMessage(
+                                mActivityTestRule.getActivity(), this::onClose));
+        startAndVerifySigninFlow();
+    }
+
+    @Test
+    @MediumTest
     public void testSignedOutMessagePrimaryButton() {
         ThreadUtils.runOnUiThreadBlocking(
                 () ->
                         mMismatchNotificationController.showSignedOutMessage(
                                 mActivityTestRule.getActivity(), this::onClose));
+        startAndVerifySigninFlow();
+    }
 
+    private void startAndVerifySigninFlow() {
         // Click the primary button.
         onView(withText(R.string.custom_tabs_signed_out_message_button)).perform(click());
 

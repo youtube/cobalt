@@ -994,11 +994,17 @@ const CSSValue* BackgroundBlendMode::CSSValueFromComputedStyleInternal(
   return list;
 }
 
-const CSSValue* BackgroundClip::ParseSingleValue(CSSParserTokenStream& stream,
-                                                 const CSSParserContext&,
-                                                 CSSParserLocalContext&) const {
+const CSSValue* BackgroundClip::ParseSingleValue(
+    CSSParserTokenStream& stream,
+    const CSSParserContext&,
+    CSSParserLocalContext& local_context) const {
+  // border-area is not supported for the -webkit-background-clip alias.
+  css_parsing_utils::AllowBorderAreaValue allow_border_area =
+      local_context.UseAliasParsing()
+          ? css_parsing_utils::AllowBorderAreaValue::kForbid
+          : css_parsing_utils::AllowBorderAreaValue::kAllow;
   return css_parsing_utils::ConsumeCommaSeparatedList(
-      css_parsing_utils::ConsumeBackgroundBoxOrText, stream);
+      css_parsing_utils::ConsumeBackgroundClip, stream, allow_border_area);
 }
 
 const CSSValue* BackgroundClip::CSSValueFromComputedStyleInternal(
@@ -1010,7 +1016,14 @@ const CSSValue* BackgroundClip::CSSValueFromComputedStyleInternal(
   const FillLayer* curr_layer = &style.BackgroundLayers();
   for (; curr_layer; curr_layer = curr_layer->Next()) {
     EFillBox box = curr_layer->Clip();
-    list->Append(*CSSIdentifierValue::Create(box));
+    if (box == EFillBox::kBorderAreaText) {
+      list->Append(*MakeGarbageCollected<CSSValuePair>(
+          CSSIdentifierValue::Create(CSSValueID::kBorderArea),
+          CSSIdentifierValue::Create(CSSValueID::kText),
+          CSSValuePair::kDropIdenticalValues));
+    } else {
+      list->Append(*CSSIdentifierValue::Create(box));
+    }
   }
   return list;
 }
@@ -6175,6 +6188,9 @@ const CSSValue* ColumnRuleEdgeInsetEnd::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) const {
+  if (stream.Peek().Id() == CSSValueID::kOverlapJoin) {
+    return css_parsing_utils::ConsumeIdent(stream);
+  }
   return css_parsing_utils::ConsumeLengthOrPercent(
       stream, context, local_context, CSSPrimitiveValue::ValueRange::kAll);
 }
@@ -6184,6 +6200,9 @@ const CSSValue* ColumnRuleEdgeInsetEnd::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
+  if (style.ColumnRuleEdgeInsetEnd().IsOverlapJoin()) {
+    return CSSIdentifierValue::Create(CSSValueID::kOverlapJoin);
+  }
   return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
       style.ColumnRuleEdgeInsetEnd(), style);
 }
@@ -6192,6 +6211,9 @@ const CSSValue* RowRuleEdgeInsetEnd::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) const {
+  if (stream.Peek().Id() == CSSValueID::kOverlapJoin) {
+    return css_parsing_utils::ConsumeIdent(stream);
+  }
   return css_parsing_utils::ConsumeLengthOrPercent(
       stream, context, local_context, CSSPrimitiveValue::ValueRange::kAll);
 }
@@ -6201,6 +6223,9 @@ const CSSValue* RowRuleEdgeInsetEnd::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
+  if (style.RowRuleEdgeInsetEnd().IsOverlapJoin()) {
+    return CSSIdentifierValue::Create(CSSValueID::kOverlapJoin);
+  }
   return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
       style.RowRuleEdgeInsetEnd(), style);
 }
@@ -6209,6 +6234,9 @@ const CSSValue* ColumnRuleEdgeInsetStart::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) const {
+  if (stream.Peek().Id() == CSSValueID::kOverlapJoin) {
+    return css_parsing_utils::ConsumeIdent(stream);
+  }
   return css_parsing_utils::ConsumeLengthOrPercent(
       stream, context, local_context, CSSPrimitiveValue::ValueRange::kAll);
 }
@@ -6218,6 +6246,9 @@ const CSSValue* ColumnRuleEdgeInsetStart::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
+  if (style.ColumnRuleEdgeInsetStart().IsOverlapJoin()) {
+    return CSSIdentifierValue::Create(CSSValueID::kOverlapJoin);
+  }
   return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
       style.ColumnRuleEdgeInsetStart(), style);
 }
@@ -6226,6 +6257,9 @@ const CSSValue* RowRuleEdgeInsetStart::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) const {
+  if (stream.Peek().Id() == CSSValueID::kOverlapJoin) {
+    return css_parsing_utils::ConsumeIdent(stream);
+  }
   return css_parsing_utils::ConsumeLengthOrPercent(
       stream, context, local_context, CSSPrimitiveValue::ValueRange::kAll);
 }
@@ -6235,6 +6269,9 @@ const CSSValue* RowRuleEdgeInsetStart::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
+  if (style.RowRuleEdgeInsetStart().IsOverlapJoin()) {
+    return CSSIdentifierValue::Create(CSSValueID::kOverlapJoin);
+  }
   return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
       style.RowRuleEdgeInsetStart(), style);
 }
@@ -6243,6 +6280,9 @@ const CSSValue* ColumnRuleInteriorInsetEnd::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) const {
+  if (stream.Peek().Id() == CSSValueID::kOverlapJoin) {
+    return css_parsing_utils::ConsumeIdent(stream);
+  }
   return css_parsing_utils::ConsumeLengthOrPercent(
       stream, context, local_context, CSSPrimitiveValue::ValueRange::kAll);
 }
@@ -6252,6 +6292,9 @@ const CSSValue* ColumnRuleInteriorInsetEnd::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
+  if (style.ColumnRuleInteriorInsetEnd().IsOverlapJoin()) {
+    return CSSIdentifierValue::Create(CSSValueID::kOverlapJoin);
+  }
   return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
       style.ColumnRuleInteriorInsetEnd(), style);
 }
@@ -6260,6 +6303,9 @@ const CSSValue* RowRuleInteriorInsetEnd::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) const {
+  if (stream.Peek().Id() == CSSValueID::kOverlapJoin) {
+    return css_parsing_utils::ConsumeIdent(stream);
+  }
   return css_parsing_utils::ConsumeLengthOrPercent(
       stream, context, local_context, CSSPrimitiveValue::ValueRange::kAll);
 }
@@ -6269,6 +6315,9 @@ const CSSValue* RowRuleInteriorInsetEnd::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
+  if (style.RowRuleInteriorInsetEnd().IsOverlapJoin()) {
+    return CSSIdentifierValue::Create(CSSValueID::kOverlapJoin);
+  }
   return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
       style.RowRuleInteriorInsetEnd(), style);
 }
@@ -6277,6 +6326,9 @@ const CSSValue* ColumnRuleInteriorInsetStart::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) const {
+  if (stream.Peek().Id() == CSSValueID::kOverlapJoin) {
+    return css_parsing_utils::ConsumeIdent(stream);
+  }
   return css_parsing_utils::ConsumeLengthOrPercent(
       stream, context, local_context, CSSPrimitiveValue::ValueRange::kAll);
 }
@@ -6286,6 +6338,9 @@ const CSSValue* ColumnRuleInteriorInsetStart::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
+  if (style.ColumnRuleInteriorInsetStart().IsOverlapJoin()) {
+    return CSSIdentifierValue::Create(CSSValueID::kOverlapJoin);
+  }
   return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
       style.ColumnRuleInteriorInsetStart(), style);
 }
@@ -6294,6 +6349,9 @@ const CSSValue* RowRuleInteriorInsetStart::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) const {
+  if (stream.Peek().Id() == CSSValueID::kOverlapJoin) {
+    return css_parsing_utils::ConsumeIdent(stream);
+  }
   return css_parsing_utils::ConsumeLengthOrPercent(
       stream, context, local_context, CSSPrimitiveValue::ValueRange::kAll);
 }
@@ -6303,6 +6361,9 @@ const CSSValue* RowRuleInteriorInsetStart::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
+  if (style.RowRuleInteriorInsetStart().IsOverlapJoin()) {
+    return CSSIdentifierValue::Create(CSSValueID::kOverlapJoin);
+  }
   return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
       style.RowRuleInteriorInsetStart(), style);
 }

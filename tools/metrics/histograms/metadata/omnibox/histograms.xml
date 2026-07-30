@@ -2120,7 +2120,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.IsPasteAndGo" enum="Boolean"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>jdonnelly@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -2490,7 +2490,10 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <owner>chrome-mobile-search@google.com</owner>
   <summary>
     Records which attachment buttons were shown when the attachments popup was
-    opened. Recorded once per popup open.
+    opened. Recorded once per popup open. Originally triggered when the popup
+    was hidden instead of shown, through the plus button. This is very difficult
+    to actaully do, most hidden is not from plus button, but other inputs. Do
+    not trust data before the M-148 (likely merged to M-147) fix.
   </summary>
 </histogram>
 
@@ -2620,6 +2623,46 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <token key="ComposeboxDragAndDropType" variants="ComposeboxDragAndDropType"/>
 </histogram>
 
+<histogram name="Omnibox.MobileFusebox.ModelAtAbandon"
+    enum="ContextualSearchAimModel" expires_after="2027-03-20">
+  <owner>skym@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records the active model when a AI Omnibox session is ended. The model id
+    comes from the server driven config.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.MobileFusebox.ModelAtNavigation"
+    enum="ContextualSearchAimModel" expires_after="2027-03-20">
+  <owner>skym@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records the active model when a AI Omnibox session turns into a navigation.
+    The model id comes from the server driven config.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.MobileFusebox.ModelButtonShown"
+    enum="ContextualSearchAimModel" expires_after="2027-03-20">
+  <owner>skym@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records all of the ai mode models that are shown as options when the popup
+    appearse. The model id comes from the server driven config.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.MobileFusebox.ModelButtonUsed"
+    enum="ContextualSearchAimModel" expires_after="2027-03-20">
+  <owner>skym@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records the model that is selected when the user interacts with a model
+    button on the popup. The model id comes from the server driven config.
+  </summary>
+</histogram>
+
 <histogram name="Omnibox.MobileFusebox.TabPickerTabsAttached" units="count"
     expires_after="2026-11-11">
   <owner>ameurhosni@google.com</owner>
@@ -2628,6 +2671,16 @@ Keep consistent with active providers. Doesn't need to include every provider in
     Records the number of tabs attached via the Fusebox tab picker. Recorded
     when the user explicitly selects tabs and taps the attach button to include
     them in the Fusebox attachments.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.MobileFusebox.TextEditedBeforeAiMode" enum="Boolean"
+    expires_after="2027-03-25">
+  <owner>stkhapugin@google.com</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records whether the user edited the text in the Fusebox input plate before
+    entering AI Mode. Recorded when AI Mode is activated.
   </summary>
 </histogram>
 
@@ -2957,7 +3010,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
   </summary>
 </histogram>
 
-<histogram name="Omnibox.Paste" units="count" expires_after="2026-07-19">
+<histogram name="Omnibox.Paste" units="count" expires_after="2026-09-20">
   <owner>jdonnelly@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -3353,7 +3406,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.SearchPrefetch.CacheAliasOnCompleteNetError"
-    enum="NetErrorCodes" expires_after="2026-07-19">
+    enum="NetErrorCodes" expires_after="2026-09-20">
   <owner>lingqi@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>
   <summary>
@@ -4288,8 +4341,19 @@ Keep consistent with active providers. Doesn't need to include every provider in
   </summary>
 </histogram>
 
+<histogram name="Omnibox.TemplateUrl.DBRefresh.MigrationAction"
+    enum="PrepopulatedEngineMigrationAction" expires_after="2027-03-01">
+  <owner>dgn@chromium.org</owner>
+  <owner>chrome-omnibox-team@google.com</owner>
+  <summary>
+    Emitted when an engine is migrated to a new ID during the Keywords database
+    update pass. Records whether the migrated engine was the user's Default
+    Search Provider or another engine present in the keywords DB.
+  </summary>
+</histogram>
+
 <histogram name="Omnibox.TemplateUrl.DBRefresh.UnmatchedDefaultSearchCount"
-    units="count" expires_after="2026-07-01">
+    units="count" expires_after="2026-09-20">
   <owner>dgn@google.com</owner>
   <owner>ender@google.com</owner>
   <owner>chrome-regionalcapabiltiies@google.com</owner>
@@ -4927,7 +4991,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.{SearchPrefetch}.CacheAliasElapsedTimeToFallback"
-    units="ms" expires_after="2026-07-19">
+    units="ms" expires_after="2026-09-20">
   <owner>nhiroki@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>
   <summary>
@@ -4942,7 +5006,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.{SearchPrefetch}.CacheAliasFallbackReason"
-    enum="SearchPrefetchCacheAliasFallbackReason" expires_after="2026-07-19">
+    enum="SearchPrefetchCacheAliasFallbackReason" expires_after="2026-09-20">
   <owner>nhiroki@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>
   <summary>

@@ -782,7 +782,7 @@ Chromium is unable to recover your settings.
           Keep your passwords, bookmarks, and history perfectly synced across devices. Easily access the features you know and love by updating your default browser to Chromium. Chromium will be pinned to your taskbar for quick access.
         </message>
         <message name="IDS_DEFAULT_BROWSER_MODAL_TITLE_WITHOUT_SETTINGS_ILLUSTRATION" desc="Title of the default browser modal without settings illustration.">
-          Use Chromium recommended browser settings
+          Set Chromium as your default browser
         </message>
         <message name="IDS_DEFAULT_BROWSER_MODAL_BODY_WITHOUT_SETTINGS_ILLUSTRATION" desc="Body text of the default browser modal without settings illustration.">
           Get easy access to the features you know, love, and trust by setting Chromium as your default browser.
@@ -2559,7 +2559,7 @@ Chromium is unable to recover your settings.
           desc="This string appears as a heading on a full-page screen that asks the user to sign in to Chromium with their Google Account. It appears when the user launches Chromium for the first time. When they sign in, they can personalize and customize Chromium and remember their settings in their Google Account. The tone should be inviting and alluring.">
           Sign in to Chromium
         </message>
-        <message name="IDS_FRE_GET_YOUR_BROWSER_READY_TITLE" meaning="Title" translateable="false" desc="">
+        <message name="IDS_FRE_GET_YOUR_BROWSER_READY_TITLE" meaning="Title" desc="It appears when the user launches Chromium for the first time on the page that is displayed before the sign in page. When they sign in, they can personalize and customize Chromium and remember their settings in their Google Account. The tone should be inviting and alluring.">
           Let's get your Chromium ready
         </message>
 
@@ -3249,6 +3249,9 @@ Chromium is unable to recover your settings.
       </message>
       <message name="IDS_INDIGO_ENTRYPOINT_CHIP_TOOLTIP_TEXT" desc="The tooltip text of the Indigo entry point chip in the omnibox when in hover state." translateable="false">
         Indigo tooltip text
+      </message>
+      <message name="IDS_INDIGO_ENTRYPOINT_ANCHORED_MESSAGE_TEXT" desc="The text shown in the anchored message bubble for the Indigo page action." translateable="false">
+        Indigo is available for this page
       </message>
     </messages>
   </release>

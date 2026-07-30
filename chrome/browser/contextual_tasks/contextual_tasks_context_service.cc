@@ -21,6 +21,7 @@
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/search/search.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
@@ -33,9 +34,18 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "url/gurl.h"
 
 namespace contextual_tasks {
+
+ContextualTasksContextService::QueryState::QueryState() = default;
+ContextualTasksContextService::QueryState::~QueryState() = default;
+ContextualTasksContextService::QueryState::QueryState(const QueryState&) =
+    default;
+ContextualTasksContextService::QueryState&
+ContextualTasksContextService::QueryState::operator=(const QueryState&) =
+    default;
 
 namespace {
 
@@ -46,13 +56,6 @@ namespace {
       optimization_guide_common::mojom::LogSource::CONTEXTUAL_TASKS_CONTEXT, \
       optimization_guide_keyed_service_->GetOptimizationGuideLogger(),       \
       (message))
-
-struct TabSimilarityScores {
-  std::pair<float, std::string> best_similarity_score =
-      std::make_pair(0.0f, "");
-  std::pair<float, std::string> worst_similarity_score =
-      std::make_pair(1.0f, "");
-};
 
 std::optional<TabSimilarityScores> GetEmbeddingScores(
     const passage_embeddings::Embedding& query_embedding,
@@ -70,13 +73,11 @@ std::optional<TabSimilarityScores> GetEmbeddingScores(
       continue;
     }
     float similarity_score = embedding.embedding.ScoreWith(query_embedding);
-    if (similarity_score > similarity_scores.best_similarity_score.first) {
-      similarity_scores.best_similarity_score =
-          std::make_pair(similarity_score, embedding.passage.first);
+    if (similarity_score > similarity_scores.best.score) {
+      similarity_scores.best = {similarity_score, embedding.passage.first};
     }
-    if (similarity_score < similarity_scores.worst_similarity_score.first) {
-      similarity_scores.worst_similarity_score =
-          std::make_pair(similarity_score, embedding.passage.first);
+    if (similarity_score < similarity_scores.worst.score) {
+      similarity_scores.worst = {similarity_score, embedding.passage.first};
     }
   }
   return similarity_scores;
@@ -118,6 +119,66 @@ void RecordTabSelectionMetrics(std::set<GURL> relevant_tab_urls,
                               excess_urls.size());
 }
 
+void RecordCandidateTabMetrics(const TabSignals& tab_signals, double score) {
+  // Signals.
+  if (tab_signals.embedding_score.has_value()) {
+    base::UmaHistogramCounts100(
+        "ContextualTasks.Context.EmbeddingSimilarityScore",
+        static_cast<int>(100 * *(tab_signals.embedding_score)));
+  }
+  if (tab_signals.duration_since_last_active.has_value()) {
+    base::UmaHistogramLongTimes(
+        "ContextualTasks.Context.DurationSinceLastActive",
+        *(tab_signals.duration_since_last_active));
+  }
+
+  base::UmaHistogramCounts100("ContextualTasks.Context.MatchingWordsCount",
+                              tab_signals.num_query_title_matching_words);
+
+  // Scores.
+  base::UmaHistogramSparse("ContextualTasks.Context.TabScore",
+                           static_cast<int>(100 * score));
+}
+
+void PopulateTabContext(
+    const TabSignals& tab_signals,
+    base::span<const GURL> explicit_urls,
+    double score,
+    optimization_guide::proto::ContextualTasksTabContext* tab_context) {
+  if (tab_signals.embedding_score.has_value()) {
+    tab_context->set_best_embedding_score(*tab_signals.embedding_score);
+  }
+  if (tab_signals.duration_since_last_active.has_value()) {
+    tab_context->set_seconds_since_last_active(
+        tab_signals.duration_since_last_active->InSeconds());
+  }
+
+  tab_context->set_number_of_common_words(
+      tab_signals.num_query_title_matching_words);
+
+  if (tab_signals.duration_of_last_visit.has_value()) {
+    tab_context->set_seconds_of_last_visit(
+        tab_signals.duration_of_last_visit->InSeconds());
+  }
+
+  tab_context->set_query_title_similarity(
+      tab_signals.query_candidate_tab_title_similarity);
+
+  for (const auto& scored_passage :
+       tab_signals.query_candidate_tab_passage_similarities) {
+    tab_context->add_query_passage_similarities(scored_passage.score);
+  }
+
+  tab_context->set_active_tab_title_similarity(
+      tab_signals.active_title_candidate_title_similarity);
+
+  tab_context->set_aggregate_tab_score(score);
+  if (tab_signals.web_contents) {
+    tab_context->set_was_explicitly_chosen(std::ranges::contains(
+        explicit_urls, tab_signals.web_contents->GetLastCommittedURL()));
+  }
+}
+
 double GetTabScore(const TabSelectionOptions& options,
                    const TabSignals& signals) {
   switch (options.tab_selection_mode) {
@@ -128,6 +189,32 @@ double GetTabScore(const TabSelectionOptions& options,
     case mojom::TabSelectionMode::kEmbeddingsMatch:
       return signals.embedding_score.value_or(0.0);
   }
+}
+
+std::vector<ScoredPassage> GetQueryTabPassageSimilarities(
+    const passage_embeddings::Embedding& query_embedding,
+    const std::vector<page_content_annotations::PassageEmbedding>&
+        tab_embeddings) {
+  std::vector<ScoredPassage> similarity_scores;
+  for (const auto& embedding : tab_embeddings) {
+    if (embedding.passage.second !=
+        page_content_annotations::EmbeddingPassageType::kTitle) {
+      similarity_scores.emplace_back(
+          ScoredPassage{embedding.embedding.ScoreWith(query_embedding),
+                        embedding.passage.first});
+    }
+  }
+  return similarity_scores;
+}
+
+const passage_embeddings::Embedding* GetTitleEmbedding(
+    const std::vector<page_content_annotations::PassageEmbedding>&
+        tab_embeddings) {
+  auto it = std::ranges::find_if(tab_embeddings, [](const auto& embedding) {
+    return embedding.passage.second ==
+           page_content_annotations::EmbeddingPassageType::kTitle;
+  });
+  return it != tab_embeddings.end() ? &it->embedding : nullptr;
 }
 
 }  // namespace
@@ -183,13 +270,27 @@ void ContextualTasksContextService::GetRelevantTabsForQuery(
   page_embeddings_service_->ProcessEmbeddingsOnDemand();
 
   AUTO_CONTEXT_LOG("Submitted query to embedder");
+  int64_t request_id = next_request_id_++;
+
+  if (options.tab_selection_timeout &&
+      options.tab_selection_timeout->is_positive()) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&ContextualTasksContextService::OnRequestTimedOut,
+                       weak_ptr_factory_.GetWeakPtr(), request_id),
+        *options.tab_selection_timeout);
+  }
+
   // TODO: crbug.com/452036470 - De-couple embeddings and recency signal
   // computation.
-  embedder_->ComputePassagesEmbeddings(
-      passage_embeddings::PassagePriority::kUrgent, {query},
-      base::BindOnce(&ContextualTasksContextService::OnQueryEmbeddingReady,
-                     weak_ptr_factory_.GetWeakPtr(), query, options, now,
-                     explicit_urls, std::move(callback)));
+  passage_embeddings::Embedder::TaskId task_id =
+      embedder_->ComputePassagesEmbeddings(
+          passage_embeddings::PassagePriority::kUrgent, {query},
+          base::BindOnce(&ContextualTasksContextService::OnQueryEmbeddingReady,
+                         weak_ptr_factory_.GetWeakPtr(), query, options, now,
+                         explicit_urls, request_id));
+  pending_requests_[request_id] =
+      std::make_unique<PendingRequest>(task_id, std::move(callback));
 }
 
 void ContextualTasksContextService::EmbedderMetadataUpdated(
@@ -209,13 +310,23 @@ void ContextualTasksContextService::OnQueryEmbeddingReady(
     const TabSelectionOptions& options,
     base::TimeTicks start_time,
     const std::vector<GURL>& explicit_urls,
-    base::OnceCallback<void(std::vector<content::WebContents*>)> callback,
+    int64_t request_id,
     std::vector<std::string> passages,
     std::vector<passage_embeddings::Embedding> embeddings,
     passage_embeddings::Embedder::TaskId task_id,
     passage_embeddings::ComputeEmbeddingsStatus status) {
   base::UmaHistogramTimes("ContextualTasks.Context.QueryEmbeddingLatency",
                           tick_clock_->NowTicks() - start_time);
+
+  auto request_it = pending_requests_.find(request_id);
+  if (request_it == pending_requests_.end()) {
+    // We had timed out already and the callback was already invoked.
+    return;
+  }
+
+  base::OnceCallback<void(std::vector<content::WebContents*>)> callback =
+      std::move(request_it->second->callback);
+  pending_requests_.erase(request_id);
 
   // Query embedding was not successfully generated.
   if (status != passage_embeddings::ComputeEmbeddingsStatus::kSuccess) {
@@ -293,6 +404,23 @@ void ContextualTasksContextService::OnQueryEmbeddingReady(
   std::move(callback).Run(std::move(relevant_tabs));
 }
 
+void ContextualTasksContextService::OnRequestTimedOut(int64_t request_id) {
+  auto request_it = pending_requests_.find(request_id);
+  if (request_it == pending_requests_.end()) {
+    // We had already completed the request and the callback was already
+    // invoked.
+    return;
+  }
+
+  passage_embeddings::Embedder::TaskId task_id = request_it->second->task_id;
+  embedder_->TryCancel(task_id);
+  base::OnceCallback<void(std::vector<content::WebContents*>)> callback =
+      std::move(request_it->second->callback);
+  pending_requests_.erase(request_id);
+  RecordContextDeterminationStatus(ContextDeterminationStatus::kTimedOut);
+  std::move(callback).Run({});
+}
+
 std::vector<content::WebContents*>
 ContextualTasksContextService::GetAllEligibleTabs() {
   std::vector<content::WebContents*> all_tabs;
@@ -307,19 +435,13 @@ ContextualTasksContextService::GetAllEligibleTabs() {
           tabs::TabInterface* tab = tab_list->GetTab(i);
           content::WebContents* web_contents =
               tab ? tab->GetContents() : nullptr;
-          if (!web_contents) {
+          if (!IsValidTab(web_contents)) {
+            AUTO_CONTEXT_LOG(
+                base::StringPrintf("Removing %s from relevant set as it is not "
+                                   "valid e.g. it is NTP, internal page, etc.",
+                                   web_contents->GetLastCommittedURL().spec()));
             continue;
           }
-
-          const GURL url = web_contents->GetLastCommittedURL();
-          const bool is_invalid_url = !url.is_valid() || url.IsAboutBlank();
-          const bool is_internal_page =
-              url.SchemeIs(content::kChromeUIScheme) ||
-              url.SchemeIs(content::kChromeUIUntrustedScheme);
-          if (is_invalid_url || is_internal_page) {
-            continue;
-          }
-
           if (!ShouldAddTabToSelection(web_contents)) {
             AUTO_CONTEXT_LOG(
                 base::StringPrintf("Removing %s from relevant set as it is not "
@@ -334,6 +456,115 @@ ContextualTasksContextService::GetAllEligibleTabs() {
   return all_tabs;
 }
 
+content::WebContents* ContextualTasksContextService::GetActiveTabWebContents() {
+  content::WebContents* active_tab_contents = nullptr;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [this, &active_tab_contents](BrowserWindowInterface* browser) {
+        if (browser->GetProfile() == profile_) {
+          if (auto* tab_list = TabListInterface::From(browser)) {
+            if (auto* active_tab = tab_list->GetActiveTab()) {
+              active_tab_contents = active_tab->GetContents();
+            }
+          }
+          return false;
+        }
+        return true;
+      });
+  return active_tab_contents;
+}
+
+void ContextualTasksContextService::PopulateQueryContext(
+    const QueryState& query_state,
+    optimization_guide::proto::ContextualTasksContextQuality* quality_log) {
+  quality_log->set_number_of_query_words(query_state.query_word_count);
+  if (query_state.active_tab_title_similarity.has_value()) {
+    quality_log->set_query_active_tab_title_similarity(
+        *query_state.active_tab_title_similarity);
+  }
+  for (const auto& passage : query_state.active_tab_passage_similarities) {
+    quality_log->add_query_active_tab_passage_similarities(passage.score);
+  }
+}
+
+ContextualTasksContextService::QueryState
+ContextualTasksContextService::CreateQueryState(
+    const std::string& query,
+    const passage_embeddings::Embedding& query_embedding) {
+  QueryState query_state;
+  query_state.query = query;
+  query_state.query_embedding = query_embedding;
+  query_state.query_word_count = GetWordCount(query);
+
+  content::WebContents* active_tab_contents = GetActiveTabWebContents();
+  if (IsValidTab(active_tab_contents)) {
+    query_state.active_tab = active_tab_contents->GetWeakPtr();
+    query_state.active_tab_embeddings = page_embeddings_service_->GetEmbeddings(
+        active_tab_contents->GetPrimaryPage());
+
+    const passage_embeddings::Embedding* active_tab_title_embedding =
+        GetTitleEmbedding(query_state.active_tab_embeddings);
+    if (active_tab_title_embedding) {
+      query_state.active_tab_title_embedding = *active_tab_title_embedding;
+      query_state.active_tab_title_similarity =
+          query_embedding.ScoreWith(*active_tab_title_embedding);
+    }
+
+    query_state.active_tab_passage_similarities =
+        GetQueryTabPassageSimilarities(query_embedding,
+                                       query_state.active_tab_embeddings);
+  }
+
+  return query_state;
+}
+
+TabSignals ContextualTasksContextService::ComputeTabSignals(
+    content::WebContents* web_contents,
+    const QueryState& query_state) {
+  TabSignals tab_signals;
+  tab_signals.web_contents = web_contents->GetWeakPtr();
+
+  std::vector<page_content_annotations::PassageEmbedding>
+      candidate_tab_embeddings;
+  if (query_state.active_tab && query_state.active_tab.get() == web_contents) {
+    candidate_tab_embeddings = query_state.active_tab_embeddings;
+  } else {
+    candidate_tab_embeddings =
+        page_embeddings_service_->GetEmbeddings(web_contents->GetPrimaryPage());
+  }
+
+  tab_signals.similarity_scores =
+      GetEmbeddingScores(query_state.query_embedding, candidate_tab_embeddings);
+
+  if (tab_signals.similarity_scores) {
+    tab_signals.embedding_score = tab_signals.similarity_scores->best.score;
+  }
+
+  tab_signals.num_query_title_matching_words = GetMatchingWordsCount(
+      query_state.query, base::UTF16ToUTF8(web_contents->GetTitle()));
+
+  const passage_embeddings::Embedding* candidate_tab_title_embedding =
+      GetTitleEmbedding(candidate_tab_embeddings);
+  if (candidate_tab_title_embedding) {
+    tab_signals.query_candidate_tab_title_similarity =
+        query_state.query_embedding.ScoreWith(*candidate_tab_title_embedding);
+    if (query_state.active_tab_title_embedding) {
+      tab_signals.active_title_candidate_title_similarity =
+          query_state.active_tab_title_embedding->ScoreWith(
+              *candidate_tab_title_embedding);
+    }
+  }
+  tab_signals.query_candidate_tab_passage_similarities =
+      GetQueryTabPassageSimilarities(query_state.query_embedding,
+                                     candidate_tab_embeddings);
+
+  tab_signals.duration_since_last_active =
+      GetDurationSinceLastActive(web_contents);
+  tab_signals.duration_of_last_visit =
+      GetDurationOfCurrentOrLastVisit(web_contents);
+
+  return tab_signals;
+}
+
 std::vector<content::WebContents*>
 ContextualTasksContextService::SelectRelevantTabs(
     const std::string& query,
@@ -343,93 +574,66 @@ ContextualTasksContextService::SelectRelevantTabs(
     const std::vector<GURL>& explicit_urls,
     optimization_guide::proto::ContextualTasksContextQuality* quality_log) {
   std::vector<content::WebContents*> relevant_tabs;
+
+  QueryState query_state = CreateQueryState(query, query_embedding);
+  PopulateQueryContext(query_state, quality_log);
+
+  QueryStateSignals query_signals;
+  query_signals.query_word_count = query_state.query_word_count;
+  query_signals.query_active_tab_title_similarity =
+      query_state.active_tab_title_similarity.value_or(0.0f);
+  query_signals.query_active_tab_passage_similarities =
+      query_state.active_tab_passage_similarities;
+
   for (auto* web_contents : all_tabs) {
     optimization_guide::proto::ContextualTasksTabContext* tab_context =
         quality_log->add_eligible_tabs();
 
-    // Collect tab signals.
-    TabSignals tab_signals;
-    tab_signals.web_contents = web_contents;
-    std::optional<TabSimilarityScores> similarity_scores = GetEmbeddingScores(
-        query_embedding, page_embeddings_service_->GetEmbeddings(
-                             web_contents->GetPrimaryPage()));
-    tab_signals.embedding_score =
-        similarity_scores
-            ? std::make_optional(similarity_scores->best_similarity_score.first)
-            : std::nullopt;
-    tab_signals.duration_since_last_active =
-        GetDurationSinceLastActive(web_contents);
-    tab_signals.num_query_title_matching_words = GetMatchingWordsCount(
-        query, base::UTF16ToUTF8(web_contents->GetTitle()));
-    tab_signals.duration_of_last_visit =
-        GetDurationOfCurrentOrLastVisit(web_contents);
-
-    // Collect metrics.
-    if (similarity_scores) {
-      AUTO_CONTEXT_LOG(base::StringPrintf(
-          "Passage with highest similarity with query %s: %f",
-          similarity_scores->best_similarity_score.second,
-          similarity_scores->best_similarity_score.first));
-      AUTO_CONTEXT_LOG(
-          base::StringPrintf("Passage with lowest similarity with query %s: %f",
-                             similarity_scores->worst_similarity_score.second,
-                             similarity_scores->worst_similarity_score.first));
-    }
-    if (tab_signals.embedding_score.has_value()) {
-      base::UmaHistogramCounts100(
-          "ContextualTasks.Context.EmbeddingSimilarityScore",
-          static_cast<int>(
-              std::min(100 * *(tab_signals.embedding_score), 100.0f)));
-      tab_context->set_best_embedding_score(*tab_signals.embedding_score);
-    }
-    if (tab_signals.duration_since_last_active.has_value()) {
-      base::UmaHistogramTimes("ContextualTasks.Context.DurationSinceLastActive",
-                              *(tab_signals.duration_since_last_active));
-      tab_context->set_seconds_since_last_active(
-          tab_signals.duration_since_last_active->InSeconds());
-    }
-    if (tab_signals.num_query_title_matching_words.has_value()) {
-      base::UmaHistogramCounts100(
-          "ContextualTasks.Context.MatchingWordsCount",
-          std::min(*(tab_signals.num_query_title_matching_words), 100));
-      tab_context->set_number_of_common_words(
-          *tab_signals.num_query_title_matching_words);
-    }
-    if (tab_signals.duration_of_last_visit.has_value()) {
-      tab_context->set_seconds_of_last_visit(
-          tab_signals.duration_of_last_visit->InSeconds());
-    }
+    TabSignals tab_signals = ComputeTabSignals(web_contents, query_state);
 
     // Score and select qualifying tabs.
     double score = GetTabScore(options, tab_signals);
-    tab_context->set_aggregate_tab_score(score);
     if (score >=
         options.min_model_score.value_or(kTabSelectionScoreThreshold.Get())) {
-      relevant_tabs.push_back(tab_signals.web_contents);
+      if (tab_signals.web_contents) {
+        relevant_tabs.push_back(tab_signals.web_contents.get());
+      }
     }
 
-    tab_context->set_was_explicitly_chosen(std::ranges::contains(
-        explicit_urls, web_contents->GetLastCommittedURL()));
+    // Recording signals and scores for analysis.
+    RecordCandidateTabMetrics(tab_signals, score);
+    PopulateTabContext(tab_signals, explicit_urls, score, tab_context);
 
-    base::UmaHistogramSparse("ContextualTasks.Context.TabScore",
-                             static_cast<int>(std::min(100 * score, 100.0)));
+    // Print debug logs.
+    if (tab_signals.similarity_scores) {
+      AUTO_CONTEXT_LOG(
+          absl::StrFormat("Passage with highest similarity with query %s: %f",
+                          tab_signals.similarity_scores->best.text,
+                          tab_signals.similarity_scores->best.score));
+      AUTO_CONTEXT_LOG(
+          absl::StrFormat("Passage with lowest similarity with query %s: %f",
+                          tab_signals.similarity_scores->worst.text,
+                          tab_signals.similarity_scores->worst.score));
+    }
 
-    // Log for debugging.
-    AUTO_CONTEXT_LOG(base::StringPrintf(
-        "Query: %s | TabTitle: %s | Score: %f \n"
-        "  EmbeddingsScore: %f \n"
-        "  SecondsSinceLastActive: %d \n"
-        "  MatchingWordsCount: %d \n"
-        "  DurationOfLastVisitInSeconds: %d \n",
-        query, base::UTF16ToUTF8(web_contents->GetTitle()), score,
-        tab_signals.embedding_score.value_or(0.0f),
+    AUTO_CONTEXT_LOG(absl::StrFormat(
+        "Query: %s | TabTitle: %s | Score: %f\n"
+        "  EmbeddingsScore: %f\n"
+        "  SecondsSinceLastActive: %.3f\n"
+        "  MatchingWordsCount: %d\n"
+        "  DurationOfLastVisitInSeconds: %.3f",
+        query,
+        (tab_signals.web_contents
+             ? base::UTF16ToUTF8(tab_signals.web_contents->GetTitle())
+             : ""),
+        score, tab_signals.embedding_score.value_or(0.0f),
         tab_signals.duration_since_last_active.has_value()
-            ? tab_signals.duration_since_last_active->InSeconds()
-            : -1,
-        tab_signals.num_query_title_matching_words.value_or(0),
+            ? tab_signals.duration_since_last_active->InSecondsF()
+            : -1.0,
+        tab_signals.num_query_title_matching_words,
         tab_signals.duration_of_last_visit.has_value()
-            ? tab_signals.duration_of_last_visit->InSeconds()
-            : -1));
+            ? tab_signals.duration_of_last_visit->InSecondsF()
+            : -1.0));
   }
   return relevant_tabs;
 }
@@ -458,6 +662,26 @@ ContextualTasksContextService::GetDurationOfCurrentOrLastVisit(
   return std::nullopt;
 }
 
+bool ContextualTasksContextService::IsValidTab(
+    content::WebContents* web_contents) {
+  if (!web_contents) {
+    return false;
+  }
+
+  const GURL& url = web_contents->GetLastCommittedURL();
+
+  if (!url.is_valid() || url.IsAboutBlank()) {
+    return false;
+  }
+
+  if (url.SchemeIs(content::kChromeUIScheme) ||
+      url.SchemeIs(content::kChromeUIUntrustedScheme)) {
+    return false;
+  }
+
+  return !search::IsNTPOrRelatedURL(url, profile_);
+}
+
 bool ContextualTasksContextService::ShouldAddTabToSelection(
     content::WebContents* web_contents) {
   // Get sensitivity.
@@ -483,5 +707,11 @@ bool ContextualTasksContextService::ShouldAddTabToSelection(
 
   return is_eligible_for_server_upload && !is_sensitive;
 }
+
+ContextualTasksContextService::PendingRequest::PendingRequest(
+    passage_embeddings::Embedder::TaskId task_id,
+    base::OnceCallback<void(std::vector<content::WebContents*>)> callback)
+    : task_id(task_id), callback(std::move(callback)) {}
+ContextualTasksContextService::PendingRequest::~PendingRequest() = default;
 
 }  // namespace contextual_tasks

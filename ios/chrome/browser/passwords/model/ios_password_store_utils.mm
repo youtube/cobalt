@@ -34,7 +34,8 @@ constexpr char kPasswordStoreMetricsReporterKey[] =
 
 class StoreMetricReporterHelper : public base::SupportsUserData::Data {
  public:
-  explicit StoreMetricReporterHelper(ProfileIOS* profile) : profile_(profile) {
+  explicit StoreMetricReporterHelper(ProfileIOS* profile)
+      : profile_(profile->AsWeakPtr()) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&StoreMetricReporterHelper::StartMetricsReporting,
@@ -45,22 +46,26 @@ class StoreMetricReporterHelper : public base::SupportsUserData::Data {
 
  private:
   void StartMetricsReporting() {
+    ProfileIOS* profile = profile_.get();
+    if (!profile) {
+      return;
+    }
     password_manager::PasswordStoreInterface* profile_store =
         IOSChromeProfilePasswordStoreFactory::GetForProfile(
-            profile_, ServiceAccessType::EXPLICIT_ACCESS)
+            profile, ServiceAccessType::EXPLICIT_ACCESS)
             .get();
     password_manager::PasswordStoreInterface* account_store =
         IOSChromeAccountPasswordStoreFactory::GetForProfile(
-            profile_, ServiceAccessType::EXPLICIT_ACCESS)
+            profile, ServiceAccessType::EXPLICIT_ACCESS)
             .get();
     syncer::SyncService* sync_service =
-        SyncServiceFactory::GetForProfileIfExists(profile_);
+        SyncServiceFactory::GetForProfileIfExists(profile);
     password_manager::PasswordReuseManager* password_reuse_manager =
-        IOSChromePasswordReuseManagerFactory::GetForProfile(profile_);
+        IOSChromePasswordReuseManagerFactory::GetForProfile(profile);
     password_manager::PasswordManagerSettingsService* settings =
-        IOSPasswordManagerSettingsServiceFactory::GetForProfile(profile_);
+        IOSPasswordManagerSettingsServiceFactory::GetForProfile(profile);
 
-    PrefService* pref_service = profile_->GetPrefs();
+    PrefService* pref_service = profile->GetPrefs();
 
     metrics_reporter_ =
         std::make_unique<password_manager::StoreMetricsReporter>(
@@ -79,19 +84,23 @@ class StoreMetricReporterHelper : public base::SupportsUserData::Data {
           // browser state.
           dispatch_async(dispatch_get_main_queue(), ^{
             BOOL enabled = state.isEnabled;
-            LogIfCredentialProviderEnabled(pref_service, enabled);
+            LogIfCredentialProviderEnabled(enabled);
           });
         }];
   }
 
   void RemoveInstanceFromProfileUserData() {
-    profile_->RemoveUserData(kPasswordStoreMetricsReporterKey);
+    ProfileIOS* profile = profile_.get();
+    if (!profile) {
+      return;
+    }
+    profile->RemoveUserData(kPasswordStoreMetricsReporterKey);
   }
 
   // Logs if the user had enabled the credential provider in their iOS settings
   // at startup. Also if the value has changed since the last launch, log the
   // new value.
-  void LogIfCredentialProviderEnabled(PrefService* pref_service, BOOL enabled) {
+  void LogIfCredentialProviderEnabled(BOOL enabled) {
     base::UmaHistogramBoolean("IOS.CredentialExtension.IsEnabled.Startup",
                               enabled);
     PrefService* local_state = GetApplicationContext()->GetLocalState();
@@ -109,7 +118,7 @@ class StoreMetricReporterHelper : public base::SupportsUserData::Data {
     }
   }
 
-  const raw_ptr<ProfileIOS> profile_;
+  base::WeakPtr<ProfileIOS> profile_;
   // StoreMetricReporterHelper is owned by the profile `metrics_reporter_` life
   // time is now bound to the profile.
   std::unique_ptr<password_manager::StoreMetricsReporter> metrics_reporter_;

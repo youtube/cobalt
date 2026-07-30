@@ -17,6 +17,12 @@ const UIControlState UIControlStateTunedDown = 1 << 16;
 // Alpha value for the disabled action button.
 const CGFloat kDisabledButtonAlpha = 0.5;
 
+// The padding between the custom image and the title.
+const CGFloat kCustomImagePadding = 4.0;
+
+// The point size for the checkmark image.
+const CGFloat kCheckmarkImagePointSize = 17.0;
+
 // Returns whether `button` should have its background tinted or not.
 bool ShouldUseTintColor(UIButton* button) {
   if (@available(iOS 26, *)) {
@@ -116,17 +122,30 @@ NonPrimaryActionConfigurationUpdateHandler() {
 
 // Returns the checkmark image with the correct configuration.
 UIImage* CheckmarkImage() {
-  UIImageSymbolConfiguration* symbol_configuration =
-      [UIImageSymbolConfiguration configurationWithPointSize:17];
+  UIImageSymbolConfiguration* symbol_configuration = [UIImageSymbolConfiguration
+      configurationWithPointSize:kCheckmarkImagePointSize];
   return [UIImage systemImageNamed:@"checkmark.circle.fill"
                  withConfiguration:symbol_configuration];
 }
 
+// Configures the image color for the given button configuration.
+void ConfigureImageColor(UIButtonConfiguration* button_configuration,
+                         UIColor* color) {
+  if (@available(iOS 26, *)) {
+    button_configuration.image = [button_configuration.image
+        imageWithTintColor:color
+             renderingMode:UIImageRenderingModeAlwaysOriginal];
+  } else {
+    button_configuration.imageColorTransformer = ^UIColor*(UIColor* _) {
+      return color;
+    };
+  }
+}
 }  // namespace
 
 @implementation ChromeButton {
-  // Wether the inital button configuration is done.
-  BOOL _initalConfigurationDone;
+  // Whether the initial button configuration is done.
+  BOOL _initialConfigurationDone;
 }
 
 - (instancetype)initWithStyle:(ChromeButtonStyle)style {
@@ -137,7 +156,7 @@ UIImage* CheckmarkImage() {
     self.translatesAutoresizingMaskIntoConstraints = NO;
     self.pointerInteractionEnabled = YES;
     self.pointerStyleProvider = CreateOpaqueButtonPointerStyleProvider();
-    _initalConfigurationDone = YES;
+    _initialConfigurationDone = YES;
   }
   return self;
 }
@@ -145,7 +164,7 @@ UIImage* CheckmarkImage() {
 #pragma mark - Properties
 
 - (void)setStyle:(ChromeButtonStyle)style {
-  if (_initalConfigurationDone && _style == style) {
+  if (_initialConfigurationDone && _style == style) {
     return;
   }
   _style = style;
@@ -158,6 +177,9 @@ UIImage* CheckmarkImage() {
       break;
     case ChromeButtonStyleSecondary:
       [self updateButtonToMatchSecondaryAction];
+      break;
+    case ChromeButtonStyleSecondaryDestructive:
+      [self updateButtonToMatchSecondaryDestructiveAction];
       break;
     case ChromeButtonStyleTertiary:
       [self updateButtonToMatchTertiaryAction];
@@ -174,9 +196,9 @@ UIImage* CheckmarkImage() {
 }
 
 - (void)setTitle:(NSString*)title {
-  UIButtonConfiguration* button_configuration = self.configuration;
-  button_configuration.title = title;
-  self.configuration = button_configuration;
+  UIButtonConfiguration* buttonConfiguration = self.configuration;
+  buttonConfiguration.title = title;
+  self.configuration = buttonConfiguration;
 }
 
 - (NSString*)title {
@@ -184,18 +206,18 @@ UIImage* CheckmarkImage() {
 }
 
 - (void)setFont:(UIFont*)font {
-  UIFont* current_font = self.font;
-  if ([current_font isEqual:font]) {
+  UIFont* currentFont = self.font;
+  if ([currentFont isEqual:font]) {
     return;
   }
 
-  UIConfigurationTextAttributesTransformer original_transformer =
+  UIConfigurationTextAttributesTransformer originalTransformer =
       self.configuration.titleTextAttributesTransformer;
   self.configuration.titleTextAttributesTransformer =
       ^NSDictionary<NSAttributedStringKey, id>*(
           NSDictionary<NSAttributedStringKey, id>* incoming) {
     NSDictionary<NSAttributedStringKey, id>* transformed =
-        original_transformer(incoming);
+        originalTransformer(incoming);
     NSMutableDictionary<NSAttributedStringKey, id>* outgoing =
         [transformed mutableCopy];
     outgoing[NSFontAttributeName] = font;
@@ -210,22 +232,30 @@ UIImage* CheckmarkImage() {
 }
 
 - (void)setPrimaryButtonImage:(PrimaryButtonImage)primaryButtonImage {
-  UIButtonConfiguration* button_configuration = self.configuration;
-  button_configuration.image = nil;
-  button_configuration.showsActivityIndicator = NO;
+  _primaryButtonImage = primaryButtonImage;
+  UIButtonConfiguration* buttonConfiguration = self.configuration;
+
+  if (primaryButtonImage != PrimaryButtonImageCustom) {
+    buttonConfiguration.image = nil;
+  }
+  buttonConfiguration.imageColorTransformer = nil;
+  buttonConfiguration.showsActivityIndicator = NO;
+  buttonConfiguration.imagePadding = kCustomImagePadding;
+  UIColor* color = [UIColor colorNamed:kSolidButtonTextColor];
+
   switch (primaryButtonImage) {
     case PrimaryButtonImageNone:
       break;
-    case PrimaryButtonImageSpinner:
-      button_configuration.showsActivityIndicator = YES;
-      button_configuration.activityIndicatorColorTransformer =
+    case PrimaryButtonImageSpinner: {
+      buttonConfiguration.showsActivityIndicator = YES;
+      buttonConfiguration.activityIndicatorColorTransformer =
           ^UIColor*(UIColor* _) {
-            return UIColor.whiteColor;
+            return color;
           };
       break;
+    }
     case PrimaryButtonImageCheckmark: {
-      button_configuration.image = CheckmarkImage();
-      UIColor* color = UIColor.whiteColor;
+      buttonConfiguration.image = CheckmarkImage();
       if (self.state & UIControlStateTunedDown) {
         if (self.style == ChromeButtonStylePrimary) {
           color = [UIColor colorNamed:kBlue700Color];
@@ -233,23 +263,16 @@ UIImage* CheckmarkImage() {
           color = [UIColor colorNamed:kRed600Color];
         }
       }
-      button_configuration.imageColorTransformer = ^UIColor*(UIColor* _) {
-        return color;
-      };
+      ConfigureImageColor(buttonConfiguration, color);
+      break;
+    }
+    case PrimaryButtonImageCustom: {
+      ConfigureImageColor(buttonConfiguration, color);
       break;
     }
   }
-  self.configuration = button_configuration;
-}
 
-- (PrimaryButtonImage)primaryButtonImage {
-  if (self.configuration.showsActivityIndicator) {
-    return PrimaryButtonImageSpinner;
-  }
-  if (self.configuration.image) {
-    return PrimaryButtonImageCheckmark;
-  }
-  return PrimaryButtonImageNone;
+  self.configuration = buttonConfiguration;
 }
 
 - (UIControlState)state {
@@ -294,11 +317,11 @@ UIImage* CheckmarkImage() {
 - (void)updateButtonToMatchPrimaryAction {
   UIButtonConfiguration* configuration = self.configuration;
   UIFont* font = [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
-  UIColor* enabled_text_color = [UIColor colorNamed:kSolidButtonTextColor];
-  UIColor* disabled_text_color = [UIColor colorNamed:kSolidBlackColor];
-  SetButtonTitleTextAttributes(configuration, font, enabled_text_color, self,
-                               disabled_text_color);
-  configuration.baseForegroundColor = enabled_text_color;
+  UIColor* enabledTextColor = [UIColor colorNamed:kSolidButtonTextColor];
+  UIColor* disabledTextColor = [UIColor colorNamed:kSolidBlackColor];
+  SetButtonTitleTextAttributes(configuration, font, enabledTextColor, self,
+                               disabledTextColor);
+  configuration.baseForegroundColor = enabledTextColor;
   UpdatePrimaryButtonBackgroundColor(self, /*destructive*/ false,
                                      configuration);
   self.configuration = configuration;
@@ -309,12 +332,12 @@ UIImage* CheckmarkImage() {
 // Updates `button` to match a primary destruction action style.
 - (void)updateButtonToMatchPrimaryDestructiveAction {
   UIButtonConfiguration* configuration = self.configuration;
-  UIColor* enabled_text_color = [UIColor colorNamed:kSolidButtonTextColor];
-  UIColor* disabled_text_color = [UIColor colorNamed:kSolidBlackColor];
+  UIColor* enabledTextColor = [UIColor colorNamed:kSolidButtonTextColor];
+  UIColor* disabledTextColor = [UIColor colorNamed:kSolidBlackColor];
   SetButtonTitleTextAttributes(
       configuration, [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline],
-      enabled_text_color, self, disabled_text_color);
-  configuration.baseForegroundColor = enabled_text_color;
+      enabledTextColor, self, disabledTextColor);
+  configuration.baseForegroundColor = enabledTextColor;
   UpdatePrimaryButtonBackgroundColor(self, /*destructive*/ true, configuration);
   self.configuration = configuration;
   self.configurationUpdateHandler =
@@ -324,20 +347,39 @@ UIImage* CheckmarkImage() {
 // Updates `button` to match a secondary action style.
 - (void)updateButtonToMatchSecondaryAction {
   UIButtonConfiguration* configuration = self.configuration;
-  UIColor* enabled_text_color;
+  UIColor* enabledTextColor;
   UIFont* font;
   if (@available(iOS 26, *)) {
-    enabled_text_color = [UIColor colorNamed:kSolidBlackColor];
+    enabledTextColor = [UIColor colorNamed:kSolidBlackColor];
     font = [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
     self.tintColor = UIColor.clearColor;
     configuration.background.backgroundColor = UIColor.clearColor;
   } else {
-    enabled_text_color = [UIColor colorNamed:kBlueColor];
+    enabledTextColor = [UIColor colorNamed:kBlueColor];
     font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
     configuration.background.backgroundColor = UIColor.clearColor;
   }
-  SetButtonTitleTextAttributes(configuration, font, enabled_text_color);
-  configuration.baseForegroundColor = enabled_text_color;
+  SetButtonTitleTextAttributes(configuration, font, enabledTextColor);
+  configuration.baseForegroundColor = enabledTextColor;
+  self.configuration = configuration;
+  self.configurationUpdateHandler =
+      NonPrimaryActionConfigurationUpdateHandler();
+}
+
+// Updates `button` to match a secondary destructive action style.
+- (void)updateButtonToMatchSecondaryDestructiveAction {
+  UIButtonConfiguration* configuration = self.configuration;
+  configuration.background.backgroundColor = UIColor.clearColor;
+  UIColor* enabledTextColor = [UIColor colorNamed:kRed600Color];
+  UIFont* font;
+  if (@available(iOS 26, *)) {
+    font = [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
+    self.tintColor = UIColor.clearColor;
+  } else {
+    font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+  }
+  SetButtonTitleTextAttributes(configuration, font, enabledTextColor);
+  configuration.baseForegroundColor = enabledTextColor;
   self.configuration = configuration;
   self.configurationUpdateHandler =
       NonPrimaryActionConfigurationUpdateHandler();
@@ -346,10 +388,10 @@ UIImage* CheckmarkImage() {
 // Updates `button` to match a tertiary action style.
 - (void)updateButtonToMatchTertiaryAction {
   UIButtonConfiguration* configuration = self.configuration;
-  UIColor* enabled_text_color = [UIColor colorNamed:kBlueColor];
+  UIColor* enabledTextColor = [UIColor colorNamed:kBlueColor];
   UIFont* font = [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
-  SetButtonTitleTextAttributes(configuration, font, enabled_text_color);
-  configuration.baseForegroundColor = enabled_text_color;
+  SetButtonTitleTextAttributes(configuration, font, enabledTextColor);
+  configuration.baseForegroundColor = enabledTextColor;
   if (@available(iOS 26, *)) {
     if (@available(iOS 26.1, *)) {
       configuration.background.backgroundColor =

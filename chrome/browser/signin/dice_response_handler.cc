@@ -266,10 +266,13 @@ void DiceResponseHandler::ProcessDiceHeader(
   }
 
   CHECK(delegate);
-  switch (dice_params.user_intention) {
+  switch (dice_params.user_intention()) {
     case signin::DiceAction::SIGNIN: {
+      const signin::DiceResponseParams::SigninInfo* signin_info =
+          dice_params.signin_info();
+      CHECK(signin_info);
       const signin::DiceResponseParams::SigninInfo::SigninAccount* initiator =
-          dice_params.signin_info->GetInitiator();
+          signin_info->GetInitiator();
       CHECK(initiator);
       const signin::DiceResponseParams::AccountInfo& info =
           initiator->account_info;
@@ -281,15 +284,22 @@ void DiceResponseHandler::ProcessDiceHeader(
       return;
     }
     case signin::DiceAction::ENABLE_SYNC: {
+      const signin::DiceResponseParams::EnableSyncInfo* enable_sync_info =
+          dice_params.enable_sync_info();
+      CHECK(enable_sync_info);
       const signin::DiceResponseParams::AccountInfo& info =
-          dice_params.enable_sync_info->account_info;
+          enable_sync_info->account_info;
       ProcessEnableSyncHeader(info.gaia_id, info.email, std::move(delegate));
       return;
     }
-    case signin::DiceAction::SIGNOUT:
-      DCHECK_GT(dice_params.signout_info->account_infos.size(), 0u);
-      ProcessDiceSignoutHeader(dice_params.signout_info->account_infos);
+    case signin::DiceAction::SIGNOUT: {
+      const signin::DiceResponseParams::SignoutInfo* signout_info =
+          dice_params.signout_info();
+      CHECK(signout_info);
+      DCHECK_GT(signout_info->account_infos.size(), 0u);
+      ProcessDiceSignoutHeader(signout_info->account_infos);
       return;
+    }
     case signin::DiceAction::NONE:
       NOTREACHED() << "Invalid Dice response parameters.";
   }
@@ -493,7 +503,7 @@ void DiceResponseHandler::OnTokenExchangeSuccess(
       token_fetcher->delegate()->GetAccessPoint(),
       signin_metrics::SourceForRefreshTokenOperation::
           kDiceResponseHandler_Signin,
-      wrapped_binding_key);
+      signin::TokenBindingInfo(wrapped_binding_key));
   about_signin_internals_->OnRefreshTokenReceived(
       base::StringPrintf("Successful (%s)", account_id.ToString().c_str()));
   token_fetcher->delegate()->HandleTokenExchangeSuccess(account_id,

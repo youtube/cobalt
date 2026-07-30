@@ -489,6 +489,7 @@ chromium-metrics-reviews@google.com.
   <int value="45" label="Turn Completed"/>
   <int value="46" label="Reaction Logged on Response"/>
   <int value="47" label="Shown"/>
+  <int value="48" label="Open"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/service/metrics/glic_instance_metrics.h:GlicInstanceEvent) -->
@@ -607,6 +608,7 @@ chromium-metrics-reviews@google.com.
   <int value="14" label="Browser app is shutting down"/>
   <int value="15" label="User already went through the FRE"/>
   <int value="16" label="Invalid - Disabled for testing."/>
+  <int value="17" label="Not Pinned To Tabstrip"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/glic_profile_manager.h:GlicPrewarmingChecksResult) -->
@@ -751,7 +753,7 @@ chromium-metrics-reviews@google.com.
   <int value="96" label="Context menu, detached, audio mode."/>
 </enum>
 
-<!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:ResponseSegmentation) -->
+<!-- LINT.ThenChange(//chrome/browser/glic/service/metrics/metrics_types.h:ResponseSegmentation) -->
 
 <!-- LINT.IfChange(GlicScrollToErrorReason) -->
 

@@ -19,17 +19,56 @@ DiceResponseParams& DiceResponseParams::operator=(DiceResponseParams&&) =
     default;
 
 bool DiceResponseParams::IsValid() const {
-  switch (user_intention) {
+  switch (user_intention()) {
     case DiceAction::NONE:
       return false;
     case DiceAction::SIGNIN:
-      return signin_info && signin_info->IsValid();
+      return signin_info()->IsValid();
     case DiceAction::SIGNOUT:
-      return signout_info && signout_info->IsValid();
+      return signout_info()->IsValid();
     case DiceAction::ENABLE_SYNC:
-      return enable_sync_info && enable_sync_info->IsValid();
+      return enable_sync_info()->IsValid();
   }
   NOTREACHED();
+}
+
+DiceAction DiceResponseParams::user_intention() const {
+  if (std::holds_alternative<SigninInfo>(data)) {
+    return DiceAction::SIGNIN;
+  }
+  if (std::holds_alternative<SignoutInfo>(data)) {
+    return DiceAction::SIGNOUT;
+  }
+  if (std::holds_alternative<EnableSyncInfo>(data)) {
+    return DiceAction::ENABLE_SYNC;
+  }
+  return DiceAction::NONE;
+}
+
+const DiceResponseParams::SigninInfo* DiceResponseParams::signin_info() const {
+  return std::get_if<SigninInfo>(&data);
+}
+
+const DiceResponseParams::SignoutInfo* DiceResponseParams::signout_info()
+    const {
+  return std::get_if<SignoutInfo>(&data);
+}
+
+const DiceResponseParams::EnableSyncInfo* DiceResponseParams::enable_sync_info()
+    const {
+  return std::get_if<EnableSyncInfo>(&data);
+}
+
+DiceResponseParams::SigninInfo* DiceResponseParams::signin_info() {
+  return std::get_if<SigninInfo>(&data);
+}
+
+DiceResponseParams::SignoutInfo* DiceResponseParams::signout_info() {
+  return std::get_if<SignoutInfo>(&data);
+}
+
+DiceResponseParams::EnableSyncInfo* DiceResponseParams::enable_sync_info() {
+  return std::get_if<EnableSyncInfo>(&data);
 }
 
 DiceResponseParams::AccountInfo::AccountInfo() = default;
@@ -73,16 +112,18 @@ DiceResponseParams::SigninInfo::SigninInfo(SigninInfo&&) = default;
 DiceResponseParams::SigninInfo& DiceResponseParams::SigninInfo::operator=(
     SigninInfo&&) = default;
 
-void DiceResponseParams::SigninInfo::SetInitiator(const GaiaId& gaia_id) {
-  initiator_id = gaia_id;
+bool DiceResponseParams::SigninInfo::ConnectedAccountsMetadata::IsValid()
+    const {
+  return !initiator_id.empty() && primary_is_connected != Tribool::kUnknown;
 }
 
 const DiceResponseParams::SigninInfo::SigninAccount*
 DiceResponseParams::SigninInfo::GetInitiator() const {
-  if (initiator_id.empty()) {
-    return accounts_.size() == 1u ? &accounts_[0] : nullptr;
+  if (accounts_.size() == 1) {
+    return &accounts_[0];
   }
 
+  const GaiaId& initiator_id = connected_accounts_metadata_.initiator_id;
   auto it = std::ranges::find_if(accounts_, [&](const SigninAccount& account) {
     return account.account_info.gaia_id == initiator_id;
   });

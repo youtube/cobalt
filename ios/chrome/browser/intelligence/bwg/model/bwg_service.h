@@ -5,7 +5,7 @@
 #ifndef IOS_CHROME_BROWSER_INTELLIGENCE_BWG_MODEL_BWG_SERVICE_H_
 #define IOS_CHROME_BROWSER_INTELLIGENCE_BWG_MODEL_BWG_SERVICE_H_
 
-#include <optional>
+#import <optional>
 
 #import "base/memory/raw_ptr.h"
 #import "base/scoped_observation.h"
@@ -14,6 +14,10 @@
 
 class AuthenticationService;
 struct CoreAccountInfo;
+namespace gemini {
+struct IneligibilityReasons;
+enum class FREState;
+}  // namespace gemini
 namespace signin {
 class IdentityManager;
 }  // namespace signin
@@ -35,6 +39,11 @@ class BwgService : public KeyedService,
 
   // Returns whether the current profile is eligible for Gemini.
   bool IsProfileEligibleForGemini();
+
+  // Provides more information than `IsProfileEligibleForGemini` for cases where
+  // you need to know the ineligibility reasons of the profile. Profiles which
+  // are deemed eligible for Gemini will result in std::nullopt.
+  std::optional<gemini::IneligibilityReasons> GeminiIneligibilityForProfile();
 
   // signin::IdentityManager::Observer:
   void OnPrimaryAccountChanged(
@@ -66,6 +75,9 @@ class BwgService : public KeyedService,
   // Enterprise).
   std::optional<bool> is_disabled_by_gemini_policy_;
 
+  // The last FRE state for Gemini to have been logged this session.
+  std::optional<gemini::FREState> last_logged_fre_state_;
+
   // Checks if the account is eligible for Gemini Enterprise and populates
   // `is_disabled_by_gemini_policy_`.
   void CheckGeminiEnterpriseEligibility();
@@ -75,6 +87,9 @@ class BwgService : public KeyedService,
 
   // Clears the Gemini consent profile pref.
   void ClearConsentPref();
+
+  // Logs the current FRE state whenever deemed necessary.
+  void LogFREState();
 
   // Invoked when the eligibility check is done.
   void OnGeminiEligibilityResult(bool eligible);

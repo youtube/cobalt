@@ -82,7 +82,7 @@ public class OmniboxFeatures {
     // session.
     public static final int DEFAULT_MAX_PREFETCHES_PER_OMNIBOX_SESSION = 5;
 
-    // Timeout requests after 30 minutes if we somehow fail to remove our listener.
+    // Timeout requests after 10 minutes if we somehow fail to remove our listener.
     private static final int DEFAULT_GEOLOCATION_REQUEST_TIMEOUT_MIN = 10;
 
     // Minimum number of characters required to trigger rich inline autocomplete.
@@ -116,6 +116,9 @@ public class OmniboxFeatures {
             newFlag(
                     OmniboxFeatureList.OMNIBOX_X_GEO_PERMISSION_GRANULARITY,
                     FeatureState.ENABLED_IN_PROD);
+
+    public static final CachedFlag sPlatformAgnosticXGeo =
+            newFlag(OmniboxFeatureList.PLATFORM_AGNOSTIC_X_GEO, FeatureState.DISABLED);
 
     public static final CachedFlag sAsyncViewInflation =
             newFlag(OmniboxFeatureList.OMNIBOX_ASYNC_VIEW_INFLATION, FeatureState.ENABLED_IN_TEST);
@@ -467,10 +470,6 @@ public class OmniboxFeatures {
     }
 
     public static boolean allowMultilineEditField() {
-        return (!DeviceFormFactor.isTablet() && sMultilineEditField.isEnabled());
-    }
-
-    public static boolean shouldJumpStartOmnibox() {
-        return isJumpStartOmniboxEnabled();
+        return sMultilineEditField.isEnabled();
     }
 }

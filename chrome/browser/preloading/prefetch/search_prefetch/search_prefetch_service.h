@@ -50,7 +50,7 @@ struct ResourceRequest;
 // use or introduce a corresponding enum to content::PreloadingEligibility or
 // ChromePreloadingEligibility.
 //
-// LINT.IfChange
+// LINT.IfChange(SearchPrefetchEligibilityReason)
 enum class SearchPrefetchEligibilityReason {
   // The prefetch was started.
   kPrefetchStarted = 0,
@@ -73,9 +73,13 @@ enum class SearchPrefetchEligibilityReason {
   kThrottled = 8,
   // The prefetch was suppressed because the network is too slow.
   kSlowNetwork = 9,
-  kMaxValue = kSlowNetwork,
+  // The prefetch was suppressed because Data Saver is enabled.
+  kDataSaverEnabled = 10,
+  // The prefetch was suppressed because Battery Saver is enabled.
+  kBatterySaverEnabled = 11,
+  kMaxValue = kBatterySaverEnabled,
 };
-// LINT.ThenChange(/tools/metrics/histograms/enums.xml:SearchPrefetchEligibilityReason)
+// LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:SearchPrefetchEligibilityReason)
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -87,7 +91,7 @@ enum class SearchPrefetchEligibilityReason {
 // or if you are not a Googler, please file an FYI bug on https://crbug.new with
 // component Internals>Preload.
 //
-// LINT.IfChange
+// LINT.IfChange(SearchPrefetchServingReason)
 enum class SearchPrefetchServingReason {
   // The prefetch was started.
   kServed = 0,
@@ -113,7 +117,7 @@ enum class SearchPrefetchServingReason {
   kRequestInFlightNotReady = 11,
   kMaxValue = kRequestInFlightNotReady,
 };
-// LINT.ThenChange()
+// LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:SearchPrefetchServingReason)
 
 class SearchPrefetchService : public KeyedService,
                               public TemplateURLServiceObserver {
@@ -229,7 +233,8 @@ class SearchPrefetchService : public KeyedService,
   bool MaybePrefetchURL(const GURL& url,
                         bool navigation_prefetch,
                         content::WebContents* web_contents,
-                        content::PreloadingPredictor predictor);
+                        content::PreloadingPredictor predictor,
+                        bool should_ignore_saver_modes);
 
   // Adds |this| as an observer of |template_url_service| if not added already.
   void ObserveTemplateURLService(TemplateURLService* template_url_service);

@@ -4,13 +4,14 @@
 
 #include "chrome/browser/ui/autofill/mock_accessibility_query_service.h"
 
-#include "components/accessibility_annotator/core/annotation_reducer/autofill_data_provider.h"
+#include "components/accessibility_annotator/core/annotation_reducer/memory_data_provider.h"
 
 namespace autofill {
 
 MockAccessibilityQueryService::MockAccessibilityQueryService()
     : accessibility_annotator::AccessibilityQueryService(
-          /*data_provider=*/nullptr) {}
+          /*data_providers=*/{},
+          /*remote_model_executor=*/nullptr) {}
 
 MockAccessibilityQueryService::~MockAccessibilityQueryService() = default;
 

@@ -8,13 +8,13 @@ import android.content.Context;
 import android.net.http.HttpResponseCache;
 import android.os.Process;
 import android.os.SystemClock;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 
 import org.json.JSONObject;
 
+import org.chromium.base.Log;
 import org.chromium.base.metrics.ScopedSysTraceEvent;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.net.impl.CronetLogger;
@@ -43,9 +43,6 @@ import javax.net.ssl.HttpsURLConnection;
  */
 public abstract class CronetEngine {
     private static final String TAG = CronetEngine.class.getSimpleName();
-
-    static final String USE_SCORE_BASED_PROVIDER_SELECTION_HTTP_FLAG_NAME =
-            "Cronet_UseScoreBasedProviderSelection";
 
     /** The value of the active request count is unknown */
     public static final int ACTIVE_REQUEST_COUNT_UNKNOWN = -1;
@@ -537,10 +534,11 @@ public abstract class CronetEngine {
          *     BiridirectionalStream} and connections established by the {@link CronetEngine}
          *     created by this builder.
          * @return the builder to facilitate chaining.
+         * @throws UnsupportedOperationException if the Cronet implementation being used is too old
+         *     to support ProxyOptions.
          */
-        @ProxyOptions.Experimental
         public Builder setProxyOptions(@NonNull ProxyOptions proxyOptions) {
-            mBuilderDelegate.setProxyOptions(Objects.requireNonNull(proxyOptions));
+            mBuilderDelegate.setProxyOptionsV2(Objects.requireNonNull(proxyOptions));
             return this;
         }
 
@@ -714,15 +712,10 @@ public abstract class CronetEngine {
                         "Unable to find any Cronet provider."
                                 + " Have you included all necessary jars?");
             }
-            var shouldUseSmartProviderLogic =
-                    HttpFlagsForApi.getHttpFlags(context)
-                            .flags()
-                            .get(USE_SCORE_BASED_PROVIDER_SELECTION_HTTP_FLAG_NAME);
             CronetProvider.ProviderInfo cronetProvider =
-                    (shouldUseSmartProviderLogic == null
-                                    || !shouldUseSmartProviderLogic.getBoolValue())
-                            ? getPreferredCronetProviderUsingVersion(providers)
-                            : getPreferredCronetProviderUsingScore(providers);
+                    CronetProvider.shouldUseScoreBasedProviderSelection(context)
+                            ? getPreferredCronetProviderUsingScore(providers)
+                            : getPreferredCronetProviderUsingVersion(providers);
             if (cronetProvider == null) {
                 throw new RuntimeException(
                         "All available Cronet providers are disabled."

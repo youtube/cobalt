@@ -85,6 +85,7 @@
 #define IDC_NEW_SPLIT_TAB               34055
 #define IDC_TOGGLE_VERTICAL_TABS        34056
 #define IDC_VERTICAL_TABS_SEND_FEEDBACK 34057
+#define IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER 34058
 
 // Web app window commands
 #define IDC_COPY_URL                    34060
@@ -304,6 +305,7 @@
 #define IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_GEMINI 40300
 #define IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS 40301
 #define IDC_REPORT_UNSAFE_SITE 40302
+#define IDC_SHOW_READING_MODE_KEYBOARD 40303
 
 // Spell-check
 // Insert any additional suggestions before _LAST; these have to be consecutive.

@@ -14,6 +14,7 @@
 #import <utility>
 
 #import "base/apple/foundation_util.h"
+#import "base/debug/dump_without_crashing.h"
 #import "base/files/file_path.h"
 #import "base/functional/bind.h"
 #import "base/ios/block_types.h"
@@ -33,16 +34,17 @@
 #import "components/contextual_search/contextual_search_service.h"
 #import "components/contextual_search/contextual_search_session_handle.h"
 #import "components/contextual_search/input_state_model.h"
+#import "components/contextual_search/internal/ios/composebox_context_upload_observer_bridge.h"
+#import "components/contextual_search/internal/ios/composebox_query_controller_ios.h"
 #import "components/lens/contextual_input.h"
 #import "components/lens/lens_bitmap_processing.h"
+#import "components/lens/lens_overlay_mime_type.h"
 #import "components/lens/lens_url_utils.h"
 #import "components/omnibox/browser/aim_eligibility_service.h"
 #import "components/omnibox/browser/lens_suggest_inputs_utils.h"
 #import "components/omnibox/common/omnibox_features.h"
 #import "components/omnibox/composebox/composebox_query.mojom.h"
 #import "components/omnibox/composebox/contextual_search_mojom_traits.h"
-#import "components/omnibox/composebox/ios/composebox_context_upload_observer_bridge.h"
-#import "components/omnibox/composebox/ios/composebox_query_controller_ios.h"
 #import "components/prefs/pref_service.h"
 #import "components/search/search.h"
 #import "components/search_engines/template_url_service.h"
@@ -110,7 +112,14 @@ ComposeboxModelOption ModelOptionForModelMode(omnibox::ModelMode model_mode) {
     case omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_NO_GEN_UI:
       return ComposeboxModelOption::kThinkingNoGenUI;
     case omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR:
+    case omnibox::ModelMode::MODEL_MODE_UNSPECIFIED:
+      return ComposeboxModelOption::kRegular;
     default:
+      // `ModelMode` is an open enum and prohibits exhaustive switch statements.
+      // See https://protobuf.dev/programming-guides/enum/
+      //
+      // Dump without crashing if the received model is not interpreted iOS.
+      base::debug::DumpWithoutCrashing();
       return ComposeboxModelOption::kRegular;
   }
 }
@@ -245,6 +254,27 @@ CreateInputDataFromAnnotatedPageContent(
   return input_data;
 }
 
+// Helper to map ComposeboxInputItemCollection to lens::MimeType
+std::vector<lens::MimeType> MimeTypesFromCollection(
+    ComposeboxInputItemCollection* items) {
+  std::vector<lens::MimeType> types;
+  if (!items || items.empty) {
+    return types;
+  }
+
+  if (items.imagesCount > 0) {
+    types.push_back(lens::MimeType::kImage);
+  }
+  if (items.tabsCount > 0) {
+    types.push_back(lens::MimeType::kAnnotatedPageContent);
+  }
+  if (items.filesCount > 0) {
+    types.push_back(lens::MimeType::kPdf);
+  }
+
+  return types;
+}
+
 }  // namespace
 
 @interface ComposeboxInputPlateMediator () <
@@ -329,6 +359,8 @@ CreateInputDataFromAnnotatedPageContent(
   __weak id<SceneCommands> _sceneHandler;
   // The entrypoint from which the composebox was invoked.
   ComposeboxEntrypoint _entrypoint;
+  // The previously observed mode of the composebox.
+  ComposeboxMode _previousMode;
 }
 
 - (instancetype)
@@ -364,6 +396,16 @@ CreateInputDataFromAnnotatedPageContent(
       _composeboxObserverBridge =
           std::make_unique<ComposeboxContextUploadObserverBridge>(
               self, _contextualSearchSession->GetController());
+      [[NSNotificationCenter defaultCenter]
+          addObserver:self
+             selector:@selector(appDidEnterBackground:)
+                 name:UIApplicationDidEnterBackgroundNotification
+               object:nil];
+      [[NSNotificationCenter defaultCenter]
+          addObserver:self
+             selector:@selector(appWillEnterForeground:)
+                 name:UIApplicationWillEnterForegroundNotification
+               object:nil];
     }
     _webStateList = webStateList;
     _faviconLoader = faviconLoader;
@@ -373,6 +415,7 @@ CreateInputDataFromAnnotatedPageContent(
     _isIncognito = isIncognito;
     _modeHolder = modeHolder;
     [_modeHolder addObserver:self];
+    _previousMode = _modeHolder.mode;
     _templateURLService = templateURLService;
     _searchEngineObserver =
         std::make_unique<SearchEngineObserverBridge>(self, _templateURLService);
@@ -410,6 +453,7 @@ CreateInputDataFromAnnotatedPageContent(
   _URLLoader = nil;
   _consumer = nil;
   _prefService = nullptr;
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 - (void)setConsumer:(id<ComposeboxInputPlateConsumer>)consumer {
@@ -692,6 +736,14 @@ CreateInputDataFromAnnotatedPageContent(
       default:
         break;
     }
+
+    contextual_search::ContextualSearchMetricsRecorder* recorder =
+        _contextualSearchSession
+            ? _contextualSearchSession->GetMetricsRecorder()
+            : nullptr;
+    if (explicitUserAction && recorder) {
+      recorder->RecordModelMode(_inputStateModel->GetInputState().active_model);
+    }
   }
 
   // When the model option is reset (set to none), reset the mode to regular
@@ -777,6 +829,15 @@ CreateInputDataFromAnnotatedPageContent(
 
 - (void)composeboxModeDidChange:(ComposeboxMode)mode {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+
+  BOOL transitionedToAIMode = mode != ComposeboxMode::kRegularSearch &&
+                              _previousMode == ComposeboxMode::kRegularSearch;
+
+  if (transitionedToAIMode) {
+    [self.metricsRecorder
+        recordTextEditedBeforeAiMode:(_userInputInProgress && _hasText)];
+  }
+  _previousMode = mode;
 
   [self updateMode];
 
@@ -1102,6 +1163,23 @@ CreateInputDataFromAnnotatedPageContent(
   [self attachSelectedTabsWithWebStateIDs:webStateIDs cachedWebStateIDs:{}];
 }
 
+- (void)recordPlusMenuOpenedWithVisibleInternalButtons:
+    (const std::vector<FuseboxAttachmentButtonType>&)visibleInternalButtons {
+  contextual_search::ContextualSearchMetricsRecorder* recorder =
+      _contextualSearchSession ? _contextualSearchSession->GetMetricsRecorder()
+                               : nullptr;
+  if (_inputStateModel && recorder) {
+    for (const auto& tool : _inputState.allowed_tools) {
+      recorder->RecordToolModeShown(tool);
+    }
+    for (const auto& model : _inputState.allowed_models) {
+      recorder->RecordModelModeShown(model);
+    }
+  }
+  [self.metricsRecorder
+      recordAttachmentsMenuOpenedWithVisibleButtons:visibleInternalButtons];
+}
+
 - (void)requestUIRefresh {
   [self commitUIUpdates];
 }
@@ -1145,7 +1223,50 @@ CreateInputDataFromAnnotatedPageContent(
   [self.consumer updateState:item.state forItemWithIdentifier:item.identifier];
 }
 
+#pragma mark - NSNotification
+
+- (void)appDidEnterBackground:(NSNotification*)notification {
+  if (_contextualSearchSession) {
+    _contextualSearchSession->SetIsBackgrounded(true);
+  }
+}
+
+- (void)appWillEnterForeground:(NSNotification*)notification {
+  if (_contextualSearchSession) {
+    _contextualSearchSession->SetIsBackgrounded(false);
+  }
+}
+
 #pragma mark - Private
+
+// Sends a Cobrowse text followup.
+- (void)sendAIMFollowup:(NSString*)text {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+  if (!_contextualSearchSession) {
+    return;
+  }
+
+  std::unique_ptr<contextual_search::ContextualSearchContextController::
+                      CreateClientToAimRequestInfo>
+      request_info = std::make_unique<
+          contextual_search::ContextualSearchContextController::
+              CreateClientToAimRequestInfo>();
+  request_info->query_text = base::SysNSStringToUTF8(text);
+  request_info->query_start_time = base::Time::Now();
+  request_info->file_tokens =
+      _contextualSearchSession->GetSubmittedContextTokens();
+
+  if (_inputStateModel) {
+    request_info->active_tool = _inputStateModel->GetInputState().active_tool;
+    request_info->active_model = _inputStateModel->GetInputState().active_model;
+  }
+
+  lens::ClientToAimMessage message =
+      _contextualSearchSession->CreateClientToAimRequest(
+          std::move(request_info));
+
+  [self.URLLoader prepareLoadForQueryText:text clientToAimMessage:message];
+}
 
 // Updates the tool mode when in image generation mode.
 - (void)updateImageGenerationToolMode {
@@ -1395,11 +1516,12 @@ CreateInputDataFromAnnotatedPageContent(
 
   [self.metricsRecorder recordAutocompleteRequestTypeAtNavigation:
                             [self currentAutocompleteRequestType]];
-
-  if (_contextualSearchSession &&
-      _contextualSearchSession->GetMetricsRecorder()) {
-    _contextualSearchSession->GetMetricsRecorder()->RecordModesOnSubmission(
-        _inputState.active_tool, _inputState.active_model);
+  contextual_search::ContextualSearchMetricsRecorder* recorder =
+      _contextualSearchSession ? _contextualSearchSession->GetMetricsRecorder()
+                               : nullptr;
+  if (recorder) {
+    recorder->RecordModesOnSubmission(_inputState.active_tool,
+                                      _inputState.active_model);
   }
 }
 
@@ -1410,6 +1532,23 @@ CreateInputDataFromAnnotatedPageContent(
                                 withAttachments:!_items.empty
                                     requestType:
                                         [self currentAutocompleteRequestType]];
+
+  contextual_search::ContextualSearchMetricsRecorder* recorder =
+      _contextualSearchSession ? _contextualSearchSession->GetMetricsRecorder()
+                               : nullptr;
+  if (recorder) {
+    std::vector<lens::MimeType> types = MimeTypesFromCollection(_items);
+
+    recorder->RecordFileTypesOnSessionEnd(types, _inNavigation);
+
+    if (_inputStateModel) {
+      recorder->RecordActiveModesOnSessionEnd(
+          _inputStateModel->GetInputState().active_tool,
+          _inputStateModel->GetInputState().active_model, _inNavigation);
+    }
+
+    recorder->RecordNavigationResult(_inNavigation);
+  }
 }
 
 // Reloads the displayed suggestions based on the attachments/modeHolder.
@@ -2065,7 +2204,13 @@ CreateInputDataFromAnnotatedPageContent(
     [_sceneHandler hideAssistant];
   }
 
-  [self.URLLoader prepareLoadForQueryText:[NSString cr_fromString16:text]];
+  BOOL isAimFollowup = IsAimCobrowseEnabled() &&
+                       (_entrypoint == ComposeboxEntrypoint::kCobrowse);
+
+  if (isAimFollowup) {
+    [self sendAIMFollowup:[NSString cr_fromString16:text]];
+    return;
+  }
 
   switch (_modeHolder.mode) {
     case ComposeboxMode::kRegularSearch:
@@ -2378,6 +2523,15 @@ CreateInputDataFromAnnotatedPageContent(
 
 - (void)setActiveTool:(omnibox::ToolMode)activeTool {
   if (_inputStateModel) {
+    if (_inputStateModel->GetInputState().active_tool != activeTool) {
+      contextual_search::ContextualSearchMetricsRecorder* recorder =
+          _contextualSearchSession
+              ? _contextualSearchSession->GetMetricsRecorder()
+              : nullptr;
+      if (recorder) {
+        recorder->RecordToolMode(activeTool);
+      }
+    }
     _inputStateModel->setActiveTool(activeTool);
   }
 }

@@ -77,7 +77,6 @@ BASE_FEATURE(kLowEndMemoryExperiment, FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(int,
                    kLowMemoryDeviceThresholdMB,
                    &kLowEndMemoryExperiment,
-                   "LowMemoryDeviceThresholdMB",
                    LOW_MEMORY_DEVICE_THRESHOLD_MB);
 
 BASE_FEATURE(kReducePPMs, FEATURE_ENABLED_BY_DEFAULT);
@@ -192,6 +191,8 @@ BASE_FEATURE(kUserBlockingAboveNormalPriority, FEATURE_DISABLED_BY_DEFAULT);
 // If retrying fails, the function returns failure as usual and reports the
 // last error code.
 BASE_FEATURE(kRetryCreateFileMappingOnCommitLimit, FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kPumpPeekMessageWithObserver, FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN)
 
 bool IsReducePPMsEnabled() {

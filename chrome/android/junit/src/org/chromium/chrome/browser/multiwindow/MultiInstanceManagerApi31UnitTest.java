@@ -119,7 +119,6 @@ import org.chromium.components.messages.MessageBannerProperties;
 import org.chromium.components.messages.MessageDispatcher;
 import org.chromium.components.messages.MessageIdentifier;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
-import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
@@ -138,13 +137,7 @@ import java.util.stream.Collectors;
 /** Unit tests for {@link MultiInstanceManagerApi31}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-@EnableFeatures({
-    ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT,
-    ChromeFeatureList.RECENTLY_CLOSED_TABS_AND_WINDOWS
-})
-@DisableFeatures({
-    ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL,
-})
+@DisableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL)
 public class MultiInstanceManagerApi31UnitTest {
     private static final int INSTANCE_ID_1 = 1;
     private static final int INSTANCE_ID_2 = 2;
@@ -1612,12 +1605,15 @@ public class MultiInstanceManagerApi31UnitTest {
         // Act.
         int destTabIndex = 0;
         mMultiInstanceManager.moveTabGroupToWindowByIdChecked(
-                /* destWindowId= */ 1, mTabGroupMetadata, destTabIndex);
+                /* destWindowId= */ 1, mTabGroupMetadata, destTabIndex, /* bringToFront= */ true);
 
         // Verify.
         verify(mTabReparentingDelegate)
                 .reparentTabGroupToExistingWindow(
-                        eq(mTabbedActivityTask63), eq(mTabGroupMetadata), eq(destTabIndex));
+                        eq(mTabbedActivityTask63),
+                        eq(mTabGroupMetadata),
+                        eq(destTabIndex),
+                        eq(true));
     }
 
     @Test
@@ -1627,7 +1623,10 @@ public class MultiInstanceManagerApi31UnitTest {
 
         // Act.
         mMultiInstanceManager.moveTabGroupToWindowByIdChecked(
-                NONEXISTENT_INSTANCE_ID, mTabGroupMetadata, /* destTabIndex= */ 0);
+                NONEXISTENT_INSTANCE_ID,
+                mTabGroupMetadata,
+                /* destTabIndex= */ 0,
+                /* bringToFront= */ true);
 
         // Verify.
         verify(mTabReparentingDelegate)
@@ -2170,7 +2169,7 @@ public class MultiInstanceManagerApi31UnitTest {
         verify(mMultiInstanceManager)
                 .showTargetSelectorDialog(
                         any(),
-                        eq(PersistedInstanceType.ANY),
+                        eq(PersistedInstanceType.ACTIVE),
                         eq(R.string.menu_move_tab_to_other_window));
     }
 
@@ -2179,7 +2178,7 @@ public class MultiInstanceManagerApi31UnitTest {
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testMoveTabsToOtherWindow_incognitoTabs_dialogShown() {
         IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
-        MultiWindowUtils.setInstanceCountForTesting(1);
+        MultiWindowUtils.setInstanceCountForTesting(2);
         MultiWindowUtils.setIncognitoInstanceCountForTesting(2);
         List<Tab> tabs = List.of(mTab1);
         when(mTab1.isIncognitoBranded()).thenReturn(true);
@@ -2262,98 +2261,6 @@ public class MultiInstanceManagerApi31UnitTest {
     }
 
     @Test
-    public void testOpenUrlInOtherWindow_fromRegularWindow_dialogShown() {
-        MultiWindowUtils.setInstanceCountForTesting(2);
-        LoadUrlParams urlParams = new LoadUrlParams(new GURL("about:blank"));
-
-        mMultiInstanceManager.openUrlInOtherWindow(
-                urlParams,
-                /* parentTabId= */ 1,
-                /* preferNew= */ false,
-                PersistedInstanceType.ACTIVE | PersistedInstanceType.REGULAR);
-
-        verify(mMultiInstanceManager)
-                .showTargetSelectorDialog(
-                        any(),
-                        eq(PersistedInstanceType.ACTIVE | PersistedInstanceType.REGULAR),
-                        eq(R.string.contextmenu_open_in_other_window));
-    }
-
-    @Test
-    public void testOpenUrlInOtherWindow_fromIncognitoWindow_dialogShown() {
-        MultiWindowUtils.setIncognitoInstanceCountForTesting(2);
-        LoadUrlParams urlParams = new LoadUrlParams(new GURL("about:blank"));
-
-        mMultiInstanceManager.openUrlInOtherWindow(
-                urlParams,
-                /* parentTabId= */ 1,
-                /* preferNew= */ false,
-                PersistedInstanceType.ACTIVE | PersistedInstanceType.OFF_THE_RECORD);
-
-        verify(mMultiInstanceManager)
-                .showTargetSelectorDialog(
-                        any(),
-                        eq(PersistedInstanceType.ACTIVE | PersistedInstanceType.OFF_THE_RECORD),
-                        eq(R.string.contextmenu_open_in_other_window));
-    }
-
-    @Test
-    public void testOpenUrlInOtherWindow_fromRegularWindow_dialogHidden() {
-        MultiWindowUtils.setInstanceCountForTesting(1);
-        LoadUrlParams urlParams = new LoadUrlParams(new GURL("about:blank"));
-
-        mMultiInstanceManager.openUrlInOtherWindow(
-                urlParams,
-                /* parentTabId= */ 1,
-                /* preferNew= */ false,
-                PersistedInstanceType.ACTIVE | PersistedInstanceType.REGULAR);
-
-        verify(mMultiInstanceManager, never())
-                .showTargetSelectorDialog(
-                        any(), anyInt(), eq(R.string.contextmenu_open_in_other_window));
-        verify(mMultiInstanceManager, never()).showInstanceCreationLimitMessage();
-        var intentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mCurrentActivity).startActivity(intentCaptor.capture());
-        assertEquals(
-                "New window source extra is incorrect.",
-                NewWindowAppSource.URL_LAUNCH,
-                intentCaptor
-                        .getValue()
-                        .getIntExtra(
-                                IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE,
-                                NewWindowAppSource.UNKNOWN));
-    }
-
-    @Test
-    public void testOpenUrlInOtherWindow_fromIncognitoWindow_dialogHidden() {
-        MultiWindowUtils.setIncognitoInstanceCountForTesting(1);
-        // Regular instance count should be irrelevant.
-        MultiWindowUtils.setInstanceCountForTesting(3);
-        LoadUrlParams urlParams = new LoadUrlParams(new GURL("about:blank"));
-
-        mMultiInstanceManager.openUrlInOtherWindow(
-                urlParams,
-                /* parentTabId= */ 1,
-                /* preferNew= */ false,
-                PersistedInstanceType.ACTIVE | PersistedInstanceType.OFF_THE_RECORD);
-
-        verify(mMultiInstanceManager, never())
-                .showTargetSelectorDialog(
-                        any(), anyInt(), eq(R.string.contextmenu_open_in_other_window));
-        verify(mMultiInstanceManager, never()).showInstanceCreationLimitMessage();
-        var intentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mCurrentActivity).startActivity(intentCaptor.capture());
-        assertEquals(
-                "New window source extra is incorrect.",
-                NewWindowAppSource.URL_LAUNCH,
-                intentCaptor
-                        .getValue()
-                        .getIntExtra(
-                                IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE,
-                                NewWindowAppSource.UNKNOWN));
-    }
-
-    @Test
     @DisableFeatures({ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW})
     public void testMoveTabGroupToOtherWindow_dialogShown() {
         MultiWindowUtils.setInstanceCountForTesting(2);
@@ -2364,7 +2271,7 @@ public class MultiInstanceManagerApi31UnitTest {
         verify(mMultiInstanceManager)
                 .showTargetSelectorDialog(
                         any(),
-                        eq(PersistedInstanceType.ANY),
+                        eq(PersistedInstanceType.ACTIVE),
                         eq(R.string.menu_move_group_to_other_window));
     }
 
@@ -2373,7 +2280,7 @@ public class MultiInstanceManagerApi31UnitTest {
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testMoveTabGroupToOtherWindow_incognitoTabs_dialogShown() {
         IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
-        MultiWindowUtils.setInstanceCountForTesting(1);
+        MultiWindowUtils.setInstanceCountForTesting(2);
         MultiWindowUtils.setIncognitoInstanceCountForTesting(2);
 
         mMultiInstanceManager.moveTabGroupToOtherWindow(

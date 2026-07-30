@@ -122,6 +122,7 @@ class MockAmountExtractionManager : public AmountExtractionManager {
       : AmountExtractionManager(autofill_manager) {}
 
   MOCK_METHOD(void, TriggerCheckoutAmountExtractionWithAi, (), (override));
+  MOCK_METHOD(void, Reset, (), (override));
 };
 
 class PaymentsNetworkInterfaceMock : public PaymentsNetworkInterface {
@@ -167,6 +168,7 @@ class PaymentsNetworkInterfaceMock : public PaymentsNetworkInterface {
        base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult,
                                std::string context_token,
                                LegalMessageLines)>));
+  MOCK_METHOD(void, CancelRequest, (), (override));
 };
 
 class TestPaymentsAutofillClientMock : public TestPaymentsAutofillClient {
@@ -271,7 +273,7 @@ class BnplManagerTest : public Test,
     scoped_feature_list_.InitWithFeatures(
         /*enabled_features=*/{features::kAutofillEnableBuyNowPayLaterSyncing,
                               features::kAutofillEnableBuyNowPayLater},
-        /*disabled_features=*/{});
+        /*disabled_features=*/{features::kAutofillEnablePayNowPayLaterTabs});
   }
 
   void SetUp() override {
@@ -1020,6 +1022,20 @@ TEST_F(BnplManagerTest, FetchVcnDetails_Reset) {
   test_api(*bnpl_manager_).Reset();
 
   EXPECT_EQ(test_api(*bnpl_manager_).GetOngoingFlowState(), nullptr);
+}
+
+TEST_F(BnplManagerTest, CancelOngoingRequests) {
+  EXPECT_CALL(*payments_network_interface_, CancelRequest);
+  EXPECT_CALL(*mock_amount_extraction_manager_, Reset);
+
+  test_api(*bnpl_manager_).CancelOngoingRequests();
+}
+
+TEST_F(BnplManagerTest, Reset_CallsCancelOngoingRequests) {
+  EXPECT_CALL(*payments_network_interface_, CancelRequest);
+  EXPECT_CALL(*mock_amount_extraction_manager_, Reset);
+
+  test_api(*bnpl_manager_).Reset();
 }
 
 // Tests that `OnDidGetLegalMessageFromServer` set the BNPL manager state if the
@@ -2020,6 +2036,30 @@ TEST_F(BnplManagerTest, GetSortedBnplIssuerContext_CheckoutAmountTooLow) {
           BnplIssuerEligibilityForPage::kNotEligibleCheckoutAmountTooLow)));
 }
 
+// Test that when amount extraction error is provided,
+// `GetSortedBnplIssuerContext` returns BnplIssuerContext containing the
+// Issuer and corresponding error eligibility.
+TEST_F(BnplManagerTest, GetSortedBnplIssuerContext_AmountExtractionError) {
+  SetUpUnlinkedBnplIssuer(
+      /*price_lower_bound_in_micros=*/10'000'000,
+      /*price_higher_bound_in_micros=*/1'000'000'000, IssuerId::kBnplAfterpay);
+
+  ON_CALL(*static_cast<MockAutofillOptimizationGuideDecider*>(
+              autofill_client().GetAutofillOptimizationGuideDecider()),
+          IsUrlEligibleForBnplIssuer)
+      .WillByDefault(Return(true));
+
+  std::vector<BnplIssuerContext> issuer_contexts = GetSortedBnplIssuerContext(
+      autofill_client(), /*checkout_amount=*/std::nullopt,
+      AiAmountExtractionResult::Error::kTimeout);
+
+  EXPECT_THAT(issuer_contexts,
+              ElementsAre(EqualsBnplIssuerContext(
+                  IssuerId::kBnplAfterpay,
+                  BnplIssuerEligibilityForPage::
+                      kNotEligibleAmountExtractionErrorTimeout)));
+}
+
 // Tests that the `kBnplSuggestionAccepted` event is logged once when
 // `OnUserDecisionToUseBnpl()` is called.
 TEST_F(BnplManagerTest, OnUserDecisionToUseBnpl_SuggestionAcceptedLogged) {
@@ -2036,6 +2076,22 @@ TEST_F(BnplManagerTest, OnUserDecisionToUseBnpl_SuggestionAcceptedLogged) {
       "Autofill.FormEvents.CreditCard.Bnpl",
       /*sample=*/autofill_metrics::BnplFormEvent::kBnplSuggestionAccepted,
       /*expected_bucket_count=*/1);
+}
+
+// Tests that if `OnUserDecisionToUseBnpl()` is called when there is already
+// an ongoing flow and the feature `kAutofillEnablePayNowPayLaterTabs` is
+// enabled, the method returns early without resetting the flow state.
+TEST_F(BnplManagerTest, OnUserDecisionToUseBnpl_AlreadyOngoing) {
+  base::test::ScopedFeatureList scoped_feature_list{
+      features::kAutofillEnablePayNowPayLaterTabs};
+
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
+  auto* expected_state = test_api(*bnpl_manager_).GetOngoingFlowState();
+  EXPECT_NE(expected_state, nullptr);
+
+  // Invoking again should return early and not replace the flow state.
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
+  EXPECT_EQ(test_api(*bnpl_manager_).GetOngoingFlowState(), expected_state);
 }
 
 TEST_F(BnplManagerTest,
@@ -2092,16 +2148,10 @@ TEST_F(
     BnplManagerTest,
     OnCreditCardSuggestionsShown_BnplPrefUpdatedWhenAiBasedAmountExtractionEnabled) {
   base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      features::kAutofillEnableAiBasedAmountExtraction);
-  // Add one linked issuer and one unlinked issuer to payments data manager.
-  SetUpLinkedBnplIssuer(/*price_lower_bound_in_micros=*/40'000'000,
-                        /*price_higher_bound_in_micros=*/1'000'000'000,
-                        IssuerId::kBnplAffirm,
-                        /*instrument_id=*/1234);
-  SetUpUnlinkedBnplIssuer(/*price_lower_bound_in_micros=*/1'000'000'000,
-                          /*price_higher_bound_in_micros=*/2'000'000'000,
-                          IssuerId::kBnplZip);
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {features::kAutofillEnableAiBasedAmountExtraction},
+      /*disabled_features=*/{features::kAutofillEnablePayNowPayLaterTabs});
 
   std::vector<Suggestion> suggestions = {
       Suggestion(SuggestionType::kCreditCardEntry),
@@ -2129,14 +2179,6 @@ TEST_F(
       {features::kAutofillEnableAiBasedAmountExtraction,
        features::kAutofillAiBasedAmountExtractionIgnoreSeenTermsForTesting},
       /*disabled_features=*/{});
-  // Add one linked issuer and one unlinked issuer to payments data manager.
-  SetUpLinkedBnplIssuer(/*price_lower_bound_in_micros=*/40'000'000,
-                        /*price_higher_bound_in_micros=*/1'000'000'000,
-                        IssuerId::kBnplAffirm,
-                        /*instrument_id=*/1234);
-  SetUpUnlinkedBnplIssuer(/*price_lower_bound_in_micros=*/1'000'000'000,
-                          /*price_higher_bound_in_micros=*/2'000'000'000,
-                          IssuerId::kBnplZip);
 
   std::vector<Suggestion> suggestions = {
       Suggestion(SuggestionType::kCreditCardEntry),
@@ -2163,16 +2205,10 @@ TEST_F(
     BnplManagerTest,
     OnCreditCardSuggestionsShown_BnplPrefNotUpdatedWhenAiBasedAmountExtractionEnabledButNoBnplSuggestion) {
   base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      features::kAutofillEnableAiBasedAmountExtraction);
-  // Add one linked issuer and one unlinked issuer to payments data manager.
-  SetUpLinkedBnplIssuer(/*price_lower_bound_in_micros=*/40'000'000,
-                        /*price_higher_bound_in_micros=*/1'000'000'000,
-                        IssuerId::kBnplAffirm,
-                        /*instrument_id=*/1234);
-  SetUpUnlinkedBnplIssuer(/*price_lower_bound_in_micros=*/1'000'000'000,
-                          /*price_higher_bound_in_micros=*/2'000'000'000,
-                          IssuerId::kBnplZip);
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {features::kAutofillEnableAiBasedAmountExtraction},
+      /*disabled_features=*/{features::kAutofillEnablePayNowPayLaterTabs});
 
   std::vector<Suggestion> suggestions = {
       Suggestion(SuggestionType::kCreditCardEntry)};
@@ -2188,6 +2224,64 @@ TEST_F(
                    .GetPersonalDataManager()
                    .payments_data_manager()
                    .IsAutofillHasSeenBnplPrefEnabled());
+}
+
+TEST_F(BnplManagerTest, HasSeenAmountExtractionAiTerms_PrioritizesCachedValue) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {features::kAutofillEnableAiBasedAmountExtraction,
+       features::kAutofillEnablePayNowPayLaterTabs},
+      /*disabled_features=*/{});
+
+  ASSERT_FALSE(test_api(*bnpl_manager_).HasSeenAmountExtractionAiTerms());
+
+  std::vector<Suggestion> suggestions = {
+      Suggestion(SuggestionType::kCreditCardEntry),
+      Suggestion(SuggestionType::kBnplEntry)};
+
+  // Caches false.
+  bnpl_manager_->OnCreditCardSuggestionsShown(suggestions, base::DoNothing());
+
+  // Update preference to true.
+  autofill_client()
+      .GetPersonalDataManager()
+      .payments_data_manager()
+      .SetAutofillAmountExtractionAiTermsSeen();
+
+  // Should still return false using the cached value.
+  EXPECT_FALSE(test_api(*bnpl_manager_).HasSeenAmountExtractionAiTerms());
+
+  test_api(*bnpl_manager_).Reset();
+
+  // Should read from prefs and return true.
+  EXPECT_TRUE(test_api(*bnpl_manager_).HasSeenAmountExtractionAiTerms());
+}
+
+TEST_F(BnplManagerTest,
+       HasSeenAmountExtractionAiTerms_TabsDisabled_IgnoresCache) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {features::kAutofillEnableAiBasedAmountExtraction},
+      /*disabled_features=*/{features::kAutofillEnablePayNowPayLaterTabs});
+
+  ASSERT_FALSE(test_api(*bnpl_manager_).HasSeenAmountExtractionAiTerms());
+
+  std::vector<Suggestion> suggestions = {
+      Suggestion(SuggestionType::kCreditCardEntry),
+      Suggestion(SuggestionType::kBnplEntry)};
+
+  bnpl_manager_->OnCreditCardSuggestionsShown(suggestions, base::DoNothing());
+
+  // Update preference to true.
+  autofill_client()
+      .GetPersonalDataManager()
+      .payments_data_manager()
+      .SetAutofillAmountExtractionAiTermsSeen();
+
+  // Should read from prefs directly and return true.
+  EXPECT_TRUE(test_api(*bnpl_manager_).HasSeenAmountExtractionAiTerms());
 }
 
 TEST_F(BnplManagerTest,
@@ -2206,14 +2300,9 @@ TEST_F(BnplManagerTest,
 TEST_F(
     BnplManagerTest,
     OnCreditCardSuggestionsShown_BnplPrefNotUpdatedWhenAiBasedAmountExtractionDisabled) {
-  // Add one linked issuer and one unlinked issuer to payments data manager.
-  SetUpLinkedBnplIssuer(/*price_lower_bound_in_micros=*/40'000'000,
-                        /*price_higher_bound_in_micros=*/1'000'000'000,
-                        IssuerId::kBnplAffirm,
-                        /*instrument_id=*/1234);
-  SetUpUnlinkedBnplIssuer(/*price_lower_bound_in_micros=*/1'000'000'000,
-                          /*price_higher_bound_in_micros=*/2'000'000'000,
-                          IssuerId::kBnplZip);
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kAutofillEnableAiBasedAmountExtraction);
 
   std::vector<Suggestion> suggestions = {
       Suggestion(SuggestionType::kCreditCardEntry),
@@ -2545,6 +2634,48 @@ TEST_F(BnplManagerTest, OnIssuerAccepted_TriggersExtractionAfterTermsNotSeen) {
 
   bnpl_manager_->OnAmountExtractionReturnedFromAi(
       std::make_pair(1'000'000, "USD"));
+}
+
+TEST_F(BnplManagerTest, OnIssuerAccepted_ShowProgressSuggestion) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list
+      .InitWithFeatures(/*enabled_features=*/
+                        {features::kAutofillEnablePayNowPayLaterTabs},
+                        /*disabled_features=*/{});
+  base::MockRepeatingCallback<void(std::vector<Suggestion>,
+                                   AutofillSuggestionTriggerSource)>
+      mock_update_suggestions_callback;
+  std::vector<Suggestion> suggestions = {
+      Suggestion(SuggestionType::kCreditCardEntry),
+      Suggestion(SuggestionType::kBnplEntry),
+      Suggestion(SuggestionType::kBnplEntry),
+      Suggestion(SuggestionType::kBnplFootnote),
+      Suggestion(SuggestionType::kManageCreditCard)};
+  autofill_client().SetAutofillSuggestions(suggestions);
+
+  bnpl_manager_->NotifyOfSuggestionGeneration(
+      AutofillSuggestionTriggerSource::kFormControlElementClicked);
+  bnpl_manager_->OnCreditCardSuggestionsShown(
+      suggestions, mock_update_suggestions_callback.Get());
+  bnpl_manager_->OnUserDecisionToUseBnpl(
+      /*final_checkout_amount=*/std::nullopt,
+      /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
+
+  EXPECT_CALL(
+      mock_update_suggestions_callback,
+      Run(ElementsAre(
+              Field(&Suggestion::type, SuggestionType::kCreditCardEntry),
+              AllOf(Field(&Suggestion::type, SuggestionType::kLoadingThrobber),
+                    Field(&Suggestion::acceptability,
+                          Suggestion::Acceptability::kUnacceptable),
+                    Field(&Suggestion::expected_number_of_suggestions,
+                          std::optional(2)),
+                    Field(&Suggestion::tab_index, kPayLaterSuggestionTabIndex)),
+              Field(&Suggestion::type, SuggestionType::kBnplFootnote),
+              Field(&Suggestion::type, SuggestionType::kManageCreditCard)),
+          AutofillSuggestionTriggerSource::kFormControlElementClicked));
+
+  test_api(*bnpl_manager_).OnIssuerAccepted(test::GetTestUnlinkedBnplIssuer());
 }
 
 // Tests that `OnIssuerAccepted()` calls with a linked issuer where ToS
@@ -3150,12 +3281,60 @@ TEST_F(BnplManagerTest,
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
-TEST_F(
-    BnplManagerTest,
-    OnAmountExtractionReturnedFromAi_IssuerNotSelectedYet_PayLaterTabsUpdatesSuggestions) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillEnablePayNowPayLaterTabs};
+class BnplManagerPayLaterTabTest : public BnplManagerTest {
+ public:
+  BnplManagerPayLaterTabTest() {
+    scoped_feature_list_.Reset();
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features=*/{features::kAutofillEnableBuyNowPayLaterSyncing,
+                              features::kAutofillEnableBuyNowPayLater,
+                              features::kAutofillEnablePayNowPayLaterTabs},
+        /*disabled_features=*/{});
+  }
+};
 
+// Tests that the BNPL suggestion is not inserted and the has seen BNPL pref is
+// not set after credit card suggestions shown and amount extraction results
+// returned when the pay later tab is enabled.
+TEST_F(BnplManagerPayLaterTabTest,
+       AddBnplSuggestion_WithPayLaterTabSuggestion) {
+  // Add one linked issuer and one unlinked issuer to payments data manager.
+  SetUpLinkedBnplIssuer(/*price_lower_bound_in_micros=*/40'000'000,
+                        /*price_higher_bound_in_micros=*/1'000'000'000,
+                        BnplIssuer::IssuerId::kBnplAffirm,
+                        /*instrument_id=*/1234);
+  SetUpUnlinkedBnplIssuer(/*price_lower_bound_in_micros=*/1'000'000'000,
+                          /*price_higher_bound_in_micros=*/2'000'000'000,
+                          BnplIssuer::IssuerId::kBnplZip);
+
+  base::MockCallback<UpdateSuggestionsCallback> callback;
+  std::vector<Suggestion> suggestions = {
+      Suggestion(SuggestionType::kCreditCardEntry),
+      Suggestion(SuggestionType::kManageCreditCard)};
+
+  ASSERT_FALSE(autofill_client()
+                   .GetPersonalDataManager()
+                   .payments_data_manager()
+                   .IsAutofillHasSeenBnplPrefEnabled());
+  EXPECT_CALL(callback, Run).Times(0);
+  EXPECT_CALL(*credit_card_form_event_logger_, OnBnplSuggestionShown())
+      .Times(0);
+
+  bnpl_manager_->NotifyOfSuggestionGeneration(
+      AutofillSuggestionTriggerSource::kUnspecified);
+  bnpl_manager_->OnCreditCardSuggestionsShown(suggestions, callback.Get());
+  bnpl_manager_->OnAmountExtractionReturned(50'000'000ULL,
+                                            /*timeout_reached=*/false);
+
+  EXPECT_FALSE(autofill_client()
+                   .GetPersonalDataManager()
+                   .payments_data_manager()
+                   .IsAutofillHasSeenBnplPrefEnabled());
+}
+
+TEST_F(
+    BnplManagerPayLaterTabTest,
+    OnAmountExtractionReturnedFromAi_IssuerNotSelectedYet_PayLaterTabsUpdatesSuggestions) {
   base::MockRepeatingCallback<void(std::vector<Suggestion>,
                                    AutofillSuggestionTriggerSource)>
       mock_update_suggestions_callback;

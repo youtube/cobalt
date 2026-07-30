@@ -11,6 +11,12 @@
 #include <string>
 #include <vector>
 
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_IOS)
+#include "base/ios/scoped_critical_action.h"
+#endif
+
 #include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -81,6 +87,7 @@ class ComposeboxQueryController
 
   // ContextualSearchContextController:
   void InitializeIfNeeded() override;
+  void SetIsBackgrounded(bool backgrounded) override;
   void CreateSearchUrl(
       std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info,
       base::OnceCallback<void(GURL)> callback) override;
@@ -118,7 +125,8 @@ class ComposeboxQueryController
 
   // Returns the string representation of the mime type, for use in calculating
   // the AddedInputs proto.
-  static std::optional<std::string> MimeTypeToString(lens::MimeType mime_type);
+  static std::optional<std::string> MimeTypeStringFromFileInfo(
+      const contextual_search::FileInfo& file_info);
 
   uint16_t get_num_context_uploading() {
     return static_cast<uint16_t>(pending_context_uploads_.size());
@@ -221,6 +229,12 @@ class ComposeboxQueryController
     // StartFileUploadFlow() and decremented when successful network responses
     // are received.
     size_t num_outstanding_network_requests_ = 0;
+
+#if BUILDFLAG(IS_IOS)
+    // Background execution assertion to prevent iOS from suspending the app
+    // during a file upload.
+    std::unique_ptr<base::ios::ScopedCriticalAction> background_action;
+#endif
   };
 
   // Creates the request body proto for an image and calls the callback with the
@@ -510,6 +524,9 @@ class ComposeboxQueryController
 
   // The last received cluster info.
   std::optional<lens::LensOverlayClusterInfo> cluster_info_ = std::nullopt;
+
+  // Whether the app is currently in the background.
+  bool is_backgrounded_ = false;
 
   // The number of times fetching cluster info has failed.
   int cluster_info_retries_ = 0;

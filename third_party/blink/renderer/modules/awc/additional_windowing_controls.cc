@@ -6,6 +6,7 @@
 
 #include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
 #include "third_party/blink/public/mojom/permissions/permission.mojom-blink.h"
+#include "third_party/blink/public/mojom/permissions/permission_status.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_throw_dom_exception.h"
@@ -26,19 +27,20 @@ using mojom::blink::PermissionName;
 namespace {
 
 using AdditionalWindowingControlsActionCallback =
-    base::OnceCallback<void(mojom::blink::PermissionStatus)>;
+    base::OnceCallback<void(mojom::blink::PermissionStatusWithDetailsPtr)>;
 using ui::mojom::blink::WindowShowState;
 
-bool IsPermissionGranted(ScriptPromiseResolver<IDLUndefined>* resolver,
-                         mojom::blink::PermissionStatus status) {
+bool IsPermissionGranted(
+    ScriptPromiseResolver<IDLUndefined>* resolver,
+    const mojom::blink::PermissionStatusWithDetails& status) {
   if (!resolver->GetScriptState()->ContextIsValid()) {
     return false;
   }
 
-  if (status != mojom::blink::PermissionStatus::GRANTED) {
+  if (status.status != mojom::blink::PermissionStatus::GRANTED) {
     resolver->RejectWithDOMException(
         DOMExceptionCode::kNotAllowedError,
-        status == mojom::blink::PermissionStatus::DENIED
+        status.status == mojom::blink::PermissionStatus::DENIED
             ? "Permission denied."
             : "Permission decision deferred.");
     return false;
@@ -144,8 +146,8 @@ base::OnceCallback<void(bool)> GetSetResizableCallback(
 void OnMaximizePermissionRequestComplete(
     ScriptPromiseResolver<IDLUndefined>* resolver,
     LocalDOMWindow* window,
-    mojom::blink::PermissionStatus status) {
-  if (!IsPermissionGranted(resolver, status)) {
+    mojom::blink::PermissionStatusWithDetailsPtr status) {
+  if (!IsPermissionGranted(resolver, *status)) {
     return;
   }
 
@@ -160,8 +162,8 @@ void OnMaximizePermissionRequestComplete(
 void OnMinimizePermissionRequestComplete(
     ScriptPromiseResolver<IDLUndefined>* resolver,
     LocalDOMWindow* window,
-    mojom::blink::PermissionStatus status) {
-  if (!IsPermissionGranted(resolver, status)) {
+    mojom::blink::PermissionStatusWithDetailsPtr status) {
+  if (!IsPermissionGranted(resolver, *status)) {
     return;
   }
 
@@ -176,8 +178,8 @@ void OnMinimizePermissionRequestComplete(
 void OnRestorePermissionRequestComplete(
     ScriptPromiseResolver<IDLUndefined>* resolver,
     LocalDOMWindow* window,
-    mojom::blink::PermissionStatus status) {
-  if (!IsPermissionGranted(resolver, status)) {
+    mojom::blink::PermissionStatusWithDetailsPtr status) {
+  if (!IsPermissionGranted(resolver, *status)) {
     return;
   }
 
@@ -193,8 +195,8 @@ void OnSetResizablePermissionRequestComplete(
     ScriptPromiseResolver<IDLUndefined>* resolver,
     LocalDOMWindow* window,
     bool resizable,
-    mojom::blink::PermissionStatus status) {
-  if (!IsPermissionGranted(resolver, status)) {
+    mojom::blink::PermissionStatusWithDetailsPtr status) {
+  if (!IsPermissionGranted(resolver, *status)) {
     return;
   }
 

@@ -462,6 +462,7 @@
 <translation id="2932150158123903946">พื้นที่เก็บข้อมูล Google <ph name="APP_NAME" /></translation>
 <translation id="2932222164150889403">แป้นพิมพ์จะไม่เปลี่ยนแปลง</translation>
 <translation id="2936980480904111527">การแจ้งเตือนของ Chrome ทำให้ทุกอย่างง่ายขึ้น</translation>
+<translation id="2939908794993783865">เว็บไซต์อื่นที่ไม่ได้ใช้งาน</translation>
 <translation id="2940075786175545812">ตัวเลือกในการอนุมัติหรือไม่อนุมัติเว็บไซต์</translation>
 <translation id="2942036813789421260">แท็บแสดงตัวอย่างปิดอยู่</translation>
 <translation id="2951071800649516099">เพิ่มหน้าเว็บลงในเรื่องรออ่านไว้อ่านภายหลัง</translation>
@@ -699,6 +700,7 @@
 <translation id="3985215325736559418">คุณต้องการดาวน์โหลด <ph name="FILE_NAME" /> อีกครั้งไหม</translation>
 <translation id="3987993985790029246">คัดลอกลิงก์</translation>
 <translation id="3994236846568425219">เปิดธีมมืดเมื่อธีมมืดของอุปกรณ์เปิดอยู่</translation>
+<translation id="399788104667917863">ปักหมุดไว้บนแถบเครื่องมือ</translation>
 <translation id="4000212216660919741">หน้าแรกออฟไลน์</translation>
 <translation id="4000670338830950598">ปรับแต่งและควบคุม Google Chrome ด้วยรายการที่ไฮไลต์</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{มีรหัสผ่านที่ถูกละเมิด 1 รายการในบัญชี Google}other{มีรหัสผ่านที่ถูกละเมิด # รายการในบัญชี Google}}</translation>
@@ -859,7 +861,7 @@
 <translation id="4640331037679501949">{NUM_PASSWORDS,plural, =1{มีรหัสผ่านที่ถูกละเมิด 1 รายการ}other{มีรหัสผ่านที่ถูกละเมิด # รายการ}}</translation>
 <translation id="4641919525231168205">ไปที่หน้าถัดไป</translation>
 <translation id="4642472735733036929">หยุดติดตามราคาแล้ว</translation>
-<translation id="4643661539340338954">เปิดการแจ้งเตือน Chrome Finds แล้ว</translation>
+<translation id="4643661539340338954">เปิดการแจ้งเตือน "Chrome แนะนำ" แล้ว</translation>
 <translation id="4649493483932335039">ดูแท็บล่าสุด</translation>
 <translation id="465657074423018424">Google Safe Browsing ปกป้องคุณจากเว็บไซต์ที่หลอกลวง หากคุณปิดใช้ ให้ระวังเป็นพิเศษขณะท่องเว็บ โดยเฉพาะก่อนที่จะป้อนรหัสผ่าน</translation>
 <translation id="4662373422909645029">ชื่อเล่นต้องไม่มีตัวเลข</translation>
@@ -1394,7 +1396,6 @@
 <translation id="6746338529702829275">ตรวจสอบข้อมูลบัญชีของคุณ</translation>
 <translation id="6746834324024491643">ลงชื่อเข้าใช้ด้วย <ph name="EMAIL" /> เพื่อเข้าถึงรหัสผ่านและข้อมูลอื่นๆ ในทุกอุปกรณ์</translation>
 <translation id="6751521182688001123">เปิดแท็บใหม่อย่างรวดเร็ว หากต้องการแก้ไขทางลัดนี้ ให้แตะค้างไว้</translation>
-<translation id="6752130751133944215">หากต้องการกู้คืนหน้าต่างใหม่ ให้ลดจำนวนหน้าต่างทั้งหมดทั้งหน้าต่างที่ใช้งานอยู่และหน้าต่างที่ไม่ได้ใช้งานเหลือ <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> รายการหรือน้อยกว่านั้น ระบบจะลบหน้าต่างที่ไม่ได้ใช้งานออกหลังจาก 6 เดือน</translation>
 <translation id="6754359471209693699">เริ่มค้นหาใหม่</translation>
 <translation id="6756507620369789050">แชร์ความคิดเห็น</translation>
 <translation id="6762511428368667596"><ph name="NAME" />, <ph name="EMAIL" /></translation>
@@ -1584,7 +1585,6 @@
 <translation id="7388615499319468910">เว็บไซต์และผู้ลงโฆษณาจะรู้ได้ว่าโฆษณามีประสิทธิภาพเพียงใด การตั้งค่านี้ปิดอยู่</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{อีก 1 ไฟล์ในรายการ}other{อีก # ไฟล์ในรายการ}}</translation>
 <translation id="7400418766976504921">URL</translation>
-<translation id="7400424692675800399">หากต้องการเปิดหน้าต่างใหม่ ให้ลดจำนวนหน้าต่างทั้งหมด ทั้งหน้าต่างที่ใช้งานอยู่และหน้าต่างที่ไม่ได้ใช้งาน ให้เหลือไม่เกิน <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> รายการ</translation>
 <translation id="7403691278183511381">ประสบการณ์กับ First Run บน Chrome</translation>
 <translation id="7411224099004328643">ผู้ใช้บัญชี Google</translation>
 <translation id="7419565702166471774">ใช้การเชื่อมต่อที่ปลอดภัยทุกครั้ง</translation>
@@ -1656,7 +1656,7 @@
 <translation id="7686086654630106285">ข้อมูลเพิ่มเติมเกี่ยวกับโฆษณาที่เว็บไซต์แนะนำ</translation>
 <translation id="7690596512217303514">อุปกรณ์เปิด Chrome ไม่ได้ ดาวน์โหลดการอัปเดต Chrome เวอร์ชันล่าสุดจาก App Store เพื่อแก้ปัญหา</translation>
 <translation id="7692761875510935111">เปิดในเบราว์เซอร์ได้อย่างรวดเร็ว หากต้องการแก้ไขทางลัดนี้ ให้แตะค้างไว้</translation>
-<translation id="7695270712963178084">Chrome Finds</translation>
+<translation id="7695270712963178084">Chrome แนะนำ</translation>
 <translation id="7697383401610880082">แฮนเดิลการลาก</translation>
 <translation id="7698359219371678927">สร้างอีเมลใน <ph name="APP_NAME" /></translation>
 <translation id="7702420606070050505">Bottom Sheet กิจกรรมล่าสุดเปิดอยู่แบบเต็มความสูง</translation>

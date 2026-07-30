@@ -79,6 +79,7 @@ NSString* const kPDFFillSymbol = @"pdf_fill";
 NSString* const kLineThreeSparkSymbol = @"line_three_spark";
 NSString* const kDocumentBadgeSpark = @"document_badge_spark";
 NSString* const kDeepSearchSymbol = @"deep_search";
+NSString* const kGeminiLiveLogoSymbol = @"gemini_live";
 
 // Use custom symbol for camera because the default video icon in iOS should
 // always represent “Apple Facetime”.
@@ -310,6 +311,7 @@ NSString* const kSparklesSymbol = @"sparkles";
 NSString* const kSparkles2Symbol = @"sparkles.2";
 NSString* const kEnvelopeSymbol = @"envelope";
 NSString* const kSquareAndPencilSymbol = @"square.and.pencil";
+NSString* const kCreditCardFinderActionSymbol = @"creditcard.viewfinder";
 
 // Names of the default symbol being non-monochrome by default. When using them,
 // you probably want to set their color to monochrome.

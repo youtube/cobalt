@@ -74,7 +74,7 @@ String ConvertToReportValue(const AtomicString& value) {
     return String();
   }
   static constexpr size_t kMaxLengthToReport = 1024;
-  return value.GetString().Left(kMaxLengthToReport);
+  return value.GetString().substr(0, kMaxLengthToReport);
 }
 
 }  // namespace
@@ -222,7 +222,7 @@ void HTMLIFrameElement::ParseAttribute(
             mojom::blink::ConsoleMessageSource::kOther,
             mojom::blink::ConsoleMessageLevel::kError,
             StrCat({"Error while parsing the 'sandbox' attribute: ",
-                    String::FromUTF8(parsed.error_message)})));
+                    String::FromUtf8(parsed.error_message)})));
       }
     }
     SetSandboxFlags(current_flags);
@@ -693,7 +693,7 @@ void HTMLIFrameElement::CheckPotentialPermissionsPolicyViolation() {
         !network::PermissionsPolicy::InheritedValueForFeature(
             src, permissions_policy, feature_desc, container_policy)) {
       auto endpoint =
-          String::FromUTF8(permissions_policy->GetEndpointForFeature(feature));
+          String::FromUtf8(permissions_policy->GetEndpointForFeature(feature));
       GetExecutionContext()->ReportPotentialPermissionsPolicyViolation(
           feature, mojom::blink::PolicyDisposition::kEnforce, endpoint,
           /*message*/ "", allow_, src_);
@@ -704,7 +704,7 @@ void HTMLIFrameElement::CheckPotentialPermissionsPolicyViolation() {
                    src, report_only_permissions_policy, feature_desc,
                    container_policy)) {
       auto endpoint =
-          String::FromUTF8(permissions_policy->GetEndpointForFeature(feature));
+          String::FromUtf8(permissions_policy->GetEndpointForFeature(feature));
       GetExecutionContext()->ReportPotentialPermissionsPolicyViolation(
           feature, mojom::blink::PolicyDisposition::kReport, endpoint,
           /*message*/ "", allow_, src_);

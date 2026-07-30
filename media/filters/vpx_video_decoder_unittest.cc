@@ -2,23 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "media/filters/vpx_video_decoder.h"
 
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/numerics/byte_conversions.h"
 #include "base/run_loop.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
+#include "media/base/agtm.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/limits.h"
 #include "media/base/test_data_util.h"
@@ -29,6 +27,7 @@
 #include "media/filters/in_memory_url_protocol.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/skia/include/core/SkData.h"
+#include "ui/gfx/switches.h"
 
 using ::testing::_;
 
@@ -312,9 +311,10 @@ TEST_F(VpxVideoDecoderTest, FrameValidAfterPoolDestruction) {
 
   // Write to the Y plane. The memory tools should detect a
   // use-after-free if the storage was actually removed by pool destruction.
-  memset(output_frames_.front()->writable_data(VideoFrame::Plane::kY), 0xff,
-         output_frames_.front()->rows(VideoFrame::Plane::kY) *
-             output_frames_.front()->stride(VideoFrame::Plane::kY));
+  UNSAFE_TODO(
+      memset(output_frames_.front()->writable_data(VideoFrame::Plane::kY), 0xff,
+             output_frames_.front()->rows(VideoFrame::Plane::kY) *
+                 output_frames_.front()->stride(VideoFrame::Plane::kY)));
 }
 
 // The test stream uses profile 2, which needs high bit depth support in libvpx.
@@ -362,12 +362,13 @@ TEST_F(VpxVideoDecoderTest, MemoryPoolAllowsMultipleDisplay) {
   Destroy();
 
   // ASAN will be very unhappy with this line if the above is incorrect.
-  memset(last_frame->writable_data(VideoFrame::Plane::kY), 0,
-         last_frame->row_bytes(VideoFrame::Plane::kY));
+  UNSAFE_TODO(memset(last_frame->writable_data(VideoFrame::Plane::kY), 0,
+                     last_frame->row_bytes(VideoFrame::Plane::kY)));
 }
 #endif  // !defined(LIBVPX_NO_HIGH_BIT_DEPTH) && !defined(ARCH_CPU_ARM_FAMILY)
 
 TEST_F(VpxVideoDecoderTest, AgtmMetadata) {
+  base::test::ScopedFeatureList scoped_feature_list(features::kHdrAgtm);
   Initialize();
 
   scoped_refptr<DecoderBuffer> data = ReadTestDataFile("vp9-agtm.webm");
@@ -383,45 +384,16 @@ TEST_F(VpxVideoDecoderTest, AgtmMetadata) {
   auto side_data = UNSAFE_BUFFERS(
       base::span(packet->side_data[0].data, packet->side_data[0].size));
   ASSERT_EQ(base::U64FromBigEndian(side_data.first<8u>()), 4u);
-  buffer->WritableSideData().itu_t35_data =
-      base::HeapArray<uint8_t>::CopiedFrom(side_data.subspan(8u));
+  auto agtm = GetAgtmFromT35(side_data.subspan(8u));
+  ASSERT_TRUE(agtm.has_value());
+  buffer->WritableSideData().hdr_metadata.SetSerializedAgtm(*agtm);
   DecoderStatus decode_status = Decode(buffer);
   av_packet_unref(packet.get());
   ASSERT_TRUE(decode_status.is_ok());
 
   const auto& frame = output_frames_.front();
-  ASSERT_TRUE(frame->hdr_metadata().getSerializedAgtm());
-  EXPECT_EQ(frame->hdr_metadata().getSerializedAgtm()->size(), 535u);
-
-  Destroy();
-}
-
-TEST_F(VpxVideoDecoderTest, AgtmMetadataWithItut35CountryCodeExtension) {
-  Initialize();
-
-  scoped_refptr<DecoderBuffer> data =
-      ReadTestDataFile("vp9-agtm-country-code-extension.webm");
-  InMemoryUrlProtocol protocol(*data, false);
-  FFmpegGlue glue(&protocol);
-  ASSERT_TRUE(glue.OpenContext());
-
-  auto packet = ScopedAVPacket::Allocate();
-  ASSERT_GE(av_read_frame(glue.format_context(), packet.get()), 0);
-  ASSERT_EQ(packet->side_data_elems, 1);
-  auto buffer = DecoderBuffer::CopyFrom(AVPacketData(*packet));
-  // SAFETY: The best we can do here is trust the size reported by ffmpeg.
-  auto side_data = UNSAFE_BUFFERS(
-      base::span(packet->side_data[0].data, packet->side_data[0].size));
-  ASSERT_EQ(base::U64FromBigEndian(side_data.first<8u>()), 4u);
-  buffer->WritableSideData().itu_t35_data =
-      base::HeapArray<uint8_t>::CopiedFrom(side_data.subspan(8u));
-  DecoderStatus decode_status = Decode(buffer);
-  av_packet_unref(packet.get());
-  ASSERT_TRUE(decode_status.is_ok());
-
-  const auto& frame = output_frames_.front();
-  ASSERT_TRUE(frame->hdr_metadata().getSerializedAgtm());
-  EXPECT_EQ(frame->hdr_metadata().getSerializedAgtm()->size(), 535u);
+  ASSERT_TRUE(frame->hdr_metadata().HasAgtm());
+  EXPECT_EQ(frame->hdr_metadata().GetAgtm().fHdrReferenceWhite, 203.0535f);
 
   Destroy();
 }

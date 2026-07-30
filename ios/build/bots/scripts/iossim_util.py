@@ -343,7 +343,16 @@ def update_dyld_shared_cache(runtime=None):
   LOGGER.info('Updating dyld_shared_cache')
   cmd = ['xcrun', 'simctl', 'runtime', 'dyld_shared_cache', 'update']
   cmd.append(runtime if runtime else '--all')
-  subprocess.check_call(cmd)
+  try:
+    subprocess.check_call(cmd)
+  except subprocess.CalledProcessError as e:
+    # This command was introduced in Xcode 26.1 as a workaround for
+    # simulator boot failures (see upstream commit b4a2fed92851 and
+    # https://developer.apple.com/documentation/xcode-release-notes/xcode-26_1-release-notes).
+    # On older Xcode versions (e.g. 15.2) this subcommand doesn't exist
+    # and returns a non-zero exit code. We gracefully skip it so tests
+    # can still run on machines with older Xcode installations.
+    LOGGER.warning('Failed to update dyld_shared_cache. Error: %s', e.output)
 
 
 def ensure_simulator_fully_booted(sim_udid: str,
@@ -612,7 +621,7 @@ def override_default_iphonesim_runtime(runtime_id, ios_version):
   sdk_build = sdks.get(iphone_sdk_key, {}).get("sdkBuild")
   if sdk_build is None:
     LOGGER.debug(
-        'Unable to find the simulator runtime build number to be overriden...')
+        'Unable to find the simulator runtime build number to be overridden...')
     return
   cmd = [
       'xcrun', 'simctl', 'runtime', 'match', 'set', iphone_sdk_key,

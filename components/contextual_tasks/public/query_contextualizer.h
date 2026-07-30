@@ -14,6 +14,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/uuid.h"
 #include "components/lens/contextual_input.h"
+#include "components/lens/lens_bitmap_processing.h"
 #include "components/sessions/core/session_id.h"
 #include "url/gurl.h"
 
@@ -66,13 +67,12 @@ class QueryContextualizer {
         base::OnceCallback<void(std::unique_ptr<lens::ContextualInputData>)>
             callback) = 0;
 
-    // Triggers an upload of the tab context with the retrieved data.
-    // `callback` must be run with success/failure status.
-    virtual void UploadTabContextWithData(
-        TabId id,
-        std::optional<int64_t> context_id,
-        std::unique_ptr<lens::ContextualInputData> data,
-        base::OnceCallback<void(bool)> callback) = 0;
+    // Returns whether the tab is still valid.
+    virtual bool IsTabValid(TabId id) = 0;
+
+    // Returns the image encoding options to use for tab contextualization.
+    virtual std::optional<lens::ImageEncodingOptions>
+    GetTabViewportEncodingOptionsForQueryContextualizer() = 0;
 
     // Called when the page context is ineligible.
     virtual void OnPageContextIneligible() = 0;
@@ -102,6 +102,7 @@ class QueryContextualizer {
   // is complete.
   void Contextualize(
       const std::optional<base::Uuid>& task_id,
+      const std::string& query_text,
       const std::vector<TabId>& tabs_to_recontextualize,
       const std::vector<TabId>& tabs_to_force_contextualize,
       contextual_search::ContextualSearchSessionHandle* session_handle,
@@ -110,6 +111,7 @@ class QueryContextualizer {
  private:
   void OnContextRetrieved(
       const std::optional<base::Uuid>& task_id,
+      const std::string& query_text,
       const std::vector<TabId>& tabs_to_recontextualize,
       const std::vector<TabId>& tabs_to_force_contextualize,
       base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
@@ -138,9 +140,14 @@ class QueryContextualizer {
       base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
           session_handle);
 
-  bool IsContextUnchangedFromPreviousUpload(
+  // Checks if the context has changed since the previous upload. If only the
+  // viewport has changed, it modifies `page_content_data` to strip out the
+  // unchanged page contents so that only the new viewport is uploaded.
+  // Returns true if the context is completely unchanged (no upload needed),
+  // and false if there are changes (upload needed).
+  bool CheckIfContextChangedAndPrepareUploadData(
       std::optional<int64_t> context_id,
-      const lens::ContextualInputData& page_content_data,
+      lens::ContextualInputData& page_content_data,
       base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
           session_handle);
 

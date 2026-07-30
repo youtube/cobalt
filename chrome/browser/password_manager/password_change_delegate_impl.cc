@@ -25,7 +25,6 @@
 #include "chrome/browser/tab_contents/tab_util.h"
 #include "chrome/browser/ui/autofill/autofill_client_provider.h"
 #include "chrome/browser/ui/autofill/autofill_client_provider_factory.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/passwords/manage_passwords_ui_controller.h"
 #include "chrome/browser/ui/passwords/password_change_ui_controller.h"
@@ -459,12 +458,6 @@ void PasswordChangeDelegateImpl::Stop() {
                     this);
 }
 
-void PasswordChangeDelegateImpl::OnPasswordFormSubmission(
-    content::WebContents* web_contents) {
-  if (form_submission_helper_) {
-    form_submission_helper_->OnPasswordFormSubmission(web_contents);
-  }
-}
 
 void PasswordChangeDelegateImpl::OnOtpFieldDetected() {
   if (auto logger = GetLoggerIfAvailable(executor())) {
@@ -522,8 +515,10 @@ void PasswordChangeDelegateImpl::OpenPasswordDetails() {
     ManagePasswordsUIController::FromWebContents(originator_)
         ->ShowChangePasswordBubble(username_, generated_password_);
   } else {
+    auto* tab = tabs::TabInterface::GetFromContents(originator_);
+    BrowserWindowInterface* browser = tab->GetBrowserWindowInterface();
     NavigateToPasswordDetailsPage(
-        chrome::FindBrowserWithTab(originator_),
+        browser,
         base::UTF16ToUTF8(GetDisplayOrigin()),
         password_manager::ManagePasswordsReferrer::kPasswordChangeInfoBubble);
   }

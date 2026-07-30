@@ -27,6 +27,7 @@
 #include "third_party/blink/renderer/modules/webgpu/gpu_supported_features.h"
 #include "third_party/blink/renderer/modules/webgpu/gpu_texture.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/graphics/accelerated_static_bitmap_image.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
@@ -338,7 +339,8 @@ bool GPUCanvasContext::PushFrame() {
   if (!canvas_resource)
     return false;
 
-  return Host()->PushFrame(std::move(canvas_resource), std::nullopt);
+  bool result = Host()->PushFrame(std::move(canvas_resource));
+  return result;
 }
 
 ImageBitmap* GPUCanvasContext::TransferToImageBitmap(
@@ -378,14 +380,14 @@ ImageBitmap* GPUCanvasContext::TransferToImageBitmap(
           std::move(release_callback)));
 }
 
-V8UnionHTMLCanvasElementOrOffscreenCanvas*
-GPUCanvasContext::getHTMLOrOffscreenCanvas() const {
+V8UnionHTMLCanvasElementOrOffscreenCanvas::Ret
+GPUCanvasContext::getHTMLOrOffscreenCanvas(ScriptState* script_state) const {
   if (Host()->IsOffscreenCanvas()) {
-    return MakeGarbageCollected<V8UnionHTMLCanvasElementOrOffscreenCanvas>(
-        static_cast<OffscreenCanvas*>(Host()));
+    return V8UnionHTMLCanvasElementOrOffscreenCanvas::Ret(
+        script_state, static_cast<OffscreenCanvas*>(Host()));
   }
-  return MakeGarbageCollected<V8UnionHTMLCanvasElementOrOffscreenCanvas>(
-      static_cast<HTMLCanvasElement*>(Host()));
+  return V8UnionHTMLCanvasElementOrOffscreenCanvas::Ret(
+      script_state, static_cast<HTMLCanvasElement*>(Host()));
 }
 
 void GPUCanvasContext::configure(const GPUCanvasConfiguration* descriptor,
@@ -740,12 +742,12 @@ GPUTexture* GPUCanvasContext::getCurrentTexture(
       device_, swap_texture_descriptor_.format,
       static_cast<wgpu::TextureUsage>(swap_texture_descriptor_.usage),
       std::move(mailbox_texture),
-      String::FromUTF8(swap_texture_descriptor_.label));
+      String::FromUtf8(swap_texture_descriptor_.label));
 
   if (copy_to_swap_texture_required_) {
     texture_ = MakeGarbageCollected<GPUTexture>(
         device_, device_->GetHandle().CreateTexture(&texture_descriptor_),
-        String::FromUTF8(texture_descriptor_.label));
+        String::FromUtf8(texture_descriptor_.label));
     // If the user manually destroys the texture before yielding control back
     // to the browser, do the copy just prior to the texture destruction.
     texture_->SetBeforeDestroyCallback(blink::BindOnce(

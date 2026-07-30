@@ -8,13 +8,13 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "chrome/browser/enterprise/connectors/analysis/page_print_analysis_request.h"
-#include "chrome/browser/enterprise/connectors/analysis/request_handler_base.h"
 #include "chrome/browser/enterprise/connectors/reporting/reporting_event_router_factory.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h"
 #include "components/enterprise/connectors/core/analysis_settings.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_request.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_service.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/deep_scanning_utils.h"
+#include "components/enterprise/connectors/core/cloud_content_scanning/request_handler_base.h"
 #include "components/enterprise/connectors/core/features.h"
 #include "components/enterprise/connectors/core/reporting_constants.h"
 #include "components/safe_browsing/content/browser/web_ui/web_ui_content_info_singleton.h"
@@ -91,24 +91,24 @@ PagePrintRequestHandler::PagePrintRequestHandler(
     CompletionCallback callback)
     : RequestHandlerBase(content_analysis_info,
                          upload_service,
-                         profile,
                          url,
                          DeepScanAccessPoint::PRINT),
       page_region_(std::move(page_region)),
       printer_name_(printer_name),
       page_content_type_(page_content_type),
+      profile_(profile),
       callback_(std::move(callback)) {}
 
 void PagePrintRequestHandler::ReportWarningBypass(
     std::optional<std::u16string> user_justification) {
   ReportAnalysisConnectorWarningBypass(
-      profile_, *content_analysis_info_, /*source*/ "",
+      ReportingEventRouterFactory::GetForBrowserContext(profile_),
+      content_analysis_info_.get(), /*source*/ "",
       /*destination*/ printer_name_, content_analysis_info_->tab_title(),
       /*sha256*/ std::string(),
       /*mime_type*/ std::string(), kPagePrintDataTransferEventTrigger,
       /*content_tranfer_method*/ "",
-      /*content_size*/ -1, content_analysis_info_->referrer_chain(), response_,
-      user_justification);
+      /*content_size*/ -1, response_, user_justification);
 }
 
 void PagePrintRequestHandler::UploadForDeepScanning(
@@ -126,7 +126,7 @@ bool PagePrintRequestHandler::UploadDataImpl() {
       base::BindOnce(&PagePrintRequestHandler::OnContentAnalysisResponse,
                      weak_ptr_factory_.GetWeakPtr()));
 
-  content_analysis_info_->InitializeRequest(request.get());
+  content_analysis_info_->InitializeRequest(request.get(), true);
   request->set_analysis_connector(PRINT);
   request->set_filename(content_analysis_info_->tab_title());
   if (!printer_name_.empty()) {

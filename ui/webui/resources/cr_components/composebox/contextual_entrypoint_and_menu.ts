@@ -14,11 +14,11 @@ import type {TabInfo} from '//resources/mojo/components/omnibox/browser/searchbo
 import type {InputState} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 
-import {GlifAnimationState} from './common.js';
+import {getLoadTimeBoolean, GlifAnimationState} from './common.js';
 import type {ContextualActionMenuElement} from './contextual_action_menu.js';
-import type {ContextualEntrypointButtonElement} from './contextual_entrypoint_button.js';
 import {getCss} from './contextual_entrypoint_and_menu.css.js';
 import {getHtml} from './contextual_entrypoint_and_menu.html.js';
+import type {ContextualEntrypointButtonElement} from './contextual_entrypoint_button.js';
 
 export interface ContextualEntrypointAndMenuElement {
   $: {
@@ -58,7 +58,6 @@ export class ContextualEntrypointAndMenuElement extends
       tabSuggestions: {type: Array},
       inputState: {type: Object},
       glifAnimationState: {type: String, reflect: true},
-      inCreateImageMode: {type: Boolean},
       searchboxLayoutMode: {type: String},
       uploadButtonDisabled: {type: Boolean},
 
@@ -67,6 +66,9 @@ export class ContextualEntrypointAndMenuElement extends
       // =========================================================================
       enableMultiTabSelection_: {
         reflect: true,
+        type: Boolean,
+      },
+      usePecApi_: {
         type: Boolean,
       },
     };
@@ -81,14 +83,13 @@ export class ContextualEntrypointAndMenuElement extends
       GlifAnimationState.INELIGIBLE;
   accessor uploadButtonDisabled: boolean = false;
 
-  // TODO(crbug.com/476467436): Remove these properties once the
-  // `cr-composebox-context-menu-entrypoint` is removed.
-  accessor inCreateImageMode: boolean = false;
   accessor hasImageFiles: boolean = false;
   accessor searchboxLayoutMode: string = '';
 
   protected accessor enableMultiTabSelection_: boolean =
       loadTimeData.getBoolean('composeboxContextMenuEnableMultiTabSelection');
+  protected accessor usePecApi_: boolean =
+      getLoadTimeBoolean('contextualMenuUsePecApi', /*defaultValue=*/ false);
 
   // TODO(crbug.com/491126593): Explore avoiding/removing this local property.
   private shouldOpenMenuForMultiSelection_: boolean = false;

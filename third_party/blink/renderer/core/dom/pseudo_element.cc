@@ -412,6 +412,7 @@ const ComputedStyle* PseudoElement::AdjustedLayoutStyle(
             .GetStyleResolver()
             .CreateComputedStyleBuilderInheritingFrom(style);
     builder.SetContent(style.GetContentData());
+    builder.SetBaseTextDecorationData(style.AppliedTextDecorationData());
     builder.SetDisplay(EDisplay::kInline);
     builder.SetStyleType(GetPseudoIdForStyling());
     return builder.TakeStyle();
@@ -736,6 +737,12 @@ bool PseudoElement::SupportsHitTesting(PseudoId pseudo_id) {
     case kPseudoIdScrollButtonInlineEnd:
     case kPseudoIdScrollButtonBlockEnd:
       return true;
+    case kPseudoIdViewTransition:
+    case kPseudoIdViewTransitionGroup:
+    case kPseudoIdViewTransitionImagePair:
+    case kPseudoIdViewTransitionOld:
+    case kPseudoIdViewTransitionNew:
+      return RuntimeEnabledFeatures::CSSPseudoElementViewTransitionsEnabled();
     default:
       return false;
   }

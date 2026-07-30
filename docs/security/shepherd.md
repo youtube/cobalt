@@ -104,6 +104,10 @@ which _are_ valid. As a rule:
 
 * **If the bug is an in-the-wild report**:
     * Start a thread in the Shepherding chat immediately
+* If the bug looks eligible for a [delegated triage
+  rotation](delegated-triage.md):
+    * Move it to that rotation's component
+    * You are now done triaging this bug, congratulations!
 * If the bug is a v8 bug (including wasm):
     * Do not attempt to reproduce!
     * Assign it to [the current v8 shepherd](https://goto.google.com/current-v8-sheriff)
@@ -141,11 +145,12 @@ the bug report.
 
 If the report requires you to enable a specific feature or pass a specific
 command-line argument, and that feature isn't default-enabled **for any Chrome
-users**, then add the bug to the `Security_Impact-None` hotlist at this stage,
-which exempts it from the usual severity-based fix SLOs. Note that features can
-be enabled by Finch studies or origin trials, so don't just base your decision
-on the default state of the feature. The [Finch state
-dashboard](https://uma.googleplex.com/p/chrome/variations/state) may be helpful.
+users**, then add the bug to the [Security_Impact-None](https://issues.chromium.org/hotlists/5433277)
+(hotlistid:5433277) hotlist at this stage, which exempts it from the usual
+severity-based fix SLOs. Note that features can be enabled by Finch studies
+or origin trials, so don't just base your decision on the default state of
+the feature. The [Finch state dashboard](https://uma.googleplex.com/p/chrome/variations/state)
+may be helpful.
 
 If you're in doubt about severity, ask for help in the Shepherd chat. This step
 benefits a lot from judgment and experience!

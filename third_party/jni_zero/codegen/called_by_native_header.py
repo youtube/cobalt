@@ -74,95 +74,6 @@ def _const_value(field):
   return value
 
 
-def field_definition(sb, java_class, field):
-  static_str = 'Static' if field.static else 'Instance'
-  field_id_type = f'::jni_zero::internal::FieldID::TYPE_{static_str.upper()}'
-  accessor_name = f'Java_{java_class.nested_name}_GetField_{field.name}'
-
-  # Getter
-  if field.is_system_class:
-    sb('[[maybe_unused]] ')
-  sb(f'static {_return_type_cpp_non_mirror(field.java_type)} {accessor_name}')
-  with sb.param_list() as plist:
-    plist.append('JNIEnv* env')
-    if not field.static:
-      plist.append('const ::jni_zero::JavaRef<jobject>& obj')
-
-  with sb.block(after='\n'):
-    if field.const_value is not None:
-      sb(f'return {_const_value(field)};\n')
-      return
-
-    if field.static:
-      class_accessor = header_common.class_accessor_expression(java_class)
-      sb(f'jclass clazz = {class_accessor};\n')
-      sb('JNI_ZERO_DCHECK(clazz);\n')
-      receiver = 'clazz'
-    else:
-      receiver = 'obj.obj()'
-
-    field_id_accessor = _field_id_accessor_name(java_class, field)
-    sb(f'jfieldID field_id = {field_id_accessor}(env);\n')
-    jni_func_name = _jni_field_function_name(field, False)
-    getter_part = f'env->{jni_func_name}({receiver}, field_id)'
-    if not (field.java_type.is_primitive() or field.java_type.converted_type):
-      jobject_type = field.java_type.to_cpp()
-      with sb.statement():
-        sb(f'return ::jni_zero::ScopedJavaLocalRef<{jobject_type}>::Adopt(env, '
-           f'static_cast<{jobject_type}>({getter_part}))')
-    else:
-      with sb.statement():
-        if field.java_type.converted_type:
-          sb('auto _ret = ')
-        else:
-          sb('return ')
-        sb(getter_part)
-      if field.java_type.converted_type:
-        with sb.statement():
-          sb('return ')
-          convert_type.from_jni_expression(sb,
-                                           '_ret',
-                                           field.java_type,
-                                           release_ref=True)
-
-  if not field.final:
-    accessor_name = f'Java_{java_class.nested_name}_SetField_{field.name}'
-    if field.is_system_class:
-      sb('[[maybe_unused]] ')
-    sb(f'static void {accessor_name}')
-    with sb.param_list() as plist:
-      plist.append('JNIEnv* env')
-      if not field.static:
-        plist.append('const ::jni_zero::JavaRef<jobject>& obj')
-      plist.append(f'{_param_type_cpp_non_mirror(field.java_type)} value')
-
-    with sb.block(after='\n'):
-      if field.static:
-        class_accessor = header_common.class_accessor_expression(java_class)
-        sb(f'jclass clazz = {class_accessor};\n')
-        sb('JNI_ZERO_DCHECK(clazz);\n')
-        receiver_arg = 'clazz'
-      else:
-        receiver_arg = 'obj.obj()'
-
-      param_rvalue = 'value'
-      if field.java_type.converted_type:
-        convert_type.to_jni_assignment(sb, 'converted_value', 'value',
-                                       field.java_type)
-        param_rvalue = 'converted_value'
-
-      if not field.java_type.is_primitive():
-        param_rvalue = f'{param_rvalue}.obj()'
-      elif field.java_type.primitive_name == 'int' and not field.java_type.converted_type:
-        param_rvalue = f'as_jint({param_rvalue})'
-
-      field_id_accessor = _field_id_accessor_name(java_class, field)
-      sb(f'jfieldID field_id = {field_id_accessor}(env);\n')
-      with sb.statement():
-        sb(f'env->{_jni_field_function_name(field, True)}({receiver_arg}, '
-           f'field_id, {param_rvalue})')
-
-
 def _return_type_cpp_non_mirror(return_type):
   if ret := return_type.converted_type:
     return ret
@@ -189,7 +100,7 @@ def _param_type_cpp_non_mirror(java_type):
 
 def _param_type_cpp_mirror(java_type):
   if java_type.enable_mirror():
-    jobject_type = java_type.java_class.to_mirror_cpp()
+    jobject_type = java_type.to_mirror_cpp()
     return (f'const ::jni_zero::JavaRef<{jobject_type}>&')
   return _param_type_cpp_non_mirror(java_type)
 
@@ -234,8 +145,6 @@ def method_definition(sb, cbn):
   is_void = return_type.is_void()
   return_type_cpp = _return_type_cpp_non_mirror(return_type)
 
-  if cbn.is_system_class:
-    sb('[[maybe_unused]] ')
   sb(f'static {return_type_cpp} ')
   sb(f'Java_{java_class_name}_{cbn.method_id_function_name}')
   with sb.param_list() as plist:
@@ -375,7 +284,7 @@ def called_by_natives_specialization(sb, java_class, fields, called_by_natives):
 def _mirrored_field_getter(sb, java_class, field):
   jobject_type = java_class.to_mirror_cpp()
   if field.java_type.enable_mirror():
-    return_jobject_type = field.java_type.java_class.to_mirror_cpp()
+    return_jobject_type = field.java_type.to_mirror_cpp()
     return_type_cpp = f'::jni_zero::ScopedJavaLocalRef<{return_jobject_type}>'
   else:
     return_jobject_type = field.java_type.to_cpp()
@@ -465,7 +374,7 @@ def _mirrored_cpp_function(sb, cbn):
   is_instance_method = not cbn.static and not cbn.is_constructor
 
   if cbn.return_type.enable_mirror():
-    return_jobject_type = cbn.return_type.java_class.to_mirror_cpp()
+    return_jobject_type = cbn.return_type.to_mirror_cpp()
     return_type_cpp = f'::jni_zero::ScopedJavaLocalRef<{return_jobject_type}>'
   else:
     return_jobject_type = None

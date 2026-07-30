@@ -2636,7 +2636,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.Fetch.RequestResourceTime2{SchemeOrPreload}"
-    units="microseconds" expires_after="2026-07-19">
+    units="microseconds" expires_after="2026-09-20">
   <owner>cduvall@chromium.org</owner>
   <owner>csharrison@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
@@ -5882,6 +5882,20 @@ chromium-metrics-reviews@google.com.
     105.0.5175.0 were impacted by https://crbug.com/1330675. Be careful when
     aggregating or comparing these histograms across the version.
     {BlinkUpdateTimeSuffixes}
+  </summary>
+</histogram>
+
+<histogram name="Blink.ViewTransitions.InitialFrameDelay" units="microseconds"
+    expires_after="2027-01-01">
+  <owner>vmpstr@chromium.org</owner>
+  <owner>rendering-core-dev@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Elapsed time between a start of a view transition and the first non-initial
+    step process, which happens at the earliest rendering opportunity. This is
+    recorded for cross-document transitions only on the outgoing page.
+
+    This histogram only records metrics on machines with high-resolution clocks.
   </summary>
 </histogram>
 

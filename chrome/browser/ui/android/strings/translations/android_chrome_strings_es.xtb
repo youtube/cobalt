@@ -406,7 +406,7 @@ Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifr
 <translation id="2723001399770238859">audio</translation>
 <translation id="2739887572830526131">Conserva este grupo para añadir pestañas más tarde o elimínalo si ya no lo necesitas.</translation>
 <translation id="2742373789128106053"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> no está disponible en este momento.</translation>
-<translation id="2751271371269891762">Inicia sesión como <ph name="EMAIL" /> para acceder a tus marcadores y otros en todos tus dispositivos</translation>
+<translation id="2751271371269891762">Inicia sesión como <ph name="EMAIL" /> para acceder a tus marcadores y otras opciones en todos tus dispositivos</translation>
 <translation id="2760805590727089264">MM/AA</translation>
 <translation id="2762000892062317888">justo ahora</translation>
 <translation id="276969039800130567">Has iniciado sesión como <ph name="USER_EMAIL_ADDRESS" />.</translation>
@@ -462,6 +462,7 @@ Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifr
 <translation id="2932150158123903946">Almacenamiento de Google <ph name="APP_NAME" /></translation>
 <translation id="2932222164150889403">Tu teclado no cambiará</translation>
 <translation id="2936980480904111527">Todo es más fácil con las notificaciones de Chrome</translation>
+<translation id="2939908794993783865">Más sitios inactivos</translation>
 <translation id="2940075786175545812">Opción para aprobar o no un sitio web</translation>
 <translation id="2942036813789421260">La pestaña de vista previa está cerrada</translation>
 <translation id="2951071800649516099">Añade páginas a tu lista de lectura para más tarde</translation>
@@ -699,6 +700,7 @@ Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifr
 <translation id="3985215325736559418">¿Quieres volver a descargar el archivo <ph name="FILE_NAME" />?</translation>
 <translation id="3987993985790029246">Copiar enlace</translation>
 <translation id="3994236846568425219">Activar tema oscuro cuando esté activado en el dispositivo</translation>
+<translation id="399788104667917863">Fijar en la barra de herramientas</translation>
 <translation id="4000212216660919741">Página principal del modo sin conexión</translation>
 <translation id="4000670338830950598">Personalizar y controlar Google Chrome con un elemento destacado</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{1 contraseña vulnerada en tu cuenta de Google}other{# contraseñas vulneradas en tu cuenta de Google}}</translation>
@@ -839,7 +841,7 @@ Es posible que tu cuenta de Google tenga otros tipos de historial de navegación
 <translation id="4543131175509360848">No hay ninguna hoja de llaves de acceso</translation>
 <translation id="4547551584605870320">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> pestaña}other{<ph name="TAB_COUNT_MANY" /> pestañas, <ph name="TAB_COUNT_INCOGNITO" /> de incógnito}}</translation>
 <translation id="4558311620361989323">Combinaciones de teclas en páginas web</translation>
-<translation id="4572422548854449519">Inicia sesión en la cuenta gestionada</translation>
+<translation id="4572422548854449519">Iniciar sesión en la cuenta gestionada</translation>
 <translation id="4577115723294378384">Ordenar de la A a la Z</translation>
 <translation id="4578289292431526768">Empezar</translation>
 <translation id="4583164079174244168">{MINUTES,plural, =1{Hace # minuto}other{Hace # minutos}}</translation>
@@ -1394,7 +1396,6 @@ Por ejemplo, algunos sitios web pueden responder a la solicitud mostrándote anu
 <translation id="6746338529702829275">Revisa los datos de tu cuenta</translation>
 <translation id="6746834324024491643">Para acceder a tus contraseñas y a más cosas en todos tus dispositivos, inicia sesión como <ph name="EMAIL" /></translation>
 <translation id="6751521182688001123">Abre una pestaña nueva rápidamente. Para editar este acceso directo, mantenlo pulsado.</translation>
-<translation id="6752130751133944215">Para restaurar una ventana nueva, reduce el número total de ventanas activas e inactivas a <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> o menos. Las ventanas inactivas se eliminan después de 6 meses.</translation>
 <translation id="6754359471209693699">Iniciar nueva búsqueda</translation>
 <translation id="6756507620369789050">Enviar comentarios</translation>
 <translation id="6762511428368667596"><ph name="NAME" />, <ph name="EMAIL" />.</translation>
@@ -1584,7 +1585,6 @@ Para cambiar este ajuste, <ph name="BEGIN_LINK" />elimina los datos de Chrome de
 <translation id="7388615499319468910">Los sitios y los anunciantes pueden comprender el rendimiento de los anuncios. Esta opción está desactivada.</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{Otros, 1 archivo en la lista}other{Otros, # archivos en la lista}}</translation>
 <translation id="7400418766976504921">URL</translation>
-<translation id="7400424692675800399">Para abrir una ventana nueva, reduce el número total de ventanas activas e inactivas a <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> o menos.</translation>
 <translation id="7403691278183511381">Primera experiencia de ejecución de Chrome</translation>
 <translation id="7411224099004328643">Usuario de cuenta de Google</translation>
 <translation id="7419565702166471774">Usar siempre conexiones seguras</translation>

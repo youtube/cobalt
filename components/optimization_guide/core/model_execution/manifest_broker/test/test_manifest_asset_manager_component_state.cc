@@ -5,9 +5,11 @@
 #include "components/optimization_guide/core/model_execution/manifest_broker/test/test_manifest_asset_manager_component_state.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/byte_count.h"
+#include "base/callback_list.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/files/file_path.h"
@@ -23,7 +25,7 @@
 
 namespace optimization_guide {
 
-class TestManifestAssetManagerComponentState::DelegateImpl
+class TestManifestAssetManagerComponentState::DelegateImpl final
     : public ManifestAssetManager::Delegate {
  public:
   explicit DelegateImpl(
@@ -31,54 +33,66 @@ class TestManifestAssetManagerComponentState::DelegateImpl
       : state_(state) {}
   ~DelegateImpl() override = default;
 
+  base::CallbackListSubscription ListenForManifestReady(
+      base::RepeatingCallback<void(base::FilePath)> on_ready) const override {
+    if (state_) {
+      return state_->manifest_ready_callbacks_.Add(std::move(on_ready));
+    }
+    return base::CallbackListSubscription();
+  }
+
   void RegisterOnDemandComponent(
-      const std::string& asset_id,
       const std::string& public_key_hex,
       const std::string& target_version,
       base::WeakPtr<ManifestAssetManager> manager) override {
-    if (state_) {
-      state_->registered_assets_.insert(asset_id);
-      state_->managers_[asset_id] = manager;
+    bool is_already_installed = false;
+    if (!state_) {
+      // Test fixture destroyed, do nothing.
+      return;
     }
-    manager->InstallerRegistered(asset_id, /*is_already_installed=*/false);
+    state_->registered_components_.insert(public_key_hex);
+    state_->managers_[public_key_hex] = manager;
+    is_already_installed =
+        state_->already_installed_components_.contains(public_key_hex);
+    if (state_->defer_registration_callbacks_) {
+      state_->pending_registrations_.push_back(
+          base::BindOnce(&ManifestAssetManager::InstallerRegistered, manager,
+                         public_key_hex, target_version, is_already_installed));
+      return;
+    }
+    manager->InstallerRegistered(public_key_hex, target_version,
+                                 is_already_installed);
   }
 
-  void Uninstall(const std::string& asset_id,
-                 const std::string& public_key_hex,
+  void Uninstall(const std::string& public_key_hex,
                  base::WeakPtr<ManifestAssetManager> manager) override {
     if (state_) {
-      state_->uninstalled_assets_.insert(asset_id);
+      state_->uninstalled_components_.insert(public_key_hex);
     }
     base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&ManifestAssetManager::OnAssetUninstalled, manager,
-                       asset_id),
+                       public_key_hex),
         base::Seconds(1));
   }
 
-  void RequestUpdate(const std::string& asset_id,
-                     const std::string& public_key_hex,
+  void RequestUpdate(const std::string& public_key_hex,
                      bool is_background) override {
     if (state_) {
       if (is_background) {
-        state_->background_updates_requested_.insert(asset_id);
+        state_->background_updates_requested_.insert(public_key_hex);
       } else {
-        state_->foreground_updates_requested_.insert(asset_id);
+        state_->foreground_updates_requested_.insert(public_key_hex);
       }
     }
   }
 
-  void GetFreeDiskSpace(const base::FilePath& path,
-                        base::OnceCallback<void(std::optional<base::ByteCount>)>
+  void GetFreeDiskSpace(base::OnceCallback<void(std::optional<base::ByteCount>)>
                             callback) const override {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(std::move(callback),
                        state_ ? state_->free_disk_space_ : base::ByteCount(0)));
-  }
-
-  base::FilePath GetInstallDirectory() const override {
-    return base::FilePath(FILE_PATH_LITERAL("/tmp/manifest_asset_install_dir"));
   }
 
  private:
@@ -95,33 +109,41 @@ TestManifestAssetManagerComponentState::CreateDelegate() {
   return std::make_unique<DelegateImpl>(weak_ptr_factory_.GetWeakPtr());
 }
 
-bool TestManifestAssetManagerComponentState::IsRegistered(
-    const std::string& asset_id) const {
-  return registered_assets_.contains(asset_id);
+void TestManifestAssetManagerComponentState::RunPendingRegistrations() {
+  auto pending = std::move(pending_registrations_);
+  pending_registrations_.clear();
+  for (auto& cb : pending) {
+    std::move(cb).Run();
+  }
 }
 
-bool TestManifestAssetManagerComponentState::WasUninstalled(
-    const std::string& asset_id) const {
-  return uninstalled_assets_.contains(asset_id);
+bool TestManifestAssetManagerComponentState::IsRegistered(
+    const std::string& public_key_hex) const {
+  return registered_components_.contains(public_key_hex);
+}
+
+bool TestManifestAssetManagerComponentState::WasUninstallRequested(
+    const std::string& public_key_hex) const {
+  return uninstalled_components_.contains(public_key_hex);
 }
 
 bool TestManifestAssetManagerComponentState::WasOnDemandUpdateRequested(
-    const std::string& asset_id) const {
-  return foreground_updates_requested_.contains(asset_id);
+    const std::string& public_key_hex) const {
+  return foreground_updates_requested_.contains(public_key_hex);
 }
 
 bool TestManifestAssetManagerComponentState::WasBackgroundUpdateRequested(
-    const std::string& asset_id) const {
-  return background_updates_requested_.contains(asset_id);
+    const std::string& public_key_hex) const {
+  return background_updates_requested_.contains(public_key_hex);
 }
 
-void TestManifestAssetManagerComponentState::SimulateAssetReady(
-    const std::string& asset_id,
+void TestManifestAssetManagerComponentState::SimulateComponentReady(
+    const std::string& public_key_hex,
     const base::Version& version,
     const base::FilePath& install_dir) {
-  auto it = managers_.find(asset_id);
+  auto it = managers_.find(public_key_hex);
   if (it != managers_.end() && it->second) {
-    it->second->OnAssetReady(asset_id, version, install_dir);
+    it->second->OnAssetReady(public_key_hex, version, install_dir);
   }
 }
 

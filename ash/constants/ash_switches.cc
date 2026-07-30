@@ -494,9 +494,6 @@ const char kEnableArcVmDlc[] = "enable-arcvm-dlc";
 const char kArcVmDlcHardwareRequirementSatisfied[] =
     "arcvm-dlc-hardware-satisfied";
 
-// Enables ARCVM realtime VCPU feature.
-const char kEnableArcVmRtVcpu[] = "enable-arcvm-rt-vcpu";
-
 // Used to override `kDisableBirchWeatherApiForTesting` for specific tast tests.
 const char kEnableBirchWeatherApiForTestingOverride[] =
     "enable-birch-weather-api-for-testing-override";
@@ -1005,6 +1002,9 @@ const char kTemporaryAllowEmptyPasswordsInTests[] =
 
 // Enables testing for encryption migration UI.
 const char kTestEncryptionMigrationUI[] = "test-encryption-migration-ui";
+
+// Passes the name of the current running automated test to Chrome.
+const char kTestName[] = "test-name";
 
 // Enables the wallpaper picker to fetch images from the test server.
 const char kTestWallpaperServer[] = "test-wallpaper-server";

@@ -618,19 +618,6 @@ bool ContentBrowserClient::AllowWorkerWebLocks(
   return true;
 }
 
-ContentBrowserClient::AllowWebBluetoothResult
-ContentBrowserClient::AllowWebBluetooth(
-    content::BrowserContext* browser_context,
-    const url::Origin& requesting_origin,
-    const url::Origin& embedding_origin) {
-  DCHECK(browser_context);
-  return AllowWebBluetoothResult::ALLOW;
-}
-
-std::string ContentBrowserClient::GetWebBluetoothBlocklist() {
-  return std::string();
-}
-
 bool ContentBrowserClient::IsInterestGroupAPIAllowed(
     content::BrowserContext* browser_context,
     content::RenderFrameHost* render_frame_host,
@@ -754,13 +741,6 @@ bool ContentBrowserClient::IsServiceWorkerSyntheticResponseAllowed(
   return false;
 }
 
-void ContentBrowserClient::GrantCookieAccessDueToHeuristic(
-    content::BrowserContext* browser_context,
-    const net::SchemefulSite& top_frame_site,
-    const net::SchemefulSite& accessing_site,
-    base::TimeDelta ttl,
-    bool ignore_schemes) {}
-
 bool ContentBrowserClient::AreThirdPartyCookiesGenerallyAllowed(
     content::BrowserContext* browser_context,
     content::WebContents* web_contents) {
@@ -869,6 +849,11 @@ MediaObserver* ContentBrowserClient::GetMediaObserver() {
 
 FeatureObserverClient* ContentBrowserClient::GetFeatureObserverClient() {
   return nullptr;
+}
+
+bool ContentBrowserClient::IsPopupBypassAllowed(
+    RenderFrameHost* render_frame_host) {
+  return false;
 }
 
 bool ContentBrowserClient::CanCreateWindow(
@@ -1543,18 +1528,6 @@ int ContentBrowserClient::NumVersionsInTopicsEpochs(
   return 0;
 }
 
-bool ContentBrowserClient::IsBluetoothScanningBlocked(
-    content::BrowserContext* browser_context,
-    const url::Origin& requesting_origin,
-    const url::Origin& embedding_origin) {
-  return false;
-}
-
-void ContentBrowserClient::BlockBluetoothScanning(
-    content::BrowserContext* browser_context,
-    const url::Origin& requesting_origin,
-    const url::Origin& embedding_origin) {}
-
 void ContentBrowserClient::GetMediaDeviceIDSalt(
     content::RenderFrameHost* rfh,
     const net::SiteForCookies& site_for_cookies,
@@ -2070,6 +2043,15 @@ void ContentBrowserClient::UpdateCorsExemptHeaderForPrefetch(
 bool ContentBrowserClient::OriginSupportsConcreteCrossOriginIsolation(
     const url::Origin& origin) {
   return true;
+}
+
+bool ContentBrowserClient::IsAttributionInternalsWebUIEnabled() {
+  return true;
+}
+
+bool ContentBrowserClient::IsFullscreenAllowedForUnfocusedWebContents(
+    content::WebContents* unfocused_web_contents) {
+  return false;
 }
 
 }  // namespace content

@@ -6,6 +6,7 @@
 
 #include "base/containers/heap_array.h"
 #include "gpu/command_buffer/client/webgpu_interface.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_feature_name.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_texture_descriptor.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_texture_view_descriptor.h"
@@ -219,7 +220,7 @@ GPUTexture* GPUTexture::Create(GPUDevice* device,
 
   return MakeGarbageCollected<GPUTexture>(
       device, device->GetHandle().CreateTexture(desc),
-      String::FromUTF8(desc->label));
+      String::FromUtf8(desc->label));
 }
 
 // static
@@ -229,7 +230,7 @@ GPUTexture* GPUTexture::CreateError(GPUDevice* device,
   DCHECK(desc);
   return MakeGarbageCollected<GPUTexture>(
       device, device->GetHandle().CreateErrorTexture(desc),
-      String::FromUTF8(desc->label));
+      String::FromUtf8(desc->label));
 }
 
 GPUTexture::GPUTexture(GPUDevice* device,
@@ -337,16 +338,16 @@ V8GPUTextureDimension GPUTexture::dimension() const {
   return FromDawnEnum(GetHandle().GetDimension());
 }
 
-V8UnionGPUTextureViewDimensionOrUndefined*
-GPUTexture::textureBindingViewDimension() const {
+V8UnionGPUTextureViewDimensionOrUndefined::Ret
+GPUTexture::textureBindingViewDimension(ScriptState* script_state) const {
   wgpu::TextureViewDimension viewDimension =
       GetHandle().GetTextureBindingViewDimension();
   if (viewDimension == wgpu::TextureViewDimension::Undefined) {
-    return MakeGarbageCollected<V8UnionGPUTextureViewDimensionOrUndefined>(
-        ToV8UndefinedGenerator());
+    return V8UnionGPUTextureViewDimensionOrUndefined::Ret(
+        script_state, ToV8UndefinedGenerator());
   } else {
-    return MakeGarbageCollected<V8UnionGPUTextureViewDimensionOrUndefined>(
-        FromDawnEnum(viewDimension));
+    return V8UnionGPUTextureViewDimensionOrUndefined::Ret(
+        script_state, FromDawnEnum(viewDimension));
   }
 }
 

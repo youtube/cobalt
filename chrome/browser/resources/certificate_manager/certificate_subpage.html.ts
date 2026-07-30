@@ -24,12 +24,12 @@ ${this.subpageCertLists.map(item => html`
   <certificate-list
       .certSource="${item.certSource}"
       .headerText="${item.headerText}"
-      .certMetadataEditable="${item.certMetadataEditable}"
-      ?hide-export="${item.hideExport}"
-      ?show-import="${item.showImport}"
-      ?show-import-and-bind="${item.showImportAndBind}"
-      ?hide-if-empty="${item.hideIfEmpty}"
-      ?hide-header="${item.hideHeader}"
+      .certMetadataEditable="${!!item.certMetadataEditable}"
+      ?hide-export="${!!item.hideExport}"
+      ?show-import="${!!item.showImport}"
+      ?show-import-and-bind="${!!item.showImportAndBind}"
+      ?hide-if-empty="${!!item.hideIfEmpty}"
+      ?hide-header="${!!item.hideHeader}"
       in-subpage>
   </certificate-list>
 `)}

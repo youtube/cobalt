@@ -10,10 +10,10 @@
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "chrome/browser/indigo/indigo_service.h"
 #include "chrome/browser/ui/tabs/contents_observing_tab_feature.h"
 #include "chrome/browser/ui/views/indigo/indigo_toolbar.h"
 #include "components/optimization_guide/core/hints/optimization_guide_decision.h"
-#include "components/signin/public/identity_manager/identity_manager.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 #include "ui/base/unowned_user_data/unowned_user_data_host.h"
 
@@ -33,11 +33,11 @@ class TabInterface;
 namespace indigo {
 
 class IndigoOnboardingDialog;
+class IndigoService;
 
 // Manages the Indigo page action and its various entry points, ensuring they
 // are correctly displayed.
 class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
-                                   public signin::IdentityManager::Observer,
                                    public IndigoToolbar::Delegate {
  public:
   DECLARE_USER_DATA(IndigoPageActionController);
@@ -57,11 +57,6 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
 
-  // signin::IdentityManager::Observer:
-  void OnPrimaryAccountChanged(
-      const signin::PrimaryAccountChangeEvent& event_details) override;
-  void OnExtendedAccountInfoUpdated(const AccountInfo& info) override;
-
   // IndigoToolbar::Delegate:
   void OnClose(IndigoToolbar* toolbar) override;
   void OnRegenerate(IndigoToolbar* toolbar) override;
@@ -75,16 +70,16 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
   // Called when the onboarding dialog is closed.
   void OnOnboardingDialogClosed();
 
+  // Called when the profile state has changed in a way that might affect
+  // whether this feature should be offered.
+  void OnLocalEligibilityChanged(LocalEligibility state);
+
   // Called when optimization guide has decided whether this feature should be
   // enabled for the page.
   void OnOptimizationGuideDecision(
       const GURL& url,
       optimization_guide::OptimizationGuideDecision decision,
       const optimization_guide::OptimizationMetadata&);
-
-  // Returns whether the profile is known to belong to a primary account which
-  // has the capabilities required to use this feature.
-  bool CanUseModelExecutionFeatures() const;
 
   // `page_action_controller_` is owned by the same `TabFeatures` that owns
   // `this`. Since `page_action_controller_` is initialized before `this` and
@@ -96,7 +91,7 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
       optimization_guide_;
 
   // Owned by the profile, which outlives this object.
-  const raw_ptr<signin::IdentityManager> identity_manager_;
+  const raw_ptr<IndigoService> indigo_service_;
 
   // The optimization guide's opinion about whether this page is eligible for
   // Indigo (or kUnknown if not determined).
@@ -112,9 +107,7 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
   // The floating toolbar, if shown.
   std::unique_ptr<IndigoToolbar> toolbar_;
 
-  base::ScopedObservation<signin::IdentityManager,
-                          signin::IdentityManager::Observer>
-      identity_manager_observation_{this};
+  base::CallbackListSubscription indigo_service_subscription_;
 
   ui::ScopedUnownedUserData<IndigoPageActionController>
       scoped_unowned_user_data_;

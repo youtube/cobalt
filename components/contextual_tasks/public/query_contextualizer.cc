@@ -4,12 +4,13 @@
 
 #include "components/contextual_tasks/public/query_contextualizer.h"
 
-#include <set>
-
 #include "base/barrier_closure.h"
+#include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/no_destructor.h"
+#include "base/strings/string_util.h"
 #include "components/contextual_search/contextual_search_context_controller.h"
 #include "components/contextual_search/contextual_search_session_handle.h"
 #include "components/contextual_tasks/public/context_decoration_params.h"
@@ -17,8 +18,11 @@
 #include "components/contextual_tasks/public/contextual_tasks_service.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/contextual_tasks/public/utils.h"
+#include "components/lens/lens_features.h"
 #include "components/url_deduplication/url_deduplication_helper.h"
+#include "third_party/re2/src/re2/re2.h"
 #include "ui/gfx/skia_util.h"
+#include "url/gurl.h"
 
 namespace contextual_tasks {
 
@@ -40,6 +44,7 @@ QueryContextualizer::~QueryContextualizer() = default;
 
 void QueryContextualizer::Contextualize(
     const std::optional<base::Uuid>& task_id,
+    const std::string& query_text,
     const std::vector<TabId>& tabs_to_recontextualize,
     const std::vector<TabId>& tabs_to_force_contextualize,
     contextual_search::ContextualSearchSessionHandle* session_handle,
@@ -51,8 +56,8 @@ void QueryContextualizer::Contextualize(
   }
 
   if (!task_id.has_value()) {
-    OnContextRetrieved(/*task_id=*/std::nullopt, tabs_to_recontextualize,
-                       tabs_to_force_contextualize,
+    OnContextRetrieved(/*task_id=*/std::nullopt, query_text,
+                       tabs_to_recontextualize, tabs_to_force_contextualize,
                        session_handle ? session_handle->AsWeakPtr() : nullptr,
                        std::move(callback), /*context=*/nullptr);
     return;
@@ -63,7 +68,7 @@ void QueryContextualizer::Contextualize(
       {ContextualTaskContextSource::kSubmittedContextDecorator},
       std::move(context_decoration_params),
       base::BindOnce(&QueryContextualizer::OnContextRetrieved,
-                     weak_factory_.GetWeakPtr(), task_id,
+                     weak_factory_.GetWeakPtr(), task_id, query_text,
                      tabs_to_recontextualize, tabs_to_force_contextualize,
                      session_handle ? session_handle->AsWeakPtr() : nullptr,
                      std::move(callback)));
@@ -71,6 +76,7 @@ void QueryContextualizer::Contextualize(
 
 void QueryContextualizer::OnContextRetrieved(
     const std::optional<base::Uuid>& task_id,
+    const std::string& query_text,
     const std::vector<TabId>& tabs_to_recontextualize,
     const std::vector<TabId>& tabs_to_force_contextualize,
     base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
@@ -78,10 +84,48 @@ void QueryContextualizer::OnContextRetrieved(
     base::OnceClosure callback,
     std::unique_ptr<ContextualTaskContext> context) {
   // Fail early if the task id was specified but there was no context for the
-  // task.
+  // task. This indicates that the task was not available (i.e. was deleted)
+  // and no further action is needed.
   if (task_id.has_value() && !context) {
     std::move(callback).Run();
     return;
+  }
+
+  // Extract URLs from the query text and start upload flows for them.
+  if (session_handle && lens::features::IsLensSendUrlsInComposeboxesEnabled()) {
+    re2::StringPiece input(query_text);
+    std::string url_str;
+    // Regex to extract URLs.
+    // Matches http://, https://, ftp://, or www. followed by valid URL
+    // characters. Explicitly lists allowed characters instead of using ranges
+    // like #-; for readability. Allowed characters: alphanumeric, -, ., ~, :,
+    // /, ?, #, [, ], @, !, $, &, ', (, ), *, +, ,, ;, =, %
+    static const base::NoDestructor<re2::RE2> url_regex(
+        R"((?i)((?:(?:https?|ftp)://|www\.)[\w#$%'()*+,\-./:;!=?@\[\]_`{|}~]+))");
+
+    std::vector<GURL> extracted_urls;
+    base::flat_set<GURL> seen_urls;
+
+    while (RE2::FindAndConsume(&input, *url_regex, &url_str)) {
+      GURL url;
+      if (base::StartsWith(url_str, "www.",
+                           base::CompareCase::INSENSITIVE_ASCII)) {
+        url = GURL("http://" + url_str);
+      } else {
+        url = GURL(url_str);
+      }
+      if (url.is_valid() && seen_urls.insert(url).second) {
+        extracted_urls.push_back(url);
+      }
+    }
+
+    for (const GURL& url : extracted_urls) {
+      // TODO(crbug.com/495601934): QueryContextualizer should wait for all
+      // uploads (including tabs and URL uploads) to complete before running the
+      // callback.
+      session_handle->StartUrlContextUploadFlow(
+          session_handle->CreateContextToken(), url);
+    }
   }
 
   std::vector<TabUpdate> tabs_to_update = GetTabsToUpdate(
@@ -139,25 +183,35 @@ void QueryContextualizer::OnTabContextualizationFetched(
         GetContextIdForTab(*context, *page_content_data, session_handle);
   }
 
-  if (IsContextUnchangedFromPreviousUpload(maybe_context_id, *page_content_data,
-                                           session_handle)) {
+  if (CheckIfContextChangedAndPrepareUploadData(
+          maybe_context_id, *page_content_data, session_handle)) {
     delegate_->OnTabProcessedForQueryContextualization(tab_id);
     barrier_closure.Run();
     return;
   }
 
-  delegate_->UploadTabContextWithData(
-      tab_id, maybe_context_id, std::move(page_content_data),
-      base::BindOnce(
-          [](base::WeakPtr<QueryContextualizer> orchestrator, TabId id,
-             base::RepeatingClosure barrier, bool success) {
-            if (orchestrator) {
-              orchestrator->delegate_->OnTabProcessedForQueryContextualization(
-                  id);
-            }
-            barrier.Run();
-          },
-          weak_factory_.GetWeakPtr(), tab_id, barrier_closure));
+  if (!session_handle) {
+    delegate_->OnTabProcessedForQueryContextualization(tab_id);
+    barrier_closure.Run();
+    return;
+  }
+
+  if (!delegate_->IsTabValid(tab_id)) {
+    delegate_->OnTabProcessedForQueryContextualization(tab_id);
+    barrier_closure.Run();
+    return;
+  }
+
+  auto context_token = session_handle->CreateContextToken();
+  if (maybe_context_id.has_value()) {
+    page_content_data->context_id = maybe_context_id.value();
+  }
+  session_handle->StartTabContextUploadFlow(
+      context_token, std::move(page_content_data),
+      delegate_->GetTabViewportEncodingOptionsForQueryContextualizer());
+
+  delegate_->OnTabProcessedForQueryContextualization(tab_id);
+  barrier_closure.Run();
 }
 
 std::vector<QueryContextualizer::TabUpdate>
@@ -227,9 +281,9 @@ std::optional<int64_t> QueryContextualizer::GetContextIdForTab(
   return std::nullopt;
 }
 
-bool QueryContextualizer::IsContextUnchangedFromPreviousUpload(
+bool QueryContextualizer::CheckIfContextChangedAndPrepareUploadData(
     std::optional<int64_t> context_id,
-    const lens::ContextualInputData& page_content_data,
+    lens::ContextualInputData& page_content_data,
     base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
         session_handle) {
   if (!context_id.has_value()) {
@@ -272,11 +326,12 @@ bool QueryContextualizer::IsContextUnchangedFromPreviousUpload(
   const auto& old_data = *matching_file_info->input_data;
   const auto& new_data = page_content_data;
 
-  if (old_data.primary_content_type != new_data.primary_content_type) {
-    return false;
-  }
+  bool page_content_changed = false;
+  bool viewport_changed = false;
 
-  if (new_data.primary_content_type.has_value()) {
+  if (old_data.primary_content_type != new_data.primary_content_type) {
+    page_content_changed = true;
+  } else if (new_data.primary_content_type.has_value()) {
     const std::vector<lens::ContextualInput>& old_inputs =
         old_data.context_input.has_value()
             ? *old_data.context_input
@@ -298,13 +353,13 @@ bool QueryContextualizer::IsContextUnchangedFromPreviousUpload(
       if (old_size > 0) {
         const float percent_changed = abs((new_size - old_size) / old_size);
         if (percent_changed >= kByteChangeTolerancePercent) {
-          return false;
+          page_content_changed = true;
         }
       } else if (new_size > 0) {
-        return false;
+        page_content_changed = true;
       }
     } else if (old_it != old_inputs.end() || new_it != new_inputs.end()) {
-      return false;
+      page_content_changed = true;
     }
   }
 
@@ -321,18 +376,15 @@ bool QueryContextualizer::IsContextUnchangedFromPreviousUpload(
                             !new_data.viewport_screenshot_bytes->empty();
 
   if (old_has_screenshot != new_has_screenshot) {
-    return false;
-  }
-
-  if (old_has_screenshot) {
+    viewport_changed = true;
+  } else if (old_has_screenshot) {
     const auto& old_bytes = old_data.viewport_screenshot_bytes.value();
     const auto& new_bytes = new_data.viewport_screenshot_bytes.value();
     if (old_bytes.size() != new_bytes.size()) {
-      return false;
-    }
-    // Exact byte comparison for screenshot.
-    if (old_bytes != new_bytes) {
-      return false;
+      viewport_changed = true;
+    } else if (old_bytes != new_bytes) {
+      // Exact byte comparison for screenshot.
+      viewport_changed = true;
     }
   }
 
@@ -340,20 +392,30 @@ bool QueryContextualizer::IsContextUnchangedFromPreviousUpload(
   bool new_has_bitmap = new_data.viewport_screenshot.has_value();
 
   if (old_has_bitmap != new_has_bitmap) {
-    return false;
-  }
-
-  if (old_has_bitmap) {
+    viewport_changed = true;
+  } else if (old_has_bitmap) {
     const auto& old_bitmap = old_data.viewport_screenshot.value();
     const auto& new_bitmap = new_data.viewport_screenshot.value();
     if (!new_bitmap.drawsNothing() &&
         (old_bitmap.drawsNothing() ||
          !gfx::BitmapsAreEqual(old_bitmap, new_bitmap))) {
-      return false;
+      viewport_changed = true;
     }
   }
 
-  return true;
+  if (new_data.primary_content_type == lens::MimeType::kPdf) {
+    page_content_changed = false;
+  }
+
+  if (!page_content_changed && !viewport_changed) {
+    return true;
+  }
+
+  if (!page_content_changed) {
+    page_content_data.context_input = std::nullopt;
+  }
+
+  return false;
 }
 
 const UrlAttachment* QueryContextualizer::GetMatchingAttachment(

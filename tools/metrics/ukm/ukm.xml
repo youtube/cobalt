@@ -484,6 +484,13 @@ be describing additional metrics about the same event.
     <summary>
       The status of the distillation
     </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
   </metric>
 </event>
 
@@ -534,6 +541,13 @@ be describing additional metrics about the same event.
       Records the UI entry point that the user clicked to open the Read Anything
       side panel.
     </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
   </metric>
   <metric name="Shown" enum="Boolean">
     <summary>
@@ -704,6 +718,29 @@ be describing additional metrics about the same event.
     <summary>
       An enum of the type of account chosen by the user to login during an actor
       login request.
+    </summary>
+  </metric>
+</event>
+
+<event name="Actor.OriginGating">
+  <owner>dylancutler@google.com</owner>
+  <owner>chrome-ai-security@google.com</owner>
+  <summary>
+    Metrics related to actor Origin Gating, a security feature controlling which
+    origins actors may interact with.
+  </summary>
+  <metric name="EngineState" enum="ActorEngineState">
+    <summary>
+      The ExecutionEngine::State when this metric is emitted. We want to see
+      where in the actor tool use lifecycle that these navigation confirmations
+      occur most frequently.
+    </summary>
+  </metric>
+  <metric name="ServerConfirmationResult" enum="ActorServerConfirmationResult">
+    <summary>
+      The result of confirming with the server if the actor may interact with
+      the origin of a URL that Chrome detects the actor navigating to. If the
+      result is kNotRequired then the origin was already previously evaluated.
     </summary>
   </metric>
 </event>
@@ -10306,103 +10343,6 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
-<event name="Graphics.Smoothness.FrameSequence" singular="True">
-  <owner>animations-dev@chromium.org</owner>
-  <owner>gaiko@chromium.org</owner>
-  <owner>jonross@chromium.org</owner>
-  <summary>
-    Measures the percentage of frames dropped in a sequence of frames.
-
-    This metric is reported to the browser at least every 100 frames and at most
-    every 5s from the FrameSequenceMetrics trackers in the compositor. It is
-    available as `Graphics.Smoothness.PercentDroppedFrames4.AllSequences`.
-
-    The last value received by the browser is reported as a UKM when the page
-    closes (e.g. the user closes the tab, or navigates away to a different
-    page).
-  </summary>
-  <metric name="PercentDroppedFrames">
-    <summary>
-      The percentage of frames that have been dropped in the last 300 frame
-      window or 5 seconds, whichever came first.
-    </summary>
-    <aggregation>
-      <history>
-        <index fields="profile.country"/>
-        <statistics>
-          <quantiles type="std-percentiles"/>
-        </statistics>
-      </history>
-    </aggregation>
-  </metric>
-</event>
-
-<event name="Graphics.Smoothness.NormalizedPercentDroppedFrames"
-    singular="True">
-  <owner>animations-dev@chromium.org</owner>
-  <owner>jonross@chromium.org</owner>
-  <summary>
-    Measures various normalizations for the smoothness metric. The metric is
-    measured by counting dropped frames, and various normalization strategies
-    are used.
-
-    The metric is reported once per page-load, and when the page closes (e.g.
-    the user closes the tab, or navigates away to a different page).
-  </summary>
-  <metric name="Average">
-    <summary>
-      This is trivially computable by counting the total number of dropped
-      frames and the total number of vsyncs the page has been visible for,
-      exposed as a percentage.
-    </summary>
-    <aggregation>
-      <history>
-        <index fields="profile.country"/>
-        <index fields="profile.form_factor"/>
-        <index fields="profile.system_ram"/>
-        <statistics>
-          <quantiles type="std-percentiles"/>
-        </statistics>
-      </history>
-    </aggregation>
-  </metric>
-  <metric name="CompositorFocusedMedian">
-    <summary>
-      CompositorFocused metrics report the throughput of frames that include
-      compositor thread updates. The median dropped frames within a
-      fixed-duration sliding window (as a percentage). So out of all
-      PerecentDroppedFrames of sliding windows the median will be reported here.
-    </summary>
-    <aggregation>
-      <history>
-        <index fields="profile.country"/>
-        <index fields="profile.form_factor"/>
-        <index fields="profile.system_ram"/>
-        <statistics>
-          <quantiles type="std-percentiles"/>
-        </statistics>
-      </history>
-    </aggregation>
-  </metric>
-  <metric name="Median">
-    <summary>
-      The median dropped frames within a fixed-duration sliding window (as a
-      percentage). So out of all PerecentDroppedFrames of sliding windows the
-      median will be reported here.
-    </summary>
-    <aggregation>
-      <history>
-        <index fields="profile.country"/>
-        <index fields="profile.form_factor"/>
-        <index fields="profile.system_ram"/>
-        <statistics>
-          <quantiles type="std-percentiles"/>
-        </statistics>
-      </history>
-    </aggregation>
-  </metric>
-</event>
-
 <event name="GroupSuggestionPromo.Suggestion">
   <owner>yuezhanggg@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
@@ -13845,11 +13785,11 @@ be describing additional metrics about the same event.
     screen capture or opening a webcam or microphone, and the result of that
     request.
   </summary>
-  <metric name="VideoCaptureGenerateStreamResult2"
+  <metric name="VideoCaptureGenerateStreamResult3"
       enum="MediaStreamRequestResult">
     <summary>
       The result of a page's request to open a video capture device (e.g.,
-      webcam). The suffix 2 was added when the MediaStreamRequestResult enum was
+      webcam). The suffix 3 was added when the MediaStreamRequestResult enum was
       updated with new entries.
     </summary>
     <aggregation>
@@ -15992,168 +15932,6 @@ be describing additional metrics about the same event.
   <metric name="Submitted">
     <summary>
       Placeholder metric, always true.
-    </summary>
-  </metric>
-</event>
-
-<event name="OpenerHeuristic.PopupInteraction">
-  <owner>navtracking-team@google.com</owner>
-  <owner>dc-komics@google.com</owner>
-  <summary>
-    Recorded when the user first interacts in a pop-up with opener access.
-  </summary>
-  <metric name="InteractionType" enum="CookieHeuristicInteractionType">
-    <summary>
-      Records the source of the interaction with the popup.
-      &quot;Authentication&quot; for web authentications,
-      &quot;UserActivation&quot; for mouse clicks, touch events, etc., and
-      &quot;NoInteraction&quot; for when there was no user interaction.
-    </summary>
-  </metric>
-  <metric name="OpenerHasSameSiteIframe" enum="HasSameSiteIframe">
-    <summary>
-      &quot;True&quot; iff the opener page contains an iframe whose URL belongs
-      to the same registrable domain as this pop-up. &quot;Unknown&quot; if the
-      opener page is closed or the user navigates its frame to another page
-      before interacting with this pop-up.
-    </summary>
-  </metric>
-  <metric name="PopupId">
-    <summary>
-      A random integer to identify this pop-up and associate this event with
-      other OpenerHeuristic.* events relating to the same pop-up.
-    </summary>
-  </metric>
-  <metric name="SecondsSinceCommitted">
-    <summary>
-      The number of seconds since the initial pop-up navigation committed, until
-      the user interacted with the pop-up. Clamped to three minutes at most, and
-      rounded down to the nearest exponential bucket (out of 50 buckets).
-    </summary>
-  </metric>
-  <metric name="UrlIndex">
-    <summary>
-      The number of URLs visited (including redirects) in the pop-up before the
-      user interacted with it. For example, the initial URL has index 1. If the
-      page redirected once before the user interacted, the index would be 2.
-    </summary>
-  </metric>
-</event>
-
-<event name="OpenerHeuristic.PopupPastInteraction">
-  <owner>navtracking-team@google.com</owner>
-  <owner>dc-komics@google.com</owner>
-  <summary>
-    Recorded when a pop-up with opener access is initially opened, and the user
-    has previously interacted on the site of the URL passed to window.open().
-  </summary>
-  <metric name="HoursSinceLastInteraction">
-    <summary>
-      The number of hours since the user last interacted with the site, until
-      the pop-up was opened. Clamped to 720 hours at most, and rounded down to
-      the nearest exponential bucket (out of 50 buckets).
-    </summary>
-  </metric>
-  <metric name="InteractionType" enum="CookieHeuristicInteractionType">
-    <summary>
-      Records the source of the interaction with the popup.
-      &quot;Authentication&quot; for web authentications,
-      &quot;UserActivation&quot; for mouse clicks, touch events, etc., and
-      &quot;NoInteraction&quot; for when there was no user interaction.
-    </summary>
-  </metric>
-  <metric name="OpenerHasSameSiteIframe" enum="HasSameSiteIframe">
-    <summary>
-      &quot;True&quot; iff the opener page contains an iframe whose URL belongs
-      to the same registrable domain as this pop-up. &quot;Unknown&quot; if the
-      opener page is closed or the user navigates its frame to another page
-      before interacting with this pop-up.
-    </summary>
-  </metric>
-  <metric name="PopupId">
-    <summary>
-      A random integer to identify this pop-up and associate this event with
-      other OpenerHeuristic.* events relating to the same pop-up.
-    </summary>
-  </metric>
-</event>
-
-<event name="OpenerHeuristic.PostPopupCookieAccess">
-  <owner>navtracking-team@google.com</owner>
-  <owner>amaliev@chromium.org</owner>
-  <owner>dc-komics@google.com</owner>
-  <summary>
-    Recorded by a top-level page that opens a pop-up with opener access, when
-    the user interacts with that pop-up. Recorded by a top-level page that opens
-    a pop-up with opener access, when the pop-up site later tries to access
-    cookies on the opener site.
-  </summary>
-  <metric name="AccessId">
-    <summary>
-      A random integer to identify the top-level site and associate this event
-      with the OpenerHeuristic.TopLevel event that preceded it when the pop-up
-      was opened.
-    </summary>
-  </metric>
-  <metric name="AccessSucceeded">
-    <summary>
-      Whether the cookie access attempt is allowed, or blocked by a third-party
-      cookie block.
-    </summary>
-  </metric>
-  <metric name="HoursSincePopupOpened" enum="PopupProvider">
-    <summary>
-      The number of hours before the cookie access that the initial
-      OpenerHeuristic.TopLevel event was recorded. Bucketized evenly with 50
-      buckets up to 60 days.
-    </summary>
-  </metric>
-  <metric name="IsAdTagged" enum="IsAdTagged">
-    <summary>
-      Whether the cookie access attempt was tagged as an ad cookie, and thus
-      exempt from mitigations including heuristics.
-    </summary>
-  </metric>
-</event>
-
-<event name="OpenerHeuristic.TopLevel">
-  <owner>navtracking-team@google.com</owner>
-  <owner>dc-komics@google.com</owner>
-  <summary>
-    Recorded by a top-level page that opens a pop-up with opener access, when
-    the user interacts with that pop-up.
-  </summary>
-  <metric name="AccessId">
-    <summary>
-      A random integer to identify the top-level site and associate this event
-      with any OpenerHeuristic.PostPopupCookieAccess events that follow when the
-      pop-up site attempts to access cookies on the top-level site.
-    </summary>
-  </metric>
-  <metric name="HasSameSiteIframe" enum="HasSameSiteIframe">
-    <summary>
-      &quot;True&quot; iff the top-level page contains an iframe whose URL
-      belongs to the same registrable domain as the pop-up. &quot;Unknown&quot;
-      if the top-level page is closed or the user navigates the main frame to
-      another page before interacting with the pop-up.
-    </summary>
-  </metric>
-  <metric name="IsAdTaggedPopupClick" enum="Boolean">
-    <summary>
-      Whether the popup frame was opened by a click on an ad-tagged frame.
-    </summary>
-  </metric>
-  <metric name="PopupId">
-    <summary>
-      A random integer to identify the pop-up and associate this event with
-      other OpenerHeuristic.* events relating to the same pop-up.
-    </summary>
-  </metric>
-  <metric name="PopupProvider" enum="PopupProvider">
-    <summary>
-      An enum identifying the JavaScript framework used to open the pop-up, when
-      it can be recognized. Typically an SSO library such as Google Sign-In.
-      &quot;Unknown&quot; when no framework is recognized.
     </summary>
   </metric>
 </event>
@@ -20535,6 +20313,16 @@ be describing additional metrics about the same event.
       prerendering navigation fulfilled.
     </summary>
   </metric>
+  <metric name="SoftNavigationCount">
+    <summary>
+      Number of soft navigations detected by heuristics. See
+      https://bit.ly/soft-navigation
+
+      Soft navigations are JS-driven same-document navigations that are using
+      the history API or the new Navigation API, triggered by a user gesture and
+      meaningfully modify the DOM, replacing the previous content with new one.
+    </summary>
+  </metric>
   <metric name="Timing.ActivationToFirstContentfulPaint">
     <summary>
       The duration in milliseconds from time of activation navigation start to
@@ -20650,98 +20438,6 @@ be describing additional metrics about the same event.
         </statistics>
       </history>
     </aggregation>
-  </metric>
-</event>
-
-<event name="RedirectHeuristic.CookieAccess2">
-  <owner>amaliev@chromium.org</owner>
-  <owner>dc-komics@google.com</owner>
-  <summary>
-    Recorded when a top-level page has its cookies accessed by another page
-    earlier in its redirect chain.
-  </summary>
-  <metric name="AccessAllowed" enum="Boolean">
-    <summary>
-      Whether the cookie access attempt is allowed, or blocked by a third-party
-      cookie block.
-    </summary>
-  </metric>
-  <metric name="AccessId">
-    <summary>
-      A random integer to identify this cookie access and associate this event
-      with a RedirectHeuristic.CookieAccessThirdParty2 event.
-    </summary>
-  </metric>
-  <metric name="DoesFirstPartyPrecedeThirdParty" enum="Boolean">
-    <summary>
-      Whether this top-level site appeared in the tab history (or current
-      navigation) directly before the third party. Used to check for an A-B-A
-      site flow that may narrow the heuristic.
-    </summary>
-  </metric>
-  <metric name="HoursSinceLastInteraction">
-    <summary>
-      The number of hours before the cookie access that the user last interacted
-      with the tracking site. Clamped to 60 days at most, and rounded down to
-      the nearest exponential bucket (out of 50 buckets). Set to -1 if there has
-      never been a user interaction from the tracking site.
-    </summary>
-  </metric>
-  <metric name="InteractionType" enum="CookieHeuristicInteractionType">
-    <summary>
-      Records the source of the interaction with the popup.
-      &quot;Authentication&quot; for web authentications,
-      &quot;UserActivation&quot; for mouse clicks, touch events, etc., and
-      &quot;NoInteraction&quot; for when there was no user interaction.
-    </summary>
-  </metric>
-  <metric name="IsAdTagged" enum="IsAdTagged">
-    <summary>
-      Whether the cookie access attempt was tagged as an ad cookie, and thus
-      exempt from mitigations including heuristics.
-    </summary>
-  </metric>
-  <metric name="IsCurrentInteraction" enum="Boolean">
-    <summary>
-      Whether there was a user interaction on the tracking site when it was
-      loaded in the current redirect chain.
-    </summary>
-  </metric>
-  <metric name="MillisecondsSinceRedirect">
-    <summary>
-      The number of milliseconds between the redirect to the cookie access.
-      Clamped to 15 minutes at most, and rounded down to the nearest exponential
-      bucket (out of 50 buckets).
-    </summary>
-  </metric>
-  <metric name="OpenerHasSameSiteIframe" enum="HasSameSiteIframe">
-    <summary>
-      &quot;True&quot; iff the target page contains an iframe whose URL belongs
-      to the same registrable domain as the tracker page. &quot;Unknown&quot; if
-      the presence of an iframe could not be determined.
-    </summary>
-  </metric>
-  <metric name="SitesPassedCount">
-    <summary>
-      The number of top-level sites redirected through between the initial
-      tracking page and the final page whose cookies are accessed. Capped at 20
-      sites.
-    </summary>
-  </metric>
-</event>
-
-<event name="RedirectHeuristic.CookieAccessThirdParty2">
-  <owner>amaliev@chromium.org</owner>
-  <owner>dc-komics@google.com</owner>
-  <summary>
-    Recorded when a top-level page accesses cookies on another page later in its
-    redirect chain.
-  </summary>
-  <metric name="AccessId">
-    <summary>
-      A random integer to identify this cookie access and associate this event
-      with a RedirectHeuristic.CookieAccess2 event.
-    </summary>
   </metric>
 </event>
 

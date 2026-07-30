@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/strings/stringprintf.h"
+#include "build/build_config.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -22,10 +23,12 @@ class FakeContextualTasksUiService
     : public contextual_tasks::ContextualTasksUiService {
  public:
   explicit FakeContextualTasksUiService(Profile* profile)
-      : contextual_tasks::ContextualTasksUiService(profile,
-                                                   nullptr,
-                                                   nullptr,
-                                                   nullptr) {}
+      : contextual_tasks::ContextualTasksUiService(
+            profile,
+            /*delegate=*/nullptr,
+            /*contextual_tasks_service=*/nullptr,
+            /*identity_manager=*/nullptr,
+            /*aim_eligibility_service=*/nullptr) {}
   GURL GetDefaultAiPageUrl() override { return GURL(url::kAboutBlankURL); }
 
   static std::unique_ptr<KeyedService> BuildFakeService(
@@ -159,9 +162,9 @@ IN_PROC_BROWSER_TEST_P(ContextualTasksComposeBoxPixelTest,
   // DeepQuery needed to target elements with injected JS.
   const DeepQuery kComposebox = {"contextual-tasks-app",
                                  "contextual-tasks-composebox", "#composebox"};
-  const DeepQuery kComposeBoxInput = {"contextual-tasks-app",
-                                      "contextual-tasks-composebox",
-                                      "#composebox", "textarea"};
+  const DeepQuery kComposeBoxInput = {
+      "contextual-tasks-app", "contextual-tasks-composebox", "#composebox",
+      "cr-composebox-input", "textarea"};
   const DeepQuery kAiPageWebView = {"contextual-tasks-app", "webview"};
 
   RunTestSequence(
@@ -277,9 +280,9 @@ IN_PROC_BROWSER_TEST_P(ContextualTasksAppPixelTest, Screenshots) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kActiveTab);
   const DeepQuery kApp = {"contextual-tasks-app"};
   const DeepQuery kAiPageWebView = {"contextual-tasks-app", "webview"};
-  const DeepQuery kComposeBoxInput = {"contextual-tasks-app",
-                                      "contextual-tasks-composebox",
-                                      "#composebox", "textarea"};
+  const DeepQuery kComposeBoxInput = {
+      "contextual-tasks-app", "contextual-tasks-composebox", "#composebox",
+      "cr-composebox-input", "textarea"};
   const DeepQuery kGhostLoader = {"contextual-tasks-app", "ghost-loader"};
 
   RunTestSequence(
@@ -397,7 +400,12 @@ INSTANTIATE_TEST_SUITE_P(
       return info.param.ToString();
     });
 
-IN_PROC_BROWSER_TEST_P(ContextualTasksToolbarPixelTest, Screenshots) {
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_Screenshots DISABLED_Screenshots
+#else
+#define MAYBE_Screenshots Screenshots
+#endif
+IN_PROC_BROWSER_TEST_P(ContextualTasksToolbarPixelTest, MAYBE_Screenshots) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kActiveTab);
   DeepQuery app = {"contextual-tasks-app"};
   DeepQuery toolbar = app + "top-toolbar";

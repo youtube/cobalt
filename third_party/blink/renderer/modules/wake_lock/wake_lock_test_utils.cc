@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 #include "third_party/blink/renderer/modules/wake_lock/wake_lock_test_utils.h"
 
 #include <tuple>
@@ -12,6 +11,7 @@
 #include "base/notreached.h"
 #include "base/run_loop.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "third_party/blink/public/mojom/permissions/permission_status.mojom-blink.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_function.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_dom_exception.h"
@@ -216,13 +216,16 @@ void MockPermissionService::HasPermission(PermissionDescriptorPtr permission,
                                           HasPermissionCallback callback) {
   V8WakeLockType::Enum type;
   if (!GetWakeLockTypeFromDescriptor(permission, &type)) {
-    std::move(callback).Run(mojom::blink::PermissionStatus::DENIED);
+    std::move(callback).Run(mojom::blink::PermissionStatusWithDetails::New(
+        mojom::blink::PermissionStatus::DENIED, nullptr));
     return;
   }
   size_t pos = static_cast<size_t>(type);
   DCHECK(permission_responses_[pos].has_value());
-  std::move(callback).Run(permission_responses_[pos].value_or(
-      mojom::blink::PermissionStatus::DENIED));
+  std::move(callback).Run(mojom::blink::PermissionStatusWithDetails::New(
+      permission_responses_[pos].value_or(
+          mojom::blink::PermissionStatus::DENIED),
+      nullptr));
 }
 
 void MockPermissionService::RegisterPageEmbeddedPermissionControl(
@@ -244,7 +247,8 @@ void MockPermissionService::RequestPermission(
     RequestPermissionCallback callback) {
   V8WakeLockType::Enum type;
   if (!GetWakeLockTypeFromDescriptor(permission, &type)) {
-    std::move(callback).Run(mojom::blink::PermissionStatus::DENIED);
+    std::move(callback).Run(mojom::blink::PermissionStatusWithDetails::New(
+        mojom::blink::PermissionStatus::DENIED, nullptr));
     return;
   }
 
@@ -252,8 +256,10 @@ void MockPermissionService::RequestPermission(
   DCHECK(permission_responses_[pos].has_value());
   if (request_permission_callbacks_[pos])
     std::move(request_permission_callbacks_[pos]).Run();
-  std::move(callback).Run(permission_responses_[pos].value_or(
-      mojom::blink::PermissionStatus::DENIED));
+  std::move(callback).Run(mojom::blink::PermissionStatusWithDetails::New(
+      permission_responses_[pos].value_or(
+          mojom::blink::PermissionStatus::DENIED),
+      nullptr));
 }
 
 void MockPermissionService::RequestPermissions(
@@ -270,7 +276,7 @@ void MockPermissionService::RevokePermission(PermissionDescriptorPtr permission,
 
 void MockPermissionService::AddPermissionObserver(
     PermissionDescriptorPtr permission,
-    mojom::blink::PermissionStatus last_known_status,
+    mojom::blink::PermissionStatusWithDetailsPtr last_known_status,
     mojo::PendingRemote<mojom::blink::PermissionObserver>) {
   NOTREACHED();
 }
