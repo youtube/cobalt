@@ -515,6 +515,7 @@ void AddAppearanceStrings(content::WebUIDataSource* html_source,
                           Profile* profile) {
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
       {"appearancePageTitle", IDS_SETTINGS_APPEARANCE},
+      {"ctrlTabMru", IDS_SETTINGS_CTRL_TAB_MRU},
       {"customWebAddress", IDS_SETTINGS_CUSTOM_WEB_ADDRESS},
       {"enterCustomWebAddress", IDS_SETTINGS_ENTER_CUSTOM_WEB_ADDRESS},
       {"homeButtonDisabled", IDS_SETTINGS_HOME_BUTTON_DISABLED},
@@ -605,6 +606,9 @@ void AddAppearanceStrings(content::WebUIDataSource* html_source,
   html_source->AddBoolean(
       "showEverythingMenuEnabled",
       tab_groups::SavedTabGroupUtils::IsEnabledForProfile(profile));
+
+  html_source->AddBoolean("showCtrlTabMru",
+                          base::FeatureList::IsEnabled(features::kCtrlTabMru));
 
 #if BUILDFLAG(IS_LINUX)
   bool show_custom_chrome_frame = ui::OzonePlatform::GetInstance()
@@ -1836,6 +1840,8 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       autofill_client &&
           autofill::MayPerformAutofillAiAction(
               *autofill_client, autofill::AutofillAiAction::kOptIn));
+  // TODO(crbug.com/515356902): Check enable/disable eligibility per entity type,
+  // similar to how it is done on Clank. See crrev.com/c/7847781
   html_source->AddBoolean(
       "canEnableOrDisableAutofillAi",
       autofill_client &&
@@ -2104,11 +2110,10 @@ void AddBrowserSyncPageStrings(content::WebUIDataSource* html_source) {
 
 void AddSyncControlsStrings(content::WebUIDataSource* html_source) {
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
-#if !BUILDFLAG(IS_CHROMEOS)
       {"historyTabsCheckboxLabel", IDS_SETTINGS_ACCOUNT_HISTORY_TOGGLE},
       {"historyTabsCheckboxSubLabelOff",
        IDS_SETTINGS_ACCOUNT_HISTORY_TOGGLE_SUB_LABEL_OFF},
-#endif
+
       {"autofillCheckboxLabel", IDS_SETTINGS_AUTOFILL_CHECKBOX_LABEL},
       {"historyCheckboxLabel", IDS_SETTINGS_HISTORY_CHECKBOX_LABEL},
       {"extensionsCheckboxLabel", IDS_SETTINGS_EXTENSIONS_CHECKBOX_LABEL},
@@ -2142,16 +2147,16 @@ void AddPeopleStrings(content::WebUIDataSource* html_source, Profile* profile) {
        IDS_SETTINGS_SYNC_SYNC_AND_NON_PERSONALIZED_SERVICES},
       {"syncUnavailableForNonGoogleAccount",
        IDS_SYNC_UNAVAILABLE_FOR_NON_GOOGLE_ACCOUNT},
+      {"accountPageTitle", IDS_SETTINGS_ACCOUNT_PAGE_TITLE},
+      {"accountDataTypesHeading", IDS_SETTINGS_ACCOUNT_DATATYPES_HEADING},
+      {"accountDataTypesBody", IDS_SETTINGS_ACCOUNT_BODY},
       {"googleServicesPageTitle", IDS_SETTINGS_GOOGLE_SERVICES_PAGE_TITLE},
+      {"syncDisabledUserInformation", IDS_SETTINGS_ACCOUNT_SYNC_DISABLED},
 #if BUILDFLAG(IS_CHROMEOS)
       {"accountManagerSubMenuLabel",
        IDS_SETTINGS_ACCOUNT_MANAGER_SUBMENU_LABEL},
 #else
       {"editPerson", IDS_SETTINGS_CUSTOMIZE_PROFILE},
-      {"accountPageTitle", IDS_SETTINGS_ACCOUNT_PAGE_TITLE},
-      {"accountDataTypesHeading", IDS_SETTINGS_ACCOUNT_DATATYPES_HEADING},
-      {"accountDataTypesBody", IDS_SETTINGS_ACCOUNT_BODY},
-      {"syncDisabledUserInformation", IDS_SETTINGS_ACCOUNT_SYNC_DISABLED},
 #endif
 
   // Manage profile strings:

@@ -403,6 +403,9 @@ after discussions on the right group.
       <annotation id="device_management_remote_commands"/>
       <annotation id="private_verification_tokens_service_get_tokens"/>
       <annotation id="skills_fetcher"/>
+      <annotation id="web_app_custom_icon_fetcher"/>
+      <annotation id="suggestions_powered_by_ai"/>
+      <annotation id="preload_activation_beacon"/>
     </sender>
   </group>
   <group name="Admin Features" hidden="true">

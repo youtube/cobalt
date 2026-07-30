@@ -705,12 +705,6 @@ const base::FeatureParam<std::string> kFastPairPwaCompanionDeviceIds{
 // Enables the "Saved Devices" Fast Pair page in scenario in Bluetooth Settings.
 BASE_FEATURE(kFastPairSavedDevices, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables the "Saved Devices" Fast Pair strict interpretation of opt-in status,
-// meaning that a user's preferences determine if retroactive pairing and
-// subsequent pairing scenarios are enabled.
-BASE_FEATURE(kFastPairSavedDevicesStrictOptIn,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // If enabled, allows the creation of up to 16 desks (default is 8). This flag
 // is intended to be controlled by the feature management module.
 BASE_FEATURE(kFeatureManagement16Desks, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1200,12 +1194,6 @@ BASE_FEATURE(kLocalFactorsPasswordComplexity, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables local authentication controller with PIN support.
 BASE_FEATURE(kLocalAuthenticationWithPin, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables cross device supported reports within the feedback tool.
-// (This feature is only available for dogfooders)
-BASE_FEATURE(kLinkCrossDeviceDogfoodFeedback,
-             "LinkCrossDeviceDogFoodFeedback",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables nearby-internals logs to be automatically saved to disk and attached
 // to feedback reports.
 BASE_FEATURE(kLinkCrossDeviceInternals, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1585,8 +1573,6 @@ BASE_FEATURE(kProjectorUseDVSPlaybackEndpoint,
 
 // Controls whether the quick dim prototype is enabled.
 BASE_FEATURE(kQuickDim, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kQuickAppAccessTestUI, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables or disables fingerprint quick unlock.
 // Note, that this feature is set from session manager via
@@ -2603,10 +2589,6 @@ bool IsFastPairSavedDevicesEnabled() {
   return base::FeatureList::IsEnabled(kFastPairSavedDevices);
 }
 
-bool IsFastPairSavedDevicesStrictOptInEnabled() {
-  return base::FeatureList::IsEnabled(kFastPairSavedDevicesStrictOptIn);
-}
-
 bool IsFilesLocalImageSearchEnabled() {
   return base::FeatureList::IsEnabled(kFilesLocalImageSearch);
 }
@@ -2814,10 +2796,6 @@ bool IsLauncherContinueSectionWithRecentsEnabled() {
   return base::FeatureList::IsEnabled(kLauncherContinueSectionWithRecents) ||
          base::FeatureList::IsEnabled(
              kLauncherContinueSectionWithRecentsRollout);
-}
-
-bool IsLinkCrossDeviceDogfoodFeedbackEnabled() {
-  return base::FeatureList::IsEnabled(kLinkCrossDeviceDogfoodFeedback);
 }
 
 bool IsLinkCrossDeviceInternalsEnabled() {

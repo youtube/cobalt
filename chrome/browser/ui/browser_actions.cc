@@ -298,8 +298,9 @@ void BrowserActions::InitializeSidePanelActions() {
       SidePanelAction(SidePanelEntryId::kCustomizeChrome,
                       IDS_SIDE_PANEL_CUSTOMIZE_CHROME_TITLE,
                       IDS_SIDE_PANEL_CUSTOMIZE_CHROME_TITLE,
-                      features::IsRoundedIconsEnabled()
-                          ? kEditIcon
+                      features::IsRoundedIconsEnabled() ? kEditIcon
+                      : features::IsRoundedIconsEnabled()
+                          ? vector_icons::kEditIcon
                           : vector_icons::kEditChromeRefreshOldIcon,
                       kActionSidePanelShowCustomizeChrome, bwi, false)
           .Build());
@@ -307,13 +308,17 @@ void BrowserActions::InitializeSidePanelActions() {
       SidePanelAction(SidePanelEntryId::kShoppingInsights,
                       IDS_SHOPPING_INSIGHTS_SIDE_PANEL_TITLE,
                       IDS_SHOPPING_INSIGHTS_SIDE_PANEL_TITLE,
-                      vector_icons::kShoppingBagOldIcon,
+                      features::IsRoundedIconsEnabled()
+                          ? vector_icons::kShoppingBagIcon
+                          : vector_icons::kShoppingBagOldIcon,
                       kActionSidePanelShowShoppingInsights, bwi, false)
           .Build());
   root_action_item_->AddChild(
       SidePanelAction(
           SidePanelEntryId::kMerchantTrust, IDS_MERCHANT_TRUST_SIDE_PANEL_TITLE,
-          IDS_MERCHANT_TRUST_SIDE_PANEL_TITLE, vector_icons::kStorefrontOldIcon,
+          IDS_MERCHANT_TRUST_SIDE_PANEL_TITLE,
+          features::IsRoundedIconsEnabled() ? vector_icons::kStorefrontIcon
+                                            : vector_icons::kStorefrontOldIcon,
           kActionSidePanelShowMerchantTrust, bwi, false)
           .Build());
 
@@ -323,7 +328,9 @@ void BrowserActions::InitializeSidePanelActions() {
     root_action_item_->AddChild(
         SidePanelAction(SidePanelEntryId::kHistoryClusters, IDS_HISTORY_TITLE,
                         IDS_HISTORY_CLUSTERS_SHOW_SIDE_PANEL,
-                        vector_icons::kHistoryChromeRefreshOldIcon,
+                        features::IsRoundedIconsEnabled()
+                            ? vector_icons::kHistoryIcon
+                            : vector_icons::kHistoryChromeRefreshOldIcon,
                         kActionSidePanelShowHistoryCluster, bwi, true)
             .Build());
   }
@@ -332,7 +339,9 @@ void BrowserActions::InitializeSidePanelActions() {
     root_action_item_->AddChild(
         SidePanelAction(SidePanelEntryId::kHistory, IDS_HISTORY_TITLE,
                         IDS_HISTORY_SHOW_SIDE_PANEL,
-                        vector_icons::kHistoryChromeRefreshOldIcon,
+                        features::IsRoundedIconsEnabled()
+                            ? vector_icons::kHistoryIcon
+                            : vector_icons::kHistoryChromeRefreshOldIcon,
                         kActionSidePanelShowHistory, bwi, true)
             .Build());
   }
@@ -397,7 +406,9 @@ void BrowserActions::InitializeSidePanelActions() {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
         vector_icons::kGoogleLensMonochromeLogoIcon;
 #else
-        vector_icons::kSearchChromeRefreshOldIcon;
+        features::IsRoundedIconsEnabled()
+            ? vector_icons::kSearchIcon
+            : vector_icons::kSearchChromeRefreshOldIcon;
 #endif
     root_action_item_->AddChild(
         actions::ActionItem::Builder(
@@ -430,7 +441,10 @@ void BrowserActions::InitializeSidePanelActions() {
   // lens side panel coordinator. They have default values here.
   root_action_item_->AddChild(
       SidePanelAction(SidePanelEntryId::kLens, IDS_LENS_DEFAULT_TITLE,
-                      IDS_LENS_DEFAULT_TITLE, vector_icons::kImageSearchOldIcon,
+                      IDS_LENS_DEFAULT_TITLE,
+                      features::IsRoundedIconsEnabled()
+                          ? vector_icons::kImageSearchIcon
+                          : vector_icons::kImageSearchOldIcon,
                       kActionSidePanelShowLens, bwi, false)
           .Build());
 
@@ -439,7 +453,9 @@ void BrowserActions::InitializeSidePanelActions() {
         SidePanelAction(SidePanelEntryId::kComments,
                         IDS_COLLABORATION_SHARED_TAB_GROUPS_COMMENTS_TITLE,
                         IDS_COLLABORATION_SHARED_TAB_GROUPS_COMMENTS_TITLE,
-                        vector_icons::kChatOldIcon,
+                        features::IsRoundedIconsEnabled()
+                            ? vector_icons::kChatIcon
+                            : vector_icons::kChatOldIcon,
                         kActionSidePanelShowComments, bwi, false)
             .Build());
   }
@@ -461,8 +477,8 @@ void BrowserActions::InitializeSidePanelActions() {
                 IDS_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_TITLE))
             .SetTooltipText(l10n_util::GetStringUTF16(
                 IDS_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_TITLE))
-            .SetImage(ui::ImageModel::FromVectorIcon(kDockToRightSparkIcon,
-                                                     ui::kColorIcon))
+            .SetImage(ui::ImageModel::FromVectorIcon(
+                kDockToRightSparkCustomIcon, ui::kColorIcon))
             .SetProperty(
                 actions::kActionItemPinnableKey,
                 static_cast<
@@ -581,7 +597,8 @@ void BrowserActions::InitializePageActionIconActions() {
           .SetTooltipText(l10n_util::GetStringUTF16(
               IDS_JS_OPTIMIZATIONS_DISABLED_ICON_TOOLTIP))
           .SetImage(ui::ImageModel::FromVectorIcon(
-              vector_icons::kV8OffIcon,
+              features::IsRoundedIconsEnabled() ? vector_icons::kV8OffIcon
+                                                : vector_icons::kV8OffOldIcon,
               ui::kColorIcon, ui::SimpleMenuModel::kDefaultIconSize))
           .SetEnabled(true)
           .Build());
@@ -601,8 +618,10 @@ void BrowserActions::InitializePageActionIconActions() {
                 bwi))
             .SetActionId(kActionRecordReplay)
             .SetImage(ui::ImageModel::FromVectorIcon(
-                vector_icons::kScreenRecordOldIcon, ui::kColorIcon,
-                ui::SimpleMenuModel::kDefaultIconSize))
+                features::IsRoundedIconsEnabled()
+                    ? vector_icons::kScreenRecordIcon
+                    : vector_icons::kScreenRecordOldIcon,
+                ui::kColorIcon, ui::SimpleMenuModel::kDefaultIconSize))
             .SetEnabled(true)
             .Build());
   }
@@ -724,7 +743,9 @@ void BrowserActions::InitializePageActionIconActions() {
           .SetTooltipText(l10n_util::GetStringUTF16(
               IDS_SHOPPING_INSIGHTS_ICON_TOOLTIP_TEXT))
           .SetImage(ui::ImageModel::FromVectorIcon(
-              vector_icons::kShoppingBagRefreshOldIcon))
+              features::IsRoundedIconsEnabled()
+                  ? vector_icons::kShoppingBagIcon
+                  : vector_icons::kShoppingBagRefreshOldIcon))
           .Build());
 
   root_action_item_->AddChild(
@@ -757,7 +778,9 @@ void BrowserActions::InitializePageActionIconActions() {
           .SetTooltipText(
               l10n_util::GetStringUTF16(IDS_DISCOUNT_ICON_EXPANDED_TEXT))
           .SetImage(ui::ImageModel::FromVectorIcon(
-              vector_icons::kShoppingmodeOldIcon))
+              features::IsRoundedIconsEnabled()
+                  ? vector_icons::kShoppingmodeIcon
+                  : vector_icons::kShoppingmodeOldIcon))
           .Build());
 
   root_action_item_->AddChild(
@@ -814,7 +837,9 @@ void BrowserActions::InitializeChromeMenuActions() {
               },
               bwi),
           kActionTabSearch, IDS_TAB_SEARCH_MENU, IDS_TAB_SEARCH_MENU,
-          vector_icons::kExpandMoreOldIcon)
+          features::IsRoundedIconsEnabled()
+              ? vector_icons::kKeyboardArrowDownIcon
+              : vector_icons::kExpandMoreOldIcon)
           .SetProperty(
               actions::kActionItemPinnableKey,
               static_cast<std::underlying_type_t<actions::ActionPinnableState>>(
@@ -894,8 +919,9 @@ void BrowserActions::InitializeChromeMenuActions() {
           .SetTooltipText(BrowserActions::GetCleanTitleAndTooltipText(
               l10n_util::GetStringUTF16(IDS_NEW_TAB)))
           .SetImage(ui::ImageModel::FromVectorIcon(
-              features::IsRoundedIconsEnabled() ? kAddIcon
-                                                : vector_icons::kAddOldIcon,
+              features::IsRoundedIconsEnabled()   ? kAddIcon
+              : features::IsRoundedIconsEnabled() ? vector_icons::kAddIcon
+                                                  : vector_icons::kAddOldIcon,
               ui::kColorIcon))
           .Build());
 
@@ -1109,7 +1135,9 @@ void BrowserActions::InitializeChromeMenuActions() {
           kActionShowAddressesBubbleOrPage,
           IDS_ADDRESSES_AND_MORE_SUBMENU_OPTION,
           IDS_ADDRESSES_AND_MORE_SUBMENU_OPTION,
-          vector_icons::kLocationOnChromeRefreshOldIcon)
+          features::IsRoundedIconsEnabled()
+              ? vector_icons::kLocationOnIcon
+              : vector_icons::kLocationOnChromeRefreshOldIcon)
           .SetEnabled(!is_guest_session)
           .Build());
 
@@ -1167,7 +1195,9 @@ void BrowserActions::InitializeChromeMenuActions() {
                 },
                 bwi),
             kActionShowChromeLabs, IDS_CHROMELABS, IDS_CHROMELABS,
-            features::IsRoundedIconsEnabled() ? kScienceIcon : kScienceOldIcon)
+            features::IsRoundedIconsEnabled()   ? kScienceIcon
+            : features::IsRoundedIconsEnabled() ? vector_icons::kScienceIcon
+                                                : kScienceOldIcon)
             .SetVisible(ShouldShowChromeLabsUI(profile))
             .Build());
   }
@@ -1197,7 +1227,10 @@ void BrowserActions::InitializeChromeMenuActions() {
               },
               bwi, tab_strip_model),
           kActionShowPasswordsBubbleOrPage, IDS_VIEW_PASSWORDS,
-          IDS_VIEW_PASSWORDS, vector_icons::kPasswordManagerOldIcon)
+          IDS_VIEW_PASSWORDS,
+          features::IsRoundedIconsEnabled()
+              ? vector_icons::kPasswordManagerIcon
+              : vector_icons::kPasswordManagerOldIcon)
           .SetEnabled(!is_guest_session)
           .Build());
 }
@@ -1335,7 +1368,8 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
             kActionSendSharedTabGroupFeedback,
             IDS_DATA_SHARING_SHARED_GROUPS_FEEDBACK,
             IDS_DATA_SHARING_SHARED_GROUPS_FEEDBACK,
-            vector_icons::kFeedbackOldIcon)
+            features::IsRoundedIconsEnabled() ? vector_icons::kFeedbackIcon
+                                              : vector_icons::kFeedbackOldIcon)
             .Build());
   }
 
@@ -1464,7 +1498,9 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
               vector_icons::kGoogleLensMonochromeLogoIcon
 #else
-              vector_icons::kSearchChromeRefreshOldIcon
+              features::IsRoundedIconsEnabled()
+                  ? vector_icons::kSearchIcon
+                  : vector_icons::kSearchChromeRefreshOldIcon
 #endif
               ))
           .SetText(l10n_util::GetStringUTF16(
@@ -1620,8 +1656,9 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
                 l10n_util::GetStringUTF16(
                     IDS_TAB_GROUP_HEADER_CXMENU_UNFOCUS_GROUP)))
             .SetImage(ui::ImageModel::FromVectorIcon(
-                features::IsRoundedIconsEnabled()
-                    ? kArrowBackIcon
+                features::IsRoundedIconsEnabled() ? kArrowBackIcon
+                : features::IsRoundedIconsEnabled()
+                    ? vector_icons::kArrowBackIcon
                     : vector_icons::kArrowBackOldIcon,
                 ui::kColorIcon))
             .Build());
@@ -1644,8 +1681,9 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
             .SetText(l10n_util::GetStringUTF16(IDS_APPMENU_TOOLTIP))
             .SetTooltipText(l10n_util::GetStringUTF16(IDS_APPMENU_TOOLTIP))
             .SetImage(ui::ImageModel::FromVectorIcon(
-                vector_icons::kMicOldIcon, ui::kColorIcon,
-                ui::SimpleMenuModel::kDefaultIconSize))
+                features::IsRoundedIconsEnabled() ? vector_icons::kMicFilledIcon
+                                                  : vector_icons::kMicOldIcon,
+                ui::kColorIcon, ui::SimpleMenuModel::kDefaultIconSize))
             .SetProperty(
                 actions::kActionItemPinnableKey,
                 static_cast<
@@ -1714,8 +1752,9 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
           .SetTooltipText(l10n_util::GetStringUTF16(
               IDS_INDIGO_ENTRYPOINT_CHIP_TOOLTIP_TEXT))
           .SetImage(ui::ImageModel::FromVectorIcon(
-              vector_icons::kCodeOldIcon, ui::kColorIcon,
-              ui::SimpleMenuModel::kDefaultIconSize))
+              features::IsRoundedIconsEnabled() ? vector_icons::kCodeIcon
+                                                : vector_icons::kCodeOldIcon,
+              ui::kColorIcon, ui::SimpleMenuModel::kDefaultIconSize))
           .SetText(l10n_util::GetStringUTF16(IDS_INDIGO_ENTRYPOINT_CHIP_TEXT))
           .Build());
 

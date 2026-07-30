@@ -90,7 +90,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="V8.CodeCacheRejectReason" enum="V8CodeCacheRejectReason"
-    expires_after="2026-09-20">
+    expires_after="2026-11-22">
   <owner>marja@chromium.org</owner>
   <owner>v8-runtime@chromium.org</owner>
   <summary>
@@ -233,6 +233,24 @@ chromium-metrics-reviews@google.com.
     <variant name="Background" summary="background"/>
     <variant name="Foreground" summary="foreground"/>
   </token>
+</histogram>
+
+<histogram name="V8.ESMImportGraphDepth" units="depth" expires_after="M150">
+  <owner>olivf@chromium.org</owner>
+  <owner>v8-runtime@google.com</owner>
+  <summary>
+    Records the maximum depth of an ES module import graph. Recorded upon
+    successful module graph instantiation in V8.
+  </summary>
+</histogram>
+
+<histogram name="V8.ESMModulesPerPage" units="modules" expires_after="M150">
+  <owner>olivf@chromium.org</owner>
+  <owner>v8-runtime@google.com</owner>
+  <summary>
+    Records the total number of ES modules instantiated in a top-level module
+    import graph. Recorded upon successful module graph instantiation in V8.
+  </summary>
 </histogram>
 
 <histogram name="V8.ExecuteMicroSeconds" units="microseconds"
@@ -1914,7 +1932,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="V8.WasmModuleNumberOfCodeGCsTriggered" units="gcs"
-    expires_after="2026-09-20">
+    expires_after="2026-11-22">
   <owner>ecmziegler@chromium.org</owner>
   <owner>clemensb@chromium.org</owner>
   <owner>wasm-runtime@google.com</owner>

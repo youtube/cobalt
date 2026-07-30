@@ -64,15 +64,15 @@ using ResIdAndShardId = SqlPersistentStore::ResIdAndShardId;
 using StoreStatus = SqlPersistentStore::StoreStatus;
 using EntryInfoWithKeyAndIterator =
     SqlPersistentStore::EntryInfoWithKeyAndIterator;
-using ResIdList = SqlPersistentStore::ResIdList;
+using HashAndResIdList = SqlPersistentStore::HashAndResIdList;
 using EntryInfoOrError = SqlPersistentStore::EntryInfoOrError;
 using EntryInfoOrErrorAndStoreStatus =
     SqlPersistentStore::EntryInfoOrErrorAndStoreStatus;
 using OptionalEntryInfoOrError = SqlPersistentStore::OptionalEntryInfoOrError;
 using ErrorAndStoreStatus = SqlPersistentStore::ErrorAndStoreStatus;
-using ResIdListOrErrorAndStoreStatus =
-    SqlPersistentStore::ResIdListOrErrorAndStoreStatus;
-using ResIdListOrError = SqlPersistentStore::ResIdListOrError;
+using HashAndResIdListOrErrorAndStoreStatus =
+    SqlPersistentStore::HashAndResIdListOrErrorAndStoreStatus;
+using HashAndResIdListOrError = SqlPersistentStore::HashAndResIdListOrError;
 using ResIdOrError = SqlPersistentStore::ResIdOrError;
 using ResIdOrErrorAndStoreStatus =
     SqlPersistentStore::ResIdOrErrorAndStoreStatus;
@@ -154,7 +154,7 @@ void PopulateTraceDetails(
     dict.Add("entry_info", "not found");
   }
 }
-void PopulateTraceDetails(const ResIdList& result,
+void PopulateTraceDetails(const HashAndResIdList& result,
                           perfetto::TracedDictionary& dict) {
   dict.Add("doomed_entry_count", result.size());
 }
@@ -165,7 +165,7 @@ void PopulateTraceDetails(const InMemoryIndexAndDoomedResIds& result,
 }
 void PopulateTraceDetails(const SqlPersistentStore::EvictionResult& result,
                           perfetto::TracedDictionary& dict) {
-  dict.Add("deleted", result.deleted_res_ids.size());
+  dict.Add("deleted", result.deleted_hash_and_res_ids.size());
   dict.Add("pending", result.pending_eviction_targets.size());
 }
 void PopulateTraceDetails(Error error,
@@ -685,7 +685,7 @@ ErrorAndStoreStatus SqlPersistentStore::Backend::DoomEntry(
                      });
   base::ElapsedTimer timer;
   bool corruption_detected = false;
-  auto result = DoomEntryInternal(res_id, corruption_detected);
+  auto result = DoomEntryInternal(key, res_id, corruption_detected);
   RecordTimeAndErrorResultHistogram("DoomEntry", posting_delay, timer.Elapsed(),
                                     result, corruption_detected);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.DoomEntry", "result",
@@ -699,6 +699,7 @@ ErrorAndStoreStatus SqlPersistentStore::Backend::DoomEntry(
 }
 
 Error SqlPersistentStore::Backend::DoomEntryInternal(
+    const CacheEntryKey& key,
     ResId res_id,
     bool& corruption_detected) {
   if (auto db_error = CheckDatabaseStatus(); db_error != Error::kOk) {
@@ -717,6 +718,7 @@ Error SqlPersistentStore::Backend::DoomEntryInternal(
     sql::Statement statement(db_.GetCachedStatement(
         SQL_FROM_HERE, GetQuery(Query::kDoomEntry_MarkDoomedResources)));
     statement.BindInt64(0, res_id.value());
+    statement.BindString(1, key.string());
     // Iterate through the rows returned by the RETURNING clause.
     while (statement.Step()) {
       // Since we're dooming an entry, its size is subtracted from the total.
@@ -865,9 +867,9 @@ Error SqlPersistentStore::Backend::DeleteDoomedEntriesInternal(
   return transaction.Commit() ? Error::kOk : Error::kFailedToCommitTransaction;
 }
 
-ResIdListOrErrorAndStoreStatus SqlPersistentStore::Backend::DeleteLiveEntry(
-    const CacheEntryKey& key,
-    base::TimeTicks start_time) {
+HashAndResIdListOrErrorAndStoreStatus
+SqlPersistentStore::Backend::DeleteLiveEntry(const CacheEntryKey& key,
+                                             base::TimeTicks start_time) {
   const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.DeleteLiveEntry", "data",
                      [&](perfetto::TracedValue trace_context) {
@@ -888,10 +890,11 @@ ResIdListOrErrorAndStoreStatus SqlPersistentStore::Backend::DeleteLiveEntry(
                      dict.Add("corruption_detected", corruption_detected);
                    });
   MaybeCrashIfCorrupted(corruption_detected);
-  return ResIdListOrErrorAndStoreStatus(std::move(result), store_status_);
+  return HashAndResIdListOrErrorAndStoreStatus(std::move(result),
+                                               store_status_);
 }
 
-ResIdListOrError SqlPersistentStore::Backend::DeleteLiveEntryInternal(
+HashAndResIdListOrError SqlPersistentStore::Backend::DeleteLiveEntryInternal(
     const CacheEntryKey& key,
     bool& corruption_detected) {
   if (auto db_error = CheckDatabaseStatus(); db_error != Error::kOk) {
@@ -904,7 +907,7 @@ ResIdListOrError SqlPersistentStore::Backend::DeleteLiveEntryInternal(
 
   // We need to collect the res_ids of deleted entries to later remove their
   // corresponding data from the `blobs` table.
-  ResIdList res_ids_to_be_deleted;
+  HashAndResIdList to_be_deleted_hash_and_res_ids;
   // Use checked numerics to safely update the total cache size.
   base::CheckedNumeric<int64_t> total_size_delta = 0;
   {
@@ -914,21 +917,21 @@ ResIdListOrError SqlPersistentStore::Backend::DeleteLiveEntryInternal(
     statement.BindString(1, key.string());
     while (statement.Step()) {
       const auto res_id = ResId(statement.ColumnInt64(0));
-      res_ids_to_be_deleted.emplace_back(res_id);
+      to_be_deleted_hash_and_res_ids.push_back({key.hash(), res_id});
       // The size of the deleted entry is subtracted from the total.
       total_size_delta -= statement.ColumnInt64(1);
     }
   }
 
   // If no entries were deleted, the key wasn't found.
-  if (res_ids_to_be_deleted.empty()) {
+  if (to_be_deleted_hash_and_res_ids.empty()) {
     return transaction.Commit()
                ? base::unexpected(Error::kNotFound)
                : base::unexpected(Error::kFailedToCommitTransaction);
   }
 
   // Delete the blobs associated with the deleted entries.
-  if (Error delete_result = DeleteBlobsByResIds(res_ids_to_be_deleted);
+  if (Error delete_result = DeleteBlobsByResIds(to_be_deleted_hash_and_res_ids);
       delete_result != Error::kOk) {
     // If blob deletion fails, returns the error. The transaction will be
     // rolled back. So no need to return `deleted_enties`.
@@ -941,19 +944,19 @@ ResIdListOrError SqlPersistentStore::Backend::DeleteLiveEntryInternal(
   if (corruption_detected || !total_size_delta.IsValid()) {
     corruption_detected = true;
     auto error = RecalculateStoreStatusAndCommitTransaction(transaction);
-    return error == Error::kOk
-               ? ResIdListOrError(std::move(res_ids_to_be_deleted))
-               : base::unexpected(error);
+    return error == Error::kOk ? HashAndResIdListOrError(
+                                     std::move(to_be_deleted_hash_and_res_ids))
+                               : base::unexpected(error);
   }
 
   auto error = UpdateStoreStatusAndCommitTransaction(
       transaction,
       /*entry_count_delta=*/
-      -static_cast<int64_t>(res_ids_to_be_deleted.size()),
+      -static_cast<int64_t>(to_be_deleted_hash_and_res_ids.size()),
       /*total_size_delta=*/total_size_delta.ValueOrDie(), corruption_detected);
-  return error == Error::kOk
-             ? ResIdListOrError(std::move(res_ids_to_be_deleted))
-             : base::unexpected(error);
+  return error == Error::kOk ? HashAndResIdListOrError(
+                                   std::move(to_be_deleted_hash_and_res_ids))
+                             : base::unexpected(error);
 }
 
 ErrorAndStoreStatus SqlPersistentStore::Backend::DeleteAllEntries(
@@ -1016,7 +1019,7 @@ Error SqlPersistentStore::Backend::DeleteAllEntriesInternal(
       /*total_size_delta=*/-store_status_.total_size, corruption_detected);
 }
 
-ResIdListOrErrorAndStoreStatus
+HashAndResIdListOrErrorAndStoreStatus
 SqlPersistentStore::Backend::DeleteLiveEntriesBetween(
     base::Time initial_time,
     base::Time end_time,
@@ -1047,10 +1050,12 @@ SqlPersistentStore::Backend::DeleteLiveEntriesBetween(
                      PopulateTraceDetails(result, store_status_, dict);
                    });
   MaybeCrashIfCorrupted(corruption_detected);
-  return ResIdListOrErrorAndStoreStatus(std::move(result), store_status_);
+  return HashAndResIdListOrErrorAndStoreStatus(std::move(result),
+                                               store_status_);
 }
 
-ResIdListOrError SqlPersistentStore::Backend::DeleteLiveEntriesBetweenInternal(
+HashAndResIdListOrError
+SqlPersistentStore::Backend::DeleteLiveEntriesBetweenInternal(
     base::Time initial_time,
     base::Time end_time,
     const base::flat_set<ResId>& excluded_res_ids,
@@ -1063,7 +1068,7 @@ ResIdListOrError SqlPersistentStore::Backend::DeleteLiveEntriesBetweenInternal(
     return base::unexpected(Error::kFailedToStartTransaction);
   }
 
-  ResIdList res_ids_to_be_deleted;
+  HashAndResIdList to_be_deleted_hash_and_res_ids;
   base::CheckedNumeric<int64_t> total_size_delta = 0;
   {
     sql::Statement statement(db_.GetCachedStatement(
@@ -1076,21 +1081,31 @@ ResIdListOrError SqlPersistentStore::Backend::DeleteLiveEntriesBetweenInternal(
       if (excluded_res_ids.contains(res_id)) {
         continue;
       }
-      res_ids_to_be_deleted.emplace_back(res_id);
+      // The hash is initially set to a placeholder and will be populated with
+      // the actual value during the deletion phase (via the RETURNING clause).
+      // This allows the initial selection query to remain an index-only scan
+      // using a covering index, which is significantly faster than fetching the
+      // hash at this stage.
+      to_be_deleted_hash_and_res_ids.push_back(
+          {CacheEntryKey::Hash(0), res_id});
       total_size_delta -= statement.ColumnInt64(1);
     }
   }
 
   // Delete the blobs associated with the entries to be deleted.
-  if (auto error = DeleteBlobsByResIds(res_ids_to_be_deleted);
+  if (auto error = DeleteBlobsByResIds(to_be_deleted_hash_and_res_ids);
       error != Error::kOk) {
     return base::unexpected(error);
   }
 
   // Delete the selected entries from the `resources` table.
-  if (auto error = DeleteResourcesByResIds(res_ids_to_be_deleted);
-      error != Error::kOk) {
-    return base::unexpected(error);
+  for (auto& hash_and_res_id : to_be_deleted_hash_and_res_ids) {
+    auto hash_or_error =
+        DeleteResourceByResIdReturnHash(hash_and_res_id.res_id);
+    if (!hash_or_error.has_value()) {
+      return base::unexpected(hash_or_error.error());
+    }
+    hash_and_res_id.hash = *hash_or_error;
   }
 
   // If we detected corruption, or if the size update calculation overflowed,
@@ -1099,19 +1114,19 @@ ResIdListOrError SqlPersistentStore::Backend::DeleteLiveEntriesBetweenInternal(
   if (corruption_detected || !total_size_delta.IsValid()) {
     corruption_detected = true;
     auto error = RecalculateStoreStatusAndCommitTransaction(transaction);
-    return error == Error::kOk
-               ? ResIdListOrError(std::move(res_ids_to_be_deleted))
-               : base::unexpected(error);
+    return error == Error::kOk ? HashAndResIdListOrError(
+                                     std::move(to_be_deleted_hash_and_res_ids))
+                               : base::unexpected(error);
   }
 
   // Update the in-memory and on-disk store status (entry count and total size)
   // and commit the transaction.
   auto error = UpdateStoreStatusAndCommitTransaction(
-      transaction, -static_cast<int64_t>(res_ids_to_be_deleted.size()),
+      transaction, -static_cast<int64_t>(to_be_deleted_hash_and_res_ids.size()),
       total_size_delta.ValueOrDie(), corruption_detected);
-  return error == Error::kOk
-             ? ResIdListOrError(std::move(res_ids_to_be_deleted))
-             : base::unexpected(error);
+  return error == Error::kOk ? HashAndResIdListOrError(
+                                   std::move(to_be_deleted_hash_and_res_ids))
+                             : base::unexpected(error);
 }
 
 Error SqlPersistentStore::Backend::UpdateEntryLastUsedByKey(
@@ -1466,6 +1481,9 @@ ResIdOrErrorAndStoreStatus SqlPersistentStore::Backend::WriteEntryData(
     EntryWriteBuffer buffer,
     bool truncate,
     bool doomed_new_entry,
+    bool sparse_write,
+    int64_t header_size,
+    int64_t max_sparse_data_size,
     base::TimeTicks start_time) {
   const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.WriteEntryData", "data",
@@ -1492,7 +1510,8 @@ ResIdOrErrorAndStoreStatus SqlPersistentStore::Backend::WriteEntryData(
   bool corruption_detected = false;
   auto result = WriteEntryDataInternal(
       key, res_id_or_last_used_time, old_body_end, std::move(buffer), truncate,
-      doomed_new_entry, corruption_detected);
+      doomed_new_entry, sparse_write, header_size, max_sparse_data_size,
+      corruption_detected);
   RecordTimeAndErrorResultHistogram(
       "WriteEntryData", posting_delay, timer.Elapsed(),
       result.has_value() ? Error::kOk : result.error(), corruption_detected);
@@ -1507,6 +1526,40 @@ ResIdOrErrorAndStoreStatus SqlPersistentStore::Backend::WriteEntryData(
   return ResIdOrErrorAndStoreStatus(result, store_status_);
 }
 
+base::expected<SqlPersistentStore::Backend::UpdateResourceResult,
+               SqlPersistentStore::Error>
+SqlPersistentStore::Backend::UpdateResourceForWriteEntry(
+    ResId res_id,
+    int64_t body_end_delta,
+    int64_t total_size_delta,
+    int64_t expected_new_body_end,
+    bool& corruption_detected) {
+  sql::Statement statement(db_.GetCachedStatement(
+      SQL_FROM_HERE, GetQuery(Query::kWriteEntryData_UpdateResource)));
+  statement.BindInt64(0, body_end_delta);
+  statement.BindInt64(1, total_size_delta);
+  statement.BindInt64(2, res_id.value());
+  if (!statement.Step()) {
+    return base::unexpected(Error::kNotFound);
+  }
+
+  // Consistency check: The `RETURNING` clause gives us the `body_end` value
+  // after the update. If this doesn't match our calculated
+  // `expected_new_body_end`, it means the `body_end` in the database was not
+  // the `old_body_end` we expected. This indicates data corruption, so we
+  // return an error.
+  const int64_t returned_new_body_end = statement.ColumnInt64(0);
+  if (returned_new_body_end != expected_new_body_end) {
+    corruption_detected = true;
+    return base::unexpected(Error::kBodyEndMismatch);
+  }
+
+  return UpdateResourceResult{
+      .doomed = statement.ColumnBool(1),
+      .bytes_usage = statement.ColumnInt64(2),
+  };
+}
+
 ResIdOrError SqlPersistentStore::Backend::WriteEntryDataInternal(
     const CacheEntryKey& key,
     const ResIdOrTime& res_id_or_last_used_time,
@@ -1514,6 +1567,9 @@ ResIdOrError SqlPersistentStore::Backend::WriteEntryDataInternal(
     EntryWriteBuffer buffer,
     bool truncate,
     bool doomed_new_entry,
+    bool sparse_write,
+    int64_t header_size,
+    int64_t max_sparse_data_size,
     bool& corruption_detected) {
   if (auto db_error = CheckDatabaseStatus(); db_error != Error::kOk) {
     return base::unexpected(db_error);
@@ -1559,6 +1615,12 @@ ResIdOrError SqlPersistentStore::Backend::WriteEntryDataInternal(
     res_id = std::get<ResId>(res_id_or_last_used_time);
   }
 
+  const int64_t current_buffer_offset = buffer.offset;
+  int64_t current_buffer_end = 0;
+  if (!base::CheckAdd<int64_t>(current_buffer_offset, buffer.size)
+           .AssignIfValid(&current_buffer_end)) {
+    return base::unexpected(SqlPersistentStore::Error::kInvalidArgument);
+  }
   int64_t body_end_delta = 0;
   int64_t new_body_end = 0;
 
@@ -1588,30 +1650,56 @@ ResIdOrError SqlPersistentStore::Backend::WriteEntryDataInternal(
   } else if (body_end_delta || total_size_delta) {
     // Update the entry's metadata in the `resources` table if the body size
     // changed or if the total size of blobs changed.
-    sql::Statement statement(db_.GetCachedStatement(
-        SQL_FROM_HERE, GetQuery(Query::kWriteEntryData_UpdateResource)));
-    statement.BindInt64(0, body_end_delta);
-    statement.BindInt64(1, total_size_delta);
-    statement.BindInt64(2, res_id.value());
-    if (statement.Step()) {
-      // Consistency check: The `RETURNING` clause gives us the `body_end` value
-      // after the update. If this doesn't match our calculated `new_body_end`,
-      // it means the `body_end` in the database was not the `old_body_end` we
-      // expected. This indicates data corruption, so we return an error.
-      const int64_t returned_new_body_end = statement.ColumnInt64(0);
-      if (returned_new_body_end != new_body_end) {
-        corruption_detected = true;
-        return base::unexpected(Error::kBodyEndMismatch);
+    auto update_result =
+        UpdateResourceForWriteEntry(res_id, body_end_delta, total_size_delta,
+                                    new_body_end, corruption_detected);
+    if (!update_result.has_value()) {
+      return base::unexpected(update_result.error());
+    }
+
+    // If the entry is doomed, its size is no longer tracked in the cache's
+    // total size, so we don't update the store status.
+    if (update_result->doomed) {
+      total_size_delta = 0;
+    }
+
+    // Truncate older sparse data if the total sparse size exceeds the limit.
+    // This prevents a single entry from growing indefinitely and triggering
+    // excessive cache evictions.
+    if (sparse_write && !is_new_entry) {
+      const int64_t total_sparse_data_size =
+          update_result->bytes_usage - key.string().size() - header_size;
+      if (total_sparse_data_size > max_sparse_data_size) {
+        base::CheckedNumeric<int64_t> checked_trim_delta = 0;
+        // Trim data before and after the current write range.
+        if (Error result = TrimOverlappingBlobs(
+                key, res_id, /*offset=*/0, /*end=*/current_buffer_offset,
+                /*truncate=*/false, checked_trim_delta, corruption_detected);
+            result != Error::kOk) {
+          return base::unexpected(result);
+        }
+        if (Error result = TrimOverlappingBlobs(
+                key, res_id, /*offset=*/current_buffer_end,
+                /*end=*/std::numeric_limits<int64_t>::max(),
+                /*truncate=*/false, checked_trim_delta, corruption_detected);
+            result != Error::kOk) {
+          return base::unexpected(result);
+        }
+        // Update the entry's metadata in the `resources` table if the body size
+        // changed or if the total size of blobs changed.
+        if (checked_trim_delta.ValueOrDefault(0) != 0) {
+          auto trim_update_result = UpdateResourceForWriteEntry(
+              res_id, /*body_end_delta=*/0, checked_trim_delta.ValueOrDie(),
+              new_body_end, corruption_detected);
+          if (!trim_update_result.has_value()) {
+            return base::unexpected(trim_update_result.error());
+          }
+          if (!trim_update_result->doomed) {
+            total_size_delta +=
+                static_cast<int64_t>(checked_trim_delta.ValueOrDie());
+          }
+        }
       }
-      // If the entry is doomed, its size is no longer tracked in the cache's
-      // total size, so we don't update the store status.
-      const bool doomed = statement.ColumnBool(1);
-      if (doomed) {
-        total_size_delta = 0;
-      }
-    } else {
-      // If no rows were updated, it means the entry was not found.
-      return base::unexpected(Error::kNotFound);
     }
   }
 
@@ -1906,6 +1994,18 @@ Error SqlPersistentStore::Backend::DeleteBlobsByResIds(
   return Error::kOk;
 }
 
+Error SqlPersistentStore::Backend::DeleteBlobsByResIds(
+    const HashAndResIdList& hash_and_res_ids) {
+  TRACE_EVENT0("disk_cache", "SqlBackend.DeleteBlobsByResIds");
+  for (const auto& hash_and_res_id : hash_and_res_ids) {
+    if (auto error = DeleteBlobsByResId(hash_and_res_id.res_id);
+        error != Error::kOk) {
+      return error;
+    }
+  }
+  return Error::kOk;
+}
+
 Error SqlPersistentStore::Backend::DeleteResourceByResId(ResId res_id) {
   TRACE_EVENT0("disk_cache", "SqlBackend.DeleteResourceByResId");
   sql::Statement delete_resource_stmt(db_.GetCachedStatement(
@@ -1918,16 +2018,45 @@ Error SqlPersistentStore::Backend::DeleteResourceByResId(ResId res_id) {
   return Error::kOk;
 }
 
-Int64OrError SqlPersistentStore::Backend::DeleteLiveResourceByResIdReturnUsage(
-    ResId res_id) {
-  TRACE_EVENT0("disk_cache", "SqlBackend.DeleteLiveResourceByResIdReturnUsage");
+SqlPersistentStore::HashOrError
+SqlPersistentStore::Backend::DeleteResourceByResIdReturnHash(ResId res_id) {
+  TRACE_EVENT0("disk_cache", "SqlBackend.DeleteResourceByResIdReturnHash");
   sql::Statement delete_resource_stmt(db_.GetCachedStatement(
-      SQL_FROM_HERE, GetQuery(Query::kDeleteLiveResourceByResIdReturnUsage)));
+      SQL_FROM_HERE, GetQuery(Query::kDeleteResourceByResIdReturnHash)));
   delete_resource_stmt.BindInt64(0, res_id.value());
   if (delete_resource_stmt.Step()) {
-    return delete_resource_stmt.ColumnInt64(0);
+    return CacheEntryKey::Hash(delete_resource_stmt.ColumnInt(0));
   }
   return base::unexpected(Error::kNotFound);
+}
+
+SqlPersistentStore::UsageAndHashOrError
+SqlPersistentStore::Backend::DeleteLiveResourceByResIdReturnUsageAndHash(
+    ResId res_id) {
+  TRACE_EVENT0("disk_cache",
+               "SqlBackend.DeleteLiveResourceByResIdReturnUsageAndHash");
+  sql::Statement delete_resource_stmt(db_.GetCachedStatement(
+      SQL_FROM_HERE,
+      GetQuery(Query::kDeleteLiveResourceByResIdReturnUsageAndHash)));
+  delete_resource_stmt.BindInt64(0, res_id.value());
+  if (delete_resource_stmt.Step()) {
+    return SqlPersistentStore::UsageAndHash{
+        .bytes_usage = delete_resource_stmt.ColumnInt64(0),
+        .hash = CacheEntryKey::Hash(delete_resource_stmt.ColumnInt(1))};
+  }
+  return base::unexpected(Error::kNotFound);
+}
+
+Error SqlPersistentStore::Backend::DeleteResourcesByResIds(
+    const HashAndResIdList& hash_and_res_ids) {
+  TRACE_EVENT0("disk_cache", "SqlBackend.DeleteResourcesByResIds");
+  for (const auto& hash_and_res_id : hash_and_res_ids) {
+    if (auto error = DeleteResourceByResId(hash_and_res_id.res_id);
+        error != Error::kOk) {
+      return error;
+    }
+  }
+  return Error::kOk;
 }
 
 Error SqlPersistentStore::Backend::DeleteResourcesByResIds(
@@ -2543,7 +2672,7 @@ EvictionResultOrError SqlPersistentStore::Backend::EvictEntriesHelper(
   if (auto db_error = CheckDatabaseStatus(); db_error != Error::kOk) {
     return base::unexpected(db_error);
   }
-  ResIdList deleted_res_ids;
+  HashAndResIdList deleted_hash_and_res_ids;
   while (!eviction_targets.empty()) {
     const auto res_id = eviction_targets.front().res_id;
     const auto entry_size_with_overhead =
@@ -2566,30 +2695,35 @@ EvictionResultOrError SqlPersistentStore::Backend::EvictEntriesHelper(
     }
 
     int64_t deleted_byte = 0;
+    CacheEntryKey::Hash cache_key_hash;
     if (trust_target_size) {
-      if (auto error = DeleteResourceByResId(res_id); error != Error::kOk) {
-        return base::unexpected(error);
+      auto hash_or_error = DeleteResourceByResIdReturnHash(res_id);
+      if (!hash_or_error.has_value()) {
+        return base::unexpected(hash_or_error.error());
       }
+      cache_key_hash = *hash_or_error;
       // store_status_.total_size tracks payload only, so subtract overhead.
       deleted_byte = entry_size_with_overhead - kSqlBackendStaticResourceSize;
     } else {
-      auto usage_or_error = DeleteLiveResourceByResIdReturnUsage(res_id);
-      if (!usage_or_error.has_value()) {
-        // DeleteLiveResourceByResIdReturnUsage() only returns kNotFound as an
-        // error. In that case, continue eviction by ignoring the entry instead
-        // of aborting.
-        CHECK_EQ(usage_or_error.error(), Error::kNotFound);
+      auto usage_and_hash_or_error =
+          DeleteLiveResourceByResIdReturnUsageAndHash(res_id);
+      if (!usage_and_hash_or_error.has_value()) {
+        // DeleteLiveResourceByResIdReturnUsageAndHash() only returns kNotFound
+        // as an error. In that case, continue eviction by ignoring the entry
+        // instead of aborting.
+        CHECK_EQ(usage_and_hash_or_error.error(), Error::kNotFound);
         eviction_targets.pop();
         continue;
       }
-      deleted_byte = *usage_or_error;
+      deleted_byte = usage_and_hash_or_error->bytes_usage;
+      cache_key_hash = usage_and_hash_or_error->hash;
     }
 
     if (auto error = DeleteBlobsByResId(res_id); error != Error::kOk) {
       return base::unexpected(error);
     }
 
-    deleted_res_ids.emplace_back(res_id);
+    deleted_hash_and_res_ids.push_back({cache_key_hash, res_id});
     if (const auto error = UpdateStoreStatusAndCommitTransaction(
             transaction, -1, -deleted_byte, corruption_detected);
         error != Error::kOk) {
@@ -2600,7 +2734,7 @@ EvictionResultOrError SqlPersistentStore::Backend::EvictEntriesHelper(
         std::memory_order_relaxed);
     eviction_targets.pop();
   }
-  return EvictionResult(std::move(deleted_res_ids),
+  return EvictionResult(std::move(deleted_hash_and_res_ids),
                         std::move(eviction_targets));
 }
 
@@ -2734,6 +2868,19 @@ SqlPersistentStore::Backend::LoadInMemoryIndexInternal() {
   SqlPersistentStoreInMemoryIndex index;
   ResIdList doomed_entry_res_ids;
   base::ElapsedTimer timer;
+
+  absl::flat_hash_map<ResId, MemoryEntryDataHints> hints_map;
+  {
+    sql::Statement statement(db_.GetCachedStatement(
+        SQL_FROM_HERE,
+        GetQuery(Query::kLoadInMemoryIndex_SelectHintsFromLiveResources)));
+    while (statement.Step()) {
+      const auto res_id = ResId(statement.ColumnInt64(0));
+      const auto hints = MemoryEntryDataHints(statement.ColumnInt(1));
+      hints_map[res_id] = hints;
+    }
+  }
+
   {
     sql::Statement statement(db_.GetCachedStatement(
         SQL_FROM_HERE,
@@ -2747,19 +2894,20 @@ SqlPersistentStore::Backend::LoadInMemoryIndexInternal() {
         doomed_entry_res_ids.emplace_back(res_id);
       } else {
         index.Insert(key_hash, res_id);
+        auto it = hints_map.find(res_id);
+        if (it != hints_map.end()) {
+          index.SetEntryDataHints(key_hash, res_id, it->second);
+        }
       }
     }
   }
-  {
-    sql::Statement statement(db_.GetCachedStatement(
-        SQL_FROM_HERE,
-        GetQuery(Query::kLoadInMemoryIndex_SelectHintsFromLiveResources)));
-    while (statement.Step()) {
-      const auto res_id = ResId(statement.ColumnInt64(0));
-      const auto hints = MemoryEntryDataHints(statement.ColumnInt(1));
-      index.SetEntryDataHints(res_id, hints);
-    }
+
+  if (index.size() > 0) {
+    base::UmaHistogramPercentage(
+        "Net.SqlDiskCache.EntriesWithHintsPercentage",
+        static_cast<int>(hints_map.size() * 100 / index.size()));
   }
+
   base::UmaHistogramMicrosecondsTimes(
       base::StrCat(
           {kSqlDiskCacheBackendHistogramPrefix, "LoadInMemoryIndexTime"}),

@@ -351,6 +351,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="WebAuthentication.Enclave.GetAccessTokenError"
+    enum="GoogleServiceAuthError" expires_after="2026-12-31">
+  <owner>ylahodiuk@google.com</owner>
+  <owner>chrome-webauthn@google.com</owner>
+  <summary>
+    Records the error outcome of fetching an access token for the state machine
+    of Enclave Manager. Records either success (in case there were no errors) or
+    the specific Gaia error.
+  </summary>
+</histogram>
+
 <histogram name="WebAuthentication.Enclave.OpportunisticStoreKeysOutcome"
     enum="EnclaveManagerActionOutcome" expires_after="2026-12-09">
   <owner>ylahodiuk@google.com</owner>
@@ -386,7 +397,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebAuthentication.EnclaveEvent"
-    enum="WebAuthenticationEnclaveEvent" expires_after="2026-09-20">
+    enum="WebAuthenticationEnclaveEvent" expires_after="2026-11-22">
   <owner>agl@chromium.org</owner>
   <owner>chrome-webauthn@google.com</owner>
   <summary>
@@ -847,7 +858,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebAuthentication.Windows.KeyCredentialCreation"
-    enum="WindowsKeyCredentialCreateResult" expires_after="2026-09-20">
+    enum="WindowsKeyCredentialCreateResult" expires_after="2026-11-22">
   <owner>kenrb@chromium.org</owner>
   <owner>chrome-webauthn@google.com</owner>
   <summary>

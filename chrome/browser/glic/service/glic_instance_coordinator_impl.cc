@@ -20,6 +20,7 @@
 #include "chrome/browser/glic/common/glic_tab_observer.h"
 #include "chrome/browser/glic/common/instance_independent_hotkey_manager.h"
 #include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/host/context/glic_active_instance_sharing_manager.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_web_contents_warming_pool.h"
 #include "chrome/browser/glic/host/guest_util.h"
@@ -91,18 +92,25 @@ GlicInstanceCoordinatorImpl::GlicInstanceCoordinatorImpl(
           this),
       metrics_(this),
       web_contents_warming_pool_(
-          std::make_unique<GlicWebContentsWarmingPool>(profile)) {
+          std::make_unique<GlicWebContentsWarmingPool>(profile)),
+      active_instance_sharing_manager_(
+          std::make_unique<GlicActiveInstanceSharingManager>(profile,
+                                                             enabling)) {
   if (identity_manager) {
     identity_manager_observation_.Observe(identity_manager);
   }
   tab_observer_ = GlicTabObserver::Create(
       profile_, base::BindRepeating(&GlicInstanceCoordinatorImpl::OnTabEvent,
                                     weak_ptr_factory_.GetWeakPtr()));
-  hotkey_manager_ = std::make_unique<InstanceIndependentHotkeyManager>(this);
+  hotkey_manager_ =
+      std::make_unique<InstanceIndependentHotkeyManager>(this, profile_);
   metrics_.StartPeriodicMemoryMetricsRecording();
 }
 
 GlicInstanceCoordinatorImpl::~GlicInstanceCoordinatorImpl() {
+  CHECK(active_instance_sharing_manager_);
+  active_instance_sharing_manager_->SetActiveSharingManager(nullptr);
+
   for (auto& [id, instance] : instances_) {
     instance->CloseInstanceAndShutdown();
   }
@@ -131,6 +139,12 @@ void GlicInstanceCoordinatorImpl::OnInstanceActivationChanged(
     active_instance_ = nullptr;
   } else {
     return;
+  }
+  if (active_instance_) {
+    active_instance_sharing_manager_->SetActiveSharingManager(
+        &active_instance_->sharing_manager());
+  } else {
+    active_instance_sharing_manager_->SetActiveSharingManager(nullptr);
   }
   NotifyActiveInstanceChanged();
   ComputeContentAccessIndicator();
@@ -511,6 +525,12 @@ GlicInstance* GlicInstanceCoordinatorImpl::GetActiveInstance() {
   return active_instance_;
 }
 
+GlicSharingManager&
+GlicInstanceCoordinatorImpl::active_instance_sharing_manager() {
+  CHECK(active_instance_sharing_manager_);
+  return *active_instance_sharing_manager_;
+}
+
 GlicInstanceImpl* GlicInstanceCoordinatorImpl::GetInstanceImplForConversationId(
     const std::string& conversation_id) const {
   for (const auto& [id, instance] : instances_) {
@@ -764,13 +784,6 @@ void GlicInstanceCoordinatorImpl::SwitchConversation(
   mutable_options.focus_on_show = source_instance.HasFocus();
   mutable_options.reinitialize_if_already_active = true;
 
-  // TODO(b/510405771): Remove animation suppression once bottom sheet hide is
-  // cancelable.
-  if (auto* side_panel_options = std::get_if<SidePanelShowOptions>(
-          &mutable_options.embedder_options)) {
-    side_panel_options->suppress_opening_animation = true;
-  }
-
   GlicInstanceImpl* target_instance = nullptr;
   if (!info->conversation_id.empty()) {
     target_instance = GetInstanceImplForConversationId(info->conversation_id);
@@ -785,6 +798,24 @@ void GlicInstanceCoordinatorImpl::SwitchConversation(
   }
 
   CHECK(target_instance);
+
+  if (auto* side_panel_options = std::get_if<SidePanelShowOptions>(
+          &mutable_options.embedder_options)) {
+    // TODO(b/510405771): Remove animation suppression once bottom sheet hide is
+    // cancelable.
+    side_panel_options->suppress_opening_animation = true;
+    side_panel_options->pin_trigger = GlicPinTrigger::kConversationChange;
+    if (target_instance == &source_instance) {
+      // If we are reusing the current instance in-place (as an optimization),
+      // BindTab is not called again, so we must manually overwrite all
+      // currently pinned tabs' pin triggers to kConversationChange to make the
+      // pin trigger correct.
+      for (auto* tab : target_instance->sharing_manager().GetPinnedTabs()) {
+        target_instance->sharing_manager().SetPinTrigger(
+            tab->GetHandle(), GlicPinTrigger::kConversationChange);
+      }
+    }
+  }
 
   metrics_.RecordSwitchConversationTarget(
       !info->conversation_id.empty()

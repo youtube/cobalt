@@ -8,12 +8,17 @@ import android.content.Context;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.components.autofill.AutofillSuggestion;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider;
 import org.chromium.ui.base.WindowAndroid;
+
+import java.util.List;
 
 /** JNI wrapper for the @memory bottom sheet. */
 @NullMarked
@@ -21,36 +26,53 @@ import org.chromium.ui.base.WindowAndroid;
 public class AtMemoryBottomSheetBridge implements AtMemoryBottomSheetCoordinator.Delegate {
     private long mNativeAtMemoryBottomSheetBridge;
     private final AtMemoryBottomSheetCoordinator mCoordinator;
-    private boolean mInitialized;
 
-    @CalledByNative
-    public AtMemoryBottomSheetBridge(
-            long nativeAtMemoryBottomSheetBridge, WindowAndroid windowAndroid) {
+    private AtMemoryBottomSheetBridge(
+            long nativeAtMemoryBottomSheetBridge,
+            Context context,
+            BottomSheetController bottomSheetController) {
         mNativeAtMemoryBottomSheetBridge = nativeAtMemoryBottomSheetBridge;
-        mCoordinator = new AtMemoryBottomSheetCoordinator();
-
-        Context context = windowAndroid.getContext().get();
-        BottomSheetController bottomSheetController =
-                BottomSheetControllerProvider.from(windowAndroid);
-        if (context == null || bottomSheetController == null) return;
-
-        mInitialized = true;
-        mCoordinator.initialize(context, bottomSheetController, this);
+        mCoordinator = new AtMemoryBottomSheetCoordinator(context, bottomSheetController, this);
     }
 
     @CalledByNative
-    public void show() {
-        if (!mInitialized) {
-            onDismissed();
-            return;
+    public static @Nullable AtMemoryBottomSheetBridge create(
+            long nativeAtMemoryBottomSheetBridge, WindowAndroid windowAndroid) {
+        Context context = windowAndroid.getContext().get();
+        if (context == null) {
+            return null;
         }
-        mCoordinator.show();
+
+        BottomSheetController bottomSheetController =
+                BottomSheetControllerProvider.from(windowAndroid);
+        if (bottomSheetController == null) {
+            return null;
+        }
+
+        return new AtMemoryBottomSheetBridge(
+                nativeAtMemoryBottomSheetBridge, context, bottomSheetController);
+    }
+
+    @CalledByNative
+    public void show(@JniType("std::vector") List<AutofillSuggestion> suggestions) {
+        mCoordinator.show(suggestions);
+    }
+
+    @CalledByNative
+    public static AutofillSuggestion createAutofillSuggestion(
+            String label, String subLabel, int iconId, int suggestionType) {
+        return new AutofillSuggestion.Builder()
+                .setLabel(label)
+                .setSubLabel(subLabel)
+                .setIconId(iconId)
+                .setSuggestionType(suggestionType)
+                .build();
     }
 
     @CalledByNative
     public void destroy() {
         mNativeAtMemoryBottomSheetBridge = 0;
-        mCoordinator.destroy();
+        mCoordinator.hide();
     }
 
     @Override

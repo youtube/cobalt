@@ -18,13 +18,13 @@
 #include "base/types/expected.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_task_delegate.h"
-#include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/page_content_annotations/multi_source_page_context_fetcher.h"
 #include "chrome/browser/profiles/profile_observer.h"
 #include "chrome/common/actor/action_result.h"
-#include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/buildflags.h"
+#include "components/actor/core/aggregated_journal.h"
+#include "components/actor/core/task_id.h"
 #include "components/actor/core/task_source_info.h"
 #include "components/download/content/public/all_download_item_notifier.h"
 #include "components/keyed_service/core/keyed_service.h"
@@ -46,6 +46,7 @@ class ActorUiStateManagerInterface;
 class EnterprisePolicyChecker;
 class ActorTaskMetadata;
 class ToolRequest;
+class TabObservationStrategy;
 
 // This class owns all ActorTasks for a given profile. ActorTasks are kept in
 // memory until the process is destroyed.
@@ -99,7 +100,8 @@ class ActorKeyedService : public KeyedService,
   // Executes the given ToolRequest actions using the execution engine for the
   // given task id.
   using PerformActionsCallback = base::OnceCallback<void(
-      std::vector<ActionResultWithLatencyInfo> /* action_results */)>;
+      std::vector<ActionResultWithLatencyInfo> /* action_results */,
+      TabObservationStrategy /* observation_strategy */)>;
   void PerformActions(TaskId task_id,
                       std::vector<std::unique_ptr<ToolRequest>>&& actions,
                       ActorTaskMetadata task_metadata,
@@ -192,7 +194,8 @@ class ActorKeyedService : public KeyedService,
   // The callback used for ExecutorEngine::Act.
   void OnActionsFinished(
       PerformActionsCallback callback,
-      std::vector<ActionResultWithLatencyInfo> action_results);
+      std::vector<ActionResultWithLatencyInfo> action_results,
+      TabObservationStrategy observation_strategy);
 
   // The jounrnal should be last in destruction order since other things like
   // ActorTask might be using a SafeRef to this object.

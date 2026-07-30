@@ -5,9 +5,12 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_WEBUI_TOOLBAR_TOOLBAR_UI_SERVICE_H_
 #define CHROME_BROWSER_UI_WEBUI_WEBUI_TOOLBAR_TOOLBAR_UI_SERVICE_H_
 
+#include <variant>
+
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/types/expected.h"
 #include "chrome/browser/ui/webui/webui_toolbar/adapters/icon_table_fetcher.h"
 #include "chrome/browser/ui/webui/webui_toolbar/adapters/navigation_controls_state_fetcher.h"
 #include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api.mojom.h"
@@ -16,6 +19,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
+#include "mojo/public/mojom/base/error.mojom.h"
 #include "ui/base/mojom/menu_source_type.mojom-shared.h"
 #include "ui/base/pointer/touch_ui_controller.h"
 #include "ui/gfx/geometry/rect_f.h"
@@ -52,11 +56,14 @@ class ToolbarUIService : public toolbar_ui_api::mojom::ToolbarUIService {
         toolbar_ui_api::mojom::LhsChipIdentifier identifier) = 0;
     virtual void OnLhsChipCollapseAnimationEnded(
         toolbar_ui_api::mojom::LhsChipIdentifier identifier) = 0;
+    virtual void OnLhsChipDrag(
+        toolbar_ui_api::mojom::LhsChipIdentifier identifier,
+        ui::mojom::DragEventSource source) = 0;
     virtual void OnHomeButtonDropUrl(const GURL& url) = 0;
     virtual void OnHomeButtonDropFile(const gfx::PointF& drop_position) = 0;
     virtual void OnToolbarDropFile(const gfx::PointF& drop_position) = 0;
-    virtual void OnOmniboxAction(
-        toolbar_ui_api::mojom::OmniboxActionPtr action) = 0;
+    virtual base::expected<std::monostate, mojo_base::mojom::ErrorPtr>
+    OnOmniboxAction(toolbar_ui_api::mojom::OmniboxActionPtr action) = 0;
     virtual void ShowAvatarMenu() = 0;
   };
 
@@ -82,7 +89,8 @@ class ToolbarUIService : public toolbar_ui_api::mojom::ToolbarUIService {
   void ShowContextMenu(toolbar_ui_api::mojom::ContextMenuType menu_type,
                        const gfx::RectF& bounds_in_css_pixels,
                        ui::mojom::MenuSourceType source) override;
-  void OnOmniboxAction(toolbar_ui_api::mojom::OmniboxActionPtr action) override;
+  void OnOmniboxAction(toolbar_ui_api::mojom::OmniboxActionPtr action,
+                       OnOmniboxActionCallback callback) override;
   void OnPageInitialized() override;
   void ShowContentSettingsBubble(
       ::toolbar_ui_api::mojom::ContentSettingImageType type,
@@ -101,6 +109,8 @@ class ToolbarUIService : public toolbar_ui_api::mojom::ToolbarUIService {
       toolbar_ui_api::mojom::LhsChipIdentifier identifier) override;
   void OnLhsChipCollapseAnimationEnded(
       toolbar_ui_api::mojom::LhsChipIdentifier identifier) override;
+  void OnLhsChipDrag(toolbar_ui_api::mojom::LhsChipIdentifier identifier,
+                     ui::mojom::DragEventSource source) override;
   void OnHomeButtonDropUrl(const GURL& url) override;
   void OnHomeButtonDropFile(const gfx::PointF& drop_position) override;
   void OnToolbarDropFile(const gfx::PointF& drop_position) override;

@@ -8,7 +8,6 @@
 #include <optional>
 #include <string>
 
-#include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/tabs/contents_observing_tab_feature.h"
@@ -17,6 +16,7 @@
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 class GURL;
+struct ToastParams;
 
 namespace tabs {
 class TabInterface;
@@ -26,6 +26,7 @@ namespace multistep_filter {
 
 class FilterUiControllerTestApi;
 class MultistepFilterLogRouter;
+class MultistepFilterService;
 
 // Manages the UI lifecycle and user interactions for multistep filter
 // suggestions within a tab.
@@ -68,8 +69,6 @@ class FilterUiController : public tabs::ContentsObservingTabFeature {
   // Applies the current suggestion by navigating to the suggested URL.
   virtual void ApplySuggestion();
 
-  // Returns true if suggestions should be suppressed for the given URL.
-  virtual bool ShouldSuppressSuggestions(const GURL& url) const;
 
   // Returns the UI data for the given `suggestion` and `time`.
   SuggestionUiData GetSuggestionUiData(const UrlFilterSuggestion& suggestion,
@@ -77,13 +76,13 @@ class FilterUiController : public tabs::ContentsObservingTabFeature {
 
  protected:
   // Shows the UI for the given suggestion.
-  virtual void ShowSuggestionUi(const UrlFilterSuggestion& suggestion);
+  virtual bool ShowSuggestionUi(ToastParams params);
 
   // Navigates the current tab to the given URL. Virtual for testing.
   virtual void NavigateTo(const GURL& url);
 
   // Returns the callback to be executed when the suggestion UI is dismissed.
-  base::OnceClosure GetOnDismissedCallback(std::string suppression_domain,
+  base::OnceClosure GetOnDismissedCallback(std::string dismissal_domain,
                                            int64_t navigation_id,
                                            std::string triggering_domain);
 
@@ -91,7 +90,7 @@ class FilterUiController : public tabs::ContentsObservingTabFeature {
   friend class FilterUiControllerTestApi;
 
   // Invoked when a filter suggestion is dismissed by the user.
-  void OnSuggestionDismissed(std::string suppression_domain,
+  void OnSuggestionDismissed(std::string dismissal_domain,
                              int64_t navigation_id,
                              std::string triggering_domain);
 
@@ -103,13 +102,11 @@ class FilterUiController : public tabs::ContentsObservingTabFeature {
   // needing to pass them back from the UI layer.
   std::optional<UrlFilterSuggestion> current_url_filter_suggestion_;
 
-  // Hosts for which the user has dismissed a suggestion in the current tab.
-  // TODO (crbug.com/495396112): Identify if dismissed hosts should be persisted
-  // or shared across tabs.
-  base::flat_set<std::string> dismissed_hosts_;
-
   // Router for logging filter events.
   raw_ptr<MultistepFilterLogRouter> log_router_ = nullptr;
+
+  // Service for managing filters.
+  raw_ptr<MultistepFilterService> service_ = nullptr;
 
   // Factory for dismissal callbacks. Must be the last member variable to
   // ensure that it is destroyed first, invalidating all weak pointers before

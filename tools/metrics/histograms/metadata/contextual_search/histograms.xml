@@ -344,6 +344,19 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="ContextualSearch.NoAcMatch.SubmitQuery.{ContextualSearchSource}"
+    enum="ContextualSearchNoAcMatchState" expires_after="2027-03-15">
+  <owner>niharm@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Recorded when a query is submitted without an autocomplete match selection
+    from {ContextualSearchSource}. Used for debugging query submission
+    modalities.
+  </summary>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+</histogram>
+
+<histogram
     name="ContextualSearch.Query.AttachmentCount.{ContextualSearchFileTypes}.{ContextualSearchSource}"
     units="count" expires_after="2027-05-13">
   <owner>ameurhosni@google.com</owner>
@@ -402,6 +415,9 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the combination of input types used to form the query. Recorded
     after navigation to the AIM page occurs.
+
+    In M149+, this does not record clicks on the AI Mode button as a query
+    submission when no text and no files are present.
   </summary>
   <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
 </histogram>
@@ -774,6 +790,9 @@ chromium-metrics-reviews@google.com.
     Tracks the number of queries submitted per session. Multiple queries may be
     submitted when the AIM page is opened in a new tab or window and the
     composebox remains open. Recorded at the end of the session.
+
+    In M149+, this does not record clicks on the AI Mode button as a query
+    submission when no text and no files are present.
   </summary>
   <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
 </histogram>
@@ -976,6 +995,9 @@ chromium-metrics-reviews@google.com.
     Records the context state when a query is submitted from
     {ContextualSearchSource}. Note that more than one entry can be submitted per
     query submission if it overlaps with WithContextNoText.
+
+    In M149+, this does not record clicks on the AI Mode button as a query
+    submission when no text and no files are present.
   </summary>
   <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
 </histogram>

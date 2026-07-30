@@ -389,7 +389,8 @@ public class PkpTest {
         applyCronetEngineBuilderConfigurationPatch(
                 mTestRule.getTestFramework(), DISABLE_PINNING_BYPASS_FOR_LOCAL_ANCHORS);
         final String label63 = "123456789-123456789-123456789-123456789-123456789-123456789-123";
-        final String host255 = label63 + "." + label63 + "." + label63 + "." + label63;
+        final String host253 =
+                (label63 + "." + label63 + "." + label63 + "." + label63).substring(0, 253);
         // Valid host names.
         assertNoExceptionWhenHostNameIsValid(mTestRule.getTestFramework(), "domain.com");
         assertNoExceptionWhenHostNameIsValid(mTestRule.getTestFramework(), "my-domain.com");
@@ -404,8 +405,8 @@ public class PkpTest {
         assertNoExceptionWhenHostNameIsValid(mTestRule.getTestFramework(), "最新消息.中国");
         // Checks max size of the host label (63 characters)
         assertNoExceptionWhenHostNameIsValid(mTestRule.getTestFramework(), label63 + ".com");
-        // Checks max size of the host name (255 characters)
-        assertNoExceptionWhenHostNameIsValid(mTestRule.getTestFramework(), host255);
+        // Checks max size of the host name (253 characters)
+        assertNoExceptionWhenHostNameIsValid(mTestRule.getTestFramework(), host253);
         assertNoExceptionWhenHostNameIsValid(mTestRule.getTestFramework(), "127.0.0.z");
 
         // Invalid host names.
@@ -423,9 +424,12 @@ public class PkpTest {
                 mTestRule.getTestFramework(), "http.sctp._www.example.com");
         // Checks a host that exceeds max allowed length of the host label (63 characters)
         assertExceptionWhenHostNameIsInvalid(mTestRule.getTestFramework(), label63 + "4.com");
-        // Checks a host that exceeds max allowed length of hostname (255 characters)
+        // Checks a host that exceeds max allowed length of hostname. Currently the max length is
+        // 253 characters, but when running against AOSP_PLATFORM we could end up running the test
+        // against an older version of Cronet before https://crrev.com/c/7868808 where the limit was
+        // actually 255, so use that instead.
         assertExceptionWhenHostNameIsInvalid(
-                mTestRule.getTestFramework(), host255.substring(3) + ".com");
+                mTestRule.getTestFramework(), host253.substring(1) + ".com");
         assertExceptionWhenHostNameIsInvalid(
                 mTestRule.getTestFramework(), "FE80:0000:0000:0000:0202:B3FF:FE1E:8329");
         assertExceptionWhenHostNameIsInvalid(mTestRule.getTestFramework(), "[2001:db8:0:1]:80");
@@ -473,6 +477,84 @@ public class PkpTest {
                                 sha1,
                                 EXCLUDE_SUBDOMAINS,
                                 DISTANT_FUTURE));
+    }
+
+    private TestUrlRequestCallback startIdnPinningTest(byte[] pinHash) throws Exception {
+        // Note the strategic use of ß as our test character, which is handled differently based on
+        // which version of IDNA is used - see Unicode Technical Standard #46.
+        final var IDN_UNICODE = "example-idn-begin-ß-end";
+        // On Android API <24 Cronet uses IDNA2003, under which "ß" is mapped to "ss".
+        // On Android API 24+ Cronet uses IDNA2008, under which "ß" is preserved and triggers
+        // punycode conversion.
+        // See also https://crbug.com/513446116.
+        final var EXPECTED_IDN_ASCII =
+                (Build.VERSION.SDK_INT < Build.VERSION_CODES.N)
+                        ? "example-idn-begin-ss-end"
+                        : "xn--example-idn-begin--end-71b";
+
+        final var testFramework = mTestRule.getTestFramework();
+        applyCronetEngineBuilderConfigurationPatchWithMockCertVerifier(
+                testFramework, DISABLE_PINNING_BYPASS_FOR_LOCAL_ANCHORS);
+        applyPkpSha256Patch(
+                testFramework, IDN_UNICODE, pinHash, EXCLUDE_SUBDOMAINS, DISTANT_FUTURE);
+        // Make sure Cronet can resolve the test hostname.
+        testFramework.applyEngineBuilderPatch(
+                (builder) -> {
+                    builder.setExperimentalOptions(
+                            new JSONObject()
+                                    .put(
+                                            "HostResolverRules",
+                                            new JSONObject()
+                                                    .put(
+                                                            "host_resolver_rules",
+                                                            "MAP "
+                                                                    + EXPECTED_IDN_ASCII
+                                                                    + " 127.0.0.1"))
+                                    .toString());
+                });
+
+        TestUrlRequestCallback callback = new TestUrlRequestCallback();
+        testFramework
+                .startEngine()
+                .newUrlRequestBuilder(
+                        "https://" + IDN_UNICODE + ":" + Http2TestServer.getServerPort() + "/",
+                        callback,
+                        callback.getExecutor())
+                .build()
+                .start();
+        callback.blockForDone();
+        return callback;
+    }
+
+    /**
+     * Tests that Public Key Pinning works when pins are added using an IDN hostname and the pin
+     * matches.
+     */
+    @Test
+    @SmallTest
+    // TODO(https://crbug.com/40941277): Enable for HttpEngine once we have fake hostname support
+    @IgnoreFor(
+            implementations = {CronetImplementation.AOSP_PLATFORM},
+            reason = "Uses HostResolverRules, which HttpEngine does not support.")
+    public void testIdnPinningSuccessIfPinMatches() throws Exception {
+        assertSuccessfulResponse(
+                startIdnPinningTest(
+                        CertTestUtil.getPublicKeySha256(
+                                readCertFromFileInPemFormat(SERVER_CERT_PEM))));
+    }
+
+    /**
+     * Tests that Public Key Pinning works when pins are added using an IDN hostname and the pin
+     * does not match.
+     */
+    @Test
+    @SmallTest
+    // TODO(https://crbug.com/40941277): Enable for HttpEngine once we have fake hostname support
+    @IgnoreFor(
+            implementations = {CronetImplementation.AOSP_PLATFORM},
+            reason = "Uses HostResolverRules, which HttpEngine does not support.")
+    public void testIdnPinningErrorCodeIfPinDoesNotMatch() throws Exception {
+        assertErrorResponse(startIdnPinningTest(generateSomeSha256()));
     }
 
     /** Asserts that the response from the server contains an PKP error. */
@@ -613,11 +695,8 @@ public class PkpTest {
                     INCLUDE_SUBDOMAINS,
                     DISTANT_FUTURE);
         } catch (IllegalArgumentException ex) {
-            fail(
-                    "Host name "
-                            + hostName
-                            + " should be valid but the exception was thrown: "
-                            + ex.toString());
+            throw new AssertionError(
+                    "Host name " + hostName + " should be valid but an exception was thrown", ex);
         }
     }
 

@@ -14,12 +14,13 @@
 #include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
 #include "chrome/browser/actor/actor_task.h"
+#include "chrome/browser/actor/tab_observation_strategy.h"
 #include "chrome/browser/actor/tools/observation_delay_controller.h"
 #include "chrome/browser/glic/actor/glic_actor_policy_checker.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/common/actor.mojom-forward.h"
-#include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom.h"
+#include "components/actor/core/task_id.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/page_content_annotations/content/page_context_fetcher.h"
 #include "components/tabs/public/tab_interface.h"
@@ -217,7 +218,8 @@ class GlicActorClientSession : public GlicActorClientSessionInterface {
       std::optional<page_content_annotations::ScreenshotOptions::
                         ScreenshotCollectionOptions>
           screenshot_collection_options,
-      std::vector<actor::ActionResultWithLatencyInfo> action_results);
+      std::vector<actor::ActionResultWithLatencyInfo> action_results,
+      actor::TabObservationStrategy observation_strategy);
   void DidFinishBuildObservation(
       PerformActionsCallback callback,
       base::TimeTicks start_time,

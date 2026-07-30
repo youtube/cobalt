@@ -15,6 +15,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
+#include "components/signin/public/base/binding_key_registration_token_result.h"
 #include "components/unexportable_keys/service_error.h"
 #include "components/unexportable_keys/unexportable_key_id.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
@@ -23,6 +24,10 @@ namespace unexportable_keys {
 class UnexportableKeyService;
 class UnexportableKeyLoader;
 }  // namespace unexportable_keys
+
+namespace signin {
+class BindingKeyRegistrationTokenHelper;
+}  // namespace signin
 
 class GURL;
 
@@ -80,6 +85,18 @@ class TokenBindingHelper {
   // key parameter.
   void ClearAllKeys();
 
+  // Asynchronously generates a registration token for binding a refresh token
+  // to a binding key. If one of the accounts is already bound, reuses its
+  // binding key. Otherwise, generates a new binding key.
+  // `supported_algorithms` is ignored if an existing binding key is reused.
+  // The result is returned through `callback`. Returns `std::nullopt` if the
+  // generation fails.
+  void GenerateBindingKeyRegistrationToken(
+      std::string_view supported_algorithms,
+      std::string_view auth_code,
+      base::OnceCallback<void(
+          std::optional<signin::BindingKeyRegistrationTokenResult>)> callback);
+
   // Asynchronously generates a binding key assertion with a key associated with
   // `account_id`. The result is returned through `callback`. Returns an empty
   // string if the generation fails.
@@ -119,6 +136,13 @@ class TokenBindingHelper {
   void CopyBindingKeyFromAnotherTokenService(
       base::span<const uint8_t> wrapped_binding_key);
 
+  // Initiates an opportunistic refresh token binding upgrade upon receiving a
+  // challenge from the server.
+  void PerformTokenBindingUpgrade(const CoreAccountId& account_id,
+                                  std::string_view challenge);
+
+  base::WeakPtr<TokenBindingHelper> GetWeakPtr();
+
  private:
   struct BindingKeyData {
     explicit BindingKeyData(std::vector<uint8_t> wrapped_key);
@@ -153,6 +177,8 @@ class TokenBindingHelper {
       unexportable_key_service_;
 
   base::flat_map<CoreAccountId, BindingKeyData> binding_keys_;
+  std::unique_ptr<signin::BindingKeyRegistrationTokenHelper>
+      registration_token_helper_;
 
   base::WeakPtrFactory<TokenBindingHelper> weak_ptr_factory_{this};
 };

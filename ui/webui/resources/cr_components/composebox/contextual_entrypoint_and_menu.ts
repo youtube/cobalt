@@ -67,6 +67,8 @@ export class ContextualEntrypointAndMenuElement extends
       uploadButtonDisabled: {type: Boolean},
       disableAutoReposition: {type: Boolean},
       usePecApi: {type: Boolean},
+      energyEffectAnimationEnabled: {type: Boolean, reflect: true},
+      recentTabId: {type: Number},
 
       // =========================================================================
       // Protected properties
@@ -91,11 +93,13 @@ export class ContextualEntrypointAndMenuElement extends
       GlifAnimationState.INELIGIBLE;
   accessor uploadButtonDisabled: boolean = false;
   accessor sharedTabs: TabInfo[] = [];
+  accessor recentTabId: number|null = null;
 
   accessor hasImageFiles: boolean = false;
   accessor searchboxLayoutMode: string = '';
   accessor disableAutoReposition: boolean = false;
   accessor usePecApi: boolean = false;
+  accessor energyEffectAnimationEnabled: boolean = false;
 
   protected accessor enableMultiTabSelection_: boolean =
       loadTimeData.getBoolean('composeboxContextMenuEnableMultiTabSelection');

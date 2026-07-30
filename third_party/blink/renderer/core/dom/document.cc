@@ -355,7 +355,9 @@
 #include "third_party/blink/renderer/core/svg/svg_use_element.h"
 #include "third_party/blink/renderer/core/svg_element_factory.h"
 #include "third_party/blink/renderer/core/svg_names.h"
+#include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/core/timing/render_blocking_metrics_reporter.h"
+#include "third_party/blink/renderer/core/timing/window_performance.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_html.h"
 #include "third_party/blink/renderer/core/view_transition/page_reveal_event.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_supplement.h"
@@ -537,13 +539,6 @@ constexpr double kUkmSamplingRate = 0.001;
 }  // namespace
 
 static const unsigned kCMaxWriteRecursionDepth = 21;
-
-// This amount of time must have elapsed before we will even consider scheduling
-// a layout without a delay.
-// FIXME: For faster machines this value can really be lowered to 200.  250 is
-// adequate, but a little high for dual G5s. :)
-static const base::TimeDelta kCLayoutScheduleThreshold =
-    base::Milliseconds(250);
 
 namespace {
 
@@ -4285,15 +4280,6 @@ void Document::DispatchLoadEventAndFinalize() {
     return;
   }
 
-  if (GetFrame()->Loader().HasProvisionalNavigation() &&
-      start_time_.Elapsed() < kCLayoutScheduleThreshold) {
-    // Just bail out. Before or during the onload we were shifted to another
-    // page.  The old i-Bench suite does this. When this happens don't bother
-    // painting or laying out.
-    load_event_progress_ = kLoadEventCompleted;
-    return;
-  }
-
   // The initial empty document might be loaded synchronously.
   // When this occurs and we also synchronously update the style and layout
   // here, which is needed for things like autofill, it creates a chain
@@ -4636,6 +4622,12 @@ void Document::DispatchUnloadEvents(UnloadEventTimingInfo* unload_timing_info) {
   // |dispatched_pagehide_persisted| above, if we enable same-site
   // ProactivelySwapBrowsingInstance but not BackForwardCache.
   if (window && !GetPage()->DispatchedPagehideAndStillHidden()) {
+    // The navigation is past the point of being canceled (beforeunload ran
+    // without canceling). Promote any pending navigationDestinationURL
+    // stashed during the navigate event so that JS pagehide handlers can
+    // observe it via performance.getSpeculations().
+    DOMWindowPerformance::performance(*window)
+        ->PromoteNavigationDestinationURL();
     window->DispatchEvent(
         *PageTransitionEvent::Create(event_type_names::kPagehide, false), this);
   }
@@ -5097,21 +5089,16 @@ void Document::ProcessBaseElement() {
 
   // Find the first href attribute in a base element and the first target
   // attribute in a base element.
-  const AtomicString* href = nullptr;
-  const AtomicString* target = nullptr;
+  AtomicString href;
+  AtomicString target;
   for (HTMLBaseElement* base = Traversal<HTMLBaseElement>::FirstWithin(*this);
-       base && (!href || !target);
+       base && (href.IsNull() || target.IsNull());
        base = Traversal<HTMLBaseElement>::Next(*base)) {
-    if (!href) {
-      const AtomicString& value = base->FastGetAttribute(html_names::kHrefAttr);
-      if (!value.IsNull())
-        href = &value;
+    if (href.IsNull()) {
+      href = base->FastGetAttribute(html_names::kHrefAttr);
     }
-    if (!target) {
-      const AtomicString& value =
-          base->FastGetAttribute(html_names::kTargetAttr);
-      if (!value.IsNull())
-        target = &value;
+    if (target.IsNull()) {
+      target = base->FastGetAttribute(html_names::kTargetAttr);
     }
     if (GetExecutionContext() &&
         GetExecutionContext()->GetContentSecurityPolicy()->IsActive()) {
@@ -5123,8 +5110,8 @@ void Document::ProcessBaseElement() {
   // FIXME: Since this doesn't share code with completeURL it may not handle
   // encodings correctly.
   KURL base_element_url;
-  if (href) {
-    StringView stripped_href = StripLeadingAndTrailingHtmlSpaces(*href);
+  if (!href.IsNull()) {
+    StringView stripped_href = StripLeadingAndTrailingHtmlSpaces(href);
     if (!stripped_href.empty())
       base_element_url = KURL(FallbackBaseURL(), stripped_href);
   }
@@ -5162,18 +5149,19 @@ void Document::ProcessBaseElement() {
     } else {
       base_element_url_ = FallbackBaseURL();
     }
+    // NOTE: UpdateBaseURL can fire events and thus run script.
     UpdateBaseURL();
   }
 
   AtomicString old_base_target = base_target_;
-  if (target) {
-    if (target->contains('\n') || target->contains('\r')) {
+  if (!target.IsNull()) {
+    if (target.contains('\n') || target.contains('\r')) {
       UseCounter::Count(*this, WebFeature::kBaseWithNewlinesInTarget);
     }
-    if (target->contains('<')) {
+    if (target.contains('<')) {
       UseCounter::Count(*this, WebFeature::kBaseWithOpenBracketInTarget);
     }
-    base_target_ = *target;
+    base_target_ = target;
   } else {
     base_target_ = g_null_atom;
   }
@@ -9654,6 +9642,8 @@ void Document::ExecuteJavaScriptUrls() {
   urls_to_execute.swap(pending_javascript_urls_);
 
   for (auto& url_to_execute : urls_to_execute) {
+    probe::AsyncTask async_task(GetExecutionContext(),
+                                &url_to_execute->async_task_context);
     dom_window_->GetScriptController().ExecuteJavaScriptURL(
         url_to_execute->url, network::mojom::CSPDisposition::CHECK,
         url_to_execute->world.Get());
@@ -9669,8 +9659,8 @@ void Document::ProcessJavaScriptUrl(const KURL& url,
   if (is_initial_empty_document_)
     load_event_progress_ = kLoadEventNotRun;
   GetFrame()->Loader().Progress().ProgressStarted();
-  pending_javascript_urls_.push_back(
-      MakeGarbageCollected<PendingJavascriptUrl>(url, world));
+  pending_javascript_urls_.push_back(MakeGarbageCollected<PendingJavascriptUrl>(
+      GetExecutionContext(), url, world));
   if (!javascript_url_task_handle_.IsActive()) {
     javascript_url_task_handle_ = PostCancellableTask(
         *GetTaskRunner(TaskType::kNetworking), FROM_HERE,
@@ -10001,9 +9991,13 @@ Document::PaintPreviewScope::~PaintPreviewScope() {
 }
 
 Document::PendingJavascriptUrl::PendingJavascriptUrl(
+    ExecutionContext* context,
     const KURL& input_url,
     const DOMWrapperWorld* world)
-    : url(input_url), world(world) {}
+    : url(input_url), world(world) {
+  async_task_context.Schedule(context, "javascriptURL",
+                              probe::AsyncTaskContext::ScanForAds::kTrue);
+}
 
 Document::PendingJavascriptUrl::~PendingJavascriptUrl() = default;
 

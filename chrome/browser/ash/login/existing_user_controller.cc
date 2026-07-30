@@ -19,6 +19,7 @@
 #include "ash/public/cpp/login_screen.h"
 #include "ash/public/cpp/notification_utils.h"
 #include "ash/shell.h"
+#include "ash/strings/grit/ash_strings.h"
 #include "base/barrier_closure.h"
 #include "base/check_deref.h"
 #include "base/check_is_test.h"
@@ -124,6 +125,7 @@
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/base/user_activity/user_activity_detector.h"
 #include "ui/base/user_activity/user_activity_observer.h"
 #include "ui/message_center/public/cpp/notification.h"
@@ -1003,7 +1005,9 @@ void ExistingUserController::ShowAutoLaunchManagedGuestSessionNotification() {
       message_center::NotifierId(message_center::NotifierType::SYSTEM_COMPONENT,
                                  kAutoLaunchNotifierId,
                                  NotificationCatalogName::kAutoLaunch),
-      data, std::move(delegate), vector_icons::kBusinessOldIcon,
+      data, std::move(delegate),
+      ::features::IsRoundedIconsEnabled() ? vector_icons::kDomainIcon
+                                          : vector_icons::kBusinessOldIcon,
       message_center::SystemNotificationWarningLevel::NORMAL);
   notification.SetSystemPriority();
   notification.set_pinned(true);

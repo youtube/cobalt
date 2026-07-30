@@ -2676,6 +2676,7 @@ test("content_unittests") {
     "../browser/cache_storage/cache_storage_scheduler_unittest.cc",
     "../browser/child_process_security_policy_unittest.cc",
     "../browser/client_hints/client_hints_unittest.cc",
+    "../browser/code_cache/dedicated_task_runner_for_resource_unittest.cc",
     "../browser/code_cache/generated_code_cache_unittest.cc",
     "../browser/code_cache/simple_lru_cache_unittest.cc",
     "../browser/content_index/content_index_database_unittest.cc",
@@ -2858,6 +2859,7 @@ test("content_unittests") {
     "../browser/preloading/prefetch/prefetch_type_unittest.cc",
     "../browser/preloading/prefetch/prefetch_url_loader_interceptor_unittest.cc",
     "../browser/preloading/prefetcher_unittest.cc",
+    "../browser/preloading/preload_activation_report_manager_unittest.cc",
     "../browser/preloading/preload_serving_metrics_unittest.cc",
     "../browser/preloading/preloading_attempt_impl_unittest.cc",
     "../browser/preloading/preloading_config_unittest.cc",
@@ -3563,7 +3565,7 @@ test("content_unittests") {
       "../browser/media/capture/web_contents_frame_tracker_unittest.cc",
       "../browser/renderer_host/media/sub_capture_target_id_web_contents_helper_unittest.cc",
     ]
-    if (is_mac) {
+    if (is_mac || is_win) {
       sources += [
         "../browser/media/capture/desktop_capture_util_mac_unittest.mm",
         "../browser/media/capture/pip_screen_capture_coordinator_impl_unittest.cc",

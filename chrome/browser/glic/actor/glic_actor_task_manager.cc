@@ -40,10 +40,10 @@
 #include "chrome/common/actor.mojom-shared.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
-#include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/chrome_features.h"
 #include "components/actor/core/actor_features.h"
+#include "components/actor/core/journal_details_builder.h"
 #include "components/actor/public/mojom/actor_types.mojom.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/page_content_annotations/content/page_context_fetcher.h"
@@ -268,7 +268,8 @@ void GlicActorClientSession::PerformActionsFinished(
     std::optional<page_content_annotations::ScreenshotOptions::
                       ScreenshotCollectionOptions>
         screenshot_collection_options,
-    std::vector<actor::ActionResultWithLatencyInfo> action_results) {
+    std::vector<actor::ActionResultWithLatencyInfo> action_results,
+    actor::TabObservationStrategy observation_strategy) {
   actor::mojom::ActionResultCode result_code =
       actor::mojom::ActionResultCode::kOk;
   std::optional<size_t> index_of_failed_action;
@@ -325,7 +326,8 @@ void GlicActorClientSession::PerformActionsFinished(
 
     auto controller = std::make_unique<actor::TabObservationController>(
         &profile(), task_id, start_time, skip_async_observation_information,
-        action_results, std::move(done_callback));
+        action_results, std::move(observation_strategy),
+        std::move(done_callback));
 
     controller->set_screenshot_collection_options(
         std::move(screenshot_collection_options));
@@ -350,7 +352,8 @@ void GlicActorClientSession::PerformActionsFinished(
           &GlicActorClientSession::PerformActionsFinished,
           weak_ptr_factory_.GetWeakPtr(), std::move(callback), task_id,
           start_time, skip_async_observation_information,
-          std::move(screenshot_collection_options), std::move(action_results));
+          std::move(screenshot_collection_options), std::move(action_results),
+          std::move(observation_strategy));
       ReloadCrashedTab(*crashed_tab, task->id(),
                        std::move(retry_perform_actions_finished));
       return;
@@ -482,8 +485,8 @@ void GlicActorClientSession::DidFinishBuildObservation(
             &GlicActorClientSession::PerformActionsFinished,
             weak_ptr_factory_.GetWeakPtr(), std::move(callback), task_id,
             start_time, skip_async_observation_information,
-            std::move(screenshot_collection_options),
-            std::move(action_results));
+            std::move(screenshot_collection_options), std::move(action_results),
+            actor::TabObservationStrategy());
 
         base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
             FROM_HERE, std::move(retry_perform_actions_finished),
@@ -1112,14 +1115,15 @@ void GlicActorClientSession::RequestToShowAutofillSuggestionsDialog(
   autofill_selection_event_handler_ = std::move(event_handler);
 
   std::vector<actor::webui::mojom::FormFillingRequestPtr> mojo_requests;
-  for (const auto& request : requests) {
+  for (const autofill::ActorFormFillingRequest& request : requests) {
     auto mojo_request = actor::webui::mojom::FormFillingRequest::New();
     mojo_request->requested_data = static_cast<int64_t>(request.requested_data);
     mojo_request->formatted_request_origin =
         base::UTF16ToUTF8(url_formatter::FormatOriginForSecurityDisplay(
             request.request_origin,
             url_formatter::SchemeDisplay::OMIT_HTTP_AND_HTTPS));
-    for (const auto& suggestion : request.suggestions) {
+    mojo_request->section_label = request.section_label;
+    for (const autofill::ActorSuggestion& suggestion : request.suggestions) {
       auto mojo_suggestion = actor::webui::mojom::AutofillSuggestion::New();
       mojo_suggestion->id = base::NumberToString(suggestion.id.value());
       mojo_suggestion->title = suggestion.title;

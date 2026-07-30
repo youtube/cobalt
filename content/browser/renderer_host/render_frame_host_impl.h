@@ -279,6 +279,7 @@ class BrowsingContextState;
 class CodeCacheHostImpl;
 class CrossOriginEmbedderPolicyReporter;
 class CrossOriginOpenerPolicyAccessReportManager;
+class EmbedderIsolationInfo;
 class FeatureObserver;
 class FencedFrame;
 class FileSystemManagerImpl;
@@ -317,10 +318,6 @@ struct ResourceTimingInfo;
 typedef base::RepeatingCallback<
     void(RenderFrameHostImpl*, ax::mojom::Event, int)>
     AccessibilityCallbackForTesting;
-
-using CachedPermissionMap =
-    std::optional<base::flat_map<blink::mojom::PermissionName,
-                                 blink::mojom::PermissionStatus>>;
 
 class CONTENT_EXPORT RenderFrameHostImpl
     : public RenderFrameHost,
@@ -3284,12 +3281,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // this instance's AXNodeIdDelegate implementation.
   size_t GetAxUniqueIdCountForTesting() const { return ax_unique_ids_.size(); }
 
-  // Query necessary permission statues in order to propagate to the renderer.
-  // Right now, we're only caring about permissions for Geolocation, Camera, and
-  // Microphone. The permission statuses already take into account the device's
-  // status.
-  CachedPermissionMap GetCachedPermissionStatuses();
-
   // Allows tests to disable the unload event timer to simulate bugs that
   // happen before it fires (to avoid flakiness).
   void DisableUnloadTimerForTesting();
@@ -3743,11 +3734,12 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // in cases where it is applicable. This is a more conservative check than
   // RenderProcessHost::FilterURL, since it will be used to kill processes that
   // commit unauthorized origins.
-  CanCommitStatus CanCommitOriginAndUrl(const url::Origin& origin,
-                                        const GURL& url,
-                                        bool is_same_document_navigation,
-                                        bool is_pdf,
-                                        bool is_sandboxed);
+  CanCommitStatus CanCommitOriginAndUrl(
+      const url::Origin& origin,
+      const GURL& url,
+      bool is_same_document_navigation,
+      const EmbedderIsolationInfo& embedder_isolation_info,
+      bool is_sandboxed);
 
   // Returns whether a subframe navigation request should be allowed to commit
   // to the current RenderFrameHost.

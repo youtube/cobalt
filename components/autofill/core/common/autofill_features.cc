@@ -301,9 +301,16 @@ BASE_FEATURE_PARAM(bool,
 
 // If enabled, AutofillAi supports shipment entities.
 BASE_FEATURE(kAutofillAiShipment, base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_ANDROID)
+// If enabled, the user is notified about a failure to upstream data to Wallet
+// via a dialog instead of a snackbar.
+BASE_FEATURE(kAutofillAiShowDialogInSettingsWhenUpstreamingFails,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+
 // Controls whether a banner is shown in settings when wallet data sharing is
 // disabled.
-
 BASE_FEATURE(kAutofillAiShowWalletDisabledBanner,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -440,6 +447,11 @@ BASE_FEATURE(kAutofillDisableFilling, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAutofillDisallowMoreHyphenLikeLabels,
              base::FEATURE_DISABLED_BY_DEFAULT);
 // LINT.ThenChange(//components/autofill/ios/form_util/resources/autofill_form_features.ts:autofill_disallow_more_hyphen_like_labels)
+
+// If enabled, autofill availability event will not be updated in
+// BrowserAutofillManager::OnFocusOnFormField().
+BASE_FEATURE(kAutofillDoNotUpdateAutofillAvailabilityOnFocusEvents,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls an ablation study in which autofill for addresses and payment data
 // can be suppressed.
@@ -644,13 +656,13 @@ BASE_FEATURE(kAutofillFixCivilStateMisclassificationForESPT,
 // Kill switch: Changes the behavior of Form[Field]Data::DeepEqual().
 // TODO(crbug.com/40183094): Turn this into a kill switch after a few
 // weeks on canary.
-BASE_FEATURE(kAutofillFixFormEquality, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAutofillFixFormEquality, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Removes logic that resets form submission tracking data upon receiving a
 // FORM_SUBMISSION or PROBABLE_FORM_SUBMISSION signal. Also, fixes submission
 // deduplication so that it ignores submissions that PWM doesn't act upon.
 // TODO(crbug.com/40281981): Remove when launched.
-BASE_FEATURE(kAutofillFixFormTracking, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAutofillFixFormTracking, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the new implementation of `FormFieldData::is_autofilled`.
 // TODO(crbug.com/393114125): Remove when launched.
@@ -690,13 +702,13 @@ BASE_FEATURE(kAutofillImproveAddressFieldSwapping,
 // PHONE_COUNTRY_CODE matches a field that should not actually be classified as
 // such.
 BASE_FEATURE(kAutofillImprovePhoneFieldParser,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, `(PHONE_HOME_COUNTRY_CODE, PHONE_HOME_WHOLE_NUMBER)` are
 // rationalized to `(PHONE_HOME_COUNTRY_CODE,
 // PHONE_HOME_CITY_AND_NUMBER_WITHOUT_TRUNK_PREFIX)`.
 BASE_FEATURE(kAutofillImprovePhoneNumberRationalization,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, global rules are applied to rewrite empty string values like
 // "null" to an empty string. These rules are applied for all types during
@@ -780,12 +792,12 @@ BASE_FEATURE(kAutofillMoveSmallFormLogicToClient,
 // Improves the regex for matching augmented country code select options by
 // supporting cases like +1 (234).
 BASE_FEATURE(kAutofillNewAugmentedPhoneCountryCodeRegex,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, more patterns are added to the PHONE_COUNTRY_CODE regex.
 // TODO(crbug.com/479503511): Remove once launched.
 BASE_FEATURE(kAutofillNewRegexForPhoneCountryCode,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, the new suggestion generation logic is used.
 // TODO(crbug.com/409962888): Remove once launched.
@@ -841,8 +853,9 @@ BASE_FEATURE(kAutofillPolicyControlledFeatureManualText,
 // If the feature is enabled, Autofill popups perform additional check to
 // detect if they are obscured by top-level HTML form popups (e.g color picker).
 // If so, Autofill Popup won't be shown.
+// TODO(crbug.com/417052041): Remove when launched.
 BASE_FEATURE(kAutofillPopupCheckHtmlFormPopupOverlap,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If the feature is enabled, before triggering suggestion acceptance, the row
 // view checks that a substantial portion of its content was visible for some
@@ -865,12 +878,13 @@ BASE_FEATURE(kAutofillPopupZOrderSecuritySurface,
 // When enabled, we prefer a `PHONE_HOME_COUNTRY_CODE` heuristic type over a
 // `HtmlFieldType::kCountryCode`.
 BASE_FEATURE(kAutofillPreferPhoneCountryCodeTypeOverCountryHtmlType,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Replaces cached web elements in AutofillAgent and FormTracker by their
 // renderer ids.
+// TODO(crbug.com/40281981): Remove when launched.
 BASE_FEATURE(kAutofillReplaceCachedWebElementsByRendererIds,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Replaces blink::WebFormElementObserver usage in FormTracker by updated logic
 // for tracking the disappearance of forms as well as other submission

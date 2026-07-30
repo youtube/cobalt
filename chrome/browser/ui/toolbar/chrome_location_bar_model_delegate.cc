@@ -41,6 +41,7 @@
 #include "url/gurl.h"
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/extensions/extension_ui_util.h"
 #include "components/omnibox/browser/vector_icons.h"  // nogncheck
 #include "components/vector_icons/vector_icons.h"     // nogncheck
 #endif
@@ -201,8 +202,15 @@ const gfx::VectorIcon* ChromeLocationBarModelDelegate::GetVectorIconOverride()
                  : omnibox::kProductChromeRefreshOldIcon);
   }
 
-  if (url.SchemeIs(extensions::kExtensionScheme)) {
-    return &vector_icons::kExtensionChromeRefreshOldIcon;
+  // If there is no active WebContents (which can happen during toolbar
+  // initialization), no extension chip is shown.
+  content::WebContents* web_contents = GetActiveWebContents();
+  if (web_contents &&
+      !extensions::ui_util::GetEnabledExtensionNameForUrl(url, *web_contents)
+           .empty()) {
+    return &(features::IsRoundedIconsEnabled()
+                 ? vector_icons::kChromeExtensionIcon
+                 : vector_icons::kExtensionChromeRefreshOldIcon);
   }
 #endif
 

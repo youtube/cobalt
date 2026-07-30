@@ -8,7 +8,7 @@
 #include <utility>
 
 #include "components/sync/base/custom_passphrase_bootstrap_token.h"
-#include "components/sync/engine/nigori/nigori.h"
+#include "components/sync/nigori/nigori.h"
 #include "components/sync/protocol/nigori_specifics.pb.h"
 
 namespace syncer {
@@ -26,8 +26,8 @@ bool RequiredPassphraseVerifierImpl::IsValidDecryptionPassphrase(
   if (passphrase.empty() || pending_keys_.blob().empty()) {
     return false;
   }
-  std::unique_ptr<Nigori> nigori =
-      Nigori::CreateByDerivation(derivation_params_, passphrase);
+  std::unique_ptr<Nigori> nigori = Nigori::CreateByDerivation(
+      NigoriPassKey(), derivation_params_, passphrase);
   if (!nigori) {
     return false;
   }
@@ -41,8 +41,9 @@ bool RequiredPassphraseVerifierImpl::IsValidDecryptionBootstrapToken(
     return false;
   }
   const sync_pb::NigoriKey& proto = bootstrap_token.ToProto();
-  std::unique_ptr<Nigori> nigori = Nigori::CreateByImport(
-      proto.deprecated_user_key(), proto.encryption_key(), proto.mac_key());
+  std::unique_ptr<Nigori> nigori =
+      Nigori::CreateByImport(NigoriPassKey(), proto.deprecated_user_key(),
+                             proto.encryption_key(), proto.mac_key());
   if (!nigori) {
     return false;
   }

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #import <Foundation/Foundation.h>
+#import <TargetConditionals.h>
 
 #import "base/feature_list.h"
 #import "base/functional/bind.h"
@@ -273,6 +274,13 @@ std::unique_ptr<net::test_server::HttpResponse> HandleAttackerPage(
 
 // Tests that the user education is shown in the grid only once.
 - (void)testUserEducationInGrid {
+#if TARGET_OS_SIMULATOR
+  // TODO(crbug.com/515080596): Re-enable this flaky test on iPhone simulator.
+  if (![ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"Flaky on iPhone simulator.");
+  }
+#endif
+
   [ChromeEarlGrey
       removeUserDefaultsObjectForKey:kSharedTabGroupUserEducationShownOnceKey];
 
@@ -312,6 +320,13 @@ std::unique_ptr<net::test_server::HttpResponse> HandleAttackerPage(
 
 // Checks opening the Share flow from the Tab Grid and cancelling.
 - (void)testShareGroupButCancel {
+  // TODO(crbug.com/515680760): Re-enable this flaky test on iPhone simulator.
+#if TARGET_OS_SIMULATOR
+  if (![ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"Flaky on iPhone simulator.");
+  }
+#endif
+
   // Open the tab grid.
   [ChromeEarlGreyUI openTabGrid];
 
@@ -415,6 +430,11 @@ std::unique_ptr<net::test_server::HttpResponse> HandleAttackerPage(
 // Checks opening the Share flow from the Tab Grid and actually sharing. Then
 // checks opening the Manage flow. Using context menus.
 - (void)testShareGroupAndManageGroupUsingContextMenus {
+  // TODO(crbug.com/514660819): Remove once the issue is resolved.
+  if (![ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"Disabled on iPhone.");
+  }
+
   // Open the tab grid.
   [ChromeEarlGreyUI openTabGrid];
 

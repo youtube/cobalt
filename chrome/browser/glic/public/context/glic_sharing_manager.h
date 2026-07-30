@@ -165,7 +165,6 @@ class GlicSharingManager {
       FocusedBrowserChangedCallback callback) = 0;
   virtual BrowserWindowInterface* GetFocusedBrowser() const = 0;
 
-
   // Registers a callback to be invoked when the pinned status of a tab changes.
   using TabPinningStatusChangedCallback =
       base::RepeatingCallback<void(tabs::TabInterface*, bool)>;
@@ -183,7 +182,7 @@ class GlicSharingManager {
   // Registers a callback to be invoked when the collection of pinned tabs
   // changes.
   using PinnedTabsChangedCallback =
-      base::RepeatingCallback<void(const std::vector<content::WebContents*>&)>;
+      base::RepeatingCallback<void(const std::vector<tabs::TabInterface*>&)>;
   virtual base::CallbackListSubscription AddPinnedTabsChangedCallback(
       PinnedTabsChangedCallback callback) = 0;
 
@@ -202,6 +201,13 @@ class GlicSharingManager {
   // false to indicate that the function was not fully successful.
   virtual bool PinTabs(base::span<const tabs::TabHandle> tab_handles,
                        GlicPinTrigger trigger) = 0;
+
+  // Overwrites the pin trigger and timestamp for an already-pinned tab.
+  // This should ONLY be used when transitioning the context of a pinned tab
+  // to a new conversation/instance session (such as during an in-place
+  // conversation switch), without performing a full unpin and re-pin.
+  virtual void SetPinTrigger(tabs::TabHandle tab_handle,
+                             GlicPinTrigger trigger) = 0;
 
   // Forwarding overload for legacy calls. Calls PinTabs with kUnknown trigger.
   bool PinTabs(base::span<const tabs::TabHandle> tab_handles);
@@ -236,7 +242,7 @@ class GlicSharingManager {
   virtual int32_t SetMaxPinnedTabs(uint32_t max_pinned_tabs) = 0;
 
   // Fetches the current list of pinned tabs.
-  virtual std::vector<content::WebContents*> GetPinnedTabs() const = 0;
+  virtual std::vector<tabs::TabInterface*> GetPinnedTabs() const = 0;
 
   // Queries whether the given tab has been explicitly pinned.
   virtual bool IsTabPinned(tabs::TabHandle tab_handle) const = 0;

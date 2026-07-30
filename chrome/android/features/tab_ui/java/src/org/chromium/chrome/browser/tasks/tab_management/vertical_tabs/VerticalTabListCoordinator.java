@@ -9,20 +9,124 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import org.chromium.base.supplier.NullableObservableSupplier;
+import androidx.recyclerview.widget.GridLayoutManager;
+
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabFavicon;
+import org.chromium.chrome.browser.tab.TabSelectionType;
+import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider;
+import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
+import org.chromium.chrome.browser.tabmodel.TabModelUtils;
+import org.chromium.chrome.browser.tasks.tab_management.TabActionListener;
+import org.chromium.chrome.browser.tasks.tab_management.TabComponentId;
+import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator;
+import org.chromium.chrome.browser.tasks.tab_management.TabListEditorCoordinator;
+import org.chromium.chrome.browser.tasks.tab_management.TabListMediator;
+import org.chromium.chrome.browser.tasks.tab_management.TabListModel;
+import org.chromium.chrome.browser.tasks.tab_management.TabListRecyclerView;
+import org.chromium.chrome.browser.tasks.tab_management.TabProperties;
+import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
 import org.chromium.chrome.tab_ui.R;
-import org.chromium.components.browser_ui.styles.SemanticColorUtils;
+import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
+import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 
 /** Coordinator to manage and display the Vertical Tab List. */
 @NullMarked
 public class VerticalTabListCoordinator {
+    static final int DEFAULT_GRID_SPAN_COUNT = 4;
     private final ViewGroup mContainerView;
+    private final TabListFaviconProvider mTabListFaviconProvider;
+    private final TabListModel mModelList;
+    private @Nullable TabListMediator mMediator;
+    private @Nullable TabModelSelector mTabModelSelector;
+    private @Nullable TabModelSelectorObserver mTabModelSelectorObserver;
+
+    private class VerticalTabListClickHandler
+            implements TabListMediator.GridCardOnClickListenerProvider {
+        private final TabActionListener mTabGroupClickedListener =
+                new TabActionListener() {
+                    @Override
+                    public void run(
+                            View view, int tabId, @Nullable MotionEventInfo triggeringMotion) {
+                        toggleTabGroupExpansion(tabId);
+                    }
+
+                    @Override
+                    public void run(
+                            View view, String syncId, @Nullable MotionEventInfo triggeringMotion) {
+                        // Intentional no-op.
+                    }
+                };
+
+        @Override
+        public @Nullable TabActionListener onTabGroupClicked(Tab tab) {
+            return mTabGroupClickedListener;
+        }
+
+        @Override
+        public @Nullable TabActionListener onTabGroupClicked(String syncId) {
+            return null;
+        }
+
+        @Override
+        public void onTabSelecting(int tabId, boolean fromActionButton) {
+            TabModelSelector selector = mTabModelSelector;
+            if (selector != null) {
+                // TODO(crbug.com/509226293): Coordinate tab selection with smooth side panel
+                // dismissal or collapse animations when running on narrow screens.
+                TabModelUtils.selectTabById(selector, tabId, TabSelectionType.FROM_USER);
+            }
+        }
+    }
 
     public VerticalTabListCoordinator(
-            Activity activity,
-            NullableObservableSupplier<TabModelSelector> tabModelSelectorSupplier) {
+            Activity activity, TabModelSelector tabModelSelector, Profile profile) {
+        mModelList = new TabListModel();
+        SimpleRecyclerViewAdapter adapter =
+                new SimpleRecyclerViewAdapter(mModelList) {
+                    @Override
+                    public int getItemViewType(int position) {
+                        ListItem item = mModelList.get(position);
+                        if (item.type == UiType.TAB) {
+                            if (item.model.get(TabProperties.IS_PINNED)) {
+                                return UiType.PINNED_TAB;
+                            } else if (item.model.get(TabProperties.TAB_GROUP_CARD_COLOR) != null) {
+                                return UiType.TAB_GROUP;
+                            }
+                        }
+                        return super.getItemViewType(position);
+                    }
+                };
+
+        adapter.registerType(
+                UiType.TAB,
+                parent ->
+                        (ViewGroup)
+                                LayoutInflater.from(activity)
+                                        .inflate(R.layout.vertical_tab_item, parent, false),
+                TabVerticalViewBinder::bindTab);
+
+        adapter.registerType(
+                UiType.PINNED_TAB,
+                parent ->
+                        (ViewGroup)
+                                LayoutInflater.from(activity)
+                                        .inflate(R.layout.vertical_tab_pinned_item, parent, false),
+                TabVerticalViewBinder::bindPinnedTab);
+
+        adapter.registerType(
+                UiType.TAB_GROUP,
+                parent ->
+                        (ViewGroup)
+                                LayoutInflater.from(activity)
+                                        .inflate(R.layout.vertical_tab_group_header, parent, false),
+                TabVerticalViewBinder::bindTabGroupHeader);
 
         mContainerView =
                 (ViewGroup)
@@ -32,28 +136,158 @@ public class VerticalTabListCoordinator {
                 new ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        mContainerView.setBackgroundColor(
-                SemanticColorUtils.getColorSurfaceContainerHighest(activity));
+        TabListRecyclerView recyclerView = mContainerView.findViewById(R.id.tab_list_recycler_view);
 
-        // TODO(crbug.com/513622986):
-        // 1. Set up SimpleRecyclerViewAdapter and register the corresponding ViewBinder for
-        // Vertical Tabs.
-        // 2. Instantiate TabListMediator and bind with TabModelSelectorSupplier.
-        // 3. Wire up header container (R.id.vertical_tab_header_container) for search & grid
+        GridLayoutManager layoutManager = createGridLayoutManager(activity, adapter);
+
+        recyclerView.setLayoutManager(layoutManager);
+        recyclerView.setAdapter(adapter);
+        recyclerView.setVisibility(View.VISIBLE);
+
+        mTabListFaviconProvider =
+                new TabListFaviconProvider(
+                        activity,
+                        /* isTabStrip */ false,
+                        R.dimen.default_favicon_corner_radius,
+                        TabFavicon::getBitmap);
+
+        // TODO(crbug.com/509226293):
+        // 1. Wire up header container (R.id.vertical_tab_header_container) for search & grid
         // buttons.
-        // 4. Wire up footer container (R.id.vertical_tab_footer_container)
-        // 5. Attach ItemTouchHelper for vertical row dragging & reordering.
-        // 6. Register Right-click / Long-press Context Menu listener for tab interactions.
+        // 2. Wire up footer container (R.id.vertical_tab_footer_container)
+        // 3. Attach ItemTouchHelper for vertical row dragging & reordering.
+        // 4. Register Right-click / Long-press Context Menu listener for tab interactions.
 
-        // TODO(crbug.com/513622986): Add corresponding unit tests once list adapter, mediator,
-        // and view bindings are implemented.
+        mTabModelSelector = tabModelSelector;
+
+        // TODO(crbug.com/509226293): Refactor the shared TabListMediator to dynamically manage
+        // the display (inline vs. collapsed) and drag/drop reordering of tab group children.
+        // Instead of using static boolean flags or string checks, we should decide whether to
+        // act on a group or a single tab by checking the row's type (Group Header vs. Child Tab),
+        // and ask the TabGroupModelFilter if a group is collapsed to decide whether to show
+        // its child tabs inline.
+        mMediator =
+                new TabListMediator(
+                        activity,
+                        mModelList,
+                        TabListCoordinator.TabListMode.GRID,
+                        /* modalDialogManager */ null,
+                        tabModelSelector.getCurrentTabModelSupplier(),
+                        /* thumbnailProvider */ null,
+                        mTabListFaviconProvider,
+                        /* actionOnRelatedTabs */ true,
+                        /* selectionDelegateProvider */ null,
+                        /* gridCardOnClickListenerProvider */ new VerticalTabListClickHandler(),
+                        /* dialogHandler */ null,
+                        /* priceWelcomeMessageControllerSupplier */ null,
+                        TabComponentId.VERTICAL_TABS,
+                        TabProperties.TabActionState.CLOSABLE,
+                        /* dataSharingTabManager */ null,
+                        /* onTabGroupCreation */ null,
+                        /* undoBarExplicitTrigger */ null,
+                        /* snackbarManager */ null,
+                        TabListEditorCoordinator.UNLIMITED_SELECTION,
+                        /* isSingleContextMode */ false,
+                        /* onDragStateChangedListener */ () -> {});
+
+        mMediator.initWithNative(profile.getOriginalProfile());
+
+        mTabModelSelectorObserver =
+                new TabModelSelectorObserver() {
+                    @Override
+                    public void onChange() {
+                        TabModelSelector selector = mTabModelSelector;
+                        if (selector != null && selector.isTabStateInitialized()) {
+                            resetWithListOfTabs(selector.getCurrentModel());
+                        }
+                    }
+
+                    @Override
+                    public void onTabStateInitialized() {
+                        TabModelSelector selector = mTabModelSelector;
+                        if (selector != null) {
+                            resetWithListOfTabs(selector.getCurrentModel());
+                        }
+                    }
+                };
+        tabModelSelector.addObserver(mTabModelSelectorObserver);
+
+        if (tabModelSelector.isTabStateInitialized()) {
+            resetWithListOfTabs(tabModelSelector.getCurrentModel());
+        }
     }
 
+    /** Returns the root ViewGroup container representing the Left Rail sidebar. */
     public View getView() {
         return mContainerView;
     }
 
     public void destroy() {
-        // TODO(crbug.com/513622986): Clean up mediator, observers, and suppliers here.
+        if (mMediator != null) {
+            mMediator.destroy();
+            mMediator = null;
+        }
+        if (mTabModelSelector != null && mTabModelSelectorObserver != null) {
+            mTabModelSelector.removeObserver(mTabModelSelectorObserver);
+            mTabModelSelectorObserver = null;
+        }
+        mTabModelSelector = null;
+
+        if (mTabListFaviconProvider != null) {
+            mTabListFaviconProvider.destroy();
+        }
+    }
+
+    private void resetWithListOfTabs(@Nullable TabModel tabModel) {
+        if (mMediator == null || tabModel == null) return;
+        mMediator.resetWithListOfTabs(
+                tabModel.getRepresentativeTabList(),
+                /* tabGroupSyncIds */ null,
+                /* quickMode */ false);
+    }
+
+    /**
+     * Toggles the expanded/collapsed visual and layout state of a tab group.
+     *
+     * @param tabId the ID of the representative tab representing the tab group.
+     */
+    void toggleTabGroupExpansion(int tabId) {
+        PropertyModel model = mModelList.getModelFromTabId(tabId);
+        if (model != null && model.get(TabProperties.TAB_GROUP_CARD_COLOR) != null) {
+            boolean isExpanded = model.get(TabProperties.IS_EXPANDED);
+            model.set(TabProperties.IS_EXPANDED, !isExpanded);
+            // TODO(crbug.com/509226293):
+            // 1. Fetch child tabs using TabGroupModelFilter and dynamically insert them (if
+            //    expanded) or remove them (if collapsed).
+            // 2. Persist the expanded/collapsed state natively by calling
+            //    TabGroupModelFilter.setTabGroupCollapsed(tabGroupId, isCollapsed) instead of just
+            //    updating the model locally, and register a TabGroupModelFilterObserver to keep
+            //    our model list in sync across restarts and with the horizontal tab strip.
+        }
+    }
+
+    private GridLayoutManager createGridLayoutManager(
+            Activity activity, SimpleRecyclerViewAdapter adapter) {
+        GridLayoutManager layoutManager = new GridLayoutManager(activity, getSpanCount());
+        // Custom SpanSizeLookup: Pinned tabs take 1 column, regular tabs span the full grid width
+        layoutManager.setSpanSizeLookup(
+                new GridLayoutManager.SpanSizeLookup() {
+                    @Override
+                    public int getSpanSize(int position) {
+                        int type = adapter.getItemViewType(position);
+                        if (type == UiType.PINNED_TAB) {
+                            return 1;
+                        }
+                        return layoutManager.getSpanCount();
+                    }
+                });
+        return layoutManager;
+    }
+
+    /** Returns the default grid column span count for the Left Rail. */
+    private int getSpanCount() {
+        // TODO(crbug.com/509226293): When the Left Rail becomes collapsible or resizable, the span
+        // count must be calculated dynamically based on the measured width of the container.
+        return DEFAULT_GRID_SPAN_COUNT;
     }
 }

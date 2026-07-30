@@ -136,6 +136,8 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   void CollapseFloatyIfInvoked() override;
   void SetLastShownViewState(
       ios::provider::GeminiViewState view_state) override;
+  void OnLiveButtonTapped() override;
+  void OnGeminiLiveUserDidBargeIn() override;
 
   // Called when the scene activation level changes.
   void OnSceneActivationLevelChanged(SceneActivationLevel level);
@@ -158,6 +160,10 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // Propagates the page context to the provider if the floaty is invoked.
   void PropagatePageContextToProvider(GeminiPageContext* gemini_page_context);
 
+  // Updates the floaty with partial page context synchronously if the tab
+  // helper is available.
+  void UpdateFloatyWithPartialPageContext();
+
   // Starts the Gemini session (prepares context and shows overlay).
   void PresentFloaty(UIViewController* base_view_controller,
                      GeminiStartupState* startup_state,
@@ -173,6 +179,9 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // Adjusts the configuration around the Gemini page context based on user
   // prefs.
   void ApplyUserPrefsToPageContext(GeminiPageContext* gemini_page_context);
+
+  // Records the page type when Gemini is invoked.
+  void RecordInvocationPageType();
 
   // Sets the UI command handlers on the session handler. This cannot be called
   // in the constructor because some objects fail the protocol conformance test
@@ -211,8 +220,18 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // Shows a snackbar message informing the user that sign-in is required.
   void ShowSignInRequiredSnackbar(gemini::EntryPoint entry_point);
 
+  // Shows a snackbar message asking the user if they want to continue the Live
+  // session.
+  void ShowLiveSessionDormantSnackbar();
+
+  // Sets whether the dormant snackbar is showing.
+  void SetIsShowingLiveSessionDormantSnackbar(bool showing);
+
   // Returns the floaty offset based on current fullscreen progress.
   CGFloat GetFloatyOffset();
+
+  // Returns the floaty offset assuming the toolbars are fully expanded.
+  CGFloat GetFullyExpandedFloatyOffset();
 
   // Returns the floaty progress based on current fullscreen state.
   CGFloat GetFloatyProgress();
@@ -261,6 +280,11 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // New sources must be added to the switch statement depending on if we
   // expect the source to re-show the floaty after hiding it.
   bool ShouldSourceReshowFloaty(gemini::FloatyUpdateSource source) const;
+
+  // Returns true if the update from `source` should be ignored because the Live
+  // session dormant snackbar is active.
+  bool ShouldIgnoreUpdateForDormantSnackbar(
+      gemini::FloatyUpdateSource source) const;
 
   // Called when keyboard state changes.
   void OnKeyboardStateChanged(bool is_visible);
@@ -375,11 +399,18 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // Whether the floaty is hidden by the keyboard.
   bool is_hidden_by_keyboard_ = false;
 
+  // The current processing status of the Gemini client.
+  ios::provider::GeminiClientMode processing_status_ =
+      ios::provider::GeminiClientMode::kUnknown;
+
   // The last known availability of Gemini for the active web state.
   bool last_known_gemini_availability_ = false;
 
   // Updates the Gemini availability and notifies observers if it changed.
   void UpdateGeminiAvailability();
+
+  // Whether we are currently displaying the Live session dormant snackbar.
+  bool is_showing_live_session_dormant_snackbar_ = false;
 
   // Weak pointer factory.
   // Observers for GeminiBrowserAgent.

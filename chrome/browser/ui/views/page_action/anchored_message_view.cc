@@ -215,7 +215,7 @@ AnchoredMessageBubbleView::AnchoredMessageBubbleView(
       views::Button::STATE_NORMAL,
       ui::ImageModel::FromVectorIcon(
           features::IsRoundedIconsEnabled()
-              ? kCloseSmallIcon
+              ? vector_icons::kCloseIcon
               : vector_icons::kCloseChromeRefreshOldIcon,
           ui::kColorIcon, kAnchoredMessageIconSize));
   close_button_->SetTooltipText(l10n_util::GetStringUTF16(IDS_CLOSE));
@@ -228,7 +228,8 @@ AnchoredMessageBubbleView::AnchoredMessageBubbleView(
       base::BindRepeating(&AnchoredMessageBubbleView::MenuButtonPressed,
                           base::Unretained(this))));
   ConfigureInkDropForToolbar(menu_button_);
-  menu_button_->SetTooltipText(l10n_util::GetStringUTF16(IDS_APPMENU_TOOLTIP));
+  menu_button_->SetTooltipText(
+      l10n_util::GetStringUTF16(IDS_ANCHORED_MESSAGE_MENU_TOOLTIP));
   menu_button_->SetImageModel(
       views::Button::STATE_NORMAL,
       ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
@@ -316,7 +317,7 @@ void AnchoredMessageBubbleView::OnThemeChanged() {
         views::Button::STATE_NORMAL,
         ui::ImageModel::FromVectorIcon(
             features::IsRoundedIconsEnabled()
-                ? kCloseSmallIcon
+                ? vector_icons::kCloseIcon
                 : vector_icons::kCloseChromeRefreshOldIcon,
             color_provider->GetColor(ui::kColorSysOnSurfaceVariant),
             kAnchoredMessageIconSize));

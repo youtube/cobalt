@@ -2478,6 +2478,11 @@ export declare interface FormFillingRequest {
    */
   formattedRequestOrigin?: string;
   /**
+   * The label for the section that this form is in. Displayed by the UI to
+   * provide filling context in addition to the selection.
+   */
+  sectionLabel?: string;
+  /**
    * The list of suggestions for this form. The web client shows a selector with
    * these suggestions.
    */
@@ -3004,6 +3009,8 @@ export enum InvocationSource {
   AUTOFILL = 30,
   // Button in the toolbar.
   TOOLBAR_BUTTON = 31,
+  // User clicked on an Indigo page action.
+  INDIGO_PAGE_ACTION = 32,
 }
 
 ///////////////////////////////////////////////

@@ -11,6 +11,7 @@
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "chrome/browser/indigo/api_client.h"
 #include "chrome/browser/indigo/indigo_service.h"
 #include "chrome/browser/ui/tabs/contents_observing_tab_feature.h"
 #include "chrome/browser/ui/views/indigo/indigo_toolbar.h"
@@ -38,6 +39,33 @@ class IndigoOnboardingDialog;
 struct OnboardingResult;
 class IndigoService;
 
+// LINT.IfChange(IndigoTransformationResult)
+
+// Results of Indigo action invocation.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class IndigoTransformationResult {
+  kUnknown = 0,
+  kSuccess = 1,
+  kNotSignedIn = 2,
+  kMissingCapabilities = 3,
+  kDisabledByPolicy = 4,
+  kMissingScript = 5,
+  kRemoteStatusMissing = 6,
+  kServiceNotSupported = 7,
+  kMissingUserImage = 8,
+  kNotOnboarded = 9,
+  kGenerateImageError = 10,
+  kMaxValue = kGenerateImageError,
+};
+
+// LINT.ThenChange(//tools/metrics/histograms/metadata/indigo/enums.xml:IndigoTransformationResult)
+
+enum class ResetType {
+  kResetReplacementsAndContentScript,
+  kResetReplacementsOnly,
+};
+
 // Manages the Indigo page action and its various entry points, ensuring they
 // are correctly displayed.
 class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
@@ -64,6 +92,9 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
 
   // Shows the toolbar at the specified rectangle in the web contents view.
   void ShowToolbarInside(const gfx::Rect& rect);
+
+  // Resets all image replacements and hides the toolbar.
+  void Reset(ResetType reset_type);
 
   // content::WebContentsObserver:
   void DidFinishNavigation(
@@ -109,6 +140,9 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
   // Updates state and handles preference changes when the dialog closes.
   void OnOnboardingDialogClosed(const OnboardingResult& result);
 
+  // Called when the delete request completes.
+  void OnDeleteOriginalPhotoComplete(base::expected<void, DeleteError> result);
+
   // Called when the profile state has changed in a way that might affect
   // whether this feature should be offered.
   void OnLocalEligibilityChanged(LocalEligibility state);
@@ -127,6 +161,9 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
   // the tab is currently invisible (backgrounded) or has no active browser
   // window.
   views::View* GetIndigoOverlayView() const;
+
+  // Hides the toolbar if it is currently shown.
+  void HideToolbar();
 
   // `page_action_controller_` is owned by the same `TabFeatures` that owns
   // `this`. Since `page_action_controller_` is initialized before `this` and

@@ -2178,6 +2178,7 @@ interface Document : Node
     getter routeMap
     getter scripts
     getter scrollingElement
+    getter spellCheckCustomDictionary
     getter styleSheets
     getter timeline
     getter title
@@ -7791,6 +7792,18 @@ interface PerformanceScriptTiming : PerformanceEntry
     getter windowAttribution
     method constructor
     method toJSON
+interface PerformanceScrollTiming : PerformanceEntry
+    attribute @@toStringTag
+    getter checkerboardTime
+    getter deltaX
+    getter deltaY
+    getter firstFrameTime
+    getter framesExpected
+    getter framesProduced
+    getter scrollSource
+    getter target
+    method constructor
+    method toJSON
 interface PerformanceServerTiming
     attribute @@toStringTag
     getter description
@@ -7926,6 +7939,7 @@ interface PreloadData
     attribute @@toStringTag
     getter as
     getter crossorigin
+    getter earlyHints
     getter url
     getter used
     method constructor
@@ -7997,7 +8011,6 @@ interface PressureObserver
     method unobserve
 interface PressureRecord
     attribute @@toStringTag
-    getter ownContributionEstimate
     getter source
     getter state
     getter time
@@ -10198,6 +10211,7 @@ interface SourceBufferList : EventTarget
     setter onremovesourcebuffer
 interface SpeculationData
     attribute @@toStringTag
+    getter navigationDestinationURL
     getter navigations
     getter preloads
     method constructor
@@ -13898,7 +13912,6 @@ namespace console
     getter sessionStorage
     getter sharedStorage
     getter speechSynthesis
-    getter spellCheckCustomDictionary
     getter status
     getter statusbar
     getter styleMedia

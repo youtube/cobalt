@@ -11,9 +11,9 @@
 #include "third_party/blink/renderer/core/editing/markers/text_match_marker.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/layout/geometry/logical_rect.h"
-#include "third_party/blink/renderer/core/layout/inline/fit_text_scale.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_cursor.h"
 #include "third_party/blink/renderer/core/layout/inline/offset_mapping.h"
+#include "third_party/blink/renderer/core/layout/inline/text_fit_scale.h"
 #include "third_party/blink/renderer/core/layout/layout_counter.h"
 #include "third_party/blink/renderer/core/layout/layout_text_combine.h"
 #include "third_party/blink/renderer/core/layout/list/list_marker.h"
@@ -420,7 +420,7 @@ void TextFragmentPainter::Paint(const PaintInfo& paint_info,
   } else {
     DCHECK(!text_item.IsSvgText());
     if (RuntimeEnabledFeatures::CssTextFitEnabled()) {
-      scaling_factor = text_item.GetFitTextScale();
+      scaling_factor = text_item.GetTextFitScale();
     }
     PhysicalRect ink_overflow = text_item.SelfInkOverflowRect();
     ink_overflow.Move(physical_box.offset);

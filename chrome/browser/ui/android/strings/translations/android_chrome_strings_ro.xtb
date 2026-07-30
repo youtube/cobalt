@@ -552,7 +552,6 @@ Numai un utilizator care deține expresia ta de acces îți poate citi datele cr
 <translation id="3387650086002190359">Descărcarea fișierului <ph name="FILE_NAME" /> nu a reușit din cauza unor erori privind sistemul de fișiere.</translation>
 <translation id="3417835166382867856">Caută file</translation>
 <translation id="3430670036890315772">Dacă dezactivezi blocarea profilului, informațiile tale salvate vor fi șterse</translation>
-<translation id="3435465986463792564">Ai deschis multe ferestre? Gestionează-le de aici</translation>
 <translation id="3435575784518354875">Pentru a păstra accesul la parole, exportă-le acum, actualizează serviciile Google Play și apoi importă-le înapoi în Managerul de parole Google. <ph name="BEGIN_LINK" />Consultă instrucțiunile complete<ph name="END_LINK" />.</translation>
 <translation id="3435738964857648380">Securitate</translation>
 <translation id="3435914367318771664">Adaugă fila într-un grup nou</translation>
@@ -1016,6 +1015,7 @@ Contul Google poate să ofere alte forme ale istoricului de navigare, cum ar fi 
 <translation id="5370504953185181057"><ph name="TAB_TITLE" />, filă incognito de trimitere fixată</translation>
 <translation id="5375374982898812658">Vei pierde imediat accesul la grupul de file <ph name="GROUP_NAME" /> și acesta va fi șters de pe toate dispozitivele tale</translation>
 <translation id="5375577065097716013">Caută imaginea cu Google Lens <ph name="BEGIN_NEW" />Nou<ph name="END_NEW" /></translation>
+<translation id="537865165090710757">Salvează și trimite</translation>
 <translation id="5390367025924544771"><ph name="WEBSITE_ORIGIN" /> dorește să-ți folosească informațiile cu caracter personal din portofelul digital. Continuă numai dacă ai încredere în acest site. Site-urile periculoase te pot păcăli să dezvălui informații cum ar fi numele oficial sau numărul actului de identitate.</translation>
 <translation id="5395376160638294582">Asigură-te că poți folosi oricând datele Chrome din Contul Google</translation>
 <translation id="539881862970320163">S-a sugerat o parolă puternică. Tastatura este ascunsă.</translation>
@@ -1099,6 +1099,7 @@ Contul Google poate să ofere alte forme ale istoricului de navigare, cum ar fi 
 <translation id="5763514718066511291">Atinge pentru a copia adresa URL pentru această aplicație</translation>
 <translation id="5765517223145864268">Descrie-ne experiența ta. Sau <ph name="BEGIN_LINK" />modifică setările<ph name="END_LINK" />.</translation>
 <translation id="5776970333778123608">Date neimportante</translation>
+<translation id="5788665823391532892">Raportează o problemă...</translation>
 <translation id="5793665092639000975">Se utilizează <ph name="SPACE_USED" /> din <ph name="SPACE_AVAILABLE" /></translation>
 <translation id="5797949256525811424">Subiect blocat</translation>
 <translation id="580893287573699959">Gestionează subiectele și site-urile care te interesează</translation>

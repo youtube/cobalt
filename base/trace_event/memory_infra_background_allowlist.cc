@@ -97,6 +97,7 @@ constexpr auto kDumpProviderAllowlist =
         "TextureOwner"
         "URLRequestContext",
         "V8Isolate",
+        "WebGL",
         "WebMediaPlayer_MainThread",
         "WebMediaPlayer_MediaThread",
         // clang-format on
@@ -252,6 +253,8 @@ constexpr auto kAllocatorDumpNameAllowlist =
         "web_cache/Code_cache",
         "web_cache/Encoded_size_duplicated_in_data_urls",
         "web_cache/Other_resources",
+        "webgl/context_0x?",
+        "webgl/offscreen_context_0x?",
         "partition_alloc/allocated_objects",
         "partition_alloc/address_space",
         "partition_alloc/partitions",
@@ -353,6 +356,7 @@ constexpr auto kAllocatorDumpNameAllowlist =
         "tab_restore/service_helper_0x?/entries/group_0x?",
         "tab_restore/service_helper_0x?/entries/tab_0x?",
         "tab_restore/service_helper_0x?/entries/window_0x?",
+        "tab_restore/service_helper_0x?/entries/split_0x?",
         "tracing/heap_profiler_blink_gc/AllocationRegister",
         "tracing/heap_profiler_malloc/AllocationRegister",
         "tracing/heap_profiler_partition_alloc/AllocationRegister",

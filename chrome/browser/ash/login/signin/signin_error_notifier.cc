@@ -8,6 +8,7 @@
 #include <string>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_login_pref_names.h"
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/notification_utils.h"
 #include "ash/webui/settings/public/constants/routes.mojom.h"
@@ -30,7 +31,6 @@
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/chrome_pages.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
@@ -51,6 +51,7 @@
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/message_center/public/cpp/notification.h"
 #include "ui/message_center/public/cpp/notification_delegate.h"
 
@@ -91,7 +92,7 @@ bool IsSecondaryEduAccountMigratedForChildUser(Profile* profile,
   }
 
   return profile->GetPrefs()->GetBoolean(
-      prefs::kEduCoexistenceArcMigrationCompleted);
+      ash::prefs::kEduCoexistenceArcMigrationCompleted);
 }
 
 std::unique_ptr<message_center::Notification>
@@ -122,7 +123,9 @@ CreateDeviceAccountErrorNotification(
           GURL(device_account_notification_id), notifier_id, data,
           new message_center::HandleNotificationClickDelegate(
               base::BindRepeating(&HandleDeviceAccountReauthNotificationClick)),
-          vector_icons::kNotificationWarningOldIcon,
+          ::features::IsRoundedIconsEnabled()
+              ? vector_icons::kInfoFilledIcon
+              : vector_icons::kNotificationWarningOldIcon,
           message_center::SystemNotificationWarningLevel::WARNING);
   notification->SetSystemPriority();
 
@@ -244,8 +247,8 @@ bool SigninErrorNotifier::ShouldIgnoreSyncErrorsForTesting() {
 
 // static
 void SigninErrorNotifier::RegisterPrefs(PrefRegistrySimple* registry) {
-  registry->RegisterBooleanPref(prefs::kEduCoexistenceArcMigrationCompleted,
-                                false);
+  registry->RegisterBooleanPref(
+      ash::prefs::kEduCoexistenceArcMigrationCompleted, false);
 }
 
 void SigninErrorNotifier::Shutdown() {
@@ -369,7 +372,8 @@ void SigninErrorNotifier::OnCheckDummyGaiaTokenForAllAccounts(
       new message_center::HandleNotificationClickDelegate(base::BindRepeating(
           &SigninErrorNotifier::HandleSecondaryAccountReauthNotificationClick,
           weak_factory_.GetWeakPtr())),
-      vector_icons::kSettingsOldIcon,
+      ::features::IsRoundedIconsEnabled() ? vector_icons::kSettingsFilledIcon
+                                          : vector_icons::kSettingsOldIcon,
       message_center::SystemNotificationWarningLevel::NORMAL);
   notification.SetSystemPriority();
 

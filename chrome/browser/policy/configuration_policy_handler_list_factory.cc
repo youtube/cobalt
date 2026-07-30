@@ -24,7 +24,7 @@
 #include "chrome/browser/enterprise/reporting/legacy_tech/legacy_tech_report_policy_handler.h"
 #include "chrome/browser/first_party_sets/first_party_sets_overrides_policy_handler.h"
 #include "chrome/browser/glic/gemini_act_on_web_settings_policy_handler.h"
-#include "chrome/browser/glic/gemini_experimental_triggering_settings_policy_handler.h"
+#include "chrome/browser/glic/gemini_spark_settings_policy_handler.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/media/webrtc/capture_policy_utils.h"
 #include "chrome/browser/net/disk_cache_dir_policy_handler.h"
@@ -170,6 +170,7 @@
 #include "components/headless/policy/headless_mode_policy_handler.h"
 #include "components/lens/lens_overlay_permission_utils.h"
 #include "components/media_router/common/pref_names.h"
+#include "components/optimization_guide/core/feature_registry/feature_registration.h"
 #include "components/search_engines/enterprise/search_aggregator_policy_handler.h"
 #include "components/search_engines/enterprise/site_search_policy_handler.h"
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -504,6 +505,11 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     enterprise_isolated_mode::kEnterpriseIsolatedModeSettings,
     base::Value::Type::INTEGER },
 // Policies for all platforms - End
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_FUCHSIA)
+  { key::kChromeSuggestionsSettings,
+    optimization_guide::prefs::kChromeSuggestionsSettings,
+    base::Value::Type::INTEGER },
+#endif
 #if BUILDFLAG(IS_ANDROID)
   { key::kAccessibilityPerformanceFilteringAllowed,
     prefs::kAccessibilityPerformanceFilteringAllowed,
@@ -1709,10 +1715,10 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     ash::prefs::kRequiredClientCertificateForDevice,
     base::Value::Type::LIST },
   { key::kSecurityTokenSessionBehavior,
-    prefs::kSecurityTokenSessionBehavior,
+    ash::prefs::kSecurityTokenSessionBehavior,
     base::Value::Type::STRING },
   { key::kSecurityTokenSessionNotificationSeconds,
-    prefs::kSecurityTokenSessionNotificationSeconds,
+    ash::prefs::kSecurityTokenSessionNotificationSeconds,
     base::Value::Type::INTEGER },
   { key::kDeviceAllowMGSToStoreDisplayProperties,
     ash::prefs::kAllowMGSToStoreDisplayProperties,
@@ -2374,6 +2380,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     base::Value::Type::BOOLEAN},
   { key::kStandardizedBrowserZoomEnabled,
     policy_prefs::kStandardizedBrowserZoomEnabled,
+    base::Value::Type::BOOLEAN},
+  { key::kRestrictBackgroundFetchFromServiceWorkerEnabled,
+    policy_prefs::kRestrictBackgroundFetchFromServiceWorkerEnabled,
     base::Value::Type::BOOLEAN},
   { key::kHappyEyeballsV3Enabled,
     prefs::kHappyEyeballsV3Enabled,
@@ -3570,6 +3579,7 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       key::kFindsSettings,
       optimization_guide::prefs::kFindsEnterprisePolicyAllowed);
 #endif  // BUILDFLAG(IS_ANDROID)
+
 #if !BUILDFLAG(IS_ANDROID)
   gen_ai_default_policies.emplace_back(
       key::kLensOverlaySettings, lens::prefs::kLensOverlaySettings,
@@ -3626,8 +3636,7 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       std::vector<GenAiDefaultSettingsPolicyHandler::GenAiPolicyDetails>(
           gen_ai_default_policies)));
 #if !BUILDFLAG(IS_ANDROID)
-  handlers->AddHandler(std::make_unique<
-                       GeminiExperimentalTriggeringSettingsPolicyHandler>(
+  handlers->AddHandler(std::make_unique<GeminiSparkSettingsPolicyHandler>(
       std::make_unique<GenAiDefaultSettingsPolicyHandler>(
           std::vector<GenAiDefaultSettingsPolicyHandler::GenAiPolicyDetails>(
               gen_ai_default_policies))));

@@ -162,6 +162,15 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kBackgroundCodeCacheDecoderStart);
 
+// A kill switch to background fetch from the service worker environment. If
+// enabled, `backgroundFetch.fetch()` from the service worker will throw an
+// exception.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
+    kRestrictBackgroundFetchFromServiceWorker);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    std::string,
+    kBackgroundFetchFromServiceWorkerAllowListStr);
+
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kBakedGamutMapping);
 
 // Used to configure a per-origin allowlist of performance.mark events that are
@@ -701,6 +710,9 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 // Forces the attribute powerPreference to be set to "high-performance" for
 // WebGL contexts.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceHighPerformanceGPUForWebGL);
+
+// Gated visibility propagation from placeholder canvas to OffscreenCanvas.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kOffscreenCanvasPropagateVisibility);
 
 // When enabled, forces ICC profile parsing to use skcms instead of the Rust
 // moxcms parser. Acts as a kill-switch for the Rust ICC parser.
@@ -2003,8 +2015,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
 // WebRTC's security.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebRtcPqcForDtls);
 
-// TODO(crbug.com/466441366): Stop accepting 'borderless'.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebAppBorderless);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebAppEnableScopeExtensionsBySite);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kWebAppEnableScopeExtensionsForIsolatedWebApps);

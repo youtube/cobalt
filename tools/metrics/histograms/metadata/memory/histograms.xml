@@ -144,6 +144,7 @@ chromium-metrics-reviews@google.com.
   <variant name="V8Isolate"/>
   <variant name="V8SharedMemory"/>
   <variant name="vulkan"/>
+  <variant name="WebGL"/>
   <variant name="WebMediaPlayer_MainThread"/>
   <variant name="WebMediaPlayer_MediaThread"/>
   <variant name="WebNN"/>
@@ -575,6 +576,9 @@ chromium-metrics-reviews@google.com.
       summary="Total memory that is lazily allocated by clients from the
                Vulkan Memory Allocator. Only reported when Vulkan is used for
                rendering."/>
+  <variant name=".WebGL"
+      summary="Only counting memory used by WebGL contexts. Includes an
+               estimate of GPU memory used."/>
 </variants>
 
 <variants name="ProcessMemoryAllocatorCustom2">
@@ -3104,7 +3108,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.SystemMemoryLists.QueryFailureStatus" enum="NTSTATUS"
-    expires_after="2026-09-20">
+    expires_after="2026-11-22">
   <owner>spvm@google.com</owner>
   <owner>etienneb@google.com</owner>
   <summary>

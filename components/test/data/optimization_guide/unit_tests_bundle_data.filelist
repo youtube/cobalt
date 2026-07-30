@@ -5,6 +5,7 @@
 #       If it requires updating, you should get a presubmit error with
 #       instructions on how to regenerate. Otherwise, do not edit.
 //components/test/data/optimization_guide/actionable_elements.html
+//components/test/data/optimization_guide/anchored_offscreen_absolute_popup.html
 //components/test/data/optimization_guide/anchored_offscreen_fixed_popup.html
 //components/test/data/optimization_guide/aria_disabled_button.html
 //components/test/data/optimization_guide/aria_role.html
@@ -38,7 +39,6 @@
 //components/test/data/optimization_guide/meta_tags_in_multiple_frames.html
 //components/test/data/optimization_guide/open_popup.html
 //components/test/data/optimization_guide/open_popup_iframe.html
-//components/test/data/optimization_guide/otp_redaction.html
 //components/test/data/optimization_guide/page_topics_128_model.tflite
 //components/test/data/optimization_guide/paid_content.html
 //components/test/data/optimization_guide/paragraph.html

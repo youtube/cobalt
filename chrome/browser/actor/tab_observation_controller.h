@@ -14,10 +14,11 @@
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/aggregated_journal.h"
+#include "chrome/browser/actor/tab_observation_strategy.h"
 #include "chrome/browser/actor/tools/observation_delay_controller.h"
 #include "chrome/common/actor/action_result.h"
-#include "chrome/common/actor/task_id.h"
+#include "components/actor/core/aggregated_journal.h"
+#include "components/actor/core/task_id.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/page_content_annotations/content/page_context_fetcher.h"
 
@@ -64,6 +65,7 @@ class TabObservationController {
       base::TimeTicks start_time,
       bool skip_async_observation_information,
       std::vector<actor::ActionResultWithLatencyInfo> action_results,
+      TabObservationStrategy observation_strategy,
       DoneCallback done_callback);
 
   TabObservationController(const TabObservationController&) = delete;
@@ -105,11 +107,15 @@ class TabObservationController {
 
   ActorTask* GetActorTask() const;
 
+  bool ShouldTakeScreenshot(tabs::TabHandle tab_handle) const;
+  bool ShouldExtractPageContent(tabs::TabHandle tab_handle) const;
+
   raw_ptr<Profile> profile_;
   TaskId task_id_;
   base::TimeTicks start_time_;
   bool skip_async_observation_information_;
   std::vector<actor::ActionResultWithLatencyInfo> action_results_;
+  TabObservationStrategy observation_strategy_;
   DoneCallback done_callback_;
 
   std::optional<

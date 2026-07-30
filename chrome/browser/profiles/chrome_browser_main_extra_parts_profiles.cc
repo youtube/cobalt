@@ -15,7 +15,7 @@
 #include "chrome/browser/accessibility/page_colors_controller_factory.h"
 #include "chrome/browser/accessibility_annotator/accessibility_annotator_backend_factory.h"
 #include "chrome/browser/accessibility_annotator/accessibility_query_service_factory.h"
-#include "chrome/browser/accessibility_annotator/first_run/accessibility_annotator_first_run_service_factory.h"
+#include "chrome/browser/accessibility_annotator/first_run/personal_context_first_run_service_factory.h"
 #include "chrome/browser/account_settings/account_setting_service_factory.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/affiliations/affiliation_service_factory.h"
@@ -377,6 +377,7 @@
 #include "chrome/browser/private_ai/private_ai_service_factory.h"
 #include "chrome/browser/profile_resetter/reset_report_uploader_factory.h"
 #include "chrome/browser/record_replay/recording_data_manager_factory.h"
+#include "chrome/browser/record_replay/task_parameters_extractor_factory.h"
 #include "chrome/browser/record_replay/task_service_factory.h"
 #include "chrome/browser/screen_ai/screen_ai_service_router_factory.h"
 #include "chrome/browser/search/instant_service_factory.h"
@@ -703,7 +704,6 @@ void ChromeBrowserMainExtraPartsProfiles::
   AboutThisSiteServiceFactory::GetInstance();
   AcceptLanguagesServiceFactory::GetInstance();
   AccessibilityAnnotatorBackendFactory::GetInstance();
-  AccessibilityAnnotatorFirstRunServiceFactory::GetInstance();
   AccessibilityLabelsServiceFactory::GetInstance();
 #if !BUILDFLAG(IS_ANDROID)
   AccessibilityQueryServiceFactory::GetInstance();
@@ -1259,6 +1259,7 @@ void ChromeBrowserMainExtraPartsProfiles::
   PersistentRendererPrefsManagerFactory::GetInstance();
 #endif
   PersonalContextEnablementServiceFactory::GetInstance();
+  PersonalContextFirstRunServiceFactory::GetInstance();
   PersonalContextServiceFactory::GetInstance();
 #if !BUILDFLAG(IS_ANDROID)
   PinnedTabServiceFactory::GetInstance();
@@ -1331,6 +1332,7 @@ void ChromeBrowserMainExtraPartsProfiles::
   ReadingListModelFactory::GetInstance();
 #if !BUILDFLAG(IS_ANDROID)
   record_replay::RecordingDataManagerFactory::GetInstance();
+  record_replay::TaskParametersExtractorFactory::GetInstance();
   record_replay::TaskServiceFactory::GetInstance();
 #endif
   ReduceAcceptLanguageFactory::GetInstance();

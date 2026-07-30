@@ -552,7 +552,6 @@ Solo alguien con tu frase de contraseña puede leer los datos encriptados. Googl
 <translation id="3387650086002190359"><ph name="FILE_NAME" /> no se pudo descargar debido a errores del sistema de archivos.</translation>
 <translation id="3417835166382867856">Buscar pestañas</translation>
 <translation id="3430670036890315772">Si desactivas el bloqueo de perfil, se quitará la información guardada</translation>
-<translation id="3435465986463792564">¿Tienes muchas ventanas? Puedes administrarlas desde aquí.</translation>
 <translation id="3435575784518354875">Para mantener el acceso a tus contraseñas, expórtalas ahora, actualiza los Servicios de Google Play y, luego, vuelve a importarlas al Administrador de contraseñas de Google. <ph name="BEGIN_LINK" />Consulta las instrucciones completas<ph name="END_LINK" />.</translation>
 <translation id="3435738964857648380">Seguridad</translation>
 <translation id="3435914367318771664">Agregar pestaña a un grupo nuevo</translation>
@@ -1016,6 +1015,7 @@ Es posible que tu cuenta de Google tenga otros formularios de historial de naveg
 <translation id="5370504953185181057"><ph name="TAB_TITLE" />, pestaña de incógnito con uso compartido fijada</translation>
 <translation id="5375374982898812658">Perderás de inmediato el acceso al grupo de pestañas “<ph name="GROUP_NAME" />”, y se borrará de todos tus dispositivos</translation>
 <translation id="5375577065097716013">Buscar imagen con Lens <ph name="BEGIN_NEW" />Nuevo<ph name="END_NEW" /></translation>
+<translation id="537865165090710757">Guardar y compartir</translation>
 <translation id="5390367025924544771"><ph name="WEBSITE_ORIGIN" /> quiere usar información personal de tu billetera digital. Continúa solo si confías en este sitio. Los sitios peligrosos pueden engañarte para que reveles información como tu nombre legal o número de documento de identidad.</translation>
 <translation id="5395376160638294582">Asegúrate de que siempre puedas usar los datos de Chrome en tu Cuenta de Google</translation>
 <translation id="539881862970320163">Se sugiere una contraseña segura. El teclado está oculto.</translation>
@@ -1099,6 +1099,7 @@ Es posible que tu cuenta de Google tenga otros formularios de historial de naveg
 <translation id="5763514718066511291">Presiona para copiar la URL para esta app</translation>
 <translation id="5765517223145864268">Cuéntanos tu experiencia. O bien <ph name="BEGIN_LINK" />cambia la configuración<ph name="END_LINK" />.</translation>
 <translation id="5776970333778123608">Datos no importantes</translation>
+<translation id="5788665823391532892">Informar un problema…</translation>
 <translation id="5793665092639000975"><ph name="SPACE_USED" /> de <ph name="SPACE_AVAILABLE" /> en uso</translation>
 <translation id="5797949256525811424">Se bloqueó el tema</translation>
 <translation id="580893287573699959">Administra los temas y los sitios que te interesan</translation>

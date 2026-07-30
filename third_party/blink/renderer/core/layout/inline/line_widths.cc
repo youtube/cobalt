@@ -4,10 +4,10 @@
 
 #include "third_party/blink/renderer/core/layout/inline/line_widths.h"
 
-#include "third_party/blink/renderer/core/layout/inline/fit_text_scale.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_box_state.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_break_token.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_node.h"
+#include "third_party/blink/renderer/core/layout/inline/text_fit_scale.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_view.h"
 
 namespace blink {
@@ -37,7 +37,7 @@ bool LineWidths::Set(const InlineNode& node,
   const FontBaseline baseline_type = block_style.GetFontBaseline();
   InlineBoxState line_box;
   line_box.ComputeTextMetrics(block_style, *block_font, baseline_type,
-                              FitTextBlockScale::kFixed);
+                              TextFitBlockScale::kFixed);
 
   // Check if all lines have the same line heights.
   const SimpleFontData* primary_font = block_font->PrimaryFont();
@@ -68,7 +68,7 @@ bool LineWidths::Set(const InlineNode& node,
           const ComputedStyle& item_style = *item.Style();
           InlineBoxState text_box;
           text_box.ComputeTextMetrics(item_style, *item_style.GetFont(),
-                                      baseline_type, FitTextBlockScale::kFixed);
+                                      baseline_type, TextFitBlockScale::kFixed);
           if (text_box.include_used_fonts) {
             text_box.style = &item_style;
             const ShapeResultView* shape_result_view =

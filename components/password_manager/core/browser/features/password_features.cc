@@ -23,8 +23,8 @@ BASE_FEATURE(kActorLoginSyncsPasswordPermissions,
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kActorLoginNoPermanentPermissionsAndroid,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kActorLoginPermissionsUi, base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kActorLoginPermissionsUi, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 #if !BUILDFLAG(IS_IOS)
@@ -114,7 +114,13 @@ BASE_FEATURE(kFetchChangePasswordUrlForPasswordChange,
 
 BASE_FEATURE(kFillOnAccountSelect,
              "fill-on-account-select",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+// TODO(504600482): Disable the feature again upon fixing the bug.
+#if BUILDFLAG(IS_LINUX)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif  // BUILDFLAG(IS_LINUX)
+);
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kInFlowTrustedVaultKeyRetrievalAndroid,
@@ -177,6 +183,11 @@ BASE_FEATURE(kRestartToGainAccessToKeychain,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+// Shows a confirmation dialog before filling grouped credentials from the
+// manual fallback popup on Desktop.
+BASE_FEATURE(kShowConfirmationForGroupedCredentials,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kShowTabWithPasswordChangeOnSuccess,
              base::FEATURE_DISABLED_BY_DEFAULT);

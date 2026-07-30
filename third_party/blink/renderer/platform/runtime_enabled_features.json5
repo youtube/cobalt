@@ -331,16 +331,16 @@
         "default": "",
       },
     },
-    // Strip actionability from popup-like content that is positioned offscreen
-    // via position:absolute and cannot be reached by scrolling.
-    {
-      name: "AIPageContentAnchoredAbsoluteOffscreenNonActionability",
-      status: "test",
-    },
-    // Strip actionability from popup-like content that is positioned offscreen
+    // Strip actionability from content that is positioned offscreen
     // via position:fixed and cannot be reached by scrolling.
     {
       name: "AIPageContentAnchoredFixedOffscreenNonActionability",
+      status: "stable",
+    },
+    // Strip actionability from content that is positioned offscreen via
+    // absolute/relative/static positioning and cannot be reached by scrolling.
+    {
+      name: "AIPageContentAnchoredNonFixedOffscreenNonActionability",
       status: "stable",
     },
     // Whether to automatically build an APC content_extraction tree on load.
@@ -382,6 +382,12 @@
     // Element::SetTrackedElementSubRect() method.
     {
       name: "AIPageContentTrackedElementsIframe",
+      status: "test"
+    },
+    // When enabled, native or heuristics password element coordinates will be
+    // tracked using the Element::SetTrackedElementSubRect() method.
+    {
+      name: "AIPageContentTrackedElementsPassword",
       status: "test"
     },
     // Clamp AIPageContent visible bounding boxes to the local-root viewport
@@ -753,7 +759,6 @@
     {
       name: "AutoDarkMode",
       base_feature: "none",
-      origin_trial_feature_name: "AutoDarkMode",
     },
     {
       // When enabled, the dark mode filter (Auto Dark / force-dark) skips
@@ -1299,13 +1304,6 @@
       status: {
         "Android": "",
         "default": "stable",
-      }
-    },
-    {
-      name: "ComputePressureOwnContributionEstimate",
-      status: {
-        "Android": "",
-        "default": "experimental",
       }
     },
     {
@@ -2007,10 +2005,6 @@
       status: "stable",
     },
     {
-      name: "CssTextIndentAsPrimitive",
-      status: "stable",
-    },
-    {
       // crbug.com/1463890, crbug.com/1463891: CSS `text-spacing` shorthand
       name: "CSSTextSpacing",
       status: "test",
@@ -2448,7 +2442,7 @@
     },
     {
       // When enabled, retarget the relatedTarget attribute of drag events.
-      // This landed in M146 and can be removed in M148.
+      // This landed partly in M146 and more in M150 and can be removed in M152.
       name: "DontLeakShadowTreesInDragEvents",
       status: "stable",
     },
@@ -2883,6 +2877,10 @@
       name: "FirstLineTextMetrics",
       status: "stable",
     },
+    {
+      name: "FirstLineTextTransform",
+      status: "stable",
+    },
     // When enabled, HTMLFormControlElement::IsReadOnly() returns false for
     // types that don't support readonly.
     {
@@ -3213,6 +3211,10 @@
     },
     {
       name: "GetUserMediaEchoCancellationModes",
+      status: "stable",
+    },
+    {
+      name: "GraphemeClusterBoundsCheck",
       status: "stable",
     },
     {
@@ -3597,6 +3599,10 @@
     },
     {
       name: "LayoutIgnoreMarginsForSticky",
+    },
+    {
+      name: "LayoutOOFCollectInlinesFix",
+      status: "stable",
     },
     {
       name: "LayoutTableCellAlignmentSafe",
@@ -4120,6 +4126,11 @@
       status: "stable",
     },
     {
+      //See crbug.com/512385682
+      name: "OffsetMappingReuseFullWidthSpaceFix",
+      status: "stable",
+    },
+    {
       // Kill switch for a fix to offset-path transform invalidation for
       // https://crbug.com/463409688.
       name: "OffsetPathTransformUpdateFix",
@@ -4135,7 +4146,7 @@
     },
     {
       name: "OnDeviceWebSpeechQuality",
-      status: "experimental",
+      status: "stable",
     },
     {
       // The OpaqueRange interface provides a live AbstractRange subtype
@@ -4876,7 +4887,7 @@
     },
     {
       name: "RequestIsReloadNavigation",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "RequestMainFrameAfterFirstVideoFrame",
@@ -5053,6 +5064,10 @@
       status: "stable"
     },
     {
+      name: "ScoreLineBreakerAbort",
+      status: "stable",
+    },
+    {
       // https://github.com/w3c/window-management/issues/149
       name: "ScreenDetailedHdrHeadroom",
       status: "experimental",
@@ -5119,6 +5134,10 @@
     {
       name: "ScrollIntoViewRootFrameViewportBugFix",
       status: "stable",
+    },
+    {
+      name: "ScrollPerformanceTiming",
+      status: "test",
     },
     {
       // Separate flag for crbug.com/1426506 (getCurrentTime API change) which
@@ -5298,6 +5317,10 @@
       public: true,
       status: "stable",
       base_feature: "none",
+    },
+    {
+      name: "SendEarlyLastBeginMainFrame",
+      status: "stable",
     },
     {
       // SlotChange signal is sent after node insertion is complete,
@@ -5574,6 +5597,7 @@
       // Exposes speculation measurement data (preloads, prefetches, prerenders)
       // on performance.speculations.
       name: "SpeculationMeasurement",
+      origin_trial_feature_name: "SpeculationMeasurement",
       status: "experimental",
     },
     {
@@ -5613,6 +5637,13 @@
       // Kill switch for falsifying IsStacked() for non-stacked
       // stacking contexts. https://crbug.com/40208685
       name: "StackingContextIsNotStacked",
+      status: "stable",
+    },
+    {
+      // Kill switch for sending ImageChanged() to newly added
+      // observers while a stale cached image is revalidating.
+      // https://crbug.com/40757070
+      name: "StaleImageNaturalSizeDuringRevalidation",
       status: "stable",
     },
     {
@@ -5757,6 +5788,10 @@
     {
       name: "SvgSmilClockValueValidation",
       status: "stable",
+    },
+    {
+      name: "SvgSupportMediaFragments",
+      status: "experimental",
     },
     {
       name: "SvgTextPathPathAttribute",
@@ -5977,11 +6012,7 @@
       depends_on: ["TextSpacingTrimFallback"],
       status: "stable",
     },
-    {
-      // crbug.com/331123676
-      name: "TextSpacingTrimYuGothicUI",
-      status: "stable",
-    },
+
     {
       name: "ThrottledHistoryAPIThrowsSecurityError",
       status: "test",
@@ -6741,6 +6772,12 @@
     {
       name: "WebPrinting",
       status: {"Android": "", "ChromeOS": "stable", "default": "test"},
+    },
+    {
+      // Experimental implementation of
+      // https://www.ietf.org/archive/id/draft-hancke-tsvwg-snap-00.html
+      name: "WebRtcSctpSnap",
+      status: "test",
     },
     // WebShare is enabled by default on Android (non-WebView), Win, ChromeOS, and Mac.
     // This is done in chrome/renderer/chrome_content_renderer_client.cc to prevent

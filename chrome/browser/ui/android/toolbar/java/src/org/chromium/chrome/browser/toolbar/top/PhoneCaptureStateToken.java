@@ -25,6 +25,7 @@ import java.util.Objects;
 @NullMarked
 class PhoneCaptureStateToken {
     private final @ColorInt int mTint;
+    private final @ColorInt int mThemeColor;
     private final int mTabCount;
     private final int mOptionalButtonDataHashCode;
     private final @VisualState int mVisualState;
@@ -36,9 +37,11 @@ class PhoneCaptureStateToken {
     private final boolean mIsPaintPreview;
     private final int mUnfocusedLocationBarLayoutWidth;
     private final int mControlsPosition;
+    private final int mUrlBarWidth;
 
     public PhoneCaptureStateToken(
             @ColorInt int tint,
+            @ColorInt int themeColor,
             int tabCount,
             @Nullable ButtonData optionalButtonData,
             @VisualState int visualState,
@@ -50,8 +53,10 @@ class PhoneCaptureStateToken {
             boolean isPaintPreview,
             float progress,
             int unfocusedLocationBarLayoutWidth,
-            @ControlsPosition int controlsPosition) {
+            @ControlsPosition int controlsPosition,
+            int urlBarWidth) {
         mTint = tint;
+        mThemeColor = themeColor;
         mTabCount = tabCount;
         mOptionalButtonDataHashCode = Objects.hashCode(optionalButtonData);
         mVisualState = visualState;
@@ -65,6 +70,7 @@ class PhoneCaptureStateToken {
         // capture anyway.
         mUnfocusedLocationBarLayoutWidth = unfocusedLocationBarLayoutWidth;
         mControlsPosition = controlsPosition;
+        mUrlBarWidth = urlBarWidth;
     }
 
     /**
@@ -82,6 +88,8 @@ class PhoneCaptureStateToken {
             return ToolbarSnapshotDifference.NULL;
         } else if (current.mTint != next.mTint) {
             return ToolbarSnapshotDifference.TINT;
+        } else if (current.mThemeColor != next.mThemeColor) {
+            return ToolbarSnapshotDifference.THEME_COLOR;
         } else if (current.mTabCount != next.mTabCount) {
             return ToolbarSnapshotDifference.TAB_COUNT;
         } else if (current.mOptionalButtonDataHashCode != next.mOptionalButtonDataHashCode) {
@@ -110,6 +118,8 @@ class PhoneCaptureStateToken {
             return ToolbarSnapshotDifference.HOME_BUTTON;
         } else if (current.mControlsPosition != next.mControlsPosition) {
             return ToolbarSnapshotDifference.CONTROLS_POSITION;
+        } else if (current.mUrlBarWidth != next.mUrlBarWidth) {
+            return ToolbarSnapshotDifference.URL_TEXT;
         }
         return ToolbarSnapshotDifference.NONE;
     }

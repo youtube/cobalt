@@ -26,7 +26,6 @@
 #include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/public/glic_passkeys.h"
 #include "chrome/common/actor.mojom-forward.h"
-#include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom-forward.h"
 #include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/keyed_service/core/keyed_service.h"
@@ -292,7 +291,6 @@ class GlicKeyedService : public KeyedService, public base::SupportsUserData {
 #endif
   // Is a GlicInstanceCoordinatorImpl.
   std::unique_ptr<GlicInstanceCoordinator> instance_coordinator_;
-  std::unique_ptr<GlicSharingManager> sharing_manager_;
   std::unique_ptr<GlicShareImageHandler> share_image_handler_;
 
   std::unique_ptr<AuthController> auth_controller_;

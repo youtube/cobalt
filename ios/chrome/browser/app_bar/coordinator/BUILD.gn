@@ -13,13 +13,16 @@ source_set("coordinator") {
   ]
   deps = [
     "//base",
+    "//components/policy/core/common:common_constants",
+    "//components/prefs/ios",
     "//components/signin/public/base",
     "//components/signin/public/identity_manager",
     "//components/signin/public/identity_manager/objc",
     "//ios/chrome/browser/app_bar/ui",
     "//ios/chrome/browser/authentication/account_menu/coordinator",
     "//ios/chrome/browser/authentication/account_menu/public",
-    "//ios/chrome/browser/authentication/ui_bundled/signin:constants",
+    "//ios/chrome/browser/authentication/ui_bundled:continuation",
+    "//ios/chrome/browser/authentication/ui_bundled/signin",
     "//ios/chrome/browser/cobrowse/model",
     "//ios/chrome/browser/fullscreen/model",
     "//ios/chrome/browser/fullscreen/public:metrics",

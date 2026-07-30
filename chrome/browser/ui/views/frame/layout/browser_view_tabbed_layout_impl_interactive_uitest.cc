@@ -198,6 +198,27 @@ class BrowserViewTabbedLayoutImplUiTest : public InteractiveBrowserTest {
                       SetTemporaryValue(kSubregion, el->GetScreenBounds());
                     })
             .AddDescriptionPrefix("Get element bounds"),
+        // For the purposes of handling overlap between the main region and the
+        // vertical tab strip, when screenshotting the main region, do not
+        // include that overlap. This should be largely solved later when we no
+        // longer slide the main background under the tabstrip.
+        IfView(
+            kBrowserViewElementId,
+            [spec](const BrowserView* browser_view) {
+              return spec == BrowserViewLayoutViews::
+                                 kMainBackgroundRegionElementId &&
+                     browser_view->ShouldDrawVerticalTabStrip();
+            },
+            Then(WithElement(
+                kTabStripRegionElementId,
+                [=, this](ui::TrackedElement* el) {
+                  gfx::Rect rect = GetTemporaryValue(kSubregion);
+                  const gfx::Rect tab_strip_bounds = el->GetScreenBounds();
+                  rect.Inset(gfx::Insets::TLBR(
+                      0, std::max(0, tab_strip_bounds.right() - rect.x()), 0,
+                      0));
+                  SetTemporaryValue(kSubregion, rect);
+                }))),
         WithView(
             kBrowserViewElementId,
             [=, this,
@@ -709,16 +730,18 @@ class BrowserViewTabbedLayoutImplContentLayoutUiTest
   template <typename... Args>
   auto CheckResizeCounts(Args&&... args) {
     return CheckResult(
-        [this]() {
-          const auto& container_views = GetContentsContainers();
-          std::vector<size_t> counts;
-          for (ContentsContainerView* container : container_views) {
-            counts.push_back(resize_data_[container->contents_view()].count);
-          }
-          return counts;
-        },
-        testing::ElementsAre(
-            testing::Matcher<size_t>(std::forward<Args>(args))...));
+               [this]() {
+                 const auto& container_views = GetContentsContainers();
+                 std::vector<size_t> counts;
+                 for (ContentsContainerView* container : container_views) {
+                   counts.push_back(
+                       resize_data_[container->contents_view()].count);
+                 }
+                 return counts;
+               },
+               testing::ElementsAre(
+                   testing::Matcher<size_t>(std::forward<Args>(args))...))
+        .SetDescription("CheckResizeCounts()");
   }
 
   auto ToggleVerticalTabStripCollapsed(bool should_be_collapsed) {
@@ -881,7 +904,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplContentLayoutUiTest,
   RunTestSequence(EnterSplitView(), ClearResizeCounts(), OpenSidePanel(),
                   // There is a known issue where the elements can resize more
                   // than once. See https://crbug.com/485909751.
-                  CheckResizeCounts(testing::Le(2U), testing::Le(2U)));
+                  CheckResizeCounts(1U, testing::_));
 }
 
 IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplContentLayoutUiTest,
@@ -896,7 +919,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplContentLayoutUiTest,
                   CloseSidePanel(),
                   // There is a known issue where the elements can resize more
                   // than once. See https://crbug.com/485909751.
-                  CheckResizeCounts(testing::Le(2U), testing::Le(2U)));
+                  CheckResizeCounts(1U, testing::_));
 }
 
 IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplContentLayoutUiTest,

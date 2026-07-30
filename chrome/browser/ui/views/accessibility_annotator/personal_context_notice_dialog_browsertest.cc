@@ -17,7 +17,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/accessibility_annotator/core/url_constants.h"
-#include "components/accessibility_annotator/first_run/accessibility_annotator_first_run_types.h"
+#include "components/accessibility_annotator/first_run/personal_context_first_run_types.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -29,7 +29,6 @@
 #include "ui/views/widget/widget_utils.h"
 
 namespace personal_context::notice {
-using accessibility_annotator::InfoShowRequestResult;
 
 namespace {
 // This script is used to click a button in the dialog. The script waits for
@@ -94,7 +93,7 @@ IN_PROC_BROWSER_TEST_F(PersonalContextNoticeDialogBrowserTest,
 
   histogram_tester.ExpectTotalCount(histogram_name, 1);
   histogram_tester.ExpectBucketCount(histogram_name,
-                                     InfoShowRequestResult::kShown, 1);
+                                     NoticeShowRequestResult::kShown, 1);
 
   controller->CloseDialog();
 }
@@ -212,7 +211,7 @@ IN_PROC_BROWSER_TEST_F(PersonalContextNoticeDialogBrowserTest,
 
   histogram_tester.ExpectTotalCount(histogram_name, 2);
   histogram_tester.ExpectBucketCount(histogram_name,
-                                     InfoShowRequestResult::kAccepted, 1);
+                                     NoticeShowRequestResult::kAccepted, 1);
   EXPECT_FALSE(controller->GetWidgetForTesting());
 }
 
@@ -248,7 +247,7 @@ IN_PROC_BROWSER_TEST_F(PersonalContextNoticeDialogBrowserTest,
 
   histogram_tester.ExpectTotalCount(histogram_name, 1);
   histogram_tester.ExpectBucketCount(histogram_name,
-                                     InfoShowRequestResult::kShown, 1);
+                                     NoticeShowRequestResult::kShown, 1);
 
   views::test::WidgetDestroyedWaiter destroyed_waiter(widget);
 
@@ -264,7 +263,7 @@ IN_PROC_BROWSER_TEST_F(PersonalContextNoticeDialogBrowserTest,
 
   histogram_tester.ExpectTotalCount(histogram_name, 2);
   histogram_tester.ExpectBucketCount(histogram_name,
-                                     InfoShowRequestResult::kDismissed, 1);
+                                     NoticeShowRequestResult::kDismissed, 1);
 
   EXPECT_FALSE(controller->GetWidgetForTesting());
 }

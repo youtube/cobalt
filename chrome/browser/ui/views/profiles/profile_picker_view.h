@@ -26,7 +26,7 @@
 #include "ui/views/view.h"
 #include "ui/views/widget/widget_delegate.h"
 
-class ProfilePickerSignInToolbar;
+class ProfilePickerToolbar;
 class Profile;
 class ScopedProfileKeepAlive;
 class ProfileManagementFlowController;
@@ -77,9 +77,9 @@ class ProfilePickerView : public views::WidgetDelegateView,
   void ShowSigninErrorDialog(
       const std::variant<ForceSigninUIError, SigninUIError>& error,
       bool success) override;
-  void SetNativeToolbarVisible(bool visible) override;
+  void SetNativeToolbarSigninButtonsVisible(bool visible) override;
   void SetNativeToolbarDontSignInButtonVisible(bool visible) override;
-  bool IsNativeToolbarVisibleForTesting() const;
+  bool AreNativeToolbarSigninButtonsVisibleForTesting() const;
   SkColor GetPreferredBackgroundColor() const override;
 
   // content::WebContentsDelegate:
@@ -272,9 +272,9 @@ class ProfilePickerView : public views::WidgetDelegateView,
   // WebContents outlive this observer.
   std::unique_ptr<NavigationFinishedObserver> show_screen_finished_observer_;
 
-  // Toolbar view displayed on top of the WebView for GAIA sign-in, owned by the
-  // view hierarchy.
-  raw_ptr<ProfilePickerSignInToolbar> toolbar_ = nullptr;
+  // Toolbar view displayed on top of the native WebUI(s) and/or WebView (Gaia),
+  // owned by the view hierarchy.
+  raw_ptr<ProfilePickerToolbar> toolbar_ = nullptr;
 
   std::unique_ptr<ProfileManagementFlowController> flow_controller_;
 

@@ -14,17 +14,21 @@
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/page_info/page_info_dialog.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_util.h"
 #include "chrome/browser/ui/views/location_bar/location_icon_state_helper.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
+#include "chrome/browser/ui/views/toolbar/lottie_icon_source.h"
 #include "chrome/grit/branded_strings.h"
+#include "chrome/grit/browser_resources.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/dom_distiller/core/url_constants.h"
 #include "components/omnibox/browser/location_bar_model.h"
+#include "components/omnibox/browser/vector_icons.h"
 #include "components/security_state/core/security_state.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/web_contents.h"
@@ -65,6 +69,13 @@ LocationIconView::Delegate::GetLocationIconBackgroundColorOverride() const {
   return std::nullopt;
 }
 
+namespace {
+
+// Used to animate the page info icon when the bubble shows and hides.
+constexpr base::TimeDelta kAnimationDuration = base::Milliseconds(250);
+
+}  // namespace
+
 LocationIconView::LocationIconView(
     const gfx::FontList& font_list,
     IconLabelBubbleView::Delegate* parent_delegate,
@@ -83,6 +94,13 @@ LocationIconView::LocationIconView(
 
   ConfigureInkDropForRefresh2023(this, kColorOmniboxIconHover,
                                  kColorOmniboxIconPressed);
+
+  if (features::IsToolbarGlowUpEnabled()) {
+    slide_animation_ = std::make_unique<gfx::SlideAnimation>(this);
+    slide_animation_->SetSlideDuration(kAnimationDuration);
+    slide_animation_->SetCurrentValue(0.0f);
+
+  }
 
   UpdateBorder();
 }
@@ -124,7 +142,11 @@ bool LocationIconView::ShouldShowLabelAfterAnimation() const {
 }
 
 bool LocationIconView::ShowBubble(const ui::Event& event) {
-  return delegate_->ShowPageInfoDialog();
+  const bool success = delegate_->ShowPageInfoDialog();
+  if (success) {
+    MaybeAnimateIcon(true);
+  }
+  return success;
 }
 
 bool LocationIconView::IsBubbleShowing() const {
@@ -142,6 +164,34 @@ bool LocationIconView::OnMousePressed(const ui::MouseEvent& event) {
 
   IconLabelBubbleView::OnMousePressed(event);
   return true;
+}
+
+void LocationIconView::AnimationProgressed(const gfx::Animation* animation) {
+  if (animation == slide_animation_.get()) {
+    SetAnimatedPageInfoIcon(slide_animation_->GetCurrentValue());
+  } else {
+    IconLabelBubbleView::AnimationProgressed(animation);
+  }
+}
+
+void LocationIconView::SetAnimatedPageInfoIcon(float progress_value) {
+  const int icon_size = GetLayoutConstant(LayoutConstant::kLocationBarIconSize);
+
+  if (!page_info_open_animation_) {
+    std::optional<std::vector<uint8_t>> lottie_bytes =
+        ui::ResourceBundle::GetSharedInstance().GetLottieData(
+            IDR_PAGE_INFO_OPEN_LOTTIE);
+    CHECK(lottie_bytes.has_value());
+    scoped_refptr<cc::SkottieWrapper> skottie =
+        cc::SkottieWrapper::UnsafeCreateSerializable(std::move(*lottie_bytes));
+    page_info_open_animation_ = std::make_unique<lottie::Animation>(skottie);
+  }
+
+  ui::ImageModel model = ui::ImageModel::FromImageSkia(
+      gfx::CanvasImageSource::MakeImageSkia<LottieIconSource>(
+          page_info_open_animation_.get(), progress_value, icon_size,
+          GetForegroundColor()));
+  SetImageModel(model);
 }
 
 void LocationIconView::AddedToWidget() {
@@ -195,7 +245,29 @@ int LocationIconView::GetMinimumLabelTextWidth() const {
 
 bool LocationIconView::GetShowText() const {
   return location_bar::ShouldShowSecurityChipText(
-      delegate_->GetLocationBarModel(), delegate_->IsEditingOrEmpty());
+      delegate_->GetLocationBarModel(), delegate_->GetWebContents(),
+      delegate_->IsEditingOrEmpty());
+}
+
+void LocationIconView::MaybeAnimateIcon(bool show) {
+  if (features::IsToolbarGlowUpEnabled()) {
+    ui::ImageModel icon = delegate_->GetLocationIcon(
+        base::DoNothingAs<void(const gfx::Image&)>());
+
+    const bool is_page_info_icon =
+        icon.IsVectorIcon() &&
+        icon.GetVectorIcon().vector_icon() == &omnibox::kPageInfoIcon;
+
+    if (!is_page_info_icon) {
+      return;
+    }
+
+    if (show) {
+      slide_animation_->Show();
+    } else {
+      slide_animation_->Hide();
+    }
+  }
 }
 
 const views::InkDrop* LocationIconView::get_ink_drop_for_testing() {
@@ -260,6 +332,13 @@ void LocationIconView::UpdateIcon() {
 
   if (icon.IsEmpty()) {
     return;
+  }
+
+  if (slide_animation_) {
+    // UpdateIcon() calls are for icon updates not related to the page info
+    // animation. We reset the page info icon animation for the next time
+    // we animate the page info icon.
+    slide_animation_->Reset(0.0f);
   }
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)

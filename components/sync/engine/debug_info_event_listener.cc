@@ -7,7 +7,7 @@
 #include <stddef.h>
 
 #include "base/logging.h"
-#include "components/sync/engine/nigori/cryptographer.h"
+#include "components/sync/engine/cryptographer.h"
 #include "components/sync/engine/required_passphrase_verifier.h"
 #include "components/sync/protocol/client_debug_info.pb.h"
 #include "components/sync/protocol/encryption.pb.h"
@@ -69,6 +69,14 @@ void DebugInfoEventListener::OnTrustedVaultKeyRequired() {
 void DebugInfoEventListener::OnTrustedVaultKeyAccepted() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CreateAndAddEvent(sync_pb::SyncEnums::TRUSTED_VAULT_KEY_ACCEPTED);
+}
+
+void DebugInfoEventListener::OnKeystoreKeysRequired() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+}
+
+void DebugInfoEventListener::OnKeystoreKeysAccepted() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 void DebugInfoEventListener::OnEncryptedTypesChanged(

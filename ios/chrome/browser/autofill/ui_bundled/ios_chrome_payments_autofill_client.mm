@@ -16,6 +16,7 @@
 #import "base/memory/weak_ptr.h"
 #import "base/notimplemented.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/strings/utf_string_conversions.h"
 #import "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #import "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
 #import "components/autofill/core/browser/field_types.h"
@@ -50,6 +51,7 @@
 #import "components/autofill/core/common/autofill_prefs.h"
 #import "components/autofill/ios/browser/credit_card_save_metrics_ios.h"
 #import "components/signin/public/base/consent_level.h"
+#import "ios/chrome/browser/autofill/bnpl/ui/ios_bnpl_ui_delegate.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_tab_helper.h"
 #import "ios/chrome/browser/autofill/model/credit_card/autofill_save_card_infobar_delegate_ios.h"
 #import "ios/chrome/browser/autofill/model/manual_fill_virtual_card_cache.h"
@@ -663,7 +665,10 @@ BnplStrategy* IOSChromePaymentsAutofillClient::GetBnplStrategy() {
 }
 
 BnplUiDelegate* IOSChromePaymentsAutofillClient::GetBnplUiDelegate() {
-  return nullptr;
+  if (!bnpl_ui_delegate_) {
+    bnpl_ui_delegate_ = std::make_unique<IosBnplUiDelegate>(&client_.get());
+  }
+  return bnpl_ui_delegate_.get();
 }
 
 void IOSChromePaymentsAutofillClient::ShowSaveCreditCard(

@@ -2533,6 +2533,15 @@ Color ComputedStyle::VisitedDependentColor(const Longhand& color_property,
 
   blink::Color unvisited_color =
       color_property.ColorIncludingFallback(false, *this, is_current_color);
+  return VisitedDependentColor(unvisited_color, color_property,
+                               is_current_color);
+}
+
+Color ComputedStyle::VisitedDependentColor(const blink::Color& unvisited_color,
+                                           const Longhand& color_property,
+                                           bool* is_current_color) const {
+  DCHECK(!color_property.IsVisited());
+
   if (InsideLink() != EInsideLink::kInsideVisitedLink) {
     return unvisited_color;
   }
@@ -2572,7 +2581,6 @@ Color ComputedStyle::VisitedDependentColor(const Longhand& color_property,
 
 blink::Color ComputedStyle::VisitedDependentGapColor(
     const StyleColor& gap_color,
-    const ComputedStyle& style,
     bool is_column_rule) const {
   CHECK(RuntimeEnabledFeatures::CSSGapDecorationEnabled());
   blink::Color unvisited_gap_color;
@@ -2587,27 +2595,17 @@ blink::Color ComputedStyle::VisitedDependentGapColor(
         GetCurrentColor(), UsedColorScheme(), /*is_current_color=*/nullptr);
   }
 
-  if (InsideLink() != EInsideLink::kInsideVisitedLink) {
-    return unvisited_gap_color;
-  }
-
-  // For `row-rule-color`, :visited styling is not supported.
+  // For `row-rule-color`, :visited styling is not supported. We currently
+  // support visited styling for `column-rule-color` due to backwards
+  // compatibility (before CSSGapDecorations). As a result, it is important
+  // to note that we only supported visited styling for single values,
+  // rather than value lists (which GapDecorations introduced).
   if (!is_column_rule) {
     return unvisited_gap_color;
   }
 
-  blink::Color visited_gap_color;
-  if (ShouldForceColor(gap_color)) {
-    visited_gap_color =
-        GetInternalForcedVisitedCurrentColor(/*is_current_color=*/nullptr);
-  } else {
-    visited_gap_color =
-        style.InternalVisitedColumnRuleColor().GetLegacyValue().Resolve(
-            GetInternalVisitedCurrentColor(), UsedColorScheme(),
-            /*is_current_color=*/nullptr);
-  }
-
-  return visited_gap_color;
+  return VisitedDependentColor(unvisited_gap_color,
+                               GetCSSPropertyColumnRuleColor());
 }
 
 blink::Color ComputedStyle::VisitedDependentContextFill(
@@ -2639,11 +2637,20 @@ blink::Color ComputedStyle::VisitedDependentContextPaint(
   if (!context_visited_paint.HasColor()) {
     return unvisited_color;
   }
+  blink::Color visited_color;
   if (ShouldForceColor(context_visited_paint.GetColor())) {
-    return GetInternalForcedVisitedCurrentColor(nullptr);
+    visited_color = GetInternalForcedVisitedCurrentColor(nullptr);
+  } else {
+    visited_color = context_visited_paint.GetColor().Resolve(
+        GetInternalVisitedCurrentColor(), UsedColorScheme(), nullptr);
   }
-  return context_visited_paint.GetColor().Resolve(
-      GetInternalVisitedCurrentColor(), UsedColorScheme(), nullptr);
+  // Take the RGB from the visited color, but clamp alpha to the unvisited
+  // color's alpha. This prevents :visited from changing transparency, which
+  // would allow history sniffing via pixel-based side channels.
+  return Color::FromColorSpace(visited_color.GetColorSpace(),
+                               visited_color.Param0(), visited_color.Param1(),
+                               visited_color.Param2(),
+                               unvisited_color.Alpha());
 }
 
 blink::Color ComputedStyle::ResolvedColor(const StyleColor& color,
@@ -2989,12 +2996,21 @@ bool ComputedStyle::GapRuleColorIsTransparent(
 
 bool ComputedStyle::IsRenderedInTopLayer(const Element& element) const {
   if (RuntimeEnabledFeatures::OverlayPropertyEnabled()) {
-    return (element.IsInTopLayer() && Overlay() == EOverlay::kAuto) ||
-           StyleType() == kPseudoIdBackdrop;
+    if (element.IsInTopLayer() && Overlay() == EOverlay::kAuto) {
+      return true;
+    }
+    if (StyleType() == kPseudoIdBackdrop) {
+      return To<PseudoElement>(element)
+          .UltimateOriginatingElement()
+          .IsInTopLayer();
+    }
+    return false;
   }
 
   if (StyleType() == kPseudoIdBackdrop) {
-    return true;
+    return To<PseudoElement>(element)
+        .UltimateOriginatingElement()
+        .IsInTopLayer();
   }
   if (!element.IsInTopLayer()) {
     return false;

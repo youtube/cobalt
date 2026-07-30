@@ -27,11 +27,14 @@ BASE_FEATURE(kAllowEyeDropperWGCScreenCapture,
 #endif  // BUILDFLAG(IS_WIN)
 );
 
+BASE_FEATURE(kCompositorLoadingThrobber, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCreateNewTabGroupAppMenuTopLevel,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableExtensionsMenuTeardownFix,
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kCtrlTabMru, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kImportExportFlags, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -142,8 +145,7 @@ BASE_FEATURE(kProcessIsolationSettings, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kShowTabGroupsMacSystemMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsShowTabGroupsMacSystemMenuEnabled() {
-  return base::FeatureList::IsEnabled(kDesktopGlowUp) ||
-         base::FeatureList::IsEnabled(kShowTabGroupsMacSystemMenu);
+  return base::FeatureList::IsEnabled(kShowTabGroupsMacSystemMenu);
 }
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -206,6 +208,11 @@ BASE_FEATURE(kTabHoverCardImages,
              base::FEATURE_ENABLED_BY_DEFAULT
 #endif
 );
+
+// Skips the synthetic tab selection event fired when a browser window is
+// activated.
+BASE_FEATURE(kTabStripSkipSelectionEventOnActivation,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabModalUsesDesktopWidget, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -448,6 +455,12 @@ bool IsWebUIAvatarButtonEnabled() {
          base::FeatureList::IsEnabled(features::kWebUIAvatarButton);
 }
 
+bool IsWebUIPerformanceInterventionButtonEnabled() {
+  return base::FeatureList::IsEnabled(features::kInitialWebUI) &&
+         base::FeatureList::IsEnabled(
+             features::kWebUIPerformanceInterventionButton);
+}
+
 bool IsWebUILocationBarEnabled() {
   return base::FeatureList::IsEnabled(features::kInitialWebUI) &&
          base::FeatureList::IsEnabled(features::kWebUILocationBar);
@@ -459,7 +472,8 @@ bool IsWebUIToolbarEnabled() {
          IsWebUIBackForwardButtonEnabled() ||
          IsWebUIPinnedToolbarActionsEnabled() ||
          IsWebUIExtensionsContainerEnabled() || IsWebUIAvatarButtonEnabled() ||
-         IsWebUIAppMenuButtonEnabled() || IsWebUIBatterySaverButtonEnabled();
+         IsWebUIAppMenuButtonEnabled() || IsWebUIBatterySaverButtonEnabled() ||
+         IsWebUIPerformanceInterventionButtonEnabled();
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 

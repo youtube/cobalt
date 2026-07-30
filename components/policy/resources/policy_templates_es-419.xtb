@@ -147,6 +147,7 @@ Los patrones de URL no deben entrar en conflicto con <ph name="CONTROLLED_FRAME_
 Para obtener información detallada sobre los patrones de URL válidos, consulta https://chromeenterprise.google/policies/url-patterns. <ph name="WILDCARD_VALUE" /> no es un valor aceptado para esta política.</translation>
 <translation id="1082802595100075771">Permite que los usuarios usen un servicio anónimo de Google para obtener descripciones automáticas de las imágenes sin etiquetar</translation>
 <translation id="1084697375611053264">Especifica la lista de dominios de apps web de terceros que pueden usar <ph name="DESK_API_NAME" /> para controlar los escritorios de <ph name="PRODUCT_OS_NAME" />. Estos patrones de URL deben seguir el formato definido para la propiedad "coincidencias" en https://developer.chrome.com/docs/extensions/mv3/manifest/externally_connectable/#reference</translation>
+<translation id="1086596047220085412">Configuración del uso compartido inteligente de pestañas</translation>
 <translation id="1087057100912843460">Permitir las actualizaciones</translation>
 <translation id="1087187152710800704">Rechazar el permiso de Administración de ventanas para todos los sitios de forma predeterminada</translation>
 <translation id="1087437665304381368">Esta política controla solo el modo de desarrollador de <ph name="PRODUCT_OS_NAME" />. Si quieres impedir el acceso a las Opciones para desarrolladores de Android, deberás configurar la política <ph name="DEVELOPER_TOOLS_DISABLED_POLICY_NAME" />.</translation>
@@ -1122,6 +1123,7 @@ política fue la versión 121. Se quitó en la versión 122.</translation>
       Consulta también <ph name="REMOTE_ACCESS_HOST_CLIENT_DOMAIN_LIST_POLICY_NAME" />.
 
       Nota: Esta configuración anulará <ph name="REMOTE_ACCESS_HOST_DOMAIN_POLICY_NAME" />, si se aplica.</translation>
+<translation id="1723571018091915166">No permitir el uso compartido inteligente de pestañas con las integraciones de <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.</translation>
 <translation id="172374442286684480">Permitir a todos los sitios establecer datos locales</translation>
 <translation id="1729169799290004131">Si estableces la política, se especificará el porcentaje de brillo de la pantalla y se desactivarán las funciones de brillo automático. Se ajustará el brillo inicial de la pantalla conforme al valor de la política, pero los usuarios podrán cambiar este valor.
 
@@ -2997,6 +2999,13 @@ Esta política solo se puede establecer como política del usuario basada en la 
 <translation id="2866726566162790531">Lista de orígenes que permiten todas las autenticaciones de HTTP</translation>
 <translation id="2868756546751652023">Permitir que los usuarios utilicen la conexión instantánea mediante dispositivo móvil</translation>
 <translation id="286898786908566256">Permitir que los usuarios envíen números de teléfono desde Chrome a sus dispositivos Android</translation>
+<translation id="287087426320717057">Esta política permite que los usuarios inicien cualquier tipo de actualización de firmware.
+
+      Si habilitas la política o no la estableces, los usuarios, como el propietario del dispositivo, podrán iniciar actualizaciones de firmware.
+
+      Si inhabilitas la política, los usuarios no podrán aplicar actualizaciones de firmware.
+
+      Esta política se aplica al firmware para actualizaciones de firmware de periféricos externos y actualizaciones de firmware de los componentes internos de los dispositivos <ph name="PRODUCT_OS_FLEX_NAME" />. Esta política no afecta las actualizaciones de firmware de los componentes internos de los dispositivos <ph name="PRODUCT_OS_NAME" />.</translation>
 <translation id="2872098849906555324">Inhabilitar la sincronización de Google Drive</translation>
 <translation id="2872189563975139803">Configuración de separación de perfiles de empresa</translation>
 <translation id="2872961005593481000">Cerrar</translation>
@@ -3591,7 +3600,6 @@ Si no se establece, se usará el comportamiento nuevo al igual que en el resto d
 <translation id="3229163415739929305">Si habilitas la política o no la estableces, se permitirá la recuperación de metadatos de la carga de páginas y de modelos de aprendizaje automático que mejoran la experiencia de navegación.
       Si inhabilitas la política, es posible que algunas funciones no operen correctamente.</translation>
 <translation id="3231311173895401135">Permitir que el navegador decida la compatibilidad</translation>
-<translation id="3231684792162319504">No permitir la activación experimental de Gemini.</translation>
 <translation id="3231837273069128027">Si estableces la política, se configurará la disponibilidad y el comportamiento de las actualizaciones del firmware<ph name="TPM_FIRMWARE_UPDATE_TPM" />.
 
       Podrás especificar opciones de configuración específicas en las propiedades de JSON:
@@ -5368,7 +5376,6 @@ Si estableces esta política, los usuarios no podrán cambiarla en <ph name="PRO
 <translation id="4435032708588431506">Permitir QUIC</translation>
 <translation id="443665821428652897">Borrar los datos del sitio al cerrar el navegador (en desuso)</translation>
 <translation id="4436941175475497595">Inhabilitar vista previa de impresión</translation>
-<translation id="4436992815485865052">Permitir la activación experimental de Gemini.</translation>
 <translation id="4439336120285389675">Especificar una lista de funciones de Web Platform que ya no están disponibles para volver a habilitarlas temporalmente
 
       Esta política brinda a los administradores la posibilidad de volver a habilitar por un tiempo limitado funciones de Web Platform que dejaron de estar disponibles. Las funciones se identifican con una etiqueta de cadena y las que se correspondan con las etiquetas incluidas en la lista especificada por esta política se volverán a habilitar.
@@ -6827,7 +6834,6 @@ Nota: Esta función aún no está disponible de forma general, por lo que habili
 <translation id="5255790642269910630">Si estableces la política, las pantallas rotarán a la orientación especificada en cada reinicio y la primera vez que se conecten después de cambiar el valor de la política. Después de acceder, los usuarios podrán cambiar la rotación de las pantallas en la página de configuración, pero volverá a cambiar en el próximo reinicio. Esta política se aplica a la pantalla principal y a la secundaria.
 
 Si no la estableces, el valor predeterminado será 0 grados y los usuarios podrán cambiarlo. Si deciden hacerlo, no se volverá a aplicar el valor predeterminado en el reinicio.</translation>
-<translation id="5256792633540454282">Controlar la activación experimental de Gemini</translation>
 <translation id="5257395339965216304">Datos de apps alojadas</translation>
 <translation id="5258445772095084618">Permitir que los usuarios no afiliados usen las máquinas virtuales necesarias para admitir apps de Linux</translation>
 <translation id="5258651513421638932">Permitir la conexión de Smart Card con apps aisladas</translation>
@@ -7862,7 +7868,6 @@ En <ph name="MAC_OS_NAME" />, esta política solo está disponible en instancias
 
       Esta política dejó de estar disponible; usa <ph name="PRINTERS_BULK_BLOCKLIST" /> en su lugar.</translation>
 <translation id="591088232153082363">Carga adaptable de la batería según el patrón de uso</translation>
-<translation id="5911656389795271430">Esta es una política experimental.</translation>
 <translation id="5913506885872855604">Esto se puede usar para tratar ciertos rangos de direcciones internas como "públicos" y, por lo tanto, no sujetos a las verificaciones de <ph name="LOCAL_NETWORK_ACCES" />. Por el contrario, esto se puede usar para tratar ciertos rangos de direcciones públicas que podrían usarse internamente como "locales" para que estén protegidos por las verificaciones de <ph name="LOCAL_NETWORK_ACCESS" />.
 
 Las anulaciones del espacio de direcciones IP tienen dos formas:
@@ -8654,6 +8659,25 @@ Para obtener más información sobre el manejo de datos de las funciones potenci
 <translation id="6383774771168138899">Configurar el flujo de <ph name="CLOUD_UPLOAD_NAME" /> para <ph name="MICROSOFT_ONE_DRIVE_NAME" /> y <ph name="MICROSOFT_365_NAME" /></translation>
 <translation id="6384542789059421431">Habilitar que se muestren las páginas de resultados del motor de búsqueda predeterminado en el panel lateral de un navegador</translation>
 <translation id="6389240462871677239">Permitir que los orígenes de apps web aisladas usen Controlled Frame</translation>
+<translation id="6393598243777822017">Esta política controla la función de uso compartido inteligente de pestañas de <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> a través del panel lateral o las pestañas de <ph name="PRODUCT_NAME" />.
+
+Ten en cuenta que esta política no afecta a <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> en la Web. Solo controla cómo los usuarios pueden compartir información cuando usan <ph name="PRODUCT_NAME" />.
+
+0 = los usuarios pueden compartir contenido de páginas o archivos con <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.
+
+1 = los usuarios no pueden compartir contenido de páginas o archivos con <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />. Se inhabilitarán o se ocultarán los puntos de entrada para compartir contexto y el panel lateral.
+
+Esta política se ignorará cuando <ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> no sea el motor de búsqueda predeterminado de los usuarios, ya que la función estará inhabilitada.
+
+Esta política es independiente de la política <ph name="AI_MODE_SETTINGS_POLICY_NAME" />. La política <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> solo controla los puntos de entrada en el cuadro de búsqueda del cuadro multifunción o de la NTP, mientras que esta política controla el uso compartido de contexto a través del panel lateral o las pestañas.
+
+Esta política tampoco controla la integración de <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />, que puede inhabilitarla <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
+
+Ten en cuenta que si <ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> está inhabilitada, se ignorará esta política.
+
+Si no estableces esta política, su comportamiento se determina según la política <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
+
+Para obtener más información sobre el manejo de datos de las funciones potenciadas por IA generativa, consulta https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="6394350458541421998">Esta política se eliminó a partir de la versión 29 de <ph name="PRODUCT_OS_NAME" />. Utiliza la política PresentationScreenDimDelayScale en su lugar.</translation>
 <translation id="6397588391180665797">Informa a los usuarios sobre la configuración de red en dispositivos inscritos.
 
@@ -11195,6 +11219,7 @@ Si la inhabilitas o no la estableces, los usuarios podrán fijar o quitar el íc
 
 Si inhabilitas la política <ph name="ENABLE_MEDIA_ROUTER_POLICY_NAME" />, el valor de esta política no tendrá ningún efecto y no se mostrará el ícono de la barra de herramientas.</translation>
 <translation id="7933141401888114454">Habilita la creación de usuarios supervisados.</translation>
+<translation id="793360449603660370">Permitir el uso compartido inteligente de pestañas con las integraciones de <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.</translation>
 <translation id="793473937901685727">Establecer la disponibilidad de certificados para apps de ARC</translation>
 <translation id="7936302526928951356">El string usuario-agente no bloqueará los cambios para la versión principal</translation>
 <translation id="7936632434238618620">Si estableces la política, podrás crear una lista de patrones de URL que especifiquen los sitios para los cuales Chrome podrá seleccionar un certificado de cliente automáticamente. El valor es un arreglo de diccionarios convertidos en strings de JSON. Cada diccionario debe tener el formato <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_EXAMPLE" />, donde <ph name="URL_PATTERN_PLACEHOLDER" /> es un patrón de configuración de contenido. <ph name="FILTER_PLACEHOLDER" /> restringe los certificados de cliente entre los cuales el navegador seleccionará automáticamente. Más allá del filtro, solo se seleccionarán certificados que se ajusten a la solicitud del servidor. En iOS y Android, Chrome solo puede seleccionar los certificados de cliente que aprovisionó por sí misma; no puede acceder a los certificados instalados a nivel del sistema operativo.

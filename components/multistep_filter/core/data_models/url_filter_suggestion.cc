@@ -20,30 +20,27 @@ namespace multistep_filter {
 FilterAttributeUiLabel::FilterAttributeUiLabel(
     FilterSuggestionCandidateAttribute candidate_attribute,
     FilterAttribute annotation_attribute)
-    : attribute_label(std::move(candidate_attribute.label)),
+    : key(annotation_attribute.key),
+      attribute_label(std::move(candidate_attribute.label)),
       attribute_value(base::UTF8ToUTF16(annotation_attribute.value)) {
   CHECK_EQ(candidate_attribute.key, annotation_attribute.key);
 }
 
 std::string FilterAttributeUiLabel::ToString() const {
-  return base::StrCat(
-      {"FilterAttributeUiLabel(label=", base::UTF16ToUTF8(attribute_label),
-       ", value=", base::UTF16ToUTF8(attribute_value), ")"});
+  return base::StrCat({"FilterAttributeUiLabel(key=", key,
+                       ", label=", base::UTF16ToUTF8(attribute_label),
+                       ", value=", base::UTF16ToUTF8(attribute_value), ")"});
 }
 
-UrlFilterSuggestion::UrlFilterSuggestion(
-    GURL navigation_url,
-    std::u16string source_domain,
-    base::Time extraction_timestamp,
-    std::vector<FilterAttributeUiLabel> attribute_ui_labels,
-    int64_t triggering_navigation_id,
-    std::string triggering_domain)
-    : navigation_url(std::move(navigation_url)),
-      source_domain(std::move(source_domain)),
-      extraction_timestamp(extraction_timestamp),
-      attribute_ui_labels(std::move(attribute_ui_labels)),
-      triggering_navigation_id(triggering_navigation_id),
-      triggering_domain(std::move(triggering_domain)) {}
+UrlFilterSuggestion::UrlFilterSuggestion(Params params)
+    : navigation_url(std::move(params.navigation_url)),
+      source_domain(std::move(params.source_domain)),
+      extraction_timestamp(params.extraction_timestamp),
+      attribute_ui_labels(std::move(params.attribute_ui_labels)),
+      triggering_navigation_id(params.triggering_navigation_id),
+      triggering_domain(std::move(params.triggering_domain)),
+      task_type(std::move(params.task_type)),
+      suggestion_message(std::move(params.suggestion_message)) {}
 
 UrlFilterSuggestion::UrlFilterSuggestion(const UrlFilterSuggestion&) = default;
 UrlFilterSuggestion::UrlFilterSuggestion(UrlFilterSuggestion&&) = default;
@@ -60,6 +57,12 @@ std::string UrlFilterSuggestion::ToString() const {
     attribute_strings.push_back(label.ToString());
   }
 
+  std::string message_suffix =
+      suggestion_message.has_value()
+          ? base::StrCat({", suggestion_message=",
+                          base::UTF16ToUTF8(*suggestion_message)})
+          : "";
+
   return base::StrCat(
       {"UrlFilterSuggestion(navigation_url=", navigation_url.spec(),
        ", source_domain=", base::UTF16ToUTF8(source_domain),
@@ -68,8 +71,8 @@ std::string UrlFilterSuggestion::ToString() const {
            extraction_timestamp.ToDeltaSinceWindowsEpoch().InMicroseconds()),
        ", attribute_ui_labels=[", base::JoinString(attribute_strings, ", "),
        "], triggering_navigation_id=",
-       base::NumberToString(triggering_navigation_id),
-       ", triggering_domain=", triggering_domain, ")"});
+       base::NumberToString(triggering_navigation_id), ", triggering_domain=",
+       triggering_domain, ", task_type=", task_type, message_suffix, ")"});
 }
 
 }  // namespace multistep_filter

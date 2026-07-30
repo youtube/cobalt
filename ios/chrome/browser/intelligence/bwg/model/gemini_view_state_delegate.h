@@ -24,6 +24,12 @@
                         sessionID:(NSString*)sessionID
                    conversationID:(NSString*)conversationID;
 
+// Called when the user taps the Live button in Gemini UI.
+- (void)geminiLiveUserDidTapLiveButton;
+
+// Called when the user barges in during Gemini Live session.
+- (void)geminiLiveUserDidBargeIn;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_BWG_MODEL_GEMINI_VIEW_STATE_DELEGATE_H_

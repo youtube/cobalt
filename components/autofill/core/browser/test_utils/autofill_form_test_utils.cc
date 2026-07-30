@@ -561,8 +561,8 @@ FormFieldData GetFormFieldData(const FieldDescription& fd) {
   if (fd.id_attribute) {
     ff.set_id_attribute(*fd.id_attribute);
   }
-  if (fd.challenge) {
-    ff.set_challenge(*fd.challenge);
+  if (fd.nonce) {
+    ff.set_nonce(*fd.nonce);
   }
   if (fd.value) {
     ff.set_value(*fd.value);
@@ -596,6 +596,9 @@ FormFieldData GetFormFieldData(const FieldDescription& fd) {
   }
   if (fd.form_control_ax_id) {
     ff.set_form_control_ax_id(*fd.form_control_ax_id);
+  }
+  if (fd.label_source) {
+    ff.set_label_source(*fd.label_source);
   }
   CHECK(!fd.checked ||
         ff.form_control_type() == FormControlType::kInputCheckbox ||

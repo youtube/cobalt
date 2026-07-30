@@ -38,6 +38,7 @@
 #include "third_party/blink/renderer/core/editing/visible_units.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/html/html_span_element.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -113,14 +114,18 @@ bool InsertTextCommand::PerformTrivialReplace(const String& text) {
   // link are selected, then we shouldn't be retaining the link with just one
   // character because the user wouldn't be able to edit the link if it has only
   // one character.
-  Position start = EndingVisibleSelection().Start();
+  Position start = RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
+                       ? EndingSelection().Start()
+                       : EndingVisibleSelection().Start();
   Element* enclosing_anchor = EnclosingAnchorElement(start);
   if (enclosing_anchor && text.length() <= 1) {
     VisiblePosition first_in_anchor =
         VisiblePosition::FirstPositionInNode(*enclosing_anchor);
     VisiblePosition last_in_anchor =
         VisiblePosition::LastPositionInNode(*enclosing_anchor);
-    Position end = EndingVisibleSelection().End();
+    Position end = RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
+                       ? EndingSelection().End()
+                       : EndingVisibleSelection().End();
     if (first_in_anchor.DeepEquivalent() == start &&
         last_in_anchor.DeepEquivalent() == end)
       return false;
@@ -137,7 +142,9 @@ bool InsertTextCommand::PerformTrivialReplace(const String& text) {
                                       end_position);
   SetEndingSelection(SelectionForUndoStep::From(
       SelectionInDOMTree::Builder()
-          .Collapse(EndingVisibleSelection().End())
+          .Collapse(RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
+                        ? EndingSelection().End()
+                        : EndingVisibleSelection().End())
           .Build()));
   return true;
 }
@@ -147,10 +154,18 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
 
   // TODO(editing-dev): We shouldn't construct an InsertTextCommand with none or
   // invalid selection.
-  const VisibleSelection& visible_selection = EndingVisibleSelection();
-  if (visible_selection.IsNone() ||
-      !visible_selection.IsValidFor(GetDocument()))
-    return;
+  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    const SelectionForUndoStep& selection = EndingSelection();
+    if (selection.IsNone() || !selection.IsValidFor(GetDocument())) {
+      return;
+    }
+  } else {
+    const VisibleSelection& visible_selection = EndingVisibleSelection();
+    if (visible_selection.IsNone() ||
+        !visible_selection.IsValidFor(GetDocument())) {
+      return;
+    }
+  }
 
   // Delete the current selection.
   // FIXME: This delete operation blows away the typing style.
@@ -158,8 +173,14 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
     if (PerformTrivialReplace(text_))
       return;
     GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
-    bool end_of_selection_was_at_start_of_block =
-        IsStartOfBlock(EndingVisibleSelection().VisibleEnd());
+    bool end_of_selection_was_at_start_of_block;
+    if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+      end_of_selection_was_at_start_of_block =
+          IsStartOfBlock(EndingSelection().End());
+    } else {
+      end_of_selection_was_at_start_of_block =
+          IsStartOfBlock(EndingVisibleSelection().VisibleEnd());
+    }
     if (!DeleteSelection(editing_state, DeleteSelectionOptions::Builder()
                                             .SetMergeBlocksAfterDelete(true)
                                             .Build()))
@@ -188,15 +209,23 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
   if (!RuntimeEnabledFeatures::
           UsePositionIfIsVisuallyEquivalentCandidateEnabled()) {
     // Reached by InsertTextCommandTest.NoVisibleSelectionAfterDeletingSelection
-    ABORT_EDITING_COMMAND_IF(EndingVisibleSelection().IsNone());
+    ABORT_EDITING_COMMAND_IF(
+        RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
+            ? EndingSelection().IsNone()
+            : EndingVisibleSelection().IsNone());
   }
 
-  Position start_position(EndingVisibleSelection().Start());
+  Position start_position(
+      RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
+          ? EndingSelection().Start()
+          : EndingVisibleSelection().Start());
 
   Position placeholder = ComputePlaceholderToCollapseAt(start_position);
 
   // Insert the character at the leftmost candidate.
-  start_position = MostBackwardCaretPosition(start_position);
+  if (!RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    start_position = MostBackwardCaretPosition(start_position);
+  }
 
   // It is possible for the node that contains startPosition to contain only
   // unrendered whitespace, and so deleteInsignificantText could remove it.
@@ -204,8 +233,21 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
   DCHECK(start_position.ComputeContainerNode()) << start_position;
   Position position_before_start_node(
       Position::InParentBeforeNode(*start_position.ComputeContainerNode()));
-  DeleteInsignificantText(start_position,
-                          MostForwardCaretPosition(start_position));
+  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    // Sweep unrendered whitespace on both sides of the caret without
+    // canonicalizing start_position. MostBackward/MostForward only define
+    // the cleanup range; RelocatablePosition recovers start_position after
+    // deletions so the user's insertion point is preserved.
+    Position cleanup_start = MostBackwardCaretPosition(start_position);
+    Position cleanup_end = MostForwardCaretPosition(start_position);
+    auto* relocatable_start =
+        MakeGarbageCollected<RelocatablePosition>(start_position);
+    DeleteInsignificantText(cleanup_start, cleanup_end);
+    start_position = relocatable_start->GetPosition();
+  } else {
+    DeleteInsignificantText(start_position,
+                            MostForwardCaretPosition(start_position));
+  }
 
   // TODO(editing-dev): Use of UpdateStyleAndLayout()
   // needs to be audited.  See http://crbug.com/590369 for more details.
@@ -213,8 +255,11 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
 
   if (!start_position.IsConnected())
     start_position = position_before_start_node;
-  if (!IsVisuallyEquivalentCandidate(start_position))
-    start_position = MostForwardCaretPosition(start_position);
+  if (!RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    if (!IsVisuallyEquivalentCandidate(start_position)) {
+      start_position = MostForwardCaretPosition(start_position);
+    }
+  }
 
   start_position =
       PositionAvoidingSpecialElementBoundary(start_position, editing_state);
@@ -279,16 +324,28 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
     }
   }
 
+  TextAffinity selection_affinity;
+  Position selection_end;
+  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    const SelectionForUndoStep& end_selection = EndingSelection();
+    selection_affinity = end_selection.Affinity();
+    selection_end = end_selection.End();
+  } else {
+    const VisibleSelection& selection = EndingVisibleSelection();
+    selection_affinity = selection.Affinity();
+    selection_end = selection.End();
+  }
+
   SelectionInDOMTree::Builder builder;
-  const VisibleSelection& selection = EndingVisibleSelection();
   if (RuntimeEnabledFeatures::CaretWithTextAffinityUpstreamEnabled() &&
       text_ == " " && !IsRichlyEditablePosition(start_position)) {
     builder.SetAffinity(TextAffinity::kUpstreamIfPossible);
   } else {
-    builder.SetAffinity(selection.Affinity());
+    builder.SetAffinity(selection_affinity);
   }
-  if (selection.End().IsNotNull())
-    builder.Collapse(selection.End());
+  if (selection_end.IsNotNull()) {
+    builder.Collapse(selection_end);
+  }
   SetEndingSelection(SelectionForUndoStep::From(builder.Build()));
 }
 

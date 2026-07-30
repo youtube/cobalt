@@ -2377,20 +2377,24 @@ void ReadAnythingAppController::OnHighlightGranularityChanged(
   read_aloud_model_.set_highlight_granularity(granularity);
 }
 
-void ReadAnythingAppController::OnLineFocusChanged(int line_focus) {
+void ReadAnythingAppController::OnLineFocusChanged(
+    int current_line_focus,
+    int last_non_disabled_line_focus) {
   if (!IsLineFocusEnabled()) {
     return;
   }
 
-  if (const auto maybe_enum =
-          ToEnum<read_anything::mojom::LineFocus>(line_focus)) {
-    page_handler_->OnLineFocusChanged(maybe_enum.value());
+  const auto maybe_current =
+      ToEnum<read_anything::mojom::LineFocus>(current_line_focus);
+  const auto maybe_last =
+      ToEnum<read_anything::mojom::LineFocus>(last_non_disabled_line_focus);
+  if (maybe_current && maybe_last) {
+    page_handler_->OnLineFocusChanged(maybe_current.value(),
+                                      maybe_last.value());
     bool line_focus_on =
-        maybe_enum.value() != read_anything::mojom::LineFocus::kOff;
+        maybe_current.value() != read_anything::mojom::LineFocus::kOff;
     model_.set_line_focus_enabled(line_focus_on);
-    if (line_focus_on) {
-      model_.set_last_non_disabled_line_focus(maybe_enum.value());
-    }
+    model_.set_last_non_disabled_line_focus(maybe_last.value());
   }
 }
 
@@ -2819,6 +2823,7 @@ void ReadAnythingAppController::RecordSessionMetricsIfShownOrRecentlyHidden(
   RecordNumSelections();
   RecordEstimatedWordsHeard();
   RecordEstimatedWordsSeen();
+  read_aloud_model_.ResetAndLogSingleSampleMetrics();
 }
 
 void ReadAnythingAppController::StartLineFocusSession() {
@@ -3059,6 +3064,16 @@ void ReadAnythingAppController::ApplyAccessibilityUpdatesForReadability(
   bool didProcessAnchors = model_.ProcessAXTreeAnchors();
   if (didProcessAnchors) {
     ExecuteJavaScript("chrome.readingMode.onAnchorsReadyForReadability();");
+  }
+
+  // If there's been a selection on the main page, the selection should be
+  // processed so that Immersive can open to the correctly selected text.
+  if (IsReadabilitySelectTextEnabled() &&
+      model_.requires_post_process_selection()) {
+    // TODO: crbug.com/505770261- Once general select-to-distill is enabled
+    // this should be re-evaluated to prevent switching distillation modes
+    // before the selection mapping is ready.
+    PostProcessSelection();
   }
 
   // Check if we should perform text mapping for readability text selection.

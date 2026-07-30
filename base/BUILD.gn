@@ -353,7 +353,6 @@ component("base") {
     "files/file_error_or.h",
     "files/file_path.cc",
     "files/file_path.h",
-    "files/file_tracing.cc",
     "files/file_tracing.h",
     "files/memory_mapped_file.cc",
     "files/memory_mapped_file.h",
@@ -3109,6 +3108,7 @@ component("i18n") {
     ":base",
     "//base/i18n:base_i18n_export",
     "//base/i18n:language_code",
+    "//base/i18n:time_formatting_types",
     "//third_party/ced",
     "//third_party/icu",
   ]
@@ -5924,6 +5924,7 @@ if (is_android) {
       "test/android/javatests/src/org/chromium/base/test/util/SkipCheck.java",
       "test/android/javatests/src/org/chromium/base/test/util/TestAnimations.java",
       "test/android/javatests/src/org/chromium/base/test/util/TestFileUtil.java",
+      "test/android/javatests/src/org/chromium/base/test/util/TestLocale.java",
       "test/android/javatests/src/org/chromium/base/test/util/TestThreadUtils.java",
       "test/android/javatests/src/org/chromium/base/test/util/TimeoutTimer.java",
       "test/android/javatests/src/org/chromium/base/test/util/UserActionTester.java",

@@ -155,8 +155,7 @@ class OpenXrRenderLoop : public XRThread,
                    base::TimeDelta time_waited) final;
   void SubmitFrameDrawnIntoTexture(
       int16_t frame_index,
-      const std::vector<LayerId>& layer_ids,
-      const gpu::SyncToken&,
+      std::vector<device::mojom::XRLayerUpdatePtr> layer_updates,
       const std::vector<gpu::SyncToken>& camera_sync_tokens,
       base::TimeDelta time_waited) override;
   void UpdateLayerBounds(int16_t frame_id,
@@ -183,8 +182,6 @@ class OpenXrRenderLoop : public XRThread,
   struct OutstandingFrame {
     OutstandingFrame();
     ~OutstandingFrame();
-    bool webxr_has_pose_ = false;
-    bool overlay_has_pose_ = false;
     bool webxr_submitted_ = false;
     bool overlay_submitted_ = false;
     bool waiting_for_webxr_ = false;
@@ -282,6 +279,8 @@ class OpenXrRenderLoop : public XRThread,
                             std::unique_ptr<gfx::GpuFence> gpu_fence);
 
   void MaybeRejectSessionCallback();
+
+  bool ShouldDelayGetFrameData() const;
 
   gfx::Transform mojo_from_local() {
     // mojo_from_local is currently identity.

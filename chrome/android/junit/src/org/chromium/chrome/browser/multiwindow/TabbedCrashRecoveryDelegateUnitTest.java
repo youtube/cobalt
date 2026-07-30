@@ -9,6 +9,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -24,6 +25,7 @@ import android.app.ActivityManager.RecentTaskInfo;
 import android.app.ActivityOptions;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Resources;
 import android.graphics.Rect;
 import android.os.Bundle;
 
@@ -48,11 +50,15 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.UserActionTester;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
+import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogManager;
+import org.chromium.ui.modaldialog.ModalDialogProperties;
+import org.chromium.ui.modelutil.PropertyModel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -72,6 +78,7 @@ public class TabbedCrashRecoveryDelegateUnitTest {
     @Mock private ActivityManager mActivityManager;
     @Mock private ModalDialogManager mModalDialogManager;
     @Mock private ChromeTabbedActivity mHostActivity;
+    @Mock private Resources mResources;
 
     private TabbedCrashRecoveryDelegate mDelegate;
     private SettableMonotonicObservableSupplier<ModalDialogManager> mModalDialogManagerSupplier;
@@ -83,9 +90,11 @@ public class TabbedCrashRecoveryDelegateUnitTest {
         ChromeMultiInstancePersistentStore.ensureInitialized();
         MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
         mDelegate = TabbedCrashRecoveryDelegate.getInstance();
+
         mModalDialogManagerSupplier = ObservableSuppliers.createMonotonic();
         mModalDialogManagerSupplier.set(mModalDialogManager);
         when(mHostActivity.getSystemService(Context.ACTIVITY_SERVICE)).thenReturn(mActivityManager);
+        when(mHostActivity.getResources()).thenReturn(mResources);
         ApplicationStatus.onStateChangeForTesting(mHostActivity, ActivityState.CREATED);
         when(mHostActivity.getPackageName())
                 .thenReturn(ContextUtils.getApplicationContext().getPackageName());
@@ -99,6 +108,7 @@ public class TabbedCrashRecoveryDelegateUnitTest {
 
     @After
     public void tearDown() {
+        mDelegate.resetState();
         ChromeMultiInstancePersistentStore.resetForTesting();
     }
 
@@ -251,6 +261,82 @@ public class TabbedCrashRecoveryDelegateUnitTest {
     }
 
     @Test
+    @Config(sdk = 30)
+    public void testRestoreWindows_skipsCachedBoundsMatchingHostBounds() {
+        // Setup: One other visible window (windowId=1).
+        setupOtherCrashedWindows(
+                /* numNonVisibleWindows= */ 0,
+                /* numDefaultDisplayWindows= */ 1,
+                /* numNonDefaultDisplayWindows= */ 0);
+        // Set cached bounds for windowId=1 to match HOST_BOUNDS.
+        mCrashedWindows.set(1, new CrashRecoveryWindowInfo(1, HOST_BOUNDS, /* isVisible= */ true));
+
+        setupPreRecoveryAppTasks(HOST_WINDOW_ID);
+        mDelegate.initiateCrashRecovery(
+                mModalDialogManagerSupplier, mHostActivity, mCrashedWindows);
+
+        // Mock host activity bounds.
+        var windowManager = mock(android.view.WindowManager.class);
+        var windowMetrics = mock(android.view.WindowMetrics.class);
+        when(mHostActivity.getWindowManager()).thenReturn(windowManager);
+        when(windowManager.getCurrentWindowMetrics()).thenReturn(windowMetrics);
+        when(windowMetrics.getBounds()).thenReturn(HOST_BOUNDS);
+
+        // Act.
+        mDelegate.restoreWindows(mHostActivity);
+
+        // Verify: Window is restored WITHOUT launch bounds because its cached bounds match the
+        // host window's bounds.
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mHostActivity).startActivity(intentCaptor.capture(), eq(null));
+        Intent intent = intentCaptor.getValue();
+        assertNotNull(intent);
+        assertEquals(1, intent.getIntExtra(IntentHandler.EXTRA_WINDOW_ID, -1));
+    }
+
+    @Test
+    @Config(sdk = 30)
+    public void testRestoreWindows_usesCachedBoundsDifferentFromHostBounds() {
+        // Setup: One other visible window (windowId=1).
+        setupOtherCrashedWindows(
+                /* numNonVisibleWindows= */ 0,
+                /* numDefaultDisplayWindows= */ 1,
+                /* numNonDefaultDisplayWindows= */ 0);
+        // Set cached bounds for windowId=1 to be different from HOST_BOUNDS.
+        Rect differentBounds =
+                new Rect(
+                        HOST_BOUNDS.left + 5,
+                        HOST_BOUNDS.top + 5,
+                        HOST_BOUNDS.right + 5,
+                        HOST_BOUNDS.bottom + 5);
+        mCrashedWindows.set(
+                1, new CrashRecoveryWindowInfo(1, differentBounds, /* isVisible= */ true));
+
+        setupPreRecoveryAppTasks(HOST_WINDOW_ID);
+        mDelegate.initiateCrashRecovery(
+                mModalDialogManagerSupplier, mHostActivity, mCrashedWindows);
+
+        // Mock host activity bounds.
+        var windowManager = mock(android.view.WindowManager.class);
+        var windowMetrics = mock(android.view.WindowMetrics.class);
+        when(mHostActivity.getWindowManager()).thenReturn(windowManager);
+        when(windowManager.getCurrentWindowMetrics()).thenReturn(windowMetrics);
+        when(windowMetrics.getBounds()).thenReturn(HOST_BOUNDS);
+
+        // Act.
+        mDelegate.restoreWindows(mHostActivity);
+
+        // Verify: Window is restored WITH launch bounds because its cached bounds are different
+        // from the host window's bounds (strict equality).
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        ArgumentCaptor<Bundle> bundleCaptor = ArgumentCaptor.forClass(Bundle.class);
+        verify(mHostActivity).startActivity(intentCaptor.capture(), bundleCaptor.capture());
+        Bundle bundle = bundleCaptor.getValue();
+        assertNotNull(bundle);
+        assertEquals(differentBounds, ActivityOptions.fromBundle(bundle).getLaunchBounds());
+    }
+
+    @Test
     public void testRestoreWindows_restoresNonVisibleWindowInNewTask() {
         // Setup.
         setupOtherCrashedWindows(
@@ -384,6 +470,157 @@ public class TabbedCrashRecoveryDelegateUnitTest {
                 userActionTester
                         .getActions()
                         .contains("Android.MultiWindow.CrashRecoveryCompleted"));
+
+        userActionTester.tearDown();
+    }
+
+    @Test
+    public void testRecoveryDialogProperties() {
+        // Setup: 1 host + 2 other windows = 3 total crashed windows.
+        setupOtherCrashedWindows(
+                /* numNonVisibleWindows= */ 0,
+                /* numDefaultDisplayWindows= */ 2,
+                /* numNonDefaultDisplayWindows= */ 0);
+        setupPreRecoveryAppTasks(HOST_WINDOW_ID);
+        var userActionTester = new UserActionTester();
+        mDelegate.initiateCrashRecovery(
+                mModalDialogManagerSupplier, mHostActivity, mCrashedWindows);
+
+        ArgumentCaptor<PropertyModel> modelCaptor = ArgumentCaptor.forClass(PropertyModel.class);
+        verify(mModalDialogManager).showDialog(modelCaptor.capture(), anyInt());
+        PropertyModel model = modelCaptor.getValue();
+
+        assertTrue(
+                userActionTester
+                        .getActions()
+                        .contains("Android.MultiWindow.CrashRecoveryDialogShown"));
+
+        assertEquals(
+                mHostActivity.getString(R.string.crash_recovery_dialog_title),
+                model.get(ModalDialogProperties.TITLE));
+        assertEquals(
+                mHostActivity.getString(R.string.crash_recovery_dialog_message),
+                model.get(ModalDialogProperties.MESSAGE_PARAGRAPH_1));
+        verify(mResources)
+                .getQuantityString(
+                        eq(R.plurals.crash_recovery_dialog_positive_button_text), eq(2), eq(2));
+
+        userActionTester.tearDown();
+    }
+
+    @Test
+    public void testShowRecoveryDialog_userOptIn() {
+        // Setup: 1 host + 1 other window = 2 total crashed windows.
+        setupOtherCrashedWindows(
+                /* numNonVisibleWindows= */ 0,
+                /* numDefaultDisplayWindows= */ 1,
+                /* numNonDefaultDisplayWindows= */ 0);
+        // windowId=1 does NOT have a task, so dialog will be shown.
+        setupPreRecoveryAppTasks(HOST_WINDOW_ID);
+        var userActionTester = new UserActionTester();
+
+        mDelegate.initiateCrashRecovery(
+                mModalDialogManagerSupplier, mHostActivity, mCrashedWindows);
+
+        // Capture the dialog model and controller.
+        ArgumentCaptor<PropertyModel> modelCaptor = ArgumentCaptor.forClass(PropertyModel.class);
+        verify(mModalDialogManager)
+                .showDialog(modelCaptor.capture(), eq(ModalDialogManager.ModalDialogType.APP));
+        PropertyModel model = modelCaptor.getValue();
+        ModalDialogProperties.Controller controller = model.get(ModalDialogProperties.CONTROLLER);
+
+        // Verify: Positive button text is correctly set.
+        verify(mResources)
+                .getQuantityString(
+                        eq(R.plurals.crash_recovery_dialog_positive_button_text), eq(1), eq(1));
+
+        assertTrue(
+                userActionTester
+                        .getActions()
+                        .contains("Android.MultiWindow.CrashRecoveryDialogShown"));
+
+        // Act: Simulate positive button click.
+        controller.onClick(model, ModalDialogProperties.ButtonType.POSITIVE);
+
+        // Verify: Windows are restored.
+        verify(mHostActivity).startActivity(any(Intent.class), any(Bundle.class));
+        assertTrue(
+                userActionTester.getActions().contains("Android.MultiWindow.CrashRecoveryOptIn"));
+        verify(mModalDialogManager)
+                .dismissDialog(
+                        any(PropertyModel.class), eq(DialogDismissalCause.POSITIVE_BUTTON_CLICKED));
+
+        userActionTester.tearDown();
+    }
+
+    @Test
+    public void testShowRecoveryDialog_userOptOut() {
+        // Setup.
+        setupOtherCrashedWindows(
+                /* numNonVisibleWindows= */ 0,
+                /* numDefaultDisplayWindows= */ 1,
+                /* numNonDefaultDisplayWindows= */ 0);
+        setupPreRecoveryAppTasks(HOST_WINDOW_ID);
+        var userActionTester = new UserActionTester();
+
+        mDelegate.initiateCrashRecovery(
+                mModalDialogManagerSupplier, mHostActivity, mCrashedWindows);
+
+        ArgumentCaptor<PropertyModel> modelCaptor = ArgumentCaptor.forClass(PropertyModel.class);
+        verify(mModalDialogManager).showDialog(modelCaptor.capture(), anyInt());
+        PropertyModel model = modelCaptor.getValue();
+        ModalDialogProperties.Controller controller = model.get(ModalDialogProperties.CONTROLLER);
+
+        assertTrue(
+                userActionTester
+                        .getActions()
+                        .contains("Android.MultiWindow.CrashRecoveryDialogShown"));
+
+        // Act: Simulate negative button click.
+        controller.onClick(model, ModalDialogProperties.ButtonType.NEGATIVE);
+
+        // Verify: Dialog dismissed without restoration.
+        verify(mModalDialogManager)
+                .dismissDialog(
+                        any(PropertyModel.class), eq(DialogDismissalCause.NEGATIVE_BUTTON_CLICKED));
+        verify(mHostActivity, never()).startActivity(any(Intent.class), any(Bundle.class));
+
+        userActionTester.tearDown();
+    }
+
+    @Test
+    public void testShowRecoveryDialog_dismissalCleanup() {
+        // Setup: windowId=1 has NO task initially, so dialog is shown.
+        setupOtherCrashedWindows(
+                /* numNonVisibleWindows= */ 0,
+                /* numDefaultDisplayWindows= */ 2,
+                /* numNonDefaultDisplayWindows= */ 0); // windows 1, 2.
+        setupPreRecoveryAppTasks(HOST_WINDOW_ID, 2); // window 2 has a task, window 1 doesn't.
+        var userActionTester = new UserActionTester();
+
+        mDelegate.initiateCrashRecovery(
+                mModalDialogManagerSupplier, mHostActivity, mCrashedWindows);
+
+        ArgumentCaptor<PropertyModel> modelCaptor = ArgumentCaptor.forClass(PropertyModel.class);
+        verify(mModalDialogManager).showDialog(modelCaptor.capture(), anyInt());
+        PropertyModel model = modelCaptor.getValue();
+        ModalDialogProperties.Controller controller = model.get(ModalDialogProperties.CONTROLLER);
+
+        assertTrue(
+                userActionTester
+                        .getActions()
+                        .contains("Android.MultiWindow.CrashRecoveryDialogShown"));
+
+        // Act: Simulate dismissal (e.g., via back button).
+        controller.onDismiss(model, DialogDismissalCause.NAVIGATE_BACK_OR_TOUCH_OUTSIDE);
+
+        // Verify: State is cleaned up for window 1 and 2.
+        assertFalse(ChromeMultiInstancePersistentStore.readIsRecoverable(1));
+        assertFalse(ChromeMultiInstancePersistentStore.readIsRecoverable(2));
+
+        // Window 2 had a live task, verify it was finished.
+        AppTask liveTask2 = mPreRecoveryAppTasks.get(1);
+        verify(liveTask2).finishAndRemoveTask();
 
         userActionTester.tearDown();
     }

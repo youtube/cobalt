@@ -493,6 +493,7 @@
 <translation id="3067505415088964188">តម្លៃទាប</translation>
 <translation id="3070005020161560471">បកប្រែដោយស្វ័យប្រវត្តិ</translation>
 <translation id="3072980200212375806"><ph name="APP_NAME" /> នឹងបើកនៅក្នុង Chrome។ ប្រសិនបើបន្ត មានន័យថា​អ្នកយល់ព្រម​តាម<ph name="BEGIN_LINK1" />លក្ខខណ្ឌ​ប្រើប្រាស់ Google<ph name="END_LINK1" /> និង<ph name="BEGIN_LINK2" />លក្ខខណ្ឌ​ប្រើប្រាស់​បន្ថែមរបស់ Google Chrome និង ChromeOS<ph name="END_LINK2" />។ <ph name="BEGIN_LINK3" />គោលការណ៍​ឯកជនភាព<ph name="END_LINK3" />ក៏អនុវត្តផងដែរ។</translation>
+<translation id="3080375898390966733">ស្វែងរកលើផ្ទាំងដោយប្រើ Google Lens</translation>
 <translation id="3080525922482950719">អ្នកអាចរក្សាទុកទំព័រ ដើម្បីអាននៅពេលក្រោយ ឬពេលគ្មានអ៊ីនធឺណិត</translation>
 <translation id="3087734570205094154">ខាងក្រោម</translation>
 <translation id="3091010850649238832">បង្ហាញខ្លឹមសារឃ្លីបបត</translation>
@@ -550,9 +551,9 @@
 <translation id="3384347053049321195">ចែករំលែករូបភាព</translation>
 <translation id="3385749568468586663">មិនអាចប្រើ Gemini នៅក្នុង​មុខងារ​ឯកជន​បានទេ</translation>
 <translation id="3387650086002190359">ការដោនឡូត <ph name="FILE_NAME" /> បានបរាជ័យដោយសារមានកំហុសប្រព័ន្ធឯកសារ។</translation>
+<translation id="3391311825344469964">អ្នកអាច​គ្រប់គ្រង​វិនដូ​របស់អ្នក​នៅក្នុង​មុខងារ​គ្រប់គ្រង​វិនដូ​របស់ Chrome</translation>
 <translation id="3417835166382867856">ស្វែងរកផ្ទាំង</translation>
 <translation id="3430670036890315772">ការបិទ​ការចាក់​សោកម្រងព័ត៌មាន​របស់​អ្នកនឹង​ដក​ព័ត៌មាន​ដែល​បានរក្សាទុក​របស់​អ្នក​ចេញ</translation>
-<translation id="3435465986463792564">មានវិនដូច្រើនមែនទេ? អ្នកអាច​គ្រប់គ្រងវិនដូ​ទាំងនោះបាន​ពីទីនេះ</translation>
 <translation id="3435575784518354875">ដើម្បី​រក្សាសិទ្ធិ​ចូលប្រើ​ពាក្យ​សម្ងាត់​របស់អ្នក សូម​នាំចេញ​ពាក្យ​សម្ងាត់​ទាំងនោះ​ឥឡូវនេះ, ដំឡើងកំណែ​សេវាកម្ម Google Play, បន្ទាប់មក​នាំចូល​ពាក្យ​សម្ងាត់​ទាំងនោះ​ទៅក្នុង​កម្មវិធី​គ្រប់គ្រង​ពាក្យសម្ងាត់​វិញ។ <ph name="BEGIN_LINK" />មើល​ការណែនាំ​ពេញលេញ<ph name="END_LINK" />។</translation>
 <translation id="3435738964857648380">សុវត្ថិភាព</translation>
 <translation id="3435914367318771664">បញ្ចូលផ្ទាំង​ទៅក្រុមថ្មី</translation>
@@ -1016,6 +1017,7 @@
 <translation id="5370504953185181057"><ph name="TAB_TITLE" />, ផ្ទាំងឯកជន​ដែលបាន​ខ្ទាស់​ដែលកំពុង​បង្ហាញ</translation>
 <translation id="5375374982898812658">អ្នកនឹង​បាត់បង់​សិទ្ធិចូលប្រើ​ក្រុមផ្ទាំង “<ph name="GROUP_NAME" />” ភ្លាមៗ ហើយ​វានឹងត្រូវបាន​លុបចេញពី​ឧបករណ៍​ទាំងអស់​របស់អ្នក</translation>
 <translation id="5375577065097716013">ស្វែងរករូបភាពដោយប្រើ Google Lens <ph name="BEGIN_NEW" />ថ្មី<ph name="END_NEW" /></translation>
+<translation id="537865165090710757">រក្សាទុក និង​ចែករំលែក</translation>
 <translation id="5390367025924544771"><ph name="WEBSITE_ORIGIN" /> ចង់ប្រើ​ព័ត៌មានផ្ទាល់ខ្លួន​ពីកាបូប​ឌីជីថល​របស់អ្នក។ សូមបន្ត តែក្នុង​ករណី​ដែលអ្នក​ទុកចិត្ត​គេហទំព័រនេះ​ប៉ុណ្ណោះ។ គេហទំព័រ​គ្រោះថ្នាក់​អាចបញ្ឆោតអ្នក​ឱ្យបង្ហាញអ្វីៗ ដូចជា​លេខឯកសារ​សម្គាល់ខ្លួន ឬ​ឈ្មោះក្នុងបញ្ជីជាតិរបស់អ្នក​ជាដើម។</translation>
 <translation id="5395376160638294582">សូមប្រាកដថា អ្នកអាចប្រើទិន្នន័យ Chrome នៅក្នុងគណនី Google របស់អ្នកបានជានិច្ច</translation>
 <translation id="539881862970320163">បានណែនាំ​ពាក្យសម្ងាត់ខ្លាំង។ បាន​លាក់​ក្ដារចុច។</translation>
@@ -1070,6 +1072,7 @@
 <translation id="5628604359369369630">មិនទាន់អាន - អាចប្រើបាន​ពេលគ្មាន​អ៊ីនធឺណិត</translation>
 <translation id="5631483240431073854">គ្រប់គ្រង​ផ្ទាំង​ដែលបើក</translation>
 <translation id="5632485077360054581">បង្ហាញខ្ញុំ​អំពី​របៀប</translation>
+<translation id="5639031457248936693"><ph name="WEBSITE" /> ត្រូវការ​ការអនុញ្ញាត​របស់អ្នក ដើម្បី​ដំណើរការ <ph name="EXTENSION_NAME" /></translation>
 <translation id="564121214411935612">បានចូលគណនី​ជា <ph name="USER_NAME" />។ បញ្ហាគណនី Google។ បើកការកំណត់។</translation>
 <translation id="5641456720590409793"><ph name="BEGIN_LINK1" />ប្រវត្តិ​ស្វែងរក<ph name="END_LINK1" /> និង<ph name="BEGIN_LINK2" />ទម្រង់សកម្មភាព​ផ្សេងទៀត<ph name="END_LINK2" />អាចត្រូវបានរក្សាទុក​នៅក្នុង​គណនី Google របស់អ្នក</translation>
 <translation id="5648166631817621825">7 ថ្ងៃមុន</translation>
@@ -1099,6 +1102,7 @@
 <translation id="5763514718066511291">ចុច​ដើម្បី​ចម្លង URL សម្រាប់​កម្មវិធី​នេះ</translation>
 <translation id="5765517223145864268">ប្រាប់យើងអំពីបទពិសោធន៍របស់អ្នក។ ឬ<ph name="BEGIN_LINK" />ប្ដូរការកំណត់របស់អ្នក<ph name="END_LINK" />។</translation>
 <translation id="5776970333778123608">ទិន្នន័យ​មិនសំខាន់</translation>
+<translation id="5788665823391532892">រាយការណ៍បញ្ហា…</translation>
 <translation id="5793665092639000975">ប្រើ​អស់ <ph name="SPACE_USED" /> នៃ <ph name="SPACE_AVAILABLE" /></translation>
 <translation id="5797949256525811424">ប្រធានបទ​ដែលបាន​ទប់ស្កាត់</translation>
 <translation id="580893287573699959">គ្រប់គ្រង​ប្រធានបទ និង​គេហទំព័រ​ដែលអ្នក​ចាប់អារម្មណ៍</translation>
@@ -1876,6 +1880,7 @@
 <translation id="8765617695893461815">{NUM_PASSWORDS,plural, =1{Chrome បាន​រកឃើញ​ពាក្យសម្ងាត់​ខ្សោយ​ដែលអ្នក​អាចធ្វើឱ្យ​ប្រសើរឡើង​បាន}other{Chrome បាន​រកឃើញ​ពាក្យសម្ងាត់​ខ្សោយ​ចំនួន # ដែលអ្នក​អាចធ្វើឱ្យ​ប្រសើរឡើង​បាន}}</translation>
 <translation id="8766529642647037772">បង្កើតតំណ​ដែលបានរំលេច​ដូចតំណមួយនេះដែរទេ?</translation>
 <translation id="8769783688897433958">មើល​ការអនុញ្ញាត និង​ព័ត៌មាន​អំពី​គេហទំព័រ</translation>
+<translation id="8786293874273448556"><ph name="WEBSITE" /> ត្រូវការ​ការអនុញ្ញាត​របស់អ្នក ដើម្បី​ដំណើរការ​កម្មវិធីបន្ថែម <ph name="COUNT" /></translation>
 <translation id="8788265440806329501">បាន​បិទប្រវត្តិរុករក</translation>
 <translation id="8790193082819560975">ចុច ដើម្បីស្វែងរកជម្រើសទិញសម្រាប់ផលិតផលនៅក្នុងផ្ទាំងថ្មី។</translation>
 <translation id="8798449543960971550">អាន</translation>

@@ -12,6 +12,7 @@
 #include "base/time/time.h"
 #include "cc/input/touch_action.h"
 #include "cc/trees/render_frame_metadata.h"
+#include "components/input/cursor_manager.h"
 #include "content/browser/compositor/surface_utils.h"
 #include "content/browser/renderer_host/render_widget_host_view_child_frame.h"
 #include "content/browser/web_contents/web_contents_impl.h"
@@ -74,6 +75,11 @@ class SurfaceEmbedConnectorImplBrowserTest : public ContentBrowserTest {
   void SetLocalSurfaceId(SurfaceEmbedConnectorImpl* connector,
                          const viz::LocalSurfaceId& local_surface_id) {
     connector->local_surface_id_ = local_surface_id;
+  }
+
+  RenderWidgetHostViewChildFrame* GetView(
+      SurfaceEmbedConnectorImpl* connector) {
+    return connector->view_;
   }
 
  protected:
@@ -692,6 +698,236 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorImplBrowserTest,
   // The keep-alive should have been automatically refreshed and now be active.
   EXPECT_TRUE(connector->IsKeepingAlive());
   EXPECT_TRUE(HasKeepSurfaceAlive(connector));
+}
+
+// Tests that GetFocusedWebContents, GetFocusedFrameTree, GetFocusedFrame,
+// ContainsOrIsFocusedWebContents, and GetFocusedRenderWidgetHost return correct
+// values when a child WebContents is embedded via SurfaceEmbed.
+IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorImplBrowserTest,
+                       FocusBehaviorWithSurfaceEmbed) {
+  MockSurfaceEmbedConnectorDelegate connector_delegate;
+
+  // Use shell's WebContents as the parent (has proper view and focused frame).
+  WebContentsImpl* parent_impl = GetParentWebContents();
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ASSERT_TRUE(NavigateToURL(parent_impl,
+                            embedded_test_server()->GetURL("/title1.html")));
+  // Wait for the focused frame to be set after navigation.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return parent_impl->GetFocusedFrame() != nullptr; }));
+
+  WebContents::CreateParams create_params(parent_impl->GetBrowserContext());
+  std::unique_ptr<WebContents> child_wc = WebContents::Create(create_params);
+  auto* child_impl = static_cast<WebContentsImpl*>(child_wc.get());
+
+  SurfaceEmbedConnector::Attach(child_impl, parent_impl->GetPrimaryMainFrame(),
+                                &connector_delegate);
+
+  RenderWidgetHostImpl* parent_main_rwh =
+      parent_impl->GetPrimaryMainFrame()->GetRenderWidgetHost();
+  RenderWidgetHostImpl* child_rwh =
+      child_impl->GetPrimaryMainFrame()->GetRenderWidgetHost();
+
+  // Initially, focus is on the parent. The child does NOT contain focus.
+  EXPECT_FALSE(child_impl->ContainsOrIsFocusedWebContents());
+  EXPECT_EQ(nullptr, child_impl->GetFocusedWebContents());
+  EXPECT_EQ(nullptr, child_impl->GetFocusedFrameTree());
+  EXPECT_EQ(nullptr, child_impl->GetFocusedFrame());
+  EXPECT_EQ(nullptr, child_impl->GetFocusedRenderWidgetHost(child_rwh));
+
+  // The parent should report itself as focused.
+  EXPECT_TRUE(parent_impl->ContainsOrIsFocusedWebContents());
+  EXPECT_EQ(parent_impl, parent_impl->GetFocusedWebContents());
+  EXPECT_EQ(&parent_impl->GetPrimaryFrameTree(),
+            parent_impl->GetFocusedFrameTree());
+  EXPECT_EQ(parent_impl->GetPrimaryMainFrame(), parent_impl->GetFocusedFrame());
+  EXPECT_EQ(parent_main_rwh,
+            parent_impl->GetFocusedRenderWidgetHost(parent_main_rwh));
+
+  // Move focus to the child.
+  child_impl->SetAsFocusedWebContentsIfNecessary();
+
+  // Wait for async focus propagation.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return child_impl->GetFocusedFrame() != nullptr; }));
+
+  EXPECT_TRUE(child_impl->ContainsOrIsFocusedWebContents());
+  EXPECT_EQ(child_impl, child_impl->GetFocusedWebContents());
+  EXPECT_EQ(&child_impl->GetPrimaryFrameTree(),
+            child_impl->GetFocusedFrameTree());
+  EXPECT_EQ(child_impl->GetPrimaryMainFrame(), child_impl->GetFocusedFrame());
+  EXPECT_EQ(child_rwh, child_impl->GetFocusedRenderWidgetHost(child_rwh));
+
+  // The parent should report the child as focused.
+  EXPECT_TRUE(parent_impl->ContainsOrIsFocusedWebContents());
+  EXPECT_EQ(child_impl, parent_impl->GetFocusedWebContents());
+  EXPECT_EQ(&child_impl->GetPrimaryFrameTree(),
+            parent_impl->GetFocusedFrameTree());
+  EXPECT_EQ(child_impl->GetPrimaryMainFrame(), parent_impl->GetFocusedFrame());
+  EXPECT_EQ(child_rwh,
+            parent_impl->GetFocusedRenderWidgetHost(parent_main_rwh));
+
+  // Move focus back to the parent.
+  parent_impl->SetAsFocusedWebContentsIfNecessary();
+
+  // The child should no longer be focused.
+  EXPECT_FALSE(child_impl->ContainsOrIsFocusedWebContents());
+  EXPECT_EQ(nullptr, child_impl->GetFocusedWebContents());
+  EXPECT_EQ(nullptr, child_impl->GetFocusedFrameTree());
+  EXPECT_EQ(nullptr, child_impl->GetFocusedFrame());
+  EXPECT_EQ(nullptr, child_impl->GetFocusedRenderWidgetHost(child_rwh));
+
+  // The parent should be focused again.
+  EXPECT_TRUE(parent_impl->ContainsOrIsFocusedWebContents());
+  EXPECT_EQ(parent_impl, parent_impl->GetFocusedWebContents());
+  EXPECT_EQ(&parent_impl->GetPrimaryFrameTree(),
+            parent_impl->GetFocusedFrameTree());
+  EXPECT_EQ(parent_impl->GetPrimaryMainFrame(), parent_impl->GetFocusedFrame());
+  EXPECT_EQ(parent_main_rwh,
+            parent_impl->GetFocusedRenderWidgetHost(parent_main_rwh));
+}
+
+// Tests focus behavior with multi-level surface embed nesting:
+// grandparent -> parent -> child. Uses FocusOwningWebContents() to move focus
+// and verifies GetFocusedWebContents, GetFocusedFrame,
+// ContainsOrIsFocusedWebContents, and GetFocusedRenderWidgetHost at each level.
+IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorImplBrowserTest,
+                       FocusBehaviorMultiLevelSurfaceEmbed) {
+  MockSurfaceEmbedConnectorDelegate child_connector_delegate;
+  MockSurfaceEmbedConnectorDelegate parent_connector_delegate;
+
+  // Use shell's WebContents as the grandparent (root, has proper view).
+  WebContentsImpl* grandparent_impl = GetParentWebContents();
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ASSERT_TRUE(NavigateToURL(grandparent_impl,
+                            embedded_test_server()->GetURL("/title1.html")));
+  // Wait for the focused frame to be set after navigation.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return grandparent_impl->GetFocusedFrame() != nullptr; }));
+
+  WebContents::CreateParams create_params(
+      grandparent_impl->GetBrowserContext());
+  std::unique_ptr<WebContents> parent_wc = WebContents::Create(create_params);
+  auto* parent_impl = static_cast<WebContentsImpl*>(parent_wc.get());
+  ASSERT_TRUE(NavigateToURL(parent_impl, GURL("about:blank")));
+  SurfaceEmbedConnector::Attach(parent_impl,
+                                grandparent_impl->GetPrimaryMainFrame(),
+                                &parent_connector_delegate);
+
+  std::unique_ptr<WebContents> child_wc = WebContents::Create(create_params);
+  auto* child_impl = static_cast<WebContentsImpl*>(child_wc.get());
+  SurfaceEmbedConnector::Attach(child_impl, parent_impl->GetPrimaryMainFrame(),
+                                &child_connector_delegate);
+
+  RenderWidgetHostImpl* grandparent_rwh =
+      grandparent_impl->GetPrimaryMainFrame()->GetRenderWidgetHost();
+  RenderWidgetHostImpl* parent_rwh =
+      parent_impl->GetPrimaryMainFrame()->GetRenderWidgetHost();
+  RenderWidgetHostImpl* child_rwh =
+      child_impl->GetPrimaryMainFrame()->GetRenderWidgetHost();
+
+  // Initially grandparent is focused. Parent and child should return nullptr.
+  EXPECT_TRUE(grandparent_impl->ContainsOrIsFocusedWebContents());
+  EXPECT_FALSE(parent_impl->ContainsOrIsFocusedWebContents());
+  EXPECT_FALSE(child_impl->ContainsOrIsFocusedWebContents());
+  EXPECT_EQ(grandparent_impl, grandparent_impl->GetFocusedWebContents());
+  EXPECT_EQ(nullptr, parent_impl->GetFocusedWebContents());
+  EXPECT_EQ(nullptr, child_impl->GetFocusedWebContents());
+  EXPECT_EQ(grandparent_impl->GetPrimaryMainFrame(),
+            grandparent_impl->GetFocusedFrame());
+  EXPECT_EQ(nullptr, parent_impl->GetFocusedFrame());
+  EXPECT_EQ(nullptr, child_impl->GetFocusedFrame());
+  EXPECT_EQ(grandparent_rwh,
+            grandparent_impl->GetFocusedRenderWidgetHost(grandparent_rwh));
+  EXPECT_EQ(nullptr, parent_impl->GetFocusedRenderWidgetHost(parent_rwh));
+  EXPECT_EQ(nullptr, child_impl->GetFocusedRenderWidgetHost(child_rwh));
+
+  // Focus the child using FocusOwningWebContents.
+  child_impl->FocusOwningWebContents(child_rwh);
+
+  // Wait for async focus propagation.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return child_impl->GetFocusedFrame() != nullptr; }));
+
+  EXPECT_TRUE(grandparent_impl->ContainsOrIsFocusedWebContents());
+  EXPECT_TRUE(parent_impl->ContainsOrIsFocusedWebContents());
+  EXPECT_TRUE(child_impl->ContainsOrIsFocusedWebContents());
+  EXPECT_EQ(child_impl, grandparent_impl->GetFocusedWebContents());
+  EXPECT_EQ(child_impl, parent_impl->GetFocusedWebContents());
+  EXPECT_EQ(child_impl, child_impl->GetFocusedWebContents());
+  EXPECT_EQ(child_impl->GetPrimaryMainFrame(),
+            grandparent_impl->GetFocusedFrame());
+  EXPECT_EQ(child_impl->GetPrimaryMainFrame(), parent_impl->GetFocusedFrame());
+  EXPECT_EQ(child_impl->GetPrimaryMainFrame(), child_impl->GetFocusedFrame());
+  EXPECT_EQ(child_rwh,
+            grandparent_impl->GetFocusedRenderWidgetHost(grandparent_rwh));
+  EXPECT_EQ(child_rwh, parent_impl->GetFocusedRenderWidgetHost(parent_rwh));
+  EXPECT_EQ(child_rwh, child_impl->GetFocusedRenderWidgetHost(child_rwh));
+
+  // Focus the parent (intermediate level).
+  parent_impl->FocusOwningWebContents(parent_rwh);
+
+  // Wait for async focus propagation.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return parent_impl->GetFocusedFrame() != nullptr; }));
+
+  EXPECT_TRUE(grandparent_impl->ContainsOrIsFocusedWebContents());
+  EXPECT_TRUE(parent_impl->ContainsOrIsFocusedWebContents());
+  EXPECT_FALSE(child_impl->ContainsOrIsFocusedWebContents());
+  EXPECT_EQ(parent_impl, grandparent_impl->GetFocusedWebContents());
+  EXPECT_EQ(parent_impl, parent_impl->GetFocusedWebContents());
+  EXPECT_EQ(nullptr, child_impl->GetFocusedWebContents());
+  EXPECT_EQ(parent_impl->GetPrimaryMainFrame(),
+            grandparent_impl->GetFocusedFrame());
+  EXPECT_EQ(parent_impl->GetPrimaryMainFrame(), parent_impl->GetFocusedFrame());
+  EXPECT_EQ(nullptr, child_impl->GetFocusedFrame());
+  EXPECT_EQ(parent_rwh,
+            grandparent_impl->GetFocusedRenderWidgetHost(grandparent_rwh));
+  EXPECT_EQ(parent_rwh, parent_impl->GetFocusedRenderWidgetHost(parent_rwh));
+  EXPECT_EQ(nullptr, child_impl->GetFocusedRenderWidgetHost(child_rwh));
+}
+
+IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorImplBrowserTest, UpdateCursor) {
+  MockSurfaceEmbedConnectorDelegate delegate;
+  auto context = SetupConnectorTest(&delegate);
+
+  // Ensure the view is set.
+  if (!GetView(context.connector.get())) {
+    context.connector->SetView(context.rwhvcf, false);
+  }
+  ASSERT_TRUE(GetView(context.connector.get()));
+
+  RenderWidgetHostViewBase* root_view =
+      context.connector->GetRootRenderWidgetHostView();
+  ASSERT_TRUE(root_view);
+
+  input::CursorManager* cursor_manager = root_view->GetCursorManager();
+
+  // Verify that updating the cursor works.
+  context.connector->UpdateCursor(ui::Cursor(ui::mojom::CursorType::kHand));
+
+  if (cursor_manager) {
+    ui::Cursor cursor;
+    EXPECT_TRUE(cursor_manager->GetCursorForTesting(
+        GetView(context.connector.get()), cursor));
+    EXPECT_EQ(ui::mojom::CursorType::kHand, cursor.type());
+  }
+
+  // Verify that updating the cursor does not crash when there is no root view
+  // (e.g. parent is destroyed).
+  auto* connector_ptr = context.connector.get();
+  context.connector = nullptr;  // Clear raw_ptr to avoid DanglingPtr check.
+  context.rwhvcf = nullptr;     // Clear raw_ptr to avoid DanglingPtr check.
+
+  context.parent_web_contents = nullptr;
+  Shell* shell = context.parent_shell;
+  context.parent_shell = nullptr;
+  if (shell) {
+    shell->Close();
+  }
+
+  // This should not crash.
+  connector_ptr->UpdateCursor(ui::Cursor(ui::mojom::CursorType::kPointer));
 }
 
 }  // namespace content

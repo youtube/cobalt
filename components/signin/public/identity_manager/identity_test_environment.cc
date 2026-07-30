@@ -226,8 +226,8 @@ IdentityTestEnvironment::BuildIdentityManagerForTests(
     PrefService* pref_service,
     metrics::ProfileMetricsService* profile_metrics_service,
     base::FilePath user_data_dir) {
-  auto account_tracker_service = std::make_unique<AccountTrackerService>();
-  account_tracker_service->Initialize(pref_service, user_data_dir);
+  auto account_tracker_service =
+      std::make_unique<AccountTrackerService>(pref_service, user_data_dir);
 
   auto* account_manager_factory = ash::AccountManagerFactory::Get();
   CHECK(account_manager_factory);
@@ -290,8 +290,8 @@ IdentityTestEnvironment::BuildIdentityManagerForTests(
 #if BUILDFLAG(IS_ANDROID)
   SetUpFakeAccountManagerFacade();
 #endif
-  auto account_tracker_service = std::make_unique<AccountTrackerService>();
-  account_tracker_service->Initialize(pref_service, user_data_dir);
+  auto account_tracker_service =
+      std::make_unique<AccountTrackerService>(pref_service, user_data_dir);
   auto token_service =
       std::make_unique<FakeProfileOAuth2TokenService>(pref_service);
   return FinishBuildIdentityManagerForTests(
@@ -520,6 +520,19 @@ void IdentityTestEnvironment::TriggerListAccount() {
 void IdentityTestEnvironment::SetAutomaticIssueOfAccessTokens(bool grant) {
   fake_token_service()->set_auto_post_fetch_response_on_message_loop(grant);
 }
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+void IdentityTestEnvironment::EnableTokenBindingRegistration() {
+  fake_token_service()->EnableTokenBindingRegistration();
+}
+
+void IdentityTestEnvironment::IssueTokenBindingRegistrationTokenForAuthCode(
+    std::string_view auth_code,
+    std::optional<signin::BindingKeyRegistrationTokenResult> result) {
+  fake_token_service()->IssueTokenBindingRegistrationTokenForAuthCode(
+      auth_code, std::move(result));
+}
+#endif
 
 void IdentityTestEnvironment::
     WaitForAccessTokenRequestIfNecessaryAndRespondWithToken(

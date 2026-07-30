@@ -25,6 +25,8 @@
 
 #include "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h"
 
+#include <inttypes.h>
+
 #include <memory>
 #include <utility>
 
@@ -37,8 +39,10 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/notimplemented.h"
 #include "base/numerics/checked_math.h"
+#include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "components/viz/common/gpu/raster_context_provider.h"
@@ -1403,6 +1407,9 @@ WebGLRenderingContextBase::WebGLRenderingContextBase(
   ADD_VALUES_TO_SET(supported_tex_image_source_formats_, kSupportedFormatsES2);
   ADD_VALUES_TO_SET(supported_types_, kSupportedTypesES2);
   ADD_VALUES_TO_SET(supported_tex_image_source_types_, kSupportedTypesES2);
+
+  base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
+      this, "WebGL", task_runner);
 }
 
 scoped_refptr<DrawingBuffer> WebGLRenderingContextBase::CreateDrawingBuffer(
@@ -1751,6 +1758,9 @@ bool WebGLRenderingContextBase::PushFrame() {
 }
 
 void WebGLRenderingContextBase::Dispose() {
+  TRACE_EVENT("gpu", __PRETTY_FUNCTION__);
+  base::trace_event::MemoryDumpManager::GetInstance()->UnregisterDumpProvider(
+      this);
   resource_provider_.reset();
   cached_snapshot_.reset();
   CanvasRenderingContext::Dispose();
@@ -1909,7 +1919,78 @@ void WebGLRenderingContextBase::MarkLayerComposited() {
     GetDrawingBuffer()->SetBufferClearNeeded(true);
 }
 
+bool WebGLRenderingContextBase::OnMemoryDump(
+    const base::trace_event::MemoryDumpArgs& args,
+    base::trace_event::ProcessMemoryDump* pmd) {
+  std::string context_name =
+      Host()->IsOffscreenCanvas()
+          ? base::StringPrintf("webgl/offscreen_context_0x%" PRIXPTR,
+                               reinterpret_cast<uintptr_t>(this))
+          : base::StringPrintf("webgl/context_0x%" PRIXPTR,
+                               reinterpret_cast<uintptr_t>(this));
+
+  if (args.level_of_detail ==
+      base::trace_event::MemoryDumpLevelOfDetail::kBackground) {
+    auto* dump = pmd->CreateAllocatorDump(context_name);
+    uint64_t total_size = 0;
+    for (auto& buffer : buffers_) {
+      if (buffer && buffer->HasObject()) {
+        total_size += buffer->GetSize();
+      }
+    }
+    if (GetDrawingBuffer()) {
+      total_size += GetDrawingBuffer()->EstimatedSizeInBytes().InBytes();
+    }
+    if (resource_provider_) {
+      total_size += resource_provider_->EstimatedSizeInBytes().InBytes();
+    }
+    if (cached_snapshot_) {
+      total_size += cached_snapshot_->EstimatedSizeInBytes().InBytes();
+    }
+    dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
+                    base::trace_event::MemoryAllocatorDump::kUnitsBytes,
+                    total_size);
+    return true;
+  }
+
+  // Detailed dump below.
+  for (auto& buffer : buffers_) {
+    if (buffer && buffer->HasObject()) {
+      uint64_t buffer_size = buffer->GetSize();
+
+      std::string buffer_name = base::StringPrintf(
+          "%s/buffers/buffer_%u", context_name.c_str(), buffer->Object());
+      auto* dump = pmd->CreateAllocatorDump(buffer_name);
+      dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
+                      base::trace_event::MemoryAllocatorDump::kUnitsBytes,
+                      buffer_size);
+    }
+  }
+
+  if (GetDrawingBuffer()) {
+    GetDrawingBuffer()->OnMemoryDump(pmd, context_name + "/drawing_buffer",
+                                     args);
+  }
+
+  if (resource_provider_) {
+    uint64_t size = resource_provider_->EstimatedSizeInBytes().InBytes();
+    auto* dump = pmd->CreateAllocatorDump(context_name + "/resource_provider");
+    dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
+                    base::trace_event::MemoryAllocatorDump::kUnitsBytes, size);
+  }
+
+  if (cached_snapshot_) {
+    uint64_t size = cached_snapshot_->EstimatedSizeInBytes().InBytes();
+    auto* dump = pmd->CreateAllocatorDump(context_name + "/cached_snapshot");
+    dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
+                    base::trace_event::MemoryAllocatorDump::kUnitsBytes, size);
+  }
+
+  return true;
+}
+
 void WebGLRenderingContextBase::PageVisibilityChanged() {
+  TRACE_EVENT("gpu", __PRETTY_FUNCTION__);
   if (GetDrawingBuffer())
     GetDrawingBuffer()->SetIsInHiddenPage(!Host()->IsPageVisible());
 }
@@ -3056,7 +3137,9 @@ void WebGLRenderingContextBase::copyTexSubImage2D(GLenum target,
 }
 
 WebGLBuffer* WebGLRenderingContextBase::createBuffer() {
-  return MakeGarbageCollected<WebGLBuffer>(this);
+  auto* buffer = MakeGarbageCollected<WebGLBuffer>(this);
+  buffers_.insert(buffer);
+  return buffer;
 }
 
 WebGLFramebuffer* WebGLRenderingContextBase::createFramebuffer() {
@@ -3122,6 +3205,7 @@ void WebGLRenderingContextBase::deleteBuffer(WebGLBuffer* buffer) {
   if (!DeleteObject(buffer))
     return;
   RemoveBoundBuffer(buffer);
+  buffers_.erase(buffer);
 }
 
 void WebGLRenderingContextBase::deleteFramebuffer(
@@ -6628,8 +6712,10 @@ void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
 
   auto info = CreateSnapshotProviderInfoForVideoFrame(
       *media_video_frame, dest_rect.size(), reinterpret_video_as_srgb);
-  auto* snapshot_provider = image_cache.GetCanvasSnapshotProvider(info);
-  if (!snapshot_provider) {
+  bool tried_to_create_provider = false;
+  auto* snapshot_provider =
+      image_cache.GetCanvasSnapshotProvider(info, tried_to_create_provider);
+  if (!snapshot_provider && tried_to_create_provider) {
     return;
   }
 
@@ -6637,7 +6723,7 @@ void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
   // handle tagged orientation, we set |prefer_tagged_orientation| to false.
   const bool kPreferTaggedOrientation = false;
   scoped_refptr<StaticBitmapImage> image;
-  if (snapshot_provider->IsExternalBitmapProvider()) {
+  if (!snapshot_provider) {
     image = CreateUnacceleratedImageFromVideoFrame(
         std::move(media_video_frame), info, video_renderer,
         kPreferTaggedOrientation, reinterpret_video_as_srgb);
@@ -8986,7 +9072,9 @@ WebGLRenderingContextBase::LRUCanvasSnapshotProviderCache::
 
 CanvasSnapshotProvider* WebGLRenderingContextBase::
     LRUCanvasSnapshotProviderCache::GetCanvasSnapshotProvider(
-        const CanvasSnapshotProvider::Info& info) {
+        const CanvasSnapshotProvider::Info& info,
+        bool& tried_to_create_provider) {
+  tried_to_create_provider = false;
   wtf_size_t i;
   for (i = 0; i < capacity_; ++i) {
     CanvasSnapshotProvider* snapshot_provider = snapshot_providers_[i].get();
@@ -8996,6 +9084,7 @@ CanvasSnapshotProvider* WebGLRenderingContextBase::
     if (!info.Matches(*snapshot_provider)) {
       continue;
     }
+    tried_to_create_provider = true;
     BubbleToFront(i);
     return snapshot_provider;
   }
@@ -9011,18 +9100,20 @@ CanvasSnapshotProvider* WebGLRenderingContextBase::
         ShouldCreateAcceleratedImages(raster_context_provider);
   }
 
+  tried_to_create_provider = create_accelerated_provider;
+
   std::unique_ptr<CanvasSnapshotProvider> temp;
   if (create_accelerated_provider) {
     temp = CanvasNon2DResourceProviderSharedImage::Create(
         info.size, info.format, info.alpha_type, info.color_space,
         SharedGpuContext::ContextProviderWrapper(),
         gpu::SHARED_IMAGE_USAGE_DISPLAY_READ);
-  } else {
-    temp = CanvasNon2DSnapshotProviderBitmap::Create(info);
   }
 
-  if (!temp)
+  if (!temp) {
     return nullptr;
+  }
+
   i = std::min(capacity_ - 1, i);
   snapshot_providers_[i] = std::move(temp);
 
@@ -9230,6 +9321,7 @@ void WebGLRenderingContextBase::Trace(Visitor* visitor) const {
   visitor->Trace(renderbuffer_binding_);
   visitor->Trace(texture_units_);
   visitor->Trace(extensions_);
+  visitor->Trace(buffers_);
   visitor->Trace(make_xr_compatible_resolver_);
   visitor->Trace(program_completion_query_list_);
   visitor->Trace(program_completion_query_map_);

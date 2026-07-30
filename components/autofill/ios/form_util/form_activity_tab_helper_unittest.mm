@@ -16,6 +16,7 @@
 #import "base/time/time.h"
 #import "base/unguessable_token.h"
 #import "components/autofill/core/common/autofill_features.h"
+#import "components/autofill/core/common/autofill_test_utils.h"
 #import "components/autofill/core/common/form_data.h"
 #import "components/autofill/core/common/form_field_data.h"
 #import "components/autofill/core/common/unique_ids.h"
@@ -45,7 +46,9 @@ namespace {
 using base::test::WithFeatureOverride;
 using base::test::ios::kWaitForJSCompletionTimeout;
 using base::test::ios::WaitUntilConditionOrTimeout;
+using test::FormDataEq;
 using test::kTrackFormMutationsDelayInMs;
+using test::WithoutUnserializedData;
 using ::testing::Each;
 using ::testing::ElementsAre;
 using ::testing::Field;
@@ -76,20 +79,25 @@ constexpr NSString* kTestHTMLFormWithIframes =
 [[nodiscard]] FormData BuildTestFormData(std::string frame_id) {
   std::optional<base::UnguessableToken> host_frame =
       DeserializeJavaScriptFrameId(frame_id);
+  GURL url = GURL("https://chromium.test/");
 
   FormData test_form_data;
   test_form_data.set_name(u"form-name");
-  test_form_data.set_url(GURL("https://chromium.test/"));
-  test_form_data.set_action(GURL("https://chromium.test/"));
+  test_form_data.set_main_frame_origin(url::Origin::Create(url));
+  test_form_data.set_url(url);
+  test_form_data.set_action(url);
   test_form_data.set_name_attribute(u"form-name");
   test_form_data.set_renderer_id(FormRendererId(1));
   test_form_data.set_host_frame(LocalFrameToken(*host_frame));
 
   FormFieldData test_field_data;
   test_field_data.set_name(u"text");
+  test_field_data.set_origin(url::Origin::Create(url));
   test_field_data.set_form_control_type(FormControlType::kInputText);
   test_field_data.set_host_frame(LocalFrameToken(*host_frame));
   test_field_data.set_host_form_id(test_form_data.renderer_id());
+  test_field_data.set_host_form_signature(
+      FormSignature(14616800528926333697ul));
   test_field_data.set_renderer_id(FieldRendererId(2));
   test_field_data.set_id_attribute(u"text");
   test_field_data.set_max_length(FormFieldData::kDefaultMaxLength);
@@ -271,7 +279,9 @@ TEST_F(FormActivityTabHelperTest, TestObserverDocumentSubmitted) {
   ASSERT_TRUE(observer_->submit_document_info());
   EXPECT_EQ(web_state(), observer_->submit_document_info()->web_state);
   EXPECT_EQ(main_frame, observer_->submit_document_info()->sender_frame);
-  EXPECT_EQ(test_form_data, observer_->submit_document_info()->form_data);
+  EXPECT_THAT(
+      WithoutUnserializedData(observer_->submit_document_info()->form_data),
+      FormDataEq(WithoutUnserializedData(test_form_data)));
 
   EXPECT_FALSE(observer_->submit_document_info()->has_user_gesture);
 
@@ -979,7 +989,9 @@ TEST_F(FormSubmittedHookTest, TestFormSubmittedHook) {
 
   ASSERT_TRUE(observer_->submit_document_info());
   EXPECT_EQ(main_frame, observer_->submit_document_info()->sender_frame);
-  EXPECT_EQ(test_form_data, observer_->submit_document_info()->form_data);
+  EXPECT_THAT(
+      WithoutUnserializedData(observer_->submit_document_info()->form_data),
+      FormDataEq(WithoutUnserializedData(test_form_data)));
   EXPECT_FALSE(observer_->submit_document_info()->has_user_gesture);
 
   histogram_tester_.ExpectUniqueSample(kProgrammaticFormSubmissionHistogram,

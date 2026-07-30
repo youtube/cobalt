@@ -14,6 +14,7 @@
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/gfx/vector_icon_types.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/layout_provider.h"
@@ -70,15 +71,19 @@ ui::ImageModel StarRatingView::GetImageModel(double rating, int index) {
   double rest;
   if (rating >= index + 1) {
     // Full icon.
-    return ui::ImageModel::FromVectorIcon(vector_icons::kStarOldIcon,
+    return ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
+                                              ? vector_icons::kStarFilledIcon
+                                              : vector_icons::kStarOldIcon,
                                           kColorStarRatingFullIcon, icon_size);
   } else if (rating >= index && std::modf(rating, &rest) >= 0.5) {
     // Half icon.
-    return ui::ImageModel::FromVectorIcon(vector_icons::kStarHalfIcon,
+    return ui::ImageModel::FromVectorIcon(vector_icons::kStarHalfCustomIcon,
                                           kColorStarRatingFullIcon, icon_size);
   }
   // Empty icon.
-  return ui::ImageModel::FromVectorIcon(vector_icons::kStarOldIcon,
+  return ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
+                                            ? vector_icons::kStarFilledIcon
+                                            : vector_icons::kStarOldIcon,
                                         kColorStarRatingEmptyIcon, icon_size);
 }
 

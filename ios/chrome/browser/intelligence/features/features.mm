@@ -194,7 +194,7 @@ BASE_FEATURE_PARAM(int,
                    kExplainGeminiEditMenuFeatureParam,
                    &kExplainGeminiEditMenu,
                    kExplainGeminiEditMenuParams,
-                   0);
+                   2);
 
 PositionForExplainGeminiEditMenu ExplainGeminiEditMenuPosition() {
   if (!IsPageActionMenuEnabled()) {
@@ -214,7 +214,7 @@ PositionForExplainGeminiEditMenu ExplainGeminiEditMenuPosition() {
   return PositionForExplainGeminiEditMenu::kDisabled;
 }
 
-BASE_FEATURE(kExplainGeminiEditMenu, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kExplainGeminiEditMenu, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGeminiPreciseLocation, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -373,27 +373,6 @@ bool IsZeroStateSuggestionsCentralizationEnabled() {
   return base::FeatureList::IsEnabled(kZeroStateSuggestionsCentralization);
 }
 
-const char kZeroStateSuggestionsPlacementAIHub[] =
-    "ZeroStateSuggestionsPlacementAIHub";
-const char kZeroStateSuggestionsPlacementAskGemini[] =
-    "ZeroStateSuggestionsPlacementAskGemini";
-
-bool IsZeroStateSuggestionsAIHubEnabled() {
-  if (!IsZeroStateSuggestionsEnabled()) {
-    return false;
-  }
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kZeroStateSuggestions, kZeroStateSuggestionsPlacementAIHub, false);
-}
-
-bool IsZeroStateSuggestionsAskGeminiEnabled() {
-  if (!IsZeroStateSuggestionsEnabled()) {
-    return false;
-  }
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kZeroStateSuggestions, kZeroStateSuggestionsPlacementAskGemini, false);
-}
-
 BASE_FEATURE(kPageContextExtractorRefactored, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsPageContextExtractorRefactoredEnabled() {
@@ -407,6 +386,12 @@ bool IsGeminiUpdatedEligibilityEnabled() {
     return false;
   }
   return base::FeatureList::IsEnabled(kGeminiUpdatedEligibility);
+}
+
+BASE_FEATURE(kGeminiUpdatedConsent, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiUpdatedConsentEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiUpdatedConsent);
 }
 
 BASE_FEATURE(kGeminiImageRemixTool, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -720,7 +705,7 @@ bool IsGeminiFloatyAllPagesEnabled() {
   return base::FeatureList::IsEnabled(kGeminiFloatyAllPages);
 }
 
-BASE_FEATURE(kGeminiMapsRichUI, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGeminiMapsRichUI, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsGeminiMapsRichUIEnabled() {
   if (!IsPageActionMenuEnabled()) {

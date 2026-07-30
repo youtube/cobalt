@@ -15,6 +15,7 @@
 #include "base/memory_coordinator/memory_consumer.h"
 #include "base/memory_coordinator/memory_consumer_registry.h"
 #include "base/memory_coordinator/traits.h"
+#include "base/observer_list.h"
 #include "content/common/content_export.h"
 #include "content/common/memory_coordinator/memory_consumer_group_controller.h"
 #include "content/common/memory_coordinator/memory_consumer_group_host.h"
@@ -53,8 +54,8 @@ class CONTENT_EXPORT MemoryConsumerRegistry
     void UpdateMemoryLimit(int percentage);
 
     // Adds/removes a consumer.
-    void AddMemoryConsumer(base::RegisteredMemoryConsumer consumer);
-    void RemoveMemoryConsumer(base::RegisteredMemoryConsumer consumer);
+    void AddMemoryConsumer(base::MemoryConsumer* consumer);
+    void RemoveMemoryConsumer(base::MemoryConsumer* consumer);
 
     const std::string& consumer_name() const { return consumer_name_; }
 
@@ -67,7 +68,7 @@ class CONTENT_EXPORT MemoryConsumerRegistry
 
     int memory_limit_ = base::MemoryConsumer::kDefaultMemoryLimit;
 
-    std::vector<base::RegisteredMemoryConsumer> memory_consumers_;
+    base::ObserverList<base::MemoryConsumer> memory_consumers_;
     std::string consumer_name_;
   };
 
@@ -75,10 +76,9 @@ class CONTENT_EXPORT MemoryConsumerRegistry
   void OnMemoryConsumerAdded(uint32_t consumer_id,
                              std::string_view consumer_name,
                              std::optional<base::MemoryConsumerTraits> traits,
-                             base::RegisteredMemoryConsumer consumer) override;
-  void OnMemoryConsumerRemoved(
-      uint32_t consumer_id,
-      base::RegisteredMemoryConsumer consumer) override;
+                             base::MemoryConsumer* consumer) override;
+  void OnMemoryConsumerRemoved(uint32_t consumer_id,
+                               base::MemoryConsumer* consumer) override;
 
   const ProcessType process_type_;
   const ChildProcessId child_process_id_;
@@ -87,6 +87,17 @@ class CONTENT_EXPORT MemoryConsumerRegistry
   // Contains groups of all MemoryConsumers with the same consumer ID.
   absl::flat_hash_map<uint32_t, std::unique_ptr<ConsumerGroup>>
       consumer_groups_;
+
+  // True if we are currently batch-updating consumers in UpdateConsumers().
+  // Used to defer the destruction of empty consumer groups to avoid
+  // Use-After-Free.
+  bool is_updating_ = false;
+
+  // Tracks IDs of consumer groups that became empty during a batch update.
+  // These groups will be destroyed at the end of UpdateConsumers().
+  // The ID is the uint32_t hash of the consumer name, matching the key in
+  // `consumer_groups_`.
+  std::vector<uint32_t> pending_removal_groups_;
 };
 
 }  // namespace content

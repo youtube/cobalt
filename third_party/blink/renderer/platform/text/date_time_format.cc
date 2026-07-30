@@ -89,7 +89,7 @@ static const std::array<DateTimeFormat::FieldType, 26>
         DateTimeFormat::kFieldTypeWeekOfMonth,        // W
         DateTimeFormat::kFieldTypeZoneIso8601Z,       // X
         DateTimeFormat::kFieldTypeYearOfWeekOfYear,   // Y
-        DateTimeFormat::kFieldTypeRFC822Zone,         // Z
+        DateTimeFormat::kFieldTypeRfc822Zone,         // Z
 };
 
 static DateTimeFormat::FieldType MapCharacterToFieldType(const UChar ch) {
@@ -242,7 +242,7 @@ bool DateTimeFormat::Parse(const String& source, TokenHandler& token_handler) {
   NOTREACHED();
 }
 
-static bool IsASCIIAlphabetOrQuote(UChar ch) {
+static bool IsAsciiAlphabetOrQuote(UChar ch) {
   return IsAsciiAlpha(ch) || ch == '\'';
 }
 
@@ -251,7 +251,7 @@ void DateTimeFormat::QuoteAndAppend(const StringView& literal,
   if (literal.length() <= 0)
     return;
 
-  if (literal.Find(IsASCIIAlphabetOrQuote) == kNotFound) {
+  if (literal.Find(IsAsciiAlphabetOrQuote) == kNotFound) {
     buffer.Append(literal);
     return;
   }

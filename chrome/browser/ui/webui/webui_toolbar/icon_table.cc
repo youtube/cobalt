@@ -50,18 +50,59 @@ const base::flat_map<const gfx::VectorIcon*, IconInfo>& KnownIcons() {
           {{&vector_icons::kLocationOnChromeRefreshOldIcon},
            {"rhs_icons/location_on_chrome_refresh.svg", IconType::kMaskUrl}},
 
+          // Post-rounding, used by pinned toolbar actions and omnibox:
+          {{&kIncognitoIcon}, {"webui-toolbar:incognito", IconType::kIconSet}},
+          {{&kCreditCardIcon},
+           {"webui-toolbar:credit_card", IconType::kIconSet}},
+          {{&kHotelClassIcon},
+           {"webui-toolbar:hotel_class", IconType::kIconSet}},
+          {{&kListAltIcon}, {"webui-toolbar:list_alt", IconType::kIconSet}},
+          {{&kDownloadIcon}, {"webui-toolbar:download", IconType::kIconSet}},
+          {{&kDeleteIcon}, {"webui-toolbar:delete", IconType::kIconSet}},
+          {{&kPrintIcon}, {"webui-toolbar:print", IconType::kIconSet}},
+          {{&kGTranslateIcon},
+           {"webui-toolbar:g_translate", IconType::kIconSet}},
+          {{&kQrCodeIcon}, {"webui-toolbar:qr_code", IconType::kIconSet}},
+          {{&kCastIcon}, {"webui-toolbar:cast", IconType::kIconSet}},
+          {{&kMenuBookIcon}, {"webui-toolbar:menu_book", IconType::kIconSet}},
+          {{&kLinkIcon}, {"webui-toolbar:link", IconType::kIconSet}},
+          {{&kDevicesIcon}, {"webui-toolbar:devices", IconType::kIconSet}},
+          {{&kTableChartIcon},
+           {"webui-toolbar:table_chart", IconType::kIconSet}},
+          {{&kCodeIcon}, {"webui-toolbar:code", IconType::kIconSet}},
+          {{&kManageSearchIcon},
+           {"webui-toolbar:manage_search", IconType::kIconSet}},
+          {{&kDockToRightSparkCustomIcon},
+           {"webui-toolbar:dock_to_right_spark", IconType::kIconSet}},
+          {{&kInfoIcon}, {"webui-toolbar:info", IconType::kIconSet}},
+          {{&kEditIcon}, {"webui-toolbar:edit", IconType::kIconSet}},
+          {{&omnibox::kPublicIcon},
+           {"webui-toolbar:omnibox_public", IconType::kIconSet}},
+          {{&omnibox::kInfoIcon},
+           {"webui-toolbar:omnibox_info", IconType::kIconSet}},
+          {{&omnibox::kChromeProductIcon},
+           {"webui-toolbar:omnibox_chrome_product", IconType::kIconSet}},
+          {{&omnibox::kPageInfoIcon},
+           {"webui-toolbar:omnibox_page_info", IconType::kIconSet}},
+          {{&omnibox::kStarIcon},
+           {"webui-toolbar:omnibox_star", IconType::kIconSet}},
+
           // LHS icons:
           {{&vector_icons::kDangerousChromeRefreshOldIcon},
            {"lhs_icons/dangerous_chrome_refresh.svg", IconType::kMaskUrl}},
           {{&vector_icons::kNotSecureWarningChromeRefreshOldIcon},
            {"lhs_icons/not_secure_warning_chrome_refresh_16.svg",
             IconType::kMaskUrl}},
+          // Will be replaced by kInfoIcon.
           {{&omnibox::kHttpChromeRefreshOldIcon},
            {"lhs_icons/http_chrome_refresh.svg", IconType::kMaskUrl}},
+          // Will be replaced by kPublicIcon.
           {{&omnibox::kPageChromeRefreshOldIcon},
            {"lhs_icons/page_chrome_refresh_icon.svg", IconType::kMaskUrl}},
+          // Will be replaced by kChromeProductIcon.
           {{&omnibox::kProductChromeRefreshOldIcon},
            {"lhs_icons/product_chrome_refresh_icon.svg", IconType::kMaskUrl}},
+          // Will be replaced by kPageInfoIcon.
           {{&omnibox::kSecurePageInfoChromeRefreshOldIcon},
            {"lhs_icons/secure_page_info_chrome_refresh.svg",
             IconType::kMaskUrl}},
@@ -117,7 +158,7 @@ const base::flat_map<const gfx::VectorIcon*, IconInfo>& KnownIcons() {
            {"pinned-toolbar-action:DevTools", IconType::kIconSet}},
           {{&kTabSearchTabStripOldIcon},
            {"pinned-toolbar-action:TabSearch", IconType::kIconSet}},
-          {{&kDockToRightSparkIcon},
+          {{&kDockToRightSparkCustomIcon},
            {"pinned-toolbar-action:SidePanelShowContextualTasks",
             IconType::kIconSet}},
           {{&vector_icons::kImageSearchOldIcon},
@@ -145,6 +186,8 @@ const base::flat_map<const gfx::VectorIcon*, IconInfo>& KnownIcons() {
            {"internal-icons:google_lens_monochrome_logo", IconType::kIconSet}},
           {{&vector_icons::kPageInsightsIcon},
            {"internal-icons:page_insights", IconType::kIconSet}},
+          {{&vector_icons::kGoogleGLogoMonochromeIcon},
+           {"internal-icons:google_g_logo_monochrome", IconType::kIconSet}},
 #endif
 
       });
@@ -180,6 +223,7 @@ class IconTable::ProviderImpl : public toolbar_ui_api::IconHandle::Provider {
   void Detach() { icon_table_ = nullptr; }
 
   toolbar_ui_api::mojom::IconUpdatePtr ToMojom(float scale_factor) {
+    std::optional<SkColor> color;
     if (need_rasterize_) {
       // The downside of lazy rasterization like this is that a lot may
       // happen at once; but it will also not be done until it's needed and
@@ -189,10 +233,13 @@ class IconTable::ProviderImpl : public toolbar_ui_api::IconHandle::Provider {
             image_model_->Rasterize(icon_table_->delegate_->GetColorProvider()),
             scale_factor);
       }
+    } else if (image_model_ && image_model_->IsVectorIcon()) {
+      ui::ColorVariant color_variant = image_model_->GetVectorIcon().color();
+      color = color_variant.ResolveToSkColor(
+          icon_table_->delegate_->GetColorProvider());
     }
-
-    return toolbar_ui_api::mojom::IconUpdate::New(handle_id_.value(),
-                                                  name_or_url_, icon_type_);
+    return toolbar_ui_api::mojom::IconUpdate::New(
+        handle_id_.value(), name_or_url_, icon_type_, color);
   }
 
   const std::optional<ui::ImageModel>& MaybeImageModel() {
@@ -347,7 +394,8 @@ IconTable::TakePendingUpdates() {
       // The icon got deleted on the C++ end since last update; let the JS end
       // know it can free up memory, too.
       updates.push_back(toolbar_ui_api::mojom::IconUpdate::New(
-          id.value(), std::nullopt, IconType::kMaskUrl));
+          id.value(), std::nullopt, IconType::kMaskUrl,
+          /*color=*/std::nullopt));
     }
   }
 

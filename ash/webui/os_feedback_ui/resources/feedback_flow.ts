@@ -171,12 +171,6 @@ export class FeedbackFlowElement extends PolymerElement {
   /**  Whether to show the Wifi debug Logs checkbox in share data page. */
   shouldShowWifiDebugLogsCheckbox = false;
 
-  /**
-   * Whether to show the Link Cross Device Dogfood Feedback checkbox in share
-   * data page.
-   */
-  shouldShowLinkCrossDeviceDogfoodFeedbackCheckbox = false;
-
   /**  Whether to show the autofill checkbox in share data page. */
   protected shouldShowAutofillCheckbox = false;
 
@@ -343,8 +337,6 @@ export class FeedbackFlowElement extends PolymerElement {
       autofillMetadata: feedbackInfo.autofillMetadata ?
           JSON.stringify(feedbackInfo.autofillMetadata) :
           '{}',
-      hasLinkedCrossDevicePhone:
-          feedbackInfo.hasLinkedCrossDevicePhone ?? false,
       categoryTag: feedbackInfo.categoryTag ?? '',
       email: '',
       extraDiagnostics: '',
@@ -464,13 +456,6 @@ export class FeedbackFlowElement extends PolymerElement {
             this.isDescriptionRelatedToBluetooth(this.description);
         this.shouldShowWifiDebugLogsCheckbox =
             this.computeShouldShowWifiDebugLogsCheckbox();
-        this.shouldShowLinkCrossDeviceDogfoodFeedbackCheckbox =
-            this.feedbackContext !== null &&
-            loadTimeData.getBoolean(
-                'enableLinkCrossDeviceDogfoodFeedbackFlag') &&
-            this.feedbackContext.isInternalAccount &&
-            this.feedbackContext.hasLinkedCrossDevicePhone &&
-            this.isDescriptionRelatedToCrossDevice(this.description);
         this.fetchScreenshot();
         const shareDataPage = strictQuery(
             'share-data-page', this.shadowRoot, ShareDataPageElement);
@@ -634,24 +619,11 @@ export class FeedbackFlowElement extends PolymerElement {
      * bluetooth checkbox should be hidden and skip the relative check.
      */
     const isRelatedToBluetooth = btRegEx.test(textInput) ||
-        cantConnectRegEx.test(textInput) ||
-        this.isDescriptionRelatedToCrossDevice(textInput) ||
-        fastPairRegEx.test(textInput) || btDeviceRegEx.test(textInput);
-    return isRelatedToBluetooth;
-  }
-
-  /**
-   * If the user is not signed in with a internal google account, the Cross
-   * Device checkbox should be hidden and skip the relative check.
-   *
-   * Checks if any keywords related to Cross Device have been typed. If they
-   * are, we show the cross device checkbox, otherwise hide it.
-   */
-  protected isDescriptionRelatedToCrossDevice(textInput: string): boolean {
-    const isRelatedToCrossDevice = phoneHubRegEx.test(textInput) ||
+        cantConnectRegEx.test(textInput) || phoneHubRegEx.test(textInput) ||
         tetherRegEx.test(textInput) || smartLockRegEx.test(textInput) ||
-        nearbyShareRegEx.test(textInput);
-    return isRelatedToCrossDevice;
+        nearbyShareRegEx.test(textInput) || fastPairRegEx.test(textInput) ||
+        btDeviceRegEx.test(textInput);
+    return isRelatedToBluetooth;
   }
 }
 

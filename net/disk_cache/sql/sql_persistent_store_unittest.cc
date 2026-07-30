@@ -333,6 +333,7 @@ class SqlPersistentStoreTestBase : public testing::Test {
     base::test::TestFuture<SqlPersistentStore::ResIdOrError> future;
     store_->WriteEntryData(key, res_id, old_body_end, std::move(buffer),
                            truncate, /*doomed_new_entry=*/false,
+                           /*sparse_write=*/false, /*header_size=*/0,
                            future.GetCallback());
     auto result = future.Take();
     return result.error_or(SqlPersistentStore::Error::kOk);
@@ -3535,6 +3536,7 @@ TEST_P(SqlPersistentStoreTest, WriteEntryDataCreatesNew) {
   store_->WriteEntryData(kKey, kTime, /*old_body_end=*/0,
                          EntryWriteBuffer(write_buffer, kData.size(), 0),
                          /*truncate=*/false, /*doomed_new_entry=*/false,
+                         /*sparse_write=*/false, /*header_size=*/0,
                          future.GetCallback());
 
   auto result = future.Take();
@@ -3561,6 +3563,7 @@ TEST_P(SqlPersistentStoreTest, WriteEntryDataCreatesNewDoomed) {
   store_->WriteEntryData(kKey, kTime, /*old_body_end=*/0,
                          EntryWriteBuffer(write_buffer, kData.size(), 0),
                          /*truncate=*/false, /*doomed_new_entry=*/true,
+                         /*sparse_write=*/false, /*header_size=*/0,
                          future.GetCallback());
 
   auto result = future.Take();
@@ -4094,6 +4097,7 @@ TEST_P(SqlPersistentStoreTest, WriteDataCallbackNotRunOnStoreDestruction) {
       kKey, res_id, /*old_body_end=*/0,
       EntryWriteBuffer(std::move(write_buffer), kData.size(), 0),
       /*truncate=*/false, /*doomed_new_entry=*/false,
+      /*sparse_write=*/false, /*header_size=*/0,
       base::BindLambdaForTesting(
           [&](SqlPersistentStore::ResIdOrError) { callback_run = true; }));
   store_.reset();
@@ -5560,8 +5564,8 @@ TEST_P(SqlPersistentStoreTest, DoomEntryWhileIndexLoading) {
   EXPECT_EQ(load_index_future.Get(), SqlPersistentStore::Error::kOk);
 
   // 6. The index is now loaded. The doomed entries should not be in the index
-  //    because they were added to `pending_doomed_res_ids_` and removed after
-  //    the index was loaded.
+  //    because they were added to `pending_doomed_hash_and_res_ids_` and
+  //    removed after the index was loaded.
   EXPECT_EQ(store_->GetIndexStateForHash(kKey1.hash()),
             SqlPersistentStore::IndexState::kHashNotFound);
   EXPECT_EQ(store_->GetIndexStateForHash(kKey2.hash()),
@@ -5654,7 +5658,7 @@ TEST_P(SqlPersistentStoreTest, SetAndGetEntryInMemoryData) {
   EXPECT_TRUE(LoadInMemoryIndex());
 
   // 3. Set in-memory data hints.
-  const uint8_t hints_value = 42;
+  const uint8_t hints_value = 3;
   store_->SetInMemoryEntryDataHints(kKey.hash(), res_id,
                                     MemoryEntryDataHints(hints_value));
 

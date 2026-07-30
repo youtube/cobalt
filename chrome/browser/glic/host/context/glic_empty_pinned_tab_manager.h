@@ -29,6 +29,8 @@ class GlicEmptyPinnedTabManager : public GlicPinnedTabManager {
       PinnedTabDataChangedCallback callback) override;
   bool PinTabs(base::span<const tabs::TabHandle> tab_handles,
                GlicPinTrigger trigger) override;
+  void SetPinTrigger(tabs::TabHandle tab_handle,
+                     GlicPinTrigger trigger) override;
   bool UnpinTabs(base::span<const tabs::TabHandle> tab_handles,
                  GlicUnpinTrigger trigger) override;
   void UnpinAllTabs(GlicUnpinTrigger trigger) override;
@@ -38,7 +40,7 @@ class GlicEmptyPinnedTabManager : public GlicPinnedTabManager {
   bool IsTabPinned(tabs::TabHandle tab_handle) const override;
   std::optional<GlicPinnedTabUsage> GetPinnedTabUsage(
       tabs::TabHandle tab_handle) const override;
-  std::vector<content::WebContents*> GetPinnedTabs() const override;
+  std::vector<tabs::TabInterface*> GetPinnedTabs() const override;
   void SubscribeToPinCandidates(
       mojom::GetPinCandidatesOptionsPtr options,
       mojo::PendingRemote<mojom::PinCandidatesObserver> observer) override;

@@ -229,6 +229,7 @@ import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateMa
 import org.chromium.components.browser_ui.device_lock.DeviceLockActivityLauncher;
 import org.chromium.components.browser_ui.device_lock.DeviceLockActivityLauncherSupplier;
 import org.chromium.components.browser_ui.styles.ChromeColors;
+import org.chromium.components.browser_ui.styles.IncognitoColors;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler.BackPressResult;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
@@ -286,7 +287,7 @@ public class ToolbarManager
                 TabObscuringHandler.Observer {
     private final IncognitoStateProvider mIncognitoStateProvider;
     private final ToolbarThemeColorProvider mToolbarThemeColorProvider;
-    private final @Nullable ToolbarThemeColorProvider mAdjustedTopUiThemeColorProvider;
+    private final @Nullable ToolbarThemeColorProvider mAdjustedToolbarThemeColorProvider;
     private final MonotonicObservableSupplier<EphemeralTabCoordinator>
             mEphemeralTabCoordinatorSupplier;
     private AppThemeColorProvider mAppThemeColorProvider;
@@ -690,7 +691,7 @@ public class ToolbarManager
      * @param compositorViewHolder Class that holds a {@link CompositorView}.
      * @param urlFocusChangedCallback The callback to be notified when the URL focus changes.
      * @param toolbarThemeColorProvider The ThemeColorProvider object for the toolbar.
-     * @param adjustedTopUiThemeColorProvider The ThemeColorProvider object for top UI which may
+     * @param adjustedToolbarThemeColorProvider The ThemeColorProvider object for top UI which may
      *     adjust tint colors.
      * @param tabObscuringHandler Delegate object handling obscuring views.
      * @param shareDelegateSupplier Supplier for ShareDelegate.
@@ -750,7 +751,7 @@ public class ToolbarManager
             CompositorViewHolder compositorViewHolder,
             Callback<Boolean> urlFocusChangedCallback,
             ToolbarThemeColorProvider toolbarThemeColorProvider,
-            @Nullable ToolbarThemeColorProvider adjustedTopUiThemeColorProvider,
+            @Nullable ToolbarThemeColorProvider adjustedToolbarThemeColorProvider,
             BottomUiThemeColorProvider bottomUiThemeColorProvider,
             IncognitoStateProvider incognitoStateProvider,
             TabObscuringHandler tabObscuringHandler,
@@ -902,9 +903,9 @@ public class ToolbarManager
         mBottomUiThemeColorProvider = bottomUiThemeColorProvider;
         mToolbarThemeColorProvider = toolbarThemeColorProvider;
         mToolbarThemeColorProvider.addThemeColorObserver(this);
-        mAdjustedTopUiThemeColorProvider = adjustedTopUiThemeColorProvider;
-        if (mAdjustedTopUiThemeColorProvider != null) {
-            mAdjustedTopUiThemeColorProvider.addThemeColorObserver(this);
+        mAdjustedToolbarThemeColorProvider = adjustedToolbarThemeColorProvider;
+        if (mAdjustedToolbarThemeColorProvider != null) {
+            mAdjustedToolbarThemeColorProvider.addThemeColorObserver(this);
         }
 
         final boolean isDefaultDisplay = DisplayUtil.isContextInDefaultDisplay(mActivity);
@@ -933,7 +934,17 @@ public class ToolbarManager
                         this::updateButtonStatus,
                         mActivityTabProvider,
                         mTabCreatorManager,
-                        mLocationBarModel::isOffTheRecord);
+                        mLocationBarModel::isOffTheRecord,
+                        () -> {
+                            HomepageManager.getInstance()
+                                    .openHomepage(
+                                            mLocationBarModel.getTab(),
+                                            mTabCreatorManager,
+                                            mLocationBarModel.isOffTheRecord());
+                        },
+                        (homePageUrl) -> {
+                            HomepageManager.getInstance().recordHomeNavigationMetrics(homePageUrl);
+                        });
 
         if (backPressManager != null) {
             mBackPressHandler = new OnBackPressHandler();
@@ -2834,8 +2845,8 @@ public class ToolbarManager
             mToolbarThemeColorProvider.removeThemeColorObserver(this);
         }
 
-        if (mAdjustedTopUiThemeColorProvider != null) {
-            mAdjustedTopUiThemeColorProvider.removeThemeColorObserver(this);
+        if (mAdjustedToolbarThemeColorProvider != null) {
+            mAdjustedToolbarThemeColorProvider.removeThemeColorObserver(this);
         }
 
         if (mAppThemeColorProvider != null) {
@@ -3120,6 +3131,13 @@ public class ToolbarManager
         return mLocationBarModel.getPrimaryColor();
     }
 
+    /**
+     * @return The {@link EdgeToEdgeController} supplier.
+     */
+    public Supplier<EdgeToEdgeController> getEdgeToEdgeControllerSupplier() {
+        return mEdgeToEdgeControllerSupplier;
+    }
+
     /** Sets the visibility of the Toolbar shadow. */
     public void setToolbarShadowVisibility(int visibility) {
         if (mToolbarHairline != null) mToolbarHairline.setVisibility(visibility);
@@ -3380,8 +3398,14 @@ public class ToolbarManager
         // NOTE: Here we're not checking if isIncognitoBranded has changed because it's redundant
         // when we're already checking if tab has changed.
         if (previousTab != tab) {
+            boolean isBottomBarEnabled = BottomBarConfigUtils.isBottomBarEnabled(mActivity);
+            boolean isBottomPosition = mToolbarPositionSupplier.get() == ControlsPosition.BOTTOM;
             int defaultPrimaryColor =
-                    ChromeColors.getDefaultThemeColor(mActivity, isIncognitoBranded);
+                    (isBottomBarEnabled && isBottomPosition)
+                            ? IncognitoColors.getColorSurfaceContainerHigh(
+                                    mActivity, isIncognitoBranded)
+                            : ChromeColors.getDefaultThemeColor(mActivity, isIncognitoBranded);
+
             int primaryColor =
                     tab != null
                             ? mToolbarThemeColorProvider.getToolbarBackgroundColor(tab)
@@ -3714,12 +3738,12 @@ public class ToolbarManager
     }
 
     /**
-     * Returns the mAdjustedTopUiThemeColorProvider if non-null, otherwise returns the
+     * Returns the mAdjustedToolbarThemeColorProvider if non-null, otherwise returns the
      * mToolbarThemeColorProvider.
      */
-    private ToolbarThemeColorProvider getAdjustedTopUiThemeColorProvider() {
-        return mAdjustedTopUiThemeColorProvider != null
-                ? mAdjustedTopUiThemeColorProvider
+    private ToolbarThemeColorProvider getAdjustedToolbarThemeColorProvider() {
+        return mAdjustedToolbarThemeColorProvider != null
+                ? mAdjustedToolbarThemeColorProvider
                 : mToolbarThemeColorProvider;
     }
 
@@ -3729,11 +3753,11 @@ public class ToolbarManager
     }
 
     /**
-     * Returns mAppThemeColorProvider for tablets or getAdjustedTopUiThemeColorProvider() for
+     * Returns mAppThemeColorProvider for tablets or getAdjustedToolbarThemeColorProvider() for
      * non-tablets.
      */
     private ThemeColorProvider getBrowsingModeThemeColorProviderWithAdjustableTint() {
-        return mIsTablet ? mAppThemeColorProvider : getAdjustedTopUiThemeColorProvider();
+        return mIsTablet ? mAppThemeColorProvider : getAdjustedToolbarThemeColorProvider();
     }
 
     private OnLongClickListener createTabSwitcherLongClickListener(

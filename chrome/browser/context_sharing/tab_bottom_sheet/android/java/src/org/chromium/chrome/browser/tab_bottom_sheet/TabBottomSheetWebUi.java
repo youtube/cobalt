@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.tab_bottom_sheet;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetUtils.isActivityFinishingOrDestroyed;
 
@@ -64,7 +65,6 @@ public class TabBottomSheetWebUi {
         mZoomControl = zoomControl;
         mWebViewResizingHelper =
                 new WebViewResizingHelper(containerView, windowAndroid, backgroundColor);
-        resetThinWebView();
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -134,9 +134,7 @@ public class TabBottomSheetWebUi {
             ThinWebViewContextMenuItemDelegate itemDelegate =
                     new ThinWebViewContextMenuItemDelegate(mWebContents);
             mContextMenuPopulatorFactory.setItemDelegate(itemDelegate);
-            if (mThinWebView == null) {
-                resetThinWebView();
-            }
+            ensureThinWebViewCreated();
             if (mThinWebView != null) {
                 mThinWebView.attachWebContents(
                         mWebContents,
@@ -151,8 +149,16 @@ public class TabBottomSheetWebUi {
                         mContext.getResources().getConfiguration().orientation
                                 == Configuration.ORIENTATION_LANDSCAPE);
             }
+
+            // Only request focus once the web contents have been attached to the activity's layout
+            // tree.
+            View currentFocus = assertNonNull(mWindowAndroid.getActivity().get()).getCurrentFocus();
+            if (currentFocus != null) {
+                currentFocus.clearFocus();
+            }
+            contentView.requestFocus();
         } else {
-            resetThinWebView();
+            destroyThinWebView();
         }
     }
 
@@ -182,11 +188,7 @@ public class TabBottomSheetWebUi {
         // We expect the life cycle of webContents to be managed by native.
         mWebContents = null;
         mContentView = null;
-        mWebViewResizingHelper.destroy();
-        if (mThinWebView != null) {
-            mThinWebView.destroy();
-            mThinWebView = null;
-        }
+        destroyThinWebView();
     }
 
     View getWebUiView() {
@@ -212,13 +214,11 @@ public class TabBottomSheetWebUi {
         return ContentView.createContentView(context, webContents);
     }
 
-    private void resetThinWebView() {
+    private void ensureThinWebViewCreated() {
         if (mThinWebView != null) {
-            mThinWebView.destroy();
-            mThinWebView = null;
+            return;
         }
 
-        mWebViewResizingHelper.reset();
         if (isActivityFinishingOrDestroyed(mWindowAndroid)) {
             return;
         }
@@ -233,6 +233,14 @@ public class TabBottomSheetWebUi {
                         assumeNonNull(mWindowAndroid.getIntentRequestTracker()),
                         /* enablePermissionRequests= */ true);
         mWebViewResizingHelper.setThinWebView(mThinWebView, mWebContents);
+    }
+
+    private void destroyThinWebView() {
+        if (mThinWebView != null) {
+            mThinWebView.destroy();
+            mThinWebView = null;
+        }
+        mWebViewResizingHelper.reset();
     }
 
     @Nullable ThinWebView getThinWebViewForTesting() {
